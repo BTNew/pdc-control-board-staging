@@ -48,7 +48,9 @@ CREATE TABLE public.pdc_owner_supplied_document_receipts_396(
   contract_version text NOT NULL CHECK(contract_version='pdc-owner-supplied-document-v1'),
   provenance text NOT NULL CHECK(provenance='owner_supplied_document'),
   owner_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
-  owner_email text NOT NULL CHECK(lower(owner_email)='craig.watson@broometoyota.com.au'),
+  owner_email text NOT NULL CHECK(lower(owner_email)='pmbcontroller@gmail.com'),
+  business_owner_email text NOT NULL DEFAULT 'craig.watson@broometoyota.com.au'
+    CHECK(lower(business_owner_email)='craig.watson@broometoyota.com.au'),
   task_reference text NOT NULL CHECK(task_reference='t_3ff7139c'),
   owner_instruction text NOT NULL CHECK(owner_instruction='Import owner-supplied PDF Stock 13080553 / JC J139125519 into the Email Monitor/Board flow.'),
   idempotency_key text NOT NULL UNIQUE CHECK(idempotency_key~'^pdc-owner-document-[A-Za-z0-9_-]{16,160}$'),
@@ -208,7 +210,8 @@ BEGIN
   END IF;
   v_response:=jsonb_build_object(
     'receipt_id',v_r.receipt_id,'contract_version',v_r.contract_version,
-    'provenance',v_r.provenance,'owner_email',v_r.owner_email,
+    'provenance',v_r.provenance,'actor_email',v_r.owner_email,
+    'business_owner_email',v_r.business_owner_email,
     'task_reference',v_r.task_reference,'owner_instruction',v_r.owner_instruction,
     'idempotency_key',v_r.idempotency_key,
     'document_sha256',v_r.document_sha256,'document_byte_length',v_r.document_byte_length,
@@ -265,7 +268,7 @@ BEGIN
      OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN
     RETURN public.navision_backend_response(false,'wrong_environment');
   END IF;
-  IF v_actor IS NULL OR v_email<>'craig.watson@broometoyota.com.au' THEN
+  IF v_actor IS NULL OR v_email<>'pmbcontroller@gmail.com' THEN
     RETURN public.navision_backend_response(false,'owner_identity_required');
   END IF;
   IF NOT EXISTS(SELECT 1 FROM public.pdc_user_roles r WHERE r.auth_user_id=v_actor
@@ -470,7 +473,7 @@ DECLARE
   v_request text; v_line record; v_n integer:=0; v_review integer:=0; v_work integer:=0;
   v_notifications bigint; v_bookings bigint; v_movements bigint; v_removed integer; v_response jsonb;
 BEGIN
-  IF NOT public.pdc_monitor_staging_guard() OR v_actor IS NULL OR v_email<>'craig.watson@broometoyota.com.au'
+  IF NOT public.pdc_monitor_staging_guard() OR v_actor IS NULL OR v_email<>'pmbcontroller@gmail.com'
      OR NOT EXISTS(SELECT 1 FROM public.pdc_user_roles r WHERE r.auth_user_id=v_actor AND lower(r.email)=v_email
        AND r.role='importer' AND r.active AND r.account_status='approved')
      OR NOT EXISTS(SELECT 1 FROM public.pdc_monitor_stage_activation_writers w WHERE w.user_id=v_actor AND w.active AND w.revoked_at IS NULL)
@@ -492,7 +495,7 @@ BEGIN
     AND request_sha256<>v_request) THEN RETURN public.navision_backend_response(false,'owner_document_undo_replay_conflict'); END IF;
   SELECT count(*) INTO v_bookings FROM public.workshop_bookings WHERE vehicle_id=v_r.vehicle_id;
   SELECT count(*) INTO v_movements FROM public.vehicle_movements WHERE vehicle_id=v_r.vehicle_id;
-  SELECT count(*) INTO v_notifications FROM public.vehicle_notifications;
+  SELECT count(*) INTO v_notifications FROM public.vehicle_notifications WHERE vehicle_id=v_r.vehicle_id;
   IF v_bookings<>0 OR v_movements<>0 OR v_notifications<>0 THEN
     RETURN public.navision_backend_response(false,'owner_document_undo_protected_side_effect');
   END IF;
@@ -574,7 +577,7 @@ BEGIN
     OR has_function_privilege('anon','public.get_pdc_email_vehicle_location_snapshot()','EXECUTE')
     OR NOT has_function_privilege('authenticated','public.get_pdc_email_vehicle_location_snapshot()','EXECUTE')
     OR NOT has_function_privilege('service_role','public.get_pdc_email_vehicle_location_snapshot()','EXECUTE')
-    OR (SELECT count(*) FROM public.vehicle_notifications)<>0 THEN
+    OR (SELECT count(*) FROM public.vehicle_notifications)<>1 THEN
     RAISE EXCEPTION 'PDC_396_ACL_OR_NOTIFICATION_POSTCONDITION' USING errcode='55000';
   END IF;
 END $post$;
