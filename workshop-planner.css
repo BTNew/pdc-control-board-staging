@@ -1152,9 +1152,7 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
 .workshop-detail-summary strong { color: #0f172a; font-size: .76rem; }
 .workshop-detail-summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #64748b; font-size: .66rem; }
 .workshop-detail-summary-actions { display: flex; align-items: center; gap: 4px; }
-.workshop-detail-pin, .workshop-detail-toggle { min-height: 28px; padding: 3px 7px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155; font-size: .64rem; font-weight: 850; }
-.workshop-detail-pin.is-active { border-color: #2563eb; background: #dbeafe; color: #1e3a8a; }
-.workshop-detail-toggle { width: 30px; padding: 2px; font-size: 1rem; }
+.workshop-detail-toggle { width: 30px; min-height: 28px; padding: 2px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155; font-size: 1rem; font-weight: 850; }
 .workshop-detail-panel.is-expanded .workshop-detail-toggle span { display: inline-block; transform: rotate(180deg); }
 .workshop-detail-panel.is-collapsed .workshop-detail-content { display: none !important; min-height: 0; height: 0; overflow: hidden; }
 .workshop-detail-content { min-height: 0; }

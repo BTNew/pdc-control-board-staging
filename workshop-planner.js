@@ -3,7 +3,7 @@
 const WORKSHOP_PLAN_STORAGE_KEY = 'vehicleTrackingCoreWorkshopPlan:v1';
 const WORKSHOP_VIEW_STORAGE_KEY = 'vehicleTrackingCoreWorkshopView:v1';
 const WORKSHOP_BAY_SETUP_STORAGE_KEY = 'vehicleTrackingCoreWorkshopBaySetup:v1';
-const WORKSHOP_DETAIL_SESSION_KEY = 'vehicleTrackingCoreWorkshopDetailPanel:v1';
+
 // Stage 2A final remediation: all authoritative planner configuration is
 // integer minutes or validated collections. Fractional clock hours are never
 // stored and are never passed to Date APIs.
@@ -1174,25 +1174,6 @@ function workshopManualDurationSharedPayload(plan = {}, requestedHours = 0) {
   };
 }
 
-function workshopDetailSessionPreference() {
-  if (typeof sessionStorage === 'undefined') return { pinned: false };
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(WORKSHOP_DETAIL_SESSION_KEY) || '{}');
-    return { pinned: saved?.pinned === true };
-  } catch (_error) {
-    return { pinned: false };
-  }
-}
-
-function workshopSaveDetailSessionPreference(pinned = false) {
-  if (typeof sessionStorage === 'undefined') return;
-  try {
-    sessionStorage.setItem(WORKSHOP_DETAIL_SESSION_KEY, JSON.stringify({ pinned: pinned === true }));
-  } catch (_error) {
-    // The panel remains usable if browser session storage is unavailable.
-  }
-}
-
 function workshopLoadView() {
   const saved = typeof loadJson === 'function' ? loadJson(WORKSHOP_VIEW_STORAGE_KEY, {}) : {};
   const rawDate = workshopDateFromKey(saved?.date || '') || new Date();
@@ -1204,7 +1185,6 @@ function workshopLoadView() {
     search: '',
     searchOpen: false,
     searchHighlightPlanId: '',
-    detailPinnedOpen: false,
     detailManualOpen: false,
     detailCollapsedForSelection: false,
   };
@@ -3392,20 +3372,6 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   </article>`;
 }
 
-function workshopCompletedCardHtml(entry = {}) {
-  const vehicle = workshopVehicle(entry.vehicleKey);
-  if (!vehicle) return '';
-  const actual = Number(entry.actualHours);
-  const timeSummary = Number.isFinite(actual) ? `Actual ${actual}h · Est ${entry.hours}h` : workshopEntryTimeLabel(entry);
-  const highlighted = workshopState().searchHighlightPlanId
-    ? workshopState().searchHighlightPlanId === entry.id
-    : workshopState().highlightVehicleKey === entry.vehicleKey;
-  return `<button class="workshop-completed-card ${highlighted ? 'is-search-match' : ''}" type="button" data-workshop-select-plan="${escapeHtml(entry.id)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}">
-    <strong>✓ ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
-    <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
-    <small>${escapeHtml(`Bay ${entry.bay}`)} · ${escapeHtml(timeSummary)}</small>
-  </button>`;
-}
 
 function workshopTimeAxisHtml() {
   const tickCount = Math.floor(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes / 60);
@@ -4062,11 +4028,8 @@ function bindWorkshopPlanner(root) {
       const button = event.target.closest?.('[data-workshop-load-more]');
       if (!button || !root.contains(button)) return;
       const state = workshopState();
-      if (button.dataset.workshopLoadMore === 'queue') {
-        state.incrementalQueueLimit = (Number(state.incrementalQueueLimit) || WORKSHOP_INCREMENTAL_RENDER_BATCH) + WORKSHOP_INCREMENTAL_RENDER_BATCH;
-      } else if (button.dataset.workshopLoadMore === 'completed') {
-        state.incrementalCompletedLimit = (Number(state.incrementalCompletedLimit) || WORKSHOP_INCREMENTAL_RENDER_BATCH) + WORKSHOP_INCREMENTAL_RENDER_BATCH;
-      } else return;
+      if (button.dataset.workshopLoadMore !== 'queue') return;
+      state.incrementalQueueLimit = (Number(state.incrementalQueueLimit) || WORKSHOP_INCREMENTAL_RENDER_BATCH) + WORKSHOP_INCREMENTAL_RENDER_BATCH;
       renderWorkshopPlanner();
     });
   }

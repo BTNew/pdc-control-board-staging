@@ -30,6 +30,10 @@ const detailStart = planner.indexOf('function workshopDetailPanelHtml');
 const detailEnd = planner.indexOf('\nfunction ', detailStart + 20);
 const detail = planner.slice(detailStart, detailEnd);
 assert.doesNotMatch(detail, /data-workshop-detail-pin|Pinned|>Pin</);
+assert.doesNotMatch(planner, /WORKSHOP_DETAIL_SESSION_KEY|workshopDetailSessionPreference|workshopSaveDetailSessionPreference|detailPinnedOpen/,
+  'Pin persistence and state are removed entirely');
+assert.doesNotMatch(planner, /function workshopCompletedCardHtml|incrementalCompletedLimit|workshopLoadMore === 'completed'/,
+  'Completed planner presentation code is removed');
 const bindStart = planner.indexOf('function bindWorkshopPlanner');
 const bindEnd = planner.indexOf('function bindWorkshopLane', bindStart);
 assert.doesNotMatch(planner.slice(bindStart, bindEnd), /data-workshop-detail-pin/);
