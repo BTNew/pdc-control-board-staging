@@ -4116,8 +4116,18 @@ function openWorkshopAdminBlockModal() {
       <label><span>Duration</span><input name="durationValue" type="number" min="0.25" step="0.25" value="0.5" required aria-label="Admin block duration" /></label>
     </div><p class="workshop-schedule-note">Hours and working days are converted to exact configured operational minutes. Breaks, closures, weekends and overtime are skipped. The safe representational bound is ${WORKSHOP_ADMIN_SAFE_DURATION_DAYS} configured working days; longer requests receive an inline error.</p>
     <div class="edit-actions"><button class="secondary" type="button" data-admin-block-cancel>Cancel</button><button class="primary" type="submit">Create Admin block</button></div></form></section>`;
-  const close = () => { overlay.remove(); if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open'); };
+  const opener = document.activeElement;
+  const close = () => {
+    overlay.remove();
+    if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
+    if (opener?.isConnected && typeof opener.focus === 'function') opener.focus();
+  };
   overlay.querySelectorAll('[data-admin-block-cancel]').forEach(button => button.addEventListener('click', close));
+  overlay.addEventListener('keydown', event => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    close();
+  });
   overlay.querySelector('[data-admin-block-form]').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
