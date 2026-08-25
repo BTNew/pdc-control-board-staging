@@ -8,8 +8,8 @@ const index = fs.readFileSync('index.html', 'utf8');
 const planner = fs.readFileSync('workshop-planner.js', 'utf8');
 const migration = fs.readFileSync('supabase/staging_only/20260826170000_411_yh_workshop_eligibility_hide_test_fleet.sql', 'utf8');
 
-assert.match(app, /const APP_VERSION = '2026\.08\.26\.12-collected-projection'/);
-assert.match(index, /app\.js\?v=2026\.08\.26\.12-collected-projection/);
+assert.match(app, /const APP_VERSION = '2026\.08\.26\.13-workshop-detail-selection'/);
+assert.match(index, /app\.js\?v=2026\.08\.26\.13-workshop-detail-selection/);
 assert.match(app, /photoReceiptId: result\.data\.photo_receipt_id/);
 assert.match(app, /const hasSalesperson = Boolean/);
 assert.match(app, /Assign an active salesperson with an email address before final sign-off/);

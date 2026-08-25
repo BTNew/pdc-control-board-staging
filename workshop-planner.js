@@ -4172,10 +4172,14 @@ function renderWorkshopPlanner(options = {}) {
   if (pendingBookingLink && /^\d{4}-\d{2}-\d{2}$/.test(String(pendingBookingLink.date || ''))) state.date = pendingBookingLink.date;
   workshopApplyOpenDateDefault(state);
   const dedicatedStage = normalizePmbStage(window.__activeWorkshopPlannerStage || '');
-  const requestedStage = dedicatedStage || normalizePmbStage(app.pendingWorkshopStage || '');
+  const pendingStage = normalizePmbStage(app.pendingWorkshopStage || '');
+  const requestedStage = dedicatedStage || pendingStage;
   if (WORKSHOP_STAGE_SEQUENCE.includes(requestedStage)) {
+    const stageChanged = state.stage !== requestedStage;
     state.stage = requestedStage;
-    workshopClearSelectedDetail(state);
+    // A dedicated station re-renders after selection and Realtime refresh.
+    // Preserve detail unless navigation actually changed the station.
+    if (stageChanged || pendingStage) workshopClearSelectedDetail(state);
     app.pendingWorkshopStage = '';
   }
   const stage = dedicatedStage || (WORKSHOP_VISIBLE_STAGE_SEQUENCE.includes(state.stage) ? state.stage : 'FABRICATION');

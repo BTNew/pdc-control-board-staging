@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.26.12-collected-projection",
+  "application_version": "2026.08.26.13-workshop-detail-selection",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
