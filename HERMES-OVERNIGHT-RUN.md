@@ -378,6 +378,12 @@ None at this checkpoint. Registry-bound synthetic stress mutation is now commiss
 - Durable worker: recurring job `eb093eca975c` was paused after the final gate and read back as paused. The separately scheduled one-shot final-report job remains available to deliver the committed outcome.
 - Exact next action: no further overnight work. Preserve the disabled Monitor/mailbox/writer/notification state and use this branch plus its immutable evidence for review. Any Production deployment or write requires separate explicit approval.
 
+## Acceptance-closure synthetic reservations — 2026-08-25
+
+- Craig's successor acceptance-closure authority reserves `HERMES-TEST-AC-A`, `HERMES-TEST-AC-B` and `HERMES-TEST-AC-C` under run ID `HERMES-TEST-ACCEPTANCE-20260825` for standard, exact-918-minute and concurrent journeys.
+- They may be created only through the reviewed Administrator UI/RPC reservation contract, then mutated only through authenticated application actions with expected versions, durable receipts, audit history, zero notifications and the protected 153-vehicle digest held unchanged.
+- At this checkpoint these are source reservations only: no migration, registry, vehicle or journey mutation has been applied because the protected digest changed externally after the acceptance baseline.
+
 ## Final report
 ### Outcome
 - **READY_FOR_FINAL_REPORT.** The isolated staging Board completed the ten-hour hardening run with no unresolved application defect found in the final regression.

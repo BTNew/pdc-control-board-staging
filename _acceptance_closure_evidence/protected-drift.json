@@ -1,0 +1,21 @@
+{
+  "schema": "pdc-acceptance-protected-drift-v1",
+  "observed_at": "2026-08-25T07:49:03+08:00",
+  "baseline": {
+    "rows": 1413,
+    "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+  },
+  "current": {
+    "rows": 1417,
+    "sha256": "59f39359cf9722b70fbfff3e3d1fd4b1bbfe52f59ae16a19d68cd0ca12263c96"
+  },
+  "migration_head": {
+    "version": "20260825110000",
+    "name": "374_overnight_qc_fixture_registry_assignment"
+  },
+  "notifications": 0,
+  "monitor_status": "stopped",
+  "acceptance_registry_375_present": false,
+  "agent_mutation_applied": false,
+  "effect": "All further staging database and synthetic-record mutations stopped. Source, local tests, read-only diagnosis, staging Pages publication, and report work may continue independently."
+}

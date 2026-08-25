@@ -1,0 +1,71 @@
+{
+  "branch": "hermes/pdc-acceptance-closure-20260825",
+  "database": {
+    "active_activation_writers": 0,
+    "active_mailboxes": 0,
+    "authoritative_synthetic_vehicle_total": 20,
+    "duplicate_actor_idempotency": 0,
+    "duplicate_receipt_ids": 0,
+    "duplicate_stocks": 0,
+    "management_visible_protected_state": {
+      "rows": 716,
+      "sha256": "5e55bba95f78eb99878fca9098e15277747d22d064d76617c857d8ab3ccf6a5f"
+    },
+    "migration_head": {
+      "name": "374_overnight_qc_fixture_registry_assignment",
+      "version": "20260825110000"
+    },
+    "monitor_status": "stopped",
+    "outbound_notification_rows": 0,
+    "pending_outbound_notifications": 0,
+    "production_sentinel_absent": true,
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "protected_state": {
+      "rows": 1413,
+      "sha256": "28476c8fac93aa03707b20a84b4b836b4268c96fa6710bf1238f0f6ebb265f11"
+    },
+    "staging_sentinel_rows": 1,
+    "synthetic_vehicle_total": 20,
+    "vehicle_total": 173
+  },
+  "pages_build": {
+    "commit": "a2f76381c85c91cc155b705ae91e46f727663be8",
+    "created_at": "2026-08-24T19:23:01Z",
+    "duration": 84003,
+    "error": {
+      "message": null
+    },
+    "pusher": {
+      "avatar_url": "https://avatars.githubusercontent.com/u/294657264?v=4",
+      "events_url": "https://api.github.com/users/BTNew/events{/privacy}",
+      "followers_url": "https://api.github.com/users/BTNew/followers",
+      "following_url": "https://api.github.com/users/BTNew/following{/other_user}",
+      "gists_url": "https://api.github.com/users/BTNew/gists{/gist_id}",
+      "gravatar_id": "",
+      "html_url": "https://github.com/BTNew",
+      "id": 294657264,
+      "login": "BTNew",
+      "node_id": "U_kgDOEZAc8A",
+      "organizations_url": "https://api.github.com/users/BTNew/orgs",
+      "received_events_url": "https://api.github.com/users/BTNew/received_events",
+      "repos_url": "https://api.github.com/users/BTNew/repos",
+      "site_admin": false,
+      "starred_url": "https://api.github.com/users/BTNew/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/BTNew/subscriptions",
+      "type": "User",
+      "url": "https://api.github.com/users/BTNew",
+      "user_view_type": "public"
+    },
+    "status": "built",
+    "updated_at": "2026-08-24T19:24:25Z",
+    "url": "https://api.github.com/repos/BTNew/pdc-control-board-staging/pages/builds/1172605534"
+  },
+  "production_contacted": false,
+  "recorded_at_utc": "2026-08-24T23:01:24.047451+00:00",
+  "schema": "pdc-acceptance-closure-baseline-v1",
+  "staging_repository": "https://github.com/BTNew/pdc-control-board-staging.git",
+  "staging_website": "https://btnew.github.io/pdc-control-board-staging/",
+  "starting_commit": "657341e766b8c35c862c40902aeb396bbc5e2f60",
+  "starting_tree": "dc2fd4e2fb010864e107d4a65564405205df322b",
+  "website_identity": "PDC Control Board \u2014 STAGING"
+}
