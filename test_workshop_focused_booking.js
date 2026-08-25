@@ -19,7 +19,7 @@ for (const marker of [
   'data-workshop-focused-back',
   'focusedPlans',
   'Exact planned hours',
-  'min="1" step="any"',
+  'min="0.0166667" step="any"',
   'data-workshop-detail-form',
 ]) assert.ok(planner.includes(marker), `planner contains ${marker}`);
 assert.ok(!/data-workshop-extend-hours="0\.25"[^]*>\+15m/.test(planner), 'legacy +15m duration control removed');

@@ -27,6 +27,10 @@ assert.ok(source.includes('workshopExactDurationHours(workshopCalculatedStageHou
   'shared scheduling derives exact duration from the complete authenticated operation-line projection');
 assert.ok(source.includes('const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);'));
 assert.ok(source.includes('readonly title="Uses the canonical operation-line estimate"'));
+assert.ok(source.includes('name="hours" type="number" min="0.0166667"'),
+  'the detail form must accept any positive whole-minute duration, including 47 minutes');
+assert.ok(!source.includes('name="hours" type="number" min="1"'),
+  'the detail form must not reject valid sub-hour bookings');
 assert.ok(source.includes('Configured hours ${workshopTimeLabelFromMinutes(0)}–${workshopTimeLabelFromMinutes(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes)}'), 'planner header renders authoritative configured hours');
 assert.ok(!source.includes('Monday–Friday, 8:00am–4:00pm.'), 'planner must not display stale hard-coded hours');
 
@@ -34,7 +38,7 @@ const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const staging = fs.readFileSync('staging.html', 'utf8');
 const version = app.match(/const APP_VERSION = '([^']+)'/)?.[1];
-assert.strictEqual(version, '2026.08.26.13-workshop-detail-selection');
+assert.strictEqual(version, '2026.08.26.14-workshop-subhour-duration');
 assert.ok(index.includes(`app.js?v=${version}`));
 assert.match(staging, /http-equiv=["']refresh["'][^>]+content=["']0;\s*url=\.\/["']/i);
 
