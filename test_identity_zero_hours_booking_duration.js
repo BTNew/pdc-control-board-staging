@@ -107,7 +107,18 @@ const canonicalVehicle = {
   workshopEstimatedHoursByStage: { FITTING: 8.5 },
   workshopAdditionalHoursByStage: {},
 };
-assert.strictEqual(planner.workshopCalculatedStageHours(canonicalVehicle, 'FITTING'), 8.6, 'server-adjusted operation projection wins over stale saved hours');
+assert.strictEqual(planner.workshopCalculatedStageHours(canonicalVehicle, 'FITTING'), 8.6, 'unscoped Board projection still totals exact authenticated lines');
+const fittingMismatchVehicle = {
+  ...canonicalVehicle,
+  __workshopStationSnapshotAuthoritative: true,
+  pdcEmailOperationLines: [
+    { operation_line_id: '00000000-0000-4000-8000-000000000005', operation_no: 'OP1', description: 'Tow bar originally classified as fabrication', estimated_hours: 1.6, work_key: 'fabrication' },
+    { operation_line_id: '00000000-0000-4000-8000-000000000006', operation_no: 'OP2', description: 'Long range tank moved to Hoist', estimated_hours: 1.9, work_key: 'fitting' },
+  ],
+  workshopEstimatedHoursByStage: { FITTING: 1.6 },
+};
+assert.strictEqual(planner.workshopCalculatedStageHours(fittingMismatchVehicle, 'FITTING'), 1.6, 'Stock 12704245-style adjusted Fitting authority overrides stale 1.90h raw line');
+assert.strictEqual(Math.round(planner.workshopExactDurationHours(planner.workshopCalculatedStageHours(fittingMismatchVehicle, 'FITTING')) * 60), 96, 'Fitting booking submits the server expected 96 minutes');
 assert.strictEqual(Math.round(planner.workshopExactDurationHours(planner.workshopCalculatedStageHours(canonicalVehicle, 'FITTING')) * 60), 516, 'booking uses exact whole minutes');
 
 console.log('identity, zero-hour projection and authoritative booking duration: PASS');
