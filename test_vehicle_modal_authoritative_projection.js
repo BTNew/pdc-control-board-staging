@@ -69,8 +69,13 @@ assert.match(source, /const cachedAuthoritative = vehicleModalBoundVehicle\(\)/)
 assert.match(source, /const cachedReady = Boolean\(cachedAuthoritative/);
 assert.match(source, /if \(cachedReady\) renderDetail\(\)/);
 assert.match(source, /app\.vehicleModalIdentityReady = true/);
-assert.match(source, /void Promise\.allSettled\(\[/);
-assert.doesNotMatch(source, /await refreshSharedVehicleWorkState\(refreshed\)/);
+const openModalStart = source.indexOf('function openVehicleModal');
+const openModalEnd = source.indexOf('\nfunction openAuthenticatedOperationWorkshop', openModalStart);
+const openModalBody = source.slice(openModalStart, openModalEnd);
+assert.match(openModalBody, /loadVehicleWorkshopDetail\(cachedAuthoritative, \{ force: true \}\)/);
+assert.match(openModalBody, /loadVehicleWorkshopDetail\(refreshed, \{ force: true \}\)/);
+assert.doesNotMatch(openModalBody, /refreshSharedVehicleWorkState\(/,
+  'opening one modal must not replace the shared snapshot work states on that surface only');
 assert.match(source, /Authoritative vehicle details could not be loaded/);
 assert.match(source, /let authoritativeSaveVehicle = v/);
 assert.match(source, /authoritativeSaveVehicle = authoritativeResult\.data\?\.authoritativeVehicle \|\| vehicleModalBoundVehicle\(\) \|\| v/);

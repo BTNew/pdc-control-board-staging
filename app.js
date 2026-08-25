@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.16-workshop-subhour-save';
+const APP_VERSION = '2026.08.26.17-work-state-consistency';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -12914,10 +12914,11 @@ function openVehicleModal(stock) {
   $('#modal-close')?.focus();
   const identityAtOpen = app.vehicleModalIdentity;
   if (cachedReady) {
-    void Promise.allSettled([
-      refreshSharedVehicleWorkState(cachedAuthoritative),
-      loadVehicleWorkshopDetail(cachedAuthoritative, { force: true }),
-    ]).then(() => {
+    // The canonical vehicle snapshot is the single authority for required-work
+    // states on the modal, vehicle pills and Vehicle Locations icons. Loading
+    // booking detail must not replace those states with a second direct-table
+    // projection after only the modal has rendered.
+    void loadVehicleWorkshopDetail(cachedAuthoritative, { force: true }).then(() => {
       if (app.vehicleModalIdentity === identityAtOpen && !modal.hidden) renderDetail();
     });
   }
@@ -12937,10 +12938,7 @@ function openVehicleModal(stock) {
       app.vehicleModalIdentityReady = true;
       app.vehicleModalLoadingIdentity = false;
       if (!modal.hidden) renderDetail();
-      void Promise.allSettled([
-        refreshSharedVehicleWorkState(refreshed),
-        loadVehicleWorkshopDetail(refreshed, { force: true }),
-      ]).then(() => {
+      void loadVehicleWorkshopDetail(refreshed, { force: true }).then(() => {
         if (app.vehicleModalIdentity === identityAtOpen && !modal.hidden) renderDetail();
       });
     } finally {

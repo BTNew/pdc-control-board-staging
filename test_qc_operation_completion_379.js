@@ -22,9 +22,9 @@ assert.deepStrictEqual(missingProjectionRow.pdcQcOperationLines, [], 'missing QC
 
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
-assert.match(app, /const APP_VERSION = '2026\.08\.26\.16-workshop-subhour-save'/);
+assert.match(app, /const APP_VERSION = '2026\.08\.26\.17-work-state-consistency'/);
   assert.match(index, /pdc-email-vehicle-location-service\.js\?v=2026\.08\.26\.12-collected-projection/);
-  assert.match(index, /app\.js\?v=2026\.08\.26\.16-workshop-subhour-save/);
+  assert.match(index, /app\.js\?v=2026\.08\.26\.17-work-state-consistency/);
 const start = app.indexOf('function qcPageOperationLines');
 const end = app.indexOf('\nfunction qcPageVehicleCardHtml', start);
 const context = {
