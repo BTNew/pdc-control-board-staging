@@ -8,7 +8,7 @@
 - `test_staging_containment_drift_repair_436.js` — migration, effective-function repair and protected-boundary regression coverage.
 - `test_registered_replay_containment_repair_437.js` — registered replay containment and protected-boundary regression coverage.
 - `test_acceptance_stale_fast_path_438.js` — stale rejection ordering, containment, ACL and protected-boundary regression coverage.
-- `deployment-identity.json` — exact 437 staging migration provenance.
+- `deployment-identity.json` — exact 438 staging migration provenance.
 
 ## Receipt-backed QC photo finalization and canonical Sublet provider writes — 2026-08-26
 
