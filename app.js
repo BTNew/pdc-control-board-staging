@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.05-qc-salesperson-gate';
+const APP_VERSION = '2026.08.26.06-authoritative-vehicle-card';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -1954,6 +1954,7 @@ const app = {
   // when it opened. Refresh/realtime must never retarget it by index or first
   // visible row.
   vehicleModalIdentity: null,
+  vehicleModalIdentityReady: false,
   vehicleDetailPage: 'details',
   vehicleWorkshopDetailCache: new Map(),
   vehicleWorkshopDetailRequestGeneration: 0,
@@ -4387,7 +4388,9 @@ function applyPendingAuthoritativeVehicleReceiptOverlays(serverRows = []) {
   });
 }
 function applyAuthoritativeVehicleReadbackRow(row = {}) {
-  const module = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  const module = typeof window !== 'undefined'
+    ? window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE
+    : globalThis.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
   if (!row || typeof module?.mapServerVehicle !== 'function') return null;
   const mapped = module.mapServerVehicle(row);
   const canonicalId = String(mapped.__emailVehicleId || row.id || '').trim();
@@ -4486,7 +4489,9 @@ async function refreshEmailVehicleLocations() {
   if (!response.ok) return false;
   const serverRows = applyPendingAuthoritativeVehicleReceiptOverlays(Array.isArray(response.data?.vehicles) ? response.data.vehicles : []);
   app.emailVehicleLocationRows = applyPendingSharedWorkStateOverlays(serverRows);
-  const module = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  const module = typeof window !== 'undefined'
+    ? window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE
+    : globalThis.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
   if (typeof module?.reconcileVehicleRows === 'function') {
     const reconciled = module.reconcileVehicleRows(app.data, serverRows, { authoritative: true });
     runStorageTransaction('Reconcile authoritative email vehicles', [EDITS_KEY, ADDED_KEY, DELETED_KEY], () => {
@@ -4509,7 +4514,9 @@ async function refreshEmailVehicleLocations() {
 
 function initEmailVehicleLocationsIfAvailable() {
   if (!window.PDC_AUTH_CONTEXT || !getPdcSupabaseAccessToken()) return null;
-  const module = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  const module = typeof window !== 'undefined'
+    ? window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE
+    : globalThis.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
   if (typeof module?.createPdcEmailVehicleLocationService !== 'function') return null;
   if (!app.emailVehicleLocationService) {
     try {
@@ -12620,20 +12627,44 @@ function vehicleModalBoundVehicle() {
   if (!identity) return null;
   const canonicalId = String(identity.canonicalId || '').trim();
   const stockBaseline = String(identity.stockBaseline || '').trim();
-  const sources = [
-    ...(Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : []),
-    ...(Array.isArray(app.data) ? app.data : []),
-  ];
+  const module = typeof window !== 'undefined'
+    ? window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE
+    : globalThis.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  // The snapshot array intentionally retains raw snake_case server rows. Never
+  // hand one of those rows to the camelCase vehicle-card renderer: doing so
+  // blanks Stock/customer/salesperson while booking overlays can still appear.
+  // Map the one exact UUID+Stock row at the modal boundary every time.
+  const rawCanonicalRows = (Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : []).filter(vehicle => (
+    String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() === canonicalId
+  ));
+  const rawCanonicalStocks = new Set(rawCanonicalRows.map(vehicleModalIdentityStock).filter(Boolean));
+  if (rawCanonicalStocks.size > 1) return null;
+  const rawMatches = rawCanonicalRows.filter(vehicle => (
+    String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() === canonicalId
+      && vehicleModalIdentityStock(vehicle) === stockBaseline
+  ));
+  if (rawMatches.length > 1) return null;
+  if (rawMatches.length === 1 && typeof module?.mapServerVehicle === 'function') {
+    const mapped = module.mapServerVehicle(rawMatches[0]);
+    if (!mapped || mapped.__emailVehicleServerAuthoritative !== true
+        || String(vehicleWorkshopDetailCanonicalId(mapped) || '').trim() !== canonicalId
+        || vehicleModalIdentityStock(mapped) !== stockBaseline
+        || mapped.__emailVehicleIdentityConflict === true) return null;
+    return applySharedWorkStateCache([mapped])[0] || mapped;
+  }
+  // A bounded receipt overlay may temporarily make the mapped Board row newer
+  // than the next snapshot. Fallback only to server-authoritative DTOs and pick
+  // the highest accepted version; never fall back to a legacy/local row.
   const canonicalRows = new Map();
-  sources.forEach(vehicle => {
-    if (String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() !== canonicalId) return;
-    const stock = vehicleModalIdentityStock(vehicle);
-    // Raw snapshot and mapped Board rows can represent the same canonical UUID.
-    // A projection without Stock is not a conflicting identity; ignore it.
-    if (!stock) return;
-    const existing = canonicalRows.get(stock);
-    if (!existing || (vehicle.__emailVehicleId && !existing.__emailVehicleId)) canonicalRows.set(stock, vehicle);
-  });
+  (Array.isArray(app.data) ? app.data : [])
+    .filter(vehicle => vehicle?.__emailVehicleServerAuthoritative === true || Boolean(vehicle?.__emailVehicleId))
+    .forEach(vehicle => {
+      if (String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() !== canonicalId) return;
+      const stock = vehicleModalIdentityStock(vehicle);
+      if (!stock) return;
+      const existing = canonicalRows.get(stock);
+      if (!existing || Number(vehicle.__emailVehicleVersion || 0) > Number(existing.__emailVehicleVersion || 0)) canonicalRows.set(stock, vehicle);
+    });
   if (canonicalRows.size !== 1 || !canonicalRows.has(stockBaseline)) return null;
   const bound = canonicalRows.get(stockBaseline);
   return bound?.__emailVehicleIdentityConflict === true ? null : bound;
@@ -12823,6 +12854,7 @@ function openVehicleModal(stock) {
     canonicalId: vehicleWorkshopDetailCanonicalId(vehicle),
     stockBaseline: vehicleModalIdentityStock(vehicle),
   });
+  app.vehicleModalIdentityReady = false;
   if (!app.vehicleModalIdentity.canonicalId || !app.vehicleModalIdentity.stockBaseline) {
     app.vehicleModalIdentity = null;
     window.alert('The exact vehicle identity is unavailable. Refresh the list and try again. No vehicle was changed.');
@@ -12838,14 +12870,20 @@ function openVehicleModal(stock) {
   modal.hidden = false;
   document.body.classList.add('modal-open');
   $('#modal-close')?.focus();
+  const identityAtOpen = app.vehicleModalIdentity;
   void (async () => {
+    let ready = false;
     try {
-      await refreshEmailVehicleLocations();
+      const refreshedOk = await refreshEmailVehicleLocations();
+      if (!refreshedOk || app.vehicleModalIdentity !== identityAtOpen) return;
       const refreshed = vehicleModalBoundVehicle();
       if (!refreshed || !vehicleModalIdentityMatches(refreshed)) return;
       await refreshSharedVehicleWorkState(refreshed);
       await loadVehicleWorkshopDetail(refreshed, { force: true });
+      ready = true;
     } finally {
+      if (app.vehicleModalIdentity !== identityAtOpen) return;
+      app.vehicleModalIdentityReady = ready;
       app.vehicleModalLoadingIdentity = false;
       if (!modal.hidden) renderDetail();
     }
@@ -12889,6 +12927,7 @@ function closeVehicleModal() {
   app.vehicleWorkshopDetailRequestGeneration += 1;
   app.vehicleDetailPage = 'details';
   app.vehicleModalLoadingIdentity = false;
+  app.vehicleModalIdentityReady = false;
   app.activeVehicleDetail = null;
   app.vehicleModalIdentity = null;
   if (!modal || modal.hidden) return;
@@ -13050,6 +13089,13 @@ function renderDetail() {
   if (app.vehicleModalLoadingIdentity === true) {
     app.activeVehicleDetail = null;
     panel.innerHTML = '<div class="empty-state vehicle-detail-loading" role="status"><strong>Loading authoritative vehicle details…</strong><span>The exact Stock and vehicle UUID are being refreshed from staging before this card becomes editable.</span></div>';
+    return;
+  }
+  if (app.vehicleModalIdentity && app.vehicleModalIdentityReady !== true) {
+    const stock = escapeHtml(app.vehicleModalIdentity.stockBaseline || 'the selected Stock');
+    app.activeVehicleDetail = null;
+    panel.innerHTML = `<div class="empty-state vehicle-identity-fail-closed" role="alert"><strong>Authoritative vehicle details could not be loaded</strong><span>Stock ${stock} remains read-only. Close and reopen this Stock after the staging connection recovers. No vehicle was changed.</span><button type="button" class="primary" data-modal-cancel>Close</button></div>`;
+    panel.querySelector('[data-modal-cancel]')?.addEventListener('click', closeVehicleModal);
     return;
   }
   if (!v && app.vehicleModalIdentity) {
@@ -13281,6 +13327,7 @@ function renderDetail() {
       return;
     }
     let authoritativeResult = null;
+    let authoritativeSaveVehicle = v;
     if (serverAuthoritative && (salespersonChanged || Object.keys(detailChanges).length)) {
       if (saveButton) { saveButton.disabled = true; saveButton.setAttribute('aria-busy', 'true'); }
       if (saveMessage) saveMessage.textContent = 'Saving…';
@@ -13290,6 +13337,7 @@ function renderDetail() {
         if (saveMessage) saveMessage.textContent = `Error: ${authoritativeResult?.code || 'authoritative_vehicle_save_failed'}`;
         return;
       }
+      authoritativeSaveVehicle = authoritativeResult.data?.authoritativeVehicle || vehicleModalBoundVehicle() || v;
     }
     const updates = { client, keyNumber, pdcJobcard, consultant, internalStatus, pdcLocation, pmbStage, pdcBlocked, pdcBlockReason: pdcBlockReasonValue, ...requirementUpdates, ...completionUpdates };
     const hasIndependentPdcWork = Boolean(
@@ -13309,7 +13357,7 @@ function renderDetail() {
         def.key,
         completionUpdates[def.completeKey] ? 'complete' : requirementUpdates[def.requireKey] ? 'required' : 'none',
       ]));
-      const sharedResult = await saveSharedVehicleWorkStates(v, workStates);
+      const sharedResult = await saveSharedVehicleWorkStates(authoritativeSaveVehicle, workStates);
       if (!sharedResult || sharedResult.ok !== true) {
         if (submit) submit.disabled = false;
         if (saveMessage) saveMessage.textContent = 'Not saved';
