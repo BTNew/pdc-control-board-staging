@@ -1,0 +1,14 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/20260827001000_451_parts_order_notification_delta.sql', 'utf8');
+assert.match(sql, /v_head IS DISTINCT FROM '20260827000000'/);
+assert.match(sql, /CREATE OR REPLACE FUNCTION public\.mark_pdc_parts_ordered_377/);
+assert.doesNotMatch(sql, /v_notifications<>0/);
+assert.doesNotMatch(sql, /vehicle_notifications\)<>0/);
+assert.match(sql, /vehicle_notifications\)<>v_notifications/);
+assert.match(sql, /'notification_count_before',v_notifications/);
+assert.match(sql, /'notification_count_after',\(SELECT count\(\*\) FROM public\.vehicle_notifications\)/);
+assert.match(sql, /'notification_delta',0/);
+assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.mark_pdc_parts_ordered_377\(uuid,integer,uuid\) TO authenticated/);
+console.log('Parts ordered notification-delta containment 451: PASS');

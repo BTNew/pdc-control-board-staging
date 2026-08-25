@@ -41,14 +41,14 @@ assert.ok(source.includes('extendsDuration && Date.parse(nextStartAt) !== Date.p
   'equivalent ISO timestamps must not be treated as a simultaneous start-time change');
 assert.ok(!source.includes('extendsDuration && nextStartAt !== entry.startAt'),
   'duration extension must compare timestamp instants rather than ISO formatting');
-assert.ok(source.includes('Configured hours ${workshopTimeLabelFromMinutes(0)}–${workshopTimeLabelFromMinutes(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes)}'), 'planner header renders authoritative configured hours');
+assert.ok(!source.includes('Configured hours ${workshopTimeLabelFromMinutes(0)}–${workshopTimeLabelFromMinutes(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes)}'), 'planner header must not grow vertically with explanatory hours text');
 assert.ok(!source.includes('Monday–Friday, 8:00am–4:00pm.'), 'planner must not display stale hard-coded hours');
 
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const staging = fs.readFileSync('staging.html', 'utf8');
 const version = app.match(/const APP_VERSION = '([^']+)'/)?.[1];
-assert.strictEqual(version, '2026.08.26.18-rft-detail-lifecycle');
+assert.strictEqual(version, '2026.08.27.01-operational-closure');
 assert.ok(index.includes(`app.js?v=${version}`));
 assert.match(staging, /http-equiv=["']refresh["'][^>]+content=["']0;\s*url=\.\/["']/i);
 

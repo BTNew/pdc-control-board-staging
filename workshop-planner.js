@@ -4262,7 +4262,7 @@ function renderWorkshopPlanner(options = {}) {
   renderHost.innerHTML = `<div class="${dedicatedStage ? 'workshop-planner workshop-station-board' : 'workshop-planner'}${focusedBookingMode ? ' is-focused-booking' : ''}" data-planner-stage="${escapeHtml(stage)}">
     ${sharedBanner}
     <header class="workshop-planner-header">
-      <div><h2>${escapeHtml(focusedBookingMode ? 'Focused Workshop booking' : (dedicatedStage ? 'Selected station schedule' : 'Workshop bay planner'))}</h2><p>${escapeHtml(focusedBookingMode ? 'Authoritative booking detail · exact authenticated operation lines and whole-minute duration.' : `Configured hours ${workshopTimeLabelFromMinutes(0)}–${workshopTimeLabelFromMinutes(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes)}. Long jobs carry into the next configured workday; overlapping bay bookings are blocked.`)}</p></div>
+      <div><h2>${escapeHtml(focusedBookingMode ? 'Focused Workshop booking' : (dedicatedStage ? 'Selected station schedule' : 'Workshop bay planner'))}</h2></div>
       <div class="workshop-date-controls">
         ${focusedBookingMode ? '<button class="small-button" type="button" data-workshop-focused-back>← Back to Workshop planner</button>' : ''}
         <div class="workshop-date-nav">

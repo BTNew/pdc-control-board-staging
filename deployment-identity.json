@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.26.18-rft-detail-lifecycle",
+  "application_version": "2026.08.27.01-operational-closure",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -8,13 +8,13 @@
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": null,
   "observed_applied_database_migration": {
-    "version": "20260826223000",
-    "name": "440_acceptance_stale_nonretryable",
-    "file": "supabase/staging_only/20260826223000_440_acceptance_stale_nonretryable.sql",
-    "sha256": "03486635f7494e4d56ef04d0ccf7b5fbb56e221985f3f60a597f3c96c80ded95",
+    "version": "20260827003000",
+    "name": "453_workshop_detail_lifecycle_read",
+    "file": "supabase/staging_only/20260827003000_453_workshop_detail_lifecycle_read.sql",
+    "sha256": "3f0b7eb87f40046f6127af3b488f40ebc058b5b38f8e0c1cecf9a283e5c2e77f",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain 432-440 through the protected migration controller and authoritative migration-ledger readback."
+    "source": "Verified append-only staging-only migration chain through 453 using the protected migration controller and authoritative migration-ledger readback."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",

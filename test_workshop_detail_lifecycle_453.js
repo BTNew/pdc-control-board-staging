@@ -1,0 +1,11 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/20260827003000_453_workshop_detail_lifecycle_read.sql', 'utf8');
+assert.match(sql, /v_head IS DISTINCT FROM '20260827002000'/);
+assert.match(sql, /get_vehicle_workshop_detail\(uuid\)/);
+assert.match(sql, /v\.lifecycle_state IN\(''active'',''rft'',''completed''\)/);
+assert.match(sql, /REVOKE ALL ON FUNCTION public\.get_vehicle_workshop_detail\(uuid\) FROM public,anon,service_role/);
+assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.get_vehicle_workshop_detail\(uuid\) TO authenticated/);
+assert.match(sql, /RFT Open vehicle no longer reports vehicle_not_found/);
+console.log('Workshop detail lifecycle read 453: PASS');

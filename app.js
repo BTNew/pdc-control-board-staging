@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.18-rft-detail-lifecycle';
+const APP_VERSION = '2026.08.27.01-operational-closure';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -2280,6 +2280,14 @@ function vehiclePdcLocation(vehicle = {}) {
 
 function vehicleRftTransportBooked(vehicle = {}) {
   return Boolean(vehicle.rftTransportBookedAt);
+}
+
+function rftTransportEmailStatusLabel(vehicle = {}) {
+  const outbox = vehicle.rftTransportOutbox && typeof vehicle.rftTransportOutbox === 'object' ? vehicle.rftTransportOutbox : {};
+  if (outbox.intercept_receipt_id || outbox.interceptReceiptId) return 'Mandatory salesperson email captured in staging';
+  if (outbox.delivered_at || outbox.sent_at || ['sent', 'delivered'].includes(String(outbox.delivery_status || '').toLowerCase())) return 'Mandatory salesperson email sent';
+  if (vehicleRftTransportBooked(vehicle)) return 'Mandatory salesperson email queued';
+  return '';
 }
 
 function vehicleCollectedFromRft(vehicle = {}) {
@@ -12282,20 +12290,9 @@ function renderVehicleWorkshopWorkPage(vehicle = {}) {
   return `<div class="vehicle-workshop-page" data-vehicle-workshop-page><div class="vehicle-workshop-intro"><h3>Required work</h3></div>${warning}${vehicleWorkshopRemovalReceiptHtml()}<div class="vehicle-workshop-stations">${content}</div></div>`;
 }
 
-function vehicleWorkshopDetailSupportsVehicle(vehicle = {}) {
-  const lifecycle = String(vehicle.lifecycleState || vehicle.lifecycle_state || '').trim().toLowerCase();
-  if (lifecycle) return lifecycle === 'active';
-  return String(vehicle.pdcLocation || vehicle.current_location || '').trim().toUpperCase() !== 'RFT';
-}
-
 async function loadVehicleWorkshopDetail(vehicle = {}, { force = false } = {}) {
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   if (!canonicalId) return null;
-  if (!vehicleWorkshopDetailSupportsVehicle(vehicle)) {
-    app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'error', message: 'Work and booking details are unavailable after this vehicle leaves the active PMB lifecycle.' });
-    if (app.vehicleDetailPage === 'work' && vehicleKey(selectedVehicle() || {}) === vehicleKey(vehicle)) renderDetail();
-    return null;
-  }
   const existing = app.vehicleWorkshopDetailCache.get(canonicalId);
   if (!force && existing && ['loading', 'ready'].includes(existing.status)) return existing.detail || null;
   const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
@@ -15136,7 +15133,7 @@ function rftVehicleDetailRow(vehicle = {}) {
         <div><b>Customer</b><span>${escapeHtml(customer)}</span></div>
         <div class="wide"><b>Blocker / outstanding</b><span>${escapeHtml(blocker || 'No outstanding RFT blockers')}</span></div>
         <div class="wide"><b>Completion ticks</b><span>${rftCompletionTicksHtml(vehicle)}</span></div>
-        <div class="wide rft-detail-actions"><b>Transport handover</b><span class="rft-transport-checks"><label class="rft-collected-check ${vehicleRftTransportBooked(vehicle) ? 'is-complete' : ''}" title="Tick after the transport booking is confirmed on the trucking company website"><input type="checkbox" data-rft-transport-booked-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? 'checked disabled' : ''} /> <span>Booked on trucking website</span></label><label class="rft-collected-check" title="Tick once the vehicle has physically been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? '' : 'disabled'} /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button></span></div>
+        <div class="wide rft-detail-actions"><b>Transport handover</b><span class="rft-transport-checks"><label class="rft-collected-check ${vehicleRftTransportBooked(vehicle) ? 'is-complete' : ''}" title="Tick after the transport booking is confirmed on the trucking company website"><input type="checkbox" data-rft-transport-booked-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? 'checked disabled' : ''} /> <span>Booked on trucking website</span></label><label class="rft-collected-check" title="Tick once the vehicle has physically been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? '' : 'disabled'} /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>${rftTransportEmailStatusLabel(vehicle) ? `<small class="rft-email-status">${escapeHtml(rftTransportEmailStatusLabel(vehicle))}</small>` : ''}</span></div>
       </div>
     </details>`;
 }

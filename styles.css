@@ -10893,6 +10893,7 @@ textarea {
 }
 .rft-collected-check input { width: 14px !important; height: 14px !important; margin: 0 !important; }
 .rft-transport-checks { display: flex !important; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rft-email-status { color: #475569; font-size: .74rem; font-weight: 800; }
 .rft-collected-check.is-complete { background: #dcfce7 !important; border-color: #86efac !important; color: #166534 !important; }
 .rft-collected-check:has(input:disabled):not(.is-complete) { opacity: .55; }
 
