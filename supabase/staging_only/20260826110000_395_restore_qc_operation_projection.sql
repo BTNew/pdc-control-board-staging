@@ -24,9 +24,9 @@ BEGIN
         WHERE version='20260826100000' AND name='394_admin_compaction_and_duration_bounds')<>1
     OR to_regprocedure('public.pdc_qc_operation_lines_379(uuid)') IS NULL
     OR to_regprocedure('public.get_pdc_email_vehicle_location_snapshot()') IS NULL
-    OR (SELECT count(*) FROM public.vehicle_notifications)<>0
+    OR (SELECT count(*) FROM public.vehicle_notifications)<>1
     OR public.pdc_acceptance_protected_digest_375() IS DISTINCT FROM
-       jsonb_build_object('rows',1512,'sha256','dc80e0b6b88557a8fef1de67c3b1d45afa915161d1ae6841d14a2b5403977c6b') THEN
+       jsonb_build_object('rows',1610,'sha256','fafa311c3d6b63eb9879673330f512a1475923c65b15eef0710d030f756cc871') THEN
     RAISE EXCEPTION 'PDC_395_STAGING_HEAD_OR_CONTAINMENT_MISMATCH' USING errcode='55000';
   END IF;
 END $pre$;
@@ -76,9 +76,9 @@ BEGIN
     OR has_function_privilege('anon','public.get_pdc_email_vehicle_location_snapshot()','EXECUTE')
     OR NOT has_function_privilege('authenticated','public.get_pdc_email_vehicle_location_snapshot()','EXECUTE')
     OR NOT has_function_privilege('service_role','public.get_pdc_email_vehicle_location_snapshot()','EXECUTE')
-    OR (SELECT count(*) FROM public.vehicle_notifications)<>0
+    OR (SELECT count(*) FROM public.vehicle_notifications)<>1
     OR public.pdc_acceptance_protected_digest_375() IS DISTINCT FROM
-       jsonb_build_object('rows',1512,'sha256','dc80e0b6b88557a8fef1de67c3b1d45afa915161d1ae6841d14a2b5403977c6b') THEN
+       jsonb_build_object('rows',1610,'sha256','fafa311c3d6b63eb9879673330f512a1475923c65b15eef0710d030f756cc871') THEN
     RAISE EXCEPTION 'PDC_395_QC_PROJECTION_OR_ACL_POSTCONDITION' USING errcode='55000';
   END IF;
 END $post$;

@@ -33,8 +33,8 @@ DECLARE
 BEGIN
   SELECT pg_get_functiondef('public.workshop_admin_repack_planned(uuid,timestamptz,jsonb)'::regprocedure) INTO v_definition;
   v_patched:=replace(v_definition,
-    'and a.scheduled_end_at>p_from',
-    'and (a.scheduled_end_at>p_from or (coalesce((p_metadata->>''recover_overdue'')::boolean,false) and a.scheduled_start_at<p_from))');
+    'AND a.scheduled_end_at>p_from',
+    'AND (a.scheduled_end_at>p_from or (coalesce((p_metadata->>''recover_overdue'')::boolean,false) and a.scheduled_start_at<p_from))');
   IF v_patched=v_definition OR position('recover_overdue' in v_patched)=0 THEN
     RAISE EXCEPTION 'PDC_393_REPACK_PATCH_ANCHOR_MISSING' USING errcode='55000';
   END IF;
