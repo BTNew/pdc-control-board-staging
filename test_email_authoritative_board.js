@@ -5,7 +5,7 @@ const fs = require('fs');
 const service = require('./pdc-email-vehicle-location-service.js');
 
 const ghost = { stock: '10048728', client: 'Maddington Hire', vehicle: 'Coaster' };
-const realLocal = { stock: '13070395', client: 'Old local customer' };
+const realLocal = { stock: '13070395', client: 'Old local customer', consultant: 'POISONED-LOCAL-SP' };
 const realServer = {
   id: '483fc596-ebe2-5c89-870b-ccf375e076f5',
   permanent_vehicle_id: 'PDC-NAV-483FC596EBE25C89870B',
@@ -17,6 +17,9 @@ const realServer = {
   vehicle_description: 'HiLux 4x4 2.8L Dsl D/C/C 6MT',
   visible_on_board: true,
   current_location: 'Other',
+  salesperson_code: 'CW',
+  salesperson_name: 'Craig Watson',
+  salesperson_email: 'craig@example.test',
   work_items: [
     { work_key: 'fitting', required: true, completed: false },
     { work_key: 'pitInspection', required: true, completed: false },
@@ -40,6 +43,8 @@ assert.strictEqual(real.pdcRequiresFitting, true);
 assert.strictEqual(real.pdcRequiresPitInspection, true);
 assert.strictEqual(real.pdcEmailOperationLines.length, 1);
 assert.strictEqual(real.pdcEmailOperationLines[0].estimatedHours, 0, 'Genuine zero hours must remain zero');
+assert.strictEqual(real.consultant, 'CW', 'Authoritative snapshot must ignore poisoned local salesperson edits');
+assert.strictEqual(real.salespersonEmail, 'craig@example.test');
 
 const conflictingLocal = [
   { stock: '13070395', id: 'local-a' },
@@ -54,7 +59,8 @@ assert.strictEqual(conflict.rows.some(row => row.stock === '10048728'), false);
 
 const app = fs.readFileSync('app.js', 'utf8');
 assert.ok(app.includes("reconcileVehicleRows(app.data, serverRows, { authoritative: true })"));
-assert.ok(app.includes("runStorageTransaction('Reconcile authoritative email vehicles', [ADDED_KEY, DELETED_KEY]"));
+assert.ok(app.includes("runStorageTransaction('Reconcile authoritative email vehicles', [EDITS_KEY, ADDED_KEY, DELETED_KEY]"));
+assert.ok(app.includes('discardLegacyAuthoritativeSalespersonEdits(serverRows)'));
 assert.ok(app.indexOf('if (!response.ok) return false;') < app.indexOf("runStorageTransaction('Reconcile authoritative email vehicles'"), 'Local purge must occur only after authenticated snapshot success');
 
 console.log('email_authoritative_board: PASS');

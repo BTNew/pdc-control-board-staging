@@ -16,6 +16,8 @@ const PDC_VEHICLE_HISTORY_RPC = 'get_pdc_vehicle_provenance_history';
 const PDC_SALES_PREPARATION_UPDATE_RPC = 'update_pdc_vehicle_sales_preparation';
 const PDC_ACCEPTANCE_VEHICLE_CREATE_RPC = 'create_pdc_acceptance_vehicle_375';
 const PDC_QC_OPERATION_COMPLETION_RPC = 'set_pdc_qc_operation_completion_379';
+const PDC_SALESPERSON_ASSIGNMENT_RPC = 'assign_pdc_vehicle_salesperson_386';
+const PDC_VEHICLE_DETAIL_FIELDS_RPC = 'update_pdc_vehicle_detail_fields_388';
 const PDC_PARTS_COMPLETE_SUCCESS_CODES = new Set(['parts_completed', 'replayed']);
 const PDC_SUBLET_CANONICAL_ERRORS = new Set(['version_conflict', 'workshop_booking_conflict', 'sublet_away']);
 const WORK_FIELDS = Object.freeze({
@@ -53,7 +55,11 @@ function mapServerVehicle(row = {}) {
   const salesPreparation = row.sales_preparation && typeof row.sales_preparation === 'object' ? row.sales_preparation : {};
   mapped.salespersonCode = String(row.salesperson_code || row.salesperson_reference || '').trim().toUpperCase();
   mapped.salespersonName = String(row.salesperson_name || row.salesperson_reference || '').trim();
-  mapped.consultant = mapped.salespersonCode || mapped.salespersonName || mapped.salesperson;
+  mapped.salespersonEmail = String(row.salesperson_email || '').trim().toLowerCase();
+  mapped.salespersonManualOverride = row.salesperson_manual_override === true;
+  mapped.salespersonManualOverrideAt = row.salesperson_manual_override_at || '';
+  mapped.salespersonManualOverrideBy = String(row.salesperson_manual_override_by || '');
+  mapped.consultant = mapped.salespersonCode || mapped.salespersonName || mapped.salesperson || 'Unassigned';
   mapped.salesPreparation = {
     tintRaised: salesPreparation.tint_raised === true,
     buildPoRaised: salesPreparation.build_po_raised === true,
@@ -352,12 +358,40 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return { ok: true, code: body.code || 'sales_preparation_updated', data: body.data || body };
     } catch (_error) { return { ok: false, code: 'sales_preparation_update_unavailable', data: null }; }
   }
+  async function updateSalespersonAssignment(vehicleId = '', expectedVersion = 0, code = '', idempotencyKey = '') {
+    const token = getAccessToken();
+    if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    const requestedVehicleId = String(vehicleId || '').trim();
+    const requestedCode = String(code || '').trim().toUpperCase();
+    const requestedIdempotencyKey = String(idempotencyKey || '').trim();
+    try {
+      const response = await request(`${url}/rest/v1/rpc/${PDC_SALESPERSON_ASSIGNMENT_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: requestedVehicleId, p_expected_vehicle_version: Number(expectedVersion) || 0, p_salesperson_code: requestedCode || null, p_idempotency_key: requestedIdempotencyKey }) });
+      const body = await response.json().catch(() => null); const data = body?.data || null;
+      if (!response.ok || !body || body.ok !== true) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, data };
+      if (!body.receipt_id || !/^[a-f0-9]{64}$/i.test(String(body.request_sha256 || '')) || String(data?.vehicle_id || '') !== requestedVehicleId || Number(data?.vehicle_version_after ?? data?.vehicle_version ?? 0) < 1) return { ok: false, code: 'salesperson_assignment_receipt_invalid', data: null };
+      return { ok: true, code: body.code || 'salesperson_assigned', data: { ...data, receipt_id: body.receipt_id, request_sha256: body.request_sha256, replay: body.replay === true } };
+    } catch (_error) { return { ok: false, code: 'salesperson_assignment_unavailable', data: null }; }
+  }
+  async function updateVehicleDetailFields(vehicleId = '', expectedVersion = 0, changes = {}, idempotencyKey = '') {
+    const token = getAccessToken();
+    if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    const requestedVehicleId = String(vehicleId || '').trim();
+    const requestedChanges = {};
+    Object.entries(changes && typeof changes === 'object' ? changes : {}).forEach(([field, value]) => { if (['client_name', 'key_number', 'job_card_number'].includes(field)) requestedChanges[field] = String(value ?? ''); });
+    try {
+      const response = await request(`${url}/rest/v1/rpc/${PDC_VEHICLE_DETAIL_FIELDS_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: requestedVehicleId, p_expected_vehicle_version: Number(expectedVersion) || 0, p_changes: requestedChanges, p_idempotency_key: String(idempotencyKey || '').trim() }) });
+      const body = await response.json().catch(() => null); const data = body?.data || null;
+      if (!response.ok || !body || body.ok !== true) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, data };
+      if (!body.receipt_id || !/^[a-f0-9]{64}$/i.test(String(body.request_sha256 || '')) || String(data?.vehicle_id || '') !== requestedVehicleId || Number(data?.vehicle_version_after ?? data?.vehicle_version ?? 0) < 1) return { ok: false, code: 'vehicle_detail_receipt_invalid', data: null };
+      return { ok: true, code: body.code || 'vehicle_detail_updated', data: { ...data, receipt_id: body.receipt_id, request_sha256: body.request_sha256, replay: body.replay === true } };
+    } catch (_error) { return { ok: false, code: 'vehicle_detail_update_unavailable', data: null }; }
+  }
   function subscribe(onRevision) {
     if (!subscribeRealtime) return { unsubscribe() {} };
     return subscribeRealtime(PDC_EMAIL_VEHICLE_REVISION_TABLE, event => { if (typeof onRevision === 'function') onRevision(event?.new?.revision ?? null, event); });
   }
-  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, createSubletBooking, updateSubletBooking, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, createAcceptanceVehicle, setQcOperationCompletion, subscribe };
+  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, createSubletBooking, updateSubletBooking, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, createAcceptanceVehicle, setQcOperationCompletion, subscribe };
 }
-const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = exported;
 if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = exported;

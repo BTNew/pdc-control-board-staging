@@ -4272,6 +4272,57 @@ async function refreshVehicleLifecycleLocationsAndRender() {
   renderAll();
 }
 
+function authoritativeSalespersonCode(vehicle = {}) { return String(vehicle.salespersonCode || '').trim().toUpperCase(); }
+function salespersonAssignmentIdempotencyKey() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID();
+  return '00000000-0000-4000-8000-' + Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+}
+function discardLegacyAuthoritativeSalespersonEdits(rows = []) {
+  const edits = loadVehicleEdits(); let changed = false;
+  const fields = ['consultant', 'salesperson', 'salesPerson', 'salespersonCode', 'salespersonName', 'salespersonEmail'];
+  (Array.isArray(rows) ? rows : []).forEach(row => {
+    [row.stock_number, row.stock, row.permanent_vehicle_id, row.id].map(value => String(value || '').trim()).filter(Boolean).forEach(key => {
+      const entry = edits[key]; if (!entry || typeof entry !== 'object') return;
+      fields.forEach(field => { if (Object.prototype.hasOwnProperty.call(entry, field)) { delete entry[field]; changed = true; } });
+      if (!Object.keys(entry).length) delete edits[key];
+    });
+  });
+  if (changed) saveJson(EDITS_KEY, edits);
+  return changed;
+}
+async function saveAuthoritativeVehicleSalesperson(vehicle = {}, requestedCode = '') {
+  const service = app.emailVehicleLocationService; const canonicalId = String(vehicle.__emailVehicleId || '').trim();
+  const result = service?.updateSalespersonAssignment
+    ? await service.updateSalespersonAssignment(canonicalId, Number(vehicle.__emailVehicleVersion || 0), String(requestedCode || '').trim().toUpperCase(), salespersonAssignmentIdempotencyKey())
+    : { ok: false, code: 'salesperson_assignment_unavailable', data: null };
+  if (!result || result.ok !== true) return result || { ok: false, code: 'salesperson_assignment_unavailable', data: null };
+  if (!await refreshEmailVehicleLocations()) return { ok: false, code: 'salesperson_assignment_readback_failed', data: result.data || null };
+  const authoritative = selectedVehicle(vehicleKey(vehicle));
+  if (!authoritative || String(authoritative.__emailVehicleId || '') !== canonicalId || authoritativeSalespersonCode(authoritative) !== String(requestedCode || '').trim().toUpperCase()) return { ok: false, code: 'salesperson_assignment_readback_failed', data: result.data || null };
+  return { ...result, data: { ...(result.data || {}), authoritativeVehicle: authoritative } };
+}
+async function saveAuthoritativeVehicleChanges(vehicle = {}, requestedCode = '', detailChanges = {}) {
+  let current = vehicle; let last = { ok: true, data: {} };
+  if (authoritativeSalespersonCode(vehicle) !== String(requestedCode || '').trim().toUpperCase()) {
+    const result = await saveAuthoritativeVehicleSalesperson(current, requestedCode);
+    if (!result || result.ok !== true) return result || { ok: false, code: 'salesperson_assignment_failed', data: null };
+    last = result; current = result.data?.authoritativeVehicle || current;
+  }
+  if (!Object.keys(detailChanges || {}).length) return { ...last, data: { ...(last.data || {}), authoritativeVehicle: current } };
+  const result = app.emailVehicleLocationService?.updateVehicleDetailFields
+    ? await app.emailVehicleLocationService.updateVehicleDetailFields(current.__emailVehicleId, Number(current.__emailVehicleVersion || 0), detailChanges, salespersonAssignmentIdempotencyKey())
+    : { ok: false, code: 'vehicle_detail_update_unavailable', data: null };
+  if (!result || result.ok !== true) return result || { ok: false, code: 'vehicle_detail_update_unavailable', data: null };
+  if (!await refreshEmailVehicleLocations()) return { ok: false, code: 'vehicle_detail_readback_failed', data: result.data || null };
+  const authoritative = selectedVehicle(vehicleKey(current));
+  if (!authoritative || String(authoritative.__emailVehicleId || '') !== String(current.__emailVehicleId || '')
+      || ('client_name' in detailChanges && String(authoritative.client || '') !== String(detailChanges.client_name || '').trim())
+      || ('key_number' in detailChanges && String(vehicleKeyNumber(authoritative) || '') !== String(detailChanges.key_number || '').trim())
+      || ('job_card_number' in detailChanges && String(vehicleJobcardNumber(authoritative) || '') !== String(detailChanges.job_card_number || '').trim())) return { ok: false, code: 'vehicle_detail_readback_failed', data: result.data || null };
+  return { ...result, data: { ...(result.data || {}), authoritativeVehicle: authoritative } };
+}
+
 function resetEmailVehicleLocations() {
   app.emailVehicleLocationGeneration += 1;
   try { app.emailVehicleLocationRealtime?.unsubscribe?.(); } catch (_error) { /* best-effort teardown */ }
@@ -4297,7 +4348,8 @@ async function refreshEmailVehicleLocations() {
   const module = window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
   if (typeof module?.reconcileVehicleRows === 'function') {
     const reconciled = module.reconcileVehicleRows(app.data, serverRows, { authoritative: true });
-    runStorageTransaction('Reconcile authoritative email vehicles', [ADDED_KEY, DELETED_KEY], () => {
+    runStorageTransaction('Reconcile authoritative email vehicles', [EDITS_KEY, ADDED_KEY, DELETED_KEY], () => {
+      discardLegacyAuthoritativeSalespersonEdits(serverRows);
       saveAddedVehicles([]);
       saveJson(DELETED_KEY, []);
     });
@@ -12868,17 +12920,14 @@ function renderDetail() {
   $('[data-vehicle-edit-form]', panel).addEventListener('submit', async (e) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const client = form.client.value.trim() || v.client;
+    const serverAuthoritative = v.__emailVehicleServerAuthoritative === true;
+    const clientInput = form.client.value.trim();
+    const client = serverAuthoritative ? clientInput : (clientInput || v.client);
     const keyNumber = statusCategory(v) === 'pmb' ? cleanNavisionText(form.keyNumber?.value || '') : vehicleKeyNumber(v);
     const consultant = form.consultant.value.trim();
-    const currentConsultant = consultantName(v) === 'Unassigned' ? '' : cleanNavisionText(consultantName(v));
-    const salespersonChanged = consultant !== currentConsultant;
-    if (salespersonChanged && v.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
-      const saveMessage = $('[data-save-message]', panel);
-      form.consultant.value = currentConsultant;
-      if (saveMessage) saveMessage.textContent = 'Not saved — salesperson assignments must save online. No browser-local change was made.';
-      return;
-    }
+    const saveButton = form.querySelector('button[type="submit"]');
+    const saveMessage = $('[data-save-message]', panel);
+    const salespersonChanged = serverAuthoritative && authoritativeSalespersonCode(v) !== consultant.trim().toUpperCase();
     const internalStatus = v.internalStatus || '';
     const previousPdcLocation = vehiclePdcLocation(v);
     const previousPmbStage = normalizePmbStage(v.pmbStage || '');
@@ -12890,14 +12939,32 @@ function renderDetail() {
     const pdcBlockReasonValue = cleanNavisionText(form.pdcBlockReason?.value || '');
     const workStateMap = pdcWorkStateMapFromForm(form, v, isCompletedVehicle);
     const { requirementUpdates, completionUpdates } = pdcWorkStateUpdatesFromMap(workStateMap);
+    const detailChanges = {};
+    if (serverAuthoritative && client !== String(v.client || '').trim()) detailChanges.client_name = client;
+    if (serverAuthoritative && keyNumber !== String(vehicleKeyNumber(v) || '').trim()) detailChanges.key_number = keyNumber;
+    if (serverAuthoritative && pdcJobcard !== String(vehicleJobcardNumber(v) || '').trim()) detailChanges.job_card_number = pdcJobcard;
     const duplicateKeyVehicle = pdcLocation === 'PMB' ? activePmbVehicleWithKeyNumber(keyNumber, key) : null;
     if (duplicateKeyVehicle) {
       window.alert(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
       return;
     }
+    if (serverAuthoritative && (pdcLocation !== previousPdcLocation || pdcBlocked !== previouslyPdcBlocked || pdcBlockReasonValue !== (pdcBlockReason(v) || ''))) {
+      if (saveMessage) saveMessage.textContent = 'Error: lifecycle or stoppage fields use their dedicated shared action';
+      return;
+    }
+    if (serverAuthoritative && (salespersonChanged || Object.keys(detailChanges).length)) {
+      if (saveButton) { saveButton.disabled = true; saveButton.setAttribute('aria-busy', 'true'); }
+      if (saveMessage) saveMessage.textContent = 'Saving…';
+      const authoritativeResult = await saveAuthoritativeVehicleChanges(v, consultant, detailChanges);
+      if (!authoritativeResult || authoritativeResult.ok !== true) {
+        if (saveButton) { saveButton.disabled = false; saveButton.removeAttribute('aria-busy'); }
+        if (saveMessage) saveMessage.textContent = `Error: ${authoritativeResult?.code || 'authoritative_vehicle_save_failed'}`;
+        return;
+      }
+    }
     const updates = { client, keyNumber, pdcJobcard, consultant, internalStatus, pdcLocation, pmbStage, pdcBlocked, pdcBlockReason: pdcBlockReasonValue, ...requirementUpdates, ...completionUpdates };
     const hasIndependentPdcWork = Boolean(
-      pdcJobcard || pdcLocation || pdcBlocked ||
+      (!serverAuthoritative && pdcJobcard) || pdcLocation || pdcBlocked ||
       PDC_JOB_DEFS.some(def => requirementUpdates[def.requireKey] || completionUpdates[def.completeKey])
     );
     if (hasIndependentPdcWork) Object.assign(updates, pdcVisibilityPromotionUpdates(v, 'Operator / PDC work update'));
@@ -12981,7 +13048,7 @@ function renderDetail() {
       updates.pmbStageEnteredAt = updates.pmbStageUpdatedAt;
       recordVehicleAudit(v, 'PMB bucket moved', { from: pmbStageLabel(previousPmbStage) || 'Unallocated', to: pmbStageLabel(pmbStage) || 'Unallocated' });
     }
-    saveVehicleEdits(key, updates);
+    const savedLocalFields = serverAuthoritative ? true : saveVehicleEdits(key, updates);
     const newlyCompleted = changedCompletions.filter(def => completionUpdates[def.completeKey]);
     const stoppageAdded = !previouslyPdcBlocked && pdcBlocked;
     if (newlyCompleted.length || stoppageAdded) {
@@ -13000,8 +13067,9 @@ function renderDetail() {
       });
     }
     renderDetail();
-    const msg = $('[data-save-message]', panel);
+    const msg = document.querySelector('[data-save-message]');
     if (msg) msg.textContent = 'Saved';
+    if (saveButton) { saveButton.disabled = false; saveButton.removeAttribute('aria-busy'); }
   });
   $('[data-pmb-bay-detail-form]', panel)?.addEventListener('submit', (e) => {
     e.preventDefault();

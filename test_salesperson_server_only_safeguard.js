@@ -30,11 +30,11 @@ assert.strictEqual(saved.vehicleB.client, 'Customer');
 assert.ok(app.indexOf('clearLegacyLocalSalespersonAssignments();') < app.indexOf('const app = {'), 'legacy local salesperson is removed before data is built');
 
 const submitStart = app.indexOf("$('[data-vehicle-edit-form]', panel).addEventListener('submit'");
-const submitEnd = app.indexOf('\n  });', app.indexOf('saveVehicleEdits(key, updates);', submitStart));
+const submitEnd = app.indexOf('\n  });', submitStart);
 const submit = app.slice(submitStart, submitEnd);
-assert.match(submit, /salespersonChanged && v\.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive\(\)/);
-assert.match(submit, /Not saved — salesperson assignments must save online\. No browser-local change was made\./);
-assert.ok(submit.indexOf('return;') < submit.indexOf('saveVehicleEdits(key, updates);'), 'server-authoritative salesperson change fails closed before local save');
-assert.match(app, /const APP_VERSION = '2026\.08\.25\.09-booking-pills'/);
-assert.match(index, /app\.js\?v=2026\.08\.25\.09-booking-pills/);
-console.log('Server-only salesperson fail-closed safeguard: PASS');
+assert.match(submit, /serverAuthoritative && \(salespersonChanged \|\| Object\.keys\(detailChanges\)\.length\)/);
+assert.match(submit, /saveAuthoritativeVehicleChanges\(v, consultant, detailChanges\)/);
+assert.match(submit, /serverAuthoritative \? true : saveVehicleEdits\(key, updates\)/);
+assert.match(app, /discardLegacyAuthoritativeSalespersonEdits/);
+assert.match(index, /authoritative-detail=386-388-391/);
+console.log('Server-only salesperson/detail fail-closed safeguard: PASS');
