@@ -14992,7 +14992,7 @@ function rftHomeRows() {
     .filter(vehicle => {
       const status = rftHomeStatus(vehicle);
       const matchesStatus = filter === 'all'
-        || (filter === 'open' && status !== 'complete')
+        || filter === 'open'
         || status === filter;
       if (!matchesStatus) return false;
       if (!q) return true;
@@ -15019,12 +15019,12 @@ function renderRftSummary() {
   const counts = all.reduce((acc, vehicle) => {
     const status = rftHomeStatus(vehicle);
     acc[status] = (acc[status] || 0) + 1;
-    if (status !== 'complete') acc.open += 1;
+    acc.open += 1;
     return acc;
   }, { open: 0, blocked: 0, ready: 0, complete: 0 });
   const cards = [
     ['blocked', 'Blocked', counts.blocked, 'Missing required sign-offs'],
-    ['open', 'Open RFT', counts.open, 'Blocked or ready for final checks'],
+    ['open', 'Open RFT', counts.open, 'All uncollected transport handovers'],
     ['ready', 'Ready', counts.ready, 'Can be handed over'],
     ['complete', 'Complete', counts.complete, 'All required jobs ticked'],
   ];

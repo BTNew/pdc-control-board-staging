@@ -55,6 +55,8 @@ assert.match(app, /bookRftTransport\(vehicle\.__emailVehicleId/);
 assert.match(app, /creates the mandatory salesperson email with completed work, dates, build times, stoppages and the QC photo/);
 assert.match(app, /collectRftTransport\(vehicle\.__emailVehicleId/);
 assert.match(app, /Book the vehicle on the trucking company website first/);
+assert.match(app, /\|\| filter === 'open'/);
+assert.match(app, /All uncollected transport handovers/);
 assert.doesNotMatch(app.slice(app.indexOf('async function markRftVehicleCollected'), app.indexOf('function bindRftCollectedInputs')), /saveVehicleEdits|offerSalespersonChangeEmail|rftCollectVehicle/);
 assert.match(css, /\.fix-first-clear/);
 assert.match(css, /\.rft-transport-checks/);
