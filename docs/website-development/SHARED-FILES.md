@@ -1,5 +1,10 @@
 # Shared Files
 
+## Canonical Workshop booking snapshot authority — 2026-08-25
+
+- `supabase/staging_only/20260826130000_397_canonical_workshop_booking_snapshot_authority.sql` — exact-head-guarded staging-only projection wrapper overlaying canonical booking scheduling/live fields by stable UUID while preserving snapshot shape and mutation authority.
+- `test_workshop_canonical_booking_snapshot_authority_397.js` — canonical geometry, protected read-only evidence, synthetic acceptance, fixed overlap/nearest slot, receipt/replay/undo, cascade/resize, bay isolation and zero-notification regression coverage.
+
 ## Owner-supplied Job Card intake authority — 2026-08-25
 
 - `supabase/staging_only/20260826120000_396_owner_supplied_document_jobcard_intake.sql` — additive staging-only exact-owner/Task/Stock/Job Card contract, immutable document and operation evidence, unknown-hour review rows, idempotency, audit and undo RPCs; no provider-email or mailbox dependency.

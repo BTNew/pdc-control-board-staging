@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-25 — Canonical Workshop booking snapshot authority
+
+- Added staging-only migration `supabase/staging_only/20260826130000_397_canonical_workshop_booking_snapshot_authority.sql`, guarded after the exact live 20260826123000 owner-document identity-correction head. Both station and full Workshop snapshots now overlay scheduling, status, version, actual and stoppage fields from `workshop_bookings` by stable booking UUID, without rewriting canonical rows or moving active bookings.
+- Added `test_workshop_canonical_booking_snapshot_authority_397.js` covering the protected Stock 13000549 read-only geometry evidence, synthetic HERMES-TEST acceptance contracts for fixed overlap/nearest free slot, receipt/replay/undo, planned-only cascade/resize, bay locking and zero notifications, plus stale-estimate chip regression.
+- Production, production branches/data, mailbox runtime and credentials remain untouched.
+
 ## 2026-08-25 — Owner-supplied Job Card intake authority
 
 - Added staging-only migration `supabase/staging_only/20260826120000_396_owner_supplied_document_jobcard_intake.sql` and regression `test_owner_supplied_document_jobcard_396.js`.
