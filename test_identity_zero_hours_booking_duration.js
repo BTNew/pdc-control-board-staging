@@ -62,7 +62,7 @@ const relocatedGroups = context.vehicleWorkshopGroups(vehicle, {
 assert.ok(relocatedGroups.find(group => group.stage === 'FITTING')?.lines.some(line => line.operation_no === relocatedLine.operation_no), 'adjusted lines move into their authoritative station');
 assert.ok(!relocatedGroups.find(group => group.stage === 'HOIST')?.lines.some(line => line.operation_no === relocatedLine.operation_no), 'adjusted source station no longer duplicates the line');
 
-const identityStart = appSource.indexOf('function vehicleModalBoundVehicle(');
+const identityStart = appSource.indexOf('function vehicleModalIdentityStock(');
 const identityEnd = appSource.indexOf('\nfunction selectedVehicle(', identityStart);
 assert.ok(identityStart >= 0 && identityEnd > identityStart, 'modal identity resolver must be extractable');
 const identityContext = {
@@ -71,8 +71,9 @@ const identityContext = {
     emailVehicleLocationRows: [],
     data: [],
   },
+  cleanNavisionText: value => String(value == null ? '' : value).trim(),
   vehicleWorkshopDetailCanonicalId: vehicle => String(vehicle.__emailVehicleId || vehicle.id || ''),
-  displayStockNumber: vehicle => vehicle.stock || vehicle.stock_number || '',
+  displayStockNumber: vehicle => vehicle.stock || '',
   vehicleKey: vehicle => vehicle.stock || vehicle.stock_number || vehicle.id || '',
 };
 vm.createContext(identityContext);
@@ -82,7 +83,8 @@ identityContext.app.emailVehicleLocationRows = [otherVehicle];
 identityContext.app.data = [otherVehicle];
 assert.strictEqual(identityContext.vehicleModalBoundVehicle(), null, 'missing Stock 12704242 cannot fall back to Stock 12657478');
 const exactVehicle = { __emailVehicleId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', stock: '12704242' };
-identityContext.app.emailVehicleLocationRows = [otherVehicle, exactVehicle];
+const exactRawSnapshotVehicle = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', stock_number: '12704242' };
+identityContext.app.emailVehicleLocationRows = [otherVehicle, exactRawSnapshotVehicle];
 identityContext.app.data = [exactVehicle, otherVehicle];
 assert.strictEqual(identityContext.vehicleModalBoundVehicle().__emailVehicleId, exactVehicle.__emailVehicleId, 'reordered realtime rows retain exact modal UUID and Stock');
 identityContext.app.emailVehicleLocationRows = [{ ...exactVehicle, stock: '12657478' }, exactVehicle];

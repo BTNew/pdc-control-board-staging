@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.01-qc-finalization-399';
+const APP_VERSION = '2026.08.26.02-qc-finalization-modal-identity';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -12562,6 +12562,16 @@ function bindVehicleDetailTabs(panel) {
   });
 }
 
+function vehicleModalIdentityStock(vehicle = {}) {
+  return cleanNavisionText(
+    displayStockNumber(vehicle)
+      || vehicle.stock_number
+      || vehicle.stockNumber
+      || vehicle.batch
+      || '',
+  );
+}
+
 function vehicleModalBoundVehicle() {
   const identity = app.vehicleModalIdentity;
   if (!identity) return null;
@@ -12574,8 +12584,12 @@ function vehicleModalBoundVehicle() {
   const canonicalRows = new Map();
   sources.forEach(vehicle => {
     if (String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() !== canonicalId) return;
-    const stock = String(displayStockNumber(vehicle) || '').trim();
-    if (!canonicalRows.has(stock)) canonicalRows.set(stock, vehicle);
+    const stock = vehicleModalIdentityStock(vehicle);
+    // Raw snapshot and mapped Board rows can represent the same canonical UUID.
+    // A projection without Stock is not a conflicting identity; ignore it.
+    if (!stock) return;
+    const existing = canonicalRows.get(stock);
+    if (!existing || (vehicle.__emailVehicleId && !existing.__emailVehicleId)) canonicalRows.set(stock, vehicle);
   });
   if (canonicalRows.size !== 1 || !canonicalRows.has(stockBaseline)) return null;
   const bound = canonicalRows.get(stockBaseline);
@@ -12586,7 +12600,7 @@ function vehicleModalIdentityMatches(vehicle = {}) {
   const identity = app.vehicleModalIdentity;
   if (!identity || !vehicle) return false;
   return String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() === String(identity.canonicalId || '').trim()
-    && String(displayStockNumber(vehicle) || '').trim() === String(identity.stockBaseline || '').trim();
+    && vehicleModalIdentityStock(vehicle) === String(identity.stockBaseline || '').trim();
 }
 
 function selectedVehicle(key = app.selectedStock) {
@@ -12764,7 +12778,7 @@ function openVehicleModal(stock) {
   app.selectedStock = vehicleKey(vehicle);
   app.vehicleModalIdentity = Object.freeze({
     canonicalId: vehicleWorkshopDetailCanonicalId(vehicle),
-    stockBaseline: String(displayStockNumber(vehicle) || '').trim(),
+    stockBaseline: vehicleModalIdentityStock(vehicle),
   });
   if (!app.vehicleModalIdentity.canonicalId || !app.vehicleModalIdentity.stockBaseline) {
     app.vehicleModalIdentity = null;
