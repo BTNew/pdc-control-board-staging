@@ -153,9 +153,8 @@ BEGIN
   IF NOT FOUND THEN RETURN jsonb_build_object('ok',false,'code','booking_not_found'); END IF;
   IF v_before.status<>'active' THEN RETURN jsonb_build_object('ok',false,'code','booking_not_active'); END IF;
   IF v_before.version<>p_expected_version THEN RETURN jsonb_build_object('ok',false,'code','version_conflict','data',jsonb_build_object('current_version',v_before.version)); END IF;
-  PERFORM set_config('pdc.hermes_test_wrapper_vehicle_365',v_before.vehicle_id::text,true);
   UPDATE public.pdc_sublet_booking_instances SET provider_id=v_provider.id,provider_name=v_provider.name,provider_email=lower(btrim(coalesce(p_provider_email,''))),version=version+1,updated_at=clock_timestamp(),updated_by=v_user WHERE booking_id=p_booking_id RETURNING * INTO v_after;
-  INSERT INTO public.pdc_sublet_booking_instance_history(booking_id,vehicle_id,actor_id,actor_email,action,before_data,after_data,booking_version) VALUES(v_after.booking_id,v_after.vehicle_id,v_user,v_email,'updated',to_jsonb(v_before),to_jsonb(v_after),v_after.version);
+  INSERT INTO public.pdc_sublet_booking_instance_history(booking_id,vehicle_id,actor_id,actor_email,action,before_data,after_data,booking_version) VALUES(v_after.booking_id,v_after.vehicle_id,v_user,v_email,'provider_updated',to_jsonb(v_before),to_jsonb(v_after),v_after.version);
   UPDATE public.pdc_email_vehicle_revision SET revision=revision+1,updated_at=clock_timestamp() WHERE singleton RETURNING revision INTO v_revision;
   v_receipt_id:=extensions.uuid_generate_v5('39900000-0000-5000-8000-000000000399'::uuid,'sublet-provider:'||v_user::text||':'||p_idempotency_key::text);
   v_response:=jsonb_build_object('ok',true,'code','sublet_provider_updated','data',jsonb_build_object('receipt_id',v_receipt_id,'booking_id',v_after.booking_id,'vehicle_id',v_after.vehicle_id,'provider_id',v_after.provider_id,'provider_name',v_after.provider_name,'provider_email',v_after.provider_email,'version',v_after.version,'revision',v_revision,'replay',false));
@@ -222,7 +221,7 @@ BEGIN
   END IF;
   IF v_vehicle.version<>p_expected_vehicle_version THEN RETURN jsonb_build_object('ok',false,'code','vehicle_version_conflict','data',jsonb_build_object('vehicle_id',p_vehicle_id,'vehicle_version',v_vehicle.version)); END IF;
   SELECT count(*) INTO v_object_count FROM storage.objects o
-  WHERE o.bucket_id=p_bucket_id AND o.name=p_storage_path AND o.owner_id=v_actor::text;
+  WHERE o.bucket_id=p_bucket_id AND o.name=p_storage_path AND o.owner_id=v_actor;
   IF v_object_count<>1 THEN RETURN jsonb_build_object('ok',false,'code','qc_photo_storage_object_not_owned'); END IF;
   SELECT * INTO v_existing FROM public.pdc_qc_finalization_photo_evidence_399 WHERE vehicle_id=p_vehicle_id;
   IF FOUND THEN
@@ -256,7 +255,7 @@ CREATE OR REPLACE FUNCTION public.finalize_pdc_qc_to_rft_399(
 SET search_path=pg_catalog,public,extensions SET statement_timeout='120s' AS $finalize$
 DECLARE
   v_actor uuid:=auth.uid(); v_email text:=lower(btrim(coalesce(auth.jwt()->>'email','')));
-  v_before public.vehicles%rowtype; v_signed public.vehicles%rowtype; v_after public.vehicles%rowtype;
+  v_before public.vehicles%rowtype; v_after public.vehicles%rowtype;
   v_photo public.pdc_qc_finalization_photo_evidence_399%rowtype; v_existing public.pdc_qc_finalization_receipts_399%rowtype;
   v_salesperson public.salespeople%rowtype; v_lines_all jsonb; v_lines jsonb; v_sp jsonb; v_payload jsonb; v_request jsonb; v_request_sha text;
   v_receipt_id uuid; v_notification_id uuid; v_response jsonb; v_notifications_before bigint; v_notifications_after bigint; v_revision_before bigint; v_revision_after bigint;
@@ -300,12 +299,7 @@ BEGIN
     'recipient',v_sp,'vehicle',jsonb_build_object('vehicle_id',v_before.id,'stock_number',v_before.stock_number,'job_card_number',v_before.job_card_number,'model',v_before.model,'customer_name',v_before.customer_name),
     'photo',jsonb_build_object('photo_receipt_id',v_photo.photo_receipt_id,'bucket_id',v_photo.bucket_id,'storage_path',v_photo.storage_path,'content_type',v_photo.content_type,'byte_length',v_photo.byte_length,'original_byte_length',v_photo.original_byte_length,'image_width',v_photo.image_width,'image_height',v_photo.image_height,'sha256',v_photo.sha256,'original_filename',v_photo.original_filename,'uploader_id',v_photo.uploader_id,'uploader_email',v_photo.uploader_email),
     'completed_items',v_lines,'qc_location','QC','rft_location','RFT','sent_at',null,'delivered_at',null);
-  PERFORM set_config('pdc.hermes_test_wrapper_vehicle_365',p_vehicle_id::text,true);
-  -- Preserve the existing QC-then-RFT invariant as two audited row transitions
-  -- inside this one atomic transaction.
-  UPDATE public.vehicles SET qc_completed_at=coalesce(qc_completed_at,clock_timestamp()),qc_completed_by=v_actor,version=version+1,updated_by=v_actor,updated_at=clock_timestamp() WHERE id=p_vehicle_id RETURNING * INTO v_signed;
-  PERFORM public.audit_pdc_event('update','vehicles',p_vehicle_id,p_vehicle_id,to_jsonb(v_before),to_jsonb(v_signed),jsonb_build_object('action','finalize_pdc_qc_to_rft_399_qc_signoff','photo_receipt_id',v_photo.photo_receipt_id,'notification_enqueued',false));
-  UPDATE public.vehicles SET lifecycle_state='rft',current_location='RFT',date_to_rft=coalesce(date_to_rft,(clock_timestamp() at time zone 'Australia/Perth')::date),rft_transferred_at=coalesce(rft_transferred_at,clock_timestamp()),version=version+1,updated_by=v_actor,updated_at=clock_timestamp() WHERE id=p_vehicle_id RETURNING * INTO v_after;
+  UPDATE public.vehicles SET qc_completed_at=coalesce(qc_completed_at,clock_timestamp()),qc_completed_by=v_actor,lifecycle_state='rft',current_location='RFT',date_to_rft=coalesce(date_to_rft,(clock_timestamp() at time zone 'Australia/Perth')::date),rft_transferred_at=coalesce(rft_transferred_at,clock_timestamp()),version=version+1,updated_by=v_actor,updated_at=clock_timestamp() WHERE id=p_vehicle_id RETURNING * INTO v_after;
   INSERT INTO public.vehicle_movements(vehicle_id,from_location,to_location,from_pmb_stage,to_pmb_stage,from_pmb_bay_stage,to_pmb_bay_stage,from_pmb_bay_number,to_pmb_bay_number,reason,moved_by)
     VALUES(p_vehicle_id,'QC','RFT',v_before.pmb_stage,v_before.pmb_stage,v_before.pmb_bay_stage,v_before.pmb_bay_stage,v_before.pmb_bay_number,v_before.pmb_bay_number,'QC final sign-off with completion photo; salesperson update held in staging outbox',v_actor);
   v_response:=jsonb_build_object('ok',true,'code','qc_signed_off_moved_to_rft','replay',false,'receipt_id',v_receipt_id,'vehicle_id',p_vehicle_id,'vehicle_version_before',v_before.version,'vehicle_version_after',v_after.version,'photo_receipt_id',v_photo.photo_receipt_id,'salesperson',v_sp,'completed_items',v_lines,'outbox',jsonb_build_object('notification_id',v_notification_id,'recipient_email',v_salesperson.email,'delivery_status','pending','sent_at',null,'delivered_at',null),'payload',v_payload,'notification_delta',0);
@@ -313,10 +307,11 @@ BEGIN
     VALUES(v_receipt_id,p_vehicle_id,v_actor,v_email,p_expected_vehicle_version,v_before.version,v_after.version,v_photo.photo_receipt_id,v_sp,v_lines,p_idempotency_key,v_request_sha,v_request,v_response);
   INSERT INTO public.pdc_qc_salesperson_update_outbox_399(notification_id,finalization_receipt_id,vehicle_id,recipient_email,payload)
     VALUES(v_notification_id,v_receipt_id,p_vehicle_id,lower(btrim(v_salesperson.email)),v_payload);
-  PERFORM public.audit_pdc_event('rft','vehicles',p_vehicle_id,p_vehicle_id,to_jsonb(v_signed),to_jsonb(v_after),jsonb_build_object('action','finalize_pdc_qc_to_rft_399','receipt_id',v_receipt_id,'photo_receipt_id',v_photo.photo_receipt_id,'salesperson_email',lower(btrim(v_salesperson.email)),'completed_item_count',jsonb_array_length(v_lines),'notification_enqueued',true,'notification_dispatched',false));
+  PERFORM public.audit_pdc_event('rft','vehicles',p_vehicle_id,p_vehicle_id,to_jsonb(v_before),to_jsonb(v_after),jsonb_build_object('action','finalize_pdc_qc_to_rft_399','receipt_id',v_receipt_id,'photo_receipt_id',v_photo.photo_receipt_id,'salesperson_email',lower(btrim(v_salesperson.email)),'completed_item_count',jsonb_array_length(v_lines),'notification_enqueued',true,'notification_dispatched',false));
+  UPDATE public.pdc_email_vehicle_revision SET revision=revision+1,updated_at=clock_timestamp() WHERE singleton;
   SELECT revision INTO v_revision_after FROM public.pdc_email_vehicle_revision WHERE singleton;
   SELECT count(*) INTO v_notifications_after FROM public.vehicle_notifications;
-  IF v_after.current_location<>'RFT' OR v_after.version<>v_before.version+2 OR v_notifications_after<>v_notifications_before OR v_revision_after-v_revision_before<>2 OR NOT EXISTS(SELECT 1 FROM public.pdc_qc_salesperson_update_outbox_399 WHERE notification_id=v_notification_id AND sent_at IS NULL AND delivered_at IS NULL) THEN
+  IF v_after.current_location<>'RFT' OR v_after.version<>v_before.version+1 OR v_notifications_after<>v_notifications_before OR v_revision_after-v_revision_before<>1 OR NOT EXISTS(SELECT 1 FROM public.pdc_qc_salesperson_update_outbox_399 WHERE notification_id=v_notification_id AND sent_at IS NULL AND delivered_at IS NULL) THEN
     RAISE EXCEPTION 'PDC_399_FINALIZATION_POSTCONDITION' USING errcode='55000';
   END IF;
   RETURN v_response;
