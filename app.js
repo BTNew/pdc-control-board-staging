@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.11-collected-email-intercept';
+const APP_VERSION = '2026.08.26.12-collected-projection';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this

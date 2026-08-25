@@ -9,7 +9,7 @@ assert.match(sql,/8e214bde7a1fc8706452526d34abadada708696386bed0c3cb4602466c62ec
 assert.match(sql,/v\.lifecycle_state=''completed'' AND v\.rft_collected_at IS NOT NULL/);
 assert.match(sql,/pdc_rft_transport_action_receipts_412 handover/);
 assert.match(sql,/handover\.action=''collected''/);
-assert.match(service,/String\(row\.lifecycle_state \|\| ''\)\.toLowerCase\(\) === 'completed'/);
+assert.match(service,/visible_on_board !== false[\s\S]*Boolean\(row\.rft_collected_at\)/);
 const completed={id:'00000000-0000-4000-8000-000000000428',permanent_vehicle_id:'PERM-428',stock_number:'HERMES-TEST-428',version:9,lifecycle_state:'completed',current_location:'Completed',visible_on_board:false,rft_collected_at:'2026-08-25T10:00:00Z'};
 const hiddenActive={id:'00000000-0000-4000-8000-000000000429',permanent_vehicle_id:'PERM-429',stock_number:'HERMES-TEST-429',version:1,lifecycle_state:'active',current_location:'PMB',visible_on_board:false};
 const result=reconcileVehicleRows([], [completed,hiddenActive], {authoritative:true});
