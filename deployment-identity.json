@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.26.17-work-state-consistency",
+  "application_version": "2026.08.26.18-rft-detail-lifecycle",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,

@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.17-work-state-consistency';
+const APP_VERSION = '2026.08.26.18-rft-detail-lifecycle';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
