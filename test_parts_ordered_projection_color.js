@@ -52,6 +52,15 @@ assert.doesNotMatch(renderIncoming({ordered: true, blocked: true}), /is-ordered/
 assert.match(renderIncoming({ordered: true, complete: true}), /is-complete/);
 
 assert.match(css, /\.incoming-work-check\.is-ordered\s*\{[^}]*background:\s*#fff7ed;[^}]*color:\s*#9a3412;/s);
+const finalRequiredRule = css.lastIndexOf('.incoming-work-check.is-required {');
+const finalOrderedRule = css.lastIndexOf('.incoming-work-check.is-required.is-ordered,');
+const finalCompleteRule = css.lastIndexOf('.incoming-work-check.is-complete {');
+assert.ok(finalRequiredRule >= 0 && finalOrderedRule > finalRequiredRule && finalCompleteRule > finalOrderedRule,
+  'final CSS cascade places ordered after required and before complete');
+const finalOrderedCss = css.slice(finalOrderedRule, finalCompleteRule);
+assert.match(finalOrderedCss, /border-color:\s*#fdba74 !important;/);
+assert.match(finalOrderedCss, /background:\s*#fff7ed !important;/);
+assert.match(finalOrderedCss, /color:\s*#9a3412 !important;/);
 assert.match(css, /\.pdc-work-state-ordered\s*\{[^}]*background:\s*#fff7ed !important;[^}]*color:\s*#9a3412 !important;/s);
 assert.match(desktopCss, /\.work-status-key\.status-ordered[^\n]*background:\s*#fff7ed;/);
 assert.match(app, /status-ordered"><b>●<\/b> Parts ordered/);
