@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.04-qc-mobile-queue';
+const APP_VERSION = '2026.08.25.05-mobile-qc-no-labels';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -5649,30 +5649,6 @@ async function markVehicleReadyForQualityControl(key = '') {
   return true;
 }
 
-function qualityControlSignoffLabelZpl(vehicle = {}, operator = '', signedAt = '') {
-  const stock = cleanZplField(displayStockNumber(vehicle) || 'NO STOCK');
-  const keyNumber = cleanZplField(vehicleKeyNumber(vehicle) || 'NO KEY');
-  const unit = cleanZplField(displayVehicle(vehicle) || 'Vehicle not listed');
-  const signer = cleanZplField(operator || 'Unknown operator');
-  const signed = parseIsoTimestamp(signedAt) || new Date();
-  const signedLabel = cleanZplField(signed.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }));
-  return [
-    '^XA', '^PW540', '^LL360', '^LH0,0', '^CI28',
-    '^FO18,12^A0N,52,52^FB504,1,0,L,0^FDQC SIGNED OFF^FS',
-    `^FO18,78^A0N,34,34^FB504,1,0,L,0^FDKEY ${keyNumber}^FS`,
-    `^FO18,120^A0N,28,28^FB504,1,0,L,0^FDSTOCK ${stock}^FS`,
-    `^FO18,158^A0N,24,24^FB504,2,2,L,0^FD${unit}^FS`,
-    `^FO18,230^A0N,23,23^FB504,1,0,L,0^FDSIGNED BY ${signer}^FS`,
-    `^FO18,266^A0N,23,23^FB504,1,0,L,0^FD${signedLabel}^FS`,
-    '^FO18,310^A0N,20,20^FB504,1,0,L,0^FDPDC - PLACE ON WINDSCREEN^FS',
-    '^PQ1', '^XZ',
-  ].join('\n');
-}
-
-async function printQualityControlSignoffLabel(vehicle = {}, operator = '', signedAt = '') {
-  return printRawZpl(qualityControlSignoffLabelZpl(vehicle, operator, signedAt), 'QC sign-off label');
-}
-
 function qualityControlVehicleHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
   const stock = displayStockNumber(vehicle) || key || 'No stock';
@@ -5742,7 +5718,6 @@ async function completeVehicleQualityControl(key = '') {
       return false;
     }
     reconcileVehicleLifecycleServerResult(vehicle, result);
-    await printQualityControlSignoffLabel(vehicle, operator, result.vehicle?.qc_completed_at || nowIsoString());
     if (!isAcceptanceClosureVehicle(vehicle) && result.notification_has_recipient === false) {
       window.alert('QC complete was saved, but no salesperson email is on file for this vehicle. The "ready for transport" notification could not be queued for sending. Please set the correct salesperson and use Retry from the notification outbox.');
     }
@@ -5773,7 +5748,6 @@ async function completeVehicleQualityControl(key = '') {
     window.alert(error.message || String(error));
     return false;
   }
-  await printQualityControlSignoffLabel(vehicle, operator, now);
   renderAll();
   return true;
 }
@@ -6778,13 +6752,13 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ? `<button class="primary" type="button" data-ready-for-qc="${escapeHtml(key)}" title="Move this all-green vehicle to the QC Gate">Ready for QC</button>`
         : `<button class="primary" type="button" data-pit-transfer="${escapeHtml(key)}" ${vehicleCanEnterPit(vehicle) ? '' : 'disabled'} title="${escapeHtml(vehicleCanEnterPit(vehicle) ? 'Move PMB Unallocated vehicle to PIT' : 'PIT movement requires PMB Unallocated with no active station')}">To PIT</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
       : bucketKey === 'qc'
-        ? `${vehicle.pdcQcComplete === true ? `<button class="primary" type="button" data-transfer-rft-stock="${escapeHtml(key)}">Complete RFT transfer</button>` : `<button class="primary" type="button" data-qc-signoff-rft="${escapeHtml(key)}">Sign off & print label</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+        ? `${vehicle.pdcQcComplete === true ? `<button class="primary" type="button" data-transfer-rft-stock="${escapeHtml(key)}">Complete RFT transfer</button>` : `<button class="primary" type="button" data-qc-signoff-rft="${escapeHtml(key)}">Sign off QC</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
         : bucketKey === 'pit'
           ? `<button class="primary" type="button" data-pit-return-pmb="${escapeHtml(key)}">Return to PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
           : bucketKey === 'rft'
             ? `<label class="rft-collected-check incoming-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
             : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
-  const labelAction = locationReadOnly ? '' : `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
+  const labelAction = locationReadOnly || bucketKey === 'qc' ? '' : `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
   const deleteAction = locationReadOnly ? '' : (options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '');
   const identitySummary = vehicleIdentityStackHtml(vehicle, {
     className: 'incoming-identity',
@@ -12676,7 +12650,7 @@ function renderDetail() {
       <div class="detail-title">
         <div><h3>${escapeHtml(v.client || 'New customer')}</h3><p>${escapeHtml(displayVehicle(v))}</p></div>
         <div class="detail-actions">
-          <button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}">Label</button>
+          ${vehiclePdcLocation(v) === 'QC' ? '' : `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}">Label</button>`}
           <button class="primary" type="button" data-email-vehicle-update="${escapeHtml(key)}">EMAIL UPDATE</button>
         </div>
       </div>

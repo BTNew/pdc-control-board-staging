@@ -25,7 +25,7 @@ for (const result of [
 assert.strictEqual(context.reconcile({}, {ok: true}), false);
 
 const markStart = source.indexOf('async function markVehicleReadyForQualityControl');
-const markEnd = source.indexOf('function qualityControlSignoffLabelZpl', markStart);
+const markEnd = source.indexOf('function qualityControlVehicleHtml', markStart);
 assert.ok(markStart >= 0 && markEnd > markStart, 'Ready for QC action exists');
 const markSource = source.slice(markStart, markEnd);
 assert.match(markSource, /await Promise\.all\(\[/, 'post-commit authoritative refresh is awaited');
