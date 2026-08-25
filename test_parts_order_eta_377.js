@@ -14,7 +14,7 @@ const sql = fs.readFileSync('supabase/staging_only/20260825140000_377_parts_orde
 assert.strictEqual(PDC_PARTS_ORDERED_RPC, 'mark_pdc_parts_ordered_377');
 assert.ok(app.includes('function partsHasValidAuthoritativeEta'));
 assert.ok(app.includes('Set Parts ETA before marking ordered'));
-assert.match(app, /data-parts-ordered=[\s\S]{0,300}canMarkOrdered \? '' : ' disabled'/);
+assert.match(app, /data-parts-ordered=[\s\S]{0,400}canMarkOrdered \? '' : ' disabled aria-disabled="true"'/);
 const orderedStart = app.indexOf('async function markVehiclePartsOrdered');
 const orderedEnd = app.indexOf('\nasync function markVehiclePartsComplete', orderedStart);
 const ordered = app.slice(orderedStart, orderedEnd);
