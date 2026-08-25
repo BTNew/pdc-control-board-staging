@@ -5651,7 +5651,7 @@ async function saveWorkshopDetailForm(event) {
       ? Number(entry.scheduledDurationMinutes)
       : workshopExactDurationMinutesFromHours(entry.hours);
     const extendsDuration = nextDurationMinutes > currentDurationMinutes;
-    if (extendsDuration && nextStartAt !== entry.startAt) {
+    if (extendsDuration && Date.parse(nextStartAt) !== Date.parse(entry.startAt)) {
       window.alert('To preserve an atomic bay cascade, save the new start time first, then extend the duration.');
       return;
     }
