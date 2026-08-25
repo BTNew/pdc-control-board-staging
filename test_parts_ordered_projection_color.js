@@ -17,6 +17,7 @@ function section(startNeedle, endNeedle) {
 
 const controlContext = {
   pdcJobTriState: vehicle => vehicle.state,
+  pdcWorkDestination: () => null,
   partsOrdered: vehicle => vehicle.ordered === true,
   isActivePartsStoppage: vehicle => vehicle.stoppage === true,
   escapeHtml: value => String(value),

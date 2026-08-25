@@ -18,9 +18,9 @@ assert.strictEqual(row.pdcQcOperationLines[1].estimatedHours, null, 'unknown hou
 
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
-assert.match(app, /const APP_VERSION = '2026\.08\.25\.08-parts-eta-immediate'/);
-assert.match(index, /pdc-email-vehicle-location-service\.js\?v=2026\.08\.25\.08-parts-eta-immediate/);
-assert.match(index, /app\.js\?v=2026\.08\.25\.08-parts-eta-immediate/);
+assert.match(app, /const APP_VERSION = '2026\.08\.25\.09-booking-pills'/);
+assert.match(index, /pdc-email-vehicle-location-service\.js\?v=2026\.08\.25\.09-booking-pills/);
+assert.match(index, /app\.js\?v=2026\.08\.25\.09-booking-pills/);
 const start = app.indexOf('function qcPageOperationLines');
 const end = app.indexOf('\nfunction qcPageVehicleCardHtml', start);
 const context = {

@@ -9247,12 +9247,21 @@ html[data-row-width="xl"] {
 }
 
 
-/* 2026-07-10: modal work states use one 4x2 tri-state grid */
+/* Vehicle detail work states: one compact row with destination pills. */
 .pdc-work-state-grid {
   display: grid !important;
-  grid-template-columns: repeat(4, minmax(126px, 1fr)) !important;
-  gap: 10px !important;
+  grid-template-columns: repeat(10, minmax(82px, 1fr)) !important;
+  gap: 6px !important;
   margin-top: 6px !important;
+  overflow-x: auto !important;
+  align-items: stretch !important;
+}
+
+.pdc-work-state-cell {
+  min-width: 0 !important;
+  display: grid !important;
+  grid-template-rows: auto 30px !important;
+  gap: 4px !important;
 }
 
 .pdc-work-state-grid input[type="hidden"] {
@@ -9262,39 +9271,29 @@ html[data-row-width="xl"] {
 .pdc-work-state {
   appearance: none !important;
   border: 2px solid #cbd5e1 !important;
-  border-radius: 14px !important;
+  border-radius: 10px !important;
   background: #f8fafc !important;
   color: #475569 !important;
-  min-height: 58px !important;
-  padding: 8px 10px !important;
+  width: 100% !important;
+  min-height: 44px !important;
+  padding: 5px 4px !important;
   display: grid !important;
-  grid-template-columns: 30px 1fr !important;
-  grid-template-areas: "code label" "code status" !important;
-  column-gap: 8px !important;
+  grid-template-columns: 1fr !important;
+  grid-template-areas: "label" "status" !important;
   row-gap: 2px !important;
   align-items: center !important;
-  text-align: left !important;
+  text-align: center !important;
   cursor: pointer !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, .06) !important;
 }
 
 .pdc-work-state-code {
-  grid-area: code !important;
-  width: 28px !important;
-  height: 28px !important;
-  border-radius: 999px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  background: rgba(100, 116, 139, .16) !important;
-  color: inherit !important;
-  font-size: .66rem !important;
-  font-weight: 950 !important;
+  display: none !important;
 }
 
 .pdc-work-state-label {
   grid-area: label !important;
-  font-size: .78rem !important;
+  font-size: .66rem !important;
   font-weight: 950 !important;
   letter-spacing: -.01em !important;
   line-height: 1.05 !important;
@@ -9302,7 +9301,7 @@ html[data-row-width="xl"] {
 
 .pdc-work-state-status {
   grid-area: status !important;
-  font-size: .62rem !important;
+  font-size: .56rem !important;
   font-weight: 850 !important;
   opacity: .9 !important;
   line-height: 1.05 !important;
@@ -9320,31 +9319,16 @@ html[data-row-width="xl"] {
   color: #991b1b !important;
 }
 
-.pdc-work-state-required .pdc-work-state-code {
-  background: #dc2626 !important;
-  color: #fff !important;
-}
-
 .pdc-work-state-ordered {
   border-color: #f97316 !important;
   background: #fff7ed !important;
   color: #9a3412 !important;
 }
 
-.pdc-work-state-ordered .pdc-work-state-code {
-  background: #f97316 !important;
-  color: #fff !important;
-}
-
 .pdc-work-state-complete {
   border-color: #16a34a !important;
   background: #ecfdf5 !important;
   color: #166534 !important;
-}
-
-.pdc-work-state-complete .pdc-work-state-code {
-  background: #16a34a !important;
-  color: #fff !important;
 }
 
 .pdc-work-state:focus-visible {
@@ -9361,9 +9345,50 @@ html[data-row-width="xl"] {
   margin-top: 4px !important;
 }
 
+.pdc-work-destination-box {
+  min-width: 0 !important;
+  min-height: 30px !important;
+  padding: 3px !important;
+  border: 1px solid #dbe3ec !important;
+  border-radius: 8px !important;
+  background: #f8fafc !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.pdc-work-destination-pill {
+  width: 100% !important;
+  border: 1px solid #93c5fd !important;
+  border-radius: 999px !important;
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  padding: 3px 5px !important;
+  font-size: .56rem !important;
+  font-weight: 900 !important;
+  line-height: 1.1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  cursor: pointer !important;
+}
+
+.pdc-work-destination-pill:hover,
+.pdc-work-destination-pill:focus-visible {
+  background: #dbeafe !important;
+  outline: 2px solid rgba(37, 99, 235, .28) !important;
+}
+
+.pdc-work-destination-empty {
+  color: #94a3b8 !important;
+  font-size: .55rem !important;
+  font-weight: 750 !important;
+  white-space: nowrap !important;
+}
+
 @media (max-width: 720px) {
   .pdc-work-state-grid {
-    grid-template-columns: repeat(2, minmax(130px, 1fr)) !important;
+    grid-template-columns: repeat(10, 82px) !important;
   }
 }
 

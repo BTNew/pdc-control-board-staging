@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.08-parts-eta-immediate';
+const APP_VERSION = '2026.08.25.09-booking-pills';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -279,19 +279,60 @@ function pdcJobTriState(vehicle = {}, def = {}) {
   return 'none';
 }
 
+function pdcWorkDestinationDateLabel(value = '') {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function pdcWorkDestination(vehicle = {}, def = {}) {
+  if (!def?.key) return null;
+  if (def.key === 'parts') {
+    const eta = partsWorstEtaValue(vehicle);
+    return pdcJobRequired(vehicle, def) ? { kind: 'view', view: 'parts', label: eta ? `ETA ${pdcWorkDestinationDateLabel(eta)}` : 'Open Parts', booked: partsOrdered(vehicle) } : null;
+  }
+  if (def.key === 'sublet') {
+    const returnDate = cleanNavisionText(vehicle.pmbSubletExpectedReturnDate || vehicle.subletExpectedReturnDate || vehicle.expectedReturnDate || '');
+    return pdcJobRequired(vehicle, def) ? { kind: 'view', view: 'sublet', label: returnDate ? `Return ${pdcWorkDestinationDateLabel(returnDate)}` : 'Open Sublet', booked: Boolean(returnDate || vehicle.pmbSubletProvider) } : null;
+  }
+  const stage = pmbStageForPdcJob(def);
+  if (!stage || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]) return null;
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  const state = canonicalId ? app?.vehicleWorkshopDetailCache?.get(canonicalId) : null;
+  const bookings = vehicleWorkshopBookingsForStage(state?.status === 'ready' ? state.detail?.bookings : [], stage)
+    .filter(booking => !['completed', 'deleted', 'cancelled'].includes(cleanNavisionText(booking.status).toLowerCase()));
+  const booking = bookings[0];
+  if (!booking) return null;
+  const dateKey = vehicleWorkshopBookingDateKey(booking);
+  const dateLabel = pdcWorkDestinationDateLabel(booking.scheduled_start_at);
+  const bayLabel = Number(booking.bay_number) > 0 ? ` · Bay ${Number(booking.bay_number)}` : '';
+  return {
+    kind: 'workshop', booked: true, label: `${dateLabel || 'Booked'}${bayLabel}`,
+    bookingId: cleanNavisionText(booking.booking_id || ''), stage, dateKey,
+  };
+}
+
 function pdcJobTriStateControl(vehicle = {}, def = {}, locked = false) {
   const state = pdcJobTriState(vehicle, def);
+  const destination = pdcWorkDestination(vehicle, def);
   const ordered = def.key === 'parts' && state === 'required' && partsOrdered(vehicle) && !isActivePartsStoppage(vehicle);
-  const displayState = ordered ? 'ordered' : state;
-  const stateLabel = state === 'complete' ? 'Completed' : ordered ? 'Ordered' : state === 'required' ? 'To be completed' : 'Not required';
+  const booked = state === 'required' && destination?.booked === true && !isActivePartsStoppage(vehicle);
+  const displayState = ordered || booked ? 'ordered' : state;
+  const stateLabel = state === 'complete' ? 'Completed' : ordered ? 'Ordered' : booked ? 'Booked' : state === 'required' ? 'To be completed' : 'Not required';
   const disabled = locked ? ' disabled' : '';
-  return `<button class="pdc-work-state pdc-work-state-${escapeHtml(displayState)} pdc-toggle-${escapeHtml(def.key)}" type="button" data-pdc-work-state="${escapeHtml(def.key)}" data-state="${escapeHtml(state)}" aria-label="${escapeHtml(def.label)} - ${stateLabel}" title="${escapeHtml(def.label)} - ${stateLabel}. Grey not required, red to complete, orange ordered, green completed."${disabled}>
+  const destinationPill = destination?.kind === 'workshop' && destination.bookingId && destination.dateKey
+    ? `<button type="button" class="pdc-work-destination-pill" data-vehicle-workshop-booking-id="${escapeHtml(destination.bookingId)}" data-vehicle-workshop-booking-stage="${escapeHtml(destination.stage)}" data-vehicle-workshop-booking-date="${escapeHtml(destination.dateKey)}" title="Open exact ${escapeHtml(def.label)} booking">${escapeHtml(destination.label)}</button>`
+    : destination?.kind === 'view'
+      ? `<button type="button" class="pdc-work-destination-pill" data-pdc-work-destination-view="${escapeHtml(destination.view)}" title="Open ${escapeHtml(def.label)}">${escapeHtml(destination.label)}</button>`
+      : '<span class="pdc-work-destination-empty">Not booked</span>';
+  return `<div class="pdc-work-state-cell"><button class="pdc-work-state pdc-work-state-${escapeHtml(displayState)} pdc-toggle-${escapeHtml(def.key)}" type="button" data-pdc-work-state="${escapeHtml(def.key)}" data-state="${escapeHtml(state)}" aria-label="${escapeHtml(def.label)} - ${stateLabel}" title="${escapeHtml(def.label)} - ${stateLabel}. Grey not required, red to complete, orange booked/ordered, green completed."${disabled}>
     <span class="pdc-work-state-code">${escapeHtml(def.short)}</span>
     <span class="pdc-work-state-label">${escapeHtml(def.label)}</span>
     <span class="pdc-work-state-status">${escapeHtml(stateLabel)}</span>
   </button>
   <input type="hidden" data-pdc-work-require="${escapeHtml(def.key)}" name="${escapeHtml(def.requireKey)}" value="${state === 'none' ? '0' : '1'}" />
-  <input type="hidden" data-pdc-work-complete="${escapeHtml(def.key)}" name="${escapeHtml(def.completeKey)}" value="${state === 'complete' ? '1' : '0'}" />`;
+  <input type="hidden" data-pdc-work-complete="${escapeHtml(def.key)}" name="${escapeHtml(def.completeKey)}" value="${state === 'complete' ? '1' : '0'}" />
+  <div class="pdc-work-destination-box">${destinationPill}</div></div>`;
 }
 
 const PDC_JOB_BY_REQUIRE_KEY = new Map(PDC_JOB_DEFS.map(def => [def.requireKey, def]));
@@ -12240,6 +12281,10 @@ function bindVehicleDetailTabs(panel) {
     selectVehicleDetailPage(tabs[next].dataset.vehicleDetailTab);
   }));
   panel.querySelectorAll('[data-vehicle-workshop-booking-id]').forEach(button => button.addEventListener('click', () => openVehicleWorkshopBooking(button.dataset.vehicleWorkshopBookingId, button.dataset.vehicleWorkshopBookingStage, button.dataset.vehicleWorkshopBookingDate)));
+  panel.querySelectorAll('[data-pdc-work-destination-view]').forEach(button => button.addEventListener('click', () => {
+    closeVehicleModal();
+    showView(button.dataset.pdcWorkDestinationView);
+  }));
   panel.querySelectorAll('[data-vehicle-workshop-line-add]').forEach(button => button.addEventListener('click', () => saveVehicleWorkshopLine({ stage: button.dataset.stage })));
   panel.querySelectorAll('[data-vehicle-workshop-line-edit]').forEach(button => button.addEventListener('click', () => saveVehicleWorkshopLine({
     stage: button.dataset.stage,
@@ -12449,6 +12494,9 @@ function openVehicleModal(stock) {
   $('#modal-close')?.focus();
   void refreshSharedVehicleWorkState(vehicle).then(ok => {
     if (ok && app.selectedStock === vehicleKey(vehicle) && !modal.hidden) renderDetail();
+  });
+  void loadVehicleWorkshopDetail(vehicle, { force: true }).then(() => {
+    if (app.selectedStock === vehicleKey(vehicle) && app.vehicleDetailPage === 'details' && !modal.hidden) renderDetail();
   });
   return true;
 }
