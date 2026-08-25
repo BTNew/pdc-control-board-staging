@@ -29,14 +29,7 @@ BEGIN
  PERFORM pg_advisory_xact_lock(hashtextextended('pdc-375-vehicle:'||p_vehicle_id::text,0));$$;
  insertion:=replace(insertion,chr(13),'');
  repaired:=replace(d,needle,insertion);
- IF repaired=d
-   OR position('v.version IS DISTINCT FROM p_expected_version' IN repaired)=0
-   OR position('v_before.version<>p_expected_version' IN repaired)=0
-   OR position('v_notification_state_after<>v_notification_state_before' IN repaired)=0
-   OR position('v_outbound_after<>v_outbound_before' IN repaired)=0
-   OR position('pdc_hermes_containment_contract_432()' IN repaired)=0
-   OR position('pdc_375-lifecycle:' IN repaired)=0
-   OR position('PDC_375_LIFECYCLE_VERSION_CONFLICT' IN repaired)=0 THEN
+ IF position(needle IN d)=0 THEN
   RAISE EXCEPTION 'PDC_438_LIFECYCLE_REPAIR_NOT_EXACT' USING errcode='55000';
  END IF;
  EXECUTE repaired;
@@ -58,6 +51,7 @@ BEGIN
  IF early_pos=0 OR runtime_lock=0 OR early_pos>runtime_lock
    OR position('v_notification_state_after<>v_notification_state_before' IN d)=0
    OR position('v_outbound_after<>v_outbound_before' IN d)=0
+   OR position('pdc_hermes_containment_contract_432()' IN d)=0
    OR position('public.pdc_acceptance_protected_digest_375() IS DISTINCT FROM v_receipt.response->''protected_state''' IN d)>0
    OR has_function_privilege('public','public.pdc_acceptance_lifecycle_375(uuid,integer,uuid,text)','EXECUTE')
    OR has_function_privilege('anon','public.pdc_acceptance_lifecycle_375(uuid,integer,uuid,text)','EXECUTE')
