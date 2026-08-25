@@ -4001,7 +4001,6 @@ function renderWorkshopPlanner(options = {}) {
         <button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button>
         ${sharedModeActive && workshopLastAdministratorMove && workshopAdministratorCanMove() ? '<button class="small-button" type="button" data-workshop-undo-admin-move>Undo last move</button>' : ''}
         ${sharedModeActive && workshopAdminBlockCanMutate() ? `<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button><div class="workshop-admin-palette" data-workshop-admin-palette><span class="workshop-admin-palette-hint">Drag to a bay</span><button class="workshop-admin-palette-tile" type="button" draggable="true" data-workshop-admin-palette-tile data-admin-palette-duration="${workshopAdminPaletteDurationMinutes}"><span data-workshop-admin-palette-label>Admin · ${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)} h</span></button><label class="workshop-admin-palette-duration"><span>Hours</span><input type="number" min="0.25" max="8" step="0.25" value="${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)}" data-workshop-admin-palette-duration aria-label="Admin block duration in hours" /></label></div>` : ''}
-        ${sharedModeActive && workshopVehicleLinkCanPersist() ? '<button class="small-button" type="button" data-workshop-link-readiness>Review shared links</button>' : ''}
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
     </header>
@@ -4245,17 +4244,24 @@ function bindWorkshopPlanner(root) {
     event.stopPropagation();
     openWorkshopScheduleModal(button.dataset.workshopScheduleVehicle, workshopState().stage, workshopState().date);
   }));
-  root.querySelectorAll('[data-workshop-best-slot-vehicle]').forEach(button => button.addEventListener('click', event => {
+  root.querySelectorAll('[data-workshop-best-slot-vehicle]').forEach(button => button.addEventListener('click', async event => {
     event.preventDefault();
     event.stopPropagation();
-    scheduleWorkshopVehicle({
-      vehicleKeyValue: button.dataset.workshopBestSlotVehicle,
-      stage: button.dataset.workshopBestSlotStage,
-      bay: Number(button.dataset.workshopBestSlotBay),
-      dateKey: button.dataset.workshopBestSlotDate,
-      startMinutes: Number(button.dataset.workshopBestSlotStart),
-      hoursValue: Number(button.dataset.workshopBestSlotHours),
-    });
+    if (button.disabled) return;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+    try {
+      await workshopScheduleVehicleNextAvailable({
+        vehicleKeyValue: button.dataset.workshopBestSlotVehicle,
+        stage: button.dataset.workshopBestSlotStage,
+        hours: Number(button.dataset.workshopBestSlotHours),
+      });
+    } finally {
+      if (button.isConnected) {
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+      }
+    }
   }));
   root.querySelectorAll('[data-workshop-admin-block-id]').forEach(chip => {
     const block = workshopLoadAdminBlocks().find(row => row.id === chip.dataset.workshopAdminBlockId);
