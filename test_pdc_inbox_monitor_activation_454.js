@@ -1,0 +1,17 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/20260827004000_454_inbox_monitor_activation.sql','utf8');
+assert.match(sql, /version='20260827003000' AND name='453_workshop_detail_lifecycle_read'/);
+assert.match(sql, /to_regclass\('public\.pdc_production_environment_sentinel'\) IS NOT NULL/);
+assert.match(sql, /u\.raw_app_meta_data->>'pdc_identity_type'='non_human_monitor'/);
+assert.match(sql, /UPDATE public\.pdc_monitor_stage_activation_writers[\s\S]*active=true[\s\S]*revoked_at=NULL/i);
+assert.match(sql, /UPDATE public\.monitored_mailboxes[\s\S]*active=true,test_mode=true/i);
+assert.match(sql, /UPDATE public\.pdc_email_monitor_pilot[\s\S]*enabled=true[\s\S]*automatic_rule_application=true[\s\S]*automatic_authenticated_jobcards=true[\s\S]*outbound_email_enabled=false/i);
+assert.match(sql, /CREATE TABLE IF NOT EXISTS public\.pdc_email_monitor_activation_receipts_454/);
+assert.match(sql, /BEFORE UPDATE OR DELETE ON public\.pdc_email_monitor_activation_receipts_454/);
+assert.match(sql, /future_minimum_uid bigint NOT NULL CHECK\(future_minimum_uid=590\)/);
+assert.match(sql, /poll_interval_minutes integer NOT NULL CHECK\(poll_interval_minutes=30\)/);
+assert.match(sql, /mailbox archive occurs only after terminal processing evidence/);
+assert.match(sql, /VALUES\('20260827004000','454_inbox_monitor_activation'/);
+console.log('PDC Inbox monitor activation 454: PASS');

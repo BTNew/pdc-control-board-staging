@@ -4,23 +4,24 @@
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
-  "mailbox_runtime_changed": false,
+  "mailbox_runtime_changed": true,
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": null,
   "observed_applied_database_migration": {
-    "version": "20260827003000",
-    "name": "453_workshop_detail_lifecycle_read",
-    "file": "supabase/staging_only/20260827003000_453_workshop_detail_lifecycle_read.sql",
-    "sha256": "3f0b7eb87f40046f6127af3b488f40ebc058b5b38f8e0c1cecf9a283e5c2e77f",
+    "version": "20260827006000",
+    "name": "456_final_inbox_monitor_runtime",
+    "file": "supabase/staging_only/20260827006000_456_final_inbox_monitor_runtime.sql",
+    "sha256": "2aad35f72a3e4ae5c799edfff08bd063532c99e0eb8431b004d094103aef6c31",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain through 453 using the protected migration controller and authoritative migration-ledger readback."
+    "source": "Verified append-only staging-only migration chain through 456 using the protected migration controller and authoritative migration-ledger readback."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
     "RFT transport booking creates the mandatory pending salesperson payload with completed work, dates, build times, stoppages and the private QC photo reference.",
     "Collected vehicles move to Completed, release active bay authority and remain in authoritative Completed history after refresh.",
     "The staging-only email interceptor verifies deterministic MIME and QC attachment hashes in a private sink without external delivery.",
+    "The isolated pmbcontroller Inbox monitor runs every 30 minutes; terminally handled email is archived while review or status-only email remains in Inbox.",
     "Production and real outbound email delivery remain disabled and untouched."
   ]
 }

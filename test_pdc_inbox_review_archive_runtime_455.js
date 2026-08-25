@@ -1,0 +1,14 @@
+'use strict';
+const assert=require('assert'),fs=require('fs');
+const sql=fs.readFileSync('supabase/staging_only/20260827005000_455_inbox_review_and_archive_runtime.sql','utf8');
+assert.match(sql,/version='20260827004000' AND name='454_inbox_monitor_activation'/);
+assert.match(sql,/pdc_production_environment_sentinel/);
+assert.match(sql,/v_sender_enrolled:=EXISTS/);
+assert.doesNotMatch(sql,/RAISE EXCEPTION 'pdc_monitor_sender_not_enrolled'/i);
+assert.match(sql,/jsonb_build_object\('provider_authentication',v_auth,'provider_authserv_id',v_authserv,'sender_enrolled',v_sender_enrolled\)/);
+assert.match(sql,/'sender_enrolled',v_sender_enrolled/);
+assert.match(sql,/canonical mutations still require exact active sender enrollment/);
+assert.match(sql,/archive_method='UID MOVE to \[Gmail\]\/All Mail after terminal processing'/);
+assert.match(sql,/BEFORE UPDATE OR DELETE ON public\.pdc_email_monitor_runtime_receipts_455/);
+assert.match(sql,/VALUES\('20260827005000','455_inbox_review_and_archive_runtime'/);
+console.log('PDC Inbox review and archive runtime 455: PASS');

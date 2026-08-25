@@ -1,0 +1,11 @@
+'use strict';
+const assert=require('assert'),fs=require('fs');
+const sql=fs.readFileSync('supabase/staging_only/20260827006000_456_final_inbox_monitor_runtime.sql','utf8');
+assert.match(sql,/version='20260827005000' AND name='455_inbox_review_and_archive_runtime'/);
+assert.match(sql,/terminal_archive_policy text NOT NULL CHECK\(terminal_archive_policy='archive only complete, duplicate or irrelevant terminal outcomes; review and status-only remain in Inbox'\)/);
+assert.match(sql,/unsupported_attachment_policy='retain as failed evidence for review'/);
+assert.match(sql,/idle_replay_policy='bound pending Inbox items are not re-enqueued every cycle'/);
+assert.match(sql,/BEFORE UPDATE OR DELETE ON public\.pdc_email_monitor_final_runtime_receipts_456/);
+assert.match(sql,/automatic_rule_application AND automatic_authenticated_jobcards AND NOT outbound_email_enabled/);
+assert.match(sql,/VALUES\('20260827006000','456_final_inbox_monitor_runtime'/);
+console.log('PDC final Inbox monitor runtime 456: PASS');
