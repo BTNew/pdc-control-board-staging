@@ -7444,6 +7444,11 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   background: #fff1f2;
   color: #9f1239;
 }
+.incoming-work-check.is-ordered {
+  border-color: #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+}
 .incoming-work-check.is-complete {
   border-color: #86efac;
   background: #f0fdf4;
@@ -9302,6 +9307,17 @@ html[data-row-width="xl"] {
 
 .pdc-work-state-required .pdc-work-state-code {
   background: #dc2626 !important;
+  color: #fff !important;
+}
+
+.pdc-work-state-ordered {
+  border-color: #f97316 !important;
+  background: #fff7ed !important;
+  color: #9a3412 !important;
+}
+
+.pdc-work-state-ordered .pdc-work-state-code {
+  background: #f97316 !important;
   color: #fff !important;
 }
 
