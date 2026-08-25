@@ -16,6 +16,12 @@ assert.strictEqual(planner.workshopClampDurationHours(15.3), 15.25, 'The start-t
 const start = new Date(2026, 7, 24, 8, 0, 0, 0); // Monday at Workshop open.
 const exactBooking = { startAt: start.toISOString(), hours: 15.3, status: 'planned' };
 assert.strictEqual(planner.workshopNewBookingValidation(exactBooking).ok, true);
+const subHourBooking = { startAt: start.toISOString(), hours: 47 / 60, status: 'planned' };
+assert.strictEqual(planner.workshopNewBookingValidation(subHourBooking).ok, true,
+  'the shared scheduling preflight must accept a valid 47-minute booking');
+const zeroMinuteBooking = { startAt: start.toISOString(), hours: 0, status: 'planned' };
+assert.deepStrictEqual(planner.workshopNewBookingValidation(zeroMinuteBooking),
+  { ok: false, error: 'minimum_duration', minimumMinutes: 1 });
 const exactEnd = planner.workshopEntryEnd(exactBooking);
 assert.strictEqual(exactEnd.getDay(), 2, '918 work minutes should carry into Tuesday');
 assert.strictEqual(exactEnd.getHours(), 14);
@@ -38,7 +44,7 @@ const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const staging = fs.readFileSync('staging.html', 'utf8');
 const version = app.match(/const APP_VERSION = '([^']+)'/)?.[1];
-assert.strictEqual(version, '2026.08.26.14-workshop-subhour-duration');
+assert.strictEqual(version, '2026.08.26.15-workshop-subhour-preflight');
 assert.ok(index.includes(`app.js?v=${version}`));
 assert.match(staging, /http-equiv=["']refresh["'][^>]+content=["']0;\s*url=\.\/["']/i);
 

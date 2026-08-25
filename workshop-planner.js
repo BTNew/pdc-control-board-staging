@@ -2519,8 +2519,8 @@ function workshopNewBookingValidation(entry = {}, now = null) {
   const start = parseIsoTimestamp(entry.startAt || '');
   if (!start) return { ok: false, error: 'invalid_start' };
   const requestedDurationMinutes = Math.round(Number(entry.hours ?? workshopDefaultBookingHours()) * 60);
-  if (!Number.isFinite(requestedDurationMinutes) || requestedDurationMinutes < 60) {
-    return { ok: false, error: 'minimum_duration', minimumMinutes: 60 };
+  if (!Number.isFinite(requestedDurationMinutes) || requestedDurationMinutes < 1) {
+    return { ok: false, error: 'minimum_duration', minimumMinutes: 1 };
   }
   const referenceNow = now instanceof Date ? new Date(now) : now ? new Date(now) : null;
   if (referenceNow && !Number.isNaN(referenceNow.getTime())) {
@@ -2578,7 +2578,7 @@ function workshopRequireSchedulableCandidate(entry = {}) {
     configuration_unavailable: 'Shared planner configuration is loading, unavailable, or invalid. New scheduling is blocked until valid shared settings are confirmed.',
     invalid_start: 'Choose a valid workshop start date and time.',
     past_start: 'Workshop jobs cannot be placed in the past. Choose the current or a future time.',
-    minimum_duration: 'Workshop Planner bookings must be at least 60 minutes.',
+    minimum_duration: 'Workshop Planner bookings must be at least one operational minute.',
     closure_date: 'That date is configured as a workshop closure and cannot accept a new booking.',
     non_working_day: 'That date is not part of the configured working week.',
     break_window: 'The proposed booking interval overlaps a configured non-bookable break window.',

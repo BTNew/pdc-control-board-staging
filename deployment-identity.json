@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.26.14-workshop-subhour-duration",
+  "application_version": "2026.08.26.15-workshop-subhour-preflight",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
