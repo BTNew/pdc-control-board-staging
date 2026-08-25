@@ -1,5 +1,15 @@
 # Autonomous Website Changes
 
+## 2026-08-25 — Focused booking and future-only Workshop corrections
+
+- Vehicle-card booking links now enter a focused, scoped canonical booking mode. Exact booking ID resolution fails closed on missing/ambiguous rows, displays authoritative operation lines and exact whole-minute totals, removes legacy duration buttons, supports receipt/version-safe Save plan edits, hides candidate noise, and provides Back to Workshop planner.
+- Workshop planner projections now consume authoritative source-line stage adjustments in shared mode and never use browser-local line assignments; moved source lines follow their canonical target station and exact hours.
+- Outstanding pills now use canonical vehicle description, station-only exact authenticated minutes, explicit zero/unknown hours, no Requirements line, and focused Parts navigation uses the exact selected stock.
+- Shared vehicle detail lifecycle/stoppage guard compares only against the rendered raw baseline, preserving the exact dedicated-action error while allowing unrelated salesperson/detail saves.
+- Added staging-only migration `supabase/staging_only/20260826093000_393_future_only_workshop_recovery.sql` for future-only planned scheduling, overdue recovery, idempotent recovery receipts, history/version preservation, and a staging rollback switch with zero notifications.
+- Added staging-only migration `supabase/staging_only/20260826100000_394_admin_compaction_and_duration_bounds.sql` for exact multi-day Admin operational durations and atomic now-forward compaction after shortening/deletion, preserving fixed/live/history rows and receipts.
+- Shared detail Save now treats raw rendered lifecycle/work baselines as the only editable comparison; derived Parts/STOPPAGE projections cannot block unrelated salesperson assignment. Parts navigation focuses the exact selected stock and preserves authoritative ordered projection.
+
 ## 2026-08-25 — Atomic Admin block insertion and cascade
 
 - Added staging-only migration `supabase/staging_only/20260826090000_392_workshop_admin_block_atomic_cascade.sql` for drop-time bay/revision locking, idempotent Admin insertion, exact operational-minute cascading of planned vehicle and Admin rows, fixed/live blocker details with nearest available slot, immutable receipt/history, one revision bump and zero notification delta.

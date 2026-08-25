@@ -1,5 +1,15 @@
 # Shared Files
 
+## Focused booking and future-only Workshop corrections — 2026-08-25
+
+- `app.js` — focused vehicle-card booking entry, canonical Parts projection/focus, and raw-baseline lifecycle guard for shared detail saves.
+- `workshop-planner.js` — focused canonical booking mode, exact operation-line display, source-line adjustment projection, no local shared assignments, and exact candidate pill model/hours.
+- `workshop-data-service.js` — authoritative future-only recovery before trusted snapshots.
+- `workshop-planner.css` — focused booking operation/error layout.
+- `supabase/staging_only/20260826093000_393_future_only_workshop_recovery.sql` — staging-only future scheduling enforcement and recovery.
+- `supabase/staging_only/20260826100000_394_admin_compaction_and_duration_bounds.sql` — staging-only exact multi-day Admin duration and now-forward compaction correction.
+- `test_workshop_focused_booking.js`, `test_workshop_owner_corrections.js` — focused UI, projection, future-only and raw-baseline contract coverage.
+
 ## Atomic Admin block insertion and cascade — 2026-08-25
 
 - `workshop-planner.js` — Admin drop request state, request-id dispatch, placed/cascaded summary, and fixed blocker/nearest-slot feedback.

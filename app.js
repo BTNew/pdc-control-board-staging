@@ -879,7 +879,11 @@ function pdcJobRequired(vehicle = {}, def = {}) {
   if (!def?.requireKey) return false;
   // Parts is not an optional work bucket in this PDC flow.
   // Every imported vehicle with a real batch / stock number requires Parts to order and sign off before RFT.
-  if (def.key === 'parts') return vehicleHasBatchNumber(vehicle);
+  if (def.key === 'parts') {
+    const projection = vehicle.parts_update || vehicle.partsUpdate || vehicle.__emailPartsUpdate || null;
+    if (projection && typeof projection.parts_required === 'boolean') return projection.parts_required;
+    return vehicleHasBatchNumber(vehicle);
+  }
   if (def.key === 'fitting' && vehicle.pdcRequiresBuild === true) return true;
   if (vehicle[def.requireKey] === true) return true;
   if (vehicle[def.requireKey] === false) return false;
@@ -3837,6 +3841,9 @@ function showView(view, options) {
   const switchingPlannerStation = previousWasPlanner && Boolean(plannerStage) && previousRequestedView !== requestedView;
   const enteringWorkshopPlanner = nextView === 'workshop'
     && (!previousWasPlanner || previousRequestedView !== requestedView);
+  const focusedWorkshopIntent = app.pendingWorkshopBookingLink?.focused === true;
+  if ((nextView !== 'workshop' || (switchingPlannerStation && !focusedWorkshopIntent))
+      && typeof workshopResetFocusedBooking === 'function') workshopResetFocusedBooking();
   if (enteringWorkshopPlanner) app.pendingWorkshopOpenToday = true;
   // Dashboard completion projection deliberately uses an unscoped Workshop
   // service. Never reuse it for a station planner with different authority.
@@ -12064,7 +12071,7 @@ function selectVehicleDetailPage(page = 'details') {
 function openVehicleWorkshopBooking(bookingId = '', stage = '', date = '') {
   const normalizedStage = vehicleWorkshopStageCode(stage);
   if (!bookingId || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizedStage] || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
-  app.pendingWorkshopBookingLink = { bookingId, stage: normalizedStage, date };
+  app.pendingWorkshopBookingLink = { bookingId, stage: normalizedStage, date, focused: true };
   closeVehicleModal();
   openWorkshopPlannerForStage(normalizedStage);
   return true;
@@ -12334,8 +12341,23 @@ function bindVehicleDetailTabs(panel) {
   }));
   panel.querySelectorAll('[data-vehicle-workshop-booking-id]').forEach(button => button.addEventListener('click', () => openVehicleWorkshopBooking(button.dataset.vehicleWorkshopBookingId, button.dataset.vehicleWorkshopBookingStage, button.dataset.vehicleWorkshopBookingDate)));
   panel.querySelectorAll('[data-pdc-work-destination-view]').forEach(button => button.addEventListener('click', () => {
+    const selected = selectedVehicle() || {};
     closeVehicleModal();
+    if (button.dataset.pdcWorkDestinationView === 'parts') {
+      app.partsFocusSearch = displayStockNumber(selected) || vehicleKeyNumber(selected) || vehicleKey(selected) || '';
+      app.partsOperationalFilter = 'ordered';
+    }
     showView(button.dataset.pdcWorkDestinationView);
+    if (button.dataset.pdcWorkDestinationView === 'parts') {
+      window.requestAnimationFrame(() => {
+        const input = $('#parts-search');
+        if (!input) return;
+        input.value = app.partsFocusSearch || '';
+        input.focus();
+        input.select?.();
+        renderPartsHome();
+      });
+    }
   }));
   panel.querySelectorAll('[data-vehicle-workshop-line-add]').forEach(button => button.addEventListener('click', () => saveVehicleWorkshopLine({ stage: button.dataset.stage })));
   panel.querySelectorAll('[data-vehicle-workshop-line-edit]').forEach(button => button.addEventListener('click', () => saveVehicleWorkshopLine({
@@ -12747,6 +12769,8 @@ function renderDetail() {
   if (!v || !panel) return;
   app.activeVehicleDetail = v;
   const key = vehicleKey(v);
+  const rawPdcBlocked = v.pdcBlocked === true || v.pdcWorkshopBlocked === true;
+  const rawWorkStateBaseline = Object.fromEntries(PDC_JOB_DEFS.map(def => [def.key, pdcJobTriState(v, def)]));
   const notes = getNotes(key);
   const customerWarning = !isCustomerMatch(v);
   const isCompletedVehicle = statusCategory(v) === 'completed';
@@ -12773,7 +12797,7 @@ function renderDetail() {
           <button class="primary" type="button" data-email-vehicle-update="${escapeHtml(key)}">EMAIL UPDATE</button>
         </div>
       </div>
-      <form class="edit-form" data-vehicle-edit-form>
+      <form class="edit-form" data-vehicle-edit-form data-pdc-location-baseline="${escapeHtml(vehiclePdcLocation(v))}" data-pdc-blocked-baseline="${rawPdcBlocked ? 'true' : 'false'}" data-pdc-block-reason-baseline="${escapeHtml(v.pdcBlockReason || '')}" data-pdc-work-state-baseline="${escapeHtml(JSON.stringify(rawWorkStateBaseline))}">
         <div class="form-row three-col">
           <label>
             <span class="muted-label">SP</span>
@@ -12819,7 +12843,7 @@ function renderDetail() {
         </div>
         <div class="muted-label section-label">Blocked / exception control</div>
         <div class="form-row two-col">
-          <label class="check-option block-check"><input name="pdcBlocked" type="checkbox" ${isPdcBlocked(v) ? 'checked' : ''} /> <span>Blocked / problem vehicle</span></label>
+          <label class="check-option block-check"><input name="pdcBlocked" type="checkbox" ${rawPdcBlocked ? 'checked' : ''} /> <span>Blocked / problem vehicle</span></label>
           <label>
             <span class="muted-label">Blocked reason</span>
             <input name="pdcBlockReason" value="${escapeHtml(v.pdcBlockReason || '')}" placeholder="Parts missing, damage, awaiting supplier, rework..." />
@@ -12931,7 +12955,7 @@ function renderDetail() {
     const internalStatus = v.internalStatus || '';
     const previousPdcLocation = vehiclePdcLocation(v);
     const previousPmbStage = normalizePmbStage(v.pmbStage || '');
-    const previouslyPdcBlocked = isPdcBlocked(v);
+    const previouslyPdcBlocked = rawPdcBlocked;
     const pdcLocation = isCompletedVehicle ? previousPdcLocation : normalizePdcLocation(form.pdcLocation.value);
     const pmbStage = previousPmbStage;
     const pdcJobcard = cleanNavisionText(form.pdcJobcard?.value || '');
@@ -12939,6 +12963,9 @@ function renderDetail() {
     const pdcBlockReasonValue = cleanNavisionText(form.pdcBlockReason?.value || '');
     const workStateMap = pdcWorkStateMapFromForm(form, v, isCompletedVehicle);
     const { requirementUpdates, completionUpdates } = pdcWorkStateUpdatesFromMap(workStateMap);
+    let rawWorkStateBaseline = null;
+    try { rawWorkStateBaseline = JSON.parse(form.dataset.pdcWorkStateBaseline || ''); } catch (_error) { rawWorkStateBaseline = null; }
+    const workStateChangedByUser = rawWorkStateBaseline && PDC_JOB_DEFS.some(def => workStateMap[def.key] !== rawWorkStateBaseline[def.key]);
     const detailChanges = {};
     if (serverAuthoritative && client !== String(v.client || '').trim()) detailChanges.client_name = client;
     if (serverAuthoritative && keyNumber !== String(vehicleKeyNumber(v) || '').trim()) detailChanges.key_number = keyNumber;
@@ -12948,7 +12975,9 @@ function renderDetail() {
       window.alert(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
       return;
     }
-    if (serverAuthoritative && (pdcLocation !== previousPdcLocation || pdcBlocked !== previouslyPdcBlocked || pdcBlockReasonValue !== (pdcBlockReason(v) || ''))) {
+    if (serverAuthoritative && (pdcLocation !== (form.dataset.pdcLocationBaseline || previousPdcLocation)
+      || pdcBlocked !== (form.dataset.pdcBlockedBaseline === 'true')
+      || pdcBlockReasonValue !== String(form.dataset.pdcBlockReasonBaseline || ''))) {
       if (saveMessage) saveMessage.textContent = 'Error: lifecycle or stoppage fields use their dedicated shared action';
       return;
     }
@@ -12968,8 +12997,8 @@ function renderDetail() {
       PDC_JOB_DEFS.some(def => requirementUpdates[def.requireKey] || completionUpdates[def.completeKey])
     );
     if (hasIndependentPdcWork) Object.assign(updates, pdcVisibilityPromotionUpdates(v, 'Operator / PDC work update'));
-    const changedCompletions = PDC_JOB_DEFS.filter(def => pdcJobComplete(v, def) !== completionUpdates[def.completeKey]);
-    const changedRequirements = PDC_JOB_DEFS.filter(def => pdcJobRequired(v, def) !== requirementUpdates[def.requireKey]);
+    const changedCompletions = workStateChangedByUser ? PDC_JOB_DEFS.filter(def => pdcJobComplete(v, def) !== completionUpdates[def.completeKey]) : [];
+    const changedRequirements = workStateChangedByUser ? PDC_JOB_DEFS.filter(def => pdcJobRequired(v, def) !== requirementUpdates[def.requireKey]) : [];
     let sharedWorkStatesSaved = false;
     if (!isCompletedVehicle && (changedCompletions.length || changedRequirements.length) && vehicleLifecycleSharedModeActive()) {
       const submit = form.querySelector('button[type="submit"]');
@@ -13007,10 +13036,10 @@ function renderDetail() {
         }
       });
     }
-    PDC_JOB_DEFS.forEach(def => {
+    if (!serverAuthoritative || workStateChangedByUser) PDC_JOB_DEFS.forEach(def => {
       if (!sharedWorkStatesSaved && pdcJobRequired(v, def) !== requirementUpdates[def.requireKey]) recordVehicleAudit(v, requirementUpdates[def.requireKey] ? 'Requirement added' : 'Requirement removed', { job: def.label });
     });
-    if (isPdcBlocked(v) !== pdcBlocked || pdcBlockReason(v) !== (pdcBlockReasonValue || 'Blocked')) {
+    if (!serverAuthoritative && (isPdcBlocked(v) !== pdcBlocked || pdcBlockReason(v) !== (pdcBlockReasonValue || 'Blocked'))) {
       recordVehicleAudit(v, pdcBlocked ? 'Vehicle blocked' : 'Vehicle unblocked', { reason: pdcBlockReasonValue });
     }
     if (pdcLocation !== previousPdcLocation) {
@@ -13899,7 +13928,10 @@ function isActivePartsStoppage(vehicle = {}) {
 }
 
 function partsOrdered(vehicle = {}) {
-  return vehicle.pdcPartsOrdered === true || Boolean(cleanNavisionText(vehicle.pdcPartsOrderedAt || vehicle.partsOrderedAt || ''));
+  const projection = vehicle.parts_update || vehicle.partsUpdate || vehicle.__emailPartsUpdate || null;
+  return projection?.parts_ordered === true
+    || vehicle.pdcPartsOrdered === true
+    || Boolean(cleanNavisionText(vehicle.pdcPartsOrderedAt || vehicle.partsOrderedAt || ''));
 }
 
 function partsMiscAcc(vehicle = {}) {

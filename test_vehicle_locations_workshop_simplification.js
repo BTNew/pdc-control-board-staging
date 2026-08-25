@@ -18,7 +18,7 @@ const renderEnd = planner.indexOf('function bindWorkshopPlanner', renderStart);
 const render = planner.slice(renderStart, renderEnd);
 assert.doesNotMatch(render, /workshop-completed-panel|workshopCompletedCardHtml|Nothing completed on this board date/);
 assert.doesNotMatch(render, /<span class="completed">Completed<\/span>/);
-assert.match(render, /const activePlans = plans\.filter\(entry => entry\.stage === stage && entry\.status !== 'completed'\)/);
+assert.match(render, /const activePlans = focusedBookingMode \? focusedPlans\.filter\(entry => entry\.status !== 'completed'\) : plans\.filter\(entry => entry\.stage === stage && entry\.status !== 'completed'\)/);
 assert.match(render, /const selectedDateBookingCount = todaysPlans\.length/);
 assert.match(planner, /entry\.status !== 'completed' && workshopPlanVehicleIdentity\(entry\) === vehicleIdentity/,
   'completed bookings are omitted from planner search');

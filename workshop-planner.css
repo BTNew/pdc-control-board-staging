@@ -1364,6 +1364,23 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
 .workshop-admin-block-feedback.pending { border-color: #93c5fd; background: #eff6ff; color: #1e3a8a; }
 .workshop-admin-block-feedback.success { border-color: #86efac; background: #f0fdf4; color: #166534; }
 .workshop-admin-block-feedback.error { border-color: #fca5a5; background: #fff1f2; color: #9f1239; }
+.workshop-focused-operation-lines,
+.workshop-focused-booking-error {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.workshop-focused-operation-lines strong,
+.workshop-focused-booking-error strong,
+.workshop-focused-booking-error span { display: block; }
+.workshop-focused-operation-lines ul { margin: 8px 0 0; padding-left: 20px; }
+.workshop-focused-operation-lines li { display: flex; gap: 7px; flex-wrap: wrap; line-height: 1.45; }
+.workshop-focused-operation-lines li b { margin-left: auto; }
+.workshop-focused-booking-error { border-color: #fca5a5; background: #fff1f2; color: #9f1239; }
+.workshop-focused-booking-error button { margin-top: 10px; }
+.is-focused-booking .workshop-detail-panel { max-width: 980px; }
 .workshop-admin-block-modal { max-width: 680px; }
 .workshop-admin-palette {
   display: inline-flex;

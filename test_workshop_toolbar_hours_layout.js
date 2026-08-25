@@ -17,13 +17,14 @@ assert.strictEqual(context.hoursValue(30), '0.5');
 assert.strictEqual(context.hoursValue(60), '1');
 assert.strictEqual(context.hoursValue(75), '1.25');
 
-assert.match(source, /const hours = Math\.max\(0\.25, Math\.min\(8,/);
-assert.match(source, /workshopAdminPaletteDurationMinutes = workshopSnapMinutes\(hours \* 60\)/);
+assert.match(source, /function workshopAdminDurationInputMinutes/);
+assert.match(source, /unit === 'working_days' \? numeric \* WORKSHOP_PLANNER_CONFIG\.dayLengthMinutes/);
 assert.match(source, /Admin · \$\{workshopAdminDurationHoursValue\(workshopAdminPaletteDurationMinutes\)\} h/);
-assert.match(source, /<span>Hours<\/span><input type="number" min="0\.25" max="8" step="0\.25"/);
-assert.match(source, /aria-label="Admin block duration in hours"/);
-assert.match(source, /<span>Duration \(hours\)<\/span><input name="hours" type="number" min="0\.25" step="0\.25" value="0\.5"/);
-assert.match(source, /durationMinutes: workshopSnapMinutes\(\(Number\(form\.elements\.hours\.value\) \|\| 0\.5\) \* 60\)/);
+assert.match(source, /data-workshop-admin-palette-unit/);
+assert.match(source, /<option value="working_days">Working days<\/option>/);
+assert.match(source, /<label><span>Duration unit<\/span><select name="durationUnit">/);
+assert.match(source, /const durationMinutes = workshopAdminDurationInputMinutes\(form\.elements\.durationValue\.value, form\.elements\.durationUnit\.value\)/);
+assert.doesNotMatch(source, /data-workshop-admin-palette-duration[^>]*max="8"/);
 assert.doesNotMatch(source, /Admin · 30 min/);
 assert.doesNotMatch(source, /aria-label="Admin block duration in minutes"/);
 

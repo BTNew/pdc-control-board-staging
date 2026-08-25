@@ -260,6 +260,18 @@ function createWorkshopDataService(options) {
     const loadToken = {};
     activeLoadToken = loadToken;
     try {
+      const mutationRole = getRole();
+      if (mutationRole === 'operator' || mutationRole === 'administrator') {
+        const recoveryKey = `snapshot-recovery-${scope?.stageCode || 'all'}-${scope?.dateFrom || 'all'}-${Math.floor(Date.now() / 60000)}`;
+        // Future-only recovery is an authorised server-side reconciliation, not
+        // a browser projection. A pre-393 staging head remains readable while
+        // the compatibility RPC is absent; once present, every scoped snapshot
+        // gets a durable overdue-planned pass before it is trusted.
+        await client.rpc(token, 'recover_overdue_planned_workshop_bookings', {
+          p_idempotency_key: recoveryKey,
+          p_as_of: new Date().toISOString(),
+        });
+      }
       const rpcName = scope ? 'get_station_workshop_snapshot' : 'get_workshop_snapshot';
       const rpcParams = scope ? {
         p_stage_code: scope.stageCode,

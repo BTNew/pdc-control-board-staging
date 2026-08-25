@@ -27,7 +27,7 @@ assert.ok(source.includes('workshopExactDurationHours(workshopCalculatedStageHou
   'shared scheduling derives exact duration from the complete authenticated operation-line projection');
 assert.ok(source.includes('const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);'));
 assert.ok(source.includes('readonly title="Uses the canonical operation-line estimate"'));
-assert.ok(source.includes('Configured hours ${escapeHtml(workshopTimeLabelFromMinutes(0))}–${escapeHtml(workshopTimeLabelFromMinutes(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes))}'), 'planner header renders authoritative configured hours');
+assert.ok(source.includes('Configured hours ${workshopTimeLabelFromMinutes(0)}–${workshopTimeLabelFromMinutes(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes)}'), 'planner header renders authoritative configured hours');
 assert.ok(!source.includes('Monday–Friday, 8:00am–4:00pm.'), 'planner must not display stale hard-coded hours');
 
 const app = fs.readFileSync('app.js', 'utf8');
