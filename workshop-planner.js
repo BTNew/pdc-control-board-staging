@@ -1183,11 +1183,15 @@ function workshopCalculatedStageHours(vehicle = {}, stage = '') {
   const stageLines = workshopStageJobLines(vehicle, normalizedStage);
   const authenticatedLines = stageLines.filter(line => line.source === 'authenticated-operation-line' && Number(line.hours) > 0);
   const additionalHours = Number(workshopAdditionalHoursMap(vehicle)[normalizedStage] || 0);
+  const authoritativeHours = workshopEstimatedHours(vehicle, normalizedStage);
+  // The scoped station snapshot has already applied durable operation-line
+  // station adjustments. Raw imported lines still carry their original
+  // work_key, so summing those first can submit another station's duration.
+  if (workshopSharedModeActive() && vehicle.__workshopStationSnapshotAuthoritative === true && authoritativeHours) return authoritativeHours;
   if (workshopSharedModeActive() && authenticatedLines.length) {
     const exactLineHours = authenticatedLines.reduce((sum, line) => sum + Number(line.hours || 0), 0);
     return workshopExactDurationHours(exactLineHours + (Number.isFinite(additionalHours) ? Math.max(0, additionalHours) : 0));
   }
-  const authoritativeHours = workshopEstimatedHours(vehicle, normalizedStage);
   if (authoritativeHours) return authoritativeHours;
   const importedHours = stageLines.reduce((sum, line) => sum + Number(line.hours || 0), 0);
   const total = importedHours + (Number.isFinite(additionalHours) ? Math.max(0, additionalHours) : 0);
@@ -2745,6 +2749,7 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
     };
   });
   return {
+    __workshopStationSnapshotAuthoritative: true,
     id: vehicle.id,
     sharedVehicleId: vehicle.id,
     permanentVehicleId: vehicle.permanent_vehicle_id || '',
@@ -5344,7 +5349,13 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
     renderWorkshopPlanner();
     return false;
   }
-  const rawEstimate = Number(hours) > 0 ? Number(hours) : workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
+  // In shared mode the operation projection is the booking authority. The
+  // caller's hours may be stale (or may have been derived from editable DOM
+  // inputs), so it must never override adjusted server lines.
+  const authoritativeStageHours = workshopCalculatedStageHours(vehicle, normalizedStage);
+  const rawEstimate = workshopSharedModeActive()
+    ? (authoritativeStageHours || pmbBayHours(vehicle) || workshopDefaultBookingHours())
+    : (Number(hours) > 0 ? Number(hours) : authoritativeStageHours || pmbBayHours(vehicle) || workshopDefaultBookingHours());
   const estimate = workshopSharedModeActive()
     ? (workshopExactDurationHours(rawEstimate) || workshopClampDurationHours(rawEstimate))
     : workshopClampDurationHours(rawEstimate);

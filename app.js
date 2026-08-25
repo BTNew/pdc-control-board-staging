@@ -1950,6 +1950,10 @@ const app = {
   currentView: 'dashboard',
   selectedStock: null,
   activeVehicleDetail: null,
+  // A modal is bound to the exact canonical vehicle and the Stock value shown
+  // when it opened. Refresh/realtime must never retarget it by index or first
+  // visible row.
+  vehicleModalIdentity: null,
   vehicleDetailPage: 'details',
   vehicleWorkshopDetailCache: new Map(),
   vehicleWorkshopDetailRequestGeneration: 0,
@@ -4493,7 +4497,9 @@ async function refreshEmailVehicleLocations() {
     app.data = applyPendingSharedWorkStateOverlays(reconciled.rows);
     app.selectedRows.clear();
     const visibleRows = pdcSheetVehicles();
-    app.selectedStock = vehicleKey(visibleRows.find(vehicle => vehicle.toyotaStatus) || visibleRows[0] || app.data[0]);
+    if (!app.vehicleModalIdentity) {
+      app.selectedStock = vehicleKey(visibleRows.find(vehicle => vehicle.toyotaStatus) || visibleRows[0] || app.data[0]);
+    }
     app.emailVehicleIdentityConflictCount = reconciled.conflictCount;
   }
   app.emailVehicleLocationRevision = response.data?.revision ?? null;
@@ -11700,6 +11706,7 @@ const VEHICLE_WORKSHOP_STATION_PRESENTATION = Object.freeze({
   FABRICATION: { label: 'Fabrication', colour: '#d97706', tint: '#fffbeb' },
   ELECTRICAL: { label: 'Electrical', colour: '#16a34a', tint: '#f0fdf4' },
   TYRE: { label: 'Tyre', colour: '#0f766e', tint: '#f0fdfa' },
+  PIT_INSPECTION: { label: 'Pit inspection', colour: '#475569', tint: '#f8fafc' },
   SUBLET: { label: 'Sublet', colour: '#64748b', tint: '#f8fafc' },
   PARTS: { label: 'Parts', colour: '#dc2626', tint: '#fef2f2' },
 });
@@ -11864,7 +11871,8 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   const structuredLines = typeof vehiclePdcJobLines === 'function' ? vehiclePdcJobLines(vehicle) : [];
   const authenticatedLines = (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : [])
     .slice(0, 50)
-    .filter(line => authenticatedOperationLineValid(line?.operation_no) && line?.description && line?.work_key)
+    .filter(line => authenticatedOperationLineValid(line?.operation_no) && line?.description
+      && (line?.work_key || line?.stage_code || line?.department_code || line?.operation_no))
     .sort((a, b) => {
       const left = authenticatedOperationLineSortValue(a.operation_no);
       const right = authenticatedOperationLineSortValue(b.operation_no);
@@ -11873,27 +11881,38 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   const adjustments = Array.isArray(detail?.line_adjustments) ? detail.line_adjustments : [];
   const adjustmentByKey = new Map(adjustments.filter(item => item?.source_kind !== 'manual' && item?.line_key).map(item => [String(item.line_key), item]));
   const authenticatedTargetStage = line => {
-    const sourceStage = vehicleWorkshopStageCode(line?.work_key);
+    const sourceStage = vehicleWorkshopStageCode(line?.work_key || line?.stage_code || line?.department_code || 'PIT_INSPECTION');
     const adjustment = adjustmentByKey.get(vehicleWorkshopLineIdentity(sourceStage, line));
     return adjustment ? vehicleWorkshopStageCode(adjustment.stage_code) : sourceStage;
   };
   const authenticatedDescriptions = new Set(authenticatedLines.map(line => `${authenticatedTargetStage(line)}\0${cleanNavisionText(line.description).toLowerCase()}`));
   const groups = new Map();
+  const canDisplayStage = stage => Boolean(
+    WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]
+      || (typeof VEHICLE_WORKSHOP_STATION_PRESENTATION !== 'undefined' && VEHICLE_WORKSHOP_STATION_PRESENTATION[stage])
+      || ['PIT_INSPECTION', 'PARTS'].includes(stage),
+  );
+  const ensureGroup = stage => {
+    if (!canDisplayStage(stage)) return null;
+    if (!groups.has(stage)) groups.set(stage, { stage, requirements: [], lines: [], bookings: vehicleWorkshopBookingsForStage(bookings, stage) });
+    return groups.get(stage);
+  };
   requirements.filter(item => item?.required === true).forEach(item => {
     const stage = vehicleWorkshopStageCode(item.stage_code || item.work_key || '');
-    if (!WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]) return;
-    if (!groups.has(stage)) groups.set(stage, { stage, requirements: [], lines: [], bookings: vehicleWorkshopBookingsForStage(bookings, stage) });
-    groups.get(stage).requirements.push(item);
+    const group = ensureGroup(stage);
+    if (group) group.requirements.push(item);
   });
   structuredLines.forEach(line => {
     const stage = vehicleWorkshopStageCode(typeof pdcJobLineStage === 'function' ? pdcJobLineStage(line) : (line.category || line.stage || ''));
     if (authenticatedDescriptions.has(`${stage}\0${cleanNavisionText(vehicleWorkshopLineDescription(line, '')).toLowerCase()}`)) return;
-    if (groups.has(stage)) groups.get(stage).lines.push(line);
+    const group = ensureGroup(stage);
+    if (group) group.lines.push(line);
   });
   authenticatedLines.forEach(line => {
     const stage = authenticatedTargetStage(line);
     const jobCard = cleanNavisionText(line.job_card_number || line.jobCardNumber || '');
-    if (groups.has(stage)) groups.get(stage).lines.push({
+    const group = ensureGroup(stage);
+    if (group) group.lines.push({
       ...line,
       description: `${jobCard ? `JC ${jobCard} · ` : ''}${authenticatedOperationLineLabel(line.operation_no)} · ${line.description}`,
       authenticatedEmailOperation: true,
@@ -11901,19 +11920,20 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   });
   authoritativeJobCardLines.slice(0, 250).forEach(line => {
     const stage = vehicleWorkshopStageCode(line.stage_code || line.department_code || line.work_key || '');
-    if (!groups.has(stage)) return;
+    const group = ensureGroup(stage);
+    if (!group) return;
     const lineIdentity = vehicleWorkshopLineIdentity(stage, line);
-    const existingIndex = groups.get(stage).lines.findIndex(existing => vehicleWorkshopLineIdentity(stage, existing) === lineIdentity);
+    const existingIndex = group.lines.findIndex(existing => vehicleWorkshopLineIdentity(stage, existing) === lineIdentity);
     if (existingIndex >= 0) {
-      const existing = groups.get(stage).lines[existingIndex];
-      groups.get(stage).lines[existingIndex] = {
+      const existing = group.lines[existingIndex];
+      group.lines[existingIndex] = {
         ...existing,
         ...line,
         description: existing.authenticatedEmailOperation === true ? existing.description : line.description,
         job_card_number: existing.job_card_number || line.job_card_number || line.jobCardNumber || null,
         authoritativeJobCardLine: true,
       };
-    } else groups.get(stage).lines.push({ ...line, authoritativeJobCardLine: true });
+    } else group.lines.push({ ...line, authoritativeJobCardLine: true });
   });
   const relocatedLines = [];
   groups.forEach(group => {
@@ -11940,9 +11960,10 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
         adjustmentProtected: adjustment.manual_assignment_locked === true,
         correctionOrigin: adjustment.correction_origin || '',
         workshopManualLine: false,
-      } : { ...line, workshopLineKey: lineKey, sourceWorkshopStage: group.stage, sourceEstimatedHours: /\bai\b|model/.test(sourceKind) ? null : sourceHours, aiEstimatedHours: /\bai\b|model/.test(sourceKind) ? sourceHours : vehicleWorkshopAdjustedSourceHours(line.ai_estimated_hours), protectedHours: line.protected_hours, manualOverrideHours: line.manual_override_hours, adjustmentId: '', adjustmentVersion: 0, adjustmentProtected: false, correctionOrigin: '', workshopManualLine: false };
+      } : { ...line, workshopLineKey: lineKey, sourceWorkshopStage: group.stage, estimatedHours: sourceHours, sourceEstimatedHours: /\bai\b|model/.test(sourceKind) ? null : sourceHours, aiEstimatedHours: /\bai\b|model/.test(sourceKind) ? sourceHours : vehicleWorkshopAdjustedSourceHours(line.ai_estimated_hours), protectedHours: line.protected_hours, manualOverrideHours: line.manual_override_hours, adjustmentId: '', adjustmentVersion: 0, adjustmentProtected: false, correctionOrigin: '', workshopManualLine: false };
       const targetStage = adjustment ? vehicleWorkshopStageCode(adjustment.stage_code) : group.stage;
-      if (targetStage !== group.stage && groups.has(targetStage)) {
+      const targetGroup = targetStage !== group.stage ? ensureGroup(targetStage) : null;
+      if (targetGroup) {
         relocatedLines.push({ targetStage, line: adjustedLine });
         return [];
       }
@@ -11952,8 +11973,9 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   relocatedLines.forEach(({ targetStage, line }) => groups.get(targetStage).lines.push(line));
   adjustments.filter(item => item?.source_kind === 'manual').forEach(item => {
     const stage = vehicleWorkshopStageCode(item.stage_code);
-    if (!groups.has(stage)) return;
-    groups.get(stage).lines.push({
+    const group = ensureGroup(stage);
+    if (!group) return;
+    group.lines.push({
       workshopLineKey: item.line_key,
       description: item.description,
       estimatedHours: Number(item.estimated_hours),
@@ -11963,7 +11985,7 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
     });
   });
   groups.forEach(group => {
-    if (!group.lines.length) {
+    if (!group.lines.length && group.requirements.length) {
       const station = vehicleWorkshopStationPresentation(group.stage);
       group.lines.push({ description: `${station.label} work required`, confirmedHours: null, estimatedHours: null, fallback: true });
     }
@@ -12381,11 +12403,22 @@ async function scheduleVehicleWorkshopNextAvailable(button) {
     .map(input => Number(input.value))
     .filter(value => Number.isFinite(value) && value > 0)
     .reduce((sum, value) => sum + value, 0);
+  const selected = selectedVehicle() || {};
+  const canonicalId = vehicleWorkshopDetailCanonicalId(selected);
+  const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
+  const authoritativeGroup = station && selected
+    ? vehicleWorkshopGroups(selected, detail).find(group => group.stage === vehicleWorkshopStageCode(station.dataset.vehicleWorkshopStage || ''))
+    : null;
+  const projectedHours = authoritativeGroup
+    ? authoritativeGroup.lines.map(line => vehicleWorkshopHoursProjection(line).schedulingHours)
+      .filter(value => value !== null)
+      .reduce((sum, value) => sum + value, 0)
+    : null;
   const payload = {
     vehicleId: button.dataset.vehicleId,
     vehicleKeyValue: button.dataset.vehicleKey,
     stage: button.dataset.stage,
-    hours: enteredHours || Number(button.dataset.hours || 0),
+    hours: projectedHours !== null ? projectedHours : (enteredHours || Number(button.dataset.hours || 0)),
   };
   closeVehicleModal();
   openWorkshopPlannerForStage(payload.stage);
@@ -12529,7 +12562,35 @@ function bindVehicleDetailTabs(panel) {
   });
 }
 
+function vehicleModalBoundVehicle() {
+  const identity = app.vehicleModalIdentity;
+  if (!identity) return null;
+  const canonicalId = String(identity.canonicalId || '').trim();
+  const stockBaseline = String(identity.stockBaseline || '').trim();
+  const sources = [
+    ...(Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : []),
+    ...(Array.isArray(app.data) ? app.data : []),
+  ];
+  const canonicalRows = new Map();
+  sources.forEach(vehicle => {
+    if (String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() !== canonicalId) return;
+    const stock = String(displayStockNumber(vehicle) || '').trim();
+    if (!canonicalRows.has(stock)) canonicalRows.set(stock, vehicle);
+  });
+  if (canonicalRows.size !== 1 || !canonicalRows.has(stockBaseline)) return null;
+  const bound = canonicalRows.get(stockBaseline);
+  return bound?.__emailVehicleIdentityConflict === true ? null : bound;
+}
+
+function vehicleModalIdentityMatches(vehicle = {}) {
+  const identity = app.vehicleModalIdentity;
+  if (!identity || !vehicle) return false;
+  return String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() === String(identity.canonicalId || '').trim()
+    && String(displayStockNumber(vehicle) || '').trim() === String(identity.stockBaseline || '').trim();
+}
+
 function selectedVehicle(key = app.selectedStock) {
+  if (arguments.length === 0 && app.vehicleModalIdentity) return vehicleModalBoundVehicle();
   const requested = String(key ?? '').trim();
   if (!requested) return null;
 
@@ -12701,6 +12762,15 @@ function openVehicleModal(stock) {
   if (!modal) return false;
   rememberModalReturnFocus(modal);
   app.selectedStock = vehicleKey(vehicle);
+  app.vehicleModalIdentity = Object.freeze({
+    canonicalId: vehicleWorkshopDetailCanonicalId(vehicle),
+    stockBaseline: String(displayStockNumber(vehicle) || '').trim(),
+  });
+  if (!app.vehicleModalIdentity.canonicalId || !app.vehicleModalIdentity.stockBaseline) {
+    app.vehicleModalIdentity = null;
+    window.alert('The exact vehicle identity is unavailable. Refresh the list and try again. No vehicle was changed.');
+    return false;
+  }
   app.vehicleDetailPage = 'details';
   app.vehicleWorkshopDetailRequestGeneration += 1;
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
@@ -12754,6 +12824,7 @@ function closeVehicleModal() {
   app.vehicleWorkshopDetailRequestGeneration += 1;
   app.vehicleDetailPage = 'details';
   app.activeVehicleDetail = null;
+  app.vehicleModalIdentity = null;
   if (!modal || modal.hidden) return;
   modal.hidden = true;
   document.body.classList.remove('modal-open');
@@ -12909,7 +12980,15 @@ async function completeVehicleDelete(stock) {
 function renderDetail() {
   const v = selectedVehicle();
   const panel = $('#vehicle-detail');
-  if (!v || !panel) return;
+  if (!panel) return;
+  if (!v && app.vehicleModalIdentity) {
+    const stock = escapeHtml(app.vehicleModalIdentity.stockBaseline || 'the selected Stock');
+    app.activeVehicleDetail = null;
+    panel.innerHTML = `<div class="empty-state vehicle-identity-fail-closed" role="alert"><strong>Vehicle identity changed or is unavailable</strong><span>Stock ${stock} remains read-only. Refresh the Control Board or close and reopen this exact Stock before saving. No vehicle was changed.</span><button type="button" class="primary" data-modal-cancel>Close</button></div>`;
+    panel.querySelector('[data-modal-cancel]')?.addEventListener('click', closeVehicleModal);
+    return;
+  }
+  if (!v) return;
   app.activeVehicleDetail = v;
   const key = vehicleKey(v);
   const rawPdcBlocked = v.pdcBlocked === true || v.pdcWorkshopBlocked === true;
@@ -13088,6 +13167,12 @@ function renderDetail() {
     e.preventDefault();
     const form = e.currentTarget;
     const serverAuthoritative = v.__emailVehicleServerAuthoritative === true;
+    if (serverAuthoritative && (!vehicleModalIdentityMatches(v) || !vehicleModalIdentityMatches(vehicleModalBoundVehicle()))) {
+      const saveMessage = $('[data-save-message]', panel);
+      if (saveMessage) saveMessage.textContent = 'Error: exact vehicle identity is no longer available; no change was made';
+      window.alert('The exact Stock and canonical vehicle identity changed or disappeared. Refresh or reopen the exact Stock before saving. No vehicle was changed.');
+      return;
+    }
     const clientInput = form.client.value.trim();
     const client = serverAuthoritative ? clientInput : (clientInput || v.client);
     const keyNumber = statusCategory(v) === 'pmb' ? cleanNavisionText(form.keyNumber?.value || '') : vehicleKeyNumber(v);
