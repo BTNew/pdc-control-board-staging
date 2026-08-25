@@ -13052,6 +13052,17 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 
 /* Compact desktop sidebar; retain accessible coarse-pointer targets. */
 @media (min-width: 821px) {
+  .app-shell {
+    grid-template-columns: 176px minmax(0, 1fr) !important;
+  }
+  .sidebar {
+    padding: 14px 10px !important;
+    gap: 10px !important;
+    overflow-x: hidden;
+  }
+  .sidebar .brand {
+    gap: 7px !important;
+  }
   .sidebar .nav {
     gap: 2px;
     margin-top: 6px;
