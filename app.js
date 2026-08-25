@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.02-authority-closure';
+const APP_VERSION = '2026.08.27.03-restore-fail-closed';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -3172,6 +3172,7 @@ function bindNav() {
   on($('#export-backup'), 'click', exportCrmBackup);
   on($('#export-backup-top'), 'click', exportCrmBackup);
   on($('#backup-upload'), 'change', handleCrmBackupFileSelect);
+  configureCrmBackupAuthorityUi();
   on($('#email-selected-amy'), 'click', draftSelectedArrivingVehicleEmail);
   on($('#email-selected-amy-bar'), 'click', draftSelectedArrivingVehicleEmail);
   on($('#email-selected-update-bar'), 'click', () => draftSelectedVehicleStatusEmail());
@@ -20064,7 +20065,29 @@ function exportCrmBackup() {
   renderBackupStatus({ type: 'exported', backup });
 }
 
+function configureCrmBackupAuthorityUi() {
+  if (!vehicleLifecycleSharedModeActive()) return;
+  const upload = $('#backup-upload');
+  if (upload) upload.disabled = true;
+  const dropZone = $('.backup-drop-zone');
+  if (dropZone) {
+    dropZone.classList.add('is-disabled');
+    const heading = dropZone.querySelector('strong');
+    const detail = dropZone.querySelector('span:last-child');
+    if (heading) heading.textContent = 'Restore unavailable in shared mode';
+    if (detail) detail.textContent = 'Operational vehicles are authoritative in Supabase. Browser backup files cannot replace shared tracker state.';
+  }
+}
+
 function handleCrmBackupFileSelect(event) {
+  if (vehicleLifecycleSharedModeActive()) {
+    if (event?.target) event.target.value = '';
+    renderBackupStatus({
+      type: 'error',
+      message: 'Browser backup restore is unavailable in shared mode. Operational vehicles remain authoritative in Supabase.',
+    });
+    return false;
+  }
   const file = event.target.files?.[0];
   if (!file) return;
   const reader = new FileReader();
@@ -20128,6 +20151,16 @@ function normalizedBackupStorage(backup) {
 }
 
 function restoreCrmBackup(text, fileName = 'backup file') {
+  // A backup file is untrusted browser input. Once shared lifecycle authority
+  // is enabled it must never replace the operational projection, even through
+  // a stale DOM event or direct function call.
+  if (vehicleLifecycleSharedModeActive()) {
+    renderBackupStatus({
+      type: 'error',
+      message: 'Browser backup restore is unavailable in shared mode. Operational vehicles remain authoritative in Supabase.',
+    });
+    return false;
+  }
   let backup;
   try { backup = JSON.parse(text); }
   catch {
