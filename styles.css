@@ -8053,6 +8053,22 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   background: #f8fafc;
 }
 .fix-first-list-body { display: grid; gap: 0; }
+.fix-first-row-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+.fix-first-row-wrap .fix-first-row { border-top: 0; }
+.fix-first-clear {
+  align-self: center;
+  margin: 8px 12px 8px 4px;
+  border-color: #b91c1c;
+  color: #991b1b;
+  font-weight: 900;
+  white-space: nowrap;
+}
 .fix-first-row {
   display: grid;
   grid-template-columns: minmax(112px, .4fr) minmax(420px, 1.6fr) minmax(130px, .55fr) minmax(260px, 1.2fr);
@@ -10876,6 +10892,9 @@ textarea {
   border: 1px solid #d8e0e8 !important;
 }
 .rft-collected-check input { width: 14px !important; height: 14px !important; margin: 0 !important; }
+.rft-transport-checks { display: flex !important; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rft-collected-check.is-complete { background: #dcfce7 !important; border-color: #86efac !important; color: #166534 !important; }
+.rft-collected-check:has(input:disabled):not(.is-complete) { opacity: .55; }
 
 /* Expanded information belongs below the aligned row and may use the full width. */
 .incoming-vehicle-detail-grid,

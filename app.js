@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.08-instant-authoritative-card';
+const APP_VERSION = '2026.08.26.09-stoppage-rft-transport';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -2276,6 +2276,10 @@ function navisionStatusText(vehicleOrStatus = '') {
 function vehiclePdcLocation(vehicle = {}) {
   const explicit = normalizePdcLocation(vehicle.pdcLocation || vehicle.pdcStatus || vehicle.manualLocation || '');
   return explicit;
+}
+
+function vehicleRftTransportBooked(vehicle = {}) {
+  return Boolean(vehicle.rftTransportBookedAt);
 }
 
 function vehicleCollectedFromRft(vehicle = {}) {
@@ -5263,14 +5267,36 @@ function fixFirstRowsHtml(rows = [], emptyText = 'No urgent production exception
     const unit = displayVehicle(vehicle) || 'Vehicle not listed';
     const stage = pmbStageLabel(inferredPmbStage(vehicle)) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || incomingBucketLabel(incomingBucketForVehicle(vehicle));
     const severity = row.severity || 'warning';
-    return `<button class="fix-first-row fix-first-${escapeHtml(severity)}" type="button" data-open-stock="${escapeHtml(key)}">
-      <span class="fix-first-label">${escapeHtml(row.label || 'Action needed')}</span>
-      ${identityHtml}
-      <small>${escapeHtml(unit)}</small>
-      <em>${escapeHtml(row.detail || stage || 'Open vehicle for details')}</em>
-    </button>`;
+    const clearAction = row.bookingId || row.label === 'Parts STOPPAGE' || row.label === 'PMB STOPPAGE'
+      ? `<button class="small-button fix-first-clear" type="button" data-clear-priority-stoppage="${escapeHtml(key)}">Clear stoppage</button>` : '';
+    return `<div class="fix-first-row-wrap">
+      <button class="fix-first-row fix-first-${escapeHtml(severity)}" type="button" data-open-stock="${escapeHtml(key)}">
+        <span class="fix-first-label">${escapeHtml(row.label || 'Action needed')}</span>
+        ${identityHtml}
+        <small>${escapeHtml(unit)}</small>
+        <em>${escapeHtml(row.detail || stage || 'Open vehicle for details')}</em>
+      </button>${clearAction}
+    </div>`;
   }).join('');
   return `${vehicleIdentityHeaderHtml('fix-first-identity-header')}${rowHtml}`;
+}
+
+async function clearPriorityStoppage(key = '') {
+  const vehicle = selectedVehicle(key);
+  const service = app.emailVehicleLocationService;
+  if (!vehicle || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.clearVehicleStoppage !== 'function') {
+    window.alert('This stoppage is not bound to current server authority. Nothing was changed.'); return;
+  }
+  const note = cleanNavisionText(window.prompt('Why is this stoppage being cleared? This note is kept in the vehicle history.', 'Issue resolved') || '');
+  if (!note) return;
+  const result = await service.clearVehicleStoppage(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), note, salespersonAssignmentIdempotencyKey());
+  if (!result?.ok) {
+    const messages = { no_active_stoppage: 'This vehicle no longer has an active stoppage.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_active: 'This vehicle is no longer active.' };
+    await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('clear_stoppage_rejected')]);
+    window.alert(messages[result?.code] || 'The stoppage was not cleared. No history was removed.'); renderAll(); return;
+  }
+  await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('clear_stoppage_412')]);
+  renderAll();
 }
 
 function bindFixFirstRows(root = document) {
@@ -5278,6 +5304,11 @@ function bindFixFirstRows(root = document) {
     if (button.dataset.fixFirstBound === 'true') return;
     button.dataset.fixFirstBound = 'true';
     button.addEventListener('click', () => openVehicleModal(button.dataset.openStock));
+  });
+  $$('[data-clear-priority-stoppage]', root).forEach(button => {
+    if (button.dataset.clearStoppageBound === 'true') return;
+    button.dataset.clearStoppageBound = 'true';
+    button.addEventListener('click', event => { event.stopPropagation(); void clearPriorityStoppage(button.dataset.clearPriorityStoppage); });
   });
 }
 
@@ -15089,86 +15120,55 @@ function rftVehicleDetailRow(vehicle = {}) {
         <div><b>Customer</b><span>${escapeHtml(customer)}</span></div>
         <div class="wide"><b>Blocker / outstanding</b><span>${escapeHtml(blocker || 'No outstanding RFT blockers')}</span></div>
         <div class="wide"><b>Completion ticks</b><span>${rftCompletionTicksHtml(vehicle)}</span></div>
-        <div class="wide rft-detail-actions"><b>Handover actions</b><span><label class="rft-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button></span></div>
+        <div class="wide rft-detail-actions"><b>Transport handover</b><span class="rft-transport-checks"><label class="rft-collected-check ${vehicleRftTransportBooked(vehicle) ? 'is-complete' : ''}" title="Tick after the transport booking is confirmed on the trucking company website"><input type="checkbox" data-rft-transport-booked-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? 'checked disabled' : ''} /> <span>Booked on trucking website</span></label><label class="rft-collected-check" title="Tick once the vehicle has physically been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? '' : 'disabled'} /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button></span></div>
       </div>
     </details>`;
 }
 
-async function markRftVehicleCollected(key, collected = true) {
+async function markRftTransportBooked(key = '', booked = true) {
   const vehicle = selectedVehicle(key);
-  if (!vehicle) return;
-  if (!collected && vehicleCollectedFromRft(vehicle)) {
-    window.alert('Completed vehicles are locked once collected. Open the vehicle and contact an admin if this was marked collected in error.');
-    renderAll();
-    return;
+  const service = app.emailVehicleLocationService;
+  if (!vehicle || !booked) { renderAll(); return; }
+  if (vehicleRftTransportBooked(vehicle)) { renderAll(); return; }
+  if (vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.bookRftTransport !== 'function') {
+    window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return;
   }
-  if (!collected) return;
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
-  if (!window.confirm(`Confirm ${label} has been collected?\n\nThis will move it out of RFT into Completed Vehicles and cannot be undone here.`)) {
-    renderAll();
-    return;
+  if (!window.confirm(`Confirm ${label} has been booked on the trucking company website?\n\nThis permanently records the booking and creates the mandatory salesperson email with completed work, dates, build times, stoppages and the QC photo.`)) { renderAll(); return; }
+  const result = await service.bookRftTransport(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
+  if (!result?.ok) {
+    const messages = { salesperson_email_required: 'Assign an active salesperson with an email address first.', qc_evidence_required: 'The QC completion list and photo must be stored before transport can be booked.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.', transport_already_booked: 'Transport has already been booked.' };
+    await refreshEmailVehicleLocations(); window.alert(messages[result?.code] || 'Transport booking was not saved. No email was created.'); renderAll(); return;
   }
-  const operator = getCurrentOperatorName();
+  await refreshEmailVehicleLocations(); renderAll();
+  window.alert('Transport booking saved. The mandatory salesperson update has been created with the full build history and QC photo.');
+}
 
-  if (vehicleLifecycleSharedModeActive()) {
-    const ref = await vehicleLifecycleSharedRef(vehicle);
-    if (!ref || ref.outcome !== 'resolved') {
-      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
-      renderAll();
-      return;
-    }
-    if (ref.isArchived) {
-      window.alert('This vehicle is archived in shared data, so it was not marked collected. No change was made.');
-      renderAll();
-      return;
-    }
-    if (ref.lifecycleState === 'completed') {
-      window.alert('This vehicle has already been collected and moved to Completed Vehicles.');
-      renderAll();
-      return;
-    }
-    const result = await window.__vehicleLifecycleActions.rftCollectVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
-    if (!result || result.ok !== true) {
-      const message = typeof describeVehicleLifecycleActionError === 'function' ? describeVehicleLifecycleActionError(result && result.error) : 'This vehicle could not be marked collected.';
-      window.alert(message);
-      if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_collect_rejected');
-      renderAll();
-      return;
-    }
-    offerSalespersonChangeEmail(vehicle, {
-      title: 'Vehicle completed and collected',
-      subject: 'Vehicle collection complete',
-      shared: true,
-      details: [`Collected from RFT by ${operator || 'Unknown operator'}.`],
-    });
-    if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_collect');
-    renderAll();
-    return;
+async function markRftVehicleCollected(key = '', collected = true) {
+  const vehicle = selectedVehicle(key);
+  const service = app.emailVehicleLocationService;
+  if (!vehicle || !collected) { renderAll(); return; }
+  if (!vehicleRftTransportBooked(vehicle)) { window.alert('Book the vehicle on the trucking company website first.'); renderAll(); return; }
+  if (vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.collectRftTransport !== 'function') {
+    window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return;
   }
-
-  const now = nowIsoString();
-  recordVehicleAudit(vehicle, 'Collected from RFT', { by: operator || 'Unknown' });
-  saveVehicleEdits(vehicleKey(vehicle), {
-    rftCollected: true,
-    completedVehicle: true,
-    rftCollectedAt: vehicle.rftCollectedAt || now,
-    deliveredToDealerDate: vehicle.deliveredToDealerDate || window.PDC_VEHICLE_LOCATION_LIFECYCLE?.businessDateInTimeZone?.(new Date()) || now.slice(0, 10),
-    rftCollectedBy: vehicle.rftCollectedBy || operator,
-  });
-  offerSalespersonChangeEmail(vehicle, {
-    title: 'Vehicle completed and collected',
-    subject: 'Vehicle collection complete',
-    details: [`Collected from RFT by ${operator || 'Unknown operator'}.`],
-  });
+  const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+  if (!window.confirm(`Confirm ${label} has physically been collected?\n\nThis moves it to Completed Vehicles and removes any remaining active bay booking. The history is retained.`)) { renderAll(); return; }
+  const result = await service.collectRftTransport(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
+  if (!result?.ok) {
+    const messages = { transport_booking_and_mandatory_email_required: 'The trucking booking and mandatory salesperson update must exist first.', started_booking_must_be_completed_before_collection: 'A Workshop job is still STARTED. Complete that real work before collection.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.' };
+    await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('rft_collection_rejected')]);
+    window.alert(messages[result?.code] || 'The vehicle was not marked collected. No history was removed.'); renderAll(); return;
+  }
+  await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('rft_collected_412')]);
+  renderAll();
 }
 
 function bindRftCollectedInputs(root = document) {
+  $$('[data-rft-transport-booked-key]', root).forEach(input => input.addEventListener('click', event => event.stopPropagation()));
+  $$('[data-rft-transport-booked-key]', root).forEach(input => input.addEventListener('change', () => { void markRftTransportBooked(input.dataset.rftTransportBookedKey, input.checked); }));
   $$('[data-rft-collected-key]', root).forEach(input => input.addEventListener('click', event => event.stopPropagation()));
-  $$('[data-rft-collected-key]', root).forEach(input => input.addEventListener('change', () => {
-    const key = input.dataset.rftCollectedKey;
-    if (!key) return;
-    markRftVehicleCollected(key, input.checked);
-  }));
+  $$('[data-rft-collected-key]', root).forEach(input => input.addEventListener('change', () => { void markRftVehicleCollected(input.dataset.rftCollectedKey, input.checked); }));
 }
 
 function completedVehicleRows() {
