@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.07-vehicle-card-and-time-grid';
+const APP_VERSION = '2026.08.26.08-instant-authoritative-card';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -12861,19 +12861,31 @@ function openVehicleModal(stock) {
     return false;
   }
   app.vehicleDetailPage = 'details';
-  app.vehicleModalLoadingIdentity = true;
   app.vehicleWorkshopDetailRequestGeneration += 1;
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   if (canonicalId) app.vehicleWorkshopDetailCache.delete(canonicalId);
+  const cachedAuthoritative = vehicleModalBoundVehicle();
+  const cachedReady = Boolean(cachedAuthoritative && vehicleModalIdentityMatches(cachedAuthoritative));
+  app.vehicleModalIdentityReady = cachedReady;
+  app.vehicleModalLoadingIdentity = !cachedReady;
   const panel = $('#vehicle-detail');
-  if (panel) panel.innerHTML = '<div class="empty-state vehicle-detail-loading" role="status"><strong>Loading authoritative vehicle details…</strong><span>The card will open only after the exact Stock and vehicle UUID are refreshed from staging.</span></div>';
+  if (panel && !cachedReady) panel.innerHTML = '<div class="empty-state vehicle-detail-loading" role="status"><strong>Loading authoritative vehicle details…</strong><span>The card will open only after the exact Stock and vehicle UUID are available from staging.</span></div>';
   modal.hidden = false;
   document.body.classList.add('modal-open');
+  if (cachedReady) renderDetail();
   $('#modal-close')?.focus();
   const identityAtOpen = app.vehicleModalIdentity;
+  if (cachedReady) {
+    void Promise.allSettled([
+      refreshSharedVehicleWorkState(cachedAuthoritative),
+      loadVehicleWorkshopDetail(cachedAuthoritative, { force: true }),
+    ]).then(() => {
+      if (app.vehicleModalIdentity === identityAtOpen && !modal.hidden) renderDetail();
+    });
+  }
   void (async () => {
-    let ready = false;
-    let refreshed = null;
+    let ready = cachedReady;
+    let refreshed = cachedAuthoritative;
     try {
       const refreshedOk = await refreshEmailVehicleLocations();
       if (!refreshedOk || app.vehicleModalIdentity !== identityAtOpen) return;

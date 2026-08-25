@@ -8,15 +8,15 @@ const index = fs.readFileSync('index.html', 'utf8');
 const planner = fs.readFileSync('workshop-planner.js', 'utf8');
 const migration = fs.readFileSync('supabase/staging_only/20260826170000_411_yh_workshop_eligibility_hide_test_fleet.sql', 'utf8');
 
-assert.match(app, /const APP_VERSION = '2026\.08\.26\.07-vehicle-card-and-time-grid'/);
-assert.match(index, /app\.js\?v=2026\.08\.26\.07-vehicle-card-and-time-grid/);
+assert.match(app, /const APP_VERSION = '2026\.08\.26\.08-instant-authoritative-card'/);
+assert.match(index, /app\.js\?v=2026\.08\.26\.08-instant-authoritative-card/);
 assert.match(app, /photoReceiptId: result\.data\.photo_receipt_id/);
 assert.match(app, /const hasSalesperson = Boolean/);
 assert.match(app, /Assign an active salesperson with an email address before final sign-off/);
 assert.match(app, /salesperson_email_required:/);
 assert.match(app, /Boolean\(photo\?\.photoReceiptId\)/);
 assert.match(app, /completeVehicleQualityControl\(cleanKey, photo\)/);
-assert.match(app, /app\.vehicleModalLoadingIdentity = true/);
+assert.match(app, /app\.vehicleModalLoadingIdentity = !cachedReady/);
 assert.match(app, /Loading authoritative vehicle details/);
 assert.match(app, /await refreshEmailVehicleLocations\(\)/);
 assert.match(app, /refreshed = vehicleModalBoundVehicle\(\)/);
