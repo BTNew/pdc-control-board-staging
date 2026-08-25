@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.06-exact-operation-totals';
+const APP_VERSION = '2026.08.25.07-server-only-salesperson';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -1878,6 +1878,25 @@ function buildVehicleData() {
     };
   });
 }
+
+function clearLegacyLocalSalespersonAssignments() {
+  const edits = loadVehicleEdits();
+  let changed = false;
+  Object.values(edits || {}).forEach(update => {
+    if (!update || typeof update !== 'object' || Array.isArray(update)) return;
+    ['consultant', 'owner', 'salesperson', 'salesPerson', 'salespersonCode', 'salespersonEmail', 'salespersonReference'].forEach(field => {
+      if (!Object.prototype.hasOwnProperty.call(update, field)) return;
+      delete update[field];
+      changed = true;
+    });
+  });
+  if (changed) saveJson(EDITS_KEY, edits);
+  return changed;
+}
+
+// Salesperson assignment is operational data. Legacy browser-only values are
+// deliberately discarded; the canonical Supabase snapshot is the only source.
+clearLegacyLocalSalespersonAssignments();
 
 const app = {
   data: buildVehicleData(),
@@ -12804,6 +12823,14 @@ function renderDetail() {
     const client = form.client.value.trim() || v.client;
     const keyNumber = statusCategory(v) === 'pmb' ? cleanNavisionText(form.keyNumber?.value || '') : vehicleKeyNumber(v);
     const consultant = form.consultant.value.trim();
+    const currentConsultant = consultantName(v) === 'Unassigned' ? '' : cleanNavisionText(consultantName(v));
+    const salespersonChanged = consultant !== currentConsultant;
+    if (salespersonChanged && v.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
+      const saveMessage = $('[data-save-message]', panel);
+      form.consultant.value = currentConsultant;
+      if (saveMessage) saveMessage.textContent = 'Not saved — salesperson assignments must save online. No browser-local change was made.';
+      return;
+    }
     const internalStatus = v.internalStatus || '';
     const previousPdcLocation = vehiclePdcLocation(v);
     const previousPmbStage = normalizePmbStage(v.pmbStage || '');
