@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.04-operational-closure';
+const APP_VERSION = '2026.08.26.05-qc-salesperson-gate';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -4817,7 +4817,8 @@ function qcPageDetailHtml(vehicle = {}) {
   const stock = displayStockNumber(vehicle) || key || 'No stock';
   const photo = qcPhotoEvidence.get(key);
   const allComplete = qcPageAllOperationLinesComplete(vehicle);
-  const signoffReady = allComplete && Boolean(photo?.photoReceiptId);
+  const hasSalesperson = Boolean(cleanNavisionText(vehicle.salespersonCode || '') && cleanNavisionText(vehicle.salespersonEmail || ''));
+  const signoffReady = allComplete && Boolean(photo?.photoReceiptId) && hasSalesperson;
   const feedback = qcPageFeedback.get(key);
   return `<section class="qc-detail-card" aria-labelledby="qc-detail-title">
     <header class="qc-detail-header">
@@ -4832,7 +4833,7 @@ function qcPageDetailHtml(vehicle = {}) {
       <label class="qc-photo-picker"><span>${photo ? 'Photo stored · choose another only after this receipt is cleared' : 'Take or choose photo'}</span><input type="file" accept="image/*" capture="environment" data-qc-photo="${escapeHtml(key)}" ${qcPagePhotoUploadInFlight.has(key) ? 'disabled' : ''} /></label>
       ${photo ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url || '')}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${escapeHtml(photo.originalFilename || 'Stored image')} · ${escapeHtml(String(photo.originalByteLength || 0))} → ${escapeHtml(String(photo.byteLength || 0))} bytes · ${escapeHtml(String(photo.imageWidth || 0))}×${escapeHtml(String(photo.imageHeight || 0))} · SHA-256 ${escapeHtml(photo.sha256 || '')}</span></div>` : '<div class="qc-photo-empty">No stored completion photo attached</div>'}
     </div>
-    <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo stored. Final sign-off will send the exact completed-item snapshot to the unsent staging outbox and move the vehicle to RFT.' : allComplete ? 'Store a completion photo before final sign-off.' : 'Every active operation line must be complete before final sign-off.'}</span><button class="primary qc-signoff-button" type="button" data-qc-signoff="${escapeHtml(key)}" ${signoffReady ? '' : 'disabled'}>Sign off and move to RFT</button></div>
+    <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo stored. Final sign-off will send the exact completed-item snapshot to the unsent staging outbox and move the vehicle to RFT.' : !hasSalesperson ? 'Assign an active salesperson with an email address before final sign-off. The stored photo receipt will be retained.' : allComplete ? 'Store a completion photo before final sign-off.' : 'Every active operation line must be complete before final sign-off.'}</span><button class="primary qc-signoff-button" type="button" data-qc-signoff="${escapeHtml(key)}" ${signoffReady ? '' : 'disabled'}>Sign off and move to RFT</button></div>
   </section>`;
 }
 
@@ -5977,9 +5978,16 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null) {
     }
     const result = await app.emailVehicleLocationService.finalizeQcToRft(ref.vehicleId, ref.version, photoEvidence.photoReceiptId, crypto.randomUUID());
     if (!result || result.ok !== true) {
-      const message = typeof describeVehicleLifecycleActionError === 'function'
+      const qcFinalizationMessages = {
+        salesperson_email_required: 'Assign an active salesperson with an email address before final sign-off. The stored photo receipt is retained and no vehicle state changed.',
+        qc_operation_lines_incomplete: 'Every active QC operation must be completed before final sign-off. The stored photo receipt is retained.',
+        vehicle_version_conflict: 'This vehicle changed after the photo was stored. Reload the QC page; the stored photo receipt is retained.',
+        qc_photo_receipt_required: 'The server could not verify the stored completion photo receipt. No vehicle state changed.',
+      };
+      const resultCode = cleanNavisionText(result?.code || result?.error || '');
+      const message = qcFinalizationMessages[resultCode] || (typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && (result.code || result.error))
-        : 'The QC finalization could not be saved.';
+        : 'The QC finalization could not be saved.');
       window.alert(message);
       if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') await window.__workshopDataService.loadSnapshot('qc_finalization_rejected');
       renderAll();
