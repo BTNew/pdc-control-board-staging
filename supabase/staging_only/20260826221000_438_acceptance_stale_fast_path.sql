@@ -27,6 +27,7 @@ BEGIN
  insertion:= $$IF EXISTS(SELECT 1 FROM public.vehicles v WHERE v.id=p_vehicle_id AND v.version IS DISTINCT FROM p_expected_version) THEN
   RAISE EXCEPTION 'PDC_375_LIFECYCLE_VERSION_CONFLICT' USING errcode='40001'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended('pdc-375-vehicle:'||p_vehicle_id::text,0));$$;
+ insertion:=replace(insertion,chr(13),'');
  repaired:=replace(d,needle,insertion);
  IF repaired=d
    OR position(insertion IN repaired)=0
@@ -51,6 +52,7 @@ BEGIN
  d:=replace(d,chr(13),'');
  early:= $$IF EXISTS(SELECT 1 FROM public.vehicles v WHERE v.id=p_vehicle_id AND v.version IS DISTINCT FROM p_expected_version) THEN
   RAISE EXCEPTION 'PDC_375_LIFECYCLE_VERSION_CONFLICT' USING errcode='40001'; END IF;$$;
+ early:=replace(early,chr(13),'');
  early_pos:=position(early IN d);
  runtime_lock:=position('LOCK TABLE public.pdc_email_monitor_pilot' IN d);
  IF early_pos=0 OR runtime_lock=0 OR early_pos>runtime_lock
