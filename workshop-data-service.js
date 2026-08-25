@@ -106,7 +106,8 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'technician_leave_conflict', 'technician_overlap', 'live_booking_conflict',
   'concurrent_queue_change', 'sublet_away',
   'admin_block_conflict', 'fixed_booking_conflict', 'invalid_admin_block_type',
-  'admin_block_not_found', 'invalid_label',
+  'admin_block_not_found', 'invalid_label', 'invalid_idempotency_key',
+  'idempotency_conflict', 'no_available_slot',
   'protected_booking', 'receipt_not_found', 'undo_actor_mismatch',
   'already_undone', 'undo_expired', 'undo_conflict'
 ]);

@@ -1,5 +1,13 @@
 # Shared Files
 
+## Atomic Admin block insertion and cascade — 2026-08-25
+
+- `workshop-planner.js` — Admin drop request state, request-id dispatch, placed/cascaded summary, and fixed blocker/nearest-slot feedback.
+- `workshop-shared-actions.js` — request-id metadata for the protected Admin creation RPC.
+- `workshop-planner.css` — responsive pending/success/error feedback styling.
+- `supabase/staging_only/20260826090000_392_workshop_admin_block_atomic_cascade.sql` — staging-only atomic cascade, idempotent receipt, fixed blocker/nearest-slot contract and revision publication.
+- `test_admin_block_atomic_cascade.js` — migration, bridge and UI contract coverage.
+
 ## Authoritative Vehicle detail saves — 2026-08-25
 
 - `app.js` — shared Vehicle detail Save orchestration, receipt-backed salesperson/detail RPC dispatch, authoritative reconciliation, and poisoned legacy consultant cleanup.

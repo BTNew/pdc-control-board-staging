@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-25 — Atomic Admin block insertion and cascade
+
+- Added staging-only migration `supabase/staging_only/20260826090000_392_workshop_admin_block_atomic_cascade.sql` for drop-time bay/revision locking, idempotent Admin insertion, exact operational-minute cascading of planned vehicle and Admin rows, fixed/live blocker details with nearest available slot, immutable receipt/history, one revision bump and zero notification delta.
+- Updated `workshop-planner.js`, `workshop-shared-actions.js` and `workshop-planner.css` so Admin drops send a request id, show pending state, and render a placed/cascaded or blocker/nearest-slot summary without a blocking failure alert.
+- Added `test_admin_block_atomic_cascade.js` covering the migration/UI/bridge contract. Production data, branches and credentials remain untouched.
+
 ## 2026-08-25 — Authoritative Vehicle detail saves
 
 - Routed shared Vehicle Locations salesperson assignment through `assign_pdc_vehicle_salesperson_386`, with approved active-code validation, exact UUID/version/operator checks, idempotent SHA-256 receipts, immutable history/audit, manual Navision override preservation, revision publication and zero notification delta.

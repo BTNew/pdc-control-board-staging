@@ -192,7 +192,12 @@ function buildWorkshopSharedActions(dataService) {
     },
 
 
-    createAdminBlock({ expectedRevision, stageCode, bayNumber, blockType, label, scheduledStartAt, durationMinutes, metadata }) {
+    createAdminBlock({ expectedRevision, stageCode, bayNumber, blockType, label, scheduledStartAt, durationMinutes, metadata = {}, requestId = null }) {
+      const requestKey = requestId || metadata.request_id || (
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `admin-block-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
+      );
       return mutate('create_workshop_admin_block', {
         p_expected_revision: expectedRevision,
         p_stage_code: stageCode,
@@ -201,7 +206,7 @@ function buildWorkshopSharedActions(dataService) {
         p_label: label || null,
         p_scheduled_start_at: scheduledStartAt,
         p_duration_minutes: durationMinutes,
-        p_metadata: metadata || {},
+        p_metadata: { ...metadata, request_id: requestKey },
       });
     },
 

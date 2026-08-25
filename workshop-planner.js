@@ -613,6 +613,7 @@ function workshopAnnotateLegacyAmbiguity(rows = []) {
 let workshopSharedPlansCache = { snapshot: null, bookings: null, rows: null };
 let workshopLastAdministratorMove = null;
 let workshopAdminPaletteDurationMinutes = 30;
+let workshopAdminBlockFeedback = { tone: '', message: '' };
 let workshopActiveQueuePointerDrag = null;
 let workshopSuppressMouseDragUntil = 0;
 
@@ -3820,20 +3821,66 @@ async function workshopCurrentGlobalRevision(fallback = null) {
   }
 }
 
+function workshopAdminBlockSetFeedback(tone = '', message = '') {
+  workshopAdminBlockFeedback = { tone: String(tone || ''), message: String(message || '') };
+}
+
+function workshopAdminBlockFormatTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+}
+
+function workshopAdminBlockResultSummary(result = {}) {
+  const block = result.admin_block || {};
+  const cascade = result.cascade || result.repack || {};
+  const count = Number(cascade.shifted_count || 0);
+  const suffix = count ? ` · cascaded ${count} planned row${count === 1 ? '' : 's'}` : ' · no other rows moved';
+  return `Admin block placed in Bay ${block.bay_number || '—'} at ${workshopAdminBlockFormatTime(block.scheduled_start_at)}${suffix}.`;
+}
+
+function workshopAdminBlockFailureSummary(result = {}) {
+  if (result.error === 'fixed_booking_conflict') {
+    const blocker = result.blocker || {};
+    const nearest = result.nearest_available_slot || {};
+    const blockerText = blocker.booking_id
+      ? `Blocked by ${String(blocker.status || 'fixed').toUpperCase()} booking ${blocker.booking_id}${blocker.scheduled_start_at ? ` (${workshopAdminBlockFormatTime(blocker.scheduled_start_at)}–${workshopAdminBlockFormatTime(blocker.scheduled_end_at)})` : ''}.`
+      : 'A fixed/live booking occupies that time.';
+    const nearestText = nearest.scheduled_start_at
+      ? `Nearest exact available slot: ${workshopAdminBlockFormatTime(nearest.scheduled_start_at)}–${workshopAdminBlockFormatTime(nearest.scheduled_end_at)}.`
+      : 'No exact available slot was found in the configured horizon.';
+    return `${blockerText} ${nearestText} No change was saved.`;
+  }
+  return workshopDescribeSharedActionError(result);
+}
+
+async function workshopCreateAdminBlockRequest(payload = {}) {
+  workshopAdminBlockSetFeedback('pending', 'Placing Admin block… checking the current bay, schedule and booking versions.');
+  renderWorkshopPlanner();
+  const result = await workshopDispatchSharedAction('createAdminBlock', payload, renderWorkshopPlanner, { suppressFailureAlert: true });
+  if (result?.ok === true) workshopAdminBlockSetFeedback('success', workshopAdminBlockResultSummary(result));
+  else workshopAdminBlockSetFeedback('error', workshopAdminBlockFailureSummary(result));
+  renderWorkshopPlanner();
+  return result;
+}
+
 async function workshopCreatePaletteAdminBlock(stage = '', bay = 0, dateKey = '', startMinutes = 0, durationMinutes = 30) {
   if (!workshopSharedModeActive() || !workshopAdminBlockCanMutate()) return false;
   const snapshot = window.__workshopDataService?.getTrustedSnapshot?.();
   if (!snapshot || !Number.isFinite(Number(snapshot.revision))) {
-    window.alert('The current shared workshop schedule is still loading. Try again in a moment.');
+    workshopAdminBlockSetFeedback('error', 'The current shared Workshop schedule is still loading. No Admin block was created.');
+    renderWorkshopPlanner();
     return false;
   }
   const expectedRevision = await workshopCurrentGlobalRevision(snapshot.revision);
   if (!Number.isFinite(Number(expectedRevision))) {
-    window.alert('The shared Workshop revision could not be read. No Admin block was created.');
+    workshopAdminBlockSetFeedback('error', 'The shared Workshop revision could not be read. No Admin block was created.');
+    renderWorkshopPlanner();
     return false;
   }
   const start = workshopDateAtOffset(dateKey, startMinutes);
-  const result = await workshopDispatchSharedAction('createAdminBlock', {
+  const result = await workshopCreateAdminBlockRequest({
     expectedRevision: Number(expectedRevision),
     stageCode: stage,
     bayNumber: Number(bay),
@@ -3841,6 +3888,7 @@ async function workshopCreatePaletteAdminBlock(stage = '', bay = 0, dateKey = ''
     label: 'Admin downtime',
     scheduledStartAt: start.toISOString(),
     durationMinutes: workshopSnapMinutes(Number(durationMinutes) || 30),
+    requestId: workshopNewRequestId(),
     metadata: { source: 'planner_admin_palette' },
   });
   return result?.ok === true;
@@ -3916,11 +3964,12 @@ function openWorkshopAdminBlockModal() {
       return;
     }
     const start = workshopDateAtOffset(form.elements.date.value, Number(form.elements.startMinutes.value));
-    const result = await workshopDispatchSharedAction('createAdminBlock', {
+    const result = await workshopCreateAdminBlockRequest({
       expectedRevision: Number(expectedRevision), stageCode: stage,
       bayNumber: Number(form.elements.bay.value), blockType: form.elements.blockType.value,
       label: cleanNavisionText(form.elements.label.value), scheduledStartAt: start.toISOString(),
       durationMinutes: workshopSnapMinutes((Number(form.elements.hours.value) || 0.5) * 60),
+      requestId: workshopNewRequestId(),
       metadata: { source: 'planner_admin_block_create' },
     });
     if (result?.ok) close();
@@ -4017,6 +4066,7 @@ function renderWorkshopPlanner(options = {}) {
         ${sharedModeActive && workshopLastAdministratorMove && workshopAdministratorCanMove() ? '<button class="small-button" type="button" data-workshop-undo-admin-move>Undo last move</button>' : ''}
         ${sharedModeActive && workshopAdminBlockCanMutate() ? `<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button><div class="workshop-admin-palette" data-workshop-admin-palette><span class="workshop-admin-palette-hint">Drag to a bay</span><button class="workshop-admin-palette-tile" type="button" draggable="true" data-workshop-admin-palette-tile data-admin-palette-duration="${workshopAdminPaletteDurationMinutes}"><span data-workshop-admin-palette-label>Admin · ${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)} h</span></button><label class="workshop-admin-palette-duration"><span>Hours</span><input type="number" min="0.25" max="8" step="0.25" value="${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)}" data-workshop-admin-palette-duration aria-label="Admin block duration in hours" /></label></div>` : ''}
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
+        ${workshopAdminBlockFeedback.message ? `<div class="workshop-admin-block-feedback ${escapeHtml(workshopAdminBlockFeedback.tone)}" role="status" aria-live="polite">${escapeHtml(workshopAdminBlockFeedback.message)}</div>` : ''}
       </div>
     </header>
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
