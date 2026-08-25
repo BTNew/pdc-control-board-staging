@@ -6680,7 +6680,6 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '—';
   const keyNo = vehicleKeyNumber(vehicle) || '—';
-  const rego = vehicle.rego || vehicle.registration || '—';
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
   const age = pmbAgeLabel(vehicle);
   const bookingProjection = vehicleWorkshopBookingProjection(vehicle, {
@@ -6735,7 +6734,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <span class="incoming-card-action">${primaryAction}${labelAction}${deleteAction}</span>
       </summary>
       <div class="incoming-vehicle-detail-grid">
-        <div><b>Rego</b><span>${escapeHtml(rego)}</span></div>
+        <div><b>Stock No.</b><span>${escapeHtml(stock)}</span></div>
         <div><b>VIN / Chassis</b><span>${escapeHtml(vin)}</span></div>
         <div><b>Sales rep</b><span>${escapeHtml(consultant)}</span></div>
         <div><b>Age</b><span>${escapeHtml(age)}</span></div>

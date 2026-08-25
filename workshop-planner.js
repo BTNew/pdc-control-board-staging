@@ -1037,6 +1037,39 @@ function workshopJobLineId(text = '', index = 0) {
 }
 
 function workshopImportedJobLines(vehicle = {}) {
+  const directOperationLines = [vehicle.pdcEmailOperationLines, vehicle.operation_lines, vehicle.operationLines]
+    .find(value => Array.isArray(value) && value.length) || [];
+  let authoritativeOperationLines = directOperationLines;
+  if (!authoritativeOperationLines.length && workshopSharedModeActive() && typeof pdcSheetVehicles === 'function') {
+    const canonicalId = String(vehicle.id || vehicle.vehicle_id || '').trim().toLowerCase();
+    const exactBoardMatches = pdcSheetVehicles().filter(row => row?.__emailVehicleServerAuthoritative === true
+      && row?.__emailVehicleIdentityConflict !== true
+      && String(row.__emailVehicleId || '').trim().toLowerCase() === canonicalId);
+    if (canonicalId && exactBoardMatches.length === 1) authoritativeOperationLines = exactBoardMatches[0].pdcEmailOperationLines || [];
+  }
+  const authenticated = authoritativeOperationLines.slice(0, 50).flatMap((line, index) => {
+    const operationNo = cleanNavisionText(line.operation_no || line.operationNo || '').toUpperCase();
+    const text = cleanNavisionText(line.description || '');
+    const rawStage = line.stage_code || line.stageCode || line.work_key || line.workKey || '';
+    const stage = typeof vehicleWorkshopStageCode === 'function'
+      ? normalizePmbStage(vehicleWorkshopStageCode(rawStage))
+      : normalizePmbStage(rawStage);
+    if (!text || !operationNo || !WORKSHOP_STAGE_SEQUENCE.includes(stage)) return [];
+    const rawHours = line.estimatedHours ?? line.estimated_hours ?? line.hours;
+    const hours = rawHours === null || rawHours === undefined || String(rawHours).trim() === '' ? null : Number(rawHours);
+    const sourceId = cleanNavisionText(line.operation_line_id || line.operationLineId || '');
+    return [{
+      id: sourceId ? `source:${sourceId}` : workshopJobLineId(`${operationNo}:${text}`, index),
+      text,
+      operationNo,
+      jobCardNumber: cleanNavisionText(line.job_card_number || line.jobCardNumber || vehicleJobcardNumber(vehicle) || ''),
+      index,
+      stage,
+      hours: Number.isFinite(hours) && hours >= 0 ? hours : null,
+      confirmed: true,
+      source: 'authenticated-operation-line',
+    }];
+  });
   const structured = typeof vehiclePdcJobLines === 'function'
     ? vehiclePdcJobLines(vehicle).filter(line => line.confirmed === true && Number(line.confirmedHours) > 0 && WORKSHOP_STAGE_SEQUENCE.includes(normalizePmbStage(line.category || line.stage || '')))
     : [];
@@ -1049,11 +1082,13 @@ function workshopImportedJobLines(vehicle = {}) {
     confirmed: true,
     source: 'reviewed-job-line',
   }));
-  const confirmedDescriptions = new Set(confirmed.map(line => line.text.toLowerCase()));
+  const authenticatedDescriptions = new Set(authenticated.map(line => `${line.stage}\0${line.text.toLowerCase()}`));
+  const nonDuplicateConfirmed = confirmed.filter(line => !authenticatedDescriptions.has(`${line.stage}\0${line.text.toLowerCase()}`));
+  const confirmedDescriptions = new Set([...authenticated, ...nonDuplicateConfirmed].map(line => line.text.toLowerCase()));
   const tasks = Array.isArray(vehicle.poTasks) ? vehicle.poTasks : [];
   const legacy = tasks.map((text, index) => ({ id: workshopJobLineId(text, index), text: cleanNavisionText(text || ''), index, source: 'legacy-po-task' }))
     .filter(line => line.text && !confirmedDescriptions.has(line.text.toLowerCase()));
-  return [...confirmed, ...legacy];
+  return [...authenticated, ...nonDuplicateConfirmed, ...legacy];
 }
 
 function workshopDetectedStageForLine(text = '', vehicle = {}) {
@@ -1162,7 +1197,6 @@ function workshopLoadView() {
   const saved = typeof loadJson === 'function' ? loadJson(WORKSHOP_VIEW_STORAGE_KEY, {}) : {};
   const rawDate = workshopDateFromKey(saved?.date || '') || new Date();
   const date = workshopCoerceWorkDate(rawDate, 1);
-  const detailPreference = workshopDetailSessionPreference();
   return {
     date: workshopDateKey(date),
     stage: WORKSHOP_STAGE_SEQUENCE.includes(saved?.stage) ? saved.stage : 'FABRICATION',
@@ -1170,8 +1204,8 @@ function workshopLoadView() {
     search: '',
     searchOpen: false,
     searchHighlightPlanId: '',
-    detailPinnedOpen: detailPreference.pinned,
-    detailManualOpen: detailPreference.pinned,
+    detailPinnedOpen: false,
+    detailManualOpen: false,
     detailCollapsedForSelection: false,
   };
 }
@@ -1199,14 +1233,14 @@ function workshopClearSelectedDetail(state = workshopState()) {
   state.searchHighlightPlanId = '';
   state.searchNotice = '';
   state.detailCollapsedForSelection = false;
-  state.detailManualOpen = state.detailPinnedOpen === true;
+  state.detailManualOpen = false;
 }
 
 function workshopSelectPlanForDetail(planId = '') {
   const state = workshopState();
   state.selectedPlanId = String(planId || '');
   state.detailCollapsedForSelection = false;
-  state.detailManualOpen = Boolean(state.selectedPlanId) || state.detailPinnedOpen === true;
+  state.detailManualOpen = Boolean(state.selectedPlanId);
   state.searchNotice = '';
 }
 
@@ -2918,7 +2952,9 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
       const key = vehicleKey(vehicle);
       const sharedRef = workshopSharedModeActive() ? workshopSharedVehicleRef({ vehicleKey: key }) : null;
       const vehicleIdentity = sharedRef?.vehicleId ? `shared:${sharedRef.vehicleId}` : `legacy:${key}`;
-      const bookings = workshopSortBookingsClosest((Array.isArray(plans) ? plans : []).filter(entry => workshopPlanVehicleIdentity(entry) === vehicleIdentity));
+      const bookings = workshopSortBookingsClosest((Array.isArray(plans) ? plans : []).filter(entry => (
+        entry.status !== 'completed' && workshopPlanVehicleIdentity(entry) === vehicleIdentity
+      )));
       const candidateAuthority = sharedRef?.vehicleId
         ? (Array.isArray(snapshot?.outstanding_candidates) ? snapshot.outstanding_candidates : []).find(candidate => (
           String(candidate?.vehicle_id || '').trim() === String(sharedRef.vehicleId)
@@ -2936,6 +2972,7 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
         candidateDisabledReason: candidateAuthority?.disabled_reason || '',
       };
     })
+    .filter(item => item.bookings.length || item.candidateAvailable)
     .sort((a, b) => a.rank - b.rank
       || String(displayStockNumber(a.vehicle) || a.vehicleKey).localeCompare(String(displayStockNumber(b.vehicle) || b.vehicleKey))
       || a.vehicleKey.localeCompare(b.vehicleKey));
@@ -3524,7 +3561,7 @@ function workshopBookingNavigatorHtml(entry = null, plans = []) {
 function workshopDetailPanelHtml(entry = null, plans = []) {
   const state = workshopState();
   const expandedForSelection = Boolean(entry) && !state.detailCollapsedForSelection;
-  const expanded = state.detailPinnedOpen || state.detailManualOpen || expandedForSelection;
+  const expanded = state.detailManualOpen || expandedForSelection;
   const panelClass = expanded ? 'workshop-detail-panel is-expanded' : 'workshop-detail-panel is-collapsed';
   const toggleLabel = expanded ? 'Collapse Job details' : 'Expand Job details';
   const selectedVehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
@@ -3533,7 +3570,6 @@ function workshopDetailPanelHtml(entry = null, plans = []) {
     <header class="workshop-detail-summary">
       <div><strong>Job details</strong><span>${entry ? `${escapeHtml(selectedLabel)} selected` : 'Select a planned booking to view, edit or reschedule it.'}</span></div>
       <div class="workshop-detail-summary-actions">
-        <button type="button" class="workshop-detail-pin${state.detailPinnedOpen ? ' is-active' : ''}" data-workshop-detail-pin aria-pressed="${state.detailPinnedOpen ? 'true' : 'false'}" title="Keep Job details open when selection is cleared">${state.detailPinnedOpen ? 'Pinned' : 'Pin'}</button>
         <button type="button" class="workshop-detail-toggle" data-workshop-detail-toggle aria-expanded="${expanded ? 'true' : 'false'}" aria-controls="workshop-detail-content" aria-label="${toggleLabel}" title="${toggleLabel}"><span aria-hidden="true">⌄</span></button>
       </div>
     </header>
@@ -3958,32 +3994,14 @@ function renderWorkshopPlanner(options = {}) {
   // actionable in the Outstanding candidates pile. The authoritative total is
   // still retained separately for reporting and reconciliation.
   const queue = unscheduled;
-  const completed = plans.filter(entry => {
-    if (entry.stage !== stage || entry.status !== 'completed') return false;
-    const completedDate = parseIsoTimestamp(entry.completedAt || '');
-    return workshopDateKey(completedDate || workshopEntryStart(entry)) === dateKey;
-  });
   const incrementalScope = `${stage}:${dateKey}`;
   if (state.incrementalRenderScope !== incrementalScope) {
     state.incrementalRenderScope = incrementalScope;
     state.incrementalQueueLimit = WORKSHOP_INCREMENTAL_RENDER_BATCH;
-    state.incrementalCompletedLimit = WORKSHOP_INCREMENTAL_RENDER_BATCH;
   }
   const queueBatch = workshopIncrementalRenderRows(queue, state.incrementalQueueLimit);
-  const completedBatch = workshopIncrementalRenderRows(completed, state.incrementalCompletedLimit);
   const todaysPlans = activePlans.filter(entry => workshopEntrySegmentForDate(entry, dateKey));
-  const plannerSnapshot = window.__workshopDataService?.getLastSnapshot?.();
-  const plannerScope = plannerSnapshot?.scope || {};
-  const countIsAuthoritative = sharedModeActive && Boolean(dedicatedStage)
-    && normalizePmbStage(plannerScope.stage_code || '') === stage
-    && String(plannerScope.date_from || '') <= dateKey
-    && String(plannerScope.date_to || '') >= dateKey;
-  const selectedDateBookingCount = workshopSelectedDateBookingCount(
-    todaysPlans,
-    completed,
-    plannerSnapshot,
-    countIsAuthoritative
-  );
+  const selectedDateBookingCount = todaysPlans.length;
   const assigneeConflicts = todaysPlans.filter(entry => workshopEntryHasAssigneeConflict(entry, plans)).length;
   const stageVehicleCounts = dedicatedStage
     ? new Map([[stage, stageVehicleList.length]])
@@ -4009,7 +4027,7 @@ function renderWorkshopPlanner(options = {}) {
         <button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>
       </div>
     </header>
-    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} bookings on selected date · ${completed.length} completed · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span><span class="completed">Completed</span></div></div>
+    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
     ${workshopSearchControlHtml(state.search || '', plans)}
     ${stageTabs ? `<nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>` : ''}
     ${workshopDetailPanelHtml(selected, plans)}
@@ -4027,10 +4045,7 @@ function renderWorkshopPlanner(options = {}) {
           ${workshopBayRowsHtml(stage, dateKey, plans)}
         </div>
       </section>
-      <aside class="workshop-side-panel workshop-completed-panel">
-        <div class="workshop-side-heading"><strong>Completed</strong><span>${completed.length}</span></div>
-        <div class="workshop-side-list">${completedBatch.visible.map(workshopCompletedCardHtml).join('') || '<div class="workshop-empty">Nothing completed on this board date.</div>'}${workshopIncrementalLoadMoreHtml('completed', completedBatch)}</div>
-      </aside>
+
     </div>
     <div class="workshop-board-note">How to use: drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. The red current-time line stays visible on the planner and clamps to the workshop edge outside work hours. Double-click any vehicle to open its job.</div>
   </div>`;
@@ -4137,13 +4152,7 @@ function bindWorkshopPlanner(root) {
     else state.detailManualOpen = !state.detailManualOpen;
     renderWorkshopPlanner();
   });
-  root.querySelector('[data-workshop-detail-pin]')?.addEventListener('click', () => {
-    const state = workshopState();
-    state.detailPinnedOpen = !state.detailPinnedOpen;
-    if (state.detailPinnedOpen) state.detailManualOpen = true;
-    workshopSaveDetailSessionPreference(state.detailPinnedOpen);
-    renderWorkshopPlanner();
-  });
+
   root.querySelectorAll('[data-workshop-booking-nav]').forEach(button => button.addEventListener('click', () => {
     if (button.dataset.workshopBookingNav) workshopOpenBookingById(button.dataset.workshopBookingNav, button.dataset.workshopBookingVehicleIdentity);
   }));
@@ -6035,15 +6044,27 @@ function workshopRequiredJobsForStageHtml(vehicle = {}, stage = '', stageLines =
   const seen = new Set();
   (Array.isArray(stageLines) ? stageLines : []).forEach(line => {
     const text = cleanNavisionText(line?.text || line?.description || '');
-    if (!text || seen.has(text.toLowerCase())) return;
-    seen.add(text.toLowerCase());
-    rows.push(text);
+    const operationNo = cleanNavisionText(line?.operationNo || line?.operation_no || '');
+    const identity = `${operationNo.toLowerCase()}\0${text.toLowerCase()}`;
+    if (!text || seen.has(identity)) return;
+    seen.add(identity);
+    rows.push({
+      operationNo,
+      text,
+      hours: line?.hours,
+      jobCardNumber: cleanNavisionText(line?.jobCardNumber || line?.job_card_number || vehicleJobcardNumber(vehicle) || ''),
+    });
   });
   if (!rows.length && def && pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def)) {
-    rows.push(`${pmbStageLabel(normalizedStage)} work required — no imported job-line description supplied`);
+    rows.push({ operationNo: '', text: `${pmbStageLabel(normalizedStage)} work required — no imported job-line description supplied`, hours: null, jobCardNumber: '' });
   }
   if (!rows.length) return '<div class="workshop-job-lines-empty">No outstanding required jobs are recorded for this station.</div>';
-  return `<ul class="workshop-required-job-list">${rows.map(text => `<li>${escapeHtml(text)}</li>`).join('')}</ul>`;
+  return `<ul class="workshop-required-job-list">${rows.map(line => {
+    const hours = line.hours === null || line.hours === undefined || String(line.hours).trim() === ''
+      ? 'Hours unknown'
+      : `${Number(line.hours).toFixed(2).replace(/\.00$/, '')} h`;
+    return `<li><strong>${escapeHtml(line.operationNo || 'Required')}</strong><span>${escapeHtml(line.text)}</span><em>${escapeHtml(hours)}${line.jobCardNumber ? ` · JC ${escapeHtml(line.jobCardNumber)}` : ''}</em></li>`;
+  }).join('')}</ul>`;
 }
 
 function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId = '') {
@@ -6080,7 +6101,7 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
         <label><span>Estimated hours for this bay</span><input type="number" name="estimated_hours" min="1" step="0.25" value="${escapeHtml(calculatedHours)}"></label>
       </section>
       <section class="workshop-required-jobs"><header><strong>Required jobs for ${escapeHtml(pmbStageLabel(stage))}</strong><span>Canonical requirement plus imported lines allocated to this station.</span></header>${workshopRequiredJobsForStageHtml(vehicle, stage, stageLines)}</section>
-      <section class="workshop-job-lines"><header><strong>Imported job lines</strong><span>Change the work area to allocate a line elsewhere.</span></header>${workshopJobLineRowsHtml(vehicle)}</section>
+      ${workshopSharedModeActive() ? '' : `<section class="workshop-job-lines"><header><strong>Imported job lines</strong><span>Change the work area to allocate a line elsewhere.</span></header>${workshopJobLineRowsHtml(vehicle)}</section>`}
       <div class="workshop-job-notes"><strong>Team notes</strong><span>${escapeHtml(teamNotesText(vehicle) || 'No additional team notes.')}</span></div>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-job-close>Cancel</button><button class="primary" type="submit">Save estimated time / allocation</button><button class="small-button" type="button" data-workshop-job-full-vehicle="${escapeHtml(vehicleKey(vehicle))}">Open full vehicle</button></div>
     </form>

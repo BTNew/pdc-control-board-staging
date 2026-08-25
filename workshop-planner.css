@@ -308,7 +308,7 @@ body[data-current-view="workshop"] .content {
 
 .workshop-board-shell {
   display: grid;
-  grid-template-columns: 222px minmax(720px, 1fr) 205px;
+  grid-template-columns: 222px minmax(720px, 1fr);
   min-height: 500px;
   overflow: hidden;
   background: #fff;
@@ -932,7 +932,10 @@ body[data-current-view="workshop"] .content {
 .workshop-required-jobs { display: grid; gap: 7px; padding: 10px 12px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; }
 .workshop-required-jobs > header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; color: #475569; font-size: .68rem; }
 .workshop-required-jobs > header strong { color: #1e3a8a; font-size: .78rem; }
-.workshop-required-job-list { display: grid; gap: 5px; margin: 0; padding-left: 20px; color: #0f172a; font-size: .74rem; font-weight: 700; }
+.workshop-required-job-list { display: grid; gap: 6px; margin: 0; padding: 0; color: #0f172a; font-size: .74rem; font-weight: 700; list-style: none; }
+.workshop-required-job-list li { display: grid; grid-template-columns: minmax(48px, auto) minmax(180px, 1fr) auto; gap: 10px; align-items: center; padding: 7px 9px; border: 1px solid #bfdbfe; border-radius: 7px; background: #fff; }
+.workshop-required-job-list li strong { color: #1d4ed8; }
+.workshop-required-job-list li em { color: #475569; font-size: .68rem; font-style: normal; white-space: nowrap; }
 .workshop-job-lines > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #475569; font-size: .68rem; }
 .workshop-job-lines > header strong { color: #0f172a; font-size: .76rem; }
 .workshop-job-line-row {
@@ -1023,7 +1026,7 @@ body[data-current-view="workshop"] .content {
 .workshop-week-card-shell > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; color: #64748b; font-size: .68rem; }
 
 @media (max-width: 1400px) {
-  .workshop-board-shell { grid-template-columns: 190px minmax(680px, 1fr) 180px; }
+  .workshop-board-shell { grid-template-columns: 190px minmax(680px, 1fr); }
   .workshop-job-detail { grid-template-columns: minmax(210px, 1.2fr) minmax(175px, .8fr) 80px minmax(135px, .7fr); }
   .workshop-detail-actions { grid-column: 1 / -1; justify-content: flex-start; }
 }
