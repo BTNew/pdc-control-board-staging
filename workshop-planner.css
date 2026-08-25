@@ -574,7 +574,7 @@ body[data-current-view="workshop"] .content {
   min-height: 48px;
   overflow: visible;
   z-index: 6;
-  background: repeating-linear-gradient(to right, rgba(148,163,184,.35) 0 1px, transparent 1px 6.25%);
+  background: repeating-linear-gradient(to right, rgba(148,163,184,.42) 0 1px, transparent 1px var(--workshop-half-hour-width, 5.555556%));
 }
 
 .workshop-time-axis span {
@@ -582,9 +582,10 @@ body[data-current-view="workshop"] .content {
   top: 7px;
   z-index: 7;
   transform: translateX(-50%);
-  color: #475569;
-  font-size: .58rem;
-  font-weight: 900;
+  color: #1e293b;
+  font-size: .66rem;
+  font-weight: 950;
+  line-height: 1;
   white-space: nowrap;
 }
 
@@ -592,7 +593,7 @@ body[data-current-view="workshop"] .content {
 .workshop-time-axis span:last-child { transform: translateX(-100%); }
 
 .workshop-bay-row {
-  min-height: 90px;
+  min-height: 108px;
   border-bottom: 1px solid #cbd5e1;
 }
 
@@ -600,11 +601,11 @@ body[data-current-view="workshop"] .content {
 
 .workshop-bay-lane {
   position: relative;
-  min-height: 90px;
+  min-height: 108px;
   background-color: #fff;
   background-image:
-    repeating-linear-gradient(to right, rgba(148,163,184,.22) 0 1px, transparent 1px 6.25%),
-    repeating-linear-gradient(to right, rgba(59,130,246,.10) 0 2px, transparent 2px 12.5%);
+    repeating-linear-gradient(to right, rgba(148,163,184,.25) 0 1px, transparent 1px var(--workshop-half-hour-width, 5.555556%)),
+    repeating-linear-gradient(to right, rgba(59,130,246,.14) 0 2px, transparent 2px var(--workshop-hour-width, 11.111111%));
   transition: background-color .12s ease, box-shadow .12s ease;
 }
 
@@ -678,12 +679,12 @@ body[data-current-view="workshop"] .content {
 .workshop-plan-chip {
   position: absolute;
   z-index: 5;
-  top: 9px;
+  top: 6px;
   left: var(--plan-left);
   width: max(var(--plan-width), 62px);
-  height: 82px;
-  border: 1px solid #fb7185;
-  border-left: 5px solid #e11d48;
+  height: 96px;
+  border: 2px solid #fb7185;
+  border-left: 6px solid #e11d48;
   border-radius: 5px;
   background: #fecdd3;
   box-shadow: 0 2px 5px rgba(15,23,42,.12);
@@ -757,13 +758,13 @@ body[data-current-view="workshop"] .content {
 
 .workshop-plan-chip > .workshop-plan-main {
   width: 100%;
-  height: calc(100% - 23px);
+  height: calc(100% - 25px);
   border: 0;
   background: transparent;
   display: grid;
-  align-content: center;
-  gap: 1px;
-  padding: 4px 12px 4px 6px;
+  align-content: start;
+  gap: 2px;
+  padding: 6px 13px 4px 7px;
   color: #0f172a;
   text-align: left;
   cursor: pointer;
@@ -832,9 +833,11 @@ body[data-current-view="workshop"] .content {
   white-space: nowrap;
 }
 
-.workshop-plan-chip strong { font-size: .68rem; }
-.workshop-plan-chip span { font-size: .57rem; font-weight: 800; }
-.workshop-plan-chip small { color: #475569; font-size: .51rem; font-weight: 850; }
+.workshop-plan-chip strong { font-size: .74rem; font-weight: 950; line-height: 1.08; }
+.workshop-plan-chip span { font-size: .62rem; font-weight: 900; line-height: 1.08; }
+.workshop-plan-chip small { color: #334155; font-size: .57rem; font-weight: 900; line-height: 1.08; }
+.workshop-plan-chip .workshop-plan-time,
+.workshop-plan-chip .workshop-plan-hours { color: #172554; font-weight: 950; }
 
 .workshop-plan-resize {
   position: absolute;

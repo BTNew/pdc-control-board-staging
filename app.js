@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.26.06-authoritative-vehicle-card';
+const APP_VERSION = '2026.08.26.07-vehicle-card-and-time-grid';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -12873,17 +12873,29 @@ function openVehicleModal(stock) {
   const identityAtOpen = app.vehicleModalIdentity;
   void (async () => {
     let ready = false;
+    let refreshed = null;
     try {
       const refreshedOk = await refreshEmailVehicleLocations();
       if (!refreshedOk || app.vehicleModalIdentity !== identityAtOpen) return;
-      const refreshed = vehicleModalBoundVehicle();
+      refreshed = vehicleModalBoundVehicle();
       if (!refreshed || !vehicleModalIdentityMatches(refreshed)) return;
-      await refreshSharedVehicleWorkState(refreshed);
-      await loadVehicleWorkshopDetail(refreshed, { force: true });
+      // The canonical snapshot already contains identity, salesperson, required
+      // work and booking pills. Open the card immediately after that bounded
+      // UUID+Stock readback; secondary detail services must never hold every
+      // vehicle card behind an indefinite loading screen.
       ready = true;
+      app.vehicleModalIdentityReady = true;
+      app.vehicleModalLoadingIdentity = false;
+      if (!modal.hidden) renderDetail();
+      void Promise.allSettled([
+        refreshSharedVehicleWorkState(refreshed),
+        loadVehicleWorkshopDetail(refreshed, { force: true }),
+      ]).then(() => {
+        if (app.vehicleModalIdentity === identityAtOpen && !modal.hidden) renderDetail();
+      });
     } finally {
-      if (app.vehicleModalIdentity !== identityAtOpen) return;
-      app.vehicleModalIdentityReady = ready;
+      if (app.vehicleModalIdentity !== identityAtOpen || ready) return;
+      app.vehicleModalIdentityReady = false;
       app.vehicleModalLoadingIdentity = false;
       if (!modal.hidden) renderDetail();
     }

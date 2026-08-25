@@ -65,7 +65,9 @@ context.app.emailVehicleLocationRows = [raw, { ...raw }];
 assert.equal(context.vehicleModalBoundVehicle(), null, 'duplicate raw UUID+Stock rows must fail closed');
 
 assert.match(source, /const refreshedOk = await refreshEmailVehicleLocations\(\)/);
-assert.match(source, /app\.vehicleModalIdentityReady = ready/);
+assert.match(source, /app\.vehicleModalIdentityReady = true/);
+assert.match(source, /void Promise\.allSettled\(\[/);
+assert.doesNotMatch(source, /await refreshSharedVehicleWorkState\(refreshed\)/);
 assert.match(source, /Authoritative vehicle details could not be loaded/);
 assert.match(source, /let authoritativeSaveVehicle = v/);
 assert.match(source, /authoritativeSaveVehicle = authoritativeResult\.data\?\.authoritativeVehicle \|\| vehicleModalBoundVehicle\(\) \|\| v/);

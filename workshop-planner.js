@@ -3510,7 +3510,8 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       <small class="workshop-plan-customer">${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${overtime ? ' · OVERTIME' : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       ${entry.legacyAmbiguityReason ? `<small class="workshop-legacy-ambiguity">${escapeHtml(entry.legacyAmbiguityReason)}</small>` : ''}
-      <small>${escapeHtml(`${entry.hours}h · Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
+      <small class="workshop-plan-time">${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${workshopDurationInputValue(entry.hours)} h`)}</small>
+      <small class="workshop-plan-hours">${escapeHtml(`Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
       ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
     </button>
     ${lifecycleActionsHtml}
@@ -3525,6 +3526,13 @@ function workshopTimeAxisHtml() {
     const left = ((index * 60) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
     return `<span style="left:${left}%">${escapeHtml(workshopTimeLabelFromMinutes(index * 60))}</span>`;
   }).join('');
+}
+
+function workshopTimelineCssVariables() {
+  const dayLength = Math.max(60, Number(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) || 60);
+  const halfHourWidth = ((30 / dayLength) * 100).toFixed(6);
+  const hourWidth = ((60 / dayLength) * 100).toFixed(6);
+  return `--workshop-half-hour-width:${halfHourWidth}%;--workshop-hour-width:${hourWidth}%;`;
 }
 
 function workshopDropPreviewHtml({ vertical = false } = {}) {
@@ -4269,7 +4277,7 @@ function renderWorkshopPlanner(options = {}) {
       </aside>`}
       <section class="workshop-timeline-scroll">
         <div class="workshop-scroll-cue" role="note">Swipe or scroll schedule horizontally →</div>
-        <div class="workshop-timeline">
+        <div class="workshop-timeline" style="${workshopTimelineCssVariables()}">
           <div class="workshop-time-header"><div class="workshop-bay-label"><strong>${escapeHtml(`${pmbStageLabel(stage)} bays`)}</strong><span>${escapeHtml(`${workshopStageBayCount(stage)} physical bay${workshopStageBayCount(stage) === 1 ? '' : 's'}`)}</span></div><div class="workshop-time-axis">${workshopTimeAxisHtml()}</div></div>
           <div class="workshop-now-line" data-workshop-now-line hidden><span>Now</span></div>
           ${workshopBayRowsHtml(stage, dateKey, focusedPlans)}
