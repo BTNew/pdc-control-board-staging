@@ -1,7 +1,7 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.25.02-async-modal-focus-containment",
-  "frontend_source_commit": "70ad1b4c2d321e9645277ef6d2b0a5256df03716",
+  "application_version": "2026.08.25.03-qc-operation-lines",
+  "frontend_source_commit": "2efb13ca8db47dc69edc0832807b144a5631d3e6",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_runtime_changed": false,
@@ -15,9 +15,9 @@
     "review_status": "changes_required"
   },
   "observed_applied_database_migration": {
-    "version": null,
-    "name": null,
-    "source": "Not claimed: migration 323 is absent and the live RPC probe returned PGRST202."
+    "version": "20260825160000",
+    "name": "379_qc_per_operation_completion",
+    "source": "Supabase Management API apply receipt and exact staging migration-ledger readback."
   },
   "notes": [
     "Complete Vehicle Delete source remains a candidate and is not authorised for database application.",
@@ -25,6 +25,7 @@
     "Only an independently approved, applied and authenticated-live-probed successor may enable the control.",
     "Historical email/source and Telegram replay fences must remain preserved.",
     "Production and the local mailbox runtime were not changed by this release.",
-    "Vehicle and customer dialogs trap keyboard focus, recover containment after asynchronous rerenders, and return focus to the invoking control on close."
+    "Vehicle and customer dialogs trap keyboard focus, recover containment after asynchronous rerenders, and return focus to the invoking control on close.",
+    "QC now renders and records stable authenticated operation lines individually; department labels are non-interactive group headings and unknown-hour lines fail closed."
   ]
 }

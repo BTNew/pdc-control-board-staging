@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.02-async-modal-focus-containment';
+const APP_VERSION = '2026.08.25.03-qc-operation-lines';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -2081,7 +2081,7 @@ const NAVISION_JITA_NUMBER_AUTHORITY = 'validated-navision-import-v1';
 
 function vehicleNavisionJitaNumber(vehicle = {}) {
   if (vehicle.navisionJitaNumberAuthority !== NAVISION_JITA_NUMBER_AUTHORITY) return '';
-  if (!/navision/i.test(String(vehicle.source || ''))) return '';
+  if (vehicle.navisionJitaIdentityVerified !== true || vehicle.navisionJitaNumberColumnPresent !== true) return '';
   const value = String(vehicle.jitQty || vehicle.navisionJitaNumber || '').trim();
   return /\d/.test(value) && !/^0+(?:\.0+)?$/.test(value) ? value : '';
 }
@@ -4493,24 +4493,38 @@ function qcPageVehicleKey(vehicle = {}) {
   return String(vehicleKey(vehicle) || vehicle.id || '').trim();
 }
 
-function qcPageWorkStateMap(vehicle = {}) {
-  return Object.fromEntries(PDC_JOB_DEFS.map(def => [
-    def.key,
-    pdcJobComplete(vehicle, def) ? 'complete' : pdcJobRequired(vehicle, def) ? 'required' : 'none',
-  ]));
+function qcPageOperationLines(vehicle = {}) {
+  return (Array.isArray(vehicle.pdcQcOperationLines) ? vehicle.pdcQcOperationLines : [])
+    .filter(line => line?.active === true && /^(?:source|manual):[0-9a-f-]{36}$/.test(String(line.lineIdentity || '')))
+    .sort((a, b) => String(a.stageCode).localeCompare(String(b.stageCode)) || String(a.operationNo).localeCompare(String(b.operationNo), undefined, { numeric: true }) || String(a.lineIdentity).localeCompare(String(b.lineIdentity)));
+}
+
+function qcPageAllOperationLinesComplete(vehicle = {}) {
+  const lines = qcPageOperationLines(vehicle);
+  return lines.length > 0 && lines.every(line => line.completed === true);
+}
+
+function qcPageOperationHoursLabel(line = {}) {
+  if (line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '') return 'Unknown hours';
+  const numeric = Number(line.estimatedHours);
+  return Number.isFinite(numeric) ? `${numeric.toFixed(2).replace(/\.00$/, '')} h` : 'Unknown hours';
 }
 
 function qcPageWorkItemsHtml(vehicle = {}) {
   const key = qcPageVehicleKey(vehicle);
-  return pdcQualityControlRequirementDefinitions(vehicle).map(def => {
-    const complete = pdcJobComplete(vehicle, def);
-    const state = complete ? 'complete' : pdcJobRequired(vehicle, def) ? 'required' : 'not-required';
-    return `<label class="qc-work-item ${complete ? 'is-complete' : ''} ${state === 'required' ? 'is-required' : ''}" data-qc-work-item="${escapeHtml(def.key)}">
-      <input type="checkbox" data-qc-work-check="${escapeHtml(key)}" data-qc-work-key="${escapeHtml(def.key)}" ${complete ? 'checked' : ''} aria-label="${escapeHtml(`${def.label} ${complete ? 'completed' : 'not completed'}`)}" />
-      <span class="qc-work-marker" aria-hidden="true">${complete ? '✓' : '○'}</span>
-      <span class="qc-work-copy"><strong>${escapeHtml(def.label)}</strong><small>${complete ? `Completed${vehicle[def.completeByKey] ? ` by ${escapeHtml(vehicle[def.completeByKey])}` : ''}` : pdcJobRequired(vehicle, def) ? 'Required' : 'Not required'}</small></span>
+  const groups = groupBy(qcPageOperationLines(vehicle), line => String(line.stageCode || 'UNKNOWN'));
+  const html = Object.entries(groups).map(([stage, lines]) => `<section class="qc-operation-group" aria-labelledby="qc-operation-${escapeHtml(stage)}">
+    <h4 id="qc-operation-${escapeHtml(stage)}">${escapeHtml(pmbStageLabel(stage) || stage)}</h4>
+    ${lines.map(line => {
+    const hoursUnknown = line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '' || !Number.isFinite(Number(line.estimatedHours));
+    return `<label class="qc-work-item qc-operation-line ${line.completed ? 'is-complete' : 'is-required'}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}">
+      <input type="checkbox" data-qc-operation-check="${escapeHtml(key)}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" data-qc-line-version="${Number(line.lineVersion || 0)}" ${line.completed ? 'checked' : ''} ${hoursUnknown ? 'disabled title="Unknown operation hours require review before QC completion"' : ''} aria-label="${escapeHtml(`${line.operationNo || 'Manual'} ${line.description} ${hoursUnknown ? 'requires hours review' : line.completed ? 'completed' : 'not completed'}`)}" />
+      <span class="qc-work-marker" aria-hidden="true">${line.completed ? '✓' : '○'}</span>
+      <span class="qc-work-copy"><strong>${escapeHtml(`${line.operationNo || 'Manual'} · ${line.description}`)}</strong><small>${escapeHtml(`${pmbStageLabel(stage) || stage} · ${qcPageOperationHoursLabel(line)} · ${line.jobCardNumber ? `JC ${line.jobCardNumber}` : line.sourceKind === 'manual' ? 'Audited manual line' : 'Source JC unavailable'}`)}</small></span>
     </label>`;
-  }).join('');
+  }).join('')}
+  </section>`).join('');
+  return html || '<div class="qc-operation-unavailable" role="alert"><strong>Operation lines unavailable</strong><span>QC completion is blocked until stable authenticated or audited manual line identities load.</span></div>';
 }
 
 function qcPageVehicleCardHtml(vehicle = {}, selected = false) {
@@ -4518,7 +4532,7 @@ function qcPageVehicleCardHtml(vehicle = {}, selected = false) {
   const stock = displayStockNumber(vehicle) || key || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || 'No salesperson';
-  const allComplete = pdcQualityControlRequirementDefinitions(vehicle).every(def => pdcJobComplete(vehicle, def));
+  const allComplete = qcPageAllOperationLinesComplete(vehicle);
   return `<button class="qc-vehicle-card ${selected ? 'is-selected' : ''} ${allComplete ? 'is-ready' : 'needs-work'}" type="button" data-qc-open-vehicle="${escapeHtml(key)}" data-qc-vehicle-key="${escapeHtml(key)}" aria-pressed="${selected ? 'true' : 'false'}">
     <span class="qc-vehicle-card-top"><strong>${escapeHtml(stock)}</strong><span class="qc-status-pill ${allComplete ? 'is-green' : 'is-warning'}">${allComplete ? 'Ready to sign off' : 'Work incomplete'}</span></span>
     <span class="qc-vehicle-card-unit">${escapeHtml(unit)}</span>
@@ -4530,7 +4544,7 @@ function qcPageDetailHtml(vehicle = {}) {
   const key = qcPageVehicleKey(vehicle);
   const stock = displayStockNumber(vehicle) || key || 'No stock';
   const photo = qcPhotoDrafts.get(key);
-  const allComplete = pdcQualityControlRequirementDefinitions(vehicle).every(def => pdcJobComplete(vehicle, def));
+  const allComplete = qcPageAllOperationLinesComplete(vehicle);
   const signoffReady = allComplete && Boolean(photo);
   return `<section class="qc-detail-card" aria-labelledby="qc-detail-title">
     <header class="qc-detail-header">
@@ -4544,46 +4558,36 @@ function qcPageDetailHtml(vehicle = {}) {
       <label class="qc-photo-picker"><span>${photo ? 'Replace photo' : 'Take or choose photo'}</span><input type="file" accept="image/*" capture="environment" data-qc-photo="${escapeHtml(key)}" /></label>
       ${photo ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url)}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${escapeHtml(photo.name)}</span></div>` : '<div class="qc-photo-empty">No completion photo attached</div>'}
     </div>
-    <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo attached. Ready to sign off, move to RFT and notify the salesperson.' : allComplete ? 'Attach a completion photo before sign-off.' : 'Every required work item must be green before sign-off.'}</span><button class="primary qc-signoff-button" type="button" data-qc-signoff="${escapeHtml(key)}" ${signoffReady ? '' : 'disabled'}>Sign off complete → RFT</button></div>
+    <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo attached. Ready for named QC sign-off; the vehicle remains in QC until a separate RFT transfer.' : allComplete ? 'Attach a completion photo before sign-off.' : 'Every active operation line must be complete before sign-off.'}</span><button class="primary qc-signoff-button" type="button" data-qc-signoff="${escapeHtml(key)}" ${signoffReady ? '' : 'disabled'}>Record named QC sign-off</button></div>
   </section>`;
 }
 
-async function qcPageSetWorkState(key = '', workKey = '', checked = false, input = null) {
+async function qcPageSetOperationState(key = '', lineIdentity = '', lineVersion = 0, checked = false, input = null) {
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
-  const def = pdcJobDefinitionForKey(workKey);
-  if (!vehicle || !def) return false;
+  const line = qcPageOperationLines(vehicle || {}).find(item => item.lineIdentity === String(lineIdentity || ''));
+  const service = app.emailVehicleLocationService;
+  if (!vehicle || !line || !service || typeof service.setQcOperationCompletion !== 'function'
+      || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1) {
+    window.alert('This operation line is not bound to stable shared QC authority. No completion was recorded.');
+    renderQualityControlPage();
+    return false;
+  }
   if (input) input.disabled = true;
   try {
-    const workStates = qcPageWorkStateMap(vehicle);
-    workStates[def.key] = checked ? 'complete' : (pdcJobRequired(vehicle, def) ? 'required' : 'none');
-    if (vehicleLifecycleSharedModeActive()) {
-      const result = await saveSharedVehicleWorkStates(vehicle, workStates);
-      if (!result || result.ok !== true) {
-        window.alert(describeSharedVehicleWorkStateError(result || {}));
-        renderQualityControlPage();
-        return false;
-      }
-      vehicle[def.completeKey] = checked;
-      vehicle[def.completeAtKey] = checked ? nowIsoString() : '';
-      vehicle[def.completeByKey] = checked ? getCurrentOperatorName() : '';
-    } else {
-      const now = nowIsoString();
-      const operator = getCurrentOperatorName();
-      const updates = {
-        [def.requireKey]: checked ? true : Boolean(vehicle[def.requireKey]),
-        [def.completeKey]: checked,
-        [def.completeAtKey]: checked ? now : '',
-        [def.completeByKey]: checked ? operator : '',
-        pdcQcComplete: false,
-        pdcQcCompleteAt: '',
-        pdcQcCompleteBy: '',
-      };
-      if (!saveVehicleEdits(qcPageVehicleKey(vehicle), updates)) {
-        window.alert('The QC work update could not be saved. No change was made.');
-        return false;
-      }
-      Object.assign(vehicle, updates);
-      recordVehicleAudit(vehicle, checked ? 'QC work confirmed' : 'QC work confirmation removed', { job: def.label, by: operator });
+    const result = await service.setQcOperationCompletion(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion,
+      line.lineIdentity, Number(lineVersion || 0), checked, crypto.randomUUID());
+    const refreshed = await refreshEmailVehicleLocations();
+    if (!result?.ok || !refreshed) {
+      window.alert(result?.code?.includes('version') ? 'This operation changed in another session. The authoritative QC lines were reloaded.' : 'The operation completion was not confirmed by authoritative readback. No local completion is shown.');
+      renderQualityControlPage();
+      return false;
+    }
+    const current = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
+    const currentLine = qcPageOperationLines(current || {}).find(item => item.lineIdentity === line.lineIdentity);
+    if (!currentLine || currentLine.completed !== checked) {
+      window.alert('The operation receipt returned but the refreshed QC line did not converge. Refresh before continuing.');
+      renderQualityControlPage();
+      return false;
     }
     renderQualityControlPage();
     return true;
@@ -4598,8 +4602,8 @@ async function qcPageSignoff(key = '') {
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
   const photo = qcPhotoDrafts.get(cleanKey);
   if (!vehicle || !photo) return false;
-  if (!pdcQualityControlRequirementDefinitions(vehicle).every(def => pdcJobComplete(vehicle, def))) {
-    window.alert('Every required work item must be green before QC sign-off.');
+  if (!qcPageAllOperationLinesComplete(vehicle)) {
+    window.alert('Every active authenticated or audited manual operation line must be complete before QC sign-off.');
     return false;
   }
   qcPageSignoffInFlight.add(cleanKey);
@@ -4630,8 +4634,8 @@ function renderQualityControlPage() {
     qcSelectedVehicleKey = button.dataset.qcOpenVehicle || '';
     renderQualityControlPage();
   }));
-  $$('[data-qc-work-check]', host).forEach(input => input.addEventListener('change', () => {
-    void qcPageSetWorkState(input.dataset.qcWorkCheck, input.dataset.qcWorkKey, input.checked, input);
+  $$('[data-qc-operation-check]', host).forEach(input => input.addEventListener('change', () => {
+    void qcPageSetOperationState(input.dataset.qcOperationCheck, input.dataset.qcLineIdentity, Number(input.dataset.qcLineVersion || 0), input.checked, input);
   }));
   $$('[data-qc-photo]', host).forEach(input => input.addEventListener('change', () => {
     const file = input.files?.[0];
@@ -5530,7 +5534,12 @@ function vehicleReadyForQualityControl(vehicle = {}) {
 }
 
 function vehicleInQualityControlGate(vehicle = {}) {
-  return vehiclePdcLocation(vehicle) === 'QC' && vehicle.pdcQcComplete !== true;
+  return vehiclePdcLocation(vehicle) === 'QC';
+}
+
+function isAcceptanceClosureVehicle(vehicle = {}) {
+  return /^HERMES-TEST-AC-[ABC]$/.test(displayStockNumber(vehicle))
+    && String(vehicle.sourceRecordId || vehicle.source_record_id || '').trim() === displayStockNumber(vehicle);
 }
 
 async function markVehicleReadyForQualityControl(key = '') {
@@ -5609,19 +5618,23 @@ async function printQualityControlSignoffLabel(vehicle = {}, operator = '', sign
 function qualityControlVehicleHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
   const stock = displayStockNumber(vehicle) || key || 'No stock';
-  return `<button class="control-board-work-vehicle control-board-qc-vehicle" type="button" data-qc-signoff-rft="${escapeHtml(key)}" aria-label="Sign off QC and mark ${escapeHtml(stock)} RFT">
+  const action = vehicle.pdcQcComplete === true
+    ? `<button class="small-button" type="button" data-transfer-rft-stock="${escapeHtml(key)}">Transfer signed-off vehicle to RFT</button>`
+    : `<button class="small-button" type="button" data-qc-signoff-rft="${escapeHtml(key)}">Record named QC sign-off</button>`;
+  return `<article class="control-board-work-vehicle control-board-qc-vehicle" aria-label="${escapeHtml(stock)} in QC">
     <span class="control-board-work-identity">${vehicleIdentityStackHtml(vehicle)}</span>
     <span class="control-board-work-main"><strong>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</strong></span>
     <span class="control-board-work-location"><b>Now</b><span>QC</span></span>
     <span class="control-board-work-age"><b>PMB</b><span>${escapeHtml(pmbAgeLabel(vehicle))}</span></span>
-    <span class="badge warning">Sign off QC → RFT</span>
-  </button>`;
+    <span class="badge ${vehicle.pdcQcComplete === true ? 'success' : 'warning'}">${vehicle.pdcQcComplete === true ? 'QC signed off' : 'Awaiting sign-off'}</span>
+    ${action}
+  </article>`;
 }
 
 async function completeVehicleQualityControl(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
-  if (!vehicleInQualityControlGate(vehicle)) {
+  if (!vehicleInQualityControlGate(vehicle) || vehicle.pdcQcComplete === true) {
     window.alert('QC sign-off is available only for vehicles currently in the QC Gate.');
     return false;
   }
@@ -5632,7 +5645,7 @@ async function completeVehicleQualityControl(key = '') {
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
-  if (!window.confirm(`Sign off QC for ${label}?\n\nThis records your named QC sign-off, marks the vehicle RFT, and prints the windscreen sign-off label.`)) return false;
+  if (!window.confirm(`Sign off QC for ${label}?\n\nThis records your named QC sign-off while the vehicle remains in QC.`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
     const ref = await vehicleLifecycleSharedRef(vehicle);
@@ -5649,12 +5662,18 @@ async function completeVehicleQualityControl(key = '') {
       renderAll();
       return false;
     }
-    const result = await window.__vehicleLifecycleActions.qcSignoffToRft({
-      vehicleId: ref.vehicleId,
-      expectedVersion: ref.version,
-      workItemKey: 'QC',
-      completedSummary: pdcCompletedJobsText(vehicle) || null,
-    });
+    const result = isAcceptanceClosureVehicle(vehicle)
+      ? await window.__vehicleLifecycleActions.acceptanceQcComplete({
+        vehicleId: ref.vehicleId,
+        expectedVersion: ref.version,
+        idempotencyKey: crypto.randomUUID(),
+      })
+      : await window.__vehicleLifecycleActions.qcCompleteVehicle({
+        vehicleId: ref.vehicleId,
+        expectedVersion: ref.version,
+        workItemKey: 'QC',
+        completedSummary: pdcCompletedJobsText(vehicle) || null,
+      });
     if (!result || result.ok !== true) {
       const message = typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && result.error)
@@ -5666,11 +5685,11 @@ async function completeVehicleQualityControl(key = '') {
     }
     reconcileVehicleLifecycleServerResult(vehicle, result);
     await printQualityControlSignoffLabel(vehicle, operator, result.vehicle?.qc_completed_at || nowIsoString());
-    if (result.notification_has_recipient === false) {
+    if (!isAcceptanceClosureVehicle(vehicle) && result.notification_has_recipient === false) {
       window.alert('QC complete was saved, but no salesperson email is on file for this vehicle. The "ready for transport" notification could not be queued for sending. Please set the correct salesperson and use Retry from the notification outbox.');
     }
     if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') {
-      await window.__workshopDataService.loadSnapshot('qc_signoff_to_rft');
+      await window.__workshopDataService.loadSnapshot('qc_complete');
     }
     renderAll();
     return true;
@@ -5679,15 +5698,14 @@ async function completeVehicleQualityControl(key = '') {
   const now = nowIsoString();
   try {
     runStorageTransaction('Complete vehicle QC', [EDITS_KEY, AUDIT_LOG_KEY], () => {
-      recordVehicleAudit(vehicle, 'Vehicle QC signed off and transferred to RFT', { by: operator, role, from: 'QC', to: 'RFT' });
+      recordVehicleAudit(vehicle, 'Vehicle QC signed off', { by: operator, role, location: 'QC' });
       if (!saveVehicleEdits(vehicleKey(vehicle), {
         pdcQcComplete: true,
         pdcQcCompleteAt: now,
         pdcQcCompleteBy: operator,
-        pdcLocation: 'RFT',
-        manualLocation: 'RFT',
+        pdcLocation: 'QC',
+        manualLocation: 'QC',
         pdcLocationLocked: true,
-        rftTransferredAt: now,
         pdcLocationUpdatedAt: now,
       })) {
         throw new Error('The QC sign-off could not be saved.');
@@ -10362,17 +10380,17 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
   if (!selected.length || selected.some(vehicle => !vehicleLocationActionAllowed(vehicle, 'transfer to RFT'))) return;
   const nonPmb = selected.filter(vehicle => {
     const category = statusCategory(vehicle);
-    return category !== 'pmb' && !(category === 'qc' && vehicle.pdcQcComplete === true);
+    return !(category === 'qc' && vehicle.pdcQcComplete === true);
   });
   if (nonPmb.length) {
-    window.alert('Only a legacy QC-signed vehicle still at PMB can use this RFT reconciliation action. New QC sign-offs mark the vehicle RFT automatically.');
+    window.alert('Only a vehicle with a named QC sign-off that still remains in QC can be transferred to RFT.');
     return;
   }
   const gate = confirmRftGateOverride(selected);
   if (!gate.allowed) return;
   const preview = selected.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'} - ${pmbStageLabel(inferredPmbStage(vehicle)) || 'Unallocated'}`).join('\n');
   const more = selected.length > 10 ? `\n• plus ${selected.length - 10} more` : '';
-  if (!window.confirm(`Transfer ${selected.length} PMB vehicle${selected.length === 1 ? '' : 's'} to Vehicles RFT?\n\n${preview}${more}\n\nThis marks the vehicle as Ready for Transport and keeps it protected from Navision location changes.`)) return;
+  if (!window.confirm(`Transfer ${selected.length} signed-off QC vehicle${selected.length === 1 ? '' : 's'} to Vehicles RFT?\n\n${preview}${more}\n\nThis is separate from QC sign-off, marks the vehicle Ready for Transport, and keeps it protected from Navision location changes.`)) return;
 
   if (vehicleLifecycleSharedModeActive()) {
     const failures = [];
@@ -10398,7 +10416,9 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
         failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - shared Navision identity changed before transfer`);
         continue;
       }
-      const result = await window.__vehicleLifecycleActions.rftTransferVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
+      const result = isAcceptanceClosureVehicle(vehicle)
+        ? await window.__vehicleLifecycleActions.acceptanceRftTransfer({ vehicleId: ref.vehicleId, expectedVersion: ref.version, idempotencyKey: crypto.randomUUID() })
+        : await window.__vehicleLifecycleActions.rftTransferVehicle({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
       if (!result || result.ok !== true) {
         const message = typeof describeVehicleLifecycleActionError === 'function' ? describeVehicleLifecycleActionError(result && result.error) : 'The transfer could not be saved.';
         failures.push(`${vehicleIdentityTitle(vehicle) || 'No stock'} - ${message}`);
@@ -10413,7 +10433,7 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
     app.pmbSubFilter = '';
     if (typeof window.__workshopDataService !== 'undefined' && window.__workshopDataService) window.__workshopDataService.loadSnapshot('rft_transfer');
     renderAll();
-    if (selected.length === 1 && !failures.length) {
+    if (selected.length === 1 && !failures.length && !isAcceptanceClosureVehicle(selected[0])) {
       offerSalespersonChangeEmail(selected[0], {
         title: 'Vehicle ready for transport (RFT)',
         subject: 'Vehicle ready for transport',
@@ -11556,7 +11576,14 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
       const right = authenticatedOperationLineSortValue(b.operation_no);
       return left[0] - right[0] || left[1] - right[1] || left[2].localeCompare(right[2]);
     });
-  const authenticatedDescriptions = new Set(authenticatedLines.map(line => `${vehicleWorkshopStageCode(line.work_key)}\0${cleanNavisionText(line.description).toLowerCase()}`));
+  const adjustments = Array.isArray(detail?.line_adjustments) ? detail.line_adjustments : [];
+  const adjustmentByKey = new Map(adjustments.filter(item => item?.source_kind !== 'manual' && item?.line_key).map(item => [String(item.line_key), item]));
+  const authenticatedTargetStage = line => {
+    const sourceStage = vehicleWorkshopStageCode(line?.work_key);
+    const adjustment = adjustmentByKey.get(vehicleWorkshopLineIdentity(sourceStage, line));
+    return adjustment ? vehicleWorkshopStageCode(adjustment.stage_code) : sourceStage;
+  };
+  const authenticatedDescriptions = new Set(authenticatedLines.map(line => `${authenticatedTargetStage(line)}\0${cleanNavisionText(line.description).toLowerCase()}`));
   const groups = new Map();
   requirements.filter(item => item?.required === true).forEach(item => {
     const stage = vehicleWorkshopStageCode(item.stage_code || item.work_key || '');
@@ -11570,7 +11597,7 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
     if (groups.has(stage)) groups.get(stage).lines.push(line);
   });
   authenticatedLines.forEach(line => {
-    const stage = vehicleWorkshopStageCode(line.work_key);
+    const stage = authenticatedTargetStage(line);
     const jobCard = cleanNavisionText(line.job_card_number || line.jobCardNumber || '');
     if (groups.has(stage)) groups.get(stage).lines.push({
       ...line,
@@ -11594,8 +11621,6 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
       };
     } else groups.get(stage).lines.push({ ...line, authoritativeJobCardLine: true });
   });
-  const adjustments = Array.isArray(detail?.line_adjustments) ? detail.line_adjustments : [];
-  const adjustmentByKey = new Map(adjustments.filter(item => item?.source_kind !== 'manual' && item?.line_key).map(item => [String(item.line_key), item]));
   const relocatedLines = [];
   groups.forEach(group => {
     group.lines = group.lines.flatMap(line => {
@@ -13598,6 +13623,15 @@ function partsWorstEtaDate(vehicle = {}) {
   return parseDateAU(value) || parseIsoTimestamp(value);
 }
 
+function partsHasValidAuthoritativeEta(vehicle = {}) {
+  if (vehicle.__emailVehicleServerAuthoritative !== true) return false;
+  const value = partsWorstEtaValue(vehicle);
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return false;
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  return date.getFullYear() === Number(match[1]) && date.getMonth() === Number(match[2]) - 1 && date.getDate() === Number(match[3]);
+}
+
 function partsWorstEtaInputValue(vehicle = {}) {
   const value = partsWorstEtaValue(vehicle);
   if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
@@ -13874,9 +13908,10 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
   const key = vehicleKey(vehicle);
   const received = ['issued', 'notrequired'].includes(status);
   const stopped = status === 'stoppage';
-  const orderEtaReady = Boolean(partsWorstEtaDate(vehicle));
+  const canMarkOrdered = partsHasValidAuthoritativeEta(vehicle);
+  const markOrderedHint = canMarkOrdered ? 'Mark Parts ordered' : 'Set Parts ETA before marking ordered';
   return `<div class="parts-action-group parts-visible-actions">
-    ${status === 'notordered' ? `<button class="small-button parts-ordered-button" type="button" data-parts-ordered="${escapeHtml(key)}"${orderEtaReady ? '' : ' disabled aria-disabled="true" title="Set Parts ETA before marking ordered"'}>Mark ordered</button>` : ''}
+    ${status === 'notordered' ? `<button class="small-button parts-ordered-button" type="button" data-parts-ordered="${escapeHtml(key)}" title="${escapeHtml(markOrderedHint)}" aria-label="${escapeHtml(markOrderedHint)}"${canMarkOrdered ? '' : ' disabled aria-disabled="true"'}>Mark ordered</button>` : ''}
     ${received ? '' : `<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
     ${stopped
       ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove Parts STOPPAGE</button>`
@@ -14000,18 +14035,22 @@ async function authenticatedPartsTarget(key = '', selected = null) {
 }
 
 async function markVehiclePartsOrdered(key = '') {
-  const vehicle = selectedVehicle(key);
+  let vehicle = selectedVehicle(key);
   if (!vehicle) return;
-  if (!partsWorstEtaDate(vehicle)) {
-    window.alert('Set and save a valid Parts ETA before marking Parts ordered. No change was made.');
+  if (vehicle.__emailVehicleServerAuthoritative === true) {
+    await refreshEmailVehicleLocations();
+    vehicle = selectedVehicle(key);
+  }
+  if (!vehicle || !partsHasValidAuthoritativeEta(vehicle)) {
+    window.alert('Set a valid authoritative Parts ETA before marking Parts ordered. The latest shared row has been loaded; no change was made.');
     renderPartsHome();
     return;
   }
   const sharedTarget = await authenticatedPartsTarget(key, vehicle);
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
-    if (!partsWorstEtaDate(sharedVehicle)) {
-      window.alert('The authoritative shared vehicle has no valid Parts ETA. Set the ETA and wait for it to save before marking Parts ordered. No change was made.');
+    if (!partsHasValidAuthoritativeEta(sharedVehicle)) {
+      window.alert('The authoritative shared vehicle has no valid Parts ETA. Set the ETA and wait for confirmed readback before marking Parts ordered. No change was made.');
       await refreshEmailVehicleLocations();
       await refreshSharedVehicleWorkState(sharedVehicle);
       renderPartsHome();
@@ -14022,10 +14061,12 @@ async function markVehiclePartsOrdered(key = '') {
       renderPartsHome();
       return;
     }
-    const result = await service.markPartsOrdered(vehicleId, expectedVersion);
+    const result = await service.markPartsOrdered(vehicleId, expectedVersion, crypto.randomUUID());
     if (!result?.ok) {
       const message = result?.code === 'vehicle_version_conflict'
         ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
+        : result?.code === 'parts_eta_required'
+          ? 'Set a valid authoritative Parts ETA before marking Parts ordered. No change was made.'
         : result?.code === 'parts_already_ordered'
           ? 'Parts are already marked ordered. The current shared row will be reloaded.'
           : 'Parts could not be marked ordered on the shared vehicle record. No change was made.';
@@ -14035,21 +14076,18 @@ async function markVehiclePartsOrdered(key = '') {
       renderPartsHome();
       return;
     }
-    sharedVehicle.pdcRequiresParts = true;
-    sharedVehicle.pdcPartsOrdered = true;
-    await refreshEmailVehicleLocations();
-    await refreshSharedVehicleWorkState(sharedVehicle);
+    const snapshotRefreshed = await refreshEmailVehicleLocations();
+    const refreshedVehicle = selectedVehicle(key) || sharedVehicle;
+    const workRefreshed = await refreshSharedVehicleWorkState(refreshedVehicle);
+    if (!snapshotRefreshed || !workRefreshed || !partsOrdered(refreshedVehicle)) {
+      window.alert('Parts ordered was accepted, but authoritative readback did not converge. No ordered state is shown; refresh before continuing.');
+      renderPartsHome();
+      return;
+    }
     renderPartsHome();
     return;
   }
-  const operator = getCurrentOperatorName();
-  recordVehicleAudit(vehicle, 'Parts marked ordered', { by: operator });
-  saveVehicleEdits(key, {
-    pdcRequiresParts: true,
-    pdcPartsOrdered: true,
-    pdcPartsOrderedAt: nowIsoString(),
-    pdcPartsOrderedBy: operator,
-  });
+  window.alert('Parts ordering requires one authoritative shared vehicle record and a confirmed Parts ETA. No local change was made.');
 }
 
 async function markVehiclePartsComplete(key = '') {
@@ -14096,11 +14134,46 @@ async function markVehiclePartsComplete(key = '') {
   }
 }
 
-function markVehiclePartsStoppage(key = '') {
+async function markVehiclePartsStoppage(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   const reason = cleanNavisionText(window.prompt('Enter Parts STOPPAGE reason:', partsStoppageReason(vehicle) === 'Parts STOPPAGE recorded' ? '' : partsStoppageReason(vehicle)) || '');
   if (!reason) return;
+  const sharedTarget = await authenticatedPartsTarget(key, vehicle);
+  if (sharedTarget) {
+    const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
+    if (typeof service.setPartsStoppage !== 'function') {
+      window.alert('The shared Parts STOPPAGE service is unavailable. No change was made.');
+      return;
+    }
+    app.partsStoppageInFlight = app.partsStoppageInFlight || new Set();
+    if (app.partsStoppageInFlight.has(vehicleId)) return;
+    app.partsStoppageInFlight.add(vehicleId);
+    try {
+      const result = await service.setPartsStoppage(vehicleId, expectedVersion, 'set', reason, crypto.randomUUID());
+      await refreshEmailVehicleLocations();
+      await refreshSharedVehicleWorkState(sharedVehicle);
+      if (!result?.ok) {
+        const message = result?.code === 'vehicle_version_conflict'
+          ? 'This vehicle changed since the Parts row loaded. The latest shared row has been loaded; check it and try again.'
+          : result?.code === 'parts_already_received' || result?.code === 'vehicle_inactive_or_issued'
+            ? 'Received, issued or inactive vehicle Parts cannot be placed in STOPPAGE.'
+            : 'Parts STOPPAGE was rejected by the shared record. No change was made.';
+        window.alert(message);
+        renderPartsHome();
+        return;
+      }
+      app.partsOperationalFilter = 'stoppage';
+      renderPartsHome();
+      return;
+    } finally {
+      app.partsStoppageInFlight.delete(vehicleId);
+    }
+  }
+  if (vehicle.__emailVehicleServerAuthoritative === true) {
+    window.alert('This shared vehicle could not be resolved to one authoritative Parts record. No local STOPPAGE was recorded.');
+    return;
+  }
   const operator = getCurrentOperatorName();
   const updates = {
     pdcRequiresParts: true,
@@ -14111,11 +14184,6 @@ function markVehiclePartsStoppage(key = '') {
   };
   recordVehicleAudit(vehicle, 'Parts STOPPAGE recorded', { reason, by: operator });
   saveVehicleEdits(key, updates);
-  offerSalespersonChangeEmail(vehicle, {
-    title: 'Parts STOPPAGE recorded',
-    subject: 'PDC STOPPAGE update',
-    details: [`Reason: ${reason}`, `Recorded by ${operator}.`],
-  });
 }
 
 async function updateVehiclePartsWorstEta(key = '', value = '') {
@@ -14204,11 +14272,44 @@ function draftPartsEtaSalesEmail(key = '') {
   window.location.href = `mailto:${salespersonEmail(vehicle)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-function clearVehiclePartsStoppage(key = '') {
+async function clearVehiclePartsStoppage(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
+  const reason = cleanNavisionText(window.prompt('Reason for clearing Parts STOPPAGE (recorded in audit history):', '') || '');
+  if (!reason) return;
+  const sharedTarget = await authenticatedPartsTarget(key, vehicle);
+  if (sharedTarget) {
+    const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
+    if (typeof service.setPartsStoppage !== 'function') {
+      window.alert('The shared Parts recovery service is unavailable. No change was made.');
+      return;
+    }
+    app.partsStoppageInFlight = app.partsStoppageInFlight || new Set();
+    if (app.partsStoppageInFlight.has(vehicleId)) return;
+    app.partsStoppageInFlight.add(vehicleId);
+    try {
+      const result = await service.setPartsStoppage(vehicleId, expectedVersion, 'clear', reason, crypto.randomUUID());
+      await refreshEmailVehicleLocations();
+      await refreshSharedVehicleWorkState(sharedVehicle);
+      if (!result?.ok) {
+        window.alert(result?.code === 'vehicle_version_conflict'
+          ? 'This vehicle changed since the Parts row loaded. The latest shared row has been loaded; check it and try again.'
+          : 'Parts STOPPAGE recovery was rejected by the shared record. No change was made.');
+        renderPartsHome();
+        return;
+      }
+      renderPartsHome();
+      return;
+    } finally {
+      app.partsStoppageInFlight.delete(vehicleId);
+    }
+  }
+  if (vehicle.__emailVehicleServerAuthoritative === true) {
+    window.alert('This shared vehicle could not be resolved to one authoritative Parts record. No local recovery was recorded.');
+    return;
+  }
   const operator = getCurrentOperatorName();
-  recordVehicleAudit(vehicle, 'Parts STOPPAGE cleared', { reason: partsStoppageReason(vehicle), by: operator });
+  recordVehicleAudit(vehicle, 'Parts STOPPAGE cleared', { previousReason: partsStoppageReason(vehicle), reason, by: operator });
   saveVehicleEdits(key, {
     pdcPartsStoppage: false,
     pdcPartsStoppageReason: '',
@@ -15618,7 +15719,9 @@ function openCustomerModal() {
   const modal = $('#customer-modal');
   if (!modal) return;
   rememberModalReturnFocus(modal);
-  $('#new-customer-form')?.reset();
+  const form = $('#new-customer-form');
+  form?.reset();
+  if (form) delete form.dataset.acceptanceIdempotency;
   const salespersonSelect = $('[data-new-customer-salesperson]');
   if (salespersonSelect) salespersonSelect.innerHTML = salespersonOptionsHtml('');
   $('#new-customer-message').textContent = '';
@@ -15635,11 +15738,45 @@ function closeCustomerModal() {
   restoreModalReturnFocus(modal);
 }
 
-function addCustomerFromForm(e) {
+async function addCustomerFromForm(e) {
   e.preventDefault();
   const form = e.currentTarget;
   const data = Object.fromEntries(new FormData(form).entries());
   const stock = (data.stock || '').trim() || `NEW-${Date.now().toString().slice(-6)}`;
+  if (/^HERMES-TEST-AC-[ABC]$/.test(stock)) {
+    const service = app.emailVehicleLocationService;
+    const message = $('#new-customer-message');
+    const submit = form.querySelector('button[type="submit"]');
+    if (!service || typeof service.createAcceptanceVehicle !== 'function' || window.PDC_AUTH_CONTEXT?.role !== 'administrator') {
+      if (message) message.textContent = 'Protected staging creation is unavailable';
+      return;
+    }
+    const idempotencyKey = form.dataset.acceptanceIdempotency || crypto.randomUUID();
+    form.dataset.acceptanceIdempotency = idempotencyKey;
+    if (submit) submit.disabled = true;
+    if (message) message.textContent = 'Creating protected staging vehicle…';
+    const result = await service.createAcceptanceVehicle(stock, data.client, data.vehicle, data.pdcJobcard, idempotencyKey);
+    if (!result?.ok) {
+      if (submit) submit.disabled = false;
+      if (message) message.textContent = `Not created (${result?.code || 'request failed'})`;
+      return;
+    }
+    delete form.dataset.acceptanceIdempotency;
+    const refreshed = await refreshEmailVehicleLocations();
+    const created = selectedVehicle(stock);
+    if (!refreshed || !created || created.__emailVehicleServerAuthoritative !== true
+        || String(created.__emailVehicleId || '') !== String(result.data?.vehicle_id || '')) {
+      if (submit) submit.disabled = false;
+      if (message) message.textContent = 'Created receipt returned, but authoritative readback did not converge';
+      return;
+    }
+    populateFilters();
+    renderAll();
+    closeCustomerModal();
+    showView('dashboard');
+    openVehicleModal(stock);
+    return;
+  }
   const vehicle = {
     id: `manual-${Date.now()}`,
     sourceRow: '',
@@ -16930,12 +17067,19 @@ function updateNavisionImportButton() {
   const applyButton = $('#apply-navision-shared');
   const clear = $('#navision-clear');
   const applying = app.navisionSharedApplyInFlight === true;
+  const previewing = app.navisionPreviewInFlight === true;
+  const busy = applying || previewing;
   if (button) {
-    button.disabled = applying || !raw || (sharedMode && (!roleAllowed || !['14450', '37047'].includes(dealerCode)));
+    button.disabled = busy || !raw || (sharedMode && (!roleAllowed || !['14450', '37047'].includes(dealerCode)));
     button.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
+    button.classList.toggle('is-loading', previewing);
+    button.setAttribute('aria-busy', previewing ? 'true' : 'false');
+    button.innerHTML = previewing
+      ? '<span class="navision-button-spinner" aria-hidden="true"></span><span>Previewing…</span>'
+      : 'Preview Data';
   }
   if (applyButton) {
-    applyButton.disabled = applying || !app.pendingSharedNavisionImport || (sharedMode && !roleAllowed);
+    applyButton.disabled = busy || !app.pendingSharedNavisionImport || (sharedMode && !roleAllowed);
     applyButton.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
     applyButton.classList.toggle('is-loading', applying);
     applyButton.setAttribute('aria-busy', applying ? 'true' : 'false');
@@ -16943,12 +17087,23 @@ function updateNavisionImportButton() {
       ? '<span class="navision-button-spinner" aria-hidden="true"></span><span>Applying Navision import…</span>'
       : 'Confirm and Apply';
   }
-  if (clear) clear.disabled = applying || (!raw && !app.navisionImport && !app.pendingSharedNavisionImport);
+  if (clear) clear.disabled = busy || (!raw && !app.navisionImport && !app.pendingSharedNavisionImport);
+  ['navision-upload', 'navision-paste', 'navision-dealer-code'].forEach(id => {
+    const control = $('#' + id);
+    if (control) control.disabled = busy;
+  });
   updateNavisionControlStats(app.pendingNavisionImport || app.navisionImport);
 }
 
 function setNavisionSharedApplyBusy(busy = false) {
   app.navisionSharedApplyInFlight = busy === true;
+  updateNavisionImportButton();
+}
+
+function setNavisionPreviewBusy(busy = false) {
+  app.navisionPreviewInFlight = busy === true;
+  const status = $('#navision-preview-status');
+  if (status) status.textContent = app.navisionPreviewInFlight ? 'Previewing Navision data. No data has been applied.' : '';
   updateNavisionImportButton();
 }
 
@@ -18438,6 +18593,10 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
 }
 
 async function importNavisionVehicles() {
+  if (app.navisionPreviewInFlight === true) return;
+  setNavisionPreviewBusy(true);
+  await navisionWaitForBusyPaint();
+  try {
   const input = $('#navision-paste');
   const text = input?.value || '';
   if (!$('#navision-dealer-code')) return importNavisionVehiclesLocal(text);
@@ -18512,6 +18671,9 @@ async function importNavisionVehicles() {
   }
   renderSharedNavisionPreview(app.pendingSharedNavisionImport);
   updateNavisionImportButton();
+  } finally {
+    setNavisionPreviewBusy(false);
+  }
 }
 
 function importNavisionVehiclesLocal(text = '') {

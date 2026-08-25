@@ -432,6 +432,24 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
       });
     },
 
+    acceptanceQcComplete({ vehicleId, expectedVersion, idempotencyKey }) {
+      return rpc('pdc_acceptance_lifecycle_375', {
+        p_vehicle_id: vehicleId,
+        p_expected_version: expectedVersion,
+        p_idempotency_key: idempotencyKey,
+        p_action: 'qc_complete',
+      });
+    },
+
+    acceptanceRftTransfer({ vehicleId, expectedVersion, idempotencyKey }) {
+      return rpc('pdc_acceptance_lifecycle_375', {
+        p_vehicle_id: vehicleId,
+        p_expected_version: expectedVersion,
+        p_idempotency_key: idempotencyKey,
+        p_action: 'rft_transfer',
+      });
+    },
+
     rftTransferVehicle({ vehicleId, expectedVersion }) {
       return rpc('rft_transfer_vehicle', {
         p_vehicle_id: vehicleId,

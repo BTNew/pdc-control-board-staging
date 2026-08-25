@@ -261,7 +261,7 @@ function workshopExactDurationHours(value = 0) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric) || numeric <= 0) return 0;
   const minutes = Math.round(numeric * 60);
-  return minutes >= 60 ? minutes / 60 : 0;
+  return minutes >= 1 ? minutes / 60 : 0;
 }
 
 function workshopIntervalsOverlap(startA, endA, startB, endB) {
@@ -378,7 +378,12 @@ function workshopLatestWorkMoment(value = new Date()) {
 }
 
 function workshopAddWorkMinutes(startValue = new Date(), minutes = 0) {
-  let current = workshopNormalizeStartDate(startValue);
+  let current = startValue instanceof Date ? new Date(startValue) : new Date(startValue);
+  if (Number.isNaN(current.getTime())) current = new Date();
+  const initialMinute = workshopMinuteOfDay(current);
+  const startsInsideWindow = workshopIsWorkday(current)
+    && workshopAvailabilityWindowsForDate(current).some(window => initialMinute >= window.startMinutes && initialMinute < window.endMinutes);
+  if (!startsInsideWindow) current = workshopNormalizeStartDate(current);
   let remaining = Math.max(0, Number(minutes) || 0);
   while (remaining > 0) {
     const windows = workshopAvailabilityWindowsForDate(current);

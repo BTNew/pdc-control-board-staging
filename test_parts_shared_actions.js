@@ -20,7 +20,7 @@ function ok(value, message) {
   ok(PDC_PARTS_COMPLETE_SUCCESS_CODES.has('parts_completed') && PDC_PARTS_COMPLETE_SUCCESS_CODES.has('replayed'), 'completion accepts only receipt-backed mutation outcomes');
   ok(serviceSource.includes('async function markPartsComplete'), 'shared Parts service exposes Mark Complete');
   ok(serviceSource.includes('PDC_PARTS_COMPLETE_RPC'), 'shared Parts service uses the complete RPC constant');
-  ok(serviceSource.includes('markPartsComplete, vehicleHistory'), 'shared service returns Mark Complete');
+  ok(serviceSource.includes('markPartsComplete, setPartsStoppage, vehicleHistory'), 'shared service returns Mark Complete and receipted STOPPAGE actions');
   ok(appSource.includes('function vehicleLocationsScreenRows') && appSource.includes('return vehicleLocationsScreenRows().filter(partsQueueVisibleVehicle)'), 'Parts source is derived from the Vehicle Locations row set');
   ok(appSource.includes('function partsStateComplete') && appSource.includes('.filter(partsQueueVisibleVehicle)'), 'completed Parts state is excluded from the Parts queue');
   ok(appSource.includes('service.markPartsComplete') && appSource.includes('await service.markPartsComplete('), 'authoritative UI routes Mark Complete through the shared service');
