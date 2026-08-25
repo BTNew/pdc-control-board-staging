@@ -13837,8 +13837,9 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
   const key = vehicleKey(vehicle);
   const received = ['issued', 'notrequired'].includes(status);
   const stopped = status === 'stoppage';
+  const orderEtaReady = Boolean(partsWorstEtaDate(vehicle));
   return `<div class="parts-action-group parts-visible-actions">
-    ${status === 'notordered' ? `<button class="small-button parts-ordered-button" type="button" data-parts-ordered="${escapeHtml(key)}">Mark ordered</button>` : ''}
+    ${status === 'notordered' ? `<button class="small-button parts-ordered-button" type="button" data-parts-ordered="${escapeHtml(key)}"${orderEtaReady ? '' : ' disabled aria-disabled="true" title="Set Parts ETA before marking ordered"'}>Mark ordered</button>` : ''}
     ${received ? '' : `<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
     ${stopped
       ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove Parts STOPPAGE</button>`
@@ -13964,9 +13965,21 @@ async function authenticatedPartsTarget(key = '', selected = null) {
 async function markVehiclePartsOrdered(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
+  if (!partsWorstEtaDate(vehicle)) {
+    window.alert('Set and save a valid Parts ETA before marking Parts ordered. No change was made.');
+    renderPartsHome();
+    return;
+  }
   const sharedTarget = await authenticatedPartsTarget(key, vehicle);
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
+    if (!partsWorstEtaDate(sharedVehicle)) {
+      window.alert('The authoritative shared vehicle has no valid Parts ETA. Set the ETA and wait for it to save before marking Parts ordered. No change was made.');
+      await refreshEmailVehicleLocations();
+      await refreshSharedVehicleWorkState(sharedVehicle);
+      renderPartsHome();
+      return;
+    }
     if (typeof service.markPartsOrdered !== 'function') {
       window.alert('The shared Parts service is unavailable. No change was made.');
       renderPartsHome();
