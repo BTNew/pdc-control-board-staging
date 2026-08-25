@@ -23,9 +23,9 @@ BEGIN
          WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd') <> 1
      OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
      OR NOT public.pdc_monitor_staging_guard()
-     OR v_head IS DISTINCT FROM '20260826123000'
+     OR v_head IS DISTINCT FROM '20260826124500'
      OR (SELECT count(*) FROM supabase_migrations.schema_migrations
-         WHERE version='20260826123000') <> 1
+         WHERE version='20260826124500') <> 1
      OR to_regclass('public.workshop_bookings') IS NULL
      OR to_regprocedure('public.get_workshop_snapshot(date,date)') IS NULL
      OR to_regprocedure('public.get_station_workshop_snapshot(text,date,date)') IS NULL

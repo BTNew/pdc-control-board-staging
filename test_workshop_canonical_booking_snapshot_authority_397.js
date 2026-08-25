@@ -16,8 +16,8 @@ const compaction = fs.readFileSync(path.join(root, 'supabase', 'staging_only', '
 const protectedRead = fs.readFileSync(path.join(root, 'supabase', 'staging_only', '20260825120000_375_acceptance_closure_intake.sql'), 'utf8');
 
 for (const marker of [
-  "v_head is distinct from '20260826123000'",
-  "version='20260826123000'",
+  "v_head is distinct from '20260826124500'",
+  "version='20260826124500'",
   'workshop_bookings',
   'jsonb_array_elements',
   'booking_id',
