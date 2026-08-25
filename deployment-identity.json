@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.27.01-operational-closure",
+  "application_version": "2026.08.27.02-authority-closure",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,

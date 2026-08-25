@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.01-operational-closure';
+const APP_VERSION = '2026.08.27.02-authority-closure';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -8716,6 +8716,11 @@ function endPmbScheduleChipInteraction(state, event, onMove, onUp) {
 }
 
 function renderPmbBayControlSection(v = {}) {
+  // The legacy PMB bay detail controls persist operational changes in browser
+  // storage. Shared staging/online operation must use the authoritative
+  // Workshop Planner RPCs instead, so never expose this mutation surface when
+  // shared lifecycle authority is enabled.
+  if (vehicleLifecycleSharedModeActive()) return '';
   const stage = normalizePmbStage(v.pmbBayStage || inferredPmbStage(v));
   const bay = pmbBayNumber(v, stage);
   if (statusCategory(v) !== 'pmb' || !stage) return '';
@@ -9479,6 +9484,9 @@ function updatePmbBayScheduleStart(key, stage, value) {
 }
 
 function savePmbBayDetailForm(vehicle, form) {
+  // Defence in depth for direct/stale-DOM invocation: reject before parsing,
+  // auditing or touching browser-local operational state.
+  if (vehicleLifecycleSharedModeActive()) return false;
   if (!vehicle || !form) return false;
   const stage = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
   if (!stage) return false;
@@ -9560,6 +9568,10 @@ async function updatePmbBaySubletProvider(key, stage, value) {
 }
 
 function completePmbBayWork(key, stage, transactionOptions = {}) {
+  // Shared lifecycle mode is server-authoritative. The canonical completion
+  // flow lives in Workshop Planner; this legacy browser-storage handler must
+  // remain unreachable even when called directly from stale markup.
+  if (vehicleLifecycleSharedModeActive()) return false;
   const cleanKey = String(key || '').trim();
   const vehicle = selectedVehicle(cleanKey);
   const normalizedStage = normalizePmbStage(stage || inferredPmbStage(vehicle));
