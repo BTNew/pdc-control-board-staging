@@ -2,6 +2,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { mapServerVehicle, reconcileVehicleRows } = require('./pdc-email-vehicle-location-service.js');
 
 const app = fs.readFileSync('app.js', 'utf8');
 const css = fs.readFileSync('styles.css', 'utf8');
@@ -55,4 +56,35 @@ assert.match(css, /\.pdc-work-state-ordered\s*\{[^}]*background:\s*#fff7ed !impo
 assert.match(desktopCss, /\.work-status-key\.status-ordered[^\n]*background:\s*#fff7ed;/);
 assert.match(app, /status-ordered"><b>●<\/b> Parts ordered/);
 assert.match(app, /orange = Parts ordered/);
+
+const authoritative = {
+  id: '00000000-0000-4000-8000-000000000941',
+  stock_number: 'HERMES-SANITIZED-ORDERED-941',
+  version: 7,
+  work_items: [{ work_key: 'parts', required: true, completed: false }],
+  operation_lines: [],
+  parts_update: { parts_required: true, parts_ordered: true, parts_received: false, worst_eta: '2026-08-30' },
+};
+const mapped = mapServerVehicle(authoritative);
+assert.strictEqual(mapped.pdcRequiresParts, true);
+assert.strictEqual(mapped.pdcPartsOrdered, true);
+assert.strictEqual(mapped.pdcPartsWorstEta, '2026-08-30');
+const firstSession = reconcileVehicleRows([{ stock: authoritative.stock_number }], [authoritative]).rows[0];
+const secondSession = reconcileVehicleRows([{ ...firstSession }], [authoritative]).rows[0];
+assert.strictEqual(firstSession.pdcPartsOrdered, true, 'refresh keeps authoritative ordered projection');
+assert.strictEqual(secondSession.pdcPartsOrdered, true, 'realtime/two-session reconciliation keeps authoritative ordered projection');
+const runtimeContext = {
+  vehicleKey: vehicle => vehicle.stock, normalizePmbStage: value => value || '', inferredPmbStage: () => '',
+  vehicleWorkshopBookingProjection: () => ({bookingRequired: false, activeBookings: []}),
+  pdcJobDefsPartsFirst: () => [{ ...partsDef, requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts' }],
+  pdcJobRequired: (vehicle, def) => vehicle[def.requireKey] === true, pdcJobComplete: (vehicle, def) => vehicle[def.completeKey] === true,
+  pmbStageForPdcJob: () => '', PMB_STAGE_TO_JOB_KEY: {}, isActivePartsStoppage: vehicle => vehicle.pdcPartsStoppage === true,
+  isPdcBlocked: () => false, partsOrdered: vehicle => vehicle.pdcPartsOrdered === true, pdcGridJobLabel: () => 'Parts',
+  pdcJobCompletionTitle: () => 'Parts required', escapeHtml: value => String(value),
+};
+vm.createContext(runtimeContext);
+vm.runInContext(`${section('function incomingWorkChecklistHtml', 'function workStatusLegendHtml')} this.renderIncoming = incomingWorkChecklistHtml;`, runtimeContext);
+assert.match(runtimeContext.renderIncoming(secondSession, {}), /incoming-work-check pdc-station-parts is-required is-ordered/);
+assert.doesNotMatch(section('function applySharedWorkStateCache', 'async function saveSharedVehicleWorkStates'), /pdcPartsOrdered\s*=/,
+  'pending work-state overlays must not erase authoritative Parts ordered state');
 console.log('Parts ordered orange projection: PASS');
