@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.25.03-qc-operation-lines",
+  "application_version": "2026.08.25.10-qc-operation-projection",
   "frontend_source_commit": "2efb13ca8db47dc69edc0832807b144a5631d3e6",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -26,6 +26,7 @@
     "Historical email/source and Telegram replay fences must remain preserved.",
     "Production and the local mailbox runtime were not changed by this release.",
     "Vehicle and customer dialogs trap keyboard focus, recover containment after asynchronous rerenders, and return focus to the invoking control on close.",
-    "QC now renders and records stable authenticated operation lines individually; department labels are non-interactive group headings and unknown-hour lines fail closed."
+    "QC now renders and records stable authenticated operation lines individually; department labels are non-interactive group headings and unknown-hour lines fail closed.",
+    "The QC projection release distinguishes a missing server qc_operation_lines field from a valid empty array; source operation evidence is never implied absent."
   ]
 }

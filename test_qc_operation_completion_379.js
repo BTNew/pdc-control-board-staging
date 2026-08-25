@@ -16,11 +16,15 @@ assert.strictEqual(new Set(row.pdcQcOperationLines.map(line => line.lineIdentity
 assert.strictEqual(row.pdcQcOperationLines[0].estimatedHours, 0, 'explicit zero remains numeric zero');
 assert.strictEqual(row.pdcQcOperationLines[1].estimatedHours, null, 'unknown hours remain null');
 
+const missingProjectionRow = mapServerVehicle({ id: row.id, stock_number: 'HERMES-TEST-QC-MISSING', work_items: [], operation_lines: [] });
+assert.strictEqual(missingProjectionRow.pdcQcOperationLinesProjectionPresent, false, 'missing QC projection is distinguishable from an empty projection');
+assert.deepStrictEqual(missingProjectionRow.pdcQcOperationLines, [], 'missing QC projection remains fail-closed');
+
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
-assert.match(app, /const APP_VERSION = '2026\.08\.25\.09-booking-pills'/);
-assert.match(index, /pdc-email-vehicle-location-service\.js\?v=2026\.08\.25\.09-booking-pills/);
-assert.match(index, /app\.js\?v=2026\.08\.25\.09-booking-pills/);
+assert.match(app, /const APP_VERSION = '2026\.08\.25\.10-qc-operation-projection'/);
+assert.match(index, /pdc-email-vehicle-location-service\.js\?v=2026\.08\.25\.10-qc-operation-projection/);
+assert.match(index, /app\.js\?v=2026\.08\.25\.10-qc-operation-projection/);
 const start = app.indexOf('function qcPageOperationLines');
 const end = app.indexOf('\nfunction qcPageVehicleCardHtml', start);
 const context = {
@@ -41,6 +45,16 @@ assert.match(html, /Unknown hours/);
 assert.match(html, /Audited manual line/);
 assert.match(html, /data-qc-line-version="2"/);
 assert.match(html, /data-qc-line-identity="source:00000000-0000-4000-8000-000000000002"[^>]*disabled[^>]*title="Unknown operation hours require review before QC completion"/);
+const missingContext = {
+  ...context,
+  qcPageOperationLines: context.qcPageOperationLines,
+};
+vm.createContext(missingContext);
+vm.runInContext(app.slice(start, end), missingContext);
+const missingHtml = missingContext.qcPageWorkItemsHtml(missingProjectionRow);
+assert.match(missingHtml, /QC operation lines are still loading/);
+assert.match(missingHtml, /server snapshot is missing its QC projection/);
+assert.doesNotMatch(missingHtml, /source operation evidence does not exist/i);
 
 const sql = fs.readFileSync('supabase/staging_only/20260825160000_379_qc_per_operation_completion.sql', 'utf8');
 for (const marker of ['pdc_qc_operation_completions_379','pdc_qc_operation_completion_history_379','pdc_qc_operation_completion_receipts_379',

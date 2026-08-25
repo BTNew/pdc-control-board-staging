@@ -6,6 +6,12 @@
 - Broad refresh supersession no longer converts a validated write into `salesperson_assignment_readback_failed`; delayed readback is shown as `Saved online; refreshing…`, exact contradictory readback fails closed, and subsequent detail saves use the salesperson receipt's `vehicle_version_after`.
 - Added `test_salesperson_readback_race.js` covering stale/eventual/immediate/contradictory snapshots, poisoned local state, replay-shaped receipts, combined detail save versioning, and broad-refresh generation race behavior. No browser-local persistence was added.
 
+## 2026-08-25 — Restore Mobile QC operation-line projection
+
+- Added staging-only migration `supabase/staging_only/20260826110000_395_restore_qc_operation_projection.sql`, an additive wrapper over the live snapshot that preserves all existing fields while projecting canonical `pdc_qc_operation_lines_379` output as `qc_operation_lines` for every returned vehicle. The migration is guarded to the exact staging sentinel/head, production exclusion, protected digest and zero-notification postconditions.
+- Updated `pdc-email-vehicle-location-service.js` to distinguish an absent/malformed server QC projection from a valid empty array, and updated `app.js` to show a precise server-projection loading message without claiming source operation evidence is absent. Cache-busted staging asset references in `index.html` and updated focused regression coverage.
+- The source release is staging-only. Protected Stock `12664962` remains read-only; no production data, branch, migration, credentials or notification rows were changed.
+
 ## 2026-08-25 — Focused booking and future-only Workshop corrections
 
 - Vehicle-card booking links now enter a focused, scoped canonical booking mode. Exact booking ID resolution fails closed on missing/ambiguous rows, displays authoritative operation lines and exact whole-minute totals, removes legacy duration buttons, supports receipt/version-safe Save plan edits, hides candidate noise, and provides Back to Workshop planner.

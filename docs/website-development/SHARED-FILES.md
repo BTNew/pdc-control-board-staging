@@ -5,6 +5,14 @@
 - `app.js` — receipt-first canonical UUID/version application, in-memory pending receipt overlay, bounded targeted authoritative readback, contradiction handling, and delayed-save status.
 - `test_salesperson_readback_race.js` — focused receipt/readback race, stale/eventual/immediate/contradictory snapshot, poisoned-state, replay and combined-save regression coverage.
 
+## Restore Mobile QC operation-line projection — 2026-08-25
+
+- `app.js` — QC operation-line rendering now distinguishes a missing server projection and shows a precise loading message.
+- `pdc-email-vehicle-location-service.js` — QC snapshot mapper preserves a projection-presence signal while remaining fail-closed on missing data.
+- `index.html` — cache-busted staging references for the QC projection asset release.
+- `supabase/staging_only/20260826110000_395_restore_qc_operation_projection.sql` — additive, exact-head-guarded snapshot wrapper preserving the existing contract and canonical QC 379 lines.
+- `test_qc_operation_projection_395.js`, `test_qc_operation_completion_379.js` — migration and missing-projection regression coverage.
+
 ## Focused booking and future-only Workshop corrections — 2026-08-25
 
 - `app.js` — focused vehicle-card booking entry, canonical Parts projection/focus, and raw-baseline lifecycle guard for shared detail saves.

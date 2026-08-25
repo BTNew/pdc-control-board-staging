@@ -105,7 +105,9 @@ function mapServerVehicle(row = {}) {
     source_uid: String(item?.source_uid || '').trim().slice(0, 100),
   })).filter(item => /^(?:OP(?:[1-9]|[1-9][0-9]{1,2})|PD[0-9]{3}-[A-F0-9]{8})$/.test(item.operation_no)
     && allowedOperationKeys.has(item.work_key) && item.description.length > 0);
-  mapped.pdcQcOperationLines = (Array.isArray(row.qc_operation_lines) ? row.qc_operation_lines : []).slice(0, 250).map(item => ({
+  const qcProjectionFieldPresent = Object.prototype.hasOwnProperty.call(row, 'qc_operation_lines');
+  mapped.pdcQcOperationLinesProjectionPresent = qcProjectionFieldPresent && Array.isArray(row.qc_operation_lines);
+  mapped.pdcQcOperationLines = (mapped.pdcQcOperationLinesProjectionPresent ? row.qc_operation_lines : []).slice(0, 250).map(item => ({
     lineIdentity: String(item?.line_identity || ''), sourceKind: String(item?.source_kind || ''), sourceLineId: String(item?.source_line_id || ''),
     operationNo: String(item?.operation_no || ''), description: String(item?.description || '').trim(), jobCardNumber: String(item?.job_card_number || '').trim(),
     estimatedHours: item?.estimated_hours == null || item?.estimated_hours === '' ? null : Number(item.estimated_hours), stageCode: String(item?.stage_code || '').toUpperCase(),

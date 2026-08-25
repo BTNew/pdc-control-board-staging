@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.09-booking-pills';
+const APP_VERSION = '2026.08.25.10-qc-operation-projection';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -4785,7 +4785,10 @@ function qcPageWorkItemsHtml(vehicle = {}) {
     </label>`;
   }).join('')}
   </section>`).join('');
-  return html || '<div class="qc-operation-unavailable" role="alert"><strong>Operation lines unavailable</strong><span>QC completion is blocked until stable authenticated or audited manual line identities load.</span></div>';
+  if (vehicle.pdcQcOperationLinesProjectionPresent !== true) {
+    return '<div class="qc-operation-unavailable" role="alert"><strong>QC operation lines are still loading</strong><span>The authenticated server snapshot is missing its QC projection. Refresh to retry; the source operation evidence has not been treated as absent.</span></div>';
+  }
+  return html || '<div class="qc-operation-unavailable" role="alert"><strong>No active operation lines are available</strong><span>QC completion remains blocked until an authenticated or audited manual operation line is available.</span></div>';
 }
 
 function qcPageVehicleCardHtml(vehicle = {}, selected = false) {
