@@ -20,7 +20,9 @@ assert.ok(stagingConfig.includes('completeVehicleDeleteCommissioned: false'), 'u
 assert.ok(appSource.includes('disabled = true') || appSource.includes('.disabled = true'), 'request path disables the destructive control');
 assert.ok(appSource.includes('refreshVehicleLifecycleLocationsAndRender'), 'success path performs authoritative readback');
 assert.ok(stagingSource.includes('pdc-supabase-config.staging.js'), 'staging shell loads staging config');
-assert.ok(stagingSource.includes('app.js?v=2026.08.25.03-qc-operation-lines'), 'staging shell points at the current QC operation release marker');
+const currentVersion = appSource.match(/const APP_VERSION = '([^']+)'/)?.[1];
+assert.ok(currentVersion, 'app exposes a release marker');
+assert.ok(stagingSource.includes(`app.js?v=${currentVersion}`), 'staging shell points at the current app release marker');
 assert.ok(legacyShell.includes('url=./'), 'retired staging shell redirects to current entry');
 
 const { buildVehicleLifecycleSharedActions } = require('./vehicle-lifecycle-actions.js');
