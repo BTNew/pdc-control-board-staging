@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.25.07-server-only-salesperson';
+const APP_VERSION = '2026.08.25.08-parts-eta-immediate';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -14128,7 +14128,15 @@ async function markVehiclePartsOrdered(key = '') {
           ? 'Set a valid authoritative Parts ETA before marking Parts ordered. No change was made.'
         : result?.code === 'parts_already_ordered'
           ? 'Parts are already marked ordered. The current shared row will be reloaded.'
-          : 'Parts could not be marked ordered on the shared vehicle record. No change was made.';
+        : result?.code === 'parts_not_required' || result?.code === 'parts_required_false'
+          ? 'Set Parts as required and save that authoritative work state before marking Parts ordered. No change was made.'
+        : result?.code === 'parts_already_received'
+          ? 'Parts are already marked received and cannot be marked ordered again.'
+        : result?.code === '42501' || /unauthor|operator.required/i.test(String(result?.code || ''))
+          ? 'Operator access is required to mark Parts ordered. No change was made.'
+        : result?.code === 'parts_ordered_receipt_invalid'
+          ? 'The Parts order request did not return a valid authoritative receipt. No change is shown; reload before retrying.'
+          : `Parts could not be marked ordered (${escapeHtml(String(result?.code || 'unknown error'))}). No change was made.`;
       window.alert(message);
       await refreshEmailVehicleLocations();
       await refreshSharedVehicleWorkState(sharedVehicle);
@@ -14270,10 +14278,15 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
       renderPartsHome();
       return;
     }
+    // The RPC response is authoritative for the accepted ETA. Render that
+    // accepted value immediately; reconcile the broader projections in
+    // parallel so the Parts row is not blocked for two sequential refreshes.
     sharedVehicle.pdcPartsWorstEta = eta;
-    await refreshEmailVehicleLocations();
-    await refreshSharedVehicleWorkState(sharedVehicle);
     renderPartsHome();
+    void Promise.allSettled([
+      refreshEmailVehicleLocations(),
+      refreshSharedVehicleWorkState(sharedVehicle),
+    ]).then(() => renderPartsHome());
     return;
   }
   recordVehicleAudit(vehicle, eta ? 'Parts worst ETA updated' : 'Parts worst ETA cleared', { eta, previousEta, by: operator });

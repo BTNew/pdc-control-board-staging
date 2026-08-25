@@ -35,6 +35,6 @@ const submit = app.slice(submitStart, submitEnd);
 assert.match(submit, /salespersonChanged && v\.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive\(\)/);
 assert.match(submit, /Not saved — salesperson assignments must save online\. No browser-local change was made\./);
 assert.ok(submit.indexOf('return;') < submit.indexOf('saveVehicleEdits(key, updates);'), 'server-authoritative salesperson change fails closed before local save');
-assert.match(app, /const APP_VERSION = '2026\.08\.25\.07-server-only-salesperson'/);
-assert.match(index, /app\.js\?v=2026\.08\.25\.07-server-only-salesperson/);
+assert.match(app, /const APP_VERSION = '2026\.08\.25\.08-parts-eta-immediate'/);
+assert.match(index, /app\.js\?v=2026\.08\.25\.08-parts-eta-immediate/);
 console.log('Server-only salesperson fail-closed safeguard: PASS');

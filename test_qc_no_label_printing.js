@@ -18,7 +18,7 @@ assert.match(app, /const labelAction = locationReadOnly \|\| bucketKey === 'qc' 
   'Vehicle Locations suppresses Label action in QC');
 assert.match(app, /vehiclePdcLocation\(v\) === 'QC' \? '' : `<button class="small-button vehicle-label-button"/,
   'Vehicle detail suppresses Label action for QC vehicles');
-assert.match(app, /const APP_VERSION = '2026\.08\.25\.07-server-only-salesperson'/);
-assert.match(index, /app\.js\?v=2026\.08\.25\.07-server-only-salesperson/);
+assert.match(app, /const APP_VERSION = '2026\.08\.25\.08-parts-eta-immediate'/);
+assert.match(index, /app\.js\?v=2026\.08\.25\.08-parts-eta-immediate/);
 
 console.log('Mobile QC sign-off has no label printing: PASS');
