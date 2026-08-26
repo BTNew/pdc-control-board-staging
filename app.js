@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.07-uid632-complete-operation-import';
+const APP_VERSION = '2026.08.27.08-navision-linked-vehicle-refresh';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -15889,6 +15889,7 @@ function sharedNavisionBackEndRows() {
     deletedAt: '',
     sharedReadOnly: true,
     backendRecordId: item.id || '',
+    canonicalVehicleId: item.canonical_vehicle_id || '',
     isCurrent: item.is_current === true,
     boardActivated: item.board_activated === true,
     activationSource: item.activation_source || '',
@@ -15908,7 +15909,12 @@ function backEndDataRows() {
     detail: [vehicle.source || (vehicle.importedAt ? 'Navision' : 'Tracker'), vehicle.pdcVisibilitySource].filter(Boolean).join(' · '),
     deletedAt: '',
   }));
-  return activeRows.concat(sharedNavisionBackEndRows(), deletedRecords).sort((a, b) => String(displayStockNumber(a.vehicle) || vehicleKey(a.vehicle) || '').localeCompare(String(displayStockNumber(b.vehicle) || vehicleKey(b.vehicle) || ''), 'en-AU', { numeric: true }));
+  const activeCanonicalIds = new Set(app.data.map(vehicle => String(vehicle.__emailVehicleId || '').trim()).filter(Boolean));
+  const unlinkedSharedRows = sharedNavisionBackEndRows().filter(row => {
+    const canonicalId = String(row.canonicalVehicleId || '').trim();
+    return !(row.boardActivated && canonicalId && activeCanonicalIds.has(canonicalId));
+  });
+  return activeRows.concat(unlinkedSharedRows, deletedRecords).sort((a, b) => String(displayStockNumber(a.vehicle) || vehicleKey(a.vehicle) || '').localeCompare(String(displayStockNumber(b.vehicle) || vehicleKey(b.vehicle) || ''), 'en-AU', { numeric: true }));
 }
 
 function filteredBackEndDataRows(rows = backEndDataRows()) {
@@ -16137,15 +16143,17 @@ function renderBackEndData() {
   const pdcSheet = allRows.filter(row => row.state === 'PDC Sheet').length;
   const backEndOnly = allRows.filter(row => row.state === 'Back end only').length;
   const shared = allRows.filter(row => row.state === 'Shared Navision').length;
+  const sharedSourceTotal = (app.sharedNavisionVisibleRows || []).length;
+  const linkedSharedMerged = Math.max(0, sharedSourceTotal - shared);
   const deleted = allRows.filter(row => row.state === 'Deleted').length;
   const count = $('#backend-data-count');
-  if (count) count.textContent = `${rows.length} shown · ${pdcSheet} active · ${backEndOnly} local back end · ${shared} shared Navision · ${deleted} deleted`;
+  if (count) count.textContent = `${rows.length} shown · ${pdcSheet} active · ${backEndOnly} local back end · ${sharedSourceTotal} shared Navision · ${linkedSharedMerged} linked into active rows · ${deleted} deleted`;
   const sharedStatus = app.sharedNavisionVisibleState === 'loading'
     ? '<div class="backend-shared-status is-loading"><strong>Loading shared Navision imports…</strong><span>Reading the approved online display view.</span></div>'
     : app.sharedNavisionVisibleState === 'error'
       ? `<div class="backend-shared-status is-error"><strong>Shared Navision imports could not be loaded</strong><span>${escapeHtml(app.sharedNavisionVisibleError || 'Use Refresh shared imports to try again.')}</span></div>`
       : app.sharedNavisionVisibleState === 'ready'
-        ? `<div class="backend-shared-status is-ready"><strong>Online Navision imports visible</strong><span>${shared} shared row${shared === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · updates refresh automatically.</span></div>`
+        ? `<div class="backend-shared-status is-ready"><strong>Online Navision imports visible</strong><span>${sharedSourceTotal} shared row${sharedSourceTotal === 1 ? '' : 's'} · ${linkedSharedMerged} linked into active vehicles · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · updates refresh automatically.</span></div>`
         : '';
   if (!rows.length) {
     host.innerHTML = `${sharedStatus}<div class="empty-state"><strong>No matching back-end vehicles</strong><span>${allRows.length ? 'Change the search or state filter, then try again.' : 'Upload the latest Navision dump to populate this page.'}</span></div>`;
