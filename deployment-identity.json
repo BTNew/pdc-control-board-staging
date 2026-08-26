@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.27.06-manual-authority-closure",
+  "application_version": "2026.08.27.07-uid632-complete-operation-import",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -8,20 +8,21 @@
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": null,
   "observed_applied_database_migration": {
-    "version": "20260827019000",
-    "name": "469_bind_paused_email_runtime_cutoff",
-    "file": "supabase/staging_only/20260827019000_469_bind_paused_email_runtime_cutoff.sql",
-    "sha256": "f6e94c48a99435075caece93562b8104903f92359cb6c709952edb197239fd42",
+    "version": "20260827030000",
+    "name": "480_bind_paused_complete_operation_runtime",
+    "file": "supabase/staging_only/20260827030000_480_bind_paused_complete_operation_runtime.sql",
+    "sha256": "b93cb5a10be3c0691fbe68d97917f27b0dc6f98d7c37fe9f8b7ed53b1500b410",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain through 469 using the protected migration controller, encrypted full-public backup, direct read-only Inbox cutoff evidence and authoritative reset readback."
+    "source": "Verified append-only staging-only migration chain through 480: one-shot UID632 intake, effective Navision VIN repair, all 22 genuine Job Card operations retained, explicit zero versus unknown hours preserved, and corrected runtime rebound while contained."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
     "RFT transport booking creates the mandatory pending salesperson payload with completed work, dates, build times, stoppages and the private QC photo reference.",
     "Collected vehicles move to Completed, release active bay authority and remain in authoritative Completed history after refresh.",
     "The staging-only email interceptor verifies deterministic MIME and QC attachment hashes in a private sink without external delivery.",
-    "The isolated pmbcontroller Inbox monitor runs every 30 minutes; terminally handled email is archived while review or status-only email remains in Inbox.",
+    "UID632 imported Stock 13000776 / J139125495 with OP1-OP22, nine explicit zero-hour lines, two unknown-hour lines retained as NULL, and nine unknown station mappings held for review rather than omitted.",
+    "The isolated pmbcontroller Inbox monitor, mailbox and writer are contained after the requested one-shot check; future automatic activation requires a new append-only successor.",
     "Production and real outbound email delivery remain disabled and untouched."
   ]
 }
