@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.15-staging-reset-archive-repair';
+const APP_VERSION = '2026.08.27.16-exact-uid639-640-import';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
