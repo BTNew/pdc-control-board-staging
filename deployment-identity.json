@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.27.08-navision-linked-vehicle-refresh",
+  "application_version": "2026.08.27.09-jobcard-header-only-all-lines",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -8,22 +8,23 @@
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": null,
   "observed_applied_database_migration": {
-    "version": "20260827031000",
-    "name": "481_navision_linked_vehicle_refresh",
-    "file": "supabase/staging_only/20260827031000_481_navision_linked_vehicle_refresh.sql",
-    "sha256": "c760b34ca430e14bec06e19686d1b3cd29af732f0d4cfc8681097007a4a60a90",
+    "version": "20260827032000",
+    "name": "482_jobcard_header_only_all_lines",
+    "file": "supabase/staging_only/20260827032000_482_jobcard_header_only_all_lines.sql",
+    "sha256": "0513492bcd4342906a1f1b2e1ca70e893f85d44218eda8c7b71c85a663d62001",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain through 481: exact Stock links one canonical operational vehicle and every current Navision update refreshes its safe descriptive projection without overwriting operational lifecycle or explicit manual salesperson authority."
+    "source": "Verified append-only staging-only migration chain through 482: every numbered Job Card OP is visible, descriptions use only the first OP header, and every kind of Pre Delivery uses the Craig-approved 1.50-hour standard."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
     "RFT transport booking creates the mandatory pending salesperson payload with completed work, dates, build times, stoppages and the private QC photo reference.",
     "Collected vehicles move to Completed, release active bay authority and remain in authoritative Completed history after refresh.",
     "The staging-only email interceptor verifies deterministic MIME and QC attachment hashes in a private sink without external delivery.",
-    "UID632 imported Stock 13000776 / J139125495 with OP1-OP22, nine explicit zero-hour lines, two unknown-hour lines retained as NULL, and nine unknown station mappings held for review rather than omitted.",
+    "UID632 retains immutable source OP1-OP22 and projects header-only effective lines: seven explicit zero-hour headers, five unknown-hour headers retained as unknown, and Pre-Delivery standardised to 1.50 hours.",
     "The isolated pmbcontroller Inbox monitor, mailbox and writer are contained after the requested one-shot check; future automatic activation requires a new append-only successor.",
     "Linked shared Navision source rows are merged into their one active Back End Data row; current Navision colour and source salesperson are projected from the authoritative link.",
+    "All 22 UID632 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated – mapping review rather than being omitted.",
     "Production and real outbound email delivery remain disabled and untouched."
   ]
 }

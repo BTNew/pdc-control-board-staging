@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.08-navision-linked-vehicle-refresh';
+const APP_VERSION = '2026.08.27.09-jobcard-header-only-all-lines';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -11840,6 +11840,7 @@ const VEHICLE_WORKSHOP_STATION_PRESENTATION = Object.freeze({
   PIT_INSPECTION: { label: 'Pit inspection', colour: '#475569', tint: '#f8fafc' },
   SUBLET: { label: 'Sublet', colour: '#64748b', tint: '#f8fafc' },
   PARTS: { label: 'Parts', colour: '#dc2626', tint: '#fef2f2' },
+  OWNER_SUPPLIED_DOCUMENT: { label: 'Unallocated – mapping review', colour: '#64748b', tint: '#f8fafc' },
 });
 
 function vehicleWorkshopStageCode(value = '') {
@@ -11983,7 +11984,6 @@ function vehicleWorkshopBookingRowsHtml(bookings = [], fallbackText = 'Not booke
 }
 
 function vehicleWorkshopAdjustedSourceDescription(line = {}, adjustment = {}) {
-  if (line?.authenticatedEmailOperation === true) return String(line.description || '');
   return String(adjustment?.description ?? line?.description ?? '');
 }
 
