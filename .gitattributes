@@ -1,2 +1,4 @@
 # Preserve the exact controller-applied bytes of the backup-bound reset migration.
 supabase/staging_only/20260827016000_466_fresh_import_full_operational_reset.sql binary
+# Preserve the exact controller-applied bytes of the UID639/640 import migration.
+supabase/staging_only/20260827051000_501_exact_uid639_640_all_operations_import.sql binary
