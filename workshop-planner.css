@@ -59,16 +59,8 @@ body[data-current-view="workshop"] .content {
   color: #0f172a;
 }
 
-.workshop-back-control {
-  margin: 0 0 8px;
-}
-
-.workshop-planner-dedicated .workshop-planner-header {
-  align-items: flex-start;
-}
-
 .workshop-planner-dedicated {
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .workshop-planner-dedicated > [data-workshop-station-content] {
@@ -78,12 +70,6 @@ body[data-current-view="workshop"] .content {
 
 .workshop-station-board {
   min-height: calc(100vh - 190px);
-}
-
-.workshop-station-tabs {
-  position: sticky;
-  top: 0;
-  z-index: 12;
 }
 
 .workshop-station-loading {

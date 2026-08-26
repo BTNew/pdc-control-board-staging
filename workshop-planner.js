@@ -3854,43 +3854,15 @@ async function workshopOpenVehicleLinkReadinessReview() {
   });
 }
 
-function workshopDedicatedStageTabsHtml(activeStage = '') {
-  return WORKSHOP_STAGE_SEQUENCE.map(stage => `<button type="button" class="workshop-stage-tab ${stage === activeStage ? 'active' : ''}" data-workshop-open-stage="${escapeHtml(stage)}" aria-current="${stage === activeStage ? 'page' : 'false'}">${escapeHtml(pmbStageLabel(stage))}</button>`).join('');
-}
-
 function workshopEnsureDedicatedShell(root, stage = '') {
   let shell = root.querySelector(':scope > .workshop-planner-dedicated');
   if (!shell) {
     root.innerHTML = `<div class="workshop-planner workshop-planner-dedicated" data-planner-stage="">
-      <header class="workshop-planner-header workshop-station-shell-header">
-        <div><button class="small-button workshop-back-control" type="button" data-workshop-back-control>← Back to Control Board</button><h2 data-workshop-station-title></h2><p>Only the selected station, its bays and relevant bookings are active.</p></div>
-      </header>
-      <nav class="workshop-stage-tabs workshop-station-tabs" aria-label="Workshop departments">${workshopDedicatedStageTabsHtml(stage)}</nav>
       <div data-workshop-station-content><div class="empty-state workshop-station-loading" role="status"><strong>Loading selected station</strong><span>Preparing its bays and bookings…</span></div></div>
     </div>`;
     shell = root.querySelector(':scope > .workshop-planner-dedicated');
-    shell.addEventListener('click', event => {
-      const back = event.target.closest('[data-workshop-back-control]');
-      if (back) {
-        event.preventDefault();
-        showView('workflow');
-        return;
-      }
-      const stationButton = event.target.closest('[data-workshop-open-stage]');
-      if (!stationButton) return;
-      event.preventDefault();
-      const route = WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizePmbStage(stationButton.dataset.workshopOpenStage || '')];
-      if (route) showView(route);
-    });
   }
   shell.dataset.plannerStage = stage;
-  const title = shell.querySelector('[data-workshop-station-title]');
-  if (title) title.textContent = `${pmbStageLabel(stage)} Planner`;
-  shell.querySelectorAll('[data-workshop-open-stage]').forEach(button => {
-    const active = normalizePmbStage(button.dataset.workshopOpenStage || '') === stage;
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-current', active ? 'page' : 'false');
-  });
   return shell.querySelector('[data-workshop-station-content]');
 }
 

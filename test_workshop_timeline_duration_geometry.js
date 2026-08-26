@@ -29,6 +29,6 @@ assert.doesNotMatch(dailyTimelineCss, /6\.25%|12\.5%/);
 assert.match(css, /\.workshop-plan-chip \{[\s\S]*height: 96px/);
 assert.match(css, /\.workshop-plan-chip strong \{ font-size: \.74rem; font-weight: 950/);
 assert.match(css, /\.workshop-plan-chip \.workshop-plan-time,[\s\S]*font-weight: 950/);
-assert.match(index, /workshop-planner\.css\?v=2026\.08\.26\.07-vehicle-card-and-time-grid/);
+assert.match(index, /workshop-planner\.css\?v=2026\.08\.27\.11-dedicated-planner-clean-shell/);
 
 console.log('Workshop timeline duration geometry and bold aligned typography: PASS');
