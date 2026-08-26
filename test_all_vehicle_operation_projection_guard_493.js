@@ -22,10 +22,7 @@ assert.match(sql, /source_count<>projected_count OR source_count<>distinct_proje
 assert.match(sql, /jsonb_array_length\(missing_source_line_ids\)<>0/);
 assert.match(sql, /AFTER INSERT OR UPDATE OR DELETE ON public\.pdc_authenticated_email_operation_lines/);
 assert.match(sql, /AFTER INSERT OR UPDATE OR DELETE ON public\.vehicle_workshop_line_adjustments/);
-assert.strictEqual(identity.application_version, '2026.08.27.13-all-operation-parity-guard');
-assert.strictEqual(identity.observed_applied_database_migration.version, '20260827043000');
-assert.strictEqual(identity.observed_applied_database_migration.name, '493_all_vehicle_operation_projection_guard');
-assert.strictEqual(identity.observed_applied_database_migration.sha256,
-  crypto.createHash('sha256').update(fs.readFileSync(migrationPath)).digest('hex'));
+assert.strictEqual(identity.application_version, '2026.08.27.14-navision-all-vehicle-guard');
+assert.strictEqual(identity.observed_applied_database_migration.version, '20260827044000');
 assert.strictEqual(identity.production_unchanged, true);
 console.log('All-vehicle Job Card operation projection parity guard 493: PASS');

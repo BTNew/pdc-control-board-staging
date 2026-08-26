@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.27.13-all-operation-parity-guard",
+  "application_version": "2026.08.27.14-navision-all-vehicle-guard",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -8,13 +8,13 @@
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": null,
   "observed_applied_database_migration": {
-    "version": "20260827043000",
-    "name": "493_all_vehicle_operation_projection_guard",
-    "file": "supabase/staging_only/20260827043000_493_all_vehicle_operation_projection_guard.sql",
-    "sha256": "f53ad69de0650675a89afe03a74bc91d55a77d5a90832f2bb9cffdac7e61ab3d",
+    "version": "20260827044000",
+    "name": "494_navision_all_vehicle_link_refresh_guard",
+    "file": "supabase/staging_only/20260827044000_494_navision_all_vehicle_link_refresh_guard.sql",
+    "sha256": "f171c875b4ac9762667100ca6ef446d9895d6072925e25c3cba5f89c785a2e2a",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain through 493: every genuine Job Card operation is projected exactly once, and operation imports or mapping changes fail closed on any omission or duplicate."
+    "source": "Verified append-only staging-only migration chain through 494: every active vehicle with current Navision data must link exactly once and every upload must refresh its details and reconcile location."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -27,6 +27,7 @@
     "Dedicated Workshop planners open directly on the selected station schedule without a duplicate Back to Control Board block or cross-station tab buttons.",
     "Stock 13000775 displays all 22 genuine Job Card operations: seven mapped internal lines, one Sublet line and fourteen unresolved lines under Unallocated – mapping review.",
     "A database parity guard now checks every vehicle and rejects any operation import or mapping adjustment that would omit or duplicate a genuine Job Card operation in the Board/QC projection.",
+    "Every active vehicle with current Navision data must have one exact-Stock canonical link; Navision and vehicle transactions fail closed on ambiguity, missing links or stale detail/location refresh.",
     "Linked shared Navision source rows are merged into their one active Back End Data row; current Navision colour and source salesperson are projected from the authoritative link.",
     "All 22 UID635 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated – mapping review rather than being omitted.",
     "Production and real outbound email delivery remain disabled and untouched."
