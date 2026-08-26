@@ -1,0 +1,2 @@
+# Preserve the exact controller-applied bytes of the backup-bound reset migration.
+supabase/staging_only/20260827016000_466_fresh_import_full_operational_reset.sql binary
