@@ -9,10 +9,12 @@ const row = mapServerVehicle({ id: '00000000-0000-4000-8000-000000000379', stock
   { line_identity: 'source:00000000-0000-4000-8000-000000000001', source_kind: 'authenticated', source_line_id: '00000000-0000-4000-8000-000000000001', operation_no: 'OP1', description: 'Duplicate description', job_card_number: 'HERMES-JC', estimated_hours: 0, stage_code: 'FITTING', active: true, completed: true, line_version: 2 },
   { line_identity: 'source:00000000-0000-4000-8000-000000000002', source_kind: 'authenticated', source_line_id: '00000000-0000-4000-8000-000000000002', operation_no: 'OP2', description: 'Duplicate description', job_card_number: 'HERMES-JC', estimated_hours: null, stage_code: 'FITTING', active: true, completed: false, line_version: 1 },
   { line_identity: 'manual:00000000-0000-4000-8000-000000000003', source_kind: 'manual', source_line_id: '00000000-0000-4000-8000-000000000003', operation_no: 'MANUAL', description: 'Audited manual line', estimated_hours: 1.25, stage_code: 'HOIST', active: true, completed: true, line_version: 1 },
+  { line_identity: 'source:00000000-0000-4000-8000-000000000005', source_kind: 'authenticated', source_line_id: '00000000-0000-4000-8000-000000000005', operation_no: 'OP5', description: 'Unmapped genuine operation', job_card_number: 'HERMES-JC', estimated_hours: 0.4, stage_code: 'UNALLOCATED_MAPPING_REVIEW', active: true, completed: false, line_version: 0 },
+  { line_identity: 'source:00000000-0000-4000-8000-000000000006', source_kind: 'authenticated', source_line_id: '00000000-0000-4000-8000-000000000006', operation_no: 'OP6', description: 'Sublet genuine operation', job_card_number: 'HERMES-JC', estimated_hours: null, stage_code: 'SUBLET', active: true, completed: false, line_version: 0 },
   { line_identity: 'source:00000000-0000-4000-8000-000000000004', source_kind: 'authenticated', source_line_id: '00000000-0000-4000-8000-000000000004', operation_no: 'OP4', description: 'Relocated inactive line', estimated_hours: 2, stage_code: 'TYRE', active: false, completed: false, line_version: 0 },
 ] });
-assert.strictEqual(row.pdcQcOperationLines.length, 3, 'inactive/deactivated lines are excluded');
-assert.strictEqual(new Set(row.pdcQcOperationLines.map(line => line.lineIdentity)).size, 3, 'duplicate descriptions retain stable distinct identities');
+assert.strictEqual(row.pdcQcOperationLines.length, 5, 'inactive lines are excluded while Sublet and mapping-review operations remain visible');
+assert.strictEqual(new Set(row.pdcQcOperationLines.map(line => line.lineIdentity)).size, 5, 'duplicate descriptions retain stable distinct identities');
 assert.strictEqual(row.pdcQcOperationLines[0].estimatedHours, 0, 'explicit zero remains numeric zero');
 assert.strictEqual(row.pdcQcOperationLines[1].estimatedHours, null, 'unknown hours remain null');
 
@@ -22,9 +24,9 @@ assert.deepStrictEqual(missingProjectionRow.pdcQcOperationLines, [], 'missing QC
 
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
-assert.match(app, /const APP_VERSION = '2026\.08\.27\.11-dedicated-planner-clean-shell'/);
+assert.match(app, /const APP_VERSION = '2026\.08\.27\.12-all-jobcard-operations-visible'/);
   assert.match(index, /pdc-email-vehicle-location-service\.js\?v=2026\.08\.27\.13-navision-linked-refresh/);
-  assert.match(index, /app\.js\?v=2026\.08\.27\.11-dedicated-planner-clean-shell/);
+  assert.match(index, /app\.js\?v=2026\.08\.27\.12-all-jobcard-operations-visible/);
 const start = app.indexOf('function qcPageOperationLines');
 const end = app.indexOf('\nfunction qcPageVehicleCardHtml', start);
 const context = {
@@ -43,8 +45,12 @@ assert.match(html, /OP2 · Duplicate description/);
 assert.match(html, /0 h/);
 assert.match(html, /Unknown hours/);
 assert.match(html, /Audited manual line/);
+assert.match(html, /Sublet genuine operation/);
+assert.match(html, /Unallocated – mapping review/);
+assert.match(html, /Unmapped genuine operation/);
 assert.match(html, /data-qc-line-version="2"/);
 assert.match(html, /data-qc-line-identity="source:00000000-0000-4000-8000-000000000002"[^>]*disabled[^>]*title="Unknown operation hours require review before QC completion"/);
+assert.match(html, /data-qc-line-identity="source:00000000-0000-4000-8000-000000000005"[^>]*disabled[^>]*title="Station mapping review is required before QC completion"/);
 const missingContext = {
   ...context,
   qcPageOperationLines: context.qcPageOperationLines,

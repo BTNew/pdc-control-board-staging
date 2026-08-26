@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.11-dedicated-planner-clean-shell';
+const APP_VERSION = '2026.08.27.12-all-jobcard-operations-visible';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -4796,9 +4796,10 @@ function qcPageVehicleKey(vehicle = {}) {
 }
 
 function qcPageOperationLines(vehicle = {}) {
+  const stageRank = stage => stage === 'UNALLOCATED_MAPPING_REVIEW' ? 2 : stage === 'SUBLET' ? 1 : 0;
   return (Array.isArray(vehicle.pdcQcOperationLines) ? vehicle.pdcQcOperationLines : [])
     .filter(line => line?.active === true && /^(?:source|manual):[0-9a-f-]{36}$/.test(String(line.lineIdentity || '')))
-    .sort((a, b) => String(a.stageCode).localeCompare(String(b.stageCode)) || String(a.operationNo).localeCompare(String(b.operationNo), undefined, { numeric: true }) || String(a.lineIdentity).localeCompare(String(b.lineIdentity)));
+    .sort((a, b) => stageRank(String(a.stageCode)) - stageRank(String(b.stageCode)) || String(a.stageCode).localeCompare(String(b.stageCode)) || String(a.operationNo).localeCompare(String(b.operationNo), undefined, { numeric: true }) || String(a.lineIdentity).localeCompare(String(b.lineIdentity)));
 }
 
 function qcPageAllOperationLinesComplete(vehicle = {}) {
@@ -4812,18 +4813,25 @@ function qcPageOperationHoursLabel(line = {}) {
   return Number.isFinite(numeric) ? `${numeric.toFixed(2).replace(/\.00$/, '')} h` : 'Unknown hours';
 }
 
+function qcPageStageLabel(stage = '') {
+  if (String(stage) === 'UNALLOCATED_MAPPING_REVIEW') return 'Unallocated – mapping review';
+  if (String(stage) === 'SUBLET') return 'Sublet';
+  return pmbStageLabel(stage) || String(stage || '');
+}
+
 function qcPageWorkItemsHtml(vehicle = {}) {
   const key = qcPageVehicleKey(vehicle);
   const groups = groupBy(qcPageOperationLines(vehicle), line => String(line.stageCode || 'UNKNOWN'));
   const html = Object.entries(groups).map(([stage, lines]) => `<section class="qc-operation-group" aria-labelledby="qc-operation-${escapeHtml(stage)}">
-    <h4 id="qc-operation-${escapeHtml(stage)}">${escapeHtml(pmbStageLabel(stage) || stage)}</h4>
+    <h4 id="qc-operation-${escapeHtml(stage)}">${escapeHtml(qcPageStageLabel(stage))}</h4>
     ${lines.map(line => {
     const hoursUnknown = line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '' || !Number.isFinite(Number(line.estimatedHours));
+    const mappingReview = stage === 'UNALLOCATED_MAPPING_REVIEW';
     const pending = qcPageOperationPending.get(qcPagePendingKey(key, line.lineIdentity));
     return `<label class="qc-work-item qc-operation-line ${line.completed ? 'is-complete' : 'is-required'} ${pending ? 'is-saving' : ''}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" ${pending ? 'aria-busy="true"' : ''}>
-      <input type="checkbox" data-qc-operation-check="${escapeHtml(key)}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" data-qc-line-version="${Number(line.lineVersion || 0)}" ${line.completed ? 'checked' : ''} ${(hoursUnknown || pending) ? `disabled title="${pending ? 'Saving this operation' : 'Unknown operation hours require review before QC completion'}"` : ''} aria-label="${escapeHtml(`${line.operationNo || 'Manual'} ${line.description} ${pending ? 'saving' : hoursUnknown ? 'requires hours review' : line.completed ? 'completed' : 'not completed'}`)}" />
+      <input type="checkbox" data-qc-operation-check="${escapeHtml(key)}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" data-qc-line-version="${Number(line.lineVersion || 0)}" ${line.completed ? 'checked' : ''} ${(mappingReview || hoursUnknown || pending) ? `disabled title="${pending ? 'Saving this operation' : mappingReview ? 'Station mapping review is required before QC completion' : 'Unknown operation hours require review before QC completion'}"` : ''} aria-label="${escapeHtml(`${line.operationNo || 'Manual'} ${line.description} ${pending ? 'saving' : mappingReview ? 'requires station mapping review' : hoursUnknown ? 'requires hours review' : line.completed ? 'completed' : 'not completed'}`)}" />
       <span class="qc-work-marker" aria-hidden="true">${pending ? '…' : line.completed ? '✓' : '○'}</span>
-      <span class="qc-work-copy"><strong>${escapeHtml(`${line.operationNo || 'Manual'} · ${line.description}`)}</strong><small>${escapeHtml(`${pmbStageLabel(stage) || stage} · ${qcPageOperationHoursLabel(line)} · ${line.jobCardNumber ? `JC ${line.jobCardNumber}` : line.sourceKind === 'manual' ? 'Audited manual line' : 'Source JC unavailable'}`)}</small></span>
+      <span class="qc-work-copy"><strong>${escapeHtml(`${line.operationNo || 'Manual'} · ${line.description}`)}</strong><small>${escapeHtml(`${qcPageStageLabel(stage)} · ${qcPageOperationHoursLabel(line)} · ${line.jobCardNumber ? `JC ${line.jobCardNumber}` : line.sourceKind === 'manual' ? 'Audited manual line' : 'Source JC unavailable'}`)}</small></span>
     </label>`;
   }).join('')}
   </section>`).join('');
