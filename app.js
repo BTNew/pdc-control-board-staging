@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.05-workshop-snapshot-resilience';
+const APP_VERSION = '2026.08.27.06-manual-authority-closure';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -16359,6 +16359,10 @@ function renderCustomers() {
 function openCustomerModal() {
   const modal = $('#customer-modal');
   if (!modal) return;
+  if (vehicleLifecycleSharedModeActive() && window.PDC_AUTH_CONTEXT?.role !== 'administrator') {
+    window.alert('Manual browser-only vehicle creation is unavailable in shared mode. No vehicle was created.');
+    return false;
+  }
   rememberModalReturnFocus(modal);
   const form = $('#new-customer-form');
   form?.reset();
@@ -16384,7 +16388,13 @@ async function addCustomerFromForm(e) {
   const form = e.currentTarget;
   const data = Object.fromEntries(new FormData(form).entries());
   const stock = (data.stock || '').trim() || `NEW-${Date.now().toString().slice(-6)}`;
-  if (/^HERMES-TEST-AC-[ABC]$/.test(stock)) {
+  const isProtectedAcceptanceVehicle = /^HERMES-TEST-AC-[ABC]$/.test(stock);
+  if (vehicleLifecycleSharedModeActive() && !isProtectedAcceptanceVehicle) {
+    const message = $('#new-customer-message');
+    if (message) message.textContent = 'Manual browser-only vehicle creation is unavailable in shared mode. No vehicle was created.';
+    return false;
+  }
+  if (isProtectedAcceptanceVehicle) {
     const service = app.emailVehicleLocationService;
     const message = $('#new-customer-message');
     const submit = form.querySelector('button[type="submit"]');

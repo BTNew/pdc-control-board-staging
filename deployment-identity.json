@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.27.05-workshop-snapshot-resilience",
+  "application_version": "2026.08.27.06-manual-authority-closure",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,

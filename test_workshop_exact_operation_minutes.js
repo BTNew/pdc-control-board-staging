@@ -48,7 +48,7 @@ const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const staging = fs.readFileSync('staging.html', 'utf8');
 const version = app.match(/const APP_VERSION = '([^']+)'/)?.[1];
-assert.strictEqual(version, '2026.08.27.05-workshop-snapshot-resilience');
+assert.strictEqual(version, '2026.08.27.06-manual-authority-closure');
 assert.ok(index.includes(`app.js?v=${version}`));
 assert.match(staging, /http-equiv=["']refresh["'][^>]+content=["']0;\s*url=\.\/["']/i);
 
