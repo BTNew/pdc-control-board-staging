@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.27.12-all-jobcard-operations-visible",
+  "application_version": "2026.08.27.13-all-operation-parity-guard",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -8,13 +8,13 @@
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": null,
   "observed_applied_database_migration": {
-    "version": "20260827042000",
-    "name": "492_complete_qc_operation_projection",
-    "file": "supabase/staging_only/20260827042000_492_complete_qc_operation_projection.sql",
-    "sha256": "a41284dc14963af566004b3b1160a38a7634c2081c36d5c53933176bcb6f7fe3",
+    "version": "20260827043000",
+    "name": "493_all_vehicle_operation_projection_guard",
+    "file": "supabase/staging_only/20260827043000_493_all_vehicle_operation_projection_guard.sql",
+    "sha256": "f53ad69de0650675a89afe03a74bc91d55a77d5a90832f2bb9cffdac7e61ab3d",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain through 492: Stock 13000775 projects all 22 Job Card OPs, including Sublet and Unallocated – mapping review rows, into the Board/QC operation list."
+    "source": "Verified append-only staging-only migration chain through 493: every genuine Job Card operation is projected exactly once, and operation imports or mapping changes fail closed on any omission or duplicate."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -26,6 +26,7 @@
     "The isolated pmbcontroller Inbox monitor, mailbox and writer are contained after the requested one-shot import; the paused replay floor is UID636 and recurring automation was not resumed.",
     "Dedicated Workshop planners open directly on the selected station schedule without a duplicate Back to Control Board block or cross-station tab buttons.",
     "Stock 13000775 displays all 22 genuine Job Card operations: seven mapped internal lines, one Sublet line and fourteen unresolved lines under Unallocated – mapping review.",
+    "A database parity guard now checks every vehicle and rejects any operation import or mapping adjustment that would omit or duplicate a genuine Job Card operation in the Board/QC projection.",
     "Linked shared Navision source rows are merged into their one active Back End Data row; current Navision colour and source salesperson are projected from the authoritative link.",
     "All 22 UID635 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated – mapping review rather than being omitted.",
     "Production and real outbound email delivery remain disabled and untouched."

@@ -14,6 +14,6 @@ assert.match(sql, /version='20260827041000'.+name='491_bind_uid635_archive_pause
 assert.match(app, /Unallocated – mapping review/);
 assert.match(app, /Station mapping review is required before QC completion/);
 assert.match(app, /stage === 'UNALLOCATED_MAPPING_REVIEW' \? 2 : stage === 'SUBLET' \? 1 : 0/);
-assert.strictEqual(identity.application_version, '2026.08.27.12-all-jobcard-operations-visible');
-assert.strictEqual(identity.observed_applied_database_migration.version, '20260827042000');
+assert.strictEqual(identity.application_version, '2026.08.27.13-all-operation-parity-guard');
+assert.strictEqual(identity.observed_applied_database_migration.version, '20260827043000');
 console.log('Complete QC/Board Job Card operation projection 492: PASS');
