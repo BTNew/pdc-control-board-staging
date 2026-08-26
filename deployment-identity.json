@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.27.14-navision-all-vehicle-guard",
+  "application_version": "2026.08.27.15-staging-reset-archive-repair",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -8,13 +8,13 @@
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": null,
   "observed_applied_database_migration": {
-    "version": "20260827044000",
-    "name": "494_navision_all_vehicle_link_refresh_guard",
-    "file": "supabase/staging_only/20260827044000_494_navision_all_vehicle_link_refresh_guard.sql",
-    "sha256": "f171c875b4ac9762667100ca6ef446d9895d6072925e25c3cba5f89c785a2e2a",
+    "version": "20260827045000",
+    "name": "495_archive_navision_reconcile_order",
+    "file": "supabase/staging_only/20260827045000_495_archive_navision_reconcile_order.sql",
+    "sha256": "5ee19520b7d9486304f69da53d497b8595d57c0bd0291ff21dc2555a0deb4a95",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain through 494: every active vehicle with current Navision data must link exactly once and every upload must refresh its details and reconcile location."
+    "source": "Verified append-only staging-only migration chain through 495: recoverable staging resets complete safely even when Navision reconciliation fires during archive."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -28,6 +28,7 @@
     "Stock 13000775 displays all 22 genuine Job Card operations: seven mapped internal lines, one Sublet line and fourteen unresolved lines under Unallocated – mapping review.",
     "A database parity guard now checks every vehicle and rejects any operation import or mapping adjustment that would omit or duplicate a genuine Job Card operation in the Board/QC projection.",
     "Every active vehicle with current Navision data must have one exact-Stock canonical link; Navision and vehicle transactions fail closed on ambiguity, missing links or stale detail/location refresh.",
+    "Stock 13000775 was removed from active staging through the authenticated Administrator reset path for a fresh test; its tombstone and audit evidence are retained.",
     "Linked shared Navision source rows are merged into their one active Back End Data row; current Navision colour and source salesperson are projected from the authoritative link.",
     "All 22 UID635 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated – mapping review rather than being omitted.",
     "Production and real outbound email delivery remain disabled and untouched."

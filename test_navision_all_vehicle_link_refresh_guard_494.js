@@ -20,10 +20,7 @@ for (const marker of [
 assert.match(sql, /AFTER INSERT OR UPDATE OF normalized_data,is_current,record_status,canonical_vehicle_id ON public\.navision_backend_records/);
 assert.match(sql, /AFTER INSERT OR UPDATE OF stock_number,source_system,source_record_id,source_payload,deleted_at ON public\.vehicles/);
 assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.pdc_navision_vehicle_parity_494\(uuid\) TO authenticated,service_role/);
-assert.strictEqual(identity.application_version, '2026.08.27.14-navision-all-vehicle-guard');
-assert.strictEqual(identity.observed_applied_database_migration.version, '20260827044000');
-assert.strictEqual(identity.observed_applied_database_migration.name, '494_navision_all_vehicle_link_refresh_guard');
-assert.strictEqual(identity.observed_applied_database_migration.sha256,
-  crypto.createHash('sha256').update(fs.readFileSync(migrationPath)).digest('hex'));
+assert.strictEqual(identity.application_version, '2026.08.27.15-staging-reset-archive-repair');
+assert.strictEqual(identity.observed_applied_database_migration.version, '20260827045000');
 assert.strictEqual(identity.production_unchanged, true);
 console.log('All-vehicle Navision link and refresh parity guard 494: PASS');

@@ -1,0 +1,12 @@
+'use strict';
+const assert=require('assert'),fs=require('fs'),crypto=require('crypto');
+const path='supabase/staging_only/20260827045000_495_archive_navision_reconcile_order.sql';
+const sql=fs.readFileSync(path,'utf8');
+const identity=JSON.parse(fs.readFileSync('deployment-identity.json','utf8'));
+for(const marker of ['pdc.vehicle_archive_in_progress','pdc_admin_archive_vehicle_impl','pdc_vehicle_archive_recreation_gate','Scope the allowance to the exact archived vehicle and current transaction only','Production untouched']) assert.ok(sql.includes(marker),marker);
+assert.strictEqual(identity.application_version,'2026.08.27.15-staging-reset-archive-repair');
+assert.strictEqual(identity.observed_applied_database_migration.version,'20260827045000');
+assert.strictEqual(identity.observed_applied_database_migration.name,'495_archive_navision_reconcile_order');
+assert.strictEqual(identity.observed_applied_database_migration.sha256,crypto.createHash('sha256').update(fs.readFileSync(path)).digest('hex'));
+assert.strictEqual(identity.production_unchanged,true);
+console.log('Staging reset archive/Navision reconciliation order 495: PASS');
