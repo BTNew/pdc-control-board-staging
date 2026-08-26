@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.03-restore-fail-closed';
+const APP_VERSION = '2026.08.27.04-shared-location-fail-closed';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -4275,6 +4275,15 @@ function vehicleLifecycleSharedModeActive() {
     && vehicleLifecycleSharedModeEnabled(window.PDC_SUPABASE_CONFIG);
 }
 
+function sharedVehicleLocationMutationUnavailable(operation = 'change vehicle location', vehicle = null, options = {}) {
+  if (!vehicleLifecycleSharedModeActive()) return false;
+  if (vehicle?.__emailVehicleServerAuthoritative === true && operation === 'transfer to PMB') return false;
+  if (!options.silent) {
+    window.alert(`Cannot ${operation} from this control. Shared vehicle locations must be changed through an audited server action; no browser-local change was saved.`);
+  }
+  return true;
+}
+
 function vehicleLifecycleAdministratorActive() {
   return window.PDC_AUTH_CONTEXT?.role === 'administrator';
 }
@@ -7072,7 +7081,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const primaryAction = locationReadOnly && !protectedLifecycleAllowed
     ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only'}</span>`
     : bucketKey === 'yardhold'
-    ? `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+    ? `${sharedVehicleLocationMutationUnavailable('render transfer to PMB', vehicle, { silent: true }) ? '<span class="badge neutral">Shared move unavailable</span>' : `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
       ? `${vehicleReadyForQualityControl(vehicle)
         ? `<button class="primary" type="button" data-ready-for-qc="${escapeHtml(key)}" title="Move this all-green vehicle to the QC Gate">Ready for QC</button>`
@@ -7358,8 +7367,9 @@ function updateInlineSelectionBars(visibleRows = []) {
   });
   const incomingTransfer = $('#incoming-transfer-selected-pmb');
   if (incomingTransfer) {
-    incomingTransfer.disabled = !(count > 0 && incomingPmbReadyCount === count);
-    incomingTransfer.title = !count ? 'Select one or more Yard Hold or In Transit vehicles first' : incomingPmbReadyCount === count ? `Transfer ${count} selected Yard Hold/In Transit vehicle${count === 1 ? '' : 's'} to PMB` : 'Only Yard Hold or In Transit vehicles can be transferred to PMB';
+    const sharedUnavailable = sharedVehicleLocationMutationUnavailable('bulk transfer to PMB', null, { silent: true });
+    incomingTransfer.disabled = sharedUnavailable || !(count > 0 && incomingPmbReadyCount === count);
+    incomingTransfer.title = sharedUnavailable ? 'Unavailable: shared vehicle locations require an audited server action' : !count ? 'Select one or more Yard Hold or In Transit vehicles first' : incomingPmbReadyCount === count ? `Transfer ${count} selected Yard Hold/In Transit vehicle${count === 1 ? '' : 's'} to PMB` : 'Only Yard Hold or In Transit vehicles can be transferred to PMB';
   }
   const workflowTransfer = $('#workflow-transfer-selected-rft');
   if (workflowTransfer) {
@@ -7373,6 +7383,7 @@ function updateInlineSelectionBars(visibleRows = []) {
 }
 
 async function transferSelectedMainYhVehiclesToPmb() {
+  if (sharedVehicleLocationMutationUnavailable('bulk transfer to PMB')) return false;
   const selected = selectedVehiclesForBulkEmail();
   if (!selected.length) return;
   const notYh = selected.filter(vehicle => !canTransferVehicleToPmb(vehicle));
@@ -10370,24 +10381,30 @@ function updateBulkSelectionPanel(visibleRows = []) {
     button.disabled = count === 0;
     button.title = count ? `Print ${count} selected vehicle label${count === 1 ? '' : 's'} to the Zebra printer` : 'Select one or more vehicles first';
   });
+  const sharedYhOverrideUnavailable = sharedVehicleLocationMutationUnavailable('override to Yard Hold', null, { silent: true });
   overrideYhButtons.forEach(button => {
-    const canOverride = count > 0;
+    const canOverride = count > 0 && !sharedYhOverrideUnavailable;
     button.disabled = !canOverride;
-    button.title = canOverride
-      ? `Manually set ${count} selected vehicle${count === 1 ? '' : 's'} to Yard Hold so they can be transferred to PMB`
-      : 'Select one or more vehicles first';
+    button.title = sharedYhOverrideUnavailable
+      ? 'Unavailable: shared vehicle locations require an audited server action'
+      : canOverride
+        ? `Manually set ${count} selected vehicle${count === 1 ? '' : 's'} to Yard Hold so they can be transferred to PMB`
+        : 'Select one or more vehicles first';
   });
   const pmbSelectedCount = selected.filter(vehicle => statusCategory(vehicle) === 'pmb').length;
   const rftSelectedCount = selected.filter(vehicle => statusCategory(vehicle) === 'rft').length;
   const incomingPmbReadyCount = selected.filter(canTransferVehicleToPmb).length;
-  const canTransferSelectedToPmb = count > 0 && pmbSelectedCount === 0 && rftSelectedCount === 0 && incomingPmbReadyCount === count;
+  const sharedBulkPmbUnavailable = sharedVehicleLocationMutationUnavailable('bulk transfer to PMB', null, { silent: true });
+  const canTransferSelectedToPmb = !sharedBulkPmbUnavailable && count > 0 && pmbSelectedCount === 0 && rftSelectedCount === 0 && incomingPmbReadyCount === count;
   transferButtons.forEach(button => {
     button.disabled = !canTransferSelectedToPmb;
-    button.title = !count
-      ? 'Select one or more Yard Hold or In Transit vehicles first'
-      : canTransferSelectedToPmb
-        ? `Transfer ${count} selected vehicle${count === 1 ? '' : 's'} to PMB`
-        : 'Only vehicles currently at Yard Hold or In Transit can be bulk-transferred to PMB';
+    button.title = sharedBulkPmbUnavailable
+      ? 'Unavailable: shared vehicle locations require an audited server action'
+      : !count
+        ? 'Select one or more Yard Hold or In Transit vehicles first'
+        : canTransferSelectedToPmb
+          ? `Transfer ${count} selected vehicle${count === 1 ? '' : 's'} to PMB`
+          : 'Only vehicles currently at Yard Hold or In Transit can be bulk-transferred to PMB';
   });
   transferRftButtons.forEach(button => {
     const gateIssueRows = vehiclesWithRftGateIssues(selected);
@@ -10433,6 +10450,7 @@ function deleteSelectedVehicles() {
 
 
 function overrideSelectedVehiclesToYh() {
+  if (sharedVehicleLocationMutationUnavailable('override to Yard Hold')) return false;
   const selected = selectedVehiclesForBulkEmail();
   if (!selected.length) return;
   const preview = selected.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'} - ${pdcLocationLabel(vehiclePdcLocation(vehicle)) || statusCategory(vehicle)}`).join('\n');
@@ -10485,6 +10503,7 @@ function overrideSelectedVehiclesToYh() {
 
 function canTransferVehicleToPmb(vehicle) {
   if (!vehicle) return false;
+  if (vehicleLifecycleSharedModeActive() && vehicle.__emailVehicleServerAuthoritative !== true) return false;
   const current = statusCategory(vehicle);
   if (current === 'pmb' || current === 'rft' || current === 'completed') return false;
   if (current === 'yardhold' || current === 'prodtransit') return true;
@@ -10562,6 +10581,7 @@ function pmbRequirementChecklistModal(vehicles = []) {
 }
 
 async function transferSelectedYhVehiclesToPmb() {
+  if (sharedVehicleLocationMutationUnavailable('bulk transfer to PMB')) return false;
   const selected = selectedVehiclesForBulkEmail();
   if (!selected.length) return;
 
@@ -10632,6 +10652,7 @@ async function transferSelectedYhVehiclesToPmb() {
 
 async function transferYhVehicleToPmb(key = '') {
   const vehicle = selectedVehicle(key);
+  if (sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle)) return false;
   if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
   if (!canTransferVehicleToPmb(vehicle)) {
     window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from this button.');
