@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.04-shared-location-fail-closed';
+const APP_VERSION = '2026.08.27.05-workshop-snapshot-resilience';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
