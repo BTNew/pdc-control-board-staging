@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.09-jobcard-header-only-all-lines';
+const APP_VERSION = '2026.08.27.10-uid635-receipt-backed-import';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
