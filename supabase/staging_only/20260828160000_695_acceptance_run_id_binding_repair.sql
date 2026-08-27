@@ -1,0 +1,33 @@
+-- STAGING ONLY 695: repair campaign run-id binding.
+-- Append-only repair for the exact synthetic acceptance controller; UID514 and
+-- all operational source evidence remain untouched.
+BEGIN;
+SET LOCAL lock_timeout='10s';
+SET LOCAL statement_timeout='90s';
+SELECT pg_advisory_xact_lock(hashtextextended('pdc-staging-695-acceptance-run-binding',0));
+LOCK TABLE supabase_migrations.schema_migrations IN EXCLUSIVE MODE;
+DO $guard$
+BEGIN
+ IF current_user<>'postgres' OR session_user<>'postgres' OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1 OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL OR (SELECT max(version) FROM supabase_migrations.schema_migrations WHERE version~'^[0-9]{14}$')<>'20260828150000' OR to_regprocedure('public.create_pdc_email_ai_acceptance_693()') IS NULL OR to_regclass('public.pdc_email_ai_acceptance_run_binding_history_695') IS NOT NULL THEN RAISE EXCEPTION 'PDC_695_EXACT_694_PRESTATE_REQUIRED' USING errcode='55000'; END IF;
+END $guard$;
+CREATE TABLE public.pdc_email_ai_acceptance_run_binding_history_695(history_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),event_key text NOT NULL UNIQUE,predecessor_head text NOT NULL CHECK(predecessor_head='20260828150000'),successor_head text NOT NULL CHECK(successor_head='20260828160000'),predecessor_function_sha256 text NOT NULL,successor_function_sha256 text NOT NULL,repair_contract text NOT NULL,production_writes boolean NOT NULL CHECK(NOT production_writes),created_at timestamptz NOT NULL DEFAULT clock_timestamp());
+ALTER TABLE public.pdc_email_ai_acceptance_run_binding_history_695 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pdc_email_ai_acceptance_run_binding_history_695 FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON public.pdc_email_ai_acceptance_run_binding_history_695 FROM public,anon,authenticated,service_role,pdc_email_monitor;
+CREATE FUNCTION public.pdc_email_ai_acceptance_run_binding_history_immutable_695() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$ BEGIN RAISE EXCEPTION 'PDC_695_RUN_BINDING_HISTORY_IMMUTABLE' USING errcode='55000'; END $$;
+CREATE TRIGGER pdc_email_ai_acceptance_run_binding_history_immutable_695 BEFORE UPDATE OR DELETE ON public.pdc_email_ai_acceptance_run_binding_history_695 FOR EACH ROW EXECUTE FUNCTION public.pdc_email_ai_acceptance_run_binding_history_immutable_695();
+DO $repair$
+DECLARE d text;before_sha text;after_sha text;old text;new text;
+BEGIN
+ SELECT pg_get_functiondef('public.create_pdc_email_ai_acceptance_693()'::regprocedure),encode(extensions.digest(convert_to(p.prosrc,'UTF8'),'sha256'),'hex') INTO d,before_sha FROM pg_proc p WHERE p.oid='public.create_pdc_email_ai_acceptance_693()'::regprocedure;
+ old:=$old$run uuid:=gen_random_uuid()$old$;new:=$new$campaign_id uuid:=gen_random_uuid()$new$;d:=replace(d,old,new);
+ d:=replace(d,'run::text','campaign_id::text');d:=replace(d,'VALUES(run,case_key','VALUES(campaign_id,case_key');d:=replace(d,'WHERE run_id=run','WHERE run_id=campaign_id');d:=replace(d,'''run_id'',run','''run_id'',campaign_id');
+ IF d IS NULL OR position('campaign_id uuid:=gen_random_uuid()' IN d)=0 OR position('VALUES(campaign_id,case_key' IN d)=0 THEN RAISE EXCEPTION 'PDC_695_RUN_BINDING_ANCHOR_MISSING' USING errcode='55000'; END IF;
+ EXECUTE d;
+ SELECT encode(extensions.digest(convert_to(p.prosrc,'UTF8'),'sha256'),'hex') INTO after_sha FROM pg_proc p WHERE p.oid='public.create_pdc_email_ai_acceptance_693()'::regprocedure;
+ INSERT INTO public.pdc_email_ai_acceptance_run_binding_history_695(event_key,predecessor_head,successor_head,predecessor_function_sha256,successor_function_sha256,repair_contract,production_writes) VALUES(encode(extensions.digest(convert_to('pdc-staging-695-run-binding|forward','UTF8'),'sha256'),'hex'),'20260828150000','20260828160000',before_sha,after_sha,'Bind every synthetic instruction FK to the inserted campaign run UUID; preserve unique provider UIDs, immutable evidence and exact target',false);
+END $repair$;
+DO $post$ BEGIN IF (SELECT count(*) FROM public.pdc_email_ai_acceptance_run_binding_history_695)<>1 OR position('campaign_id uuid:=gen_random_uuid()' IN (SELECT p.prosrc FROM pg_proc p WHERE p.oid='public.create_pdc_email_ai_acceptance_693()'::regprocedure))=0 THEN RAISE EXCEPTION 'PDC_695_POSTCONDITION_FAILED' USING errcode='55000'; END IF; END $post$;
+INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES('20260828160000','695_acceptance_run_id_binding_repair',ARRAY['Exact observed 694 predecessor and run-binding source anchors','Use a uniquely named campaign_id variable for run UUID in namespace, instruction FK, result update and response readback','Immutable forced-RLS repair history; no UID514, real vehicle, task, mailbox, outbound or Production mutation']);
+NOTIFY pgrST,'reload schema';
+COMMIT;

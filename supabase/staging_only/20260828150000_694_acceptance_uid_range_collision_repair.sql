@@ -1,0 +1,30 @@
+-- STAGING ONLY 694: reserve a collision-free synthetic acceptance UID range.
+-- Append-only repair; UID514 and all real evidence remain untouched.
+BEGIN;
+SET LOCAL lock_timeout='10s';
+SET LOCAL statement_timeout='90s';
+SELECT pg_advisory_xact_lock(hashtextextended('pdc-staging-694-acceptance-uid-range',0));
+LOCK TABLE supabase_migrations.schema_migrations IN EXCLUSIVE MODE;
+DO $guard$
+BEGIN
+ IF current_user<>'postgres' OR session_user<>'postgres' OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1 OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL OR (SELECT max(version) FROM supabase_migrations.schema_migrations WHERE version~'^[0-9]{14}$')<>'20260828140000' OR to_regprocedure('public.create_pdc_email_ai_acceptance_693()') IS NULL OR to_regclass('public.pdc_email_ai_acceptance_uid_range_history_694') IS NOT NULL THEN RAISE EXCEPTION 'PDC_694_EXACT_693_PRESTATE_REQUIRED' USING errcode='55000'; END IF;
+END $guard$;
+CREATE TABLE public.pdc_email_ai_acceptance_uid_range_history_694(history_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),event_key text NOT NULL UNIQUE,predecessor_head text NOT NULL CHECK(predecessor_head='20260828140000'),successor_head text NOT NULL CHECK(successor_head='20260828150000'),predecessor_function_sha256 text NOT NULL,successor_function_sha256 text NOT NULL,repair_contract text NOT NULL,production_writes boolean NOT NULL CHECK(NOT production_writes),created_at timestamptz NOT NULL DEFAULT clock_timestamp());
+ALTER TABLE public.pdc_email_ai_acceptance_uid_range_history_694 ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pdc_email_ai_acceptance_uid_range_history_694 FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON public.pdc_email_ai_acceptance_uid_range_history_694 FROM public,anon,authenticated,service_role,pdc_email_monitor;
+CREATE FUNCTION public.pdc_email_ai_acceptance_uid_history_immutable_694() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$ BEGIN RAISE EXCEPTION 'PDC_694_UID_RANGE_HISTORY_IMMUTABLE' USING errcode='55000'; END $$;
+CREATE TRIGGER pdc_email_ai_acceptance_uid_history_immutable_694 BEFORE UPDATE OR DELETE ON public.pdc_email_ai_acceptance_uid_range_history_694 FOR EACH ROW EXECUTE FUNCTION public.pdc_email_ai_acceptance_uid_history_immutable_694();
+DO $repair$
+DECLARE d text;before_sha text;after_sha text;old text:='uidn int:=coalesce((SELECT max(substring(provider_uid FROM 10)::bigint)::int FROM public.ai_email_intake WHERE provider_uid~''^imap_uid:[0-9]+$'' AND substring(provider_uid FROM 10)::bigint>=515),514)';new text:='uidn int:=100000';
+BEGIN
+ SELECT pg_get_functiondef('public.create_pdc_email_ai_acceptance_693()'::regprocedure),encode(extensions.digest(convert_to(p.prosrc,'UTF8'),'sha256'),'hex') INTO d,before_sha FROM pg_proc p WHERE p.oid='public.create_pdc_email_ai_acceptance_693()'::regprocedure;
+ IF position(old IN d)=0 THEN RAISE EXCEPTION 'PDC_694_UID_RANGE_ANCHOR_MISSING' USING errcode='55000'; END IF;
+ EXECUTE replace(d,old,new);
+ SELECT encode(extensions.digest(convert_to(p.prosrc,'UTF8'),'sha256'),'hex') INTO after_sha FROM pg_proc p WHERE p.oid='public.create_pdc_email_ai_acceptance_693()'::regprocedure;
+ INSERT INTO public.pdc_email_ai_acceptance_uid_range_history_694(event_key,predecessor_head,successor_head,predecessor_function_sha256,successor_function_sha256,repair_contract,production_writes) VALUES(encode(extensions.digest(convert_to('pdc-staging-694-acceptance-uid-range|forward','UTF8'),'sha256'),'hex'),'20260828140000','20260828150000',before_sha,after_sha,'Reserve provider UIDs 100001-100006 for synthetic acceptance so concurrently retained UID515+ evidence cannot collide; UID514 and real evidence unchanged',false);
+END $repair$;
+DO $post$ BEGIN IF (SELECT count(*) FROM public.pdc_email_ai_acceptance_uid_range_history_694)<>1 OR position('uidn int:=100000' IN (SELECT p.prosrc FROM pg_proc p WHERE p.oid='public.create_pdc_email_ai_acceptance_693()'::regprocedure))=0 THEN RAISE EXCEPTION 'PDC_694_POSTCONDITION_FAILED' USING errcode='55000'; END IF; END $post$;
+INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES('20260828150000','694_acceptance_uid_range_collision_repair',ARRAY['Exact 693 predecessor and function-source anchor guard','Synthetic acceptance reserves UIDs 100001-100006, all >=515, above concurrent fixture evidence','Immutable forced-RLS repair history; UID514, production, task, mailbox and outbound paths untouched']);
+NOTIFY pgrST,'reload schema';
+COMMIT;
