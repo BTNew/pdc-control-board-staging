@@ -10,7 +10,9 @@ Staging only: Supabase project `cdsmnqxtyyoeoznmbidd`. Production was not change
 - `20260827117000` — `712_body_location_collected_visibility_eligibility`
 - `20260827118000` — `713_close_navision_prefixed_family_acl_bypass`
 
-The chain was applied append-only after observed concurrent Monitor heads 678 and 679, and later re-read after concurrent heads 680–682. Migrations 700–708 were preserved; none was rewritten, reapplied, reset, or rolled back.
+The chain was applied append-only after observed concurrent Monitor heads 678 and 679, and later re-read after concurrent heads 680–683. Migrations 700–708 were preserved; none was rewritten, reapplied, reset, or rolled back.
+
+Frozen live backend head after read-back: `20260828010000 / 683_uid514_capability_mint_replay_repair`; target family/body state remained unchanged and Production sentinel remained absent.
 
 ## Security result
 
