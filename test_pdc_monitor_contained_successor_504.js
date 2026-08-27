@@ -19,7 +19,6 @@ const exactReviewedPair = {
   gateway: 'pdc-monitor-staging-sales-uid509-v1',
   release: 'pdc-monitor-staging-m502-2026.08.44',
   source: 'e850c319989d98b45b95a28aa815d78e2c2e3a4b',
-  tree: '8981540501bc629e189c39c9ea8a9adf3165d397',
   manifest: 'd48b49f6598a99fbef99fc4f0d0ab36b8b47576b8ff7cd8ecd2cb64d6cfed58d',
   archive: '4ba4d827839f6dfe1835110719f0906a8b9345b0e41b653f96269abdeaccbf90',
 };
@@ -48,6 +47,14 @@ includes('PDC_504_DEDICATED_MONITOR_IDENTITY_REQUIRED');
 includes("coalesce(raw_app_meta_data->>'pdc_identity_type','')='non_human_monitor'");
 includes("role::text='viewer'");
 includes('PDC_504_CONTAINMENT_REQUIRED');
+includes('PDC_504_EXACT_LEDGER_HEAD_REQUIRED');
+includes('PDC_504_PREDECESSOR_FUNCTION_MARKER_MISMATCH');
+includes('predecessor_ledger_sha256');
+includes('predecessor_provision_function_sha256');
+includes('predecessor_verify_function_sha256');
+includes('predecessor_markers');
+includes('source_tree_sha');
+includes('8981540501bc629e189c39c9ea8a9adf3165d397');
 assert.match(sql, /WHERE active AND revoked_at IS NULL/i, 'active writer checks include revoked-at containment');
 includes("where singleton and (enabled or automatic_rule_application");
 
@@ -62,7 +69,7 @@ includes('WHERE event_key=v_event_key');
 includes("'idempotent',true");
 includes("'idempotent',false");
 includes("'rollback_available',true");
-includes("rollback_contract='reapply predecessor pair through provision_pdc_monitor_contained_binding_503'");
+includes("rollback_contract='transaction rollback only; predecessor 503 remains unchanged'");
 includes("'production_untouched',true");
 includes('INSERT INTO public.audit_events');
 
@@ -77,6 +84,7 @@ includes("'activation_ready',false");
 includes("'writer_active',false");
 includes("'planner_commissioned',false");
 includes("'production_writes',false");
+includes("VALUES('504','504_forward_reconcile_contained_email_runtime'");
 
 assert.ok(!/CREATE\s+EXTENSION/i.test(sql), 'migration does not change extensions');
 assert.ok(!/INSERT\s+INTO\s+public\.(monitored_mailboxes|pdc_email_monitor_pilot|pdc_monitor_stage_activation_writers)/i.test(sql), 'migration does not enable runtime actors');
