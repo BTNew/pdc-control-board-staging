@@ -2,7 +2,7 @@
 
 ## 2026-08-27 — Parts Received canonical Navision identity repair
 
-- Updated `app.js` and `vehicle-lifecycle-actions.js` so shared Navision rows retain and submit their linked canonical `vehicles.id` for Parts Ordered/Received/ETA actions instead of relying on a display-only Navision record key.
+- Updated `app.js` and `vehicle-lifecycle-actions.js` so shared Navision rows retain and submit their linked canonical `vehicles.id` for Parts Ordered/Received/ETA actions instead of relying on a display-only Navision record key; no additional identity claims are added.
 - Added `test_parts_received_shared_identity.js`, covering the canonical UUID payload for shared Navision rows alongside the existing authenticated email/canonical Parts contracts.
 - Updated `index.html` and `pdc-supabase-config.staging.js` cache-busting values for the changed app and lazily loaded identity resolver.
 - The existing staging `mark_pdc_parts_complete` RPC remains the authoritative operator-only path; no SQL/RLS/audit/Realtime boundary was weakened or changed. Production and real vehicle state were untouched.

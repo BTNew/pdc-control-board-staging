@@ -2,7 +2,7 @@
 
 ## Parts Received canonical Navision identity repair — 2026-08-27
 
-- `app.js` — shared Navision projection now retains the linked canonical vehicle UUID and source identity for Parts actions.
+- `app.js` — shared Navision projection now retains the linked canonical vehicle UUID for Parts actions.
 - `vehicle-lifecycle-actions.js` — lifecycle identity resolution accepts the shared Navision canonical UUID.
 - `index.html`, `pdc-supabase-config.staging.js` — cache-busted changed app/config and lazy resolver assets.
 - `test_parts_received_shared_identity.js` — canonical/Navision/email Parts Received identity and payload regression coverage.
