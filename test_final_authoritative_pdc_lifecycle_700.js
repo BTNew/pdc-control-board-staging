@@ -24,7 +24,7 @@ for (const marker of [
 assert.match(service, /finalizeQcToRft700/);
 assert.match(service, /bookRftTransport700/);
 assert.match(service, /collectRftTransport700/);
-assert.match(service, /reconcileNavisionDelivery700/);
+assert.ok(!/reconcileNavisionDelivery700/.test(service), 'direct browser Navision delivery export is removed; the canonical monitor/import path owns delivery');
 assert.match(service, /pdc_final_pdc_lifecycle_receipts_700/);
 assert.match(app, /vehicleInCollectedState/);
 assert.match(app, /renderCollectedVehicles/);

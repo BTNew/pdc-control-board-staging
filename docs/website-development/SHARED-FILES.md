@@ -109,3 +109,15 @@
 |- `scripts/pdc_authenticated_monitor_runtime_adapter.py` — external sealed-module loader repair registering `imap_bridge` in `sys.modules` before execution, retaining the 7/4 MIME contract without editing `.44`.
 |- `tests/test_monitor_authenticated_mailbox_activation_674_contract.py`, `tests/test_monitor_authenticated_enqueue_trigger_675_contract.py`, `tests/test_monitor_authenticated_runtime_successor_contract.py` — mailbox, trigger, adapter, dispatch, malformed and synthetic rollback contract coverage.
 |- `docs/website-development/PDC-EMAIL-ACTIVATION-COMPATIBILITY-HANDOFF-20260827.md` — exact secret-free pdc-emails handoff and current JWT expiry boundary.
+
+## Navision Delivered-at-Dealer identity security successor 707 — 2026-08-27
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `supabase/staging_only/20260827109100_707_navision_delivery_monitor_identity_security_successor.sql` | Staging backend security | Exact live 675-head append-only successor; private predecessor for the actor-accepting delivery RPC; one-argument server-derived canonical Monitor/import route; exact operational-wrapper gate; ACL/postcondition audit | Staging-only migration; no 700-706 rewrite/reapply, no vehicle mutation, Production excluded. |
+| `supabase/staging_only/20260827110100_708_navision_delivery_scope_674_alignment_successor.sql` | Staging backend security | Exact live 676-head append-only successor while preserving 707 and 700-706 lifecycle history; aligns the effective delivery gate with active 674 Monitor/import binding | Staging-only migration; no 700-707 rewrite/reapply, no vehicle mutation, Production excluded. |
+| `pdc-email-vehicle-location-service.js` | Frontend/service boundary | Removes direct browser `reconcileNavisionDelivery700` export and caller-supplied actor payload | `test_navision_delivery_security_successor_707.js`; canonical delivery remains server-owned. |
+| `index.html` | Staging cache marker | Adds a dedicated Navision-delivery security successor cache marker to the changed service asset URL | Pages read-back must include `navision-delivery-security=2026.08.27.707-708`. |
+| `scripts/manage_navision_delivery_security_707_staging.py` | Staging management | Exact live 675 preflight, rollback rehearsal, approval-gated apply and live ACL/object read-back | Uses staging project ref only; evidence path is external to the repository. |
+| `scripts/manage_navision_delivery_scope_alignment_708_staging.py` | Staging management | Exact live 676 preflight, rollback rehearsal, approval-gated apply and live ACL/object read-back | Uses staging project ref only; evidence path is external to the repository. |
+| `test_navision_delivery_security_successor_707.js`, `tests/test_navision_delivery_security_successor_707_live.py` | Hostile security coverage | Generic authenticated, viewer/operator/admin, anonymous, wrong actor/email zero-mutation, exact monitor identity, immutable replay hook, alternate wrapper and PostgREST grant surface | Node contract runs by default; Python live lane is opt-in and transaction-contained. |
