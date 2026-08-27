@@ -25,6 +25,7 @@ import os
 import re
 import ssl
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -55,6 +56,19 @@ DEFAULT_IMAP_HOST = "imap.gmail.com"
 DEFAULT_IMAP_PORT = 993
 STAGING_PROJECT_REF = "cdsmnqxtyyoeoznmbidd"
 STAGING_HOST = f"{STAGING_PROJECT_REF}.supabase.co"
+STORAGE_BUCKET = "pdc-email-intake-private"
+SUPPORTED_CONTENT_TYPES = frozenset({
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "text/csv",
+    "text/plain",
+    "image/jpeg",
+    "image/png",
+    "image/tiff",
+    "image/bmp",
+})
 
 
 @dataclass
@@ -497,15 +511,28 @@ def supabase_scoped_client() -> tuple[str, str, str]:
     return base, anon_key, token
 
 
-def _is_storage_existing_object_response(exc: urllib.error.HTTPError) -> bool:
-    """Accept only Supabase Storage's exact wrapped existing-object response."""
-    if exc.code != 400:
-        return False
+def _read_http_error_body(exc: urllib.error.HTTPError) -> dict[str, Any]:
     try:
         raw = exc.read(4096)
         body = json.loads(raw.decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(body, dict):
+        return {"body_type": type(body).__name__}
+    return {key: body[key] for key in ("code", "statusCode", "message", "details", "hint") if key in body}
+
+
+def _bounded_http_error_body(exc: urllib.error.HTTPError, body: dict[str, Any] | None = None) -> str:
+    """Return only bounded, non-secret diagnostic fields from an HTTP error."""
+    return json.dumps(body if body is not None else _read_http_error_body(exc), sort_keys=True)[:1000]
+
+
+def _is_storage_existing_object_response(exc: urllib.error.HTTPError, body: dict[str, Any] | None = None) -> bool:
+    """Accept only Supabase Storage's exact wrapped existing-object response."""
+    if exc.code != 400:
         return False
+    if body is None:
+        body = _read_http_error_body(exc)
     return (
         isinstance(body, dict)
         and body.get("code") == "KeyAlreadyExists"
@@ -513,38 +540,121 @@ def _is_storage_existing_object_response(exc: urllib.error.HTTPError) -> bool:
     )
 
 
+def _urlopen_retry(request: urllib.request.Request, timeout: int, attempts: int = 2):
+    for attempt in range(attempts):
+        try:
+            return urllib.request.urlopen(request, timeout=timeout)
+        except urllib.error.HTTPError as exc:
+            if exc.code < 500 or attempt + 1 >= attempts:
+                raise
+            exc.read(4096)
+            time.sleep(0.2 * (attempt + 1))
+        except urllib.error.URLError:
+            if attempt + 1 >= attempts:
+                raise
+            time.sleep(0.2 * (attempt + 1))
+    raise RuntimeError("storage request retry loop exhausted")
+
+
+def _storage_list(base: str, anon_key: str, token: str, prefix: str) -> list[dict[str, Any]]:
+    request = urllib.request.Request(
+        f"{base}/storage/v1/object/list/{STORAGE_BUCKET}",
+        data=json.dumps({"prefix": prefix, "limit": 100, "offset": 0,
+                         "sortBy": {"column": "name", "order": "asc"}}).encode("utf-8"),
+        method="POST",
+        headers={"apikey": anon_key, "Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+    )
+    try:
+        with _urlopen_retry(request, 30) as response:
+            result = json.loads(response.read(65537).decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = _bounded_http_error_body(exc)
+        raise RuntimeError(f"Storage collision readback failed HTTP {exc.code} {detail}") from exc
+    if not isinstance(result, list) or len(result) > 100 or any(not isinstance(item, dict) for item in result):
+        raise RuntimeError("Storage collision readback returned an invalid bounded listing")
+    return result
+
+
+def _read_storage_object(base: str, anon_key: str, token: str, object_path: str,
+                         expected_bytes: bytes, expected_mime: str) -> None:
+    request = urllib.request.Request(
+        f"{base}/storage/v1/object/authenticated/{STORAGE_BUCKET}/{urllib.parse.quote(object_path, safe='/')}",
+        method="GET",
+        headers={"apikey": anon_key, "Authorization": f"Bearer {token}"},
+    )
+    try:
+        with _urlopen_retry(request, 60) as response:
+            stored = response.read(MAX_ATTACHMENT_BYTES + 1)
+            reported_mime = str(response.headers.get("Content-Type", "")).split(";", 1)[0].strip().lower()
+    except urllib.error.HTTPError as exc:
+        detail = _bounded_http_error_body(exc)
+        raise RuntimeError(f"Storage object readback failed HTTP {exc.code} {detail}") from exc
+    if (len(stored) > MAX_ATTACHMENT_BYTES or stored != expected_bytes
+            or hashlib.sha256(stored).hexdigest() != hashlib.sha256(expected_bytes).hexdigest()
+            or len(stored) != len(expected_bytes) or reported_mime != expected_mime):
+        raise RuntimeError("existing storage object does not match verified attachment bytes, size, or MIME")
+
+
 def _upload_attachment(base: str, anon_key: str, token: str, attachment: AttachmentRecord) -> str:
     if attachment.validation_status != "verified" or not attachment.content_type or not attachment.local_path or not attachment.source_hash:
         return ""
+    if attachment.content_type not in SUPPORTED_CONTENT_TYPES:
+        raise RuntimeError("verified attachment MIME is outside the supported private storage contract")
     path = Path(attachment.local_path)
-    if not path.is_file() or path.stat().st_size > 10 * 1024 * 1024:
-        return ""
+    if not path.is_file() or path.stat().st_size > MAX_ATTACHMENT_BYTES:
+        raise RuntimeError("verified attachment is missing or exceeds the private storage size limit")
+    payload = path.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+    if digest != attachment.source_hash.lower() or (attachment.size_bytes and len(payload) != attachment.size_bytes):
+        raise RuntimeError("local bytes do not match verified attachment hash or size")
     safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", attachment.filename)[:120] or "attachment"
     object_path = f"{attachment.source_hash}/{safe_name}"
     quoted = urllib.parse.quote(object_path, safe="/")
     request = urllib.request.Request(
         f"{base}/storage/v1/object/pdc-email-intake-private/{quoted}",
-        data=path.read_bytes(), method="POST",
+        data=payload, method="POST",
         headers={"apikey": anon_key, "Authorization": f"Bearer {token}",
                  "Content-Type": attachment.content_type, "x-upsert": "false"},
     )
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
+        with _urlopen_retry(request, 60) as response:
             if response.status not in {200, 201}:
                 raise RuntimeError(f"Attachment upload returned HTTP {response.status}")
     except urllib.error.HTTPError as exc:
-        if not _is_storage_existing_object_response(exc):
-            raise RuntimeError(f"Attachment upload failed HTTP {exc.code}") from exc
-    return f"pdc-email-intake-private/{object_path}"
+        error_body = _read_http_error_body(exc)
+        if not _is_storage_existing_object_response(exc, error_body):
+            detail = _bounded_http_error_body(exc, error_body)
+            raise RuntimeError(f"Attachment upload failed HTTP {exc.code} {detail}") from exc
+        candidates = _storage_list(base, anon_key, token, f"{attachment.source_hash}/")
+        if not candidates:
+            raise RuntimeError("existing storage object does not match verified attachment bytes, size, or MIME")
+        for candidate in candidates:
+            name = str(candidate.get("name", ""))
+            if not re.fullmatch(r"[A-Za-z0-9._-]{1,120}", name):
+                raise RuntimeError("existing storage object path is unsafe")
+            metadata = candidate.get("metadata")
+            if not isinstance(metadata, dict):
+                raise RuntimeError("existing storage object metadata is missing")
+            if metadata.get("contentLength") != len(payload) or str(metadata.get("mimetype", "")).lower() != attachment.content_type:
+                raise RuntimeError("existing storage object does not match verified attachment bytes, size, or MIME")
+            existing_path = f"{attachment.source_hash}/{name}"
+            _read_storage_object(base, anon_key, token, existing_path, payload, attachment.content_type)
+            return f"{STORAGE_BUCKET}/{existing_path}"
+        raise RuntimeError("existing storage object does not match verified attachment bytes, size, or MIME")
+    _read_storage_object(base, anon_key, token, object_path, payload, attachment.content_type)
+    return f"{STORAGE_BUCKET}/{object_path}"
 
 
 def post_to_supabase(intake: IntakeMessage) -> None:
     base, anon_key, token = supabase_scoped_client()
     attachments: list[dict[str, Any]] = []
+    storage_receipts: list[dict[str, Any]] = []
     for attachment in intake.attachments:
         if not attachment.source_hash:
             continue
         storage_path = _upload_attachment(base, anon_key, token, attachment)
+        if attachment.validation_status == "verified" and not storage_path:
+            raise RuntimeError("verified attachment did not produce a private storage receipt")
         attachments.append({
             "file_name": attachment.filename,
             "content_type": attachment.content_type,
@@ -555,12 +665,16 @@ def post_to_supabase(intake: IntakeMessage) -> None:
             "validation_status": attachment.validation_status,
             "validation_error": attachment.validation_error,
         })
+        if storage_path:
+            storage_receipts.append({"file_name": attachment.filename, "storage_path": storage_path,
+                                     "source_hash": attachment.source_hash, "size_bytes": attachment.size_bytes,
+                                     "content_type": attachment.content_type})
     message = asdict(intake)
     message.pop("attachments", None)
     message.pop("status", None)
     # Preserve bounded, non-secret IMAP threading metadata for current/future
     # enqueue contracts; canonical SQL still decides which fields are stored.
-    message["processing_result"] = intake.processing_result
+    message["processing_result"] = {**intake.processing_result, "storage_receipts": storage_receipts}
     message["provider_uid"] = intake.provider_uid
     request = urllib.request.Request(
         f"{base}/rest/v1/rpc/enqueue_pdc_email_intake",
@@ -569,11 +683,11 @@ def post_to_supabase(intake: IntakeMessage) -> None:
         headers={"apikey": anon_key, "Authorization": f"Bearer {token}", "Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with _urlopen_retry(request, 30) as response:
             result = json.loads(response.read(1048577).decode("utf-8"))
     except urllib.error.HTTPError as exc:
-        exc.read(4096)
-        raise RuntimeError(f"Scoped Supabase enqueue failed HTTP {exc.code}") from exc
+        detail = _bounded_http_error_body(exc)
+        raise RuntimeError(f"Scoped Supabase enqueue failed HTTP {exc.code} {detail}") from exc
     if not isinstance(result, dict) or result.get("ok") is not True:
         raise RuntimeError("Scoped Supabase enqueue returned an invalid response")
     if intake.provider_uid == "imap_uid:514":

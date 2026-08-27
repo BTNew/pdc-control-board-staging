@@ -34,7 +34,7 @@ class MonitorSuccessor20260845ContractTests(unittest.TestCase):
         self.assertIn('body.get("code") == "KeyAlreadyExists"', bridge)
         self.assertIn('body.get("statusCode") == 409', bridge)
         self.assertNotIn("if exc.code != 409", bridge)
-        self.assertIn("if not _is_storage_existing_object_response(exc)", bridge)
+        self.assertIn("if not _is_storage_existing_object_response(exc, error_body)", bridge)
 
     def test_verifyonly_has_independent_successor_anchor(self):
         self.assertIn("verifyonly_runner_sha256", self.verify_bootstrap)
