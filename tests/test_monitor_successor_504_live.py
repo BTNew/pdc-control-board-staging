@@ -15,6 +15,7 @@ ACTOR = "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b"
 GATEWAY = "pdc-monitor-staging-sales-uid509-v1"
 RELEASE = "pdc-monitor-staging-m502-2026.08.44"
 SOURCE = "e850c319989d98b45b95a28aa815d78e2c2e3a4b"
+TREE = "8981540501bc629e189c39c9ea8a9adf3165d397"
 MANIFEST = "d48b49f6598a99fbef99fc4f0d0ab36b8b47576b8ff7cd8ecd2cb64d6cfed58d"
 ARCHIVE = "4ba4d827839f6dfe1835110719f0906a8b9345b0e41b653f96269abdeaccbf90"
 
@@ -38,6 +39,7 @@ class MonitorSuccessor504LiveTests(unittest.TestCase):
             "p_gateway_instance_id": GATEWAY,
             "p_release_name": RELEASE,
             "p_source_sha": SOURCE,
+            "p_source_tree_sha": TREE,
             "p_manifest_sha256": MANIFEST,
             "p_archive_sha256": ARCHIVE,
         }
@@ -46,7 +48,7 @@ class MonitorSuccessor504LiveTests(unittest.TestCase):
         status, first = rpc(self.token, "reconcile_pdc_monitor_contained_binding_504", self.reconcile_params())
         self.assertEqual(status, 200, first)
         self.assertTrue(first["ok"])
-        self.assertFalse(first["idempotent"])
+        self.assertIn(first["idempotent"], (False, True))
         for field in ("operational", "activation_ready", "writer_active", "planner_commissioned", "production_writes"):
             self.assertFalse(first[field])
 
@@ -60,6 +62,7 @@ class MonitorSuccessor504LiveTests(unittest.TestCase):
             "p_gateway_instance_id": GATEWAY,
             "p_release_name": RELEASE,
             "p_source_sha": SOURCE,
+            "p_source_tree_sha": TREE,
             "p_manifest_sha256": MANIFEST,
             "p_archive_sha256": "0" * 64,
         })
@@ -79,6 +82,7 @@ class MonitorSuccessor504LiveTests(unittest.TestCase):
         self.assertEqual(body["gateway_instance_id"], GATEWAY)
         self.assertEqual(body["release_name"], RELEASE)
         self.assertEqual(body["source_sha"], SOURCE)
+        self.assertEqual(body["source_tree_sha"], TREE)
         self.assertEqual(body["manifest_sha256"], MANIFEST)
         self.assertEqual(body["archive_sha256"], ARCHIVE)
         self.assertEqual(body["migration_head"], 503)

@@ -10,8 +10,8 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION_PATH = ROOT / "supabase" / "staging_only" / "20260827052000_504_forward_reconcile_contained_email_runtime.sql"
-EXPECTED_MIGRATION_SHA256 = "347afdbfd8b46d5554276ecf46fb6dd2589c0a778bb1ea530326a13239eb2238"
+MIGRATION_PATH = ROOT / "supabase" / "staging_only" / "20260827054000_504_forward_reconcile_contained_email_runtime.sql"
+EXPECTED_MIGRATION_SHA256 = "ac0b3fcd09d467fceb38d37c07fe1263cdfa1327926b1e413cd976c25409ae7f"
 EXPECTED_PROJECT_REF = "cdsmnqxtyyoeoznmbidd"
 PRODUCTION_PROJECT_REF = "vjdtsswhroyguxyfjdkt"
 APPLY_CONFIRM_ENV = "PDC_APPROVE_STAGING_MIGRATION_504"
@@ -58,18 +58,18 @@ def preflight(cur) -> dict[str, object]:
         (select count(*) from public.pdc_staging_environment_sentinel
           where singleton and project_ref=%s),
         to_regclass('public.pdc_production_environment_sentinel') is not null,
-        (select max(version::integer) from supabase_migrations.schema_migrations
-          where version~'^[0-9]+$'),
+        (select max(version) from supabase_migrations.schema_migrations
+          where version~'^[0-9]{14}$'),
         (select count(*) from supabase_migrations.schema_migrations
-          where version~'^[0-9]+$' and version::integer>503),
-        (select count(*) from supabase_migrations.schema_migrations where version='503'),
-        (select name from supabase_migrations.schema_migrations where version='503')""", (EXPECTED_PROJECT_REF,))
+          where version~'^[0-9]{14}$' and version>'20260827053000'),
+        (select count(*) from supabase_migrations.schema_migrations where version='20260827053000'),
+        (select name from supabase_migrations.schema_migrations where version='20260827053000')""", (EXPECTED_PROJECT_REF,))
     row = cur.fetchone()
     if row[:5] != ("postgres", "postgres", "postgres", 1, False):
         raise Stop("DATABASE_IDENTITY_OR_SENTINEL_MISMATCH", "preflight")
-    if row[5:] != (503, 0, 1, row[8]) or not row[8]:
+    if row[5:] != ("20260827053000", 0, 1, "503_existing_sales_contained_monitor_commissioning"):
         raise Stop("EXACT_503_LEDGER_PRESTATE_REQUIRED", "preflight")
-    cur.execute("select to_regprocedure('public.reconcile_pdc_monitor_contained_binding_504(uuid,text,text,text,text,text)') is null")
+    cur.execute("select to_regprocedure('public.reconcile_pdc_monitor_contained_binding_504(uuid,text,text,text,text,text,text)') is null")
     if cur.fetchone() != (True,):
         raise Stop("SUCCESSOR_OBJECT_COLLISION", "preflight")
     return {"database": row[0], "owner": row[1], "predecessor_head": 503, "predecessor_name": row[8]}
@@ -77,17 +77,17 @@ def preflight(cur) -> dict[str, object]:
 
 def postflight(cur) -> dict[str, object]:
     cur.execute("""select
-      (select max(version::integer) from supabase_migrations.schema_migrations where version~'^[0-9]+$'),
-      (select name from supabase_migrations.schema_migrations where version='504'),
+      (select max(version) from supabase_migrations.schema_migrations where version~'^[0-9]{14}$'),
+      (select name from supabase_migrations.schema_migrations where version='20260827054000'),
       to_regclass('public.pdc_monitor_contained_binding_reconciliations_504') is not null,
-      to_regprocedure('public.reconcile_pdc_monitor_contained_binding_504(uuid,text,text,text,text,text)') is not null,
-      to_regprocedure('public.verify_pdc_monitor_contained_binding_504(text,text,text,text,text)') is not null,
+      to_regprocedure('public.reconcile_pdc_monitor_contained_binding_504(uuid,text,text,text,text,text,text)') is not null,
+      to_regprocedure('public.verify_pdc_monitor_contained_binding_504(text,text,text,text,text,text)') is not null,
       to_regprocedure('public.get_pdc_monitor_contained_binding_504()') is not null,
       (select relrowsecurity and relforcerowsecurity from pg_class
         where oid='public.pdc_monitor_contained_binding_reconciliations_504'::regclass),
       (select count(*) from public.pdc_monitor_contained_binding_reconciliations_504)""")
     row = cur.fetchone()
-    if row != (504, "504_forward_reconcile_contained_email_runtime", True, True, True, True, True, 0):
+    if row != ("20260827054000", "504_forward_reconcile_contained_email_runtime", True, True, True, True, True, 0):
         raise Stop("SUCCESSOR_POSTSTATE_MISMATCH", "postflight")
     return {"migration_head": row[0], "migration_name": row[1], "successor_rows": row[7], "rls_forced": row[6]}
 

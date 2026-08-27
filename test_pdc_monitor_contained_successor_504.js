@@ -6,7 +6,7 @@ const path = require('path');
 
 const root = __dirname;
 const sql = fs.readFileSync(
-  path.join(root, 'supabase', 'staging_only', '20260827052000_504_forward_reconcile_contained_email_runtime.sql'),
+  path.join(root, 'supabase', 'staging_only', '20260827054000_504_forward_reconcile_contained_email_runtime.sql'),
   'utf8',
 ).replace(/\r\n/g, '\n');
 
@@ -82,7 +82,7 @@ includes("'activation_ready',false");
 includes("'writer_active',false");
 includes("'planner_commissioned',false");
 includes("'production_writes',false");
-includes("VALUES('504','504_forward_reconcile_contained_email_runtime'");
+includes("VALUES('20260827054000','504_forward_reconcile_contained_email_runtime'");
 
 assert.ok(!/CREATE\s+EXTENSION/i.test(sql), 'migration does not change extensions');
 assert.ok(!/INSERT\s+INTO\s+public\.(monitored_mailboxes|pdc_email_monitor_pilot|pdc_monitor_stage_activation_writers)/i.test(sql), 'migration does not enable runtime actors');

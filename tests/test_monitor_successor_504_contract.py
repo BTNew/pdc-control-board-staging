@@ -7,7 +7,7 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION = ROOT / "supabase" / "staging_only" / "20260827052000_504_forward_reconcile_contained_email_runtime.sql"
+MIGRATION = ROOT / "supabase" / "staging_only" / "20260827054000_504_forward_reconcile_contained_email_runtime.sql"
 
 
 class MonitorSuccessor504ContractTests(unittest.TestCase):
@@ -16,22 +16,22 @@ class MonitorSuccessor504ContractTests(unittest.TestCase):
         cls.sql = MIGRATION.read_text(encoding="utf-8")
         cls.lower = cls.sql.lower()
 
-    def test_exact_reviewed_inputs_are_bound_and_no_unprovided_tree_hash(self):
+    def test_exact_reviewed_inputs_are_bound_including_source_tree_hash(self):
         for value in (
             "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b",
             "pdc-monitor-staging-sales-uid509-v1",
             "pdc-monitor-staging-m502-2026.08.44",
             "e850c319989d98b45b95a28aa815d78e2c2e3a4b",
+            "8981540501bc629e189c39c9ea8a9adf3165d397",
             "d48b49f6598a99fbef99fc4f0d0ab36b8b47576b8ff7cd8ecd2cb64d6cfed58d",
             "4ba4d827839f6dfe1835110719f0906a8b9345b0e41b653f96269abdeaccbf90",
         ):
             self.assertIn(value, self.sql)
-        self.assertNotIn("source_tree_sha", self.sql)
-        self.assertNotIn("8981540501bc629e189c39c9ea8a9adf3165d397", self.sql)
+        self.assertIn("source_tree_sha", self.sql)
 
-    def test_transaction_and_numeric_successor_ledger(self):
+    def test_transaction_and_timestamped_successor_ledger(self):
         self.assertRegex(self.sql, r"(?is)^\s*--.*?\nBEGIN;.*LOCK TABLE supabase_migrations\.schema_migrations IN EXCLUSIVE MODE;")
-        self.assertRegex(self.sql, r"(?is)INSERT INTO supabase_migrations\.schema_migrations\s*\(version,name,statements\)\s*VALUES\('504',")
+        self.assertRegex(self.sql, r"(?is)INSERT INTO supabase_migrations\.schema_migrations\s*\(version,name,statements\)\s*VALUES\('20260827054000',")
         self.assertRegex(self.sql, r"(?is)NOTIFY pgrst,'reload schema';\s*COMMIT;\s*$")
         body = re.split(r"(?im)^BEGIN;\s*$", self.sql, maxsplit=1)[1]
         body = re.split(r"(?im)^COMMIT;\s*$", body, maxsplit=1)[0]
@@ -90,7 +90,7 @@ class MonitorSuccessor504ContractTests(unittest.TestCase):
         digest = hashlib.sha256(MIGRATION.read_bytes()).hexdigest()
         self.assertEqual(
             digest,
-            "347afdbfd8b46d5554276ecf46fb6dd2589c0a778bb1ea530326a13239eb2238",
+            "ac0b3fcd09d467fceb38d37c07fe1263cdfa1327926b1e413cd976c25409ae7f",
         )
 
     def test_controller_is_staging_only_and_requires_transactional_apply(self):
