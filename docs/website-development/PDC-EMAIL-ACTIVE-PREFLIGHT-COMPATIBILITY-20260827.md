@@ -21,6 +21,11 @@ Added a guarded external preflight successor and an external control runner:
 - `scripts/install_pdc_active_preflight_compatibility.ps1`
 - `tests/test_pdc_active_preflight_compatibility.py`
 
+Source commit: `f23fdd8e76a8150fc6c4fdd20cea1730bb3b0a80` on
+`feature/website-development-lead`. It contains only the five compatibility
+source/test/evidence files; the existing dirty website and staging-remediation
+work was preserved outside the commit.
+
 The successor leaves the sealed release untouched. It requires the exact
 2026.08.44 release identity, reads the planner and receipt only from the
 protected external trust root, verifies their bytes, validates the receipt
