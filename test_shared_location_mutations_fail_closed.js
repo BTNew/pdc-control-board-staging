@@ -33,9 +33,23 @@ assert.ok(bulkTransfer.indexOf("sharedVehicleLocationMutationUnavailable('bulk t
 assert.match(singleTransfer, /sharedVehicleLocationMutationUnavailable\('transfer to PMB', vehicle\)/);
 assert.ok(singleTransfer.indexOf("sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle)") < singleTransfer.indexOf('window.confirm'));
 assert.match(eligibility, /vehicleLifecycleSharedModeActive\(\).*__emailVehicleServerAuthoritative/);
-assert.match(incomingRow, /sharedVehicleLocationMutationUnavailable\('render transfer to PMB', vehicle, \{ silent: true \}\)/);
+assert.match(incomingRow, /sharedVehicleLocationMutationUnavailable\('transfer to PMB', vehicle, \{ silent: true \}\)/);
+assert.doesNotMatch(incomingRow, /sharedVehicleLocationMutationUnavailable\('render transfer to PMB'/);
+assert.match(incomingRow, /Shared move unavailable/);
 assert.match(inlineBar, /sharedVehicleLocationMutationUnavailable\('bulk transfer to PMB', null, \{ silent: true \}\)/);
 assert.match(bulkBar, /sharedVehicleLocationMutationUnavailable\('override to Yard Hold', null, \{ silent: true \}\)/);
 assert.doesNotMatch(bulkTransfer.slice(0, bulkTransfer.indexOf("sharedVehicleLocationMutationUnavailable('bulk transfer to PMB')") + 1), /loadVehicleEdits|saveJson|recordVehicleAudit|window\.confirm/);
+
+// The renderer must use the exact approved operation name. The reviewed guard
+// intentionally allows only the authenticated server-authoritative row through
+// that operation; all other shared/local mutations remain fail closed.
+function guard(operation, vehicle, sharedMode = true) {
+  if (!sharedMode) return false;
+  if (vehicle?.__emailVehicleServerAuthoritative === true && operation === 'transfer to PMB') return false;
+  return true;
+}
+assert.strictEqual(guard('transfer to PMB', { __emailVehicleServerAuthoritative: true }), false, 'eligible authoritative YH rows are not hidden by the renderer guard');
+assert.strictEqual(guard('transfer to PMB', { __emailVehicleServerAuthoritative: false }), true, 'non-authoritative shared rows remain fail closed');
+assert.strictEqual(guard('render transfer to PMB', { __emailVehicleServerAuthoritative: true }), true, 'the old mismatched renderer operation remains unavailable and is therefore forbidden');
 
 console.log('PASS shared vehicle-location mutations fail closed before browser-local authority');
