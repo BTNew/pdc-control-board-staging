@@ -20,6 +20,7 @@ MIGRATIONS = (
     ("20260827060000", "600_repair_contained_email_runtime_reconcile_replay_after_projection", ROOT / "supabase/staging_only/20260827060000_600_repair_contained_email_runtime_reconcile_replay_after_projection.sql", "fdc6ac857db7587516508de885d7389c754fb3271c9a88eaa80619585fe7a903"),
     ("20260827061000", "610_repair_contained_email_runtime_reconcile_replay_head", ROOT / "supabase/staging_only/20260827061000_610_repair_contained_email_runtime_reconcile_replay_head.sql", "8bc2f47dc426a339ccdefc9194308eba9d707aeee31a282d30288b88ef3e6d4a"),
     ("20260827063000", "630_repair_contained_email_runtime_reconcile_forward_head_floor", ROOT / "supabase/staging_only/20260827063000_630_repair_contained_email_runtime_reconcile_forward_head_floor.sql", "2759d05dc4d713b40cc127c8a5f7b9838bfa1d27e3bd6bdf3c8fe1ca2b583e3a"),
+    ("20260827064000", "506_allow_contained_sales_uid514_receipt_read", ROOT / "supabase/staging_only/20260827064000_506_allow_contained_sales_uid514_receipt_read.sql", "a22c4574dce74564b45e6c8d8d569b53c180baef334a7c71b24d46c48483a59b"),
 )
 PAIR = {
     "actor_id": "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b",
@@ -34,7 +35,7 @@ PAIR = {
 READ_STATE_SQL = """
 select jsonb_build_object(
  'target',jsonb_build_object('database',current_database(),'current_user',current_user,'session_user',session_user,'staging_sentinel',(select count(*) from public.pdc_staging_environment_sentinel where singleton and project_ref='cdsmnqxtyyoeoznmbidd'),'production_sentinel',to_regclass('public.pdc_production_environment_sentinel') is not null),
- 'ledger',(select coalesce(jsonb_agg(jsonb_build_object('version',version,'name',name) order by version),'[]'::jsonb) from supabase_migrations.schema_migrations where version in('20260827053000','20260827054000','20260827055000','20260827056000','20260827057000','20260827058000','20260827059000','20260827060000','20260827061000','20260827063000')),
+ 'ledger',(select coalesce(jsonb_agg(jsonb_build_object('version',version,'name',name) order by version),'[]'::jsonb) from supabase_migrations.schema_migrations where version in('20260827053000','20260827054000','20260827055000','20260827056000','20260827057000','20260827058000','20260827059000','20260827060000','20260827061000','20260827063000','20260827064000')),
  'binding',(select coalesce(to_jsonb(x),'{}'::jsonb) from (select actor_id,gateway_instance_id,release_name,source_sha,manifest_sha256,semantic_planner_sha256,semantic_planner_trust_receipt_sha256,semantic_planner_commissioned_at from public.pdc_monitor_runtime_bindings_255 where singleton) x),
  'reconciliation',(select coalesce(to_jsonb(x),'{}'::jsonb) from (select reconciliation_id,event_kind,actor_id,gateway_instance_id,release_name,source_sha,source_tree_sha,manifest_sha256,archive_sha256,migration_head,mode,operational,activation_ready,writer_active,planner_commissioned,production_writes from public.pdc_monitor_contained_binding_reconciliations_504 order by created_at desc,reconciliation_id desc limit 1) x),
  'history',(select count(*) from public.pdc_monitor_runtime_binding_compatibility_history_505),
@@ -115,7 +116,7 @@ def main() -> int:
         first_missing = next((version for version, _name, _path, _sha in MIGRATIONS if not present[version]), None)
         if args.mode == "rehearse":
             if first_missing:
-                required_head = {"20260827058000": "20260827057000", "20260827059000": "20260827058000", "20260827060000": "20260827059000", "20260827061000": "20260827060000", "20260827063000": "20260827061000"}[first_missing]
+                required_head = {"20260827058000": "20260827057000", "20260827059000": "20260827058000", "20260827060000": "20260827059000", "20260827061000": "20260827060000", "20260827063000": "20260827061000", "20260827064000": "20260827063000"}[first_missing]
                 if max(ledger, default="") != required_head:
                     raise RuntimeError(f"EXACT_{required_head}_PRESTATE_REQUIRED")
                 event["would_apply"] = [version for version, _name, _path, _sha in MIGRATIONS if not present[version]]
@@ -125,7 +126,7 @@ def main() -> int:
             if not first_missing:
                 event["already_applied"] = True
             else:
-                required_head = {"20260827058000": "20260827057000", "20260827059000": "20260827058000", "20260827060000": "20260827059000", "20260827061000": "20260827060000", "20260827063000": "20260827061000"}[first_missing]
+                required_head = {"20260827058000": "20260827057000", "20260827059000": "20260827058000", "20260827060000": "20260827059000", "20260827061000": "20260827060000", "20260827063000": "20260827061000", "20260827064000": "20260827063000"}[first_missing]
                 if max(ledger, default="") != required_head:
                     raise RuntimeError(f"EXACT_{required_head}_PRESTATE_REQUIRED")
                 for version, _name, path, _sha in MIGRATIONS:
