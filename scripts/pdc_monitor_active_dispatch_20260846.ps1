@@ -17,7 +17,7 @@ function Assert-Hash([string]$Path,[string]$Expected,[string]$Code){if((Hash $Pa
 function Status([string]$State,[string]$Code,[bool]$Reached,[bool]$Contacted,[bool]$Blocked){
  if(-not$statusPath){return};$payload=[ordered]@{ok=($State-eq'ok');status=$State;code=$Code;release_version=$ExpectedVersion;mode=$Mode;dry_run=[bool]$DryRun;phase=$phase;monitor_entrypoint_reached=$Reached;active_dispatch_blocked=$Blocked;mailbox_contacted=$Contacted;uid514_processed=$false;production_contacted=$false;task_enabled=$false;sealed_parent_unchanged=$true;last_cycle=([DateTime]::UtcNow.ToString('o'))};$json=$payload|ConvertTo-Json -Compress;if($json.Length-gt 4096){Fail 'PDC_MONITOR_SUCCESSOR_ACTIVE_STATUS_BOUNDED_WRITE_FAILED'};$tmp=$statusPath+'.tmp';Set-Content -LiteralPath $tmp -Value $json -Encoding ascii -NoNewline;Move-Item -LiteralPath $tmp -Destination $statusPath -Force
 }
-function Invoke-Captured([string[]]$Args){$out=& $venvPython -B -I -S @Args 2>&1|Out-String;if($LASTEXITCODE-ne 0){Fail 'PDC_MONITOR_SUCCESSOR_ACTIVE_CHILD_FAILED'};return $out}
+function Invoke-Captured([string[]]$Arguments){$out=& $venvPython -B -I -S @Arguments 2>&1|Out-String;if($LASTEXITCODE-ne 0){Fail 'PDC_MONITOR_SUCCESSOR_ACTIVE_CHILD_FAILED'};return $out}
 try{
  $held=$mutex.WaitOne(0);$statusPath=Join-Path $InstallRoot 'state\monitor\active-dispatch-status.json';New-Item (Split-Path -Parent $statusPath) -ItemType Directory -Force|Out-Null
  if(-not$held){Status 'ok' 'PDC_MONITOR_SUCCESSOR_ACTIVE_OVERLAP_SKIPPED' $false $false $true;exit 0}
