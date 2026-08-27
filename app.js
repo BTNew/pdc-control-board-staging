@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.16-exact-uid639-640-import';
+const APP_VERSION = '2026.08.27.706-final-authoritative-lifecycle';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -2247,6 +2247,7 @@ function getStage(vehicle) {
   if (manualPdcLocation === 'PIT') return 'PIT';
   if (manualPdcLocation === 'QC') return 'QC';
   if (manualPdcLocation === 'RFT') return 'RFT';
+  if (manualPdcLocation === 'COLLECTED') return 'Collected';
 
   const category = statusCategory(vehicle);
   if (category === 'yardhold') return 'Yard Hold';
@@ -2291,7 +2292,15 @@ function rftTransportEmailStatusLabel(vehicle = {}) {
 }
 
 function vehicleCollectedFromRft(vehicle = {}) {
-  return Boolean(vehicle.rftCollected || vehicle.rftCollectedAt || vehicle.completedVehicle);
+  const state = String(vehicle.pdcLifecycleState || vehicle.vehicleLifecycleState || vehicle.lifecycleState || '').trim().toLowerCase();
+  const location = String(vehicle.pdcLocation || vehicle.current_location || '').trim().toLowerCase();
+  return state === 'completed' || location === 'completed' || vehicle.completedVehicle === true;
+}
+
+function vehicleInCollectedState(vehicle = {}) {
+  const state = String(vehicle.pdcLifecycleState || vehicle.vehicleLifecycleState || '').trim().toLowerCase();
+  const location = String(vehicle.pdcLocation || vehicle.current_location || '').trim().toLowerCase();
+  return state === 'collected' || location === 'collected' || (Boolean(vehicle.rftCollectedAt) && !vehicleCollectedFromRft(vehicle));
 }
 
 function isHermesSyntheticVehicle(vehicle = {}) {
@@ -2327,6 +2336,7 @@ function navisionImportedToyotaTransitCategory(vehicle = {}) {
 
 function statusCategory(vehicleOrStatus = '') {
   const isVehicle = vehicleOrStatus && typeof vehicleOrStatus === 'object';
+  if (isVehicle && vehicleInCollectedState(vehicleOrStatus)) return 'collected';
   if (isVehicle && vehicleCollectedFromRft(vehicleOrStatus)) return 'completed';
   if (isVehicle && !vehicleHasBatchNumber(vehicleOrStatus)) return 'other';
 
@@ -3162,6 +3172,7 @@ function bindNav() {
   on($('#rft-status-filter'), 'change', renderRftHome);
   on($('#completed-export-csv'), 'click', exportCompletedVehiclesCsv);
   on($('#completed-search'), 'input', renderCompletedVehicles);
+  on($('#collected-search'), 'input', renderCollectedVehicles);
   on($('#deleted-export-csv'), 'click', exportDeletedVehiclesCsv);
   on($('#deleted-search'), 'input', renderDeletedVehicles);
   on($('#customer-search'), 'input', renderCustomers);
@@ -4860,7 +4871,7 @@ function qcPageDetailHtml(vehicle = {}) {
   const photo = qcPhotoEvidence.get(key);
   const allComplete = qcPageAllOperationLinesComplete(vehicle);
   const hasSalesperson = Boolean(cleanNavisionText(vehicle.salespersonCode || '') && cleanNavisionText(vehicle.salespersonEmail || ''));
-  const signoffReady = allComplete && Boolean(photo?.photoReceiptId) && hasSalesperson;
+  const signoffReady = allComplete && Boolean(photo?.photoReceiptId);
   const feedback = qcPageFeedback.get(key);
   return `<section class="qc-detail-card" aria-labelledby="qc-detail-title">
     <header class="qc-detail-header">
@@ -4873,9 +4884,9 @@ function qcPageDetailHtml(vehicle = {}) {
     <div class="qc-photo-panel">
       <div><strong>Completion photo</strong><p>Store one image in private staging evidence storage before final sign-off. The stored receipt, not browser state, is the authority.</p></div>
       <label class="qc-photo-picker"><span>${photo ? 'Photo stored · choose another only after this receipt is cleared' : 'Take or choose photo'}</span><input type="file" accept="image/*" capture="environment" data-qc-photo="${escapeHtml(key)}" ${qcPagePhotoUploadInFlight.has(key) ? 'disabled' : ''} /></label>
-      ${photo ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url || '')}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${escapeHtml(photo.originalFilename || 'Stored image')} · ${escapeHtml(String(photo.originalByteLength || 0))} → ${escapeHtml(String(photo.byteLength || 0))} bytes · ${escapeHtml(String(photo.imageWidth || 0))}×${escapeHtml(String(photo.imageHeight || 0))} · SHA-256 ${escapeHtml(photo.sha256 || '')}</span></div>` : '<div class="qc-photo-empty">No stored completion photo attached</div>'}
-    </div>
-    <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo stored. Final sign-off will send the exact completed-item snapshot to the unsent staging outbox and move the vehicle to RFT.' : !hasSalesperson ? 'Assign an active salesperson with an email address before final sign-off. The stored photo receipt will be retained.' : allComplete ? 'Store a completion photo before final sign-off.' : 'Every active operation line must be complete before final sign-off.'}</span><button class="primary qc-signoff-button" type="button" data-qc-signoff="${escapeHtml(key)}" ${signoffReady ? '' : 'disabled'}>Sign off and move to RFT</button></div>
+      ${photo ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url || '')}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${escapeHtml(photo.originalFilename || 'Stored image')} · ${escapeHtml(String(photo.originalByteLength || 0))} → ${escapeHtml(String(photo.byteLength || 0))} bytes · ${escapeHtml(String(photo.imageWidth || 0))}×${escapeHtml(String(photo.imageHeight || 0))} · SHA-256 ${escapeHtml(photo.sha256 || '')}</span></div>` : '<div class="qc-photo-empty">No stored completion photo</div>'}
+      </div>
+      <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo stored. Final sign-off records QC evidence and moves the vehicle to RFT. No salesperson email or dealer-transit timer starts until explicit RFT Booked.' : allComplete ? 'Store a completion photo before final sign-off.' : 'Every active operation line must be complete before final sign-off.'}</span>${signoffReady ? `<button class="primary" type="button" data-qc-signoff="${escapeHtml(key)}" ${qcPageSignoffInFlight.has(key) ? 'disabled' : ''}>${qcPageSignoffInFlight.has(key) ? 'Signing off…' : 'Sign off QC → RFT'}</button>` : ''}</div>
   </section>`;
 }
 
@@ -5010,7 +5021,7 @@ async function qcPageSignoff(key = '') {
     if (result) {
       qcPhotoEvidence.delete(cleanKey);
       qcSelectedVehicleKey = '';
-      qcPageNotice = 'Signed off and moved to RFT. The exact completed-item salesperson update is queued in the staging outbox and remains unsent.';
+      qcPageNotice = 'Signed off and moved to RFT. No salesperson email or dealer-transit timer started at QC.';
       renderQualityControlPage();
     }
     return result;
@@ -5084,6 +5095,9 @@ function renderActiveView() {
       break;
     case 'completed':
       renderCompletedVehicles();
+      break;
+    case 'collected':
+      renderCollectedVehicles();
       break;
     case 'deleted':
       renderDeletedVehicles();
@@ -6025,7 +6039,7 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null) {
     window.alert('QC finalization is available only for vehicles currently in the QC Gate.');
     return false;
   }
-  if (vehicleLifecycleSharedModeActive() && (!photoEvidence?.photoReceiptId || typeof app.emailVehicleLocationService?.finalizeQcToRft !== 'function')) {
+  if (vehicleLifecycleSharedModeActive() && (!photoEvidence?.photoReceiptId || typeof app.emailVehicleLocationService?.finalizeQcToRft700 !== 'function')) {
     window.alert('Store the private completion photo first. No QC or RFT state was changed.');
     return false;
   }
@@ -6036,7 +6050,7 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null) {
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
-  if (!window.confirm(`Sign off QC and move ${label} to RFT?\n\nThis stores the named QC sign-off, exact completed-item snapshot and salesperson update in one atomic staging transaction. The salesperson update remains unsent.`)) return false;
+  if (!window.confirm(`Sign off QC and move ${label} to RFT?\n\nThis stores the named QC sign-off, exact completed-item snapshot and private photo evidence. No salesperson email or dealer-transit timer starts at QC.`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
     const ref = await vehicleLifecycleSharedRef(vehicle);
@@ -6048,7 +6062,7 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null) {
       window.alert('This vehicle is archived in shared data, so QC finalization was not applied. No change was made.');
       return false;
     }
-    const result = await app.emailVehicleLocationService.finalizeQcToRft(ref.vehicleId, ref.version, photoEvidence.photoReceiptId, crypto.randomUUID());
+    const result = await app.emailVehicleLocationService.finalizeQcToRft700(ref.vehicleId, ref.version, photoEvidence.photoReceiptId, crypto.randomUUID());
     if (!result || result.ok !== true) {
       const qcFinalizationMessages = {
         salesperson_email_required: 'Assign an active salesperson with an email address before final sign-off. The stored photo receipt is retained and no vehicle state changed.',
@@ -15186,12 +15200,12 @@ async function markRftTransportBooked(key = '', booked = true) {
   const service = app.emailVehicleLocationService;
   if (!vehicle || !booked) { renderAll(); return; }
   if (vehicleRftTransportBooked(vehicle)) { renderAll(); return; }
-  if (vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.bookRftTransport !== 'function') {
+  if (vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.bookRftTransport700 !== 'function') {
     window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
   if (!window.confirm(`Confirm ${label} has been booked on the trucking company website?\n\nThis permanently records the booking and creates the mandatory salesperson email with completed work, dates, build times, stoppages and the QC photo.`)) { renderAll(); return; }
-  const result = await service.bookRftTransport(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
+  const result = await service.bookRftTransport700(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
   if (!result?.ok) {
     const messages = { salesperson_email_required: 'Assign an active salesperson with an email address first.', qc_evidence_required: 'The QC completion list and photo must be stored before transport can be booked.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.', transport_already_booked: 'Transport has already been booked.' };
     await refreshEmailVehicleLocations(); window.alert(messages[result?.code] || 'Transport booking was not saved. No email was created.'); renderAll(); return;
@@ -15205,12 +15219,12 @@ async function markRftVehicleCollected(key = '', collected = true) {
   const service = app.emailVehicleLocationService;
   if (!vehicle || !collected) { renderAll(); return; }
   if (!vehicleRftTransportBooked(vehicle)) { window.alert('Book the vehicle on the trucking company website first.'); renderAll(); return; }
-  if (vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.collectRftTransport !== 'function') {
+  if (vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.collectRftTransport700 !== 'function') {
     window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
-  if (!window.confirm(`Confirm ${label} has physically been collected?\n\nThis moves it to Completed Vehicles and removes any remaining active bay booking. The history is retained.`)) { renderAll(); return; }
-  const result = await service.collectRftTransport(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
+  if (!window.confirm(`Confirm ${label} has physically been collected?\n\nThis moves it to Collected Vehicles, clears active bay/workshop pointers and leaves the dealer-transit timer open. Delivery closes it later.`)) { renderAll(); return; }
+  const result = await service.collectRftTransport700(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
   if (!result?.ok) {
     const messages = { transport_booking_and_mandatory_email_required: 'The trucking booking and mandatory salesperson update must exist first.', started_booking_must_be_completed_before_collection: 'A Workshop job is still STARTED. Complete that real work before collection.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.' };
     await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('rft_collection_rejected')]);
@@ -15225,6 +15239,37 @@ function bindRftCollectedInputs(root = document) {
   $$('[data-rft-transport-booked-key]', root).forEach(input => input.addEventListener('change', () => { void markRftTransportBooked(input.dataset.rftTransportBookedKey, input.checked); }));
   $$('[data-rft-collected-key]', root).forEach(input => input.addEventListener('click', event => event.stopPropagation()));
   $$('[data-rft-collected-key]', root).forEach(input => input.addEventListener('change', () => { void markRftVehicleCollected(input.dataset.rftCollectedKey, input.checked); }));
+}
+
+function collectedVehicleRows() {
+  const q = ($('#collected-search')?.value || '').trim().toLowerCase();
+  return app.data
+    .filter(vehicleInCollectedState)
+    .filter(vehicle => !isHermesSyntheticVehicle(vehicle))
+    .filter(vehicle => {
+      if (!q) return true;
+      return [displayStockNumber(vehicle), vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle), vehicle.client, vehicle.toyotaCustomer, displayVehicle(vehicle), vehicle.rftCollectedBy || '', vehicle.rftCollectedAt || '', vehicle.dealerTransitStartedAt || ''].join(' ').toLowerCase().includes(q);
+    })
+    .sort((a, b) => (parseIsoTimestamp(b.rftCollectedAt || '')?.getTime() || 0) - (parseIsoTimestamp(a.rftCollectedAt || '')?.getTime() || 0));
+}
+
+function renderCollectedVehicles() {
+  const host = $('#collected-vehicles-content');
+  if (!host) return;
+  const rows = collectedVehicleRows();
+  if (!rows.length) {
+    host.innerHTML = '<div class="empty-state"><strong>No collected vehicles yet</strong><span>Vehicles appear here after the RFT transport handover is physically collected.</span></div>';
+    return;
+  }
+  host.innerHTML = `<div class="parts-table-wrap collected-table-wrap pdc-grid-table-wrap"><table class="data-table compact-table collected-table pdc-grid-table"><thead><tr><th>Collected</th><th>Stock</th><th>Job Card</th><th>Customer</th><th>Vehicle</th><th>Booked</th><th>Timer</th><th>Collected by</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
+    const key = vehicleKey(vehicle);
+    const collectedAt = parseIsoTimestamp(vehicle.rftCollectedAt || '');
+    const bookedAt = parseIsoTimestamp(vehicle.dealerTransitStartedAt || vehicle.rftTransportBookedAt || '');
+    const elapsed = bookedAt && collectedAt ? Math.max(0, Math.floor((collectedAt - bookedAt) / 1000)) : null;
+    const timer = elapsed == null ? 'Open · awaiting delivery' : `${Math.floor(elapsed / 3600)}h ${Math.floor((elapsed % 3600) / 60)}m`;
+    return `<tr class="collected-vehicle-row"><td>${escapeHtml(collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '—')}</td><td class="pdc-id-cell"><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || '—')}</button></td><td>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</td><td>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</td><td>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</td><td>${escapeHtml(bookedAt ? bookedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '—')}</td><td><strong>${escapeHtml(timer)}</strong><small>Dealer-transit timer remains open</small></td><td>${escapeHtml(vehicle.rftCollectedBy || '')}</td><td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button></td></tr>`;
+  }).join('')}</tbody></table></div>`;
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
 }
 
 function completedVehicleRows() {

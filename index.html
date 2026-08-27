@@ -122,6 +122,7 @@
             <button type="button" class="nav-item nav-admin-item" data-view="import" data-short="NAV">Navision Uploads</button>
             <button type="button" class="nav-item nav-admin-item" data-view="backup" data-short="BAK">Backup / Restore</button>
             <button type="button" class="nav-item nav-admin-item" data-view="deleted" data-short="DEL">Deleted Vehicles</button>
+            <button type="button" class="nav-item nav-admin-item" data-view="collected" data-short="COL">Collected Vehicles</button>
             <button type="button" class="nav-item nav-admin-item" data-view="completed" data-short="DONE">Completed Vehicles</button>
             <button type="button" class="nav-item nav-admin-item" data-view="backend" data-short="DATA">Back End Data</button>
           </div>
@@ -574,7 +575,7 @@
             <div class="panel-header">
               <div>
                 <h2>Completed vehicles</h2>
-                <p>Vehicles ticked as collected from RFT. They stay off the live RFT board and remain available here for lookup.</p>
+                <p>Vehicles with the exact Navision Delivered - At Dealer status. Delivery closes the dealer-transit timer and preserves the complete history.</p>
               </div>
               <div class="panel-actions">
                 <button class="small-button" id="completed-export-csv" type="button">Export completed CSV</button>
@@ -587,11 +588,35 @@
               </label>
             </div>
             <div class="parts-help-strip completed-help-strip">
-              <strong>Collected:</strong>
-              <span>Collected vehicles are locked once marked complete, so rows cannot be unticked back to RFT from this screen.</span>
+              <strong>Completed:</strong>
+              <span>Only exact Navision Delivered - At Dealer closes the open dealer-transit interval and moves a Collected vehicle here.</span>
             </div>
             <section id="completed-pmb-statistics" class="completed-statistics-panel" aria-label="Completed vehicle PMB turnaround statistics"></section>
             <div id="completed-vehicles-content" class="parts-home-content completed-home-content"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="collected" class="view">
+        <div class="parts-home-layout collected-home-layout">
+          <section class="panel parts-home-panel collected-home-panel">
+            <div class="panel-header">
+              <div>
+                <h2>Collected vehicles</h2>
+                <p>Vehicles physically collected from RFT. They are distinct from Completed until Navision reports the exact Delivered - At Dealer literal.</p>
+              </div>
+            </div>
+            <div class="table-toolbar advanced-toolbar wide-toolbar parts-toolbar collected-toolbar">
+              <label>
+                <span>Search</span>
+                <input id="collected-search" type="search" placeholder="Stock, client, vehicle, key, collected by..." />
+              </label>
+            </div>
+            <div class="parts-help-strip collected-help-strip">
+              <strong>Timer open:</strong>
+              <span>Dealer-transit time is measured from the exact RFT Booked timestamp and closes only on exact Navision Delivered - At Dealer.</span>
+            </div>
+            <div id="collected-vehicles-content" class="parts-home-content collected-home-content"></div>
           </section>
         </div>
       </section>
@@ -971,10 +996,10 @@
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
   <script src="workshop-eligibility.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
   <script src="workshop-navigation.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
-  <script src="pdc-email-vehicle-location-service.js?v=2026.08.27.13-navision-linked-refresh&amp;authoritative-detail=386-388-391"></script>
+  <script src="pdc-email-vehicle-location-service.js?v=2026.08.27.706-final-authoritative-lifecycle&amp;authoritative-detail=386-388-391"></script>
   <script src="pdc-ai-auditor-stage-a.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
   <script src="vehicle-location-lifecycle.js?v=2026.08.11.31-lifecycle-module"></script>
-  <script src="app.js?v=2026.08.27.16-exact-uid639-640-import&amp;parts-canonical-navision-id=2026.08.27.17&amp;yard-hold-pmb=20260827&amp;authoritative-detail=386-388-391&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
+  <script src="app.js?v=2026.08.27.706-final-authoritative-lifecycle&amp;parts-canonical-navision-id=2026.08.27.17&amp;yard-hold-pmb=20260827&amp;authoritative-detail=386-388-391&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
   <script src="pdc-ai-intake-review.js?v=2026.07.27.19-ai-review-decision-context"></script>
 
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>

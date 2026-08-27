@@ -4,7 +4,7 @@ const path='supabase/staging_only/20260827051000_501_exact_uid639_640_all_operat
 const sql=fs.readFileSync(path,'utf8'),identity=JSON.parse(fs.readFileSync('deployment-identity.json','utf8'));
 assert.strictEqual(crypto.createHash('sha256').update(sql).digest('hex'),'adae6ce8d1bbb8b8a91ae8397e120917fd7cc12af281ec2d992901d97575890c');
 for(const token of ["'1:639'","'1:640'","'13000769'","'13017855'","J139125493","J139125422","n<>17","n<>20","sum(operation_count) FROM public.pdc_exact_email_import_receipts_501)<>37","jsonb_array_length(public.pdc_qc_operation_lines_379(vid))","Pre Delivery is 1.50 hours","reflective safety striping routes to Sublet","Production untouched"]) assert.ok(sql.includes(token),token);
-assert.strictEqual(identity.application_version,'2026.08.27.16-exact-uid639-640-import');
+assert.strictEqual(identity.application_version,'2026.08.27.706-final-authoritative-lifecycle');
 assert.strictEqual(identity.observed_applied_database_migration.version,'20260827051000');
 assert.strictEqual(identity.observed_applied_database_migration.name,'501_exact_uid639_640_all_operations_import');
 assert.strictEqual(identity.observed_applied_database_migration.sha256,'adae6ce8d1bbb8b8a91ae8397e120917fd7cc12af281ec2d992901d97575890c');

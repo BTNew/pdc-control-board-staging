@@ -26,6 +26,11 @@ const PDC_STOPPAGE_CLEAR_RPC = 'clear_vehicle_stoppage_422';
 const PDC_PMB_STOPPAGE_RPC = 'set_pmb_stoppage_422';
 const PDC_RFT_TRANSPORT_BOOK_RPC = 'book_rft_transport_412';
 const PDC_RFT_TRANSPORT_COLLECT_RPC = 'collect_rft_transport_412';
+const PDC_FINAL_QC_TO_RFT_RPC = 'finalize_pdc_qc_to_rft_700';
+const PDC_FINAL_RFT_BOOK_RPC = 'book_rft_transport_700';
+const PDC_FINAL_RFT_COLLECT_RPC = 'collect_rft_transport_700';
+const PDC_FINAL_NAVISION_DELIVERY_RPC = 'reconcile_navision_delivery_700';
+const PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE = 'pdc_final_pdc_lifecycle_receipts_700';
 const PDC_PARTS_COMPLETE_SUCCESS_CODES = new Set(['parts_completed', 'replayed']);
 const PDC_SUBLET_CANONICAL_ERRORS = new Set(['version_conflict', 'workshop_booking_conflict', 'sublet_away']);
 const WORK_FIELDS = Object.freeze({
@@ -72,6 +77,14 @@ function mapServerVehicle(row = {}) {
   mapped.rftCollectedAt = row.rft_collected_at || '';
   mapped.rftCollectedBy = String(row.rft_collected_by || '');
   mapped.lifecycleState = String(row.lifecycle_state || '');
+  const finalLifecycle = row.pdc_lifecycle && typeof row.pdc_lifecycle === 'object' ? row.pdc_lifecycle : {};
+  mapped.pdcLifecycleState = String(finalLifecycle.state || row.lifecycle_state || '').trim().toLowerCase();
+  mapped.vehicleLifecycleState = mapped.pdcLifecycleState;
+  mapped.vehicleCollectedState = mapped.pdcLifecycleState === 'collected' || row.current_location === 'Collected';
+  mapped.vehicleDeliveredState = mapped.pdcLifecycleState === 'completed' || row.current_location === 'Completed';
+  mapped.dealerTransitStartedAt = finalLifecycle.dealer_transit_started_at || row.dealer_transit_started_at || '';
+  mapped.dealerTransitClosedAt = finalLifecycle.dealer_transit_closed_at || row.dealer_transit_closed_at || '';
+  mapped.dealerTransitDurationSeconds = finalLifecycle.dealer_transit_duration_seconds ?? row.dealer_transit_duration_seconds ?? null;
   mapped.rftTransportOutbox = row.rft_transport_outbox && typeof row.rft_transport_outbox === 'object' ? row.rft_transport_outbox : {};
   mapped.pdcBlocked = Boolean(row.pmb_stoppage_started_at);
   mapped.pdcBlockReason = String(row.pmb_stoppage_reason || '');
@@ -449,6 +462,27 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return { ok: true, code: body.code || 'qc_signed_off_moved_to_rft', data };
     } catch (_error) { return { ok: false, code: 'qc_finalization_unavailable', data: null }; }
   }
+  async function pdc700Rpc(name = '', payload = {}, unavailableCode = '') {
+    const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    try {
+      const response = await request(`${url}/rest/v1/rpc/${name}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const body = await response.json().catch(() => null); const data = body?.data || body;
+      if (!response.ok || !body || body.ok !== true || !data?.receipt_id || String(data.vehicle_id || '') !== String(payload.p_vehicle_id || data.vehicle_id || '')) return { ok: false, code: body?.code || body?.error || unavailableCode, data };
+      return { ok: true, code: body.code || data.code || 'ok', replay: body.replay === true, data };
+    } catch (_error) { return { ok: false, code: unavailableCode, data: null }; }
+  }
+  function finalizeQcToRft700(vehicleId = '', vehicleVersion = 0, photoReceiptId = '', idempotencyKey = '') {
+    return pdc700Rpc(PDC_FINAL_QC_TO_RFT_RPC, { p_vehicle_id: String(vehicleId || ''), p_expected_vehicle_version: Number(vehicleVersion) || 0, p_photo_receipt_id: String(photoReceiptId || ''), p_idempotency_key: String(idempotencyKey || '') }, 'qc_finalization_unavailable');
+  }
+  function bookRftTransport700(vehicleId = '', expectedVersion = 0, idempotencyKey = '') {
+    return pdc700Rpc(PDC_FINAL_RFT_BOOK_RPC, { p_vehicle_id: String(vehicleId || ''), p_expected_vehicle_version: Number(expectedVersion) || 0, p_idempotency_key: String(idempotencyKey || '') }, 'rft_transport_booking_unavailable');
+  }
+  function collectRftTransport700(vehicleId = '', expectedVersion = 0, idempotencyKey = '') {
+    return pdc700Rpc(PDC_FINAL_RFT_COLLECT_RPC, { p_vehicle_id: String(vehicleId || ''), p_expected_vehicle_version: Number(expectedVersion) || 0, p_idempotency_key: String(idempotencyKey || '') }, 'rft_transport_collection_unavailable');
+  }
+  function reconcileNavisionDelivery700(backendRecordId = '', actorId = null, actorEmail = null) {
+    return pdc700Rpc(PDC_FINAL_NAVISION_DELIVERY_RPC, { p_backend_record_id: String(backendRecordId || ''), p_actor_id: actorId, p_actor_email: actorEmail }, 'navision_delivery_unavailable');
+  }
   async function vehicleHistory(vehicleId = '') {
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
@@ -520,8 +554,8 @@ function createPdcEmailVehicleLocationService(options = {}) {
     if (!subscribeRealtime) return { unsubscribe() {} };
     return subscribeRealtime(PDC_EMAIL_VEHICLE_REVISION_TABLE, event => { if (typeof onRevision === 'function') onRevision(event?.new?.revision ?? null, event); });
   }
-  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, createSubletBooking, updateSubletBooking, updateSubletBookingProvider, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport, createAcceptanceVehicle, setQcOperationCompletion, uploadQcPhotoEvidence, finalizeQcToRft, subscribe };
+  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, updateSublet, createSubletBooking, updateSubletBooking, updateSubletBookingProvider, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport, finalizeQcToRft700, bookRftTransport700, collectRftTransport700, reconcileNavisionDelivery700, createAcceptanceVehicle, setQcOperationCompletion, uploadQcPhotoEvidence, finalizeQcToRft, subscribe };
 }
-const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+const exported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_FINAL_QC_TO_RFT_RPC, PDC_FINAL_RFT_BOOK_RPC, PDC_FINAL_RFT_COLLECT_RPC, PDC_FINAL_NAVISION_DELIVERY_RPC, PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, canonicalWorkKey, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = exported;
 if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = exported;

@@ -4,7 +4,7 @@ const path='supabase/staging_only/20260827045000_495_archive_navision_reconcile_
 const sql=fs.readFileSync(path,'utf8');
 const identity=JSON.parse(fs.readFileSync('deployment-identity.json','utf8'));
 for(const marker of ['pdc.vehicle_archive_in_progress','pdc_admin_archive_vehicle_impl','pdc_vehicle_archive_recreation_gate','Scope the allowance to the exact archived vehicle and current transaction only','Production untouched']) assert.ok(sql.includes(marker),marker);
-assert.strictEqual(identity.application_version,'2026.08.27.16-exact-uid639-640-import');
+assert.strictEqual(identity.application_version,'2026.08.27.706-final-authoritative-lifecycle');
 assert.strictEqual(identity.observed_applied_database_migration.version,'20260827051000');
 assert.strictEqual(crypto.createHash('sha256').update(fs.readFileSync(path)).digest('hex'),'5ee19520b7d9486304f69da53d497b8595d57c0bd0291ff21dc2555a0deb4a95');
 assert.strictEqual(identity.production_unchanged,true);

@@ -1,5 +1,15 @@
 # Autonomous Website Changes
 
+## 2026-08-27 — Final authoritative RFT lifecycle and collision-safe synthetic payload repair
+
+- Resumed from the preserved detached checkpoint and read the live staging ledger before mutation. Migrations 700, 701, 702, 703 and 704 were already committed; 705 was not. The live head was the unrelated applied 673 row at version `20260827106000`, so the colliding 705 draft was consolidated rather than re-applied.
+- Added staging-only append-only successor `supabase/staging_only/20260827107000_706_final_booked_synthetic_payload_identity_repair_after_673_collision.sql`. It is guarded to the exact live head and changes only `book_rft_transport_700` synthetic classification from `source_batch_id` dealer scope to the 11-character bounded `HERMES-TEST` stock prefix. Existing 700/412 receipts, RLS/grants, intercepted outbox and Production remain untouched.
+- Preserved the final frontend/service lifecycle: QC produces no email or timer; Booked produces one pending delivery-disabled intercepted email and starts one timer; Collected is distinct with cleared bays and an open timer; only exact Navision `Delivered - At Dealer` closes the immutable non-negative duration and completes the vehicle.
+- Repaired release metadata and stale contract assertions to use the 706 cache-busted asset identity. Removed the unapplied colliding 705 draft, its rehearsal residue, and generated Supabase `.temp` files.
+- Live proof: staging target was `postgres` with the expected sentinel and no Production sentinel; live head is `20260827107000`; 700-704 ledger rows remain present; effective 700 booking hash changed to the 706 definition with `v.stock_number` and no `v.source_batch_id`; authenticated grants, forced RLS, zero direct receipt DML, zero duplicate 412 outbox vehicles and outbound-disabled state remain intact.
+- Transactional HERMES-TEST-FINAL-700-B rehearsal passed and rolled back: QC→RFT no email/timer, Booked `synthetic_only=true` / `delivery_enabled=false` / `pending` with one 412 outbox and replay, Collected open timer/queued workshop status/cleared pointers, exact Delivered completion with one immutable receipt and non-negative duration, near-miss rejection, and unauthorized rejection. Persistent live fixture state and notification counts were unchanged.
+- Verification: all checkpoint `test_*.js` contracts passed; all non-live Python contract modules passed; project `npm run test` and `npm run check` passed with 226 passed, 0 failed, 1 skipped on the required baseline. Production was not contacted.
+
 ## 2026-08-27 — Parts Received canonical Navision identity repair
 
 - Updated `app.js` and `vehicle-lifecycle-actions.js` so shared Navision rows retain and submit their linked canonical `vehicles.id` for Parts Ordered/Received/ETA actions instead of relying on a display-only Navision record key; no additional identity claims are added.

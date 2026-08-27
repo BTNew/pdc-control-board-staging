@@ -1,5 +1,13 @@
 # Shared Files
 
+## Final authoritative RFT lifecycle 700-706 — 2026-08-27
+
+- `app.js`, `pdc-email-vehicle-location-service.js`, `index.html`, `pdc-supabase-config.staging.js` — QC → RFT → Booked → Collected → Delivered UI/service wiring, Collected projection, final 700 RPC clients, and 706 cache-busted staging assets.
+- `supabase/staging_only/20260827101000_700_authoritative_pdc_lifecycle.sql` through `20260827105000_704_delivery_wrapper_case_safe_normalization_repair.sql` — applied append-only final lifecycle and forward QC, Collected, and delivery-wrapper repairs; these files are preserved as applied history and are not re-applied.
+- `supabase/staging_only/20260827107000_706_final_booked_synthetic_payload_identity_repair_after_673_collision.sql` — minimal successor consolidating the unapplied 705 draft after the live 20260827106000 ledger collision; switches only the synthetic identity predicate from dealer batch to bounded HERMES-TEST stock.
+- `deployment-identity.json`, `test_final_authoritative_pdc_lifecycle_700.js`, `test_final_authoritative_pdc_lifecycle_706.js`, `test_acceptance_closure_contract.js`, `test_stoppage_rft_transport_412.js` and updated release-marker tests — lifecycle, collision, no-email/no-timer, Collected separation, security and cache-bust regression coverage.
+- `scripts/manage_final_pdc_lifecycle_700_staging.py`, `scripts/manage_final_pdc_lifecycle_701_staging.py` — preserved staging management provenance for the original 700/701 chain; no production path.
+
 ## Parts Received canonical Navision identity repair — 2026-08-27
 
 - `app.js` — shared Navision projection now retains the linked canonical vehicle UUID for Parts actions.

@@ -1,0 +1,17 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/20260827107000_706_final_booked_synthetic_payload_identity_repair_after_673_collision.sql', 'utf8');
+assert.match(sql, /^-- STAGING ONLY 706:/);
+assert.match(sql, /20260827106000/);
+assert.match(sql, /673_authenticated_monitor_execution_attachment_successor/);
+assert.match(sql, /20260827105000.*704_delivery_wrapper_case_safe_normalization_repair/s);
+assert.match(sql, /20260827107000.*706_final_booked_synthetic_payload_identity_repair_after_673_collision/s);
+assert.match(sql, /old text:='v\.source_batch_id'/);
+assert.match(sql, /new text:='v\.stock_number'/);
+assert.match(sql, /position\(old in d\)=0 OR length\(d\)-length\(replace\(d,old,''\)\)<>length\(old\)/);
+assert.match(sql, /position\('v\.source_batch_id' in d\)>0/);
+assert.match(sql, /Production remain unchanged/);
+assert.match(sql, /^--[\s\S]*BEGIN;[\s\S]*NOTIFY pgrst,'reload schema';\s*COMMIT;\s*$/);
+assert.strictEqual(fs.existsSync('supabase/staging_only/20260827106000_705_final_booked_synthetic_payload_identity_repair.sql'), false, 'colliding unapplied 705 draft is consolidated');
+console.log('final authoritative PDC lifecycle 706 collision-safe successor contract passed');
