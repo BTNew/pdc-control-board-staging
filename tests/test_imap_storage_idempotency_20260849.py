@@ -13,7 +13,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = ROOT / "backend" / "imap_bridge_successor_20260848.py"
+MODULE_PATH = ROOT / "backend" / "imap_bridge_successor_20260849.py"
 FIXTURE = ROOT / "tests" / "fixtures" / "supabase_storage_key_already_exists_400.json"
 # The sealed .44 source carries attachment_content.py; this focused seam test
 # supplies only its import contract so it remains runnable in the website repo.
@@ -22,10 +22,10 @@ attachment_content.SUPPORTED_EXTENSIONS = {".pdf"}
 attachment_content.validate_attachment = lambda *args, **kwargs: None
 sys.modules.setdefault("attachment_content", attachment_content)
 sys.path.insert(0, str(MODULE_PATH.parent))
-import imap_bridge_successor_20260848 as bridge
+import imap_bridge_successor_20260849 as bridge
 
 
-class StorageIdempotency20260848Tests(unittest.TestCase):
+class StorageIdempotency20260849Tests(unittest.TestCase):
     FIXTURE_HASH = hashlib.sha256(b"fixture").hexdigest()
 
     def _attachment(self, path: Path) -> bridge.AttachmentRecord:
@@ -72,10 +72,9 @@ class StorageIdempotency20260848Tests(unittest.TestCase):
     def test_other_http_400_failures_are_not_replay_success(self):
         for body in (
             {"code": "KeyAlreadyExists", "statusCode": 400},
-            {"code": "KeyAlreadyExists", "statusCode": 409},
-            {"code": "Unauthorized", "statusCode": 409},
+            {"code": "Unauthorized", "statusCode": "409"},
             {"code": "KeyAlreadyExists"},
-            {"message": "KeyAlreadyExists", "statusCode": 409},
+            {"message": "KeyAlreadyExists", "statusCode": "409"},
         ):
             with self.subTest(body=body), TemporaryDirectory() as directory:
                 path = Path(directory) / "job-card.pdf"
