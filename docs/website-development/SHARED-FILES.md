@@ -83,3 +83,11 @@
 - `pdc-email-vehicle-location-service.js` — shared Parts RPC error normalization.
 - `styles.css` — not changed by this task.
 - `supabase/staging_only/20260825220000_385_parts_order_authority.sql` — append-only staging trigger correction for ordered Parts writes.
+
+## Email Monitor .44 authenticated identity successor 672 — 2026-08-27
+
+- `supabase/staging_only/20260827067200_672_authenticated_active_email_monitor_identity_successor.sql` — exact 671-gated append-only authenticated identity successor with forced-RLS immutable capability history and exact-actor SECURITY DEFINER attestation/UID514 read RPCs.
+- `scripts/pdc_active_preflight_authenticated_compatibility.py`, `scripts/run_current_active_authenticated_compatibility.ps1`, `scripts/install_pdc_active_preflight_authenticated_compatibility.ps1` — protected standard `authenticated` JWT runtime successor; sealed `.44` release remains unchanged and task/mailbox/UID514 actions remain disabled.
+- `scripts/manage_monitor_authenticated_active_successor_staging.py` — exact staging management preflight/apply/post-readback controller.
+- `tests/test_monitor_authenticated_active_successor_672_contract.py`, `tests/test_pdc_active_preflight_authenticated_compatibility.py`, `tests/test_monitor_authenticated_active_successor_672_live.py` — contract, negative, idempotent and opt-in live coverage.
+- `docs/website-development/PDC-EMAIL-AUTHENTICATED-IDENTITY-SUCCESSOR-20260827.md` — secret-free pdc-emails handoff.
