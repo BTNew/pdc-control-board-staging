@@ -1,0 +1,32 @@
+-- STAGING ONLY 706: reject the 686 ambiguous negative source before it can
+-- receive a synthetic context projection. Positive multi-action repeats one
+-- Job Card identity and remains valid; two distinct identities fail closed.
+BEGIN;
+SET LOCAL lock_timeout='10s'; SET LOCAL statement_timeout='90s';
+SELECT pg_advisory_xact_lock(hashtextextended('pdc-staging-706-acceptance-ambiguity-guard',0));
+LOCK TABLE supabase_migrations.schema_migrations IN EXCLUSIVE MODE;
+DO $guard$
+DECLARE h text;
+BEGIN
+ SELECT encode(extensions.digest(convert_to(p.prosrc,'UTF8'),'sha256'),'hex') INTO h FROM pg_proc p WHERE p.oid='public.pdc_monitor_authenticated_acceptance_scope_704(jsonb)'::regprocedure;
+ IF current_user<>'postgres' OR session_user<>'postgres' OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1 OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL OR lower(coalesce(current_setting('app.environment',true),''))='production' OR (SELECT max(version) FROM supabase_migrations.schema_migrations WHERE version~'^[0-9]{14}$')<>'20260828270000' OR (SELECT count(*) FROM public.pdc_authenticated_acceptance_context_projection_volatility_history_705)=1 AND h<>'642779a8557c044be78da2586501b28a9899dd6e3018c20539cb0a5b7bf13252' OR to_regclass('public.pdc_authenticated_acceptance_ambiguity_guard_history_706') IS NOT NULL THEN RAISE EXCEPTION 'PDC_706_EXACT_705_AMBIGUITY_PREDECESSOR_MISMATCH' USING errcode='55000'; END IF;
+END $guard$;
+CREATE TABLE public.pdc_authenticated_acceptance_ambiguity_guard_history_706(history_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),event_key text NOT NULL UNIQUE,event_kind text NOT NULL CHECK(event_kind='acceptance_ambiguity_guard'),predecessor_head text NOT NULL CHECK(predecessor_head='20260828270000'),successor_head text NOT NULL CHECK(successor_head='20260828280000'),predecessor_function_sha256 text NOT NULL CHECK(predecessor_function_sha256='642779a8557c044be78da2586501b28a9899dd6e3018c20539cb0a5b7bf13252'),successor_function_sha256 text NOT NULL,repair_contract text NOT NULL,production_writes boolean NOT NULL CHECK(NOT production_writes),task_enabled boolean NOT NULL CHECK(NOT task_enabled),mailbox_contacted boolean NOT NULL CHECK(NOT mailbox_contacted),uid514_processed boolean NOT NULL CHECK(NOT uid514_processed),created_at timestamptz NOT NULL DEFAULT clock_timestamp());
+ALTER TABLE public.pdc_authenticated_acceptance_ambiguity_guard_history_706 ENABLE ROW LEVEL SECURITY; ALTER TABLE public.pdc_authenticated_acceptance_ambiguity_guard_history_706 FORCE ROW LEVEL SECURITY; REVOKE ALL ON public.pdc_authenticated_acceptance_ambiguity_guard_history_706 FROM public,anon,authenticated,service_role,pdc_email_monitor;
+CREATE FUNCTION public.pdc_authenticated_acceptance_ambiguity_guard_history_immutable_706() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$ BEGIN RAISE EXCEPTION 'PDC_706_AMBIGUITY_HISTORY_IMMUTABLE' USING errcode='55000'; END $$;
+REVOKE ALL ON FUNCTION public.pdc_authenticated_acceptance_ambiguity_guard_history_immutable_706() FROM public,anon,authenticated,service_role,pdc_email_monitor;
+CREATE TRIGGER pdc_authenticated_acceptance_ambiguity_guard_history_immutable_706 BEFORE UPDATE OR DELETE ON public.pdc_authenticated_acceptance_ambiguity_guard_history_706 FOR EACH ROW EXECUTE FUNCTION public.pdc_authenticated_acceptance_ambiguity_guard_history_immutable_706();
+DO $repair$
+DECLARE d text;before_sha text;after_sha text;old text;new text;
+BEGIN
+ SELECT pg_get_functiondef('public.pdc_monitor_authenticated_acceptance_scope_704(jsonb)'::regprocedure),encode(extensions.digest(convert_to(p.prosrc,'UTF8'),'sha256'),'hex') INTO d,before_sha FROM pg_proc p WHERE p.oid='public.pdc_monitor_authenticated_acceptance_scope_704(jsonb)'::regprocedure;
+ old:=$old$ OR v.permanent_vehicle_id NOT LIKE 'PDC-ACCEPT-686-%' OR i.subject NOT LIKE$old$;
+ new:=$new$ OR v.permanent_vehicle_id NOT LIKE 'PDC-ACCEPT-686-%' OR (SELECT count(DISTINCT upper(m[1])) FROM regexp_matches(coalesce(i.raw_body,i.parsed_text,''),'(?i)(?:job card|jobcard|repair order|JC)[[:space:]:#-]+([A-Z0-9-]{4,32})','g') m)<>1 OR NOT EXISTS(SELECT 1 FROM regexp_matches(coalesce(i.raw_body,i.parsed_text,''),'(?i)(?:job card|jobcard|repair order|JC)[[:space:]:#-]+([A-Z0-9-]{4,32})','g') m WHERE upper(m[1])=upper(v.job_card_number)) OR i.subject NOT LIKE$new$;
+ IF before_sha<>'642779a8557c044be78da2586501b28a9899dd6e3018c20539cb0a5b7bf13252' OR position(old IN d)=0 THEN RAISE EXCEPTION 'PDC_706_AMBIGUITY_ANCHOR_MISMATCH' USING errcode='55000'; END IF;
+ EXECUTE replace(d,old,new);
+ SELECT encode(extensions.digest(convert_to(p.prosrc,'UTF8'),'sha256'),'hex') INTO after_sha FROM pg_proc p WHERE p.oid='public.pdc_monitor_authenticated_acceptance_scope_704(jsonb)'::regprocedure;
+ INSERT INTO public.pdc_authenticated_acceptance_ambiguity_guard_history_706(event_key,event_kind,predecessor_head,successor_head,predecessor_function_sha256,successor_function_sha256,repair_contract,production_writes,task_enabled,mailbox_contacted,uid514_processed) VALUES(encode(extensions.digest(convert_to('pdc-staging-706-acceptance-ambiguity-guard|forward','UTF8'),'sha256'),'hex'),'acceptance_ambiguity_guard','20260828270000','20260828280000',before_sha,after_sha,'Require exactly one distinct Job Card identity matching the synthetic fixture vehicle; repeated references to the same identity remain valid, while the 686 ambiguous negative is never projected or acted upon',false,false,false,false);
+END $repair$;
+DO $post$ BEGIN IF (SELECT count(*) FROM public.pdc_authenticated_acceptance_ambiguity_guard_history_706)<>1 OR to_regprocedure('public.pdc_monitor_authenticated_acceptance_scope_704(jsonb)') IS NULL OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'PDC_706_POSTCONDITION_FAILED' USING errcode='55000'; END IF; END $post$;
+INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES('20260828280000','706_acceptance_ambiguity_guard',ARRAY['Exact 705 predecessor and scope-function hash guard','Reject two distinct Job Card identities while preserving repeated same-identity multi-action inputs','No context/action projection for ambiguous, wrong-source, cleaned or noncampaign fixtures; UID514/task/mailbox/outbound/Production untouched']);
+NOTIFY pgrST,'reload schema'; COMMIT;
