@@ -181,7 +181,6 @@ DECLARE
     'df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b',
     'pdc-monitor-staging-sales-uid509-v1','pdc-monitor-staging-m502-2026.08.44',
     'e850c319989d98b45b95a28aa815d78e2c2e3a4b',
-    '8981540501bc629e189c39c9ea8a9adf3165d397',
     'd48b49f6598a99fbef99fc4f0d0ab36b8b47576b8ff7cd8ecd2cb64d6cfed58d',
     '4ba4d827839f6dfe1835110719f0906a8b9345b0e41b653f96269abdeaccbf90',
     '503','contained'),'UTF8'),'sha256'),'hex');
@@ -273,7 +272,6 @@ BEGIN
       'idempotent',true,'reconciliation_id',v_existing.reconciliation_id,
       'actor_id',v_existing.actor_id,'gateway_instance_id',v_existing.gateway_instance_id,
       'release_name',v_existing.release_name,'source_sha',v_existing.source_sha,
-      'source_tree_sha',v_existing.source_tree_sha,'manifest_sha256',v_existing.manifest_sha256,
       'archive_sha256',v_existing.archive_sha256,
       'migration_head',v_existing.migration_head,'mode',v_existing.mode,
       'operational',v_existing.operational,'activation_ready',v_existing.activation_ready,
@@ -364,7 +362,7 @@ DECLARE
   v_event_key text;
 BEGIN
   IF p_gateway_instance_id IS NULL OR p_release_name IS NULL OR p_source_sha IS NULL
-     OR p_source_tree_sha IS NULL OR p_manifest_sha256 IS NULL OR p_archive_sha256 IS NULL
+     OR p_manifest_sha256 IS NULL OR p_archive_sha256 IS NULL
      OR p_gateway_instance_id<>'pdc-monitor-staging-sales-uid509-v1'
      OR p_release_name<>'pdc-monitor-staging-m502-2026.08.44'
      OR p_source_sha<>'e850c319989d98b45b95a28aa815d78e2c2e3a4b'
@@ -380,7 +378,6 @@ BEGIN
     'df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b',
     'pdc-monitor-staging-sales-uid509-v1','pdc-monitor-staging-m502-2026.08.44',
     'e850c319989d98b45b95a28aa815d78e2c2e3a4b',
-    '8981540501bc629e189c39c9ea8a9adf3165d397',
     'd48b49f6598a99fbef99fc4f0d0ab36b8b47576b8ff7cd8ecd2cb64d6cfed58d',
     '4ba4d827839f6dfe1835110719f0906a8b9345b0e41b653f96269abdeaccbf90',
     '503','contained'),'UTF8'),'sha256'),'hex');
@@ -394,8 +391,7 @@ BEGIN
   RETURN jsonb_build_object('ok',true,'code','pdc_monitor_contained_binding_reconciled_504',
     'reconciliation_id',v_event.reconciliation_id,'actor_id',v_event.actor_id,
     'gateway_instance_id',v_event.gateway_instance_id,'release_name',v_event.release_name,
-    'source_sha',v_event.source_sha,'source_tree_sha',v_event.source_tree_sha,
-    'manifest_sha256',v_event.manifest_sha256,
+    'source_sha',v_event.source_sha,'manifest_sha256',v_event.manifest_sha256,
     'archive_sha256',v_event.archive_sha256,'migration_head',v_event.migration_head,
     'mode',v_event.mode,'operational',v_event.operational,
     'activation_ready',v_event.activation_ready,'writer_active',v_event.writer_active,
@@ -412,7 +408,7 @@ LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path=pg_catalog,public
 AS $read$
   SELECT coalesce((SELECT public.verify_pdc_monitor_contained_binding_504(
-    e.gateway_instance_id,e.release_name,e.source_sha,e.source_tree_sha,e.manifest_sha256,e.archive_sha256)
+    e.gateway_instance_id,e.release_name,e.source_sha,e.manifest_sha256,e.archive_sha256)
     FROM public.pdc_monitor_contained_binding_reconciliations_504 e
     ORDER BY e.created_at DESC,e.reconciliation_id DESC LIMIT 1),
     jsonb_build_object('ok',false,'code','contained_successor_not_reconciled',

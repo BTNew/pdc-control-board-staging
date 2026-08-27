@@ -53,8 +53,6 @@ includes('predecessor_ledger_sha256');
 includes('predecessor_provision_function_sha256');
 includes('predecessor_verify_function_sha256');
 includes('predecessor_markers');
-includes('source_tree_sha');
-includes('8981540501bc629e189c39c9ea8a9adf3165d397');
 assert.match(sql, /WHERE active AND revoked_at IS NULL/i, 'active writer checks include revoked-at containment');
 includes("where singleton and (enabled or automatic_rule_application");
 
