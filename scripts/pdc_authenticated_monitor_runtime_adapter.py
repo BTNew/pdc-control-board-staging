@@ -14,6 +14,7 @@ import hashlib
 import importlib.util
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
@@ -144,7 +145,20 @@ def load_sealed_imap_module(release_root: Path):
     if spec is None or spec.loader is None:
         raise RuntimeCompatibilityError("PDC_673_SEALED_IMAP_LOAD_FAILED")
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    # importlib's normal module loader registers the module before executing
+    # it.  The sealed bridge contains dataclass declarations whose decorator
+    # resolves __module__ through sys.modules; omitting this registration
+    # makes the external adapter fail before any message is parsed.
+    previous = sys.modules.get(spec.name)
+    sys.modules[spec.name] = module
+    try:
+        spec.loader.exec_module(module)
+    except Exception:
+        if previous is None:
+            sys.modules.pop(spec.name, None)
+        else:
+            sys.modules[spec.name] = previous
+        raise
     return module
 
 

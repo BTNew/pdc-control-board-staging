@@ -99,3 +99,13 @@
 - `scripts/manage_monitor_authenticated_active_successor_staging.py` — exact staging management preflight/apply/post-readback controller.
 - `tests/test_monitor_authenticated_active_successor_672_contract.py`, `tests/test_pdc_active_preflight_authenticated_compatibility.py`, `tests/test_monitor_authenticated_active_successor_672_live.py` — contract, negative, idempotent and opt-in live coverage.
 - `docs/website-development/PDC-EMAIL-AUTHENTICATED-IDENTITY-SUCCESSOR-20260827.md` — secret-free pdc-emails handoff.
+|
+|## Email Monitor .44 final mailbox and dispatch compatibility 674-676
+|
+|- `supabase/staging_only/20260827108000_674_authenticated_monitor_mailbox_activation_transition.sql` — exact existing `pdc_pmb_email` activation, authenticated 674 proof/readback and immutable guarded rollback; 670-673 remain preserved.
+|- `supabase/staging_only/20260827109000_675_authenticated_monitor_enqueue_trigger_compatibility.sql` — exact authenticated enqueue branch through the disabled-pilot trigger, UID floor 515, immutable trigger history and rollback.
+|- `supabase/staging_only/20260827110000_676_authenticated_monitor_rollback_control_repair.sql` — additive repair making the 674/675 enabled controls rollbackable.
+|- `scripts/pdc_active_preflight_authenticated_mailbox_compatibility.py`, `scripts/run_current_authenticated_monitor_dispatch.ps1`, `scripts/pdc_authenticated_monitor_dispatch_bootstrap.ps1`, `scripts/install_pdc_authenticated_monitor_dispatch.ps1` — protected authenticated 674 preflight and task bootstrap/runner with exact adapter and sealed-launcher hash anchors; task remains disabled.
+|- `scripts/pdc_authenticated_monitor_runtime_adapter.py` — external sealed-module loader repair registering `imap_bridge` in `sys.modules` before execution, retaining the 7/4 MIME contract without editing `.44`.
+|- `tests/test_monitor_authenticated_mailbox_activation_674_contract.py`, `tests/test_monitor_authenticated_enqueue_trigger_675_contract.py`, `tests/test_monitor_authenticated_runtime_successor_contract.py` — mailbox, trigger, adapter, dispatch, malformed and synthetic rollback contract coverage.
+|- `docs/website-development/PDC-EMAIL-ACTIVATION-COMPATIBILITY-HANDOFF-20260827.md` — exact secret-free pdc-emails handoff and current JWT expiry boundary.

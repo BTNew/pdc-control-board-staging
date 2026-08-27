@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import tempfile
 import re
 import unittest
 from email.message import EmailMessage
@@ -95,6 +96,23 @@ class AuthenticatedRuntimeSuccessor673Tests(unittest.TestCase):
         self.assertEqual(len(selected["business_pdfs"]), 4)
         self.assertEqual(selected["job_card"]["source_hash"], adapter.JOB_CARD_SHA256)
         self.assertEqual([item["attachment_id"] for item in selected["business_pdfs"]], ["a3", "a4", "a5", "a6"])
+
+    def test_external_loader_registers_sealed_module_before_execution(self):
+        adapter = load_adapter()
+        with tempfile.TemporaryDirectory(prefix="hermes-verify-673-loader-") as temp:
+            root = Path(temp)
+            backend = root / "backend"
+            backend.mkdir()
+            (backend / "imap_bridge.py").write_text(
+                "from dataclasses import dataclass\n"
+                "import sys\n"
+                "@dataclass\n"
+                "class LoadedPart:\n"
+                "    module_seen: bool = __name__ in sys.modules\n",
+                encoding="utf-8",
+            )
+            module = adapter.load_sealed_imap_module(root)
+            self.assertTrue(module.LoadedPart().module_seen)
 
     def test_adapter_rejects_malformed_or_ambiguous_sets(self):
         adapter = load_adapter()
