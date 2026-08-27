@@ -102,3 +102,13 @@
 - Preservation: Compatibility controls and history use forced RLS and immutable triggers; only `authenticated` executes the reader and the admin-only forward rollback path. Writer activation, monitor operation, mailbox activation, planner commissioning and production writes remain false/zero.
 - Live result: PostgreSQL head is `20260827064000`; exact sales contained verification is HTTP 200 `runtime_binding_verified_503`; `read_pdc_uid514_transaction_receipt_257(25751401)` is HTTP 200 `uid514_authorization_pending`, `terminal=false`, Inbox UIDVALIDITY 1 UID 514. The earlier HTTP 403 was correctly removed only for this exact contained reader scope.
 - Secrets were not printed, copied or written to the log.
+
+## 2026-08-27 — Staging Email Bot .44 backend/runtime capability remediation 670/671
+
+- Environment: Supabase staging project `cdsmnqxtyyoeoznmbidd` only; Production, mailbox, Windows monitor task, outbound email and automatic pilot were untouched.
+- Applied append-only `20260827067000` and `20260827067100`: exact sales actor importer/writer capability, `pdc_email_monitor` UID514/attestation/canonical grants, reviewed deterministic planner/trust binding, active-mode UID514 reader, immutable forced-RLS history and guarded rollback.
+- UID514 remains fail-closed and unprocessed: live contract is seven MIME parts with four retained authenticated attachments and one exact qualifying PDF hash; all MIME parts are retained; no intake, claim, attachment, vehicle or operation row was created by this repair.
+- Live proof: active `.44` attestation `ok=true`, `runtime_binding_verified_503`, `activation_ready=true`, `writer_active=true`, `planner_commissioned=true`, `production_writes=false`; UID514 reader `uid514_receipt_terminal`, synthetic=true, parts=7/retained=4. Wrong actor/event remained denied.
+- Security proof: one active writer, zero active mailboxes, zero automatic-pilot rows, private capability tables forced-RLS, anon/service-role UID514 reader execution false, planner trigger re-enabled.
+- Tests: focused contract/planner/controller 7/7; `npm run test` 226 passed/0 failed/1 skipped; `npm run check` 226 passed/0 failed/1 skipped. Windows monitor was not enabled and UID514 was not processed.
+- Secrets were not printed, copied or written to the log.

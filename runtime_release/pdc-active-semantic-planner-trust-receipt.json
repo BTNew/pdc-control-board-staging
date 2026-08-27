@@ -1,0 +1,8 @@
+{
+  "approved_at": "2026-08-27T05:03:14Z",
+  "approved_by": "Craig Watson",
+  "contract": "pdc-active-semantic-planner-trust-v1",
+  "planner_interface": "pmb-pdc-agentic-email-plan-v1",
+  "planner_sha256": "7e08a00bc099610aa919bb7c3089ef84b91a74bafd69f95fab06bfccfdf67348",
+  "release_series": "pdc-monitor-staging-m502"
+}
