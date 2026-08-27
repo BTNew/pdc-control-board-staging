@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.27.16-exact-uid639-640-import",
+  "application_version": "2026.08.27.17-yard-hold-pmb-control",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
