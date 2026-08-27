@@ -184,3 +184,9 @@
 - Security result: after owner normalization, every explicit grantee is safely quoted and dynamically revoked, including arbitrary quoted roles and grant options; canonical routines are rebuilt to owner plus exact non-grantable authenticated EXECUTE, while historical/mixed-case/alternate-schema/overload/default members remain owner-only. Canonical monitor success/replay/body-location ETA behaviour is unchanged.
 - Hostile verification: the migration creates a quoted arbitrary role with direct EXECUTE plus grant option on canonical and noncanonical routines, captures it in pre-inventory, proves it absent and denied in post-inventory, then drops it before commit. The live rollback test creates equivalent quoted-role ACLs under a savepoint and proves no role or ACL residue remains after rollback. No vehicle or user-data mutation occurs.
 - Added focused contract/live coverage and a guarded staging apply helper. Required verification remains source/local tests plus authorised staging live head, raw-ACL postconditions, canonical success/replay/body-location ETA proof, clean staging SHA/tree, CI and Pages read-back; Production is untouched.
+
+## 2026-08-28 — 716 installer pre-import hardening
+
+- Scope: source-only hardening of `scripts/apply_migration_716_staging.py`; the already-correct staging backend at 716 was not reapplied, and Production was not contacted.
+- Action: added a stdlib-only trust manifest and pre-import attestation for the exact b96c8fa parent, clean candidate tree, Git identity, controller/migration/715/bootstrap paths and hashes. `psycopg2`, bootstrap execution and DPAPI secret access now occur only after those gates; `--apply` also requires an exact candidate/hash confirmation.
+- Verification: hostile shadow `psycopg2.py` and bootstrap-module tests prove neither executes on attestation failure; the positive reviewed seam reaches read-only 716 verification without an apply statement. Secrets were not printed or copied.

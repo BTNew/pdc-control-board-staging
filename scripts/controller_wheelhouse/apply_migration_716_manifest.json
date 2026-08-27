@@ -1,0 +1,12 @@
+{
+  "schema": "pdc-716-installer-trust-v1",
+  "approved_parent_commit": "b96c8fae340a8e0471196a5cf3e9b8bc8a6b9c1a",
+  "approved_parent_tree": "4884de6c46f2294df81427f9a5e4904373790f6f",
+  "git_identity": "Hermes Agent\u0000hermes-agent@local\u0000Hermes Agent\u0000hermes-agent@local",
+  "controller_sha256": "a4fda31c2916c2ae5cee1db201a3a490d0f26c42914d35edf6284c5ee01d177e",
+  "migration_sha256": "864c417ef07ee9c6978eba3cfb1165664f70ac813e6a34ac6dae5337ab82f228",
+  "previous_sha256": "1df478da87e0c5ddb3735ce5489246251f91fc877ebc7700403630e62fca461d",
+  "bootstrap_path": "C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py",
+  "bootstrap_sha256": "d0c80bdced04bea959adbad3c51f24e0db98e95aed532a72e06831f2ac8046f8",
+  "secret_path": "C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-secrets\\pdc-staging.dpapi"
+}
