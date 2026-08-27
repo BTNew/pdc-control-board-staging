@@ -34,7 +34,7 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.23.04-hide-uncommissioned-delete',
+    resolverAssetVersion: '2026.08.27.17-parts-canonical-navision-id',
     // Fail closed until migration 323 is independently approved, applied to
     // this exact staging project, and authenticated RPC probes pass.
     completeVehicleDeleteCommissioned: false

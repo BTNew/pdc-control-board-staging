@@ -15669,6 +15669,12 @@ function sharedNavisionLocationVehicle(item = {}) {
   const canonicalLocation = cleanNavisionText(item.current_location || '');
   return {
     id: `shared-navision-${item.id || sharedNavisionIdentityToken(item.stock_number)}`,
+    canonicalVehicleId: item.canonical_vehicle_id || '',
+    sharedVehicleId: item.canonical_vehicle_id || '',
+    sourceSystem: 'microsoft_navision',
+    sourceRecordId: item.source_record_id || item.id || '',
+    dealerCode: item.dealer_code || '',
+    navisionDealerCode: item.dealer_code || '',
     stock: item.stock_number || '',
     batch: item.stock_number || '',
     client: item.customer_name || '',

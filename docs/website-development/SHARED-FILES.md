@@ -1,5 +1,12 @@
 # Shared Files
 
+## Parts Received canonical Navision identity repair — 2026-08-27
+
+- `app.js` — shared Navision projection now retains the linked canonical vehicle UUID and source identity for Parts actions.
+- `vehicle-lifecycle-actions.js` — lifecycle identity resolution accepts the shared Navision canonical UUID.
+- `index.html`, `pdc-supabase-config.staging.js` — cache-busted changed app/config and lazy resolver assets.
+- `test_parts_received_shared_identity.js` — canonical/Navision/email Parts Received identity and payload regression coverage.
+
 ## Synthetic containment drift repair — 2026-08-26
 
 - `supabase/staging_only/20260826215000_436_current_containment_read_repair.sql` — append-only staging contract repair for current read containment and exact protected/notification/outbound synthetic write postconditions.

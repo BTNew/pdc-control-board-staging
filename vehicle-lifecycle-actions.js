@@ -97,7 +97,7 @@ function buildVehicleLifecycleIdentityInput(vehicle = {}) {
     p_vehicle_id: chooseLifecycleIdentityText('vehicle_id', [
       vehicle.sharedVehicleId, vehicle.shared_vehicle_id, vehicle.vehicleId,
       vehicle.vehicle_id, vehicle.canonicalVehicleId, vehicle.canonical_vehicle_id,
-      vehicle.__emailVehicleId,
+      vehicle.__emailVehicleId, vehicle.__sharedNavisionCanonicalVehicleId,
     ], normalizeLifecycleUuid, state),
     p_stock_number: chooseLifecycleIdentityText('stock_number', [
       vehicle.stock, vehicle.stockNumber, vehicle.stock_number,
