@@ -15,6 +15,8 @@ The final compatibility chain is applied and read back:
 - 674 `20260827108000` — exact mailbox activation and new authenticated proof/readback
 - 675 `20260827109000` — exact authenticated enqueue branch through the disabled-pilot trigger
 - 676 `20260827110000` — rollback-control repair for the 674/675 enabled flags
+- 677 `20260827111000` — exact retained UID514 recovery enqueue/authorization successor
+- 678 `20260827112000`, 679 `20260827114000`, 682 `20260828000000`, 683 `20260828010000` — append-only recovery repairs; see `PDC-EMAIL-UID514-RECOVERY-SUCCESSOR-HANDOFF-20260827.md`
 
 The only active mailbox is the existing staging row:
 
@@ -59,7 +61,7 @@ The scheduled task remains Disabled, `LOCAL SERVICE`, Limited run level, and its
 
 ## Exact hashes
 
-- 674 migration: `ecccae5d4d6b211e9d6d84c3100589020eb09614da659998bbfa3e741efdc035`
+- 674 migration: `d6c57dd8f0215cff71e479b4b50e40de10dea2113216534ccc2edd9048db3bcb`
 - 675 migration: `8f7b1c260e03d3cfd5f5c4931abb959aa269ce0e1755728313f98c17ebaca2a0`
 - 676 migration: `9d1a922c7c4074ff75df7d1ed821872321d33fff6240667b45530e50aba59e4d`
 - authenticated mailbox preflight: `0ab027ce023af99e3667431ed3c8b622da6198789f15d81e89835549e54e7f66`
