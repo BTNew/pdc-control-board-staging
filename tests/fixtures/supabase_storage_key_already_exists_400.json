@@ -2,6 +2,6 @@
   "status": 400,
   "body": {
     "code": "KeyAlreadyExists",
-    "statusCode": 409
+    "statusCode": "409"
   }
 }

@@ -13,7 +13,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = ROOT / "backend" / "imap_bridge_successor_20260846.py"
+MODULE_PATH = ROOT / "backend" / "imap_bridge_successor_20260847.py"
 FIXTURE = ROOT / "tests" / "fixtures" / "supabase_storage_key_already_exists_400.json"
 # The sealed .44 source carries attachment_content.py; this focused seam test
 # supplies only its import contract so it remains runnable in the website repo.
@@ -22,10 +22,10 @@ attachment_content.SUPPORTED_EXTENSIONS = {".pdf"}
 attachment_content.validate_attachment = lambda *args, **kwargs: None
 sys.modules.setdefault("attachment_content", attachment_content)
 sys.path.insert(0, str(MODULE_PATH.parent))
-import imap_bridge_successor_20260846 as bridge
+import imap_bridge_successor_20260847 as bridge
 
 
-class StorageIdempotency20260846Tests(unittest.TestCase):
+class StorageIdempotency20260847Tests(unittest.TestCase):
     FIXTURE_HASH = hashlib.sha256(b"fixture").hexdigest()
 
     def _attachment(self, path: Path) -> bridge.AttachmentRecord:
@@ -81,7 +81,6 @@ class StorageIdempotency20260846Tests(unittest.TestCase):
             {"code": "Unauthorized", "statusCode": 409},
             {"code": "KeyAlreadyExists"},
             {"message": "KeyAlreadyExists", "statusCode": 409},
-            {"code": "KeyAlreadyExists", "statusCode": "409"},
         ):
             with self.subTest(body=body), TemporaryDirectory() as directory:
                 path = Path(directory) / "job-card.pdf"
@@ -116,7 +115,7 @@ class StorageIdempotency20260846Tests(unittest.TestCase):
         self.assertTrue(result.endswith("/job-card.pdf"))
 
     def test_collision_reuses_only_a_hash_matching_storage_object(self):
-        collision = self._error(400, {"code": "KeyAlreadyExists", "statusCode": 409})
+        collision = self._error(400, {"code": "KeyAlreadyExists", "statusCode": "409"})
         listing = self._response(200, json.dumps([{
             "name": "existing-name.pdf",
             "metadata": {"contentLength": 7, "mimetype": "application/pdf"},
@@ -132,7 +131,7 @@ class StorageIdempotency20260846Tests(unittest.TestCase):
         self.assertEqual(result, "pdc-email-intake-private/" + self.FIXTURE_HASH + "/existing-name.pdf")
 
     def test_collision_with_different_bytes_fails_closed(self):
-        collision = self._error(400, {"code": "KeyAlreadyExists", "statusCode": 409})
+        collision = self._error(400, {"code": "KeyAlreadyExists", "statusCode": "409"})
         listing = self._response(200, json.dumps([{
             "name": "existing-name.pdf",
             "metadata": {"contentLength": 8, "mimetype": "application/pdf"},
