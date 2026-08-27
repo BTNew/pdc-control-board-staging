@@ -144,6 +144,12 @@ class Uid514ExactRecovery677LiveTests(unittest.TestCase):
                     cur.execute("release savepoint uid514_negative")
 
         expect_error("select public.enqueue_pdc_uid514_recovery_677(%s::jsonb,%s::jsonb,%s)", (message, attachments, 25751402), "PDC_677_UID514_RECOVERY_SCOPE_INVALID")
+        wrong_hash = json.loads(message)
+        wrong_hash["source_hash"] = "a" * 64
+        expect_error("select public.enqueue_pdc_uid514_recovery_677(%s::jsonb,%s::jsonb,%s)", (json.dumps(wrong_hash), attachments, EVENT), "PDC_677_UID514_RECOVERY_PAYLOAD_INVALID")
+        wrong_mailbox = json.loads(message)
+        wrong_mailbox["recipient_mailbox"] = "other@example.invalid"
+        expect_error("select public.enqueue_pdc_uid514_recovery_677(%s::jsonb,%s::jsonb,%s)", (json.dumps(wrong_mailbox), attachments, EVENT), "PDC_677_UID514_RECOVERY_PAYLOAD_INVALID")
         expect_error("select public.claim_pdc_uid514_recovery_257(%s,%s)", ("wrong-gateway", EVENT), "PDC_261_UID514_RUNTIME_UNBOUND")
         self.set_claims("557d7ba7-fd70-4b9e-aa7b-b83b717682a7", "administrator2@staging.pdc-workshop.example.com")
         expect_error("select public.enqueue_pdc_uid514_recovery_677(%s::jsonb,%s::jsonb,%s)", (message, attachments, EVENT), "PDC_677_UID514_RECOVERY_PAYLOAD_INVALID")
