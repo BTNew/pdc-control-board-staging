@@ -2083,6 +2083,7 @@ const app = {
   vehicleLocationsRefreshResult: null,
   vehicleLocationsRefreshDisclosure: null,
   vehicleLocationsRefreshCoordinator: null,
+  vehicleLocationsRefreshClickDelegation: null,
 };
 
 
@@ -2113,6 +2114,77 @@ const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
 const on = (target, eventName, handler, options) => {
   if (target && typeof target.addEventListener === 'function') target.addEventListener(eventName, handler, options);
 };
+
+function setVehicleLocationsRefreshButtonBusy(button, busy) {
+  if (!button) return;
+  button.disabled = busy === true;
+  const status = button.closest?.('.vehicle-locations-refresh');
+  if (status) status.setAttribute('aria-busy', busy === true ? 'true' : 'false');
+  if (busy === true) {
+    button.setAttribute('aria-busy', 'true');
+    button.textContent = 'Refreshing…';
+  } else {
+    button.removeAttribute('aria-busy');
+    button.textContent = 'Refresh';
+  }
+}
+
+function handleVehicleLocationsRefreshClickStart(button) {
+  setVehicleLocationsRefreshButtonBusy(button, true);
+  const status = button?.closest?.('.vehicle-locations-refresh');
+  const heading = status?.querySelector?.('strong');
+  const detail = status?.querySelector?.('span');
+  if (heading) heading.textContent = 'Refreshing Vehicle Locations…';
+  if (detail) detail.textContent = 'Reloading the authoritative Navision, operational, work, booking and receipt snapshots.';
+}
+
+function handleVehicleLocationsRefreshClickResult(result) {
+  if (result?.stale || result?.ok !== false) return;
+  const error = String(result.error || result.code || 'refresh_failed');
+  if (app.vehicleLocationsRefreshState === 'error' && app.vehicleLocationsRefreshError === error) return;
+  app.vehicleLocationsRefreshState = 'error';
+  app.vehicleLocationsRefreshError = error;
+  renderIncomingDashboardBoard();
+}
+
+function bindVehicleLocationsRefreshClickDelegation() {
+  if (app.vehicleLocationsRefreshClickDelegation) return app.vehicleLocationsRefreshClickDelegation;
+  const root = $('#incoming-main-board') || document;
+  const uiFactory = window.PDC_VEHICLE_LOCATIONS_REFRESH_UI?.createRefreshClickDelegation;
+  if (typeof uiFactory === 'function') {
+    app.vehicleLocationsRefreshClickDelegation = uiFactory({
+      root,
+      refresh: () => refreshVehicleLocations(),
+      onStart: handleVehicleLocationsRefreshClickStart,
+      onResult: handleVehicleLocationsRefreshClickResult,
+    });
+    app.vehicleLocationsRefreshClickDelegation.bind();
+    return app.vehicleLocationsRefreshClickDelegation;
+  }
+  let inFlight = null;
+  const fallbackHandler = event => {
+    const button = event.target?.closest?.('[data-vehicle-locations-refresh]');
+    if (!button || button.disabled || inFlight) return;
+    event.preventDefault();
+    event.stopPropagation();
+    handleVehicleLocationsRefreshClickStart(button);
+    const promise = Promise.resolve().then(() => refreshVehicleLocations()).then(result => {
+      handleVehicleLocationsRefreshClickResult(result);
+      return result;
+    }).catch(() => {
+      const result = { ok: false, error: 'refresh_failed' };
+      handleVehicleLocationsRefreshClickResult(result);
+      return result;
+    }).finally(() => {
+      if (inFlight === promise) inFlight = null;
+      setVehicleLocationsRefreshButtonBusy(button, false);
+    });
+    inFlight = promise;
+  };
+  on(root, 'click', fallbackHandler);
+  app.vehicleLocationsRefreshClickDelegation = { bind: () => true, isBound: () => true, isRefreshing: () => Boolean(inFlight) };
+  return app.vehicleLocationsRefreshClickDelegation;
+}
 
 function cleanName(value = '') {
   return String(value)
@@ -3362,13 +3434,7 @@ function bindNav() {
   on($('#dashboard-import-pd'), 'click', importDashboardPdWork);
   on($('#dashboard-clear-pd'), 'click', clearDashboardPdImport);
   on($('#incoming-search'), 'input', queueIncomingDashboardRender);
-  on($('#incoming-main-board'), 'click', event => {
-    const button = event.target?.closest?.('[data-vehicle-locations-refresh]');
-    if (!button) return;
-    event.preventDefault();
-    event.stopPropagation();
-    void refreshVehicleLocations();
-  });
+  bindVehicleLocationsRefreshClickDelegation();
   on($('#incoming-status-filter'), 'change', renderIncomingDashboardBoard);
   on($('#incoming-bucket-filter'), 'change', renderIncomingDashboardBoard);
   on($('#incoming-rep-filter'), 'change', renderIncomingDashboardBoard);
@@ -16559,7 +16625,7 @@ function sharedNavisionLocationsStatusHtml() {
   const detail = refreshing
     ? 'Reloading the authoritative Navision, operational, work, booking and receipt snapshots.'
     : failedRefresh
-      ? 'Previous authoritative Vehicle Locations data is stale. Retry without leaving this Board.'
+      ? `Refresh failed (${app.vehicleLocationsRefreshError || 'refresh_failed'}). Previous authoritative Vehicle Locations data is stale. Retry without leaving this Board.`
       : app.sharedNavisionVisibleState === 'error'
         ? (app.sharedNavisionVisibleError || 'Shared Navision imports could not be loaded. Previous rows remain visible.')
         : `${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${app.sharedNavisionVisibleRevision ?? '—'} · ${realtimeHealthy ? 'synchronized across signed-in computers' : 'live synchronization reconnecting'}`;

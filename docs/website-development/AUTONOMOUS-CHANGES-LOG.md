@@ -1,5 +1,10 @@
 # Autonomous Website Changes
 
+## 2026-08-29 — Vehicle Locations Refresh click-path repair
+
+- Fixed the live staging no-op caused by classic-script `const exported` collisions: the email service, modal identity and refresh modules now use collision-safe export bindings, and a dedicated delegated click module is loaded before `app.js`. The real browser reproduced the prior failure with `PDC_VEHICLE_LOCATIONS_REFRESH` undefined despite a 200 module response.
+- Added a one-time delegated DOM controller with immediate `Refreshing…`, disabled/aria-busy state, stable in-flight double-click suppression, render-replacement tolerance and visible `refresh_unavailable`/auth/error recovery. Slimmed the complete green status bar while retaining readable text, centered 42px touch target and mobile wrapping. Cache marker is `2026.08.29.760-refresh-click`. Production was not contacted or mutated.
+
 ## 2026-08-29 — Durable authenticated Parts check-off successor 751
 
 - Replaced the deployed hard-coded 738 Auditor / 742 one-time controller browser target with the staging-only `20260829144000 / 751_authenticated_parts_received_contract` RPC. It accepts exact canonical UUID + Stock + expected version + idempotency key, permits only approved authenticated Administrator or operator identities, keeps operators dealer-scoped, and leaves the earlier 13016925 correction paths unchanged.

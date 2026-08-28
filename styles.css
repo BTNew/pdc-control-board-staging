@@ -11297,13 +11297,20 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
+  min-height: 42px;
+  margin-bottom: 8px;
+  padding: 5px 10px;
+  gap: 8px;
 }
 .vehicle-locations-refresh > strong {
   grid-column: 1;
+  min-width: 0;
 }
 .vehicle-locations-refresh > span {
   grid-column: 3;
   min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
   text-align: right;
 }
 .vehicle-locations-refresh.is-stale {

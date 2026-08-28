@@ -105,7 +105,7 @@ function testIntegrationAndSlimRefreshContracts() {
   ]) assert(appSource.includes(marker), `missing save/rebind marker: ${marker}`);
   assert(appSource.includes("refreshEmailVehicleLocations({ refreshGeneration: generation })"));
   assert(appSource.includes('Previous authoritative Vehicle Locations data is stale'));
-  assert(indexSource.includes('vehicle-locations-refresh=2026.08.29.755-vehicle-modal-cached-row-recovery'));
+  assert(indexSource.includes('vehicle-locations-refresh=2026.08.29.760-refresh-click'));
   assert(stylesSource.includes('width: fit-content'));
   assert(stylesSource.includes('min-width: 0'));
   assert(stylesSource.includes('min-height: 42px'));

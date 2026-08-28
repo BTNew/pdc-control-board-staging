@@ -80,6 +80,6 @@ function createVehicleLocationsRefreshCoordinator(options = {}) {
   };
 }
 
-const exported = { createVehicleLocationsRefreshCoordinator };
-if (typeof module !== 'undefined' && module.exports) module.exports = exported;
-if (typeof window !== 'undefined') window.PDC_VEHICLE_LOCATIONS_REFRESH = exported;
+const vehicleLocationsRefreshExported = { createVehicleLocationsRefreshCoordinator };
+if (typeof module !== 'undefined' && module.exports) module.exports = vehicleLocationsRefreshExported;
+if (typeof window !== 'undefined') window.PDC_VEHICLE_LOCATIONS_REFRESH = vehicleLocationsRefreshExported;

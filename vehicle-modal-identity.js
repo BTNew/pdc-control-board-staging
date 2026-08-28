@@ -58,12 +58,12 @@ async function saveWithOneExactRebindRetry({ vehicle = {}, changes = {}, save, r
   return save(rebound.vehicle, changes);
 }
 
-const exported = {
+const vehicleModalIdentityExported = {
   RETRYABLE_SAVE_CODES,
   RETRYABLE_MODAL_IDENTITY_FAILURES,
   isRetryableVehicleModalIdentityFailure,
   resolveExactAuthoritativeVehicleRow,
   saveWithOneExactRebindRetry,
 };
-if (typeof module !== 'undefined' && module.exports) module.exports = exported;
-if (typeof window !== 'undefined') window.PDC_VEHICLE_MODAL_IDENTITY = exported;
+if (typeof module !== 'undefined' && module.exports) module.exports = vehicleModalIdentityExported;
+if (typeof window !== 'undefined') window.PDC_VEHICLE_MODAL_IDENTITY = vehicleModalIdentityExported;

@@ -1,5 +1,11 @@
 # Shared Files
 
+## Vehicle Locations Refresh click-path repair — 2026-08-29
+
+- `app.js`, `pdc-email-vehicle-location-service.js`, `vehicle-modal-identity.js`, `vehicle-locations-refresh.js` — collision-safe classic-script exports, one-time delegated click wiring, immediate busy/error handling and preserved authoritative refresh fan-in.
+- `vehicle-locations-refresh-ui.js`, `index.html`, `styles.css` — staging-only DOM click controller, cache-busted script order and slimmer responsive green status bar.
+- `test_vehicle_locations_refresh_dom_click.js`, `test_vehicle_modal_identity_recovery.js`, `test_vehicle_modal_save_rebind.js` — loaded-module DOM click, missing/auth failure, double-click, render replacement, cache and no-reload regressions.
+
 ## Durable authenticated Parts check-off successor 751 — 2026-08-29
 
 - `supabase/staging_only/20260829144000_751_authenticated_parts_received_contract.sql` — append-only staging contract after the settled recovery 750 head; exact UUID + Stock + version + idempotency, Administrator/non-Administrator authorization split, Parts ETA invariant repair, receipt/audit/revision/version postconditions and forced-RLS immutable receipt history.
