@@ -91,6 +91,9 @@ const exactRawSnapshotVehicle = { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', st
 identityContext.app.emailVehicleLocationRows = [otherVehicle, exactRawSnapshotVehicle];
 identityContext.app.data = [exactVehicle, otherVehicle];
 assert.strictEqual(identityContext.vehicleModalBoundVehicle().__emailVehicleId, exactVehicle.__emailVehicleId, 'reordered realtime rows retain exact modal UUID and Stock');
+identityContext.app.emailVehicleLocationRows = [otherVehicle];
+identityContext.app.data = [{ ...exactVehicle, __emailVehicleServerAuthoritative: true }, otherVehicle];
+assert.strictEqual(identityContext.vehicleModalBoundVehicle().__emailVehicleId, exactVehicle.__emailVehicleId, 'cached authenticated exact row survives a transient snapshot omission');
 identityContext.app.emailVehicleLocationRows = [{ ...exactVehicle, stock: '12657478' }, exactVehicle];
 assert.strictEqual(identityContext.vehicleModalBoundVehicle(), null, 'conflicting UUID/Stock projection fails closed');
 

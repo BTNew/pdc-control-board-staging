@@ -4715,7 +4715,7 @@ async function refreshEmailVehicleLocations(options = {}) {
   return true;
 }
 
-function initEmailVehicleLocationsIfAvailable() {
+function initEmailVehicleLocationsIfAvailable(options = {}) {
   if (!window.PDC_AUTH_CONTEXT || !getPdcSupabaseAccessToken()) return null;
   const module = typeof window !== 'undefined'
     ? window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE
@@ -4740,7 +4740,7 @@ function initEmailVehicleLocationsIfAvailable() {
     else refreshEmailVehicleLocations();
     if (vehicleLifecycleAdministratorActive() && app.deletedVehicleSnapshotState !== 'idle') loadDeletedVehicleSnapshot({ force: true });
   });
-  refreshEmailVehicleLocations();
+  if (options.skipInitialRefresh !== true) refreshEmailVehicleLocations();
   return app.emailVehicleLocationService;
 }
 
@@ -12950,13 +12950,13 @@ function vehicleModalBoundVehicle() {
   }
   // Every snapshot identity failure other than an absent snapshot is a hard
   // stop. Do not choose a row from a conflicting or wrong-Stock projection.
-  if (exact.code !== 'not_found' || (Array.isArray(app.emailVehicleLocationRows) && app.emailVehicleLocationRows.length)) return null;
+  if (exact.code !== 'not_found') return null;
   // A bounded receipt overlay may temporarily make the mapped Board row newer
   // than the next snapshot. Fallback only to server-authoritative DTOs and pick
   // one exact accepted DTO; never fall back to a legacy/local row.
   const canonicalRows = [];
   (Array.isArray(app.data) ? app.data : [])
-    .filter(vehicle => vehicle?.__emailVehicleServerAuthoritative === true || Boolean(vehicle?.__emailVehicleId))
+    .filter(vehicle => vehicle?.__emailVehicleServerAuthoritative === true)
     .forEach(vehicle => {
       if (String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() !== canonicalId) return;
       const stock = vehicleModalIdentityStock(vehicle);
@@ -13142,7 +13142,7 @@ async function refreshVehicleModalExactIdentity(identity = app.vehicleModalIdent
   if (!identity) return { ok: false, code: 'identity_missing', vehicle: null };
   if (app.vehicleModalIdentityRecoveryInFlight && app.vehicleModalIdentity === identity) return app.vehicleModalIdentityRecoveryInFlight;
   app.vehicleModalIdentityRecoveryAttempted = true;
-  const service = app.emailVehicleLocationService || initEmailVehicleLocationsIfAvailable();
+  const service = app.emailVehicleLocationService || initEmailVehicleLocationsIfAvailable({ skipInitialRefresh: true });
   const refreshGeneration = app.vehicleLocationsRefreshGeneration;
   const module = typeof window !== 'undefined'
     ? window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE
@@ -13249,6 +13249,7 @@ function openVehicleModal(stock) {
     let ready = cachedReady;
     let refreshed = cachedAuthoritative;
     try {
+      initEmailVehicleLocationsIfAvailable({ skipInitialRefresh: true });
       const refreshedOk = await refreshEmailVehicleLocations();
       if (app.vehicleModalIdentity !== identityAtOpen) return;
       if (!refreshedOk) {
@@ -13568,9 +13569,14 @@ function renderDetail() {
   }
   if (!v && app.vehicleModalIdentity) {
     const stock = escapeHtml(app.vehicleModalIdentity.stockBaseline || 'the selected Stock');
+    const errorCode = String(app.vehicleModalIdentityLastError || 'identity_refresh_unavailable');
+    const retryButton = isRetryableVehicleModalIdentityFailure(errorCode)
+      ? '<button type="button" class="small-button vehicle-modal-retry-details" data-modal-retry-authoritative-details>Retry authoritative details</button>'
+      : '';
     app.activeVehicleDetail = null;
-    panel.innerHTML = `<div class="empty-state vehicle-identity-fail-closed" role="alert"><strong>Vehicle identity changed or is unavailable</strong><span>Stock ${stock} remains read-only. Refresh the Control Board or close and reopen this exact Stock before saving. No vehicle was changed.</span><button type="button" class="primary" data-modal-cancel>Close</button></div>`;
+    panel.innerHTML = `<div class="empty-state vehicle-identity-fail-closed" role="alert"><strong>Vehicle identity changed or is unavailable</strong><span>${escapeHtml(vehicleModalIdentityErrorMessage(errorCode, app.vehicleModalIdentity.stockBaseline || 'the selected Stock'))}</span><div class="vehicle-identity-fail-actions">${retryButton}<button type="button" class="primary" data-modal-cancel>Close</button></div></div>`;
     panel.querySelector('[data-modal-cancel]')?.addEventListener('click', closeVehicleModal);
+    panel.querySelector('[data-modal-retry-authoritative-details]')?.addEventListener('click', retryAuthoritativeVehicleDetails);
     return;
   }
   if (!v) return;
@@ -16470,7 +16476,7 @@ function getVehicleLocationsRefreshCoordinator() {
     loaders: {
       sharedNavision: ({ generation }) => loadSharedNavisionVisibleRows({ force: true, refreshGeneration: generation }),
       operationalVehicleSnapshot: async ({ generation }) => {
-        initEmailVehicleLocationsIfAvailable();
+        initEmailVehicleLocationsIfAvailable({ skipInitialRefresh: true });
         if (!app.emailVehicleLocationService) return { ok: false, error: 'operational_snapshot_unavailable' };
         return { ok: await refreshEmailVehicleLocations({ refreshGeneration: generation }) };
       },
