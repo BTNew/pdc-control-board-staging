@@ -44,7 +44,7 @@ assert.match(service, /collectRftTransport734/);
 assert.match(service, /read_pdc_rft_transport_evidence_734/);
 assert.match(app, /RFT Booked/);
 assert.match(app, /Collected/);
-assert.match(app, /bookRftTransport734\(vehicle\.__emailVehicleId/);
+assert.match(app, /bookRftTransport739\(vehicle\.__emailVehicleId/);
 assert.match(app, /collectRftTransport734\(vehicle\.__emailVehicleId/);
 assert.match(app, /vehicleRftCollectionEnabled/);
 assert.match(app, /delivery_enabled/);

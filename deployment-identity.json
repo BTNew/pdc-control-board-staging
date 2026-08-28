@@ -23,6 +23,30 @@
     "review_status": "staging_applied",
     "sha256": "35625814524602ac219a5b1c0b71bdd73cd3cd197d02ab9ce09ab1fd076dc5f9"
   },
+  "rft_transport_email_draft_successor": {
+    "version": "20260829060000",
+    "name": "739_rft_transport_email_draft_successor",
+    "file": "supabase/staging_only/20260829060000_739_rft_transport_email_draft_successor.sql",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "sha256": "717822278fd679bee521d5c5f0dafe324ae5cd4cae2eee2807317914423db1cc"
+  },
+  "rft_transport_email_draft_read_lock_repair": {
+    "version": "20260829070000",
+    "name": "740_rft_transport_email_draft_read_lock_repair",
+    "file": "supabase/staging_only/20260829070000_740_rft_transport_email_draft_read_lock_repair.sql",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "sha256": "33ef4a0fc6fc0f3183c819428f72d80489ca6863df8f545cf8818557c367d289"
+  },
+  "rft_transport_email_draft_regex_repair": {
+    "version": "20260829080000",
+    "name": "741_rft_transport_email_draft_regex_repair",
+    "file": "supabase/staging_only/20260829080000_741_rft_transport_email_draft_regex_repair.sql",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "sha256": "8d0eca955bcc6a8b937809d36f85aa8455455f534fc2abb371ad5a2666d777c0"
+  },
   "observed_applied_database_migration": {
     "version": "20260827051000",
     "name": "501_exact_uid639_640_all_operations_import",

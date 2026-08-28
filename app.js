@@ -2342,7 +2342,7 @@ function rftTransportActionAuthorityReady(vehicle = {}) {
     && Boolean(vehicle.__emailVehicleId)
     && Number(vehicle.__emailVehicleVersion || 0) >= 1
     && typeof app.emailVehicleLocationService?.setRftConfirmation736 === 'function'
-    && typeof app.emailVehicleLocationService?.bookRftTransport734 === 'function'
+    && typeof app.emailVehicleLocationService?.bookRftTransport739 === 'function'
     && typeof app.emailVehicleLocationService?.collectRftTransport734 === 'function';
 }
 
@@ -2380,6 +2380,7 @@ function rftTransportControlsHtml(vehicle = {}) {
   const roleAllowed = vehicleRftLifecycleRoleAllowed();
   const rftConfirmed = vehicleRftConfirmationActive(vehicle);
   const booked = vehicleRftTransportBooked(vehicle);
+  const draft = vehicle.rftTransportDraft && typeof vehicle.rftTransportDraft === 'object' ? vehicle.rftTransportDraft : {};
   const authorityReady = rftTransportActionAuthorityReady(vehicle);
   const actionKey = `rft:${key}`;
   const inFlight = app.rftTransportActionInFlight?.has(actionKey);
@@ -2421,6 +2422,7 @@ function rftTransportControlsHtml(vehicle = {}) {
     <label class="rft-transport-control rft-confirmation-control ${rftConfirmed ? 'is-checked' : 'is-unchecked'}" title="${escapeHtml(confirmationTitle)}"><input type="checkbox" data-rft-confirmation-key="${escapeHtml(key)}" aria-label="RFT’d" ${rftConfirmed ? 'checked' : ''} ${confirmationDisabled ? 'disabled' : ''} /><span class="rft-transport-icon" aria-hidden="true">${rftConfirmed ? '✓' : '○'}</span><span>RFT’d</span></label>
     <button class="small-button rft-transport-control rft-email-salesperson-button" type="button" data-rft-transport-booked-key="${escapeHtml(key)}" aria-pressed="${booked ? 'true' : 'false'}" ${bookedDisabled ? 'disabled' : ''} title="${escapeHtml(bookedTitle)}"><span class="rft-transport-icon" aria-hidden="true">${booked ? '✓' : '↗'}</span><span>Email Sales Person</span></button>
     <button class="small-button rft-transport-control rft-collected-button" type="button" data-rft-collected-key="${escapeHtml(key)}" aria-label="${escapeHtml(collectionAria)}" ${collectionEnabled && !inFlight ? '' : 'disabled'} title="${escapeHtml(collectedTitle || 'Collection is not yet enabled')}"><span class="rft-transport-icon" aria-hidden="true">✓</span><span>Collected</span></button>
+    ${draft.draft_id ? `<a class="rft-draft-download-link" href="#" data-rft-draft-key="${escapeHtml(key)}" aria-label="Download intercepted salesperson email draft (.eml)" title="Download the intercepted salesperson email draft (.eml)"><span aria-hidden="true">⇩</span></a>` : ''}
   </span>`;
 }
 
@@ -15463,7 +15465,7 @@ async function markRftTransportBooked(key = '', booked = true) {
   const service = app.emailVehicleLocationService;
   if (!vehicle || !booked || !vehicleRftLifecycleRoleAllowed()) { renderAll(); return false; }
   if (vehicleRftTransportBooked(vehicle)) { renderAll(); return false; }
-  if (!durableRftLifecycleEnabled() || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.bookRftTransport734 !== 'function') {
+  if (!durableRftLifecycleEnabled() || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.bookRftTransport739 !== 'function') {
     window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return false;
   }
   const action = beginRftTransportAction(key);
@@ -15471,10 +15473,10 @@ async function markRftTransportBooked(key = '', booked = true) {
   try {
     const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
     if (!window.confirm(`Confirm ${label} has been booked on the trucking company website?\n\nThis permanently records the booking and creates the mandatory salesperson email with completed work, dates, build times, stoppages and the QC photo.`)) return false;
-    const result = await service.bookRftTransport734(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
+    const result = await service.bookRftTransport739(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
     if (!rftTransportActionIsCurrent(action)) return false;
     if (!result?.ok) {
-      const messages = { salesperson_email_required: 'Assign an active salesperson with an email address first.', qc_evidence_required: 'The QC completion list and photo must be stored before transport can be booked.', qc_items_required: 'Every required QC item must be complete before transport can be booked.', qc_photo_receipt_required: 'A durable QC vehicle photo is required before transport can be booked.', qc_photo_storage_missing: 'The durable QC photo storage object could not be read back.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.', transport_already_booked: 'Transport has already been booked.' };
+      const messages = { rft_confirmation_required: 'Tick RFT’d and wait for the authoritative checked state before emailing.', salesperson_email_required: 'Assign an active salesperson with an email address first.', qc_evidence_required: 'The QC completion list and photo must be stored before transport can be booked.', qc_items_required: 'Every required QC item must be complete before transport can be booked.', qc_photo_receipt_required: 'A durable QC vehicle photo is required before transport can be booked.', qc_photo_storage_missing: 'The durable QC photo storage object could not be read back.', qc_photo_evidence_changed: 'The QC photo changed. Refresh the vehicle and retry.', qc_photo_bytes_mismatch: 'The QC photo bytes did not match the immutable evidence. Nothing was booked.', qc_photo_bytes_invalid: 'The QC photo could not be bound to the immutable evidence. Nothing was booked.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.', transport_already_booked: 'Transport has already been booked.', transport_draft_already_exists: 'The intercepted salesperson draft already exists. Refresh to download it.', rft_transport_draft_receipt_invalid: 'The intercepted salesperson draft readback was incomplete. Nothing was claimed as sent.' };
       await refreshEmailVehicleLocations();
       if (!rftTransportActionIsCurrent(action)) return false;
       window.alert(messages[result?.code] || 'Transport booking was not saved. No email was created.'); renderAll(); return false;
@@ -15524,10 +15526,33 @@ async function markRftVehicleCollected(key = '', collected = true) {
   }
 }
 
+async function downloadRftTransportDraft(key = '') {
+  const vehicle = selectedVehicle(key);
+  const service = app.emailVehicleLocationService;
+  if (!vehicle || typeof service?.readRftTransportDraft739 !== 'function') return false;
+  const result = await service.readRftTransportDraft739(vehicle.__emailVehicleId);
+  if (!result?.ok) { window.alert(result?.code === 'transport_draft_not_found' ? 'The intercepted salesperson draft is not available yet.' : 'The intercepted salesperson draft could not be read.'); return false; }
+  const data = result.data || {};
+  try {
+    const binary = atob(data.mime_base64);
+    const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+    if (bytes.byteLength !== Number(data.mime_byte_length || 0)) throw new Error('length');
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    const sha256 = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    if (sha256 !== String(data.mime_sha256 || '').toLowerCase()) throw new Error('hash');
+    const blob = new Blob([bytes], { type: 'message/rfc822' });
+    const objectUrl = URL.createObjectURL(blob); const anchor = document.createElement('a');
+    anchor.href = objectUrl; anchor.download = String(data.draft_filename || 'rft-transport.eml').replace(/[^A-Za-z0-9._-]/g, '-');
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+    return true;
+  } catch (_error) { window.alert('The intercepted salesperson draft failed its byte/hash readback. Nothing was downloaded.'); return false; }
+}
+
 function bindRftCollectedInputs(root = document) {
   $$('[data-rft-confirmation-key]', root).forEach(input => input.addEventListener('change', event => { event.stopPropagation(); void markRftConfirmation(input.dataset.rftConfirmationKey, input.checked); }));
   $$('[data-rft-transport-booked-key]', root).forEach(button => button.addEventListener('click', event => { event.stopPropagation(); void markRftTransportBooked(button.dataset.rftTransportBookedKey, true); }));
   $$('[data-rft-collected-key]', root).forEach(button => button.addEventListener('click', event => { event.stopPropagation(); void markRftVehicleCollected(button.dataset.rftCollectedKey, true); }));
+  $$('[data-rft-draft-key]', root).forEach(link => link.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); void downloadRftTransportDraft(link.dataset.rftDraftKey); }));
 }
 
 function collectedVehicleRows() {

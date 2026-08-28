@@ -35,7 +35,7 @@ const vehicle = {
 };
 
 const context = {
-  app: { selectedRows: new Set(), rftTransportActionInFlight: new Set(), emailVehicleLocationService: { setRftConfirmation736: () => {}, bookRftTransport734: () => {}, collectRftTransport734: () => {} } },
+  app: { selectedRows: new Set(), rftTransportActionInFlight: new Set(), emailVehicleLocationService: { setRftConfirmation736: () => {}, bookRftTransport734: () => {}, bookRftTransport739: () => {}, collectRftTransport734: () => {} } },
   window: {
     PDC_AUTH_CONTEXT: { role: 'operator' },
     PDC_SUPABASE_CONFIG: {
@@ -99,6 +99,7 @@ assert.match(rendered, /Book RFT|Mandatory email.*photo|collection/i, 'Collected
 context.app.emailVehicleLocationService = {
   setRftConfirmation736: () => {},
   bookRftTransport734: () => {},
+  bookRftTransport739: () => {},
   collectRftTransport734: () => {},
 };
 rendered = context.renderIncomingRftRow(vehicle, 'rft', {});
@@ -150,7 +151,7 @@ const actionEnd = appSource.indexOf('\nfunction collectedVehicleRows', actionSta
 assert.ok(actionStart >= 0 && actionEnd > actionStart, 'RFT action handlers exist');
 const transportActionsStart = appSource.indexOf('function beginRftTransportAction');
 const actionSource = appSource.slice(transportActionsStart, actionEnd);
-assert.match(actionSource, /service\.bookRftTransport734/);
+assert.match(actionSource, /service\.bookRftTransport739/);
 assert.match(actionSource, /service\.collectRftTransport734/);
 assert.match(actionSource, /service\.setRftConfirmation736/);
 assert.match(actionSource, /data-rft-transport-booked-key|Email Sales Person/);
@@ -162,7 +163,7 @@ const actionVehicle = {
   __emailVehicleId: '11111111-1111-4111-8111-111111111111',
   __emailVehicleVersion: 7,
   __emailVehicleServerAuthoritative: true,
-  rftConfirmed: false,
+  rftConfirmed: true,
   rftTransportBookedAt: '',
 };
 let pendingBooking;
@@ -179,7 +180,7 @@ const actionContext = {
         actionVehicle.rftConfirmed = confirmed;
         return { ok: true, code: confirmed ? 'rft_confirmed' : 'rft_unconfirmed', data: { receipt_id: 'receipt-736', vehicle_id: id, vehicle_version_after: version + 1, rft_confirmed: confirmed } };
       },
-      bookRftTransport734: (id, version, key) => {
+      bookRftTransport739: (id, version, key) => {
         bookingCalls.push([id, version, key]);
         return new Promise(resolve => { pendingBooking = resolve; });
       },
@@ -229,6 +230,7 @@ staleBooking.then(async result => {
   assert.deepStrictEqual(collectionCalls, [['11111111-1111-4111-8111-111111111111', 7, 'idempotency-734']], 'Collected handler dispatches exact successor RPC arguments');
   assert.strictEqual(refreshCalls, 1, 'Successful collection refreshes authoritative state');
   assert.ok(renderCalls > 0, 'Handlers remain wired to the normal render path');
+  actionVehicle.rftConfirmed = false;
   actionVehicle.__emailVehicleVersion = 8;
   const confirmed = await actionContext.confirm('11111111-1111-4111-8111-111111111111', true);
   assert.strictEqual(confirmed, true, 'Unchecked RFT’d handler records authoritative confirmation');
