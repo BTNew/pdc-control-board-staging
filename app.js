@@ -1056,6 +1056,16 @@ function productionGridHeaderHtml(className = '', options = {}) {
   </div>`;
 }
 
+function vehicleLocationsRftHeaderHtml() {
+  return `<div class="pdc-production-grid-header rft-vehicle-locations-header">
+    <span class="pdc-grid-control-heading" aria-hidden="true"></span>
+    <span class="pdc-grid-select-heading" aria-hidden="true"></span>
+    <span class="pdc-grid-identity-heading"><span>Key</span><span>Stock</span><span>Job Card</span><span>Customer</span></span>
+    <span class="pdc-grid-vehicle-heading">Vehicle</span>
+    <span class="rft-controls-heading"><span>RFT’d</span><span>Email Sales Person</span><span>Collected</span></span>
+  </div>`;
+}
+
 function incomingGridStatusLabel(vehicle = {}, bucketKey = '') {
   if (bucketKey === 'pmb') return pmbStageLabel(inferredPmbStage(vehicle)) || 'Unallocated';
   if (bucketKey === 'rft') return rftHomeStatusLabel(rftHomeStatus(vehicle));
@@ -2029,6 +2039,8 @@ const app = {
   emailVehicleLocationGeneration: 0,
   emailVehicleLocationRealtime: null,
   emailVehicleReceiptOverlays: new Map(),
+  rftTransportActionGeneration: 0,
+  rftTransportActionInFlight: new Set(),
   deletedVehicleSnapshotRows: [],
   deletedVehicleSnapshotState: 'idle',
   deletedVehicleSnapshotError: '',
@@ -2306,6 +2318,67 @@ function vehicleRftEmailEvidenceReady(vehicle = {}) {
 
 function vehicleRftCollectionEnabled(vehicle = {}) {
   return durableRftLifecycleEnabled() && vehicleRftEmailEvidenceReady(vehicle);
+}
+
+function vehicleRftLifecycleRoleAllowed(role = window.PDC_AUTH_CONTEXT?.role) {
+  return ['operator', 'administrator'].includes(String(role || '').trim().toLowerCase());
+}
+
+function rftTransportActionAuthorityReady(vehicle = {}) {
+  return durableRftLifecycleEnabled()
+    && vehicle.__emailVehicleServerAuthoritative === true
+    && Boolean(vehicle.__emailVehicleId)
+    && Number(vehicle.__emailVehicleVersion || 0) >= 1
+    && typeof app.emailVehicleLocationService?.bookRftTransport734 === 'function'
+    && typeof app.emailVehicleLocationService?.collectRftTransport734 === 'function';
+}
+
+function rftTransportCollectionDisabledReason(vehicle = {}) {
+  if (!vehicleRftTransportBooked(vehicle)) return 'Book RFT transport first';
+  if (!vehicleRftEmailEvidenceReady(vehicle)) return 'Mandatory email and QC photo evidence required';
+  if (!rftTransportActionAuthorityReady(vehicle)) return 'Shared staging authority unavailable';
+  return '';
+}
+
+function vehicleRftTransitionAuthoritative(vehicle = {}) {
+  const location = String(vehicle.pdcLocation || vehicle.current_location || '').trim().toUpperCase();
+  const lifecycle = String(vehicle.pdcLifecycleState || vehicle.vehicleLifecycleState || vehicle.lifecycleState || '').trim().toLowerCase();
+  return vehicle.__emailVehicleServerAuthoritative === true
+    && (location === 'RFT' || lifecycle === 'rft' || Boolean(vehicle.rftTransferredAt || vehicle.pdcLocationUpdatedAt));
+}
+
+function rftTransportControlsHtml(vehicle = {}) {
+  const key = vehicleKey(vehicle);
+  const roleAllowed = vehicleRftLifecycleRoleAllowed();
+  const booked = vehicleRftTransportBooked(vehicle);
+  const authorityReady = rftTransportActionAuthorityReady(vehicle);
+  const actionKey = `rft:${key}`;
+  const inFlight = app.rftTransportActionInFlight?.has(actionKey);
+  const bookedDisabled = booked || !roleAllowed || !authorityReady || inFlight;
+  const collectionEnabled = roleAllowed && vehicleRftCollectionEnabled(vehicle) && authorityReady;
+  const collectionReason = !roleAllowed
+    ? 'Operator or Administrator access required'
+    : rftTransportCollectionDisabledReason(vehicle) || (inFlight ? 'Another RFT action is in progress' : '');
+  const rftTransitionStarted = vehicleRftTransitionAuthoritative(vehicle);
+  const rftDate = vehicle.rftTransferredAt || vehicle.pdcLocationUpdatedAt || '';
+  const bookedTitle = booked
+    ? 'Checked: RFT transport is booked and the mandatory salesperson email is sent or queued in staging'
+    : !roleAllowed
+      ? 'Disabled: Operator or Administrator access is required'
+      : authorityReady
+        ? 'Record RFT transport booking through the shared staging successor'
+        : 'Unavailable: this row is not bound to shared staging authority';
+  const collectedTitle = collectionEnabled
+    ? 'Record physical RFT collection through the shared staging successor'
+    : collectionReason;
+  const collectionAria = collectionEnabled
+    ? 'Collected — ready to record physical collection'
+    : `Collected — disabled: ${collectionReason || 'Collection is not yet enabled'}`;
+  return `<span class="rft-transport-controls" role="group" aria-label="RFT transport controls">
+    <span class="rft-transport-control rft-authoritative-status ${rftTransitionStarted ? 'is-checked' : 'is-unavailable'}" role="status" aria-label="RFT’d ${rftTransitionStarted ? 'checked' : 'unavailable'} — authoritative RFT transition and timer start${rftDate ? ` at ${rftDate}` : ''}" data-rft-transition-authority="authoritative"><span class="rft-transport-icon" aria-hidden="true">${rftTransitionStarted ? '✓' : '!'}</span><span>RFT’d</span></span>
+    <button class="small-button rft-transport-control rft-email-salesperson-button" type="button" data-rft-transport-booked-key="${escapeHtml(key)}" aria-pressed="${booked ? 'true' : 'false'}" ${bookedDisabled ? 'disabled' : ''} title="${escapeHtml(bookedTitle)}"><span class="rft-transport-icon" aria-hidden="true">${booked ? '✓' : '↗'}</span><span>Email Sales Person</span></button>
+    <button class="small-button rft-transport-control rft-collected-button" type="button" data-rft-collected-key="${escapeHtml(key)}" aria-label="${escapeHtml(collectionAria)}" ${collectionEnabled && !inFlight ? '' : 'disabled'} title="${escapeHtml(collectedTitle || 'Collection is not yet enabled')}"><span class="rft-transport-icon" aria-hidden="true">✓</span><span>Collected</span></button>
+  </span>`;
 }
 
 function rftTransportEmailStatusLabel(vehicle = {}) {
@@ -7125,7 +7198,13 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const subletProviderField = !locationReadOnly && bucketKey === 'pmb' && stage === 'SUBLET'
     ? `<div class="wide incoming-sublet-provider"><b>Sublet provider</b><span><select data-pmb-bay-provider-key="${escapeHtml(key)}" data-pmb-bay-provider-stage="SUBLET" aria-label="Sublet provider for ${escapeHtml(stock)}">${subletProviderOptionsHtml(subletProvider)}</select></span></div>`
     : '';
-  const primaryAction = locationReadOnly && !protectedLifecycleAllowed
+  const readOnlyBadge = identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only';
+  const rftAction = bucketKey === 'rft'
+    ? `${rftTransportControlsHtml(vehicle)}${locationReadOnly ? `<span class="badge neutral rft-source-badge">${readOnlyBadge}</span>` : ''}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+    : '';
+  const primaryAction = bucketKey === 'rft'
+    ? (rftAction || (locationReadOnly ? `<span class="badge neutral">${readOnlyBadge}</span>` : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`))
+    : locationReadOnly && !protectedLifecycleAllowed
     ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only'}</span>`
     : bucketKey === 'yardhold'
     ? `${sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle, { silent: true }) ? '<span class="badge neutral">Shared move unavailable</span>' : `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
@@ -7138,7 +7217,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         : bucketKey === 'pit'
           ? `<button class="primary" type="button" data-pit-return-pmb="${escapeHtml(key)}">Return to PMB</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
           : bucketKey === 'rft'
-            ? `<label class="rft-collected-check incoming-collected-check" title="Tick once the vehicle has been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+            ? rftAction
             : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
   const labelAction = locationReadOnly || bucketKey === 'qc' ? '' : `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
   const deleteAction = locationReadOnly ? '' : (options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '');
@@ -7154,26 +7233,30 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const dragAttrs = draggable ? ` draggable="true" data-pmb-drag-key="${escapeHtml(key)}"` : '';
   const dragClass = draggable ? ' workflow-draggable-row' : '';
   const risk = partsEtaRisk(vehicle);
+  const isRftRow = bucketKey === 'rft';
+  const rftControls = isRftRow ? rftTransportControlsHtml(vehicle) : '';
   return `
     <details class="incoming-vehicle-card pdc-production-grid-card incoming-${escapeHtml(bucketKey)}-row${dragClass} ${app.selectedRows.has(key) ? 'is-selected' : ''}${risk ? ' has-parts-risk' : ''}${locationReadOnly ? ' shared-navision-read-only' : ''}" data-incoming-row="${escapeHtml(key)}"${dragAttrs}>
       <summary class="incoming-vehicle-summary pdc-production-grid-row">
         ${selectBox}
         <span class="incoming-card-stock">${identitySummary}</span>
         <span class="incoming-card-main"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong></span>
-        <span class="incoming-card-work-wrap">${workChecks}</span>
+        ${isRftRow
+          ? `<span class="rft-row-controls-slot">${rftControls}</span>`
+          : `<span class="incoming-card-work-wrap">${workChecks}</span>
         <span class="incoming-card-meta incoming-card-age ${escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}${bookingProjection.bookingRequired ? ' needs-workshop-booking' : ''}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : 'ETA'}</b><span>${escapeHtml(eta)}${bookingProjection.label ? `<small>${escapeHtml(bookingProjection.label)}</small>` : ''}</span></span>
         <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}</span></span>
-        <span class="incoming-card-action">${primaryAction}${labelAction}${deleteAction}</span>
+        <span class="incoming-card-action">${primaryAction}${labelAction}${deleteAction}</span>`}
       </summary>
       <div class="incoming-vehicle-detail-grid">
         <div><b>Stock No.</b><span>${escapeHtml(stock)}</span></div>
         <div><b>VIN / Chassis</b><span>${escapeHtml(vin)}</span></div>
         <div><b>Sales rep</b><span>${escapeHtml(consultant)}</span></div>
-        <div><b>Age</b><span>${escapeHtml(age)}</span></div>
+        ${isRftRow ? '' : `<div><b>Age</b><span>${escapeHtml(age)}</span></div>`}
         <div><b>Bucket</b><span>${escapeHtml(incomingBucketLabel(bucketKey))}</span></div>
-        ${risk ? `<div class="wide parts-risk-detail"><b>PARTS RISK</b><span>Parts ETA ${escapeHtml(partsWorstEtaLabel(vehicle))} is later than Kewdale ETA ${escapeHtml(kewdaleEtaValue(vehicle))}</span></div>` : ''}
+        ${risk && !isRftRow ? `<div class="wide parts-risk-detail"><b>PARTS RISK</b><span>Parts ETA ${escapeHtml(partsWorstEtaLabel(vehicle))} is later than Kewdale ETA ${escapeHtml(kewdaleEtaValue(vehicle))}</span></div>` : ''}
         ${subletProviderField}
-        ${authenticatedEmailOperationLinesHtml(vehicle)}
+        ${isRftRow ? '' : authenticatedEmailOperationLinesHtml(vehicle)}
       </div>
     </details>`;
 }
@@ -7320,7 +7403,11 @@ function renderIncomingDashboardBoard() {
     const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
     const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key, { workshopPlans, workshopProjectionAvailable })).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
-    const identityHeader = vehicles.length ? productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Source / next step' }) : '';
+    const identityHeader = vehicles.length
+      ? def.key === 'rft'
+        ? vehicleLocationsRftHeaderHtml()
+        : productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Source / next step' })
+      : '';
     return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
         <span>${escapeHtml(def.label)}</span><strong>${vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
@@ -15220,25 +15307,60 @@ function rftVehicleDetailRow(vehicle = {}) {
     </details>`;
 }
 
+function beginRftTransportAction(key = '') {
+  const actionKey = `rft:${String(key || '')}`;
+  if (!String(key || '').trim()) return null;
+  if (!(app.rftTransportActionInFlight instanceof Set)) app.rftTransportActionInFlight = new Set();
+  if (app.rftTransportActionInFlight.has(actionKey)) return null;
+  const generation = Number(app.rftTransportActionGeneration || 0) + 1;
+  app.rftTransportActionGeneration = generation;
+  app.rftTransportActionInFlight.add(actionKey);
+  return { actionKey, generation };
+}
+
+function rftTransportActionIsCurrent(action = null) {
+  return Boolean(action
+    && Number(app.rftTransportActionGeneration || 0) === action.generation
+    && app.rftTransportActionInFlight instanceof Set
+    && app.rftTransportActionInFlight.has(action.actionKey));
+}
+
+function finishRftTransportAction(action = null) {
+  if (action && app.rftTransportActionInFlight instanceof Set) app.rftTransportActionInFlight.delete(action.actionKey);
+}
+
 async function markRftTransportBooked(key = '', booked = true) {
   // Legacy bookRftTransport700(vehicle.__emailVehicleId, ...) is retired;
   // the durable staging path below is the only booking dispatch.
   const vehicle = selectedVehicle(key);
   const service = app.emailVehicleLocationService;
-  if (!vehicle || !booked) { renderAll(); return; }
-  if (vehicleRftTransportBooked(vehicle)) { renderAll(); return; }
+  if (!vehicle || !booked || !vehicleRftLifecycleRoleAllowed()) { renderAll(); return false; }
+  if (vehicleRftTransportBooked(vehicle)) { renderAll(); return false; }
   if (!durableRftLifecycleEnabled() || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.bookRftTransport734 !== 'function') {
-    window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return;
+    window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return false;
   }
-  const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
-  if (!window.confirm(`Confirm ${label} has been booked on the trucking company website?\n\nThis permanently records the booking and creates the mandatory salesperson email with completed work, dates, build times, stoppages and the QC photo.`)) { renderAll(); return; }
-  const result = await service.bookRftTransport734(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
-  if (!result?.ok) {
-    const messages = { salesperson_email_required: 'Assign an active salesperson with an email address first.', qc_evidence_required: 'The QC completion list and photo must be stored before transport can be booked.', qc_items_required: 'Every required QC item must be complete before transport can be booked.', qc_photo_receipt_required: 'A durable QC vehicle photo is required before transport can be booked.', qc_photo_storage_missing: 'The durable QC photo storage object could not be read back.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.', transport_already_booked: 'Transport has already been booked.' };
-    await refreshEmailVehicleLocations(); window.alert(messages[result?.code] || 'Transport booking was not saved. No email was created.'); renderAll(); return;
+  const action = beginRftTransportAction(key);
+  if (!action) return false;
+  try {
+    const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+    if (!window.confirm(`Confirm ${label} has been booked on the trucking company website?\n\nThis permanently records the booking and creates the mandatory salesperson email with completed work, dates, build times, stoppages and the QC photo.`)) return false;
+    const result = await service.bookRftTransport734(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
+    if (!rftTransportActionIsCurrent(action)) return false;
+    if (!result?.ok) {
+      const messages = { salesperson_email_required: 'Assign an active salesperson with an email address first.', qc_evidence_required: 'The QC completion list and photo must be stored before transport can be booked.', qc_items_required: 'Every required QC item must be complete before transport can be booked.', qc_photo_receipt_required: 'A durable QC vehicle photo is required before transport can be booked.', qc_photo_storage_missing: 'The durable QC photo storage object could not be read back.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.', transport_already_booked: 'Transport has already been booked.' };
+      await refreshEmailVehicleLocations();
+      if (!rftTransportActionIsCurrent(action)) return false;
+      window.alert(messages[result?.code] || 'Transport booking was not saved. No email was created.'); renderAll(); return false;
+    }
+    const refreshed = await refreshEmailVehicleLocations();
+    if (!rftTransportActionIsCurrent(action)) return false;
+    if (!refreshed) { window.alert('Transport booking was accepted, but the shared row could not be read back. Refresh before retrying.'); renderAll(); return false; }
+    renderAll();
+    window.alert('Transport booking saved. The mandatory salesperson update has been created with the full build history and QC photo.');
+    return true;
+  } finally {
+    finishRftTransportAction(action);
   }
-  await refreshEmailVehicleLocations(); renderAll();
-  window.alert('Transport booking saved. The mandatory salesperson update has been created with the full build history and QC photo.');
 }
 
 async function markRftVehicleCollected(key = '', collected = true) {
@@ -15246,22 +15368,33 @@ async function markRftVehicleCollected(key = '', collected = true) {
   // Collected is dispatched only through the durable 734 successor.
   const vehicle = selectedVehicle(key);
   const service = app.emailVehicleLocationService;
-  if (!vehicle || !collected) { renderAll(); return; }
-  if (!vehicleRftTransportBooked(vehicle)) { window.alert('Book the vehicle on the trucking company website first.'); renderAll(); return; }
-  if (!vehicleRftEmailEvidenceReady(vehicle)) { window.alert('The intercepted salesperson email and QC photo evidence must be read back before collection.'); renderAll(); return; }
+  if (!vehicle || !collected || !vehicleRftLifecycleRoleAllowed()) { renderAll(); return false; }
+  if (!vehicleRftTransportBooked(vehicle)) { window.alert('Book the vehicle on the trucking company website first.'); renderAll(); return false; }
+  if (!vehicleRftEmailEvidenceReady(vehicle)) { window.alert('The intercepted salesperson email and QC photo evidence must be read back before collection.'); renderAll(); return false; }
   if (!vehicleRftCollectionEnabled(vehicle) || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.collectRftTransport734 !== 'function') {
-    window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return;
+    window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return false;
   }
-  const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
-  if (!window.confirm(`Confirm ${label} has physically been collected?\n\nThis moves it to Collected Vehicles, clears active bay/workshop pointers and leaves the dealer-transit timer open. Delivery closes it later.`)) { renderAll(); return; }
-  const result = await service.collectRftTransport734(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
-  if (!result?.ok) {
-    const messages = { transport_booking_and_mandatory_email_required: 'The trucking booking and mandatory salesperson update must exist first.', started_booking_must_be_completed_before_collection: 'A Workshop job is still STARTED. Complete that real work before collection.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.' };
-    await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('rft_collection_rejected')]);
-    window.alert(messages[result?.code] || 'The vehicle was not marked collected. No history was removed.'); renderAll(); return;
+  const action = beginRftTransportAction(key);
+  if (!action) return false;
+  try {
+    const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+    if (!window.confirm(`Confirm ${label} has physically been collected?\n\nThis moves it to Collected Vehicles, clears active bay/workshop pointers and leaves the dealer-transit timer open. Delivery closes it later.`)) return false;
+    const result = await service.collectRftTransport734(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
+    if (!rftTransportActionIsCurrent(action)) return false;
+    if (!result?.ok) {
+      const messages = { transport_booking_and_mandatory_email_required: 'The trucking booking and mandatory salesperson update must exist first.', started_booking_must_be_completed_before_collection: 'A Workshop job is still STARTED. Complete that real work before collection.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded; please try again.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.' };
+      await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('rft_collection_rejected')]);
+      if (!rftTransportActionIsCurrent(action)) return false;
+      window.alert(messages[result?.code] || 'The vehicle was not marked collected. No history was removed.'); renderAll(); return false;
+    }
+    const [refreshed] = await Promise.all([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('rft_collected_412')]);
+    if (!rftTransportActionIsCurrent(action)) return false;
+    if (!refreshed) { window.alert('Collection was accepted, but the shared row could not be read back. Refresh before retrying.'); renderAll(); return false; }
+    renderAll();
+    return true;
+  } finally {
+    finishRftTransportAction(action);
   }
-  await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('rft_collected_412')]);
-  renderAll();
 }
 
 function bindRftCollectedInputs(root = document) {

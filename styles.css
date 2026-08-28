@@ -9038,6 +9038,44 @@ html[data-workflow-width="xl"] #workflow {
   white-space: nowrap;
   min-width: max-content;
 }
+.rft-transport-controls {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: max-content;
+}
+.rft-transport-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 4px 7px;
+  font-size: .72rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.rft-transport-control:disabled {
+  opacity: .72;
+  cursor: not-allowed;
+}
+.rft-transport-icon {
+  display: inline-grid;
+  width: 16px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: .72rem;
+  font-weight: 950;
+  line-height: 1;
+}
+.rft-source-badge {
+  font-size: .68rem;
+  line-height: 1.1;
+}
 .rft-card-work-wrap {
   display: flex;
   align-items: center;
@@ -9073,6 +9111,15 @@ html[data-workflow-width="xl"] #workflow {
   .rft-vehicle-summary .incoming-card-age,
   .deleted-vehicle-summary .incoming-card-age {
     display: none;
+  }
+  .rft-transport-controls {
+    justify-content: flex-start;
+    max-width: 100%;
+  }
+  .rft-transport-control {
+    min-height: 34px;
+    padding: 5px 6px;
+    font-size: .74rem;
   }
 }
 
@@ -13159,5 +13206,96 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
   .sidebar .nav .nav-item {
     min-height: 44px;
     padding-block: 10px;
+  }
+}
+
+/* Vehicle Locations RFT rows show only the three handover controls. */
+.rft-vehicle-locations-header,
+.incoming-rft-row .incoming-vehicle-summary {
+  grid-template-columns: 12px 20px minmax(250px, 1.15fr) minmax(150px, .8fr) minmax(410px, max-content) !important;
+  min-width: 0 !important;
+}
+.rft-vehicle-locations-header .rft-controls-heading,
+.rft-row-controls-slot {
+  min-width: 0;
+}
+.rft-controls-heading {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  align-items: center;
+  color: #475569;
+  text-align: center;
+}
+.rft-row-controls-slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  grid-column: 5;
+}
+.rft-row-controls-slot .rft-transport-controls {
+  width: 100%;
+  justify-content: flex-start;
+  flex-wrap: nowrap;
+}
+.rft-row-controls-slot .rft-transport-control {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: .76rem;
+  font-weight: 850;
+}
+.rft-row-controls-slot .rft-authoritative-status {
+  background: #ecfdf5;
+  border-color: #86efac;
+  color: #166534;
+}
+.rft-row-controls-slot .rft-authoritative-status.is-unavailable {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+.rft-row-controls-slot .rft-email-salesperson-button[aria-pressed="true"] {
+  background: #dcfce7;
+  border-color: #86efac;
+  color: #166534;
+}
+.rft-row-controls-slot .rft-collected-button:not(:disabled) {
+  background: #2563eb;
+  color: #fff;
+}
+.rft-row-controls-slot .rft-transport-icon {
+  flex: 0 0 16px;
+}
+.rft-row-controls-slot .rft-transport-control:disabled {
+  opacity: .68;
+}
+@media (max-width: 1180px) {
+  .rft-vehicle-locations-header,
+  .incoming-rft-row .incoming-vehicle-summary {
+    grid-template-columns: 10px 20px minmax(200px, 1fr) minmax(130px, .75fr) minmax(360px, max-content) !important;
+  }
+}
+@media (max-width: 820px) {
+  .rft-vehicle-locations-header { display: none !important; }
+  .incoming-rft-row .incoming-vehicle-summary {
+    grid-template-columns: 12px minmax(0, 1fr) !important;
+    min-width: 0 !important;
+    row-gap: 6px !important;
+  }
+  .incoming-rft-row .incoming-card-stock { grid-column: 2; }
+  .incoming-rft-row .incoming-card-main { grid-column: 2; }
+  .incoming-rft-row .rft-row-controls-slot {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .rft-row-controls-slot .rft-transport-controls {
+    flex-wrap: wrap;
+  }
+  .rft-row-controls-slot .rft-transport-control {
+    flex: 1 1 145px;
   }
 }
