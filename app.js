@@ -2310,7 +2310,7 @@ function vehicleRftCollectionEnabled(vehicle = {}) {
 
 function rftTransportEmailStatusLabel(vehicle = {}) {
   const outbox = vehicle.rftTransportOutbox && typeof vehicle.rftTransportOutbox === 'object' ? vehicle.rftTransportOutbox : {};
-  if (outbox.intercepted === true || outbox.intercept_receipt_id || outbox.interceptReceiptId) return 'Mandatory salesperson email captured in staging (unsent)';
+  if (outbox.intercepted === true || outbox.intercept_receipt_id || outbox.interceptReceiptId) return 'Mandatory salesperson email captured in staging';
   if (outbox.delivered_at || outbox.sent_at || ['sent', 'delivered'].includes(String(outbox.delivery_status || '').toLowerCase())) return 'Mandatory salesperson email sent';
   if (vehicleRftTransportBooked(vehicle)) return 'Mandatory salesperson email queued';
   return '';
@@ -15215,7 +15215,7 @@ function rftVehicleDetailRow(vehicle = {}) {
         <div><b>Customer</b><span>${escapeHtml(customer)}</span></div>
         <div class="wide"><b>Blocker / outstanding</b><span>${escapeHtml(blocker || 'No outstanding RFT blockers')}</span></div>
         <div class="wide"><b>Completion ticks</b><span>${rftCompletionTicksHtml(vehicle)}</span></div>
-        <div class="wide rft-detail-actions"><b>Transport handover</b><span class="rft-transport-checks"><button class="primary rft-booked-button" type="button" data-rft-transport-booked-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? 'disabled' : ''}>${vehicleRftTransportBooked(vehicle) ? 'RFT Booked ✓' : 'RFT Booked'}</button><button class="primary rft-collected-button" type="button" data-rft-collected-key="${escapeHtml(key)}" ${vehicleRftCollectionEnabled(vehicle) ? '' : 'disabled'}>Collected</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>${rftTransportEmailStatusLabel(vehicle) ? `<small class="rft-email-status">${escapeHtml(rftTransportEmailStatusLabel(vehicle))}</small>` : '<small class="rft-email-status">Book transport to enable collection</small>'}</span></div>
+        <div class="wide rft-detail-actions"><b>Transport handover</b><span class="rft-transport-checks"><button class="primary rft-booked-button" type="button" data-rft-transport-booked-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? 'disabled' : ''} title="Confirm booked on trucking website; captures the intercepted salesperson status email">${vehicleRftTransportBooked(vehicle) ? 'RFT Booked ✓' : 'RFT Booked'}</button><button class="primary rft-collected-button" type="button" data-rft-collected-key="${escapeHtml(key)}" ${vehicleRftCollectionEnabled(vehicle) ? '' : 'disabled'}>Collected</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>${rftTransportEmailStatusLabel(vehicle) ? `<small class="rft-email-status">${escapeHtml(rftTransportEmailStatusLabel(vehicle))}</small>` : '<small class="rft-email-status">Book transport to enable collection</small>'}</span></div>
       </div>
     </details>`;
 }
@@ -15310,7 +15310,7 @@ function completedVehicleRows() {
     if (!retained || vehicle.__sharedNavisionCanonicalVehicleId) deduplicated.set(identity, vehicle);
   });
   return Array.from(deduplicated.values())
-    .filter(vehicle => vehicle.vehicleDeliveredState === true || (String(vehicle.pdcLifecycleState || '').toLowerCase() === 'completed' && vehicle.dealerTransitClosedAt))
+    .filter(vehicle => (vehicleCollectedFromRft(vehicle) && !isHermesSyntheticVehicle(vehicle) && vehicle.vehicleDeliveredState === true) || (String(vehicle.pdcLifecycleState || '').toLowerCase() === 'completed' && vehicle.dealerTransitClosedAt))
     .filter(vehicle => {
       if (!q) return true;
       const hay = [
