@@ -15221,6 +15221,8 @@ function rftVehicleDetailRow(vehicle = {}) {
 }
 
 async function markRftTransportBooked(key = '', booked = true) {
+  // Legacy bookRftTransport700(vehicle.__emailVehicleId, ...) is retired;
+  // the durable staging path below is the only booking dispatch.
   const vehicle = selectedVehicle(key);
   const service = app.emailVehicleLocationService;
   if (!vehicle || !booked) { renderAll(); return; }
@@ -15240,6 +15242,8 @@ async function markRftTransportBooked(key = '', booked = true) {
 }
 
 async function markRftVehicleCollected(key = '', collected = true) {
+  // Legacy collectRftTransport700(vehicle.__emailVehicleId, ...) is retired;
+  // Collected is dispatched only through the durable 734 successor.
   const vehicle = selectedVehicle(key);
   const service = app.emailVehicleLocationService;
   if (!vehicle || !collected) { renderAll(); return; }
