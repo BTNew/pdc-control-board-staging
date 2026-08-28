@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.29.734-durable-rft-transport-lifecycle';
+const APP_VERSION = '2026.08.27.706-final-authoritative-lifecycle';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
