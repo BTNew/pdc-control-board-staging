@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.08.27.706-final-authoritative-lifecycle';
+const APP_VERSION = '2026.08.29.734-durable-rft-transport-lifecycle';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = APP_VERSION;
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -650,9 +650,9 @@ function completedPmbStatisticDaysLabel(value) {
 function renderCompletedPmbStatistics() {
   const host = $('#completed-pmb-statistics');
   if (!host) return;
-  const stats = completedPmbStatistics(app.data.filter(vehicle => vehicleCollectedFromRft(vehicle) && !isHermesSyntheticVehicle(vehicle)));
+  const stats = completedPmbStatistics(app.data.filter(vehicle => vehicle.vehicleDeliveredState === true || (String(vehicle.pdcLifecycleState || '').toLowerCase() === 'completed' && vehicle.dealerTransitClosedAt)).filter(vehicle => !isHermesSyntheticVehicle(vehicle)));
   host.innerHTML = `<div class="completed-statistics-heading">
-      <div><span>PMB turnaround statistics</span><strong>Collected vehicle history</strong></div>
+      <div><span>PMB turnaround statistics</span><strong>Delivered vehicle history</strong></div>
       <small>${stats.known} of ${stats.total} vehicle${stats.total === 1 ? '' : 's'} have usable PMB and RFT dates${stats.unknown ? ` · ${stats.unknown} excluded as unknown` : ''}</small>
     </div>
     <div class="completed-statistics-grid">
@@ -660,7 +660,7 @@ function renderCompletedPmbStatistics() {
       <article class="completed-stat-card"><span>Median time</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.median))}</strong><small>Middle turnaround time</small></article>
       <article class="completed-stat-card"><span>Fastest</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.fastest))}</strong><small>Shortest recorded turnaround</small></article>
       <article class="completed-stat-card"><span>Longest</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.longest))}</strong><small>Longest recorded turnaround</small></article>
-      <article class="completed-stat-card"><span>Collected vehicles</span><strong>${stats.total}</strong><small>${stats.known} included in PMB-time statistics</small></article>
+      <article class="completed-stat-card"><span>Delivered vehicles</span><strong>${stats.total}</strong><small>${stats.known} included in PMB-time statistics</small></article>
     </div>`;
 }
 
@@ -2283,9 +2283,34 @@ function vehicleRftTransportBooked(vehicle = {}) {
   return Boolean(vehicle.rftTransportBookedAt);
 }
 
+function durableRftLifecycleEnabled() {
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  return config.environment === 'staging'
+    && config.projectRef === 'cdsmnqxtyyoeoznmbidd'
+    && config.vehicleLifecycle?.durableRftLifecycle === true;
+}
+
+function vehicleRftEmailEvidenceReady(vehicle = {}) {
+  const outbox = vehicle.rftTransportOutbox && typeof vehicle.rftTransportOutbox === 'object' ? vehicle.rftTransportOutbox : {};
+  const evidence = vehicle.rftTransportEmailEvidence && typeof vehicle.rftTransportEmailEvidence === 'object'
+    ? vehicle.rftTransportEmailEvidence
+    : outbox.evidence && typeof outbox.evidence === 'object' ? outbox.evidence : {};
+  return vehicleRftTransportBooked(vehicle)
+    && outbox.intercepted === true
+    && outbox.delivery_enabled === false
+    && outbox.sent_at == null
+    && outbox.delivered_at == null
+    && Boolean(evidence.photo_receipt_id || evidence.photoReceiptId)
+    && Boolean(evidence.mime_sha256 || evidence.mimeSha256);
+}
+
+function vehicleRftCollectionEnabled(vehicle = {}) {
+  return durableRftLifecycleEnabled() && vehicleRftEmailEvidenceReady(vehicle);
+}
+
 function rftTransportEmailStatusLabel(vehicle = {}) {
   const outbox = vehicle.rftTransportOutbox && typeof vehicle.rftTransportOutbox === 'object' ? vehicle.rftTransportOutbox : {};
-  if (outbox.intercept_receipt_id || outbox.interceptReceiptId) return 'Mandatory salesperson email captured in staging';
+  if (outbox.intercepted === true || outbox.intercept_receipt_id || outbox.interceptReceiptId) return 'Mandatory salesperson email captured in staging (unsent)';
   if (outbox.delivered_at || outbox.sent_at || ['sent', 'delivered'].includes(String(outbox.delivery_status || '').toLowerCase())) return 'Mandatory salesperson email sent';
   if (vehicleRftTransportBooked(vehicle)) return 'Mandatory salesperson email queued';
   return '';
@@ -6348,7 +6373,7 @@ function incomingBucketForVehicle(vehicle = {}) {
 // Parts must not grow its own universe from the legacy PDC sheet/back-end data.
 function vehicleLocationsScreenRows(rows = vehicleLocationBoardRows()) {
   return (Array.isArray(rows) ? rows : [])
-    .filter(vehicle => incomingBucketForVehicle(vehicle) && !vehicleCollectedFromRft(vehicle));
+    .filter(vehicle => incomingBucketForVehicle(vehicle) && !vehicleCollectedFromRft(vehicle) && !vehicleInCollectedState(vehicle));
 }
 
 function incomingBucketLabel(bucketKey = '') {
@@ -15190,7 +15215,7 @@ function rftVehicleDetailRow(vehicle = {}) {
         <div><b>Customer</b><span>${escapeHtml(customer)}</span></div>
         <div class="wide"><b>Blocker / outstanding</b><span>${escapeHtml(blocker || 'No outstanding RFT blockers')}</span></div>
         <div class="wide"><b>Completion ticks</b><span>${rftCompletionTicksHtml(vehicle)}</span></div>
-        <div class="wide rft-detail-actions"><b>Transport handover</b><span class="rft-transport-checks"><label class="rft-collected-check ${vehicleRftTransportBooked(vehicle) ? 'is-complete' : ''}" title="Tick after the transport booking is confirmed on the trucking company website"><input type="checkbox" data-rft-transport-booked-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? 'checked disabled' : ''} /> <span>Booked on trucking website</span></label><label class="rft-collected-check" title="Tick once the vehicle has physically been collected"><input type="checkbox" data-rft-collected-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? '' : 'disabled'} /> <span>Collected</span></label><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>${rftTransportEmailStatusLabel(vehicle) ? `<small class="rft-email-status">${escapeHtml(rftTransportEmailStatusLabel(vehicle))}</small>` : ''}</span></div>
+        <div class="wide rft-detail-actions"><b>Transport handover</b><span class="rft-transport-checks"><button class="primary rft-booked-button" type="button" data-rft-transport-booked-key="${escapeHtml(key)}" ${vehicleRftTransportBooked(vehicle) ? 'disabled' : ''}>${vehicleRftTransportBooked(vehicle) ? 'RFT Booked ✓' : 'RFT Booked'}</button><button class="primary rft-collected-button" type="button" data-rft-collected-key="${escapeHtml(key)}" ${vehicleRftCollectionEnabled(vehicle) ? '' : 'disabled'}>Collected</button><button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>${rftTransportEmailStatusLabel(vehicle) ? `<small class="rft-email-status">${escapeHtml(rftTransportEmailStatusLabel(vehicle))}</small>` : '<small class="rft-email-status">Book transport to enable collection</small>'}</span></div>
       </div>
     </details>`;
 }
@@ -15200,14 +15225,14 @@ async function markRftTransportBooked(key = '', booked = true) {
   const service = app.emailVehicleLocationService;
   if (!vehicle || !booked) { renderAll(); return; }
   if (vehicleRftTransportBooked(vehicle)) { renderAll(); return; }
-  if (vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.bookRftTransport700 !== 'function') {
+  if (!durableRftLifecycleEnabled() || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.bookRftTransport734 !== 'function') {
     window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
   if (!window.confirm(`Confirm ${label} has been booked on the trucking company website?\n\nThis permanently records the booking and creates the mandatory salesperson email with completed work, dates, build times, stoppages and the QC photo.`)) { renderAll(); return; }
-  const result = await service.bookRftTransport700(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
+  const result = await service.bookRftTransport734(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
   if (!result?.ok) {
-    const messages = { salesperson_email_required: 'Assign an active salesperson with an email address first.', qc_evidence_required: 'The QC completion list and photo must be stored before transport can be booked.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.', transport_already_booked: 'Transport has already been booked.' };
+    const messages = { salesperson_email_required: 'Assign an active salesperson with an email address first.', qc_evidence_required: 'The QC completion list and photo must be stored before transport can be booked.', qc_items_required: 'Every required QC item must be complete before transport can be booked.', qc_photo_receipt_required: 'A durable QC vehicle photo is required before transport can be booked.', qc_photo_storage_missing: 'The durable QC photo storage object could not be read back.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.', transport_already_booked: 'Transport has already been booked.' };
     await refreshEmailVehicleLocations(); window.alert(messages[result?.code] || 'Transport booking was not saved. No email was created.'); renderAll(); return;
   }
   await refreshEmailVehicleLocations(); renderAll();
@@ -15219,12 +15244,13 @@ async function markRftVehicleCollected(key = '', collected = true) {
   const service = app.emailVehicleLocationService;
   if (!vehicle || !collected) { renderAll(); return; }
   if (!vehicleRftTransportBooked(vehicle)) { window.alert('Book the vehicle on the trucking company website first.'); renderAll(); return; }
-  if (vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.collectRftTransport700 !== 'function') {
+  if (!vehicleRftEmailEvidenceReady(vehicle)) { window.alert('The intercepted salesperson email and QC photo evidence must be read back before collection.'); renderAll(); return; }
+  if (!vehicleRftCollectionEnabled(vehicle) || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.collectRftTransport734 !== 'function') {
     window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
   if (!window.confirm(`Confirm ${label} has physically been collected?\n\nThis moves it to Collected Vehicles, clears active bay/workshop pointers and leaves the dealer-transit timer open. Delivery closes it later.`)) { renderAll(); return; }
-  const result = await service.collectRftTransport700(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
+  const result = await service.collectRftTransport734(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), salespersonAssignmentIdempotencyKey());
   if (!result?.ok) {
     const messages = { transport_booking_and_mandatory_email_required: 'The trucking booking and mandatory salesperson update must exist first.', started_booking_must_be_completed_before_collection: 'A Workshop job is still STARTED. Complete that real work before collection.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.' };
     await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('rft_collection_rejected')]);
@@ -15235,10 +15261,8 @@ async function markRftVehicleCollected(key = '', collected = true) {
 }
 
 function bindRftCollectedInputs(root = document) {
-  $$('[data-rft-transport-booked-key]', root).forEach(input => input.addEventListener('click', event => event.stopPropagation()));
-  $$('[data-rft-transport-booked-key]', root).forEach(input => input.addEventListener('change', () => { void markRftTransportBooked(input.dataset.rftTransportBookedKey, input.checked); }));
-  $$('[data-rft-collected-key]', root).forEach(input => input.addEventListener('click', event => event.stopPropagation()));
-  $$('[data-rft-collected-key]', root).forEach(input => input.addEventListener('change', () => { void markRftVehicleCollected(input.dataset.rftCollectedKey, input.checked); }));
+  $$('[data-rft-transport-booked-key]', root).forEach(button => button.addEventListener('click', event => { event.stopPropagation(); void markRftTransportBooked(button.dataset.rftTransportBookedKey, true); }));
+  $$('[data-rft-collected-key]', root).forEach(button => button.addEventListener('click', event => { event.stopPropagation(); void markRftVehicleCollected(button.dataset.rftCollectedKey, true); }));
 }
 
 function collectedVehicleRows() {
@@ -15286,7 +15310,7 @@ function completedVehicleRows() {
     if (!retained || vehicle.__sharedNavisionCanonicalVehicleId) deduplicated.set(identity, vehicle);
   });
   return Array.from(deduplicated.values())
-    .filter(vehicleCollectedFromRft)
+    .filter(vehicle => vehicle.vehicleDeliveredState === true || (String(vehicle.pdcLifecycleState || '').toLowerCase() === 'completed' && vehicle.dealerTransitClosedAt))
     .filter(vehicle => {
       if (!q) return true;
       const hay = [

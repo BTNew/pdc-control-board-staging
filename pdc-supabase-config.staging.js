@@ -17,6 +17,7 @@
 window.PDC_ALLOW_LOCAL_RESET = true;
 
 window.PDC_SUPABASE_CONFIG = {
+  environment: 'staging',
   projectRef: 'cdsmnqxtyyoeoznmbidd',
   url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
   publishableKey: 'sb_publishable_hJiXYk7aDCGcijf946MX2g_WVDXnQfk',
@@ -34,7 +35,9 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.27.706-final-authoritative-lifecycle',
+    resolverAssetVersion: '2026.08.29.734-durable-rft-transport-lifecycle',
+    durableRftLifecycle: true,
+    durableRftLifecycleVersion: '734',
     // Fail closed until migration 323 is independently approved, applied to
     // this exact staging project, and authenticated RPC probes pass.
     completeVehicleDeleteCommissioned: false

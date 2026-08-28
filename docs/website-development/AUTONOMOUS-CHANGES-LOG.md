@@ -225,3 +225,10 @@
 - Live result: booking is `cancelled`, version 6, with `returned_at` and `returned_by` null; active booking count is 0; active required incomplete Sublet work count is 0; vehicle remains active/visible at `Other`, Stock `13000765`, Navision source row `6ddb2053-3ca2-41aa-8ef5-0418582bcde0`, version 9; Board readback contains the target exactly once with zero active Sublet.
 - Safety: cleanup history count is 2; one-shot control is used/disabled/revoked; wrong-object/replay and Production-environment calls fail closed; task remains disabled; outbound email false; UID514 unchanged; Production untouched; no return or physical evidence was fabricated.
 - Verification: focused cleanup contract and live tests pass 2/2 and 3/3; `npm run test` and `npm run check` each pass 226/0/1. Handoff: `docs/website-development/PDC-EMAIL-ACCEPTANCE-SUBLET-CLEANUP-HANDOFF-20260828.md`.
+
+## 2026-08-28 — Durable RFT transport lifecycle 734
+
+- Scope: staging project `cdsmnqxtyyoeoznmbidd` only. Production configuration/project, production branches, data and outbound delivery remain untouched.
+- Action: added append-only 734 lifecycle receipts, intercepted MIME/photo email evidence, durable RFT Booked and Collected RPC successors, exact Toyota/Navision Delivered - At Dealer timer closure, immutable dealer-transit statistics, stale-status latches and fail-closed legacy RPC fences.
+- UI: staging now shows a distinct RFT Booked confirmation button; Collected is enabled only after authoritative intercepted email/photo evidence; Collected has its own section and does not appear in delivered-only Completed statistics.
+- Verification: authenticated rollback-safe HERMES-TEST round-trip proved RFT timer start, one intercepted unsent MIME/photo outbox, idempotent booking/collection/delivery replay, Collected bay release with timer open, exact Delivered-at-Dealer completion/statistic, stale-status protection, legacy collection denial and fixture rollback. Live migration head is `20260829000000`.
