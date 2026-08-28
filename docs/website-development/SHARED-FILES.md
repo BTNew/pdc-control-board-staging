@@ -149,3 +149,11 @@
 ||---|---|---|---|
 || `app.js`, `styles.css`, `index.html` | Staging Vehicle Locations UI | Replaces RFT row work icons and Age/ETA/Status clutter with exactly `RFT’d`, `Email Sales Person`, and `Collected`; preserves authoritative 734 handlers, role gating, receipt overlays, stale-callback protection and cache markers | `test_vehicle_locations_rft_transport_controls.js`; production untouched. |
 || `test_vehicle_locations_rft_transport_controls.js`, `test_mobile_navigation_compact_width.js` | Regression coverage | Exact three-label row presentation, absence of per-work/status clutter, role-safe disabled state, successor dispatch, transitions, stale callbacks and responsive cache marker | Node focused/full regression lanes pass. |
+
+## Authoritative Vehicle Locations RFT confirmation toggle 736 — 2026-08-29
+
+|| File | Stream | Exact surface | Tests / coordination |
+||---|---|---|---|
+|| `supabase/staging_only/20260829040000_736_authoritative_rft_confirmation_toggle.sql` | Staging backend/lifecycle authority | Append-only tick/untick receipts, exact vehicle/version/role/idempotency and stale/state guards, timer start/clear, irreversible email/Collected/Completed fence, booking-timer preservation and legacy fences | Applied to exact staging head `20260829030000`; rollback-only hidden HERMES-TEST live acceptance passed. |
+|| `app.js`, `pdc-email-vehicle-location-service.js`, `index.html`, `pdc-supabase-config.staging.js`, `styles.css`, `deployment-identity.json` | Staging Vehicle Locations UI/service/provenance | Direct authoritative `RFT’d` checkbox, Email Sales Person gate, disabled reasons, authoritative readback, stale callback suppression and cache-busted 736 assets | `test_vehicle_locations_rft_transport_controls.js`, `test_rft_confirmation_toggle_736.js`; Production untouched. |
+|| `tests/test_rft_confirmation_toggle_736_live.py` | Regression/live acceptance | Hidden HERMES-TEST tick, replay, permitted untick, stale version, Email-evidence and Collected irreversible guards with receipt-count and Production checks | `PDC_RUN_RFT_CONFIRMATION_736_LIVE_TESTS=1`; fixture transaction rolled back. |

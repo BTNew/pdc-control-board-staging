@@ -9072,6 +9072,27 @@ html[data-workflow-width="xl"] #workflow {
   font-weight: 950;
   line-height: 1;
 }
+.rft-confirmation-control {
+  cursor: pointer;
+}
+.rft-confirmation-control input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #15803d;
+}
+.rft-confirmation-control.is-checked {
+  background: #ecfdf5;
+  border-color: #86efac;
+  color: #166534;
+}
+.rft-confirmation-control.is-unchecked {
+  background: #fff;
+  color: #334155;
+}
+.rft-confirmation-control:has(input:disabled) {
+  cursor: not-allowed;
+}
 .rft-source-badge {
   font-size: .68rem;
   line-height: 1.1;

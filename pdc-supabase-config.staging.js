@@ -35,9 +35,10 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.29.734-durable-rft-transport-lifecycle',
+    resolverAssetVersion: '2026.08.29.736-authoritative-rft-confirmation-toggle',
     durableRftLifecycle: true,
-    durableRftLifecycleVersion: '734',
+    durableRftLifecycleVersion: '736',
+    durableRftTransportVersion: '734',
     // Fail closed until migration 323 is independently approved, applied to
     // this exact staging project, and authenticated RPC probes pass.
     completeVehicleDeleteCommissioned: false

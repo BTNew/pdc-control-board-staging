@@ -23,6 +23,8 @@ const vehicle = {
   stock: '13000769',
   pdcLocation: 'RFT',
   lifecycleState: 'rft',
+  rftConfirmed: true,
+  rftConfirmedAt: '2026-08-28T03:00:00Z',
   toyotaStatus: 'RFT',
   client: 'Ahrens Group Pty Ltd',
   vehicle: 'Hilux DCC',
@@ -33,7 +35,7 @@ const vehicle = {
 };
 
 const context = {
-  app: { selectedRows: new Set(), rftTransportActionInFlight: new Set() },
+  app: { selectedRows: new Set(), rftTransportActionInFlight: new Set(), emailVehicleLocationService: { setRftConfirmation736: () => {}, bookRftTransport734: () => {}, collectRftTransport734: () => {} } },
   window: {
     PDC_AUTH_CONTEXT: { role: 'operator' },
     PDC_SUPABASE_CONFIG: {
@@ -88,13 +90,14 @@ assert.match(rendered, /data-rft-collected-key="11111111-1111-4111-8111-11111111
 const summary = rendered.match(/<summary[\s\S]*?<\/summary>/)?.[0] || '';
 const summaryLabels = [...summary.matchAll(/<span>(RFT’d|Email Sales Person|Collected)<\/span>/g)].map(match => match[1]);
 assert.deepStrictEqual(summaryLabels, ['RFT’d', 'Email Sales Person', 'Collected'], 'Vehicle Locations RFT row exposes exactly the three final labels');
-assert.match(summary, /RFT’d checked/);
-assert.match(summary, /data-rft-transition-authority="authoritative"/);
+assert.match(summary, /rft-confirmation-control is-checked/);
+assert.match(summary, /data-rft-confirmation-key="11111111-1111-4111-8111-111111111111"/);
 assert.doesNotMatch(rendered, /RFT Booked|incoming-work-check|pdc-station-|pdc-mini-|rft-completion|\bAge\b|\bETA\b|\bStatus\b/, 'RFT Vehicle Locations rows have no per-work icons or ordinary age/ETA/status clutter');
 assert.match(rendered, /Collected/, 'Collected accessible label is visible');
 assert.match(rendered, /Book RFT|Mandatory email.*photo|collection/i, 'Collected disabled state exposes a clear reason');
 
 context.app.emailVehicleLocationService = {
+  setRftConfirmation736: () => {},
   bookRftTransport734: () => {},
   collectRftTransport734: () => {},
 };
@@ -120,6 +123,17 @@ const bookedAfter = rendered.match(/<button[^>]*data-rft-transport-booked-key="[
 const collectedAfter = rendered.match(/<button[^>]*data-rft-collected-key="[^"]+"[\s\S]*?<\/button>/)?.[0] || '';
 assert.match(bookedAfter, /aria-pressed="true"[\s\S]*\sdisabled(?:=|\s|>)/, 'Booked state is checked and disabled');
 assert.doesNotMatch(collectedAfter, /\sdisabled(?:=|\s|>)/, 'Collected enables after booking and mandatory evidence read-back');
+const irreversibleConfirmation = rendered.match(/<input[^>]*data-rft-confirmation-key="[^"]+"[^>]*>/)?.[0] || '';
+assert.match(irreversibleConfirmation, /\sdisabled(?:=|\s|>)/, 'RFT’d cannot be unticked after Email Sales Person evidence');
+assert.match(rendered, /Email Sales Person evidence exists; RFT’d cannot be unticked/);
+
+const uncheckedVehicle = { ...vehicle, rftConfirmed: false, rftConfirmedAt: '', rftTransportBookedAt: '', rftTransportOutbox: { intercepted: false, delivery_enabled: false } };
+rendered = context.renderIncomingRftRow(uncheckedVehicle, 'rft', {});
+const uncheckedConfirmation = rendered.match(/<input[^>]*data-rft-confirmation-key="[^"]+"[^>]*>/)?.[0] || '';
+const uncheckedEmail = rendered.match(/<button[^>]*data-rft-transport-booked-key="[^"]+[\s\S]*?<\/button>/)?.[0] || '';
+assert.doesNotMatch(uncheckedConfirmation, /\sdisabled(?:=|\s|>)/, 'Authorised operator can tick RFT’d on an already-RFT vehicle');
+assert.match(uncheckedEmail, /\sdisabled(?:=|\s|>)/, 'Email Sales Person is disabled until RFT’d is ticked');
+assert.match(uncheckedEmail, /tick RFT’d first/);
 
 context.window.PDC_AUTH_CONTEXT.role = 'viewer';
 rendered = context.renderIncomingRftRow(vehicle, 'rft', {});
@@ -138,6 +152,7 @@ const transportActionsStart = appSource.indexOf('function beginRftTransportActio
 const actionSource = appSource.slice(transportActionsStart, actionEnd);
 assert.match(actionSource, /service\.bookRftTransport734/);
 assert.match(actionSource, /service\.collectRftTransport734/);
+assert.match(actionSource, /service\.setRftConfirmation736/);
 assert.match(actionSource, /data-rft-transport-booked-key|Email Sales Person/);
 assert.match(actionSource, /await refreshEmailVehicleLocations\(\)/);
 assert.match(actionSource, /rftTransportActionIsCurrent/, 'RFT callbacks reject stale results');
@@ -147,16 +162,23 @@ const actionVehicle = {
   __emailVehicleId: '11111111-1111-4111-8111-111111111111',
   __emailVehicleVersion: 7,
   __emailVehicleServerAuthoritative: true,
+  rftConfirmed: false,
   rftTransportBookedAt: '',
 };
 let pendingBooking;
 let bookingCalls = [];
 let collectionCalls = [];
+let confirmationCalls = [];
 let refreshCalls = 0;
 let renderCalls = 0;
 const actionContext = {
   app: {
     emailVehicleLocationService: {
+      setRftConfirmation736: async (id, version, confirmed, key) => {
+        confirmationCalls.push([id, version, confirmed, key]);
+        actionVehicle.rftConfirmed = confirmed;
+        return { ok: true, code: confirmed ? 'rft_confirmed' : 'rft_unconfirmed', data: { receipt_id: 'receipt-736', vehicle_id: id, vehicle_version_after: version + 1, rft_confirmed: confirmed } };
+      },
       bookRftTransport734: (id, version, key) => {
         bookingCalls.push([id, version, key]);
         return new Promise(resolve => { pendingBooking = resolve; });
@@ -177,6 +199,9 @@ const actionContext = {
   },
   selectedVehicle: () => actionVehicle,
   vehicleRftLifecycleRoleAllowed: () => true,
+  rftTransportActionAuthorityReady: () => true,
+  rftConfirmationIrreversibleReason: () => '',
+  vehicleRftConfirmationActive: value => value.rftConfirmed === true,
   vehicleRftTransportBooked: value => Boolean(value.rftTransportBookedAt),
   vehicleRftEmailEvidenceReady: () => true,
   vehicleRftCollectionEnabled: () => true,
@@ -188,7 +213,7 @@ const actionContext = {
   renderAll: () => { renderCalls += 1; },
 };
 vm.createContext(actionContext);
-vm.runInContext(`${actionSource}\nthis.book = markRftTransportBooked; this.collect = markRftVehicleCollected;`, actionContext);
+vm.runInContext(`${actionSource}\nthis.book = markRftTransportBooked; this.collect = markRftVehicleCollected; this.confirm = markRftConfirmation;`, actionContext);
 const staleBooking = actionContext.book('11111111-1111-4111-8111-111111111111', true);
 setImmediate(() => {
   actionContext.app.rftTransportActionGeneration += 1;
@@ -204,6 +229,15 @@ staleBooking.then(async result => {
   assert.deepStrictEqual(collectionCalls, [['11111111-1111-4111-8111-111111111111', 7, 'idempotency-734']], 'Collected handler dispatches exact successor RPC arguments');
   assert.strictEqual(refreshCalls, 1, 'Successful collection refreshes authoritative state');
   assert.ok(renderCalls > 0, 'Handlers remain wired to the normal render path');
+  actionVehicle.__emailVehicleVersion = 8;
+  const confirmed = await actionContext.confirm('11111111-1111-4111-8111-111111111111', true);
+  assert.strictEqual(confirmed, true, 'Unchecked RFT’d handler records authoritative confirmation');
+  assert.deepStrictEqual(confirmationCalls[0], ['11111111-1111-4111-8111-111111111111', 8, true, 'idempotency-734'], 'RFT’d tick dispatches exact successor vehicle/version/value/idempotency');
+  actionVehicle.__emailVehicleVersion = 9;
+  const unconfirmed = await actionContext.confirm('11111111-1111-4111-8111-111111111111', false);
+  assert.strictEqual(unconfirmed, true, 'Checked RFT’d handler permits the guarded accidental-confirmation reversal');
+  assert.deepStrictEqual(confirmationCalls[1], ['11111111-1111-4111-8111-111111111111', 9, false, 'idempotency-734'], 'RFT’d untick dispatches exact successor vehicle/version/value/idempotency');
+  assert.strictEqual(refreshCalls, 3, 'Both RFT’d mutations refresh authoritative state');
 }).catch(error => { console.error(error); process.exitCode = 1; });
 
 assert.match(css, /rft-transport-controls/);

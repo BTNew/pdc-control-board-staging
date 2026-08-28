@@ -15,6 +15,14 @@
     "commissioned": true,
     "review_status": "staging_applied"
   },
+  "authoritative_rft_confirmation_migration": {
+    "version": "20260829040000",
+    "name": "736_authoritative_rft_confirmation_toggle",
+    "file": "supabase/staging_only/20260829040000_736_authoritative_rft_confirmation_toggle.sql",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "sha256": "35625814524602ac219a5b1c0b71bdd73cd3cd197d02ab9ce09ab1fd076dc5f9"
+  },
   "observed_applied_database_migration": {
     "version": "20260827051000",
     "name": "501_exact_uid639_640_all_operations_import",

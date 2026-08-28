@@ -2329,8 +2329,27 @@ function rftTransportActionAuthorityReady(vehicle = {}) {
     && vehicle.__emailVehicleServerAuthoritative === true
     && Boolean(vehicle.__emailVehicleId)
     && Number(vehicle.__emailVehicleVersion || 0) >= 1
+    && typeof app.emailVehicleLocationService?.setRftConfirmation736 === 'function'
     && typeof app.emailVehicleLocationService?.bookRftTransport734 === 'function'
     && typeof app.emailVehicleLocationService?.collectRftTransport734 === 'function';
+}
+
+function vehicleRftConfirmationActive(vehicle = {}) {
+  return vehicle.rftConfirmed === true
+    || Boolean(vehicle.rftConfirmedAt)
+    || vehicle.pdcLifecycle?.rft_confirmed === true;
+}
+
+function rftConfirmationVehicleCollectedOrCompleted(vehicle = {}) {
+  const state = String(vehicle.pdcLifecycleState || vehicle.vehicleLifecycleState || vehicle.lifecycleState || '').trim().toLowerCase();
+  const location = String(vehicle.pdcLocation || vehicle.current_location || '').trim().toLowerCase();
+  return ['collected', 'completed'].includes(state) || ['collected', 'completed'].includes(location) || vehicle.completedVehicle === true;
+}
+
+function rftConfirmationIrreversibleReason(vehicle = {}) {
+  if (vehicleRftTransportBooked(vehicle) || vehicle.rftTransportOutbox?.notification_id || vehicle.rftTransportEmailEvidence?.photo_receipt_id) return 'Email Sales Person evidence exists; RFT’d cannot be unticked';
+  if (rftConfirmationVehicleCollectedOrCompleted(vehicle)) return 'Collected or Completed is recorded; RFT’d cannot be unticked';
+  return '';
 }
 
 function rftTransportCollectionDisabledReason(vehicle = {}) {
@@ -2341,30 +2360,42 @@ function rftTransportCollectionDisabledReason(vehicle = {}) {
 }
 
 function vehicleRftTransitionAuthoritative(vehicle = {}) {
-  const location = String(vehicle.pdcLocation || vehicle.current_location || '').trim().toUpperCase();
-  const lifecycle = String(vehicle.pdcLifecycleState || vehicle.vehicleLifecycleState || vehicle.lifecycleState || '').trim().toLowerCase();
-  return vehicle.__emailVehicleServerAuthoritative === true
-    && (location === 'RFT' || lifecycle === 'rft' || Boolean(vehicle.rftTransferredAt || vehicle.pdcLocationUpdatedAt));
+  return vehicleRftConfirmationActive(vehicle);
 }
 
 function rftTransportControlsHtml(vehicle = {}) {
   const key = vehicleKey(vehicle);
   const roleAllowed = vehicleRftLifecycleRoleAllowed();
+  const rftConfirmed = vehicleRftConfirmationActive(vehicle);
   const booked = vehicleRftTransportBooked(vehicle);
   const authorityReady = rftTransportActionAuthorityReady(vehicle);
   const actionKey = `rft:${key}`;
   const inFlight = app.rftTransportActionInFlight?.has(actionKey);
-  const bookedDisabled = booked || !roleAllowed || !authorityReady || inFlight;
+  const irreversibleReason = rftConfirmationIrreversibleReason(vehicle);
+  const confirmationReason = !roleAllowed
+    ? 'Operator or Administrator access required'
+    : !authorityReady
+      ? 'Shared staging authority unavailable'
+      : rftConfirmed && irreversibleReason
+        ? irreversibleReason
+        : inFlight ? 'Another RFT action is in progress' : '';
+  const confirmationDisabled = Boolean(confirmationReason);
+  const bookedDisabled = booked || !roleAllowed || !authorityReady || !rftConfirmed || inFlight;
   const collectionEnabled = roleAllowed && vehicleRftCollectionEnabled(vehicle) && authorityReady;
   const collectionReason = !roleAllowed
     ? 'Operator or Administrator access required'
     : rftTransportCollectionDisabledReason(vehicle) || (inFlight ? 'Another RFT action is in progress' : '');
-  const rftTransitionStarted = vehicleRftTransitionAuthoritative(vehicle);
-  const rftDate = vehicle.rftTransferredAt || vehicle.pdcLocationUpdatedAt || '';
+  const confirmationTitle = confirmationDisabled
+    ? `Disabled: ${confirmationReason}`
+    : rftConfirmed
+      ? 'Untick to reverse an accidental manual RFT confirmation and clear its open dealer-transit timer'
+      : 'Tick to record manual RFT confirmation and start the dealer-transit timer';
   const bookedTitle = booked
     ? 'Checked: RFT transport is booked and the mandatory salesperson email is sent or queued in staging'
     : !roleAllowed
       ? 'Disabled: Operator or Administrator access is required'
+      : !rftConfirmed
+        ? 'Disabled: tick RFT’d first'
       : authorityReady
         ? 'Record RFT transport booking through the shared staging successor'
         : 'Unavailable: this row is not bound to shared staging authority';
@@ -2375,7 +2406,7 @@ function rftTransportControlsHtml(vehicle = {}) {
     ? 'Collected — ready to record physical collection'
     : `Collected — disabled: ${collectionReason || 'Collection is not yet enabled'}`;
   return `<span class="rft-transport-controls" role="group" aria-label="RFT transport controls">
-    <span class="rft-transport-control rft-authoritative-status ${rftTransitionStarted ? 'is-checked' : 'is-unavailable'}" role="status" aria-label="RFT’d ${rftTransitionStarted ? 'checked' : 'unavailable'} — authoritative RFT transition and timer start${rftDate ? ` at ${rftDate}` : ''}" data-rft-transition-authority="authoritative"><span class="rft-transport-icon" aria-hidden="true">${rftTransitionStarted ? '✓' : '!'}</span><span>RFT’d</span></span>
+    <label class="rft-transport-control rft-confirmation-control ${rftConfirmed ? 'is-checked' : 'is-unchecked'}" title="${escapeHtml(confirmationTitle)}"><input type="checkbox" data-rft-confirmation-key="${escapeHtml(key)}" aria-label="RFT’d" ${rftConfirmed ? 'checked' : ''} ${confirmationDisabled ? 'disabled' : ''} /><span class="rft-transport-icon" aria-hidden="true">${rftConfirmed ? '✓' : '○'}</span><span>RFT’d</span></label>
     <button class="small-button rft-transport-control rft-email-salesperson-button" type="button" data-rft-transport-booked-key="${escapeHtml(key)}" aria-pressed="${booked ? 'true' : 'false'}" ${bookedDisabled ? 'disabled' : ''} title="${escapeHtml(bookedTitle)}"><span class="rft-transport-icon" aria-hidden="true">${booked ? '✓' : '↗'}</span><span>Email Sales Person</span></button>
     <button class="small-button rft-transport-control rft-collected-button" type="button" data-rft-collected-key="${escapeHtml(key)}" aria-label="${escapeHtml(collectionAria)}" ${collectionEnabled && !inFlight ? '' : 'disabled'} title="${escapeHtml(collectedTitle || 'Collection is not yet enabled')}"><span class="rft-transport-icon" aria-hidden="true">✓</span><span>Collected</span></button>
   </span>`;
@@ -15329,6 +15360,56 @@ function finishRftTransportAction(action = null) {
   if (action && app.rftTransportActionInFlight instanceof Set) app.rftTransportActionInFlight.delete(action.actionKey);
 }
 
+async function markRftConfirmation(key = '', confirmed = false) {
+  const vehicle = selectedVehicle(key);
+  const service = app.emailVehicleLocationService;
+  const desired = confirmed === true;
+  if (!vehicle || !vehicleRftLifecycleRoleAllowed()) { renderAll(); return false; }
+  if (!rftTransportActionAuthorityReady(vehicle) || typeof service?.setRftConfirmation736 !== 'function') {
+    window.alert('This RFT vehicle is not bound to current staging authority. Nothing was changed.'); renderAll(); return false;
+  }
+  if (!desired && rftConfirmationIrreversibleReason(vehicle)) {
+    window.alert(rftConfirmationIrreversibleReason(vehicle)); renderAll(); return false;
+  }
+  if (vehicleRftConfirmationActive(vehicle) === desired) { renderAll(); return false; }
+  const action = beginRftTransportAction(key);
+  if (!action) return false;
+  try {
+    const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
+    const prompt = desired
+      ? `Confirm ${label} is manually RFT’d?\n\nThis records the authoritative RFT confirmation and starts the dealer-transit timer. It does not send the salesperson email.`
+      : `Untick RFT’d for ${label}?\n\nThis reverses the accidental manual confirmation and clears the open dealer-transit timer. It is only allowed before Email Sales Person evidence exists.`;
+    if (!window.confirm(prompt)) { renderAll(); return false; }
+    const result = await service.setRftConfirmation736(vehicle.__emailVehicleId, Number(vehicle.__emailVehicleVersion), desired, salespersonAssignmentIdempotencyKey());
+    if (!rftTransportActionIsCurrent(action)) return false;
+    if (!result?.ok) {
+      const messages = {
+        rft_confirmation_irreversible: 'Email Sales Person evidence or Collected/Completed history exists; RFT’d cannot be unticked.',
+        rft_confirmation_stale_version: 'This vehicle changed in another session. The latest state has been reloaded.',
+        rft_confirmation_invalid_state: 'The vehicle is no longer in the RFT location.',
+        rft_confirmation_required: 'Tick RFT’d before Email Sales Person.',
+      };
+      await refreshEmailVehicleLocations();
+      if (!rftTransportActionIsCurrent(action)) return false;
+      window.alert(messages[result?.code] || 'RFT’d was not changed. No history was removed.'); renderAll(); return false;
+    }
+    const data = result.data && typeof result.data === 'object' ? result.data : {};
+    if (String(data.vehicle_id || '') !== String(vehicle.__emailVehicleId) || !data.receipt_id || !Number.isInteger(Number(data.vehicle_version_after)) || Number(data.vehicle_version_after) < 1 || data.rft_confirmed !== desired) {
+      await refreshEmailVehicleLocations();
+      if (!rftTransportActionIsCurrent(action)) return false;
+      window.alert('The RFT confirmation response was incomplete. Refresh before retrying.'); renderAll(); return false;
+    }
+    const refreshed = await refreshEmailVehicleLocations();
+    if (!rftTransportActionIsCurrent(action)) return false;
+    if (!refreshed) { window.alert('RFT’d was accepted, but the shared row could not be read back. Refresh before retrying.'); renderAll(); return false; }
+    renderAll();
+    window.alert(desired ? 'RFT’d recorded. The dealer-transit timer has started.' : 'RFT’d unticked. The accidental confirmation and open timer were cleared.');
+    return true;
+  } finally {
+    finishRftTransportAction(action);
+  }
+}
+
 async function markRftTransportBooked(key = '', booked = true) {
   // Legacy bookRftTransport700(vehicle.__emailVehicleId, ...) is retired;
   // the durable staging path below is the only booking dispatch.
@@ -15398,6 +15479,7 @@ async function markRftVehicleCollected(key = '', collected = true) {
 }
 
 function bindRftCollectedInputs(root = document) {
+  $$('[data-rft-confirmation-key]', root).forEach(input => input.addEventListener('change', event => { event.stopPropagation(); void markRftConfirmation(input.dataset.rftConfirmationKey, input.checked); }));
   $$('[data-rft-transport-booked-key]', root).forEach(button => button.addEventListener('click', event => { event.stopPropagation(); void markRftTransportBooked(button.dataset.rftTransportBookedKey, true); }));
   $$('[data-rft-collected-key]', root).forEach(button => button.addEventListener('click', event => { event.stopPropagation(); void markRftVehicleCollected(button.dataset.rftCollectedKey, true); }));
 }
