@@ -11118,6 +11118,7 @@ function offerSalespersonChangeEmail(vehicle = {}, change = {}) {
   const defaultEmail = salespersonEmail(vehicle);
   const details = (Array.isArray(change.details) ? change.details : [change.details]).map(cleanNavisionText).filter(Boolean);
   const overlay = document.createElement('div');
+  const returnFocus = document.activeElement;
   if (typeof overlay?.querySelectorAll !== 'function' || typeof overlay?.querySelector !== 'function') return;
   overlay.className = 'modal-overlay sales-change-email-overlay';
   overlay.dataset.salesChangeEmailOverlay = 'true';
@@ -11149,9 +11150,21 @@ function offerSalespersonChangeEmail(vehicle = {}, change = {}) {
   const close = () => {
     overlay.remove();
     if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
+    if (returnFocus instanceof HTMLElement && returnFocus.isConnected) returnFocus.focus();
   };
   overlay.querySelectorAll('[data-sales-email-cancel]').forEach(button => button.addEventListener('click', close));
   overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
+  overlay.addEventListener('keydown', event => {
+    if (event.key === 'Tab') {
+      trapModalFocus(overlay, event);
+      event.stopPropagation();
+      return;
+    }
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    close();
+  });
   overlay.querySelector('[data-sales-email-open]')?.addEventListener('click', () => {
     const recipient = overlay.querySelector('[data-sales-email-recipient]')?.value || '';
     if (draftSalespersonChangeEmail(vehicle, change, recipient)) close();
