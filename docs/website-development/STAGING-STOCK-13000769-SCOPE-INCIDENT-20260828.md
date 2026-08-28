@@ -16,6 +16,6 @@ The concurrent Parts task history independently identifies Stock `13017855`, Job
 - The encrypted staging target-closure backup was independently hash/decrypt/readback verified.
 - Append-only migrations 747–750 restored the exact canonical Stock `13000769` closure, opened a new QC retest cycle, preserved old evidence as immutable superseded history, accepted a fresh mobile-photo evidence row, and projected all 17 operation lines through the existing Board snapshot.
 - A database guard now blocks deletion/archive/unlink of the restored Stock `13000769` identity and does not apply to Stock `13017855`.
-- The old UID 639 replay fence and claim floor 640 remain in force; monitor mailbox, stage writers, automatic rules and outbound email remain disabled.
+- The old UID 639 replay fence and claim floor 640 remain in force. At recovery time the monitor mailbox/writer were contained; the later unrelated 752 successor may activate the exact staging mailbox/writer for newer UIDs, but automatic rules and outbound email remain disabled and the restored Stock `13000769` source row cannot be recreated from UID 639.
 
 Production was not contacted or changed.
