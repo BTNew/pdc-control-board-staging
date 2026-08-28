@@ -1973,6 +1973,7 @@ const app = {
   vehicleModalIdentityReady: false,
   vehicleModalIdentityRecoveryInFlight: null,
   vehicleModalIdentityRecoveryAttempted: false,
+  vehicleModalIdentityLastError: '',
   vehicleModalSaveInFlight: null,
   vehicleDetailPage: 'details',
   vehicleWorkshopDetailCache: new Map(),
@@ -2045,6 +2046,7 @@ const app = {
   emailVehicleLocationService: null,
   emailVehicleLocationRows: [],
   emailVehicleLocationRevision: null,
+  emailVehicleLocationError: '',
   emailVehicleLocationGeneration: 0,
   emailVehicleLocationRealtime: null,
   emailVehicleReceiptOverlays: new Map(),
@@ -4664,6 +4666,7 @@ function resetEmailVehicleLocations() {
   app.emailVehicleLocationService = null;
   app.emailVehicleLocationRows = [];
   app.emailVehicleLocationRevision = null;
+  app.emailVehicleLocationError = '';
   app.emailVehicleReceiptOverlays = new Map();
   app.vehicleHistoryCache = new Map();
   app.vehicleHistoryRequestGeneration += 1;
@@ -4673,13 +4676,19 @@ function resetEmailVehicleLocations() {
 async function refreshEmailVehicleLocations(options = {}) {
   const service = app.emailVehicleLocationService;
   const authority = String(window.PDC_AUTH_CONTEXT?.userId || '');
-  if (!service || !authority || !getPdcSupabaseAccessToken()) return false;
+  if (!service || !authority || !getPdcSupabaseAccessToken()) {
+    app.emailVehicleLocationError = !authority || !getPdcSupabaseAccessToken() ? 'not_authenticated' : 'service_unavailable';
+    return false;
+  }
   const refreshGeneration = options.refreshGeneration;
   const generation = ++app.emailVehicleLocationGeneration;
   const response = await service.snapshot();
   if (generation !== app.emailVehicleLocationGeneration || service !== app.emailVehicleLocationService || authority !== String(window.PDC_AUTH_CONTEXT?.userId || '')) return false;
   if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return false;
-  if (!response.ok) return false;
+  if (!response.ok) {
+    app.emailVehicleLocationError = response.code || response.error || 'snapshot_unavailable';
+    return false;
+  }
   const serverRows = applyPendingAuthoritativeVehicleReceiptOverlays(Array.isArray(response.data?.vehicles) ? response.data.vehicles : []);
   app.emailVehicleLocationRows = applyPendingSharedWorkStateOverlays(serverRows);
   const module = typeof window !== 'undefined'
@@ -4701,6 +4710,7 @@ async function refreshEmailVehicleLocations(options = {}) {
     app.emailVehicleIdentityConflictCount = reconciled.conflictCount;
   }
   app.emailVehicleLocationRevision = response.data?.revision ?? null;
+  app.emailVehicleLocationError = '';
   if (refreshGeneration == null || refreshGeneration === app.vehicleLocationsRefreshGeneration) renderAll();
   return true;
 }
@@ -13137,21 +13147,36 @@ async function refreshVehicleModalExactIdentity(identity = app.vehicleModalIdent
   const module = typeof window !== 'undefined'
     ? window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE
     : globalThis.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
-  if (!service?.snapshot || typeof module?.mapServerVehicle !== 'function') return { ok: false, code: 'identity_refresh_unavailable', vehicle: null };
+  if (!service?.snapshot || typeof module?.mapServerVehicle !== 'function') {
+    if (app.vehicleModalIdentity === identity) app.vehicleModalIdentityLastError = 'identity_refresh_unavailable';
+    return { ok: false, code: 'identity_refresh_unavailable', vehicle: null };
+  }
   const owner = identity;
   const request = (async () => {
     let response;
-    try { response = await service.snapshot(); } catch (_error) { return { ok: false, code: 'identity_refresh_unavailable', vehicle: null }; }
+    try { response = await service.snapshot(); } catch (_error) {
+      if (app.vehicleModalIdentity === owner) app.vehicleModalIdentityLastError = 'identity_refresh_unavailable';
+      return { ok: false, code: 'identity_refresh_unavailable', vehicle: null };
+    }
     if (app.vehicleModalIdentity !== owner || refreshGeneration !== app.vehicleLocationsRefreshGeneration) return { ok: false, code: 'identity_superseded', vehicle: null };
+    if (response?.ok !== true) {
+      const code = String(response?.code || response?.error || 'snapshot_unavailable');
+      app.vehicleModalIdentityLastError = code;
+      return { ok: false, code, vehicle: null };
+    }
     const rows = Array.isArray(response?.data?.vehicles) ? response.data.vehicles : [];
     const authoritativeRows = applyPendingAuthoritativeVehicleReceiptOverlays(rows);
     const exact = exactAuthoritativeVehicleSnapshotRow(owner, authoritativeRows);
-    if (!exact.ok) return { ok: false, code: exact.code, vehicle: null };
+    if (!exact.ok) {
+      app.vehicleModalIdentityLastError = exact.code;
+      return { ok: false, code: exact.code, vehicle: null };
+    }
     const mapped = module.mapServerVehicle(exact.row);
     if (!mapped || mapped.__emailVehicleServerAuthoritative !== true
         || String(vehicleWorkshopDetailCanonicalId(mapped) || '').trim() !== String(owner.canonicalId || '').trim()
         || vehicleModalIdentityStock(mapped) !== String(owner.stockBaseline || '').trim()
         || mapped.__emailVehicleIdentityConflict === true) {
+      app.vehicleModalIdentityLastError = 'identity_mapping_contradictory';
       return { ok: false, code: 'identity_mapping_contradictory', vehicle: null };
     }
     const authoritative = applyPendingSharedWorkStateOverlays([mapped])[0] || mapped;
@@ -13163,6 +13188,7 @@ async function refreshVehicleModalExactIdentity(identity = app.vehicleModalIdent
     app.emailVehicleLocationRevision = response.data?.revision ?? app.emailVehicleLocationRevision;
     app.vehicleModalIdentityReady = true;
     app.vehicleModalLoadingIdentity = false;
+    app.vehicleModalIdentityLastError = '';
     return { ok: true, code: 'exact_identity_rebound', vehicle: authoritative };
   })();
   const guarded = request.finally(() => {
@@ -13189,6 +13215,7 @@ function openVehicleModal(stock) {
   });
   app.vehicleModalIdentityReady = false;
   app.vehicleModalIdentityRecoveryAttempted = false;
+  app.vehicleModalIdentityLastError = '';
   if (!app.vehicleModalIdentity.canonicalId || !app.vehicleModalIdentity.stockBaseline) {
     app.vehicleModalIdentity = null;
     window.alert('The exact vehicle identity is unavailable. Refresh the list and try again. No vehicle was changed.');
@@ -13223,8 +13250,25 @@ function openVehicleModal(stock) {
     let refreshed = cachedAuthoritative;
     try {
       const refreshedOk = await refreshEmailVehicleLocations();
-      if (!refreshedOk || app.vehicleModalIdentity !== identityAtOpen) return;
-      refreshed = vehicleModalBoundVehicle();
+      if (app.vehicleModalIdentity !== identityAtOpen) return;
+      if (!refreshedOk) {
+        const backgroundError = app.emailVehicleLocationError || 'snapshot_unavailable';
+        if (cachedReady && isRetryableVehicleModalIdentityFailure(backgroundError) && app.vehicleModalIdentity === identityAtOpen) {
+          // A retryable background snapshot failure must not discard the last
+          // authenticated UUID+Stock row that already opened the card.
+          app.vehicleModalIdentityLastError = backgroundError;
+          app.vehicleModalIdentityReady = true;
+          app.vehicleModalLoadingIdentity = false;
+          ready = true;
+          if (!modal.hidden) renderDetail();
+          return;
+        }
+        const rebound = await refreshVehicleModalExactIdentity(identityAtOpen);
+        if (!rebound?.ok || app.vehicleModalIdentity !== identityAtOpen) return;
+        refreshed = rebound.vehicle || vehicleModalBoundVehicle();
+      } else {
+        refreshed = vehicleModalBoundVehicle();
+      }
       if (!refreshed || !vehicleModalIdentityMatches(refreshed)) {
         const rebound = await refreshVehicleModalExactIdentity(identityAtOpen);
         if (!rebound?.ok || app.vehicleModalIdentity !== identityAtOpen) return;
@@ -13290,6 +13334,7 @@ function closeVehicleModal() {
   app.vehicleModalLoadingIdentity = false;
   app.vehicleModalIdentityReady = false;
   app.vehicleModalIdentityRecoveryAttempted = false;
+  app.vehicleModalIdentityLastError = '';
   app.vehicleModalIdentityRecoveryInFlight = null;
   app.activeVehicleDetail = null;
   app.vehicleModalIdentity = null;
@@ -13298,6 +13343,49 @@ function closeVehicleModal() {
   document.body.classList.remove('modal-open');
   refreshOpenAuthenticatedOperationSummaries($('#incoming-main-board') || document);
   restoreModalReturnFocus(modal);
+}
+
+function isRetryableVehicleModalIdentityFailure(code = '') {
+  const host = typeof window !== 'undefined' ? window : globalThis;
+  return host.PDC_VEHICLE_MODAL_IDENTITY?.isRetryableVehicleModalIdentityFailure?.(code) === true;
+}
+
+function vehicleModalIdentityErrorMessage(code = '', stock = '') {
+  const label = stock || 'this Stock';
+  if (isRetryableVehicleModalIdentityFailure(code)) return `The last authenticated ${label} row is retained, but fresh authoritative details are temporarily unavailable. Retry when the staging connection recovers.`;
+  if (code === 'not_found') return `Stock ${label} is no longer present in the authenticated staging snapshot. No vehicle was changed.`;
+  if (code === 'duplicate_identity') return `Stock ${label} has duplicate canonical rows in the authenticated staging snapshot. No vehicle was changed.`;
+  if (code === 'conflicting_stock' || code === 'stock_mismatch') return `Stock ${label} has a conflicting UUID/Stock identity in the authenticated staging snapshot. No vehicle was changed.`;
+  if (code === 'permission_denied') return `Your account is not authorised to read Stock ${label}. No vehicle was changed.`;
+  return `Stock ${label} remains read-only until its exact authenticated UUID/Stock identity is confirmed. No vehicle was changed.`;
+}
+
+function retryAuthoritativeVehicleDetails() {
+  const identity = app.vehicleModalIdentity;
+  if (!identity || app.vehicleModalIdentityRecoveryInFlight) return false;
+  const retained = vehicleModalBoundVehicle();
+  const retainedReady = Boolean(retained && vehicleModalIdentityMatches(retained));
+  app.vehicleModalIdentityRecoveryAttempted = false;
+  app.vehicleModalIdentityLastError = '';
+  app.vehicleModalIdentityReady = retainedReady;
+  app.vehicleModalLoadingIdentity = !retainedReady;
+  renderDetail();
+  void refreshVehicleModalExactIdentity(identity).then(result => {
+    if (app.vehicleModalIdentity !== identity) return;
+    app.vehicleModalLoadingIdentity = false;
+    if (result?.ok === true) app.vehicleModalIdentityReady = true;
+    else if (retainedReady && isRetryableVehicleModalIdentityFailure(result?.code)) app.vehicleModalIdentityReady = true;
+    else app.vehicleModalIdentityReady = false;
+    renderDetail();
+  });
+  return true;
+}
+
+function vehicleModalIdentityRefreshNoticeHtml() {
+  const code = String(app.vehicleModalIdentityLastError || '').trim();
+  if (!code || !isRetryableVehicleModalIdentityFailure(code)) return '';
+  const stock = escapeHtml(app.vehicleModalIdentity?.stockBaseline || 'this Stock');
+  return `<div class="vehicle-identity-refresh-notice" role="status" aria-live="polite"><span>The last authenticated Stock ${stock} row is retained while fresh details reconnect.</span><button class="small-button vehicle-modal-retry-details" type="button" data-modal-retry-authoritative-details>Retry authoritative details</button></div>`;
 }
 
 async function removeVehicle(stock, { resetTest = false } = {}) {
@@ -13468,9 +13556,14 @@ function renderDetail() {
   }
   if (app.vehicleModalIdentity && app.vehicleModalIdentityReady !== true) {
     const stock = escapeHtml(app.vehicleModalIdentity.stockBaseline || 'the selected Stock');
+    const errorCode = String(app.vehicleModalIdentityLastError || 'identity_refresh_unavailable');
+    const retryButton = isRetryableVehicleModalIdentityFailure(errorCode)
+      ? '<button type="button" class="small-button vehicle-modal-retry-details" data-modal-retry-authoritative-details>Retry authoritative details</button>'
+      : '';
     app.activeVehicleDetail = null;
-    panel.innerHTML = `<div class="empty-state vehicle-identity-fail-closed" role="alert"><strong>Authoritative vehicle details could not be loaded</strong><span>Stock ${stock} remains read-only. Close and reopen this Stock after the staging connection recovers. No vehicle was changed.</span><button type="button" class="primary" data-modal-cancel>Close</button></div>`;
+    panel.innerHTML = `<div class="empty-state vehicle-identity-fail-closed" role="alert"><strong>Authoritative vehicle details could not be loaded</strong><span>${escapeHtml(vehicleModalIdentityErrorMessage(errorCode, app.vehicleModalIdentity.stockBaseline || 'the selected Stock'))}</span><div class="vehicle-identity-fail-actions">${retryButton}<button type="button" class="primary" data-modal-cancel>Close</button></div></div>`;
     panel.querySelector('[data-modal-cancel]')?.addEventListener('click', closeVehicleModal);
+    panel.querySelector('[data-modal-retry-authoritative-details]')?.addEventListener('click', retryAuthoritativeVehicleDetails);
     return;
   }
   if (!v && app.vehicleModalIdentity) {
@@ -13504,6 +13597,7 @@ function renderDetail() {
     ${activePage === 'work'
       ? `<div id="vehicle-detail-panel-work" role="tabpanel" aria-labelledby="vehicle-detail-tab-work">${renderVehicleWorkshopWorkPage(v)}</div>`
       : `<div id="vehicle-detail-panel-details" role="tabpanel" aria-labelledby="vehicle-detail-tab-details" class="detail-body">
+      ${vehicleModalIdentityRefreshNoticeHtml()}
       <div class="detail-title">
         <div><h3>${escapeHtml(v.client || 'New customer')}</h3><p>${escapeHtml(displayVehicle(v))}</p></div>
         <div class="detail-actions">
@@ -13625,6 +13719,7 @@ function renderDetail() {
   on($('[data-reset-test-vehicle]', panel), 'click', () => removeVehicle(key, { resetTest: true }));
   on($('[data-complete-vehicle-delete]', panel), 'click', () => completeVehicleDelete(key));
   on($('[data-modal-cancel]', panel), 'click', closeVehicleModal);
+  on($('[data-modal-retry-authoritative-details]', panel), 'click', retryAuthoritativeVehicleDetails);
 
   $$('[data-confirm-pdc-job-line]', panel).forEach(button => {
     button.addEventListener('click', () => {

@@ -11324,6 +11324,27 @@ textarea {
 }
 .vehicle-locations-refresh-button:hover { background: #14532d; }
 .vehicle-locations-refresh-button:disabled { opacity: .65; cursor: wait; }
+.vehicle-identity-refresh-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid #fbbf24;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: .78rem;
+}
+.vehicle-identity-refresh-notice > span { min-width: 0; }
+.vehicle-modal-retry-details { min-height: 42px; white-space: nowrap; }
+.vehicle-identity-fail-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
 .backend-data-table tr.shared-navision-row td {
   background: #f8fbff;
 }
@@ -11345,8 +11366,14 @@ textarea {
   .vehicle-locations-refresh-button {
     grid-column: 1;
   }
-  .vehicle-locations-refresh > span { text-align: left; }
+  .vehicle-locations-refresh > span,
+  .vehicle-identity-refresh-notice > span { text-align: left; }
   .vehicle-locations-refresh-button { width: fit-content; }
+}
+
+@media (max-width: 540px) {
+  .vehicle-identity-refresh-notice { align-items: stretch; flex-direction: column; }
+  .vehicle-modal-retry-details { align-self: center; }
 }
 
 .is-workshop-navigation-pulse,

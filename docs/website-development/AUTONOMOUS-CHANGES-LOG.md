@@ -1,5 +1,10 @@
 # Autonomous Website Changes
 
+## 2026-08-29 — Vehicle modal cached identity recovery
+
+- Fixed the screenshot path where `renderDetail()` converted an already-loaded authenticated exact vehicle into the read-only “Authoritative vehicle details could not be loaded” branch after a retryable background snapshot failure. A cached canonical UUID+Stock row now remains usable; the modal exposes an inline `Retry authoritative details` action and only becomes read-only for permission, missing, duplicate, conflicting or contradictory identity results.
+- Preserved the Stock `13016925` exact identity/Parts-received staging contract and broad refresh generation guards. Added focused recovery, raw snake_case mapping, retry and terminal-negative regressions plus the `2026.08.29.750-vehicle-modal-recovery` cache marker. Production was not contacted or mutated.
+
 ## 2026-08-29 — Vehicle-card exact identity rebind and slim refresh control
 
 - Fixed the read-only Stock `13017855` card path by adding a staging-authenticated exact UUID+Stock resolver and one bounded current-version Save rebind/retry. Raw snake_case snapshot rows are mapped through `mapServerVehicle` before card rendering; duplicate, conflicting, missing, wrong-Stock and contradictory receipt states remain fail-closed with no browser-local success.

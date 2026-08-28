@@ -36,6 +36,11 @@ function resolveExactAuthoritativeVehicleRow(rows = [], identity = {}) {
 }
 
 const RETRYABLE_SAVE_CODES = new Set(['version_conflict', 'vehicle_version_conflict', 'stale_projection', 'authority_superseded']);
+const RETRYABLE_MODAL_IDENTITY_FAILURES = new Set(['snapshot_unavailable', 'identity_refresh_unavailable', 'service_unavailable', 'network_failure']);
+
+function isRetryableVehicleModalIdentityFailure(code = '') {
+  return RETRYABLE_MODAL_IDENTITY_FAILURES.has(String(code || '').trim());
+}
 
 async function saveWithOneExactRebindRetry({ vehicle = {}, changes = {}, save, refreshAndRebind } = {}) {
   if (typeof save !== 'function') return { ok: false, code: 'save_unavailable' };
@@ -55,6 +60,8 @@ async function saveWithOneExactRebindRetry({ vehicle = {}, changes = {}, save, r
 
 const exported = {
   RETRYABLE_SAVE_CODES,
+  RETRYABLE_MODAL_IDENTITY_FAILURES,
+  isRetryableVehicleModalIdentityFailure,
   resolveExactAuthoritativeVehicleRow,
   saveWithOneExactRebindRetry,
 };
