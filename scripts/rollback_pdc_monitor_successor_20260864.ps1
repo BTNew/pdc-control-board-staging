@@ -1,0 +1,11 @@
+[CmdletBinding()]
+param([string]$InstallRoot="$env:ProgramData\PDCMonitor\Staging")
+$ErrorActionPreference='Stop';$ExpectedVersion='2026.08.64';$ParentVersion='2026.08.44';$TaskName='PDC-PMB-Email-Monitor-Staging'
+function Hash([string]$Path){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw 'PDC_MONITOR_SUCCESSOR_ROLLBACK_MISSING'};return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()}
+function No-Reparse([string]$Path){$probe=[IO.Path]::GetFullPath($Path);while($probe){if(Test-Path -LiteralPath $probe){$item=Get-Item -LiteralPath $probe -Force;if(($item.Attributes-band[IO.FileAttributes]::ReparsePoint)-ne 0){throw 'PDC_MONITOR_SUCCESSOR_ROLLBACK_REPARSE'}};$parent=[IO.Path]::GetDirectoryName($probe);if(-not$parent-or$parent-eq$probe){break};$probe=$parent}}
+try{
+ $current=Join-Path $InstallRoot 'CURRENT';$parentControl=Join-Path $InstallRoot ("control\"+$ParentVersion);$parentTrust=Join-Path $InstallRoot ("trust\"+$ParentVersion);$legacy=Join-Path $parentControl 'bootstrap-verifyonly-20260844.ps1';$legacyHash=(Get-Content (Join-Path $parentTrust 'VERIFYONLY_BOOTSTRAP_ACTIVE_SHA256') -Raw).Trim().ToLowerInvariant();No-Reparse $InstallRoot;No-Reparse $parentControl;No-Reparse $parentTrust;if((Hash $legacy)-ne$legacyHash){throw 'PDC_MONITOR_SUCCESSOR_ROLLBACK_PARENT_VERIFYONLY_HASH_MISMATCH'}
+ $task=Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop;if($task.Principal.UserId-ne'LOCAL SERVICE'-or$task.Principal.RunLevel-ne'Limited'){throw 'PDC_MONITOR_SUCCESSOR_ROLLBACK_TASK_IDENTITY_MISMATCH'};if(@($task.Triggers|Where-Object{$_.Repetition.Interval-eq'PT5M'}).Count-eq0){throw 'PDC_MONITOR_SUCCESSOR_ROLLBACK_TASK_TRIGGER_MISMATCH'}
+ $rootBootstrap=Join-Path $InstallRoot 'control\bootstrap.ps1';Copy-Item -LiteralPath $legacy -Destination $rootBootstrap -Force;Set-Content -LiteralPath $current -Value $ParentVersion -Encoding ascii -NoNewline;Disable-ScheduledTask -TaskName $TaskName|Out-Null
+ [pscustomobject]@{ok=$true;rollback='parent-verifyonly';current=$ParentVersion;task_enabled=$false;task_started=$false;mailbox_contacted=$false;production_contacted=$false;parent_bootstrap_sha256=(Hash $rootBootstrap)}|ConvertTo-Json -Compress;exit 0
+}catch{[Console]::Error.WriteLine('PDC_MONITOR_SUCCESSOR_ROLLBACK_DENIED');exit 1}
