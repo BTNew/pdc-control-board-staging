@@ -1616,18 +1616,24 @@ function refreshWorkshopReferenceData() {
     return;
   }
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) return;
-  service.listTechnicians(true).catch(() => {});
-  service.listSalespeople(true).catch(() => {});
-  service.listSubletProviders(true).catch(() => {});
-  service.listWorkshopBays(true).catch(() => {});
-  if (typeof service.getWorkshopConfiguration === 'function') service.getWorkshopConfiguration().catch(() => {});
+  if (!service) return Promise.resolve({ ok: true, skipped: true });
+  const refreshes = [
+    service.listTechnicians(true),
+    service.listSalespeople(true),
+    service.listSubletProviders(true),
+    service.listWorkshopBays(true),
+  ];
+  if (typeof service.getWorkshopConfiguration === 'function') refreshes.push(service.getWorkshopConfiguration());
   service.subscribeTechnicians();
   service.subscribeSalespeople();
   service.subscribeSubletProviders();
   service.subscribeWorkshopBays();
   if (typeof service.subscribeWorkshopSettings === 'function') service.subscribeWorkshopSettings();
   startWorkshopReferenceDataReconciliationTimer();
+  return Promise.allSettled(refreshes).then(results => ({
+    ok: results.every(result => result.status === 'fulfilled'),
+    results,
+  }));
 }
 
 // Periodic lightweight reconciliation while the page is open, as a
@@ -2066,6 +2072,12 @@ const app = {
   sharedNavisionVisibleStableTimer: null,
   sharedNavisionVisibleRealtimeReconciled: false,
   sharedNavisionLocationReadOnlyKeys: new Set(),
+  vehicleLocationsRefreshGeneration: 0,
+  vehicleLocationsRefreshState: 'idle',
+  vehicleLocationsRefreshError: '',
+  vehicleLocationsRefreshResult: null,
+  vehicleLocationsRefreshDisclosure: null,
+  vehicleLocationsRefreshCoordinator: null,
 };
 
 
@@ -3343,6 +3355,13 @@ function bindNav() {
   on($('#dashboard-import-pd'), 'click', importDashboardPdWork);
   on($('#dashboard-clear-pd'), 'click', clearDashboardPdImport);
   on($('#incoming-search'), 'input', queueIncomingDashboardRender);
+  on($('#incoming-main-board'), 'click', event => {
+    const button = event.target?.closest?.('[data-vehicle-locations-refresh]');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void refreshVehicleLocations();
+  });
   on($('#incoming-status-filter'), 'change', renderIncomingDashboardBoard);
   on($('#incoming-bucket-filter'), 'change', renderIncomingDashboardBoard);
   on($('#incoming-rep-filter'), 'change', renderIncomingDashboardBoard);
@@ -4646,13 +4665,15 @@ function resetEmailVehicleLocations() {
   if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
 }
 
-async function refreshEmailVehicleLocations() {
+async function refreshEmailVehicleLocations(options = {}) {
   const service = app.emailVehicleLocationService;
   const authority = String(window.PDC_AUTH_CONTEXT?.userId || '');
   if (!service || !authority || !getPdcSupabaseAccessToken()) return false;
+  const refreshGeneration = options.refreshGeneration;
   const generation = ++app.emailVehicleLocationGeneration;
   const response = await service.snapshot();
   if (generation !== app.emailVehicleLocationGeneration || service !== app.emailVehicleLocationService || authority !== String(window.PDC_AUTH_CONTEXT?.userId || '')) return false;
+  if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return false;
   if (!response.ok) return false;
   const serverRows = applyPendingAuthoritativeVehicleReceiptOverlays(Array.isArray(response.data?.vehicles) ? response.data.vehicles : []);
   app.emailVehicleLocationRows = applyPendingSharedWorkStateOverlays(serverRows);
@@ -4675,7 +4696,7 @@ async function refreshEmailVehicleLocations() {
     app.emailVehicleIdentityConflictCount = reconciled.conflictCount;
   }
   app.emailVehicleLocationRevision = response.data?.revision ?? null;
-  renderAll();
+  if (refreshGeneration == null || refreshGeneration === app.vehicleLocationsRefreshGeneration) renderAll();
   return true;
 }
 
@@ -4700,7 +4721,8 @@ function initEmailVehicleLocationsIfAvailable() {
     } catch (_error) { return null; }
   }
   if (!app.emailVehicleLocationRealtime) app.emailVehicleLocationRealtime = app.emailVehicleLocationService.subscribe(() => {
-    refreshEmailVehicleLocations();
+    if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true });
+    else refreshEmailVehicleLocations();
     if (vehicleLifecycleAdministratorActive() && app.deletedVehicleSnapshotState !== 'idle') loadDeletedVehicleSnapshot({ force: true });
   });
   refreshEmailVehicleLocations();
@@ -4751,6 +4773,7 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // state so a disabled user's already-open tab cannot continue showing
 // (or silently re-deriving UI from) previously-loaded operational data.
 window.addEventListener?.('pdc-auth-locked', () => {
+  invalidateVehicleLocationsRefresh();
   resetEmailVehicleLocations();
   resetDeletedVehicleAuthorityState();
   resetPdcAuditorAuthorityState();
@@ -7406,10 +7429,11 @@ function renderSalesDashboardBoard() {
 function renderIncomingDashboardBoard() {
   const host = $('#incoming-main-board');
   if (!host) return;
+  const disclosureState = app.vehicleLocationsRefreshDisclosure || captureIncomingBoardDisclosureState(host);
   const workshopProjectionAvailable = ensureDashboardWorkshopProjectionReady();
   const workshopPlans = workshopProjectionAvailable && typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : null;
   const rows = vehicleLocationsScreenRows();
-  if (!sharedNavisionLocationAuthorityReady()) app.selectedRows.clear();
+  if (!sharedNavisionLocationAuthorityReady() && app.vehicleLocationsRefreshState !== 'refreshing') app.selectedRows.clear();
   else [...app.selectedRows].forEach(key => {
     if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) app.selectedRows.delete(key);
   });
@@ -7491,7 +7515,9 @@ function renderIncomingDashboardBoard() {
   bindIncomingCardSelection(host);
   revealSingleVehicleSearchResult(host, filteredRows, filters.search, 'incoming');
   updateInlineSelectionBars(filteredRows);
+  restoreIncomingBoardDisclosureState(host, disclosureState);
   updateCollapseToggleButtons();
+  if (app.vehicleLocationsRefreshState !== 'refreshing') app.vehicleLocationsRefreshDisclosure = null;
 }
 
 function bindIncomingCardSelection(host = document) {
@@ -15857,7 +15883,8 @@ function subscribeSharedNavisionVisibility() {
       if (generation !== app.sharedNavisionVisibleRealtimeGeneration || app.sharedNavisionVisibleRealtime !== channel) return;
       const revision = Number(payload?.new?.revision);
       if (!Number.isFinite(revision) || revision !== Number(app.sharedNavisionVisibleRevision)) {
-        loadSharedNavisionVisibleRows({ force: true });
+        if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true });
+        else loadSharedNavisionVisibleRows({ force: true });
       }
     });
   app.sharedNavisionVisibleRealtime = channel;
@@ -15890,12 +15917,13 @@ function subscribeSharedNavisionVisibility() {
 
 async function loadSharedNavisionVisibleRows(options = {}) {
   const force = options.force === true;
+  const refreshGeneration = options.refreshGeneration;
   if (app.sharedNavisionVisibleState === 'loading' && !force) return;
   const service = navisionSharedBackendService();
   if (!service || typeof service.visibleSnapshot !== 'function') {
     app.sharedNavisionVisibleState = 'idle';
     app.sharedNavisionVisibleError = '';
-    return;
+    return { ok: false, error: 'shared_navision_service_unavailable' };
   }
   subscribeSharedNavisionVisibility();
 
@@ -15903,6 +15931,7 @@ async function loadSharedNavisionVisibleRows(options = {}) {
   if (app.sharedNavisionVisibleRealtimeState === 'subscribed') app.sharedNavisionVisibleRealtimeReconciled = false;
   app.sharedNavisionVisibleState = 'loading';
   app.sharedNavisionVisibleError = '';
+  let refreshResult = { ok: true };
   renderBackEndData();
   if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
   try {
@@ -15919,7 +15948,8 @@ async function loadSharedNavisionVisibleRows(options = {}) {
           500,
           expectedRevision,
         );
-        if (generation !== app.sharedNavisionVisibleGeneration) return;
+        if (generation !== app.sharedNavisionVisibleGeneration) return { ok: false, stale: true };
+        if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return { ok: false, stale: true };
         if (!result?.ok) throw new Error(result?.error || 'shared_navision_visibility_failed');
         const data = sharedNavisionVisibleData(result) || {};
         const revision = Number(data.revision);
@@ -15937,20 +15967,26 @@ async function loadSharedNavisionVisibleRows(options = {}) {
       }
       if (!exhausted) throw new Error('shared_navision_page_limit_exceeded');
     }
-    if (generation !== app.sharedNavisionVisibleGeneration) return;
+    if (generation !== app.sharedNavisionVisibleGeneration) return { ok: false, stale: true };
+    if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return { ok: false, stale: true };
     app.sharedNavisionVisibleRows = rows;
     app.sharedNavisionVisibleRevision = expectedRevision;
     app.sharedNavisionVisibleState = 'ready';
     app.sharedNavisionVisibleRealtimeReconciled = app.sharedNavisionVisibleRealtimeState === 'subscribed' && Boolean(app.sharedNavisionVisibleRealtime);
   } catch (error) {
-    if (generation !== app.sharedNavisionVisibleGeneration) return;
+    if (generation !== app.sharedNavisionVisibleGeneration) return { ok: false, stale: true };
+    if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return { ok: false, stale: true };
     console.error('Shared Navision visibility load failed', error);
     app.sharedNavisionVisibleState = 'error';
     app.sharedNavisionVisibleRealtimeReconciled = false;
     app.sharedNavisionVisibleError = error?.message || 'Shared Navision imports could not be loaded.';
+    refreshResult = { ok: false, error: app.sharedNavisionVisibleError };
   }
-  renderBackEndData();
-  if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+  if (refreshGeneration == null || refreshGeneration === app.vehicleLocationsRefreshGeneration) {
+    renderBackEndData();
+    if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+  }
+  return { ...refreshResult, revision: app.sharedNavisionVisibleRevision, count: app.sharedNavisionVisibleRows.length };
 }
 
 function sharedNavisionIdentityToken(value = '') {
@@ -16169,20 +16205,135 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
   return result;
 }
 
+function captureIncomingBoardDisclosureState(host = $('#incoming-main-board')) {
+  const state = {};
+  $$('details', host).forEach(row => {
+    const key = row.dataset.incomingRow
+      ? `row:${row.dataset.incomingRow}`
+      : row.classList.contains('incoming-bucket')
+        ? `bucket:${[...row.classList].find(name => name.startsWith('incoming-') && name !== 'incoming-bucket') || ''}`
+        : row.classList.contains('incoming-priority-list') ? 'priority' : '';
+    if (key) state[key] = row.open === true;
+  });
+  return state;
+}
+
+function restoreIncomingBoardDisclosureState(host = $('#incoming-main-board'), state = {}) {
+  if (!state || typeof state !== 'object') return;
+  $$('details', host).forEach(row => {
+    const key = row.dataset.incomingRow
+      ? `row:${row.dataset.incomingRow}`
+      : row.classList.contains('incoming-bucket')
+        ? `bucket:${[...row.classList].find(name => name.startsWith('incoming-') && name !== 'incoming-bucket') || ''}`
+        : row.classList.contains('incoming-priority-list') ? 'priority' : '';
+    if (key && Object.prototype.hasOwnProperty.call(state, key)) row.open = state[key] === true;
+  });
+}
+
+function vehicleLocationsRefreshRoleCanRead(role = window.PDC_AUTH_CONTEXT?.role) {
+  return ['viewer', 'operator', 'importer', 'administrator'].includes(String(role || '').trim().toLowerCase());
+}
+
+function getVehicleLocationsRefreshCoordinator() {
+  if (app.vehicleLocationsRefreshCoordinator) return app.vehicleLocationsRefreshCoordinator;
+  const factory = window.PDC_VEHICLE_LOCATIONS_REFRESH?.createVehicleLocationsRefreshCoordinator;
+  if (typeof factory !== 'function') return null;
+  app.vehicleLocationsRefreshCoordinator = factory({
+    loaders: {
+      sharedNavision: ({ generation }) => loadSharedNavisionVisibleRows({ force: true, refreshGeneration: generation }),
+      operationalVehicleSnapshot: async ({ generation }) => {
+        initEmailVehicleLocationsIfAvailable();
+        if (!app.emailVehicleLocationService) return { ok: false, error: 'operational_snapshot_unavailable' };
+        return { ok: await refreshEmailVehicleLocations({ refreshGeneration: generation }) };
+      },
+      workOperationStates: async ({ generation }) => {
+        const service = window.__workshopDataService;
+        if (!service || typeof service.loadSnapshot !== 'function') return { ok: true, skipped: true };
+        const snapshot = await service.loadSnapshot('vehicle_locations_refresh');
+        const state = typeof service.getState === 'function' ? service.getState() : '';
+        const trusted = typeof service.getTrustedSnapshot === 'function' ? service.getTrustedSnapshot() : snapshot;
+        return { ok: Boolean(trusted) && ['connected_editable', 'connected_read_only'].includes(state), snapshot };
+      },
+      receiptOverlays: async () => {
+        const refreshes = [];
+        if (workshopEligibilitySharedAuthorityEnabled()) {
+          if (!app.workshopEligibilityRealtime) workshopEligibilityOverviewSubscribe();
+          if (app.workshopEligibilityRealtime) refreshes.push(loadWorkshopEligibilitySnapshot('vehicle_locations_refresh'));
+        }
+        refreshes.push(refreshWorkshopReferenceData());
+        const results = await Promise.all(refreshes);
+        return { ok: results.every(result => result == null || result.ok !== false), results };
+      },
+    },
+    onStart: generation => {
+      app.vehicleLocationsRefreshGeneration = generation;
+      app.vehicleLocationsRefreshState = 'refreshing';
+      app.vehicleLocationsRefreshError = '';
+      app.vehicleLocationsRefreshResult = null;
+      app.vehicleLocationsRefreshDisclosure = captureIncomingBoardDisclosureState();
+      renderAll();
+    },
+    onFinish: result => {
+      if (result.stale || result.generation !== app.vehicleLocationsRefreshGeneration) return;
+      subscribeSharedNavisionVisibility();
+      window.__workshopRealtimeManager?.start?.();
+      app.vehicleLocationsRefreshResult = result;
+      app.vehicleLocationsRefreshState = result.ok ? 'success' : 'error';
+      app.vehicleLocationsRefreshError = result.ok
+        ? ''
+        : result.errors.map(item => `${item.key}: ${String(item.error)}`).join(' · ');
+      renderAll();
+    },
+  });
+  return app.vehicleLocationsRefreshCoordinator;
+}
+
+function refreshVehicleLocations(options = {}) {
+  if (!window.PDC_AUTH_CONTEXT || !vehicleLocationsRefreshRoleCanRead()) {
+    return Promise.resolve({ ok: false, error: 'not_authenticated', generation: app.vehicleLocationsRefreshGeneration });
+  }
+  const coordinator = getVehicleLocationsRefreshCoordinator();
+  if (!coordinator) return Promise.resolve({ ok: false, error: 'refresh_unavailable' });
+  return coordinator.refresh(options);
+}
+
+function invalidateVehicleLocationsRefresh() {
+  app.vehicleLocationsRefreshGeneration += 1;
+  app.vehicleLocationsRefreshCoordinator?.invalidate?.();
+  app.vehicleLocationsRefreshState = 'idle';
+  app.vehicleLocationsRefreshError = '';
+  app.vehicleLocationsRefreshResult = null;
+  app.vehicleLocationsRefreshDisclosure = null;
+}
+
 function sharedNavisionLocationsStatusHtml() {
   if (!sharedNavisionVisibilityConfigured()) return '';
   if (app.sharedNavisionVisibleState === 'idle' && !window.PDC_AUTH_CONTEXT) return '';
-  if (app.sharedNavisionVisibleState === 'loading' || app.sharedNavisionVisibleState === 'idle') {
-    return '<div class="backend-shared-status"><strong>Loading shared Navision vehicles</strong><span>Locations will refresh automatically once shared access is confirmed.</span></div>';
-  }
-  if (app.sharedNavisionVisibleState === 'error' || app.sharedNavisionVisibleState === 'unavailable') {
-    return `<div class="backend-shared-status is-error"><strong>Shared Navision vehicles unavailable</strong><span>${escapeHtml(app.sharedNavisionVisibleError || 'Refresh or sign in again. Local operational vehicles remain visible.')}</span></div>`;
-  }
+  const refreshing = app.vehicleLocationsRefreshState === 'refreshing';
   const count = activeSharedNavisionRows().filter(item => item.board_activated === true).length;
   const realtimeHealthy = app.sharedNavisionVisibleRealtimeState === 'subscribed' && app.sharedNavisionVisibleRealtimeReconciled === true;
-  return realtimeHealthy
-    ? `<div class="backend-shared-status is-ready"><strong>Shared Navision locations online</strong><span>${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · synchronized across signed-in computers</span></div>`
-    : `<div class="backend-shared-status"><strong>Shared Navision locations loaded</strong><span>${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${escapeHtml(app.sharedNavisionVisibleRevision ?? '—')} · live synchronization reconnecting</span></div>`;
+  const failedRefresh = app.vehicleLocationsRefreshState === 'error';
+  const stale = failedRefresh || (!realtimeHealthy && app.sharedNavisionVisibleState === 'ready');
+  const statusClass = failedRefresh ? 'is-error is-stale' : realtimeHealthy ? 'is-ready' : stale ? 'is-stale' : '';
+  const heading = refreshing
+    ? 'Refreshing Vehicle Locations…'
+    : failedRefresh
+      ? 'Vehicle Locations refresh incomplete'
+      : app.sharedNavisionVisibleState === 'loading' || app.sharedNavisionVisibleState === 'idle'
+        ? 'Loading shared Navision vehicles'
+        : realtimeHealthy ? 'Shared Navision locations online' : 'Shared Navision locations loaded';
+  const detail = refreshing
+    ? 'Reloading the authoritative Navision, operational, work, booking and receipt snapshots.'
+    : failedRefresh
+      ? 'Previous authoritative Vehicle Locations data is stale. Retry without leaving this Board.'
+      : app.sharedNavisionVisibleState === 'error'
+        ? (app.sharedNavisionVisibleError || 'Shared Navision imports could not be loaded. Previous rows remain visible.')
+        : `${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${app.sharedNavisionVisibleRevision ?? '—'} · ${realtimeHealthy ? 'synchronized across signed-in computers' : 'live synchronization reconnecting'}`;
+  const busy = refreshing ? ' aria-busy="true"' : '';
+  return `<div class="backend-shared-status vehicle-locations-refresh ${statusClass}" role="status" aria-live="polite" aria-atomic="true"${busy}>
+    <strong>${heading}</strong><span>${escapeHtml(detail)}</span>
+    <button class="small-button vehicle-locations-refresh-button" type="button" data-vehicle-locations-refresh ${refreshing ? 'disabled' : ''} aria-label="Refresh Vehicle Locations">${refreshing ? 'Refreshing…' : 'Refresh'}</button>
+  </div>`;
 }
 
 function sharedNavisionBackEndRows() {

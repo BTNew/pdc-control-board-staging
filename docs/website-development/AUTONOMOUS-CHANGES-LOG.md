@@ -1,5 +1,10 @@
 # Autonomous Website Changes
 
+## 2026-08-29 — STAGING Vehicle Locations refresh
+
+- Added the read-only Vehicle Locations refresh control and coordinated authoritative refresh fan-in. The staging UI now refreshes Navision, operational vehicle, workshop/work-state, eligibility, reference and receipt-overlay sources under one generation, preserves search/disclosure state, prevents duplicate clicks, and reports stale/error state without blanking the Board.
+- Changed `app.js`, `index.html`, `styles.css`, `vehicle-locations-refresh.js`, and `test_vehicle_locations_refresh.js`. Production was not contacted.
+
 ## 2026-08-28 — Exact Stock 13016925 Parts Auditor receipt successor 738
 
 - Added staging-only append-only `supabase/staging_only/20260829050000_738_authenticated_parts_received_auditor_wrapper.sql`, guarded after the live `20260829040000 / 736_authoritative_rft_confirmation_toggle` head. It is target-bound to canonical UUID `13cf8ae5-a27c-5c98-859d-3f029ecf9726`, Stock `13016925`, dealer `37047`, expected version `5`, and the staging sentinel; the existing RFT/email/refresh ledger rows remain preserved.
