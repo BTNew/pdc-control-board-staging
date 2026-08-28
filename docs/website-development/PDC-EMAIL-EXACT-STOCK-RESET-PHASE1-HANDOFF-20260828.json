@@ -1,0 +1,104 @@
+{
+  "schema": "pdc.exact-stock-reset-phase1-handoff/v1",
+  "phase": 1,
+  "environment": "staging",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_prohibited": true,
+  "production_contacted": false,
+  "dashboard_session": "20260828_191153_4fb787",
+  "migration": {
+    "version": "20260829163000",
+    "name": "exact_stock_reset_13080534_13017855_phase1",
+    "sha256": "543f55d484274f0ac7ee5c765c4627c0e53e92fbec0f11d35323df545433a9c0",
+    "predecessor_head": "20260829151000/752_reactivate_exact_email_monitor_after_751",
+    "applied_head": "20260829163000/exact_stock_reset_13080534_13017855_phase1"
+  },
+  "reset_receipt": {
+    "receipt_id": "f4db153c-1991-4742-84a9-3d723d75feef",
+    "action_key": "phase1-exact-stock-reset-13080534-13017855",
+    "deleted_table_count": 31,
+    "deleted_row_count": 273,
+    "forced_rls": true,
+    "trigger_reset_restored": true,
+    "production_untouched": true,
+    "rollback_contract": "Separate explicit staging restore only; recheck exact receipt, empty target, project sentinel, expected head, advisory lock, identity bindings and rollback all writes on any mismatch."
+  },
+  "recovery_snapshot": {
+    "backup_run_id": "7f1c3315-ac42-46fb-99ed-70b43ef89f80",
+    "artifact": "C:/Users/nwmgr/AppData/Local/hermes/profiles/website-development-lead/backups/stock-13080534-13017855-reset-20260828/pdc_exact_stock_reset_7f1c3315-ac42-46fb-99ed-70b43ef89f80.bin",
+    "artifact_sha256": "6887bad60ba612c83584cb628829b70dcb0f2e6c8a08de64e46b2c7de3a77518",
+    "manifest": "C:/Users/nwmgr/AppData/Local/hermes/profiles/website-development-lead/backups/stock-13080534-13017855-reset-20260828/pdc_exact_stock_reset_7f1c3315-ac42-46fb-99ed-70b43ef89f80.bin.manifest.json",
+    "manifest_sha256": "8de3b4cb413006d6850838a83ca1648215e0e589f1f61f7e01cb9339fc4bb018",
+    "encrypted": true,
+    "closure_table_count": 31,
+    "closure_row_count": 273
+  },
+  "stocks": {
+    "13080534": {
+      "navision_backend_record_id": "5721cafa-2b60-4d45-b69c-ab907eaf178e",
+      "canonical_vehicle_id": null,
+      "job_card_number": null,
+      "reset_deleted_canonical_vehicle_rows": 0,
+      "fresh_authorization_source_uid": "imap_uid:681",
+      "fresh_authorization_intake_id": "6836f01c-080f-4289-90a4-df8667a49ac9",
+      "fresh_authorization_source_hash": "f205342f4ff4361b88bf21b83a11e92957a796792bcc0bfa4150d0abaa5b4916",
+      "internet_message_id": "\r\n <ME3P282MB1762651B0CB12077BBE64EA9CFAC2@ME3P282MB1762.AUSP282.PROD.OUTLOOK.COM>",
+      "attachments": [
+        {"id": "0f190df5-09df-4df6-a111-66f658318d57", "file_name": "13080534.pdf", "sha256": "090749692e975cec1b490f42d07af95e9693edadbf42c7399947f7ebaf7bfc34"},
+        {"id": "3415271f-e6df-4d1e-a763-3341f9b066f4", "file_name": "image.png", "sha256": "64e39069be7b13b3a478ad5e2386cbe3978e59d27a25b06595fc8f7a226fbaa3"},
+        {"id": "91eadf28-e8d6-482a-9dd9-b3b6b7862489", "file_name": "image.png", "sha256": "ffaa2bfbca036f9dbcbe10de9a43f8a141fd2a84f9fea75c0e114b96b87b4cf3"}
+      ]
+    },
+    "13017855": {
+      "navision_backend_record_id": "e39eb741-cf03-44f2-8a75-54362ecc8a26",
+      "canonical_vehicle_id": "7fe33693-f519-5152-bbe0-9cc799c4ae33",
+      "vin": "MR0MABAV902402464",
+      "job_card_number": "J139125422",
+      "reset_deleted_canonical_vehicle_rows": 1,
+      "reset_deleted_operation_lines": 20,
+      "fresh_authorization_source_uid": "imap_uid:680",
+      "fresh_authorization_intake_id": "d89a3bbd-590b-493b-84a8-ce557bbfe512",
+      "fresh_authorization_source_hash": "d6756c523ffb7336556492fe0ef25c202d744ffd2645846b19cbbcdffed60493",
+      "internet_message_id": "\r\n <ME3P282MB17624D09C1024DA27B4AB754CFAC2@ME3P282MB1762.AUSP282.PROD.OUTLOOK.COM>",
+      "attachments": [
+        {"id": "5d907dc4-c2c3-4eb1-b028-a771b8d447d7", "file_name": "image.png", "sha256": "64e39069be7b13b3a478ad5e2386cbe3978e59d27a25b06595fc8f7a226fbaa3"},
+        {"id": "842405e4-5209-45f5-9729-0d22327daeaa", "file_name": "13017855.pdf", "sha256": "23416bd8de1ef1fa6bb40b3b81b3613d969fdb3bd897dc090f0d6747b7b1831f"},
+        {"id": "c3786a12-18a0-4c88-8636-8b09800aed56", "file_name": "image.png", "sha256": "ffaa2bfbca036f9dbcbe10de9a43f8a141fd2a84f9fea75c0e114b96b87b4cf3"}
+      ]
+    }
+  },
+  "superseded_source_receipts": [
+    {"stock_number": "13017855", "source_uid": "1:640", "source_hash": "812c2291fe80a143e8fe8a55e34f9869476926d69d6bbddd345b61a6a5448a8a", "state": "removed_from_replay_surface_and_retained_in_encrypted_snapshot"}
+  ],
+  "one_time_reimport_authorizations": {
+    "table": "public.pdc_exact_email_reimport_authorizations_20260828",
+    "count": 2,
+    "sender": "craig.watson@broometoyota.com.au",
+    "status": "authorized",
+    "one_time": true,
+    "consumed": false,
+    "allowed_source_uids": ["imap_uid:681", "imap_uid:680"],
+    "allowed_stocks": ["13080534", "13017855"]
+  },
+  "phase2": {
+    "import_allowed": true,
+    "actor": "pdc-emails own canonical authenticated actor",
+    "canonical_entrypoint": "C:/ProgramData/PDCMonitor/Staging/releases/2026.08.65/runtime_launcher.py --mode monitor",
+    "expected_one_cycle_command": "C:/ProgramData/PDCMonitor/Staging/control/2026.08.65/run-current-active.ps1 -InstallRoot C:/ProgramData/PDCMonitor/Staging -Mode OneCycle",
+    "do_not_import_from": ["older mailbox messages", "other senders", "UID514", "Stock 13000769"],
+    "do_not_modify": ["actor credentials", "automatic monitor pilot/global controls", "Production", "mailbox flags"]
+  },
+  "verification": {
+    "canonical_vehicle_rows": 0,
+    "board_rows": 0,
+    "active_operation_rows": 0,
+    "old_intake_rows": 0,
+    "old_attachment_rows": 0,
+    "remaining_target_rows": 0,
+    "uid514_preserved": true,
+    "stock_13000769_unchanged": true,
+    "monitor_state_unchanged": true,
+    "preserved_storage_objects": 3,
+    "production_sentinel_absent": true
+  }
+}

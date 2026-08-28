@@ -197,3 +197,11 @@
 | `docs/website-development/STAGING-STOCK-13000769-SCOPE-INCIDENT-20260828.md` | Incident record | Corrected owner-scope binding: Parts task was Stock 13017855, purge 746 was incorrectly authored for Stock 13000769 | Existing dashboard association `20260828_161016_aa9508`; Production untouched. |
 | `scripts/apply_migration_747_staging.py`, `scripts/apply_migration_749_staging.py`, `scripts/apply_migration_750_staging.py` | Staging controllers | Exact-head, encrypted-backup, idempotent recovery/photo/projection controller artifacts with no Production fallback | Focused controller syntax/contracts pass; restore not replayed after checkpoint. |
 | `tests/test_recovery_747_contract.py`, `tests/test_recovery_750_contract.py` | Regression coverage | Exact UUID/head/append-only/photo/RFT guard/projection scope contracts | Focused Python suite 8/8; full development Node suite 226 passed / 1 skipped. |
+
+## Exact Stock 13080534/13017855 Phase 1 fresh-import reset
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `supabase/staging_only/20260829163000_exact_stock_reset_13080534_13017855_phase1.sql` | Staging migration | Exact Navision/vehicle/source binding, encrypted closure snapshot binding, scoped hard-delete/reset, forced-RLS immutable receipt and two-row one-time handoff | Applied at live head 752; 31 tables / 273 rows; Production untouched. |
+| `scripts/preflight_exact_stock_reset_20260828.py`, `scripts/create_exact_stock_reset_snapshot_20260828.py`, `scripts/apply_exact_stock_reset_20260828.py`, `scripts/verify_exact_stock_reset_20260828.py`, `scripts/rollback_exact_stock_reset_20260828.py` | Staging controllers | Read-before-mutation, encrypted target closure, exact project/head/identity locks, postcondition/readback and rollback artifact verification | Focused contract 7/7; live verify pass; rollback verify-only pass. |
+| `docs/website-development/PDC-EMAIL-EXACT-STOCK-RESET-PHASE1-HANDOFF-20260828.json` | pdc-emails Phase 2 handoff | UIDs 680/681, exact message IDs/hashes/attachments, canonical identity and current `.65` entrypoint | Existing dashboard session `20260828_191153_4fb787`; no duplicate dashboard task. |
