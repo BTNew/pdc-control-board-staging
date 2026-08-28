@@ -1,5 +1,13 @@
 # Shared Files
 
+## Email Monitor strict storage and exact failed-intake remediation successor — 2026-08-28
+
+- `backend/email_intake_processor_successor_20260862.py` — strict canonical private Storage path validator and claim-bound attachment RPC client.
+- `scripts/build_pdc_monitor_successor_20260862.py`, `scripts/install_pdc_monitor_successor_20260862.ps1`, `scripts/pdc_monitor_active_bootstrap_20260862.ps1`, `scripts/pdc_monitor_active_dispatch_20260862.ps1`, `scripts/pdc_monitor_verifyonly_bootstrap_20260862.ps1`, `scripts/pdc_monitor_verifyonly_runner_20260862.ps1`, `scripts/rollback_pdc_monitor_successor_20260862.ps1`, `scripts/verify_pdc_monitor_successor_20260862.py` — protected 2026.08.62 runtime packaging and split dispatch controls.
+- `supabase/staging_only/20260829010000_735_email_monitor_storage_reconcile_requeue_successor.sql` through `20260829030000_737_email_monitor_requeue_receipt_table_binding_repair.sql` — append-only exact staging storage reconciliation, audited exact-ID Administrator requeue and routine binding repairs; prior attachment evidence and UID514 are preserved.
+- `scripts/apply_email_monitor_remediation_735.py`, `scripts/apply_email_monitor_remediation_736.py`, `scripts/apply_email_monitor_remediation_737.py`, `scripts/reconcile_requeue_email_monitor_735.py` — staging-only migration/custody controllers; no production path.
+- `tests/test_email_monitor_storage_path_20260862.py`, `tests/test_monitor_successor_20260862_contract.py` — hostile path-before-Storage, hash/filename binding, append-only SQL, ACL and disabled-control coverage.
+
 ## Final authoritative RFT lifecycle 700-706 — 2026-08-27
 
 - `app.js`, `pdc-email-vehicle-location-service.js`, `index.html`, `pdc-supabase-config.staging.js` — QC → RFT → Booked → Collected → Delivered UI/service wiring, Collected projection, final 700 RPC clients, and 706 cache-busted staging assets.

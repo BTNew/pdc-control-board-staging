@@ -1,5 +1,12 @@
 # Autonomous Website Changes
 
+## 2026-08-28 — Email Monitor strict storage and exact failed-intake remediation successor
+
+- Added staging-only append-only migrations `20260829010000` through `20260829030000` from the live 734 head. They bind the exact failed UIDs 680/681, retain original attachment paths, record immutable storage reconciliation outcomes, and expose only an authenticated Administrator exact-ID requeue contract. Monitor remains importer/viewer-scoped with no direct DML or Administrator privilege.
+- Added the 2026.08.62 runtime successor, complete manifest/dependency closure and independent active/VerifyOnly control anchors. Attachment downloads now reject empty/bare/URL/alternate-bucket/traversal/backslash/empty-component/non-64-hex/hash-mismatch/filename-mismatch paths before Storage access and verify returned bytes against the bound hash.
+- Live staging evidence: migrations 735/736/737 applied with production sentinel absent; six historical attachment records reconciled append-only, all six were absent at their exact canonical object locations and therefore recorded `permanent_fail_closed`; two exact Administrator requeue receipts were created. UID514 count remained one, active mailbox remained one, and outbound remained disabled.
+- Production and the independent RFT lifecycle worktree were not modified.
+
 ## 2026-08-27 — Final authoritative RFT lifecycle and collision-safe synthetic payload repair
 
 - Resumed from the preserved detached checkpoint and read the live staging ledger before mutation. Migrations 700, 701, 702, 703 and 704 were already committed; 705 was not. The live head was the unrelated applied 673 row at version `20260827106000`, so the colliding 705 draft was consolidated rather than re-applied.
