@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.27.706-final-authoritative-lifecycle",
+  "application_version": "2026.08.29.734-durable-rft-transport-lifecycle",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -8,18 +8,18 @@
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": null,
   "observed_applied_database_migration": {
-    "version": "20260827051000",
-    "name": "501_exact_uid639_640_all_operations_import",
-    "file": "supabase/staging_only/20260827051000_501_exact_uid639_640_all_operations_import.sql",
-    "sha256": "adae6ce8d1bbb8b8a91ae8397e120917fd7cc12af281ec2d992901d97575890c",
+    "version": "20260829000000",
+    "name": "734_durable_rft_transport_lifecycle",
+    "file": "supabase/staging_only/20260829000000_734_durable_rft_transport_lifecycle.sql",
+    "sha256": "ed480455f4a74bf837f6269da63c5cc1b67a71a425510dfd2c9aac6ae36b01b7",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain through 501: exact UID639/640 imports are Navision-linked and retain all 37 Job Card operations."
+    "source": "Verified append-only staging-only migration 734: durable RFT Booked/Collected/Delivered lifecycle, intercepted MIME/photo outbox evidence and dealer-transit statistic."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
     "RFT transport booking creates the mandatory pending salesperson payload with completed work, dates, build times, stoppages and the private QC photo reference.",
-    "Collected vehicles move to Completed, release active bay authority and remain in authoritative Completed history after refresh.",
+    "Collected vehicles remain distinct from Completed, release active bay authority and remain in authoritative Collected history until exact Delivered - At Dealer.",
     "The staging-only email interceptor verifies deterministic MIME and QC attachment hashes in a private sink without external delivery.",
     "The UID632 Stock 13000776 operational test data was removed across its exact 33-table closure after a verified encrypted full staging backup; a permanent replay fence remains.",
     "UID635 imported Stock 13000775 as one Navision-linked canonical vehicle with OP1-OP22, seven explicit zero-hour headers, five unknown-hour headers retained as NULL, and Pre-Delivery standardised to 1.50 hours.",
