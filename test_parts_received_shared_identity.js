@@ -35,6 +35,6 @@ for (const name of ['markVehiclePartsOrdered', 'markVehiclePartsComplete', 'upda
   const body = app.slice(start, end > start ? end : start + 5000);
   assert.ok(start >= 0 && body.includes('authenticatedPartsTarget(key, vehicle)'), `${name} uses the shared canonical target resolver`);
 }
-assert.ok(service.includes("const PDC_PARTS_COMPLETE_RPC = 'mark_pdc_parts_received_auditor';"), 'Parts Received uses the staging Auditor RPC');
+assert.ok(service.includes("const PDC_PARTS_COMPLETE_RPC = 'mark_pdc_parts_received_authenticated_751';"), 'Parts Received uses the durable authenticated RPC');
 assert.ok(service.includes('p_idempotency_key: String(idempotencyKey || crypto.randomUUID())'), 'Parts Received binds one-time idempotency');
 console.log('Shared canonical/Navision/email Parts Received identity contract passed.');

@@ -11,7 +11,7 @@ const PDC_SUBLET_PROVIDER_UPDATE_RPC = 'update_pdc_sublet_booking_provider_399';
 const PDC_SUBLET_RETURN_RPC = 'return_pdc_sublet_booking';
 const PDC_PARTS_ETA_UPDATE_RPC = 'update_pdc_parts_eta';
 const PDC_PARTS_ORDERED_RPC = 'mark_pdc_parts_ordered_377';
-const PDC_PARTS_COMPLETE_RPC = 'mark_pdc_parts_received_auditor';
+const PDC_PARTS_COMPLETE_RPC = 'mark_pdc_parts_received_authenticated_751';
 const PDC_PARTS_STOPPAGE_RPC = 'set_pdc_parts_stoppage_376';
 const PDC_VEHICLE_HISTORY_RPC = 'get_pdc_vehicle_provenance_history';
 const PDC_SALES_PREPARATION_UPDATE_RPC = 'update_pdc_vehicle_sales_preparation';
@@ -331,16 +331,17 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return { ok: body.ok === true, code: body.code || data.code || 'parts_ordered_rejected', data };
     } catch (_error) { return { ok: false, code: 'parts_ordered_update_unavailable', data: null }; }
   }
-  async function markPartsComplete(vehicleId = '', expectedVersion = 0, idempotencyKey = '') {
+  async function markPartsComplete(vehicleId = '', stockNumber = '', expectedVersion = 0, idempotencyKey = '') {
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
-      const response = await request(`${url}/rest/v1/rpc/${PDC_PARTS_COMPLETE_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId, p_expected_version: Number(expectedVersion) || 0, p_idempotency_key: String(idempotencyKey || crypto.randomUUID()) }) });
+      const response = await request(`${url}/rest/v1/rpc/${PDC_PARTS_COMPLETE_RPC}`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId, p_stock_number: String(stockNumber || '').trim(), p_expected_version: Number(expectedVersion) || 0, p_idempotency_key: String(idempotencyKey || crypto.randomUUID()) }) });
       const body = await response.json();
       if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, data: body?.data || null };
       const data = body.data || body;
       if (!PDC_PARTS_COMPLETE_SUCCESS_CODES.has(String(body.code || '').trim())
           || !data || typeof data !== 'object' || !data.receipt_id
           || String(data.vehicle_id || '') !== String(vehicleId || '')
+          || identity(data.stock_number) !== identity(stockNumber)
           || Number(data.vehicle_version) < 1
           || typeof data.changed !== 'boolean') {
         return { ok: false, code: 'parts_completion_receipt_invalid', data: null };

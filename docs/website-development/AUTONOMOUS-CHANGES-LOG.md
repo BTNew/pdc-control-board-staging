@@ -1,5 +1,13 @@
 # Autonomous Website Changes
 
+## 2026-08-29 — Durable authenticated Parts check-off successor 751
+
+- Replaced the deployed hard-coded 738 Auditor / 742 one-time controller browser target with the staging-only `20260829144000 / 751_authenticated_parts_received_contract` RPC. It accepts exact canonical UUID + Stock + expected version + idempotency key, permits only approved authenticated Administrator or operator identities, keeps operators dealer-scoped, and leaves the earlier 13016925 correction paths unchanged.
+- Repaired the Parts ETA invariant so ETA remains required for outstanding ordered Parts but may be cleared when Parts are received. The RPC preserves Parts ordered state, clears only the active Parts blocker/ETA when applicable, completes only PARTS, increments the vehicle version once, writes one immutable receipt plus target audit entries, publishes one Board revision, and returns precise identity/role/dealer/version/idempotency errors.
+- Updated `app.js`, `pdc-email-vehicle-location-service.js`, `index.html`, focused Parts contracts and staging controllers. The browser sends Stock as a second identity, never fabricates success or mutates local shared state, and reports actionable denial/identity/order failures.
+- Live pre-fix proof under Craig’s authenticated Administrator claims: exactly one Stock `13017855` row (`7fe33693-f519-5152-bbe0-9cc799c4ae33`, dealer `14450`, version `9`, Parts required/ordered/received `true/true/false`); deployed 738 returned `vehicle_not_exact_target`, while the legacy canonical function hit `PDC_PARTS_ETA_REQUIRED`.
+- Recovery coordination: waited for and rebased onto the settled staging recovery head `20260829143000 / 750_project_recovered_stock_qc_operation_lines`; no recovery DB session was active before the Parts lane. Production sentinel remained absent and Production was not contacted.
+
 ## 2026-08-29 — Vehicle modal cached identity recovery
 
 - Fixed the screenshot path where `renderDetail()` converted an already-loaded authenticated exact vehicle into the read-only “Authoritative vehicle details could not be loaded” branch after a retryable background snapshot failure. A cached canonical UUID+Stock row now remains usable; the modal exposes an inline `Retry authoritative details` action and only becomes read-only for permission, missing, duplicate, conflicting or contradictory identity results.

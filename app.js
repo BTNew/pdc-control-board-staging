@@ -15174,13 +15174,23 @@ async function markVehiclePartsComplete(key = '') {
   if (app.partsCompletionInFlight.has(vehicleId)) return;
   app.partsCompletionInFlight.add(vehicleId);
   try {
-    const result = await service.markPartsComplete(vehicleId, expectedVersion, crypto.randomUUID());
+    const result = await service.markPartsComplete(vehicleId, sharedVehicle.stock, expectedVersion, crypto.randomUUID());
     if (!result?.ok) {
       const message = result?.code === 'vehicle_version_conflict'
         ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
         : result?.code === 'parts_already_complete' || result?.code === 'parts_already_received' || result?.code === 'replayed'
           ? 'Parts are already marked received. The current shared row will be reloaded.'
-          : result?.code === 'parts_completion_receipt_invalid'
+        : result?.code === 'dealer_scope_denied' || result?.code === 'permission_denied'
+          ? 'Your account is not authorised for this vehicle’s Parts record. No change was made.'
+        : result?.code === 'vehicle_identity_mismatch' || result?.code === 'canonical_identity_mismatch'
+          ? 'The shared vehicle identity could not be confirmed. Reload the Parts board before retrying; no change was made.'
+        : result?.code === 'parts_not_ordered'
+          ? 'Parts must be marked ordered before they can be marked received. No change was made.'
+        : result?.code === 'vehicle_not_visible'
+          ? 'This vehicle is no longer visible on the shared board. Reload before retrying; no change was made.'
+        : result?.code === 'parts_receipt_idempotency_conflict'
+          ? 'This Parts request conflicts with an earlier request. Reload the shared row before retrying; no change was made.'
+        : result?.code === 'parts_completion_receipt_invalid'
             ? 'The shared completion did not return a valid receipt. No change was made.'
             : 'Parts could not be marked received on the shared vehicle record. No change was made.';
       window.alert(message);

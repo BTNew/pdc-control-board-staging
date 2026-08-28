@@ -47,6 +47,14 @@
     "review_status": "staging_applied",
     "sha256": "8d0eca955bcc6a8b937809d36f85aa8455455f534fc2abb371ad5a2666d777c0"
   },
+  "authenticated_parts_received_contract": {
+    "version": "20260829144000",
+    "name": "751_authenticated_parts_received_contract",
+    "file": "supabase/staging_only/20260829144000_751_authenticated_parts_received_contract.sql",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
+  },
   "observed_applied_database_migration": {
     "version": "20260827051000",
     "name": "501_exact_uid639_640_all_operations_import",

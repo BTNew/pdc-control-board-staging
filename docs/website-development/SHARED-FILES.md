@@ -1,5 +1,12 @@
 # Shared Files
 
+## Durable authenticated Parts check-off successor 751 — 2026-08-29
+
+- `supabase/staging_only/20260829144000_751_authenticated_parts_received_contract.sql` — append-only staging contract after the settled recovery 750 head; exact UUID + Stock + version + idempotency, Administrator/non-Administrator authorization split, Parts ETA invariant repair, receipt/audit/revision/version postconditions and forced-RLS immutable receipt history.
+- `scripts/apply_migration_751_staging.py`, `scripts/run_parts_received_751_staging.py` — staging-only shared-lock installer and exact Stock `13017855` Administrator mutation/readback verifier with negative identity/version/idempotency/role/dealer/RLS/Production checks.
+- `app.js`, `pdc-email-vehicle-location-service.js`, `index.html` — durable 751 RPC dispatch, Stock-bound request/receipt validation, actionable shared error messages and cache-busted staging assets; no local persistence fallback.
+- `test_authenticated_parts_received_751.js`, `test_parts_shared_actions.js`, `test_parts_received_shared_identity.js`, `test_pdc_auditor_parts_received_738.js` — class-level source, HTTP/service body, canonical identity, replay and fail-closed UI regression coverage.
+
 ## Exact Parts controller correction 742/745 — 2026-08-28
 
 - `supabase/staging_only/20260829090000_742_controller_parts_received_correction.sql` — one-time expiring Craig owner-instruction Administrator/controller authorization and exact target receipt/audit path; no persistent Auditor dealer grant.

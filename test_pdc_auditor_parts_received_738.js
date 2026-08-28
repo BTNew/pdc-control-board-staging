@@ -54,11 +54,11 @@ assert.ok(!/require_pdc_role\s*\(\s*['"]operator/i.test(migration), 'Auditor wra
 assert.ok(!/grant\s+execute[^;]+service_role/i.test(migration), 'service_role is not granted');
 
 for (const marker of [
-  "const pdc_parts_complete_rpc = 'mark_pdc_parts_received_auditor'",
+  "const pdc_parts_complete_rpc = 'mark_pdc_parts_received_authenticated_751'",
   'p_idempotency_key',
   'crypto.randomuuid()',
 ]) has(service, marker);
-for (const marker of ['service.markpartscomplete(vehicleid, expectedversion, crypto.randomuuid())', 'authenticatedpartstarget(key, vehicle)']) has(app, marker);
+for (const marker of ['service.markpartscomplete(vehicleid, sharedvehicle.stock, expectedversion, crypto.randomuuid())', 'authenticatedpartstarget(key, vehicle)']) has(app, marker);
 for (const marker of [
   'pdc-staging-migration-installation',
   '20260828_135232_8cb189',
