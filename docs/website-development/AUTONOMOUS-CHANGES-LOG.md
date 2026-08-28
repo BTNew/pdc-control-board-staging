@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-29 — Vehicle-card exact identity rebind and slim refresh control
+
+- Fixed the read-only Stock `13017855` card path by adding a staging-authenticated exact UUID+Stock resolver and one bounded current-version Save rebind/retry. Raw snake_case snapshot rows are mapped through `mapServerVehicle` before card rendering; duplicate, conflicting, missing, wrong-Stock and contradictory receipt states remain fail-closed with no browser-local success.
+- Added modal recovery/save generation guards and a stable in-flight Save latch so broad refresh supersession and repeated Save dispatches cannot overwrite or duplicate the authoritative action. Slimmed the central Refresh control to an auto-width accessible pill while retaining mobile layout and `Refreshing…` state.
+- Changed `app.js`, `index.html`, `styles.css`, `vehicle-modal-identity.js`, `test_vehicle_modal_save_rebind.js`, and the related modal projection test. Production was not contacted or mutated.
+
 ## 2026-08-29 — STAGING Vehicle Locations refresh
 
 - Added the read-only Vehicle Locations refresh control and coordinated authoritative refresh fan-in. The staging UI now refreshes Navision, operational vehicle, workshop/work-state, eligibility, reference and receipt-overlay sources under one generation, preserves search/disclosure state, prevents duplicate clicks, and reports stale/error state without blanking the Board.

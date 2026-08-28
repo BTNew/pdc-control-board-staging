@@ -32,7 +32,7 @@ assert.match(planner, /workshopSharedModeActive\(\) \? \{\} : workshopJobLineAss
 assert.match(app, /data-pdc-block-reason-baseline/);
 assert.match(app, /Error: lifecycle or stoppage fields use their dedicated shared action/);
 assert.match(app, /parts_update \|\| vehicle\.partsUpdate/);
-assert.match(app, /saveAuthoritativeVehicleChanges\(v, consultant, detailChanges\)/);
+assert.match(app, /saveWithOneExactRebindRetry/);
 assert.doesNotMatch(app, /pdcBlockReasonValue !== \(pdcBlockReason\(v\) \|\| ''\)/,
   'salesperson save does not compare against derived block/stoppage text');
 for (const marker of [

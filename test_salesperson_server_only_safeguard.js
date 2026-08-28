@@ -33,7 +33,8 @@ const submitStart = app.indexOf("$('[data-vehicle-edit-form]', panel).addEventLi
 const submitEnd = app.indexOf('\n  });', submitStart);
 const submit = app.slice(submitStart, submitEnd);
 assert.match(submit, /serverAuthoritative && \(salespersonChanged \|\| Object\.keys\(detailChanges\)\.length\)/);
-assert.match(submit, /saveAuthoritativeVehicleChanges\(v, consultant, detailChanges\)/);
+assert.match(submit, /saveWithOneExactRebindRetry/);
+assert.match(submit, /save: current => saveAuthoritativeVehicleChanges\(current, consultant, detailChanges\)/);
 assert.match(submit, /serverAuthoritative \? true : saveVehicleEdits\(key, updates\)/);
 assert.match(app, /discardLegacyAuthoritativeSalespersonEdits/);
 assert.match(index, /authoritative-detail=386-388-391/);

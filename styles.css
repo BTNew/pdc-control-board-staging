@@ -11313,8 +11313,12 @@ textarea {
 }
 .vehicle-locations-refresh-button {
   flex: 0 0 auto;
-  min-width: 96px;
+  width: fit-content;
+  min-width: 0;
   min-height: 42px;
+  padding: 8px 14px;
+  white-space: nowrap;
+  justify-self: center;
   background: #166534;
   color: #fff;
 }
@@ -11342,7 +11346,7 @@ textarea {
     grid-column: 1;
   }
   .vehicle-locations-refresh > span { text-align: left; }
-  .vehicle-locations-refresh-button { width: 100%; }
+  .vehicle-locations-refresh-button { width: fit-content; }
 }
 
 .is-workshop-navigation-pulse,

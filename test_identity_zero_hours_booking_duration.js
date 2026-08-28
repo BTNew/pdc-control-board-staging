@@ -3,6 +3,8 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const emailService = require('./pdc-email-vehicle-location-service.js');
+const modalIdentity = require('./vehicle-modal-identity.js');
 
 const appSource = fs.readFileSync('app.js', 'utf8');
 assert.match(appSource, /vehicleModalIdentity/, 'modal must retain a stable identity binding');
@@ -71,10 +73,12 @@ const identityContext = {
     emailVehicleLocationRows: [],
     data: [],
   },
+  window: { PDC_EMAIL_VEHICLE_LOCATION_SERVICE: emailService, PDC_VEHICLE_MODAL_IDENTITY: modalIdentity },
   cleanNavisionText: value => String(value == null ? '' : value).trim(),
   vehicleWorkshopDetailCanonicalId: vehicle => String(vehicle.__emailVehicleId || vehicle.id || ''),
   displayStockNumber: vehicle => vehicle.stock || '',
   vehicleKey: vehicle => vehicle.stock || vehicle.stock_number || vehicle.id || '',
+  applySharedWorkStateCache: rows => rows,
 };
 vm.createContext(identityContext);
 vm.runInContext(appSource.slice(identityStart, identityEnd), identityContext);

@@ -1971,6 +1971,9 @@ const app = {
   // visible row.
   vehicleModalIdentity: null,
   vehicleModalIdentityReady: false,
+  vehicleModalIdentityRecoveryInFlight: null,
+  vehicleModalIdentityRecoveryAttempted: false,
+  vehicleModalSaveInFlight: null,
   vehicleDetailPage: 'details',
   vehicleWorkshopDetailCache: new Map(),
   vehicleWorkshopDetailRequestGeneration: 0,
@@ -12909,51 +12912,50 @@ function vehicleModalIdentityStock(vehicle = {}) {
   );
 }
 
+function exactAuthoritativeVehicleSnapshotRow(identity = app.vehicleModalIdentity, rows = app.emailVehicleLocationRows) {
+  const host = typeof window !== 'undefined' ? window : globalThis;
+  const resolver = host.PDC_VEHICLE_MODAL_IDENTITY?.resolveExactAuthoritativeVehicleRow;
+  if (typeof resolver !== 'function') return { ok: false, code: 'identity_resolver_unavailable', row: null };
+  return resolver(rows, identity);
+}
+
 function vehicleModalBoundVehicle() {
   const identity = app.vehicleModalIdentity;
   if (!identity) return null;
-  const canonicalId = String(identity.canonicalId || '').trim();
-  const stockBaseline = String(identity.stockBaseline || '').trim();
   const module = typeof window !== 'undefined'
     ? window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE
     : globalThis.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
-  // The snapshot array intentionally retains raw snake_case server rows. Never
-  // hand one of those rows to the camelCase vehicle-card renderer: doing so
-  // blanks Stock/customer/salesperson while booking overlays can still appear.
-  // Map the one exact UUID+Stock row at the modal boundary every time.
-  const rawCanonicalRows = (Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : []).filter(vehicle => (
-    String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() === canonicalId
-  ));
-  const rawCanonicalStocks = new Set(rawCanonicalRows.map(vehicleModalIdentityStock).filter(Boolean));
-  if (rawCanonicalStocks.size > 1) return null;
-  const rawMatches = rawCanonicalRows.filter(vehicle => (
-    String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() === canonicalId
-      && vehicleModalIdentityStock(vehicle) === stockBaseline
-  ));
-  if (rawMatches.length > 1) return null;
-  if (rawMatches.length === 1 && typeof module?.mapServerVehicle === 'function') {
-    const mapped = module.mapServerVehicle(rawMatches[0]);
+  const exact = exactAuthoritativeVehicleSnapshotRow(identity);
+  const canonicalId = String(identity.canonicalId || '').trim();
+  const stockBaseline = String(identity.stockBaseline || '').trim();
+  // The authenticated snapshot intentionally retains raw snake_case rows.
+  // Map the one exact UUID+Stock row before handing it to the camelCase card.
+  if (exact.ok && typeof module?.mapServerVehicle === 'function') {
+    const mapped = module.mapServerVehicle(exact.row);
     if (!mapped || mapped.__emailVehicleServerAuthoritative !== true
         || String(vehicleWorkshopDetailCanonicalId(mapped) || '').trim() !== canonicalId
         || vehicleModalIdentityStock(mapped) !== stockBaseline
         || mapped.__emailVehicleIdentityConflict === true) return null;
     return applySharedWorkStateCache([mapped])[0] || mapped;
   }
+  // Every snapshot identity failure other than an absent snapshot is a hard
+  // stop. Do not choose a row from a conflicting or wrong-Stock projection.
+  if (exact.code !== 'not_found' || (Array.isArray(app.emailVehicleLocationRows) && app.emailVehicleLocationRows.length)) return null;
   // A bounded receipt overlay may temporarily make the mapped Board row newer
   // than the next snapshot. Fallback only to server-authoritative DTOs and pick
-  // the highest accepted version; never fall back to a legacy/local row.
-  const canonicalRows = new Map();
+  // one exact accepted DTO; never fall back to a legacy/local row.
+  const canonicalRows = [];
   (Array.isArray(app.data) ? app.data : [])
     .filter(vehicle => vehicle?.__emailVehicleServerAuthoritative === true || Boolean(vehicle?.__emailVehicleId))
     .forEach(vehicle => {
       if (String(vehicleWorkshopDetailCanonicalId(vehicle) || '').trim() !== canonicalId) return;
       const stock = vehicleModalIdentityStock(vehicle);
       if (!stock) return;
-      const existing = canonicalRows.get(stock);
-      if (!existing || Number(vehicle.__emailVehicleVersion || 0) > Number(existing.__emailVehicleVersion || 0)) canonicalRows.set(stock, vehicle);
+      canonicalRows.push(vehicle);
     });
-  if (canonicalRows.size !== 1 || !canonicalRows.has(stockBaseline)) return null;
-  const bound = canonicalRows.get(stockBaseline);
+  const exactDtos = canonicalRows.filter(vehicle => vehicleModalIdentityStock(vehicle) === stockBaseline);
+  if (canonicalRows.length !== 1 || exactDtos.length !== 1) return null;
+  const bound = exactDtos[0];
   return bound?.__emailVehicleIdentityConflict === true ? null : bound;
 }
 
@@ -13126,6 +13128,50 @@ function restoreModalReturnFocus(modal) {
   if (target?.isConnected && typeof target.focus === 'function') target.focus();
 }
 
+async function refreshVehicleModalExactIdentity(identity = app.vehicleModalIdentity) {
+  if (!identity) return { ok: false, code: 'identity_missing', vehicle: null };
+  if (app.vehicleModalIdentityRecoveryInFlight && app.vehicleModalIdentity === identity) return app.vehicleModalIdentityRecoveryInFlight;
+  app.vehicleModalIdentityRecoveryAttempted = true;
+  const service = app.emailVehicleLocationService || initEmailVehicleLocationsIfAvailable();
+  const refreshGeneration = app.vehicleLocationsRefreshGeneration;
+  const module = typeof window !== 'undefined'
+    ? window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE
+    : globalThis.PDC_EMAIL_VEHICLE_LOCATION_SERVICE;
+  if (!service?.snapshot || typeof module?.mapServerVehicle !== 'function') return { ok: false, code: 'identity_refresh_unavailable', vehicle: null };
+  const owner = identity;
+  const request = (async () => {
+    let response;
+    try { response = await service.snapshot(); } catch (_error) { return { ok: false, code: 'identity_refresh_unavailable', vehicle: null }; }
+    if (app.vehicleModalIdentity !== owner || refreshGeneration !== app.vehicleLocationsRefreshGeneration) return { ok: false, code: 'identity_superseded', vehicle: null };
+    const rows = Array.isArray(response?.data?.vehicles) ? response.data.vehicles : [];
+    const authoritativeRows = applyPendingAuthoritativeVehicleReceiptOverlays(rows);
+    const exact = exactAuthoritativeVehicleSnapshotRow(owner, authoritativeRows);
+    if (!exact.ok) return { ok: false, code: exact.code, vehicle: null };
+    const mapped = module.mapServerVehicle(exact.row);
+    if (!mapped || mapped.__emailVehicleServerAuthoritative !== true
+        || String(vehicleWorkshopDetailCanonicalId(mapped) || '').trim() !== String(owner.canonicalId || '').trim()
+        || vehicleModalIdentityStock(mapped) !== String(owner.stockBaseline || '').trim()
+        || mapped.__emailVehicleIdentityConflict === true) {
+      return { ok: false, code: 'identity_mapping_contradictory', vehicle: null };
+    }
+    const authoritative = applyPendingSharedWorkStateOverlays([mapped])[0] || mapped;
+    const canonicalId = String(owner.canonicalId || '').trim();
+    const merge = row => String(vehicleWorkshopDetailCanonicalId(row) || '').trim() === canonicalId ? { ...row, ...authoritative } : row;
+    app.emailVehicleLocationRows = applyPendingSharedWorkStateOverlays(authoritativeRows);
+    app.data = (Array.isArray(app.data) ? app.data : []).map(merge);
+    if (!app.data.some(row => String(vehicleWorkshopDetailCanonicalId(row) || '').trim() === canonicalId)) app.data.push(authoritative);
+    app.emailVehicleLocationRevision = response.data?.revision ?? app.emailVehicleLocationRevision;
+    app.vehicleModalIdentityReady = true;
+    app.vehicleModalLoadingIdentity = false;
+    return { ok: true, code: 'exact_identity_rebound', vehicle: authoritative };
+  })();
+  const guarded = request.finally(() => {
+    if (app.vehicleModalIdentityRecoveryInFlight === guarded) app.vehicleModalIdentityRecoveryInFlight = null;
+  });
+  app.vehicleModalIdentityRecoveryInFlight = guarded;
+  return guarded;
+}
+
 function openVehicleModal(stock) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle) {
@@ -13142,6 +13188,7 @@ function openVehicleModal(stock) {
     stockBaseline: vehicleModalIdentityStock(vehicle),
   });
   app.vehicleModalIdentityReady = false;
+  app.vehicleModalIdentityRecoveryAttempted = false;
   if (!app.vehicleModalIdentity.canonicalId || !app.vehicleModalIdentity.stockBaseline) {
     app.vehicleModalIdentity = null;
     window.alert('The exact vehicle identity is unavailable. Refresh the list and try again. No vehicle was changed.');
@@ -13178,6 +13225,11 @@ function openVehicleModal(stock) {
       const refreshedOk = await refreshEmailVehicleLocations();
       if (!refreshedOk || app.vehicleModalIdentity !== identityAtOpen) return;
       refreshed = vehicleModalBoundVehicle();
+      if (!refreshed || !vehicleModalIdentityMatches(refreshed)) {
+        const rebound = await refreshVehicleModalExactIdentity(identityAtOpen);
+        if (!rebound?.ok || app.vehicleModalIdentity !== identityAtOpen) return;
+        refreshed = rebound.vehicle || vehicleModalBoundVehicle();
+      }
       if (!refreshed || !vehicleModalIdentityMatches(refreshed)) return;
       // The canonical snapshot already contains identity, salesperson, required
       // work and booking pills. Open the card immediately after that bounded
@@ -13237,6 +13289,8 @@ function closeVehicleModal() {
   app.vehicleDetailPage = 'details';
   app.vehicleModalLoadingIdentity = false;
   app.vehicleModalIdentityReady = false;
+  app.vehicleModalIdentityRecoveryAttempted = false;
+  app.vehicleModalIdentityRecoveryInFlight = null;
   app.activeVehicleDetail = null;
   app.vehicleModalIdentity = null;
   if (!modal || modal.hidden) return;
@@ -13398,6 +13452,18 @@ function renderDetail() {
   if (app.vehicleModalLoadingIdentity === true) {
     app.activeVehicleDetail = null;
     panel.innerHTML = '<div class="empty-state vehicle-detail-loading" role="status"><strong>Loading authoritative vehicle details…</strong><span>The exact Stock and vehicle UUID are being refreshed from staging before this card becomes editable.</span></div>';
+    return;
+  }
+  if (!v && app.vehicleModalIdentity && !app.vehicleModalIdentityRecoveryAttempted) {
+    app.vehicleModalLoadingIdentity = true;
+    panel.innerHTML = '<div class="empty-state vehicle-detail-loading" role="status"><strong>Refreshing exact vehicle identity…</strong><span>The current canonical UUID and Stock are being rebound from the authenticated staging snapshot.</span></div>';
+    void refreshVehicleModalExactIdentity().then(result => {
+      if (result?.ok === true && app.vehicleModalIdentity) renderDetail();
+      else if (app.vehicleModalIdentity) {
+        app.vehicleModalLoadingIdentity = false;
+        renderDetail();
+      }
+    });
     return;
   }
   if (app.vehicleModalIdentity && app.vehicleModalIdentityReady !== true) {
@@ -13591,12 +13657,31 @@ function renderDetail() {
   });
   $('[data-vehicle-edit-form]', panel).addEventListener('submit', async (e) => {
     e.preventDefault();
-    const form = e.currentTarget;
+    if (app.vehicleModalSaveInFlight) return;
+    const saveToken = {};
+    app.vehicleModalSaveInFlight = saveToken;
+    try {
+      const form = e.currentTarget;
     const serverAuthoritative = v.__emailVehicleServerAuthoritative === true;
+    let authoritativeSaveVehicle = v;
+    let identityRebound = false;
     if (serverAuthoritative && (!vehicleModalIdentityMatches(v) || !vehicleModalIdentityMatches(vehicleModalBoundVehicle()))) {
+      const rebound = await refreshVehicleModalExactIdentity();
+      if (!rebound?.ok || !vehicleModalIdentityMatches(rebound.vehicle)) {
+        const saveMessage = $('[data-save-message]', panel);
+        if (saveMessage) saveMessage.textContent = 'Error: exact vehicle identity is no longer available; no change was made';
+        window.alert('The exact Stock and canonical vehicle identity changed or disappeared. No vehicle was changed.');
+        return;
+      }
+      authoritativeSaveVehicle = rebound.vehicle;
+      identityRebound = true;
+    } else if (serverAuthoritative) {
+      authoritativeSaveVehicle = vehicleModalBoundVehicle() || v;
+    }
+    if (serverAuthoritative && (!vehicleModalIdentityMatches(authoritativeSaveVehicle) || authoritativeSaveVehicle.__emailVehicleServerAuthoritative !== true)) {
       const saveMessage = $('[data-save-message]', panel);
       if (saveMessage) saveMessage.textContent = 'Error: exact vehicle identity is no longer available; no change was made';
-      window.alert('The exact Stock and canonical vehicle identity changed or disappeared. Refresh or reopen the exact Stock before saving. No vehicle was changed.');
+      window.alert('The exact Stock and canonical vehicle identity changed or disappeared. No vehicle was changed.');
       return;
     }
     const clientInput = form.client.value.trim();
@@ -13605,7 +13690,7 @@ function renderDetail() {
     const consultant = form.consultant.value.trim();
     const saveButton = form.querySelector('button[type="submit"]');
     const saveMessage = $('[data-save-message]', panel);
-    const salespersonChanged = serverAuthoritative && authoritativeSalespersonCode(v) !== consultant.trim().toUpperCase();
+    const salespersonChanged = serverAuthoritative && authoritativeSalespersonCode(authoritativeSaveVehicle) !== consultant.trim().toUpperCase();
     const internalStatus = v.internalStatus || '';
     const previousPdcLocation = vehiclePdcLocation(v);
     const previousPmbStage = normalizePmbStage(v.pmbStage || '');
@@ -13636,11 +13721,21 @@ function renderDetail() {
       return;
     }
     let authoritativeResult = null;
-    let authoritativeSaveVehicle = v;
     if (serverAuthoritative && (salespersonChanged || Object.keys(detailChanges).length)) {
       if (saveButton) { saveButton.disabled = true; saveButton.setAttribute('aria-busy', 'true'); }
       if (saveMessage) saveMessage.textContent = 'Saving…';
-      authoritativeResult = await saveAuthoritativeVehicleChanges(v, consultant, detailChanges);
+      const identityHelper = window.PDC_VEHICLE_MODAL_IDENTITY;
+      authoritativeResult = typeof identityHelper?.saveWithOneExactRebindRetry === 'function'
+        ? await identityHelper.saveWithOneExactRebindRetry({
+          vehicle: authoritativeSaveVehicle,
+          changes: detailChanges,
+          save: current => saveAuthoritativeVehicleChanges(current, consultant, detailChanges),
+          refreshAndRebind: identityRebound ? null : async () => {
+            identityRebound = true;
+            return refreshVehicleModalExactIdentity();
+          },
+        })
+        : await saveAuthoritativeVehicleChanges(authoritativeSaveVehicle, consultant, detailChanges);
       if (!authoritativeResult || authoritativeResult.ok !== true) {
         if (saveButton) { saveButton.disabled = false; saveButton.removeAttribute('aria-busy'); }
         if (saveMessage) saveMessage.textContent = `Error: ${authoritativeResult?.code || 'authoritative_vehicle_save_failed'}`;
@@ -13756,6 +13851,9 @@ function renderDetail() {
     const msg = document.querySelector('[data-save-message]');
     if (msg) msg.textContent = authoritativeResult?.readbackPending ? 'Saved online; refreshing…' : 'Saved';
     if (saveButton) { saveButton.disabled = false; saveButton.removeAttribute('aria-busy'); }
+    } finally {
+      if (app.vehicleModalSaveInFlight === saveToken) app.vehicleModalSaveInFlight = null;
+    }
   });
   $('[data-pmb-bay-detail-form]', panel)?.addEventListener('submit', (e) => {
     e.preventDefault();

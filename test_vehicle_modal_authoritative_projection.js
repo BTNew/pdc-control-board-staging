@@ -3,6 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 const service = require('./pdc-email-vehicle-location-service.js');
+const identity = require('./vehicle-modal-identity.js');
 
 const source = fs.readFileSync('app.js', 'utf8');
 const start = source.indexOf('function vehicleModalIdentityStock');
@@ -36,7 +37,7 @@ const raw = {
 const staleLocal = { id: canonicalId, stock: '12708288', client: '', consultant: 'Unassigned', pdcRequiresElectrical: true };
 const context = {
   app: { vehicleModalIdentity: { canonicalId, stockBaseline: '12708288' }, emailVehicleLocationRows: [raw], data: [staleLocal] },
-  window: { PDC_EMAIL_VEHICLE_LOCATION_SERVICE: service },
+  window: { PDC_EMAIL_VEHICLE_LOCATION_SERVICE: service, PDC_VEHICLE_MODAL_IDENTITY: identity },
   cleanNavisionText: value => String(value || '').trim(),
   displayStockNumber: vehicle => String(vehicle?.stock || '').trim(),
   vehicleWorkshopDetailCanonicalId: vehicle => String(vehicle?.__emailVehicleId || vehicle?.id || '').trim(),
