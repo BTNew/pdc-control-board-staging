@@ -1,5 +1,14 @@
 # Autonomous Website Changes
 
+## 2026-08-28 — Exact Stock 13016925 Parts Auditor receipt successor 738
+
+- Added staging-only append-only `supabase/staging_only/20260829050000_738_authenticated_parts_received_auditor_wrapper.sql`, guarded after the live `20260829040000 / 736_authoritative_rft_confirmation_toggle` head. It is target-bound to canonical UUID `13cf8ae5-a27c-5c98-859d-3f029ecf9726`, Stock `13016925`, dealer `37047`, expected version `5`, and the staging sentinel; the existing RFT/email/refresh ledger rows remain preserved.
+- The successor creates a forced-RLS immutable receipt history and an authenticated-only `mark_pdc_parts_received_auditor(uuid,integer,uuid)` wrapper. Identity and dealer scope are server-derived through the existing Auditor scope functions; no operator grant, table DML grant, service-role grant or RLS weakening was added. The wrapper records one receipt, completes only the canonical Parts work, clears only linked Parts stoppage/ETA, emits two target audit entries and one shared revision, and returns the same receipt on exact replay.
+- Updated only the Parts shared service/UI mapping and focused contracts so Mark Received sends canonical UUID, expected version and one idempotency key, latches duplicate dispatches, refreshes authoritative state and never uses local persistence.
+- Live staging preflight and append-only apply passed under the shared migration advisory lock with no matching `20260828_135232_8cb189` migration activity. Live readback confirms head `20260829050000`, wrapper present, forced RLS, authenticated execute only, and no Production sentinel.
+- The exact target remains unchanged at version `5`, Parts required/ordered/received `true/true/false`, no active Parts work or stoppage. The wrapper cannot yet be exercised because live Auditor enrollment currently has five active scopes for dealer `14450` and none for the target's authoritative dealer `37047`; the wrapper correctly fails closed rather than borrowing another dealer's authority. No target receipt/audit/revision or replay was created.
+- Verification: focused Parts/source contracts and the baseline development `npm run test` / `npm run check` each passed with 226 passed, 0 failed, 1 skipped. Production was not contacted.
+
 ## 2026-08-27 — Final authoritative RFT lifecycle and collision-safe synthetic payload repair
 
 - Resumed from the preserved detached checkpoint and read the live staging ledger before mutation. Migrations 700, 701, 702, 703 and 704 were already committed; 705 was not. The live head was the unrelated applied 673 row at version `20260827106000`, so the colliding 705 draft was consolidated rather than re-applied.

@@ -14949,32 +14949,39 @@ async function markVehiclePartsComplete(key = '') {
     renderPartsHome();
     return;
   }
-  const result = await service.markPartsComplete(vehicleId, expectedVersion);
-  if (!result?.ok) {
-    const message = result?.code === 'vehicle_version_conflict'
-      ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
-      : result?.code === 'parts_already_complete' || result?.code === 'parts_already_received' || result?.code === 'replayed'
-        ? 'Parts are already marked received. The current shared row will be reloaded.'
-        : result?.code === 'parts_completion_receipt_invalid'
-          ? 'The shared completion did not return a valid receipt. No change was made.'
-          : 'Parts could not be marked received on the shared vehicle record. No change was made.';
-    window.alert(message);
+  app.partsCompletionInFlight = app.partsCompletionInFlight || new Set();
+  if (app.partsCompletionInFlight.has(vehicleId)) return;
+  app.partsCompletionInFlight.add(vehicleId);
+  try {
+    const result = await service.markPartsComplete(vehicleId, expectedVersion, crypto.randomUUID());
+    if (!result?.ok) {
+      const message = result?.code === 'vehicle_version_conflict'
+        ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
+        : result?.code === 'parts_already_complete' || result?.code === 'parts_already_received' || result?.code === 'replayed'
+          ? 'Parts are already marked received. The current shared row will be reloaded.'
+          : result?.code === 'parts_completion_receipt_invalid'
+            ? 'The shared completion did not return a valid receipt. No change was made.'
+            : 'Parts could not be marked received on the shared vehicle record. No change was made.';
+      window.alert(message);
+      await refreshEmailVehicleLocations();
+      await refreshSharedVehicleWorkState(sharedVehicle);
+      renderPartsHome();
+      return;
+    }
+    // Reconcile from the canonical vehicle UUID readback. The completion
+    // response is receipt-backed; the row is never ticked by a local guess.
     await refreshEmailVehicleLocations();
     await refreshSharedVehicleWorkState(sharedVehicle);
     renderPartsHome();
-    return;
-  }
-  // Reconcile from the canonical vehicle UUID readback. The completion
-  // response is receipt-backed; the row is never ticked by a local guess.
-  await refreshEmailVehicleLocations();
-  await refreshSharedVehicleWorkState(sharedVehicle);
-  renderPartsHome();
-  if (result.code === 'parts_completed' && result.data?.changed === true) {
-    offerSalespersonChangeEmail(vehicle, {
-      title: 'Parts completed',
-      subject: 'PDC work completed',
-      details: ['Parts were signed off through the authenticated canonical completion receipt.'],
-    });
+    if (result.code === 'parts_completed' && result.data?.changed === true) {
+      offerSalespersonChangeEmail(vehicle, {
+        title: 'Parts completed',
+        subject: 'PDC work completed',
+        details: ['Parts were signed off through the authenticated canonical completion receipt.'],
+      });
+    }
+  } finally {
+    app.partsCompletionInFlight.delete(vehicleId);
   }
 }
 

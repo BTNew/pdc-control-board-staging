@@ -16,7 +16,7 @@ function ok(value, message) {
 }
 
 (async () => {
-  ok(PDC_PARTS_COMPLETE_RPC === 'mark_pdc_parts_complete', 'shared Parts complete RPC name is explicit');
+  ok(PDC_PARTS_COMPLETE_RPC === 'mark_pdc_parts_received_auditor', 'shared Parts complete RPC name is explicit');
   ok(PDC_PARTS_COMPLETE_SUCCESS_CODES.has('parts_completed') && PDC_PARTS_COMPLETE_SUCCESS_CODES.has('replayed'), 'completion accepts only receipt-backed mutation outcomes');
   ok(serviceSource.includes('async function markPartsComplete'), 'shared Parts service exposes Mark Complete');
   ok(serviceSource.includes('PDC_PARTS_COMPLETE_RPC'), 'shared Parts service uses the complete RPC constant');
@@ -38,10 +38,10 @@ function ok(value, message) {
       return { ok: true, status: 200, async json() { return { ok: true, code: 'parts_completed', data: { receipt_id: 'receipt-1', vehicle_id: 'vehicle-uuid', vehicle_version: 14, changed: true } }; } };
     },
   });
-  const result = await service.markPartsComplete('vehicle-uuid', 13);
+  const result = await service.markPartsComplete('vehicle-uuid', 13, 'parts-key-1');
   const body = JSON.parse(request.options.body);
-  ok(result.ok === true && result.code === 'parts_completed' && request.url.endsWith('/rest/v1/rpc/mark_pdc_parts_complete'), 'Mark Complete uses the protected RPC and returns a receipt-backed outcome');
-  ok(body.p_vehicle_id === 'vehicle-uuid' && body.p_expected_version === 13, 'Mark Complete binds canonical vehicle identity and version');
+  ok(result.ok === true && result.code === 'parts_completed' && request.url.endsWith('/rest/v1/rpc/mark_pdc_parts_received_auditor'), 'Mark Complete uses the protected RPC and returns a receipt-backed outcome');
+  ok(body.p_vehicle_id === 'vehicle-uuid' && body.p_expected_version === 13 && body.p_idempotency_key === 'parts-key-1', 'Mark Complete binds canonical vehicle identity, version and idempotency key');
 
   let replayCalls = 0;
   const replayService = createPdcEmailVehicleLocationService({
@@ -52,7 +52,7 @@ function ok(value, message) {
       return { ok: true, status: 200, async json() { return { ok: true, code: 'replayed', data: { receipt_id: 'receipt-1', vehicle_id: 'vehicle-uuid', vehicle_version: 14, changed: false } }; } };
     },
   });
-  const replay = await replayService.markPartsComplete('vehicle-uuid', 14);
+  const replay = await replayService.markPartsComplete('vehicle-uuid', 14, 'parts-key-1');
   ok(replay.ok === true && replay.code === 'replayed' && replay.data.changed === false && replayCalls === 1, 'exact completion replay is a no-op with the original receipt');
 
   const invalidReceiptService = createPdcEmailVehicleLocationService({

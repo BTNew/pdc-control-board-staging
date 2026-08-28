@@ -1,5 +1,13 @@
 # Shared Files
 
+## Exact Stock 13016925 Parts Auditor receipt successor 738 — 2026-08-28
+
+- `supabase/staging_only/20260829050000_738_authenticated_parts_received_auditor_wrapper.sql` — staging-only exact-target authenticated Auditor receipt wrapper, immutable forced-RLS receipt history, scoped UUID/version/idempotency guards, Parts-only state transition, audit and shared-revision publication.
+- `scripts/apply_migration_738_staging.py` — fail-closed staging installer; holds the shared migration advisory lock, re-reads the live head, blocks the known concurrent 736 worker/session, rejects Production, and records post-apply privilege/RLS proof.
+- `app.js`, `pdc-email-vehicle-location-service.js` — authoritative Parts Received route now calls the 738 Auditor wrapper with canonical UUID/version/idempotency and duplicate-dispatch protection; no local persistence fallback.
+- `test_pdc_auditor_parts_received_738.js`, `test_parts_shared_actions.js`, `test_parts_received_shared_identity.js` — wrapper security, negative-path, receipt/replay, exact payload and UI dispatch contracts.
+- Live migration application is complete; the exact target mutation remains fail-closed until an approved active Auditor enrollment for authoritative dealer `37047` is available. Production remains untouched.
+
 ## Final authoritative RFT lifecycle 700-706 — 2026-08-27
 
 - `app.js`, `pdc-email-vehicle-location-service.js`, `index.html`, `pdc-supabase-config.staging.js` — QC → RFT → Booked → Collected → Delivered UI/service wiring, Collected projection, final 700 RPC clients, and 706 cache-busted staging assets.
