@@ -6,6 +6,7 @@ const fs = require('fs');
 const index = fs.readFileSync('index.html', 'utf8');
 const app = fs.readFileSync('app.js', 'utf8');
 const styles = fs.readFileSync('styles.css', 'utf8');
+const service = fs.readFileSync('pdc-email-vehicle-location-service.js', 'utf8');
 
 let count = 0;
 function ok(value, message) {
@@ -24,8 +25,12 @@ ok(app.includes('data-qc-operation-check=') && app.includes('data-qc-line-identi
 ok(app.includes('function qcPageAllOperationLinesComplete') && app.includes('lines.length > 0 && lines.every'), 'QC readiness requires every active operation line and fails closed on no lines');
 ok(app.includes('setQcOperationCompletion') && !app.includes('async function qcPageSetWorkState'), 'QC completion uses the protected per-operation RPC, never department-level local state');
 ok(app.includes('Unknown hours') && app.includes('Audited manual line') && app.includes('Source JC unavailable'), 'QC lines expose exact/unknown hours and source identity');
-ok(app.includes('accept="image/*"') && app.includes('capture="environment"'), 'QC page offers mobile camera capture');
+ok(app.includes('accept="image/*"') && app.includes('type="file"') && app.includes('qc-photo-input-'), 'QC page exposes an explicitly associated image chooser');
+ok(!app.includes('capture="environment"'), 'Universal chooser does not force camera-only capture and therefore keeps the photo library available');
 ok(app.includes('FileReader') && app.includes('readAsDataURL') && !app.includes('URL.createObjectURL(file)'), 'QC photo preview uses CSP-compatible data URLs');
+ok(app.includes('qcPagePhotoDisabledReason') && app.includes('Complete all 17 operation lines'), 'QC photo control exposes precise identity/cycle/17-line disabled reasons');
+ok(service.includes("record_pdc_qc_retest_photo_747") && service.includes("finalize_pdc_qc_retest_to_rft_747") && service.includes('finalizeQcRetest'), 'Recovered QC retest uses exact cycle-bound receipt and finalization RPCs');
+ok(app.includes('qc-photo-progress') && app.includes('qcPagePhotoErrorMessage'), 'QC photo shows progress and precise retry-safe errors');
 ok(app.includes('const qcPhotoEvidence = new Map()') && app.includes('uploadQcPhotoEvidence'), 'QC photo is receipt-backed in private staging storage');
 ok(app.includes('data-qc-signoff=') && app.includes('finalizeQcToRft'), 'QC finalization uses the authoritative atomic QC-to-RFT action');
 ok(styles.includes('.qc-page') && styles.includes('.qc-work-item.is-complete'), 'QC page has dedicated responsive and green-complete styles');
