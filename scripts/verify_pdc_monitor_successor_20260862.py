@@ -39,7 +39,7 @@ def main() -> int:
         "release_name": "pdc-monitor-staging-m502-2026.08.62",
         "release_version": "2026.08.62",
         "expected_staging_project_ref": "cdsmnqxtyyoeoznmbidd",
-        "supported_migration_head": "20260829010000",
+        "supported_migration_head": 503,
         "outbound_email_enabled": False,
         "parent_manifest_sha256": args.expected_parent_manifest_sha256,
     }
