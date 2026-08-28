@@ -14,7 +14,7 @@ assert.match(app, /photoReceiptId: result\.data\.photo_receipt_id/);
 assert.match(app, /const hasSalesperson = Boolean/);
 assert.match(app, /Assign an active salesperson with an email address before final sign-off/);
 assert.match(app, /salesperson_email_required:/);
-assert.match(app, /Boolean\(photo\?\.photoReceiptId\)/);
+assert.match(app, /qcPhotoEvidenceIsValid\(photo\)/);
 assert.match(app, /completeVehicleQualityControl\(cleanKey, photo\)/);
 assert.match(app, /app\.vehicleModalLoadingIdentity = !cachedReady/);
 assert.match(app, /Loading authoritative vehicle details/);
