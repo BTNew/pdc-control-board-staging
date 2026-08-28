@@ -29,6 +29,7 @@ ok(app.includes('accept="image/*"') && app.includes('type="file"') && app.includ
 ok(!app.includes('capture="environment"'), 'Universal chooser does not force camera-only capture and therefore keeps the photo library available');
 ok(app.includes('FileReader') && app.includes('readAsDataURL') && !app.includes('URL.createObjectURL(file)'), 'QC photo preview uses CSP-compatible data URLs');
 ok(app.includes('qcPagePhotoDisabledReason') && app.includes('Complete all 17 operation lines'), 'QC photo control exposes precise identity/cycle/17-line disabled reasons');
+ok(app.includes('function qcPhotoEvidenceIsValid') && app.includes('qc-photo-clear') && app.includes("status: 'accepted'"), 'QC never labels zero/partial evidence stored and exposes clear/retry recovery');
 ok(service.includes("record_pdc_qc_retest_photo_747") && service.includes("finalize_pdc_qc_retest_to_rft_747") && service.includes('finalizeQcRetest'), 'Recovered QC retest uses exact cycle-bound receipt and finalization RPCs');
 ok(app.includes('qc-photo-progress') && app.includes('qcPagePhotoErrorMessage'), 'QC photo shows progress and precise retry-safe errors');
 ok(app.includes('const qcPhotoEvidence = new Map()') && app.includes('uploadQcPhotoEvidence'), 'QC photo is receipt-backed in private staging storage');

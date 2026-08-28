@@ -5125,13 +5125,31 @@ function qcPagePhotoErrorMessage(code = '') {
   return messages[String(code || '')] || 'The QC photo was not stored. No sign-off was recorded.';
 }
 
+function qcPhotoEvidenceIsValid(photo = {}) {
+  return photo?.status === 'accepted'
+    && /^[0-9a-f-]{36}$/i.test(String(photo.photoReceiptId || ''))
+    && String(photo.bucket_id || '').trim() === 'pdc-qc-evidence-staging'
+    && String(photo.storage_path || '').trim().length > 0
+    && String(photo.content_type || '').toLowerCase().startsWith('image/')
+    && Number(photo.byteLength || photo.byte_length || 0) >= 1
+    && Number(photo.byteLength || photo.byte_length || 0) <= 1048576
+    && Number(photo.originalByteLength || photo.original_byte_length || 0) >= 1
+    && Number(photo.originalByteLength || photo.original_byte_length || 0) <= 10485760
+    && Number(photo.imageWidth || photo.image_width || 0) >= 1
+    && Number(photo.imageWidth || photo.image_width || 0) <= 1600
+    && Number(photo.imageHeight || photo.image_height || 0) >= 1
+    && Number(photo.imageHeight || photo.image_height || 0) <= 1600
+    && /^[a-f0-9]{64}$/i.test(String(photo.sha256 || ''));
+}
+
 function qcPageDetailHtml(vehicle = {}) {
   const key = qcPageVehicleKey(vehicle);
   const stock = displayStockNumber(vehicle) || key || 'No stock';
   const photo = qcPhotoEvidence.get(key);
   const allComplete = qcPageAllOperationLinesComplete(vehicle);
   const hasSalesperson = Boolean(cleanNavisionText(vehicle.salespersonCode || '') && cleanNavisionText(vehicle.salespersonEmail || ''));
-  const signoffReady = allComplete && Boolean(photo?.photoReceiptId);
+  const photoValid = qcPhotoEvidenceIsValid(photo);
+  const signoffReady = allComplete && photoValid;
   const inputId = `qc-photo-input-${key}`;
   const photoDisabledReason = qcPagePhotoDisabledReason(vehicle, key);
   const feedback = qcPageFeedback.get(key);
@@ -5146,9 +5164,10 @@ function qcPageDetailHtml(vehicle = {}) {
     <fieldset class="qc-work-checklist" aria-label="Completed work for selected vehicle"><legend>Completed work</legend><div class="qc-work-list">${qcPageWorkItemsHtml(vehicle)}</div></fieldset>
     <div class="qc-photo-panel">
       <div><strong>Completion photo</strong><p>Store one image in private staging evidence storage before final sign-off. The stored receipt, not browser state, is the authority.</p></div>
-      <label class="qc-photo-picker" for="${escapeHtml(inputId)}" aria-disabled="${photoDisabledReason ? 'true' : 'false'}"><span>${photo ? 'Photo stored · choose another only after this receipt is cleared' : 'Take or choose QC photo'}</span><input id="${escapeHtml(inputId)}" type="file" accept="image/*" data-qc-photo="${escapeHtml(key)}" aria-describedby="${escapeHtml(inputId)}-status"${photoDisabledReason ? ' disabled' : ''} /></label>
+      <label class="qc-photo-picker" for="${escapeHtml(inputId)}" aria-disabled="${photoDisabledReason ? 'true' : 'false'}"><span>${photoValid ? 'Photo stored · choose another only after this receipt is cleared' : photo?.status === 'uploading' ? 'Uploading QC photo…' : 'Take or choose QC photo'}</span><input id="${escapeHtml(inputId)}" type="file" accept="image/*" data-qc-photo="${escapeHtml(key)}" aria-describedby="${escapeHtml(inputId)}-status"${photoDisabledReason ? ' disabled' : ''} /></label>
       <div id="${escapeHtml(inputId)}-status" class="qc-photo-status" aria-live="polite">${photoDisabledReason ? escapeHtml(photoDisabledReason) : ''}</div>
-      ${photo ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url || '')}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${escapeHtml(photo.originalFilename || 'Stored image')} · ${escapeHtml(String(photo.originalByteLength || 0))} → ${escapeHtml(String(photo.byteLength || 0))} bytes · ${escapeHtml(String(photo.imageWidth || 0))}×${escapeHtml(String(photo.imageHeight || 0))} · SHA-256 ${escapeHtml(photo.sha256 || '')}</span></div>` : '<div class="qc-photo-empty">No stored completion photo</div>'}
+      ${photo?.url ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url)}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${photoValid ? `${escapeHtml(photo.originalFilename || 'Stored image')} · ${escapeHtml(String(photo.originalByteLength || photo.original_byte_length || 0))} → ${escapeHtml(String(photo.byteLength || photo.byte_length || 0))} bytes · ${escapeHtml(String(photo.imageWidth || photo.image_width || 0))}×${escapeHtml(String(photo.imageHeight || photo.image_height || 0))} · SHA-256 ${escapeHtml(photo.sha256 || '')}` : `${escapeHtml(photo.originalFilename || 'Selected image')} · Selected image; receipt validation is pending.`}</span></div>` : '<div class="qc-photo-empty">No stored completion photo</div>'}
+      ${photo && !photoValid && photo.status !== 'uploading' ? `<button class="small-button qc-photo-clear" type="button" data-qc-photo-clear="${escapeHtml(key)}">Clear / choose another</button>` : ''}
       </div>
       <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo stored. Final sign-off records QC evidence and moves the vehicle to RFT. No salesperson email or dealer-transit timer starts until explicit RFT Booked.' : allComplete ? 'Store a completion photo before final sign-off.' : 'Every active operation line must be complete before final sign-off.'}</span>${signoffReady ? `<button class="primary" type="button" data-qc-signoff="${escapeHtml(key)}" ${qcPageSignoffInFlight.has(key) ? 'disabled' : ''}>${qcPageSignoffInFlight.has(key) ? 'Signing off…' : 'Sign off QC → RFT'}</button>` : ''}</div>
   </section>`;
@@ -5268,7 +5287,14 @@ async function qcPageAttachPhoto(key = '', input) {
       renderQualityControlPage();
       return false;
     }
-    qcPhotoEvidence.set(cleanKey, { ...qcPhotoEvidence.get(cleanKey), ...result.data, photoReceiptId: result.data.photo_receipt_id, originalFilename: result.data.original_filename || file.name, byteLength: Number(result.data.byte_length || 0), originalByteLength: Number(result.data.original_byte_length || file.size), imageWidth: Number(result.data.image_width || 0), imageHeight: Number(result.data.image_height || 0), sha256: result.data.sha256, url: preview });
+    const acceptedEvidence = { ...qcPhotoEvidence.get(cleanKey), ...result.data, status: 'accepted', photoReceiptId: result.data.photo_receipt_id, originalFilename: result.data.original_filename || file.name, byteLength: Number(result.data.byte_length || 0), originalByteLength: Number(result.data.original_byte_length || file.size), imageWidth: Number(result.data.image_width || 0), imageHeight: Number(result.data.image_height || 0), sha256: result.data.sha256, url: preview };
+    if (!qcPhotoEvidenceIsValid(acceptedEvidence)) {
+      qcPhotoEvidence.set(cleanKey, { ...acceptedEvidence, status: 'error', photoReceiptId: '' });
+      qcPageFeedback.set(cleanKey, { kind: 'error', message: qcPagePhotoErrorMessage('qc_photo_receipt_invalid') });
+      renderQualityControlPage();
+      return false;
+    }
+    qcPhotoEvidence.set(cleanKey, acceptedEvidence);
     qcPageFeedback.set(cleanKey, { kind: 'saved', message: `Photo compressed and stored (${Math.round(Number(result.data.original_byte_length || file.size) / 1024)} KB → ${Math.round(Number(result.data.byte_length || 0) / 1024)} KB). All active operation lines must be complete before sign-off.` });
     renderQualityControlPage();
     return true;
@@ -5283,7 +5309,7 @@ async function qcPageSignoff(key = '') {
   if (!cleanKey || qcPageSignoffInFlight.has(cleanKey)) return false;
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
   const photo = qcPhotoEvidence.get(cleanKey);
-  if (!vehicle || !photo?.photoReceiptId) return false;
+  if (!vehicle || !qcPhotoEvidenceIsValid(photo)) return false;
   if (!qcPageAllOperationLinesComplete(vehicle)) {
     window.alert('Every active authenticated or audited manual operation line must be complete before QC finalization.');
     return false;
@@ -5304,6 +5330,17 @@ async function qcPageSignoff(key = '') {
   } finally {
     qcPageSignoffInFlight.delete(cleanKey);
   }
+}
+
+function qcPageClearInvalidPhoto(key = '') {
+  const cleanKey = String(key || '').trim();
+  if (!cleanKey || qcPagePhotoUploadInFlight.has(cleanKey)) return false;
+  const photo = qcPhotoEvidence.get(cleanKey);
+  if (!photo || qcPhotoEvidenceIsValid(photo)) return false;
+  qcPhotoEvidence.delete(cleanKey);
+  qcPageFeedback.delete(cleanKey);
+  renderQualityControlPage();
+  return true;
 }
 
 function renderQualityControlPage() {
@@ -5330,6 +5367,7 @@ function renderQualityControlPage() {
     qcPageQueueOperationState(input.dataset.qcOperationCheck, input.dataset.qcLineIdentity, input.checked, input);
   }));
   $$('[data-qc-photo]', host).forEach(input => input.addEventListener('change', () => { void qcPageAttachPhoto(input.dataset.qcPhoto, input); }));
+  $$('[data-qc-photo-clear]', host).forEach(button => button.addEventListener('click', () => { qcPageClearInvalidPhoto(button.dataset.qcPhotoClear); }));
   $$('[data-qc-signoff]', host).forEach(button => button.addEventListener('click', () => { void qcPageSignoff(button.dataset.qcSignoff); }));
 }
 

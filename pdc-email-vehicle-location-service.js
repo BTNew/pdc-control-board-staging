@@ -426,7 +426,9 @@ function createPdcEmailVehicleLocationService(options = {}) {
     } catch (_error) { return ''; }
   }
   async function qcPhotoSource(file) {
-    if (typeof createImageBitmap === 'function') return { source: await createImageBitmap(file, { imageOrientation: 'from-image' }), close: true };
+    if (typeof createImageBitmap === 'function') {
+      try { return { source: await createImageBitmap(file, { imageOrientation: 'from-image' }), close: true }; } catch (_error) { /* use the Image fallback */ }
+    }
     if (typeof Image !== 'function' || typeof FileReader !== 'function') throw new Error('qc_photo_compression_unavailable');
     const dataUrl = await new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -455,7 +457,12 @@ function createPdcEmailVehicleLocationService(options = {}) {
       if (!context) throw new Error('qc_photo_compression_unavailable');
       context.drawImage(bitmap, 0, 0, width, height);
       for (const quality of [0.82, 0.72, 0.62, 0.52, 0.42, 0.32]) {
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+        const blob = await new Promise(resolve => {
+          let settled = false;
+          const finish = value => { if (settled) return; settled = true; resolve(value || null); };
+          const timer = setTimeout(() => finish(null), 8000);
+          try { canvas.toBlob(value => { clearTimeout(timer); finish(value); }, 'image/jpeg', quality); } catch (_error) { clearTimeout(timer); finish(null); }
+        });
         if (!blob || !blob.size) continue;
         if (!best || blob.size < best.blob.size) best = { blob, width, height };
         if (blob.size <= 750 * 1024) {
@@ -494,8 +501,14 @@ function createPdcEmailVehicleLocationService(options = {}) {
       if (retest) payload.p_cycle_id = cycleId;
       const response = await request(`${url}/rest/v1/rpc/${retest ? PDC_QC_RETEST_PHOTO_RPC : PDC_QC_PHOTO_RECEIPT_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const body = await response.json().catch(() => null); const data = body?.data || body;
-      if (!response.ok || !body || body.ok !== true || !data?.photo_receipt_id || String(data.vehicle_id || '') !== vehicle || (retest && String(data.cycle_id || '') !== cycleId) || (!retest && !/^[a-f0-9]{64}$/i.test(String(data.sha256 || '')))) return { ok: false, code: body?.code || 'qc_photo_receipt_invalid', data: null };
-      return { ok: true, code: body.code || 'qc_photo_stored', data: { ...data, original_byte_length: compressed.originalByteLength, image_width: compressed.width, image_height: compressed.height } };
+      const transformed = { bucket_id: PDC_QC_PHOTO_BUCKET, storage_path: path, content_type: uploadFile.type, byte_length: Number(uploadFile.size), original_byte_length: compressed.originalByteLength, image_width: Number(compressed.width), image_height: Number(compressed.height), sha256, original_filename: String(file.name || safeName).slice(0, 180), photo_receipt_id: data?.photo_receipt_id, vehicle_id: data?.vehicle_id, cycle_id: data?.cycle_id };
+      const explicitMetadataInvalid = (Object.prototype.hasOwnProperty.call(data || {}, 'byte_length') && Number(data.byte_length) < 1)
+        || (Object.prototype.hasOwnProperty.call(data || {}, 'image_width') && Number(data.image_width) < 1)
+        || (Object.prototype.hasOwnProperty.call(data || {}, 'image_height') && Number(data.image_height) < 1)
+        || (Object.prototype.hasOwnProperty.call(data || {}, 'sha256') && !/^[a-f0-9]{64}$/i.test(String(data.sha256 || '')))
+        || (Object.prototype.hasOwnProperty.call(data || {}, 'storage_path') && !String(data.storage_path || '').trim());
+      if (!response.ok || !body || body.ok !== true || explicitMetadataInvalid || !data?.photo_receipt_id || String(data.vehicle_id || '') !== vehicle || (retest && String(data.cycle_id || '') !== cycleId) || transformed.byte_length < 1 || transformed.byte_length > 1048576 || transformed.image_width < 1 || transformed.image_width > 1600 || transformed.image_height < 1 || transformed.image_height > 1600 || !/^[a-f0-9]{64}$/i.test(transformed.sha256)) return { ok: false, code: explicitMetadataInvalid ? 'qc_photo_receipt_invalid' : (body?.code || 'qc_photo_receipt_invalid'), data: null };
+      return { ok: true, code: body.code || 'qc_photo_stored', data: { ...data, ...transformed } };
     } catch (error) { return { ok: false, code: error?.message || 'qc_photo_upload_unavailable', data: null }; }
   }
   async function finalizeQcToRft(vehicleId = '', vehicleVersion = 0, photoReceiptId = '', idempotencyKey = '') {

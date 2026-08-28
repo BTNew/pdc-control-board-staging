@@ -28,25 +28,33 @@ const originalCreateImageBitmap = global.createImageBitmap;
 const originalDocument = global.document;
 const originalFile = global.File;
 const originalBlob = global.Blob;
-global.createImageBitmap = async () => ({ width: 100, height: 100, close() {} });
+global.createImageBitmap = async () => ({ width: 4032, height: 3024, close() {} });
 global.document = { createElement: () => ({ width: 100, height: 100, getContext: () => ({ drawImage() {} }), toBlob: callback => callback(new Blob([Buffer.from([1, 2, 3, 4])], { type: 'image/jpeg' })) }) };
 
 const tokenPayload = Buffer.from(JSON.stringify({ sub: actorId })).toString('base64url');
 const token = `header.${tokenPayload}.signature`;
 const calls = [];
 const response = body => ({ ok: true, status: 200, json: async () => body });
+let invalidReceipt = false;
 const fetchImpl = async (url, init) => {
   calls.push({ url, init });
   if (url.includes('/storage/v1/object/')) return response({ Key: 'staged' });
-  if (url.endsWith(`/rpc/${PDC_QC_RETEST_PHOTO_RPC}`)) return response({ ok: true, code: 'qc_retest_photo_accepted', cycle_id: cycleId, photo_receipt_id: photoId, vehicle_id: vehicleId, vehicle_version: 34, sha256: 'a'.repeat(64) });
+  if (url.endsWith(`/rpc/${PDC_QC_RETEST_PHOTO_RPC}`)) return response(invalidReceipt
+    ? { ok: true, code: 'qc_retest_photo_accepted', cycle_id: cycleId, photo_receipt_id: photoId, vehicle_id: vehicleId, vehicle_version: 34, byte_length: 0, image_width: 0, image_height: 0, sha256: '' }
+    : { ok: true, code: 'qc_retest_photo_accepted', cycle_id: cycleId, photo_receipt_id: photoId, vehicle_id: vehicleId, vehicle_version: 34, sha256: 'a'.repeat(64) });
   if (url.endsWith(`/rpc/${PDC_QC_RETEST_FINALIZATION_RPC}`)) return response({ ok: true, code: 'qc_retest_signed_off_to_rft', cycle_id: cycleId, vehicle_id: vehicleId, vehicle_version_after: 36 });
   throw new Error(`unexpected request ${url}`);
 };
 (async () => {
   const service = createPdcEmailVehicleLocationService({ config: { url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co', publishableKey: 'staging-test-key' }, getAccessToken: () => token, fetchImpl });
-  const file = { name: 'mobile-qc.jpg', type: 'image/jpeg', size: 128, arrayBuffer: async () => Uint8Array.from([9, 8, 7]).buffer };
+  const file = { name: 'IMG_1554.jpeg', type: 'image/jpeg', size: 5440864, arrayBuffer: async () => Uint8Array.from([9, 8, 7]).buffer };
   const upload = await service.uploadQcPhotoEvidence(vehicleId, 34, cycleId, file);
   assert.strictEqual(upload.ok, true);
+  assert.strictEqual(upload.data.original_byte_length, 5440864);
+  assert.ok(Number(upload.data.byte_length) > 0, 'large JPEG transform must retain a positive compressed byte length');
+  assert.ok(Number(upload.data.image_width) > 0 && Number(upload.data.image_height) > 0, 'large JPEG transform must retain positive dimensions');
+  assert.match(String(upload.data.sha256 || ''), /^[a-f0-9]{64}$/);
+  assert.strictEqual(upload.data.storage_path.startsWith(`qc-finalization/${actorId}/`), true);
   const photoRequest = JSON.parse(calls[1].init.body);
   assert.strictEqual(calls[1].url.endsWith(`/rpc/${PDC_QC_RETEST_PHOTO_RPC}`), true);
   assert.strictEqual(photoRequest.p_vehicle_id, vehicleId);
@@ -58,5 +66,9 @@ const fetchImpl = async (url, init) => {
   const finalRequest = JSON.parse(calls[2].init.body);
   assert.strictEqual(calls[2].url.endsWith(`/rpc/${PDC_QC_RETEST_FINALIZATION_RPC}`), true);
   assert.deepStrictEqual({ vehicle: finalRequest.p_vehicle_id, version: finalRequest.p_expected_vehicle_version, cycle: finalRequest.p_cycle_id, photo: finalRequest.p_photo_receipt_id }, { vehicle: vehicleId, version: 34, cycle: cycleId, photo: photoId });
+  invalidReceipt = true;
+  const invalid = await service.uploadQcPhotoEvidence(vehicleId, 34, cycleId, file);
+  assert.strictEqual(invalid.ok, false);
+  assert.strictEqual(invalid.code, 'qc_photo_receipt_invalid');
   console.log('QC mobile staging-base retest projection, iOS fallback, cycle receipt and finalize contract passed');
 })().finally(() => { global.createImageBitmap = originalCreateImageBitmap; global.document = originalDocument; global.File = originalFile; global.Blob = originalBlob; }).catch(error => { console.error(error); process.exitCode = 1; });
