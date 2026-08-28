@@ -6975,7 +6975,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   margin-top: 1rem;
 }
 
-.sales-change-email-overlay { z-index: 180; }
+.sales-change-email-overlay { z-index: 2200; }
 .sales-change-email-card {
   width: min(580px, calc(100vw - 2rem));
   padding: 24px;

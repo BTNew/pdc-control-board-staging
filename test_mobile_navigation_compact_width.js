@@ -11,5 +11,5 @@ assert(block.includes('width: 72px !important;'), 'mobile nav items must have a 
 assert(block.includes('max-width: 72px !important;'), 'later width rules must not stretch mobile nav items');
 assert(block.includes('flex-basis: 72px !important;'), 'mobile nav flex basis must remain compact');
 assert(block.includes('min-width: 72px;'), 'mobile nav touch target width must remain at least 72px');
-assert(html.includes('styles.css?v=2026.08.29.736-rft-final-controls'), 'staging shell must cache-bust the corrected mobile navigation CSS');
+assert(html.includes('styles.css?v=2026.08.29.737-email-update-modal-front'), 'staging shell must cache-bust the current stylesheet, including corrected mobile navigation CSS');
 console.log('PASS mobile navigation compact-width regression');
