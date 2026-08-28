@@ -1,5 +1,13 @@
 # Shared Files
 
+## Exact Parts controller correction 742/745 — 2026-08-28
+
+- `supabase/staging_only/20260829090000_742_controller_parts_received_correction.sql` — one-time expiring Craig owner-instruction Administrator/controller authorization and exact target receipt/audit path; no persistent Auditor dealer grant.
+- `supabase/staging_only/20260829120000_745_controller_parts_received_eta_repair.sql` — append-only successor preserving the authoritative Parts ETA required by the live trigger when no stoppage is active.
+- `scripts/apply_migration_742_staging.py`, `scripts/apply_migration_745_staging.py` — serialized, shared-lock, exact-head, Production-blocked staging installers.
+- `test_pdc_controller_parts_correction_742.js`, `test_pdc_controller_parts_correction_745.js` — owner instruction, target, expiry, consumption, immutable receipt, least-privilege and ETA repair source contracts.
+- Live controller matrix — one exact receipt/audit and version increment; replay, wrong actor/vehicle/dealer/version and unrelated-digest checks passed; Production untouched.
+
 ## Exact Stock 13016925 Parts Auditor receipt successor 738 — 2026-08-28
 
 - `supabase/staging_only/20260829050000_738_authenticated_parts_received_auditor_wrapper.sql` — staging-only exact-target authenticated Auditor receipt wrapper, immutable forced-RLS receipt history, scoped UUID/version/idempotency guards, Parts-only state transition, audit and shared-revision publication.

@@ -1,0 +1,12 @@
+'use strict';
+const assert=require('assert');
+const fs=require('fs');
+const path='supabase/staging_only/20260829120000_745_controller_parts_received_eta_repair.sql';
+const source=fs.existsSync(path)?fs.readFileSync(path,'utf8').toLowerCase():'';
+assert.ok(source,'745 controller repair migration exists');
+for(const marker of ["'20260829110000'","'744_reactivate_exact_email_monitor_mailbox'","'20260829120000'","'742_controller_parts_received_correction'",'pg_get_functiondef','execute v_patched','v_parts_before.parts_stoppage','v_parts_before.worst_eta','pdc_parts_eta_required','pdc_production_environment_sentinel',"'cdsmnqxtyyoeoznmbidd'",'lock table supabase_migrations.schema_migrations in exclusive mode',"pg_advisory_xact_lock(hashtextextended('pdc-staging-migration-installation'",'parts_received'])assert.ok(source.includes(marker),`missing ${marker}`);
+assert.ok(source.includes('case when coalesce(v_parts_before.parts_stoppage,false) then null else v_parts_before.worst_eta end'),'repair must preserve ETA unless clearing an active stoppage');
+assert.ok(!/grant\s+(?:insert|update|delete)\s+on\s+table/i.test(source),'no broad table DML grant');
+assert.ok(!/pdc_auditor_user_dealer_scopes.*insert/i.test(source),'no persistent Auditor dealer scope');
+assert.ok(!/grant\s+execute[^;]+service_role/i.test(source),'service_role not granted');
+console.log('PDC controller Parts correction 745 ETA repair source contract passed.');

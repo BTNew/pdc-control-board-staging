@@ -4,6 +4,13 @@
 
 - Added the read-only Vehicle Locations refresh control and coordinated authoritative refresh fan-in. The staging UI now refreshes Navision, operational vehicle, workshop/work-state, eligibility, reference and receipt-overlay sources under one generation, preserves search/disclosure state, prevents duplicate clicks, and reports stale/error state without blanking the Board.
 - Changed `app.js`, `index.html`, `styles.css`, `vehicle-locations-refresh.js`, and `test_vehicle_locations_refresh.js`. Production was not contacted.
+## 2026-08-28 — Exact Parts controller correction 742/745 and live receipt
+
+- Added staging-only one-time controller correction `supabase/staging_only/20260829090000_742_controller_parts_received_correction.sql`, bound to Craig's exact owner instruction, Stock `13016925`, canonical UUID `13cf8ae5-a27c-5c98-859d-3f029ecf9726`, dealer `37047`, expected version `5`, expiry and single immutable consumption receipt. It does not alter migration 738 or persistent Auditor dealer scopes.
+- The serialized live lane had advanced through RFT/email migrations 739–744; the controller migration was applied only after a shared-lock head re-read. A subsequent append-only `20260829120000 / 745_controller_parts_received_eta_repair` repaired the existing `PDC_PARTS_ETA_REQUIRED` interaction by preserving the authoritative ETA when no active stoppage exists. No unrelated RFT/email migration was rewritten.
+- The approved staging Administrator/controller path then executed exactly once. Live read-back confirms target version `6`, Parts required/ordered/received `true/true/true`, ETA `2026-08-30` preserved, stoppage false, one completed PARTS work item with no active PARTS work, one 742 receipt, one 742 audit event and one shared revision increment. Board snapshot shows the target is no longer in the active Parts queue.
+- Exact replay returned `controller_correction_replayed` with `changed=false` and no additional rows/revision. Wrong actor, wrong vehicle/dealer and wrong version were denied. Unrelated vehicle/Parts/work/booking/audit digests were unchanged. Production sentinel remained absent and Production was not contacted.
+- Verification: controller source contracts, Parts shared contracts, syntax and diff checks passed; baseline development `npm run test` / `npm run check` remained `226 passed, 0 failed, 1 skipped`. Staging source publication retains commit `7984237` plus the focused controller correction artifacts.
 
 ## 2026-08-28 — Exact Stock 13016925 Parts Auditor receipt successor 738
 
