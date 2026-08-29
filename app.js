@@ -20163,6 +20163,15 @@ function navisionPreviewIssueMessage(reason = '') {
     missing_source_record_id: 'No unique Navision record ID was found in this row.',
     forbidden_operational_field: 'This row contains workshop fields that Navision is not allowed to change.',
     duplicate_source_record_id: 'The same Navision record appears more than once in this file.',
+    duplicate_stock_number: 'This Stock number appears in more than one source row. Keep one authoritative row.',
+    duplicate_existing_stock_number: 'This Stock number already belongs to another current Navision record.',
+    duplicate_vin: 'This VIN appears in more than one source row.',
+    duplicate_toyota_order: 'This Toyota Order appears in more than one source row.',
+    wrong_dealer_scope: 'This row declares a different dealer from the selected dealer.',
+    invalid_status_code: 'The explicit workflow status code is not supported by the shared import contract.',
+    invalid_date: 'The explicit date is not a valid ISO or Australian date.',
+    invalid_location_code: 'The explicit location code must be YH, PMB or RFT.',
+    canonical_identity_mismatch: 'The Stock/VIN identity points to a different canonical vehicle than this Navision record.',
     ambiguous_canonical_identity: 'This record matches more than one car, so it cannot be safely updated.',
     legacy_claim_requires_administrator: 'An Administrator must review this older unassigned record.',
   };
@@ -20170,8 +20179,120 @@ function navisionPreviewIssueMessage(reason = '') {
 }
 
 function navisionPreviewItemLabel(item = {}) {
+  const stock = cleanNavisionText(item.stock_number || item.stock || '');
   const identity = cleanNavisionText(item.source_record_id || '');
+  if (stock) return `Stock ${stock}${identity ? ` · Navision record ${identity}` : ''}`;
   return identity ? `Navision record ${identity}` : `Row ${Number(item.row_index || 0) || '?'}`;
+}
+
+function navisionClientPreflight(rows = [], dealerCode = '') {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const normalizedDealer = String(dealerCode || '').replace(/^0+/, '') || String(dealerCode || '');
+  const sourceIds = new Map();
+  const stocks = new Map();
+  const vins = new Map();
+  const orders = new Map();
+  const issues = [];
+  const add = (map, value, index) => {
+    if (!value) return;
+    if (!map.has(value)) map.set(value, []);
+    map.get(value).push(index);
+  };
+  const sourceIdFor = row => String(row?.id || row?.source_record_id || row?.sourceRecordId || '').trim();
+  const stockFor = row => normalizeBatch(row?.stock || row?.stock_number || row?.batch || '') || '';
+  const vinFor = row => normalizeVin(row?.vin || row?.fullVin || row?.frameVin || '') || '';
+  const orderFor = row => normalizeBatch(row?.order || row?.toyota_order_number || '') || '';
+  const declaredDealerFor = row => {
+    const direct = row?.dealerCode || row?.dealer_code || row?.navisionDealerCode || row?.navision_dealer_code;
+    if (direct) return String(direct).replace(/^0+/, '') || String(direct);
+    const columns = row?.navisionRawEvidence?.columns;
+    if (!Array.isArray(columns)) return '';
+    const match = columns.find(column => cleanNavisionText(column?.header || '').toLowerCase() === 'dealer');
+    return match?.value ? String(match.value).replace(/^0+/, '') || String(match.value) : '';
+  };
+  const explicitValue = (row, keys) => keys.map(key => row?.[key]).find(value => String(value || '').trim()) || '';
+  const validDate = value => {
+    const text = String(value || '').trim();
+    if (!text) return true;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      const date = new Date(`${text}T00:00:00Z`);
+      return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === text;
+    }
+    const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!match) return false;
+    const date = new Date(Date.UTC(Number(match[3]), Number(match[2]) - 1, Number(match[1])));
+    return date.getUTCFullYear() === Number(match[3]) && date.getUTCMonth() === Number(match[2]) - 1 && date.getUTCDate() === Number(match[1]);
+  };
+  sourceRows.forEach((row, index) => {
+    add(sourceIds, sourceIdFor(row), index);
+    add(stocks, stockFor(row), index);
+    add(vins, vinFor(row), index);
+    add(orders, orderFor(row), index);
+  });
+  sourceRows.forEach((row, index) => {
+    const sourceRecordId = sourceIdFor(row);
+    const stock = stockFor(row);
+    const vin = vinFor(row);
+    const order = orderFor(row);
+    const declaredDealer = declaredDealerFor(row);
+    const status = explicitValue(row, ['pdcStatus', 'pdc_status', 'workflowStatus', 'workflow_status', 'statusCode', 'status_code']);
+    const location = explicitValue(row, ['pdcLocation', 'pdc_location', 'locationCode', 'location_code']);
+    const date = explicitValue(row, ['pdcEtaDate', 'pdc_eta_date', 'locationDate', 'location_date']);
+    let reason = '';
+    let field = '';
+    let classification = 'conflict';
+    if (!row || typeof row !== 'object' || Array.isArray(row)) { reason = 'row_not_object'; field = 'source_record_id'; classification = 'invalid'; }
+    else if (!sourceRecordId) { reason = 'missing_source_record_id'; field = 'source_record_id'; classification = 'invalid'; }
+    else if (declaredDealer && declaredDealer !== normalizedDealer) { reason = 'wrong_dealer_scope'; field = 'dealer_code'; }
+    else if ((sourceIds.get(sourceRecordId) || []).length > 1) { reason = 'duplicate_source_record_id'; field = 'source_record_id'; }
+    else if (stock && (stocks.get(stock) || []).length > 1) { reason = 'duplicate_stock_number'; field = 'stock'; }
+    else if (vin && (vins.get(vin) || []).length > 1) { reason = 'duplicate_vin'; field = 'vin'; }
+    else if (order && (orders.get(order) || []).length > 1) { reason = 'duplicate_toyota_order'; field = 'toyota_order_number'; }
+    else if (status && !['new', 'current', 'active', 'inactive', 'planned', 'pending', 'review', 'reviewonly', 'yardhold', 'yh', 'pmb', 'rft', 'completed', 'other'].includes(status.toLowerCase().replace(/[^a-z0-9]+/g, ''))) { reason = 'invalid_status_code'; field = 'status_code'; classification = 'invalid'; }
+    else if (location && !['YH', 'PMB', 'RFT'].includes(location.toUpperCase().replace(/[^A-Z0-9]+/g, ''))) { reason = 'invalid_location_code'; field = 'location_code'; classification = 'invalid'; }
+    else if (date && !validDate(date)) { reason = 'invalid_date'; field = 'date'; classification = 'invalid'; }
+    if (reason) issues.push({ row_index: index + 1, classification, reason, field, stock_number: stock || null, source_record_id: sourceRecordId || null, candidate_vehicle_ids: [] });
+  });
+  return { contract_version: 1, blocking: issues.length > 0, issue_count: issues.length, issues, authority: 'shared_navision_backend_only', atomic_apply: true };
+}
+
+function mergeNavisionPreflightData(data = {}, preflight = {}) {
+  const issues = Array.isArray(preflight?.issues) ? preflight.issues : [];
+  if (!issues.length) return data;
+  const items = Array.isArray(data.items) ? data.items.map(item => ({ ...item })) : [];
+  issues.forEach(issue => {
+    const index = Number(issue.row_index || 0) - 1;
+    if (index < 0 || index >= items.length) return;
+    items[index] = { ...items[index], ...issue };
+  });
+  const counts = {
+    total: items.length,
+    new: items.filter(item => item.classification === 'new').length,
+    changed: items.filter(item => item.classification === 'changed').length,
+    unchanged: items.filter(item => item.classification === 'unchanged').length,
+    invalid: items.filter(item => item.classification === 'invalid').length,
+    conflict: items.filter(item => item.classification === 'conflict').length,
+    missing: Number(data?.counts?.missing || 0),
+    proposed_links: Number(data?.counts?.proposed_links || 0),
+    operational_mutations: 0,
+  };
+  return { ...data, items, counts, preflight, blocking: data.blocking === true || preflight.blocking === true };
+}
+
+function sharedNavisionApplyErrorMessage(result = {}) {
+  const code = String(result?.code || result?.error || '').toLowerCase();
+  const data = result?.data?.data || result?.data || {};
+  const issues = data?.preflight?.issues || data?.issues || [];
+  if (code === 'navision_preflight_blocked' || code === 'blocking_reconciliation' || code === 'preview_has_blocking_issues') {
+    const detail = issues.slice(0, 4).map(item => `${navisionPreviewItemLabel(item)} — ${navisionPreviewIssueMessage(item.reason)}${item.field ? ` (field ${item.field})` : ''}`).join('; ');
+    return `Navision apply was blocked before any change. ${detail || 'Review the flagged rows in the preview and correct the source file.'} Nothing was imported.`;
+  }
+  if (code === '23514' || code.includes('navision_vehicle_link_or_refresh_incomplete')) {
+    return 'Navision apply was blocked by a duplicate or stale canonical vehicle identity. Preview the file again; nothing was imported and no browser-local fallback was attempted.';
+  }
+  if (code === 'stale_revision' || code === 'source_changed' || code === 'preview_changed') return 'The shared Navision data changed while this file was open. Preview the file again; nothing was imported.';
+  if (code === 'unauthorized') return 'Importer or administrator access is required for shared Navision imports. Nothing was imported.';
+  return 'The shared Navision import was rejected before completion. Preview the file again or correct the flagged source row; nothing was imported and no browser-local fallback was attempted.';
 }
 
 async function loadSharedNavisionCurrentRows(service, dealerCode, expectedRevision) {
@@ -20305,6 +20426,7 @@ async function importNavisionVehicles() {
   }
   const browserLocalSha256 = navisionBrowserAuthoritySha256();
   const rows = parsed.vehicles;
+  const clientPreflight = navisionClientPreflight(rows, dealerCode);
   const metadata = { sourceSystem: 'microsoft_navision', dealerCode, sourceName: app.navisionFileName || 'Pasted text', sourceTimestamp: null };
   let previewResult = await service.preview(rows, metadata);
   if (!previewResult?.ok) {
@@ -20313,7 +20435,7 @@ async function importNavisionVehicles() {
     window.alert(`Shared Navision preview failed: ${previewResult?.error || 'service unavailable'}. No local data changed.`);
     return;
   }
-  let previewData = navisionSharedPreviewData(previewResult) || {};
+  let previewData = mergeNavisionPreflightData(navisionSharedPreviewData(previewResult) || {}, clientPreflight);
   let blockingState = navisionSharedPreviewBlockingState(previewData);
   const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
   if (blockingState.safetyBlocking && blockingState.safetyReason === 'unproven_empty_dealer_scope' && role === 'administrator') {
@@ -20330,13 +20452,13 @@ async function importNavisionVehicles() {
           window.alert(`Shared Navision preview failed after dealer-scope review: ${previewResult?.error || 'service unavailable'}. Nothing was imported or changed.`);
           return;
         } else {
-          previewData = navisionSharedPreviewData(previewResult) || {};
+          previewData = mergeNavisionPreflightData(navisionSharedPreviewData(previewResult) || {}, clientPreflight);
           blockingState = navisionSharedPreviewBlockingState(previewData);
         }
       }
     }
   }
-  app.pendingSharedNavisionImport = { rows, parsed, dealerCode, metadata, previewResult, previewData, browserLocalSha256, sourceTextSha256: sha256Hex(text.trim()) };
+  app.pendingSharedNavisionImport = { rows, parsed, dealerCode, metadata, previewResult, previewData, clientPreflight, browserLocalSha256, sourceTextSha256: sha256Hex(text.trim()) };
   try {
     await enrichSharedNavisionPreviewChanges(app.pendingSharedNavisionImport, service);
   } catch (error) {
@@ -20408,7 +20530,7 @@ async function applySharedNavisionImportPending(pending, authorityIdentity = '')
       return;
     }
     pending.previewResult = refreshedPreview;
-    pending.previewData = navisionSharedPreviewData(refreshedPreview) || {};
+    pending.previewData = mergeNavisionPreflightData(navisionSharedPreviewData(refreshedPreview) || {}, pending.clientPreflight || navisionClientPreflight(pending.rows, pending.dealerCode));
     data = pending.previewData;
     counts = data.counts || {};
     blockingState = navisionSharedPreviewBlockingState(data);
@@ -20441,7 +20563,7 @@ async function applySharedNavisionImportPending(pending, authorityIdentity = '')
   const idempotencyKey = `normal-upload:${pending.dealerCode}:${data.source_hash || sha256Hex(JSON.stringify(pending.rows))}`.slice(0, 200);
   const applyResult = await service.apply(pending.rows, pending.previewResult, { ...pending.metadata, confirmed: true, idempotencyKey });
   if (!applyResult?.ok) {
-    window.alert(`Shared Navision apply failed: ${applyResult?.error || 'service unavailable'}. No localStorage fallback was attempted.`);
+    window.alert(sharedNavisionApplyErrorMessage(applyResult));
     return;
   }
   const afterSha256 = navisionBrowserAuthoritySha256();
