@@ -43,7 +43,7 @@ declare
  v_enqueue jsonb; v_parent_result jsonb; v_child_result jsonb; v_child_results jsonb:='[]'::jsonb; v_response jsonb;
  v_runtime jsonb; v_manifest_hash text; v_request_hash text; v_observation_sha text;
  v_child jsonb; v_item jsonb; v_attachment public.ai_email_attachments%rowtype; v_attachment_id uuid;
- v_intake_id uuid; v_index integer:=0; v_job_card_success integer:=0; v_job_card_failure integer:=0; v_sibling_count integer:=0;
+ v_intake_id uuid; v_receipt_id uuid:=gen_random_uuid(); v_child_ordinal integer; v_index integer:=0; v_job_card_success integer:=0; v_job_card_failure integer:=0; v_sibling_count integer:=0;
 begin
  if not public.pdc_monitor_staging_guard() or to_regclass('public.pdc_production_environment_sentinel') is not null
     or v_actor<>'df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b'::uuid
@@ -146,7 +146,7 @@ begin
  if v_intake.duplicate_of is not null or v_intake.status::text not in ('received','processing') then
    return jsonb_build_object('ok',false,'code','historical_old_mail_completed');
  end if;
- if jsonb_array_length(v_children)<>(select count(distinct coalesce(x->>'attachment_hash','')) from jsonb_array_elements(v_children) x) then
+ if jsonb_array_length(v_children)<>(select count(distinct coalesce(x->>'attachment_ordinal','')) from jsonb_array_elements(v_children) x) then
    return jsonb_build_object('ok',false,'code','historical_child_sibling_duplicate');
  end if;
  for v_item in select value from jsonb_array_elements(v_items) loop
@@ -168,21 +168,25 @@ begin
  end loop;
  v_parent_result:=public.submit_pdc_ai_intake_observation_pre135(v_parent,lower(v_request->>'evidence_hash'),v_uid,v_sender,v_auth,
    (v_source->>'received_at')::timestamptz,v_request->>'subject',v_request->>'action_type',v_stock,v_request->>'summary',v_request->'observations');
- if not coalesce((v_parent_result->>'ok')::boolean,false) then return v_parent_result; end if;
+ if not coalesce((v_parent_result->>'ok')::boolean,false) then
+   raise exception 'PDC_778_PARENT_FALSE_RESULT' using errcode='P0001';
+ end if;
  for v_child in select value from jsonb_array_elements(v_children) loop
    v_index:=v_index+1; v_child_result:=null;
    begin
      if jsonb_typeof(v_child) is distinct from 'object'
-        or (select array_agg(k order by k) from jsonb_object_keys(v_child) k) is distinct from array['attachment_hash','attachment_kind','extraction','extraction_hash']::text[]
+        or (select array_agg(k order by k) from jsonb_object_keys(v_child) k) is distinct from array['attachment_hash','attachment_kind','attachment_ordinal','extraction','extraction_hash']::text[]
+        or (v_child->>'attachment_ordinal')!~'^[1-9][0-9]{0,2}$'
         or v_child->>'attachment_kind'='ambiguous_job_card' then
        v_child_result:=jsonb_build_object('ok',false,'code','historical_child_ambiguous');
      elsif v_child->>'attachment_kind'<>'job_card'
         or lower(coalesce(v_child->>'attachment_hash',''))!~'^[a-f0-9]{64}$'
         or lower(coalesce(v_child->>'extraction_hash',''))!~'^[a-f0-9]{64}$'
         or jsonb_typeof(v_child->'extraction') is distinct from 'object'
-        or not exists(select 1 from jsonb_array_elements(v_items) m where lower(m->>'sha256')=lower(v_child->>'attachment_hash') and m->>'content_type'='application/pdf') then
+        or not exists(select 1 from jsonb_array_elements(v_items) with ordinality x(m,ordinality) where x.ordinality=(v_child->>'attachment_ordinal')::integer and lower(x.m->>'sha256')=lower(v_child->>'attachment_hash') and x.m->>'content_type'='application/pdf') then
        v_child_result:=jsonb_build_object('ok',false,'code','historical_child_binding_mismatch');
      else
+       v_child_ordinal:=(v_child->>'attachment_ordinal')::integer;
        select a.* into v_attachment from public.ai_email_attachments a where a.intake_id=v_intake_id and lower(a.source_hash)=lower(v_child->>'attachment_hash');
        if not found then v_child_result:=jsonb_build_object('ok',false,'code','historical_child_attachment_not_found');
        elsif jsonb_typeof(v_child->'extraction'->'email_vehicle'->'stock_numbers') is distinct from 'array'
@@ -205,14 +209,14 @@ begin
  end loop;
  select count(*) into v_sibling_count from public.pdc_historical_provider_observations_778 where intake_id=v_intake_id;
  if v_job_card_failure>0 and v_job_card_success=0 and jsonb_array_length(v_children)>0 then
-   v_response:=jsonb_build_object('ok',false,'code','historical_reconciliation_children_failed','data',jsonb_build_object('parent_observation',v_parent_result,'attachment_receipts',v_child_results));
+   v_response:=jsonb_build_object('ok',false,'code','historical_reconciliation_children_failed','data',jsonb_build_object('receipt_id',v_receipt_id,'parent_observation',v_parent_result,'attachment_receipts',v_child_results));
  elsif v_job_card_failure>0 then
-   v_response:=jsonb_build_object('ok',true,'code','historical_reconciliation_partial','data',jsonb_build_object('parent_observation',v_parent_result,'attachment_receipts',v_child_results));
+   v_response:=jsonb_build_object('ok',true,'code','historical_reconciliation_partial','data',jsonb_build_object('receipt_id',v_receipt_id,'parent_observation',v_parent_result,'attachment_receipts',v_child_results));
  else
-   v_response:=jsonb_build_object('ok',true,'code','historical_reconciliation_778_receipt','data',jsonb_build_object('contract_version','778.1','manifest_sha256',v_manifest,'provider_uid',v_uid,'parent_source_hash',v_parent,'sender_email',v_sender,'stock_number',v_stock,'intake_id',v_intake_id,'attachment_count',jsonb_array_length(v_items),'job_card_count',v_job_card_success,'sibling_count',v_sibling_count,'attachment_receipts',v_child_results,'parent_observation',v_parent_result,'source_metadata',v_source,'attachment_manifest',v_items,'booking_created',false,'completion_created',false,'location_scheduled',false,'no_booking',true,'no_completion',true,'no_location_mutation',true,'authorization_expires_at',v_authz.authorized_at+interval '24 hours'));
+   v_response:=jsonb_build_object('ok',true,'code','historical_reconciliation_778_receipt','data',jsonb_build_object('receipt_id',v_receipt_id,'contract_version','778.1','manifest_sha256',v_manifest,'provider_uid',v_uid,'parent_source_hash',v_parent,'sender_email',v_sender,'stock_number',v_stock,'intake_id',v_intake_id,'attachment_count',jsonb_array_length(v_items),'job_card_count',v_job_card_success,'sibling_count',v_sibling_count,'attachment_receipts',v_child_results,'parent_observation',v_parent_result,'source_metadata',v_source,'attachment_manifest',v_items,'booking_created',false,'completion_created',false,'location_scheduled',false,'no_booking',true,'no_completion',true,'no_location_mutation',true,'authorization_expires_at',v_authz.authorized_at+interval '24 hours'));
  end if;
- insert into public.pdc_historical_reconciliation_778_receipts(contract_version,actor_id,actor_email,gateway_instance_id,manifest_sha256,provider_uid,parent_source_hash,sender_email,stock_number,request_sha256,intake_id,attachment_count,job_card_count,sibling_count,request_evidence,canonical_response)
- values('778.1',v_actor,v_actor_email,'pdc-monitor-staging-sales-uid509-v1',v_manifest,v_uid,v_parent,v_sender,v_stock,v_request_hash,v_intake_id,jsonb_array_length(v_items),v_job_card_success,v_sibling_count,v_request,v_response);
+ insert into public.pdc_historical_reconciliation_778_receipts(receipt_id,contract_version,actor_id,actor_email,gateway_instance_id,manifest_sha256,provider_uid,parent_source_hash,sender_email,stock_number,request_sha256,intake_id,attachment_count,job_card_count,sibling_count,request_evidence,canonical_response)
+ values(v_receipt_id,'778.1',v_actor,v_actor_email,'pdc-monitor-staging-sales-uid509-v1',v_manifest,v_uid,v_parent,v_sender,v_stock,v_request_hash,v_intake_id,jsonb_array_length(v_items),v_job_card_success,v_sibling_count,v_request,v_response);
  insert into public.audit_events(action,table_name,actor_id,actor_email,before_data,after_data,metadata)
  values('insert','pdc_historical_reconciliation_778_receipts',v_actor,v_actor_email,null,jsonb_build_object('provider_uid',v_uid,'parent_source_hash',v_parent,'intake_id',v_intake_id,'attachment_count',jsonb_array_length(v_items),'job_card_success_count',v_job_card_success,'job_card_failure_count',v_job_card_failure,'authorization_expiry',v_authz.authorized_at+interval '24 hours','no_booking',true,'no_completion',true,'no_location_mutation',true),jsonb_build_object('contract','778.1','manifest_sha256',v_manifest,'gateway_instance_id','pdc-monitor-staging-sales-uid509-v1','release_name','pdc-monitor-staging-m502-2026.08.44'));
  return v_response;

@@ -49,8 +49,8 @@ class HistoricalAdapter778Security1710Tests(unittest.TestCase):
             "historical_fail_closed", "navision_not_found",
             "import_pdc_jobcard_attachment_canonical", "historical_child_atomic_failure",
             "historical_reconciliation_partial", "no_booking", "no_completion", "no_location_mutation",
-            "read_pdc_historical_reconciliation_778_receipt", "PDC_778_1720_POSTCONDITION_FAILED",
-            "v_receipt_id uuid:=gen_random_uuid()", "PDC_778_PARENT_FALSE_RESULT",
+            "read_pdc_historical_reconciliation_778_receipt", "pdc_778_1720_postcondition_failed",
+            "v_receipt_id uuid:=gen_random_uuid()", "pdc_778_parent_false_result",
             "historical_child_occurrence_mismatch", "receipt_id,contract_version",
         ):
             self.assertIn(token, self.sql)
