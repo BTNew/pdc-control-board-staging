@@ -72,6 +72,7 @@ function createServer(root) {
         ensureOperationalRefreshControls();
         const view = document.getElementById(route);
         if (!view?.querySelector(`[data-pdc-operational-refresh][data-pdc-refresh-route="${route}"]`)) throw new Error(`missing refresh control for ${route}`);
+        if (route === 'dashboard' && view.querySelectorAll('button[data-pdc-operational-refresh][data-pdc-refresh-route="dashboard"]').length !== 1) throw new Error('Vehicle Locations must use only its integrated green-bar Refresh control');
       }
       for (const route of stationRoutes) {
         showView(route, { historyMode: 'none' });

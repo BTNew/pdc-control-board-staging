@@ -16928,6 +16928,10 @@ function ensureOperationalRefreshControls() {
   OPERATIONAL_REFRESH_ROUTES.forEach(route => {
     const view = document.getElementById(route);
     if (!view || view.hidden || !view.classList.contains('view')) return;
+    if (route === 'dashboard' && view.querySelector('.vehicle-locations-refresh [data-pdc-operational-refresh]')) {
+      view.querySelectorAll('.incoming-search-panel [data-pdc-operational-refresh]').forEach(button => button.closest('[data-pdc-refresh-control]')?.remove());
+      return;
+    }
     let target = route === 'workshop'
       ? view.querySelector('.workshop-date-controls')
       : route === 'dashboard'
