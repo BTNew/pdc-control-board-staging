@@ -1,5 +1,12 @@
 # Shared Files
 
+## Workshop Admin-block calendar continuation audit 771 — 2026-08-30
+
+- `workshop-planner.js`, `workshop-planner.css` — configured-calendar daily/weekly Admin-block continuation projection, explicit total/continuation labels, and wrapped compact planner controls.
+- `workshop-data-service.js` — authenticated Operator/Administrator bridge for the narrow `get_workshop_admin_block_audit_771` read RPC; no direct-table fallback.
+- `supabase/staging_only/20260830073000_771_workshop_admin_block_audit_projection.sql` — exact-head-guarded staging read projection for persisted Admin-block rows, calendar windows, revisions, planned cascade evidence, immutable history and receipts; no mutation or generic table grants.
+- `index.html`, `app.js` — related cache-busted Planner/module asset loading; `test_workshop_admin_block_multiday.js` and cache-marker assertions cover continuation, breaks/closures, exact totals, replay/cascade contract markers and responsive wrapping.
+
 ## Navision preflight and SQLSTATE 23514 repair — 2026-08-30
 
 - `app.js` — client-side deterministic candidate preflight, Stock/field/reason preview labels, actionable domain-error translation and preserved no-localStorage shared apply path.

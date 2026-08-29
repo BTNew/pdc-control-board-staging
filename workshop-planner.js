@@ -701,30 +701,64 @@ function workshopLoadAdminBlocks() {
   })).filter(block => block.id && block.stage && block.bay && block.startAt && block.endAt);
 }
 
-function workshopAdminBlockSegment(block = {}, dateKey = '') {
+function workshopAdminBlockSegments(block = {}, dateKey = '') {
   const start = parseIsoTimestamp(block.startAt);
   const end = parseIsoTimestamp(block.endAt);
-  if (!start || !end) return null;
-  const dayStart = workshopDateAtOffset(dateKey, 0);
-  const dayEnd = workshopDateAtOffset(dateKey, WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
-  if (end <= dayStart || start >= dayEnd) return null;
-  return {
-    start: Math.max(0, workshopMinuteOffset(start)),
-    end: Math.min(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes, workshopMinuteOffset(end)),
-  };
+  const date = workshopDateFromKey(dateKey);
+  if (!start || !end || !date || !workshopIsConfiguredWorkingDay(date)) return [];
+  const dayStart = workshopSetClock(date, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
+  const dayEnd = workshopSetClock(date, WORKSHOP_PLANNER_CONFIG.dayEndMinutes);
+  if (end <= dayStart || start >= dayEnd) return [];
+
+  // The persisted end is authoritative. Project only the configured working
+  // windows for this date so a multi-day block never appears as a clipped
+  // one-day wall interval or crosses a configured break.
+  const segments = workshopAvailabilityWindowsForDate(date).map(window => {
+    const windowStart = workshopSetClock(date, Math.max(window.startMinutes, WORKSHOP_PLANNER_CONFIG.dayStartMinutes));
+    const windowEnd = workshopSetClock(date, Math.min(window.endMinutes, WORKSHOP_PLANNER_CONFIG.dayEndMinutes));
+    const segmentStart = start > windowStart ? start : windowStart;
+    const segmentEnd = end < windowEnd ? end : windowEnd;
+    if (segmentEnd <= segmentStart) return null;
+    return {
+      start: Math.max(0, workshopMinuteOffset(segmentStart)),
+      end: Math.min(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes, workshopMinuteOffset(segmentEnd)),
+      continuesFromPrevious: segmentStart > start,
+      continuesNext: segmentEnd < end,
+      usesConfiguredOvertime: window.overtime === true,
+    };
+  }).filter(segment => segment && segment.end > segment.start);
+  return segments.map((segment, index) => ({
+    ...segment,
+    continuesFromPrevious: segment.continuesFromPrevious || index > 0,
+    continuesNext: segment.continuesNext || index < segments.length - 1,
+  }));
+}
+
+function workshopAdminBlockSegment(block = {}, dateKey = '') {
+  return workshopAdminBlockSegments(block, dateKey)[0] || null;
 }
 
 function workshopAdminBlockHtml(block = {}, dateKey = '') {
-  const segment = workshopAdminBlockSegment(block, dateKey);
-  if (!segment) return '';
-  const left = (segment.start / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
-  const width = ((segment.end - segment.start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
+  const segments = workshopAdminBlockSegments(block, dateKey);
+  if (!segments.length) return '';
   const label = block.label || ({ training: 'Training', sick: 'Sick leave', admin: 'Admin downtime' }[block.type] || 'Admin downtime');
   const editable = workshopAdminBlockCanMutate();
-  return `<article class="workshop-admin-block type-${escapeHtml(block.type)}" draggable="${editable}" tabindex="0" role="group" aria-label="${escapeHtml(`${label}, ${workshopTimeLabelFromMinutes(segment.start)}, ${workshopAdminDurationHoursValue(block.durationMinutes)} hours.${editable ? ' Arrow keys move; Shift plus Arrow keys resize.' : ' Read only.'}`)}" data-workshop-admin-block-id="${escapeHtml(block.id)}" style="--plan-left:${left}%;--plan-width:${width}%;">
-    <strong>ADMIN · ${escapeHtml(label)}</strong><small>${escapeHtml(`${workshopTimeLabelFromMinutes(segment.start)} · ${workshopAdminDurationHoursValue(block.durationMinutes)} h`)}</small>
-    ${editable ? '<span class="workshop-admin-block-controls"><button type="button" data-admin-block-nudge="-15" aria-label="Move 15 minutes earlier">−15m</button><button type="button" data-admin-block-nudge="15" aria-label="Move 15 minutes later">+15m</button><button type="button" data-admin-block-resize="15" aria-label="Extend 15 minutes">+ length</button><button type="button" data-admin-block-delete aria-label="Delete admin block">×</button></span><span class="workshop-admin-block-resize" data-admin-block-pointer-resize title="Drag to resize" aria-hidden="true"></span>' : ''}
-  </article>`;
+  const totalHours = Number(block.durationMinutes || 0) / 60;
+  const totalLabel = Number.isInteger(totalHours) ? `${totalHours}h total` : `${totalHours.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}h total`;
+  return segments.map((segment, index) => {
+    const left = (segment.start / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
+    const width = ((segment.end - segment.start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
+    const continuation = segment.continuesFromPrevious ? ' · CONTINUED' : '';
+    const continues = segment.continuesNext ? ' · continues next valid work interval' : '';
+    const segmentLabel = `${workshopTimeLabelFromMinutes(segment.start)}–${workshopTimeLabelFromMinutes(segment.end)} · ${index === 0 ? totalLabel : 'continued'}${continuation}${continues}`;
+    const controls = editable && index === 0
+      ? '<span class="workshop-admin-block-controls"><button type="button" data-admin-block-nudge="-15" aria-label="Move 15 minutes earlier">−15m</button><button type="button" data-admin-block-nudge="15" aria-label="Move 15 minutes later">+15m</button><button type="button" data-admin-block-resize="15" aria-label="Extend 15 minutes">+ length</button><button type="button" data-admin-block-delete aria-label="Delete admin block">×</button></span><span class="workshop-admin-block-resize" data-admin-block-pointer-resize title="Drag to resize" aria-hidden="true"></span>'
+      : '';
+    return `<article class="workshop-admin-block type-${escapeHtml(block.type)}${segment.continuesFromPrevious ? ' continues-from-previous' : ''}${segment.continuesNext ? ' continues-next' : ''}${index > 0 ? ' is-continuation' : ''}" draggable="${editable && index === 0}" tabindex="0" role="group" aria-label="${escapeHtml(`${label}, ${segmentLabel}.${editable ? ' Arrow keys move; Shift plus Arrow keys resize.' : ' Read only.'}`)}" data-workshop-admin-block-id="${escapeHtml(block.id)}" data-workshop-admin-block-segment="${index + 1}" style="--plan-left:${left}%;--plan-width:${width}%;">
+      <strong>ADMIN · ${escapeHtml(label)}${index > 0 ? ' · CONTINUED' : ''}</strong><small>${escapeHtml(segmentLabel)}</small>
+      ${controls}
+    </article>`;
+  }).join('');
 }
 
 function workshopLoadPlans() {
@@ -3943,12 +3977,19 @@ function workshopAdminBlockFormatTime(value) {
   return date.toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 }
 
-function workshopAdminBlockResultSummary(result = {}) {
+function workshopAdminBlockSuccessMessage(result = {}) {
   const block = result.admin_block || {};
   const cascade = result.cascade || result.repack || {};
   const count = Number(cascade.shifted_count || 0);
-  const suffix = count ? ` · cascaded ${count} planned row${count === 1 ? '' : 's'}` : ' · no other rows moved';
-  return `Admin block placed in Bay ${block.bay_number || '—'} at ${workshopAdminBlockFormatTime(block.scheduled_start_at)}${suffix}.`;
+  const minutes = Number(block.duration_minutes || 0);
+  const hours = minutes / 60;
+  const duration = Number.isInteger(hours) ? `${hours} h` : `${hours.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')} h`;
+  const suffix = ` · cascaded ${count} planned row${count === 1 ? '' : 's'}`;
+  return `Admin block placed in Bay ${block.bay_number || '—'} at ${workshopAdminBlockFormatTime(block.scheduled_start_at)} · ${duration} total${suffix}.`;
+}
+
+function workshopAdminBlockResultSummary(result = {}) {
+  return workshopAdminBlockSuccessMessage(result);
 }
 
 function workshopAdminBlockFailureSummary(result = {}) {
@@ -4234,7 +4275,7 @@ function renderWorkshopPlanner(options = {}) {
   renderHost.innerHTML = `<div class="${dedicatedStage ? 'workshop-planner workshop-station-board' : 'workshop-planner'}${focusedBookingMode ? ' is-focused-booking' : ''}" data-planner-stage="${escapeHtml(stage)}">
     ${sharedBanner}
     <header class="workshop-planner-header">
-      <div><h2>${escapeHtml(focusedBookingMode ? 'Focused Workshop booking' : (dedicatedStage ? 'Selected station schedule' : 'Workshop bay planner'))}</h2></div>
+      <div><h2>${escapeHtml(focusedBookingMode ? 'Focused Workshop booking' : (dedicatedStage ? 'Selected station schedule' : 'Workshop bay planner'))}</h2><p>Configured Workshop calendar. Long blocks continue through the next valid work interval; breaks and closures are not claimed as working time.</p></div>
       <div class="workshop-date-controls">
         ${focusedBookingMode ? '<button class="small-button" type="button" data-workshop-focused-back>← Back to Workshop planner</button>' : ''}
         <div class="workshop-date-nav">
@@ -6107,6 +6148,22 @@ function workshopWeeklyTimeGuideHtml() {
   }).join('');
 }
 
+function workshopWeeklyAdminBlockHtml(block = {}, dateKey = '') {
+  const segments = workshopAdminBlockSegments(block, dateKey);
+  if (!segments.length) return '';
+  const label = block.label || ({ training: 'Training', sick: 'Sick leave', admin: 'Admin downtime' }[block.type] || 'Admin downtime');
+  const hours = Number(block.durationMinutes || 0) / 60;
+  const totalLabel = Number.isInteger(hours) ? `${hours}h total` : `${hours.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')}h total`;
+  return segments.map((segment, index) => {
+    const top = (segment.start / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
+    const height = ((segment.end - segment.start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
+    const continuation = segment.continuesFromPrevious ? ' · CONTINUED' : '';
+    const continues = segment.continuesNext ? ' · continues next valid work interval' : '';
+    const text = `${workshopTimeLabelFromMinutes(segment.start)}–${workshopTimeLabelFromMinutes(segment.end)} · ${index === 0 ? totalLabel : 'continued'}${continuation}${continues}`;
+    return `<article class="workshop-week-admin-block${segment.continuesFromPrevious ? ' continues-from-previous' : ''}${segment.continuesNext ? ' continues-next' : ''}" aria-label="${escapeHtml(`${label}, ${text}`)}" style="--week-top:${top}%;--week-height:${height}%;"><strong>ADMIN · ${escapeHtml(label)}${index > 0 ? ' · CONTINUED' : ''}</strong><small>${escapeHtml(text)}</small></article>`;
+  }).join('');
+}
+
 async function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, weekKey = '') {
   const rows = workshopLoadPlans();
   const entry = rows.find(row => row.id === planId);
@@ -6178,13 +6235,14 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     const dateKey = workshopDateKey(date);
     const isClosure = workshopIsClosureDate(date);
     const dayPlans = plans.filter(entry => workshopEntrySegmentForDate(entry, dateKey));
+    const adminBlocks = workshopLoadAdminBlocks().filter(block => block.stage === normalizedStage && Number(block.bay) === Number(bay) && workshopAdminBlockSegment(block, dateKey));
     const bookedHours = dayPlans.reduce((sum, entry) => {
       const segment = workshopEntrySegmentForDate(entry, dateKey);
       return sum + (segment ? (segment.end - segment.start) / 60 : 0);
     }, 0);
     return `<section class="workshop-week-day ${isClosure ? 'is-closure' : ''}">
       <header><strong>${escapeHtml(date.toLocaleDateString('en-AU', { weekday: 'short' }))}</strong><span>${escapeHtml(date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit' }))}</span><small>${isClosure ? 'CLOSED · historical bookings remain visible' : `${escapeHtml(bookedHours.toFixed(bookedHours % 1 ? 1 : 0))}h booked`}</small></header>
-      <div class="workshop-week-day-lane" ${isClosure ? 'aria-disabled="true"' : `data-workshop-week-drop-date="${escapeHtml(dateKey)}"`}>${workshopWeeklyTimeGuideHtml()}${isClosure ? '' : workshopDropPreviewHtml({ vertical: true })}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
+      <div class="workshop-week-day-lane" ${isClosure ? 'aria-disabled="true"' : `data-workshop-week-drop-date="${escapeHtml(dateKey)}"`}>${workshopWeeklyTimeGuideHtml()}${isClosure ? '' : workshopDropPreviewHtml({ vertical: true })}${adminBlocks.map(block => workshopWeeklyAdminBlockHtml(block, dateKey)).join('')}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
     </section>`;
   }).join('');
   const overlay = document.createElement('div');
@@ -6550,6 +6608,11 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopWorkMinutesBetween,
     workshopCascadePlans,
     workshopEntrySegmentForDate,
+    workshopAdminBlockSegments,
+    workshopAdminBlockSegment,
+    workshopAdminBlockHtml,
+    workshopWeeklyAdminBlockHtml,
+    workshopAdminBlockSuccessMessage,
     workshopEntryStart,
     workshopEntryEnd,
     workshopEntryEffectiveEnd,

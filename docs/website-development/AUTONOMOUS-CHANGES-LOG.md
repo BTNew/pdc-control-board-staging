@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-30 — Workshop Admin-block calendar continuation audit 771
+
+- Reconciled the PMB Auditor's verified planner repair onto the current staging/main source without importing unrelated Auditor worktree changes. Admin blocks now render one segment per configured working window in daily and weekly views, show explicit continuation/total-hour markers, preserve small-block geometry, and keep the planner header/status controls wrapped at narrow widths.
+- Added staging-only `supabase/staging_only/20260830073000_771_workshop_admin_block_audit_projection.sql`, a read-only authenticated Operator/Administrator exact station/bay/date projection returning persisted interval/version, configured calendar, minute-derived continuation windows, revisions, affected planned bookings, immutable cascade/history/receipt evidence, and no generic table grants or mutation/undo/email path. Added `readAdminBlockAudit` to the Workshop data-service bridge.
+- Added `test_workshop_admin_block_multiday.js` coverage for the configured calendar, closed days, breaks, late-day continuation, exact 900-minute total, daily/weekly labels, responsive wrapping and least-authority read contract. Updated only the related staging cache-marker assertions. Production was not contacted or mutated.
+
 ## 2026-08-30 — Sublet Calendar Month clean-session default
 
 - Changed the Sublet screen’s clean in-memory state and initial HTML controls to Calendar → Month, with the current Perth month selected by the existing authoritative calendar range logic. Explicit List/Calendar and Week/Month selections remain session-local and continue to control the existing alternate render paths.

@@ -97,6 +97,10 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   undo_administrator_workshop_booking_move: 'p_expected_version'
 });
 
+const WORKSHOP_READ_RPCS = Object.freeze([
+  'get_workshop_admin_block_audit_771'
+]);
+
 const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'version_conflict', 'vehicle_version_conflict', 'location_ineligible',
   'missing_eta', 'it_eta_missing', 'it_before_eta',
@@ -488,6 +492,20 @@ function createWorkshopDataService(options) {
     return body;
   }
 
+  async function readAdminBlockAudit(params = {}) {
+    if (!enabled || destroyed) return { ok: false, error: 'not_available', state };
+    if (!['operator', 'administrator'].includes(String(getRole() || '').trim().toLowerCase())) {
+      return { ok: false, error: 'permission_denied', state };
+    }
+    const token = getAccessToken();
+    if (!token) return { ok: false, error: 'permission_denied', state: WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED };
+    const result = await client.rpc(token, WORKSHOP_READ_RPCS[0], params);
+    if (!result?.ok) {
+      return { ok: false, error: result?.status === 401 || result?.status === 403 ? 'permission_denied' : 'request_failed', status: result?.status, body: result?.body };
+    }
+    return result.body && typeof result.body === 'object' ? result.body : { ok: false, error: 'invalid_response' };
+  }
+
   function destroy() {
     if (destroyed) return;
     destroyed = true;
@@ -521,6 +539,7 @@ function createWorkshopDataService(options) {
     onVisibilityReturn,
     onTokenRefresh,
     mutate,
+    readAdminBlockAudit,
     destroy
   };
 }
@@ -594,6 +613,7 @@ if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     WORKSHOP_CONNECTION_STATE,
     WORKSHOP_MUTATION_RPCS,
+    WORKSHOP_READ_RPCS,
     WORKSHOP_MUTATION_VERSION_PARAM,
     workshopSharedModeEnabled,
     normalizeWorkshopSnapshotScope,
@@ -605,6 +625,7 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
   window.WORKSHOP_CONNECTION_STATE = WORKSHOP_CONNECTION_STATE;
   window.WORKSHOP_MUTATION_RPCS = WORKSHOP_MUTATION_RPCS;
+  window.WORKSHOP_READ_RPCS = WORKSHOP_READ_RPCS;
   window.WORKSHOP_MUTATION_VERSION_PARAM = WORKSHOP_MUTATION_VERSION_PARAM;
   window.workshopSharedModeEnabled = workshopSharedModeEnabled;
   window.createWorkshopSupabaseClient = createWorkshopSupabaseClient;

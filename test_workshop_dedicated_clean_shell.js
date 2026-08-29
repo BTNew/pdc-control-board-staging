@@ -15,5 +15,5 @@ assert.doesNotMatch(shell, /workshop-station-tabs|data-workshop-open-stage|works
 assert.doesNotMatch(planner, /function workshopDedicatedStageTabsHtml/);
 assert.match(css, /\.workshop-planner-dedicated\s*\{\s*grid-template-rows:\s*minmax\(0, 1fr\)/);
 assert.doesNotMatch(css, /\.workshop-back-control|\.workshop-station-tabs/);
-assert.match(index, /workshop-planner\.css\?v=2026\.08\.27\.11-dedicated-planner-clean-shell/);
+assert.match(index, /workshop-planner\.css\?v=2026\.08\.30\.771-admin-block-continuations/);
 console.log('Dedicated Workshop planner opens directly on its schedule: PASS');
