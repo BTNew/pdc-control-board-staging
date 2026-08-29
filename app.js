@@ -7767,6 +7767,7 @@ function renderIncomingDashboardBoard() {
   restoreIncomingBoardDisclosureState(host, disclosureState);
   updateCollapseToggleButtons();
   if (app.vehicleLocationsRefreshState !== 'refreshing') app.vehicleLocationsRefreshDisclosure = null;
+  ensureOperationalRefreshControls();
 }
 
 function bindIncomingCardSelection(host = document) {
