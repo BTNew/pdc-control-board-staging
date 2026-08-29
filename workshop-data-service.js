@@ -100,7 +100,7 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
 });
 
 const WORKSHOP_READ_RPCS = Object.freeze([
-  'get_workshop_admin_block_audit_771'
+  'get_workshop_admin_block_audit_771_successor'
 ]);
 
 const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([

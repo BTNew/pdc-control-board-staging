@@ -1,5 +1,11 @@
 # Shared Files
 
+## Workshop Admin-block audit successor after 771 collision — 2026-08-30
+
+- `workshop-data-service.js`, `app.js`, `index.html` — successor RPC binding and cache-busted Workshop module assets.
+- `supabase/staging_only/20260830100000_771_workshop_admin_block_audit_projection_successor.sql` — append-only current-head successor with server-derived dealer scope, exact station/bay/date filtering, persisted interval/version, configured calendar, continuation windows, revisions, planned bookings and immutable cascade/history/receipt evidence; no direct-table grants or mutation path.
+- `test_workshop_admin_block_multiday.js`, `test_workshop_dedicated_clean_shell.js`, `test_workshop_timeline_duration_geometry.js` — successor RPC, dealer-scope and cache-marker contract coverage.
+
 ## Stock 13080534 canonical Sublet projection closure — 2026-08-30
 
 - `app.js`, `pdc-email-vehicle-location-service.js` — canonical multi-provider Sublet requirement mapping, Vehicle Locations booking pill/detail, and exact authenticated ledger-read client bridge.
@@ -10,7 +16,7 @@
 ## Workshop Admin-block calendar continuation audit 771 — 2026-08-30
 
 - `workshop-planner.js`, `workshop-planner.css` — configured-calendar daily/weekly Admin-block continuation projection, explicit total/continuation labels, and wrapped compact planner controls.
-- `workshop-data-service.js` — authenticated Operator/Administrator bridge for the narrow `get_workshop_admin_block_audit_771` read RPC; no direct-table fallback.
+- `workshop-data-service.js` — authenticated Operator/Administrator bridge for the narrow `get_workshop_admin_block_audit_771_successor` read RPC; no direct-table fallback.
 - `supabase/staging_only/20260830073000_771_workshop_admin_block_audit_projection.sql` — exact-head-guarded staging read projection for persisted Admin-block rows, calendar windows, revisions, planned cascade evidence, immutable history and receipts; no mutation or generic table grants.
 - `index.html`, `app.js` — related cache-busted Planner/module asset loading; `test_workshop_admin_block_multiday.js` and cache-marker assertions cover continuation, breaks/closures, exact totals, replay/cascade contract markers and responsive wrapping.
 

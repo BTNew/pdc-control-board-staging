@@ -15,7 +15,7 @@ const root = __dirname;
 const sql170 = fs.readFileSync(path.join(root, 'supabase', 'staging_only', '170_authoritative_workshop_admin_blocks.sql'), 'utf8');
 const sql171 = fs.readFileSync(path.join(root, 'supabase', 'staging_only', '171_release_safety_corrections.sql'), 'utf8');
 const sql392 = fs.readFileSync(path.join(root, 'supabase', 'staging_only', '20260826090000_392_workshop_admin_block_atomic_cascade.sql'), 'utf8');
-const sql771 = fs.readFileSync(path.join(root, 'supabase', 'staging_only', '20260830073000_771_workshop_admin_block_audit_projection.sql'), 'utf8');
+const sql771 = fs.readFileSync(path.join(root, 'supabase', 'staging_only', '20260830100000_771_workshop_admin_block_audit_projection_successor.sql'), 'utf8');
 const dataService = fs.readFileSync(path.join(root, 'workshop-data-service.js'), 'utf8');
 const source = fs.readFileSync(path.join(root, 'workshop-planner.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'workshop-planner.css'), 'utf8');
@@ -113,9 +113,10 @@ assert.ok(sql170.includes('workshop_add_operational_minutes(p_start,p_duration)'
 assert.ok(sql170.includes('workshop_operational_minutes_between(p_start,v_end)<>p_duration'));
 assert.ok(sql171.includes("b.status='planned'") && sql171.includes("b.status in('queued','planned','started','stoppage')"));
 assert.ok(sql392.includes('idempotency_key') && sql392.includes('request_hash') && sql392.includes('shifted_count'));
-assert.ok(sql771.includes("PDC_771_OPERATOR_OR_ADMINISTRATOR_REQUIRED") && sql771.includes("'contract','get_workshop_admin_block_audit_771'") && sql771.includes("'continuation_windows',v_windows"));
-assert.ok(sql771.includes("GRANT EXECUTE ON FUNCTION public.get_workshop_admin_block_audit_771") && !sql771.includes('GRANT SELECT ON TABLE'));
-assert.ok(dataService.includes('get_workshop_admin_block_audit_771') && dataService.includes('readAdminBlockAudit'));
+assert.ok(sql771.includes("PDC_771_OPERATOR_OR_ADMINISTRATOR_REQUIRED") && sql771.includes("'contract','get_workshop_admin_block_audit_771_successor'") && sql771.includes("'continuation_windows',v_windows"));
+assert.ok(sql771.includes("pdc_auditor_actor_scope()") && sql771.includes("pdc_auditor_vehicle_dealer") && sql771.includes("'dealer_code',v_dealer_code"));
+assert.ok(sql771.includes("GRANT EXECUTE ON FUNCTION public.get_workshop_admin_block_audit_771_successor") && !sql771.includes('GRANT SELECT ON TABLE'));
+assert.ok(dataService.includes('get_workshop_admin_block_audit_771_successor') && dataService.includes('readAdminBlockAudit'));
 assert.ok(source.includes('workshopWeeklyAdminBlockHtml') && source.includes('adminBlocks.map(block => workshopWeeklyAdminBlockHtml'));
 assert.ok(css.includes('flex-wrap: wrap') && css.includes('overflow-wrap: anywhere'));
 

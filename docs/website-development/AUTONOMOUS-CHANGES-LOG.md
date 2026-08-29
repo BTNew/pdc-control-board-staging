@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-30 — Workshop Admin-block audit successor after 771 collision
+
+- Re-read the live staging ledger under the approved migration-owner connector: the original `20260830073000` slot is occupied by `771_monitor_compatibility_after_770`, and the live head had advanced to `20260830095000 / pdc_lifecycle_history_yard_hold_transition`. The original migration was not overwritten or lowered.
+- Added append-only `supabase/staging_only/20260830100000_771_workshop_admin_block_audit_projection_successor.sql`, guarded to that exact current head and staging sentinel. The successor binds the narrow authenticated Operator/Administrator audit projection to the server-derived dealer scope, filters affected evidence by that scope, and preserves the read-only/no-generic-grants/no-mutation contract.
+- Rebound the Workshop service to `get_workshop_admin_block_audit_771_successor` and updated only the related Planner cache marker and contract tests. Production was not contacted or mutated.
+
 ## 2026-08-30 — Stock 13080534 canonical Sublet projection closure
 
 - Reconciled the exact live staging successor `20260830081000 / stock_13017855_restore_navision_parity_successor` before adding the staging-only `20260830090000_sublet_auditor_read_ledger` authenticated, exact UUID/Stock/Job Card, dealer-scoped read RPC for Sublet instances, immutable booking history and email-update receipts. Added append-only `20260830091000_sublet_auditor_read_ledger_volatility_repair` after live PostgreSQL correctly rejected the first read attempt because `FOR SHARE` requires a non-STABLE function, followed by `20260830092000_sublet_auditor_read_ledger_uuid_text_cast_repair` for the exact UUID/text dealer-binding cast. Direct SELECT on all three ledgers remains denied; no projection-repair RPC was added.
@@ -9,7 +15,7 @@
 ## 2026-08-30 — Workshop Admin-block calendar continuation audit 771
 
 - Reconciled the PMB Auditor's verified planner repair onto the current staging/main source without importing unrelated Auditor worktree changes. Admin blocks now render one segment per configured working window in daily and weekly views, show explicit continuation/total-hour markers, preserve small-block geometry, and keep the planner header/status controls wrapped at narrow widths.
-- Added staging-only `supabase/staging_only/20260830073000_771_workshop_admin_block_audit_projection.sql`, a read-only authenticated Operator/Administrator exact station/bay/date projection returning persisted interval/version, configured calendar, minute-derived continuation windows, revisions, affected planned bookings, immutable cascade/history/receipt evidence, and no generic table grants or mutation/undo/email path. Added `readAdminBlockAudit` to the Workshop data-service bridge.
+- Added staging-only `supabase/staging_only/20260830073000_771_workshop_admin_block_audit_projection.sql`, a read-only authenticated Operator/Administrator exact station/bay/date projection returning persisted interval/version, configured calendar, minute-derived continuation windows, revisions, affected planned bookings, immutable cascade/history/receipt evidence, and no generic table grants or mutation/undo/email path. The live slot was later found occupied by a concurrent migration; the append-only successor is recorded above.
 - Added `test_workshop_admin_block_multiday.js` coverage for the configured calendar, closed days, breaks, late-day continuation, exact 900-minute total, daily/weekly labels, responsive wrapping and least-authority read contract. Updated only the related staging cache-marker assertions. Production was not contacted or mutated.
 
 ## 2026-08-30 — Sublet Calendar Month clean-session default
