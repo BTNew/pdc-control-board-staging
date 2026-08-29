@@ -16941,6 +16941,29 @@ function ensureOperationalRefreshControls() {
     if (!target) target = view.querySelector('.panel') || view;
     const existing = view.querySelector(`[data-pdc-operational-refresh][data-pdc-refresh-route="${route}"]`);
     if (existing) {
+      const control = existing.closest('[data-pdc-refresh-control]') || existing;
+      const button = control.querySelector?.('button[data-pdc-operational-refresh]');
+      const status = control.querySelector?.('.pdc-operational-refresh-status');
+      const busy = app.operationalRefreshState === 'refreshing' && app.operationalRefreshRoute === route;
+      const failed = app.operationalRefreshState === 'error' && app.operationalRefreshRoute === route;
+      const result = app.operationalRefreshResult;
+      const revision = result?.revision || app.emailVehicleLocationRevision || app.sharedNavisionVisibleRevision || window.__workshopDataService?.getLastRevision?.() || '—';
+      const updated = result?.finishedAt ? new Date(result.finishedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }) : '';
+      const conflict = Array.isArray(app.operationalRefreshDraftConflicts) && app.operationalRefreshDraftConflicts.length
+        ? ` · ${app.operationalRefreshDraftConflicts[0]}` : '';
+      if (button) {
+        button.disabled = busy;
+        button.textContent = busy ? 'Refreshing…' : failed ? 'Retry' : 'Refresh';
+        if (busy) button.setAttribute('aria-busy', 'true'); else button.removeAttribute('aria-busy');
+      }
+      if (busy) control.setAttribute('aria-busy', 'true'); else control.removeAttribute('aria-busy');
+      control.classList.toggle('is-refreshing', busy);
+      control.classList.toggle('is-error', failed);
+      if (status) status.textContent = busy
+        ? 'Refreshing authoritative data…'
+        : failed
+          ? `Refresh incomplete · failed: ${app.operationalRefreshError || 'unknown source'} · retry available`
+          : updated ? `Updated ${updated} · revision ${revision}${conflict}` : `Refresh ${operationalRefreshRouteLabel(route)} data`;
       if (route === 'workshop' && target && !target.contains(existing)) target.appendChild(existing.closest('[data-pdc-refresh-control]') || existing);
       return;
     }
