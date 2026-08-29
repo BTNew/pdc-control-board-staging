@@ -51,7 +51,7 @@ class HistoricalAdapter778Security1710Tests(unittest.TestCase):
             "historical_reconciliation_partial", "no_booking", "no_completion", "no_location_mutation",
             "read_pdc_historical_reconciliation_778_receipt", "pdc_778_1720_postcondition_failed",
             "v_receipt_id uuid:=gen_random_uuid()", "pdc_778_parent_false_result",
-            "historical_child_occurrence_mismatch", "receipt_id,contract_version",
+            "historical_child_binding_mismatch", "receipt_id,contract_version",
         ):
             self.assertIn(token, self.sql)
         self.assertNotIn("insert into public.workshop", self.sql)
