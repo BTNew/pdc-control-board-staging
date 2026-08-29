@@ -1,0 +1,3 @@
+[CmdletBinding()]
+param([string]$InstallRoot="$env:ProgramData\PDCMonitor\Staging")
+$ErrorActionPreference='Stop';$v='2026.08.66';$control=Join-Path $InstallRoot "control\$v";$trust=Join-Path $InstallRoot "trust\$v";$dispatch=Join-Path $control 'run-current-verifyonly.ps1';if((Get-Content (Join-Path $InstallRoot 'CURRENT') -Raw).Trim() -ne $v){throw 'PDC_MONITOR_SUCCESSOR_VERIFYONLY_CURRENT_MISMATCH'};if((Get-FileHash $dispatch -Algorithm SHA256).Hash.ToLower() -ne (Get-Content (Join-Path $trust 'VERIFYONLY_RUNNER_SHA256') -Raw).Trim().ToLower()){throw 'PDC_MONITOR_SUCCESSOR_VERIFYONLY_BOOTSTRAP_HASH_MISMATCH'};& $dispatch -InstallRoot $InstallRoot -Mode OneCycle -DryRun;exit $LASTEXITCODE
