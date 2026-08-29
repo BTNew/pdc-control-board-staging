@@ -44,7 +44,8 @@ The frozen Inbox remains exactly 669/669 UIDs, UIDVALIDITY 1, high-water 685 and
 - Live scoped planner positive probe: HTTP 200 with requirements/bookings; wrong-dealer probe: HTTP 200 with `dealer_scope_denied`; old planner endpoint: HTTP 403; direct intake table: HTTP 403.
 - Live Stage-A RPC: HTTP 200; Stock 13017855 workflow `114/114`, complete; VIN/Job Card `confirmed`.
 - Live Sublet cross-check: 13080534 email active count `1`, Stage-A status `active`.
-- Live authenticated malformed historical RPC probe: HTTP 200 with `{ok:false,code:unauthorized}`; no receipt or observation side effect.
+- Live malformed historical RPC negative probe: HTTP 200 with `{ok:false,code:unauthorized}`; no receipt or observation side effect.
+- Independent security review `deleg_a6903a92`: `ready_for_apply=true`, zero blockers.
 - Live Python/PostgreSQL canonical request bytes for frozen UID `1:21`: equal, 3,667 UTF-8 bytes, SHA-256 `fd784959b016976994087545866e346f01b6f05e1e0faf8627bda25ed9e84550`.
 - Focused historical/security/783-788 Python suite: `29/29` passed.
 - Full local website suite: `npm run test` `229 passed, 0 failed, 1 skipped`.
