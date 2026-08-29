@@ -144,9 +144,9 @@ function testSourceContracts() {
   const appIndex = scripts.findIndex(src => /(^|\/)app\.js(?:\?|$)/.test(src));
   assert(uiIndex >= 0);
   assert(uiIndex < appIndex);
-  assert(index.includes('vehicle-locations-refresh-ui.js?v=2026.08.30.770-slimline-bar'));
+  assert(index.includes('vehicle-locations-refresh-ui.js?v=2026.08.30.771-slimline-bar'));
   assert(css.includes('.vehicle-locations-refresh'));
-  assert(css.includes('padding: 5px 10px'));
+  assert(css.includes('padding: 2px 10px'));
   assert(css.includes('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)'));
   const refreshButtonCss = css.match(/\.vehicle-locations-refresh-button \{([^}]*)\}/s)?.[1] || '';
   assert(refreshButtonCss.includes('grid-column: 2;'));

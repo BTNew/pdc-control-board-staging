@@ -59,8 +59,8 @@ function testRecoveryAndRetryIntegrationContracts() {
     'if (cachedReady && isRetryableVehicleModalIdentityFailure(backgroundError)',
     'app.vehicleModalIdentityReady = true',
   ]) assert(app.includes(marker), `missing modal recovery marker: ${marker}`);
-  assert(index.includes('vehicle-modal-identity.js?v=2026.08.30.770-slimline-bar'));
-  assert(index.includes('vehicle-locations-refresh=2026.08.30.770-slimline-bar'));
+  assert(index.includes('vehicle-modal-identity.js?v=2026.08.30.771-slimline-bar'));
+  assert(index.includes('vehicle-locations-refresh=2026.08.30.771-slimline-bar'));
   assert(css.includes('.vehicle-identity-refresh-notice'));
   assert(css.includes('.vehicle-modal-retry-details'));
   assert(!/location\.reload\s*\(/.test(app));

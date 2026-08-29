@@ -3,7 +3,7 @@
 ## 2026-08-30 — Vehicle Locations slimline status bar
 
 - Corrected the green Shared Navision status bar’s Grid auto-placement so title, active/revision/synchronization text and Refresh remain one horizontal desktop row; removed the container’s extra min-height and reduced its padding/margin while retaining the 42px button target. Mobile explicitly resets the button row so narrow layouts wrap without overlap.
-- Added the responsive loaded-module DOM regression for one-time click binding, double-click coalescing, loader failure/success recovery, desktop one-row placement, compact spacing, mobile wrapping and no full reload. Cache marker is `2026.08.30.770-slimline-bar`. Production was not contacted or mutated.
+- Added the responsive loaded-module DOM regression for one-time click binding, double-click coalescing, loader failure/success recovery, desktop one-row placement, compact spacing, mobile wrapping and no full reload. Cache marker is `2026.08.30.771-slimline-bar`. Production was not contacted or mutated.
 
 ## 2026-08-29 — Vehicle Locations Refresh click-path repair
 
