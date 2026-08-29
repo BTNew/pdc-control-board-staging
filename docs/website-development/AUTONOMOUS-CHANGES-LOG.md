@@ -1,5 +1,10 @@
 # Autonomous Website Changes
 
+## 2026-08-30 — Vehicle Locations slimline status bar
+
+- Corrected the green Shared Navision status bar’s Grid auto-placement so title, active/revision/synchronization text and Refresh remain one horizontal desktop row; removed the container’s extra min-height and reduced its padding/margin while retaining the 42px button target. Mobile explicitly resets the button row so narrow layouts wrap without overlap.
+- Added the responsive loaded-module DOM regression for one-time click binding, double-click coalescing, loader failure/success recovery, desktop one-row placement, compact spacing, mobile wrapping and no full reload. Cache marker is `2026.08.30.770-slimline-bar`. Production was not contacted or mutated.
+
 ## 2026-08-29 — Vehicle Locations Refresh click-path repair
 
 - Fixed the live staging no-op caused by classic-script `const exported` collisions: the email service, modal identity and refresh modules now use collision-safe export bindings, and a dedicated delegated click module is loaded before `app.js`. The real browser reproduced the prior failure with `PDC_VEHICLE_LOCATIONS_REFRESH` undefined despite a 200 module response.

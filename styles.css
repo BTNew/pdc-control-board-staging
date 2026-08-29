@@ -11297,7 +11297,6 @@ textarea {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  min-height: 42px;
   margin-bottom: 8px;
   padding: 5px 10px;
   gap: 8px;
@@ -11319,6 +11318,8 @@ textarea {
   color: #92400e;
 }
 .vehicle-locations-refresh-button {
+  grid-column: 2;
+  grid-row: 1;
   flex: 0 0 auto;
   width: fit-content;
   min-width: 0;
@@ -11375,7 +11376,7 @@ textarea {
   }
   .vehicle-locations-refresh > span,
   .vehicle-identity-refresh-notice > span { text-align: left; }
-  .vehicle-locations-refresh-button { width: fit-content; }
+  .vehicle-locations-refresh-button { width: fit-content; grid-row: auto; }
 }
 
 @media (max-width: 540px) {

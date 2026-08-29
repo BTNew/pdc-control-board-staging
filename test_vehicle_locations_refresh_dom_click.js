@@ -144,12 +144,16 @@ function testSourceContracts() {
   const appIndex = scripts.findIndex(src => /(^|\/)app\.js(?:\?|$)/.test(src));
   assert(uiIndex >= 0);
   assert(uiIndex < appIndex);
-  assert(index.includes('vehicle-locations-refresh-ui.js?v=2026.08.29.760-refresh-click'));
+  assert(index.includes('vehicle-locations-refresh-ui.js?v=2026.08.30.770-slimline-bar'));
   assert(css.includes('.vehicle-locations-refresh'));
   assert(css.includes('padding: 5px 10px'));
   assert(css.includes('grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr)'));
+  const refreshButtonCss = css.match(/\.vehicle-locations-refresh-button \{([^}]*)\}/s)?.[1] || '';
+  assert(refreshButtonCss.includes('grid-column: 2;'));
+  assert(refreshButtonCss.includes('grid-row: 1;'));
   assert(css.includes('@media (max-width: 720px)'));
   assert(css.includes('grid-template-columns: 1fr'));
+  assert(css.includes('.vehicle-locations-refresh-button { width: fit-content; grid-row: auto; }'));
   assert(css.includes('min-height: 42px'));
 }
 

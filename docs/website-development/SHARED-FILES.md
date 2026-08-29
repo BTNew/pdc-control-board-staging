@@ -1,5 +1,10 @@
 # Shared Files
 
+## Vehicle Locations slimline status bar — 2026-08-30
+
+- `styles.css` — explicit desktop Grid placement for the title/status/Refresh row, reduced bar spacing, and mobile row reset without reducing the 42px touch target.
+- `test_vehicle_locations_refresh_dom_click.js` — regression assertions for single-row desktop layout, compact height, mobile wrapping and existing click semantics.
+
 ## Vehicle Locations Refresh click-path repair — 2026-08-29
 
 - `app.js`, `pdc-email-vehicle-location-service.js`, `vehicle-modal-identity.js`, `vehicle-locations-refresh.js` — collision-safe classic-script exports, one-time delegated click wiring, immediate busy/error handling and preserved authoritative refresh fan-in.
