@@ -168,6 +168,19 @@ function buildWorkshopSharedActions(dataService) {
       });
     },
 
+    completeVehicleDepartment({ vehicleId, workKey, expectedVehicleVersion, bookingId, expectedBookingVersion, idempotencyKey, requestHash, reason }) {
+      return mutate('complete_pdc_vehicle_department_772', {
+        p_vehicle_id: vehicleId,
+        p_work_key: workKey,
+        p_expected_vehicle_version: expectedVehicleVersion,
+        p_booking_id: bookingId,
+        p_expected_booking_version: expectedBookingVersion,
+        p_idempotency_key: idempotencyKey,
+        p_request_hash: requestHash,
+        p_reason: reason,
+      });
+    },
+
     returnCompletedWork({ bookingId, expectedVersion, reason, metadata }) {
       return mutate('return_completed_work', {
         p_booking_id: bookingId,

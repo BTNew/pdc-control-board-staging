@@ -63,7 +63,8 @@ const WORKSHOP_MUTATION_RPCS = Object.freeze([
   'delete_workshop_admin_block',
   'administrator_move_workshop_booking',
   'administrator_schedule_workshop_vehicle',
-  'undo_administrator_workshop_booking_move'
+  'undo_administrator_workshop_booking_move',
+  'complete_pdc_vehicle_department_772'
 ]);
 
 // Every RPC above requires exactly one non-null expected-version parameter.
@@ -94,7 +95,8 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   delete_workshop_admin_block: 'p_expected_version',
   administrator_move_workshop_booking: 'p_expected_version',
   administrator_schedule_workshop_vehicle: 'p_vehicle_expected_version',
-  undo_administrator_workshop_booking_move: 'p_expected_version'
+  undo_administrator_workshop_booking_move: 'p_expected_version',
+  complete_pdc_vehicle_department_772: 'p_expected_vehicle_version'
 });
 
 const WORKSHOP_READ_RPCS = Object.freeze([
@@ -584,26 +586,43 @@ function createWorkshopOperationRemovalService(options = {}) {
     return output;
   }
 
+  function canonicalJson(value) {
+    if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+    if (value && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+    return JSON.stringify(value);
+  }
+
+  async function requestHash(value) {
+    const subtle = globalThis.crypto?.subtle;
+    if (!subtle || typeof TextEncoder !== 'function') return '';
+    const bytes = await subtle.digest('SHA-256', new TextEncoder().encode(canonicalJson(value)));
+    return Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
+  }
+
   return Object.freeze({
     isAdministratorReady: administratorReady,
-    removeOperation({ operationLineId, expectedAdjustmentVersion, reason, sourceEvidence, idempotencyKey } = {}) {
+    async removeOperation({ operationLineId, vehicleId, stockNumber, jobCardNumber, operationNo, description, department, expectedVehicleVersion, expectedAdjustmentVersion, confirmation, reason, sourceEvidence, idempotencyKey, requestSha256 } = {}) {
       const cleanReason = String(reason || '').trim();
       const cleanKey = String(idempotencyKey || '').trim();
-      if (!operationLineId || cleanReason.length < 3 || cleanReason.length > 500 || cleanKey.length < 8 || cleanKey.length > 160 || !sourceEvidence || typeof sourceEvidence !== 'object' || Array.isArray(sourceEvidence)) {
-        return Promise.resolve({ ok: false, error: 'invalid_input' });
+      if (!operationLineId || !vehicleId || !stockNumber || !jobCardNumber || !operationNo || !description || !department || !confirmation || !Number.isInteger(Number(expectedVehicleVersion)) || cleanReason.length < 3 || cleanReason.length > 500 || cleanKey.length < 8 || cleanKey.length > 160 || !sourceEvidence || typeof sourceEvidence !== 'object' || Array.isArray(sourceEvidence)) {
+        return { ok: false, error: 'invalid_input' };
       }
-      return invoke('remove_pdc_workshop_operation_line_235', {
-        p_operation_line_id: operationLineId,
-        p_expected_adjustment_version: Number(expectedAdjustmentVersion || 0),
-        p_reason: cleanReason,
-        p_source_evidence: sourceEvidence,
-        p_idempotency_key: cleanKey,
+      const payload = { contract: 'operation-delete-772', vehicle_id: vehicleId, stock_number: stockNumber, job_card_number: jobCardNumber, operation_line_id: operationLineId, operation_no: operationNo, description, department: String(department).toUpperCase(), expected_vehicle_version: Number(expectedVehicleVersion), expected_adjustment_version: Number(expectedAdjustmentVersion || 0), confirmation, reason: cleanReason, idempotency_key: cleanKey };
+      const hash = String(requestSha256 || await requestHash(payload)).trim();
+      if (!/^[a-f0-9]{64}$/.test(hash)) return { ok: false, error: 'request_hash_unavailable' };
+      return invoke('delete_pdc_authenticated_operation_line_772', {
+        p_vehicle_id: vehicleId, p_stock_number: stockNumber, p_job_card_number: jobCardNumber, p_operation_line_id: operationLineId,
+        p_operation_no: operationNo, p_description: description, p_department: String(department).toUpperCase(), p_expected_vehicle_version: Number(expectedVehicleVersion), p_expected_adjustment_version: Number(expectedAdjustmentVersion || 0), p_confirmation: confirmation, p_reason: cleanReason, p_idempotency_key: cleanKey, p_request_hash: hash, p_source_evidence: sourceEvidence,
       });
     },
-    undoRemoval({ receiptId, reason } = {}) {
+    async undoRemoval({ receiptId, vehicleId, operationLineId, expectedVehicleVersion, reason, idempotencyKey, requestSha256 } = {}) {
       const cleanReason = String(reason || '').trim();
-      if (!receiptId || cleanReason.length < 3 || cleanReason.length > 500) return Promise.resolve({ ok: false, error: 'invalid_input' });
-      return invoke('undo_pdc_workshop_operation_removal_235', { p_receipt_id: receiptId, p_reason: cleanReason });
+      const cleanKey = String(idempotencyKey || '').trim();
+      if (!receiptId || !vehicleId || !operationLineId || !Number.isInteger(Number(expectedVehicleVersion)) || cleanReason.length < 3 || cleanReason.length > 500 || cleanKey.length < 8) return { ok: false, error: 'invalid_input' };
+      const payload = { contract: 'operation-undo-772', receipt_id: receiptId, vehicle_id: vehicleId, operation_line_id: operationLineId, expected_vehicle_version: Number(expectedVehicleVersion), idempotency_key: cleanKey, reason: cleanReason };
+      const hash = String(requestSha256 || await requestHash(payload)).trim();
+      if (!/^[a-f0-9]{64}$/.test(hash)) return { ok: false, error: 'request_hash_unavailable' };
+      return invoke('undo_pdc_authenticated_operation_line_772', { p_receipt_id: receiptId, p_vehicle_id: vehicleId, p_operation_line_id: operationLineId, p_expected_vehicle_version: Number(expectedVehicleVersion), p_idempotency_key: cleanKey, p_request_hash: hash, p_reason: cleanReason });
     },
     invalidateAuthority() { generation += 1; },
   });

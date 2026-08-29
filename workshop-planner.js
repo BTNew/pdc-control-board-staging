@@ -3172,6 +3172,18 @@ function workshopScrollToHighlightedVehicle(root = document) {
         reducedMotionClass: 'is-workshop-navigation-pulse-reduced-motion',
         staleSelector: '.is-workshop-navigation-pulse, .is-workshop-navigation-pulse-reduced-motion',
       });
+      const previousTabIndex = target.getAttribute('tabindex');
+      if (typeof target.focus === 'function') {
+        if (previousTabIndex === null) target.setAttribute('tabindex', '-1');
+        target.focus({ preventScroll: true });
+      }
+      const clearHighlight = () => {
+        target.classList.remove('is-workshop-navigation-pulse', 'is-workshop-navigation-pulse-reduced-motion');
+        if (previousTabIndex === null) target.removeAttribute('tabindex');
+      };
+      target.addEventListener('pointerdown', clearHighlight, { once: true });
+      target.addEventListener('keydown', clearHighlight, { once: true });
+      window.setTimeout(clearHighlight, 5000);
     }
   });
 }

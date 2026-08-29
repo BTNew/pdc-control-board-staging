@@ -241,3 +241,12 @@
 |---|---|---|---|
 | `app.js`, `vehicle-locations-refresh.js`, `vehicle-locations-refresh-ui.js` | Shared operational UI coordinator | One route-aware fan-in, delegated click listener, route/generation guards, authoritative source adapters, partial-failure retention, draft/scroll/focus restoration and Realtime singleton restart | `test_operational_refresh_class.js`; Vehicle Locations refresh regressions; no operational localStorage fallback or full navigation. |
 | `index.html`, `styles.css`, `workshop-planner.js` | Shared control presentation | Compact controls on Vehicle Locations, QC, Control Board, Workshop/station planners, Operations, PDC TV, Production, departments, Parts, Sublet, RFT, lifecycle lists, Back End Data and review routes | `browser_operational_refresh_route_matrix.js`; mobile 390px route/station matrix and no Production request assertion. |
+
+## Stock 13017855 integrity and lifecycle protections — 2026-08-29
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `app.js`, `vehicle-requirements-guard.js`, `index.html`, `styles.css` | Vehicle Detail / Parts / Workshop UI | Non-destructive requirement patching, scheduled-booking-only Parts risk, evidence-only Fabrication/source projection visibility, exact booking navigation metadata and orange bounded highlight | `test_stock_13017855_followup_contract.js`; preserve canonical UUID/version and no local fallback. |
+| `workshop-data-service.js`, `workshop-shared-actions.js`, `workshop-planner.js` | Shared mutation/navigation bridge | Exact operation delete/Undo identity contract, Admin department completion booking removal and focus/highlight after lazy planner rendering | `test_workshop_runtime_integration.js`; authenticated staging RPCs remain authoritative. |
+| `supabase/staging_only/20260830080000_stock_13017855_integrity_and_lifecycle_guards.sql`, `20260830081000_stock_13017855_restore_navision_parity_successor.sql` | Staging backend | Append-only 772/773 guards, receipts, exact restore and Navision parity successor | `tests/test_stock_13017855_followup_backend_contract.py`; applied/read back on staging only. |
+| `scripts/apply_stock_13017855_integrity_772_staging.py`, `apply_stock_13017855_restore_parity_773_staging.py` | Staging controller | Exact predecessor/target/Production gates, restore/replay and unrelated-isolation readback | Live receipt replay verified; no Production or external email. |

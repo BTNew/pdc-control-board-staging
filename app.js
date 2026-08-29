@@ -6285,6 +6285,8 @@ async function saveSharedVehicleWorkStates(vehicle = {}, workStates = {}) {
     return { ok: false, error: 'identity_resolution_failed', message: describeVehicleLifecycleResolutionOutcome(ref) };
   }
   if (ref.isArchived) return { ok: false, error: 'vehicle_archived', message: 'Archived or completed vehicles cannot have required work changed.' };
+  const guardedPatch = window.VehicleRequirementsGuard?.mergeRequirementPatch?.({}, workStates);
+  if (guardedPatch && guardedPatch.ok !== true) return guardedPatch;
   const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
   if (!token) return { ok: false, error: 'permission_denied' };
   try {
@@ -9305,7 +9307,7 @@ function pmbVehicleCardHtml(vehicle = {}) {
     </article>`;
 }
 
-function togglePdcJobCompletionFromCard(stockKey, jobKey) {
+async function togglePdcJobCompletionFromCard(stockKey, jobKey) {
   const cleanKey = String(stockKey || '').trim();
   const def = PDC_JOB_BY_KEY.get(String(jobKey || '').toLowerCase());
   if (!cleanKey || !def) return;
@@ -9318,6 +9320,26 @@ function togglePdcJobCompletionFromCard(stockKey, jobKey) {
   }
   const actionText = currentlyComplete ? 'remove the sign-off from' : 'sign off';
   if (!window.confirm(`${actionText.charAt(0).toUpperCase()}${actionText.slice(1)} ${def.label} for ${displayStockNumber(vehicle) || 'this vehicle'}?`)) return;
+  if (vehicleLifecycleSharedModeActive() && !currentlyComplete && String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() === 'administrator') {
+    const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+    const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
+    if (!detail && canonicalId) await loadVehicleWorkshopDetail(vehicle, { force: true });
+    const refreshedDetail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
+    const stage = vehicleWorkshopStageCode(pmbStageForPdcJob(def));
+    const booking = (refreshedDetail?.bookings || []).find(row => vehicleWorkshopStageCode(row.stage_code || '') === stage && ['queued', 'planned', 'started', 'stoppage'].includes(String(row.status || '').toLowerCase()) && row.deleted_at == null);
+    if (booking && window.__workshopSharedActions?.completeVehicleDepartment) {
+      const idempotencyKey = globalThis.crypto?.randomUUID?.() || `ui772-complete-${canonicalId}-${Date.now()}`;
+      const payload = { contract: 'department-complete-772', vehicle_id: canonicalId, work_key: String(def.key || '').toLowerCase(), expected_vehicle_version: Number(refreshedDetail?.vehicle_version || vehicle.version || 0), booking_id: booking.booking_id || booking.id, expected_booking_version: Number(booking.booking_version || booking.version || 0), idempotency_key: idempotencyKey, reason: `Completed ${def.label} from the vehicle card` };
+      const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(',')}]` : value && typeof value === 'object' ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}` : JSON.stringify(value);
+      const bytes = await globalThis.crypto?.subtle?.digest('SHA-256', new TextEncoder().encode(canonical(payload)));
+      const requestHash = bytes ? Array.from(new Uint8Array(bytes), value => value.toString(16).padStart(2, '0')).join('') : '';
+      const result = await window.__workshopSharedActions.completeVehicleDepartment({ ...payload, requestHash, workKey: payload.work_key, expectedVehicleVersion: payload.expected_vehicle_version, expectedBookingVersion: payload.expected_booking_version });
+      if (!result || result.ok !== true) { window.alert('The department completion was not saved. The authoritative vehicle and booking state was preserved.'); return false; }
+      await loadVehicleWorkshopDetail(vehicle, { force: true });
+      renderAll();
+      return true;
+    }
+  }
   const now = nowIsoString();
   const operator = getCurrentOperatorName();
   const updates = { [def.completeKey]: !currentlyComplete, pdcQcComplete: false, pdcQcCompleteAt: '', pdcQcCompleteBy: '' };
@@ -9370,13 +9392,13 @@ function bindPmbDragBoard(host) {
     marker.addEventListener('click', event => {
       event.preventDefault();
       event.stopPropagation();
-      togglePdcJobCompletionFromCard(marker.dataset.jobStock, marker.dataset.togglePdcJobComplete);
+      void togglePdcJobCompletionFromCard(marker.dataset.jobStock, marker.dataset.togglePdcJobComplete);
     });
     marker.addEventListener('keydown', event => {
       if (event.key !== 'Enter' && event.key !== ' ') return;
       event.preventDefault();
       event.stopPropagation();
-      togglePdcJobCompletionFromCard(marker.dataset.jobStock, marker.dataset.togglePdcJobComplete);
+      void togglePdcJobCompletionFromCard(marker.dataset.jobStock, marker.dataset.togglePdcJobComplete);
     });
   });
   $$('[data-transfer-rft-stock]', host).forEach(button => {
@@ -12424,7 +12446,7 @@ function vehicleWorkshopBookingsForStage(bookings = [], stage = '') {
       || String(a.booking_id || '').localeCompare(String(b.booking_id || '')));
 }
 
-function vehicleWorkshopBookingRowsHtml(bookings = [], fallbackText = 'Not booked') {
+function vehicleWorkshopBookingRowsHtml(bookings = [], fallbackText = 'Not booked', vehicle = {}) {
   if (!bookings.length) return `<span class="vehicle-workshop-not-booked">${escapeHtml(fallbackText)}</span>`;
   return bookings.map(booking => {
     const bookingId = cleanNavisionText(booking.booking_id || '');
@@ -12432,8 +12454,11 @@ function vehicleWorkshopBookingRowsHtml(bookings = [], fallbackText = 'Not booke
     const dateKey = vehicleWorkshopBookingDateKey(booking);
     const bay = Number(booking.bay_number) > 0 ? `Bay ${Number(booking.bay_number)}` : cleanNavisionText(booking.bay_name || '') || 'Bay not assigned';
     const label = `${vehicleWorkshopBookingTimeLabel(booking)} · ${bay} · ${vehicleWorkshopBookingStatusLabel(booking.status)}`;
-    if (!bookingId || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage] || !dateKey) return `<span class="vehicle-workshop-booking-static">${escapeHtml(label)}</span>`;
-    return `<button type="button" class="vehicle-workshop-booking-link" data-vehicle-workshop-booking-id="${escapeHtml(bookingId)}" data-vehicle-workshop-booking-stage="${escapeHtml(stage)}" data-vehicle-workshop-booking-date="${escapeHtml(dateKey)}" title="Open this exact booking in the ${escapeHtml(vehicleWorkshopStationPresentation(stage).label)} Planner">${escapeHtml(label)} <b>Open planner →</b></button>`;
+    const vehicleId = vehicleWorkshopDetailCanonicalId(vehicle);
+    const stock = displayStockNumber(vehicle);
+    const bayNumber = Number(booking.bay_number) > 0 ? String(Number(booking.bay_number)) : '';
+    if (!bookingId || !vehicleId || !stock || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage] || !dateKey || !bayNumber) return `<span class="vehicle-workshop-booking-static">${escapeHtml(label)}</span>`;
+    return `<button type="button" class="vehicle-workshop-booking-link" data-vehicle-workshop-booking-id="${escapeHtml(bookingId)}" data-vehicle-workshop-booking-vehicle-id="${escapeHtml(vehicleId)}" data-vehicle-workshop-booking-stock="${escapeHtml(stock)}" data-vehicle-workshop-booking-stage="${escapeHtml(stage)}" data-vehicle-workshop-booking-date="${escapeHtml(dateKey)}" data-vehicle-workshop-booking-bay="${escapeHtml(bayNumber)}" title="Open this exact booking in the ${escapeHtml(vehicleWorkshopStationPresentation(stage).label)} Planner">${escapeHtml(label)} <b>Open planner →</b></button>`;
   }).join('');
 }
 
@@ -12479,7 +12504,7 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   );
   const ensureGroup = stage => {
     if (!canDisplayStage(stage)) return null;
-    if (!groups.has(stage)) groups.set(stage, { stage, requirements: [], lines: [], bookings: vehicleWorkshopBookingsForStage(bookings, stage) });
+    if (!groups.has(stage)) groups.set(stage, { stage, requirements: [], lines: [], bookings: vehicleWorkshopBookingsForStage(bookings, stage), evidenceOnly: false });
     return groups.get(stage);
   };
   requirements.filter(item => item?.required === true).forEach(item => {
@@ -12499,9 +12524,12 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
     const group = ensureGroup(stage);
     if (group) group.lines.push({
       ...line,
+      sourceDescription: line.description,
+      sourceOperationNo: line.operation_no,
       description: `${jobCard ? `JC ${jobCard} · ` : ''}${authenticatedOperationLineLabel(line.operation_no)} · ${line.description}`,
       authenticatedEmailOperation: true,
     });
+    if (group) group.evidenceOnly = group.requirements.length === 0;
   });
   authoritativeJobCardLines.slice(0, 250).forEach(line => {
     const stage = vehicleWorkshopStageCode(line.stage_code || line.department_code || line.work_key || '');
@@ -12520,12 +12548,18 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
       };
     } else group.lines.push({ ...line, authoritativeJobCardLine: true });
   });
+  adjustments.filter(item => item?.source_kind === 'display' && item?.line_key).forEach(item => {
+    const group = ensureGroup(vehicleWorkshopStageCode(item.stage_code || ''));
+    if (!group || group.lines.some(line => String(line.workshopLineKey || line.line_key || '') === String(item.line_key))) return;
+    group.evidenceOnly = group.requirements.length === 0;
+    group.lines.push({ ...item, workshopLineKey: item.line_key, estimatedHours: Number(item.estimated_hours), evidenceOnly: true, sourceDescription: item.description });
+  });
   const relocatedLines = [];
   groups.forEach(group => {
     group.lines = group.lines.flatMap(line => {
       const lineKey = vehicleWorkshopLineIdentity(group.stage, line);
       const adjustment = adjustmentByKey.get(lineKey);
-      if (adjustment?.active === false) return [];
+      if (adjustment?.active === false && adjustment.source_kind !== 'display') return [];
       const sourceHours = vehicleWorkshopAdjustedSourceHours(line.estimated_hours ?? line.estimatedHours ?? line.confirmed_hours ?? line.confirmedHours);
       const sourceKind = cleanNavisionText(line.estimated_hours_source || line.estimatedHoursSource || line.provenance || '').toLowerCase();
       const adjustedLine = adjustment ? {
@@ -12631,21 +12665,35 @@ function vehicleWorkshopOperationError(result = {}) {
 async function removeVehicleWorkshopOperation(button) {
   const service = vehicleWorkshopOperationRemovalService();
   if (!service) { window.alert('Administrator authority and an authenticated Workshop service are required.'); return false; }
-  const reason = window.prompt('Reason for removing this operation (required; recorded in the receipt)', 'Incorrect workshop operation');
+  const operationNo = String(button.dataset.operationNo || '').trim();
+  const description = String(button.dataset.operationDescription || '').trim();
+  const department = String(button.dataset.operationDepartment || '').trim();
+  const confirmation = `Remove ${operationNo} ${description} from ${department}`;
+  if (!window.confirm(`Confirm explicit line removal:\n\nOP: ${operationNo}\nDescription: ${description}\nDepartment: ${department}\n\nOnly this line will leave the active projection. Immutable source evidence is retained.`)) return false;
+  const reason = window.prompt('Concise reason for removing this operation (recorded in the immutable receipt)', 'Incorrect workshop operation');
   if (reason === null) return false;
   const operationLineId = String(button.dataset.operationLineId || '');
-  const key = `ui235-${operationLineId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const key = `ui772-${operationLineId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const vehicle = selectedVehicle() || {};
   button.disabled = true;
   const result = await service.removeOperation({
     operationLineId,
+    vehicleId: button.dataset.operationVehicleId || vehicleWorkshopDetailCanonicalId(vehicle),
+    stockNumber: button.dataset.operationStock || displayStockNumber(vehicle),
+    jobCardNumber: button.dataset.operationJobCard || vehicleJobcardNumber(vehicle),
+    operationNo,
+    description,
+    department,
+    expectedVehicleVersion: Number(app.vehicleWorkshopDetailCache.get(vehicleWorkshopDetailCanonicalId(vehicle))?.detail?.vehicle_version || vehicle.version || 0),
     expectedAdjustmentVersion: Number(button.dataset.adjustmentVersion || 0),
+    confirmation,
     reason,
     sourceEvidence: JSON.parse(button.dataset.sourceEvidence || '{}'),
     idempotencyKey: key,
   });
   if (result?.ok !== true) { window.alert(vehicleWorkshopOperationError(result)); return false; }
   const data = result.data || result;
-  app.vehicleWorkshopRemovalReceipt = { receiptId: data.receipt_id, operationLineId, code: result.code || 'operation_removed' };
+  app.vehicleWorkshopRemovalReceipt = { receiptId: data.receipt_id, operationLineId, vehicleId: button.dataset.operationVehicleId || vehicleWorkshopDetailCanonicalId(vehicle), code: result.code || 'operation_line_deleted_772' };
   renderDetail();
   return true;
 }
@@ -12656,7 +12704,9 @@ async function undoVehicleWorkshopOperation() {
   if (!receipt?.receiptId || !service) return false;
   const reason = window.prompt('Reason for undoing this removal (required; later protected changes are preserved)', 'Removal made in error');
   if (reason === null) return false;
-  const result = await service.undoRemoval({ receiptId: receipt.receiptId, reason });
+  const vehicle = selectedVehicle() || {};
+  const key = `ui772-undo-${receipt.operationLineId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const result = await service.undoRemoval({ receiptId: receipt.receiptId, vehicleId: receipt.vehicleId || vehicleWorkshopDetailCanonicalId(vehicle), operationLineId: receipt.operationLineId, expectedVehicleVersion: Number(app.vehicleWorkshopDetailCache.get(vehicleWorkshopDetailCanonicalId(vehicle))?.detail?.vehicle_version || vehicle.version || 0), idempotencyKey: key, reason });
   if (result?.ok !== true) { window.alert(vehicleWorkshopOperationError(result)); return false; }
   app.vehicleWorkshopRemovalReceipt = null;
   renderDetail();
@@ -12822,7 +12872,7 @@ function resetVehicleWorkshopLineHoursBatch(button) {
 function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}, validStages = []) {
   const presentation = vehicleWorkshopStationPresentation(group.stage);
   const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
-  const canEdit = vehicleWorkshopCanEditLines() && !complete && group.stage !== 'PARTS';
+  const canEdit = vehicleWorkshopCanEditLines() && !complete && group.stage !== 'PARTS' && group.evidenceOnly !== true && group.requirements.length > 0;
   const isPartsStage = group.stage === 'PARTS';
   const projections = group.lines.map(line => typeof vehicleWorkshopHoursProjection === 'function'
     ? vehicleWorkshopHoursProjection(line)
@@ -12845,6 +12895,8 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
     const hoursEvidenceLabel = typeof vehicleWorkshopHoursEvidenceLabel === 'function' ? vehicleWorkshopHoursEvidenceLabel(projection) : '';
     const hoursEvidence = hoursEvidenceLabel ? `<small class="vehicle-workshop-hours-evidence rule-${escapeHtml(projection.rule)}">${escapeHtml(hoursEvidenceLabel)}</small>` : '';
     const operationLineId = cleanNavisionText(line.operation_line_id || line.source_operation_line_id || '').trim().toLowerCase();
+    const sourceDescription = cleanNavisionText(line.sourceDescription || line.description || '').replace(/^JC\s+[^·]+\s+·\s+OP\d+\s+·\s+/i, '');
+    const operationNo = cleanNavisionText(line.sourceOperationNo || line.operation_no || '').trim();
     const batchEditable = canEdit && !isPartsStage && !line.fallback && !line.workshopManualLine && /^[0-9a-f-]{36}$/i.test(operationLineId) && /^source:[0-9a-f-]{36}$/i.test(lineKey);
     const draftValue = batchEditable ? vehicleWorkshopHoursBatchDraftValue(canonicalVehicleId, operationLineId, estimate) : estimate;
     const inputValue = draftValue === null || draftValue === undefined ? '' : String(draftValue);
@@ -12863,13 +12915,13 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
     }).join('');
     const moveControl = canEdit && !line.fallback && validStages.length > 1
       ? `<label class="vehicle-workshop-line-station"><span>Station</span><select data-vehicle-workshop-line-stage ${mutationData}>${stationOptions}</select></label>` : '';
-    const canRemoveSource = typeof vehicleWorkshopOperationAdministratorActive === 'function' && vehicleWorkshopOperationAdministratorActive() && operationLineId && !complete && !line.adjustmentProtected;
-    const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${moveControl}${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}${canRemoveSource ? `<button type="button" class="is-danger" data-vehicle-workshop-operation-remove data-operation-line-id="${escapeHtml(operationLineId)}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}" data-source-evidence="${escapeHtml(JSON.stringify({ operation_line_id: operationLineId, description, stage_code: group.stage, estimated_hours: projection.schedulingHours, selected_hours_field: projection.evidence?.selectedField || null }))}">Remove operation</button>` : ''}</span>` : '';
+    const canRemoveSource = typeof vehicleWorkshopOperationAdministratorActive === 'function' && vehicleWorkshopOperationAdministratorActive() && operationLineId && operationNo && !complete && !line.adjustmentProtected && line.authenticatedEmailOperation === true;
+    const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${moveControl}${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}${canRemoveSource ? `<button type="button" class="is-danger" data-vehicle-workshop-operation-remove data-operation-line-id="${escapeHtml(operationLineId)}" data-operation-no="${escapeHtml(operationNo)}" data-operation-description="${escapeHtml(sourceDescription)}" data-operation-department="${escapeHtml(group.stage)}" data-operation-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-operation-stock="${escapeHtml(displayStockNumber(vehicle))}" data-operation-job-card="${escapeHtml(vehicleJobcardNumber(vehicle))}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}" data-source-evidence="${escapeHtml(JSON.stringify({ operation_line_id: operationLineId, operation_no: operationNo, description: sourceDescription, stage_code: group.stage, estimated_hours: projection.schedulingHours, selected_hours_field: projection.evidence?.selectedField || null }))}">Remove operation</button>` : ''}</span>` : '';
     const handleData = `data-vehicle-workshop-line-handle data-stage="${escapeHtml(group.stage)}" data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" data-booking-id="${escapeHtml(activeBooking?.booking_id || activeBooking?.id || '')}" data-hours="${escapeHtml(totalHours ?? estimate ?? '')}"`;
     const number = canEdit && hasSchedulableHours && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage]
       ? `<button type="button" class="vehicle-workshop-line-number" draggable="true" ${handleData} aria-label="Drag ${escapeHtml(description)} to a workshop bay">${index + 1}</button>`
       : `<span class="vehicle-workshop-line-number">${index + 1}</span>`;
-    const bookingCell = lineBookings.length ? vehicleWorkshopBookingRowsHtml(lineBookings, bookingFallback)
+    const bookingCell = lineBookings.length ? vehicleWorkshopBookingRowsHtml(lineBookings, bookingFallback, vehicle)
       : (group.bookings.length ? '<span class="vehicle-workshop-booking-static">Station booking shown below</span>' : `<span class="vehicle-workshop-not-booked">${escapeHtml(bookingFallback)}</span>`);
     const progress = vehicleWorkshopJobCardBookedActual(line, lineBookings);
     const progressHtml = progress === 'Not recorded' ? '' : `<small>${escapeHtml(progress)}</small>`;
@@ -12885,12 +12937,13 @@ function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', 
   const lineHours = isPartsStage ? [] : group.lines.map(line => typeof vehicleWorkshopHoursProjection === 'function' ? vehicleWorkshopHoursProjection(line).schedulingHours : vehicleWorkshopLineHours(line)).filter(value => value !== null);
   const bookingHours = isPartsStage ? [] : group.bookings.map(booking => Number(booking.default_duration_minutes || 0) / 60).filter(value => Number.isFinite(value) && value > 0);
   const totalHours = lineHours.length ? lineHours.reduce((sum, value) => sum + value, 0) : (bookingHours[0] || null);
-  const addButton = !isPartsStage && vehicleWorkshopCanEditLines() && !complete ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
-  const stationBookings = !isPartsStage && group.bookings.length ? `<div class="vehicle-workshop-station-bookings"><strong>Station bookings</strong>${vehicleWorkshopBookingRowsHtml(group.bookings, bookingFallback)}</div>` : '';
-  const statusLabel = isPartsStage ? 'Parts state only' : complete ? 'Completed' : 'Required';
-  const statusClass = isPartsStage ? 'is-parts-state' : complete ? 'is-complete' : 'is-required';
-  const description = isPartsStage ? 'Parts requires neither hours nor a station booking' : complete ? 'Required work completed' : 'Required work outstanding';
-  return `<section class="vehicle-workshop-station${isPartsStage ? ' parts-no-hour-gate' : ''}" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${description}</p></div>${addButton}<span class="vehicle-workshop-station-status ${statusClass}">${statusLabel}</span><span class="vehicle-workshop-station-total">${isPartsStage ? 'No hours required' : escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${vehicleWorkshopCompactLinesHtml(group, bookingFallback, vehicle, validStages)}${stationBookings}</section>`;
+  const evidenceOnly = group.evidenceOnly === true || group.requirements.length === 0;
+  const addButton = !isPartsStage && !evidenceOnly && vehicleWorkshopCanEditLines() && !complete ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
+  const stationBookings = !isPartsStage && group.bookings.length ? `<div class="vehicle-workshop-station-bookings"><strong>Station bookings</strong>${vehicleWorkshopBookingRowsHtml(group.bookings, bookingFallback, vehicle)}</div>` : '';
+  const statusLabel = isPartsStage ? 'Parts state only' : evidenceOnly ? 'Evidence' : complete ? 'Completed' : 'Required';
+  const statusClass = isPartsStage ? 'is-parts-state' : evidenceOnly ? 'is-evidence' : complete ? 'is-complete' : 'is-required';
+  const description = isPartsStage ? 'Parts requires neither hours nor a station booking' : evidenceOnly ? 'Evidence retained from source or display projection' : complete ? 'Required work completed' : 'Required work outstanding';
+  return `<section class="vehicle-workshop-station${isPartsStage ? ' parts-no-hour-gate' : ''}${evidenceOnly ? ' is-evidence-only' : ''}" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${description}</p></div>${addButton}<span class="vehicle-workshop-station-status ${statusClass}">${statusLabel}</span><span class="vehicle-workshop-station-total">${isPartsStage ? 'No hours required' : escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${vehicleWorkshopCompactLinesHtml(group, bookingFallback, vehicle, validStages)}${stationBookings}</section>`;
 }
 
 function renderVehicleWorkshopWorkPage(vehicle = {}) {
@@ -12953,10 +13006,11 @@ function selectVehicleDetailPage(page = 'details') {
   if (app.vehicleDetailPage === 'work') loadVehicleWorkshopDetail(selectedVehicle() || {}, { force: true });
 }
 
-function openVehicleWorkshopBooking(bookingId = '', stage = '', date = '') {
+function openVehicleWorkshopBooking(bookingId = '', stage = '', date = '', vehicleId = '', stockNumber = '', bay = '') {
   const normalizedStage = vehicleWorkshopStageCode(stage);
-  if (!bookingId || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizedStage] || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
-  app.pendingWorkshopBookingLink = { bookingId, stage: normalizedStage, date, focused: true };
+  const target = window.VehicleRequirementsGuard?.exactBookingNavigationTarget?.({ bookingId, vehicleId, stockNumber, department: normalizedStage, date, bay });
+  if (!target || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizedStage]) return false;
+  app.pendingWorkshopBookingLink = { ...target, stage: normalizedStage, focused: true };
   closeVehicleModal();
   openWorkshopPlannerForStage(normalizedStage);
   return true;
@@ -13198,7 +13252,7 @@ function bindVehicleDetailTabs(panel) {
     tabs[next].focus();
     selectVehicleDetailPage(tabs[next].dataset.vehicleDetailTab);
   }));
-  panel.querySelectorAll('[data-vehicle-workshop-booking-id]').forEach(button => button.addEventListener('click', () => openVehicleWorkshopBooking(button.dataset.vehicleWorkshopBookingId, button.dataset.vehicleWorkshopBookingStage, button.dataset.vehicleWorkshopBookingDate)));
+  panel.querySelectorAll('[data-vehicle-workshop-booking-id]').forEach(button => button.addEventListener('click', () => openVehicleWorkshopBooking(button.dataset.vehicleWorkshopBookingId, button.dataset.vehicleWorkshopBookingStage, button.dataset.vehicleWorkshopBookingDate, button.dataset.vehicleWorkshopBookingVehicleId, button.dataset.vehicleWorkshopBookingStock, button.dataset.vehicleWorkshopBookingBay)));
   panel.querySelectorAll('[data-pdc-work-destination-view]').forEach(button => button.addEventListener('click', () => {
     const selected = selectedVehicle() || {};
     closeVehicleModal();
@@ -15113,18 +15167,31 @@ function partsWorstEtaSortValue(vehicle = {}) {
   return date ? date.getTime() : -8640000000000000;
 }
 
+function partsScheduledWorkshopBookings(vehicle = {}) {
+  const canonicalId = typeof vehicleWorkshopDetailCanonicalId === 'function' ? vehicleWorkshopDetailCanonicalId(vehicle) : '';
+  const cached = canonicalId ? app.vehicleWorkshopDetailCache?.get(canonicalId)?.detail : null;
+  return [
+    ...(Array.isArray(vehicle.workshopBookings) ? vehicle.workshopBookings : []),
+    ...(Array.isArray(vehicle.pdcWorkshopBookings) ? vehicle.pdcWorkshopBookings : []),
+    ...(Array.isArray(cached?.bookings) ? cached.bookings : []),
+  ];
+}
+
 function partsEtaRisk(vehicle = {}) {
   if (partsStateComplete(vehicle)) return false;
-  const partsDate = partsWorstEtaDate(vehicle);
-  const kewdaleDate = parseDateAU(kewdaleEtaValue(vehicle));
-  if (!partsDate || !kewdaleDate) return false;
-  const partsDay = new Date(partsDate); partsDay.setHours(0, 0, 0, 0);
-  const kewdaleDay = new Date(kewdaleDate); kewdaleDay.setHours(0, 0, 0, 0);
-  return partsDay > kewdaleDay;
+  const guard = window.VehicleRequirementsGuard;
+  if (!guard?.partsRiskState) return false;
+  return guard.partsRiskState({
+    partsEta: partsWorstEtaValue(vehicle),
+    partsComplete: partsStateComplete(vehicle),
+    partsStoppage: isActivePartsStoppage(vehicle),
+    vehicle,
+    bookings: partsScheduledWorkshopBookings(vehicle),
+  }).risk;
 }
 
 function partsRiskBadge(vehicle = {}) {
-  return partsEtaRisk(vehicle) ? `<span class="badge parts-risk-badge" title="Parts ETA is later than Kewdale ETA">PARTS RISK</span>` : '';
+  return partsEtaRisk(vehicle) ? `<span class="badge parts-risk-badge" title="Parts ETA is later than the scheduled workshop booking date">PARTS RISK</span>` : '';
 }
 
 function isActivePartsStoppage(vehicle = {}) {
