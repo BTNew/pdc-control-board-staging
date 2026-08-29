@@ -393,6 +393,14 @@
 - No Production endpoint, branch, database, mailbox flags, outbound email, or Scheduled Task enablement was used during implementation or verification.
 - Dashboard association remains `20260828_191153_4fb787`.
 
+## 2026-08-29 — repeat-run compatibility and refresh resilience
+
+- Added staging-only append-only migration `20260830103000_772_monitor_compatibility_after_additive_heads.sql`; it preserves `.68` attestation after later additive staging heads while rechecking canonical RPC hashes, actor/gateway, UID514, pilot flags, forced RLS and Production exclusion.
+- Added bounded three-attempt refresh retry shim `scripts/pdc_monitor_refresh_retry_20260868.py` for transient sealed-runtime Auth disconnects; no credentials are printed or rotated.
+- Natural-run enablement remains disabled pending the combined elevated observer; first natural run passed and the second failed with task result `1` before the generic additive-head successor was applied.
+- Dashboard association remains `20260828_191153_4fb787`; no new dashboard session was created.
+
+
 ## 2026-08-30 — QC-only mobile queue and authenticated QC Fix Required rejection
 
 - Scope: STAGING only, dashboard `20260828_161016_aa9508`; supplied layout screenshot was inspected and no QC finalization or external email was performed. Production remained untouched.
