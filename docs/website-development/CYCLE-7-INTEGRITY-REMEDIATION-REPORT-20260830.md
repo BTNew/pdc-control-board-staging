@@ -50,9 +50,9 @@ The frozen Inbox remains exactly 669/669 UIDs, UIDVALIDITY 1, high-water 685 and
 - Full local website suite: `npm run test` `229 passed, 0 failed, 1 skipped`.
 - Full local check: `npm run check` `229 passed, 0 failed, 1 skipped`.
 - PostgreSQL parsing: 783 `15` statements, 784 `13`, 785 `16`, 786 `17`, 787 `13`, 788 `26`.
-- Staging source commit: pending final source publication after the clean release commit.
-- Staging integrity workflow for that commit: successful.
-- GitHub Pages deployment workflow for that commit: successful.
+- Staging source commit: `b923126dc5da2dc5d01a0c3e768b8bfc2af82e68`.
+- Staging integrity workflow for this commit: pending.
+- GitHub Pages deployment workflow for this commit: pending.
 - Live cache-busted asset readback contains the scoped planner call, Stage-A `workflowLimit`/`subletAuthority`, and staging `dealerCode` marker.
 
 ## Remaining evidence-only items/blockers
