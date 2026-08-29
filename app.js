@@ -588,12 +588,35 @@ function pmbAgeClass(vehicle = {}) {
   return 'fresh';
 }
 
+function lifecycleHistoryForVehicle(vehicle = {}) {
+  const history = vehicle.lifecycleHistory && typeof vehicle.lifecycleHistory === 'object' ? vehicle.lifecycleHistory : {};
+  return {
+    ...history,
+    firstReachedYardHoldAt: history.firstReachedYardHoldAt || history.first_reached_yard_hold_at || vehicle.firstReachedYardHoldAt || '',
+    firstEnteredPmbAt: history.firstEnteredPmbAt || history.first_entered_pmb_at || vehicle.firstEnteredPmbAt || '',
+    firstBecameRftAt: history.firstBecameRftAt || history.first_became_rft_at || vehicle.firstBecameRftAt || '',
+    elapsedYardHoldToPmbSeconds: history.elapsedYardHoldToPmbSeconds ?? history.elapsed_yard_hold_to_pmb_seconds ?? null,
+    elapsedPmbToRftSeconds: history.elapsedPmbToRftSeconds ?? history.elapsed_pmb_to_rft_seconds ?? null,
+    elapsedYardHoldToRftSeconds: history.elapsedYardHoldToRftSeconds ?? history.elapsed_yard_hold_to_rft_seconds ?? null,
+    elapsedYardHoldToPmbDays: history.elapsedYardHoldToPmbDays ?? history.elapsed_yard_hold_to_pmb_days ?? null,
+    elapsedPmbToRftDays: history.elapsedPmbToRftDays ?? history.elapsed_pmb_to_rft_days ?? null,
+    elapsedYardHoldToRftDays: history.elapsedYardHoldToRftDays ?? history.elapsed_yard_hold_to_rft_days ?? null,
+    evidenceState: history.evidenceState || history.evidence_state || 'partial_or_unknown',
+    missingEvidence: Array.isArray(history.missingEvidence) ? history.missingEvidence : (Array.isArray(history.missing_evidence) ? history.missing_evidence : []),
+  };
+}
+
+function lifecycleTimestamp(vehicle = {}, key = '') {
+  const history = lifecycleHistoryForVehicle(vehicle);
+  return parseIsoTimestamp(history[key] || '');
+}
+
 function completedPmbStartDate(vehicle = {}) {
-  return parseDateAU(kewdaleEtaValue(vehicle));
+  return lifecycleTimestamp(vehicle, 'firstEnteredPmbAt');
 }
 
 function completedRftDate(vehicle = {}) {
-  return parseIsoTimestamp(vehicle.rftTransferredAt || vehicle.pdcLocationUpdatedAt || vehicle.rftCollectedAt || '');
+  return lifecycleTimestamp(vehicle, 'firstBecameRftAt');
 }
 
 function dateOnly(value) {
@@ -605,10 +628,37 @@ function dateOnly(value) {
 }
 
 function completedPmbDays(vehicle = {}) {
-  const start = dateOnly(completedPmbStartDate(vehicle));
-  const end = dateOnly(completedRftDate(vehicle));
+  const history = lifecycleHistoryForVehicle(vehicle);
+  if (Number.isFinite(Number(history.elapsedPmbToRftDays))) return Number(history.elapsedPmbToRftDays);
+  const start = completedPmbStartDate(vehicle);
+  const end = completedRftDate(vehicle);
   if (!start || !end) return null;
-  return Math.max(0, Math.floor((end - start) / (1000 * 60 * 60 * 24)));
+  return Math.max(0, (end - start) / (1000 * 60 * 60 * 24));
+}
+
+function lifecycleDurationDays(vehicle = {}, key = '') {
+  const history = lifecycleHistoryForVehicle(vehicle);
+  const daysKey = `${key}Days`;
+  if (Number.isFinite(Number(history[daysKey]))) return Number(history[daysKey]);
+  const pairs = {
+    elapsedYardHoldToPmb: ['firstReachedYardHoldAt', 'firstEnteredPmbAt'],
+    elapsedPmbToRft: ['firstEnteredPmbAt', 'firstBecameRftAt'],
+    elapsedYardHoldToRft: ['firstReachedYardHoldAt', 'firstBecameRftAt'],
+  };
+  const [from, to] = pairs[key] || [];
+  const start = from ? lifecycleTimestamp(vehicle, from) : null;
+  const end = to ? lifecycleTimestamp(vehicle, to) : null;
+  return start && end && end >= start ? (end - start) / 86400000 : null;
+}
+
+function lifecycleDurationLabel(vehicle = {}, key = '') {
+  const days = lifecycleDurationDays(vehicle, key);
+  if (!Number.isFinite(days)) return 'Unknown';
+  const history = lifecycleHistoryForVehicle(vehicle);
+  const secondsKey = `${key}Seconds`;
+  const seconds = Number.isFinite(Number(history[secondsKey])) ? String(history[secondsKey]) : String(days * 86400);
+  const dayText = Number(days).toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
+  return `${dayText} day${dayText === '1' ? '' : 's'} (${seconds} seconds)`;
 }
 
 function completedPmbDaysLabel(vehicle = {}) {
@@ -12269,6 +12319,25 @@ function vehicleImportProvenanceHtml(vehicle = {}, detail = null) {
   return `<div class="vehicle-provenance-list">${rows.map(row => `<div class="vehicle-provenance-item"><strong>${escapeHtml(row.title)}</strong><span>${escapeHtml(row.at ? `${row.at} · ${row.text}` : row.text)}</span></div>`).join('')}</div>`;
 }
 
+function lifecycleHistoryHtml(vehicle = {}, detail = null) {
+  const history = detail?.lifecycle_history || lifecycleHistoryForVehicle(vehicle);
+  const timestamp = (businessKey, rawKey) => history[businessKey] || history[rawKey] || 'Unknown';
+  const state = history.evidence_state || history.evidenceState || 'partial_or_unknown';
+  const missing = Array.isArray(history.missing_evidence) ? history.missing_evidence : (Array.isArray(history.missingEvidence) ? history.missingEvidence : []);
+  const status = state === 'complete' ? 'Complete evidence' : `Partial / Unknown${missing.length ? ` · Missing: ${missing.join(', ')}` : ''}`;
+  return `<section class="vehicle-lifecycle-history" aria-labelledby="vehicle-lifecycle-history-heading">
+    <div class="muted-label" id="vehicle-lifecycle-history-heading">Retained lifecycle history · ${escapeHtml(status)}</div>
+    <div class="vehicle-provenance-list lifecycle-history-list">
+      <div class="vehicle-provenance-item"><strong>First Yard Hold</strong><span>UTC: ${escapeHtml(timestamp('first_reached_yard_hold_at_utc', 'firstReachedYardHoldAt'))}<br>Australia/Perth: ${escapeHtml(timestamp('first_reached_yard_hold_at_business', 'firstReachedYardHoldAt'))}</span></div>
+      <div class="vehicle-provenance-item"><strong>First PMB entry</strong><span>UTC: ${escapeHtml(timestamp('first_entered_pmb_at_utc', 'firstEnteredPmbAt'))}<br>Australia/Perth: ${escapeHtml(timestamp('first_entered_pmb_at_business', 'firstEnteredPmbAt'))}</span></div>
+      <div class="vehicle-provenance-item"><strong>First successful QC → RFT</strong><span>UTC: ${escapeHtml(timestamp('first_became_rft_at_utc', 'firstBecameRftAt'))}<br>Australia/Perth: ${escapeHtml(timestamp('first_became_rft_at_business', 'firstBecameRftAt'))}</span></div>
+      <div class="vehicle-provenance-item"><strong>Yard Hold → PMB</strong><span>${escapeHtml(lifecycleDurationLabel({ lifecycleHistory: history }, 'elapsedYardHoldToPmb'))}</span></div>
+      <div class="vehicle-provenance-item"><strong>PMB → RFT</strong><span>${escapeHtml(lifecycleDurationLabel({ lifecycleHistory: history }, 'elapsedPmbToRft'))}</span></div>
+      <div class="vehicle-provenance-item"><strong>Yard Hold → RFT</strong><span>${escapeHtml(lifecycleDurationLabel({ lifecycleHistory: history }, 'elapsedYardHoldToRft'))}</span></div>
+    </div>
+  </section>`;
+}
+
 function renderAuditTrailSection(vehicle = {}) {
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   const state = canonicalId ? app.vehicleHistoryCache.get(canonicalId) : null;
@@ -12289,7 +12358,7 @@ function renderAuditTrailSection(vehicle = {}) {
     const whenLabel = when ? when.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : 'Unknown time';
     return `<div class="audit-log-item"><strong>${escapeHtml(entry.action)}</strong><span>${escapeHtml(whenLabel)} · ${escapeHtml(entry.by)}${entry.detail ? ` · ${escapeHtml(entry.detail)}` : ''}</span></div>`;
   }).join('')}</div>` : '<div class="subtle">No movement or audit events have been recorded for this vehicle yet.</div>';
-  return `<div class="vehicle-audit-detail"><div class="muted-label">How this vehicle was imported</div>${vehicleImportProvenanceHtml(vehicle, detail)}${status}<div class="muted-label vehicle-history-label">Detailed history</div>${list}</div>`;
+  return `<div class="vehicle-audit-detail">${lifecycleHistoryHtml(vehicle, detail)}<div class="muted-label">How this vehicle was imported</div>${vehicleImportProvenanceHtml(vehicle, detail)}${status}<div class="muted-label vehicle-history-label">Detailed history</div>${list}</div>`;
 }
 
 async function loadVehicleHistoryForDetail(vehicle = {}) {
@@ -12305,7 +12374,7 @@ async function loadVehicleHistoryForDetail(vehicle = {}) {
   const generation = ++app.vehicleHistoryRequestGeneration;
   app.vehicleHistoryCache.set(canonicalId, { status: 'loading' });
   try {
-    const response = await service.vehicleHistory(canonicalId);
+    const response = await service.vehicleHistory(canonicalId, vehicle.__sharedNavisionDealerCode || vehicle.dealerCode || vehicle.dealer_code || '');
     if (generation !== app.vehicleHistoryRequestGeneration) return;
     if (!response?.ok) throw new Error(response?.code || 'request failed');
     app.vehicleHistoryCache.set(canonicalId, { status: 'ready', detail: response.data || {} });
@@ -16257,7 +16326,7 @@ function renderCompletedVehicles() {
   host.innerHTML = `<div class="parts-table-wrap completed-table-wrap pdc-grid-table-wrap"><table class="data-table compact-table completed-table pdc-grid-table">
     <thead><tr>
       <th>Collected</th><th>Key</th><th>Stock</th><th>Job Card</th><th>Customer</th><th>Vehicle</th>
-      <th>Delivered to Dealer</th><th>Date to PMB</th><th>Date to RFT</th><th>Days at PMB</th><th>Completed by</th><th>Completed stations</th><th>Actions</th>
+      <th>Delivered to Dealer</th><th>Date to PMB</th><th>Date to RFT</th><th>YH → PMB</th><th>PMB → RFT</th><th>YH → RFT</th><th>Completed by</th><th>Completed stations</th><th>Actions</th>
     </tr></thead>
     <tbody>${rows.map(vehicle => {
       const key = vehicleKey(vehicle);
@@ -16265,7 +16334,9 @@ function renderCompletedVehicles() {
       const collectedLabel = shortDateAu(vehicle.deliveredToDealerDate || '') || (collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '—');
       const pmbStartLabel = shortDateAu(vehicle.dateToPmb || '') || shortDateAu(completedPmbStartDate(vehicle)) || '—';
       const rftDateLabel = shortDateAu(vehicle.dateToRft || '') || shortDateAu(completedRftDate(vehicle)) || '—';
-      const pmbDaysLabel = completedPmbDaysLabel(vehicle);
+      const yardHoldToPmbLabel = lifecycleDurationLabel(vehicle, 'elapsedYardHoldToPmb');
+      const pmbToRftLabel = lifecycleDurationLabel(vehicle, 'elapsedPmbToRft');
+      const yardHoldToRftLabel = lifecycleDurationLabel(vehicle, 'elapsedYardHoldToRft');
       return `<tr class="completed-vehicle-row">
         <td><label class="rft-collected-check completed-collected-check is-locked" title="Collected vehicles are locked"><input type="checkbox" checked disabled /> <span>Collected</span></label></td>
         <td class="pdc-id-cell pdc-key-cell">${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</td>
@@ -16273,7 +16344,7 @@ function renderCompletedVehicles() {
         <td class="pdc-id-cell pdc-jc-cell">${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</td>
         <td class="pdc-name-cell"><span title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</span></td>
         <td class="pdc-vehicle-cell"><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</span></td>
-        <td>${escapeHtml(collectedLabel)}</td><td>${escapeHtml(pmbStartLabel)}</td><td>${escapeHtml(rftDateLabel)}</td><td>${escapeHtml(pmbDaysLabel)}</td>
+        <td>${escapeHtml(collectedLabel)}</td><td>${escapeHtml(pmbStartLabel)}</td><td>${escapeHtml(rftDateLabel)}</td><td>${escapeHtml(yardHoldToPmbLabel)}</td><td>${escapeHtml(pmbToRftLabel)}</td><td>${escapeHtml(yardHoldToRftLabel)}</td>
         <td>${escapeHtml(vehicle.rftCollectedBy || '')}</td>
         <td class="pdc-completed-stations-cell">${escapeHtml(pdcGridCompletedJobsText(vehicle))}</td>
         <td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button></td>
@@ -16323,6 +16394,7 @@ function deletedVehicleSnapshotRecord(row = {}) {
     recreationAllowed: events.some(event => event?.event_kind === 'recreation_authorized')
       && !events.some(event => event?.event_kind === 'recreation_consumed'),
     recreationConsumed: events.some(event => event?.event_kind === 'recreation_consumed'),
+    lifecycleHistory: row.lifecycle_history && typeof row.lifecycle_history === 'object' ? row.lifecycle_history : {},
   };
 }
 
@@ -16430,6 +16502,7 @@ function renderDeletedVehicles() {
         <div><b>Deleted at</b><span>${escapeHtml(row.deletedAt || '—')}</span></div>
         <div><b>Deleted by</b><span>${escapeHtml(row.deletedBy || '—')}</span></div>
         <div class="wide"><b>Reason</b><span>${escapeHtml(row.deleteReason || '—')}</span></div>
+        <div class="wide">${lifecycleHistoryHtml(row, { lifecycle_history: row.lifecycleHistory })}</div>
         <div class="wide deleted-card-actions">
           <button class="small-button primary" type="button" data-restore-deleted-vehicle="${escapeHtml(row.tombstoneId)}" ${row.restored ? 'disabled title="Vehicle has already been restored"' : ''}>Restore Vehicle</button>
           ${row.resetEligible ? `<button class="small-button" type="button" data-allow-vehicle-recreation="${escapeHtml(row.tombstoneId)}" ${(row.recreationAllowed || row.recreationConsumed || row.restored) ? `disabled title="${row.recreationConsumed ? 'One-time recreation permission was consumed' : row.restored ? 'Vehicle has been restored' : 'One controlled recreation is already allowed'}"` : ''}>Allow one controlled recreation</button>` : ''}
@@ -16663,6 +16736,7 @@ function vehicleSharedNavisionIdentityKeys(vehicle = {}) {
 function sharedNavisionLocationVehicle(item = {}) {
   const completed = String(item.lifecycle_state || '').toLowerCase() === 'completed';
   const canonicalLocation = cleanNavisionText(item.current_location || '');
+  const lifecycleHistory = item.lifecycle_history && typeof item.lifecycle_history === 'object' ? item.lifecycle_history : {};
   return {
     id: `shared-navision-${item.id || sharedNavisionIdentityToken(item.stock_number)}`,
     canonicalVehicleId: item.canonical_vehicle_id || '',
@@ -16682,6 +16756,10 @@ function sharedNavisionLocationVehicle(item = {}) {
     dateToPmb: item.date_to_pmb || '',
     dateToRft: item.date_to_rft || '',
     deliveredToDealerDate: item.delivered_to_dealer_date || '',
+    firstReachedYardHoldAt: lifecycleHistory.first_reached_yard_hold_at || item.first_reached_yard_hold_at || '',
+    firstEnteredPmbAt: lifecycleHistory.first_entered_pmb_at || item.first_entered_pmb_at || '',
+    firstBecameRftAt: lifecycleHistory.first_became_rft_at || item.first_became_rft_at || '',
+    lifecycleHistory,
     pdcLocation: completed ? 'Completed' : (canonicalLocation || currentPdcLocationFromNavision({
       navisionLocationStatus: item.vehicle_status || '',
       toyotaStatus: item.vehicle_status || '',
