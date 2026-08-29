@@ -1,5 +1,10 @@
 # Autonomous Website Changes
 
+## 2026-08-30 — Sublet Calendar Month clean-session default
+
+- Changed the Sublet screen’s clean in-memory state and initial HTML controls to Calendar → Month, with the current Perth month selected by the existing authoritative calendar range logic. Explicit List/Calendar and Week/Month selections remain session-local and continue to control the existing alternate render paths.
+- Preserved the existing authoritative `vehicleLocationBoardRows()` projection, canonical booking UUID/version mutation paths, event placement, customer/provider identity and responsive calendar controls. Added `test_sublet_calendar_default.js` covering direct route rendering, clean-session/refresh defaults, explicit switching, current-month navigation, authoritative event fields and unrelated route dispatch. Cache marker is `sublet-calendar-default=2026.08.30.772`. Production was not contacted or mutated.
+
 ## 2026-08-30 — Atomic Job Card hours batch editing 768
 
 - Replaced per-row immediate Workshop hour saves with one modal-level `Save all hours` action and `Cancel/reset`. Draft values remain in memory only, are bound by canonical vehicle and operation UUID, and survive stale authoritative reloads for review/reapply.

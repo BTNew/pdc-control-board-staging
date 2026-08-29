@@ -2060,8 +2060,11 @@ const app = {
   deletedVehicleSnapshotError: '',
   deletedVehicleSnapshotGeneration: 0,
   subletMutationQueues: new Map(),
-  subletViewMode: 'list',
-  subletCalendarMode: 'week',
+  // Calendar → Month is the canonical clean-session Sublet default. These
+  // values remain in memory only; an explicit control selection during this
+  // session is allowed to replace them without becoming browser authority.
+  subletViewMode: 'calendar',
+  subletCalendarMode: 'month',
   subletCalendarAnchor: '',
   navisionImport: loadJson(NAVISION_IMPORT_RESULTS_KEY, null),
   pendingNavisionImport: null,

@@ -1,5 +1,10 @@
 # Shared Files
 
+## Sublet Calendar Month clean-session default — 2026-08-30
+
+- `app.js`, `index.html` — Calendar → Month clean-session defaults and matching initial control state; existing explicit view controls and authoritative booking/calendar render paths are unchanged.
+- `test_sublet_calendar_default.js` — default, direct-navigation, clean refresh/session, explicit switching, current-month, authoritative event and unrelated-route regression contract.
+
 ## Atomic Job Card hours batch editing 768 — 2026-08-30
 
 - `app.js`, `pdc-email-vehicle-location-service.js`, `styles.css`, `index.html` — one modal-level Save all hours draft form, stable operation UUID payloads, stale-draft preservation, authoritative readback and Parts no-hour/no-booking presentation.
