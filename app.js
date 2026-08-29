@@ -7419,7 +7419,7 @@ async function loadAuthenticatedOperationSummary(row) {
       const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
       const config = window.PDC_SUPABASE_CONFIG || {};
       if (!token || !config.url || !config.publishableKey) return null;
-      const response = await fetch(`${config.url}/rest/v1/rpc/get_vehicle_workshop_detail`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: canonicalId }) });
+      const response = await fetch(`${config.url}/rest/v1/rpc/get_vehicle_workshop_detail_scoped`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: canonicalId, p_dealer_code: String(config.dealerCode || '14450') }) });
       if (!response.ok) return null;
       const detail = await response.json().catch(() => null);
       if (!detail || String(detail.vehicle_id || '') !== canonicalId || !Array.isArray(detail.line_adjustments)) return null;
@@ -13064,7 +13064,7 @@ async function loadVehicleWorkshopDetail(vehicle = {}, { force = false } = {}) {
   app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'loading' });
   if (app.vehicleDetailPage === 'work' && vehicleKey(selectedVehicle() || {}) === selectedKey) renderDetail();
   try {
-    const response = await fetch(`${config.url}/rest/v1/rpc/get_vehicle_workshop_detail`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: canonicalId }) });
+    const response = await fetch(`${config.url}/rest/v1/rpc/get_vehicle_workshop_detail_scoped`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: canonicalId, p_dealer_code: String(config.dealerCode || '14450') }) });
     if (generation !== app.vehicleWorkshopDetailRequestGeneration) return null;
     if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? 'Your account is not authorised to read Workshop booking details.' : `Workshop booking detail request failed (${response.status}).`);
     const detail = await response.json();

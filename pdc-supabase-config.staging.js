@@ -19,6 +19,7 @@ window.PDC_ALLOW_LOCAL_RESET = true;
 window.PDC_SUPABASE_CONFIG = {
   environment: 'staging',
   projectRef: 'cdsmnqxtyyoeoznmbidd',
+  dealerCode: '14450',
   url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
   publishableKey: 'sb_publishable_hJiXYk7aDCGcijf946MX2g_WVDXnQfk',
   auth: {

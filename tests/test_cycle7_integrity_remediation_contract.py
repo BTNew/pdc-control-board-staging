@@ -1,0 +1,49 @@
+from pathlib import Path
+import unittest
+from pglast import parse_sql
+
+ROOT = Path(__file__).resolve().parents[1]
+M783 = ROOT / "supabase/staging_only/20260830180000_783_historical_observation_digest_repair.sql"
+M784 = ROOT / "supabase/staging_only/20260830181000_784_stage_a_integrity_projection.sql"
+M785 = ROOT / "supabase/staging_only/20260830182000_785_narrow_authenticated_contracts.sql"
+
+class Cycle7IntegrityContractTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.m783 = M783.read_text(encoding="utf-8").lower()
+        cls.m784 = M784.read_text(encoding="utf-8").lower()
+        cls.m785 = M785.read_text(encoding="utf-8").lower()
+
+    def test_migrations_parse_and_are_append_only(self):
+        self.assertEqual(len(parse_sql(M783.read_text(encoding="utf-8"))), 15)
+        self.assertEqual(len(parse_sql(M784.read_text(encoding="utf-8"))), 13)
+        for sql in (self.m783, self.m784):
+            self.assertIn("lock table supabase_migrations.schema_migrations in exclusive mode", sql)
+            self.assertIn("pdc_production_environment_sentinel", sql)
+            self.assertIn("pdc_monitor_staging_guard", sql)
+            self.assertNotIn("pdc_production_environment_sentinel from", sql)
+
+    def test_historical_request_and_observation_digests_are_distinct(self):
+        for marker in ("observation_sha256", "request_sha256,observation_sha256", "v_request_hash,v_observation_sha", "historical_replay_conflict", "pdc_783_observation_replay_conflict"):
+            self.assertIn(marker, self.m783)
+        self.assertIn("grant execute on function public.submit_pdc_historical_reconciliation_782_base(jsonb) to postgres", self.m783)
+        self.assertNotIn("grant execute on function public.submit_pdc_historical_reconciliation_782_base(jsonb) to authenticated", self.m783)
+
+    def test_stage_a_projection_and_pagination_contract(self):
+        for marker in ("p.vin", "p.job_card_number", "pdc_sublet_booking_instances", "limit 500) e", "'limit',500", "source_contradiction_review", "actual_duration_minutes"):
+            self.assertIn(marker, self.m784)
+        self.assertIn("completesqlarray(row.workflow_events", (ROOT / "pdc-ai-auditor-stage-a.js").read_text(encoding="utf-8").lower())
+        self.assertIn("const workflowlimit = completeness.workflow_events?.limit === 500 ? 500 : 100", (ROOT / "pdc-ai-auditor-stage-a.js").read_text(encoding="utf-8").lower())
+
+    def test_narrow_authenticated_planner_and_intake_contracts(self):
+        for marker in ("get_vehicle_workshop_detail_scoped(uuid,text)", "pdc_auditor_actor_scope", "pdc_auditor_vehicle_dealer", "dealer_scope_denied", "vehicle_not_in_dealer_scope", "grant execute on function public.get_vehicle_workshop_detail_scoped(uuid,text) to authenticated"):
+            self.assertIn(marker, self.m785)
+        for marker in ("get_pdc_email_intake_status(uuid)", "email_intake_not_in_dealer_scope", "last_error_code", "pdc_auditor_vehicle_dealer", "grant execute on function public.get_pdc_email_intake_status(uuid) to authenticated"):
+            self.assertIn(marker, self.m785)
+        self.assertNotIn("grant select on public.ai_email_intake", self.m785)
+        self.assertNotIn("grant execute on function public.get_vehicle_workshop_detail_scoped(uuid,text) to anon", self.m785)
+        app = (ROOT / "app.js").read_text(encoding="utf-8").lower()
+        self.assertIn("rpc/get_vehicle_workshop_detail_scoped", app)
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
