@@ -102,12 +102,12 @@ def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
             raise Historical777Error("historical attachment is not an object")
         digest = str(_required(attachment, "sha256")).lower()
         metadata = {
-            "attachment_kind": str(attachment.get("attachment_kind") or "non_job_card_sibling"),
             "content_type": str(_required(attachment, "content_type")),
             "filename": str(_required(attachment, "filename")),
             "ordinal": int(attachment.get("ordinal", len(manifest) + 1)),
             "sha256": digest,
             "size": _required(attachment, "size"),
+            "attachment_kind": attachment.get("attachment_kind") or "non_job_card_sibling",
         }
         manifest.append(metadata)
         attachment_by_hash.setdefault(digest, []).append(len(manifest) - 1)
@@ -157,6 +157,7 @@ def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
         "release_name": RELEASE_NAME,
         "release_source_sha": RELEASE_SOURCE_SHA,
         "release_manifest_sha256": RELEASE_MANIFEST_SHA256,
+
         "provider_uid": provider_uid,
         "parent_source_hash": str(_required(row, "parent_source_hash")).lower(),
         "sender_email": str(_required(row, "sender_email")).lower(),
@@ -199,7 +200,7 @@ def _jwt_claims(token: str) -> Mapping[str, Any]:
 def invoke_historical_rpc(request: Mapping[str, Any], *, url: str, anon_key: str, actor_token: str) -> dict[str, Any]:
     """Invoke only the dedicated authenticated staging RPC."""
     _jwt_claims(actor_token)
-    body = json.dumps(dict(request), separators=(",", ":"), allow_nan=False).encode("utf-8")
+    body = json.dumps({"p_request": dict(request)}, separators=(",", ":"), allow_nan=False).encode("utf-8")
     http_request = urllib.request.Request(
         f"{_staging_url(url)}/rest/v1/rpc/{RPC_NAME}", data=body, method="POST",
         headers={"apikey": anon_key, "Authorization": f"Bearer {actor_token}", "Content-Type": "application/json"},

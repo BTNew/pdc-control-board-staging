@@ -15,7 +15,7 @@ The current staging RPC is:
 
 `public.submit_pdc_historical_reconciliation_778(jsonb)`
 
-The current staging ledger head is `20260830172000 / 778_historical_reconciliation_receipt_and_occurrence_repair`. Successful results return a receipt ID and can be read back only by the exact Monitor actor through:
+The current staging ledger head is `20260830174000 / 782_historical_reconciliation_atomic_wrapper_successor`. The public RPC remains `submit_pdc_historical_reconciliation_778(jsonb)`; its previously applied body is now private as `submit_pdc_historical_reconciliation_782_base(jsonb)` and is not executable by authenticated, anonymous, service-role or monitor callers. Successful results return an immutable receipt ID and can be read back only by the exact Monitor actor through:
 
 `public.read_pdc_historical_reconciliation_778_receipt(uuid)`
 
@@ -30,7 +30,7 @@ The rows export is a local artifact produced from the existing frozen checkpoint
 - `manifest_sha256`, `provider_uid`, `parent_source_hash`, `sender_email`, `authentication`, `stock_number`;
 - `source_received_at`, `subject`, `action_type`, `summary`, `evidence_hash`, `observations`;
 - exact `source_metadata` keys: `attachment_names`, `graph_message_id`, `internet_message_id`, `parsed_text`, `provider_authserv_id`, `raw_body`, `received_at`, `recipient_mailbox`, `sender_name`, `uid`, `uidvalidity`;
-- `attachments`, each with `filename`, `sha256`, `size`, `content_type`, and optional frozen evidence classification.
+- `attachments`, each with `filename`, `sha256`, `size`, `content_type`, `ordinal`, and frozen `attachment_kind` classification. The exact frozen artifact currently contains 58 non-Job-Card siblings and 3 genuine Job Card children at physical ordinals 4, 3 and 2 for UIDs `1:22`, `1:23` and `1:134`.
 
 For each genuine Job Card sibling, include one child with exactly `attachment_hash`, `attachment_kind=job_card`, `attachment_ordinal`, `extraction`, and `extraction_hash`. The ordinal must identify the same PDF occurrence as the attachment hash. For an ambiguous/multi-vehicle Job Card sibling, include `attachment_kind=ambiguous_job_card`; it is recorded as failed closed and does not block independent valid siblings. PO/Pick List siblings remain evidence and are never imported as Job Cards.
 
@@ -42,6 +42,6 @@ The caller adds these exact runtime fields to every request:
 - release manifest `d48b49f6598a99fbef99fc4f0d0ab36b8b47576b8ff7cd8ecd2cb64d6cfed58d`;
 - manifest UIDVALIDITY/high-water/count `1/685/669`.
 
-The server rechecks the current authenticated Monitor actor and runtime binding, exact 773 sender/authentication/source/Stock tuple, 24-hour authorization expiry, manifest hash and attachment rows. It uses provider-bound enqueue, immutable per-sibling observations, the canonical Job Card importer, receipt-backed replay protection, and old-mail completion protection. Any Navision `not_found`, identity conflict, unauthorized identity, ambiguous sibling, or canonical rejection remains fail closed. No booking, completion, location scheduling, outbound email, mailbox contact, task enablement, or Production mutation is part of this contract.
+The server rechecks the current authenticated Monitor actor and runtime binding, exact 773 sender/authentication/source/Stock tuple, 24-hour authorization expiry, manifest hash and attachment rows. It uses provider-bound enqueue, immutable per-sibling observations, the canonical Job Card importer, receipt-backed replay protection, old-mail completion protection, exact immutable Job Card attachment bindings, authoritative vehicle/work/operation readback, and protected before/after state fingerprints. Any Navision `not_found`, identity conflict, unauthorized identity, ambiguous sibling, or canonical rejection remains fail closed. No booking, completion, Parts, location scheduling, outbound email, mailbox contact, task enablement, or Production mutation is part of this contract.
 
 Resume only after the current staging RPC and runtime proof are read back. Stop and report the exact sanitized error if the current actor/gateway/release/high-water/manifest or sender binding fails.
