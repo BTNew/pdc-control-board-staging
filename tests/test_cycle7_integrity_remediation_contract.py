@@ -8,6 +8,7 @@ M784 = ROOT / "supabase/staging_only/20260830181000_784_stage_a_integrity_projec
 M785 = ROOT / "supabase/staging_only/20260830182000_785_narrow_authenticated_contracts.sql"
 M786 = ROOT / "supabase/staging_only/20260830183000_786_cycle7_contract_repair.sql"
 M787 = ROOT / "supabase/staging_only/20260830184000_787_cycle7_contract_version_repair.sql"
+M788 = ROOT / "supabase/staging_only/20260830185000_788_canonical_historical_digest_contract.sql"
 
 class Cycle7IntegrityContractTests(unittest.TestCase):
     @classmethod
@@ -17,6 +18,7 @@ class Cycle7IntegrityContractTests(unittest.TestCase):
         cls.m785 = M785.read_text(encoding="utf-8").lower()
         cls.m786 = M786.read_text(encoding="utf-8").lower()
         cls.m787 = M787.read_text(encoding="utf-8").lower()
+        cls.m788 = M788.read_text(encoding="utf-8").lower()
 
     def test_migrations_parse_and_are_append_only(self):
         self.assertEqual(len(parse_sql(M783.read_text(encoding="utf-8"))), 15)
@@ -61,6 +63,40 @@ class Cycle7IntegrityContractTests(unittest.TestCase):
         self.assertNotIn("'782.1'", function_body)
         for marker in ("'778.1'", "v_request_hash,v_observation_sha", "pdc_787_historical_postcondition_failed", "20260830183000"):
             self.assertIn(marker, self.m787)
+
+    def test_788_recomputes_canonical_request_and_observation_digests(self):
+        self.assertEqual(len(parse_sql(M788.read_text(encoding="utf-8"))), 26)
+        body = self.m788.split("as $body$", 1)[1].split("revoke all on function public.submit_pdc_historical_reconciliation_782_base", 1)[0]
+        for marker in (
+            "pdc_historical_canonical_field_788",
+            "pdc_historical_canonical_request_788",
+            "pdc_historical_canonical_observation_788",
+            "canonical_request_utf8",
+            "observation_sha256",
+            "attachment_ordinal",
+            "attachment_kind",
+            "attachment_source_hash",
+            "observations_jsonb",
+            "extraction_jsonb",
+            "pdc_788_protected_boundary_drift",
+            "pdc_sublet_bookings",
+            "pdc_sublet_booking_instances",
+            "pdc_pmb_stoppage_receipts_422",
+            "monitored_mailboxes",
+            "pdc_email_monitor_status",
+            "pdc_qc_salesperson_update_outbox_399",
+            "pdc_rft_transport_email_outbox_734",
+            "pdc_sublet_email_update_receipts",
+            "relforcerowsecurity",
+            "pdc_788_observation_uniqueness_missing",
+            "request_sha256=v_request_hash",
+            "observation_sha256=v_observation_sha",
+        ):
+            self.assertIn(marker, self.m788)
+        self.assertNotIn("'782.1'", body)
+        self.assertIn("octet_length(convert_to", self.m788)
+        self.assertIn("case when p_value is null then '-1:'", self.m788)
+        self.assertIn("pdc_788_current_head_guard_failed", self.m788)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -21,6 +21,8 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
+from pdc_historical_778_caller import canonical_request_bytes, canonical_request_digest
+
 MANIFEST_SHA256 = "aa9e2451645b3fc51eba68c422b5eaf6f146ed18596a94ce8560c55b80729018"
 MANIFEST_UIDVALIDITY = 1
 MANIFEST_HIGH_WATER_UID = 685
@@ -148,7 +150,7 @@ def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
     attachment_names = [item["filename"] for item in manifest]
     if source and source.get("attachment_names") not in (None, attachment_names):
         raise Historical777Error("historical attachment name manifest mismatch")
-    return {
+    request = {
         "manifest_sha256": MANIFEST_SHA256,
         "manifest_uidvalidity": MANIFEST_UIDVALIDITY,
         "manifest_high_water_uid": MANIFEST_HIGH_WATER_UID,
@@ -172,6 +174,8 @@ def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
         "attachment_manifest": manifest,
         "job_card_children": children,
     }
+    request["canonical_request_utf8"] = canonical_request_bytes(request).decode("utf-8")
+    return request
 
 
 def _staging_url(value: str) -> str:
@@ -233,8 +237,8 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
     for row in select_authorized_rows(rows):
         request = build_historical_request(row)
         provider_uid = request["provider_uid"]
-        request_json = json.dumps(request, sort_keys=True, separators=(",", ":"))
-        request_hash = _sha256(request_json.encode())
+        request_json = json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        request_hash = canonical_request_digest(request)
         outbox.execute("insert into historical_778_outbox(provider_uid,request_json,request_sha256,state,created_at) values(?,?,?,?,datetime('now'))", (provider_uid, request_json, request_hash, "pending"))
         outbox.commit()
         response = rpc_call(request)

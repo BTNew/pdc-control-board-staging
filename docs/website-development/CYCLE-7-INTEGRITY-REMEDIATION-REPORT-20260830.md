@@ -19,7 +19,7 @@ The frozen Inbox remains exactly 669/669 UIDs, UIDVALIDITY 1, high-water 685 and
 
 1. Historical observation integrity
 
-   Migrations `20260830180000_783_historical_observation_digest_repair.sql`, `20260830183000_786_cycle7_contract_repair.sql` and `20260830184000_787_cycle7_contract_version_repair.sql` preserve the private 782 base and authenticated-only public wrapper, but store the request digest and per-attachment observation digest in separate fields. The existing immutable 778 observation and receipt contract versions are consistently 778.1. `observation_sha256` is now required and unique. The private base has no authenticated, anonymous or service-role execute grant.
+   Migrations `20260830180000_783_historical_observation_digest_repair.sql`, `20260830183000_786_cycle7_contract_repair.sql`, `20260830184000_787_cycle7_contract_version_repair.sql` and `20260830185000_788_canonical_historical_digest_contract.sql` preserve the private 782 base and authenticated-only public wrapper, but store the request digest and per-attachment observation digest in separate fields. 788 adds one fixed length-prefixed UTF-8 representation, server-side reconstruction and exact caller-echo validation; the request includes actor/runtime/manifest/source/occurrence/kind/ordinal/hash/observations/child-extraction evidence. The existing immutable 778 observation and receipt contract versions are consistently 778.1. `observation_sha256` is required and unique, and both request and observation digests are checked on readback. The private base has no authenticated, anonymous or service-role execute grant.
 
 2. Stage-A projection and complete workflow history
 
@@ -35,7 +35,7 @@ The frozen Inbox remains exactly 669/669 UIDs, UIDVALIDITY 1, high-water 685 and
 
 ## Verification evidence
 
-- Live staging ledger head: `20260830184000 / 787_cycle7_contract_version_repair`.
+- Live staging ledger head: `20260830185000 / 788_canonical_historical_digest_contract`.
 - Live historical observations/receipts: `0 / 0`.
 - Live old planner execute: authenticated `false`; scoped planner execute: authenticated `true`, anonymous/service-role `false`.
 - Live direct `ai_email_intake` SELECT: `false`; status RPC authenticated execute: `true`, anonymous execute: `false`.
@@ -44,11 +44,13 @@ The frozen Inbox remains exactly 669/669 UIDs, UIDVALIDITY 1, high-water 685 and
 - Live scoped planner positive probe: HTTP 200 with requirements/bookings; wrong-dealer probe: HTTP 200 with `dealer_scope_denied`; old planner endpoint: HTTP 403; direct intake table: HTTP 403.
 - Live Stage-A RPC: HTTP 200; Stock 13017855 workflow `114/114`, complete; VIN/Job Card `confirmed`.
 - Live Sublet cross-check: 13080534 email active count `1`, Stage-A status `active`.
-- Focused historical/security/783-787 Python suite: `24/24` passed.
+- Live authenticated malformed historical RPC probe: HTTP 200 with `{ok:false,code:unauthorized}`; no receipt or observation side effect.
+- Live Python/PostgreSQL canonical request bytes for frozen UID `1:21`: equal, 3,667 UTF-8 bytes, SHA-256 `fd784959b016976994087545866e346f01b6f05e1e0faf8627bda25ed9e84550`.
+- Focused historical/security/783-788 Python suite: `29/29` passed.
 - Full local website suite: `npm run test` `229 passed, 0 failed, 1 skipped`.
 - Full local check: `npm run check` `229 passed, 0 failed, 1 skipped`.
-- PostgreSQL parsing: 783 `15` statements, 784 `13`, 785 `16`, 786 `17`, 787 `13`.
-- Staging source commit: `13c2f20d6b4d5fb9ceee70a3fa7c8870fcafb70d`.
+- PostgreSQL parsing: 783 `15` statements, 784 `13`, 785 `16`, 786 `17`, 787 `13`, 788 `26`.
+- Staging source commit: pending final source publication after the clean release commit.
 - Staging integrity workflow for that commit: successful.
 - GitHub Pages deployment workflow for that commit: successful.
 - Live cache-busted asset readback contains the scoped planner call, Stage-A `workflowLimit`/`subletAuthority`, and staging `dealerCode` marker.
@@ -56,7 +58,7 @@ The frozen Inbox remains exactly 669/669 UIDs, UIDVALIDITY 1, high-water 685 and
 ## Remaining evidence-only items/blockers
 
 - Historical canonical Apply was not run. A valid first-run/replay/idempotency receipt requires the exact approved Monitor actor token/runtime binding for `sales@broometoyota.com.au`; that token is not present in this profile. No substitute Administrator credential was used, and no mailbox or outbound-email path was opened.
-- The protected Windows monitor task remains deliberately disabled with `LastTaskResult=267014`, `LOCAL SERVICE`, `Limited`, `PT5M`. The installed bootstrap does not accept the required VerifyOnly/StaticOnly parameter and the protected installed runner is not readable by the current user. The candidate `.68` bundle also fails its own canonical-manifest verifier because the local manifest bytes are CRLF rather than the pinned LF serialization. No unverified runtime was installed and no UAC elevation was forced.
+- The protected Windows monitor task remains deliberately disabled with `LastTaskResult=267014`, `LOCAL SERVICE`, `Limited`, `PT5M`. `CURRENT` reads `.68`, but the protected `.68` runner paths are inaccessible/absent for the current user, so VerifyOnly/OneCycle cannot be proven. The clean rebuilt `.68` source bundle passes its canonical inventory verifier; the reviewed elevated installer invocation was cancelled at the UAC boundary. No unverified runtime was installed and no task enablement was requested.
 - Two natural monitor-success cycles and historical receipt replay remain unproven until the exact protected runtime and Monitor actor credential are restored through the reviewed shim. The task stays fail-closed.
 - A separate approved Operator credential was not available in this profile, so the live browser proof is for the approved Administrator actor. The Administrator passed all requested routes; no alternate or unapproved account was used.
 
@@ -72,6 +74,11 @@ The frozen Inbox remains exactly 669/669 UIDs, UIDVALIDITY 1, high-water 685 and
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\supabase\staging_only\20260830182000_785_narrow_authenticated_contracts.sql`
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\supabase\staging_only\20260830183000_786_cycle7_contract_repair.sql`
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\supabase\staging_only\20260830184000_787_cycle7_contract_version_repair.sql`
+- `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\supabase\staging_only\20260830185000_788_canonical_historical_digest_contract.sql`
+- `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\pdc_historical_778_caller.py`
+- `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\pdc_full_inbox_typed_import.py`
+- `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\scripts\apply_migration_788_staging.py`
+- `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\tests\test_historical_canonical_788.py`
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\tests\test_cycle7_integrity_remediation_contract.py`
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\scripts\verify_cycle7_live_browser.py`
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\docs\website-development\AUTONOMOUS-CHANGES-LOG.md`

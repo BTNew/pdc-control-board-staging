@@ -33,6 +33,7 @@ GATEWAY = "pdc-monitor-staging-sales-uid509-v1"
 RELEASE_NAME = "pdc-monitor-staging-m502-2026.08.44"
 RELEASE_SOURCE_SHA = "e850c319989d98b45b95a28aa815d78e2c2e3a4b"
 RELEASE_MANIFEST_SHA256 = "d48b49f6598a99fbef99fc4f0d0ab36b8b47576b8ff7cd8ecd2cb64d6cfed58d"
+CANONICAL_CONTRACT_VERSION = "788.1"
 RPC_NAME = "submit_pdc_historical_reconciliation_778"
 STAGING_HOST = "cdsmnqxtyyoeoznmbidd.supabase.co"
 
@@ -43,6 +44,84 @@ class Historical777Error(RuntimeError):
 
 def _sha256(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def _canonical_field(name: str, value: Any) -> bytes:
+    """Length-prefixed UTF-8 field encoding; None is distinct from empty."""
+    name_bytes = name.encode("utf-8")
+    if value is None:
+        value_bytes = b"-1:"
+    else:
+        value_bytes = str(value).encode("utf-8")
+        value_bytes = str(len(value_bytes)).encode("ascii") + b":" + value_bytes
+    return str(len(name_bytes)).encode("ascii") + b":" + name_bytes + b"=" + value_bytes
+
+
+def _postgres_jsonb_text(value: Any) -> str:
+    """Mirror PostgreSQL jsonb::text ordering/spacing without locale changes."""
+    def ordered(item: Any) -> Any:
+        if isinstance(item, dict):
+            return {key: ordered(item[key]) for key in sorted(item, key=lambda key: (len(key.encode("utf-8")), key.encode("utf-8")))}
+        if isinstance(item, list):
+            return [ordered(child) for child in item]
+        return item
+    return json.dumps(ordered(value), ensure_ascii=False, separators=(", ", ": "))
+
+
+def canonical_request_bytes(request: Mapping[str, Any]) -> bytes:
+    """Build the fixed-order 788 request binding shared with the SQL contract."""
+    source = request["source_metadata"]
+    auth = request["authentication"]
+    parts: list[bytes] = []
+    scalar_fields = [
+        ("contract_version", CANONICAL_CONTRACT_VERSION),
+        ("manifest_sha256", request["manifest_sha256"]),
+        ("manifest_uidvalidity", request["manifest_uidvalidity"]),
+        ("manifest_high_water_uid", request["manifest_high_water_uid"]),
+        ("manifest_uid_count", request["manifest_uid_count"]),
+        ("actor_id", ACTOR_ID), ("actor_email", ACTOR_EMAIL),
+        ("gateway_instance_id", request["gateway_instance_id"]),
+        ("release_name", request["release_name"]),
+        ("release_source_sha", request["release_source_sha"]),
+        ("release_manifest_sha256", request["release_manifest_sha256"]),
+        ("runtime_activation_ready", "true"),
+        ("runtime_writer_active", "true"),
+        ("runtime_task_enabled", "false"),
+        ("runtime_mailbox_contacted", "false"),
+        ("runtime_production_writes", "false"),
+        ("provider_uid", request["provider_uid"]),
+        ("parent_source_hash", request["parent_source_hash"]),
+        ("sender_email", request["sender_email"]),
+        ("stock_number", request["stock_number"]),
+        ("action_type", request["action_type"]),
+        ("evidence_hash", request["evidence_hash"]),
+        ("subject", request["subject"]), ("summary", request["summary"]),
+        ("observations_jsonb", _postgres_jsonb_text(request["observations"])),
+    ]
+    for name, value in scalar_fields:
+        parts.append(_canonical_field(name, value))
+    for name in ("dkim_aligned", "dmarc_aligned", "gmail_authentication_results", "sender_domain", "spf_aligned"):
+        value = auth.get(name)
+        parts.append(_canonical_field(f"authentication.{name}", "true" if value is True else "false" if value is False else value))
+    for name in ("attachment_names", "graph_message_id", "internet_message_id", "parsed_text", "provider_authserv_id", "raw_body", "received_at", "recipient_mailbox", "sender_name", "uid", "uidvalidity"):
+        value = source.get(name)
+        if name == "attachment_names":
+            for index, item in enumerate(value, 1):
+                parts.append(_canonical_field(f"source.attachment_names[{index}]", item))
+        else:
+            parts.append(_canonical_field(f"source.{name}", value))
+    for index, item in enumerate(request["attachment_manifest"], 1):
+        for name in ("attachment_kind", "content_type", "filename", "ordinal", "sha256", "size"):
+            parts.append(_canonical_field(f"attachment[{index}].{name}", item[name]))
+    for index, child in enumerate(request["job_card_children"], 1):
+        for name in ("attachment_hash", "attachment_kind", "attachment_ordinal", "extraction_hash"):
+            parts.append(_canonical_field(f"child[{index}].{name}", child[name]))
+        parts.append(_canonical_field(f"child[{index}].extraction_jsonb", _postgres_jsonb_text(child["extraction"])))
+    return b"".join(parts)
+
+
+def canonical_request_digest(request: Mapping[str, Any]) -> str:
+    return _sha256(canonical_request_bytes(request))
 
 
 def _required(row: Mapping[str, Any], key: str) -> Any:
@@ -148,7 +227,7 @@ def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
     attachment_names = [item["filename"] for item in manifest]
     if source and source.get("attachment_names") not in (None, attachment_names):
         raise Historical777Error("historical attachment name manifest mismatch")
-    return {
+    request = {
         "manifest_sha256": MANIFEST_SHA256,
         "manifest_uidvalidity": MANIFEST_UIDVALIDITY,
         "manifest_high_water_uid": MANIFEST_HIGH_WATER_UID,
@@ -171,6 +250,8 @@ def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
         "attachment_manifest": manifest,
         "job_card_children": children,
     }
+    request["canonical_request_utf8"] = canonical_request_bytes(request).decode("utf-8")
+    return request
 
 
 def _staging_url(value: str) -> str:
@@ -199,7 +280,7 @@ def _jwt_claims(token: str) -> Mapping[str, Any]:
 def invoke_historical_rpc(request: Mapping[str, Any], *, url: str, anon_key: str, actor_token: str) -> dict[str, Any]:
     """Invoke only the dedicated authenticated staging RPC."""
     _jwt_claims(actor_token)
-    body = json.dumps(dict(request), separators=(",", ":"), allow_nan=False).encode("utf-8")
+    body = json.dumps({"p_request": dict(request)}, separators=(",", ":"), allow_nan=False).encode("utf-8")
     http_request = urllib.request.Request(
         f"{_staging_url(url)}/rest/v1/rpc/{RPC_NAME}", data=body, method="POST",
         headers={"apikey": anon_key, "Authorization": f"Bearer {actor_token}", "Content-Type": "application/json"},
@@ -232,8 +313,8 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
     for row in select_authorized_rows(rows):
         request = build_historical_request(row)
         provider_uid = request["provider_uid"]
-        request_json = json.dumps(request, sort_keys=True, separators=(",", ":"))
-        request_hash = _sha256(request_json.encode())
+        request_json = json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        request_hash = canonical_request_digest(request)
         outbox.execute("insert into historical_778_outbox(provider_uid,request_json,request_sha256,state,created_at) values(?,?,?,?,datetime('now'))", (provider_uid, request_json, request_hash, "pending"))
         outbox.commit()
         response = rpc_call(request)
