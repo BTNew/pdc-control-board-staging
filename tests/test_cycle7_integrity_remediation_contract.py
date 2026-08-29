@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 M783 = ROOT / "supabase/staging_only/20260830180000_783_historical_observation_digest_repair.sql"
 M784 = ROOT / "supabase/staging_only/20260830181000_784_stage_a_integrity_projection.sql"
 M785 = ROOT / "supabase/staging_only/20260830182000_785_narrow_authenticated_contracts.sql"
+M786 = ROOT / "supabase/staging_only/20260830183000_786_cycle7_contract_repair.sql"
 
 class Cycle7IntegrityContractTests(unittest.TestCase):
     @classmethod
@@ -13,6 +14,7 @@ class Cycle7IntegrityContractTests(unittest.TestCase):
         cls.m783 = M783.read_text(encoding="utf-8").lower()
         cls.m784 = M784.read_text(encoding="utf-8").lower()
         cls.m785 = M785.read_text(encoding="utf-8").lower()
+        cls.m786 = M786.read_text(encoding="utf-8").lower()
 
     def test_migrations_parse_and_are_append_only(self):
         self.assertEqual(len(parse_sql(M783.read_text(encoding="utf-8"))), 15)
@@ -44,6 +46,12 @@ class Cycle7IntegrityContractTests(unittest.TestCase):
         self.assertNotIn("grant execute on function public.get_vehicle_workshop_detail_scoped(uuid,text) to anon", self.m785)
         app = (ROOT / "app.js").read_text(encoding="utf-8").lower()
         self.assertIn("rpc/get_vehicle_workshop_detail_scoped", app)
+
+    def test_post_review_contract_repair_seals_observations_and_old_rpc(self):
+        self.assertEqual(len(parse_sql(M786.read_text(encoding="utf-8"))), 17)
+        for marker in ("values('778.1',v_authz.authorization_id", "request_sha256,observation_sha256", "pdc_historical_observation_sha256_unique_786", "alter column observation_sha256 set not null", "revoke all on function public.get_vehicle_workshop_detail(uuid)", "get_vehicle_workshop_detail_scoped(uuid,text)", "pdc_786_historical_postcondition_failed"):
+            self.assertIn(marker, self.m786)
+        self.assertNotIn("grant execute on function public.get_vehicle_workshop_detail(uuid) to authenticated", self.m786)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
