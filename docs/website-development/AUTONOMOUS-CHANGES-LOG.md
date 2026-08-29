@@ -348,3 +348,11 @@
 - The migration is staging-only, append-only, forced-RLS for new control/history tables, authenticated-only for new functions, and preserves the existing mailbox, UID514, canonical receipt, outbound-disabled, and Production-exclusion boundaries.
 - No Production endpoint, branch, database, mailbox flags, outbound email, or Scheduled Task enablement was used during implementation or verification.
 - Dashboard association remains `20260828_191153_4fb787`.
+
+## 2026-08-30 — QC-only mobile queue and authenticated QC Fix Required rejection
+
+- Scope: STAGING only, dashboard `20260828_161016_aa9508`; supplied layout screenshot was inspected and no QC finalization or external email was performed. Production remained untouched.
+- Root cause: the deployed QC queue used location-only filtering, so an authoritative QC row with 0/5 operation completion appeared beside the recovered vehicle; mobile chrome also exposed unrelated explanatory/navigation content. Customer projection was not surfaced in QC cards and no vehicle-level authenticated QC-fix transition existed.
+- Fix: QC queue now requires authoritative QC projection plus complete active operation lines or an explicit QC-fix state; cards show canonical customer name and truthful status. Mobile QC content contains only the QC queue/detail surface. Detail exposes confirmed `Reject / QC Fix Required`, requiring a concise reason and exact UUID/Stock/version/idempotency-bound authenticated staging RPC.
+- Backend: append-only 767 successor adds immutable receipt/history, approved operator/administrator guard, exact Stock binding, stale-version and replay protection, PMB `workshop_status='stoppage'`, `pmb_stoppage_reason`, `Pending QC fixes` snapshot projection and no-notification postcondition. Existing 766 monitor migration was preserved when a concurrent worker advanced the live head.
+- Verification: local static/service contracts and responsive mobile browser rejection harness passed at 360/390/768px with unrelated 13016925 excluded, customer displayed, reason-required confirmation, one reject dispatch, queue removal, no page errors or external requests. Migration 767 applied with zero receipt rows and Stock `13000769` unchanged at QC; 17 completed lines, fresh cycle, valid existing photo receipt, no sign-off/bookings/outbox/drafts, 746 receipt/fence intact and Production sentinel absent.

@@ -5018,6 +5018,7 @@ const qcPageSignoffInFlight = new Set();
 const qcPagePhotoUploadInFlight = new Set();
 const qcPageOperationPending = new Map();
 const qcPageFeedback = new Map();
+const qcPageRejectInFlight = new Set();
 let qcPageOperationMutationChain = Promise.resolve();
 let qcPageNotice = '';
 let qcSelectedVehicleKey = '';
@@ -5030,9 +5031,18 @@ function qcPagePendingKey(key = '', lineIdentity = '') {
   return `${String(key || '').trim()}::${String(lineIdentity || '').trim()}`;
 }
 
+function qcPageVehicleIsEligible(vehicle = {}) {
+  if (vehicle.__emailVehicleServerAuthoritative !== true || typeof vehicleInQualityControlGate !== 'function' || !vehicleInQualityControlGate(vehicle) || vehicle.pdcQcComplete === true) return false;
+  if (vehicle.pdcQcOperationLinesProjectionPresent !== true) return false;
+  const lines = qcPageOperationLines(vehicle);
+  const allComplete = lines.length > 0 && lines.every(line => line.completed === true);
+  const pendingQcFix = vehicle.pdcQcFixRequired === true && vehicle.pdcQcFixStatus === 'Pending QC fixes';
+  return allComplete || pendingQcFix;
+}
+
 function qcPageVehicles() {
   const rows = typeof pdcSheetVehicles === 'function' ? pdcSheetVehicles() : [];
-  return rows.filter(vehicle => typeof vehicleInQualityControlGate === 'function' && vehicleInQualityControlGate(vehicle));
+  return rows.filter(qcPageVehicleIsEligible);
 }
 
 function qcPageVehicleKey(vehicle = {}) {
@@ -5091,10 +5101,11 @@ function qcPageVehicleCardHtml(vehicle = {}, selected = false) {
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || 'No salesperson';
   const allComplete = qcPageAllOperationLinesComplete(vehicle);
+  const status = vehicle.pdcQcFixStatus === 'Pending QC fixes' ? 'Pending QC fixes' : allComplete ? 'Ready to sign off' : 'Work incomplete';
   return `<button class="qc-vehicle-card ${selected ? 'is-selected' : ''} ${allComplete ? 'is-ready' : 'needs-work'}" type="button" data-qc-open-vehicle="${escapeHtml(key)}" data-qc-vehicle-key="${escapeHtml(key)}" aria-pressed="${selected ? 'true' : 'false'}">
-    <span class="qc-vehicle-card-top"><strong>${escapeHtml(stock)}</strong><span class="qc-status-pill ${allComplete ? 'is-green' : 'is-warning'}">${allComplete ? 'Ready to sign off' : 'Work incomplete'}</span></span>
+    <span class="qc-vehicle-card-top"><strong>${escapeHtml(stock)}</strong><span class="qc-status-pill ${allComplete ? 'is-green' : 'is-warning'}">${escapeHtml(status)}</span></span>
     <span class="qc-vehicle-card-unit">${escapeHtml(unit)}</span>
-    <span class="qc-vehicle-card-meta"><span>${escapeHtml(vehicleKeyNumber(vehicle) || 'No key')}</span><span>${escapeHtml(consultant)}</span></span>
+    <span class="qc-vehicle-card-meta"><span>${escapeHtml(vehicleCustomerName(vehicle) || vehicle.customerName || 'Customer unavailable')}</span><span>${escapeHtml(vehicleKeyNumber(vehicle) || 'No key')}</span><span>${escapeHtml(consultant)}</span></span>
   </button>`;
 }
 
@@ -5154,6 +5165,7 @@ function qcPageDetailHtml(vehicle = {}) {
   const photoDisabledReason = qcPagePhotoDisabledReason(vehicle, key);
   const feedback = qcPageFeedback.get(key);
   const photoBusy = qcPagePhotoUploadInFlight.has(key);
+  const rejectBusy = qcPageRejectInFlight.has(key);
   return `<section class="qc-detail-card" aria-labelledby="qc-detail-title">
     <header class="qc-detail-header">
       <div><button class="small-button qc-mobile-back" type="button" data-qc-back-to-list>← QC vehicles</button><span class="eyebrow">Selected vehicle</span><h3 id="qc-detail-title">${escapeHtml(stock)}</h3><p>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')} · ${escapeHtml(consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || 'No salesperson')}</p></div>
@@ -5169,6 +5181,7 @@ function qcPageDetailHtml(vehicle = {}) {
       ${photo?.url ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url)}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${photoValid ? `${escapeHtml(photo.originalFilename || 'Stored image')} · ${escapeHtml(String(photo.originalByteLength || photo.original_byte_length || 0))} → ${escapeHtml(String(photo.byteLength || photo.byte_length || 0))} bytes · ${escapeHtml(String(photo.imageWidth || photo.image_width || 0))}×${escapeHtml(String(photo.imageHeight || photo.image_height || 0))} · SHA-256 ${escapeHtml(photo.sha256 || '')}` : `${escapeHtml(photo.originalFilename || 'Selected image')} · Selected image; receipt validation is pending.`}</span></div>` : '<div class="qc-photo-empty">No stored completion photo</div>'}
       ${photo && !photoValid && photo.status !== 'uploading' ? `<button class="small-button qc-photo-clear" type="button" data-qc-photo-clear="${escapeHtml(key)}">Clear / choose another</button>` : ''}
       </div>
+      <div class="qc-detail-actions"><button class="small-button qc-reject-action" type="button" data-qc-reject="${escapeHtml(key)}" ${rejectBusy ? 'disabled' : ''}>${rejectBusy ? 'Rejecting…' : 'Reject / QC Fix Required'}</button></div>
       <div class="qc-signoff-bar"><span class="qc-signoff-note" role="status">${signoffReady ? 'Photo stored. Final sign-off records QC evidence and moves the vehicle to RFT. No salesperson email or dealer-transit timer starts until explicit RFT Booked.' : allComplete ? 'Store a completion photo before final sign-off.' : 'Every active operation line must be complete before final sign-off.'}</span>${signoffReady ? `<button class="primary" type="button" data-qc-signoff="${escapeHtml(key)}" ${qcPageSignoffInFlight.has(key) ? 'disabled' : ''}>${qcPageSignoffInFlight.has(key) ? 'Signing off…' : 'Sign off QC → RFT'}</button>` : ''}</div>
   </section>`;
 }
@@ -5343,6 +5356,45 @@ function qcPageClearInvalidPhoto(key = '') {
   return true;
 }
 
+async function qcPageRejectVehicle(key = '') {
+  const cleanKey = String(key || '').trim();
+  if (!cleanKey || qcPageRejectInFlight.has(cleanKey)) return false;
+  const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
+  const service = app.emailVehicleLocationService;
+  if (!vehicle || vehicle.__emailVehicleServerAuthoritative !== true || typeof service?.rejectQcVehicleToPmb !== 'function') {
+    qcPageFeedback.set(cleanKey, { kind: 'error', message: 'QC rejection requires the authenticated staging service. Nothing was changed.' });
+    renderQualityControlPage();
+    return false;
+  }
+  const reason = String(window.prompt('Concise QC Fix Required reason (damage or incomplete work):', '') || '').trim().replace(/\s+/g, ' ');
+  if (reason.length < 3 || reason.length > 240) {
+    qcPageFeedback.set(cleanKey, { kind: 'error', message: 'Enter a concise QC rejection reason between 3 and 240 characters.' });
+    renderQualityControlPage();
+    return false;
+  }
+  const stock = displayStockNumber(vehicle) || cleanKey;
+  const customer = vehicleCustomerName(vehicle) || vehicle.customerName || 'Customer unavailable';
+  if (!window.confirm(`Reject Stock ${stock} for QC fixes?\n\nCustomer: ${customer}\nReason: ${reason}\n\nThis moves the vehicle to PMB Stoppage / Fix First as Pending QC fixes. Physical QC and repairs are not marked complete.`)) return false;
+  qcPageRejectInFlight.add(cleanKey);
+  qcPageFeedback.set(cleanKey, { kind: 'saving', message: 'Recording the authenticated QC Fix Required receipt…' });
+  renderQualityControlPage();
+  try {
+    const result = await service.rejectQcVehicleToPmb(vehicle.__emailVehicleId, stock, vehicle.__emailVehicleVersion, reason, crypto.randomUUID());
+    if (!result?.ok) {
+      qcPageFeedback.set(cleanKey, { kind: 'error', message: result?.code === 'PDC_766_VEHICLE_VERSION_CONFLICT' ? 'This vehicle changed in another session. Refresh and try again.' : `QC rejection was not recorded (${result?.code || 'unknown_error'}).` });
+      renderQualityControlPage();
+      return false;
+    }
+    qcSelectedVehicleKey = '';
+    qcPageNotice = `Stock ${stock} moved to PMB Stoppage / Fix First as Pending QC fixes. Physical QC and repairs remain incomplete.`;
+    await refreshEmailVehicleLocations();
+    renderQualityControlPage();
+    return true;
+  } finally {
+    qcPageRejectInFlight.delete(cleanKey);
+  }
+}
+
 function renderQualityControlPage() {
   const host = $('#qc-page-host');
   if (!host) return;
@@ -5368,6 +5420,7 @@ function renderQualityControlPage() {
   }));
   $$('[data-qc-photo]', host).forEach(input => input.addEventListener('change', () => { void qcPageAttachPhoto(input.dataset.qcPhoto, input); }));
   $$('[data-qc-photo-clear]', host).forEach(button => button.addEventListener('click', () => { qcPageClearInvalidPhoto(button.dataset.qcPhotoClear); }));
+  $$('[data-qc-reject]', host).forEach(button => button.addEventListener('click', () => { void qcPageRejectVehicle(button.dataset.qcReject); }));
   $$('[data-qc-signoff]', host).forEach(button => button.addEventListener('click', () => { void qcPageSignoff(button.dataset.qcSignoff); }));
 }
 
@@ -5603,7 +5656,7 @@ function workflowPriorityRows() {
     });
   pmbRows
     .filter(isPdcBlocked)
-    .forEach(vehicle => issueRows.push({ vehicle, label: 'PMB STOPPAGE', severity: 'danger', stoppageKind: 'pmb', detail: pdcBlockReason(vehicle) }));
+    .forEach(vehicle => issueRows.push({ vehicle, label: vehicle.pdcQcFixStatus === 'Pending QC fixes' ? 'Pending QC fixes' : 'PMB STOPPAGE', severity: 'danger', stoppageKind: 'pmb', detail: pdcBlockReason(vehicle) }));
   const seen = new Set();
   return issueRows.filter(row => {
     const key = `${vehicleKey(row.vehicle)}:${row.label}`;
