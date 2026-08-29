@@ -100,6 +100,7 @@ def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
         if kind in ("job_card", "ambiguous_job_card"):
             children.append({
                 "attachment_hash": digest,
+                "attachment_ordinal": int(attachment.get("ordinal", len(manifest))),
                 "extraction_hash": str(attachment.get("extraction_hash", "")).lower(),
                 "extraction": evidence if isinstance(evidence, Mapping) else {},
                 "attachment_kind": kind,

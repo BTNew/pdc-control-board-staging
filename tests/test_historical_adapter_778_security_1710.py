@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION = ROOT / "supabase/staging_only/20260830171000_778_historical_reconciliation_security_successor.sql"
+MIGRATION = ROOT / "supabase/staging_only/20260830172000_778_historical_reconciliation_receipt_and_occurrence_repair.sql"
 CALLER = ROOT / "pdc_historical_778_caller.py"
 
 
@@ -15,8 +15,8 @@ class HistoricalAdapter778Security1710Tests(unittest.TestCase):
 
     def test_append_only_live_predecessor_and_security_binding(self):
         for token in (
-            "20260830170000", "778_historical_reconciliation_enqueue_adapter",
-            "20260830171000", "pdc_monitor_staging_guard()",
+            "20260830171000", "778_historical_reconciliation_security_successor",
+            "20260830172000", "pdc_monitor_staging_guard()",
             "pdc_monitor_authenticated_active_scope_674",
             "verify_pdc_monitor_runtime_binding_authenticated_766",
             "pdc-monitor-staging-m502-2026.08.44",
@@ -49,6 +49,9 @@ class HistoricalAdapter778Security1710Tests(unittest.TestCase):
             "historical_fail_closed", "navision_not_found",
             "import_pdc_jobcard_attachment_canonical", "historical_child_atomic_failure",
             "historical_reconciliation_partial", "no_booking", "no_completion", "no_location_mutation",
+            "read_pdc_historical_reconciliation_778_receipt", "PDC_778_1720_POSTCONDITION_FAILED",
+            "v_receipt_id uuid:=gen_random_uuid()", "PDC_778_PARENT_FALSE_RESULT",
+            "historical_child_occurrence_mismatch", "receipt_id,contract_version",
         ):
             self.assertIn(token, self.sql)
         self.assertNotIn("insert into public.workshop", self.sql)
@@ -96,6 +99,7 @@ class HistoricalCaller778SecurityTests(unittest.TestCase):
                     "gateway_instance_id", "release_name", "release_source_sha", "release_manifest_sha256"):
             self.assertIn(key, request)
         self.assertEqual(request["job_card_children"][0]["attachment_hash"], "c" * 64)
+        self.assertEqual(request["job_card_children"][0]["attachment_ordinal"], 2)
         self.assertNotIn("intake_id", request)
         self.assertNotIn("attachment_id", json.dumps(request))
 

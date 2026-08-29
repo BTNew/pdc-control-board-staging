@@ -15,6 +15,10 @@ The current staging RPC is:
 
 `public.submit_pdc_historical_reconciliation_778(jsonb)`
 
+The current staging ledger head is `20260830172000 / 778_historical_reconciliation_receipt_and_occurrence_repair`. Successful results return a receipt ID and can be read back only by the exact Monitor actor through:
+
+`public.read_pdc_historical_reconciliation_778_receipt(uuid)`
+
 The source-side caller must use `pdc_historical_778_caller.py` and a new outbox path. It must not rescan IMAP, call the normal monitor, alter flags, or reuse an outbox:
 
 ```text
@@ -28,7 +32,7 @@ The rows export is a local artifact produced from the existing frozen checkpoint
 - exact `source_metadata` keys: `attachment_names`, `graph_message_id`, `internet_message_id`, `parsed_text`, `provider_authserv_id`, `raw_body`, `received_at`, `recipient_mailbox`, `sender_name`, `uid`, `uidvalidity`;
 - `attachments`, each with `filename`, `sha256`, `size`, `content_type`, and optional frozen evidence classification.
 
-For each genuine Job Card sibling, include one child with exactly `attachment_hash`, `attachment_kind=job_card`, `extraction`, and `extraction_hash`. For an ambiguous/multi-vehicle Job Card sibling, include `attachment_kind=ambiguous_job_card`; it is recorded as failed closed and does not block independent valid siblings. PO/Pick List siblings remain evidence and are never imported as Job Cards.
+For each genuine Job Card sibling, include one child with exactly `attachment_hash`, `attachment_kind=job_card`, `attachment_ordinal`, `extraction`, and `extraction_hash`. The ordinal must identify the same PDF occurrence as the attachment hash. For an ambiguous/multi-vehicle Job Card sibling, include `attachment_kind=ambiguous_job_card`; it is recorded as failed closed and does not block independent valid siblings. PO/Pick List siblings remain evidence and are never imported as Job Cards.
 
 The caller adds these exact runtime fields to every request:
 
