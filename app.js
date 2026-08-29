@@ -24674,7 +24674,7 @@ function renderSubletHome() {
     return compareSubletBookingProximity(a, b, sortReference);
   });
   const unbooked = allRows.filter(vehicle => !plainDateValue(vehicle.pmbSubletBookingDate)).length;
-  const booked = allRows.length - unbooked;
+  const booked = allRows.filter(vehicle => subletBookingState(vehicle) === 'booked').length;
   const count = $('#sublet-summary');
   if (count) count.textContent = `${rows.length} shown · ${unbooked} to book · ${booked} booked`;
   if (app.subletViewMode === 'calendar') {

@@ -15,6 +15,7 @@ const castRepair = fs.readFileSync(path.join(root, 'supabase/staging_only/202608
 assert(app.includes('canonicalSubletBooking'), 'Vehicle Locations must consume canonical Sublet bookings');
 assert(app.includes('incoming-card-sublet'), 'Vehicle Locations card must render the Sublet pill');
 assert(app.includes('incoming-sublet-booking-detail'), 'Vehicle Locations card must render canonical Sublet detail');
+assert(app.includes("allRows.filter(vehicle => subletBookingState(vehicle) === 'booked')"), 'Sublet summary must exclude cancelled-only rows from booked count');
 assert(styles.includes('.incoming-card-sublet'), 'Vehicle Locations Sublet pill must have compact card styling');
 assert(service.includes("PDC_SUBLET_AUDIT_READ_RPC = 'get_pdc_sublet_audit_ledgers'"), 'service must expose the exact Sublet ledger RPC');
 assert(service.includes('readSubletAuditLedgers'), 'service must expose the authenticated ledger read bridge');
