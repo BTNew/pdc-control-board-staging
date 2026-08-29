@@ -339,3 +339,12 @@
 - Natural scheduler proof: the existing `PDC-PMB-Email-Monitor-Staging` task was enabled without identity/action/trigger changes and produced **two consecutive genuine PT5M scheduled runs**, both `LastTaskResult=0`; final task state Ready, `LOCAL SERVICE`, Limited/ServiceAccount, `PT5M`. Fresh status/processor receipts report `.66`, cycle complete, mailbox contacted, processor failures `0`, UID514 false and Production false.
 - Final DB readback: head `20260830040000/765_authenticated_exact_claim_floor_640_successor`, floor `640`, one active mailbox, one active writer, pilot/automatic/outbound flags false, UID514 row preserved, Production sentinel absent.
 - Verification: development `npm run test` and `npm run check` each passed `227`, failed `0`, skipped `1`; focused contracts and syntax/diff checks passed. No secrets were printed, copied or written to source/log.
+
+## 2026-08-29 — current-head email monitor compatibility successor
+
+- Added staging-only migration `20260830050000_766_monitor_current_head_compatibility.sql`.
+- Added the exact current-head 766 runtime attestation and authenticated claim-bound provider-observation wrapper. The wrapper delegates observation insertion/idempotency to the existing canonical RPC and the runtime continues through `claim_pdc_email_intake_authenticated_exact_732` and `process_claimed_pdc_email_intake_work`.
+- Added the guarded `.66 -> .68` external-control builder, static verifier, current-head preflight, JWT refresh adapter, VerifyOnly/OneCycle dispatch, elevated installer, and live migration readback.
+- The migration is staging-only, append-only, forced-RLS for new control/history tables, authenticated-only for new functions, and preserves the existing mailbox, UID514, canonical receipt, outbound-disabled, and Production-exclusion boundaries.
+- No Production endpoint, branch, database, mailbox flags, outbound email, or Scheduled Task enablement was used during implementation or verification.
+- Dashboard association remains `20260828_191153_4fb787`.
