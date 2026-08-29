@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-30 — Stock 13080534 canonical Sublet projection closure
+
+- Reconciled the exact live staging successor `20260830081000 / stock_13017855_restore_navision_parity_successor` before adding the staging-only `20260830090000_sublet_auditor_read_ledger` authenticated, exact UUID/Stock/Job Card, dealer-scoped read RPC for Sublet instances, immutable booking history and email-update receipts. Direct SELECT on all three ledgers remains denied; no projection-repair RPC was added.
+- `pdc-email-vehicle-location-service.js` now derives Sublet required/incomplete state from active canonical multi-provider bookings, required/complete state from returned bookings, and no requirement from cancelled-only rows. `app.js` renders the canonical provider/date/status pill and detail on Vehicle Locations cards. `test_sublet_projection.js` and `test_sublet_projection_contract.js` cover the exact target and read boundary.
+- Live staging migration application verified the exact sentinel/predecessor, RPC catalog, authenticated execute grant and denied direct ledger SELECT. The closure is projection-only: vehicle version 11, work item `sublet required=false`, and the single booking were not mutated. Production was not contacted or mutated; no booking or email operation was performed.
+
 ## 2026-08-30 — Workshop Admin-block calendar continuation audit 771
 
 - Reconciled the PMB Auditor's verified planner repair onto the current staging/main source without importing unrelated Auditor worktree changes. Admin blocks now render one segment per configured working window in daily and weekly views, show explicit continuation/total-hour markers, preserve small-block geometry, and keep the planner header/status controls wrapped at narrow widths.

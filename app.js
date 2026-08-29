@@ -7500,6 +7500,16 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const stage = inferredPmbStage(vehicle);
   const rowStatus = incomingGridStatusLabel(vehicle, bucketKey);
   const subletProvider = pmbBaySubletProvider(vehicle);
+  const canonicalSubletBooking = (Array.isArray(vehicle.pdcSubletBookings) ? vehicle.pdcSubletBookings : [])
+    .filter(booking => ['active', 'returned'].includes(String(booking?.status || '')))
+    .sort((a, b) => String(a?.outDate || '').localeCompare(String(b?.outDate || '')))[0] || null;
+  const canonicalSubletStatus = canonicalSubletBooking?.status === 'returned' ? 'Returned' : 'Booked';
+  const canonicalSubletPill = canonicalSubletBooking
+    ? `<span class="incoming-card-sublet"><b>Sublet</b><span class="sublet-status-pill is-${canonicalSubletBooking.status === 'returned' ? 'returned' : 'booked'}">${escapeHtml(canonicalSubletStatus)}</span></span>`
+    : '';
+  const canonicalSubletDetail = canonicalSubletBooking
+    ? `<div class="wide incoming-sublet-booking-detail"><b>Sublet booking</b><span><strong>${escapeHtml(canonicalSubletBooking.provider || 'Provider not assigned')}</strong> · ${escapeHtml(canonicalSubletBooking.outDate || 'Date not set')} → ${escapeHtml(canonicalSubletBooking.expectedReturnDate || 'Return date not set')} · <span class="sublet-status-pill is-${canonicalSubletBooking.status === 'returned' ? 'returned' : 'booked'}">${escapeHtml(canonicalSubletStatus)}</span></span></div>`
+    : '';
   const subletProviderField = !locationReadOnly && bucketKey === 'pmb' && stage === 'SUBLET'
     ? `<div class="wide incoming-sublet-provider"><b>Sublet provider</b><span><select data-pmb-bay-provider-key="${escapeHtml(key)}" data-pmb-bay-provider-stage="SUBLET" aria-label="Sublet provider for ${escapeHtml(stock)}">${subletProviderOptionsHtml(subletProvider)}</select></span></div>`
     : '';
@@ -7545,7 +7555,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
       <summary class="incoming-vehicle-summary pdc-production-grid-row">
         ${selectBox}
         <span class="incoming-card-stock">${identitySummary}</span>
-        <span class="incoming-card-main"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong></span>
+        <span class="incoming-card-main"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong>${canonicalSubletPill}</span>
         ${isRftRow
           ? `<span class="rft-row-controls-slot">${rftControls}</span>`
           : `<span class="incoming-card-work-wrap">${workChecks}</span>
@@ -7560,6 +7570,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ${isRftRow ? '' : `<div><b>Age</b><span>${escapeHtml(age)}</span></div>`}
         <div><b>Bucket</b><span>${escapeHtml(incomingBucketLabel(bucketKey))}</span></div>
         ${risk && !isRftRow ? `<div class="wide parts-risk-detail"><b>PARTS RISK</b><span>Parts ETA ${escapeHtml(partsWorstEtaLabel(vehicle))} is later than Kewdale ETA ${escapeHtml(kewdaleEtaValue(vehicle))}</span></div>` : ''}
+        ${canonicalSubletDetail}
         ${subletProviderField}
         ${isRftRow ? '' : authenticatedEmailOperationLinesHtml(vehicle)}
       </div>

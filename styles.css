@@ -7434,6 +7434,9 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .incoming-card-main { min-width: 0; display: grid; gap: 1px; }
 .incoming-card-main strong { font-size: .9rem; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .incoming-card-main small { color: #64748b; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.incoming-card-sublet { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 100%; color: #475569; font-size: .64rem; font-weight: 850; white-space: nowrap; }
+.incoming-card-sublet b { color: #334155; font-size: .62rem; letter-spacing: .03em; text-transform: uppercase; }
+.incoming-card-sublet .sublet-status-pill { font-size: .6rem; line-height: 1.2; padding: 2px 5px; }
 .incoming-card-work-wrap { min-width: 0; overflow: hidden; }
 .incoming-work-checks {
   display: flex;

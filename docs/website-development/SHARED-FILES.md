@@ -1,5 +1,12 @@
 # Shared Files
 
+## Stock 13080534 canonical Sublet projection closure — 2026-08-30
+
+- `app.js`, `pdc-email-vehicle-location-service.js` — canonical multi-provider Sublet requirement mapping, Vehicle Locations booking pill/detail, and exact authenticated ledger-read client bridge.
+- `supabase/staging_only/20260830090000_sublet_auditor_read_ledger.sql` — staging-only exact UUID/Stock/Job Card, dealer-scoped read RPC for Sublet instance/history/receipt ledgers; direct table SELECT remains denied and no repair mutation is included.
+- `scripts/apply_migration_900_staging.py` — shared-lock, exact-live-predecessor, sentinel and Production-blocked installer with post-apply catalog/ACL proof.
+- `test_sublet_projection.js`, `test_sublet_projection_contract.js` — active/returned/cancelled-only mapper regression and SQL/service/card boundary contracts.
+
 ## Workshop Admin-block calendar continuation audit 771 — 2026-08-30
 
 - `workshop-planner.js`, `workshop-planner.css` — configured-calendar daily/weekly Admin-block continuation projection, explicit total/continuation labels, and wrapped compact planner controls.
