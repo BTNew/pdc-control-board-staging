@@ -1,5 +1,11 @@
 # Shared Files
 
+## Navision preflight and SQLSTATE 23514 repair — 2026-08-30
+
+- `app.js` — client-side deterministic candidate preflight, Stock/field/reason preview labels, actionable domain-error translation and preserved no-localStorage shared apply path.
+- `supabase/staging_only/20260830072000_navision_import_preflight_contract.sql` — server-side duplicate identity/status/date/location classification and parity-safe linked-source projection refresh; atomic apply, RLS and existing constraint trigger remain authoritative.
+- `test_navision_import_preflight_768.js`, `tests/test_navision_import_preflight_769_contract.py` — exact Stock `13080534` duplicate fixture, invalid field, wrong dealer, valid sibling, atomic, replay, security and browser-local authority regressions.
+
 ## Sublet Calendar Month clean-session default — 2026-08-30
 
 - `app.js`, `index.html` — Calendar → Month clean-session defaults and matching initial control state; existing explicit view controls and authoritative booking/calendar render paths are unchanged.
