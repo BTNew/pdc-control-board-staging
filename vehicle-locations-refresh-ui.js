@@ -13,25 +13,28 @@
     }
   }
 
-  function createRefreshClickDelegation(options = {}) {
+  function createOperationalRefreshClickDelegation(options = {}) {
     const root = options.root;
     const refresh = typeof options.refresh === 'function' ? options.refresh : () => ({ ok: false, error: 'refresh_unavailable' });
     const onStart = typeof options.onStart === 'function' ? options.onStart : () => {};
     const onResult = typeof options.onResult === 'function' ? options.onResult : () => {};
     let bound = false;
     let inFlight = null;
+    let inFlightRoute = '';
 
     function handleClick(event) {
-      const button = event.target?.closest?.('[data-vehicle-locations-refresh]');
+      const button = event.target?.closest?.('[data-pdc-operational-refresh]')
+        || event.target?.closest?.('[data-vehicle-locations-refresh]');
       if (!button || (typeof root?.contains === 'function' && !root.contains(button))) return;
-      if (button.disabled || inFlight) return;
+      const route = button.dataset?.pdcRefreshRoute || 'dashboard';
+      if (button.disabled || (inFlight && inFlightRoute === route)) return;
       event.preventDefault();
       event.stopPropagation();
       setButtonBusy(button, true);
       onStart(button);
       let request;
       try {
-        request = refresh();
+        request = refresh(route);
       } catch (error) {
         request = Promise.reject(error);
       }
@@ -51,6 +54,7 @@
           setButtonBusy(button, false);
         });
       inFlight = promise;
+      inFlightRoute = route;
     }
 
     return {
@@ -65,7 +69,17 @@
     };
   }
 
-  const vehicleLocationsRefreshUiExported = { createRefreshClickDelegation };
+  function createRefreshClickDelegation(options = {}) {
+    return createOperationalRefreshClickDelegation(options);
+  }
+
+  const vehicleLocationsRefreshUiExported = {
+    createOperationalRefreshClickDelegation,
+    createRefreshClickDelegation,
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = vehicleLocationsRefreshUiExported;
-  if (global) global.PDC_VEHICLE_LOCATIONS_REFRESH_UI = vehicleLocationsRefreshUiExported;
+  if (global) {
+    global.PDC_VEHICLE_LOCATIONS_REFRESH_UI = vehicleLocationsRefreshUiExported;
+    global.PDC_OPERATIONAL_REFRESH_UI = vehicleLocationsRefreshUiExported;
+  }
 })(typeof window !== 'undefined' ? window : globalThis);

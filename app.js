@@ -2090,6 +2090,13 @@ const app = {
   vehicleLocationsRefreshDisclosure: null,
   vehicleLocationsRefreshCoordinator: null,
   vehicleLocationsRefreshClickDelegation: null,
+  operationalRefreshClickDelegation: null,
+  operationalRefreshState: 'idle',
+  operationalRefreshRoute: '',
+  operationalRefreshError: '',
+  operationalRefreshResult: null,
+  operationalRefreshDraftConflicts: [],
+  operationalRefreshRestoreState: null,
 };
 
 
@@ -2154,6 +2161,19 @@ function handleVehicleLocationsRefreshClickResult(result) {
 }
 
 function bindVehicleLocationsRefreshClickDelegation() {
+  if (window.PDC_OPERATIONAL_REFRESH_UI?.createOperationalRefreshClickDelegation) {
+    if (app.operationalRefreshClickDelegation) return app.operationalRefreshClickDelegation;
+    const delegation = window.PDC_OPERATIONAL_REFRESH_UI.createOperationalRefreshClickDelegation({
+      root: document,
+      refresh: route => refreshOperationalPage(route),
+      onStart: button => handleOperationalRefreshClickStart(button),
+      onResult: result => handleOperationalRefreshClickResult(result),
+    });
+    delegation.bind();
+    app.operationalRefreshClickDelegation = delegation;
+    app.vehicleLocationsRefreshClickDelegation = delegation;
+    return delegation;
+  }
   if (app.vehicleLocationsRefreshClickDelegation) return app.vehicleLocationsRefreshClickDelegation;
   const root = $('#incoming-main-board') || document;
   const uiFactory = window.PDC_VEHICLE_LOCATIONS_REFRESH_UI?.createRefreshClickDelegation;
@@ -4097,6 +4117,11 @@ function showView(view, options) {
   const plannerStage = WORKSHOP_PLANNER_VIEWS[requestedView] || '';
   const nextView = departmentStage ? 'department' : (plannerStage ? 'workshop' : requestedView);
   const previousRequestedView = app.currentRequestedView || app.currentView || 'dashboard';
+  if (app.currentView && app.currentView !== nextView && app.vehicleLocationsRefreshCoordinator?.isRefreshing?.()) {
+    // A refresh started on another route must become inert before its late
+    // callbacks can repaint the newly selected route or its selected vehicle.
+    invalidateVehicleLocationsRefresh();
+  }
   const previousWasPlanner = previousRequestedView === 'workshop' || Boolean(WORKSHOP_PLANNER_VIEWS[previousRequestedView]);
   const enteringWorkflowBoard = requestedView === 'workflow' && previousRequestedView !== 'workflow';
   const switchingPlannerStation = previousWasPlanner && Boolean(plannerStage) && previousRequestedView !== requestedView;
@@ -4165,6 +4190,7 @@ function showView(view, options) {
     app.frozenHeaderCleanup = null;
   }
   renderActiveView();
+  ensureOperationalRefreshControls();
   if (requestedView === 'backup') configureCrmBackupAuthorityUi();
   if (enteringWorkflowBoard && workshopEligibilitySharedAuthorityEnabled()
       && !['idle', 'loading'].includes(app.workshopEligibilityState)) {
@@ -4236,6 +4262,8 @@ function renderAll() {
   updateSidebarStats();
   populateFilters();
   renderActiveView();
+  ensureOperationalRefreshControls();
+  restoreOperationalRefreshViewState();
   updateNavisionImportButton();
 }
 
@@ -4361,7 +4389,7 @@ function initWorkshopReferenceDataServiceIfAvailable() {
 // wiring, which are already app.js concerns for the rest of the site.
 function initWorkshopSharedServicesIfEnabled() {
   if (typeof workshopSharedModeEnabled !== 'function' || !workshopSharedModeEnabled(window.PDC_SUPABASE_CONFIG)) return;
-  if (!['workshop', 'dashboard'].includes(app.currentView)) return;
+  if (!OPERATIONAL_REFRESH_ROUTES.includes(app.currentView) && app.currentView !== 'dashboard') return;
   // The auth-ready event can fire while the lazy module chain is between
   // workshop-data-service.js and workshop-realtime.js on a slower network.
   // Do not create the data service in that gap: doing so activates the
@@ -16779,42 +16807,212 @@ function vehicleLocationsRefreshRoleCanRead(role = window.PDC_AUTH_CONTEXT?.role
   return ['viewer', 'operator', 'importer', 'administrator'].includes(String(role || '').trim().toLowerCase());
 }
 
-function getVehicleLocationsRefreshCoordinator() {
-  if (app.vehicleLocationsRefreshCoordinator) return app.vehicleLocationsRefreshCoordinator;
-  const factory = window.PDC_VEHICLE_LOCATIONS_REFRESH?.createVehicleLocationsRefreshCoordinator;
-  if (typeof factory !== 'function') return null;
-  app.vehicleLocationsRefreshCoordinator = factory({
-    loaders: {
-      sharedNavision: ({ generation }) => loadSharedNavisionVisibleRows({ force: true, refreshGeneration: generation }),
-      operationalVehicleSnapshot: async ({ generation }) => {
-        initEmailVehicleLocationsIfAvailable({ skipInitialRefresh: true });
-        if (!app.emailVehicleLocationService) return { ok: false, error: 'operational_snapshot_unavailable' };
-        return { ok: await refreshEmailVehicleLocations({ refreshGeneration: generation }) };
-      },
-      workOperationStates: async ({ generation }) => {
-        const service = window.__workshopDataService;
-        if (!service || typeof service.loadSnapshot !== 'function') return { ok: true, skipped: true };
-        const snapshot = await service.loadSnapshot('vehicle_locations_refresh');
-        const state = typeof service.getState === 'function' ? service.getState() : '';
-        const trusted = typeof service.getTrustedSnapshot === 'function' ? service.getTrustedSnapshot() : snapshot;
-        return { ok: Boolean(trusted) && ['connected_editable', 'connected_read_only'].includes(state), snapshot };
-      },
-      receiptOverlays: async () => {
-        const refreshes = [];
-        if (workshopEligibilitySharedAuthorityEnabled()) {
-          if (!app.workshopEligibilityRealtime) workshopEligibilityOverviewSubscribe();
-          if (app.workshopEligibilityRealtime) refreshes.push(loadWorkshopEligibilitySnapshot('vehicle_locations_refresh'));
-        }
-        refreshes.push(refreshWorkshopReferenceData());
-        const results = await Promise.all(refreshes);
-        return { ok: results.every(result => result == null || result.ok !== false), results };
-      },
+const OPERATIONAL_REFRESH_ROUTES = Object.freeze([
+  'dashboard', 'qc', 'workflow', 'workshop', 'visibility', 'tv', 'schedule',
+  'department', 'parts', 'sublet', 'rft', 'completed', 'collected', 'deleted',
+  'backend', 'emailreview', 'ai-auditor',
+]);
+
+function operationalRefreshRouteLabel(route = '') {
+  return ({
+    dashboard: 'Vehicle Locations', qc: 'QC', workflow: 'Control Board', workshop: 'Workshop Planner',
+    visibility: 'Operations', tv: 'PDC TV', schedule: 'Production', department: 'Department',
+    parts: 'Parts', sublet: 'Sublet', rft: 'RFT', completed: 'Completed Vehicles',
+    collected: 'Collected Vehicles', deleted: 'Deleted Vehicles', backend: 'Back End Data',
+    emailreview: 'AI / Email Intake', 'ai-auditor': 'AI Auditor',
+  })[route] || 'Operational page';
+}
+
+function operationalRefreshControlMarkup(route = '') {
+  const currentRoute = String(route || '').trim();
+  const busy = app.operationalRefreshState === 'refreshing' && app.operationalRefreshRoute === currentRoute;
+  const failed = app.operationalRefreshState === 'error' && app.operationalRefreshRoute === currentRoute;
+  const result = app.operationalRefreshResult;
+  const revision = result?.revision || app.emailVehicleLocationRevision || app.sharedNavisionVisibleRevision || window.__workshopDataService?.getLastRevision?.() || '—';
+  const updated = result?.finishedAt ? new Date(result.finishedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }) : '';
+  const draftConflict = Array.isArray(app.operationalRefreshDraftConflicts) && app.operationalRefreshDraftConflicts.length
+    ? ` · ${app.operationalRefreshDraftConflicts[0]}` : '';
+  const message = busy
+    ? 'Refreshing authoritative data…'
+    : failed
+      ? `Refresh incomplete · failed: ${app.operationalRefreshError || 'unknown source'} · retry available`
+      : updated ? `Updated ${updated} · revision ${revision}${draftConflict}` : `Refresh ${operationalRefreshRouteLabel(currentRoute)} data`;
+  return `<span class="pdc-operational-refresh-control${busy ? ' is-refreshing' : ''}${failed ? ' is-error' : ''}" data-pdc-refresh-control data-pdc-refresh-route="${escapeHtml(currentRoute)}" role="group" aria-label="Refresh ${escapeHtml(operationalRefreshRouteLabel(currentRoute))}"${busy ? ' aria-busy="true"' : ''}>
+    <button class="small-button pdc-operational-refresh-button" type="button" data-pdc-operational-refresh data-pdc-refresh-route="${escapeHtml(currentRoute)}"${busy ? ' disabled aria-busy="true"' : ''}>${busy ? 'Refreshing…' : failed ? 'Retry' : 'Refresh'}</button>
+    <span class="pdc-operational-refresh-status" role="status" aria-live="polite">${escapeHtml(message)}</span>
+  </span>`;
+}
+
+function operationalRefreshControlKey(element) {
+  if (!element) return '';
+  if (element.id) return `id:${element.id}`;
+  const data = element.dataset || {};
+  const stable = ['subletKey', 'subletField', 'operationLineId', 'workKey', 'qcOperationCheck', 'qcLineIdentity', 'rftCompletionKey', 'rftCompletionJob']
+    .map(key => data[key] ? `${key}=${data[key]}` : '').filter(Boolean);
+  return `${element.tagName || 'control'}:${stable.join('|')}`;
+}
+
+function operationalRefreshScrollableKey(element, index) {
+  const classes = [...(element?.classList || [])].filter(value => /wrap|scroll|content|board/i.test(value));
+  return `${classes.join('.') || element?.tagName || 'scroll'}:${index}`;
+}
+
+function captureOperationalRefreshViewState(route = app.currentView) {
+  const view = document.getElementById(route) || document.querySelector('.view.active');
+  const controls = [];
+  const elements = [...(view?.querySelectorAll?.('input, textarea, select') || [])];
+  elements.forEach(element => {
+    const value = element.type === 'checkbox' || element.type === 'radio' ? element.checked : element.value;
+    const initial = element.type === 'checkbox' || element.type === 'radio' ? element.defaultChecked : element.defaultValue;
+    if (value === initial && document.activeElement !== element) return;
+    controls.push({ key: operationalRefreshControlKey(element), value, type: element.type, draft: true });
+  });
+  const details = [...(view?.querySelectorAll?.('details') || [])].map((element, index) => ({
+    key: element.dataset.incomingRow ? `row:${element.dataset.incomingRow}` : operationalRefreshScrollableKey(element, index),
+    open: element.open === true,
+  }));
+  const scrollables = [...(view?.querySelectorAll?.('.table-wrap, .sublet-table-wrap, .workshop-timeline-scroll, .pdc-production-grid-scroll, .parts-home-content') || [])]
+    .map((element, index) => ({ key: operationalRefreshScrollableKey(element, index), top: element.scrollTop, left: element.scrollLeft }));
+  const active = document.activeElement;
+  return {
+    route: String(route || ''),
+    scrollY: Number(window.scrollY || document.scrollingElement?.scrollTop || 0),
+    scrollX: Number(window.scrollX || document.scrollingElement?.scrollLeft || 0),
+    activeKey: operationalRefreshControlKey(active),
+    refreshFocused: Boolean(active?.matches?.('[data-pdc-operational-refresh]')),
+    controls,
+    details,
+    scrollables,
+    selectedStock: app.selectedStock,
+    modalIdentity: app.vehicleModalIdentity ? { ...app.vehicleModalIdentity } : null,
+  };
+}
+
+function restoreOperationalRefreshViewState() {
+  const saved = app.operationalRefreshRestoreState;
+  if (!saved || saved.route !== String(app.currentView || '')) return;
+  const view = document.getElementById(saved.route) || document.querySelector('.view.active');
+  const controls = [...(view?.querySelectorAll?.('input, textarea, select') || [])];
+  const byKey = new Map(controls.map(element => [operationalRefreshControlKey(element), element]));
+  const conflicts = [];
+  saved.controls.forEach(item => {
+    const element = byKey.get(item.key);
+    if (!element) return;
+    const current = element.type === 'checkbox' || element.type === 'radio' ? element.checked : element.value;
+    if (current !== item.value) conflicts.push(`${item.key} changed on the server; your draft was preserved for review`);
+    if (element.type === 'checkbox' || element.type === 'radio') element.checked = item.value === true;
+    else element.value = String(item.value ?? '');
+  });
+  [...(view?.querySelectorAll?.('details') || [])].forEach((element, index) => {
+    const key = element.dataset.incomingRow ? `row:${element.dataset.incomingRow}` : operationalRefreshScrollableKey(element, index);
+    const savedDetail = saved.details.find(item => item.key === key);
+    if (savedDetail) element.open = savedDetail.open === true;
+  });
+  [...(view?.querySelectorAll?.('.table-wrap, .sublet-table-wrap, .workshop-timeline-scroll, .pdc-production-grid-scroll, .parts-home-content') || [])]
+    .forEach((element, index) => {
+      const scroll = saved.scrollables.find(item => item.key === operationalRefreshScrollableKey(element, index));
+      if (scroll) { element.scrollTop = scroll.top; element.scrollLeft = scroll.left; }
+    });
+  if (typeof window.scrollTo === 'function') window.scrollTo(saved.scrollX, saved.scrollY);
+  if (conflicts.length) app.operationalRefreshDraftConflicts = [...new Set(conflicts)];
+  if (saved.refreshFocused) {
+    const button = view?.querySelector?.('[data-pdc-operational-refresh]');
+    if (button && typeof button.focus === 'function') button.focus();
+  } else if (saved.activeKey) {
+    const active = byKey.get(saved.activeKey);
+    if (active && typeof active.focus === 'function') active.focus();
+  }
+}
+
+function ensureOperationalRefreshControls() {
+  OPERATIONAL_REFRESH_ROUTES.forEach(route => {
+    const view = document.getElementById(route);
+    if (!view || view.hidden || !view.classList.contains('view')) return;
+    let target = route === 'workshop'
+      ? view.querySelector('.workshop-date-controls')
+      : route === 'dashboard'
+        ? view.querySelector('.incoming-search-panel')
+        : view.querySelector('.panel-header .panel-actions') || view.querySelector('.panel-header');
+    if (!target) target = view.querySelector('.panel') || view;
+    const existing = view.querySelector(`[data-pdc-operational-refresh][data-pdc-refresh-route="${route}"]`);
+    if (existing) {
+      if (route === 'workshop' && target && !target.contains(existing)) target.appendChild(existing.closest('[data-pdc-refresh-control]') || existing);
+      return;
+    }
+    if (target && typeof target.insertAdjacentHTML === 'function') target.insertAdjacentHTML('beforeend', operationalRefreshControlMarkup(route));
+  });
+}
+
+window.__pdcEnsureOperationalRefreshControls = ensureOperationalRefreshControls;
+
+function operationalRefreshCommonLoaders(route) {
+  return {
+    sharedNavision: ({ generation }) => loadSharedNavisionVisibleRows({ force: true, refreshGeneration: generation }),
+    operationalVehicleSnapshot: async ({ generation }) => {
+      initEmailVehicleLocationsIfAvailable({ skipInitialRefresh: true });
+      if (!app.emailVehicleLocationService) return { ok: false, error: 'operational_snapshot_unavailable' };
+      return { ok: await refreshEmailVehicleLocations({ refreshGeneration: generation }) };
     },
-    onStart: generation => {
+    workOperationStates: async () => {
+      if (typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
+      const service = window.__workshopDataService;
+      if (!service || typeof service.loadSnapshot !== 'function') return { ok: true, skipped: true };
+      if (route === 'workshop' && typeof service.setScope === 'function' && typeof workshopState === 'function') {
+        const state = workshopState();
+        const stage = normalizePmbStage(app.activeWorkshopPlannerStage || state.stage || '');
+        const date = cleanNavisionText(state.date || '').match(/^\d{4}-\d{2}-\d{2}$/)?.[0] || new Date().toISOString().slice(0, 10);
+        if (stage) await service.setScope({ stageCode: stage, dateFrom: date, dateTo: date });
+      }
+      const snapshot = route === 'dashboard'
+        ? await service.loadSnapshot('vehicle_locations_refresh')
+        : await service.loadSnapshot(`operational_refresh:${route}`);
+      const state = typeof service.getState === 'function' ? service.getState() : '';
+      const trusted = typeof service.getTrustedSnapshot === 'function' ? service.getTrustedSnapshot() : snapshot;
+      return { ok: Boolean(trusted) && ['connected_editable', 'connected_read_only'].includes(state), snapshot, revision: service.getLastRevision?.() };
+    },
+    routeAuthority: async () => {
+      const refreshes = [];
+      if (['dashboard', 'workflow'].includes(route) && workshopEligibilitySharedAuthorityEnabled()) {
+        if (!app.workshopEligibilityRealtime) workshopEligibilityOverviewSubscribe();
+        if (app.workshopEligibilityRealtime) refreshes.push(route === 'dashboard'
+          ? loadWorkshopEligibilitySnapshot('vehicle_locations_refresh')
+          : loadWorkshopEligibilitySnapshot(`operational_refresh:${route}`));
+      }
+      if (typeof refreshWorkshopReferenceData === 'function') refreshes.push(refreshWorkshopReferenceData());
+      if (route === 'ai-auditor' && typeof loadPdcAuditorSnapshot === 'function') refreshes.push(loadPdcAuditorSnapshot({ force: true }));
+      if (route === 'emailreview' && typeof refreshServerAiIntake === 'function') refreshes.push(refreshServerAiIntake({ silent: true }));
+      const results = await Promise.all(refreshes);
+      return { ok: results.every(result => result == null || result.ok !== false), results };
+    },
+    vehicleDetail: async () => {
+      const vehicle = app.vehicleModalIdentity ? selectedVehicle() : null;
+      if (!vehicle || app.vehicleDetailPage !== 'work' || typeof loadVehicleWorkshopDetail !== 'function') return { ok: true, skipped: true };
+      const detail = await loadVehicleWorkshopDetail(vehicle, { force: true });
+      return { ok: Boolean(detail), error: detail ? '' : 'vehicle_detail_unavailable' };
+    },
+  };
+}
+
+function getOperationalRefreshCoordinator() {
+  if (app.vehicleLocationsRefreshCoordinator) return app.vehicleLocationsRefreshCoordinator;
+  const factory = window.PDC_VEHICLE_LOCATIONS_REFRESH?.createPdcOperationalRefreshCoordinator
+    || window.PDC_VEHICLE_LOCATIONS_REFRESH?.createVehicleLocationsRefreshCoordinator;
+  if (typeof factory !== 'function') return null;
+  const routeAdapters = Object.fromEntries(OPERATIONAL_REFRESH_ROUTES.map(route => [route, operationalRefreshCommonLoaders(route)]));
+  app.vehicleLocationsRefreshCoordinator = factory({
+    routeAdapters,
+    getRoute: () => app.currentView || 'dashboard',
+    onStart: (generation, route) => {
       app.vehicleLocationsRefreshGeneration = generation;
       app.vehicleLocationsRefreshState = 'refreshing';
       app.vehicleLocationsRefreshError = '';
       app.vehicleLocationsRefreshResult = null;
+      app.operationalRefreshState = 'refreshing';
+      app.operationalRefreshRoute = route;
+      app.operationalRefreshError = '';
+      app.operationalRefreshResult = null;
+      app.operationalRefreshDraftConflicts = [];
+      app.operationalRefreshRestoreState = captureOperationalRefreshViewState(route);
       app.vehicleLocationsRefreshDisclosure = captureIncomingBoardDisclosureState();
       renderAll();
     },
@@ -16824,22 +17022,47 @@ function getVehicleLocationsRefreshCoordinator() {
       window.__workshopRealtimeManager?.start?.();
       app.vehicleLocationsRefreshResult = result;
       app.vehicleLocationsRefreshState = result.ok ? 'success' : 'error';
-      app.vehicleLocationsRefreshError = result.ok
-        ? ''
-        : result.errors.map(item => `${item.key}: ${String(item.error)}`).join(' · ');
-      renderAll();
+      app.vehicleLocationsRefreshError = result.ok ? '' : result.errors.map(item => `${item.key}: ${String(item.error)}`).join(' · ');
+      app.operationalRefreshResult = { ...result, finishedAt: Date.now() };
+      app.operationalRefreshState = result.ok ? 'success' : 'error';
+      app.operationalRefreshError = app.vehicleLocationsRefreshError;
+      if (app.currentView === result.route) renderAll();
+      app.operationalRefreshRestoreState = null;
     },
   });
   return app.vehicleLocationsRefreshCoordinator;
 }
 
+function handleOperationalRefreshClickStart(button) {
+  const route = button?.dataset?.pdcRefreshRoute || app.currentView || 'dashboard';
+  app.operationalRefreshState = 'refreshing';
+  app.operationalRefreshRoute = route;
+  const status = button?.closest?.('[data-pdc-refresh-control], .vehicle-locations-refresh');
+  status?.setAttribute?.('aria-busy', 'true');
+  const copy = status?.querySelector?.('.pdc-operational-refresh-status, span');
+  if (copy && !copy.classList?.contains?.('vehicle-locations-refresh-button')) copy.textContent = 'Refreshing authoritative data…';
+}
+
+function handleOperationalRefreshClickResult(result) {
+  if (result?.stale || result?.ok !== false) return;
+  app.operationalRefreshState = 'error';
+  app.operationalRefreshError = result.errors?.map(item => `${item.key}: ${String(item.error)}`).join(' · ') || result.error || 'refresh_failed';
+}
+
+function refreshOperationalPage(route = app.currentView || 'dashboard', options = {}) {
+  const selectedRoute = OPERATIONAL_REFRESH_ROUTES.includes(route) ? route : app.currentView || 'dashboard';
+  if (!window.PDC_AUTH_CONTEXT || !vehicleLocationsRefreshRoleCanRead()) return Promise.resolve({ ok: false, error: 'not_authenticated', route: selectedRoute });
+  const coordinator = getOperationalRefreshCoordinator();
+  if (!coordinator) return Promise.resolve({ ok: false, error: 'refresh_unavailable', route: selectedRoute });
+  return coordinator.refresh({ ...options, route: selectedRoute });
+}
+
+function getVehicleLocationsRefreshCoordinator() {
+  return getOperationalRefreshCoordinator();
+}
+
 function refreshVehicleLocations(options = {}) {
-  if (!window.PDC_AUTH_CONTEXT || !vehicleLocationsRefreshRoleCanRead()) {
-    return Promise.resolve({ ok: false, error: 'not_authenticated', generation: app.vehicleLocationsRefreshGeneration });
-  }
-  const coordinator = getVehicleLocationsRefreshCoordinator();
-  if (!coordinator) return Promise.resolve({ ok: false, error: 'refresh_unavailable' });
-  return coordinator.refresh(options);
+  return refreshOperationalPage('dashboard', options);
 }
 
 function invalidateVehicleLocationsRefresh() {
@@ -16849,6 +17072,12 @@ function invalidateVehicleLocationsRefresh() {
   app.vehicleLocationsRefreshError = '';
   app.vehicleLocationsRefreshResult = null;
   app.vehicleLocationsRefreshDisclosure = null;
+  app.operationalRefreshState = 'idle';
+  app.operationalRefreshRoute = '';
+  app.operationalRefreshError = '';
+  app.operationalRefreshResult = null;
+  app.operationalRefreshDraftConflicts = [];
+  app.operationalRefreshRestoreState = null;
 }
 
 function sharedNavisionLocationsStatusHtml() {
@@ -16860,6 +17089,8 @@ function sharedNavisionLocationsStatusHtml() {
   const failedRefresh = app.vehicleLocationsRefreshState === 'error';
   const stale = failedRefresh || (!realtimeHealthy && app.sharedNavisionVisibleState === 'ready');
   const statusClass = failedRefresh ? 'is-error is-stale' : realtimeHealthy ? 'is-ready' : stale ? 'is-stale' : '';
+  const draftConflict = Array.isArray(app.operationalRefreshDraftConflicts) && app.operationalRefreshDraftConflicts.length
+    ? ` · ${app.operationalRefreshDraftConflicts[0]}` : '';
   const heading = refreshing
     ? 'Refreshing Vehicle Locations…'
     : failedRefresh
@@ -16873,11 +17104,11 @@ function sharedNavisionLocationsStatusHtml() {
       ? `Refresh failed (${app.vehicleLocationsRefreshError || 'refresh_failed'}). Previous authoritative Vehicle Locations data is stale. Retry without leaving this Board.`
       : app.sharedNavisionVisibleState === 'error'
         ? (app.sharedNavisionVisibleError || 'Shared Navision imports could not be loaded. Previous rows remain visible.')
-        : `${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${app.sharedNavisionVisibleRevision ?? '—'} · ${realtimeHealthy ? 'synchronized across signed-in computers' : 'live synchronization reconnecting'}`;
+        : `${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${app.sharedNavisionVisibleRevision ?? '—'} · ${realtimeHealthy ? 'synchronized across signed-in computers' : 'live synchronization reconnecting'}${draftConflict}`;
   const busy = refreshing ? ' aria-busy="true"' : '';
   return `<div class="backend-shared-status vehicle-locations-refresh ${statusClass}" role="status" aria-live="polite" aria-atomic="true"${busy}>
     <strong>${heading}</strong><span>${escapeHtml(detail)}</span>
-    <button class="small-button vehicle-locations-refresh-button" type="button" data-vehicle-locations-refresh ${refreshing ? 'disabled' : ''} aria-label="Refresh Vehicle Locations">${refreshing ? 'Refreshing…' : 'Refresh'}</button>
+    <button class="small-button vehicle-locations-refresh-button" type="button" data-vehicle-locations-refresh data-pdc-operational-refresh data-pdc-refresh-route="dashboard" ${refreshing ? 'disabled' : ''} aria-label="Refresh Vehicle Locations">${refreshing ? 'Refreshing…' : failedRefresh ? 'Retry' : 'Refresh'}</button>
   </div>`;
 }
 

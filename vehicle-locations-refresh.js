@@ -1,14 +1,17 @@
 'use strict';
 
 /*
- * Coordinates the read-only Vehicle Locations refresh fan-in. Each loader is
- * an existing authoritative service API supplied by app.js. This module owns
- * only refresh generations, duplicate-click coalescing, and stale completion
- * isolation; it never mutates operational data.
+ * Coordinates read-only operational refreshes. Route adapters are composed by
+ * app.js from existing authoritative service APIs; this module owns only
+ * generations, duplicate-click coalescing, and stale completion isolation.
+ * It never mutates operational data and keeps the old Vehicle Locations
+ * factory name as a compatibility alias for existing callers/tests.
  */
 
-function createVehicleLocationsRefreshCoordinator(options = {}) {
+function createPdcOperationalRefreshCoordinator(options = {}) {
   const loaders = options.loaders && typeof options.loaders === 'object' ? options.loaders : {};
+  const routeAdapters = options.routeAdapters && typeof options.routeAdapters === 'object' ? options.routeAdapters : {};
+  const getRoute = typeof options.getRoute === 'function' ? options.getRoute : () => '';
   const onStart = typeof options.onStart === 'function' ? options.onStart : () => {};
   const onFinish = typeof options.onFinish === 'function' ? options.onFinish : () => {};
   let generation = 0;
@@ -25,13 +28,18 @@ function createVehicleLocationsRefreshCoordinator(options = {}) {
   function refresh(refreshOptions = {}) {
     const supersede = refreshOptions?.supersede === true;
     if (inFlight && !supersede) return inFlight;
+    const route = String(refreshOptions?.route || getRoute() || 'dashboard').trim() || 'dashboard';
     const currentGeneration = ++generation;
     const startedAt = Date.now();
-    onStart(currentGeneration);
-    const entries = Object.entries(loaders).filter(([, loader]) => typeof loader === 'function');
+    const selectedLoaders = routeAdapters[route] && typeof routeAdapters[route] === 'object'
+      ? routeAdapters[route]
+      : loaders;
+    onStart(currentGeneration, route);
+    const entries = Object.entries(selectedLoaders).filter(([, loader]) => typeof loader === 'function');
     const promise = Promise.all(entries.map(async ([key, loader]) => {
       const context = {
         generation: currentGeneration,
+        route,
         isCurrent: () => isCurrent(currentGeneration),
       };
       try {
@@ -45,6 +53,7 @@ function createVehicleLocationsRefreshCoordinator(options = {}) {
         ok: false,
         stale: true,
         generation: currentGeneration,
+        route,
         results,
       };
       const failed = results.filter(result => result.ok !== true);
@@ -53,6 +62,7 @@ function createVehicleLocationsRefreshCoordinator(options = {}) {
         partial: failed.length > 0 && failed.length < results.length,
         stale: false,
         generation: currentGeneration,
+        route,
         durationMs: Math.max(0, Date.now() - startedAt),
         results,
         errors: failed.map(result => ({ key: result.key, error: result.error || result.value?.error || result.value?.code || 'refresh_failed' })),
@@ -68,6 +78,7 @@ function createVehicleLocationsRefreshCoordinator(options = {}) {
 
   function invalidate() {
     generation += 1;
+    inFlight = null;
     return generation;
   }
 
@@ -80,6 +91,13 @@ function createVehicleLocationsRefreshCoordinator(options = {}) {
   };
 }
 
-const vehicleLocationsRefreshExported = { createVehicleLocationsRefreshCoordinator };
+function createVehicleLocationsRefreshCoordinator(options = {}) {
+  return createPdcOperationalRefreshCoordinator(options);
+}
+
+const vehicleLocationsRefreshExported = {
+  createPdcOperationalRefreshCoordinator,
+  createVehicleLocationsRefreshCoordinator,
+};
 if (typeof module !== 'undefined' && module.exports) module.exports = vehicleLocationsRefreshExported;
 if (typeof window !== 'undefined') window.PDC_VEHICLE_LOCATIONS_REFRESH = vehicleLocationsRefreshExported;

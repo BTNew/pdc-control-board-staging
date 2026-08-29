@@ -221,3 +221,10 @@
 | `supabase/staging_only/20260829163000_exact_stock_reset_13080534_13017855_phase1.sql` | Staging migration | Exact Navision/vehicle/source binding, encrypted closure snapshot binding, scoped hard-delete/reset, forced-RLS immutable receipt and two-row one-time handoff | Applied at live head 752; 31 tables / 273 rows; Production untouched. |
 | `scripts/preflight_exact_stock_reset_20260828.py`, `scripts/create_exact_stock_reset_snapshot_20260828.py`, `scripts/apply_exact_stock_reset_20260828.py`, `scripts/verify_exact_stock_reset_20260828.py`, `scripts/rollback_exact_stock_reset_20260828.py` | Staging controllers | Read-before-mutation, encrypted target closure, exact project/head/identity locks, postcondition/readback and rollback artifact verification | Focused contract 7/7; live verify pass; rollback verify-only pass. |
 | `docs/website-development/PDC-EMAIL-EXACT-STOCK-RESET-PHASE1-HANDOFF-20260828.json` | pdc-emails Phase 2 handoff | UIDs 680/681, exact message IDs/hashes/attachments, canonical identity and current `.65` entrypoint | Existing dashboard session `20260828_191153_4fb787`; no duplicate dashboard task. |
+
+## Class-level operational refresh
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `app.js`, `vehicle-locations-refresh.js`, `vehicle-locations-refresh-ui.js` | Shared operational UI coordinator | One route-aware fan-in, delegated click listener, route/generation guards, authoritative source adapters, partial-failure retention, draft/scroll/focus restoration and Realtime singleton restart | `test_operational_refresh_class.js`; Vehicle Locations refresh regressions; no operational localStorage fallback or full navigation. |
+| `index.html`, `styles.css`, `workshop-planner.js` | Shared control presentation | Compact controls on Vehicle Locations, QC, Control Board, Workshop/station planners, Operations, PDC TV, Production, departments, Parts, Sublet, RFT, lifecycle lists, Back End Data and review routes | `browser_operational_refresh_route_matrix.js`; mobile 390px route/station matrix and no Production request assertion. |

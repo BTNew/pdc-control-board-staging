@@ -4277,6 +4277,7 @@ function renderWorkshopPlanner(options = {}) {
   updateWorkshopNowLine(renderHost);
   setupWorkshopPlannerClock();
   workshopScrollToHighlightedVehicle(renderHost);
+  window.__pdcEnsureOperationalRefreshControls?.();
 }
 
 function bindWorkshopPlanner(root) {
