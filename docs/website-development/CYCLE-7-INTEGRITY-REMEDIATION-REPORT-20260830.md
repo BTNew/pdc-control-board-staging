@@ -50,10 +50,11 @@ The frozen Inbox remains exactly 669/669 UIDs, UIDVALIDITY 1, high-water 685 and
 - Full local website suite: `npm run test` `229 passed, 0 failed, 1 skipped`.
 - Full local check: `npm run check` `229 passed, 0 failed, 1 skipped`.
 - PostgreSQL parsing: 783 `15` statements, 784 `13`, 785 `16`, 786 `17`, 787 `13`, 788 `26`.
-- Staging source commit: `b923126dc5da2dc5d01a0c3e768b8bfc2af82e68`.
-- Staging integrity workflow for this commit: pending.
-- GitHub Pages deployment workflow for this commit: pending.
+- Staging source commit: `19042d3d62021d91387ca84a35f9d778240c208e`.
+- Staging integrity workflow for this commit: successful.
+- GitHub Pages deployment workflow for this commit: successful.
 - Live cache-busted asset readback contains the scoped planner call, Stage-A `workflowLimit`/`subletAuthority`, and staging `dealerCode` marker.
+- Clean rebuilt `.68` source bundle verifier: successful; manifest SHA-256 `3041e25d4e28dc89ada6ae0b3ca2df5e589797091a91f590464dba7ee2ae3d0f`, exact `.66` parent SHA-256, 3,331 inventory files. Protected ProgramData installation remains blocked at the cancelled UAC boundary.
 
 ## Remaining evidence-only items/blockers
 
@@ -79,6 +80,7 @@ The frozen Inbox remains exactly 669/669 UIDs, UIDVALIDITY 1, high-water 685 and
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\pdc_full_inbox_typed_import.py`
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\scripts\apply_migration_788_staging.py`
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\tests\test_historical_canonical_788.py`
+- `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\handoffs\PDC-EMAIL-HISTORICAL-RECONCILIATION-788-READY-HANDOFF-20260830.md`
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\tests\test_cycle7_integrity_remediation_contract.py`
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\scripts\verify_cycle7_live_browser.py`
 - `C:\Users\nwmgr\HermesWorkspaces\development\pdc-website-development-lead\docs\website-development\AUTONOMOUS-CHANGES-LOG.md`
