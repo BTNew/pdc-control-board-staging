@@ -9,14 +9,14 @@ from pathlib import Path
 import psycopg2
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION = ROOT / 'supabase/staging_only/20260830101000_pdc_lifecycle_history_synthetic_scope_repair.sql'
+MIGRATION = ROOT / 'supabase/staging_only/20260830102000_pdc_lifecycle_history_completed_snapshot.sql'
 BOOTSTRAP = Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py')
 SECRETS = Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi')
 EVIDENCE = Path(r'C:/Users/nwmgr/AppData/Local/hermes/profiles/website-development-lead/review-evidence/lifecycle-history-20260830101000-staging-readback.json')
 REF = 'cdsmnqxtyyoeoznmbidd'
 PROD = 'vjdtsswhroyguxyfjdkt'
-PREDECESSOR = ('20260830100000', '771_workshop_admin_block_audit_projection_successor')
-NEW_HEAD = ('20260830101000', 'pdc_lifecycle_history_synthetic_scope_repair')
+PREDECESSOR = ('20260830101000', 'pdc_lifecycle_history_synthetic_scope_repair')
+NEW_HEAD = ('20260830102000', 'pdc_lifecycle_history_completed_snapshot')
 
 
 def staging_values():

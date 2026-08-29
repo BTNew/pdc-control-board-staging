@@ -5,6 +5,7 @@ const sql = fs.readFileSync('supabase/staging_only/20260830093000_pdc_lifecycle_
 const repairSql = fs.readFileSync('supabase/staging_only/20260830094000_pdc_lifecycle_history_rpc_repair.sql', 'utf8');
 const yardHoldSql = fs.readFileSync('supabase/staging_only/20260830095000_pdc_lifecycle_history_yard_hold_transition.sql', 'utf8');
 const syntheticScopeSql = fs.readFileSync('supabase/staging_only/20260830101000_pdc_lifecycle_history_synthetic_scope_repair.sql', 'utf8');
+const completedSnapshotSql = fs.readFileSync('supabase/staging_only/20260830102000_pdc_lifecycle_history_completed_snapshot.sql', 'utf8');
 const app = fs.readFileSync('app.js', 'utf8');
 const service = require('./pdc-email-vehicle-location-service.js');
 
@@ -29,7 +30,7 @@ for (const marker of [
   'disable_pdc_vehicle_lifecycle_history_82000',
   'FORCE ROW LEVEL SECURITY',
   'Production sentinel/data/remotes are excluded',
-]) assert((sql + repairSql + yardHoldSql + syntheticScopeSql).includes(marker), `migration contains ${marker}`);
+]) assert((sql + repairSql + yardHoldSql + syntheticScopeSql + completedSnapshotSql).includes(marker), `migration contains ${marker}`);
 
 const backfill = sql.slice(sql.indexOf('-- Backfill only immutable'), sql.indexOf('CREATE OR REPLACE FUNCTION public.pdc_capture_vehicle'));
 assert(!/date_to_pmb|date_to_rft|delivered_to_dealer_date|eta_to_kewdale|current_location\s+IN/i.test(backfill), 'backfill does not infer from mutable dates, ETA or current location');
@@ -41,6 +42,7 @@ assert(sql.includes('p_dealer_code') && sql.includes('dealer_scope_denied') && s
 assert(repairSql.includes('v_actor_email') && repairSql.includes('PDC_940_EXACT_STAGING_930_PREDECESSOR_REQUIRED'), 'RPC repair is bound to the exact applied predecessor');
 assert(yardHoldSql.includes('PDC_950_EXACT_STAGING_940_PREDECESSOR_REQUIRED') && yardHoldSql.includes('mark_vehicle_yard_hold_82000'), 'canonical Yard Hold API is bound to the exact applied predecessor');
 assert(syntheticScopeSql.includes('PDC_1010_EXACT_STAGING_1000_PREDECESSOR_REQUIRED') && syntheticScopeSql.includes('synthetic'), 'synthetic acceptance scope is explicit and bound to its predecessor');
+assert(completedSnapshotSql.includes('PDC_1020_EXACT_STAGING_1010_PREDECESSOR_REQUIRED') && completedSnapshotSql.includes("v.current_location IN('Collected','Completed')"), 'completed snapshot is evidence-backed and predecessor-bound');
 assert(!/GRANT\s+(SELECT|ALL).*pdc_vehicle_lifecycle_history_events_82000/i.test(sql), 'history table has no direct table grant');
 
 const mapped = service.mapServerVehicle({
