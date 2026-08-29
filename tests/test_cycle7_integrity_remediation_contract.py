@@ -7,6 +7,7 @@ M783 = ROOT / "supabase/staging_only/20260830180000_783_historical_observation_d
 M784 = ROOT / "supabase/staging_only/20260830181000_784_stage_a_integrity_projection.sql"
 M785 = ROOT / "supabase/staging_only/20260830182000_785_narrow_authenticated_contracts.sql"
 M786 = ROOT / "supabase/staging_only/20260830183000_786_cycle7_contract_repair.sql"
+M787 = ROOT / "supabase/staging_only/20260830184000_787_cycle7_contract_version_repair.sql"
 
 class Cycle7IntegrityContractTests(unittest.TestCase):
     @classmethod
@@ -15,6 +16,7 @@ class Cycle7IntegrityContractTests(unittest.TestCase):
         cls.m784 = M784.read_text(encoding="utf-8").lower()
         cls.m785 = M785.read_text(encoding="utf-8").lower()
         cls.m786 = M786.read_text(encoding="utf-8").lower()
+        cls.m787 = M787.read_text(encoding="utf-8").lower()
 
     def test_migrations_parse_and_are_append_only(self):
         self.assertEqual(len(parse_sql(M783.read_text(encoding="utf-8"))), 15)
@@ -52,6 +54,13 @@ class Cycle7IntegrityContractTests(unittest.TestCase):
         for marker in ("values('778.1',v_authz.authorization_id", "request_sha256,observation_sha256", "pdc_historical_observation_sha256_unique_786", "alter column observation_sha256 set not null", "revoke all on function public.get_vehicle_workshop_detail(uuid)", "get_vehicle_workshop_detail_scoped(uuid,text)", "pdc_786_historical_postcondition_failed"):
             self.assertIn(marker, self.m786)
         self.assertNotIn("grant execute on function public.get_vehicle_workshop_detail(uuid) to authenticated", self.m786)
+
+    def test_all_historical_contract_versions_match_the_778_table_contract(self):
+        self.assertEqual(len(parse_sql(M787.read_text(encoding="utf-8"))), 13)
+        function_body = self.m787.split("as $body$", 1)[1].split("revoke all on function", 1)[0]
+        self.assertNotIn("'782.1'", function_body)
+        for marker in ("'778.1'", "v_request_hash,v_observation_sha", "pdc_787_historical_postcondition_failed", "20260830183000"):
+            self.assertIn(marker, self.m787)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
