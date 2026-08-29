@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-30 — Atomic Job Card hours batch editing 768
+
+- Replaced per-row immediate Workshop hour saves with one modal-level `Save all hours` action and `Cancel/reset`. Draft values remain in memory only, are bound by canonical vehicle and operation UUID, and survive stale authoritative reloads for review/reapply.
+- Added staging-only `20260830070000_768_vehicle_workshop_hours_batch.sql`: exact UUID + Stock + Job Card + vehicle version + stable operation/work identity, all-row validation before DML, idempotency/request hash receipts, one vehicle-version increment, immutable before/after audit evidence, fail-closed stale/row-drift summaries, explicit zero/null handling, and no booking/Parts/completion mutation.
+- Parts rows are read-only in Work & bookings with no hours or station-booking deficiency. Completed Parts now suppress stale ETA/risk/stoppage projections until canonically reopened or genuinely stopped. Updated `app.js`, `pdc-email-vehicle-location-service.js`, `styles.css`, `index.html`, and focused batch regression coverage. Production was not contacted or mutated.
+
 ## 2026-08-30 — Vehicle Locations slimline status bar
 
 - Corrected the green Shared Navision status bar’s Grid auto-placement so title, active/revision/synchronization text and Refresh remain one horizontal desktop row; removed the container’s extra min-height and reduced its padding/margin while retaining the 42px button target. Mobile explicitly resets the button row so narrow layouts wrap without overlap.

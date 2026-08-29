@@ -1,5 +1,11 @@
 # Shared Files
 
+## Atomic Job Card hours batch editing 768 — 2026-08-30
+
+- `app.js`, `pdc-email-vehicle-location-service.js`, `styles.css`, `index.html` — one modal-level Save all hours draft form, stable operation UUID payloads, stale-draft preservation, authoritative readback and Parts no-hour/no-booking presentation.
+- `supabase/staging_only/20260830070000_768_vehicle_workshop_hours_batch.sql` — staging-only atomic authenticated RPC, immutable request receipts, exact identity/version validation, before/after audit evidence and one vehicle-version increment.
+- `test_vehicle_workshop_hours_batch_768.js`, `test_vehicle_workshop_hours_batch_768_regression.js` — service, UI, identity, zero/null, Parts, replay/conflict, atomic rollback, version and loading-recovery contract coverage.
+
 ## Vehicle Locations slimline status bar — 2026-08-30
 
 - `styles.css` — explicit desktop Grid placement for the title/status/Refresh row, reduced bar spacing, and mobile row reset without reducing the 42px touch target.
