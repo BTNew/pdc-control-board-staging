@@ -45,15 +45,15 @@ The frozen Inbox remains exactly 669/669 UIDs, UIDVALIDITY 1, high-water 685 and
 - Live Stage-A RPC: HTTP 200; Stock 13017855 workflow `114/114`, complete; VIN/Job Card `confirmed`.
 - Live Sublet cross-check: 13080534 email active count `1`, Stage-A status `active`.
 - Live malformed historical RPC negative probe: HTTP 200 with `{ok:false,code:unauthorized}`; no receipt or observation side effect.
-- Independent security review `deleg_a6903a92`: `ready_for_apply=true`, zero blockers.
+- Independent security review `deleg_a6903a92`: ready_for_apply=true; zero blockers.
 - Live Python/PostgreSQL canonical request bytes for frozen UID `1:21`: equal, 3,667 UTF-8 bytes, SHA-256 `fd784959b016976994087545866e346f01b6f05e1e0faf8627bda25ed9e84550`.
 - Focused historical/security/783-788 Python suite: `29/29` passed.
 - Full local website suite: `npm run test` `229 passed, 0 failed, 1 skipped`.
 - Full local check: `npm run check` `229 passed, 0 failed, 1 skipped`.
 - PostgreSQL parsing: 783 `15` statements, 784 `13`, 785 `16`, 786 `17`, 787 `13`, 788 `26`.
-- Staging source commit: `19042d3d62021d91387ca84a35f9d778240c208e`.
-- Staging integrity workflow for this commit: successful.
-- GitHub Pages deployment workflow for this commit: successful.
+- Staging implementation source commit: `19042d3d62021d91387ca84a35f9d778240c208e`.
+- Staging integrity workflow for the implementation source commit: successful.
+- GitHub Pages deployment workflow for the implementation source commit: successful.
 - Live cache-busted asset readback contains the scoped planner call, Stage-A `workflowLimit`/`subletAuthority`, and staging `dealerCode` marker.
 - Clean rebuilt `.68` source bundle verifier: successful; manifest SHA-256 `3041e25d4e28dc89ada6ae0b3ca2df5e589797091a91f590464dba7ee2ae3d0f`, exact `.66` parent SHA-256, 3,331 inventory files. Protected ProgramData installation remains blocked at the cancelled UAC boundary.
 
