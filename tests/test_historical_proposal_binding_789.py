@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import sqlite3
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from pglast import parse_sql
 
@@ -74,6 +76,117 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             self.importer.select_authorized_rows(rows[:-1])
         with self.assertRaises(self.importer.Historical777Error):
             self.importer.select_authorized_rows(rows + [dict(rows[0])])
+        extra = dict(rows[0])
+        extra["provider_uid"] = "1:999"
+        with self.assertRaises(self.importer.Historical777Error):
+            self.importer.select_authorized_rows(rows[:-1] + [extra])
+
+    def test_shared_caller_rejects_missing_or_extra_frozen_uid(self):
+        document = json.loads(ROWS.read_text(encoding="utf-8"))
+        rows = document["rows"]
+        with self.assertRaises(self.caller.Historical777Error):
+            self.caller.select_authorized_rows(rows[:-1])
+        with self.assertRaises(self.caller.Historical777Error):
+            self.caller.select_authorized_rows(rows + [dict(rows[0])])
+
+    def test_shared_runner_persists_false_and_returns_nonzero_summary(self):
+        rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
+        with tempfile.TemporaryDirectory() as directory:
+            connection = self.caller.prepare_fresh_outbox(Path(directory) / "shared-caller-outbox.sqlite3")
+            try:
+                results = self.caller.run_bounded_historical(
+                    rows,
+                    connection,
+                    lambda request: {"ok": False, "code": "historical_proposal_tuple_conflict", "data": {"review_required": True}}
+                    if request["provider_uid"] == "1:21" else {"ok": True, "code": "historical_reconciliation_789_receipt"},
+                )
+                connection.row_factory = sqlite3.Row
+                stored = connection.execute("select state,attempt_count,last_error_code,review_required from historical_778_outbox where provider_uid='1:21'").fetchone()
+            finally:
+                connection.close()
+        self.assertEqual(next(item for item in results if item["provider_uid"] == "1:21")["state"], "review")
+        self.assertEqual(dict(stored), {"state": "review", "attempt_count": 1, "last_error_code": "historical_proposal_tuple_conflict", "review_required": 1})
+        self.assertEqual(self.caller.summarize_historical_results(results)["exit_code"], 1)
+
+    def test_shared_cli_returns_nonzero_for_false_rpc_row(self):
+        rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            self.caller,
+            "invoke_historical_rpc",
+            side_effect=lambda request, **kwargs: {"ok": False, "code": "historical_proposal_payload_conflict"}
+            if request["provider_uid"] == "1:21" else {"ok": True, "code": "historical_reconciliation_789_receipt"},
+        ), patch.dict(os.environ, {
+            "PDC_STAGING_SUPABASE_URL": "https://cdsmnqxtyyoeoznmbidd.supabase.co",
+            "PDC_STAGING_SUPABASE_ANON_KEY": "test-anon-key",
+            "PDC_MONITOR_ACCESS_TOKEN": "test-token",
+        }, clear=False):
+            exit_code = self.caller.main([
+                "--rows-json", str(ROWS),
+                "--outbox", str(Path(directory) / "shared-cli-outbox.sqlite3"),
+                "--bounded-caller",
+            ])
+        self.assertEqual(exit_code, 1)
+
+    def test_review_required_overrides_contradictory_ok_true(self):
+        rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
+        for module in (self.caller, self.importer):
+            with tempfile.TemporaryDirectory() as directory:
+                connection = module.prepare_fresh_outbox(Path(directory) / "contradictory-review-outbox.sqlite3")
+                try:
+                    results = module.run_bounded_historical(
+                        rows,
+                        connection,
+                        lambda request: {"ok": True, "code": "historical_proposal_observation_review_required", "data": {"review_required": True}}
+                        if request["provider_uid"] == "1:21" else {"ok": True, "code": "historical_reconciliation_789_receipt"},
+                    )
+                finally:
+                    connection.close()
+            uid21 = next(item for item in results if item["provider_uid"] == "1:21")
+            self.assertFalse(uid21["ok"])
+            self.assertEqual(uid21["state"], "review")
+            self.assertEqual(module.summarize_historical_results(results)["exit_code"], 1)
+
+    def test_bounded_limit_validates_full_cohort_and_records_build_failure(self):
+        rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
+        for module in (self.caller, self.importer):
+            bad_rows = [dict(row) for row in rows]
+            bad_rows[0] = dict(bad_rows[0])
+            bad_rows[0].pop("attachments")
+            with tempfile.TemporaryDirectory() as directory:
+                outbox_path = Path(directory) / "bounded-limit-outbox.sqlite3"
+                connection = module.prepare_fresh_outbox(outbox_path)
+                try:
+                    results = module.run_bounded_historical(
+                        bad_rows,
+                        connection,
+                        lambda request: {"ok": True, "code": "unexpected-rpc-call"},
+                        limit=1,
+                    )
+                    connection.row_factory = sqlite3.Row
+                    stored = connection.execute("select state,attempt_count,last_error_code,review_required from historical_778_outbox where provider_uid='1:21'").fetchone()
+                finally:
+                    connection.close()
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0], {"provider_uid": "1:21", "state": "retry", "code": "historical row missing attachments", "ok": False})
+            self.assertEqual(dict(stored), {"state": "retry", "attempt_count": 1, "last_error_code": "historical row missing attachments", "review_required": 0})
+            self.assertEqual(module.summarize_historical_results(results)["exit_code"], 1)
+
+    def test_live_probe_uses_validated_cohort_then_one_row(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(
+            self.caller,
+            "invoke_historical_rpc",
+            return_value={"ok": True, "code": "historical_reconciliation_789_receipt"},
+        ), patch.dict(os.environ, {
+            "PDC_STAGING_SUPABASE_URL": "https://cdsmnqxtyyoeoznmbidd.supabase.co",
+            "PDC_STAGING_SUPABASE_ANON_KEY": "test-anon-key",
+            "PDC_MONITOR_ACCESS_TOKEN": "test-token",
+        }, clear=False):
+            exit_code = self.caller.main([
+                "--rows-json", str(ROWS),
+                "--outbox", str(Path(directory) / "live-probe-outbox.sqlite3"),
+                "--live-probe",
+            ])
+        self.assertEqual(exit_code, 0)
 
     def test_false_result_is_durable_review_and_nonzero_summary(self):
         document = json.loads(ROWS.read_text(encoding="utf-8"))

@@ -27,6 +27,16 @@ MANIFEST_HIGH_WATER_UID = 685
 MANIFEST_UID_COUNT = 669
 EXCLUDED_PROVIDER_UID = "1:197"
 EXCLUDED_STOCK = "13056899"
+AUTHORIZED_PROVIDER_UIDS = frozenset({
+    "1:21", "1:22", "1:23", "1:26", "1:40", "1:57", "1:85", "1:93",
+    "1:95", "1:96", "1:133", "1:134", "1:137", "1:168", "1:172",
+})
+PROPOSAL_REVIEW_CODES = frozenset({
+    "historical_proposal_tuple_conflict",
+    "historical_proposal_terminal_conflict",
+    "historical_proposal_payload_conflict",
+    "historical_proposal_observation_review_required",
+})
 
 ACTOR_ID = "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b"
 ACTOR_EMAIL = "sales@broometoyota.com.au"
@@ -152,13 +162,30 @@ def _is_ambiguous_job_card(evidence: Any) -> bool:
 
 
 def select_authorized_rows(rows: list[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
-    """Keep only the frozen manifest cohort; the server performs the full tuple gate."""
-    return [
-        row for row in rows
-        if str(row.get("manifest_sha256", "")).lower() == MANIFEST_SHA256
-        and str(row.get("provider_uid", "")) != EXCLUDED_PROVIDER_UID
-        and str(row.get("stock_number", "")) != EXCLUDED_STOCK
-    ]
+    """Require exactly the immutable frozen cohort; never filter extras away."""
+    if not isinstance(rows, list) or len(rows) != len(AUTHORIZED_PROVIDER_UIDS):
+        raise Historical777Error("historical authorized cohort count mismatch")
+    if any(not isinstance(row, Mapping) for row in rows):
+        raise Historical777Error("historical authorized cohort row type mismatch")
+    provider_uids = [str(row.get("provider_uid", "")) for row in rows]
+    if len(set(provider_uids)) != len(AUTHORIZED_PROVIDER_UIDS) or set(provider_uids) != AUTHORIZED_PROVIDER_UIDS:
+        raise Historical777Error("historical authorized cohort UID mismatch")
+    for row in rows:
+        if str(row.get("manifest_sha256", "")).lower() != MANIFEST_SHA256:
+            raise Historical777Error("historical row manifest mismatch")
+        if str(row.get("manifest_uidvalidity", MANIFEST_UIDVALIDITY)) != str(MANIFEST_UIDVALIDITY):
+            raise Historical777Error("historical manifest UIDVALIDITY mismatch")
+        if str(row.get("manifest_high_water_uid", MANIFEST_HIGH_WATER_UID)) != str(MANIFEST_HIGH_WATER_UID):
+            raise Historical777Error("historical manifest high-water mismatch")
+        source_value = row.get("source_metadata")
+        source = {} if source_value is None else source_value
+        if not isinstance(source, Mapping):
+            raise Historical777Error("historical source metadata type mismatch")
+        if source and str(source.get("uidvalidity", MANIFEST_UIDVALIDITY)) != str(MANIFEST_UIDVALIDITY):
+            raise Historical777Error("historical source UIDVALIDITY mismatch")
+        if str(row.get("provider_uid", "")) == EXCLUDED_PROVIDER_UID or str(row.get("stock_number", "")) == EXCLUDED_STOCK:
+            raise Historical777Error("historical reference row is excluded")
+    return rows
 
 
 def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -169,7 +196,10 @@ def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
     stock = str(_required(row, "stock_number"))
     if provider_uid == EXCLUDED_PROVIDER_UID or stock == EXCLUDED_STOCK:
         raise Historical777Error("historical reference row is excluded")
-    source = row.get("source_metadata") or {}
+    source_value = row.get("source_metadata")
+    source = {} if source_value is None else source_value
+    if not isinstance(source, Mapping):
+        raise Historical777Error("historical source metadata type mismatch")
     received_at = str(_required(row, "source_received_at"))
     if source and str(source.get("received_at")) != received_at:
         raise Historical777Error("historical received time mismatch")
@@ -302,28 +332,75 @@ def prepare_fresh_outbox(path: Path) -> sqlite3.Connection:
         raise Historical777Error("fresh historical outbox path already exists")
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
-    conn.execute("create table historical_778_outbox (provider_uid text primary key, request_json text not null, request_sha256 text not null, state text not null, response_json text, created_at text not null)")
+    conn.execute("create table historical_778_outbox (provider_uid text primary key, request_json text not null, request_sha256 text not null, state text not null, response_json text, attempt_count integer not null default 0, last_error_code text, review_required integer not null default 0, created_at text not null, updated_at text not null)")
     conn.commit()
     return conn
 
 
 def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connection,
-                           rpc_call: Callable[[Mapping[str, Any]], dict[str, Any]]) -> list[dict[str, Any]]:
+                           rpc_call: Callable[[Mapping[str, Any]], dict[str, Any]], *,
+                           limit: int | None = None) -> list[dict[str, Any]]:
     """Run only supplied frozen rows; never discovers additional mailbox messages."""
     results = []
-    for row in select_authorized_rows(rows):
-        request = build_historical_request(row)
+    frozen_rows = select_authorized_rows(rows)
+    if limit is not None:
+        if not isinstance(limit, int) or limit < 1 or limit > len(frozen_rows):
+            raise Historical777Error("historical bounded limit mismatch")
+        frozen_rows = frozen_rows[:limit]
+    for index, row in enumerate(frozen_rows, 1):
+        try:
+            request = build_historical_request(row)
+        except Historical777Error as exc:
+            provider_uid = str(row.get("provider_uid") or f"invalid-row-{index}")
+            response = {"ok": False, "code": str(exc)}
+            request_json = json.dumps({"provider_uid": provider_uid}, sort_keys=True)
+            outbox.execute("insert into historical_778_outbox(provider_uid,request_json,request_sha256,state,attempt_count,last_error_code,review_required,created_at,updated_at) values(?,?,?,?,?,?,?,datetime('now'),datetime('now'))", (provider_uid, request_json, _sha256(request_json.encode("utf-8")), "retry", 1, response["code"], 0))
+            outbox.commit()
+            results.append({"provider_uid": provider_uid, "state": "retry", "code": response["code"], "ok": False})
+            continue
+        except Exception:
+            provider_uid = str(row.get("provider_uid") or f"invalid-row-{index}")
+            response = {"ok": False, "code": "historical_row_failure"}
+            request_json = json.dumps({"provider_uid": provider_uid}, sort_keys=True)
+            outbox.execute("insert into historical_778_outbox(provider_uid,request_json,request_sha256,state,attempt_count,last_error_code,review_required,created_at,updated_at) values(?,?,?,?,?,?,?,datetime('now'),datetime('now'))", (provider_uid, request_json, _sha256(request_json.encode("utf-8")), "retry", 1, response["code"], 0))
+            outbox.commit()
+            results.append({"provider_uid": provider_uid, "state": "retry", "code": response["code"], "ok": False})
+            continue
         provider_uid = request["provider_uid"]
         request_json = json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         request_hash = canonical_request_digest(request)
-        outbox.execute("insert into historical_778_outbox(provider_uid,request_json,request_sha256,state,created_at) values(?,?,?,?,datetime('now'))", (provider_uid, request_json, request_hash, "pending"))
+        outbox.execute("insert into historical_778_outbox(provider_uid,request_json,request_sha256,state,attempt_count,last_error_code,review_required,created_at,updated_at) values(?,?,?,?,?,?,?,datetime('now'),datetime('now'))", (provider_uid, request_json, request_hash, "pending", 0, None, 0))
         outbox.commit()
-        response = rpc_call(request)
-        state = "imported" if response.get("ok") is True else "retry"
-        outbox.execute("update historical_778_outbox set state=?,response_json=? where provider_uid=?", (state, json.dumps(response, sort_keys=True), provider_uid))
+        try:
+            response = rpc_call(request)
+        except Exception as exc:
+            response = {"ok": False, "code": str(exc) if isinstance(exc, Historical777Error) else "historical_rpc_failure"}
+        if not isinstance(response, Mapping):
+            response = {"ok": False, "code": "historical_rpc_non_object"}
+        raw_ok = response.get("ok") is True
+        code = response.get("code") if isinstance(response.get("code"), str) else (None if raw_ok else "historical_unknown_failure")
+        data = response.get("data") if isinstance(response.get("data"), Mapping) else {}
+        review_required = code in PROPOSAL_REVIEW_CODES or data.get("review_required") is True
+        ok = raw_ok and not review_required
+        state = "imported" if ok else ("review" if review_required else "retry")
+        outbox.execute("update historical_778_outbox set state=?,response_json=?,attempt_count=attempt_count+1,last_error_code=?,review_required=?,updated_at=datetime('now') where provider_uid=?", (state, json.dumps(response, sort_keys=True, ensure_ascii=False), code, int(review_required), provider_uid))
         outbox.commit()
-        results.append({"provider_uid": provider_uid, "state": state, "code": response.get("code")})
+        results.append({"provider_uid": provider_uid, "state": state, "code": code, "ok": ok})
     return results
+
+
+def summarize_historical_results(results: list[Mapping[str, Any]]) -> dict[str, Any]:
+    """Summarize durable outcomes; every non-ok row makes the process fail."""
+    failures = [item for item in results if item.get("ok") is not True]
+    return {
+        "ok": not failures and bool(results),
+        "rows": len(results),
+        "imported": sum(item.get("state") == "imported" for item in results),
+        "retry": sum(item.get("state") == "retry" for item in results),
+        "review": sum(item.get("state") == "review" for item in results),
+        "failed": len(failures),
+        "exit_code": 0 if not failures and results else 1,
+    }
 
 
 def _load_rows(path: Path) -> list[Mapping[str, Any]]:
@@ -351,8 +428,7 @@ def main(argv: list[str] | None = None) -> int:
     rows = select_authorized_rows(_load_rows(args.rows_json))
     if not rows:
         raise Historical777Error("no exact 773-derived rows supplied")
-    if args.live_probe:
-        rows = rows[:1]
+
     url = os.environ.get("PDC_STAGING_SUPABASE_URL") or os.environ.get("SUPABASE_URL") or ""
     anon_key = os.environ.get("PDC_STAGING_SUPABASE_ANON_KEY") or os.environ.get("SUPABASE_ANON_KEY") or ""
     actor_token = os.environ.get("PDC_MONITOR_ACCESS_TOKEN") or ""
@@ -361,11 +437,12 @@ def main(argv: list[str] | None = None) -> int:
         raise Historical777Error("current Monitor staging bindings are incomplete")
     outbox = prepare_fresh_outbox(args.outbox)
     try:
-        results = run_bounded_historical(rows, outbox, lambda request: invoke_historical_rpc(request, url=url, anon_key=anon_key, actor_token=actor_token))
+        results = run_bounded_historical(rows, outbox, lambda request: invoke_historical_rpc(request, url=url, anon_key=anon_key, actor_token=actor_token), limit=1 if args.live_probe else None)
     finally:
         outbox.close()
-    print(json.dumps({"ok": all(item["state"] == "imported" for item in results), "rpc": RPC_NAME, "rows": results}, sort_keys=True))
-    return 0
+    summary = summarize_historical_results(results)
+    print(json.dumps({**summary, "rpc": RPC_NAME, "rows": results, "outbox": str(args.outbox)}, sort_keys=True))
+    return int(summary["exit_code"])
 
 
 if __name__ == "__main__":

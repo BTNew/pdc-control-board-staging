@@ -103,9 +103,10 @@ class HistoricalCaller778SecurityTests(unittest.TestCase):
         self.assertNotIn("intake_id", request)
         self.assertNotIn("attachment_id", json.dumps(request))
 
-    def test_reference_row_is_filtered_before_rpc(self):
+    def test_reference_row_rejected_by_exact_cohort_before_rpc(self):
         rows = [{"manifest_sha256": self.module.MANIFEST_SHA256, "provider_uid": "1:197", "stock_number": "13056899"}]
-        self.assertEqual(self.module.select_authorized_rows(rows), [])
+        with self.assertRaises(self.module.Historical777Error):
+            self.module.select_authorized_rows(rows)
 
 
 if __name__ == "__main__":
