@@ -21,7 +21,15 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from pdc_historical_778_caller import canonical_request_bytes, canonical_request_digest
+from pdc_historical_778_caller import CHILD_DATA_KEYS as SHARED_CHILD_DATA_KEYS
+from pdc_historical_778_caller import CHILD_RESPONSE_KEYS as SHARED_CHILD_RESPONSE_KEYS
+from pdc_historical_778_caller import EXPECTED_SUCCESS_CODE as SHARED_EXPECTED_SUCCESS_CODE
+from pdc_historical_778_caller import PARENT_DATA_KEYS as SHARED_PARENT_DATA_KEYS
+from pdc_historical_778_caller import PARENT_RESPONSE_KEYS as SHARED_PARENT_RESPONSE_KEYS
+from pdc_historical_778_caller import SUCCESS_DATA_KEYS as SHARED_SUCCESS_DATA_KEYS
+from pdc_historical_778_caller import SUCCESS_RESPONSE_KEYS as SHARED_SUCCESS_RESPONSE_KEYS
+from pdc_historical_778_caller import Historical777Error as SharedHistorical777Error
+from pdc_historical_778_caller import canonical_request_bytes, canonical_request_digest, validate_success_response as validate_shared_success_response
 
 MANIFEST_SHA256 = "aa9e2451645b3fc51eba68c422b5eaf6f146ed18596a94ce8560c55b80729018"
 MANIFEST_UIDVALIDITY = 1
@@ -47,6 +55,22 @@ PROPOSAL_REVIEW_CODES = frozenset({
     "historical_proposal_payload_conflict",
     "historical_proposal_observation_review_required",
 })
+EXPECTED_SUCCESS_CODE = SHARED_EXPECTED_SUCCESS_CODE
+SUCCESS_RESPONSE_KEYS = SHARED_SUCCESS_RESPONSE_KEYS
+SUCCESS_DATA_KEYS = SHARED_SUCCESS_DATA_KEYS
+PARENT_RESPONSE_KEYS = SHARED_PARENT_RESPONSE_KEYS
+PARENT_DATA_KEYS = SHARED_PARENT_DATA_KEYS
+CHILD_RESPONSE_KEYS = SHARED_CHILD_RESPONSE_KEYS
+CHILD_DATA_KEYS = SHARED_CHILD_DATA_KEYS
+
+
+def validate_success_response(request: Mapping[str, Any], response: Mapping[str, Any], request_hash: str) -> None:
+    try:
+        validate_shared_success_response(request, response, request_hash)
+    except SharedHistorical777Error as exc:
+        raise Historical777Error(str(exc)) from exc
+    except Exception as exc:
+        raise Historical777Error("historical success receipt validation failure") from exc
 
 
 class Historical777Error(RuntimeError):
@@ -282,6 +306,7 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
                            limit: int | None = None) -> list[dict[str, Any]]:
     """Run only supplied frozen rows; never discovers additional mailbox messages."""
     results = []
+    seen_receipt_ids: set[str] = set()
     frozen_rows = select_authorized_rows(rows)
     if limit is not None:
         if not isinstance(limit, int) or limit < 1 or limit > len(frozen_rows):
@@ -320,10 +345,29 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
         raw_ok = response.get("ok") is True
         code = response.get("code") if isinstance(response.get("code"), str) else (None if raw_ok else "historical_unknown_failure")
         data = response.get("data") if isinstance(response.get("data"), Mapping) else {}
-        review_required = code in PROPOSAL_REVIEW_CODES or data.get("review_required") is True
+        review_required = code in PROPOSAL_REVIEW_CODES or (code != "historical_reconciliation_782_receipt" and data.get("review_required") is True)
+        if raw_ok and not review_required:
+            try:
+                validate_success_response(request, response, request_hash)
+                receipt_id = response["data"]["receipt_id"].lower()
+                if receipt_id in seen_receipt_ids:
+                    raise Historical777Error("historical receipt identity replay mismatch")
+                seen_receipt_ids.add(receipt_id)
+            except Historical777Error as exc:
+                raw_ok = False
+                code = str(exc)
         ok = raw_ok and not review_required
         state = "imported" if ok else ("review" if review_required else "retry")
-        outbox.execute("update historical_778_outbox set state=?,response_json=?,attempt_count=attempt_count+1,last_error_code=?,review_required=?,updated_at=datetime('now') where provider_uid=?", (state, json.dumps(response, sort_keys=True, ensure_ascii=False), code, int(review_required), provider_uid))
+        try:
+            response_json = json.dumps(response, sort_keys=True, ensure_ascii=False)
+        except (TypeError, ValueError, OverflowError):
+            response = {"ok": False, "code": "historical_response_not_json_serializable"}
+            response_json = json.dumps(response, sort_keys=True)
+            ok = False
+            review_required = False
+            state = "retry"
+            code = response["code"]
+        outbox.execute("update historical_778_outbox set state=?,response_json=?,attempt_count=attempt_count+1,last_error_code=?,review_required=?,updated_at=datetime('now') where provider_uid=?", (state, response_json, code, int(review_required), provider_uid))
         outbox.commit()
         results.append({"provider_uid": provider_uid, "state": state, "code": code, "ok": ok})
     return results

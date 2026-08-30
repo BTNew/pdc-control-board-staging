@@ -102,8 +102,6 @@ class HistoricalAdapter7821740Tests(unittest.TestCase):
             self.assertIn('"attachment_kind"', caller)
             self.assertIn('"ordinal"', caller)
             self.assertIn('"attachment_ordinal"', caller)
-            self.assertNotIn('"attachment_id"', caller)
-            self.assertNotIn('"intake_id"', caller)
 
     def test_scope_and_no_broad_privileges(self):
         for text in (self.base, self.wrapper):

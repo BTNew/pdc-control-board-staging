@@ -13,11 +13,13 @@ import base64
 import hashlib
 import json
 import os
+import re
 import sqlite3
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -37,6 +39,62 @@ PROPOSAL_REVIEW_CODES = frozenset({
     "historical_proposal_payload_conflict",
     "historical_proposal_observation_review_required",
 })
+EXPECTED_SUCCESS_CODE = "historical_reconciliation_782_receipt"
+SUCCESS_RESPONSE_KEYS = frozenset({"ok", "code", "data"})
+SUCCESS_DATA_KEYS = frozenset({
+    "receipt_id", "contract_version", "manifest_sha256", "provider_uid", "parent_source_hash",
+    "sender_email", "stock_number", "intake_id", "attachment_count", "proposal_id",
+    "proposal_binding_kind", "proposal_observation_match", "job_card_count", "sibling_count",
+    "attachment_receipts", "parent_observation", "authoritative_state", "booking_created",
+    "completion_created", "location_scheduled", "parts_changed", "status_changed", "no_booking",
+    "no_completion", "no_location_mutation",
+})
+UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+PARENT_RESPONSE_KEYS = frozenset({"ok", "code", "data"})
+PARENT_DATA_KEYS = frozenset({"proposal_id", "status", "version", "fingerprint"})
+CHILD_RESPONSE_KEYS = frozenset({"ok", "code", "data"})
+CHILD_DATA_KEYS = frozenset({
+    "receipt_id", "intake_id", "attachment_id", "parent_source_hash", "canonical_source_hash",
+    "attachment_source_hash", "attachment_size_bytes", "attachment_content_type", "source_uid",
+    "proposal_id", "canonical_import_receipt_id", "vehicle_id", "vehicle_version", "backend_record_id",
+    "backend_record_version", "job_card_number", "requested_payload_sha256", "operation_sha256",
+    "operation_count", "estimated_hours_sum", "canonical_operation_line_ids", "operation_lines",
+    "rule_applications", "canonical_import_response", "booking_created", "completion_created",
+    "location_scheduled",
+})
+NESTED_RESPONSE_KEYS = frozenset({"ok", "code", "data"})
+NESTED_OBSERVATION_BASE_KEYS = frozenset({"proposal_id", "status", "version", "fingerprint"})
+NESTED_AUTO_DATA_KEYS = {
+    "proposal_consumed": frozenset({"proposal_id", "status", "version"}),
+    "uid514_exact_existing_identity_accepted": frozenset({
+        "proposal_id", "stock_number", "vehicle_id", "vehicle_mutated", "board_activation_only",
+        "reinstatement_receipt_required", "historical_job_card_preserved", "incoming_job_card",
+    }),
+    "automatically_closed_existing": frozenset({
+        "proposal_id", "stock_number", "vehicle_id", "vehicle_mutated", "board_activation_only",
+        "authority_refreshed", "proposal_backend_record_version", "current_backend_record_version",
+        "authorization_basis", "board_purge_reactivation",
+    }),
+    "automatically_closed_duplicate": frozenset({
+        "proposal_id", "stock_number", "vehicle_id", "vehicle_mutated", "board_activation_only",
+        "primary_proposal_id",
+    }),
+    "automatically_applied": frozenset({
+        "proposal_id", "stock_number", "backend_record_id", "vehicle_id", "navision_revision",
+        "vehicle_mutated", "authority_refreshed", "proposal_backend_record_version",
+        "current_backend_record_version", "board_activation_only", "booking_created", "work_mutated",
+        "parts_mutated", "authorization_basis", "board_purge_reactivation",
+    }),
+}
+VEHICLE_IMPORT_DATA_KEYS = frozenset({
+    "vehicle_id", "backend_record_id", "stock_number", "job_card_number", "required_work",
+    "identity_source", "booking_created", "completed_work_reopened",
+})
+OPERATION_IMPORT_DATA_KEYS = frozenset({
+    "vehicle_id", "source_hash", "operation_lines_received", "operation_lines_added",
+    "estimated_hours_added", "job_card_hours_corrected", "required_work_added", "resulting_revision",
+    "booking_created", "completed_work_reopened",
+})
 
 ACTOR_ID = "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b"
 ACTOR_EMAIL = "sales@broometoyota.com.au"
@@ -55,6 +113,11 @@ class Historical777Error(RuntimeError):
 
 def _sha256(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def _length_prefixed_sha256(values: list[str]) -> str:
+    payload = b"".join(len(value.encode("utf-8")).to_bytes(4, "big") + value.encode("utf-8") for value in values)
+    return _sha256(payload)
 
 
 def _canonical_field(name: str, value: Any) -> bytes:
@@ -133,6 +196,280 @@ def canonical_request_bytes(request: Mapping[str, Any]) -> bytes:
 
 def canonical_request_digest(request: Mapping[str, Any]) -> str:
     return _sha256(canonical_request_bytes(request))
+
+
+def _validate_nested_canonical_response(response: Mapping[str, Any], stage: str,
+                                       child_data: Mapping[str, Any], request: Mapping[str, Any],
+                                       operation_lines: list[Any], required_work: list[Any]) -> None:
+    if not isinstance(response, Mapping) or set(response) != NESTED_RESPONSE_KEYS or response.get("ok") is not True:
+        raise Historical777Error(f"historical nested {stage} response mismatch")
+    code = response.get("code")
+    data = response.get("data")
+    if not isinstance(data, Mapping):
+        raise Historical777Error(f"historical nested {stage} data mismatch")
+    if stage == "observation":
+        if code not in {"noticed", "already_noticed"}:
+            raise Historical777Error("historical nested observation code mismatch")
+        expected_keys = set(NESTED_OBSERVATION_BASE_KEYS) | {"auto_activation"}
+        if code == "noticed":
+            expected_keys.add("backend_record_id")
+        if set(data) != expected_keys or data["proposal_id"] != child_data["proposal_id"] \
+                or data["status"] not in {"pending", "applied", "rejected"} \
+                or type(data["version"]) is not int or data["version"] < 1 \
+                or not isinstance(data["fingerprint"], str) or re.fullmatch(r"[0-9A-F]{16}", data["fingerprint"]) is None:
+            raise Historical777Error("historical nested observation data mismatch")
+        if code == "noticed" and (not isinstance(data["backend_record_id"], str) or UUID_RE.fullmatch(data["backend_record_id"].lower()) is None):
+            raise Historical777Error("historical nested observation backend identity mismatch")
+        auto = data["auto_activation"]
+        if not isinstance(auto, Mapping) or set(auto) != NESTED_RESPONSE_KEYS or auto.get("ok") is not True \
+                or auto.get("code") not in NESTED_AUTO_DATA_KEYS or not isinstance(auto.get("data"), Mapping) \
+                or set(auto["data"]) != NESTED_AUTO_DATA_KEYS[auto["code"]] \
+                or auto["data"].get("proposal_id") != child_data["proposal_id"]:
+            raise Historical777Error("historical nested auto-activation mismatch")
+        auto_data = auto["data"]
+        if "stock_number" in auto_data and auto_data["stock_number"] != request["stock_number"]:
+            raise Historical777Error("historical nested auto-activation Stock mismatch")
+        if "vehicle_id" in auto_data and (not isinstance(auto_data["vehicle_id"], str)
+                or UUID_RE.fullmatch(auto_data["vehicle_id"].lower()) is None
+                or auto_data["vehicle_id"] != child_data["vehicle_id"]):
+            raise Historical777Error("historical nested auto-activation vehicle mismatch")
+        if "backend_record_id" in auto_data and (not isinstance(auto_data["backend_record_id"], str)
+                or UUID_RE.fullmatch(auto_data["backend_record_id"].lower()) is None
+                or auto_data["backend_record_id"] != child_data["backend_record_id"]):
+            raise Historical777Error("historical nested auto-activation backend mismatch")
+        if any(type(auto_data[key]) is not bool for key in auto_data if key in {
+                "vehicle_mutated", "board_activation_only", "reinstatement_receipt_required",
+                "authority_refreshed", "board_purge_reactivation", "booking_created", "work_mutated", "parts_mutated"}):
+            raise Historical777Error("historical nested auto-activation flag type mismatch")
+        if any(type(auto_data[key]) is not int or auto_data[key] < 1 for key in auto_data if key in {
+                "version", "proposal_backend_record_version", "current_backend_record_version", "navision_revision"}):
+            raise Historical777Error("historical nested auto-activation version mismatch")
+        expected_false = {
+            "uid514_exact_existing_identity_accepted": ("vehicle_mutated", "board_activation_only"),
+            "automatically_closed_existing": ("vehicle_mutated", "board_activation_only"),
+            "automatically_closed_duplicate": ("vehicle_mutated", "board_activation_only"),
+        }
+        if auto["code"] in expected_false and any(auto_data[key] is not False for key in expected_false[auto["code"]]):
+            raise Historical777Error("historical nested closed-state mismatch")
+        if auto["code"] == "automatically_applied" and (
+                auto_data["board_activation_only"] is not True or auto_data["booking_created"] is not False
+                or auto_data["work_mutated"] is not False or auto_data["parts_mutated"] is not False):
+            raise Historical777Error("historical nested applied-state mismatch")
+        return
+    if stage == "vehicle_import":
+        if code != "canonical_receipt_and_work_imported" or set(data) != VEHICLE_IMPORT_DATA_KEYS \
+                or data["vehicle_id"] != child_data["vehicle_id"] or data["backend_record_id"] != child_data["backend_record_id"] \
+                or data["stock_number"] != request["stock_number"] or data["job_card_number"] != child_data["job_card_number"] \
+                or data["required_work"] != required_work \
+                or data["identity_source"] != "navision_exact" or data["booking_created"] is not False \
+                or data["completed_work_reopened"] is not False:
+            raise Historical777Error("historical nested vehicle-import mismatch")
+        if any(not isinstance(data[key], str) for key in ("vehicle_id", "backend_record_id", "stock_number", "job_card_number", "identity_source")) \
+                or not isinstance(data["required_work"], list) \
+                or type(data["booking_created"]) is not bool or type(data["completed_work_reopened"]) is not bool:
+            raise Historical777Error("historical nested vehicle-import schema mismatch")
+        return
+    if stage == "operation_import":
+        if code not in {"operation_lines_and_hours_imported", "operation_lines_and_hours_already_imported"} \
+                or set(data) != OPERATION_IMPORT_DATA_KEYS or data["vehicle_id"] != child_data["vehicle_id"] \
+                or data["source_hash"] != child_data["canonical_source_hash"] \
+                or data["operation_lines_received"] != len(operation_lines) \
+                or any(type(data[key]) is not int or data[key] < 0 for key in ("operation_lines_received", "operation_lines_added", "estimated_hours_added", "job_card_hours_corrected", "required_work_added", "resulting_revision")) \
+                or data["booking_created"] is not False or data["completed_work_reopened"] is not False:
+            raise Historical777Error("historical nested operation-import mismatch")
+        if type(data["booking_created"]) is not bool or type(data["completed_work_reopened"]) is not bool \
+                or not isinstance(data["source_hash"], str) or re.fullmatch(r"[0-9a-f]{64}", data["source_hash"]) is None:
+            raise Historical777Error("historical nested operation-import schema mismatch")
+        return
+    raise Historical777Error("historical nested stage mismatch")
+
+
+def validate_success_response(request: Mapping[str, Any], response: Mapping[str, Any], request_hash: str) -> None:
+    """Accept success only when the deployed 795 receipt envelope is complete."""
+    if set(response) != SUCCESS_RESPONSE_KEYS or response.get("ok") is not True or response.get("code") != EXPECTED_SUCCESS_CODE:
+        raise Historical777Error("historical success receipt envelope mismatch")
+    data = response.get("data")
+    if not isinstance(data, Mapping) or set(data) != SUCCESS_DATA_KEYS:
+        raise Historical777Error("historical success receipt data mismatch")
+    for key in ("receipt_id", "intake_id", "proposal_id"):
+        value = data.get(key)
+        if not isinstance(value, str) or UUID_RE.fullmatch(value.lower()) is None:
+            raise Historical777Error(f"historical success {key} readback mismatch")
+    seen_nested_receipt_ids = {data["receipt_id"].lower()}
+    if data["contract_version"] != "778.1" or data["manifest_sha256"] != request["manifest_sha256"] \
+            or data["provider_uid"] != request["provider_uid"] \
+            or data["parent_source_hash"] != request["parent_source_hash"] \
+            or data["sender_email"] != request["sender_email"] \
+            or data["stock_number"] != request["stock_number"]:
+        raise Historical777Error("historical success receipt identity mismatch")
+    if not isinstance(request_hash, str) or re.fullmatch(r"[0-9a-f]{64}", request_hash) is None \
+            or request_hash != canonical_request_digest(request):
+        raise Historical777Error("historical request digest readback binding mismatch")
+    manifest = request["attachment_manifest"]
+    children = request["job_card_children"]
+    if any(type(data[key]) is not int or data[key] < 0 for key in ("attachment_count", "job_card_count", "sibling_count")) \
+            or data["attachment_count"] != len(manifest) or data["job_card_count"] != sum(item["attachment_kind"] == "job_card" for item in manifest) \
+            or data["sibling_count"] != sum(item["attachment_kind"] != "job_card" for item in manifest):
+        raise Historical777Error("historical success attachment count mismatch")
+    if data["proposal_binding_kind"] not in {"pending_proposal_observation_match", "pending_proposal_observation_mismatch"} \
+            or not isinstance(data["proposal_observation_match"], bool) \
+            or data["proposal_binding_kind"] != ("pending_proposal_observation_match" if data["proposal_observation_match"] else "pending_proposal_observation_mismatch"):
+        raise Historical777Error("historical success proposal readback mismatch")
+    parent = data["parent_observation"]
+    if not isinstance(parent, Mapping) or set(parent) != PARENT_RESPONSE_KEYS or parent.get("ok") is not True \
+            or parent.get("code") not in {"noticed", "already_noticed"} or not isinstance(parent.get("data"), Mapping) \
+            or set(parent["data"]) != PARENT_DATA_KEYS or not isinstance(parent["data"]["proposal_id"], str) \
+            or UUID_RE.fullmatch(parent["data"]["proposal_id"].lower()) is None or parent["data"]["status"] != "pending" \
+            or type(parent["data"]["version"]) is not int or parent["data"]["version"] < 1 \
+            or not isinstance(parent["data"]["fingerprint"], str) or re.fullmatch(r"[0-9A-F]{16}", parent["data"]["fingerprint"]) is None:
+        raise Historical777Error("historical parent observation readback mismatch")
+    if parent["data"]["proposal_id"] != data["proposal_id"]:
+        raise Historical777Error("historical proposal identity readback mismatch")
+    receipts = data["attachment_receipts"]
+    if not isinstance(receipts, list) or len(receipts) != len(children):
+        raise Historical777Error("historical attachment receipt readback mismatch")
+    expected_occurrences = {(item["ordinal"], item["sha256"]) for item in manifest if item["attachment_kind"] in ("job_card", "ambiguous_job_card")}
+    if not all(isinstance(receipt, Mapping) for receipt in receipts):
+        raise Historical777Error("historical attachment occurrence completeness mismatch")
+    if any(type(receipt.get("attachment_ordinal")) is not int or not isinstance(receipt.get("attachment_hash"), str) for receipt in receipts):
+        raise Historical777Error("historical attachment occurrence completeness mismatch")
+    actual_occurrences = {(receipt.get("attachment_ordinal"), receipt.get("attachment_hash")) for receipt in receipts}
+    if len(actual_occurrences) != len(receipts) or actual_occurrences != {(child["attachment_ordinal"], child["attachment_hash"]) for child in children} \
+            or actual_occurrences != expected_occurrences:
+        raise Historical777Error("historical attachment occurrence completeness mismatch")
+    for child, receipt in zip(children, receipts):
+        if not isinstance(receipt, Mapping) or set(receipt) not in (
+                {"attachment_ordinal", "attachment_hash", "result"},
+                {"attachment_ordinal", "attachment_hash", "result", "authoritative_vehicle_id", "authoritative_operation_count"}):
+            raise Historical777Error("historical attachment receipt shape mismatch")
+        if type(receipt["attachment_ordinal"]) is not int or not isinstance(receipt["attachment_hash"], str) \
+                or receipt["attachment_ordinal"] != child["attachment_ordinal"] or receipt["attachment_hash"] != child["attachment_hash"]:
+            raise Historical777Error("historical attachment occurrence readback mismatch")
+        result = receipt["result"]
+        if child["attachment_kind"] == "ambiguous_job_card":
+            if result != {"ok": False, "code": "historical_child_ambiguous"} or set(receipt) != {"attachment_ordinal", "attachment_hash", "result"}:
+                raise Historical777Error("historical ambiguous attachment readback mismatch")
+            continue
+        if not isinstance(child.get("extraction"), Mapping) or not isinstance(child["extraction"].get("operation_lines"), list):
+            raise Historical777Error("historical child extraction readback mismatch")
+        operation_lines = child["extraction"]["operation_lines"]
+        if not isinstance(result, Mapping) or set(result) != CHILD_RESPONSE_KEYS or result.get("ok") is not True \
+                or result.get("code") != "jobcard_attachment_receipt" or not isinstance(result.get("data"), Mapping) \
+                or set(result["data"]) != CHILD_DATA_KEYS:
+            raise Historical777Error("historical attachment result readback mismatch")
+        else:
+            child_data = result["data"]
+            for key in ("receipt_id", "intake_id", "attachment_id", "canonical_import_receipt_id", "vehicle_id", "backend_record_id"):
+                if not isinstance(child_data[key], str) or UUID_RE.fullmatch(child_data[key].lower()) is None:
+                    raise Historical777Error("historical child receipt identity mismatch")
+            child_identity_ids = {child_data["receipt_id"].lower(), child_data["canonical_import_receipt_id"].lower()}
+            if len(child_identity_ids) != 2 or seen_nested_receipt_ids.intersection(child_identity_ids):
+                raise Historical777Error("historical child receipt identity replay mismatch")
+            seen_nested_receipt_ids.update(child_identity_ids)
+            if child_data["parent_source_hash"] != request["parent_source_hash"] \
+                    or child_data["attachment_source_hash"] != child["attachment_hash"] \
+                    or child_data["intake_id"] != data["intake_id"] \
+                    or child_data["proposal_id"] != parent["data"]["proposal_id"] \
+                    or child_data["attachment_size_bytes"] != next(item["size"] for item in manifest if item["ordinal"] == child["attachment_ordinal"]) \
+                    or child_data["attachment_content_type"] != next(item["content_type"] for item in manifest if item["ordinal"] == child["attachment_ordinal"]) \
+                    or child_data["job_card_number"] != child["extraction"].get("email_vehicle", {}).get("job_card_number") \
+                    or child_data["operation_count"] != len(operation_lines) \
+                    or type(child_data["operation_count"]) is not int or child_data["operation_count"] < 0 \
+                    or type(child_data["attachment_size_bytes"]) is not int or child_data["attachment_size_bytes"] < 1 \
+                    or type(child_data["vehicle_version"]) is not int or type(child_data["backend_record_version"]) is not int \
+                    or child_data["canonical_source_hash"] != _length_prefixed_sha256(["pdc-attachment-canonical-source", "233.1", child_data["intake_id"], child_data["attachment_id"], request["parent_source_hash"], child["attachment_hash"]]) \
+                    or child_data["source_uid"] != "pdc-jc-159:" + _sha256((child_data["intake_id"] + ":" + child_data["attachment_id"] + ":" + request["parent_source_hash"] + ":" + child["attachment_hash"]).encode("utf-8")) \
+                    or child_data["requested_payload_sha256"] != _sha256(_postgres_jsonb_text({
+                        "contract_version": "159.1", "actor_id": ACTOR_ID, "intake_id": child_data["intake_id"],
+                        "attachment_id": child_data["attachment_id"], "parent_source_hash": request["parent_source_hash"],
+                        "attachment_source_hash": child["attachment_hash"], "source_uid": child_data["source_uid"],
+                        "authentication": request["authentication"], "email_vehicle": child["extraction"].get("email_vehicle", {}),
+                        "required_work": child["extraction"].get("required_work", []), "operation_lines": child["extraction"].get("operation_lines", []),
+                    }).encode("utf-8")) \
+                    or child_data["operation_sha256"] != _sha256(_postgres_jsonb_text(child_data["operation_lines"]).encode("utf-8")) \
+                    or not isinstance(child_data["source_uid"], str) or not re.fullmatch(r"pdc-jc-159:[0-9a-f]{64}", child_data["source_uid"]) \
+                    or not isinstance(child_data["job_card_number"], str) or not isinstance(child_data["canonical_operation_line_ids"], list) \
+                    or not isinstance(child_data["operation_lines"], list) or len(child_data["operation_lines"]) != child_data["operation_count"] \
+                    or not isinstance(child_data["rule_applications"], list) or not isinstance(child_data["canonical_import_response"], Mapping) \
+                    or set(child_data["canonical_import_response"]) != {"observation", "vehicle_import", "operation_import", "booking_created", "completion_created", "location_scheduled"} \
+                    or any(child_data["canonical_import_response"][key] is not False for key in ("booking_created", "completion_created", "location_scheduled")) \
+                    or any(not isinstance(child_data["canonical_import_response"][key], Mapping) or set(child_data["canonical_import_response"][key]) != CHILD_RESPONSE_KEYS for key in ("observation", "vehicle_import", "operation_import")) \
+                    or any(child_data[key] is not False for key in ("booking_created", "completion_created", "location_scheduled")):
+                raise Historical777Error("historical child receipt data mismatch")
+            line_keys = {"source_row_no", "operation_no", "operation_line_id", "work_key", "description", "estimated_hours", "estimated_hours_source"}
+            if not isinstance(child_data["canonical_operation_line_ids"], list) \
+                    or any(not isinstance(line_id, str) for line_id in child_data["canonical_operation_line_ids"]) \
+                    or len(child_data["canonical_operation_line_ids"]) != len(operation_lines) \
+                    or len(set(child_data["canonical_operation_line_ids"])) != len(child_data["canonical_operation_line_ids"]) \
+                    or any(not isinstance(line, Mapping) or set(line) != line_keys for line in child_data["operation_lines"]):
+                raise Historical777Error("historical operation-line readback schema mismatch")
+            observed_hours = Decimal("0")
+            for requested_line, observed_line in zip(operation_lines, child_data["operation_lines"]):
+                requested_hours = requested_line.get("estimated_hours")
+                expected_hour_source = "owner_supplied_document_unknown" if requested_hours is None else requested_line.get("estimated_hours_source")
+                if type(observed_line["source_row_no"]) is not int or observed_line["source_row_no"] < 1 \
+                        or observed_line["source_row_no"] != requested_line.get("source_row_no") \
+                        or not isinstance(observed_line["operation_no"], str) or re.fullmatch(r"OP([1-9]|[1-9][0-9]{1,2})", observed_line["operation_no"]) is None \
+                        or observed_line["operation_no"] != requested_line.get("operation_no") \
+                        or not isinstance(observed_line["work_key"], str) or observed_line["work_key"] not in {"bus4x4", "tint", "hoist", "fitting", "fabrication", "electrical", "tyre", "pitInspection", "PARTS", "sublet", "owner_supplied_document"} \
+                        or observed_line["work_key"] != requested_line.get("work_key") \
+                        or not isinstance(observed_line["description"], str) or not 1 <= len(observed_line["description"]) <= 180 \
+                        or observed_line["description"] != requested_line.get("description") \
+                        or not isinstance(observed_line["operation_line_id"], str) \
+                        or UUID_RE.fullmatch(observed_line["operation_line_id"].lower()) is None \
+                        or observed_line["estimated_hours_source"] not in {"job_card", "ai_estimate", "owner_supplied_document_unknown"} \
+                        or observed_line["estimated_hours"] != requested_hours \
+                        or observed_line["estimated_hours_source"] != expected_hour_source:
+                    raise Historical777Error("historical operation-line binding mismatch")
+                if observed_line["estimated_hours"] is not None:
+                    if not isinstance(observed_line["estimated_hours"], (int, float)) or isinstance(observed_line["estimated_hours"], bool):
+                        raise Historical777Error("historical operation-line hours schema mismatch")
+                    try:
+                        hours = Decimal(str(observed_line["estimated_hours"]))
+                    except (InvalidOperation, ValueError):
+                        raise Historical777Error("historical operation-line hours schema mismatch")
+                    if hours < 0 or hours > Decimal("999.99") or observed_line["estimated_hours_source"] not in {"job_card", "ai_estimate"}:
+                        raise Historical777Error("historical operation-line hours schema mismatch")
+                    observed_hours += hours
+                elif observed_line["estimated_hours_source"] != "owner_supplied_document_unknown":
+                    raise Historical777Error("historical operation-line unknown-hours mismatch")
+            try:
+                reported_hours = Decimal(str(child_data["estimated_hours_sum"]))
+            except (InvalidOperation, ValueError):
+                raise Historical777Error("historical operation aggregate mismatch")
+            if reported_hours < 0 or reported_hours > Decimal("99999.00") \
+                    or [line["operation_line_id"] for line in child_data["operation_lines"]] != child_data["canonical_operation_line_ids"] \
+                    or reported_hours != observed_hours:
+                raise Historical777Error("historical operation aggregate mismatch")
+            nested = child_data["canonical_import_response"]
+            _validate_nested_canonical_response(nested["observation"], "observation", child_data, request, operation_lines, child["extraction"].get("required_work", []))
+            _validate_nested_canonical_response(nested["vehicle_import"], "vehicle_import", child_data, request, operation_lines, child["extraction"].get("required_work", []))
+            _validate_nested_canonical_response(nested["operation_import"], "operation_import", child_data, request, operation_lines, child["extraction"].get("required_work", []))
+            if set(receipt) != {"attachment_ordinal", "attachment_hash", "result", "authoritative_vehicle_id", "authoritative_operation_count"} \
+                or not isinstance(receipt["authoritative_vehicle_id"], str) or UUID_RE.fullmatch(receipt["authoritative_vehicle_id"].lower()) is None \
+                or receipt["authoritative_vehicle_id"] != child_data["vehicle_id"] \
+                or type(receipt["authoritative_operation_count"]) is not int \
+                or receipt["authoritative_operation_count"] != child_data["operation_count"]:
+                raise Historical777Error("historical child authoritative readback mismatch")
+    state = data["authoritative_state"]
+    state_keys = {"vehicle_id", "lifecycle_state", "current_location", "operation_count", "booking_count", "completion_count", "parts_changed"}
+    if not isinstance(state, Mapping) or set(state) != state_keys or type(state["operation_count"]) is not int \
+            or type(state["booking_count"]) is not int or type(state["completion_count"]) is not int \
+            or state["operation_count"] < 0 or state["booking_count"] != 0 or state["completion_count"] != 0 \
+            or state["parts_changed"] is not False:
+        raise Historical777Error("historical authoritative state readback mismatch")
+    if state["vehicle_id"] is not None and (not isinstance(state["vehicle_id"], str) or UUID_RE.fullmatch(state["vehicle_id"].lower()) is None):
+        raise Historical777Error("historical authoritative vehicle readback mismatch")
+    regular_receipts = [receipt for child, receipt in zip(children, receipts) if child["attachment_kind"] != "ambiguous_job_card"]
+    child_vehicle_ids = [receipt["result"]["data"]["vehicle_id"] for receipt in regular_receipts]
+    if child_vehicle_ids and (len(set(child_vehicle_ids)) != 1 or state["vehicle_id"] != child_vehicle_ids[0]):
+        raise Historical777Error("historical authoritative vehicle binding mismatch")
+    child_operation_counts = [receipt["result"]["data"]["operation_count"] for receipt in regular_receipts]
+    if child_operation_counts and state["operation_count"] != sum(child_operation_counts):
+        raise Historical777Error("historical authoritative operation readback mismatch")
+    if any(data[key] is not False for key in ("booking_created", "completion_created", "location_scheduled", "parts_changed", "status_changed")) \
+            or any(data[key] is not True for key in ("no_booking", "no_completion", "no_location_mutation")):
+        raise Historical777Error("historical protected-boundary readback mismatch")
 
 
 def _required(row: Mapping[str, Any], key: str) -> Any:
@@ -359,6 +696,7 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
                            limit: int | None = None) -> list[dict[str, Any]]:
     """Run only supplied frozen rows; never discovers additional mailbox messages."""
     results = []
+    seen_receipt_ids: set[str] = set()
     frozen_rows = select_authorized_rows(rows)
     if limit is not None:
         if not isinstance(limit, int) or limit < 1 or limit > len(frozen_rows):
@@ -397,10 +735,32 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
         raw_ok = response.get("ok") is True
         code = response.get("code") if isinstance(response.get("code"), str) else (None if raw_ok else "historical_unknown_failure")
         data = response.get("data") if isinstance(response.get("data"), Mapping) else {}
-        review_required = code in PROPOSAL_REVIEW_CODES or data.get("review_required") is True
+        review_required = code in PROPOSAL_REVIEW_CODES or (code != EXPECTED_SUCCESS_CODE and data.get("review_required") is True)
+        if raw_ok and not review_required:
+            try:
+                validate_success_response(request, response, request_hash)
+                receipt_id = response["data"]["receipt_id"].lower()
+                if receipt_id in seen_receipt_ids:
+                    raise Historical777Error("historical receipt identity replay mismatch")
+                seen_receipt_ids.add(receipt_id)
+            except Historical777Error as exc:
+                raw_ok = False
+                code = str(exc)
+            except Exception:
+                raw_ok = False
+                code = "historical_success_receipt_validation_failure"
         ok = raw_ok and not review_required
         state = "imported" if ok else ("review" if review_required else "retry")
-        outbox.execute("update historical_778_outbox set state=?,response_json=?,attempt_count=attempt_count+1,last_error_code=?,review_required=?,updated_at=datetime('now') where provider_uid=?", (state, json.dumps(response, sort_keys=True, ensure_ascii=False), code, int(review_required), provider_uid))
+        try:
+            response_json = json.dumps(response, sort_keys=True, ensure_ascii=False)
+        except (TypeError, ValueError, OverflowError):
+            response = {"ok": False, "code": "historical_response_not_json_serializable"}
+            response_json = json.dumps(response, sort_keys=True)
+            ok = False
+            review_required = False
+            state = "retry"
+            code = response["code"]
+        outbox.execute("update historical_778_outbox set state=?,response_json=?,attempt_count=attempt_count+1,last_error_code=?,review_required=?,updated_at=datetime('now') where provider_uid=?", (state, response_json, code, int(review_required), provider_uid))
         outbox.commit()
         results.append({"provider_uid": provider_uid, "state": state, "code": code, "ok": ok})
     return results
