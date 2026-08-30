@@ -112,7 +112,7 @@ class HistoricalAuthorization809LiveTests(unittest.TestCase):
             request = self.request(uid)
             self.cur.execute("savepoint pdc809_apply")
             result = self.call_public(request)
-            self.assertNotIn(result.get("code"), {"historical_authorization_expired", "pdc_778_exact_authorization_failed", "historical_wrapper_preflight_failed", "unauthorized"}, (uid, result))
+            self.assertNotIn(result.get("code"), {"historical_authorization_expired", "pdc_778_exact_authorization_failed", "historical_runtime_binding_unavailable", "historical_wrapper_preflight_failed", "unauthorized"}, (uid, result))
             first = self.call_pre135(request)
             second = self.call_pre135(request)
             self.assertTrue(first.get("ok"), (uid, first))
