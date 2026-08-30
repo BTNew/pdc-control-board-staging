@@ -331,6 +331,9 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
         raise Historical777Error("historical protected fingerprint envelope mismatch")
     if any(domain[name]["fingerprint"] != fingerprints[name] for name in ("parts", "sublet", "qc", "rft_transport")):
         raise Historical777Error("historical protected fingerprint binding mismatch")
+    aggregate = ":".join(fingerprints[name] for name in ("vehicle", "lifecycle_location", "parts", "sublet", "qc", "rft_transport"))
+    if hashlib.md5(aggregate.encode("ascii")).hexdigest() != fingerprints["all"]:
+        raise Historical777Error("historical aggregate fingerprint binding mismatch")
 
 
 def validate_success_response(request: Mapping[str, Any], response: Mapping[str, Any], request_hash: str,

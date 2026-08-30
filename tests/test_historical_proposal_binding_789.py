@@ -149,7 +149,7 @@ def success_response(request: dict) -> dict:
                 "vehicle": "00000000000000000000000000000000", "lifecycle_location": "00000000000000000000000000000000",
                 "parts": "00000000000000000000000000000000", "sublet": "00000000000000000000000000000000",
                 "qc": "00000000000000000000000000000000", "rft_transport": "00000000000000000000000000000000",
-                "all": "00000000000000000000000000000000",
+                "all": "78453cff2ed0c79798143051f92bebbf",
             },
         },
         "booking_created": False, "completion_created": False, "location_scheduled": False,
@@ -497,6 +497,7 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
                 lambda value: value["data"]["authoritative_domain_state"].pop("parts"),
                 lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"fingerprint": "not-a-fingerprint"}),
                 lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"fingerprint": "11111111111111111111111111111111"}),
+                lambda value: value["data"]["authoritative_domain_state"]["protected_fingerprints"].update({"all": "11111111111111111111111111111111"}),
                 lambda value: value["data"]["authoritative_domain_state"]["sublet"].update({"bookings": [{"unexpected": True}]}),
             ):
                 mutated = json.loads(json.dumps(good))
