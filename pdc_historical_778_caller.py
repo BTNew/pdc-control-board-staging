@@ -748,6 +748,8 @@ def _canonical_historical_authentication(value: Any) -> dict[str, Any]:
         raise Historical777Error("historical authentication has unexpected keys")
     if "aligned" in value and type(value["aligned"]) is not bool:
         raise Historical777Error("historical authentication aligned marker is not boolean")
+    if "aligned" not in value:
+        return dict(value)
     if set(value) & allowed != allowed:
         raise Historical777Error("historical authentication is incomplete")
     return {key: value[key] for key in sorted(allowed)}
