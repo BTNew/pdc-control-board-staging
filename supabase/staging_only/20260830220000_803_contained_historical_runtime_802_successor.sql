@@ -129,7 +129,7 @@ DECLARE v_adapter text; v_wrapper text;
 BEGIN
  SELECT pg_get_functiondef('public.verify_pdc_historical_runtime_binding_authenticated_802(text,text,text,text,text,text,text)'::regprocedure),pg_get_functiondef('public.submit_pdc_historical_reconciliation_778(jsonb)'::regprocedure) INTO v_adapter,v_wrapper;
  IF position('verify_pdc_monitor_runtime_binding_authenticated_672' in v_adapter)=0
- OR position('monitored_mailboxes where active' in v_adapter)=0
+ OR position('monitored_mailboxes where active' in lower(v_adapter))=0
  OR position('historical_runtime_binding_verified_contained_802' in v_adapter)=0
  OR position('verify_pdc_historical_runtime_binding_authenticated_802' in v_wrapper)=0
  OR position('pdc_monitor_authenticated_active_scope_674' in v_wrapper)>0
