@@ -94,6 +94,38 @@ class HistoricalAuthorization809LiveTests(unittest.TestCase):
         )
         return self.cur.fetchone()[0]
 
+    def test_uid134_all_unknown_hours_are_evidence_faithful(self):
+        before = self.snapshot()
+        request = self.request("1:134")
+        self.cur.execute("savepoint pdc830_hours")
+        result = self.call_public(request)
+        self.assertTrue(result.get("ok"), result)
+        self.assertEqual(result.get("code"), "historical_reconciliation_782_receipt")
+        receipts = (result.get("data") or {}).get("attachment_receipts") or []
+        child = next(
+            item for item in receipts
+            if ((item.get("result") or {}).get("data") or {}).get("operation_count") == 9
+        )
+        data = (child.get("result") or {}).get("data") or {}
+        self.assertIsNone(data.get("estimated_hours_sum"))
+        self.assertIsNone(data.get("known_hours_sum"))
+        self.assertEqual(data.get("known_hours_count"), 0)
+        self.assertEqual(data.get("unknown_hours_count"), 9)
+        self.assertEqual(data.get("hours_coverage"), 0)
+        self.assertEqual(data.get("hours_knowledge_status"), "all_unknown")
+        self.assertTrue(all(line.get("estimated_hours") is None for line in data.get("operation_lines") or []))
+        self.cur.execute(
+            "select estimated_hours_sum,known_hours_sum,known_hours_count,unknown_hours_count,hours_coverage "
+            "from public.pdc_jobcard_attachment_import_receipts where parent_source_hash=%s and operation_count=9",
+            (request["parent_source_hash"],),
+        )
+        row = self.cur.fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(tuple(row), (None, None, 0, 9, 0))
+        self.cur.execute("rollback to savepoint pdc830_hours")
+        self.cur.execute("release savepoint pdc830_hours")
+        self.assertEqual(before, self.snapshot())
+
     def test_five_renewal_rows_are_exact_and_unexpired(self):
         self.cur.execute("select provider_uid,stock_number,evidence_hash,supersedes_authorization_id,authorized_actor_id::text,authorized_actor_email,authorized_gateway_instance_id,authorized_at,expires_at from public.pdc_historical_reconciliation_writer_authorizations_809 where active and expires_at>clock_timestamp() order by provider_uid")
         rows = self.cur.fetchall()
