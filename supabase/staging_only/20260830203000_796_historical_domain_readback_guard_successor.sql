@@ -112,7 +112,7 @@ SET statement_timeout='300s'
 AS $wrapper$
 DECLARE
  v_before jsonb; v_after jsonb; v_result jsonb; v_readback jsonb; v_vehicle public.vehicles%rowtype; v_vehicle_id uuid; v_receipt_id uuid; v_request_hash text;
- v_stock text; v_match_count integer:=0; v_had_vehicle boolean:=false; v_location text; v_lifecycle text;
+ v_stock text; v_match_count integer:=0; v_had_vehicle boolean:=false; v_replay boolean:=false; v_location text; v_lifecycle text;
 BEGIN
  IF NOT public.pdc_monitor_staging_guard() OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
     OR auth.uid()<>'df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b'::uuid
@@ -120,7 +120,10 @@ BEGIN
     OR NOT public.pdc_monitor_authenticated_active_scope_674('pdc-monitor-staging-sales-uid509-v1')
  THEN RETURN jsonb_build_object('ok',false,'code','unauthorized'); END IF;
  v_stock:=public.normalize_vehicle_stock_number(p_request->>'stock_number');
- IF jsonb_typeof(p_request)='object' AND v_stock IS NOT NULL AND v_stock<>'' THEN
+ IF jsonb_typeof(p_request)='object' THEN
+   SELECT EXISTS(SELECT 1 FROM public.pdc_historical_reconciliation_778_receipts r WHERE r.actor_id=auth.uid() AND r.provider_uid=btrim(coalesce(p_request->>'provider_uid','')) AND r.parent_source_hash=lower(btrim(coalesce(p_request->>'parent_source_hash','')))) INTO v_replay;
+ END IF;
+ IF NOT v_replay AND jsonb_typeof(p_request)='object' AND v_stock IS NOT NULL AND v_stock<>'' THEN
    SELECT count(*) INTO v_match_count FROM public.vehicles v WHERE v.stock_number_normalized=v_stock;
    IF v_match_count>1 THEN RETURN jsonb_build_object('ok',false,'code','PDC_796_IDENTITY_CONFLICT'); END IF;
    SELECT * INTO v_vehicle FROM public.vehicles v WHERE v.stock_number_normalized=v_stock ORDER BY (v.deleted_at IS NULL) DESC,v.id LIMIT 1 FOR UPDATE;
@@ -139,17 +142,19 @@ BEGIN
    IF (v_result->'data'->'authoritative_state'->>'vehicle_id') IS NOT NULL THEN v_vehicle_id:=(v_result->'data'->'authoritative_state'->>'vehicle_id')::uuid; END IF;
    IF v_vehicle_id IS NULL AND v_stock IS NOT NULL THEN SELECT v.id INTO v_vehicle_id FROM public.vehicles v WHERE v.stock_number_normalized=v_stock AND v.deleted_at IS NULL ORDER BY v.id LIMIT 1; END IF;
    v_after:=public.pdc_historical_796_domain_snapshot(v_vehicle_id);
-   IF jsonb_typeof(v_after->'vehicle')='object' AND v_after->'vehicle'->>'lifecycle_state' IS DISTINCT FROM 'active' THEN RAISE EXCEPTION 'PDC_796_TERMINAL_READBACK_FAILED' USING errcode='55000'; END IF;
-   IF v_had_vehicle AND (v_after->'vehicle'->>'lifecycle_state' IS DISTINCT FROM v_before->'vehicle'->>'lifecycle_state' OR v_after->'vehicle'->>'current_location' IS DISTINCT FROM v_before->'vehicle'->>'current_location' OR v_after->'protected_fingerprints' IS DISTINCT FROM v_before->'protected_fingerprints') THEN RAISE EXCEPTION 'PDC_796_PROTECTED_DOMAIN_DRIFT' USING errcode='55000'; END IF;
+   IF NOT v_replay THEN
+     IF jsonb_typeof(v_after->'vehicle')='object' AND v_after->'vehicle'->>'lifecycle_state' IS DISTINCT FROM 'active' THEN RAISE EXCEPTION 'PDC_796_TERMINAL_READBACK_FAILED' USING errcode='55000'; END IF;
+     IF v_had_vehicle AND (v_after->'vehicle'->>'lifecycle_state' IS DISTINCT FROM v_before->'vehicle'->>'lifecycle_state' OR v_after->'vehicle'->>'current_location' IS DISTINCT FROM v_before->'vehicle'->>'current_location' OR v_after->'protected_fingerprints' IS DISTINCT FROM v_before->'protected_fingerprints') THEN RAISE EXCEPTION 'PDC_796_PROTECTED_DOMAIN_DRIFT' USING errcode='55000'; END IF;
+   END IF;
    IF (v_result->'data'->>'receipt_id') !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' THEN RAISE EXCEPTION 'PDC_796_RECEIPT_READBACK_FAILED' USING errcode='55000'; END IF;
    v_receipt_id:=(v_result->'data'->>'receipt_id')::uuid;
    SELECT r.request_sha256 INTO v_request_hash FROM public.pdc_historical_reconciliation_778_receipts r WHERE r.receipt_id=v_receipt_id;
    IF v_request_hash IS NULL THEN RAISE EXCEPTION 'PDC_796_AGGREGATE_RECEIPT_READBACK_FAILED' USING errcode='55000'; END IF;
    INSERT INTO public.pdc_historical_domain_readbacks_796(receipt_id,request_sha256,vehicle_id,authoritative_domain_state,before_protected_fingerprints,after_protected_fingerprints,protected_fingerprint)
-   VALUES(v_receipt_id,coalesce(v_request_hash,encode(extensions.digest(convert_to(coalesce(p_request->>'canonical_request_utf8',''),'UTF8'),'sha256'),'hex')),v_vehicle_id,v_after,coalesce(v_before->'protected_fingerprints','{}'::jsonb),v_after->'protected_fingerprints',v_after->'protected_fingerprints'->>'all') ON CONFLICT(receipt_id) DO NOTHING;
+   VALUES(v_receipt_id,v_request_hash,v_vehicle_id,v_after,coalesce(v_before->'protected_fingerprints','{}'::jsonb),v_after->'protected_fingerprints',v_after->'protected_fingerprints'->>'all') ON CONFLICT(receipt_id) DO NOTHING;
    SELECT jsonb_build_object('receipt_id',receipt_id,'request_sha256',request_sha256,'vehicle_id',vehicle_id,'authoritative_domain_state',authoritative_domain_state,'before_protected_fingerprints',before_protected_fingerprints,'after_protected_fingerprints',after_protected_fingerprints,'protected_fingerprint',protected_fingerprint) INTO v_readback FROM public.pdc_historical_domain_readbacks_796 WHERE receipt_id=v_receipt_id;
    IF v_readback IS NULL OR v_readback->>'request_sha256' IS NULL OR v_readback->>'protected_fingerprint' IS NULL THEN RAISE EXCEPTION 'PDC_796_DOMAIN_READBACK_FAILED' USING errcode='55000'; END IF;
-   v_result:=jsonb_set(v_result,'{data,authoritative_domain_state}',v_after,true);
+   IF v_readback->'authoritative_domain_state' IS NOT NULL THEN v_result:=jsonb_set(v_result,'{data,authoritative_domain_state}',v_readback->'authoritative_domain_state',true); END IF;
  END IF;
  RETURN v_result;
 EXCEPTION WHEN OTHERS THEN
