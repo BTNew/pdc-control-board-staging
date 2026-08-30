@@ -47,7 +47,7 @@ SUCCESS_DATA_KEYS = frozenset({
     "proposal_binding_kind", "proposal_observation_match", "job_card_count", "sibling_count",
     "attachment_receipts", "parent_observation", "authoritative_state", "booking_created",
     "completion_created", "location_scheduled", "parts_changed", "status_changed", "no_booking",
-    "no_completion", "no_location_mutation",
+    "no_completion", "no_location_mutation", "authoritative_domain_state",
 })
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 PARENT_RESPONSE_KEYS = frozenset({"ok", "code", "data"})
@@ -96,6 +96,8 @@ OPERATION_IMPORT_DATA_KEYS = frozenset({
     "booking_created", "completed_work_reopened",
 })
 PROTECTED_ACTIVE_LOCATIONS = frozenset({"YH", "PMB", "QC", "Other"})
+DOMAIN_STATE_KEYS = frozenset({"vehicle", "parts", "sublet", "qc", "rft_transport", "protected_fingerprints"})
+DOMAIN_FINGERPRINT_KEYS = frozenset({"vehicle", "lifecycle_location", "parts", "sublet", "qc", "rft_transport", "all"})
 
 ACTOR_ID = "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b"
 ACTOR_EMAIL = "sales@broometoyota.com.au"
@@ -283,6 +285,50 @@ def _validate_nested_canonical_response(response: Mapping[str, Any], stage: str,
             raise Historical777Error("historical nested operation-import schema mismatch")
         return
     raise Historical777Error("historical nested stage mismatch")
+
+
+def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mapping[str, Any]) -> None:
+    if not isinstance(domain, Mapping) or set(domain) != DOMAIN_STATE_KEYS:
+        raise Historical777Error("historical authoritative domain envelope mismatch")
+    vehicle = domain["vehicle"]
+    vehicle_keys = {"vehicle_id", "lifecycle_state", "current_location", "version", "deleted_at", "board_purged_at", "rft_transferred_at", "rft_collected_at", "rft_confirmed_at", "rft_transport_booked_at", "dealer_transit_started_at", "dealer_transit_closed_at", "dealer_transit_duration_seconds", "delivered_to_dealer_date", "qc_completed_at", "workshop_status"}
+    if vehicle is not None:
+        if not isinstance(vehicle, Mapping) or set(vehicle) != vehicle_keys:
+            raise Historical777Error("historical authoritative vehicle domain mismatch")
+        if not isinstance(vehicle["vehicle_id"], str) or UUID_RE.fullmatch(vehicle["vehicle_id"].lower()) is None \
+                or vehicle["lifecycle_state"] != authoritative_state["lifecycle_state"] \
+                or vehicle["current_location"] != authoritative_state["current_location"] \
+                or type(vehicle["version"]) is not int or vehicle["version"] < 1 \
+                or not isinstance(vehicle["lifecycle_state"], str) or vehicle["lifecycle_state"] in {"rft", "completed", "deleted"} \
+                or vehicle["deleted_at"] is not None or vehicle["board_purged_at"] is not None:
+            raise Historical777Error("historical authoritative vehicle domain mismatch")
+    elif authoritative_state["vehicle_id"] is not None or authoritative_state["lifecycle_state"] is not None or authoritative_state["current_location"] is not None:
+        raise Historical777Error("historical authoritative vehicle domain mismatch")
+    collection_specs = {
+        "parts": ("rows", {"id", "vehicle_id", "parts_required", "parts_ordered", "parts_received", "parts_stoppage", "parts_stoppage_reason", "worst_eta", "updated_at"}),
+        "qc": ("rows", {"vehicle_id", "line_identity", "source_kind", "source_line_id", "stage_code", "completed", "completed_by", "completed_at", "version", "updated_at"}),
+        "rft_transport": ("rows", {"notification_id", "lifecycle_receipt_id", "vehicle_id", "delivery_status", "delivery_enabled", "sent_at", "delivered_at", "created_at"}),
+    }
+    for name, (rows_key, row_keys) in collection_specs.items():
+        value = domain[name]
+        if not isinstance(value, Mapping) or set(value) != {rows_key, "fingerprint"} or not isinstance(value[rows_key], list) \
+                or not isinstance(value["fingerprint"], str) or re.fullmatch(r"[0-9a-f]{32}", value["fingerprint"]) is None \
+                or any(not isinstance(row, Mapping) or set(row) != row_keys for row in value[rows_key]):
+            raise Historical777Error(f"historical authoritative {name} domain mismatch")
+    sublet = domain["sublet"]
+    if not isinstance(sublet, Mapping) or set(sublet) != {"bookings", "instances", "fingerprint"} \
+            or not isinstance(sublet["bookings"], list) or not isinstance(sublet["instances"], list) \
+            or not isinstance(sublet["fingerprint"], str) or re.fullmatch(r"[0-9a-f]{32}", sublet["fingerprint"]) is None:
+        raise Historical777Error("historical authoritative Sublet domain mismatch")
+    booking_keys = {"vehicle_id", "provider", "provider_email", "po_sent_date", "booking_date", "expected_return_date", "actual_return_date", "notes", "email_sent", "version", "updated_at", "provider_source", "provider_names", "provider_source_values"}
+    instance_keys = {"booking_id", "vehicle_id", "vehicle_version", "provider_id", "provider_name", "provider_email", "out_date", "expected_return_date", "status", "returned_at", "cancelled_at", "notes", "source_kind", "source_ref", "source_evidence", "version", "updated_at"}
+    if any(not isinstance(row, Mapping) or set(row) != booking_keys for row in sublet["bookings"]) \
+            or any(not isinstance(row, Mapping) or set(row) != instance_keys for row in sublet["instances"]):
+        raise Historical777Error("historical authoritative Sublet row mismatch")
+    fingerprints = domain["protected_fingerprints"]
+    if not isinstance(fingerprints, Mapping) or set(fingerprints) != DOMAIN_FINGERPRINT_KEYS \
+            or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{32}", value) is None for value in fingerprints.values()):
+        raise Historical777Error("historical protected fingerprint envelope mismatch")
 
 
 def validate_success_response(request: Mapping[str, Any], response: Mapping[str, Any], request_hash: str,
@@ -477,6 +523,7 @@ def validate_success_response(request: Mapping[str, Any], response: Mapping[str,
         raise Historical777Error("historical authoritative vehicle binding mismatch")
     if not child_vehicle_ids and (state["vehicle_id"] is not None or state["lifecycle_state"] is not None or state["current_location"] is not None):
         raise Historical777Error("historical ambiguous authoritative state mismatch")
+    _validate_authoritative_domain_state(data["authoritative_domain_state"], state)
     child_operation_counts = [receipt["result"]["data"]["operation_count"] for receipt in regular_receipts]
     if child_operation_counts and state["operation_count"] != sum(child_operation_counts):
         raise Historical777Error("historical authoritative operation readback mismatch")

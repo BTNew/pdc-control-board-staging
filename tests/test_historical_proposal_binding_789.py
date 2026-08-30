@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CALLER = ROOT / "pdc_historical_778_caller.py"
 IMPORTER = ROOT / "pdc_full_inbox_typed_import.py"
 M789 = ROOT / "supabase/staging_only/20260830190000_789_historical_proposal_binding_successor.sql"
+M796 = ROOT / "supabase/staging_only/20260830203000_796_historical_domain_readback_guard_successor.sql"
 ROWS = Path("C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json")
 
 
@@ -132,6 +133,25 @@ def success_response(request: dict) -> dict:
             "lifecycle_state": "active" if children else None, "current_location": None,
             "operation_count": sum(item["authoritative_operation_count"] for item in children),
             "booking_count": 0, "completion_count": 0, "parts_changed": False},
+        "authoritative_domain_state": {
+            "vehicle": ({
+                "vehicle_id": children[0]["authoritative_vehicle_id"], "lifecycle_state": "active", "current_location": None,
+                "version": 1, "deleted_at": None, "board_purged_at": None, "rft_transferred_at": None,
+                "rft_collected_at": None, "rft_confirmed_at": None, "rft_transport_booked_at": None,
+                "dealer_transit_started_at": None, "dealer_transit_closed_at": None, "dealer_transit_duration_seconds": None,
+                "delivered_to_dealer_date": None, "qc_completed_at": None, "workshop_status": "queued",
+            } if children else None),
+            "parts": {"rows": [], "fingerprint": "00000000000000000000000000000000"},
+            "sublet": {"bookings": [], "instances": [], "fingerprint": "00000000000000000000000000000000"},
+            "qc": {"rows": [], "fingerprint": "00000000000000000000000000000000"},
+            "rft_transport": {"rows": [], "fingerprint": "00000000000000000000000000000000"},
+            "protected_fingerprints": {
+                "vehicle": "00000000000000000000000000000000", "lifecycle_location": "00000000000000000000000000000000",
+                "parts": "00000000000000000000000000000000", "sublet": "00000000000000000000000000000000",
+                "qc": "00000000000000000000000000000000", "rft_transport": "00000000000000000000000000000000",
+                "all": "00000000000000000000000000000000",
+            },
+        },
         "booking_created": False, "completion_created": False, "location_scheduled": False,
         "parts_changed": False, "status_changed": False, "no_booking": True, "no_completion": True,
         "no_location_mutation": True,
@@ -171,6 +191,34 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
         self.assertNotIn("delete from public.pdc_ai_intake_proposals", sql)
         self.assertNotIn("update public.pdc_historical_proposal_bindings_789", sql)
         self.assertNotIn("delete from public.pdc_historical_proposal_bindings_789", sql)
+
+    def test_796_is_append_only_server_guard_and_complete_domain_readback_contract(self):
+        sql = M796.read_text(encoding="utf-8").lower()
+        self.assertEqual(len(parse_sql(M796.read_text(encoding="utf-8"))), 27)
+        for marker in (
+            "20260830203000",
+            "pdc_historical_domain_readbacks_796",
+            "pdc_historical_796_domain_snapshot",
+            "historical_terminal_or_protected_location",
+            "pdc_796_protected_domain_drift",
+            "parts_required",
+            "parts_ordered",
+            "parts_received",
+            "parts_stoppage",
+            "pdc_sublet_booking_instances",
+            "pdc_qc_operation_completions_379",
+            "pdc_rft_transport_email_outbox_734",
+            "before_protected_fingerprints",
+            "after_protected_fingerprints",
+            "force row level security",
+            "revoke all on table public.pdc_historical_domain_readbacks_796",
+            "submit_pdc_historical_reconciliation_778_pre796",
+            "historical_terminal_or_protected_location",
+            "pdc_796_terminal_readback_failed",
+        ):
+            self.assertIn(marker, sql)
+        self.assertNotIn("update public.pdc_historical_reconciliation_778_receipts", sql)
+        self.assertNotIn("delete from public.pdc_historical_reconciliation_778_receipts", sql)
 
     def test_frozen_uid_1_21_is_the_regression_input(self):
         row = next(item for item in explicit_manifest_rows() if item["provider_uid"] == "1:21")
@@ -343,7 +391,8 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
                 "attachment_hash": request["job_card_children"][0]["attachment_hash"],
                 "result": {"ok": False, "code": "historical_child_ambiguous"},
             }]
-            ambiguous["data"]["authoritative_state"].update({"vehicle_id": None, "lifecycle_state": None, "operation_count": 0})
+            ambiguous["data"]["authoritative_state"].update({"vehicle_id": None, "lifecycle_state": None, "current_location": None, "operation_count": 0})
+            ambiguous["data"]["authoritative_domain_state"]["vehicle"] = None
             ambiguous_request = json.loads(json.dumps(request))
             ambiguous_request["job_card_children"][0]["attachment_kind"] = "ambiguous_job_card"
             module.validate_success_response(ambiguous_request, ambiguous, module.canonical_request_digest(ambiguous_request))
@@ -439,6 +488,15 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
                 mutated = json.loads(json.dumps(good))
                 mutated["data"]["authoritative_state"]["lifecycle_state"] = lifecycle_state
                 mutated["data"]["authoritative_state"]["current_location"] = current_location
+                with self.assertRaises(module.Historical777Error):
+                    module.validate_success_response(request, mutated, module.canonical_request_digest(request))
+            for mutate in (
+                lambda value: value["data"]["authoritative_domain_state"].pop("parts"),
+                lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"fingerprint": "not-a-fingerprint"}),
+                lambda value: value["data"]["authoritative_domain_state"]["sublet"].update({"bookings": [{"unexpected": True}]}),
+            ):
+                mutated = json.loads(json.dumps(good))
+                mutate(mutated)
                 with self.assertRaises(module.Historical777Error):
                     module.validate_success_response(request, mutated, module.canonical_request_digest(request))
 
