@@ -353,6 +353,29 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
     if not isinstance(fingerprints, Mapping) or set(fingerprints) != DOMAIN_FINGERPRINT_KEYS \
             or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{32}", value) is None for value in fingerprints.values()):
         raise Historical777Error("historical protected fingerprint envelope mismatch")
+    expected_vehicle_id = authoritative_state["vehicle_id"]
+    all_domain_rows = [row for row in parts["rows"] + parts["stoppage_receipts"] + sublet["bookings"] + sublet["instances"] + domain["qc"]["rows"]]
+    all_domain_rows.extend(row for name in rft_row_keys for row in rft[name])
+    for row in all_domain_rows:
+        if row.get("vehicle_id") != expected_vehicle_id:
+            raise Historical777Error("historical authoritative domain vehicle binding mismatch")
+    if vehicle is not None:
+        vehicle_fingerprint = hashlib.md5(_postgres_jsonb_text(vehicle).encode("utf-8")).hexdigest()
+        lifecycle_projection = {name: vehicle[name] for name in ("lifecycle_state", "current_location", "deleted_at", "board_purged_at", "rft_transferred_at", "rft_collected_at", "rft_confirmed_at", "rft_transport_booked_at", "dealer_transit_closed_at", "delivered_to_dealer_date")}
+        lifecycle_fingerprint = hashlib.md5(_postgres_jsonb_text(lifecycle_projection).encode("utf-8")).hexdigest()
+    else:
+        vehicle_fingerprint = hashlib.md5(b"null").hexdigest()
+        lifecycle_fingerprint = hashlib.md5(b"null").hexdigest()
+    if fingerprints["vehicle"] != vehicle_fingerprint or fingerprints["lifecycle_location"] != lifecycle_fingerprint:
+        raise Historical777Error("historical authoritative vehicle fingerprint mismatch")
+    if hashlib.md5(_postgres_jsonb_text({"rows": parts["rows"], "stoppage_receipts": parts["stoppage_receipts"]}).encode("utf-8")).hexdigest() != fingerprints["parts"] \
+            or hashlib.md5(_postgres_jsonb_text({"bookings": sublet["bookings"], "instances": sublet["instances"]}).encode("utf-8")).hexdigest() != fingerprints["sublet"] \
+            or hashlib.md5(_postgres_jsonb_text(domain["qc"]["rows"]).encode("utf-8")).hexdigest() != fingerprints["qc"] \
+            or hashlib.md5(_postgres_jsonb_text({name: rft[name] for name in ("outbox", "lifecycle_receipts", "evidence", "action_receipts", "intercept_receipts", "dealer_transit_statistics")}).encode("utf-8")).hexdigest() != fingerprints["rft_transport"]:
+        raise Historical777Error("historical authoritative component fingerprint mismatch")
+    if not isinstance(fingerprints, Mapping) or set(fingerprints) != DOMAIN_FINGERPRINT_KEYS \
+            or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{32}", value) is None for value in fingerprints.values()):
+        raise Historical777Error("historical protected fingerprint envelope mismatch")
     if any(domain[name]["fingerprint"] != fingerprints[name] for name in ("parts", "sublet", "qc", "rft_transport")):
         raise Historical777Error("historical protected fingerprint binding mismatch")
     aggregate = ":".join(fingerprints[name] for name in ("vehicle", "lifecycle_location", "parts", "sublet", "qc", "rft_transport"))

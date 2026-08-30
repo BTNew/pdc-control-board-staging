@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -118,6 +119,28 @@ def success_response(request: dict) -> dict:
             "authoritative_operation_count": operation_count,
         })
     manifest = request["attachment_manifest"]
+    vehicle_id = children[0]["authoritative_vehicle_id"] if children else None
+    vehicle_domain = {
+        "vehicle_id": vehicle_id, "lifecycle_state": "active", "current_location": None, "version": 1,
+        "deleted_at": None, "board_purged_at": None, "rft_transferred_at": None, "rft_collected_at": None,
+        "rft_confirmed_at": None, "rft_transport_booked_at": None, "dealer_transit_started_at": None,
+        "dealer_transit_closed_at": None, "dealer_transit_duration_seconds": None, "delivered_to_dealer_date": None,
+        "qc_completed_at": None, "workshop_status": "queued",
+    } if vehicle_id else None
+    def domain_fp(value):
+        return hashlib.md5(caller._postgres_jsonb_text(value).encode("utf-8")).hexdigest()
+    parts_domain = {"rows": [], "stoppage_receipts": []}
+    sublet_domain = {"bookings": [], "instances": []}
+    qc_domain = {"rows": []}
+    rft_domain = {"outbox": [], "lifecycle_receipts": [], "evidence": [], "action_receipts": [], "intercept_receipts": [], "dealer_transit_statistics": []}
+    parts_domain["fingerprint"] = domain_fp(parts_domain)
+    sublet_domain["fingerprint"] = domain_fp(sublet_domain)
+    qc_domain["fingerprint"] = domain_fp(qc_domain["rows"])
+    rft_domain["fingerprint"] = domain_fp(rft_domain)
+    lifecycle_domain = {"lifecycle_state": vehicle_domain["lifecycle_state"], "current_location": vehicle_domain["current_location"], "deleted_at": vehicle_domain["deleted_at"], "board_purged_at": vehicle_domain["board_purged_at"], "rft_transferred_at": vehicle_domain["rft_transferred_at"], "rft_collected_at": vehicle_domain["rft_collected_at"], "rft_confirmed_at": vehicle_domain["rft_confirmed_at"], "rft_transport_booked_at": vehicle_domain["rft_transport_booked_at"], "dealer_transit_closed_at": vehicle_domain["dealer_transit_closed_at"], "delivered_to_dealer_date": vehicle_domain["delivered_to_dealer_date"]} if vehicle_domain else None
+    fingerprints = {"vehicle": domain_fp(vehicle_domain) if vehicle_domain else hashlib.md5(b"null").hexdigest(), "lifecycle_location": domain_fp(lifecycle_domain) if lifecycle_domain else hashlib.md5(b"null").hexdigest(), "parts": parts_domain["fingerprint"], "sublet": sublet_domain["fingerprint"], "qc": qc_domain["fingerprint"], "rft_transport": rft_domain["fingerprint"]}
+    fingerprints["all"] = hashlib.md5(":".join(fingerprints[name] for name in ("vehicle", "lifecycle_location", "parts", "sublet", "qc", "rft_transport")).encode("ascii")).hexdigest()
+    domain_state = {"vehicle": vehicle_domain, "parts": parts_domain, "sublet": sublet_domain, "qc": qc_domain, "rft_transport": rft_domain, "protected_fingerprints": fingerprints}
     return {"ok": True, "code": "historical_reconciliation_782_receipt", "data": {
         "receipt_id": receipt_id, "contract_version": "778.1",
         "manifest_sha256": request["manifest_sha256"], "provider_uid": request["provider_uid"],
@@ -133,25 +156,7 @@ def success_response(request: dict) -> dict:
             "lifecycle_state": "active" if children else None, "current_location": None,
             "operation_count": sum(item["authoritative_operation_count"] for item in children),
             "booking_count": 0, "completion_count": 0, "parts_changed": False},
-        "authoritative_domain_state": {
-            "vehicle": ({
-                "vehicle_id": children[0]["authoritative_vehicle_id"], "lifecycle_state": "active", "current_location": None,
-                "version": 1, "deleted_at": None, "board_purged_at": None, "rft_transferred_at": None,
-                "rft_collected_at": None, "rft_confirmed_at": None, "rft_transport_booked_at": None,
-                "dealer_transit_started_at": None, "dealer_transit_closed_at": None, "dealer_transit_duration_seconds": None,
-                "delivered_to_dealer_date": None, "qc_completed_at": None, "workshop_status": "queued",
-            } if children else None),
-            "parts": {"rows": [], "stoppage_receipts": [], "fingerprint": "00000000000000000000000000000000"},
-            "sublet": {"bookings": [], "instances": [], "fingerprint": "00000000000000000000000000000000"},
-            "qc": {"rows": [], "fingerprint": "00000000000000000000000000000000"},
-            "rft_transport": {"outbox": [], "lifecycle_receipts": [], "evidence": [], "action_receipts": [], "intercept_receipts": [], "dealer_transit_statistics": [], "fingerprint": "00000000000000000000000000000000"},
-            "protected_fingerprints": {
-                "vehicle": "00000000000000000000000000000000", "lifecycle_location": "00000000000000000000000000000000",
-                "parts": "00000000000000000000000000000000", "sublet": "00000000000000000000000000000000",
-                "qc": "00000000000000000000000000000000", "rft_transport": "00000000000000000000000000000000",
-                "all": "78453cff2ed0c79798143051f92bebbf",
-            },
-        },
+        "authoritative_domain_state": domain_state,
         "booking_created": False, "completion_created": False, "location_scheduled": False,
         "parts_changed": False, "status_changed": False, "no_booking": True, "no_completion": True,
         "no_location_mutation": True,
@@ -405,6 +410,11 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             }]
             ambiguous["data"]["authoritative_state"].update({"vehicle_id": None, "lifecycle_state": None, "current_location": None, "operation_count": 0})
             ambiguous["data"]["authoritative_domain_state"]["vehicle"] = None
+            null_fingerprint = hashlib.md5(b"null").hexdigest()
+            ambiguous_fingerprints = ambiguous["data"]["authoritative_domain_state"]["protected_fingerprints"]
+            ambiguous_fingerprints["vehicle"] = null_fingerprint
+            ambiguous_fingerprints["lifecycle_location"] = null_fingerprint
+            ambiguous_fingerprints["all"] = hashlib.md5(":".join(ambiguous_fingerprints[name] for name in ("vehicle", "lifecycle_location", "parts", "sublet", "qc", "rft_transport")).encode("ascii")).hexdigest()
             ambiguous_request = json.loads(json.dumps(request))
             ambiguous_request["job_card_children"][0]["attachment_kind"] = "ambiguous_job_card"
             module.validate_success_response(ambiguous_request, ambiguous, module.canonical_request_digest(ambiguous_request))
