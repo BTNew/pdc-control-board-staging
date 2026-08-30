@@ -329,6 +329,8 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
     if not isinstance(fingerprints, Mapping) or set(fingerprints) != DOMAIN_FINGERPRINT_KEYS \
             or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{32}", value) is None for value in fingerprints.values()):
         raise Historical777Error("historical protected fingerprint envelope mismatch")
+    if any(domain[name]["fingerprint"] != fingerprints[name] for name in ("parts", "sublet", "qc", "rft_transport")):
+        raise Historical777Error("historical protected fingerprint binding mismatch")
 
 
 def validate_success_response(request: Mapping[str, Any], response: Mapping[str, Any], request_hash: str,

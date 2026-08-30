@@ -215,6 +215,9 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             "submit_pdc_historical_reconciliation_778_pre796",
             "historical_terminal_or_protected_location",
             "pdc_796_terminal_readback_failed",
+            "v_existing_request_hash",
+            "historical_terminal_or_protected_location",
+            "'other'",
         ):
             self.assertIn(marker, sql)
         self.assertNotIn("update public.pdc_historical_reconciliation_778_receipts", sql)
@@ -493,6 +496,7 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             for mutate in (
                 lambda value: value["data"]["authoritative_domain_state"].pop("parts"),
                 lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"fingerprint": "not-a-fingerprint"}),
+                lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"fingerprint": "11111111111111111111111111111111"}),
                 lambda value: value["data"]["authoritative_domain_state"]["sublet"].update({"bookings": [{"unexpected": True}]}),
             ):
                 mutated = json.loads(json.dumps(good))

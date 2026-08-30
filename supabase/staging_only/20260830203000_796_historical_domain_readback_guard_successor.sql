@@ -111,7 +111,7 @@ SET search_path=pg_catalog,public,auth,extensions
 SET statement_timeout='300s'
 AS $wrapper$
 DECLARE
- v_before jsonb; v_after jsonb; v_result jsonb; v_readback jsonb; v_vehicle public.vehicles%rowtype; v_vehicle_id uuid; v_receipt_id uuid; v_request_hash text;
+ v_before jsonb; v_after jsonb; v_result jsonb; v_readback jsonb; v_vehicle public.vehicles%rowtype; v_vehicle_id uuid; v_receipt_id uuid; v_request_hash text; v_existing_request_hash text;
  v_stock text; v_match_count integer:=0; v_had_vehicle boolean:=false; v_replay boolean:=false; v_location text; v_lifecycle text;
 BEGIN
  IF NOT public.pdc_monitor_staging_guard() OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
@@ -121,7 +121,8 @@ BEGIN
  THEN RETURN jsonb_build_object('ok',false,'code','unauthorized'); END IF;
  v_stock:=public.normalize_vehicle_stock_number(p_request->>'stock_number');
  IF jsonb_typeof(p_request)='object' THEN
-   SELECT EXISTS(SELECT 1 FROM public.pdc_historical_reconciliation_778_receipts r WHERE r.actor_id=auth.uid() AND r.provider_uid=btrim(coalesce(p_request->>'provider_uid','')) AND r.parent_source_hash=lower(btrim(coalesce(p_request->>'parent_source_hash','')))) INTO v_replay;
+   SELECT r.request_sha256 INTO v_existing_request_hash FROM public.pdc_historical_reconciliation_778_receipts r WHERE r.actor_id=auth.uid() AND r.provider_uid=btrim(coalesce(p_request->>'provider_uid','')) AND r.parent_source_hash=lower(btrim(coalesce(p_request->>'parent_source_hash','')));
+   IF v_existing_request_hash IS NOT NULL AND encode(extensions.digest(convert_to(coalesce(p_request->>'canonical_request_utf8',''),'UTF8'),'sha256'),'hex')=v_existing_request_hash THEN v_replay:=true; END IF;
  END IF;
  IF NOT v_replay AND jsonb_typeof(p_request)='object' AND v_stock IS NOT NULL AND v_stock<>'' THEN
    SELECT count(*) INTO v_match_count FROM public.vehicles v WHERE v.stock_number_normalized=v_stock;
@@ -132,7 +133,7 @@ BEGIN
      IF v_lifecycle IN ('rft','completed','deleted') OR v_vehicle.deleted_at IS NOT NULL OR v_vehicle.board_purged_at IS NOT NULL
         OR v_vehicle.rft_transferred_at IS NOT NULL OR v_vehicle.rft_collected_at IS NOT NULL OR v_vehicle.rft_confirmed_at IS NOT NULL
         OR v_vehicle.rft_transport_booked_at IS NOT NULL OR v_vehicle.delivered_to_dealer_date IS NOT NULL OR v_vehicle.dealer_transit_closed_at IS NOT NULL
-        OR v_location=ANY(ARRAY['yh','yard hold','vehicle yard hold','pmb','qc','pit','rft','collected','completed','delivered','delivered - at dealer','delivered - at body builder','planned for despatch - from twa','despatched - from body builder','vehicle out on consignment','waiting pd1','waiting pd2','vehicle at wharf','in transit to wa','ready for shipment']::text[])
+        OR v_location=ANY(ARRAY['yh','yard hold','vehicle yard hold','pmb','qc','pit','other','rft','collected','completed','delivered','delivered - at dealer','delivered - at body builder','planned for despatch - from twa','despatched - from body builder','vehicle out on consignment','waiting pd1','waiting pd2','vehicle at wharf','in transit to wa','ready for shipment']::text[])
      THEN RETURN jsonb_build_object('ok',false,'code','historical_terminal_or_protected_location','data',jsonb_build_object('vehicle_id',v_vehicle_id,'lifecycle_state',v_lifecycle,'current_location',v_vehicle.current_location,'review_required',true)); END IF;
      v_before:=public.pdc_historical_796_domain_snapshot(v_vehicle_id);
    END IF;
