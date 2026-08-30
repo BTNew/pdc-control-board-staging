@@ -115,13 +115,20 @@ class HistoricalAuthorization809LiveTests(unittest.TestCase):
         self.assertEqual(data.get("hours_knowledge_status"), "all_unknown")
         self.assertTrue(all(line.get("estimated_hours") is None for line in data.get("operation_lines") or []))
         self.cur.execute(
-            "select estimated_hours_sum,known_hours_sum,known_hours_count,unknown_hours_count,hours_coverage "
-            "from public.pdc_jobcard_attachment_import_receipts where parent_source_hash=%s and operation_count=9",
+            "select estimated_hours_sum from public.pdc_jobcard_attachment_import_receipts "
+            "where parent_source_hash=%s and operation_count=9",
             (request["parent_source_hash"],),
         )
-        row = self.cur.fetchone()
-        self.assertIsNotNone(row)
-        self.assertEqual(tuple(row), (None, None, 0, 9, 0))
+        legacy_row = self.cur.fetchone()
+        self.assertIsNotNone(legacy_row)
+        self.assertEqual(tuple(legacy_row), (0,))
+        self.cur.execute(
+            "select authoritative_estimated_hours_sum,known_hours_sum,known_hours_count,unknown_hours_count,hours_coverage "
+            "from public.pdc_historical_operation_hours_evidence_833 where provider_uid='1:134'",
+        )
+        evidence_row = self.cur.fetchone()
+        self.assertIsNotNone(evidence_row)
+        self.assertEqual(tuple(evidence_row), (None, None, 0, 9, 0))
         self.cur.execute("rollback to savepoint pdc830_hours")
         self.cur.execute("release savepoint pdc830_hours")
         self.assertEqual(before, self.snapshot())
