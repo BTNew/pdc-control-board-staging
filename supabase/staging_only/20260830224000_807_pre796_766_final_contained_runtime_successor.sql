@@ -123,7 +123,7 @@ $function$;
 REVOKE ALL ON FUNCTION public.submit_pdc_historical_reconciliation_778_pre796(jsonb) FROM public,anon,authenticated,service_role,pdc_email_monitor;
 GRANT EXECUTE ON FUNCTION public.submit_pdc_historical_reconciliation_778_pre796(jsonb) TO postgres;
 DO $post$
-DECLARE v text; owner_name text; secdef boolean; acl text;
+DECLARE v text; v766 text; owner_name text; secdef boolean; acl text;
 BEGIN
  SELECT p.proowner::regrole::text,p.prosecdef,p.proacl::text,p.prosrc INTO owner_name,secdef,acl,v FROM pg_proc p WHERE p.oid='public.submit_pdc_historical_reconciliation_778_pre796(jsonb)'::regprocedure;
  IF owner_name<>'postgres' OR NOT secdef OR acl<>'{postgres=X/postgres}' OR encode(extensions.digest(convert_to(v,'UTF8'),'sha256'),'hex')<>'720109d1320268a4a3e973b3687135ce578882755fa2b8d0b134bc82b4cccc2e' OR position('verify_pdc_historical_runtime_binding_authenticated_802' in v)=0 OR position('verify_pdc_monitor_runtime_binding_authenticated_766' in v)>0 THEN RAISE EXCEPTION 'PDC_807_PRE796_POSTCONDITION_FAILED' USING errcode='55000'; END IF;
