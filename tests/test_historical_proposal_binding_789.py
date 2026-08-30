@@ -355,6 +355,18 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
                 candidate["data"]["complete_domain_fingerprints"] = copy.deepcopy(candidate["data"]["authoritative_domain_state"]["complete_domain_fingerprints"])
                 candidate["data"]["complete_domain_counts"] = copy.deepcopy(candidate["data"]["authoritative_domain_state"]["complete_domain_counts"])
 
+            def retag_side_only(candidate, side, name, rows):
+                domain = candidate["data"][side]
+                value = domain[name]
+                value["rows"] = copy.deepcopy(rows)
+                value["count"] = len(rows)
+                value["fingerprint"] = hashlib.md5(self.caller._postgres_jsonb_text(value["rows"]).encode("utf-8")).hexdigest()
+                domain["complete_domain_fingerprints"][name] = value["fingerprint"]
+                domain["complete_domain_counts"][name] = value["count"]
+                domain["complete_domain_fingerprint"] = hashlib.md5(":".join(domain["complete_domain_fingerprints"][key] for key in self.caller.COMPLETE_DOMAIN_ORDER).encode("ascii")).hexdigest()
+                candidate["data"]["complete_domain_fingerprints"] = copy.deepcopy(domain["complete_domain_fingerprints"])
+                candidate["data"]["complete_domain_counts"] = copy.deepcopy(domain["complete_domain_counts"])
+
             vehicle_id = good["data"]["authoritative_state"]["vehicle_id"]
             movement = {"id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "vehicle_id": vehicle_id, "from_location": "IT", "to_location": "PMB", "from_pmb_stage": None, "to_pmb_stage": None, "from_pmb_bay_stage": None, "to_pmb_bay_stage": None, "from_pmb_bay_number": None, "to_pmb_bay_number": None, "reason": "test", "moved_by": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "moved_at": "2026-08-30T00:00:00+00:00"}
             duplicate_identity = copy.deepcopy(good)
@@ -367,6 +379,47 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             retag(orphan_assignment, "workshop_booking_assignments", [assignment])
             with self.assertRaises(module.Historical777Error):
                 module.validate_success_response(request, orphan_assignment, module.canonical_request_digest(request))
+
+            extra_domain_key = copy.deepcopy(good)
+            extra_domain_key["data"]["authoritative_domain_state"]["unlisted_domain"] = {}
+            with self.assertRaises(module.Historical777Error):
+                module.validate_success_response(request, extra_domain_key, module.canonical_request_digest(request))
+
+            alias = {"id": "11111111-1111-4111-8111-111111111111", "vehicle_id": vehicle_id, "alias_type": "stock_number", "alias_value": "TEST-ALIAS", "active": False, "created_at": "2026-08-30T00:00:00+00:00", "alias_type_normalized": "stock_number", "normalized_alias_value": "TEST-ALIAS", "source_system": "test", "source_system_normalized": "test", "source_batch_id": "test-batch", "version": 1, "created_by": None, "updated_by": None, "updated_at": "2026-08-30T00:00:00+00:00"}
+            pmb_stoppage = {"receipt_id": "22222222-2222-4222-8222-222222222222", "vehicle_id": vehicle_id, "action": "start", "expected_vehicle_version": 1, "vehicle_version_before": 1, "vehicle_version_after": 1, "actor_id": "33333333-3333-4333-8333-333333333333", "actor_email": "test@example.invalid", "reason": "test", "idempotency_key": "44444444-4444-4444-8444-444444444444", "request_sha256": "a" * 64, "before_state": {}, "after_state": {}, "response": {}, "created_at": "2026-08-30T00:00:00+00:00"}
+            sublet_receipt = {"receipt_id": "55555555-5555-4555-8555-555555555555", "replay_key": "test-replay-key-797", "booking_id": "66666666-6666-4666-8666-666666666666", "vehicle_id": vehicle_id, "provider_id": "77777777-7777-4777-8777-777777777777", "provider_name": "Test Provider", "sender_email": "test@example.invalid", "message_id": "test-message", "attachment_sha256": None, "evidence": {}, "language_kind": "booking_confirmed", "prior_version": 1, "resulting_version": 1, "applied_out_date": None, "applied_expected_return_date": None, "received_at": "2026-08-30T00:00:00+00:00", "applied_at": "2026-08-30T00:00:00+00:00", "applied_by": None}
+            booking_id = "88888888-8888-4888-8888-888888888888"
+            booking = {"id": booking_id, "vehicle_id": vehicle_id, "stage_id": "99999999-9999-4999-8999-999999999999", "bay_id": None, "status": "queued", "scheduled_start_at": "2026-08-30T01:00:00+00:00", "scheduled_end_at": "2026-08-30T02:00:00+00:00", "default_duration_minutes": 60, "actual_start_at": None, "actual_end_at": None, "actual_duration_minutes": None, "stoppage_reason": None, "stoppage_started_at": None, "stoppage_accumulated_minutes": 0, "returned_to_queue_at": None, "deleted_at": None, "deleted_reason": None, "source": "test", "version": 1, "created_by": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "updated_by": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "created_at": "2026-08-30T00:00:00+00:00", "updated_at": "2026-08-30T00:00:00+00:00", "metadata_legacy_plan_id": None, "metadata": {}, "eta_at_booking": None, "eta_risk_status": "none", "eta_risk_detected_at": None, "legacy_ambiguity_quarantined": False}
+            assignment_with_booking = {"id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc", "booking_id": booking_id, "technician_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "assignment_type": "primary", "assigned_at": "2026-08-30T00:00:00+00:00", "assigned_by": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", "scheduled_start_at": "2026-08-30T01:00:00+00:00", "scheduled_end_at": "2026-08-30T02:00:00+00:00", "released_at": None, "notes": None, "created_at": "2026-08-30T00:00:00+00:00", "updated_at": "2026-08-30T00:00:00+00:00"}
+            for name, value in (("vehicle_movements", movement), ("vehicle_aliases", alias), ("pmb_stoppage_receipts", pmb_stoppage), ("sublet_email_update_receipts", sublet_receipt), ("workshop_bookings", booking)):
+                valid_extra = copy.deepcopy(good)
+                retag_side_only(valid_extra, "authoritative_domain_state", name, [value])
+                with self.assertRaises(module.Historical777Error):
+                    module.validate_success_response(request, valid_extra, module.canonical_request_digest(request))
+            valid_booking_assignment = copy.deepcopy(good)
+            retag_side_only(valid_booking_assignment, "authoritative_domain_state", "workshop_bookings", [booking])
+            retag_side_only(valid_booking_assignment, "authoritative_domain_state", "workshop_booking_assignments", [assignment_with_booking])
+            with self.assertRaises(module.Historical777Error):
+                module.validate_success_response(request, valid_booking_assignment, module.canonical_request_digest(request))
+
+            before_only_addition = copy.deepcopy(good)
+            retag_side = before_only_addition["data"]["authoritative_domain_before"]["vehicle_movements"]
+            retag_side["rows"] = [copy.deepcopy(movement)]
+            retag_side["count"] = 1
+            retag_side["fingerprint"] = hashlib.md5(self.caller._postgres_jsonb_text(retag_side["rows"]).encode("utf-8")).hexdigest()
+            before_only_addition["data"]["authoritative_domain_before"]["complete_domain_fingerprints"]["vehicle_movements"] = retag_side["fingerprint"]
+            before_only_addition["data"]["authoritative_domain_before"]["complete_domain_counts"]["vehicle_movements"] = 1
+            with self.assertRaises(module.Historical777Error):
+                module.validate_success_response(request, before_only_addition, module.canonical_request_digest(request))
+
+            both_rows = copy.deepcopy(good)
+            retag(both_rows, "vehicle_movements", [movement])
+            before_only_removal = copy.deepcopy(both_rows)
+            before_only_removal["data"]["authoritative_domain_before"]["vehicle_movements"] = {"rows": [], "count": 0, "fingerprint": hashlib.md5(self.caller._postgres_jsonb_text([]).encode("utf-8")).hexdigest()}
+            before_only_removal["data"]["authoritative_domain_before"]["complete_domain_fingerprints"]["vehicle_movements"] = before_only_removal["data"]["authoritative_domain_before"]["vehicle_movements"]["fingerprint"]
+            before_only_removal["data"]["authoritative_domain_before"]["complete_domain_counts"]["vehicle_movements"] = 0
+            with self.assertRaises(module.Historical777Error):
+                module.validate_success_response(request, before_only_removal, module.canonical_request_digest(request))
 
     def test_frozen_uid_1_21_is_the_regression_input(self):
         row = next(item for item in explicit_manifest_rows() if item["provider_uid"] == "1:21")
