@@ -39,11 +39,13 @@ DECLARE
   v_mailbox public.monitored_mailboxes%rowtype;
   v_writer public.pdc_monitor_stage_activation_writers%rowtype;
   v_forward public.pdc_email_monitor_reactivation_752%rowtype;
+  v_existing public.pdc_email_monitor_reactivation_752%rowtype;
   v_before_mailbox jsonb;
   v_after_mailbox jsonb;
   v_before_writer jsonb;
   v_after_writer jsonb;
   v_event_key text;
+  v_rollback_count integer;
 BEGIN
   IF NOT public.pdc_monitor_staging_guard()
      OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
@@ -54,6 +56,23 @@ BEGIN
   THEN RAISE EXCEPTION 'PDC_752_ADMIN_AUTHORITY_REQUIRED' USING errcode='42501'; END IF;
 
   PERFORM pg_advisory_xact_lock(hashtextextended('pdc-staging-752-exact-email-monitor-reactivation',0));
+  v_event_key:=encode(extensions.digest(convert_to('pdc-staging-752-exact-email-monitor-reactivation|rollback|12fe383d-5c1e-5801-96e4-f67cf3e3bb57','UTF8'),'sha256'),'hex');
+  SELECT * INTO v_existing
+  FROM public.pdc_email_monitor_reactivation_752
+  WHERE event_key=v_event_key AND event_kind='rollback'
+  FOR SHARE;
+  IF FOUND THEN
+    IF (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>0
+       OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)<>0
+       OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_mailbox_activation_controls_674 WHERE singleton AND enabled)<>0
+       OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675 WHERE singleton AND enabled)<>0
+    THEN RAISE EXCEPTION 'PDC_798_EXISTING_752_ROLLBACK_STATE_DRIFT' USING errcode='55000'; END IF;
+    RETURN jsonb_build_object('ok',true,'code','pdc_email_monitor_reactivation_rolled_back_752',
+      'idempotent',true,'history_id',v_existing.event_id,'mailbox_active',false,
+      'controls_enabled',false,'writer_enabled',false,'task_enabled',false,
+      'mailbox_contacted',false,'mailbox_flags_changed',false,'uid514_processed',false,
+      'production_writes',false,'rollback_available',true);
+  END IF;
   IF (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>1
   THEN RAISE EXCEPTION 'PDC_752_ROLLBACK_SCOPE_MISMATCH' USING errcode='55000'; END IF;
 
@@ -71,11 +90,10 @@ BEGIN
   FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'PDC_752_ROLLBACK_WRITER_SCOPE_MISMATCH' USING errcode='55000'; END IF;
 
-  v_event_key:=encode(extensions.digest(convert_to('pdc-staging-752-exact-email-monitor-reactivation|rollback|'||v_mailbox.id::text,'UTF8'),'sha256'),'hex');
   SELECT * INTO v_forward
   FROM public.pdc_email_monitor_reactivation_752
   WHERE event_kind='forward_reactivation'
-    AND event_key=encode(extensions.digest(convert_to('pdc-staging-752-exact-email-monitor-reactivation|forward|'||v_mailbox.id::text,'UTF8'),'sha256'),'hex')
+    AND event_key=encode(extensions.digest(convert_to('pdc-staging-752-exact-email-monitor-reactivation|forward|12fe383d-5c1e-5801-96e4-f67cf3e3bb57','UTF8'),'sha256'),'hex')
     AND mailbox_id=v_mailbox.id AND mailbox_address='pmbcontroller@gmail.com'
     AND controls_enabled AND writer_enabled
     AND NOT task_enabled AND NOT mailbox_contacted AND NOT mailbox_flags_changed AND NOT uid514_processed AND NOT production_writes
@@ -101,6 +119,12 @@ BEGIN
   v_after_mailbox:=to_jsonb(v_mailbox);
   v_after_writer:=to_jsonb(v_writer);
 
+  SELECT count(*) INTO v_rollback_count
+  FROM public.pdc_email_monitor_reactivation_752
+  WHERE event_key=v_event_key;
+  IF v_rollback_count<>0
+  THEN RAISE EXCEPTION 'PDC_798_752_ROLLBACK_DUPLICATE_PRECONDITION' USING errcode='55000'; END IF;
+
   INSERT INTO public.pdc_email_monitor_reactivation_752(
     event_key,event_kind,predecessor_head,successor_head,actor_id,actor_email,
     gateway_instance_id,release_name,mailbox_id,mailbox_address,
@@ -115,6 +139,14 @@ BEGIN
     v_before_mailbox,v_after_mailbox,v_before_writer,v_after_writer,
     false,false,false,false,false,false,false,v_admin_id,v_admin_email,
     'Administrator rollback disables only exact mailbox, 674/675 controls and sales writer; immutable history remains');
+  GET DIAGNOSTICS v_rollback_count = ROW_COUNT;
+  IF v_rollback_count<>1
+  THEN RAISE EXCEPTION 'PDC_798_752_ROLLBACK_INSERT_COUNT_MISMATCH' USING errcode='55000'; END IF;
+  SELECT count(*) INTO v_rollback_count
+  FROM public.pdc_email_monitor_reactivation_752
+  WHERE event_key=v_event_key AND event_kind='rollback';
+  IF v_rollback_count<>1
+  THEN RAISE EXCEPTION 'PDC_798_752_ROLLBACK_READBACK_COUNT_MISMATCH' USING errcode='55000'; END IF;
 
   INSERT INTO public.audit_events(action,table_name,row_id,actor_id,actor_email,before_data,after_data,metadata)
   VALUES('update','monitored_mailboxes',v_mailbox.id,v_admin_id,v_admin_email,
