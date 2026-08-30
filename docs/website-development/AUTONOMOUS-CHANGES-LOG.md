@@ -1,5 +1,10 @@
 # Autonomous Website Changes
 
+## 2026-08-30 — Repair 752 rollback-history containment control
+
+- Added append-only STAGING migration `20260830211000_798_repair_752_rollback_history_insert.sql`, bound to live 797 and the exact 752 forward mailbox/writer evidence. It repairs only the existing `admin_rollback_pdc_email_monitor_reactivation_752` history insert, which referenced `actor_id`/`actor_email` without a source row.
+- Preserves 672 containment, immutable rollback evidence, exact mailbox/writer scope, disabled task, closed pilot/outbound controls, and Production/mailbox exclusions. No historical Apply or outbox path is included.
+
 ## 2026-08-30 — Durable canonical lifecycle history 930/940/950/1010
 
 - Reconciled the lifecycle-history release onto the exact live staging predecessor chain through `20260830100000 / 771_workshop_admin_block_audit_projection_successor`; no production sentinel or production data was present. The release worktree was refreshed again when staging/main advanced, and only the lifecycle files were retained.
