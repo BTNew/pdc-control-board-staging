@@ -401,13 +401,46 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             "historical success receipt identity mismatch",
             "historical attachment occurrence readback mismatch",
             "historical authoritative state readback mismatch",
-            "validate_success_response(request, response, request_hash)",
+            "validate_success_response(request, response, request_hash, seen_identity_ids)",
         ):
             self.assertIn(marker, caller_source)
         importer_source = IMPORTER.read_text(encoding="utf-8")
         self.assertIn("validate_shared_success_response", importer_source)
         self.assertIn("def validate_success_response", importer_source)
-        self.assertIn("validate_success_response(request, response, request_hash)", importer_source)
+        self.assertIn("validate_success_response(request, response, request_hash, seen_identity_ids)", importer_source)
+
+    def test_global_identity_and_protected_lifecycle_location_guards(self):
+        rows = explicit_manifest_rows()
+        for module in (self.caller, self.importer):
+            with tempfile.TemporaryDirectory() as directory:
+                connection = module.prepare_fresh_outbox(Path(directory) / "global-identity-outbox.sqlite3")
+                try:
+                    def repeated_nested_identity_rpc(row_request):
+                        response = success_response(row_request)
+                        if row_request["job_card_children"]:
+                            child_data = response["data"]["attachment_receipts"][0]["result"]["data"]
+                            child_data["receipt_id"] = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+                            child_data["canonical_import_receipt_id"] = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+                        return response
+                    repeated_results = module.run_bounded_historical(rows, connection, repeated_nested_identity_rpc)
+                finally:
+                    connection.close()
+            nested_rows = sum(bool(item["job_card_children"]) for item in rows)
+            self.assertEqual(sum(item["state"] == "imported" for item in repeated_results), len(rows) - nested_rows + 1)
+            self.assertEqual(sum(item["state"] == "retry" for item in repeated_results), nested_rows - 1)
+
+            request = module.build_historical_request(next(item for item in rows if item["provider_uid"] == "1:22"))
+            good = success_response(request)
+            cross_level = json.loads(json.dumps(good))
+            cross_level["data"]["attachment_receipts"][0]["result"]["data"]["canonical_import_receipt_id"] = cross_level["data"]["receipt_id"]
+            with self.assertRaises(module.Historical777Error):
+                module.validate_success_response(request, cross_level, module.canonical_request_digest(request))
+            for lifecycle_state, current_location in (("completed", None), ("deleted", None), ("active", "Completed"), ("active", "RFT"), ("active", "Delivered - At Dealer"), ("active", "DRIFTED")):
+                mutated = json.loads(json.dumps(good))
+                mutated["data"]["authoritative_state"]["lifecycle_state"] = lifecycle_state
+                mutated["data"]["authoritative_state"]["current_location"] = current_location
+                with self.assertRaises(module.Historical777Error):
+                    module.validate_success_response(request, mutated, module.canonical_request_digest(request))
 
     def test_bounded_limit_validates_full_cohort_and_records_build_failure(self):
         rows = explicit_manifest_rows()

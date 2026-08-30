@@ -95,6 +95,7 @@ OPERATION_IMPORT_DATA_KEYS = frozenset({
     "estimated_hours_added", "job_card_hours_corrected", "required_work_added", "resulting_revision",
     "booking_created", "completed_work_reopened",
 })
+PROTECTED_ACTIVE_LOCATIONS = frozenset({"YH", "PMB", "QC", "Other"})
 
 ACTOR_ID = "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b"
 ACTOR_EMAIL = "sales@broometoyota.com.au"
@@ -284,7 +285,8 @@ def _validate_nested_canonical_response(response: Mapping[str, Any], stage: str,
     raise Historical777Error("historical nested stage mismatch")
 
 
-def validate_success_response(request: Mapping[str, Any], response: Mapping[str, Any], request_hash: str) -> None:
+def validate_success_response(request: Mapping[str, Any], response: Mapping[str, Any], request_hash: str,
+                              seen_identity_ids: set[str] | None = None) -> None:
     """Accept success only when the deployed 795 receipt envelope is complete."""
     if set(response) != SUCCESS_RESPONSE_KEYS or response.get("ok") is not True or response.get("code") != EXPECTED_SUCCESS_CODE:
         raise Historical777Error("historical success receipt envelope mismatch")
@@ -295,7 +297,9 @@ def validate_success_response(request: Mapping[str, Any], response: Mapping[str,
         value = data.get(key)
         if not isinstance(value, str) or UUID_RE.fullmatch(value.lower()) is None:
             raise Historical777Error(f"historical success {key} readback mismatch")
-    seen_nested_receipt_ids = {data["receipt_id"].lower()}
+    candidate_identity_ids = {data["receipt_id"].lower()}
+    if seen_identity_ids is not None and candidate_identity_ids.intersection(seen_identity_ids):
+        raise Historical777Error("historical receipt identity replay mismatch")
     if data["contract_version"] != "778.1" or data["manifest_sha256"] != request["manifest_sha256"] \
             or data["provider_uid"] != request["provider_uid"] \
             or data["parent_source_hash"] != request["parent_source_hash"] \
@@ -363,9 +367,10 @@ def validate_success_response(request: Mapping[str, Any], response: Mapping[str,
                 if not isinstance(child_data[key], str) or UUID_RE.fullmatch(child_data[key].lower()) is None:
                     raise Historical777Error("historical child receipt identity mismatch")
             child_identity_ids = {child_data["receipt_id"].lower(), child_data["canonical_import_receipt_id"].lower()}
-            if len(child_identity_ids) != 2 or seen_nested_receipt_ids.intersection(child_identity_ids):
+            if len(child_identity_ids) != 2 or child_identity_ids.intersection(candidate_identity_ids) \
+                    or (seen_identity_ids is not None and child_identity_ids.intersection(seen_identity_ids)):
                 raise Historical777Error("historical child receipt identity replay mismatch")
-            seen_nested_receipt_ids.update(child_identity_ids)
+            candidate_identity_ids.update(child_identity_ids)
             if child_data["parent_source_hash"] != request["parent_source_hash"] \
                     or child_data["attachment_source_hash"] != child["attachment_hash"] \
                     or child_data["intake_id"] != data["intake_id"] \
@@ -458,18 +463,28 @@ def validate_success_response(request: Mapping[str, Any], response: Mapping[str,
             or state["operation_count"] < 0 or state["booking_count"] != 0 or state["completion_count"] != 0 \
             or state["parts_changed"] is not False:
         raise Historical777Error("historical authoritative state readback mismatch")
+    if state["lifecycle_state"] is not None and not isinstance(state["lifecycle_state"], str):
+        raise Historical777Error("historical authoritative lifecycle readback mismatch")
+    if state["current_location"] is not None and not isinstance(state["current_location"], str):
+        raise Historical777Error("historical authoritative location readback mismatch")
     if state["vehicle_id"] is not None and (not isinstance(state["vehicle_id"], str) or UUID_RE.fullmatch(state["vehicle_id"].lower()) is None):
         raise Historical777Error("historical authoritative vehicle readback mismatch")
     regular_receipts = [receipt for child, receipt in zip(children, receipts) if child["attachment_kind"] != "ambiguous_job_card"]
     child_vehicle_ids = [receipt["result"]["data"]["vehicle_id"] for receipt in regular_receipts]
-    if child_vehicle_ids and (len(set(child_vehicle_ids)) != 1 or state["vehicle_id"] != child_vehicle_ids[0]):
+    if child_vehicle_ids and (len(set(child_vehicle_ids)) != 1 or state["vehicle_id"] != child_vehicle_ids[0]
+            or state["lifecycle_state"] != "active"
+            or (state["current_location"] is not None and state["current_location"] not in PROTECTED_ACTIVE_LOCATIONS)):
         raise Historical777Error("historical authoritative vehicle binding mismatch")
+    if not child_vehicle_ids and (state["vehicle_id"] is not None or state["lifecycle_state"] is not None or state["current_location"] is not None):
+        raise Historical777Error("historical ambiguous authoritative state mismatch")
     child_operation_counts = [receipt["result"]["data"]["operation_count"] for receipt in regular_receipts]
     if child_operation_counts and state["operation_count"] != sum(child_operation_counts):
         raise Historical777Error("historical authoritative operation readback mismatch")
     if any(data[key] is not False for key in ("booking_created", "completion_created", "location_scheduled", "parts_changed", "status_changed")) \
             or any(data[key] is not True for key in ("no_booking", "no_completion", "no_location_mutation")):
         raise Historical777Error("historical protected-boundary readback mismatch")
+    if seen_identity_ids is not None:
+        seen_identity_ids.update(candidate_identity_ids)
 
 
 def _required(row: Mapping[str, Any], key: str) -> Any:
@@ -696,7 +711,7 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
                            limit: int | None = None) -> list[dict[str, Any]]:
     """Run only supplied frozen rows; never discovers additional mailbox messages."""
     results = []
-    seen_receipt_ids: set[str] = set()
+    seen_identity_ids: set[str] = set()
     frozen_rows = select_authorized_rows(rows)
     if limit is not None:
         if not isinstance(limit, int) or limit < 1 or limit > len(frozen_rows):
@@ -738,11 +753,7 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
         review_required = code in PROPOSAL_REVIEW_CODES or (code != EXPECTED_SUCCESS_CODE and data.get("review_required") is True)
         if raw_ok and not review_required:
             try:
-                validate_success_response(request, response, request_hash)
-                receipt_id = response["data"]["receipt_id"].lower()
-                if receipt_id in seen_receipt_ids:
-                    raise Historical777Error("historical receipt identity replay mismatch")
-                seen_receipt_ids.add(receipt_id)
+                validate_success_response(request, response, request_hash, seen_identity_ids)
             except Historical777Error as exc:
                 raw_ok = False
                 code = str(exc)

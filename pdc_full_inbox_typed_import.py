@@ -64,9 +64,10 @@ CHILD_RESPONSE_KEYS = SHARED_CHILD_RESPONSE_KEYS
 CHILD_DATA_KEYS = SHARED_CHILD_DATA_KEYS
 
 
-def validate_success_response(request: Mapping[str, Any], response: Mapping[str, Any], request_hash: str) -> None:
+def validate_success_response(request: Mapping[str, Any], response: Mapping[str, Any], request_hash: str,
+                              seen_identity_ids: set[str] | None = None) -> None:
     try:
-        validate_shared_success_response(request, response, request_hash)
+        validate_shared_success_response(request, response, request_hash, seen_identity_ids)
     except SharedHistorical777Error as exc:
         raise Historical777Error(str(exc)) from exc
     except Exception as exc:
@@ -306,7 +307,7 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
                            limit: int | None = None) -> list[dict[str, Any]]:
     """Run only supplied frozen rows; never discovers additional mailbox messages."""
     results = []
-    seen_receipt_ids: set[str] = set()
+    seen_identity_ids: set[str] = set()
     frozen_rows = select_authorized_rows(rows)
     if limit is not None:
         if not isinstance(limit, int) or limit < 1 or limit > len(frozen_rows):
@@ -348,11 +349,7 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
         review_required = code in PROPOSAL_REVIEW_CODES or (code != "historical_reconciliation_782_receipt" and data.get("review_required") is True)
         if raw_ok and not review_required:
             try:
-                validate_success_response(request, response, request_hash)
-                receipt_id = response["data"]["receipt_id"].lower()
-                if receipt_id in seen_receipt_ids:
-                    raise Historical777Error("historical receipt identity replay mismatch")
-                seen_receipt_ids.add(receipt_id)
+                validate_success_response(request, response, request_hash, seen_identity_ids)
             except Historical777Error as exc:
                 raw_ok = False
                 code = str(exc)
