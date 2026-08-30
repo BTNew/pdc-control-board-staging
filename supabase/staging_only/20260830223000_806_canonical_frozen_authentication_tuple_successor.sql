@@ -33,7 +33,7 @@ BEGIN
  THEN RAISE EXCEPTION 'PDC_806_CURRENT_HEAD_OR_CONTAINMENT_GUARD_FAILED' USING errcode='55000'; END IF;
  FOREACH v IN ARRAY ARRAY['public.pdc_historical_writer_authorized_777(text,text,text,text,jsonb,text,jsonb)','public.submit_pdc_historical_reconciliation_793_proposal_review_succes(jsonb)','public.submit_pdc_historical_reconciliation_778_pre796(jsonb)','public.submit_pdc_historical_reconciliation_778_pre797(jsonb)','public.submit_pdc_historical_reconciliation_778(jsonb)'] LOOP
    SELECT p.proowner::regrole::text,p.prosecdef,p.proacl::text INTO owner_name,secdef,acl FROM pg_proc p WHERE p.oid=v::regprocedure;
-   IF owner_name<>'postgres' OR NOT secdef OR (v='public.submit_pdc_historical_reconciliation_778(jsonb)' AND acl<>'{authenticated=X/postgres}') OR (v<>'public.submit_pdc_historical_reconciliation_778(jsonb)' AND acl<>'{postgres=X/postgres}') THEN RAISE EXCEPTION 'PDC_806_FUNCTION_SECURITY_PRESTATE_FAILED:%',v USING errcode='55000'; END IF;
+   IF owner_name<>'postgres' OR NOT secdef OR (v='public.submit_pdc_historical_reconciliation_778(jsonb)' AND acl<>'{postgres=X/postgres,authenticated=X/postgres}') OR (v<>'public.submit_pdc_historical_reconciliation_778(jsonb)' AND acl<>'{postgres=X/postgres}') THEN RAISE EXCEPTION 'PDC_806_FUNCTION_SECURITY_PRESTATE_FAILED:%',v USING errcode='55000'; END IF;
  END LOOP;
  SELECT p.prosrc INTO v FROM pg_proc p WHERE p.oid='public.pdc_historical_writer_authorized_777(text,text,text,text,jsonb,text,jsonb)'::regprocedure;
  IF encode(extensions.digest(convert_to(v,'UTF8'),'sha256'),'hex')<>'e395bf4b7c2ca358ecbc930034f69a57ee145709a9772b896c7bee0e5a476215' THEN RAISE EXCEPTION 'PDC_806_WRITER_SOURCE_PRESTATE_FAILED' USING errcode='55000'; END IF;
@@ -546,7 +546,7 @@ DECLARE v text; own text; acl text; sd boolean;
 BEGIN
  FOREACH v IN ARRAY ARRAY['public.pdc_historical_writer_authorized_777(text,text,text,text,jsonb,text,jsonb)','public.submit_pdc_historical_reconciliation_793_proposal_review_succes(jsonb)','public.submit_pdc_historical_reconciliation_778_pre796(jsonb)','public.submit_pdc_historical_reconciliation_778_pre797(jsonb)','public.submit_pdc_historical_reconciliation_778(jsonb)'] LOOP
    SELECT p.proowner::regrole::text,p.prosecdef,p.proacl::text INTO own,sd,acl FROM pg_proc p WHERE p.oid=v::regprocedure;
-   IF own<>'postgres' OR NOT sd OR (v='public.submit_pdc_historical_reconciliation_778(jsonb)' AND acl<>'{authenticated=X/postgres}') OR (v<>'public.submit_pdc_historical_reconciliation_778(jsonb)' AND acl<>'{postgres=X/postgres}') THEN RAISE EXCEPTION 'PDC_806_FUNCTION_SECURITY_POSTCONDITION_FAILED:%',v USING errcode='55000'; END IF;
+   IF own<>'postgres' OR NOT sd OR (v='public.submit_pdc_historical_reconciliation_778(jsonb)' AND acl<>'{postgres=X/postgres,authenticated=X/postgres}') OR (v<>'public.submit_pdc_historical_reconciliation_778(jsonb)' AND acl<>'{postgres=X/postgres}') THEN RAISE EXCEPTION 'PDC_806_FUNCTION_SECURITY_POSTCONDITION_FAILED:%',v USING errcode='55000'; END IF;
  END LOOP;
  SELECT p.prosrc INTO v FROM pg_proc p WHERE p.oid='public.pdc_historical_authentication_canonical_806(jsonb)'::regprocedure;
  IF position('return v-' in lower(v))=0 OR position('aligned' in v)=0 THEN RAISE EXCEPTION 'PDC_806_CANONICALIZER_POSTCONDITION_FAILED' USING errcode='55000'; END IF;
