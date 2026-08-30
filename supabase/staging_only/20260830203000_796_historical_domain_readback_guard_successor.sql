@@ -39,10 +39,10 @@ BEGIN
    SELECT pg_get_userbyid(p.proowner),p.prosecdef,coalesce(array_to_string(p.proconfig,','),''),encode(extensions.digest(convert_to(pg_get_functiondef(p.oid),'UTF8'),'sha256'),'hex'),coalesce((SELECT string_agg(coalesce(pg_get_userbyid(a.grantee),'PUBLIC')||':'||a.privilege_type||':'||a.is_grantable,'|' ORDER BY coalesce(pg_get_userbyid(a.grantee),'PUBLIC'),a.privilege_type,a.is_grantable) FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a),'') INTO v_owner,v_secdef,v_config,v_body,v_acl FROM pg_proc p WHERE p.oid=x.sig::regprocedure;
    IF v_owner IS DISTINCT FROM 'postgres' OR v_secdef IS DISTINCT FROM true OR v_config IS DISTINCT FROM x.config OR v_body IS DISTINCT FROM x.body_hash OR v_acl IS DISTINCT FROM x.acl OR position(lower(x.callee) in lower(pg_get_functiondef(x.sig::regprocedure)))=0 THEN RAISE EXCEPTION 'PDC_796_DEPENDENCY_CONTRACT_DRIFT:%',x.sig USING errcode='55000'; END IF;
  END LOOP;
- SELECT encode(extensions.digest(convert_to(coalesce(string_agg(event_object_table||'|'||trigger_name||'|'||event_manipulation||'|'||action_timing||'|'||action_statement,'|' ORDER BY event_object_table,trigger_name,event_manipulation),''),'UTF8'),'sha256'),'hex') INTO v_trigger_hash FROM information_schema.triggers WHERE event_object_schema='public' AND event_object_table IN ('ai_email_intake','ai_email_attachments','vehicles','vehicle_work_items','pdc_authenticated_email_operation_lines','vehicle_workshop_line_adjustments','vehicle_parts_updates','workshop_bookings','workshop_booking_assignments','pdc_sublet_bookings','pdc_sublet_booking_instances','pdc_qc_operation_completions_379','pdc_pmb_stoppage_receipts_422','pdc_email_monitor_current_head_compatibility_controls_766','pdc_email_monitor_pilot','pdc_email_monitor_status','pdc_qc_salesperson_update_outbox_399','pdc_rft_transport_email_outbox_734','pdc_sublet_email_update_receipts','pdc_historical_provider_observations_778','pdc_historical_reconciliation_778_receipts');
- IF v_trigger_hash IS DISTINCT FROM 'ff68e5580c8a77701eb5f92ef6a0b6ad99a44f0036185e60900a4292775870f1' THEN RAISE EXCEPTION 'PDC_796_TRIGGER_CONTRACT_DRIFT' USING errcode='55000'; END IF;
- SELECT encode(extensions.digest(convert_to(coalesce(string_agg(x.event_object_table||'|'||x.trigger_name||'|'||x.event_manipulation||'|'||x.action_timing||'|'||x.action_statement||'|'||coalesce(encode(extensions.digest(convert_to(pg_get_functiondef(t.tgfoid),'UTF8'),'sha256'),'hex'),'')||'|'||coalesce(pg_get_userbyid(p.proowner),'')||'|'||coalesce(array_to_string(p.proconfig,','),'')||'|'||coalesce((SELECT string_agg(coalesce(pg_get_userbyid(a.grantee),'PUBLIC')||':'||a.privilege_type||':'||a.is_grantable,'|' ORDER BY coalesce(pg_get_userbyid(a.grantee),'PUBLIC'),a.privilege_type,a.is_grantable) FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a),'') ,'|' ORDER BY x.event_object_table,x.trigger_name,x.event_manipulation),''),'UTF8'),'sha256'),'hex') INTO v_executor_hash FROM information_schema.triggers x JOIN pg_trigger t ON t.tgname=x.trigger_name AND t.tgrelid=(x.event_object_schema||'.'||x.event_object_table)::regclass JOIN pg_proc p ON p.oid=t.tgfoid WHERE x.event_object_schema='public' AND x.event_object_table IN ('ai_email_intake','ai_email_attachments','vehicles','vehicle_work_items','pdc_authenticated_email_operation_lines','vehicle_workshop_line_adjustments','vehicle_parts_updates','workshop_bookings','workshop_booking_assignments','pdc_sublet_bookings','pdc_sublet_booking_instances','pdc_qc_operation_completions_379','pdc_pmb_stoppage_receipts_422','pdc_email_monitor_current_head_compatibility_controls_766','pdc_email_monitor_pilot','pdc_email_monitor_status','pdc_qc_salesperson_update_outbox_399','pdc_rft_transport_email_outbox_734','pdc_sublet_email_update_receipts','pdc_historical_provider_observations_778','pdc_historical_reconciliation_778_receipts');
- IF v_executor_hash IS DISTINCT FROM '59f828545fd10c6928ccf38d0e8d8d1e25841fd9af75d591ee96f4219ea82fac' THEN RAISE EXCEPTION 'PDC_796_TRIGGER_EXECUTOR_CONTRACT_DRIFT' USING errcode='55000'; END IF;
+ SELECT encode(extensions.digest(convert_to(coalesce(string_agg(event_object_table||'|'||trigger_name||'|'||event_manipulation||'|'||action_timing||'|'||action_statement,'|' ORDER BY event_object_table,trigger_name,event_manipulation),''),'UTF8'),'sha256'),'hex') INTO v_trigger_hash FROM information_schema.triggers WHERE event_object_schema='public' AND event_object_table IN ('ai_email_intake','ai_email_attachments','vehicles','vehicle_work_items','pdc_authenticated_email_operation_lines','vehicle_workshop_line_adjustments','vehicle_parts_updates','workshop_bookings','workshop_booking_assignments','pdc_sublet_bookings','pdc_sublet_booking_instances','pdc_qc_operation_completions_379','pdc_pmb_stoppage_receipts_422','pdc_email_monitor_current_head_compatibility_controls_766','pdc_email_monitor_pilot','pdc_email_monitor_status','pdc_qc_salesperson_update_outbox_399','pdc_rft_transport_email_outbox_734','pdc_rft_transport_salesperson_outbox_412','pdc_sublet_email_update_receipts','pdc_historical_provider_observations_778','pdc_historical_reconciliation_778_receipts');
+ IF v_trigger_hash IS DISTINCT FROM '5c4c1b765a26143bd85b76de9cb0664edee66a6cfbc17acd6a75463a14df8211' THEN RAISE EXCEPTION 'PDC_796_TRIGGER_CONTRACT_DRIFT' USING errcode='55000'; END IF;
+ SELECT encode(extensions.digest(convert_to(coalesce(string_agg(x.event_object_table||'|'||x.trigger_name||'|'||x.event_manipulation||'|'||x.action_timing||'|'||x.action_statement||'|'||coalesce(encode(extensions.digest(convert_to(pg_get_functiondef(t.tgfoid),'UTF8'),'sha256'),'hex'),'')||'|'||coalesce(pg_get_userbyid(p.proowner),'')||'|'||coalesce(array_to_string(p.proconfig,','),'')||'|'||coalesce((SELECT string_agg(coalesce(pg_get_userbyid(a.grantee),'PUBLIC')||':'||a.privilege_type||':'||a.is_grantable,'|' ORDER BY coalesce(pg_get_userbyid(a.grantee),'PUBLIC'),a.privilege_type,a.is_grantable) FROM aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a),'') ,'|' ORDER BY x.event_object_table,x.trigger_name,x.event_manipulation),''),'UTF8'),'sha256'),'hex') INTO v_executor_hash FROM information_schema.triggers x JOIN pg_trigger t ON t.tgname=x.trigger_name AND t.tgrelid=(x.event_object_schema||'.'||x.event_object_table)::regclass JOIN pg_proc p ON p.oid=t.tgfoid WHERE x.event_object_schema='public' AND x.event_object_table IN ('ai_email_intake','ai_email_attachments','vehicles','vehicle_work_items','pdc_authenticated_email_operation_lines','vehicle_workshop_line_adjustments','vehicle_parts_updates','workshop_bookings','workshop_booking_assignments','pdc_sublet_bookings','pdc_sublet_booking_instances','pdc_qc_operation_completions_379','pdc_pmb_stoppage_receipts_422','pdc_email_monitor_current_head_compatibility_controls_766','pdc_email_monitor_pilot','pdc_email_monitor_status','pdc_qc_salesperson_update_outbox_399','pdc_rft_transport_email_outbox_734','pdc_rft_transport_salesperson_outbox_412','pdc_sublet_email_update_receipts','pdc_historical_provider_observations_778','pdc_historical_reconciliation_778_receipts');
+ IF v_executor_hash IS DISTINCT FROM 'c0e2afc1205b1648ab3816a58938454facee55bfc49132ac6e7af3ee84ff8cf8' THEN RAISE EXCEPTION 'PDC_796_TRIGGER_EXECUTOR_CONTRACT_DRIFT' USING errcode='55000'; END IF;
 END $dependency$;
 
 CREATE TABLE public.pdc_historical_domain_readbacks_796(
@@ -70,11 +70,11 @@ RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path=pg_catalog,public,extensions
 AS $snapshot$
 DECLARE
- v_vehicle jsonb; v_parts_rows jsonb; v_parts_stoppage_rows jsonb; v_sublet_rows jsonb; v_sublet_instances jsonb; v_qc_rows jsonb; v_rft_rows jsonb; v_rft_lifecycle_rows jsonb; v_rft_evidence_rows jsonb; v_rft_action_rows jsonb; v_rft_intercept_rows jsonb; v_rft_statistics_rows jsonb;
+ v_vehicle jsonb; v_parts_rows jsonb; v_parts_stoppage_rows jsonb; v_sublet_rows jsonb; v_sublet_instances jsonb; v_qc_rows jsonb; v_rft_rows jsonb; v_rft_salesperson_rows jsonb; v_rft_lifecycle_rows jsonb; v_rft_evidence_rows jsonb; v_rft_action_rows jsonb; v_rft_intercept_rows jsonb; v_rft_statistics_rows jsonb;
  v_vehicle_fp text; v_parts_fp text; v_sublet_fp text; v_qc_fp text; v_rft_fp text; v_lifecycle_fp text; v_all_fp text;
 BEGIN
  IF p_vehicle_id IS NULL THEN
-   v_vehicle:=NULL; v_parts_rows:='[]'::jsonb; v_parts_stoppage_rows:='[]'::jsonb; v_sublet_rows:='[]'::jsonb; v_sublet_instances:='[]'::jsonb; v_qc_rows:='[]'::jsonb; v_rft_rows:='[]'::jsonb; v_rft_lifecycle_rows:='[]'::jsonb; v_rft_evidence_rows:='[]'::jsonb; v_rft_action_rows:='[]'::jsonb; v_rft_intercept_rows:='[]'::jsonb; v_rft_statistics_rows:='[]'::jsonb;
+   v_vehicle:=NULL; v_parts_rows:='[]'::jsonb; v_parts_stoppage_rows:='[]'::jsonb; v_sublet_rows:='[]'::jsonb; v_sublet_instances:='[]'::jsonb; v_qc_rows:='[]'::jsonb; v_rft_rows:='[]'::jsonb; v_rft_salesperson_rows:='[]'::jsonb; v_rft_lifecycle_rows:='[]'::jsonb; v_rft_evidence_rows:='[]'::jsonb; v_rft_action_rows:='[]'::jsonb; v_rft_intercept_rows:='[]'::jsonb; v_rft_statistics_rows:='[]'::jsonb;
    v_vehicle_fp:=md5('null'); v_lifecycle_fp:=md5('null');
  ELSE
    SELECT jsonb_build_object(
@@ -86,7 +86,7 @@ BEGIN
      'qc_completed_at',v.qc_completed_at,'workshop_status',v.workshop_status
    ) INTO v_vehicle FROM public.vehicles v WHERE v.id=p_vehicle_id;
    IF v_vehicle IS NULL THEN
-     v_parts_rows:='[]'::jsonb; v_parts_stoppage_rows:='[]'::jsonb; v_sublet_rows:='[]'::jsonb; v_sublet_instances:='[]'::jsonb; v_qc_rows:='[]'::jsonb; v_rft_rows:='[]'::jsonb; v_rft_lifecycle_rows:='[]'::jsonb; v_rft_evidence_rows:='[]'::jsonb; v_rft_action_rows:='[]'::jsonb; v_rft_intercept_rows:='[]'::jsonb; v_rft_statistics_rows:='[]'::jsonb;
+     v_parts_rows:='[]'::jsonb; v_parts_stoppage_rows:='[]'::jsonb; v_sublet_rows:='[]'::jsonb; v_sublet_instances:='[]'::jsonb; v_qc_rows:='[]'::jsonb; v_rft_rows:='[]'::jsonb; v_rft_salesperson_rows:='[]'::jsonb; v_rft_lifecycle_rows:='[]'::jsonb; v_rft_evidence_rows:='[]'::jsonb; v_rft_action_rows:='[]'::jsonb; v_rft_intercept_rows:='[]'::jsonb; v_rft_statistics_rows:='[]'::jsonb;
      v_vehicle_fp:=md5('missing'); v_lifecycle_fp:=md5('missing');
    ELSE
      SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.id),'[]'::jsonb) INTO v_parts_rows FROM (
@@ -113,6 +113,10 @@ BEGIN
        SELECT notification_id,lifecycle_receipt_id,vehicle_id,recipient_email,delivery_status,delivery_enabled,sent_at,delivered_at,md5(payload::text) AS payload_fingerprint,created_at
        FROM public.pdc_rft_transport_email_outbox_734 WHERE vehicle_id=p_vehicle_id
      ) x;
+     SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.notification_id),'[]'::jsonb) INTO v_rft_salesperson_rows FROM (
+       SELECT notification_id,transport_receipt_id,vehicle_id,recipient_email,delivery_status,sent_at,delivered_at,md5(payload::text) AS payload_fingerprint,created_at
+       FROM public.pdc_rft_transport_salesperson_outbox_412 WHERE vehicle_id=p_vehicle_id
+     ) x;
      SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.receipt_id),'[]'::jsonb) INTO v_rft_lifecycle_rows FROM (
        SELECT receipt_id,vehicle_id,action,actor_id,actor_email,idempotency_key,request_sha256,before_state,after_state,md5(evidence::text) AS evidence_fingerprint,md5(response::text) AS response_fingerprint,created_at
        FROM public.pdc_rft_transport_lifecycle_receipts_734 WHERE vehicle_id=p_vehicle_id
@@ -137,14 +141,14 @@ BEGIN
      v_lifecycle_fp:=md5(jsonb_build_object('lifecycle_state',v_vehicle->>'lifecycle_state','current_location',v_vehicle->>'current_location','deleted_at',v_vehicle->>'deleted_at','board_purged_at',v_vehicle->>'board_purged_at','rft_transferred_at',v_vehicle->>'rft_transferred_at','rft_collected_at',v_vehicle->>'rft_collected_at','rft_confirmed_at',v_vehicle->>'rft_confirmed_at','rft_transport_booked_at',v_vehicle->>'rft_transport_booked_at','dealer_transit_closed_at',v_vehicle->>'dealer_transit_closed_at','delivered_to_dealer_date',v_vehicle->>'delivered_to_dealer_date')::text);
    END IF;
  END IF;
- v_parts_fp:=md5(jsonb_build_object('rows',v_parts_rows,'stoppage_receipts',v_parts_stoppage_rows)::text); v_sublet_fp:=md5(jsonb_build_object('bookings',v_sublet_rows,'instances',v_sublet_instances)::text); v_qc_fp:=md5(v_qc_rows::text); v_rft_fp:=md5(jsonb_build_object('outbox',v_rft_rows,'lifecycle_receipts',v_rft_lifecycle_rows,'evidence',v_rft_evidence_rows,'action_receipts',v_rft_action_rows,'intercept_receipts',v_rft_intercept_rows,'dealer_transit_statistics',v_rft_statistics_rows)::text);
+ v_parts_fp:=md5(jsonb_build_object('rows',v_parts_rows,'stoppage_receipts',v_parts_stoppage_rows)::text); v_sublet_fp:=md5(jsonb_build_object('bookings',v_sublet_rows,'instances',v_sublet_instances)::text); v_qc_fp:=md5(v_qc_rows::text); v_rft_fp:=md5(jsonb_build_object('outbox',v_rft_rows,'salesperson_outbox',v_rft_salesperson_rows,'lifecycle_receipts',v_rft_lifecycle_rows,'evidence',v_rft_evidence_rows,'action_receipts',v_rft_action_rows,'intercept_receipts',v_rft_intercept_rows,'dealer_transit_statistics',v_rft_statistics_rows)::text);
  v_all_fp:=md5((v_vehicle_fp||':'||v_lifecycle_fp||':'||v_parts_fp||':'||v_sublet_fp||':'||v_qc_fp||':'||v_rft_fp));
  RETURN jsonb_build_object(
    'vehicle',v_vehicle,
    'parts',jsonb_build_object('rows',v_parts_rows,'stoppage_receipts',v_parts_stoppage_rows,'fingerprint',v_parts_fp),
    'sublet',jsonb_build_object('bookings',v_sublet_rows,'instances',v_sublet_instances,'fingerprint',v_sublet_fp),
    'qc',jsonb_build_object('rows',v_qc_rows,'fingerprint',v_qc_fp),
-   'rft_transport',jsonb_build_object('outbox',v_rft_rows,'lifecycle_receipts',v_rft_lifecycle_rows,'evidence',v_rft_evidence_rows,'action_receipts',v_rft_action_rows,'intercept_receipts',v_rft_intercept_rows,'dealer_transit_statistics',v_rft_statistics_rows,'fingerprint',v_rft_fp),
+   'rft_transport',jsonb_build_object('outbox',v_rft_rows,'salesperson_outbox',v_rft_salesperson_rows,'lifecycle_receipts',v_rft_lifecycle_rows,'evidence',v_rft_evidence_rows,'action_receipts',v_rft_action_rows,'intercept_receipts',v_rft_intercept_rows,'dealer_transit_statistics',v_rft_statistics_rows,'fingerprint',v_rft_fp),
    'protected_fingerprints',jsonb_build_object('vehicle',v_vehicle_fp,'lifecycle_location',v_lifecycle_fp,'parts',v_parts_fp,'sublet',v_sublet_fp,'qc',v_qc_fp,'rft_transport',v_rft_fp,'all',v_all_fp)
  );
 END
@@ -200,12 +204,19 @@ BEGIN
    END IF;
    IF (v_result->'data'->>'receipt_id') !~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$' THEN RAISE EXCEPTION 'PDC_796_RECEIPT_READBACK_FAILED' USING errcode='55000'; END IF;
    v_receipt_id:=(v_result->'data'->>'receipt_id')::uuid;
+   IF v_replay AND v_vehicle_id IS NULL AND v_stock IS NOT NULL THEN
+     SELECT count(*) INTO v_match_count FROM public.vehicles v WHERE v.stock_number_normalized=v_stock;
+     IF v_match_count>1 THEN RAISE EXCEPTION 'PDC_796_REPLAY_IDENTITY_CONFLICT' USING errcode='55000'; END IF;
+     IF v_match_count=1 THEN SELECT v.id INTO v_vehicle_id FROM public.vehicles v WHERE v.stock_number_normalized=v_stock ORDER BY v.id LIMIT 1; v_after:=public.pdc_historical_796_domain_snapshot(v_vehicle_id); END IF;
+   END IF;
+   IF v_replay AND v_vehicle_id IS NULL AND EXISTS(SELECT 1 FROM jsonb_array_elements(coalesce(v_result->'data'->'attachment_receipts','[]'::jsonb)) r WHERE coalesce(r->'result'->>'code','')<>'historical_child_ambiguous') THEN RAISE EXCEPTION 'PDC_796_REPLAY_VEHICLE_READBACK_FAILED' USING errcode='55000'; END IF;
    SELECT r.request_sha256 INTO v_request_hash FROM public.pdc_historical_reconciliation_778_receipts r WHERE r.receipt_id=v_receipt_id;
    IF v_request_hash IS NULL THEN RAISE EXCEPTION 'PDC_796_AGGREGATE_RECEIPT_READBACK_FAILED' USING errcode='55000'; END IF;
    INSERT INTO public.pdc_historical_domain_readbacks_796(receipt_id,request_sha256,vehicle_id,authoritative_domain_state,before_protected_fingerprints,after_protected_fingerprints,protected_fingerprint)
    VALUES(v_receipt_id,v_request_hash,v_vehicle_id,v_after,coalesce(v_before->'protected_fingerprints','{}'::jsonb),v_after->'protected_fingerprints',v_after->'protected_fingerprints'->>'all') ON CONFLICT(receipt_id) DO NOTHING;
    SELECT jsonb_build_object('receipt_id',receipt_id,'request_sha256',request_sha256,'vehicle_id',vehicle_id,'authoritative_domain_state',authoritative_domain_state,'before_protected_fingerprints',before_protected_fingerprints,'after_protected_fingerprints',after_protected_fingerprints,'protected_fingerprint',protected_fingerprint) INTO v_readback FROM public.pdc_historical_domain_readbacks_796 WHERE receipt_id=v_receipt_id;
    IF v_readback IS NULL OR v_readback->>'request_sha256' IS NULL OR v_readback->>'protected_fingerprint' IS NULL THEN RAISE EXCEPTION 'PDC_796_DOMAIN_READBACK_FAILED' USING errcode='55000'; END IF;
+   v_result:=jsonb_set(v_result,'{data,replay}',to_jsonb(v_replay),true);
    IF v_readback->'authoritative_domain_state' IS NOT NULL THEN v_result:=jsonb_set(v_result,'{data,authoritative_domain_state}',v_readback->'authoritative_domain_state',true); END IF;
  END IF;
  RETURN v_result;

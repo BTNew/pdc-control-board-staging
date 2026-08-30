@@ -132,7 +132,7 @@ def success_response(request: dict) -> dict:
     parts_domain = {"rows": [], "stoppage_receipts": []}
     sublet_domain = {"bookings": [], "instances": []}
     qc_domain = {"rows": []}
-    rft_domain = {"outbox": [], "lifecycle_receipts": [], "evidence": [], "action_receipts": [], "intercept_receipts": [], "dealer_transit_statistics": []}
+    rft_domain = {"outbox": [], "salesperson_outbox": [], "lifecycle_receipts": [], "evidence": [], "action_receipts": [], "intercept_receipts": [], "dealer_transit_statistics": []}
     parts_domain["fingerprint"] = domain_fp(parts_domain)
     sublet_domain["fingerprint"] = domain_fp(sublet_domain)
     qc_domain["fingerprint"] = domain_fp(qc_domain["rows"])
@@ -157,6 +157,7 @@ def success_response(request: dict) -> dict:
             "operation_count": sum(item["authoritative_operation_count"] for item in children),
             "booking_count": 0, "completion_count": 0, "parts_changed": False},
         "authoritative_domain_state": domain_state,
+        "replay": False,
         "booking_created": False, "completion_created": False, "location_scheduled": False,
         "parts_changed": False, "status_changed": False, "no_booking": True, "no_completion": True,
         "no_location_mutation": True,
@@ -213,6 +214,7 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             "pdc_sublet_booking_instances",
             "pdc_qc_operation_completions_379",
             "pdc_rft_transport_email_outbox_734",
+            "pdc_rft_transport_salesperson_outbox_412",
             "pdc_rft_transport_lifecycle_receipts_734",
             "pdc_rft_transport_email_evidence_734",
             "pdc_rft_transport_action_receipts_412",
@@ -512,6 +514,18 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
                 mutated["data"]["authoritative_state"]["current_location"] = current_location
                 with self.assertRaises(module.Historical777Error):
                     module.validate_success_response(request, mutated, module.canonical_request_digest(request))
+            replay = json.loads(json.dumps(good))
+            replay["data"]["replay"] = True
+            replay["data"]["authoritative_state"]["lifecycle_state"] = "completed"
+            replay["data"]["authoritative_state"]["current_location"] = "Completed"
+            replay["data"]["authoritative_domain_state"]["vehicle"]["lifecycle_state"] = "completed"
+            replay["data"]["authoritative_domain_state"]["vehicle"]["current_location"] = "Completed"
+            replay_domain = replay["data"]["authoritative_domain_state"]
+            replay_domain["protected_fingerprints"]["vehicle"] = hashlib.md5(self.caller._postgres_jsonb_text(replay_domain["vehicle"]).encode("utf-8")).hexdigest()
+            lifecycle_projection = {name: replay_domain["vehicle"][name] for name in ("lifecycle_state", "current_location", "deleted_at", "board_purged_at", "rft_transferred_at", "rft_collected_at", "rft_confirmed_at", "rft_transport_booked_at", "dealer_transit_closed_at", "delivered_to_dealer_date")}
+            replay_domain["protected_fingerprints"]["lifecycle_location"] = hashlib.md5(self.caller._postgres_jsonb_text(lifecycle_projection).encode("utf-8")).hexdigest()
+            replay_domain["protected_fingerprints"]["all"] = hashlib.md5(":".join(replay_domain["protected_fingerprints"][name] for name in ("vehicle", "lifecycle_location", "parts", "sublet", "qc", "rft_transport")).encode("ascii")).hexdigest()
+            module.validate_success_response(request, replay, module.canonical_request_digest(request))
             for mutate in (
                 lambda value: value["data"]["authoritative_domain_state"].pop("parts"),
                 lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"fingerprint": "not-a-fingerprint"}),

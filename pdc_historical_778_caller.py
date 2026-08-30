@@ -47,7 +47,7 @@ SUCCESS_DATA_KEYS = frozenset({
     "proposal_binding_kind", "proposal_observation_match", "job_card_count", "sibling_count",
     "attachment_receipts", "parent_observation", "authoritative_state", "booking_created",
     "completion_created", "location_scheduled", "parts_changed", "status_changed", "no_booking",
-    "no_completion", "no_location_mutation", "authoritative_domain_state",
+    "no_completion", "no_location_mutation", "authoritative_domain_state", "replay",
 })
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 PARENT_RESPONSE_KEYS = frozenset({"ok", "code", "data"})
@@ -287,7 +287,7 @@ def _validate_nested_canonical_response(response: Mapping[str, Any], stage: str,
     raise Historical777Error("historical nested stage mismatch")
 
 
-def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mapping[str, Any]) -> None:
+def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mapping[str, Any], replay: bool) -> None:
     if not isinstance(domain, Mapping) or set(domain) != DOMAIN_STATE_KEYS:
         raise Historical777Error("historical authoritative domain envelope mismatch")
     vehicle = domain["vehicle"]
@@ -300,7 +300,7 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
                 or vehicle["lifecycle_state"] != authoritative_state["lifecycle_state"] \
                 or vehicle["current_location"] != authoritative_state["current_location"] \
                 or type(vehicle["version"]) is not int or vehicle["version"] < 1 \
-                or not isinstance(vehicle["lifecycle_state"], str) or vehicle["lifecycle_state"] in {"rft", "completed", "deleted"} \
+                or not isinstance(vehicle["lifecycle_state"], str) or (vehicle["lifecycle_state"] in {"rft", "completed", "deleted"} and not replay) \
                 or vehicle["deleted_at"] is not None or vehicle["board_purged_at"] is not None:
             raise Historical777Error("historical authoritative vehicle domain mismatch")
     elif authoritative_state["vehicle_id"] is not None or authoritative_state["lifecycle_state"] is not None or authoritative_state["current_location"] is not None:
@@ -335,12 +335,13 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
             or any(not isinstance(row, Mapping) or set(row) != instance_keys for row in sublet["instances"]):
         raise Historical777Error("historical authoritative Sublet row mismatch")
     rft = domain["rft_transport"]
-    rft_keys = {"outbox", "lifecycle_receipts", "evidence", "action_receipts", "intercept_receipts", "dealer_transit_statistics", "fingerprint"}
+    rft_keys = {"outbox", "salesperson_outbox", "lifecycle_receipts", "evidence", "action_receipts", "intercept_receipts", "dealer_transit_statistics", "fingerprint"}
     if not isinstance(rft, Mapping) or set(rft) != rft_keys or any(not isinstance(rft[name], list) for name in rft_keys - {"fingerprint"}) \
             or not isinstance(rft["fingerprint"], str) or re.fullmatch(r"[0-9a-f]{32}", rft["fingerprint"]) is None:
         raise Historical777Error("historical authoritative RFT domain mismatch")
     rft_row_keys = {
         "outbox": {"notification_id", "lifecycle_receipt_id", "vehicle_id", "recipient_email", "delivery_status", "delivery_enabled", "sent_at", "delivered_at", "payload_fingerprint", "created_at"},
+        "salesperson_outbox": {"notification_id", "transport_receipt_id", "vehicle_id", "recipient_email", "delivery_status", "sent_at", "delivered_at", "payload_fingerprint", "created_at"},
         "lifecycle_receipts": {"receipt_id", "vehicle_id", "action", "actor_id", "actor_email", "idempotency_key", "request_sha256", "before_state", "after_state", "evidence_fingerprint", "response_fingerprint", "created_at"},
         "evidence": {"evidence_id", "notification_id", "vehicle_id", "mime_version", "mime_content_type", "mime_sha256", "photo_receipt_id", "photo_bucket_id", "photo_storage_path", "photo_content_type", "photo_byte_length", "photo_sha256", "intercepted", "sent_at", "delivered_at", "created_at"},
         "action_receipts": {"receipt_id", "vehicle_id", "action", "expected_vehicle_version", "vehicle_version_before", "vehicle_version_after", "actor_id", "actor_email", "idempotency_key", "request_sha256", "before_state", "after_state", "response_fingerprint", "created_at"},
@@ -371,7 +372,7 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
     if hashlib.md5(_postgres_jsonb_text({"rows": parts["rows"], "stoppage_receipts": parts["stoppage_receipts"]}).encode("utf-8")).hexdigest() != fingerprints["parts"] \
             or hashlib.md5(_postgres_jsonb_text({"bookings": sublet["bookings"], "instances": sublet["instances"]}).encode("utf-8")).hexdigest() != fingerprints["sublet"] \
             or hashlib.md5(_postgres_jsonb_text(domain["qc"]["rows"]).encode("utf-8")).hexdigest() != fingerprints["qc"] \
-            or hashlib.md5(_postgres_jsonb_text({name: rft[name] for name in ("outbox", "lifecycle_receipts", "evidence", "action_receipts", "intercept_receipts", "dealer_transit_statistics")}).encode("utf-8")).hexdigest() != fingerprints["rft_transport"]:
+            or hashlib.md5(_postgres_jsonb_text({name: rft[name] for name in ("outbox", "salesperson_outbox", "lifecycle_receipts", "evidence", "action_receipts", "intercept_receipts", "dealer_transit_statistics")}).encode("utf-8")).hexdigest() != fingerprints["rft_transport"]:
         raise Historical777Error("historical authoritative component fingerprint mismatch")
     if not isinstance(fingerprints, Mapping) or set(fingerprints) != DOMAIN_FINGERPRINT_KEYS \
             or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{32}", value) is None for value in fingerprints.values()):
@@ -570,12 +571,14 @@ def validate_success_response(request: Mapping[str, Any], response: Mapping[str,
     regular_receipts = [receipt for child, receipt in zip(children, receipts) if child["attachment_kind"] != "ambiguous_job_card"]
     child_vehicle_ids = [receipt["result"]["data"]["vehicle_id"] for receipt in regular_receipts]
     if child_vehicle_ids and (len(set(child_vehicle_ids)) != 1 or state["vehicle_id"] != child_vehicle_ids[0]
-            or state["lifecycle_state"] != "active"
-            or (state["current_location"] is not None and state["current_location"] not in PROTECTED_ACTIVE_LOCATIONS)):
+            or state["lifecycle_state"] != "active" and data["replay"] is not True
+            or (state["current_location"] is not None and state["current_location"] not in PROTECTED_ACTIVE_LOCATIONS and data["replay"] is not True)):
         raise Historical777Error("historical authoritative vehicle binding mismatch")
     if not child_vehicle_ids and (state["vehicle_id"] is not None or state["lifecycle_state"] is not None or state["current_location"] is not None):
         raise Historical777Error("historical ambiguous authoritative state mismatch")
-    _validate_authoritative_domain_state(data["authoritative_domain_state"], state)
+    if type(data["replay"]) is not bool:
+        raise Historical777Error("historical replay flag readback mismatch")
+    _validate_authoritative_domain_state(data["authoritative_domain_state"], state, data["replay"])
     child_operation_counts = [receipt["result"]["data"]["operation_count"] for receipt in regular_receipts]
     if child_operation_counts and state["operation_count"] != sum(child_operation_counts):
         raise Historical777Error("historical authoritative operation readback mismatch")
