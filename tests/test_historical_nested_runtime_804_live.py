@@ -12,6 +12,48 @@ import psycopg2
 RUN_LIVE = os.environ.get("PDC_RUN_HISTORICAL_RUNTIME_804_LIVE") == "1"
 ACTOR = "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b"
 EMAIL = "sales@broometoyota.com.au"
+INVALID_REQUEST = {
+    "action_type": "review_only",
+    "attachment_manifest": [],
+    "authentication": {
+        "dkim_aligned": False,
+        "dmarc_aligned": False,
+        "gmail_authentication_results": True,
+        "sender_domain": "broometoyota.com.au",
+        "spf_aligned": True,
+    },
+    "canonical_request_utf8": "",
+    "evidence_hash": "e" * 64,
+    "gateway_instance_id": "pdc-monitor-staging-sales-uid509-v1",
+    "job_card_children": [],
+    "manifest_high_water_uid": 685,
+    "manifest_sha256": "aa9e2451645b3fc51eba68c422b5eaf6f146ed18596a94ce8560c55b80729018",
+    "manifest_uid_count": 669,
+    "manifest_uidvalidity": 1,
+    "observations": {},
+    "parent_source_hash": "b" * 64,
+    "provider_uid": "1:999999",
+    "release_manifest_sha256": "d48b49f6598a99fbef99fc4f0d0ab36b8b47576b8ff7cd8ecd2cb64d6cfed58d",
+    "release_name": "pdc-monitor-staging-m502-2026.08.44",
+    "release_source_sha": "e850c319989d98b45b95a28aa815d78e2c2e3a4b",
+    "sender_email": EMAIL,
+    "source_metadata": {
+        "attachment_names": [],
+        "graph_message_id": "imap:1:999999",
+        "internet_message_id": "<historical-999999@example.test>",
+        "parsed_text": "",
+        "provider_authserv_id": "mx.google.com",
+        "raw_body": "",
+        "received_at": "2026-08-30T12:00:00+00:00",
+        "recipient_mailbox": "pmbcontroller@gmail.com",
+        "sender_name": "Test sender",
+        "uid": 999999,
+        "uidvalidity": 1,
+    },
+    "stock_number": "13047257",
+    "subject": "Invalid contained-runtime regression",
+    "summary": "Invalid contained-runtime regression",
+}
 
 
 @unittest.skipUnless(RUN_LIVE, "set PDC_RUN_HISTORICAL_RUNTIME_804_LIVE=1 for authorised STAGING regression")
@@ -60,7 +102,7 @@ class HistoricalNestedRuntime804LiveTests(unittest.TestCase):
             "mailboxes": self.scalar("select count(*) from public.monitored_mailboxes where active"),
         }
         with self.conn.cursor() as cur:
-            cur.execute("select public.submit_pdc_historical_reconciliation_778(%s::jsonb)", (json.dumps({}),))
+            cur.execute("select public.submit_pdc_historical_reconciliation_778(%s::jsonb)", (json.dumps(INVALID_REQUEST),))
             result = cur.fetchone()[0]
         after = {
             "receipts": self.scalar("select count(*) from public.pdc_historical_reconciliation_778_receipts"),
@@ -68,8 +110,7 @@ class HistoricalNestedRuntime804LiveTests(unittest.TestCase):
             "readbacks": self.scalar("select count(*) from public.pdc_historical_complete_domain_readbacks_797"),
             "mailboxes": self.scalar("select count(*) from public.monitored_mailboxes where active"),
         }
-        self.assertNotEqual(result.get("code"), "unauthorized")
-        self.assertIn(result.get("code"), {"historical_reconciliation_782_atomic_rollback", "historical_reconciliation_preflight_failed", "historical_reconciliation_validation_failed"})
+        self.assertEqual(result.get("code"), "historical_wrapper_preflight_failed")
         self.assertEqual(before, after)
         self.assertEqual(after["mailboxes"], 0)
 
