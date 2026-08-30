@@ -17,12 +17,23 @@ BEGIN
  OR to_regclass('public.pdc_monitor_672_writer_reconciliation_800') IS NULL
  OR (SELECT count(*) FROM public.pdc_monitor_672_writer_reconciliation_800)<>0
  OR (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>0
+ OR (SELECT count(*) FROM public.monitored_mailboxes WHERE id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND NOT active AND test_mode AND mailbox_key='pdc_pmb_email' AND lower(mailbox_address)='pmbcontroller@gmail.com' AND lower(provider)='gmail' AND config->>'operational_scope'='staging')<>1
  OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)<>0
  OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE user_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND NOT active AND revoked_at IS NOT NULL)<>1
  OR (SELECT count(*) FROM public.pdc_monitor_vehicle_identity_readers WHERE user_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND active AND revoked_at IS NULL)<>1
  OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_mailbox_activation_controls_674 WHERE singleton AND NOT enabled AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57')<>1
  OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675 WHERE singleton AND NOT enabled AND active_mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND pilot_remains_disabled)<>1
- OR (SELECT count(*) FROM public.pdc_email_monitor_reactivation_752 WHERE event_kind='rollback')<>1
+ OR (SELECT count(*) FROM public.pdc_email_monitor_reactivation_752 WHERE event_kind='rollback' AND event_key=encode(extensions.digest(convert_to('pdc-staging-752-exact-email-monitor-reactivation|rollback|12fe383d-5c1e-5801-96e4-f67cf3e3bb57','UTF8'),'sha256'),'hex') AND predecessor_head='20260829144000' AND successor_head='20260829151000' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND actor_email='sales@broometoyota.com.au' AND gateway_instance_id='pdc-monitor-staging-sales-uid509-v1' AND release_name='pdc-monitor-staging-m502-2026.08.44' AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND mailbox_address='pmbcontroller@gmail.com' AND controls_enabled=false AND writer_enabled=false AND NOT task_enabled AND NOT mailbox_contacted AND NOT mailbox_flags_changed AND NOT uid514_processed AND NOT production_writes AND before_mailbox->>'active'='true' AND after_mailbox->>'active'='false' AND before_writer->>'active'='true' AND after_writer->>'active'='false')<>1
+ OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards AND NOT outbound_email_enabled)<>1
+ OR (SELECT relrowsecurity FROM pg_class WHERE oid='public.pdc_monitor_672_writer_reconciliation_800'::regclass) IS DISTINCT FROM true
+ OR (SELECT relforcerowsecurity FROM pg_class WHERE oid='public.pdc_monitor_672_writer_reconciliation_800'::regclass) IS DISTINCT FROM true
+ OR (SELECT count(*) FROM pg_trigger WHERE tgrelid='public.pdc_monitor_672_writer_reconciliation_800'::regclass AND tgname='pdc_monitor_672_writer_reconciliation_800_immutable' AND NOT tgisinternal)<>1
+ OR has_table_privilege('authenticated','public.pdc_monitor_672_writer_reconciliation_800','select')
+ OR has_table_privilege('anon','public.pdc_monitor_672_writer_reconciliation_800','select')
+ OR has_table_privilege('service_role','public.pdc_monitor_672_writer_reconciliation_800','select')
+ OR NOT has_function_privilege('authenticated','public.admin_reconcile_pdc_monitor_672_writer_800(text)','execute')
+ OR has_function_privilege('anon','public.admin_reconcile_pdc_monitor_672_writer_800(text)','execute')
+ OR has_function_privilege('service_role','public.admin_reconcile_pdc_monitor_672_writer_800(text)','execute')
  THEN RAISE EXCEPTION 'PDC_801_EXACT_800_UUID_REPAIR_PRESTATE_MISMATCH' USING errcode='55000'; END IF;
  SELECT p.prosrc INTO v_prosrc FROM pg_proc p WHERE p.oid='public.admin_reconcile_pdc_monitor_672_writer_800(text)'::regprocedure;
  IF position('df7c55d9-6ba-47f6-ba16-44d6ae2c2a4b' in v_prosrc)=0 THEN RAISE EXCEPTION 'PDC_801_EXPECTED_800_UUID_DEFECT_MISSING' USING errcode='55000'; END IF;
@@ -58,6 +69,7 @@ BEGIN
        OR (SELECT count(*) FROM public.pdc_monitor_vehicle_identity_readers WHERE user_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND active AND revoked_at IS NULL)<>1
        OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_mailbox_activation_controls_674 WHERE singleton AND NOT enabled AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND lower(mailbox_address)='pmbcontroller@gmail.com')<>1
        OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675 WHERE singleton AND NOT enabled AND active_mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND lower(active_mailbox_address)='pmbcontroller@gmail.com' AND pilot_remains_disabled AND NOT task_enabled AND NOT mailbox_contacted AND NOT uid514_processed AND NOT production_writes)<>1
+       OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards AND NOT outbound_email_enabled)<>1
     THEN RAISE EXCEPTION 'PDC_800_EXISTING_WRITER_RECONCILIATION_STATE_DRIFT' USING errcode='55000'; END IF;
     RETURN jsonb_build_object('ok',true,'code','pdc_monitor_672_writer_reconciled_800','idempotent',true,'reconciliation_id',v_existing.reconciliation_id,'writer_active',true,'reader_active',true,'mailbox_active',false,'controls_enabled',false,'pilot_enabled',false,'automatic_enabled',false,'outbound_email_enabled',false,'task_enabled',false,'mailbox_contacted',false,'uid514_processed',false,'production_writes',false);
   END IF;
