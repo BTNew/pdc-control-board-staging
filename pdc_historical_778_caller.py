@@ -641,6 +641,16 @@ def validate_success_response(request: Mapping[str, Any], response: Mapping[str,
     before_domain = data["authoritative_domain_before"]
     before_vehicle = before_domain.get("vehicle") if isinstance(before_domain, Mapping) else None
     before_vehicle_id = before_vehicle.get("vehicle_id") if isinstance(before_vehicle, Mapping) else None
+    before_state = {
+        "vehicle_id": before_vehicle_id,
+        "lifecycle_state": before_vehicle.get("lifecycle_state") if isinstance(before_vehicle, Mapping) else None,
+        "current_location": before_vehicle.get("current_location") if isinstance(before_vehicle, Mapping) else None,
+        "operation_count": 0,
+        "booking_count": 0,
+        "completion_count": 0,
+        "parts_changed": False,
+    }
+    _validate_authoritative_domain_state(before_domain, before_state, True)
     _validate_complete_domain_state(before_domain, before_vehicle_id)
     _validate_complete_domain_state(data["authoritative_domain_state"], state["vehicle_id"])
     if data["no_unrelated_drift"] is not True \

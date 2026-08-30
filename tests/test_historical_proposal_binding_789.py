@@ -337,6 +337,36 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             drift["data"]["no_unrelated_drift"] = False
             with self.assertRaises(module.Historical777Error):
                 module.validate_success_response(request, drift, module.canonical_request_digest(request))
+            before_missing_legacy = copy.deepcopy(good)
+            before_missing_legacy["data"]["authoritative_domain_before"].pop("parts")
+            with self.assertRaises(module.Historical777Error):
+                module.validate_success_response(request, before_missing_legacy, module.canonical_request_digest(request))
+
+            def retag(candidate, name, rows):
+                for side in ("authoritative_domain_before", "authoritative_domain_state"):
+                    domain = candidate["data"][side]
+                    value = domain[name]
+                    value["rows"] = copy.deepcopy(rows)
+                    value["count"] = len(rows)
+                    value["fingerprint"] = hashlib.md5(self.caller._postgres_jsonb_text(value["rows"]).encode("utf-8")).hexdigest()
+                    domain["complete_domain_fingerprints"][name] = value["fingerprint"]
+                    domain["complete_domain_counts"][name] = value["count"]
+                    domain["complete_domain_fingerprint"] = hashlib.md5(":".join(domain["complete_domain_fingerprints"][key] for key in self.caller.COMPLETE_DOMAIN_ORDER).encode("ascii")).hexdigest()
+                candidate["data"]["complete_domain_fingerprints"] = copy.deepcopy(candidate["data"]["authoritative_domain_state"]["complete_domain_fingerprints"])
+                candidate["data"]["complete_domain_counts"] = copy.deepcopy(candidate["data"]["authoritative_domain_state"]["complete_domain_counts"])
+
+            vehicle_id = good["data"]["authoritative_state"]["vehicle_id"]
+            movement = {"id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "vehicle_id": vehicle_id, "from_location": "IT", "to_location": "PMB", "from_pmb_stage": None, "to_pmb_stage": None, "from_pmb_bay_stage": None, "to_pmb_bay_stage": None, "from_pmb_bay_number": None, "to_pmb_bay_number": None, "reason": "test", "moved_by": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "moved_at": "2026-08-30T00:00:00+00:00"}
+            duplicate_identity = copy.deepcopy(good)
+            retag(duplicate_identity, "vehicle_movements", [movement, copy.deepcopy(movement)])
+            with self.assertRaises(module.Historical777Error):
+                module.validate_success_response(request, duplicate_identity, module.canonical_request_digest(request))
+
+            assignment = {"id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc", "booking_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd", "technician_id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee", "assignment_type": "primary", "assigned_at": "2026-08-30T00:00:00+00:00", "assigned_by": "ffffffff-ffff-4fff-8fff-ffffffffffff", "scheduled_start_at": "2026-08-30T01:00:00+00:00", "scheduled_end_at": "2026-08-30T02:00:00+00:00", "released_at": None, "notes": None, "created_at": "2026-08-30T00:00:00+00:00", "updated_at": "2026-08-30T00:00:00+00:00"}
+            orphan_assignment = copy.deepcopy(good)
+            retag(orphan_assignment, "workshop_booking_assignments", [assignment])
+            with self.assertRaises(module.Historical777Error):
+                module.validate_success_response(request, orphan_assignment, module.canonical_request_digest(request))
 
     def test_frozen_uid_1_21_is_the_regression_input(self):
         row = next(item for item in explicit_manifest_rows() if item["provider_uid"] == "1:21")
