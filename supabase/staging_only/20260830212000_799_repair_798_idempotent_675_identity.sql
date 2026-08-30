@@ -88,8 +88,22 @@ BEGIN
   v_before_mailbox:=to_jsonb(v_mailbox); v_before_writer:=to_jsonb(v_writer);
   UPDATE public.monitored_mailboxes SET active=false,updated_at=clock_timestamp() WHERE id=v_mailbox.id AND active RETURNING * INTO v_mailbox;
   IF NOT FOUND THEN RAISE EXCEPTION 'PDC_752_ROLLBACK_MAILBOX_CONCURRENT_DRIFT' USING errcode='40001'; END IF;
-  UPDATE public.pdc_email_monitor_authenticated_mailbox_activation_controls_674 SET enabled=false,changed_at=clock_timestamp() WHERE singleton;
-  UPDATE public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675 SET enabled=false,changed_at=clock_timestamp() WHERE singleton;
+  UPDATE public.pdc_email_monitor_authenticated_mailbox_activation_controls_674
+  SET enabled=false,changed_at=clock_timestamp()
+  WHERE singleton AND enabled AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57'
+    AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b'
+    AND lower(mailbox_address)='pmbcontroller@gmail.com'
+  RETURNING 1 INTO v_rollback_count;
+  IF NOT FOUND THEN RAISE EXCEPTION 'PDC_799_752_ROLLBACK_674_CONTROL_CONCURRENT_DRIFT' USING errcode='40001'; END IF;
+  UPDATE public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675
+  SET enabled=false,changed_at=clock_timestamp()
+  WHERE singleton AND enabled AND active_mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57'
+    AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b'
+    AND lower(active_mailbox_address)='pmbcontroller@gmail.com'
+    AND pilot_remains_disabled AND NOT task_enabled AND NOT mailbox_contacted
+    AND NOT uid514_processed AND NOT production_writes
+  RETURNING 1 INTO v_rollback_count;
+  IF NOT FOUND THEN RAISE EXCEPTION 'PDC_799_752_ROLLBACK_675_CONTROL_CONCURRENT_DRIFT' USING errcode='40001'; END IF;
   UPDATE public.pdc_monitor_stage_activation_writers SET active=false,revoked_at=clock_timestamp() WHERE user_id=v_writer.user_id AND active AND revoked_at IS NULL RETURNING * INTO v_writer;
   IF NOT FOUND THEN RAISE EXCEPTION 'PDC_752_ROLLBACK_WRITER_CONCURRENT_DRIFT' USING errcode='40001'; END IF;
   v_after_mailbox:=to_jsonb(v_mailbox); v_after_writer:=to_jsonb(v_writer);
