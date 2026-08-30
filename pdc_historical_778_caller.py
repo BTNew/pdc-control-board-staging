@@ -305,9 +305,7 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
     elif authoritative_state["vehicle_id"] is not None or authoritative_state["lifecycle_state"] is not None or authoritative_state["current_location"] is not None:
         raise Historical777Error("historical authoritative vehicle domain mismatch")
     collection_specs = {
-        "parts": ("rows", {"id", "vehicle_id", "parts_required", "parts_ordered", "parts_received", "parts_stoppage", "parts_stoppage_reason", "worst_eta", "updated_at"}),
         "qc": ("rows", {"vehicle_id", "line_identity", "source_kind", "source_line_id", "stage_code", "completed", "completed_by", "completed_at", "version", "updated_at"}),
-        "rft_transport": ("rows", {"notification_id", "lifecycle_receipt_id", "vehicle_id", "delivery_status", "delivery_enabled", "sent_at", "delivered_at", "created_at"}),
     }
     for name, (rows_key, row_keys) in collection_specs.items():
         value = domain[name]
@@ -315,6 +313,16 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
                 or not isinstance(value["fingerprint"], str) or re.fullmatch(r"[0-9a-f]{32}", value["fingerprint"]) is None \
                 or any(not isinstance(row, Mapping) or set(row) != row_keys for row in value[rows_key]):
             raise Historical777Error(f"historical authoritative {name} domain mismatch")
+    parts = domain["parts"]
+    if not isinstance(parts, Mapping) or set(parts) != {"rows", "stoppage_receipts", "fingerprint"} \
+            or not isinstance(parts["rows"], list) or not isinstance(parts["stoppage_receipts"], list) \
+            or not isinstance(parts["fingerprint"], str) or re.fullmatch(r"[0-9a-f]{32}", parts["fingerprint"]) is None:
+        raise Historical777Error("historical authoritative Parts domain mismatch")
+    part_keys = {"id", "vehicle_id", "parts_required", "parts_ordered", "parts_received", "parts_stoppage", "parts_stoppage_reason", "worst_eta", "updated_at"}
+    stoppage_keys = {"receipt_id", "vehicle_id", "actor_id", "actor_email", "idempotency_key", "action", "reason", "expected_vehicle_version", "request_sha256", "before_state", "after_state", "response", "created_at"}
+    if any(not isinstance(row, Mapping) or set(row) != part_keys for row in parts["rows"]) \
+            or any(not isinstance(row, Mapping) or set(row) != stoppage_keys for row in parts["stoppage_receipts"]):
+        raise Historical777Error("historical authoritative Parts row mismatch")
     sublet = domain["sublet"]
     if not isinstance(sublet, Mapping) or set(sublet) != {"bookings", "instances", "fingerprint"} \
             or not isinstance(sublet["bookings"], list) or not isinstance(sublet["instances"], list) \
@@ -325,6 +333,21 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
     if any(not isinstance(row, Mapping) or set(row) != booking_keys for row in sublet["bookings"]) \
             or any(not isinstance(row, Mapping) or set(row) != instance_keys for row in sublet["instances"]):
         raise Historical777Error("historical authoritative Sublet row mismatch")
+    rft = domain["rft_transport"]
+    rft_keys = {"outbox", "lifecycle_receipts", "evidence", "action_receipts", "intercept_receipts", "dealer_transit_statistics", "fingerprint"}
+    if not isinstance(rft, Mapping) or set(rft) != rft_keys or any(not isinstance(rft[name], list) for name in rft_keys - {"fingerprint"}) \
+            or not isinstance(rft["fingerprint"], str) or re.fullmatch(r"[0-9a-f]{32}", rft["fingerprint"]) is None:
+        raise Historical777Error("historical authoritative RFT domain mismatch")
+    rft_row_keys = {
+        "outbox": {"notification_id", "lifecycle_receipt_id", "vehicle_id", "recipient_email", "delivery_status", "delivery_enabled", "sent_at", "delivered_at", "payload_fingerprint", "created_at"},
+        "lifecycle_receipts": {"receipt_id", "vehicle_id", "action", "actor_id", "actor_email", "idempotency_key", "request_sha256", "before_state", "after_state", "evidence_fingerprint", "response_fingerprint", "created_at"},
+        "evidence": {"evidence_id", "notification_id", "vehicle_id", "mime_version", "mime_content_type", "mime_sha256", "photo_receipt_id", "photo_bucket_id", "photo_storage_path", "photo_content_type", "photo_byte_length", "photo_sha256", "intercepted", "sent_at", "delivered_at", "created_at"},
+        "action_receipts": {"receipt_id", "vehicle_id", "action", "expected_vehicle_version", "vehicle_version_before", "vehicle_version_after", "actor_id", "actor_email", "idempotency_key", "request_sha256", "before_state", "after_state", "response_fingerprint", "created_at"},
+        "intercept_receipts": {"receipt_id", "notification_id", "transport_receipt_id", "vehicle_id", "actor_id", "actor_email", "claim_token", "payload_sha256", "mime_sha256", "attachment_sha256", "artifact_sha256", "artifact_bytes", "outcome", "created_at"},
+        "dealer_transit_statistics": {"statistic_id", "vehicle_id", "delivered_receipt_id", "started_at", "closed_at", "duration_seconds", "status_literal", "created_at"},
+    }
+    if any(any(not isinstance(row, Mapping) or set(row) != rft_row_keys[name] for row in rft[name]) for name in rft_row_keys):
+        raise Historical777Error("historical authoritative RFT row mismatch")
     fingerprints = domain["protected_fingerprints"]
     if not isinstance(fingerprints, Mapping) or set(fingerprints) != DOMAIN_FINGERPRINT_KEYS \
             or any(not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{32}", value) is None for value in fingerprints.values()):

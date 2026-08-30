@@ -141,10 +141,10 @@ def success_response(request: dict) -> dict:
                 "dealer_transit_started_at": None, "dealer_transit_closed_at": None, "dealer_transit_duration_seconds": None,
                 "delivered_to_dealer_date": None, "qc_completed_at": None, "workshop_status": "queued",
             } if children else None),
-            "parts": {"rows": [], "fingerprint": "00000000000000000000000000000000"},
+            "parts": {"rows": [], "stoppage_receipts": [], "fingerprint": "00000000000000000000000000000000"},
             "sublet": {"bookings": [], "instances": [], "fingerprint": "00000000000000000000000000000000"},
             "qc": {"rows": [], "fingerprint": "00000000000000000000000000000000"},
-            "rft_transport": {"rows": [], "fingerprint": "00000000000000000000000000000000"},
+            "rft_transport": {"outbox": [], "lifecycle_receipts": [], "evidence": [], "action_receipts": [], "intercept_receipts": [], "dealer_transit_statistics": [], "fingerprint": "00000000000000000000000000000000"},
             "protected_fingerprints": {
                 "vehicle": "00000000000000000000000000000000", "lifecycle_location": "00000000000000000000000000000000",
                 "parts": "00000000000000000000000000000000", "sublet": "00000000000000000000000000000000",
@@ -194,7 +194,7 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
 
     def test_796_is_append_only_server_guard_and_complete_domain_readback_contract(self):
         sql = M796.read_text(encoding="utf-8").lower()
-        self.assertEqual(len(parse_sql(M796.read_text(encoding="utf-8"))), 27)
+        self.assertEqual(len(parse_sql(M796.read_text(encoding="utf-8"))), 28)
         for marker in (
             "20260830203000",
             "pdc_historical_domain_readbacks_796",
@@ -208,6 +208,12 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             "pdc_sublet_booking_instances",
             "pdc_qc_operation_completions_379",
             "pdc_rft_transport_email_outbox_734",
+            "pdc_rft_transport_lifecycle_receipts_734",
+            "pdc_rft_transport_email_evidence_734",
+            "pdc_rft_transport_action_receipts_412",
+            "pdc_rft_transport_email_intercept_receipts_429",
+            "pdc_rft_dealer_transit_statistics_734",
+            "pdc_parts_stoppage_receipts_376",
             "before_protected_fingerprints",
             "after_protected_fingerprints",
             "force row level security",
@@ -218,6 +224,9 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             "v_existing_request_hash",
             "historical_terminal_or_protected_location",
             "'other'",
+            "pdc_796_dependency_contract_drift",
+            "pdc_796_trigger_contract_drift",
+            "pdc_796_trigger_executor_contract_drift",
         ):
             self.assertIn(marker, sql)
         self.assertNotIn("update public.pdc_historical_reconciliation_778_receipts", sql)
@@ -499,6 +508,8 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
                 lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"fingerprint": "11111111111111111111111111111111"}),
                 lambda value: value["data"]["authoritative_domain_state"]["protected_fingerprints"].update({"all": "11111111111111111111111111111111"}),
                 lambda value: value["data"]["authoritative_domain_state"]["sublet"].update({"bookings": [{"unexpected": True}]}),
+                lambda value: value["data"]["authoritative_domain_state"]["rft_transport"].pop("evidence"),
+                lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"stoppage_receipts": [{"unexpected": True}]}),
             ):
                 mutated = json.loads(json.dumps(good))
                 mutate(mutated)
