@@ -507,6 +507,7 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
                 lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"fingerprint": "not-a-fingerprint"}),
                 lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"fingerprint": "11111111111111111111111111111111"}),
                 lambda value: value["data"]["authoritative_domain_state"]["protected_fingerprints"].update({"all": "11111111111111111111111111111111"}),
+                lambda value: value["data"]["authoritative_domain_state"]["vehicle"].update({"vehicle_id": "99999999-9999-4999-8999-999999999999"}),
                 lambda value: value["data"]["authoritative_domain_state"]["sublet"].update({"bookings": [{"unexpected": True}]}),
                 lambda value: value["data"]["authoritative_domain_state"]["rft_transport"].pop("evidence"),
                 lambda value: value["data"]["authoritative_domain_state"]["parts"].update({"stoppage_receipts": [{"unexpected": True}]}),

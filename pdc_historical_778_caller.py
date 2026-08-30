@@ -296,6 +296,7 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
         if not isinstance(vehicle, Mapping) or set(vehicle) != vehicle_keys:
             raise Historical777Error("historical authoritative vehicle domain mismatch")
         if not isinstance(vehicle["vehicle_id"], str) or UUID_RE.fullmatch(vehicle["vehicle_id"].lower()) is None \
+                or vehicle["vehicle_id"] != authoritative_state["vehicle_id"] \
                 or vehicle["lifecycle_state"] != authoritative_state["lifecycle_state"] \
                 or vehicle["current_location"] != authoritative_state["current_location"] \
                 or type(vehicle["version"]) is not int or vehicle["version"] < 1 \
