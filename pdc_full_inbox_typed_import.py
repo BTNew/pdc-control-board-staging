@@ -29,6 +29,10 @@ MANIFEST_HIGH_WATER_UID = 685
 MANIFEST_UID_COUNT = 669
 EXCLUDED_PROVIDER_UID = "1:197"
 EXCLUDED_STOCK = "13056899"
+AUTHORIZED_PROVIDER_UIDS = frozenset({
+    "1:21", "1:22", "1:23", "1:26", "1:40", "1:57", "1:85", "1:93",
+    "1:95", "1:96", "1:133", "1:134", "1:137", "1:168", "1:172",
+})
 ACTOR_ID = "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b"
 ACTOR_EMAIL = "sales@broometoyota.com.au"
 GATEWAY = "pdc-monitor-staging-sales-uid509-v1"
@@ -37,6 +41,11 @@ RELEASE_SOURCE_SHA = "e850c319989d98b45b95a28aa815d78e2c2e3a4b"
 RELEASE_MANIFEST_SHA256 = "d48b49f6598a99fbef99fc4f0d0ab36b8b47576b8ff7cd8ecd2cb64d6cfed58d"
 RPC_NAME = "submit_pdc_historical_reconciliation_778"
 STAGING_HOST = "cdsmnqxtyyoeoznmbidd.supabase.co"
+PROPOSAL_REVIEW_CODES = frozenset({
+    "historical_proposal_tuple_conflict",
+    "historical_proposal_terminal_conflict",
+    "historical_proposal_payload_conflict",
+})
 
 
 class Historical777Error(RuntimeError):
@@ -75,12 +84,17 @@ def _is_ambiguous_job_card(evidence: Any) -> bool:
 
 def select_authorized_rows(rows: list[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
     """Keep only the frozen manifest cohort; the server performs the full tuple gate."""
-    return [
+    selected = [
         row for row in rows
         if str(row.get("manifest_sha256", "")).lower() == MANIFEST_SHA256
+        and str(row.get("provider_uid", "")) in AUTHORIZED_PROVIDER_UIDS
         and str(row.get("provider_uid", "")) != EXCLUDED_PROVIDER_UID
         and str(row.get("stock_number", "")) != EXCLUDED_STOCK
     ]
+    selected_uids = [str(row.get("provider_uid", "")) for row in selected]
+    if len(selected) != len(AUTHORIZED_PROVIDER_UIDS) or len(set(selected_uids)) != len(AUTHORIZED_PROVIDER_UIDS) or set(selected_uids) != AUTHORIZED_PROVIDER_UIDS:
+        raise Historical777Error("historical authorized cohort mismatch")
+    return selected
 
 
 def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -225,7 +239,7 @@ def prepare_fresh_outbox(path: Path) -> sqlite3.Connection:
         raise Historical777Error("fresh historical outbox path already exists")
     path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
-    conn.execute("create table historical_778_outbox (provider_uid text primary key, request_json text not null, request_sha256 text not null, state text not null, response_json text, created_at text not null)")
+    conn.execute("create table historical_778_outbox (provider_uid text primary key, request_json text not null, request_sha256 text not null, state text not null, response_json text, attempt_count integer not null default 0, last_error_code text, review_required integer not null default 0, created_at text not null, updated_at text not null)")
     conn.commit()
     return conn
 
@@ -239,14 +253,33 @@ def run_bounded_historical(rows: list[Mapping[str, Any]], outbox: sqlite3.Connec
         provider_uid = request["provider_uid"]
         request_json = json.dumps(request, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         request_hash = canonical_request_digest(request)
-        outbox.execute("insert into historical_778_outbox(provider_uid,request_json,request_sha256,state,created_at) values(?,?,?,?,datetime('now'))", (provider_uid, request_json, request_hash, "pending"))
+        outbox.execute("insert into historical_778_outbox(provider_uid,request_json,request_sha256,state,attempt_count,last_error_code,review_required,created_at,updated_at) values(?,?,?,?,?,?,?,datetime('now'),datetime('now'))", (provider_uid, request_json, request_hash, "pending", 0, None, 0))
         outbox.commit()
-        response = rpc_call(request)
-        state = "imported" if response.get("ok") is True else "retry"
-        outbox.execute("update historical_778_outbox set state=?,response_json=? where provider_uid=?", (state, json.dumps(response, sort_keys=True), provider_uid))
+        try:
+            response = rpc_call(request)
+        except Historical777Error as exc:
+            response = {"ok": False, "code": str(exc)}
+        ok = response.get("ok") is True
+        code = response.get("code") if isinstance(response.get("code"), str) else (None if ok else "historical_unknown_failure")
+        state = "imported" if ok else ("review" if code in PROPOSAL_REVIEW_CODES else "retry")
+        outbox.execute("update historical_778_outbox set state=?,response_json=?,attempt_count=attempt_count+1,last_error_code=?,review_required=?,updated_at=datetime('now') where provider_uid=?", (state, json.dumps(response, sort_keys=True, ensure_ascii=False), code, 0 if ok else int(state == "review"), provider_uid))
         outbox.commit()
-        results.append({"provider_uid": provider_uid, "state": state, "code": response.get("code")})
+        results.append({"provider_uid": provider_uid, "state": state, "code": code, "ok": ok})
     return results
+
+
+def summarize_historical_results(results: list[Mapping[str, Any]]) -> dict[str, Any]:
+    """Summarize durable outcomes; every non-ok row makes the process fail."""
+    failures = [item for item in results if item.get("ok") is not True]
+    return {
+        "ok": not failures and bool(results),
+        "rows": len(results),
+        "imported": sum(item.get("state") == "imported" for item in results),
+        "retry": sum(item.get("state") == "retry" for item in results),
+        "review": sum(item.get("state") == "review" for item in results),
+        "failed": len(failures),
+        "exit_code": 0 if not failures and results else 1,
+    }
 
 
 def _load_rows(path: Path) -> list[Mapping[str, Any]]:
@@ -287,8 +320,9 @@ def main(argv: list[str] | None = None) -> int:
         results = run_bounded_historical(rows, outbox, lambda request: invoke_historical_rpc(request, url=url, anon_key=anon_key, actor_token=actor_token))
     finally:
         outbox.close()
-    print(json.dumps({"ok": all(item["state"] == "imported" for item in results), "rpc": RPC_NAME, "rows": results}, sort_keys=True))
-    return 0
+    summary = summarize_historical_results(results)
+    print(json.dumps({**summary, "rpc": RPC_NAME, "rows": results, "outbox": str(args.outbox)}, sort_keys=True))
+    return int(summary["exit_code"])
 
 
 if __name__ == "__main__":

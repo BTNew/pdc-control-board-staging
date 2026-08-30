@@ -9,6 +9,12 @@ M785 = ROOT / "supabase/staging_only/20260830182000_785_narrow_authenticated_con
 M786 = ROOT / "supabase/staging_only/20260830183000_786_cycle7_contract_repair.sql"
 M787 = ROOT / "supabase/staging_only/20260830184000_787_cycle7_contract_version_repair.sql"
 M788 = ROOT / "supabase/staging_only/20260830185000_788_canonical_historical_digest_contract.sql"
+M789 = ROOT / "supabase/staging_only/20260830190000_789_historical_proposal_binding_successor.sql"
+M790 = ROOT / "supabase/staging_only/20260830191000_790_historical_proposal_conflict_wrapper.sql"
+M791 = ROOT / "supabase/staging_only/20260830192000_791_historical_manifest_compatibility_successor.sql"
+M792 = ROOT / "supabase/staging_only/20260830193000_792_historical_vehicle_identity_successor.sql"
+M793 = ROOT / "supabase/staging_only/20260830200000_793_historical_proposal_review_successor.sql"
+M795 = ROOT / "supabase/staging_only/20260830202000_795_historical_wrapper_short_name_repair.sql"
 
 class Cycle7IntegrityContractTests(unittest.TestCase):
     @classmethod
@@ -19,6 +25,12 @@ class Cycle7IntegrityContractTests(unittest.TestCase):
         cls.m786 = M786.read_text(encoding="utf-8").lower()
         cls.m787 = M787.read_text(encoding="utf-8").lower()
         cls.m788 = M788.read_text(encoding="utf-8").lower()
+        cls.m789 = M789.read_text(encoding="utf-8").lower()
+        cls.m790 = M790.read_text(encoding="utf-8").lower()
+        cls.m791 = M791.read_text(encoding="utf-8").lower()
+        cls.m792 = M792.read_text(encoding="utf-8").lower()
+        cls.m793 = M793.read_text(encoding="utf-8").lower()
+        cls.m795 = M795.read_text(encoding="utf-8").lower()
 
     def test_migrations_parse_and_are_append_only(self):
         self.assertEqual(len(parse_sql(M783.read_text(encoding="utf-8"))), 15)
@@ -97,6 +109,87 @@ class Cycle7IntegrityContractTests(unittest.TestCase):
         self.assertIn("octet_length(convert_to", self.m788)
         self.assertIn("case when p_value is null then '-1:'", self.m788)
         self.assertIn("pdc_788_current_head_guard_failed", self.m788)
+
+    def test_789_proposal_binding_successor_contract(self):
+        self.assertEqual(len(parse_sql(M789.read_text(encoding="utf-8"))), 24)
+        sql = self.m789
+
+    def test_790_typed_conflict_wrapper_successor_contract(self):
+        self.assertEqual(len(parse_sql(M790.read_text(encoding="utf-8"))), 13)
+        for marker in (
+            "20260830190000,789_historical_proposal_binding_successor",
+            "pdc_790_current_head_guard_failed",
+            "historical_proposal_tuple_conflict",
+            "historical_proposal_payload_conflict",
+            "v_existing_proposal",
+            "limit 1 for update",
+            "submit_pdc_historical_reconciliation_789_proposal_binding_base",
+            "has_function_privilege('anon'",
+            "historical_proposal_conflict_wrapper",
+        ):
+            self.assertIn(marker, self.m790)
+
+    def test_791_manifest_compatibility_successor_contract(self):
+        self.assertEqual(len(parse_sql(M791.read_text(encoding="utf-8"))), 16)
+        for marker in (
+            "20260830191000,790_historical_proposal_conflict_wrapper",
+            "pdc_791_current_head_guard_failed",
+            "v_manifest_text",
+            "to_jsonb(m->>''content_type'')",
+            "submit_pdc_historical_reconciliation_791_manifest_compatibility_base",
+            "historical_proposal_tuple_conflict",
+            "pdc_791_postcondition_failed",
+            "pdc_historical_proposal_bindings_789",
+        ):
+            self.assertIn(marker, self.m791)
+
+    def test_792_deterministic_vehicle_identity_successor_contract(self):
+        self.assertEqual(len(parse_sql(M792.read_text(encoding="utf-8"))), 16)
+        for marker in (
+            "20260830192000,791_historical_manifest_compatibility_successor",
+            "pdc_792_current_head_guard_failed",
+            "select count(*) into v_attachment_count",
+            "order by v.id limit 1",
+            "pdc_782_identity_conflict",
+            "submit_pdc_historical_reconciliation_792_vehicle_identity_successor",
+            "historical_proposal_tuple_conflict",
+            "pdc_792_postcondition_failed",
+        ):
+            self.assertIn(marker, self.m792)
+        body = self.m792.split("as $body$", 1)[1].split("revoke all on function public.submit_pdc_historical_reconciliation_792_vehicle_identity_successor", 1)[0]
+        self.assertNotIn("max(v.id)", body)
+
+    def test_793_pending_proposal_review_successor_contract(self):
+        self.assertEqual(len(parse_sql(M793.read_text(encoding="utf-8"))), 24)
+        for marker in (
+            "20260830193000,792_historical_vehicle_identity_successor",
+            "pdc_793_current_head_guard_failed",
+            "pdc_historical_proposal_compatibility_reviews_793",
+            "historical_proposal_observation_review_required",
+            "v_parent_result->>''code''=''already_noticed''",
+            "on conflict(proposal_id,request_sha256) do nothing",
+            "pdc_793_proposal_review_immutable",
+            "pdc_793_postcondition_failed",
+            "submit_pdc_historical_reconciliation_793_proposal_review_successor",
+        ):
+            self.assertIn(marker, self.m793)
+        self.assertNotIn("update public.pdc_ai_intake_proposals", self.m793)
+        self.assertNotIn("delete from public.pdc_ai_intake_proposals", self.m793)
+
+    def test_795_wrapper_short_name_repair_contract(self):
+        self.assertEqual(len(parse_sql(M795.read_text(encoding="utf-8"))), 13)
+        wrapper = self.m795.split("create or replace function public.submit_pdc_historical_reconciliation_778", 1)[1].split("revoke all on function public.submit_pdc_historical_reconciliation_778", 1)[0]
+        for marker in (
+            "20260830200000,793_historical_proposal_review_successor",
+            "pdc_795_current_head_guard_failed",
+            "submit_pdc_historical_reconciliation_793_proposal_review_succes",
+            "historical_proposal_tuple_conflict",
+            "limit 1 for update",
+            "p_request->",
+            "pdc_795_postcondition_failed",
+        ):
+            self.assertIn(marker, self.m795)
+        self.assertNotIn("v_request->", wrapper)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

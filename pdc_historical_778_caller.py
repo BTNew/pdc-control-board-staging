@@ -27,6 +27,7 @@ MANIFEST_HIGH_WATER_UID = 685
 MANIFEST_UID_COUNT = 669
 EXCLUDED_PROVIDER_UID = "1:197"
 EXCLUDED_STOCK = "13056899"
+
 ACTOR_ID = "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b"
 ACTOR_EMAIL = "sales@broometoyota.com.au"
 GATEWAY = "pdc-monitor-staging-sales-uid509-v1"
