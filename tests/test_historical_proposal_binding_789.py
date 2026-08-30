@@ -241,6 +241,10 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             "vehicle waiting for wholesale",
             "planned for production",
             "tombstoned",
+            "returned_by",
+            "cancelled_by",
+            "created_by",
+            "updated_by",
         ):
             self.assertIn(marker, sql)
         self.assertNotIn("update public.pdc_historical_reconciliation_778_receipts", sql)

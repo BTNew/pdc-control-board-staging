@@ -102,7 +102,7 @@ BEGIN
        FROM public.pdc_sublet_bookings WHERE vehicle_id=p_vehicle_id
      ) x;
      SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.booking_id),'[]'::jsonb) INTO v_sublet_instances FROM (
-       SELECT booking_id,vehicle_id,vehicle_version,provider_id,provider_name,provider_email,out_date,expected_return_date,status,returned_at,cancelled_at,notes,source_kind,source_ref,source_evidence,version,updated_at
+       SELECT booking_id,vehicle_id,vehicle_version,provider_id,provider_name,provider_email,out_date,expected_return_date,status,returned_at,cancelled_at,returned_by,cancelled_by,notes,source_kind,source_ref,source_evidence,version,created_at,created_by,updated_at,updated_by
        FROM public.pdc_sublet_booking_instances WHERE vehicle_id=p_vehicle_id
      ) x;
      SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.line_identity),'[]'::jsonb) INTO v_qc_rows FROM (
