@@ -69,6 +69,7 @@ class HistoricalCaller778SecurityTests(unittest.TestCase):
     def test_request_has_frozen_runtime_fields_and_uuid_free_children(self):
         row = {
             "manifest_sha256": self.module.MANIFEST_SHA256,
+            "manifest_uidvalidity": 1, "manifest_high_water_uid": 685, "manifest_uid_count": 669,
             "provider_uid": "1:22", "parent_source_hash": "a" * 64,
             "sender_email": "andy.weir@broometoyota.com.au",
             "authentication": {"dkim_aligned": False, "dmarc_aligned": False,

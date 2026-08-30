@@ -22,6 +22,9 @@ class HistoricalCanonical788Tests(unittest.TestCase):
     def row(self):
         return {
             "manifest_sha256": self.m.MANIFEST_SHA256,
+            "manifest_uidvalidity": 1,
+            "manifest_high_water_uid": 685,
+            "manifest_uid_count": 669,
             "provider_uid": "1:22",
             "parent_source_hash": "a" * 64,
             "sender_email": "andy.weir@broometoyota.com.au",

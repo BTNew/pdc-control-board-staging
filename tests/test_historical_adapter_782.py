@@ -102,13 +102,16 @@ class HistoricalAdapter782ContractTests(unittest.TestCase):
         spec.loader.exec_module(module)
         row = {
             "manifest_sha256": module.MANIFEST_SHA256,
+            "manifest_uidvalidity": 1,
+            "manifest_high_water_uid": 685,
+            "manifest_uid_count": 669,
             "provider_uid": "1:22",
             "parent_source_hash": "a" * 64,
             "sender_email": "andy.weir@broometoyota.com.au",
             "authentication": {"gmail_authentication_results": True},
             "stock_number": "13047257",
             "source_received_at": "2026-01-01T00:00:00+00:00",
-            "source_metadata": {"received_at": "2026-01-01T00:00:00+00:00", "attachment_names": ["Pick.pdf"]},
+            "source_metadata": {"received_at": "2026-01-01T00:00:00+00:00", "attachment_names": ["Pick.pdf"], "uidvalidity": 1, "uid": 22},
             "subject": "Vehicle", "action_type": "review_only", "summary": "Vehicle",
             "evidence_hash": "e" * 64, "observations": {},
             "attachments": [{"attachment_kind": "job_card", "content_type": "application/pdf", "filename": "Pick.pdf", "ordinal": 1, "sha256": "c" * 64, "size": 10}],

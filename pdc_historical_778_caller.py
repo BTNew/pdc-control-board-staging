@@ -142,6 +142,34 @@ def _required(row: Mapping[str, Any], key: str) -> Any:
     return value
 
 
+def _validate_frozen_manifest_row(row: Mapping[str, Any]) -> None:
+    """Require explicit typed frozen manifest and source UID evidence."""
+    expected_manifest_fields = {
+        "manifest_uidvalidity": MANIFEST_UIDVALIDITY,
+        "manifest_high_water_uid": MANIFEST_HIGH_WATER_UID,
+        "manifest_uid_count": MANIFEST_UID_COUNT,
+    }
+    for key, expected in expected_manifest_fields.items():
+        value = row.get(key)
+        if type(value) is not int or value != expected:
+            raise Historical777Error(f"historical {key} mismatch")
+    provider_uid = row.get("provider_uid")
+    if type(provider_uid) is not str or provider_uid not in AUTHORIZED_PROVIDER_UIDS:
+        raise Historical777Error("historical provider UID mismatch")
+    source_value = row.get("source_metadata")
+    if not isinstance(source_value, Mapping):
+        raise Historical777Error("historical source metadata type mismatch")
+    source_uidvalidity = source_value.get("uidvalidity")
+    if type(source_uidvalidity) is not int or source_uidvalidity != MANIFEST_UIDVALIDITY:
+        raise Historical777Error("historical source UIDVALIDITY mismatch")
+    source_uid = source_value.get("uid")
+    expected_source_uid = int(provider_uid.split(":", 1)[1])
+    if type(source_uid) is not int or source_uid != expected_source_uid:
+        raise Historical777Error("historical source UID mismatch")
+    if provider_uid == EXCLUDED_PROVIDER_UID or str(row.get("stock_number", "")) == EXCLUDED_STOCK:
+        raise Historical777Error("historical reference row is excluded")
+
+
 def _is_ambiguous_job_card(evidence: Any) -> bool:
     if not isinstance(evidence, Mapping):
         return True
@@ -171,35 +199,24 @@ def select_authorized_rows(rows: list[Mapping[str, Any]]) -> list[Mapping[str, A
     if len(set(provider_uids)) != len(AUTHORIZED_PROVIDER_UIDS) or set(provider_uids) != AUTHORIZED_PROVIDER_UIDS:
         raise Historical777Error("historical authorized cohort UID mismatch")
     for row in rows:
+        _validate_frozen_manifest_row(row)
         if str(row.get("manifest_sha256", "")).lower() != MANIFEST_SHA256:
             raise Historical777Error("historical row manifest mismatch")
-        if str(row.get("manifest_uidvalidity", MANIFEST_UIDVALIDITY)) != str(MANIFEST_UIDVALIDITY):
-            raise Historical777Error("historical manifest UIDVALIDITY mismatch")
-        if str(row.get("manifest_high_water_uid", MANIFEST_HIGH_WATER_UID)) != str(MANIFEST_HIGH_WATER_UID):
-            raise Historical777Error("historical manifest high-water mismatch")
-        source_value = row.get("source_metadata")
-        source = {} if source_value is None else source_value
-        if not isinstance(source, Mapping):
-            raise Historical777Error("historical source metadata type mismatch")
-        if source and str(source.get("uidvalidity", MANIFEST_UIDVALIDITY)) != str(MANIFEST_UIDVALIDITY):
-            raise Historical777Error("historical source UIDVALIDITY mismatch")
-        if str(row.get("provider_uid", "")) == EXCLUDED_PROVIDER_UID or str(row.get("stock_number", "")) == EXCLUDED_STOCK:
-            raise Historical777Error("historical reference row is excluded")
     return rows
 
 
 def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
     """Build one UUID-free request; attachment children are keyed by SHA-256."""
+    if not isinstance(row, Mapping):
+        raise Historical777Error("historical row type mismatch")
+    _validate_frozen_manifest_row(row)
     if str(_required(row, "manifest_sha256")).lower() != MANIFEST_SHA256:
         raise Historical777Error("historical row manifest mismatch")
     provider_uid = str(_required(row, "provider_uid"))
     stock = str(_required(row, "stock_number"))
     if provider_uid == EXCLUDED_PROVIDER_UID or stock == EXCLUDED_STOCK:
         raise Historical777Error("historical reference row is excluded")
-    source_value = row.get("source_metadata")
-    source = {} if source_value is None else source_value
-    if not isinstance(source, Mapping):
-        raise Historical777Error("historical source metadata type mismatch")
+    source = row["source_metadata"]
     received_at = str(_required(row, "source_received_at"))
     if source and str(source.get("received_at")) != received_at:
         raise Historical777Error("historical received time mismatch")

@@ -27,6 +27,19 @@ def load(path: Path, name: str):
     return module
 
 
+def explicit_manifest_rows() -> list[dict]:
+    rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
+    return [
+        {
+            **row,
+            "manifest_uidvalidity": 1,
+            "manifest_high_water_uid": 685,
+            "manifest_uid_count": 669,
+        }
+        for row in rows
+    ]
+
+
 class HistoricalProposalBinding789Tests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -62,16 +75,14 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
         self.assertNotIn("delete from public.pdc_historical_proposal_bindings_789", sql)
 
     def test_frozen_uid_1_21_is_the_regression_input(self):
-        document = json.loads(ROWS.read_text(encoding="utf-8"))
-        row = next(item for item in document["rows"] if item["provider_uid"] == "1:21")
+        row = next(item for item in explicit_manifest_rows() if item["provider_uid"] == "1:21")
         request = self.caller.build_historical_request(row)
         self.assertEqual(request["provider_uid"], "1:21")
         self.assertEqual(request["stock_number"], "13042997")
         self.assertEqual(self.caller.canonical_request_digest(request), "fd784959b016976994087545866e346f01b6f05e1e0faf8627bda25ed9e84550")
 
     def test_bounded_caller_rejects_missing_or_extra_frozen_uid(self):
-        document = json.loads(ROWS.read_text(encoding="utf-8"))
-        rows = document["rows"]
+        rows = explicit_manifest_rows()
         with self.assertRaises(self.importer.Historical777Error):
             self.importer.select_authorized_rows(rows[:-1])
         with self.assertRaises(self.importer.Historical777Error):
@@ -82,15 +93,14 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             self.importer.select_authorized_rows(rows[:-1] + [extra])
 
     def test_shared_caller_rejects_missing_or_extra_frozen_uid(self):
-        document = json.loads(ROWS.read_text(encoding="utf-8"))
-        rows = document["rows"]
+        rows = explicit_manifest_rows()
         with self.assertRaises(self.caller.Historical777Error):
             self.caller.select_authorized_rows(rows[:-1])
         with self.assertRaises(self.caller.Historical777Error):
             self.caller.select_authorized_rows(rows + [dict(rows[0])])
 
     def test_shared_runner_persists_false_and_returns_nonzero_summary(self):
-        rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
+        rows = explicit_manifest_rows()
         with tempfile.TemporaryDirectory() as directory:
             connection = self.caller.prepare_fresh_outbox(Path(directory) / "shared-caller-outbox.sqlite3")
             try:
@@ -109,7 +119,6 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
         self.assertEqual(self.caller.summarize_historical_results(results)["exit_code"], 1)
 
     def test_shared_cli_returns_nonzero_for_false_rpc_row(self):
-        rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
         with tempfile.TemporaryDirectory() as directory, patch.object(
             self.caller,
             "invoke_historical_rpc",
@@ -120,15 +129,17 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             "PDC_STAGING_SUPABASE_ANON_KEY": "test-anon-key",
             "PDC_MONITOR_ACCESS_TOKEN": "test-token",
         }, clear=False):
+            rows_path = Path(directory) / "explicit-rows.json"
+            rows_path.write_text(json.dumps({"rows": explicit_manifest_rows()}), encoding="utf-8")
             exit_code = self.caller.main([
-                "--rows-json", str(ROWS),
+                "--rows-json", str(rows_path),
                 "--outbox", str(Path(directory) / "shared-cli-outbox.sqlite3"),
                 "--bounded-caller",
             ])
         self.assertEqual(exit_code, 1)
 
     def test_review_required_overrides_contradictory_ok_true(self):
-        rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
+        rows = explicit_manifest_rows()
         for module in (self.caller, self.importer):
             with tempfile.TemporaryDirectory() as directory:
                 connection = module.prepare_fresh_outbox(Path(directory) / "contradictory-review-outbox.sqlite3")
@@ -147,7 +158,7 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             self.assertEqual(module.summarize_historical_results(results)["exit_code"], 1)
 
     def test_bounded_limit_validates_full_cohort_and_records_build_failure(self):
-        rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
+        rows = explicit_manifest_rows()
         for module in (self.caller, self.importer):
             bad_rows = [dict(row) for row in rows]
             bad_rows[0] = dict(bad_rows[0])
@@ -181,16 +192,58 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             "PDC_STAGING_SUPABASE_ANON_KEY": "test-anon-key",
             "PDC_MONITOR_ACCESS_TOKEN": "test-token",
         }, clear=False):
+            rows_path = Path(directory) / "explicit-rows.json"
+            rows_path.write_text(json.dumps({"rows": explicit_manifest_rows()}), encoding="utf-8")
             exit_code = self.caller.main([
-                "--rows-json", str(ROWS),
+                "--rows-json", str(rows_path),
                 "--outbox", str(Path(directory) / "live-probe-outbox.sqlite3"),
                 "--live-probe",
             ])
         self.assertEqual(exit_code, 0)
 
+    def test_manifest_and_source_uid_fields_are_required_and_typed(self):
+        valid = explicit_manifest_rows()
+        manifest_variants = (
+            ("manifest_uidvalidity", "missing"),
+            ("manifest_uidvalidity", None),
+            ("manifest_uidvalidity", "1"),
+            ("manifest_uidvalidity", 2),
+            ("manifest_high_water_uid", "missing"),
+            ("manifest_high_water_uid", None),
+            ("manifest_high_water_uid", "685"),
+            ("manifest_high_water_uid", 684),
+            ("manifest_uid_count", "missing"),
+            ("manifest_uid_count", None),
+            ("manifest_uid_count", "669"),
+            ("manifest_uid_count", 668),
+        )
+        source_variants = (("missing", None), ("null", None), ("string", "1"), ("wrong", 2))
+        for module in (self.caller, self.importer):
+            for field, value in manifest_variants:
+                candidate = [dict(row) for row in valid]
+                if value == "missing":
+                    candidate[0].pop(field)
+                else:
+                    candidate[0][field] = value
+                with self.assertRaises(module.Historical777Error):
+                    module.select_authorized_rows(candidate)
+            for _, value in source_variants:
+                candidate = [dict(row) for row in valid]
+                candidate[0]["source_metadata"] = dict(candidate[0]["source_metadata"])
+                if value == "missing":
+                    candidate[0]["source_metadata"].pop("uidvalidity")
+                else:
+                    candidate[0]["source_metadata"]["uidvalidity"] = value
+                with self.assertRaises(module.Historical777Error):
+                    module.select_authorized_rows(candidate)
+            candidate = [dict(row) for row in valid]
+            candidate[0]["source_metadata"] = dict(candidate[0]["source_metadata"])
+            candidate[0]["source_metadata"]["uid"] = "21"
+            with self.assertRaises(module.Historical777Error):
+                module.select_authorized_rows(candidate)
+
     def test_false_result_is_durable_review_and_nonzero_summary(self):
-        document = json.loads(ROWS.read_text(encoding="utf-8"))
-        rows = document["rows"]
+        rows = explicit_manifest_rows()
         with tempfile.TemporaryDirectory() as directory:
             outbox = Path(directory) / "new-789-outbox.sqlite3"
             connection = self.importer.prepare_fresh_outbox(outbox)
@@ -213,8 +266,7 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
         self.assertEqual(self.importer.summarize_historical_results(results)["exit_code"], 1)
 
     def test_exact_replay_digest_and_request_are_unchanged(self):
-        document = json.loads(ROWS.read_text(encoding="utf-8"))
-        row = next(item for item in document["rows"] if item["provider_uid"] == "1:21")
+        row = next(item for item in explicit_manifest_rows() if item["provider_uid"] == "1:21")
         first = self.caller.build_historical_request(row)
         second = self.caller.build_historical_request(row)
         self.assertEqual(first["canonical_request_utf8"], second["canonical_request_utf8"])
