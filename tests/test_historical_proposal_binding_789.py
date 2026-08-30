@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import importlib.util
 import json
@@ -18,6 +19,7 @@ CALLER = ROOT / "pdc_historical_778_caller.py"
 IMPORTER = ROOT / "pdc_full_inbox_typed_import.py"
 M789 = ROOT / "supabase/staging_only/20260830190000_789_historical_proposal_binding_successor.sql"
 M796 = ROOT / "supabase/staging_only/20260830203000_796_historical_domain_readback_guard_successor.sql"
+M797 = ROOT / "supabase/staging_only/20260830210000_797_complete_domain_readback_successor.sql"
 ROWS = Path("C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json")
 
 
@@ -140,7 +142,21 @@ def success_response(request: dict) -> dict:
     lifecycle_domain = {"lifecycle_state": vehicle_domain["lifecycle_state"], "current_location": vehicle_domain["current_location"], "deleted_at": vehicle_domain["deleted_at"], "board_purged_at": vehicle_domain["board_purged_at"], "rft_transferred_at": vehicle_domain["rft_transferred_at"], "rft_collected_at": vehicle_domain["rft_collected_at"], "rft_confirmed_at": vehicle_domain["rft_confirmed_at"], "rft_transport_booked_at": vehicle_domain["rft_transport_booked_at"], "dealer_transit_closed_at": vehicle_domain["dealer_transit_closed_at"], "delivered_to_dealer_date": vehicle_domain["delivered_to_dealer_date"]} if vehicle_domain else None
     fingerprints = {"vehicle": domain_fp(vehicle_domain) if vehicle_domain else hashlib.md5(b"null").hexdigest(), "lifecycle_location": domain_fp(lifecycle_domain) if lifecycle_domain else hashlib.md5(b"null").hexdigest(), "parts": parts_domain["fingerprint"], "sublet": sublet_domain["fingerprint"], "qc": qc_domain["fingerprint"], "rft_transport": rft_domain["fingerprint"]}
     fingerprints["all"] = hashlib.md5(":".join(fingerprints[name] for name in ("vehicle", "lifecycle_location", "parts", "sublet", "qc", "rft_transport")).encode("ascii")).hexdigest()
+    complete_order = caller.COMPLETE_DOMAIN_ORDER
+    complete_fingerprints = {name: domain_fp([]) for name in complete_order}
+    complete_counts = {name: 0 for name in complete_order}
     domain_state = {"vehicle": vehicle_domain, "parts": parts_domain, "sublet": sublet_domain, "qc": qc_domain, "rft_transport": rft_domain, "protected_fingerprints": fingerprints}
+    domain_state.update({
+        "vehicle_movements": {"rows": [], "count": 0, "fingerprint": complete_fingerprints["vehicle_movements"]},
+        "vehicle_aliases": {"rows": [], "count": 0, "fingerprint": complete_fingerprints["vehicle_aliases"]},
+        "pmb_stoppage_receipts": {"rows": [], "count": 0, "fingerprint": complete_fingerprints["pmb_stoppage_receipts"]},
+        "sublet_email_update_receipts": {"rows": [], "count": 0, "fingerprint": complete_fingerprints["sublet_email_update_receipts"]},
+        "workshop_bookings": {"rows": [], "count": 0, "fingerprint": complete_fingerprints["workshop_bookings"]},
+        "workshop_booking_assignments": {"rows": [], "count": 0, "fingerprint": complete_fingerprints["workshop_booking_assignments"]},
+        "complete_domain_fingerprints": complete_fingerprints,
+        "complete_domain_counts": complete_counts,
+        "complete_domain_fingerprint": hashlib.md5(":".join(complete_fingerprints[name] for name in complete_order).encode("ascii")).hexdigest(),
+    })
     return {"ok": True, "code": "historical_reconciliation_782_receipt", "data": {
         "receipt_id": receipt_id, "contract_version": "778.1",
         "manifest_sha256": request["manifest_sha256"], "provider_uid": request["provider_uid"],
@@ -157,6 +173,10 @@ def success_response(request: dict) -> dict:
             "operation_count": sum(item["authoritative_operation_count"] for item in children),
             "booking_count": 0, "completion_count": 0, "parts_changed": False},
         "authoritative_domain_state": domain_state,
+        "authoritative_domain_before": copy.deepcopy(domain_state),
+        "complete_domain_fingerprints": complete_fingerprints,
+        "complete_domain_counts": complete_counts,
+        "no_unrelated_drift": True,
         "replay": False,
         "booking_created": False, "completion_created": False, "location_scheduled": False,
         "parts_changed": False, "status_changed": False, "no_booking": True, "no_completion": True,
@@ -249,6 +269,74 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             self.assertIn(marker, sql)
         self.assertNotIn("update public.pdc_historical_reconciliation_778_receipts", sql)
         self.assertNotIn("delete from public.pdc_historical_reconciliation_778_receipts", sql)
+
+    def test_797_is_append_only_and_covers_every_missing_typed_domain(self):
+        sql = M797.read_text(encoding="utf-8").lower()
+        self.assertEqual(len(parse_sql(M797.read_text(encoding="utf-8"))), 27)
+        for marker in (
+            "20260830210000",
+            "797_complete_domain_readback_successor",
+            "pdc_historical_complete_domain_readbacks_797",
+            "pdc_historical_797_complete_domain_snapshot",
+            "vehicle_movements",
+            "vehicle_aliases",
+            "pdc_pmb_stoppage_receipts_422",
+            "pdc_sublet_email_update_receipts",
+            "workshop_bookings",
+            "workshop_booking_assignments",
+            "before_authoritative_domain_state",
+            "after_authoritative_domain_state",
+            "before_complete_domain_fingerprints",
+            "after_complete_domain_fingerprints",
+            "before_complete_domain_counts",
+            "after_complete_domain_counts",
+            "complete_domain_fingerprint",
+            "pdc_797_complete_domain_drift",
+            "authoritative_domain_before",
+            "no_unrelated_drift",
+            "pdc_797_complete_domain_readback_immutable",
+            "force row level security",
+            "submit_pdc_historical_reconciliation_778_pre797",
+            "revoke all on table public.pdc_historical_complete_domain_readbacks_797",
+        ):
+            self.assertIn(marker, sql)
+        self.assertNotIn("update public.pdc_historical_reconciliation_778_receipts", sql)
+        self.assertNotIn("delete from public.pdc_historical_reconciliation_778_receipts", sql)
+        self.assertNotIn("insert into public.pdc_rft_transport", sql)
+
+    def test_797_rejects_missing_extra_duplicate_and_indirect_domain_changes(self):
+        row = next(item for item in explicit_manifest_rows() if item["job_card_children"])
+        request = self.caller.build_historical_request(row)
+        good = success_response(request)
+        domain_names = (
+            "vehicle_movements", "vehicle_aliases", "pmb_stoppage_receipts",
+            "sublet_email_update_receipts", "workshop_bookings", "workshop_booking_assignments",
+        )
+        for module in (self.caller, self.importer):
+            module.validate_success_response(request, good, module.canonical_request_digest(request))
+            for name in domain_names:
+                missing = copy.deepcopy(good)
+                missing["data"]["authoritative_domain_state"].pop(name)
+                with self.assertRaises(module.Historical777Error):
+                    module.validate_success_response(request, missing, module.canonical_request_digest(request))
+                malformed = copy.deepcopy(good)
+                malformed["data"]["authoritative_domain_state"][name]["rows"] = [{"unexpected": True}]
+                with self.assertRaises(module.Historical777Error):
+                    module.validate_success_response(request, malformed, module.canonical_request_digest(request))
+                duplicate = copy.deepcopy(good)
+                duplicate["data"]["authoritative_domain_state"][name]["rows"] = [
+                    {"unexpected": True}, {"unexpected": True}
+                ]
+                with self.assertRaises(module.Historical777Error):
+                    module.validate_success_response(request, duplicate, module.canonical_request_digest(request))
+            indirect = copy.deepcopy(good)
+            indirect["data"]["authoritative_domain_before"]["complete_domain_counts"]["workshop_bookings"] = 1
+            with self.assertRaises(module.Historical777Error):
+                module.validate_success_response(request, indirect, module.canonical_request_digest(request))
+            drift = copy.deepcopy(good)
+            drift["data"]["no_unrelated_drift"] = False
+            with self.assertRaises(module.Historical777Error):
+                module.validate_success_response(request, drift, module.canonical_request_digest(request))
 
     def test_frozen_uid_1_21_is_the_regression_input(self):
         row = next(item for item in explicit_manifest_rows() if item["provider_uid"] == "1:21")

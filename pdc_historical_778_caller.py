@@ -47,7 +47,8 @@ SUCCESS_DATA_KEYS = frozenset({
     "proposal_binding_kind", "proposal_observation_match", "job_card_count", "sibling_count",
     "attachment_receipts", "parent_observation", "authoritative_state", "booking_created",
     "completion_created", "location_scheduled", "parts_changed", "status_changed", "no_booking",
-    "no_completion", "no_location_mutation", "authoritative_domain_state", "replay",
+    "no_completion", "no_location_mutation", "authoritative_domain_state", "authoritative_domain_before",
+    "complete_domain_fingerprints", "complete_domain_counts", "no_unrelated_drift", "replay",
 })
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
 PARENT_RESPONSE_KEYS = frozenset({"ok", "code", "data"})
@@ -96,8 +97,20 @@ OPERATION_IMPORT_DATA_KEYS = frozenset({
     "booking_created", "completed_work_reopened",
 })
 PROTECTED_ACTIVE_LOCATIONS = frozenset({"YH", "PMB", "QC", "Other"})
-DOMAIN_STATE_KEYS = frozenset({"vehicle", "parts", "sublet", "qc", "rft_transport", "protected_fingerprints"})
+DOMAIN_STATE_KEYS = frozenset({
+    "vehicle", "parts", "sublet", "qc", "rft_transport", "protected_fingerprints",
+    "vehicle_movements", "vehicle_aliases", "pmb_stoppage_receipts", "sublet_email_update_receipts",
+    "workshop_bookings", "workshop_booking_assignments", "complete_domain_fingerprints", "complete_domain_counts", "complete_domain_fingerprint",
+})
 DOMAIN_FINGERPRINT_KEYS = frozenset({"vehicle", "lifecycle_location", "parts", "sublet", "qc", "rft_transport", "all"})
+COMPLETE_DOMAIN_KEYS = frozenset({
+    "vehicle_movements", "vehicle_aliases", "pmb_stoppage_receipts", "sublet_email_update_receipts",
+    "workshop_bookings", "workshop_booking_assignments",
+})
+COMPLETE_DOMAIN_ORDER = (
+    "vehicle_movements", "vehicle_aliases", "pmb_stoppage_receipts", "sublet_email_update_receipts",
+    "workshop_bookings", "workshop_booking_assignments",
+)
 
 ACTOR_ID = "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b"
 ACTOR_EMAIL = "sales@broometoyota.com.au"
@@ -384,6 +397,52 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
         raise Historical777Error("historical aggregate fingerprint binding mismatch")
 
 
+def _validate_complete_domain_state(domain: Any, expected_vehicle_id: str | None) -> None:
+    if not isinstance(domain, Mapping) or not COMPLETE_DOMAIN_KEYS.issubset(domain):
+        raise Historical777Error("historical complete domain envelope mismatch")
+    specs = {
+        "vehicle_movements": ({"id", "vehicle_id", "from_location", "to_location", "from_pmb_stage", "to_pmb_stage", "from_pmb_bay_stage", "to_pmb_bay_stage", "from_pmb_bay_number", "to_pmb_bay_number", "reason", "moved_by", "moved_at"}, "id"),
+        "vehicle_aliases": ({"id", "vehicle_id", "alias_type", "alias_value", "active", "created_at", "alias_type_normalized", "normalized_alias_value", "source_system", "source_system_normalized", "source_batch_id", "version", "created_by", "updated_by", "updated_at"}, "id"),
+        "pmb_stoppage_receipts": ({"receipt_id", "vehicle_id", "action", "expected_vehicle_version", "vehicle_version_before", "vehicle_version_after", "actor_id", "actor_email", "reason", "idempotency_key", "request_sha256", "before_state", "after_state", "response", "created_at"}, "receipt_id"),
+        "sublet_email_update_receipts": ({"receipt_id", "replay_key", "booking_id", "vehicle_id", "provider_id", "provider_name", "sender_email", "message_id", "attachment_sha256", "evidence", "language_kind", "prior_version", "resulting_version", "applied_out_date", "applied_expected_return_date", "received_at", "applied_at", "applied_by"}, "receipt_id"),
+        "workshop_bookings": ({"id", "vehicle_id", "stage_id", "bay_id", "status", "scheduled_start_at", "scheduled_end_at", "default_duration_minutes", "actual_start_at", "actual_end_at", "actual_duration_minutes", "stoppage_reason", "stoppage_started_at", "stoppage_accumulated_minutes", "returned_to_queue_at", "deleted_at", "deleted_reason", "source", "version", "created_by", "updated_by", "created_at", "updated_at", "metadata_legacy_plan_id", "metadata", "eta_at_booking", "eta_risk_status", "eta_risk_detected_at", "legacy_ambiguity_quarantined"}, "id"),
+        "workshop_booking_assignments": ({"id", "booking_id", "technician_id", "assignment_type", "assigned_at", "assigned_by", "scheduled_start_at", "scheduled_end_at", "released_at", "notes", "created_at", "updated_at"}, "id"),
+    }
+    fingerprints = domain.get("complete_domain_fingerprints")
+    counts = domain.get("complete_domain_counts")
+    if not isinstance(fingerprints, Mapping) or set(fingerprints) != COMPLETE_DOMAIN_KEYS \
+            or not isinstance(counts, Mapping) or set(counts) != COMPLETE_DOMAIN_KEYS:
+        raise Historical777Error("historical complete domain metadata mismatch")
+    booking_ids: set[str] = set()
+    for name, (row_keys, identity_key) in specs.items():
+        value = domain.get(name)
+        if not isinstance(value, Mapping) or set(value) != {"rows", "count", "fingerprint"} \
+                or not isinstance(value["rows"], list) or type(value["count"]) is not int \
+                or value["count"] != len(value["rows"]) or not isinstance(value["fingerprint"], str) \
+                or re.fullmatch(r"[0-9a-f]{32}", value["fingerprint"]) is None \
+                or fingerprints[name] != value["fingerprint"] or counts[name] != value["count"] \
+                or hashlib.md5(_postgres_jsonb_text(value["rows"]).encode("utf-8")).hexdigest() != value["fingerprint"]:
+            raise Historical777Error(f"historical complete {name} metadata mismatch")
+        identities: list[str] = []
+        for row in value["rows"]:
+            if not isinstance(row, Mapping) or set(row) != row_keys:
+                raise Historical777Error(f"historical complete {name} row schema mismatch")
+            identity = row.get(identity_key)
+            if not isinstance(identity, str) or not identity or identity in identities:
+                raise Historical777Error(f"historical complete {name} identity mismatch")
+            identities.append(identity)
+            if name != "workshop_booking_assignments" and row.get("vehicle_id") != expected_vehicle_id:
+                raise Historical777Error(f"historical complete {name} vehicle binding mismatch")
+            if name == "workshop_bookings":
+                booking_ids.add(identity)
+        if name == "workshop_booking_assignments" and any(row.get("booking_id") not in booking_ids for row in value["rows"]):
+            raise Historical777Error("historical complete assignment booking binding mismatch")
+    complete = ":".join(fingerprints[name] for name in COMPLETE_DOMAIN_ORDER)
+    if not isinstance(domain.get("complete_domain_fingerprint"), str) \
+            or domain["complete_domain_fingerprint"] != hashlib.md5(complete.encode("ascii")).hexdigest():
+        raise Historical777Error("historical complete aggregate fingerprint mismatch")
+
+
 def validate_success_response(request: Mapping[str, Any], response: Mapping[str, Any], request_hash: str,
                               seen_identity_ids: set[str] | None = None) -> None:
     """Accept success only when the deployed 795 receipt envelope is complete."""
@@ -579,6 +638,17 @@ def validate_success_response(request: Mapping[str, Any], response: Mapping[str,
     if type(data["replay"]) is not bool:
         raise Historical777Error("historical replay flag readback mismatch")
     _validate_authoritative_domain_state(data["authoritative_domain_state"], state, data["replay"])
+    before_domain = data["authoritative_domain_before"]
+    before_vehicle = before_domain.get("vehicle") if isinstance(before_domain, Mapping) else None
+    before_vehicle_id = before_vehicle.get("vehicle_id") if isinstance(before_vehicle, Mapping) else None
+    _validate_complete_domain_state(before_domain, before_vehicle_id)
+    _validate_complete_domain_state(data["authoritative_domain_state"], state["vehicle_id"])
+    if data["no_unrelated_drift"] is not True \
+            or data["complete_domain_fingerprints"] != data["authoritative_domain_state"]["complete_domain_fingerprints"] \
+            or data["complete_domain_counts"] != data["authoritative_domain_state"]["complete_domain_counts"] \
+            or data["authoritative_domain_before"]["complete_domain_fingerprints"] != data["authoritative_domain_state"]["complete_domain_fingerprints"] \
+            or data["authoritative_domain_before"]["complete_domain_counts"] != data["authoritative_domain_state"]["complete_domain_counts"]:
+        raise Historical777Error("historical complete domain before-after drift mismatch")
     child_operation_counts = [receipt["result"]["data"]["operation_count"] for receipt in regular_receipts]
     if child_operation_counts and state["operation_count"] != sum(child_operation_counts):
         raise Historical777Error("historical authoritative operation readback mismatch")
