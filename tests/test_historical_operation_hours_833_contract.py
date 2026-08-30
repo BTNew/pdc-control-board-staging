@@ -13,9 +13,10 @@ class HistoricalOperationHours833ContractTests(unittest.TestCase):
         cls.sql = MIGRATION.read_text(encoding="utf-8").lower()
 
     def test_parses_and_pins_current_partial_state(self):
-        self.assertEqual(len(parse_sql(self.sql)), 21)
+        self.assertEqual(len(parse_sql(self.sql)), 24)
         for marker in ("20260830252000", "831_historical_navision_refresh_successor", "20260830254000", "pdc_833_operation_hours_overlay_postcondition_failed"):
             self.assertIn(marker, self.sql)
+        self.assertIn("ccdd559262b3c8c180f1fb374863c487d3c45d99f161ca904bebbe9d740bdd7d", self.sql)
         self.assertIn("count(*) from public.pdc_historical_reconciliation_778_receipts)<>5", self.sql)
         self.assertIn("count(*) from public.pdc_historical_provider_observations_778)<>24", self.sql)
 
@@ -29,7 +30,7 @@ class HistoricalOperationHours833ContractTests(unittest.TestCase):
         self.assertIn("estimated_hours',ol.estimated_hours", self.sql)
 
     def test_immutable_security_and_no_outbound(self):
-        for marker in ("on delete restrict", "enable row level security", "force row level security", "revoke all on table", "revoke all on function public.submit_pdc_historical_reconciliation_778"):
+        for marker in ("on delete restrict", "enable row level security", "force row level security", "pdc_historical_operation_hours_evidence_833_immutable", "before update or delete", "pdc_833_operation_hours_evidence_immutable", "revoke all on table", "revoke all on function public.submit_pdc_historical_reconciliation_778"):
             self.assertIn(marker, self.sql)
         for forbidden in ("update public.pdc_historical_reconciliation_778_receipts", "delete from public.pdc_historical_reconciliation_778_receipts", "send email", "imap", "create outbox"):
             self.assertNotIn(forbidden, self.sql)

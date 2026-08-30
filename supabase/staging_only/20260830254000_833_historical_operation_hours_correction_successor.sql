@@ -10,7 +10,7 @@ DO $guard$
 DECLARE v text;
 BEGIN
  SELECT p.prosrc INTO v FROM pg_proc p WHERE p.oid='public.submit_pdc_historical_reconciliation_778(jsonb)'::regprocedure;
- IF current_user<>'postgres' OR session_user<>'postgres' OR NOT public.pdc_monitor_staging_guard() OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL OR (SELECT (version,name)::text FROM supabase_migrations.schema_migrations WHERE version~'^[0-9]{14}$' ORDER BY version::bigint DESC LIMIT 1) IS DISTINCT FROM '(20260830252000,831_historical_navision_refresh_successor)' OR encode(extensions.digest(convert_to(v,'UTF8'),'sha256'),'hex') IS DISTINCT FROM 'f8b349be16131a94067d3a48118e92ddcf43a6f9a0af7c746a7a65116ca194d0' OR (SELECT count(*) FROM public.pdc_historical_reconciliation_778_receipts)<>5 OR (SELECT coalesce(array_agg(provider_uid ORDER BY provider_uid),'{}'::text[]) FROM public.pdc_historical_reconciliation_778_receipts) IS DISTINCT FROM ARRAY['1:133','1:134','1:137','1:168','1:172']::text[] OR (SELECT count(*) FROM public.pdc_historical_provider_observations_778)<>24 OR (SELECT count(*) FROM public.pdc_historical_reconciliation_writer_authorizations_809 WHERE active AND expires_at>clock_timestamp())<>5 OR (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>0 OR to_regclass('public.pdc_historical_operation_hours_evidence_833') IS NOT NULL THEN RAISE EXCEPTION 'PDC_833_CURRENT_HEAD_OR_OPERATION_HOURS_PRESTATE_FAILED' USING errcode='55000'; END IF;
+ IF current_user<>'postgres' OR session_user<>'postgres' OR NOT public.pdc_monitor_staging_guard() OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL OR (SELECT (version,name)::text FROM supabase_migrations.schema_migrations WHERE version~'^[0-9]{14}$' ORDER BY version::bigint DESC LIMIT 1) IS DISTINCT FROM '(20260830252000,831_historical_navision_refresh_successor)' OR encode(extensions.digest(convert_to(v,'UTF8'),'sha256'),'hex') IS DISTINCT FROM 'f8b349be16131a94067d3a48118e92ddcf43a6f9a0af7c746a7a65116ca194d0' OR (SELECT encode(extensions.digest(convert_to(p.prosrc,'UTF8'),'sha256'),'hex') FROM pg_proc p WHERE p.oid='public.import_pdc_jobcard_attachment_canonical(uuid,uuid,text,text,jsonb,jsonb,jsonb,jsonb)'::regprocedure) IS DISTINCT FROM 'ccdd559262b3c8c180f1fb374863c487d3c45d99f161ca904bebbe9d740bdd7d' OR (SELECT count(*) FROM public.pdc_historical_reconciliation_778_receipts)<>5 OR (SELECT coalesce(array_agg(provider_uid ORDER BY provider_uid),'{}'::text[]) FROM public.pdc_historical_reconciliation_778_receipts) IS DISTINCT FROM ARRAY['1:133','1:134','1:137','1:168','1:172']::text[] OR (SELECT count(*) FROM public.pdc_historical_provider_observations_778)<>24 OR (SELECT count(*) FROM public.pdc_historical_reconciliation_writer_authorizations_809 WHERE active AND expires_at>clock_timestamp())<>5 OR (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>0 OR to_regclass('public.pdc_historical_operation_hours_evidence_833') IS NOT NULL THEN RAISE EXCEPTION 'PDC_833_CURRENT_HEAD_OR_OPERATION_HOURS_PRESTATE_FAILED' USING errcode='55000'; END IF;
 END $guard$;
 CREATE TABLE public.pdc_historical_operation_hours_evidence_833(
  evidence_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -51,6 +51,18 @@ DO $evidence$
 BEGIN
  IF (SELECT count(*) FROM public.pdc_historical_operation_hours_evidence_833 WHERE provider_uid='1:134' AND operation_count=9 AND legacy_estimated_hours_sum=0 AND authoritative_estimated_hours_sum IS NULL AND known_hours_sum IS NULL AND known_hours_count=0 AND unknown_hours_count=9 AND hours_coverage=0)<>1 THEN RAISE EXCEPTION 'PDC_833_OPERATION_HOURS_EVIDENCE_READBACK_FAILED' USING errcode='55000'; END IF;
 END $evidence$;
+CREATE FUNCTION public.pdc_historical_operation_hours_evidence_833_immutable()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER
+SET search_path TO 'pg_catalog','public'
+AS $immutable$
+BEGIN
+ RAISE EXCEPTION 'PDC_833_OPERATION_HOURS_EVIDENCE_IMMUTABLE' USING errcode='55000';
+END
+$immutable$;
+REVOKE ALL ON FUNCTION public.pdc_historical_operation_hours_evidence_833_immutable() FROM public,anon,authenticated,service_role,pdc_email_monitor;
+CREATE TRIGGER pdc_historical_operation_hours_evidence_833_immutable
+ BEFORE UPDATE OR DELETE ON public.pdc_historical_operation_hours_evidence_833
+ FOR EACH ROW EXECUTE FUNCTION public.pdc_historical_operation_hours_evidence_833_immutable();
 CREATE FUNCTION public.pdc_historical_operation_hours_overlay_833(p_response jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path TO 'pg_catalog','public','extensions'
@@ -142,7 +154,7 @@ DO $post$
 DECLARE v text; own text; acl text; sd boolean;
 BEGIN
  SELECT p.prosrc,p.proowner::regrole::text,p.prosecdef,p.proacl::text INTO v,own,sd,acl FROM pg_proc p WHERE p.oid='public.submit_pdc_historical_reconciliation_778(jsonb)'::regprocedure;
- IF encode(extensions.digest(convert_to(v,'UTF8'),'sha256'),'hex')<>'46d36b1c75b3004933c1699bbfb744e5b0190fbf62152dfcda7cbcdb4ddd4f78' OR own<>'postgres' OR NOT sd OR acl<>'{postgres=X/postgres,authenticated=X/postgres}' OR position('pdc_historical_operation_hours_overlay_833' in v)=0 THEN RAISE EXCEPTION 'PDC_833_OPERATION_HOURS_OVERLAY_POSTCONDITION_FAILED' USING errcode='55000'; END IF;
+ IF encode(extensions.digest(convert_to(v,'UTF8'),'sha256'),'hex')<>'46d36b1c75b3004933c1699bbfb744e5b0190fbf62152dfcda7cbcdb4ddd4f78' OR own<>'postgres' OR NOT sd OR acl<>'{postgres=X/postgres,authenticated=X/postgres}' OR position('pdc_historical_operation_hours_overlay_833' in v)=0 OR NOT EXISTS(SELECT 1 FROM pg_trigger t WHERE t.tgname='pdc_historical_operation_hours_evidence_833_immutable' AND t.tgenabled='O' AND t.tgrelid='public.pdc_historical_operation_hours_evidence_833'::regclass) THEN RAISE EXCEPTION 'PDC_833_OPERATION_HOURS_OVERLAY_POSTCONDITION_FAILED' USING errcode='55000'; END IF;
 END $post$;
 INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES('20260830254000','833_historical_operation_hours_correction_successor',ARRAY['preserve immutable legacy receipt and line NULL values','add authoritative all-unknown hours correction with explicit known/unknown counts and coverage','distinguish explicit numeric zero from unknown without coalescing unknown to zero','preserve replay idempotency atomic security RLS grants ten conflicts and zero mailbox containment','no historical Apply outbox mailbox task outbound or Production operation']);
 COMMIT;
