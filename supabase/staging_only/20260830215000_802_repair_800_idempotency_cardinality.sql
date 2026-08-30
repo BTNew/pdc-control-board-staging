@@ -15,7 +15,7 @@ BEGIN
  OR (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20260830214000' AND name='801_repair_800_monitor_uuid_literal')<>1
  OR EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version~'^[0-9]{14}$' AND version>'20260830214000')
  OR to_regclass('public.pdc_monitor_672_writer_reconciliation_800') IS NULL
- OR (SELECT count(*) FROM public.pdc_monitor_672_writer_reconciliation_800)<>1
+ OR (SELECT count(*) FROM public.pdc_monitor_672_writer_reconciliation_800 WHERE event_key=encode(extensions.digest(convert_to('pdc-staging-800-672-writer-reconciliation|df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b','UTF8'),'sha256'),'hex') AND event_kind='writer_reconciliation' AND predecessor_head='20260830212000' AND successor_head='20260830213000' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND actor_email='sales@broometoyota.com.au' AND role='importer' AND reader_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND writer_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND mailbox_active=false AND controls_enabled=false AND pilot_enabled=false AND automatic_enabled=false AND outbound_email_enabled=false AND task_enabled=false AND mailbox_contacted=false AND uid514_processed=false AND production_writes=false AND performed_by='8a83b715-8d79-4b0e-95b2-02b55da6e8d7' AND performed_by_email='craig.watson@broometoyota.com.au' AND before_reader->>'active'='true' AND after_reader->>'active'='true' AND before_writer->>'active'='false' AND after_writer->>'active'='true' AND before_writer->>'revoked_at' IS NOT NULL AND after_writer->>'revoked_at' IS NULL)<>1
  OR (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>0
  OR (SELECT count(*) FROM public.monitored_mailboxes WHERE id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND NOT active AND test_mode AND mailbox_key='pdc_pmb_email' AND lower(mailbox_address)='pmbcontroller@gmail.com' AND lower(provider)='gmail' AND config->>'operational_scope'='staging')<>1
  OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)<>1
@@ -27,6 +27,14 @@ BEGIN
  OR (SELECT relrowsecurity FROM pg_class WHERE oid='public.pdc_monitor_672_writer_reconciliation_800'::regclass) IS DISTINCT FROM true
  OR (SELECT relforcerowsecurity FROM pg_class WHERE oid='public.pdc_monitor_672_writer_reconciliation_800'::regclass) IS DISTINCT FROM true
  OR (SELECT count(*) FROM pg_trigger WHERE tgrelid='public.pdc_monitor_672_writer_reconciliation_800'::regclass AND tgname='pdc_monitor_672_writer_reconciliation_800_immutable' AND NOT tgisinternal)<>1
+ OR has_table_privilege('public','public.pdc_monitor_672_writer_reconciliation_800','select')
+ OR has_table_privilege('anon','public.pdc_monitor_672_writer_reconciliation_800','select')
+ OR has_table_privilege('authenticated','public.pdc_monitor_672_writer_reconciliation_800','select')
+ OR has_table_privilege('service_role','public.pdc_monitor_672_writer_reconciliation_800','select')
+ OR has_function_privilege('public','public.pdc_monitor_672_writer_reconciliation_800_immutable()','execute')
+ OR has_function_privilege('anon','public.pdc_monitor_672_writer_reconciliation_800_immutable()','execute')
+ OR has_function_privilege('authenticated','public.pdc_monitor_672_writer_reconciliation_800_immutable()','execute')
+ OR has_function_privilege('service_role','public.pdc_monitor_672_writer_reconciliation_800_immutable()','execute')
  THEN RAISE EXCEPTION 'PDC_802_EXACT_801_IDEMPOTENCY_PRESTATE_MISMATCH' USING errcode='55000'; END IF;
  SELECT p.prosrc INTO v_prosrc FROM pg_proc p WHERE p.oid='public.admin_reconcile_pdc_monitor_672_writer_800(text)'::regprocedure;
  IF position('df7c55d9-6ba-47f6-ba16-44d6ae2c2a4b' in v_prosrc)>0 OR position('df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' in v_prosrc)=0 THEN RAISE EXCEPTION 'PDC_802_EXPECTED_801_UUID_REPAIR_STATE_MISSING' USING errcode='55000'; END IF;
@@ -113,6 +121,7 @@ DECLARE v_prosrc text;
 BEGIN
  SELECT p.prosrc INTO v_prosrc FROM pg_proc p WHERE p.oid='public.admin_reconcile_pdc_monitor_672_writer_800(text)'::regprocedure;
  IF position('df7c55d9-6ba-47f6-ba16-44d6ae2c2a4b' in v_prosrc)>0 OR position('df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' in v_prosrc)=0 THEN RAISE EXCEPTION 'PDC_802_UUID_POSTCONDITION_FAILED' USING errcode='55000'; END IF;
+ IF NOT has_function_privilege('authenticated','public.admin_reconcile_pdc_monitor_672_writer_800(text)','execute') OR has_function_privilege('anon','public.admin_reconcile_pdc_monitor_672_writer_800(text)','execute') OR has_function_privilege('service_role','public.admin_reconcile_pdc_monitor_672_writer_800(text)','execute') OR has_table_privilege('public','public.pdc_monitor_672_writer_reconciliation_800','select') OR has_table_privilege('anon','public.pdc_monitor_672_writer_reconciliation_800','select') OR has_table_privilege('authenticated','public.pdc_monitor_672_writer_reconciliation_800','select') OR has_table_privilege('service_role','public.pdc_monitor_672_writer_reconciliation_800','select') OR has_function_privilege('public','public.pdc_monitor_672_writer_reconciliation_800_immutable()','execute') OR has_function_privilege('anon','public.pdc_monitor_672_writer_reconciliation_800_immutable()','execute') OR has_function_privilege('authenticated','public.pdc_monitor_672_writer_reconciliation_800_immutable()','execute') OR has_function_privilege('service_role','public.pdc_monitor_672_writer_reconciliation_800_immutable()','execute') THEN RAISE EXCEPTION 'PDC_802_SECURITY_POSTCONDITION_FAILED' USING errcode='55000'; END IF;
 END $post$;
 INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES('20260830215000','802_repair_800_idempotency_cardinality',ARRAY['Bind exact applied 801 and successful 800 writer reconciliation state','Correct only the post-reconciliation active-writer cardinality in the 800 idempotent branch','Preserve 672 containment, immutable history, disabled task, closed pilot/outbound controls and Production prohibition']);
 NOTIFY pgrST,'reload schema';
