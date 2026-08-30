@@ -75,6 +75,7 @@ class HistoricalProposalEvidence805LiveTests(unittest.TestCase):
 
     def call_proposal_preflight(self, uid):
         request = self.caller.build_historical_request(self.rows[uid])
+        self.assertNotIn("aligned", request["authentication"])
         self.cur.execute(
             "select public.pdc_historical_writer_authorized_777(%s,%s,%s,%s,%s::jsonb,%s,%s::jsonb)",
             (

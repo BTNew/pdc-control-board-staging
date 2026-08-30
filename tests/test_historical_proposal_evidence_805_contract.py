@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 import unittest
 from pathlib import Path
 
@@ -11,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "supabase/staging_only/20260830222000_805_proposal_evidence_tuple_contained_successor.sql"
 FROZEN = Path("C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-795-explicit-frozen-rows.json")
 REPORT = Path("C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-804-final-apply-report.json")
+CALLER = ROOT / "pdc_historical_778_caller.py"
 
 
 class HistoricalProposalEvidence805ContractTests(unittest.TestCase):
@@ -89,6 +91,19 @@ class HistoricalProposalEvidence805ContractTests(unittest.TestCase):
     def test_no_historical_apply_or_outbox_path_is_added(self):
         for forbidden in ("imap", "send_mail", "send_email", "historical_apply", "create outbox"):
             self.assertNotIn(forbidden, self.sql.lower())
+
+    def test_frozen_caller_canonicalizes_only_derived_aligned_marker(self):
+        spec = importlib.util.spec_from_file_location("historical_805_caller", CALLER)
+        caller = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        spec.loader.exec_module(caller)
+        row = next(row for row in json.loads(FROZEN.read_text(encoding="utf-8"))["rows"] if row["provider_uid"] == "1:133")
+        request = caller.build_historical_request(row)
+        self.assertEqual(set(request["authentication"]), {"dkim_aligned", "dmarc_aligned", "gmail_authentication_results", "sender_domain", "spf_aligned"})
+        malformed = dict(row)
+        malformed["authentication"] = {**row["authentication"], "unexpected": True}
+        with self.assertRaises(caller.Historical777Error):
+            caller.build_historical_request(malformed)
 
 
 if __name__ == "__main__":

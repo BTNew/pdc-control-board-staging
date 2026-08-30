@@ -739,6 +739,20 @@ def select_authorized_rows(rows: list[Mapping[str, Any]]) -> list[Mapping[str, A
     return rows
 
 
+def _canonical_historical_authentication(value: Any) -> dict[str, Any]:
+    if not isinstance(value, Mapping):
+        raise Historical777Error("historical authentication is not an object")
+    allowed = {"dkim_aligned", "dmarc_aligned", "gmail_authentication_results", "sender_domain", "spf_aligned"}
+    extras = set(value) - allowed
+    if extras - {"aligned"}:
+        raise Historical777Error("historical authentication has unexpected keys")
+    if "aligned" in value and type(value["aligned"]) is not bool:
+        raise Historical777Error("historical authentication aligned marker is not boolean")
+    if set(value) & allowed != allowed:
+        raise Historical777Error("historical authentication is incomplete")
+    return {key: value[key] for key in sorted(allowed)}
+
+
 def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
     """Build one UUID-free request; attachment children are keyed by SHA-256."""
     if not isinstance(row, Mapping):
@@ -809,6 +823,7 @@ def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
     attachment_names = [item["filename"] for item in manifest]
     if source and source.get("attachment_names") not in (None, attachment_names):
         raise Historical777Error("historical attachment name manifest mismatch")
+    authentication = _canonical_historical_authentication(_required(row, "authentication"))
     request = {
         "manifest_sha256": MANIFEST_SHA256,
         "manifest_uidvalidity": MANIFEST_UIDVALIDITY,
@@ -821,7 +836,7 @@ def build_historical_request(row: Mapping[str, Any]) -> dict[str, Any]:
         "provider_uid": provider_uid,
         "parent_source_hash": str(_required(row, "parent_source_hash")).lower(),
         "sender_email": str(_required(row, "sender_email")).lower(),
-        "authentication": _required(row, "authentication"),
+        "authentication": authentication,
         "stock_number": stock,
         "subject": str(_required(row, "subject")),
         "action_type": str(_required(row, "action_type")),
