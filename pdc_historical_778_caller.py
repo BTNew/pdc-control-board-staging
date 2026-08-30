@@ -239,10 +239,18 @@ def _validate_nested_canonical_response(response: Mapping[str, Any], stage: str,
         auto = data["auto_activation"]
         if not isinstance(auto, Mapping) or set(auto) != NESTED_RESPONSE_KEYS or auto.get("ok") is not True \
                 or auto.get("code") not in NESTED_AUTO_DATA_KEYS or not isinstance(auto.get("data"), Mapping) \
-                or set(auto["data"]) != NESTED_AUTO_DATA_KEYS[auto["code"]] \
+                or (
+                    set(auto["data"]) != NESTED_AUTO_DATA_KEYS[auto["code"]]
+                    and not (
+                        auto["code"] == "automatically_applied"
+                        and set(auto["data"]) == NESTED_AUTO_DATA_KEYS[auto["code"]] | {"duplicate_count"}
+                    )
+                ) \
                 or auto["data"].get("proposal_id") != child_data["proposal_id"]:
             raise Historical777Error("historical nested auto-activation mismatch")
         auto_data = auto["data"]
+        if "duplicate_count" in auto_data and (type(auto_data["duplicate_count"]) is not int or auto_data["duplicate_count"] < 0):
+            raise Historical777Error("historical nested duplicate-count schema mismatch")
         if "stock_number" in auto_data and auto_data["stock_number"] != request["stock_number"]:
             raise Historical777Error("historical nested auto-activation Stock mismatch")
         if "vehicle_id" in auto_data and (not isinstance(auto_data["vehicle_id"], str)
@@ -533,6 +541,7 @@ def validate_success_response(request: Mapping[str, Any], response: Mapping[str,
                     or child_data["attachment_source_hash"] != child["attachment_hash"] \
                     or child_data["intake_id"] != data["intake_id"] \
                     or child_data["proposal_id"] != parent["data"]["proposal_id"] \
+                    and child_data["proposal_id"] != ((((child_data["canonical_import_response"].get("observation") or {}).get("data") or {}).get("proposal_id"))) \
                     or child_data["attachment_size_bytes"] != next(item["size"] for item in manifest if item["ordinal"] == child["attachment_ordinal"]) \
                     or child_data["attachment_content_type"] != next(item["content_type"] for item in manifest if item["ordinal"] == child["attachment_ordinal"]) \
                     or child_data["job_card_number"] != child["extraction"].get("email_vehicle", {}).get("job_card_number") \
