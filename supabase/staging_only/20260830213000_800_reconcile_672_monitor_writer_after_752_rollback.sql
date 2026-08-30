@@ -74,7 +74,6 @@ DECLARE
   v_after_writer jsonb;
   v_before_reader jsonb;
   v_after_reader jsonb;
-  v_after_writer jsonb;
   v_event_key text:=encode(extensions.digest(convert_to('pdc-staging-800-672-writer-reconciliation|df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b','UTF8'),'sha256'),'hex');
   v_affected integer;
 BEGIN
@@ -98,6 +97,7 @@ BEGIN
     RETURN jsonb_build_object('ok',true,'code','pdc_monitor_672_writer_reconciled_800','idempotent',true,'reconciliation_id',v_existing.reconciliation_id,'writer_active',true,'reader_active',true,'mailbox_active',false,'controls_enabled',false,'pilot_enabled',false,'automatic_enabled',false,'outbound_email_enabled',false,'task_enabled',false,'mailbox_contacted',false,'uid514_processed',false,'production_writes',false);
   END IF;
   IF (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>0
+     OR (SELECT count(*) FROM public.monitored_mailboxes WHERE id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND NOT active AND test_mode AND mailbox_key='pdc_pmb_email' AND lower(mailbox_address)='pmbcontroller@gmail.com' AND lower(provider)='gmail' AND config->>'operational_scope'='staging')<>1
      OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)<>0
      OR (SELECT count(*) FROM public.pdc_email_monitor_reactivation_752 WHERE event_kind='rollback' AND event_key=encode(extensions.digest(convert_to('pdc-staging-752-exact-email-monitor-reactivation|rollback|12fe383d-5c1e-5801-96e4-f67cf3e3bb57','UTF8'),'sha256'),'hex') AND predecessor_head='20260829144000' AND successor_head='20260829151000' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND actor_email='sales@broometoyota.com.au' AND gateway_instance_id='pdc-monitor-staging-sales-uid509-v1' AND release_name='pdc-monitor-staging-m502-2026.08.44' AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND mailbox_address='pmbcontroller@gmail.com' AND controls_enabled=false AND writer_enabled=false AND NOT task_enabled AND NOT mailbox_contacted AND NOT mailbox_flags_changed AND NOT uid514_processed AND NOT production_writes AND before_mailbox->>'active'='true' AND after_mailbox->>'active'='false' AND before_writer->>'active'='true' AND after_writer->>'active'='false')<>1
      OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_mailbox_activation_controls_674 WHERE singleton AND NOT enabled AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b')<>1
