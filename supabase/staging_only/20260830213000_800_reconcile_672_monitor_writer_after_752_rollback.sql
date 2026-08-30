@@ -23,7 +23,7 @@ BEGIN
      OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)<>0
      OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE user_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND NOT active AND revoked_at IS NOT NULL)<>1
      OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards AND NOT outbound_email_enabled)<>1
-     OR (SELECT count(*) FROM public.pdc_email_monitor_reactivation_752 WHERE event_kind='rollback')<>1
+     OR (SELECT count(*) FROM public.pdc_email_monitor_reactivation_752 WHERE event_kind='rollback' AND event_key=encode(extensions.digest(convert_to('pdc-staging-752-exact-email-monitor-reactivation|rollback|12fe383d-5c1e-5801-96e4-f67cf3e3bb57','UTF8'),'sha256'),'hex') AND predecessor_head='20260829144000' AND successor_head='20260829151000' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND actor_email='sales@broometoyota.com.au' AND gateway_instance_id='pdc-monitor-staging-sales-uid509-v1' AND release_name='pdc-monitor-staging-m502-2026.08.44' AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND mailbox_address='pmbcontroller@gmail.com' AND controls_enabled=false AND writer_enabled=false AND NOT task_enabled AND NOT mailbox_contacted AND NOT mailbox_flags_changed AND NOT uid514_processed AND NOT production_writes AND before_mailbox->>'active'='true' AND after_mailbox->>'active'='false' AND before_writer->>'active'='true' AND after_writer->>'active'='false')<>1
   THEN RAISE EXCEPTION 'PDC_800_EXACT_799_672_WRITER_PRESTATE_MISMATCH' USING errcode='55000'; END IF;
 END $guard$;
 
@@ -97,6 +97,7 @@ BEGIN
   END IF;
   IF (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>0
      OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)<>0
+     OR (SELECT count(*) FROM public.pdc_email_monitor_reactivation_752 WHERE event_kind='rollback' AND event_key=encode(extensions.digest(convert_to('pdc-staging-752-exact-email-monitor-reactivation|rollback|12fe383d-5c1e-5801-96e4-f67cf3e3bb57','UTF8'),'sha256'),'hex') AND predecessor_head='20260829144000' AND successor_head='20260829151000' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND actor_email='sales@broometoyota.com.au' AND gateway_instance_id='pdc-monitor-staging-sales-uid509-v1' AND release_name='pdc-monitor-staging-m502-2026.08.44' AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND mailbox_address='pmbcontroller@gmail.com' AND controls_enabled=false AND writer_enabled=false AND NOT task_enabled AND NOT mailbox_contacted AND NOT mailbox_flags_changed AND NOT uid514_processed AND NOT production_writes AND before_mailbox->>'active'='true' AND after_mailbox->>'active'='false' AND before_writer->>'active'='true' AND after_writer->>'active'='false')<>1
      OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_mailbox_activation_controls_674 WHERE singleton AND NOT enabled AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b')<>1
      OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675 WHERE singleton AND NOT enabled AND active_mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND active_mailbox_address='pmbcontroller@gmail.com' AND pilot_remains_disabled AND NOT task_enabled AND NOT mailbox_contacted AND NOT uid514_processed AND NOT production_writes)<>1
      OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards AND NOT outbound_email_enabled)<>1
@@ -106,6 +107,11 @@ BEGIN
   SELECT * INTO v_writer FROM public.pdc_monitor_stage_activation_writers WHERE user_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND NOT active AND revoked_at IS NOT NULL FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'PDC_800_EXACT_WRITER_SCOPE_MISMATCH' USING errcode='55000'; END IF;
   IF (SELECT count(*) FROM public.pdc_user_roles WHERE auth_user_id=v_writer.user_id AND active AND account_status='approved' AND role::text='importer')<>1
+  OR (SELECT count(*) FROM public.pdc_user_roles WHERE auth_user_id=v_writer.user_id AND active)<>1
+  OR EXISTS(SELECT 1 FROM public.pdc_auditor_worker_identities WHERE auth_user_id=v_writer.user_id AND active)
+  OR EXISTS(SELECT 1 FROM public.pdc_auditor_user_dealer_scopes WHERE auth_user_id=v_writer.user_id AND active)
+  OR EXISTS(SELECT 1 FROM public.pdc_auditor_executor_identities WHERE auth_user_id=v_writer.user_id AND active AND expires_at>clock_timestamp())
+  OR EXISTS(SELECT 1 FROM public.pdc_auditor_service_identities_225 WHERE auth_user_id=v_writer.user_id AND active)
   THEN RAISE EXCEPTION 'PDC_800_MONITOR_IMPORTER_ROLE_REQUIRED' USING errcode='42501'; END IF;
   v_before_reader:=to_jsonb(v_reader); v_before_writer:=to_jsonb(v_writer);
   UPDATE public.pdc_monitor_stage_activation_writers SET active=true,revoked_at=NULL,reason='672 containment writer reconciliation 800: '||left(btrim(p_reason),700),granted_by=v_admin_id,granted_at=clock_timestamp() WHERE user_id=v_writer.user_id AND NOT active AND revoked_at IS NOT NULL RETURNING * INTO v_writer;
