@@ -240,6 +240,7 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             "vehicle delayed",
             "vehicle waiting for wholesale",
             "planned for production",
+            "tombstoned",
         ):
             self.assertIn(marker, sql)
         self.assertNotIn("update public.pdc_historical_reconciliation_778_receipts", sql)
@@ -514,7 +515,7 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             cross_level["data"]["attachment_receipts"][0]["result"]["data"]["canonical_import_receipt_id"] = cross_level["data"]["receipt_id"]
             with self.assertRaises(module.Historical777Error):
                 module.validate_success_response(request, cross_level, module.canonical_request_digest(request))
-            for lifecycle_state, current_location in (("completed", None), ("deleted", None), ("active", "Completed"), ("active", "RFT"), ("active", "Delivered - At Dealer"), ("active", "DRIFTED")):
+            for lifecycle_state, current_location in (("completed", None), ("rft", None), ("deleted", None), ("tombstoned", None), ("active", "YH"), ("active", "PMB"), ("active", "PIT"), ("active", "QC"), ("active", "Other"), ("active", "Collected"), ("active", "Delivered - At Dealer"), ("active", "Delivered - At Body Builder"), ("active", "Vehicle Delayed"), ("active", "Vehicle Waiting For Wholesale"), ("active", "Planned for Production"), ("active", "Planned For Despatch - From TWA"), ("active", "Despatched - From Body Builder"), ("active", "Vehicle Out on Consignment"), ("active", "Vehicle Yard Hold"), ("active", "Waiting PD1"), ("active", "Waiting PD2"), ("active", "Vehicle At Wharf"), ("active", "In Transit to WA"), ("active", "Ready For Shipment"), ("active", "Completed"), ("active", "RFT"), ("active", "DRIFTED")):
                 mutated = json.loads(json.dumps(good))
                 mutated["data"]["authoritative_state"]["lifecycle_state"] = lifecycle_state
                 mutated["data"]["authoritative_state"]["current_location"] = current_location

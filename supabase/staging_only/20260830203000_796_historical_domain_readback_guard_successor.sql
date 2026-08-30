@@ -190,7 +190,7 @@ BEGIN
    SELECT * INTO v_vehicle FROM public.vehicles v WHERE v.stock_number_normalized=v_stock ORDER BY (v.deleted_at IS NULL) DESC,v.id LIMIT 1 FOR UPDATE;
    IF FOUND THEN
      v_had_vehicle:=true; v_vehicle_id:=v_vehicle.id; v_location:=lower(regexp_replace(btrim(coalesce(v_vehicle.current_location,'')),'\s+',' ','g')); v_lifecycle:=v_vehicle.lifecycle_state::text;
-     IF v_lifecycle IN ('rft','completed','deleted') OR v_vehicle.deleted_at IS NOT NULL OR v_vehicle.board_purged_at IS NOT NULL
+     IF v_lifecycle IN ('rft','completed','deleted','tombstoned') OR v_vehicle.deleted_at IS NOT NULL OR v_vehicle.board_purged_at IS NOT NULL
         OR v_vehicle.rft_transferred_at IS NOT NULL OR v_vehicle.rft_collected_at IS NOT NULL OR v_vehicle.rft_confirmed_at IS NOT NULL
         OR v_vehicle.rft_transport_booked_at IS NOT NULL OR v_vehicle.delivered_to_dealer_date IS NOT NULL OR v_vehicle.dealer_transit_closed_at IS NOT NULL
         OR v_location=ANY(ARRAY['yh','yard hold','vehicle yard hold','pmb','qc','pit','other','rft','collected','completed','delivered','delivered - at dealer','delivered - at body builder','planned for despatch - from twa','despatched - from body builder','vehicle out on consignment','vehicle delayed','vehicle waiting for wholesale','planned for production','waiting pd1','waiting pd2','vehicle at wharf','in transit to wa','ready for shipment']::text[])

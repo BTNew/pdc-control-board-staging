@@ -300,7 +300,7 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
                 or vehicle["lifecycle_state"] != authoritative_state["lifecycle_state"] \
                 or vehicle["current_location"] != authoritative_state["current_location"] \
                 or type(vehicle["version"]) is not int or vehicle["version"] < 1 \
-                or not isinstance(vehicle["lifecycle_state"], str) or (vehicle["lifecycle_state"] in {"rft", "completed", "deleted"} and not replay) \
+                or not isinstance(vehicle["lifecycle_state"], str) or (vehicle["lifecycle_state"] in {"rft", "completed", "deleted", "tombstoned"} and not replay) \
                 or vehicle["deleted_at"] is not None or vehicle["board_purged_at"] is not None:
             raise Historical777Error("historical authoritative vehicle domain mismatch")
     elif authoritative_state["vehicle_id"] is not None or authoritative_state["lifecycle_state"] is not None or authoritative_state["current_location"] is not None:
