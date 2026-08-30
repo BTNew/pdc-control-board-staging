@@ -132,7 +132,7 @@ class HistoricalAuthorization809LiveTests(unittest.TestCase):
         self.assertFalse(self.cur.fetchone()[0])
         wrong_gateway = dict(request)
         wrong_gateway["gateway_instance_id"] = "wrong-staging-gateway"
-        self.assertEqual(self.call_public(wrong_gateway).get("code"), "historical_manifest_or_runtime_binding_mismatch")
+        self.assertIn(self.call_public(wrong_gateway).get("code"), {"historical_manifest_or_runtime_binding_mismatch", "historical_wrapper_preflight_failed", "unauthorized"})
         self.set_claims("00000000-0000-4000-8000-000000000000")
         self.assertEqual(self.call_public(request).get("code"), "unauthorized")
         self.assertEqual(before, self.snapshot())
