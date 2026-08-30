@@ -12,9 +12,10 @@ SET LOCAL statement_timeout='300s';
 SELECT pg_advisory_xact_lock(hashtextextended('pdc-staging-807-pre796-766-final-containment',0));
 LOCK TABLE supabase_migrations.schema_migrations IN EXCLUSIVE MODE;
 DO $guard$
-DECLARE v_head text; v text; owner_name text; secdef boolean; acl text;
+DECLARE v_head text; v text; v766 text; owner_name text; secdef boolean; acl text;
 BEGIN
  SELECT (version,name)::text INTO v_head FROM supabase_migrations.schema_migrations WHERE version~'^[0-9]{14}$' ORDER BY version::bigint DESC LIMIT 1;
+ SELECT p.prosrc INTO v766 FROM pg_proc p WHERE p.oid='public.verify_pdc_monitor_runtime_binding_authenticated_766(text,text,text,text,text,text,text)'::regprocedure;
  IF current_user<>'postgres' OR session_user<>'postgres' OR NOT public.pdc_monitor_staging_guard()
     OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
     OR v_head IS DISTINCT FROM '(20260830223000,806_canonical_frozen_authentication_tuple_successor)'
@@ -31,6 +32,7 @@ BEGIN
     OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND (enabled OR automatic_rule_application OR automatic_authenticated_jobcards OR outbound_email_enabled))<>0
     OR (SELECT count(*) FROM public.pdc_email_source_claims)<>19
     OR NOT EXISTS(SELECT 1 FROM public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675 WHERE singleton AND NOT enabled AND pilot_remains_disabled AND NOT task_enabled AND NOT mailbox_contacted AND NOT uid514_processed AND NOT production_writes)
+    OR encode(extensions.digest(convert_to(v766,'UTF8'),'sha256'),'hex')<>'02c06ecbde33f9c31bc4f02557a8c7c7dec81ecbf7cfd666921e8f9c7fccddb3'
  THEN RAISE EXCEPTION 'PDC_807_CURRENT_HEAD_OR_CONTAINMENT_GUARD_FAILED' USING errcode='55000'; END IF;
  SELECT p.proowner::regrole::text,p.prosecdef,p.proacl::text,p.prosrc INTO owner_name,secdef,acl,v FROM pg_proc p WHERE p.oid='public.submit_pdc_historical_reconciliation_778_pre796(jsonb)'::regprocedure;
  IF owner_name<>'postgres' OR NOT secdef OR acl<>'{postgres=X/postgres}' OR encode(extensions.digest(convert_to(v,'UTF8'),'sha256'),'hex')<>'a2c6a5bc7fcd11cd11b49548738a374cd2b029290d471889ab600369a73bc7f5' THEN RAISE EXCEPTION 'PDC_807_PRE796_SOURCE_PRESTATE_FAILED' USING errcode='55000'; END IF;
@@ -125,7 +127,8 @@ DECLARE v text; owner_name text; secdef boolean; acl text;
 BEGIN
  SELECT p.proowner::regrole::text,p.prosecdef,p.proacl::text,p.prosrc INTO owner_name,secdef,acl,v FROM pg_proc p WHERE p.oid='public.submit_pdc_historical_reconciliation_778_pre796(jsonb)'::regprocedure;
  IF owner_name<>'postgres' OR NOT secdef OR acl<>'{postgres=X/postgres}' OR encode(extensions.digest(convert_to(v,'UTF8'),'sha256'),'hex')<>'720109d1320268a4a3e973b3687135ce578882755fa2b8d0b134bc82b4cccc2e' OR position('verify_pdc_historical_runtime_binding_authenticated_802' in v)=0 OR position('verify_pdc_monitor_runtime_binding_authenticated_766' in v)>0 THEN RAISE EXCEPTION 'PDC_807_PRE796_POSTCONDITION_FAILED' USING errcode='55000'; END IF;
- IF position('verify_pdc_monitor_runtime_binding_authenticated_766' in (SELECT p.prosrc FROM pg_proc p WHERE p.oid='public.submit_pdc_historical_reconciliation_778(jsonb)'::regprocedure))=0 THEN RAISE EXCEPTION 'PDC_807_NORMAL_766_BOUNDARY_DRIFT' USING errcode='55000'; END IF;
+ SELECT p.proowner::regrole::text,p.prosecdef,p.proacl::text,p.prosrc INTO owner_name,secdef,acl,v766 FROM pg_proc p WHERE p.oid='public.verify_pdc_monitor_runtime_binding_authenticated_766(text,text,text,text,text,text,text)'::regprocedure;
+ IF owner_name<>'postgres' OR NOT secdef OR acl<>'{postgres=X/postgres,authenticated=X/postgres}' OR encode(extensions.digest(convert_to(v766,'UTF8'),'sha256'),'hex')<>'02c06ecbde33f9c31bc4f02557a8c7c7dec81ecbf7cfd666921e8f9c7fccddb3' OR position('monitored_mailboxes where active' in lower(v766))=0 THEN RAISE EXCEPTION 'PDC_807_NORMAL_766_BOUNDARY_DRIFT' USING errcode='55000'; END IF;
 END $post$;
 INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES('20260830224000','807_pre796_766_final_contained_runtime_successor',ARRAY[
  'replace only the nested pre796 legacy 766 one-mailbox runtime call with authenticated 802/672 zero-mailbox containment',
