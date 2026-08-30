@@ -74,7 +74,9 @@ DECLARE
   v_after_writer jsonb;
   v_before_reader jsonb;
   v_after_reader jsonb;
+  v_after_writer jsonb;
   v_event_key text:=encode(extensions.digest(convert_to('pdc-staging-800-672-writer-reconciliation|df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b','UTF8'),'sha256'),'hex');
+  v_affected integer;
 BEGIN
   IF NOT public.pdc_monitor_staging_guard()
      OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
@@ -102,9 +104,13 @@ BEGIN
      OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675 WHERE singleton AND NOT enabled AND active_mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND active_mailbox_address='pmbcontroller@gmail.com' AND pilot_remains_disabled AND NOT task_enabled AND NOT mailbox_contacted AND NOT uid514_processed AND NOT production_writes)<>1
      OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND NOT enabled AND NOT automatic_rule_application AND NOT automatic_authenticated_jobcards AND NOT outbound_email_enabled)<>1
   THEN RAISE EXCEPTION 'PDC_800_CONTAINMENT_PRECONDITION_FAILED' USING errcode='55000'; END IF;
+  IF (SELECT count(*) FROM public.pdc_monitor_vehicle_identity_readers WHERE user_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND active AND revoked_at IS NULL)<>1
+  THEN RAISE EXCEPTION 'PDC_800_EXACT_READER_CARDINALITY_MISMATCH' USING errcode='55000'; END IF;
   SELECT * INTO v_reader FROM public.pdc_monitor_vehicle_identity_readers WHERE user_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND active AND revoked_at IS NULL FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'PDC_800_EXACT_READER_SCOPE_MISMATCH' USING errcode='55000'; END IF;
-  SELECT * INTO v_writer FROM public.pdc_monitor_stage_activation_writers WHERE user_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND NOT active AND revoked_at IS NOT NULL FOR UPDATE;
+  IF (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE user_id='df7c55d9-6ba-47f6-ba16-44d6ae2c2a4b' AND NOT active AND revoked_at IS NOT NULL)<>1
+  THEN RAISE EXCEPTION 'PDC_800_EXACT_RETIRED_WRITER_CARDINALITY_MISMATCH' USING errcode='55000'; END IF;
+  SELECT * INTO v_writer FROM public.pdc_monitor_stage_activation_writers WHERE user_id='df7c55d9-6ba-47f6-ba16-44d6ae2c2a4b' AND NOT active AND revoked_at IS NOT NULL FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'PDC_800_EXACT_WRITER_SCOPE_MISMATCH' USING errcode='55000'; END IF;
   IF (SELECT count(*) FROM public.pdc_user_roles WHERE auth_user_id=v_writer.user_id AND active AND account_status='approved' AND role::text='importer')<>1
   OR (SELECT count(*) FROM public.pdc_user_roles WHERE auth_user_id=v_writer.user_id AND active)<>1
@@ -116,7 +122,15 @@ BEGIN
   v_before_reader:=to_jsonb(v_reader); v_before_writer:=to_jsonb(v_writer);
   UPDATE public.pdc_monitor_stage_activation_writers SET active=true,revoked_at=NULL,reason='672 containment writer reconciliation 800: '||left(btrim(p_reason),700),granted_by=v_admin_id,granted_at=clock_timestamp() WHERE user_id=v_writer.user_id AND NOT active AND revoked_at IS NOT NULL RETURNING * INTO v_writer;
   IF NOT FOUND THEN RAISE EXCEPTION 'PDC_800_WRITER_CONCURRENT_DRIFT' USING errcode='40001'; END IF;
-  v_after_reader:=v_before_reader; v_after_writer:=to_jsonb(v_writer);
+  GET DIAGNOSTICS v_affected = ROW_COUNT;
+  IF v_affected<>1 THEN RAISE EXCEPTION 'PDC_800_WRITER_UPDATE_COUNT_MISMATCH' USING errcode='40001'; END IF;
+  IF (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)<>1
+     OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE user_id=v_writer.user_id AND active AND revoked_at IS NULL)<>1
+     OR (SELECT count(*) FROM public.pdc_monitor_vehicle_identity_readers WHERE user_id=v_reader.user_id AND active AND revoked_at IS NULL)<>1
+  THEN RAISE EXCEPTION 'PDC_800_WRITER_POSTCARDINALITY_FAILED' USING errcode='55000'; END IF;
+  SELECT * INTO v_reader FROM public.pdc_monitor_vehicle_identity_readers WHERE user_id=v_reader.user_id AND active AND revoked_at IS NULL FOR SHARE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'PDC_800_READER_POSTREADBACK_FAILED' USING errcode='40001'; END IF;
+  v_after_reader:=to_jsonb(v_reader); v_after_writer:=to_jsonb(v_writer);
   INSERT INTO public.pdc_monitor_672_writer_reconciliation_800(event_key,event_kind,predecessor_head,successor_head,actor_id,actor_email,role,reader_id,writer_id,before_reader,after_reader,before_writer,after_writer,mailbox_active,controls_enabled,pilot_enabled,automatic_enabled,outbound_email_enabled,task_enabled,mailbox_contacted,uid514_processed,production_writes,performed_by,performed_by_email) VALUES(v_event_key,'writer_reconciliation','20260830212000','20260830213000',v_writer.user_id,'sales@broometoyota.com.au','importer',v_reader.user_id,v_writer.user_id,v_before_reader,v_after_reader,v_before_writer,v_after_writer,false,false,false,false,false,false,false,false,false,v_admin_id,v_admin_email) RETURNING * INTO v_existing;
   INSERT INTO public.audit_events(action,table_name,row_id,actor_id,actor_email,before_data,after_data,metadata) VALUES('update','pdc_monitor_stage_activation_writers',v_writer.user_id,v_admin_id,v_admin_email,v_before_writer,v_after_writer,jsonb_build_object('event_type','pdc_monitor_672_writer_reconciled_800','exact_monitor_only',true,'reader_preserved',true,'mailbox_active',false,'task_enabled',false,'pilot_enabled',false,'outbound_email_enabled',false,'production_untouched',true));
   RETURN jsonb_build_object('ok',true,'code','pdc_monitor_672_writer_reconciled_800','idempotent',false,'reconciliation_id',v_existing.reconciliation_id,'writer_active',true,'reader_active',true,'mailbox_active',false,'controls_enabled',false,'pilot_enabled',false,'automatic_enabled',false,'outbound_email_enabled',false,'task_enabled',false,'mailbox_contacted',false,'uid514_processed',false,'production_writes',false);
