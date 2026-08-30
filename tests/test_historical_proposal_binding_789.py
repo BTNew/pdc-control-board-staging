@@ -234,6 +234,9 @@ class HistoricalProposalBinding789Tests(unittest.TestCase):
             "pdc_796_dependency_contract_drift",
             "pdc_796_trigger_contract_drift",
             "pdc_796_trigger_executor_contract_drift",
+            "vehicle delayed",
+            "vehicle waiting for wholesale",
+            "planned for production",
         ):
             self.assertIn(marker, sql)
         self.assertNotIn("update public.pdc_historical_reconciliation_778_receipts", sql)

@@ -98,7 +98,7 @@ BEGIN
        FROM public.pdc_parts_stoppage_receipts_376 WHERE vehicle_id=p_vehicle_id
        ) x;
      SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.vehicle_id,x.provider,x.booking_date,x.expected_return_date),'[]'::jsonb) INTO v_sublet_rows FROM (
-       SELECT vehicle_id,provider,provider_email,po_sent_date,booking_date,expected_return_date,actual_return_date,notes,email_sent,version,updated_at,provider_source,provider_names,provider_source_values
+       SELECT vehicle_id,provider,provider_email,po_sent_date,booking_date,expected_return_date,actual_return_date,notes,email_sent,version,updated_at,provider_source,provider_names
        FROM public.pdc_sublet_bookings WHERE vehicle_id=p_vehicle_id
      ) x;
      SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.booking_id),'[]'::jsonb) INTO v_sublet_instances FROM (
@@ -188,7 +188,7 @@ BEGIN
      IF v_lifecycle IN ('rft','completed','deleted') OR v_vehicle.deleted_at IS NOT NULL OR v_vehicle.board_purged_at IS NOT NULL
         OR v_vehicle.rft_transferred_at IS NOT NULL OR v_vehicle.rft_collected_at IS NOT NULL OR v_vehicle.rft_confirmed_at IS NOT NULL
         OR v_vehicle.rft_transport_booked_at IS NOT NULL OR v_vehicle.delivered_to_dealer_date IS NOT NULL OR v_vehicle.dealer_transit_closed_at IS NOT NULL
-        OR v_location=ANY(ARRAY['yh','yard hold','vehicle yard hold','pmb','qc','pit','other','rft','collected','completed','delivered','delivered - at dealer','delivered - at body builder','planned for despatch - from twa','despatched - from body builder','vehicle out on consignment','waiting pd1','waiting pd2','vehicle at wharf','in transit to wa','ready for shipment']::text[])
+        OR v_location=ANY(ARRAY['yh','yard hold','vehicle yard hold','pmb','qc','pit','other','rft','collected','completed','delivered','delivered - at dealer','delivered - at body builder','planned for despatch - from twa','despatched - from body builder','vehicle out on consignment','vehicle delayed','vehicle waiting for wholesale','planned for production','waiting pd1','waiting pd2','vehicle at wharf','in transit to wa','ready for shipment']::text[])
      THEN RETURN jsonb_build_object('ok',false,'code','historical_terminal_or_protected_location','data',jsonb_build_object('vehicle_id',v_vehicle_id,'lifecycle_state',v_lifecycle,'current_location',v_vehicle.current_location,'review_required',true)); END IF;
      v_before:=public.pdc_historical_796_domain_snapshot(v_vehicle_id);
    END IF;

@@ -329,7 +329,7 @@ def _validate_authoritative_domain_state(domain: Any, authoritative_state: Mappi
             or not isinstance(sublet["bookings"], list) or not isinstance(sublet["instances"], list) \
             or not isinstance(sublet["fingerprint"], str) or re.fullmatch(r"[0-9a-f]{32}", sublet["fingerprint"]) is None:
         raise Historical777Error("historical authoritative Sublet domain mismatch")
-    booking_keys = {"vehicle_id", "provider", "provider_email", "po_sent_date", "booking_date", "expected_return_date", "actual_return_date", "notes", "email_sent", "version", "updated_at", "provider_source", "provider_names", "provider_source_values"}
+    booking_keys = {"vehicle_id", "provider", "provider_email", "po_sent_date", "booking_date", "expected_return_date", "actual_return_date", "notes", "email_sent", "version", "updated_at", "provider_source", "provider_names"}
     instance_keys = {"booking_id", "vehicle_id", "vehicle_version", "provider_id", "provider_name", "provider_email", "out_date", "expected_return_date", "status", "returned_at", "cancelled_at", "notes", "source_kind", "source_ref", "source_evidence", "version", "updated_at"}
     if any(not isinstance(row, Mapping) or set(row) != booking_keys for row in sublet["bookings"]) \
             or any(not isinstance(row, Mapping) or set(row) != instance_keys for row in sublet["instances"]):
