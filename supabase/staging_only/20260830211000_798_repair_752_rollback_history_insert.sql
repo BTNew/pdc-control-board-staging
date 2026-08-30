@@ -63,9 +63,11 @@ BEGIN
   FOR SHARE;
   IF FOUND THEN
     IF (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>0
+       OR (SELECT count(*) FROM public.monitored_mailboxes WHERE id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND NOT active AND test_mode AND mailbox_key='pdc_pmb_email' AND lower(mailbox_address)='pmbcontroller@gmail.com' AND lower(provider)='gmail' AND config->>'operational_scope'='staging')<>1
        OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE active AND revoked_at IS NULL)<>0
-       OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_mailbox_activation_controls_674 WHERE singleton AND enabled)<>0
-       OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675 WHERE singleton AND enabled)<>0
+       OR (SELECT count(*) FROM public.pdc_monitor_stage_activation_writers WHERE user_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND NOT active AND revoked_at IS NOT NULL)<>1
+       OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_mailbox_activation_controls_674 WHERE singleton AND NOT enabled AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND lower(mailbox_address)='pmbcontroller@gmail.com')<>1
+       OR (SELECT count(*) FROM public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675 WHERE singleton AND NOT enabled AND mailbox_id='12fe383d-5c1e-5801-96e4-f67cf3e3bb57' AND actor_id='df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b' AND lower(mailbox_address)='pmbcontroller@gmail.com')<>1
     THEN RAISE EXCEPTION 'PDC_798_EXISTING_752_ROLLBACK_STATE_DRIFT' USING errcode='55000'; END IF;
     RETURN jsonb_build_object('ok',true,'code','pdc_email_monitor_reactivation_rolled_back_752',
       'idempotent',true,'history_id',v_existing.event_id,'mailbox_active',false,
