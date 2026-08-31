@@ -50,3 +50,13 @@ Changing the protected Scheduled Task from Disabled to Enabled requires one inte
 Shortest action: run `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/PDCMonitor-Activate-20260869.ps1` with PowerShell and approve its single UAC prompt.
 
 After a successful enable-only receipt, Hermes must still prove two distinct natural `LastTaskResult=0` PT5M cycles and complete authoritative monitor/mailbox/processor/Board, replay/idempotency, duplicate-protection, outbound-disabled, mailbox-flag/UID514 preservation, and Production-exclusion readback before commissioning can be claimed complete.
+
+## Later `.71` attempt and repaired retry path
+
+The later human-approved `.71` attempt is preserved as failed closed at `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871/install-receipt.json`: `ok=false`, `PDC_MONITOR_071_CONTROL_HASH_MISMATCH` with protected staging cleanup access denied, task disabled, and no mailbox/outbound/Production action.
+
+The source/build defect was traced and repaired: the builder used a JSON inventory hash while the installer/verifier used a line-oriented control-tree hash; the builder also emitted non-canonical Windows line endings, omitted staging `root-control` creation, and the elevated wrapper requested automation enablement before VerifyOnly/OneCycle gates. The corrected bundle uses control SHA-256 `3af444ce65b52935a13e57df17b7dfb3dd329719aff59775a8bc266d740b6749`, manifest SHA-256 `13f3affa82e334195b93126c09764c29b50da55e2339642063c2e94d22811c1f`, 3,359 files, exact inventory match and canonical LF manifest.
+
+Prepared retry path: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871-repaired/PDCMonitor-Install-20260871-repaired.ps1`; redacted preparation receipt: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871-repaired/corrected-071-control-hash-preparation-receipt.json`. Static `.71` contract tests passed `7/7`, Python compilation and PowerShell parsing passed. No UAC was launched, the task was not enabled, and protected VerifyOnly/OneCycle/natural-cycle proof remains outstanding.
+
+The bundled legacy `verify_release.py` was not changed or bypassed; it is bound to the older immutable 503 release-spec shape and is incompatible with the later `.69`-derived `.71` metadata. This is documented separately from the corrected `.71` operational control/build contract.

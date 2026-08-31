@@ -52,3 +52,11 @@ Corrected preparation receipt: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-202608
 ## New human-only blocker
 
 No non-elevated recovery path can read or repair the inheritance-protected `.69` ProgramData release. Do not launch another prompt from this worker. The shortest next action, when Craig is available, is one run of `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/PDCMonitor-Install-20260869.ps1` with approval of its single UAC request. After that receipt reports `ok=true`, the task must remain disabled for VerifyOnly and bounded OneCycle gates before any enablement decision.
+
+## Later `.71` attempt
+
+The later human-approved `.71` attempt is preserved at `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871/install-receipt.json` with `ok=false` and `PDC_MONITOR_071_CONTROL_HASH_MISMATCH`/protected staging cleanup access denied. The task remained disabled and no mailbox, outbound or Production action occurred.
+
+The source/build repair corrected the incompatible control hash algorithm (JSON inventory versus line-oriented tree), canonicalized the manifest to LF bytes, creates the staging `root-control` directory before copy, and keeps the elevated wrapper disabled-only until protected VerifyOnly and bounded OneCycle gates pass. Prepared corrected bundle: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871-repaired/pdc-monitor-staging-m502-2026.08.71`; manifest `13f3affa82e334195b93126c09764c29b50da55e2339642063c2e94d22811c1f`; control tree `3af444ce65b52935a13e57df17b7dfb3dd329719aff59775a8bc266d740b6749`; 3,359 files; inventory/control/canonical-byte checks passed.
+
+Prepared disabled-only retry: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871-repaired/PDCMonitor-Install-20260871-repaired.ps1`. No UAC was launched. The bundled legacy `verify_release.py` remains unchanged and is separately incompatible with the later `.69`-derived `.71` metadata; this does not change the corrected `.71` operational control contract.
