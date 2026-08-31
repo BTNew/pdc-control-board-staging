@@ -37,6 +37,7 @@ Prepared controls:
 - Bundle build: passed.
 - Complete protected bundle static verification: passed.
 - `npm run test` / `npm run check`: passed (`229 passed, 0 failed, 1 skipped`).
+- Staging branch readback: `commissioning/pdc-monitor-859` points to commit `6e868446ab8aa72be4d4d11c48f51dfed166c3bb`; raw GitHub source readback returned HTTP 200 with all retry/fail-closed markers. Pages workflow has no run for this non-Pages commissioning branch; the only commit check is skipped `Supabase Preview`.
 - Installation: not performed; the installer targets protected ProgramData and therefore requires interactive elevation. The task remains disabled at the observed installed `.68` state.
 - No mailbox, UID514, outbound email, Production, task enablement, or UAC action was performed.
 
