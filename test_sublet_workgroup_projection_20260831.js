@@ -106,5 +106,7 @@ assert.doesNotMatch(vehicleRenderer, /canonicalSubletPill|incoming-card-sublet/,
 assert.match(vehicleRenderer, /incoming-card-work-wrap/,
   'Sublet status must remain in the canonical workgroup strip');
 assert.match(index, /sublet-workgroup=2026\.08\.31\.3300/);
+assert.match(index, /sublet-canonical-count=2026\.08\.31\.3300/,
+  'changed canonical Sublet DTO service must be cache-busted in the HTML loader');
 
 console.log('Sublet workgroup active/no/cancelled/returned/completed DOM regression: PASS');
