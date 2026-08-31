@@ -6,17 +6,18 @@ const http = require('http');
 const os = require('os');
 const path = require('path');
 
-let chromium;
-for (const candidate of [
-  process.env.PDC_PLAYWRIGHT_PATH,
-  'playwright',
-  'playwright-core',
-  path.join(__dirname, '_staging_test_tools', 'node-playwright', 'node_modules', 'playwright-core'),
-  path.join(os.tmpdir(), 'pdc-phase-a-playwright', 'node_modules', 'playwright'),
-].filter(Boolean)) {
-  try { ({ chromium } = require(candidate)); break; } catch (_) {}
+function loadChromium() {
+  for (const candidate of [
+    process.env.PDC_PLAYWRIGHT_PATH,
+    'playwright',
+    'playwright-core',
+    path.join(__dirname, '_staging_test_tools', 'node-playwright', 'node_modules', 'playwright-core'),
+    path.join(os.tmpdir(), 'pdc-phase-a-playwright', 'node_modules', 'playwright'),
+  ].filter(Boolean)) {
+    try { return require(candidate).chromium; } catch (_) {}
+  }
+  throw new Error('Playwright is required. Set PDC_PLAYWRIGHT_PATH to an existing playwright or playwright-core package.');
 }
-if (!chromium) throw new Error('Playwright is required. Set PDC_PLAYWRIGHT_PATH to an existing playwright or playwright-core package.');
 
 function installedChromiumPath() {
   return [
@@ -29,21 +30,99 @@ function installedChromiumPath() {
 }
 
 const root = __dirname;
-const rootPath = path.resolve(root);
 const mime = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png' };
-const server = http.createServer((request, response) => {
-  const raw = decodeURIComponent(String(request.url || '/').split('?')[0]);
-  const relative = raw === '/' ? 'test-75.html' : raw.replace(/^\/+/, '');
-  const file = path.resolve(root, relative);
-  const relativeFile = path.relative(rootPath, file);
-  if (relativeFile.startsWith('..') || path.isAbsolute(relativeFile) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
-    response.writeHead(404);
-    response.end('not found');
-    return;
+const PUBLIC_FIXTURE_ASSETS = new Set([
+  'test-75.html',
+  'favicon.svg',
+  'styles.css',
+  'desktop-operations.css',
+  'workshop-planner.css',
+  'assets/pmb-logo.png',
+  'data-test-75.js',
+  'arb-labor-catalog.js',
+  'ai-board-advisor.js',
+  'workshop-eligibility.js',
+  'workshop-data-service.js',
+  'workshop-planner.js',
+  'workshop-realtime.js',
+  'workshop-shared-actions.js',
+  'vehicle-location-lifecycle.js',
+  'app.js',
+]);
+const responseSecurityHeaders = {
+  'Cache-Control': 'no-store',
+  'Content-Security-Policy': "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  'Cross-Origin-Resource-Policy': 'same-origin',
+  'Referrer-Policy': 'no-referrer',
+  'X-Content-Type-Options': 'nosniff',
+};
+
+function sameFilesystemPath(left, right) {
+  const normalize = value => process.platform === 'win32' ? value.toLowerCase() : value;
+  return normalize(path.resolve(left)) === normalize(path.resolve(right));
+}
+
+function confinedRegularFile(rootPath, relativeFile) {
+  const rootInfo = fs.lstatSync(rootPath);
+  if (!rootInfo.isDirectory() || rootInfo.isSymbolicLink()) return '';
+  const realRoot = fs.realpathSync(rootPath);
+  if (!sameFilesystemPath(realRoot, rootPath)) return '';
+
+  const candidate = path.resolve(rootPath, ...relativeFile.split('/'));
+  const relative = path.relative(rootPath, candidate);
+  if (relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return '';
+
+  let current = rootPath;
+  const components = relative.split(path.sep).filter(Boolean);
+  for (let index = 0; index < components.length; index += 1) {
+    current = path.join(current, components[index]);
+    const info = fs.lstatSync(current);
+    if (info.isSymbolicLink()) return '';
+    if (index < components.length - 1 && !info.isDirectory()) return '';
+    if (index === components.length - 1 && !info.isFile()) return '';
   }
-  response.writeHead(200, { 'Content-Type': `${mime[path.extname(file)] || 'application/octet-stream'}; charset=utf-8` });
-  response.end(fs.readFileSync(file));
-});
+
+  const realFile = fs.realpathSync(candidate);
+  const realRelative = path.relative(realRoot, realFile);
+  if (realRelative === '..' || realRelative.startsWith(`..${path.sep}`) || path.isAbsolute(realRelative)) return '';
+  return realFile;
+}
+
+function createFixtureServer(fixtureRoot = root, allowlist = PUBLIC_FIXTURE_ASSETS) {
+  let rootPath = '';
+  try { rootPath = path.resolve(String(fixtureRoot)); } catch (_) {}
+  return http.createServer((request, response) => {
+    const reject = () => {
+      response.writeHead(404, { ...responseSecurityHeaders, 'Content-Type': 'text/plain; charset=utf-8' });
+      response.end('not found');
+    };
+    try {
+      if (!rootPath || !['GET', 'HEAD'].includes(request.method || '') || !(allowlist instanceof Set)) return reject();
+      const requestTarget = String(request.url || '');
+      if (!requestTarget.startsWith('/') || requestTarget.startsWith('//')) return reject();
+      new URL(requestTarget, 'http://127.0.0.1');
+      const encodedPath = requestTarget.split(/[?#]/, 1)[0];
+      if (/%(?:2f|5c)/i.test(encodedPath)) return reject();
+      const decodedPath = decodeURIComponent(encodedPath);
+      if (!decodedPath.startsWith('/') || decodedPath.startsWith('//') || decodedPath.includes('\\') || decodedPath.includes('\0')) return reject();
+      const relativeFile = decodedPath === '/' ? 'test-75.html' : decodedPath.slice(1);
+      const segments = relativeFile.split('/');
+      if (segments.some(segment => !segment || segment === '.' || segment === '..') || !allowlist.has(relativeFile)) return reject();
+      const file = confinedRegularFile(rootPath, relativeFile);
+      if (!file) return reject();
+      const body = fs.readFileSync(file);
+      response.writeHead(200, {
+        ...responseSecurityHeaders,
+        'Content-Length': body.length,
+        'Content-Type': `${mime[path.extname(file)] || 'application/octet-stream'}; charset=utf-8`,
+      });
+      response.end(request.method === 'HEAD' ? undefined : body);
+    } catch (_) {
+      if (!response.headersSent) reject();
+      else response.destroy();
+    }
+  });
+}
 
 const viewports = [
   { width: 360, height: 800 },
@@ -54,19 +133,41 @@ const viewports = [
   { width: 1440, height: 900 },
 ];
 
-async function blockNonLocalRequests(page, origin, externalRequests) {
+async function blockNonLocalRequests(page, origin, externalRequests, externalWebSockets) {
   await page.route('**/*', async route => {
-    const url = new URL(route.request().url());
-    if (url.origin !== origin) {
+    let url;
+    try { url = new URL(route.request().url()); } catch (_) {}
+    if (!url || url.origin !== origin) {
       externalRequests.push(route.request().url());
       await route.abort('blockedbyclient');
       return;
     }
     await route.continue();
   });
+  await page.routeWebSocket('**/*', webSocketRoute => {
+    let url;
+    let localOrigin;
+    try {
+      url = new URL(webSocketRoute.url());
+      localOrigin = new URL(origin);
+    } catch (_) {}
+    const isLocal = url && localOrigin && url.protocol === 'ws:' && url.host === localOrigin.host;
+    if (!isLocal) {
+      externalWebSockets.push(webSocketRoute.url());
+      webSocketRoute.close({ code: 1008, reason: 'Non-local WebSocket blocked by QC harness' });
+      return;
+    }
+    const serverSocket = webSocketRoute.connectToServer();
+    webSocketRoute.onMessage(message => serverSocket.send(message));
+    serverSocket.onMessage(message => webSocketRoute.send(message));
+    webSocketRoute.onClose((code, reason) => serverSocket.close({ code, reason }));
+    serverSocket.onClose((code, reason) => webSocketRoute.close({ code, reason }));
+  });
 }
 
-(async () => {
+async function runBrowserHarness() {
+  const chromium = loadChromium();
+  const server = createFixtureServer();
   await new Promise((resolve, reject) => server.listen(0, '127.0.0.1', error => error ? reject(error) : resolve()));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const executablePath = installedChromiumPath();
@@ -74,15 +175,17 @@ async function blockNonLocalRequests(page, origin, externalRequests) {
   const results = [];
   try {
     for (const viewport of viewports) {
-      const page = await browser.newPage({ viewport });
+      const context = await browser.newContext({ viewport, serviceWorkers: 'block' });
+      const page = await context.newPage();
       const consoleErrors = [];
       const pageErrors = [];
       const failedResources = [];
       const externalRequests = [];
+      const externalWebSockets = [];
       page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
       page.on('pageerror', error => pageErrors.push(error.message));
       page.on('requestfailed', request => failedResources.push(`${request.method()} ${request.url()} ${request.failure()?.errorText || ''}`));
-      await blockNonLocalRequests(page, origin, externalRequests);
+      await blockNonLocalRequests(page, origin, externalRequests, externalWebSockets);
 
       await page.goto(`${origin}/test-75.html`, { waitUntil: 'networkidle' });
       const renderMs = await page.evaluate(() => {
@@ -173,14 +276,49 @@ async function blockNonLocalRequests(page, origin, externalRequests) {
       assert.deepStrictEqual(pageErrors, [], `${viewport.width}px page errors`);
       assert.deepStrictEqual(failedResources, [], `${viewport.width}px failed resources`);
       assert.deepStrictEqual(externalRequests, [], `${viewport.width}px external/production requests`);
+      assert.deepStrictEqual(externalWebSockets, [], `${viewport.width}px external WebSocket attempts`);
       results.push({ viewport: `${viewport.width}x${viewport.height}`, renderMs: Number(renderMs.toFixed(2)), ...metrics });
-      await page.close();
+      await context.close();
     }
 
     const guardExternalRequests = [];
-    const guardPage = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await blockNonLocalRequests(guardPage, origin, guardExternalRequests);
+    const guardExternalWebSockets = [];
+    const serviceWorkerRequests = [];
+    const guardContext = await browser.newContext({ viewport: { width: 390, height: 844 }, serviceWorkers: 'block' });
+    const guardPage = await guardContext.newPage();
+    guardPage.on('request', request => {
+      if (new URL(request.url()).pathname === '/service-worker-hostile.js') serviceWorkerRequests.push(request.url());
+    });
+    await blockNonLocalRequests(guardPage, origin, guardExternalRequests, guardExternalWebSockets);
+    await guardPage.goto('data:text/html,<title>QC network boundary probe</title>');
+    const externalHttpProbe = await guardPage.evaluate(() => fetch('https://non-local.invalid/qc-harness-probe')
+      .then(() => 'opened', () => 'blocked'));
+    assert.strictEqual(externalHttpProbe, 'blocked', 'external HTTP request is aborted by the browser route before connecting');
+    assert.deepStrictEqual(guardExternalRequests, ['https://non-local.invalid/qc-harness-probe'], 'external HTTP attempt is recorded exactly once');
+    guardExternalRequests.length = 0;
+    const externalWebSocketProbe = await guardPage.evaluate(() => new Promise(resolve => {
+      const socket = new WebSocket('wss://non-local.invalid/qc-harness-probe');
+      socket.addEventListener('open', () => resolve('opened'), { once: true });
+      socket.addEventListener('error', () => resolve('blocked'), { once: true });
+      socket.addEventListener('close', () => resolve('blocked'), { once: true });
+      setTimeout(() => resolve('timeout'), 1000);
+    }));
+    assert.strictEqual(externalWebSocketProbe, 'blocked', 'external WebSocket is closed by the browser route before connecting');
+    assert.deepStrictEqual(guardExternalWebSockets, ['wss://non-local.invalid/qc-harness-probe'], 'external WebSocket attempt is recorded exactly once');
     await guardPage.goto(`${origin}/test-75.html`, { waitUntil: 'networkidle' });
+    const serviceWorkerProbe = await guardPage.evaluate(async () => {
+      if (!('serviceWorker' in navigator)) return { supported: false, registrationReturned: false, registrations: 0, controlled: false };
+      const registration = await navigator.serviceWorker.register('/service-worker-hostile.js');
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      return {
+        supported: true,
+        registrationReturned: Boolean(registration),
+        registrations: registrations.length,
+        controlled: Boolean(navigator.serviceWorker.controller),
+      };
+    });
+    assert.deepStrictEqual(serviceWorkerProbe, { supported: true, registrationReturned: false, registrations: 0, controlled: false }, 'service-worker registration is inert and creates no registration or controller');
+    assert.deepStrictEqual(serviceWorkerRequests, [], 'blocked service-worker registration emits no script request');
     const rapid = await guardPage.evaluate(async () => {
       const button = document.createElement('button');
       button.dataset.qcSignoffRft = 'QC-RAPID-1';
@@ -281,14 +419,20 @@ async function blockNonLocalRequests(page, origin, externalRequests) {
     assert.strictEqual(printFailure.result.ok, false, 'a local printer failure returns an explicit failed result');
     assert.ok(printFailure.alerts[0]?.startsWith('QC was saved and the vehicle is RFT, but the windscreen label did not print.'), 'printer failure truthfully preserves the committed QC/RFT result');
     assert.deepStrictEqual(guardExternalRequests, [], 'guard interactions make no external/production requests');
-    await guardPage.close();
+    await guardContext.close();
 
-    console.log(`QC mobile browser reliability passed: ${JSON.stringify({ rapid, results })}`);
+    console.log(`QC mobile browser reliability passed: ${JSON.stringify({ externalHttpProbe, externalWebSocketProbe, serviceWorkerProbe, rapid, results })}`);
   } finally {
     await browser.close();
     await new Promise(resolve => server.close(resolve));
   }
-})().catch(error => {
-  console.error(error);
-  process.exitCode = 1;
-});
+}
+
+module.exports = { PUBLIC_FIXTURE_ASSETS, createFixtureServer, runBrowserHarness };
+
+if (require.main === module) {
+  runBrowserHarness().catch(error => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

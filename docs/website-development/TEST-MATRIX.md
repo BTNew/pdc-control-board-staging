@@ -21,15 +21,16 @@ No staging/performance/deployed scripts requiring credentials, database mutation
 |---|---|---|
 | `node test_qc_mobile_frontend_reliability.js` | PASS | Responsive cascade, action latch, accessible station naming and print-result contracts. RED was observed before implementation. |
 | `node test_vehicle_modal_accessibility.js` | PASS | Focus trap, inert background, hidden-close guard and focus return contracts. RED was observed before implementation. |
+| `node test_browser_qc_mobile_harness.js` | PASS | Direct local HTTP probes prove the explicit asset allowlist and generic 404 response reject `/.git`, package metadata, docs/tests/scripts, a representative ignored file, unknown and non-regular files, traversal, encoded separators, malformed encoding and double-encoding without terminating the server. An allowlisted `..name` file loads. Windows directory-junction and root-junction escapes are rejected; file-symlink creation was skipped because this account receives `EPERM`. |
 | `node test_vehicle_locations_pit_qc_flow.js` | PASS | Existing PIT/QC lifecycle interface unchanged. |
 | `node test_control_board_qc_parts_refinement.js` | PASS | Existing Ready-for-QC/QC label/source contracts unchanged. |
-| `node browser_qc_mobile_reliability.js` | PASS | Local Chrome at 360x800, 390x844, 768x1024, 820x1180, 1024x768 and 1440x900. Every page installs the fail-closed non-local blocker before navigation. Zero body overflow, console/page/resource errors and external requests. Mobile/tablet card/list overflow 0; action 44px; keyboard disclosure/dialog flow, direct Auditor opener, rerender-during-action and truthful print failure passed; rapid calls 1. |
-| `npm test` | PASS | 219 passed, 0 failed, 1 intentionally skipped. |
-| `npm run check` | PASS | Syntax gate plus the same 219 passed, 0 failed, 1 intentionally skipped. |
+| `node browser_qc_mobile_reliability.js` | PASS | Local Chrome at 360x800, 390x844, 768x1024, 820x1180, 1024x768 and 1440x900. Every isolated context blocks service workers; every page installs non-local HTTP and WebSocket interception before fixture navigation. Data-document probes to `https://non-local.invalid` and `wss://non-local.invalid` are intercepted and aborted/closed by Playwright before networking. A local-origin service-worker registration is inert (`undefined` registration, zero registrations/controllers and zero script requests). Zero body overflow, console/page/resource failures or unplanned external requests. Mobile/tablet card/list overflow 0; action 44px; keyboard disclosure/dialog flow, direct Auditor opener, rerender-during-action and truthful print failure passed; rapid calls 1. |
+| `npm test` | PASS | 220 passed, 0 failed, 1 intentionally skipped; the successor adds one auto-discovered harness test. |
+| `npm run check` | PASS | Syntax gate plus the same 220 passed, 0 failed, 1 intentionally skipped. |
 
-The browser runner uses a local synthetic QC vehicle, blocks every non-local request and does not initialize credentials or a shared mutation service. It proves ordinary local rendering and frontend interaction guards, not live operator/admin/viewer authority or database outcomes. Portrait was covered at 360/390/768/820; landscape at 1024; desktop at 1440. Firefox, WebKit/Safari, Edge-specific behavior, offline/reconnect/stale ordering and two isolated users remain unproven in this tranche.
+The browser runner uses a local synthetic QC vehicle, an explicit fixture-asset allowlist, per-page HTTP/WebSocket interception and service-worker-disabled contexts; it does not initialize credentials or a shared mutation service. It proves ordinary local rendering, frontend interaction guards and the tested local harness boundaries, not live operator/admin/viewer authority or database outcomes. Portrait was covered at 360/390/768/820; landscape at 1024; desktop at 1440. Firefox, WebKit/Safari, Edge-specific behavior, offline/reconnect/stale ordering and two simulated users remain unproven in this tranche. On this Windows account, file-symlink creation is unavailable (`EPERM`), while both directory-junction and root-junction rejection are exercised successfully.
 
-Tests added in the initial assessment: none; that baseline was documentation-only. The later QC reliability tranche adds `test_qc_mobile_frontend_reliability.js`, `test_vehicle_modal_accessibility.js` and the manual `browser_qc_mobile_reliability.js` runner described above.
+Tests added in the initial assessment: none; that baseline was documentation-only. The later QC reliability tranche adds `test_qc_mobile_frontend_reliability.js`, `test_vehicle_modal_accessibility.js` and the manual `browser_qc_mobile_reliability.js` runner. The harness-hardening successor adds `test_browser_qc_mobile_harness.js` and hostile browser probes inside the runner.
 
 ## Required matrix for every website behavior change
 
@@ -65,7 +66,9 @@ Legend: Covered = current automated evidence exists; Partial = source/unit or li
 ## Safe local browser-fixture rules
 
 - Bind only to `127.0.0.1` on an ephemeral or documented local port.
-- Block and record every non-local request.
+- Serve checkout files only through an explicit minimal fixture-asset allowlist, after decoded URL, separator-aware traversal, `lstat`/`realpath`, regular-file, containment and symlink/reparse checks.
+- Return a generic fail-closed response for malformed/unknown paths without terminating the server.
+- Install the non-local HTTP route on every page, intercept and close non-local WebSockets before connection, and create contexts with service workers blocked.
 - Use synthetic fixtures and injected authority/services; never production credentials.
 - Assert zero production project/host requests, page errors, console errors and unexpected failed resources.
 - Close browsers and servers after the run.

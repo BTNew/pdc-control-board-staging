@@ -2,7 +2,7 @@
 
 ## Current
 
-- QC mobile reliability implementation is independently reviewed, fully gated and finalized locally on parent `015aa0a0ef3c5d26ee4310959a749d5c24957f78` for the Website Development Lead commit. No push, merge, staging or deployment is authorized.
+- Hermes review accepted the QC application behavior in `2409d1f3f0768ae624a446e1a4581a617af7e0c7` but rejected its local browser harness boundary. The narrow local successor corrects that harness without changing `app.js`, `styles.css`, authority, RPC or workflow behavior. No push, merge, integration, staging or deployment is authorized.
 - No backend, authority, package, release, staging or production interface changed.
 - Product-dependent QC workflow/identifier/label choices remain blocked; implemented changes preserve the current action path and semantics.
 
@@ -14,6 +14,8 @@
 - Added Vehicle Details focus trap, Escape, background inertness and exact opener focus return for ordinary frontend operation. Auth-refresh inert ownership remains blocked by BCR-001 and is not claimed complete.
 - Added deterministic source contracts and an isolated Chrome runner covering 360x800, 390x844, 768x1024, 820x1180, 1024x768 and 1440x900.
 - Browser evidence: zero body overflow, page/console/resource failures or non-local requests; mobile/tablet list overflow 0; fixture render remained below 3ms in the latest run; a replacement button for the same vehicle/action remained single-dispatch.
+- Hardened the local runner to serve only 16 explicit fixture assets, reject malformed/encoded traversal and separator paths fail-closed, and require separator-aware lexical confinement plus `lstat`/`realpath`, regular-file and no-symlink/reparse checks. Direct probes reject Git/package/docs/tests/scripts/ignored/unknown/non-regular paths; an allowlisted `..name` file remains valid.
+- Enforced browser network isolation across HTTP(S), WebSockets and service workers. Hostile HTTP and WebSocket attempts are intercepted and aborted/closed before networking; the service-worker probe creates no registration, controller or script request. Windows file-symlink creation is unavailable (`EPERM`), but directory-junction and root-junction escape rejection pass.
 
 ## Completed in the initial assessment
 
