@@ -14,6 +14,11 @@ def load(name: str, path: Path):
 
 
 class RecoveryPackPortabilityTests(unittest.TestCase):
+    def test_binary_fixtures_are_marked_binary_for_git_checkouts(self):
+        attributes = (ROOT / 'recovery-pack' / '.gitattributes').read_text(encoding='utf-8')
+        self.assertIn('*.pdf -text', attributes)
+        self.assertIn('*.gz -text', attributes)
+
     def test_manifest_hashing_canonicalizes_windows_text_line_endings(self):
         builder = load('recovery_pack_builder', ROOT / 'recovery-pack' / 'build_manifest.py')
         self.assertEqual(builder.canonical_digest(b'alpha\r\nbeta\r\n', Path('x.md')), builder.canonical_digest(b'alpha\nbeta\n', Path('x.md')))
