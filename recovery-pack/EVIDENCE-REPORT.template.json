@@ -1,14 +1,14 @@
 {
-  "pack_version": "pdc-email-ai-recovery-pack-v1",
-  "source_commit": "589b09e519c146e57a0a4e60f028e7c5bdbe616f",
-  "pack_release_url": "https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.10",
+  "pack_version": "pdc-email-ai-recovery-pack-v1.11",
+  "source_commit": "dd826dc24e9eccd39d6208af6ea4cc870f6720df",
+  "pack_release_url": "https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.11",
   "pack_commit": "[FILL_FROM_RELEASE_TAG]",
   "independent_backup": {
     "service": "Box",
     "available": false,
     "handle": null,
-    "secretless_archive": "pdc-email-ai-recovery-pack-v1.7.tar.gz",
-    "archive_sha256": "531cbfb900da604230ff55895a461d8f11146de9ef4c2d7fe01acbb330f0f91c",
+    "secretless_archive": "[GENERATE_AFTER_FINAL_PACK_COMMIT]",
+    "archive_sha256": "[GENERATE_AFTER_FINAL_PACK_COMMIT]",
     "missing_destination": "No authorized Box CLI/connector is available in this profile"
   },
   "bootstrap_command": "python bootstrap_recovery.py --pack-root . --source-root source-snapshot --execute",

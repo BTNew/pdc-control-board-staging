@@ -1,11 +1,11 @@
 # Simplified PDC Email AI — Recovery / Commissioning Pack
 
-Pack version: `pdc-email-ai-recovery-pack-v1`
+Pack version: `pdc-email-ai-recovery-pack-v1.11`
 Environment: STAGING only (`cdsmnqxtyyoeoznmbidd`)
 Dashboard: `20260831_095314_64feeb`
 Production: prohibited; no Production credential, endpoint, branch, data or release is part of this pack.
 
-Authoritative private release: `https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.10`
+Authoritative private release: `https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.11`
 
 ## Portable recovery answer
 
@@ -46,9 +46,9 @@ External protected connectors are supplied by environment variable names documen
 - `bootstrap_recovery.py` — one deterministic gated bootstrap command.
 - `fixtures/` — safe Job Card/PDF acceptance fixture and pre-state metadata; no mailbox credentials or raw live correspondence.
 - `source-snapshot/` — source snapshot manifest and exact Git provenance; the immutable Git release remains authoritative.
-- `TRANSPORT-BUNDLE.json` / `TRANSPORT-BUNDLE.md` — exact `.69` full transport asset name, SHA-256, size and installation boundary.
+- `TRANSPORT-BUNDLE.json` / `TRANSPORT-BUNDLE.md` — exact `.71` full transport asset name, SHA-256, size and installation boundary.
 
-The private v1.10 release also carries `pdc-monitor-staging-m502-2026.08.69.tar.gz`, the 3,351-file secretless transport asset required for clean-room Windows installation.
+The private v1.11 release also carries `pdc-monitor-staging-m502-2026.08.71.tar.gz`, the 3,359-file secretless transport asset containing the HTTP-400 storage readback fix and live-head `20260831380000` active bootstrap/dispatch/preflight controls.
 
 ## Secret boundary
 

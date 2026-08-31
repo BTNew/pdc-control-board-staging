@@ -1,17 +1,24 @@
 {
-  "transport_release": "2026.08.69",
-  "parent_release": "2026.08.68",
-  "bundle_manifest_sha256": "fa528d8d1ce405b430dc265ded7dca69cc7b49e8d190b90d9e55576b32a1a823",
-  "parent_manifest_sha256": "f55c8ba1f06b342fd3205f5a287f4793cb242d886759218a7470482c7c36f18b",
-  "bridge_sha256": "d19f1ee93b5c45169d10e77956677909d2b5844e4aea3ce2e028c0b2edc30071",
-  "archive_name": "pdc-monitor-staging-m502-2026.08.69.tar.gz",
-  "archive_sha256": "c269de2f46312e8d85bb4f91ca0b0702e8d51ec620b86c01619af2fed446a22c",
-  "archive_bytes": 119965123,
+  "transport_release": "2026.08.71",
+  "parent_release": "2026.08.69",
+  "bundle_manifest_sha256": "b68ba314cc91e0a3aa91d3c383d1cd19f5f56197bd94b2b92d61c60ea267322d",
+  "parent_manifest_sha256": "fa528d8d1ce405b430dc265ded7dca69cc7b49e8d190b90d9e55576b32a1a823",
+  "storage_bridge_sha256": "d19f1ee93b5c45169d10e77956677909d2b5844e4aea3ce2e028c0b2edc30071",
+  "processor_sha256": "9b5db40c70e6340da7bb9413c27f87f5706ac7ece64e45cad8b79666b300f47f",
+  "active_head": "20260831380000",
+  "control_sha256": "a98dbfeb8ca808f5795d05ba44017e6c08ab8d19a20b017c3793067b487f54a3",
+  "active_bootstrap_sha256": "d32c716b255b4c747c51bc4dc73ecbb58e1f958e0f6e79b38ebd0bda08ef4187",
+  "active_dispatch_sha256": "bb990af663271e25b641da4843aea05bf581a69a492264b7510b68f3ba771769",
+  "current_head_preflight_sha256": "2edaa8624c3fa41c78b3471a7161befd551e404b7066f86c874d7cb26259642c",
+  "trust_sha256": "641bd8b1f5cd367ba8b2bed1f9baf4984b43f175956d5570524c429b52587e2b",
+  "archive_name": "pdc-monitor-staging-m502-2026.08.71.tar.gz",
+  "archive_sha256": "2e8d95bb842b37e59227e6e949d50e7a952f61c628e1ab4931da85ac5d1b151c",
+  "archive_bytes": 119973501,
   "secret_policy": {
     "plaintext_credentials": false,
     "runtime_service_role": false,
     "production": false,
     "outbound_email": false
   },
-  "installation": "Extract the archive to an external path, verify archive and release-manifest hashes, then use PDCMonitor-Install-20260869.ps1 once with the protected owner UAC path. Activation is separate and enable-only."
+  "installation": "Extract the archive to an external path, verify the raw archive, manifest, parent, storage, processor, control, trust and venv hashes, then use the bundled PDCMonitor-Install-20260871.ps1 once with the protected owner UAC path. The installer stages and atomically publishes .71, preserving .68/.69, and enables only the existing LOCAL SERVICE/ServiceAccount/Limited/PT5M task after preflight."
 }

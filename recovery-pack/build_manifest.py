@@ -35,7 +35,7 @@ def main() -> None:
         if path.is_file() and path.resolve() != args.output.resolve():
             files[path.relative_to(pack).as_posix()] = sha256(path)
     manifest = {
-        "pack_version": "pdc-email-ai-recovery-pack-v1",
+        "pack_version": "pdc-email-ai-recovery-pack-v1.11",
         "environment": "staging",
         "project_ref": "cdsmnqxtyyoeoznmbidd",
         "dashboard_association": "20260831_095314_64feeb",

@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-PACK_VERSION = "pdc-email-ai-recovery-pack-v1"
+PACK_VERSION = "pdc-email-ai-recovery-pack-v1.11"
 GATES = (
     ("INSPECT", None),
     ("INSTALL", "PDC_RECOVERY_INSTALL_COMMAND"),
