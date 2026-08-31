@@ -42,6 +42,7 @@ External protected connectors are supplied by environment variable names documen
 - `ENV-VAR-CONTRACT.md` — names only; no values or secret material.
 - `FAILURE-MODES.md` — known failures and repairs, including the real Windows ACL/task/UAC lessons.
 - `CLEAN-ROOM-RECOVERY.md` — fresh-PC recovery protocol and elapsed-time evidence.
+- `EVIDENCE-REPORT.template.json` — required sanitized result schema for natural proof and clean-room recovery.
 - `bootstrap_recovery.py` — one deterministic gated bootstrap command.
 - `fixtures/` — safe Job Card/PDF acceptance fixture and pre-state metadata; no mailbox credentials or raw live correspondence.
 - `source-snapshot/` — source snapshot manifest and exact Git provenance; the immutable Git release remains authoritative.

@@ -1,0 +1,48 @@
+{
+  "pack_version": "pdc-email-ai-recovery-pack-v1",
+  "source_commit": "3cea2add32bd9089c99a6df99f6f0298e08a37f4",
+  "pack_release_url": "https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.2",
+  "pack_commit": "[FILL_FROM_RELEASE_TAG]",
+  "independent_backup": {
+    "service": "Box",
+    "available": false,
+    "handle": null,
+    "secretless_archive": "pdc-email-ai-recovery-pack-v1.1.tar.gz",
+    "archive_sha256": "658e716325c6571958144872565353398309efbe8440af786af1c048ceafc8c0",
+    "missing_destination": "No authorized Box CLI/connector is available in this profile"
+  },
+  "bootstrap_command": "python bootstrap_recovery.py --pack-root . --source-root source-snapshot --execute",
+  "started_utc": "[FILL]",
+  "finished_utc": "[FILL]",
+  "elapsed_seconds": null,
+  "gates": [],
+  "natural_proof": {
+    "provider_uid": "[SANITIZED_UID]",
+    "source_digest": "[SHA256]",
+    "evidence_digest": "[SHA256]",
+    "message_id": "[SANITIZED_ID]",
+    "thread_id": "[SANITIZED_ID]",
+    "attachment_digests": [],
+    "stock": "13023405",
+    "job_card": "J13923405",
+    "canonical_vehicle_id": "[UUID]",
+    "typed_plan": null,
+    "versions": null,
+    "action_receipts": [],
+    "authoritative_readback": null,
+    "board_ui_parity": null,
+    "replay_zero_effects": null,
+    "unrelated_isolation": null,
+    "natural_result_zero_cycles": 0
+  },
+  "corrections": [],
+  "safety": {
+    "production_contacted": false,
+    "outbound_email_sent": false,
+    "unauthorized_mailbox_flags_changed": false,
+    "service_role_runtime": false,
+    "plaintext_secrets": false,
+    "legacy_068_rollback_preserved": true
+  },
+  "status": "TEMPLATE_ONLY_NATURAL_PROOF_PENDING"
+}
