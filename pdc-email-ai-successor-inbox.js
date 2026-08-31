@@ -269,6 +269,7 @@ function createPdcEmailAiSuccessorInboxController(options = {}) {
     const authority = String(getAuthority() || '');
     const lifecycle = state.lifecycle;
     if (!authority) { state.state = 'error'; state.error = 'not_authenticated'; state.data = { items: [], revision: null }; render(); return false; }
+    if (!state.subscription) subscribe();
     const generation = ++state.generation;
     if (!append) state.state = 'loading';
     render();
@@ -282,7 +283,8 @@ function createPdcEmailAiSuccessorInboxController(options = {}) {
 
   function subscribe() {
     if (state.subscription || typeof subscribeRealtime !== 'function') return;
-    state.subscription = subscribeRealtime(PDC_EMAIL_AI_SUCCESSOR_REVISION_TABLE, { onChange: () => { void refresh(); } });
+    const handle = subscribeRealtime(PDC_EMAIL_AI_SUCCESSOR_REVISION_TABLE, { onChange: () => { void refresh(); } });
+    if (handle) state.subscription = handle;
   }
   function unmount() {
     state.lifecycle += 1; state.generation += 1;
@@ -319,9 +321,9 @@ function mountPdcEmailAiSuccessorInbox(windowRef = window, documentRef = documen
       root,
       client,
       getAuthority: () => successorInboxAuthorityMarker(windowRef),
-      subscribeRealtime: (tableName, handlers) => typeof windowRef.createPdcSupabaseTableRealtimeSubscription === 'function'
+      subscribeRealtime: (tableName, handlers) => windowRef.PDC_SUPABASE && typeof windowRef.createPdcSupabaseTableRealtimeSubscription === 'function'
         ? windowRef.createPdcSupabaseTableRealtimeSubscription(tableName, handlers)
-        : { unsubscribe() {} },
+        : null,
     });
     root.__successorInboxController = controller;
     controller.mount();
@@ -358,7 +360,10 @@ if (typeof window !== 'undefined') {
     });
     window.addEventListener('pdc-auth-token-changed', () => {
       const controller = document.querySelector('#pdc-email-ai-successor-inbox')?.__successorInboxController;
-      if (controller) void controller.refresh();
+      if (controller) {
+        controller.subscribe();
+        void controller.refresh();
+      }
     });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
