@@ -41,4 +41,14 @@ Prepared controls:
 - Installation: not performed; the installer targets protected ProgramData and therefore requires interactive elevation. The task remains disabled at the observed installed `.68` state.
 - No mailbox, UID514, outbound email, Production, task enablement, or UAC action was performed.
 
-Shortest human action when ready: run the prepared launcher once interactively and approve UAC; then the task must remain disabled for VerifyOnly/OneCycle gates before any enablement decision.
+## .69 installation attempt and corrected path
+
+The human-approved `.68` install remains the last successful protected install. The `.69` attempt at `2026-08-31T04:19:40Z` failed closed after `CURRENT` became `.69`: its inventory verifier could not read the newly ACL-protected `releases\\2026.08.69\\release-manifest.json` and returned Access Denied. The later `04:20` wrapper produced no fresh receipt and is treated as cancelled. The task remains safely Disabled with no mailbox, UID514, outbound or Production action.
+
+The routine defect is installer/verifier ordering. The corrected elevated stage pins the installer/verifier hashes, grants only direct temporary access to the existing target/manifest and ancestors when needed, verifies the external immutable bundle, lets the installer own final ACL hardening, and restores temporary snapshots only on failure. It does not use `takeown`, ACL reset, permanent user access, task enablement or task start. The installer and rollback additionally assert `LOCAL SERVICE`/`ServiceAccount`/`Limited`/`PT5M`.
+
+Corrected preparation receipt: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/corrected-installer-path-preparation-receipt.json` (`uac_launched=false`, `task_enable_requested=false`). Ordering/security regression: `8 passed`; PowerShell parse: passed.
+
+## New human-only blocker
+
+No non-elevated recovery path can read or repair the inheritance-protected `.69` ProgramData release. Do not launch another prompt from this worker. The shortest next action, when Craig is available, is one run of `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/PDCMonitor-Install-20260869.ps1` with approval of its single UAC request. After that receipt reports `ok=true`, the task must remain disabled for VerifyOnly and bounded OneCycle gates before any enablement decision.
