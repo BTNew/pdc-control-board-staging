@@ -1,7 +1,7 @@
 {
   "environment": "staging",
   "application_version": "2026.08.27.706-final-authoritative-lifecycle",
-  "checklist_closure_version": "2026.08.31.2800",
+  "checklist_closure_version": "2026.08.31.3100",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
@@ -14,6 +14,15 @@
     "file": "supabase/staging_only/20260831280000_pdc_checklist_completion_booking_preservation.sql",
     "sha256": "01ca6e2254c15c358b03526e22d9524c84d7b3d75d798a32f831484d08857e9e",
     "predecessor": "20260831270000/861_null_storage_predicate_successor",
+    "commissioned": true,
+    "review_status": "staging_applied"
+  },
+  "checklist_closure_history_migration": {
+    "version": "20260831310000",
+    "name": "pdc_checklist_completion_history_preservation",
+    "file": "supabase/staging_only/20260831310000_pdc_checklist_completion_history_preservation.sql",
+    "sha256": "4e216588f1169f5235e271704bf63515cab66e9b7e2b726964f0a8b3bfb9e3a3",
+    "predecessor": "20260831300000/pdc_email_ai_transaction_successor",
     "commissioned": true,
     "review_status": "staging_applied"
   },

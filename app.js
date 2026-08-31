@@ -9336,7 +9336,7 @@ function pmbCardDetailHtml(vehicle = {}) {
   const blocker = blocked ? (partsStoppageReason(vehicle) || vehicle.pdcBlockedReason || 'Parts/PMB STOPPAGE') : 'No Parts STOPPAGE';
   return `<span class="pmb-pill-vehicle" title="${escapeHtml(unit)}">${escapeHtml(unit)}</span>
     <span class="pmb-pill-meta">
-      <span class="pmb-card-age pmb-age-${escapeHtml(onSiteDaysClass(vehicle))}">${escapeHtml(onSiteDaysLabel(vehicle).replace('on site', 'at PMB'))}</span>
+      <span class="pmb-card-age pmb-age-${escapeHtml(pmbAgeClass(vehicle))}">${escapeHtml(pmbLifecycleAgeLabel(vehicle))}</span>
       <span class="pmb-pill-blocker ${blocked ? 'is-blocked' : ''}" title="${escapeHtml(blocker)}">${escapeHtml(blocked ? 'Parts STOPPAGE' : 'No STOPPAGE')}</span>
     </span>
     <span class="pmb-pill-sales" title="${escapeHtml(consultant)}">${escapeHtml(consultant)}</span>`;
@@ -13333,11 +13333,16 @@ function activateVehicleWorkshopLineHandle(handle) {
     return true;
   }
   if (handle?.dataset?.bookingId) {
+    const booking = (app.vehicleWorkshopDetailCache.get(handle.dataset.vehicleId)?.detail?.bookings || [])
+      .find(row => String(row.booking_id || row.id || '') === handle.dataset.bookingId) || {};
+    const vehicle = selectedVehicle() || {};
     return openVehicleWorkshopBooking(
       handle.dataset.bookingId,
       handle.dataset.stage,
-      vehicleWorkshopBookingDateKey((app.vehicleWorkshopDetailCache.get(handle.dataset.vehicleId)?.detail?.bookings || [])
-        .find(row => String(row.booking_id || row.id || '') === handle.dataset.bookingId) || {})
+      vehicleWorkshopBookingDateKey(booking),
+      handle.dataset.vehicleId,
+      displayStockNumber(vehicle) || handle.dataset.vehicleKey,
+      Number(booking.bay_number) > 0 ? String(Number(booking.bay_number)) : ''
     );
   }
   return false;

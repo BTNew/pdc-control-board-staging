@@ -9,11 +9,14 @@ const app = fs.readFileSync('app.js', 'utf8');
 const service = fs.readFileSync('pdc-email-vehicle-location-service.js', 'utf8');
 const sql772 = fs.readFileSync('supabase/staging_only/20260830080000_stock_13017855_integrity_and_lifecycle_guards.sql', 'utf8');
 const completionSql = fs.readFileSync('supabase/staging_only/20260831280000_pdc_checklist_completion_booking_preservation.sql', 'utf8');
+const historySql = fs.readFileSync('supabase/staging_only/20260831310000_pdc_checklist_completion_history_preservation.sql', 'utf8');
 const planner = fs.readFileSync('workshop-planner.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const identity = fs.readFileSync('deployment-identity.json', 'utf8');
 const refreshLoader = app.slice(app.indexOf('function operationalRefreshCommonLoaders'), app.indexOf('function getOperationalRefreshCoordinator'));
 const workOperationLoader = refreshLoader.slice(refreshLoader.indexOf('workOperationStates:'), refreshLoader.indexOf('routeAuthority:'));
+const lineHandle = app.slice(app.indexOf('function activateVehicleWorkshopLineHandle'), app.indexOf('function bindVehicleDetailTabs'));
+const pmbCardDetail = app.slice(app.indexOf('function pmbCardDetailHtml'), app.indexOf('\nfunction ', app.indexOf('function pmbCardDetailHtml') + 10));
 
 function extractFunction(name) {
   const start = app.indexOf(`function ${name}(`);
@@ -105,12 +108,22 @@ assert.match(completionSql, /booking_preserved/,
   'the completion receipt reports that the planner booking was preserved');
 assert.match(completionSql, /state IN\(''none''\)'/,
   'the requirement successor allows completion while retaining an active booking');
+assert.match(historySql, /purged_booking_id NULL/);
+assert.match(historySql, /booking_preserved/);
+assert.match(historySql, /actor,email,v\.id,NULL\)/);
+assert.match(historySql, /PDC_CHECKLIST_3100_EXACT_STAGING_3000_PREDECESSOR_REQUIRED/);
 assert.match(planner, /workshopExactDurationHours/);
 assert.match(planner, /workshopAdminBlockSegments/);
 assert.match(index, /vehicle-locations-refresh\.js/);
 assert.match(index, /checklist-closure=2026\.08\.31\.2800/);
 assert.match(identity, /20260831280000/);
 assert.match(workOperationLoader, /if \(route === 'dashboard'\) return \{ ok: true, skipped: true \};/);
+assert.match(lineHandle, /openVehicleWorkshopBooking\([\s\S]*handle\.dataset\.vehicleId[\s\S]*displayStockNumber/,
+  'vehicle-card booking navigation passes the canonical vehicle and Stock identity');
+assert.match(pmbCardDetail, /pmbLifecycleAgeLabel\(vehicle\)/,
+  'PMB planner cards use retained PMB/YH lifecycle ages');
+assert.doesNotMatch(pmbCardDetail, /onSiteDaysLabel\(vehicle\)/,
+  'PMB planner cards do not derive age from Kewdale ETA');
 assert.doesNotMatch(app, /(?:window\.)?location\.reload\s*\(/);
 assert.match(service, /sublet_bookings/);
 
