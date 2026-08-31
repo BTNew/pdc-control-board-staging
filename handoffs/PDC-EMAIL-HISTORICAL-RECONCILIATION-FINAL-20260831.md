@@ -25,7 +25,7 @@ The authorized frozen 15-row historical Apply completed in STAGING.
 
 ## Live STAGING proof
 
-- Current migration head: `20260831050000 / 838_ignore_non_monitored_mailbox_alias_successor`
+- Current migration head at final readback: `20260831300000 / pdc_email_ai_transaction_successor`; monitor repair head `20260831290000 / 863_exact_retry_after_storage_repair` is applied and verified.
 - Historical reconciliation receipts: `5`
 - Receipt UIDs: exact five renewed UIDs above
 - Provider observations: `24` (4 + 4 + 6 + 6 + 4)
@@ -35,10 +35,10 @@ The authorized frozen 15-row historical Apply completed in STAGING.
 - 1:134 operation-hours evidence: immutable correction row present; legacy aggregate `0`, authoritative aggregate `NULL`, known count `0`, unknown count `9`, coverage `0`
 - Active renewed authorizations: `5`, all unexpired
 - Active monitored mailboxes: `1` exact staging test mailbox (`pdc_pmb_email` / Gmail / test mode); no mailbox flags were changed
-- Pilot enabled: `false`
+- Pilot enabled for the explicitly authorized STAGING commissioning path: `true`
 - Pilot outbound email: `false`
-- Automatic rule application: `false`
-- Automatic authenticated jobcards: `false`
+- Automatic rule application: `true` (STAGING commissioning scope only)
+- Automatic authenticated jobcards: `true` (STAGING commissioning scope only)
 - Production sentinel: absent
 
 Authoritative full mailbox accounting artifact:
@@ -138,3 +138,16 @@ No credentials, passwords, tokens, connection strings or secret values are inclu
 - The prior independent approval for the corrected 834 candidate did not transfer after the live head advanced.
 - A fresh review is required for any later source candidate; no later local candidate was applied.
 - The only current blocker is the canceled interactive UAC approval for protected VerifyOnly/commissioning execution; fresh VerifyOnly, bounded OneCycle and two natural zero-result cycles remain unproven.
+
+## Final monitor outcome — supersedes interim commissioning notes
+
+- Root cause confirmed: authenticated 735 attachment/result calls were denied for pending work because the live scope/grant contract was incomplete; after 857/858 scope repair, malformed NULL storage paths exposed a second fail-closed classification defect in 860.
+- Applied and verified STAGING successors: `20260831290000 / 863_exact_retry_after_storage_repair` (exact one-row retry) with prior live 859/860/861 attachment-path successors.
+- Exact live regression passed under authenticated monitor scope: 735 attachment read, review-result recording, wrong-gateway `42501` denial and transaction rollback.
+- Exact requeued intake `0172352b-6045-4ab4-83ba-c8069c9ab8de` / `imap_uid:692` advanced to `needs_review` at queue attempt `3`; source hash, current two attachment rows, immutable 863 history and audit evidence agree.
+- Distinct natural scheduled cycles with `LastTaskResult=0`: `2026-08-31T01:23:34Z`, `2026-08-31T02:33:34Z`, and `2026-08-31T02:43:34Z`.
+- Final task readback: `Ready`, `Enabled`, `LOCAL SERVICE`, `ServiceAccount`, `Limited`, repetition `PT5M`, last result `0`.
+- Final monitor readback: one active exact STAGING test mailbox; outbound email false; UID514 not processed; Production untouched.
+- Protected controlled-OneCycle wrapper produced no receipt because it overlapped the already-running scheduler and is not counted as evidence; natural scheduled proof is the authoritative result.
+- Current final ledger readback: `20260831300000 / pdc_email_ai_transaction_successor`; Production sentinel absent.
+- No credentials, passwords, tokens, connection strings or secret values are included in this handoff.
