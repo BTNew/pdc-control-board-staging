@@ -22,6 +22,7 @@ class RecoveryPackPortabilityTests(unittest.TestCase):
     def test_manifest_hashing_canonicalizes_windows_text_line_endings(self):
         builder = load('recovery_pack_builder', ROOT / 'recovery-pack' / 'build_manifest.py')
         self.assertEqual(builder.canonical_digest(b'alpha\r\nbeta\r\n', Path('x.md')), builder.canonical_digest(b'alpha\nbeta\n', Path('x.md')))
+        self.assertEqual(builder.canonical_digest(b'alpha\r\nbeta\r\n', Path('.gitattributes')), builder.canonical_digest(b'alpha\nbeta\n', Path('.gitattributes')))
         self.assertNotEqual(builder.canonical_digest(b'alpha\r\nbeta\r\n', Path('x.pdf')), builder.canonical_digest(b'alpha\nbeta\n', Path('x.pdf')))
 
     def test_bootstrap_uses_the_same_canonical_hashing_rule(self):
