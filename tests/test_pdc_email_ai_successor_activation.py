@@ -16,7 +16,7 @@ class ActivationContractTests(unittest.TestCase):
             self.assertIn(marker, source)
         self.assertNotIn('Start-ScheduledTask', source)
         self.assertNotIn('schtasks.exe /Run', source)
-        for marker in ('PDC_SUCCESSOR_RELEASE_ACL_FAILED', r'NT AUTHORITY\\LOCAL SERVICE', r'S-1-5-19', r'\(OI\)', r'\(CI\)', r'\(RX\)'):
+        for marker in ('PDC_SUCCESSOR_RELEASE_ACL_FAILED', r'NT AUTHORITY\\LOCAL SERVICE', r'S-1-5-19', r'\(OI\)', r'\(CI\)', r'\(RX\)', 'pythoncore-3.14-64'):
             self.assertIn(marker, source)
         acl_pattern = re.compile(r'(?:S-1-5-19|NT AUTHORITY\\LOCAL SERVICE):(?:\(OI\)\(CI\))?\(RX\)')
         self.assertRegex('NT AUTHORITY\\LOCAL SERVICE:(OI)(CI)(RX)', acl_pattern)
