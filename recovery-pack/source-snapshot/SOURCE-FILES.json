@@ -1,0 +1,225 @@
+{
+  "files": [
+    {
+      "bytes": 8651,
+      "path": "backend/pdc_email_ai_successor_acceptance.py",
+      "sha256": "1278f743e84ca6d3ad6f353ec3fe9c74b356927167e166106227578d6d8adc48"
+    },
+    {
+      "bytes": 17367,
+      "path": "backend/pdc_email_ai_successor_contract.py",
+      "sha256": "b46e7b630795e57fa454e856229b931db3552e7910a885dfdd2097e0af33679a"
+    },
+    {
+      "bytes": 7782,
+      "path": "backend/pdc_email_ai_successor_executor.py",
+      "sha256": "e1de2a58c7bfb4a4ae90f8c4be32d1c28c19ca496ef9eed84186693f98791210"
+    },
+    {
+      "bytes": 9663,
+      "path": "backend/pdc_email_ai_successor_intake.py",
+      "sha256": "ddefce46a7bd7ec4bff627c08c608c27d3798ff3f58589dc94b4e2dd7c9c1255"
+    },
+    {
+      "bytes": 10590,
+      "path": "backend/pdc_email_ai_successor_planner.py",
+      "sha256": "1668318ae7c96b773210fde225f9835165305fa4054cf8c35c108cb3833815b7"
+    },
+    {
+      "bytes": 3345,
+      "path": "backend/pdc_email_ai_successor_poller.py",
+      "sha256": "554c7e76e0153a0325bc1c21fc3f68f7b0f47f94be4c5d0ff32a4670356ec0ab"
+    },
+    {
+      "bytes": 1399,
+      "path": "backend/pdc_email_ai_successor_runtime.py",
+      "sha256": "ecaef3d778dfd219d7ca6622a23821d0d7235f974dcd67726995a3362c97fb61"
+    },
+    {
+      "bytes": 9350,
+      "path": "docs/PDC-EMAIL-AI-SUCCESSOR-INTAKE-UI-PLAN.md",
+      "sha256": "65199b505cf18ffda3665a680fa24d8c45779b2ebbf11da6ad361da01d6f2d2a"
+    },
+    {
+      "bytes": 13551,
+      "path": "docs/PDC-EMAIL-AI-TRANSACTION-SUCCESSOR-PLAN.md",
+      "sha256": "bddbb040f2dbe27e7157cbe9b46becd3cc7dfeecc0fa63d3f2833e6d9c8cbf43"
+    },
+    {
+      "bytes": 8817,
+      "path": "docs/PDC-EMAIL-AI-TRANSACTION-SUCCESSOR-RUNBOOK.md",
+      "sha256": "a8bc2da15b2160e047bddedfa8cd060de947e6aa13fab129cb45a733d1496173"
+    },
+    {
+      "bytes": 3822,
+      "path": "runtime/pdc-email-ai-successor-manifest.json",
+      "sha256": "fd8cf2bceb3cfab35c9d922d07104c30b0fc4b278370bff7c819a86759dd234e"
+    },
+    {
+      "bytes": 5828,
+      "path": "scripts/activate_pdc_email_ai_successor_20260869.ps1",
+      "sha256": "1e75ab218790bb8dfdee5260a1e2cfa2f0413c04eec6371304573d42ab0206f8"
+    },
+    {
+      "bytes": 2722,
+      "path": "scripts/apply_pdc_email_ai_successor_actor_first_gate_staging.py",
+      "sha256": "562bd2e6d9326bd6664bbf6a0ff40a71dba6dc655a23fc4ad3d8a076e602b54c"
+    },
+    {
+      "bytes": 6116,
+      "path": "scripts/apply_pdc_email_ai_successor_command_read_hardening_staging.py",
+      "sha256": "7c20069c730e8cd92ae5089992a7563a8185e05fbf218ec1e27ac1b234e11154"
+    },
+    {
+      "bytes": 5027,
+      "path": "scripts/apply_pdc_email_ai_successor_contract_repair_staging.py",
+      "sha256": "e2a07dec8350050e6b6d2b3143284f2819701d8062962740295981cf464f94f5"
+    },
+    {
+      "bytes": 3020,
+      "path": "scripts/apply_pdc_email_ai_successor_hostile_action_gate_staging.py",
+      "sha256": "d87514393f125102d23967b5f9cd5a49066fe83f6e824229e146cb287facc26a"
+    },
+    {
+      "bytes": 6038,
+      "path": "scripts/apply_pdc_email_ai_successor_inbox_staging.py",
+      "sha256": "beb58328605daacd56bdb594d5ad4d978127dbb30518ba59a044c23e91e85a10"
+    },
+    {
+      "bytes": 3046,
+      "path": "scripts/apply_pdc_email_ai_successor_owner_credential_rotation_staging.py",
+      "sha256": "ffc92c7dddb9f33ae7ca80dcaed70043dbe29b7fd28a7a3a1bebbff2a27a46c8"
+    },
+    {
+      "bytes": 4258,
+      "path": "scripts/apply_pdc_email_ai_successor_owner_provisioning_staging.py",
+      "sha256": "37cc26fae8a6b907bad76f994f802542210cb3b075c41a84243bd4090498fd7c"
+    },
+    {
+      "bytes": 4687,
+      "path": "scripts/apply_pdc_email_ai_successor_staging.py",
+      "sha256": "ac0c34f14d63de32175a62716ea30f93f373e22831ad211a05f8fdd541690cbf"
+    },
+    {
+      "bytes": 16344,
+      "path": "scripts/provision_pdc_email_ai_successor_staging.py",
+      "sha256": "595ed32f9432735076ab8c574ab074db8d932787fad8c3426c06a500771c4cbb"
+    },
+    {
+      "bytes": 5401,
+      "path": "scripts/verify_pdc_email_ai_successor_20260869.py",
+      "sha256": "8e49cf84fe730fedcb6f31e13b63e008d917017f82d2c62585c2f761a5093936"
+    },
+    {
+      "bytes": 5817,
+      "path": "scripts/verify_pdc_email_ai_successor_inbox_staging.py",
+      "sha256": "36da4ab1b633bf341158c3d095fa6309b5e66bce9e51140102192dd6ed9a31dc"
+    },
+    {
+      "bytes": 4508,
+      "path": "scripts/verify_pdc_email_ai_successor_staging.py",
+      "sha256": "405e8aa0e6b65b2346bbf668443c2989fd076a47cc7c0d9bfd7708e6af3b8ff9"
+    },
+    {
+      "bytes": 29660,
+      "path": "supabase/staging_only/20260831300000_pdc_email_ai_transaction_successor.sql",
+      "sha256": "9bf8cc878b433f173f8556ca27725d099d05b4cab746c7f4f64c86436285170e"
+    },
+    {
+      "bytes": 21866,
+      "path": "supabase/staging_only/20260831320000_pdc_email_ai_transaction_successor_contract_repair.sql",
+      "sha256": "aa7d5c3d0b9595b932b11fbde2210222c9495a490c690bd9ae0b7d48f1b9a72d"
+    },
+    {
+      "bytes": 33645,
+      "path": "supabase/staging_only/20260831330000_pdc_email_ai_successor_inbox_read_projection.sql",
+      "sha256": "e0dda0856c6ca11fbe935e2b510ae8ed420d749411e4869e0759fc07014cdb8f"
+    },
+    {
+      "bytes": 33771,
+      "path": "supabase/staging_only/20260831340000_pdc_email_ai_successor_command_read_hardening.sql",
+      "sha256": "8cd2a4b68a6f033ad4b2920eacf8f068d321cb05e8edfc7d836a5d8082c4484e"
+    },
+    {
+      "bytes": 13350,
+      "path": "supabase/staging_only/20260831350000_pdc_email_ai_successor_owner_provisioning.sql",
+      "sha256": "84b8ff7b5e698aed17dba3b66a4c3dc45587af0cf0f99f7dc249c12f09da5f42"
+    },
+    {
+      "bytes": 4957,
+      "path": "supabase/staging_only/20260831360000_pdc_email_ai_successor_owner_credential_rotation.sql",
+      "sha256": "53a781996c4ec003916a4a126661493da89c550049b253e1b9fda8fce4adea3b"
+    },
+    {
+      "bytes": 23163,
+      "path": "supabase/staging_only/20260831370000_pdc_email_ai_successor_hostile_action_gate.sql",
+      "sha256": "3f87cc1591e80086c00a93e12933aa4e0c976c71c22fcb4f012e3c204a8717f4"
+    },
+    {
+      "bytes": 3285,
+      "path": "supabase/staging_only/20260831380000_pdc_email_ai_successor_actor_first_gate.sql",
+      "sha256": "0aec4b550ce011995537b2f4034f0bc0d13afec2d76d994fab0a5cc6667f1462"
+    },
+    {
+      "bytes": 3989,
+      "path": "tests/fixtures/pdc_email_ai_successor_inbox_ui.json",
+      "sha256": "32a6c73fa44ce8eff1191cbf9f4b1070e1fa79008b79ea66d3daa15c503fb6c4"
+    },
+    {
+      "bytes": 827,
+      "path": "tests/test_pdc_email_ai_successor_acceptance.py",
+      "sha256": "e32223b49cfdaacf49d8ac9988626f70c91235edaf5305c1961a47d43f6ab753"
+    },
+    {
+      "bytes": 1924,
+      "path": "tests/test_pdc_email_ai_successor_activation.py",
+      "sha256": "a73b11c882a88e558c06ab35303113b492b44b2e7b3b7784778de44c26981a7d"
+    },
+    {
+      "bytes": 5117,
+      "path": "tests/test_pdc_email_ai_successor_contract.py",
+      "sha256": "6283c861b81351459412c12294f81f3c3c75b384d8972da7562b214eb73b5b5c"
+    },
+    {
+      "bytes": 1502,
+      "path": "tests/test_pdc_email_ai_successor_controller.py",
+      "sha256": "0c1b3781114c9998527660ecc4cb4c4b80edb00b1df3562b5bd7cf2ba905c275"
+    },
+    {
+      "bytes": 1742,
+      "path": "tests/test_pdc_email_ai_successor_end_to_end.py",
+      "sha256": "cb90dd4d1675353c056b3bfaf1e9cfbd53d57a49b83ea927386f0f0fd1e600bd"
+    },
+    {
+      "bytes": 4361,
+      "path": "tests/test_pdc_email_ai_successor_executor.py",
+      "sha256": "72e866fb8bf55b9d467e7994acfba00abe4538f1d56a7e22c5b4c8af04918ee7"
+    },
+    {
+      "bytes": 3619,
+      "path": "tests/test_pdc_email_ai_successor_intake.py",
+      "sha256": "56ca0f6e5565993fe1860507b90b1ebabbaa5d48e7a1169d45ef0dc1c0350d86"
+    },
+    {
+      "bytes": 4553,
+      "path": "tests/test_pdc_email_ai_successor_migration.py",
+      "sha256": "db078f8610af9218a7223d52e6cf12c1ebf164e737b63d650014ba94299deba9"
+    },
+    {
+      "bytes": 4870,
+      "path": "tests/test_pdc_email_ai_successor_planner.py",
+      "sha256": "01194869840cab22f90b47964ae62b6ea56b4ef3c1ef6aae4790d59b462295be"
+    },
+    {
+      "bytes": 1037,
+      "path": "tests/test_pdc_email_ai_successor_poller.py",
+      "sha256": "98d0bb66b60b17b3e9159c98877756218ad88a6d9c06d3c859f6874e38140ec1"
+    },
+    {
+      "bytes": 1856,
+      "path": "tests/test_pdc_email_ai_successor_provisioning.py",
+      "sha256": "88e0beb73571962e19b0f8945be26c17a8b793e5616e7173c85000016986d62a"
+    }
+  ],
+  "source_commit": "3cea2add32bd9089c99a6df99f6f0298e08a37f4"
+}

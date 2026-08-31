@@ -1,0 +1,16 @@
+PERTH MOTOR BODIES - STAGING ACCEPTANCE FIXTURE
+REPAIR ORDER
+JOB CARD No: J13923405
+STOCK No: 13023405
+VEHICLE: HiLux 4x4 2.8L Dsl D/C 6AT
+CUSTOMER: STAGING ACCEPTANCE FIXTURE
+
+OPERATION  DESCRIPTION                            EST HRS
+OP1        Fit steel bull bar                    [5.18]
+OP2        Install 12V accessory socket          [1.00]
+OP3        Loose safety triangle kit             [0.00]
+OP4        Install weather shields               [0.75]
+
+HOURS NOTE: OP3 0.00 is intentional zero labour for this acceptance fixture.
+SOURCE NOTE: Representative valid Job Card for STAGING acceptance only.
+

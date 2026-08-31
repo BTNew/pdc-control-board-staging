@@ -1,0 +1,48 @@
+{
+  "schema_version": "pdc-email-ai-successor-inbox-fixture-v1",
+  "items": [
+    {
+      "intake_uid": "fixture:multi-vehicle-515",
+      "source_receipt_id": "11111111-1111-4111-8111-111111111111",
+      "received_at": "2026-08-31T01:02:03Z",
+      "sender": "authorized@example.test",
+      "subject": "Job Card update for two vehicles",
+      "attachment_summary": {"count": 1, "names": ["job-card-515.pdf"], "digests": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]},
+      "disposition": "PARTIAL_FAILURE",
+      "verification_status": "PARTIAL",
+      "summary": {"before": "2 active vehicles", "requested": "Parts ETA and Tyre work", "result": "Parts ETA applied; Tyre blocked"},
+      "transaction": {
+        "transaction_id": "22222222-2222-4222-8222-222222222222",
+        "source_receipt_id": "11111111-1111-4111-8111-111111111111",
+        "source_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "evidence_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "plan_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "disposition": "PARTIAL_FAILURE",
+        "typed_plan": {"schema_version": "pdc-email-ai-plan-v1", "instructions": [{"action_type": "parts_eta_set"}, {"action_type": "location_set"}]},
+        "versions": {"model": "deterministic-staging-reference-v1", "prompt": "pdc-email-ai-prompt-v1", "instruction_set": "pdc-email-ai-actions-v1", "taxonomy": "pdc-work-taxonomy-v1", "action_contract": "pdc-email-ai-actions-v1", "supabase_action": "20260831320000", "transport": "transport-v1"},
+        "readback": {"ok": true, "parity": false},
+        "readback_parity": false
+      },
+      "vehicle_results": [
+        {"vehicle_id": "33333333-3333-4333-8333-333333333333", "stock": "13000001", "vehicle": "HiAce", "location": "PMB", "identity_status": "MATCHED", "actions": [{"action_type": "parts_eta_set", "instruction_id": "instruction-1", "canonical_rpc": "public.update_pdc_parts_eta(uuid,integer,date)", "disposition": "APPLIED_AND_VERIFIED", "before": {"parts.eta": null}, "requested": {"parts.eta": "2026-09-01"}, "result": {"parts.eta": "2026-09-01"}, "expected": {"parts.eta": "2026-09-01"}, "actual": {"parts.eta": "2026-09-01"}, "verification": {"checked": true, "parity": true}, "evidence_refs": ["fixture:multi-vehicle-515"]}]},
+        {"vehicle_id": "44444444-4444-4444-8444-444444444444", "stock": "13000002", "vehicle": "Hilux", "location": "YH", "identity_status": "MATCHED", "actions": [{"action_type": "location_set", "instruction_id": "instruction-2", "canonical_rpc": "Not dispatched", "disposition": "BLOCKED_EXACT_REASON", "reason": "ambiguous location", "before": {"location": "YH"}, "requested": {"location": "PMB"}, "result": null, "expected": {"location": "PMB"}, "actual": null, "verification": {"checked": false, "parity": false}, "evidence_refs": ["fixture:multi-vehicle-515"]}]}
+      ],
+      "retry_state": {"attempts": 2, "retry_class": "temporary", "next_attempt_at": "2026-08-31T01:10:00Z", "last_error_code": "canonical_location_requires_review", "quarantine": false}
+    },
+    {
+      "intake_uid": "fixture:quarantine-516",
+      "source_receipt_id": "55555555-5555-4555-8555-555555555555",
+      "received_at": "2026-08-31T00:02:03Z",
+      "sender": "unknown@example.test",
+      "subject": "Malformed evidence",
+      "attachment_summary": {"count": 0, "names": [], "digests": []},
+      "disposition": "QUARANTINED",
+      "verification_status": "NOT_RUN",
+      "summary": {"before": "No successor result yet", "requested": "Awaiting typed plan", "result": "Quarantined"},
+      "transaction": null,
+      "vehicle_results": [],
+      "retry_state": {"attempts": 5, "retry_class": "permanent", "next_attempt_at": null, "last_error_code": "typed_plan_invalid", "quarantine": true},
+      "quarantine": {"quarantined": true, "reason": "typed_plan_invalid", "retry_class": "permanent"}
+    }
+  ]
+}

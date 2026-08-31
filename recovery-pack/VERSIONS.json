@@ -1,0 +1,38 @@
+{
+  "pack_version": "pdc-email-ai-recovery-pack-v1",
+  "environment": "staging",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "dashboard_association": "20260831_095314_64feeb",
+  "transport_release_version": "pdc-email-ai-transport-v1",
+  "model_version": "pdc-email-ai-model-v1",
+  "prompt_version": "pdc-email-ai-prompt-v1",
+  "instruction_set_version": "pdc-email-ai-instructions-v1",
+  "taxonomy_version": "pdc-work-taxonomy-v1",
+  "business_rule_version": "pdc-business-rules-v1",
+  "action_contract_version": "pdc-email-ai-actions-v1",
+  "supabase_action_version": "20260831380000",
+  "receipt_schema_version": "pdc-email-ai-receipt-v1",
+  "ui_asset_version": "2026.08.31.08-successor-inbox-cursor-fix",
+  "runtime_gateway_instance_id": "pdc-email-ai-successor-069",
+  "runtime_mailbox_scope": "pdc-emails",
+  "natural_proof_fixture": {
+    "stock": "13023405",
+    "job_card": "J13923405",
+    "attachment": "job-card-13023405.pdf",
+    "attachment_sha256": "a24d3345eb2735a790ee435c6fda43bfe1bbaacbec2f6a4d13620116c8b65cb1",
+    "operation_count": 4,
+    "intentional_zero_hours": "OP3"
+  },
+  "required_terminal_dispositions": [
+    "APPLIED_AND_VERIFIED",
+    "ALREADY_CORRECT",
+    "SUPERSEDED",
+    "NOT_APPLICABLE",
+    "BLOCKED_EXACT_REASON",
+    "GENUINELY_AMBIGUOUS",
+    "FAILED_QUEUED_RETRY"
+  ],
+  "production_writes": false,
+  "outbound_email": false,
+  "legacy_068_rollback_preserved": true
+}

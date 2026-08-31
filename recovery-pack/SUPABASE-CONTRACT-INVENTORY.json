@@ -1,0 +1,50 @@
+{
+  "environment": "staging",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "migration_head": "20260831380000",
+  "append_only_migrations": [
+    {"version":"20260831300000","name":"pdc_email_ai_transaction_successor"},
+    {"version":"20260831320000","name":"pdc_email_ai_transaction_successor_contract_repair"},
+    {"version":"20260831330000","name":"pdc_email_ai_successor_inbox_read_projection"},
+    {"version":"20260831340000","name":"pdc_email_ai_successor_command_read_hardening"},
+    {"version":"20260831350000","name":"pdc_email_ai_successor_owner_provisioning"},
+    {"version":"20260831360000","name":"pdc_email_ai_successor_owner_credential_rotation"},
+    {"version":"20260831370000","name":"pdc_email_ai_successor_hostile_action_gate"},
+    {"version":"20260831380000","name":"pdc_email_ai_successor_actor_first_gate"}
+  ],
+  "successor_rpcs": {
+    "health":"get_pdc_email_ai_successor_health",
+    "inbox":"get_pdc_email_ai_transaction_successor_inbox_v2",
+    "command":"apply_pdc_email_ai_transaction_successor",
+    "readback":"get_pdc_email_vehicle_location_snapshot"
+  },
+  "owner_only_rpcs": [
+    "commission_pdc_email_ai_successor_runtime",
+    "rollback_pdc_email_ai_successor_runtime",
+    "rotate_pdc_email_ai_successor_runtime_credential"
+  ],
+  "canonical_domain_actions": [
+    "activate_from_navision",
+    "location_set",
+    "workgroup_requirement_set",
+    "operation_upsert",
+    "parts_eta_set",
+    "parts_ordered",
+    "parts_complete",
+    "notes_append",
+    "job_card_upsert",
+    "sublet_booking_upsert",
+    "rft_transfer",
+    "rft_collect"
+  ],
+  "required_security": {
+    "runtime_role":"authenticated dedicated non-Administrator",
+    "service_role_runtime_execute":false,
+    "browser_business_writes":false,
+    "direct_table_dml":false,
+    "arbitrary_sql":false,
+    "forced_rls":true,
+    "production_sentinel_absent":true,
+    "realtime_revision_publication":true
+  }
+}

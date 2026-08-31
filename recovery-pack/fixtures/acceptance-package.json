@@ -1,0 +1,65 @@
+{
+  "attachment": {
+    "bytes": 1445,
+    "content_type": "application/pdf",
+    "filename": "job-card-13023405.pdf",
+    "sha256": "a24d3345eb2735a790ee435c6fda43bfe1bbaacbec2f6a4d13620116c8b65cb1"
+  },
+  "created_at_utc": "2026-08-31T02:35:17+00:00",
+  "environment": "staging-only",
+  "extraction": {
+    "operation_count": 4,
+    "operations": [
+      {
+        "description": "Fit steel bull bar",
+        "estimated_hours": 5.18,
+        "estimated_hours_source": "job_card",
+        "operation_no": "OP1",
+        "work_key": "fitting"
+      },
+      {
+        "description": "Install 12V accessory socket",
+        "estimated_hours": 1.0,
+        "estimated_hours_source": "job_card",
+        "operation_no": "OP2",
+        "work_key": "electrical"
+      },
+      {
+        "description": "Loose safety triangle kit",
+        "estimated_hours": 0.0,
+        "estimated_hours_source": "job_card",
+        "operation_no": "OP3",
+        "work_key": "fitting"
+      },
+      {
+        "description": "Install weather shields",
+        "estimated_hours": 0.75,
+        "estimated_hours_source": "job_card",
+        "operation_no": "OP4",
+        "work_key": "fitting"
+      }
+    ],
+    "path": "C:\\Users\\nwmgr\\HermesWorkspaces\\pdc-monitor\\acceptance-proof-20260831\\job-card-13023405.extracted.txt",
+    "sha256": "028adbc3b03bf2d3ca36d03c3061fdeac4d63c2f0c906952698d28240beb7342"
+  },
+  "guards": {
+    "no_identity_conflict_observed": true,
+    "no_mailbox_contacted": true,
+    "no_mutating_rpc_called": true,
+    "no_queue_or_board_mutation": true,
+    "outbound_email_sent": false,
+    "production_contacted": false,
+    "reference_stock_13056899_excluded": true
+  },
+  "job_card": "J13923405",
+  "manual_import_forbidden": true,
+  "natural_monitor_only": true,
+  "prestate_path": "C:\\Users\\nwmgr\\HermesWorkspaces\\pdc-monitor\\acceptance-proof-20260831\\prestate.json",
+  "prestate_sha256": "494fbc37496937c4ef760307458f6ecbc8bd9ab6bc356e9a113d1e1c1bf276b2",
+  "production_contacted": false,
+  "recipient": "pmbcontroller@gmail.com",
+  "schema": "pdc-monitor.staging.acceptance-package/v1",
+  "send_status": "not_sent",
+  "sender_requirement": "already-authorized/enrolled operational sender; verify authoritative enrollment before send",
+  "stock": "13023405"
+}

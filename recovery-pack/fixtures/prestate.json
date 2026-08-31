@@ -1,0 +1,31 @@
+{
+  "board": {
+    "revision": 94502,
+    "stock_match_count": 0,
+    "vehicle_id": null,
+    "visible_on_board": false
+  },
+  "captured_at_utc": "2026-08-31T02:35:17+00:00",
+  "environment": "staging-only",
+  "guards": {
+    "no_identity_conflict_observed": true,
+    "no_mailbox_contacted": true,
+    "no_mutating_rpc_called": true,
+    "no_queue_or_board_mutation": true,
+    "outbound_email_sent": false,
+    "production_contacted": false,
+    "reference_stock_13056899_excluded": true
+  },
+  "job_card": "J13923405",
+  "navision": {
+    "activated_vehicle_id": null,
+    "board_activated": false,
+    "current_exact_match_count": 1,
+    "dealer_code": "14450",
+    "is_current": true,
+    "record_id": "004c857a-fef4-4fee-b764-e25cae5fc490",
+    "record_status": "current",
+    "revision": 3597
+  },
+  "stock": "13023405"
+}

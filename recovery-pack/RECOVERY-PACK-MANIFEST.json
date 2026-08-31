@@ -1,0 +1,42 @@
+{
+  "dashboard_association": "20260831_095314_64feeb",
+  "environment": "staging",
+  "natural_fixture": {
+    "attachment": "fixtures/job-card-13023405.pdf",
+    "attachment_sha256": "a24d3345eb2735a790ee435c6fda43bfe1bbaacbec2f6a4d13620116c8b65cb1",
+    "job_card": "J13923405",
+    "stock": "13023405"
+  },
+  "pack_files": {
+    "ARCHITECTURE.md": "f77771bb87ca44ebe9eaf8209a9599d4f1b12e02605758cbffa1fe533ef84de3",
+    "CLEAN-ROOM-RECOVERY.md": "4b5abbe48efba3874bcadc8b74ec510dfe6a913aa2b4646b91880f5554b821a4",
+    "COMMISSIONING-RUNBOOK.md": "8c69fcf35992441e1e75187bcebe9ae40a955273483a50509eae13469dc62ece",
+    "ENV-VAR-CONTRACT.md": "49b8d061eceb58149051f0d6d351af8ca19cb8dd3716d7dd2e346ec250fdabba",
+    "FAILURE-MODES.md": "cbf2a5cda459a12a056f9799d7769172881929acbdc7caabb981256616c6008d",
+    "README.md": "ba77ed625425aa30cdf50f557094cdadaa8028211d35847f23e622058687fad6",
+    "SUPABASE-CONTRACT-INVENTORY.json": "af4852b0fa7cc98be58ca046c4247f58d6a97f26e722e13156da12d2e3bd8894",
+    "VERSIONS.json": "71292b5383ba9fcb0010edb80337d444e9718c89fc851bc6597c65f33b27171f",
+    "bootstrap_recovery.py": "178063bf550f5eaf7e15334f7191f8e999600f17862eefc25ff2135464c721be",
+    "build_manifest.py": "35648af6c328b3cad28f9dbdb6c3fd0b699264d59f5473b14a55be472b2f8a92",
+    "fixtures/acceptance-package.json": "a0d505887d179591fde23b1579bbef8bd39c3bb773c8ec45ddb44fcc683effaa",
+    "fixtures/job-card-13023405.extracted.txt": "9b09b5dbcee2b8719064cdd9f47f26bb674d922c978841f70225b3f4a8deff71",
+    "fixtures/job-card-13023405.parsed.json": "63cec3504995d004889078b114f96ddb6176a78bdf8282b57efa7fe23a00a5c8",
+    "fixtures/job-card-13023405.pdf": "a24d3345eb2735a790ee435c6fda43bfe1bbaacbec2f6a4d13620116c8b65cb1",
+    "fixtures/pdc_email_ai_successor_inbox_ui.json": "32a6c73fa44ce8eff1191cbf9f4b1070e1fa79008b79ea66d3daa15c503fb6c4",
+    "fixtures/prestate.json": "494fbc37496937c4ef760307458f6ecbc8bd9ab6bc356e9a113d1e1c1bf276b2",
+    "source-snapshot/SOURCE-FILES.json": "049291957acb4d76c0bfd52d8d0671d74aa79d788d77d9a4cb0add294a81de58",
+    "source-snapshot/pdc-email-ai-successor-source-3cea2add.tar.gz": "b65ed3e140c7120cfe2f2d1b0f1e4d3dd7ceae509696d8ed3c3d3f04838cf2e3"
+  },
+  "pack_version": "pdc-email-ai-recovery-pack-v1",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "release_url": "https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1",
+  "secret_policy": {
+    "outbound_email": false,
+    "plaintext_secrets": false,
+    "production": false,
+    "runtime_service_role": false
+  },
+  "source_branch": "feature/pdc-email-ai-transaction-successor",
+  "source_commit": "3cea2add32bd9089c99a6df99f6f0298e08a37f4",
+  "source_repository": "BTNew/pdc-control-board-staging"
+}

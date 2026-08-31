@@ -1,0 +1,30 @@
+[
+  {
+    "operation_no": "OP1",
+    "work_key": "fitting",
+    "description": "Fit steel bull bar",
+    "estimated_hours": 5.18,
+    "estimated_hours_source": "job_card"
+  },
+  {
+    "operation_no": "OP2",
+    "work_key": "electrical",
+    "description": "Install 12V accessory socket",
+    "estimated_hours": 1.0,
+    "estimated_hours_source": "job_card"
+  },
+  {
+    "operation_no": "OP3",
+    "work_key": "fitting",
+    "description": "Loose safety triangle kit",
+    "estimated_hours": 0.0,
+    "estimated_hours_source": "job_card"
+  },
+  {
+    "operation_no": "OP4",
+    "work_key": "fitting",
+    "description": "Install weather shields",
+    "estimated_hours": 0.75,
+    "estimated_hours_source": "job_card"
+  }
+]
