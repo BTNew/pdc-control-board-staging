@@ -57,8 +57,9 @@ CREATE TRIGGER pdc_monitor_exact_requeue_history_immutable_862 BEFORE UPDATE OR 
 DO $requeue$
 DECLARE v_before jsonb; v_after jsonb; v_id uuid; v_event_key text; v_attachment_count integer;
 BEGIN
- SELECT to_jsonb(i),i.id INTO v_before,v_id FROM public.ai_email_intake i WHERE i.id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid AND i.provider_uid='imap_uid:692' AND i.status='failed' AND i.permanent_failure FOR UPDATE;
+ SELECT to_jsonb(i),i.id INTO v_before,v_id FROM public.ai_email_intake i WHERE i.id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid AND i.provider_uid='imap_uid:692' AND i.status='failed' AND i.source_hash='cdc66328f62d3eac365127763ac13ed01da83fe16ca951029d17360db6553565' AND i.queue_attempts=2 AND i.permanent_failure AND i.retry_class='permanent' AND i.locked_at IS NULL AND i.locked_by IS NULL AND i.claim_token IS NULL AND i.gateway_instance_id IS NULL AND i.last_error_code='worker_exception' FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'PDC_862_EXACT_REQUEUE_TARGET_LOST' USING errcode='55000'; END IF;
+ PERFORM 1 FROM public.ai_email_attachments a WHERE a.intake_id=v_id FOR UPDATE;
  SELECT count(*) INTO v_attachment_count FROM public.ai_email_attachments WHERE intake_id=v_id;
  UPDATE public.ai_email_intake AS i SET status='received',permanent_failure=false,retry_class=null,next_attempt_at=clock_timestamp(),locked_at=null,locked_by=null,claim_token=null,gateway_instance_id=null,error_details=null,last_error_code=null WHERE i.id=v_id AND i.status='failed' AND i.permanent_failure RETURNING to_jsonb(i.*) INTO v_after;
  IF NOT FOUND THEN RAISE EXCEPTION 'PDC_862_EXACT_REQUEUE_CONCURRENT_DRIFT' USING errcode='40001'; END IF;

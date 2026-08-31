@@ -42,6 +42,8 @@ class ExactRetryAfterStorageRepair862ContractTests(unittest.TestCase):
             "before_state",
             "after_state",
             "where i.id=v_id",
+            "i.source_hash='cdc66328f62d3eac365127763ac13ed01da83fe16ca951029d17360db6553565'",
+            "for update",
             "status='received'",
         ):
             self.assertIn(marker, self.lower)
