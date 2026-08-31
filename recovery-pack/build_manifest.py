@@ -12,7 +12,7 @@ TEXT_SUFFIXES = frozenset({".json", ".md", ".py", ".ps1", ".txt"})
 
 
 def canonical_digest(data: bytes, path: Path) -> str:
-    if path.suffix.lower() in TEXT_SUFFIXES:
+    if path.name == ".gitattributes" or path.suffix.lower() in TEXT_SUFFIXES:
         data = data.replace(b"\r\n", b"\n")
     return hashlib.sha256(data).hexdigest()
 
