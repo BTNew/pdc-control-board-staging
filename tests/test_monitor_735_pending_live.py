@@ -66,14 +66,15 @@ class Monitor735PendingLiveTests(unittest.TestCase):
     def test_pending_attachment_read_and_result_record_are_scoped_and_rollback_safe(self):
         self.cur.execute(
             "select public.claim_pdc_email_intake_authenticated_exact_732(%s,%s)",
-            (1, GATEWAY),
+            (10, GATEWAY),
         )
         claim_result = self.cur.fetchone()[0]
         self.assertTrue(claim_result["ok"], claim_result)
         records = claim_result.get("items") or []
-        if not records:
-            self.skipTest("no current eligible queue row available")
-        record = records[0]
+        record = next((item for item in records if item.get("id") == "0172352b-6045-4ab4-83ba-c8069c9ab8de"), None)
+        if record is None:
+            self.skipTest("affected intake was not claimable")
+        self.assertEqual(record.get("provider_uid"), "imap_uid:692")
         intake_id = record["id"]
         claim_token = record["claim_token"]
         self.cur.execute(

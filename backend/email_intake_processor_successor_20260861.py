@@ -485,6 +485,8 @@ def analyze_record(record: dict[str, Any], attachments: list[AttachmentEvidence]
 
 def canonical_jobcard_request(record: dict[str, Any], proposal: ExtractionProposal) -> dict[str, Any]:
     """Create the exact retained pmb-email-work-v2 request, or fail closed."""
+    if any(not row.get("storage_path") for row in proposal.evidence):
+        raise RuntimeError("canonical job card requires complete attachment storage evidence")
     usable = [row for row in proposal.evidence if row.get("extraction_status") == "extracted" and row.get("extracted_text")]
     if len(usable) != 1:
         raise RuntimeError("canonical job card requires exactly one extracted attachment")
@@ -636,8 +638,18 @@ class SupabaseClient:
         rows = result.get("attachments") if result.get("ok") is True else []
         evidence: list[AttachmentEvidence] = []
         for row in rows if isinstance(rows, list) else []:
-            path = self._download_attachment(str(row.get("storage_path") or ""), str(row.get("file_name") or ""), str(row.get("source_hash") or ""))
-            evidence.append(AttachmentEvidence(str(row.get("id") or ""), str(row.get("file_name") or ""), str(row.get("source_hash") or ""), path))
+            attachment_id = str(row.get("id") or "")
+            filename = str(row.get("file_name") or "")
+            source_hash = str(row.get("source_hash") or "")
+            storage_path = str(row.get("storage_path") or "")
+            if not storage_path:
+                evidence.append(AttachmentEvidence(
+                    attachment_id, filename, source_hash, "", extraction_status="failed",
+                    extraction_error="provider marked attachment storage unavailable; review required",
+                ))
+                continue
+            path = self._download_attachment(storage_path, filename, source_hash)
+            evidence.append(AttachmentEvidence(attachment_id, filename, source_hash, path))
         return evidence
 
     def heartbeat(self, intake_id: str, claim_token: str) -> dict[str, Any]:
