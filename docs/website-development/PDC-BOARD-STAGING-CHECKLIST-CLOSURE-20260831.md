@@ -4,7 +4,7 @@ Dashboard reference: `20260831_100550_0dcd0a`
 Environment: STAGING only (`cdsmnqxtyyoeoznmbidd`)
 Production: not contacted or mutated
 Release worktree: `C:/Users/nwmgr/HermesWorkspaces/development/pdc-board-checklist-closure-20260831`
-Published staging tip: `feefff24cccc07a85b262558a33225ede3dec137`
+Published staging tip: current `staging/main` remote ref, verified after this report commit
 Implementation commit: `875864ffd6412686a0467157167d64381373d284`
 
 Evidence rule: an item is ticked only where the current implementation, a focused regression, and authoritative staging readback/UI evidence agree. Existing staging proofs cited below were re-used rather than duplicated.
