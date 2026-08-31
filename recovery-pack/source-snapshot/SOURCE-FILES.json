@@ -56,9 +56,9 @@
       "sha256": "fd8cf2bceb3cfab35c9d922d07104c30b0fc4b278370bff7c819a86759dd234e"
     },
     {
-      "bytes": 5828,
+      "bytes": 6166,
       "path": "scripts/activate_pdc_email_ai_successor_20260869.ps1",
-      "sha256": "1e75ab218790bb8dfdee5260a1e2cfa2f0413c04eec6371304573d42ab0206f8"
+      "sha256": "bddf433d8073eec8d7f897de849ff517db30e629a45058318e7c28be6590566a"
     },
     {
       "bytes": 2722,
@@ -221,5 +221,5 @@
       "sha256": "88e0beb73571962e19b0f8945be26c17a8b793e5616e7173c85000016986d62a"
     }
   ],
-  "source_commit": "3cea2add32bd9089c99a6df99f6f0298e08a37f4"
+  "source_commit": "589b09e519c146e57a0a4e60f028e7c5bdbe616f"
 }
