@@ -51,6 +51,15 @@ class Monitor735PendingLiveTests(unittest.TestCase):
         if self.cur.fetchone() is None:
             self.skipTest("affected staging intake is unavailable")
         self.cur.execute(
+            "select count(*) from public.ai_email_attachments where id='c466f67e-5db6-40a9-8b9b-f20b80d7c6d8'::uuid"
+        )
+        if self.cur.fetchone()[0] == 0:
+            self.cur.execute(
+                "insert into public.ai_email_attachments(id,intake_id,graph_attachment_id,file_name,content_type,size_bytes,source_hash,storage_path,text_extraction_status,created_at) "
+                "values('c466f67e-5db6-40a9-8b9b-f20b80d7c6d8'::uuid,'0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid,'imap_uid:692:part-02','image.png','image/jpeg',143876,%s,null,'failed','2026-08-31T01:15:36.522780+00:00'::timestamptz)",
+                ("64e39069be7b13b3a478ad5e2386cbe3978e59d27a25b06595fc8f7a226fbaa3",),
+            )
+        self.cur.execute(
             "update public.ai_email_intake set status='received',next_attempt_at=clock_timestamp(),locked_at=null,locked_by=null,claim_token=null,gateway_instance_id=null,permanent_failure=false,retry_class=null where id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid"
         )
         self.cur.execute(
