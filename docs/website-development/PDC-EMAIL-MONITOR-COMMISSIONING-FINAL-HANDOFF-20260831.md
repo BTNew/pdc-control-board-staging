@@ -1,4 +1,4 @@
-# PDC Email Monitor — STAGING commissioning final handoff (blocked)
+# PDC Email Monitor — STAGING commissioning final handoff (human-only activation blocker)
 
 Date: 2026-08-31
 Environment: STAGING only (`cdsmnqxtyyoeoznmbidd`)
@@ -9,42 +9,44 @@ Outbound email: disabled; no email sent
 
 ## Authoritative current state
 
-Commissioning is not complete. The fresh elevated `.68` installation receipt is valid (`ok=true`, started `2026-08-30T23:32:28.8262150Z`) and proves `CURRENT=2026.08.68`, protected release/control/trust/secrets ACLs, complete installed inventory, and the exact `LOCAL SERVICE` / `ServiceAccount` / `Limited` / `PT5M` task identity.
+Commissioning is not complete. The elevated `.69` installation receipt is valid (`ok=true`, started `2026-08-31T04:56:16.9486364Z`) and proves `CURRENT=2026.08.69`, inventory verification exit `0`, the pinned `.69` manifest/parent/bridge hashes, and a disabled `LOCAL SERVICE` / `ServiceAccount` / `Limited` / `PT5M` task.
 
-A later natural cycle exposed a new protected-runtime defect: immediately after a verified attachment upload, the authenticated Storage readback returned the exact eventual-consistency response `HTTP 400 / NoSuchKey / statusCode 404 / Object not found`. The task failed closed before enqueue completion. Native task readback at `2026-08-31T04:11:40Z` showed it safely Disabled, enabled=false, `LastTaskResult=1`, last run `2026-08-31T11:38:34+08:00`.
+Fresh native task readback at `2026-08-31T07:45:09Z` remains safely fail-closed:
 
-The previous success narrative and natural-cycle proof are superseded by this later authoritative failure. Replay/idempotency, duplicate protection and Board readback are not credited for the failed rerun.
+- State: `Disabled`
+- Enabled: `false`
+- Principal: `LOCAL SERVICE`
+- Logon type: `ServiceAccount`
+- Run level: `Limited`
+- Trigger: `PT5M`
+- Last natural run: `2026-08-31T06:23:34Z`
+- Last task result: `1`
 
-## Prepared protected successor
+The latest runtime status failed closed on the `.69` monitor path after the exact bounded NoSuchKey retries were exhausted. No successful post-failure natural cycles are credited.
 
-Release `2026.08.69` adds only a bounded retry for the exact post-upload eventual-consistency response: three authenticated readback attempts with 0.25s and 0.5s delays. Near-miss errors, exhausted retries and content/hash/size/MIME mismatches remain fail-closed.
+## Activation defect repaired
 
-- Bundle: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/pdc-monitor-staging-m502-2026.08.69`
-- Manifest SHA-256: `fa528d8d1ce405b430dc265ded7dca69cc7b49e8d190b90d9e55576b32a1a823`
-- Parent manifest SHA-256: `f55c8ba1f06b342fd3205f5a287f4793cb242d886759218a7470482c7c36f18b`
-- Bridge SHA-256: `d19f1ee93b5c45169d10e77956677909d2b5844e4aea3ce2e028c0b2edc30071`
-- Verification: focused regression 4/4 passed; complete 3,350-file inventory verifier passed.
-- Receipt-backed launcher: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/PDCMonitor-Install-20260869.ps1`
-- Launcher SHA-256: `63fc062f82e2a0e12871e49cad8ea366bd55a5e73baad98bff03aa1fba45d3f1`
-- Elevated stage SHA-256: `1cb25a96dccc3ab4dea8c490616cdba93f88654a3e73441ac49f8c701358e5d8`
-- Both PowerShell files parse with zero syntax errors. The installer requires the task to remain Disabled and does not enable or start it.
+The human-approved enable-only activation at `2026-08-31T07:28:30Z` completed its authenticated STAGING observer successfully but failed at task enablement. The first COM task lookup used an invalid doubled root/task path and returned `HRESULT 0x80070002` (`The system cannot find the file specified`). It did not start the task, call OneCycle, contact the mailbox, send outbound email, or contact Production.
 
-## Human-only blocker and continuation
+The routine source defect is repaired in commit `3cea2add`:
 
-One interactive Administrator UAC approval is required because the successor must be written into inheritance-protected ProgramData. No UAC was launched by the unattended cron run.
+- activation now uses native `Enable-ScheduledTask` rather than the invalid COM lookup;
+- the observer uses the protected installed Python runtime rather than a user-local interpreter;
+- focused activation contract: `2/2` passed;
+- full test and check verification: `229 passed, 0 failed, 1 skipped` for each command;
+- `git diff --check`: passed;
+- corrected activation script SHA-256: `1e75ab218790bb8dfdee5260a1e2cfa2f0413c04eec6371304573d42ab0206f8`.
 
-Shortest action: right-click `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/PDCMonitor-Install-20260869.ps1`, choose **Run with PowerShell**, and approve the single UAC prompt.
+A new pinned enable-only launcher is prepared at:
 
-After a fresh `.69` `install-receipt.json` records `ok=true`, Hermes will keep scheduling disabled, run protected VerifyOnly and bounded OneCycle, enable the exact PT5M task, prove two distinct natural `LastTaskResult=0` cycles, and complete authoritative mailbox/processor/Board, replay/idempotency, duplicate-protection, outbound-disabled and Production-exclusion readback.
+`C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/PDCMonitor-Activate-20260869.ps1`
 
-## Superseding .69 failure and corrected installer path
-
-The `.69` elevated attempt at `2026-08-31T04:19:40Z` failed closed after `CURRENT` became `.69`: inventory verification could not read the newly ACL-protected `.69/release-manifest.json` and returned Access Denied. The later `04:20` wrapper produced no fresh receipt and is treated as cancelled. No mailbox, UID514, outbound or Production action occurred; the task remains Disabled / `LOCAL SERVICE` / `Limited` / `PT5M` with result `1`.
-
-The corrected path repairs only installer/verifier ordering. It pins the installer/verifier hashes, grants only direct temporary elevated-SID access to the existing target/manifest and ancestors when needed, verifies the external immutable bundle, lets the installer own final ACL hardening, and restores temporary snapshots only on failure. No ACL reset, `takeown`, permanent user grant, task enable or task start is used. Installer and rollback now assert the exact task identity and `PT5M` trigger.
-
-Preparation receipt: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/corrected-installer-path-preparation-receipt.json`; ordering/security tests `8 passed`; PowerShell parse passed; UAC was not launched.
+Launcher SHA-256: `5d13ab976034f114c0cc84ab48ce050a4eaf2d550f29aae40b560fc0bbf93bd6`; PowerShell parse errors: `0`. It validates the corrected activation script hash, never reruns the installer, never starts the task manually, and writes a redacted activation launch record.
 
 ## New human-only blocker
 
-The inheritance-protected `.69` ProgramData release cannot be repaired or fully read back non-elevated. Do not launch another UAC prompt from this worker. When Craig is available, the shortest action is one run of `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/PDCMonitor-Install-20260869.ps1` and approval of its single UAC request. Completion remains unclaimed until the corrected receipt reports `ok=true`, then VerifyOnly, disabled bounded OneCycle and two natural zero-result cycles are freshly proven.
+Changing the protected Scheduled Task from Disabled to Enabled requires one interactive Administrator elevation. The unattended commissioning lane cannot safely obtain that UAC consent and did not launch another prompt.
+
+Shortest action: run `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/PDCMonitor-Activate-20260869.ps1` with PowerShell and approve its single UAC prompt.
+
+After a successful enable-only receipt, Hermes must still prove two distinct natural `LastTaskResult=0` PT5M cycles and complete authoritative monitor/mailbox/processor/Board, replay/idempotency, duplicate-protection, outbound-disabled, mailbox-flag/UID514 preservation, and Production-exclusion readback before commissioning can be claimed complete.
