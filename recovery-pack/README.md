@@ -5,7 +5,7 @@ Environment: STAGING only (`cdsmnqxtyyoeoznmbidd`)
 Dashboard: `20260831_095314_64feeb`
 Production: prohibited; no Production credential, endpoint, branch, data or release is part of this pack.
 
-Authoritative private release: `https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.6`
+Authoritative private release: `https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.7`
 
 ## Portable recovery answer
 
@@ -48,7 +48,7 @@ External protected connectors are supplied by environment variable names documen
 - `source-snapshot/` — source snapshot manifest and exact Git provenance; the immutable Git release remains authoritative.
 - `TRANSPORT-BUNDLE.json` / `TRANSPORT-BUNDLE.md` — exact `.69` full transport asset name, SHA-256, size and installation boundary.
 
-The private v1.6 release also carries `pdc-monitor-staging-m502-2026.08.69.tar.gz`, the 3,351-file secretless transport asset required for clean-room Windows installation.
+The private v1.7 release also carries `pdc-monitor-staging-m502-2026.08.69.tar.gz`, the 3,351-file secretless transport asset required for clean-room Windows installation.
 
 ## Secret boundary
 
