@@ -71,6 +71,14 @@ assert.match(activeHtml, /pdc-station-sublet is-required is-ordered/);
 assert.match(activeHtml, /aria-label="Sublet booked"/);
 assert.match(activeHtml, /title="Sublet booked"/);
 assert.doesNotMatch(activeHtml, /Sublet Booked/);
+const canonicalCountWins = mapServerVehicle({
+  id: 'b3c293fb-0453-56da-86a6-9c3511cc2fe7', stock_number: '13080534', version: 11,
+  work_items: [{ work_key: 'sublet', required: true, completed: false }],
+  sublet_active_count: 0,
+  sublet_bookings: [{ booking_id: '475efd0a-1cb9-4f3a-bf02-483afe6ff5ac', provider_id: '4cbd486c-78c2-42ce-987a-99d45d1eeaf4', status: 'active', out_date: '2026-09-05', expected_return_date: '2026-09-12' }],
+});
+assert.strictEqual(canonicalCountWins.pdcCompleteSublet, false,
+  'canonical active booking must win over a stale redundant active-count field');
 const ambiguousActiveHtml = context.renderIncoming({ ...activeVehicle, pdcSubletBookings: [
   ...activeVehicle.pdcSubletBookings,
   { ...activeVehicle.pdcSubletBookings[0], bookingId: '575efd0a-1cb9-4f3a-bf02-483afe6ff5ac' },

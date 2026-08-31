@@ -249,7 +249,7 @@ function mapServerVehicle(row = {}) {
     version: Number(booking?.version || 0), updatedAt: booking?.updated_at || '',
   })).filter(booking => booking.bookingId && booking.providerId);
   mapped.pdcSubletBookings = canonicalBookings;
-  mapped.__subletActiveCount = Number(row.sublet_active_count ?? canonicalBookings.filter(booking => booking.status === 'active').length);
+  mapped.__subletActiveCount = canonicalBookings.filter(booking => booking.status === 'active').length;
   // Multi-provider snapshots do not populate the legacy singular work item.
   // Active bookings require incomplete Sublet; returned bookings retain a
   // completed historical requirement; cancelled-only rows remain optional.
