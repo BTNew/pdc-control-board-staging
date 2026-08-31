@@ -1,5 +1,8 @@
 {
   "transport_release": "2026.08.71",
+  "transport_mode": "windows-temporary-rollback-only",
+  "preferred_transport": "hosted-server-side-provider-neutral",
+  "business_authority": false,
   "parent_release": "2026.08.69",
   "bundle_manifest_sha256": "b68ba314cc91e0a3aa91d3c383d1cd19f5f56197bd94b2b92d61c60ea267322d",
   "parent_manifest_sha256": "fa528d8d1ce405b430dc265ded7dca69cc7b49e8d190b90d9e55576b32a1a823",
@@ -20,5 +23,5 @@
     "production": false,
     "outbound_email": false
   },
-  "installation": "Extract the archive to an external path, verify the raw archive, manifest, parent, storage, processor, control, trust and venv hashes, then use the bundled PDCMonitor-Install-20260871.ps1 once with the protected owner UAC path. The installer stages and atomically publishes .71, preserving .68/.69, and enables only the existing LOCAL SERVICE/ServiceAccount/Limited/PT5M task after preflight."
+  "installation": "Optional rollback only: extract the archive to an external path, verify the raw archive, manifest, parent, storage, processor, control, trust and venv hashes, then use the bundled PDCMonitor-Install-20260871.ps1 once with the protected owner UAC path. The installer stages and atomically publishes .71, preserving .68/.69, and enables only the existing LOCAL SERVICE/ServiceAccount/Limited/PT5M task after preflight. It does not replace hosted transport, the AI planner/model, business rules, taxonomy or Supabase action contract."
 }

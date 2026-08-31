@@ -12,6 +12,16 @@ Names only. Values are supplied by the protected owner/runtime connector at exec
 
 ## Dedicated runtime
 
+- `PDC_SUCCESSOR_TRANSPORT_MODE` — `hosted` by default; `windows-rollback` only with an explicit temporary rollback record
+- `PDC_SUCCESSOR_TRANSPORT_VERSION`
+- `PDC_SUCCESSOR_PLANNER_VERSION`
+- `PDC_SUCCESSOR_MODEL_VERSION`
+- `PDC_SUCCESSOR_PROMPT_VERSION`
+- `PDC_SUCCESSOR_BUSINESS_RULE_VERSION`
+- `PDC_SUCCESSOR_RULESET_VERSION`
+- `PDC_SUCCESSOR_TAXONOMY_VERSION`
+- `PDC_SUCCESSOR_ACTION_CONTRACT_VERSION`
+- `PDC_SUCCESSOR_SUPABASE_ACTION_VERSION`
 - `PDC_SUCCESSOR_RUNTIME_SECRET_STORE` — protected DPAPI/ACL path supplied by the owner profile
 - `PDC_SUCCESSOR_RUNTIME_EMAIL` — identity metadata only; not a password
 - `PDC_SUCCESSOR_RUNTIME_GATEWAY`
@@ -29,6 +39,10 @@ Names only. Values are supplied by the protected owner/runtime connector at exec
 - `PDC_EMAIL_AI_OBSERVER_COMMAND`
 
 The sender connector remains owned by the `pdc-emails` profile. This website-development profile must not copy or read its mailbox secret.
+
+The hosted transport connector is the normal portable path. Windows DPAPI,
+ProgramData and task-install variables are optional temporary rollback inputs;
+their absence must not prevent hosted clean-room commissioning.
 
 ## Gate command handoff
 

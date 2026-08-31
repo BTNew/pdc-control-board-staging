@@ -1,5 +1,34 @@
 # Known failure modes and repairs
 
+## Hosted transport and temporary Windows rollback
+
+Hosted/server-side transport is the preferred, replaceable evidence transport.
+The Windows `.68/.69/.71` lineage is temporary rollback-only and must not be
+selected as an implicit fallback or make any planner/business decision. A
+transport replacement must preserve source/attachment digests, receipt identity,
+action keys and all independent version fields.
+
+If the hosted connector is unavailable, record a typed transport failure and
+stop or use the explicitly approved temporary Windows rollback lane. Do not
+silently switch transport, planner, taxonomy or business rules.
+
+## Planner/model outage and deterministic boundary
+
+The AI planner/model is the normal live interpretation engine. Deterministic
+logic is allowed only for fixtures, regression, contract validation and explicit
+fail-safe checks. An unavailable/failed planner becomes
+`FAILED_QUEUED_RETRY`, quarantine or `BLOCKED_EXACT_REASON` with provenance; it
+must never silently invoke deterministic live interpretation.
+
+## Conditional evidence and independent actions
+
+Job Card and attachment gates are action-specific. A missing artifact blocks only
+the action whose matrix row requires it. Sublet additionally requires explicit
+Job Card `SUBLET` or explicit staff/provider/booking evidence and one exact
+canonical booking/provider instance; generic wording cannot create or move a
+booking. Each action retains its own disposition, audit event, provenance and
+readback, and a mixed-result plan is `PARTIAL_FAILURE`.
+
 ## Windows ACL representation
 
 The installer grants `S-1-5-19` read/execute with `(OI)(CI)(RX)`, but `icacls` commonly renders that as `NT AUTHORITY\\LOCAL SERVICE:(OI)(CI)(RX)`. The verifier must accept both representations and must not reset inheritance, grant write access or weaken protected ACLs.

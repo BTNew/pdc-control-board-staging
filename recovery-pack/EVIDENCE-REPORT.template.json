@@ -28,7 +28,10 @@
     "canonical_vehicle_id": "[UUID]",
     "typed_plan": null,
     "versions": null,
+    "decision_provenance": null,
+    "conditional_evidence": null,
     "action_receipts": [],
+    "action_audit_events": [],
     "authoritative_readback": null,
     "board_ui_parity": null,
     "replay_zero_effects": null,
@@ -42,7 +45,10 @@
     "unauthorized_mailbox_flags_changed": false,
     "service_role_runtime": false,
     "plaintext_secrets": false,
-    "legacy_068_rollback_preserved": true
+    "legacy_068_rollback_preserved": true,
+    "hosted_transport_preferred": true,
+    "windows_transport_temporary_rollback_only": true,
+    "deterministic_silent_fallback": false
   },
   "status": "TEMPLATE_ONLY_NATURAL_PROOF_PENDING"
 }

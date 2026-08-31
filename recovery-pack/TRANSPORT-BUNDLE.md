@@ -1,6 +1,10 @@
 # Transport bundle contents
 
-The full `.71` transport asset is published separately with the private Recovery Pack release because it contains the complete 3,359-file Python/runtime inventory and is too large for the pack source tree.
+The full `.71` Windows transport asset is published separately with the private
+Recovery Pack release because it contains the complete 3,359-file
+Python/runtime inventory and is too large for the pack source tree. It is an
+optional, temporary rollback asset only. Hosted/server-side transport is the
+preferred replaceable path and remains the portable/default design.
 
 Asset: `pdc-monitor-staging-m502-2026.08.71.tar.gz`
 
@@ -16,6 +20,14 @@ Verify before extraction/use:
 - trust-values SHA-256: `641bd8b1f5cd367ba8b2bed1f9baf4984b43f175956d5570524c429b52587e2b`
 - live staging head: `20260831380000`
 
-The bundle contains the reviewed `.71` installer, elevated installer, verifier, receipt schema, venv contract, active bootstrap/dispatch/preflight controls and the exact storage-readback/quarantine repairs. It contains no mailbox password, runtime password, Supabase service key, DPAPI secret or Production credential.
+The bundle contains the reviewed `.71` installer, elevated installer, verifier,
+receipt schema, venv contract, active bootstrap/dispatch/preflight controls and
+the exact storage-readback/quarantine repairs. It contains no mailbox password,
+runtime password, Supabase service key, DPAPI secret or Production credential.
+It must not be treated as a second planner or business-action implementation.
 
-The installer stages protected bundle/control/trust/venv/config trees, preserves `.68` and `.69`, updates the task only after readback gates pass, and never performs a manual task run or OneCycle.
+The installer stages protected bundle/control/trust/venv/config trees, preserves
+`.68` and `.69`, updates the task only after readback gates pass, and never
+performs a manual task run or OneCycle. Installation is permitted only when the
+temporary Windows rollback gate is explicitly recorded; it does not change the
+hosted transport, planner, business rules, taxonomy or Supabase action contract.

@@ -137,3 +137,71 @@ This file records established PDC Control Board behaviour independent of any cha
 - Production deployment with real vehicle/customer data requires confirmed authentication and access control before release.
 - Version/cache strings in HTML and JS must match so browsers fetch new assets.
 - Verify both local and live sites after deployment.
+
+## PDC Email AI Transaction Successor — authoritative STAGING rules
+
+The successor uses a replaceable, preferably hosted mailbox transport. Transport
+only receives and retains evidence; it has no PDC classification or business-write
+authority. The existing Windows monitor/`.68` lineage is a temporary rollback
+transport while hosted transport is unavailable or being commissioned. It is not
+the normal engine, must not make a silent fallback decision, and may be removed
+without changing planner or domain-action semantics.
+
+### Action evidence matrix
+
+Evidence is evaluated independently for each typed action. An artifact supplied
+for one action cannot satisfy another action unless the action receipt explicitly
+references the same immutable evidence and the rule permits that reference.
+
+| Action | Job Card requirement | Attachment requirement | Minimum additional evidence |
+|---|---|---|---|
+| `activate_from_navision` | Not required | Not required | Unambiguous Stock/Toyota identity plus authoritative Navision/backend evidence |
+| `location_set` | Not required | Not required | Explicit unambiguous location instruction and identity evidence |
+| `workgroup_requirement_set` | Required for Job Card-derived work; otherwise not required | Required when the Job Card is the source; otherwise not required | Explicit work signal; no inferred GVM/Tyre crossover |
+| `operation_upsert` | Required | Required valid Job Card attachment containing the operation | Source operation number, complete description and hours, including explicit zero |
+| `job_card_upsert` | Required | Required valid Job Card attachment | Job Card identity and complete operation evidence |
+| `parts_eta_set` | Not required | Not required | Explicit Parts ETA evidence; ETA-only action must not alter Parts completion/order |
+| `parts_ordered` / `parts_complete` | Not required | Not required | Explicit Parts state evidence and authoritative identity |
+| `notes_append` | Not required | Not required | Source text evidence retained in the immutable receipt |
+| `sublet_booking_upsert` | Required when the evidence is a Job Card; otherwise not required | Required only when the Job Card is the source | Explicit Job Card `SUBLET` or explicit staff/provider/booking evidence, one exact canonical booking/provider instance |
+| `rft_transfer` / `rft_collect` | Not required | Not required | Explicit lifecycle instruction plus all canonical completion/Parts gates |
+
+Missing evidence blocks only the affected action with an exact reason. It does
+not suppress, rewrite or automatically block unrelated actions in the same mail.
+Sublet generic provider wording, an approximate booking, or an attachment that
+does not prove the requested instance is not sufficient and must not create or
+move a booking.
+
+### Planner, dispositions and audit
+
+The configured AI planner/model is the normal interpretation engine. Deterministic
+code is permitted only for fixtures, regression tests, contract validation and
+explicit fail-safe checks. Planner/model failure is visible as a typed retry,
+quarantine or blocked result; it never silently invokes deterministic live
+interpretation.
+
+Each action, including `NOT_APPLICABLE`, `SUPERSEDED`, blocked and failed actions,
+must have exactly one terminal disposition, its own action receipt and an
+action-level `audit_events` record. The record includes planner version, model
+version, prompt version, business-rules/ruleset version, taxonomy version,
+transport release version, Supabase action-contract version, source/evidence
+digests, reason, before/requested/result values and authoritative readback. The
+transaction aggregate is `PARTIAL_FAILURE` whenever requested actions have
+different outcomes.
+
+These version domains are independent and separately deployable: transport,
+planner/model, prompt, business rules/ruleset, taxonomy and Supabase action
+contract. A mismatch is rejected or queued for explicit repair; no silent
+compatibility or version substitution is allowed.
+
+### Retained safety controls and clean-room portability
+
+The successor retains the dedicated authenticated non-Administrator runtime,
+service-role exclusion, browser/direct-DML/arbitrary-SQL exclusion, forced RLS,
+staging and Production sentinel guards, immutable source/attachment evidence,
+stable replay keys, independent authoritative readback, no automatic outbound
+email, bounded retry/quarantine and preserved rollback. A clean-room Recovery
+Pack must work from immutable pack/source contents and explicitly injected
+protected connector interfaces only. Hermes memory/cache, undocumented local
+files, copied runtime state and a pre-existing Windows task are not dependencies;
+hosted transport is the portable path and Windows rollback is optional.

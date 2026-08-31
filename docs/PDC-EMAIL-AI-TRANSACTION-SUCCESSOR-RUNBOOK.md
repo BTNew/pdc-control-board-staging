@@ -7,6 +7,10 @@ Production is prohibited. Do not use Production remotes, branches, data,
 credentials, service role, Administrator runtime identity, browser writes or
 outbound email.
 
+`recovery-pack/ARCHITECTURE.md` is the authoritative design baseline. This
+runbook is STAGING design only and must not be used to revive a superseded
+transport, planner fallback or global evidence gate.
+
 ## Artifact
 
 Worktree:
@@ -38,27 +42,36 @@ revision table. The legacy `.68` review surface remains hidden and untouched.
 
 ## Four-layer operation
 
-1. `pdc_email_ai_successor_intake.py` stores RFC822 bytes and original bounded
-   attachments by digest and emits only evidence metadata. It has no PDC
-   action code.
+1. The hosted, provider-neutral transport stores RFC822 bytes and original
+   bounded attachments by digest and emits only evidence metadata. It has no
+   PDC action code. The Windows monitor is an explicitly temporary rollback
+   transport only, with the same evidence-only contract.
 2. `pdc_email_ai_successor_planner.py` accepts complete correspondence,
    extracted PDF text and authoritative contexts and emits only the strict
-   `pdc-email-ai-plan-v1` JSON contract.
+   `pdc-email-ai-plan-v1` JSON contract. The configured AI planner/model is the
+   normal engine; deterministic code is limited to fixtures, regression,
+   validation and fail-safe checks and never silently replaces the planner.
 3. The single SQL command RPC validates identity-to-vehicle binding, source receipt/digest,
-   versions, expected vehicle versions and stable action keys, then dispatches
-   only to fixed existing canonical RPCs. Unsupported role/capability paths
-   become `BLOCKED_EXACT_REASON`.
+   action-specific Job Card/attachment/Sublet evidence, independently bound
+   transport/planner/model/prompt/business-rule/ruleset/taxonomy/Supabase
+   action-contract versions, expected vehicle versions and stable action keys,
+   then dispatches only to fixed existing canonical RPCs. Unsupported
+   role/capability paths become `BLOCKED_EXACT_REASON`.
 4. `pdc_email_ai_successor_executor.py` calls the command once and separately
    calls `get_pdc_email_vehicle_location_snapshot()`. It does not accept HTTP
-   success, `ok=true`, a receipt, or UI appearance as readback proof.
+   success, `ok=true`, a receipt, or UI appearance as readback proof. Every
+   action receives its own audit record, readback and terminal disposition.
 
 ## Staging preflight
 
-Use the existing protected/DPAPI staging connector. Pass the exact STAGING
-Supabase URL through the connector; never put its token, password, DSN or
-mailbox secret in this repository. The migration itself requires:
+Use the protected STAGING connector. The preferred transport is the hosted
+provider-neutral adapter; use the Windows DPAPI monitor only when the explicit
+temporary rollback gate is active. Pass the exact STAGING Supabase URL through
+the connector; never put its token, password, DSN or mailbox secret in this
+repository. The migration itself requires:
 
 - the STAGING sentinel for project `cdsmnqxtyyoeoznmbidd`;
+- an independently versioned transport binding and a configured AI planner/model binding;
 - live migration predecessor `20260831290000 / 863_exact_retry_after_storage_repair`;
 - no Production sentinel;
 - no existing successor version `20260831300000`;
@@ -79,10 +92,14 @@ model, prompt, taxonomy, rules and action versions.
 Provisioning is an installation action, not runtime authority. The runtime
 must receive only an authenticated token for that identity through the approved
 connector. It must never receive a service-role key, database password,
-Administrator token or arbitrary SQL capability.
+Administrator token or arbitrary SQL capability. The binding must carry
+independent transport, planner/model, prompt, business-rule/ruleset, taxonomy
+and Supabase action-contract versions.
 
-Do not enable the existing Email Monitor task. The successor transport remains
-`disabled` until the full staging gates pass.
+Do not enable the existing Email Monitor task. The preferred hosted successor
+transport remains disabled until the full staging gates pass. The Windows
+transport may be enabled only as the named temporary rollback lane, never as an
+implicit AI or business-rule fallback.
 
 ## Apply and health proof
 
@@ -115,7 +132,9 @@ Run the SQL parser and project regression suite:
 Then run only controlled STAGING fixtures through the authenticated successor
 identity. Every run must retain a source receipt, plan/action versions, action
 keys, before/requested/result values, canonical RPC, readback, retry count,
-disposition and duration.
+disposition, per-action audit event and duration. Every action must include
+planner/model/prompt/business-rule/ruleset/taxonomy and source/evidence digest
+provenance, including blocked and not-applicable decisions.
 
 Required sequence:
 
@@ -128,6 +147,8 @@ Required sequence:
 - complete Job Card PDF with all OP lines and explicit zero hours;
 - revised/disregarded Job Card supersession;
 - one email with at least three actions and one email with two vehicles;
+- mixed-result multi-action email proving independent dispositions, action-level
+  AI Intake audit and aggregate `PARTIAL_FAILURE`;
 - hostile/unknown action, ambiguous identity/date and generic external wording;
 - exact replay and duplicate attachment/graph ID;
 - malformed historical quarantine while an unrelated live sibling completes;
@@ -149,11 +170,16 @@ Retry only bounded transient transport/token/provider failures, maximum three
 attempts with 1/2/4 second backoff. Deterministic validation, permission,
 identity, business-rule and readback mismatches do not retry forever. Repeated
 failure is quarantined with its immutable reason and surfaced through health;
-live sibling receipts continue.
+failure is quarantined with its immutable reason and surfaced through health;
+live sibling receipts continue. AI planner/model outage is never silently
+handled by deterministic interpretation: it is an explicit
+`FAILED_QUEUED_RETRY`, quarantine or `BLOCKED_EXACT_REASON` decision with
+provenance.
 
 ## Disable and rollback
 
-To disable the successor, stop its isolated transport, revoke its authenticated
+To disable the successor, stop its isolated hosted transport (or the explicitly
+temporary Windows rollback transport), revoke its authenticated
 function execution through the protected STAGING owner path, and mark its
 runtime identity inactive/revoked. Do not change the current repair task or
 runtime. Preserve every successor receipt and source byte.
@@ -182,9 +208,51 @@ new focused contract, acceptance replay and readback proof.
 | one action fails in multi-action mail | per-action result and `PARTIAL_FAILURE` |
 | GVM wording includes tyres | controlled HOIST taxonomy, never TYRE-only inference |
 
+## Action evidence matrix
+
+Apply these gates per action, not per email or transaction:
+
+| Action family | Job Card | Attachment | Required evidence |
+|---|---|---|---|
+| Activation/location | No | No | Unambiguous identity and explicit authoritative source instruction |
+| Workgroup requirement | Only for Job Card-derived work | Only when Job Card is the source | Explicit work signal; no GVM/Tyre inference |
+| Operation/Job Card upsert | Yes | Yes, valid Job Card attachment | Complete operation number, description and hours, including zero |
+| Parts ETA/order/complete | No | No | Explicit Parts evidence; ETA-only cannot change completion/order |
+| Notes | No | No | Retained source text evidence |
+| Sublet booking | Only when Job Card is the source | Only when Job Card is the source | Explicit Job Card `SUBLET` or explicit staff/provider/booking evidence and one exact canonical booking/provider instance |
+| RFT transfer/collect | No | No | Explicit lifecycle instruction plus canonical completion/Parts gates |
+
+Generic Sublet wording, approximate booking identity or insufficient attachment
+evidence is recorded as an action-level block and never creates or moves a
+booking. A missing artifact blocks only the action that requires it; unrelated
+actions continue independently.
+
 ## Soak gate
 
 No Production recommendation is part of this artifact. Before any future
 Production discussion, staging must prove 12 consecutive representative natural
 cycles and a 24-hour staging soak, including duplicates, multi-action/multi-
 vehicle mail, pending work, readback parity and deliberate restart recovery.
+
+## Concrete implementation delta and acceptance criteria
+
+The next implementation must:
+
+- use a replaceable hosted transport contract as the normal path and label
+  Windows `.68/.69/.71` as temporary rollback-only;
+- enforce the action matrix and evidence-gated Sublet without a global Job Card
+  or attachment requirement;
+- require the AI planner/model for live interpretation, with deterministic
+  logic limited to fixtures/regression/validation/fail-safe and no silent
+  fallback;
+- persist explicit per-action planner/model/prompt/business-rule/ruleset/
+  taxonomy/transport/action-contract provenance and action-level `audit_events`;
+- keep the six relevant version domains independent and fail closed on mismatch;
+- make clean-room Recovery Pack use independent of Hermes state and old Windows
+  tasks.
+
+Acceptance is met only when a mixed-result email demonstrates independent
+terminal dispositions and audit/readback per action, Sublet without evidence
+cannot write, planner outage is visible, transport replacement preserves
+semantics, all safety controls remain true, and a clean-room run succeeds or
+fails closed without Production contact.

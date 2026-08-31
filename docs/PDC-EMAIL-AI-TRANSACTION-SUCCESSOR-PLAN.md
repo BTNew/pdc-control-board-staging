@@ -1,6 +1,6 @@
 # PDC Email AI Transaction Successor — STAGING plan
 
-Status: UI/read projection, v2 command/read hardening, staging Pages deployment, live browser/read contract and least-privilege runtime commissioning proven; natural pdc-emails proof and soak remain
+Status: authoritative STAGING architecture/design baseline updated; implementation is subordinate to `recovery-pack/ARCHITECTURE.md`; natural pdc-emails proof and soak remain
 Environment: STAGING only
 Dashboard: `20260831_095314_64feeb`
 Production: prohibited and not contacted
@@ -23,6 +23,12 @@ Source baseline:
 No source or object from 863 is copied or rewritten; the new migration only requires the observed 863 ledger entry. The current repair runtime remains the rollback reference; this successor will not edit or enable its scheduled task, migrations, mailbox flags, or worker.
 
 ## 1. Grounded current map
+
+The architecture authority is `recovery-pack/ARCHITECTURE.md`. No implementation,
+database or deployment work may proceed against an older contract. The design
+uses a replaceable, preferably hosted transport; the Windows `.68/.69/.71`
+monitor is only a temporary rollback transport and is not a silent fallback or a
+business decision-maker.
 
 ### Current intake and interpretation
 
@@ -59,20 +65,35 @@ The successor must call/reconcile these existing safe domain boundaries rather t
 
 ### Layer 1 — Evidence-only receipt/intake
 
-`backend/pdc_email_ai_successor_intake.py` will provide a narrow, deterministic intake adapter:
+`backend/pdc_email_ai_successor_intake.py` will provide a narrow, transport-neutral evidence adapter:
 
 - consume RFC822/hosted provider payloads without PDC classification;
 - retain immutable original email bytes and every bounded original attachment under content-addressed paths;
 - produce one receipt containing receive time, mailbox/message/thread IDs, sender/authentication, attachment metadata, source digest, evidence digest and transport state;
 - use at-least-once transport with bounded exponential retry and a stable `mailbox/message/source-digest` key;
-- prefer a hosted/server-side Edge Function only when the staging connector is available; otherwise the tiny local poller remains disabled-by-default and has no business RPC;
+- use a hosted/server-side provider-neutral transport as the normal path;
+- retain the Windows monitor only as an explicitly versioned, temporary rollback transport while hosted transport is unavailable or being proved; it remains disabled-by-default outside that rollback window and has no business RPC;
 - historical lane uses a separate receipt namespace/quarantine and cannot block live intake.
 
 ### Layer 2 — AI interpretation
 
-`backend/pdc_email_ai_successor_planner.py` will expose a model adapter boundary plus a deterministic staging reference interpreter. Input is complete correspondence, extracted PDF text, attachment identity/evidence, current authoritative identity and current Board/backend state. Output is only the strict typed plan in `backend/pdc_email_ai_successor_contract.py`.
+`backend/pdc_email_ai_successor_planner.py` will expose a configured AI
+planner/model adapter boundary. The AI planner is the normal live engine. Input
+is complete correspondence, extracted PDF text, attachment identity/evidence,
+current authoritative identity and current Board/backend state. Output is only
+the strict typed plan in `backend/pdc_email_ai_successor_contract.py`.
 
-The plan contains one independently accounted instruction per vehicle/action, source evidence references, identity proof, expected state/version, model/prompt/taxonomy/rule versions and no SQL/table/RPC names supplied by the model. Unknown actions, GVM/Tyre ambiguity, missing dates, conflicting identity, missing backend and generic Sublet wording fail closed.
+Deterministic interpreters are limited to fixtures, regression tests, contract
+validation and explicit fail-safe checks. They must not silently replace the AI
+planner when it is unavailable or fails; the visible result is a typed retry,
+quarantine or blocked disposition with provenance.
+
+The plan contains one independently accounted instruction per vehicle/action,
+source evidence references, identity proof, conditional Job Card/attachment
+requirements, expected state/version, per-decision planner/model/prompt/
+business-rule/ruleset/taxonomy provenance and no SQL/table/RPC names supplied by
+the model. Unknown actions, GVM/Tyre ambiguity, missing dates, conflicting
+identity, missing backend and generic Sublet wording fail closed.
 
 ### Layer 3 — Validation and canonical command
 
@@ -82,16 +103,16 @@ Add one staging-only transactional RPC:
 
 The caller is a dedicated authenticated staging runtime identity, never service role, Administrator, browser, direct table DML or arbitrary SQL. The RPC will:
 
-1. verify staging sentinel, runtime identity, release/action/rule versions and immutable source receipt/digest;
+1. verify staging sentinel, runtime identity, independently bound transport/planner/model/prompt/business-rule/ruleset/taxonomy/Supabase action-contract versions and immutable source receipt/digest;
 2. lock and re-read each authoritative vehicle/backend/Board row and reject stale or conflicting state;
-3. validate the complete typed plan before the first domain write;
+3. validate the complete typed plan and each action's conditional Job Card/attachment/Sublet evidence before the first domain write;
 4. dispatch only to an internal fixed allow-list of existing canonical action functions;
 5. use stable per-email/per-action keys over mailbox/message/digest/vehicle/action/payload for replay protection;
 6. apply an atomic action group where the canonical function supports it; otherwise return a typed per-action result and do not claim whole-plan success;
-7. write immutable plan/action/verification receipts and audit metadata;
+7. write immutable plan/action/verification receipts plus one action-level `audit_events` record for every decision, including blocked, superseded, not-applicable and failed actions;
 8. return every requested action result plus complete resulting authoritative state.
 
-All detected instructions end in exactly one of: `APPLIED_AND_VERIFIED`, `ALREADY_CORRECT`, `SUPERSEDED`, `NOT_APPLICABLE`, `BLOCKED_EXACT_REASON`, `GENUINELY_AMBIGUOUS`, `FAILED_QUEUED_RETRY`. A plan with any non-success action is `PARTIAL_FAILURE`, never full success.
+All detected instructions end in exactly one of: `APPLIED_AND_VERIFIED`, `ALREADY_CORRECT`, `SUPERSEDED`, `NOT_APPLICABLE`, `BLOCKED_EXACT_REASON`, `GENUINELY_AMBIGUOUS`, `FAILED_QUEUED_RETRY`. Dispositions are independent per action. A plan with any non-success action is `PARTIAL_FAILURE`, never full success.
 
 ### Layer 4 — authoritative readback/confirmation
 
@@ -101,13 +122,19 @@ All detected instructions end in exactly one of: `APPLIED_AND_VERIFIED`, `ALREAD
 
 Retain the current Email Monitor repair lane and all historical evidence/receipts as rollback evidence. Do not reuse its task or processor.
 
-Use independent version fields:
+Use independent version fields. No version domain may silently substitute for
+another or force a transport rebuild:
 
 - `transport_release_version`: stable evidence transport/install bytes;
-- `model_version` and `prompt_version`: interpretation;
-- `taxonomy_version` and `rule_version`: classification/business rules;
-- `action_contract_version` and `supabase_action_version`: command/RPC contract;
+- `planner_version` and `model_version`: planner implementation and model;
+- `prompt_version`: interpretation prompt;
+- `taxonomy_version`: work/action taxonomy;
+- `business_rule_version` and `ruleset_version`: business-rule/ruleset release;
+- `action_contract_version` and `supabase_action_version`: typed action and Supabase command contract;
 - `receipt_schema_version`: immutable evidence/decision records.
+
+Every action decision repeats the applicable planner, model, prompt, ruleset,
+taxonomy, transport, action-contract and source/evidence digest provenance.
 
 Rule/taxonomy corrections create a permanent fixture, update the rule version, replay/correct only affected STAGING evidence, and create an audit receipt. They do not rebuild Windows transport.
 
@@ -120,11 +147,14 @@ Checkpoint A — strict contract and evidence receipt red/green:
 - hosted outage and bounded retry.
 
 Checkpoint B — planner red/green:
+- normal AI planner/model invocation and explicit planner provenance;
+- planner outage never silently invokes deterministic interpretation;
 - one email with three actions;
 - one email with two vehicles;
 - hostile/unknown action rejection;
 - ambiguous identity/date and explicit zero-hour preservation;
 - GVM taxonomy and generic Sublet rejection;
+- conditional Job Card/attachment gates per action and evidence-gated Sublet;
 - revised/disregarded supersession and old-email non-reopen.
 
 Checkpoint C — command/RPC contract red/green:
@@ -142,6 +172,7 @@ Checkpoint D — live STAGING acceptance, each with receipt/readback and no Prod
 - revised Job Card supersession;
 - malformed historical quarantine while live sibling continues;
 - repeated schedule, one failing action in multi-action mail, transaction failure;
+- independent action dispositions and action-level AI Intake audit for a mixed-result mail;
 - expired token, mailbox/AI/Supabase outage, one RPC permission revoked, process kill/restart;
 - readback parity, live Board parity, two natural cycles with real pending staging work.
 
@@ -151,7 +182,7 @@ For every fault: no duplicate effect, no loss, no Production contact, complete i
 
 1. Map and freeze current writes/layers; do not disable the old business processor yet.
 2. Run shadow comparison on synthetic and safe STAGING correspondence only.
-3. Apply the successor migration and provision secretless runtime configuration through the staging connector.
+3. Apply the successor migration and provision secretless runtime configuration through the staging connector. Prefer the hosted transport; install/use the Windows adapter only as the explicitly time-bounded rollback lane.
 4. Run replay/restart/fault matrix and two natural cycles.
 5. Disable the old business processor only after all acceptance and readback gates pass; retain its rollback/disable path through soak.
 6. Require 12 consecutive representative natural STAGING cycles and a 24-hour STAGING soak before any Production recommendation. This task contains no Production recommendation or action.
@@ -166,3 +197,40 @@ For every fault: no duplicate effect, no loss, no Production contact, complete i
 - Synthetic and safe STAGING acceptance evidence with cycle/failure/recovery counts.
 - Staging source branch/commit, Pages/live asset proof where applicable, live RPC/readback proof, and explicit Production-untouched statement.
 - Residual Hermes dependencies stated plainly; no hidden-memory dependency.
+
+## 7. Concrete implementation delta and acceptance criteria
+
+### Implementation delta
+
+- Rebase all transport descriptions and commissioning gates on a replaceable
+  hosted transport contract; identify Windows only as temporary rollback.
+- Add the action evidence matrix from `BUSINESS_RULES.md` to planner validation,
+  with no global Job Card or attachment gate and no evidence borrowing across
+  actions.
+- Make the AI planner/model mandatory for live interpretation and classify
+  deterministic code as fixture/regression/validation/fail-safe only.
+- Add explicit per-action planner/model/prompt/business-rule/ruleset/taxonomy,
+  source/evidence and action-contract provenance and action-level AI Intake
+  audit records.
+- Keep transport, prompt, business rules/ruleset, taxonomy and Supabase action
+  contract independently versioned and mismatch-fail-closed.
+- Make the Recovery Pack clean-room procedure portable from immutable contents
+  plus protected connectors, without hidden Windows/Hermes state.
+
+### Acceptance criteria
+
+- Hosted transport can be replaced without changing typed plans or canonical
+  business-action semantics; the Windows lane is demonstrably rollback-only.
+- Sublet without explicit Job Card `SUBLET` or explicit staff/provider/booking
+  evidence and one exact canonical booking is recorded but never written.
+- Missing Job Card/attachment evidence blocks only actions whose matrix row
+  requires it; unrelated actions continue with their own dispositions.
+- A mixed-result email shows one terminal disposition, one audit record and full
+  provenance/readback per action, with aggregate `PARTIAL_FAILURE`.
+- Planner/model outage produces an explicit retry/quarantine/blocked result and
+  never a silent deterministic live decision.
+- Independent version changes are detected and rejected or queued for explicit
+  repair; there is no silent fallback between version domains.
+- Clean-room recovery succeeds or fails closed without Hermes memory, copied
+  runtime state, undocumented local files or a pre-existing Windows task, while
+  production, outbound email and service-role runtime remain false.

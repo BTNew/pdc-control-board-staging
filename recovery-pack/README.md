@@ -5,16 +5,25 @@ Environment: STAGING only (`cdsmnqxtyyoeoznmbidd`)
 Dashboard: `20260831_095314_64feeb`
 Production: prohibited; no Production credential, endpoint, branch, data or release is part of this pack.
 
+Architecture authority: `ARCHITECTURE.md`. This pack is STAGING design only.
+The normal transport is replaceable and preferably hosted. The Windows
+`.68/.69/.71` transport asset is retained only as a temporary rollback option,
+not as the normal engine or a silent fallback. The configured AI planner/model
+is the normal interpretation engine; deterministic logic is limited to
+fixtures, regression, validation and fail-safe checks.
+
 Authoritative private release: `https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.11`
 
 ## Portable recovery answer
 
-A fresh PC can restore this successor only when it has:
+A fresh environment can restore this successor only when it has:
 
 1. this pack or the immutable GitHub release artifact;
 2. a clean clone of the exact source commit recorded in `RECOVERY-PACK-MANIFEST.json`;
 3. explicitly supplied protected STAGING credentials for the owner provisioning and mailbox sender lanes;
-4. the protected `.69` transport installation permission when Windows ProgramData ACLs require elevation.
+4. the protected hosted transport connector; and, only if the temporary
+   rollback lane is explicitly selected, the `.69` Windows transport
+   installation permission when ProgramData ACLs require elevation.
 
 The pack is designed to make the answer **YES** after the clean-room procedure completes and produces the required evidence bundle. Before that clean-room run, the claim is not accepted merely from documentation or source tests.
 
@@ -37,16 +46,16 @@ External protected connectors are supplied by environment variable names documen
 - `RECOVERY-PACK-MANIFEST.json` — exact pack/source commit, release artifact and checksums.
 - `VERSIONS.json` — model, prompt, instruction, taxonomy, business-rule, transport, action and schema versions.
 - `SUPABASE-CONTRACT-INVENTORY.json` — append-only migrations, RPCs, action allow-list, grants and RLS expectations.
-- `ARCHITECTURE.md` — evidence intake, AI plan, canonical command and authoritative readback layers.
+- `ARCHITECTURE.md` — authoritative transport, evidence intake, AI plan, conditional action evidence, canonical command and authoritative readback layers.
 - `COMMISSIONING-RUNBOOK.md` — install, configure, verify, provision, mailbox, natural proof and rollback sequence.
 - `ENV-VAR-CONTRACT.md` — names only; no values or secret material.
 - `FAILURE-MODES.md` — known failures and repairs, including the real Windows ACL/task/UAC lessons.
 - `CLEAN-ROOM-RECOVERY.md` — fresh-PC recovery protocol and elapsed-time evidence.
 - `EVIDENCE-REPORT.template.json` — required sanitized result schema for natural proof and clean-room recovery.
-- `bootstrap_recovery.py` — one deterministic gated bootstrap command.
+- `bootstrap_recovery.py` — one fail-closed gated bootstrap command.
 - `fixtures/` — safe Job Card/PDF acceptance fixture and pre-state metadata; no mailbox credentials or raw live correspondence.
 - `source-snapshot/` — source snapshot manifest and exact Git provenance; the immutable Git release remains authoritative.
-- `TRANSPORT-BUNDLE.json` / `TRANSPORT-BUNDLE.md` — exact `.71` full transport asset name, SHA-256, size and installation boundary.
+- `TRANSPORT-BUNDLE.json` / `TRANSPORT-BUNDLE.md` — exact optional Windows rollback transport asset name, SHA-256, size and installation boundary.
 
 The private v1.11 release also carries `pdc-monitor-staging-m502-2026.08.71.tar.gz`, the 3,359-file secretless transport asset containing the HTTP-400 storage readback fix and live-head `20260831380000` active bootstrap/dispatch/preflight controls.
 
@@ -75,6 +84,10 @@ The clean-room report must include only sanitized values:
 - Stock, canonical vehicle ID, Job Card and operation numbers/hours;
 - typed plan and all version strings;
 - action/RPC receipts and expected-vs-actual authoritative readback;
+- one action-level AI Intake audit and independent terminal disposition for every
+  action, including blocked/not-applicable/superseded/failed actions;
+- per-decision planner/model/prompt/business-rule/ruleset/taxonomy,
+  transport and Supabase action-contract provenance;
 - Board/UI parity;
 - exact replay/repeated schedule zero-effect counts;
 - unrelated-vehicle isolation;
@@ -82,3 +95,10 @@ The clean-room report must include only sanitized values:
 - Production/outbound/mailbox safety flags.
 
 Do not report HTTP success, `ok=true`, visual appearance or a local fixture as authoritative business proof.
+
+The pack is portable only when the clean-room run proves that hosted transport
+can be used from immutable pack/source contents plus secure connector interfaces,
+without Hermes memory/cache, copied Windows task/runtime state or undocumented
+local files. A planner outage must be visible and must not silently invoke a
+deterministic interpreter. Missing action-specific Job Card/attachment evidence
+and missing explicit Sublet evidence must block only the affected action.

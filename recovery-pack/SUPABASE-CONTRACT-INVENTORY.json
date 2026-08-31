@@ -2,6 +2,25 @@
   "environment": "staging",
   "project_ref": "cdsmnqxtyyoeoznmbidd",
   "migration_head": "20260831380000",
+  "version_domains": {
+    "transport": "transport_release_version",
+    "planner": "planner_version",
+    "model": "model_version",
+    "prompt": "prompt_version",
+    "business_rules": "business_rule_version",
+    "ruleset": "ruleset_version",
+    "taxonomy": "taxonomy_version",
+    "supabase_action_contract": "supabase_action_contract_version"
+  },
+  "decision_requirements": {
+    "normal_engine": "configured_ai_planner_model",
+    "deterministic_scope": ["fixtures", "regression", "validation", "fail_safe"],
+    "silent_planner_fallback": false,
+    "independent_action_dispositions": true,
+    "action_level_ai_intake_audit": true,
+    "conditional_job_card_attachment_gates": true,
+    "sublet_evidence_gate": true
+  },
   "append_only_migrations": [
     {"version":"20260831300000","name":"pdc_email_ai_transaction_successor"},
     {"version":"20260831320000","name":"pdc_email_ai_transaction_successor_contract_repair"},
