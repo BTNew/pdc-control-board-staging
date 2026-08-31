@@ -46,7 +46,9 @@ assert.strictEqual(unchanged.badge, 'RECEIVED');
 assert.strictEqual(unchanged.activated, false);
 assert(/No recorded car changes/.test(unchanged.message));
 
-assert(staging.includes('Review only the emails that need an Administrator decision.'));
+assert(staging.includes('Successor receipt projection is read-only.'));
+assert(staging.includes('id="pdc-email-ai-successor-inbox"'));
+assert(staging.includes('id="ai-intake-legacy-fallback" hidden'));
 assert(staging.includes('Approve or deny the items that need a decision.'));
 assert(appSource.includes('Rows that need attention') && appSource.includes('Fix these rows in the source file'));
 assert(appSource.includes('Cars activated or moved') && appSource.includes('Nothing was imported or changed'));

@@ -8,7 +8,9 @@
   "prompt_version": "pdc-email-ai-prompt-v1",
   "taxonomy_version": "pdc-work-taxonomy-v1",
   "rule_version": "pdc-business-rules-v1",
-  "supabase_action_version": "20260831320000",
+  "supabase_action_version": "20260831330000",
+  "successor_inbox_rpc": "get_pdc_email_ai_transaction_successor_inbox",
+  "successor_inbox_revision_table": "pdc_email_ai_successor_ui_revision",
   "command_rpc": "apply_pdc_email_ai_transaction_successor",
   "readback_rpc": "get_pdc_email_vehicle_location_snapshot",
   "health_rpc": "get_pdc_email_ai_successor_health",
@@ -37,6 +39,14 @@
     "tests/test_pdc_email_ai_successor_executor.py",
     "tests/test_pdc_email_ai_successor_migration.py",
     "tests/test_pdc_email_ai_successor_acceptance.py",
-    "tests/test_pdc_email_ai_successor_end_to_end.py"
+    "tests/test_pdc_email_ai_successor_end_to_end.py",
+    "pdc-email-ai-successor-inbox.js",
+    "pdc-email-ai-successor-inbox.css",
+    "test_pdc_email_ai_successor_inbox_client.js",
+    "test_pdc_email_ai_successor_inbox_render.js",
+    "test_pdc_email_ai_successor_inbox_ui.js",
+    "test_pdc_email_ai_successor_inbox_migration.py",
+    "tests/fixtures/pdc_email_ai_successor_inbox_ui.json",
+    "supabase/staging_only/20260831330000_pdc_email_ai_successor_inbox_read_projection.sql"
   ]
 }

@@ -1,6 +1,6 @@
 # PDC Email AI Transaction Successor — STAGING plan
 
-Status: locally implemented; live STAGING migration/readback proven; runtime identity and natural-cycle acceptance gates remain
+Status: UI/read projection implemented and live STAGING read contract proven; runtime identity and natural-cycle acceptance gates remain
 Environment: STAGING only
 Dashboard: `20260831_095314_64feeb`
 Production: prohibited and not contacted

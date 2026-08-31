@@ -28,6 +28,8 @@
     "pdc-ai-intake-review.js",
     "pdc-ai-intake-service.js",
     "pdc-email-vehicle-location-service.js",
+    "pdc-email-ai-successor-inbox.js",
+    "pdc-email-ai-successor-inbox.css",
     "staging-browser-assessment.js",
     "pdc-auth.js",
     "pdc-supabase-config.production.js",

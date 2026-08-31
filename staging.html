@@ -10,6 +10,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="styles.css?v=2026.08.14.63-silent-admin-canonical-actor" />
   <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation" />
+  <link rel="stylesheet" href="pdc-email-ai-successor-inbox.css?v=2026.08.31.01-successor-inbox" />
   <link rel="stylesheet" href="ai-auditor.css?v=2026.08.14.63-silent-admin-canonical-actor" />
   <link rel="stylesheet" href="desktop-operations.css?v=2026.08.14.63-silent-admin-canonical-actor" />
   <link rel="stylesheet" href="workshop-planner.css?v=2026.08.14.63-silent-admin-canonical-actor" />
@@ -383,8 +384,9 @@
       <section id="emailreview" class="view">
         <div class="parts-home-layout email-review-layout">
           <section class="panel parts-home-panel email-review-panel">
-            <div class="panel-header"><div><h2>AI / Email Intake</h2><p>Review only the emails that need an Administrator decision.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
-            <section class="ai-intake-server-panel" id="ai-intake-server-panel" aria-labelledby="ai-intake-server-title">
+            <section id="pdc-email-ai-successor-inbox" class="pdc-email-ai-successor-inbox" aria-labelledby="pdc-email-ai-successor-title"></section>
+            <div class="panel-header"><div><h2>AI / Email Intake</h2><p>Successor receipt projection is read-only. The legacy .68 review lane remains retained below as a disabled fallback.</p></div><span class="badge warning" id="email-review-count">0 pending</span></div>
+            <section class="ai-intake-server-panel" id="ai-intake-legacy-fallback" hidden aria-hidden="true" aria-labelledby="ai-intake-server-title">
               <div class="ai-intake-server-header">
                 <div><span class="eyebrow">PMB email intake</span><h3 id="ai-intake-server-title">Emails received</h3><p>Approve or deny the items that need a decision. Completed items remain available in the filter and history.</p></div>
                 <div class="ai-intake-server-toolbar"><span class="badge warning" id="ai-intake-server-state">Connecting</span><button class="small-button" id="ai-intake-server-refresh" type="button">Refresh inbox</button></div>
@@ -960,6 +962,7 @@
   <script src="vehicle-location-lifecycle.js?v=2026.08.11.31-lifecycle-module"></script>
   <script src="app.js?v=2026.08.14.63-silent-admin-canonical-actor&amp;auditor=2026.07.30.03-recorded-decision-render"></script>
   <script src="pdc-ai-intake-review.js?v=2026.07.27.19-ai-review-decision-context"></script>
+  <script src="pdc-email-ai-successor-inbox.js?v=2026.08.31.01-successor-inbox"></script>
 
   <script src="scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment"></script>
   <script src="staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment"></script>
