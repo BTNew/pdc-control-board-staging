@@ -16,6 +16,7 @@ BEGIN
     OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
     OR v_head IS DISTINCT FROM '20260831270000,861_null_storage_predicate_successor'
     OR (SELECT count(*) FROM public.ai_email_intake WHERE id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid AND provider_uid='imap_uid:692' AND status='failed' AND source_hash='cdc66328f62d3eac365127763ac13ed01da83fe16ca951029d17360db6553565' AND queue_attempts=2 AND permanent_failure AND retry_class='permanent' AND locked_at IS NULL AND locked_by IS NULL AND claim_token IS NULL AND gateway_instance_id IS NULL AND last_error_code='worker_exception')<>1
+    OR (SELECT count(*) FROM public.ai_email_attachments WHERE intake_id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid)<>2
     OR (SELECT count(*) FROM public.pdc_email_monitor_requeue_targets_735 WHERE intake_id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid)<>0
     OR (SELECT count(*) FROM public.pdc_email_monitor_requeue_receipts_735 WHERE intake_id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid)<>0
     OR to_regclass('public.pdc_monitor_exact_requeue_history_862') IS NOT NULL
@@ -63,9 +64,9 @@ BEGIN
  IF NOT FOUND THEN RAISE EXCEPTION 'PDC_862_EXACT_REQUEUE_CONCURRENT_DRIFT' USING errcode='40001'; END IF;
  v_event_key:=encode(extensions.digest(convert_to('pdc-monitor-staging-862-requeue-692|forward|'||v_id::text,'UTF8'),'sha256'),'hex');
  INSERT INTO public.pdc_monitor_exact_requeue_history_862(event_key,event_kind,predecessor_head,successor_head,intake_id,provider_uid,source_hash,before_state,after_state,source_evidence_unchanged,attachments_unchanged,task_enabled,mailbox_flags_changed,uid514_processed,outbound_email_sent,production_writes,rollback_contract)
- VALUES(v_event_key,'exact_retry_after_storage_repair','20260831270000','20260831280000',v_id,'imap_uid:692','cdc66328f62d3eac365127763ac13ed01da83fe16ca951029d17360db6553565',v_before,v_after,true,(v_attachment_count=3),false,false,false,false,false,'Exact one-row retry after reviewed storage-path repairs; preserves source/evidence/attachments and records rollback/readback without task, mailbox-flag, UID514, outbound or Production action');
+ VALUES(v_event_key,'exact_retry_after_storage_repair','20260831270000','20260831280000',v_id,'imap_uid:692','cdc66328f62d3eac365127763ac13ed01da83fe16ca951029d17360db6553565',v_before,v_after,true,(v_attachment_count=2),false,false,false,false,false,'Exact one-row retry after reviewed storage-path repairs; preserves source/evidence/attachments and records rollback/readback without task, mailbox-flag, UID514, outbound or Production action');
  INSERT INTO public.audit_events(action,table_name,row_id,actor_id,actor_email,before_data,after_data,metadata)
- VALUES('update','ai_email_intake',v_id,NULL,'staging-management-remediation',v_before,v_after,jsonb_build_object('event_type','pdc_monitor_exact_requeue_862','provider_uid','imap_uid:692','source_evidence_unchanged',true,'attachments_unchanged',v_attachment_count=3,'task_enabled',false,'mailbox_flags_changed',false,'uid514_processed',false,'outbound_email_sent',false,'production_untouched',true));
+ VALUES('update','ai_email_intake',v_id,NULL,'staging-management-remediation',v_before,v_after,jsonb_build_object('event_type','pdc_monitor_exact_requeue_862','provider_uid','imap_uid:692','source_evidence_unchanged',true,'attachments_unchanged',v_attachment_count=2,'task_enabled',false,'mailbox_flags_changed',false,'uid514_processed',false,'outbound_email_sent',false,'production_untouched',true));
 END
 $requeue$;
 
@@ -73,7 +74,7 @@ DO $post$
 BEGIN
  IF (SELECT count(*) FROM public.ai_email_intake WHERE id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid AND provider_uid='imap_uid:692' AND status='received' AND source_hash='cdc66328f62d3eac365127763ac13ed01da83fe16ca951029d17360db6553565' AND queue_attempts=2 AND NOT permanent_failure AND retry_class IS NULL AND next_attempt_at IS NOT NULL AND locked_at IS NULL AND locked_by IS NULL AND claim_token IS NULL AND gateway_instance_id IS NULL)<>1
     OR (SELECT count(*) FROM public.pdc_monitor_exact_requeue_history_862 WHERE event_kind='exact_retry_after_storage_repair' AND source_evidence_unchanged AND attachments_unchanged AND NOT task_enabled AND NOT mailbox_flags_changed AND NOT uid514_processed AND NOT outbound_email_sent AND NOT production_writes)<>1
-    OR (SELECT count(*) FROM public.ai_email_attachments WHERE intake_id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid)<>3
+    OR (SELECT count(*) FROM public.ai_email_attachments WHERE intake_id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid)<>2
     OR (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>1
     OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND enabled AND automatic_rule_application AND automatic_authenticated_jobcards AND NOT outbound_email_enabled)<>1
     OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
