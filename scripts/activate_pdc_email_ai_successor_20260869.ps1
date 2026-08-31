@@ -1,0 +1,27 @@
+[CmdletBinding()]
+param()
+$ErrorActionPreference='Stop'
+$Root='C:\ProgramData\PDCMonitor\Staging';$Version='2026.08.69';$Task='PDC-PMB-Email-Monitor-Staging'
+$Receipt='C:\Users\nwmgr\Desktop\PDCMonitor-Install-20260869\install-receipt.json';$Manifest='fa528d8d1ce405b430dc265ded7dca69cc7b49e8d190b90d9e55576b32a1a823';$ParentManifest='f55c8ba1f06b342fd3205f5a287f4793cb242d886759218a7470482c7c36f18b';$Bridge='d19f1ee93b5c45169d10e77956677909d2b5844e4aea3ce2e028c0b2edc30071';$Report='C:\Users\nwmgr\Desktop\PDCMonitor-Install-20260869\activation-observer-report.json';$ActivationReceipt='C:\Users\nwmgr\Desktop\PDCMonitor-Install-20260869\activation-receipt.json';$Repo='C:\Users\nwmgr\HermesWorkspaces\development\pdc-email-ai-transaction-successor';$Observer=Join-Path $Repo 'scripts\verify_pdc_email_ai_successor_20260869.py'
+function Json($p){Get-Content -LiteralPath $p -Raw -Encoding utf8 | ConvertFrom-Json}
+function Hash($p){(Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToLowerInvariant()}
+function Fail($m){throw $m}
+$mutex=New-Object System.Threading.Mutex($false,'Global\PDCMonitorStagingEnableOnly20260869');$held=$false
+try {
+ $held=$mutex.WaitOne(0);if(-not $held){Fail 'PDC_SUCCESSOR_ENABLE_OVERLAP'}
+ if(-not(Test-Path -LiteralPath $Receipt -PathType Leaf)){Fail 'PDC_SUCCESSOR_SUCCESSFUL_RECEIPT_MISSING'}
+ $receipt=Json $Receipt
+ if($receipt.ok -ne $true -or $receipt.release -ne $Version -or $receipt.current -ne $Version -or $receipt.inventory_verify_exit -ne 0 -or $null -ne $receipt.installer_error -or $receipt.manifest_sha256 -ne $Manifest -or $receipt.parent_manifest_sha256 -ne $ParentManifest -or $receipt.bridge_sha256 -ne $Bridge -or $receipt.mailbox_contacted -ne $false -or $receipt.outbound_email_sent -ne $false -or $receipt.production_contacted -ne $false){Fail 'PDC_SUCCESSOR_SUCCESSFUL_RECEIPT_ASSERTION_FAILED'}
+ if((Get-Content (Join-Path $Root 'CURRENT') -Raw).Trim() -ne $Version){Fail 'PDC_SUCCESSOR_CURRENT_NOT_069'}
+ $release=Join-Path $Root "releases\$Version";if((Hash (Join-Path $release 'release-manifest.json')) -ne $Manifest){Fail 'PDC_SUCCESSOR_RELEASE_MANIFEST_HASH_FAILED'}
+ $trust=Join-Path $Root "trust\$Version";if((Get-Content (Join-Path $trust 'SUCCESSOR_MANIFEST_SHA256') -Raw).Trim() -ne $Manifest){Fail 'PDC_SUCCESSOR_TRUST_MANIFEST_HASH_FAILED'}
+ $task=Get-ScheduledTask -TaskName $Task -ErrorAction Stop;if($task.State -ne 'Disabled'){Fail 'PDC_SUCCESSOR_TASK_NOT_DISABLED_BEFORE_ENABLE'};if($task.Principal.UserId -ne 'LOCAL SERVICE' -or $task.Principal.LogonType -ne 'ServiceAccount' -or $task.Principal.RunLevel -ne 'Limited'){Fail 'PDC_SUCCESSOR_TASK_IDENTITY_FAILED'};if(@($task.Triggers|Where-Object{[string]$_.Repetition.Interval -eq 'PT5M'}).Count -ne 1){Fail 'PDC_SUCCESSOR_TASK_TRIGGER_FAILED'}
+ $acl=(icacls.exe $release 2>&1 | Out-String);if($acl -notmatch 'S-1-5-19:\(OI\)\(CI\)\(RX\)'){Fail 'PDC_SUCCESSOR_RELEASE_ACL_FAILED'}
+ if(-not(Test-Path -LiteralPath $Observer -PathType Leaf)){Fail 'PDC_SUCCESSOR_OBSERVER_MISSING'}
+ $observerOut=& python.exe $Observer 2>&1;$observerExit=$LASTEXITCODE;if($observerExit -ne 0){Fail 'PDC_SUCCESSOR_AI_RUNTIME_OBSERVER_FAILED'};Set-Content -LiteralPath $Report -Value ($observerOut -join [Environment]::NewLine) -Encoding utf8
+ $runtime=Json $Report;if($runtime.ok -ne $true -or $runtime.binding_exact -ne $true -or $runtime.runtime_login_ok -ne $true -or $runtime.runtime_service_role -ne $false -or $runtime.service_key_used -ne $false -or $runtime.approved_rpc_health.ok -ne $true -or $runtime.approved_rpc_query.ok -ne $true -or $runtime.approved_rpc_readback.ok -ne $true){Fail 'PDC_SUCCESSOR_AI_RUNTIME_ASSERTION_FAILED'}
+ Enable-ScheduledTask -TaskName $Task -ErrorAction Stop | Out-Null
+ $after=Get-ScheduledTask -TaskName $Task -ErrorAction Stop;if($after.State -eq 'Disabled'){Fail 'PDC_SUCCESSOR_TASK_ENABLE_FAILED'};if($after.Principal.UserId -ne 'LOCAL SERVICE' -or $after.Principal.LogonType -ne 'ServiceAccount' -or $after.Principal.RunLevel -ne 'Limited'){Fail 'PDC_SUCCESSOR_TASK_IDENTITY_CHANGED'};if(@($after.Triggers|Where-Object{[string]$_.Repetition.Interval -eq 'PT5M'}).Count -ne 1){Fail 'PDC_SUCCESSOR_TASK_TRIGGER_CHANGED'}
+ [ordered]@{ok=$true;activation='enabled_only';release=$Version;successful_install_receipt=$Receipt;inventory_verify_exit=0;current=$Version;protected_acl_verified=$true;runtime_observer=$Report;runtime_health_verified=$true;task_enabled=$true;task_started=$false;onecycle_called=$false;mailbox_contacted=$false;outbound_email_sent=$false;production_contacted=$false;secrets_printed=$false}|ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $ActivationReceipt -Encoding utf8
+ Write-Output ([ordered]@{ok=$true;activation='enabled_only';current=$Version;task_enabled=$true;task_started=$false;runtime_health_verified=$true;mailbox_contacted=$false;production_contacted=$false}|ConvertTo-Json -Compress)
+} catch { [ordered]@{ok=$false;error=$_.Exception.Message;task_started=$false;onecycle_called=$false;mailbox_contacted=$false;production_contacted=$false;secrets_printed=$false}|ConvertTo-Json -Compress | Set-Content -LiteralPath $ActivationReceipt -Encoding utf8; throw } finally {if($held){$mutex.ReleaseMutex()|Out-Null};$mutex.Dispose()}
