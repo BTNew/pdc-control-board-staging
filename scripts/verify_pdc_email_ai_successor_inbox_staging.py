@@ -9,7 +9,7 @@ from pathlib import Path
 BOOTSTRAP = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py")
 SECRETS = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi")
 STAGING_REF = "cdsmnqxtyyoeoznmbidd"
-TARGET = ("20260831330000", "pdc_email_ai_successor_inbox_read_projection")
+TARGET = ("20260831340000", "pdc_email_ai_successor_command_read_hardening")
 
 
 def one(cursor, sql: str):
@@ -39,17 +39,23 @@ def main() -> None:
     )
     try:
         cursor = connection.cursor()
-        ledger = tuple(one(cursor, "select version,name from supabase_migrations.schema_migrations where version='20260831330000'") or ())
-        rpc = bool(one(cursor, "select to_regprocedure('public.get_pdc_email_ai_transaction_successor_inbox(timestamptz,integer)') is not null")[0])
+        ledger = tuple(one(cursor, "select version,name from supabase_migrations.schema_migrations where version='20260831340000'") or ())
+        rpc = bool(one(cursor, "select to_regprocedure('public.get_pdc_email_ai_transaction_successor_inbox_v2(jsonb,integer)') is not null")[0])
         revision = bool(one(cursor, "select to_regclass('public.pdc_email_ai_successor_ui_revision') is not null")[0])
         typed_plan = bool(one(cursor, "select exists(select 1 from information_schema.columns where table_schema='public' and table_name='pdc_email_ai_successor_transaction_receipts' and column_name='typed_plan')")[0])
         publication = bool(one(cursor, "select exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='pdc_email_ai_successor_ui_revision')")[0])
         rls = tuple(one(cursor, "select relrowsecurity,relforcerowsecurity from pg_class where oid='public.pdc_email_ai_successor_ui_revision'::regclass") or ())
-        authenticated_execute = bool(one(cursor, "select has_function_privilege('authenticated','public.get_pdc_email_ai_transaction_successor_inbox(timestamptz,integer)','execute')")[0])
-        service_execute = bool(one(cursor, "select has_function_privilege('service_role','public.get_pdc_email_ai_transaction_successor_inbox(timestamptz,integer)','execute')")[0])
+        authenticated_execute = bool(one(cursor, "select has_function_privilege('authenticated','public.get_pdc_email_ai_transaction_successor_inbox_v2(jsonb,integer)','execute')")[0])
+        service_execute = bool(one(cursor, "select has_function_privilege('service_role','public.get_pdc_email_ai_transaction_successor_inbox_v2(jsonb,integer)','execute')")[0])
+        command_source = one(cursor, "select pg_get_functiondef('public.apply_pdc_email_ai_transaction_successor(jsonb)'::regprocedure)")[0] or ""
+        inbox_source = one(cursor, "select pg_get_functiondef('public.get_pdc_email_ai_transaction_successor_inbox_v2(jsonb,integer)'::regprocedure)")[0] or ""
+        command_identity_binding = "identity_vehicle_mismatch" in command_source
+        confirmed_true_guard = "IS DISTINCT FROM 'true'" in command_source
+        composite_cursor = "v_cursor_created_at" in inbox_source and "v_cursor_id" in inbox_source
+        waiting_status = "RECEIVED_WAITING" in inbox_source
         production = bool(one(cursor, "select to_regclass('public.pdc_production_environment_sentinel') is not null")[0])
         proof = {
-            "ok": ledger == TARGET and rpc and revision and typed_plan and publication and rls == (True, True) and authenticated_execute and not service_execute and not production,
+            "ok": ledger == TARGET and rpc and revision and typed_plan and publication and rls == (True, True) and authenticated_execute and not service_execute and command_identity_binding and confirmed_true_guard and composite_cursor and waiting_status and not production,
             "environment": "staging",
             "project_ref": STAGING_REF,
             "ledger": ledger,
@@ -60,6 +66,10 @@ def main() -> None:
             "revision_rls_force": rls,
             "authenticated_execute": authenticated_execute,
             "service_role_execute": service_execute,
+            "command_identity_binding": command_identity_binding,
+            "confirmed_true_guard": confirmed_true_guard,
+            "composite_cursor": composite_cursor,
+            "legacy_status_waiting": waiting_status,
             "production_sentinel_present": production,
             "runtime_identity_count": int(one(cursor, "select count(*) from public.pdc_email_ai_successor_runtime_identities")[0]),
             "transaction_receipt_count": int(one(cursor, "select count(*) from public.pdc_email_ai_successor_transaction_receipts")[0]),

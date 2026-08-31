@@ -31,6 +31,7 @@ test('one parent email renders separate vehicle result rows and complete detail 
     revision: 12,
     items: [{
       intake_uid: 'imap:514', received_at: '2026-08-31T01:02:03Z', sender: 'sender@example.test', subject: 'Two vehicle Job Card',
+      provider_uid: 'provider-515', message_id: 'message-515', thread_id: 'thread-515',
       attachment_summary: { count: 1, names: ['job-card.pdf'] }, disposition: 'PARTIAL_FAILURE', verification_status: 'PARTIAL',
       summary: { before: '2 active cars', requested: 'Parts ETA and Tyre', result: 'Parts ETA applied; Tyre blocked' },
       transaction: { plan: { schema_version: 'pdc-email-ai-plan-v1' }, versions: { model: 'm1', prompt: 'p1', instruction_set: 'i1', taxonomy: 't1', action_contract: 'a1' }, readback: { parity: false } },
@@ -48,6 +49,9 @@ test('one parent email renders separate vehicle result rows and complete detail 
   assert.ok(html.includes('BLOCKED_EXACT_REASON'));
   assert.ok(html.includes('pdc-email-ai-plan-v1'));
   assert.ok(html.includes('2026-09-01'));
+  assert.ok(html.includes('message-515') && html.includes('thread-515'));
+  assert.ok(html.includes('Rules'));
+  assert.ok(html.includes('Retry'));
   assert.strictEqual(successorInboxSummary({ items: [{ vehicle_results: [{}, {}] }] }).vehicleCount, 2);
 });
 

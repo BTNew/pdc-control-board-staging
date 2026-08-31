@@ -30,18 +30,18 @@ Replace only the staging AI Intake surface with the successor view while retaini
 
 ## Append-only backend read contract
 
-Add migration after live `20260831320000` with the observed current-head guard. No table DML, existing successor function replacement, `.68` task/runtime change, or production object is permitted.
+Add append-only migrations after live `20260831320000` with observed current-head guards. No `.68` task/runtime change or production object is permitted.
 
 RPC:
 
-`public.get_pdc_email_ai_transaction_successor_inbox(p_cursor timestamptz default null, p_page_size integer default 100)`
+`public.get_pdc_email_ai_transaction_successor_inbox_v2(p_cursor jsonb default null, p_page_size integer default 100)`
 
 Properties:
 
 - `SECURITY DEFINER`, fixed `search_path`, authenticated-only, approved `viewer|operator|administrator` read role; no service-role execution.
 - STAGING sentinel and production-sentinel fail-closed guard.
 - Returns `{ok, code, revision, has_more, next_cursor, items}`.
-- Parent query is `ai_email_intake` ordered by `received_at desc nulls last, created_at desc, id desc`; cursor is server-generated and page-bounded.
+- Parent query is `ai_email_intake` ordered by `received_at desc nulls last, created_at desc, id desc`; the v2 cursor is server-generated from all three ordering fields and page-bounded.
 - Each parent contains safe metadata only: intake UID/provider UID, source/message/thread IDs, sender, subject, received time, attachment names/count/digests and extraction summary; raw body is excluded.
 - Left-join successor transaction receipt by `source_receipt_id`, then action receipts grouped under each parent. A parent with no successor receipt remains `RECEIVED_WAITING`, never “processed”.
 - Child vehicle results are grouped by canonical vehicle UUID and include Stock/vehicle labels from an approved bounded Board snapshot/read-model projection, not browser data. If authoritative identity is absent, child result is `UNRESOLVED` and remains visible.
@@ -57,7 +57,7 @@ Properties:
 Add `pdc-email-ai-successor-inbox.js` and `pdc-email-ai-successor-inbox.css`.
 
 - Client calls only the new RPC with the staging publishable key/access token; validates exact project ref and response shape.
-- Subscription listens only to `pdc_email_ai_successor_ui_revision`; callback invalidates and refreshes the currently open inbox with generation/lifecycle protection.
+- Subscription listens only to `pdc_email_ai_successor_ui_revision`; callback invalidates and refreshes the currently open inbox with generation/lifecycle protection. `SUBSCRIBED`, connecting and failure states are visible; startup retries are bounded and teardown-aware.
 - Renderer uses `textContent`/escaped values and bounded detail sections; no `innerHTML` with raw backend values. Parent/vehicle rows and detail sections carry stable data attributes.
 - Detail disclosure is native `<details>` with accessible summaries. The compact summary remains usable on phone width; desktop uses a two-column parent/detail layout without horizontal overflow.
 - No Apply/Reject/mutation buttons in this successor view. The command runtime is separately commissioned and natural proof is performed out of band.

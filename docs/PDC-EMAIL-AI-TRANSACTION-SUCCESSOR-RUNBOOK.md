@@ -27,6 +27,15 @@ Migration:
 Forward repair migration:
 `supabase/staging_only/20260831320000_pdc_email_ai_transaction_successor_contract_repair.sql`
 
+Successor inbox/read hardening migration:
+`supabase/staging_only/20260831330000_pdc_email_ai_successor_inbox_read_projection.sql`
+`supabase/staging_only/20260831340000_pdc_email_ai_successor_command_read_hardening.sql`
+
+The staging website mounts `pdc-email-ai-successor-inbox.js` as a read-only
+chronological email/vehicle projection. It uses the v2 composite-cursor RPC
+`get_pdc_email_ai_transaction_successor_inbox_v2` and the successor Realtime
+revision table. The legacy `.68` review surface remains hidden and untouched.
+
 ## Four-layer operation
 
 1. `pdc_email_ai_successor_intake.py` stores RFC822 bytes and original bounded
@@ -35,7 +44,7 @@ Forward repair migration:
 2. `pdc_email_ai_successor_planner.py` accepts complete correspondence,
    extracted PDF text and authoritative contexts and emits only the strict
    `pdc-email-ai-plan-v1` JSON contract.
-3. The single SQL command RPC validates identity, source receipt/digest,
+3. The single SQL command RPC validates identity-to-vehicle binding, source receipt/digest,
    versions, expected vehicle versions and stable action keys, then dispatches
    only to fixed existing canonical RPCs. Unsupported role/capability paths
    become `BLOCKED_EXACT_REASON`.

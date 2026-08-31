@@ -57,14 +57,22 @@ test('controller refreshes from Realtime once and suppresses stale generations',
     return Promise.resolve({ ok: true, data: { revision: 2, items: [], has_more: false, next_cursor: null } });
   } };
   let change;
+  let status;
   const controller = createPdcEmailAiSuccessorInboxController({
     root,
     client,
     getAuthority: () => 'viewer|user|token',
-    subscribeRealtime: (_table, handlers) => { change = handlers.onChange; return { unsubscribe() {} }; },
+    subscribeRealtime: (_table, handlers) => { change = handlers.onChange; status = handlers.onStatus; return { unsubscribe() {} }; },
   });
   controller.mount();
+  assert.ok(root.innerHTML.includes('pdc-email-ai-successor-title'));
+  controller.state.state = 'synchronized';
   assert.strictEqual(PDC_EMAIL_AI_SUCCESSOR_REVISION_TABLE, 'pdc_email_ai_successor_ui_revision');
+  status('CHANNEL_ERROR');
+  assert.strictEqual(controller.state.realtimeState, 'error');
+  assert.ok(root.innerHTML.includes('Realtime error'));
+  status('SUBSCRIBED');
+  assert.strictEqual(controller.state.realtimeState, 'subscribed');
   await Promise.resolve();
   change();
   await new Promise(resolve => setImmediate(resolve));

@@ -5,7 +5,7 @@
  * It consumes one protected read RPC and never exposes raw evidence or writes.
  */
 const PDC_EMAIL_AI_SUCCESSOR_STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd';
-const PDC_EMAIL_AI_SUCCESSOR_INBOX_RPC = 'get_pdc_email_ai_transaction_successor_inbox';
+const PDC_EMAIL_AI_SUCCESSOR_INBOX_RPC = 'get_pdc_email_ai_transaction_successor_inbox_v2';
 const PDC_EMAIL_AI_SUCCESSOR_REVISION_TABLE = 'pdc_email_ai_successor_ui_revision';
 const ALLOWED_READ_ROLES = new Set(['viewer', 'operator', 'administrator']);
 const FORBIDDEN_KEY = /(raw[_-]?body|parsed[_-]?text|extracted[_-]?text|storage[_-]?path|access[_-]?token|refresh[_-]?token|password|secret|credential|authorization|api[_-]?key|private[_-]?key|windows[_-]?log|log[_-]?path)/i;
@@ -93,11 +93,15 @@ function normalizeSuccessorInboxSnapshot(raw = {}) {
       next_cursor: source.next_cursor ?? null,
       items: items.map(item => ({
         intake_uid: text(item.intake_uid ?? item.provider_uid, '—'),
+        provider_uid: text(item.provider_uid, '—'),
         source_receipt_id: text(item.source_receipt_id ?? item.intake_id, '—'),
+        message_id: text(item.message_id, '—'),
+        thread_id: text(item.thread_id, '—'),
         received_at: item.received_at ?? item.source_received_at ?? null,
         sender: text(item.sender ?? item.sender_address, 'Unknown sender'),
         subject: text(item.subject, 'Email received'),
         attachment_summary: item.attachment_summary ?? { count: 0, names: [] },
+        job_card_summary: item.job_card_summary ?? { job_card_number: '', operation_count: 0, extraction_status: 'not_extracted' },
         disposition: text(item.disposition, 'RECEIVED_WAITING'),
         verification_status: text(item.verification_status, 'NOT_RUN'),
         summary: item.summary ?? { before: '—', requested: '—', result: '—' },
@@ -221,8 +225,8 @@ function transactionDetailsHtml(item = {}) {
   if (!transaction) return `<div class="successor-waiting-detail"><strong>Successor processing not yet recorded</strong><span>This source receipt remains visible while natural intake/interpretation/command processing is pending.</span></div>`;
   const versions = transaction.versions || {};
   return `<div class="successor-technical-grid">
-    <section><h4>Typed AI plan and versions</h4><dl class="successor-detail-list"><dt>Plan schema</dt><dd>${escapeHtml(transaction.plan?.schema_version || transaction.typed_plan?.schema_version || '—')}</dd><dt>Model</dt><dd>${escapeHtml(versions.model || '—')}</dd><dt>Prompt</dt><dd>${escapeHtml(versions.prompt || '—')}</dd><dt>Instruction set</dt><dd>${escapeHtml(versions.instruction_set || versions.rules || '—')}</dd><dt>Taxonomy</dt><dd>${escapeHtml(versions.taxonomy || '—')}</dd><dt>Action contract</dt><dd>${escapeHtml(versions.action_contract || '—')}</dd><dt>Supabase action</dt><dd>${escapeHtml(versions.supabase_action || versions.supabase_action_version || '—')}</dd><dt>Transport</dt><dd>${escapeHtml(versions.transport || versions.transport_release_version || '—')}</dd></dl><pre>${safeJson(transaction.plan || transaction.typed_plan)}</pre></section>
-    <section><h4>Immutable receipt and readback</h4><dl class="successor-detail-list"><dt>Transaction receipt</dt><dd>${escapeHtml(transaction.transaction_id)}</dd><dt>Source receipt</dt><dd>${escapeHtml(transaction.source_receipt_id)}</dd><dt>Source digest</dt><dd>${escapeHtml(transaction.source_digest)}</dd><dt>Evidence digest</dt><dd>${escapeHtml(transaction.evidence_digest)}</dd><dt>Plan hash</dt><dd>${escapeHtml(transaction.plan_hash)}</dd><dt>Disposition</dt><dd>${escapeHtml(transaction.disposition)}</dd><dt>Readback parity</dt><dd>${escapeHtml(transaction.readback_parity === true ? 'PASS' : 'NOT PROVEN')}</dd></dl><pre>${safeJson(transaction.readback || transaction.response)}</pre></section>
+    <section><h4>Typed AI plan and versions</h4><dl class="successor-detail-list"><dt>Plan schema</dt><dd>${escapeHtml(transaction.plan?.schema_version || transaction.typed_plan?.schema_version || '—')}</dd><dt>Model</dt><dd>${escapeHtml(versions.model || '—')}</dd><dt>Prompt</dt><dd>${escapeHtml(versions.prompt || '—')}</dd><dt>Instruction set</dt><dd>${escapeHtml(versions.instruction_set || '—')}</dd><dt>Taxonomy</dt><dd>${escapeHtml(versions.taxonomy || '—')}</dd><dt>Rules</dt><dd>${escapeHtml(versions.rules || '—')}</dd><dt>Action contract</dt><dd>${escapeHtml(versions.action_contract || '—')}</dd><dt>Supabase action</dt><dd>${escapeHtml(versions.supabase_action || versions.supabase_action_version || '—')}</dd><dt>Transport</dt><dd>${escapeHtml(versions.transport || versions.transport_release_version || '—')}</dd></dl><pre>${safeJson(transaction.plan || transaction.typed_plan)}</pre></section>
+    <section><h4>Immutable receipt and readback</h4><dl class="successor-detail-list"><dt>Transaction receipt</dt><dd>${escapeHtml(transaction.transaction_id)}</dd><dt>Source receipt</dt><dd>${escapeHtml(transaction.source_receipt_id)}</dd><dt>Provider UID</dt><dd>${escapeHtml(item.provider_uid)}</dd><dt>Message ID</dt><dd>${escapeHtml(item.message_id)}</dd><dt>Thread ID</dt><dd>${escapeHtml(item.thread_id)}</dd><dt>Attachment digests</dt><dd><code>${safeJson(item.attachment_summary?.digests || [])}</code></dd><dt>Source digest</dt><dd>${escapeHtml(transaction.source_digest)}</dd><dt>Evidence digest</dt><dd>${escapeHtml(transaction.evidence_digest)}</dd><dt>Plan hash</dt><dd>${escapeHtml(transaction.plan_hash)}</dd><dt>Disposition</dt><dd>${escapeHtml(transaction.disposition)}</dd><dt>Readback parity</dt><dd>${escapeHtml(transaction.readback_parity === true ? 'PASS' : 'NOT PROVEN')}</dd></dl><pre>${safeJson(transaction.readback || transaction.response)}</pre></section>
     <section><h4>Retry and quarantine</h4><dl class="successor-detail-list"><dt>Attempts</dt><dd>${escapeHtml(retry.attempts ?? 0)}</dd><dt>Retry class</dt><dd>${escapeHtml(retry.retry_class)}</dd><dt>Next retry</dt><dd>${escapeHtml(retry.next_attempt_at)}</dd><dt>Last error</dt><dd>${escapeHtml(retry.last_error_code)}</dd><dt>Quarantine</dt><dd>${escapeHtml(retry.quarantine === true || item.quarantine ? 'YES' : 'No')}</dd></dl>${item.quarantine ? `<pre>${safeJson(item.quarantine)}</pre>` : ''}</section>
   </div>`;
 }
@@ -234,7 +238,7 @@ function successorEmailRowHtml(item = {}, index = 0) {
   const key = `${item.source_receipt_id}|${index}`;
   return `<article class="successor-email-row ${statusClass(item.disposition)}" data-successor-email="${escapeHtml(key)}">
     <header class="successor-email-heading"><div><span class="successor-label">Email receipt · ${escapeHtml(item.intake_uid)}</span><h3>${escapeHtml(item.subject)}</h3></div><div class="successor-email-status"><time datetime="${escapeHtml(item.received_at || '')}">${escapeHtml(receivedLabel(item.received_at))}</time><span class="successor-status-pill ${statusClass(item.disposition)}">${escapeHtml(item.disposition)}</span><span class="successor-status-pill ${statusClass(verification)}">Verification ${escapeHtml(verification)}</span></div></header>
-    <div class="successor-email-meta"><div><small>Sender</small><strong>${escapeHtml(item.sender)}</strong></div><div><small>Stock / vehicle</small><strong>${escapeHtml(vehicles.length ? vehicles.map(vehicle => `${vehicle.stock} · ${vehicle.vehicle}`).join(' · ') : 'Waiting for vehicle result')}</strong></div><div><small>Attachments / Job Card</small><strong>${attachmentSummaryHtml(item.attachment_summary)}</strong></div><div><small>Intake UID</small><strong>${escapeHtml(item.intake_uid)}</strong></div></div>
+    <div class="successor-email-meta"><div><small>Sender</small><strong>${escapeHtml(item.sender)}</strong></div><div><small>Stock / vehicle</small><strong>${escapeHtml(vehicles.length ? vehicles.map(vehicle => `${vehicle.stock} · ${vehicle.vehicle}`).join(' · ') : 'Waiting for vehicle result')}</strong></div><div><small>Attachments / Job Card</small><strong>${attachmentSummaryHtml(item.attachment_summary)} · JC ${escapeHtml(item.job_card_summary?.job_card_number || '—')}</strong><small>${escapeHtml(`${item.job_card_summary?.operation_count ?? 0} operation lines · ${item.job_card_summary?.extraction_status || 'not_extracted'}`)}</small></div><div><small>Intake UID</small><strong>${escapeHtml(item.intake_uid)}</strong></div></div>
     <div class="successor-change-summary"><span class="successor-label">Before → requested → result</span><div>${compactSummary(summary)}</div></div>
     <div class="successor-vehicle-results">${vehicles.length ? vehicles.map(vehicleResultHtml).join('') : '<div class="successor-muted">No vehicle result yet. The email remains accounted for as a parent receipt.</div>'}</div>
     <details class="successor-email-details"><summary>Typed plan, all actions, receipts, retries and authoritative readback</summary>${transactionDetailsHtml(item)}</details>
@@ -256,11 +260,14 @@ function createPdcEmailAiSuccessorInboxController(options = {}) {
   const client = options.client;
   const subscribeRealtime = options.subscribeRealtime;
   const getAuthority = typeof options.getAuthority === 'function' ? options.getAuthority : () => '';
-  const state = { state: 'idle', data: { items: [], revision: null }, error: '', generation: 0, lifecycle: 0, subscription: null, cursor: null };
+  const state = { state: 'idle', realtimeState: 'connecting', data: { items: [], revision: null }, error: '', generation: 0, lifecycle: 0, subscription: null, cursor: null };
   if (!root || !client) throw new Error('Successor inbox requires a root and client.');
 
   function render() {
-    root.innerHTML = `<div class="successor-inbox-toolbar"><div><span class="eyebrow">Successor · evidence to typed plan to readback</span><h2>Chronological AI Intake</h2><p>Read-only projection of email receipts and controlled transaction results. This screen never writes business state.</p></div><div class="successor-inbox-actions"><span class="successor-inbox-state-pill ${state.state}">${escapeHtml(state.state === 'synchronized' ? `Live · revision ${state.data.revision ?? '—'}` : state.state)}</span><button class="small-button" id="pdc-successor-inbox-refresh" type="button">Refresh</button></div></div><div id="pdc-successor-inbox-content">${renderSuccessorInbox(state)}</div>`;
+    const liveLabel = state.state === 'synchronized' && state.realtimeState === 'subscribed'
+      ? `Live · revision ${state.data.revision ?? '—'}`
+      : state.state === 'synchronized' ? `Refresh only · Realtime ${state.realtimeState}` : state.state;
+    root.innerHTML = `<div class="successor-inbox-toolbar"><div><span class="eyebrow">Successor · evidence to typed plan to readback</span><h2 id="pdc-email-ai-successor-title">Chronological AI Intake</h2><p>Read-only projection of email receipts and controlled transaction results. This screen never writes business state.</p></div><div class="successor-inbox-actions"><span class="successor-inbox-state-pill ${escapeHtml(state.realtimeState)}">${escapeHtml(liveLabel)}</span><button class="small-button" id="pdc-successor-inbox-refresh" type="button">Refresh</button></div></div><div id="pdc-successor-inbox-content">${renderSuccessorInbox(state)}</div>`;
     root.querySelector('#pdc-successor-inbox-refresh')?.addEventListener('click', () => { void refresh(); });
     root.querySelector('.successor-load-more')?.addEventListener('click', event => { state.cursor = event.currentTarget.dataset.successorNextCursor || null; void refresh({ append: true }); });
   }
@@ -283,7 +290,14 @@ function createPdcEmailAiSuccessorInboxController(options = {}) {
 
   function subscribe() {
     if (state.subscription || typeof subscribeRealtime !== 'function') return;
-    const handle = subscribeRealtime(PDC_EMAIL_AI_SUCCESSOR_REVISION_TABLE, { onChange: () => { void refresh(); } });
+    const handle = subscribeRealtime(PDC_EMAIL_AI_SUCCESSOR_REVISION_TABLE, {
+      onChange: () => { void refresh(); },
+      onStatus: status => {
+        const normalized = String(status || '').toUpperCase();
+        state.realtimeState = normalized === 'SUBSCRIBED' ? 'subscribed' : normalized === 'CHANNEL_ERROR' || normalized === 'TIMED_OUT' || normalized === 'CLOSED' ? 'error' : 'connecting';
+        render();
+      },
+    });
     if (handle) state.subscription = handle;
   }
   function unmount() {

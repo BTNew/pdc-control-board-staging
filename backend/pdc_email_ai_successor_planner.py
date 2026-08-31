@@ -6,6 +6,7 @@ nothing outside the typed plan contract.
 """
 from __future__ import annotations
 
+import hashlib
 import re
 from datetime import date
 from typing import Any, Mapping, Sequence
@@ -87,7 +88,7 @@ def _action(row: Mapping[str, Any], action_type: str, payload: dict[str, Any], e
         "expected_vehicle_version": row["version"],
         "action_type": action_type,
         "payload": payload,
-        "evidence_refs": [f"correspondence:{evidence}"],
+        "evidence_refs": [f"correspondence-digest:{hashlib.sha256(str(evidence).encode('utf-8')).hexdigest()}"],
     }
 
 

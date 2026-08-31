@@ -1,4 +1,5 @@
 import unittest
+import re
 
 from backend.pdc_email_ai_successor_contract import aggregate_disposition
 from backend.pdc_email_ai_successor_planner import interpret_correspondence
@@ -98,6 +99,14 @@ class PlannerTests(unittest.TestCase):
     def test_unknown_action_is_not_emitted_as_a_mutation(self):
         plan = interpret_correspondence(receipt("Please do whatever is needed for Stock 13000765."), [], [VEHICLE_A])
         self.assertEqual(plan["instructions"], [])
+
+    def test_evidence_refs_are_stable_ids_not_correspondence_text(self):
+        clause = "Stock 13000765 parts ETA 15 September 2026; do not expose this sentence"
+        plan = interpret_correspondence(receipt(clause), [], [VEHICLE_A])
+        refs = plan["instructions"][0]["evidence_refs"]
+        self.assertTrue(refs)
+        self.assertNotIn("do not expose", " ".join(refs).lower())
+        self.assertTrue(all(re.fullmatch(r"correspondence-digest:[a-f0-9]{64}", ref) for ref in refs))
 
 
 if __name__ == "__main__":

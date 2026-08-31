@@ -8,8 +8,8 @@
   "prompt_version": "pdc-email-ai-prompt-v1",
   "taxonomy_version": "pdc-work-taxonomy-v1",
   "rule_version": "pdc-business-rules-v1",
-  "supabase_action_version": "20260831330000",
-  "successor_inbox_rpc": "get_pdc_email_ai_transaction_successor_inbox",
+  "supabase_action_version": "20260831340000",
+  "successor_inbox_rpc": "get_pdc_email_ai_transaction_successor_inbox_v2",
   "successor_inbox_revision_table": "pdc_email_ai_successor_ui_revision",
   "successor_inbox_ui_asset_version": "2026.08.31.06-successor-inbox-realtime-loop",
   "command_rpc": "apply_pdc_email_ai_transaction_successor",
@@ -49,6 +49,7 @@
     "test_pdc_email_ai_successor_inbox_migration.py",
     "tests/fixtures/pdc_email_ai_successor_inbox_ui.json",
     "supabase/staging_only/20260831330000_pdc_email_ai_successor_inbox_read_projection.sql",
+    "supabase/staging_only/20260831340000_pdc_email_ai_successor_command_read_hardening.sql",
     "scripts/verify_pdc_email_ai_successor_inbox_staging.py"
   ]
 }

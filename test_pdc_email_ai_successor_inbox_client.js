@@ -3,9 +3,11 @@
 const assert = require('assert');
 const {
   PDC_EMAIL_AI_SUCCESSOR_STAGING_PROJECT_REF,
+  PDC_EMAIL_AI_SUCCESSOR_INBOX_RPC,
   createPdcEmailAiSuccessorInboxClient,
   normalizeSuccessorInboxSnapshot,
 } = require('./pdc-email-ai-successor-inbox.js');
+assert.strictEqual(PDC_EMAIL_AI_SUCCESSOR_INBOX_RPC, 'get_pdc_email_ai_transaction_successor_inbox_v2');
 
 async function test(name, fn) {
   try { await fn(); console.log(`PASS ${name}`); }
@@ -23,12 +25,12 @@ async function test(name, fn) {
         return { ok: true, status: 200, json: async () => ({ ok: true, revision: 4, has_more: false, next_cursor: null, items: [] }) };
       },
     });
-    const result = await client.snapshot({ pageSize: 250, cursor: '2026-08-31T01:02:03.000Z' });
+    const result = await client.snapshot({ pageSize: 250, cursor: { sort_time: '2026-08-31T01:02:03.000Z', created_at: '2026-08-31T01:02:03.000Z', id: '11111111-1111-4111-8111-111111111111' } });
     assert.strictEqual(result.ok, true);
-    assert.ok(calls[0].url.endsWith('/rest/v1/rpc/get_pdc_email_ai_transaction_successor_inbox'));
+    assert.ok(calls[0].url.endsWith(`/rest/v1/rpc/${PDC_EMAIL_AI_SUCCESSOR_INBOX_RPC}`));
     const body = JSON.parse(calls[0].options.body);
     assert.strictEqual(body.p_page_size, 250);
-    assert.strictEqual(body.p_cursor, '2026-08-31T01:02:03.000Z');
+    assert.deepStrictEqual(body.p_cursor, { sort_time: '2026-08-31T01:02:03.000Z', created_at: '2026-08-31T01:02:03.000Z', id: '11111111-1111-4111-8111-111111111111' });
     assert.strictEqual(calls[0].options.headers.Authorization, 'Bearer token');
   });
 
