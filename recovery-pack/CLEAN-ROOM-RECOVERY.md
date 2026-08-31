@@ -14,7 +14,7 @@ Use a new isolated VM/profile/worktree with no current conversation memory, no c
 Run exactly:
 
 ```text
-python recovery-pack/bootstrap_recovery.py --pack-root recovery-pack --source-root . --execute
+python bootstrap_recovery.py --pack-root . --source-root source-snapshot --execute
 ```
 
 The runner must stop at the first missing or failed gate and write only sanitized JSON. It must not invent local state, use a service role as runtime, run a browser business write, manually enqueue/import/activate, invoke OneCycle, force a scheduled task, alter mailbox flags or contact Production.

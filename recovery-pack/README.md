@@ -21,7 +21,7 @@ The pack is designed to make the answer **YES** after the clean-room procedure c
 From a clean checkout, run:
 
 ```text
-python recovery-pack/bootstrap_recovery.py --pack-root recovery-pack --source-root . --execute
+python bootstrap_recovery.py --pack-root . --source-root source-snapshot --execute
 ```
 
 The command is deterministic and fail-closed. It executes these gates in order and records a secretless report:

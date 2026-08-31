@@ -9,11 +9,11 @@
   },
   "pack_files": {
     "ARCHITECTURE.md": "f77771bb87ca44ebe9eaf8209a9599d4f1b12e02605758cbffa1fe533ef84de3",
-    "CLEAN-ROOM-RECOVERY.md": "4b5abbe48efba3874bcadc8b74ec510dfe6a913aa2b4646b91880f5554b821a4",
+    "CLEAN-ROOM-RECOVERY.md": "dff54f35940e58b2c64ded9054e0caedc4a6e2154885fcd839747e22d84ba1c3",
     "COMMISSIONING-RUNBOOK.md": "8c69fcf35992441e1e75187bcebe9ae40a955273483a50509eae13469dc62ece",
     "ENV-VAR-CONTRACT.md": "49b8d061eceb58149051f0d6d351af8ca19cb8dd3716d7dd2e346ec250fdabba",
     "FAILURE-MODES.md": "cbf2a5cda459a12a056f9799d7769172881929acbdc7caabb981256616c6008d",
-    "README.md": "ba77ed625425aa30cdf50f557094cdadaa8028211d35847f23e622058687fad6",
+    "README.md": "b984b33cd10f76e6d48c40fda80b86fb2c935062891faf07dc091f8116515b7f",
     "SUPABASE-CONTRACT-INVENTORY.json": "af4852b0fa7cc98be58ca046c4247f58d6a97f26e722e13156da12d2e3bd8894",
     "VERSIONS.json": "71292b5383ba9fcb0010edb80337d444e9718c89fc851bc6597c65f33b27171f",
     "bootstrap_recovery.py": "178063bf550f5eaf7e15334f7191f8e999600f17862eefc25ff2135464c721be",
@@ -29,7 +29,7 @@
   },
   "pack_version": "pdc-email-ai-recovery-pack-v1",
   "project_ref": "cdsmnqxtyyoeoznmbidd",
-  "release_url": "https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1",
+  "release_url": "https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.1",
   "secret_policy": {
     "outbound_email": false,
     "plaintext_secrets": false,
