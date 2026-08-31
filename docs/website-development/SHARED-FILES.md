@@ -1,5 +1,11 @@
 # Shared Files
 
+## Sublet workgroup-only Vehicle Locations presentation — 2026-08-31
+
+- `app.js` — removes the duplicate `SUBLET Booked` vehicle/model badge and projects the canonical active Sublet booking into the existing orange workgroup state without changing completed/returned/cancelled semantics.
+- `index.html` — cache-busts the changed app asset with `sublet-workgroup=2026.08.31.3300`.
+- `test_sublet_projection_contract.js`, `test_sublet_workgroup_projection_20260831.js` — DOM/source regressions for exact Stock `13080534`, active/no-booking/cancelled/returned/completed Sublet states and Parts preservation.
+
 ## PDC Board checklist closure — 2026-08-31
 
 - `app.js`, `index.html`, `deployment-identity.json` — PMB/YH lifecycle-age display now uses retained first-transition history, Parts Risk copy is explicitly based on the scheduled Workshop booking date, dashboard Refresh avoids the revoked unscoped Workshop RPC, and staging assets carry the closure cache marker.

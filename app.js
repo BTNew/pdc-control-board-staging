@@ -286,9 +286,10 @@ function pdcWorkDestinationDateLabel(value = '') {
 }
 
 function canonicalActiveSubletBooking(vehicle = {}) {
-  return (Array.isArray(vehicle.pdcSubletBookings) ? vehicle.pdcSubletBookings : [])
+  const active = (Array.isArray(vehicle.pdcSubletBookings) ? vehicle.pdcSubletBookings : [])
     .filter(booking => String(booking?.status || '').trim().toLowerCase() === 'active' && booking?.bookingId)
-    .sort((a, b) => String(a.outDate || '').localeCompare(String(b.outDate || '')) || String(a.bookingId).localeCompare(String(b.bookingId)))[0] || null;
+    .sort((a, b) => String(a.outDate || '').localeCompare(String(b.outDate || '')) || String(a.bookingId).localeCompare(String(b.bookingId)));
+  return active.length === 1 ? active[0] : null;
 }
 
 function pdcWorkDestination(vehicle = {}, def = {}) {

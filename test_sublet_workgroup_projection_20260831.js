@@ -71,6 +71,12 @@ assert.match(activeHtml, /pdc-station-sublet is-required is-ordered/);
 assert.match(activeHtml, /aria-label="Sublet booked"/);
 assert.match(activeHtml, /title="Sublet booked"/);
 assert.doesNotMatch(activeHtml, /Sublet Booked/);
+const ambiguousActiveHtml = context.renderIncoming({ ...activeVehicle, pdcSubletBookings: [
+  ...activeVehicle.pdcSubletBookings,
+  { ...activeVehicle.pdcSubletBookings[0], bookingId: '575efd0a-1cb9-4f3a-bf02-483afe6ff5ac' },
+] }, {});
+assert.doesNotMatch(ambiguousActiveHtml, /pdc-station-sublet is-required is-ordered/,
+  'ambiguous multiple active bookings must fail closed instead of selecting one heuristically');
 
 const noBookingHtml = context.renderIncoming(mapped('', { required: true, completed: false }), {});
 assert.match(noBookingHtml, /pdc-station-sublet is-required/);

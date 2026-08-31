@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-08-31 — Sublet workgroup-only Vehicle Locations presentation
+
+- Reproduced the authenticated STAGING screenshot regression for Stock `13080534`: the vehicle/model column showed duplicate `SUBLET Booked` text while the Sublet workgroup remained a normal pink requirement dot.
+- `app.js` now removes the duplicate vehicle-column badge and uses only the canonical mapped `pdcSubletBookings` projection. Exactly one active canonical booking makes the Sublet workgroup use the existing orange booked/ordered treatment; absent, cancelled, returned or completed bookings remain non-orange and completed remains green.
+- Updated `test_sublet_projection_contract.js` and added `test_sublet_workgroup_projection_20260831.js` covering exact Stock `13080534`, active/no-booking/cancelled/returned/completed states, Parts preservation and duplicate-label absence. Cache marker: `sublet-workgroup=2026.08.31.3300`.
+
 ## 2026-08-31 — PDC Board STAGING checklist closure
 
 - Isolated the closure work from committed `staging/main` in `C:/Users/nwmgr/HermesWorkspaces/development/pdc-board-checklist-closure-20260831`; the dirty Website Development Lead worktree and active Email Monitor repair/successor worktrees were not modified.
