@@ -1,6 +1,6 @@
 # PDC Email AI Transaction Successor — STAGING plan
 
-Status: UI/read projection, v2 command/read hardening, staging Pages deployment and live browser/read contract proven; runtime identity commissioning and natural-cycle acceptance remain blocked on protected owner provisioning
+Status: UI/read projection, v2 command/read hardening, staging Pages deployment, live browser/read contract and least-privilege runtime commissioning proven; natural pdc-emails proof and soak remain
 Environment: STAGING only
 Dashboard: `20260831_095314_64feeb`
 Production: prohibited and not contacted
