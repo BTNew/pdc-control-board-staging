@@ -41,7 +41,7 @@ class ExactRetryAfterStorageRepair862ContractTests(unittest.TestCase):
             "pdc_monitor_exact_requeue_history_862",
             "before_state",
             "after_state",
-            "where id=v_id",
+            "where i.id=v_id",
             "status='received'",
         ):
             self.assertIn(marker, self.lower)

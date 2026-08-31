@@ -59,7 +59,7 @@ BEGIN
  SELECT to_jsonb(i),i.id INTO v_before,v_id FROM public.ai_email_intake i WHERE i.id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid AND i.provider_uid='imap_uid:692' AND i.status='failed' AND i.permanent_failure FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'PDC_862_EXACT_REQUEUE_TARGET_LOST' USING errcode='55000'; END IF;
  SELECT count(*) INTO v_attachment_count FROM public.ai_email_attachments WHERE intake_id=v_id;
- UPDATE public.ai_email_intake SET status='received',permanent_failure=false,retry_class=null,next_attempt_at=clock_timestamp(),locked_at=null,locked_by=null,claim_token=null,gateway_instance_id=null,error_details=null,last_error_code=null WHERE id=v_id AND status='failed' AND permanent_failure RETURNING to_jsonb(public.ai_email_intake.*) INTO v_after;
+ UPDATE public.ai_email_intake AS i SET status='received',permanent_failure=false,retry_class=null,next_attempt_at=clock_timestamp(),locked_at=null,locked_by=null,claim_token=null,gateway_instance_id=null,error_details=null,last_error_code=null WHERE i.id=v_id AND i.status='failed' AND i.permanent_failure RETURNING to_jsonb(i.*) INTO v_after;
  IF NOT FOUND THEN RAISE EXCEPTION 'PDC_862_EXACT_REQUEUE_CONCURRENT_DRIFT' USING errcode='40001'; END IF;
  v_event_key:=encode(extensions.digest(convert_to('pdc-monitor-staging-862-requeue-692|forward|'||v_id::text,'UTF8'),'sha256'),'hex');
  INSERT INTO public.pdc_monitor_exact_requeue_history_862(event_key,event_kind,predecessor_head,successor_head,intake_id,provider_uid,source_hash,before_state,after_state,source_evidence_unchanged,attachments_unchanged,task_enabled,mailbox_flags_changed,uid514_processed,outbound_email_sent,production_writes,rollback_contract)
