@@ -4,7 +4,7 @@
 BEGIN;
 SET LOCAL lock_timeout='10s';
 SET LOCAL statement_timeout='180s';
-SELECT pg_advisory_xact_lock(hashtextextended('pdc-email-ai-transaction-successor-20260831260000',0));
+SELECT pg_advisory_xact_lock(hashtextextended('pdc-email-ai-transaction-successor-20260831300000',0));
 
 DO $guard$
 BEGIN
@@ -13,10 +13,10 @@ BEGIN
      OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel
          WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
      OR (SELECT count(*) FROM supabase_migrations.schema_migrations
-         WHERE version='20260831240000'
-           AND name='858_runtime_authority_839_scope_compatibility_successor')<>1
+         WHERE version='20260831290000'
+           AND name='863_exact_retry_after_storage_repair')<>1
      OR EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations
-               WHERE version='20260831260000')
+               WHERE version='20260831300000')
   THEN RAISE EXCEPTION 'PDC_EMAIL_AI_SUCCESSOR_STAGING_PRECONDITION_FAILED' USING errcode='55000'; END IF;
   IF to_regclass('public.ai_email_intake') IS NULL
      OR to_regclass('public.vehicles') IS NULL
@@ -364,8 +364,8 @@ REVOKE ALL ON FUNCTION public.get_pdc_email_ai_successor_health() FROM public,an
 GRANT EXECUTE ON FUNCTION public.get_pdc_email_ai_successor_health() TO authenticated;
 
 INSERT INTO supabase_migrations.schema_migrations(version,name,statements)
-VALUES('20260831260000','pdc_email_ai_transaction_successor',ARRAY[
-  'Exact STAGING sentinel and 858 predecessor guard; Production sentinel rejected; current Email Monitor repair runtime is not modified',
+VALUES('20260831300000','pdc_email_ai_transaction_successor',ARRAY[
+  'Exact STAGING sentinel and live migration 863 predecessor guard; Production sentinel rejected; current Email Monitor repair runtime is not modified',
   'Immutable source-linked transaction and per-action receipts with stable source/digest/vehicle/action/payload idempotency keys',
   'Dedicated authenticated successor identity only; no service_role, Administrator, direct table, browser or arbitrary SQL authority',
   'One typed plan RPC validates the complete plan before fixed canonical action dispatch and returns complete action dispositions',

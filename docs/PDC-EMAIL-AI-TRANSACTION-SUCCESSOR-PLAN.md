@@ -1,6 +1,6 @@
 # PDC Email AI Transaction Successor — STAGING plan
 
-Status: implemented locally; live STAGING application and natural-cycle gates remain to be proven
+Status: locally implemented; live STAGING migration/readback proven; runtime identity and natural-cycle acceptance gates remain
 Environment: STAGING only
 Dashboard: `20260831_095314_64feeb`
 Production: prohibited and not contacted
@@ -20,7 +20,7 @@ Source baseline:
 
 `87224a2e` — the latest committed website-development source. The parent worktree contains unrelated dirty and untracked Email Monitor repair work. This worktree was created from the committed tree, not copied from that dirty worktree.
 
-The current repair runtime remains the rollback reference. This successor will not edit or enable the existing scheduled task, change current repair migrations, rescan the mailbox, send mail, or use Production credentials.
+No source or object from 863 is copied or rewritten; the new migration only requires the observed 863 ledger entry. The current repair runtime remains the rollback reference; this successor will not edit or enable its scheduled task, migrations, mailbox flags, or worker.
 
 ## 1. Grounded current map
 

@@ -5,7 +5,7 @@ from pathlib import Path
 from pglast import parse_sql
 
 
-MIGRATION = Path(__file__).resolve().parents[1] / "supabase" / "staging_only" / "20260831260000_pdc_email_ai_transaction_successor.sql"
+MIGRATION = Path(__file__).resolve().parents[1] / "supabase" / "staging_only" / "20260831300000_pdc_email_ai_transaction_successor.sql"
 
 
 class MigrationContractTests(unittest.TestCase):
@@ -14,8 +14,8 @@ class MigrationContractTests(unittest.TestCase):
         self.assertIn("pdc_staging_environment_sentinel", sql)
         self.assertIn("cdsmnqxtyyoeoznmbidd", sql)
         self.assertIn("pdc_production_environment_sentinel", sql)
-        self.assertIn("20260831240000", sql)
-        self.assertIn("20260831260000", sql)
+        self.assertIn("20260831290000", sql)
+        self.assertIn("20260831300000", sql)
         self.assertNotRegex(sql, r"(?i)drop\s+(table|function|policy)")
         self.assertIn("apply_pdc_email_ai_transaction_successor", sql)
         self.assertGreaterEqual(len(parse_sql(sql)), 30)

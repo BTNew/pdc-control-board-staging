@@ -22,7 +22,7 @@ Manifest:
 `runtime/pdc-email-ai-successor-manifest.json`
 
 Migration:
-`supabase/staging_only/20260831260000_pdc_email_ai_transaction_successor.sql`
+`supabase/staging_only/20260831300000_pdc_email_ai_transaction_successor.sql`
 
 ## Four-layer operation
 
@@ -47,10 +47,9 @@ Supabase URL through the connector; never put its token, password, DSN or
 mailbox secret in this repository. The migration itself requires:
 
 - the STAGING sentinel for project `cdsmnqxtyyoeoznmbidd`;
-- current migration predecessor `20260831240000 /
-  858_runtime_authority_839_scope_compatibility_successor`;
+- live migration predecessor `20260831290000 / 863_exact_retry_after_storage_repair`;
 - no Production sentinel;
-- no existing successor version `20260831260000`;
+- no existing successor version `20260831300000`;
 - existing canonical read model and Parts ETA RPC.
 
 If the predecessor/head guard fails, stop the migration and record the exact
@@ -95,7 +94,7 @@ Run the local suite first:
 
 Run the SQL parser and project regression suite:
 
-`python -c "from pathlib import Path; from pglast import parse_sql; print(len(parse_sql(Path('supabase/staging_only/20260831260000_pdc_email_ai_transaction_successor.sql').read_text())))"`
+`python -c "from pathlib import Path; from pglast import parse_sql; print(len(parse_sql(Path('supabase/staging_only/20260831300000_pdc_email_ai_transaction_successor.sql').read_text())))"`
 
 `npm run test`
 
