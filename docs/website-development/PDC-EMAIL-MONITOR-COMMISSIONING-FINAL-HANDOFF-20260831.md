@@ -28,3 +28,12 @@ The exact authenticated monitor enqueue path now handles non-enrolled or unappro
 - Final task shape: enabled, `LOCAL SERVICE`, `ServiceAccount`, `Limited`, `PT5M`; outbound email disabled; mailbox flags unchanged.
 
 No UAC was launched. No Production remote, branch, data or credential was used.
+
+## Successor completion
+
+- Append-only staging successor `20260831250000 / 859_runtime_766_compatibility_and_attachment_path_successor` is applied and read back live.
+- The protected .68 legacy response is restored exactly at `migration_head=766` and `compatibility_successor_head=766`; the function internally validates the live 858+ chain and exact authenticated 839 scope. Protected 672 and the local verifier were not changed.
+- Attachment storage paths are normalized per message; malformed paths are represented as `path_quarantined`/null in the read projection only. No Board mutation, mailbox-flag mutation, UID514 processing, outbound email, or Production contact occurred.
+- Protected VerifyOnly and disabled bounded OneCycle both passed `ok=true` with no mailbox contact.
+- Two NEW consecutive natural PT5M runs passed at `2026-08-31T09:58:34+08:00` and `2026-08-31T10:03:34+08:00`. Both returned `LastTaskResult=0`; processor failures were `0`. The task was disabled again after the proof, and the final authoritative result is `0`.
+- Final dashboard association: `20260828_191153_4fb787`.

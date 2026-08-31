@@ -513,3 +513,12 @@
 - Repair: append-only 855 deterministic immutable review receipt for non-enrolled senders; 856-858 exact 839 compatibility repairs.
 - Verification: focused contracts 7/7; protected VerifyOnly and disabled OneCycle 0/ok=true; identical non-enrolled replay returned the same receipt ID/key; two natural PT5M cycles returned LastTaskResult=0 with processor failures 0; outbound, mailbox flags, UID514 and Production remained protected.
 - Final handoff: `docs/website-development/PDC-EMAIL-MONITOR-COMMISSIONING-FINAL-HANDOFF-20260831.md`.
+
+## 2026-08-31 — Commissioning compatibility successor 859
+
+- Scope: STAGING `cdsmnqxtyyoeoznmbidd` only; dashboard `20260828_191153_4fb787`; no Production, UAC, outbound email, or mailbox flags.
+- Repair: append-only `supabase/staging_only/20260831250000_859_runtime_766_compatibility_and_attachment_path_successor.sql` after 858. It restores the protected .68 `verify_pdc_monitor_runtime_binding_authenticated_766` response projection (`migration_head=766`, `compatibility_successor_head=766`) while internally validating the exact 858+ ledger chain, authenticated 839 scope, approved actor/gateway/release, one mailbox, outbound-off pilot, UID514 and Production exclusion. Protected 672 was not altered.
+- Attachment repair: the same successor normalizes only per-message attachment read projection paths; malformed paths return `path_quarantined`/null without Board mutation or mailbox-flag changes.
+- Live staging apply/readback passed at `20260831250000/859_runtime_766_compatibility_and_attachment_path_successor`; migration SHA-256 `c554b4d7c19d20d799ca97f588addbef51654952c36859a106af0f718f134c2f`; Board mutation false, mailbox flags false, UID514 false, Production false.
+- Protected VerifyOnly and disabled bounded OneCycle both passed `ok=true` with no mailbox contact. Two fresh consecutive natural PT5M cycles passed with actual run timestamps `2026-08-31T09:58:34+08:00` and `2026-08-31T10:03:34+08:00`; both `LastTaskResult=0`, processor failures `0`, and mailbox contact was limited to the approved staging mailbox. The task was disabled again after proof; final authoritative result is `0`.
+- Full verification: `npm run test` and `npm run check` each passed `229 passed, 0 failed, 1 skipped`; focused 859 contract `4/4`, attachment 868 contract `6/6`; Python syntax checks passed.
