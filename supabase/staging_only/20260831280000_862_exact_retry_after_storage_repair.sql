@@ -16,8 +16,8 @@ BEGIN
     OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
     OR v_head IS DISTINCT FROM '20260831270000,861_null_storage_predicate_successor'
     OR (SELECT count(*) FROM public.ai_email_intake WHERE id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid AND provider_uid='imap_uid:692' AND status='failed' AND source_hash='cdc66328f62d3eac365127763ac13ed01da83fe16ca951029d17360db6553565' AND queue_attempts=2 AND permanent_failure AND retry_class='permanent' AND locked_at IS NULL AND locked_by IS NULL AND claim_token IS NULL AND gateway_instance_id IS NULL AND last_error_code='worker_exception')<>1
-    OR (SELECT count(*) FROM public.pdc_monitor_requeue_targets_735 WHERE intake_id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid)<>0
-    OR (SELECT count(*) FROM public.pdc_monitor_requeue_receipts_735 WHERE intake_id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid)<>0
+    OR (SELECT count(*) FROM public.pdc_email_monitor_requeue_targets_735 WHERE intake_id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid)<>0
+    OR (SELECT count(*) FROM public.pdc_email_monitor_requeue_receipts_735 WHERE intake_id='0172352b-6045-4ab4-83ba-c8069c9ab8de'::uuid)<>0
     OR to_regclass('public.pdc_monitor_exact_requeue_history_862') IS NOT NULL
  THEN RAISE EXCEPTION 'PDC_862_EXACT_861_REQUEUE_PRESTATE_FAILED' USING errcode='55000'; END IF;
 END
