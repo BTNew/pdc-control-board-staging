@@ -33,14 +33,17 @@ GATES = (
 )
 SECRET_FILE_RE = re.compile(r"(^|/|\\)(\.env|.*\.pem|.*\.key|.*\.pfx|.*\.dpapi|.*credentials?[^/\\]*)$", re.I)
 TOKEN_RE = re.compile(r"(?:eyJ[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|" + "-----" + "BEGIN|" + "pass" + r"word\s*[:=]\s*[^\s<]+)", re.I)
+TEXT_SUFFIXES = frozenset({".json", ".md", ".py", ".ps1", ".txt"})
+
+
+def sha256_bytes(data: bytes, path: Path) -> str:
+    if path.suffix.lower() in TEXT_SUFFIXES:
+        data = data.replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest()
 
 
 def sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    return sha256_bytes(path.read_bytes(), path)
 
 
 def safe_text(path: Path) -> str:
