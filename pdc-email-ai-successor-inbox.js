@@ -289,7 +289,7 @@ function createPdcEmailAiSuccessorInboxController(options = {}) {
     try { state.subscription?.unsubscribe?.(); } catch (_error) { /* best effort */ }
     state.subscription = null;
   }
-  function mount() { render(); subscribe(); void refresh(); return controller; }
+  function mount() { render(); if (getAuthority()) subscribe(); void refresh(); return controller; }
   const controller = { state, render, refresh, subscribe, unmount, mount };
   return controller;
 }
@@ -306,7 +306,10 @@ function mountPdcEmailAiSuccessorInbox(windowRef = window, documentRef = documen
   const root = documentRef.querySelector('#pdc-email-ai-successor-inbox');
   if (!root) return null;
   if (root.__successorInboxController) {
-    if (successorInboxAuthorityMarker(windowRef)) void root.__successorInboxController.refresh();
+    if (successorInboxAuthorityMarker(windowRef)) {
+      root.__successorInboxController.subscribe();
+      void root.__successorInboxController.refresh();
+    }
     return root.__successorInboxController;
   }
   const config = windowRef.PDC_SUPABASE_CONFIG || {};

@@ -23,6 +23,23 @@ test('successor UI is staging-bound and legacy .68 fallback remains hidden', () 
   assert.ok(!/^const api\s*=/m.test(successor));
 });
 
+test('subscription is deferred until authenticated authority is available', () => {
+  const root = { innerHTML: '', querySelector(selector) { return selector === '#pdc-successor-inbox-refresh' ? { addEventListener() {} } : null; } };
+  let authority = '';
+  let subscriptions = 0;
+  const controller = createPdcEmailAiSuccessorInboxController({
+    root,
+    client: { snapshot: () => Promise.resolve({ ok: false, code: 'not_authenticated' }) },
+    getAuthority: () => authority,
+    subscribeRealtime: () => { subscriptions += 1; return { unsubscribe() {} }; },
+  });
+  controller.mount();
+  assert.strictEqual(subscriptions, 0);
+  authority = 'viewer|user|token';
+  controller.subscribe();
+  assert.strictEqual(subscriptions, 1);
+});
+
 test('controller refreshes from Realtime once and suppresses stale generations', async () => {
   const root = {
     innerHTML: '',
