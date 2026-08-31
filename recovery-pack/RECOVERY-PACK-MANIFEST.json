@@ -8,13 +8,14 @@
     "stock": "13023405"
   },
   "pack_files": {
+    ".gitattributes": "b890ba5b9517387979bd06595b2232ab83324fe68a3b5365b43289520557f88a",
     "ARCHITECTURE.md": "f77771bb87ca44ebe9eaf8209a9599d4f1b12e02605758cbffa1fe533ef84de3",
     "CLEAN-ROOM-RECOVERY.md": "dff54f35940e58b2c64ded9054e0caedc4a6e2154885fcd839747e22d84ba1c3",
     "COMMISSIONING-RUNBOOK.md": "8c69fcf35992441e1e75187bcebe9ae40a955273483a50509eae13469dc62ece",
     "ENV-VAR-CONTRACT.md": "49b8d061eceb58149051f0d6d351af8ca19cb8dd3716d7dd2e346ec250fdabba",
-    "EVIDENCE-REPORT.template.json": "785a238bd277a0aeef72ddf7837e0faa5ae758476ad15200bc2ffab1e3e9ee2d",
+    "EVIDENCE-REPORT.template.json": "9b8c6ddbb6335137bbd80bab67c5e7f4cc4604d2f4255b6830b36bb93a1f8092",
     "FAILURE-MODES.md": "cbf2a5cda459a12a056f9799d7769172881929acbdc7caabb981256616c6008d",
-    "README.md": "53574556f81b951cebbc30b89fbad8d122212fbb1b09a7e34505e2e2fd9575da",
+    "README.md": "1543413df0c6bcf2764fed6e657a8026e71bc9124131bc847b16d544b4cc6c30",
     "SUPABASE-CONTRACT-INVENTORY.json": "af4852b0fa7cc98be58ca046c4247f58d6a97f26e722e13156da12d2e3bd8894",
     "TRANSPORT-BUNDLE.json": "14da019b812a020c88cd6547b2610a0bbf9bcf1f436705f2c3a257b97f1b18e2",
     "TRANSPORT-BUNDLE.md": "07bcf23b527a0c5a5551976bafdf35de90e8005bac261fa8882adb99dc4e7ee8",
@@ -44,7 +45,7 @@
   },
   "pack_version": "pdc-email-ai-recovery-pack-v1",
   "project_ref": "cdsmnqxtyyoeoznmbidd",
-  "release_url": "https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.4",
+  "release_url": "https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.5",
   "secret_policy": {
     "outbound_email": false,
     "plaintext_secrets": false,

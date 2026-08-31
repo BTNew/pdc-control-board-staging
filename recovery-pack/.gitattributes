@@ -1,0 +1,7 @@
+# Preserve binary recovery fixtures/assets across Windows checkouts
+*.pdf -text
+*.gz -text
+*.tar.gz -text
+*.pyd -text
+*.dll -text
+*.exe -text

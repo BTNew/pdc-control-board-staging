@@ -1,7 +1,7 @@
 {
   "pack_version": "pdc-email-ai-recovery-pack-v1",
   "source_commit": "3cea2add32bd9089c99a6df99f6f0298e08a37f4",
-  "pack_release_url": "https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.4",
+  "pack_release_url": "https://github.com/BTNew/pdc-email-ai-successor-recovery/releases/tag/pdc-email-ai-recovery-pack-v1.5",
   "pack_commit": "[FILL_FROM_RELEASE_TAG]",
   "independent_backup": {
     "service": "Box",
