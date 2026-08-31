@@ -1,5 +1,12 @@
 # Shared Files
 
+## PDC Board checklist closure — 2026-08-31
+
+- `app.js`, `index.html`, `deployment-identity.json` — PMB/YH lifecycle-age display now uses retained first-transition history, Parts Risk copy is explicitly based on the scheduled Workshop booking date, dashboard Refresh avoids the revoked unscoped Workshop RPC, and staging assets carry the closure cache marker.
+- `supabase/staging_only/20260831280000_pdc_checklist_completion_booking_preservation.sql` — append-only staging successor after live 861. Completing a requirement no longer conflicts with or removes an active planner booking; the Administrator department-completion path preserves the booking while retaining explicit Delete/Cancel controls.
+- `scripts/apply_migration_2800_staging.py`, `scripts/verify_pdc_board_checklist_live_20260831.py` — secure staging installer and authoritative exact Stock `13080534` DB/API readback with staging/Production sentinel checks.
+- `test_pdc_board_checklist_closure_20260831.js` — hostile requirement/booking/risk/lifecycle/refresh/navigation regression contract.
+
 ## Workshop Admin-block audit successor after 771 collision — 2026-08-30
 
 - `workshop-data-service.js`, `app.js`, `index.html` — successor RPC binding and cache-busted Workshop module assets.

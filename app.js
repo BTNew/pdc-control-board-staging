@@ -458,7 +458,10 @@ function parseIsoTimestamp(value = '') {
 }
 
 function pmbEnteredTimestamp(vehicle = {}) {
-  return vehicle.pmbEnteredAt || vehicle.pmbTransferredAt || '';
+  const history = vehicle.lifecycleHistory && typeof vehicle.lifecycleHistory === 'object' ? vehicle.lifecycleHistory : {};
+  return history.firstEnteredPmbAt || history.first_entered_pmb_at
+    || vehicle.firstEnteredPmbAt || vehicle.first_entered_pmb_at
+    || vehicle.pmbEnteredAt || vehicle.pmbTransferredAt || '';
 }
 
 function daysSinceTimestamp(value = '') {
@@ -532,8 +535,9 @@ function onSiteDaysClass(vehicle = {}) {
 
 function locationAgeLabel(vehicle = {}) {
   const status = statusCategory(vehicle);
-  if (status === 'pmb') return onSiteDaysLabel(vehicle).replace('on site', 'at PMB');
-  if (status === 'yardhold') return onSiteDaysLabel(vehicle).replace('on site', 'at YH');
+  const location = typeof vehiclePdcLocation === 'function' ? vehiclePdcLocation(vehicle) : '';
+  if (status === 'pmb' || status === 'qc' || location === 'PMB') return pmbLifecycleAgeLabel(vehicle);
+  if (status === 'yardhold' || location === 'YH') return yardHoldLifecycleAgeLabel(vehicle);
   return navisionEtaForVehicle(vehicle) || 'No ETA';
 }
 
@@ -554,6 +558,23 @@ function pmbAgeLabel(vehicle = {}) {
   if (days === null) return 'PMB entry unknown';
   if (days === 0) return 'PMB today';
   return `PMB +${days}d`;
+}
+
+function lifecycleAgeDays(vehicle = {}, key = '') {
+  const timestamp = lifecycleHistoryForVehicle(vehicle)[key] || '';
+  return daysSinceTimestamp(timestamp);
+}
+
+function lifecycleAgeDaysLabel(days) {
+  return days === null ? 'Unknown' : String(days);
+}
+
+function pmbLifecycleAgeLabel(vehicle = {}) {
+  return `PMB ${lifecycleAgeDaysLabel(lifecycleAgeDays(vehicle, 'firstEnteredPmbAt'))} Days | YH ${lifecycleAgeDaysLabel(lifecycleAgeDays(vehicle, 'firstReachedYardHoldAt'))} Days`;
+}
+
+function yardHoldLifecycleAgeLabel(vehicle = {}) {
+  return `YH ${lifecycleAgeDaysLabel(lifecycleAgeDays(vehicle, 'firstReachedYardHoldAt'))} Days`;
 }
 
 function partsEtaCounterLabel(vehicle = {}) {
@@ -846,7 +867,7 @@ function vehicleRftGateIssues(vehicle = {}) {
   if (vehicle.pdcPartsStoppage === true || cleanNavisionText(vehicle.pdcPartsStoppageReason || '')) {
     issues.push(`Parts STOPPAGE: ${partsStoppageReason(vehicle)}`);
   }
-  if (partsEtaRisk(vehicle)) issues.push(`PARTS RISK: Parts ETA ${partsWorstEtaLabel(vehicle)} is later than Kewdale ETA ${kewdaleEtaValue(vehicle)}`);
+  if (partsEtaRisk(vehicle)) issues.push(`PARTS RISK: Parts ETA ${partsWorstEtaLabel(vehicle)} is later than the scheduled Workshop booking date`);
   const outstanding = pdcQualityControlRequirementDefinitions(vehicle).filter(job => !pdcJobComplete(vehicle, job)).map(job => job.label);
   if (outstanding.length) issues.push(`Outstanding jobs: ${outstanding.join(', ')}`);
   const alreadyTransferredToRft = vehiclePdcLocation(vehicle) === 'RFT' || statusCategory(vehicle) === 'rft' || vehicleCollectedFromRft(vehicle);
@@ -7619,7 +7640,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <div><b>Sales rep</b><span>${escapeHtml(consultant)}</span></div>
         ${isRftRow ? '' : `<div><b>Age</b><span>${escapeHtml(age)}</span></div>`}
         <div><b>Bucket</b><span>${escapeHtml(incomingBucketLabel(bucketKey))}</span></div>
-        ${risk && !isRftRow ? `<div class="wide parts-risk-detail"><b>PARTS RISK</b><span>Parts ETA ${escapeHtml(partsWorstEtaLabel(vehicle))} is later than Kewdale ETA ${escapeHtml(kewdaleEtaValue(vehicle))}</span></div>` : ''}
+        ${risk && !isRftRow ? `<div class="wide parts-risk-detail"><b>PARTS RISK</b><span>Parts ETA ${escapeHtml(partsWorstEtaLabel(vehicle))} is later than the scheduled Workshop booking date</span></div>` : ''}
         ${canonicalSubletDetail}
         ${subletProviderField}
         ${isRftRow ? '' : authenticatedEmailOperationLinesHtml(vehicle)}
@@ -17138,6 +17159,11 @@ function operationalRefreshCommonLoaders(route) {
       return { ok: await refreshEmailVehicleLocations({ refreshGeneration: generation }) };
     },
     workOperationStates: async () => {
+      // The authenticated dashboard uses the email/Navision snapshot and
+      // eligibility readers. The old unscoped get_workshop_snapshot RPC is
+      // intentionally revoked; only a selected Workshop station has a
+      // scoped planner snapshot to refresh.
+      if (route === 'dashboard') return { ok: true, skipped: true };
       if (typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
       const service = window.__workshopDataService;
       if (!service || typeof service.loadSnapshot !== 'function') return { ok: true, skipped: true };

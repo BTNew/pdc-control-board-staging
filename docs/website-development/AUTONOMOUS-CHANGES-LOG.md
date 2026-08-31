@@ -1,5 +1,15 @@
 # Autonomous Website Changes
 
+## 2026-08-31 — PDC Board STAGING checklist closure
+
+- Isolated the closure work from committed `staging/main` in `C:/Users/nwmgr/HermesWorkspaces/development/pdc-board-checklist-closure-20260831`; the dirty Website Development Lead worktree and active Email Monitor repair/successor worktrees were not modified.
+- Fixed the discovered Parts Risk presentation defect: the authoritative `vehicle-requirements-guard.js` booking-date comparison remains the source of truth, while all UI/RFT warning copy now says the risk is Parts ETA later than the scheduled Workshop booking date and never cites Kewdale ETA. Completed Parts continues to suppress the risk.
+- Fixed the discovered lifecycle-age presentation defect: PMB and QC rows now show `PMB XX Days | YH XX Days`, Yard Hold rows show `YH XX Days`, and both use the retained first PMB/first YH timestamps rather than mutable Kewdale ETA or mutable milestone dates. IT/awaiting-arrival rows remain ETA-only.
+- Fixed dashboard Refresh against the live staging contract: the revoked unscoped `get_workshop_snapshot` call is skipped on the dashboard; station planners continue to use scoped `get_station_workshop_snapshot`. No whole-page reload path was added.
+- Added append-only `supabase/staging_only/20260831280000_pdc_checklist_completion_booking_preservation.sql` after live head `20260831270000/861_null_storage_predicate_successor`. Requirement completion no longer conflicts with or removes an active planner booking; Administrator vehicle-card completion preserves the booking row/history and explicit Delete/Cancel paths remain unchanged. Live installer readback returned head `20260831280000`, both repaired function postconditions true, staging ref `cdsmnqxtyyoeoznmbidd`, Production sentinel absent, and outbound email false.
+- Exact authoritative Stock `13080534` readback passed: one canonical vehicle, one Vehicle Locations projection row, active canonical Sublet booking `475efd0a-1cb9-4f3a-bf02-483afe6ff5ac`, `2026-09-05` out date, `2026-09-12` expected return, provider `Customer Sublet`, one history row. Authenticated Browser Use UI readback opened the Stock row and vehicle card with the Sublet booked pill, return date and exact operation lines.
+- Added `test_pdc_board_checklist_closure_20260831.js`, secure installer/readback scripts, the staging cache marker, deployment identity and Shared Files registration. PGLAST parsed the new SQL into 11 statements; focused hostile Node tests and syntax checks passed. Production was not contacted or mutated.
+
 ## 2026-08-30 — Repair 752 rollback-history containment control
 
 - Added append-only STAGING migration `20260830211000_798_repair_752_rollback_history_insert.sql`, bound to live 797 and the exact 752 forward mailbox/writer evidence. It repairs only the existing `admin_rollback_pdc_email_monitor_reactivation_752` history insert, which referenced `actor_id`/`actor_email` without a source row.
