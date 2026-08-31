@@ -15,17 +15,17 @@ Commissioning is complete in STAGING. After successor 859 repaired the compatibi
 
 The protected `.68` run reached the monitor path and reported `attachment storage path is invalid` for one malformed failed attachment row. A narrow staging cleanup removed only that exact malformed row after checking its intake, graph part, filename, source hash, failed status and mismatch error. UID514 remained present and unchanged (`1` row); mailbox flags, outbound email and Production remained untouched.
 
-## Verification rerun
+## Earlier failed verification (superseded)
 
 - Protected VerifyOnly attempted at `2026-08-31T01:40:31Z`: failed closed with `PDC_MONITOR_766_PREFLIGHT_DENIED`.
 - Protected bounded OneCycle while the task was disabled attempted at `2026-08-31T01:41:00Z`: failed closed with `PDC_MONITOR_766_PREFLIGHT_DENIED`.
 - Both runs contacted no mailbox, processed no UID514 row and contacted no Production.
 
-## Remaining blocker
+## Root cause (resolved)
 
-Read-only staging inspection shows the live migration head is `20260831240000 / 858_runtime_authority_839_scope_compatibility_successor`. The protected installed `.68` verifier still requires the older RPC response values `migration_head=766` and `compatibility_successor_head=766`. It therefore correctly fails closed against the newer live head. The protected runtime requires a reviewed successor/current-head compatibility release before enablement can be attempted safely.
+Read-only staging inspection showed the live migration head was `20260831240000 / 858_runtime_authority_839_scope_compatibility_successor`. The protected installed `.68` verifier required the legacy RPC response values `migration_head=766` and `compatibility_successor_head=766`, so it correctly failed closed against the newer live head. Successor 859 resolved this incompatibility without changing the protected runtime or weakening its checks.
 
-## Authoritative task state after evidence write
+## Earlier fail-closed task state (superseded)
 
 - State: `Disabled`
 - Enabled: `false`
