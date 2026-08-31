@@ -51,11 +51,19 @@ Corrected preparation receipt: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-202608
 
 ## New human-only blocker
 
-No non-elevated recovery path can read or repair the inheritance-protected `.69` ProgramData release. Do not launch another prompt from this worker. The shortest next action, when Craig is available, is one run of `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/PDCMonitor-Install-20260869.ps1` with approval of its single UAC request. After that receipt reports `ok=true`, the task must remain disabled for VerifyOnly and bounded OneCycle gates before any enablement decision.
+The `.69` repair path is historical only. The current protected continuation is the `.71` VerifyOnly → bounded OneCycle → monitor-task enable path recorded below; do not launch any UAC prompt from this unattended lane.
+
+## Superseding chronology correction
+
+Fresh native readback supersedes the earlier `.69` current-state wording: `CURRENT=2026.08.71`; `.71` release/control/trust/venv directories exist; and `PDC-PMB-Email-Monitor-Staging` is still `Disabled` / `LOCAL SERVICE` / `ServiceAccount` / `Limited` / `PT5M` / `LastTaskResult=1` with no new `.71` run. The `.71` install receipt was overwritten around `2026-08-31T10:01Z` with `ok=true`, control hash `3af444ce…`, `stale_partial_removed=true` and `task_enabled=true`, but that flag is for the separate AI-successor task in the installer and does not prove monitor-task enablement.
+
+The cancelled `PDCMonitor-Repair-Schedule-20260871.ps1` path also targeted the AI-successor task, disabled it before trigger repair, and has no receipt. The non-elevated `.71` verifier failed closed with `PDC_MONITOR_071_VERIFY_FILE_MISSING` on protected `release-manifest.json`; no UAC was launched by this unattended lane.
+
+Prepared corrected monitor continuation: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871-repaired/launch_verify_onecycle_enable_pdc_monitor_20260871.ps1`. It performs protected VerifyOnly, one bounded active-dispatch cycle, authoritative side-effect checks, then enables the existing monitor task without manually starting it. It remains unstarted pending one human Administrator/UAC action.
 
 ## Later `.71` attempt
 
-The later human-approved `.71` attempt is preserved at `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871/install-receipt.json` with `ok=false` and `PDC_MONITOR_071_CONTROL_HASH_MISMATCH`/protected staging cleanup access denied. The task remained disabled and no mailbox, outbound or Production action occurred.
+An earlier `.71` attempt produced an `ok=false` `PDC_MONITOR_071_CONTROL_HASH_MISMATCH` receipt with protected staging cleanup access denied. That receipt was subsequently overwritten around `2026-08-31T10:01Z` by the current `ok=true` `.71` install receipt; the monitor task’s native state remains separately Disabled.
 
 The source/build repair corrected the incompatible control hash algorithm (JSON inventory versus line-oriented tree), canonicalized the manifest to LF bytes, creates the staging `root-control` directory before copy, keeps the elevated wrapper disabled-only until protected VerifyOnly and bounded OneCycle gates pass, and pins the manifest and bundled installer hashes before execution. Prepared corrected bundle: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871-repaired/pdc-monitor-staging-m502-2026.08.71`; manifest `13f3affa82e334195b93126c09764c29b50da55e2339642063c2e94d22811c1f`; control tree `3af444ce65b52935a13e57df17b7dfb3dd329719aff59775a8bc266d740b6749`; 3,359 files; inventory/control/canonical-byte checks passed.
 

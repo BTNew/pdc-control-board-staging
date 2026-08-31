@@ -9,9 +9,7 @@ Outbound email: disabled; no email sent
 
 ## Authoritative current state
 
-Commissioning is not complete. The elevated `.69` installation receipt is valid (`ok=true`, started `2026-08-31T04:56:16.9486364Z`) and proves `CURRENT=2026.08.69`, inventory verification exit `0`, the pinned `.69` manifest/parent/bridge hashes, and a disabled `LOCAL SERVICE` / `ServiceAccount` / `Limited` / `PT5M` task.
-
-Fresh native task readback at `2026-08-31T07:45:09Z` remains safely fail-closed:
+Commissioning is not complete. Fresh native readback now proves `CURRENT=2026.08.71` and both `.69` and `.71` release/control/trust/venv directories exist. The current `PDC-PMB-Email-Monitor-Staging` task remains safely fail-closed:
 
 - State: `Disabled`
 - Enabled: `false`
@@ -19,10 +17,12 @@ Fresh native task readback at `2026-08-31T07:45:09Z` remains safely fail-closed:
 - Logon type: `ServiceAccount`
 - Run level: `Limited`
 - Trigger: `PT5M`
-- Last natural run: `2026-08-31T06:23:34Z`
 - Last task result: `1`
+- Last run: unchanged old run time; no new `.71` cycle
 
-The latest runtime status failed closed on the `.69` monitor path after the exact bounded NoSuchKey retries were exhausted. No successful post-failure natural cycles are credited.
+The `.71` install receipt was overwritten around `2026-08-31T10:01Z` with `ok=true`, `CURRENT=.71`, control hash `3af444ce…`, `stale_partial_removed=true`, and `task_enabled=true`. That flag belongs to the `.71` AI-successor task in the installer, not the existing monitor task. The separate activation record reports the same stale/inconsistent enabled result using an older wrapper hash. Current native `schtasks` readback is authoritative for the monitor task.
+
+The non-elevated `.71` verifier was run read-only and failed closed with `PDC_MONITOR_071_VERIFY_FILE_MISSING` because the protected `.71/release-manifest.json` is not readable without Administrator elevation. No successful `.71` VerifyOnly, OneCycle or natural-cycle proof is credited.
 
 ## Activation defect repaired
 
@@ -43,22 +43,14 @@ A new pinned enable-only launcher is prepared at:
 
 Launcher SHA-256: `5d13ab976034f114c0cc84ab48ce050a4eaf2d550f29aae40b560fc0bbf93bd6`; PowerShell parse errors: `0`. It validates the corrected activation script hash, never reruns the installer, never starts the task manually, and writes a redacted activation launch record.
 
-## New human-only blocker
+## Current human-only blocker
 
-Changing the protected Scheduled Task from Disabled to Enabled requires one interactive Administrator elevation. The unattended commissioning lane cannot safely obtain that UAC consent and did not launch another prompt.
+The `.71` release is installed and `CURRENT=2026.08.71`, but the existing `PDC-PMB-Email-Monitor-Staging` task remains Disabled. The `.71` install receipt's `task_enabled=true` refers to the separate AI-successor task; it is not proof that the existing monitor task was enabled. The cancelled schedule-repair process targeted the AI-successor task, disabled it before trigger repair, and left no receipt. PID `7576` and the later matching repair process are no longer running.
 
-Shortest action: run `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/PDCMonitor-Activate-20260869.ps1` with PowerShell and approve its single UAC prompt.
+The non-elevated `.71` verifier was run read-only and failed closed with `PDC_MONITOR_071_VERIFY_FILE_MISSING` because the protected `.71/release-manifest.json` is not readable. Protected Administrator execution is therefore required for the next gates; this unattended lane launched no UAC prompt and did not enable or start the task.
 
-After a successful enable-only receipt, Hermes must still prove two distinct natural `LastTaskResult=0` PT5M cycles and complete authoritative monitor/mailbox/processor/Board, replay/idempotency, duplicate-protection, outbound-disabled, mailbox-flag/UID514 preservation, and Production-exclusion readback before commissioning can be claimed complete.
+Prepared minimal continuation: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871-repaired/launch_verify_onecycle_enable_pdc_monitor_20260871.ps1`. It is designed to verify the installed `.71` release while the monitor task is disabled, run one bounded `.71` active-dispatch cycle, verify fresh status with Production/UID514 exclusion, then enable the monitor task without manually starting it.
 
-## Later `.71` attempt and repaired retry path
+The `.71` control/build repair remains verified: control SHA-256 `3af444ce65b52935a13e57df17b7dfb3dd329719aff59775a8bc266d740b6749`, repaired bundle manifest SHA-256 `13f3affa82e334195b93126c09764c29b50da55e2339642063c2e94d22811c1f`, 3,359 files, exact inventory/control/canonical-byte checks, 8 source contract tests, full Node tests/checks `222 passed, 0 failed, 1 skipped` each, Python compilation and PowerShell parsing passed.
 
-The later human-approved `.71` attempt is preserved as failed closed at `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871/install-receipt.json`: `ok=false`, `PDC_MONITOR_071_CONTROL_HASH_MISMATCH` with protected staging cleanup access denied, task disabled, and no mailbox/outbound/Production action.
-
-The separate historical `activation-launch-record.json` reports `ok=true/task_enabled=true` using an older elevated-script hash; it is inconsistent with the later failed install receipt and current native task readback, so it is not accepted as current proof.
-
-The source/build defect was traced and repaired: the builder used a JSON inventory hash while the installer/verifier used a line-oriented control-tree hash; the builder also emitted non-canonical Windows line endings, omitted staging `root-control` creation, and the elevated wrapper requested automation enablement before VerifyOnly/OneCycle gates. The corrected path additionally pins the manifest and bundled installer hashes before protected execution. The corrected bundle uses control SHA-256 `3af444ce65b52935a13e57df17b7dfb3dd329719aff59775a8bc266d740b6749`, manifest SHA-256 `13f3affa82e334195b93126c09764c29b50da55e2339642063c2e94d22811c1f`, 3,359 files, exact inventory match and canonical LF manifest.
-
-Prepared retry path: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871-repaired/PDCMonitor-Install-20260871-repaired.ps1`; redacted preparation receipt: `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260871-repaired/corrected-071-control-hash-preparation-receipt.json`. Static `.71` contract tests passed `7/7`, Python compilation and PowerShell parsing passed. No UAC was launched, the task was not enabled, and protected VerifyOnly/OneCycle/natural-cycle proof remains outstanding.
-
-The bundled legacy `verify_release.py` was not changed or bypassed; it is bound to the older immutable 503 release-spec shape and is incompatible with the later `.69`-derived `.71` metadata. This is documented separately from the corrected `.71` operational control/build contract.
+The original `.71` install receipt, activation record, schedule-repair launch record, current native task readback and redacted state reconciliation are preserved. The bundled legacy `verify_release.py` was not changed or bypassed; it remains separately incompatible with the later `.69`-derived `.71` metadata.
