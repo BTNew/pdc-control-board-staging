@@ -46,6 +46,10 @@ class MonitorSuccessor20260871ContractTests(unittest.TestCase):
         wrapper = (ROOT / 'scripts/PDCMonitor-Install-20260871-Elevated.ps1').read_text(encoding='utf-8')
         self.assertIn("New-Item -ItemType Directory -Path $stageRootControl -Force", installer)
         self.assertNotIn('-EnableAutomation', wrapper)
+        self.assertIn('$ExpectedManifestSha256=', wrapper)
+        self.assertIn('$InstallerSha256=', wrapper)
+        self.assertIn('Hash $Installer', wrapper)
+        self.assertNotIn('$ExpectedManifest=(Get-FileHash', wrapper)
 
     def test_active_controls_bind_live_head(self):
         for name in (
