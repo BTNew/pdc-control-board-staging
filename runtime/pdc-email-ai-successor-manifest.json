@@ -11,7 +11,7 @@
   "supabase_action_version": "20260831340000",
   "successor_inbox_rpc": "get_pdc_email_ai_transaction_successor_inbox_v2",
   "successor_inbox_revision_table": "pdc_email_ai_successor_ui_revision",
-  "successor_inbox_ui_asset_version": "2026.08.31.06-successor-inbox-realtime-loop",
+  "successor_inbox_ui_asset_version": "2026.08.31.08-successor-inbox-cursor-fix",
   "command_rpc": "apply_pdc_email_ai_transaction_successor",
   "readback_rpc": "get_pdc_email_vehicle_location_snapshot",
   "health_rpc": "get_pdc_email_ai_successor_health",
