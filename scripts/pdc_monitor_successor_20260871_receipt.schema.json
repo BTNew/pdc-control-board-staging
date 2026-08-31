@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "ok", "release_version", "parent_release_version", "manifest_sha256",
+    "parent_manifest_sha256", "storage_bridge_sha256", "processor_sha256",
+    "venv_sha256", "control_sha256", "trust_sha256", "current_staging_migration_head",
+    "task_enabled", "task_started", "mailbox_contacted", "production_contacted"
+  ],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "release_version": {"const": "2026.08.71"},
+    "parent_release_version": {"const": "2026.08.69"},
+    "current_staging_migration_head": {"const": "20260831380000"},
+    "task_enabled": {"type": "boolean"},
+    "task_started": {"type": "boolean"},
+    "mailbox_contacted": {"type": "boolean"},
+    "production_contacted": {"type": "boolean"}
+  },
+  "additionalProperties": true
+}
