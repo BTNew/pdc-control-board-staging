@@ -36,8 +36,10 @@
   text-transform: uppercase;
 }
 .successor-inbox-state-pill.synchronized,
+.successor-inbox-state-pill.subscribed,
 .successor-status-pill.is-success { color: #166534; background: #dcfce7; }
 .successor-inbox-state-pill.loading,
+.successor-inbox-state-pill.connecting,
 .successor-status-pill.is-warning { color: #92400e; background: #fef3c7; }
 .successor-inbox-state-pill.error,
 .successor-status-pill.is-error { color: #991b1b; background: #fee2e2; }
