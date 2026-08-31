@@ -16,7 +16,7 @@ BEGIN
     OR NOT public.pdc_monitor_staging_guard()
     OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
     OR (SELECT (version,name)::text FROM supabase_migrations.schema_migrations WHERE version~'^[0-9]{14}$' ORDER BY version::bigint DESC LIMIT 1) IS DISTINCT FROM '(20260831260000,860_quarantined_attachment_review_projection)'
-    OR encode(extensions.digest(convert_to(v,'UTF8'),'sha256'),'hex') IS DISTINCT FROM '15b681f031031163de4a9dffa075f17c45a7efd68f355e95e39b117742c0bef3'
+    OR encode(extensions.digest(convert_to(v,'UTF8'),'sha256'),'hex') IS DISTINCT FROM 'c923565e04ec80111ca1a417e173c3e53979ae790f3404ff7e88f7aa22eba9ad'
     OR (SELECT count(*) FROM public.monitored_mailboxes WHERE active)<>1
     OR (SELECT count(*) FROM public.pdc_email_monitor_pilot WHERE singleton AND enabled AND automatic_rule_application AND automatic_authenticated_jobcards AND NOT outbound_email_enabled)<>1
  THEN RAISE EXCEPTION 'PDC_861_860_NULL_STORAGE_PRESTATE_FAILED' USING errcode='55000'; END IF;
