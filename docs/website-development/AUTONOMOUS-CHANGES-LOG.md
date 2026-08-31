@@ -633,3 +633,20 @@ Entries added by Hermes after completing autonomous staging work (auth, migratio
 - Live staging apply/readback passed at `20260831250000/859_runtime_766_compatibility_and_attachment_path_successor`; migration SHA-256 `c554b4d7c19d20d799ca97f588addbef51654952c36859a106af0f718f134c2f`; Board mutation false, mailbox flags false, UID514 false, Production false.
 - Protected VerifyOnly and disabled bounded OneCycle both passed `ok=true` with no mailbox contact. Two fresh consecutive natural PT5M cycles passed with actual run timestamps `2026-08-31T09:58:34+08:00` and `2026-08-31T10:03:34+08:00`; both `LastTaskResult=0`, processor failures `0`, and mailbox contact was limited to the approved staging mailbox. The task was disabled again after proof; final authoritative result is `0`.
 - Full verification: `npm run test` and `npm run check` each passed `229 passed, 0 failed, 1 skipped`; focused 859 contract `4/4`, attachment 868 contract `6/6`; Python syntax checks passed.
+
+## 2026-08-31 — Fresh commissioning readback correction
+
+- Scope: STAGING project `cdsmnqxtyyoeoznmbidd` only; dashboard `20260828_191153_4fb787`; no Production, UAC, outbound email or mailbox flags.
+- Fresh native task readback found `CURRENT=2026.08.68`, `LOCAL SERVICE` / `ServiceAccount` / `Limited`, `PT5M`, latest natural run `2026-08-31T03:33:34Z`, `LastTaskResult=1`. The task was safely disabled.
+- Authoritative status at `2026-08-31T03:38:55Z` identifies `email_import_failed`: the protected `.68` IMAP bridge's post-upload authenticated Storage readback returned HTTP 400 `NoSuchKey` / object not found. The failure occurs before enqueue completion and is the current root cause.
+- Read-only live staging diagnosis: head `20260831330000/pdc_email_ai_successor_inbox_read_projection`; one active test mailbox; outbound disabled; UID514 unchanged; Production sentinel absent. Relevant authenticated RPCs remain PostgreSQL-owned SECURITY DEFINER with authenticated-only execution.
+- Receipt `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260868/natural-run-enable-receipt.json` and redacted final handoff were rewritten with `ok=false`; no successful natural cycles or replay/duplicate proof is credited for this rerun.
+- Required follow-up is a protected narrow IMAP bridge successor with bounded authenticated Storage readback retry, followed by the existing elevated installation and the full commissioning proof sequence. No UAC was launched in this run.
+
+## 2026-08-31 — NoSuchKey readback successor prepared
+
+- Scope: STAGING project `cdsmnqxtyyoeoznmbidd` only; dashboard `20260828_191153_4fb787`; Production, outbound email, mailbox flags, UID514 and UAC untouched.
+- Repair: `backend/imap_bridge_successor_20260865.py` now retries only exact authenticated Storage `HTTP 400 / NoSuchKey / statusCode 404 / Object not found` readback responses, bounded to three attempts with 0.25s and 0.5s delays; all near-miss errors, exhausted retries and content mismatches fail closed.
+- Regression: `tests/test_storage_nosuchkey_readback_successor_20260869.py` covers successful retry, bounded exhaustion, near-miss no-retry and post-readback mismatch fail-closed behavior.
+- Protected bundle built from `.68` parent at `C:/Users/nwmgr/Desktop/PDCMonitor-Install-20260869/pdc-monitor-staging-m502-2026.08.69`; 3350-file complete inventory verifier passed. Manifest `fa528d8d1ce405b430dc265ded7dca69cc7b49e8d190b90d9e55576b32a1a823`; parent manifest `f55e8ba1f06b342fd3205f5a287f4793cb242d886759218a7470482c7c36f18b`; bridge `d19f1ee93b5c45169d10e77956677909d2b5844e4aea3ce2e028c0b2edc30071`.
+- Prepared idempotent disabled-only installer, redacted elevation launcher and exact `.69` to `.68` rollback. No UAC was launched; installation remains pending the shortest human action: run the launcher interactively and approve UAC. Receipt/handoff: `docs/website-development/PDC-EMAIL-MONITOR-NOSUCHKEY-SUCCESSOR-HANDOFF-20260831.md`.
