@@ -1,4 +1,5 @@
 import unittest
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,11 @@ class ActivationContractTests(unittest.TestCase):
             self.assertIn(marker, source)
         self.assertNotIn('Start-ScheduledTask', source)
         self.assertNotIn('schtasks.exe /Run', source)
+        for marker in ('PDC_SUCCESSOR_RELEASE_ACL_FAILED', r'NT AUTHORITY\\LOCAL SERVICE', r'S-1-5-19', r'\(OI\)', r'\(CI\)', r'\(RX\)'):
+            self.assertIn(marker, source)
+        acl_pattern = re.compile(r'(?:S-1-5-19|NT AUTHORITY\\LOCAL SERVICE):(?:\(OI\)\(CI\))?\(RX\)')
+        self.assertRegex('NT AUTHORITY\\LOCAL SERVICE:(OI)(CI)(RX)', acl_pattern)
+        self.assertRegex('S-1-5-19:(OI)(CI)(RX)', acl_pattern)
         py = VERIFY.read_text(encoding='utf-8')
         for marker in ('pdc_email_ai_successor', 'get_pdc_email_ai_successor_health', 'get_pdc_email_ai_transaction_successor_inbox_v2', 'get_pdc_email_vehicle_location_snapshot', 'service_role', 'production'):
             self.assertIn(marker, py)
