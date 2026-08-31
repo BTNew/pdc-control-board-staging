@@ -509,7 +509,7 @@
 
 ## 2026-08-31 — Email monitor inbound eligibility commissioning 855-858
 
-- Scope: STAGING  only; dashboard ; no UAC, Production, or broad sender enrollment.
+- Scope: STAGING `cdsmnqxtyyoeoznmbidd` only; dashboard `20260828_191153_4fb787`; no UAC, Production, or broad sender enrollment.
 - Repair: append-only 855 deterministic immutable review receipt for non-enrolled senders; 856-858 exact 839 compatibility repairs.
 - Verification: focused contracts 7/7; protected VerifyOnly and disabled OneCycle 0/ok=true; identical non-enrolled replay returned the same receipt ID/key; two natural PT5M cycles returned LastTaskResult=0 with processor failures 0; outbound, mailbox flags, UID514 and Production remained protected.
-- Final handoff: .
+- Final handoff: `docs/website-development/PDC-EMAIL-MONITOR-COMMISSIONING-FINAL-HANDOFF-20260831.md`.
