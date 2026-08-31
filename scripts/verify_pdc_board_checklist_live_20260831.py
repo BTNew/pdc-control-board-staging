@@ -31,6 +31,8 @@ def main():
         cursor = connection.cursor()
         cursor.execute("select version,name from supabase_migrations.schema_migrations where version~'^[0-9]{14}$' order by version::bigint desc limit 1")
         head = tuple(cursor.fetchone() or ())
+        cursor.execute("select version,name from supabase_migrations.schema_migrations where version='20260831280000' and name='pdc_checklist_completion_booking_preservation'")
+        checklist_migration = tuple(cursor.fetchone() or ())
         cursor.execute("select count(*) from public.pdc_staging_environment_sentinel where singleton and project_ref=%s", (REF,))
         sentinel = cursor.fetchone()[0]
         cursor.execute("select to_regclass('public.pdc_production_environment_sentinel') is not null")
@@ -60,10 +62,11 @@ def main():
                 bookings = [bookings]
             sublet_snapshot.extend(bookings if isinstance(bookings, list) else [])
         out = {
-            'ok': bool(head == ('20260831280000', 'pdc_checklist_completion_booking_preservation') and sentinel == 1 and not production_sentinel and len(vehicle_rows) == 1 and len(stock_rows) == 1),
+            'ok': bool(checklist_migration == ('20260831280000', 'pdc_checklist_completion_booking_preservation') and sentinel == 1 and not production_sentinel and len(vehicle_rows) == 1 and len(stock_rows) == 1),
             'environment': 'staging',
             'project_ref': REF,
-            'migration_head': head,
+            'current_migration_head': head,
+            'checklist_migration': checklist_migration,
             'staging_sentinel_count': sentinel,
             'production_sentinel_present': production_sentinel,
             'stock': STOCK,

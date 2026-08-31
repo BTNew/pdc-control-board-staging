@@ -36,12 +36,12 @@ Evidence rule: an item is ticked only where the current implementation, a focuse
 - Full staging JavaScript contract suite: `node --test test_*.js` — 161 passed, 0 failed.
 - Python contract suite: `python -m unittest discover -s tests -p 'test_*contract.py'` — 195 passed, 0 failed.
 - SQL syntax: PGLAST parsed the new migration as 11 statements — PASS.
-- Live staging migration: `20260831280000/pdc_checklist_completion_booking_preservation` — applied/read back; requirement-completion and booking-preservation postconditions true.
+- Live staging migration: `20260831280000/pdc_checklist_completion_booking_preservation` — applied/read back with requirement-completion and booking-preservation postconditions true. The live head later advanced independently to `20260831300000/pdc_email_ai_transaction_successor`; the checklist migration remains present and its function postconditions still read true.
 - Live exact Stock readback: one canonical row, one projected row, one active Sublet booking, one Sublet history row; staging sentinel present and Production sentinel absent.
 - Live authenticated UI: staging project/administrator session showed Stock `13080534`, Customer Sublet, exact dates, booked vehicle-card state, completed Parts and no Parts Risk warning; no Production request was observed.
 - Live Refresh UI: deployed dashboard entered the disabled `Refreshing…` state with navigation count unchanged at `1`, settled back to `Shared Navision locations online` with Refresh enabled, and retained the authoritative board data. A 390px emulated viewport measured document/body width `390` against client width `390` with no horizontal overflow.
-- Staging publication: `BTNew/pdc-control-board-staging` `main` points to `875864ffd6412686a0467157167d64381373d284`; Staging integrity workflow succeeded; Pages build/deployment succeeded; cache-busted `index.html`, `app.js` and `vehicle-requirements-guard.js` read back with closure markers.
-- Release scope: only the nine checklist-closure files in the isolated worktree were committed. Active Email Monitor worktrees/branches were not modified. Production remotes, branches, data and credentials were not used.
+- Staging publication: `BTNew/pdc-control-board-staging` `main` points to `3ee1abf3f7533f12bfe92681b011ab0648dcdabe`; Staging integrity workflow succeeded; Pages build/deployment succeeded; cache-busted `index.html`, `app.js` and `vehicle-requirements-guard.js` read back with closure markers.
+- Release scope: only the nine checklist-closure files in the isolated worktree were committed. Active Email Monitor worktrees/branches were not modified; their later live head advance was observed and tolerated by the readback verifier. Production remotes, branches, data and credentials were not used.
 
 ## Remaining non-blocking note
 
