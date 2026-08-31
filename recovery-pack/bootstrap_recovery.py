@@ -72,15 +72,18 @@ def inspect_pack(pack: Path, source: Path) -> dict[str, Any]:
         fail("PDC_RECOVERY_RELEASE_MISSING", "immutable release URL absent")
     if not source.is_dir():
         fail("PDC_RECOVERY_SOURCE_ROOT_MISSING", str(source))
+    expected = manifest.get("pack_files", {})
+    if not isinstance(expected, dict) or not expected:
+        fail("PDC_RECOVERY_PACK_FILE_LIST_MISSING", "manifest pack_files is empty")
     if (source / ".git").exists():
         revision = subprocess.run(["git", "-C", str(source), "rev-parse", "HEAD"], capture_output=True, text=True, check=False).stdout.strip()
         if revision and revision != manifest["source_commit"]:
             fail("PDC_RECOVERY_SOURCE_COMMIT_MISMATCH", "checkout is not the immutable pack commit")
     unsafe: list[str] = []
-    for path in pack.rglob("*"):
-        if not path.is_file() or path.name == "RECOVERY-PACK-MANIFEST.json":
-            continue
-        relative = path.relative_to(pack).as_posix()
+    for relative in sorted(expected):
+        path = pack / relative
+        if not path.is_file():
+            fail("PDC_RECOVERY_PACK_FILE_MISSING", relative)
         if SECRET_FILE_RE.search(relative):
             unsafe.append(relative)
             continue
@@ -89,7 +92,6 @@ def inspect_pack(pack: Path, source: Path) -> dict[str, Any]:
             unsafe.append(relative)
     if unsafe:
         fail("PDC_RECOVERY_SECRET_RESIDUE", ",".join(sorted(unsafe)))
-    expected = manifest.get("pack_files", {})
     for relative, digest in expected.items():
         path = pack / relative
         if not path.is_file() or sha256(path) != digest:

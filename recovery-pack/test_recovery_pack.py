@@ -36,6 +36,11 @@ class RecoveryPackTests(unittest.TestCase):
         self.assertRegex('NT AUTHORITY\\LOCAL SERVICE:(OI)(CI)(RX)', pattern)
         self.assertRegex('S-1-5-19:(OI)(CI)(RX)', pattern)
 
+    def test_bootstrap_scans_manifest_files_not_generated_workspace_dirs(self):
+        source = (PACK / 'bootstrap_recovery.py').read_text(encoding='utf-8')
+        self.assertIn('for relative in sorted(expected)', source)
+        self.assertNotIn('for path in pack.rglob', source)
+
 
 if __name__ == '__main__':
     unittest.main()
