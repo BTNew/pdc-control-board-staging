@@ -269,6 +269,7 @@ function createPdcEmailAiSuccessorInboxController(options = {}) {
     const authority = String(getAuthority() || '');
     const lifecycle = state.lifecycle;
     if (!authority) { state.state = 'error'; state.error = 'not_authenticated'; state.data = { items: [], revision: null }; render(); return false; }
+    if (!state.subscription) subscribe();
     const generation = ++state.generation;
     if (!append) state.state = 'loading';
     render();
@@ -282,14 +283,15 @@ function createPdcEmailAiSuccessorInboxController(options = {}) {
 
   function subscribe() {
     if (state.subscription || typeof subscribeRealtime !== 'function') return;
-    state.subscription = subscribeRealtime(PDC_EMAIL_AI_SUCCESSOR_REVISION_TABLE, { onChange: () => { void refresh(); } });
+    const handle = subscribeRealtime(PDC_EMAIL_AI_SUCCESSOR_REVISION_TABLE, { onChange: () => { void refresh(); } });
+    if (handle) state.subscription = handle;
   }
   function unmount() {
     state.lifecycle += 1; state.generation += 1;
     try { state.subscription?.unsubscribe?.(); } catch (_error) { /* best effort */ }
     state.subscription = null;
   }
-  function mount() { render(); subscribe(); void refresh(); return controller; }
+  function mount() { render(); if (getAuthority()) subscribe(); void refresh(); return controller; }
   const controller = { state, render, refresh, subscribe, unmount, mount };
   return controller;
 }
@@ -306,7 +308,10 @@ function mountPdcEmailAiSuccessorInbox(windowRef = window, documentRef = documen
   const root = documentRef.querySelector('#pdc-email-ai-successor-inbox');
   if (!root) return null;
   if (root.__successorInboxController) {
-    if (successorInboxAuthorityMarker(windowRef)) void root.__successorInboxController.refresh();
+    if (successorInboxAuthorityMarker(windowRef)) {
+      root.__successorInboxController.subscribe();
+      void root.__successorInboxController.refresh();
+    }
     return root.__successorInboxController;
   }
   const config = windowRef.PDC_SUPABASE_CONFIG || {};
@@ -316,12 +321,17 @@ function mountPdcEmailAiSuccessorInbox(windowRef = window, documentRef = documen
       root,
       client,
       getAuthority: () => successorInboxAuthorityMarker(windowRef),
-      subscribeRealtime: (tableName, handlers) => typeof windowRef.createPdcSupabaseTableRealtimeSubscription === 'function'
+      subscribeRealtime: (tableName, handlers) => windowRef.PDC_SUPABASE && typeof windowRef.createPdcSupabaseTableRealtimeSubscription === 'function'
         ? windowRef.createPdcSupabaseTableRealtimeSubscription(tableName, handlers)
-        : { unsubscribe() {} },
+        : null,
     });
     root.__successorInboxController = controller;
     controller.mount();
+    const ensureRealtime = () => {
+      if (root.__successorInboxController !== controller || !successorInboxAuthorityMarker(windowRef)) return;
+      controller.subscribe();
+    };
+    [0, 250, 1000, 2500].forEach(delay => windowRef.setTimeout(ensureRealtime, delay));
     return controller;
   } catch (error) {
     root.innerHTML = renderSuccessorInbox({ state: 'error', error: error.message || 'successor_inbox_unavailable' });
@@ -355,7 +365,10 @@ if (typeof window !== 'undefined') {
     });
     window.addEventListener('pdc-auth-token-changed', () => {
       const controller = document.querySelector('#pdc-email-ai-successor-inbox')?.__successorInboxController;
-      if (controller) void controller.refresh();
+      if (controller) {
+        controller.subscribe();
+        void controller.refresh();
+      }
     });
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
