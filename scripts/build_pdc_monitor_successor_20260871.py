@@ -46,6 +46,18 @@ def inventory_hash(inventory: dict[str, dict[str, int | str]]) -> str:
     return hashlib.sha256((json.dumps(inventory, sort_keys=True, separators=(",", ":")) + "\n").encode()).hexdigest()
 
 
+def tree_lines(root: Path) -> list[str]:
+    return [
+        f"{path.relative_to(root).as_posix()}\t{sha(path)}\t{path.stat().st_size}"
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and not path.is_symlink()
+    ]
+
+
+def tree_hash(root: Path) -> str:
+    return hashlib.sha256(("\n".join(tree_lines(root)) + "\n").encode()).hexdigest()
+
+
 def render_control(source: Path, destination: Path) -> None:
     text = source.read_text(encoding="utf-8-sig")
     text = text.replace("2026.08.69", VERSION).replace("20260869", "20260871")
@@ -103,8 +115,7 @@ def main() -> int:
     (output / "control-root/bootstrap.ps1").write_text(root_bootstrap, encoding="utf-8", newline="\n")
 
     control_root = output / f"control/{VERSION}"
-    control_inventory = canonical_inventory(control_root)
-    control_sha = inventory_hash(control_inventory)
+    control_sha = tree_hash(control_root)
     trust_root = output / f"trust/{VERSION}"
     trust_root.mkdir(parents=True, exist_ok=True)
     trust_values = {
@@ -178,7 +189,7 @@ def main() -> int:
     manifest["bundle_hash_definition"] = "sha256(canonical JSON complete internal file inventory, excluding release-manifest.json and dynamic trust anchors)"
     manifest["bundle_sha256"] = inventory_hash(files)
     manifest_path = output / "release-manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
     manifest_sha = sha(manifest_path)
     (trust_root / "MANIFEST_SHA256").write_text(manifest_sha + "\n", encoding="ascii")
     trust_sha = sha(trust_root / "TRUST-VALUES.json")

@@ -22,6 +22,13 @@ class MonitorSuccessor20260871ContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, source)
 
+    def test_builder_control_hash_matches_installer_and_verifier_tree_contract(self):
+        source = (ROOT / 'scripts/build_pdc_monitor_successor_20260871.py').read_text(encoding='utf-8')
+        self.assertIn('def tree_hash(', source)
+        self.assertIn('control_sha = tree_hash(control_root)', source)
+        self.assertNotIn('control_sha = inventory_hash(control_inventory)', source)
+        self.assertIn('manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\\n", encoding="utf-8", newline="\\n")', source)
+
     def test_installer_is_atomic_and_preserves_rollback(self):
         installer = ROOT / 'scripts/install_pdc_monitor_successor_20260871.ps1'
         self.assertTrue(installer.is_file())
@@ -33,6 +40,12 @@ class MonitorSuccessor20260871ContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, source)
         self.assertNotRegex(source, r'Start-ScheduledTask|schtasks(?:\.exe)?\s+/Run|OneCycle|PDCMonitor-Install-20260869')
+
+    def test_installer_creates_root_control_before_copy_and_wrapper_stays_disabled(self):
+        installer = (ROOT / 'scripts/install_pdc_monitor_successor_20260871.ps1').read_text(encoding='utf-8')
+        wrapper = (ROOT / 'scripts/PDCMonitor-Install-20260871-Elevated.ps1').read_text(encoding='utf-8')
+        self.assertIn("New-Item -ItemType Directory -Path $stageRootControl -Force", installer)
+        self.assertNotIn('-EnableAutomation', wrapper)
 
     def test_active_controls_bind_live_head(self):
         for name in (
