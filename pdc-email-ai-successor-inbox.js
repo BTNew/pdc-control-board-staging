@@ -327,6 +327,11 @@ function mountPdcEmailAiSuccessorInbox(windowRef = window, documentRef = documen
     });
     root.__successorInboxController = controller;
     controller.mount();
+    const ensureRealtime = () => {
+      if (root.__successorInboxController !== controller || !successorInboxAuthorityMarker(windowRef)) return;
+      controller.subscribe();
+    };
+    [0, 250, 1000, 2500].forEach(delay => windowRef.setTimeout(ensureRealtime, delay));
     return controller;
   } catch (error) {
     root.innerHTML = renderSuccessorInbox({ state: 'error', error: error.message || 'successor_inbox_unavailable' });
