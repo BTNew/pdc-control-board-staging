@@ -1,5 +1,14 @@
 # Autonomous Website Changes
 
+## 2026-08-31 — Canonical AI Email import capability repair
+
+- Environment: Supabase staging project `cdsmnqxtyyoeoznmbidd` only; Production, mailbox flags, outbound email and service-role runtime were untouched.
+- Diagnosis: the existing `pdc-emails` identity `pmbcontroller+pdc-viewer-staging-20260830@gmail.com` was approved as `viewer` but had no execute privilege for `import_pdc_jobcard_attachment_canonical`; its existing writer capability was intentionally absent.
+- Repair: migrations `20260831420000_pdc_email_canonical_import_capability`, `20260831430000_pdc_email_canonical_import_nested_context` and `20260831440000_pdc_email_canonical_import_activation_context` grant authenticated execution only for the exact canonical importer, bind one forced-RLS capability row to that identity, and carry it only through a transaction-local context into the nested activation helpers. No writer grant, direct table DML, service-role grant, RLS bypass, arbitrary-write RPC or operational deletion was added.
+- Verification: live staging ledger head `20260831440000`; canonical RPC execute is `authenticated=true`, `public=false`, `anon=false`, `service_role=false`; capability is active for the exact viewer identity; direct capability-table DML and context-helper execute remain denied; authenticated API probe changed from HTTP 403 to HTTP 200 `invalid_input`, while an administrator negative probe returned HTTP 200 `unauthorized`. Transactional rollback rehearsal returned `canonical_import_capability_rollback_applied` with `active=false` and was rolled back.
+- Positive fixture: an isolated canonical-import fixture was attempted transactionally; the exact capability gate passed, but the existing downstream Navision operational-identity guard rejected the synthetic new-stock path, so no positive mutation is claimed. The fixture transaction was rolled back and no live business rows were changed.
+- Secrets: values were not printed or written to this log.
+
 ## 2026-08-31 — Sublet workgroup-only Vehicle Locations presentation
 
 - Reproduced the authenticated STAGING screenshot regression for Stock `13080534`: the vehicle/model column showed duplicate `SUBLET Booked` text while the Sublet workgroup remained a normal pink requirement dot.

@@ -1,5 +1,13 @@
 # Shared Files
 
+## PDC Email canonical importer capability repair — 2026-08-31
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `supabase/staging_only/20260831420000_pdc_email_canonical_import_capability.sql` | Staging email monitor | Exact `pmbcontroller+pdc-viewer-staging-20260830@gmail.com` capability for `import_pdc_jobcard_attachment_canonical`; no writer grant or direct table DML | Live staging capability/readback and disable-only rollback rehearsal |
+| `supabase/staging_only/20260831430000_pdc_email_canonical_import_nested_context.sql`, `supabase/staging_only/20260831440000_pdc_email_canonical_import_activation_context.sql` | Staging email monitor | Transaction-local capability context through canonical activation helpers; direct helper execution remains denied | Live staging source/readback; existing canonical Stock/ambiguity/idempotency/lifecycle guards retained |
+| `tests/test_pdc_email_canonical_import_capability_20260831.py`, `tests/test_pdc_email_canonical_nested_context_20260831.py` | Staging backend regression | Migration identity, exact ACL, forced-RLS, rollback, nested context and no-broadening contracts | Focused Python suite plus `npm run test` and `npm run check` |
+
 ## Sublet workgroup-only Vehicle Locations presentation — 2026-08-31
 
 - `app.js`, `pdc-email-vehicle-location-service.js` — remove the duplicate `SUBLET Booked` vehicle/model badge, project the canonical active Sublet booking into the existing orange workgroup state, and derive active count from canonical rows without changing completed/returned/cancelled semantics.
