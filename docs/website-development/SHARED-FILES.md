@@ -39,3 +39,13 @@ During the initial assessment, no application, authentication, Supabase, migrati
 ## Required entry for future changes
 
 For each touched shared file record: backlog ID, commit stream, exact symbols/selectors, reason, tests, Hermes contract SHA if applicable, and collision/integration notes.
+
+## Isolated PDC Email AI transaction successor — 2026-08-31
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `backend/pdc_email_ai_successor_intake.py`, `backend/pdc_email_ai_successor_poller.py` | Separate staging email successor | RFC822/attachment evidence retention and read-only transport fallback only; no PDC logic, Supabase calls or mailbox flag writes | Focused Python tests; poller disabled unless explicitly enabled. |
+| `backend/pdc_email_ai_successor_contract.py`, `backend/pdc_email_ai_successor_planner.py`, `backend/pdc_email_ai_successor_runtime.py` | Separate staging email successor | Strict typed plan, complete correspondence/PDF interpretation, taxonomy/version boundary and four-layer composition | Focused Python tests; no browser/localStorage authority. |
+| `backend/pdc_email_ai_successor_executor.py`, `supabase/staging_only/20260831260000_pdc_email_ai_transaction_successor.sql` | Separate staging email successor | One typed command RPC, fixed canonical dispatch, immutable receipts, RLS/grants and independent Board readback | SQL/Python contract tests; live apply requires exact 858 staging predecessor and protected connector. |
+| `backend/pdc_email_ai_successor_acceptance.py`, `scripts/run_pdc_email_ai_successor_acceptance.py` | Separate staging acceptance | Synthetic atomic/replay/partial/isolation/disable rehearsal | CLI output records `ok=true`, no Production writes and no outbound email. |
+| `docs/PDC-EMAIL-AI-TRANSACTION-SUCCESSOR-PLAN.md`, `docs/PDC-EMAIL-AI-TRANSACTION-SUCCESSOR-RUNBOOK.md`, `runtime/pdc-email-ai-successor-manifest.json` | Management/recovery | Current/proposed map, versions, fault matrix, install/recovery/rollback and residual staging gates | Dashboard association `20260831_095314_64feeb`; current repair lane remains separate. |

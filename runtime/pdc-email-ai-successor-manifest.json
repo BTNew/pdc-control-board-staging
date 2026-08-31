@@ -1,0 +1,41 @@
+{
+  "name": "pdc-email-ai-transaction-successor",
+  "environment": "staging",
+  "schema_version": "pdc-email-ai-plan-v1",
+  "action_contract_version": "pdc-email-ai-actions-v1",
+  "transport_release_version": "transport-v1",
+  "model_version": "deterministic-staging-reference-v1",
+  "prompt_version": "pdc-email-ai-prompt-v1",
+  "taxonomy_version": "pdc-work-taxonomy-v1",
+  "rule_version": "pdc-business-rules-v1",
+  "supabase_action_version": "20260831260000",
+  "command_rpc": "apply_pdc_email_ai_transaction_successor",
+  "readback_rpc": "get_pdc_email_vehicle_location_snapshot",
+  "health_rpc": "get_pdc_email_ai_successor_health",
+  "migration": "supabase/staging_only/20260831260000_pdc_email_ai_transaction_successor.sql",
+  "runtime_identity_purpose": "pdc_email_ai_transaction_successor",
+  "transport_default": "disabled",
+  "outbound_email": false,
+  "production_writes": false,
+  "historical_lane": "isolated_receipt_quarantine",
+  "retained_rollback": [
+    "current Email Monitor repair task and runtime",
+    "existing canonical PDC RPCs and read models",
+    "existing immutable email, attachment, operation, Job Card, Sublet and lifecycle evidence"
+  ],
+  "files": [
+    "backend/pdc_email_ai_successor_intake.py",
+    "backend/pdc_email_ai_successor_contract.py",
+    "backend/pdc_email_ai_successor_planner.py",
+    "backend/pdc_email_ai_successor_executor.py",
+    "backend/pdc_email_ai_successor_runtime.py",
+    "backend/pdc_email_ai_successor_acceptance.py",
+    "tests/test_pdc_email_ai_successor_contract.py",
+    "tests/test_pdc_email_ai_successor_intake.py",
+    "tests/test_pdc_email_ai_successor_planner.py",
+    "tests/test_pdc_email_ai_successor_executor.py",
+    "tests/test_pdc_email_ai_successor_migration.py",
+    "tests/test_pdc_email_ai_successor_acceptance.py",
+    "tests/test_pdc_email_ai_successor_end_to_end.py"
+  ]
+}
