@@ -36,3 +36,9 @@ Capture UTC start/end and elapsed seconds. Target under 30 minutes; hard limit 6
 - no secret appears in source, logs, pack, receipts or report.
 
 A clean-room design claim is not PASS. The portability answer becomes YES only after this evidence exists.
+
+## Observed clean-room evidence to date
+
+Published v1.7 was cloned into a fresh isolated checkout with no current pack path or session cache. Pack inspect passed, the self-contained pack test passed 3/3, the private `.69` transport asset downloaded and matched SHA-256, and the embedded source snapshot extracted 1,152 files. The embedded source `npm run test` and `npm run check` each passed 222/0/1.
+
+The newer successor activation/provisioning tests are not embedded in the `3cea2add…` source snapshot; they remain covered in the authoritative successor source branch. Full ten-gate clean-room PASS and natural email proof are not claimed until protected STAGING owner/mailbox commands and the approved natural sender lane are explicitly supplied to the clean-room bootstrap.
