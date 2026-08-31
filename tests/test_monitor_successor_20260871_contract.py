@@ -51,6 +51,19 @@ class MonitorSuccessor20260871ContractTests(unittest.TestCase):
         self.assertIn('Hash $Installer', wrapper)
         self.assertNotIn('$ExpectedManifest=(Get-FileHash', wrapper)
 
+    def test_protected_continuation_gates_verifyonly_and_onecycle_before_enable(self):
+        path = ROOT / 'scripts/verify_onecycle_enable_pdc_monitor_20260871.ps1'
+        source = path.read_text(encoding='utf-8')
+        verify_at = source.index('current-head-preflight.py')
+        onecycle_at = source.index("active-dispatch.ps1")
+        enable_at = source.index('Enable-ScheduledTask')
+        self.assertLess(verify_at, onecycle_at)
+        self.assertLess(onecycle_at, enable_at)
+        self.assertIn("$Task='PDC-PMB-Email-Monitor-Staging'", source)
+        self.assertIn("$status.production_contacted -ne $false", source)
+        self.assertIn("$status.uid514_processed -ne $false", source)
+        self.assertNotIn('Start-ScheduledTask', source)
+
     def test_active_controls_bind_live_head(self):
         for name in (
             'pdc_monitor_active_bootstrap_20260871.ps1',
