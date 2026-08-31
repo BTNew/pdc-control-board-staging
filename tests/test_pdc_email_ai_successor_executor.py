@@ -14,6 +14,8 @@ PLAN = {
         "source_digest": "a" * 64,
         "evidence_digest": "b" * 64,
         "thread_id": "thread-1",
+        "message_id": "message-1",
+        "attachment_digests": [],
     },
     "versions": {
         "model": "model-1",

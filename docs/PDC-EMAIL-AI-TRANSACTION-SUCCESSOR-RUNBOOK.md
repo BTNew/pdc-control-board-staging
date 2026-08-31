@@ -24,6 +24,9 @@ Manifest:
 Migration:
 `supabase/staging_only/20260831300000_pdc_email_ai_transaction_successor.sql`
 
+Forward repair migration:
+`supabase/staging_only/20260831320000_pdc_email_ai_transaction_successor_contract_repair.sql`
+
 ## Four-layer operation
 
 1. `pdc_email_ai_successor_intake.py` stores RFC822 bytes and original bounded

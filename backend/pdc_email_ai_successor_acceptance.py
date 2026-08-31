@@ -37,6 +37,8 @@ def _plan(instructions: list[dict[str, Any]], source_digest: str = "a" * 64) -> 
             "source_digest": source_digest,
             "evidence_digest": "b" * 64,
             "thread_id": "synthetic-thread",
+            "message_id": "synthetic-message",
+            "attachment_digests": [],
         },
         "versions": {
             "model": "synthetic-model",

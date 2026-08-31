@@ -1,119 +1,22 @@
--- STAGING ONLY: simplified PDC Email AI transaction successor.
--- This migration is append-only, receipt-first, and independent of the current
--- Email Monitor repair runtime. The runtime receives one typed plan only.
+-- STAGING ONLY: append-only repair for the successor command contract.
+-- Replaces only the successor function body after independent review found
+-- missing response parity fields and insufficient source/version preflight.
 BEGIN;
 SET LOCAL lock_timeout='10s';
 SET LOCAL statement_timeout='180s';
-SELECT pg_advisory_xact_lock(hashtextextended('pdc-email-ai-transaction-successor-20260831300000',0));
-
+SELECT pg_advisory_xact_lock(hashtextextended('pdc-email-ai-transaction-successor-contract-repair-20260831320000',0));
 DO $guard$
 BEGIN
   IF current_setting('app.environment',true)='production'
      OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
-     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel
-         WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
-     OR (SELECT count(*) FROM supabase_migrations.schema_migrations
-         WHERE version='20260831290000'
-           AND name='863_exact_retry_after_storage_repair')<>1
-     OR EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations
-               WHERE version='20260831300000')
-  THEN RAISE EXCEPTION 'PDC_EMAIL_AI_SUCCESSOR_STAGING_PRECONDITION_FAILED' USING errcode='55000'; END IF;
-  IF to_regclass('public.ai_email_intake') IS NULL
-     OR to_regclass('public.vehicles') IS NULL
-     OR to_regprocedure('public.get_pdc_email_vehicle_location_snapshot()') IS NULL
-     OR to_regprocedure('public.update_pdc_parts_eta(uuid,integer,date)') IS NULL
-     OR to_regprocedure('public.pdc_monitor_staging_guard()') IS NULL
-  THEN RAISE EXCEPTION 'PDC_EMAIL_AI_SUCCESSOR_DEPENDENCY_MISSING' USING errcode='55000'; END IF;
+     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
+     OR (SELECT count(*) FROM supabase_migrations.schema_migrations WHERE version='20260831310000' AND name='pdc_checklist_completion_history_preservation')<>1
+     OR EXISTS(SELECT 1 FROM supabase_migrations.schema_migrations WHERE version='20260831320000')
+     OR to_regprocedure('public.apply_pdc_email_ai_transaction_successor(jsonb)') IS NULL
+  THEN RAISE EXCEPTION 'PDC_EMAIL_AI_SUCCESSOR_REPAIR_PRECONDITION_FAILED' USING errcode='55000'; END IF;
 END $guard$;
 
-CREATE TABLE public.pdc_email_ai_successor_runtime_identities (
-  identity_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  auth_user_id uuid NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE RESTRICT,
-  normalized_email text NOT NULL UNIQUE CHECK(normalized_email=lower(btrim(normalized_email))),
-  environment text NOT NULL CHECK(environment='staging'),
-  identity_purpose text NOT NULL CHECK(identity_purpose='pdc_email_ai_transaction_successor'),
-  gateway_instance_id text NOT NULL CHECK(length(gateway_instance_id) BETWEEN 3 AND 160),
-  transport_release_version text NOT NULL CHECK(length(transport_release_version) BETWEEN 1 AND 160),
-  model_version text NOT NULL CHECK(length(model_version) BETWEEN 1 AND 160),
-  prompt_version text NOT NULL CHECK(length(prompt_version) BETWEEN 1 AND 160),
-  taxonomy_version text NOT NULL CHECK(length(taxonomy_version) BETWEEN 1 AND 160),
-  rule_version text NOT NULL CHECK(length(rule_version) BETWEEN 1 AND 160),
-  action_contract_version text NOT NULL CHECK(action_contract_version='pdc-email-ai-actions-v1'),
-  active boolean NOT NULL DEFAULT true,
-  approved_by uuid NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
-  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-  revoked_at timestamptz,
-  CHECK((active AND revoked_at IS NULL) OR (NOT active AND revoked_at IS NOT NULL))
-);
-
-CREATE TABLE public.pdc_email_ai_successor_transaction_receipts (
-  transaction_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  identity_id uuid NOT NULL REFERENCES public.pdc_email_ai_successor_runtime_identities(identity_id) ON DELETE RESTRICT,
-  source_receipt_id uuid NOT NULL UNIQUE REFERENCES public.ai_email_intake(id) ON DELETE RESTRICT,
-  source_digest text NOT NULL UNIQUE CHECK(source_digest ~ '^[a-f0-9]{64}$'),
-  evidence_digest text NOT NULL CHECK(evidence_digest ~ '^[a-f0-9]{64}$'),
-  plan_hash text NOT NULL UNIQUE CHECK(plan_hash ~ '^[a-f0-9]{64}$'),
-  aggregate_disposition text NOT NULL CHECK(aggregate_disposition IN('SUCCESS','PARTIAL_FAILURE','NO_ACTIONS')),
-  readback_parity boolean NOT NULL,
-  response jsonb NOT NULL CHECK(jsonb_typeof(response)='object'),
-  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
-);
-
-CREATE TABLE public.pdc_email_ai_successor_action_receipts (
-  action_receipt_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  transaction_id uuid NOT NULL REFERENCES public.pdc_email_ai_successor_transaction_receipts(transaction_id) ON DELETE RESTRICT,
-  source_receipt_id uuid NOT NULL REFERENCES public.ai_email_intake(id) ON DELETE RESTRICT,
-  action_key text NOT NULL CHECK(action_key ~ '^[a-f0-9]{64}$'),
-  instruction_id text NOT NULL CHECK(length(instruction_id) BETWEEN 1 AND 160),
-  vehicle_id uuid NOT NULL REFERENCES public.vehicles(id) ON DELETE RESTRICT,
-  action_type text NOT NULL CHECK(action_type IN(
-    'activate_from_navision','location_set','workgroup_requirement_set','operation_upsert',
-    'parts_eta_set','parts_ordered','parts_complete','notes_append','job_card_upsert',
-    'sublet_booking_upsert','rft_transfer','rft_collect')),
-  requested jsonb NOT NULL CHECK(jsonb_typeof(requested)='object'),
-  disposition text NOT NULL CHECK(disposition IN(
-    'APPLIED_AND_VERIFIED','ALREADY_CORRECT','SUPERSEDED','NOT_APPLICABLE',
-    'BLOCKED_EXACT_REASON','GENUINELY_AMBIGUOUS','FAILED_QUEUED_RETRY')),
-  reason text NOT NULL CHECK(length(reason) BETWEEN 1 AND 1000),
-  canonical_rpc text,
-  before_state jsonb,
-  after_state jsonb,
-  verification jsonb NOT NULL CHECK(jsonb_typeof(verification)='object'),
-  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-  UNIQUE(source_receipt_id,action_key),
-  UNIQUE(transaction_id,instruction_id)
-);
-
-ALTER TABLE public.pdc_email_ai_successor_runtime_identities ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pdc_email_ai_successor_runtime_identities FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.pdc_email_ai_successor_transaction_receipts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pdc_email_ai_successor_transaction_receipts FORCE ROW LEVEL SECURITY;
-ALTER TABLE public.pdc_email_ai_successor_action_receipts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.pdc_email_ai_successor_action_receipts FORCE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.pdc_email_ai_successor_runtime_identities FROM public,anon,authenticated,service_role;
-REVOKE ALL ON TABLE public.pdc_email_ai_successor_transaction_receipts FROM public,anon,authenticated,service_role;
-REVOKE ALL ON TABLE public.pdc_email_ai_successor_action_receipts FROM public,anon,authenticated,service_role;
-
-CREATE FUNCTION public.pdc_email_ai_successor_receipt_immutable()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public AS $$
-BEGIN
-  RAISE EXCEPTION 'PDC_EMAIL_AI_SUCCESSOR_RECEIPT_IMMUTABLE' USING errcode='55000';
-END $$;
-REVOKE ALL ON FUNCTION public.pdc_email_ai_successor_receipt_immutable() FROM public,anon,authenticated,service_role;
-CREATE TRIGGER pdc_email_ai_successor_transaction_receipt_immutable
-BEFORE UPDATE OR DELETE ON public.pdc_email_ai_successor_transaction_receipts
-FOR EACH ROW EXECUTE FUNCTION public.pdc_email_ai_successor_receipt_immutable();
-CREATE TRIGGER pdc_email_ai_successor_action_receipt_immutable
-BEFORE UPDATE OR DELETE ON public.pdc_email_ai_successor_action_receipts
-FOR EACH ROW EXECUTE FUNCTION public.pdc_email_ai_successor_receipt_immutable();
-
-CREATE FUNCTION public.pdc_email_ai_successor_hash(p_value jsonb)
-RETURNS text LANGUAGE sql IMMUTABLE SET search_path=pg_catalog,extensions AS $$
-  SELECT encode(extensions.digest(convert_to(coalesce(p_value,'null'::jsonb)::text,'UTF8'),'sha256'),'hex')
-$$;
-REVOKE ALL ON FUNCTION public.pdc_email_ai_successor_hash(jsonb) FROM public,anon,authenticated,service_role;
-
-CREATE FUNCTION public.apply_pdc_email_ai_transaction_successor(p_plan jsonb)
+CREATE OR REPLACE FUNCTION public.apply_pdc_email_ai_transaction_successor(p_plan jsonb)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER
 SET search_path=pg_catalog,public,auth,extensions
 AS $apply$
@@ -386,38 +289,14 @@ END $apply$;
 
 REVOKE ALL ON FUNCTION public.apply_pdc_email_ai_transaction_successor(jsonb) FROM public,anon,service_role;
 GRANT EXECUTE ON FUNCTION public.apply_pdc_email_ai_transaction_successor(jsonb) TO authenticated;
-
-CREATE FUNCTION public.get_pdc_email_ai_successor_health()
-RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path=pg_catalog,public,auth
-AS $health$
-DECLARE v_role text:=public.current_pdc_user_role()::text;
-BEGIN
-  IF v_role NOT IN('viewer','operator','importer','administrator') THEN
-    RETURN jsonb_build_object('ok',false,'code','unauthorized');
-  END IF;
-  RETURN jsonb_build_object(
-    'ok',true,'code','pdc_email_ai_successor_health',
-    'active_runtime_identities',(SELECT count(*) FROM public.pdc_email_ai_successor_runtime_identities WHERE active),
-    'transactions',(SELECT count(*) FROM public.pdc_email_ai_successor_transaction_receipts),
-    'partial_failures',(SELECT count(*) FROM public.pdc_email_ai_successor_transaction_receipts WHERE aggregate_disposition='PARTIAL_FAILURE'),
-    'pending_or_blocked_actions',(SELECT count(*) FROM public.pdc_email_ai_successor_action_receipts WHERE disposition IN('BLOCKED_EXACT_REASON','FAILED_QUEUED_RETRY','GENUINELY_AMBIGUOUS')),
-    'live_lane_continues',true,'historical_lane_isolated',true,'production_writes',false,
-    'outbound_email',false,'transport_release_is_separate',true);
-END $health$;
-REVOKE ALL ON FUNCTION public.get_pdc_email_ai_successor_health() FROM public,anon,service_role;
-GRANT EXECUTE ON FUNCTION public.get_pdc_email_ai_successor_health() TO authenticated;
-
 INSERT INTO supabase_migrations.schema_migrations(version,name,statements)
-VALUES('20260831300000','pdc_email_ai_transaction_successor',ARRAY[
-  'Exact STAGING sentinel and live migration 863 predecessor guard; Production sentinel rejected; current Email Monitor repair runtime is not modified',
-  'Immutable source-linked transaction and per-action receipts with stable source/digest/vehicle/action/payload idempotency keys',
-  'Dedicated authenticated successor identity only; no service_role, Administrator, direct table, browser or arbitrary SQL authority',
-  'One typed plan RPC validates the complete plan before fixed canonical action dispatch and returns complete action dispositions',
-  'Canonical Parts ETA, Parts Complete and existing Sublet booking update are the only currently available successor dispatches',
-  'Location, Job Card, operation, workgroup, notes and RFT/Collected actions return exact typed blockers when reviewed capability is absent',
-  'Authoritative Board snapshot readback is returned separately; HTTP success or UI appearance is never sufficient',
-  'Transport, model, prompt, taxonomy, rule and Supabase action versions are recorded independently; historical lane is isolated'
+VALUES('20260831320000','pdc_email_ai_transaction_successor_contract_repair',ARRAY[
+  'Append-only repair after independent review; predecessor successor head 20260831300000 is required',
+  'Bind message ID, thread ID, evidence digest and exact attachment digest set to the immutable intake graph',
+  'Reject forbidden plan keys and enforce typed identity/payload shape before canonical dispatch',
+  'Preflight each distinct vehicle version once so same-email action groups do not self-conflict after an earlier canonical update',
+  'Return explicit expected and actual fields for every action result and retain independent Board readback parity',
+  'Production sentinel rejected; current Email Monitor repair lane, mailbox, outbound email and historical evidence are untouched'
 ]);
 NOTIFY pgrst,'reload schema';
 COMMIT;

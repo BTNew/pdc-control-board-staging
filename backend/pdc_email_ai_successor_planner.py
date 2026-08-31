@@ -216,6 +216,8 @@ def interpret_correspondence(
         "source_digest": receipt.get("source_digest"),
         "evidence_digest": receipt.get("evidence_digest"),
         "thread_id": receipt.get("thread_id"),
+        "message_id": receipt.get("message_id") or receipt.get("provider_uid"),
+        "attachment_digests": sorted({str(item.get("digest")) for item in attachments if item.get("digest")}),
     }
     plan = {
         "schema_version": "pdc-email-ai-plan-v1",

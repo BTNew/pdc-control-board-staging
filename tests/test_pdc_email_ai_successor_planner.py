@@ -44,6 +44,8 @@ def receipt(text):
         "source_digest": "a" * 64,
         "evidence_digest": "b" * 64,
         "thread_id": "thread-1",
+        "message_id": "message-1",
+        "attachment_digests": [],
         "received_at": "2026-08-31T01:00:00+00:00",
         "correspondence": text,
     }

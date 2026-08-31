@@ -272,11 +272,19 @@ def validate_plan(value: Mapping[str, Any]) -> dict[str, Any]:
         raise PlanValidationError("schema_version is invalid")
 
     source = _object(source_plan["source"], "source")
-    _exact_keys(source, {"receipt_id", "source_digest", "evidence_digest", "thread_id"}, "source")
+    _exact_keys(source, {"receipt_id", "source_digest", "evidence_digest", "thread_id", "message_id", "attachment_digests"}, "source")
     _uuid(source["receipt_id"], "source.receipt_id")
     _digest(source["source_digest"], "source.source_digest")
     _digest(source["evidence_digest"], "source.evidence_digest")
     _text(source["thread_id"], "source.thread_id", 1, 512)
+    _text(source["message_id"], "source.message_id", 1, 1024)
+    attachment_digests = source["attachment_digests"]
+    if not isinstance(attachment_digests, list) or len(attachment_digests) > 25:
+        raise PlanValidationError("source.attachment_digests is invalid")
+    attachment_digests = [_digest(item, "source.attachment_digests item") for item in attachment_digests]
+    if len(set(attachment_digests)) != len(attachment_digests):
+        raise PlanValidationError("source.attachment_digests contains duplicates")
+    source["attachment_digests"] = attachment_digests
 
     versions = _object(source_plan["versions"], "versions")
     _exact_keys(versions, {"model", "prompt", "taxonomy", "rules", "action_contract", "supabase_actions"}, "versions")
