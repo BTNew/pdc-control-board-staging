@@ -11,6 +11,7 @@
   "supabase_action_version": "20260831330000",
   "successor_inbox_rpc": "get_pdc_email_ai_transaction_successor_inbox",
   "successor_inbox_revision_table": "pdc_email_ai_successor_ui_revision",
+  "successor_inbox_ui_asset_version": "2026.08.31.06-successor-inbox-realtime-loop",
   "command_rpc": "apply_pdc_email_ai_transaction_successor",
   "readback_rpc": "get_pdc_email_vehicle_location_snapshot",
   "health_rpc": "get_pdc_email_ai_successor_health",
@@ -47,6 +48,7 @@
     "test_pdc_email_ai_successor_inbox_ui.js",
     "test_pdc_email_ai_successor_inbox_migration.py",
     "tests/fixtures/pdc_email_ai_successor_inbox_ui.json",
-    "supabase/staging_only/20260831330000_pdc_email_ai_successor_inbox_read_projection.sql"
+    "supabase/staging_only/20260831330000_pdc_email_ai_successor_inbox_read_projection.sql",
+    "scripts/verify_pdc_email_ai_successor_inbox_staging.py"
   ]
 }
