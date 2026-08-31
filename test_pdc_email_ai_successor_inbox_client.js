@@ -6,6 +6,7 @@ const {
   PDC_EMAIL_AI_SUCCESSOR_INBOX_RPC,
   createPdcEmailAiSuccessorInboxClient,
   normalizeSuccessorInboxSnapshot,
+  parseSuccessorInboxCursor,
 } = require('./pdc-email-ai-successor-inbox.js');
 assert.strictEqual(PDC_EMAIL_AI_SUCCESSOR_INBOX_RPC, 'get_pdc_email_ai_transaction_successor_inbox_v2');
 
@@ -46,6 +47,12 @@ async function test(name, fn) {
     });
     assert.strictEqual(snapshot.ok, false);
     assert.strictEqual(snapshot.code, 'unsafe_snapshot');
+  });
+
+  await test('data attribute cursor is restored to an object before the v2 RPC call', () => {
+    const cursor = { sort_time: '2026-08-31T01:02:03.000Z', created_at: '2026-08-31T01:02:03.000Z', id: '11111111-1111-4111-8111-111111111111' };
+    assert.deepStrictEqual(parseSuccessorInboxCursor(JSON.stringify(cursor)), cursor);
+    assert.strictEqual(parseSuccessorInboxCursor('{bad-json'), null);
   });
 
   await test('unknown action is retained as a blocked child rather than dropped', () => {
