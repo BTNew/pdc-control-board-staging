@@ -181,6 +181,17 @@ function receivedLabel(value) {
   return Number.isNaN(date.valueOf()) ? text(value) : date.toLocaleString();
 }
 
+function parseSuccessorInboxCursor(value) {
+  if (value && typeof value === 'object') return value;
+  if (typeof value !== 'string' || !value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch (_error) {
+    return null;
+  }
+}
+
 function statusClass(value = '') {
   const normalized = String(value).toUpperCase();
   if (normalized.includes('SUCCESS') || normalized.includes('VERIFIED') || normalized.includes('APPLIED')) return 'is-success';
@@ -269,7 +280,7 @@ function createPdcEmailAiSuccessorInboxController(options = {}) {
       : state.state === 'synchronized' ? `Refresh only · Realtime ${state.realtimeState}` : state.state;
     root.innerHTML = `<div class="successor-inbox-toolbar"><div><span class="eyebrow">Successor · evidence to typed plan to readback</span><h2 id="pdc-email-ai-successor-title">Chronological AI Intake</h2><p>Read-only projection of email receipts and controlled transaction results. This screen never writes business state.</p></div><div class="successor-inbox-actions"><span class="successor-inbox-state-pill ${escapeHtml(state.realtimeState)}">${escapeHtml(liveLabel)}</span><button class="small-button" id="pdc-successor-inbox-refresh" type="button">Refresh</button></div></div><div id="pdc-successor-inbox-content">${renderSuccessorInbox(state)}</div>`;
     root.querySelector('#pdc-successor-inbox-refresh')?.addEventListener('click', () => { void refresh(); });
-    root.querySelector('.successor-load-more')?.addEventListener('click', event => { state.cursor = event.currentTarget.dataset.successorNextCursor || null; void refresh({ append: true }); });
+    root.querySelector('.successor-load-more')?.addEventListener('click', event => { state.cursor = parseSuccessorInboxCursor(event.currentTarget.dataset.successorNextCursor); void refresh({ append: true }); });
   }
 
   async function refresh({ append = false } = {}) {
@@ -367,6 +378,7 @@ const successorInboxApi = {
   createPdcEmailAiSuccessorInboxClient,
   successorInboxSummary,
   renderSuccessorInbox,
+  parseSuccessorInboxCursor,
   createPdcEmailAiSuccessorInboxController,
   mountPdcEmailAiSuccessorInbox,
 };
