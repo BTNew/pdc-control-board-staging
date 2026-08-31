@@ -57,6 +57,11 @@ class MonitorSuccessor20260871ContractTests(unittest.TestCase):
             'task_enabled', 'task_started', 'mailbox_contacted', 'production_contacted',
         ])
 
+    def test_desktop_launcher_keeps_receipt_path_separate_from_record_object(self):
+        source = (ROOT / 'scripts/launch_pdc_monitor_successor_20260871.ps1').read_text(encoding='utf-8')
+        self.assertIn('$RecordPath=', source)
+        self.assertNotIn('-LiteralPath $Record ', source)
+
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
