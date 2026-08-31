@@ -285,6 +285,12 @@ function pdcWorkDestinationDateLabel(value = '') {
   return date.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
+function canonicalActiveSubletBooking(vehicle = {}) {
+  return (Array.isArray(vehicle.pdcSubletBookings) ? vehicle.pdcSubletBookings : [])
+    .filter(booking => String(booking?.status || '').trim().toLowerCase() === 'active' && booking?.bookingId)
+    .sort((a, b) => String(a.outDate || '').localeCompare(String(b.outDate || '')) || String(a.bookingId).localeCompare(String(b.bookingId)))[0] || null;
+}
+
 function pdcWorkDestination(vehicle = {}, def = {}) {
   if (!def?.key) return null;
   if (def.key === 'parts') {
@@ -292,8 +298,9 @@ function pdcWorkDestination(vehicle = {}, def = {}) {
     return pdcJobRequired(vehicle, def) ? { kind: 'view', view: 'parts', label: eta ? `ETA ${pdcWorkDestinationDateLabel(eta)}` : 'Open Parts', booked: partsOrdered(vehicle) } : null;
   }
   if (def.key === 'sublet') {
-    const returnDate = cleanNavisionText(vehicle.pmbSubletExpectedReturnDate || vehicle.subletExpectedReturnDate || vehicle.expectedReturnDate || '');
-    return pdcJobRequired(vehicle, def) ? { kind: 'view', view: 'sublet', label: returnDate ? `Return ${pdcWorkDestinationDateLabel(returnDate)}` : 'Open Sublet', booked: Boolean(returnDate || vehicle.pmbSubletProvider) } : null;
+    const activeBooking = canonicalActiveSubletBooking(vehicle);
+    const returnDate = cleanNavisionText(activeBooking?.expectedReturnDate || '');
+    return pdcJobRequired(vehicle, def) ? { kind: 'view', view: 'sublet', label: returnDate ? `Return ${pdcWorkDestinationDateLabel(returnDate)}` : 'Open Sublet', booked: Boolean(activeBooking) } : null;
   }
   const stage = pmbStageForPdcJob(def);
   if (!stage || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]) return null;
@@ -7515,18 +7522,19 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
       ? isActivePartsStoppage(vehicle)
       : Boolean(stoppedBooking || (isPdcBlocked(vehicle) && stageJobKey === def.key));
     const ordered = def.key === 'parts' && required && !complete && !blocked && partsOrdered(vehicle);
+    const subletBooked = def.key === 'sublet' && Boolean(canonicalActiveSubletBooking(vehicle)) && !complete && !blocked;
     const classes = ['incoming-work-check', `pdc-station-${def.key}`];
     if (!required && !complete) classes.push('is-not-required');
     if (required) classes.push('is-required');
-    if (ordered) classes.push('is-ordered');
+    if (ordered || subletBooked) classes.push('is-ordered');
     if (complete) classes.push('is-complete');
     if (blocked) classes.push('is-blocked');
     if (stage && currentStage === stage) classes.push('is-current-stage');
-    const state = complete ? 'complete' : blocked ? 'blocked' : ordered ? 'ordered' : required ? 'required' : 'not required';
-    const marker = complete ? '✓' : blocked ? '!' : ordered ? '●' : required ? '•' : '–';
+    const state = complete ? 'complete' : blocked ? 'blocked' : ordered ? 'ordered' : subletBooked ? 'booked' : required ? 'required' : 'not required';
+    const marker = complete ? '✓' : blocked ? '!' : ordered || subletBooked ? '●' : required ? '•' : '–';
     const title = stoppedBooking
       ? `${pdcGridJobLabel(def)} STOPPAGE${stoppedBooking.stoppageReason ? `: ${stoppedBooking.stoppageReason}` : ''}`
-      : ordered ? `${pdcGridJobLabel(def)} ordered` : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
+      : ordered ? `${pdcGridJobLabel(def)} ordered` : subletBooked ? `${pdcGridJobLabel(def)} booked` : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
     return `<span class="${classes.join(' ')}" title="${escapeHtml(title)}" aria-label="${escapeHtml(`${pdcGridJobLabel(def)} ${state}`)}">
       <span class="incoming-work-box" aria-hidden="true">${marker}</span>
       <span class="incoming-work-label">${escapeHtml(pdcGridJobLabel(def))}</span>
@@ -7575,9 +7583,6 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     .filter(booking => ['active', 'returned'].includes(String(booking?.status || '')))
     .sort((a, b) => String(a?.outDate || '').localeCompare(String(b?.outDate || '')))[0] || null;
   const canonicalSubletStatus = canonicalSubletBooking?.status === 'returned' ? 'Returned' : 'Booked';
-  const canonicalSubletPill = canonicalSubletBooking
-    ? `<span class="incoming-card-sublet"><b>Sublet</b><span class="sublet-status-pill is-${canonicalSubletBooking.status === 'returned' ? 'returned' : 'booked'}">${escapeHtml(canonicalSubletStatus)}</span></span>`
-    : '';
   const canonicalSubletDetail = canonicalSubletBooking
     ? `<div class="wide incoming-sublet-booking-detail"><b>Sublet booking</b><span><strong>${escapeHtml(canonicalSubletBooking.provider || 'Provider not assigned')}</strong> · ${escapeHtml(canonicalSubletBooking.outDate || 'Date not set')} → ${escapeHtml(canonicalSubletBooking.expectedReturnDate || 'Return date not set')} · <span class="sublet-status-pill is-${canonicalSubletBooking.status === 'returned' ? 'returned' : 'booked'}">${escapeHtml(canonicalSubletStatus)}</span></span></div>`
     : '';
@@ -7626,7 +7631,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
       <summary class="incoming-vehicle-summary pdc-production-grid-row">
         ${selectBox}
         <span class="incoming-card-stock">${identitySummary}</span>
-        <span class="incoming-card-main"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong>${canonicalSubletPill}</span>
+        <span class="incoming-card-main"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong></span>
         ${isRftRow
           ? `<span class="rft-row-controls-slot">${rftControls}</span>`
           : `<span class="incoming-card-work-wrap">${workChecks}</span>

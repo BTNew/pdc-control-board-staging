@@ -11,12 +11,15 @@ const styles = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 const migration = fs.readFileSync(path.join(root, 'supabase/staging_only/20260830090000_sublet_auditor_read_ledger.sql'), 'utf8');
 const volatilityRepair = fs.readFileSync(path.join(root, 'supabase/staging_only/20260830091000_sublet_auditor_read_ledger_volatility_repair.sql'), 'utf8');
 const castRepair = fs.readFileSync(path.join(root, 'supabase/staging_only/20260830092000_sublet_auditor_read_ledger_uuid_text_cast_repair.sql'), 'utf8');
+const vehicleRenderer = app.slice(app.indexOf('function incomingVehicleDetailRow'), app.indexOf('const SALES_PREPARATION_FIELDS'));
 
 assert(app.includes('canonicalSubletBooking'), 'Vehicle Locations must consume canonical Sublet bookings');
-assert(app.includes('incoming-card-sublet'), 'Vehicle Locations card must render the Sublet pill');
+assert(app.includes('canonicalActiveSubletBooking'), 'Sublet booking state must use the canonical active-booking projection');
+assert(app.includes('subletBooked'), 'Vehicle Locations must project active Sublet booking state into the workgroup strip');
+assert(!vehicleRenderer.includes('incoming-card-sublet'), 'Vehicle/model column must not render a duplicate Sublet status badge');
 assert(app.includes('incoming-sublet-booking-detail'), 'Vehicle Locations card must render canonical Sublet detail');
 assert(app.includes("allRows.filter(vehicle => subletBookingState(vehicle) === 'booked')"), 'Sublet summary must exclude cancelled-only rows from booked count');
-assert(styles.includes('.incoming-card-sublet'), 'Vehicle Locations Sublet pill must have compact card styling');
+assert(styles.includes('.incoming-work-check.is-ordered'), 'Sublet booked workgroup must reuse the orange ordered styling');
 assert(service.includes("PDC_SUBLET_AUDIT_READ_RPC = 'get_pdc_sublet_audit_ledgers'"), 'service must expose the exact Sublet ledger RPC');
 assert(service.includes('readSubletAuditLedgers'), 'service must expose the authenticated ledger read bridge');
 for (const fragment of [
