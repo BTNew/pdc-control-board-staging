@@ -4,7 +4,7 @@ Dashboard reference: `20260831_100550_0dcd0a`
 Environment: STAGING only (`cdsmnqxtyyoeoznmbidd`)
 Production: not contacted or mutated
 Release worktree: `C:/Users/nwmgr/HermesWorkspaces/development/pdc-board-checklist-closure-20260831`
-Published staging tip: `7ddbaeba19a26d9f31de59d095d32d3281a97691`
+Published staging tip: `463bf25ee539caada9bb81dfd922f47c31e00fce`
 Implementation commit: `875864ffd6412686a0467157167d64381373d284`
 
 Evidence rule: an item is ticked only where the current implementation, a focused regression, and authoritative staging readback/UI evidence agree. Existing staging proofs cited below were re-used rather than duplicated.
@@ -39,7 +39,7 @@ Evidence rule: an item is ticked only where the current implementation, a focuse
 - SQL syntax: PGLAST parsed both append-only closure migrations as 11 statements each — PASS.
 - Live staging migrations: `20260831280000/pdc_checklist_completion_booking_preservation` and append-only `20260831310000/pdc_checklist_completion_history_preservation` — applied/read back with requirement-completion, booking-preservation, `purged_booking_id NULL`, PostgreSQL owner/SECURITY DEFINER/ACL and idempotency-lock postconditions true. The latter was installed after independent live head `20260831300000/pdc_email_ai_transaction_successor`; the Email Monitor successor was not modified.
 - Live exact Stock readback: one canonical row, one projected row, one active Sublet booking, one Sublet history row; staging sentinel present and Production sentinel absent.
-- Live authenticated UI: staging project/administrator session showed Stock `13080534`, Customer Sublet, exact dates, booked vehicle-card state, completed Parts and no Parts Risk warning; no Production request was observed.
+- Live authenticated UI: final staging project/administrator session showed Stock `13080534`, Customer Sublet, exact dates, booked vehicle-card state, completed Parts and no Parts Risk warning; the final deployed asset also contains the reviewer-fixed canonical vehicle/Stock/bay booking-navigation path. No Production request was observed.
 - Live Refresh UI: deployed dashboard entered the disabled `Refreshing…` state with navigation count unchanged at `1`, settled back to `Shared Navision locations online` with Refresh enabled, and retained the authoritative board data. A 390px emulated viewport measured document/body width `390` against client width `390` with no horizontal overflow.
 - Staging publication: `BTNew/pdc-control-board-staging` `main` points to the final published tip recorded below; Staging integrity workflow and Pages build/deployment succeeded for each published source tip; cache-busted `index.html`, `app.js` and `vehicle-requirements-guard.js` read back with closure markers.
 - Release scope: only checklist-closure source, test, migration, verifier and evidence files in the isolated worktree were committed. Active Email Monitor worktrees/branches were not modified; their later live head advance was observed and tolerated by the readback verifier. Production remotes, branches, data and credentials were not used.
