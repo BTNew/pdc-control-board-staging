@@ -329,7 +329,7 @@ function mountPdcEmailAiSuccessorInbox(windowRef = window, documentRef = documen
   }
 }
 
-const api = {
+const successorInboxApi = {
   PDC_EMAIL_AI_SUCCESSOR_STAGING_PROJECT_REF,
   PDC_EMAIL_AI_SUCCESSOR_INBOX_RPC,
   PDC_EMAIL_AI_SUCCESSOR_REVISION_TABLE,
@@ -342,9 +342,9 @@ const api = {
   mountPdcEmailAiSuccessorInbox,
 };
 
-if (typeof module !== 'undefined' && module.exports) module.exports = api;
+if (typeof module !== 'undefined' && module.exports) module.exports = successorInboxApi;
 if (typeof window !== 'undefined') {
-  window.PDC_EMAIL_AI_SUCCESSOR_INBOX = api;
+  window.PDC_EMAIL_AI_SUCCESSOR_INBOX = successorInboxApi;
   const boot = () => {
     mountPdcEmailAiSuccessorInbox(window, document);
     window.addEventListener('pdc-auth-ready', () => mountPdcEmailAiSuccessorInbox(window, document));

@@ -14,11 +14,13 @@ function test(name, fn) {
 
 test('successor UI is staging-bound and legacy .68 fallback remains hidden', () => {
   const staging = fs.readFileSync('staging.html', 'utf8');
+  const successor = fs.readFileSync('pdc-email-ai-successor-inbox.js', 'utf8');
   assert.ok(staging.includes('pdc-email-ai-successor-inbox.js'));
   assert.ok(staging.includes('id="pdc-email-ai-successor-inbox"'));
   assert.ok(staging.includes('id="ai-intake-legacy-fallback" hidden'));
   assert.ok(staging.includes('cdsmnqxtyyoeoznmbidd.supabase.co'));
   assert.ok(!staging.includes('vjdtsswhroyguxyfjdkt.supabase.co'));
+  assert.ok(!/^const api\s*=/m.test(successor));
 });
 
 test('controller refreshes from Realtime once and suppresses stale generations', async () => {
