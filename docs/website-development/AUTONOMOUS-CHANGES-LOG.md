@@ -69,3 +69,10 @@
 - Added append-only staging migration `supabase/staging_only/20260901100000_pdc_email_ai_typed_action_strict_wrapper_20260901.sql` and protected controller `scripts/apply_pdc_email_ai_typed_action_strict_wrapper_staging.py`.
 - Rebound the sole authenticated strict entrypoint to call the complete PostgreSQL v2 plan validator before source lookup, operation-update dispatch or compatibility projection; the migration is guarded to the exact 0900 predecessor and replay-protected by its ledger identity.
 - Extended read-only typed-action and successor verifiers to require the live strict wrapper definition to contain the full plan-validator binding. No action RPC, receipt/business mutation, mailbox, outbound email or Production path is invoked by installation or proof.
+
+## 2026-09-01 — strict v2 review/non-dispatch receipt correction
+
+- Added append-only staging migration `supabase/staging_only/20260901110000_pdc_email_ai_typed_action_review_receipts_20260901.sql` and protected controller `scripts/apply_pdc_email_ai_typed_action_review_receipts_staging.py`.
+- Corrected the strict authenticated boundary so it preserves each instruction's `decision_disposition` before compatibility projection. Review, unsupported and conflict evidence now receives an immutable typed non-dispatch receipt with `canonical_rpc` null and `action_rpc_invoked=false`; unresolved review evidence keeps nullable vehicle identity and is never sent to a canonical action.
+- Updated read-only typed-action and successor verifiers for the 1100 head and non-dispatch helper/function-definition proof. Protected STAGING apply/readback returned `ok=true`; known-vehicle and unresolved review plan validators both accepted their typed evidence shapes, receipt counts stayed `0/0`, and no action RPC, business mutation, mailbox, outbound email or Production path was invoked.
+- Added focused migration/controller regressions in `tests/test_pdc_email_ai_typed_action_strict_wrapper.py`. SQL parsed as 15 statements; the protected staging lane remains authenticated-only with forced RLS and legacy low-level/alias ACLs denied.
