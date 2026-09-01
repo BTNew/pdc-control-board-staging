@@ -15,19 +15,31 @@ from typing import Any, Mapping
 
 PLAN_SCHEMA_VERSION = "pdc-email-ai-plan-v1"
 ACTION_CONTRACT_VERSION = "pdc-email-ai-actions-v1"
+ACTION_CONTRACT_V2_VERSION = "pdc-email-ai-actions-v2"
+TAXONOMY_VERSION = "pdc-operation-taxonomy-proposed/v1"
+TAXONOMY_DISPOSITIONS = {"classified", "review", "unsupported", "conflict"}
 
 ACTION_TYPES = frozenset(
     {
+        "activate_vehicle",
         "activate_from_navision",
         "location_set",
         "workgroup_requirement_set",
         "operation_upsert",
+        "operation_add",
+        "operation_update",
         "parts_eta_set",
         "parts_ordered",
         "parts_complete",
         "notes_append",
+        "note_append",
         "job_card_upsert",
         "sublet_booking_upsert",
+        "booking_set",
+        "booking_move",
+        "booking_cancel",
+        "required_work_set",
+        "work_complete",
         "rft_transfer",
         "rft_collect",
     }
@@ -71,6 +83,43 @@ _WORK_KEYS = frozenset(
     {"PARTS", "TINT", "HOIST", "FITTING", "BUS_4X4", "FABRICATION", "ELECTRICAL", "TYRE", "PIT_INSPECTION", "SUBLET"}
 )
 _LOCATIONS = frozenset({"YH", "PMB", "QC", "RFT", "OTHER", "IT"})
+
+
+def taxonomy_disposition_for_operation(description: Any, work_key: Any, taxonomy_version: Any) -> str:
+    """Return the server-compatible disposition for a typed operation classification.
+
+    Historical labels are evidence, not authority. In particular, a GVM token
+    inside signage/decals must never turn an operation into Hoist or Sublet.
+    """
+    if not isinstance(taxonomy_version, str) or not re.fullmatch(r"pdc-operation-taxonomy-(?:proposed|approved)/v[0-9]+", taxonomy_version):
+        return "unsupported"
+    if not isinstance(description, str) or not isinstance(work_key, str):
+        return "unsupported"
+    normalized = re.sub(r"[^a-z0-9]+", " ", description.casefold()).strip()
+    group = work_key.strip().upper()
+    if group not in _WORK_KEYS:
+        return "unsupported"
+    if re.search(r"\bidentity conflict\b", normalized):
+        return "conflict"
+    if re.search(r"\b(?:unresolved|no operation rows)\b", normalized):
+        return "unsupported"
+    if re.search(r"\b(signage|decal|decals|safety stripping|logo|tare|gcm)\b", normalized):
+        return "review"
+    if group == "SUBLET":
+        return "unsupported"
+    if "wheel nut indicator" in normalized and group != "TYRE":
+        return "conflict"
+    if "fire extinguisher" in normalized and group != "FABRICATION":
+        return "conflict"
+    if re.search(r"\b(?:arb )?long (?:range|ranger)(?: fuel)? tank\b", normalized) and group != "HOIST":
+        return "conflict"
+    if re.search(r"\b12v\b.*\bsocket\b|\bsocket\b.*\b12v\b", normalized):
+        return "review"
+    if "safety triangle" in normalized:
+        return "review"
+    if re.search(r"\bweather shields?\b", normalized):
+        return "review"
+    return "classified"
 
 
 class PlanValidationError(ValueError):
@@ -192,7 +241,7 @@ def _operation_line(value: Any, label: str) -> dict[str, Any]:
 
 def _payload(action_type: str, value: Any, label: str) -> dict[str, Any]:
     payload = _object(value, label)
-    if action_type == "activate_from_navision":
+    if action_type in {"activate_from_navision", "activate_vehicle"}:
         _exact_keys(payload, {"backend_record_id", "stock_number", "vin", "job_card_number"}, label)
         _uuid(payload["backend_record_id"], f"{label}.backend_record_id")
         stock = _text(payload["stock_number"], f"{label}.stock_number", 4, 80).upper()
@@ -218,6 +267,17 @@ def _payload(action_type: str, value: Any, label: str) -> dict[str, Any]:
     elif action_type == "operation_upsert":
         _exact_keys(payload, {"operation_no", "source_row_no", "work_key", "description", "estimated_hours"}, label)
         return _operation_line(payload, label)
+    elif action_type in {"operation_add", "operation_update"}:
+        _exact_keys(payload, {"operation_no", "source_row_no", "work_key", "description", "estimated_hours", "taxonomy_version", "taxonomy_disposition", "source_uid"}, label)
+        line = _operation_line({key: payload[key] for key in ("operation_no", "source_row_no", "work_key", "description", "estimated_hours")}, label)
+        _text(payload["source_uid"], f"{label}.source_uid", 1, 200)
+        _text(payload["taxonomy_version"], f"{label}.taxonomy_version", 1, 160)
+        if payload["taxonomy_disposition"] not in TAXONOMY_DISPOSITIONS:
+            raise PlanValidationError(f"{label}.taxonomy_disposition is invalid")
+        expected_disposition = taxonomy_disposition_for_operation(line["description"], line["work_key"], payload["taxonomy_version"])
+        if payload["taxonomy_disposition"] != expected_disposition:
+            raise PlanValidationError(f"{label}.taxonomy_disposition conflicts with the versioned taxonomy")
+        return {**line, "source_uid": payload["source_uid"], "taxonomy_version": payload["taxonomy_version"], "taxonomy_disposition": payload["taxonomy_disposition"]}
     elif action_type == "parts_eta_set":
         _exact_keys(payload, {"eta"}, label)
         _date(payload["eta"], f"{label}.eta", allow_clear=True)
@@ -228,6 +288,10 @@ def _payload(action_type: str, value: Any, label: str) -> dict[str, Any]:
     elif action_type == "notes_append":
         _exact_keys(payload, {"text"}, label)
         _text(payload["text"], f"{label}.text", 1, 2000)
+    elif action_type == "note_append":
+        _exact_keys(payload, {"text", "event_at"}, label)
+        _text(payload["text"], f"{label}.text", 1, 2000)
+        _text(payload["event_at"], f"{label}.event_at", 20, 40)
     elif action_type == "job_card_upsert":
         _exact_keys(payload, {"job_card_number", "lines"}, label)
         _text(payload["job_card_number"], f"{label}.job_card_number", 1, 80)
@@ -258,6 +322,49 @@ def _payload(action_type: str, value: Any, label: str) -> dict[str, Any]:
         return_date = _date(payload["expected_return_date"], f"{label}.expected_return_date")
         if out_date and return_date and return_date < out_date:
             raise PlanValidationError(f"{label} has invalid date order")
+    elif action_type == "booking_set":
+        _exact_keys(payload, {"stage_code", "bay_number", "scheduled_start_at", "duration_minutes", "technician_id"}, label)
+        _text(payload["stage_code"], f"{label}.stage_code", 2, 40)
+        if isinstance(payload["bay_number"], bool) or not isinstance(payload["bay_number"], int) or payload["bay_number"] < 1:
+            raise PlanValidationError(f"{label}.bay_number is invalid")
+        _text(payload["scheduled_start_at"], f"{label}.scheduled_start_at", 20, 40)
+        if isinstance(payload["duration_minutes"], bool) or not isinstance(payload["duration_minutes"], int) or payload["duration_minutes"] < 60:
+            raise PlanValidationError(f"{label}.duration_minutes must be at least 60")
+        if payload["technician_id"] is not None:
+            _uuid(payload["technician_id"], f"{label}.technician_id")
+    elif action_type == "booking_move":
+        _exact_keys(payload, {"booking_id", "expected_booking_version", "stage_code", "bay_number", "scheduled_start_at", "duration_minutes", "override_reason"}, label)
+        _uuid(payload["booking_id"], f"{label}.booking_id")
+        if isinstance(payload["expected_booking_version"], bool) or not isinstance(payload["expected_booking_version"], int) or payload["expected_booking_version"] < 1:
+            raise PlanValidationError(f"{label}.expected_booking_version is invalid")
+        _text(payload["stage_code"], f"{label}.stage_code", 2, 40)
+        if isinstance(payload["bay_number"], bool) or not isinstance(payload["bay_number"], int) or payload["bay_number"] < 1:
+            raise PlanValidationError(f"{label}.bay_number is invalid")
+        _text(payload["scheduled_start_at"], f"{label}.scheduled_start_at", 20, 40)
+        if isinstance(payload["duration_minutes"], bool) or not isinstance(payload["duration_minutes"], int) or payload["duration_minutes"] < 60:
+            raise PlanValidationError(f"{label}.duration_minutes must be at least 60")
+        if payload["override_reason"] is not None:
+            _text(payload["override_reason"], f"{label}.override_reason", 3, 400)
+    elif action_type == "booking_cancel":
+        _exact_keys(payload, {"booking_id", "expected_booking_version", "reason"}, label)
+        _uuid(payload["booking_id"], f"{label}.booking_id")
+        if isinstance(payload["expected_booking_version"], bool) or not isinstance(payload["expected_booking_version"], int) or payload["expected_booking_version"] < 1:
+            raise PlanValidationError(f"{label}.expected_booking_version is invalid")
+        _text(payload["reason"], f"{label}.reason", 3, 400)
+    elif action_type == "required_work_set":
+        _exact_keys(payload, {"work_key", "required"}, label)
+        if _text(payload["work_key"], f"{label}.work_key", 2, 32).upper() not in _WORK_KEYS:
+            raise PlanValidationError(f"{label}.work_key is not controlled")
+        if type(payload["required"]) is not bool:
+            raise PlanValidationError(f"{label}.required must be boolean")
+    elif action_type == "work_complete":
+        _exact_keys(payload, {"booking_id", "expected_booking_version", "work_key", "completed_at"}, label)
+        _uuid(payload["booking_id"], f"{label}.booking_id")
+        if isinstance(payload["expected_booking_version"], bool) or not isinstance(payload["expected_booking_version"], int) or payload["expected_booking_version"] < 1:
+            raise PlanValidationError(f"{label}.expected_booking_version is invalid")
+        if _text(payload["work_key"], f"{label}.work_key", 2, 32).upper() not in _WORK_KEYS:
+            raise PlanValidationError(f"{label}.work_key is not controlled")
+        _text(payload["completed_at"], f"{label}.completed_at", 20, 40)
     else:
         raise PlanValidationError(f"unsupported action_type {action_type}")
     return payload
@@ -265,6 +372,14 @@ def _payload(action_type: str, value: Any, label: str) -> dict[str, Any]:
 
 def validate_plan(value: Mapping[str, Any]) -> dict[str, Any]:
     """Validate and return a detached, normalized typed plan."""
+    # The v2 planner has a deliberately richer envelope (stable plan id,
+    # disposition and provenance fields) than the original successor planner.
+    # Keep this public entry point backwards-compatible while routing v2 plans
+    # through their single strict validator before any executor boundary.
+    if isinstance(value, Mapping) and "plan_id" in value and "source_receipt_id" in value:
+        from .pdc_email_ai_v2_actions import validate_v2_plan
+
+        return validate_v2_plan(value)
     source_plan = copy.deepcopy(_object(value, "plan"))
     _no_forbidden(source_plan)
     _exact_keys(source_plan, {"schema_version", "source", "versions", "instructions"}, "plan")
@@ -290,7 +405,7 @@ def validate_plan(value: Mapping[str, Any]) -> dict[str, Any]:
     _exact_keys(versions, {"model", "prompt", "taxonomy", "rules", "action_contract", "supabase_actions"}, "versions")
     for key, item in versions.items():
         _text(item, f"versions.{key}", 1, 160)
-    if versions["action_contract"] != ACTION_CONTRACT_VERSION:
+    if versions["action_contract"] not in {ACTION_CONTRACT_VERSION, ACTION_CONTRACT_V2_VERSION}:
         raise PlanValidationError("versions.action_contract is invalid")
 
     instructions = source_plan["instructions"]
@@ -313,6 +428,8 @@ def validate_plan(value: Mapping[str, Any]) -> dict[str, Any]:
         action_type = _text(row["action_type"], f"instructions[{index}].action_type", 1, 80)
         if action_type not in ACTION_TYPES:
             raise PlanValidationError(f"instructions[{index}].action_type is not allowed")
+        if action_type in {"activate_vehicle", "operation_add", "operation_update", "booking_set", "booking_move", "booking_cancel", "required_work_set", "work_complete", "note_append"} and versions["action_contract"] != ACTION_CONTRACT_V2_VERSION:
+            raise PlanValidationError(f"instructions[{index}].action_type requires the v2 action contract")
         payload = _payload(action_type, row["payload"], f"instructions[{index}].payload")
         refs = row["evidence_refs"]
         if not isinstance(refs, list) or not 1 <= len(refs) <= 20:
@@ -364,12 +481,16 @@ def aggregate_disposition(dispositions: list[str]) -> str:
 
 __all__ = [
     "ACTION_CONTRACT_VERSION",
+    "ACTION_CONTRACT_V2_VERSION",
     "ACTION_TYPES",
     "PLAN_SCHEMA_VERSION",
     "PlanValidationError",
+    "TAXONOMY_DISPOSITIONS",
+    "TAXONOMY_VERSION",
     "TERMINAL_DISPOSITIONS",
     "action_idempotency_key",
     "aggregate_disposition",
     "canonical_json",
+    "taxonomy_disposition_for_operation",
     "validate_plan",
 ]

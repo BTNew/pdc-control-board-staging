@@ -9,7 +9,7 @@ from pathlib import Path
 BOOTSTRAP = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py")
 SECRETS = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi")
 STAGING_REF = "cdsmnqxtyyoeoznmbidd"
-TARGET = ("20260831380000", "pdc_email_ai_successor_actor_first_gate")
+TARGET = ("20260901010000", "latest100_attachment_work_receipt_successor")
 
 
 def one(cursor, sql: str):
@@ -39,7 +39,7 @@ def main() -> None:
     )
     try:
         cursor = connection.cursor()
-        ledger = tuple(one(cursor, "select version,name from supabase_migrations.schema_migrations where version='20260831380000'") or ())
+        ledger = tuple(one(cursor, "select version,name from supabase_migrations.schema_migrations where version='20260901010000'") or ())
         rpc = bool(one(cursor, "select to_regprocedure('public.get_pdc_email_ai_transaction_successor_inbox_v2(jsonb,integer)') is not null")[0])
         revision = bool(one(cursor, "select to_regclass('public.pdc_email_ai_successor_ui_revision') is not null")[0])
         typed_plan = bool(one(cursor, "select exists(select 1 from information_schema.columns where table_schema='public' and table_name='pdc_email_ai_successor_transaction_receipts' and column_name='typed_plan')")[0])

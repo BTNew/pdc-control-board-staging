@@ -31,6 +31,19 @@ Migration:
 Forward repair migration:
 `supabase/staging_only/20260831320000_pdc_email_ai_transaction_successor_contract_repair.sql`
 
+Typed least-authority action surface (guarded to live head
+`20260901010000 / latest100_attachment_work_receipt_successor`):
+`supabase/staging_only/20260901020000_pdc_email_ai_typed_action_surface.sql`
+
+Append-only strict boundary repairs:
+`supabase/staging_only/20260901030000_pdc_email_ai_typed_action_boundary_repair_20260901.sql`
+`supabase/staging_only/20260901040000_pdc_email_ai_typed_action_validator_binding_20260901.sql`
+`supabase/staging_only/20260901050000_pdc_email_ai_typed_action_v2_contract_binding_20260901.sql`
+
+The 0500 repair is the current applied STAGING head. It binds the flattened
+v2 planner envelope to the strict RPC and must remain append-only; the 0200
+through 0400 migrations are retained as rollback history.
+
 Successor inbox/read hardening migration:
 `supabase/staging_only/20260831330000_pdc_email_ai_successor_inbox_read_projection.sql`
 `supabase/staging_only/20260831340000_pdc_email_ai_successor_command_read_hardening.sql`
@@ -51,7 +64,7 @@ revision table. The legacy `.68` review surface remains hidden and untouched.
    `pdc-email-ai-plan-v1` JSON contract. The configured AI planner/model is the
    normal engine; deterministic code is limited to fixtures, regression,
    validation and fail-safe checks and never silently replaces the planner.
-3. The single SQL command RPC validates identity-to-vehicle binding, source receipt/digest,
+3. The typed SQL action-surface RPC validates identity-to-vehicle binding, source receipt/digest,
    action-specific Job Card/attachment/Sublet evidence, independently bound
    transport/planner/model/prompt/business-rule/ruleset/taxonomy/Supabase
    action-contract versions, expected vehicle versions and stable action keys,
@@ -108,7 +121,8 @@ read back its catalog entry, function ACLs, forced-RLS tables and staging
 sentinel. Then provision the successor identity through the same protected
 mechanism. Use the authenticated health RPC:
 
-`public.get_pdc_email_ai_successor_health()`
+`public.get_pdc_email_ai_successor_health()` and the read-only
+`public.get_pdc_email_ai_successor_action_contract_20260901()`
 
 The health result must show `production_writes=false`, `outbound_email=false`,
 `historical_lane_isolated=true` and `live_lane_continues=true`. A source file,

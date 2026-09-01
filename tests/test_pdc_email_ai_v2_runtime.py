@@ -7,6 +7,7 @@ from backend.pdc_email_ai_v2_actions import (
     ActionContractError,
     ShadowActionClient,
     build_action_request,
+    validate_v2_plan,
 )
 from backend.pdc_email_ai_v2_planner import V2Planner
 from backend.pdc_email_ai_v2_readback import project_readback, validate_readback
@@ -60,6 +61,34 @@ class TaxonomyTests(unittest.TestCase):
 
 
 class PlannerTests(unittest.TestCase):
+    def test_planner_output_is_strictly_validated_and_builds_planned_requests(self):
+        planner = V2Planner(rules=CraigRuleStore.default())
+        plan = planner.plan(
+            {**receipt(), "correspondence": "Stock 13000765 parts ETA 15 September 2026."},
+            [{"digest": "c" * 64, "filename": "job.pdf", "stock_number": "13000765", "lines": [{"operation_no": "OP1", "description": "Bullbar fitting", "estimated_hours": 2.0}]}],
+            [VEHICLE_A],
+        )
+        validated = validate_v2_plan(plan)
+        self.assertEqual(validated["schema_version"], "pdc-email-ai-plan-v1")
+        self.assertEqual(next(row for row in validated["instructions"] if row.get("payload", {}).get("description") == "Bullbar fitting")["action_type"], "operation_add")
+        planned = [row for row in validated["instructions"] if row["decision_disposition"] == "planned"]
+        requests = [build_action_request(plan_id=validated["plan_id"], source_receipt_id=validated["source_receipt_id"], source_digest=validated["source_digest"], evidence_digest=validated["evidence_digest"], instruction=row) for row in planned]
+        self.assertEqual({row["action_type"] for row in requests}, {"parts_eta_set", "operation_add"})
+
+    def test_v2_validator_rejects_extra_payload_keys_before_request_building(self):
+        plan = V2Planner(rules=CraigRuleStore.default()).plan(
+            {**receipt(), "correspondence": "Stock 13000765 parts ETA 15 September 2026."}, [], [VEHICLE_A]
+        )
+        plan["instructions"][0]["payload"]["unexpected"] = True
+        with self.assertRaises(ActionContractError):
+            validate_v2_plan(plan)
+
+    def test_v2_validator_rejects_legacy_action_contract_identity(self):
+        plan = V2Planner(rules=CraigRuleStore.default()).plan(receipt(), [], [VEHICLE_A])
+        plan["versions"]["supabase_action_contract_version"] = "pdc-email-ai-actions-v1"
+        with self.assertRaises(ActionContractError):
+            validate_v2_plan(plan)
+
     def test_attachment_scope_and_unknown_instruction_are_preserved(self):
         planner = V2Planner(rules=CraigRuleStore.default())
         plan = planner.plan(
@@ -88,6 +117,18 @@ class PlannerTests(unittest.TestCase):
         planner = V2Planner(rules=CraigRuleStore.default())
         plan = planner.plan({**receipt(), "correspondence": ""}, [{"digest": "c" * 64, "filename": "job.pdf", "stock_number": "13000765", "lines": [{"operation_no": "OP1", "description": "Bullbar [EST HRS] 2.50", "estimated_hours": None}, {"operation_no": "OP2", "description": "Bullbar [EST HRS] 0.00", "estimated_hours": None}]}], [VEHICLE_A])
         self.assertEqual([row["payload"]["estimated_hours"] for row in plan["instructions"]], [2.5, 0.0])
+
+    def test_unknown_hours_are_review_only_and_not_coerced_to_zero(self):
+        planner = V2Planner(rules=CraigRuleStore.default())
+        plan = planner.plan(
+            {**receipt(), "correspondence": ""},
+            [{"digest": "c" * 64, "filename": "job.pdf", "stock_number": "13000765", "lines": [{"operation_no": "OP1", "description": "Bullbar fitting", "estimated_hours": None}]}],
+            [VEHICLE_A],
+        )
+        operation = plan["instructions"][0]
+        self.assertEqual(operation["decision_disposition"], "review")
+        self.assertIsNone(operation["payload"]["estimated_hours"])
+        self.assertIn("hours", operation["reason"])
 
     def test_conflicting_identity_is_isolated(self):
         planner = V2Planner(rules=CraigRuleStore.default())

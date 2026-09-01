@@ -81,7 +81,13 @@ def _context_index(contexts: Sequence[Mapping[str, Any]]) -> tuple[dict[str, dic
 
 
 def _identity(row: Mapping[str, Any]) -> dict[str, Any]:
-    return {"vehicle_id": str(row["vehicle_id"]), "stock_number": row.get("stock_number"), "vin": row.get("vin"), "backend_record_id": row.get("backend_record_id")}
+    backend = row.get("backend_record_id")
+    return {
+        "vehicle_id": str(row["vehicle_id"]).lower(),
+        "stock_number": str(row.get("stock_number")).upper() if row.get("stock_number") else None,
+        "vin": str(row.get("vin")).upper() if row.get("vin") else None,
+        "backend_record_id": str(backend).lower() if backend else None,
+    }
 
 
 class V2Planner:
@@ -167,25 +173,31 @@ class V2Planner:
             row = by_stock.get(stock) if stock else by_vin.get(vin or "")
             if row is None:
                 placeholder = next(iter(by_stock.values()), {"vehicle_id": str(uuid.uuid5(uuid.NAMESPACE_URL, "pdc-v2-attachment:" + digest)), "stock_number": stock or None, "vin": vin, "backend_record_id": None, "vehicle_version": 1, "backend_revision": 0})
-                add(placeholder, "operation_upsert", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "unresolved attachment identity", "estimated_hours": None}, self._refs(source, digest), "review", "identity_not_resolved")
+                add(placeholder, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "unresolved attachment identity", "estimated_hours": 0.0, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "unsupported", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "review", "identity_not_resolved")
                 continue
             if vin and row.get("vin") and vin != str(row["vin"]).upper():
-                add(row, "operation_upsert", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "identity conflict retained as evidence", "estimated_hours": None}, self._refs(source, digest), "conflict", "identity_stock_vin_conflict")
+                add(row, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "identity conflict retained as evidence", "estimated_hours": 0.0, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "conflict", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "conflict", "identity_stock_vin_conflict")
                 continue
             if vin and by_vin.get(vin) and str(by_vin[vin]["vehicle_id"]) != str(row["vehicle_id"]):
-                add(row, "operation_upsert", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "identity conflict retained as evidence", "estimated_hours": None}, self._refs(source, digest), "conflict", "identity_stock_vin_conflict")
+                add(row, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "identity conflict retained as evidence", "estimated_hours": 0.0, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "conflict", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "conflict", "identity_stock_vin_conflict")
                 continue
             explicit_sublet = bool(attachment.get("explicit_sublet") or attachment.get("authorized_provider") or attachment.get("authorized_booking"))
             lines = attachment.get("lines") or []
             if not lines:
-                add(row, "operation_upsert", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "attachment received; no operation rows extracted", "estimated_hours": None}, self._refs(source, digest), "review", "no_operation_rows_extracted")
+                add(row, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "attachment received; no operation rows extracted", "estimated_hours": 0.0, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "unsupported", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "review", "no_operation_rows_extracted")
                 continue
             for index, raw_line in enumerate(lines, 1):
                 line = dict(raw_line)
                 description = str(line.get("description") or "").strip()
                 classification: Classification = classify_operation(description, rules=self.rules, explicit_sublet=explicit_sublet, mounted=bool(line.get("mounted")), loose=bool(line.get("loose")))
-                payload = {"operation_no": str(line.get("operation_no") or f"OP{index}").upper(), "source_row_no": int(line.get("source_row_no") or index), "work_key": classification.work_key or "PARTS", "description": description or "unclassified source operation", "estimated_hours": _estimated_hours(line), "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "classified" if classification.disposition == "PLANNED" else classification.disposition.casefold(), "source_uid": str(source["message_id"]) + ":" + digest}
-                add(row, "operation_upsert", payload, self._refs(source, digest), classification.disposition.casefold(), classification.reason)
+                estimated_hours = _estimated_hours(line)
+                decision = classification.disposition.casefold()
+                reason = classification.reason
+                if estimated_hours is None and decision == "planned":
+                    decision = "review"
+                    reason = "estimated_hours_unknown"
+                payload = {"operation_no": str(line.get("operation_no") or f"OP{index}").upper(), "source_row_no": int(line.get("source_row_no") or index), "work_key": classification.work_key or "PARTS", "description": description or "unclassified source operation", "estimated_hours": estimated_hours, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "classified" if classification.disposition == "PLANNED" else classification.disposition.casefold(), "source_uid": str(source["message_id"]) + ":" + digest}
+                add(row, "operation_add", payload, self._refs(source, digest), decision, reason)
 
         for index, row in enumerate(instructions, 1):
             row["instruction_id"] = f"instruction-{index:04d}"
@@ -194,7 +206,7 @@ class V2Planner:
         aggregate = "no_actions" if not instructions else ("planned" if "planned" in dispositions else "review")
         plan_id = str(uuid.uuid5(uuid.NAMESPACE_URL, "pdc-v2-plan:" + str(source["source_digest"])))
         return {
-            "schema_version": PLAN_VERSION, "plan_id": plan_id, "environment": "staging", "source_receipt_id": source["receipt_id"], "source_digest": source["source_digest"], "evidence_digest": source["evidence_digest"],
+            "schema_version": PLAN_VERSION, "plan_id": plan_id, "environment": "staging", "source_receipt_id": source["receipt_id"], "source_digest": source["source_digest"], "evidence_digest": source["evidence_digest"], "source_thread_id": source["thread_id"], "source_message_id": source["message_id"], "attachment_digests": sorted({str(item.get("digest")) for item in attachments if item.get("digest")}),
             "versions": {"transport_release_version": "pdc-email-ai-v2-transport-v1", "planner_version": PLANNER_VERSION, "model_version": MODEL_VERSION, "prompt_version": PROMPT_VERSION, "business_rule_version": self.rules.ruleset_version, "ruleset_version": self.rules.ruleset_version, "taxonomy_version": TAXONOMY_VERSION, "supabase_action_contract_version": ACTION_VERSION, "source_digest": source["source_digest"], "evidence_digest": source["evidence_digest"]},
             "instructions": instructions, "aggregate_disposition": aggregate, "planner_status": "available", "planner_failure_reason": None, "created_at": "2026-09-01T00:00:00+00:00",
         }

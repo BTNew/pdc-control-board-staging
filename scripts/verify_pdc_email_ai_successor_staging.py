@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py")
 SECRETS = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi")
 STAGING_REF = "cdsmnqxtyyoeoznmbidd"
-TARGET = ("20260831320000", "pdc_email_ai_transaction_successor_contract_repair")
+TARGET = ("20260901080000", "pdc_email_ai_typed_action_identity_contract_20260901")
 
 
 def one(cursor, query: str):
@@ -48,6 +48,8 @@ def main() -> None:
             "ledger_head": head,
             "command_rpc_present": bool(one(cursor, "select to_regprocedure('public.apply_pdc_email_ai_transaction_successor(jsonb)') is not null")),
             "health_rpc_present": bool(one(cursor, "select to_regprocedure('public.get_pdc_email_ai_successor_health()') is not null")),
+            "typed_action_surface_present": bool(one(cursor, "select to_regprocedure('public.apply_pdc_email_ai_typed_action_surface_20260901(jsonb)') is not null")),
+            "typed_action_contract_present": bool(one(cursor, "select to_regprocedure('public.get_pdc_email_ai_successor_action_contract_20260901()') is not null")),
             "authenticated_command_execute": bool(one(cursor, "select has_function_privilege('authenticated','public.apply_pdc_email_ai_transaction_successor(jsonb)','EXECUTE')")),
             "service_role_command_execute": bool(one(cursor, "select has_function_privilege('service_role','public.apply_pdc_email_ai_transaction_successor(jsonb)','EXECUTE')")),
             "runtime_identity_count": int(one(cursor, "select count(*) from public.pdc_email_ai_successor_runtime_identities")),
@@ -60,7 +62,7 @@ def main() -> None:
             "task_enabled": False,
             "uid514_processed": False,
         }
-        result["ok"] = result["ok"] and result["command_rpc_present"] and result["health_rpc_present"] and result["authenticated_command_execute"] and not result["service_role_command_execute"] and not result["production_sentinel_present"]
+        result["ok"] = result["ok"] and result["command_rpc_present"] and result["health_rpc_present"] and result["typed_action_surface_present"] and result["typed_action_contract_present"] and result["authenticated_command_execute"] and not result["service_role_command_execute"] and not result["production_sentinel_present"]
         print(json.dumps(result, sort_keys=True))
         if not result["ok"]:
             raise RuntimeError("PDC_SUCCESSOR_READONLY_STAGING_PROOF_FAILED")

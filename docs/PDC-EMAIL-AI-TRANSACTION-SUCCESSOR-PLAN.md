@@ -101,6 +101,13 @@ Add one staging-only transactional RPC:
 
 `public.apply_pdc_email_ai_transaction_successor(jsonb)`
 
+The append-only v2 action successor is exposed as
+`public.apply_pdc_email_ai_typed_action_surface_20260901(jsonb)` (with the
+versioned alias `public.apply_pdc_email_ai_transaction_successor_v2(jsonb)`).
+Its fixed action vocabulary covers activation, operation add/update, Parts ETA/
+complete, booking set/move/cancel, required work, work complete, note,
+controlled location and supported RFT lifecycle.
+
 The caller is a dedicated authenticated staging runtime identity, never service role, Administrator, browser, direct table DML or arbitrary SQL. The RPC will:
 
 1. verify staging sentinel, runtime identity, independently bound transport/planner/model/prompt/business-rule/ruleset/taxonomy/Supabase action-contract versions and immutable source receipt/digest;

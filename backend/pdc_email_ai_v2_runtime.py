@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from .pdc_email_ai_v2_actions import ShadowActionClient, build_action_request
+from .pdc_email_ai_v2_actions import ShadowActionClient, build_action_request, validate_v2_plan
 from .pdc_email_ai_v2_queue import DurableQueue
 from .pdc_email_ai_v2_planner import V2Planner
 from .pdc_email_ai_v2_rules import CraigRuleStore
@@ -28,7 +28,7 @@ class V2ShadowRuntime:
         *,
         incumbent_instructions: Sequence[Mapping[str, Any]] = (),
     ) -> dict[str, Any]:
-        plan = self.planner.plan(receipt, attachments, authoritative_contexts)
+        plan = validate_v2_plan(self.planner.plan(receipt, attachments, authoritative_contexts), authoritative_contexts=list(authoritative_contexts))
         action_results: list[dict[str, Any]] = []
         for instruction in plan["instructions"]:
             if instruction["decision_disposition"] != "planned":
