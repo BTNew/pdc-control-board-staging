@@ -1,5 +1,15 @@
 # Shared Files
 
+## Latest-100 targeted resume repair successors — 2026-09-01
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `supabase/staging_only/20260831460000_latest100_resume_repair.sql`, `supabase/staging_only/20260831461000_latest100_force_rls_successor.sql` | Staging email monitor | Viewer capability versus exact sender enrollment, pre-310 capability propagation, deprecated auth-flag compatibility, one-row binding contract, capability-scoped AI Intake parent audit, forced RLS and immutable child receipts | Live STAGING head `20260831461000`; production/mailbox/outbound untouched |
+| `scripts/apply_latest100_resume_repair_20260901.py`, `scripts/apply_latest100_force_rls_20260901.py` | Staging management | Exact project/head/hash/owner guards and catalog/readback postconditions; no service-role runtime | Both apply/readback controllers passed; credentials remain protected |
+| `tests/test_latest100_resume_repair_20260901.py`, `tests/test_latest100_force_rls_20260901.py` | Staging regression | Hostile sender/spoof, authorization separation, invalid-input compatibility, migration-260 binding, multi-attachment sibling isolation, readback and RLS | Included in focused 18-test run; pdc-emails owns the real import handoff |
+| `handoffs/PDC_EMAIL_LATEST100_TARGETED_RESUME_20260901.json` | PDC email monitor handoff | Hash-bound continuation containing only exact eligible UIDs 680/681 and their parent/attachment/provider/Navision evidence | Real imports remain owned by pdc-emails; all other 43 action records remain excluded |
+| `docs/website-development/AUTONOMOUS-CHANGES-LOG.md` | Website management | Secret-free repair, verification and handoff record | Register only this targeted stream; preserve unrelated dirty work |
+
 ## Latest-100 email monitor capability and sender-chain repair — 2026-09-01
 
 | File | Stream | Exact surface | Tests / coordination |

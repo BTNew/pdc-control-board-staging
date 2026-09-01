@@ -1,0 +1,99 @@
+{
+  "schema": "pdc-email-latest100-targeted-resume-handoff/v2",
+  "status": "READY_FOR_PDC_EMAILS_EXACT_RESUME_ONLY",
+  "environment": "STAGING only",
+  "staging": {
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "migration_head": "20260831461000",
+    "applied_successors": [
+      {
+        "migration": "20260831460000",
+        "name": "latest100_resume_repair",
+        "sha256": "55a1af434f47911f350f06b225ae5e8652f60d74b90f96aa6985bc62d3212176"
+      },
+      {
+        "migration": "20260831461000",
+        "name": "latest100_force_rls_successor",
+        "sha256": "a31319daef4fd17eab81cc34a6360125ddc440985a9af82adccdb60610803132"
+      }
+    ],
+    "canonical_importer": "public.import_pdc_jobcard_attachment_canonical(uuid,uuid,text,text,jsonb,jsonb,jsonb,jsonb)",
+    "binding_rpc": "public.resolve_pdc_email_intake_attachment_binding(text,text,text)",
+    "parent_audit_rpc": "public.read_pdc_email_intake_parent_audit_20260901(text)",
+    "viewer_capability": "canonical_attachment_import_only",
+    "viewer_auth_user_id": "95131ea9-647f-4461-b5b9-573d22b8824c",
+    "viewer_writer_row": false,
+    "production_sentinel_absent": true,
+    "mailbox_flags_changed": false,
+    "outbound_email": false,
+    "production_writes": false
+  },
+  "source_binding": {
+    "manifest": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-resume-manifest.json",
+    "manifest_sha256": "a8664744886b866d31b0631053d5dfc5a54342dfa5462bc3392d87a797423643",
+    "authoritative_verification": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-authoritative-post-replay-verification.json",
+    "authoritative_verification_sha256": "7c4ac75bf3a005a7bc6db453848f4a7d9786a759ee6eb2b75b3f864e7dedea02",
+    "exact_replay_results": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-exact-replay-results.json",
+    "exact_replay_results_sha256": "bed2089a760243ac98527c20c6597d377a0e1ba2e512e08fbd8998a2bf88ce7e",
+    "reviewer_sha256": "20a00e87a74f18848714333d68db34c370504ea5ea9a17f121991d7400a2a7be",
+    "uidvalidity": 1,
+    "mailbox": "INBOX"
+  },
+  "eligible_actions": [
+    {
+      "uid": "680",
+      "scoped_uid": "1:680",
+      "source_hash": "d6756c523ffb7336556492fe0ef25c202d744ffd2645846b19cbbcdffed60493",
+      "sender": "craig.watson@broometoyota.com.au",
+      "stock": "13017855",
+      "job_card": "J139125422",
+      "attachment_index": 3,
+      "attachment_filename": "13017855.pdf",
+      "attachment_source_hash": "23416bd8de1ef1fa6bb40b3b81b3613d969fdb3bd897dc090f0d6747b7b1831f",
+      "staged_intake_id": "b166aa36-959f-4280-8fc6-b41497efd641",
+      "staged_attachment_id": "3d7f2616-8c52-4e9a-a4a5-9289f34f6d13",
+      "staged_provider_observation_count": 1,
+      "staged_provider_authserv_id": "mx.google.com",
+      "storage_object_present": true,
+      "attachment_extraction_status": "extracted",
+      "current_navision_match_count": 1,
+      "eligibility_basis": "exact manifest parent/attachment hashes, exact staged intake/attachment/provider observation tuple, exact enrolled sender, verified Storage object and one current Navision Stock match; no canonical child receipt exists"
+    },
+    {
+      "uid": "681",
+      "scoped_uid": "1:681",
+      "source_hash": "f205342f4ff4361b88bf21b83a11e92957a796792bcc0bfa4150d0abaa5b4916",
+      "sender": "craig.watson@broometoyota.com.au",
+      "stock": "13080534",
+      "job_card": "J139125425",
+      "attachment_index": 3,
+      "attachment_filename": "13080534.pdf",
+      "attachment_source_hash": "090749692e975cec1b490f42d07af95e9693edadbf42c7399947f7ebaf7bfc34",
+      "staged_intake_id": "2d3a1ae4-b854-4b74-b745-e05dc78be991",
+      "staged_attachment_id": "93f4dafd-bc66-4af2-898f-c55f67578ad4",
+      "staged_provider_observation_count": 1,
+      "staged_provider_authserv_id": "mx.google.com",
+      "storage_object_present": true,
+      "attachment_extraction_status": "extracted",
+      "current_navision_match_count": 1,
+      "eligibility_basis": "exact manifest parent/attachment hashes, exact staged intake/attachment/provider observation tuple, exact enrolled sender, verified Storage object and one current Navision Stock match; no canonical child receipt exists"
+    }
+  ],
+  "excluded_actions": {
+    "count": 43,
+    "rule": "Do not replay from this handoff. Sender authorization, complete staged provider chain, attachment identity/cardinality or contract/readback eligibility is not fully proven for these action records; retain review containment."
+  },
+  "pdc_emails_resume": {
+    "owner": "pdc-emails",
+    "command_template": "python C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/scripts/pdc_email_reviewer.py poll --limit 1 --max-notifications 0 --replay-scoped-uid 1:<UID> --expected-source-hash <source_hash>",
+    "required_for_each_action": [
+      "Use exactly the scoped UID 1:680 or 1:681 from this handoff",
+      "Use the matching source_hash above",
+      "Preserve the exact authenticated sender chain and attachment_source_hash",
+      "Process only the named Job Card child attachment",
+      "Read back the typed canonical child receipt before claiming import",
+      "Do not use --dry-run or --review-all with scoped replay"
+    ],
+    "real_import_performed_by_this_handoff": false
+  }
+}
