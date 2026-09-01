@@ -1,5 +1,13 @@
 # Shared Files
 
+## Latest-100 email monitor capability and sender-chain repair — 2026-09-01
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `supabase/staging_only/20260831450000_pdc_email_monitor_viewer_receipt_read_successor.sql` | Staging email monitor | Exact enrolled Viewer capability reaches the actor-owned receipt reader; attachment-scoped child receipt and immutable/RLS guards | `tests/test_pdc_email_monitor_viewer_receipt_read_20260901.py`; live staging ACL, typed receipt-not-found and negative importer probes |
+| `tests/test_pdc_email_sender_chain_20260901.py`, `tests/test_pdc_latest100_resume_contract.py` | PDC email monitor | Gmail receiver/ARC alignment, spoof/duplicate rejection and exact UID/source-hash replay contract | Python focused suite; retained RFC822 header verification matched 32 inventory messages |
+| `scripts/build_pdc_latest100_resume_manifest.py`, `handoffs/PDC_EMAIL_LATEST100_STAGING_RESUME_20260901.json` | PDC email monitor handoff | Exact UIDVALIDITY 1 / UID / source-hash frozen latest-100 resume manifest and worker commands | Generated 100-message manifest with 42 new-build messages; pdc-emails owns operational import |
+
 ## PDC Email canonical importer capability repair — 2026-08-31
 
 | File | Stream | Exact surface | Tests / coordination |

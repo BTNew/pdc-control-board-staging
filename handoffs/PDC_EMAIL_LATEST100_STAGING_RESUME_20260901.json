@@ -1,0 +1,70 @@
+{
+  "schema": "pdc-email-latest100-staging-resume/v1",
+  "created_at_utc": "2026-09-01T01:00:27Z",
+  "environment": "STAGING only",
+  "status": "READY_FOR_EXACT_HASH_BOUND_RESUME",
+  "staging": {
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "current_migration_head": "20260831450000",
+    "successor_migration": "20260831450000_pdc_email_monitor_viewer_receipt_read_successor.sql",
+    "reader_rpc": "public.read_pdc_jobcard_attachment_import_receipt(uuid)",
+    "reader_probe": {"http_status": 200, "ok": false, "code": "receipt_not_found"},
+    "canonical_importer_negative_probe": {"http_status": 200, "ok": false, "code": "intake_not_found"},
+    "activation_note": "The adapter probe is no longer blocked by ACL 42501. Full activation remains fail-closed until pdc-emails produces a real retained-source receipt and authoritative readback."
+  },
+  "identity": {
+    "auth_user_id": "95131ea9-647f-4461-b5b9-573d22b8824c",
+    "normalized_email": "pmbcontroller+pdc-viewer-staging-20260830@gmail.com",
+    "role": "viewer",
+    "role_status": "approved_active",
+    "canonical_import_capability": "canonical_attachment_import_only",
+    "canonical_import_capability_status": "active",
+    "stage_activation_writer_row": false,
+    "service_role_runtime": false,
+    "production_sentinel_absent": true
+  },
+  "source_artifacts": {
+    "latest100_final_report": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-final-report.txt",
+    "latest100_inventory": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-readonly-inventory.json",
+    "latest100_classification": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-classification.json",
+    "resume_manifest": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-resume-manifest.json",
+    "resume_manifest_sha256": "a8664744886b866d31b0631053d5dfc5a54342dfa5462bc3392d87a797423643",
+    "coverage": {"physical_messages": 100, "new_build_messages": 42, "uidvalidity": 1, "uid_min": 597, "uid_max": 704}
+  },
+  "authentication_diagnosis": {
+    "retained_raw_headers_matched_to_inventory": 32,
+    "retained_raw_header_alignment": {"gmail_receiver_result": 32, "spf_aligned": 32, "dkim_aligned": 23, "dmarc_aligned": 32, "aligned": 32},
+    "root_cause": "The old verifier required SPF, DKIM and DMARC booleans all to be true and searched DMARC only for header.from. Gmail's receiver result contains valid aligned SPF and, for Microsoft-forwarded messages, a validated ARC pass with fromdomain; RFC 7489 alignment is an OR of aligned SPF or aligned DKIM.",
+    "fail_closed_rules": ["trust only the first mx.google.com Authentication-Results field", "reject duplicate mx.google.com results", "reject ARC/CV failure", "require receiver-authenticated aligned SPF or DKIM", "retain the independent enrolled sender/domain policy", "reject exact replay when the fetched source hash differs"],
+    "unmatched_inventory_messages": 68,
+    "unmatched_message_policy": "Do not infer authentication. Exact replay must fetch the scoped UID read-only and compare its SHA-256 to the resume manifest before any staging mutation."
+  },
+  "worker_source": {
+    "path": "C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/scripts/pdc_email_reviewer.py",
+    "sha256": "e698921de1222da1cfdc775c67d032bf659467a1b49d4be4c031066efe3cfd70",
+    "changes": ["standards-grounded Gmail receiver/ARC/SPF/DKIM/DMARC parsing", "duplicate and failure fail-closed checks", "--expected-source-hash required for --replay-scoped-uid"]
+  },
+  "resume_commands": {
+    "readiness_probe": "python C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/scripts/pdc_email_reviewer.py probe",
+    "exact_command_template": "python C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/scripts/pdc_email_reviewer.py poll --limit 1 --max-notifications 0 --replay-scoped-uid 1:<UID> --expected-source-hash <manifest.source_hash>",
+    "command_source": "Generate one command per new-build message from latest100-resume-manifest.json; retain UIDVALIDITY 1 and the manifest source_hash exactly.",
+    "prohibited_combinations": ["Do not use --dry-run with --replay-scoped-uid", "Do not use --review-all with --replay-scoped-uid", "Do not use a bare numeric UID", "Do not continue after source-hash mismatch", "Do not enable the scheduler as part of this handoff"]
+  },
+  "child_receipt_contract": {
+    "receipt_table": "public.pdc_jobcard_attachment_import_receipts",
+    "child_identity": "(actor_id, intake_id, attachment_id)",
+    "canonical_source_identity": "canonical_source_hash unique per attachment",
+    "parent_hash": "not unique; siblings from one physical message are allowed",
+    "immutability": "enabled receipt and source-row immutable triggers",
+    "direct_table_dml": "denied to public, anon, authenticated and service_role",
+    "independent_processing": "sync_canonical_attachment_imports processes each manifest child separately; a sibling failure is recorded/retried without borrowing sibling identity"
+  },
+  "boundaries": {
+    "mailbox_read_only": true,
+    "mailbox_flags_changed": false,
+    "outbound_email": false,
+    "production_contacted": false,
+    "production_writes": false,
+    "real_email_import_by_this_repair": false
+  }
+}

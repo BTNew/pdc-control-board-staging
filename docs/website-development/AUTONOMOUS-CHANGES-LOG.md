@@ -1,5 +1,12 @@
 # Autonomous Website Changes
 
+## 2026-09-01 — Latest-100 email monitor capability and sender-chain repair
+
+- Staging project `cdsmnqxtyyoeoznmbidd` only. The exact approved Viewer capability now reaches the actor-owned canonical receipt reader through append-only migration `20260831450000_pdc_email_monitor_viewer_receipt_read_successor.sql`; no writer row, direct table DML, service-role runtime, mailbox mutation, outbound email or Production path was added.
+- Live proof: staging head `20260831450000`; Viewer receipt probe HTTP 200 typed `receipt_not_found`; canonical importer negative probe HTTP 200 typed `intake_not_found`; receipt child keys and immutable triggers remain present; capability-table RLS and FORCE RLS remain enabled.
+- The pdc-emails reviewer now trusts only Gmail's prepended receiver result, rejects duplicate Google results and ARC/CV failures, applies RFC 7489 aligned SPF-or-DKIM semantics, and requires an exact source hash for scoped UID replay. Retained RFC822 evidence matched 32 inventory messages; all 32 had aligned SPF and DMARC evidence, and 23 had direct aligned DKIM.
+- Exact UIDVALIDITY 1 / UID / source-hash resume manifest and handoff are included under `handoffs/` and must be used by pdc-emails for its operational import; this repair did not import a real email.
+
 ## 2026-08-31 — Canonical AI Email import capability repair
 
 - Environment: Supabase staging project `cdsmnqxtyyoeoznmbidd` only; Production, mailbox flags, outbound email and service-role runtime were untouched.
