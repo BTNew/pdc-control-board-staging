@@ -1,0 +1,98 @@
+{
+  "schema": "pdc-email-latest100-targeted-resume-final/v3",
+  "status": "COMPLETED_TARGETED_ZERO_ADD_DUPLICATE",
+  "environment": "STAGING only",
+  "scope": {
+    "allowed_scoped_uids": ["1:680", "1:681"],
+    "excluded_actions_reopened": 0,
+    "excluded_actions_remain_contained": 43,
+    "uidvalidity": 1,
+    "mailbox": "INBOX",
+    "mailbox_mutation": false,
+    "outbound_email": false,
+    "scheduler_touched": false,
+    "production_writes": false
+  },
+  "staging": {
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "migration_head": "20260901010000",
+    "successor_migration": "20260901010000_latest100_attachment_work_receipt_successor",
+    "successor_migration_sha256": "7e2e7ad49045698b72780404d1e246f182bfc4f6d3945ec383ca1fd31d2b8cc3",
+    "canonical_importer": "public.import_pdc_jobcard_attachment_canonical(uuid,uuid,text,text,jsonb,jsonb,jsonb,jsonb)",
+    "work_successor": "public.pdc_email_intake_work_receipts_20260901",
+    "viewer_auth_user_id": "95131ea9-647f-4461-b5b9-573d22b8824c",
+    "viewer_capability": "canonical_attachment_import_only",
+    "viewer_writer_row": false,
+    "old_work_receipt_digest_unchanged": true,
+    "successor_forced_rls": true,
+    "successor_api_table_select": false,
+    "process_authenticated_execute": true,
+    "process_public_execute": false,
+    "process_anon_execute": false,
+    "process_service_role_execute": false,
+    "production_sentinel_absent": true
+  },
+  "repair": {
+    "postgrest_before": "HTTP 404 PGRST202 for the exact canonical importer route",
+    "postgrest_after": "typed HTTP 200 route after definition/grant readback and bounded schema reload",
+    "legacy_receipts": "unchanged; no update, delete, rewrite or direct API DML",
+    "identity_rule": "actor + intake + attachment work identity with exact parent, attachment, extraction, server and request key comparison",
+    "true_duplicate": "typed work_receipt_duplicate_zero_add / work_receipt_replayed with zero operational add",
+    "conflicting_identity": "typed work_receipt_replay_conflict with zero add",
+    "genuine_difference": "only a different attachment identity proceeds to the existing canonical importer; no broad overload was added"
+  },
+  "eligible_actions": [
+    {
+      "uid": "680",
+      "scoped_uid": "1:680",
+      "source_hash": "d6756c523ffb7336556492fe0ef25c202d744ffd2645846b19cbbcdffed60493",
+      "stock": "13017855",
+      "job_card": "J139125422",
+      "attachment_index": 3,
+      "attachment_filename": "13017855.pdf",
+      "attachment_source_hash": "23416bd8de1ef1fa6bb40b3b81b3613d969fdb3bd897dc090f0d6747b7b1831f",
+      "staged_intake_id": "b166aa36-959f-4280-8fc6-b41497efd641",
+      "staged_attachment_id": "3d7f2616-8c52-4e9a-a4a5-9289f34f6d13",
+      "historical_canonical_child_receipt_id": "e1bcbc64-456b-41ec-8942-67daafca4779",
+      "viewer_work_successor_receipt_id": "1adfbac0-8a35-4fd1-aec2-aa28c2a79746",
+      "direct_route": {"http_status": 200, "ok": false, "code": "source_reuse_conflict"},
+      "successor_route": {"http_status": 200, "ok": true, "code": "work_receipt_replayed"},
+      "conflicting_replay": {"http_status": 200, "ok": false, "code": "work_receipt_replay_conflict"},
+      "operational_child_added_by_targeted_resume": false,
+      "vehicle_or_operation_mutation_by_targeted_resume": false
+    },
+    {
+      "uid": "681",
+      "scoped_uid": "1:681",
+      "source_hash": "f205342f4ff4361b88bf21b83a11e92957a796792bcc0bfa4150d0abaa5b4916",
+      "stock": "13080534",
+      "job_card": "J139125425",
+      "attachment_index": 3,
+      "attachment_filename": "13080534.pdf",
+      "attachment_source_hash": "090749692e975cec1b490f42d07af95e9693edadbf42c7399947f7ebaf7bfc34",
+      "staged_intake_id": "2d3a1ae4-b854-4b74-b745-e05dc78be991",
+      "staged_attachment_id": "93f4dafd-bc66-4af2-898f-c55f67578ad4",
+      "historical_canonical_child_receipt_id": "8c9ea6b7-11a4-47ed-98b7-f72dca203882",
+      "viewer_work_successor_receipt_id": "d3279630-43cc-4240-b3fa-ba4c84ffb9c9",
+      "direct_route": {"http_status": 200, "ok": false, "code": "source_reuse_conflict"},
+      "successor_route": {"http_status": 200, "ok": true, "code": "work_receipt_replayed"},
+      "conflicting_replay": {"http_status": 200, "ok": false, "code": "work_receipt_replay_conflict"},
+      "operational_child_added_by_targeted_resume": false,
+      "vehicle_or_operation_mutation_by_targeted_resume": false
+    }
+  ],
+  "verification": {
+    "contract_tests": "22 focused Python assertions passed",
+    "pdc_emails_runtime": "py_compile passed; exact scoped runs for 1:680 and 1:681 exited 0",
+    "live_verifier": "scripts/verify_latest100_attachment_work_successor_20260901.py passed",
+    "historical_receipt_audit": "old work-receipt digest unchanged; target historical child/operation state unchanged",
+    "source_manifest": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-resume-manifest.json",
+    "original_handoff": "C:/Users/nwmgr/HermesWorkspaces/development/pdc-website-development-lead/handoffs/PDC_EMAIL_LATEST100_TARGETED_RESUME_20260901.json",
+    "latest_attempt_report": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-targeted-final-redacted-report.txt"
+  },
+  "ownership": {
+    "real_import_owner": "pdc-emails",
+    "targeted_result": "both exact actions reconciled as immutable historical canonical-child duplicates; no new operational child was added",
+    "next_action": "no further replay required for UIDs 680/681 unless a separately hash-bound business correction is authorised"
+  }
+}

@@ -1,5 +1,14 @@
 # Shared Files
 
+## Latest-100 attachment work-receipt compatibility successor — 2026-09-01
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `supabase/staging_only/20260901010000_latest100_attachment_work_receipt_successor.sql` | Staging email monitor | Append-only attachment-scoped work receipt, legacy audit preservation, exact duplicate/conflict handling and bounded schema reload | STAGING head `20260901010000`; SHA-256 `7e2e7ad49045698b72780404d1e246f182bfc4f6d3945ec383ca1fd31d2b8cc3`; Production/mailbox/outbound untouched |
+| `scripts/apply_latest100_attachment_work_successor_20260901.py`, `scripts/verify_latest100_attachment_work_successor_20260901.py` | Staging management | Exact staging guards, catalog/ACL/RLS readback and only UIDs 680/681 acceptance | Apply and live verifier passed |
+| `tests/test_latest100_attachment_work_successor_20260901.py`, `tests/test_latest100_runner_response_contract_20260901.py` | Regression | Schema discovery, hostile identity, immutable audit, zero-add duplicate and direct/fallback contracts | Included in 22 focused assertions |
+| `handoffs/PDC_EMAIL_LATEST100_TARGETED_RESUME_20260901_FINAL.json` | PDC email monitor | Hash-bound handoff containing only UIDs 680/681 | pdc-emails retains real import ownership; 43 excluded actions remain contained |
+
 ## Latest-100 targeted resume repair successors — 2026-09-01
 
 | File | Stream | Exact surface | Tests / coordination |

@@ -1,5 +1,12 @@
 # Autonomous Website Changes
 
+## 2026-09-01 — Latest-100 attachment work-receipt compatibility successor
+
+- STAGING project `cdsmnqxtyyoeoznmbidd` only. Added `20260901010000_latest100_attachment_work_receipt_successor.sql`, which preserves the legacy immutable work-receipt table, adds a forced-RLS append-only actor/intake/attachment successor, returns typed zero-add duplicates, and fails conflicting source/work identities closed.
+- Diagnosis: the exact canonical importer existed with authenticated-only EXECUTE but PostgREST schema discovery was stale (HTTP 404/PGRST202); after definition/grant readback and one bounded reload, exact target calls reached the importer and exposed the legacy intake-only work-receipt conflict.
+- Verification: migration SHA-256 `7e2e7ad49045698b72780404d1e246f182bfc4f6d3945ec383ca1fd31d2b8cc3`; old receipt digest and target child/operation state unchanged; UIDs 1:680 and 1:681 direct route typed `source_reuse_conflict`, successor route typed `work_receipt_replayed`, hostile changed-work replay typed `work_receipt_replay_conflict`; mailbox/outbound/scheduler/Production untouched.
+- Handoff: `handoffs/PDC_EMAIL_LATEST100_TARGETED_RESUME_20260901_FINAL.json` contains only UIDs 680 and 681.
+
 ## 2026-09-01 — Latest-100 targeted resume repair successors
 
 - Staging project `cdsmnqxtyyoeoznmbidd` only. The latest-100 manifest, mailbox, mailbox flags, outbound email, scheduler and Production were untouched.
