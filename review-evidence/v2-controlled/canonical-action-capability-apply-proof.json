@@ -1,0 +1,156 @@
+{
+  "action_rpc_invoked": false,
+  "after": {
+    "direct_table_privileges": {
+      "public.pdc_email_ai_successor_action_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_runtime_identities": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_transaction_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_v2_canonical_action_capability_history_20260901": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      }
+    },
+    "function_hashes": {
+      "capability": "19acd911117f4f71a9eabbccb9d0f45455e2b852e523a0ced91d54443559a7bc",
+      "executor": "e66734383c5d1bd9b0ab2b80644b9e19cc1f36d200c0db76b8698de4bb6d41db",
+      "location": "048cafb7cd3d994edb28e6a36f3cfb5a5a2a98b619fc0bc66add7bef5c7f20b7",
+      "parts_eta": "d02af2223015ace41e291b7c569bbdcce220460f2f486f7ec5f76a841fbe55b3",
+      "strict": "128d9c9d80b2356b798da141d392e50d77c8af92dadbc83721fe624b644e823f",
+      "timeline": "3026ac2d62c0d479097c547e54e95bb5ca2f531e8637b8b164bd00a5db6826d2",
+      "work_states": "fa41803d4cd63f1ff4d6e65ef6179fb868a09784f781bb228b9c2e15971cd58c"
+    },
+    "ledger_head": [
+      "20260901230000",
+      "pdc_email_ai_v2_canonical_action_capability_20260901"
+    ],
+    "production_sentinel": false,
+    "receipts": [
+      60,
+      77
+    ],
+    "rls": {
+      "public.pdc_email_ai_successor_action_receipts": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_runtime_identities": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_transaction_receipts": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_v2_canonical_action_capability_history_20260901": [
+        true,
+        true
+      ]
+    }
+  },
+  "already_applied": false,
+  "before": {
+    "direct_table_privileges": {
+      "public.pdc_email_ai_successor_action_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_runtime_identities": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_transaction_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      }
+    },
+    "function_hashes": {
+      "capability": null,
+      "executor": "5d358b8f055d02b72a9c4693854ff0591cca3f2eb4e3a530cfbda32a7e1119ea",
+      "location": "8ca7ea8fb3e06af67f545bc3a8014cd08e84204df13483d2dbe44d66e354aeb0",
+      "parts_eta": "c9031ffc1aeb762e0b08471723426b349e7ef2a1fed451553450e9a63c2cf81b",
+      "strict": "128d9c9d80b2356b798da141d392e50d77c8af92dadbc83721fe624b644e823f",
+      "timeline": "2b32d3bfd0b4ee20a0576434ccb43523977a51bb42fad895f2363be086eb3635",
+      "work_states": "d191d30f467c9ee462628e6be602ce83f9fb7db1906af870536c2f10a905c6b5"
+    },
+    "ledger_head": [
+      "20260901220000",
+      "pdc_email_ai_successor_executor_reconciliation_20260901"
+    ],
+    "production_sentinel": false,
+    "receipts": [
+      60,
+      77
+    ],
+    "rls": {
+      "public.pdc_email_ai_successor_action_receipts": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_runtime_identities": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_transaction_receipts": [
+        true,
+        true
+      ]
+    }
+  },
+  "capability": {
+    "active_stage_writer_required": true,
+    "actor_bound": true,
+    "administrator_excluded": true,
+    "allowed_actions": [
+      "parts_eta_set",
+      "parts_complete",
+      "required_work_set",
+      "note_append",
+      "location_set",
+      "operation_add",
+      "operation_update"
+    ],
+    "authenticated_only": true,
+    "transaction_local": true
+  },
+  "environment": "staging",
+  "mailbox_contacted": false,
+  "migration_identity": [
+    "20260901230000",
+    "pdc_email_ai_v2_canonical_action_capability_20260901"
+  ],
+  "migration_sha256": "a1d4627e71ea78d965e1053d1efb7c12fe550d12b9514cbd44cd5f88bd3725b4",
+  "ok": true,
+  "outbound_email": false,
+  "production_writes": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "source_markers": {
+    "executor_transaction_scope": true,
+    "location": true,
+    "parts_eta": true,
+    "timeline": true,
+    "work_states": true
+  }
+}

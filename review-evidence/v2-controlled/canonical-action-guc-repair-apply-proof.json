@@ -1,0 +1,157 @@
+{
+  "action_rpc_invoked": false,
+  "after": {
+    "direct": {
+      "public.pdc_email_ai_successor_action_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_runtime_identities": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_transaction_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_v2_canonical_action_capability_history_20260901": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_v2_canonical_action_guc_repair_history_20260901": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      }
+    },
+    "hashes": {
+      "capability": "9964dfaccdd4b3129417b74d02f80e6a49d53a0a0e0c2dee8a3eaf530fb32fbd",
+      "executor": "0cf03ec2075f14d737f28d56abda31b02b8fced1477f9655ca87054941771185",
+      "strict": "128d9c9d80b2356b798da141d392e50d77c8af92dadbc83721fe624b644e823f"
+    },
+    "ledger_head": [
+      "20260901231000",
+      "pdc_email_ai_v2_canonical_action_guc_repair_20260901"
+    ],
+    "production": false,
+    "receipts": [
+      92,
+      117
+    ],
+    "rls": {
+      "public.pdc_email_ai_successor_action_receipts": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_runtime_identities": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_transaction_receipts": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_v2_canonical_action_capability_history_20260901": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_v2_canonical_action_guc_repair_history_20260901": [
+        true,
+        true
+      ]
+    }
+  },
+  "already_applied": true,
+  "before": {
+    "direct": {
+      "public.pdc_email_ai_successor_action_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_runtime_identities": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_transaction_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_v2_canonical_action_capability_history_20260901": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_v2_canonical_action_guc_repair_history_20260901": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      }
+    },
+    "hashes": {
+      "capability": "9964dfaccdd4b3129417b74d02f80e6a49d53a0a0e0c2dee8a3eaf530fb32fbd",
+      "executor": "0cf03ec2075f14d737f28d56abda31b02b8fced1477f9655ca87054941771185",
+      "strict": "128d9c9d80b2356b798da141d392e50d77c8af92dadbc83721fe624b644e823f"
+    },
+    "ledger_head": [
+      "20260901231000",
+      "pdc_email_ai_v2_canonical_action_guc_repair_20260901"
+    ],
+    "production": false,
+    "receipts": [
+      92,
+      117
+    ],
+    "rls": {
+      "public.pdc_email_ai_successor_action_receipts": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_runtime_identities": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_transaction_receipts": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_v2_canonical_action_capability_history_20260901": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_v2_canonical_action_guc_repair_history_20260901": [
+        true,
+        true
+      ]
+    }
+  },
+  "custom_guc": "pdc.monitor.v2_canonical_action_capability_20260902",
+  "environment": "staging",
+  "mailbox_contacted": false,
+  "migration_identity": [
+    "20260901231000",
+    "pdc_email_ai_v2_canonical_action_guc_repair_20260901"
+  ],
+  "migration_sha256": "fa4d0b9101d119e8f2d344abf26827c7705b877dfb24e85107ac185638567eaa",
+  "ok": true,
+  "outbound_email": false,
+  "production_writes": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "receipts_preserved": true
+}

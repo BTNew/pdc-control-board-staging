@@ -1,0 +1,355 @@
+{
+  "controlled_receipt": {
+    "final_transactions": 224,
+    "path": "C:\\Users\\nwmgr\\HermesWorkspaces\\development\\pdc-email-ai-transaction-successor\\review-evidence\\v2-controlled\\controlled-acceptance-receipt.json",
+    "pre_transactions": 212,
+    "scenario_outcomes": [
+      {
+        "actions": [
+          {
+            "action_type": "activate_vehicle",
+            "disposition": "APPLIED_AND_VERIFIED",
+            "parity": true,
+            "reason": "authoritative field-level readback verified"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_surface_verified",
+        "http_status": null,
+        "label": "S01_activate",
+        "ok": true
+      },
+      {
+        "actions": [
+          {
+            "action_type": "parts_eta_set",
+            "disposition": "APPLIED_AND_VERIFIED",
+            "parity": true,
+            "reason": "authoritative field-level readback verified"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_surface_verified",
+        "http_status": null,
+        "label": "S02_parts_eta",
+        "ok": true
+      },
+      {
+        "actions": [
+          {
+            "action_type": "parts_complete",
+            "disposition": "APPLIED_AND_VERIFIED",
+            "parity": true,
+            "reason": "authoritative field-level readback verified"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_surface_verified",
+        "http_status": null,
+        "label": "S03_parts_complete",
+        "ok": true
+      },
+      {
+        "actions": [],
+        "code": "typed_v2_plan_invalid",
+        "http_status": null,
+        "label": "S04_sublet_booking",
+        "ok": false
+      },
+      {
+        "actions": [
+          {
+            "action_type": "parts_eta_set",
+            "disposition": "APPLIED_AND_VERIFIED",
+            "parity": true,
+            "reason": "authoritative field-level readback verified"
+          },
+          {
+            "action_type": "note_append",
+            "disposition": "APPLIED_AND_VERIFIED",
+            "parity": true,
+            "reason": "authoritative field-level readback verified"
+          },
+          {
+            "action_type": "required_work_set",
+            "disposition": "FAILED_QUEUED_RETRY",
+            "parity": false,
+            "reason": "vehicle_version_conflict"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_surface_partial_failure",
+        "http_status": null,
+        "label": "S05_multiple_actions",
+        "ok": false
+      },
+      {
+        "actions": [],
+        "code": "typed_v2_plan_invalid",
+        "http_status": null,
+        "label": "S06_multiple_vehicles",
+        "ok": false
+      },
+      {
+        "actions": [
+          {
+            "action_type": "operation_add",
+            "disposition": "FAILED_QUEUED_RETRY",
+            "parity": false,
+            "reason": "canonical_operation_source_receipt_not_found"
+          },
+          {
+            "action_type": "operation_add",
+            "disposition": "FAILED_QUEUED_RETRY",
+            "parity": false,
+            "reason": "canonical_operation_source_receipt_not_found"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_surface_partial_failure",
+        "http_status": null,
+        "label": "S07_job_card_hours",
+        "ok": false
+      },
+      {
+        "actions": [],
+        "code": "pdc_email_ai_typed_action_surface_partial_failure",
+        "http_status": null,
+        "label": "S08_revised_job_card",
+        "ok": false
+      },
+      {
+        "actions": [
+          {
+            "action_type": "parts_complete",
+            "disposition": "APPLIED_AND_VERIFIED",
+            "parity": true,
+            "reason": "authoritative field-level readback verified"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_surface_verified",
+        "http_status": null,
+        "label": "S09_duplicate_replay",
+        "ok": true
+      },
+      {
+        "actions": [],
+        "code": "source_reuse_conflict",
+        "http_status": null,
+        "label": "S09_duplicate_replay_replay",
+        "ok": false
+      },
+      {
+        "actions": [
+          {
+            "action_type": "note_append",
+            "disposition": "GENUINELY_AMBIGUOUS",
+            "parity": false,
+            "reason": "missing backend identity"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_non_dispatch_receipt",
+        "http_status": null,
+        "label": "S10_missing_backend",
+        "ok": false
+      },
+      {
+        "actions": [
+          {
+            "action_type": "note_append",
+            "disposition": "GENUINELY_AMBIGUOUS",
+            "parity": false,
+            "reason": "ambiguous identity"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_non_dispatch_receipt",
+        "http_status": null,
+        "label": "S11_ambiguous_identity",
+        "ok": false
+      },
+      {
+        "actions": [
+          {
+            "action_type": "operation_add",
+            "disposition": "GENUINELY_AMBIGUOUS",
+            "parity": false,
+            "reason": "mixed signage/GVM remains review-only"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_non_dispatch_receipt",
+        "http_status": null,
+        "label": "S12_gvm_taxonomy",
+        "ok": false
+      },
+      {
+        "actions": [
+          {
+            "action_type": "operation_add",
+            "disposition": "FAILED_QUEUED_RETRY",
+            "parity": false,
+            "reason": "canonical_operation_source_receipt_not_found"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_surface_partial_failure",
+        "http_status": null,
+        "label": "S13_restart_recovery",
+        "ok": false
+      },
+      {
+        "actions": [
+          {
+            "action_type": "parts_eta_set",
+            "disposition": "APPLIED_AND_VERIFIED",
+            "parity": true,
+            "reason": "authoritative field-level readback verified"
+          },
+          {
+            "action_type": "location_set",
+            "disposition": "FAILED_QUEUED_RETRY",
+            "parity": false,
+            "reason": "Vehicle version conflict: expected 139, current 140"
+          }
+        ],
+        "code": "pdc_email_ai_typed_action_surface_partial_failure",
+        "http_status": null,
+        "label": "S14_authoritative_readback",
+        "ok": false
+      }
+    ],
+    "sha256": "e93f2f3e7b4aafc0a6c431f9bd667a5bd0beea00ed8246c114a4a203f8ef8f03"
+  },
+  "direct_table_http_status": {
+    "pdc_email_ai_successor_action_receipts": 403,
+    "pdc_email_ai_successor_runtime_identities": 403,
+    "pdc_email_ai_successor_transaction_receipts": 403
+  },
+  "environment": "staging",
+  "function_markers": {
+    "capability": {
+      "dotted_capability": true,
+      "legacy_operator_guard": false
+    },
+    "eta_history": {
+      "dotted_capability": true,
+      "legacy_operator_guard": false
+    },
+    "executor": {
+      "dotted_capability": true,
+      "legacy_operator_guard": false
+    },
+    "location": {
+      "dotted_capability": false,
+      "legacy_operator_guard": true
+    },
+    "parts_eta": {
+      "dotted_capability": false,
+      "legacy_operator_guard": true
+    },
+    "summary": {
+      "dotted_capability": true,
+      "legacy_operator_guard": false
+    },
+    "timeline": {
+      "dotted_capability": true,
+      "legacy_operator_guard": true
+    },
+    "work_states": {
+      "dotted_capability": false,
+      "legacy_operator_guard": true
+    }
+  },
+  "health_after": {
+    "active_runtime_identities": 1,
+    "code": "pdc_email_ai_successor_health",
+    "historical_lane_isolated": true,
+    "live_lane_continues": true,
+    "ok": true,
+    "outbound_email": false,
+    "partial_failures": 165,
+    "pending_or_blocked_actions": 207,
+    "production_writes": false,
+    "transactions": 224,
+    "transport_release_is_separate": true
+  },
+  "health_before": {
+    "active_runtime_identities": 1,
+    "code": "pdc_email_ai_successor_health",
+    "historical_lane_isolated": true,
+    "live_lane_continues": true,
+    "ok": true,
+    "outbound_email": false,
+    "partial_failures": 165,
+    "pending_or_blocked_actions": 207,
+    "production_writes": false,
+    "transactions": 224,
+    "transport_release_is_separate": true
+  },
+  "invalid_digest_negative": {
+    "code": "typed_v2_plan_invalid",
+    "http_status": 200,
+    "receipts_unchanged": true
+  },
+  "ledger_head": [
+    "20260901237000",
+    "pdc_email_ai_v2_canonical_summary_capability_20260901"
+  ],
+  "mailbox_contacted": false,
+  "ok": true,
+  "outbound_email": false,
+  "production_sentinel_present": false,
+  "production_target_negative": {
+    "code": "typed_v2_plan_invalid",
+    "http_status": 200,
+    "receipts_unchanged": true
+  },
+  "production_writes": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "rls_force": {
+    "pdc_email_ai_successor_action_receipts": [
+      true,
+      true
+    ],
+    "pdc_email_ai_successor_runtime_identities": [
+      true,
+      true
+    ],
+    "pdc_email_ai_successor_transaction_receipts": [
+      true,
+      true
+    ],
+    "pdc_email_ai_v2_canonical_action_capability_history_20260901": [
+      true,
+      true
+    ],
+    "pdc_email_ai_v2_canonical_action_compatibility_history_20260901": [
+      true,
+      true
+    ],
+    "pdc_email_ai_v2_canonical_action_guc_repair_history_20260901": [
+      true,
+      true
+    ],
+    "pdc_email_ai_v2_canonical_eta_history_capability_history_20260901": [
+      true,
+      true
+    ],
+    "pdc_email_ai_v2_canonical_nested_eta_history_guard_history_20260901": [
+      true,
+      true
+    ],
+    "pdc_email_ai_v2_canonical_note_capability_history_20260901": [
+      true,
+      true
+    ],
+    "pdc_email_ai_v2_canonical_note_direct_guard_history_20260901": [
+      true,
+      true
+    ],
+    "pdc_email_ai_v2_canonical_summary_capability_history_20260901": [
+      true,
+      true
+    ]
+  },
+  "scheduling_enabled": false,
+  "strict_acl": [
+    true,
+    false,
+    false,
+    false
+  ]
+}

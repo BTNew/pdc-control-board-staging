@@ -1,0 +1,38 @@
+{
+  "action_rpc_invoked": false,
+  "after": {
+    "head": [
+      "20260901237000",
+      "pdc_email_ai_v2_canonical_summary_capability_20260901"
+    ],
+    "production": false,
+    "receipts": [
+      200,
+      261
+    ]
+  },
+  "already_applied": false,
+  "before": {
+    "head": [
+      "20260901236000",
+      "pdc_email_ai_v2_canonical_nested_eta_history_guard_20260901"
+    ],
+    "production": false,
+    "receipts": [
+      200,
+      261
+    ]
+  },
+  "environment": "staging",
+  "mailbox_contacted": false,
+  "migration_identity": [
+    "20260901237000",
+    "pdc_email_ai_v2_canonical_summary_capability_20260901"
+  ],
+  "migration_sha256": "5c22d6f3c3dea0d31e0172e5f8ad3725154e1880a7f6b8940370a3f67fd3c78a",
+  "ok": true,
+  "outbound_email": false,
+  "production_writes": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "receipts_preserved": true
+}
