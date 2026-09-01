@@ -61,6 +61,7 @@
   },
   "boundaries": {
     "mailbox_read_only": true,
+    "mailbox_contacted_read_only": true,
     "mailbox_flags_changed": false,
     "outbound_email": false,
     "production_contacted": false,
