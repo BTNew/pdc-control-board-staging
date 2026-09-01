@@ -41,7 +41,7 @@
   },
   "worker_source": {
     "path": "C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/scripts/pdc_email_reviewer.py",
-    "sha256": "e698921de1222da1cfdc775c67d032bf659467a1b49d4be4c031066efe3cfd70",
+    "sha256": "20a00e87a74f18848714333d68db34c370504ea5ea9a17f121991d7400a2a7be",
     "changes": ["standards-grounded Gmail receiver/ARC/SPF/DKIM/DMARC parsing", "duplicate and failure fail-closed checks", "--expected-source-hash required for --replay-scoped-uid"]
   },
   "resume_commands": {
