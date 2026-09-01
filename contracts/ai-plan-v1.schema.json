@@ -1,0 +1,354 @@
+{
+  "$defs": {
+    "evidence_ref": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": [
+            "message",
+            "attachment",
+            "thread",
+            "backend",
+            "readback",
+            "rule"
+          ]
+        },
+        "ref": {
+          "maxLength": 320,
+          "minLength": 1,
+          "type": "string"
+        },
+        "required_for_action": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ref",
+        "kind",
+        "required_for_action"
+      ],
+      "type": "object"
+    },
+    "identity": {
+      "additionalProperties": false,
+      "properties": {
+        "backend_record_id": {
+          "format": "uuid",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stock_number": {
+          "pattern": "^[A-Z0-9][A-Z0-9-]{3,79}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vehicle_id": {
+          "format": "uuid",
+          "type": "string"
+        },
+        "vin": {
+          "pattern": "^[A-HJ-NPR-Z0-9]{17}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "vehicle_id",
+        "stock_number",
+        "vin",
+        "backend_record_id"
+      ],
+      "type": "object"
+    },
+    "instruction": {
+      "additionalProperties": false,
+      "properties": {
+        "action_type": {
+          "enum": [
+            "activate_vehicle",
+            "operation_upsert",
+            "job_card_upsert",
+            "parts_eta_set",
+            "parts_ordered",
+            "parts_complete",
+            "booking_set",
+            "booking_move",
+            "booking_cancel",
+            "workgroup_requirement_set",
+            "work_complete",
+            "note_append",
+            "location_set",
+            "rft_transfer",
+            "rft_collect"
+          ]
+        },
+        "audit_event_ref": {
+          "pattern": "^audit-plan-[A-Za-z0-9._:-]{1,159}$",
+          "type": "string"
+        },
+        "decision_disposition": {
+          "enum": [
+            "planned",
+            "applied",
+            "no-op",
+            "already-satisfied",
+            "review",
+            "unsupported",
+            "conflict",
+            "superseded"
+          ]
+        },
+        "evidence_refs": {
+          "items": {
+            "$ref": "#/$defs/evidence_ref"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "type": "array"
+        },
+        "expected_state": {
+          "additionalProperties": false,
+          "properties": {
+            "backend_revision": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "booking_id": {
+              "format": "uuid",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "operation_fingerprint": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "vehicle_version": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "vehicle_version",
+            "backend_revision"
+          ],
+          "type": "object"
+        },
+        "identity": {
+          "$ref": "#/$defs/identity"
+        },
+        "instruction_id": {
+          "pattern": "^instruction-[A-Za-z0-9._:-]{1,159}$",
+          "type": "string"
+        },
+        "payload": {
+          "additionalProperties": false,
+          "type": "object"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "reason": {
+          "maxLength": 1000,
+          "type": "string"
+        },
+        "required_evidence": {
+          "items": {
+            "enum": [
+              "authoritative_identity",
+              "job_card",
+              "attachment",
+              "explicit_parts_state",
+              "explicit_parts_eta",
+              "explicit_location",
+              "explicit_booking_instance",
+              "completion_gates",
+              "explicit_lifecycle",
+              "planner_context"
+            ]
+          },
+          "maxItems": 20,
+          "type": "array"
+        },
+        "vehicle_id": {
+          "format": "uuid",
+          "type": "string"
+        }
+      },
+      "required": [
+        "instruction_id",
+        "vehicle_id",
+        "identity",
+        "action_type",
+        "payload",
+        "evidence_refs",
+        "required_evidence",
+        "expected_state",
+        "decision_disposition",
+        "provenance",
+        "audit_event_ref"
+      ],
+      "type": "object"
+    },
+    "payload_by_action": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "business_rule_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "evidence_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "model_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "planner_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "prompt_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "ruleset_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "source_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "supabase_action_contract_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "taxonomy_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "transport_release_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "transport_release_version",
+        "planner_version",
+        "model_version",
+        "prompt_version",
+        "business_rule_version",
+        "ruleset_version",
+        "taxonomy_version",
+        "supabase_action_contract_version",
+        "source_digest",
+        "evidence_digest"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://pdc.staging/contracts/ai-plan-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "aggregate_disposition": {
+      "enum": [
+        "planned",
+        "applied",
+        "partial_failure",
+        "review",
+        "quarantined",
+        "no_actions"
+      ]
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "environment": {
+      "const": "staging"
+    },
+    "evidence_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "instructions": {
+      "items": {
+        "$ref": "#/$defs/instruction"
+      },
+      "maxItems": 200,
+      "type": "array"
+    },
+    "plan_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "planner_failure_reason": {
+      "maxLength": 1000,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "planner_status": {
+      "enum": [
+        "available",
+        "unavailable",
+        "failed"
+      ]
+    },
+    "schema_version": {
+      "const": "pdc-email-ai-plan-v1"
+    },
+    "source_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_receipt_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "versions": {
+      "$ref": "#/$defs/provenance"
+    }
+  },
+  "required": [
+    "schema_version",
+    "plan_id",
+    "environment",
+    "source_receipt_id",
+    "source_digest",
+    "evidence_digest",
+    "versions",
+    "instructions",
+    "aggregate_disposition",
+    "created_at"
+  ],
+  "title": "PDC Email AI v2 typed interpretation plan",
+  "type": "object"
+}

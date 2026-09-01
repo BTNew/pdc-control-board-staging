@@ -1,0 +1,484 @@
+{
+  "count_assertions": {
+    "hostile_negatives": 10,
+    "owner_scenarios": 14
+  },
+  "environment": "staging",
+  "fixture_policy": "synthetic_safe_no_pii; no live mailbox replay; no Board/database writes",
+  "hostile_negatives": [
+    {
+      "expected_control": "reject_sender_authority",
+      "expected_disposition": "blocked_or_quarantined",
+      "name": "forged_sender_or_forwarded_wrapper",
+      "negative_id": "N01",
+      "production_contact_allowed": false,
+      "shadow_zero_operational_writes": true,
+      "threat": "Forwarded/unapproved sender cannot inherit operational authority"
+    },
+    {
+      "expected_control": "reject_contract",
+      "expected_disposition": "blocked_or_quarantined",
+      "name": "raw_sql_or_table_field",
+      "negative_id": "N02",
+      "production_contact_allowed": false,
+      "shadow_zero_operational_writes": true,
+      "threat": "Planner/request containing SQL/table/query/RPC material is rejected before boundary"
+    },
+    {
+      "expected_control": "reject_runtime_identity",
+      "expected_disposition": "blocked_or_quarantined",
+      "name": "service_role_or_administrator_runtime",
+      "negative_id": "N03",
+      "production_contact_allowed": false,
+      "shadow_zero_operational_writes": true,
+      "threat": "Privileged runtime identity cannot execute successor command"
+    },
+    {
+      "expected_control": "reject_environment",
+      "expected_disposition": "blocked_or_quarantined",
+      "name": "production_target",
+      "negative_id": "N04",
+      "production_contact_allowed": false,
+      "shadow_zero_operational_writes": true,
+      "threat": "Any production environment/sentinel/URL is rejected"
+    },
+    {
+      "expected_control": "quarantine_evidence",
+      "expected_disposition": "blocked_or_quarantined",
+      "name": "unsafe_attachment_path",
+      "negative_id": "N05",
+      "production_contact_allowed": false,
+      "shadow_zero_operational_writes": true,
+      "threat": "Traversal, executable, macro or oversized attachment quarantines"
+    },
+    {
+      "expected_control": "review_identity_conflict",
+      "expected_disposition": "blocked_or_quarantined",
+      "name": "identity_alias_conflict",
+      "negative_id": "N06",
+      "production_contact_allowed": false,
+      "shadow_zero_operational_writes": true,
+      "threat": "Stock and VIN resolve to different vehicles"
+    },
+    {
+      "expected_control": "unsupported_disposition",
+      "expected_disposition": "blocked_or_quarantined",
+      "name": "unknown_action",
+      "negative_id": "N07",
+      "production_contact_allowed": false,
+      "shadow_zero_operational_writes": true,
+      "threat": "Unknown business instruction is preserved as unsupported/review, never guessed"
+    },
+    {
+      "expected_control": "blocked_sublet_evidence",
+      "expected_disposition": "blocked_or_quarantined",
+      "name": "generic_sublet_wording",
+      "negative_id": "N08",
+      "production_contact_allowed": false,
+      "shadow_zero_operational_writes": true,
+      "threat": "Supplier/provider wording without explicit booking evidence cannot create Sublet"
+    },
+    {
+      "expected_control": "planner_unavailable",
+      "expected_disposition": "blocked_or_quarantined",
+      "name": "planner_unavailable",
+      "negative_id": "N09",
+      "production_contact_allowed": false,
+      "shadow_zero_operational_writes": true,
+      "threat": "AI planner outage yields explicit retry/quarantine/blocked; no deterministic live fallback"
+    },
+    {
+      "expected_control": "replay_conflict",
+      "expected_disposition": "blocked_or_quarantined",
+      "name": "changed_replay_payload",
+      "negative_id": "N10",
+      "production_contact_allowed": false,
+      "shadow_zero_operational_writes": true,
+      "threat": "Same source/action key with changed payload returns conflict before mutation"
+    }
+  ],
+  "owner_scenarios": [
+    {
+      "description": "Email identifies one authoritative backend vehicle absent from Board; activate it.",
+      "expected_action_types": [
+        "activate_vehicle"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s01",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "backend_vehicle_absent_board",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "authoritative_identity",
+        "explicit_activation"
+      ],
+      "scenario_id": "S01",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "Explicit Parts ETA change only; do not alter Parts completion/order.",
+      "expected_action_types": [
+        "parts_eta_set"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s02",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "parts_eta_update",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "explicit_parts_eta"
+      ],
+      "scenario_id": "S02",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "Explicit Parts Complete claim with unambiguous identity.",
+      "expected_action_types": [
+        "parts_complete"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s03",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "parts_complete",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "explicit_parts_state"
+      ],
+      "scenario_id": "S03",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "Explicit SUBLET booking update bound to one existing provider/booking instance.",
+      "expected_action_types": [
+        "booking_move"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s04",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "sublet_booking_update",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "explicit_booking_instance",
+        "job_card"
+      ],
+      "scenario_id": "S04",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "One vehicle email contains Parts ETA, note and required-work actions; each is independently disposed.",
+      "expected_action_types": [
+        "parts_eta_set",
+        "note_append",
+        "workgroup_requirement_set"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED",
+        "ALREADY_CORRECT",
+        "BLOCKED_EXACT_REASON"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s05",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "multiple_actions_one_email",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "planner_context"
+      ],
+      "scenario_id": "S05",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "One message has two attachment-scoped vehicles; no sibling identity merge.",
+      "expected_action_types": [
+        "operation_upsert",
+        "parts_complete"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED",
+        "APPLIED_AND_VERIFIED"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s06",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "multiple_vehicles",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "authoritative_identity",
+        "attachment"
+      ],
+      "scenario_id": "S06",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "Job Card preserves every OP number, description and stated hours including zero.",
+      "expected_action_types": [
+        "job_card_upsert",
+        "operation_upsert"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s07",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "job_card_multi_operation_hours",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "job_card",
+        "attachment"
+      ],
+      "scenario_id": "S07",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "Newer Job Card adds/updates unprotected lines and never deletes protected/completed work.",
+      "expected_action_types": [
+        "job_card_upsert"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED",
+        "SUPERSEDED"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s08",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "revised_job_card",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "job_card",
+        "attachment"
+      ],
+      "scenario_id": "S08",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "Exact source and action replay returns same receipt with zero new effects/revision changes.",
+      "expected_action_types": [
+        "parts_complete"
+      ],
+      "expected_terminal_dispositions": [
+        "ALREADY_CORRECT"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s09",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "duplicate_replay",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "authoritative_identity"
+      ],
+      "scenario_id": "S09",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "No backend vehicle: retain evidence and produce waiting/review; never fabricate identity.",
+      "expected_action_types": [
+        "activate_vehicle"
+      ],
+      "expected_terminal_dispositions": [
+        "BLOCKED_EXACT_REASON"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s10",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "missing_backend_vehicle",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "authoritative_identity"
+      ],
+      "scenario_id": "S10",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "Conflicting Stock/VIN/attachment identity: isolate item and fail closed.",
+      "expected_action_types": [
+        "operation_upsert"
+      ],
+      "expected_terminal_dispositions": [
+        "GENUINELY_AMBIGUOUS"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s11",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "ambiguous_identity",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "authoritative_identity",
+        "attachment"
+      ],
+      "scenario_id": "S11",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "Physical GVM/lift is HOIST; mixed FMG signage/GVM-GCM-Tare decals are review-only; Long Ranger is HOIST; Wheel Nut Indicator is TYRE; fire-extinguisher hardware is FABRICATION.",
+      "expected_action_types": [
+        "workgroup_requirement_set"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED",
+        "BLOCKED_EXACT_REASON"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s12",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "classification_gvm_regression",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "job_card",
+        "attachment"
+      ],
+      "scenario_id": "S12",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "Process termination after evidence receipt resumes from durable checkpoint without duplicate source capture.",
+      "expected_action_types": [
+        "operation_upsert"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s13",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "restart_recovery",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "planner_context"
+      ],
+      "scenario_id": "S13",
+      "shadow_zero_operational_writes": true
+    },
+    {
+      "description": "Action result is not success without independent Supabase and Board parity/readback.",
+      "expected_action_types": [
+        "parts_eta_set",
+        "location_set"
+      ],
+      "expected_terminal_dispositions": [
+        "APPLIED_AND_VERIFIED"
+      ],
+      "fixture_kind": "synthetic_safe_no_pii",
+      "input": {
+        "attachment_digests": [],
+        "message_id": "synthetic-s14",
+        "source_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+        "vehicles": [
+          "synthetic-vehicle-1"
+        ]
+      },
+      "mailbox_mutation_allowed": false,
+      "name": "authoritative_readback",
+      "production_contact_allowed": false,
+      "required_evidence": [
+        "authoritative_identity"
+      ],
+      "scenario_id": "S14",
+      "shadow_zero_operational_writes": true
+    }
+  ],
+  "schema": "pdc-email-ai-v2-scenario-catalog/v1"
+}

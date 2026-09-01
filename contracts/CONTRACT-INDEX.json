@@ -1,0 +1,61 @@
+{
+  "contract_release": "pdc-email-ai-v2-foundation-2026-09-01",
+  "contracts": [
+    {
+      "name": "immutable_evidence",
+      "owner": "pdc-emails",
+      "path": "contracts/immutable-evidence-v1.schema.json",
+      "version": "pdc-email-ai-evidence-v1"
+    },
+    {
+      "name": "ai_plan",
+      "owner": "pdc-emails",
+      "path": "contracts/ai-plan-v1.schema.json",
+      "version": "pdc-email-ai-plan-v1"
+    },
+    {
+      "name": "work_taxonomy",
+      "owner": "pdc-emails",
+      "path": "contracts/work-taxonomy-v2.json",
+      "version": "pdc-work-taxonomy-2026-09-01-v2"
+    },
+    {
+      "name": "action_request",
+      "owner": "website-development-lead",
+      "path": "contracts/supabase-action-request-v1.schema.json",
+      "version": "pdc-email-ai-action-request-v1"
+    },
+    {
+      "name": "action_result",
+      "owner": "website-development-lead",
+      "path": "contracts/supabase-action-result-v1.schema.json",
+      "version": "pdc-email-ai-action-result-v1"
+    },
+    {
+      "name": "authoritative_readback",
+      "owner": "website-development-lead",
+      "path": "contracts/authoritative-readback-v1.schema.json",
+      "version": "pdc-email-ai-readback-v1"
+    },
+    {
+      "name": "board_projection",
+      "owner": "website-development-lead",
+      "path": "contracts/board-projection-v1.schema.json",
+      "version": "pdc-email-ai-board-projection-v1"
+    }
+  ],
+  "environment": "staging",
+  "invariants": [
+    "staging_only",
+    "no_raw_sql",
+    "no_generic_dml",
+    "no_service_role",
+    "no_browser_business_writes",
+    "no_outbound_email",
+    "every_instruction_one_disposition",
+    "independent_action_readback",
+    "historical_board_state_is_evidence_only",
+    "production_target_rejected"
+  ],
+  "schema": "pdc-email-ai-v2-contract-index/v1"
+}

@@ -1,0 +1,257 @@
+{
+  "$id": "https://pdc.staging/contracts/immutable-evidence-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attachments": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "attachment_id": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "content_type": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "extracted_text_digest": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "extraction_status": {
+            "enum": [
+              "NOT_ATTEMPTED",
+              "EXTRACTED",
+              "FAILED",
+              "REJECTED"
+            ]
+          },
+          "filename": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "ordinal": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "path": {
+            "pattern": "^evidence/attachments/[0-9a-f]{64}/[0-9a-f]{16}-[^/\\\\]+$",
+            "type": "string"
+          },
+          "size_bytes": {
+            "maximum": 10485760,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "RETAINED",
+              "REJECTED_BOUNDED"
+            ]
+          }
+        },
+        "required": [
+          "attachment_id",
+          "ordinal",
+          "filename",
+          "content_type",
+          "size_bytes",
+          "digest",
+          "path",
+          "status"
+        ],
+        "type": "object"
+      },
+      "maxItems": 25,
+      "type": "array"
+    },
+    "created_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "environment": {
+      "const": "staging"
+    },
+    "evidence_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "immutable": {
+      "const": true
+    },
+    "message": {
+      "additionalProperties": false,
+      "properties": {
+        "correspondence": {
+          "maxLength": 500000,
+          "type": "string"
+        },
+        "message_id": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        },
+        "raw_path": {
+          "pattern": "^evidence/source/[0-9a-f]{64}\\.eml$",
+          "type": "string"
+        },
+        "received_at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "sender": {
+          "additionalProperties": false,
+          "properties": {
+            "address": {
+              "format": "email",
+              "type": "string"
+            },
+            "display_name": {
+              "maxLength": 320,
+              "type": "string"
+            }
+          },
+          "required": [
+            "address",
+            "display_name"
+          ],
+          "type": "object"
+        },
+        "subject": {
+          "maxLength": 1000,
+          "type": "string"
+        },
+        "thread_id": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "message_id",
+        "thread_id",
+        "received_at",
+        "sender",
+        "subject",
+        "correspondence",
+        "raw_path"
+      ],
+      "type": "object"
+    },
+    "receipt_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "pdc-email-ai-evidence-v1"
+    },
+    "source_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "RECEIVED",
+        "DUPLICATE",
+        "QUARANTINED",
+        "REJECTED_BOUNDED"
+      ]
+    },
+    "supersedes_receipt_id": {
+      "format": "uuid",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "transport": {
+      "additionalProperties": false,
+      "properties": {
+        "authentication": {
+          "additionalProperties": false,
+          "properties": {
+            "authenticated": {
+              "type": "boolean"
+            },
+            "method": {
+              "maxLength": 120,
+              "type": "string"
+            },
+            "sender_domain_authorized": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "authenticated",
+            "sender_domain_authorized"
+          ],
+          "type": "object"
+        },
+        "folder": {
+          "maxLength": 320,
+          "minLength": 1,
+          "type": "string"
+        },
+        "mailbox": {
+          "maxLength": 320,
+          "minLength": 1,
+          "type": "string"
+        },
+        "provider": {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        "read_only": {
+          "const": true
+        },
+        "uid": {
+          "maxLength": 512,
+          "minLength": 1,
+          "type": "string"
+        },
+        "uidvalidity": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "mailbox",
+        "folder",
+        "uid",
+        "uidvalidity",
+        "read_only",
+        "authentication"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema_version",
+    "receipt_id",
+    "environment",
+    "transport",
+    "message",
+    "attachments",
+    "source_digest",
+    "evidence_digest",
+    "immutable",
+    "status",
+    "created_at"
+  ],
+  "title": "PDC Email AI v2 immutable evidence receipt",
+  "type": "object"
+}

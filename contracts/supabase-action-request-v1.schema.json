@@ -1,0 +1,184 @@
+{
+  "$defs": {
+    "provenance": {
+      "additionalProperties": false,
+      "properties": {
+        "business_rule_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "evidence_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "model_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "planner_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "prompt_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "ruleset_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "source_digest": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "supabase_action_contract_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "taxonomy_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        },
+        "transport_release_version": {
+          "maxLength": 160,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "transport_release_version",
+        "planner_version",
+        "model_version",
+        "prompt_version",
+        "business_rule_version",
+        "ruleset_version",
+        "taxonomy_version",
+        "supabase_action_contract_version",
+        "source_digest",
+        "evidence_digest"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://pdc.staging/contracts/supabase-action-request-v1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action_key": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "action_type": {
+      "enum": [
+        "activate_vehicle",
+        "operation_upsert",
+        "job_card_upsert",
+        "parts_eta_set",
+        "parts_ordered",
+        "parts_complete",
+        "booking_set",
+        "booking_move",
+        "booking_cancel",
+        "workgroup_requirement_set",
+        "work_complete",
+        "note_append",
+        "location_set",
+        "rft_transfer",
+        "rft_collect"
+      ]
+    },
+    "environment": {
+      "const": "staging"
+    },
+    "evidence_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "evidence_refs": {
+      "items": {
+        "maxLength": 320,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 20,
+      "minItems": 1,
+      "type": "array"
+    },
+    "expected_vehicle_version": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "instruction_id": {
+      "maxLength": 160,
+      "minLength": 1,
+      "type": "string"
+    },
+    "payload": {
+      "additionalProperties": false,
+      "maxProperties": 20,
+      "minProperties": 1,
+      "type": "object"
+    },
+    "plan_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
+    },
+    "request_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "requested_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "runtime_actor": {
+      "const": "pdc_email_ai_runtime"
+    },
+    "schema_version": {
+      "const": "pdc-email-ai-action-request-v1"
+    },
+    "source_digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "source_receipt_id": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "vehicle_id": {
+      "format": "uuid",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "environment",
+    "runtime_actor",
+    "plan_id",
+    "source_receipt_id",
+    "source_digest",
+    "evidence_digest",
+    "instruction_id",
+    "vehicle_id",
+    "expected_vehicle_version",
+    "action_type",
+    "payload",
+    "action_key",
+    "provenance",
+    "evidence_refs",
+    "requested_at"
+  ],
+  "title": "PDC Email AI v2 least-authority action request",
+  "type": "object"
+}

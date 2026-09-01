@@ -1,0 +1,40 @@
+{
+  "artifacts": {
+    "contracts/CONTRACT-INDEX.json": "0ee854f3d3e5bad08db52801a3a4a1ba7d61465e2c7375ff1a0b7531703cd8cf",
+    "contracts/ai-plan-v1.schema.json": "6b523bc37ebbf2963f605b5f164e3007ad8c90d53e4cde9dbc75630c08480554",
+    "contracts/authoritative-readback-v1.schema.json": "1fb107a4c7319eebfa80e914789b59db6588eaa10091a8f58e17181b4d955e82",
+    "contracts/board-projection-v1.schema.json": "51d7d506e56ea9400fda9b19a12707b3f99175b099ef11e56a1bbdd9a9e7e720",
+    "contracts/immutable-evidence-v1.schema.json": "fde96c6402e5201b7e61b4c0b9ce09f4c4cbc61c127a65343dfade0c00e09d2a",
+    "contracts/supabase-action-request-v1.schema.json": "6bfc8543122c91cecf1310986893599fe043106888f487808db910985cac81fd",
+    "contracts/supabase-action-result-v1.schema.json": "5c0af92f60fae4b774d6fa19cfdd13c14390b09531a309e7cfb7695c9d8240c7",
+    "contracts/work-taxonomy-v2.json": "bec38892e676fdf97c905742a004fa06c9c5d982e2f0004020d48cd53f0ed778",
+    "docs/PDC-EMAIL-AI-V2-FOUNDATION-HANDOFF.md": "761e6908cb3269e0182ecb6d3ba045e2a4c6c2773e2f56d6a8d23f61d2818782",
+    "docs/PDC-EMAIL-AI-V2-LEGACY-FREEZE.md": "6e8c33e52219a49697ee7aa66d7f29ab66b181286e842fb97c43ca907c4fbb3b",
+    "docs/PDC-EMAIL-AI-V2-THREAT-AUTHORITY-MODEL.md": "17756f813dba94da75ea0d1254375f5ad5fa5ef947a18133d99389a165f0fbcb",
+    "fixtures/v2-scenario-catalog-v1.json": "526f8c466aab8e4d7b878bd3839048c7380dde5c3cc3866a09728a663163c8b1",
+    "foundation/legacy-freeze-inventory.json": "dfb0e1962cb2a97ffc657c95d37660d89834be0c731b05d8b425c8ee87bafed8",
+    "tests/test_v2_foundation_artifacts.py": "256f5f6e5f2a67e65bb52f62bb9132b68c1dcb8bed98a2cde3db5c20ca33b3cc"
+  },
+  "environment": "staging",
+  "external_evidence": {
+    "latest100_audit": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-classification-consistency-audit.json",
+    "latest100_audit_sha256": "e4b15ea14a8d4456e0eac5b22c5af7be79f46e4229b6580b078dbf2969809b86",
+    "taxonomy_handoff": "C:/Users/nwmgr/HermesWorkspaces/development/pdc_email_ai_v2_taxonomy_handoff.md",
+    "taxonomy_handoff_sha256": "8ca62442dcb426603548ad56978d51f15894e9fe68e976ea3c111091c996622a"
+  },
+  "generated_from": "foundation/ARTIFACT-HASHES.json excluded from its own digest",
+  "safety_assertions": {
+    "legacy_business_logic_changed": false,
+    "mailbox_flags_changed": false,
+    "production_contacted": false,
+    "raw_sql_used": false,
+    "service_role_used": false,
+    "staging_only": true,
+    "staging_operational_write_attempted": false
+  },
+  "schema": "pdc-email-ai-v2-foundation-artifact-hashes/v1",
+  "source_commits": {
+    "architecture_baseline": "131c10f1",
+    "legacy_rollback": "dd826dc24e9eccd39d6208af6ea4cc870f6720df"
+  }
+}

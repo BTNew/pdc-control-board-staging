@@ -1,0 +1,76 @@
+{
+  "architecture_revision_commit": "131c10f1",
+  "environment": "staging",
+  "forbidden_legacy_dependencies": [
+    "v2_live_queue",
+    "v2_action_boundary",
+    "v2_ruleset",
+    "v2_planner",
+    "v2_outbox",
+    "failed_backlog_migration",
+    "hidden_memory"
+  ],
+  "freeze_status": "immutable_rollback_and_evidence_only",
+  "frozen_git_artifacts": {
+    "backend/email_intake_processor.py": {
+      "sha256": "6ef42560ac51b64f8111d63331d75d870c84dac3130af605f1726f939de8637e",
+      "source": "git:dd826dc2"
+    },
+    "backend/email_intake_processor_successor_20260871.py": {
+      "sha256": "9b5db40c70e6340da7bb9413c27f87f5706ac7ece64e45cad8b79666b300f47f",
+      "source": "git:dd826dc2"
+    },
+    "backend/imap_bridge.py": {
+      "sha256": "7ba2fb55e62d6df3af8672b0dd1eba9bc13f83946dca966bc5f104cf92265184",
+      "source": "git:dd826dc2"
+    },
+    "backend/imap_bridge_successor_20260871.py": {
+      "sha256": "d19f1ee93b5c45169d10e77956677909d2b5844e4aea3ce2e028c0b2edc30071",
+      "source": "git:dd826dc2"
+    },
+    "backend/pdc_email_intake_monitor.py": {
+      "sha256": "b5a46e08c5ae11d826cd7bcb0c3fe3c16e3d9e1f4725c737ba805747a4ba146d",
+      "source": "git:dd826dc2"
+    },
+    "backend/pdc_email_monitor_pipeline.py": {
+      "sha256": "5c4122bbfd812ff4f2fccd8f177112d8ab8849c038f01e53f5347a36dde26f5a",
+      "source": "git:dd826dc2"
+    },
+    "scripts/PDCMonitor-Install-20260871-Elevated.ps1": {
+      "sha256": "14deab0b7a8a13130d2dfb0ff7bbc4b342ce3e94fc3d083e25ffca07b540762e",
+      "source": "git:131c10f1"
+    },
+    "scripts/pdc_monitor_active_bootstrap_20260871.ps1": {
+      "sha256": "d32c716b255b4c747c51bc4dc73ecbb58e1f958e0f6e79b38ebd0bda08ef4187",
+      "source": "git:131c10f1"
+    },
+    "scripts/pdc_monitor_active_dispatch_20260871.ps1": {
+      "sha256": "bb990af663271e25b641da4843aea05bf581a69a492264b7510b68f3ba771769",
+      "source": "git:131c10f1"
+    },
+    "scripts/pdc_monitor_current_head_preflight_20260871.py": {
+      "sha256": "2edaa8624c3fa41c78b3471a7161befd551e404b7066f86c874d7cb26259642c",
+      "source": "git:131c10f1"
+    }
+  },
+  "legacy_source_commit": "dd826dc24e9eccd39d6208af6ea4cc870f6720df",
+  "recovery_pack": {
+    "manifest_sha256": "7790a439068fbf6250598f7082ed8d305e7d4d62ab1e5108f9334bb5fb6137a8",
+    "pack_version": "pdc-email-ai-recovery-pack-v1.11",
+    "path": "recovery-pack/RECOVERY-PACK-MANIFEST.json",
+    "source_snapshot_sha256": "58d535026fc9349ec84508eddab1b0ab56068140b866ae43eae2b661bbc9d958"
+  },
+  "schema": "pdc-email-ai-v2-legacy-freeze/v1",
+  "taxonomy_handoff": {
+    "audit_artifact": "C:\\Users\\nwmgr\\HermesWorkspaces\\pdc-monitor\\latest100-classification-consistency-audit.json",
+    "audit_sha256": "e4b15ea14a8d4456e0eac5b22c5af7be79f46e4229b6580b078dbf2969809b86",
+    "path": "C:\\Users\\nwmgr\\HermesWorkspaces\\development\\pdc_email_ai_v2_taxonomy_handoff.md",
+    "sha256": "8ca62442dcb426603548ad56978d51f15894e9fe68e976ea3c111091c996622a"
+  },
+  "verification": {
+    "legacy_files_modified": false,
+    "mailbox_flags_changed": false,
+    "production_contacted": false,
+    "staging_operational_write_attempted": false
+  }
+}

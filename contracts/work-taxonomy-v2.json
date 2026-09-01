@@ -1,0 +1,266 @@
+{
+  "authority": "Craig-approved rules plus taxonomy-audit-handoff 20260901_113940_87b2a9",
+  "canonical_work_groups": [
+    "PARTS",
+    "TINT",
+    "HOIST",
+    "FITTING",
+    "FABRICATION",
+    "ELECTRICAL",
+    "TYRE",
+    "PIT_INSPECTION",
+    "SUBLET"
+  ],
+  "historical_board_state_is_authority": false,
+  "normalization": {
+    "ampersand": "AND",
+    "case": "upper",
+    "ocr_repairs": [
+      "FIRE EXT",
+      "EXTINUISER",
+      "EXTINUISER",
+      "EXTINUI SHER"
+    ],
+    "raw_description_preserved": true,
+    "separators": "non-alphanumeric to spaces"
+  },
+  "precedence": [
+    "protected_manual",
+    "craig_exact_operation_code",
+    "craig_exact_description",
+    "craig_alias_phrase",
+    "taxonomy_audit_reviewed",
+    "deterministic_mapping",
+    "ai_classification",
+    "review"
+  ],
+  "rules": [
+    {
+      "authority": "taxonomy-audit-handoff",
+      "destination": "TYRE",
+      "disposition": "active",
+      "match": [
+        "WHEEL NUT INDICATOR SET",
+        "WHEEL NUT INDICATOR",
+        "WHEEL-NUT INDICATOR SET"
+      ],
+      "reason": "Historical assignment was inconsistent; reviewed canonical recommendation.",
+      "rule_id": "tax-wheel-nut-indicator-set-v1",
+      "version": "1"
+    },
+    {
+      "authority": "operator-taxonomy-handoff",
+      "destination": "FABRICATION",
+      "disposition": "active",
+      "match": [
+        "FIRE EXTINGUISHER",
+        "FIRE EXT",
+        "EXTINUISER",
+        "EXTINGUISHER TO CARGO BARRIER",
+        "EXTINGUISHER TO TRAY HEADBOARD"
+      ],
+      "reason": "Hardware/mounting is Fabrication; supersedes historical Fitting classification.",
+      "rule_id": "tax-fire-extinguisher-hardware-v1",
+      "version": "1"
+    },
+    {
+      "authority": "operator-taxonomy-handoff",
+      "destination": null,
+      "disposition": "review",
+      "match": [
+        "FIRE DECAL",
+        "EXTINGUISHER DECAL",
+        "FIRE EXT DECAL"
+      ],
+      "reason": "Decal-only evidence is not hardware and has no approved automatic destination.",
+      "rule_id": "tax-fire-extinguisher-decal-review-v1",
+      "version": "1"
+    },
+    {
+      "authority": "taxonomy-audit-handoff",
+      "destination": null,
+      "disposition": "review",
+      "forbidden_destinations": [
+        "HOIST",
+        "SUBLET"
+      ],
+      "match": [
+        "FMG SIGNAGE",
+        "SAFETY STRIPPING",
+        "GVM GCM TARE DECALS",
+        "GVM-GCM-TARE DECALS",
+        "FMG LOGO"
+      ],
+      "reason": "Signage/decals do not prove GVM work or Sublet; retain typed review.",
+      "rule_id": "tax-fmg-signage-decals-review-v1",
+      "version": "1"
+    },
+    {
+      "authority": "Craig-standing-rule-plus-taxonomy-audit",
+      "destination": "HOIST",
+      "disposition": "active",
+      "match": [
+        "LONG RANGER",
+        "LONG-RANGER",
+        "LONG RANGE TANK",
+        "LONG-RANGE FUEL TANK",
+        "ARB FRONTIER FUEL TANK",
+        "ARB LONG RANGER FUEL TANK"
+      ],
+      "reason": "Long-range fuel tank work is Hoist.",
+      "rule_id": "tax-long-ranger-fuel-tank-v1",
+      "version": "1"
+    },
+    {
+      "authority": "Craig-standing-rule",
+      "destination": "HOIST",
+      "disposition": "active",
+      "exclusions": [
+        "DECAL",
+        "SIGNAGE",
+        "SAFETY STRIPPING",
+        "TARE",
+        "GCM"
+      ],
+      "match": [
+        "GVM UPGRADE",
+        "SUSPENSION LIFT",
+        "OME LIFT",
+        "WEIGHT UPGRADE"
+      ],
+      "reason": "Physical GVM/suspension work only; mixed signage/decals route to review.",
+      "rule_id": "tax-gvm-suspension-hoist-v1",
+      "version": "1"
+    },
+    {
+      "authority": "Craig-standing-rule",
+      "destination": "FITTING",
+      "disposition": "active",
+      "match": [
+        "BULLBAR",
+        "BULL BAR",
+        "BULBAR",
+        "STEEL BULL BAR"
+      ],
+      "rule_id": "tax-bullbar-v1",
+      "version": "1"
+    },
+    {
+      "authority": "Craig-standing-rule",
+      "destination": "FITTING",
+      "disposition": "active",
+      "match": [
+        "TOWBAR",
+        "TOW BAR",
+        "TOWING KIT"
+      ],
+      "note": "Tray-body wording does not change destination.",
+      "rule_id": "tax-towbar-v1",
+      "version": "1"
+    },
+    {
+      "authority": "Craig-standing-rule",
+      "destination": "FITTING",
+      "disposition": "active",
+      "match": [
+        "LOOSE FIRST AID KIT",
+        "LOOSE SAFETY TRIANGLE KIT"
+      ],
+      "note": "Loose kits follow current safety-item rule; mounted holders remain Fabrication.",
+      "rule_id": "tax-fire-safety-loose-v1",
+      "version": "1"
+    },
+    {
+      "authority": "Craig-standing-rule",
+      "destination": "FABRICATION",
+      "disposition": "active",
+      "match": [
+        "SAFETY TRIANGLE HOLDER MOUNTED",
+        "WHEEL CHOCK HOLDER MOUNTED"
+      ],
+      "rule_id": "tax-mounted-safety-holder-v1",
+      "version": "1"
+    },
+    {
+      "authority": "Craig-standing-rule",
+      "destination": "ELECTRICAL",
+      "disposition": "active",
+      "match": [
+        "12V PLUG",
+        "12V SOCKET",
+        "ANDERSON PLUG",
+        "BCDC",
+        "ARB BATTERY BOX",
+        "XRS 370C",
+        "NAVMAN IVMS",
+        "CARDEX INTERFACE"
+      ],
+      "rule_id": "tax-electrical-accessories-v1",
+      "version": "1"
+    },
+    {
+      "authority": "Craig-standing-rule",
+      "destination": "FITTING",
+      "disposition": "active",
+      "match": [
+        "BONNET PROTECTOR",
+        "WEATHER SHIELD",
+        "HEADLAMP COVER",
+        "PRE-DELIVERY",
+        "SEAT COVER",
+        "RECOVERY POINT"
+      ],
+      "rule_id": "tax-fitting-accessories-v1",
+      "version": "1"
+    },
+    {
+      "authority": "Craig-standing-rule",
+      "destination": "TINT",
+      "disposition": "active",
+      "exclusions": [
+        "BONNET PROTECTOR"
+      ],
+      "match": [
+        "WINDOW TINT",
+        "DARK TINT",
+        "MATTE TINT"
+      ],
+      "rule_id": "tax-window-tint-v1",
+      "version": "1"
+    }
+  ],
+  "schema": "pdc-work-taxonomy/v2",
+  "source_audit": {
+    "coverage": {
+      "operation_occurrences": 482,
+      "physical_messages": 100,
+      "unique_attachment_hashes": 41,
+      "unique_operation_lines": 449
+    },
+    "handoff": "C:/Users/nwmgr/HermesWorkspaces/development/pdc_email_ai_v2_taxonomy_handoff.md",
+    "historical_replay": 0,
+    "machine_artifact": "C:/Users/nwmgr/HermesWorkspaces/pdc-monitor/latest100-classification-consistency-audit.json",
+    "mailbox_mutated": false,
+    "production_touched": false,
+    "session": "20260901_113940_87b2a9"
+  },
+  "status": "reviewed_staging_input",
+  "taxonomy_version": "pdc-work-taxonomy-2026-09-01-v2",
+  "unresolved_patterns": [
+    {
+      "disposition": "review",
+      "must_not_infer": [
+        "HOIST",
+        "SUBLET"
+      ],
+      "pattern": "mixed FMG signage/safety stripping/GVM-GCM-Tare decals"
+    },
+    {
+      "disposition": "review",
+      "must_not_infer": [
+        "SUBLET"
+      ],
+      "pattern": "unrecognised supplier or generic external wording"
+    }
+  ]
+}
