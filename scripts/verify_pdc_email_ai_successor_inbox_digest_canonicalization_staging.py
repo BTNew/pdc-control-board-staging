@@ -55,8 +55,21 @@ def main() -> None:
         if not actor:
             raise RuntimeError("no approved staging read identity")
         cur.execute("select set_config('request.jwt.claim.role','authenticated',true),set_config('request.jwt.claim.sub',%s,true)", actor)
-        payload = one(cur, "select public.get_pdc_email_ai_transaction_successor_inbox_v2(null::jsonb,100)")
-        items = payload.get("items", []) if isinstance(payload, dict) else []
+        pages = []
+        cursor = None
+        for _ in range(20):
+            payload = one(cur, "select public.get_pdc_email_ai_transaction_successor_inbox_v2(%s::jsonb,100)", (json.dumps(cursor) if cursor is not None else None,))
+            if not isinstance(payload, dict) or payload.get("ok") is not True:
+                raise RuntimeError("successor inbox page read failed")
+            pages.append(payload)
+            if payload.get("has_more") is not True:
+                break
+            cursor = payload.get("next_cursor")
+            if not isinstance(cursor, dict):
+                raise RuntimeError("successor inbox cursor missing")
+        else:
+            raise RuntimeError("successor inbox pagination exceeded bound")
+        items = [item for page in pages for item in page.get("items", [])]
         cur.execute("select has_function_privilege('authenticated',%s,'execute'),has_function_privilege('public',%s,'execute'),has_function_privilege('anon',%s,'execute'),has_function_privilege('service_role',%s,'execute')", (INBOX,) * 4)
         acl = tuple(cur.fetchone())
         cur.execute("select has_table_privilege('authenticated',x,'select') from unnest(%s::text[]) x", ([*TABLES],))
@@ -75,6 +88,7 @@ def main() -> None:
             "project_ref": STAGING_REF,
             "ledger_head": head,
             "inbox_rpc": INBOX,
+            "pages": len(pages),
             "items": len(items),
             "items_with_source_digest": source_count,
             "items_with_evidence_digest": evidence_count,
