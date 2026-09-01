@@ -182,6 +182,10 @@ def _validate_authoritative_identity(
     row: Mapping[str, Any], index: int, authoritative_contexts: list[Mapping[str, Any]] | None,
 ) -> None:
     identity = row["identity"]
+    if row["vehicle_id"] is None:
+        if row["decision_disposition"] != "review" or row["action_type"] != "note_append":
+            raise ActionContractError(f"instructions[{index}].unbound identity is not review-only evidence")
+        return
     unresolved = all(identity[key] is None for key in ("stock_number", "vin", "backend_record_id"))
     if unresolved:
         if row["decision_disposition"] != "review" or row["action_type"] != "note_append":
@@ -253,14 +257,17 @@ def validate_v2_plan(value: Mapping[str, Any], *, authoritative_contexts: list[M
         if instruction_id in ids:
             raise ActionContractError("v2 instruction IDs must be unique")
         ids.add(instruction_id)
-        _uuid(row["vehicle_id"], f"instructions[{index}].vehicle_id")
         disposition = row["decision_disposition"]
         if disposition not in {"planned", "review", "unsupported", "conflict"}:
             raise ActionContractError(f"instructions[{index}].decision_disposition is invalid")
+        if row["vehicle_id"] is not None:
+            _uuid(row["vehicle_id"], f"instructions[{index}].vehicle_id")
+        elif disposition != "review" or row["action_type"] != "note_append":
+            raise ActionContractError(f"instructions[{index}].unbound identity is not review-only evidence")
         if not isinstance(row["identity"], Mapping) or set(row["identity"]) != {"vehicle_id", "stock_number", "vin", "backend_record_id"}:
             raise ActionContractError(f"instructions[{index}].identity is invalid")
         identity = row["identity"]
-        identity_vehicle_id = _uuid(identity["vehicle_id"], f"instructions[{index}].identity.vehicle_id")
+        identity_vehicle_id = None if identity["vehicle_id"] is None else _uuid(identity["vehicle_id"], f"instructions[{index}].identity.vehicle_id")
         if identity_vehicle_id != row["vehicle_id"]:
             raise ActionContractError(f"instructions[{index}].identity vehicle mismatch")
         if identity["stock_number"] is None and identity["vin"] is None:

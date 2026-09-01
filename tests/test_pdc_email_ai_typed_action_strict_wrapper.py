@@ -10,6 +10,8 @@ MIGRATION = ROOT / "supabase" / "staging_only" / "20260901100000_pdc_email_ai_ty
 CORRECTION_MIGRATION = ROOT / "supabase" / "staging_only" / "20260901110000_pdc_email_ai_typed_action_review_receipts_20260901.sql"
 CONTROLLER = ROOT / "scripts" / "apply_pdc_email_ai_typed_action_strict_wrapper_staging.py"
 CORRECTION_CONTROLLER = ROOT / "scripts" / "apply_pdc_email_ai_typed_action_review_receipts_staging.py"
+EXECUTION_MIGRATION = ROOT / "supabase" / "staging_only" / "20260901120000_pdc_email_ai_typed_action_field_executor_identity_20260901.sql"
+EXECUTION_CONTROLLER = ROOT / "scripts" / "apply_pdc_email_ai_typed_action_field_executor_identity_staging.py"
 
 
 class StrictWrapperMigrationTests(unittest.TestCase):
@@ -89,6 +91,48 @@ class StrictWrapperMigrationTests(unittest.TestCase):
             "receipt_counts_before",
             "action_rpc_invoked",
             "PDC_TYPED_ACTION_REVIEW_RECEIPTS_POST_APPLY_READBACK_FAILED",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, source)
+        self.assertNotIn("SUPABASE_SERVICE_ROLE_KEY", source)
+        self.assertIn("vjdtsswhroyguxyfjdkt", source)
+
+    def test_field_executor_correction_routes_strict_plans_to_affected_row_readback(self):
+        self.assertTrue(EXECUTION_MIGRATION.is_file())
+        sql = EXECUTION_MIGRATION.read_text(encoding="utf-8")
+        self.assertGreaterEqual(len(parse_sql(sql)), 5)
+        self.assertNotRegex(sql, r"(?i)drop\s+(table|function|policy)")
+        for marker in (
+            "20260901110000",
+            "20260901120000",
+            "pdc_email_ai_successor_execute_v2_20260901(p_plan)",
+            "field-level affected-row executor",
+            "unbound review identity",
+            "duplicate VIN",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, sql)
+        wrapper = re.search(r"CREATE OR REPLACE FUNCTION public\.apply_pdc_email_ai_typed_action_surface_20260901_strict\(p_plan jsonb\).*?\$strict\$(.*?)END \$strict\$;", sql, re.S)
+        self.assertIsNotNone(wrapper)
+        body = wrapper.group(1)
+        self.assertIn("pdc_email_ai_successor_execute_v2_20260901(p_plan)", body)
+        self.assertNotIn("apply_pdc_email_ai_typed_action_surface_20260901(normalized)", body)
+
+    def test_field_executor_controller_proves_route_and_identity_rejections_read_only(self):
+        self.assertTrue(EXECUTION_CONTROLLER.is_file())
+        source = EXECUTION_CONTROLLER.read_text(encoding="utf-8")
+        for marker in (
+            "20260901110000",
+            "20260901120000",
+            "head_route_calls_execute_v2",
+            "unknown_identity_plan",
+            "duplicate_vin_plan",
+            "booking_set",
+            "work_complete",
+            "note_append",
+            "receipt_counts_before",
+            "action_rpc_invoked",
+            "PDC_TYPED_ACTION_FIELD_EXECUTOR_IDENTITY_POST_APPLY_READBACK_FAILED",
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, source)

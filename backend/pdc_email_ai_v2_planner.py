@@ -61,9 +61,10 @@ def _estimated_hours(line: Mapping[str, Any]) -> Any:
     return float(match.group(1)) if match else None
 
 
-def _context_index(contexts: Sequence[Mapping[str, Any]]) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
+def _context_index(contexts: Sequence[Mapping[str, Any]]) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]], set[str], set[str]]:
     by_stock: dict[str, dict[str, Any]] = {}
-    by_vin: dict[str, dict[str, Any]] = {}
+    by_vin_candidates: dict[str, list[dict[str, Any]]] = {}
+    ambiguous_stocks: set[str] = set()
     for raw in contexts:
         row = dict(raw)
         stock = str(row.get("stock_number") or (row.get("identity") or {}).get("stock_number") or "").strip().upper()
@@ -73,17 +74,27 @@ def _context_index(contexts: Sequence[Mapping[str, Any]]) -> tuple[dict[str, dic
         row["vin"] = row.get("vin") or (row.get("identity") or {}).get("vin")
         row["backend_record_id"] = row.get("backend_record_id") or (row.get("identity") or {}).get("backend_record_id")
         if stock in by_stock:
-            raise ValueError("duplicate authoritative Stock context")
+            if str(by_stock[stock].get("vehicle_id")) != str(row.get("vehicle_id")):
+                ambiguous_stocks.add(stock)
+            continue
         by_stock[stock] = row
         if row.get("vin"):
-            by_vin[str(row["vin"]).upper()] = row
-    return by_stock, by_vin
+            by_vin_candidates.setdefault(str(row["vin"]).upper(), []).append(row)
+    by_vin: dict[str, dict[str, Any]] = {}
+    ambiguous_vins: set[str] = set()
+    for vin, candidates in by_vin_candidates.items():
+        distinct = {str(row["vehicle_id"]) for row in candidates}
+        if len(distinct) == 1:
+            by_vin[vin] = candidates[0]
+        else:
+            ambiguous_vins.add(vin)
+    return by_stock, by_vin, ambiguous_stocks, ambiguous_vins
 
 
 def _identity(row: Mapping[str, Any]) -> dict[str, Any]:
     backend = row.get("backend_record_id")
     return {
-        "vehicle_id": str(row["vehicle_id"]).lower(),
+        "vehicle_id": str(row["vehicle_id"]).lower() if row.get("vehicle_id") else None,
         "stock_number": str(row.get("stock_number")).upper() if row.get("stock_number") else None,
         "vin": str(row.get("vin")).upper() if row.get("vin") else None,
         "backend_record_id": str(backend).lower() if backend else None,
@@ -117,7 +128,7 @@ class V2Planner:
     def _instruction(self, *, source: Mapping[str, Any], row: Mapping[str, Any], action_type: str, payload: Mapping[str, Any], refs: list[dict[str, Any]], decision: str = "planned", reason: str = "") -> dict[str, Any]:
         expected = {"vehicle_version": int(row.get("vehicle_version") or 1), "backend_revision": int(row.get("backend_revision") or 0)}
         return {
-            "instruction_id": "", "vehicle_id": str(row["vehicle_id"]), "identity": _identity(row), "action_type": action_type,
+            "instruction_id": "", "vehicle_id": str(row["vehicle_id"]) if row.get("vehicle_id") else None, "identity": _identity(row), "action_type": action_type,
             "payload": dict(payload), "evidence_refs": refs, "required_evidence": ["authoritative_identity"],
             "expected_state": expected, "decision_disposition": decision,
             "provenance": self._provenance(source), "audit_event_ref": "audit-plan-pending", "reason": reason,
@@ -127,7 +138,7 @@ class V2Planner:
         source = {key: receipt.get(key) for key in ("receipt_id", "source_digest", "evidence_digest", "thread_id", "message_id")}
         if not all(isinstance(source[key], str) and source[key] for key in source):
             raise ValueError("immutable receipt identity is incomplete")
-        by_stock, by_vin = _context_index(contexts)
+        by_stock, by_vin, ambiguous_stocks, ambiguous_vins = _context_index(contexts)
         instructions: list[dict[str, Any]] = []
 
         def add(row: Mapping[str, Any], action: str, payload: Mapping[str, Any], refs: list[dict[str, Any]], decision: str, reason: str) -> None:
@@ -136,13 +147,14 @@ class V2Planner:
         body = str(receipt.get("correspondence") or "")
         for clause in _clauses(body):
             stocks = _stock(clause)
-            row = by_stock[next(iter(stocks))] if len(stocks) == 1 and next(iter(stocks)) in by_stock else None
-            if row is None and not stocks and len(by_stock) == 1:
-                row = next(iter(by_stock.values()))
+            stock = next(iter(stocks)) if len(stocks) == 1 else None
+            row = by_stock.get(stock) if stock and stock not in ambiguous_stocks else None
+            if row is None and stock is None and not stocks:
+                row = None
             if row is None:
                 # Keep an unbound instruction as review evidence without assigning
                 # it to a different sibling vehicle.
-                row = next(iter(by_stock.values()), {"vehicle_id": str(uuid.uuid5(uuid.NAMESPACE_URL, "pdc-v2-unresolved:" + str(source["source_digest"]))), "stock_number": None, "vin": None, "backend_record_id": None, "vehicle_version": 1, "backend_revision": 0})
+                row = {"vehicle_id": None, "stock_number": stock, "vin": None, "backend_record_id": None, "vehicle_version": 1, "backend_revision": 0}
                 add(row, "note_append", {"text": clause[:2000], "event_at": "2026-09-01T00:00:00+00:00"}, self._refs(source), "review", "unresolved_vehicle_or_instruction")
                 continue
             refs = self._refs(source)
@@ -170,10 +182,12 @@ class V2Planner:
                 raise ValueError("attachment digest is required")
             stock = str(attachment.get("stock_number") or attachment.get("stock") or "").strip().upper()
             vin = str(attachment.get("vin") or "").strip().upper() or None
-            row = by_stock.get(stock) if stock else by_vin.get(vin or "")
+            row = by_stock.get(stock) if stock and stock not in ambiguous_stocks else None
+            if row is None and not stock and vin and vin not in ambiguous_vins:
+                row = by_vin.get(vin)
             if row is None:
-                placeholder = next(iter(by_stock.values()), {"vehicle_id": str(uuid.uuid5(uuid.NAMESPACE_URL, "pdc-v2-attachment:" + digest)), "stock_number": stock or None, "vin": vin, "backend_record_id": None, "vehicle_version": 1, "backend_revision": 0})
-                add(placeholder, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "unresolved attachment identity", "estimated_hours": 0.0, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "unsupported", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "review", "identity_not_resolved")
+                placeholder = {"vehicle_id": None, "stock_number": stock or None, "vin": vin, "backend_record_id": None, "vehicle_version": 1, "backend_revision": 0}
+                add(placeholder, "note_append", {"text": "unresolved attachment identity: " + digest, "event_at": "2026-09-01T00:00:00+00:00"}, self._refs(source, digest), "review", "identity_not_resolved")
                 continue
             if vin and row.get("vin") and vin != str(row["vin"]).upper():
                 add(row, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "identity conflict retained as evidence", "estimated_hours": 0.0, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "conflict", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "conflict", "identity_stock_vin_conflict")

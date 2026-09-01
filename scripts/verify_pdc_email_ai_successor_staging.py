@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py")
 SECRETS = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi")
 STAGING_REF = "cdsmnqxtyyoeoznmbidd"
-TARGET = ("20260901110000", "pdc_email_ai_typed_action_review_receipts_20260901")
+TARGET = ("20260901120000", "pdc_email_ai_typed_action_field_executor_identity_20260901")
 
 
 def one(cursor, query: str):
@@ -51,6 +51,8 @@ def main() -> None:
             "typed_action_surface_present": bool(one(cursor, "select to_regprocedure('public.apply_pdc_email_ai_typed_action_surface_20260901(jsonb)') is not null")),
             "typed_action_contract_present": bool(one(cursor, "select to_regprocedure('public.get_pdc_email_ai_successor_action_contract_20260901()') is not null")),
             "strict_wrapper_full_validator_bound": "pdc_email_ai_successor_validate_v2_plan_20260901(p_plan)" in (one(cursor, "select pg_get_functiondef('public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)'::regprocedure)") or ""),
+            "head_route_calls_execute_v2": "pdc_email_ai_successor_execute_v2_20260901(p_plan)" in (one(cursor, "select pg_get_functiondef('public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)'::regprocedure)") or ""),
+            "head_route_calls_low_level": "apply_pdc_email_ai_typed_action_surface_20260901(normalized)" in (one(cursor, "select pg_get_functiondef('public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)'::regprocedure)") or ""),
             "review_non_dispatch_helper_present": bool(one(cursor, "select to_regprocedure('public.pdc_email_ai_successor_record_non_dispatch_v2_20260901(jsonb)') is not null")),
             "authenticated_command_execute": bool(one(cursor, "select has_function_privilege('authenticated','public.apply_pdc_email_ai_transaction_successor(jsonb)','EXECUTE')")),
             "service_role_command_execute": bool(one(cursor, "select has_function_privilege('service_role','public.apply_pdc_email_ai_transaction_successor(jsonb)','EXECUTE')")),
@@ -64,7 +66,7 @@ def main() -> None:
             "task_enabled": False,
             "uid514_processed": False,
         }
-        result["ok"] = result["ok"] and result["command_rpc_present"] and result["health_rpc_present"] and result["typed_action_surface_present"] and result["typed_action_contract_present"] and result["strict_wrapper_full_validator_bound"] and result["review_non_dispatch_helper_present"] and result["authenticated_command_execute"] and not result["service_role_command_execute"] and not result["production_sentinel_present"]
+        result["ok"] = result["ok"] and result["command_rpc_present"] and result["health_rpc_present"] and result["typed_action_surface_present"] and result["typed_action_contract_present"] and result["strict_wrapper_full_validator_bound"] and result["head_route_calls_execute_v2"] and not result["head_route_calls_low_level"] and result["review_non_dispatch_helper_present"] and result["authenticated_command_execute"] and not result["service_role_command_execute"] and not result["production_sentinel_present"]
         print(json.dumps(result, sort_keys=True))
         if not result["ok"]:
             raise RuntimeError("PDC_SUCCESSOR_READONLY_STAGING_PROOF_FAILED")

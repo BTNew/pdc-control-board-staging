@@ -141,6 +141,36 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(plan["instructions"][0]["decision_disposition"], "conflict")
         self.assertIn("identity", plan["instructions"][0]["reason"])
 
+    def test_unknown_identity_is_unbound_review_evidence(self):
+        planner = V2Planner(rules=CraigRuleStore.default())
+        plan = planner.plan(
+            {**receipt(), "correspondence": "Please review the request for Stock 99999999."},
+            [],
+            [VEHICLE_A],
+        )
+        item = plan["instructions"][0]
+        self.assertEqual(item["decision_disposition"], "review")
+        self.assertIsNone(item["vehicle_id"])
+        self.assertEqual(item["identity"]["stock_number"], "99999999")
+        self.assertIsNone(validate_v2_plan(plan, authoritative_contexts=[VEHICLE_A])["instructions"][0]["vehicle_id"])
+
+    def test_duplicate_vin_is_unbound_review_evidence_not_last_context(self):
+        planner = V2Planner(rules=CraigRuleStore.default())
+        duplicate_vin = "JH4TB2H26CC000001"
+        contexts = [{**VEHICLE_A, "vin": duplicate_vin}, {**VEHICLE_B, "vin": duplicate_vin}]
+        plan = planner.plan(
+            {**receipt(), "correspondence": ""},
+            [{"digest": "c" * 64, "filename": "ambiguous.pdf", "vin": duplicate_vin, "lines": [
+                {"operation_no": "OP1", "description": "Bullbar fitting", "estimated_hours": 2.0}
+            ]}],
+            contexts,
+        )
+        item = plan["instructions"][0]
+        self.assertEqual(item["decision_disposition"], "review")
+        self.assertIsNone(item["vehicle_id"])
+        self.assertEqual(item["identity"]["vin"], duplicate_vin)
+        validate_v2_plan(plan, authoritative_contexts=contexts)
+
 
 class ActionAndReadbackTests(unittest.TestCase):
     def test_shadow_action_client_never_calls_transport_and_rejects_production(self):
