@@ -1,0 +1,33 @@
+{
+  "schema": "pdc-email-ai-v2-safe-fixtures/v1",
+  "environment": "staging",
+  "policy": "synthetic_safe_no_pii; shadow only; no mailbox or operational writes",
+  "scenarios": [
+    {"scenario_id":"S01","name":"backend_vehicle_absent_board","evidence":{"stock_number":"SYNTH-0001","backend_record_id":"10000000-0000-4000-8000-000000000001"},"instructions":[{"action_type":"activate_vehicle","disposition":"planned"}]},
+    {"scenario_id":"S02","name":"parts_eta_update","evidence":{"stock_number":"SYNTH-0002","eta":"2026-09-15"},"instructions":[{"action_type":"parts_eta_set","disposition":"planned"}]},
+    {"scenario_id":"S03","name":"parts_complete","evidence":{"stock_number":"SYNTH-0003","parts_complete":true},"instructions":[{"action_type":"parts_complete","disposition":"planned"}]},
+    {"scenario_id":"S04","name":"sublet_booking_update","evidence":{"stock_number":"SYNTH-0004","provider":"approved-provider","booking_id":"10000000-0000-4000-8000-000000000004"},"instructions":[{"action_type":"booking_move","disposition":"planned"}]},
+    {"scenario_id":"S05","name":"multiple_actions_one_email","evidence":{"stock_number":"SYNTH-0005","parts_eta":"2026-09-16","note":"supplier confirmed","work_key":"FITTING"},"instructions":[{"action_type":"parts_eta_set","disposition":"planned"},{"action_type":"note_append","disposition":"planned"},{"action_type":"workgroup_requirement_set","disposition":"review"}]},
+    {"scenario_id":"S06","name":"multiple_vehicles","evidence":{"attachments":[{"stock_number":"SYNTH-0006A"},{"stock_number":"SYNTH-0006B"}]},"instructions":[{"action_type":"operation_upsert","disposition":"planned"},{"action_type":"parts_complete","disposition":"planned"}]},
+    {"scenario_id":"S07","name":"job_card_multi_operation_hours","evidence":{"stock_number":"SYNTH-0007","job_card":"JC-SYNTH-07","operations":[{"operation_no":"OP1","description":"Bullbar","estimated_hours":2.0},{"operation_no":"OP2","description":"Inspection","estimated_hours":0.0},{"operation_no":"OP3","description":"Unknown hours","estimated_hours":null}]},"instructions":[{"action_type":"job_card_upsert","disposition":"planned"},{"action_type":"operation_upsert","disposition":"review"}]},
+    {"scenario_id":"S08","name":"revised_job_card","evidence":{"stock_number":"SYNTH-0008","job_cards":["JC-SYNTH-08-OLD","JC-SYNTH-08-NEW"],"revision":"newer adds only"},"instructions":[{"action_type":"job_card_upsert","disposition":"planned"},{"action_type":"job_card_upsert","disposition":"superseded"}]},
+    {"scenario_id":"S09","name":"duplicate_replay","evidence":{"stock_number":"SYNTH-0009","source_digest":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"instructions":[{"action_type":"parts_complete","disposition":"already-satisfied"}]},
+    {"scenario_id":"S10","name":"missing_backend_vehicle","evidence":{"stock_number":"SYNTH-0010","backend":"not_found"},"instructions":[{"action_type":"activate_vehicle","disposition":"review"}]},
+    {"scenario_id":"S11","name":"ambiguous_identity","evidence":{"stock_number":"SYNTH-0011A","vin":"SYNTHVIN000000001","conflict":true},"instructions":[{"action_type":"operation_upsert","disposition":"conflict"}]},
+    {"scenario_id":"S12","name":"classification_gvm_regression","evidence":{"lines":["OME GVM upgrade","Long Ranger fuel tank","FMG GVM GCM Tare decals","Wheel Nut Indicator","Fire extinguisher mounting"]},"instructions":[{"action_type":"workgroup_requirement_set","disposition":"planned"},{"action_type":"workgroup_requirement_set","disposition":"review"}]},
+    {"scenario_id":"S13","name":"restart_recovery","evidence":{"stock_number":"SYNTH-0013","queue":"lease-expired"},"instructions":[{"action_type":"operation_upsert","disposition":"planned"}]},
+    {"scenario_id":"S14","name":"authoritative_readback","evidence":{"stock_number":"SYNTH-0014","revision":14,"board_projection":true},"instructions":[{"action_type":"parts_eta_set","disposition":"planned"},{"action_type":"location_set","disposition":"planned"}]}
+  ],
+  "hostile_negatives": [
+    {"negative_id":"N01","name":"forged_sender_or_forwarded_wrapper","expected":"blocked_or_quarantined"},
+    {"negative_id":"N02","name":"raw_sql_or_table_field","expected":"rejected_before_boundary"},
+    {"negative_id":"N03","name":"service_role_or_administrator_runtime","expected":"rejected_before_boundary"},
+    {"negative_id":"N04","name":"production_target","expected":"rejected_before_contact"},
+    {"negative_id":"N05","name":"unsafe_attachment_path","expected":"source_only_quarantine"},
+    {"negative_id":"N06","name":"identity_alias_conflict","expected":"conflict_review"},
+    {"negative_id":"N07","name":"unknown_action","expected":"unsupported_preserved"},
+    {"negative_id":"N08","name":"generic_sublet_wording","expected":"review_no_sublet"},
+    {"negative_id":"N09","name":"planner_unavailable","expected":"retry_or_quarantine"},
+    {"negative_id":"N10","name":"changed_replay_payload","expected":"replay_conflict"}
+  ]
+}

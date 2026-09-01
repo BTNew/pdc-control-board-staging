@@ -1,0 +1,25 @@
+{
+  "environment": "staging",
+  "pack_files": {
+    "COMMISSIONING-CONNECTOR.md": "e985ab92422d8969b9d5e7d5220788d308d11092c81ca7c8271f0ecc06b922b9",
+    "ENVIRONMENT-REQUIREMENTS.md": "798fe5abaf0ec8febccb7ea81ede12deba73aeac91e675c36af215028fb37880",
+    "README.md": "fe39f9052ca13ff735bbf73f091220db26dc37f3df467d64b8f799b2d157c60c",
+    "build_manifest.py": "f02cd68ba6063a9d1fe60c6a20d329568984adce88fd458bd7c03e1acdfd53f3"
+  },
+  "pack_version": "pdc-email-ai-v2-recovery-pack-v1",
+  "required_authorised_credentials": [
+    "PDC_V2_MAILBOX_SECRET",
+    "PDC_V2_STAGING_VIEWER_SECRET",
+    "PDC_V2_MONITOR_ENROLLMENT_SECRET",
+    "PDC_V2_AI_PROVIDER_SECRET"
+  ],
+  "runtime_mode": "SHADOW_ZERO_WRITE",
+  "secret_policy": {
+    "action_writer": false,
+    "mailbox_mutation": false,
+    "plaintext_secrets": false,
+    "production": false
+  },
+  "source_commit_required": true,
+  "source_repository": "pdc-email-ai-transaction-successor"
+}

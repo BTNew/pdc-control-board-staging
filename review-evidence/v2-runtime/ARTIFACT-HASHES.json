@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "backend/pdc_email_ai_v2_actions.py": "bf738c5d8db0aa6e54ae603f3d5149153d0e622382e4253a9171349870b93462",
+    "backend/pdc_email_ai_v2_planner.py": "2a7f07ae1bf396a15579c74bf41e66be154824450377efabac8d7d87b5ce3c5f",
+    "backend/pdc_email_ai_v2_queue.py": "8652fed9b6ef110e297b5a4be407f1f9af06a25036a772c3bdad0d8feb019cb8",
+    "backend/pdc_email_ai_v2_readback.py": "bf28593b68a731aa385f83f256a4cdda69d7b696cb7e647f0a00960714fb3998",
+    "backend/pdc_email_ai_v2_rules.py": "95f77ab2e92f5c6f8f39ae82b8dcf788066215d9f15c57237aba1bc171c8e598",
+    "backend/pdc_email_ai_v2_runtime.py": "31633cf36ab9c809655db19ce3cc5e64ca1106a3753c023926f9fb568f5f52d7",
+    "backend/pdc_email_ai_v2_shadow.py": "fc380d7638502e2901d4d278456848328abb6cb05f4d84abf96978f7519ccd16",
+    "backend/pdc_email_ai_v2_taxonomy.py": "3fc75e72bf3cdcfc795a5b054465f0227b4c7707c04fa73ea96db9aa03dc1ddb",
+    "backend/pdc_email_ai_v2_transport.py": "3ab345418495cab62ece367578af6d4dccd64b73fd214f8dd0f408c180f50dfc",
+    "docs/PDC-EMAIL-AI-V2-RUNTIME-SHADOW.md": "dd5f517a7340b8047cd5bd1c659ea1683d1cc10cc2a6f0c0ced1db2d4183ba91",
+    "fixtures/v2-safe-fixtures-v1.json": "6c913d45f9db96427185e977c68330d1f80a283ab061fcfe10c4004d79bacf35",
+    "recovery-pack/v2/COMMISSIONING-CONNECTOR.md": "e985ab92422d8969b9d5e7d5220788d308d11092c81ca7c8271f0ecc06b922b9",
+    "recovery-pack/v2/ENVIRONMENT-REQUIREMENTS.md": "798fe5abaf0ec8febccb7ea81ede12deba73aeac91e675c36af215028fb37880",
+    "recovery-pack/v2/README.md": "fe39f9052ca13ff735bbf73f091220db26dc37f3df467d64b8f799b2d157c60c",
+    "recovery-pack/v2/RECOVERY-PACK-MANIFEST.json": "27c279c9a949daab065f014f54a0baaeb620b2ba30846330dcd4503a0d481ab8",
+    "recovery-pack/v2/build_manifest.py": "f02cd68ba6063a9d1fe60c6a20d329568984adce88fd458bd7c03e1acdfd53f3",
+    "review-evidence/v2-runtime/shadow-campaign-receipt.json": "561a23de33d24d724075527ca60eb5792b3bcce5686769e567631a21057c7821",
+    "tests/test_pdc_email_ai_v2_runtime.py": "9e1676376365bbfe87915f524b10f7d07dd16ab4cbf052bbe57da7dd75b7934e",
+    "tests/test_pdc_email_ai_v2_transport.py": "b79cb30da689d95f3192f9b6463c4e22cc767a610822feeab46fa8093a36f855"
+  },
+  "environment": "staging",
+  "mode": "SHADOW_ZERO_WRITE",
+  "operational_writes_attempted": false,
+  "production_touched": false,
+  "schema": "pdc-email-ai-v2-artifact-hashes/v1"
+}
