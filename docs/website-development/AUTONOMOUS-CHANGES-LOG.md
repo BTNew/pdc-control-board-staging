@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-09-01 — PDC Email AI v2 typed staging action boundary
+
+- Added `pdc-email-ai-v2-actions.js` and its focused regression test as a browser-side, least-authority transport boundary for the isolated STAGING v2 action surface.
+- The module validates the exact plan envelope and per-action payload keys, rejects Production targets and unauthenticated calls, invokes only fixed typed action/contract/snapshot RPCs, and requires authoritative snapshot readback after an action response.
+- Loaded it in the STAGING `index.html` only. No database or Production mutation was performed by this application lane.
+
 ## 2026-09-01 — Latest-100 attachment work-receipt compatibility successor
 
 - STAGING project `cdsmnqxtyyoeoznmbidd` only. Added `20260901010000_latest100_attachment_work_receipt_successor.sql`, which preserves the legacy immutable work-receipt table, adds a forced-RLS append-only actor/intake/attachment successor, returns typed zero-add duplicates, and fails conflicting source/work identities closed.
