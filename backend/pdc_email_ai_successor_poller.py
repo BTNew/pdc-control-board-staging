@@ -39,7 +39,7 @@ def poll_once(store: EvidenceStore, *, host: str, username: str, password: str, 
         uids = (data[0] or b"").decode("ascii", errors="strict").split()[-limit:]
         results: list[dict[str, Any]] = []
         for uid in uids:
-            status, fetched = client.uid("FETCH", uid, "(RFC822)")
+            status, fetched = client.uid("FETCH", uid, "(UID INTERNALDATE FLAGS BODY.PEEK[])")
             if status != "OK":
                 raise RuntimeError(f"read-only message fetch failed for UID {uid}")
             raw = b"".join(item[1] for item in fetched if isinstance(item, tuple))

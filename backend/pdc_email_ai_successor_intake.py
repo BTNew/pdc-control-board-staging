@@ -23,6 +23,14 @@ from typing import Any, Mapping
 MAX_EMAIL_BYTES = 25 * 1024 * 1024
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024
 MAX_TEXT_CHARS = 500_000
+_MATERIALIZABLE_EXTENSIONS = frozenset({
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt",
+    ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp",
+})
+_UNSAFE_EXTENSIONS = frozenset({
+    ".bat", ".cmd", ".com", ".dll", ".exe", ".js", ".jse", ".msi",
+    ".ps1", ".scr", ".sh", ".vbe", ".vbs", ".wsf", ".zip", ".7z",
+})
 
 
 class EvidenceConflict(ValueError):
@@ -135,7 +143,25 @@ def _attachment_bytes(message: Message) -> list[dict[str, Any]]:
     return rows
 
 
-def capture_rfc822_evidence(raw_bytes: bytes, *, mailbox: str, provider_uid: str, received_at: str | None = None) -> dict[str, Any]:
+def _attachment_materializable(row: Mapping[str, Any]) -> bool:
+    filename = str(row.get("filename") or "").casefold()
+    extension = Path(filename).suffix
+    content_type = str(row.get("content_type") or "").casefold()
+    return (
+        extension in _MATERIALIZABLE_EXTENSIONS
+        and extension not in _UNSAFE_EXTENSIONS
+        and content_type not in {"application/x-msdownload", "application/x-sh", "text/javascript"}
+    )
+
+
+def capture_rfc822_evidence(
+    raw_bytes: bytes,
+    *,
+    mailbox: str,
+    provider_uid: str,
+    received_at: str | None = None,
+    transport_metadata: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     if not isinstance(raw_bytes, bytes) or not 1 <= len(raw_bytes) <= MAX_EMAIL_BYTES:
         raise ValueError("RFC822 source is empty or exceeds the configured limit")
     if not isinstance(mailbox, str) or not mailbox.strip() or len(mailbox) > 320:
@@ -149,6 +175,16 @@ def capture_rfc822_evidence(raw_bytes: bytes, *, mailbox: str, provider_uid: str
     public_attachments = [{key: value for key, value in row.items() if key != "_bytes"} for row in attachments]
     message_id = decode_header_value(message.get("Message-ID"))
     thread_id = decode_header_value(message.get("References") or message.get("In-Reply-To")) or message_id or provider_uid.strip()
+    transport = dict(transport_metadata or {})
+    def _assert_safe_metadata(value: Any, path: str = "transport") -> None:
+        if isinstance(value, Mapping):
+            for key, child in value.items():
+                if not isinstance(key, str) or key.casefold() in {"password", "secret", "token", "credential"}:
+                    raise ValueError(f"{path} contains an unsafe key")
+                _assert_safe_metadata(child, f"{path}.{key}")
+        elif isinstance(value, (bytes, bytearray)):
+            raise ValueError(f"{path} contains raw bytes")
+    _assert_safe_metadata(transport)
     base = {
         "provider_uid": provider_uid.strip(),
         "mailbox": mailbox.strip().lower(),
@@ -158,6 +194,7 @@ def capture_rfc822_evidence(raw_bytes: bytes, *, mailbox: str, provider_uid: str
         "subject": decode_header_value(message.get("Subject")),
         "sender": sender,
         "received_at": received_at or _received_at(message),
+        "transport": transport,
         "correspondence": _correspondence(message),
         "source_digest": source_digest,
         "attachments": public_attachments,
@@ -202,8 +239,22 @@ class EvidenceStore:
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def capture(self, raw_bytes: bytes, *, mailbox: str, provider_uid: str, received_at: str | None = None) -> dict[str, Any]:
-        evidence = capture_rfc822_evidence(raw_bytes, mailbox=mailbox, provider_uid=provider_uid, received_at=received_at)
+    def capture(
+        self,
+        raw_bytes: bytes,
+        *,
+        mailbox: str,
+        provider_uid: str,
+        received_at: str | None = None,
+        transport_metadata: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        evidence = capture_rfc822_evidence(
+            raw_bytes,
+            mailbox=mailbox,
+            provider_uid=provider_uid,
+            received_at=received_at,
+            transport_metadata=transport_metadata,
+        )
         receipt_path = self.root / "receipts" / f"{evidence['source_digest']}.json"
         if receipt_path.exists():
             previous = json.loads(receipt_path.read_text(encoding="utf-8"))
@@ -219,6 +270,10 @@ class EvidenceStore:
             payload = row.pop("_bytes")
             if not payload or row["size_bytes"] > MAX_ATTACHMENT_BYTES:
                 row["status"] = "REJECTED_BOUNDED"
+                stored_attachments.append(row)
+                continue
+            if not _attachment_materializable(row):
+                row["status"] = "REJECTED_UNSUPPORTED"
                 stored_attachments.append(row)
                 continue
             path = Path("attachments") / evidence["source_digest"] / f"{row['digest'][:16]}-{row['filename']}"
