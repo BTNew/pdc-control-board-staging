@@ -63,3 +63,9 @@
 - The strict Python/PostgreSQL v2 boundaries now reject malformed ISO dates and timezone-bearing timestamps before canonical casts or dispatch for Parts ETA, booking set/move, work complete, note events and plan creation time. The low-level typed apply RPC and compatibility alias are revoked for every runtime role; only the strict v2 entrypoint retains authenticated EXECUTE.
 - Protected STAGING apply/readback returned `ok=true` at `cdsmnqxtyyoeoznmbidd`, head `20260901090000 / pdc_email_ai_typed_action_timestamp_acl_20260901`, migration SHA-256 `9d04b02be5346c252a40e3c91b8d3d56fd875e81bc652d422a651ea854af8905`. Valid and five malformed-date/timestamp probes passed; strict ACL was authenticated-only; low-level/alias ACLs were all denied; receipt counts stayed `0/0`; Production, mailbox and outbound email were untouched.
 - Verification: 68 focused Python tests plus 44 subtests, `npm run test` and `npm run check` each 222 passed/1 skipped, Python compilation passed, SQL parsed as 22 statements, and live typed-action, successor and inbox verifiers returned `ok=true`. No controlled action RPC or business mutation was invoked.
+
+## 2026-09-01 — strict v2 wrapper full-validator binding
+
+- Added append-only staging migration `supabase/staging_only/20260901100000_pdc_email_ai_typed_action_strict_wrapper_20260901.sql` and protected controller `scripts/apply_pdc_email_ai_typed_action_strict_wrapper_staging.py`.
+- Rebound the sole authenticated strict entrypoint to call the complete PostgreSQL v2 plan validator before source lookup, operation-update dispatch or compatibility projection; the migration is guarded to the exact 0900 predecessor and replay-protected by its ledger identity.
+- Extended read-only typed-action and successor verifiers to require the live strict wrapper definition to contain the full plan-validator binding. No action RPC, receipt/business mutation, mailbox, outbound email or Production path is invoked by installation or proof.

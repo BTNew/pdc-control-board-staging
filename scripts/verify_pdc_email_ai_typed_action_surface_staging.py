@@ -9,7 +9,7 @@ from pathlib import Path
 BOOTSTRAP = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py")
 SECRETS = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi")
 STAGING_REF = "cdsmnqxtyyoeoznmbidd"
-LIVE_HEAD = ("20260901090000", "pdc_email_ai_typed_action_timestamp_acl_20260901")
+LIVE_HEAD = ("20260901100000", "pdc_email_ai_typed_action_strict_wrapper_20260901")
 EXPECTED = {
     "reconcile_navision_operational_record": "uuid,uuid,text",
     "import_pdc_authenticated_email_operations_with_hours": "text,text,jsonb",
@@ -60,6 +60,10 @@ def main() -> None:
         alias_acl = tuple(one(cur, "select has_function_privilege('authenticated','public.apply_pdc_email_ai_transaction_successor_v2(jsonb)','execute'), has_function_privilege('service_role','public.apply_pdc_email_ai_transaction_successor_v2(jsonb)','execute'), has_function_privilege('public','public.apply_pdc_email_ai_transaction_successor_v2(jsonb)','execute'), has_function_privilege('anon','public.apply_pdc_email_ai_transaction_successor_v2(jsonb)','execute')"))
         cur.execute("select to_regprocedure('public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)') is not null, to_regprocedure('public.get_pdc_email_ai_successor_action_contract_20260901()') is not null, to_regprocedure('public.pdc_email_ai_successor_validate_v2_instruction_20260901(jsonb)') is not null, to_regprocedure('public.pdc_email_ai_successor_validate_v2_plan_20260901(jsonb)') is not null, to_regprocedure('public.pdc_email_ai_successor_action_readback_20260901(uuid,text,jsonb,jsonb)') is not null")
         rpc_presence = cur.fetchone()
+        cur.execute("select pg_get_functiondef('public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)'::regprocedure)")
+        strict_definition = cur.fetchone()[0] or ""
+        strict_wrapper_full_validator_bound = "pdc_email_ai_successor_validate_v2_plan_20260901(p_plan)" in strict_definition
+        full_validator_precedes_dispatch = strict_wrapper_full_validator_bound and strict_definition.index("pdc_email_ai_successor_validate_v2_plan_20260901(p_plan)") < strict_definition.index("apply_pdc_email_ai_operation_update_transaction_20260901")
         tables = []
         for table in ("pdc_email_ai_successor_action_rules_20260901", "pdc_email_ai_successor_transaction_receipts", "pdc_email_ai_successor_action_receipts"):
             cur.execute("select relrowsecurity,relforcerowsecurity from pg_class where oid=to_regclass(%s)", (f"public.{table}",))
@@ -68,12 +72,13 @@ def main() -> None:
         cur.execute("select to_regclass('public.pdc_production_environment_sentinel') is not null")
         production = bool(cur.fetchone()[0])
         result = {
-            "ok": head == LIVE_HEAD and all(item["present"] for item in signatures.values()) and all(item["rls"] and item["force_rls"] for item in tables) and rpc_presence == (True, True, True, True, True) and acl == (True, False, False, False) and legacy_acl == (False, False, False, False) and alias_acl == (False, False, False, False) and not production,
+            "ok": head == LIVE_HEAD and all(item["present"] for item in signatures.values()) and all(item["rls"] and item["force_rls"] for item in tables) and rpc_presence == (True, True, True, True, True) and full_validator_precedes_dispatch and acl == (True, False, False, False) and legacy_acl == (False, False, False, False) and alias_acl == (False, False, False, False) and not production,
             "environment": "staging", "project_ref": STAGING_REF, "ledger_head": head,
             "signatures": signatures,
             "typed_action_acl": {"authenticated": bool(acl[0]), "service_role": bool(acl[1]), "public": bool(acl[2]), "anon": bool(acl[3])},
             "legacy_low_level_acl": legacy_acl, "compatibility_alias_acl": alias_acl,
             "typed_action_rpc_present": bool(rpc_presence[0]), "contract_rpc_present": bool(rpc_presence[1]), "v2_validator_present": bool(rpc_presence[2]), "v2_plan_validator_present": bool(rpc_presence[3]), "field_readback_present": bool(rpc_presence[4]),
+            "strict_wrapper_full_validator_bound": strict_wrapper_full_validator_bound, "full_validator_precedes_dispatch": full_validator_precedes_dispatch,
             "tables": tables, "production_sentinel_present": production,
             "mailbox_contacted": False, "outbound_email": False, "business_mutation": False,
         }
