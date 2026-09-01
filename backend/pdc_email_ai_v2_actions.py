@@ -22,6 +22,7 @@ class ActionContractError(ValueError):
 
 
 _FORBIDDEN = {"sql", "table", "tables", "query", "rpc", "function", "dml", "service_role", "administrator", "admin", "production"}
+_ISO_TIMESTAMP = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})$")
 
 
 def _walk_safe(value: Any, path: str = "payload") -> None:
@@ -72,12 +73,16 @@ def _bounded_int(value: Any, label: str, minimum: int = 0) -> int:
 
 def _date_time(value: Any, label: str) -> str:
     value = _text(value, label, 64)
+    if not _ISO_TIMESTAMP.fullmatch(value):
+        raise ActionContractError(f"{label} is invalid")
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
         raise ActionContractError(f"{label} is invalid") from exc
     if parsed.tzinfo is None:
         raise ActionContractError(f"{label} must include a timezone")
+    if parsed.date().isoformat() != value[:10]:
+        raise ActionContractError(f"{label} is invalid")
     return value
 
 
@@ -130,7 +135,7 @@ def _validate_v2_payload(action_type: str, payload: Mapping[str, Any], label: st
         _exact_keys(payload, {"stage_code", "bay_number", "scheduled_start_at", "duration_minutes", "technician_id"}, label)
         _text(payload["stage_code"], f"{label}.stage_code", 40)
         _bounded_int(payload["bay_number"], f"{label}.bay_number", 1)
-        _text(payload["scheduled_start_at"], f"{label}.scheduled_start_at", 40)
+        _date_time(payload["scheduled_start_at"], f"{label}.scheduled_start_at")
         _bounded_int(payload["duration_minutes"], f"{label}.duration_minutes", 60)
         if payload["technician_id"] is not None:
             _uuid(payload["technician_id"], f"{label}.technician_id")
@@ -140,7 +145,7 @@ def _validate_v2_payload(action_type: str, payload: Mapping[str, Any], label: st
         _bounded_int(payload["expected_booking_version"], f"{label}.expected_booking_version", 1)
         _text(payload["stage_code"], f"{label}.stage_code", 40)
         _bounded_int(payload["bay_number"], f"{label}.bay_number", 1)
-        _text(payload["scheduled_start_at"], f"{label}.scheduled_start_at", 40)
+        _date_time(payload["scheduled_start_at"], f"{label}.scheduled_start_at")
         _bounded_int(payload["duration_minutes"], f"{label}.duration_minutes", 60)
         if payload["override_reason"] is not None:
             _text(payload["override_reason"], f"{label}.override_reason", 400)
@@ -159,11 +164,11 @@ def _validate_v2_payload(action_type: str, payload: Mapping[str, Any], label: st
         _uuid(payload["booking_id"], f"{label}.booking_id")
         _bounded_int(payload["expected_booking_version"], f"{label}.expected_booking_version", 1)
         _text(payload["work_key"], f"{label}.work_key", 32)
-        _text(payload["completed_at"], f"{label}.completed_at", 40)
+        _date_time(payload["completed_at"], f"{label}.completed_at")
     elif action_type == "note_append":
         _exact_keys(payload, {"text", "event_at"}, label)
         _text(payload["text"], f"{label}.text", 2000)
-        _text(payload["event_at"], f"{label}.event_at", 40)
+        _date_time(payload["event_at"], f"{label}.event_at")
     elif action_type == "location_set":
         _exact_keys(payload, {"location", "reason"}, label)
         if _text(payload["location"], f"{label}.location", 20).upper() not in {"YH", "PMB", "QC", "RFT", "OTHER", "IT"}:

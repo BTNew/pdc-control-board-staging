@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "supabase" / "staging_only" / "20260901060000_pdc_email_ai_typed_action_boundary_hardening_20260901.sql"
 EXECUTION_MIGRATION = ROOT / "supabase" / "staging_only" / "20260901070000_pdc_email_ai_typed_action_execution_readback_20260901.sql"
 FINAL_MIGRATION = ROOT / "supabase" / "staging_only" / "20260901080000_pdc_email_ai_typed_action_identity_contract_20260901.sql"
+TIMESTAMP_ACL_MIGRATION = ROOT / "supabase" / "staging_only" / "20260901090000_pdc_email_ai_typed_action_timestamp_acl_20260901.sql"
 
 VEHICLE = {
     "vehicle_id": "22222222-2222-4222-8222-222222222222",
@@ -170,6 +171,48 @@ class TypedActionBoundaryHardeningTests(unittest.TestCase):
             "created_at",
             "identity conflict",
             "vehicle_not_found",
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, sql)
+
+    def test_python_strict_boundary_rejects_malformed_dates_and_timestamps(self):
+        plan = V2Planner(rules=CraigRuleStore.default()).plan(receipt(), [], [VEHICLE])
+        cases = (
+            ("parts_eta_set", {"eta": "2026-99-99"}),
+            ("booking_set", {"stage_code": "QC", "bay_number": 1, "scheduled_start_at": "2026-99-99Tbad", "duration_minutes": 60, "technician_id": None}),
+            ("booking_move", {"booking_id": "44444444-4444-4444-8444-444444444444", "expected_booking_version": 1, "stage_code": "QC", "bay_number": 1, "scheduled_start_at": "2026-99-99Tbad", "duration_minutes": 60, "override_reason": None}),
+            ("work_complete", {"booking_id": "44444444-4444-4444-8444-444444444444", "expected_booking_version": 1, "work_key": "FITTING", "completed_at": "2026-99-99Tbad"}),
+            ("note_append", {"text": "strict timestamp regression", "event_at": "2026-99-99Tbad"}),
+        )
+        for action_type, payload in cases:
+            mutated = __import__("copy").deepcopy(plan)
+            if not mutated["instructions"]:
+                mutated["instructions"].append({
+                    "instruction_id": "instruction-0001", "vehicle_id": VEHICLE["vehicle_id"],
+                    "identity": {"vehicle_id": VEHICLE["vehicle_id"], "stock_number": VEHICLE["stock_number"], "vin": None, "backend_record_id": None},
+                    "action_type": action_type, "payload": payload,
+                    "evidence_refs": [{"kind": "message", "ref": "message-v2", "required_for_action": True}],
+                    "required_evidence": ["authoritative_identity"], "expected_state": {"vehicle_version": 9, "backend_revision": 12},
+                    "decision_disposition": "planned", "provenance": plan["versions"].copy(),
+                    "audit_event_ref": "audit-plan-0001", "reason": "timestamp regression",
+                })
+            else:
+                mutated["instructions"][0]["action_type"] = action_type
+                mutated["instructions"][0]["payload"] = payload
+            with self.subTest(action_type=action_type), self.assertRaises(ActionContractError):
+                validate_v2_plan(mutated)
+
+    def test_timestamp_acl_migration_is_append_only_and_closes_legacy_entrypoint(self):
+        self.assertTrue(TIMESTAMP_ACL_MIGRATION.is_file())
+        sql = TIMESTAMP_ACL_MIGRATION.read_text(encoding="utf-8")
+        for marker in (
+            "20260901080000",
+            "pdc_email_ai_successor_iso_date_20260901",
+            "pdc_email_ai_successor_iso_timestamptz_20260901",
+            "timestamp_date_invalid",
+            "timestamp_timestamptz_invalid",
+            "REVOKE ALL ON FUNCTION public.apply_pdc_email_ai_typed_action_surface_20260901(jsonb) FROM public,anon,authenticated,service_role",
+            "GRANT EXECUTE ON FUNCTION public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb) TO authenticated",
         ):
             with self.subTest(marker=marker):
                 self.assertIn(marker, sql)

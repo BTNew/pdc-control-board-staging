@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 BOOTSTRAP = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py")
 SECRETS = Path(r"C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi")
 STAGING_REF = "cdsmnqxtyyoeoznmbidd"
-TARGET = ("20260901080000", "pdc_email_ai_typed_action_identity_contract_20260901")
+TARGET = ("20260901090000", "pdc_email_ai_typed_action_timestamp_acl_20260901")
 
 
 def one(cursor, query: str):
