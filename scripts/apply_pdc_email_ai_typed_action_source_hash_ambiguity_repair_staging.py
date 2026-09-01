@@ -81,7 +81,7 @@ def main() -> None:
             cur.execute(MIGRATION.read_text(encoding="utf-8"))
         ledger = tuple(one(cur, "select version,name from supabase_migrations.schema_migrations where version='20260901160000'") or ())
         definitions = {name: one(cur, "select pg_get_functiondef(%s::regprocedure)", (signature,))[0] or "" for name, signature in FUNCTIONS.items()}
-        hashes = {name: function_hash(cur, signature) for name, signature in FUNCTIONS.items()}
+        successor_hashes = {name: function_hash(cur, signature) for name, signature in FUNCTIONS.items()}
         predicate_checks = {
             name: {
                 "old_ambiguous_predicate_absent": "lower(coalesce(i.source_hash,''))=source_hash" not in definition,
@@ -94,7 +94,7 @@ def main() -> None:
         production = bool(one(cur, "select to_regclass('public.pdc_production_environment_sentinel') is not null")[0])
         proof = {
             "ok": ledger == TARGET
-            and all(EXPECTED_PREDECESSOR_HASHES[name] != hashes[name] for name in FUNCTIONS)
+            and all(EXPECTED_PREDECESSOR_HASHES[name] != successor_hashes[name] for name in FUNCTIONS)
             and all(checks["old_ambiguous_predicate_absent"] and checks["qualified_source_column_present"] for checks in predicate_checks.values())
             and history == (1, "20260901140000", "20260901160000", True)
             and acl(cur, "public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)") == (True, False, False, False)
@@ -104,7 +104,7 @@ def main() -> None:
             "project_ref": STAGING_REF,
             "migration_sha256": digest,
             "ledger_head": ledger,
-            "predecessor_function_sha256": hashes,
+            "successor_function_sha256": successor_hashes,
             "predicate_checks": predicate_checks,
             "history": {"rows": history[0], "predecessor_head": history[1], "successor_head": history[2], "zero_side_effect_flags": history[3]},
             "strict_typed_action_acl": acl(cur, "public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)"),
