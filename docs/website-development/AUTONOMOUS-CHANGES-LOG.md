@@ -4,6 +4,7 @@
 
 - Staging project `cdsmnqxtyyoeoznmbidd` only. The exact approved Viewer capability now reaches the actor-owned canonical receipt reader through append-only migration `20260831450000_pdc_email_monitor_viewer_receipt_read_successor.sql`; no writer row, direct table DML, service-role runtime, mailbox mutation, outbound email or Production path was added.
 - Live proof: staging head `20260831450000`; Viewer receipt probe HTTP 200 typed `receipt_not_found`; canonical importer negative probe HTTP 200 typed `intake_not_found`; receipt child keys and immutable triggers remain present; capability-table RLS and FORCE RLS remain enabled.
+- Publication: clean staging-base commit `ebf5bf56327307937be3079c81820d1ea5f2506b` was pushed only to `BTNew/pdc-control-board-staging` `main`; Staging integrity and Pages workflows completed successfully. The published migration read back from GitHub with SHA-256 `91a6328bd21f6b24dc9c68fc8e3474ffb340bd61dd1215fe36e2ca54bea797b5`.
 - The pdc-emails reviewer now trusts only Gmail's prepended receiver result, rejects duplicate Google results and ARC/CV failures, applies RFC 7489 aligned SPF-or-DKIM semantics, and requires an exact source hash for scoped UID replay. Retained RFC822 evidence matched 32 inventory messages; all 32 had aligned SPF and DMARC evidence, and 23 had direct aligned DKIM.
 - Exact UIDVALIDITY 1 / UID / source-hash resume manifest and handoff are included under `handoffs/` and must be used by pdc-emails for its operational import; this repair did not import a real email.
 
