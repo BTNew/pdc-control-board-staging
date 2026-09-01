@@ -1,0 +1,85 @@
+{
+  "schema_version": "pdc-email-ai-v2-source-hash-ambiguity-repair-proof-v1",
+  "environment": "staging",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "migration_identity": {
+    "version": "20260901160000",
+    "name": "pdc_email_ai_typed_action_source_hash_ambiguity_repair_20260901",
+    "sha256": "506c7b01b783389a3fcc76a26784a328565c5041e85ae912c3a083de7cde06e2"
+  },
+  "live_head": [
+    "20260901160000",
+    "pdc_email_ai_typed_action_source_hash_ambiguity_repair_20260901"
+  ],
+  "repaired_functions": {
+    "execute": {
+      "successor_function_sha256": "9eb7692704510f822d806cdee077f7463f9709564c22390036a9347a2b701622",
+      "old_ambiguous_predicate_absent": true,
+      "qualified_source_column_present": true
+    },
+    "non_dispatch": {
+      "successor_function_sha256": "b87f8fd688d863d6270a19f479e1933f4cbecb27fb025f04552bb4c665d90944",
+      "old_ambiguous_predicate_absent": true,
+      "qualified_source_column_present": true
+    },
+    "operation_update": {
+      "successor_function_sha256": "5408637ec6932e8fb4290d917d760949ab2a00c8e0e9f70f35f60775a50dbbfe",
+      "old_ambiguous_predicate_absent": true,
+      "qualified_source_column_present": true
+    }
+  },
+  "history": {
+    "rows": 1,
+    "predecessor_head": "20260901140000",
+    "successor_head": "20260901160000",
+    "zero_side_effect_flags": true,
+    "strict_typed_action_acl": [true, false, false, false]
+  },
+  "live_receipt_path": {
+    "source_receipt_id": "3e3e600b-1218-42e8-91ea-dc3d2c85af7a",
+    "transaction_id": "205f0c13-ef4b-4ac0-8128-3563a4d8d61a",
+    "valid_plan": {
+      "http_status": 200,
+      "ok": false,
+      "code": "pdc_email_ai_typed_action_surface_partial_failure",
+      "disposition": "NO_ACTIONS",
+      "transaction_id_present": true,
+      "action_count": 0
+    },
+    "transaction_receipts_before": 0,
+    "transaction_receipts_after_valid": 1,
+    "transaction_receipts_after_hostile": 1,
+    "all_planned_action_probe": {
+      "status": "blocked_by_pre_existing_defect_after_source_hash_fix",
+      "http_status": 409,
+      "sqlstate": "23503",
+      "message": "insert or update on table pdc_email_ai_successor_action_receipts violates its transaction_id foreign key",
+      "detail": "the generated transaction_id is not yet present in pdc_email_ai_successor_transaction_receipts",
+      "action_receipt_created": false,
+      "business_mutation": false
+    },
+    "hostile_plans": [
+      {
+        "name": "invalid_evidence_digest",
+        "ok": false,
+        "code": "typed_v2_plan_invalid",
+        "disposition": "FAILED_QUEUED_RETRY"
+      },
+      {
+        "name": "production_target",
+        "ok": false,
+        "code": "typed_v2_plan_invalid",
+        "disposition": "FAILED_QUEUED_RETRY"
+      }
+    ]
+  },
+  "health": {
+    "transactions": 1,
+    "partial_failures": 0,
+    "production_writes": false,
+    "outbound_email": false
+  },
+  "production_touched": false,
+  "mailbox_contacted": false,
+  "scheduling_enabled": false
+}
