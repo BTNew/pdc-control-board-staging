@@ -66,7 +66,7 @@ def state(cur) -> dict:
         "ledger_head": tuple(one(cur, "select version,name from supabase_migrations.schema_migrations where version~'^[0-9]+$' order by version::numeric desc limit 1") or ()),
         "receipts": tuple(one(cur, "select (select count(*) from public.pdc_email_ai_successor_transaction_receipts),(select count(*) from public.pdc_email_ai_successor_action_receipts)")),
         "history_rows": int(one(cur, "select count(*) from public.pdc_email_ai_successor_executor_reconciliation_history_20260901")[0]) if one(cur, "select to_regclass('public.pdc_email_ai_successor_executor_reconciliation_history_20260901') is not null")[0] else 0,
-        "rls": {table: tuple(one(cur, "select relrowsecurity,relforcerowsecurity from pg_class where oid=%s::regclass") or (False, False)) for table in existing_tables},
+        "rls": {table: tuple(one(cur, "select relrowsecurity,relforcerowsecurity from pg_class where oid=%s::regclass", (table,)) or (False, False)) for table in existing_tables},
         "direct_table_privileges": {table: {role: bool(one(cur, "select has_table_privilege(%s,%s,'select')", (role, table))[0]) for role in ROLES} for table in existing_tables},
         "function_hashes": {name: function_hash(cur, signature) for name, signature in FUNCTIONS.items()},
         "strict_acl": tuple(one(cur, "select has_function_privilege('authenticated',%s,'execute'), has_function_privilege('service_role',%s,'execute'), has_function_privilege('public',%s,'execute'), has_function_privilege('anon',%s,'execute')", (FUNCTIONS["strict"],) * 4)),

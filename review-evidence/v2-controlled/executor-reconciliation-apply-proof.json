@@ -1,0 +1,145 @@
+{
+  "action_rpc_invoked": false,
+  "after": {
+    "direct_table_privileges": {
+      "public.pdc_email_ai_successor_action_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_executor_reconciliation_history_20260901": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_runtime_identities": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_transaction_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      }
+    },
+    "function_hashes": {
+      "executor": "5d358b8f055d02b72a9c4693854ff0591cca3f2eb4e3a530cfbda32a7e1119ea",
+      "operation_update": "fcfa526852d4f606e3efce189552750f93af6789054199c1e19b928c1a0bac70",
+      "strict": "128d9c9d80b2356b798da141d392e50d77c8af92dadbc83721fe624b644e823f"
+    },
+    "history_rows": 1,
+    "ledger_head": [
+      "20260901220000",
+      "pdc_email_ai_successor_executor_reconciliation_20260901"
+    ],
+    "production_sentinel_present": false,
+    "receipts": [
+      36,
+      45
+    ],
+    "rls": {
+      "public.pdc_email_ai_successor_action_receipts": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_executor_reconciliation_history_20260901": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_runtime_identities": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_transaction_receipts": [
+        true,
+        true
+      ]
+    },
+    "strict_acl": [
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "already_applied": false,
+  "before": {
+    "direct_table_privileges": {
+      "public.pdc_email_ai_successor_action_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_runtime_identities": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      },
+      "public.pdc_email_ai_successor_transaction_receipts": {
+        "anon": false,
+        "authenticated": false,
+        "public": false,
+        "service_role": false
+      }
+    },
+    "function_hashes": {
+      "executor": "9eb7692704510f822d806cdee077f7463f9709564c22390036a9347a2b701622",
+      "operation_update": "5408637ec6932e8fb4290d917d760949ab2a00c8e0e9f70f35f60775a50dbbfe",
+      "strict": "128d9c9d80b2356b798da141d392e50d77c8af92dadbc83721fe624b644e823f"
+    },
+    "history_rows": 0,
+    "ledger_head": [
+      "20260901210000",
+      "pdc_email_ai_successor_source_binding_projection_correction_20260901"
+    ],
+    "production_sentinel_present": false,
+    "receipts": [
+      36,
+      45
+    ],
+    "rls": {
+      "public.pdc_email_ai_successor_action_receipts": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_runtime_identities": [
+        true,
+        true
+      ],
+      "public.pdc_email_ai_successor_transaction_receipts": [
+        true,
+        true
+      ]
+    },
+    "strict_acl": [
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "environment": "staging",
+  "mailbox_contacted": false,
+  "migration_identity": [
+    "20260901220000",
+    "pdc_email_ai_successor_executor_reconciliation_20260901"
+  ],
+  "migration_sha256": "a66357ba6028dba9ce7b3b4e38da6f5928ecc1cae0f012a6f447aa7cbb033138",
+  "ok": true,
+  "outbound_email": false,
+  "production_writes": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "source_markers": {
+    "canonical_operation_add_binding": true,
+    "canonical_operation_update_binding": true,
+    "canonical_result_error_evidence": true,
+    "server_resolved_source_uid": true
+  }
+}
