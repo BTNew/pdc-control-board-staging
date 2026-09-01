@@ -1,0 +1,214 @@
+{
+  "action_rpc_invoked": false,
+  "authenticated_direct_table_http": {
+    "public.pdc_email_ai_successor_action_receipts": 403,
+    "public.pdc_email_ai_successor_runtime_identities": 403,
+    "public.pdc_email_ai_successor_transaction_receipts": 403
+  },
+  "authenticated_health": {
+    "http": 200,
+    "ok": true,
+    "outbound_email": false,
+    "partial_failures": 9,
+    "production_writes": false,
+    "transactions": 16
+  },
+  "authenticated_readback": {
+    "http": 200,
+    "ok": true,
+    "revision": 94584
+  },
+  "direct_table_select_privileges": {
+    "public.pdc_email_ai_successor_action_receipts": {
+      "anon": false,
+      "authenticated": false,
+      "public": false,
+      "service_role": false
+    },
+    "public.pdc_email_ai_successor_runtime_identities": {
+      "anon": false,
+      "authenticated": false,
+      "public": false,
+      "service_role": false
+    },
+    "public.pdc_email_ai_successor_transaction_receipts": {
+      "anon": false,
+      "authenticated": false,
+      "public": false,
+      "service_role": false
+    }
+  },
+  "environment": "staging",
+  "fk": {
+    "deferrable": true,
+    "definition": "FOREIGN KEY (transaction_id) REFERENCES pdc_email_ai_successor_transaction_receipts(transaction_id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED",
+    "initially_deferred": true,
+    "validated": true
+  },
+  "force_rls": {
+    "public.pdc_email_ai_successor_action_receipts": [
+      true,
+      true
+    ],
+    "public.pdc_email_ai_successor_runtime_identities": [
+      true,
+      true
+    ],
+    "public.pdc_email_ai_successor_transaction_receipts": [
+      true,
+      true
+    ]
+  },
+  "ledger_head": [
+    "20260901210000",
+    "pdc_email_ai_successor_source_binding_projection_correction_20260901"
+  ],
+  "mailbox_contacted": false,
+  "mixed_checks": {
+    "counts_unchanged": true,
+    "mixed_receipt_two_actions": true,
+    "negative_zero_receipts": true,
+    "planned_review_isolated": true,
+    "replay_unchanged": true
+  },
+  "mixed_exact_replay": {
+    "action_rpc_invoked": false,
+    "actions": [
+      {
+        "action_type": "activate_vehicle",
+        "after_state": null,
+        "canonical_rpc": null,
+        "disposition": "FAILED_QUEUED_RETRY",
+        "instruction_id": "receipt_fk_mixed_planned_review-01",
+        "reason": "mixed_plan_contains_non_planned_instruction",
+        "verification": {
+          "action_rpc_invoked": false,
+          "checked": true,
+          "decision_disposition": "planned",
+          "dispatch": false,
+          "parity": false,
+          "scope": "strict_v2_non_dispatch",
+          "unresolved_review_evidence": false
+        }
+      },
+      {
+        "action_type": "activate_vehicle",
+        "after_state": null,
+        "canonical_rpc": null,
+        "disposition": "GENUINELY_AMBIGUOUS",
+        "instruction_id": "receipt_fk_mixed_planned_review-02",
+        "reason": "receipt_fk_mixed_planned_review",
+        "verification": {
+          "action_rpc_invoked": false,
+          "checked": true,
+          "decision_disposition": "review",
+          "dispatch": false,
+          "parity": false,
+          "scope": "strict_v2_non_dispatch",
+          "unresolved_review_evidence": false
+        }
+      }
+    ],
+    "code": "pdc_email_ai_typed_action_non_dispatch_receipt",
+    "disposition": "PARTIAL_FAILURE",
+    "mailbox_contacted": false,
+    "ok": false,
+    "outbound_email": false,
+    "production_writes": false,
+    "replay": true,
+    "transaction_id": "b5edc5e0-3b1a-4212-adfb-30588e171e17"
+  },
+  "mixed_invalid_digest": {
+    "actions": [],
+    "code": "typed_v2_plan_invalid",
+    "disposition": "FAILED_QUEUED_RETRY",
+    "ok": false
+  },
+  "mixed_planned_review": {
+    "action_rpc_invoked": false,
+    "actions": [
+      {
+        "action_type": "activate_vehicle",
+        "after_state": null,
+        "canonical_rpc": null,
+        "disposition": "FAILED_QUEUED_RETRY",
+        "instruction_id": "receipt_fk_mixed_planned_review-01",
+        "reason": "mixed_plan_contains_non_planned_instruction",
+        "verification": {
+          "action_rpc_invoked": false,
+          "checked": true,
+          "decision_disposition": "planned",
+          "dispatch": false,
+          "parity": false,
+          "scope": "strict_v2_non_dispatch",
+          "unresolved_review_evidence": false
+        }
+      },
+      {
+        "action_type": "activate_vehicle",
+        "after_state": null,
+        "canonical_rpc": null,
+        "disposition": "GENUINELY_AMBIGUOUS",
+        "instruction_id": "receipt_fk_mixed_planned_review-02",
+        "reason": "receipt_fk_mixed_planned_review",
+        "verification": {
+          "action_rpc_invoked": false,
+          "checked": true,
+          "decision_disposition": "review",
+          "dispatch": false,
+          "parity": false,
+          "scope": "strict_v2_non_dispatch",
+          "unresolved_review_evidence": false
+        }
+      }
+    ],
+    "code": "pdc_email_ai_typed_action_non_dispatch_receipt",
+    "disposition": "PARTIAL_FAILURE",
+    "mailbox_contacted": false,
+    "ok": false,
+    "outbound_email": false,
+    "production_writes": false,
+    "transaction_id": "b5edc5e0-3b1a-4212-adfb-30588e171e17"
+  },
+  "mixed_production_target": {
+    "actions": [],
+    "code": "typed_v2_plan_invalid",
+    "disposition": "FAILED_QUEUED_RETRY",
+    "ok": false
+  },
+  "ok": true,
+  "outbound_email": false,
+  "planned_exact_replay": {
+    "ok": true,
+    "receipt_counts_unchanged": true,
+    "replay": true,
+    "transaction_id_unchanged": true
+  },
+  "planned_parent_child": {
+    "action_count": 1,
+    "disposition": "SUCCESS",
+    "fk_parent_child_rows": 1,
+    "ok": true,
+    "transaction_id": "f27cb08c-3d0e-4e90-8fe9-16a21f2a6c0c",
+    "verification_parity": true
+  },
+  "production_sentinel_present": false,
+  "production_touched": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "receipt_counts": [
+    16,
+    17
+  ],
+  "retained_fk_predecessor_receipt": 1,
+  "source_binding_function_sha256": "638e7743d8aa888ebbf625c7d20e0cd1d13725d2e9704ff2402c2b7e9624f99d",
+  "source_binding_histories": {
+    "public.pdc_email_ai_successor_source_binding_history_20260901": 1,
+    "public.pdc_email_ai_successor_source_binding_projection_history_20260901": 1
+  },
+  "strict_acl": {
+    "anon": false,
+    "authenticated": true,
+    "public": false,
+    "service_role": false
+  }
+}
