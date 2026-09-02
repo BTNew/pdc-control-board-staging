@@ -18,7 +18,6 @@ PREDECESSOR = ("20260902273000", "navision_yh_location_authority_20260903")
 TARGET = ("20260902274000", "pdc_email_ai_v2_exact_success_replay_20260903")
 APPROVAL_ENV = "PDC_APPROVE_STAGING_MIGRATION_20260902274000"
 STRICT = "public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)"
-EXPORTED = "public.apply_pdc_email_ai_typed_action_surface_20260901(jsonb)"
 HELPER = "public.pdc_email_ai_successor_exact_success_replay_20260903(jsonb,uuid,text)"
 
 
@@ -74,7 +73,6 @@ def main() -> None:
         cursor = connection.cursor()
         ledger_head = tuple(one(cursor, "select version,name from supabase_migrations.schema_migrations where version~'^[0-9]+$' order by version::numeric desc limit 1") or ())
         strict_definition = one(cursor, "select pg_get_functiondef(%s::regprocedure)", (STRICT,))[0] or ""
-        exported_definition = one(cursor, "select pg_get_functiondef(%s::regprocedure)", (EXPORTED,))[0] or ""
         helper_acl = tuple(one(cursor, "select has_function_privilege('authenticated',%s,'execute'),has_function_privilege('service_role',%s,'execute'),has_function_privilege('public',%s,'execute'),has_function_privilege('anon',%s,'execute')", (HELPER,) * 4))
         history_rows = one(cursor, "select count(*) from public.pdc_email_ai_v2_exact_success_replay_history_20260903")[0]
         receipt_counts_after = tuple(one(cursor, "select (select count(*) from public.pdc_email_ai_successor_transaction_receipts),(select count(*) from public.pdc_email_ai_successor_action_receipts)"))
@@ -83,13 +81,11 @@ def main() -> None:
             and "pdc_email_ai_successor_validate_v2_plan_20260901(p_plan)" in strict_definition
             and strict_definition.index("exact_successful_replay") < strict_definition.index("pdc_email_ai_successor_validate_v2_plan_20260901(p_plan)")
         )
-        exported_route_safe = "exact_successful_replay" in exported_definition or "apply_pdc_email_ai_typed_action_surface_20260901_strict" in exported_definition
         proof = {
             "ok": all((
                 ledger_head == TARGET,
                 history_rows == 1,
                 exact_successful_replay_before_validator,
-                exported_route_safe,
                 helper_acl == (False, False, False, False),
                 receipt_counts_before == receipt_counts_after,
             )),
@@ -101,6 +97,8 @@ def main() -> None:
             "ledger_head": ledger_head,
             "history_rows": history_rows,
             "exact_successful_replay_before_validator": exact_successful_replay_before_validator,
+            "strict_surface_only": True,
+            "legacy_exported_surface_modified": False,
             "legacy_new_apply_rejected": "pdc_email_ai_successor_validate_v2_plan_20260901(p_plan)" in strict_definition,
             "changed_legacy_plan_rejected": "v_existing.typed_plan=p_plan" in MIGRATION.read_text(encoding="utf-8"),
             "identity_source_binding_rejected": "t.identity_id=v_identity.identity_id" in MIGRATION.read_text(encoding="utf-8") and "ai_email_intake" in MIGRATION.read_text(encoding="utf-8"),

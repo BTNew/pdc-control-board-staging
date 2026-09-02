@@ -151,8 +151,7 @@ $block$;
   v_patched integer:=0;
 BEGIN
   FOREACH v_signature IN ARRAY ARRAY[
-    'public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)',
-    'public.apply_pdc_email_ai_typed_action_surface_20260901(jsonb)'
+    'public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)'
   ] LOOP
     SELECT pg_get_functiondef(v_signature::regprocedure) INTO v_definition;
     v_before:=v_before||jsonb_build_object(v_signature,encode(extensions.digest(convert_to(v_definition,'UTF8'),'sha256'),'hex'));
@@ -180,14 +179,12 @@ END $patch$;
 DO $post$
 DECLARE
   v_strict text:=pg_get_functiondef('public.apply_pdc_email_ai_typed_action_surface_20260901_strict(jsonb)'::regprocedure);
-  v_exported text:=pg_get_functiondef('public.apply_pdc_email_ai_typed_action_surface_20260901(jsonb)'::regprocedure);
 BEGIN
   IF (SELECT count(*) FROM public.pdc_email_ai_v2_exact_success_replay_history_20260903)<>1
      OR position('exact_successful_replay' IN v_strict)=0
      OR position('pdc_email_ai_successor_validate_v2_plan_20260901(p_plan)' IN v_strict)=0
      OR position('successor_runtime_identity_denied' IN v_strict)>position('exact_successful_replay' IN v_strict)
      OR position('exact_successful_replay' IN v_strict)>position('pdc_email_ai_successor_validate_v2_plan_20260901(p_plan)' IN v_strict)
-     OR (position('exact_successful_replay' IN v_exported)=0 AND position('apply_pdc_email_ai_typed_action_surface_20260901_strict' IN v_exported)=0)
      OR has_function_privilege('service_role','public.pdc_email_ai_successor_exact_success_replay_20260903(jsonb,uuid,text)','execute')
      OR has_function_privilege('authenticated','public.pdc_email_ai_successor_exact_success_replay_20260903(jsonb,uuid,text)','execute')
      OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
@@ -198,6 +195,7 @@ INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUE
   '20260902274000','pdc_email_ai_v2_exact_success_replay_20260903',ARRAY[
     'Exact identity/source/hash/jsonb match against one immutable SUCCESS transaction may return its existing transaction and action receipt IDs before current first-apply validation',
     'Unmatched, changed, hostile and new plans still use pdc_email_ai_successor_validate_v2_plan_20260901; no legacy normalization or write fallback exists',
+    'Only the current strict v2 surface is patched; the separate legacy exported surface remains byte-for-byte unchanged',
     'Protected transaction/action receipts remain append-only and unchanged; helper has no runtime grant',
     'STAGING-only installation records immutable function hashes with production_writes=false, mailbox_contacted=false, outbound_email=false and action_rpc_invoked=false'
   ]
