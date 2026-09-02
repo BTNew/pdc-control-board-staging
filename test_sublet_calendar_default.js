@@ -14,7 +14,7 @@ function between(source, start, end) {
   return source.slice(startAt, endAt);
 }
 
-const state = between(app, 'const app = {', '};\n\n\nwindow.PDC_APP');
+const state = between(app.replace(/\r\n/g, '\n'), 'const app = {', '};\n\n\nwindow.PDC_APP');
 const showView = between(app, 'function showView(', 'const HEAVY_VIEW_HOSTS');
 const subletRows = between(app, 'function subletRows()', 'function subletDateOrdinal');
 const calendar = between(app, 'function subletCalendarEvents(', 'function subletCalendarEventField');

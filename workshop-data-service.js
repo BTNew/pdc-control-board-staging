@@ -105,7 +105,7 @@ const WORKSHOP_READ_RPCS = Object.freeze([
 
 const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'version_conflict', 'vehicle_version_conflict', 'location_ineligible',
-  'missing_eta', 'it_eta_missing', 'it_before_eta',
+  'missing_eta', 'it_eta_missing', 'it_before_eta', 'it_before_eta_plus_seven',
   'vehicle_not_eligible_for_station', 'active_booking_exists',
   'canonical_requirement_missing_or_completed', 'parts_incomplete',
   'bay_overlap', 'vehicle_overlap', 'calendar_unavailable',
