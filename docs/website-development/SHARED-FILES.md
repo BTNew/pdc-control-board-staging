@@ -1,5 +1,13 @@
 # Shared Files
 
+## PDC Email AI v2 source-bound Job Card parity — 2026-09-02
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `backend/pdc_email_ai_v2_planner.py`, `backend/pdc_email_ai_v2_actions.py`, `backend/pdc_email_ai_successor_contract.py` | PDC Email AI v2 typed planner/action contract | Extract exact attachment-local J/JC number, emit `job_card_set` with source UID/digest/Stock/VIN, preserve no-JC review and exact UID binding | Focused planner/action/successor tests pass; no local fallback or fabricated Job Card. |
+| `supabase/staging_only/20260902264000_pdc_email_ai_v2_job_card_parity_correction_20260902.sql` through `20260902266000_pdc_email_ai_v2_job_card_replay_validation_order_20260902.sql` | Serialized STAGING authority/remediation lane | Atomic source/receipt/attachment/provider-bound canonical vehicle Job Card update, immutable correction/history, exact replay and precise fail-closed conflicts | Live head `20260902266000`; direct table access remains denied; one operation, zero active workshop bookings, mailbox/outbound/Production untouched. |
+| `scripts/apply_pdc_email_ai_v2_job_card_*_staging.py`, `scripts/verify_pdc_email_ai_v2_job_card_parity_staging.py`, `tests/test_pdc_email_ai_v2_job_card_parity_20260902.py` | STAGING installation/proof | Hash-gated controllers, exact 1:709 correction/replay, wrong source/Stock/VIN/attachment, protected/manual and no-JC negatives, canonical readback | Focused tests/compilation pass; authenticated rendered Board shows Job Card `J139125567` and Fitting OP1. Scheduler Enabled/Ready/0; production untouched. |
+
 ## PDC Email AI v2 source-bound canonical Navision activation — 2026-09-02
 
 | File | Stream | Exact surface | Tests / coordination |

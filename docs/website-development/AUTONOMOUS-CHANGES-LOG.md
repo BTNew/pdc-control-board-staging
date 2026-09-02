@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-09-02 — source-bound Job Card parity for Stock 13059806
+
+- Added the v2 `job_card_set` planner/action contract and append-only STAGING migrations `20260902264000`, `20260902265000` and `20260902266000`. Exact attachment digest, source UID, Stock, VIN evidence and active successor writer are required; the canonical writer locks the matched vehicle, refuses conflicting/protected Job Cards, preserves immutable evidence/history and replays idempotently.
+- Applied and verified STAGING project `cdsmnqxtyyoeoznmbidd` at head `20260902266000`; exact source UID `1:709`, attachment `J139125567_RepairOrder.pdf`, Stock `13059806` and Job Card `J139125567` read back. One OP1 operation remains, active workshop bookings are 0, exact replay is zero-add, and the scheduler is Enabled/Ready/Last Result 0. Production, mailbox and outbound email were untouched.
+- Focused planner/action/migration regressions and Python compilation pass. Authenticated rendered Board readback shows Stock `13059806`, Job Card `J139125567`, Fitting OP1 `Pre-Delivery (Commercial)`. Evidence: `review-evidence/t_203851d5/job-card-parity-live-proof.json` and migration apply proofs under `review-evidence/v2-controlled/`.
+
 ## 2026-09-02 — source-bound STAGING canonical Navision activation capability
 
 - Added the narrow successor-writer activation chain `20260902263000` plus append-only repairs `20260902263100` and `20260902263200`. The authenticated active `pdc-email-ai-successor-staging` identity and active stage-writer are required, the sender's exact enrollment/source UID/source hash/authentication are checked, exactly one current Navision Stock row is required, and stock/VIN/source/alias operational identity conflicts fail closed.
