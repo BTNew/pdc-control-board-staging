@@ -319,6 +319,13 @@ def validate_v2_plan(value: Mapping[str, Any], *, authoritative_contexts: list[M
             )
         if not isinstance(row["evidence_refs"], list) or not row["evidence_refs"]:
             raise ActionContractError(f"instructions[{index}].evidence_refs is required")
+        for ref in row["evidence_refs"]:
+            if not isinstance(ref, Mapping) or set(ref) != {"kind", "ref", "required_for_action"}:
+                raise ActionContractError("evidence reference shape is invalid")
+            _text(ref["kind"], f"instructions[{index}].evidence_refs.kind", 40)
+            _text(ref["ref"], f"instructions[{index}].evidence_refs.ref", 320)
+            if type(ref["required_for_action"]) is not bool:
+                raise ActionContractError("evidence required flag is invalid")
         if not isinstance(row["provenance"], Mapping) or set(row["provenance"]) != {"transport_release_version", "planner_version", "model_version", "prompt_version", "business_rule_version", "ruleset_version", "taxonomy_version", "supabase_action_contract_version", "source_digest", "evidence_digest"}:
             raise ActionContractError(f"instructions[{index}].provenance is invalid")
         for version_key in ("transport_release_version", "planner_version", "model_version", "prompt_version", "business_rule_version", "ruleset_version", "taxonomy_version", "supabase_action_contract_version"):
