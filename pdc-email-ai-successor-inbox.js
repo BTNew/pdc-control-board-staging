@@ -7,7 +7,9 @@
 const PDC_EMAIL_AI_SUCCESSOR_STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd';
 const PDC_EMAIL_AI_SUCCESSOR_INBOX_RPC = 'get_pdc_email_ai_transaction_successor_inbox_v2';
 const PDC_EMAIL_AI_SUCCESSOR_REVISION_TABLE = 'pdc_email_ai_successor_ui_revision';
-const ALLOWED_READ_ROLES = new Set(['viewer', 'operator', 'administrator']);
+// The dedicated successor importer may read this receipt-only projection.
+// This does not grant browser/table DML or any Administrator capability.
+const ALLOWED_READ_ROLES = new Set(['viewer', 'operator', 'importer', 'administrator']);
 const FORBIDDEN_KEY = /(raw[_-]?body|parsed[_-]?text|extracted[_-]?text|storage[_-]?path|access[_-]?token|refresh[_-]?token|password|secret|credential|authorization|api[_-]?key|private[_-]?key|windows[_-]?log|log[_-]?path)/i;
 const MAX_DETAIL_JSON = 50000;
 
