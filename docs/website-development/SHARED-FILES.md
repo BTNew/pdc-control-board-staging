@@ -1,5 +1,12 @@
 # Shared Files
 
+## PDC Email AI v2 exact sender enrollment — 2026-09-02
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `supabase/staging_only/20260902261000_pdc_email_ai_v2_karratha_toyota_sender_enrollment_20260902.sql` | Serialized STAGING authority/remediation lane | Exact SHA-256 enrollment for retained UID `1:709`; immutable predecessor/table-state hash history; no domain-wide trust or operational dispatch | Protected STAGING apply/readback passed; exact unapproved-sender negative, ACL, forced-RLS and rollback probes passed. Parent domain-allowlist repair remains separate. |
+| `scripts/apply_pdc_email_ai_v2_karratha_toyota_sender_enrollment_staging.py`, `tests/test_pdc_email_ai_v2_karratha_toyota_sender_enrollment.py`, `review-evidence/v2-controlled/karratha-toyota-sender-enrollment-apply-proof.json` | STAGING installation/proof | Hash-gated connector and authoritative enrollment read-back | Focused contract `4/4`, SQL parse `18`, Python compilation, `npm run test` `222/0/1`, and `npm run check` `222/0/1` passed. |
+
 ## Latest-100 attachment work-receipt compatibility successor — 2026-09-01
 
 | File | Stream | Exact surface | Tests / coordination |

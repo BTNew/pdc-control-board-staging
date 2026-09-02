@@ -1,0 +1,56 @@
+{
+  "action_rpc_invoked": false,
+  "already_applied": true,
+  "enrollment_rls": [
+    true,
+    true
+  ],
+  "enrollment_select_acl": {
+    "anon": false,
+    "authenticated": false,
+    "pdc_email_monitor": false,
+    "public": false,
+    "service_role": false
+  },
+  "environment": "staging",
+  "exact_sender_active_count": 1,
+  "exact_sender_hash": "ba17511f3cd912553d2f31744dde2b1be8d916d7dd2c1b94b6d2ce861600f2ae",
+  "history_rls_force": [
+    true,
+    true
+  ],
+  "history_rows": 1,
+  "history_select_acl": {
+    "anon": false,
+    "authenticated": false,
+    "pdc_email_monitor": false,
+    "public": false,
+    "service_role": false
+  },
+  "ledger_head": [
+    "20260902261000",
+    "pdc_email_ai_v2_karratha_toyota_sender_enrollment_20260902"
+  ],
+  "mailbox_contacted": false,
+  "migration_identity": [
+    "20260902261000",
+    "pdc_email_ai_v2_karratha_toyota_sender_enrollment_20260902"
+  ],
+  "migration_sha256": "b9981b8abb4b0283e8ecd50993389df73e4a5580285b187b5186ea706bd493b0",
+  "ok": true,
+  "outbound_email": false,
+  "predecessor_identity": [
+    "20260902260000",
+    "pdc_email_ai_v2_pd_replay_correction_binding_20260902"
+  ],
+  "production_sentinel_present": false,
+  "production_writes": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "rollback_probe": {
+    "blocked": true,
+    "error_prefix": "PDC_20260902261000_HISTORY_IMMUTABLE",
+    "sqlstate": "55000"
+  },
+  "unapproved_negative_active_count": 0,
+  "unapproved_negative_hash": "d72c35da75269669de596290c6eef2cc87b60003b9337f2e67f0505225d076ca"
+}

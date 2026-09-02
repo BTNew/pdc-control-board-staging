@@ -1,5 +1,11 @@
 # Autonomous Website Changes
 
+## 2026-09-02 — exact Karratha Toyota sender enrollment for retained UID 1:709
+
+- Added and applied STAGING-only migration `20260902261000_pdc_email_ai_v2_karratha_toyota_sender_enrollment_20260902.sql`, enrolling only the verified sender's exact SHA-256 `ba17511f3cd912553d2f31744dde2b1be8d916d7dd2c1b94b6d2ce861600f2ae` for the retained PD import path. The migration is guarded to predecessor `20260902260000`, preserves predecessor/table-state hashes in an immutable forced-RLS history row, and does not widen domain trust or invoke import/action/mailbox/outbound paths.
+- Protected STAGING apply/readback returned `ok=true` at project `cdsmnqxtyyoeoznmbidd`, migration SHA-256 `b9981b8abb4b0283e8ecd50993389df73e4a5580285b187b5186ea706bd493b0`; exact enrollment count is `1`, an unapproved exact negative hash remains inactive (`0`), direct SELECT is denied for public/anon/authenticated/service_role/pdc_email_monitor, and the immutable rollback probe is blocked with SQLSTATE `55000`.
+- Evidence: `review-evidence/v2-controlled/karratha-toyota-sender-enrollment-apply-proof.json`. Parent-routed domain allowlist repair remains separate; Stock `13059806` was not imported by this child. Production, mailbox state, outbound email and action RPC were untouched.
+
 ## 2026-09-01 — PDC Email AI v2 typed staging action boundary
 
 - Added `pdc-email-ai-v2-actions.js` and its focused regression test as a browser-side, least-authority transport boundary for the isolated STAGING v2 action surface.
