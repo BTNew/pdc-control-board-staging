@@ -934,8 +934,8 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'vehicle_identity_not_found') {
     return 'This vehicle is not yet linked to one shared vehicle record. No change was made.';
   }
-  if (error === 'booking_before_eta' || error === 'it_before_eta') {
-    return `This IT vehicle cannot be booked before its ETA to Kewdale. Earliest permitted booking date: ${result.earliest_permitted_date || 'correct the vehicle ETA'}. No booking was created.`;
+  if (error === 'booking_before_eta' || error === 'it_before_eta' || error === 'it_before_eta_plus_seven') {
+    return `This IT vehicle cannot be booked before ETA + 7 days. Earliest permitted booking date: ${result.earliest_permitted_date || 'correct the vehicle ETA'}. No booking was created.`;
   }
   if (error === 'missing_or_invalid_eta' || error === 'it_eta_missing' || error === 'missing_eta') {
     return 'IT vehicles require a valid ETA to Kewdale before booking. Correct the ETA and try again. No booking was created.';
@@ -2935,16 +2935,16 @@ function workshopVehicleEtaConstraint(vehicle = {}) {
       && isoDate.getDate() === Number(iso[3])) parsed = isoDate;
   } else if (raw && typeof parseDateAU === 'function') parsed = parseDateAU(raw);
   if (!parsed || Number.isNaN(parsed.getTime())) return { required: true, ok: false, location, raw, earliestDateKey: '', bestSlotEarliestDateKey: '', reason: raw ? 'invalid_eta' : 'missing_eta' };
-  const etaDateKey = workshopDateKey(parsed);
-  const bestSlotDate = new Date(parsed);
-  bestSlotDate.setDate(bestSlotDate.getDate() + 7);
+  const earliestBookingDate = new Date(parsed);
+  earliestBookingDate.setDate(earliestBookingDate.getDate() + 7);
+  const earliestDateKey = workshopDateKey(earliestBookingDate);
   return {
     required: true,
     ok: true,
     location,
     raw,
-    earliestDateKey: etaDateKey,
-    bestSlotEarliestDateKey: workshopDateKey(bestSlotDate),
+    earliestDateKey,
+    bestSlotEarliestDateKey: earliestDateKey,
   };
 }
 
@@ -2972,7 +2972,7 @@ function workshopRequireEtaSchedule(vehicle = {}, scheduledStartAt = '') {
   if (result.reason === 'missing_eta' || result.reason === 'invalid_eta') {
     window.alert(`${result.location} vehicles require a valid ETA to Kewdale before they can be booked. Correct the ETA and try again. No booking was created.`);
   } else {
-    window.alert(`This ${result.location} vehicle cannot be booked before its ETA to Kewdale. Earliest permitted booking date: ${result.earliestDateKey}. No booking was created.`);
+    window.alert(`This ${result.location} vehicle cannot be booked before ETA + 7 days. Earliest permitted booking date: ${result.earliestDateKey}. No booking was created.`);
   }
   return false;
 }
@@ -3459,7 +3459,7 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
     <span>${escapeHtml(workshopQueueVehicleDescription(vehicle))}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
     <small class="workshop-estimated-hours-line">Estimated: ${escapeHtml(hoursLabel)}</small>
-    ${etaConstraint.required ? `<small class="workshop-eta-line ${etaConstraint.ok ? '' : 'is-invalid'}">${escapeHtml(etaConstraint.ok ? `${etaConstraint.location} · ETA ${etaConstraint.earliestDateKey} · Best slot from ${etaConstraint.bestSlotEarliestDateKey}` : etaExplanation)}</small>` : ''}
+    ${etaConstraint.required ? `<small class="workshop-eta-line ${etaConstraint.ok ? '' : 'is-invalid'}">${escapeHtml(etaConstraint.ok ? `${etaConstraint.location} · Earliest ETA + 7 booking ${etaConstraint.earliestDateKey} · Best slot from ${etaConstraint.bestSlotEarliestDateKey}` : etaExplanation)}</small>` : ''}
     <small class="workshop-parts-line parts-${escapeHtml(parts.status)}">Parts: ${escapeHtml(parts.text)}</small>
     ${existingBooking ? '<small class="workshop-booked-line">Active booking exists · shown here because the requirement remains outstanding</small>' : ''}
     ${bestSlot ? `<small class="workshop-slot-hint">Best slot: ${escapeHtml(workshopSlotSummary(stage, bestSlot.bay, bestSlot.dateKey, bestSlot.startMinutes))}</small>` : ''}

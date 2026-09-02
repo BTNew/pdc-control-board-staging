@@ -14,7 +14,7 @@ const service = fs.readFileSync(servicePath, 'utf8');
 const app = fs.readFileSync(appPath, 'utf8');
 const lower = migration.toLowerCase();
 
-assert.strictEqual(crypto.createHash('sha256').update(migration).digest('hex'), '7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4');
+assert.strictEqual(crypto.createHash('sha256').update(migration.replace(/\r\n/g, '\n')).digest('hex'), '7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4');
 assert.strictEqual((migration.match(/^BEGIN;$/gm) || []).length, 1, '751 has one transaction start');
 assert.strictEqual((migration.match(/^COMMIT;$/gm) || []).length, 1, '751 has one transaction end');
 for (const marker of [
