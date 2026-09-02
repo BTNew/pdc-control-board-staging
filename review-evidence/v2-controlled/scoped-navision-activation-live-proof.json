@@ -1,0 +1,119 @@
+{
+  "acl": {
+    "anon": false,
+    "authenticated": true,
+    "pdc_email_monitor": false,
+    "public": false,
+    "service_role": false
+  },
+  "action_rpc_invoked": false,
+  "activation_source_markers": {
+    "canonical_trigger": true,
+    "exact_sender_enrollment": true,
+    "no_operation_status_mutation": true,
+    "stage_writer": true,
+    "successor_identity": true
+  },
+  "already_applied": false,
+  "authoritative_readback": {
+    "after_first": {
+      "activation_receipts": 1,
+      "active_board_activations": 1,
+      "active_booking_rows": 0,
+      "active_visible_vehicles": 1,
+      "backend_canonical_links": 1,
+      "current_navision_rows": 1,
+      "parts_rows": 0,
+      "work_rows": 0
+    },
+    "after_rollback": {
+      "activation_receipts": 0,
+      "active_board_activations": 0,
+      "active_booking_rows": 0,
+      "active_visible_vehicles": 0,
+      "backend_canonical_links": 0,
+      "current_navision_rows": 1,
+      "parts_rows": 0,
+      "work_rows": 0
+    },
+    "before": {
+      "activation_receipts": 0,
+      "active_board_activations": 0,
+      "active_booking_rows": 0,
+      "active_visible_vehicles": 0,
+      "backend_canonical_links": 0,
+      "current_navision_rows": 1,
+      "parts_rows": 0,
+      "work_rows": 0
+    }
+  },
+  "environment": "staging",
+  "first_activation": {
+    "action_rpc_invoked": false,
+    "activation_only": true,
+    "backend_record_id": "dd31d0a4-3e2f-4163-befd-93d59d7d6019",
+    "booking_created": false,
+    "canonical_vehicle_created": true,
+    "code": "scoped_navision_activation_prepared",
+    "completion_created": false,
+    "current_location": "IT",
+    "mailbox_contacted": false,
+    "ok": true,
+    "outbound_email": false,
+    "parts_mutated": false,
+    "production_writes": false,
+    "status_mutated": false,
+    "stock_number": "13059806",
+    "vehicle_id": "2cc5e9b8-7114-5d77-ada5-b296c9d10a9f",
+    "visible_on_board": true,
+    "work_mutated": false
+  },
+  "history_rows": 1,
+  "ledger_head": [
+    "20260902263200",
+    "pdc_email_ai_v2_scoped_navision_activation_readback_repair_20260902"
+  ],
+  "mailbox_contacted": false,
+  "migration_identity": [
+    "20260902263200",
+    "pdc_email_ai_v2_scoped_navision_activation_readback_repair_20260902"
+  ],
+  "migration_sha256": "77bfbeed35d0a2eb3c20b9925ea1b0fcfa33515558087d567d77b1560d144481",
+  "negative_authentication": {
+    "code": "runtime_identity_required",
+    "ok": false
+  },
+  "negative_identity": {
+    "code": "canonical_vehicle_identity_conflict",
+    "ok": false
+  },
+  "ok": true,
+  "outbound_email": false,
+  "positive_probe_rolled_back": true,
+  "prepare_source_bound": true,
+  "production_writes": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "readback_history_rows": 1,
+  "repair_history_rows": 1,
+  "replay_activation": {
+    "action_rpc_invoked": false,
+    "activation_only": true,
+    "backend_record_id": "dd31d0a4-3e2f-4163-befd-93d59d7d6019",
+    "booking_created": false,
+    "canonical_vehicle_created": true,
+    "code": "scoped_navision_activation_replayed",
+    "completion_created": false,
+    "current_location": "IT",
+    "mailbox_contacted": false,
+    "ok": true,
+    "outbound_email": false,
+    "parts_mutated": false,
+    "production_writes": false,
+    "replay": true,
+    "status_mutated": false,
+    "stock_number": "13059806",
+    "vehicle_id": "2cc5e9b8-7114-5d77-ada5-b296c9d10a9f",
+    "visible_on_board": true,
+    "work_mutated": false
+  }
+}

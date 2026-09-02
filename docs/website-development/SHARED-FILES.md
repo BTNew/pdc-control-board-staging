@@ -1,5 +1,12 @@
 # Shared Files
 
+## PDC Email AI v2 source-bound canonical Navision activation — 2026-09-02
+
+| File | Stream | Exact surface | Tests / coordination |
+|---|---|---|---|
+| `supabase/staging_only/20260902263000_pdc_email_ai_v2_scoped_navision_activation_20260902.sql`, `20260902263100_pdc_email_ai_v2_scoped_navision_activation_source_repair_20260902.sql`, `20260902263200_pdc_email_ai_v2_scoped_navision_activation_readback_repair_20260902.sql` | Serialized STAGING authority/remediation lane | Successor-writer-only exact sender/source-bound activation for one current Navision Stock; canonical vehicle/Board link through the existing reconciliation trigger; no operation/work/Parts/booking/completion/status mutation | Live head `20260902263200`; predecessor/successor hashes, forced-RLS immutable histories, canonical readback, rollback and Production sentinel checks passed. |
+| `scripts/apply_pdc_email_ai_v2_scoped_navision_activation_staging.py`, `tests/test_pdc_email_ai_v2_scoped_navision_activation_20260902.py`, `review-evidence/v2-controlled/scoped-navision-activation-live-proof.json` | STAGING installation/proof | Hash-gated protected connector, authenticated-only ACL readback, first/replay/negative identity/authentication probes and authoritative no-side-effect readback | Focused contract `5/5`, Python compilation, SQL parse `26/17/17`, `npm run test` `222/0/1`, `npm run check` `222/0/1`; Stock `13059806` probe rolled back and parent owns real UID `1:709` import. |
+
 ## PDC Email AI v2 exact sender enrollment — 2026-09-02
 
 | File | Stream | Exact surface | Tests / coordination |

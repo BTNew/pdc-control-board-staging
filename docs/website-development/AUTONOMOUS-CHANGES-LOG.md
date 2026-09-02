@@ -1,5 +1,12 @@
 # Autonomous Website Changes
 
+## 2026-09-02 — source-bound STAGING canonical Navision activation capability
+
+- Added the narrow successor-writer activation chain `20260902263000` plus append-only repairs `20260902263100` and `20260902263200`. The authenticated active `pdc-email-ai-successor-staging` identity and active stage-writer are required, the sender's exact enrollment/source UID/source hash/authentication are checked, exactly one current Navision Stock row is required, and stock/VIN/source/alias operational identity conflicts fail closed.
+- The capability uses the existing canonical Navision reconciliation trigger to create/link one active visible vehicle/Board activation, preserving canonical identity, Navision revision and audit. It performs no operation, work-item, Parts, booking, completion or workflow-status mutation; direct table access and service-role/public/anon function execution remain denied.
+- The v2 scoped observation preparation RPC now invokes this capability before creating the source receipt and replays are bound to the exact source/request hash. Stock `13059806` was used only in a rolled-back verification savepoint; the parent remains responsible for the real UID `1:709` import.
+- Protected STAGING apply/readback returned `ok=true` at `cdsmnqxtyyoeoznmbidd`, live ledger head `20260902263200`, authenticated-only activation execute ACL, immutable predecessor/successor repair history, first activation/readback, exact replay, negative identity/authentication checks, and rollback equality. Evidence: `review-evidence/v2-controlled/scoped-navision-activation-live-proof.json`. Production, mailbox, outbound email and action RPC were untouched.
+
 ## 2026-09-02 — exact Karratha Toyota sender enrollment for retained UID 1:709
 
 - Added and applied STAGING-only migration `20260902261000_pdc_email_ai_v2_karratha_toyota_sender_enrollment_20260902.sql`, enrolling only the verified sender's exact SHA-256 `ba17511f3cd912553d2f31744dde2b1be8d916d7dd2c1b94b6d2ce861600f2ae` for the retained PD import path. The migration is guarded to predecessor `20260902260000`, preserves predecessor/table-state hashes in an immutable forced-RLS history row, and does not widen domain trust or invoke import/action/mailbox/outbound paths.
