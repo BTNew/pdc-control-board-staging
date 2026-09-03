@@ -3419,6 +3419,13 @@ function workshopQueueVehicleDescription(vehicle = {}) {
   ) || 'Model not listed';
 }
 
+function workshopVehicleIdentitySummaryHtml(vehicle = {}) {
+  const stock = cleanNavisionText(typeof displayStockNumber === 'function' ? displayStockNumber(vehicle) : vehicle.stock || vehicle.stock_number) || 'Unknown';
+  const jobCard = cleanNavisionText(typeof vehicleJobcardNumber === 'function' ? vehicleJobcardNumber(vehicle) : vehicle.jobcard || vehicle.job_card_number) || 'Unknown';
+  const location = cleanNavisionText(vehicle.sourceLocationStatus || vehicle.navisionLocationStatus || vehicle.currentLocation || vehicle.pdcLocation) || 'Unknown';
+  return `<strong><span class="vehicle-copyable-field">JC ${escapeHtml(jobCard)}</span> · <span class="vehicle-copyable-field">Stock ${escapeHtml(stock)}</span></strong><small class="workshop-vehicle-location">Location: ${escapeHtml(location)}</small>`;
+}
+
 function workshopQueueEstimatedLabel(vehicle = {}, stage = '') {
   const lines = workshopStageJobLines(vehicle, stage).filter(line => line.source === 'authenticated-operation-line');
   if (!lines.length || lines.some(line => line.hours === null || line.hours === undefined || !Number.isFinite(Number(line.hours)))) return 'Hours unknown';
@@ -3455,7 +3462,7 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
     ? 'An active booking already represents this requirement'
     : authorityDisabled ? authorityExplanation : etaExplanation;
   return `<article class="workshop-queue-card workshop-unallocated-vehicle-pill ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''} ${schedulingDisabled ? 'is-scheduling-disabled' : ''}" draggable="${schedulingDisabled ? 'false' : 'true'}" ${schedulingDisabled ? 'aria-disabled="true"' : ''} data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="${escapeHtml(schedulingDisabled ? disabledExplanation : 'Drag onto a bay, use Best slot, or use Schedule')}">
-    <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
+    ${workshopVehicleIdentitySummaryHtml(vehicle)}
     <span>${escapeHtml(workshopQueueVehicleDescription(vehicle))}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
     <small class="workshop-estimated-hours-line">Estimated: ${escapeHtml(hoursLabel)}</small>
@@ -4297,7 +4304,7 @@ function renderWorkshopPlanner(options = {}) {
             <button class="small-button" type="button" data-workshop-date-shift="1">Next ›</button>
           </span>
         </div>
-        ${focusedBookingMode ? '' : '<button class="small-button" type="button" data-workshop-today>Today</button><button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button>'}
+        ${focusedBookingMode ? '' : '<button class="small-button" type="button" data-workshop-today>Today</button><button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button><button class="small-button" type="button" data-workshop-refresh-vehicle data-pdc-operational-refresh data-pdc-refresh-route="workshop">Refresh Vehicle</button><button class="primary compact" type="button" data-open-control-board-schedule>Control Board Schedule</button>'}
         ${!focusedBookingMode && sharedModeActive && workshopLastAdministratorMove && workshopAdministratorCanMove() ? '<button class="small-button" type="button" data-workshop-undo-admin-move>Undo last move</button>' : ''}
         ${!focusedBookingMode && sharedModeActive && workshopAdminBlockCanMutate() ? `<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button><div class="workshop-admin-palette" data-workshop-admin-palette><span class="workshop-admin-palette-hint">Drag to a bay</span><button class="workshop-admin-palette-tile" type="button" draggable="true" data-workshop-admin-palette-tile data-admin-palette-duration="${workshopAdminPaletteDurationMinutes}"><span data-workshop-admin-palette-label>Admin · ${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)} h</span></button><label class="workshop-admin-palette-duration"><span>Unit</span><select data-workshop-admin-palette-unit aria-label="Admin block duration unit"><option value="hours">Hours</option><option value="working_days">Working days</option></select><span>Duration</span><input type="number" min="0.25" step="0.25" value="${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)}" data-workshop-admin-palette-duration aria-label="Admin block duration" /></label></div>` : ''}
         ${!focusedBookingMode ? '<button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>' : ''}
@@ -4347,6 +4354,7 @@ function bindWorkshopPlanner(root) {
   }
   root.querySelectorAll('[data-workshop-focused-back]').forEach(button => button.addEventListener('click', workshopExitFocusedBooking));
   root.querySelector('[data-workshop-back-control]')?.addEventListener('click', () => showView('workflow'));
+  root.querySelector('[data-open-control-board-schedule]')?.addEventListener('click', () => showView('schedule'));
   root.querySelectorAll('[data-workshop-stage]').forEach(button => button.addEventListener('click', () => {
     const state = workshopState();
     state.stage = button.dataset.workshopStage;
@@ -6407,8 +6415,8 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
     <button class="modal-close" type="button" data-workshop-job-close aria-label="Close vehicle job">×</button>
     <header><div><h2>${escapeHtml(pmbStageLabel(stage))} vehicle job</h2><p>Only ${escapeHtml(pmbStageLabel(stage))} time is shown for this bay. Required jobs below are scoped to this station.</p></div><span class="badge neutral">Required jobs + planned time</span></header>
     <div class="workshop-job-vehicle-summary">
-      <strong>${escapeHtml(displayStockNumber(vehicle) || 'No stock')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</strong>
-      <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')} · Job Card ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')}</span>
+      ${workshopVehicleIdentitySummaryHtml(vehicle)}
+      <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
       <small>Outstanding work: ${escapeHtml(required.join(', ') || 'None')}</small>
       <small class="workshop-parts-line parts-${escapeHtml(parts.status)}">Parts: ${escapeHtml(parts.text)}</small>
     </div>

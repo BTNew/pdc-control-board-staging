@@ -21,7 +21,9 @@ for (const selector of [
   '.parts-ordered-button[data-parts-ordered]:focus-visible {',
   '.parts-ordered-button[data-parts-ordered]:disabled {',
 ]) assert.ok(css.includes(selector), `missing dedicated selector ${selector}`);
-assert.match(css, /\.parts-ordered-button\[data-parts-ordered\][\s\S]*?background:\s*#dcfce7;[\s\S]*?color:\s*#14532d;/);
+assert.match(css, /\.parts-ordered-button\[data-parts-ordered\][\s\S]*?background:\s*#ffedd5;[\s\S]*?color:\s*#9a3412;/);
+assert.match(actions, /class="small-button parts-received-button"[^>]+data-parts-complete=/, 'Mark received has a dedicated green class');
+assert.match(css, /\.parts-received-button\[data-parts-complete\][\s\S]*?background:\s*#dcfce7;[\s\S]*?color:\s*#14532d;/);
 assert.match(css, /@media\s*\(pointer:\s*coarse\)[\s\S]*?min-height:\s*44px;[\s\S]*?min-width:\s*44px;/);
 const orderedStart = app.indexOf('async function markVehiclePartsOrdered');
 const orderedEnd = app.indexOf('async function markVehiclePartsComplete', orderedStart);

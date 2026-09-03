@@ -5124,24 +5124,24 @@ body.resizing-column .col-drag-handle {
   min-height: 68vh;
 }
 .parts-ordered-button[data-parts-ordered] {
-  background: #dcfce7;
-  color: #14532d;
-  border: 1px solid #86efac;
+  background: #ffedd5;
+  color: #9a3412;
+  border: 1px solid #f97316;
   box-shadow: none;
 }
 .parts-ordered-button[data-parts-ordered]:hover:not(:disabled) {
-  background: #bbf7d0;
-  color: #14532d;
-  border-color: #4ade80;
+  background: #fed7aa;
+  color: #7c2d12;
+  border-color: #ea580c;
 }
 .parts-ordered-button[data-parts-ordered]:focus-visible {
-  outline: 3px solid #166534;
+  outline: 3px solid #c2410c;
   outline-offset: 2px;
 }
 .parts-ordered-button[data-parts-ordered]:disabled {
-  background: #f0fdf4;
+  background: #fff7ed;
   color: #64748b;
-  border-color: #bbf7d0;
+  border-color: #fed7aa;
   opacity: .72;
   cursor: not-allowed;
 }
@@ -7475,8 +7475,9 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   background: #fff1f2;
   color: #9f1239;
 }
-.incoming-work-check.is-ordered {
-  border-color: #fdba74;
+.incoming-work-check.is-ordered,
+.incoming-work-check.is-booked {
+  border-color: #f97316;
   background: #fff7ed;
   color: #9a3412;
 }
@@ -11683,7 +11684,8 @@ html[data-row-width="xl"] {
 }
 
 .incoming-work-check.is-required.is-ordered,
-.incoming-work-check.is-ordered {
+.incoming-work-check.is-ordered,
+.incoming-work-check.is-booked {
   border-color: #fdba74 !important;
   background: #fff7ed !important;
   color: #9a3412 !important;
@@ -13039,11 +13041,32 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 .pdc-work-state-required { border-color: #fca5a5 !important; background: #fff1f2 !important; color: #9f1239 !important; }
 .pdc-work-state-required .pdc-work-state-code { background: #fff !important; color: #9f1239 !important; }
 .pdc-work-state-required .pdc-work-state-code::after { content: '•'; font-size: .82rem; }
+.pdc-work-state-booked,
+.pdc-work-state-ordered { border-color: #f97316 !important; background: #fff7ed !important; color: #9a3412 !important; }
+.pdc-work-state-booked .pdc-work-state-code,
+.pdc-work-state-ordered .pdc-work-state-code { background: #fff !important; color: #9a3412 !important; }
+.pdc-work-state-booked .pdc-work-state-code::after,
+.pdc-work-state-ordered .pdc-work-state-code::after { content: '!'; font-size: .82rem; }
 .pdc-work-state-complete { border-color: #86efac !important; background: #f0fdf4 !important; color: #166534 !important; }
 .pdc-work-state-complete .pdc-work-state-code { background: #fff !important; color: #166534 !important; }
 .pdc-work-state-complete .pdc-work-state-code::after { content: '✓'; font-size: .7rem; }
 .pdc-work-state-none .pdc-work-state-code::after { content: '–'; font-size: .72rem; }
 .pdc-work-state-help { margin-top: 2px !important; }
+
+.parts-received-button[data-parts-complete] {
+  background: #dcfce7;
+  border-color: #16a34a;
+  color: #14532d;
+}
+
+.parts-received-button[data-parts-complete]:hover:not(:disabled) {
+  background: #bbf7d0;
+  border-color: #15803d;
+  color: #14532d;
+}
+
+.vehicle-copyable-field { user-select: text; cursor: text; }
+.inline-copy-button { margin-left: .35rem; }
 @media (max-width: 900px) { .pdc-work-state-grid { grid-template-columns: repeat(5, minmax(50px, 1fr)) !important; } }
 .vehicle-audit-detail { display: grid; gap: 7px; }
 .vehicle-provenance-list { display: grid; gap: 6px; }
@@ -13051,6 +13074,8 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 .vehicle-provenance-item strong { color: #1e3a8a; font-size: .78rem; }
 .vehicle-provenance-item span { color: #475569; font-size: .72rem; line-height: 1.35; overflow-wrap: anywhere; }
 .vehicle-history-label { margin-top: 3px; }
+.vehicle-copyable-field { user-select: text; -webkit-user-select: text; cursor: text; }
+.workshop-vehicle-location { display: block; color: #475569; font-weight: 750; }
 .audit-log-list { max-height: 340px; overflow-y: auto; }
 .audit-log-item { padding: 7px 9px; }
 .audit-log-item span { overflow-wrap: anywhere; }

@@ -52,7 +52,7 @@ assert.match(orderedCard, /title="Parts ordered"/);
 assert.doesNotMatch(renderIncoming({ordered: true, blocked: true}), /is-ordered/);
 assert.match(renderIncoming({ordered: true, complete: true}), /is-complete/);
 
-assert.match(css, /\.incoming-work-check\.is-ordered\s*\{[^}]*background:\s*#fff7ed;[^}]*color:\s*#9a3412;/s);
+assert.match(css, /\.incoming-work-check\.is-ordered,[\s\S]*?\.incoming-work-check\.is-booked\s*\{[^}]*background:\s*#fff7ed;[^}]*color:\s*#9a3412;/s);
 const finalRequiredRule = css.lastIndexOf('.incoming-work-check.is-required {');
 const finalOrderedRule = css.lastIndexOf('.incoming-work-check.is-required.is-ordered,');
 const finalCompleteRule = css.lastIndexOf('.incoming-work-check.is-complete {');
@@ -62,10 +62,10 @@ const finalOrderedCss = css.slice(finalOrderedRule, finalCompleteRule);
 assert.match(finalOrderedCss, /border-color:\s*#fdba74 !important;/);
 assert.match(finalOrderedCss, /background:\s*#fff7ed !important;/);
 assert.match(finalOrderedCss, /color:\s*#9a3412 !important;/);
-assert.match(css, /\.pdc-work-state-ordered\s*\{[^}]*background:\s*#fff7ed !important;[^}]*color:\s*#9a3412 !important;/s);
-assert.match(desktopCss, /\.work-status-key\.status-ordered[^\n]*background:\s*#fff7ed;/);
-assert.match(app, /status-ordered"><b>●<\/b> Parts ordered/);
-assert.match(app, /orange = Parts ordered/);
+assert.match(css, /\.pdc-work-state-booked,[\s\S]*?\.pdc-work-state-ordered\s*\{[^}]*background:\s*#fff7ed !important;[^}]*color:\s*#9a3412 !important;/s);
+assert.match(desktopCss, /\.work-status-key\.status-booked[^\n]*\{[^}]*background:\s*#fff7ed;/s);
+assert.match(app, /status-booked"><b>!<\/b> Booked \/ Parts ordered/);
+assert.match(app, /orange = Parts ordered \/ Workshop booked/);
 
 const authoritative = {
   id: '00000000-0000-4000-8000-000000000941',
@@ -97,4 +97,4 @@ vm.runInContext(`${section('function incomingWorkChecklistHtml', 'function workS
 assert.match(runtimeContext.renderIncoming(secondSession, {}), /incoming-work-check pdc-station-parts is-required is-ordered/);
 assert.doesNotMatch(section('function applySharedWorkStateCache', 'async function saveSharedVehicleWorkStates'), /pdcPartsOrdered\s*=/,
   'pending work-state overlays must not erase authoritative Parts ordered state');
-console.log('Parts ordered orange projection: PASS');
+console.log('Parts ordered orange booked projection: PASS');

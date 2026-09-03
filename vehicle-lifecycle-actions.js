@@ -465,6 +465,14 @@ function buildVehicleLifecycleSharedActions(client, getAccessToken) {
       });
     },
 
+    setPdcLocation({ vehicleId, expectedVersion, location }) {
+      return rpc('set_pdc_vehicle_location_1500', {
+        p_vehicle_id: vehicleId,
+        p_expected_version: expectedVersion,
+        p_location: location,
+      });
+    },
+
     rftCollectVehicle({ vehicleId, expectedVersion }) {
       return rpc('rft_collect_vehicle', {
         p_vehicle_id: vehicleId,

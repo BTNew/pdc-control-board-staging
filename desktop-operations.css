@@ -109,7 +109,8 @@
   }
   .work-status-key b { font-size: 15px; }
   .work-status-key.status-required { border-color: #ee9caf; background: #fff0f3; color: #9f1239; }
-  .work-status-key.status-ordered { border-color: #fdba74; background: #fff7ed; color: #9a3412; }
+  .work-status-key.status-ordered,
+  .work-status-key.status-booked { border-color: #fdba74; background: #fff7ed; color: #9a3412; }
   .work-status-key.status-complete { border-color: #75c795; background: #edf9f1; color: #146c3b; }
   .work-status-key.status-blocked { border-color: #dc2626; background: #fee2e2; color: #991b1b; }
 

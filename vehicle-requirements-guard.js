@@ -7,6 +7,17 @@ const REQUIREMENT_KEYS = Object.freeze([
 
 const ACTIVE_BOOKING_STATUSES = new Set(['queued', 'planned', 'started', 'stoppage']);
 
+const WORKSHOP_STAGE_BY_WORK_KEY = Object.freeze({
+  bus4x4: 'BUS_4X4',
+  tint: 'TINT',
+  hoist: 'HOIST',
+  fitting: 'FITTING',
+  fabrication: 'FABRICATION',
+  electrical: 'ELECTRICAL',
+  tyre: 'TYRE',
+  pitInspection: 'PIT_INSPECTION',
+});
+
 function clean(value) {
   return value === null || value === undefined ? '' : String(value).trim();
 }
@@ -22,6 +33,55 @@ function canonicalDate(value) {
 function requirementState(value) {
   const state = clean(value).toLowerCase();
   return ['none', 'required', 'complete'].includes(state) ? state : null;
+}
+
+function normalizedWorkKey(value) {
+  const compact = clean(value).toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return REQUIREMENT_KEYS.find(key => key.toLowerCase() === compact) || '';
+}
+
+function normalizeVehicleIdentity(value = '') {
+  const normalized = clean(value).toUpperCase().replace(/[\s-]+/g, '');
+  return (/^[A-HJ-NPR-Z0-9]{17}$/.test(normalized) || /^REBHV1[0-9]{8}$/.test(normalized))
+    ? normalized
+    : '';
+}
+
+function bookingMatchesWorkKey(booking = {}, workKey = '') {
+  const key = normalizedWorkKey(workKey);
+  if (!key) return false;
+  const bookingKey = normalizedWorkKey(booking.work_key || booking.workKey);
+  if (bookingKey) return bookingKey === key;
+  const stage = clean(booking.stage_code || booking.stageCode || booking.stage).toUpperCase().replace(/[ -]+/g, '_');
+  return Boolean(WORKSHOP_STAGE_BY_WORK_KEY[key] && stage === WORKSHOP_STAGE_BY_WORK_KEY[key]);
+}
+
+/**
+ * Project one authoritative department state for every Control Board surface.
+ * Required/complete flags, active planner bookings, Parts ordering and Sublet
+ * bookings all enter here instead of being reinterpreted by each renderer.
+ */
+function projectWorkState({ workKey = '', required = false, completed = false, bookings = [], partsOrdered = false, subletBookings = [] } = {}) {
+  const key = normalizedWorkKey(workKey);
+  if (completed === true) return Object.freeze({ state: 'completed', marker: '✓', label: 'Completed' });
+  const activeWorkshopBooking = Array.isArray(bookings) && bookings.some(booking => (
+    booking
+    && booking.deleted_at == null
+    && booking.deletedAt == null
+    && ACTIVE_BOOKING_STATUSES.has(clean(booking.status).toLowerCase())
+    && bookingMatchesWorkKey(booking, key)
+  ));
+  const activeSubletBooking = key === 'sublet' && Array.isArray(subletBookings) && subletBookings.some(booking => (
+    booking
+    && booking.deleted_at == null
+    && booking.deletedAt == null
+    && ['active', 'booked', 'planned', 'started'].includes(clean(booking.status).toLowerCase())
+  ));
+  if (required === true && ((key === 'parts' && partsOrdered === true) || activeWorkshopBooking || activeSubletBooking)) {
+    return Object.freeze({ state: 'booked', marker: '!', label: key === 'parts' ? 'Ordered' : 'Booked' });
+  }
+  if (required === true) return Object.freeze({ state: 'required', marker: '•', label: 'Required' });
+  return Object.freeze({ state: 'none', marker: '–', label: 'Not required' });
 }
 
 /**
@@ -99,7 +159,9 @@ function deleteConfirmationIncludes({ confirmation = '', operationNo = '', descr
 
 const guard = Object.freeze({
   REQUIREMENT_KEYS,
+  normalizeVehicleIdentity,
   mergeRequirementPatch,
+  projectWorkState,
   bookingDateForVehicle,
   partsRiskState,
   exactBookingNavigationTarget,

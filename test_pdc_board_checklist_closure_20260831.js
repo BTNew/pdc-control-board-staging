@@ -69,10 +69,11 @@ const vehicle = {
   },
 };
 const pmbAge = context.locationAgeLabel(vehicle);
-assert.match(pmbAge, /^PMB \d+ Days \| YH \d+ Days$/);
+assert.match(pmbAge, /^\d+ days?$/);
 assert.doesNotMatch(pmbAge, /2026-01-01|No ETA/, 'PMB must not display Kewdale ETA');
 const yhAge = context.locationAgeLabel({ ...vehicle, statusCategory: 'yardhold' });
-assert.match(yhAge, /^YH \d+ Days$/);
+assert.strictEqual(yhAge, '—');
+assert.strictEqual(context.locationAgeLabel({ statusCategory: 'pmb', lifecycleHistory: {} }), '—');
 const itEta = context.locationAgeLabel({ statusCategory: 'transit', eta: '2026-09-04' });
 assert.strictEqual(itEta, '2026-09-04', 'IT keeps ETA-only display');
 
@@ -121,7 +122,7 @@ assert.match(workOperationLoader, /if \(route === 'dashboard'\) return \{ ok: tr
 assert.match(lineHandle, /openVehicleWorkshopBooking\([\s\S]*handle\.dataset\.vehicleId[\s\S]*displayStockNumber/,
   'vehicle-card booking navigation passes the canonical vehicle and Stock identity');
 assert.match(pmbCardDetail, /pmbLifecycleAgeLabel\(vehicle\)/,
-  'PMB planner cards use retained PMB/YH lifecycle ages');
+  'PMB planner cards use actual PMB-arrival age only');
 assert.doesNotMatch(pmbCardDetail, /onSiteDaysLabel\(vehicle\)/,
   'PMB planner cards do not derive age from Kewdale ETA');
 assert.doesNotMatch(app, /(?:window\.)?location\.reload\s*\(/);
