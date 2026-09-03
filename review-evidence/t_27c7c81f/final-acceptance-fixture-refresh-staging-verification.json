@@ -1,0 +1,160 @@
+{
+  "changed_plan_rejection": {
+    "code": "acceptance_fixture_plan_binding_invalid",
+    "http_status": 200
+  },
+  "consumed_fixture_count": 0,
+  "cross_target_plan_rejection": {
+    "code": "acceptance_fixture_plan_binding_invalid",
+    "http_status": 200
+  },
+  "current_hours_case_counts": {
+    "ai_estimate_1_0": 14,
+    "job_card_0_0": 14,
+    "job_card_2_5": 14
+  },
+  "deployed_contract": {
+    "consumed_fixture_count": 0,
+    "fixture_count": 14,
+    "fixture_rpc_anon_denied": true,
+    "fixture_rpc_authenticated": true,
+    "fixture_table_private": true,
+    "generation_table_private": true,
+    "ledger_head": "20260903125000",
+    "operation_evidence_match_count": 14,
+    "predecessor_lineage_collision_count": 0,
+    "production_sentinel_present": false,
+    "validation_rpc_anon_denied": true,
+    "validation_rpc_authenticated": true
+  },
+  "environment": "staging",
+  "fixture_rpc": "get_pdc_email_ai_v2_acceptance_fixture_generation_20260903_v6",
+  "fixture_source_attachment_immutability_verified": true,
+  "fresh_fixture_count": 14,
+  "generation_id": "27c7c81f-0006-4000-8000-000000000014",
+  "hostile_plan_rejection": {
+    "code": "typed_v2_plan_invalid",
+    "http_status": 200
+  },
+  "mailbox_contacted": false,
+  "migration": "20260903125000",
+  "ok": true,
+  "outbound_email_sent": false,
+  "production_contacted": false,
+  "production_writes": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_table_http_statuses": {
+    "pdc_email_ai_v2_acceptance_fixture_generations_20260903_v6": {
+      "anon": 401,
+      "runtime": 403
+    },
+    "pdc_email_ai_v2_acceptance_fixtures_generation_20260903_v6": {
+      "anon": 401,
+      "runtime": 403
+    }
+  },
+  "runtime_credential_source": "pdc-email-ai-lead/.env",
+  "runtime_jwt_validation": [
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 4,
+      "scenario_key": "exact_vehicle_identity",
+      "scenario_no": 1
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 5,
+      "scenario_key": "job_card_activation",
+      "scenario_no": 2
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 5,
+      "scenario_key": "parts_eta_state_update",
+      "scenario_no": 3
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 5,
+      "scenario_key": "parts_complete_update",
+      "scenario_no": 4
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 6,
+      "scenario_key": "multi_action_email",
+      "scenario_no": 5
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 3,
+      "scenario_key": "all_operation_lines_accounted",
+      "scenario_no": 6
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 3,
+      "scenario_key": "explicit_hours_preserved",
+      "scenario_no": 7
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 3,
+      "scenario_key": "missing_hours_estimated_with_provenance",
+      "scenario_no": 8
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 3,
+      "scenario_key": "ambiguous_identity_review",
+      "scenario_no": 9
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 4,
+      "scenario_key": "revised_superseding_evidence",
+      "scenario_no": 10
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 3,
+      "scenario_key": "replay_idempotency",
+      "scenario_no": 11
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 4,
+      "scenario_key": "taxonomy_review",
+      "scenario_no": 12
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 3,
+      "scenario_key": "typed_write_readback_board_intake_parity",
+      "scenario_no": 13
+    },
+    {
+      "code": "typed_v2_plan_valid",
+      "current_vehicle_version": 16,
+      "instruction_count": 3,
+      "scenario_key": "restart_recovery_no_duplicate_effect",
+      "scenario_no": 14
+    }
+  ],
+  "taxonomy_review_count": 1,
+  "validated_current_version_plan_count": 14,
+  "validation_rpc": "validate_pdc_email_ai_v2_acceptance_generation_plan_20260903_v6"
+}

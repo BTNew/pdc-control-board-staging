@@ -1,0 +1,179 @@
+{
+  "altered_evidence_rejected": {
+    "code": "typed_v2_plan_invalid",
+    "http_status": 200,
+    "ok": false
+  },
+  "arbitrary_sql_http_status": 404,
+  "authenticated_user_id": "e9ed1fa6-f569-41b5-8d83-08f76bf4d8c8",
+  "changed_plan_rejected": {
+    "code": "typed_v2_plan_invalid",
+    "http_status": 200,
+    "ok": false
+  },
+  "counts_after": {
+    "actions": 434,
+    "all_actions_sha256": "44d5703272fb9812ff416570ea38373c5a9a9e5ccf91c5f22cebb5a782a96044",
+    "all_attachments_sha256": "2702ae76a66121ab48205589314bb1e510932827ba979dfcf1aa72bc6ab63918",
+    "all_audit_events_sha256": "3ad9243a37d73528f07259c82b72dc8995fec3879f79e0d044131103debcb56f",
+    "all_intakes_sha256": "f2dd9cab48a1324fc9529b3ca208e67d0421bfb546eb8d62c3ae7768418e4b76",
+    "all_transactions_sha256": "f57c23f2a44f1bf19606697d46e4083c5bfd655357e3e08e01f9efcb0ecc77f1",
+    "all_vehicles_sha256": "2577ff34a65bd641981146ec6bdd9dcf3d0feb1dae9cf1e7e5fcf25257090621",
+    "attachments": 1115,
+    "audit_events": 1267,
+    "intakes": 1013,
+    "selected_actions_sha256": "3dc10e96300f7df58866bf6f8fd4fac360522e874c59a8679fa52b5e5d178fdc",
+    "selected_sources_sha256": "97c578d728d433ced133dc0cd630b0cedd05d934155ff22c9a48c098d23135aa",
+    "selected_transactions_sha256": "3bc411a37e984e92e8b52784cb7ba67ce54b607ffcd83fd68a07196090770f31",
+    "transactions": 333,
+    "vehicle_versions": 1376,
+    "vehicles": 974
+  },
+  "counts_before": {
+    "actions": 434,
+    "all_actions_sha256": "44d5703272fb9812ff416570ea38373c5a9a9e5ccf91c5f22cebb5a782a96044",
+    "all_attachments_sha256": "2702ae76a66121ab48205589314bb1e510932827ba979dfcf1aa72bc6ab63918",
+    "all_audit_events_sha256": "3ad9243a37d73528f07259c82b72dc8995fec3879f79e0d044131103debcb56f",
+    "all_intakes_sha256": "f2dd9cab48a1324fc9529b3ca208e67d0421bfb546eb8d62c3ae7768418e4b76",
+    "all_transactions_sha256": "f57c23f2a44f1bf19606697d46e4083c5bfd655357e3e08e01f9efcb0ecc77f1",
+    "all_vehicles_sha256": "2577ff34a65bd641981146ec6bdd9dcf3d0feb1dae9cf1e7e5fcf25257090621",
+    "attachments": 1115,
+    "audit_events": 1267,
+    "intakes": 1013,
+    "selected_actions_sha256": "3dc10e96300f7df58866bf6f8fd4fac360522e874c59a8679fa52b5e5d178fdc",
+    "selected_sources_sha256": "97c578d728d433ced133dc0cd630b0cedd05d934155ff22c9a48c098d23135aa",
+    "selected_transactions_sha256": "3bc411a37e984e92e8b52784cb7ba67ce54b607ffcd83fd68a07196090770f31",
+    "transactions": 333,
+    "vehicle_versions": 1376,
+    "vehicles": 974
+  },
+  "environment": "staging",
+  "final_migration_already_applied": true,
+  "final_migration_sha256": "bb00facb927f319010ed24b68e213526f14d0ce094662ae88b3e8313799576e9",
+  "fixture_count": 14,
+  "helper_readback": {
+    "anon_execute": false,
+    "authenticated_execute": false,
+    "canonical_attachment_match": true,
+    "canonical_hash_match": true,
+    "legacy_rotation_bound": true,
+    "safe_plan_anon_execute": false,
+    "safe_plan_authenticated_execute": false,
+    "safe_plan_service_role_execute": false,
+    "safe_plan_sha256": "9fd1d2786357633045468abe13d7aaf1430de5444c1f7117fb904f41cbb5c086",
+    "safe_projection_match": true,
+    "service_role_execute": false,
+    "sha256": "ae53a4e3b7946ca7b10e3eb055da9aee47471768f8eedd2512cb1ba09b0e39b7",
+    "transaction_allowlist": true
+  },
+  "hostile_plan_rejected": {
+    "code": "typed_v2_plan_invalid",
+    "http_status": 200,
+    "ok": false
+  },
+  "intermediate_migration_already_applied": true,
+  "ledger_readback": [
+    {
+      "name": "pdc_email_ai_actual_jwt_replay_parity_20260903",
+      "version": "20260903080000"
+    },
+    {
+      "name": "pdc_email_ai_actual_jwt_legacy_receipt_parity_20260903",
+      "version": "20260903090000"
+    },
+    {
+      "name": "pdc_email_ai_actual_jwt_replay_lockdown_20260903",
+      "version": "20260903100000"
+    },
+    {
+      "name": "pdc_email_ai_safe_projection_freeze_20260903",
+      "version": "20260903110000"
+    }
+  ],
+  "lockdown_migration_already_applied": true,
+  "lockdown_migration_sha256": "a242ca989d6a6e023ce5b7a64349f6a983de908437934f7956e1ac88bfce9560",
+  "mailbox_contacted": false,
+  "migration_already_applied": true,
+  "migration_identity": [
+    "20260903110000",
+    "pdc_email_ai_safe_projection_freeze_20260903"
+  ],
+  "migration_sha256": "f48e49d58d46d9103d1282fb9d21b5b69a518fbd9bd8e777b85fefbe9dd5b37f",
+  "ok": true,
+  "outbound_email_sent": false,
+  "production_contacted": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "projection_migration_sha256": "fedd69033f4db9a5c733918cb9d46b15081e8fab035e038d24370fa903a19117",
+  "protected_table_http_statuses": {
+    "pdc_email_ai_successor_transaction_receipts": 403,
+    "pdc_email_ai_v2_acceptance_fixtures_20260903": 403
+  },
+  "replay_results": [
+    {
+      "action_receipt_ids": [
+        "459d6eff-8ebb-4724-98d9-5df1be818da7"
+      ],
+      "code": "pdc_email_ai_typed_action_surface_verified",
+      "exact_successful_replay": true,
+      "http_status": 200,
+      "ok": true,
+      "returned_transaction_id": "0fec3e2a-bd49-4d98-a83d-42770edd9b23",
+      "runtime_rotation_replay": true,
+      "transaction_id": "0fec3e2a-bd49-4d98-a83d-42770edd9b23"
+    },
+    {
+      "action_receipt_ids": [
+        "3e8f48a6-cfed-484b-a741-c60a77e38505"
+      ],
+      "code": "pdc_email_ai_typed_action_surface_verified",
+      "exact_successful_replay": true,
+      "http_status": 200,
+      "ok": true,
+      "returned_transaction_id": "35726910-42d6-4c7a-aa54-71e75dd67083",
+      "runtime_rotation_replay": true,
+      "transaction_id": "35726910-42d6-4c7a-aa54-71e75dd67083"
+    },
+    {
+      "action_receipt_ids": [
+        "5960cea2-5853-4a53-82ce-229f5a6e4010"
+      ],
+      "code": "pdc_email_ai_typed_action_surface_verified",
+      "exact_successful_replay": true,
+      "http_status": 200,
+      "ok": true,
+      "returned_transaction_id": "541657d7-ef0b-4323-884c-2a1edc29aa2f",
+      "runtime_rotation_replay": true,
+      "transaction_id": "541657d7-ef0b-4323-884c-2a1edc29aa2f"
+    }
+  ],
+  "runtime_readbacks": {
+    "contract": {
+      "code": "typed_action_contract",
+      "http_status": 200,
+      "ok": true
+    },
+    "fixtures": {
+      "code": "pdc_email_ai_v2_acceptance_fixtures_ready",
+      "http_status": 200,
+      "ok": true
+    },
+    "health": {
+      "code": "pdc_email_ai_successor_health",
+      "http_status": 200,
+      "ok": true
+    },
+    "inbox": {
+      "code": "successor_inbox_snapshot",
+      "http_status": 200,
+      "ok": true
+    },
+    "snapshot": {
+      "code": "ok",
+      "http_status": 200,
+      "ok": true
+    }
+  },
+  "stable_action_receipt_ids": true,
+  "stable_transaction_ids": true,
+  "zero_mutations": true
+}
