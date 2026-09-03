@@ -1,0 +1,16 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/20260903131000_external_completion_workshop_status_not_null_repair_20260903.sql', 'utf8');
+assert.ok(sql.includes('20260903130000'));
+assert.ok(sql.includes('809731f11da081cd2f25a6ea18f6849d608f32c1b0bceceba1dea3673ef22ec4'));
+assert.ok(sql.includes("old_fragment constant text:='workshop_status=NULL'"));
+assert.ok(sql.includes("new_fragment constant text:='workshop_status=''queued'''"));
+assert.match(sql, /length\(definition\)-length\(replace\(definition,old_fragment,''\)\)\)\/length\(old_fragment\)<>1/i);
+assert.ok(sql.includes("external_non_navision_final_collection"));
+assert.ok(sql.includes("physical_delivery_asserted"));
+assert.ok(sql.includes("navision_backend_records"));
+assert.ok(!sql.includes('vjdtsswhroyguxyfjdkt'));
+assert.ok(!/UPDATE\s+public\.vehicles/i.test(sql), 'repair changes only the exact installed function definition');
+assert.ok(!/CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+public\.reconcile_navision_delivery_/i.test(sql));
+console.log('external completion workshop-status append-only repair contract passed');

@@ -1,0 +1,15 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/20260903132000_external_completion_delivery_milestone_scope_20260903.sql','utf8');
+assert.match(sql,/version='20260903131000'/i);
+assert.match(sql,/CREATE OR REPLACE FUNCTION public\.pdc_vehicle_first_milestones\(\)/i);
+assert.match(sql,/old\.delivered_to_dealer_date IS NULL/i);
+assert.match(sql,/new\.delivered_to_dealer_date IS NULL/i);
+assert.match(sql,/new\.rft_collected_at IS NOT NULL/i);
+assert.match(sql,/external_non_navision_final_collection/i);
+assert.match(sql,/navision_status_literal/i);
+assert.match(sql,/WHEN v_external_collected_completion THEN NULL/i);
+assert.match(sql,/ELSE coalesce\(old\.delivered_to_dealer_date,new\.delivered_to_dealer_date/i);
+assert.match(sql,/REVOKE ALL ON FUNCTION public\.pdc_vehicle_first_milestones\(\) FROM PUBLIC/i);
+console.log('external completion delivery-milestone scope contract passed');

@@ -1,0 +1,15 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/20260903137000_external_completion_booking_history_revision_20260903.sql','utf8');
+assert.match(sql,/^BEGIN;/m);
+assert.match(sql,/version='20260903136000'/i);
+assert.match(sql,/version='20260903132000'/i);
+assert.match(sql,/expected_hash constant text:='c9fe7c0e9a0e9e6ec07bc8e9024716d00c2950f5844396de699517115b4a8864'/i);
+assert.match(sql,/pdc_external_completion_authorizations_20260903/i);
+assert.match(sql,/public\.workshop_delete_booking/i);
+assert.match(sql,/public\.workshop_bump_revision/i);
+assert.match(sql,/PDC_EXTERNAL_COMPLETION_BOOKING_DELETE_FAILED/i);
+assert.doesNotMatch(sql,/ON CONFLICT\s*\(version\)/i);
+assert.match(sql,/^COMMIT;/m);
+console.log('external completion canonical booking-history repair contract passed');
