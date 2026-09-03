@@ -19,7 +19,7 @@ assert(app.includes('subletBooked'), 'Vehicle Locations must project active Subl
 assert(!vehicleRenderer.includes('incoming-card-sublet'), 'Vehicle/model column must not render a duplicate Sublet status badge');
 assert(app.includes('incoming-sublet-booking-detail'), 'Vehicle Locations card must render canonical Sublet detail');
 assert(app.includes("allRows.filter(vehicle => subletBookingState(vehicle) === 'booked')"), 'Sublet summary must exclude cancelled-only rows from booked count');
-assert(styles.includes('.incoming-work-check.is-ordered'), 'Sublet booked workgroup must reuse the orange ordered styling');
+assert(styles.includes('.incoming-work-check.is-booked'), 'Sublet booked workgroup must reuse the shared orange booked styling');
 assert(service.includes("PDC_SUBLET_AUDIT_READ_RPC = 'get_pdc_sublet_audit_ledgers'"), 'service must expose the exact Sublet ledger RPC');
 assert(service.includes('readSubletAuditLedgers'), 'service must expose the authenticated ledger read bridge');
 for (const fragment of [

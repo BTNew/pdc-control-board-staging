@@ -1,5 +1,5 @@
 const APP_VERSION = '2026.08.27.706-final-authoritative-lifecycle';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.08.30.1000-771-admin-block-audit-continuations-successor';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.03.1500-pdc14-control-board-parity';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -115,11 +115,26 @@ function pdcLocationLabel(value = '') {
   return PDC_LOCATION_LABELS.get(normalized) || normalized || '';
 }
 
-function pdcLocationSelectOptions(current = '') {
+function pdcLocationManualTransitionAllowed(current = '', target = '', vehicle = {}) {
+  const from = normalizePdcLocation(current);
+  const to = normalizePdcLocation(target);
+  if (from === 'YH') return to === 'YH' || to === 'PMB';
+  if (from === 'PMB') {
+    return to === 'PMB' || (to === 'PIT'
+      && !vehicle.pdcQcComplete
+      && !normalizePmbStage(inferredPmbStage(vehicle)));
+  }
+  if (from === 'PIT') return to === 'PIT' || to === 'PMB';
+  return false;
+}
+
+function pdcLocationSelectOptions(current = '', serverAuthoritative = false, vehicle = {}) {
   const normalizedCurrent = normalizePdcLocation(current);
   return PDC_LOCATION_OPTIONS.map(option => {
     const selected = option.value === normalizedCurrent ? ' selected' : '';
-    const disabled = option.systemOnly && option.value !== normalizedCurrent ? ' disabled' : '';
+    const disabled = option.value !== normalizedCurrent && (
+      option.systemOnly || (serverAuthoritative && !pdcLocationManualTransitionAllowed(normalizedCurrent, option.value, vehicle))
+    ) ? ' disabled' : '';
     return `<option value="${escapeHtml(option.value)}"${selected}${disabled}>${escapeHtml(option.label)}</option>`;
   }).join('');
 }
@@ -325,7 +340,7 @@ function pdcJobTriStateControl(vehicle = {}, def = {}, locked = false) {
   const destination = pdcWorkDestination(vehicle, def);
   const ordered = def.key === 'parts' && state === 'required' && partsOrdered(vehicle) && !isActivePartsStoppage(vehicle);
   const booked = state === 'required' && destination?.booked === true && !isActivePartsStoppage(vehicle);
-  const displayState = ordered || booked ? 'ordered' : state;
+  const displayState = ordered || booked ? 'booked' : state;
   const stateLabel = state === 'complete' ? 'Completed' : ordered ? 'Ordered' : booked ? 'Booked' : state === 'required' ? 'To be completed' : 'Not required';
   const disabled = locked ? ' disabled' : '';
   const destinationPill = destination?.kind === 'workshop' && destination.bookingId && destination.dateKey
@@ -333,7 +348,7 @@ function pdcJobTriStateControl(vehicle = {}, def = {}, locked = false) {
     : destination?.kind === 'view'
       ? `<button type="button" class="pdc-work-destination-pill" data-pdc-work-destination-view="${escapeHtml(destination.view)}" title="Open ${escapeHtml(def.label)}">${escapeHtml(destination.label)}</button>`
       : '<span class="pdc-work-destination-empty">Not booked</span>';
-  return `<div class="pdc-work-state-cell"><button class="pdc-work-state pdc-work-state-${escapeHtml(displayState)} pdc-toggle-${escapeHtml(def.key)}" type="button" data-pdc-work-state="${escapeHtml(def.key)}" data-state="${escapeHtml(state)}" aria-label="${escapeHtml(def.label)} - ${stateLabel}" title="${escapeHtml(def.label)} - ${stateLabel}. Grey not required, red to complete, orange booked/ordered, green completed."${disabled}>
+  return `<div class="pdc-work-state-cell"><button class="pdc-work-state pdc-work-state-${escapeHtml(displayState)}${ordered || booked ? ' pdc-work-state-ordered' : ''} pdc-toggle-${escapeHtml(def.key)}" type="button" data-pdc-work-state="${escapeHtml(def.key)}" data-state="${escapeHtml(state)}" aria-label="${escapeHtml(def.label)} - ${stateLabel}" title="${escapeHtml(def.label)} - ${stateLabel}. Grey not required, red to complete, orange booked/ordered, green completed."${disabled}>
     <span class="pdc-work-state-code">${escapeHtml(def.short)}</span>
     <span class="pdc-work-state-label">${escapeHtml(def.label)}</span>
     <span class="pdc-work-state-status">${escapeHtml(stateLabel)}</span>
@@ -563,9 +578,8 @@ function pmbAgeDays(vehicle = {}) {
 
 function pmbAgeLabel(vehicle = {}) {
   const days = pmbAgeDays(vehicle);
-  if (days === null) return 'PMB entry unknown';
-  if (days === 0) return 'PMB today';
-  return `PMB +${days}d`;
+  if (days === null) return '—';
+  return `${days} day${days === 1 ? '' : 's'}`;
 }
 
 function lifecycleAgeDays(vehicle = {}, key = '') {
@@ -578,11 +592,12 @@ function lifecycleAgeDaysLabel(days) {
 }
 
 function pmbLifecycleAgeLabel(vehicle = {}) {
-  return `PMB ${lifecycleAgeDaysLabel(lifecycleAgeDays(vehicle, 'firstEnteredPmbAt'))} Days | YH ${lifecycleAgeDaysLabel(lifecycleAgeDays(vehicle, 'firstReachedYardHoldAt'))} Days`;
+  const days = lifecycleAgeDays(vehicle, 'firstEnteredPmbAt');
+  return days === null ? '—' : `${days} day${days === 1 ? '' : 's'}`;
 }
 
 function yardHoldLifecycleAgeLabel(vehicle = {}) {
-  return `YH ${lifecycleAgeDaysLabel(lifecycleAgeDays(vehicle, 'firstReachedYardHoldAt'))} Days`;
+  return '—';
 }
 
 function partsEtaCounterLabel(vehicle = {}) {
@@ -2761,7 +2776,25 @@ function daysTo(value) {
 }
 
 function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
+  return String(value ?? '').replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+}
+
+async function copyTextToClipboard(value = '') {
+  const text = String(value);
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const fallback = document.createElement('textarea');
+  fallback.value = text;
+  fallback.setAttribute('readonly', '');
+  fallback.style.position = 'fixed';
+  fallback.style.opacity = '0';
+  document.body.appendChild(fallback);
+  fallback.select();
+  const copied = document.execCommand('copy');
+  fallback.remove();
+  if (!copied) throw new Error('Clipboard copy is unavailable. Select and copy the Stock Number manually.');
 }
 
 function navisionDealerNoteText(vehicle = {}) {
@@ -7524,18 +7557,29 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
       : Boolean(stoppedBooking || (isPdcBlocked(vehicle) && stageJobKey === def.key));
     const ordered = def.key === 'parts' && required && !complete && !blocked && partsOrdered(vehicle);
     const subletBooked = def.key === 'sublet' && Boolean(canonicalActiveSubletBooking(vehicle)) && !complete && !blocked;
+    const workStateGuard = typeof window !== 'undefined' ? window.VehicleRequirementsGuard : globalThis.VehicleRequirementsGuard;
+    const projected = workStateGuard?.projectWorkState?.({
+      workKey: def.key,
+      required,
+      completed: complete,
+      bookings: bookingProjection.activeBookings || vehicle.salesWorkshopBookings || [],
+      partsOrdered: ordered,
+      subletBookings: vehicle.pdcSubletBookings || [],
+    });
+    const booked = !blocked && (projected?.state === 'booked' || ordered || subletBooked);
     const classes = ['incoming-work-check', `pdc-station-${def.key}`];
     if (!required && !complete) classes.push('is-not-required');
     if (required) classes.push('is-required');
     if (ordered || subletBooked) classes.push('is-ordered');
+    if (booked) classes.push('is-booked');
     if (complete) classes.push('is-complete');
     if (blocked) classes.push('is-blocked');
     if (stage && currentStage === stage) classes.push('is-current-stage');
-    const state = complete ? 'complete' : blocked ? 'blocked' : ordered ? 'ordered' : subletBooked ? 'booked' : required ? 'required' : 'not required';
-    const marker = complete ? '✓' : blocked ? '!' : ordered || subletBooked ? '●' : required ? '•' : '–';
+    const state = complete ? 'complete' : blocked ? 'blocked' : ordered ? 'ordered' : booked ? 'booked' : required ? 'required' : 'not required';
+    const marker = complete ? '✓' : blocked ? '!' : projected?.marker || (ordered || subletBooked ? '●' : required ? '•' : '–');
     const title = stoppedBooking
       ? `${pdcGridJobLabel(def)} STOPPAGE${stoppedBooking.stoppageReason ? `: ${stoppedBooking.stoppageReason}` : ''}`
-      : ordered ? `${pdcGridJobLabel(def)} ordered` : subletBooked ? `${pdcGridJobLabel(def)} booked` : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
+      : ordered ? `${pdcGridJobLabel(def)} ordered` : booked ? `${pdcGridJobLabel(def)} booked` : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
     return `<span class="${classes.join(' ')}" title="${escapeHtml(title)}" aria-label="${escapeHtml(`${pdcGridJobLabel(def)} ${state}`)}">
       <span class="incoming-work-box" aria-hidden="true">${marker}</span>
       <span class="incoming-work-label">${escapeHtml(pdcGridJobLabel(def))}</span>
@@ -7548,7 +7592,7 @@ function workStatusLegendHtml() {
     <strong>Work status</strong>
     <span class="work-status-key status-none"><b>—</b> Not required</span>
     <span class="work-status-key status-required"><b>●</b> Required</span>
-    <span class="work-status-key status-ordered"><b>●</b> Parts ordered</span>
+    <span class="work-status-key status-booked"><b>!</b> Booked / Parts ordered</span>
     <span class="work-status-key status-complete"><b>✓</b> Complete</span>
     <span class="work-status-key status-blocked"><b>!</b> STOPPAGE</span>
   </div>`;
@@ -14094,7 +14138,7 @@ function renderDetail() {
   const activePage = app.vehicleDetailPage === 'work' ? 'work' : 'details';
   panel.innerHTML = `
     <div class="panel-header vehicle-detail-header">
-      <div><h2 id="vehicle-modal-title">Vehicle detail</h2><p>${stockLabel(v)} ${escapeHtml(displayStockNumber(v))}</p></div>
+      <div><h2 id="vehicle-modal-title">Vehicle detail</h2><p>${stockLabel(v)} <span class="vehicle-copyable-field" data-vehicle-stock>${escapeHtml(displayStockNumber(v))}</span> <button class="small-button inline-copy-button" type="button" data-copy-vehicle-stock>Copy</button><span class="sr-only" aria-live="polite" data-copy-vehicle-stock-status></span></p></div>
       <div class="vehicle-detail-header-tools">
         <nav class="vehicle-detail-tabs" role="tablist" aria-label="Vehicle detail pages">
           <button type="button" role="tab" id="vehicle-detail-tab-details" aria-controls="vehicle-detail-panel-details" aria-selected="${activePage === 'details'}" tabindex="${activePage === 'details' ? '0' : '-1'}" class="${activePage === 'details' ? 'is-active' : ''}" data-vehicle-detail-tab="details">Vehicle details</button>
@@ -14143,7 +14187,7 @@ function renderDetail() {
         <div class="form-row one-col">
           <label>
             <span class="muted-label">PDC location</span>
-            <select name="pdcLocation">${pdcLocationSelectOptions(v.pdcLocation)}</select>
+            <select name="pdcLocation">${pdcLocationSelectOptions(v.pdcLocation, v.__emailVehicleServerAuthoritative === true, v)}</select>
             <span class="field-help">Manual from Yard Hold onward. Navision will not overwrite PMB or RFT.</span>
           </label>
         </div>
@@ -14170,7 +14214,7 @@ function renderDetail() {
         <div class="pdc-work-state-grid" data-pdc-work-state-grid>
           ${PDC_JOB_DEFS.map(def => pdcJobTriStateControl(v, def, isCompletedVehicle)).join('')}
         </div>
-        <div class="field-help pdc-work-state-help">Click each work item to cycle: grey = not required, red = to be completed, orange = Parts ordered, green = completed.</div>
+        <div class="field-help pdc-work-state-help">Click each work item to cycle: grey = not required, red = to be completed, orange = Parts ordered / Workshop booked, green = completed.</div>
         <div class="edit-actions">
           <button class="primary" type="submit">Save changes</button>
           <button class="ghost" type="button" data-modal-cancel>Cancel</button>
@@ -14221,6 +14265,22 @@ function renderDetail() {
   `;
   bindVehicleDetailTabs(panel);
   if (activePage === 'work') return;
+  on($('[data-copy-vehicle-stock]', panel), 'click', async event => {
+    const value = cleanNavisionText(displayStockNumber(v));
+    const status = $('[data-copy-vehicle-stock-status]', panel);
+    try {
+      if (!value) throw new Error('No Stock Number is available.');
+      await copyTextToClipboard(value);
+      event.currentTarget.textContent = 'Copied';
+      if (status) status.textContent = `Copied ${value}`;
+      window.setTimeout(() => {
+        if (event.currentTarget?.isConnected) event.currentTarget.textContent = 'Copy';
+      }, 1500);
+    } catch (error) {
+      if (status) status.textContent = error.message || 'Copy failed';
+      showNotice(error.message || 'Could not copy the Stock Number.');
+    }
+  });
   loadVehicleHistoryForDetail(v);
   on($('[data-email-vehicle-update]', panel), 'click', () => draftSelectedVehicleStatusEmail(key));
   bindVehicleLabelButtons(panel);
@@ -14244,7 +14304,13 @@ function renderDetail() {
       const current = button.dataset.state || 'none';
       const next = current === 'none' ? 'required' : current === 'required' ? 'complete' : 'none';
       button.dataset.state = next;
-      button.classList.remove('pdc-work-state-none', 'pdc-work-state-required', 'pdc-work-state-complete');
+      button.classList.remove(
+        'pdc-work-state-none',
+        'pdc-work-state-required',
+        'pdc-work-state-booked',
+        'pdc-work-state-ordered',
+        'pdc-work-state-complete',
+      );
       button.classList.add(`pdc-work-state-${next}`);
       const statusText = next === 'complete' ? 'Completed' : next === 'required' ? 'To be completed' : 'Not required';
       const status = button.querySelector('.pdc-work-state-status');
@@ -14318,8 +14384,53 @@ function renderDetail() {
       window.alert(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
       return;
     }
-    if (serverAuthoritative && (pdcLocation !== (form.dataset.pdcLocationBaseline || previousPdcLocation)
-      || pdcBlocked !== (form.dataset.pdcBlockedBaseline === 'true')
+    const authoritativeLocationChanged = serverAuthoritative
+      && pdcLocation !== normalizePdcLocation(form.dataset.pdcLocationBaseline || previousPdcLocation);
+    if (authoritativeLocationChanged) {
+      const hasOtherAuthoritativeChanges = salespersonChanged
+        || Object.keys(detailChanges).length > 0
+        || Boolean(workStateChangedByUser)
+        || pdcBlocked !== previouslyPdcBlocked
+        || pdcBlockReasonValue !== cleanNavisionText(v.pdcBlockReason || '');
+      if (hasOtherAuthoritativeChanges) {
+        if (saveMessage) saveMessage.textContent = 'Error: save other edits before changing PDC Location';
+        window.alert('PDC Location is an audited lifecycle action. Save other edits first, then change the location separately. No change was made.');
+        return;
+      }
+      if (!pdcLocationManualTransitionAllowed(previousPdcLocation, pdcLocation, authoritativeSaveVehicle)) {
+        if (saveMessage) saveMessage.textContent = 'Error: that PDC location transition is not allowed';
+        return;
+      }
+      const ref = await vehicleLifecycleSharedRef(authoritativeSaveVehicle);
+      if (!ref || ref.outcome !== 'resolved' || typeof window.__vehicleLifecycleActions?.setPdcLocation !== 'function') {
+        if (saveMessage) saveMessage.textContent = 'Error: authoritative PDC location service unavailable';
+        return;
+      }
+      if (saveButton) { saveButton.disabled = true; saveButton.setAttribute('aria-busy', 'true'); }
+      if (saveMessage) saveMessage.textContent = 'Saving PDC location…';
+      const locationResult = await window.__vehicleLifecycleActions.setPdcLocation({
+        vehicleId: ref.vehicleId,
+        expectedVersion: ref.version,
+        location: pdcLocation,
+      });
+      if (!locationResult || locationResult.ok !== true) {
+        await refreshVehicleLifecycleLocationsAndRender();
+        if (saveButton) { saveButton.disabled = false; saveButton.removeAttribute('aria-busy'); }
+        if (saveMessage) saveMessage.textContent = `Error: ${vehicleLifecycleActionErrorMessage(locationResult)}`;
+        return;
+      }
+      const rebound = await refreshVehicleModalExactIdentity();
+      if (!rebound?.ok || !rebound.vehicle) {
+        if (saveMessage) saveMessage.textContent = 'Saved location, but authoritative readback failed';
+        return;
+      }
+      authoritativeSaveVehicle = rebound.vehicle;
+      if (saveMessage) saveMessage.textContent = 'PDC Location saved';
+      renderAll();
+      renderVehicleDetail(key);
+      return;
+    }
+    if (serverAuthoritative && (pdcBlocked !== (form.dataset.pdcBlockedBaseline === 'true')
       || pdcBlockReasonValue !== String(form.dataset.pdcBlockReasonBaseline || ''))) {
       if (saveMessage) saveMessage.textContent = 'Error: lifecycle or stoppage fields use their dedicated shared action';
       return;
@@ -14398,7 +14509,7 @@ function renderDetail() {
     if (!serverAuthoritative && (isPdcBlocked(v) !== pdcBlocked || pdcBlockReason(v) !== (pdcBlockReasonValue || 'Blocked'))) {
       recordVehicleAudit(v, pdcBlocked ? 'Vehicle blocked' : 'Vehicle unblocked', { reason: pdcBlockReasonValue });
     }
-    if (pdcLocation !== previousPdcLocation) {
+    if (!serverAuthoritative && pdcLocation !== previousPdcLocation) {
       const now = nowIsoString();
       updates.pdcLocationUpdatedAt = now;
       if (pdcLocation === 'PMB') {
@@ -15494,7 +15605,7 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
   const markOrderedHint = canMarkOrdered ? 'Mark Parts ordered' : 'Set Parts ETA before marking ordered';
   return `<div class="parts-action-group parts-visible-actions">
     ${status === 'notordered' ? `<button class="small-button parts-ordered-button" type="button" data-parts-ordered="${escapeHtml(key)}" title="${escapeHtml(markOrderedHint)}" aria-label="${escapeHtml(markOrderedHint)}"${canMarkOrdered ? '' : ' disabled aria-disabled="true"'}>Mark ordered</button>` : ''}
-    ${received ? '' : `<button class="small-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
+    ${received ? '' : `<button class="small-button parts-received-button" type="button" data-parts-complete="${escapeHtml(key)}">Mark received</button>`}
     ${stopped
       ? `<button class="small-button" type="button" data-parts-clear-stoppage="${escapeHtml(key)}">Remove Parts STOPPAGE</button>`
       : `<button class="small-button danger-button" type="button" data-parts-stoppage="${escapeHtml(key)}">Parts STOPPAGE</button>`}
@@ -18630,7 +18741,7 @@ function extractAutocareLineValue(block, labelRegex) {
 }
 
 function normalizeVin(value) {
-  const match = String(value || '').toUpperCase().match(/\b[A-HJ-NPR-Z0-9]{17}\b/);
+  const match = String(value || '').toUpperCase().match(/\b(?:[A-HJ-NPR-Z0-9]{17}|REBHV1[0-9]{8})\b/);
   return match ? match[0] : '';
 }
 
