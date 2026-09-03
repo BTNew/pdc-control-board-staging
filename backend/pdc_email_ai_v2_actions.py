@@ -14,7 +14,15 @@ import uuid
 from datetime import date, datetime
 from typing import Any, Mapping
 
-from .pdc_email_ai_successor_contract import ACTION_TYPES, taxonomy_disposition_for_operation
+from .pdc_email_ai_successor_contract import taxonomy_disposition_for_operation
+
+
+V2_ACTION_TYPES = frozenset({
+    "activate_vehicle", "operation_add", "parts_eta_set", "parts_complete",
+    "booking_set", "booking_move", "booking_cancel", "required_work_set",
+    "work_complete", "note_append", "location_set", "job_card_set",
+    "rft_transfer", "rft_collect",
+})
 
 
 class ActionContractError(ValueError):
@@ -120,8 +128,8 @@ def _validate_v2_payload(action_type: str, payload: Mapping[str, Any], label: st
             vin = _text(payload["vin"], f"{label}.vin", 17).upper()
             if re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin) is None:
                 raise ActionContractError(f"{label}.vin is invalid")
-    elif action_type in {"operation_add", "operation_update"}:
-        _exact_keys(payload, {"source_uid", "operation_no", "source_row_no", "work_key", "description", "estimated_hours", "taxonomy_version", "taxonomy_disposition"}, label)
+    elif action_type == "operation_add":
+        _exact_keys(payload, {"source_uid", "operation_no", "source_row_no", "work_key", "description", "estimated_hours", "estimated_hours_source", "taxonomy_version", "taxonomy_disposition"}, label)
         _text(payload["source_uid"], f"{label}.source_uid", 200)
         operation_no = _text(payload["operation_no"], f"{label}.operation_no", 20).upper()
         if not (re.fullmatch(r"OP[1-9][0-9]{0,2}", operation_no)
@@ -134,9 +142,12 @@ def _validate_v2_payload(action_type: str, payload: Mapping[str, Any], label: st
         description = _text(payload["description"], f"{label}.description", 500)
         hours = payload["estimated_hours"]
         if hours is None and (allow_unknown_hours or operation_no.startswith("PD")):
-            pass
+            if payload["estimated_hours_source"] is not None:
+                raise ActionContractError(f"{label}.estimated_hours_source must be null when hours are unknown")
         elif isinstance(hours, bool) or not isinstance(hours, (int, float)) or hours < 0 or hours > 999.99:
             raise ActionContractError(f"{label}.estimated_hours is invalid")
+        elif payload["estimated_hours_source"] not in {"job_card", "ai_estimate", "business_rule_default"}:
+            raise ActionContractError(f"{label}.estimated_hours_source is invalid")
         taxonomy_version = _text(payload["taxonomy_version"], f"{label}.taxonomy_version", 160)
         if taxonomy_version != "pdc-operation-taxonomy-proposed/v1":
             raise ActionContractError(f"{label}.taxonomy_version is invalid")
@@ -306,16 +317,16 @@ def validate_v2_plan(value: Mapping[str, Any], *, authoritative_contexts: list[M
         _bounded_int(expected["vehicle_version"], f"instructions[{index}].expected_state.vehicle_version", 1)
         _bounded_int(expected["backend_revision"], f"instructions[{index}].expected_state.backend_revision", 0)
         action = _text(row["action_type"], f"instructions[{index}].action_type", 80)
-        if action not in ACTION_TYPES:
+        if action not in V2_ACTION_TYPES:
             raise ActionContractError(f"instructions[{index}].action_type is not controlled")
         if not isinstance(row["payload"], Mapping):
             raise ActionContractError(f"instructions[{index}].payload is invalid")
-        if disposition == "planned" or action in {"operation_add", "operation_update"}:
+        if disposition == "planned" or action == "operation_add":
             _validate_v2_payload(
                 action,
                 row["payload"],
                 f"instructions[{index}].payload",
-                allow_unknown_hours=disposition != "planned" and action in {"operation_add", "operation_update"},
+                allow_unknown_hours=disposition != "planned" and action == "operation_add",
             )
         if not isinstance(row["evidence_refs"], list) or not row["evidence_refs"]:
             raise ActionContractError(f"instructions[{index}].evidence_refs is required")
@@ -361,7 +372,7 @@ def build_action_request(
     evidence_digest = _digest(evidence_digest, "evidence_digest")
     row = dict(instruction)
     action_type = _text(row.get("action_type"), "instruction.action_type", 80)
-    if action_type not in ACTION_TYPES:
+    if action_type not in V2_ACTION_TYPES:
         raise ActionContractError("instruction action type is not controlled")
     instruction_id = _text(row.get("instruction_id"), "instruction.instruction_id", 160)
     vehicle_id = _uuid(row.get("vehicle_id"), "instruction.vehicle_id")
@@ -370,8 +381,8 @@ def build_action_request(
         raise ActionContractError("instruction payload is required")
     payload = json.loads(json.dumps(dict(payload), sort_keys=True, ensure_ascii=False, allow_nan=False))
     _walk_safe(payload)
-    if row.get("decision_disposition") == "planned" or action_type in {"operation_add", "operation_update"}:
-        _validate_v2_payload(action_type, payload, "instruction.payload", allow_unknown_hours=row.get("decision_disposition") != "planned" and action_type in {"operation_add", "operation_update"})
+    if row.get("decision_disposition") == "planned" or action_type == "operation_add":
+        _validate_v2_payload(action_type, payload, "instruction.payload", allow_unknown_hours=row.get("decision_disposition") != "planned" and action_type == "operation_add")
     evidence_refs = row.get("evidence_refs")
     if not isinstance(evidence_refs, list) or not evidence_refs:
         raise ActionContractError("typed evidence references are required")
