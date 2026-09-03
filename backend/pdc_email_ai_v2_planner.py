@@ -188,7 +188,7 @@ class V2Planner:
             elif re.search(r"\bparts?\s+(?:are\s+)?(?:now\s+)?(?:complete|completed|received)\b", lowered):
                 add(row, "parts_complete", {"confirmed": True}, refs, "planned", "explicit_parts_complete")
             elif re.search(r"\bparts?\s+ordered\b", lowered):
-                add(row, "parts_ordered", {"confirmed": True}, refs, "planned", "explicit_parts_ordered")
+                add(row, "note_append", {"text": clause[:2000], "event_at": "2026-09-01T00:00:00+00:00"}, refs, "review", "parts_ordered_not_in_v2_action_contract")
             elif re.search(r"\badd\s+note\b", lowered):
                 text = re.split(r"\badd\s+note\s*[:#-]?\s*", clause, flags=re.I, maxsplit=1)[-1].strip().rstrip(".")
                 add(row, "note_append", {"text": text[:2000], "event_at": "2026-09-01T00:00:00+00:00"}, refs, "planned", "explicit_note")
@@ -209,10 +209,10 @@ class V2Planner:
                 add(placeholder, "note_append", {"text": "unresolved attachment identity: " + digest, "event_at": "2026-09-01T00:00:00+00:00"}, self._refs(source, digest), "review", "identity_not_resolved")
                 continue
             if vin and row.get("vin") and vin != str(row["vin"]).upper():
-                add(row, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "identity conflict retained as evidence", "estimated_hours": 0.0, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "conflict", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "conflict", "identity_stock_vin_conflict")
+                add(row, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "identity conflict retained as evidence", "estimated_hours": 0.0, "estimated_hours_source": "job_card", "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "conflict", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "conflict", "identity_stock_vin_conflict")
                 continue
             if vin and by_vin.get(vin) and str(by_vin[vin]["vehicle_id"]) != str(row["vehicle_id"]):
-                add(row, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "identity conflict retained as evidence", "estimated_hours": 0.0, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "conflict", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "conflict", "identity_stock_vin_conflict")
+                add(row, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "identity conflict retained as evidence", "estimated_hours": 0.0, "estimated_hours_source": "job_card", "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "conflict", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "conflict", "identity_stock_vin_conflict")
                 continue
             attachment_job_cards = _attachment_job_cards(attachment)
             if len(attachment_job_cards) == 1:
@@ -220,13 +220,17 @@ class V2Planner:
             explicit_sublet = bool(attachment.get("explicit_sublet") or attachment.get("authorized_provider") or attachment.get("authorized_booking"))
             lines = attachment.get("lines") or []
             if not lines:
-                add(row, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "attachment received; no operation rows extracted", "estimated_hours": 0.0, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "unsupported", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "review", "no_operation_rows_extracted")
+                add(row, "operation_add", {"operation_no": "OP1", "source_row_no": 1, "work_key": "PARTS", "description": "attachment received; no operation rows extracted", "estimated_hours": 0.0, "estimated_hours_source": "job_card", "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": "unsupported", "source_uid": str(source["message_id"]) + ":" + digest}, self._refs(source, digest), "review", "no_operation_rows_extracted")
                 continue
             for index, raw_line in enumerate(lines, 1):
                 line = dict(raw_line)
                 description = str(line.get("description") or "").strip()
                 classification: Classification = classify_operation(description, rules=self.rules, explicit_sublet=explicit_sublet, mounted=bool(line.get("mounted")), loose=bool(line.get("loose")))
                 estimated_hours = _estimated_hours(line)
+                estimated_hours_source = "job_card" if estimated_hours is not None else None
+                if estimated_hours is None and re.search(r"\bpre[\s-]*delivery\b", description, re.I):
+                    estimated_hours = 1.0
+                    estimated_hours_source = "ai_estimate"
                 decision = classification.disposition.casefold()
                 reason = classification.reason
                 # PD accessories rows are valid source evidence even when the
@@ -247,7 +251,7 @@ class V2Planner:
                     "classified" if is_pd_row
                     else taxonomy_disposition_for_operation(description, work_key, TAXONOMY_VERSION)
                 )
-                payload = {"operation_no": operation_no, "source_row_no": int(line.get("source_row_no") or index), "work_key": work_key, "description": description or "unclassified source operation", "estimated_hours": estimated_hours, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": taxonomy_disposition, "source_uid": _attachment_source_uid(source, digest)}
+                payload = {"operation_no": operation_no, "source_row_no": int(line.get("source_row_no") or index), "work_key": work_key, "description": description or "unclassified source operation", "estimated_hours": estimated_hours, "estimated_hours_source": estimated_hours_source, "taxonomy_version": TAXONOMY_VERSION, "taxonomy_disposition": taxonomy_disposition, "source_uid": _attachment_source_uid(source, digest)}
                 add(row, "operation_add", payload, self._refs(source, digest), decision, reason)
 
         distinct_job_cards = {candidate[2] for candidate in job_card_candidates}

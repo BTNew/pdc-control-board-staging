@@ -1,0 +1,75 @@
+{
+  "deployed_contract": {
+    "executor_sha256": "e9f61731254263a893352ecb0311798c032c4384e17df1a72369990a6e7b8b1a",
+    "fixture_table_private": true,
+    "ledger_head": "20260903124000",
+    "mixed_route_installed": true,
+    "obsolete_route_absent": true,
+    "operation_update_fail_closed": true,
+    "production_sentinel_present": false,
+    "repair_evidence_private": true,
+    "strict_sha256": "28237657d6b16b783ae984ed79832bb2476a2595811769c9d28186f33ca04859"
+  },
+  "environment": "staging",
+  "exact_replay_stable": true,
+  "fixture_rpc": "get_pdc_email_ai_v2_acceptance_fixture_generation_20260903_v5",
+  "generation_id": "5bf31237-0005-4000-8000-000000000014",
+  "hostile_plan_rejection": {
+    "code": "typed_v2_plan_invalid",
+    "http_status": 200
+  },
+  "mailbox_contacted": false,
+  "migration": "20260903124000",
+  "mixed_apply": {
+    "code": "pdc_email_ai_typed_action_surface_partial_failure",
+    "disposition": "PARTIAL_FAILURE",
+    "http_status": 200,
+    "planned_dispositions": [
+      "APPLIED_AND_VERIFIED",
+      "APPLIED_AND_VERIFIED"
+    ],
+    "planned_verification_parity": [
+      true,
+      true
+    ],
+    "review_canonical_rpc": [
+      null,
+      null
+    ],
+    "review_dispositions": [
+      "GENUINELY_AMBIGUOUS",
+      "GENUINELY_AMBIGUOUS"
+    ],
+    "transaction_id": "c7aea8fa-a69c-457a-901b-ee75c28df33f"
+  },
+  "ok": true,
+  "outbound_email_sent": false,
+  "persisted_receipt_proof": {
+    "applied_verified_count": 2,
+    "consumed_fixture_count": 1,
+    "partial_count": 1,
+    "review_not_dispatched_count": 2,
+    "transaction_count": 1
+  },
+  "production_contacted": false,
+  "production_writes": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_table_http_statuses": {
+    "pdc_email_ai_mixed_disposition_repairs_20260903": {
+      "anon": 401,
+      "runtime": 403
+    },
+    "pdc_email_ai_v2_acceptance_fixture_generations_20260903_v5": {
+      "anon": 401,
+      "runtime": 403
+    },
+    "pdc_email_ai_v2_acceptance_fixtures_generation_20260903_v5": {
+      "anon": 401,
+      "runtime": 403
+    }
+  },
+  "runtime_credential_source": "pdc-email-ai-lead/.env",
+  "source_evidence_operation_binding": true,
+  "validated_fixture_count": 14,
+  "validation_rpc": "validate_pdc_email_ai_v2_acceptance_generation_plan_20260903_v5"
+}
