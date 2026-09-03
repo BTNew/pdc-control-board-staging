@@ -1,0 +1,12 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/20260903136000_external_completion_residual_booking_soft_delete_20260903.sql','utf8');
+assert.match(sql,/version='20260903135000'/i);
+assert.match(sql,/expected_hash constant text:='e2dc32f8ffbae85883f55fb496871948d0ee5f8f67bc94a6b7b2fbbdcb28d2b7'/i);
+assert.match(sql,/UPDATE public\.workshop_bookings SET\s*status=''deleted''/i);
+assert.match(sql,/deleted_reason=''External\/non-Navision vehicle completed after recorded collection''/i);
+assert.match(sql,/PDC_EXTERNAL_COMPLETION_BOOKING_SOFT_DELETE_DRIFT/i);
+assert.match(sql,/position\('PDC_EXTERNAL_COMPLETION_TEMPORARY_ACTIVATION_DRIFT' in d\)>0/i);
+assert.doesNotMatch(sql,/ON CONFLICT\s*\(version\)/i);
+console.log('external completion residual-booking soft-delete repair contract passed');

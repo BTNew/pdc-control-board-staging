@@ -1,0 +1,13 @@
+'use strict';
+const assert = require('assert');
+const fs = require('fs');
+const sql = fs.readFileSync('supabase/staging_only/20260903135000_external_completion_hidden_booking_cancel_20260903.sql','utf8');
+assert.match(sql,/^BEGIN;/m);
+assert.match(sql,/version='20260903134000'/i);
+assert.match(sql,/expected_hash constant text:='54b5463281b3b10a5a0fcde9ff56b359042f635540e8d5664d75bbde1688d553'/i);
+assert.match(sql,/IF EXISTS\(SELECT 1 FROM public\.workshop_bookings/i);
+assert.match(sql,/AND NOT v\.visible_on_board THEN/i);
+assert.match(sql,/SET visible_on_board=true,version=version\+1/i);
+assert.match(sql,/PDC_EXTERNAL_COMPLETION_TEMPORARY_ACTIVATION_DRIFT/i);
+assert.match(sql,/^COMMIT;/m);
+console.log('external completion hidden-booking cancellation repair contract passed');
