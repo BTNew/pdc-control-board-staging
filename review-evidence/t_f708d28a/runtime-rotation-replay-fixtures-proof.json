@@ -1,0 +1,206 @@
+{
+  "altered_evidence_rejected": {
+    "code": "typed_v2_plan_invalid",
+    "ok": true
+  },
+  "attestation_management_apply_returned": true,
+  "attestation_migration_already_applied": true,
+  "attestation_migration_identity": [
+    "20260903050000",
+    "pdc_email_ai_legacy_attachment_attestation_20260903"
+  ],
+  "attestation_migration_ledger": {
+    "created_by": null,
+    "idempotency_key": null,
+    "name": "pdc_email_ai_legacy_attachment_attestation_20260903",
+    "rollback": null,
+    "statements": [
+      "Freeze successful receipt-bound correspondence and attachments against update, delete, insert and reparenting",
+      "Validate every current attachment hash against the immutable intake digest list before legacy exact replay, including zero-row historical storage cases",
+      "Retain exact legacy evidence digest compatibility while preventing independent source or evidence alteration",
+      "Require the explicit predecessor-to-successor rotation relation for cross-identity replay",
+      "Production, mailbox and outbound paths remain untouched and disabled"
+    ],
+    "version": "20260903050000"
+  },
+  "attestation_migration_sha256": "2c5785afd3eab46ff2f3d3c91b824fe71512ef4bec41e5d15a89dd15f36757a3",
+  "changed_plan_rejected": {
+    "code": "source_reuse_conflict",
+    "ok": true
+  },
+  "counts_after": {
+    "actions": 434,
+    "attachments": 1115,
+    "audit_events": 1267,
+    "intakes": 1013,
+    "selected_actions_sha256": "7d339a51f84da7c76f0f91469dbaee38c2f60b695d2619e15bf488229a448c7a",
+    "selected_source_sha256": "cf2928e283831643783abf723d725894c7a89e415bba085bbdd25d8e9e755554",
+    "selected_transaction_sha256": "3af0ffb72319b91dd10c1d168cd8901055de0e3f55db10111498107dab505a6e",
+    "transactions": 333,
+    "vehicle_versions": 1376,
+    "vehicles": 974
+  },
+  "counts_before": {
+    "actions": 434,
+    "attachments": 1115,
+    "audit_events": 1267,
+    "intakes": 1013,
+    "selected_actions_sha256": "7d339a51f84da7c76f0f91469dbaee38c2f60b695d2619e15bf488229a448c7a",
+    "selected_source_sha256": "cf2928e283831643783abf723d725894c7a89e415bba085bbdd25d8e9e755554",
+    "selected_transaction_sha256": "3af0ffb72319b91dd10c1d168cd8901055de0e3f55db10111498107dab505a6e",
+    "transactions": 333,
+    "vehicle_versions": 1376,
+    "vehicles": 974
+  },
+  "cross_source_rejected": {
+    "code": "source_reuse_conflict",
+    "ok": true
+  },
+  "environment": "staging",
+  "evidence_hardening_management_apply_returned": true,
+  "evidence_hardening_migration_already_applied": true,
+  "evidence_hardening_migration_identity": [
+    "20260903040000",
+    "pdc_email_ai_legacy_success_evidence_immutability_20260903"
+  ],
+  "evidence_hardening_migration_ledger": {
+    "created_by": null,
+    "idempotency_key": null,
+    "name": "pdc_email_ai_legacy_success_evidence_immutability_20260903",
+    "rollback": null,
+    "statements": [
+      "Freeze successful receipt-bound correspondence and attachments against update, delete, insert and reparenting",
+      "Validate current attachment hashes against the immutable intake attachment digest list before exact replay",
+      "Retain exact legacy evidence digest compatibility while preventing independent source or evidence alteration",
+      "Require the explicit predecessor-to-successor rotation relation for cross-identity replay",
+      "Production, mailbox and outbound paths remain untouched and disabled"
+    ],
+    "version": "20260903040000"
+  },
+  "evidence_hardening_migration_sha256": "7253d76079a6c37370d381a16c40d5da69c8a93b6f83fd17e8c028b94af30d3c",
+  "final_binding_management_apply_returned": true,
+  "final_binding_migration_already_applied": false,
+  "final_binding_migration_identity": [
+    "20260903060000",
+    "pdc_email_ai_final_replay_binding_20260903"
+  ],
+  "final_binding_migration_ledger": {
+    "created_by": null,
+    "idempotency_key": null,
+    "name": "pdc_email_ai_final_replay_binding_20260903",
+    "rollback": null,
+    "statements": [
+      "Freeze successful receipt-bound correspondence and attachments against update, delete, insert and reparenting",
+      "Validate every current attachment hash against the immutable intake digest list before legacy exact replay, including zero-row historical storage cases",
+      "Bind final exact replay directly to plan source receipt, source digest and evidence digest columns",
+      "Require the explicit predecessor-to-successor rotation relation for cross-identity replay",
+      "Production, mailbox and outbound paths remain untouched and disabled"
+    ],
+    "version": "20260903060000"
+  },
+  "final_binding_migration_sha256": "49f13a81e9c5570d1bcf1ee29aa86d76623dacd95e35f76a1ff47aa80b82c751",
+  "fixture_count": 14,
+  "fixture_scenarios": [
+    "exact_vehicle_identity",
+    "job_card_activation",
+    "parts_eta_state_update",
+    "parts_complete_update",
+    "multi_action_email",
+    "all_operation_lines_accounted",
+    "explicit_hours_preserved",
+    "missing_hours_estimated_with_provenance",
+    "ambiguous_identity_review",
+    "revised_superseding_evidence",
+    "replay_idempotency",
+    "taxonomy_review",
+    "typed_write_readback_board_intake_parity",
+    "restart_recovery_no_duplicate_effect"
+  ],
+  "fresh_fixture_count": 14,
+  "generic_dml_denied": true,
+  "hardening_management_apply_returned": true,
+  "hardening_migration_already_applied": true,
+  "hardening_migration_identity": [
+    "20260903030000",
+    "pdc_email_ai_runtime_rotation_fixture_hardening_20260903"
+  ],
+  "hardening_migration_ledger": {
+    "created_by": null,
+    "idempotency_key": null,
+    "name": "pdc_email_ai_runtime_rotation_fixture_hardening_20260903",
+    "rollback": null,
+    "statements": [
+      "Require an immutable explicit predecessor-to-successor rotation row for cross-identity exact replay",
+      "Recompute evidence digest from current correspondence and attachment hashes before exact replay",
+      "Block insert, update reparenting and delete for attachments belonging to immutable acceptance fixtures",
+      "Retain same-current-identity exact replay while unrelated revoked identities remain ineligible",
+      "Production, mailbox and outbound paths remain untouched and disabled"
+    ],
+    "version": "20260903030000"
+  },
+  "hardening_migration_sha256": "7f3aed26e0b72c0b685d823cbd8e9806bc7e34150c2e8bcc7d1617bbf3a91917",
+  "hostile_plan_rejected": {
+    "code": "typed_v2_plan_invalid",
+    "ok": true
+  },
+  "mailbox_contacted": false,
+  "management_apply_returned": true,
+  "migration_already_applied": true,
+  "migration_identity": [
+    "20260903020000",
+    "pdc_email_ai_runtime_rotation_replay_fixtures_20260903"
+  ],
+  "migration_ledger": {
+    "created_by": null,
+    "idempotency_key": null,
+    "name": "pdc_email_ai_runtime_rotation_replay_fixtures_20260903",
+    "rollback": null,
+    "statements": [
+      "Exact successful immutable receipt replay accepts the active identity itself or a duly registered earlier revoked predecessor with identical staging purpose; source, evidence, plan hash and typed JSON remain exact",
+      "Changed plans, cross-source reuse, hostile plans and fresh invalid plans remain on the strict validator/conflict path; no receipt mutation or generic table grant was added",
+      "Fourteen fresh synthetic STAGING source/evidence fixtures include correspondence, extracted attachment text, operation lines, authoritative snapshot and operation-source readback",
+      "Fixture source, attachment, registry and history rows are immutable; runtime receives them only through an active non-admin scoped-writer RPC",
+      "Production, mailbox and outbound paths remain untouched and disabled"
+    ],
+    "version": "20260903020000"
+  },
+  "migration_sha256": "87bd7e73b2772668ebc9e5a884b0e42291614f070ac85c9e98413408d90ce70f",
+  "ok": true,
+  "outbound_email_sent": false,
+  "predecessor_successor_exact_replay": {
+    "action_receipt_ids": [
+      "5960cea2-5853-4a53-82ce-229f5a6e4010"
+    ],
+    "code": "pdc_email_ai_typed_action_surface_verified",
+    "current_identity_id": "173c0d7f-8c36-4f73-a670-ee7fcf835af1",
+    "exact_successful_replay": true,
+    "mailbox_contacted": false,
+    "ok": true,
+    "original_identity_id": "6075c796-936c-40e8-9051-de00cd497df3",
+    "outbound_email": false,
+    "production_writes": false,
+    "runtime_rotation_replay": true,
+    "transaction_id": "541657d7-ef0b-4323-884c-2a1edc29aa2f"
+  },
+  "production_contacted": false,
+  "production_writes": false,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "protected_table_access_denied": true,
+  "runtime_rest_readback": {
+    "authenticated_identity_id": "e9ed1fa6-f569-41b5-8d83-08f76bf4d8c8",
+    "authenticated_profile": "pdc-email-ai-lead",
+    "fixture_count": 14,
+    "fixture_rpc_ok": true,
+    "fresh_fixture_count": 14,
+    "mailbox_contacted": false,
+    "outbound_email_sent": false,
+    "production_contacted": false,
+    "protected_table_http_statuses": {
+      "pdc_email_ai_successor_transaction_receipts": 403,
+      "pdc_email_ai_v2_acceptance_fixtures_20260903": 403
+    }
+  },
+  "stable_action_receipt_ids": true,
+  "stable_transaction_id": true,
+  "zero_mutations": true
+}
