@@ -733,10 +733,10 @@ function createPdcEmailVehicleLocationService(options = {}) {
       .catch(() => ({ ok: false, code: 'rft_transport_evidence_unavailable', data: null }));
   }
 
-  async function vehicleHistory(vehicleId = '', dealerCode = '') {
+  async function vehicleHistory(vehicleId = '') {
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
-      const response = await request(`${url}/rest/v1/rpc/${PDC_VEHICLE_HISTORY_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId, p_dealer_code: String(dealerCode || '').trim() || null }) });
+      const response = await request(`${url}/rest/v1/rpc/${PDC_VEHICLE_HISTORY_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId }) });
       const body = await response.json();
       if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, data: body?.data || null };
       return { ok: true, code: body.code || 'ok', data: body.data || body };
