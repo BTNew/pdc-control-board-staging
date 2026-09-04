@@ -2813,19 +2813,50 @@ function escapeHtml(value) {
 async function copyTextToClipboard(value = '') {
   const text = String(value);
   if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text);
-    return;
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch (_) {
+      // Clipboard permission can be rejected even when the API is exposed.
+      // Continue to the selectable-text fallback below.
+    }
   }
-  const fallback = document.createElement('textarea');
-  fallback.value = text;
-  fallback.setAttribute('readonly', '');
-  fallback.style.position = 'fixed';
-  fallback.style.opacity = '0';
-  document.body.appendChild(fallback);
-  fallback.select();
-  const copied = document.execCommand('copy');
-  fallback.remove();
-  if (!copied) throw new Error('Clipboard copy is unavailable. Select and copy the Stock Number manually.');
+  let fallback = null;
+  try {
+    fallback = document.createElement('textarea');
+    fallback.value = text;
+    fallback.setAttribute('readonly', '');
+    fallback.style.position = 'fixed';
+    fallback.style.opacity = '0';
+    document.body.appendChild(fallback);
+    fallback.select();
+    if (!document.execCommand('copy')) {
+      throw new Error('copy command failed');
+    }
+  } catch (_) {
+    throw new Error('Clipboard copy is unavailable. Select and copy the Stock Number manually.');
+  } finally {
+    fallback?.remove();
+  }
+}
+
+async function copyVehicleStockNumber(value, button, status) {
+  const text = String(value ?? '');
+  try {
+    if (!text.trim()) throw new Error('No Stock Number is available.');
+    await copyTextToClipboard(text);
+    if (button) button.textContent = 'Copied';
+    if (status) status.textContent = `Copied ${text}`;
+    window.setTimeout(() => {
+      if (button?.isConnected) button.textContent = 'Copy';
+    }, 1500);
+    return true;
+  } catch (error) {
+    const message = error?.message || 'Could not copy the Stock Number.';
+    if (button) button.textContent = 'Copy failed';
+    if (status) status.textContent = message;
+    return false;
+  }
 }
 
 function navisionDealerNoteText(vehicle = {}) {
@@ -14328,18 +14359,7 @@ function renderDetail() {
   on($('[data-copy-vehicle-stock]', panel), 'click', async event => {
     const value = cleanNavisionText(displayStockNumber(v));
     const status = $('[data-copy-vehicle-stock-status]', panel);
-    try {
-      if (!value) throw new Error('No Stock Number is available.');
-      await copyTextToClipboard(value);
-      event.currentTarget.textContent = 'Copied';
-      if (status) status.textContent = `Copied ${value}`;
-      window.setTimeout(() => {
-        if (event.currentTarget?.isConnected) event.currentTarget.textContent = 'Copy';
-      }, 1500);
-    } catch (error) {
-      if (status) status.textContent = error.message || 'Copy failed';
-      showNotice(error.message || 'Could not copy the Stock Number.');
-    }
+    await copyVehicleStockNumber(value, event.currentTarget, status);
   });
   loadVehicleHistoryForDetail(v);
   on($('[data-email-vehicle-update]', panel), 'click', () => draftSelectedVehicleStatusEmail(key));
