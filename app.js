@@ -14508,7 +14508,7 @@ function renderDetail() {
       authoritativeSaveVehicle = rebound.vehicle;
       if (saveMessage) saveMessage.textContent = 'PDC Location saved';
       renderAll();
-      renderVehicleDetail(key);
+      renderDetail();
       return;
     }
     if (serverAuthoritative && (pdcBlocked !== (form.dataset.pdcBlockedBaseline === 'true')
