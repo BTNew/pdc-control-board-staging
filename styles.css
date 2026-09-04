@@ -13364,11 +13364,13 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
   .qc-page-panel > .panel-header > div:first-child,
   .qc-page-panel > .panel-header > .panel-actions { width: 100%; }
   .qc-page-panel > .panel-header > .panel-actions .small-button { width: 100%; }
-  .qc-page-panel > .panel-header > .pdc-operational-refresh-control {
+  .qc-page-panel > .panel-header > .panel-actions .pdc-operational-refresh-control {
     width: 100%;
     flex-wrap: wrap;
   }
   .qc-page-panel .pdc-operational-refresh-status {
+    flex: 1 1 100%;
+    width: 100%;
     max-width: none;
     overflow: visible;
     text-overflow: clip;

@@ -98,10 +98,20 @@ assert.match(
   /@media \(max-width: 600px\)[\s\S]*?\.qc-page-panel \.pdc-operational-refresh-status\s*\{[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/,
   'the full QC refresh error/status remains readable instead of ellipsizing on mobile',
 );
+assert.match(
+  styles,
+  /@media \(max-width: 600px\)[\s\S]*?\.qc-page-panel > \.panel-header > \.panel-actions \.pdc-operational-refresh-control\s*\{[^}]*width:\s*100%;[^}]*flex-wrap:\s*wrap;/,
+  'the injected QC refresh control occupies the mobile panel-actions row instead of squeezing its status against the right edge',
+);
+assert.match(
+  styles,
+  /@media \(max-width: 600px\)[\s\S]*?\.qc-page-panel \.pdc-operational-refresh-status\s*\{[^}]*flex:\s*1 1 100%;[^}]*width:\s*100%;/,
+  'the QC refresh status receives a full mobile row so normal and long error text wrap readably',
+);
 assert.match(styles, /\.qc-vehicle-card\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-height:\s*86px;/);
 assert.match(styles, /@media \(max-width: 900px\)\s*\{[\s\S]*?\.qc-page-layout\s*\{\s*grid-template-columns:\s*1fr;/);
 assert.strictEqual(
-  (indexSource.match(/qc-mobile-refresh=2026\.09\.04\.01/g) || []).length,
+  (indexSource.match(/qc-mobile-refresh=2026\.09\.04\.02/g) || []).length,
   2,
   'both changed frontend assets carry the QC mobile repair cache marker',
 );
