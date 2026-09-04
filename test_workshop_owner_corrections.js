@@ -21,8 +21,10 @@ for (const marker of [
   'notification_delta',
   'no_partial_save',
 ]) assert.ok(sql.includes(marker), `migration contains ${marker}`);
-assert.match(service, /recover_overdue_planned_workshop_bookings/);
-assert.match(service, /snapshot-recovery-/);
+assert.doesNotMatch(service, /recover_overdue_planned_workshop_bookings/,
+  'the browser does not duplicate recovery before the transactional snapshot');
+assert.doesNotMatch(service, /snapshot-recovery-/);
+assert.match(service, /get_station_workshop_snapshot/);
 assert.match(planner, /workshopQueueVehicleDescription/);
 assert.match(planner, /workshopQueueEstimatedLabel/);
 assert.match(planner, /Estimated:/);

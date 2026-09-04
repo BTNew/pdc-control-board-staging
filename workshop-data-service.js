@@ -268,24 +268,6 @@ function createWorkshopDataService(options) {
     const loadToken = {};
     activeLoadToken = loadToken;
     try {
-      const mutationRole = getRole();
-      if (mutationRole === 'operator' || mutationRole === 'administrator') {
-        const recoveryKey = `snapshot-recovery-${scope?.stageCode || 'all'}-${scope?.dateFrom || 'all'}-${Math.floor(Date.now() / 60000)}`;
-        // Future-only recovery is maintenance, not display authority. A single
-        // historical overlap can reject recovery while the scoped snapshot is
-        // still valid and readable. Never blank every station for that reason;
-        // the server keeps the conflicting booking unchanged and the snapshot
-        // remains the authoritative visible state.
-        try {
-          await client.rpc(token, 'recover_overdue_planned_workshop_bookings', {
-            p_idempotency_key: recoveryKey,
-            p_as_of: new Date().toISOString(),
-          });
-        } catch (_recoveryError) {
-          // Continue to the authenticated snapshot. Its own status remains the
-          // authority for connected/offline/permission state.
-        }
-      }
       const rpcName = scope ? 'get_station_workshop_snapshot' : 'get_workshop_snapshot';
       const rpcParams = scope ? {
         p_stage_code: scope.stageCode,
@@ -323,13 +305,17 @@ function createWorkshopDataService(options) {
       setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
       return lastSnapshot;
     } finally {
-      if (activeLoadToken !== loadToken) return;
-      activeLoadToken = null;
-      if (!destroyed && generation === lifecycleGeneration && trailingReloadRequested) {
-        trailingReloadRequested = false;
-        // A newer change arrived while we were mid-fetch; reload again so we
-        // never settle on a stale intermediate snapshot.
-        await loadSnapshot('trailing');
+      // Do not return from finally when authority invalidation detached this
+      // request: doing so overrides the explicit null failure result with
+      // undefined and hides the caller-visible denial contract.
+      if (activeLoadToken === loadToken) {
+        activeLoadToken = null;
+        if (!destroyed && generation === lifecycleGeneration && trailingReloadRequested) {
+          trailingReloadRequested = false;
+          // A newer change arrived while we were mid-fetch; reload again so we
+          // never settle on a stale intermediate snapshot.
+          await loadSnapshot('trailing');
+        }
       }
     }
   }
