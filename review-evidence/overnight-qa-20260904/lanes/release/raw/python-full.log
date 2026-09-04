@@ -1,0 +1,137 @@
+
+=================================== ERRORS ====================================
+____ ERROR collecting tests/test_cycle7_integrity_remediation_contract.py _____
+ImportError while importing test module 'C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_95939b14\tests\test_cycle7_integrity_remediation_contract.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_cycle7_integrity_remediation_contract.py:3: in <module>
+    from pglast import parse_sql
+E   ModuleNotFoundError: No module named 'pglast'
+____________ ERROR collecting tests/test_historical_adapter_782.py ____________
+ImportError while importing test module 'C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_95939b14\tests\test_historical_adapter_782.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_historical_adapter_782.py:4: in <module>
+    from pglast import parse_sql
+E   ModuleNotFoundError: No module named 'pglast'
+_________ ERROR collecting tests/test_historical_adapter_782_1740.py __________
+ImportError while importing test module 'C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_95939b14\tests\test_historical_adapter_782_1740.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_historical_adapter_782_1740.py:3: in <module>
+    from pglast import parse_sql
+E   ModuleNotFoundError: No module named 'pglast'
+___ ERROR collecting tests/test_historical_operation_hours_833_contract.py ____
+ImportError while importing test module 'C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_95939b14\tests\test_historical_operation_hours_833_contract.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_historical_operation_hours_833_contract.py:5: in <module>
+    from pglast import parse_sql
+E   ModuleNotFoundError: No module named 'pglast'
+_______ ERROR collecting tests/test_historical_proposal_binding_789.py ________
+ImportError while importing test module 'C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_95939b14\tests\test_historical_proposal_binding_789.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_historical_proposal_binding_789.py:15: in <module>
+    from pglast import parse_sql
+E   ModuleNotFoundError: No module named 'pglast'
+_ ERROR collecting tests/test_latest100_runner_response_contract_20260901.py __
+tests\test_latest100_runner_response_contract_20260901.py:11: in <module>
+    spec.loader.exec_module(reviewer)
+<frozen importlib._bootstrap_external>:936: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1073: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1130: in get_data
+    ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\scripts\\pdc_email_reviewer.py'
+_ ERROR collecting tests/test_pdc_email_ai_final_acceptance_fixture_refresh_20260903.py _
+ImportError while importing test module 'C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_95939b14\tests\test_pdc_email_ai_final_acceptance_fixture_refresh_20260903.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_pdc_email_ai_final_acceptance_fixture_refresh_20260903.py:6: in <module>
+    from pglast import parse_sql
+E   ModuleNotFoundError: No module named 'pglast'
+_ ERROR collecting tests/test_pdc_email_ai_mixed_disposition_repair_20260903.py _
+ImportError while importing test module 'C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_95939b14\tests\test_pdc_email_ai_mixed_disposition_repair_20260903.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_pdc_email_ai_mixed_disposition_repair_20260903.py:6: in <module>
+    from pglast import parse_sql
+E   ModuleNotFoundError: No module named 'pglast'
+_ ERROR collecting tests/test_pdc_email_ai_v2_karratha_toyota_sender_enrollment.py _
+ImportError while importing test module 'C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_95939b14\tests\test_pdc_email_ai_v2_karratha_toyota_sender_enrollment.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_pdc_email_ai_v2_karratha_toyota_sender_enrollment.py:7: in <module>
+    from pglast import parse_sql
+E   ModuleNotFoundError: No module named 'pglast'
+_ ERROR collecting tests/test_pdc_email_ai_v2_scoped_navision_activation_20260902.py _
+ImportError while importing test module 'C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_95939b14\tests\test_pdc_email_ai_v2_scoped_navision_activation_20260902.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\importlib\__init__.py:126: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests\test_pdc_email_ai_v2_scoped_navision_activation_20260902.py:7: in <module>
+    from pglast import parse_sql
+E   ModuleNotFoundError: No module named 'pglast'
+_______ ERROR collecting tests/test_pdc_email_sender_chain_20260901.py ________
+tests\test_pdc_email_sender_chain_20260901.py:12: in <module>
+    spec.loader.exec_module(reviewer)
+<frozen importlib._bootstrap_external>:936: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1073: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1130: in get_data
+    ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\scripts\\pdc_email_reviewer.py'
+________ ERROR collecting tests/test_pdc_latest100_resume_contract.py _________
+tests\test_pdc_latest100_resume_contract.py:14: in <module>
+    spec.loader.exec_module(reviewer)
+<frozen importlib._bootstrap_external>:936: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1073: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1130: in get_data
+    ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\scripts\\pdc_email_reviewer.py'
+=========================== short test summary info ===========================
+ERROR tests/test_cycle7_integrity_remediation_contract.py
+ERROR tests/test_historical_adapter_782.py
+ERROR tests/test_historical_adapter_782_1740.py
+ERROR tests/test_historical_operation_hours_833_contract.py
+ERROR tests/test_historical_proposal_binding_789.py
+ERROR tests/test_latest100_runner_response_contract_20260901.py - FileNotFoun...
+ERROR tests/test_pdc_email_ai_final_acceptance_fixture_refresh_20260903.py
+ERROR tests/test_pdc_email_ai_mixed_disposition_repair_20260903.py
+ERROR tests/test_pdc_email_ai_v2_karratha_toyota_sender_enrollment.py
+ERROR tests/test_pdc_email_ai_v2_scoped_navision_activation_20260902.py
+ERROR tests/test_pdc_email_sender_chain_20260901.py - FileNotFoundError: [Err...
+ERROR tests/test_pdc_latest100_resume_contract.py - FileNotFoundError: [Errno...
+!!!!!!!!!!!!!!!!!! Interrupted: 12 errors during collection !!!!!!!!!!!!!!!!!!!
+12 errors in 0.79s

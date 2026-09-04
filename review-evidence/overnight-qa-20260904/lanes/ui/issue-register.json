@@ -1,0 +1,142 @@
+[
+  {
+    "issue_id": "UI-001",
+    "title": "Deleted Vehicles cannot load because archived snapshot RPC returns HTTP 405",
+    "severity": "High",
+    "category": "Functional/Network",
+    "status": "open",
+    "url": "https://btnew.github.io/pdc-control-board-staging/#/deleted",
+    "route": "deleted",
+    "viewports": [
+      "desktop",
+      "tablet",
+      "mobile"
+    ],
+    "description": "The administrator-only Deleted Vehicles route renders an explicit failure and no archived rows because pdc_admin_archived_vehicle_snapshot returns 405.",
+    "steps": [
+      "Sign in as an approved STAGING administrator",
+      "Open Admin \u2192 Deleted Vehicles",
+      "Wait for the archived snapshot request"
+    ],
+    "expected": "Deleted vehicle data or a valid empty state loads.",
+    "actual": "Visible error: \u201cCould not load Deleted Vehicles \u2014 cannot execute SELECT FOR SHARE in a read-only transaction (25006)\u201d; RPC responds 405.",
+    "console_network": "HTTP 405 https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/pdc_admin_archived_vehicle_snapshot plus browser console resource error; reproduced at all 3 viewports.",
+    "screenshot": "screenshots/desktop/deleted.png",
+    "evidence": [
+      "screenshots/desktop/deleted.png",
+      "screenshots/tablet/deleted.png",
+      "screenshots/mobile/deleted.png"
+    ]
+  },
+  {
+    "issue_id": "UI-002",
+    "title": "AI Auditor is visible to administrator but its snapshot request is forbidden",
+    "severity": "Medium",
+    "category": "Functional/Access",
+    "status": "open",
+    "url": "https://btnew.github.io/pdc-control-board-staging/#/ai-auditor",
+    "route": "ai-auditor",
+    "viewports": [
+      "desktop",
+      "tablet",
+      "mobile"
+    ],
+    "description": "The primary navigation exposes AI Auditor to an approved administrator, but the snapshot call returns 403 and the view remains unassessed.",
+    "steps": [
+      "Sign in as an approved STAGING administrator",
+      "Open AI Auditor",
+      "Wait for the snapshot request"
+    ],
+    "expected": "Either the visible route loads its read-only snapshot or the navigation explains/hides the additional authorization requirement.",
+    "actual": "\u201cAuditor not assessed \u2014 Your current account is not authorised to read the auditor snapshot\u201d; GET/RPC response is 403.",
+    "console_network": "HTTP 403 https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/get_pdc_auditor_snapshot plus browser console resource error; reproduced at all 3 viewports.",
+    "screenshot": "screenshots/desktop/ai-auditor.png",
+    "evidence": [
+      "screenshots/desktop/ai-auditor.png",
+      "screenshots/tablet/ai-auditor.png",
+      "screenshots/mobile/ai-auditor.png"
+    ]
+  },
+  {
+    "issue_id": "UI-003",
+    "title": "Narrow operational tables clip/overlap data without a visible horizontal-scroll affordance",
+    "severity": "Medium",
+    "category": "Responsive/Visual",
+    "status": "open",
+    "url": "https://btnew.github.io/pdc-control-board-staging/#/parts",
+    "route": "parts/backend",
+    "viewports": [
+      "tablet",
+      "mobile"
+    ],
+    "description": "Wide operational tables are contained rather than causing document-level overflow, but columns extend beyond the visible card with no visible scrollbar or swipe cue. In mobile Parts, Vehicle/Customer text overlaps at the right edge.",
+    "steps": [
+      "Open Parts at 390\u00d7844",
+      "Inspect the first data row",
+      "Open Back End Data at 768\u00d71024 and inspect columns beyond MODEL"
+    ],
+    "expected": "Responsive rows reflow, or the UI clearly exposes horizontal scrolling without overlapping text.",
+    "actual": "Parts row text overlaps/clips and later columns are not discoverable; Back End Data truncates after MODEL with no visible cue.",
+    "console_network": null,
+    "screenshot": "screenshots/mobile/parts.png",
+    "evidence": [
+      "screenshots/mobile/parts.png",
+      "screenshots/tablet/backend.png"
+    ]
+  },
+  {
+    "issue_id": "UI-004",
+    "title": "Scrollable compact navigation hides most destinations without an affordance",
+    "severity": "Low",
+    "category": "Responsive/UX",
+    "status": "open",
+    "url": "https://btnew.github.io/pdc-control-board-staging/",
+    "route": "global-navigation",
+    "viewports": [
+      "tablet",
+      "mobile"
+    ],
+    "description": "The compact top navigation is intentionally horizontally scrollable (document width remains bounded), so destinations are not inaccessible. However only LOC/QC/CB/B4 are initially visible at 390px and no fade, scrollbar, chevron, or menu indicates that more routes are available off-canvas.",
+    "steps": [
+      "Open any route at 390\u00d7844 or 768\u00d71024",
+      "Inspect the top navigation before swiping horizontally"
+    ],
+    "expected": "Users can discover that more navigation items are available.",
+    "actual": "Additional planners, operational pages, and Admin are off-canvas with no visual scroll affordance.",
+    "console_network": null,
+    "screenshot": "screenshots/mobile/dashboard.png",
+    "evidence": [
+      "screenshots/mobile/dashboard.png",
+      "screenshots/tablet/dashboard.png"
+    ]
+  },
+  {
+    "issue_id": "UI-005",
+    "title": "Collected Vehicles route retains the wrong top-bar title",
+    "severity": "Low",
+    "category": "Content/Navigation",
+    "status": "open",
+    "url": "https://btnew.github.io/pdc-control-board-staging/#/collected",
+    "route": "collected",
+    "viewports": [
+      "desktop",
+      "tablet",
+      "mobile"
+    ],
+    "description": "The section heading says Collected vehicles, but the global page title remains Control Board.",
+    "steps": [
+      "Sign in",
+      "Open Admin \u2192 Collected Vehicles",
+      "Compare the global top-bar title and section heading"
+    ],
+    "expected": "Global title is \u201cCollected Vehicles\u201d.",
+    "actual": "Global title is \u201cControl Board\u201d while the section title is \u201cCollected vehicles\u201d.",
+    "console_network": null,
+    "screenshot": "screenshots/desktop/collected.png",
+    "evidence": [
+      "screenshots/desktop/collected.png",
+      "screenshots/tablet/collected.png",
+      "screenshots/mobile/collected.png"
+    ]
+  }
+]

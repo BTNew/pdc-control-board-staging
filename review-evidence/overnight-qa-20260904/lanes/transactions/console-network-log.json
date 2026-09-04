@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "deployment_url": "https://btnew.github.io/pdc-control-board-staging/",
+  "production_contacted": false,
+  "production_requests": [],
+  "viewports": {
+    "360x800": {"auth_state": "approved", "page_errors": [], "console_errors": [], "failed_or_http_400_requests": [], "horizontal_overflow": false, "synthetic_text_present_after_cleanup": false},
+    "768x900": {"auth_state": "approved", "page_errors": [], "console_errors": [], "failed_or_http_400_requests": [], "horizontal_overflow": false, "synthetic_text_present_after_cleanup": false},
+    "1440x1000": {"auth_state": "approved", "page_errors": [], "console_errors": [], "failed_or_http_400_requests": [], "horizontal_overflow": false, "synthetic_text_present_after_cleanup": false}
+  },
+  "source": "live-browser-verification.json"
+}

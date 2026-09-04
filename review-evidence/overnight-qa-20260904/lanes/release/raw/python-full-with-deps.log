@@ -1,0 +1,39 @@
+Installed 13 packages in 125ms
+
+=================================== ERRORS ====================================
+_ ERROR collecting tests/test_latest100_runner_response_contract_20260901.py __
+tests\test_latest100_runner_response_contract_20260901.py:11: in <module>
+    spec.loader.exec_module(reviewer)
+<frozen importlib._bootstrap_external>:936: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1073: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1130: in get_data
+    ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\scripts\\pdc_email_reviewer.py'
+_______ ERROR collecting tests/test_pdc_email_sender_chain_20260901.py ________
+tests\test_pdc_email_sender_chain_20260901.py:12: in <module>
+    spec.loader.exec_module(reviewer)
+<frozen importlib._bootstrap_external>:936: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1073: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1130: in get_data
+    ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\scripts\\pdc_email_reviewer.py'
+________ ERROR collecting tests/test_pdc_latest100_resume_contract.py _________
+tests\test_pdc_latest100_resume_contract.py:14: in <module>
+    spec.loader.exec_module(reviewer)
+<frozen importlib._bootstrap_external>:936: in exec_module
+    ???
+<frozen importlib._bootstrap_external>:1073: in get_code
+    ???
+<frozen importlib._bootstrap_external>:1130: in get_data
+    ???
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\scripts\\pdc_email_reviewer.py'
+=========================== short test summary info ===========================
+ERROR tests/test_latest100_runner_response_contract_20260901.py - FileNotFoun...
+ERROR tests/test_pdc_email_sender_chain_20260901.py - FileNotFoundError: [Err...
+ERROR tests/test_pdc_latest100_resume_contract.py - FileNotFoundError: [Errno...
+!!!!!!!!!!!!!!!!!!! Interrupted: 3 errors during collection !!!!!!!!!!!!!!!!!!!
+3 errors in 0.54s

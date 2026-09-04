@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_contacted": false,
+  "tag_prefix": "QA-OVERNIGHT-20260904",
+  "created_before_any_fixture": true,
+  "fixture_count": 15,
+  "cleanup_verified_at": "2026-09-04T14:13:38.180287Z",
+  "cleanup_remaining": 0,
+  "fixtures": [
+    {"ordinal": 1, "tag": "QA-OVERNIGHT-20260904-01", "stock": "QAOVN090401", "job_card": "QA-JC-0904-01", "vin": "TEST09040000001AA", "rego": "QO001", "scenario": "import-create", "synthetic": true},
+    {"ordinal": 2, "tag": "QA-OVERNIGHT-20260904-02", "stock": "QAOVN090402", "job_card": "QA-JC-0904-02", "vin": "TEST09040000002AA", "rego": "QO002", "scenario": "duplicate-replay", "synthetic": true},
+    {"ordinal": 3, "tag": "QA-OVERNIGHT-20260904-03", "stock": "QAOVN090403", "job_card": "QA-JC-0904-03", "vin": "TEST09040000003AA", "rego": "QO003", "scenario": "identity-preservation", "synthetic": true},
+    {"ordinal": 4, "tag": "QA-OVERNIGHT-20260904-04", "stock": "QAOVN090404", "job_card": "QA-JC-0904-04", "vin": "TEST09040000004AA", "rego": "QO004", "scenario": "yard-hold-location", "synthetic": true},
+    {"ordinal": 5, "tag": "QA-OVERNIGHT-20260904-05", "stock": "QAOVN090405", "job_card": "QA-JC-0904-05", "vin": "TEST09040000005AA", "rego": "QO005", "scenario": "planner-booking", "synthetic": true},
+    {"ordinal": 6, "tag": "QA-OVERNIGHT-20260904-06", "stock": "QAOVN090406", "job_card": "QA-JC-0904-06", "vin": "TEST09040000006AA", "rego": "QO006", "scenario": "admin-block-label", "synthetic": true},
+    {"ordinal": 7, "tag": "QA-OVERNIGHT-20260904-07", "stock": "QAOVN090407", "job_card": "QA-JC-0904-07", "vin": "TEST09040000007AA", "rego": "QO007", "scenario": "parts-work-sublet-alert", "synthetic": true},
+    {"ordinal": 8, "tag": "QA-OVERNIGHT-20260904-08", "stock": "QAOVN090408", "job_card": "QA-JC-0904-08", "vin": "TEST09040000008AA", "rego": "QO008", "scenario": "overlap-conflict", "synthetic": true},
+    {"ordinal": 9, "tag": "QA-OVERNIGHT-20260904-09", "stock": "QAOVN090409", "job_card": "QA-JC-0904-09", "vin": "TEST09040000009AA", "rego": "QO009", "scenario": "booking-reschedule", "synthetic": true},
+    {"ordinal": 10, "tag": "QA-OVERNIGHT-20260904-10", "stock": "QAOVN090410", "job_card": "QA-JC-0904-10", "vin": "TEST09040000010AA", "rego": "QO010", "scenario": "ready-qc-mobile", "synthetic": true},
+    {"ordinal": 11, "tag": "QA-OVERNIGHT-20260904-11", "stock": "QAOVN090411", "job_card": "QA-JC-0904-11", "vin": "TEST09040000011AA", "rego": "QO011", "scenario": "non-pit-block", "synthetic": true},
+    {"ordinal": 12, "tag": "QA-OVERNIGHT-20260904-12", "stock": "QAOVN090412", "job_card": "QA-JC-0904-12", "vin": "TEST09040000012AA", "rego": "QO012", "scenario": "deferred-pit", "synthetic": true},
+    {"ordinal": 13, "tag": "QA-OVERNIGHT-20260904-13", "stock": "QAOVN090413", "job_card": "QA-JC-0904-13", "vin": "TEST09040000013AA", "rego": "QO013", "scenario": "retest-finalise", "synthetic": true},
+    {"ordinal": 14, "tag": "QA-OVERNIGHT-20260904-14", "stock": "QAOVN090414", "job_card": "QA-JC-0904-14", "vin": "TEST09040000014AA", "rego": "QO014", "scenario": "archive-restore", "synthetic": true},
+    {"ordinal": 15, "tag": "QA-OVERNIGHT-20260904-15", "stock": "QAOVN090415", "job_card": "QA-JC-0904-15", "vin": "TEST09040000015AA", "rego": "QO015", "scenario": "invalid-concurrency-denied", "synthetic": true}
+  ]
+}

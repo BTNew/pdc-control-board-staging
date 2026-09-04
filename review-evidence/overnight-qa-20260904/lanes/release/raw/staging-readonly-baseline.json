@@ -1,0 +1,511 @@
+{
+  "task_id": "t_95939b14",
+  "environment": "STAGING",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_ref_contacted": false,
+  "email_contacted": false,
+  "persistent_mutation_queries": false,
+  "transactional_rpc_probes_rolled_back": true,
+  "authorization_matrix": {
+    "no_approved_role": {
+      "ok": false,
+      "code": "forbidden",
+      "has_data": false,
+      "vehicle_id": null
+    },
+    "inactive_role": {
+      "ok": false,
+      "code": "forbidden",
+      "has_data": false,
+      "vehicle_id": null
+    },
+    "pending_role": {
+      "ok": false,
+      "code": "forbidden",
+      "has_data": false,
+      "vehicle_id": null
+    },
+    "uuid_email_mismatch": {
+      "ok": false,
+      "code": "forbidden",
+      "has_data": false,
+      "vehicle_id": null
+    },
+    "denied_dealer_scope": {
+      "ok": false,
+      "code": "dealer_scope_denied",
+      "has_data": false,
+      "vehicle_id": null
+    },
+    "unauthenticated": {
+      "ok": false,
+      "code": "unauthorized",
+      "has_data": false,
+      "vehicle_id": null
+    },
+    "invalid_target": {
+      "ok": false,
+      "code": "vehicle_not_found",
+      "has_data": false,
+      "vehicle_id": null
+    },
+    "authorized_target": {
+      "ok": true,
+      "code": "ok",
+      "has_data": true,
+      "vehicle_id": "e49685ca-c9b7-448d-9b45-1aba97d6d3b4"
+    }
+  },
+  "denied_cases_have_no_data": true,
+  "catalog": {
+    "rpc": {
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "anon_execute": false,
+      "security_definer": true,
+      "service_role_execute": false,
+      "authenticated_execute": true
+    },
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "history_table": {
+      "rls": true,
+      "force_rls": true,
+      "anon_select": false,
+      "authenticated_select": false
+    },
+    "migration_head": [
+      "20260904011400",
+      "pdc14_location_replay_partial_cleanup_identifier_repair"
+    ],
+    "obsolete_two_arg_exists": false,
+    "production_sentinel_present": false,
+    "public_security_definer_count": 1086,
+    "public_security_definer_without_fixed_search_path": 515
+  },
+  "data_api_exposure_review": {
+    "public_tables": 549,
+    "default_acl_rows": [
+      {
+        "acl": [
+          "postgres=X/postgres",
+          "service_role=X/postgres"
+        ],
+        "owner": "postgres",
+        "object_type": "f"
+      },
+      {
+        "acl": [
+          "postgres=X/supabase_admin",
+          "anon=X/supabase_admin",
+          "authenticated=X/supabase_admin",
+          "service_role=X/supabase_admin"
+        ],
+        "owner": "supabase_admin",
+        "object_type": "f"
+      },
+      {
+        "acl": [
+          "postgres=arwdDxtm/supabase_admin",
+          "anon=arwdDxtm/supabase_admin",
+          "authenticated=arwdDxtm/supabase_admin",
+          "service_role=arwdDxtm/supabase_admin"
+        ],
+        "owner": "supabase_admin",
+        "object_type": "r"
+      },
+      {
+        "acl": [
+          "postgres=rwU/supabase_admin",
+          "anon=rwU/supabase_admin",
+          "authenticated=rwU/supabase_admin",
+          "service_role=rwU/supabase_admin"
+        ],
+        "owner": "supabase_admin",
+        "object_type": "S"
+      },
+      {
+        "acl": [
+          "postgres=rwU/postgres",
+          "anon=rwU/postgres",
+          "authenticated=rwU/postgres",
+          "service_role=rwU/postgres"
+        ],
+        "owner": "postgres",
+        "object_type": "S"
+      },
+      {
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "anon=arwdDxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ],
+        "owner": "postgres",
+        "object_type": "r"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "owner": "postgres",
+        "object_type": "f"
+      }
+    ],
+    "public_tables_rls_disabled": 14,
+    "rls_disabled_with_anon_or_authenticated_privilege": 0
+  },
+  "u158318_fresh": {
+    "estimated_hours": 58.9,
+    "operation_count": 18,
+    "zero_hour_lines": [
+      "OP9",
+      "OP14",
+      "OP15"
+    ],
+    "required_work_count": 7,
+    "completed_work_count": 0,
+    "workshop_booking_count": 0
+  },
+  "target_before": {
+    "vehicle": {
+      "id": "e49685ca-c9b7-448d-9b45-1aba97d6d3b4",
+      "vin": "JTFHB8CP806024409",
+      "make": "Toyota",
+      "model": "Toyota HiAce Commuter Bus DSL AT GDH322R-EDTPYQ",
+      "version": 3,
+      "pmb_stage": null,
+      "created_at": "2026-09-04T03:45:01.476506+00:00",
+      "created_by": "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b",
+      "deleted_at": null,
+      "key_number": null,
+      "updated_at": "2026-09-04T05:18:17.045178+00:00",
+      "updated_by": "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b",
+      "date_to_pmb": null,
+      "date_to_rft": null,
+      "pmb_key_tag": null,
+      "registration": "1HJX697",
+      "stock_number": "U158318",
+      "customer_name": "CATALYST METALS PTY LTD",
+      "pmb_bay_stage": null,
+      "source_system": "authenticated_email",
+      "deleted_reason": null,
+      "eta_to_kewdale": null,
+      "pmb_bay_number": null,
+      "salesperson_id": "ec12a667-7474-4c50-a9ef-96c44e66ac0b",
+      "source_payload": {
+        "contract": "pmb-non-navision-jobcard-161",
+        "source_hash": "7e7d24755e4856f0d7fe22086b6b84842874c0474fe60a2f9e754fe088fcbc95",
+        "attachment_hash": "621f5350a8fdd002e4f79f41b7b927e58b078fdc632eb6c19865650e821e4cdb",
+        "source_provenance": {
+          "source_hash": "7e7d24755e4856f0d7fe22086b6b84842874c0474fe60a2f9e754fe088fcbc95",
+          "attachment_hash": "621f5350a8fdd002e4f79f41b7b927e58b078fdc632eb6c19865650e821e4cdb",
+          "gmail_thread_id": "1a03c7421bf55d95",
+          "manifest_sha256": "7e7d24755e4856f0d7fe22086b6b84842874c0474fe60a2f9e754fe088fcbc95",
+          "gmail_message_id": "1a03c7421bf55d95",
+          "attachment_sha256": "621f5350a8fdd002e4f79f41b7b927e58b078fdc632eb6c19865650e821e4cdb",
+          "source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1",
+          "operations_authority": "18 retained Job Card rows with explicit hours",
+          "authenticated_source_vin": "JTFHB8CP806024409",
+          "canonical_import_receipt_id": "7a00e271-8652-4994-84d5-32dd496a3d71",
+          "job_card_customer_authority": "CATALYST METALS PTY LTD"
+        },
+        "effective_provenance": {
+          "vin": {
+            "value": "JTFHB8CP806024409",
+            "authority": "authenticated_non_navision_job_card",
+            "source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1"
+          },
+          "review": [
+            {
+              "id": "U158318-AERIAL-01",
+              "reason": "1.2m whip aerial/bracket is unresolved against OP13 580mm aerial and has no hours",
+              "status": "REVIEW"
+            }
+          ],
+          "customer": {
+            "value": "CATALYST METALS PTY LTD",
+            "authority": "job_card"
+          },
+          "location": {
+            "value": "YH",
+            "authority": "external_non_navision_job_card_activation"
+          },
+          "salesperson": {
+            "code": "BP",
+            "name": "Bhavesh Patel",
+            "authority": "unique_active_canonical_directory_match_to_authenticated_sender"
+          }
+        },
+        "authenticated_source_vin": "JTFHB8CP806024409",
+        "vin_projection_source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1"
+      },
+      "vin_normalized": "JTFHB8CP806024409",
+      "board_purged_at": null,
+      "board_purged_by": null,
+      "job_card_number": "J138000812",
+      "lifecycle_state": "active",
+      "qc_completed_at": null,
+      "qc_completed_by": null,
+      "source_batch_id": "pdc-monitor",
+      "workshop_status": "queued",
+      "current_location": "YH",
+      "rft_collected_at": null,
+      "rft_collected_by": null,
+      "rft_confirmed_at": null,
+      "rft_confirmed_by": null,
+      "source_record_id": "2684b2e2-e4fa-5f00-be5c-751794972c47",
+      "visible_on_board": true,
+      "sales_tint_raised": false,
+      "board_purge_reason": null,
+      "rft_transferred_at": null,
+      "sales_tray_ordered": false,
+      "pmb_stoppage_reason": null,
+      "sales_tray_complete": false,
+      "toyota_order_number": null,
+      "vehicle_description": "Toyota HiAce Commuter Bus DSL AT GDH322R-EDTPYQ",
+      "permanent_vehicle_id": "EMAIL-7e7d24755e4856f0d7fe22086b6b8484",
+      "sales_build_complete": false,
+      "sales_build_po_raised": false,
+      "salesperson_reference": "BP",
+      "arrival_reference_date": null,
+      "pmb_stoppage_cleared_at": null,
+      "pmb_stoppage_cleared_by": null,
+      "pmb_stoppage_started_at": null,
+      "pmb_stoppage_started_by": null,
+      "rft_transport_booked_at": null,
+      "rft_transport_booked_by": null,
+      "stock_number_normalized": "U158318",
+      "dealer_transit_closed_at": null,
+      "delivered_to_dealer_date": null,
+      "source_system_normalized": "authenticated_email",
+      "dealer_transit_started_at": null,
+      "active_workshop_booking_id": null,
+      "workshop_status_updated_at": null,
+      "workshop_status_updated_by": null,
+      "salesperson_manual_override": true,
+      "source_record_id_normalized": "2684B2E2-E4FA-5F00-BE5C-751794972C47",
+      "sales_preparation_updated_at": null,
+      "sales_preparation_updated_by": null,
+      "salesperson_manual_override_at": "2026-09-04T03:45:01.697254+00:00",
+      "salesperson_manual_override_by": "9ed73e4c-beb0-4f81-9a0f-bde72c9802a1",
+      "dealer_transit_duration_seconds": null
+    },
+    "fingerprint": "b98791e9c43fae32686e9b9cc580153d"
+  },
+  "target_after": {
+    "vehicle": {
+      "id": "e49685ca-c9b7-448d-9b45-1aba97d6d3b4",
+      "vin": "JTFHB8CP806024409",
+      "make": "Toyota",
+      "model": "Toyota HiAce Commuter Bus DSL AT GDH322R-EDTPYQ",
+      "version": 3,
+      "pmb_stage": null,
+      "created_at": "2026-09-04T03:45:01.476506+00:00",
+      "created_by": "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b",
+      "deleted_at": null,
+      "key_number": null,
+      "updated_at": "2026-09-04T05:18:17.045178+00:00",
+      "updated_by": "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b",
+      "date_to_pmb": null,
+      "date_to_rft": null,
+      "pmb_key_tag": null,
+      "registration": "1HJX697",
+      "stock_number": "U158318",
+      "customer_name": "CATALYST METALS PTY LTD",
+      "pmb_bay_stage": null,
+      "source_system": "authenticated_email",
+      "deleted_reason": null,
+      "eta_to_kewdale": null,
+      "pmb_bay_number": null,
+      "salesperson_id": "ec12a667-7474-4c50-a9ef-96c44e66ac0b",
+      "source_payload": {
+        "contract": "pmb-non-navision-jobcard-161",
+        "source_hash": "7e7d24755e4856f0d7fe22086b6b84842874c0474fe60a2f9e754fe088fcbc95",
+        "attachment_hash": "621f5350a8fdd002e4f79f41b7b927e58b078fdc632eb6c19865650e821e4cdb",
+        "source_provenance": {
+          "source_hash": "7e7d24755e4856f0d7fe22086b6b84842874c0474fe60a2f9e754fe088fcbc95",
+          "attachment_hash": "621f5350a8fdd002e4f79f41b7b927e58b078fdc632eb6c19865650e821e4cdb",
+          "gmail_thread_id": "1a03c7421bf55d95",
+          "manifest_sha256": "7e7d24755e4856f0d7fe22086b6b84842874c0474fe60a2f9e754fe088fcbc95",
+          "gmail_message_id": "1a03c7421bf55d95",
+          "attachment_sha256": "621f5350a8fdd002e4f79f41b7b927e58b078fdc632eb6c19865650e821e4cdb",
+          "source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1",
+          "operations_authority": "18 retained Job Card rows with explicit hours",
+          "authenticated_source_vin": "JTFHB8CP806024409",
+          "canonical_import_receipt_id": "7a00e271-8652-4994-84d5-32dd496a3d71",
+          "job_card_customer_authority": "CATALYST METALS PTY LTD"
+        },
+        "effective_provenance": {
+          "vin": {
+            "value": "JTFHB8CP806024409",
+            "authority": "authenticated_non_navision_job_card",
+            "source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1"
+          },
+          "review": [
+            {
+              "id": "U158318-AERIAL-01",
+              "reason": "1.2m whip aerial/bracket is unresolved against OP13 580mm aerial and has no hours",
+              "status": "REVIEW"
+            }
+          ],
+          "customer": {
+            "value": "CATALYST METALS PTY LTD",
+            "authority": "job_card"
+          },
+          "location": {
+            "value": "YH",
+            "authority": "external_non_navision_job_card_activation"
+          },
+          "salesperson": {
+            "code": "BP",
+            "name": "Bhavesh Patel",
+            "authority": "unique_active_canonical_directory_match_to_authenticated_sender"
+          }
+        },
+        "authenticated_source_vin": "JTFHB8CP806024409",
+        "vin_projection_source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1"
+      },
+      "vin_normalized": "JTFHB8CP806024409",
+      "board_purged_at": null,
+      "board_purged_by": null,
+      "job_card_number": "J138000812",
+      "lifecycle_state": "active",
+      "qc_completed_at": null,
+      "qc_completed_by": null,
+      "source_batch_id": "pdc-monitor",
+      "workshop_status": "queued",
+      "current_location": "YH",
+      "rft_collected_at": null,
+      "rft_collected_by": null,
+      "rft_confirmed_at": null,
+      "rft_confirmed_by": null,
+      "source_record_id": "2684b2e2-e4fa-5f00-be5c-751794972c47",
+      "visible_on_board": true,
+      "sales_tint_raised": false,
+      "board_purge_reason": null,
+      "rft_transferred_at": null,
+      "sales_tray_ordered": false,
+      "pmb_stoppage_reason": null,
+      "sales_tray_complete": false,
+      "toyota_order_number": null,
+      "vehicle_description": "Toyota HiAce Commuter Bus DSL AT GDH322R-EDTPYQ",
+      "permanent_vehicle_id": "EMAIL-7e7d24755e4856f0d7fe22086b6b8484",
+      "sales_build_complete": false,
+      "sales_build_po_raised": false,
+      "salesperson_reference": "BP",
+      "arrival_reference_date": null,
+      "pmb_stoppage_cleared_at": null,
+      "pmb_stoppage_cleared_by": null,
+      "pmb_stoppage_started_at": null,
+      "pmb_stoppage_started_by": null,
+      "rft_transport_booked_at": null,
+      "rft_transport_booked_by": null,
+      "stock_number_normalized": "U158318",
+      "dealer_transit_closed_at": null,
+      "delivered_to_dealer_date": null,
+      "source_system_normalized": "authenticated_email",
+      "dealer_transit_started_at": null,
+      "active_workshop_booking_id": null,
+      "workshop_status_updated_at": null,
+      "workshop_status_updated_by": null,
+      "salesperson_manual_override": true,
+      "source_record_id_normalized": "2684B2E2-E4FA-5F00-BE5C-751794972C47",
+      "sales_preparation_updated_at": null,
+      "sales_preparation_updated_by": null,
+      "salesperson_manual_override_at": "2026-09-04T03:45:01.697254+00:00",
+      "salesperson_manual_override_by": "9ed73e4c-beb0-4f81-9a0f-bde72c9802a1",
+      "dealer_transit_duration_seconds": null
+    },
+    "fingerprint": "b98791e9c43fae32686e9b9cc580153d"
+  },
+  "target_unchanged": true,
+  "advisors": {
+    "security": {
+      "total": 909,
+      "levels": {
+        "INFO": 453,
+        "WARN": 456
+      },
+      "names": {
+        "rls_enabled_no_policy": 453,
+        "extension_in_public": 1,
+        "authenticated_security_definer_function_executable": 455
+      },
+      "release_scoped": [
+        {
+          "name": "rls_enabled_no_policy",
+          "level": "INFO",
+          "cache_key": "rls_enabled_no_policy_public_pdc14_location_replay_fixture_cleanup_history_20260904",
+          "detail": "Table \\`public.pdc14_location_replay_fixture_cleanup_history_20260904\\` has RLS enabled, but no policies exist",
+          "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created."
+        },
+        {
+          "name": "rls_enabled_no_policy",
+          "level": "INFO",
+          "cache_key": "rls_enabled_no_policy_public_pdc_email_ai_v2_operation_readback_provenance_history_20260902",
+          "detail": "Table \\`public.pdc_email_ai_v2_operation_readback_provenance_history_20260902\\` has RLS enabled, but no policies exist",
+          "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created."
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "level": "WARN",
+          "cache_key": "authenticated_security_definer_function_executable_public_correct_pdc_vehicle_lifecycle_history_82000_p_vehicle_id uuid, p_transition_kind text, p_corrected_at timestamp with time zone, p_reason text, p_idempotency_key uuid, p_evidence jsonb",
+          "detail": "Function `public.correct_pdc_vehicle_lifecycle_history_82000(p_vehicle_id uuid, p_transition_kind text, p_corrected_at timestamp with time zone, p_reason text, p_idempotency_key uuid, p_evidence jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/correct_pdc_vehicle_lifecycle_history_82000`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it."
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "level": "WARN",
+          "cache_key": "authenticated_security_definer_function_executable_public_disable_pdc_vehicle_lifecycle_history_82000_p_enabled boolean, p_reason text",
+          "detail": "Function `public.disable_pdc_vehicle_lifecycle_history_82000(p_enabled boolean, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/disable_pdc_vehicle_lifecycle_history_82000`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it."
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "level": "WARN",
+          "cache_key": "authenticated_security_definer_function_executable_public_get_pdc_vehicle_lifecycle_history_82000_p_vehicle_id uuid, p_dealer_code text",
+          "detail": "Function `public.get_pdc_vehicle_lifecycle_history_82000(p_vehicle_id uuid, p_dealer_code text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_pdc_vehicle_lifecycle_history_82000`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it."
+        },
+        {
+          "name": "authenticated_security_definer_function_executable",
+          "level": "WARN",
+          "cache_key": "authenticated_security_definer_function_executable_public_get_pdc_vehicle_provenance_history_p_vehicle_id uuid",
+          "detail": "Function `public.get_pdc_vehicle_provenance_history(p_vehicle_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_pdc_vehicle_provenance_history`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it."
+        }
+      ]
+    },
+    "performance": {
+      "total": 1016,
+      "levels": {
+        "INFO": 1013,
+        "WARN": 3
+      },
+      "names": {
+        "unindexed_foreign_keys": 805,
+        "auth_rls_initplan": 2,
+        "unused_index": 207,
+        "multiple_permissive_policies": 1,
+        "auth_db_connections_absolute": 1
+      },
+      "release_scoped": [
+        {
+          "name": "unindexed_foreign_keys",
+          "level": "INFO",
+          "cache_key": "unindexed_foreign_keys_public_pdc14_parts_coordinator_role_history_pdc14_parts_coordinator_role__reverted_assignment_event_id_fkey",
+          "detail": "Table \\`public.pdc14_parts_coordinator_role_history\\` has a foreign key \\`pdc14_parts_coordinator_role__reverted_assignment_event_id_fkey\\` without a covering index. This can lead to suboptimal query performance.",
+          "description": "Identifies foreign key constraints without a covering index, which can impact database performance."
+        },
+        {
+          "name": "auth_rls_initplan",
+          "level": "WARN",
+          "cache_key": "auth_rls_init_plan_public_pdc14_parts_coordinator_role_history_PDC administrators can read role history",
+          "detail": "Table \\`public.pdc14_parts_coordinator_role_history\\` has a row level security policy \\`PDC administrators can read role history\\` that re-evaluates current_setting() or auth.<function>() for each row. This produces suboptimal query performance at scale. Resolve the issue by replacing \\`auth.<function>()\\` with \\`(select auth.<function>())\\`. See [docs](https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select) for more info.",
+          "description": "Detects if calls to \\`current_setting()\\` and \\`auth.<function>()\\` in RLS policies are being unnecessarily re-evaluated for each row"
+        }
+      ]
+    }
+  }
+}

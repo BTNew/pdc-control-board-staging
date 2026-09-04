@@ -1,0 +1,123 @@
+author:	coderabbitai
+association:	none
+edited:	false
+status:	none
+--
+<!-- This is an auto-generated comment: summarize by coderabbit.ai -->
+<!-- This is an auto-generated comment: skip review by coderabbit.ai -->
+
+> [!IMPORTANT]
+> - [ ] <!-- {"checkboxId":"e9bb8d72-00e8-4f67-9cb2-caf3b22574fe"} --> 🔍 Trigger review
+> 
+> This repository does not receive automatic reviews because it has fewer than 10 stars.
+> 
+> <details>
+> <summary>⚙️ Run configuration</summary>
+> 
+> **Configuration used**: defaults
+> 
+> **Review profile**: CHILL
+> 
+> **Plan**: Team
+> 
+> **Run ID**: `8b924fa8-e95a-4547-bfee-fb8a21d8f1e0`
+> 
+> </details>
+
+<!-- end of auto-generated comment: skip review by coderabbit.ai -->
+
+<!-- tips_start -->
+
+---
+
+Thanks for using [CodeRabbit](https://coderabbit.ai?utm_source=oss&utm_medium=github&utm_campaign=BTNew/pdc-control-board-staging&utm_content=31)! It's free for OSS, and your support helps us grow. If you like it, consider giving us a shout-out.
+
+<details>
+<summary>❤️ Share</summary>
+
+- [X](https://twitter.com/intent/tweet?text=I%20just%20used%20%40coderabbitai%20for%20my%20code%20review%2C%20and%20it%27s%20fantastic%21%20It%27s%20free%20for%20OSS%20and%20offers%20a%20free%20trial%20for%20the%20proprietary%20code.%20Check%20it%20out%3A&url=https%3A//coderabbit.ai)
+- [Mastodon](https://mastodon.social/share?text=I%20just%20used%20%40coderabbitai%20for%20my%20code%20review%2C%20and%20it%27s%20fantastic%21%20It%27s%20free%20for%20OSS%20and%20offers%20a%20free%20trial%20for%20the%20proprietary%20code.%20Check%20it%20out%3A%20https%3A%2F%2Fcoderabbit.ai)
+- [Reddit](https://www.reddit.com/submit?title=Great%20tool%20for%20code%20review%20-%20CodeRabbit&text=I%20just%20used%20CodeRabbit%20for%20my%20code%20review%2C%20and%20it%27s%20fantastic%21%20It%27s%20free%20for%20OSS%20and%20offers%20a%20free%20trial%20for%20proprietary%20code.%20Check%20it%20out%3A%20https%3A//coderabbit.ai)
+- [LinkedIn](https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fcoderabbit.ai&mini=true&title=Great%20tool%20for%20code%20review%20-%20CodeRabbit&summary=I%20just%20used%20CodeRabbit%20for%20my%20code%20review%2C%20and%20it%27s%20fantastic%21%20It%27s%20free%20for%20OSS%20and%20offers%20a%20free%20trial%20for%20proprietary%20code)
+
+</details>
+
+
+<sub>Comment `@coderabbitai help` to get the list of available commands.</sub>
+
+<!-- tips_end -->
+--
+author:	supabase
+association:	none
+edited:	true
+status:	none
+--
+[supa]:xvflalqbfdxbelerhtjg
+**Updates to [Preview Branch (wt/t_67594974) ↗︎](https://supabase.com/dashboard/project/xvflalqbfdxbelerhtjg)**
+
+| Deployments | Status                      | Updated                   |
+| ----------- | --------------------------- | ------------------------- |
+| Database    | ✅ | Fri, 04 Sep 2026 13:18:34 UTC |
+| Services    | ✅  | Fri, 04 Sep 2026 13:18:34 UTC  |
+| APIs        | ✅      | Fri, 04 Sep 2026 13:18:34 UTC      |
+
+Tasks are run on every commit but only new migration files are pushed.
+Close and reopen this PR if you want to apply changes from existing seed or migration files.
+
+| Tasks          | Status                       | Updated                    |
+| -------------- | ---------------------------- | -------------------------- |
+| Configurations | ✅ | Fri, 04 Sep 2026 13:18:38 UTC |
+| Migrations     | ❌ | Fri, 04 Sep 2026 13:18:55 UTC |
+| Seeding        | ⏸️   | Fri, 04 Sep 2026 13:18:19 UTC   |
+| Edge Functions | ⏸️  | Fri, 04 Sep 2026 13:18:19 UTC  |
+
+<hr/>
+
+**❌ Branch Error** • Fri, 04 Sep 2026 13:18:55 UTC
+
+```
+ERROR: relation "public.vehicle_intelligence_summaries" does not exist (SQLSTATE 42P01)
+At statement: 18
+drop policy if exists vehicle_intelligence_summaries_select_viewer on public.vehicle_intelligence_summaries
+```
+
+
+<hr/>
+
+View logs for this [Workflow Run ↗︎](https://supabase.com/dashboard/project/xvflalqbfdxbelerhtjg/branches).
+Learn more about [Supabase for Git ↗︎](https://supabase.com/docs/guides/platform/branching).
+
+--
+author:	supabase
+association:	none
+edited:	true
+status:	none
+--
+[supa]:rgrwkufllnlijmdtfhxf
+**Updates to [Preview Branch (wt/t_67594974) ↗︎](https://supabase.com/dashboard/project/rgrwkufllnlijmdtfhxf)**
+
+| Deployments | Status                      | Updated                   |
+| ----------- | --------------------------- | ------------------------- |
+| Database    | ✅ | Fri, 04 Sep 2026 13:18:29 UTC |
+| Services    | ✅  | Fri, 04 Sep 2026 13:18:29 UTC  |
+| APIs        | ✅      | Fri, 04 Sep 2026 13:18:29 UTC      |
+
+Tasks are run on every commit but only new migration files are pushed.
+Close and reopen this PR if you want to apply changes from existing seed or migration files.
+
+| Tasks          | Status                       | Updated                    |
+| -------------- | ---------------------------- | -------------------------- |
+| Configurations | ✅ | Fri, 04 Sep 2026 13:18:34 UTC |
+| Migrations     | ✅ | Fri, 04 Sep 2026 13:18:41 UTC |
+| Seeding        | ✅   | Fri, 04 Sep 2026 13:18:43 UTC   |
+| Edge Functions | ✅  | Fri, 04 Sep 2026 13:18:43 UTC  |
+
+<hr/>
+
+
+
+
+View logs for this [Workflow Run ↗︎](https://supabase.com/dashboard/project/rgrwkufllnlijmdtfhxf/branches).
+Learn more about [Supabase for Git ↗︎](https://supabase.com/docs/guides/platform/branching).
+
+--

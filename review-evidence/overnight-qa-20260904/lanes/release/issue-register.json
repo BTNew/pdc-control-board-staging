@@ -1,0 +1,77 @@
+{
+  "generated_at": "2026-09-04T21:53:00+08:00",
+  "issues": [
+    {
+      "classification": "baseline_environment",
+      "detail": "Preview rgrwkufllnlijmdtfhxf completed configuration, migrations, seeding and Edge Functions; xvflalqbfdxbelerhtjg failed release_history/014 with SQLSTATE 42P01 and left the PR status context failed.",
+      "evidence": "raw/pr31-comments.log",
+      "id": "REL-BASE-001",
+      "introduced_by_sha": false,
+      "severity": "medium",
+      "status": "open",
+      "title": "Duplicate Supabase Preview integrations disagree"
+    },
+    {
+      "classification": "baseline_environment",
+      "detail": "Tests depend on absent pdc-emails profile files, historical fixtures, and a legacy staging-bootstrap path. Runnable total: 359 passed, 58 skipped, 22 failed, 3 errors, 304 subtests passed; three additional files fail collection before this runnable pass.",
+      "evidence": "raw/python-full-runnable.log",
+      "id": "REL-BASE-002",
+      "introduced_by_sha": false,
+      "severity": "medium",
+      "status": "open",
+      "title": "Full Python suite is not hermetic"
+    },
+    {
+      "classification": "baseline_test_drift",
+      "detail": "Digest assertions fail in final email-AI remediation, email-monitor planner trust binding, and monitor successor 504 migration. These predate the current PDC-14 release and are outside its changed paths.",
+      "evidence": "raw/python-full-runnable.log",
+      "id": "REL-BASE-003",
+      "introduced_by_sha": false,
+      "severity": "low",
+      "status": "open",
+      "title": "Three legacy immutable digest assertions drift"
+    },
+    {
+      "classification": "baseline_security_debt",
+      "detail": "Current advisor result contains 455 authenticated SECURITY DEFINER warnings. The provenance/lifecycle cache keys are unchanged from the prior independent audit and pass the expanded fail-closed matrix; broader inventory remains release debt.",
+      "evidence": "advisor-results.json",
+      "id": "REL-BASE-004",
+      "introduced_by_sha": false,
+      "severity": "medium",
+      "status": "open",
+      "title": "Large intentional SECURITY DEFINER surface requires inventory"
+    },
+    {
+      "classification": "forward_compatibility",
+      "detail": "STAGING still has broad public-schema default ACL rows. The 14 RLS-disabled public tables currently expose no SELECT to anon/authenticated, but future migrations must declare grants explicitly before Supabase's existing-project rollout.",
+      "evidence": "advisor-results.json",
+      "id": "REL-BASE-005",
+      "introduced_by_sha": false,
+      "severity": "low",
+      "status": "open",
+      "title": "Explicit Data API grants must be standardized before 2026-10-30"
+    },
+    {
+      "classification": "baseline_performance",
+      "detail": "Performance advisor flags auth_rls_initplan for PDC administrators reading pdc14_parts_coordinator_role_history. WARN total is unchanged from the prior audit.",
+      "evidence": "advisor-results.json",
+      "id": "REL-BASE-006",
+      "introduced_by_sha": false,
+      "severity": "low",
+      "status": "open",
+      "title": "PDC-14 role-history RLS policy uses per-row auth evaluation"
+    }
+  ],
+  "task_id": "t_95939b14",
+  "totals": {
+    "all": 6,
+    "baseline_environment": 2,
+    "baseline_or_forward_debt": 4,
+    "by_severity": {
+      "high": 0,
+      "low": 3,
+      "medium": 3
+    },
+    "product_regression": 0
+  }
+}

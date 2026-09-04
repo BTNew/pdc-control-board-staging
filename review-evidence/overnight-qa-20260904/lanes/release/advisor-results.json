@@ -1,0 +1,223 @@
+{
+  "assessment": {
+    "new_performance_warns_vs_prior_audit": 0,
+    "new_security_warns_vs_prior_audit": 0,
+    "provenance_rpc_warning": "known intentional authenticated SECURITY DEFINER surface; live fail-closed matrix passed",
+    "release_scoped_new_info": 2
+  },
+  "catalog_review": {
+    "history_table": {
+      "anon_select": false,
+      "authenticated_select": false,
+      "force_rls": true,
+      "rls": true
+    },
+    "migration_head": [
+      "20260904011400",
+      "pdc14_location_replay_partial_cleanup_identifier_repair"
+    ],
+    "obsolete_two_arg_exists": false,
+    "production_sentinel_present": false,
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "public_security_definer_count": 1086,
+    "public_security_definer_without_fixed_search_path": 515,
+    "rpc": {
+      "anon_execute": false,
+      "authenticated_execute": true,
+      "config": [
+        "search_path=pg_catalog, public"
+      ],
+      "security_definer": true,
+      "service_role_execute": false
+    }
+  },
+  "comparison_to_t_59b62999": {
+    "performance_current_total": 1016,
+    "performance_info_delta": -1,
+    "performance_previous_total": 1017,
+    "performance_warn_delta": 0,
+    "provenance_warning_cache_keys_unchanged": true,
+    "security_current_total": 909,
+    "security_info_delta": 2,
+    "security_previous_total": 907,
+    "security_warn_delta": 0
+  },
+  "current": {
+    "performance": {
+      "levels": {
+        "INFO": 1013,
+        "WARN": 3
+      },
+      "names": {
+        "auth_db_connections_absolute": 1,
+        "auth_rls_initplan": 2,
+        "multiple_permissive_policies": 1,
+        "unindexed_foreign_keys": 805,
+        "unused_index": 207
+      },
+      "release_scoped": [
+        {
+          "cache_key": "unindexed_foreign_keys_public_pdc14_parts_coordinator_role_history_pdc14_parts_coordinator_role__reverted_assignment_event_id_fkey",
+          "description": "Identifies foreign key constraints without a covering index, which can impact database performance.",
+          "detail": "Table \\`public.pdc14_parts_coordinator_role_history\\` has a foreign key \\`pdc14_parts_coordinator_role__reverted_assignment_event_id_fkey\\` without a covering index. This can lead to suboptimal query performance.",
+          "level": "INFO",
+          "name": "unindexed_foreign_keys"
+        },
+        {
+          "cache_key": "auth_rls_init_plan_public_pdc14_parts_coordinator_role_history_PDC administrators can read role history",
+          "description": "Detects if calls to \\`current_setting()\\` and \\`auth.<function>()\\` in RLS policies are being unnecessarily re-evaluated for each row",
+          "detail": "Table \\`public.pdc14_parts_coordinator_role_history\\` has a row level security policy \\`PDC administrators can read role history\\` that re-evaluates current_setting() or auth.<function>() for each row. This produces suboptimal query performance at scale. Resolve the issue by replacing \\`auth.<function>()\\` with \\`(select auth.<function>())\\`. See [docs](https://supabase.com/docs/guides/database/postgres/row-level-security#call-functions-with-select) for more info.",
+          "level": "WARN",
+          "name": "auth_rls_initplan"
+        }
+      ],
+      "total": 1016
+    },
+    "security": {
+      "levels": {
+        "INFO": 453,
+        "WARN": 456
+      },
+      "names": {
+        "authenticated_security_definer_function_executable": 455,
+        "extension_in_public": 1,
+        "rls_enabled_no_policy": 453
+      },
+      "release_scoped": [
+        {
+          "cache_key": "rls_enabled_no_policy_public_pdc14_location_replay_fixture_cleanup_history_20260904",
+          "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created.",
+          "detail": "Table \\`public.pdc14_location_replay_fixture_cleanup_history_20260904\\` has RLS enabled, but no policies exist",
+          "level": "INFO",
+          "name": "rls_enabled_no_policy"
+        },
+        {
+          "cache_key": "rls_enabled_no_policy_public_pdc_email_ai_v2_operation_readback_provenance_history_20260902",
+          "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created.",
+          "detail": "Table \\`public.pdc_email_ai_v2_operation_readback_provenance_history_20260902\\` has RLS enabled, but no policies exist",
+          "level": "INFO",
+          "name": "rls_enabled_no_policy"
+        },
+        {
+          "cache_key": "authenticated_security_definer_function_executable_public_correct_pdc_vehicle_lifecycle_history_82000_p_vehicle_id uuid, p_transition_kind text, p_corrected_at timestamp with time zone, p_reason text, p_idempotency_key uuid, p_evidence jsonb",
+          "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.",
+          "detail": "Function `public.correct_pdc_vehicle_lifecycle_history_82000(p_vehicle_id uuid, p_transition_kind text, p_corrected_at timestamp with time zone, p_reason text, p_idempotency_key uuid, p_evidence jsonb)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/correct_pdc_vehicle_lifecycle_history_82000`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "level": "WARN",
+          "name": "authenticated_security_definer_function_executable"
+        },
+        {
+          "cache_key": "authenticated_security_definer_function_executable_public_disable_pdc_vehicle_lifecycle_history_82000_p_enabled boolean, p_reason text",
+          "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.",
+          "detail": "Function `public.disable_pdc_vehicle_lifecycle_history_82000(p_enabled boolean, p_reason text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/disable_pdc_vehicle_lifecycle_history_82000`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "level": "WARN",
+          "name": "authenticated_security_definer_function_executable"
+        },
+        {
+          "cache_key": "authenticated_security_definer_function_executable_public_get_pdc_vehicle_lifecycle_history_82000_p_vehicle_id uuid, p_dealer_code text",
+          "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.",
+          "detail": "Function `public.get_pdc_vehicle_lifecycle_history_82000(p_vehicle_id uuid, p_dealer_code text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_pdc_vehicle_lifecycle_history_82000`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "level": "WARN",
+          "name": "authenticated_security_definer_function_executable"
+        },
+        {
+          "cache_key": "authenticated_security_definer_function_executable_public_get_pdc_vehicle_provenance_history_p_vehicle_id uuid",
+          "description": "Detects `SECURITY DEFINER` functions that are callable by signed-in users. Revoke `EXECUTE`, switch the function to `SECURITY INVOKER`, or move it out of your exposed API schema if signed-in users should not call it.",
+          "detail": "Function `public.get_pdc_vehicle_provenance_history(p_vehicle_id uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_pdc_vehicle_provenance_history`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "level": "WARN",
+          "name": "authenticated_security_definer_function_executable"
+        }
+      ],
+      "total": 909
+    }
+  },
+  "data_api_exposure_review": {
+    "default_acl_rows": [
+      {
+        "acl": [
+          "postgres=X/postgres",
+          "service_role=X/postgres"
+        ],
+        "object_type": "f",
+        "owner": "postgres"
+      },
+      {
+        "acl": [
+          "postgres=X/supabase_admin",
+          "anon=X/supabase_admin",
+          "authenticated=X/supabase_admin",
+          "service_role=X/supabase_admin"
+        ],
+        "object_type": "f",
+        "owner": "supabase_admin"
+      },
+      {
+        "acl": [
+          "postgres=arwdDxtm/supabase_admin",
+          "anon=arwdDxtm/supabase_admin",
+          "authenticated=arwdDxtm/supabase_admin",
+          "service_role=arwdDxtm/supabase_admin"
+        ],
+        "object_type": "r",
+        "owner": "supabase_admin"
+      },
+      {
+        "acl": [
+          "postgres=rwU/supabase_admin",
+          "anon=rwU/supabase_admin",
+          "authenticated=rwU/supabase_admin",
+          "service_role=rwU/supabase_admin"
+        ],
+        "object_type": "S",
+        "owner": "supabase_admin"
+      },
+      {
+        "acl": [
+          "postgres=rwU/postgres",
+          "anon=rwU/postgres",
+          "authenticated=rwU/postgres",
+          "service_role=rwU/postgres"
+        ],
+        "object_type": "S",
+        "owner": "postgres"
+      },
+      {
+        "acl": [
+          "postgres=arwdDxtm/postgres",
+          "anon=arwdDxtm/postgres",
+          "authenticated=arwdDxtm/postgres",
+          "service_role=arwdDxtm/postgres"
+        ],
+        "object_type": "r",
+        "owner": "postgres"
+      },
+      {
+        "acl": [
+          "postgres=X/postgres"
+        ],
+        "object_type": "f",
+        "owner": "postgres"
+      }
+    ],
+    "public_tables": 549,
+    "public_tables_rls_disabled": 14,
+    "rls_disabled_with_anon_or_authenticated_privilege": 0
+  },
+  "evidence": "raw/staging-readonly-baseline.json",
+  "observed_at": "2026-09-04T21:53:00+08:00",
+  "official_sources": [
+    {
+      "finding": "Current advisor catalog includes signed-in SECURITY DEFINER execution, mutable function search_path, RLS, sensitive exposure, and performance checks.",
+      "url": "https://supabase.com/docs/guides/database/database-advisors"
+    },
+    {
+      "finding": "Existing projects move to explicit grants for newly created public tables on 2026-10-30; grants and RLS remain separate controls.",
+      "url": "https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically"
+    },
+    {
+      "finding": "March 2026 includes Storage security changes and OpenAPI schema access restriction; no lane mutation was required.",
+      "url": "https://supabase.com/changelog/43465-developer-update-march-2026"
+    }
+  ],
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "task_id": "t_95939b14"
+}

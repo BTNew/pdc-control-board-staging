@@ -2813,50 +2813,19 @@ function escapeHtml(value) {
 async function copyTextToClipboard(value = '') {
   const text = String(value);
   if (navigator.clipboard?.writeText) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return;
-    } catch (_) {
-      // Clipboard permission can be rejected even when the API is exposed.
-      // Continue to the selectable-text fallback below.
-    }
+    await navigator.clipboard.writeText(text);
+    return;
   }
-  let fallback = null;
-  try {
-    fallback = document.createElement('textarea');
-    fallback.value = text;
-    fallback.setAttribute('readonly', '');
-    fallback.style.position = 'fixed';
-    fallback.style.opacity = '0';
-    document.body.appendChild(fallback);
-    fallback.select();
-    if (!document.execCommand('copy')) {
-      throw new Error('copy command failed');
-    }
-  } catch (_) {
-    throw new Error('Clipboard copy is unavailable. Select and copy the Stock Number manually.');
-  } finally {
-    fallback?.remove();
-  }
-}
-
-async function copyVehicleStockNumber(value, button, status) {
-  const text = String(value ?? '');
-  try {
-    if (!text.trim()) throw new Error('No Stock Number is available.');
-    await copyTextToClipboard(text);
-    if (button) button.textContent = 'Copied';
-    if (status) status.textContent = `Copied ${text}`;
-    window.setTimeout(() => {
-      if (button?.isConnected) button.textContent = 'Copy';
-    }, 1500);
-    return true;
-  } catch (error) {
-    const message = error?.message || 'Could not copy the Stock Number.';
-    if (button) button.textContent = 'Copy failed';
-    if (status) status.textContent = message;
-    return false;
-  }
+  const fallback = document.createElement('textarea');
+  fallback.value = text;
+  fallback.setAttribute('readonly', '');
+  fallback.style.position = 'fixed';
+  fallback.style.opacity = '0';
+  document.body.appendChild(fallback);
+  fallback.select();
+  const copied = document.execCommand('copy');
+  fallback.remove();
+  if (!copied) throw new Error('Clipboard copy is unavailable. Select and copy the Stock Number manually.');
 }
 
 function navisionDealerNoteText(vehicle = {}) {
@@ -4348,7 +4317,6 @@ function showView(view, options) {
     sublet: 'Sublet',
     rft: 'RFT',
     completed: 'Completed vehicles',
-    collected: 'Collected Vehicles',
     deleted: 'Deleted vehicles',
     backend: 'Back End Data',
     lists: 'Setup',
@@ -9520,15 +9488,6 @@ function pmbVehicleCardHtml(vehicle = {}) {
     </article>`;
 }
 
-function pdcJsonbCanonicalText(value) {
-  if (Array.isArray(value)) return `[${value.map(pdcJsonbCanonicalText).join(', ')}]`;
-  if (value && typeof value === 'object') {
-    const keys = Object.keys(value).sort((left, right) => left.length - right.length || (left < right ? -1 : left > right ? 1 : 0));
-    return `{${keys.map(key => `${JSON.stringify(key)}: ${pdcJsonbCanonicalText(value[key])}`).join(', ')}}`;
-  }
-  return JSON.stringify(value);
-}
-
 async function togglePdcJobCompletionFromCard(stockKey, jobKey) {
   const cleanKey = String(stockKey || '').trim();
   const def = PDC_JOB_BY_KEY.get(String(jobKey || '').toLowerCase());
@@ -9551,21 +9510,12 @@ async function togglePdcJobCompletionFromCard(stockKey, jobKey) {
     const booking = (refreshedDetail?.bookings || []).find(row => vehicleWorkshopStageCode(row.stage_code || '') === stage && ['queued', 'planned', 'started', 'stoppage'].includes(String(row.status || '').toLowerCase()) && row.deleted_at == null);
     if (booking && window.__workshopSharedActions?.completeVehicleDepartment) {
       const idempotencyKey = globalThis.crypto?.randomUUID?.() || `ui772-complete-${canonicalId}-${Date.now()}`;
-      const payload = { contract: 'department-complete-772', vehicle_id: canonicalId, work_key: String(def.key || '').toLowerCase(), expected_vehicle_version: Math.max(Number(refreshedDetail?.vehicle_version || 0), Number(vehicle.__emailVehicleVersion || 0), Number(vehicle.version || 0)), booking_id: booking.booking_id || booking.id, expected_booking_version: Number(booking.booking_version || booking.version || 0), idempotency_key: idempotencyKey, reason: `Completed ${def.label} from the vehicle card` };
-      const bytes = await globalThis.crypto?.subtle?.digest('SHA-256', new TextEncoder().encode(pdcJsonbCanonicalText(payload)));
+      const payload = { contract: 'department-complete-772', vehicle_id: canonicalId, work_key: String(def.key || '').toLowerCase(), expected_vehicle_version: Number(refreshedDetail?.vehicle_version || vehicle.version || 0), booking_id: booking.booking_id || booking.id, expected_booking_version: Number(booking.booking_version || booking.version || 0), idempotency_key: idempotencyKey, reason: `Completed ${def.label} from the vehicle card` };
+      const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(',')}]` : value && typeof value === 'object' ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}` : JSON.stringify(value);
+      const bytes = await globalThis.crypto?.subtle?.digest('SHA-256', new TextEncoder().encode(canonical(payload)));
       const requestHash = bytes ? Array.from(new Uint8Array(bytes), value => value.toString(16).padStart(2, '0')).join('') : '';
-      const result = await window.__workshopSharedActions.completeVehicleDepartment({
-        ...payload,
-        vehicleId: payload.vehicle_id,
-        workKey: payload.work_key,
-        expectedVehicleVersion: payload.expected_vehicle_version,
-        bookingId: payload.booking_id,
-        expectedBookingVersion: payload.expected_booking_version,
-        idempotencyKey: payload.idempotency_key,
-        requestHash,
-      });
+      const result = await window.__workshopSharedActions.completeVehicleDepartment({ ...payload, requestHash, workKey: payload.work_key, expectedVehicleVersion: payload.expected_vehicle_version, expectedBookingVersion: payload.expected_booking_version });
       if (!result || result.ok !== true) { window.alert('The department completion was not saved. The authoritative vehicle and booking state was preserved.'); return false; }
-      await refreshSharedVehicleWorkState(vehicle);
       await loadVehicleWorkshopDetail(vehicle, { force: true });
       renderAll();
       return true;
@@ -14378,7 +14328,18 @@ function renderDetail() {
   on($('[data-copy-vehicle-stock]', panel), 'click', async event => {
     const value = cleanNavisionText(displayStockNumber(v));
     const status = $('[data-copy-vehicle-stock-status]', panel);
-    await copyVehicleStockNumber(value, event.currentTarget, status);
+    try {
+      if (!value) throw new Error('No Stock Number is available.');
+      await copyTextToClipboard(value);
+      event.currentTarget.textContent = 'Copied';
+      if (status) status.textContent = `Copied ${value}`;
+      window.setTimeout(() => {
+        if (event.currentTarget?.isConnected) event.currentTarget.textContent = 'Copy';
+      }, 1500);
+    } catch (error) {
+      if (status) status.textContent = error.message || 'Copy failed';
+      showNotice(error.message || 'Could not copy the Stock Number.');
+    }
   });
   loadVehicleHistoryForDetail(v);
   on($('[data-email-vehicle-update]', panel), 'click', () => draftSelectedVehicleStatusEmail(key));
@@ -14527,7 +14488,7 @@ function renderDetail() {
       authoritativeSaveVehicle = rebound.vehicle;
       if (saveMessage) saveMessage.textContent = 'PDC Location saved';
       renderAll();
-      renderDetail();
+      renderVehicleDetail(key);
       return;
     }
     if (serverAuthoritative && (pdcBlocked !== (form.dataset.pdcBlockedBaseline === 'true')
@@ -15791,7 +15752,7 @@ function renderPartsHome() {
     bindPartsIssuedStoppagePicker(host);
     return;
   }
-  host.innerHTML = `${stoppagePicker}<div class="table-scroll-cue" aria-hidden="true">Swipe horizontally to view all columns →</div><div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
+  host.innerHTML = `${stoppagePicker}<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
       <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>Parts ETA</th><th>ETA counter</th><th>JITA</th><th>Parts STOPPAGE reason</th><th>Actions</th>
     </tr></thead>
@@ -17835,7 +17796,7 @@ function renderBackEndData() {
     host.innerHTML = `${sharedStatus}<div class="empty-state"><strong>No matching back-end vehicles</strong><span>${allRows.length ? 'Change the search or state filter, then try again.' : 'Upload the latest Navision dump to populate this page.'}</span></div>`;
     return;
   }
-  host.innerHTML = `${sharedStatus}<div class="table-scroll-cue" aria-hidden="true">Swipe horizontally to view all columns →</div><div class="responsive-table pdc-grid-table-wrap"><table class="data-table backend-data-table pdc-grid-table">
+  host.innerHTML = `${sharedStatus}<div class="responsive-table pdc-grid-table-wrap"><table class="data-table backend-data-table pdc-grid-table">
     <thead><tr><th>Key</th><th>Stock (Batch)</th><th>Job Card</th><th>Customer</th><th>Salesperson</th><th>Model</th><th>Colour</th><th>Status</th><th>Source / note</th><th>Updated</th><th>Actions</th></tr></thead>
     <tbody>${rows.map(row => {
       const v = row.vehicle || {};

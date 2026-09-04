@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_contacted": false,
+  "baseline_real_vehicle_count": 2,
+  "post_cleanup_real_vehicle_count": 2,
+  "tagged_vehicle_count": 0,
+  "verified_at": "2026-09-04T14:17:23.624630Z",
+  "controls": {
+    "13048501": {
+      "id": "f41c7e49-a5fe-527c-94a3-e1fd18be15b0",
+      "version": 12,
+      "updated_at": "2026-09-04T02:36:59.407668Z",
+      "current_location": "QC",
+      "lifecycle_state": "active",
+      "vin": "MR0REBHV700547854",
+      "job_card_number": "J139125583",
+      "customer_name": "SHIRE OF EAST PILBARA",
+      "work_items": 8,
+      "bookings": 6,
+      "history_rows": 12,
+      "unchanged_during_run": true,
+      "basis": "version and updated_at remained pre-run; no synthetic actor/tag appears in row or linked QA inventory"
+    },
+    "U158318": {
+      "id": "e49685ca-c9b7-448d-9b45-1aba97d6d3b4",
+      "version": 3,
+      "updated_at": "2026-09-04T05:18:17.045178Z",
+      "current_location": "YH",
+      "lifecycle_state": "active",
+      "vin": "JTFHB8CP806024409",
+      "registration": "1HJX697",
+      "job_card_number": "J138000812",
+      "customer_name": "CATALYST METALS PTY LTD",
+      "work_items": 7,
+      "bookings": 0,
+      "history_rows": 3,
+      "unchanged_during_run": true,
+      "basis": "matches independent release-lane baseline: version 3, VIN, registration, location, customer and job-card identity; no synthetic actor/tag appears in row or linked QA inventory"
+    }
+  }
+}

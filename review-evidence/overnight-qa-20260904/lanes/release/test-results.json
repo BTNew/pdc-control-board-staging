@@ -1,0 +1,106 @@
+{
+  "authoritative_sha": "85bdc68513e0c1c6efee110712731e9be958374b",
+  "completed_at": "2026-09-04T21:53:00+08:00",
+  "sql_note": "The sole tests/*.sql file performs external-completion business mutation and was not executed under the lane's strict read-only constraint. SQL syntax/contracts were exercised through pglast-backed Python tests and both Supabase Preview migrations lanes; one preview was fully green and one reproduced the known release_history/014 bootstrap defect.",
+  "suites": [
+    {
+      "command": "node --test test_pdc14_canonical_work_state_successor.js test_pdc14_control_board_parity.js test_pdc14_location_replay_successor.js test_parts_ordered_projection_color.js test_sublet_workgroup_projection_20260831.js test_vehicle_detail_booking_pills.js",
+      "evidence": "raw/node-focused-pdc14.log",
+      "fail": 0,
+      "name": "focused PDC-14 Node",
+      "pass": 6,
+      "result": "PASS",
+      "skipped": 0,
+      "tests": 6
+    },
+    {
+      "command": "node --test test_*.js",
+      "evidence": "raw/node-full.log",
+      "fail": 0,
+      "name": "full Node",
+      "pass": 184,
+      "result": "PASS",
+      "skipped": 0,
+      "tests": 184
+    },
+    {
+      "command": "uv run --with pytest --with psycopg2-binary --with requests python -m pytest -q tests/test_provenance_rpc_auth_hardening_20260904.py tests/test_provenance_history_release_20260904_live.py tests/test_non_navision_jobcard_runtime_contract_20260904.py",
+      "evidence": "raw/python-focused.log",
+      "failed": 0,
+      "name": "focused Python/SQL contracts",
+      "passed": 16,
+      "result": "PASS_WITH_EXPECTED_SKIPS",
+      "skipped": 5
+    },
+    {
+      "command": "uv run --with pytest --with psycopg2-binary --with requests --with pglast python -m pytest -q tests --ignore=tests/test_latest100_runner_response_contract_20260901.py --ignore=tests/test_pdc_email_sender_chain_20260901.py --ignore=tests/test_pdc_latest100_resume_contract.py",
+      "errors": 3,
+      "evidence": "raw/python-full-runnable.log",
+      "excluded_collection_files": 3,
+      "failed": 22,
+      "name": "full runnable Python",
+      "passed": 359,
+      "result": "BASELINE_FAILURES",
+      "skipped": 58,
+      "subtests_passed": 304
+    },
+    {
+      "classification": "baseline_preview_integration_inconsistency",
+      "evidence": "raw/pr31-comments.log",
+      "failed_preview_project": "xvflalqbfdxbelerhtjg",
+      "failed_relation": "public.vehicle_intelligence_summaries",
+      "failed_sqlstate": "42P01",
+      "failed_stage": "Migrations",
+      "failure_source": "supabase/release_history/014_vehicle_intelligence_timeline_foundation.sql",
+      "github_status_context": "FAILURE",
+      "local_bootstrap": "not runnable: Docker executable unavailable",
+      "name": "clean Supabase Preview/bootstrap",
+      "result": "SPLIT",
+      "successful_clean_preview_project": "rgrwkufllnlijmdtfhxf",
+      "successful_tasks": [
+        "Configurations",
+        "Migrations",
+        "Seeding",
+        "Edge Functions"
+      ]
+    },
+    {
+      "evidence": "raw/staging-integrity-run.json",
+      "name": "Staging Integrity",
+      "result": "SUCCESS",
+      "run_id": 33877383599,
+      "sha": "85bdc68513e0c1c6efee110712731e9be958374b"
+    },
+    {
+      "cases": 8,
+      "denied_cases": 7,
+      "denied_payloads": 0,
+      "evidence": "raw/staging-readonly-baseline.json",
+      "name": "transactional STAGING authorization matrix",
+      "result": "PASS",
+      "target_unchanged": true,
+      "u158318": {
+        "completed_work_count": 0,
+        "estimated_hours": 58.9,
+        "operation_count": 18,
+        "required_work_count": 7,
+        "workshop_booking_count": 0,
+        "zero_hour_lines": [
+          "OP9",
+          "OP14",
+          "OP15"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "baseline_python_collection_exclusions": 3,
+    "baseline_python_errors": 3,
+    "baseline_python_failures": 22,
+    "focused_python_passed": 16,
+    "green_required_node_tests": 184,
+    "product_regressions_found": 0,
+    "staging_authorization_cases_passed": 8
+  },
+  "task_id": "t_95939b14"
+}

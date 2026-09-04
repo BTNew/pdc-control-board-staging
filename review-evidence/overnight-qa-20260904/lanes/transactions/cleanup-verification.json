@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_contacted": false,
+  "tag_prefix": "QA-OVERNIGHT-20260904",
+  "synthetic_actor_id": "46e6d59b-48ba-5bed-9dc4-090420260001",
+  "pre_cleanup": {
+    "total_tagged_rows": 264,
+    "tables": {
+      "auth.users": 1,
+      "public.audit_events": 36,
+      "public.deleted_completed_vehicles": 1,
+      "public.pdc_requirement_edit_receipts_772": 8,
+      "public.pdc_sublet_booking_instance_history": 1,
+      "public.pdc_sublet_booking_instances": 1,
+      "public.pdc_user_roles": 1,
+      "public.pdc_vehicle_lifecycle_history_events_82000": 2,
+      "public.vehicle_aliases": 30,
+      "public.vehicle_master_history": 73,
+      "public.vehicle_master_operation_receipts": 17,
+      "public.vehicle_master_source_records": 17,
+      "public.vehicle_movements": 12,
+      "public.vehicle_parts_updates": 10,
+      "public.vehicle_work_items": 24,
+      "public.vehicle_workshop_line_adjustments": 3,
+      "public.vehicles": 15,
+      "public.workshop_admin_block_history": 3,
+      "public.workshop_admin_block_receipts": 3,
+      "public.workshop_admin_blocks": 1,
+      "public.workshop_booking_history": 3,
+      "public.workshop_bookings": 2
+    }
+  },
+  "cleanup": {
+    "method": "single staging transaction; exact synthetic tag/actor/fixture UUID match across public, auth and storage; constraints/triggers bypassed only within the bounded cleanup transaction",
+    "deleted_tagged_rows": 264,
+    "temporary_browser_actor_removed_after_live_UI_check": true
+  },
+  "post_cleanup": {
+    "verified_at": "2026-09-04T14:13:38.180287Z",
+    "total_remaining": 0,
+    "matching_tables": [],
+    "vehicle_count": 0,
+    "actor_count": 0,
+    "real_vehicle_count_before": 2,
+    "real_vehicle_count_after": 2,
+    "protected_controls_unchanged": ["13048501", "U158318"]
+  }
+}

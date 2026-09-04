@@ -1,0 +1,26 @@
+{
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_contacted": false,
+  "tested_viewports": [360, 768, 1440],
+  "observations": [
+    {
+      "viewport": 360,
+      "result": "pass",
+      "details": "Authenticated Vehicle Locations rendered with no horizontal overflow, overlaps, off-canvas controls, or unreadable text. Compact navigation uses abbreviations and the account label truncates by design."
+    },
+    {
+      "viewport": 768,
+      "result": "pass",
+      "details": "Authenticated Vehicle Locations rendered without horizontal overflow or content overlap. Navigation is condensed; the visible layout remains usable."
+    },
+    {
+      "viewport": 1440,
+      "result": "pass",
+      "details": "Authenticated desktop navigation, search, status legend, stoppage panel, and location groups rendered without visible clipping or overlap."
+    }
+  ],
+  "critical": 0,
+  "high": 0,
+  "medium": 0,
+  "low": 0
+}
