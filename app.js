@@ -9553,7 +9553,16 @@ async function togglePdcJobCompletionFromCard(stockKey, jobKey) {
       const payload = { contract: 'department-complete-772', vehicle_id: canonicalId, work_key: String(def.key || '').toLowerCase(), expected_vehicle_version: Number(refreshedDetail?.vehicle_version || vehicle.version || 0), booking_id: booking.booking_id || booking.id, expected_booking_version: Number(booking.booking_version || booking.version || 0), idempotency_key: idempotencyKey, reason: `Completed ${def.label} from the vehicle card` };
       const bytes = await globalThis.crypto?.subtle?.digest('SHA-256', new TextEncoder().encode(pdcJsonbCanonicalText(payload)));
       const requestHash = bytes ? Array.from(new Uint8Array(bytes), value => value.toString(16).padStart(2, '0')).join('') : '';
-      const result = await window.__workshopSharedActions.completeVehicleDepartment({ ...payload, requestHash, workKey: payload.work_key, expectedVehicleVersion: payload.expected_vehicle_version, expectedBookingVersion: payload.expected_booking_version });
+      const result = await window.__workshopSharedActions.completeVehicleDepartment({
+        ...payload,
+        vehicleId: payload.vehicle_id,
+        workKey: payload.work_key,
+        expectedVehicleVersion: payload.expected_vehicle_version,
+        bookingId: payload.booking_id,
+        expectedBookingVersion: payload.expected_booking_version,
+        idempotencyKey: payload.idempotency_key,
+        requestHash,
+      });
       if (!result || result.ok !== true) { window.alert('The department completion was not saved. The authoritative vehicle and booking state was preserved.'); return false; }
       await refreshSharedVehicleWorkState(vehicle);
       await loadVehicleWorkshopDetail(vehicle, { force: true });
