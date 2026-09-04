@@ -33,8 +33,9 @@ class ProvenanceHistoryReleaseLiveTests(unittest.TestCase):
     @staticmethod
     def role_fixture(where: str) -> tuple[str, str]:
         row = management_query(
-            "select auth_user_id::text sub, lower(email) email from public.pdc_user_roles "
-            f"where auth_user_id is not null and {where} order by id limit 1"
+            "select coalesce(auth_user_id::text,'00000000-0000-4000-8000-000000000003') sub, "
+            "lower(email) email from public.pdc_user_roles "
+            f"where {where} order by id limit 1"
         )[0]
         return row["sub"], row["email"]
 
