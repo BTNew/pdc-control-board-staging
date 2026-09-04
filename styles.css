@@ -220,6 +220,8 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0 0 0 4px rgba(148,163,184,.15); }
 .table-wrap { overflow: auto; }
 .responsive-table { max-width: 100%; overflow-x: auto; }
+.table-scroll-cue,
+.nav-scroll-cue { display: none; }
 .data-table { width: 100%; border-collapse: collapse; min-width: 820px; }
 .data-table th {
   text-align: left;
@@ -359,6 +361,29 @@ input:focus, select:focus, textarea:focus { border-color: #94a3b8; box-shadow: 0
 @media (max-width: 1180px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar { position: relative; height: auto; }
+  .nav-scroll-cue,
+  .table-scroll-cue {
+    display: block;
+    color: #64748b;
+    font-size: .72rem;
+    font-weight: 850;
+    letter-spacing: .02em;
+  }
+  .nav-scroll-cue {
+    margin: -10px 0 4px;
+    color: #cbd5e1;
+    text-align: right;
+  }
+  .table-scroll-cue {
+    padding: 6px 10px;
+    border: 1px solid #dbe3ef;
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+    background: #f8fafc;
+    text-align: right;
+  }
+  .parts-queue-table th:nth-child(4),
+  .parts-queue-table td:nth-child(4) { min-width: 190px; }
   .nav { grid-template-columns: repeat(4, 1fr); }
   .kpi-grid, .visibility-grid { grid-template-columns: repeat(2, 1fr); }
   .content-grid, .import-layout { grid-template-columns: 1fr; }

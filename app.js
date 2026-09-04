@@ -4348,6 +4348,7 @@ function showView(view, options) {
     sublet: 'Sublet',
     rft: 'RFT',
     completed: 'Completed vehicles',
+    collected: 'Collected Vehicles',
     deleted: 'Deleted vehicles',
     backend: 'Back End Data',
     lists: 'Setup',
@@ -15790,7 +15791,7 @@ function renderPartsHome() {
     bindPartsIssuedStoppagePicker(host);
     return;
   }
-  host.innerHTML = `${stoppagePicker}<div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
+  host.innerHTML = `${stoppagePicker}<div class="table-scroll-cue" aria-hidden="true">Swipe horizontally to view all columns →</div><div class="parts-table-wrap parts-queue-wrap"><table class="data-table compact-table parts-queue-table">
     <thead><tr>
       <th>Key</th><th>Stock</th><th>JC</th><th>Vehicle / customer</th><th>Parts status</th><th>Parts ETA</th><th>ETA counter</th><th>JITA</th><th>Parts STOPPAGE reason</th><th>Actions</th>
     </tr></thead>
@@ -17834,7 +17835,7 @@ function renderBackEndData() {
     host.innerHTML = `${sharedStatus}<div class="empty-state"><strong>No matching back-end vehicles</strong><span>${allRows.length ? 'Change the search or state filter, then try again.' : 'Upload the latest Navision dump to populate this page.'}</span></div>`;
     return;
   }
-  host.innerHTML = `${sharedStatus}<div class="responsive-table pdc-grid-table-wrap"><table class="data-table backend-data-table pdc-grid-table">
+  host.innerHTML = `${sharedStatus}<div class="table-scroll-cue" aria-hidden="true">Swipe horizontally to view all columns →</div><div class="responsive-table pdc-grid-table-wrap"><table class="data-table backend-data-table pdc-grid-table">
     <thead><tr><th>Key</th><th>Stock (Batch)</th><th>Job Card</th><th>Customer</th><th>Salesperson</th><th>Model</th><th>Colour</th><th>Status</th><th>Source / note</th><th>Updated</th><th>Actions</th></tr></thead>
     <tbody>${rows.map(row => {
       const v = row.vehicle || {};
