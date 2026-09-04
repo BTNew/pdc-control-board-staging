@@ -12905,6 +12905,7 @@ function vehicleWorkshopHoursEvidenceLabel(projection = {}, line = {}) {
 
 function vehicleWorkshopHoursClass(line = {}, estimate = null) {
   const provenance = cleanNavisionText(line.provenance || line.estimateProvenance || line.estimate_provenance || line.estimatedHoursSource || line.estimated_hours_source || line.hoursProvenance || line.hours_provenance || line.source_kind || line.source_type || line.source || '').toLowerCase();
+  if (line.correctionOrigin === 'craig_standard_pd_1_5' && Number.isFinite(Number(estimate))) return { label: 'Craig standard hours', value: Number(estimate) };
   const confirmedRaw = [line.confirmedHours, line.confirmed_hours]
     .find(value => value !== null && value !== undefined && String(value).trim() !== '');
   const confirmed = Number(confirmedRaw);
