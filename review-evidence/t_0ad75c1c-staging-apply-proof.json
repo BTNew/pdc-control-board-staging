@@ -1,0 +1,102 @@
+{
+  "ok": true,
+  "mode": "apply",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "before": {
+    "head": [
+      "20260904010500",
+      "non_navision_jobcard_current_contract"
+    ],
+    "classifier": {
+      "pit": "pitInspection",
+      "sub": "sublet",
+      "unknown": "owner_supplied_document",
+      "wheel_nut": "tyre",
+      "fire_extinguisher": "fabrication"
+    },
+    "zero_value": 0,
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "function_acl": {
+      "outer_anon": false,
+      "outer_service_role": false,
+      "inner_authenticated": false,
+      "outer_authenticated": true
+    },
+    "missing_value": null,
+    "inner_contract": {
+      "no_booking": true,
+      "yh_creation": true,
+      "zero_helper": true,
+      "no_completion": true,
+      "unknown_review": true
+    },
+    "outer_209_guard": true,
+    "mapping_review_acl": {
+      "anon_select": false,
+      "service_role_select": false,
+      "authenticated_select": false
+    },
+    "mapping_review_rls": [
+      true,
+      true
+    ],
+    "pit_planner_enabled": false,
+    "immutable_operation_trigger": true,
+    "production_sentinel_present": false
+  },
+  "production_contacted": false,
+  "production_mutated": false,
+  "email_sent": false,
+  "applied": false,
+  "idempotent_existing": true,
+  "after": {
+    "head": [
+      "20260904010500",
+      "non_navision_jobcard_current_contract"
+    ],
+    "classifier": {
+      "pit": "pitInspection",
+      "sub": "sublet",
+      "unknown": "owner_supplied_document",
+      "wheel_nut": "tyre",
+      "fire_extinguisher": "fabrication"
+    },
+    "zero_value": 0,
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "function_acl": {
+      "outer_anon": false,
+      "outer_service_role": false,
+      "inner_authenticated": false,
+      "outer_authenticated": true
+    },
+    "missing_value": null,
+    "inner_contract": {
+      "no_booking": true,
+      "yh_creation": true,
+      "zero_helper": true,
+      "no_completion": true,
+      "unknown_review": true
+    },
+    "outer_209_guard": true,
+    "mapping_review_acl": {
+      "anon_select": false,
+      "service_role_select": false,
+      "authenticated_select": false
+    },
+    "mapping_review_rls": [
+      true,
+      true
+    ],
+    "pit_planner_enabled": false,
+    "immutable_operation_trigger": true,
+    "production_sentinel_present": false
+  },
+  "security_advisors": {
+    "total": 904,
+    "levels": {
+      "INFO": 450,
+      "WARN": 454
+    },
+    "pdc14_findings": []
+  }
+}
