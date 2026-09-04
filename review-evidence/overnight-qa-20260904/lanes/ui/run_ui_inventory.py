@@ -27,7 +27,7 @@ from inspect_pdc14_staging import STAGING_REF, management_query, supabase_access
 
 URL = "https://btnew.github.io/pdc-control-board-staging/"
 PRODUCTION_REF = "vjdtsswhroyguxyfjdkt"
-EMAIL = "ui.inventory.20260905@pdc-staging.invalid"
+EMAIL = "[REDACTED_EMAIL]"
 VIEWPORTS = {
     "desktop": {"width": 1440, "height": 1000},
     "tablet": {"width": 768, "height": 1024},

@@ -293,7 +293,7 @@ targeted Workshop, Parts and PMB STOPPAGE contract passed
 ✔ test_targeted_stoppage_422.js (135.6911ms)
 typed Monitor Parts-complete migration 324 contract passed
 ✔ test_typed_monitor_parts_complete_324.js (136.3592ms)
-U158318 exact classifier successor regression: PASS
+[REDACTED_STOCK_B] exact classifier successor regression: PASS
 ✔ test_u158318_classifier_successor_20260904.js (142.7442ms)
 uid590_591_exact_reinstatement: PASS
 ✔ test_uid590_591_exact_reinstatement.js (142.9482ms)

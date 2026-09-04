@@ -55,7 +55,7 @@
       "horizontalOverflow": false,
       "clippedControls": [],
       "visibleControlCount": 36,
-      "activeText": "QUALITY CONTROL\nQC sign-off queue\n\nOnly vehicles with all required workshop work complete and awaiting QC sign-off appear here. Select a vehicle to review the completed work, capture a completion photo and sign it off to RFT.\n\nVehicle Locations\nRefresh\nRefresh QC data\nVehicles requiring QC\n\n1 awaiting QC sign-off\n\n1\n13048501\nWork incomplete\nHilux DC\nSHIRE OF EAST PILBARA\nNo key\nSP\nSELECTED VEHICLE\n13048501\n\nHilux DC \u00b7 SP\n\nComplete outstanding work\n\u2014\n13048501\nJ139125583\nSHIRE OF EAST PILBARA\nComp",
+      "activeText": "QUALITY CONTROL\nQC sign-off queue\n\nOnly vehicles with all required workshop work complete and awaiting QC sign-off appear here. Select a vehicle to review the completed work, capture a completion photo and sign it off to RFT.\n\nVehicle Locations\nRefresh\nRefresh QC data\nVehicles requiring QC\n\n1 awaiting QC sign-off\n\n1\n[REDACTED_STOCK_A]\nWork incomplete\nHilux DC\n[REDACTED_CUSTOMER_A]\nNo key\nSP\nSELECTED VEHICLE\n[REDACTED_STOCK_A]\n\nHilux DC \u00b7 SP\n\nComplete outstanding work\n\u2014\n[REDACTED_STOCK_A]\n[REDACTED_JOB_CARD_A]\n[REDACTED_CUSTOMER_A]\nComp",
       "viewport": "desktop",
       "route": "qc",
       "screenshot": "screenshots/desktop/qc.png",
@@ -381,7 +381,7 @@
         }
       ],
       "visibleControlCount": 31,
-      "activeText": "Parts\n\nOrder, receive and clear workshop parts blockers.\n\nExport CSV\nRefresh\nRefresh Parts data\nParts Not Ordered\n1\nParts Ordered\n0\nParts Overdue\n0\nParts STOPPAGE\n0\nSearch\nDepartment\nAll departments\n138 Bus 4x4\n137 Fab\n139 PD\nKEY\tSTOCK\tJC\tVEHICLE / CUSTOMER\tPARTS STATUS\tPARTS ETA\tETA COUNTER\tJITA\tPARTS STOPPAGE REASON\tACTIONS\n\u2014\t\nU158318\n\tJ138000812\t\nHiAce\nCATALYST METALS PTY LTD\n\tNOT ORDERED\t\t\u2014\t\u2014\t\nNone\n\t\nMark ordered\nMark received\nParts STOPPAGE\nOpen vehicle",
+      "activeText": "Parts\n\nOrder, receive and clear workshop parts blockers.\n\nExport CSV\nRefresh\nRefresh Parts data\nParts Not Ordered\n1\nParts Ordered\n0\nParts Overdue\n0\nParts STOPPAGE\n0\nSearch\nDepartment\nAll departments\n138 Bus 4x4\n137 Fab\n139 PD\nKEY\tSTOCK\tJC\tVEHICLE / CUSTOMER\tPARTS STATUS\tPARTS ETA\tETA COUNTER\tJITA\tPARTS STOPPAGE REASON\tACTIONS\n\u2014\t\n[REDACTED_STOCK_B]\n\t[REDACTED_JOB_CARD_B]\t\nHiAce\n[REDACTED_CUSTOMER_B]\n\tNOT ORDERED\t\t\u2014\t\u2014\t\nNone\n\t\nMark ordered\nMark received\nParts STOPPAGE\nOpen vehicle",
       "viewport": "desktop",
       "route": "parts",
       "screenshot": "screenshots/desktop/parts.png",
@@ -401,7 +401,7 @@
       "horizontalOverflow": false,
       "clippedControls": [],
       "visibleControlCount": 27,
-      "activeText": "SUCCESSOR \u00b7 EVIDENCE TO TYPED PLAN TO READBACK\nChronological AI Intake\n\nRead-only projection of email receipts and controlled transaction results. This screen never writes business state.\n\nLIVE \u00b7 REVISION 1192\nRefresh\n2 emails\n1 vehicle result\n2 typed actions\nRevision 1192\nEMAIL RECEIPT \u00b7 GMAIL_MESSAGE_ID:1A0601DE8C98FA0D\nShire East Pilbara 13048501\n02/09/2026, 11:15:42\nSUCCESS\nVERIFICATION PASS\nSENDER\nstephen.peck@pmgwa.com.au\nSTOCK / VEHICLE\n13048501 \u00b7 HiLux 4x4 2.8L Dsl D/C 6AT\nATTACHMENTS / ",
+      "activeText": "SUCCESSOR \u00b7 EVIDENCE TO TYPED PLAN TO READBACK\nChronological AI Intake\n\nRead-only projection of email receipts and controlled transaction results. This screen never writes business state.\n\nLIVE \u00b7 REVISION 1192\nRefresh\n2 emails\n1 vehicle result\n2 typed actions\nRevision 1192\nEMAIL RECEIPT \u00b7 GMAIL_MESSAGE_ID:1A0601DE8C98FA0D\nShire East Pilbara [REDACTED_STOCK_A]\n02/09/2026, 11:15:42\nSUCCESS\nVERIFICATION PASS\nSENDER[REDACTED_EMAIL]\nSTOCK / VEHICLE\n[REDACTED_STOCK_A] \u00b7 HiLux 4x4 2.8L Dsl D/C 6AT\nATTACHMENTS / ",
       "viewport": "desktop",
       "route": "emailreview",
       "screenshot": "screenshots/desktop/emailreview.png",
@@ -682,7 +682,7 @@
       "clippedControls": [
         {
           "id": "",
-          "label": "01\n\u2014\n13048501\nJ139125583\nSHIRE OF EAST PILBARA\nHilux DC\n\u2713\n\u2713\n\u2013\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\nETA\n2026-08-20\n1 day\nSTAGE",
+          "label": "01\n\u2014\n[REDACTED_STOCK_A]\n[REDACTED_JOB_CARD_A]\n[REDACTED_CUSTOMER_A]\nHilux DC\n\u2713\n\u2713\n\u2013\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\nETA\n2026-08-20\n1 day\nSTAGE",
           "rect": {
             "x": 262,
             "right": 1772,
@@ -691,7 +691,7 @@
         },
         {
           "id": "",
-          "label": "02\n\u2014\nU158318\nJ138000812\nCATALYST METALS PTY LTD\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022\n\u2022\n\u2022\n\u2022\nETA\nNo ETA\n\u2014\nSTAGE\nyardhold\n",
+          "label": "02\n\u2014\n[REDACTED_STOCK_B]\n[REDACTED_JOB_CARD_B]\n[REDACTED_CUSTOMER_B]\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022\n\u2022\n\u2022\n\u2022\nETA\nNo ETA\n\u2014\nSTAGE\nyardhold\n",
           "rect": {
             "x": 262,
             "right": 1772,
@@ -828,7 +828,7 @@
         }
       ],
       "visibleControlCount": 23,
-      "activeText": "Fitting\n\nFitting focused work list. Use the row actions to sign off work, record STOPPAGES, or open the vehicle details.\n\n1 vehicle \u00b7 5 bays\nRefresh\nRefresh Department data\nSEARCH\nSTATUS\nOpen work\nSTOPPAGES\nCompleted\nAll for this station\nFitting\nCapacity: 5 bays\nSort: STOPPAGES first, then earliest Kewdale ETA.\nKEY\nSTOCK\nJOB CARD\nCUSTOMER\nVEHICLE\nParts\nTint\nBus 4x4\nHoist\nFitting\nFab\nElec\nTyre\nSublet\nSTATION STATUS\nETA / AGE\nACTIONS\n\u203a\n\u2014\nU158318\nJ138000812\nCATALYST METALS PTY LTD\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022",
+      "activeText": "Fitting\n\nFitting focused work list. Use the row actions to sign off work, record STOPPAGES, or open the vehicle details.\n\n1 vehicle \u00b7 5 bays\nRefresh\nRefresh Department data\nSEARCH\nSTATUS\nOpen work\nSTOPPAGES\nCompleted\nAll for this station\nFitting\nCapacity: 5 bays\nSort: STOPPAGES first, then earliest Kewdale ETA.\nKEY\nSTOCK\nJOB CARD\nCUSTOMER\nVEHICLE\nParts\nTint\nBus 4x4\nHoist\nFitting\nFab\nElec\nTyre\nSublet\nSTATION STATUS\nETA / AGE\nACTIONS\n\u203a\n\u2014\n[REDACTED_STOCK_B]\n[REDACTED_JOB_CARD_B]\n[REDACTED_CUSTOMER_B]\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022",
       "viewport": "desktop",
       "route": "dept-fitting",
       "screenshot": "screenshots/desktop/dept-fitting.png",
@@ -1112,7 +1112,7 @@
         }
       ],
       "visibleControlCount": 20,
-      "activeText": "QUALITY CONTROL\nQC sign-off queue\n\nOnly vehicles with all required workshop work complete and awaiting QC sign-off appear here. Select a vehicle to review the completed work, capture a completion photo and sign it off to RFT.\n\nVehicle Locations\nRefresh\nRefresh QC data\nVehicles requiring QC\n\n1 awaiting QC sign-off\n\n1\n13048501\nWork incomplete\nHilux DC\nSHIRE OF EAST PILBARA\nNo key\nSP",
+      "activeText": "QUALITY CONTROL\nQC sign-off queue\n\nOnly vehicles with all required workshop work complete and awaiting QC sign-off appear here. Select a vehicle to review the completed work, capture a completion photo and sign it off to RFT.\n\nVehicle Locations\nRefresh\nRefresh QC data\nVehicles requiring QC\n\n1 awaiting QC sign-off\n\n1\n[REDACTED_STOCK_A]\nWork incomplete\nHilux DC\n[REDACTED_CUSTOMER_A]\nNo key\nSP",
       "viewport": "tablet",
       "route": "qc",
       "screenshot": "screenshots/tablet/qc.png",
@@ -2111,7 +2111,7 @@
         }
       ],
       "visibleControlCount": 31,
-      "activeText": "Parts\n\nOrder, receive and clear workshop parts blockers.\n\nExport CSV\nRefresh\nRefresh Parts data\nParts Not Ordered\n1\nParts Ordered\n0\nParts Overdue\n0\nParts STOPPAGE\n0\nSearch\nDepartment\nAll departments\n138 Bus 4x4\n137 Fab\n139 PD\nKEY\tSTOCK\tJC\tVEHICLE / CUSTOMER\tPARTS STATUS\tPARTS ETA\tETA COUNTER\tJITA\tPARTS STOPPAGE REASON\tACTIONS\n\u2014\t\nU158318\n\tJ138000812\t\nHiAceCATALYST METALS PTY LTD\n\tNOT ORDERED\t\t\u2014\t\u2014\t\nNone\n\t\nMark ordered\nMark received\nParts STOPPAGE\nOpen vehicle",
+      "activeText": "Parts\n\nOrder, receive and clear workshop parts blockers.\n\nExport CSV\nRefresh\nRefresh Parts data\nParts Not Ordered\n1\nParts Ordered\n0\nParts Overdue\n0\nParts STOPPAGE\n0\nSearch\nDepartment\nAll departments\n138 Bus 4x4\n137 Fab\n139 PD\nKEY\tSTOCK\tJC\tVEHICLE / CUSTOMER\tPARTS STATUS\tPARTS ETA\tETA COUNTER\tJITA\tPARTS STOPPAGE REASON\tACTIONS\n\u2014\t\n[REDACTED_STOCK_B]\n\t[REDACTED_JOB_CARD_B]\t\nHiAce[REDACTED_CUSTOMER_B]\n\tNOT ORDERED\t\t\u2014\t\u2014\t\nNone\n\t\nMark ordered\nMark received\nParts STOPPAGE\nOpen vehicle",
       "viewport": "tablet",
       "route": "parts",
       "screenshot": "screenshots/tablet/parts.png",
@@ -2204,7 +2204,7 @@
         }
       ],
       "visibleControlCount": 27,
-      "activeText": "SUCCESSOR \u00b7 EVIDENCE TO TYPED PLAN TO READBACK\nChronological AI Intake\n\nRead-only projection of email receipts and controlled transaction results. This screen never writes business state.\n\nLIVE \u00b7 REVISION 1192\nRefresh\n2 emails\n1 vehicle result\n2 typed actions\nRevision 1192\nEMAIL RECEIPT \u00b7 GMAIL_MESSAGE_ID:1A0601DE8C98FA0D\nShire East Pilbara 13048501\n02/09/2026, 11:15:42\nSUCCESS\nVERIFICATION PASS\nSENDER\nstephen.peck@pmgwa.com.au\nSTOCK / VEHICLE\n13048501 \u00b7 HiLux 4x4 2.8L Dsl D/C 6AT\nATTACHMENTS / ",
+      "activeText": "SUCCESSOR \u00b7 EVIDENCE TO TYPED PLAN TO READBACK\nChronological AI Intake\n\nRead-only projection of email receipts and controlled transaction results. This screen never writes business state.\n\nLIVE \u00b7 REVISION 1192\nRefresh\n2 emails\n1 vehicle result\n2 typed actions\nRevision 1192\nEMAIL RECEIPT \u00b7 GMAIL_MESSAGE_ID:1A0601DE8C98FA0D\nShire East Pilbara [REDACTED_STOCK_A]\n02/09/2026, 11:15:42\nSUCCESS\nVERIFICATION PASS\nSENDER[REDACTED_EMAIL]\nSTOCK / VEHICLE\n[REDACTED_STOCK_A] \u00b7 HiLux 4x4 2.8L Dsl D/C 6AT\nATTACHMENTS / ",
       "viewport": "tablet",
       "route": "emailreview",
       "screenshot": "screenshots/tablet/emailreview.png",
@@ -3206,7 +3206,7 @@
         }
       ],
       "visibleControlCount": 93,
-      "activeText": "User Administration\n\nManage system access and roles.\n\nRefresh\nAll\nPending\nApproved\nDisabled\nRejected\nNAME\tEMAIL\tROLE\tSTATUS\tACTIONS\nUI Inventory Test Administrator\tui.inventory.20260905@pdc-staging.invalid\tADMINISTRATOR\tApproved\t\nviewer\ncontroller\nimporter\nadministrator\nChange role\nDisable\n\nQC Mobile Verification\tqc-mobile-ecb76759f45e@example.invalid\t\u2014\tPending\t\nviewer\ncontroller\nimporter\nadministrator\nApprove\nReject\n\nPDC Email AI Lead v2 Runtime\tpdc-email-ai-lead-v2-52909cdcc4d79712@broometoyot",
+      "activeText": "User Administration\n\nManage system access and roles.\n\nRefresh\nAll\nPending\nApproved\nDisabled\nRejected\nNAME\tEMAIL\tROLE\tSTATUS\tACTIONS\nUI Inventory Test Administrator[REDACTED_EMAIL]\tADMINISTRATOR\tApproved\t\nviewer\ncontroller\nimporter\nadministrator\nChange role\nDisable\n\nQC Mobile Verification[REDACTED_EMAIL]\t\u2014\tPending\t\nviewer\ncontroller\nimporter\nadministrator\nApprove\nReject\n\nPDC Email AI Lead v2 Runtime[REDACTED_EMAIL]",
       "viewport": "tablet",
       "route": "user-management",
       "screenshot": "screenshots/tablet/user-management.png",
@@ -4568,7 +4568,7 @@
         },
         {
           "id": "",
-          "label": "01\n\u2014\n13048501\nJ139125583\nSHIRE OF EAST PILBARA\nHilux DC\n\u2713\n\u2713\n\u2013\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\nETA\n2026-08-20\n1 day\nSTAGE",
+          "label": "01\n\u2014\n[REDACTED_STOCK_A]\n[REDACTED_JOB_CARD_A]\n[REDACTED_CUSTOMER_A]\nHilux DC\n\u2713\n\u2713\n\u2013\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\nETA\n2026-08-20\n1 day\nSTAGE",
           "rect": {
             "x": 28,
             "right": 1514,
@@ -4577,7 +4577,7 @@
         },
         {
           "id": "",
-          "label": "02\n\u2014\nU158318\nJ138000812\nCATALYST METALS PTY LTD\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022\n\u2022\n\u2022\n\u2022\nETA\nNo ETA\n\u2014\nSTAGE\nyardhold\n",
+          "label": "02\n\u2014\n[REDACTED_STOCK_B]\n[REDACTED_JOB_CARD_B]\n[REDACTED_CUSTOMER_B]\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022\n\u2022\n\u2022\n\u2022\nETA\nNo ETA\n\u2014\nSTAGE\nyardhold\n",
           "rect": {
             "x": 28,
             "right": 1514,
@@ -5078,7 +5078,7 @@
         }
       ],
       "visibleControlCount": 23,
-      "activeText": "Fitting\n\nFitting focused work list. Use the row actions to sign off work, record STOPPAGES, or open the vehicle details.\n\n1 vehicle \u00b7 5 bays\nRefresh\nRefresh Department data\nSEARCH\nSTATUS\nOpen work\nSTOPPAGES\nCompleted\nAll for this station\nFitting\nCapacity: 5 bays\nSort: STOPPAGES first, then earliest Kewdale ETA.\nKEY\nSTOCK\nJOB CARD\nCUSTOMER\nVEHICLE\nParts\nTint\nBus 4x4\nHoist\nFitting\nFab\nElec\nTyre\nSublet\nSTATION STATUS\nETA / AGE\nACTIONS\n\u203a\n\u2014\nU158318\nJ138000812\nCATALYST METALS PTY LTD\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022",
+      "activeText": "Fitting\n\nFitting focused work list. Use the row actions to sign off work, record STOPPAGES, or open the vehicle details.\n\n1 vehicle \u00b7 5 bays\nRefresh\nRefresh Department data\nSEARCH\nSTATUS\nOpen work\nSTOPPAGES\nCompleted\nAll for this station\nFitting\nCapacity: 5 bays\nSort: STOPPAGES first, then earliest Kewdale ETA.\nKEY\nSTOCK\nJOB CARD\nCUSTOMER\nVEHICLE\nParts\nTint\nBus 4x4\nHoist\nFitting\nFab\nElec\nTyre\nSublet\nSTATION STATUS\nETA / AGE\nACTIONS\n\u203a\n\u2014\n[REDACTED_STOCK_B]\n[REDACTED_JOB_CARD_B]\n[REDACTED_CUSTOMER_B]\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022",
       "viewport": "tablet",
       "route": "dept-fitting",
       "screenshot": "screenshots/tablet/dept-fitting.png",
@@ -5744,7 +5744,7 @@
         }
       ],
       "visibleControlCount": 20,
-      "activeText": "QUALITY CONTROL\nQC sign-off queue\n\nOnly vehicles with all required workshop work complete and awaiting QC sign-off appear here. Select a vehicle to review the completed work, capture a completion photo and sign it off to RFT.\n\nVehicle Locations\nRefresh\nRefresh QC data\nVehicles requiring QC\n\n1 awaiting QC sign-off\n\n1\n13048501\nWork incomplete\nHilux DC\nSHIRE OF EAST PILBARA\nNo key\nSP",
+      "activeText": "QUALITY CONTROL\nQC sign-off queue\n\nOnly vehicles with all required workshop work complete and awaiting QC sign-off appear here. Select a vehicle to review the completed work, capture a completion photo and sign it off to RFT.\n\nVehicle Locations\nRefresh\nRefresh QC data\nVehicles requiring QC\n\n1 awaiting QC sign-off\n\n1\n[REDACTED_STOCK_A]\nWork incomplete\nHilux DC\n[REDACTED_CUSTOMER_A]\nNo key\nSP",
       "viewport": "mobile",
       "route": "qc",
       "screenshot": "screenshots/mobile/qc.png",
@@ -7031,7 +7031,7 @@
         },
         {
           "id": "",
-          "label": "Parts ETA for U158318",
+          "label": "Parts ETA for [REDACTED_STOCK_B]",
           "rect": {
             "x": 554.96875,
             "right": 675.96875,
@@ -7076,7 +7076,7 @@
         }
       ],
       "visibleControlCount": 31,
-      "activeText": "Parts\n\nOrder, receive and clear workshop parts blockers.\n\nExport CSV\nRefresh\nRefresh Parts data\nParts Not Ordered\n1\nParts Ordered\n0\nParts Overdue\n0\nParts STOPPAGE\n0\nSearch\nDepartment\nAll departments\n138 Bus 4x4\n137 Fab\n139 PD\nKEY\tSTOCK\tJC\tVEHICLE / CUSTOMER\tPARTS STATUS\tPARTS ETA\tETA COUNTER\tJITA\tPARTS STOPPAGE REASON\tACTIONS\n\u2014\t\nU158318\n\tJ138000812\t\nHiAceCATALYST METALS PTY LTD\n\tNOT ORDERED\t\t\u2014\t\u2014\t\nNone\n\t\nMark ordered\nMark received\nParts STOPPAGE\nOpen vehicle",
+      "activeText": "Parts\n\nOrder, receive and clear workshop parts blockers.\n\nExport CSV\nRefresh\nRefresh Parts data\nParts Not Ordered\n1\nParts Ordered\n0\nParts Overdue\n0\nParts STOPPAGE\n0\nSearch\nDepartment\nAll departments\n138 Bus 4x4\n137 Fab\n139 PD\nKEY\tSTOCK\tJC\tVEHICLE / CUSTOMER\tPARTS STATUS\tPARTS ETA\tETA COUNTER\tJITA\tPARTS STOPPAGE REASON\tACTIONS\n\u2014\t\n[REDACTED_STOCK_B]\n\t[REDACTED_JOB_CARD_B]\t\nHiAce[REDACTED_CUSTOMER_B]\n\tNOT ORDERED\t\t\u2014\t\u2014\t\nNone\n\t\nMark ordered\nMark received\nParts STOPPAGE\nOpen vehicle",
       "viewport": "mobile",
       "route": "parts",
       "screenshot": "screenshots/mobile/parts.png",
@@ -7205,7 +7205,7 @@
         }
       ],
       "visibleControlCount": 27,
-      "activeText": "SUCCESSOR \u00b7 EVIDENCE TO TYPED PLAN TO READBACK\nChronological AI Intake\n\nRead-only projection of email receipts and controlled transaction results. This screen never writes business state.\n\nLIVE \u00b7 REVISION 1192\nRefresh\n2 emails\n1 vehicle result\n2 typed actions\nRevision 1192\nEMAIL RECEIPT \u00b7 GMAIL_MESSAGE_ID:1A0601DE8C98FA0D\nShire East Pilbara 13048501\n02/09/2026, 11:15:42\nSUCCESS\nVERIFICATION PASS\nSENDER\nstephen.peck@pmgwa.com.au\nSTOCK / VEHICLE\n13048501 \u00b7 HiLux 4x4 2.8L Dsl D/C 6AT\nATTACHMENTS / ",
+      "activeText": "SUCCESSOR \u00b7 EVIDENCE TO TYPED PLAN TO READBACK\nChronological AI Intake\n\nRead-only projection of email receipts and controlled transaction results. This screen never writes business state.\n\nLIVE \u00b7 REVISION 1192\nRefresh\n2 emails\n1 vehicle result\n2 typed actions\nRevision 1192\nEMAIL RECEIPT \u00b7 GMAIL_MESSAGE_ID:1A0601DE8C98FA0D\nShire East Pilbara [REDACTED_STOCK_A]\n02/09/2026, 11:15:42\nSUCCESS\nVERIFICATION PASS\nSENDER[REDACTED_EMAIL]\nSTOCK / VEHICLE\n[REDACTED_STOCK_A] \u00b7 HiLux 4x4 2.8L Dsl D/C 6AT\nATTACHMENTS / ",
       "viewport": "mobile",
       "route": "emailreview",
       "screenshot": "screenshots/mobile/emailreview.png",
@@ -8405,7 +8405,7 @@
         }
       ],
       "visibleControlCount": 93,
-      "activeText": "User Administration\n\nManage system access and roles.\n\nRefresh\nAll\nPending\nApproved\nDisabled\nRejected\nNAME\tEMAIL\tROLE\tSTATUS\tACTIONS\nUI Inventory Test Administrator\tui.inventory.20260905@pdc-staging.invalid\tADMINISTRATOR\tApproved\t\nviewer\ncontroller\nimporter\nadministrator\nChange role\nDisable\n\nQC Mobile Verification\tqc-mobile-ecb76759f45e@example.invalid\t\u2014\tPending\t\nviewer\ncontroller\nimporter\nadministrator\nApprove\nReject\n\nPDC Email AI Lead v2 Runtime\tpdc-email-ai-lead-v2-52909cdcc4d79712@broometoyot",
+      "activeText": "User Administration\n\nManage system access and roles.\n\nRefresh\nAll\nPending\nApproved\nDisabled\nRejected\nNAME\tEMAIL\tROLE\tSTATUS\tACTIONS\nUI Inventory Test Administrator[REDACTED_EMAIL]\tADMINISTRATOR\tApproved\t\nviewer\ncontroller\nimporter\nadministrator\nChange role\nDisable\n\nQC Mobile Verification[REDACTED_EMAIL]\t\u2014\tPending\t\nviewer\ncontroller\nimporter\nadministrator\nApprove\nReject\n\nPDC Email AI Lead v2 Runtime[REDACTED_EMAIL]",
       "viewport": "mobile",
       "route": "user-management",
       "screenshot": "screenshots/mobile/user-management.png",
@@ -10145,7 +10145,7 @@
         },
         {
           "id": "",
-          "label": "01\n\u2014\n13048501\nJ139125583\nSHIRE OF EAST PILBARA\nHilux DC\n\u2713\n\u2713\n\u2013\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\nETA\n2026-08-20\n1 day\nSTAGE",
+          "label": "01\n\u2014\n[REDACTED_STOCK_A]\n[REDACTED_JOB_CARD_A]\n[REDACTED_CUSTOMER_A]\nHilux DC\n\u2713\n\u2713\n\u2013\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\n\u2713\nETA\n2026-08-20\n1 day\nSTAGE",
           "rect": {
             "x": 28,
             "right": 1514,
@@ -10154,7 +10154,7 @@
         },
         {
           "id": "",
-          "label": "02\n\u2014\nU158318\nJ138000812\nCATALYST METALS PTY LTD\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022\n\u2022\n\u2022\n\u2022\nETA\nNo ETA\n\u2014\nSTAGE\nyardhold\n",
+          "label": "02\n\u2014\n[REDACTED_STOCK_B]\n[REDACTED_JOB_CARD_B]\n[REDACTED_CUSTOMER_B]\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022\n\u2022\n\u2022\n\u2022\nETA\nNo ETA\n\u2014\nSTAGE\nyardhold\n",
           "rect": {
             "x": 28,
             "right": 1514,
@@ -10835,7 +10835,7 @@
         }
       ],
       "visibleControlCount": 23,
-      "activeText": "Fitting\n\nFitting focused work list. Use the row actions to sign off work, record STOPPAGES, or open the vehicle details.\n\n1 vehicle \u00b7 5 bays\nRefresh\nRefresh Department data\nSEARCH\nSTATUS\nOpen work\nSTOPPAGES\nCompleted\nAll for this station\nFitting\nCapacity: 5 bays\nSort: STOPPAGES first, then earliest Kewdale ETA.\nKEY\nSTOCK\nJOB CARD\nCUSTOMER\nVEHICLE\nParts\nTint\nBus 4x4\nHoist\nFitting\nFab\nElec\nTyre\nSublet\nSTATION STATUS\nETA / AGE\nACTIONS\n\u203a\n\u2014\nU158318\nJ138000812\nCATALYST METALS PTY LTD\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022",
+      "activeText": "Fitting\n\nFitting focused work list. Use the row actions to sign off work, record STOPPAGES, or open the vehicle details.\n\n1 vehicle \u00b7 5 bays\nRefresh\nRefresh Department data\nSEARCH\nSTATUS\nOpen work\nSTOPPAGES\nCompleted\nAll for this station\nFitting\nCapacity: 5 bays\nSort: STOPPAGES first, then earliest Kewdale ETA.\nKEY\nSTOCK\nJOB CARD\nCUSTOMER\nVEHICLE\nParts\nTint\nBus 4x4\nHoist\nFitting\nFab\nElec\nTyre\nSublet\nSTATION STATUS\nETA / AGE\nACTIONS\n\u203a\n\u2014\n[REDACTED_STOCK_B]\n[REDACTED_JOB_CARD_B]\n[REDACTED_CUSTOMER_B]\nHiAce\n\u2022\n\u2022\n\u2022\n\u2013\n\u2022\n\u2022",
       "viewport": "mobile",
       "route": "dept-fitting",
       "screenshot": "screenshots/mobile/dept-fitting.png",

@@ -1,0 +1,211 @@
+{
+  "generated_at": "2026-09-04T21:33:01.290863+00:00",
+  "lane_cleanup": {
+    "schema_version": 1,
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "production_contacted": false,
+    "tag_prefix": "QA-OVERNIGHT-20260904",
+    "synthetic_actor_id": "[REDACTED_UUID_efc9f9ee19]",
+    "pre_cleanup": {
+      "total_tagged_rows": 264,
+      "tables": {
+        "auth.users": 1,
+        "public.audit_events": 36,
+        "public.deleted_completed_vehicles": 1,
+        "public.pdc_requirement_edit_receipts_772": 8,
+        "public.pdc_sublet_booking_instance_history": 1,
+        "public.pdc_sublet_booking_instances": 1,
+        "public.pdc_user_roles": 1,
+        "public.pdc_vehicle_lifecycle_history_events_82000": 2,
+        "public.vehicle_aliases": 30,
+        "public.vehicle_master_history": 73,
+        "public.vehicle_master_operation_receipts": 17,
+        "public.vehicle_master_source_records": 17,
+        "public.vehicle_movements": 12,
+        "public.vehicle_parts_updates": 10,
+        "public.vehicle_work_items": 24,
+        "public.vehicle_workshop_line_adjustments": 3,
+        "public.vehicles": 15,
+        "public.workshop_admin_block_history": 3,
+        "public.workshop_admin_block_receipts": 3,
+        "public.workshop_admin_blocks": 1,
+        "public.workshop_booking_history": 3,
+        "public.workshop_bookings": 2
+      }
+    },
+    "cleanup": {
+      "method": "single staging transaction; exact synthetic tag/actor/fixture UUID match across public, auth and storage; constraints/triggers bypassed only within the bounded cleanup transaction",
+      "deleted_tagged_rows": 264,
+      "temporary_browser_actor_removed_after_live_UI_check": true
+    },
+    "post_cleanup": {
+      "verified_at": "2026-09-04T14:13:38.180287Z",
+      "total_remaining": 0,
+      "matching_tables": [],
+      "vehicle_count": 0,
+      "actor_count": 0,
+      "real_vehicle_count_before": 2,
+      "real_vehicle_count_after": 2,
+      "protected_controls_unchanged": [
+        "[REDACTED_STOCK_A]",
+        "[REDACTED_STOCK_B]"
+      ]
+    }
+  },
+  "ui_cleanup": {
+    "pre": [
+      {
+        "code": "BUS_4X4-BAY-01",
+        "version": 3,
+        "default_technician_id": "[REDACTED_UUID_e3f5fb15fa]",
+        "updated_at": "2026-09-04 20:27:08.239763+00",
+        "updated_by": "[REDACTED_UUID_d7192f43eb]"
+      }
+    ],
+    "rollback": [
+      {
+        "code": "BUS_4X4-BAY-01",
+        "version": 2,
+        "default_technician_id": "[REDACTED_UUID_2e6fdba01b]",
+        "updated_at": "2026-08-16 22:37:24.368759+00",
+        "updated_by": "[REDACTED_UUID_2946c8b317]"
+      }
+    ],
+    "post": {
+      "bay": {
+        "code": "BUS_4X4-BAY-01",
+        "version": 2,
+        "updated_at": "2026-08-16T22:37:24.368759+00:00",
+        "updated_by": "[REDACTED_UUID_2946c8b317]",
+        "default_technician_id": "[REDACTED_UUID_2e6fdba01b]"
+      },
+      "auth_count": 0,
+      "role_count": 0,
+      "qa_audit_count": 0,
+      "qa_history_count": 0,
+      "qa_recovery_count": 0,
+      "production_sentinel_present": false
+    },
+    "basis": "Restored Bay 01 to history-recorded previous technician and the matching version-2 metadata of Bay 02 from the same original default-technician configuration batch."
+  },
+  "fresh_readback": {
+    "verified_at": "2026-09-04T21:08:03.230008+00:00",
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "prefix": "QA-OVERNIGHT-20260904",
+    "synthetic_actor_id": "[REDACTED_UUID_efc9f9ee19]",
+    "tagged_rows": [],
+    "tagged_row_total": 0,
+    "actor_rows": [],
+    "actor_row_total": 0,
+    "orphan_vehicle_references": [],
+    "orphan_vehicle_reference_total": 0,
+    "database": {
+      "head": [
+        "20260905010200",
+        "archived_snapshot_volatility_repair"
+      ],
+      "controls": {
+        "[REDACTED_STOCK_A]": {
+          "id": "[REDACTED_UUID_7b5f9b7f96]",
+          "vin": "[REDACTED_VIN_A]",
+          "version": 12,
+          "bookings": 6,
+          "updated_at": "2026-09-04T02:36:59.407668+00:00",
+          "work_items": 8,
+          "history_rows": 1,
+          "registration": null,
+          "customer_name": "[REDACTED_CUSTOMER_A]",
+          "job_card_number": "[REDACTED_JOB_CARD_A]",
+          "lifecycle_state": "active",
+          "current_location": "QC"
+        },
+        "[REDACTED_STOCK_B]": {
+          "id": "[REDACTED_UUID_d8ff3d1b0e]",
+          "vin": "[REDACTED_VIN_B]",
+          "version": 3,
+          "bookings": 0,
+          "updated_at": "2026-09-04T05:18:17.045178+00:00",
+          "work_items": 7,
+          "history_rows": 0,
+          "registration": "[REDACTED_REGISTRATION]",
+          "customer_name": "[REDACTED_CUSTOMER_B]",
+          "job_card_number": "[REDACTED_JOB_CARD_B]",
+          "lifecycle_state": "active",
+          "current_location": "YH"
+        }
+      },
+      "vehicle_count": 2,
+      "snapshot_function": {
+        "provolatile": "v",
+        "anon_execute": false,
+        "service_role_execute": false,
+        "authenticated_execute": true
+      },
+      "active_vehicle_count": 2,
+      "staging_sentinel_count": 1,
+      "production_sentinel_present": false
+    },
+    "production_contacted": false,
+    "production_mutated": false
+  },
+  "browser_verifier_cleanup": {
+    "bounded_rows": [
+      {
+        "audit_events": 0,
+        "recovery_receipts": 0,
+        "bay_history": 0
+      }
+    ],
+    "auth_count": 0,
+    "role_count": 0,
+    "production_sentinel_present": false,
+    "errors": []
+  },
+  "invariants": {
+    "tagged_row_total": 0,
+    "synthetic_actor_row_total": 0,
+    "synthetic_orphan_reference_total": 0,
+    "real_vehicle_count_before": 2,
+    "real_vehicle_count_after": 2,
+    "active_vehicle_count_after": 2,
+    "protected_control_comparisons": {
+      "[REDACTED_STOCK_A]": {
+        "fields": {
+          "id": true,
+          "version": true,
+          "current_location": true,
+          "lifecycle_state": true,
+          "vin": true,
+          "registration": true,
+          "job_card_number": true,
+          "customer_name": true,
+          "work_items": true,
+          "bookings": true,
+          "updated_at": true
+        },
+        "all_match": true
+      },
+      "[REDACTED_STOCK_B]": {
+        "fields": {
+          "id": true,
+          "version": true,
+          "current_location": true,
+          "lifecycle_state": true,
+          "vin": true,
+          "registration": true,
+          "job_card_number": true,
+          "customer_name": true,
+          "work_items": true,
+          "bookings": true,
+          "updated_at": true
+        },
+        "all_match": true
+      }
+    },
+    "protected_controls_exact_identity_state_unchanged": true,
+    "retained_fixtures": []
+  },
+  "production_contacted": false,
+  "production_mutated": false,
+  "email_or_external_commitments_created": false
+}

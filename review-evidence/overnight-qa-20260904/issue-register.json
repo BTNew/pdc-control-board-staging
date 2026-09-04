@@ -1,0 +1,283 @@
+{
+  "generated_at": "2026-09-04T21:33:01.290863+00:00",
+  "deduplication_key": "issue_id",
+  "issues": [
+    {
+      "issue_id": "UI-001",
+      "title": "Deleted Vehicles cannot load because archived snapshot RPC returns HTTP 405",
+      "severity": "High",
+      "category": "Functional/Network",
+      "status": "resolved",
+      "url": "https://btnew.github.io/pdc-control-board-staging/#/deleted",
+      "route": "deleted",
+      "viewports": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ],
+      "description": "The administrator-only Deleted Vehicles route renders an explicit failure and no archived rows because pdc_admin_archived_vehicle_snapshot returns 405.",
+      "steps": [
+        "Sign in as an approved STAGING administrator",
+        "Open Admin \u2192 Deleted Vehicles",
+        "Wait for the archived snapshot request"
+      ],
+      "expected": "Deleted vehicle data or a valid empty state loads.",
+      "actual": "Visible error: \u201cCould not load Deleted Vehicles \u2014 cannot execute SELECT FOR SHARE in a read-only transaction (25006)\u201d; RPC responds 405.",
+      "console_network": "HTTP 405 https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/pdc_admin_archived_vehicle_snapshot plus browser console resource error; reproduced at all 3 viewports.",
+      "screenshot": "screenshots/desktop/deleted.png",
+      "evidence": [
+        "lanes/ui/screenshots/desktop/deleted.png",
+        "lanes/ui/screenshots/tablet/deleted.png",
+        "lanes/ui/screenshots/mobile/deleted.png",
+        "screenshots/remediation/desktop-deleted.png",
+        "screenshots/remediation/tablet-deleted.png",
+        "screenshots/remediation/mobile-deleted.png"
+      ],
+      "source_lane": "ui",
+      "original_status": "open",
+      "root_cause": "Migration 20260830093000 replaced the previously VOLATILE administrator snapshot with a STABLE lifecycle wrapper. Its actor helper takes a row lock, which PostgreSQL rejected in the resulting read-only function context (25006).",
+      "fix": "Append-only STAGING migration 20260905010200 restores VOLATILE while preserving lifecycle enrichment, fixed search_path and authenticated-only ACLs.",
+      "retest": "Fresh approved-administrator RPC returned ok/archive_vehicle_snapshot with zero items; all three deployed viewports rendered Deleted Vehicles without HTTP 405 or load error."
+    },
+    {
+      "issue_id": "UI-002",
+      "title": "AI Auditor is visible to administrator but its snapshot request is forbidden",
+      "severity": "Medium",
+      "category": "Functional/Access",
+      "status": "resolved",
+      "url": "https://btnew.github.io/pdc-control-board-staging/#/ai-auditor",
+      "route": "ai-auditor",
+      "viewports": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ],
+      "description": "The primary navigation exposes AI Auditor to an approved administrator, but the snapshot call returns 403 and the view remains unassessed.",
+      "steps": [
+        "Sign in as an approved STAGING administrator",
+        "Open AI Auditor",
+        "Wait for the snapshot request"
+      ],
+      "expected": "Either the visible route loads its read-only snapshot or the navigation explains/hides the additional authorization requirement.",
+      "actual": "\u201cAuditor not assessed \u2014 Your current account is not authorised to read the auditor snapshot\u201d; GET/RPC response is 403.",
+      "console_network": "HTTP 403 https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/get_pdc_auditor_snapshot plus browser console resource error; reproduced at all 3 viewports.",
+      "screenshot": "screenshots/desktop/ai-auditor.png",
+      "evidence": [
+        "lanes/ui/screenshots/desktop/ai-auditor.png",
+        "lanes/ui/screenshots/tablet/ai-auditor.png",
+        "lanes/ui/screenshots/mobile/ai-auditor.png",
+        "screenshots/remediation/desktop-ai-auditor.png",
+        "screenshots/remediation/tablet-ai-auditor.png",
+        "screenshots/remediation/mobile-ai-auditor.png"
+      ],
+      "source_lane": "ui",
+      "original_status": "open",
+      "root_cause": "AI Auditor navigation looked generally available even though the existing server-owned auditor scope intentionally requires separate approval beyond the ordinary administrator role.",
+      "fix": "Preserved fail-closed authorization and made the additional gate explicit in the visible navigation label and tooltip.",
+      "retest": "All three deployed viewports show AI Auditor \u00b7 Restricted with the separate-approval tooltip; the unscoped test administrator remains correctly denied."
+    },
+    {
+      "issue_id": "UI-003",
+      "title": "Narrow operational tables clip/overlap data without a visible horizontal-scroll affordance",
+      "severity": "Medium",
+      "category": "Responsive/Visual",
+      "status": "resolved",
+      "url": "https://btnew.github.io/pdc-control-board-staging/#/parts",
+      "route": "parts/backend",
+      "viewports": [
+        "tablet",
+        "mobile"
+      ],
+      "description": "Wide operational tables are contained rather than causing document-level overflow, but columns extend beyond the visible card with no visible scrollbar or swipe cue. In mobile Parts, Vehicle/Customer text overlaps at the right edge.",
+      "steps": [
+        "Open Parts at 390\u00d7844",
+        "Inspect the first data row",
+        "Open Back End Data at 768\u00d71024 and inspect columns beyond MODEL"
+      ],
+      "expected": "Responsive rows reflow, or the UI clearly exposes horizontal scrolling without overlapping text.",
+      "actual": "Parts row text overlaps/clips and later columns are not discoverable; Back End Data truncates after MODEL with no visible cue.",
+      "console_network": null,
+      "screenshot": "screenshots/mobile/parts.png",
+      "evidence": [
+        "lanes/ui/screenshots/mobile/parts.png",
+        "lanes/ui/screenshots/tablet/backend.png",
+        "screenshots/remediation/desktop-parts.png",
+        "screenshots/remediation/tablet-parts.png",
+        "screenshots/remediation/mobile-parts.png"
+      ],
+      "source_lane": "ui",
+      "original_status": "open",
+      "root_cause": "Wide tables were scrollable but overlay scrollbars made overflow undiscoverable, and the Parts vehicle/customer column lacked a narrow-screen minimum width.",
+      "fix": "Added an explicit compact-screen swipe cue and a 190px minimum for the Parts vehicle/customer column.",
+      "retest": "Fresh tablet/mobile checks show the cue on Parts and Back End Data, preserve bounded document width, retain horizontal table overflow, and measure the Parts column at least 190px."
+    },
+    {
+      "issue_id": "UI-004",
+      "title": "Scrollable compact navigation hides most destinations without an affordance",
+      "severity": "Low",
+      "category": "Responsive/UX",
+      "status": "resolved",
+      "url": "https://btnew.github.io/pdc-control-board-staging/",
+      "route": "global-navigation",
+      "viewports": [
+        "tablet",
+        "mobile"
+      ],
+      "description": "The compact top navigation is intentionally horizontally scrollable (document width remains bounded), so destinations are not inaccessible. However only LOC/QC/CB/B4 are initially visible at 390px and no fade, scrollbar, chevron, or menu indicates that more routes are available off-canvas.",
+      "steps": [
+        "Open any route at 390\u00d7844 or 768\u00d71024",
+        "Inspect the top navigation before swiping horizontally"
+      ],
+      "expected": "Users can discover that more navigation items are available.",
+      "actual": "Additional planners, operational pages, and Admin are off-canvas with no visual scroll affordance.",
+      "console_network": null,
+      "screenshot": "screenshots/mobile/dashboard.png",
+      "evidence": [
+        "lanes/ui/screenshots/mobile/dashboard.png",
+        "lanes/ui/screenshots/tablet/dashboard.png"
+      ],
+      "source_lane": "ui",
+      "original_status": "open",
+      "root_cause": "Compact navigation intentionally overflowed horizontally but had no persistent discoverability cue.",
+      "fix": "Added a compact-screen Swipe navigation for more cue without changing route access or keyboard semantics.",
+      "retest": "Fresh tablet/mobile checks show the cue on all five sampled routes."
+    },
+    {
+      "issue_id": "UI-005",
+      "title": "Collected Vehicles route retains the wrong top-bar title",
+      "severity": "Low",
+      "category": "Content/Navigation",
+      "status": "resolved",
+      "url": "https://btnew.github.io/pdc-control-board-staging/#/collected",
+      "route": "collected",
+      "viewports": [
+        "desktop",
+        "tablet",
+        "mobile"
+      ],
+      "description": "The section heading says Collected vehicles, but the global page title remains Control Board.",
+      "steps": [
+        "Sign in",
+        "Open Admin \u2192 Collected Vehicles",
+        "Compare the global top-bar title and section heading"
+      ],
+      "expected": "Global title is \u201cCollected Vehicles\u201d.",
+      "actual": "Global title is \u201cControl Board\u201d while the section title is \u201cCollected vehicles\u201d.",
+      "console_network": null,
+      "screenshot": "screenshots/desktop/collected.png",
+      "evidence": [
+        "lanes/ui/screenshots/desktop/collected.png",
+        "lanes/ui/screenshots/tablet/collected.png",
+        "lanes/ui/screenshots/mobile/collected.png",
+        "screenshots/remediation/desktop-collected.png",
+        "screenshots/remediation/tablet-collected.png",
+        "screenshots/remediation/mobile-collected.png"
+      ],
+      "source_lane": "ui",
+      "original_status": "open",
+      "root_cause": "The route title map omitted collected, so navigation fell back to Control Board.",
+      "fix": "Added the Collected Vehicles title-map entry.",
+      "retest": "Fresh deployed desktop/tablet/mobile checks return pageTitle=Collected Vehicles."
+    },
+    {
+      "classification": "baseline_environment",
+      "detail": "Preview rgrwkufllnlijmdtfhxf completed configuration, migrations, seeding and Edge Functions; xvflalqbfdxbelerhtjg failed release_history/014 with SQLSTATE 42P01 and left the PR status context failed.",
+      "evidence": [
+        "lanes/release/raw/pr31-comments.log"
+      ],
+      "introduced_by_sha": false,
+      "severity": "Medium",
+      "status": "open",
+      "title": "Duplicate Supabase Preview integrations disagree",
+      "source_lane": "release",
+      "issue_id": "REL-BASE-001",
+      "category": "baseline_environment"
+    },
+    {
+      "classification": "baseline_environment",
+      "detail": "Tests depend on absent pdc-emails profile files, historical fixtures, and a legacy staging-bootstrap path. Runnable total: 359 passed, 58 skipped, 22 failed, 3 errors, 304 subtests passed; three additional files fail collection before this runnable pass.",
+      "evidence": [
+        "lanes/release/raw/python-full-runnable.log"
+      ],
+      "introduced_by_sha": false,
+      "severity": "Medium",
+      "status": "open",
+      "title": "Full Python suite is not hermetic",
+      "source_lane": "release",
+      "issue_id": "REL-BASE-002",
+      "category": "baseline_environment"
+    },
+    {
+      "classification": "baseline_test_drift",
+      "detail": "Digest assertions fail in final email-AI remediation, email-monitor planner trust binding, and monitor successor 504 migration. These predate the current PDC-14 release and are outside its changed paths.",
+      "evidence": [
+        "lanes/release/raw/python-full-runnable.log"
+      ],
+      "introduced_by_sha": false,
+      "severity": "Low",
+      "status": "open",
+      "title": "Three legacy immutable digest assertions drift",
+      "source_lane": "release",
+      "issue_id": "REL-BASE-003",
+      "category": "baseline_test_drift"
+    },
+    {
+      "classification": "baseline_security_debt",
+      "detail": "Current advisor result contains 455 authenticated SECURITY DEFINER warnings. The provenance/lifecycle cache keys are unchanged from the prior independent audit and pass the expanded fail-closed matrix; broader inventory remains release debt.",
+      "evidence": [
+        "lanes/release/advisor-results.json"
+      ],
+      "introduced_by_sha": false,
+      "severity": "Medium",
+      "status": "open",
+      "title": "Large intentional SECURITY DEFINER surface requires inventory",
+      "source_lane": "release",
+      "issue_id": "REL-BASE-004",
+      "category": "baseline_security_debt"
+    },
+    {
+      "classification": "forward_compatibility",
+      "detail": "STAGING still has broad public-schema default ACL rows. The 14 RLS-disabled public tables currently expose no SELECT to anon/authenticated, but future migrations must declare grants explicitly before Supabase's existing-project rollout.",
+      "evidence": [
+        "lanes/release/advisor-results.json"
+      ],
+      "introduced_by_sha": false,
+      "severity": "Low",
+      "status": "open",
+      "title": "Explicit Data API grants must be standardized before 2026-10-30",
+      "source_lane": "release",
+      "issue_id": "REL-BASE-005",
+      "category": "forward_compatibility"
+    },
+    {
+      "classification": "baseline_performance",
+      "detail": "Performance advisor flags auth_rls_initplan for PDC administrators reading pdc14_parts_coordinator_role_history. WARN total is unchanged from the prior audit.",
+      "evidence": [
+        "lanes/release/advisor-results.json"
+      ],
+      "introduced_by_sha": false,
+      "severity": "Low",
+      "status": "open",
+      "title": "PDC-14 role-history RLS policy uses per-row auth evaluation",
+      "source_lane": "release",
+      "issue_id": "REL-BASE-006",
+      "category": "baseline_performance"
+    }
+  ],
+  "totals": {
+    "all": 11,
+    "by_severity": {
+      "High": 1,
+      "Medium": 5,
+      "Low": 5
+    },
+    "by_status": {
+      "resolved": 5,
+      "open": 6
+    },
+    "product_defects": 5,
+    "resolved_product_defects": 5,
+    "release_baseline_or_forward_debt": 6,
+    "transaction_defects": 0
+  }
+}

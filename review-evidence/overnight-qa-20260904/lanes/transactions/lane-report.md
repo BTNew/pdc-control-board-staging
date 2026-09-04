@@ -69,7 +69,7 @@ Final read-back at `2026-09-04T14:13:38.180287Z`:
 - Synthetic vehicles: 0
 - Synthetic auth actor: 0
 - Real/source-backed vehicle cardinality: 2 before and 2 after
-- Protected controls: `13048501` remained version 12 with a pre-run `updated_at`; `U158318` matched the independent release-lane version-3 identity/state baseline
+- Protected controls: `[REDACTED_STOCK_A]` remained version 12 with a pre-run `updated_at`; `[REDACTED_STOCK_B]` matched the independent release-lane version-3 identity/state baseline
 
 See `cleanup-verification.json` for the table-level pre-cleanup inventory and final zero-state, and `protected-controls.json` for the read-only control verification.
 

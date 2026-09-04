@@ -15,7 +15,7 @@
       "screenshot": "C:\\Hermes-Active\\projects\\pdc-control-board-staging\\.worktrees\\t_1160aee6\\review-evidence\\overnight-qa-20260904\\screenshots\\staging-post-cleanup-360x800.png",
       "state": {
         "authState": "approved",
-        "bodyText": "Vehicle Locations\nQC Sign-off\nControl Board\nBus 4\u00d74\nTint\nHoist\nFitting\nFabrication\nElectrical\nTyre\nParts\nAI Intake\nAI Auditor\nSublet\nRFT\nPDC CONTROL BOARD\nVehicle Locations\nqa.overnight.20260904@example.com \u00b7 administrator\nSign out\nSEARCH VEHICLES\n2 of 2 vehicles shown\n\nAuthenticated email vehicle i",
+        "bodyText": "Vehicle Locations\nQC Sign-off\nControl Board\nBus 4\u00d74\nTint\nHoist\nFitting\nFabrication\nElectrical\nTyre\nParts\nAI Intake\nAI Auditor\nSublet\nRFT\nPDC CONTROL BOARD\nVehicle Locations[REDACTED_EMAIL] \u00b7 administrator\nSign out\nSEARCH VEHICLES\n2 of 2 vehicles shown\n\nAuthenticated email vehicle i",
         "clientWidth": 360,
         "currentView": "dashboard",
         "horizontalOverflow": false,
@@ -61,7 +61,7 @@
       "screenshot": "C:\\Hermes-Active\\projects\\pdc-control-board-staging\\.worktrees\\t_1160aee6\\review-evidence\\overnight-qa-20260904\\screenshots\\staging-post-cleanup-768x900.png",
       "state": {
         "authState": "approved",
-        "bodyText": "Vehicle Locations\nQC Sign-off\nControl Board\nBus 4\u00d74\nTint\nHoist\nFitting\nFabrication\nElectrical\nTyre\nParts\nAI Intake\nAI Auditor\nSublet\nRFT\nPDC CONTROL BOARD\nVehicle Locations\nqa.overnight.20260904@example.com \u00b7 administrator\nSign out\nSEARCH VEHICLES\n2 of 2 vehicles shown\n\nAuthenticated email vehicle i",
+        "bodyText": "Vehicle Locations\nQC Sign-off\nControl Board\nBus 4\u00d74\nTint\nHoist\nFitting\nFabrication\nElectrical\nTyre\nParts\nAI Intake\nAI Auditor\nSublet\nRFT\nPDC CONTROL BOARD\nVehicle Locations[REDACTED_EMAIL] \u00b7 administrator\nSign out\nSEARCH VEHICLES\n2 of 2 vehicles shown\n\nAuthenticated email vehicle i",
         "clientWidth": 768,
         "currentView": "dashboard",
         "horizontalOverflow": false,
@@ -107,7 +107,7 @@
       "screenshot": "C:\\Hermes-Active\\projects\\pdc-control-board-staging\\.worktrees\\t_1160aee6\\review-evidence\\overnight-qa-20260904\\screenshots\\staging-post-cleanup-1440x1000.png",
       "state": {
         "authState": "approved",
-        "bodyText": "VT\nPerth Motor Bodies\nPDC Control Board\nVehicle Locations\nQC Sign-off\nControl Board\nWORKSHOP PLANNERS\nBus 4\u00d74\nTint\nHoist\nFitting\nFabrication\nElectrical\nTyre\nParts\nAI Intake\nAI Auditor\nSublet\nRFT\nAdmin\n\u2304\nPDC CONTROL BOARD\nVehicle Locations\nqa.overnight.20260904@example.com \u00b7 administrator\nSign out\nSE",
+        "bodyText": "VT\nPerth Motor Bodies\nPDC Control Board\nVehicle Locations\nQC Sign-off\nControl Board\nWORKSHOP PLANNERS\nBus 4\u00d74\nTint\nHoist\nFitting\nFabrication\nElectrical\nTyre\nParts\nAI Intake\nAI Auditor\nSublet\nRFT\nAdmin\n\u2304\nPDC CONTROL BOARD\nVehicle Locations[REDACTED_EMAIL] \u00b7 administrator\nSign out\nSE",
         "clientWidth": 1440,
         "currentView": "dashboard",
         "horizontalOverflow": false,

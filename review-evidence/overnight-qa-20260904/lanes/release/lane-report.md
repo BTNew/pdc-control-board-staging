@@ -18,7 +18,7 @@ Completed: 2026-09-04T21:53:00+08:00
 - Focused PDC-14 Node: 6/6 passed.
 - Full Node: 184/184 passed.
 - Focused Python/SQL contracts: 16 passed, 5 expected live skips.
-- Transactional STAGING authorization matrix: 8/8 passed; seven denied identities/scopes returned no data, the approved target succeeded, and the U158318 row fingerprint remained unchanged.
+- Transactional STAGING authorization matrix: 8/8 passed; seven denied identities/scopes returned no data, the approved target succeeded, and the [REDACTED_STOCK_B] row fingerprint remained unchanged.
 - Full runnable Python baseline: 359 passed, 58 skipped, 22 failed, 3 errors, 304 subtests passed. Failures are separated in `issue-register.json`: missing external profile/bootstrap/fixture dependencies, three stale digest assertions, and one legacy historical-adapter expectation mismatch. No failure touches the PR #31 paths or reproduces in the focused/full Node release loops.
 - The sole standalone SQL test mutates external-completion business state and was intentionally not run under this read-only lane. SQL contracts were exercised by pglast-backed tests and Supabase Preview migrations.
 
@@ -28,7 +28,7 @@ Completed: 2026-09-04T21:53:00+08:00
 - Provenance RPC remains SECURITY DEFINER with fixed `search_path=pg_catalog, public`; EXECUTE is authenticated-only. Anon/service-role EXECUTE are denied and the obsolete two-argument overload is absent.
 - Lifecycle-history table has RLS and FORCE RLS; anon/authenticated have no direct SELECT.
 - Authorization outcomes: no role/inactive/pending/UUID-email mismatch = forbidden; wrong dealer = dealer_scope_denied; unauthenticated = unauthorized; invalid target = vehicle_not_found; approved target = ok. No denied result contained `data`.
-- U158318 remained version 3, VIN JTFHB8CP806024409, registration 1HJX697, YH, customer/salesperson/job-card identity unchanged before/after probes. Fresh read-back confirmed 18 operation rows / 58.90 hours, zero-hour OP9/OP14/OP15, seven required and zero completed work groups, and zero workshop bookings.
+- [REDACTED_STOCK_B] remained version 3, VIN [REDACTED_VIN_B], registration [REDACTED_REGISTRATION], YH, customer/salesperson/job-card identity unchanged before/after probes. Fresh read-back confirmed 18 operation rows / 58.90 hours, zero-hour OP9/OP14/OP15, seven required and zero completed work groups, and zero workshop bookings.
 
 ## Advisors and current Supabase guidance
 
@@ -38,6 +38,6 @@ Completed: 2026-09-04T21:53:00+08:00
 
 ## Containment and verdict
 
-No code, migration, merge, deployment, Production request, email request, or persistent STAGING mutation was performed. Transactional role probes were rolled back and exact before/after U158318 fingerprints match. No introduced product regression was found. Release baseline passes with six documented baseline/environment/forward-debt issues for downstream integration.
+No code, migration, merge, deployment, Production request, email request, or persistent STAGING mutation was performed. Transactional role probes were rolled back and exact before/after [REDACTED_STOCK_B] fingerprints match. No introduced product regression was found. Release baseline passes with six documented baseline/environment/forward-debt issues for downstream integration.
 
 Machine evidence: `test-results.json`, `deployment-verification.json`, `advisor-results.json`, `issue-register.json`, and bounded logs under `raw/`.

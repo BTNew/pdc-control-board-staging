@@ -1,0 +1,1220 @@
+{
+  "generated_at": "2026-09-04T21:33:01.290863+00:00",
+  "pre_remediation_ui": {
+    "generated_at": "2026-09-04T20:44:17.159562+00:00",
+    "authoritative_source": "clean fresh-navigation capture",
+    "events": [
+      {
+        "kind": "http-error",
+        "viewport": "desktop",
+        "status": 403,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/get_pdc_auditor_snapshot",
+        "route": "ai-auditor"
+      },
+      {
+        "kind": "console",
+        "viewport": "desktop",
+        "level": "error",
+        "message": "Failed to load resource: the server responded with a status of 403 ()",
+        "route": null
+      },
+      {
+        "kind": "http-error",
+        "viewport": "desktop",
+        "status": 405,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/pdc_admin_archived_vehicle_snapshot",
+        "route": "deleted"
+      },
+      {
+        "kind": "console",
+        "viewport": "desktop",
+        "level": "error",
+        "message": "Failed to load resource: the server responded with a status of 405 ()",
+        "route": null
+      },
+      {
+        "kind": "http-error",
+        "viewport": "desktop",
+        "status": 405,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/pdc_admin_archived_vehicle_snapshot",
+        "route": "deleted"
+      },
+      {
+        "kind": "console",
+        "viewport": "desktop",
+        "level": "error",
+        "message": "Failed to load resource: the server responded with a status of 405 ()",
+        "route": null
+      },
+      {
+        "kind": "http-error",
+        "viewport": "tablet",
+        "status": 403,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/get_pdc_auditor_snapshot",
+        "route": "ai-auditor"
+      },
+      {
+        "kind": "console",
+        "viewport": "tablet",
+        "level": "error",
+        "message": "Failed to load resource: the server responded with a status of 403 ()",
+        "route": null
+      },
+      {
+        "kind": "http-error",
+        "viewport": "tablet",
+        "status": 405,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/pdc_admin_archived_vehicle_snapshot",
+        "route": "deleted"
+      },
+      {
+        "kind": "console",
+        "viewport": "tablet",
+        "level": "error",
+        "message": "Failed to load resource: the server responded with a status of 405 ()",
+        "route": null
+      },
+      {
+        "kind": "http-error",
+        "viewport": "tablet",
+        "status": 405,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/pdc_admin_archived_vehicle_snapshot",
+        "route": "deleted"
+      },
+      {
+        "kind": "console",
+        "viewport": "tablet",
+        "level": "error",
+        "message": "Failed to load resource: the server responded with a status of 405 ()",
+        "route": null
+      },
+      {
+        "kind": "http-error",
+        "viewport": "mobile",
+        "status": 403,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/get_pdc_auditor_snapshot",
+        "route": "ai-auditor"
+      },
+      {
+        "kind": "console",
+        "viewport": "mobile",
+        "level": "error",
+        "message": "Failed to load resource: the server responded with a status of 403 ()",
+        "route": null
+      },
+      {
+        "kind": "http-error",
+        "viewport": "mobile",
+        "status": 405,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/pdc_admin_archived_vehicle_snapshot",
+        "route": "deleted"
+      },
+      {
+        "kind": "console",
+        "viewport": "mobile",
+        "level": "error",
+        "message": "Failed to load resource: the server responded with a status of 405 ()",
+        "route": null
+      },
+      {
+        "kind": "http-error",
+        "viewport": "mobile",
+        "status": 405,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/pdc_admin_archived_vehicle_snapshot",
+        "route": "deleted"
+      },
+      {
+        "kind": "console",
+        "viewport": "mobile",
+        "level": "error",
+        "message": "Failed to load resource: the server responded with a status of 405 ()",
+        "route": null
+      }
+    ],
+    "summary": {
+      "http-error": 9,
+      "console": 9
+    },
+    "assets": [
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554080-desktop-dashboard",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554082-desktop-qc",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554083-desktop-workflow",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554084-desktop-planner-bus-4x4",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554085-desktop-planner-hoist",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554085-desktop-planner-tint",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554086-desktop-planner-fitting",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554087-desktop-planner-fab",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554088-desktop-planner-elec",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554089-desktop-planner-tyre",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554090-desktop-emailreview",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554090-desktop-parts",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554092-desktop-ai-auditor",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554093-desktop-rft",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554093-desktop-sublet",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554094-desktop-user-management",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554095-desktop-lists",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554096-desktop-import",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554097-desktop-backup",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554098-desktop-collected",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554098-desktop-deleted",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554099-desktop-completed",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554100-desktop-backend",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554101-desktop-visibility",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554102-desktop-schedule",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554102-desktop-tv",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554103-desktop-zpl",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554104-desktop-dept-bus-4x4",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554105-desktop-dept-tint",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554106-desktop-dept-fitting",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554106-desktop-dept-hoist",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554107-desktop-dept-fabrication",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554108-desktop-dept-electrical",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554109-desktop-dept-tyre",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554110-desktop-dept-pit-inspection",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554110-tablet-dashboard",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554113-tablet-qc",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554113-tablet-workflow",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554114-tablet-planner-bus-4x4",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554115-tablet-planner-tint",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554116-tablet-planner-hoist",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554117-tablet-planner-fab",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554117-tablet-planner-fitting",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554118-tablet-planner-elec",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554119-tablet-planner-tyre",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554120-tablet-parts",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554121-tablet-emailreview",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554122-tablet-ai-auditor",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554123-tablet-sublet",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554124-tablet-rft",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554124-tablet-user-management",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554125-tablet-lists",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554126-tablet-import",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554127-tablet-backup",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554128-tablet-collected",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554128-tablet-deleted",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554129-tablet-completed",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554130-tablet-backend",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554131-tablet-visibility",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554132-tablet-schedule",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554132-tablet-tv",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554133-tablet-zpl",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554134-tablet-dept-bus-4x4",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554135-tablet-dept-tint",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554136-tablet-dept-fitting",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554136-tablet-dept-hoist",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554137-tablet-dept-fabrication",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554138-tablet-dept-electrical",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554139-tablet-dept-pit-inspection",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554139-tablet-dept-tyre",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554140-mobile-dashboard",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554142-mobile-qc",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554143-mobile-workflow",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554144-mobile-planner-bus-4x4",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554145-mobile-planner-tint",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554146-mobile-planner-fitting",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554146-mobile-planner-hoist",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554147-mobile-planner-fab",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554148-mobile-planner-elec",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554149-mobile-planner-tyre",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554150-mobile-parts",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554151-mobile-emailreview",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554152-mobile-ai-auditor",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554152-mobile-sublet",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554153-mobile-rft",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554154-mobile-user-management",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554155-mobile-lists",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554156-mobile-backup",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554156-mobile-import",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554157-mobile-deleted",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554158-mobile-collected",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554159-mobile-backend",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554159-mobile-completed",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554160-mobile-visibility",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554161-mobile-tv",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554162-mobile-schedule",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554163-mobile-dept-bus-4x4",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554163-mobile-zpl",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554164-mobile-dept-tint",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554165-mobile-dept-hoist",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554166-mobile-dept-fabrication",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554166-mobile-dept-fitting",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554167-mobile-dept-electrical",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554168-mobile-dept-tyre",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/?clean_inventory=1788554169-mobile-dept-pit-inspection",
+        "status": 200,
+        "content_type": "text/html; charset=utf-8",
+        "etag": "W/\"6a9b1748-11d39\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/ai-auditor.css?v=2026.08.13.45-admin-authority-intent-undo-pointer",
+        "status": 200,
+        "content_type": "text/css; charset=utf-8",
+        "etag": "W/\"6a9b1748-239b\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/ai-board-advisor.js?v=2026.07.24.26-pd-document-intake",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-4a66\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/app.js?v=2026.08.29.741-rft-draft&vehicle-locations-refresh=2026.08.30.773-class-refresh&operational-refresh=2026.08.30.775-control-state&parts-received=2026.08.29.751-authenticated&rft-lifecycle=2026.08.29.734&rft-email-draft=2026.08.29.739&rft-email-draft-read-repair=2026.08.29.741&parts-canonical-navision-id=2026.08.27.17&yard-hold-pmb=2026.08.27&authoritative-detail=386-388-391&auditor=2026.07.30.03-recorded-decision-render&qc-photo-mobile=2026.08.30.767-qc-reject-mobile&hours-batch=2026.08.30.768&sublet-calendar-default=2026.08.30.772&admin-block-audit=2026.08.30.1000-successor&lifecycle-history=2026.08.30.1020&checklist-closure=2026.08.31.2800&sublet-workgroup=2026.08.31.3300&pdc14=2026.09.04.0110-canonical-state&craig-workshop=2026.09.04.0110&qc-mobile-refresh=2026.09.04.02&qc-pit-detail=2026.09.04.01&pdc14-department-completion=2026.09.05.02",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-14b214\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/arb-labor-catalog.js?v=2026.07.24.26-pd-document-intake",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-235ab\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/assets/pmb-logo.png",
+        "status": 200,
+        "content_type": "image/png",
+        "etag": "\"6a9b1748-6155\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/canonical-entry.js",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-149\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/data-staging-empty.js?v=2026.07.24.26-pd-document-intake",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-1c6\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/desktop-operations.css?v=2026.08.13.45-admin-authority-intent-undo-pointer&pdc14=2026.09.03.1500-control-board-parity",
+        "status": 200,
+        "content_type": "text/css; charset=utf-8",
+        "etag": "W/\"6a9b1748-4c64\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/email-board-data.js?v=2026.08.13.45-admin-authority-intent-undo-pointer",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-29d\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/navision-backend-service.js?v=2026.08.13.45-admin-authority-intent-undo-pointer",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-30c2\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-ai-auditor-stage-a.js?v=2026.08.13.45-admin-authority-intent-undo-pointer",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-10882\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation",
+        "status": 200,
+        "content_type": "text/css; charset=utf-8",
+        "etag": "W/\"6a9b1748-482\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-ai-intake-review.js?v=2026.07.27.19-ai-review-decision-context",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-14d9\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-1bca\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-1703\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-auth.js?v=2026.08.11.27-auth-foreground",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-89a0\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-email-ai-successor-inbox.css?v=2026.08.31.08-successor-inbox-cursor-fix",
+        "status": 200,
+        "content_type": "text/css; charset=utf-8",
+        "etag": "W/\"6a9b1748-1eb6\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-email-ai-successor-inbox.js?v=2026.09.02.01-cleanroom-importer-read",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-6be2\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-email-ai-v2-actions.js?v=2026.09.01.01-typed-staging-actions",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-4a57\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-email-vehicle-location-service.js?v=2026.08.29.741-rft-draft&rft-lifecycle=2026.08.29.734&rft-email-draft=2026.08.29.739&rft-email-draft-read-repair=2026.08.29.741&parts-received=2026.08.29.751-authenticated&authoritative-detail=386-388-391&navision-delivery-security=2026.08.27.707-708&qc-photo-mobile=2026.08.30.767-qc-reject-mobile&hours-batch=2026.08.30.768&sublet-projection=2026.08.30.900&lifecycle-history=2026.08.30.1020&sublet-canonical-count=2026.08.31.3300&pdc14=2026.09.03.1500-control-board-parity&explicit-sublet-operation=2026.09.04.01&provenance-contract=2026.09.04.01",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-1241f\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-professional-polish.css?v=2026.08.19.01",
+        "status": 200,
+        "content_type": "text/css; charset=utf-8",
+        "etag": "W/\"6a9b1748-e7d\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/pdc-supabase-config.staging.js?v=2026.09.04.0110-pdc14-location-replay",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-864\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/scripts/stage2b_c4_browser_export.js?v=2026.07.22.01-read-only-assessment",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-37e6\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/staging-browser-assessment.js?v=2026.07.22.01-read-only-assessment",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-f5f\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/styles.css?v=2026.08.29.741-rft-draft&vehicle-locations-refresh=2026.08.30.773-class-refresh&parts-received=2026.08.29.751-authenticated&qc-photo-mobile=2026.08.30.767-qc-reject-mobile&hours-batch=2026.08.30.768&sublet-projection=2026.08.30.900&pdc14=2026.09.04.0110-canonical-state&qc-mobile-refresh=2026.09.04.02",
+        "status": 200,
+        "content_type": "text/css; charset=utf-8",
+        "etag": "W/\"6a9b1748-65550\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/vehicle-lifecycle-actions.js?v=2026.09.04.0110-pdc14-location-replay",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-5b1c\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/vehicle-location-lifecycle.js?v=2026.08.11.31-lifecycle-module",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-17b6\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/vehicle-locations-refresh-ui.js?v=2026.08.30.773-class-refresh",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-bfe\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/vehicle-locations-refresh.js?v=2026.08.30.773-class-refresh",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-ea9\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/vehicle-modal-identity.js?v=2026.08.30.773-class-refresh",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-dfc\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/vehicle-requirements-guard.js?v=2026.08.30.772-stock-integrity&pdc14=2026.09.04.0110-canonical-state",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-2055\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/vendor/supabase/supabase-2.110.5.js",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-32825\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/workshop-data-service.js?v=2026.08.27.706-final-authoritative-lifecycle",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-7428\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/workshop-eligibility.js?v=2026.08.13.45-admin-authority-intent-undo-pointer",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-2516\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/workshop-navigation.js?v=2026.08.13.45-admin-authority-intent-undo-pointer",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-2cbf\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/workshop-planner.css?v=2026.08.30.1000-771-admin-block-audit-continuations-successor",
+        "status": 200,
+        "content_type": "text/css; charset=utf-8",
+        "etag": "W/\"6a9b1748-c621\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/workshop-planner.js?v=2026.09.04.0110-pdc14-canonical-state",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-5f7d2\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/workshop-realtime.js?v=2026.09.04.0110-pdc14-canonical-state",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-2415\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/workshop-reference-data-service.js?v=2026.08.27.706-final-authoritative-lifecycle",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-70bd\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      },
+      {
+        "url": "https://btnew.github.io/pdc-control-board-staging/workshop-shared-actions.js?v=2026.09.04.0110-pdc14-canonical-state",
+        "status": 200,
+        "content_type": "application/javascript; charset=utf-8",
+        "etag": "W/\"6a9b1748-3006\"",
+        "last_modified": "Fri, 04 Sep 2026 19:08:56 GMT"
+      }
+    ],
+    "production_requests": []
+  },
+  "transaction_lane": {
+    "schema_version": 1,
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "deployment_url": "https://btnew.github.io/pdc-control-board-staging/",
+    "production_contacted": false,
+    "production_requests": [],
+    "viewports": {
+      "360x800": {
+        "auth_state": "approved",
+        "page_errors": [],
+        "console_errors": [],
+        "failed_or_http_400_requests": [],
+        "horizontal_overflow": false,
+        "synthetic_text_present_after_cleanup": false
+      },
+      "768x900": {
+        "auth_state": "approved",
+        "page_errors": [],
+        "console_errors": [],
+        "failed_or_http_400_requests": [],
+        "horizontal_overflow": false,
+        "synthetic_text_present_after_cleanup": false
+      },
+      "1440x1000": {
+        "auth_state": "approved",
+        "page_errors": [],
+        "console_errors": [],
+        "failed_or_http_400_requests": [],
+        "horizontal_overflow": false,
+        "synthetic_text_present_after_cleanup": false
+      }
+    },
+    "source": "live-browser-verification.json"
+  },
+  "post_remediation": {
+    "events": [
+      {
+        "kind": "http-error",
+        "viewport": "desktop",
+        "status": 403,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/get_pdc_auditor_snapshot"
+      },
+      {
+        "kind": "http-error",
+        "viewport": "tablet",
+        "status": 403,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/get_pdc_auditor_snapshot"
+      },
+      {
+        "kind": "http-error",
+        "viewport": "mobile",
+        "status": 403,
+        "url": "https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/get_pdc_auditor_snapshot"
+      }
+    ],
+    "summary": {
+      "http-error": 3
+    },
+    "expected_restricted_auditor_403": 3,
+    "http_405": 0,
+    "page_errors": 0,
+    "production_requests": 0
+  }
+}

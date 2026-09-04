@@ -1,0 +1,108 @@
+{
+  "generated_at": "2026-09-04T21:33:01.290863+00:00",
+  "focused_node": {
+    "result": "PASS",
+    "tests": 6
+  },
+  "full_node": {
+    "result": "PASS",
+    "tests": 189,
+    "evidence": "remediation/node-full-final.log"
+  },
+  "focused_python": {
+    "result": "PASS_WITH_EXPECTED_SKIPS",
+    "passed": 16,
+    "skipped": 5,
+    "evidence": "remediation/python-focused-final.log"
+  },
+  "full_python": {
+    "result": "BASELINE_UNCHANGED",
+    "passed": 359,
+    "failed": 22,
+    "errors": 3,
+    "skipped": 58,
+    "subtests_passed": 304,
+    "evidence": "remediation/python-full.log"
+  },
+  "staging_migration_dry_run": {
+    "result": "PASS",
+    "persistent_change": false,
+    "evidence": "remediation/archived-snapshot-dry-run.json"
+  },
+  "staging_migration_apply_readback": {
+    "result": "PASS",
+    "head": [
+      "20260905010200",
+      "archived_snapshot_volatility_repair"
+    ],
+    "authenticated_probe": {
+      "ok": true,
+      "code": "archived_vehicle_snapshot",
+      "actor_kind": "approved_staging_administrator",
+      "item_count": 0
+    },
+    "evidence": "remediation/archived-snapshot-apply-readback.json"
+  },
+  "deployed_browser": {
+    "result": "PASS",
+    "checks": 15,
+    "viewports": 3,
+    "routes": 5,
+    "failures": [],
+    "evidence": "remediation/deployed-remediation-browser.json"
+  },
+  "preview": {
+    "result": "SPLIT_BASELINE",
+    "green_project": "drcedvskqppfeiunxkhq",
+    "failed_duplicate_project": "tfxlazlxzsyplmryrtpx",
+    "known_failure": "release_history/014 references absent public.vehicle_intelligence_summaries",
+    "green_evidence_present": false,
+    "failed_evidence_present": false
+  },
+  "staging_integrity": {
+    "conclusion": "success",
+    "createdAt": "2026-09-04T21:01:32Z",
+    "databaseId": 33919115669,
+    "headSha": "d488f1f18c1058df6d068a467b7347e088e43ef8",
+    "status": "completed",
+    "updatedAt": "2026-09-04T21:01:46Z",
+    "url": "https://github.com/BTNew/pdc-control-board-staging/actions/runs/33919115669",
+    "workflowName": "Staging integrity"
+  },
+  "pages": {
+    "conclusion": "success",
+    "createdAt": "2026-09-04T21:01:31Z",
+    "databaseId": 33919114426,
+    "headSha": "d488f1f18c1058df6d068a467b7347e088e43ef8",
+    "status": "completed",
+    "updatedAt": "2026-09-04T21:02:00Z",
+    "url": "https://github.com/BTNew/pdc-control-board-staging/actions/runs/33919114426",
+    "workflowName": "pages-build-deployment"
+  },
+  "advisors": {
+    "security": {
+      "total": 911,
+      "levels": {
+        "INFO": 455,
+        "WARN": 456
+      }
+    },
+    "performance": {
+      "total": 1014,
+      "levels": {
+        "INFO": 1011,
+        "WARN": 3
+      }
+    },
+    "warn_delta_vs_release_lane": {
+      "security": 0,
+      "performance": 0
+    }
+  },
+  "independent_diff_review": {
+    "result": "PASS",
+    "reviews": 2,
+    "security_concerns": 0,
+    "logic_errors": 0
+  }
+}

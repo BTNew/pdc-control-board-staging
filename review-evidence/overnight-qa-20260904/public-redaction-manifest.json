@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "scope": "review-evidence/overnight-qa-20260904",
+  "purpose": "Remove customer/employee identity, vehicle identity, local paths and credentials before public-repository preservation.",
+  "text_files_scanned": 114,
+  "sensitive_text_replacements": 22541,
+  "screenshots_full-frame_pixelated": 123,
+  "raw_private_evidence_location": "authorised local task workspace only",
+  "production_contacted": false
+}

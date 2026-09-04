@@ -13,7 +13,7 @@ cls = <class 'test_final_activation_live.FinalActivationLiveTests'>
 
     @classmethod
     def setUpClass(cls):
->    s=importlib.util.spec_from_file_location('b',Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py'));b=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(b);v=json.loads(b.unprotect(Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());b.validate(v);cls.conn=psycopg2.connect(v['PDC_STAGING_DATABASE_URL'],sslmode='verify-full',sslrootcert=v['PDC_STAGING_SSLROOTCERT'],connect_timeout=20,application_name='pdc-final-activation-live-test');cls.conn.autocommit=False
+>    s=importlib.util.spec_from_file_location('b',Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py'));b=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(b);v=json.loads(b.unprotect(Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());b.validate(v);cls.conn=psycopg2.connect(v['PDC_STAGING_DATABASE_URL'],sslmode='verify-full',sslrootcert=v['PDC_STAGING_SSLROOTCERT'],connect_timeout=20,application_name='pdc-final-activation-live-test');cls.conn.autocommit=False
                                                                                                                                                                                                       ^^^^^^^^^^^^^^^^^^^^^^^
 
 tests\test_final_activation_live.py:9: 
@@ -25,10 +25,10 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <_frozen_importlib_external.SourceFileLoader object at 0x000002432FF942D0>
-path = 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+path = 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 >   ???
-E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 <frozen importlib._bootstrap_external>:1130: FileNotFoundError
 _ ERROR at setup of FinalActivationLiveTests.test_repeated_attestation_and_terminal_uid514_are_stable _
@@ -37,7 +37,7 @@ cls = <class 'test_final_activation_live.FinalActivationLiveTests'>
 
     @classmethod
     def setUpClass(cls):
->    s=importlib.util.spec_from_file_location('b',Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py'));b=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(b);v=json.loads(b.unprotect(Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());b.validate(v);cls.conn=psycopg2.connect(v['PDC_STAGING_DATABASE_URL'],sslmode='verify-full',sslrootcert=v['PDC_STAGING_SSLROOTCERT'],connect_timeout=20,application_name='pdc-final-activation-live-test');cls.conn.autocommit=False
+>    s=importlib.util.spec_from_file_location('b',Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py'));b=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(b);v=json.loads(b.unprotect(Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());b.validate(v);cls.conn=psycopg2.connect(v['PDC_STAGING_DATABASE_URL'],sslmode='verify-full',sslrootcert=v['PDC_STAGING_SSLROOTCERT'],connect_timeout=20,application_name='pdc-final-activation-live-test');cls.conn.autocommit=False
                                                                                                                                                                                                       ^^^^^^^^^^^^^^^^^^^^^^^
 
 tests\test_final_activation_live.py:9: 
@@ -49,10 +49,10 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <_frozen_importlib_external.SourceFileLoader object at 0x000002432FF942D0>
-path = 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+path = 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 >   ???
-E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 <frozen importlib._bootstrap_external>:1130: FileNotFoundError
 _ ERROR at setup of FinalActivationLiveTests.test_wrong_identity_and_gateway_fail_closed _
@@ -61,7 +61,7 @@ cls = <class 'test_final_activation_live.FinalActivationLiveTests'>
 
     @classmethod
     def setUpClass(cls):
->    s=importlib.util.spec_from_file_location('b',Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py'));b=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(b);v=json.loads(b.unprotect(Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());b.validate(v);cls.conn=psycopg2.connect(v['PDC_STAGING_DATABASE_URL'],sslmode='verify-full',sslrootcert=v['PDC_STAGING_SSLROOTCERT'],connect_timeout=20,application_name='pdc-final-activation-live-test');cls.conn.autocommit=False
+>    s=importlib.util.spec_from_file_location('b',Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py'));b=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(b);v=json.loads(b.unprotect(Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());b.validate(v);cls.conn=psycopg2.connect(v['PDC_STAGING_DATABASE_URL'],sslmode='verify-full',sslrootcert=v['PDC_STAGING_SSLROOTCERT'],connect_timeout=20,application_name='pdc-final-activation-live-test');cls.conn.autocommit=False
                                                                                                                                                                                                       ^^^^^^^^^^^^^^^^^^^^^^^
 
 tests\test_final_activation_live.py:9: 
@@ -73,10 +73,10 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <_frozen_importlib_external.SourceFileLoader object at 0x000002432FF942D0>
-path = 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+path = 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 >   ???
-E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 <frozen importlib._bootstrap_external>:1130: FileNotFoundError
 ================================== FAILURES ===================================
@@ -85,7 +85,7 @@ _ AuthenticatedAcceptancePlanMappingTests.test_live_fixture_sublet_return_window
 self = <test_authenticated_acceptance_plan_mapping_contract.AuthenticatedAcceptancePlanMappingTests testMethod=test_live_fixture_sublet_return_window_covers_reviewed_acceptance_date>
 
     def test_live_fixture_sublet_return_window_covers_reviewed_acceptance_date(self):
->    bootstrap=Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py');s=importlib.util.spec_from_file_location('b730',bootstrap);m=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(m);v=json.loads(m.unprotect(Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());m.validate(v);u=v['PDC_STAGING_DATABASE_URL'];e=urlsplit(u);os.environ.update({k:v[k] for k in ('PDC_STAGING_SSLROOTCERT','PDC_STAGING_SSLROOTCERT_SHA256')});sys.path.insert(0,str(ROOT));from scripts.pdc_staging_runtime import trusted_sslrootcert
+>    bootstrap=Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py');s=importlib.util.spec_from_file_location('b730',bootstrap);m=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(m);v=json.loads(m.unprotect(Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());m.validate(v);u=v['PDC_STAGING_DATABASE_URL'];e=urlsplit(u);os.environ.update({k:v[k] for k in ('PDC_STAGING_SSLROOTCERT','PDC_STAGING_SSLROOTCERT_SHA256')});sys.path.insert(0,str(ROOT));from scripts.pdc_staging_runtime import trusted_sslrootcert
                                                                                                                                                                                                                              ^^^^^^^^^^^^^^^^^^^^^^^
 
 tests\test_authenticated_acceptance_plan_mapping_contract.py:27: 
@@ -97,10 +97,10 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <_frozen_importlib_external.SourceFileLoader object at 0x000002432F367D10>
-path = 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+path = 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 >   ???
-E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 <frozen importlib._bootstrap_external>:1130: FileNotFoundError
 _ ApplyActionGuard727RedTests.test_audit_source_binding_jsonb_guard_is_parenthesized _
@@ -114,7 +114,7 @@ self = <test_authenticated_apply_action_guard_727_contract.ApplyActionGuard727Re
 tests\test_authenticated_apply_action_guard_727_contract.py:23: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_authenticated_apply_action_guard_727_contract.py:9: in staging
-    p=Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py');s=importlib.util.spec_from_file_location('bootstrap727',p);m=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(m);v=json.loads(m.unprotect(Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());m.validate(v);u=v['PDC_STAGING_DATABASE_URL'];e=urlsplit(u)
+    p=Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py');s=importlib.util.spec_from_file_location('bootstrap727',p);m=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(m);v=json.loads(m.unprotect(Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());m.validate(v);u=v['PDC_STAGING_DATABASE_URL'];e=urlsplit(u)
                                                                                                                                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^
 <frozen importlib._bootstrap_external>:936: in exec_module
     ???
@@ -123,10 +123,10 @@ tests\test_authenticated_apply_action_guard_727_contract.py:9: in staging
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <_frozen_importlib_external.SourceFileLoader object at 0x000002432FF0FBD0>
-path = 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+path = 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 >   ???
-E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 <frozen importlib._bootstrap_external>:1130: FileNotFoundError
 _ ApplyActionGuard727RedTests.test_finalize_source_binding_jsonb_guard_is_parenthesized _
@@ -140,7 +140,7 @@ self = <test_authenticated_apply_action_guard_727_contract.ApplyActionGuard727Re
 tests\test_authenticated_apply_action_guard_727_contract.py:31: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_authenticated_apply_action_guard_727_contract.py:9: in staging
-    p=Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py');s=importlib.util.spec_from_file_location('bootstrap727',p);m=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(m);v=json.loads(m.unprotect(Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());m.validate(v);u=v['PDC_STAGING_DATABASE_URL'];e=urlsplit(u)
+    p=Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py');s=importlib.util.spec_from_file_location('bootstrap727',p);m=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(m);v=json.loads(m.unprotect(Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());m.validate(v);u=v['PDC_STAGING_DATABASE_URL'];e=urlsplit(u)
                                                                                                                                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^
 <frozen importlib._bootstrap_external>:936: in exec_module
     ???
@@ -149,10 +149,10 @@ tests\test_authenticated_apply_action_guard_727_contract.py:9: in staging
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <_frozen_importlib_external.SourceFileLoader object at 0x000002432F35B710>
-path = 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+path = 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 >   ???
-E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 <frozen importlib._bootstrap_external>:1130: FileNotFoundError
 _ ApplyActionGuard727RedTests.test_source_binding_jsonb_guard_is_parenthesized _
@@ -166,7 +166,7 @@ self = <test_authenticated_apply_action_guard_727_contract.ApplyActionGuard727Re
 tests\test_authenticated_apply_action_guard_727_contract.py:15: 
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_authenticated_apply_action_guard_727_contract.py:9: in staging
-    p=Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py');s=importlib.util.spec_from_file_location('bootstrap727',p);m=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(m);v=json.loads(m.unprotect(Path(r'C:/Users/nwmgr/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());m.validate(v);u=v['PDC_STAGING_DATABASE_URL'];e=urlsplit(u)
+    p=Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-bootstrap/pdc_staging_bootstrap.py');s=importlib.util.spec_from_file_location('bootstrap727',p);m=importlib.util.module_from_spec(s);assert s and s.loader;s.loader.exec_module(m);v=json.loads(m.unprotect(Path(r'[REDACTED_LOCAL_HOME]/AppData/Local/hermes/staging-secrets/pdc-staging.dpapi').read_bytes()).decode());m.validate(v);u=v['PDC_STAGING_DATABASE_URL'];e=urlsplit(u)
                                                                                                                                                                                                                     ^^^^^^^^^^^^^^^^^^^^^^^
 <frozen importlib._bootstrap_external>:936: in exec_module
     ???
@@ -175,10 +175,10 @@ tests\test_authenticated_apply_action_guard_727_contract.py:9: in staging
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 self = <_frozen_importlib_external.SourceFileLoader object at 0x000002432FF5BDD0>
-path = 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+path = 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 >   ???
-E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
+E   FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\staging-bootstrap\\pdc_staging_bootstrap.py'
 
 <frozen importlib._bootstrap_external>:1130: FileNotFoundError
 ___ EmailAiFinalFunctionalRemediationTests.test_final_source_hash_is_stable ___
@@ -247,12 +247,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -265,9 +265,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_bounded_caller_rejects_missing_or_extra_frozen_uid _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_bounded_caller_rejects_missing_or_extra_frozen_uid>
@@ -281,12 +281,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -299,9 +299,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_bounded_limit_validates_full_cohort_and_records_build_failure _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_bounded_limit_validates_full_cohort_and_records_build_failure>
@@ -315,12 +315,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -333,9 +333,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_exact_replay_digest_and_request_are_unchanged _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_exact_replay_digest_and_request_are_unchanged>
@@ -349,12 +349,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -367,9 +367,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_false_result_is_durable_review_and_nonzero_summary _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_false_result_is_durable_review_and_nonzero_summary>
@@ -383,12 +383,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -401,9 +401,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_frozen_uid_1_21_is_the_regression_input _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_frozen_uid_1_21_is_the_regression_input>
@@ -417,12 +417,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -435,9 +435,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_global_identity_and_protected_lifecycle_location_guards _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_global_identity_and_protected_lifecycle_location_guards>
@@ -451,12 +451,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -469,9 +469,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_live_probe_uses_validated_cohort_then_one_row _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_live_probe_uses_validated_cohort_then_one_row>
@@ -495,12 +495,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -513,9 +513,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_manifest_and_source_uid_fields_are_required_and_typed _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_manifest_and_source_uid_fields_are_required_and_typed>
@@ -529,12 +529,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -547,9 +547,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_review_required_overrides_contradictory_ok_true _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_review_required_overrides_contradictory_ok_true>
@@ -563,12 +563,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -581,9 +581,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_shared_caller_rejects_missing_or_extra_frozen_uid _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_shared_caller_rejects_missing_or_extra_frozen_uid>
@@ -597,12 +597,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -615,9 +615,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_shared_cli_returns_nonzero_for_false_rpc_row _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_shared_cli_returns_nonzero_for_false_rpc_row>
@@ -642,12 +642,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -660,9 +660,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_shared_runner_persists_false_and_returns_nonzero_summary _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_shared_runner_persists_false_and_returns_nonzero_summary>
@@ -676,12 +676,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -694,9 +694,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ HistoricalProposalBinding789Tests.test_success_requires_exact_receipt_identity_and_authoritative_readback _
 
 self = <test_historical_proposal_binding_789.HistoricalProposalBinding789Tests testMethod=test_success_requires_exact_receipt_identity_and_authoritative_readback>
@@ -710,12 +710,12 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 tests\test_historical_proposal_binding_789.py:35: in explicit_manifest_rows
     rows = json.loads(ROWS.read_text(encoding="utf-8"))["rows"]
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1058: in read_text
     with self.open(mode='r', encoding=encoding, errors=errors) as f:
          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
-self = WindowsPath('C:/Users/nwmgr/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
+self = WindowsPath('[REDACTED_LOCAL_HOME]/AppData/Local/hermes/profiles/pdc-emails/data/pdc-email-reviewer/historical-inbox/historical-778-rows.json')
 mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
 
     def open(self, mode='r', buffering=-1, encoding=None,
@@ -728,9 +728,9 @@ mode = 'r', buffering = -1, encoding = 'utf-8', errors = None, newline = None
             encoding = io.text_encoding(encoding)
 >       return io.open(self, mode, buffering, encoding, errors, newline)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
+E       FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\[REDACTED_USER]\\AppData\\Local\\hermes\\profiles\\pdc-emails\\data\\pdc-email-reviewer\\historical-inbox\\historical-778-rows.json'
 
-C:\Users\nwmgr\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
+[REDACTED_LOCAL_HOME]\AppData\Roaming\uv\python\cpython-3.11-windows-x86_64-none\Lib\pathlib.py:1044: FileNotFoundError
 _ MonitorSuccessor504ContractTests.test_migration_source_digest_is_deterministic_for_release_evidence _
 
 self = <test_monitor_successor_504_contract.MonitorSuccessor504ContractTests testMethod=test_migration_source_digest_is_deterministic_for_release_evidence>
