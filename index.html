@@ -159,7 +159,7 @@
               <input id="incoming-search" type="search" placeholder="Customer, stock, order, rego, key number or vehicle..." />
             </label>
             <div class="incoming-filter-meta" id="incoming-filter-summary">All active vehicles</div>
-            <p class="sr-only">Authenticated email vehicle imports are server-authoritative. Identity conflicts fail closed. Pit Inspection is a required workshop station. Department of Transport PIT remains a separate vehicle location. A named QC sign-off immediately marks the vehicle RFT.</p>
+            <p class="sr-only">Authenticated email vehicle imports are server-authoritative. Identity conflicts fail closed. Pit Inspection is retained as a deferred future QC step, not a Workshop station. Department of Transport PIT remains a separate vehicle location. A named QC sign-off immediately marks the vehicle RFT.</p>
           </div>
           <div class="inline-selection-bar" id="incoming-selection-bar" aria-live="polite">
             <strong id="incoming-selection-count">0 selected</strong>
@@ -326,7 +326,7 @@
             <div class="panel-header">
               <div>
                 <h2>Production</h2>
-                <p>Production / In Transit list sorted by earliest Kewdale arrival first. Workshop stations are Bus 4x4, Tint, Hoist, Fitting, Fabrication, Electrical, Tyre and Pit Inspection. Pit Inspection is a required workshop station with one physical bay. Department of Transport PIT remains a separate vehicle location.</p>
+                <p>Production / In Transit list sorted by earliest Kewdale arrival first. Workshop stations are Bus 4x4, Tint, Hoist, Fitting, Fabrication, Electrical and Tyre. Pit Inspection is retained as a deferred future QC step, not a Workshop station. Department of Transport PIT remains a separate vehicle location.</p>
               </div>
               <span class="badge neutral" id="schedule-count">0 vehicles</span>
             </div>
@@ -565,7 +565,7 @@
             </div>
             <div class="parts-help-strip rft-help-strip">
               <strong>RFT rule:</strong>
-              <span>QC becomes available only when all required station jobs, including Pit Inspection, and Parts are complete and the vehicle is back in PMB Unallocated. Department of Transport PIT remains a separate vehicle location. A named QC sign-off immediately marks the vehicle RFT.</span>
+              <span>QC becomes available only when all required physical Workshop station jobs and Parts are complete and the vehicle is back in PMB Unallocated. Pit Inspection is retained as a deferred future QC step, not a Workshop station. Department of Transport PIT remains a separate vehicle location. A named QC sign-off immediately marks the vehicle RFT.</span>
             </div>
             <div id="rft-home-content" class="parts-home-content rft-home-content"></div>
           </section>

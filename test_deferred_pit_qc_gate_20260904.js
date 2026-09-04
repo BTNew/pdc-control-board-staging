@@ -5,7 +5,13 @@ const fs = require('fs');
 const vm = require('vm');
 
 const source = fs.readFileSync('app.js', 'utf8');
+const indexSource = fs.readFileSync('index.html', 'utf8');
 const migrationPath = 'supabase/staging_only/20260904010300_defer_pit_from_physical_qc_gate.sql';
+assert.ok(indexSource.includes('Pit Inspection is retained as a deferred future QC step, not a Workshop station.'), 'deployed guidance describes deferred PIT accurately');
+assert.ok(!indexSource.includes('Pit Inspection is a required workshop station'), 'deployed guidance must not call PIT a required Workshop station');
+assert.ok(!indexSource.includes('Pit Inspection is a required workshop station with one physical bay'), 'deployed guidance must not claim a physical PIT bay');
+assert.ok(!indexSource.includes('including Pit Inspection'), 'RFT guidance must not include deferred PIT in required station jobs');
+assert.ok(indexSource.includes('all required physical Workshop station jobs and Parts are complete'), 'RFT guidance names only the active physical gate');
 
 function extract(startMarker, endMarker) {
   const start = source.indexOf(startMarker);
