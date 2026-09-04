@@ -579,9 +579,10 @@ def canonical_jobcard_request(record: dict[str, Any], proposal: ExtractionPropos
             required_work.append(work_key)
     fields = proposal.fields
     stocks = list(fields.get("stock_numbers") or [])
-    vins = list(fields.get("vins") or [])
-    if not (len(stocks) + len(vins) == 1 and bool(fields.get("jc_number"))):
-        raise RuntimeError(f"canonical job card requires one stock or VIN and one job-card number (stocks={len(stocks)}, vins={len(vins)}, jc={bool(fields.get('jc_number'))}, warnings={','.join(proposal.warnings)})")
+    vins = [str(vin).strip().upper() for vin in (fields.get("vins") or [])]
+    valid_lookup = len(stocks) <= 1 and len(vins) <= 1 and (len(stocks) == 1 or len(vins) == 1)
+    if not (valid_lookup and all(re.fullmatch(r"[A-HJ-NPR-Z0-9]{17}", vin) for vin in vins) and bool(fields.get("jc_number"))):
+        raise RuntimeError(f"canonical job card requires one stock lookup or VIN-only identity, at most one valid source VIN, and one job-card number (stocks={len(stocks)}, vins={len(vins)}, jc={bool(fields.get('jc_number'))}, warnings={','.join(proposal.warnings)})")
     authentication = record.get("provider_authentication")
     if not isinstance(authentication, dict):
         raise RuntimeError("trusted provider authentication evidence is missing")

@@ -189,9 +189,10 @@ def _email_vehicle(value: Any) -> dict[str, Any]:
     if vehicle["cancelled"] is not False or vehicle["conflicts"] != []:
         raise RuntimeContractError("email_vehicle is cancelled or conflicted")
     stocks = _string_list(vehicle["stock_numbers"], "email_vehicle.stock_numbers", 1, 80)
-    vins = _string_list(vehicle["vins"], "email_vehicle.vins", 1, 17, r"[A-HJ-NPR-Z0-9]{17}")
-    if len(stocks) + len(vins) != 1:
-        raise RuntimeContractError("email_vehicle requires exactly one stock or VIN identity")
+    vins = [vin.upper() for vin in _string_list(vehicle["vins"], "email_vehicle.vins", 1, 17, r"[A-HJ-NPR-Za-hj-npr-z0-9]{17}")]
+    vehicle["vins"] = vins
+    if len(stocks) != 1 and len(vins) != 1:
+        raise RuntimeContractError("email_vehicle requires one stock lookup identity or one VIN-only identity")
     _text(vehicle["job_card_number"], "email_vehicle.job_card_number", 1, 80)
     for key in ("customer_name", "eta_to_kewdale", "registration", "toyota_order_number", "vehicle_description"):
         item = vehicle[key]
@@ -391,7 +392,8 @@ def _jobcard_readback(data: dict[str, Any], checked: dict[str, Any], code: str) 
     }
     non_navision_keys = {
         "receipt_id", "vehicle_id", "vehicle_created", "operation_count", "operation_lines",
-        "initial_location", "mapping_review_count", "booking_created", "completion_created",
+        "initial_location", "stock_number", "source_vin", "canonical_vin", "source_provenance",
+        "effective_provenance", "mapping_review_count", "booking_created", "completion_created",
     }
     _exact_keys(data, canonical_keys if code == "jobcard_attachment_receipt" else non_navision_keys, "job-card readback")
     receipt_id = _uuid(data["receipt_id"], "readback receipt_id")
@@ -457,7 +459,39 @@ def _jobcard_readback(data: dict[str, Any], checked: dict[str, Any], code: str) 
         expected_location = "YH" if data["vehicle_created"] else None
         if data["initial_location"] != expected_location:
             raise RuntimeContractError("non-Navision readback initial_location is invalid")
-    return {"receipt_id": receipt_id, "vehicle_id": vehicle_id, "operation_count": count, "estimated_hours_sum": hours}
+        expected_vehicle = extraction["email_vehicle"]
+        expected_stock = (expected_vehicle["stock_numbers"] or [None])[0]
+        expected_source_vin = (expected_vehicle["vins"] or [None])[0]
+        if data["stock_number"] != expected_stock or data["source_vin"] != expected_source_vin:
+            raise RuntimeContractError("non-Navision readback source identity differs from request")
+        canonical_vin = data["canonical_vin"]
+        if canonical_vin is not None:
+            _text(canonical_vin, "non-Navision readback canonical_vin", 17, 17, pattern=r"[A-HJ-NPR-Z0-9]{17}")
+        if expected_source_vin is not None and canonical_vin != expected_source_vin:
+            raise RuntimeContractError("non-Navision readback canonical VIN differs from authenticated source VIN")
+        if not isinstance(data["source_provenance"], dict) or not isinstance(data["effective_provenance"], dict):
+            raise RuntimeContractError("non-Navision readback provenance is invalid")
+        effective_vin = data["effective_provenance"].get("vin")
+        requires_vin_provenance = expected_source_vin is not None or (data["vehicle_created"] and canonical_vin is not None)
+        if requires_vin_provenance and (
+                data["source_provenance"].get("source_receipt_id") != receipt_id
+                or not isinstance(effective_vin, dict)
+                or effective_vin.get("source_receipt_id") != receipt_id):
+            raise RuntimeContractError("PDC_JOB_CARD_READBACK_PROVENANCE_MISMATCH")
+        if expected_source_vin is not None:
+            if not isinstance(effective_vin, dict) or effective_vin.get("value") != expected_source_vin:
+                raise RuntimeContractError("non-Navision readback effective VIN provenance differs from source")
+        elif data["vehicle_created"] and canonical_vin is not None:
+            if (not isinstance(effective_vin, dict) or effective_vin.get("value") != canonical_vin
+                    or effective_vin.get("authority") != "authenticated_non_navision_job_card"
+                    or not data["source_provenance"].get("source_receipt_id")):
+                raise RuntimeContractError("non-Navision creation has an unaudited VIN absent from original request")
+    return {
+        "receipt_id": receipt_id, "vehicle_id": vehicle_id, "operation_count": count,
+        "estimated_hours_sum": hours, "canonical_vin": data.get("canonical_vin"),
+        "source_provenance": data.get("source_provenance"),
+        "effective_provenance": data.get("effective_provenance"),
+    }
 
 
 def execute_jobcard_request(service_client: RpcClient, actor_client: RpcClient, request: Mapping[str, Any]) -> dict[str, Any]:
