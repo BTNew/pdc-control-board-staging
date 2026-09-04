@@ -1,0 +1,28 @@
+{
+  "ok": false,
+  "phase": "red",
+  "evidence": "C:\\Hermes-Active\\projects\\pdc-control-board-staging\\.worktrees\\t_86e58618\\review-evidence\\t_86e58618\\navision-linked-location-red.json",
+  "execution_error": "authoritative linked IT to YH projection failed: response={'ok': True, 'code': 'existing_operational_identity_already_satisfied', 'data': {'vehicle_id': '86e58618-0000-5000-8000-000000000901', 'backend_record_id': '86e58618-0000-5000-8000-000000000911', 'activation_mutated': False, 'operational_change': False, 'navision_link_refresh': {'ok': True, 'code': 'linked_vehicle_refreshed', 'data': {'changed': True, 'vehicle_id': '86e58618-0000-5000-8000-000000000901', 'backend_version': 1, 'backend_record_id': '86e58618-0000-5000-8000-000000000911', 'manual_salesperson_override_preserved': False}}}}, readback={'id': '86e58618-0000-5000-8000-000000000901', 'eta': '2026-09-03', 'parity': {'ok': True, 'mismatches': [], 'mismatch_count': 0, 'link_mismatch_count': 0, 'active_vehicle_count': 1, 'ambiguous_match_count': 0, 'stale_detail_location_count': 0, 'vehicles_with_navision_data': 1, 'vehicles_without_navision_data': 0}, 'payload': {'colour': None, 'authority': 'navision-linked-refresh-481', 'email_sent': False, 'navision_model': None, 'bounded_fixture': 't_86e58618', 'navision_colour': None, 'navision_status': 'Vehicle Waiting Wholesale', 'navision_version': 1, 'navision_customer': None, 'navision_record_id': '86e58618-0000-5000-8000-000000000911', 'navision_updated_at': '2026-09-04T18:51:57.006289+00:00', 'navision_salesperson': None, 'navision_source_data': {'vin': 'REBHV186586180', 'batch': 'HERMES-NAV-YH-86E58618', 'etaToKewdale': '2026-09-03', 'toyotaStatus': 'Vehicle Waiting Wholesale', 'navisionKewdaleEta': '2026-09-03', 'navisionLocationStatus': 'IT', 'navisionSubLocationDescription': 'Vehicle Waiting Wholesale'}}, 'version': 3, 'visible': True, 'location': 'IT', 'lifecycle': 'active', 'audit_count': 2, 'date_to_pmb': None, 'movement_count': 0}",
+  "cleanup_errors": [],
+  "cleanup": {
+    "head": [
+      "20260904011500",
+      "parts_stoppage_runtime_containment_repair"
+    ],
+    "auth_count": 0,
+    "role_count": 0,
+    "work_count": 0,
+    "parts_count": 0,
+    "scope_count": 0,
+    "sublet_count": 0,
+    "booking_count": 0,
+    "vehicle_count": 0,
+    "operation_count": 0,
+    "navision_batch_count": 0,
+    "cleanup_history_count": 0,
+    "navision_record_count": 0,
+    "location_receipt_count": 0,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  }
+}
