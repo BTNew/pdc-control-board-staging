@@ -68,7 +68,8 @@ function testRouteMatrixAndSafetyContracts() {
   assert.match(app, /data-pdc-operational-refresh/);
   assert.match(app, /refreshEmailVehicleLocations\(\{ refreshGeneration: generation \}\)/);
   assert.match(app, /loadSharedNavisionVisibleRows\(\{ force: true, refreshGeneration: generation \}\)/);
-  assert.match(app, /service\.loadSnapshot\('vehicle_locations_refresh'\)/);
+  assert.match(app, /if \(route !== 'workshop'\) return \{ ok: true, skipped: true \};/);
+  assert.match(app, /service\.loadSnapshot\(`operational_refresh:\$\{route\}`\)/);
   assert.match(app, /window\.__workshopRealtimeManager\?\.start/);
   const refreshSlice = app.slice(app.indexOf('function operationalRefreshCommonLoaders'), app.indexOf('function getOperationalRefreshCoordinator'));
   assert.doesNotMatch(refreshSlice, /localStorage|loadJson/);

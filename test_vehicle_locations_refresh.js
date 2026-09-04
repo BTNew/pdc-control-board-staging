@@ -119,7 +119,8 @@ function testVehicleLocationsIntegrationContracts() {
   assert(appSource.includes('createVehicleLocationsRefreshCoordinator'), 'app uses the coordinated refresh service');
   assert(appSource.includes("loadSharedNavisionVisibleRows({ force: true, refreshGeneration: generation })"), 'refresh uses the existing Navision refresh API');
   assert(appSource.includes("refreshEmailVehicleLocations({ refreshGeneration: generation })"), 'refresh uses the existing operational snapshot API');
-  assert(appSource.includes("loadSnapshot('vehicle_locations_refresh')"), 'refresh uses the existing workshop snapshot API');
+  assert(appSource.includes("if (route !== 'workshop') return { ok: true, skipped: true };"), 'non-Workshop refreshes do not call the revoked unscoped Workshop snapshot');
+  assert(appSource.includes('loadSnapshot(`operational_refresh:${route}`)'), 'Workshop refresh uses the existing scoped station snapshot API');
   assert(appSource.includes("loadWorkshopEligibilitySnapshot('vehicle_locations_refresh')"), 'refresh uses the existing eligibility snapshot API');
   assert(appSource.includes('refreshWorkshopReferenceData()'), 'refresh includes shared workshop reference data');
   assert(appSource.includes('captureIncomingBoardDisclosureState'), 'refresh captures expanded Vehicle Locations sections');

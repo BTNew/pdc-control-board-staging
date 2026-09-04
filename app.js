@@ -5180,10 +5180,7 @@ function qcPagePendingKey(key = '', lineIdentity = '') {
 function qcPageVehicleIsEligible(vehicle = {}) {
   if (vehicle.__emailVehicleServerAuthoritative !== true || typeof vehicleInQualityControlGate !== 'function' || !vehicleInQualityControlGate(vehicle) || vehicle.pdcQcComplete === true) return false;
   if (vehicle.pdcQcOperationLinesProjectionPresent !== true) return false;
-  const lines = qcPageOperationLines(vehicle);
-  const allComplete = lines.length > 0 && lines.every(line => line.completed === true);
-  const pendingQcFix = vehicle.pdcQcFixRequired === true && vehicle.pdcQcFixStatus === 'Pending QC fixes';
-  return allComplete || pendingQcFix;
+  return qcPageOperationLines(vehicle).length > 0;
 }
 
 function qcPageVehicles() {
@@ -17304,19 +17301,17 @@ function operationalRefreshCommonLoaders(route) {
       // eligibility readers. The old unscoped get_workshop_snapshot RPC is
       // intentionally revoked; only a selected Workshop station has a
       // scoped planner snapshot to refresh.
-      if (route === 'dashboard') return { ok: true, skipped: true };
+      if (route !== 'workshop') return { ok: true, skipped: true };
       if (typeof initWorkshopSharedServicesIfEnabled === 'function') initWorkshopSharedServicesIfEnabled();
       const service = window.__workshopDataService;
       if (!service || typeof service.loadSnapshot !== 'function') return { ok: true, skipped: true };
-      if (route === 'workshop' && typeof service.setScope === 'function' && typeof workshopState === 'function') {
-        const state = workshopState();
-        const stage = normalizePmbStage(app.activeWorkshopPlannerStage || state.stage || '');
-        const date = cleanNavisionText(state.date || '').match(/^\d{4}-\d{2}-\d{2}$/)?.[0] || new Date().toISOString().slice(0, 10);
-        if (stage) await service.setScope({ stageCode: stage, dateFrom: date, dateTo: date });
-      }
-      const snapshot = route === 'dashboard'
-        ? await service.loadSnapshot('vehicle_locations_refresh')
-        : await service.loadSnapshot(`operational_refresh:${route}`);
+      if (typeof service.setScope !== 'function' || typeof workshopState !== 'function') return { ok: true, skipped: true };
+      const workshop = workshopState();
+      const stage = normalizePmbStage(app.activeWorkshopPlannerStage || workshop.stage || '');
+      const date = cleanNavisionText(workshop.date || '').match(/^\d{4}-\d{2}-\d{2}$/)?.[0] || new Date().toISOString().slice(0, 10);
+      if (!stage) return { ok: true, skipped: true };
+      await service.setScope({ stageCode: stage, dateFrom: date, dateTo: date });
+      const snapshot = await service.loadSnapshot(`operational_refresh:${route}`);
       const state = typeof service.getState === 'function' ? service.getState() : '';
       const trusted = typeof service.getTrustedSnapshot === 'function' ? service.getTrustedSnapshot() : snapshot;
       return { ok: Boolean(trusted) && ['connected_editable', 'connected_read_only'].includes(state), snapshot, revision: service.getLastRevision?.() };
