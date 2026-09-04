@@ -8,7 +8,7 @@ const {
   PDC_VEHICLE_HISTORY_RPC,
 } = require('./pdc-email-vehicle-location-service.js');
 
-const baselinePath = path.join('supabase', 'migrations', '014_vehicle_intelligence_timeline_foundation.sql');
+const baselinePath = path.join('supabase', 'release_history', '014_vehicle_intelligence_timeline_foundation.sql');
 assert(fs.existsSync(baselinePath), 'clean Preview baseline migration 014 must remain present in the repository');
 const baseline = fs.readFileSync(baselinePath, 'utf8');
 const optionalPolicyBlock = baseline.match(/DO \$vehicle_intelligence_summary_policy\$[\s\S]*?\$vehicle_intelligence_summary_policy\$;/i)?.[0] || '';
