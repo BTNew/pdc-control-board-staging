@@ -4341,7 +4341,7 @@ function renderWorkshopPlanner(options = {}) {
             <button class="small-button" type="button" data-workshop-date-shift="1">Next ›</button>
           </span>
         </div>
-        ${focusedBookingMode ? '' : '<button class="small-button" type="button" data-workshop-today>Today</button><button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button><button class="small-button" type="button" data-workshop-refresh-vehicle data-pdc-operational-refresh data-pdc-refresh-route="workshop">Refresh Vehicle</button>'}
+        ${focusedBookingMode ? '' : '<button class="small-button" type="button" data-workshop-today>Today</button><button class="small-button" type="button" data-workshop-weekly-view>Weekly view</button><button class="small-button" type="button" data-workshop-refresh-vehicle data-pdc-operational-refresh data-pdc-refresh-route="workshop">Refresh Vehicle</button><button class="primary compact" type="button" data-open-control-board-schedule>Control Board Schedule</button>'}
         ${!focusedBookingMode && sharedModeActive && workshopLastAdministratorMove && workshopAdministratorCanMove() ? '<button class="small-button" type="button" data-workshop-undo-admin-move>Undo last move</button>' : ''}
         ${!focusedBookingMode && sharedModeActive && workshopAdminBlockCanMutate() ? `<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button><div class="workshop-admin-palette" data-workshop-admin-palette><span class="workshop-admin-palette-hint">Drag to a bay</span><button class="workshop-admin-palette-tile" type="button" draggable="true" data-workshop-admin-palette-tile data-admin-palette-duration="${workshopAdminPaletteDurationMinutes}"><span data-workshop-admin-palette-label>Admin · ${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)} h</span></button><label class="workshop-admin-palette-duration"><span>Unit</span><select data-workshop-admin-palette-unit aria-label="Admin block duration unit"><option value="hours">Hours</option><option value="working_days">Working days</option></select><span>Duration</span><input type="number" min="0.25" step="0.25" value="${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)}" data-workshop-admin-palette-duration aria-label="Admin block duration" /></label></div>` : ''}
         ${!focusedBookingMode ? '<button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>' : ''}
@@ -4391,6 +4391,7 @@ function bindWorkshopPlanner(root) {
   }
   root.querySelectorAll('[data-workshop-focused-back]').forEach(button => button.addEventListener('click', workshopExitFocusedBooking));
   root.querySelector('[data-workshop-back-control]')?.addEventListener('click', () => showView('workflow'));
+  root.querySelector('[data-open-control-board-schedule]')?.addEventListener('click', () => showView('schedule'));
 
   root.querySelectorAll('[data-workshop-stage]').forEach(button => button.addEventListener('click', () => {
     const state = workshopState();

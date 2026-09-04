@@ -14,7 +14,9 @@ const migration = read(migrationPath);
 // Selected bay/station work is intentionally not a duplicate Vehicle Detail page.
 assert.ok(planner.includes('function workshopStationSelectionHtml('), 'compact station-only selected work renderer');
 assert.ok(planner.includes('workshopStationSelectionHtml(selected)'), 'planner uses compact station selection');
-assert.ok(!/data-open-control-board-schedule/.test(planner), 'global Control Board Schedule escape is absent');
+assert.ok(!planner.includes('workshopDetailPanelHtml(selected, focusedPlans'), 'duplicate general Job details panel is not rendered for a bay selection');
+const stationSelectionBody = planner.split('function workshopStationSelectionHtml(', 2)[1].split('function workshopDetailHtml(', 1)[0];
+assert.ok(!/data-workshop-open-(?:job|vehicle)/.test(stationSelectionBody), 'station selection has no full-detail launcher');
 assert.ok(planner.includes('workshopRequiredJobsForStageHtml(vehicle, entry.stage'), 'selected station work remains visible');
 for (const control of ['data-workshop-start-plan', 'data-workshop-stop-plan', 'data-workshop-complete-plan']) {
   assert.ok(planner.includes(control), `${control} remains available`);
