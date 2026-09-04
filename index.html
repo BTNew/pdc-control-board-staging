@@ -10,7 +10,7 @@
   <script src="canonical-entry.js"></script>
   <title>PDC Control Board — STAGING</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="styles.css?v=2026.08.29.741-rft-draft&amp;vehicle-locations-refresh=2026.08.30.773-class-refresh&amp;parts-received=2026.08.29.751-authenticated&amp;qc-photo-mobile=2026.08.30.767-qc-reject-mobile&amp;hours-batch=2026.08.30.768&amp;sublet-projection=2026.08.30.900&amp;pdc14=2026.09.03.1500-control-board-parity&amp;qc-mobile-refresh=2026.09.04.02" />
+  <link rel="stylesheet" href="styles.css?v=2026.08.29.741-rft-draft&amp;vehicle-locations-refresh=2026.08.30.773-class-refresh&amp;parts-received=2026.08.29.751-authenticated&amp;qc-photo-mobile=2026.08.30.767-qc-reject-mobile&amp;hours-batch=2026.08.30.768&amp;sublet-projection=2026.08.30.900&amp;pdc14=2026.09.04.0110-canonical-state&amp;qc-mobile-refresh=2026.09.04.02" />
   <!-- Legacy release markers remain discoverable for compatibility checks; prior vehicle-locations-refresh=2026.08.29.738, vehicle-locations-refresh=2026.08.30.771-slimline-bar and vehicle-modal-identity.js?v=2026.08.30.771-slimline-bar remain compatibility markers while changed assets use the 773 release URLs above and below. The previous deployed module marker vehicle-locations-refresh-ui.js?v=2026.08.30.771-slimline-bar is retained for source-contract compatibility. The authenticated Parts receipt successor uses the 751 cache marker. styles.css?v=2026.08.29.737-email-update-modal-front email-modal=2026.08.29.737-email-update-modal-front styles.css?v=2026.08.29.736-rft-final-controls app.js?v=2026.08.27.706-final-authoritative-lifecycle pdc-email-vehicle-location-service.js?v=2026.08.27.706-final-authoritative-lifecycle -->
   <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation" />
   <link rel="stylesheet" href="pdc-email-ai-successor-inbox.css?v=2026.08.31.08-successor-inbox-cursor-fix" />
@@ -988,7 +988,7 @@
 
 
   <script src="vendor/supabase/supabase-2.110.5.js"></script>
-  <script src="pdc-supabase-config.staging.js?v=2026.08.27.17-parts-canonical-navision-id"></script>
+  <script src="pdc-supabase-config.staging.js?v=2026.09.04.0110-pdc14-location-replay"></script>
   <script src="pdc-auth.js?v=2026.08.11.27-auth-foreground"></script>
   <script src="pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="data-staging-empty.js?v=2026.07.24.26-pd-document-intake"></script>
@@ -1000,14 +1000,14 @@
   <script src="pdc-ai-intake-service.js?v=2026.07.25.03-ai-intake-admin-decision"></script>
   <script src="workshop-eligibility.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
   <script src="workshop-navigation.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
-  <script src="vehicle-requirements-guard.js?v=2026.08.30.772-stock-integrity&amp;pdc14=2026.09.03.1500-control-board-parity"></script>
+  <script src="vehicle-requirements-guard.js?v=2026.08.30.772-stock-integrity&amp;pdc14=2026.09.04.0110-canonical-state"></script>
   <script src="pdc-email-vehicle-location-service.js?v=2026.08.29.741-rft-draft&amp;rft-lifecycle=2026.08.29.734&amp;rft-email-draft=2026.08.29.739&amp;rft-email-draft-read-repair=2026.08.29.741&amp;parts-received=2026.08.29.751-authenticated&amp;authoritative-detail=386-388-391&amp;navision-delivery-security=2026.08.27.707-708&amp;qc-photo-mobile=2026.08.30.767-qc-reject-mobile&amp;hours-batch=2026.08.30.768&amp;sublet-projection=2026.08.30.900&amp;lifecycle-history=2026.08.30.1020&amp;sublet-canonical-count=2026.08.31.3300&amp;pdc14=2026.09.03.1500-control-board-parity&amp;explicit-sublet-operation=2026.09.04.01&amp;provenance-contract=2026.09.04.01"></script>
   <script src="pdc-ai-auditor-stage-a.js?v=2026.08.13.45-admin-authority-intent-undo-pointer"></script>
   <script src="vehicle-location-lifecycle.js?v=2026.08.11.31-lifecycle-module"></script>
   <script src="vehicle-modal-identity.js?v=2026.08.30.773-class-refresh"></script>
   <script src="vehicle-locations-refresh.js?v=2026.08.30.773-class-refresh"></script>
   <script src="vehicle-locations-refresh-ui.js?v=2026.08.30.773-class-refresh"></script>
-  <script src="app.js?v=2026.08.29.741-rft-draft&amp;vehicle-locations-refresh=2026.08.30.773-class-refresh&amp;operational-refresh=2026.08.30.775-control-state&amp;parts-received=2026.08.29.751-authenticated&amp;rft-lifecycle=2026.08.29.734&amp;rft-email-draft=2026.08.29.739&amp;rft-email-draft-read-repair=2026.08.29.741&amp;parts-canonical-navision-id=2026.08.27.17&amp;yard-hold-pmb=2026.08.27&amp;authoritative-detail=386-388-391&amp;auditor=2026.07.30.03-recorded-decision-render&amp;qc-photo-mobile=2026.08.30.767-qc-reject-mobile&amp;hours-batch=2026.08.30.768&amp;sublet-calendar-default=2026.08.30.772&amp;admin-block-audit=2026.08.30.1000-successor&amp;lifecycle-history=2026.08.30.1020&amp;checklist-closure=2026.08.31.2800&amp;sublet-workgroup=2026.08.31.3300&amp;pdc14=2026.09.03.1500-control-board-parity&amp;craig-workshop=2026.09.04.0103&amp;qc-mobile-refresh=2026.09.04.02&amp;qc-pit-detail=2026.09.04.01"></script>
+  <script src="app.js?v=2026.08.29.741-rft-draft&amp;vehicle-locations-refresh=2026.08.30.773-class-refresh&amp;operational-refresh=2026.08.30.775-control-state&amp;parts-received=2026.08.29.751-authenticated&amp;rft-lifecycle=2026.08.29.734&amp;rft-email-draft=2026.08.29.739&amp;rft-email-draft-read-repair=2026.08.29.741&amp;parts-canonical-navision-id=2026.08.27.17&amp;yard-hold-pmb=2026.08.27&amp;authoritative-detail=386-388-391&amp;auditor=2026.07.30.03-recorded-decision-render&amp;qc-photo-mobile=2026.08.30.767-qc-reject-mobile&amp;hours-batch=2026.08.30.768&amp;sublet-calendar-default=2026.08.30.772&amp;admin-block-audit=2026.08.30.1000-successor&amp;lifecycle-history=2026.08.30.1020&amp;checklist-closure=2026.08.31.2800&amp;sublet-workgroup=2026.08.31.3300&amp;pdc14=2026.09.04.0110-canonical-state&amp;craig-workshop=2026.09.04.0110&amp;qc-mobile-refresh=2026.09.04.02&amp;qc-pit-detail=2026.09.04.01"></script>
   <script src="pdc-ai-intake-review.js?v=2026.07.27.19-ai-review-decision-context"></script>
   <script src="pdc-email-ai-successor-inbox.js?v=2026.09.02.01-cleanroom-importer-read"></script>
 

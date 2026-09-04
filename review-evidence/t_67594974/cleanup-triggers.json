@@ -1,0 +1,188 @@
+[
+  {
+    "table_name": "audit_events",
+    "trigger_name": "pdc_hermes_test_actor_route_guard_365",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_hermes_test_actor_route_guard_365 BEFORE INSERT OR DELETE OR UPDATE ON public.audit_events FOR EACH ROW EXECUTE FUNCTION pdc_hermes_test_actor_route_guard_365()"
+  },
+  {
+    "table_name": "pdc_vehicle_lifecycle_history_events_82000",
+    "trigger_name": "pdc_vehicle_lifecycle_history_events_82000_immutable",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_vehicle_lifecycle_history_events_82000_immutable BEFORE DELETE OR UPDATE ON public.pdc_vehicle_lifecycle_history_events_82000 FOR EACH ROW EXECUTE FUNCTION pdc_lifecycle_history_append_only_82000()"
+  },
+  {
+    "table_name": "vehicle_movements",
+    "trigger_name": "pdc_hermes_test_actor_route_guard_365",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_hermes_test_actor_route_guard_365 BEFORE INSERT OR DELETE OR UPDATE ON public.vehicle_movements FOR EACH ROW EXECUTE FUNCTION pdc_hermes_test_actor_route_guard_365()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "aa_pdc_salesperson_synthetic_route_387",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER aa_pdc_salesperson_synthetic_route_387 BEFORE UPDATE OF customer_name, key_number, job_card_number, salesperson_reference, salesperson_id, salesperson_manual_override, salesperson_manual_override_at, salesperson_manual_override_by ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_salesperson_synthetic_route_387()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "pdc_747_recovered_vehicle_guard",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_747_recovered_vehicle_guard BEFORE DELETE OR UPDATE OF stock_number, lifecycle_state, deleted_at, visible_on_board ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_protect_recovered_stock_13000769_747()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "pdc_747_retest_rft_gate",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_747_retest_rft_gate BEFORE UPDATE OF lifecycle_state, current_location ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_require_retest_before_rft_747()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "pdc_capture_vehicle_lifecycle_transition_82000",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_capture_vehicle_lifecycle_transition_82000 AFTER UPDATE OF current_location, lifecycle_state, qc_completed_at, rft_transferred_at ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_capture_vehicle_lifecycle_transition_82000()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "pdc_default_vehicle_salesperson_trigger",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_default_vehicle_salesperson_trigger BEFORE INSERT OR UPDATE OF salesperson_reference, salesperson_id ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_default_vehicle_salesperson()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "pdc_email_vehicle_revision_vehicles",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_email_vehicle_revision_vehicles AFTER INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH STATEMENT EXECUTE FUNCTION bump_pdc_email_vehicle_revision()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "pdc_hermes_test_actor_route_guard_365",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_hermes_test_actor_route_guard_365 BEFORE INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_hermes_test_actor_route_guard_365()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "pdc_qc_require_all_operations_complete_379",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_qc_require_all_operations_complete_379 BEFORE UPDATE OF qc_completed_at ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_qc_require_all_operations_complete_379()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "pdc_reject_shared_board_qa_fixture_347",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_reject_shared_board_qa_fixture_347 BEFORE INSERT OR UPDATE OF source_system, deleted_at, board_purged_at ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_reject_shared_board_qa_fixture_347()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "pdc_vehicle_archive_recreation_gate",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER pdc_vehicle_archive_recreation_gate BEFORE INSERT OR UPDATE OF stock_number, stock_number_normalized, source_system, lifecycle_state, deleted_at, visible_on_board ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_vehicle_archive_recreation_gate()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "trg_pdc_online_vehicle_change_revision",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER trg_pdc_online_vehicle_change_revision AFTER UPDATE OF current_location, pmb_stage, pmb_bay_stage, pmb_bay_number, lifecycle_state, visible_on_board, version, active_workshop_booking_id, workshop_status, qc_completed_at, rft_transferred_at, rft_collected_at ON public.vehicles FOR EACH STATEMENT EXECUTE FUNCTION pdc_online_vehicle_change_bump_revision()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_alias_prelock_for_soft_delete",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_alias_prelock_for_soft_delete BEFORE UPDATE OF deleted_at ON public.vehicles FOR EACH ROW WHEN (((old.deleted_at IS NULL) AND (new.deleted_at IS NOT NULL))) EXECUTE FUNCTION prelock_vehicle_aliases_for_soft_delete()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_bump_lifecycle_resolver_revision",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_bump_lifecycle_resolver_revision AFTER INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION bump_vehicle_lifecycle_resolver_revision()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_bump_master_revision",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_bump_master_revision AFTER INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION bump_vehicle_master_revision()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_cancel_active_sublets_on_delete",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_cancel_active_sublets_on_delete BEFORE UPDATE OF deleted_at ON public.vehicles FOR EACH ROW WHEN (((old.deleted_at IS NULL) AND (new.deleted_at IS NOT NULL))) EXECUTE FUNCTION cancel_active_sublets_on_vehicle_delete()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_deactivate_aliases_on_soft_delete",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_deactivate_aliases_on_soft_delete AFTER UPDATE OF deleted_at ON public.vehicles FOR EACH ROW WHEN (((old.deleted_at IS NULL) AND (new.deleted_at IS NOT NULL))) EXECUTE FUNCTION deactivate_vehicle_aliases_on_soft_delete()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_enforce_master_identity_uniqueness",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_enforce_master_identity_uniqueness BEFORE INSERT OR UPDATE OF stock_number, vin, source_system, source_record_id ON public.vehicles FOR EACH ROW EXECUTE FUNCTION enforce_vehicle_master_identity_uniqueness()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_enforce_qc_then_rft",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_enforce_qc_then_rft BEFORE UPDATE OF qc_completed_at, current_location, lifecycle_state ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_enforce_qc_then_rft()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_enforce_reactivation_identity_uniqueness",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_enforce_reactivation_identity_uniqueness BEFORE UPDATE OF deleted_at ON public.vehicles FOR EACH ROW WHEN (((old.deleted_at IS NOT NULL) AND (new.deleted_at IS NULL))) EXECUTE FUNCTION enforce_vehicle_reactivation_identity_uniqueness()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_first_milestones",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_first_milestones BEFORE INSERT OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_vehicle_first_milestones()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_pdc_bulk_stock_only_privacy_guard",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_pdc_bulk_stock_only_privacy_guard BEFORE INSERT OR UPDATE OF customer_name, key_number, source_payload ON public.vehicles FOR EACH ROW EXECUTE FUNCTION enforce_pdc_bulk_stock_only_vehicle_privacy()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_record_master_history",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_record_master_history AFTER INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION record_vehicle_master_history()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_refresh_workshop_eta_risk",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_refresh_workshop_eta_risk AFTER UPDATE OF eta_to_kewdale ON public.vehicles FOR EACH ROW EXECUTE FUNCTION workshop_refresh_eta_risk()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_set_updated_at",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_set_updated_at BEFORE UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION set_updated_at()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_station_revision",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_station_revision AFTER INSERT OR DELETE OR UPDATE ON public.vehicles FOR EACH ROW EXECUTE FUNCTION workshop_station_revision_from_vehicle()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "vehicles_toyota_navision_it_eta_gate",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER vehicles_toyota_navision_it_eta_gate BEFORE INSERT OR UPDATE OF current_location, eta_to_kewdale, source_system, source_record_id ON public.vehicles FOR EACH ROW EXECUTE FUNCTION enforce_toyota_navision_it_eta()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "zz_pdc_preserve_manual_salesperson_override_386",
+    "tgenabled": "O",
+    "definition": "CREATE TRIGGER zz_pdc_preserve_manual_salesperson_override_386 BEFORE UPDATE OF salesperson_reference, salesperson_id, salesperson_manual_override, salesperson_manual_override_at, salesperson_manual_override_by ON public.vehicles FOR EACH ROW EXECUTE FUNCTION pdc_preserve_manual_salesperson_override_386()"
+  },
+  {
+    "table_name": "vehicles",
+    "trigger_name": "zz_vehicle_navision_parity_494",
+    "tgenabled": "O",
+    "definition": "CREATE CONSTRAINT TRIGGER zz_vehicle_navision_parity_494 AFTER INSERT OR UPDATE OF stock_number, source_system, source_record_id, source_payload, deleted_at ON public.vehicles DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pdc_enforce_navision_vehicle_parity_494()"
+  }
+]

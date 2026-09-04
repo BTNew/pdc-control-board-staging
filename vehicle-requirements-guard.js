@@ -5,7 +5,8 @@ const REQUIREMENT_KEYS = Object.freeze([
   'tyre', 'pitInspection', 'sublet', 'parts',
 ]);
 
-const ACTIVE_BOOKING_STATUSES = new Set(['queued', 'planned', 'started', 'stoppage']);
+const ACTIVE_BOOKING_STATUSES = new Set(['queued', 'planned', 'started']);
+const STOPPAGE_BOOKING_STATUS = 'stoppage';
 
 const WORKSHOP_STAGE_BY_WORK_KEY = Object.freeze({
   bus4x4: 'BUS_4X4',
@@ -61,9 +62,34 @@ function bookingMatchesWorkKey(booking = {}, workKey = '') {
  * Required/complete flags, active planner bookings, Parts ordering and Sublet
  * bookings all enter here instead of being reinterpreted by each renderer.
  */
-function projectWorkState({ workKey = '', required = false, completed = false, bookings = [], partsOrdered = false, subletBookings = [] } = {}) {
+function projectWorkState({
+  workKey = '',
+  required = false,
+  completed = false,
+  bookings = [],
+  partsOrdered = false,
+  partsStoppage = false,
+  stoppage = false,
+  stoppageReason = '',
+  subletBookings = [],
+} = {}) {
   const key = normalizedWorkKey(workKey);
   if (completed === true) return Object.freeze({ state: 'completed', marker: '✓', label: 'Completed' });
+  const stoppedWorkshopBooking = Array.isArray(bookings) && bookings.find(booking => (
+    booking
+    && booking.deleted_at == null
+    && booking.deletedAt == null
+    && clean(booking.status).toLowerCase() === STOPPAGE_BOOKING_STATUS
+    && bookingMatchesWorkKey(booking, key)
+  ));
+  if (partsStoppage === true || stoppage === true || stoppedWorkshopBooking) {
+    const reason = clean(
+      stoppageReason
+      || stoppedWorkshopBooking?.stoppage_reason
+      || stoppedWorkshopBooking?.stoppageReason,
+    );
+    return Object.freeze({ state: 'stoppage', marker: '!', label: 'STOPPAGE', reason });
+  }
   const activeWorkshopBooking = Array.isArray(bookings) && bookings.some(booking => (
     booking
     && booking.deleted_at == null
@@ -71,12 +97,13 @@ function projectWorkState({ workKey = '', required = false, completed = false, b
     && ACTIVE_BOOKING_STATUSES.has(clean(booking.status).toLowerCase())
     && bookingMatchesWorkKey(booking, key)
   ));
-  const activeSubletBooking = key === 'sublet' && Array.isArray(subletBookings) && subletBookings.some(booking => (
+  const activeSubletBookings = key === 'sublet' && Array.isArray(subletBookings) ? subletBookings.filter(booking => (
     booking
     && booking.deleted_at == null
     && booking.deletedAt == null
     && ['active', 'booked', 'planned', 'started'].includes(clean(booking.status).toLowerCase())
-  ));
+  )) : [];
+  const activeSubletBooking = activeSubletBookings.length === 1;
   if (required === true && ((key === 'parts' && partsOrdered === true) || activeWorkshopBooking || activeSubletBooking)) {
     return Object.freeze({ state: 'booked', marker: '!', label: key === 'parts' ? 'Ordered' : 'Booked' });
   }

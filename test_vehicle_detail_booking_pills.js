@@ -2,6 +2,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const guard = require('./vehicle-requirements-guard.js');
 
 const appSource = fs.readFileSync('app.js', 'utf8');
 const css = fs.readFileSync('styles.css', 'utf8');
@@ -29,6 +30,13 @@ const context = {
   cleanNavisionText: value => String(value || '').trim(),
   escapeHtml: value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('"', '&quot;'),
 };
+context.canonicalVehicleWorkState = (vehicle, def) => guard.projectWorkState({
+  workKey: def.key,
+  required: vehicle[def.requireKey] === true,
+  completed: vehicle[def.completeKey] === true,
+  bookings: context.app.vehicleWorkshopDetailCache.get(canonicalId)?.detail?.bookings || [],
+  partsOrdered: vehicle.pdcPartsOrdered === true,
+});
 vm.createContext(context);
 vm.runInContext(appSource.slice(start, end), context);
 const fitting = { key: 'fitting', label: 'FITTING', short: 'F', requireKey: 'pdcRequiresFitting', completeKey: 'pdcCompleteFitting' };

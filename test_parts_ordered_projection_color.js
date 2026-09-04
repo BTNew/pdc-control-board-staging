@@ -3,6 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 const { mapServerVehicle, reconcileVehicleRows } = require('./pdc-email-vehicle-location-service.js');
+const guard = require('./vehicle-requirements-guard.js');
 
 const app = fs.readFileSync('app.js', 'utf8');
 const css = fs.readFileSync('styles.css', 'utf8');
@@ -20,6 +21,10 @@ const controlContext = {
   pdcWorkDestination: () => null,
   partsOrdered: vehicle => vehicle.ordered === true,
   isActivePartsStoppage: vehicle => vehicle.stoppage === true,
+  canonicalVehicleWorkState: vehicle => guard.projectWorkState({
+    workKey: 'parts', required: vehicle.state !== 'none', completed: vehicle.state === 'complete',
+    partsOrdered: vehicle.ordered === true, partsStoppage: vehicle.stoppage === true,
+  }),
   escapeHtml: value => String(value),
 };
 vm.createContext(controlContext);
@@ -38,8 +43,12 @@ function renderIncoming({ordered = false, blocked = false, complete = false} = {
     vehicleWorkshopBookingProjection: () => ({bookingRequired: false, activeBookings: []}),
     pdcJobDefsPartsFirst: () => [partsDef], pdcJobRequired: () => true, pdcJobComplete: () => complete,
     pmbStageForPdcJob: () => '', PMB_STAGE_TO_JOB_KEY: {}, isActivePartsStoppage: () => blocked,
-    isPdcBlocked: () => false, partsOrdered: () => ordered, pdcGridJobLabel: () => 'Parts',
+    isPdcBlocked: () => false, pdcBlockReason: () => 'Parts blocked', partsOrdered: () => ordered, pdcGridJobLabel: () => 'Parts',
     pdcJobCompletionTitle: () => 'Parts required', escapeHtml: value => String(value),
+    canonicalVehicleWorkState: (vehicle, def) => guard.projectWorkState({
+      workKey: def.key, required: true, completed: complete,
+      partsOrdered: ordered, partsStoppage: blocked,
+    }),
   };
   vm.createContext(context);
   vm.runInContext(`${section('function incomingWorkChecklistHtml', 'function workStatusLegendHtml')} this.renderIncoming = incomingWorkChecklistHtml;`, context);
@@ -91,6 +100,13 @@ const runtimeContext = {
   pmbStageForPdcJob: () => '', PMB_STAGE_TO_JOB_KEY: {}, isActivePartsStoppage: vehicle => vehicle.pdcPartsStoppage === true,
   isPdcBlocked: () => false, partsOrdered: vehicle => vehicle.pdcPartsOrdered === true, pdcGridJobLabel: () => 'Parts',
   pdcJobCompletionTitle: () => 'Parts required', escapeHtml: value => String(value),
+  canonicalVehicleWorkState: (vehicle, def) => guard.projectWorkState({
+    workKey: def.key,
+    required: vehicle[def.requireKey] === true,
+    completed: vehicle[def.completeKey] === true,
+    partsOrdered: vehicle.pdcPartsOrdered === true,
+    partsStoppage: vehicle.pdcPartsStoppage === true,
+  }),
 };
 vm.createContext(runtimeContext);
 vm.runInContext(`${section('function incomingWorkChecklistHtml', 'function workStatusLegendHtml')} this.renderIncoming = incomingWorkChecklistHtml;`, runtimeContext);

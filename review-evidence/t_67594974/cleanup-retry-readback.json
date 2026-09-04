@@ -1,0 +1,17 @@
+{
+  "cleanup_outcome": {
+    "ok": true,
+    "code": "already_clean",
+    "vehicle_id": "67594974-0000-5000-8000-000000000014"
+  },
+  "readback": [
+    {
+      "cleanup": {
+        "auth_count": 0,
+        "role_count": 0,
+        "history_count": 0,
+        "vehicle_count": 0
+      }
+    }
+  ]
+}

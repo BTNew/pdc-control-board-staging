@@ -36,7 +36,7 @@ window.PDC_SUPABASE_CONFIG = {
   vehicleLifecycle: Object.freeze({
     sharedData: true,
     resolverRollbackDirectRead: false,
-    resolverAssetVersion: '2026.08.29.741-rft-transport-email-draft',
+    resolverAssetVersion: '2026.09.04.0110-pdc14-location-replay',
     durableRftLifecycle: true,
     durableRftLifecycleVersion: '741',
     durableRftTransportVersion: '734',

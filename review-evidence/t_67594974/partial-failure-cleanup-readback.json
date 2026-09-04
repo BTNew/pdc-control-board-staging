@@ -1,0 +1,14 @@
+[
+  {
+    "outcome": {
+      "ok": true,
+      "code": "bounded_fixture_cleaned",
+      "vehicle_id": "67594974-0000-5000-8000-000000000014",
+      "audits_removed": 0,
+      "movements_removed": 0,
+      "production_writes": false,
+      "retained_replay_receipts": 9,
+      "lifecycle_events_archived": 0
+    }
+  }
+]
