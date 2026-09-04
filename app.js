@@ -881,7 +881,7 @@ function pdcBooleanFromText(value) {
 }
 
 function pdcQualityControlRequirementDefinitions(vehicle = {}) {
-  return pdcRequirementDefinitions(vehicle).filter(job => job.key !== 'parts');
+  return pdcRequirementDefinitions(vehicle).filter(job => !['parts', 'pitInspection'].includes(job.key));
 }
 
 function vehicleRftGateIssues(vehicle = {}) {
@@ -6472,7 +6472,7 @@ function vehicleReadyForQualityControl(vehicle = {}) {
   if (vehiclePdcLocation(vehicle) !== 'PMB' || vehicle.pdcQcComplete === true || isPdcBlocked(vehicle) || isActivePartsStoppage(vehicle)) return false;
   if (pdcQualityControlRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))) return false;
   const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
-  return !currentStage;
+  return !currentStage || currentStage === 'PIT_INSPECTION';
 }
 
 function vehicleInQualityControlGate(vehicle = {}) {
@@ -7424,7 +7424,7 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
       return left[0] - right[0] || left[1] - right[1] || left[2].localeCompare(right[2]);
     });
   if (!operations.length) return '';
-  const stationColumns = AUTHENTICATED_OPERATION_STATION_ORDER.map(station => ({
+  const stationColumns = AUTHENTICATED_OPERATION_STATION_ORDER.filter(station => station.stage !== 'PIT_INSPECTION').map(station => ({
     ...station,
     operations: operations.filter(operation => String(operation.work_key || '').trim().toLowerCase() === station.key),
   })).filter(station => station.operations.length);
@@ -12657,9 +12657,9 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   const authenticatedDescriptions = new Set(authenticatedLines.map(line => `${authenticatedTargetStage(line)}\0${cleanNavisionText(line.description).toLowerCase()}`));
   const groups = new Map();
   const canDisplayStage = stage => Boolean(
-    WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]
+    stage !== 'PIT_INSPECTION' && (WORKSHOP_PLANNER_ROUTE_BY_STAGE[stage]
       || (typeof VEHICLE_WORKSHOP_STATION_PRESENTATION !== 'undefined' && VEHICLE_WORKSHOP_STATION_PRESENTATION[stage])
-      || ['PIT_INSPECTION', 'PARTS'].includes(stage),
+      || stage === 'PARTS'),
   );
   const ensureGroup = stage => {
     if (!canDisplayStage(stage)) return null;
