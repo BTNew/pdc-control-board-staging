@@ -5192,10 +5192,22 @@ function qcPageVehicleKey(vehicle = {}) {
   return String(vehicleKey(vehicle) || vehicle.id || '').trim();
 }
 
+function qcPageOperationLineIsDeferredPit(vehicle = {}, line = {}) {
+  if (String(line.sourceKind || '') !== 'authenticated') return false;
+  const sourceLineId = String(line.sourceLineId || '').trim().toLowerCase();
+  if (!sourceLineId) return false;
+  return (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : []).some(sourceLine => (
+    String(sourceLine?.operation_line_id || '').trim().toLowerCase() === sourceLineId
+    && String(sourceLine?.work_key || '').trim().toLowerCase() === 'pitinspection'
+  ));
+}
+
 function qcPageOperationLines(vehicle = {}) {
   const stageRank = stage => stage === 'UNALLOCATED_MAPPING_REVIEW' ? 2 : stage === 'SUBLET' ? 1 : 0;
   return (Array.isArray(vehicle.pdcQcOperationLines) ? vehicle.pdcQcOperationLines : [])
-    .filter(line => line?.active === true && /^(?:source|manual):[0-9a-f-]{36}$/.test(String(line.lineIdentity || '')))
+    .filter(line => line?.active === true
+      && /^(?:source|manual):[0-9a-f-]{36}$/.test(String(line.lineIdentity || ''))
+      && !qcPageOperationLineIsDeferredPit(vehicle, line))
     .sort((a, b) => stageRank(String(a.stageCode)) - stageRank(String(b.stageCode)) || String(a.stageCode).localeCompare(String(b.stageCode)) || String(a.operationNo).localeCompare(String(b.operationNo), undefined, { numeric: true }) || String(a.lineIdentity).localeCompare(String(b.lineIdentity)));
 }
 
@@ -5257,7 +5269,9 @@ function qcPagePhotoDisabledReason(vehicle = {}, key = '') {
   if (!vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1) return 'QC identity/version is unavailable; refresh the authenticated snapshot.';
   if (vehicle.pdcQcRetestCycleId) {
     if (vehicle.pdcQcRetestFreshCycleOpen !== true) return 'This fresh QC cycle is closed; no new photo can be accepted.';
-    if (qcPageOperationLines(vehicle).length !== 17 || !qcPageAllOperationLinesComplete(vehicle)) return 'Complete all 17 operation lines before uploading a QC photo.';
+    const rawActiveLineCount = (Array.isArray(vehicle.pdcQcOperationLines) ? vehicle.pdcQcOperationLines : [])
+      .filter(line => line?.active === true && /^(?:source|manual):[0-9a-f-]{36}$/.test(String(line.lineIdentity || ''))).length;
+    if (rawActiveLineCount !== 17 || !qcPageAllOperationLinesComplete(vehicle)) return 'Complete all 17 operation lines before uploading a QC photo.';
   }
   if (qcPagePhotoUploadInFlight.has(key)) return 'Uploading QC photo…';
   return '';

@@ -55,6 +55,7 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(`
+  ${extractFunction('qcPageOperationLineIsDeferredPit')}
   ${extractFunction('qcPageOperationLines')}
   ${extractFunction('qcPageVehicleIsEligible')}
   this.qcPageVehicleIsEligible = qcPageVehicleIsEligible;
