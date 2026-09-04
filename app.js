@@ -12727,9 +12727,16 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
         sourceWorkshopStage: group.stage,
         description: vehicleWorkshopAdjustedSourceDescription(line, adjustment),
         estimatedHours: vehicleWorkshopAdjustedSourceHours(adjustment.estimated_hours),
-        sourceEstimatedHours: /\bai\b|model/.test(sourceKind) ? null : sourceHours,
-        aiEstimatedHours: /\bai\b|model/.test(sourceKind) ? sourceHours : vehicleWorkshopAdjustedSourceHours(line.ai_estimated_hours),
-        protectedHours: adjustment.manual_assignment_locked && adjustment.correction_origin !== 'manual_operator' ? adjustment.estimated_hours : line.protected_hours,
+        estimatedHoursSource: adjustment.correction_origin === 'job_card_source_correction' ? 'job_card' : (adjustment.correction_origin || sourceKind),
+        sourceEstimatedHours: adjustment.correction_origin === 'job_card_source_correction'
+          ? vehicleWorkshopAdjustedSourceHours(adjustment.estimated_hours)
+          : (/\bai\b|model/.test(sourceKind) ? null : sourceHours),
+        aiEstimatedHours: adjustment.correction_origin === 'job_card_source_correction'
+          ? null
+          : (/\bai\b|model/.test(sourceKind) ? sourceHours : vehicleWorkshopAdjustedSourceHours(line.ai_estimated_hours)),
+        protectedHours: adjustment.correction_origin === 'job_card_source_correction'
+          ? null
+          : (adjustment.manual_assignment_locked && adjustment.correction_origin !== 'manual_operator' ? adjustment.estimated_hours : line.protected_hours),
         manualOverrideHours: adjustment.manual_assignment_locked && adjustment.correction_origin !== 'manual_operator'
           ? line.manual_override_hours
           : vehicleWorkshopAdjustedSourceHours(adjustment.estimated_hours),
@@ -12891,7 +12898,8 @@ function vehicleWorkshopHoursProjection(line = {}) {
   });
 }
 
-function vehicleWorkshopHoursEvidenceLabel(projection = {}) {
+function vehicleWorkshopHoursEvidenceLabel(projection = {}, line = {}) {
+  if (line.correctionOrigin === 'craig_standard_pd_1_5') return 'Craig standard override · scheduling authority';
   return ({ manual_override: 'Manual override · scheduling authority', protected: 'Protected estimate · scheduling authority', source: 'Source evidence · scheduling authority', ai_fallback: 'AI fallback · no source estimate', unavailable: 'No hours evidence' })[projection.rule] || 'No hours evidence';
 }
 
@@ -13051,7 +13059,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
     const description = vehicleWorkshopLineDescription(line, `${presentation.label} work required`);
     const lineBookings = vehicleWorkshopBookingsForLine(group, line);
     const hoursClass = vehicleWorkshopHoursClass(line, estimate);
-    const hoursEvidenceLabel = typeof vehicleWorkshopHoursEvidenceLabel === 'function' ? vehicleWorkshopHoursEvidenceLabel(projection) : '';
+    const hoursEvidenceLabel = typeof vehicleWorkshopHoursEvidenceLabel === 'function' ? vehicleWorkshopHoursEvidenceLabel(projection, line) : '';
     const hoursEvidence = hoursEvidenceLabel ? `<small class="vehicle-workshop-hours-evidence rule-${escapeHtml(projection.rule)}">${escapeHtml(hoursEvidenceLabel)}</small>` : '';
     const operationLineId = cleanNavisionText(line.operation_line_id || line.source_operation_line_id || '').trim().toLowerCase();
     const sourceDescription = cleanNavisionText(line.sourceDescription || line.description || '').replace(/^JC\s+[^·]+\s+·\s+OP\d+\s+·\s+/i, '');
