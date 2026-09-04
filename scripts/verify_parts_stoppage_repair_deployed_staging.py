@@ -23,6 +23,7 @@ PAGES = "https://btnew.github.io/pdc-control-board-staging/"
 VEHICLE_ID = "fd63d897-0000-5000-8000-000000000376"
 LIFECYCLE_VEHICLE_ID = "fd63d897-0000-5000-8000-000000000377"
 STOCK = "HERMES-PARTS-STOPPAGE-FD63D897"
+IMPORT_RECEIPT_ID = "fd63d897-0000-5000-8000-000000000378"
 OUT_DIR = Path(__file__).resolve().parents[1] / "review-evidence" / TASK
 OUT = OUT_DIR / "parts-stoppage-deployed-authenticated.json"
 
@@ -61,6 +62,7 @@ def counts() -> dict[str, object]:
         'parts_count',(select count(*) from public.vehicle_parts_updates where vehicle_id in ('{VEHICLE_ID}'::uuid,'{LIFECYCLE_VEHICLE_ID}'::uuid)),
         'receipt_count',(select count(*) from public.pdc_parts_stoppage_receipts_376 where vehicle_id in ('{VEHICLE_ID}'::uuid,'{LIFECYCLE_VEHICLE_ID}'::uuid)),
         'audit_count',(select count(*) from public.audit_events where vehicle_id in ('{VEHICLE_ID}'::uuid,'{LIFECYCLE_VEHICLE_ID}'::uuid)),
+        'import_receipt_count',(select count(*) from public.pdc_authenticated_email_import_receipts where receipt_id='{IMPORT_RECEIPT_ID}'::uuid),
         'cleanup_evidence_count',(select count(*) from public.pdc_parts_stoppage_verification_cleanup_20260904 where task_key='{TASK}'),
         'notification_count',(select count(*) from public.vehicle_notifications)
       ) result
@@ -117,6 +119,12 @@ def create_fixtures(user_id: str) -> None:
       insert into public.vehicle_parts_updates(vehicle_id,parts_required,parts_ordered,parts_received,parts_stoppage,parts_stoppage_reason,worst_eta,updated_by)
       values('{VEHICLE_ID}'::uuid,true,false,false,false,null,current_date+4,'{user_id}'::uuid),
             ('{LIFECYCLE_VEHICLE_ID}'::uuid,true,false,false,false,null,current_date+4,'{user_id}'::uuid);
+      insert into public.pdc_authenticated_email_import_receipts(
+        receipt_id,actor_id,idempotency_key,request_hash,source_hash,evidence_hash,source_uid,sender_address,
+        source_received_at,stock_number,vehicle_id,identity_source,required_work,response)
+      values('{IMPORT_RECEIPT_ID}'::uuid,'{user_id}'::uuid,'{TASK}-parts-stoppage-fixture',repeat('8',64),repeat('7',64),repeat('6',64),
+        '{TASK}-parts-stoppage-fixture','no-email@invalid.example',clock_timestamp(),'{STOCK}','{VEHICLE_ID}'::uuid,'email_new',
+        '["parts"]'::jsonb,'{{"ok":true,"code":"bounded_fixture","email_sent":false}}'::jsonb);
     """)
 
 
@@ -152,7 +160,8 @@ def cleanup_fixture(user_id: str) -> None:
       end $guard$;
       insert into public.pdc_parts_stoppage_verification_cleanup_20260904(
         task_key,vehicle_id,actor_id,actor_email,before_vehicle,before_parts,receipt_evidence,audit_evidence,cleanup_reason,production_writes)
-      select '{TASK}',v.id,v.created_by,'{EMAIL}',to_jsonb(v),
+      select '{TASK}',v.id,v.created_by,'{EMAIL}',to_jsonb(v)||jsonb_build_object('_import_receipt',
+        (select to_jsonb(i) from public.pdc_authenticated_email_import_receipts i where i.receipt_id='{IMPORT_RECEIPT_ID}'::uuid)),
         coalesce((select jsonb_agg(to_jsonb(p) order by p.updated_at,p.id) from public.vehicle_parts_updates p where p.vehicle_id=v.id),'[]'::jsonb),
         coalesce((select jsonb_agg(to_jsonb(r) order by r.created_at,r.receipt_id) from public.pdc_parts_stoppage_receipts_376 r where r.vehicle_id=v.id),'[]'::jsonb),
         coalesce((select jsonb_agg(to_jsonb(a) order by a.created_at,a.id) from public.audit_events a where a.vehicle_id=v.id),'[]'::jsonb),
@@ -164,6 +173,9 @@ def cleanup_fixture(user_id: str) -> None:
       delete from public.pdc_parts_stoppage_receipts_376 where vehicle_id in ('{VEHICLE_ID}'::uuid,'{LIFECYCLE_VEHICLE_ID}'::uuid);
       alter table public.pdc_parts_stoppage_receipts_376 enable trigger pdc_parts_stoppage_receipts_append_only_376;
       delete from public.vehicle_parts_updates where vehicle_id in ('{VEHICLE_ID}'::uuid,'{LIFECYCLE_VEHICLE_ID}'::uuid);
+      alter table public.pdc_authenticated_email_import_receipts disable trigger user;
+      delete from public.pdc_authenticated_email_import_receipts where receipt_id='{IMPORT_RECEIPT_ID}'::uuid and vehicle_id='{VEHICLE_ID}'::uuid and actor_id='{user_id}'::uuid;
+      alter table public.pdc_authenticated_email_import_receipts enable trigger user;
       alter table public.vehicle_work_items disable trigger user;
       delete from public.vehicle_work_items where vehicle_id in ('{VEHICLE_ID}'::uuid,'{LIFECYCLE_VEHICLE_ID}'::uuid);
       alter table public.vehicle_work_items enable trigger user;
@@ -191,7 +203,7 @@ def main() -> int:
             raise RuntimeError(f"unexpected STAGING head: {before['head']}")
         if before["staging_sentinel_count"] != 1 or before["production_sentinel_present"]:
             raise RuntimeError("STAGING sentinel preflight failed")
-        if any(before[key] for key in ("auth_count", "role_count", "vehicle_count", "work_count", "parts_count", "receipt_count", "audit_count")):
+        if any(before[key] for key in ("auth_count", "role_count", "vehicle_count", "work_count", "parts_count", "receipt_count", "audit_count", "import_receipt_count")):
             raise RuntimeError("bounded verification namespace is not clean")
 
         management_headers = {"Authorization": f"Bearer {supabase_access_token()}", "Accept": "application/json", "User-Agent": "SupabaseCLI/2.116.0"}
@@ -220,7 +232,7 @@ def main() -> int:
         assert_denied("viewer_denied", rpc(user_headers, key="fd63d897-0000-5000-8000-000000000012", action="set", reason="viewer denied"), evidence, untouched)
         set_role(role="importer", active=True, status="approved")
         assert_denied("importer_denied", rpc(user_headers, key="fd63d897-0000-5000-8000-000000000013", action="set", reason="importer denied"), evidence, untouched)
-        set_role(role="operator", active=False, status="approved")
+        set_role(role="operator", active=False, status="disabled")
         assert_denied("inactive_denied", rpc(user_headers, key="fd63d897-0000-5000-8000-000000000014", action="set", reason="inactive denied"), evidence, untouched)
         set_role(role="operator", active=True, status="approved", email="wrong.identity@example.com")
         assert_denied("identity_mismatch_denied", rpc(user_headers, key="fd63d897-0000-5000-8000-000000000015", action="set", reason="identity denied"), evidence, untouched)
@@ -281,7 +293,7 @@ def main() -> int:
             'vehicle_version',(select version from public.vehicles where id='{VEHICLE_ID}'::uuid),
             'latest_parts',(select jsonb_build_object('stoppage',parts_stoppage,'reason',parts_stoppage_reason) from public.vehicle_parts_updates where vehicle_id='{VEHICLE_ID}'::uuid order by updated_at desc,id desc limit 1),
             'receipts',(select jsonb_agg(jsonb_build_object('action',action,'reason',reason,'response',response) order by created_at) from public.pdc_parts_stoppage_receipts_376 where vehicle_id='{VEHICLE_ID}'::uuid),
-            'audits',(select jsonb_agg(jsonb_build_object('action',action,'new_data',new_data) order by created_at,id) from public.audit_events where vehicle_id='{VEHICLE_ID}'::uuid),
+            'audits',(select jsonb_agg(to_jsonb(a) order by a.created_at,a.id) from public.audit_events a where a.vehicle_id='{VEHICLE_ID}'::uuid),
             'notification_count',(select count(*) from public.vehicle_notifications),
             'parts_receipts_private',not has_table_privilege('authenticated','public.pdc_parts_stoppage_receipts_376','select')
           ) result
@@ -290,7 +302,24 @@ def main() -> int:
         if sql_readback["vehicle_version"] != 5 or sql_readback["latest_parts"] != {"stoppage": False, "reason": None} or not sql_readback["parts_receipts_private"] or sql_readback["notification_count"] != before["notification_count"]:
             raise RuntimeError("SQL authoritative parity/readback failed")
 
+        snapshot_status, snapshot_body = http_json(f"{BASE}/rest/v1/rpc/get_pdc_email_vehicle_location_snapshot", method="POST", headers=user_headers, payload={})
+        snapshot_data = snapshot_body.get("data", {}) if isinstance(snapshot_body, dict) else {}
+        snapshot_fixture = next((vehicle for vehicle in snapshot_data.get("vehicles", []) if vehicle.get("id") == VEHICLE_ID), None)
+        evidence["pre_ui_snapshot"] = {
+            "status": snapshot_status,
+            "ok": snapshot_body.get("ok") if isinstance(snapshot_body, dict) else None,
+            "code": snapshot_body.get("code") if isinstance(snapshot_body, dict) else None,
+            "revision": snapshot_data.get("revision"),
+            "fixture": {
+                "id": snapshot_fixture.get("id"),
+                "stock_number": snapshot_fixture.get("stock_number"),
+                "visible_on_board": snapshot_fixture.get("visible_on_board"),
+                "parts_stoppage": (snapshot_fixture.get("parts_update") or {}).get("parts_stoppage"),
+            } if snapshot_fixture else None,
+        }
+
         browser_events = {"page_errors": [], "http_errors": [], "production_requests": [], "parts_rpc": []}
+        evidence["browser_events"] = browser_events
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
             context = browser.new_context(viewport={"width": 1440, "height": 1000})
@@ -299,12 +328,25 @@ def main() -> int:
             page.on("response", lambda response: browser_events["http_errors"].append({"status": response.status, "url": response.url}) if response.status >= 400 else None)
             page.on("response", lambda response: browser_events["parts_rpc"].append({"status": response.status, "url": response.url}) if "set_pdc_parts_stoppage_376" in response.url else None)
             page.on("request", lambda request: browser_events["production_requests"].append(request.url) if PRODUCTION_REF in request.url else None)
+            evidence["browser_stage"] = "navigate"
             page.goto(PAGES + "?parts-stoppage=" + TASK, wait_until="domcontentloaded", timeout=90000)
+            evidence["browser_stage"] = "wait_initial_auth_state"
             page.wait_for_function("() => ['signed-out','approved'].includes(document.body.dataset.authState)", timeout=90000)
+            evidence["browser_stage"] = "login"
             page.locator("#pdc-login-email").fill(EMAIL)
             page.locator("#pdc-login-password").fill(password)
             page.locator("#pdc-password-login").click()
             page.wait_for_function("() => document.body.dataset.authState === 'approved'", timeout=30000)
+            page.wait_for_function("() => Boolean(app.emailVehicleLocationService)", timeout=30000)
+            refresh_attempts = []
+            for _ in range(3):
+                refresh_attempts.append(page.evaluate("() => refreshEmailVehicleLocations()"))
+                if refresh_attempts[-1] is True:
+                    break
+                page.wait_for_timeout(500)
+            evidence["browser_refresh"] = refresh_attempts
+            evidence["browser_rows_after_refresh"] = page.evaluate("([vehicleId,lifecycleId,stock]) => ({email:app.emailVehicleLocationRows.filter(v=>[vehicleId,lifecycleId].includes(v.id)).map(v=>({id:v.id,stock_number:v.stock_number,visible:v.visible_on_board})),data:app.data.filter(v=>String(v.stock||'').startsWith(stock)).map(v=>({id:v.id,stock:v.stock,canonical:v.__emailVehicleCanonicalId})),error:app.emailVehicleLocationError})", [VEHICLE_ID, LIFECYCLE_VEHICLE_ID, STOCK])
+            evidence["browser_stage"] = "wait_fixture_row"
             page.wait_for_function("stock => (app.data || []).some(v => v.stock === stock)", arg=STOCK, timeout=30000)
             page.locator("[data-view='parts']").click()
             page.wait_for_selector("[data-parts-stoppage]:visible", timeout=30000)
@@ -313,10 +355,11 @@ def main() -> int:
             set_button = page.locator(f'[data-parts-stoppage="{STOCK}"]:visible')
             if set_button.count() != 1:
                 raise RuntimeError(f"expected one exact fixture STOPPAGE control, got {set_button.count()}")
+            set_button.screenshot(path=str(OUT_DIR / "parts-stoppage-ui-clear.png"))
             set_button.click()
             page.wait_for_function("stock => app.data.some(v => v.stock === stock && v.pdcPartsStoppage === true)", arg=STOCK, timeout=30000)
             ui_set_readback = vehicle_state()
-            page.screenshot(path=str(OUT_DIR / "parts-stoppage-ui-set.png"), full_page=True)
+            page.locator(f'[data-parts-clear-stoppage="{STOCK}"]:visible').screenshot(path=str(OUT_DIR / "parts-stoppage-ui-set.png"))
             ui_clear_reason = f"{TASK} deployed UI exact recovery"
             page.once("dialog", lambda dialog: dialog.accept(ui_clear_reason))
             clear_button = page.locator(f'[data-parts-clear-stoppage="{STOCK}"]:visible')
@@ -325,7 +368,6 @@ def main() -> int:
             clear_button.click()
             page.wait_for_function("stock => app.data.some(v => v.stock === stock && v.pdcPartsStoppage === false)", arg=STOCK, timeout=30000)
             ui_clear_readback = vehicle_state()
-            page.screenshot(path=str(OUT_DIR / "parts-stoppage-ui-clear.png"), full_page=True)
             evidence["deployed_ui"] = {"events": browser_events, "set_reason": ui_set_reason, "set_readback": ui_set_readback, "clear_reason": ui_clear_reason, "clear_readback": ui_clear_readback, "dom": page.evaluate("stock => { const v=app.data.find(x=>x.stock===stock); return {authState:document.body.dataset.authState,role:window.PDC_AUTH_CONTEXT?.role,project:window.PDC_SUPABASE_CONFIG?.projectRef,row:{stock:v?.stock,stoppage:v?.pdcPartsStoppage,reason:v?.pdcPartsStoppageReason,version:v?.__emailVehicleVersion}}; }", STOCK)}
             context.close()
             browser.close()
@@ -341,7 +383,7 @@ def main() -> int:
                 or ui_clear_readback["parts"]["stoppage"] or ui_clear_readback["vehicle"]["version"] != 7
                 or ui_clear_readback["notification_count"] != before["notification_count"]
                 or ui_dom["authState"] != "approved" or ui_dom["role"] != "operator" or ui_dom["project"] != STAGING_REF
-                or ui_dom["row"] != {"stock": STOCK, "stoppage": False, "reason": None, "version": 7}):
+                or ui_dom["row"] != {"stock": STOCK, "stoppage": False, "reason": "", "version": 7}):
             raise RuntimeError(f"deployed authenticated UI set/clear failed: {evidence['deployed_ui']}")
         evidence["all_checks_passed"] = True
     except Exception as error:
@@ -373,7 +415,7 @@ def main() -> int:
         OUT.write_text(json.dumps(evidence, indent=2, default=str) + "\n", encoding="utf-8")
         print(json.dumps({"evidence": str(OUT), "all_checks_passed": evidence.get("all_checks_passed"), "execution_error": evidence.get("execution_error"), "cleanup": evidence.get("cleanup"), "cleanup_errors": cleanup_errors}, indent=2, default=str))
     clean = evidence.get("cleanup") or {}
-    cleanup_zero = all(clean.get(key) == 0 for key in ("auth_count", "role_count", "vehicle_count", "work_count", "parts_count", "receipt_count", "audit_count"))
+    cleanup_zero = all(clean.get(key) == 0 for key in ("auth_count", "role_count", "vehicle_count", "work_count", "parts_count", "receipt_count", "audit_count", "import_receipt_count"))
     return 0 if evidence.get("all_checks_passed") and cleanup_zero and clean.get("cleanup_evidence_count", 0) >= 1 and not cleanup_errors else 2
 
 
