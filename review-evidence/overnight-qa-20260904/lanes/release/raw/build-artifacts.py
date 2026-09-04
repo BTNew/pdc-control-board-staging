@@ -172,7 +172,7 @@ Completed: {COMPLETED}
 - Focused PDC-14 Node: {focused_node_counts['pass']}/{focused_node_counts['tests']} passed.
 - Full Node: {node_counts['pass']}/{node_counts['tests']} passed.
 - Focused Python/SQL contracts: {focused_py_match.group(1)} passed, {focused_py_match.group(2)} expected live skips.
-- Transactional STAGING authorization matrix: 8/8 passed; seven denied identities/scopes returned no data, the approved target succeeded, and the U158318 row fingerprint remained unchanged.
+- Transactional STAGING authorization matrix: 8/8 passed; seven denied identities/scopes returned no data, the approved target succeeded, and the [REDACTED_STOCK_B] row fingerprint remained unchanged.
 - Full runnable Python baseline: {full_py_match.group(2)} passed, {full_py_match.group(3)} skipped, {full_py_match.group(1)} failed, {full_py_match.group(4)} errors, {full_py_match.group(5)} subtests passed. Failures are separated in `issue-register.json`: missing external profile/bootstrap/fixture dependencies, three stale digest assertions, and one legacy historical-adapter expectation mismatch. No failure touches the PR #31 paths or reproduces in the focused/full Node release loops.
 - The sole standalone SQL test mutates external-completion business state and was intentionally not run under this read-only lane. SQL contracts were exercised by pglast-backed tests and Supabase Preview migrations.
 
@@ -182,7 +182,7 @@ Completed: {COMPLETED}
 - Provenance RPC remains SECURITY DEFINER with fixed `search_path=pg_catalog, public`; EXECUTE is authenticated-only. Anon/service-role EXECUTE are denied and the obsolete two-argument overload is absent.
 - Lifecycle-history table has RLS and FORCE RLS; anon/authenticated have no direct SELECT.
 - Authorization outcomes: no role/inactive/pending/UUID-email mismatch = forbidden; wrong dealer = dealer_scope_denied; unauthenticated = unauthorized; invalid target = vehicle_not_found; approved target = ok. No denied result contained `data`.
-- U158318 remained version 3, VIN JTFHB8CP806024409, registration 1HJX697, YH, customer/salesperson/job-card identity unchanged before/after probes. Fresh read-back confirmed 18 operation rows / 58.90 hours, zero-hour OP9/OP14/OP15, seven required and zero completed work groups, and zero workshop bookings.
+- [REDACTED_STOCK_B] remained version 3, VIN [REDACTED_VIN_B], registration [REDACTED_REGISTRATION], YH, customer/salesperson/job-card identity unchanged before/after probes. Fresh read-back confirmed 18 operation rows / 58.90 hours, zero-hour OP9/OP14/OP15, seven required and zero completed work groups, and zero workshop bookings.
 
 ## Advisors and current Supabase guidance
 
@@ -192,7 +192,7 @@ Completed: {COMPLETED}
 
 ## Containment and verdict
 
-No code, migration, merge, deployment, Production request, email request, or persistent STAGING mutation was performed. Transactional role probes were rolled back and exact before/after U158318 fingerprints match. No introduced product regression was found. Release baseline passes with six documented baseline/environment/forward-debt issues for downstream integration.
+No code, migration, merge, deployment, Production request, email request, or persistent STAGING mutation was performed. Transactional role probes were rolled back and exact before/after [REDACTED_STOCK_B] fingerprints match. No introduced product regression was found. Release baseline passes with six documented baseline/environment/forward-debt issues for downstream integration.
 
 Machine evidence: `test-results.json`, `deployment-verification.json`, `advisor-results.json`, `issue-register.json`, and bounded logs under `raw/`.
 """

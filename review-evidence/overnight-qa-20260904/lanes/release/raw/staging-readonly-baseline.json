@@ -53,7 +53,7 @@
       "ok": true,
       "code": "ok",
       "has_data": true,
-      "vehicle_id": "e49685ca-c9b7-448d-9b45-1aba97d6d3b4"
+      "vehicle_id": "[REDACTED_UUID_d8ff3d1b0e]"
     }
   },
   "denied_cases_have_no_data": true,
@@ -169,30 +169,30 @@
   },
   "target_before": {
     "vehicle": {
-      "id": "e49685ca-c9b7-448d-9b45-1aba97d6d3b4",
-      "vin": "JTFHB8CP806024409",
+      "id": "[REDACTED_UUID_d8ff3d1b0e]",
+      "vin": "[REDACTED_VIN_B]",
       "make": "Toyota",
       "model": "Toyota HiAce Commuter Bus DSL AT GDH322R-EDTPYQ",
       "version": 3,
       "pmb_stage": null,
       "created_at": "2026-09-04T03:45:01.476506+00:00",
-      "created_by": "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b",
+      "created_by": "[REDACTED_UUID_1a4cb3c4c8]",
       "deleted_at": null,
       "key_number": null,
       "updated_at": "2026-09-04T05:18:17.045178+00:00",
-      "updated_by": "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b",
+      "updated_by": "[REDACTED_UUID_1a4cb3c4c8]",
       "date_to_pmb": null,
       "date_to_rft": null,
       "pmb_key_tag": null,
-      "registration": "1HJX697",
-      "stock_number": "U158318",
-      "customer_name": "CATALYST METALS PTY LTD",
+      "registration": "[REDACTED_REGISTRATION]",
+      "stock_number": "[REDACTED_STOCK_B]",
+      "customer_name": "[REDACTED_CUSTOMER_B]",
       "pmb_bay_stage": null,
       "source_system": "authenticated_email",
       "deleted_reason": null,
       "eta_to_kewdale": null,
       "pmb_bay_number": null,
-      "salesperson_id": "ec12a667-7474-4c50-a9ef-96c44e66ac0b",
+      "salesperson_id": "[REDACTED_UUID_dc4ca5cc2b]",
       "source_payload": {
         "contract": "pmb-non-navision-jobcard-161",
         "source_hash": "7e7d24755e4856f0d7fe22086b6b84842874c0474fe60a2f9e754fe088fcbc95",
@@ -204,27 +204,27 @@
           "manifest_sha256": "7e7d24755e4856f0d7fe22086b6b84842874c0474fe60a2f9e754fe088fcbc95",
           "gmail_message_id": "1a03c7421bf55d95",
           "attachment_sha256": "621f5350a8fdd002e4f79f41b7b927e58b078fdc632eb6c19865650e821e4cdb",
-          "source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1",
+          "source_receipt_id": "[REDACTED_UUID_358e58cfc7]",
           "operations_authority": "18 retained Job Card rows with explicit hours",
-          "authenticated_source_vin": "JTFHB8CP806024409",
-          "canonical_import_receipt_id": "7a00e271-8652-4994-84d5-32dd496a3d71",
-          "job_card_customer_authority": "CATALYST METALS PTY LTD"
+          "authenticated_source_vin": "[REDACTED_VIN_B]",
+          "canonical_import_receipt_id": "[REDACTED_UUID_db2627862e]",
+          "job_card_customer_authority": "[REDACTED_CUSTOMER_B]"
         },
         "effective_provenance": {
           "vin": {
-            "value": "JTFHB8CP806024409",
+            "value": "[REDACTED_VIN_B]",
             "authority": "authenticated_non_navision_job_card",
-            "source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1"
+            "source_receipt_id": "[REDACTED_UUID_358e58cfc7]"
           },
           "review": [
             {
-              "id": "U158318-AERIAL-01",
+              "id": "[REDACTED_STOCK_B]-AERIAL-01",
               "reason": "1.2m whip aerial/bracket is unresolved against OP13 580mm aerial and has no hours",
               "status": "REVIEW"
             }
           ],
           "customer": {
-            "value": "CATALYST METALS PTY LTD",
+            "value": "[REDACTED_CUSTOMER_B]",
             "authority": "job_card"
           },
           "location": {
@@ -237,13 +237,13 @@
             "authority": "unique_active_canonical_directory_match_to_authenticated_sender"
           }
         },
-        "authenticated_source_vin": "JTFHB8CP806024409",
-        "vin_projection_source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1"
+        "authenticated_source_vin": "[REDACTED_VIN_B]",
+        "vin_projection_source_receipt_id": "[REDACTED_UUID_358e58cfc7]"
       },
-      "vin_normalized": "JTFHB8CP806024409",
+      "vin_normalized": "[REDACTED_VIN_B]",
       "board_purged_at": null,
       "board_purged_by": null,
-      "job_card_number": "J138000812",
+      "job_card_number": "[REDACTED_JOB_CARD_B]",
       "lifecycle_state": "active",
       "qc_completed_at": null,
       "qc_completed_by": null,
@@ -254,7 +254,7 @@
       "rft_collected_by": null,
       "rft_confirmed_at": null,
       "rft_confirmed_by": null,
-      "source_record_id": "2684b2e2-e4fa-5f00-be5c-751794972c47",
+      "source_record_id": "[REDACTED_UUID_25b6487e2f]",
       "visible_on_board": true,
       "sales_tint_raised": false,
       "board_purge_reason": null,
@@ -275,7 +275,7 @@
       "pmb_stoppage_started_by": null,
       "rft_transport_booked_at": null,
       "rft_transport_booked_by": null,
-      "stock_number_normalized": "U158318",
+      "stock_number_normalized": "[REDACTED_STOCK_B]",
       "dealer_transit_closed_at": null,
       "delivered_to_dealer_date": null,
       "source_system_normalized": "authenticated_email",
@@ -284,41 +284,41 @@
       "workshop_status_updated_at": null,
       "workshop_status_updated_by": null,
       "salesperson_manual_override": true,
-      "source_record_id_normalized": "2684B2E2-E4FA-5F00-BE5C-751794972C47",
+      "source_record_id_normalized": "[REDACTED_UUID_25b6487e2f]",
       "sales_preparation_updated_at": null,
       "sales_preparation_updated_by": null,
       "salesperson_manual_override_at": "2026-09-04T03:45:01.697254+00:00",
-      "salesperson_manual_override_by": "9ed73e4c-beb0-4f81-9a0f-bde72c9802a1",
+      "salesperson_manual_override_by": "[REDACTED_UUID_8ca7fd86a9]",
       "dealer_transit_duration_seconds": null
     },
     "fingerprint": "b98791e9c43fae32686e9b9cc580153d"
   },
   "target_after": {
     "vehicle": {
-      "id": "e49685ca-c9b7-448d-9b45-1aba97d6d3b4",
-      "vin": "JTFHB8CP806024409",
+      "id": "[REDACTED_UUID_d8ff3d1b0e]",
+      "vin": "[REDACTED_VIN_B]",
       "make": "Toyota",
       "model": "Toyota HiAce Commuter Bus DSL AT GDH322R-EDTPYQ",
       "version": 3,
       "pmb_stage": null,
       "created_at": "2026-09-04T03:45:01.476506+00:00",
-      "created_by": "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b",
+      "created_by": "[REDACTED_UUID_1a4cb3c4c8]",
       "deleted_at": null,
       "key_number": null,
       "updated_at": "2026-09-04T05:18:17.045178+00:00",
-      "updated_by": "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b",
+      "updated_by": "[REDACTED_UUID_1a4cb3c4c8]",
       "date_to_pmb": null,
       "date_to_rft": null,
       "pmb_key_tag": null,
-      "registration": "1HJX697",
-      "stock_number": "U158318",
-      "customer_name": "CATALYST METALS PTY LTD",
+      "registration": "[REDACTED_REGISTRATION]",
+      "stock_number": "[REDACTED_STOCK_B]",
+      "customer_name": "[REDACTED_CUSTOMER_B]",
       "pmb_bay_stage": null,
       "source_system": "authenticated_email",
       "deleted_reason": null,
       "eta_to_kewdale": null,
       "pmb_bay_number": null,
-      "salesperson_id": "ec12a667-7474-4c50-a9ef-96c44e66ac0b",
+      "salesperson_id": "[REDACTED_UUID_dc4ca5cc2b]",
       "source_payload": {
         "contract": "pmb-non-navision-jobcard-161",
         "source_hash": "7e7d24755e4856f0d7fe22086b6b84842874c0474fe60a2f9e754fe088fcbc95",
@@ -330,27 +330,27 @@
           "manifest_sha256": "7e7d24755e4856f0d7fe22086b6b84842874c0474fe60a2f9e754fe088fcbc95",
           "gmail_message_id": "1a03c7421bf55d95",
           "attachment_sha256": "621f5350a8fdd002e4f79f41b7b927e58b078fdc632eb6c19865650e821e4cdb",
-          "source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1",
+          "source_receipt_id": "[REDACTED_UUID_358e58cfc7]",
           "operations_authority": "18 retained Job Card rows with explicit hours",
-          "authenticated_source_vin": "JTFHB8CP806024409",
-          "canonical_import_receipt_id": "7a00e271-8652-4994-84d5-32dd496a3d71",
-          "job_card_customer_authority": "CATALYST METALS PTY LTD"
+          "authenticated_source_vin": "[REDACTED_VIN_B]",
+          "canonical_import_receipt_id": "[REDACTED_UUID_db2627862e]",
+          "job_card_customer_authority": "[REDACTED_CUSTOMER_B]"
         },
         "effective_provenance": {
           "vin": {
-            "value": "JTFHB8CP806024409",
+            "value": "[REDACTED_VIN_B]",
             "authority": "authenticated_non_navision_job_card",
-            "source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1"
+            "source_receipt_id": "[REDACTED_UUID_358e58cfc7]"
           },
           "review": [
             {
-              "id": "U158318-AERIAL-01",
+              "id": "[REDACTED_STOCK_B]-AERIAL-01",
               "reason": "1.2m whip aerial/bracket is unresolved against OP13 580mm aerial and has no hours",
               "status": "REVIEW"
             }
           ],
           "customer": {
-            "value": "CATALYST METALS PTY LTD",
+            "value": "[REDACTED_CUSTOMER_B]",
             "authority": "job_card"
           },
           "location": {
@@ -363,13 +363,13 @@
             "authority": "unique_active_canonical_directory_match_to_authenticated_sender"
           }
         },
-        "authenticated_source_vin": "JTFHB8CP806024409",
-        "vin_projection_source_receipt_id": "5d4f30f7-561c-4998-a68d-7dfd5e188fe1"
+        "authenticated_source_vin": "[REDACTED_VIN_B]",
+        "vin_projection_source_receipt_id": "[REDACTED_UUID_358e58cfc7]"
       },
-      "vin_normalized": "JTFHB8CP806024409",
+      "vin_normalized": "[REDACTED_VIN_B]",
       "board_purged_at": null,
       "board_purged_by": null,
-      "job_card_number": "J138000812",
+      "job_card_number": "[REDACTED_JOB_CARD_B]",
       "lifecycle_state": "active",
       "qc_completed_at": null,
       "qc_completed_by": null,
@@ -380,7 +380,7 @@
       "rft_collected_by": null,
       "rft_confirmed_at": null,
       "rft_confirmed_by": null,
-      "source_record_id": "2684b2e2-e4fa-5f00-be5c-751794972c47",
+      "source_record_id": "[REDACTED_UUID_25b6487e2f]",
       "visible_on_board": true,
       "sales_tint_raised": false,
       "board_purge_reason": null,
@@ -401,7 +401,7 @@
       "pmb_stoppage_started_by": null,
       "rft_transport_booked_at": null,
       "rft_transport_booked_by": null,
-      "stock_number_normalized": "U158318",
+      "stock_number_normalized": "[REDACTED_STOCK_B]",
       "dealer_transit_closed_at": null,
       "delivered_to_dealer_date": null,
       "source_system_normalized": "authenticated_email",
@@ -410,11 +410,11 @@
       "workshop_status_updated_at": null,
       "workshop_status_updated_by": null,
       "salesperson_manual_override": true,
-      "source_record_id_normalized": "2684B2E2-E4FA-5F00-BE5C-751794972C47",
+      "source_record_id_normalized": "[REDACTED_UUID_25b6487e2f]",
       "sales_preparation_updated_at": null,
       "sales_preparation_updated_by": null,
       "salesperson_manual_override_at": "2026-09-04T03:45:01.697254+00:00",
-      "salesperson_manual_override_by": "9ed73e4c-beb0-4f81-9a0f-bde72c9802a1",
+      "salesperson_manual_override_by": "[REDACTED_UUID_8ca7fd86a9]",
       "dealer_transit_duration_seconds": null
     },
     "fingerprint": "b98791e9c43fae32686e9b9cc580153d"

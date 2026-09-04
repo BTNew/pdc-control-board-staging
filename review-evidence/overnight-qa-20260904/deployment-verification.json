@@ -1,0 +1,143 @@
+{
+  "generated_at": "2026-09-04T21:33:01.290863+00:00",
+  "repository": "BTNew/pdc-control-board-staging",
+  "pr": {
+    "baseRefName": "main",
+    "headRefName": "wt/t_5c5e9096",
+    "mergeCommit": {
+      "oid": "d488f1f18c1058df6d068a467b7347e088e43ef8"
+    },
+    "mergedAt": "2026-09-04T21:01:29Z",
+    "state": "MERGED",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-09-04T20:59:53Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/BTNew/pdc-control-board-staging/actions/runs/33918956931/job/101172598921",
+        "name": "verify",
+        "startedAt": "2026-09-04T20:59:43Z",
+        "status": "COMPLETED",
+        "workflowName": "Staging integrity"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-09-04T21:01:27Z",
+        "conclusion": "FAILURE",
+        "detailsUrl": "https://supabase.com/dashboard/project/tfxlazlxzsyplmryrtpx",
+        "name": "Supabase Preview",
+        "startedAt": "2026-09-04T21:00:48Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      },
+      {
+        "__typename": "StatusContext",
+        "context": "CodeRabbit",
+        "startedAt": "2026-09-04T20:59:44Z",
+        "state": "SUCCESS",
+        "targetUrl": ""
+      }
+    ],
+    "url": "https://github.com/BTNew/pdc-control-board-staging/pull/45"
+  },
+  "merge_sha": "d488f1f18c1058df6d068a467b7347e088e43ef8",
+  "remote_main": "d488f1f18c1058df6d068a467b7347e088e43ef8",
+  "pages": {
+    "conclusion": "success",
+    "createdAt": "2026-09-04T21:01:31Z",
+    "databaseId": 33919114426,
+    "headSha": "d488f1f18c1058df6d068a467b7347e088e43ef8",
+    "status": "completed",
+    "updatedAt": "2026-09-04T21:02:00Z",
+    "url": "https://github.com/BTNew/pdc-control-board-staging/actions/runs/33919114426",
+    "workflowName": "pages-build-deployment"
+  },
+  "staging_integrity": {
+    "conclusion": "success",
+    "createdAt": "2026-09-04T21:01:32Z",
+    "databaseId": 33919115669,
+    "headSha": "d488f1f18c1058df6d068a467b7347e088e43ef8",
+    "status": "completed",
+    "updatedAt": "2026-09-04T21:01:46Z",
+    "url": "https://github.com/BTNew/pdc-control-board-staging/actions/runs/33919115669",
+    "workflowName": "Staging integrity"
+  },
+  "assets": {
+    "index.html": {
+      "deployed_sha256": "f64eba7262fb14afd07441c548e423dc7c3ba954e86e1cad727619da9f8d11c5",
+      "merge_sha256": "f64eba7262fb14afd07441c548e423dc7c3ba954e86e1cad727619da9f8d11c5",
+      "bytes_equal": true,
+      "bytes": 73175
+    },
+    "app.js": {
+      "deployed_sha256": "a9fd3cd2c9d6394456cc3bd0baac8e0065834f0f35b1faf450e0108ca6520ddb",
+      "merge_sha256": "a9fd3cd2c9d6394456cc3bd0baac8e0065834f0f35b1faf450e0108ca6520ddb",
+      "bytes_equal": true,
+      "bytes": 1356539
+    },
+    "styles.css": {
+      "deployed_sha256": "980d92b51e10ec6bee2473a1d2e12bcbaf3eea9b3a0ba2de310030591dc7428d",
+      "merge_sha256": "980d92b51e10ec6bee2473a1d2e12bcbaf3eea9b3a0ba2de310030591dc7428d",
+      "bytes_equal": true,
+      "bytes": 415638
+    },
+    "pdc-supabase-config.staging.js": {
+      "deployed_sha256": "5a9fed40d5cd492b36b1cbed745372b38f2f2727443a0c1762afc959bd0fff81",
+      "merge_sha256": "5a9fed40d5cd492b36b1cbed745372b38f2f2727443a0c1762afc959bd0fff81",
+      "bytes_equal": true,
+      "bytes": 2148
+    }
+  },
+  "asset_byte_parity": true,
+  "staging_database": {
+    "ok": true,
+    "mode": "apply",
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "before": {
+      "head": [
+        "20260905010100",
+        "navision_projection_cleanup_evidence_parity"
+      ],
+      "provolatile": "s",
+      "anon_execute": false,
+      "function_definition": {
+        "uses_lifecycle_wrapper": true,
+        "uses_pre_82000_snapshot": true
+      },
+      "service_role_execute": false,
+      "authenticated_execute": true,
+      "staging_sentinel_count": 1,
+      "production_sentinel_present": false
+    },
+    "after": {
+      "head": [
+        "20260905010200",
+        "archived_snapshot_volatility_repair"
+      ],
+      "provolatile": "v",
+      "anon_execute": false,
+      "function_definition": {
+        "uses_lifecycle_wrapper": true,
+        "uses_pre_82000_snapshot": true
+      },
+      "service_role_execute": false,
+      "authenticated_execute": true,
+      "staging_sentinel_count": 1,
+      "production_sentinel_present": false
+    },
+    "authenticated_probe": {
+      "ok": true,
+      "code": "archived_vehicle_snapshot",
+      "actor_kind": "approved_staging_administrator",
+      "item_count": 0
+    },
+    "production_contacted": false,
+    "production_mutated": false
+  },
+  "deployed_browser": {
+    "ok": true,
+    "checks": 15
+  },
+  "production_contacted": false,
+  "production_mutated": false
+}

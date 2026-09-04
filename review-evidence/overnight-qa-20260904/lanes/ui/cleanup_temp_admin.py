@@ -9,7 +9,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from apply_pdc14_staging import management_write
 from inspect_pdc14_staging import management_query
 
-EMAIL = "ui.inventory.20260905@pdc-staging.invalid"
+EMAIL = "[REDACTED_EMAIL]"
 cleanup = management_write(f"""
 with target as (select id from auth.users where lower(email)='{EMAIL}'),
 deleted_receipts as (

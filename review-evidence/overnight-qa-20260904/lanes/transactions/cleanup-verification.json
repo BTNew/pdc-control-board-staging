@@ -3,7 +3,7 @@
   "project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_contacted": false,
   "tag_prefix": "QA-OVERNIGHT-20260904",
-  "synthetic_actor_id": "46e6d59b-48ba-5bed-9dc4-090420260001",
+  "synthetic_actor_id": "[REDACTED_UUID_efc9f9ee19]",
   "pre_cleanup": {
     "total_tagged_rows": 264,
     "tables": {
@@ -44,6 +44,6 @@
     "actor_count": 0,
     "real_vehicle_count_before": 2,
     "real_vehicle_count_after": 2,
-    "protected_controls_unchanged": ["13048501", "U158318"]
+    "protected_controls_unchanged": ["[REDACTED_STOCK_A]", "[REDACTED_STOCK_B]"]
   }
 }

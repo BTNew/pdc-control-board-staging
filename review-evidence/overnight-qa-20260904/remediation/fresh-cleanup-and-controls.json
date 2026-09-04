@@ -1,0 +1,60 @@
+{
+  "verified_at": "2026-09-04T21:08:03.230008+00:00",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "prefix": "QA-OVERNIGHT-20260904",
+  "synthetic_actor_id": "[REDACTED_UUID_efc9f9ee19]",
+  "tagged_rows": [],
+  "tagged_row_total": 0,
+  "actor_rows": [],
+  "actor_row_total": 0,
+  "orphan_vehicle_references": [],
+  "orphan_vehicle_reference_total": 0,
+  "database": {
+    "head": [
+      "20260905010200",
+      "archived_snapshot_volatility_repair"
+    ],
+    "controls": {
+      "[REDACTED_STOCK_A]": {
+        "id": "[REDACTED_UUID_7b5f9b7f96]",
+        "vin": "[REDACTED_VIN_A]",
+        "version": 12,
+        "bookings": 6,
+        "updated_at": "2026-09-04T02:36:59.407668+00:00",
+        "work_items": 8,
+        "history_rows": 1,
+        "registration": null,
+        "customer_name": "[REDACTED_CUSTOMER_A]",
+        "job_card_number": "[REDACTED_JOB_CARD_A]",
+        "lifecycle_state": "active",
+        "current_location": "QC"
+      },
+      "[REDACTED_STOCK_B]": {
+        "id": "[REDACTED_UUID_d8ff3d1b0e]",
+        "vin": "[REDACTED_VIN_B]",
+        "version": 3,
+        "bookings": 0,
+        "updated_at": "2026-09-04T05:18:17.045178+00:00",
+        "work_items": 7,
+        "history_rows": 0,
+        "registration": "[REDACTED_REGISTRATION]",
+        "customer_name": "[REDACTED_CUSTOMER_B]",
+        "job_card_number": "[REDACTED_JOB_CARD_B]",
+        "lifecycle_state": "active",
+        "current_location": "YH"
+      }
+    },
+    "vehicle_count": 2,
+    "snapshot_function": {
+      "provolatile": "v",
+      "anon_execute": false,
+      "service_role_execute": false,
+      "authenticated_execute": true
+    },
+    "active_vehicle_count": 2,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "production_contacted": false,
+  "production_mutated": false
+}

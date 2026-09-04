@@ -7,9 +7,9 @@ from urllib.request import Request, urlopen
 
 STAGING_REF = "cdsmnqxtyyoeoznmbidd"
 PRODUCTION_REF = "vjdtsswhroyguxyfjdkt"
-TARGET = "e49685ca-c9b7-448d-9b45-1aba97d6d3b4"
-ACTOR_ID = "df7c55d9-6ba0-47f6-ba16-44d6ae2c2a4b"
-ACTOR_EMAIL = "sales@broometoyota.com.au"
+TARGET = "[REDACTED_UUID_d8ff3d1b0e]"
+ACTOR_ID = "[REDACTED_UUID_1a4cb3c4c8]"
+ACTOR_EMAIL = "[REDACTED_EMAIL]"
 CREDENTIAL_TARGET = "Supabase CLI:supabase"
 
 
@@ -94,7 +94,7 @@ def call_rpc(sub: str | None, email: str, target: str = TARGET):
 
 def fixture(where: str):
     row = query(
-        "select coalesce(auth_user_id::text,'00000000-0000-4000-8000-000000000003') sub, lower(email) email "
+        "select coalesce(auth_user_id::text,'[REDACTED_UUID_993224b4fe]') sub, lower(email) email "
         f"from public.pdc_user_roles where {where} order by id limit 1"
     )[0]
     return row["sub"], row["email"]
@@ -121,13 +121,13 @@ def main():
         "and s.environment='staging' and s.active and s.dealer_code='14450')"
     )
     matrix = {
-        "no_approved_role": compact_result(call_rpc("00000000-0000-4000-8000-000000000002", "no-role@example.invalid")),
+        "no_approved_role": compact_result(call_rpc("[REDACTED_UUID_e79acd97ac]", "[REDACTED_EMAIL]")),
         "inactive_role": compact_result(call_rpc(*inactive)),
         "pending_role": compact_result(call_rpc(*pending)),
-        "uuid_email_mismatch": compact_result(call_rpc(ACTOR_ID, "uuid-email-mismatch@example.invalid")),
+        "uuid_email_mismatch": compact_result(call_rpc(ACTOR_ID, "[REDACTED_EMAIL]")),
         "denied_dealer_scope": compact_result(call_rpc(*denied)),
         "unauthenticated": compact_result(call_rpc(None, "")),
-        "invalid_target": compact_result(call_rpc(ACTOR_ID, ACTOR_EMAIL, "00000000-0000-4000-8000-000000000001")),
+        "invalid_target": compact_result(call_rpc(ACTOR_ID, ACTOR_EMAIL, "[REDACTED_UUID_11e594f481]")),
         "authorized_target": compact_result(call_rpc(ACTOR_ID, ACTOR_EMAIL)),
     }
     catalog = query("""

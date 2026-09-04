@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-09-04T21:33:01.290863+00:00",
+  "ok": true,
+  "required_top_level_files": [
+    "detailed-report.md",
+    "executive-summary.md",
+    "sitemap.json",
+    "interaction-matrix.csv",
+    "interaction-matrix.json",
+    "transaction-ledger.json",
+    "issue-register.json",
+    "fixture-manifest.json",
+    "cleanup-verification.json",
+    "console-network-log.json",
+    "test-results.json",
+    "deployment-verification.json",
+    "independent-audit-report.md"
+  ],
+  "missing_required_files": [],
+  "interaction_json_count": 4358,
+  "interaction_csv_count": 4358,
+  "issue_count": 11,
+  "issues_by_severity": {
+    "High": 1,
+    "Medium": 5,
+    "Low": 5
+  },
+  "issues_by_status": {
+    "resolved": 5,
+    "open": 6
+  },
+  "screenshot_count_all_lanes_and_retest": 123,
+  "declared_issue_evidence_paths": 31,
+  "missing_issue_evidence_paths": [],
+  "asset_byte_parity": true,
+  "production_contacted": false,
+  "audit_report_absent": true
+}

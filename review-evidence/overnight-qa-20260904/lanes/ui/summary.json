@@ -84,8 +84,8 @@
         "code": "BUS_4X4-BAY-01",
         "version": 2,
         "updated_at": "2026-08-16T22:37:24.368759+00:00",
-        "updated_by": "8a83b715-8d79-4b0e-95b2-02b55da6e8d7",
-        "default_technician_id": "6cdba327-e7ca-4179-b319-614bc12c615e"
+        "updated_by": "[REDACTED_UUID_2946c8b317]",
+        "default_technician_id": "[REDACTED_UUID_2e6fdba01b]"
       },
       "auth_count": 0,
       "role_count": 0,

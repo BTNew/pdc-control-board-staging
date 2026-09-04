@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "json_files_valid": 52,
+  "png_files_valid": 123,
+  "python_files_compiled": 12,
+  "sensitive_pattern_findings": {
+    "email": [],
+    "uuid": [],
+    "jwt": [],
+    "local_username": [],
+    "known_vehicle_or_customer": []
+  },
+  "raw_asset_copies_excluded": true,
+  "errors": []
+}

@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "mode": "apply",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "before": {
+    "head": [
+      "20260905010100",
+      "navision_projection_cleanup_evidence_parity"
+    ],
+    "provolatile": "s",
+    "anon_execute": false,
+    "function_definition": {
+      "uses_lifecycle_wrapper": true,
+      "uses_pre_82000_snapshot": true
+    },
+    "service_role_execute": false,
+    "authenticated_execute": true,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "after": {
+    "head": [
+      "20260905010200",
+      "archived_snapshot_volatility_repair"
+    ],
+    "provolatile": "v",
+    "anon_execute": false,
+    "function_definition": {
+      "uses_lifecycle_wrapper": true,
+      "uses_pre_82000_snapshot": true
+    },
+    "service_role_execute": false,
+    "authenticated_execute": true,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "authenticated_probe": {
+    "ok": true,
+    "code": "archived_vehicle_snapshot",
+    "actor_kind": "approved_staging_administrator",
+    "item_count": 0
+  },
+  "production_contacted": false,
+  "production_mutated": false
+}

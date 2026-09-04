@@ -4,10 +4,10 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[4]; sys.path.insert(0,str(ROOT/'scripts'))
 from apply_pdc14_staging import management_write
 from inspect_pdc14_staging import management_query
-EMAIL='ui.inventory.20260905@pdc-staging.invalid'
-BAY='8f77ddf5-2548-493d-abab-4df005e943aa'
-EXPECTED_CURRENT='e4cb9b07-2e6f-4abf-b81e-ba2946e95d1a'
-PREVIOUS='6cdba327-e7ca-4179-b319-614bc12c615e'
+EMAIL='[REDACTED_EMAIL]'
+BAY='[REDACTED_UUID_93fa548a7b]'
+EXPECTED_CURRENT='[REDACTED_UUID_e3f5fb15fa]'
+PREVIOUS='[REDACTED_UUID_2e6fdba01b]'
 pre=management_query(f"select code,version,default_technician_id::text,updated_at,updated_by::text from public.workshop_bays where id='{BAY}'::uuid")
 rollback=management_write(f"""
 begin;
