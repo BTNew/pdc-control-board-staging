@@ -118,7 +118,7 @@ assert.match(summary, /vehicle-copyable-field/, 'Workshop identity values are ex
 const refreshCount = (plannerSource.match(/data-workshop-refresh-vehicle(?=[ >])/g) || []).length;
 const scheduleNavCount = (plannerSource.match(/data-open-control-board-schedule>/g) || []).length;
 assert.strictEqual(refreshCount, 1, 'Workshop has one obvious Refresh Vehicle control');
-assert.strictEqual(scheduleNavCount, 1, 'Workshop has exactly one obvious Control Board Schedule navigation control');
+assert.strictEqual(scheduleNavCount, 0, 'Workshop omits the redundant Control Board Schedule navigation control');
 assert.match(appSource, /Save all hours/, 'Workshop vehicle card provides one batch save action for edited hours');
 
 const migrationFiles = fs.readdirSync('supabase/staging_only').filter(name => name.includes('pdc14_parts_coordinator_role'));

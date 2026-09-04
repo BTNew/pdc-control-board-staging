@@ -1,5 +1,5 @@
 const APP_VERSION = '2026.08.27.706-final-authoritative-lifecycle';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.04.0100-craig-workshop-repairs';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.04.0103-craig-final-workshop-rules';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -13040,7 +13040,8 @@ function resetVehicleWorkshopLineHoursBatch(button) {
 function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}, validStages = []) {
   const presentation = vehicleWorkshopStationPresentation(group.stage);
   const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
-  const canEdit = vehicleWorkshopCanEditLines() && !complete && group.stage !== 'PARTS' && group.evidenceOnly !== true && group.requirements.length > 0;
+  const isDeferredPit = group.stage === 'PIT_INSPECTION';
+  const canEdit = vehicleWorkshopCanEditLines() && !complete && group.stage !== 'PARTS' && !isDeferredPit && group.evidenceOnly !== true && group.requirements.length > 0;
   const isPartsStage = group.stage === 'PARTS';
   const projections = group.lines.map(line => typeof vehicleWorkshopHoursProjection === 'function'
     ? vehicleWorkshopHoursProjection(line)
@@ -13089,7 +13090,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
     const number = canEdit && hasSchedulableHours && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage]
       ? `<button type="button" class="vehicle-workshop-line-number" draggable="true" ${handleData} aria-label="Drag ${escapeHtml(description)} to a workshop bay">${index + 1}</button>`
       : `<span class="vehicle-workshop-line-number">${index + 1}</span>`;
-    const bookingCell = lineBookings.length ? vehicleWorkshopBookingRowsHtml(lineBookings, bookingFallback, vehicle)
+    const bookingCell = isDeferredPit ? '<span class="vehicle-workshop-not-booked">Deferred QC step · not workshop-bookable</span>' : lineBookings.length ? vehicleWorkshopBookingRowsHtml(lineBookings, bookingFallback, vehicle)
       : (group.bookings.length ? '<span class="vehicle-workshop-booking-static">Station booking shown below</span>' : `<span class="vehicle-workshop-not-booked">${escapeHtml(bookingFallback)}</span>`);
     const progress = vehicleWorkshopJobCardBookedActual(line, lineBookings);
     const progressHtml = progress === 'Not recorded' ? '' : `<small>${escapeHtml(progress)}</small>`;
@@ -13101,16 +13102,17 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
 function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', vehicle = {}, validStages = []) {
   const presentation = vehicleWorkshopStationPresentation(group.stage);
   const isPartsStage = group.stage === 'PARTS';
+  const isDeferredPit = group.stage === 'PIT_INSPECTION';
   const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
   const lineHours = isPartsStage ? [] : group.lines.map(line => typeof vehicleWorkshopHoursProjection === 'function' ? vehicleWorkshopHoursProjection(line).schedulingHours : vehicleWorkshopLineHours(line)).filter(value => value !== null);
   const bookingHours = isPartsStage ? [] : group.bookings.map(booking => Number(booking.default_duration_minutes || 0) / 60).filter(value => Number.isFinite(value) && value > 0);
   const totalHours = lineHours.length ? lineHours.reduce((sum, value) => sum + value, 0) : (bookingHours[0] || null);
   const evidenceOnly = group.evidenceOnly === true || group.requirements.length === 0;
-  const addButton = !isPartsStage && !evidenceOnly && vehicleWorkshopCanEditLines() && !complete ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
-  const stationBookings = !isPartsStage && group.bookings.length ? `<div class="vehicle-workshop-station-bookings"><strong>Station bookings</strong>${vehicleWorkshopBookingRowsHtml(group.bookings, bookingFallback, vehicle)}</div>` : '';
-  const statusLabel = isPartsStage ? 'Parts state only' : evidenceOnly ? 'Evidence' : complete ? 'Completed' : 'Required';
+  const addButton = !isPartsStage && !isDeferredPit && !evidenceOnly && vehicleWorkshopCanEditLines() && !complete ? `<button type="button" class="vehicle-workshop-line-add" data-vehicle-workshop-line-add data-stage="${escapeHtml(group.stage)}">+ Add line</button>` : '';
+  const stationBookings = !isPartsStage && !isDeferredPit && group.bookings.length ? `<div class="vehicle-workshop-station-bookings"><strong>Station bookings</strong>${vehicleWorkshopBookingRowsHtml(group.bookings, bookingFallback, vehicle)}</div>` : '';
+  const statusLabel = isDeferredPit ? 'Deferred QC' : isPartsStage ? 'Parts state only' : evidenceOnly ? 'Evidence' : complete ? 'Completed' : 'Required';
   const statusClass = isPartsStage ? 'is-parts-state' : evidenceOnly ? 'is-evidence' : complete ? 'is-complete' : 'is-required';
-  const description = isPartsStage ? 'Parts requires neither hours nor a station booking' : evidenceOnly ? 'Evidence retained from source or display projection' : complete ? 'Required work completed' : 'Required work outstanding';
+  const description = isDeferredPit ? 'Future QC step · retained source evidence · not workshop-bookable' : isPartsStage ? 'Parts requires neither hours nor a station booking' : evidenceOnly ? 'Evidence retained from source or display projection' : complete ? 'Required work completed' : 'Required work outstanding';
   return `<section class="vehicle-workshop-station${isPartsStage ? ' parts-no-hour-gate' : ''}${evidenceOnly ? ' is-evidence-only' : ''}" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${description}</p></div>${addButton}<span class="vehicle-workshop-station-status ${statusClass}">${statusLabel}</span><span class="vehicle-workshop-station-total">${isPartsStage ? 'No hours required' : escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${vehicleWorkshopCompactLinesHtml(group, bookingFallback, vehicle, validStages)}${stationBookings}</section>`;
 }
 
