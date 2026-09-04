@@ -1,0 +1,9 @@
+{
+  "head": [
+    "20260904010200",
+    "remove_pit_workshop_booking"
+  ],
+  "op9_retained": 1,
+  "active_pit_bookings": 0,
+  "pit_planner_enabled": false
+}

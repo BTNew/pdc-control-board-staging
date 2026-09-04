@@ -8,6 +8,7 @@ const read = name => fs.readFileSync(path.join(__dirname, name), 'utf8');
 const planner = read('workshop-planner.js');
 const sharedActions = read('workshop-shared-actions.js');
 const app = read('app.js');
+const eligibility = read('workshop-eligibility.js');
 const migrationPath = 'supabase/staging_only/20260904010000_craig_workshop_and_jobcard_repairs.sql';
 assert.ok(fs.existsSync(path.join(__dirname, migrationPath)), 'append-only staging repair migration must exist');
 const migration = read(migrationPath);
@@ -21,6 +22,7 @@ assert.ok(planner.includes('workshopStationSelectionHtml(selected)'), 'planner u
 assert.ok(!planner.includes('workshopDetailPanelHtml(selected, focusedPlans'), 'duplicate general Job details panel is not rendered for a bay selection');
 const stationSelectionBody = planner.split('function workshopStationSelectionHtml(', 2)[1].split('function workshopDetailHtml(', 1)[0];
 assert.ok(!/data-workshop-open-(?:job|vehicle)/.test(stationSelectionBody), 'station selection has no full-detail launcher');
+assert.ok(!planner.includes('data-open-control-board-schedule'), 'redundant Control Board Schedule control is removed');
 assert.ok(planner.includes('workshopRequiredJobsForStageHtml(vehicle, entry.stage'), 'selected station work remains visible');
 for (const control of ['data-workshop-start-plan', 'data-workshop-stop-plan', 'data-workshop-complete-plan']) {
   assert.ok(planner.includes(control), `${control} remains available`);
@@ -70,5 +72,10 @@ assert.ok(app.includes('Craig standard override · scheduling authority'), 'PD h
 assert.ok(app.includes("label: 'Craig standard hours'"), 'PD override must never be labelled unknown hours');
 assert.ok(app.includes("correction_origin === 'job_card_source_correction' ? 'job_card'"), 'adjusted work lines must render OP15 as Job Card evidence');
 for (const field of ['correction_origin', 'manual_assignment_locked']) assert.ok(readModelMigration.includes(field), `detail read model must expose ${field}`);
+assert.ok(/code: 'PIT_INSPECTION'[^\n]+plannerEnabled: false/.test(eligibility), 'PIT source requirement remains known but is not a planner station');
+const pitMigrationPath = 'supabase/staging_only/20260904010200_remove_pit_workshop_booking.sql';
+assert.ok(fs.existsSync(path.join(__dirname, pitMigrationPath)), 'PIT booking removal migration must exist');
+const pitMigration = read(pitMigrationPath);
+for (const marker of ["code='PIT_INSPECTION'", 'planner_enabled=false', 'pit_removed_from_workshop', 'workshop_write_history']) assert.ok(pitMigration.includes(marker), `PIT successor missing ${marker}`);
 
 console.log('Craig staging repairs regression: PASS');
