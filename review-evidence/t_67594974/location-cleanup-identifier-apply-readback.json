@@ -1,0 +1,25 @@
+{
+  "task": "t_67594974",
+  "mode": "apply",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "before": {
+    "head": [
+      "20260904011300",
+      "pdc14_location_replay_partial_fixture_cleanup"
+    ],
+    "cleanup_function": "cleanup_pdc14_location_replay_fixture_20260904()",
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "production_contacted": false,
+  "credentials_redacted": true,
+  "after": {
+    "head": [
+      "20260904011400",
+      "pdc14_location_replay_partial_cleanup_identifier_repair"
+    ],
+    "cleanup_function": "cleanup_pdc14_location_replay_fixture_20260904()",
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  }
+}

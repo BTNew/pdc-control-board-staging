@@ -1,0 +1,18 @@
+{
+  "task": "t_67594974",
+  "mode": "dry-run",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "before": {
+    "head": [
+      "20260904011100",
+      "pdc14_location_replay_runtime_schema_alignment"
+    ],
+    "cleanup_history": null,
+    "cleanup_function": null,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "production_contacted": false,
+  "credentials_redacted": true,
+  "dry_run_rolled_back": true
+}

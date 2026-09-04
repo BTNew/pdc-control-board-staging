@@ -1,0 +1,50 @@
+[
+  {
+    "column_name": "pmb_stage",
+    "data_type": "text"
+  },
+  {
+    "column_name": "pmb_bay_stage",
+    "data_type": "text"
+  },
+  {
+    "column_name": "pmb_bay_number",
+    "data_type": "text"
+  },
+  {
+    "column_name": "pmb_key_tag",
+    "data_type": "text"
+  },
+  {
+    "column_name": "qc_completed_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "qc_completed_by",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "date_to_pmb",
+    "data_type": "date"
+  },
+  {
+    "column_name": "pmb_stoppage_reason",
+    "data_type": "text"
+  },
+  {
+    "column_name": "pmb_stoppage_started_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "pmb_stoppage_started_by",
+    "data_type": "uuid"
+  },
+  {
+    "column_name": "pmb_stoppage_cleared_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "column_name": "pmb_stoppage_cleared_by",
+    "data_type": "uuid"
+  }
+]

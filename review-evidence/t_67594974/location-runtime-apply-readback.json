@@ -1,0 +1,54 @@
+{
+  "ok": true,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "mode": "apply",
+  "before": {
+    "head": [
+      "20260904011000",
+      "pdc14_location_replay_idempotency"
+    ],
+    "anon_denied": true,
+    "receipt_rls": [
+      true,
+      true
+    ],
+    "fixed_search_path": true,
+    "new_signature_exists": true,
+    "old_signature_exists": false,
+    "receipt_table_exists": true,
+    "authenticated_execute": true,
+    "receipt_public_denied": true,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "production_contacted": false,
+  "email_sent": false,
+  "applied": true,
+  "after": {
+    "head": [
+      "20260904011100",
+      "pdc14_location_replay_runtime_schema_alignment"
+    ],
+    "anon_denied": true,
+    "receipt_rls": [
+      true,
+      true
+    ],
+    "fixed_search_path": true,
+    "new_signature_exists": true,
+    "old_signature_exists": false,
+    "receipt_table_exists": true,
+    "authenticated_execute": true,
+    "receipt_public_denied": true,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "security_advisors": {
+    "total": 908,
+    "levels": {
+      "INFO": 452,
+      "WARN": 456
+    },
+    "pdc14_findings": []
+  }
+}

@@ -1,5 +1,5 @@
 const APP_VERSION = '2026.08.27.706-final-authoritative-lifecycle';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.04.0103-craig-final-workshop-rules';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.04.0110-pdc14-canonical-state';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -294,6 +294,36 @@ function pdcJobTriState(vehicle = {}, def = {}) {
   return 'none';
 }
 
+function canonicalVehicleWorkState(vehicle = {}, def = {}, options = {}) {
+  const workStateGuard = typeof window !== 'undefined' ? window.VehicleRequirementsGuard : globalThis.VehicleRequirementsGuard;
+  if (typeof workStateGuard?.projectWorkState !== 'function' || !def?.key) {
+    return Object.freeze({ state: pdcJobTriState(vehicle, def), marker: '–', label: 'Unknown' });
+  }
+  const stage = pmbStageForPdcJob(def);
+  const cachedDetail = typeof vehicleWorkshopDetailCanonicalId === 'function'
+    ? app?.vehicleWorkshopDetailCache?.get(vehicleWorkshopDetailCanonicalId(vehicle))
+    : null;
+  const bookings = Array.isArray(options.bookings)
+    ? options.bookings
+    : [
+      ...(Array.isArray(vehicle.salesWorkshopBookings) ? vehicle.salesWorkshopBookings : []),
+      ...(cachedDetail?.status === 'ready' && Array.isArray(cachedDetail.detail?.bookings) ? cachedDetail.detail.bookings : []),
+    ];
+  const currentStageKey = PMB_STAGE_TO_JOB_KEY[normalizePmbStage(inferredPmbStage(vehicle))] || '';
+  const vehicleStageStoppage = isPdcBlocked(vehicle) && currentStageKey === def.key;
+  return workStateGuard.projectWorkState({
+    workKey: def.key,
+    required: pdcJobRequired(vehicle, def),
+    completed: pdcJobComplete(vehicle, def),
+    bookings,
+    partsOrdered: def.key === 'parts' && partsOrdered(vehicle),
+    partsStoppage: def.key === 'parts' && isActivePartsStoppage(vehicle),
+    stoppage: Boolean(options.stoppage || vehicleStageStoppage),
+    stoppageReason: options.stoppageReason || (vehicleStageStoppage ? pdcBlockReason(vehicle) : ''),
+    subletBookings: Array.isArray(vehicle.pdcSubletBookings) ? vehicle.pdcSubletBookings : [],
+  });
+}
+
 function pdcWorkDestinationDateLabel(value = '') {
   const date = value ? new Date(value) : null;
   if (!date || Number.isNaN(date.getTime())) return '';
@@ -338,17 +368,18 @@ function pdcWorkDestination(vehicle = {}, def = {}) {
 function pdcJobTriStateControl(vehicle = {}, def = {}, locked = false) {
   const state = pdcJobTriState(vehicle, def);
   const destination = pdcWorkDestination(vehicle, def);
-  const ordered = def.key === 'parts' && state === 'required' && partsOrdered(vehicle) && !isActivePartsStoppage(vehicle);
-  const booked = state === 'required' && destination?.booked === true && !isActivePartsStoppage(vehicle);
-  const displayState = ordered || booked ? 'booked' : state;
-  const stateLabel = state === 'complete' ? 'Completed' : ordered ? 'Ordered' : booked ? 'Booked' : state === 'required' ? 'To be completed' : 'Not required';
+  const projected = canonicalVehicleWorkState(vehicle, def);
+  const ordered = def.key === 'parts' && projected.state === 'booked';
+  const booked = projected.state === 'booked';
+  const displayState = projected.state === 'completed' ? 'complete' : projected.state;
+  const stateLabel = projected.state === 'required' ? 'To be completed' : projected.label;
   const disabled = locked ? ' disabled' : '';
   const destinationPill = destination?.kind === 'workshop' && destination.bookingId && destination.dateKey
     ? `<button type="button" class="pdc-work-destination-pill" data-vehicle-workshop-booking-id="${escapeHtml(destination.bookingId)}" data-vehicle-workshop-booking-stage="${escapeHtml(destination.stage)}" data-vehicle-workshop-booking-date="${escapeHtml(destination.dateKey)}" title="Open exact ${escapeHtml(def.label)} booking">${escapeHtml(destination.label)}</button>`
     : destination?.kind === 'view'
       ? `<button type="button" class="pdc-work-destination-pill" data-pdc-work-destination-view="${escapeHtml(destination.view)}" title="Open ${escapeHtml(def.label)}">${escapeHtml(destination.label)}</button>`
       : '<span class="pdc-work-destination-empty">Not booked</span>';
-  return `<div class="pdc-work-state-cell"><button class="pdc-work-state pdc-work-state-${escapeHtml(displayState)}${ordered || booked ? ' pdc-work-state-ordered' : ''} pdc-toggle-${escapeHtml(def.key)}" type="button" data-pdc-work-state="${escapeHtml(def.key)}" data-state="${escapeHtml(state)}" aria-label="${escapeHtml(def.label)} - ${stateLabel}" title="${escapeHtml(def.label)} - ${stateLabel}. Grey not required, red to complete, orange booked/ordered, green completed."${disabled}>
+  return `<div class="pdc-work-state-cell"><button class="pdc-work-state pdc-work-state-${escapeHtml(displayState)}${booked ? ' pdc-work-state-ordered' : ''} pdc-toggle-${escapeHtml(def.key)}" type="button" data-pdc-work-state="${escapeHtml(def.key)}" data-state="${escapeHtml(state)}" aria-label="${escapeHtml(def.label)} - ${stateLabel}" title="${escapeHtml(def.label)} - ${stateLabel}. Grey not required, red to complete, orange booked/ordered, green completed, red STOPPAGE."${disabled}>
     <span class="pdc-work-state-code">${escapeHtml(def.short)}</span>
     <span class="pdc-work-state-label">${escapeHtml(def.label)}</span>
     <span class="pdc-work-state-status">${escapeHtml(stateLabel)}</span>
@@ -4696,6 +4727,9 @@ function salespersonAssignmentIdempotencyKey() {
   if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID();
   return '00000000-0000-4000-8000-' + Array.from({ length: 12 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
 }
+function pdcLocationRequestKey(vehicleId = '', expectedVersion = 0, location = '') {
+  return `pdc-location:${String(vehicleId).trim().toLowerCase()}:${Number(expectedVersion) || 0}:${normalizePdcLocation(location)}`;
+}
 function authoritativeReceiptData(result = {}) {
   const data = result?.data && typeof result.data === 'object' ? result.data : null;
   const vehicleId = String(data?.vehicle_id || '').trim();
@@ -7576,26 +7610,22 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
       : Boolean(stoppedBooking || (isPdcBlocked(vehicle) && stageJobKey === def.key));
     const ordered = def.key === 'parts' && required && !complete && !blocked && partsOrdered(vehicle);
     const subletBooked = def.key === 'sublet' && Boolean(canonicalActiveSubletBooking(vehicle)) && !complete && !blocked;
-    const workStateGuard = typeof window !== 'undefined' ? window.VehicleRequirementsGuard : globalThis.VehicleRequirementsGuard;
-    const projected = workStateGuard?.projectWorkState?.({
-      workKey: def.key,
-      required,
-      completed: complete,
+    const projected = canonicalVehicleWorkState(vehicle, def, {
       bookings: bookingProjection.activeBookings || vehicle.salesWorkshopBookings || [],
-      partsOrdered: ordered,
-      subletBookings: vehicle.pdcSubletBookings || [],
+      stoppage: blocked,
+      stoppageReason: stoppedBooking?.stoppageReason || (blocked ? pdcBlockReason(vehicle) : ''),
     });
-    const booked = !blocked && (projected?.state === 'booked' || ordered || subletBooked);
+    const booked = projected.state === 'booked';
     const classes = ['incoming-work-check', `pdc-station-${def.key}`];
     if (!required && !complete) classes.push('is-not-required');
     if (required) classes.push('is-required');
     if (ordered || subletBooked) classes.push('is-ordered');
     if (booked) classes.push('is-booked');
     if (complete) classes.push('is-complete');
-    if (blocked) classes.push('is-blocked');
+    if (projected.state === 'stoppage') classes.push('is-blocked');
     if (stage && currentStage === stage) classes.push('is-current-stage');
-    const state = complete ? 'complete' : blocked ? 'blocked' : ordered ? 'ordered' : booked ? 'booked' : required ? 'required' : 'not required';
-    const marker = complete ? '✓' : blocked ? '!' : projected?.marker || (ordered || subletBooked ? '●' : required ? '•' : '–');
+    const state = projected.state === 'completed' ? 'complete' : projected.state === 'stoppage' ? 'STOPPAGE' : ordered ? 'ordered' : projected.state;
+    const marker = projected.marker;
     const title = stoppedBooking
       ? `${pdcGridJobLabel(def)} STOPPAGE${stoppedBooking.stoppageReason ? `: ${stoppedBooking.stoppageReason}` : ''}`
       : ordered ? `${pdcGridJobLabel(def)} ordered` : booked ? `${pdcGridJobLabel(def)} booked` : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
@@ -14442,6 +14472,7 @@ function renderDetail() {
         vehicleId: ref.vehicleId,
         expectedVersion: ref.version,
         location: pdcLocation,
+        requestKey: pdcLocationRequestKey(ref.vehicleId, ref.version, pdcLocation),
       });
       if (!locationResult || locationResult.ok !== true) {
         await refreshVehicleLifecycleLocationsAndRender();
@@ -15468,11 +15499,12 @@ function partsMiscAcc(vehicle = {}) {
 
 function partsDepartmentStatus(vehicle = {}) {
   const def = partsJobDef();
-  if (!pdcJobRequired(vehicle, def)) return 'notrequired';
-  if (isActivePartsStoppage(vehicle)) return 'stoppage';
+  const projected = canonicalVehicleWorkState(vehicle, def);
+  if (projected.state === 'none') return 'notrequired';
+  if (projected.state === 'stoppage') return 'stoppage';
   if (partsMiscAcc(vehicle)) return 'miscacc';
-  if (def && (pdcJobComplete(vehicle, def) || vehicle.pdcPartsReceived === true)) return 'issued';
-  if (partsOrdered(vehicle)) return 'onorder';
+  if (projected.state === 'completed' || vehicle.pdcPartsReceived === true) return 'issued';
+  if (projected.state === 'booked') return 'onorder';
   return 'notordered';
 }
 

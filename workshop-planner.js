@@ -3331,7 +3331,18 @@ function workshopRefreshSearchResults(root = document, input = null, query = '')
 }
 
 function workshopPartsSummary(vehicle = {}) {
-  const status = partsDepartmentStatus(vehicle);
+  const projected = typeof canonicalVehicleWorkState === 'function' && typeof partsJobDef === 'function'
+    ? canonicalVehicleWorkState(vehicle, partsJobDef())
+    : null;
+  const status = projected?.state === 'stoppage'
+    ? 'stoppage'
+    : projected?.state === 'completed'
+      ? 'issued'
+      : projected?.state === 'booked'
+        ? 'onorder'
+        : projected?.state === 'none'
+          ? 'notrequired'
+          : partsDepartmentStatus(vehicle);
   const label = partsDepartmentStatusLabel(status);
   const eta = partsWorstEtaLabel(vehicle);
   const countdown = partsWorstEtaCountdownLabel(vehicle);

@@ -13041,6 +13041,9 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 .pdc-work-state-required { border-color: #fca5a5 !important; background: #fff1f2 !important; color: #9f1239 !important; }
 .pdc-work-state-required .pdc-work-state-code { background: #fff !important; color: #9f1239 !important; }
 .pdc-work-state-required .pdc-work-state-code::after { content: '•'; font-size: .82rem; }
+.pdc-work-state-stoppage { border-color: #dc2626 !important; background: #fee2e2 !important; color: #991b1b !important; }
+.pdc-work-state-stoppage .pdc-work-state-code { background: #fff !important; color: #991b1b !important; }
+.pdc-work-state-stoppage .pdc-work-state-code::after { content: '!'; font-size: .82rem; }
 .pdc-work-state-booked,
 .pdc-work-state-ordered { border-color: #f97316 !important; background: #fff7ed !important; color: #9a3412 !important; }
 .pdc-work-state-booked .pdc-work-state-code,

@@ -1,0 +1,40 @@
+{
+  "ok": true,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "mode": "dry-run",
+  "before": {
+    "head": [
+      "20260904010900",
+      "provenance_rpc_auth_hardening"
+    ],
+    "anon_denied": false,
+    "receipt_rls": null,
+    "fixed_search_path": null,
+    "new_signature_exists": false,
+    "old_signature_exists": true,
+    "receipt_table_exists": false,
+    "authenticated_execute": false,
+    "receipt_public_denied": false,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "production_contacted": false,
+  "email_sent": false,
+  "compiled_and_rolled_back": true,
+  "after": {
+    "head": [
+      "20260904010900",
+      "provenance_rpc_auth_hardening"
+    ],
+    "anon_denied": false,
+    "receipt_rls": null,
+    "fixed_search_path": null,
+    "new_signature_exists": false,
+    "old_signature_exists": true,
+    "receipt_table_exists": false,
+    "authenticated_execute": false,
+    "receipt_public_denied": false,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  }
+}

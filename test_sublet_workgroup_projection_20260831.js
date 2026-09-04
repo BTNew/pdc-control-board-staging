@@ -4,6 +4,7 @@ const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
 const { mapServerVehicle } = require('./pdc-email-vehicle-location-service.js');
+const guard = require('./vehicle-requirements-guard.js');
 
 const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
@@ -35,6 +36,14 @@ const context = {
   isActivePartsStoppage: () => false,
   isPdcBlocked: () => false,
   partsOrdered: () => false,
+  canonicalVehicleWorkState: (vehicle, def, options = {}) => guard.projectWorkState({
+    workKey: def.key,
+    required: vehicle[def.requireKey] === true,
+    completed: vehicle[def.completeKey] === true,
+    bookings: options.bookings || [],
+    stoppage: options.stoppage === true,
+    subletBookings: vehicle.pdcSubletBookings || [],
+  }),
   pdcGridJobLabel: () => 'Sublet',
   pdcJobCompletionTitle: () => 'Sublet complete',
   escapeHtml: value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('"', '&quot;'),

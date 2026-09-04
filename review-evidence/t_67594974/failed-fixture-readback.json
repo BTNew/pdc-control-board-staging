@@ -1,0 +1,5 @@
+[
+  {
+    "state": "{\"audits\": 1, \"history\": [{\"actor_id\": \"c509c4e8-44bb-462e-a270-3c1f91f2604c\", \"event_id\": 29, \"evidence\": {\"authority\": \"canonical_vehicle_transition\", \"lifecycle_state\": \"active\", \"qc_completed_at\": null, \"rft_transferred_at\": null, \"source_payload_authority\": null}, \"event_kind\": \"latch\", \"vehicle_id\": \"67594974-0000-5000-8000-000000000014\", \"actor_email\": \"functional.pdc.staging@example.com\", \"source_table\": \"vehicles\", \"transition_kind\": \"PMB\", \"source_reference\": \"location-replay\"}], \"receipts\": 6, \"vehicles\": null, \"movements\": 1}"
+  }
+]

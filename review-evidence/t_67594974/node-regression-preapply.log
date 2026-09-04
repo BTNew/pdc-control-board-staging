@@ -1,0 +1,234 @@
+acceptance_closure_contract: PASS
+acceptance_containment_rebind_434: PASS
+acceptance_postcondition_delta_435: PASS
+acceptance_stale_before_binding_439: PASS
+acceptance_stale_fast_path_438: PASS
+acceptance_stale_nonretryable_440: PASS
+Acceptance Sublet cleanup 733 staging contract passed
+Admin block atomic cascade contract passed.
+Admin completed-history exclusion 452: PASS
+All Parts actions shared target contract passed.
+All-vehicle Job Card operation projection parity guard 493: PASS
+authenticated_operation_summary_adjustments: PASS
+authenticated operation Workshop projection: PASS
+751_authenticated_parts_received_contract passed.
+authoritative Parts STOPPAGE/recovery contract: PASS
+Authoritative planned repack 462: PASS
+Authoritative salesperson assignment 386 contract: PASS
+Direct Inbox reset cutoff 467: PASS
+Complete QC/Board Job Card operation projection 492: PASS
+Complete vehicle delete SQL contract passed.
+Complete vehicle delete negative matrix contract passed.
+Complete vehicle delete UI/service contract passed.
+Craig staging repairs regression: PASS
+PASS: shared lifecycle mode disables and rejects CRM browser-local restore before parsing, confirmation, or storage
+Deferred PIT QC detail regression: PASS
+Deferred PIT QC gate regression: PASS
+durable RFT transport lifecycle 734 contract passed
+Dynamic required-work payload and canonical readback contract passed.
+email_authoritative_board: PASS
+EMAIL UPDATE modal layering contract passed.
+UID639/640 exact all-operation import release checks passed.
+external completion canonical booking-history repair contract passed
+external completion delivery-milestone scope contract passed
+external completion hidden-booking cancellation repair contract passed
+external completion residual-booking soft-delete repair contract passed
+external completion independent-review repair contract passed
+external completion workshop-status append-only repair contract passed
+external/non-Navision completion 20260903 contract passed
+final authoritative PDC lifecycle 700 contract passed
+final authoritative PDC lifecycle 706 collision-safe successor contract passed
+Fresh-import full operational reset 466: PASS
+identity, zero-hour projection and authoritative booking duration: PASS
+Inline vehicle-card Parts shared save contract passed.
+Job Card header-only all-lines 482: PASS
+legacy_website_links: PASS
+Lifecycle history 82000 contract passed
+Linked salesperson email recipient contract passed.
+PASS: ordinary manual vehicle creation fails closed before browser-local state in shared mode
+PASS mobile navigation compact-width regression
+Modal EMAIL UPDATE selection contract passed.
+Modal keyboard focus containment and return contract passed.
+Movable Admin palette duration contract passed.
+All-vehicle Navision link and refresh parity guard 494: PASS
+708 Navision delivery scope alignment successor contract passed
+707 Navision delivery security successor contract passed
+Navision 768 client preflight regression: exact Stock, invalid fields, dealer scope, valid siblings, atomicity and no-localStorage checks passed
+Navision JITA shared projection: PASS
+Navision linked vehicle refresh 481: PASS
+Navision preview immediate busy state: PASS
+Migration 096 unique Stock/Navision authority contract passed
+Non-Navision Job Card current contract regression: PASS
+Audited non-Navision Job Card VIN projection contract: PASS
+Operation estimate planned cascade 463: PASS
+Operational closure 411 contract passed.
+Class-level operational refresh regression passed.
+orphan_workshop_booking_repair: PASS
+owner_supplied_document_jobcard_396: PASS
+Immediate Parts ETA feedback and specific ordered errors: PASS
+Parts ordered ETA prerequisite contract: PASS
+Parts ordered notification-delta containment 451: PASS
+Parts Mark ordered dedicated presentation: PASS
+evalmachine.<anonymous>:4
+  const projected = canonicalVehicleWorkState(vehicle, def);
+                    ^
+
+ReferenceError: canonicalVehicleWorkState is not defined
+    at Object.pdcJobTriStateControl (evalmachine.<anonymous>:4:21)
+    at Object.<anonymous> (C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_67594974\test_parts_ordered_projection_color.js:28:39)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47
+
+Node.js v24.14.1
+FAIL test_parts_ordered_projection_color.js
+Parts projection identity regression contract passed.
+Parts queue canonical readback contract passed.
+Shared canonical/Navision/email Parts Received identity contract passed.
+Shared Parts ordered/complete contract passed.
+Parts snapshot completion/projection passed.
+PDC all-Inbox action queue 458: PASS
+PDC Auditor Parts received 738 source contract passed.
+PDC Board checklist closure hostile contract: PASS
+PDC controller Parts correction 742 source contract passed.
+PDC controller Parts correction 745 ETA repair source contract passed.
+PASS: PDC Email AI v2 browser action boundary is typed, staging-only, and readback-bound
+PDC final Inbox monitor runtime 456: PASS
+PDC Inbox monitor activation 454: PASS
+PDC Inbox review and archive runtime 455: PASS
+PDC contained runtime 504 successor contract passed: exact reviewed pair, predecessor drift guard, append-only immutable RLS history, least-privilege RPCs, idempotency, rollback metadata, and fail-closed readiness
+PDC owner monitor summary 457: PASS
+PDC-14 canonical work-state successor: PASS
+PDC-14 Control Board parity regression: PASS
+PDC-14 location replay-idempotency successor: PASS
+PDC-14 synthetic Operator helper contract: PASS
+Planner compact header and RFT email status: PASS
+PASS: shared lifecycle mode hides and rejects legacy browser-local PMB bay mutations before side effects
+Stock 13000776 complete purge 483: PASS
+QC finalization 399 contract: 18 assertions passed.
+QC mobile drill-in and queued receipt-backed saves: PASS
+QC mobile refresh/projection regression: PASS
+Mobile QC sign-off has no label printing: PASS
+QC per-operation completion contract: PASS
+QC operation projection restoration 395: PASS
+QC operation source Job Card projection 380: PASS
+QC page contract: 22 assertions passed.
+QC mobile staging-base retest projection, iOS fallback, cycle receipt and finalize contract passed
+QC vehicle reject 767 contract passed
+QC vehicle reject 767 service contract passed
+Raw snapshot to DTO mapper stale-state regression passed.
+Ready-for-QC immediate projection refresh: PASS
+registered_replay_containment_repair_437: PASS
+Preview bootstrap guard and canonical provenance caller contract passed
+removed_operation_workbay_reconciliation: PASS
+Reset review remediation 467-469: PASS
+receipt-backed collected vehicle survives authoritative reconciliation: PASS
+authoritative RFT confirmation toggle 736 contract passed
+sealed RFT salesperson email interception contract passed
+RFT transport email draft 739 contract: PASS
+RFT Workshop detail lifecycle support contract: PASS
+Salesperson receipt-first readback race regression: PASS
+Salesperson accepted receipt generation-race integration: PASS
+Salesperson derived-stoppage save contract passed.
+Server-only salesperson/detail fail-closed safeguard: PASS
+PASS shared vehicle-location mutations fail closed before browser-local authority
+Shared Parts post-save reconciliation contract passed.
+Shared Parts save diagnostics contract passed.
+Shared work-state stale projection and Save hang contract passed.
+Compact desktop sidebar spacing: PASS
+staging_containment_drift_repair_436: PASS
+staging_containment_readback_column_repair_433: PASS
+Staging Parts completion migration contract passed.
+staging_protected_state_containment_432: PASS
+Staging reset archive/Navision reconciliation order 495: PASS
+Started indefinite-duration and overtime chip contract passed.
+Stock 13017855 requirement/Parts/navigation safety contract passed
+stoppage/RFT transport 412 contract passed
+Sublet authenticated ledger read service contract passed
+Sublet Calendar Month default regression contract passed.
+Canonical Sublet provider mutation contract passed.
+Sublet vehicle-modal stacking contract passed.
+Sublet canonical booking requirement projection tests passed
+Sublet projection/read contract tests passed
+evalmachine.<anonymous>:28
+    const projected = canonicalVehicleWorkState(vehicle, def, {
+                      ^
+
+ReferenceError: canonicalVehicleWorkState is not defined
+    at evalmachine.<anonymous>:28:23
+    at Array.map (<anonymous>)
+    at Object.incomingWorkChecklistHtml (evalmachine.<anonymous>:17:346)
+    at Object.<anonymous> (C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_67594974\test_sublet_workgroup_projection_20260831.js:69:28)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+
+Node.js v24.14.1
+FAIL test_sublet_workgroup_projection_20260831.js
+targeted Workshop, Parts and PMB STOPPAGE contract passed
+typed Monitor Parts-complete migration 324 contract passed
+U158318 exact classifier successor regression: PASS
+uid590_591_exact_reinstatement: PASS
+uid590_591_runtime_repair: PASS
+UID632 complete operation contract 478-480: PASS
+UID635 one-shot activation 484: PASS
+UID635 receipt-backed import chain 486-491: PASS
+Unified sales dashboard staging contract passed.
+evalmachine.<anonymous>:45
+  const projected = canonicalVehicleWorkState(vehicle, def);
+                    ^
+
+ReferenceError: canonicalVehicleWorkState is not defined
+    at Object.pdcJobTriStateControl (evalmachine.<anonymous>:45:21)
+    at Object.<anonymous> (C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_67594974\test_vehicle_detail_booking_pills.js:36:22)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47
+
+Node.js v24.14.1
+FAIL test_vehicle_detail_booking_pills.js
+Vehicle detail explicit Sublet operation regression: PASS
+Vehicle Locations refresh regression passed.
+Vehicle Locations deployed-module DOM click delegation regression passed.
+Vehicle Locations RFT transport controls regression: PASS
+Vehicle Locations stock and simplified Workshop planner operations: PASS
+Vehicle modal authoritative projection and save sequencing: PASS
+Vehicle modal authenticated identity recovery regression passed.
+Vehicle modal exact Stock 13017855 save-rebind regression passed.
+Vehicle workshop batch-hours service contract passed
+Vehicle workshop hours batch regression matrix passed
+Workshop Admin multi-day calendar/projection regression checks passed.
+Workshop Admin modal Escape/focus-return contract passed.
+Workshop diagnostics hidden and Best slot current-time recompute: PASS
+workshop_booking_estimated_hours: PASS
+Workshop canonical booking snapshot authority 397 contract passed.
+workshop_chip_resize_routing: PASS
+Dedicated Workshop planner opens directly on its schedule: PASS
+Workshop dedicated booking detail selection contract passed.
+Workshop detail lifecycle read 453: PASS
+Workshop ETA + 7 authority contract passed.
+workshop_exact_operation_minutes: PASS
+Focused Workshop booking contract passed.
+Workshop complete operation projection and exact stage total: PASS
+Future-only and owner correction contract passed.
+Workshop recovery future start 460: PASS
+Workshop recovery overlap containment 459: PASS
+Workshop recovery failure cannot blank station snapshot: PASS
+Workshop recovery validation containment 461: PASS
+Workshop scheduled allocation authority contract passed.
+Shared Workshop avoids reversible browser-only cascades: PASS
+Workshop whole-minute stage estimate 407 contract passed.
+Workshop STOPPAGE projects into Fix First: PASS
+Workshop timeline duration geometry and bold aligned typography: PASS
+Workshop toolbar hours and compact date navigation: PASS
