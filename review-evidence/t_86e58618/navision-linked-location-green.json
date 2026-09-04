@@ -1,0 +1,685 @@
+{
+  "task": "t_86e58618",
+  "phase": "green",
+  "started_at": "2026-09-04T19:01:36.908837+00:00",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "authentication": "exact deployed monitor actor and JWT claims applied to the canonical pre-700 reconciliation chain; public RPC ACL and disabled-monitor fail-closed route checked separately",
+  "production_contacted": false,
+  "email_sent": false,
+  "credentials_redacted": true,
+  "before": {
+    "head": [
+      "20260905010100",
+      "navision_projection_cleanup_evidence_parity"
+    ],
+    "auth_count": 0,
+    "role_count": 0,
+    "work_count": 0,
+    "parts_count": 0,
+    "scope_count": 0,
+    "sublet_count": 0,
+    "booking_count": 0,
+    "vehicle_count": 0,
+    "operation_count": 0,
+    "navision_batch_count": 0,
+    "cleanup_history_count": 1,
+    "navision_record_count": 0,
+    "location_receipt_count": 0,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "fixture_created": {
+    "head": [
+      "20260905010100",
+      "navision_projection_cleanup_evidence_parity"
+    ],
+    "auth_count": 0,
+    "role_count": 0,
+    "work_count": 0,
+    "parts_count": 0,
+    "scope_count": 0,
+    "sublet_count": 0,
+    "booking_count": 0,
+    "vehicle_count": 2,
+    "operation_count": 0,
+    "navision_batch_count": 2,
+    "cleanup_history_count": 1,
+    "navision_record_count": 2,
+    "location_receipt_count": 0,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "anonymous_denied": {
+    "status": 401,
+    "body": {
+      "code": "42501",
+      "details": null,
+      "hint": null,
+      "message": "permission denied for function reconcile_navision_operational_record"
+    }
+  },
+  "actor_mismatch_denied": {
+    "response": {
+      "ok": false,
+      "code": "monitor_identity_required",
+      "data": {}
+    },
+    "readback": {
+      "id": "86e58618-0000-5000-8000-000000000901",
+      "eta": "2026-09-06",
+      "parity": {
+        "ok": true,
+        "mismatches": [],
+        "mismatch_count": 0,
+        "link_mismatch_count": 0,
+        "active_vehicle_count": 1,
+        "ambiguous_match_count": 0,
+        "stale_detail_location_count": 0,
+        "vehicles_with_navision_data": 1,
+        "vehicles_without_navision_data": 0
+      },
+      "payload": {
+        "email_sent": false,
+        "bounded_fixture": "t_86e58618",
+        "navision_status": "From TWA - Despatched",
+        "navision_version": "1",
+        "navision_record_id": "86e58618-0000-5000-8000-000000000911",
+        "navision_updated_at": "2026-09-04T19:01:39.269425+00:00"
+      },
+      "version": 1,
+      "visible": true,
+      "location": "IT",
+      "lifecycle": "active",
+      "audit_count": 0,
+      "date_to_pmb": null,
+      "movement_count": 0
+    }
+  },
+  "future_eta_remains_it": {
+    "response": {
+      "ok": true,
+      "code": "existing_operational_identity_already_satisfied",
+      "data": {
+        "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+        "backend_record_id": "86e58618-0000-5000-8000-000000000911",
+        "activation_mutated": false,
+        "operational_change": false,
+        "navision_link_refresh": {
+          "ok": true,
+          "code": "linked_vehicle_refreshed",
+          "data": {
+            "changed": true,
+            "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+            "backend_version": 1,
+            "backend_record_id": "86e58618-0000-5000-8000-000000000911",
+            "navision_location_projection": {
+              "ok": true,
+              "code": "projection_not_required",
+              "data": {
+                "changed": false,
+                "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+                "date_to_pmb": null,
+                "current_location": "IT",
+                "navision_location": "IT"
+              }
+            },
+            "manual_salesperson_override_preserved": false
+          }
+        }
+      }
+    },
+    "readback": {
+      "id": "86e58618-0000-5000-8000-000000000901",
+      "eta": "2026-09-06",
+      "parity": {
+        "ok": true,
+        "mismatches": [],
+        "mismatch_count": 0,
+        "link_mismatch_count": 0,
+        "active_vehicle_count": 1,
+        "ambiguous_match_count": 0,
+        "stale_detail_location_count": 0,
+        "vehicles_with_navision_data": 1,
+        "vehicles_without_navision_data": 0
+      },
+      "payload": {
+        "colour": null,
+        "authority": "navision-linked-refresh-481",
+        "email_sent": false,
+        "navision_model": null,
+        "bounded_fixture": "t_86e58618",
+        "navision_colour": null,
+        "navision_status": "Vehicle Waiting Wholesale",
+        "navision_version": 1,
+        "navision_customer": null,
+        "navision_record_id": "86e58618-0000-5000-8000-000000000911",
+        "navision_updated_at": "2026-09-04T19:01:47.779226+00:00",
+        "navision_salesperson": null,
+        "navision_source_data": {
+          "vin": "REBHV186586180",
+          "batch": "HERMES-NAV-YH-86E58618",
+          "etaToKewdale": "2026-09-06",
+          "toyotaStatus": "Vehicle Waiting Wholesale",
+          "navisionKewdaleEta": "2026-09-06",
+          "navisionLocationStatus": "IT",
+          "navisionSubLocationDescription": "Vehicle Waiting Wholesale"
+        }
+      },
+      "version": 2,
+      "visible": true,
+      "location": "IT",
+      "lifecycle": "active",
+      "audit_count": 1,
+      "date_to_pmb": null,
+      "movement_count": 0
+    }
+  },
+  "past_eta_it_to_yh": {
+    "response": {
+      "ok": true,
+      "code": "existing_operational_identity_already_satisfied",
+      "data": {
+        "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+        "backend_record_id": "86e58618-0000-5000-8000-000000000911",
+        "activation_mutated": false,
+        "operational_change": false,
+        "navision_link_refresh": {
+          "ok": true,
+          "code": "linked_vehicle_refreshed",
+          "data": {
+            "changed": true,
+            "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+            "backend_version": 1,
+            "backend_record_id": "86e58618-0000-5000-8000-000000000911",
+            "navision_location_projection": {
+              "ok": true,
+              "code": "linked_location_projected",
+              "data": {
+                "parity": {
+                  "ok": true,
+                  "mismatches": [],
+                  "mismatch_count": 0,
+                  "link_mismatch_count": 0,
+                  "active_vehicle_count": 1,
+                  "ambiguous_match_count": 0,
+                  "stale_detail_location_count": 0,
+                  "vehicles_with_navision_data": 1,
+                  "vehicles_without_navision_data": 0
+                },
+                "changed": true,
+                "location": "YH",
+                "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+                "date_to_pmb": null,
+                "from_location": "IT",
+                "eta_to_kewdale": "2026-09-03",
+                "vehicle_version_after": 4,
+                "vehicle_version_before": 3
+              }
+            },
+            "manual_salesperson_override_preserved": false
+          }
+        }
+      }
+    },
+    "readback": {
+      "id": "86e58618-0000-5000-8000-000000000901",
+      "eta": "2026-09-03",
+      "parity": {
+        "ok": true,
+        "mismatches": [],
+        "mismatch_count": 0,
+        "link_mismatch_count": 0,
+        "active_vehicle_count": 1,
+        "ambiguous_match_count": 0,
+        "stale_detail_location_count": 0,
+        "vehicles_with_navision_data": 1,
+        "vehicles_without_navision_data": 0
+      },
+      "payload": {
+        "colour": null,
+        "authority": "navision_linked_location_projection_20260905",
+        "email_sent": false,
+        "navision_model": null,
+        "bounded_fixture": "t_86e58618",
+        "navision_colour": null,
+        "navision_status": "Vehicle Waiting Wholesale",
+        "navision_version": 1,
+        "navision_customer": null,
+        "navision_record_id": "86e58618-0000-5000-8000-000000000911",
+        "navision_updated_at": "2026-09-04T19:01:53.781511+00:00",
+        "navision_salesperson": null,
+        "navision_source_data": {
+          "vin": "REBHV186586180",
+          "batch": "HERMES-NAV-YH-86E58618",
+          "etaToKewdale": "2026-09-03",
+          "toyotaStatus": "Vehicle Waiting Wholesale",
+          "navisionKewdaleEta": "2026-09-03",
+          "navisionLocationStatus": "IT",
+          "navisionSubLocationDescription": "Vehicle Waiting Wholesale"
+        },
+        "navision_location_projection": "YH",
+        "navision_location_projected_at": "2026-09-04T19:01:55.654322+00:00"
+      },
+      "version": 4,
+      "visible": true,
+      "location": "YH",
+      "lifecycle": "active",
+      "audit_count": 3,
+      "date_to_pmb": null,
+      "movement_count": 1
+    },
+    "version_before": 2,
+    "audit_before": 1
+  },
+  "generic_yh_does_not_auto_pmb": {
+    "response": {
+      "ok": true,
+      "code": "existing_operational_identity_already_satisfied",
+      "data": {
+        "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+        "backend_record_id": "86e58618-0000-5000-8000-000000000911",
+        "activation_mutated": false,
+        "operational_change": false,
+        "navision_link_refresh": {
+          "ok": true,
+          "code": "linked_vehicle_refreshed",
+          "data": {
+            "changed": true,
+            "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+            "backend_version": 1,
+            "backend_record_id": "86e58618-0000-5000-8000-000000000911",
+            "navision_location_projection": {
+              "ok": true,
+              "code": "projection_not_required",
+              "data": {
+                "changed": false,
+                "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+                "date_to_pmb": null,
+                "current_location": "YH",
+                "navision_location": "YH"
+              }
+            },
+            "manual_salesperson_override_preserved": false
+          }
+        }
+      }
+    },
+    "readback": {
+      "id": "86e58618-0000-5000-8000-000000000901",
+      "eta": "2026-09-03",
+      "parity": {
+        "ok": true,
+        "mismatches": [],
+        "mismatch_count": 0,
+        "link_mismatch_count": 0,
+        "active_vehicle_count": 1,
+        "ambiguous_match_count": 0,
+        "stale_detail_location_count": 0,
+        "vehicles_with_navision_data": 1,
+        "vehicles_without_navision_data": 0
+      },
+      "payload": {
+        "colour": null,
+        "authority": "navision-linked-refresh-481",
+        "email_sent": false,
+        "navision_model": null,
+        "bounded_fixture": "t_86e58618",
+        "navision_colour": null,
+        "navision_status": "Vehicle Waiting Wholesale",
+        "navision_version": 1,
+        "navision_customer": null,
+        "navision_record_id": "86e58618-0000-5000-8000-000000000911",
+        "navision_updated_at": "2026-09-04T19:01:53.781511+00:00",
+        "navision_salesperson": null,
+        "navision_source_data": {
+          "vin": "REBHV186586180",
+          "batch": "HERMES-NAV-YH-86E58618",
+          "etaToKewdale": "2026-09-03",
+          "toyotaStatus": "Vehicle Waiting Wholesale",
+          "navisionKewdaleEta": "2026-09-03",
+          "navisionLocationStatus": "IT",
+          "navisionSubLocationDescription": "Vehicle Waiting Wholesale"
+        },
+        "navision_location_projection": "YH",
+        "navision_location_projected_at": "2026-09-04T19:01:55.654322+00:00"
+      },
+      "version": 5,
+      "visible": true,
+      "location": "YH",
+      "lifecycle": "active",
+      "audit_count": 4,
+      "date_to_pmb": null,
+      "movement_count": 1
+    }
+  },
+  "manual_pmb_latch": {
+    "id": "86e58618-0000-5000-8000-000000000901",
+    "eta": "2026-09-03",
+    "parity": {
+      "ok": true,
+      "mismatches": [],
+      "mismatch_count": 0,
+      "link_mismatch_count": 0,
+      "active_vehicle_count": 1,
+      "ambiguous_match_count": 0,
+      "stale_detail_location_count": 0,
+      "vehicles_with_navision_data": 1,
+      "vehicles_without_navision_data": 0
+    },
+    "payload": {
+      "colour": null,
+      "authority": "navision-linked-refresh-481",
+      "email_sent": false,
+      "navision_model": null,
+      "bounded_fixture": "t_86e58618",
+      "navision_colour": null,
+      "navision_status": "Vehicle Waiting Wholesale",
+      "navision_version": 1,
+      "navision_customer": null,
+      "navision_record_id": "86e58618-0000-5000-8000-000000000911",
+      "navision_updated_at": "2026-09-04T19:01:53.781511+00:00",
+      "navision_salesperson": null,
+      "navision_source_data": {
+        "vin": "REBHV186586180",
+        "batch": "HERMES-NAV-YH-86E58618",
+        "etaToKewdale": "2026-09-03",
+        "toyotaStatus": "Vehicle Waiting Wholesale",
+        "navisionKewdaleEta": "2026-09-03",
+        "navisionLocationStatus": "IT",
+        "navisionSubLocationDescription": "Vehicle Waiting Wholesale"
+      },
+      "manual_location_authority": "PMB",
+      "manual_location_updated_at": "2026-09-04T19:02:06.278658+00:00",
+      "manual_location_updated_by": "sales@broometoyota.com.au",
+      "navision_location_projection": "YH",
+      "navision_location_projected_at": "2026-09-04T19:01:55.654322+00:00"
+    },
+    "version": 6,
+    "visible": true,
+    "location": "PMB",
+    "lifecycle": "active",
+    "audit_count": 5,
+    "date_to_pmb": "2026-09-05",
+    "movement_count": 2
+  },
+  "ordinary_navision_preserves_manual_pmb": {
+    "response": {
+      "ok": true,
+      "code": "existing_operational_identity_already_satisfied",
+      "data": {
+        "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+        "backend_record_id": "86e58618-0000-5000-8000-000000000911",
+        "activation_mutated": false,
+        "operational_change": false,
+        "navision_link_refresh": {
+          "ok": true,
+          "code": "linked_vehicle_refreshed",
+          "data": {
+            "changed": true,
+            "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+            "backend_version": 1,
+            "backend_record_id": "86e58618-0000-5000-8000-000000000911",
+            "navision_location_projection": {
+              "ok": true,
+              "code": "location_latch_preserved",
+              "data": {
+                "changed": false,
+                "vehicle_id": "86e58618-0000-5000-8000-000000000901",
+                "date_to_pmb": "2026-09-05",
+                "current_location": "PMB",
+                "navision_location": "YH"
+              }
+            },
+            "manual_salesperson_override_preserved": false
+          }
+        }
+      }
+    },
+    "readback": {
+      "id": "86e58618-0000-5000-8000-000000000901",
+      "eta": "2026-09-02",
+      "parity": {
+        "ok": true,
+        "mismatches": [],
+        "mismatch_count": 0,
+        "link_mismatch_count": 0,
+        "active_vehicle_count": 1,
+        "ambiguous_match_count": 0,
+        "stale_detail_location_count": 0,
+        "vehicles_with_navision_data": 1,
+        "vehicles_without_navision_data": 0
+      },
+      "payload": {
+        "colour": null,
+        "authority": "navision-linked-refresh-481",
+        "email_sent": false,
+        "navision_model": null,
+        "bounded_fixture": "t_86e58618",
+        "navision_colour": null,
+        "navision_status": "Vehicle Waiting Wholesale",
+        "navision_version": 1,
+        "navision_customer": null,
+        "navision_record_id": "86e58618-0000-5000-8000-000000000911",
+        "navision_updated_at": "2026-09-04T19:02:10.69079+00:00",
+        "navision_salesperson": null,
+        "navision_source_data": {
+          "vin": "REBHV186586180",
+          "batch": "HERMES-NAV-YH-86E58618",
+          "etaToKewdale": "2026-09-02",
+          "toyotaStatus": "Vehicle Waiting Wholesale",
+          "navisionKewdaleEta": "2026-09-02",
+          "navisionLocationStatus": "IT",
+          "navisionSubLocationDescription": "Vehicle Waiting Wholesale"
+        },
+        "manual_location_authority": "PMB",
+        "manual_location_updated_at": "2026-09-04T19:02:06.278658+00:00",
+        "manual_location_updated_by": "sales@broometoyota.com.au",
+        "navision_location_projection": "YH",
+        "navision_location_projected_at": "2026-09-04T19:01:55.654322+00:00"
+      },
+      "version": 7,
+      "visible": true,
+      "location": "PMB",
+      "lifecycle": "active",
+      "audit_count": 6,
+      "date_to_pmb": "2026-09-05",
+      "movement_count": 2
+    }
+  },
+  "body_builder_establishes_pmb": {
+    "response": {
+      "ok": true,
+      "code": "existing_operational_identity_already_satisfied",
+      "data": {
+        "vehicle_id": "86e58618-0000-5000-8000-000000000902",
+        "backend_record_id": "86e58618-0000-5000-8000-000000000912",
+        "activation_mutated": false,
+        "operational_change": false,
+        "navision_link_refresh": {
+          "ok": true,
+          "code": "linked_vehicle_refreshed",
+          "data": {
+            "changed": true,
+            "vehicle_id": "86e58618-0000-5000-8000-000000000902",
+            "backend_version": 1,
+            "backend_record_id": "86e58618-0000-5000-8000-000000000912",
+            "navision_location_projection": {
+              "ok": true,
+              "code": "linked_location_projected",
+              "data": {
+                "parity": {
+                  "ok": true,
+                  "mismatches": [],
+                  "mismatch_count": 0,
+                  "link_mismatch_count": 0,
+                  "active_vehicle_count": 1,
+                  "ambiguous_match_count": 0,
+                  "stale_detail_location_count": 0,
+                  "vehicles_with_navision_data": 1,
+                  "vehicles_without_navision_data": 0
+                },
+                "changed": true,
+                "location": "PMB",
+                "vehicle_id": "86e58618-0000-5000-8000-000000000902",
+                "date_to_pmb": "2026-09-05",
+                "from_location": "IT",
+                "eta_to_kewdale": "2026-09-03",
+                "vehicle_version_after": 3,
+                "vehicle_version_before": 2
+              }
+            },
+            "manual_salesperson_override_preserved": false
+          }
+        }
+      }
+    },
+    "readback": {
+      "id": "86e58618-0000-5000-8000-000000000902",
+      "eta": "2026-09-03",
+      "parity": {
+        "ok": true,
+        "mismatches": [],
+        "mismatch_count": 0,
+        "link_mismatch_count": 0,
+        "active_vehicle_count": 1,
+        "ambiguous_match_count": 0,
+        "stale_detail_location_count": 0,
+        "vehicles_with_navision_data": 1,
+        "vehicles_without_navision_data": 0
+      },
+      "payload": {
+        "colour": null,
+        "authority": "navision_linked_location_projection_20260905",
+        "email_sent": false,
+        "navision_model": null,
+        "bounded_fixture": "t_86e58618",
+        "navision_colour": null,
+        "navision_status": "Delivered - At Body Builder",
+        "navision_version": 1,
+        "navision_customer": null,
+        "navision_record_id": "86e58618-0000-5000-8000-000000000912",
+        "navision_updated_at": "2026-09-04T19:02:17.023167+00:00",
+        "navision_salesperson": null,
+        "navision_source_data": {
+          "vin": "REBHV186586181",
+          "batch": "HERMES-NAV-PMB-86E58618",
+          "etaToKewdale": "2026-09-03",
+          "toyotaStatus": "Delivered - At Body Builder",
+          "navisionKewdaleEta": "2026-09-03",
+          "navisionLocationStatus": "IT",
+          "navisionSubLocationDescription": "Delivered - At Body Builder"
+        },
+        "navision_location_projection": "PMB",
+        "navision_location_projected_at": "2026-09-04T19:02:18.87888+00:00"
+      },
+      "version": 3,
+      "visible": true,
+      "location": "PMB",
+      "lifecycle": "active",
+      "audit_count": 2,
+      "date_to_pmb": "2026-09-05",
+      "movement_count": 1
+    }
+  },
+  "od_routes_to_canonical_close": {
+    "response": {
+      "ok": false,
+      "code": "delivery_requires_collected_interval",
+      "data": {}
+    },
+    "readback": {
+      "id": "86e58618-0000-5000-8000-000000000902",
+      "eta": "2026-09-03",
+      "parity": {
+        "ok": false,
+        "mismatches": [
+          {
+            "stock": "HERMESNAVPMB86E58618",
+            "vehicle_id": "86e58618-0000-5000-8000-000000000902",
+            "stock_number": "HERMES-NAV-PMB-86E58618",
+            "linked_match_count": 1,
+            "navision_match_count": 1,
+            "fresh_detail_location_count": 0
+          }
+        ],
+        "mismatch_count": 1,
+        "link_mismatch_count": 0,
+        "active_vehicle_count": 1,
+        "ambiguous_match_count": 0,
+        "stale_detail_location_count": 1,
+        "vehicles_with_navision_data": 1,
+        "vehicles_without_navision_data": 0
+      },
+      "payload": {
+        "colour": null,
+        "authority": "navision_linked_location_projection_20260905",
+        "email_sent": false,
+        "navision_model": null,
+        "bounded_fixture": "t_86e58618",
+        "navision_colour": null,
+        "navision_status": "Delivered - At Body Builder",
+        "navision_version": 1,
+        "navision_customer": null,
+        "navision_record_id": "86e58618-0000-5000-8000-000000000912",
+        "navision_updated_at": "2026-09-04T19:02:17.023167+00:00",
+        "navision_salesperson": null,
+        "navision_source_data": {
+          "vin": "REBHV186586181",
+          "batch": "HERMES-NAV-PMB-86E58618",
+          "etaToKewdale": "2026-09-03",
+          "toyotaStatus": "Delivered - At Body Builder",
+          "navisionKewdaleEta": "2026-09-03",
+          "navisionLocationStatus": "IT",
+          "navisionSubLocationDescription": "Delivered - At Body Builder"
+        },
+        "navision_location_projection": "PMB",
+        "navision_location_projected_at": "2026-09-04T19:02:18.87888+00:00"
+      },
+      "version": 3,
+      "visible": true,
+      "location": "PMB",
+      "lifecycle": "active",
+      "audit_count": 2,
+      "date_to_pmb": "2026-09-05",
+      "movement_count": 1
+    }
+  },
+  "security_advisors": {
+    "total": 911,
+    "levels": {
+      "INFO": 455,
+      "WARN": 456
+    },
+    "pdc14_findings": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "detail": "Table \\`public.pdc14_location_replay_fixture_cleanup_history_20260904\\` has RLS enabled, but no policies exist"
+      }
+    ]
+  },
+  "all_checks_passed": true,
+  "cleanup": {
+    "head": [
+      "20260905010100",
+      "navision_projection_cleanup_evidence_parity"
+    ],
+    "auth_count": 0,
+    "role_count": 0,
+    "work_count": 0,
+    "parts_count": 0,
+    "scope_count": 0,
+    "sublet_count": 0,
+    "booking_count": 0,
+    "vehicle_count": 0,
+    "operation_count": 0,
+    "navision_batch_count": 0,
+    "cleanup_history_count": 1,
+    "navision_record_count": 0,
+    "location_receipt_count": 0,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "cleanup_errors": [],
+  "finished_at": "2026-09-04T19:02:36.515416+00:00"
+}

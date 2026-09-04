@@ -1,0 +1,57 @@
+{
+  "ok": true,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "mode": "apply",
+  "before": {
+    "head": [
+      "20260904011500",
+      "parts_stoppage_runtime_containment_repair"
+    ],
+    "cleanup_rls": null,
+    "cleanup_private": false,
+    "refresh_private": true,
+    "projection_exists": false,
+    "predecessor_exists": false,
+    "public_wrapper_734": true,
+    "public_acl_preserved": true,
+    "staging_sentinel_count": 1,
+    "refresh_wraps_projection": false,
+    "production_sentinel_present": false
+  },
+  "production_contacted": false,
+  "email_sent": false,
+  "applied": true,
+  "after": {
+    "head": [
+      "20260905010000",
+      "navision_linked_location_projection"
+    ],
+    "cleanup_rls": [
+      true,
+      true
+    ],
+    "cleanup_private": true,
+    "refresh_private": true,
+    "projection_exists": true,
+    "predecessor_exists": true,
+    "public_wrapper_734": true,
+    "public_acl_preserved": true,
+    "staging_sentinel_count": 1,
+    "refresh_wraps_projection": true,
+    "production_sentinel_present": false
+  },
+  "security_advisors": {
+    "total": 911,
+    "levels": {
+      "INFO": 455,
+      "WARN": 456
+    },
+    "pdc14_findings": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "detail": "Table \\`public.pdc14_location_replay_fixture_cleanup_history_20260904\\` has RLS enabled, but no policies exist"
+      }
+    ]
+  }
+}

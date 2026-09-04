@@ -1,0 +1,28 @@
+{
+  "ok": true,
+  "phase": "green",
+  "evidence": "C:\\Hermes-Active\\projects\\pdc-control-board-staging\\.worktrees\\t_86e58618\\review-evidence\\t_86e58618\\navision-linked-location-green.json",
+  "execution_error": null,
+  "cleanup_errors": [],
+  "cleanup": {
+    "head": [
+      "20260905010100",
+      "navision_projection_cleanup_evidence_parity"
+    ],
+    "auth_count": 0,
+    "role_count": 0,
+    "work_count": 0,
+    "parts_count": 0,
+    "scope_count": 0,
+    "sublet_count": 0,
+    "booking_count": 0,
+    "vehicle_count": 0,
+    "operation_count": 0,
+    "navision_batch_count": 0,
+    "cleanup_history_count": 1,
+    "navision_record_count": 0,
+    "location_receipt_count": 0,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  }
+}
