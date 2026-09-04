@@ -50,11 +50,12 @@ const vehicle = { pdcEmailOperationLines: [] };
 const detail = { requirements: [], bookings: [], job_card_lines: lines, line_adjustments: [] };
 const groups = context.vehicleWorkshopGroups(vehicle, detail);
 const projected = groups.flatMap(group => group.lines);
-assert.strictEqual(projected.length, 18, 'all genuine owner lines, including zero-hour lines, remain visible');
-assert.strictEqual(projected.filter(line => Number(line.estimatedHours) === 0).length, 17, 'explicit zero hours are preserved as evidence');
-assert.ok(projected.some(line => line.operation_no === 'OP17'), 'OP17 remains explicit evidence for mapping review');
+assert.strictEqual(projected.length, 16, 'all non-PIT genuine owner lines, including zero-hour lines, remain visible');
+assert.strictEqual(projected.filter(line => Number(line.estimatedHours) === 0).length, 15, 'non-PIT explicit zero hours are preserved as visible evidence');
+assert.ok(lines.some(line => line.operation_no === 'OP17'), 'deferred PIT source evidence remains in the immutable input');
+assert.ok(!projected.some(line => line.operation_no === 'OP17'), 'deferred PIT source evidence is not rendered as PMB workshop work');
 assert.ok(groups.some(group => group.stage === 'PARTS'), 'Parts evidence has a visible station');
-assert.ok(groups.some(group => group.stage === 'PIT_INSPECTION'), 'Pit evidence has a visible station');
+assert.ok(!groups.some(group => group.stage === 'PIT_INSPECTION'), 'deferred Pit evidence is not a visible PMB workshop station');
 assert.ok(!projected.some(line => line.fallback === true), 'generic station fallback never replaces genuine lines');
 const relocatedLine = lines[2];
 const relocatedGroups = context.vehicleWorkshopGroups(vehicle, {
