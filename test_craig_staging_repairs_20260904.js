@@ -11,6 +11,9 @@ const app = read('app.js');
 const migrationPath = 'supabase/staging_only/20260904010000_craig_workshop_and_jobcard_repairs.sql';
 assert.ok(fs.existsSync(path.join(__dirname, migrationPath)), 'append-only staging repair migration must exist');
 const migration = read(migrationPath);
+const readModelMigrationPath = 'supabase/staging_only/20260904010100_craig_hours_provenance_read_model.sql';
+assert.ok(fs.existsSync(path.join(__dirname, readModelMigrationPath)), 'hours provenance must be exposed by the authoritative detail read model');
+const readModelMigration = read(readModelMigrationPath);
 
 // Selected bay/station work is intentionally not a duplicate Vehicle Detail page.
 assert.ok(planner.includes('function workshopStationSelectionHtml('), 'compact station-only selected work renderer');
@@ -64,6 +67,8 @@ for (const value of ['13048501', 'J139125583', 'SHIRE OF EAST PILBARA', 'Stephen
 assert.ok(migration.includes('pdc_jobcard_hours_corrections_20260904'), 'append-only correction receipts preserve immutable source evidence');
 assert.ok(migration.includes('vehicle_workshop_line_adjustments'), 'effective UI/read-model overlay is repaired without source mutation');
 assert.ok(app.includes('Craig standard override · scheduling authority'), 'PD hours UI must expose Craig-standard provenance');
+assert.ok(app.includes("label: 'Craig standard hours'"), 'PD override must never be labelled unknown hours');
 assert.ok(app.includes("correction_origin === 'job_card_source_correction' ? 'job_card'"), 'adjusted work lines must render OP15 as Job Card evidence');
+for (const field of ['correction_origin', 'manual_assignment_locked']) assert.ok(readModelMigration.includes(field), `detail read model must expose ${field}`);
 
 console.log('Craig staging repairs regression: PASS');

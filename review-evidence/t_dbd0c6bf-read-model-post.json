@@ -1,0 +1,11 @@
+{
+  "head": [
+    "20260904010100",
+    "craig_hours_provenance_read_model"
+  ],
+  "anon_execute": false,
+  "def_has_lock": true,
+  "def_has_origin": true,
+  "public_execute": false,
+  "authenticated_execute": true
+}
