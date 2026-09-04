@@ -255,6 +255,15 @@ function buildWorkshopSharedActions(dataService) {
       });
     },
 
+    renameAdminBlock({ blockId, expectedVersion, label, metadata }) {
+      return mutate('rename_workshop_admin_block_20260904', {
+        p_block_id: blockId,
+        p_expected_version: expectedVersion,
+        p_label: label,
+        p_metadata: metadata || {},
+      });
+    },
+
     administratorMoveBooking({ bookingId, expectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, overrideReason = null, metadata = {}, requestId, cascade = false }) {
       return mutate('administrator_move_workshop_booking', {
         p_booking_id: bookingId,

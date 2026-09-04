@@ -1,5 +1,12 @@
 # Autonomous Website Changes
 
+## 2026-09-04 — Craig Pre-Delivery 1.50-hour authority and Workshop repairs
+
+- Newest Craig rule: every PD / Pre-Delivery operation has a standard effective duration of 1.50 hours. This includes Job Cards that explicitly state `0.0`/`0.00` and Job Cards where PD hours are missing; non-PD explicit zero remains unchanged.
+- The original source value and provenance remain immutable. An append-only correction receipt and effective Workshop overlay identify `craig_standard_pd_1_5`; the system must not claim that the Job Card supplied 1.50 when it supplied zero or no value.
+- Controlled STAGING Stock `13048501` keeps its immutable 15-line Job Card source total of `17.00` hours. OP1 Pre-Delivery is projected as Craig-standard `1.50`, making the effective total `18.50`. OP15 remains `1.50` and is corrected from the erroneous `ai_estimate` label to explicit `job_card` provenance based on PDF page 4.
+- This rule supersedes 2026-09-03 fixture language that preserved explicit-zero PD and defaulted missing PD to 1.0 AI-estimated hour.
+
 ## 2026-09-02 — source-bound Job Card parity for Stock 13059806
 
 - Added the v2 `job_card_set` planner/action contract and append-only STAGING migrations `20260902264000`, `20260902265000` and `20260902266000`. Exact attachment digest, source UID, Stock, VIN evidence and active successor writer are required; the canonical writer locks the matched vehicle, refuses conflicting/protected Job Cards, preserves immutable evidence/history and replays idempotently.

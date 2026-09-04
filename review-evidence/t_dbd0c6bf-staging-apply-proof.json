@@ -1,0 +1,83 @@
+{
+  "ok": true,
+  "environment": "staging",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "proof": {
+    "head": [
+      "20260904010000",
+      "craig_workshop_and_jobcard_repairs"
+    ],
+    "hours": {
+      "op1": {
+        "source_hours": 0,
+        "effective_hours": 1.5,
+        "source_provenance": "job_card",
+        "effective_provenance": "craig_standard_pd_1_5"
+      },
+      "op15": {
+        "source_hours": 1.5,
+        "effective_hours": 1.5,
+        "source_provenance": "ai_estimate",
+        "effective_provenance": "job_card_source_correction"
+      },
+      "effective_total": 18.5,
+      "immutable_source_total": 17
+    },
+    "vehicle": {
+      "id": "f41c7e49-a5fe-527c-94a3-e1fd18be15b0",
+      "stock": "13048501",
+      "customer": "SHIRE OF EAST PILBARA",
+      "job_card": "J139125583",
+      "invoice_value": "1324.5",
+      "stock_authority": "069",
+      "salesperson_name": "Stephen Peck",
+      "salesperson_reference": "Stephen Peck"
+    },
+    "pd_cases": [
+      {
+        "applied": true,
+        "estimated_hours": 1.5,
+        "estimated_hours_source": "craig_standard_pd_1_5",
+        "source_estimated_hours": 0,
+        "source_estimated_hours_source": "job_card"
+      },
+      {
+        "applied": true,
+        "estimated_hours": 1.5,
+        "estimated_hours_source": "craig_standard_pd_1_5",
+        "source_estimated_hours": null,
+        "source_estimated_hours_source": null
+      },
+      {
+        "applied": false,
+        "estimated_hours": 0,
+        "estimated_hours_source": "job_card",
+        "source_estimated_hours": 0,
+        "source_estimated_hours_source": "job_card"
+      }
+    ],
+    "rename_acl": {
+      "anon": false,
+      "service_role": false,
+      "authenticated": true
+    },
+    "pit_enabled": true,
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "correction_rls": true,
+    "correction_count": 2,
+    "pit_delete_trigger": true,
+    "production_sentinel": false,
+    "rename_definition_ok": true,
+    "prospective_pd_trigger": true
+  },
+  "security_advisors": {
+    "total": 902,
+    "levels": {
+      "INFO": 449,
+      "WARN": 453
+    },
+    "pdc14_findings": []
+  },
+  "production_contacted": false,
+  "production_mutated": false
+}
