@@ -17,7 +17,7 @@ Result: PASS
 - Production contacted: no
 - Cleanup: verified; zero matching rows remain
 
-The staging-only synthetic fleet exercised import/idempotency, canonical identity edits, location movement, Monday workshop booking and rescheduling, admin blocks, parts/work/sublet state, overlap behavior, Pit/QC gating, lifecycle archive/restore, authorization denial, stale-version denial, and idempotent replay. An approved temporary staging administrator then authenticated against the deployed UI at 360, 768, and 1440 px widths. All three browser runs resolved the staging project ref, loaded the dashboard without synthetic residue, and recorded no page errors, console errors, failed/HTTP >=400 requests, horizontal overflow, or production-project requests.
+The staging-only synthetic fleet exercised import/idempotency, canonical identity edits, location movement, Monday workshop booking and rescheduling, admin blocks, parts/work/sublet state, overlap behavior, Pit/QC gating, lifecycle archive/restore, authorization denial, stale-version denial, and idempotent replay. An approved temporary staging administrator then authenticated against the deployed UI at 360, 768, and 1440 px widths. The AUD-001 correction run subsequently captured a fixture-specific authenticated card and full transaction/read-back evidence for sampled assertions A04, A16, A21, A22, A23, and A26 before deleting its bounded synthetic fixture and actor residue.
 
 ## Functional coverage
 
@@ -39,6 +39,19 @@ Detailed assertion-level results are in `transaction-ledger.json`.
 | Cleanup | Pass | 264 tagged pre-cleanup rows removed; temporary browser actor removed; final global count zero |
 
 Expected negative results were counted as passes only when the operation failed closed at the intended boundary: anonymous authorization, stale expected version, QC finalization with incomplete required work/Pit, and an invalid workshop adjustment constraint probe.
+
+## AUD-001 evidence remediation
+
+Task `t_83f220c9` reran one deterministic STAGING-only fixture under the existing `QA-OVERNIGHT-20260904` prefix. The pre-mutation manifest is `aud001-remediation-fixture-manifest.json`; complete sanitized machine evidence is `aud001-transaction-evidence.json`.
+
+- A04 / A23: the accepted edit advanced version 1 to 2; identical idempotency replay returned the receipt-backed success and left version 2 unchanged.
+- A16: `mark_vehicle_ready_for_qc` returned a typed denial while fabrication remained incomplete; version 3 and PMB location were unchanged.
+- A21: anonymous work-state mutation was denied without changing version 2; the authenticated request created one requirement receipt/audit event and advanced to version 3.
+- A22: the valid expected-version request succeeded; a distinct stale version-1 request returned `stale_version` while authoritative state remained version 2.
+- A26: the global pre-cleanup scan found 13 rows across tagged vehicle, receipt/history/audit/work-state, temporary role/auth, and identity relations. The bounded cleanup deleted those 13 rows; the post-cleanup public/auth/storage scan returned zero, real and active vehicle cardinality returned to 2, notifications remained zero, and protected control fingerprints matched baseline.
+- UI: authenticated snapshot read-back contained the exact fixture; the exact stock locator was visible in the PMB bucket and captured at `screenshots/transactions/aud001-fixture-card.png` with no page errors or production requests.
+
+`validate_transaction_evidence.py` is agent-runnable and checks all required fields, sampled assertion membership, path containment/resolution, and functional summary totals. It was demonstrated RED against the deficient ledger before remediation and GREEN against both canonical and lane ledgers after remediation.
 
 ## Browser and responsive evidence
 
@@ -76,7 +89,7 @@ See `cleanup-verification.json` for the table-level pre-cleanup inventory and fi
 ## Testing notes and exclusions
 
 - External email and Telegram delivery were intentionally not sent to avoid contacting real recipients. Persistent database/outbox/receipt seams were used where applicable.
-- Fixture-specific UI cards were not captured before teardown. Workflow behavior is supported by database/RPC state, receipts, history, audit rows, and expected-denial responses; the final browser run verified the deployed authenticated shell and absence of synthetic residue.
+- The original lane did not capture a fixture card before teardown. AUD-001 remediation now supplies the exact authenticated fixture card plus snapshot/RPC, transaction, receipt/history/audit, and post-cleanup evidence without altering the retained failed audit result.
 - Production was not queried, written, deployed, or contacted.
 - No repository application code, migrations, or staging deployment were changed by this QA task. Evidence files only were added in this worktree.
 
@@ -91,6 +104,10 @@ See `cleanup-verification.json` for the table-level pre-cleanup inventory and fi
 - `live-browser-verification.json`
 - `live-browser-verification.py`
 - `visual-observations.json`
+- `aud001-remediation-fixture-manifest.json`
+- `aud001-transaction-evidence.json`
+- `validate_transaction_evidence.py`
+- `screenshots/transactions/aud001-fixture-card.png`
 - `screenshots/staging-post-cleanup-360x800.png`
 - `screenshots/staging-post-cleanup-768x900.png`
 - `screenshots/staging-post-cleanup-1440x1000.png`
