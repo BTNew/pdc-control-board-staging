@@ -182,6 +182,9 @@ assert.strictEqual(
   'department completion request hash uses PostgreSQL jsonb::text key ordering and whitespace',
 );
 assert.match(appSource, /completeVehicleDepartment\([\s\S]{0,900}await refreshSharedVehicleWorkState\(vehicle\)[\s\S]{0,200}loadVehicleWorkshopDetail/, 'department completion refreshes authoritative work state before rerendering the card');
+for (const alias of ['vehicleId: payload.vehicle_id', 'bookingId: payload.booking_id', 'idempotencyKey: payload.idempotency_key']) {
+  assert.ok(appSource.includes(alias), `department completion bridge receives ${alias}`);
+}
 
 for (const valid of ['REBHV100551477', 'REBHV199999999']) {
   assert.strictEqual(guard.normalizeVehicleIdentity(valid), valid, `${valid} is accepted as a bounded electric HiLux chassis`);
