@@ -185,6 +185,7 @@ assert.match(appSource, /completeVehicleDepartment\([\s\S]{0,900}await refreshSh
 for (const alias of ['vehicleId: payload.vehicle_id', 'bookingId: payload.booking_id', 'idempotencyKey: payload.idempotency_key']) {
   assert.ok(appSource.includes(alias), `department completion bridge receives ${alias}`);
 }
+assert.match(appSource, /expected_vehicle_version: Math\.max\(Number\(refreshedDetail\?\.vehicle_version \|\| 0\), Number\(vehicle\.__emailVehicleVersion \|\| 0\), Number\(vehicle\.version \|\| 0\)\)/, 'department completion uses the newest authoritative vehicle version');
 
 for (const valid of ['REBHV100551477', 'REBHV199999999']) {
   assert.strictEqual(guard.normalizeVehicleIdentity(valid), valid, `${valid} is accepted as a bounded electric HiLux chassis`);
