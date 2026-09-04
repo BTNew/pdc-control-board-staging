@@ -1,0 +1,373 @@
+acceptance_closure_contract: PASS
+PASS test_acceptance_closure_contract.js
+acceptance_containment_rebind_434: PASS
+PASS test_acceptance_containment_rebind_434.js
+acceptance_postcondition_delta_435: PASS
+PASS test_acceptance_postcondition_delta_435.js
+acceptance_stale_before_binding_439: PASS
+PASS test_acceptance_stale_before_binding_439.js
+acceptance_stale_fast_path_438: PASS
+PASS test_acceptance_stale_fast_path_438.js
+acceptance_stale_nonretryable_440: PASS
+PASS test_acceptance_stale_nonretryable_440.js
+Acceptance Sublet cleanup 733 staging contract passed
+PASS test_acceptance_sublet_cleanup_733.js
+Admin block atomic cascade contract passed.
+PASS test_admin_block_atomic_cascade.js
+Admin completed-history exclusion 452: PASS
+PASS test_admin_completed_history_452.js
+All Parts actions shared target contract passed.
+PASS test_all_parts_shared_target.js
+All-vehicle Job Card operation projection parity guard 493: PASS
+PASS test_all_vehicle_operation_projection_guard_493.js
+authenticated_operation_summary_adjustments: PASS
+PASS test_authenticated_operation_summary_adjustments.js
+authenticated operation Workshop projection: PASS
+PASS test_authenticated_operation_workshop_projection.js
+751_authenticated_parts_received_contract passed.
+PASS test_authenticated_parts_received_751.js
+authoritative Parts STOPPAGE/recovery contract: PASS
+PASS test_authoritative_parts_stoppage_376.js
+Authoritative planned repack 462: PASS
+PASS test_authoritative_planned_repack_462.js
+Authoritative salesperson assignment 386 contract: PASS
+PASS test_authoritative_salesperson_assignment_386.js
+Direct Inbox reset cutoff 467: PASS
+PASS test_bind_direct_inbox_reset_cutoff_467.js
+Complete QC/Board Job Card operation projection 492: PASS
+PASS test_complete_qc_operation_projection_492.js
+Complete vehicle delete SQL contract passed.
+PASS test_complete_vehicle_delete_contract.js
+Complete vehicle delete negative matrix contract passed.
+PASS test_complete_vehicle_delete_negative_matrix.js
+Complete vehicle delete UI/service contract passed.
+PASS test_complete_vehicle_delete_ui.js
+Craig staging repairs regression: PASS
+PASS test_craig_staging_repairs_20260904.js
+PASS: shared lifecycle mode disables and rejects CRM browser-local restore before parsing, confirmation, or storage
+PASS test_crm_restore_shared_mode_fail_closed.js
+Deferred PIT QC detail regression: PASS
+PASS test_deferred_pit_qc_detail_20260904.js
+Deferred PIT QC gate regression: PASS
+PASS test_deferred_pit_qc_gate_20260904.js
+durable RFT transport lifecycle 734 contract passed
+PASS test_durable_rft_transport_lifecycle_734.js
+Dynamic required-work payload and canonical readback contract passed.
+PASS test_dynamic_required_work_payload.js
+email_authoritative_board: PASS
+PASS test_email_authoritative_board.js
+EMAIL UPDATE modal layering contract passed.
+PASS test_email_update_modal_layering.js
+UID639/640 exact all-operation import release checks passed.
+PASS test_exact_uid639_640_import_501.js
+external completion canonical booking-history repair contract passed
+PASS test_external_completion_booking_history_revision_20260903.js
+external completion delivery-milestone scope contract passed
+PASS test_external_completion_delivery_milestone_scope_20260903.js
+external completion hidden-booking cancellation repair contract passed
+PASS test_external_completion_hidden_booking_cancel_20260903.js
+external completion residual-booking soft-delete repair contract passed
+PASS test_external_completion_residual_booking_soft_delete_20260903.js
+external completion independent-review repair contract passed
+PASS test_external_completion_review_repairs_20260903.js
+external completion workshop-status append-only repair contract passed
+PASS test_external_completion_workshop_status_repair_20260903.js
+external/non-Navision completion 20260903 contract passed
+PASS test_external_non_navision_completion_20260903.js
+final authoritative PDC lifecycle 700 contract passed
+PASS test_final_authoritative_pdc_lifecycle_700.js
+final authoritative PDC lifecycle 706 collision-safe successor contract passed
+PASS test_final_authoritative_pdc_lifecycle_706.js
+Fresh-import full operational reset 466: PASS
+PASS test_fresh_import_full_operational_reset_466.js
+identity, zero-hour projection and authoritative booking duration: PASS
+PASS test_identity_zero_hours_booking_duration.js
+Inline vehicle-card Parts shared save contract passed.
+PASS test_inline_vehicle_card_parts_save.js
+Job Card header-only all-lines 482: PASS
+PASS test_jobcard_header_only_all_lines_482.js
+legacy_website_links: PASS
+PASS test_legacy_website_links.js
+Lifecycle history 82000 contract passed
+PASS test_lifecycle_history_82000.js
+Linked salesperson email recipient contract passed.
+PASS test_linked_salesperson_email.js
+PASS: ordinary manual vehicle creation fails closed before browser-local state in shared mode
+PASS test_manual_vehicle_shared_mode_fail_closed.js
+PASS mobile navigation compact-width regression
+PASS test_mobile_navigation_compact_width.js
+Modal EMAIL UPDATE selection contract passed.
+PASS test_modal_email_update_selection.js
+Modal keyboard focus containment and return contract passed.
+PASS test_modal_keyboard_focus.js
+Movable Admin palette duration contract passed.
+PASS test_movable_admin_palette.js
+All-vehicle Navision link and refresh parity guard 494: PASS
+PASS test_navision_all_vehicle_link_refresh_guard_494.js
+708 Navision delivery scope alignment successor contract passed
+PASS test_navision_delivery_scope_alignment_708.js
+707 Navision delivery security successor contract passed
+PASS test_navision_delivery_security_successor_707.js
+Navision 768 client preflight regression: exact Stock, invalid fields, dealer scope, valid siblings, atomicity and no-localStorage checks passed
+PASS test_navision_import_preflight_768.js
+Navision JITA shared projection: PASS
+PASS test_navision_jita_shared_projection_378.js
+Navision linked vehicle refresh 481: PASS
+PASS test_navision_linked_vehicle_refresh_481.js
+Navision preview immediate busy state: PASS
+PASS test_navision_preview_busy_state.js
+Migration 096 unique Stock/Navision authority contract passed
+PASS test_navision_stock_authority_096.js
+Non-Navision Job Card current contract regression: PASS
+PASS test_non_navision_jobcard_contract_20260904.js
+Audited non-Navision Job Card VIN projection contract: PASS
+PASS test_non_navision_jobcard_vin_projection_20260904.js
+Operation estimate planned cascade 463: PASS
+PASS test_operation_estimate_planned_cascade_463.js
+Operational closure 411 contract passed.
+PASS test_operational_closure_411.js
+Class-level operational refresh regression passed.
+PASS test_operational_refresh_class.js
+orphan_workshop_booking_repair: PASS
+PASS test_orphan_workshop_booking_repair.js
+owner_supplied_document_jobcard_396: PASS
+PASS test_owner_supplied_document_jobcard_396.js
+Immediate Parts ETA feedback and specific ordered errors: PASS
+PASS test_parts_eta_immediate_feedback.js
+Parts ordered ETA prerequisite contract: PASS
+PASS test_parts_order_eta_377.js
+Parts ordered notification-delta containment 451: PASS
+PASS test_parts_order_notification_delta_451.js
+Parts Mark ordered dedicated presentation: PASS
+PASS test_parts_ordered_button_style.js
+Parts ordered orange booked projection: PASS
+PASS test_parts_ordered_projection_color.js
+Parts projection identity regression contract passed.
+PASS test_parts_projection_identity.js
+Parts queue canonical readback contract passed.
+PASS test_parts_queue_canonical_readback.js
+Shared canonical/Navision/email Parts Received identity contract passed.
+PASS test_parts_received_shared_identity.js
+Shared Parts ordered/complete contract passed.
+PASS test_parts_shared_actions.js
+Parts snapshot completion/projection passed.
+PASS test_parts_snapshot_completion_projection.js
+Parts STOPPAGE runtime containment repair migration contract: PASS
+PASS test_parts_stoppage_runtime_containment_repair_20260904.js
+PDC all-Inbox action queue 458: PASS
+PASS test_pdc_all_inbox_action_queue_458.js
+PDC Auditor Parts received 738 source contract passed.
+PASS test_pdc_auditor_parts_received_738.js
+PDC Board checklist closure hostile contract: PASS
+PASS test_pdc_board_checklist_closure_20260831.js
+PDC controller Parts correction 742 source contract passed.
+PASS test_pdc_controller_parts_correction_742.js
+PDC controller Parts correction 745 ETA repair source contract passed.
+PASS test_pdc_controller_parts_correction_745.js
+PASS: PDC Email AI v2 browser action boundary is typed, staging-only, and readback-bound
+PASS test_pdc_email_ai_v2_actions.js
+PDC final Inbox monitor runtime 456: PASS
+PASS test_pdc_final_inbox_monitor_runtime_456.js
+PDC Inbox monitor activation 454: PASS
+PASS test_pdc_inbox_monitor_activation_454.js
+PDC Inbox review and archive runtime 455: PASS
+PASS test_pdc_inbox_review_archive_runtime_455.js
+PDC contained runtime 504 successor contract passed: exact reviewed pair, predecessor drift guard, append-only immutable RLS history, least-privilege RPCs, idempotency, rollback metadata, and fail-closed readiness
+PASS test_pdc_monitor_contained_successor_504.js
+PDC owner monitor summary 457: PASS
+PASS test_pdc_owner_monitor_summary_457.js
+PDC-14 canonical work-state successor: PASS
+PASS test_pdc14_canonical_work_state_successor.js
+PDC-14 Control Board parity regression: PASS
+PASS test_pdc14_control_board_parity.js
+PDC-14 Copy Stock feedback regression: PASS
+PASS test_pdc14_copy_stock_feedback_20260904.js
+PDC-14 location replay-idempotency successor: PASS
+PASS test_pdc14_location_replay_successor.js
+PDC-14 synthetic Operator helper contract: PASS
+PASS test_pdc14_synthetic_operator_helper.js
+Planner compact header and RFT email status: PASS
+PASS test_planner_header_rft_email_status.js
+PASS: shared lifecycle mode hides and rejects legacy browser-local PMB bay mutations before side effects
+PASS test_pmb_legacy_shared_mode_fail_closed.js
+Stock 13000776 complete purge 483: PASS
+PASS test_purge_stock_13000776_483.js
+QC finalization 399 contract: 18 assertions passed.
+PASS test_qc_finalization_399.js
+QC mobile drill-in and queued receipt-backed saves: PASS
+PASS test_qc_mobile_drilldown_queue.js
+QC mobile refresh/projection regression: PASS
+PASS test_qc_mobile_refresh_regression_20260904.js
+Mobile QC sign-off has no label printing: PASS
+PASS test_qc_no_label_printing.js
+QC per-operation completion contract: PASS
+PASS test_qc_operation_completion_379.js
+QC operation projection restoration 395: PASS
+PASS test_qc_operation_projection_395.js
+QC operation source Job Card projection 380: PASS
+PASS test_qc_operation_source_jc_380.js
+QC page contract: 22 assertions passed.
+PASS test_qc_page.js
+QC mobile staging-base retest projection, iOS fallback, cycle receipt and finalize contract passed
+PASS test_qc_photo_mobile_upload.js
+QC vehicle reject 767 contract passed
+PASS test_qc_vehicle_reject_767.js
+QC vehicle reject 767 service contract passed
+PASS test_qc_vehicle_reject_767_service.js
+Raw snapshot to DTO mapper stale-state regression passed.
+PASS test_raw_snapshot_mapper_work_state.js
+Ready-for-QC immediate projection refresh: PASS
+PASS test_ready_for_qc_immediate_projection.js
+registered_replay_containment_repair_437: PASS
+PASS test_registered_replay_containment_repair_437.js
+Preview bootstrap guard and canonical provenance caller contract passed
+PASS test_release_bootstrap_provenance_20260904.js
+removed_operation_workbay_reconciliation: PASS
+PASS test_removed_operation_workbay_reconciliation.js
+Reset review remediation 467-469: PASS
+PASS test_reset_review_remediation_467_468.js
+receipt-backed collected vehicle survives authoritative reconciliation: PASS
+PASS test_rft_completed_projection_428.js
+authoritative RFT confirmation toggle 736 contract passed
+PASS test_rft_confirmation_toggle_736.js
+sealed RFT salesperson email interception contract passed
+PASS test_rft_email_intercept_429.js
+RFT transport email draft 739 contract: PASS
+PASS test_rft_transport_email_draft_739.js
+RFT Workshop detail lifecycle support contract: PASS
+PASS test_rft_workshop_detail_active_only.js
+Salesperson receipt-first readback race regression: PASS
+Salesperson accepted receipt generation-race integration: PASS
+PASS test_salesperson_readback_race.js
+Salesperson derived-stoppage save contract passed.
+PASS test_salesperson_save_derived_stoppage.js
+Server-only salesperson/detail fail-closed safeguard: PASS
+PASS test_salesperson_server_only_safeguard.js
+PASS shared vehicle-location mutations fail closed before browser-local authority
+PASS test_shared_location_mutations_fail_closed.js
+Shared Parts post-save reconciliation contract passed.
+PASS test_shared_parts_post_save_reconciliation.js
+Shared Parts save diagnostics contract passed.
+PASS test_shared_parts_save_diagnostics.js
+Shared work-state stale projection and Save hang contract passed.
+PASS test_shared_work_state_overlay.js
+Compact desktop sidebar spacing: PASS
+PASS test_sidebar_compact_spacing.js
+staging_containment_drift_repair_436: PASS
+PASS test_staging_containment_drift_repair_436.js
+staging_containment_readback_column_repair_433: PASS
+PASS test_staging_containment_readback_column_repair_433.js
+Staging Parts completion migration contract passed.
+PASS test_staging_parts_completion_259.js
+staging_protected_state_containment_432: PASS
+PASS test_staging_protected_state_containment_432.js
+Staging reset archive/Navision reconciliation order 495: PASS
+PASS test_staging_reset_archive_repair_495.js
+Started indefinite-duration and overtime chip contract passed.
+PASS test_started_indefinite_overtime_chip.js
+Stock 13017855 requirement/Parts/navigation safety contract passed
+PASS test_stock_13017855_followup_contract.js
+stoppage/RFT transport 412 contract passed
+PASS test_stoppage_rft_transport_412.js
+Sublet authenticated ledger read service contract passed
+PASS test_sublet_audit_read_service.js
+Sublet Calendar Month default regression contract passed.
+PASS test_sublet_calendar_default.js
+Canonical Sublet provider mutation contract passed.
+PASS test_sublet_canonical_provider_mutation_399.js
+Sublet vehicle-modal stacking contract passed.
+PASS test_sublet_modal_layering.js
+Sublet canonical booking requirement projection tests passed
+PASS test_sublet_projection.js
+Sublet projection/read contract tests passed
+PASS test_sublet_projection_contract.js
+Sublet workgroup active/no/cancelled/returned/completed DOM regression: PASS
+PASS test_sublet_workgroup_projection_20260831.js
+targeted Workshop, Parts and PMB STOPPAGE contract passed
+PASS test_targeted_stoppage_422.js
+typed Monitor Parts-complete migration 324 contract passed
+PASS test_typed_monitor_parts_complete_324.js
+U158318 exact classifier successor regression: PASS
+PASS test_u158318_classifier_successor_20260904.js
+uid590_591_exact_reinstatement: PASS
+PASS test_uid590_591_exact_reinstatement.js
+uid590_591_runtime_repair: PASS
+PASS test_uid590_591_runtime_repair.js
+UID632 complete operation contract 478-480: PASS
+PASS test_uid632_complete_operations_478_480.js
+UID635 one-shot activation 484: PASS
+PASS test_uid635_one_shot_activation_484.js
+UID635 receipt-backed import chain 486-491: PASS
+PASS test_uid635_receipt_backed_import_486_491.js
+Unified sales dashboard staging contract passed.
+PASS test_unified_sales_dashboard.js
+Vehicle detail one-row booking pills and orange booked state: PASS
+PASS test_vehicle_detail_booking_pills.js
+Vehicle detail explicit Sublet operation regression: PASS
+PASS test_vehicle_detail_explicit_sublet_operation_20260904.js
+Vehicle Locations refresh regression passed.
+PASS test_vehicle_locations_refresh.js
+Vehicle Locations deployed-module DOM click delegation regression passed.
+PASS test_vehicle_locations_refresh_dom_click.js
+Vehicle Locations RFT transport controls regression: PASS
+PASS test_vehicle_locations_rft_transport_controls.js
+Vehicle Locations stock and simplified Workshop planner operations: PASS
+PASS test_vehicle_locations_workshop_simplification.js
+Vehicle modal authoritative projection and save sequencing: PASS
+PASS test_vehicle_modal_authoritative_projection.js
+Vehicle modal authenticated identity recovery regression passed.
+PASS test_vehicle_modal_identity_recovery.js
+Vehicle modal exact Stock 13017855 save-rebind regression passed.
+PASS test_vehicle_modal_save_rebind.js
+Vehicle workshop batch-hours service contract passed
+PASS test_vehicle_workshop_hours_batch_768.js
+Vehicle workshop hours batch regression matrix passed
+PASS test_vehicle_workshop_hours_batch_768_regression.js
+Workshop Admin multi-day calendar/projection regression checks passed.
+PASS test_workshop_admin_block_multiday.js
+Workshop Admin modal Escape/focus-return contract passed.
+PASS test_workshop_admin_modal_keyboard.js
+Workshop diagnostics hidden and Best slot current-time recompute: PASS
+PASS test_workshop_best_slot_recompute.js
+workshop_booking_estimated_hours: PASS
+PASS test_workshop_booking_estimated_hours.js
+Workshop canonical booking snapshot authority 397 contract passed.
+PASS test_workshop_canonical_booking_snapshot_authority_397.js
+workshop_chip_resize_routing: PASS
+PASS test_workshop_chip_resize_routing.js
+Dedicated Workshop planner opens directly on its schedule: PASS
+PASS test_workshop_dedicated_clean_shell.js
+Workshop dedicated booking detail selection contract passed.
+PASS test_workshop_dedicated_detail_selection.js
+Workshop detail lifecycle read 453: PASS
+PASS test_workshop_detail_lifecycle_453.js
+Workshop ETA + 7 authority contract passed.
+PASS test_workshop_eta_plus_seven_authority_20260903.js
+workshop_exact_operation_minutes: PASS
+PASS test_workshop_exact_operation_minutes.js
+Focused Workshop booking contract passed.
+PASS test_workshop_focused_booking.js
+Workshop complete operation projection and exact stage total: PASS
+PASS test_workshop_operation_projection_exact_total.js
+Future-only and owner correction contract passed.
+PASS test_workshop_owner_corrections.js
+Workshop recovery future start 460: PASS
+PASS test_workshop_recovery_future_start_460.js
+Workshop recovery overlap containment 459: PASS
+PASS test_workshop_recovery_overlap_containment_459.js
+Workshop recovery failure cannot blank station snapshot: PASS
+PASS test_workshop_recovery_snapshot_resilience.js
+Workshop recovery validation containment 461: PASS
+PASS test_workshop_recovery_validation_containment_461.js
+Workshop scheduled allocation authority contract passed.
+PASS test_workshop_scheduled_allocation_authority.js
+Shared Workshop avoids reversible browser-only cascades: PASS
+PASS test_workshop_shared_cascade_persistence.js
+Workshop whole-minute stage estimate 407 contract passed.
+PASS test_workshop_stage_estimated_minutes_407.js
+Workshop STOPPAGE projects into Fix First: PASS
+PASS test_workshop_stoppage_fix_first.js
+Workshop timeline duration geometry and bold aligned typography: PASS
+PASS test_workshop_timeline_duration_geometry.js
+Workshop toolbar hours and compact date navigation: PASS
+PASS test_workshop_toolbar_hours_layout.js
