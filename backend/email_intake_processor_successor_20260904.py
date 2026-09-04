@@ -88,6 +88,23 @@ EXPLICIT_PREFIXES = {
     "!SUBLET": "SUBLET",
 }
 
+# Narrow Craig-approved mappings for retained Job Card wording that is not
+# safely covered by the broader taxonomy. The mine-bar override is deliberately
+# limited to the electrical indicator/beacon assembly; standalone mine bars
+# remain Fabrication.
+CURRENT_JOB_CARD_OVERRIDES: tuple[tuple[str, str, str], ...] = (
+    (r"\bbus 4x4 conversion 5x bfg 265/65r17 tyres and rims\b", "TYRE", "tyre"),
+    (r"\bbus 4x4 tanami snorkel\b", "BUS_4X4", "bus4x4"),
+    (r"\brock sliders?\b", "FITTING", "fitting"),
+    (r"\bmine bar\b.*\bside facing indicators?\b.*\bswitched with beacon\b", "ELECTRICAL", "electrical"),
+    (r"\bbattery isolator\b.*\bred lockout\b", "ELECTRICAL", "electrical"),
+    (r"\b175 amp jump start\b.*\bunder bonnet\b", "ELECTRICAL", "electrical"),
+    (r"\bheadlamps auto on\b.*\bhand brake off alarm\b", "ELECTRICAL", "electrical"),
+    (r"\bmounted wheel chocks?\b.*\bholder\b", "FITTING", "fitting"),
+    (r"\bsafety triangle\b", "FITTING", "fitting"),
+    (r"\bpost rego conversion\b", "BUS_4X4", "bus4x4"),
+)
+
 
 @dataclass
 class AttachmentEvidence:
@@ -229,6 +246,9 @@ def classify_job_line(description: str) -> tuple[str | None, str, float]:
     explicit = [(prefix, stage) for prefix, stage in EXPLICIT_PREFIXES.items() if upper.startswith(prefix)]
     if len(explicit) == 1:
         return explicit[0][1], f"explicit source prefix {explicit[0][0]}", 1.0
+    override = next(((stage, pattern) for pattern, stage, _ in CURRENT_JOB_CARD_OVERRIDES if re.search(pattern, description, flags=re.I)), None)
+    if override:
+        return override[0], f"current Job Card wording: {override[1]}", 0.99
     matches: list[tuple[str, str]] = []
     for stage, reason, patterns in CLASSIFICATION_RULES:
         if any(re.search(pattern, description, flags=re.I) for pattern in patterns):
@@ -249,6 +269,12 @@ def canonical_jobcard_work_key(description: str) -> str:
         r"^\s*op\s*[-:#/]?\s*\d{1,5}\s*[·|:—–-]*\s*", "", value,
         count=1, flags=re.I,
     )
+    explicit = next((JOB_CARD_WORK_KEYS[stage] for prefix, stage in EXPLICIT_PREFIXES.items() if value.upper().startswith(prefix)), None)
+    if explicit:
+        return explicit
+    override = next((work_key for pattern, _, work_key in CURRENT_JOB_CARD_OVERRIDES if re.search(pattern, value, flags=re.I)), None)
+    if override:
+        return override
     cases = (
         (r"(^| )(sub|sublet)( |$)|external provider|paint protection|^!sublet", "sublet"),
         (r"wheel nut indicator|(^| )(tyres?|tires?|wheel alignment|wheel balance)( |$)|^!tyre", "tyre"),
