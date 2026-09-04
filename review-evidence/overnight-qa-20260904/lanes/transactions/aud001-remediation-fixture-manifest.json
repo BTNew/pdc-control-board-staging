@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "task_id": "t_83f220c9",
+  "created_before_mutation": true,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_ref_forbidden": "vjdtsswhroyguxyfjdkt",
+  "tag_prefix": "QA-OVERNIGHT-20260904",
+  "fixture": {
+    "vehicle_id": "83f220c9-0000-5000-8000-000000000001",
+    "stock_number": "QA-OVERNIGHT-20260904-AUD001",
+    "job_card_number": "QA-OVERNIGHT-20260904-JC001",
+    "vin": "TEST09049999999AA",
+    "registration": "QA001",
+    "source_system": "qa_overnight_synthetic",
+    "source_batch_id": "QA-OVERNIGHT-20260904-AUD001-CORRECTION",
+    "source_record_id": "QA-OVERNIGHT-20260904-AUD001"
+  },
+  "actor": {
+    "email": "qa.overnight.20260904.aud001@example.com",
+    "role": "administrator",
+    "purpose": "bounded STAGING browser/runtime transaction evidence"
+  },
+  "planned_assertions": ["A04", "A16", "A21", "A22", "A23", "A26"],
+  "planned_mutations": [
+    "seed one manifest-bound synthetic vehicle and one temporary authenticated actor",
+    "edit_vehicle_master success, stale-version denial, exact-key replay",
+    "anonymous set_pdc_vehicle_work_states denial and authenticated success",
+    "mark_vehicle_ready_for_qc denial with incomplete non-PIT work",
+    "capture authenticated fixture-specific UI read-back",
+    "bounded cleanup of only manifest-bound synthetic vehicle, actor, and linked mutable residue"
+  ],
+  "production_contacted": false,
+  "outbound_email_sent": false
+}

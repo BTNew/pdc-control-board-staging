@@ -1,42 +1,45 @@
 {
   "schema_version": 1,
-  "task_id": "t_1160aee6",
+  "task_id": "t_83f220c9",
+  "generated_at": "2026-09-04T23:39:02.888131+00:00",
   "project_ref": "cdsmnqxtyyoeoznmbidd",
-  "deployment_url": "https://btnew.github.io/pdc-control-board-staging/",
-  "production_contacted": false,
-  "tag_prefix": "QA-OVERNIGHT-20260904",
-  "functional_summary": {
-    "scored_assertions": 26,
-    "passed": 26,
-    "failed": 0,
-    "pass_ratio_percent": 100.0,
-    "unresolved_critical": 0,
-    "unresolved_high": 0
+  "deployed_url": "https://btnew.github.io/pdc-control-board-staging/",
+  "manifest_before_mutation": "lanes/transactions/aud001-remediation-fixture-manifest.json",
+  "before_run": {
+    "residue": {
+      "total": 0,
+      "relations": []
+    },
+    "authoritative_controls": {
+      "controls": [
+        {
+          "id": "[REDACTED_PROTECTED_UUID_A]",
+          "version": 12,
+          "updated_at": "2026-09-04T02:36:59.407668+00:00",
+          "stock_number": "[REDACTED_STOCK_A]",
+          "lifecycle_state": "active",
+          "current_location": "QC",
+          "identity_fingerprint": "1b84e20f19bb3bb56435f801f728e580d935bc76472e13e8f7a5a6af196e4fcc"
+        },
+        {
+          "id": "[REDACTED_PROTECTED_UUID_B]",
+          "version": 3,
+          "updated_at": "2026-09-04T05:18:17.045178+00:00",
+          "stock_number": "[REDACTED_STOCK_B]",
+          "lifecycle_state": "active",
+          "current_location": "YH",
+          "identity_fingerprint": "8896c1ab83e68fa275d52ba8d10bb2e0582f4ae410aa695b4e954548cccbf98c"
+        }
+      ],
+      "vehicle_count": 2,
+      "notification_count": 0,
+      "active_vehicle_count": 2,
+      "staging_sentinel_count": 1,
+      "production_sentinel_present": false
+    }
   },
-  "assertions": [
-    {
-      "id": "A01",
-      "area": "fixtures",
-      "result": "pass",
-      "evidence": "Manifest existed before fixture creation; exactly 15 uniquely tagged vehicles were created."
-    },
-    {
-      "id": "A02",
-      "area": "staging-isolation",
-      "result": "pass",
-      "evidence": "All database commands targeted project cdsmnqxtyyoeoznmbidd; browser network observer recorded no production requests."
-    },
-    {
-      "id": "A03",
-      "area": "identity",
-      "result": "pass",
-      "evidence": "Synthetic stock/VIN/registration/job-card identifiers were unique; edit path preserved canonical vehicle identity."
-    },
-    {
-      "id": "A04",
-      "area": "idempotency",
-      "result": "pass",
-      "evidence": "Duplicate import/edit replay returned the original receipt/result and did not add a vehicle.",
+  "transactions": {
+    "A04": {
       "before_state": {
         "vehicle": {
           "id": "83f220c9-0000-5000-8000-000000000001",
@@ -262,249 +265,9 @@
           "operation_kind": "manual_edit",
           "idempotency_key": "QA-OVERNIGHT-20260904-AUD001-EDIT-1"
         }
-      ],
-      "status": "pass",
-      "ui_readback": {
-        "snapshot_rpc": {
-          "http_status": 200,
-          "fixture_present": true,
-          "vehicle_count": 3
-        },
-        "authenticated_role": "administrator",
-        "fixture_visible": true,
-        "exact_fixture_locator": ".incoming-vehicle-card:has-text('QA-OVERNIGHT-20260904-AUD001')",
-        "fixture_card_text": "\u2014\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-20260904 AUD001 UPDATED\nQa-overnight-20260904 Aud001 Synthetic Vehicle\n\u2022\n\u2013\n\u2013\n\u2013\n\u2013\n\u2022\n\u2013\n\u2013\n\u2013\nPMB\n\u2014\nSTATUS\nUNALLOCATED\nImported by email \u00b7 Read only",
-        "screenshot": "screenshots/transactions/aud001-fixture-card.png",
-        "events": []
-      },
-      "expected_version_behavior": "Idempotent replay preserves authoritative version 2 after the first valid edit.",
-      "observed_version_behavior": "Initial valid edit advanced version 1 to 2; replay left version at 2.",
-      "expected_idempotency_behavior": "The same idempotency key and payload returns the original successful result without a second mutation.",
-      "observed_idempotency_behavior": "Replay returned ok=true and the same receipt-backed version-2 state.",
-      "rollback_cleanup_result": {
-        "started_at": "2026-09-04T23:39:40.784426+00:00",
-        "pre_cleanup": {
-          "total": 13,
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities"
-            },
-            {
-              "count": 1,
-              "relation": "auth.users"
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles"
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles"
-            }
-          ]
-        },
-        "bounded_delete": {
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "auth.users",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles",
-              "max_expected": 1
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history",
-              "max_expected": 3
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles",
-              "max_expected": 1
-            }
-          ],
-          "deleted_total": 13
-        },
-        "post_cleanup": {
-          "total": 0,
-          "relations": []
-        },
-        "authoritative_controls_after": {
-          "controls": [
-            {
-              "id": "[REDACTED_PROTECTED_UUID_A]",
-              "version": 12,
-              "updated_at": "2026-09-04T02:36:59.407668+00:00",
-              "stock_number": "[REDACTED_STOCK_A]",
-              "lifecycle_state": "active",
-              "current_location": "QC",
-              "identity_fingerprint": "1b84e20f19bb3bb56435f801f728e580d935bc76472e13e8f7a5a6af196e4fcc"
-            },
-            {
-              "id": "[REDACTED_PROTECTED_UUID_B]",
-              "version": 3,
-              "updated_at": "2026-09-04T05:18:17.045178+00:00",
-              "stock_number": "[REDACTED_STOCK_B]",
-              "lifecycle_state": "active",
-              "current_location": "YH",
-              "identity_fingerprint": "8896c1ab83e68fa275d52ba8d10bb2e0582f4ae410aa695b4e954548cccbf98c"
-            }
-          ],
-          "vehicle_count": 2,
-          "notification_count": 0,
-          "active_vehicle_count": 2,
-          "staging_sentinel_count": 1,
-          "production_sentinel_present": false
-        },
-        "real_vehicle_cardinality_unchanged": true,
-        "active_vehicle_cardinality_unchanged": true,
-        "protected_controls_unchanged": true,
-        "notification_count_unchanged": true,
-        "temporary_actor_removed": true
-      },
-      "evidence_paths": [
-        "lanes/transactions/aud001-transaction-evidence.json",
-        "screenshots/transactions/aud001-fixture-card.png"
       ]
     },
-    {
-      "id": "A05",
-      "area": "yard-hold",
-      "result": "pass",
-      "evidence": "Location mutation produced visible board rows and movement history for yard-hold/PMB paths."
-    },
-    {
-      "id": "A06",
-      "area": "planner-booking",
-      "result": "pass",
-      "evidence": "Workshop booking was created for Monday 2026-09-07 and persisted booking history."
-    },
-    {
-      "id": "A07",
-      "area": "booking-move",
-      "result": "pass",
-      "evidence": "Reschedule path produced versioned booking/history rows without duplicate active booking state."
-    },
-    {
-      "id": "A08",
-      "area": "admin-block-create",
-      "result": "pass",
-      "evidence": "Admin-block state and receipt were created through authenticated RPC."
-    },
-    {
-      "id": "A09",
-      "area": "admin-block-update",
-      "result": "pass",
-      "evidence": "Admin-block update produced versioned history/receipt state."
-    },
-    {
-      "id": "A10",
-      "area": "admin-block-remove",
-      "result": "pass",
-      "evidence": "Admin-block removal cleared current state while retaining synthetic history before cleanup."
-    },
-    {
-      "id": "A11",
-      "area": "parts",
-      "result": "pass",
-      "evidence": "Required/ordered/received work-state mutations produced parts update evidence."
-    },
-    {
-      "id": "A12",
-      "area": "workshop",
-      "result": "pass",
-      "evidence": "Required workshop work items and three valid line adjustments were persisted."
-    },
-    {
-      "id": "A13",
-      "area": "estimates",
-      "result": "pass",
-      "evidence": "Workshop estimated-duration functions were inspected and exercised against synthetic work state."
-    },
-    {
-      "id": "A14",
-      "area": "sublet",
-      "result": "pass",
-      "evidence": "Sublet booking instance and instance-history records were created for the tagged fleet."
-    },
-    {
-      "id": "A15",
-      "area": "overlap",
-      "result": "pass",
-      "evidence": "Synthetic vehicles occupied multiple required-work/location states without duplicate canonical vehicles."
-    },
-    {
-      "id": "A16",
-      "area": "qc-negative",
-      "result": "pass",
-      "evidence": "QC transition with incomplete required work failed closed as expected.",
+    "A16": {
       "before_state": {
         "vehicle": {
           "id": "83f220c9-0000-5000-8000-000000000001",
@@ -809,207 +572,9 @@
         "typed_negative_action": "mark_vehicle_ready_for_qc",
         "audit_count_before": 1,
         "audit_count_after": 1
-      },
-      "status": "pass",
-      "ui_readback": {
-        "snapshot_rpc": {
-          "http_status": 200,
-          "fixture_present": true,
-          "vehicle_count": 3
-        },
-        "authenticated_role": "administrator",
-        "fixture_visible": true,
-        "exact_fixture_locator": ".incoming-vehicle-card:has-text('QA-OVERNIGHT-20260904-AUD001')",
-        "fixture_card_text": "\u2014\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-20260904 AUD001 UPDATED\nQa-overnight-20260904 Aud001 Synthetic Vehicle\n\u2022\n\u2013\n\u2013\n\u2013\n\u2013\n\u2022\n\u2013\n\u2013\n\u2013\nPMB\n\u2014\nSTATUS\nUNALLOCATED\nImported by email \u00b7 Read only",
-        "screenshot": "screenshots/transactions/aud001-fixture-card.png",
-        "events": []
-      },
-      "expected_version_behavior": "A denied QC transition must not increment version or change PMB location.",
-      "observed_version_behavior": "Incomplete required fabrication work kept version 3 and location PMB.",
-      "expected_idempotency_behavior": "Repeated invalid QC requests remain fail-closed and mutation-free.",
-      "observed_idempotency_behavior": "Typed denial returned ok=false with no authoritative state mutation.",
-      "rollback_cleanup_result": {
-        "started_at": "2026-09-04T23:39:40.784426+00:00",
-        "pre_cleanup": {
-          "total": 13,
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities"
-            },
-            {
-              "count": 1,
-              "relation": "auth.users"
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles"
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles"
-            }
-          ]
-        },
-        "bounded_delete": {
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "auth.users",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles",
-              "max_expected": 1
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history",
-              "max_expected": 3
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles",
-              "max_expected": 1
-            }
-          ],
-          "deleted_total": 13
-        },
-        "post_cleanup": {
-          "total": 0,
-          "relations": []
-        },
-        "authoritative_controls_after": {
-          "controls": [
-            {
-              "id": "[REDACTED_PROTECTED_UUID_A]",
-              "version": 12,
-              "updated_at": "2026-09-04T02:36:59.407668+00:00",
-              "stock_number": "[REDACTED_STOCK_A]",
-              "lifecycle_state": "active",
-              "current_location": "QC",
-              "identity_fingerprint": "1b84e20f19bb3bb56435f801f728e580d935bc76472e13e8f7a5a6af196e4fcc"
-            },
-            {
-              "id": "[REDACTED_PROTECTED_UUID_B]",
-              "version": 3,
-              "updated_at": "2026-09-04T05:18:17.045178+00:00",
-              "stock_number": "[REDACTED_STOCK_B]",
-              "lifecycle_state": "active",
-              "current_location": "YH",
-              "identity_fingerprint": "8896c1ab83e68fa275d52ba8d10bb2e0582f4ae410aa695b4e954548cccbf98c"
-            }
-          ],
-          "vehicle_count": 2,
-          "notification_count": 0,
-          "active_vehicle_count": 2,
-          "staging_sentinel_count": 1,
-          "production_sentinel_present": false
-        },
-        "real_vehicle_cardinality_unchanged": true,
-        "active_vehicle_cardinality_unchanged": true,
-        "protected_controls_unchanged": true,
-        "notification_count_unchanged": true,
-        "temporary_actor_removed": true
-      },
-      "evidence_paths": [
-        "lanes/transactions/aud001-transaction-evidence.json",
-        "screenshots/transactions/aud001-fixture-card.png"
-      ]
+      }
     },
-    {
-      "id": "A17",
-      "area": "pit-gate",
-      "result": "pass",
-      "evidence": "Deferred Pit remained a separate required workshop state and prevented premature finalization."
-    },
-    {
-      "id": "A18",
-      "area": "qc-ready",
-      "result": "pass",
-      "evidence": "Ready-for-QC paths advanced eligible synthetic vehicles to QC with lifecycle history."
-    },
-    {
-      "id": "A19",
-      "area": "archive",
-      "result": "pass",
-      "evidence": "Archive/delete path produced deleted-completed evidence."
-    },
-    {
-      "id": "A20",
-      "area": "restore",
-      "result": "pass",
-      "evidence": "Restore returned the synthetic vehicle to active lifecycle state without changing identity."
-    },
-    {
-      "id": "A21",
-      "area": "authorization",
-      "result": "pass",
-      "evidence": "Anonymous set_pdc_vehicle_work_states call was rejected; authenticated equivalent succeeded.",
+    "A21": {
       "before_state": {
         "vehicle": {
           "id": "83f220c9-0000-5000-8000-000000000001",
@@ -1509,183 +1074,9 @@
             }
           }
         ]
-      },
-      "status": "pass",
-      "ui_readback": {
-        "snapshot_rpc": {
-          "http_status": 200,
-          "fixture_present": true,
-          "vehicle_count": 3
-        },
-        "authenticated_role": "administrator",
-        "fixture_visible": true,
-        "exact_fixture_locator": ".incoming-vehicle-card:has-text('QA-OVERNIGHT-20260904-AUD001')",
-        "fixture_card_text": "\u2014\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-20260904 AUD001 UPDATED\nQa-overnight-20260904 Aud001 Synthetic Vehicle\n\u2022\n\u2013\n\u2013\n\u2013\n\u2013\n\u2022\n\u2013\n\u2013\n\u2013\nPMB\n\u2014\nSTATUS\nUNALLOCATED\nImported by email \u00b7 Read only",
-        "screenshot": "screenshots/transactions/aud001-fixture-card.png",
-        "events": []
-      },
-      "expected_version_behavior": "Anonymous denial leaves version 2; the authenticated valid mutation advances exactly once to version 3.",
-      "observed_version_behavior": "Anonymous call left version 2; authenticated administrator call produced version 3.",
-      "expected_idempotency_behavior": "Authorization denial cannot create a receipt or state change; the authorized request creates one typed receipt.",
-      "observed_idempotency_behavior": "No anonymous mutation occurred; one authenticated requirement receipt and matching audit history were read back.",
-      "rollback_cleanup_result": {
-        "started_at": "2026-09-04T23:39:40.784426+00:00",
-        "pre_cleanup": {
-          "total": 13,
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities"
-            },
-            {
-              "count": 1,
-              "relation": "auth.users"
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles"
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles"
-            }
-          ]
-        },
-        "bounded_delete": {
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "auth.users",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles",
-              "max_expected": 1
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history",
-              "max_expected": 3
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles",
-              "max_expected": 1
-            }
-          ],
-          "deleted_total": 13
-        },
-        "post_cleanup": {
-          "total": 0,
-          "relations": []
-        },
-        "authoritative_controls_after": {
-          "controls": [
-            {
-              "id": "[REDACTED_PROTECTED_UUID_A]",
-              "version": 12,
-              "updated_at": "2026-09-04T02:36:59.407668+00:00",
-              "stock_number": "[REDACTED_STOCK_A]",
-              "lifecycle_state": "active",
-              "current_location": "QC",
-              "identity_fingerprint": "1b84e20f19bb3bb56435f801f728e580d935bc76472e13e8f7a5a6af196e4fcc"
-            },
-            {
-              "id": "[REDACTED_PROTECTED_UUID_B]",
-              "version": 3,
-              "updated_at": "2026-09-04T05:18:17.045178+00:00",
-              "stock_number": "[REDACTED_STOCK_B]",
-              "lifecycle_state": "active",
-              "current_location": "YH",
-              "identity_fingerprint": "8896c1ab83e68fa275d52ba8d10bb2e0582f4ae410aa695b4e954548cccbf98c"
-            }
-          ],
-          "vehicle_count": 2,
-          "notification_count": 0,
-          "active_vehicle_count": 2,
-          "staging_sentinel_count": 1,
-          "production_sentinel_present": false
-        },
-        "real_vehicle_cardinality_unchanged": true,
-        "active_vehicle_cardinality_unchanged": true,
-        "protected_controls_unchanged": true,
-        "notification_count_unchanged": true,
-        "temporary_actor_removed": true
-      },
-      "evidence_paths": [
-        "lanes/transactions/aud001-transaction-evidence.json",
-        "screenshots/transactions/aud001-fixture-card.png"
-      ]
+      }
     },
-    {
-      "id": "A22",
-      "area": "concurrency",
-      "result": "pass",
-      "evidence": "Stale expected-version mutation was rejected; valid expected-version mutation advanced version 1 to 2.",
+    "A22": {
       "before_state": {
         "vehicle": {
           "id": "83f220c9-0000-5000-8000-000000000001",
@@ -1936,183 +1327,9 @@
           "operation_kind": "manual_edit",
           "idempotency_key": "QA-OVERNIGHT-20260904-AUD001-EDIT-1"
         }
-      ],
-      "status": "pass",
-      "ui_readback": {
-        "snapshot_rpc": {
-          "http_status": 200,
-          "fixture_present": true,
-          "vehicle_count": 3
-        },
-        "authenticated_role": "administrator",
-        "fixture_visible": true,
-        "exact_fixture_locator": ".incoming-vehicle-card:has-text('QA-OVERNIGHT-20260904-AUD001')",
-        "fixture_card_text": "\u2014\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-20260904 AUD001 UPDATED\nQa-overnight-20260904 Aud001 Synthetic Vehicle\n\u2022\n\u2013\n\u2013\n\u2013\n\u2013\n\u2022\n\u2013\n\u2013\n\u2013\nPMB\n\u2014\nSTATUS\nUNALLOCATED\nImported by email \u00b7 Read only",
-        "screenshot": "screenshots/transactions/aud001-fixture-card.png",
-        "events": []
-      },
-      "expected_version_behavior": "A valid expected version advances 1 to 2; a stale expected version is rejected without further change.",
-      "observed_version_behavior": "Valid edit produced version 2; stale version-1 request returned stale_version and state remained version 2.",
-      "expected_idempotency_behavior": "Version conflict detection prevents duplicate or stale writes even when a distinct request key is supplied.",
-      "observed_idempotency_behavior": "The stale request created no second customer-name mutation or version increment.",
-      "rollback_cleanup_result": {
-        "started_at": "2026-09-04T23:39:40.784426+00:00",
-        "pre_cleanup": {
-          "total": 13,
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities"
-            },
-            {
-              "count": 1,
-              "relation": "auth.users"
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles"
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles"
-            }
-          ]
-        },
-        "bounded_delete": {
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "auth.users",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles",
-              "max_expected": 1
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history",
-              "max_expected": 3
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles",
-              "max_expected": 1
-            }
-          ],
-          "deleted_total": 13
-        },
-        "post_cleanup": {
-          "total": 0,
-          "relations": []
-        },
-        "authoritative_controls_after": {
-          "controls": [
-            {
-              "id": "[REDACTED_PROTECTED_UUID_A]",
-              "version": 12,
-              "updated_at": "2026-09-04T02:36:59.407668+00:00",
-              "stock_number": "[REDACTED_STOCK_A]",
-              "lifecycle_state": "active",
-              "current_location": "QC",
-              "identity_fingerprint": "1b84e20f19bb3bb56435f801f728e580d935bc76472e13e8f7a5a6af196e4fcc"
-            },
-            {
-              "id": "[REDACTED_PROTECTED_UUID_B]",
-              "version": 3,
-              "updated_at": "2026-09-04T05:18:17.045178+00:00",
-              "stock_number": "[REDACTED_STOCK_B]",
-              "lifecycle_state": "active",
-              "current_location": "YH",
-              "identity_fingerprint": "8896c1ab83e68fa275d52ba8d10bb2e0582f4ae410aa695b4e954548cccbf98c"
-            }
-          ],
-          "vehicle_count": 2,
-          "notification_count": 0,
-          "active_vehicle_count": 2,
-          "staging_sentinel_count": 1,
-          "production_sentinel_present": false
-        },
-        "real_vehicle_cardinality_unchanged": true,
-        "active_vehicle_cardinality_unchanged": true,
-        "protected_controls_unchanged": true,
-        "notification_count_unchanged": true,
-        "temporary_actor_removed": true
-      },
-      "evidence_paths": [
-        "lanes/transactions/aud001-transaction-evidence.json",
-        "screenshots/transactions/aud001-fixture-card.png"
       ]
     },
-    {
-      "id": "A23",
-      "area": "rapid-replay",
-      "result": "pass",
-      "evidence": "Repeated same idempotency key returned the existing version-2 receipt and did not apply a second mutation.",
+    "A23": {
       "before_state": {
         "vehicle": {
           "id": "83f220c9-0000-5000-8000-000000000001",
@@ -2438,356 +1655,75 @@
           "operation_kind": "manual_edit",
           "idempotency_key": "QA-OVERNIGHT-20260904-AUD001-EDIT-1"
         }
-      ],
-      "status": "pass",
-      "ui_readback": {
-        "snapshot_rpc": {
-          "http_status": 200,
-          "fixture_present": true,
-          "vehicle_count": 3
+      ]
+    }
+  },
+  "ui_readback": {
+    "snapshot_rpc": {
+      "http_status": 200,
+      "fixture_present": true,
+      "vehicle_count": 3
+    },
+    "authenticated_role": "administrator",
+    "fixture_visible": true,
+    "exact_fixture_locator": ".incoming-vehicle-card:has-text('QA-OVERNIGHT-20260904-AUD001')",
+    "fixture_card_text": "\u2014\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-20260904 AUD001 UPDATED\nQa-overnight-20260904 Aud001 Synthetic Vehicle\n\u2022\n\u2013\n\u2013\n\u2013\n\u2013\n\u2022\n\u2013\n\u2013\n\u2013\nPMB\n\u2014\nSTATUS\nUNALLOCATED\nImported by email \u00b7 Read only",
+    "screenshot": "screenshots/transactions/aud001-fixture-card.png",
+    "events": []
+  },
+  "cleanup": {
+    "started_at": "2026-09-04T23:39:40.784426+00:00",
+    "pre_cleanup": {
+      "total": 13,
+      "relations": [
+        {
+          "count": 1,
+          "relation": "auth.identities"
         },
-        "authenticated_role": "administrator",
-        "fixture_visible": true,
-        "exact_fixture_locator": ".incoming-vehicle-card:has-text('QA-OVERNIGHT-20260904-AUD001')",
-        "fixture_card_text": "\u2014\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-20260904 AUD001 UPDATED\nQa-overnight-20260904 Aud001 Synthetic Vehicle\n\u2022\n\u2013\n\u2013\n\u2013\n\u2013\n\u2022\n\u2013\n\u2013\n\u2013\nPMB\n\u2014\nSTATUS\nUNALLOCATED\nImported by email \u00b7 Read only",
-        "screenshot": "screenshots/transactions/aud001-fixture-card.png",
-        "events": []
-      },
-      "expected_version_behavior": "Rapid replay of the accepted request remains at authoritative version 2.",
-      "observed_version_behavior": "Replay readback remained version 2 with the accepted customer name.",
-      "expected_idempotency_behavior": "An identical idempotency key and body reuses the original receipt/result.",
-      "observed_idempotency_behavior": "The repeated call returned success while receipt/readback counts proved no duplicate mutation.",
-      "rollback_cleanup_result": {
-        "started_at": "2026-09-04T23:39:40.784426+00:00",
-        "pre_cleanup": {
-          "total": 13,
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities"
-            },
-            {
-              "count": 1,
-              "relation": "auth.users"
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles"
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles"
-            }
-          ]
+        {
+          "count": 1,
+          "relation": "auth.users"
         },
-        "bounded_delete": {
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "auth.users",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles",
-              "max_expected": 1
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history",
-              "max_expected": 3
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles",
-              "max_expected": 1
-            }
-          ],
-          "deleted_total": 13
+        {
+          "count": 1,
+          "relation": "public.audit_events"
         },
-        "post_cleanup": {
-          "total": 0,
-          "relations": []
+        {
+          "count": 1,
+          "relation": "public.pdc_authenticated_email_import_receipts"
         },
-        "authoritative_controls_after": {
-          "controls": [
-            {
-              "id": "[REDACTED_PROTECTED_UUID_A]",
-              "version": 12,
-              "updated_at": "2026-09-04T02:36:59.407668+00:00",
-              "stock_number": "[REDACTED_STOCK_A]",
-              "lifecycle_state": "active",
-              "current_location": "QC",
-              "identity_fingerprint": "1b84e20f19bb3bb56435f801f728e580d935bc76472e13e8f7a5a6af196e4fcc"
-            },
-            {
-              "id": "[REDACTED_PROTECTED_UUID_B]",
-              "version": 3,
-              "updated_at": "2026-09-04T05:18:17.045178+00:00",
-              "stock_number": "[REDACTED_STOCK_B]",
-              "lifecycle_state": "active",
-              "current_location": "YH",
-              "identity_fingerprint": "8896c1ab83e68fa275d52ba8d10bb2e0582f4ae410aa695b4e954548cccbf98c"
-            }
-          ],
-          "vehicle_count": 2,
-          "notification_count": 0,
-          "active_vehicle_count": 2,
-          "staging_sentinel_count": 1,
-          "production_sentinel_present": false
+        {
+          "count": 1,
+          "relation": "public.pdc_requirement_edit_receipts_772"
         },
-        "real_vehicle_cardinality_unchanged": true,
-        "active_vehicle_cardinality_unchanged": true,
-        "protected_controls_unchanged": true,
-        "notification_count_unchanged": true,
-        "temporary_actor_removed": true
-      },
-      "evidence_paths": [
-        "lanes/transactions/aud001-transaction-evidence.json",
-        "screenshots/transactions/aud001-fixture-card.png"
+        {
+          "count": 1,
+          "relation": "public.pdc_user_roles"
+        },
+        {
+          "count": 3,
+          "relation": "public.vehicle_master_history"
+        },
+        {
+          "count": 1,
+          "relation": "public.vehicle_master_operation_receipts"
+        },
+        {
+          "count": 1,
+          "relation": "public.vehicle_master_source_records"
+        },
+        {
+          "count": 1,
+          "relation": "public.vehicle_work_items"
+        },
+        {
+          "count": 1,
+          "relation": "public.vehicles"
+        }
       ]
     },
-    {
-      "id": "A24",
-      "area": "live-browser",
-      "result": "pass",
-      "evidence": "Temporary approved staging administrator authenticated successfully at 360, 768 and 1440 widths."
-    },
-    {
-      "id": "A25",
-      "area": "browser-health",
-      "result": "pass",
-      "evidence": "Zero page errors, console errors, failed/HTTP>=400 requests, horizontal overflow, or production requests at all three viewports."
-    },
-    {
-      "id": "A26",
-      "area": "cleanup",
-      "result": "pass",
-      "evidence": "The original overnight lane removed 264 tagged rows. AUD-001 remediation separately removed exactly 13 manifest-bound rows within per-relation maximums; final global scan found zero tagged/actor rows while protected controls and real cardinality remained unchanged.",
-      "before_state": {
-        "total": 13,
-        "relations": [
-          {
-            "count": 1,
-            "relation": "auth.identities"
-          },
-          {
-            "count": 1,
-            "relation": "auth.users"
-          },
-          {
-            "count": 1,
-            "relation": "public.audit_events"
-          },
-          {
-            "count": 1,
-            "relation": "public.pdc_authenticated_email_import_receipts"
-          },
-          {
-            "count": 1,
-            "relation": "public.pdc_requirement_edit_receipts_772"
-          },
-          {
-            "count": 1,
-            "relation": "public.pdc_user_roles"
-          },
-          {
-            "count": 3,
-            "relation": "public.vehicle_master_history"
-          },
-          {
-            "count": 1,
-            "relation": "public.vehicle_master_operation_receipts"
-          },
-          {
-            "count": 1,
-            "relation": "public.vehicle_master_source_records"
-          },
-          {
-            "count": 1,
-            "relation": "public.vehicle_work_items"
-          },
-          {
-            "count": 1,
-            "relation": "public.vehicles"
-          }
-        ]
-      },
-      "request_payload_redacted": {
-        "scope": "exact manifest vehicle UUID/stock/source-batch and exact temporary actor email",
-        "operation": "table-specific dependency-ordered cleanup with per-relation maximums"
-      },
-      "response": {
-        "relations": [
-          {
-            "count": 1,
-            "relation": "auth.identities",
-            "max_expected": 1
-          },
-          {
-            "count": 1,
-            "relation": "auth.users",
-            "max_expected": 1
-          },
-          {
-            "count": 1,
-            "relation": "public.audit_events",
-            "max_expected": 1
-          },
-          {
-            "count": 1,
-            "relation": "public.pdc_authenticated_email_import_receipts",
-            "max_expected": 1
-          },
-          {
-            "count": 1,
-            "relation": "public.pdc_requirement_edit_receipts_772",
-            "max_expected": 1
-          },
-          {
-            "count": 1,
-            "relation": "public.pdc_user_roles",
-            "max_expected": 1
-          },
-          {
-            "count": 3,
-            "relation": "public.vehicle_master_history",
-            "max_expected": 3
-          },
-          {
-            "count": 1,
-            "relation": "public.vehicle_master_operation_receipts",
-            "max_expected": 1
-          },
-          {
-            "count": 1,
-            "relation": "public.vehicle_master_source_records",
-            "max_expected": 1
-          },
-          {
-            "count": 1,
-            "relation": "public.vehicle_work_items",
-            "max_expected": 1
-          },
-          {
-            "count": 1,
-            "relation": "public.vehicles",
-            "max_expected": 1
-          }
-        ],
-        "deleted_total": 13
-      },
-      "status": "pass",
-      "authoritative_db_readback": {
-        "post_cleanup": {
-          "total": 0,
-          "relations": []
-        },
-        "authoritative_controls_after": {
-          "controls": [
-            {
-              "id": "[REDACTED_PROTECTED_UUID_A]",
-              "version": 12,
-              "updated_at": "2026-09-04T02:36:59.407668+00:00",
-              "stock_number": "[REDACTED_STOCK_A]",
-              "lifecycle_state": "active",
-              "current_location": "QC",
-              "identity_fingerprint": "1b84e20f19bb3bb56435f801f728e580d935bc76472e13e8f7a5a6af196e4fcc"
-            },
-            {
-              "id": "[REDACTED_PROTECTED_UUID_B]",
-              "version": 3,
-              "updated_at": "2026-09-04T05:18:17.045178+00:00",
-              "stock_number": "[REDACTED_STOCK_B]",
-              "lifecycle_state": "active",
-              "current_location": "YH",
-              "identity_fingerprint": "8896c1ab83e68fa275d52ba8d10bb2e0582f4ae410aa695b4e954548cccbf98c"
-            }
-          ],
-          "vehicle_count": 2,
-          "notification_count": 0,
-          "active_vehicle_count": 2,
-          "staging_sentinel_count": 1,
-          "production_sentinel_present": false
-        }
-      },
-      "ui_readback": {
-        "snapshot_rpc": {
-          "http_status": 200,
-          "fixture_present": true,
-          "vehicle_count": 3
-        },
-        "authenticated_role": "administrator",
-        "fixture_visible": true,
-        "exact_fixture_locator": ".incoming-vehicle-card:has-text('QA-OVERNIGHT-20260904-AUD001')",
-        "fixture_card_text": "\u2014\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-2026\u2026\nQA-OVERNIGHT-20260904 AUD001 UPDATED\nQa-overnight-20260904 Aud001 Synthetic Vehicle\n\u2022\n\u2013\n\u2013\n\u2013\n\u2013\n\u2022\n\u2013\n\u2013\n\u2013\nPMB\n\u2014\nSTATUS\nUNALLOCATED\nImported by email \u00b7 Read only",
-        "screenshot": "screenshots/transactions/aud001-fixture-card.png",
-        "events": []
-      },
-      "audit_history_or_typed_action_receipt": [
+    "bounded_delete": {
+      "relations": [
         {
           "count": 1,
           "relation": "auth.identities",
@@ -2844,188 +1780,48 @@
           "max_expected": 1
         }
       ],
-      "expected_version_behavior": "Cleanup removes only tagged synthetic rows and leaves protected authoritative controls unchanged.",
-      "observed_version_behavior": "Protected control fingerprints and versions matched baseline; real and active vehicle cardinality returned to baseline.",
-      "expected_idempotency_behavior": "A second residue scan after cleanup reports zero, so cleanup is safely converged.",
-      "observed_idempotency_behavior": "Post-cleanup global public/auth/storage scan reported total=0.",
-      "rollback_cleanup_result": {
-        "started_at": "2026-09-04T23:39:40.784426+00:00",
-        "pre_cleanup": {
-          "total": 13,
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities"
-            },
-            {
-              "count": 1,
-              "relation": "auth.users"
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772"
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles"
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items"
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles"
-            }
-          ]
+      "deleted_total": 13
+    },
+    "post_cleanup": {
+      "total": 0,
+      "relations": []
+    },
+    "authoritative_controls_after": {
+      "controls": [
+        {
+          "id": "[REDACTED_PROTECTED_UUID_A]",
+          "version": 12,
+          "updated_at": "2026-09-04T02:36:59.407668+00:00",
+          "stock_number": "[REDACTED_STOCK_A]",
+          "lifecycle_state": "active",
+          "current_location": "QC",
+          "identity_fingerprint": "1b84e20f19bb3bb56435f801f728e580d935bc76472e13e8f7a5a6af196e4fcc"
         },
-        "bounded_delete": {
-          "relations": [
-            {
-              "count": 1,
-              "relation": "auth.identities",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "auth.users",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.audit_events",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_authenticated_email_import_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_requirement_edit_receipts_772",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.pdc_user_roles",
-              "max_expected": 1
-            },
-            {
-              "count": 3,
-              "relation": "public.vehicle_master_history",
-              "max_expected": 3
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_operation_receipts",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_master_source_records",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicle_work_items",
-              "max_expected": 1
-            },
-            {
-              "count": 1,
-              "relation": "public.vehicles",
-              "max_expected": 1
-            }
-          ],
-          "deleted_total": 13
-        },
-        "post_cleanup": {
-          "total": 0,
-          "relations": []
-        },
-        "authoritative_controls_after": {
-          "controls": [
-            {
-              "id": "[REDACTED_PROTECTED_UUID_A]",
-              "version": 12,
-              "updated_at": "2026-09-04T02:36:59.407668+00:00",
-              "stock_number": "[REDACTED_STOCK_A]",
-              "lifecycle_state": "active",
-              "current_location": "QC",
-              "identity_fingerprint": "1b84e20f19bb3bb56435f801f728e580d935bc76472e13e8f7a5a6af196e4fcc"
-            },
-            {
-              "id": "[REDACTED_PROTECTED_UUID_B]",
-              "version": 3,
-              "updated_at": "2026-09-04T05:18:17.045178+00:00",
-              "stock_number": "[REDACTED_STOCK_B]",
-              "lifecycle_state": "active",
-              "current_location": "YH",
-              "identity_fingerprint": "8896c1ab83e68fa275d52ba8d10bb2e0582f4ae410aa695b4e954548cccbf98c"
-            }
-          ],
-          "vehicle_count": 2,
-          "notification_count": 0,
-          "active_vehicle_count": 2,
-          "staging_sentinel_count": 1,
-          "production_sentinel_present": false
-        },
-        "real_vehicle_cardinality_unchanged": true,
-        "active_vehicle_cardinality_unchanged": true,
-        "protected_controls_unchanged": true,
-        "notification_count_unchanged": true,
-        "temporary_actor_removed": true
-      },
-      "evidence_paths": [
-        "lanes/transactions/aud001-transaction-evidence.json",
-        "screenshots/transactions/aud001-fixture-card.png"
-      ]
-    }
-  ],
-  "expected_negative_results": [
-    "anonymous work-state RPC rejection",
-    "stale expected-version rejection",
-    "QC finalization rejection while required work/Pit remained incomplete",
-    "invalid workshop adjustment rejected by table constraint before corrected valid insert"
-  ],
-  "notes": [
-    "External email/Telegram delivery was not triggered; persistent database/outbox/receipt seams were used to avoid contacting real people.",
-    "AUD-001 remediation captured an exact fixture-specific authenticated UI card before cleanup, then proved zero tagged/actor residue and unchanged protected controls."
-  ],
-  "aud001_remediation": {
-    "task_id": "t_83f220c9",
-    "status": "remediated",
-    "sampled_assertions": [
-      "A04",
-      "A16",
-      "A21",
-      "A22",
-      "A23",
-      "A26"
-    ],
-    "machine_evidence": "lanes/transactions/aud001-transaction-evidence.json",
-    "validator": "lanes/transactions/validate_transaction_evidence.py",
-    "fixture_manifest": "lanes/transactions/aud001-remediation-fixture-manifest.json",
-    "fixture_specific_ui_screenshot": "screenshots/transactions/aud001-fixture-card.png"
+        {
+          "id": "[REDACTED_PROTECTED_UUID_B]",
+          "version": 3,
+          "updated_at": "2026-09-04T05:18:17.045178+00:00",
+          "stock_number": "[REDACTED_STOCK_B]",
+          "lifecycle_state": "active",
+          "current_location": "YH",
+          "identity_fingerprint": "8896c1ab83e68fa275d52ba8d10bb2e0582f4ae410aa695b4e954548cccbf98c"
+        }
+      ],
+      "vehicle_count": 2,
+      "notification_count": 0,
+      "active_vehicle_count": 2,
+      "staging_sentinel_count": 1,
+      "production_sentinel_present": false
+    },
+    "real_vehicle_cardinality_unchanged": true,
+    "active_vehicle_cardinality_unchanged": true,
+    "protected_controls_unchanged": true,
+    "notification_count_unchanged": true,
+    "temporary_actor_removed": true
+  },
+  "containment": {
+    "production_contacted": false,
+    "production_mutated": false,
+    "outbound_email_sent": false
   }
 }
