@@ -30,6 +30,14 @@ class ProvenanceHistoryReleaseLiveTests(unittest.TestCase):
     def setUp(self) -> None:
         self.assertEqual(STAGING_REF, EXPECTED_REF)
 
+    @staticmethod
+    def role_fixture(where: str) -> tuple[str, str]:
+        row = management_query(
+            "select auth_user_id::text sub, lower(email) email from public.pdc_user_roles "
+            f"where auth_user_id is not null and {where} order by id limit 1"
+        )[0]
+        return row["sub"], row["email"]
+
     def call(self, vehicle_id: str, *, sub: str | None = ACTOR_ID, email: str = ACTOR_EMAIL):
         rows = management_write(
             "begin;"
@@ -52,8 +60,33 @@ class ProvenanceHistoryReleaseLiveTests(unittest.TestCase):
     def test_unauthenticated_and_invalid_target_fail_closed(self):
         unauthorized = self.call(TARGET, sub=None)
         self.assertEqual((unauthorized.get("ok"), unauthorized.get("code")), (False, "unauthorized"))
+        self.assertNotIn("data", unauthorized)
         missing = self.call(MISSING)
         self.assertEqual((missing.get("ok"), missing.get("code")), (False, "vehicle_not_found"))
+        self.assertNotIn("data", missing)
+
+    def test_unapproved_and_mismatched_identities_return_no_history(self):
+        no_role = self.call(TARGET, sub="00000000-0000-4000-8000-000000000002", email="no-role@example.invalid")
+        inactive_sub, inactive_email = self.role_fixture("not active and account_status = 'disabled'")
+        inactive = self.call(TARGET, sub=inactive_sub, email=inactive_email)
+        pending_sub, pending_email = self.role_fixture("account_status = 'pending'")
+        pending = self.call(TARGET, sub=pending_sub, email=pending_email)
+        mismatch = self.call(TARGET, email="uuid-email-mismatch@example.invalid")
+        for result in (no_role, inactive, pending, mismatch):
+            self.assertEqual((result.get("ok"), result.get("code")), (False, "forbidden"), result)
+            self.assertNotIn("data", result, result)
+
+    def test_denied_dealer_scope_returns_no_history(self):
+        scoped_sub, scoped_email = self.role_fixture(
+            "active and account_status = 'approved' and exists ("
+            "select 1 from public.pdc_auditor_user_dealer_scopes s "
+            "where s.auth_user_id=pdc_user_roles.auth_user_id "
+            "and s.normalized_email=lower(pdc_user_roles.email) "
+            "and s.environment='staging' and s.active and s.dealer_code='14450')"
+        )
+        denied = self.call(TARGET, sub=scoped_sub, email=scoped_email)
+        self.assertEqual((denied.get("ok"), denied.get("code")), (False, "dealer_scope_denied"), denied)
+        self.assertNotIn("data", denied, denied)
 
     def test_catalog_exposes_only_canonical_one_argument_rpc(self):
         row = management_query(
