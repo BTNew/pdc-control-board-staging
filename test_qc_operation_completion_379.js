@@ -27,7 +27,7 @@ const index = fs.readFileSync('index.html', 'utf8');
 assert.match(app, /const APP_VERSION = '2026\.08\.27\.706-final-authoritative-lifecycle'/);
   assert.match(index, /pdc-email-vehicle-location-service\.js\?v=2026\.08\.27\.706-final-authoritative-lifecycle/);
   assert.match(index, /app\.js\?v=2026\.08\.27\.706-final-authoritative-lifecycle/);
-const start = app.indexOf('function qcPageOperationLines');
+const start = app.indexOf('function qcPageOperationLineIsDeferredPit');
 const end = app.indexOf('\nfunction qcPageVehicleCardHtml', start);
 const context = {
   groupBy: (items, fn) => items.reduce((o, x) => ((o[fn(x)] ||= []).push(x), o), {}),
