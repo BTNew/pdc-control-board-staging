@@ -1,0 +1,20 @@
+Parts ordered orange booked projection: PASS
+✔ test_parts_ordered_projection_color.js (64.1361ms)
+PDC-14 canonical work-state successor: PASS
+✔ test_pdc14_canonical_work_state_successor.js (63.4934ms)
+PDC-14 Control Board parity regression: PASS
+✔ test_pdc14_control_board_parity.js (68.2132ms)
+PDC-14 location replay-idempotency successor: PASS
+✔ test_pdc14_location_replay_successor.js (54.9753ms)
+Sublet workgroup active/no/cancelled/returned/completed DOM regression: PASS
+✔ test_sublet_workgroup_projection_20260831.js (65.569ms)
+Vehicle detail one-row booking pills and orange booked state: PASS
+✔ test_vehicle_detail_booking_pills.js (68.3937ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 111.6027

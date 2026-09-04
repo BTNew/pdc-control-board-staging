@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_contacted": false,
+  "issues": [],
+  "totals": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "total": 0
+  },
+  "verdict": "No product defect reproduced by the synthetic transaction lane. Expected authorization, constraint, stale-version and incomplete-work denials failed closed."
+}

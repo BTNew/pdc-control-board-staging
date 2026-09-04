@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "task_id": "t_1160aee6",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "deployment_url": "https://btnew.github.io/pdc-control-board-staging/",
+  "production_contacted": false,
+  "tag_prefix": "QA-OVERNIGHT-20260904",
+  "functional_summary": {
+    "scored_assertions": 26,
+    "passed": 26,
+    "failed": 0,
+    "pass_ratio_percent": 100.0,
+    "unresolved_critical": 0,
+    "unresolved_high": 0
+  },
+  "assertions": [
+    {"id": "A01", "area": "fixtures", "result": "pass", "evidence": "Manifest existed before fixture creation; exactly 15 uniquely tagged vehicles were created."},
+    {"id": "A02", "area": "staging-isolation", "result": "pass", "evidence": "All database commands targeted project cdsmnqxtyyoeoznmbidd; browser network observer recorded no production requests."},
+    {"id": "A03", "area": "identity", "result": "pass", "evidence": "Synthetic stock/VIN/registration/job-card identifiers were unique; edit path preserved canonical vehicle identity."},
+    {"id": "A04", "area": "idempotency", "result": "pass", "evidence": "Duplicate import/edit replay returned the original receipt/result and did not add a vehicle."},
+    {"id": "A05", "area": "yard-hold", "result": "pass", "evidence": "Location mutation produced visible board rows and movement history for yard-hold/PMB paths."},
+    {"id": "A06", "area": "planner-booking", "result": "pass", "evidence": "Workshop booking was created for Monday 2026-09-07 and persisted booking history."},
+    {"id": "A07", "area": "booking-move", "result": "pass", "evidence": "Reschedule path produced versioned booking/history rows without duplicate active booking state."},
+    {"id": "A08", "area": "admin-block-create", "result": "pass", "evidence": "Admin-block state and receipt were created through authenticated RPC."},
+    {"id": "A09", "area": "admin-block-update", "result": "pass", "evidence": "Admin-block update produced versioned history/receipt state."},
+    {"id": "A10", "area": "admin-block-remove", "result": "pass", "evidence": "Admin-block removal cleared current state while retaining synthetic history before cleanup."},
+    {"id": "A11", "area": "parts", "result": "pass", "evidence": "Required/ordered/received work-state mutations produced parts update evidence."},
+    {"id": "A12", "area": "workshop", "result": "pass", "evidence": "Required workshop work items and three valid line adjustments were persisted."},
+    {"id": "A13", "area": "estimates", "result": "pass", "evidence": "Workshop estimated-duration functions were inspected and exercised against synthetic work state."},
+    {"id": "A14", "area": "sublet", "result": "pass", "evidence": "Sublet booking instance and instance-history records were created for the tagged fleet."},
+    {"id": "A15", "area": "overlap", "result": "pass", "evidence": "Synthetic vehicles occupied multiple required-work/location states without duplicate canonical vehicles."},
+    {"id": "A16", "area": "qc-negative", "result": "pass", "evidence": "QC transition with incomplete required work failed closed as expected."},
+    {"id": "A17", "area": "pit-gate", "result": "pass", "evidence": "Deferred Pit remained a separate required workshop state and prevented premature finalization."},
+    {"id": "A18", "area": "qc-ready", "result": "pass", "evidence": "Ready-for-QC paths advanced eligible synthetic vehicles to QC with lifecycle history."},
+    {"id": "A19", "area": "archive", "result": "pass", "evidence": "Archive/delete path produced deleted-completed evidence."},
+    {"id": "A20", "area": "restore", "result": "pass", "evidence": "Restore returned the synthetic vehicle to active lifecycle state without changing identity."},
+    {"id": "A21", "area": "authorization", "result": "pass", "evidence": "Anonymous set_pdc_vehicle_work_states call was rejected; authenticated equivalent succeeded."},
+    {"id": "A22", "area": "concurrency", "result": "pass", "evidence": "Stale expected-version mutation was rejected; valid expected-version mutation advanced version 1 to 2."},
+    {"id": "A23", "area": "rapid-replay", "result": "pass", "evidence": "Repeated same idempotency key returned the existing version-2 receipt and did not apply a second mutation."},
+    {"id": "A24", "area": "live-browser", "result": "pass", "evidence": "Temporary approved staging administrator authenticated successfully at 360, 768 and 1440 widths."},
+    {"id": "A25", "area": "browser-health", "result": "pass", "evidence": "Zero page errors, console errors, failed/HTTP>=400 requests, horizontal overflow, or production requests at all three viewports."},
+    {"id": "A26", "area": "cleanup", "result": "pass", "evidence": "264 tagged rows plus temporary browser-auth residue were removed; final global scan found zero tagged/actor rows, zero vehicles, and zero auth actor. Real/source-backed cardinality remained 2; controls 13048501 and U158318 remained unchanged."}
+  ],
+  "expected_negative_results": [
+    "anonymous work-state RPC rejection",
+    "stale expected-version rejection",
+    "QC finalization rejection while required work/Pit remained incomplete",
+    "invalid workshop adjustment rejected by table constraint before corrected valid insert"
+  ],
+  "notes": [
+    "External email/Telegram delivery was not triggered; persistent database/outbox/receipt seams were used to avoid contacting real people.",
+    "The final authenticated browser check ran after fixture cleanup and therefore verified zero synthetic text in the loaded dashboard, not per-fixture visual cards."
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "asset_byte_parity": {
+    "all_match": true,
+    "checked": 6,
+    "evidence": "raw/asset-byte-parity.tsv",
+    "matched": 6,
+    "sha256": {
+      "app.js": "3926da60e8cb131d7dae00604182d8f1aa6014b30f6b1f2a75c70eebf00c55c8",
+      "index.html": "feb3ef12789675c1c226f4f0ce02b44cb2a53ea78e4044fe0464cfa5b5ed16ad",
+      "pdc-supabase-config.staging.js": "5a9fed40d5cd492b36b1cbed745372b38f2f2727443a0c1762afc959bd0fff81",
+      "styles.css": "d6a44562c0059a37034023a624a7ffd246d2888ddf6e27707bb42503c167efc1",
+      "vehicle-requirements-guard.js": "ad21c96e95fb97ad5b47b75ac4765fcda10866ba38689482c5445b40833db665",
+      "workshop-planner.js": "41ebbb31335e96d192a99f20e89b016707bf414537cab87c9745a1e1a5d06059"
+    }
+  },
+  "email_contacted": false,
+  "main_sha": "85bdc68513e0c1c6efee110712731e9be958374b",
+  "pages": {
+    "deployment_id": 6265162696,
+    "deployment_ref": "main",
+    "deployment_sha": "85bdc68513e0c1c6efee110712731e9be958374b",
+    "deployment_status": "success",
+    "environment_url": "https://btnew.github.io/pdc-control-board-staging/",
+    "production_environment_flag": false,
+    "run_conclusion": "success",
+    "run_id": 33877381280
+  },
+  "pr31": {
+    "checks": [
+      {
+        "name": "verify",
+        "result": "SUCCESS"
+      },
+      {
+        "name": "Supabase Preview",
+        "result": "FAILURE"
+      },
+      {
+        "name": "CodeRabbit",
+        "result": "SUCCESS"
+      }
+    ],
+    "merge_sha": "85bdc68513e0c1c6efee110712731e9be958374b",
+    "merged_at": "2026-09-04T13:18:59Z",
+    "state": "MERGED",
+    "url": "https://github.com/BTNew/pdc-control-board-staging/pull/31"
+  },
+  "production_contacted": false,
+  "production_mutated": false,
+  "remote_main_sha": "85bdc68513e0c1c6efee110712731e9be958374b",
+  "repository": "BTNew/pdc-control-board-staging",
+  "repository_controls": {
+    "branch_protection": "not configured (GitHub 404)",
+    "branch_rules": [],
+    "main_check_runs_failed": 0,
+    "main_check_runs_skipped": 1,
+    "main_check_runs_success": 4,
+    "main_check_runs_total": 5,
+    "staging_integrity_run_id": 33877383599
+  },
+  "task_id": "t_95939b14",
+  "verified_at": "2026-09-04T21:53:00+08:00"
+}

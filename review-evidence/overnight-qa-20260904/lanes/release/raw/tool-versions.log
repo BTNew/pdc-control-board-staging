@@ -1,0 +1,4 @@
+supabase=2.116.0
+node=v24.14.1
+python=Python 3.14.6
+/usr/bin/bash: line 5: docker: command not found

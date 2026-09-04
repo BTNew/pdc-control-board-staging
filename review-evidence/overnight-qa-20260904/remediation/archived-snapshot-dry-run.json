@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "mode": "dry-run",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "before": {
+    "head": [
+      "20260905010100",
+      "navision_projection_cleanup_evidence_parity"
+    ],
+    "provolatile": "s",
+    "anon_execute": false,
+    "function_definition": {
+      "uses_lifecycle_wrapper": true,
+      "uses_pre_82000_snapshot": true
+    },
+    "service_role_execute": false,
+    "authenticated_execute": true,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "after": {
+    "head": [
+      "20260905010100",
+      "navision_projection_cleanup_evidence_parity"
+    ],
+    "provolatile": "s",
+    "anon_execute": false,
+    "function_definition": {
+      "uses_lifecycle_wrapper": true,
+      "uses_pre_82000_snapshot": true
+    },
+    "service_role_execute": false,
+    "authenticated_execute": true,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "authenticated_probe": {
+    "skipped": "repair intentionally rolled back"
+  },
+  "production_contacted": false,
+  "production_mutated": false
+}
