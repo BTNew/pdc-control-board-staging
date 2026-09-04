@@ -118,7 +118,7 @@ assert.match(planner, /workshopAdminBlockSegments/);
 assert.match(index, /vehicle-locations-refresh\.js/);
 assert.match(index, /checklist-closure=2026\.08\.31\.2800/);
 assert.match(identity, /20260831280000/);
-assert.match(workOperationLoader, /if \(route === 'dashboard'\) return \{ ok: true, skipped: true \};/);
+assert.match(workOperationLoader, /if \(route !== 'workshop'\) return \{ ok: true, skipped: true \};/);
 assert.match(lineHandle, /openVehicleWorkshopBooking\([\s\S]*handle\.dataset\.vehicleId[\s\S]*displayStockNumber/,
   'vehicle-card booking navigation passes the canonical vehicle and Stock identity');
 assert.match(pmbCardDetail, /pmbLifecycleAgeLabel\(vehicle\)/,

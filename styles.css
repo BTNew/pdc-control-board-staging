@@ -13357,6 +13357,26 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 }
 
 @media (max-width: 600px) {
+  .qc-page-panel > .panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .qc-page-panel > .panel-header > div:first-child,
+  .qc-page-panel > .panel-header > .panel-actions { width: 100%; }
+  .qc-page-panel > .panel-header > .panel-actions .small-button { width: 100%; }
+  .qc-page-panel > .panel-header > .pdc-operational-refresh-control {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .qc-page-panel .pdc-operational-refresh-status {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: .8rem;
+    line-height: 1.4;
+  }
   .qc-queue-header,
   .qc-detail-header,
   .qc-signoff-bar { align-items: stretch; flex-direction: column; }
