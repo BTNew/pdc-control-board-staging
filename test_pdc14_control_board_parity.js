@@ -170,6 +170,19 @@ assert.match(appSource, /save other edits before changing PDC Location/, 'locati
 assert.match(appSource, /pdc-work-state-booked[\s\S]*pdc-work-state-ordered[\s\S]*pdc-work-state-complete/, 'state cycling clears stale booked and ordered classes');
 assert.match(appSource, /orange booked\/ordered, green completed/, 'tooltip describes canonical booked and completed colors');
 
+const canonicalStart = appSource.indexOf('function pdcJsonbCanonicalText');
+const canonicalEnd = appSource.indexOf('async function togglePdcJobCompletionFromCard', canonicalStart);
+assert.ok(canonicalStart >= 0 && canonicalEnd > canonicalStart, 'department completion JSONB canonicalizer is extractable');
+const canonicalContext = {};
+vm.createContext(canonicalContext);
+vm.runInContext(`${appSource.slice(canonicalStart, canonicalEnd)}\nresult = pdcJsonbCanonicalText({ expected_vehicle_version: 9, reason: 'Done', contract: 'department-complete-772', work_key: 'fitting', vehicle_id: 'v', booking_id: 'b', idempotency_key: 'i', expected_booking_version: 4 });`, canonicalContext);
+assert.strictEqual(
+  canonicalContext.result,
+  '{"reason": "Done", "contract": "department-complete-772", "work_key": "fitting", "booking_id": "b", "vehicle_id": "v", "idempotency_key": "i", "expected_booking_version": 4, "expected_vehicle_version": 9}',
+  'department completion request hash uses PostgreSQL jsonb::text key ordering and whitespace',
+);
+assert.match(appSource, /completeVehicleDepartment\([\s\S]{0,900}await refreshSharedVehicleWorkState\(vehicle\)[\s\S]{0,200}loadVehicleWorkshopDetail/, 'department completion refreshes authoritative work state before rerendering the card');
+
 for (const valid of ['REBHV100551477', 'REBHV199999999']) {
   assert.strictEqual(guard.normalizeVehicleIdentity(valid), valid, `${valid} is accepted as a bounded electric HiLux chassis`);
 }

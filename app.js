@@ -9519,6 +9519,15 @@ function pmbVehicleCardHtml(vehicle = {}) {
     </article>`;
 }
 
+function pdcJsonbCanonicalText(value) {
+  if (Array.isArray(value)) return `[${value.map(pdcJsonbCanonicalText).join(', ')}]`;
+  if (value && typeof value === 'object') {
+    const keys = Object.keys(value).sort((left, right) => left.length - right.length || (left < right ? -1 : left > right ? 1 : 0));
+    return `{${keys.map(key => `${JSON.stringify(key)}: ${pdcJsonbCanonicalText(value[key])}`).join(', ')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 async function togglePdcJobCompletionFromCard(stockKey, jobKey) {
   const cleanKey = String(stockKey || '').trim();
   const def = PDC_JOB_BY_KEY.get(String(jobKey || '').toLowerCase());
@@ -9542,11 +9551,11 @@ async function togglePdcJobCompletionFromCard(stockKey, jobKey) {
     if (booking && window.__workshopSharedActions?.completeVehicleDepartment) {
       const idempotencyKey = globalThis.crypto?.randomUUID?.() || `ui772-complete-${canonicalId}-${Date.now()}`;
       const payload = { contract: 'department-complete-772', vehicle_id: canonicalId, work_key: String(def.key || '').toLowerCase(), expected_vehicle_version: Number(refreshedDetail?.vehicle_version || vehicle.version || 0), booking_id: booking.booking_id || booking.id, expected_booking_version: Number(booking.booking_version || booking.version || 0), idempotency_key: idempotencyKey, reason: `Completed ${def.label} from the vehicle card` };
-      const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(',')}]` : value && typeof value === 'object' ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}` : JSON.stringify(value);
-      const bytes = await globalThis.crypto?.subtle?.digest('SHA-256', new TextEncoder().encode(canonical(payload)));
+      const bytes = await globalThis.crypto?.subtle?.digest('SHA-256', new TextEncoder().encode(pdcJsonbCanonicalText(payload)));
       const requestHash = bytes ? Array.from(new Uint8Array(bytes), value => value.toString(16).padStart(2, '0')).join('') : '';
       const result = await window.__workshopSharedActions.completeVehicleDepartment({ ...payload, requestHash, workKey: payload.work_key, expectedVehicleVersion: payload.expected_vehicle_version, expectedBookingVersion: payload.expected_booking_version });
       if (!result || result.ok !== true) { window.alert('The department completion was not saved. The authoritative vehicle and booking state was preserved.'); return false; }
+      await refreshSharedVehicleWorkState(vehicle);
       await loadVehicleWorkshopDetail(vehicle, { force: true });
       renderAll();
       return true;
