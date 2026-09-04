@@ -63,6 +63,41 @@ class NonNavisionCurrentRuntimeContractTests(unittest.TestCase):
             self.assertEqual(processor.classify_job_line(description)[0], "SUBLET")
         self.assertIsNone(processor.classify_job_line("OP 018 Bespoke retained instruction")[0])
 
+    def test_u158318_exact_source_descriptions_match_approved_work_keys(self):
+        operations = (
+            ("BUS 4X4 CONVERSION SLWB & COMMUTER 05C2B", "bus4x4"),
+            ("Bus 4x4 Conversion 5x BFG 265/65R17 Tyres and Rims", "tyre"),
+            ("BUS 4X4 Tanami Snorkel", "bus4x4"),
+            ("Hiace Rock Sliders", "fitting"),
+            ("MINE BAR WITH SIDE FACING INDICATORS, SWITCHED WITH BEACON -ACOT500", "electrical"),
+            ("BATTERY ISOLATOR WITH RED LOCKOUT", "electrical"),
+            ("175 AMP JUMP START UNDER BONNET", "electrical"),
+            ("Headlamps Auto On & Hand Brake OFF Alarm -DYNAMCO", "electrical"),
+            ("MMT COMMUTER SEAT COVERS -CANVAS", "fitting"),
+            ("MOUNTED WHEEL CHOCKS AND HOLDER", "fitting"),
+            ("SAFETY TRIANGLE IN PMB HOLDER", "fitting"),
+            ("WHEEL NUT INDICATORS -COMMUTER", "tyre"),
+            ("UHF GME XRS370C WITH AE4704B AERIAL", "electrical"),
+            ("SUB REFLECTIVE STRIPING YELLOW", "sublet"),
+            ("Darkest Legal Tint Commuter van", "tint"),
+            ('NARVA (72843) 20" EX2-R LIGHT BAR RGB DOUBLE RGB ENABLED', "electrical"),
+            ("POST REGO CONVERSION", "bus4x4"),
+            ("2.5KG FIRE EXTINGUISHER", "fabrication"),
+        )
+        self.assertEqual(
+            [processor.canonical_jobcard_work_key(description) for description, _ in operations],
+            [work_key for _, work_key in operations],
+        )
+        self.assertEqual(
+            [processor.JOB_CARD_WORK_KEYS[processor.classify_job_line(description)[0]] for description, _ in operations],
+            [work_key for _, work_key in operations],
+        )
+        self.assertEqual(processor.canonical_jobcard_work_key("MINE BAR"), "fabrication")
+        self.assertEqual(processor.canonical_jobcard_work_key("!FAB MINE BAR WITH SIDE FACING INDICATORS, SWITCHED WITH BEACON"), "fabrication")
+        self.assertEqual(processor.canonical_jobcard_work_key("Bedrock Sliders"), "owner_supplied_document")
+        self.assertIsNone(processor.classify_job_line("Bedrock Sliders")[0])
+        self.assertEqual(processor.canonical_jobcard_work_key("Unmapped bespoke instruction"), "owner_supplied_document")
+
     def test_processor_builds_runtime_valid_zero_and_unknown_lines(self):
         minute_line = processor.extract_job_lines("OP 018 Bespoke retained instruction 30 min", "attachment:job.pdf")
         self.assertEqual(minute_line[0].estimated_duration_minutes, 30)
