@@ -1,5 +1,5 @@
 const APP_VERSION = '2026.08.27.706-final-authoritative-lifecycle';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.03.1500-pdc14-control-board-parity';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.04.0100-craig-workshop-repairs';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -7398,7 +7398,15 @@ function authenticatedOperationSummaryLines(vehicle = {}) {
       work_key: targetStation?.key || operation?.work_key,
       description: cleanNavisionText(adjustment?.description || operation?.description || ''),
       estimatedHours: Number.isFinite(Number(adjustedHours)) && adjustedHours !== '' && adjustedHours !== null ? Number(adjustedHours) : null,
-      estimatedHoursSource: adjustment ? (adjustment.correction_origin === 'manual_operator' ? 'manual_override' : 'protected_adjustment') : operation?.estimatedHoursSource,
+      estimatedHoursSource: adjustment
+        ? (adjustment.correction_origin === 'manual_operator'
+          ? 'manual_override'
+          : adjustment.correction_origin === 'job_card_source_correction'
+            ? 'job_card'
+            : adjustment.correction_origin === 'craig_standard_pd_1_5'
+              ? 'craig_standard_pd_1_5'
+              : 'protected_adjustment')
+        : operation?.estimatedHoursSource,
       workshopLineKey: lineKey,
     }];
   });

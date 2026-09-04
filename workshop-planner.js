@@ -752,7 +752,7 @@ function workshopAdminBlockHtml(block = {}, dateKey = '') {
     const continues = segment.continuesNext ? ' · continues next valid work interval' : '';
     const segmentLabel = `${workshopTimeLabelFromMinutes(segment.start)}–${workshopTimeLabelFromMinutes(segment.end)} · ${index === 0 ? totalLabel : 'continued'}${continuation}${continues}`;
     const controls = editable && index === 0
-      ? '<span class="workshop-admin-block-controls"><button type="button" data-admin-block-nudge="-15" aria-label="Move 15 minutes earlier">−15m</button><button type="button" data-admin-block-nudge="15" aria-label="Move 15 minutes later">+15m</button><button type="button" data-admin-block-resize="15" aria-label="Extend 15 minutes">+ length</button><button type="button" data-admin-block-delete aria-label="Delete admin block">×</button></span><span class="workshop-admin-block-resize" data-admin-block-pointer-resize title="Drag to resize" aria-hidden="true"></span>'
+      ? '<span class="workshop-admin-block-controls"><button type="button" data-workshop-admin-block-rename aria-label="Rename admin block">Rename</button><button type="button" data-admin-block-nudge="-15" aria-label="Move 15 minutes earlier">−15m</button><button type="button" data-admin-block-nudge="15" aria-label="Move 15 minutes later">+15m</button><button type="button" data-admin-block-resize="15" aria-label="Extend 15 minutes">+ length</button><button type="button" data-admin-block-delete aria-label="Delete admin block">×</button></span><span class="workshop-admin-block-resize" data-admin-block-pointer-resize title="Drag to resize" aria-hidden="true"></span>'
       : '';
     return `<article class="workshop-admin-block type-${escapeHtml(block.type)}${segment.continuesFromPrevious ? ' continues-from-previous' : ''}${segment.continuesNext ? ' continues-next' : ''}${index > 0 ? ' is-continuation' : ''}" draggable="${editable && index === 0}" tabindex="0" role="group" aria-label="${escapeHtml(`${label}, ${segmentLabel}.${editable ? ' Arrow keys move; Shift plus Arrow keys resize.' : ' Read only.'}`)}" data-workshop-admin-block-id="${escapeHtml(block.id)}" data-workshop-admin-block-segment="${index + 1}" style="--plan-left:${left}%;--plan-width:${width}%;">
       <strong>ADMIN · ${escapeHtml(label)}${index > 0 ? ' · CONTINUED' : ''}</strong><small>${escapeHtml(segmentLabel)}</small>
@@ -3762,6 +3762,32 @@ function workshopDetailPanelHtml(entry = null, plans = [], options = {}) {
   </section>`;
 }
 
+// A bay selection is an operational station surface, not a duplicate Vehicle
+// Detail page. Keep only its source work and schedule/lifecycle controls.
+function workshopStationSelectionHtml(entry = null) {
+  if (!entry) return '';
+  const vehicle = workshopVehicle(entry.vehicleKey);
+  if (!vehicle) return '<section class="workshop-station-selection" role="status">Selected station work is unavailable. Refresh the planner.</section>';
+  const completed = entry.status === 'completed';
+  const started = entry.status === 'started';
+  const stopped = entry.status === 'stoppage';
+  const start = parseIsoTimestamp(entry.startAt || '');
+  const localValue = start ? `${workshopDateKey(start)}T${workshopPad(start.getHours())}:${workshopPad(start.getMinutes())}` : '';
+  return `<section class="workshop-station-selection" data-workshop-detail-panel>
+    <header><strong>${escapeHtml(pmbStageLabel(entry.stage))} work required</strong><span>${escapeHtml(stopped ? 'STOPPAGE' : entry.status || 'planned')}</span></header>
+    ${workshopRequiredJobsForStageHtml(vehicle, entry.stage, workshopStageJobLines(vehicle, entry.stage))}
+    <form class="workshop-station-selection-controls" data-workshop-detail-form data-workshop-plan-form-id="${escapeHtml(entry.id)}">
+      <label><span>Start</span><input name="startAt" type="datetime-local" step="900" value="${escapeHtml(localValue)}" required ${completed || started ? 'disabled' : ''}></label>
+      <label><span>Exact planned hours</span><input name="hours" type="number" min="0.0166667" step="any" inputmode="decimal" value="${escapeHtml(workshopExactDurationHours(entry.hours).toFixed(2))}" required ${completed ? 'disabled' : ''}></label>
+      <label><span>Technician</span><select name="assignee" ${completed ? 'disabled' : ''}>${workshopAssigneeOptions(entry.stage, entry.assignee || workshopBayMechanic(entry.stage, entry.bay) || pmbBayMechanic(vehicle))}</select></label>
+      <div class="workshop-station-selection-actions">
+        ${completed ? '<span class="badge success">Completed</span>' : '<button class="primary" type="submit">Save plan</button>'}
+        ${completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started ? 'disabled' : ''}>${started ? 'Started' : 'Start job'}</button><button class="small-button ${stopped ? 'active-lite' : ''}" type="button" ${stopped ? `data-workshop-resume-plan="${escapeHtml(entry.id)}"` : `data-workshop-stop-plan="${escapeHtml(entry.id)}"`}>${stopped ? 'Resume job' : 'STOPPAGE'}</button><button class="small-button active-lite" type="button" data-workshop-complete-plan="${escapeHtml(entry.id)}">Complete work</button>`}
+      </div>
+    </form>
+  </section>`;
+}
+
 function workshopDetailHtml(entry = null, options = {}) {
   const focused = options.focused === true;
   if (!entry) return `<div class="workshop-job-detail is-empty"><strong>Job details</strong><span>Select a planned vehicle to view, start, complete or reschedule it. Drag a planned job back to the left panel to return it to Unallocated.</span></div>`;
@@ -3955,6 +3981,17 @@ async function workshopResizeAdminBlock(block = {}, durationMinutes = 0) {
   const result = await workshopDispatchSharedAction('resizeAdminBlock', {
     blockId: block.id, expectedVersion: block.version, durationMinutes: duration,
     metadata: { source: 'planner_admin_block_resize' },
+  });
+  return result?.ok === true;
+}
+
+async function workshopRenameAdminBlock(block = {}) {
+  const current = String(block.label || '').trim();
+  const label = window.prompt('Admin block label', current);
+  if (label === null || !label.trim() || label.trim() === current) return false;
+  const result = await workshopDispatchSharedAction('renameAdminBlock', {
+    blockId: block.id, expectedVersion: block.version, label: label.trim(),
+    metadata: { source: 'planner_admin_block_rename' },
   });
   return result?.ok === true;
 }
@@ -4314,7 +4351,7 @@ function renderWorkshopPlanner(options = {}) {
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
     ${focusedBookingMode ? '' : workshopSearchControlHtml(state.search || '', plans)}
     ${stageTabs ? `<nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>` : ''}
-    ${focusedBookingMode && state.focusedBookingError ? `<section class="workshop-focused-booking-error" role="alert"><strong>Focused booking unavailable</strong><span>${escapeHtml(state.focusedBookingError)}</span><button type="button" class="small-button" data-workshop-focused-back>Back to Workshop planner</button></section>` : workshopDetailPanelHtml(selected, focusedPlans, { focused: focusedBookingMode })}
+    ${focusedBookingMode && state.focusedBookingError ? `<section class="workshop-focused-booking-error" role="alert"><strong>Focused booking unavailable</strong><span>${escapeHtml(state.focusedBookingError)}</span><button type="button" class="small-button" data-workshop-focused-back>Back to Workshop planner</button></section>` : workshopStationSelectionHtml(selected)}
     <div class="workshop-board-shell">
       ${focusedBookingMode ? '' : `<aside class="workshop-side-panel workshop-waiting-panel">
         <div class="workshop-side-heading"><strong>Unallocated vehicles</strong><span>${queue.length} unallocated · ${alreadyBookedOutstanding} already booked in bays</span></div>
@@ -4355,6 +4392,7 @@ function bindWorkshopPlanner(root) {
   root.querySelectorAll('[data-workshop-focused-back]').forEach(button => button.addEventListener('click', workshopExitFocusedBooking));
   root.querySelector('[data-workshop-back-control]')?.addEventListener('click', () => showView('workflow'));
   root.querySelector('[data-open-control-board-schedule]')?.addEventListener('click', () => showView('schedule'));
+
   root.querySelectorAll('[data-workshop-stage]').forEach(button => button.addEventListener('click', () => {
     const state = workshopState();
     state.stage = button.dataset.workshopStage;
@@ -4586,6 +4624,7 @@ function bindWorkshopPlanner(root) {
     chip.querySelectorAll('[data-admin-block-resize]').forEach(button => button.addEventListener('click', event => {
       event.stopPropagation(); void workshopResizeAdminBlock(block, block.durationMinutes + Number(button.dataset.adminBlockResize));
     }));
+    chip.querySelector('[data-workshop-admin-block-rename]')?.addEventListener('click', event => { event.stopPropagation(); void workshopRenameAdminBlock(block); });
     chip.querySelector('[data-admin-block-delete]')?.addEventListener('click', event => { event.stopPropagation(); void workshopDeleteAdminBlock(block); });
     chip.querySelector('[data-admin-block-pointer-resize]')?.addEventListener('pointerdown', event => {
       event.preventDefault(); event.stopPropagation();
@@ -6180,7 +6219,7 @@ function workshopWeeklyAdminBlockHtml(block = {}, dateKey = '') {
     const continuation = segment.continuesFromPrevious ? ' · CONTINUED' : '';
     const continues = segment.continuesNext ? ' · continues next valid work interval' : '';
     const text = `${workshopTimeLabelFromMinutes(segment.start)}–${workshopTimeLabelFromMinutes(segment.end)} · ${index === 0 ? totalLabel : 'continued'}${continuation}${continues}`;
-    return `<article class="workshop-week-admin-block${segment.continuesFromPrevious ? ' continues-from-previous' : ''}${segment.continuesNext ? ' continues-next' : ''}" aria-label="${escapeHtml(`${label}, ${text}`)}" style="--week-top:${top}%;--week-height:${height}%;"><strong>ADMIN · ${escapeHtml(label)}${index > 0 ? ' · CONTINUED' : ''}</strong><small>${escapeHtml(text)}</small></article>`;
+    return `<article class="workshop-week-admin-block${segment.continuesFromPrevious ? ' continues-from-previous' : ''}${segment.continuesNext ? ' continues-next' : ''}" aria-label="${escapeHtml(`${label}, ${text}`)}" style="--week-top:${top}%;--week-height:${height}%;"><strong>ADMIN · ${escapeHtml(label)}${index > 0 ? ' · CONTINUED' : ''}</strong><small>${escapeHtml(text)}</small>${workshopAdminBlockCanMutate() && index === 0 ? `<button type="button" class="small-button" data-workshop-week-admin-block-rename="${escapeHtml(block.id)}">Rename</button>` : ''}</article>`;
   }).join('');
 }
 
@@ -6281,6 +6320,10 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
   };
   overlay.querySelectorAll('[data-workshop-week-close]').forEach(button => button.addEventListener('click', close));
+  overlay.querySelectorAll('[data-workshop-week-admin-block-rename]').forEach(button => button.addEventListener('click', () => {
+    const block = workshopLoadAdminBlocks().find(item => item.id === button.dataset.workshopWeekAdminBlockRename);
+    if (block) void workshopRenameAdminBlock(block).then(ok => { if (ok) openWorkshopWeeklyView(normalizedStage, bay, weekStart); });
+  }));
   overlay.querySelectorAll('[data-workshop-week-shift]').forEach(button => button.addEventListener('click', () => {
     const nextWeek = new Date(weekStart);
     nextWeek.setDate(nextWeek.getDate() + Number(button.dataset.workshopWeekShift));
