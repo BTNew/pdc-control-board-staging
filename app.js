@@ -20212,10 +20212,12 @@ function buildNavisionVehicle(row, headerMap, excelRow, options = {}) {
   const vehicleNote = getNavisionValue(row, headerMap, 'Vehicle Note');
   const instructions = getNavisionValue(row, headerMap, 'Instructions');
   const comments = [dealerComments, vehicleNote, instructions].filter(Boolean).join(' ');
-  const wmi = getNavisionValue(row, headerMap, 'WMI').replace(/\s+/g, '');
-  const vdsNumber = getNavisionValue(row, headerMap, 'VDS Number').replace(/\s+/g, '');
-  const frame = getNavisionValue(row, headerMap, 'Frame').replace(/\s+/g, '');
-  const vin = `${wmi}${vdsNumber}${frame}`;
+  const wmi = getNavisionValue(row, headerMap, 'WMI');
+  const vdsNumber = getNavisionValue(row, headerMap, 'VDS Number');
+  const frame = getNavisionValue(row, headerMap, 'Frame');
+  const vinSource = `${wmi}${vdsNumber}${frame}`.toUpperCase().replace(/[\s-]+/g, '');
+  const normalizedVin = normalizeVin(vinSource);
+  const vin = vinSource.length === 17 && normalizedVin === vinSource ? normalizedVin : '';
   const trayOrdered = /^yes$/i.test(getNavisionValue(row, headerMap, 'Tray Fitment Ordered')) || /tray/i.test(comments);
   const trayComplete = /^yes$/i.test(getNavisionValue(row, headerMap, 'Tray Fitment Complete'));
   const cutButVehicleSource = navisionCutButVehicleText(row, headerMap);
@@ -20595,7 +20597,7 @@ function navisionEditPayload(incoming, existing = {}) {
     wmi: incoming.wmi || existing.wmi || '',
     vdsNumber: incoming.vdsNumber || existing.vdsNumber || '',
     frame: incoming.frame || existing.frame || '',
-    vin: incoming.vin || existing.vin || '',
+    vin: incoming.vin ?? '',
     customerSurname: incoming.customerSurname || existing.customerSurname || '',
     dealerCustomerName: incoming.dealerCustomerName || existing.dealerCustomerName || '',
     modelDescription: incoming.modelDescription || existing.modelDescription || '',

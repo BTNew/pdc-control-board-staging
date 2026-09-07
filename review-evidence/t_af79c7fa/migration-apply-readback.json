@@ -1,0 +1,90 @@
+{
+  "environment": "staging",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_contacted": false,
+  "ok": true,
+  "mode": "apply",
+  "before": {
+    "head": [
+      "20260905010200",
+      "archived_snapshot_volatility_repair"
+    ],
+    "helper_exists": false,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "after": {
+    "head": [
+      "20260907090000",
+      "navision_complete_vin_gate"
+    ],
+    "helper_exists": true,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "proof": {
+    "head": [
+      "20260907090000",
+      "navision_complete_vin_gate"
+    ],
+    "complete": "MR0BA3CD100000001",
+    "i_is_null": true,
+    "items_rls": true,
+    "o_is_null": true,
+    "q_is_null": true,
+    "batches_rls": true,
+    "records_rls": true,
+    "invalid_is_null": true,
+    "partial_is_null": true,
+    "partial_preflight": {
+      "issues": [],
+      "blocking": false,
+      "authority": "shared_navision_backend_only",
+      "issue_count": 0,
+      "atomic_apply": true,
+      "contract_version": 1
+    },
+    "normalized_partial": {
+      "vin": null,
+      "wmi": "MR",
+      "frame": "00000001",
+      "vdsNumber": "BA3CD1"
+    },
+    "duplicate_preflight": {
+      "issues": [
+        {
+          "field": "vin",
+          "reason": "duplicate_vin",
+          "row_index": 1,
+          "stock_number": "13090003",
+          "classification": "conflict",
+          "source_record_id": "VIN-GATE-COMPLETE-1",
+          "candidate_vehicle_ids": [],
+          "existing_canonical_vehicle_id": null
+        },
+        {
+          "field": "vin",
+          "reason": "duplicate_vin",
+          "row_index": 2,
+          "stock_number": "13090004",
+          "classification": "conflict",
+          "source_record_id": "VIN-GATE-COMPLETE-2",
+          "candidate_vehicle_ids": [],
+          "existing_canonical_vehicle_id": null
+        }
+      ],
+      "blocking": true,
+      "authority": "shared_navision_backend_only",
+      "issue_count": 2,
+      "atomic_apply": true,
+      "contract_version": 1
+    },
+    "legacy_short_is_null": true,
+    "staging_sentinel_count": 1,
+    "apply_authenticated_execute": true,
+    "production_sentinel_present": false,
+    "helper_authenticated_private": true,
+    "preview_authenticated_execute": true,
+    "preflight_authenticated_private": true
+  }
+}
