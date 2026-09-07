@@ -1,0 +1,78 @@
+{
+  "ok": true,
+  "mode": "inspect",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "source_hash": "9803905a50abcacef851a823f5d7bb708e9890a0aa4c49273e91566ea4ebf69e",
+  "importer_version": "pilbara_service_open_jobcards_v1",
+  "before": {
+    "head": [
+      "20260907107000",
+      "pilbara_service_null_safe_head_guard"
+    ],
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "receipt_count": 4,
+    "reconciliation": {
+      "parts_no": 122,
+      "parts_yes": 0,
+      "pd_defaults": 0,
+      "parts_review": 0,
+      "preview_rows": 162,
+      "matched_groups": 21,
+      "matched_stocks": 21,
+      "quarantined_lines": 40,
+      "raw_operation_rows": 122,
+      "accepted_operations": 122,
+      "non_pd_explicit_zero": 20,
+      "review_classification": 122
+    },
+    "operation_count": 122,
+    "apply_batch_count": 1,
+    "notification_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "notification_count": 0,
+    "backend_state_changes": 0,
+    "backend_authority_hash": "6722e893e80318a90098ef4d6fa0df5c24a909217778354d0df46e745d82ff9d",
+    "operation_history_count": 122,
+    "unmatched_vehicle_count": 0,
+    "production_sentinel_present": false,
+    "eligible_runtime_actor_count": 0,
+    "matched_active_vehicle_count": 21,
+    "status_desc_normalized_count": 0
+  },
+  "containment": {
+    "staging_sentinel_verified": true
+  },
+  "after": {
+    "head": [
+      "20260907107000",
+      "pilbara_service_null_safe_head_guard"
+    ],
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "receipt_count": 4,
+    "reconciliation": {
+      "parts_no": 122,
+      "parts_yes": 0,
+      "pd_defaults": 0,
+      "parts_review": 0,
+      "preview_rows": 162,
+      "matched_groups": 21,
+      "matched_stocks": 21,
+      "quarantined_lines": 40,
+      "raw_operation_rows": 122,
+      "accepted_operations": 122,
+      "non_pd_explicit_zero": 20,
+      "review_classification": 122
+    },
+    "operation_count": 122,
+    "apply_batch_count": 1,
+    "notification_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "notification_count": 0,
+    "backend_state_changes": 0,
+    "backend_authority_hash": "6722e893e80318a90098ef4d6fa0df5c24a909217778354d0df46e745d82ff9d",
+    "operation_history_count": 122,
+    "unmatched_vehicle_count": 0,
+    "production_sentinel_present": false,
+    "eligible_runtime_actor_count": 0,
+    "matched_active_vehicle_count": 21,
+    "status_desc_normalized_count": 0
+  }
+}

@@ -7453,6 +7453,7 @@ const AUTHENTICATED_OPERATION_STATION_ORDER = Object.freeze([
   { key: 'tyre', stage: 'TYRE', label: 'Tyres', colour: '#0f766e', tint: '#f0fdfa' },
   { key: 'pitinspection', stage: 'PIT_INSPECTION', label: 'Pit inspection', colour: '#475569', tint: '#f8fafc' },
   { key: 'parts', stage: 'PARTS', label: 'Parts', colour: '#dc2626', tint: '#fef2f2' },
+  { key: 'review', stage: 'REVIEW', label: 'Review', colour: '#b45309', tint: '#fffbeb' },
 ]);
 
 function authenticatedOperationSummaryLines(vehicle = {}) {
@@ -7527,7 +7528,15 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
         const hoursText = operation.estimatedHours == null ? 'Hours not stated' : `${Number(operation.estimatedHours).toFixed(2)} h`;
         const hoursClass = aiEstimate ? ' class="is-ai-estimate" title="AI-generated estimate; verify before scheduling"' : '';
         const estimateLabel = aiEstimate ? '<span class="ai-estimate-label">AI estimate</span>' : '';
-        return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em></li>`;
+        const sourceHoursText = operation.classification === 'Review'
+          ? `Source hours: ${operation.sourceEstimatedHours == null ? 'blank' : Number(operation.sourceEstimatedHours).toFixed(2)}`
+          : '';
+        const provenanceText = operation.hoursProvenance === 'pre_delivery_default_1_5' ? 'Business-rule default' : '';
+        const partsText = operation.partsSemantics === 'explicitly_backordered'
+          ? 'Parts backordered'
+          : operation.partsSemantics === 'review' ? 'Parts status review' : '';
+        const reviewEvidence = [sourceHoursText, provenanceText, partsText].filter(Boolean).join(' · ');
+        return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em>${reviewEvidence ? `<small>${escapeHtml(reviewEvidence)}</small>` : ''}</li>`;
       }).join('')}</ol>
     </section>`;
     }).join('')}</div>
@@ -7631,6 +7640,13 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
   const stoppedBookings = new Map((bookingProjection.activeBookings || [])
     .filter(entry => String(entry?.status || '').toLowerCase() === 'stoppage')
     .map(entry => [normalizePmbStage(entry.stage), entry]));
+  const serviceReviewCount = Array.isArray(vehicle.pilbaraServiceOperations) ? vehicle.pilbaraServiceOperations.length : 0;
+  const serviceReviewMarker = serviceReviewCount
+    ? `<span class="incoming-work-check pdc-station-review is-required" title="${serviceReviewCount} Pilbara Service operation${serviceReviewCount === 1 ? '' : 's'} require classification review" aria-label="Service Review required">
+      <span class="incoming-work-box" aria-hidden="true">●</span>
+      <span class="incoming-work-label">Service Review</span>
+    </span>`
+    : '';
   return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations${bookingWarning ? '; workshop booking incomplete' : ''}"${bookingWarning ? ' title="One or more required PMB workshop departments are not booked"' : ''}>${pdcJobDefsPartsFirst().map(def => {
     const required = pdcJobRequired(vehicle, def);
     const complete = pdcJobComplete(vehicle, def);
@@ -7665,7 +7681,7 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
       <span class="incoming-work-box" aria-hidden="true">${marker}</span>
       <span class="incoming-work-label">${escapeHtml(pdcGridJobLabel(def))}</span>
     </span>`;
-  }).join('')}</div>`;
+  }).join('')}${serviceReviewMarker}</div>`;
 }
 
 function workStatusLegendHtml() {
@@ -7715,14 +7731,14 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const subletProviderField = !locationReadOnly && bucketKey === 'pmb' && stage === 'SUBLET'
     ? `<div class="wide incoming-sublet-provider"><b>Sublet provider</b><span><select data-pmb-bay-provider-key="${escapeHtml(key)}" data-pmb-bay-provider-stage="SUBLET" aria-label="Sublet provider for ${escapeHtml(stock)}">${subletProviderOptionsHtml(subletProvider)}</select></span></div>`
     : '';
-  const readOnlyBadge = identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only';
+  const readOnlyBadge = identityReadOnly ? 'Identity conflict · Read only' : vehicle.pilbaraServiceJobCard ? 'Pilbara Service job card · Review required' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only';
   const rftAction = bucketKey === 'rft'
     ? `${rftTransportControlsHtml(vehicle)}${locationReadOnly ? `<span class="badge neutral rft-source-badge">${readOnlyBadge}</span>` : ''}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : '';
   const primaryAction = bucketKey === 'rft'
     ? (rftAction || (locationReadOnly ? `<span class="badge neutral">${readOnlyBadge}</span>` : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`))
     : locationReadOnly && !protectedLifecycleAllowed
-    ? `<span class="badge neutral">${identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only'}</span>`
+    ? `<span class="badge neutral">${readOnlyBadge}</span>`
     : bucketKey === 'yardhold'
     ? `${sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle, { silent: true }) ? '<span class="badge neutral">Shared move unavailable</span>' : `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
@@ -12566,6 +12582,7 @@ const VEHICLE_WORKSHOP_STATION_PRESENTATION = Object.freeze({
   PIT_INSPECTION: { label: 'Pit inspection', colour: '#475569', tint: '#f8fafc' },
   SUBLET: { label: 'Sublet', colour: '#64748b', tint: '#f8fafc' },
   PARTS: { label: 'Parts', colour: '#dc2626', tint: '#fef2f2' },
+  REVIEW: { label: 'Review', colour: '#b45309', tint: '#fffbeb' },
   OWNER_SUPPLIED_DOCUMENT: { label: 'Unallocated – mapping review', colour: '#64748b', tint: '#f8fafc' },
 });
 
