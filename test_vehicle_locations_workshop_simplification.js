@@ -22,8 +22,8 @@ assert.match(render, /const activePlans = focusedBookingMode \? focusedPlans\.fi
 assert.match(render, /const selectedDateBookingCount = todaysPlans\.length/);
 assert.match(planner, /entry\.status !== 'completed' && workshopPlanVehicleIdentity\(entry\) === vehicleIdentity/,
   'completed bookings are omitted from planner search');
-assert.match(planner, /\.filter\(item => item\.bookings\.length \|\| item\.candidateAvailable\)/,
-  'vehicles with only completed history disappear from planner search');
+assert.match(planner, /\.filter\(item => item\.bookings\.length \|\| item\.candidateInLane\)/,
+  'vehicles with only completed history disappear while current disabled candidates remain searchable');
 assert.match(css, /grid-template-columns: 222px minmax\(720px, 1fr\);/);
 
 const detailStart = planner.indexOf('function workshopDetailPanelHtml');
