@@ -20596,7 +20596,7 @@ function navisionEditPayload(incoming, existing = {}) {
     wmi: incoming.wmi || existing.wmi || '',
     vdsNumber: incoming.vdsNumber || existing.vdsNumber || '',
     frame: incoming.frame || existing.frame || '',
-    vin: incoming.vin ?? '',
+    vin: incoming.vin || existing.vin || '',
     customerSurname: incoming.customerSurname || existing.customerSurname || '',
     dealerCustomerName: incoming.dealerCustomerName || existing.dealerCustomerName || '',
     modelDescription: incoming.modelDescription || existing.modelDescription || '',

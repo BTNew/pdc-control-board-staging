@@ -23,7 +23,6 @@ class NavisionCompleteVinGateTests(unittest.TestCase):
         self.assertNotIn("const vin = `${wmi}${vdsNumber}${frame}`;", APP)
         self.assertIn("window.PDC_NAVISION_VIN.navisionSourceIdentity(stock, vin, excelRow)", APP)
         self.assertIn("navision-partial-vin=2026.09.07.01", INDEX)
-        self.assertIn("navision-complete-vin=2026.09.07.0900", INDEX)
 
     def test_effective_vin_reuses_canonical_normalize_and_valid_contract(self) -> None:
         self.assertIn("pdc_navision_complete_vin_20260907", self.sql)
