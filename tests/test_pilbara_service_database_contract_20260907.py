@@ -12,6 +12,8 @@ DELIVERY_BYPASS_REPAIR = ROOT / "supabase/staging_only/20260907104000_pilbara_se
 ACTIVATION_SECURITY_REPAIR = ROOT / "supabase/staging_only/20260907105000_pilbara_service_activation_security_repair.sql"
 ATOMIC_HEAD_REPAIR = ROOT / "supabase/staging_only/20260907106000_pilbara_service_atomic_head_guard.sql"
 NULL_SAFE_HEAD_REPAIR = ROOT / "supabase/staging_only/20260907107000_pilbara_service_null_safe_head_guard.sql"
+SNAPSHOT_MEMBERSHIP_REPAIR = ROOT / "supabase/staging_only/20260907108000_pilbara_service_snapshot_membership_repair.sql"
+SNAPSHOT_SCOPE_REPAIR = ROOT / "supabase/staging_only/20260907109000_pilbara_service_snapshot_scope_and_apply_head_repair.sql"
 SERVICE = ROOT / "pdc-email-vehicle-location-service.js"
 APP = ROOT / "app.js"
 APPLY_SCRIPT = ROOT / "scripts/apply_pilbara_service_open_jobcards_staging.py"
@@ -259,6 +261,36 @@ class PilbaraServiceDatabaseContractTests(unittest.TestCase):
             "pilbara_service_null_safe_head_guard",
         ):
             self.assertIn(marker, repair)
+
+    def test_snapshot_membership_includes_service_vehicles_without_email_receipts(self) -> None:
+        self.assertTrue(SNAPSHOT_MEMBERSHIP_REPAIR.is_file(), "append-only snapshot membership repair is missing")
+        repair = "".join(SNAPSHOT_MEMBERSHIP_REPAIR.read_text(encoding="utf-8").lower().split())
+        for marker in (
+            "('20260907107000','pilbara_service_null_safe_head_guard')",
+            "createorreplacefunctionpublic.get_pdc_email_vehicle_location_snapshot_pre168()",
+            "exists(select1frompublic.pdc_pilbara_service_operationso",
+            "whereo.vehicle_id=v.id)",
+            "20260907108000",
+            "pilbara_service_snapshot_membership_repair",
+        ):
+            self.assertIn(marker, repair)
+        self.assertIn("exists(select1frompublic.pdc_authenticated_email_import_receiptsr", repair)
+        self.assertNotIn("insertintopublic.pdc_authenticated_email_import_receipts", repair)
+
+    def test_snapshot_successor_limits_service_membership_and_advances_apply_head(self) -> None:
+        self.assertTrue(SNAPSHOT_SCOPE_REPAIR.is_file(), "append-only snapshot scope repair is missing")
+        repair = "".join(SNAPSHOT_SCOPE_REPAIR.read_text(encoding="utf-8").lower().split())
+        for marker in (
+            '["20260907108000","pilbara_service_snapshot_membership_repair"]',
+            "v.lifecycle_state=''active''andv.visible_on_boardandexis",
+            "pdc_pilbara_service_operations",
+            "pg_get_functiondef('public.pdc_pilbara_service_apply_v1(uuid,text,text)'::regprocedure)",
+            "20260907109000",
+            "pilbara_service_snapshot_scope_and_apply_head_repair",
+            "schema_head_changed",
+        ):
+            self.assertIn(marker, repair)
+        self.assertNotIn("insertintopublic.pdc_authenticated_email_import_receipts", repair)
 
     def test_authenticated_apply_runner_verifies_partial_batch_and_replay(self) -> None:
         runner = RUNNER.read_text(encoding="utf-8")

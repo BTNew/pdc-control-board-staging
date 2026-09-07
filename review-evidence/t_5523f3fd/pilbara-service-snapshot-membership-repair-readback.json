@@ -1,0 +1,53 @@
+{
+  "ok": true,
+  "mode": "staging_snapshot_membership_repair_readback",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "migration_head": [
+    "20260907109000",
+    "pilbara_service_snapshot_scope_and_apply_head_repair"
+  ],
+  "migrations": [
+    ["20260907108000", "pilbara_service_snapshot_membership_repair"],
+    ["20260907109000", "pilbara_service_snapshot_scope_and_apply_head_repair"]
+  ],
+  "root_cause": {
+    "active_service_vehicle_count": 21,
+    "active_service_vehicle_email_receipt_count": 0,
+    "service_operation_count": 122,
+    "snapshot_pre168_required_authenticated_email_receipt": true,
+    "result": "Pilbara Service vehicles were excluded before the operation projection wrapper ran."
+  },
+  "authenticated_snapshot_readback": {
+    "ok": true,
+    "code": "ok",
+    "vehicle_count": 21,
+    "service_vehicle_count": 21,
+    "service_operation_count": 122,
+    "non_active_service_vehicle_count": 0,
+    "target": {
+      "stock_number": "13061263",
+      "repair_orders": [
+        "JC14124588"
+      ],
+      "database_vehicle_job_card_number": null,
+      "projected_operation_count": 6
+    }
+  },
+  "security_readback": {
+    "staging_sentinel_verified": true,
+    "production_sentinel_present": false,
+    "snapshot_pre168_public_execute": false,
+    "snapshot_pre168_anon_execute": false,
+    "snapshot_pre168_authenticated_execute": false,
+    "snapshot_pre168_service_role_execute": false,
+    "apply_public_execute": false,
+    "apply_anon_execute": false,
+    "apply_service_role_execute": false,
+    "apply_authenticated_execute": true,
+    "apply_head_advanced": true,
+    "apply_schema_head_guard_present": true,
+    "email_receipts_created": 0,
+    "source_data_reapplied": false,
+    "outbound_email_sent": false
+  }
+}
