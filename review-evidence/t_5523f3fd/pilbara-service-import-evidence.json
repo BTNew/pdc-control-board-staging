@@ -1,0 +1,261 @@
+{
+  "ok": true,
+  "mode": "record-preview",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "before": {
+    "head": [
+      "20260907100000",
+      "pilbara_service_open_jobcards_v1"
+    ],
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "activation_count": 0,
+    "contract_installed": true,
+    "notification_count": 0,
+    "production_sentinel_present": false,
+    "preview_batches": 1,
+    "apply_batches": 0,
+    "operation_count": 0
+  },
+  "containment": {
+    "management_project_ref": "cdsmnqxtyyoeoznmbidd",
+    "staging_sentinel_verified": true,
+    "production_contacted": false,
+    "production_contact_policy": "forbidden"
+  },
+  "preview": {
+    "ok": true,
+    "code": "preview_replay",
+    "matched": {
+      "lines": 122,
+      "groups": 21,
+      "stocks": 21,
+      "matched_stock_numbers": [
+        "13086233",
+        "13086232",
+        "13086229",
+        "13075150",
+        "13064619",
+        "13061263",
+        "13056938",
+        "13056890",
+        "13056889",
+        "13047111",
+        "13040515",
+        "13029548",
+        "13029390",
+        "13021036",
+        "13019169",
+        "13015144",
+        "13007660",
+        "13000714",
+        "12715989",
+        "12705303",
+        "12705177"
+      ]
+    },
+    "ambiguous": {
+      "lines": 0,
+      "groups": 0,
+      "stocks": 0,
+      "ambiguous_stock_numbers": []
+    },
+    "unmatched": {
+      "lines": 39,
+      "groups": 16,
+      "stocks": 16,
+      "unmatched_stock_numbers": [
+        "13028624",
+        "13022407",
+        "13011180",
+        "13000914",
+        "12716598",
+        "12716594",
+        "12715919",
+        "12714889",
+        "12682620",
+        "12675070",
+        "12660176",
+        "12660174",
+        "12659321",
+        "12658235",
+        "12657856",
+        "12657854"
+      ]
+    },
+    "operations": {
+      "insert": 122,
+      "update": 0,
+      "conflict": 0,
+      "unchanged": 0,
+      "quarantine": 40
+    },
+    "source_hash": "9803905a50abcacef851a823f5d7bb708e9890a0aa4c49273e91566ea4ebf69e",
+    "source_rows": 162,
+    "apply_allowed": true,
+    "importer_version": "pilbara_service_open_jobcards_v1",
+    "preview_batch_id": "05d4f8f2-d1c1-430f-8474-b16a2b08b258",
+    "source_valid_lines": 161,
+    "partial_batch_policy": "apply_exact_current_dealer_matches_and_quarantine_unmatched",
+    "source_invalid_lines": 1,
+    "standalone_vehicles_created": 0
+  },
+  "readback": {
+    "rls": {
+      "pdc_pilbara_service_operations": [
+        true,
+        true
+      ],
+      "pdc_pilbara_service_import_rows": [
+        true,
+        true
+      ],
+      "pdc_pilbara_service_import_batches": [
+        true,
+        true
+      ],
+      "pdc_pilbara_service_import_receipts": [
+        true,
+        true
+      ],
+      "pdc_pilbara_service_operation_history": [
+        true,
+        true
+      ]
+    },
+    "batch": {
+      "batch_id": "05d4f8f2-d1c1-430f-8474-b16a2b08b258",
+      "response": {
+        "ok": true,
+        "code": "preview_created",
+        "matched": {
+          "lines": 122,
+          "groups": 21,
+          "stocks": 21,
+          "matched_stock_numbers": [
+            "13086233",
+            "13086232",
+            "13086229",
+            "13075150",
+            "13064619",
+            "13061263",
+            "13056938",
+            "13056890",
+            "13056889",
+            "13047111",
+            "13040515",
+            "13029548",
+            "13029390",
+            "13021036",
+            "13019169",
+            "13015144",
+            "13007660",
+            "13000714",
+            "12715989",
+            "12705303",
+            "12705177"
+          ]
+        },
+        "ambiguous": {
+          "lines": 0,
+          "groups": 0,
+          "stocks": 0,
+          "ambiguous_stock_numbers": []
+        },
+        "unmatched": {
+          "lines": 39,
+          "groups": 16,
+          "stocks": 16,
+          "unmatched_stock_numbers": [
+            "13028624",
+            "13022407",
+            "13011180",
+            "13000914",
+            "12716598",
+            "12716594",
+            "12715919",
+            "12714889",
+            "12682620",
+            "12675070",
+            "12660176",
+            "12660174",
+            "12659321",
+            "12658235",
+            "12657856",
+            "12657854"
+          ]
+        },
+        "operations": {
+          "insert": 122,
+          "update": 0,
+          "conflict": 0,
+          "unchanged": 0,
+          "quarantine": 40
+        },
+        "source_hash": "9803905a50abcacef851a823f5d7bb708e9890a0aa4c49273e91566ea4ebf69e",
+        "source_rows": 162,
+        "apply_allowed": true,
+        "importer_version": "pilbara_service_open_jobcards_v1",
+        "preview_batch_id": "05d4f8f2-d1c1-430f-8474-b16a2b08b258",
+        "source_valid_lines": 161,
+        "partial_batch_policy": "apply_exact_current_dealer_matches_and_quarantine_unmatched",
+        "source_invalid_lines": 1,
+        "standalone_vehicles_created": 0
+      },
+      "source_hash": "9803905a50abcacef851a823f5d7bb708e9890a0aa4c49273e91566ea4ebf69e",
+      "insert_count": 122,
+      "update_count": 0,
+      "conflict_count": 0,
+      "unchanged_count": 0,
+      "source_row_count": 162,
+      "accepted_line_count": 161,
+      "matched_stock_count": 21,
+      "ambiguous_stock_count": 0,
+      "unmatched_stock_count": 16,
+      "quarantined_line_count": 40
+    },
+    "function_acl": {
+      "apply_anon": false,
+      "apply_public": false,
+      "preview_anon": false,
+      "preview_public": false,
+      "apply_service_role": false,
+      "apply_authenticated": true,
+      "preview_service_role": false,
+      "preview_authenticated": false
+    },
+    "reason_counts": {
+      "new_operation": 122,
+      "invalid_blank_natural_identity": 1,
+      "no_exact_current_navision_record": 39
+    },
+    "receipt_count": 2,
+    "operation_count": 0,
+    "raw_rows_retained": 162,
+    "row_reconciliation": {
+      "total": 162,
+      "decisions": {
+        "insert": 122,
+        "quarantine": 40
+      }
+    },
+    "status_desc_normalized_count": 0
+  },
+  "after": {
+    "head": [
+      "20260907100000",
+      "pilbara_service_open_jobcards_v1"
+    ],
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "activation_count": 0,
+    "contract_installed": true,
+    "notification_count": 0,
+    "production_sentinel_present": false,
+    "preview_batches": 1,
+    "apply_batches": 0,
+    "operation_count": 0
+  },
+  "forbidden_vehicle_snapshots": 0,
+  "forbidden_vehicle_state_changes": 0,
+  "apply_executed": false,
+  "evidence_path": "C:\\Hermes-Active\\projects\\pdc-control-board-staging\\.worktrees\\t_5523f3fd\\review-evidence\\t_5523f3fd\\pilbara-service-import-evidence.json"
+}

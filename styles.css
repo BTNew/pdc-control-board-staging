@@ -13167,6 +13167,10 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
   border-bottom: 1px solid color-mix(in srgb, var(--station-colour) 13%, #e5e7eb);
   background: color-mix(in srgb, var(--station-tint) 62%, #fff);
 }
+
+.authenticated-email-operations li > small {
+  grid-column: 1 / -1;
+}
 .authenticated-email-operations li:last-child { border-bottom: 0; }
 .authenticated-email-operations li > strong { color: var(--station-colour); }
 

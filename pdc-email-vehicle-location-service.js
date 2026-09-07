@@ -180,7 +180,7 @@ function mapServerVehicle(row = {}) {
     if (item.completed_at) mapped[`${fields[1]}At`] = item.completed_at;
     if (item.completed_by) mapped[`${fields[1]}By`] = item.completed_by;
   }
-  const allowedOperationKeys = new Set(['bus4x4', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet', 'pitinspection', 'parts']);
+  const allowedOperationKeys = new Set(['bus4x4', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet', 'pitinspection', 'parts', 'review']);
   mapped.pdcEmailOperationLines = (Array.isArray(row.operation_lines) ? row.operation_lines : []).slice(0, 50).map(item => ({
     operation_line_id: String(item?.operation_line_id || item?.source_line_id || '').trim().toLowerCase(),
     operation_no: String(item?.operation_no || '').trim().toUpperCase(),
@@ -190,12 +190,31 @@ function mapServerVehicle(row = {}) {
     estimatedHours: item?.estimated_hours != null && item?.estimated_hours !== '' && Number.isFinite(Number(item.estimated_hours))
       ? Number(item.estimated_hours)
       : null,
-    estimatedHoursSource: ['job_card', 'ai_estimate'].includes(String(item?.estimated_hours_source || '').trim().toLowerCase())
+    estimatedHoursSource: ['job_card', 'ai_estimate', 'business_rule_default', 'owner_supplied_document_unknown'].includes(String(item?.estimated_hours_source || '').trim().toLowerCase())
       ? String(item.estimated_hours_source).trim().toLowerCase()
       : null,
+    sourceEstimatedHours: item?.source_estimated_hours != null && item?.source_estimated_hours !== '' && Number.isFinite(Number(item.source_estimated_hours))
+      ? Number(item.source_estimated_hours)
+      : null,
+    effectiveEstimatedHours: item?.effective_estimated_hours != null && item?.effective_estimated_hours !== '' && Number.isFinite(Number(item.effective_estimated_hours))
+      ? Number(item.effective_estimated_hours)
+      : null,
+    hoursProvenance: String(item?.hours_provenance || '').trim(),
+    partsOnBackorderRaw: String(item?.parts_on_backorder_raw || ''),
+    partsSemantics: ['explicitly_backordered', 'not_backordered', 'review'].includes(String(item?.parts_semantics || '').trim().toLowerCase())
+      ? String(item.parts_semantics).trim().toLowerCase()
+      : null,
+    classification: String(item?.classification || '').trim() === 'Review' ? 'Review' : '',
     source_uid: String(item?.source_uid || '').trim().slice(0, 100),
   })).filter(item => /^(?:OP(?:[1-9]|[1-9][0-9]{1,2})|PD[0-9]{3}-[A-F0-9]{8})$/.test(item.operation_no)
     && allowedOperationKeys.has(item.work_key) && item.description.length > 0);
+  mapped.pilbaraServiceOperations = mapped.pdcEmailOperationLines.filter(item => item.classification === 'Review');
+  const pilbaraRepairOrders = [...new Set(mapped.pilbaraServiceOperations.map(item => item.job_card_number).filter(Boolean))];
+  mapped.pilbaraServiceJobCard = pilbaraRepairOrders.length === 1;
+  if (!mapped.jobCardNumber && mapped.pilbaraServiceJobCard) {
+    mapped.jobCardNumber = pilbaraRepairOrders[0];
+    mapped.jobcard = pilbaraRepairOrders[0];
+  }
   const qcProjection = Array.isArray(row.qc_operation_lines)
     ? row.qc_operation_lines
     : (Array.isArray(row.operation_lines) && row.operation_lines.some(item => String(item?.line_identity || '').trim()) ? row.operation_lines : null);

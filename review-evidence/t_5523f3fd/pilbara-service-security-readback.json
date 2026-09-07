@@ -1,0 +1,34 @@
+{
+  "ok": true,
+  "mode": "apply",
+  "already_applied": true,
+  "before": {
+    "head": [
+      "20260907105000",
+      "pilbara_service_activation_security_repair"
+    ],
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "full_backend_uuid_key": true,
+    "production_sentinel_present": false,
+    "apply_uses_private_activation": true,
+    "private_activation_acl_closed": true,
+    "direct_activation_operator_only": true
+  },
+  "after": {
+    "head": [
+      "20260907105000",
+      "pilbara_service_activation_security_repair"
+    ],
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "full_backend_uuid_key": true,
+    "production_sentinel_present": false,
+    "apply_uses_private_activation": true,
+    "private_activation_acl_closed": true,
+    "direct_activation_operator_only": true
+  },
+  "containment": {
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "production_contacted": false,
+    "outbound_email_sent": false
+  }
+}
