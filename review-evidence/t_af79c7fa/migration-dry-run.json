@@ -1,0 +1,25 @@
+{
+  "environment": "staging",
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_contacted": false,
+  "ok": true,
+  "mode": "dry-run",
+  "before": {
+    "head": [
+      "20260905010200",
+      "archived_snapshot_volatility_repair"
+    ],
+    "helper_exists": false,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  },
+  "after": {
+    "head": [
+      "20260905010200",
+      "archived_snapshot_volatility_repair"
+    ],
+    "helper_exists": false,
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false
+  }
+}
