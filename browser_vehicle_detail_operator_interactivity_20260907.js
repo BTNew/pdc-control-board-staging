@@ -53,6 +53,7 @@ function createServer(root) {
     });
     await page.goto(`${origin}/index.html`, { waitUntil: 'networkidle' });
     await page.evaluate(() => {
+      window.__resolveVehicleHistory = null;
       const fixture = {
         id: '11111111-1111-4111-8111-111111111111',
         __emailVehicleId: '11111111-1111-4111-8111-111111111111',
@@ -64,6 +65,8 @@ function createServer(root) {
         client: 'DAVIE',
         customerName: 'DAVIE',
         vehicle: 'RAV4 AWD',
+        vin: 'JTMRFAFV00D123456',
+        registration: '1ABC234',
         pdcLocation: 'PMB',
         lifecycleState: 'active',
         pdcSheetVisible: true,
@@ -81,6 +84,10 @@ function createServer(root) {
       app.vehicleModalIdentityReady = true;
       app.vehicleModalLoadingIdentity = false;
       app.vehicleDetailPage = 'details';
+      app.emailVehicleLocationService = {
+        vehicleHistory: () => new Promise(resolve => { window.__resolveVehicleHistory = resolve; }),
+      };
+      app.vehicleHistoryCache = new Map();
       document.body.classList.remove('auth-pending');
       document.querySelector('.pdc-auth-gate')?.style.setProperty('display', 'none', 'important');
       document.querySelector('.app-shell')?.style.setProperty('display', 'block', 'important');
@@ -100,12 +107,20 @@ function createServer(root) {
     const currentTile = form.getByRole('textbox', { name: /Current PMB tile/ });
     const location = form.locator('[name="pdcLocation"]');
     const fitting = form.locator('[data-pdc-work-state="fitting"]');
+    const authoritativeIdentityEditors = form.locator('[name="stock"], [name="vin"], [name="registration"], [name="vehicle"], [name="etaAtDealer"]');
 
     assert.strictEqual(await jobcard.isEditable(), true, 'operator-maintained JC input is editable');
     assert.strictEqual(await consultant.isEnabled(), true, 'operator-maintained salesperson dropdown is enabled');
     assert.strictEqual(await form.getAttribute('data-consultant-baseline'), await consultant.inputValue(), 'salesperson baseline matches the rendered select value');
     assert.strictEqual(await blocked.isEnabled(), true, 'operator-maintained blocked check control is enabled');
     assert.strictEqual(await fitting.isEnabled(), true, 'operator-maintained work control is enabled');
+    await consultant.focus();
+    await consultant.evaluate(element => { element.dataset.focusedControlIdentity = 'retained'; });
+    await page.evaluate(() => window.__resolveVehicleHistory({ ok: true, data: { audit_events: [] } }));
+    await page.waitForFunction(() => app.vehicleHistoryCache.get('11111111-1111-4111-8111-111111111111')?.status === 'ready');
+    assert.strictEqual(await consultant.getAttribute('data-focused-control-identity'), 'retained', 'late history completion must retain the focused select DOM node');
+    assert.strictEqual(await consultant.evaluate(element => document.activeElement === element), true, 'late history completion must not close or blur the focused operator dropdown');
+    assert.strictEqual(await page.getByText('Loading authoritative import receipts, movements and audit events…').count(), 0, 'resolved history replaces its loading status without replacing the editor');
     await jobcard.click();
     await jobcard.fill('UI-SAFE-DRAFT');
     await fitting.click();
@@ -123,6 +138,9 @@ function createServer(root) {
     assert.strictEqual(await page.locator('[data-vehicle-edit-form]').count(), 1, 'one live editor remains mounted');
     assert.strictEqual(await customer.isEditable(), false, 'Navision-authoritative customer remains read-only');
     assert.strictEqual(await eta.isEditable(), false, 'Navision ETA remains read-only');
+    assert.strictEqual(await authoritativeIdentityEditors.count(), 0, 'Navision stock, VIN, registration, vehicle description and ETA have no edit controls');
+    assert.strictEqual(await page.locator('[data-vehicle-stock]').evaluate(element => element.tagName), 'SPAN', 'authoritative stock identity is rendered as text, not an input');
+    assert.strictEqual(await page.getByRole('heading', { name: 'DAVIE' }).locator('..').getByText('RAV4 AWD').count(), 1, 'authoritative vehicle description remains static presentation');
     assert.strictEqual(await currentTile.isEditable(), false, 'workflow-only PMB bucket remains read-only');
     assert.strictEqual(await location.isEnabled(), false, 'workflow-only location movement remains disabled in Vehicle Detail');
     const authorityTransitionRendered = await page.evaluate(() => {

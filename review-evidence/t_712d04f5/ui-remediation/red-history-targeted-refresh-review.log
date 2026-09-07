@@ -1,0 +1,12 @@
+AssertionError [ERR_ASSERTION]: resolved history replaces its loading status without replacing the editor
+
+1 !== 0
+
+    at C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_534b52bf\browser_vehicle_detail_operator_interactivity_20260907.js:123:12 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 1,
+  expected: 0,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

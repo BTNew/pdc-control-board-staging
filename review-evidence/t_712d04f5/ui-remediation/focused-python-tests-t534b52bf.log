@@ -1,0 +1,16 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.15, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_534b52bf
+collected 61 items
+
+tests\test_pilbara_authenticated_runner_security_20260907.py .....       [  8%]
+tests\test_pilbara_service_classifier_database_contract_20260907.py .... [ 14%]
+..........                                                               [ 31%]
+tests\test_pilbara_service_classifier_runner_20260907.py .....           [ 39%]
+tests\test_pilbara_service_database_contract_20260907.py ............... [ 63%]
+......                                                                   [ 73%]
+tests\test_pilbara_service_open_jobcards_importer_20260907.py .......... [ 90%]
+.                                                                        [ 91%]
+tests\test_pilbara_service_operation_classifier_20260907.py .....        [100%]
+
+============================= 61 passed in 0.35s ==============================

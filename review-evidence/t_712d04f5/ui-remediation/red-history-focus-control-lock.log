@@ -1,0 +1,12 @@
+AssertionError [ERR_ASSERTION]: late history completion must retain the focused select DOM node
+
+null !== 'retained'
+
+    at C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_534b52bf\browser_vehicle_detail_operator_interactivity_20260907.js:118:12 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: null,
+  expected: 'retained',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
