@@ -1,0 +1,8 @@
+Full Python contract command: python -m unittest discover -s tests -p 'test_*contract.py'
+Result: 195 executed; 189 passed, 2 failed, 4 import errors.
+All six failures are pre-existing and outside this JavaScript/UI diff:
+- 3 import errors: psycopg2 unavailable in the active Hermes Python runtime.
+- 1 import error: expected pdc-emails profile script is absent from this profile.
+- 2 deterministic digest assertions on untouched historical monitor artifacts.
+Focused Pilbara Service Python suite: 56 passed, 0 failed.
+No Python, SQL, migration, classifier, importer, or monitor file is changed by this task.

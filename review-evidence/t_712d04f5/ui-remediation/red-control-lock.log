@@ -1,0 +1,14 @@
+AssertionError [ERR_ASSERTION]: late Service/detail refresh must not replace an operator draft
++ actual - expected
+
++ ''
+- 'UI-SAFE-DRAFT'
+
+    at C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\browser_vehicle_detail_operator_interactivity_20260907.js:108:12 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: '',
+  expected: 'UI-SAFE-DRAFT',
+  operator: 'strictEqual',
+  diff: 'simple'
+}

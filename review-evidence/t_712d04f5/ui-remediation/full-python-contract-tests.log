@@ -1,0 +1,94 @@
+..............EEE...................F....................................................................................................................F...................................E.....
+======================================================================
+ERROR: test_authenticated_acceptance_plan_mapping_contract (unittest.loader._FailedTest.test_authenticated_acceptance_plan_mapping_contract)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_authenticated_acceptance_plan_mapping_contract
+Traceback (most recent call last):
+  File "C:\Users\nwmgr\AppData\Local\hermes\hermes-agent\.hermes-runtime\python\cpython-3.11-windows-x86_64-none\Lib\unittest\loader.py", line 419, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nwmgr\AppData\Local\hermes\hermes-agent\.hermes-runtime\python\cpython-3.11-windows-x86_64-none\Lib\unittest\loader.py", line 362, in _get_module_from_name
+    __import__(name)
+  File "C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\tests\test_authenticated_acceptance_plan_mapping_contract.py", line 7, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+
+
+======================================================================
+ERROR: test_authenticated_acceptance_planner_mapping_contract (unittest.loader._FailedTest.test_authenticated_acceptance_planner_mapping_contract)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_authenticated_acceptance_planner_mapping_contract
+Traceback (most recent call last):
+  File "C:\Users\nwmgr\AppData\Local\hermes\hermes-agent\.hermes-runtime\python\cpython-3.11-windows-x86_64-none\Lib\unittest\loader.py", line 419, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nwmgr\AppData\Local\hermes\hermes-agent\.hermes-runtime\python\cpython-3.11-windows-x86_64-none\Lib\unittest\loader.py", line 362, in _get_module_from_name
+    __import__(name)
+  File "C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\tests\test_authenticated_acceptance_planner_mapping_contract.py", line 6, in <module>
+    spec=importlib.util.spec_from_file_location('campaign_mapping',ROOT/'scripts/run_authenticated_acceptance_campaign_686_staging.py');campaign=importlib.util.module_from_spec(spec);assert spec and spec.loader;spec.loader.exec_module(campaign)
+                                                                                                                                                                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\scripts\run_authenticated_acceptance_campaign_686_staging.py", line 21, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+
+
+======================================================================
+ERROR: test_authenticated_apply_action_guard_727_contract (unittest.loader._FailedTest.test_authenticated_apply_action_guard_727_contract)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_authenticated_apply_action_guard_727_contract
+Traceback (most recent call last):
+  File "C:\Users\nwmgr\AppData\Local\hermes\hermes-agent\.hermes-runtime\python\cpython-3.11-windows-x86_64-none\Lib\unittest\loader.py", line 419, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nwmgr\AppData\Local\hermes\hermes-agent\.hermes-runtime\python\cpython-3.11-windows-x86_64-none\Lib\unittest\loader.py", line 362, in _get_module_from_name
+    __import__(name)
+  File "C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\tests\test_authenticated_apply_action_guard_727_contract.py", line 5, in <module>
+    import psycopg2
+ModuleNotFoundError: No module named 'psycopg2'
+
+
+======================================================================
+ERROR: test_pdc_latest100_resume_contract (unittest.loader._FailedTest.test_pdc_latest100_resume_contract)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_pdc_latest100_resume_contract
+Traceback (most recent call last):
+  File "C:\Users\nwmgr\AppData\Local\hermes\hermes-agent\.hermes-runtime\python\cpython-3.11-windows-x86_64-none\Lib\unittest\loader.py", line 419, in _find_test_path
+    module = self._get_module_from_name(name)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nwmgr\AppData\Local\hermes\hermes-agent\.hermes-runtime\python\cpython-3.11-windows-x86_64-none\Lib\unittest\loader.py", line 362, in _get_module_from_name
+    __import__(name)
+  File "C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\tests\test_pdc_latest100_resume_contract.py", line 14, in <module>
+    spec.loader.exec_module(reviewer)
+  File "<frozen importlib._bootstrap_external>", line 936, in exec_module
+  File "<frozen importlib._bootstrap_external>", line 1073, in get_code
+  File "<frozen importlib._bootstrap_external>", line 1130, in get_data
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\nwmgr\\AppData\\Local\\hermes\\profiles\\pdc-emails\\scripts\\pdc_email_reviewer.py'
+
+
+======================================================================
+FAIL: test_planner_and_trust_receipt_are_real_and_bound (test_email_monitor_active_capability_670_contract.EmailMonitorActiveCapability670ContractTests.test_planner_and_trust_receipt_are_real_and_bound)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\tests\test_email_monitor_active_capability_670_contract.py", line 117, in test_planner_and_trust_receipt_are_real_and_bound
+    self.assertEqual(planner_sha, "7e08a00bc099610aa919bb7c3089ef84b91a74bafd69f95fab06bfccfdf67348")
+AssertionError: '445131fd93125a0685e1b830cb2db9116be6b429fc9085461df87efb3985747d' != '7e08a00bc099610aa919bb7c3089ef84b91a74bafd69f95fab06bfccfdf67348'
+- 445131fd93125a0685e1b830cb2db9116be6b429fc9085461df87efb3985747d
++ 7e08a00bc099610aa919bb7c3089ef84b91a74bafd69f95fab06bfccfdf67348
+
+
+======================================================================
+FAIL: test_migration_source_digest_is_deterministic_for_release_evidence (test_monitor_successor_504_contract.MonitorSuccessor504ContractTests.test_migration_source_digest_is_deterministic_for_release_evidence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\tests\test_monitor_successor_504_contract.py", line 91, in test_migration_source_digest_is_deterministic_for_release_evidence
+    self.assertEqual(
+AssertionError: '48e276ac0aeb0db6621c45c99e32a160998960e5c5d7778ca2a9729324312e0b' != 'ac0b3fcd09d467fceb38d37c07fe1263cdfa1327926b1e413cd976c25409ae7f'
+- 48e276ac0aeb0db6621c45c99e32a160998960e5c5d7778ca2a9729324312e0b
++ ac0b3fcd09d467fceb38d37c07fe1263cdfa1327926b1e413cd976c25409ae7f
+
+
+----------------------------------------------------------------------
+Ran 195 tests in 0.322s
+
+FAILED (failures=2, errors=4)
+Navision 768 SQL/client contract: duplicate identity, invalid field, atomic/replay/security and no-localStorage checks passed

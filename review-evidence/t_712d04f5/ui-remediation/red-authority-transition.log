@@ -1,0 +1,12 @@
+AssertionError [ERR_ASSERTION]: an authority-boundary change must replace the stale form and submit closure
+
+false !== true
+
+    at C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\browser_vehicle_detail_operator_interactivity_20260907.js:132:12 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: 'strictEqual',
+  diff: 'simple'
+}

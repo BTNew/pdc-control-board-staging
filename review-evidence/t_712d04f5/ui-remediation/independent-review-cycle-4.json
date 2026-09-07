@@ -1,0 +1,6 @@
+{
+  "passed": false,
+  "security_concerns": [],
+  "logic_errors": ["The browser regression could leave its local HTTP server open if Playwright loading or Chromium launch failed."],
+  "resolution": "Browser acquisition moved inside an outer try/finally; browser close is nested so server.close always runs. A negative no-Playwright run exits 1 without hanging."
+}
