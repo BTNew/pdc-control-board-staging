@@ -1,0 +1,2332 @@
+{
+  "contract": "pilbara_service_operation_classifier_v1",
+  "classifier_version": "pilbara-service-classifier-2026-09-07.1",
+  "source_importer_version": "pilbara_service_open_jobcards_v1",
+  "source_batch_id": "ab7483a0-9b6c-4777-a7f9-9481e16023ff",
+  "source_hash": "9803905a50abcacef851a823f5d7bb708e9890a0aa4c49273e91566ea4ebf69e",
+  "generated_by": {
+    "provider": "openai-codex",
+    "model": "gpt-5.6-sol",
+    "run_id": "141"
+  },
+  "classifications": [
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086233",
+        "JC14125357",
+        4
+      ],
+      "source_semantic_hash": "92782dd04827c579d545e971ed850ac957aaf7ef98b6cfe891f245f84aea35cd",
+      "source_description_hash": "acf1c4993f9be4a50ed8075bda2aa7af4711ab904640b6ff64ca737574adf22e",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086233",
+        "JC14125357",
+        3
+      ],
+      "source_semantic_hash": "b2669391a3e4116d5c91f3eca4269c884f8653fbe4fb452355951ed5a22e3e35",
+      "source_description_hash": "7e0f977cf0949fee67940794d25b6b6f615874cbe04e67b9839d749b64c1c44c",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086233",
+        "JC14125357",
+        2
+      ],
+      "source_semantic_hash": "12d8749721e1e46093d702d0750f7337442785287038b9921f74f2f1d9e3c042",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086233",
+        "JC14125357",
+        1
+      ],
+      "source_semantic_hash": "f4c853f97234e04b0de217ce49f5cbb4764e7cb114979d849c184e02e2e915dc",
+      "source_description_hash": "114b7c7a6041ce21e9e74747c6c0e0b9dc2baf1884c6d249d87a0d3ad261e9aa",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086232",
+        "JC14124967",
+        2
+      ],
+      "source_semantic_hash": "c3d839a0b9086d7da0be4fef2bd14e6d9df65bbd28026b8bc07c7586df3656be",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086232",
+        "JC14124967",
+        1
+      ],
+      "source_semantic_hash": "f4f0d4b718aed12d67b33f2c222a39e9553f17fd02a8a233a80e285cdedbb426",
+      "source_description_hash": "73deeb2ebbe5ac80fb7fca91c4bb39b232a59adef0c170ec93eda7251092043e",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086232",
+        "JC14124967",
+        3
+      ],
+      "source_semantic_hash": "daec92e01d8db4b41d56690d1b062732788a67c1f53b8854792245786ed91f09",
+      "source_description_hash": "7f9297ea29d7f7ea3e4bfab34a2daf09a7715b494b19452241e1e17f56cf6d49",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.94,
+      "rationale": "Vehicle floor mats are installed interior accessories assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086229",
+        "JC14125115",
+        1
+      ],
+      "source_semantic_hash": "c123ff7c31c44bce1c8d5da0226caf3ac4c6e0475bf22afdcf81a82d1dd58d49",
+      "source_description_hash": "73deeb2ebbe5ac80fb7fca91c4bb39b232a59adef0c170ec93eda7251092043e",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086229",
+        "JC14125115",
+        2
+      ],
+      "source_semantic_hash": "03337abd6e5d0490904e2b92b20bf9c98009b0ac4210b9cfcff2592eb0c24d08",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086229",
+        "JC14125115",
+        3
+      ],
+      "source_semantic_hash": "113f8e92074d547e1e28f28dfe1f4674653149ed74f91d537daaee059362dea3",
+      "source_description_hash": "7e0f977cf0949fee67940794d25b6b6f615874cbe04e67b9839d749b64c1c44c",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13086229",
+        "JC14125115",
+        4
+      ],
+      "source_semantic_hash": "c0a379f42b58162e5b1d1f267354e9fa410b8d4cde348cde3f6fc37d2838d749",
+      "source_description_hash": "acf1c4993f9be4a50ed8075bda2aa7af4711ab904640b6ff64ca737574adf22e",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13075150",
+        "JC14125639",
+        3
+      ],
+      "source_semantic_hash": "5d54fb1e89f30dfbca3455cf97b8d1ac73be269d619c8b6f8306ddd9f4a1162f",
+      "source_description_hash": "e93d860b5b170e2080b554200e6067b108368f18e357685dd8b700365f331bb2",
+      "category": "TYRE",
+      "method": "ai_semantic",
+      "confidence": 0.95,
+      "rationale": "Alloy wheel-set installation belongs to the controlled tyre and wheel work group.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13075150",
+        "JC14125639",
+        4
+      ],
+      "source_semantic_hash": "1e2fd21e83d708bf559b8e23d82f1143e4537d2574bb184eedd924e4f205f1e9",
+      "source_description_hash": "3b1b3a1e5ae41eaf3962bed6da9187939bb9a0716e43b02c40d7da638c2d3ad6",
+      "category": "ELECTRICAL",
+      "method": "ai_semantic",
+      "confidence": 0.97,
+      "rationale": "An electronic trailer-brake controller is vehicle electrical installation work.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13075150",
+        "JC14125639",
+        2
+      ],
+      "source_semantic_hash": "a723c65e80bb4097f5ce458f4ad3950abca2cdf971894eaf7ee804cedb0a8b19",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13075150",
+        "JC14125639",
+        1
+      ],
+      "source_semantic_hash": "43e6715aa78f747c7ad8ea977514ce021d14d54419bcf1216a8a92e14b2ffa72",
+      "source_description_hash": "114b7c7a6041ce21e9e74747c6c0e0b9dc2baf1884c6d249d87a0d3ad261e9aa",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13075150",
+        "JC14125639",
+        6
+      ],
+      "source_semantic_hash": "ffe359d806d86ca5ada93de6fbb00845b5e93763ad4a69b7337ba39d5c953a71",
+      "source_description_hash": "ee66919f37dedf32ef440daa4e748a094ff946c84fbfb2249f7e248e97d58634",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-towbar-fitting deterministically maps this description.",
+      "rule_id": "craig-towbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13075150",
+        "JC14125639",
+        5
+      ],
+      "source_semantic_hash": "e53d947c58ddc00fbdda78b515085409c9bc708bc84c98ed3d2547db7bd88ed8",
+      "source_description_hash": "f9da8bdda4e92e3ee74208301d9a19631ee4ed714784acdfe06b6e3f99733a7f",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.96,
+      "rationale": "A vehicle snorkel is a fitted mechanical accessory, with no structural fabrication meaning.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13064619",
+        "JC14124971",
+        5
+      ],
+      "source_semantic_hash": "581ee01809724e7238747298d02d25b82aca30c8a0bca98de6ecb2cc026fd560",
+      "source_description_hash": "8d471a6eadbedab750ea372aab4549bab6e7b266a0a6aa860ff72f6d4ae04d1d",
+      "category": "ELECTRICAL",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-vehicle-lighting-electrical deterministically maps this description.",
+      "rule_id": "craig-vehicle-lighting-electrical",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13064619",
+        "JC14124971",
+        7
+      ],
+      "source_semantic_hash": "fdd27c751f9642dafb35bdfcb1ff217aa424f3888cbf05a86fea97b354f76fdf",
+      "source_description_hash": "acf1c4993f9be4a50ed8075bda2aa7af4711ab904640b6ff64ca737574adf22e",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13064619",
+        "JC14124971",
+        6
+      ],
+      "source_semantic_hash": "396b86fcf52918069c877dfac7239e189ede5fe7b5c6fd346ba387c805541f4e",
+      "source_description_hash": "013752c3b33ede05936a5c5fd97b0e3ca555a40333d919a7059e5af0157ddfcc",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.96,
+      "rationale": "A nudge bar is a bolt-on vehicle accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13064619",
+        "JC14124971",
+        4
+      ],
+      "source_semantic_hash": "d20917d4db95b2195edb6612dd8f24dcd6caec0b4b488272bea37511e919d56e",
+      "source_description_hash": "9fc92769199153b703cb650d409f46c05f709d207ae7c6e7dc7dc05689545146",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.94,
+      "rationale": "A moulded cargo mat is an installed interior accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13064619",
+        "JC14124971",
+        1
+      ],
+      "source_semantic_hash": "4b27a1ca5cac5aedde05da851730007f159895711700f86693b1fc218a9f3d80",
+      "source_description_hash": "73deeb2ebbe5ac80fb7fca91c4bb39b232a59adef0c170ec93eda7251092043e",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13064619",
+        "JC14124971",
+        2
+      ],
+      "source_semantic_hash": "207d052a3872a6c4dad0959a77dfea0f9bb4c4dab60ad715427b75a747d6d078",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13064619",
+        "JC14124971",
+        3
+      ],
+      "source_semantic_hash": "0c76998070404afd059e099b6113da3d2a1b4bd0856e015ae432e7e11360c6fe",
+      "source_description_hash": "7e0f977cf0949fee67940794d25b6b6f615874cbe04e67b9839d749b64c1c44c",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13061263",
+        "JC14124588",
+        3
+      ],
+      "source_semantic_hash": "0fd0217a3a35524a6f6abe0ccb5d2589b7ece86a11ed2851cbd9434206afa8b0",
+      "source_description_hash": "9fc92769199153b703cb650d409f46c05f709d207ae7c6e7dc7dc05689545146",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.94,
+      "rationale": "A moulded cargo mat is an installed interior accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13061263",
+        "JC14124588",
+        2
+      ],
+      "source_semantic_hash": "e5c4ab4b3efbd17859bbcd7066b233981f388e86e086cf473b167fa9caf4ee41",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13061263",
+        "JC14124588",
+        1
+      ],
+      "source_semantic_hash": "d6c53e196840e8a0ba1b0fc7a6a11cc6172954313ddf066fa268ba06af25d378",
+      "source_description_hash": "73deeb2ebbe5ac80fb7fca91c4bb39b232a59adef0c170ec93eda7251092043e",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13061263",
+        "JC14124588",
+        6
+      ],
+      "source_semantic_hash": "bb9c7c039524b76be56f9de9de0e8b02d14c004bf7127cf2f43b762c4ba1453e",
+      "source_description_hash": "a156d6d4cec402ad53dd798a6f451b6a4b9ffe9cdd54077ab84504910ad2d2c9",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-towbar-fitting deterministically maps this description.",
+      "rule_id": "craig-towbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13061263",
+        "JC14124588",
+        5
+      ],
+      "source_semantic_hash": "f1fae824222abe4476a0dcdc02b73ded0bdc137b23f50e8a2867bd14e83d25ec",
+      "source_description_hash": "95de90e55ec1f904e09dfca35860a193f4fa5e643de7357e1ebaa5b9d8295902",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.96,
+      "rationale": "A nudge bar is a bolt-on vehicle accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13061263",
+        "JC14124588",
+        4
+      ],
+      "source_semantic_hash": "2d3cc655712e8669e6b205a8334e6c0e3ab7add1de5cd257917b81aeb77f07e5",
+      "source_description_hash": "8d471a6eadbedab750ea372aab4549bab6e7b266a0a6aa860ff72f6d4ae04d1d",
+      "category": "ELECTRICAL",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-vehicle-lighting-electrical deterministically maps this description.",
+      "rule_id": "craig-vehicle-lighting-electrical",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056938",
+        "JC14124652",
+        7
+      ],
+      "source_semantic_hash": "bd6454f3a5df97b5af0996d227177feebe9d67c895d50ed89a9d2d5b725c6148",
+      "source_description_hash": "506bd96250fc14c19ccc8f53ca4f9e15dcb69a6a33d1c50f03cc981a7e186e3a",
+      "category": "ELECTRICAL",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-vehicle-lighting-electrical deterministically maps this description.",
+      "rule_id": "craig-vehicle-lighting-electrical",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056938",
+        "JC14124652",
+        6
+      ],
+      "source_semantic_hash": "b16b4762548453453445e7cc5cf5767668798d21d2c48003d3b2a0de3717e86b",
+      "source_description_hash": "07dc295838c813630561eaae3664a75d9946d6d421ecc4f68e094dd26d00a7e9",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056938",
+        "JC14124652",
+        8
+      ],
+      "source_semantic_hash": "940fc2ffe4205c0a1b7c7885b53a06b55d0cf60cb7d53b559c15f926d772d50e",
+      "source_description_hash": "6513015098ae205502df9d3fd49bd6f85776bbf0ceea58f7828cc2a92b313ddd",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056938",
+        "JC14124652",
+        4
+      ],
+      "source_semantic_hash": "896fcd17cea218b4efab3f7b90c1e8dc60a13fecc4a0575a99d7a5bfb7df9489",
+      "source_description_hash": "18393cdb82d20b42aaf3398a8c5144e215dd0c5735bc280e8b66cf7beaac8491",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.9,
+      "rationale": "A cargo barrier is a supplied vehicle accessory to be fitted; no custom structural work is stated.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056938",
+        "JC14124652",
+        3
+      ],
+      "source_semantic_hash": "c55885678e246f9b733c09489124a8f41b75e3397b6769fdd33df3b905685d46",
+      "source_description_hash": "cfffd11b2b449cda145af596f95244d4069eb8d8dbccd2dee830701d0741690f",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-protection-fitting deterministically maps this description.",
+      "rule_id": "craig-protection-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056938",
+        "JC14124652",
+        2
+      ],
+      "source_semantic_hash": "f795865fb21789b94e48265623a034d6791547bd81ef8ab848fefc47d1f2dcae",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056938",
+        "JC14124652",
+        1
+      ],
+      "source_semantic_hash": "240176737c99b6d3ba2f98b0b6bacab11ce90ea999df6c101cdeccdc0115b727",
+      "source_description_hash": "73deeb2ebbe5ac80fb7fca91c4bb39b232a59adef0c170ec93eda7251092043e",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056938",
+        "JC14124652",
+        10
+      ],
+      "source_semantic_hash": "f21ae902dca23ef58b45e683cc6d435c2d1725422ab7b17f03b186cb034bfcc7",
+      "source_description_hash": "a047edca184c112f7a491f69451735cbbfaded493e8d600082e8c8dc692d7ed6",
+      "category": "TYRE",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-wheel-tyre deterministically maps this description.",
+      "rule_id": "craig-wheel-tyre",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056938",
+        "JC14124652",
+        9
+      ],
+      "source_semantic_hash": "89f60c9399add934c01be2933a39d9571f65bb5229bf5bca956280d91a02a16a",
+      "source_description_hash": "15a07bb3382d556667c98ab4e51c3b1657ad4c664b2b0e422ed831bf081fbce6",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.64,
+      "rationale": "The line does not state whether the safety kit is loose supply, mounted, or fitted.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056938",
+        "JC14124652",
+        5
+      ],
+      "source_semantic_hash": "c4e08751996afa1159d706bbd7e500cb862706a19c97ff10f0e44e4b7c1c22c3",
+      "source_description_hash": "c2b82c73d5be51453f778153dc155a351527f4d696823ddb32d780249d617a8f",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.94,
+      "rationale": "A cargo mat is an installed interior accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056890",
+        "JC14124638",
+        4
+      ],
+      "source_semantic_hash": "ee1023e524b279f94c59b8f47c9a6d7a01e788c3923922de8ebf927b73add168",
+      "source_description_hash": "c2b82c73d5be51453f778153dc155a351527f4d696823ddb32d780249d617a8f",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.94,
+      "rationale": "A cargo mat is an installed interior accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056890",
+        "JC14124638",
+        3
+      ],
+      "source_semantic_hash": "6e5f24fbc8c7b73d7f010774d65dcb1970fa5094dc4e8ec1c4d55023573d8902",
+      "source_description_hash": "18393cdb82d20b42aaf3398a8c5144e215dd0c5735bc280e8b66cf7beaac8491",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.9,
+      "rationale": "A cargo barrier is a supplied vehicle accessory to be fitted; no custom structural work is stated.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056890",
+        "JC14124638",
+        2
+      ],
+      "source_semantic_hash": "476abfe885f7b61be69a572ef4c3367ae3421d570b558fbe9a120d94c2b4b8e5",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056890",
+        "JC14124638",
+        1
+      ],
+      "source_semantic_hash": "d9e79a0d3a414672ef2d910850ed383a770cdcb13ffeac05e38a6524ddb3b538",
+      "source_description_hash": "73deeb2ebbe5ac80fb7fca91c4bb39b232a59adef0c170ec93eda7251092043e",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056890",
+        "JC14124638",
+        5
+      ],
+      "source_semantic_hash": "a203512e01dcc72b7de147bc6381e25f931282a5ae98f577eebcd60b488a217e",
+      "source_description_hash": "07dc295838c813630561eaae3664a75d9946d6d421ecc4f68e094dd26d00a7e9",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056890",
+        "JC14124638",
+        9
+      ],
+      "source_semantic_hash": "509723dde3247b3a4ed01a951526cee4f1fa16ec4b08dc26a52fdc5e706700d0",
+      "source_description_hash": "bbdbd4aa032d712929bee05950124e42c1611654061cb2a17958ad6042001e31",
+      "category": "TYRE",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-wheel-tyre deterministically maps this description.",
+      "rule_id": "craig-wheel-tyre",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056890",
+        "JC14124638",
+        8
+      ],
+      "source_semantic_hash": "7d72225824d26b0c2708548b9ecd0409f4017b87f1ba2a72d4e5b91654a462f7",
+      "source_description_hash": "7b0811d982eefef52413688f47caecc856a090d3075de1ae9caf8e05551de39b",
+      "category": "ELECTRICAL",
+      "method": "ai_semantic",
+      "confidence": 0.98,
+      "rationale": "A dual-battery system with a 12V plug is unambiguously vehicle electrical work.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056890",
+        "JC14124638",
+        7
+      ],
+      "source_semantic_hash": "4ff6d0f4f21c150246c8356c4952117b97d95bddd6ef4ce6ea83ec746fc5fcb9",
+      "source_description_hash": "f73a2275fc891cd48ea90e3a3c3e05bcd3a5e3a8485b63125b06c241cfb60af5",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-bullbar-fitting deterministically maps this description.",
+      "rule_id": "craig-bullbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056890",
+        "JC14124638",
+        6
+      ],
+      "source_semantic_hash": "0b1a568a2e804e6ed732f84bb622f78dd8c128ce20bb1ea1794beecf56fd526c",
+      "source_description_hash": "6513015098ae205502df9d3fd49bd6f85776bbf0ceea58f7828cc2a92b313ddd",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056889",
+        "JC14124637",
+        3
+      ],
+      "source_semantic_hash": "47791838e8ded9d701b5fa69f3ceeaca5f4d04e9a2a75a54e4640df9435026af",
+      "source_description_hash": "18393cdb82d20b42aaf3398a8c5144e215dd0c5735bc280e8b66cf7beaac8491",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.9,
+      "rationale": "A cargo barrier is a supplied vehicle accessory to be fitted; no custom structural work is stated.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056889",
+        "JC14124637",
+        2
+      ],
+      "source_semantic_hash": "b4cdb7f9e725f32d9e4756411728d3cc3ab68e922e7d34bce4636b57b68a8b65",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056889",
+        "JC14124637",
+        1
+      ],
+      "source_semantic_hash": "8aedb9ee2de1a4c6baa65097a6c297dbce2fa42e8b36c1c47536d53054a28161",
+      "source_description_hash": "73deeb2ebbe5ac80fb7fca91c4bb39b232a59adef0c170ec93eda7251092043e",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056889",
+        "JC14124637",
+        9
+      ],
+      "source_semantic_hash": "e1ec03862c6fa6f8ae3ebe70764939d1f77b1c121c40449e2ebba422c8a0f464",
+      "source_description_hash": "bbdbd4aa032d712929bee05950124e42c1611654061cb2a17958ad6042001e31",
+      "category": "TYRE",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-wheel-tyre deterministically maps this description.",
+      "rule_id": "craig-wheel-tyre",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056889",
+        "JC14124637",
+        8
+      ],
+      "source_semantic_hash": "6a7c64b85adef8d17819f35718513022bb971a7759e5392010f7b3bc778db86c",
+      "source_description_hash": "7b0811d982eefef52413688f47caecc856a090d3075de1ae9caf8e05551de39b",
+      "category": "ELECTRICAL",
+      "method": "ai_semantic",
+      "confidence": 0.98,
+      "rationale": "A dual-battery system with a 12V plug is unambiguously vehicle electrical work.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056889",
+        "JC14124637",
+        7
+      ],
+      "source_semantic_hash": "d35ebcbd84173e661cfd0f2a5d3c24241d8ea1e2bbcc8d95b11ca8e713b2c72b",
+      "source_description_hash": "f73a2275fc891cd48ea90e3a3c3e05bcd3a5e3a8485b63125b06c241cfb60af5",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-bullbar-fitting deterministically maps this description.",
+      "rule_id": "craig-bullbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056889",
+        "JC14124637",
+        4
+      ],
+      "source_semantic_hash": "556b5518e44a9ae1eb1d08172ebe0fe4f6159b1252258ad78faab5aa641fe0f6",
+      "source_description_hash": "c2b82c73d5be51453f778153dc155a351527f4d696823ddb32d780249d617a8f",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.94,
+      "rationale": "A cargo mat is an installed interior accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056889",
+        "JC14124637",
+        5
+      ],
+      "source_semantic_hash": "fc5a5790db9e7db74938aa46f7cd27bb1ad6319af9d38f4bd2e266691fd4c85c",
+      "source_description_hash": "07dc295838c813630561eaae3664a75d9946d6d421ecc4f68e094dd26d00a7e9",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13056889",
+        "JC14124637",
+        6
+      ],
+      "source_semantic_hash": "cc2e30c4baf2aaf6debcd6ed3154c8cbebce21c63be42563faf2af4360024310",
+      "source_description_hash": "6513015098ae205502df9d3fd49bd6f85776bbf0ceea58f7828cc2a92b313ddd",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13047111",
+        "JC14125347",
+        8
+      ],
+      "source_semantic_hash": "4338139c6092b94f0c25487533ef3f119a327af8833f88ae5e1590c7a7e9db09",
+      "source_description_hash": "7bdb509f43b40d13c10e7e6816deec2f6125e0d79ab73f21b6bd2b4605df2d34",
+      "category": "HOIST",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-gvm-suspension-hoist deterministically maps this description.",
+      "rule_id": "craig-gvm-suspension-hoist",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13047111",
+        "JC14125347",
+        5
+      ],
+      "source_semantic_hash": "673a2af9aa2b17a05c11676a1f98230a5e4ffcfef549b95ad687edd585482af7",
+      "source_description_hash": "f73a2275fc891cd48ea90e3a3c3e05bcd3a5e3a8485b63125b06c241cfb60af5",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-bullbar-fitting deterministically maps this description.",
+      "rule_id": "craig-bullbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13047111",
+        "JC14125347",
+        7
+      ],
+      "source_semantic_hash": "ea12f3ad9621230c729ea1324e5a4ff240bebe225c319141a71964dd6dc2f6ac",
+      "source_description_hash": "d3f26537f6be3ae9e85ab28a9867a79a38f86e97502cc697920459f6bcbc0699",
+      "category": "HOIST",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-long-range-tanks-hoist deterministically maps this description.",
+      "rule_id": "craig-long-range-tanks-hoist",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13047111",
+        "JC14125347",
+        6
+      ],
+      "source_semantic_hash": "80209ac372ba078f5d37428a92a7d00abb2fe542789e162d0baf3875a07d3d9e",
+      "source_description_hash": "289c72986c13e8377009b139dafea3d660dfd67181c164a4cda9c7c41fe2bb98",
+      "category": "HOIST",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-gvm-suspension-hoist deterministically maps this description.",
+      "rule_id": "craig-gvm-suspension-hoist",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13047111",
+        "JC14125347",
+        3
+      ],
+      "source_semantic_hash": "3fb921416168148c270dda6ca56565bef168d07d05420c19d324e03a28d115cf",
+      "source_description_hash": "90bb3ed8ad19185ddf7bcbdbd53580b1ee478abb8968e93d4c9476a301a77f64",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-bullbar-fitting deterministically maps this description.",
+      "rule_id": "craig-bullbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13047111",
+        "JC14125347",
+        2
+      ],
+      "source_semantic_hash": "f6c1ea86628266be65f660d71662b8c7ab5c5af4562ced4634d8955f31150b1d",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13047111",
+        "JC14125347",
+        4
+      ],
+      "source_semantic_hash": "caea81109d2ebb3528996575cbbb04f55651894957a95f102fca1aa09c91de0d",
+      "source_description_hash": "f9da8bdda4e92e3ee74208301d9a19631ee4ed714784acdfe06b6e3f99733a7f",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.96,
+      "rationale": "A vehicle snorkel is a fitted mechanical accessory, with no structural fabrication meaning.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13047111",
+        "JC14125347",
+        1
+      ],
+      "source_semantic_hash": "721a9b6d9301f31640e6d5ccf2b1579c4337ddd356fe8b75ede849ad2949ac35",
+      "source_description_hash": "114b7c7a6041ce21e9e74747c6c0e0b9dc2baf1884c6d249d87a0d3ad261e9aa",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13040515",
+        "JC14125697",
+        2
+      ],
+      "source_semantic_hash": "c47e8809e8c447c44115841287e5fb0340c9148742b1a4fd334f347a71e634d2",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13040515",
+        "JC14125697",
+        1
+      ],
+      "source_semantic_hash": "d6bb51e00adc6b17181e6c6d0e89139ec2dab2e3f42c1c214156bb7492e5da24",
+      "source_description_hash": "114b7c7a6041ce21e9e74747c6c0e0b9dc2baf1884c6d249d87a0d3ad261e9aa",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13029548",
+        "JC14125540",
+        1
+      ],
+      "source_semantic_hash": "5c627b30f2094520dc4fecf1cd95dc5b6f62fad6cd5d7fee6600b80c01aa9317",
+      "source_description_hash": "bced597076e8215f94fa9a1a1bcb81de3a815833e6aa0dff185d89c1b9afd79b",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.91,
+      "rationale": "A named rear-seat delete kit is a fitted accessory; custom structural fabrication is not stated.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13029548",
+        "JC14125540",
+        2
+      ],
+      "source_semantic_hash": "85d6282f32eee12cba6366d63b2c6597013c2a282f1fdc2afb5bf897f1f6d91b",
+      "source_description_hash": "e3beb165e0e0219ba2f9c80344fd897e67bfe808b7157b80be76322e94aae0bf",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.65,
+      "rationale": "A generic inspection is outside the controlled output keys and lacks a safe station mapping.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13029390",
+        "JC14125654",
+        5
+      ],
+      "source_semantic_hash": "f120be32c845832fa700b30f5c3470948184f3872658df304ff26a0d12b6d513",
+      "source_description_hash": "6513015098ae205502df9d3fd49bd6f85776bbf0ceea58f7828cc2a92b313ddd",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13029390",
+        "JC14125654",
+        4
+      ],
+      "source_semantic_hash": "46e3150bcf129015ba5544c51bea903f1eed1c9f378426bcdad20db6b3661cd3",
+      "source_description_hash": "1800a652d96f6893f88180fc2dc6cf6a4063801a445173a96a5a9354a7359563",
+      "category": "ELECTRICAL",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-vehicle-lighting-electrical deterministically maps this description.",
+      "rule_id": "craig-vehicle-lighting-electrical",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13029390",
+        "JC14125654",
+        3
+      ],
+      "source_semantic_hash": "8e3150493781480a57c1721f9127e5e3a28abe0cd66d0f130604a9f1445d4d25",
+      "source_description_hash": "07dc295838c813630561eaae3664a75d9946d6d421ecc4f68e094dd26d00a7e9",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13029390",
+        "JC14125654",
+        8
+      ],
+      "source_semantic_hash": "e882b9bdd816f89dcf38e893cd391b01a2b45aeed443f846765ef6fa9500f6eb",
+      "source_description_hash": "75a2ea925869d04032a46f007bc5bcdec205a5340c1fe64b4fc7fe24d3e8719e",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.93,
+      "rationale": "A towing kit is controlled tow equipment fitment, consistent with the approved towbar category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13029390",
+        "JC14125654",
+        7
+      ],
+      "source_semantic_hash": "376aaa4e70dd68dba2ed4a711caae9ee0cd3fa3d3e02633c0fee13585cf3b6f2",
+      "source_description_hash": "f73a2275fc891cd48ea90e3a3c3e05bcd3a5e3a8485b63125b06c241cfb60af5",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-bullbar-fitting deterministically maps this description.",
+      "rule_id": "craig-bullbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13029390",
+        "JC14125654",
+        6
+      ],
+      "source_semantic_hash": "48f419acaaff62caada1e27b62d257369d948e520e90badfab21f787ebfcd0e1",
+      "source_description_hash": "a3d8874da1ef4dc5ebf581eb2e0d97b8e137275697c6024ad762be10a3dc176a",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.96,
+      "rationale": "A vehicle snorkel kit is a fitted mechanical accessory, with no structural fabrication meaning.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13029390",
+        "JC14125654",
+        2
+      ],
+      "source_semantic_hash": "80f1b85336d9938de6ef047f55a7582b7858549d8e947c835f742e8540769dab",
+      "source_description_hash": "18393cdb82d20b42aaf3398a8c5144e215dd0c5735bc280e8b66cf7beaac8491",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.9,
+      "rationale": "A cargo barrier is a supplied vehicle accessory to be fitted; no custom structural work is stated.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13029390",
+        "JC14125654",
+        1
+      ],
+      "source_semantic_hash": "9738572c115e8f6ece3485ef650d3c466e77df6518fc5cfb53349da0230df9c0",
+      "source_description_hash": "3f04f377ec891782d849f3ee9577e943188d7b59f3d2e98b02d3378eb51541a3",
+      "category": "TYRE",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-wheel-tyre deterministically maps this description.",
+      "rule_id": "craig-wheel-tyre",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13021036",
+        "JC14123543",
+        4
+      ],
+      "source_semantic_hash": "c4fd8d4a6fa04acca5861fad365f79b55843687c5730eda3a31588588b2d259e",
+      "source_description_hash": "644da1c0c057def75119d8b3e695d0d146ba4474ec2ccdd464060ea4e09c932f",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13021036",
+        "JC14123543",
+        5
+      ],
+      "source_semantic_hash": "b7f402d40fbde5de527eecd3738e484d36a31f26ee442933b7e75f3d76a59a3b",
+      "source_description_hash": "030425ac26baab913cf8f79c1ec77f19a6a2eb58f82e314d2cf4dcf89bfece3c",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13021036",
+        "JC14123543",
+        6
+      ],
+      "source_semantic_hash": "5fcfca69988dc2e9a517c875fe944c4efbb7c5d71b8865f0c3ca79b7dfd7a6d1",
+      "source_description_hash": "f9da8bdda4e92e3ee74208301d9a19631ee4ed714784acdfe06b6e3f99733a7f",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.96,
+      "rationale": "A vehicle snorkel is a fitted mechanical accessory, with no structural fabrication meaning.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13021036",
+        "JC14123543",
+        1
+      ],
+      "source_semantic_hash": "7ed54bcfafa6c579855afbefbb83655179e398048820a35eee8e0cc0119de7d4",
+      "source_description_hash": "2bf871f8417245b1695d157484cfcb2d059bfde0c47ef727ae0a79e9515acbd5",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13021036",
+        "JC14123543",
+        2
+      ],
+      "source_semantic_hash": "88903f99603ce2a9f4c1106f09992ff122c46b2f7f0c386f70ec643441c77cbc",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13021036",
+        "JC14123543",
+        3
+      ],
+      "source_semantic_hash": "b3d32deb9a44f0d497ac0f284610b66c97dc32a28e1d2f9e2e62141d3ef0fc94",
+      "source_description_hash": "64eaa2a1e38bc97c1147a0db90e96ec74d6dd51073c768d72efd2fcf306e4a2c",
+      "category": "FABRICATION",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-structural-fabrication deterministically maps this description.",
+      "rule_id": "craig-structural-fabrication",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13021036",
+        "JC14123543",
+        10
+      ],
+      "source_semantic_hash": "7cc5260e0e20a0b5d8ec394d7b3343eed500673ac098c8607b4a2307c264137d",
+      "source_description_hash": "de39a77e58b63e7781214555b2884c05089f1d649344694033b1c02c8ed24995",
+      "category": "ELECTRICAL",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-vehicle-lighting-electrical deterministically maps this description.",
+      "rule_id": "craig-vehicle-lighting-electrical",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13021036",
+        "JC14123543",
+        9
+      ],
+      "source_semantic_hash": "7187687bcc0a3c281fe726d5ca97cc09c913707925918d9684a11df7666dc7e0",
+      "source_description_hash": "3fca0d3b70657ba48a49f326bbe6af60a37f5b3455da00c92ff52132add4ecb2",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.95,
+      "rationale": "A base roof rack and guard rails are bolt-on accessories assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13021036",
+        "JC14123543",
+        7
+      ],
+      "source_semantic_hash": "d3b16cf43e9f053209fd64cf8322526c24cc4480c634c3071105ed52b094c24b",
+      "source_description_hash": "c9cc23d544e71adc2e8e58263e1185c1e92784cda2b5c7a0979443cb5617a9fb",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-bullbar-fitting deterministically maps this description.",
+      "rule_id": "craig-bullbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13021036",
+        "JC14123543",
+        8
+      ],
+      "source_semantic_hash": "57b9b2c75db76689c51034ecdb887c94c10e9b977ff31b997fc61ccc9cfd5625",
+      "source_description_hash": "d0d6ef804affb7cdfd027713f6d5989d4d7725eb133887583348e1f4ebdd5d48",
+      "category": "FABRICATION",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-structural-fabrication deterministically maps this description.",
+      "rule_id": "craig-structural-fabrication",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13019169",
+        "JC14125122",
+        6
+      ],
+      "source_semantic_hash": "df2140065df42a4d99ad81f1e435449f3537493073d49d782077592fdf63af29",
+      "source_description_hash": "b1cabade40738dc0601e350f8cdec5f6c9cb1a6996ded43c9a9c493011c5dd99",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-towbar-fitting deterministically maps this description.",
+      "rule_id": "craig-towbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13019169",
+        "JC14125122",
+        1
+      ],
+      "source_semantic_hash": "8db88510e1c06162ebd0df438db7bec8853db664a44212199927ca30da7551eb",
+      "source_description_hash": "114b7c7a6041ce21e9e74747c6c0e0b9dc2baf1884c6d249d87a0d3ad261e9aa",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13019169",
+        "JC14125122",
+        2
+      ],
+      "source_semantic_hash": "dc2ea0cc89d9cfe4bb849337f90c37be03b6f0d39fbf4283edbce271990c27ee",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13019169",
+        "JC14125122",
+        3
+      ],
+      "source_semantic_hash": "05da9bcc722c90e443f7f6131f3b9a6821cdd7a3ce36dcffd7f5a148332be8be",
+      "source_description_hash": "c045b9563bfe308ca896b29dbbafc74de8d747709ec06cc85734df8c97de4b17",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.95,
+      "rationale": "A roof-rack set is a bolt-on vehicle accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13019169",
+        "JC14125122",
+        4
+      ],
+      "source_semantic_hash": "34c3dbbfe38d6280797571dedec798deb093514bea25dac3b3462d91e4b7b706",
+      "source_description_hash": "f9da8bdda4e92e3ee74208301d9a19631ee4ed714784acdfe06b6e3f99733a7f",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.96,
+      "rationale": "A vehicle snorkel is a fitted mechanical accessory, with no structural fabrication meaning.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13019169",
+        "JC14125122",
+        5
+      ],
+      "source_semantic_hash": "f08c9a7256cce87638b26141e019e19c6618eca4deb83d72ed7b3f761417b781",
+      "source_description_hash": "f73a2275fc891cd48ea90e3a3c3e05bcd3a5e3a8485b63125b06c241cfb60af5",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-bullbar-fitting deterministically maps this description.",
+      "rule_id": "craig-bullbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13015144",
+        "JC14124710",
+        2
+      ],
+      "source_semantic_hash": "2251696c4e98d13a1e6dd636e07af8dc9ff745f5dc3e63f2a285afa4e4dfb1b1",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13015144",
+        "JC14124710",
+        3
+      ],
+      "source_semantic_hash": "e128cf30bfc46536abf9c9679644123432f46982d8b6e86d4095d0b3d0737e23",
+      "source_description_hash": "052c36ce8d10edd777810bd76d5c77addd575fa92722730b7e74a13c0c8853ba",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.95,
+      "rationale": "A roof-rack set is a bolt-on vehicle accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13015144",
+        "JC14124710",
+        4
+      ],
+      "source_semantic_hash": "03cfd7cc6e328dede9ea51de0655656531bb678d4383a2779d6b3481e292b4b7",
+      "source_description_hash": "644da1c0c057def75119d8b3e695d0d146ba4474ec2ccdd464060ea4e09c932f",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13015144",
+        "JC14124710",
+        1
+      ],
+      "source_semantic_hash": "1184f9f9ca8ad26a84d6393fc9987829f9399b63d8b9b4f1bc37179eb421c6cd",
+      "source_description_hash": "73deeb2ebbe5ac80fb7fca91c4bb39b232a59adef0c170ec93eda7251092043e",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13007660",
+        "JC14125329",
+        2
+      ],
+      "source_semantic_hash": "6eb81fd50bf9579b57cdd6f39a4d23bd5475b03967b48391469ea38382274ac7",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13007660",
+        "JC14125329",
+        1
+      ],
+      "source_semantic_hash": "22128e02a808300188601ed739a8334badb21ec19370c1d636ea0824bbd1082b",
+      "source_description_hash": "114b7c7a6041ce21e9e74747c6c0e0b9dc2baf1884c6d249d87a0d3ad261e9aa",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13000714",
+        "JC14123470",
+        5
+      ],
+      "source_semantic_hash": "9302e37339ebf8ccc0c747eb136cf3da2ef185f4284238a65cbfb054b7e9142f",
+      "source_description_hash": "c9cc23d544e71adc2e8e58263e1185c1e92784cda2b5c7a0979443cb5617a9fb",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-bullbar-fitting deterministically maps this description.",
+      "rule_id": "craig-bullbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13000714",
+        "JC14123470",
+        7
+      ],
+      "source_semantic_hash": "a692bbec910afbde0e8a4aa844593b5ad338b4d807e7c171b50091b8dc1af413",
+      "source_description_hash": "b611239a795a3082b6dd2f2310d29919d9bfbc0d2fa87bab516f116221aafcda",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.95,
+      "rationale": "A base roof rack is a bolt-on vehicle accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13000714",
+        "JC14123470",
+        6
+      ],
+      "source_semantic_hash": "692fa0410648b1b070fc4b0fb232e9ac54f050e5640848f9fdac7d1108ca5395",
+      "source_description_hash": "1b40d799512eed02e9f9eab2b09ceed8c817a6276eb3c3464b78399e74bf1f5a",
+      "category": "ELECTRICAL",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-vehicle-lighting-electrical deterministically maps this description.",
+      "rule_id": "craig-vehicle-lighting-electrical",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13000714",
+        "JC14123470",
+        4
+      ],
+      "source_semantic_hash": "e8e772ee1dafc329864ea5bdfd3f049100c053caa79491022a65f6a6a1d84b8f",
+      "source_description_hash": "030425ac26baab913cf8f79c1ec77f19a6a2eb58f82e314d2cf4dcf89bfece3c",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13000714",
+        "JC14123470",
+        1
+      ],
+      "source_semantic_hash": "a3ef00f7b7ab1aa7e6c2db14a79313df022314fc007e8ecb9047502c3eafb0a9",
+      "source_description_hash": "2bf871f8417245b1695d157484cfcb2d059bfde0c47ef727ae0a79e9515acbd5",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13000714",
+        "JC14123470",
+        2
+      ],
+      "source_semantic_hash": "4e8694c1b24aa8a69f59fc099be4ce026e964a256101eb22f756e4160abbd3ed",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "13000714",
+        "JC14123470",
+        3
+      ],
+      "source_semantic_hash": "5a33c99b1a5d6c8cdbd06a20b162d3c1e106bffe4a06b243db19593f9c08fd85",
+      "source_description_hash": "644da1c0c057def75119d8b3e695d0d146ba4474ec2ccdd464060ea4e09c932f",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12715989",
+        "JC14124941",
+        4
+      ],
+      "source_semantic_hash": "175b001f2b26babe0b79af867125ef099b39ef6051c14e6028f16f4957bb3a4e",
+      "source_description_hash": "8075b6b22cfd1c7801f9547f81b94395994ebf4d817302fdf1f6a1e14ac5dc99",
+      "category": "ELECTRICAL",
+      "method": "ai_semantic",
+      "confidence": 0.98,
+      "rationale": "A dual-battery system with a 12V plug is unambiguously vehicle electrical work.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12715989",
+        "JC14124941",
+        3
+      ],
+      "source_semantic_hash": "828091caf3de24dacceeac460e0624752578a1477f58f9b09b2b7b9f3e3f1246",
+      "source_description_hash": "821424a7e6a2db4633d736b2cc178b0c5a92fe5f385d5d6842b420878c3febc4",
+      "category": "ELECTRICAL",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-vehicle-lighting-electrical deterministically maps this description.",
+      "rule_id": "craig-vehicle-lighting-electrical",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12715989",
+        "JC14124941",
+        2
+      ],
+      "source_semantic_hash": "92f69d91c80a86efc37a6443e8b90b9424d73b7339228cfe06e3f971c607360c",
+      "source_description_hash": "c2b82c73d5be51453f778153dc155a351527f4d696823ddb32d780249d617a8f",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.94,
+      "rationale": "A cargo mat is an installed interior accessory assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12715989",
+        "JC14124941",
+        1
+      ],
+      "source_semantic_hash": "0ec256775fc6fca80cc6d683fac80288d33ffa866935e7257c662476a9fdfcdf",
+      "source_description_hash": "18393cdb82d20b42aaf3398a8c5144e215dd0c5735bc280e8b66cf7beaac8491",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.9,
+      "rationale": "A cargo barrier is a supplied vehicle accessory to be fitted; no custom structural work is stated.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12715989",
+        "JC14124941",
+        6
+      ],
+      "source_semantic_hash": "fb43185bf68188f30fd9bfed5632dee3662dde5a6a553425cef0648e01600591",
+      "source_description_hash": "a4c947f2a96f73cd5a44ed12a55dc5b1577d030b5b7be9a19a652b3e2754e643",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.72,
+      "rationale": "The line could mean accessory fitting or radio/electrical work and explicitly excludes only LED lighting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12715989",
+        "JC14124941",
+        5
+      ],
+      "source_semantic_hash": "bb9c4b12662d60c38c2c1085ff6862fd3b02f2388ec896ae06f27ca9d87ec37b",
+      "source_description_hash": "d32fa4854817923a2e79a14c35746de10b3dbef23b56976ce752768b916d9149",
+      "category": "FABRICATION",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-fire-extinguisher-hardware-fabrication deterministically maps this description.",
+      "rule_id": "craig-fire-extinguisher-hardware-fabrication",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12705303",
+        "JC14124037",
+        1
+      ],
+      "source_semantic_hash": "ed1077bb66fb9c4eae032b346d135aabba849f5f140bdbd33b1c2c83f4a68ad6",
+      "source_description_hash": "2bf871f8417245b1695d157484cfcb2d059bfde0c47ef727ae0a79e9515acbd5",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12705303",
+        "JC14124037",
+        4
+      ],
+      "source_semantic_hash": "4e9adfd8764f23cb2d42a4416dec672c0c8430f6dbd41a921469908fec4669cc",
+      "source_description_hash": "d31cf3a71318bf365ee30717c4078d67eb3833311d5d0370de839f3acd3ff86f",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-bullbar-fitting deterministically maps this description.",
+      "rule_id": "craig-bullbar-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12705303",
+        "JC14124037",
+        5
+      ],
+      "source_semantic_hash": "cd15788ae555f130085fadd573bdb2cf4f5bfa4d2167d1b39cfe4952b0c583bc",
+      "source_description_hash": "48ab7be1569e4e66996b4a5d40d6023e92bd0616f755b59dbe5d3943bfd09d5c",
+      "category": "ELECTRICAL",
+      "method": "ai_semantic",
+      "confidence": 0.97,
+      "rationale": "A powered UHF radio and antenna installation is vehicle electrical work.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12705303",
+        "JC14124037",
+        6
+      ],
+      "source_semantic_hash": "19e10c19de31758f1811501bf417d8918ca53e729c412da2b6c17a805ea37e81",
+      "source_description_hash": "a34a41db3375c1379258d1eda7e6e9ce9b2899bd2198e067e86c359e309d77ed",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12705303",
+        "JC14124037",
+        3
+      ],
+      "source_semantic_hash": "1c72761b60ed797d47cd9ea69d7ef0b1c14e177b9b65ef88fbe1c4205790dedd",
+      "source_description_hash": "a61938807156329782853ecefe12cfdfbd06078f481ed95bbd905fe7148f2569",
+      "category": "FABRICATION",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-fire-extinguisher-hardware-fabrication deterministically maps this description.",
+      "rule_id": "craig-fire-extinguisher-hardware-fabrication",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12705303",
+        "JC14124037",
+        2
+      ],
+      "source_semantic_hash": "fb5b0179424e0059c19869eba9e05dfd16a0573bcaf4dbb40137ff71d4d0c001",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12705177",
+        "JC14123887",
+        3
+      ],
+      "source_semantic_hash": "902599572600d89073fc57e684b008c72113030cf393e730c0e956d2ade7885d",
+      "source_description_hash": "c29bc573234874d4009bc4ec571a5db5202933c206001ceeb1db6b1f03afb5e9",
+      "category": "FITTING",
+      "method": "ai_semantic",
+      "confidence": 0.95,
+      "rationale": "Alloy side steps are bolt-on vehicle accessories assigned to fitting.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12705177",
+        "JC14123887",
+        2
+      ],
+      "source_semantic_hash": "8781d814432155252f6dd05b44c81a52c70522a49868cd363ac39f30f8f566d3",
+      "source_description_hash": "683b03dde711486cf32feb44b0864e7dd0c974cb0c433f4caa22b32aaa9e3a56",
+      "category": "FITTING",
+      "method": "deterministic_rule",
+      "confidence": 1.0,
+      "rationale": "Craig rule craig-pdi-seat-cover-fitting deterministically maps this description.",
+      "rule_id": "craig-pdi-seat-cover-fitting",
+      "ruleset_version": "rules-v2",
+      "provider": null,
+      "model": null,
+      "run_id": null
+    },
+    {
+      "natural_identity": [
+        "pilbara_service_open_jobcards_v1",
+        "12705177",
+        "JC14123887",
+        1
+      ],
+      "source_semantic_hash": "d753d505ab2f3de3c48114604aafe134f59f8bdcaeda76d3058b9a5baa40b407",
+      "source_description_hash": "2bf871f8417245b1695d157484cfcb2d059bfde0c47ef727ae0a79e9515acbd5",
+      "category": "REVIEW",
+      "method": "review",
+      "confidence": 0.55,
+      "rationale": "Fuel preparation does not identify one controlled workshop category.",
+      "rule_id": null,
+      "ruleset_version": null,
+      "provider": "openai-codex",
+      "model": "gpt-5.6-sol",
+      "run_id": "141"
+    }
+  ]
+}

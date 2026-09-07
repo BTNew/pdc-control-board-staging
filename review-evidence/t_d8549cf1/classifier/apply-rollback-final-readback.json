@@ -1,0 +1,263 @@
+{
+  "before": {
+    "booking_count": 0,
+    "category_totals": {
+      "ELECTRICAL": 12,
+      "FABRICATION": 4,
+      "FITTING": 77,
+      "HOIST": 3,
+      "REVIEW": 21,
+      "TYRE": 5
+    },
+    "classification_history_count": 244,
+    "classifier_state_hash": "b1105f9bf8ab50d94b71ea09643d4a88691521fd1c62e2e81f54dab44a5208cd",
+    "completed_work_count": 0,
+    "current_classification_count": 122,
+    "grouped_totals": {
+      "ELECTRICAL": {
+        "hours": 26.42,
+        "jobs": 12
+      },
+      "FABRICATION": {
+        "hours": 8.02,
+        "jobs": 4
+      },
+      "FITTING": {
+        "hours": 132.77,
+        "jobs": 77
+      },
+      "HOIST": {
+        "hours": 12,
+        "jobs": 3
+      },
+      "REVIEW": {
+        "hours": 1.1,
+        "jobs": 21
+      },
+      "TYRE": {
+        "hours": 5.17,
+        "jobs": 5
+      }
+    },
+    "head": [
+      "20260907114000",
+      "pilbara_service_operation_classifier_rollback_cleanup"
+    ],
+    "method_totals": {
+      "ai_semantic": 32,
+      "deterministic_rule": 69,
+      "review": 21
+    },
+    "operation_count": 122,
+    "quarantine_count": 40,
+    "raw_operations_hash": "08f7f930976c816aa93cb0b842905ebf385c98a935a654906c77d1d3fb5a5f15",
+    "representative_13061263": [
+      {
+        "category": "ELECTRICAL",
+        "hours": 1.5,
+        "jobs": 1
+      },
+      {
+        "category": "FITTING",
+        "hours": 5.63,
+        "jobs": 4
+      },
+      {
+        "category": "REVIEW",
+        "hours": 0,
+        "jobs": 1
+      }
+    ],
+    "required_outstanding_control_count": 41,
+    "service_vehicle_count": 21,
+    "source_binding_conflict_count": 0,
+    "threshold_conflict_count": 0,
+    "vehicles_hash": "029a9d3a0402450b8cf4e9fc4e3662fd7ded6b2eaa45638c324c59fd5e085b03",
+    "work_control_count": 41
+  },
+  "code": "already_final",
+  "final": {
+    "booking_count": 0,
+    "category_totals": {
+      "ELECTRICAL": 12,
+      "FABRICATION": 4,
+      "FITTING": 77,
+      "HOIST": 3,
+      "REVIEW": 21,
+      "TYRE": 5
+    },
+    "classification_history_count": 244,
+    "classifier_state_hash": "b1105f9bf8ab50d94b71ea09643d4a88691521fd1c62e2e81f54dab44a5208cd",
+    "completed_work_count": 0,
+    "current_classification_count": 122,
+    "grouped_totals": {
+      "ELECTRICAL": {
+        "hours": 26.42,
+        "jobs": 12
+      },
+      "FABRICATION": {
+        "hours": 8.02,
+        "jobs": 4
+      },
+      "FITTING": {
+        "hours": 132.77,
+        "jobs": 77
+      },
+      "HOIST": {
+        "hours": 12,
+        "jobs": 3
+      },
+      "REVIEW": {
+        "hours": 1.1,
+        "jobs": 21
+      },
+      "TYRE": {
+        "hours": 5.17,
+        "jobs": 5
+      }
+    },
+    "head": [
+      "20260907114000",
+      "pilbara_service_operation_classifier_rollback_cleanup"
+    ],
+    "method_totals": {
+      "ai_semantic": 32,
+      "deterministic_rule": 69,
+      "review": 21
+    },
+    "operation_count": 122,
+    "quarantine_count": 40,
+    "raw_operations_hash": "08f7f930976c816aa93cb0b842905ebf385c98a935a654906c77d1d3fb5a5f15",
+    "representative_13061263": [
+      {
+        "category": "ELECTRICAL",
+        "hours": 1.5,
+        "jobs": 1
+      },
+      {
+        "category": "FITTING",
+        "hours": 5.63,
+        "jobs": 4
+      },
+      {
+        "category": "REVIEW",
+        "hours": 0,
+        "jobs": 1
+      }
+    ],
+    "required_outstanding_control_count": 41,
+    "service_vehicle_count": 21,
+    "source_binding_conflict_count": 0,
+    "threshold_conflict_count": 0,
+    "vehicles_hash": "029a9d3a0402450b8cf4e9fc4e3662fd7ded6b2eaa45638c324c59fd5e085b03",
+    "work_control_count": 41
+  },
+  "final_apply": {
+    "apply_allowed": true,
+    "apply_batch_id": "9298ca73-7471-4b64-87ea-396fe5fe8930",
+    "atomic": true,
+    "booking_changes": 0,
+    "category_totals": {
+      "ELECTRICAL": 12,
+      "FABRICATION": 4,
+      "FITTING": 77,
+      "HOIST": 3,
+      "REVIEW": 21,
+      "TYRE": 5
+    },
+    "classification_conflict": false,
+    "code": "apply_replay",
+    "confidence_totals": {
+      "assigned_gte_0_80": 101,
+      "review_lt_0_80": 21
+    },
+    "conflict": 0,
+    "current_state_hash": "720ec9ae33a1331877b5277dcc4ffa3a1b00edafbd5314a4f0d7cc6ce200ca4b",
+    "forbidden_vehicle_changes": 0,
+    "history_inserted": 122,
+    "insert": 122,
+    "manifest_hash": "15ddb6eecbe30d2c6d372e81c549983a4fa97d3b1e32e51f20ed53a07aebfe66",
+    "method_totals": {
+      "ai_semantic": 32,
+      "deterministic_rule": 69,
+      "review": 21
+    },
+    "ok": true,
+    "operation_completion_changes": 0,
+    "preview_batch_id": "02a904a5-acd7-44d3-84c1-9b281dca8c16",
+    "quarantine_count": 40,
+    "review": 21,
+    "unchanged": 0,
+    "update": 0,
+    "work_controls": {
+      "created": 41,
+      "removed": 0
+    }
+  },
+  "ok": true,
+  "preview_final": {
+    "apply_allowed": true,
+    "category_totals": {
+      "ELECTRICAL": 12,
+      "FABRICATION": 4,
+      "FITTING": 77,
+      "HOIST": 3,
+      "REVIEW": 21,
+      "TYRE": 5
+    },
+    "classification_conflict": false,
+    "code": "preview_replay",
+    "confidence_totals": {
+      "assigned_gte_0_80": 101,
+      "review_lt_0_80": 21
+    },
+    "conflict": 0,
+    "current_state_hash": "720ec9ae33a1331877b5277dcc4ffa3a1b00edafbd5314a4f0d7cc6ce200ca4b",
+    "insert": 122,
+    "manifest_hash": "15ddb6eecbe30d2c6d372e81c549983a4fa97d3b1e32e51f20ed53a07aebfe66",
+    "method_totals": {
+      "ai_semantic": 32,
+      "deterministic_rule": 69,
+      "review": 21
+    },
+    "ok": true,
+    "preview_batch_id": "02a904a5-acd7-44d3-84c1-9b281dca8c16",
+    "quarantine_count": 40,
+    "review": 21,
+    "unchanged": 0,
+    "update": 0
+  },
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "verification": {
+    "apply_allowed": true,
+    "category_totals": {
+      "ELECTRICAL": 12,
+      "FABRICATION": 4,
+      "FITTING": 77,
+      "HOIST": 3,
+      "REVIEW": 21,
+      "TYRE": 5
+    },
+    "classification_conflict": false,
+    "code": "preview_created",
+    "confidence_totals": {
+      "assigned_gte_0_80": 101,
+      "review_lt_0_80": 21
+    },
+    "conflict": 0,
+    "current_state_hash": "b1105f9bf8ab50d94b71ea09643d4a88691521fd1c62e2e81f54dab44a5208cd",
+    "insert": 0,
+    "manifest_hash": "15ddb6eecbe30d2c6d372e81c549983a4fa97d3b1e32e51f20ed53a07aebfe66",
+    "method_totals": {
+      "ai_semantic": 32,
+      "deterministic_rule": 69,
+      "review": 21
+    },
+    "ok": true,
+    "preview_batch_id": "038352b9-e30c-4405-9305-a7b5f9fee309",
+    "quarantine_count": 40,
+    "review": 21,
+    "unchanged": 122,
+    "update": 0
+  }
+}
