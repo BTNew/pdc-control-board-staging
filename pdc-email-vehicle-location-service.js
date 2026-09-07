@@ -204,11 +204,20 @@ function mapServerVehicle(row = {}) {
     partsSemantics: ['explicitly_backordered', 'not_backordered', 'review'].includes(String(item?.parts_semantics || '').trim().toLowerCase())
       ? String(item.parts_semantics).trim().toLowerCase()
       : null,
-    classification: String(item?.classification || '').trim() === 'Review' ? 'Review' : '',
+    classification: String(item?.classification || '').trim().toUpperCase() === 'REVIEW'
+      ? 'Review'
+      : String(item?.classification || '').trim().toUpperCase(),
+    classificationMethod: String(item?.classification_method || '').trim(),
+    classificationConfidence: item?.classification_confidence != null && Number.isFinite(Number(item.classification_confidence))
+      ? Number(item.classification_confidence)
+      : null,
+    classificationRationale: String(item?.classification_rationale || '').trim().slice(0, 240),
+    sourceDescriptionHash: String(item?.source_description_hash || '').trim().toLowerCase(),
+    classifierVersion: String(item?.classifier_version || '').trim(),
     source_uid: String(item?.source_uid || '').trim().slice(0, 100),
   })).filter(item => /^(?:OP(?:[1-9]|[1-9][0-9]{1,2})|PD[0-9]{3}-[A-F0-9]{8})$/.test(item.operation_no)
     && allowedOperationKeys.has(item.work_key) && item.description.length > 0);
-  mapped.pilbaraServiceOperations = mapped.pdcEmailOperationLines.filter(item => item.classification === 'Review');
+  mapped.pilbaraServiceOperations = mapped.pdcEmailOperationLines.filter(item => item.source_uid.startsWith('pilbara_service_open_jobcards_v1:'));
   const pilbaraRepairOrders = [...new Set(mapped.pilbaraServiceOperations.map(item => item.job_card_number).filter(Boolean))];
   mapped.pilbaraServiceJobCard = pilbaraRepairOrders.length === 1;
   if (!mapped.jobCardNumber && mapped.pilbaraServiceJobCard) {

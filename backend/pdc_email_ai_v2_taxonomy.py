@@ -44,6 +44,8 @@ def classify_operation(
     text = _norm(description)
     if not text:
         return Classification(None, "UNSUPPORTED", "empty_description", ruleset_version=store.ruleset_version)
+    if re.search(r"\b(NO|NOT|WITHOUT)\b", text) or any(label in text for label in ("SIGNAGE ONLY", "DECAL ONLY", "LABEL ONLY")):
+        return Classification(None, "REVIEW", "negated_or_non_work_description", ruleset_version=store.ruleset_version)
     if ("12V" in text and "SOCKET" in text) or "SAFETY TRIANGLE" in text or "WEATHER SHIELD" in text:
         return Classification(None, "REVIEW", "durable_rule_pending_review", ruleset_version=store.ruleset_version)
     if ("FMG" in text or "SIGNAGE" in text or "LOGO" in text) and any(token in text for token in ("GVM", "GCM", "TARE", "DECAL", "STRIP")):
@@ -58,7 +60,8 @@ def classify_operation(
             return Classification("FITTING", "PLANNED", "loose_safety_item_fitting", "craig-pdi-seat-cover-fitting", store.ruleset_version)
         return Classification("FABRICATION", "PLANNED", "fire_extinguisher_hardware", rule["rule_id"] if rule else None, store.ruleset_version)
     if "WHEEL NUT INDICATOR" in text:
-        return Classification("TYRE", "PLANNED", "wheel_nut_indicator", ruleset_version=store.ruleset_version)
+        rule = store.resolve(text)
+        return Classification("TYRE", "PLANNED", "wheel_nut_indicator", rule["rule_id"] if rule else "craig-wheel-tyre", store.ruleset_version)
     rule = store.resolve(text)
     if rule:
         if rule["destination"] == "SUBLET":

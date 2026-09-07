@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "security_and_projection": {
+    "current_classifications": 122,
+    "exposed_private_function_grants": 0,
+    "exposed_table_grants": 0,
+    "pending_delete_authorizations": 0,
+    "projected_operations": 122,
+    "rls_forced": true,
+    "source_descriptions_preserved": "122",
+    "work_controls": 41
+  }
+}

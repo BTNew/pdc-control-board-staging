@@ -1,0 +1,80 @@
+{
+  "ok": true,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "state": {
+    "booking_count": 0,
+    "category_totals": {
+      "ELECTRICAL": 12,
+      "FABRICATION": 4,
+      "FITTING": 77,
+      "HOIST": 3,
+      "REVIEW": 21,
+      "TYRE": 5
+    },
+    "classification_history_count": 244,
+    "classifier_state_hash": "b1105f9bf8ab50d94b71ea09643d4a88691521fd1c62e2e81f54dab44a5208cd",
+    "completed_work_count": 0,
+    "current_classification_count": 122,
+    "grouped_totals": {
+      "ELECTRICAL": {
+        "hours": 26.42,
+        "jobs": 12
+      },
+      "FABRICATION": {
+        "hours": 8.02,
+        "jobs": 4
+      },
+      "FITTING": {
+        "hours": 132.77,
+        "jobs": 77
+      },
+      "HOIST": {
+        "hours": 12,
+        "jobs": 3
+      },
+      "REVIEW": {
+        "hours": 1.1,
+        "jobs": 21
+      },
+      "TYRE": {
+        "hours": 5.17,
+        "jobs": 5
+      }
+    },
+    "head": [
+      "20260907114000",
+      "pilbara_service_operation_classifier_rollback_cleanup"
+    ],
+    "method_totals": {
+      "ai_semantic": 32,
+      "deterministic_rule": 69,
+      "review": 21
+    },
+    "operation_count": 122,
+    "quarantine_count": 40,
+    "raw_operations_hash": "08f7f930976c816aa93cb0b842905ebf385c98a935a654906c77d1d3fb5a5f15",
+    "representative_13061263": [
+      {
+        "category": "ELECTRICAL",
+        "hours": 1.5,
+        "jobs": 1
+      },
+      {
+        "category": "FITTING",
+        "hours": 5.63,
+        "jobs": 4
+      },
+      {
+        "category": "REVIEW",
+        "hours": 0,
+        "jobs": 1
+      }
+    ],
+    "required_outstanding_control_count": 41,
+    "service_vehicle_count": 21,
+    "source_binding_conflict_count": 0,
+    "threshold_conflict_count": 0,
+    "vehicles_hash": "029a9d3a0402450b8cf4e9fc4e3662fd7ded6b2eaa45638c324c59fd5e085b03",
+    "work_control_count": 41
+  }
+}

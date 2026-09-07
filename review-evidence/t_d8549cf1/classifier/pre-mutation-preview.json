@@ -1,0 +1,148 @@
+{
+  "before": {
+    "booking_count": 0,
+    "completed_work_count": 0,
+    "head": [
+      "20260907114000",
+      "pilbara_service_operation_classifier_rollback_cleanup"
+    ],
+    "operation_count": 122,
+    "quarantine_count": 40,
+    "raw_operations_hash": "08f7f930976c816aa93cb0b842905ebf385c98a935a654906c77d1d3fb5a5f15",
+    "service_vehicle_count": 21,
+    "vehicles_hash": "029a9d3a0402450b8cf4e9fc4e3662fd7ded6b2eaa45638c324c59fd5e085b03"
+  },
+  "category_totals": {
+    "ELECTRICAL": 12,
+    "FABRICATION": 4,
+    "FITTING": 77,
+    "HOIST": 3,
+    "REVIEW": 21,
+    "TYRE": 5
+  },
+  "classifier_version": "pilbara-service-classifier-2026-09-07.1",
+  "confidence_totals": {
+    "assigned_gte_0_80": 101,
+    "review_lt_0_80": 21
+  },
+  "contract": "pilbara_service_operation_classifier_v1",
+  "live_binding_conflicts": 0,
+  "live_rows": 122,
+  "method_totals": {
+    "ai_semantic": 32,
+    "deterministic_rule": 69,
+    "review": 21
+  },
+  "mode": "real_staging_pre_mutation_preview",
+  "ok": true,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "review_explanations": [
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full Tank of Fuel and/or Battery Charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full tank of fuel and/or 100% battery state of charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full tank of fuel and/or 100% battery state of charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full Tank of Fuel and/or Battery Charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full tank of fuel and/or 100% battery state of charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full tank of fuel and/or 100% battery state of charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full tank of fuel and/or 100% battery state of charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.64,
+      "description": "Snake Bite Kit",
+      "rationale": "The line does not state whether the safety kit is loose supply, mounted, or fitted."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full tank of fuel and/or 100% battery state of charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full tank of fuel and/or 100% battery state of charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full Tank of Fuel and/or Battery Charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full Tank of Fuel and/or Battery Charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.65,
+      "description": "Carry out Complimentary Vehicle Inspection",
+      "rationale": "A generic inspection is outside the controlled output keys and lacks a safe station mapping."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complementary Full Tank of Fuel",
+      "rationale": "Fuel preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full Tank of Fuel and/or Battery Charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full tank of fuel and/or 100% battery state of charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complimentary Full Tank of Fuel and/or Battery Charge",
+      "rationale": "Fuel or battery-charge preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complementary Full Tank of Fuel",
+      "rationale": "Fuel preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.72,
+      "description": "QUICK RELEASE WHIP AERIAL WITH FLAG NO LED LIGHT REQUIRED",
+      "rationale": "The line could mean accessory fitting or radio/electrical work and explicitly excludes only LED lighting."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complementary Full Tank of Fuel",
+      "rationale": "Fuel preparation does not identify one controlled workshop category."
+    },
+    {
+      "confidence": 0.55,
+      "description": "Complementary Full Tank of Fuel",
+      "rationale": "Fuel preparation does not identify one controlled workshop category."
+    }
+  ],
+  "rows": 122,
+  "source_batch_id": "ab7483a0-9b6c-4777-a7f9-9481e16023ff"
+}

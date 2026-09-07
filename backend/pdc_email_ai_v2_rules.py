@@ -37,6 +37,12 @@ class Rule:
 
 
 _DEFAULT_RULES = (
+    Rule("craig-window-tint", "WINDOW TINT", "TINT", "Genuine vehicle window tint work maps to Tint.", aliases=("DARKEST LEGAL TINT", "DARKEST LEGAL WINDOW TINT"), priority=130),
+    Rule("craig-bus-4x4-conversion", "BUS 4X4", "BUS_4X4", "Only explicit Bus 4x4 conversion work maps to Bus 4x4.", aliases=("4X4 BUS CONVERSION", "BUS FOUR WHEEL DRIVE CONVERSION"), priority=130),
+    Rule("craig-wheel-tyre", "WHEEL NUT INDICATOR", "TYRE", "Tyre upgrades, additional spares and wheel-nut indicators map to Tyres.", aliases=("TYRE UPGRADE", "TYRES ", "ADDITIONAL SPARE TYRE", "ADDITIONAL SPARE WHEEL"), priority=125),
+    Rule("craig-structural-fabrication", "REAR WHEEL CARRIER", "FABRICATION", "Rear-wheel carriers and structural trade-module or tray work map to Fabrication.", aliases=("REAR WHEEL MOUNT", "TRADE MODULE", "TRAY BODY", "STRUCTURAL TRAY"), priority=125),
+    Rule("craig-vehicle-lighting-electrical", "LIGHTFORCE", "ELECTRICAL", "Vehicle lighting and its wiring map to Electrical.", aliases=("LED LIGHTBAR", "LED LIGHT BAR", "SPOTLIGHT", "LIGHTING WIRING"), priority=120),
+    Rule("craig-gvm-suspension-hoist", "GVM UPGRADE", "HOIST", "Genuine GVM, lift and suspension upgrades map to Hoist/GVM.", aliases=("SUSPENSION UPGRADE", "SUSPENSION HELPER", "LIFT KIT", " UPGRADE AND LIFT"), priority=120),
     Rule("craig-bullbar-fitting", "BULLBAR", "FITTING", "Bulbar, Bullbar and Bull Bar map to Fitting.", aliases=("BULBAR", "BULL BAR", "BULLBAR")),
     Rule("craig-towbar-fitting", "TOWBAR", "FITTING", "Towbars and Tow Bars map to Fitting.", aliases=("TOW BAR", "TOWBAR")),
     Rule("craig-reflective-stripes-sublet", "REFLECTIVE STRIPES", "SUBLET", "Reflective Stripes map to Sublet when explicit Sublet evidence exists.", aliases=("REFLECTIVE STRIPES - YELLOW",)),
