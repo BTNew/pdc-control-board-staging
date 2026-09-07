@@ -7645,7 +7645,7 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
   const serviceReviewMarker = serviceReviewCount
     ? `<span class="incoming-work-check pdc-station-review is-required" title="${serviceReviewCount} Pilbara Service operation${serviceReviewCount === 1 ? '' : 's'} require classification review" aria-label="Service Review required">
       <span class="incoming-work-box" aria-hidden="true">●</span>
-      <span class="incoming-work-label">Service Review</span>
+      <span class="incoming-work-label">Service Review (${serviceReviewCount})</span>
     </span>`
     : '';
   return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations${bookingWarning ? '; workshop booking incomplete' : ''}"${bookingWarning ? ' title="One or more required PMB workshop departments are not booked"' : ''}>${pdcJobDefsPartsFirst().map(def => {
@@ -7732,7 +7732,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const subletProviderField = !locationReadOnly && bucketKey === 'pmb' && stage === 'SUBLET'
     ? `<div class="wide incoming-sublet-provider"><b>Sublet provider</b><span><select data-pmb-bay-provider-key="${escapeHtml(key)}" data-pmb-bay-provider-stage="SUBLET" aria-label="Sublet provider for ${escapeHtml(stock)}">${subletProviderOptionsHtml(subletProvider)}</select></span></div>`
     : '';
-  const readOnlyBadge = identityReadOnly ? 'Identity conflict · Read only' : vehicle.pilbaraServiceJobCard ? 'Pilbara Service job card · Review required' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only';
+  const readOnlyBadge = identityReadOnly ? 'Identity conflict · Read only' : vehicle.pilbaraServiceJobCard ? 'Pilbara Service Review · R/O loaded' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only';
   const rftAction = bucketKey === 'rft'
     ? `${rftTransportControlsHtml(vehicle)}${locationReadOnly ? `<span class="badge neutral rft-source-badge">${readOnlyBadge}</span>` : ''}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : '';
