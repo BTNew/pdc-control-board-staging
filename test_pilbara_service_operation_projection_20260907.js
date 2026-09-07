@@ -45,5 +45,6 @@ assert.match(app, /Parts backordered/);
 assert.match(app, /Parts status review/);
 assert.match(app, /Pilbara Service job card · Review required/);
 assert.match(app, /Service Review/);
+assert.match(app, /R\/O \$\{escapeHtml\(operation\.job_card_number\)\}/);
 assert.match(styles, /\.authenticated-email-operations li > small\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/s);
 console.log('Pilbara Service Review operation projection: PASS');
