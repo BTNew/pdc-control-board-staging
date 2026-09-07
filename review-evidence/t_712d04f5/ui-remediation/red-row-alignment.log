@@ -1,0 +1,17 @@
+evalmachine.<anonymous>:25
+    const ordered = def.key === 'parts' && required && !complete && !blocked && partsOrdered(vehicle);
+                                                                     ^
+
+ReferenceError: partsOrdered is not defined
+    at evalmachine.<anonymous>:25:70
+    at Array.map (<anonymous>)
+    at Object.incomingWorkChecklistHtml (evalmachine.<anonymous>:16:346)
+    at Object.<anonymous> (C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\test_pilbara_service_vehicle_row_alignment_20260907.js:35:22)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+
+Node.js v24.14.1

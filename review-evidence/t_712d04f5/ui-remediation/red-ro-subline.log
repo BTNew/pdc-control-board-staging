@@ -1,0 +1,192 @@
+node:assert:885
+    throw err;
+    ^
+
+AssertionError [ERR_ASSERTION]: rendering must not expose the repeated repair-order subline
+    at Object.<anonymous> (C:\Hermes-Active\projects\pdc-control-board-staging\.worktrees\t_c45ce9dc\test_pilbara_service_operation_projection_20260907.js:73:8)
+    at Module._compile (node:internal/modules/cjs/loader:1812:14)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+    at node:internal/main/run_main_module:33:47 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: "const APP_VERSION = '2026.08.27.706-final-authoritative-lifecycle';\r\n" +
+    "const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.04.0110-pdc14-canonical-state';\r\n" +
+    '// Production Supabase project ref. Used only to LABEL which environment\r\n' +
+    '// the backup status panel is showing (staging vs production) -- this\r\n' +
+    '// constant intentionally names only the production ref, never the\r\n' +
+    '// staging ref, so this file can ship to production without the\r\n' +
+    '// production-artifact secret/staging-reference scan failing.\r\n' +
+    "const PRODUCTION_SUPABASE_PROJECT_REF = 'vjdtsswhroyguxyfjdkt';\r\n" +
+    'window.VEHICLE_TRACKING_DATA = window.VEHICLE_TRACKING_DATA || { report: {}, vehicles: [], toyotaMatches: {} };\r\n' +
+    "const EDITS_KEY = 'vehicleTrackingCoreNavisionOnlyEdits:v1';\r\n" +
+    "const ADDED_KEY = 'vehicleTrackingCoreNavisionOnlyVehicles:v1';\r\n" +
+    "const AMY_EMAIL = 'amy.elkington@broometoyota.com.au';\r\n" +
+    "const PMG_UPDATE_EMAIL = 'Newvehiclebuild@pmgwa.com.au';\r\n" +
+    "const TINT_EMAIL = 'jono@performancetinting.com.au';\r\n" +
+    "const RFT_SALESPERSON_EMAIL = 'bryce.guthrie@broometoyota.com.au';\r\n" +
+    "const AUDIT_LOG_KEY = 'vehicleTrackingCoreNavisionOnlyAuditLog:v1';\r\n" +
+    "const OPERATOR_NAME_KEY = 'vehicleTrackingCoreCurrentOperator:v1';\r\n" +
+    "const OPERATOR_ROLE_KEY = 'vehicleTrackingCoreCurrentOperatorRole:v1';\r\n" +
+    '// Stage 2A (independent-review remediation, localStorage-to-Supabase\r\n' +
+    '// migration): mechanics/salespeople/sublet providers are now\r\n' +
+    '// authoritative in Supabase (public.workshop_technicians/\r\n' +
+    '// public.salespeople/public.sublet_providers via\r\n' +
+    '// workshop-reference-data-service.js). These six key constants are\r\n' +
+    '// DELIBERATELY KEPT (not deleted) purely so the Stage 2A browser-data\r\n' +
+    '// importer (scripts/import_stage2a_reference_data.py) can still read\r\n' +
+    "// whatever a given staff computer's old local roster contained during\r\n" +
+    '// the one-time import/reconciliation step. No other code path reads\r\n' +
+    '// from or writes to these keys anymore -- loadMechanics()/\r\n' +
+    '// loadSalespersons()/loadSubletProviders() read exclusively from\r\n' +
+    "// workshop-reference-data-service.js's Supabase-backed cache.\r\n" +
+    "const MECHANICS_KEY = 'vehicleTrackingCorePdcMechanics:v1';\r\n" +
+    "const MECHANICS_ROSTER_SEED_KEY = 'vehicleTrackingCorePdcMechanicsRosterSeed:v1';\r\n" +
+    "const MECHANICS_ROSTER_SEED_VERSION = '2026-07-15-departments-138-139-v1';\r\n" +
+    "const SUBLET_PROVIDERS_KEY = 'vehicleTrackingCorePdcSubletProviders:v1';\r\n" +
+    "const SUBLET_PROVIDERS_SEED_KEY = 'vehicleTrackingCorePdcSubletProvidersSeed:v2';\r\n" +
+    "const SUBLET_PROVIDERS_SEED_VERSION = '2026-07-13-v2';\r\n" +
+    "const SALESPERSONS_KEY = 'vehicleTrackingCoreSalespersons:v1';\r\n" +
+    "const SALESPERSONS_SEED_KEY = 'vehicleTrackingCoreSalespersonsSeed:v1';\r\n" +
+    "const SALESPERSONS_SEED_VERSION = '2026-07-13-v1';\r\n" +
+    "const OPERATIONAL_HEALTH_KEY = 'vehicleTrackingCoreOperationalHealth:v1';\r\n" +
+    "const EMAIL_REVIEW_DECISIONS_KEY = 'vehicleTrackingCoreEmailReviewDecisions:v1';\r\n" +
+    "const AI_FILE_ASSISTANT_REVIEWS_KEY = 'vehicleTrackingCoreAiFileAssistantReviews:v1';\r\n" +
+    "const STORAGE_TRANSACTION_JOURNAL_KEY = 'vehicleTrackingCoreStorageTransaction:v1';\r\n" +
+    "const VEHICLE_TABLE_COLUMN_ORDER_KEY = 'vehicleTrackingCoreColumnOrder:v5';\r\n" +
+    "const WORKFLOW_WIDTH_MODE_KEY = 'vehicleTrackingCoreWorkflowWidthMode:v1';\r\n" +
+    "const ROW_WIDTH_MODE_KEY = 'vehicleTrackingCoreRowWidthMode:v1';\r\n" +
+    "const VEHICLE_TABLE_DEFAULT_COLUMN_IDS = ['sp', 'stock', 'prodMth', 'client', 'vehicle', 'bus4x4', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'status', 'eta', 'navisionNotes', 'jita', 'action'];\r\n" +
+    "const PO_TASKS_KEY = 'vehicleTrackingCoreNavisionOnlyPoTasks:v1';\r\n" +
+    "const PO_FILES_KEY = 'vehicleTrackingCoreNavisionOnlyPoFiles:v1';\r\n" +
+    "const ARB_LABOUR_CATALOG = window.ARB_LABOUR_CATALOG || { entries: {}, ambiguous: {}, labourRate: 160, sourceCode: 'DRT20260201.1' };\r\n" +
+    "const DELETED_KEY = 'vehicleTrackingCoreNavisionOnlyDeleted:v1';\r\n" +
+    'const TOYOTA_MATCHES = window.VEHICLE_TRACKING_DATA?.toyotaMatches || {};\r\n' +
+    "const AUTOCARE_DESPATCH_STATUS = 'AUTOCARE DESPATCHED';\r\n" +
+    "const AUTOCARE_RESULTS_KEY = 'vehicleTrackingCoreNavisionOnlyAutocareDispatch:v1';\r\n" +
+    "const NAVISION_IMPORT_RESULTS_KEY = 'vehicleTrackingCoreNavisionOnlyImport:v1';\r\n" +
+    'const NAVISION_LOCAL_STORAGE_SAFE_BUDGET_BYTES = 4 * 1024 * 1024;\r\n' +
+    'const NAVISION_IMPORT_SUMMARY_VERSION = 2;\r\n' +
+    'const NAVISION_IMPORT_SUMMARY_MAX_CHARS = 16 * 1024;\r\n' +
+    "const NAVISION_IMPORT_TOO_LARGE_MESSAGE = 'Import too large—nothing saved';\r\n" +
+    "const CRM_BACKUP_TYPE = 'vehicle-tracking-core-backup';\r\n" +
+    'const CRM_BACKUP_VERSION = 1;\r\n' +
+    'const CRM_BACKUP_STORAGE_KEYS = [\r\n' +
+    '  EDITS_KEY,\r\n' +
+    '  ADDED_KEY,\r\n' +
+    '  PO_TASKS_KEY,\r\n' +
+    '  PO_FILES_KEY,\r\n' +
+    '  DELETED_KEY,\r\n' +
+    '  AUTOCARE_RESULTS_KEY,\r\n' +
+    '  NAVISION_IMPORT_RESULTS_KEY,\r\n' +
+    '  AUDIT_LOG_KEY,\r\n' +
+    '  // MECHANICS_KEY/MECHANICS_ROSTER_SEED_KEY, SUBLET_PROVIDERS_KEY/\r\n' +
+    '  // SUBLET_PROVIDERS_SEED_KEY, and SALESPERSONS_KEY/SALESPERSONS_SEED_KEY\r\n' +
+    '  // are intentionally NOT included here as of Stage 2A: mechanics,\r\n' +
+    '  // sublet providers, and salespeople are now authoritative in Supabase\r\n' +
+    '  // (public.workshop_technicians/public.sublet_providers/\r\n' +
+    '  // public.salespeople via workshop-reference-data-service.js), covered\r\n' +
+    '  // by the real Supabase encrypted backup/restore system, not this\r\n' +
+    '  // browser-local export mechanism. The key constants and any existing\r\n' +
+    '  // browser-local data under them are deliberately left untouched on\r\n' +
+    '  // disk (not deleted, not read from, not written to) so the Stage 2A\r\n' +
+    "  // browser-data importer can still read a given staff computer's old\r\n" +
+    '  // local roster during the one-time import/reconciliation step -- see\r\n' +
+    '  // scripts/import_stage2a_reference_data.py. They are never treated as\r\n' +
+    '  // an authoritative source by any other code path.\r\n' +
+    '  OPERATIONAL_HEALTH_KEY,\r\n' +
+    '  EMAIL_REVIEW_DECISIONS_KEY,\r\n' +
+    '  AI_FILE_ASSISTANT_REVIEWS_KEY,\r\n' +
+    '  VEHICLE_TABLE_COLUMN_ORDER_KEY\r\n' +
+    '];\r\n' +
+    '\r\n' +
+    'const PDC_LOCATION_OPTIONS = [\r\n' +
+    "  { value: '', label: 'Follow Navision until Yard Hold' },\r\n" +
+    "  { value: 'YH', label: 'YH - Yard Hold' },\r\n" +
+    "  { value: 'PMB', label: 'Released to PMB' },\r\n" +
+    "  { value: 'PIT', label: 'PIT - Department of Transport inspection' },\r\n" +
+    "  { value: 'QC', label: 'QC - Ready for QC / QC Gate', systemOnly: true },\r\n" +
+    "  { value: 'RFT', label: 'RFT - set by QC sign-off', systemOnly: true },\r\n" +
+    '];\r\n' +
+    '\r\n' +
+    'const PDC_LOCATION_LABELS = new Map(PDC_LOCATION_OPTIONS.map(option => [option.value, option.label]));\r\n' +
+    '\r\n' +
+    "function normalizePdcLocation(value = '') {\r\n" +
+    "  const clean = String(value || '').trim().toUpperCase();\r\n" +
+    "  if (!clean) return '';\r\n" +
+    "  if (clean === 'YH' || clean.includes('YARD HOLD')) return 'YH';\r\n" +
+    "  if (clean === 'PMB' || clean.includes('PERTH MOTOR BODIES')) return 'PMB';\r\n" +
+    "  if (clean === 'PIT' || clean.includes('PIT INSPECTION') || clean.includes('DEPARTMENT OF TRANSPORT')) return 'PIT';\r\n" +
+    "  if (clean === 'QC' || clean.includes('QUALITY CONTROL')) return 'QC';\r\n" +
+    "  if (clean === 'RFT' || clean.includes('READY FOR TRANSPORT') || clean.includes('READY FOR TRANSFER')) return 'RFT';\r\n" +
+    "  return '';\r\n" +
+    '}\r\n' +
+    '\r\n' +
+    "function pdcLocationLabel(value = '') {\r\n" +
+    '  const normalized = normalizePdcLocation(value);\r\n' +
+    "  return PDC_LOCATION_LABELS.get(normalized) || normalized || '';\r\n" +
+    '}\r\n' +
+    '\r\n' +
+    "function pdcLocationManualTransitionAllowed(current = '', target = '', vehicle = {}) {\r\n" +
+    '  const from = normalizePdcLocation(current);\r\n' +
+    '  const to = normalizePdcLocation(target);\r\n' +
+    "  if (from === 'YH') return to === 'YH' || to === 'PMB';\r\n" +
+    "  if (from === 'PMB') {\r\n" +
+    "    return to === 'PMB' || (to === 'PIT'\r\n" +
+    '      && !vehicle.pdcQcComplete\r\n' +
+    '      && !normalizePmbStage(inferredPmbStage(vehicle)));\r\n' +
+    '  }\r\n' +
+    "  if (from === 'PIT') return to === 'PIT' || to === 'PMB';\r\n" +
+    '  return false;\r\n' +
+    '}\r\n' +
+    '\r\n' +
+    "function pdcLocationSelectOptions(current = '', serverAuthoritative = false, vehicle = {}) {\r\n" +
+    '  const normalizedCurrent = normalizePdcLocation(current);\r\n' +
+    '  return PDC_LOCATION_OPTIONS.map(option => {\r\n' +
+    "    const selected = option.value === normalizedCurrent ? ' selected' : '';\r\n" +
+    '    const disabled = option.value !== normalizedCurrent && (\r\n' +
+    '      option.systemOnly || (serverAuthoritative && !pdcLocationManualTransitionAllowed(normalizedCurrent, option.value, vehicle))\r\n' +
+    "    ) ? ' disabled' : '';\r\n" +
+    '    return `<option value="${escapeHtml(option.value)}"${selected}${disabled}>${escapeHtml(option.label)}</option>`;\r\n' +
+    "  }).join('');\r\n" +
+    '}\r\n' +
+    '\r\n' +
+    'const VEHICLE_LOCATION_BUCKET_DEFS = Object.freeze([\r\n' +
+    "  { key: 'rft', label: 'RFT', hint: 'Vehicles signed off by QC and ready for transport' },\r\n" +
+    "  { key: 'qc', label: 'QC', hint: 'All required station jobs complete · awaiting named QC sign-off' },\r\n" +
+    "  { key: 'pit', label: 'PIT', hint: 'At the Department of Transport for inspection' },\r\n" +
+    "  { key: 'pmb', label: 'PMB', hint: 'Vehicles at Perth Motor Bodies with work still active' },\r\n" +
+    "  { key: 'yardhold', label: 'YARD HOLD', hint: 'Yard Hold vehicles — release to PMB from here' },\r\n" +
+    "  { key: 'transit', label: 'IT', hint: 'In transit to WA / Kewdale' },\r\n" +
+    "  { key: 'overseas', label: 'OTHER', hint: 'All other active vehicles' },\r\n" +
+    ']);\r\n' +
+    '\r\n' +
+    'function workshopEligibilityHarnessFallback() {\r\n' +
+    '  // Whole-app VM tests execute app.js without loading index.html dependencies.\r\n' +
+    '  // Never use this compatibility shape in a real browser: production must load\r\n' +
+    '  // workshop-eligibility.js and fails closed if that canonical module is absent.\r\n' +
+    '  if (window === globalThis) return null;\r\n' +
+    '  const tuples = [\r\n' +
+    "    ['BUS_4X4', 'Bus 4x4', 'bus4x4', 'planner-bus-4x4', 'workshop/bus-4x4', true],\r\n" +
+    "    ['TINT', 'Tint', 'tint', 'planner-tint', 'workshop/tint', true],\r\n" +
+    "    ['HOIST', 'Hoist', 'hoist', 'planner-hoist', 'workshop/hoist', true],\r\n" +
+    "    ['FITTING', 'Fitting', 'fitting', 'planner-fitting', 'workshop/fitting', true],\r\n" +
+    "    ['FABRICATION', 'Fab', 'fabrication', 'planner-fab', 'workshop/fab', true],\r\n" +
+    "    ['ELECTRICAL', 'Elec', 'electrical', 'planner-elec', 'workshop/elec', true],\r\n" +
+    "    ['TYRE', 'Tyre', 'tyre', 'planner-tyre', 'workshop/tyre', true],\r\n" +
+    "    ['PIT_INSPECTION', 'Pit', 'pitInspection', '', '', false],\r\n" +
+    "    ['SUBLET', 'Sublet', 'sublet', '', '', false],\r\n" +
+    '  ];\r\n' +
+    '  const stationDefinitions = tuples.map(([code, label, jobKey, route, path, plannerEnabled]) => ({ code, label, jobKey, route, path, plannerEnabled }));\r\n' +
+    '  return {\r\n' +
+    '    stationDefinitions,\r\n' +
+    '    can'... 1372364 more characters,
+  expected: /const operationJobCard = operation\.job_card_number/,
+  operator: 'doesNotMatch',
+  diff: 'simple'
+}
+
+Node.js v24.14.1

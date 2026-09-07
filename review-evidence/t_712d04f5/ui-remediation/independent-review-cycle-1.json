@@ -1,0 +1,11 @@
+{
+  "passed": false,
+  "security_concerns": [],
+  "logic_errors": [
+    "Draft restoration captured all displayed values rather than only user changes and could overlay stale server state.",
+    "Draft restoration could strip ordered/booked presentation from work controls.",
+    "Draft restoration omitted editable non-authoritative client/location values.",
+    "DOM replacement plus focus() did not preserve caret selection."
+  ],
+  "resolution": "Rejected overlay restoration was removed. The revised implementation treats an open details form as a background-refresh draft boundary and adds displayed-value baselines for authoritative save fields."
+}

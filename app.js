@@ -7536,8 +7536,7 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
           ? 'Parts backordered'
           : operation.partsSemantics === 'review' ? 'Parts status review' : '';
         const reviewEvidence = [sourceHoursText, provenanceText, partsText].filter(Boolean).join(' · ');
-        const operationJobCard = operation.job_card_number ? `R/O ${escapeHtml(operation.job_card_number)}` : '';
-        return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em>${operationJobCard ? `<small>${operationJobCard}</small>` : ''}${reviewEvidence ? `<small>${escapeHtml(reviewEvidence)}</small>` : ''}</li>`;
+        return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em>${reviewEvidence ? `<small>${escapeHtml(reviewEvidence)}</small>` : ''}</li>`;
       }).join('')}</ol>
     </section>`;
     }).join('')}</div>
@@ -7641,13 +7640,7 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
   const stoppedBookings = new Map((bookingProjection.activeBookings || [])
     .filter(entry => String(entry?.status || '').toLowerCase() === 'stoppage')
     .map(entry => [normalizePmbStage(entry.stage), entry]));
-  const serviceReviewCount = Array.isArray(vehicle.pilbaraServiceOperations) ? vehicle.pilbaraServiceOperations.length : 0;
-  const serviceReviewMarker = serviceReviewCount
-    ? `<span class="incoming-work-check pdc-station-review is-required" title="${serviceReviewCount} Pilbara Service operation${serviceReviewCount === 1 ? '' : 's'} require classification review" aria-label="Service Review required">
-      <span class="incoming-work-box" aria-hidden="true">●</span>
-      <span class="incoming-work-label">Service Review (${serviceReviewCount})</span>
-    </span>`
-    : '';
+
   return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations${bookingWarning ? '; workshop booking incomplete' : ''}"${bookingWarning ? ' title="One or more required PMB workshop departments are not booked"' : ''}>${pdcJobDefsPartsFirst().map(def => {
     const required = pdcJobRequired(vehicle, def);
     const complete = pdcJobComplete(vehicle, def);
@@ -7682,7 +7675,7 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
       <span class="incoming-work-box" aria-hidden="true">${marker}</span>
       <span class="incoming-work-label">${escapeHtml(pdcGridJobLabel(def))}</span>
     </span>`;
-  }).join('')}${serviceReviewMarker}</div>`;
+  }).join('')}</div>`;
 }
 
 function workStatusLegendHtml() {
@@ -13917,7 +13910,7 @@ function openVehicleModal(stock) {
     // booking detail must not replace those states with a second direct-table
     // projection after only the modal has rendered.
     void loadVehicleWorkshopDetail(cachedAuthoritative, { force: true }).then(() => {
-      if (app.vehicleModalIdentity === identityAtOpen && !modal.hidden) renderDetail();
+      if (app.vehicleModalIdentity === identityAtOpen) renderVehicleDetailAfterBackgroundRefresh();
     });
   }
   void (async () => {
@@ -13936,7 +13929,7 @@ function openVehicleModal(stock) {
           app.vehicleModalIdentityReady = true;
           app.vehicleModalLoadingIdentity = false;
           ready = true;
-          if (!modal.hidden) renderDetail();
+          renderVehicleDetailAfterBackgroundRefresh();
           return;
         }
         const rebound = await refreshVehicleModalExactIdentity(identityAtOpen);
@@ -13958,9 +13951,9 @@ function openVehicleModal(stock) {
       ready = true;
       app.vehicleModalIdentityReady = true;
       app.vehicleModalLoadingIdentity = false;
-      if (!modal.hidden) renderDetail();
+      renderVehicleDetailAfterBackgroundRefresh();
       void loadVehicleWorkshopDetail(refreshed, { force: true }).then(() => {
-        if (app.vehicleModalIdentity === identityAtOpen && !modal.hidden) renderDetail();
+        if (app.vehicleModalIdentity === identityAtOpen) renderVehicleDetailAfterBackgroundRefresh();
       });
     } finally {
       if (app.vehicleModalIdentity !== identityAtOpen || ready) return;
@@ -14034,6 +14027,48 @@ function vehicleModalIdentityErrorMessage(code = '', stock = '') {
   if (code === 'conflicting_stock' || code === 'stock_mismatch') return `Stock ${label} has a conflicting UUID/Stock identity in the authenticated staging snapshot. No vehicle was changed.`;
   if (code === 'permission_denied') return `Your account is not authorised to read Stock ${label}. No vehicle was changed.`;
   return `Stock ${label} remains read-only until its exact authenticated UUID/Stock identity is confirmed. No vehicle was changed.`;
+}
+
+function applyPdcWorkStateControl(button, next, panel) {
+  button.dataset.state = next;
+  button.classList.remove(
+    'pdc-work-state-none',
+    'pdc-work-state-required',
+    'pdc-work-state-booked',
+    'pdc-work-state-ordered',
+    'pdc-work-state-complete',
+  );
+  button.classList.add(`pdc-work-state-${next}`);
+  const statusText = next === 'complete' ? 'Completed' : next === 'required' ? 'To be completed' : 'Not required';
+  const status = button.querySelector('.pdc-work-state-status');
+  if (status) status.textContent = statusText;
+  const jobKey = button.dataset.pdcWorkState || '';
+  const requireInput = panel.querySelector(`input[data-pdc-work-require="${jobKey}"]`);
+  const completeInput = panel.querySelector(`input[data-pdc-work-complete="${jobKey}"]`);
+  if (requireInput) requireInput.value = next === 'none' ? '0' : '1';
+  if (completeInput) completeInput.value = next === 'complete' ? '1' : '0';
+  const label = button.querySelector('.pdc-work-state-label')?.textContent || 'Work item';
+  button.setAttribute('aria-label', `${label} - ${statusText}`);
+  button.title = `${label} - ${statusText}. Click to cycle: grey not required, red to complete, green completed.`;
+}
+
+function renderVehicleDetailAfterBackgroundRefresh() {
+  const modal = $('#vehicle-modal');
+  const panel = $('#vehicle-detail');
+  if (!modal || modal.hidden || !panel) return false;
+  const form = panel.querySelector('[data-vehicle-edit-form]');
+  const mountedServerAuthoritative = form?.dataset.serverAuthoritative === 'true';
+  const currentServerAuthoritative = selectedVehicle()?.__emailVehicleServerAuthoritative === true;
+  if (form && mountedServerAuthoritative !== currentServerAuthoritative) {
+    renderDetail();
+    return true;
+  }
+  // The open details form is a draft boundary. Background snapshot/history/
+  // booking completion must not replace its controls or focus while an operator
+  // is editing. A deliberate tab change, save, retry or reopen still renders.
+  if (app.vehicleDetailPage === 'details' && form) return false;
+  renderDetail();
+  return true;
 }
 
 function retryAuthoritativeVehicleDetails() {
@@ -14264,6 +14299,7 @@ function renderDetail() {
   const isCompletedVehicle = statusCategory(v) === 'completed';
   const completedLockAttr = isCompletedVehicle ? 'disabled' : '';
   const activePage = app.vehicleDetailPage === 'work' ? 'work' : 'details';
+  const serverAuthoritative = v.__emailVehicleServerAuthoritative === true;
   panel.innerHTML = `
     <div class="panel-header vehicle-detail-header">
       <div><h2 id="vehicle-modal-title">Vehicle detail</h2><p>${stockLabel(v)} <span class="vehicle-copyable-field" data-vehicle-stock>${escapeHtml(displayStockNumber(v))}</span> <button class="small-button inline-copy-button" type="button" data-copy-vehicle-stock>Copy</button><span class="sr-only" aria-live="polite" data-copy-vehicle-stock-status></span></p></div>
@@ -14286,7 +14322,7 @@ function renderDetail() {
           <button class="primary" type="button" data-email-vehicle-update="${escapeHtml(key)}">EMAIL UPDATE</button>
         </div>
       </div>
-      <form class="edit-form" data-vehicle-edit-form data-pdc-location-baseline="${escapeHtml(vehiclePdcLocation(v))}" data-pdc-blocked-baseline="${rawPdcBlocked ? 'true' : 'false'}" data-pdc-block-reason-baseline="${escapeHtml(v.pdcBlockReason || '')}" data-pdc-work-state-baseline="${escapeHtml(JSON.stringify(rawWorkStateBaseline))}">
+      <form class="edit-form" data-vehicle-edit-form data-server-authoritative="${serverAuthoritative ? 'true' : 'false'}" data-key-number-baseline="${escapeHtml(vehicleKeyNumber(v))}" data-jobcard-baseline="${escapeHtml(vehicleJobcardNumber(v))}" data-pdc-location-baseline="${escapeHtml(vehiclePdcLocation(v))}" data-pdc-blocked-baseline="${rawPdcBlocked ? 'true' : 'false'}" data-pdc-block-reason-baseline="${escapeHtml(v.pdcBlockReason || '')}" data-pdc-work-state-baseline="${escapeHtml(JSON.stringify(rawWorkStateBaseline))}">
         <div class="form-row three-col">
           <label>
             <span class="muted-label">SP</span>
@@ -14294,7 +14330,7 @@ function renderDetail() {
           </label>
           <label>
             <span class="muted-label">Client name</span>
-            <input name="client" value="${escapeHtml(v.client || '')}" placeholder="Client name" />
+            <input name="client" value="${escapeHtml(v.client || '')}" placeholder="Client name" ${serverAuthoritative ? 'readonly' : ''} />
           </label>
           <label>
             <span class="muted-label">Key tag number</span>
@@ -14315,7 +14351,7 @@ function renderDetail() {
         <div class="form-row one-col">
           <label>
             <span class="muted-label">PDC location</span>
-            <select name="pdcLocation">${pdcLocationSelectOptions(v.pdcLocation, v.__emailVehicleServerAuthoritative === true, v)}</select>
+            <select name="pdcLocation" ${serverAuthoritative ? 'disabled' : ''}>${pdcLocationSelectOptions(v.pdcLocation, serverAuthoritative, v)}</select>
             <span class="field-help">Manual from Yard Hold onward. Navision will not overwrite PMB or RFT.</span>
           </label>
         </div>
@@ -14391,6 +14427,8 @@ function renderDetail() {
       </div>` : ''}` : ''}` : ''}
     </div>`}
   `;
+  const vehicleEditForm = $('[data-vehicle-edit-form]', panel);
+  if (vehicleEditForm?.consultant) vehicleEditForm.dataset.consultantBaseline = vehicleEditForm.consultant.value;
   bindVehicleDetailTabs(panel);
   if (activePage === 'work') return;
   on($('[data-copy-vehicle-stock]', panel), 'click', async event => {
@@ -14420,26 +14458,7 @@ function renderDetail() {
       if (button.disabled) return;
       const current = button.dataset.state || 'none';
       const next = current === 'none' ? 'required' : current === 'required' ? 'complete' : 'none';
-      button.dataset.state = next;
-      button.classList.remove(
-        'pdc-work-state-none',
-        'pdc-work-state-required',
-        'pdc-work-state-booked',
-        'pdc-work-state-ordered',
-        'pdc-work-state-complete',
-      );
-      button.classList.add(`pdc-work-state-${next}`);
-      const statusText = next === 'complete' ? 'Completed' : next === 'required' ? 'To be completed' : 'Not required';
-      const status = button.querySelector('.pdc-work-state-status');
-      if (status) status.textContent = statusText;
-      const jobKey = button.dataset.pdcWorkState || '';
-      const requireInput = panel.querySelector(`input[data-pdc-work-require="${jobKey}"]`);
-      const completeInput = panel.querySelector(`input[data-pdc-work-complete="${jobKey}"]`);
-      if (requireInput) requireInput.value = next === 'none' ? '0' : '1';
-      if (completeInput) completeInput.value = next === 'complete' ? '1' : '0';
-      const label = button.querySelector('.pdc-work-state-label')?.textContent || 'Work item';
-      button.setAttribute('aria-label', `${label} - ${statusText}`);
-      button.title = `${label} - ${statusText}. Click to cycle: grey not required, red to complete, green completed.`;
+      applyPdcWorkStateControl(button, next, panel);
     });
   });
   $('[data-vehicle-edit-form]', panel).addEventListener('submit', async (e) => {
@@ -14449,7 +14468,6 @@ function renderDetail() {
     app.vehicleModalSaveInFlight = saveToken;
     try {
       const form = e.currentTarget;
-    const serverAuthoritative = v.__emailVehicleServerAuthoritative === true;
     let authoritativeSaveVehicle = v;
     let identityRebound = false;
     if (serverAuthoritative && (!vehicleModalIdentityMatches(v) || !vehicleModalIdentityMatches(vehicleModalBoundVehicle()))) {
@@ -14472,17 +14490,19 @@ function renderDetail() {
       return;
     }
     const clientInput = form.client.value.trim();
-    const client = serverAuthoritative ? clientInput : (clientInput || v.client);
+    const client = serverAuthoritative ? String(v.client || '').trim() : (clientInput || v.client);
     const keyNumber = statusCategory(v) === 'pmb' ? cleanNavisionText(form.keyNumber?.value || '') : vehicleKeyNumber(v);
     const consultant = form.consultant.value.trim();
     const saveButton = form.querySelector('button[type="submit"]');
     const saveMessage = $('[data-save-message]', panel);
-    const salespersonChanged = serverAuthoritative && authoritativeSalespersonCode(authoritativeSaveVehicle) !== consultant.trim().toUpperCase();
+    const salespersonChangedByUser = consultant !== String(form.dataset.consultantBaseline || '').trim();
+    const salespersonChanged = serverAuthoritative && salespersonChangedByUser
+      && authoritativeSalespersonCode(authoritativeSaveVehicle) !== consultant.trim().toUpperCase();
     const internalStatus = v.internalStatus || '';
     const previousPdcLocation = vehiclePdcLocation(v);
     const previousPmbStage = normalizePmbStage(v.pmbStage || '');
     const previouslyPdcBlocked = rawPdcBlocked;
-    const pdcLocation = isCompletedVehicle ? previousPdcLocation : normalizePdcLocation(form.pdcLocation.value);
+    const pdcLocation = isCompletedVehicle || serverAuthoritative ? previousPdcLocation : normalizePdcLocation(form.pdcLocation.value);
     const pmbStage = previousPmbStage;
     const pdcJobcard = cleanNavisionText(form.pdcJobcard?.value || '');
     const pdcBlocked = Boolean(form.pdcBlocked?.checked);
@@ -14494,8 +14514,8 @@ function renderDetail() {
     const workStateChangedByUser = rawWorkStateBaseline && PDC_JOB_DEFS.some(def => workStateMap[def.key] !== rawWorkStateBaseline[def.key]);
     const detailChanges = {};
     if (serverAuthoritative && client !== String(v.client || '').trim()) detailChanges.client_name = client;
-    if (serverAuthoritative && keyNumber !== String(vehicleKeyNumber(v) || '').trim()) detailChanges.key_number = keyNumber;
-    if (serverAuthoritative && pdcJobcard !== String(vehicleJobcardNumber(v) || '').trim()) detailChanges.job_card_number = pdcJobcard;
+    if (serverAuthoritative && keyNumber !== String(form.dataset.keyNumberBaseline || '').trim()) detailChanges.key_number = keyNumber;
+    if (serverAuthoritative && pdcJobcard !== String(form.dataset.jobcardBaseline || '').trim()) detailChanges.job_card_number = pdcJobcard;
     const duplicateKeyVehicle = pdcLocation === 'PMB' ? activePmbVehicleWithKeyNumber(keyNumber, key) : null;
     if (duplicateKeyVehicle) {
       window.alert(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);

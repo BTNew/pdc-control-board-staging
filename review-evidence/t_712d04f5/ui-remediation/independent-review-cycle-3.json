@@ -1,0 +1,6 @@
+{
+  "passed": false,
+  "security_concerns": [],
+  "logic_errors": ["Skipping all background rerenders could retain a non-authoritative form after the vehicle becomes server-authoritative, leaving a stale submit closure and authority policy."],
+  "resolution": "The mounted form now records its authority policy; a fresh authority mismatch forces rerender, covered by RED/GREEN browser regression."
+}
