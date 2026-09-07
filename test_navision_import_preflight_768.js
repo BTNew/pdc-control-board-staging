@@ -3,6 +3,7 @@
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
+const { buildNavisionVinParts, navisionSourceIdentity } = require('./navision-vin');
 
 const app = fs.readFileSync('app.js', 'utf8');
 const start = app.indexOf('function navisionClientPreflight');
@@ -45,6 +46,22 @@ const valid = preflight([
 ], '14450');
 assert.strictEqual(valid.issue_count, 0, 'valid sibling rows must remain eligible');
 assert.strictEqual(valid.atomic_apply, true, 'client preflight must preserve atomic apply semantics');
+
+const plannedA = buildNavisionVinParts('MR0', '', '');
+const plannedB = buildNavisionVinParts('MR0', '', '');
+const planned = preflight([
+  { id: navisionSourceIdentity('13092228', plannedA.vin, 2), stock: '13092228', vin: plannedA.vin },
+  { id: navisionSourceIdentity('13092229', plannedB.vin, 3), stock: '13092229', vin: plannedB.vin },
+], '14450');
+assert.strictEqual(planned.issue_count, 0, 'WMI-only planned vehicles with distinct Stock identities must not collide as VINs');
+
+const complete = buildNavisionVinParts('JTM', '5CAAVX', '0D014977');
+const duplicateVin = preflight([
+  { id: 'navision-13084418', stock: '13084418', vin: complete.vin },
+  { id: 'navision-13084419', stock: '13084419', vin: complete.vin },
+], '14450');
+assert.strictEqual(duplicateVin.blocking, true, 'genuine duplicate complete VINs must remain blocked');
+assert.strictEqual(JSON.stringify(duplicateVin.issues.map(issue => issue.reason)), JSON.stringify(['duplicate_vin', 'duplicate_vin']));
 
 assert(app.includes('No localStorage fallback was attempted') || app.includes('no browser-local fallback was attempted'), 'shared failure messaging must retain fail-closed fallback wording');
 const applyStart = app.indexOf('async function applySharedNavisionImportPending');
