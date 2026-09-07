@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "supabase/staging_only/20260907090000_navision_complete_vin_gate.sql"
 APP = (ROOT / "app.js").read_text(encoding="utf-8")
 INDEX = (ROOT / "index.html").read_text(encoding="utf-8")
+NAVISION_VIN = (ROOT / "navision-vin.js").read_text(encoding="utf-8")
 
 
 class NavisionCompleteVinGateTests(unittest.TestCase):
@@ -16,11 +17,12 @@ class NavisionCompleteVinGateTests(unittest.TestCase):
         cls.compact = "".join(cls.sql.split())
 
     def test_browser_parser_uses_existing_vin_normalizer_for_components(self) -> None:
-        self.assertIn("const vinSource = `${wmi}${vdsNumber}${frame}`.toUpperCase().replace(/[\\s-]+/g, '');", APP)
-        self.assertIn("const normalizedVin = normalizeVin(vinSource);", APP)
-        self.assertIn("const vin = vinSource.length === 17 && normalizedVin === vinSource ? normalizedVin : '';", APP)
+        self.assertIn("window.PDC_NAVISION_VIN.buildNavisionVinParts", APP)
+        self.assertIn("const COMPLETE_VIN = /^[A-HJ-NPR-Z0-9]{17}$/;", NAVISION_VIN)
+        self.assertIn("vin: COMPLETE_VIN.test(candidate) ? candidate : ''", NAVISION_VIN)
         self.assertNotIn("const vin = `${wmi}${vdsNumber}${frame}`;", APP)
-        self.assertNotIn("getNavisionValue(row, headerMap, 'WMI').replace(/\\s+/g, '')", APP)
+        self.assertIn("window.PDC_NAVISION_VIN.navisionSourceIdentity(stock, vin, excelRow)", APP)
+        self.assertIn("navision-partial-vin=2026.09.07.01", INDEX)
         self.assertIn("navision-complete-vin=2026.09.07.0900", INDEX)
 
     def test_effective_vin_reuses_canonical_normalize_and_valid_contract(self) -> None:

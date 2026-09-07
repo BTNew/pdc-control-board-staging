@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260827051000",
-    "name": "501_exact_uid639_640_all_operations_import",
-    "file": "supabase/staging_only/20260827051000_501_exact_uid639_640_all_operations_import.sql",
-    "sha256": "adae6ce8d1bbb8b8a91ae8397e120917fd7cc12af281ec2d992901d97575890c",
+    "version": "20260907090000",
+    "name": "navision_complete_vin_gate",
+    "file": "supabase/staging_only/20260907090000_navision_complete_vin_gate.sql",
+    "sha256": "6ad773fd88aa3ac55b09782c7fbac821f5e9a9d63ef2cb0c99cb56a90ce81962",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain through 501: exact UID639/640 imports are Navision-linked and retain all 37 Job Card operations."
+    "source": "Verified append-only STAGING migration: Navision effective VIN identity is restricted to complete valid 17-character values while raw WMI/VDS/Frame evidence is retained."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",

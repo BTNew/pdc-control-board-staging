@@ -20212,12 +20212,11 @@ function buildNavisionVehicle(row, headerMap, excelRow, options = {}) {
   const vehicleNote = getNavisionValue(row, headerMap, 'Vehicle Note');
   const instructions = getNavisionValue(row, headerMap, 'Instructions');
   const comments = [dealerComments, vehicleNote, instructions].filter(Boolean).join(' ');
-  const wmi = getNavisionValue(row, headerMap, 'WMI');
-  const vdsNumber = getNavisionValue(row, headerMap, 'VDS Number');
-  const frame = getNavisionValue(row, headerMap, 'Frame');
-  const vinSource = `${wmi}${vdsNumber}${frame}`.toUpperCase().replace(/[\s-]+/g, '');
-  const normalizedVin = normalizeVin(vinSource);
-  const vin = vinSource.length === 17 && normalizedVin === vinSource ? normalizedVin : '';
+  const { wmi, vdsNumber, frame, vin } = window.PDC_NAVISION_VIN.buildNavisionVinParts(
+    getNavisionValue(row, headerMap, 'WMI'),
+    getNavisionValue(row, headerMap, 'VDS Number'),
+    getNavisionValue(row, headerMap, 'Frame'),
+  );
   const trayOrdered = /^yes$/i.test(getNavisionValue(row, headerMap, 'Tray Fitment Ordered')) || /tray/i.test(comments);
   const trayComplete = /^yes$/i.test(getNavisionValue(row, headerMap, 'Tray Fitment Complete'));
   const cutButVehicleSource = navisionCutButVehicleText(row, headerMap);
@@ -20233,7 +20232,7 @@ function buildNavisionVehicle(row, headerMap, excelRow, options = {}) {
   const workFileMode = options.pmbOnly === true || options.workFile === true;
   const explicitPdcUpdates = workFileMode ? protectPmbFirstLandingFromImport(buildExplicitPdcUpdatesFromImport(row, headerMap), {}) : {};
   const payload = {
-    id: `navision-${stock || vin || excelRow}`,
+    id: window.PDC_NAVISION_VIN.navisionSourceIdentity(stock, vin, excelRow),
     sourceRow: excelRow,
     stock,
     batch: batch || stock,
