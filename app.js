@@ -7536,7 +7536,8 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
           ? 'Parts backordered'
           : operation.partsSemantics === 'review' ? 'Parts status review' : '';
         const reviewEvidence = [sourceHoursText, provenanceText, partsText].filter(Boolean).join(' · ');
-        return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em>${reviewEvidence ? `<small>${escapeHtml(reviewEvidence)}</small>` : ''}</li>`;
+        const operationJobCard = operation.job_card_number ? `R/O ${escapeHtml(operation.job_card_number)}` : '';
+        return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em>${operationJobCard ? `<small>${operationJobCard}</small>` : ''}${reviewEvidence ? `<small>${escapeHtml(reviewEvidence)}</small>` : ''}</li>`;
       }).join('')}</ol>
     </section>`;
     }).join('')}</div>
