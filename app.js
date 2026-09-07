@@ -12562,7 +12562,11 @@ async function loadVehicleHistoryForDetail(vehicle = {}) {
     if (generation !== app.vehicleHistoryRequestGeneration) return;
     app.vehicleHistoryCache.set(canonicalId, { status: 'error', message: error?.message || 'request failed' });
   }
-  if (vehicleKey(selectedVehicle() || {}) === vehicleKey(vehicle) && !$('#vehicle-modal')?.hidden) renderDetail();
+  if (vehicleKey(selectedVehicle() || {}) === vehicleKey(vehicle) && !$('#vehicle-modal')?.hidden) {
+    const history = $('#vehicle-detail')?.querySelector('.vehicle-audit-detail');
+    if (history) history.outerHTML = renderAuditTrailSection(selectedVehicle() || vehicle);
+    else renderVehicleDetailAfterBackgroundRefresh();
+  }
 }
 
 const VEHICLE_WORKSHOP_STATION_PRESENTATION = Object.freeze({
