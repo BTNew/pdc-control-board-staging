@@ -1384,8 +1384,12 @@ function workshopVehicle(key = '', stage = '') {
     return { ...plannerRow, __workshopOutstanding: { existingBooking: false, scheduleEnabled: false, disabledReason: 'authority_unavailable' } };
   }
   const authority = authorityMatches[0];
+  const authoritativeHours = Number(authority.estimated_hours);
   return {
     ...plannerRow,
+    workshopEstimatedHoursByStage: authoritativeHours > 0
+      ? { ...plannerRow.workshopEstimatedHoursByStage, [requestedStage]: authoritativeHours }
+      : plannerRow.workshopEstimatedHoursByStage,
     __workshopOutstanding: {
       existingBooking: authority.existing_booking === true,
       scheduleEnabled: authority.schedule_enabled === true,
@@ -3439,6 +3443,8 @@ function workshopVehicleIdentitySummaryHtml(vehicle = {}) {
 }
 
 function workshopQueueEstimatedLabel(vehicle = {}, stage = '') {
+  const authoritativeHours = workshopEstimatedHours(vehicle, stage);
+  if (authoritativeHours) return `${authoritativeHours.toFixed(2)}h`;
   const lines = workshopStageJobLines(vehicle, stage).filter(line => line.source === 'authenticated-operation-line');
   if (!lines.length || lines.some(line => line.hours === null || line.hours === undefined || !Number.isFinite(Number(line.hours)))) return 'Hours unknown';
   const minutes = lines.reduce((sum, line) => sum + Math.round(Number(line.hours || 0) * 60), 0);
@@ -6716,6 +6722,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopPlanLifecycleActionsHtml,
     workshopSelectedDateBookingCount,
     workshopQueueCardHtml,
+    workshopQueueEstimatedLabel,
     workshopOutstandingDisabledReasonLabel,
     workshopDateKeyNotBefore,
     workshopEtaScheduleValidation,

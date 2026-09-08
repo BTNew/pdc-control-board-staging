@@ -120,7 +120,7 @@ const gateSql = fs.readFileSync('supabase/staging_only/20260903010000_workshop_e
 assert.match(eligibilitySql, /current_location,''\)\)\) IN\('PMB','YH','IT'\)/i, 'shared candidate eligibility includes PMB, YH, and IT');
 assert.match(eligibilitySql, /current_location,''\)\)\)<>'IT' OR v\.eta_to_kewdale IS NOT NULL/i, 'shared candidate eligibility requires ETA only for IT');
 assert.match(gateSql, /IF v_candidate\.current_location='IT'[\s\S]*v_schedule_date<v_candidate\.eta_to_kewdale\+7/i, 'server schedule gate applies ETA timing only to IT');
-assert.match(appSource, /WORKSHOP_PLANNER_SCRIPT_VERSION = '2026\.09\.08\.01-arrived-eta-search'/, 'planner module cache version includes this remediation');
+assert.match(appSource, /WORKSHOP_PLANNER_SCRIPT_VERSION = '2026\.09\.08\.02-fitting-authoritative-duration'/, 'planner module cache version includes this remediation and its successor');
 assert.match(indexSource, /workshop-search=2026\.09\.08\.01/, 'entry-point cache key releases this remediation');
 
 console.log('Workshop arrived ETA bypass and unallocated search regression: PASS');
