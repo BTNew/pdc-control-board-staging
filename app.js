@@ -1,5 +1,5 @@
 const APP_VERSION = '2026.08.27.706-final-authoritative-lifecycle';
-const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.08.01-arrived-eta-search';
+const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.08.02-fitting-authoritative-duration';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
 // constant intentionally names only the production ref, never the
@@ -13028,8 +13028,22 @@ function vehicleWorkshopDetailResponse(detail, canonicalId = '') {
     })[code] || `The shared Workshop request was rejected (${code}).`;
     return { ok: false, detail: null, message };
   }
+  const vehicleVersion = Number(detail?.vehicle_version);
+  const bookingComplete = booking => {
+    if (!booking || typeof booking !== 'object' || Array.isArray(booking)) return false;
+    const version = Number(booking.version ?? booking.booking_version);
+    const start = Date.parse(booking.scheduled_start_at || '');
+    const end = Date.parse(booking.scheduled_end_at || '');
+    return cleanNavisionText(booking.booking_id || '') !== ''
+      && cleanNavisionText(booking.stage_code || '') !== ''
+      && cleanNavisionText(booking.status || '') !== ''
+      && Number.isInteger(version) && version >= 1
+      && Number.isFinite(start) && Number.isFinite(end) && end > start;
+  };
   const complete = detail && String(detail.vehicle_id || '') === String(canonicalId || '')
-    && Array.isArray(detail.requirements) && Array.isArray(detail.bookings) && Array.isArray(detail.line_adjustments);
+    && Number.isInteger(vehicleVersion) && vehicleVersion >= 1
+    && Array.isArray(detail.requirements) && Array.isArray(detail.bookings) && detail.bookings.every(bookingComplete)
+    && Array.isArray(detail.line_adjustments);
   return complete
     ? { ok: true, detail, message: '' }
     : { ok: false, detail: null, message: 'The shared Workshop response was incomplete.' };

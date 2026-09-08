@@ -43,9 +43,10 @@ const detailContext = { cleanNavisionText: value => String(value ?? '').trim() }
 vm.createContext(detailContext);
 vm.runInContext(app.slice(detailStart, detailEnd), detailContext);
 assert.strictEqual(detailContext.vehicleWorkshopDetailRequestDealerCode({ __sharedNavisionDealerCode: '37047' }, { dealerCode: '14450' }), '37047', 'vehicle authority dealer wins over global config');
+const completeDetail = { vehicle_id: id, vehicle_version: 7, requirements: [], bookings: [], line_adjustments: [] };
 assert.deepStrictEqual(
-  JSON.parse(JSON.stringify(detailContext.vehicleWorkshopDetailResponse({ vehicle_id: id, requirements: [], bookings: [], line_adjustments: [] }, id))),
-  { ok: true, detail: { vehicle_id: id, requirements: [], bookings: [], line_adjustments: [] }, message: '' },
+  JSON.parse(JSON.stringify(detailContext.vehicleWorkshopDetailResponse(completeDetail, id))),
+  { ok: true, detail: completeDetail, message: '' },
   'complete shared Workshop DTO is accepted',
 );
 assert.strictEqual(detailContext.vehicleWorkshopDetailResponse({ ok: false, code: 'vehicle_not_in_dealer_scope', data: {} }, id).ok, false, 'structured server rejection stays unavailable');
