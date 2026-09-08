@@ -153,5 +153,14 @@
     }
   ],
   "function_definition": "CREATE OR REPLACE FUNCTION public.workshop_vehicle_stage_estimated_hours(p_vehicle_id uuid, p_stage_code text)\n RETURNS numeric\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\n  WITH email_source_lines AS (\n    SELECT\n      CASE WHEN a.adjustment_id IS NOT NULL THEN a.stage_code\n           ELSE public.workshop_stage_code_for_work_key(ol.work_key) END stage_code,\n      CASE WHEN a.adjustment_id IS NOT NULL THEN a.estimated_hours\n           ELSE ol.estimated_hours END estimated_hours\n    FROM public.pdc_authenticated_email_operation_lines ol\n    LEFT JOIN public.vehicle_workshop_line_adjustments a\n      ON a.vehicle_id=ol.vehicle_id\n     AND a.line_key='source:'||ol.operation_line_id::text\n    WHERE ol.vehicle_id=p_vehicle_id\n      -- An inactive source adjustment is the durable explicit-removal marker;\n      -- it must suppress, not resurrect, the immutable source line.\n      AND coalesce(a.active,true)\n  ), pilbara_source_lines AS (\n    SELECT\n      CASE WHEN a.adjustment_id IS NOT NULL THEN a.stage_code\n           ELSE coalesce(h.category,'REVIEW') END stage_code,\n      CASE WHEN a.adjustment_id IS NOT NULL THEN a.estimated_hours\n           ELSE o.effective_estimated_hours END estimated_hours\n    FROM public.pdc_pilbara_service_operations o\n    LEFT JOIN public.pdc_pilbara_service_classification_current cc USING(operation_id)\n    LEFT JOIN public.pdc_pilbara_service_classification_history h USING(classification_id)\n    LEFT JOIN public.vehicle_workshop_line_adjustments a\n      ON a.vehicle_id=o.vehicle_id\n     AND a.line_key='source:'||o.operation_id::text\n    WHERE o.vehicle_id=p_vehicle_id\n      -- Keep the planner aligned with the detail/QC active-line projection.\n      AND coalesce(a.active,true)\n  ), manual_lines AS (\n    SELECT a.stage_code,a.estimated_hours\n    FROM public.vehicle_workshop_line_adjustments a\n    WHERE a.vehicle_id=p_vehicle_id AND a.active AND a.source_kind='manual'\n  ), synthetic_lines AS (\n    SELECT e.stage_code,e.estimated_hours\n    FROM public.pdc_overnight_synthetic_estimates_369 e\n    JOIN public.pdc_overnight_synthetic_fleet_registry_363 r\n      ON r.run_id=e.run_id AND r.vehicle_id=e.vehicle_id AND r.scenario_no=e.scenario_no\n    WHERE e.vehicle_id=p_vehicle_id AND e.run_id='HERMES-TEST-RUN-20260824'\n  )\n  SELECT nullif(round(sum(q.estimated_hours)::numeric,2),0)\n  FROM (\n    SELECT * FROM email_source_lines\n    UNION ALL SELECT * FROM pilbara_source_lines\n    UNION ALL SELECT * FROM manual_lines\n    UNION ALL SELECT * FROM synthetic_lines\n  ) q\n  WHERE q.stage_code=public.workshop_canonical_stage_code(p_stage_code)\n    AND q.estimated_hours>0\n$function$\n",
-  "production_sentinel_present": false
+  "dealer_scope_summary": [
+    {
+      "count": 5,
+      "active": true,
+      "dealer_code": "14450",
+      "environment": "staging"
+    }
+  ],
+  "production_sentinel_present": false,
+  "dealer_37047_active_role_matches": 0
 }

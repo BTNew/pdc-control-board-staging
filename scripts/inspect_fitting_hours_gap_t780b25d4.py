@@ -24,6 +24,8 @@ with target_vehicles as (
 select jsonb_build_object(
   'head',(select jsonb_build_array(version,name) from supabase_migrations.schema_migrations where version~'^[0-9]{14}$' order by version::bigint desc limit 1),
   'function_definition',pg_get_functiondef('public.workshop_vehicle_stage_estimated_hours(uuid,text)'::regprocedure),
+  'dealer_scope_summary',(select coalesce(jsonb_agg(jsonb_build_object('dealer_code',dealer_code,'environment',environment,'active',active,'count',row_count) order by dealer_code,environment,active),'[]'::jsonb) from (select dealer_code,environment,active,count(*) row_count from public.pdc_auditor_user_dealer_scopes group by dealer_code,environment,active) s),
+  'dealer_37047_active_role_matches',(select count(*) from public.pdc_auditor_user_dealer_scopes s join public.pdc_user_roles r on r.auth_user_id=s.auth_user_id and lower(r.email)=s.normalized_email where s.environment='staging' and s.dealer_code='37047' and s.active and r.active and r.account_status='approved' and r.role::text in ('operator','administrator')),
   'vehicles',(select coalesce(jsonb_agg(jsonb_build_object(
     'id',v.id,'stock_number',v.stock_number,'dealer_code',v.dealer_code,'version',v.version,
     'current_location',v.current_location,'eta_to_kewdale',v.eta_to_kewdale,
