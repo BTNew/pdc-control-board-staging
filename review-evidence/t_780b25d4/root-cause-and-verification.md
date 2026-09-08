@@ -8,6 +8,7 @@
 4. The inherited batch SQL inserted new adjustment rows but omitted an explicit update for already-existing adjustment IDs. A RED regression proved existing audited overrides could be silently omitted from a batch.
 5. The new explicit unknown provenance initially projected `null`, but the line renderer could replace it with a single-line booking-duration fallback. Independent review caught this; a RED regression now proves an audited unknown remains blank.
 6. Migration 20260904010100 had re-granted authenticated execution on the unscoped SECURITY DEFINER `get_vehicle_workshop_detail(uuid)` after the scoped-wrapper hardening. The repair seals that bypass and retains only the authenticated dealer-scoped wrapper.
+7. The separate live Fitting planner regression was server-side and independent of the editor save path: `workshop_vehicle_stage_estimated_hours(uuid,text)` aggregated `pdc_authenticated_email_operation_lines`, manual overlays, and the isolated synthetic fixture, but not `pdc_pilbara_service_operations`. Stocks 12705177, 13007660, and 13015144 each had zero authenticated-email rows and 3, 2, and 4 classified Pilbara Fitting rows respectively, so the station snapshot received `null` hours despite authoritative positive source values.
 
 ## Repair
 
@@ -19,6 +20,7 @@
 - STAGING migration 20260908103000 resolves both authenticated-email and Pilbara Service operation UUIDs, validates the complete batch before DML, locks vehicle/adjustments, inserts or updates effective adjustment overlays, writes audit events and one idempotent receipt, and increments the vehicle version once. Immutable Pilbara raw/source hours, Parts, bookings, and completion remain untouched.
 - A blank override is stored as `manual_operator_unknown`; projection and display preserve it as unknown instead of falling back to source or booking duration.
 - Direct authenticated execution of the unscoped Workshop detail function is revoked. Authenticated access remains on the dealer-scoped wrapper and batch RPC; anon and service_role cannot execute either browser contract.
+- STAGING migration 20260908150000 extends the internal planner aggregate to classified Pilbara Service rows. Active audited overlays replace source stage/effective hours (including explicit unknown), inactive source overlays remain explicit removals, and immutable source rows are not modified.
 
 ## Evidence
 
@@ -33,5 +35,6 @@
 - Migration rollback rehearsal: `migration-dry-run.json` proves before/after STAGING state equality.
 - Migration application: `migration-apply.json` records head 20260908103000, function markers present, authenticated scoped/batch execute true, unscoped authenticated execute false, anon/service execute false, Production sentinel absent, and `production_contacted=false`.
 - Independent pre-commit review: PASS after the existing-adjustment, manual-unknown fallback, and unscoped detail grants were corrected.
+- Fresh live Fitting evidence: `fitting-hours-gap-live.json` proves the three reported stocks use only Pilbara operation rows; `red-pilbara-fitting-stage-hours.txt` records the RED regression; `fitting-hours-migration-dry-run.json` and `fitting-hours-migration-apply.json` prove guarded STAGING-only apply, unchanged vehicle/source/adjustment/booking business state, migration head 20260908150000, and live Fitting projections 2.25h, 1.5h, and 2.83h respectively. The post-change full suite is 196/196 in `full-suite-after-fitting-projection.txt`.
 
 Signed-in deployed UI mutation/read-back/restoration, deployed SHA, asset equality, and GitHub Actions run IDs are recorded in the final Kanban handoff and its attached post-deployment evidence.

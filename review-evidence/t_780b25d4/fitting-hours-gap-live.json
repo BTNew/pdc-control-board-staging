@@ -1,0 +1,157 @@
+{
+  "head": [
+    "20260908150000",
+    "pilbara_fitting_stage_hours_projection"
+  ],
+  "vehicles": [
+    {
+      "id": "a1b2ea79-1933-5453-81e3-b0b1945c94bf",
+      "version": 3,
+      "work_items": [
+        {
+          "required": true,
+          "work_key": "fitting",
+          "completed": false
+        }
+      ],
+      "adjustments": [],
+      "dealer_code": "37047",
+      "stock_number": "12705177",
+      "eta_to_kewdale": "2026-09-01",
+      "current_location": "IT",
+      "email_operations": [],
+      "pilbara_operations": [
+        {
+          "category": "FITTING",
+          "description": "Complementary Full Tank of Fuel",
+          "operation_id": "3adcd2da-23f0-43c3-8e0d-b505732d9854",
+          "hours_provenance": "source_explicit",
+          "repair_order_number": "JC14123887",
+          "original_line_number": 1,
+          "source_estimated_hours": 0,
+          "effective_estimated_hours": 0
+        },
+        {
+          "category": "FITTING",
+          "description": "Pre-Delivery",
+          "operation_id": "2bcc0247-5bf5-4644-8e72-8cadc883511b",
+          "hours_provenance": "source_explicit",
+          "repair_order_number": "JC14123887",
+          "original_line_number": 2,
+          "source_estimated_hours": 1.5,
+          "effective_estimated_hours": 1.5
+        },
+        {
+          "category": "FITTING",
+          "description": "Side Steps - Alloy",
+          "operation_id": "ba6e854a-da07-4bae-8fb9-db620db6919b",
+          "hours_provenance": "source_explicit",
+          "repair_order_number": "JC14123887",
+          "original_line_number": 3,
+          "source_estimated_hours": 0.75,
+          "effective_estimated_hours": 0.75
+        }
+      ]
+    },
+    {
+      "id": "83fe3bae-614a-5233-a4ca-23c000083376",
+      "version": 3,
+      "work_items": [
+        {
+          "required": true,
+          "work_key": "fitting",
+          "completed": false
+        }
+      ],
+      "adjustments": [],
+      "dealer_code": "37047",
+      "stock_number": "13007660",
+      "eta_to_kewdale": "2026-07-21",
+      "current_location": "YH",
+      "email_operations": [],
+      "pilbara_operations": [
+        {
+          "category": "FITTING",
+          "description": "Complimentary Full Tank of Fuel and/or Battery Charge",
+          "operation_id": "653aafb8-e755-4f58-9be4-e88e7bc6dc86",
+          "hours_provenance": "source_explicit",
+          "repair_order_number": "JC14125329",
+          "original_line_number": 1,
+          "source_estimated_hours": 0,
+          "effective_estimated_hours": 0
+        },
+        {
+          "category": "FITTING",
+          "description": "Pre-Delivery",
+          "operation_id": "49861a29-06a0-4c9d-9d55-921e358a91ba",
+          "hours_provenance": "source_explicit",
+          "repair_order_number": "JC14125329",
+          "original_line_number": 2,
+          "source_estimated_hours": 1.5,
+          "effective_estimated_hours": 1.5
+        }
+      ]
+    },
+    {
+      "id": "05962953-af16-5427-9f50-3d66a15fb8a2",
+      "version": 4,
+      "work_items": [
+        {
+          "required": true,
+          "work_key": "fitting",
+          "completed": false
+        }
+      ],
+      "adjustments": [],
+      "dealer_code": "37047",
+      "stock_number": "13015144",
+      "eta_to_kewdale": "2026-06-22",
+      "current_location": "PMB",
+      "email_operations": [],
+      "pilbara_operations": [
+        {
+          "category": "FITTING",
+          "description": "Complimentary Full tank of fuel and/or 100% battery state of charge",
+          "operation_id": "1e64bedf-a5c5-4c08-b09e-2e5b738a0507",
+          "hours_provenance": "source_explicit",
+          "repair_order_number": "JC14124710",
+          "original_line_number": 1,
+          "source_estimated_hours": 0,
+          "effective_estimated_hours": 0
+        },
+        {
+          "category": "FITTING",
+          "description": "Pre-Delivery",
+          "operation_id": "ad39449d-abc3-4591-858a-98ea0ca96234",
+          "hours_provenance": "source_explicit",
+          "repair_order_number": "JC14124710",
+          "original_line_number": 2,
+          "source_estimated_hours": 1.5,
+          "effective_estimated_hours": 1.5
+        },
+        {
+          "category": "FITTING",
+          "description": "Commercial Heavy Duty Roof Racks - 3 bar set",
+          "operation_id": "66766999-0c25-4687-9b1d-bbd0af305c28",
+          "hours_provenance": "source_explicit",
+          "repair_order_number": "JC14124710",
+          "original_line_number": 3,
+          "source_estimated_hours": 1,
+          "effective_estimated_hours": 1
+        },
+        {
+          "category": "FITTING",
+          "description": "Front Canvas Seat Covers",
+          "operation_id": "1fe29429-399a-4fe7-8565-d28be5ee2ac2",
+          "hours_provenance": "source_explicit",
+          "repair_order_number": "JC14124710",
+          "original_line_number": 4,
+          "source_estimated_hours": 0.33,
+          "effective_estimated_hours": 0.33
+        }
+      ]
+    }
+  ],
+  "function_definition": "CREATE OR REPLACE FUNCTION public.workshop_vehicle_stage_estimated_hours(p_vehicle_id uuid, p_stage_code text)\n RETURNS numeric\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'pg_catalog', 'public'\nAS $function$\n  WITH email_source_lines AS (\n    SELECT\n      CASE WHEN a.adjustment_id IS NOT NULL THEN a.stage_code\n           ELSE public.workshop_stage_code_for_work_key(ol.work_key) END stage_code,\n      CASE WHEN a.adjustment_id IS NOT NULL THEN a.estimated_hours\n           ELSE ol.estimated_hours END estimated_hours\n    FROM public.pdc_authenticated_email_operation_lines ol\n    LEFT JOIN public.vehicle_workshop_line_adjustments a\n      ON a.vehicle_id=ol.vehicle_id\n     AND a.line_key='source:'||ol.operation_line_id::text\n    WHERE ol.vehicle_id=p_vehicle_id\n      -- An inactive source adjustment is the durable explicit-removal marker;\n      -- it must suppress, not resurrect, the immutable source line.\n      AND coalesce(a.active,true)\n  ), pilbara_source_lines AS (\n    SELECT\n      CASE WHEN a.adjustment_id IS NOT NULL THEN a.stage_code\n           ELSE coalesce(h.category,'REVIEW') END stage_code,\n      CASE WHEN a.adjustment_id IS NOT NULL THEN a.estimated_hours\n           ELSE o.effective_estimated_hours END estimated_hours\n    FROM public.pdc_pilbara_service_operations o\n    LEFT JOIN public.pdc_pilbara_service_classification_current cc USING(operation_id)\n    LEFT JOIN public.pdc_pilbara_service_classification_history h USING(classification_id)\n    LEFT JOIN public.vehicle_workshop_line_adjustments a\n      ON a.vehicle_id=o.vehicle_id\n     AND a.line_key='source:'||o.operation_id::text\n    WHERE o.vehicle_id=p_vehicle_id\n      -- Keep the planner aligned with the detail/QC active-line projection.\n      AND coalesce(a.active,true)\n  ), manual_lines AS (\n    SELECT a.stage_code,a.estimated_hours\n    FROM public.vehicle_workshop_line_adjustments a\n    WHERE a.vehicle_id=p_vehicle_id AND a.active AND a.source_kind='manual'\n  ), synthetic_lines AS (\n    SELECT e.stage_code,e.estimated_hours\n    FROM public.pdc_overnight_synthetic_estimates_369 e\n    JOIN public.pdc_overnight_synthetic_fleet_registry_363 r\n      ON r.run_id=e.run_id AND r.vehicle_id=e.vehicle_id AND r.scenario_no=e.scenario_no\n    WHERE e.vehicle_id=p_vehicle_id AND e.run_id='HERMES-TEST-RUN-20260824'\n  )\n  SELECT nullif(round(sum(q.estimated_hours)::numeric,2),0)\n  FROM (\n    SELECT * FROM email_source_lines\n    UNION ALL SELECT * FROM pilbara_source_lines\n    UNION ALL SELECT * FROM manual_lines\n    UNION ALL SELECT * FROM synthetic_lines\n  ) q\n  WHERE q.stage_code=public.workshop_canonical_stage_code(p_stage_code)\n    AND q.estimated_hours>0\n$function$\n",
+  "production_sentinel_present": false
+}
