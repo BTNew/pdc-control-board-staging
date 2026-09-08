@@ -1,0 +1,52 @@
+{
+  "task_id": "t_780b25d4",
+  "pull_request": "https://github.com/BTNew/pdc-control-board-staging/pull/59",
+  "reviewed_head_sha": "5a39784ffc67b0b03df2ac7caf0d4d89b1927035",
+  "merge_sha": "1f1671310277c70643d0f3eb2351580b26683c08",
+  "pages": {
+    "build_id": 1201031386,
+    "actions_run_id": 34180288730,
+    "status": "built",
+    "commit": "1f1671310277c70643d0f3eb2351580b26683c08"
+  },
+  "staging_integrity_run_id": 34180289765,
+  "deployed_assets": {
+    "app.js": {
+      "git_blob_sha256": "4884cf234741d33d1c9deb488a50298102b15979422eb22a210d24fb13ddcfc2",
+      "live_sha256": "4884cf234741d33d1c9deb488a50298102b15979422eb22a210d24fb13ddcfc2",
+      "byte_equal": true
+    },
+    "workshop-navigation.js": {
+      "git_blob_sha256": "61f845673c0c9aa2c9a650c43bf0e2c05588ab6e78d806a1d21f9875a412996a",
+      "live_sha256": "61f845673c0c9aa2c9a650c43bf0e2c05588ab6e78d806a1d21f9875a412996a",
+      "byte_equal": true
+    },
+    "index.html": {
+      "git_blob_sha256": "139fe1386b1b283ed9bdaccb8fef706472406f301aa46a83264e5439ac07d794",
+      "live_sha256": "139fe1386b1b283ed9bdaccb8fef706472406f301aa46a83264e5439ac07d794",
+      "byte_equal": true
+    }
+  },
+  "staging_migration": {
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "head": ["20260908103000", "jobcard_hours_live_repair"],
+    "batch_authenticated_execute": true,
+    "batch_anon_execute": false,
+    "batch_service_execute": false,
+    "scoped_authenticated_execute": true,
+    "unscoped_authenticated_execute": false,
+    "production_contacted": false,
+    "production_writes": false
+  },
+  "tests": {"node_test_total": 195, "passed": 195, "failed": 0},
+  "signed_in_ui": {
+    "session_visible": true,
+    "mutation_started": false,
+    "authoritative_test_values_written": false,
+    "restoration_required": false,
+    "blocked": true,
+    "reason": "The only attached signed-in Chrome session is reachable for capture but computer input requires an interactive approval. That approval timed out in the headless Kanban run, and policy forbids retrying or bypassing it. Browser automation could not attach to the locked signed-in profile."
+  },
+  "production_untouched": true,
+  "outbound_email_untouched": true
+}
