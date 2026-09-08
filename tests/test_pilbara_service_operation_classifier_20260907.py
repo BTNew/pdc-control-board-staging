@@ -15,6 +15,9 @@ from scripts.pilbara_service_open_jobcards import parse_source
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = Path(r"C:/Users/nwmgr/AppData/Local/hermes/cache/documents/doc_e55993a9ad5a_BT Service.csv")
 MANIFEST = ROOT / "data/pilbara_service_operation_classifications_v1.json"
+FUEL_RULE_MIGRATION = ROOT / "supabase/staging_only/20260908100000_pilbara_delivery_fuel_charge_fitting_rule.sql"
+HEAD_REPAIR_MIGRATION = ROOT / "supabase/staging_only/20260908101000_pilbara_classifier_head_guard_repair.sql"
+REVISION_MIGRATION = ROOT / "supabase/staging_only/20260908102000_pilbara_fuel_rule_revision_notification.sql"
 
 
 class PilbaraServiceOperationClassifierTests(unittest.TestCase):
@@ -86,6 +89,42 @@ class PilbaraServiceOperationClassifierTests(unittest.TestCase):
         self.assertTrue(reviews)
         self.assertTrue(all(row["method"] == "review" and row["confidence"] < MIN_ASSIGNED_CONFIDENCE for row in reviews))
 
+    def test_approved_delivery_fuel_and_charge_semantics_map_to_fitting(self) -> None:
+        paraphrases = (
+            "Complimentary Full tank of fuel and/or 100% battery state of charge",
+            "Deliver vehicle with a full tank of fuel",
+            "Vehicle delivery fuel fill",
+            "Deliver with battery fully charged",
+            "100 percent battery state of charge at delivery",
+        )
+        for description in paraphrases:
+            with self.subTest(description=description):
+                result = classify_operation(description)
+                self.assertEqual(result.work_key, "FITTING")
+                self.assertEqual(result.disposition, "PLANNED")
+                self.assertEqual(result.rule_id, "craig-delivery-fuel-charge-fitting")
+
+        negative_controls = (
+            "Install EV charger and 12V socket",
+            "Delivery charge $250",
+            "Replace damaged fuel tank",
+            "Charge air cooler inspection",
+            "Drain full tank of fuel before tank replacement",
+            "Inspect leak from full tank of fuel",
+            "Customer vehicle arrived with full tank of fuel",
+            "Delivery inspection: drain full tank of fuel before tank replacement",
+            "Pre-delivery inspection: inspect leak from full tank of fuel",
+            "Customer vehicle arrived with full tank of fuel at delivery",
+            "Delivery fee includes full tank of fuel",
+            "Customer complained that delivery included a full tank of fuel",
+            "Refund delivery cost because full tank of fuel was supplied",
+            "Empty full tank of fuel before delivery",
+        )
+        for description in negative_controls:
+            with self.subTest(negative_description=description):
+                result = classify_operation(description)
+                self.assertNotEqual((result.work_key, result.disposition), ("FITTING", "PLANNED"))
+
     def test_manifest_rejects_changed_source_description_hash_and_low_confidence_assignment(self) -> None:
         parsed = parse_source(SOURCE)
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
@@ -118,6 +157,39 @@ class PilbaraServiceOperationClassifierTests(unittest.TestCase):
         row.update(category="ELECTRICAL", method="ai_semantic", confidence=0.90, rationale="Incorrectly overrides explicit negation.")
         with self.assertRaisesRegex(ValueError, "negated or non-work"):
             validate_manifest(changed, source_rows, source_hash=parsed.source_hash)
+
+    def test_delivery_fuel_rule_migration_is_append_only_and_preserves_hours(self) -> None:
+        sql = FUEL_RULE_MIGRATION.read_text(encoding="utf-8")
+        self.assertIn("pdc_monitor_staging_guard()", sql)
+        self.assertIn("pdc_production_environment_sentinel", sql)
+        self.assertIn("craig-delivery-fuel-charge-fitting", sql)
+        self.assertIn("INSERT INTO public.pdc_pilbara_service_classification_history", sql)
+        self.assertIn("pdc_pilbara_service_reconcile_work_controls_v1", sql)
+        self.assertNotRegex(sql, r"UPDATE\s+public\.pdc_pilbara_service_operations")
+        self.assertNotRegex(sql, r"source_estimated_hours\s*=")
+        self.assertNotRegex(sql, r"effective_estimated_hours\s*=")
+        self.assertIn("source_description_hash", sql)
+        self.assertIn("source_semantic_hash", sql)
+
+    def test_delivery_fuel_rule_repairs_apply_and_rollback_head_guards(self) -> None:
+        sql = HEAD_REPAIR_MIGRATION.read_text(encoding="utf-8")
+        self.assertIn("pdc_monitor_staging_guard()", sql)
+        self.assertIn("pdc_production_environment_sentinel", sql)
+        self.assertIn("pdc_pilbara_service_classification_apply_v1", sql)
+        self.assertIn("pdc_pilbara_service_classification_rollback_v1", sql)
+        self.assertIn("20260908100000", sql)
+        self.assertIn("20260908101000", sql)
+        self.assertIn("REVOKE ALL ON FUNCTION", sql)
+
+    def test_delivery_fuel_rule_notifies_snapshot_clients_and_keeps_guards_current(self) -> None:
+        sql = REVISION_MIGRATION.read_text(encoding="utf-8")
+        self.assertIn("pdc_email_vehicle_revision", sql)
+        self.assertIn("revision=revision+1", sql)
+        self.assertIn("20260908101000", sql)
+        self.assertIn("20260908102000", sql)
+        self.assertIn("pdc_pilbara_service_classification_apply_v1", sql)
+        self.assertIn("pdc_pilbara_service_classification_rollback_v1", sql)
+        self.assertIn("REVOKE ALL ON FUNCTION", sql)
 
 
 if __name__ == "__main__":
