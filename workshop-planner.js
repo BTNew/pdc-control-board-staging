@@ -3,6 +3,74 @@
 const WORKSHOP_PLAN_STORAGE_KEY = 'vehicleTrackingCoreWorkshopPlan:v1';
 const WORKSHOP_VIEW_STORAGE_KEY = 'vehicleTrackingCoreWorkshopView:v1';
 const WORKSHOP_BAY_SETUP_STORAGE_KEY = 'vehicleTrackingCoreWorkshopBaySetup:v1';
+const WORKSHOP_PLANNER_RUNTIME_VERSION = '2026.09.09.03-fitting-duration-coherence';
+const WORKSHOP_DEPLOYMENT_MANIFEST_URL = 'deployment-manifest.json';
+const WORKSHOP_DEPLOYMENT_RELOADS_KEY = 'vehicleTrackingCoreWorkshopDeploymentReloads:v1';
+let workshopDeploymentFreshnessCheck = null;
+
+function workshopDeploymentManifestIdentity(manifest = {}) {
+  const siteVersion = typeof manifest.siteVersion === 'string' ? manifest.siteVersion.trim() : '';
+  const plannerVersion = typeof manifest.workshopPlannerVersion === 'string' ? manifest.workshopPlannerVersion.trim() : '';
+  const safeVersion = value => value.length <= 128 && /^[A-Za-z0-9._-]+$/.test(value);
+  return safeVersion(siteVersion) && safeVersion(plannerVersion)
+    ? `${siteVersion}|${plannerVersion}`
+    : '';
+}
+
+function workshopClaimDeploymentReload(identity = '') {
+  if (!identity || typeof window === 'undefined') return false;
+  try {
+    const storage = window.sessionStorage;
+    if (!storage?.getItem || !storage?.setItem) return false;
+    const identityKey = `${WORKSHOP_DEPLOYMENT_RELOADS_KEY}:${identity}`;
+    if (storage.getItem(identityKey) === '1') return false;
+    storage.setItem(identityKey, '1');
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function workshopEnsureCurrentDeployment() {
+  if (typeof fetch !== 'function') return true;
+  if (workshopDeploymentFreshnessCheck) return workshopDeploymentFreshnessCheck;
+  workshopDeploymentFreshnessCheck = (async () => {
+    try {
+      const separator = WORKSHOP_DEPLOYMENT_MANIFEST_URL.includes('?') ? '&' : '?';
+      const response = await fetch(`${WORKSHOP_DEPLOYMENT_MANIFEST_URL}${separator}fresh=${Date.now()}`, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+      });
+      if (!response.ok) return true;
+      const manifest = await response.json();
+      const identity = workshopDeploymentManifestIdentity(manifest);
+      if (!identity) return true;
+      if (manifest?.workshopPlannerVersion === WORKSHOP_PLANNER_RUNTIME_VERSION) return true;
+      if (!workshopClaimDeploymentReload(identity)) return false;
+      if (typeof window !== 'undefined' && window.location?.replace) {
+        const next = new URL(window.location.href);
+        next.searchParams.set('deployment', manifest.siteVersion);
+        window.location.replace(next.toString());
+      }
+      return false;
+    } catch (_) {
+      // A manifest outage must not replace the existing server-side validation.
+      return true;
+    } finally {
+      workshopDeploymentFreshnessCheck = null;
+    }
+  })();
+  return workshopDeploymentFreshnessCheck;
+}
+
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  const checkFreshness = () => { void workshopEnsureCurrentDeployment(); };
+  window.addEventListener('focus', checkFreshness);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkFreshness();
+  });
+  window.setTimeout?.(checkFreshness, 0);
+}
 
 // Stage 2A final remediation: all authoritative planner configuration is
 // integer minutes or validated collections. Fractional clock hours are never
@@ -857,6 +925,7 @@ function workshopSharedLegacyAmbiguity(payload = {}) {
 
 async function workshopDispatchSharedAction(actionName, payload, renderAction = renderWorkshopPlanner, options = {}) {
   if (!workshopSharedModeActive()) return null;
+  if (!await workshopEnsureCurrentDeployment()) return { ok: false, error: 'stale_deployment_reload' };
   const ambiguous = workshopSharedLegacyAmbiguity(payload);
   if (ambiguous) {
     const result = { ok: false, error: 'legacy_ambiguity_blocked', bookingId: ambiguous.id };
@@ -1247,6 +1316,20 @@ function workshopCalculatedStageHours(vehicle = {}, stage = '') {
   const total = importedHours + (Number.isFinite(additionalHours) ? Math.max(0, additionalHours) : 0);
   if (total > 0) return workshopClampDurationHours(total);
   return workshopDefaultBookingHours();
+}
+
+function workshopSchedulingDuration(vehicle = {}, stage = '') {
+  const normalizedStage = normalizePmbStage(stage);
+  if (workshopSharedModeActive()) {
+    const authoritativeHours = workshopExactDurationHours(workshopEstimatedHours(vehicle, normalizedStage));
+    return authoritativeHours > 0
+      ? { hours: authoritativeHours, minutes: Math.round(authoritativeHours * 60) }
+      : null;
+  }
+  const localHours = workshopExactDurationHours(
+    workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours(),
+  );
+  return localHours > 0 ? { hours: localHours, minutes: Math.round(localHours * 60) } : null;
 }
 
 function workshopManualDurationAllocation(requestedHours = 0, importedHours = 0) {
@@ -3443,8 +3526,8 @@ function workshopVehicleIdentitySummaryHtml(vehicle = {}) {
 }
 
 function workshopQueueEstimatedLabel(vehicle = {}, stage = '') {
-  const authoritativeHours = workshopEstimatedHours(vehicle, stage);
-  if (authoritativeHours) return `${authoritativeHours.toFixed(2)}h`;
+  const duration = workshopSchedulingDuration(vehicle, stage);
+  if (duration) return `${duration.hours.toFixed(2)}h`;
   const lines = workshopStageJobLines(vehicle, stage).filter(line => line.source === 'authenticated-operation-line');
   if (!lines.length || lines.some(line => line.hours === null || line.hours === undefined || !Number.isFinite(Number(line.hours)))) return 'Hours unknown';
   const minutes = lines.reduce((sum, line) => sum + Math.round(Number(line.hours || 0) * 60), 0);
@@ -3457,13 +3540,15 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
   const parts = workshopPartsSummary(vehicle);
   const highlighted = workshopState().highlightVehicleKey === key;
   const hoursLabel = workshopQueueEstimatedLabel(vehicle, stage);
-  const hours = workshopCalculatedStageHours(vehicle, stage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
+  const duration = workshopSchedulingDuration(vehicle, stage);
+  const hours = duration?.hours || 0;
   const etaConstraint = workshopVehicleEtaConstraint(vehicle);
   const etaDisabled = etaConstraint.required && !etaConstraint.ok;
   const authoritative = vehicle.__workshopOutstanding;
   const existingBooking = authoritative?.existingBooking === true;
   const authorityDisabled = !!authoritative && authoritative.scheduleEnabled !== true;
-  const schedulingDisabled = authorityDisabled || etaDisabled || existingBooking;
+  const durationDisabled = workshopSharedModeActive() && !duration;
+  const schedulingDisabled = authorityDisabled || etaDisabled || existingBooking || durationDisabled;
 
   const etaExplanation = etaConstraint.reason === 'missing_eta'
     ? `${etaConstraint.location} · ETA to Kewdale is missing; scheduling disabled`
@@ -3478,7 +3563,8 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
   const authorityExplanation = workshopOutstandingDisabledReasonLabel(authoritative?.disabledReason);
   const disabledExplanation = existingBooking
     ? 'An active booking already represents this requirement'
-    : authorityDisabled ? authorityExplanation : etaExplanation;
+    : durationDisabled ? workshopOutstandingDisabledReasonLabel('estimated_duration_missing')
+      : authorityDisabled ? authorityExplanation : etaExplanation;
   return `<article class="workshop-queue-card workshop-unallocated-vehicle-pill ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''} ${schedulingDisabled ? 'is-scheduling-disabled' : ''}" draggable="${schedulingDisabled ? 'false' : 'true'}" ${schedulingDisabled ? 'aria-disabled="true"' : ''} data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="${escapeHtml(schedulingDisabled ? disabledExplanation : 'Drag onto a bay, use Best slot, or use Schedule')}">
     ${workshopVehicleIdentitySummaryHtml(vehicle)}
     <span>${escapeHtml(workshopQueueVehicleDescription(vehicle))}</span>
@@ -4515,10 +4601,10 @@ function bindWorkshopPlanner(root) {
       event.dataTransfer.effectAllowed = 'copy';
       event.dataTransfer.setData('application/x-workshop-vehicle-key', card.dataset.workshopVehicleKey);
       event.dataTransfer.setData('text/plain', card.dataset.workshopVehicleKey);
-      const vehicle = workshopVehicle(card.dataset.workshopVehicleKey);
+      const vehicle = workshopVehicle(card.dataset.workshopVehicleKey, workshopState().stage);
       workshopSetDragPreview({
         type: 'queue',
-        hours: workshopCalculatedStageHours(vehicle, workshopState().stage) || pmbBayHours(vehicle) || workshopDefaultBookingHours(),
+        hours: workshopSchedulingDuration(vehicle, workshopState().stage)?.hours || 0,
       });
     });
     card.addEventListener('pointerdown', downEvent => {
@@ -4527,7 +4613,7 @@ function bindWorkshopPlanner(root) {
       const pointerId = downEvent.pointerId;
       const startX = downEvent.clientX;
       const startY = downEvent.clientY;
-      const vehicle = workshopVehicle(card.dataset.workshopVehicleKey);
+      const vehicle = workshopVehicle(card.dataset.workshopVehicleKey, workshopState().stage);
       let activeLane = null;
       let activated = false;
       const cleanup = () => {
@@ -4550,7 +4636,7 @@ function bindWorkshopPlanner(root) {
         card.addEventListener('lostpointercapture', cancel);
         workshopSetDragPreview({
           type: 'queue',
-          hours: workshopCalculatedStageHours(vehicle, workshopState().stage) || pmbBayHours(vehicle) || workshopDefaultBookingHours(),
+          hours: workshopSchedulingDuration(vehicle, workshopState().stage)?.hours || 0,
         });
       };
       const move = event => {
@@ -5217,16 +5303,21 @@ function workshopScheduleTimeOptions(selectedMinutes = 0) {
 
 function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '') {
   const normalizedStage = normalizePmbStage(stage);
-  const vehicle = workshopVehicle(vehicleKeyValue);
+  const vehicle = workshopVehicle(vehicleKeyValue, normalizedStage);
   if (!vehicle || !WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return;
   const etaConstraint = workshopVehicleEtaConstraint(vehicle);
   if (etaConstraint.required && !etaConstraint.ok) {
     workshopRequireEtaSchedule(vehicle, '');
     return;
   }
-  const hours = workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
-  const authoritativeHours = workshopSharedModeActive() ? workshopEstimatedHours(vehicle, normalizedStage) : '';
-  const plannedHours = authoritativeHours || workshopExactDurationHours(hours) || workshopDefaultBookingHours();
+  const duration = workshopSchedulingDuration(vehicle, normalizedStage);
+  if (workshopSharedModeActive() && !duration) {
+    window.alert('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
+    return;
+  }
+  const hours = duration?.hours || workshopDefaultBookingHours();
+  const authoritativeHours = workshopSharedModeActive() ? duration?.hours || 0 : 0;
+  const plannedHours = authoritativeHours || hours;
   const friendlyPlannedHours = workshopExactDurationHours(plannedHours).toFixed(2);
   const bay = 1;
   const selectedDate = workshopDateKeyNotBefore(workshopDateKey(workshopCoerceWorkDate(workshopDateFromKey(dateKey) || new Date(), 1)), etaConstraint.earliestDateKey);
@@ -5499,7 +5590,12 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
   // In shared mode the operation projection is the booking authority. The
   // caller's hours may be stale (or may have been derived from editable DOM
   // inputs), so it must never override adjusted server lines.
-  const authoritativeStageHours = workshopCalculatedStageHours(vehicle, normalizedStage);
+  const duration = workshopSchedulingDuration(vehicle, normalizedStage);
+  if (workshopSharedModeActive() && !duration) {
+    window.alert('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
+    return false;
+  }
+  const authoritativeStageHours = duration?.hours || workshopCalculatedStageHours(vehicle, normalizedStage);
   const rawEstimate = workshopSharedModeActive()
     ? (authoritativeStageHours || pmbBayHours(vehicle) || workshopDefaultBookingHours())
     : (Number(hours) > 0 ? Number(hours) : authoritativeStageHours || pmbBayHours(vehicle) || workshopDefaultBookingHours());
@@ -5600,12 +5696,17 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   }
   const start = workshopDateAtOffset(dateKey, startMinutes);
   if (!workshopRequireEtaSchedule(vehicle, start)) return false;
+  const duration = workshopSchedulingDuration(vehicle, normalizedStage);
+  if (workshopSharedModeActive() && !duration) {
+    window.alert('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
+    return false;
+  }
   const requestedHours = Number(hoursValue);
   const defaultHours = Number.isFinite(requestedHours) && requestedHours > 0
     ? requestedHours
     : existing?.hours || workshopCalculatedStageHours(vehicle, normalizedStage) || pmbBayHours(vehicle) || workshopDefaultBookingHours();
   const canonicalSharedHours = workshopSharedModeActive()
-    ? (workshopExactDurationHours(workshopCalculatedStageHours(vehicle, normalizedStage)) || workshopExactDurationHours(existing?.hours))
+    ? duration.hours
     : 0;
   const hours = canonicalSharedHours || workshopClampDurationHours(defaultHours);
   const requestedCandidate = {
@@ -6666,6 +6767,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopResolvedJobLines,
     workshopStageJobLines,
     workshopCalculatedStageHours,
+    workshopSchedulingDuration,
+    workshopEnsureCurrentDeployment,
     workshopManualDurationAllocation,
     workshopManualDurationSharedPayload,
     workshopIntervalsOverlap,

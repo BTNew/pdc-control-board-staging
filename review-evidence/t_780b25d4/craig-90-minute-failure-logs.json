@@ -1,0 +1,27 @@
+{
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "range": {
+    "start": "2026-09-08T22:30:00Z",
+    "end": "2026-09-08T23:30:00Z"
+  },
+  "result": {
+    "result": [
+      {
+        "event_message": "Workshop Planner validation rejected booking: {\"ok\": false, \"error\": \"operation_estimate_duration_mismatch\", \"expected_minutes\": 90}",
+        "source": "postgres_logs",
+        "timestamp": "2026-09-08T22:57:04.020000"
+      },
+      {
+        "event_message": "POST | 400 | https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/administrator_schedule_workshop_vehicle | Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+        "source": "edge_logs",
+        "timestamp": "2026-09-08T22:57:03.768000"
+      },
+      {
+        "event_message": "OPTIONS | 200 | https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/administrator_schedule_workshop_vehicle | Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+        "source": "edge_logs",
+        "timestamp": "2026-09-08T22:57:03.672000"
+      }
+    ]
+  },
+  "production_contacted": false
+}

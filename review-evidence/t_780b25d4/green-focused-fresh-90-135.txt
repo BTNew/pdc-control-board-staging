@@ -1,0 +1,14 @@
+=== test_workshop_fitting_duration_callers_t780b25d4.js
+workshop Fitting duration caller/cache-coherence regression: PASS
+=== test_workshop_fitting_authoritative_duration_t780b25d4.js
+workshop fitting authoritative duration regression: PASS
+=== test_shared_workshop_response_contract_ta9b37ed9.js
+Shared Workshop response contract regression: PASS
+=== test_jobcard_hours_live_repair_t780b25d4.js
+Job Card live-hours and Workshop contract regression passed
+=== test_pilbara_fitting_stage_hours_projection_t780b25d4.js
+Pilbara Fitting planner stage-hours projection regression passed
+=== test_workshop_arrived_eta_and_unallocated_search_20260908.js
+Workshop arrived ETA bypass and unallocated search regression: PASS
+=== test_workshop_exact_operation_minutes.js
+workshop_exact_operation_minutes: PASS

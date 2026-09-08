@@ -1,0 +1,52 @@
+{
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "evidence": {
+    "vehicles": [
+      {
+        "version": 4,
+        "vehicle_id": "a1b2ea79-1933-5453-81e3-b0b1945c94bf",
+        "stock_number": "12705177",
+        "fitting_hours": 2.25,
+        "fitting_minutes": 135,
+        "current_location": "IT",
+        "active_booking_count": 0
+      },
+      {
+        "version": 3,
+        "vehicle_id": "83fe3bae-614a-5233-a4ca-23c000083376",
+        "stock_number": "13007660",
+        "fitting_hours": 1.5,
+        "fitting_minutes": 90,
+        "current_location": "YH",
+        "active_booking_count": 0
+      },
+      {
+        "version": 4,
+        "vehicle_id": "05962953-af16-5427-9f50-3d66a15fb8a2",
+        "stock_number": "13015144",
+        "fitting_hours": 2.83,
+        "fitting_minutes": 170,
+        "current_location": "PMB",
+        "active_booking_count": 0
+      },
+      {
+        "version": 5,
+        "vehicle_id": "0a8ee7e1-8397-5667-aea5-dc25fc7b3c2a",
+        "stock_number": "13021036",
+        "fitting_hours": 12.52,
+        "fitting_minutes": 751,
+        "current_location": "YH",
+        "active_booking_count": 0
+      }
+    ],
+    "migration_head": [
+      "20260908151000",
+      "pilbara_workshop_cross_source_scope"
+    ],
+    "staging_sentinel_count": 1,
+    "production_sentinel_present": false,
+    "rejection_era_booking_history": []
+  },
+  "production_contacted": false,
+  "production_writes": false
+}

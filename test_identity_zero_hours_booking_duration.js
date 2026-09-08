@@ -11,7 +11,7 @@ assert.match(appSource, /vehicleModalIdentity/, 'modal must retain a stable iden
 assert.match(appSource, /identity.*stock|stock.*identity/, 'modal binding must retain the displayed stock baseline');
 assert.match(appSource, /No mutation was made|No vehicle was changed/, 'unresolved identity must fail closed');
 const plannerSource = fs.readFileSync('workshop-planner.js', 'utf8');
-assert.match(plannerSource, /const authoritativeStageHours = workshopCalculatedStageHours/, 'shared booking duration must be derived from authoritative projection');
+assert.match(plannerSource, /const duration = workshopSchedulingDuration\(vehicle, normalizedStage\)/, 'shared booking duration must be derived from authoritative projection');
 
 const start = appSource.indexOf('function vehicleWorkshopGroups(');
 const end = appSource.indexOf('\nfunction vehicleWorkshopJobCardValue', start);
@@ -128,6 +128,7 @@ const fittingMismatchVehicle = {
   workshopEstimatedHoursByStage: { FITTING: 1.6 },
 };
 assert.strictEqual(planner.workshopCalculatedStageHours(fittingMismatchVehicle, 'FITTING'), 1.6, 'Stock 12704245-style adjusted Fitting authority overrides stale 1.90h raw line');
+assert.deepStrictEqual(planner.workshopSchedulingDuration(fittingMismatchVehicle, 'FITTING'), { hours: 1.6, minutes: 96 }, 'shared scheduling uses the station snapshot duration and exact minute payload');
 assert.strictEqual(Math.round(planner.workshopExactDurationHours(planner.workshopCalculatedStageHours(fittingMismatchVehicle, 'FITTING')) * 60), 96, 'Fitting booking submits the server expected 96 minutes');
 assert.strictEqual(Math.round(planner.workshopExactDurationHours(planner.workshopCalculatedStageHours(canonicalVehicle, 'FITTING')) * 60), 516, 'booking uses exact whole minutes');
 
