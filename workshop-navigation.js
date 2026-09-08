@@ -242,11 +242,16 @@ function projectWorkshopHours(input = {}) {
   const manualInput = firstPresent(input, ['manualOverrideHours', 'manual_override_hours']);
   const protectedHours = numericHours(protectedInput);
   const manualOverrideHours = numericHours(manualInput);
+  const manualHoursUnknown = input.manualHoursUnknown === true || input.manual_hours_unknown === true;
 
   let schedulingHours = null;
   let rule = 'unavailable';
   let selectedField = null;
-  if (manualOverrideHours !== null) {
+  if (manualHoursUnknown) {
+    schedulingHours = null;
+    rule = 'manual_unknown';
+    selectedField = 'manualHoursUnknown';
+  } else if (manualOverrideHours !== null) {
     schedulingHours = manualOverrideHours;
     rule = 'manual_override';
     selectedField = 'manualOverrideHours';
@@ -269,12 +274,14 @@ function projectWorkshopHours(input = {}) {
     aiEstimatedHours,
     protectedHours,
     manualOverrideHours,
+    manualHoursUnknown,
     schedulingHours,
     rule,
     evidence: Object.freeze({
       selectedField,
       precedence: Object.freeze(['manualOverrideHours', 'protectedHours', 'sourceEstimatedHours', 'aiEstimatedHours']),
       hasManualOverride: manualOverrideHours !== null,
+      hasManualUnknown: manualHoursUnknown,
       hasProtectedHours: protectedHours !== null,
       hasSourceEstimate: sourceEstimatedHours !== null,
       hasAiEstimate: aiEstimatedHours !== null,

@@ -1,0 +1,41 @@
+{
+  "ok": true,
+  "mode": "apply",
+  "before": {
+    "head": [
+      "20260908102000",
+      "pilbara_fuel_rule_revision_notification"
+    ],
+    "anon_execute": false,
+    "migration_count": 0,
+    "service_execute": false,
+    "scoped_anon_execute": false,
+    "function_has_pilbara": false,
+    "function_has_unknown": false,
+    "authenticated_execute": true,
+    "scoped_service_execute": false,
+    "base_authenticated_execute": true,
+    "production_sentinel_present": false,
+    "scoped_authenticated_execute": true
+  },
+  "after": {
+    "head": [
+      "20260908103000",
+      "jobcard_hours_live_repair"
+    ],
+    "anon_execute": false,
+    "migration_count": 1,
+    "service_execute": false,
+    "scoped_anon_execute": false,
+    "function_has_pilbara": true,
+    "function_has_unknown": true,
+    "authenticated_execute": true,
+    "scoped_service_execute": false,
+    "base_authenticated_execute": false,
+    "production_sentinel_present": false,
+    "scoped_authenticated_execute": true
+  },
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "production_contacted": false,
+  "production_writes": false
+}

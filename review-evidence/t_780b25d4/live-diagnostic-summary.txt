@@ -1,0 +1,205 @@
+{
+  "head": [
+    "20260908103000",
+    "jobcard_hours_live_repair"
+  ],
+  "vehicle": {
+    "id": "a1b2ea79-1933-5453-81e3-b0b1945c94bf",
+    "version": 3,
+    "stock_number": "12705177",
+    "source_system": "microsoft_navision",
+    "job_card_number": null,
+    "source_record_id": "4d9b05f4-ffcc-4716-bb33-2e657d7dee18"
+  },
+  "grants": {
+    "base_authenticated": false,
+    "batch_authenticated": true,
+    "scoped_authenticated": true
+  },
+  "production_sentinel_present": false,
+  "source_state_keys": [
+    "bookings",
+    "hours_receipts",
+    "line_adjustments",
+    "operation_lines",
+    "requirements"
+  ],
+  "related": {
+    "pilbara_tables": [
+      "pdc_pilbara_service_classification_batches",
+      "pdc_pilbara_service_classification_current",
+      "pdc_pilbara_service_classification_history",
+      "pdc_pilbara_service_classification_work_controls",
+      "pdc_pilbara_service_classification_work_item_delete_authorizati",
+      "pdc_pilbara_service_import_batches",
+      "pdc_pilbara_service_import_receipts",
+      "pdc_pilbara_service_import_rows",
+      "pdc_pilbara_service_operation_history",
+      "pdc_pilbara_service_operations"
+    ],
+    "all_stock_vehicles": [
+      {
+        "id": "a1b2ea79-1933-5453-81e3-b0b1945c94bf",
+        "version": 3,
+        "deleted_at": null,
+        "stock_number": "12705177",
+        "job_card_number": null,
+        "lifecycle_state": "active"
+      }
+    ],
+    "pilbara_operations": [
+      {
+        "created_at": "2026-09-07T03:53:01.494802+00:00",
+        "vehicle_id": "a1b2ea79-1933-5453-81e3-b0b1945c94bf",
+        "operation_id": "ba6e854a-da07-4bae-8fb9-db620db6919b",
+        "source_order": 138,
+        "stock_number": "12705177",
+        "semantic_hash": "902599572600d89073fc57e684b008c72113030cf393e730c0e956d2ade7885d",
+        "classification": "Review",
+        "parts_semantics": "not_backordered",
+        "raw_evidence_id": "c261dc42-73a8-4996-af64-fec9541ad204",
+        "hours_provenance": "source_explicit",
+        "importer_version": "pilbara_service_open_jobcards_v1",
+        "repair_order_number": "JC14123887",
+        "original_line_number": 3,
+        "operation_description": "Side Steps - Alloy",
+        "parts_on_backorder_raw": "No",
+        "source_estimated_hours": 0.75,
+        "effective_estimated_hours": 0.75
+      },
+      {
+        "created_at": "2026-09-07T03:53:01.494956+00:00",
+        "vehicle_id": "a1b2ea79-1933-5453-81e3-b0b1945c94bf",
+        "operation_id": "2bcc0247-5bf5-4644-8e72-8cadc883511b",
+        "source_order": 139,
+        "stock_number": "12705177",
+        "semantic_hash": "8781d814432155252f6dd05b44c81a52c70522a49868cd363ac39f30f8f566d3",
+        "classification": "Review",
+        "parts_semantics": "not_backordered",
+        "raw_evidence_id": "195ff5e3-267a-480f-b667-6aa690741e18",
+        "hours_provenance": "source_explicit",
+        "importer_version": "pilbara_service_open_jobcards_v1",
+        "repair_order_number": "JC14123887",
+        "original_line_number": 2,
+        "operation_description": "Pre-Delivery",
+        "parts_on_backorder_raw": "No",
+        "source_estimated_hours": 1.5,
+        "effective_estimated_hours": 1.5
+      },
+      {
+        "created_at": "2026-09-07T03:53:01.495163+00:00",
+        "vehicle_id": "a1b2ea79-1933-5453-81e3-b0b1945c94bf",
+        "operation_id": "3adcd2da-23f0-43c3-8e0d-b505732d9854",
+        "source_order": 140,
+        "stock_number": "12705177",
+        "semantic_hash": "d753d505ab2f3de3c48114604aafe134f59f8bdcaeda76d3058b9a5baa40b407",
+        "classification": "Review",
+        "parts_semantics": "not_backordered",
+        "raw_evidence_id": "a9e390f3-02e1-424d-b39a-ca5edb991364",
+        "hours_provenance": "source_explicit",
+        "importer_version": "pilbara_service_open_jobcards_v1",
+        "repair_order_number": "JC14123887",
+        "original_line_number": 1,
+        "operation_description": "Complementary Full Tank of Fuel",
+        "parts_on_backorder_raw": "No",
+        "source_estimated_hours": 0,
+        "effective_estimated_hours": 0
+      }
+    ],
+    "pilbara_work_controls": [
+      {
+        "category": "FITTING",
+        "created_at": "2026-09-07T07:42:18.555677+00:00",
+        "vehicle_id": "a1b2ea79-1933-5453-81e3-b0b1945c94bf",
+        "work_item_id": "15578d64-1132-45cd-b771-56658781eaf8",
+        "created_batch_id": "9298ca73-7471-4b64-87ea-396fe5fe8930"
+      }
+    ],
+    "navision_scope_records": [
+      {
+        "id": "4d9b05f4-ffcc-4716-bb33-2e657d7dee18",
+        "is_current": true,
+        "dealer_code": "37047",
+        "record_status": "current",
+        "canonical_vehicle_id": "a1b2ea79-1933-5453-81e3-b0b1945c94bf"
+      }
+    ],
+    "job_card_operation_lines": [],
+    "pilbara_operation_columns": [
+      {
+        "data_type": "uuid",
+        "column_name": "operation_id"
+      },
+      {
+        "data_type": "text",
+        "column_name": "importer_version"
+      },
+      {
+        "data_type": "text",
+        "column_name": "stock_number"
+      },
+      {
+        "data_type": "text",
+        "column_name": "repair_order_number"
+      },
+      {
+        "data_type": "integer",
+        "column_name": "original_line_number"
+      },
+      {
+        "data_type": "integer",
+        "column_name": "source_order"
+      },
+      {
+        "data_type": "uuid",
+        "column_name": "vehicle_id"
+      },
+      {
+        "data_type": "text",
+        "column_name": "operation_description"
+      },
+      {
+        "data_type": "numeric",
+        "column_name": "source_estimated_hours"
+      },
+      {
+        "data_type": "numeric",
+        "column_name": "effective_estimated_hours"
+      },
+      {
+        "data_type": "text",
+        "column_name": "hours_provenance"
+      },
+      {
+        "data_type": "text",
+        "column_name": "parts_on_backorder_raw"
+      },
+      {
+        "data_type": "text",
+        "column_name": "parts_semantics"
+      },
+      {
+        "data_type": "text",
+        "column_name": "classification"
+      },
+      {
+        "data_type": "text",
+        "column_name": "semantic_hash"
+      },
+      {
+        "data_type": "uuid",
+        "column_name": "raw_evidence_id"
+      },
+      {
+        "data_type": "timestamp with time zone",
+        "column_name": "created_at"
+      }
+    ],
+    "pilbara_classification_current": []
+  },
+  "requirements": 1,
+  "bookings": 0,
+  "operation_lines": 0,
+  "line_adjustments": 0,
+  "output": "C:\\Hermes-Active\\projects\\pdc-control-board-staging\\.worktrees\\t_780b25d4\\review-evidence\\t_780b25d4\\live-diagnostic.json"
+}

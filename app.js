@@ -7575,10 +7575,13 @@ async function loadAuthenticatedOperationSummary(row) {
       const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
       const config = window.PDC_SUPABASE_CONFIG || {};
       if (!token || !config.url || !config.publishableKey) return null;
-      const response = await fetch(`${config.url}/rest/v1/rpc/get_vehicle_workshop_detail_scoped`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: canonicalId, p_dealer_code: String(config.dealerCode || '14450') }) });
+      const dealerCode = vehicleWorkshopDetailRequestDealerCode(vehicle, config);
+      if (!dealerCode) return null;
+      const response = await fetch(`${config.url}/rest/v1/rpc/get_vehicle_workshop_detail_scoped`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: canonicalId, p_dealer_code: dealerCode }) });
       if (!response.ok) return null;
-      const detail = await response.json().catch(() => null);
-      if (!detail || String(detail.vehicle_id || '') !== canonicalId || !Array.isArray(detail.line_adjustments)) return null;
+      const contract = vehicleWorkshopDetailResponse(await response.json().catch(() => null), canonicalId);
+      if (!contract.ok) return null;
+      const detail = contract.detail;
       app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'ready', detail });
       return detail;
     })().finally(() => app.authenticatedOperationSummaryRequests.delete(canonicalId));
@@ -12846,12 +12849,13 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
         manualOverrideHours: adjustment.manual_assignment_locked && adjustment.correction_origin !== 'manual_operator'
           ? line.manual_override_hours
           : vehicleWorkshopAdjustedSourceHours(adjustment.estimated_hours),
+        manualHoursUnknown: adjustment.correction_origin === 'manual_operator_unknown',
         adjustmentId: adjustment.adjustment_id,
         adjustmentVersion: Number(adjustment.version || 0),
         adjustmentProtected: adjustment.manual_assignment_locked === true,
         correctionOrigin: adjustment.correction_origin || '',
         workshopManualLine: false,
-      } : { ...line, workshopLineKey: lineKey, sourceWorkshopStage: group.stage, estimatedHours: sourceHours, sourceEstimatedHours: /\bai\b|model/.test(sourceKind) ? null : sourceHours, aiEstimatedHours: /\bai\b|model/.test(sourceKind) ? sourceHours : vehicleWorkshopAdjustedSourceHours(line.ai_estimated_hours), protectedHours: line.protected_hours, manualOverrideHours: line.manual_override_hours, adjustmentId: '', adjustmentVersion: 0, adjustmentProtected: false, correctionOrigin: '', workshopManualLine: false };
+      } : { ...line, workshopLineKey: lineKey, sourceWorkshopStage: group.stage, estimatedHours: sourceHours, sourceEstimatedHours: /\bai\b|model/.test(sourceKind) ? null : sourceHours, aiEstimatedHours: /\bai\b|model/.test(sourceKind) ? sourceHours : vehicleWorkshopAdjustedSourceHours(line.ai_estimated_hours), protectedHours: line.protected_hours, manualOverrideHours: line.manual_override_hours, manualHoursUnknown: false, adjustmentId: '', adjustmentVersion: 0, adjustmentProtected: false, correctionOrigin: '', workshopManualLine: false };
       const targetStage = adjustment ? vehicleWorkshopStageCode(adjustment.stage_code) : group.stage;
       const targetGroup = targetStage !== group.stage ? ensureGroup(targetStage) : null;
       if (targetGroup) {
@@ -13001,12 +13005,39 @@ function vehicleWorkshopHoursProjection(line = {}) {
     aiEstimatedHours: line.aiEstimatedHours,
     protectedHours: line.protectedHours,
     manualOverrideHours: line.manualOverrideHours,
+    manualHoursUnknown: line.manualHoursUnknown,
   });
 }
 
 function vehicleWorkshopHoursEvidenceLabel(projection = {}, line = {}) {
   if (line.correctionOrigin === 'craig_standard_pd_1_5') return 'Craig standard override · scheduling authority';
-  return ({ manual_override: 'Manual override · scheduling authority', protected: 'Protected estimate · scheduling authority', source: 'Source evidence · scheduling authority', ai_fallback: 'AI fallback · no source estimate', unavailable: 'No hours evidence' })[projection.rule] || 'No hours evidence';
+  return ({ manual_unknown: 'Manual override · hours unknown', manual_override: 'Manual override · scheduling authority', protected: 'Protected estimate · scheduling authority', source: 'Source evidence · scheduling authority', ai_fallback: 'AI fallback · no source estimate', unavailable: 'No hours evidence' })[projection.rule] || 'No hours evidence';
+}
+
+function vehicleWorkshopDetailRequestDealerCode(vehicle = {}, config = {}) {
+  const dealer = cleanNavisionText(vehicle.__sharedNavisionDealerCode || vehicle.dealerCode || vehicle.dealer_code || config.dealerCode || '');
+  return ['14450', '37047'].includes(dealer) ? dealer : '';
+}
+
+function vehicleWorkshopDetailResponse(detail, canonicalId = '') {
+  if (detail?.ok === false) {
+    const code = cleanNavisionText(detail.code || detail.error || 'workshop_detail_rejected');
+    const message = ({
+      dealer_scope_denied: 'Your signed-in account is not authorised for this dealer’s Workshop data.',
+      vehicle_not_in_dealer_scope: 'This vehicle is outside the signed-in dealer Workshop scope.',
+    })[code] || `The shared Workshop request was rejected (${code}).`;
+    return { ok: false, detail: null, message };
+  }
+  const complete = detail && String(detail.vehicle_id || '') === String(canonicalId || '')
+    && Array.isArray(detail.requirements) && Array.isArray(detail.bookings) && Array.isArray(detail.line_adjustments);
+  return complete
+    ? { ok: true, detail, message: '' }
+    : { ok: false, detail: null, message: 'The shared Workshop response was incomplete.' };
+}
+
+function vehicleWorkshopDisplayLineHours(projection = {}, totalHours = null, lineCount = 0) {
+  if (projection.rule === 'manual_unknown') return null;
+  return projection.schedulingHours ?? (lineCount === 1 ? totalHours : null);
 }
 
 function vehicleWorkshopHoursClass(line = {}, estimate = null) {
@@ -13048,7 +13079,9 @@ function vehicleWorkshopHoursBatchRowsFromPage(page) {
 
 function vehicleWorkshopHoursBatchValueValid(row = {}) {
   if (!row.operationLineId || !/^source:[0-9a-f-]{36}$/i.test(row.lineKey) || !Number.isInteger(row.expectedLineVersion) || row.expectedLineVersion < 0) return false;
-  if (row.estimatedHours === null) return true;
+  const raw = String(row.raw === undefined ? (row.estimatedHours ?? '') : row.raw).trim();
+  if (raw === '') return row.estimatedHours === null;
+  if (!/^(?:0|[1-9][0-9]{0,2})(?:\.[0-9]{1,2})?$/.test(raw)) return false;
   return Number.isFinite(row.estimatedHours) && row.estimatedHours >= 0 && row.estimatedHours <= 999.99
     && Math.abs(Math.round(row.estimatedHours * 100) - row.estimatedHours * 100) <= 1e-9;
 }
@@ -13161,8 +13194,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
   const hasSchedulableHours = Number.isFinite(totalHours) && totalHours > 0;
   const rows = group.lines.map((line, index) => {
     const projection = projections[index] || vehicleWorkshopHoursProjection(line);
-    const ownHours = projection.schedulingHours;
-    const estimate = ownHours ?? (group.lines.length === 1 ? totalHours : null);
+    const estimate = vehicleWorkshopDisplayLineHours(projection, totalHours, group.lines.length);
     const lineKey = vehicleWorkshopLineIdentity(group.stage, line);
     const description = vehicleWorkshopLineDescription(line, `${presentation.label} work required`);
     const lineBookings = vehicleWorkshopBookingsForLine(group, line);
@@ -13260,11 +13292,14 @@ async function loadVehicleWorkshopDetail(vehicle = {}, { force = false } = {}) {
   app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'loading' });
   if (app.vehicleDetailPage === 'work' && vehicleKey(selectedVehicle() || {}) === selectedKey) renderDetail();
   try {
-    const response = await fetch(`${config.url}/rest/v1/rpc/get_vehicle_workshop_detail_scoped`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: canonicalId, p_dealer_code: String(config.dealerCode || '14450') }) });
+    const dealerCode = vehicleWorkshopDetailRequestDealerCode(vehicle, config);
+    if (!dealerCode) throw new Error('This vehicle has no confirmed dealer scope for Workshop data.');
+    const response = await fetch(`${config.url}/rest/v1/rpc/get_vehicle_workshop_detail_scoped`, { method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: canonicalId, p_dealer_code: dealerCode }) });
     if (generation !== app.vehicleWorkshopDetailRequestGeneration) return null;
     if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? 'Your account is not authorised to read Workshop booking details.' : `Workshop booking detail request failed (${response.status}).`);
-    const detail = await response.json();
-    if (!detail || String(detail.vehicle_id || '') !== canonicalId || !Array.isArray(detail.requirements) || !Array.isArray(detail.bookings)) throw new Error('The shared Workshop response was incomplete.');
+    const contract = vehicleWorkshopDetailResponse(await response.json(), canonicalId);
+    if (!contract.ok) throw new Error(contract.message);
+    const detail = contract.detail;
     app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'ready', detail });
     if (app.vehicleDetailPage === 'work' && vehicleKey(selectedVehicle() || {}) === selectedKey) renderDetail();
     return detail;
