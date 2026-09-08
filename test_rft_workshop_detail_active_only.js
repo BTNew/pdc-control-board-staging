@@ -13,6 +13,11 @@ const context = {
   app: { vehicleWorkshopDetailCache: new Map(), vehicleWorkshopDetailRequestGeneration: 0, vehicleDetailPage: 'details' },
   window: { PDC_SUPABASE_CONFIG: { url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co', publishableKey: 'public-test-key' } },
   getPdcSupabaseAccessToken: () => 'test-token',
+  vehicleWorkshopDetailRequestDealerCode: () => '14450',
+  vehicleWorkshopDetailResponse: (detail, canonicalId) => detail && detail.vehicle_id === canonicalId
+    && Array.isArray(detail.requirements) && Array.isArray(detail.bookings) && Array.isArray(detail.line_adjustments)
+    ? { ok: true, detail, message: '' }
+    : { ok: false, detail: null, message: 'The shared Workshop response was incomplete.' },
   vehicleWorkshopDetailCanonicalId: vehicle => String(vehicle.__emailVehicleId || ''),
   vehicleKey: vehicle => String(vehicle.__emailVehicleId || ''),
   selectedVehicle: () => null,
@@ -20,7 +25,7 @@ const context = {
   fetch: async (_url, options) => {
     fetchCalls += 1;
     const requested = JSON.parse(options.body).p_vehicle_id;
-    return { ok: true, status: 200, json: async () => ({ vehicle_id: requested, requirements: [], bookings: [] }) };
+    return { ok: true, status: 200, json: async () => ({ vehicle_id: requested, requirements: [], bookings: [], line_adjustments: [] }) };
   },
 };
 vm.createContext(context);
