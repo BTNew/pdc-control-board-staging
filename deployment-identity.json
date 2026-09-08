@@ -1,6 +1,6 @@
 {
   "environment": "staging",
-  "application_version": "2026.08.27.706-final-authoritative-lifecycle",
+  "application_version": "2026.09.09.03-workshop-cache-coherence",
   "checklist_closure_version": "2026.08.31.3100",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",

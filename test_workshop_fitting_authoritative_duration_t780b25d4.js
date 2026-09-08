@@ -77,9 +77,9 @@ assert.strictEqual(planner.workshopQueueEstimatedLabel(vehicle, 'FITTING'), '2.2
 
 const appSource = fs.readFileSync('app.js', 'utf8');
 const indexSource = fs.readFileSync('index.html', 'utf8');
-assert.ok(appSource.includes("const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.08.02-fitting-authoritative-duration';"),
+assert.ok(appSource.includes("const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.09.03-fitting-duration-coherence';"),
   'the repaired planner must use a fresh dynamic-script cache identity');
-assert.ok(indexSource.includes('fitting-duration=2026.09.08.02'),
+assert.ok(indexSource.includes('fitting-duration=2026.09.09.03'),
   'the repaired app shell must use a fresh cache identity');
 
 console.log('workshop fitting authoritative duration regression: PASS');
