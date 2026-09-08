@@ -37,6 +37,20 @@ class Rule:
 
 
 _DEFAULT_RULES = (
+    Rule(
+        "craig-delivery-fuel-charge-fitting",
+        "COMPLIMENTARY FULL TANK OF FUEL",
+        "FITTING",
+        "Complimentary full-tank fuel and equivalent delivery battery-charge operations map to Fitting.",
+        aliases=(
+            "FULL TANK OF FUEL",
+            "VEHICLE DELIVERY FUEL FILL",
+            "DELIVER WITH BATTERY FULLY CHARGED",
+            "100 BATTERY STATE OF CHARGE",
+            "100 PERCENT BATTERY STATE OF CHARGE",
+        ),
+        priority=135,
+    ),
     Rule("craig-window-tint", "WINDOW TINT", "TINT", "Genuine vehicle window tint work maps to Tint.", aliases=("DARKEST LEGAL TINT", "DARKEST LEGAL WINDOW TINT"), priority=130),
     Rule("craig-bus-4x4-conversion", "BUS 4X4", "BUS_4X4", "Only explicit Bus 4x4 conversion work maps to Bus 4x4.", aliases=("4X4 BUS CONVERSION", "BUS FOUR WHEEL DRIVE CONVERSION"), priority=130),
     Rule("craig-wheel-tyre", "WHEEL NUT INDICATOR", "TYRE", "Tyre upgrades, additional spares and wheel-nut indicators map to Tyres.", aliases=("TYRE UPGRADE", "TYRES ", "ADDITIONAL SPARE TYRE", "ADDITIONAL SPARE WHEEL"), priority=125),

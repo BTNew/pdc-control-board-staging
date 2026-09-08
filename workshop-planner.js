@@ -3076,11 +3076,12 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
         rank: workshopSearchRank(vehicle, clean),
         archived: Boolean(vehicle.isArchived || vehicle.archivedAt || statusCategory(vehicle) === 'deleted'),
         bookings,
+        candidateInLane: Boolean(candidateAuthority),
         candidateAvailable: candidateAuthority?.schedule_enabled === true,
         candidateDisabledReason: candidateAuthority?.disabled_reason || '',
       };
     })
-    .filter(item => item.bookings.length || item.candidateAvailable)
+    .filter(item => item.bookings.length || item.candidateInLane)
     .sort((a, b) => a.rank - b.rank
       || String(displayStockNumber(a.vehicle) || a.vehicleKey).localeCompare(String(displayStockNumber(b.vehicle) || b.vehicleKey))
       || a.vehicleKey.localeCompare(b.vehicleKey));

@@ -64,6 +64,25 @@ def classify_operation(
         return Classification("TYRE", "PLANNED", "wheel_nut_indicator", rule["rule_id"] if rule else "craig-wheel-tyre", store.ruleset_version)
     rule = store.resolve(text)
     if rule:
+        if rule["rule_id"] == "craig-delivery-fuel-charge-fitting":
+            approved_preparation = any(
+                re.fullmatch(pattern, text)
+                for pattern in (
+                    r"(?:COMPLIMENTARY|COMPLEMENTARY) FULL TANK OF FUEL(?: (?:AND OR|OR) (?:100 )?BATTERY (?:STATE OF )?CHARGE)?",
+                    r"DELIVER (?:THE )?VEHICLE WITH (?:A )?FULL TANK OF FUEL",
+                    r"VEHICLE DELIVERY FUEL FILL",
+                    r"DELIVER (?:THE )?(?:VEHICLE )?WITH (?:THE )?BATTERY FULLY CHARGED",
+                    r"(?:DELIVER (?:THE )?VEHICLE (?:AT )?)?100 (?:PERCENT )?BATTERY STATE OF CHARGE(?: AT DELIVERY)?",
+                )
+            )
+            if not approved_preparation:
+                return Classification(
+                    None,
+                    "REVIEW",
+                    "delivery_fuel_charge_requires_unambiguous_preparation_intent",
+                    rule["rule_id"],
+                    store.ruleset_version,
+                )
         if rule["destination"] == "SUBLET":
             if explicit_sublet:
                 return Classification("SUBLET", "PLANNED", "explicit_sublet_evidence", rule["rule_id"], store.ruleset_version)
