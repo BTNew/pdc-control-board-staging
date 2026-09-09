@@ -29,10 +29,10 @@
     const loadReview = () => {
       const reviewStyle = document.createElement('link');
       reviewStyle.rel = 'stylesheet';
-      reviewStyle.href = 'pdc-review-stations.css?v=2026.09.09.10';
+      reviewStyle.href = 'pdc-review-stations.css?v=2026.09.09.12';
       document.head.appendChild(reviewStyle);
       const review = document.createElement('script');
-      review.src = 'pdc-review-stations.js?v=2026.09.09.10';
+      review.src = 'pdc-review-stations.js?v=2026.09.09.12';
       document.head.appendChild(review);
     };
     const loadRework = () => {

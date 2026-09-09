@@ -14,3 +14,7 @@
 .review-station-message { display: block; font-size: 13px; line-height: 1.4; margin-top: 5px; overflow-wrap: anywhere; }
 .qc-phone-item > .review-station-control { grid-column: 1 / -1; flex-basis: 100%; width: 100%; box-sizing: border-box; margin: 4px 0 0; }
 @media (max-width: 600px) { .review-station-fields select { font-size: 16px; } .review-station-fields button { min-width: 100px; } }
+
+/* Embedded in the existing Review operation row, with full-width controls. */
+.authenticated-operation-station li > .review-station-control { grid-column: 1 / -1; width: 100%; box-sizing: border-box; margin-top: 8px; }
+.authenticated-operation-station .review-station-control small { display: block; grid-column: auto; }
