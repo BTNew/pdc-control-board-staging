@@ -16,7 +16,7 @@
   if (phone && (!location.hash || location.hash.startsWith('#/'))) {
     window.history.replaceState({ pdcView: 'qc' }, '', `${location.pathname}${location.search}#/qc`);
   }
-  const version = '2026.09.09.13';
+  const version = '2026.09.10.01';
   const style = document.createElement('link');
   style.rel = 'stylesheet';
   style.href = `pdc-qc-mobile.css?v=${version}`;
@@ -24,6 +24,11 @@
   const load = () => {
     // Append last so the phone layout wins over legacy desktop refinements.
     document.head.appendChild(style);
+
+    const tileCleanup = document.createElement('script');
+    tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.01';
+    document.head.appendChild(tileCleanup);
+
     const script = document.createElement('script');
     script.src = `pdc-qc-mobile.js?v=${version}`;
     const loadReview = () => {
