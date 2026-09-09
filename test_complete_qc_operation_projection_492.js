@@ -15,5 +15,5 @@ assert.match(app, /Unallocated – mapping review/);
 assert.match(app, /Station mapping review is required before QC completion/);
 assert.match(app, /stage === 'UNALLOCATED_MAPPING_REVIEW' \? 2 : stage === 'SUBLET' \? 1 : 0/);
 assert.strictEqual(identity.application_version, '2026.09.09.04-workshop-live-shape-authority');
-assert.strictEqual(identity.observed_applied_database_migration.version, '20260827051000');
+assert.strictEqual(identity.observed_applied_database_migration.version, '20260909120000');
 console.log('Complete QC/Board Job Card operation projection 492: PASS');

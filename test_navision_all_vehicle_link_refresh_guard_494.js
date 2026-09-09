@@ -21,6 +21,6 @@ assert.match(sql, /AFTER INSERT OR UPDATE OF normalized_data,is_current,record_s
 assert.match(sql, /AFTER INSERT OR UPDATE OF stock_number,source_system,source_record_id,source_payload,deleted_at ON public\.vehicles/);
 assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.pdc_navision_vehicle_parity_494\(uuid\) TO authenticated,service_role/);
 assert.strictEqual(identity.application_version, '2026.09.09.04-workshop-live-shape-authority');
-assert.strictEqual(identity.observed_applied_database_migration.version, '20260827051000');
+assert.strictEqual(identity.observed_applied_database_migration.version, '20260909120000');
 assert.strictEqual(identity.production_unchanged, true);
 console.log('All-vehicle Navision link and refresh parity guard 494: PASS');

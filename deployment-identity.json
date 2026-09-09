@@ -7,14 +7,7 @@
   "production_unchanged": true,
   "mailbox_runtime_changed": true,
   "complete_vehicle_delete_commissioned": false,
-  "candidate_database_migration": {
-    "version": "20260909120000",
-    "name": "workshop_live_shape_authority",
-    "file": "supabase/staging_only/20260909120000_workshop_live_shape_authority.sql",
-    "sha256": "1c9dd2fcf494e2e2243cf1cb5d7896efffed37026de91ca034e91922248c3870",
-    "commissioned": true,
-    "review_status": "staging_applied"
-  },
+  "candidate_database_migration": null,
   "checklist_closure_migration": {
     "version": "20260831280000",
     "name": "pdc_checklist_completion_booking_preservation",
@@ -82,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260827051000",
-    "name": "501_exact_uid639_640_all_operations_import",
-    "file": "supabase/staging_only/20260827051000_501_exact_uid639_640_all_operations_import.sql",
-    "sha256": "adae6ce8d1bbb8b8a91ae8397e120917fd7cc12af281ec2d992901d97575890c",
+    "version": "20260909120000",
+    "name": "workshop_live_shape_authority",
+    "file": "supabase/staging_only/20260909120000_workshop_live_shape_authority.sql",
+    "sha256": "1c9dd2fcf494e2e2243cf1cb5d7896efffed37026de91ca034e91922248c3870",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified append-only staging-only migration chain through 501: exact UID639/640 imports are Navision-linked and retain all 37 Job Card operations."
+    "source": "Verified STAGING apply receipt run175: Workshop outstanding candidates preserve authoritative fitting-stage hours and truthful scheduling state."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
