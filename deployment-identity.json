@@ -1,13 +1,20 @@
 {
   "environment": "staging",
-  "application_version": "2026.09.09.03-workshop-cache-coherence",
+  "application_version": "2026.09.09.04-workshop-live-shape-authority",
   "checklist_closure_version": "2026.08.31.3100",
   "frontend_source_commit": "resolved-from-github-actions-head",
   "staging_project_ref": "cdsmnqxtyyoeoznmbidd",
   "production_unchanged": true,
   "mailbox_runtime_changed": true,
   "complete_vehicle_delete_commissioned": false,
-  "candidate_database_migration": null,
+  "candidate_database_migration": {
+    "version": "20260909120000",
+    "name": "workshop_live_shape_authority",
+    "file": "supabase/staging_only/20260909120000_workshop_live_shape_authority.sql",
+    "sha256": "1c9dd2fcf494e2e2243cf1cb5d7896efffed37026de91ca034e91922248c3870",
+    "commissioned": true,
+    "review_status": "staging_applied"
+  },
   "checklist_closure_migration": {
     "version": "20260831280000",
     "name": "pdc_checklist_completion_booking_preservation",

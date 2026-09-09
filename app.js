@@ -1,4 +1,4 @@
-const APP_VERSION = '2026.09.09.03-workshop-cache-coherence';
+const APP_VERSION = '2026.09.09.04-workshop-live-shape-authority';
 const WORKSHOP_PLANNER_SCRIPT_VERSION = '2026.09.09.03-fitting-duration-coherence';
 // Production Supabase project ref. Used only to LABEL which environment
 // the backup status panel is showing (staging vs production) -- this
@@ -13643,6 +13643,21 @@ function vehicleModalIdentityStock(vehicle = {}) {
   );
 }
 
+function vehicleModalDealerIdentity(vehicle = {}) {
+  const dealer = cleanNavisionText(vehicle.__sharedNavisionDealerCode || vehicle.dealerCode || vehicle.dealer_code || '');
+  return ['14450', '37047'].includes(dealer) ? dealer : '';
+}
+
+function vehicleModalApplyDealerIdentity(vehicle, identity = app.vehicleModalIdentity) {
+  if (!vehicle || !identity) return null;
+  const boundDealer = cleanNavisionText(identity.dealerCode || '');
+  const mappedDealer = cleanNavisionText(vehicle.__sharedNavisionDealerCode || vehicle.dealerCode || vehicle.dealer_code || '');
+  if (!boundDealer) return vehicle;
+  if (!['14450', '37047'].includes(boundDealer)) return null;
+  if (mappedDealer && mappedDealer !== boundDealer) return null;
+  return { ...vehicle, __sharedNavisionDealerCode: boundDealer };
+}
+
 function exactAuthoritativeVehicleSnapshotRow(identity = app.vehicleModalIdentity, rows = app.emailVehicleLocationRows) {
   const host = typeof window !== 'undefined' ? window : globalThis;
   const resolver = host.PDC_VEHICLE_MODAL_IDENTITY?.resolveExactAuthoritativeVehicleRow;
@@ -13662,7 +13677,7 @@ function vehicleModalBoundVehicle() {
   // The authenticated snapshot intentionally retains raw snake_case rows.
   // Map the one exact UUID+Stock row before handing it to the camelCase card.
   if (exact.ok && typeof module?.mapServerVehicle === 'function') {
-    const mapped = module.mapServerVehicle(exact.row);
+    const mapped = vehicleModalApplyDealerIdentity(module.mapServerVehicle(exact.row), identity);
     if (!mapped || mapped.__emailVehicleServerAuthoritative !== true
         || String(vehicleWorkshopDetailCanonicalId(mapped) || '').trim() !== canonicalId
         || vehicleModalIdentityStock(mapped) !== stockBaseline
@@ -13686,7 +13701,7 @@ function vehicleModalBoundVehicle() {
     });
   const exactDtos = canonicalRows.filter(vehicle => vehicleModalIdentityStock(vehicle) === stockBaseline);
   if (canonicalRows.length !== 1 || exactDtos.length !== 1) return null;
-  const bound = exactDtos[0];
+  const bound = vehicleModalApplyDealerIdentity(exactDtos[0], identity);
   return bound?.__emailVehicleIdentityConflict === true ? null : bound;
 }
 
@@ -13892,7 +13907,7 @@ async function refreshVehicleModalExactIdentity(identity = app.vehicleModalIdent
       app.vehicleModalIdentityLastError = exact.code;
       return { ok: false, code: exact.code, vehicle: null };
     }
-    const mapped = module.mapServerVehicle(exact.row);
+    const mapped = vehicleModalApplyDealerIdentity(module.mapServerVehicle(exact.row), owner);
     if (!mapped || mapped.__emailVehicleServerAuthoritative !== true
         || String(vehicleWorkshopDetailCanonicalId(mapped) || '').trim() !== String(owner.canonicalId || '').trim()
         || vehicleModalIdentityStock(mapped) !== String(owner.stockBaseline || '').trim()
@@ -13933,11 +13948,12 @@ function openVehicleModal(stock) {
   app.vehicleModalIdentity = Object.freeze({
     canonicalId: vehicleWorkshopDetailCanonicalId(vehicle),
     stockBaseline: vehicleModalIdentityStock(vehicle),
+    dealerCode: vehicleModalDealerIdentity(vehicle),
   });
   app.vehicleModalIdentityReady = false;
   app.vehicleModalIdentityRecoveryAttempted = false;
   app.vehicleModalIdentityLastError = '';
-  if (!app.vehicleModalIdentity.canonicalId || !app.vehicleModalIdentity.stockBaseline) {
+  if (!app.vehicleModalIdentity.canonicalId || !app.vehicleModalIdentity.stockBaseline || !app.vehicleModalIdentity.dealerCode) {
     app.vehicleModalIdentity = null;
     window.alert('The exact vehicle identity is unavailable. Refresh the list and try again. No vehicle was changed.');
     return false;

@@ -49,7 +49,7 @@ const app = fs.readFileSync('app.js', 'utf8');
 const index = fs.readFileSync('index.html', 'utf8');
 const staging = fs.readFileSync('staging.html', 'utf8');
 const version = app.match(/const APP_VERSION = '([^']+)'/)?.[1];
-assert.strictEqual(version, '2026.09.09.03-workshop-cache-coherence');
+assert.strictEqual(version, '2026.09.09.04-workshop-live-shape-authority');
 assert.ok(index.includes(`app.js?v=${version}`));
 assert.match(staging, /http-equiv=["']refresh["'][^>]+content=["']0;\s*url=\.\/["']/i);
 
