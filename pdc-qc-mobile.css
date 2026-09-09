@@ -96,3 +96,10 @@ html.pdc-qc-phone .pdc-auth-card { width: 100%; min-width: 0; max-width: 430px; 
 @media (prefers-reduced-motion: reduce) {
   .qc-phone-app *, .qc-phone-app *::before, .qc-phone-app *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
 }
+
+/* Explicit, multi-item QC rejection selection. */
+.qc-reject-selection { display: grid; gap: 8px; margin: 12px 0; }
+.qc-reject-selection label { display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border: 1px solid #fecaca; border-radius: 8px; }
+.qc-reject-selection input { width: 24px; height: 24px; flex: 0 0 24px; }
+.qc-reject-selection small { display: block; font-size: 12px; color: #475569; margin-top: 4px; }
+.qc-phone-missing[aria-pressed="true"] { background: #b91c1c; color: white; }

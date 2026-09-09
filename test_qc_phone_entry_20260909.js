@@ -41,7 +41,8 @@ test('canonical index redirect preserves query and authentication fragment', () 
 test('published mobile source compiles, uses existing authorities, and fails back on load errors', () => {
   new vm.Script(mobile);
   assert.match(mobile, /projectRef !== 'cdsmnqxtyyoeoznmbidd'/);
-  assert.match(mobile, /service\.rejectQcVehicleToPmb/);
+  assert.match(mobile, /rpc\/reject_pdc_qc_vehicle_to_pmb_stoppage_767/);
+  assert.match(mobile, /p_rejected_lines: lines\.map/);
   assert.match(mobile, /desktopSignoff\(key\)/);
   assert.match(mobile, /qcPageQueueOperationState/);
   assert.match(mobile, /data\?\.vehicle_id !== row\.__emailVehicleId/);

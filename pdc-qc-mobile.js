@@ -160,60 +160,62 @@
   function openRejection(key, lineIdentity = '') {
     const row = rowFor(key);
     if (!row || !canWrite() || busy(key) || pending(key)) return;
-    const line = qcPageOperationLines(row).find(item => item.lineIdentity === lineIdentity);
-    const reason = line ? `Not fitted: ${line.description}`.slice(0, 240) : '';
-    rejectionDrafts.set(key, { lineIdentity: line?.lineIdentity || '', description: line?.description || '', reason });
+    for (const other of rejectionDrafts.keys()) if (other !== key) rejectionDrafts.delete(other);
+    const draft = rejectionDrafts.get(key) || { selected: new Set(), reason: '', request: null };
+    if (lineIdentity && qcPageOperationLines(row).some(l => l.lineIdentity === lineIdentity)) {
+      if (draft.selected.has(lineIdentity)) draft.selected.delete(lineIdentity);
+      else draft.selected.add(lineIdentity);
+    }
+    draft.request = null;
+    rejectionDrafts.set(key, draft);
     renderQualityControlPage();
-    document.querySelector('.qc-phone-reject-panel')?.scrollIntoView({ block: 'center', behavior: 'smooth' });
   }
   async function rejectVehicle(key) {
-    let row = rowFor(key);
-    const draft = rejectionDrafts.get(key);
+    const row = rowFor(key), draft = rejectionDrafts.get(key);
     if (!row || !draft || !canWrite() || busy(key) || pending(key)) return false;
-    const reason = String(draft.reason || '').trim().replace(/\s+/g, ' ');
-    if (reason.length < 3 || reason.length > 240) { feedback(key, 'error', 'Enter a rejection reason of 3–240 characters.'); return false; }
-    const service = app.emailVehicleLocationService;
-    if (typeof service?.rejectQcVehicleToPmb !== 'function') { feedback(key, 'error', 'QC rejection is unavailable. Nothing was changed.'); return false; }
+    const lines = qcPageOperationLines(row).filter(l => draft.selected.has(l.lineIdentity));
+    if (!lines.length || lines.length !== draft.selected.size) { feedback(key, 'error', 'Select every item that needs repair before confirming.'); return false; }
+    const reason = String(draft.reason || `Not fitted / QC repair: ${lines.map(l => l.description).join('; ')}`).trim().replace(/\s+/g, ' ').slice(0, 240);
+    if (reason.length < 3) { feedback(key, 'error', 'Enter a reason of at least 3 characters.'); return false; }
+    const actor = window.PDC_AUTH_CONTEXT?.userId;
     qcPageRejectInFlight.add(key);
-    feedback(key, 'saving', 'Rejecting QC and returning the vehicle to stoppages…');
+    feedback(key, 'saving', `Rejecting ${lines.length} selected items and returning the vehicle to stoppages…`);
     try {
       await qcPageOperationMutationChain;
-      row = rowFor(key);
-      if (!row) throw new Error('Vehicle is no longer awaiting QC. Refresh the list.');
-      const line = qcPageOperationLines(row).find(item => item.lineIdentity === draft.lineIdentity);
-      // A previously checked item must not remain checked when reported missing.
-      // A failed second step leaves it unchecked and reports failure, never RFT.
-      if (line?.completed) {
-        const unchecked = await service.setQcOperationCompletion(row.__emailVehicleId, row.__emailVehicleVersion,
-          line.lineIdentity, Number(line.lineVersion || 0), false, crypto.randomUUID());
-        if (!unchecked?.ok || unchecked.data?.line?.completed !== false || !qcPageReceiptLineApply(row, line.lineIdentity, unchecked)) {
-          throw new Error('The missing item could not be unchecked. Refresh and retry; QC has not been rejected.');
-        }
-      }
-      const stock = displayStockNumber(row) || key;
-      const result = await service.rejectQcVehicleToPmb(row.__emailVehicleId, stock, row.__emailVehicleVersion, reason, crypto.randomUUID());
-      const receipt = result?.data;
-      if (!result?.ok || receipt?.vehicle_id !== row.__emailVehicleId || !receipt?.receipt_id
-          || receipt.current_location !== 'PMB' || receipt.workshop_status !== 'stoppage') {
-        throw new Error(/version/i.test(result?.code || '')
-          ? 'The vehicle changed in another session. Refresh and retry the rejection.'
-          : 'QC rejection was not confirmed. Refresh and check the vehicle before retrying.');
-      }
-      rejected.set(key, Number(receipt.vehicle_version_after));
-      forgetPhoto(row);
-      rejectionDrafts.delete(key);
-      qcSelectedVehicleKey = '';
-      qcPageNotice = `${stock} — QC rejected. Returned to PMB Stoppage / Fix First. Reason: ${reason}`;
-      await refreshEmailVehicleLocations();
-      window.scrollTo(0, 0);
+      const config = window.PDC_SUPABASE_CONFIG || {}, token = getPdcSupabaseAccessToken();
+      if (!token || !actor || new URL(config.url).hostname !== 'cdsmnqxtyyoeoznmbidd.supabase.co') throw new Error('Sign in before rejecting QC.');
+      // Retain the exact request on timeout: retry may only reuse this payload.
+      draft.request ||= { p_vehicle_id: row.__emailVehicleId, p_stock_number: displayStockNumber(row) || key,
+        p_expected_vehicle_version: row.__emailVehicleVersion, p_reason: reason, p_idempotency_key: crypto.randomUUID(),
+        p_rejected_lines: lines.map(l => ({ line_identity: l.lineIdentity, line_version: Number(l.lineVersion || 0) })) };
+      const controller = new AbortController(), timeout = setTimeout(() => controller.abort(), 30000);
+      let result;
+      try {
+        const response = await fetch(`${config.url.replace(/\/$/, '')}/rest/v1/rpc/reject_pdc_qc_vehicle_to_pmb_stoppage_767`, {
+          method: 'POST', signal: controller.signal,
+          headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(draft.request),
+        });
+        result = await response.json();
+        if (!response.ok || !result?.ok) throw new Error(result?.message || result?.code || 'QC rejection was not confirmed.');
+      } finally { clearTimeout(timeout); }
+      const received = new Set((result.rejected_lines || []).map(l => l.line_identity));
+      if (actor !== window.PDC_AUTH_CONTEXT?.userId || result.vehicle_id !== row.__emailVehicleId || !result.receipt_id
+          || result.current_location !== 'PMB' || result.workshop_status !== 'stoppage'
+          || received.size !== lines.length || lines.some(l => !received.has(l.lineIdentity))) throw new Error('QC rejection read-back did not match the selected items. Refresh and check the vehicle.');
+      rejected.set(key, Number(result.vehicle_version_after));
+      forgetPhoto(row); rejectionDrafts.delete(key); qcSelectedVehicleKey = '';
+      qcPageNotice = `${displayStockNumber(row) || key} — ${lines.length} QC items rejected. Returned to PMB Stoppage / Fix First for repair.`;
+      await refreshEmailVehicleLocations(); window.scrollTo(0, 0);
       return true;
     } catch (error) {
-      feedback(key, 'error', error.message || 'QC rejection failed. Nothing was signed off.');
+      if (/VERSION_CONFLICT/i.test(error.message || '')) draft.request = null;
+      feedback(key, 'error', /VERSION_CONFLICT/i.test(error.message || '')
+        ? 'The vehicle or an item changed. Refresh QC and review the selection before retrying.'
+        : error.name === 'AbortError' ? 'Confirmation timed out. Retry to check the same request; do not create another rejection.'
+        : error.message || 'QC rejection failed. Nothing was signed off.');
       return false;
-    } finally {
-      qcPageRejectInFlight.delete(key);
-      renderQualityControlPage();
-    }
+    } finally { qcPageRejectInFlight.delete(key); renderQualityControlPage(); }
   }
   async function signoff(key) {
     const row = rowFor(key);
@@ -269,18 +271,19 @@
         <label class="qc-phone-check"><input type="checkbox" data-qc-operation-check="${e(key)}" data-qc-line-identity="${e(line.lineIdentity)}" ${line.completed ? 'checked' : ''} ${enabled ? '' : 'disabled'} aria-label="${e(`Verify fitted: ${line.description}`)}">
           <span><strong>${e(line.description || line.operationNo || `Item ${index + 1}`)}</strong><small>${e(qcPageStageLabel(line.stageCode))} · ${waiting ? 'Saving…' : line.completed ? 'Checked' : knownLine(line) ? 'Check fitted and correct' : 'Hours / station review required'}</small></span>
         </label>
-        <button type="button" class="qc-phone-missing" data-qc-not-fitted="${e(line.lineIdentity)}" ${locked || pending(key) ? 'disabled' : ''} aria-label="${e(`Not fitted: ${line.description}`)}">Not fitted</button>
+        <button type="button" class="qc-phone-missing" data-qc-not-fitted="${e(line.lineIdentity)}" ${busy(key) || pending(key) || !canWrite() ? 'disabled' : ''} aria-pressed="${rejectionDrafts.get(key)?.selected.has(line.lineIdentity) === true}" aria-label="${e(`Not fitted: ${line.description}`)}">${rejectionDrafts.get(key)?.selected.has(line.lineIdentity) ? 'Selected for repair' : 'Not fitted'}</button>
       </div>`;
     }).join('');
   }
   function rejectionPanel(key) {
-    const draft = rejectionDrafts.get(key);
-    if (!draft) return '';
-    return `<section class="qc-phone-reject-panel" role="region" aria-label="Confirm QC rejection">
-      <h3>Reject QC?</h3><p>This returns the vehicle to <strong>PMB Stoppage / Fix First</strong> for repairs. It will not move to RFT.</p>
-      ${draft.description ? `<p class="qc-phone-reject-item">${e(draft.description)}</p>` : ''}
-      <label for="qc-phone-reason">Reason for rejection</label><textarea id="qc-phone-reason" maxlength="240" rows="3" ${busy(key) ? 'disabled' : ''}>${e(draft.reason)}</textarea>
-      <div class="qc-phone-reject-buttons"><button type="button" data-qc-cancel-reject ${busy(key) ? 'disabled' : ''}>Cancel</button><button type="button" class="qc-phone-danger" data-qc-confirm-reject ${busy(key) ? 'disabled' : ''}>${qcPageRejectInFlight.has(key) ? 'Rejecting…' : 'Reject QC → Stoppage'}</button></div>
+    const draft = rejectionDrafts.get(key), row = rowFor(key);
+    if (!draft || !row) return '';
+    const lines = qcPageOperationLines(row);
+    return `<section class="qc-phone-reject-panel" role="region" aria-label="Select items to reject">
+      <h3>Select all items requiring repair</h3><p>Only the selected items and their hours will be sent back to <strong>PMB Stoppage / Fix First</strong>. No item is signed off by this action.</p>
+      <div class="qc-reject-selection">${lines.map(line => `<label><input type="checkbox" data-qc-reject-select="${e(line.lineIdentity)}" ${draft.selected.has(line.lineIdentity) ? 'checked' : ''} ${busy(key) ? 'disabled' : ''}><span>${e(line.description)}<small>${e(qcPageStageLabel(line.stageCode))} · ${line.estimatedHours == null ? 'Hours need review' : e(line.estimatedHours) + ' h'}</small></span></label>`).join('')}</div>
+      <label for="qc-phone-reason">Additional reason (optional)</label><textarea id="qc-phone-reason" maxlength="240" rows="3" ${busy(key) ? 'disabled' : ''}>${e(draft.reason)}</textarea>
+      <div class="qc-phone-reject-buttons"><button type="button" data-qc-cancel-reject ${busy(key) ? 'disabled' : ''}>Cancel</button><button type="button" class="qc-phone-danger" data-qc-confirm-reject ${busy(key) || !draft.selected.size ? 'disabled' : ''}>${qcPageRejectInFlight.has(key) ? 'Rejecting…' : 'Reject selected (' + draft.selected.size + ') → Stoppage'}</button></div>
     </section>`;
   }
   function detail(row) {
@@ -347,7 +350,8 @@
     });
     bind('[data-qc-not-fitted]', 'click', event => { openRejection(key, event.currentTarget.dataset.qcNotFitted); });
     bind('[data-qc-reject-other]', 'click', () => { openRejection(key); });
-    bind('#qc-phone-reason', 'input', event => { const draft = rejectionDrafts.get(key); if (draft) draft.reason = event.currentTarget.value; });
+    bind('#qc-phone-reason', 'input', event => { const draft = rejectionDrafts.get(key); if (draft) { draft.reason = event.currentTarget.value; draft.request = null; } });
+    bind('[data-qc-reject-select]', 'change', event => { openRejection(key, event.currentTarget.dataset.qcRejectSelect); });
     bind('[data-qc-cancel-reject]', 'click', () => { rejectionDrafts.delete(key); renderQualityControlPage(); });
     bind('[data-qc-confirm-reject]', 'click', () => { void rejectVehicle(key); });
     bind('[data-qc-retry-photo]', 'click', () => { void attachPhoto(key, retryFiles.get(key)); });
@@ -364,14 +368,35 @@
       textarea?.setSelectionRange(...selection);
     }
   }
-  renderQualityControlPage = function () { return mobile() ? renderPhone() : desktopRender(); };
+  function renderDesktop() {
+    desktopRender();
+    const host = document.querySelector('#qc-page-host');
+    const original = host?.querySelector('[data-qc-reject]');
+    if (!original) return;
+    const key = original.dataset.qcReject, row = rowFor(key);
+    if (!row) return;
+    const button = original.cloneNode(true); // Replace the old single-reason listener.
+    button.textContent = 'Select items / Reject QC';
+    button.disabled = !canWrite() || busy(key) || pending(key);
+    original.replaceWith(button);
+    button.addEventListener('click', () => openRejection(key));
+    if (!rejectionDrafts.has(key)) return;
+    const panel = document.createElement('div'); panel.innerHTML = rejectionPanel(key);
+    host.querySelector('.qc-work-checklist')?.insertAdjacentElement('afterend', panel);
+    host.querySelectorAll('[data-qc-operation-check],[data-qc-signoff],[data-qc-photo]').forEach(node => { node.disabled = true; });
+    panel.querySelectorAll('[data-qc-reject-select]').forEach(node => node.addEventListener('change', () => openRejection(key,node.dataset.qcRejectSelect)));
+    panel.querySelector('#qc-phone-reason')?.addEventListener('input', event => { const draft = rejectionDrafts.get(key); draft.reason = event.target.value; draft.request = null; });
+    panel.querySelector('[data-qc-cancel-reject]')?.addEventListener('click', () => { rejectionDrafts.delete(key); renderQualityControlPage(); });
+    panel.querySelector('[data-qc-confirm-reject]')?.addEventListener('click', () => { void rejectVehicle(key); });
+  }
+  renderQualityControlPage = function () { return mobile() ? renderPhone() : renderDesktop(); };
   showView = function (view, options) { return desktopShowView(mobile() ? 'qc' : view, options); };
   function updateMode() {
     document.documentElement.classList.toggle('pdc-qc-phone', mobile());
     if (mobile()) {
       const authFragment = window.location.hash && !window.location.hash.startsWith('#/');
       showView('qc', { historyMode: authFragment ? 'none' : 'replace' });
-    } else if (app.currentView === 'qc') desktopRender();
+    } else if (app.currentView === 'qc') renderQualityControlPage();
   }
   media.addEventListener?.('change', updateMode);
   window.addEventListener('pdc-auth-ready', updateMode);
@@ -392,6 +417,6 @@
   });
   window.addEventListener('online', () => { if (mobile()) void refresh(); });
   window.addEventListener('offline', () => { if (mobile()) renderQualityControlPage(); });
-  window.PDC_QC_MOBILE_VERSION = '2026.09.09.05';
+  window.PDC_QC_MOBILE_VERSION = '2026.09.09.13';
   updateMode();
 })();
