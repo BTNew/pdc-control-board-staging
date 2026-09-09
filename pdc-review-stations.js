@@ -10,6 +10,31 @@
   const stationValid = value => STATIONS.some(([code]) => code === value);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const uuid = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
+  const scopeText = value => String(value ?? '').trim();
+  function resolveDealerScope(vehicle = {}, sharedRows = [], bound = null) {
+    const allowed = value => ['14450', '37047'].includes(value);
+    const direct = [vehicle.__sharedNavisionDealerCode, vehicle.dealerCode, vehicle.dealer_code]
+      .map(value => scopeText(value || '')).filter(Boolean);
+    if (direct.some(value => !allowed(value))) return '';
+    const dealers = new Set(direct);
+    const canonicalId = scopeText(vehicle.__emailVehicleId || vehicle.sharedVehicleId || vehicle.__sharedNavisionCanonicalVehicleId || '');
+    const stock = scopeText(vehicle.stock || vehicle.stock_number || vehicle.stockNumber || '');
+    // Email/QC DTOs do not carry dealer_code. Resolve only the exact UUID + Stock
+    // already returned by the authenticated Navision feed, never the site's
+    // default dealer or a same-Stock vehicle belonging to another dealership.
+    if (canonicalId && stock) {
+      for (const row of (Array.isArray(sharedRows) ? sharedRows : [])) {
+        if (String(row.canonical_vehicle_id || '') !== canonicalId || row.is_current !== true || row.record_status !== 'current') continue;
+        if (scopeText(row.stock_number || '') !== stock || !allowed(String(row.dealer_code || ''))) return '';
+        dealers.add(String(row.dealer_code));
+      }
+      if (bound?.canonicalId === canonicalId && scopeText(bound.stockBaseline || '') === stock && allowed(bound.dealerCode)) {
+        dealers.add(bound.dealerCode);
+      }
+    }
+    if (dealers.size === 1) return [...dealers][0];
+    return ''; // An authenticated vehicle must never borrow the default dealer.
+  }
   function reviewLines(vehicle = {}) {
     if (vehicle.__emailVehicleServerAuthoritative !== true || vehicle.pdcQcComplete === true
         || vehicle.pdcQcOperationLinesProjectionPresent !== true
@@ -48,11 +73,16 @@
       && q?.stage_code === stage && q?.active === true && q?.completed === false
       && q?.description === line.description && q?.estimated_hours === line.estimatedHours;
   }
-  const api = { STATIONS, reviewLines, controlHtml, movePayload, verifyMove };
+  const api = { STATIONS, reviewLines, controlHtml, movePayload, verifyMove, resolveDealerScope };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT
       || typeof renderQualityControlPage !== 'function' || window.PDC_REVIEW_STATIONS_VERSION) return;
 
+  const oldDealerScope = vehicleWorkshopDetailRequestDealerCode;
+  vehicleWorkshopDetailRequestDealerCode = function (vehicle = {}, config = {}) {
+    if (vehicle.__emailVehicleServerAuthoritative !== true) return oldDealerScope(vehicle, config);
+    return resolveDealerScope(vehicle, app.sharedNavisionVisibleRows, app.vehicleModalIdentity);
+  };
   const choices = new Map(), messages = new Map(), saving = new Set();
   const rowId = (v, line) => `${v.__emailVehicleId}:${line.lineIdentity}`;
   const canWrite = () => ['operator', 'administrator'].includes(String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase());
@@ -85,6 +115,32 @@
   }
   const oldQcRender = renderQualityControlPage;
   renderQualityControlPage = function (...args) { const result = oldQcRender(...args); installQcControls(); return result; };
+  // The expanded Vehicle Locations row is where staff first see Review jobs.
+  // Bind each selector to the exact source identity, not a description or index.
+  const oldSummary = authenticatedEmailOperationLinesHtml;
+  authenticatedEmailOperationLinesHtml = function (vehicle = {}) {
+    const existing = oldSummary(vehicle), lines = reviewLines(vehicle);
+    if (!existing || !lines.length) return existing;
+    const template = document.createElement('template');
+    template.innerHTML = existing;
+    const reviewSection = template.content.querySelector('[data-operation-station="REVIEW"]');
+    const nodes = reviewSection ? [...reviewSection.querySelectorAll('ol > li')] : [];
+    for (const line of lines) {
+      const label = authenticatedOperationLineLabel(line.operationNo);
+      const matches = nodes.filter(node => node.querySelector('strong')?.textContent === label
+        && node.querySelector('span')?.textContent === line.description);
+      if (matches.length === 1 && !matches[0].querySelector('[data-review-control]')) {
+        matches[0].insertAdjacentHTML('beforeend', htmlFor(vehicle, line, 'locations'));
+      } else {
+        // Duplicate labels/descriptions must not select an arbitrary visual row.
+        // Render a separately identified control instead; the RPC still receives
+        // this canonical source UUID, never text matching or a row index.
+        const parent = reviewSection || template.content.querySelector('[data-auth-operation-summary]');
+        parent?.insertAdjacentHTML('beforeend', `<div class="review-station-source"><strong>${esc(line.operationNo)} · ${esc(line.description)}</strong>${htmlFor(vehicle, line, 'locations')}</div>`);
+      }
+    }
+    return template.innerHTML;
+  };
   const oldWorkPage = renderVehicleWorkshopWorkPage;
   renderVehicleWorkshopWorkPage = function (vehicle = {}) {
     const existing = oldWorkPage(vehicle), lines = reviewLines(vehicle);
@@ -95,9 +151,15 @@
   function rerender() {
     renderQualityControlPage();
     if (document.querySelector('#vehicle-modal')?.hidden === false) renderDetail();
+    // Replace only operation summaries, keeping open buckets/rows in place.
+    document.querySelectorAll('[data-incoming-row][open]').forEach(row => {
+      refreshAuthenticatedOperationSummaryRow(row);
+    });
   }
   function messageFor(error) {
     const code = String(error?.message || '');
+    if (/dealer_scope|dealer.*scope|confirmed dealer|dealer_code/i.test(code)) return 'The vehicle’s dealer could not be confirmed. Refresh Vehicle Locations to load its exact dealer, then try again. No station was changed.';
+    if (/station_detail_unavailable/.test(code)) return 'Workshop details could not be loaded. Check your connection and refresh before retrying.';
     if (/stale|conflict|identity/.test(code)) return 'The operation changed in another session. Refresh and review its current station before retrying.';
     if (/unauthorized|403|401/.test(code)) return 'Sign in with an approved Operator or Administrator account.';
     if (/source_description_requires_review/.test(code)) return 'The source description needs review before it can be mapped. No description was truncated.';
@@ -118,7 +180,13 @@
     let accepted = false;
     try {
       await qcPageOperationMutationChain;
+      if (!vehicleWorkshopDetailRequestDealerCode(v, window.PDC_SUPABASE_CONFIG || {})
+          && typeof loadSharedNavisionVisibleRows === 'function') {
+        await loadSharedNavisionVisibleRows({ force: true });
+      }
+      if (!vehicleWorkshopDetailRequestDealerCode(v, window.PDC_SUPABASE_CONFIG || {})) throw new Error('dealer_scope_unavailable');
       const detail = await loadVehicleWorkshopDetail(v, { force: true });
+      if (!detail) throw new Error(app.vehicleWorkshopDetailCache.get(v.__emailVehicleId)?.message || 'station_detail_unavailable');
       const payload = movePayload(v, line, stage, detail);
       const config = window.PDC_SUPABASE_CONFIG || {};
       const token = getPdcSupabaseAccessToken();
@@ -168,7 +236,7 @@
     event.preventDefault(); event.stopPropagation(); void save(button);
   });
   window.addEventListener('pdc-auth-locked', () => { choices.clear(); messages.clear(); });
-  window.PDC_REVIEW_STATIONS_VERSION = '2026.09.09.10';
+  window.PDC_REVIEW_STATIONS_VERSION = '2026.09.09.12';
   window.PDC_REVIEW_STATIONS = api;
   rerender();
 })();
