@@ -25,10 +25,6 @@
     // Append last so the phone layout wins over legacy desktop refinements.
     document.head.appendChild(style);
 
-    const tileCleanup = document.createElement('script');
-    tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.01';
-    document.head.appendChild(tileCleanup);
-
     const script = document.createElement('script');
     script.src = `pdc-qc-mobile.js?v=${version}`;
     const loadReview = () => {
@@ -55,6 +51,14 @@
     script.onload = loadRework;
     script.onerror = () => { document.documentElement.classList.remove('pdc-qc-phone'); loadRework(); };
     document.head.appendChild(script);
+
+    // Load the planner-only presentation helper after the established phone
+    // bootstrap. This preserves the existing QC fail-back path while keeping
+    // the planner change independent of mobile QC.
+    const tileCleanup = document.createElement('script');
+    tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.01';
+    document.head.appendChild(tileCleanup);
+
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
     intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.09.11';
