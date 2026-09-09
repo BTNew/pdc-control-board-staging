@@ -52,11 +52,10 @@
     script.onerror = () => { document.documentElement.classList.remove('pdc-qc-phone'); loadRework(); };
     document.head.appendChild(script);
 
-    // Load the planner-only presentation helper after the established phone
-    // bootstrap. This preserves the existing QC fail-back path while keeping
-    // the planner change independent of mobile QC.
+    // Planner-only presentation/search helper. It is versioned separately so
+    // existing browsers pick up small planner fixes without touching mobile QC.
     const tileCleanup = document.createElement('script');
-    tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.01';
+    tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.02';
     document.head.appendChild(tileCleanup);
 
     const intakeStyle = document.createElement('link');
