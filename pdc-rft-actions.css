@@ -1,0 +1,44 @@
+/* RFT status and actions are deliberately different: a tick denotes saved state,
+   an envelope opens a draft, and a truck is an action awaiting confirmation. */
+.rft-row-controls-slot .rft-actions-clean,
+.rft-actions-clean {
+  display:grid!important; grid-template-columns:90px minmax(150px,1.3fr) minmax(125px,1fr);
+  align-items:stretch;gap:8px!important;width:100%; min-width:0;max-width:480px;
+}
+.rft-controls-heading {grid-template-columns:90px minmax(150px,1.3fr) minmax(125px,1fr);gap:8px!important;}
+.rft-actions-clean .rft-action {
+  display:inline-flex!important;align-items:center;justify-content:center;gap:7px;
+  box-sizing:border-box;min-width:0;min-height:38px!important;padding:8px 10px!important;
+  border:1px solid #cbd5e1!important;border-radius:8px;background:#fff;
+  color:#24344b;font:600 12px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif!important;
+  white-space:nowrap;text-decoration:none;box-shadow:none;
+}
+.rft-actions-clean .rft-action-icon {width:17px;height:17px;min-width:17px;display:block;flex-shrink:0;}
+.rft-actions-clean .rft-ready-status.is-ready,
+.rft-actions-clean .rft-collected-status {background:#ecfdf5;color:#146943;border-color:#a7dcc0!important;}
+.rft-actions-clean .rft-ready-status.is-pending {background:#f1f5f9;color:#64748b;}
+.rft-actions-clean button:not(:disabled){cursor:pointer;}
+.rft-actions-clean .rft-email-action:not(:disabled){background:#fff;color:#0e5589;border-color:#acc8dc!important;}
+.rft-actions-clean .rft-email-action:not(:disabled):hover{background:#edf6ff;}
+.rft-actions-clean .rft-collect-action:not(:disabled){background:#195daa;color:#fff;border-color:#195daa!important;}
+.rft-actions-clean .rft-collect-action:not(:disabled):hover{background:#144f92;}
+.rft-actions-clean button:disabled{opacity:1;color:#8a96a6;background:#f5f7f9;cursor:not-allowed;}
+.rft-actions-clean button:focus-visible,.rft-email-review button:focus-visible{outline:3px solid #54a5df;outline-offset:3px;}
+.rft-email-review {max-width:720px;width:calc(100vw - 32px);max-height:90vh;box-sizing:border-box;padding:0;border:1px solid #d3deea;border-radius:14px;color:#20334a;background:#fff;box-shadow:0 18px 70px #152a4640;}
+.rft-email-review::backdrop{background:#0f233b88;}
+.rft-email-review>header{display:flex;align-items:start;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #e1e8ef;position:sticky;top:0;background:#fff;z-index:1;}
+.rft-email-review h2{font:700 21px/1.3 system-ui;margin:0;}
+.rft-email-review header p{font:400 13px/1.4 system-ui;color:#60738b;margin:6px 0 0;}
+.rft-email-review .rft-dialog-close{padding:4px 12px;font:400 28px/1 system-ui;background:#f1f5f9;color:#334155;border:0;border-radius:7px;min-height:36px;cursor:pointer;}
+.rft-email-review-content{padding:20px 24px;font:400 14px/1.5 system-ui;}
+.rft-email-review dl{display:grid;grid-template-columns:65px 1fr;gap:9px;margin:0 0 18px;}
+.rft-email-review dt{font-weight:650;color:#52677f;}
+.rft-email-review dd{margin:0;overflow-wrap:anywhere;}
+.rft-email-review .rft-email-body{font:400 14px/1.6 system-ui;white-space:pre-wrap;overflow-wrap:anywhere;background:#f8fafc;border:1px solid #e2e8f0;padding:18px;border-radius:10px;}
+.rft-email-attachment{border:1px solid #cfe3d9;border-radius:10px;padding:14px;color:#256344;}
+.rft-email-attachment>div{display:flex;align-items:center;gap:8px;}
+.rft-email-attachment img{display:block;width:auto;max-width:100%;max-height:300px;margin:12px auto;border-radius:7px;object-fit:contain;}
+.rft-email-attachment small{display:block;}
+.rft-email-review .rft-email-open-note{font-size:13px;background:#f0f6fc;color:#3a526e;padding:12px;border-radius:8px;}
+.rft-email-open-file{font:600 14px/1.3 system-ui;background:#195daa;color:white;border:0;padding:12px 18px;border-radius:8px;cursor:pointer;}
+@media (max-width:600px){.rft-actions-clean{grid-template-columns:1fr!important;max-width:none;}.rft-email-review>header,.rft-email-review-content{padding:16px;}}

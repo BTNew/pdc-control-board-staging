@@ -27,6 +27,13 @@
     script.src = `pdc-qc-mobile.js?v=${version}`;
     script.onerror = () => document.documentElement.classList.remove('pdc-qc-phone');
     document.head.appendChild(script);
+    const rftStyle = document.createElement('link');
+    rftStyle.rel = 'stylesheet';
+    rftStyle.href = 'pdc-rft-actions.css?v=2026.09.09.08';
+    document.head.appendChild(rftStyle);
+    const rftScript = document.createElement('script');
+    rftScript.src = 'pdc-rft-actions.js?v=2026.09.09.08';
+    document.head.appendChild(rftScript);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
   else load();
