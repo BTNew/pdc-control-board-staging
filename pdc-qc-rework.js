@@ -60,49 +60,60 @@
     return result;
   };
   if (window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE) window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE.mapServerVehicle = mapServerVehicle;
-  const oldPlannerMap = workshopSnapshotVehicleToPlannerRow;
-  workshopSnapshotVehicleToPlannerRow = function(raw, items, stage) {
-    return { ...oldPlannerMap(raw, items, stage), pdcQcRework: raw.qc_rework || null };
-  };
-  const oldLines = workshopStageJobLines;
-  workshopStageJobLines = function(v, stage) { return repairLines(v, stage) ?? oldLines(v, stage); };
-  const oldHours = workshopCalculatedStageHours;
-  workshopCalculatedStageHours = function(v, stage) {
-    const h = repairHours(v, stage);
-    return h === undefined ? oldHours(v, stage) : h;
-  };
-  const oldEstimate = workshopEstimatedHours;
-  workshopEstimatedHours = function(v, stage) {
-    const h = repairHours(v, stage);
-    return h === undefined ? oldEstimate(v, stage) : h === null ? '' : h;
-  };
-  const oldDuration = workshopSchedulingDuration;
-  workshopSchedulingDuration = function(v, stage) {
-    const duration = repairDuration(v, stage);
-    return duration === undefined ? oldDuration(v, stage) : duration;
-  };
-  const oldRequired = workshopRequiredJobsForStageHtml;
-  workshopRequiredJobsForStageHtml = function(v, stage, suppliedLines) {
-    const lines = repairLines(v, stage);
-    return (lines === null ? '' : '<p class="workshop-rework-note"><strong>QC repair only</strong> — previously checked items are excluded from this booking. The full checklist returns for reinspection.</p>')
-      + oldRequired(v, stage, lines ?? suppliedLines);
-  };
-  const oldOpen = openWorkshopVehicleJob;
-  openWorkshopVehicleJob = function(key, stage, plan) {
-    const v = workshopVehicle(key, stage);
-    const h = repairHours(v || {}, stage || window.__activeWorkshopPlannerStage);
-    if (h === null) { window.alert('This QC repair needs a valid estimate and station mapping. Open the vehicle to correct the operation; the original full-job estimate will not be reused.'); return; }
-    oldOpen(key, stage, plan);
-    // A genuinely zero-hour source stays zero. The booking grid allocates its
-    // existing minimum of one minute, labelled separately from source hours.
-    if (h === 0) {
-      const overlay = document.querySelector('[data-workshop-job-overlay]');
-      const input = overlay?.querySelector('[name="estimated_hours"]');
-      if (input) input.value = String(1 / 60);
-      const total = overlay?.querySelector('[data-workshop-estimated-hours-total]');
-      if (total) total.textContent = '0 source hours (1 minute minimum booking)';
-    }
-  };
+  // Workshop code is lazy-loaded. QC must also work before a planner is opened.
+  let plannerHooksInstalled = false;
+  function installPlannerHooks() {
+    if (plannerHooksInstalled || typeof workshopSnapshotVehicleToPlannerRow !== 'function'
+        || typeof openWorkshopVehicleJob !== 'function') return;
+    const oldPlannerMap = workshopSnapshotVehicleToPlannerRow;
+    workshopSnapshotVehicleToPlannerRow = function(raw, items, stage) {
+      return { ...oldPlannerMap(raw, items, stage), pdcQcRework: raw.qc_rework || null };
+    };
+    const oldLines = workshopStageJobLines;
+    workshopStageJobLines = function(v, stage) { return repairLines(v, stage) ?? oldLines(v, stage); };
+    const oldHours = workshopCalculatedStageHours;
+    workshopCalculatedStageHours = function(v, stage) {
+      const h = repairHours(v, stage);
+      return h === undefined ? oldHours(v, stage) : h;
+    };
+    const oldEstimate = workshopEstimatedHours;
+    workshopEstimatedHours = function(v, stage) {
+      const h = repairHours(v, stage);
+      return h === undefined ? oldEstimate(v, stage) : h === null ? '' : h;
+    };
+    const oldDuration = workshopSchedulingDuration;
+    workshopSchedulingDuration = function(v, stage) {
+      const duration = repairDuration(v, stage);
+      return duration === undefined ? oldDuration(v, stage) : duration;
+    };
+    const oldRequired = workshopRequiredJobsForStageHtml;
+    workshopRequiredJobsForStageHtml = function(v, stage, suppliedLines) {
+      const lines = repairLines(v, stage);
+      return (lines === null ? '' : '<p class="workshop-rework-note"><strong>QC repair only</strong> — previously checked items are excluded from this booking. The full checklist returns for reinspection.</p>')
+        + oldRequired(v, stage, lines ?? suppliedLines);
+    };
+    const oldOpen = openWorkshopVehicleJob;
+    openWorkshopVehicleJob = function(key, stage, plan) {
+      const v = workshopVehicle(key, stage);
+      const h = repairHours(v || {}, stage || window.__activeWorkshopPlannerStage);
+      if (h === null) { window.alert('This QC repair needs a valid estimate and station mapping. Open the vehicle to correct the operation; the original full-job estimate will not be reused.'); return; }
+      oldOpen(key, stage, plan);
+      // A genuinely zero-hour source stays zero. The booking grid allocates its
+      // existing minimum of one minute, labelled separately from source hours.
+      if (h === 0) {
+        const overlay = document.querySelector('[data-workshop-job-overlay]');
+        const input = overlay?.querySelector('[name="estimated_hours"]');
+        if (input) input.value = String(1 / 60);
+        const total = overlay?.querySelector('[data-workshop-estimated-hours-total]');
+        if (total) total.textContent = '0 source hours (1 minute minimum booking)';
+      }
+    };
+    plannerHooksInstalled = true;
+  }
+  installPlannerHooks();
+  document.addEventListener('load', event => {
+    if (event.target?.id === 'workshop-planner-script') installPlannerHooks();
+  }, true);
   const oldReady = vehicleReadyForQualityControl;
   vehicleReadyForQualityControl = function(v = {}) {
     const s = scopeOf(v);

@@ -25,9 +25,20 @@
     document.head.appendChild(style);
     const script = document.createElement('script');
     script.src = `pdc-qc-mobile.js?v=${version}`;
+    const loadReview = () => {
+      const reviewStyle = document.createElement('link');
+      reviewStyle.rel = 'stylesheet';
+      reviewStyle.href = 'pdc-review-stations.css?v=2026.09.09.10';
+      document.head.appendChild(reviewStyle);
+      const review = document.createElement('script');
+      review.src = 'pdc-review-stations.js?v=2026.09.09.10';
+      document.head.appendChild(review);
+    };
     const loadRework = () => {
       const rework = document.createElement('script');
-      rework.src = 'pdc-qc-rework.js?v=2026.09.09.09';
+      rework.src = 'pdc-qc-rework.js?v=2026.09.09.10';
+      rework.onload = loadReview;
+      rework.onerror = loadReview;
       document.head.appendChild(rework);
     };
     script.onload = loadRework;
