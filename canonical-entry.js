@@ -25,7 +25,13 @@
     document.head.appendChild(style);
     const script = document.createElement('script');
     script.src = `pdc-qc-mobile.js?v=${version}`;
-    script.onerror = () => document.documentElement.classList.remove('pdc-qc-phone');
+    const loadRework = () => {
+      const rework = document.createElement('script');
+      rework.src = 'pdc-qc-rework.js?v=2026.09.09.09';
+      document.head.appendChild(rework);
+    };
+    script.onload = loadRework;
+    script.onerror = () => { document.documentElement.classList.remove('pdc-qc-phone'); loadRework(); };
     document.head.appendChild(script);
     const rftStyle = document.createElement('link');
     rftStyle.rel = 'stylesheet';
