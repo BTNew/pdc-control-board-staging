@@ -11,6 +11,7 @@
   // The same authenticated website becomes a QC-only client on phones.
   // Never rewrite OAuth/password-recovery fragments.
   const phone = window.matchMedia?.('(max-width: 900px), (pointer: coarse) and (max-width: 1024px)').matches;
+  const requestedIntake = !phone && location.hash === '#/newvehicles';
   document.documentElement.classList.toggle('pdc-qc-phone', Boolean(phone));
   if (phone && (!location.hash || location.hash.startsWith('#/'))) {
     window.history.replaceState({ pdcView: 'qc' }, '', `${location.pathname}${location.search}#/qc`);
@@ -44,6 +45,16 @@
     script.onload = loadRework;
     script.onerror = () => { document.documentElement.classList.remove('pdc-qc-phone'); loadRework(); };
     document.head.appendChild(script);
+    const intakeStyle = document.createElement('link');
+    intakeStyle.rel = 'stylesheet';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.09.11';
+    document.head.appendChild(intakeStyle);
+    const intakeScript = document.createElement('script');
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.09.11';
+    intakeScript.onload = () => {
+      if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
+    };
+    document.head.appendChild(intakeScript);
     const rftStyle = document.createElement('link');
     rftStyle.rel = 'stylesheet';
     rftStyle.href = 'pdc-rft-actions.css?v=2026.09.09.08';
