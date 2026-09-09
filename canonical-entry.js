@@ -16,7 +16,7 @@
   if (phone && (!location.hash || location.hash.startsWith('#/'))) {
     window.history.replaceState({ pdcView: 'qc' }, '', `${location.pathname}${location.search}#/qc`);
   }
-  const version = '2026.09.09.05';
+  const version = '2026.09.09.13';
   const style = document.createElement('link');
   style.rel = 'stylesheet';
   style.href = `pdc-qc-mobile.css?v=${version}`;
@@ -38,7 +38,12 @@
     const loadRework = () => {
       const rework = document.createElement('script');
       rework.src = 'pdc-qc-rework.js?v=2026.09.09.10';
-      rework.onload = loadReview;
+      rework.onload = () => {
+        const usability = document.createElement('script');
+        usability.src = 'pdc-workshop-usability.js?v=2026.09.09.13';
+        usability.onload = loadReview; usability.onerror = loadReview;
+        document.head.appendChild(usability);
+      };
       rework.onerror = loadReview;
       document.head.appendChild(rework);
     };
