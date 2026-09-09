@@ -1,0 +1,16 @@
+/* Review mapping controls only; do not change existing auth or planner layout. */
+.review-station-panel { margin: 0 0 16px; padding: 16px; border: 1px solid #e4c77e; border-radius: 12px; background: #fffbef; color: #253449; }
+.review-station-panel h3 { margin: 0 0 6px; font-size: 17px; }
+.review-station-panel > p { margin: 0 0 14px; font-size: 13px; }
+.review-station-panel article + article { border-top: 1px solid #e7d8b1; margin-top: 14px; padding-top: 14px; }
+.review-station-control { padding: 12px; border: 1px solid #e9cd89; background: #fffbef; border-radius: 10px; margin: 8px 0; color: #253449; text-align: left; min-width: 0; }
+.review-station-control label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.review-station-fields { display: flex; gap: 8px; align-items: stretch; }
+.review-station-fields select { width: auto; min-width: 0; flex: 1; min-height: 42px; padding: 8px 10px; border: 1px solid #aebcd0; border-radius: 7px; background: white; font-size: 15px; color: #172d46; }
+.review-station-fields button { flex: 0 0 auto; min-height: 42px; padding: 8px 14px; border: 1px solid #174566; border-radius: 7px; background: #174566; color: white; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.review-station-fields button:disabled { opacity: .45; cursor: default; }
+.review-station-fields select:focus-visible, .review-station-fields button:focus-visible { outline: 3px solid #73a8e6; outline-offset: 2px; }
+.review-station-control small { display: block; margin-top: 8px; color: #675a3f; font-size: 12px; }
+.review-station-message { display: block; font-size: 13px; line-height: 1.4; margin-top: 5px; overflow-wrap: anywhere; }
+.qc-phone-item > .review-station-control { grid-column: 1 / -1; flex-basis: 100%; width: 100%; box-sizing: border-box; margin: 4px 0 0; }
+@media (max-width: 600px) { .review-station-fields select { font-size: 16px; } .review-station-fields button { min-width: 100px; } }

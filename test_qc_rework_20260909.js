@@ -1,0 +1,73 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const api=require('./pdc-qc-rework.js');
+const source=fs.readFileSync('pdc-qc-rework.js','utf8');
+const appSource=fs.readFileSync('app.js','utf8');
+const planner=fs.readFileSync('workshop-planner.js','utf8');
+const service=fs.readFileSync('pdc-email-vehicle-location-service.js','utf8');
+function fn(text,name){const start=text.indexOf(`function ${name}(`);assert.ok(start>=0,name);const tail=text.slice(start+1).search(/\n(?:async )?function /);return text.slice(start,start+1+tail);}
+function fixture(overrides={}) {
+ const lines=[{active:true,line_identity:'source:fixture-roof',stage_code:'FITTING',description:'Roof racks',estimated_hours:1,job_card_number:'TEST-JC',operation_no:'OP3'}, {active:true,line_identity:'source:fixture-bar',stage_code:'FITTING',description:'Nudge bar',estimated_hours:1.67,operation_no:'OP4'}, {active:true,line_identity:'source:fixture-wire',stage_code:'ELECTRICAL',description:'Wiring correction',estimated_hours:.25,operation_no:'OP5'}];
+ return {id:'local-id',stock:'TEST-ONLY',__emailVehicleId:'fixture-vehicle',__emailVehicleVersion:12,__emailVehicleServerAuthoritative:true,pdcLocation:'PMB',pdcQcComplete:false,
+  pdcQcRework:{contract:'pdc-qc-rework-v1',active:true,vehicle_id:'fixture-vehicle',vehicle_version:12,lines,stages:[{stage_code:'FITTING',estimated_hours:2.67},{stage_code:'ELECTRICAL',estimated_hours:.25}],ready_for_qc:true,repairs_complete:true,issues:[]},...overrides};
+}
+function harness() {
+ const c={console,Map,Set,Promise,JSON,Number,String,Array,Boolean,Date};
+ c.window={PDC_SUPABASE_CONFIG:{projectRef:'cdsmnqxtyyoeoznmbidd'},PDC_AUTH_CONTEXT:{userId:'inspector'}};
+ c.document={addEventListener:()=>{},querySelector:()=>null};
+ c.sessionStorage={getItem:()=>null,removeItem:()=>{}};
+ c.refreshEmailVehicleLocations=async()=>true;
+ c.workshopStageJobLines=()=>[{text:'Original full job'}];
+ c.workshopCalculatedStageHours=()=>9;
+ c.workshopEstimatedHours=()=>9;
+ c.workshopSchedulingDuration=()=>({hours:9,minutes:540});
+ c.openWorkshopVehicleJob=()=>{};
+ c.isActivePartsStoppage=v=>v.pdcPartsStoppage===true;
+ c.vehicleReadyForQualityControl=()=>false;
+ c.markVehicleReadyForQualityControl=()=>{};
+ c.pdcSheetVehicles=()=>[];
+ c.qcPhotoEvidence=new Map();
+ c.qcPhotoEvidenceIsValid=p=>p?.status==='accepted';
+ c.qcPageVehicleKey=v=>v.stock;
+ c.renderQualityControlPage=()=>{};
+ c.qcPageSignoff=()=>{};
+ c.escapeHtml=s=>String(s??'').replace(/[<>&"]/g,x=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[x]));
+ c.normalizePmbStage=s=>String(s||'').toUpperCase();
+ c.cleanNavisionText=s=>String(s||'');
+ c.pmbStageJobDef=()=>null;
+ c.vehicleJobcardNumber=v=>v.jobCardNumber||'';
+ c.vehicleKey=v=>v.stock;
+ c.vehicleIdentityStackHtml=v=>v.stock;
+ c.vehicleCustomerName=()=>'';
+ c.displayVehicle=()=>'';
+ c.pmbStageLabel=s=>s;
+ c.inferredPmbStage=()=>'';
+ c.pdcLocationLabel=()=>'';
+ c.vehiclePdcLocation=v=>v.pdcLocation;
+ c.incomingBucketLabel=()=>'';
+ c.incomingBucketForVehicle=()=>'';
+ c.vehicleIdentityHeaderHtml=()=>'';
+ vm.createContext(c);
+ vm.runInContext(service,c);
+ vm.runInContext(fn(planner,'workshopSnapshotVehicleToPlannerRow'),c);
+ vm.runInContext(fn(planner,'workshopRequiredJobsForStageHtml'),c);
+ vm.runInContext(fn(appSource,'fixFirstRowsHtml'),c);
+ vm.runInContext(source,c);
+ return c;
+}
+test('only unfinished scoped operations appear in the selected bay',()=>{const v=fixture();assert.deepEqual(api.repairLines(v,'FITTING').map(x=>x.text),['Roof racks','Nudge bar']);assert.equal(api.repairHours(v,'FITTING'),2.67);assert.equal(api.repairHours(v,'ELECTRICAL'),.25);assert.equal(api.repairHours(v,'TINT'),null);});
+test('small repair bookings use minute conversion, not full-job or 60-minute default',()=>{const v=fixture();assert.equal(api.repairDuration(v,'ELECTRICAL').minutes,15);assert.equal(api.repairDuration(v,'FITTING').minutes,160);});
+test('unknown repair hours fail closed instead of becoming zero or original job hours',()=>{const v=fixture();v.pdcQcRework.stages[0].estimated_hours=null;assert.equal(api.repairHours(v,'FITTING'),null);assert.equal(api.repairDuration(v,'FITTING'),null);});
+test('genuine zero stays zero while the booking grid gets one labelled minute',()=>{const v=fixture();v.pdcQcRework.stages[0].estimated_hours=0;assert.equal(api.repairHours(v,'FITTING'),0);assert.deepEqual(api.repairDuration(v,'FITTING'),{hours:1/60,minutes:1,sourceEstimatedHours:0});});
+test('ordinary first-build jobs are not filtered as QC repairs',()=>{const v=fixture({pdcQcRework:null});assert.equal(api.repairLines(v,'FITTING'),null);assert.equal(api.repairHours(v,'FITTING'),undefined);assert.equal(api.repairDuration(v,'FITTING'),undefined);});
+test('stale or malformed active rework never supplies full job estimates or readiness',()=>{for(const edit of [{vehicle_version:11},{contract:'other'},{lines:null}]){const v=fixture();Object.assign(v.pdcQcRework,edit);assert.equal(api.repairHours(v,'FITTING'),null);assert.equal(api.readyForReinspection(v),false);}});
+test('only matching trusted vehicle identity is accepted',()=>{const v=fixture();assert.equal(api.scopeOf({...v,__emailVehicleServerAuthoritative:false}),null);v.pdcQcRework.vehicle_id='other';assert.equal(api.scopeOf(v),null);});
+test('return to QC requires repaired status with no unresolved issue and PMB location',()=>{assert.equal(api.readyForReinspection(fixture()),true);for(const edit of [{ready_for_qc:false},{repairs_complete:false},{issues:['parts_stoppage']}]){const v=fixture();Object.assign(v.pdcQcRework,edit);assert.equal(api.readyForReinspection(v),false);}assert.equal(api.readyForReinspection(fixture({pdcLocation:'RFT'})),false);});
+test('deployed mapper and reconciliation preserve canonical repair scope',()=>{const c=harness();const v=fixture();const raw={id:v.__emailVehicleId,stock_number:v.stock,version:12,current_location:'PMB',qc_rework:v.pdcQcRework};assert.equal(c.mapServerVehicle(raw).pdcQcRework.vehicle_id,raw.id);assert.equal(c.reconcileVehicleRows([], [raw], {authoritative:true}).rows?.length??c.reconcileVehicleRows([], [raw], {authoritative:true}).length,1);const p=c.workshopSnapshotVehicleToPlannerRow(raw,[],'FITTING');assert.equal(c.workshopCalculatedStageHours(p,'FITTING'),2.67);});
+test('actual workshop job renderer lists only scoped repair items and their source hours',()=>{const c=harness();const v=fixture();const html=c.workshopRequiredJobsForStageHtml(v,'FITTING', [{text:'Already inspected full original work',hours:9}]);assert.match(html,/QC repair only/);assert.match(html,/Roof racks/);assert.match(html,/Nudge bar/);assert.doesNotMatch(html,/Already inspected full original work|Wiring correction/);assert.match(html,/1.67 h/);assert.equal(c.workshopSchedulingDuration(v,'ELECTRICAL').minutes,15);assert.equal(c.workshopCalculatedStageHours(fixture({pdcQcRework:null}),'FITTING'),9);});
+test('actual Fix First row offers Return to QC only for eligible QC repairs',()=>{const c=harness();const rows=[{vehicle:fixture(),stoppageKind:'pmb',label:'Pending QC fixes'},{vehicle:fixture({stock:'PARTS-ONLY'}),stoppageKind:'parts'}];const html=c.fixFirstRowsHtml(rows);assert.match(html,/data-qc-rework-return="TEST-ONLY"/);assert.match(html,/data-clear-priority-stoppage="PARTS-ONLY"/);const v=fixture();v.pdcQcRework.ready_for_qc=false;assert.doesNotMatch(c.fixFirstRowsHtml([{vehicle:v,stoppageKind:'pmb'}]),/data-qc-rework-return/);assert.equal(c.vehicleReadyForQualityControl({...fixture(),pdcPartsStoppage:true}),false);});
+test('old photo cache cannot satisfy the fresh inspection; current attempt receipt retained',()=>{const c=harness();const v=fixture({pdcQcInspectionKey:'attempt-two'});c.pdcSheetVehicles=()=>[v];c.qcPhotoEvidence.set(v.stock,{status:'accepted',qc_inspection_key:null});let removed=0;c.sessionStorage={getItem:()=>JSON.stringify({photo:{qc_inspection_key:null}}),removeItem:()=>removed++};c.renderQualityControlPage();assert.equal(c.qcPhotoEvidence.has(v.stock),false);assert.equal(removed,1);c.qcPhotoEvidence.set(v.stock,{status:'accepted',qc_inspection_key:'attempt-two'});c.renderQualityControlPage();assert.equal(c.qcPhotoEvidence.has(v.stock),true);});
+test('rework boot waits for mobile renderer before wrapping it, including failed mobile load',()=>{const code=fs.readFileSync('canonical-entry.js','utf8');assert.match(code,/script.onload = loadRework/);assert.match(code,/script.onerror.*loadRework/);assert.match(code,/pdc-qc-rework\.js\?v=/);new vm.Script(source);});
