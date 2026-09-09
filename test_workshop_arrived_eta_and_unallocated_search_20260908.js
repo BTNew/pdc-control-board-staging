@@ -38,7 +38,7 @@ for (const location of ['YH', 'Yard Hold', 'PMB', 'Perth Motor Bodies']) {
 for (const location of ['IT', 'In Transit']) {
   const result = eligibility.scheduleEligibility({ current_location: location, eta_to_kewdale: '2099-12-31' });
   assert.strictEqual(result.enabled, true, `${location} remains ETA-governed`);
-  assert.strictEqual(result.earliestDateKey, '2099-12-31', `${location} keeps the authoritative ETA gate`);
+  assert.strictEqual(result.earliestDateKey, '2100-01-07', `${location} keeps the authoritative ETA + 7 calendar-day gate`);
 }
 assert.strictEqual(eligibility.scheduleEligibility({ current_location: 'Other', eta_to_kewdale: '2099-12-31' }).enabled, false, 'not-arrived Other remains ineligible');
 

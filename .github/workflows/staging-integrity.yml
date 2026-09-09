@@ -52,9 +52,5 @@ jobs:
         run: node test_legacy_website_links.js
       - name: Run staging regression suite
         run: node --test test_*.js
-      - name: Reject obvious privileged frontend secrets
-        run: |
-          if grep -Eini --include='*.js' --include='*.html' --exclude='deployment-identity.json' '(service_role|sb_secret_)' .; then
-            echo 'Privileged Supabase secret marker found in frontend files.'
-            exit 1
-          fi
+      - name: Reject privileged frontend secret values
+        run: node scripts/check_frontend_secrets.js

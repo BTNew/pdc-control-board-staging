@@ -132,7 +132,11 @@
       if (!WORK_KEYS.has(payload.work_key)) throw new TypeError(`${label}.work_key is not controlled`);
       text(payload.description, `${label}.description`, 1, 500);
       if (typeof payload.estimated_hours !== 'number' || !Number.isFinite(payload.estimated_hours) || payload.estimated_hours < 0 || payload.estimated_hours > 999.99) throw new TypeError(`${label}.estimated_hours is invalid`);
-      if (Math.round(payload.estimated_hours * 100) !== payload.estimated_hours * 100) throw new TypeError(`${label}.estimated_hours has more than two decimal places`);
+      // Permit binary floating-point round-off, not genuine fractional hundredths.
+      // Preserve the supplied hours; validation must never rewrite source evidence.
+      const hundredths = payload.estimated_hours * 100;
+      const precisionTolerance = 4 * Number.EPSILON * Math.max(1, Math.abs(hundredths));
+      if (Math.abs(Math.round(hundredths) - hundredths) > precisionTolerance) throw new TypeError(`${label}.estimated_hours has more than two decimal places`);
       if (!TAXONOMY_RE.test(text(payload.taxonomy_version, `${label}.taxonomy_version`, 1, 160))) throw new TypeError(`${label}.taxonomy_version is invalid`);
       if (!TAXONOMY_DISPOSITIONS.has(payload.taxonomy_disposition)) throw new TypeError(`${label}.taxonomy_disposition is invalid`);
       text(payload.source_uid, `${label}.source_uid`, 1, 200);
@@ -306,10 +310,10 @@
       const actionResponse = await callFixedRpc(ACTION_RPC, { p_plan: validated });
       const snapshot = await readSnapshot();
       if (!actionResponse.ok) {
-        return { ...actionResponse, authoritative_readback: snapshot.ok ? snapshot.data : null, readback_ok: snapshot.ok };
+        return { ...actionResponse, authoritative_readback: snapshot.ok ? snapshot.data : null, readback_ok: snapshot.ok, snapshot_fetched: snapshot.ok, effects_verified: false };
       }
       if (!snapshot.ok) {
-        return { ok: false, code: 'authoritative_readback_unavailable', action_result: actionResponse.body, readback_error: snapshot.code };
+        return { ok: false, code: 'authoritative_readback_unavailable', action_result: actionResponse.body, readback_error: snapshot.code, snapshot_fetched: false, effects_verified: false };
       }
       return {
         ...actionResponse.body,
@@ -318,7 +322,10 @@
         action_result: actionResponse.body,
         authoritative_readback: snapshot.data,
         readback_revision: snapshot.revision,
+        // Compatibility flag means fetch succeeded, not field-by-field verification.
         readback_ok: true,
+        snapshot_fetched: true,
+        effects_verified: false,
       };
     }
 
