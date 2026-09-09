@@ -58,16 +58,15 @@
 
   function parseEtaDateKey(value) {
     const raw = String(value || '').trim();
-    let match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (match) return `${match[1]}-${match[2]}-${match[3]}`;
-    match = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!match) return '';
-    const day = Number(match[1]);
-    const month = Number(match[2]);
-    const year = Number(match[3]);
+    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const local = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!iso && !local) return '';
+    const year = Number(iso ? iso[1] : local[3]);
+    const month = Number(iso ? iso[2] : local[2]);
+    const day = Number(iso ? iso[3] : local[1]);
     const date = new Date(Date.UTC(year, month - 1, day));
     if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return '';
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
   function vehicleLocation(vehicle) {
@@ -88,10 +87,15 @@
     if (location === 'PMB' || location === 'YH') return { enabled: true, location, earliestDateKey: '', reason: '' };
     if (location !== 'IT') return { enabled: false, location, earliestDateKey: '', reason: `Location ${location || 'unknown'} is not eligible for workshop scheduling` };
     const rawEta = vehicle?.eta_to_kewdale ?? vehicle?.etaToKewdale ?? vehicle?.navisionKewdaleEta ?? vehicle?.etaAtKewdale ?? '';
-    const earliestDateKey = parseEtaDateKey(rawEta);
+    const etaDateKey = parseEtaDateKey(rawEta);
     if (!String(rawEta || '').trim()) return { enabled: false, location, earliestDateKey: '', reason: 'ETA to Kewdale is missing' };
-    if (!earliestDateKey) return { enabled: false, location, earliestDateKey: '', reason: 'ETA to Kewdale is invalid' };
-    return { enabled: true, location, earliestDateKey, reason: `Scheduling available on or after ${earliestDateKey}` };
+    if (!etaDateKey) return { enabled: false, location, earliestDateKey: '', reason: 'ETA to Kewdale is invalid' };
+    // Date-only UTC arithmetic avoids local timezone/DST shifts: seven calendar days.
+    const earliest = new Date(`${etaDateKey}T00:00:00Z`);
+    earliest.setUTCDate(earliest.getUTCDate() + 7);
+    if (earliest.getUTCFullYear() > 9999) return { enabled: false, location, earliestDateKey: '', reason: 'ETA to Kewdale is invalid' };
+    const earliestDateKey = earliest.toISOString().slice(0, 10);
+    return { enabled: true, location, earliestDateKey, reason: `Scheduling available on or after ${earliestDateKey} (ETA + 7 days)` };
   }
 
   function workshopCanonicalEligibility(input) {
@@ -115,8 +119,8 @@
     const activeBookingByVehicle = new Map();
     bookings.forEach(entry => {
       const bookingStage = entry?.stage_code ?? entry?.stage?.code ?? entry?.stage ?? '';
-      if (canonicalWorkshopStage(bookingStage) !== def.code) return;
       if (!activeStatuses.has(String(entry?.status || '').toLowerCase())) return;
+      if (canonicalWorkshopStage(bookingStage) !== def.code) return;
       const id = String(entry?.vehicle_id ?? entry?.vehicleId ?? '');
       if (id && !activeBookingByVehicle.has(id)) activeBookingByVehicle.set(id, entry);
     });
