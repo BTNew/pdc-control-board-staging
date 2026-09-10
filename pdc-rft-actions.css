@@ -40,5 +40,5 @@
 .rft-email-attachment img{display:block;width:auto;max-width:100%;max-height:300px;margin:12px auto;border-radius:7px;object-fit:contain;}
 .rft-email-attachment small{display:block;}
 .rft-email-review .rft-email-open-note{font-size:13px;background:#f0f6fc;color:#3a526e;padding:12px;border-radius:8px;}
-.rft-email-open-file{font:600 14px/1.3 system-ui;background:#195daa;color:white;border:0;padding:12px 18px;border-radius:8px;cursor:pointer;}
+.rft-email-open-file,.rft-email-copy-photo{font:600 14px/1.3 system-ui;background:#195daa;color:white;border:0;padding:12px 18px;border-radius:8px;cursor:pointer;margin:4px 8px 4px 0;}
 @media (max-width:600px){.rft-actions-clean{grid-template-columns:1fr!important;max-width:none;}.rft-email-review>header,.rft-email-review-content{padding:16px;}}
