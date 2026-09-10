@@ -68,7 +68,7 @@
     intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.09.11';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.09.11';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.10.pmg3';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
@@ -84,5 +84,3 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
   else load();
 })();
-
-
