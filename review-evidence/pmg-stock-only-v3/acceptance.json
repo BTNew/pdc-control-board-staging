@@ -1,0 +1,43 @@
+{
+  "scope": "STAGING only",
+  "project": "cdsmnqxtyyoeoznmbidd",
+  "migration": "20260910060247_pmg_stock_only_intake_v3",
+  "execution": "rollback_only",
+  "results": [
+    {
+      "name": "readback",
+      "result": {
+        "hours": 1120.68,
+        "replay": true,
+        "vehicles": 121,
+        "all_operation_stations_hours_verified": true
+      }
+    },
+    {
+      "name": "unidentified",
+      "result": {
+        "rows": 105,
+        "hours": 112.56,
+        "groups": 10,
+        "replay": true,
+        "vehicles_created": 0
+      }
+    },
+    {
+      "name": "edge_cases",
+      "result": {
+        "explicit_zero": true,
+        "bookings_delta": 0,
+        "completions_delta": 0,
+        "duplicate_ignored": true,
+        "same_line_distinct": true,
+        "department_override": true,
+        "unauthorized_rejected": true,
+        "code_enrichment_no_duplicates": true
+      }
+    }
+  ],
+  "javascript_tests": 340,
+  "browser_integration": "passed with rollback database readback fixtures",
+  "committed_operational_import": false
+}
