@@ -36,7 +36,7 @@ function assertRedirectStub(name) {
 const index = read('index.html');
 assert.match(index, /<link[^>]+rel=["']canonical["'][^>]+href=["']\.\/["']/i,
   'index.html must declare the canonical staging root');
-assert.match(index, /<script[^>]+src=["']canonical-entry\.js["']/i,
+assert.match(index, /<script[^>]+src=["']canonical-entry\.js(?:\?[^"']*)?["']/i,
   'index.html must load the canonical entry guard');
 assert.ok(fs.existsSync(path.join(root, 'canonical-entry.js')), 'canonical entry guard must be committed');
 assert.match(read('canonical-entry.js'), /pathname\.endsWith\(['"]\/index\.html['"]\)/,
