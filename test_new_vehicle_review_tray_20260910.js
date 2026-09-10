@@ -1,0 +1,17 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const api=require('./pdc-new-vehicles.js');
+test('review starts editable operations in the tray without discarding the source proposals',()=>{
+  const row={status:'pending',operations:[{line_identity:'a',department:'139',stage_code:'FITTING',estimated_hours:0,active:true,completed:false},{line_identity:'b',department:'139',stage_code:'ELECTRICAL',estimated_hours:2,active:true,completed:false},{line_identity:'c',department:'138',stage_code:'TINT',estimated_hours:3,active:true,completed:false}]};
+  const before=JSON.stringify(row),choices=api.reviewChoices(row);
+  assert.deepEqual(api.assignmentsFor(row,choices).map(x=>x.stage_code),['','','BUS_4X4']);
+  assert.equal(api.stationGroups(row,choices)[0].lines.length,2);
+  assert.ok(api.problems(row,choices).length);
+  choices.a='FITTING';choices.b='ELECTRICAL';
+  assert.deepEqual(api.problems(row,choices),[]);
+  assert.equal(api.stationGroups(row,choices)[0].lines.length,0);
+  choices.a='';
+  assert.equal(api.stationGroups(row,choices)[0].lines.length,1);
+  assert.equal(JSON.stringify(row),before);
+});
