@@ -1,0 +1,2 @@
+-- Applied to STAGING after the classifier-v2 migration to qualify the category_totals aggregate.
+-- The canonical 20260910032452 source in this repository already includes the corrected qualified aggregate.
