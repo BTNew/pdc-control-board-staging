@@ -1,0 +1,37 @@
+name: Temporary migration source repair
+on:
+  push:
+    branches: [fix/email-ai-hidden-restore-dynamic-revolution-20260910]
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/email-ai-hidden-restore-dynamic-revolution-20260910
+      - name: Repair transcription and verify SQL source
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/staging_only/20260910013146_email_ai_hidden_restore_dynamic_revolution_import_v2.sql')
+          s=p.read_text()
+          bad="v_source_hash text:=lower(btrim(coalesce(p_source_hash,''));"
+          good="v_source_hash text:=lower(btrim(coalesce(p_source_hash,'')));"
+          if bad in s:
+              s=s.replace(bad,good)
+              p.write_text(s)
+          if bad in p.read_text():
+              raise SystemExit('transcription repair failed')
+          PY
+          if git diff --quiet; then
+            echo 'No repair needed.'
+            exit 0
+          fi
+          git config user.name 'BTNew staging source repair'
+          git config user.email 'actions@users.noreply.github.com'
+          git add supabase/staging_only/20260910013146_email_ai_hidden_restore_dynamic_revolution_import_v2.sql
+          git commit -m 'fix(staging): repair migration source transcription'
+          git push origin HEAD:fix/email-ai-hidden-restore-dynamic-revolution-20260910
