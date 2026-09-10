@@ -830,7 +830,25 @@ function createPdcEmailVehicleLocationService(options = {}) {
   }
   function subscribe(onRevision) {
     if (!subscribeRealtime) return { unsubscribe() {} };
-    return subscribeRealtime(PDC_EMAIL_VEHICLE_REVISION_TABLE, event => { if (typeof onRevision === 'function') onRevision(event?.new?.revision ?? null, event); });
+    let timer = null;
+    let latestEvent = null;
+    let stopped = false;
+    const subscription = subscribeRealtime(PDC_EMAIL_VEHICLE_REVISION_TABLE, event => {
+      if (stopped) return;
+      latestEvent = event;
+      // One approval emits a revision for each source line. Refresh once per burst.
+      if (timer !== null) return;
+      timer = setTimeout(() => {
+        timer = null;
+        if (!stopped && typeof onRevision === 'function') onRevision(latestEvent?.new?.revision ?? null, latestEvent);
+      }, 250);
+    });
+    return { unsubscribe() {
+      stopped = true;
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+      return subscription?.unsubscribe?.();
+    } };
   }
   return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, readSubletAuditLedgers, saveVehicleWorkshopLineHoursBatch, updateSublet, createSubletBooking, updateSubletBooking, updateSubletBookingProvider, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport, finalizeQcToRft700, bookRftTransport700, collectRftTransport700, bookRftTransport734, collectRftTransport734, setRftConfirmation736, bookRftTransport739, readRftBookingContext739, readRftTransportDraft739, readRftTransportEvidence734, createAcceptanceVehicle, setQcOperationCompletion, rejectQcVehicleToPmb, uploadQcPhotoEvidence, finalizeQcToRft, finalizeQcRetest, subscribe };
  }
