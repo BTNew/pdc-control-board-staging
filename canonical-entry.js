@@ -68,7 +68,7 @@
     intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.10.review-colours';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.10.review-colours';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.11.approval-queue';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
