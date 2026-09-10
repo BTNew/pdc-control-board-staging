@@ -53,6 +53,12 @@
 
     // Planner-only presentation/search helper. It is versioned separately so
     // existing browsers pick up small planner fixes without touching mobile QC.
+    const slimStyle = document.createElement('link');
+    slimStyle.rel = 'stylesheet'; slimStyle.href = 'pdc-planner-slim.css?v=2026.09.10.01';
+    document.head.appendChild(slimStyle);
+    const slimScript = document.createElement('script');
+    slimScript.src = 'pdc-planner-slim.js?v=2026.09.10.01';
+    document.head.appendChild(slimScript);
     const tileCleanup = document.createElement('script');
     tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.03';
     document.head.appendChild(tileCleanup);
@@ -78,4 +84,5 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
   else load();
 })();
+
 
