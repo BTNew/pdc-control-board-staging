@@ -126,7 +126,9 @@
         <option value="">Needs Review</option>${STATIONS.map(([code,name])=>`<option value="${code}" ${assigned===code?'selected':''}>${name}</option>`).join('')}</select></label></article>`;
   }
   function stationSection(group, tray=false) {
-    return `<section class="nv-station ${tray?'needs-review nv-review-tray':''}" data-nv-drop="${group.code}"><header><h3>${esc(group.label)}</h3><small>${group.lines.length} items · ${group.hours==null?'Hours need review':`${group.hours.toFixed(2)} h`}</small></header><div>${group.lines.map(operation).join('') || `<p class="nv-drop-hint">${tray?'All operations have been placed. Drag a pill back here to review it again.':'Drag pills here'}</p>`}</div></section>`;
+    const theme=!tray&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(group.code):null;
+    const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
+    return `<section class="nv-station ${tray?'needs-review nv-review-tray':''}" data-nv-drop="${group.code}"${style}><header><h3>${esc(group.label)}</h3><small>${group.lines.length} items · ${group.hours==null?'Hours need review':`${group.hours.toFixed(2)} h`}</small></header><div>${group.lines.map(operation).join('') || `<p class="nv-drop-hint">${tray?'All operations have been placed. Drag a pill back here to review it again.':'Drag pills here'}</p>`}</div></section>`;
   }
   function render() {
     const badge=nav.querySelector('.new-vehicle-nav-count');badge.textContent=String(total);badge.hidden=!total;
@@ -145,9 +147,10 @@
     }
     const issues=selected?problems(selected,choices):[];
     const groups=selected?stationGroups(selected,choices):[];
+    const approvalButton=()=>`<button class="primary nv-approve-button" type="button" data-nv-approve ${saving||sourceChanged||issues.length||!writable()?'disabled':''}>${saving?'Saving & adding to board…':'Approve & add to board'}</button>`;
     page.innerHTML=`<div class="nv-header"><div><span class="eyebrow">Tune / Revolution imports</span><h2>${selected?esc(selected.stock_number):'New Vehicles'}</h2>
       <p>${selected?'Review the operation stations, then approve the Job Card.':`${total} awaiting review before they enter Vehicle Locations.`}</p></div>
-      <div class="nv-header-actions">${selected?'<button type="button" data-nv-back>← Vehicle list</button>':'<button type="button" data-nv-unidentified '+(loading?'disabled':'')+'>Unidentified Tune Review</button>'}<button type="button" data-nv-refresh ${loading||saving?'disabled':''}>${loading?'Refreshing…':'Refresh'}</button></div></div>
+      <div class="nv-header-actions">${selected?approvalButton()+'<button type="button" data-nv-back>← Vehicle list</button>':'<button type="button" data-nv-unidentified '+(loading?'disabled':'')+'>Unidentified Tune Review</button>'}<button type="button" data-nv-refresh ${loading||saving?'disabled':''}>${loading?'Refreshing…':'Refresh'}</button></div></div>
       ${error?`<div class="nv-error" role="alert">${esc(error)}</div>`:''}${notice?`<div class="nv-notice" role="status">${esc(notice)}</div>`:''}
       ${selected?`<section class="nv-summary"><h3>${esc(selected.vehicle_description)}</h3><p>${esc(selected.customer_name)} · Job Card ${esc((selected.job_cards || []).join(', '))}</p><p>Location: <strong>${esc(selected.current_location || 'Pending')}</strong>${selected.eta_to_kewdale?` · Kewdale ETA: ${esc(selected.eta_to_kewdale)}`:''} · VIN: ${esc(selected.vin || 'Not recorded')}</p></section>
       ${sourceChanged?'<div class="nv-error" role="alert">Source data changed. <button type="button" data-nv-reload>Reload Job Card</button> before approving.</div>':''}
@@ -155,7 +158,7 @@
       ${stationSection(groups[0],true)}
       <div class="nv-stations">${groups.filter(group=>group.code).map(group=>stationSection(group)).join('')}</div>
       <footer class="nv-approval"><div>${issues.length?issues.map(issue=>`<p>${esc(issue)}</p>`).join(''):'<p>All operations have a station and recorded hours.</p>'}<small>Approval adds this vehicle to its current location on the board. Nothing is booked or marked fitted.</small></div>
-      <button class="primary" type="button" data-nv-approve ${saving||sourceChanged||issues.length||!writable()?'disabled':''}>${saving?'Saving & adding to board…':'Approve & add to board'}</button></footer>`:
+      ${approvalButton()}</footer>`:
       `<div class="nv-list">${items.map(card).join('') || `<div class="nv-empty"><h3>${loading?'Loading Job Cards…':error?'Queue unavailable':'No new vehicles waiting'}</h3><p>New report vehicles appear here after import processing. Existing board vehicles are not reset or pulled back into this queue.</p></div>`}</div>
       <div class="nv-pagination"><button data-nv-page="-1" ${offset===0||loading?'disabled':''}>Previous</button><span>${total?`${offset+1}–${Math.min(offset+items.length,total)} of ${total}`:'0 awaiting review'}</span><button data-nv-page="1" ${offset+items.length>=total||loading?'disabled':''}>Next</button></div>`}`;
     page.querySelectorAll('[data-nv-open]').forEach(button=>button.addEventListener('click',()=>choose(items.find(row=>row.vehicle_id===button.dataset.nvOpen))));
@@ -171,7 +174,7 @@
       group.addEventListener('dragleave',event=>{if(!group.contains(event.relatedTarget))group.classList.remove('nv-drop-active');});
       group.addEventListener('drop',event=>{event.preventDefault();group.classList.remove('nv-drop-active');if(saving||!writable()||sourceChanged)return;const id=event.dataTransfer.getData('text/plain');if(!selected.operations.some(line=>line.line_identity===id&&line.department!=='138'))return;choices[id]=group.dataset.nvDrop;requestKey='';approvalRequest=null;render();});
     });
-    page.querySelector('[data-nv-approve]')?.addEventListener('click',()=>void approve());
+    page.querySelectorAll('[data-nv-approve]').forEach(button=>button.addEventListener('click',()=>void approve()));
   }
   async function approve() {
     if(saving || !writable() || sourceChanged || problems(selected,choices).length) return;
@@ -207,7 +210,7 @@
   window.addEventListener('pdc-auth-locked',()=>{generation++;items=[];total=0;unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.10.review-confident';
+  window.PDC_NEW_VEHICLES_VERSION='2026.09.10.review-colours';
   window.PDC_NEW_VEHICLES=api;
   render();if(readable())void load();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});
