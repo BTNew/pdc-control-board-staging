@@ -22,7 +22,6 @@
   style.href = `pdc-qc-mobile.css?v=${version}`;
   document.head.appendChild(style);
   const load = () => {
-    // Append last so the phone layout wins over legacy desktop refinements.
     document.head.appendChild(style);
 
     const script = document.createElement('script');
@@ -55,7 +54,7 @@
     // Planner-only presentation/search helper. It is versioned separately so
     // existing browsers pick up small planner fixes without touching mobile QC.
     const tileCleanup = document.createElement('script');
-    tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.02';
+    tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.03';
     document.head.appendChild(tileCleanup);
 
     const intakeStyle = document.createElement('link');
