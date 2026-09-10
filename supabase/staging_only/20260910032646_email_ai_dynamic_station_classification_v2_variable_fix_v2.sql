@@ -1,0 +1,2 @@
+-- Applied to STAGING after the classifier-v2 migration to remove PL/pgSQL name ambiguity.
+-- The canonical 20260910032452 source in this repository already includes the corrected v_batch_id names.
