@@ -314,7 +314,7 @@ AS $$
 DECLARE
   v_actor uuid:=auth.uid();
   v_actor_label text:=lower(btrim(coalesce(auth.jwt()->>'email','')))||':viewer:'||coalesce(auth.uid()::text,'missing');
-  v_source_hash text:=lower(btrim(coalesce(p_source_hash,''));
+  v_source_hash text:=lower(btrim(coalesce(p_source_hash,'')));
   v_idem text:=btrim(coalesce(p_idempotency_key,''));
   v_request_hash text;
   v_prior public.pdc_pilbara_service_import_batches%rowtype;
