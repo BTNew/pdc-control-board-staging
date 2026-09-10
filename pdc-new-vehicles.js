@@ -18,6 +18,7 @@
   function problems(row, choices = {}) {
     if (!row || row.status !== 'pending' || !Array.isArray(row.operations) || !row.operations.length) return ['No complete Job Card is available.'];
     const issues = [];
+    if (row.details_source === 'identity_review') issues.push('Vehicle identity needs review before approval.');
     if (assignmentsFor(row, choices).some(item => !validStation(item.stage_code))) issues.push('Choose a station for every operation.');
     if (row.operations.some(line => line.estimated_hours == null || line.estimated_hours === ''
       || !Number.isFinite(Number(line.estimated_hours)) || Number(line.estimated_hours) < 0)) issues.push('One or more operations need a confirmed labour estimate.');
@@ -210,7 +211,7 @@
   window.addEventListener('pdc-auth-locked',()=>{generation++;items=[];total=0;unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.10.review-colours';
+  window.PDC_NEW_VEHICLES_VERSION='2026.09.10.tune-details';
   window.PDC_NEW_VEHICLES=api;
   render();if(readable())void load();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});
