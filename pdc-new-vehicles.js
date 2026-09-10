@@ -9,7 +9,7 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const validStation = code => STATIONS.some(([station]) => station === code);
   function reviewChoices(row) {
-    return Object.fromEntries((row?.operations || []).map(line => [line.line_identity, line.department === '138' ? 'BUS_4X4' : '']));
+    return Object.fromEntries(assignmentsFor(row).map(line => [line.line_identity, line.stage_code]));
   }
   function assignmentsFor(row, choices = {}) {
     return (row?.operations || []).map(line => ({line_identity: line.line_identity,
@@ -151,7 +151,7 @@
       ${error?`<div class="nv-error" role="alert">${esc(error)}</div>`:''}${notice?`<div class="nv-notice" role="status">${esc(notice)}</div>`:''}
       ${selected?`<section class="nv-summary"><h3>${esc(selected.vehicle_description)}</h3><p>${esc(selected.customer_name)} · Job Card ${esc((selected.job_cards || []).join(', '))}</p><p>Location: <strong>${esc(selected.current_location || 'Pending')}</strong>${selected.eta_to_kewdale?` · Kewdale ETA: ${esc(selected.eta_to_kewdale)}`:''} · VIN: ${esc(selected.vin || 'Not recorded')}</p></section>
       ${sourceChanged?'<div class="nv-error" role="alert">Source data changed. <button type="button" data-nv-reload>Reload Job Card</button> before approving.</div>':''}
-      <p class="nv-help">Drag pills from Needs Review into the sections below, or use Move to. Department 138 work stays in Bus 4×4. Your choices are saved when you approve.</p>
+      <p class="nv-help">Only uncertain items appear in Needs Review. Drag them into a station, or use Move to. Pre-delivery is 1 hour standard. Department 138 work stays in Bus 4×4. Your choices are saved when you approve.</p>
       ${stationSection(groups[0],true)}
       <div class="nv-stations">${groups.filter(group=>group.code).map(group=>stationSection(group)).join('')}</div>
       <footer class="nv-approval"><div>${issues.length?issues.map(issue=>`<p>${esc(issue)}</p>`).join(''):'<p>All operations have a station and recorded hours.</p>'}<small>Approval adds this vehicle to its current location on the board. Nothing is booked or marked fitted.</small></div>
@@ -207,7 +207,7 @@
   window.addEventListener('pdc-auth-locked',()=>{generation++;items=[];total=0;unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.10.review-pills';
+  window.PDC_NEW_VEHICLES_VERSION='2026.09.10.review-confident';
   window.PDC_NEW_VEHICLES=api;
   render();if(readable())void load();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});
