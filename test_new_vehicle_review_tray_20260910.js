@@ -2,6 +2,10 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const api=require('./pdc-new-vehicles.js');
+test('an unresolved backend identity blocks approval even when every operation has a station',()=>{
+ const row={status:'pending',details_source:'identity_review',operations:[{line_identity:'a',department:'139',stage_code:'FITTING',estimated_hours:1,active:true,completed:false}]};
+ assert.ok(api.problems(row).includes('Vehicle identity needs review before approval.'));
+});
 test('only uncertain operations start in Needs Review; confident stations and Department 138 are retained',()=>{
   const row={status:'pending',operations:[{line_identity:'a',department:'139',stage_code:'FITTING',estimated_hours:0,active:true,completed:false},{line_identity:'b',department:'139',stage_code:'ELECTRICAL',estimated_hours:2,active:true,completed:false},{line_identity:'c',department:'138',stage_code:'TINT',estimated_hours:3,active:true,completed:false}]};
   row.operations.push({line_identity:'d',department:'139',stage_code:'UNALLOCATED_MAPPING_REVIEW',estimated_hours:0,active:true,completed:false});
