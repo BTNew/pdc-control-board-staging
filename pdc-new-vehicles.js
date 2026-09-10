@@ -190,10 +190,9 @@
       accepted=true;selected=null;choices={};requestKey='';approvalRequest=null;sourceChanged=false;
       items=items.filter(row=>row.vehicle_id!==current.vehicle_id);total=Math.max(0,total-1);
       notice=`${current.stock_number} approved and added to Vehicle Locations. No workshop booking was created.`;
-      await Promise.allSettled([refreshEmailVehicleLocations(),loadSharedNavisionVisibleRows()]);
-      showView('dashboard');
-      const target=document.querySelector('#dashboard');
-      if(target){const note=document.createElement('div');note.className='nv-notice';note.setAttribute('role','status');note.textContent=notice;target.prepend(note);}
+      // The approval receipt is already verified. Keep the intake queue usable
+      // while board projections refresh; a slow refresh must not hold Saving open.
+      void Promise.allSettled([refreshEmailVehicleLocations(),loadSharedNavisionVisibleRows()]);
     } catch(err) {error=accepted?'Approval saved. Refresh Vehicle Locations to see the new vehicle.':message(err);}
     finally {saving=false;render();if(accepted)void load({silent:true});}
   }
