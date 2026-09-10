@@ -13,15 +13,16 @@ test('omitted feed timestamps reproduce Awaiting QC despite RFT location',()=>{
  const {qc_completed_at,qc_completed_by,rft_transferred_at,...omitted}=raw;
  assert.match(controls(mapServerVehicle(omitted),options),/Awaiting QC/);
 });
-test('canonical snapshot maps through reconciliation to RFT and enables draft only',()=>{
+test('canonical snapshot maps through reconciliation to QC signed off awaiting PMB',()=>{
  const mapped=mapServerVehicle(raw);
  const stale={...mapped,pdcQcComplete:false,pdcQcCompleteAt:'',rftTransferredAt:''};
  const reconciled=reconcileVehicleRows([stale],[raw],{authoritative:true}).rows;
  assert.equal(reconciled.length,1);
- assert.equal(ready(reconciled[0]),true);
+ assert.equal(ready(reconciled[0]),false);
  const html=controls(reconciled[0],options);
- assert.match(html,/RFT’d/); assert.doesNotMatch(html,/Awaiting QC/);
- assert.doesNotMatch(html.match(/<button[^>]+data-rft-transport-booked-key[^>]*>/)[0],/disabled/);
+ assert.match(html,/QC’d/); assert.doesNotMatch(html,/Awaiting QC/);
+ assert.match(html.match(/<button[^>]+data-rft-transport-booked-key[^>]*>/)[0],/disabled/);
+ assert.doesNotMatch(html.match(/<button[^>]+data-pmb-rft-release-key[^>]*>/)[0],/disabled/);
  assert.match(html.match(/<button[^>]+data-rft-collected-key[^>]*>/)[0],/disabled/);
  assert.equal(reconciled[0].pdcQcCompleteAt,raw.qc_completed_at);
 });

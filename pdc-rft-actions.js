@@ -26,18 +26,25 @@
     return Boolean(v.rftCollectedAt) || ['collected','completed'].includes(String(v.pdcLifecycleState || v.lifecycleState || '').toLowerCase())
       || ['collected','completed'].includes(String(v.pdcLocation || '').toLowerCase());
   }
-  function ready(v) {
+  function qcSigned(v) {
     return v.__emailVehicleServerAuthoritative === true && Boolean(v.__emailVehicleId)
       && v.pdcQcComplete === true && Boolean(v.rftTransferredAt);
   }
+  function ready(v) {
+    return qcSigned(v) && Number.isFinite(Date.parse(v.rftConfirmedAt))
+      && Number.isFinite(Date.parse(v.pdcQcCompleteAt))
+      && Date.parse(v.rftConfirmedAt) >= Date.parse(v.pdcQcCompleteAt);
+  }
   function controls(v, { key, allowed, authority, inFlight, collectionEnabled }) {
+    const checked = qcSigned(v);
     const released = ready(v);
     const pickedUp = collected(v);
     const hasDraft = Boolean(v.rftTransportDraft?.draft_id);
     const canEmail = allowed && authority && released && !inFlight && (!pickedUp || hasDraft);
     const canCollect = allowed && authority && released && !pickedUp && collectionEnabled && !inFlight;
     return `<span class="rft-transport-controls rft-actions-clean" role="group" aria-label="RFT handover">
-      <span class="rft-action rft-ready-status ${released ? 'is-ready' : 'is-pending'}" role="status" title="${released ? 'QC signed off — ready for transport' : 'Awaiting authoritative QC sign-off'}">${icon(released ? 'check' : 'clock')}<span>${released ? 'RFT’d' : 'Awaiting QC'}</span></span>
+      <span class="rft-action rft-qc-status ${checked ? 'is-ready' : 'is-pending'}" role="status" title="${checked ? 'QC signed off' : 'Awaiting authoritative QC sign-off'}">${icon(checked ? 'check' : 'clock')}<span>${checked ? 'QC’d' : 'Awaiting QC'}</span></span>
+      ${released ? `<span class="rft-action rft-ready-status is-ready" role="status" title="PMB confirmed ready for transport">${icon('check')}<span>RFT’d</span></span>` : `<button type="button" class="rft-action rft-release-action" data-pmb-rft-release-key="${esc(key)}" ${allowed && authority && checked && !pickedUp && !inFlight ? '' : 'disabled'} title="PMB: confirm this vehicle is ready for transport">Mark RFT’d</button>`}
       <button type="button" class="rft-action rft-email-action" data-rft-transport-booked-key="${esc(key)}" ${canEmail ? '' : 'disabled'} title="${hasDraft ? 'Open the unsent salesperson email in Outlook' : 'Prepare the unsent salesperson email in Outlook'}">${icon('mail')}<span>${inFlight ? 'Please wait…' : 'Email salesperson'}</span></button>
       ${pickedUp ? `<span class="rft-action rft-collected-status" role="status">${icon('check')}<span>Collected</span></span>` : `<button type="button" class="rft-action rft-collect-action" data-rft-collected-key="${esc(key)}" ${canCollect ? '' : 'disabled'} title="${canCollect ? 'Confirm the vehicle has physically left PMB' : 'Prepare the salesperson email with QC photo first'}">${icon('truck')}<span>Mark collected</span></button>`}
     </span>`;
@@ -75,7 +82,7 @@
     return { ...data, mimeBytes, photo, photoType:type, text };
   }
   // Pure helpers are also used in Node and browser regressions.
-  if (typeof module === 'object' && module.exports) module.exports = { controls, ready, collected, verifyDraft, outlookBody, openOutlook };
+  if (typeof module === 'object' && module.exports) module.exports = { controls, qcSigned, ready, collected, verifyDraft, outlookBody, openOutlook };
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== STAGING
       || typeof rftTransportControlsHtml !== 'function') return;
 
@@ -152,7 +159,9 @@
       qc_photo_storage_missing:'The saved QC photo could not be read. No attachment was substituted.',
       qc_photo_bytes_mismatch:'The QC photo did not match the saved evidence. No email was opened.',
       vehicle_version_conflict:'This vehicle changed in another session. Refresh and retry.',
-      rft_confirmation_required:'QC sign-off and release to RFT must be recorded first.',
+      rft_confirmation_required:'PMB must mark this vehicle RFT’d before emailing the salesperson.',
+      qc_signoff_required:'Complete mobile QC sign-off before PMB marks this vehicle RFT’d.',
+      rft_confirmation_stale_version:'This vehicle changed. Refresh and retry the PMB release.',
       vehicle_not_in_rft:'This vehicle is no longer in RFT.',
     };
     return known[code] || `The email could not be prepared (${code || 'unknown error'}). No email was sent.`;
@@ -161,6 +170,7 @@
     && Boolean(v.__emailVehicleId) && Number(v.__emailVehicleVersion)>0
     && typeof app.emailVehicleLocationService?.bookRftTransport739 === 'function'
     && typeof app.emailVehicleLocationService?.readRftTransportDraft739 === 'function'
+    && typeof app.emailVehicleLocationService?.setRftConfirmation736 === 'function'
     && typeof app.emailVehicleLocationService?.collectRftTransport734 === 'function';
   rftTransportControlsHtml = function(v={}) {
     const key=vehicleKey(v);
@@ -168,7 +178,7 @@
       inFlight:sessions.has(key)||app.rftTransportActionInFlight?.has(`rft:${key}`),
       collectionEnabled:vehicleRftEmailEvidenceReady(v)});
   };
-  vehicleRftTransitionAuthoritative = ready;
+  vehicleRftTransitionAuthoritative = qcSigned;
   vehicleRftConfirmationActive = ready;
   rftTransportEmailStatusLabel = v => v.rftTransportDraft?.draft_id ? 'Email draft prepared — not sent by the Board' : '';
   rftTransportCollectionDisabledReason = v => !authority(v) ? 'Shared staging authority unavailable'
@@ -203,8 +213,35 @@
   }
   markRftTransportBooked = function(key='',booked=true) { return booked ? openEmail(key) : Promise.resolve(false); };
   downloadRftTransportDraft = openEmail;
-  // Retire the previous manual readiness checkbox: readiness derives from QC.
-  markRftConfirmation = async function() { renderAll(); return false; };
+  markRftConfirmation = async function(key='',confirmed=true) {
+    const v=selectedVehicle(key);
+    if (!confirmed || !v || !vehicleRftLifecycleRoleAllowed() || !authority(v)
+        || !qcSigned(v) || ready(v) || collected(v) || sessions.has(key)) return false;
+    const action=beginRftTransportAction(key); if(!action) return false;
+    try {
+      if (!window.confirm(`Confirm PMB has checked Stock ${displayStockNumber(v)||key} and it is ready for transport?\n\nThis records RFT’d and enables Email salesperson.`)) return false;
+      const result=await app.emailVehicleLocationService.setRftConfirmation736(v.__emailVehicleId,Number(v.__emailVehicleVersion),true,salespersonAssignmentIdempotencyKey());
+      if (!rftTransportActionIsCurrent(action)) return false;
+      if (!result?.ok) { window.alert(message(result?.code)); await refreshEmailVehicleLocations(); return false; }
+      const data=result.data;
+      if (data?.vehicle_id!==v.__emailVehicleId || data.rft_confirmed!==true || !data.receipt_id
+          || Number(data.vehicle_version_after)<=Number(v.__emailVehicleVersion)) throw new Error('PMB release could not be verified. Refresh before retrying.');
+      const refreshed=await refreshEmailVehicleLocations();
+      if (!refreshed) window.alert('PMB release was saved. Refresh to load its confirmed status.');
+      return Boolean(refreshed);
+    } catch(error) {window.alert(error.message); return false;}
+    finally {finishRftTransportAction(action); renderAll();}
+  };
+  document.addEventListener('click',event=>{
+    const button=event.target.closest?.('[data-pmb-rft-release-key]');
+    if (!button || button.disabled) return;
+    event.stopPropagation();
+    void markRftConfirmation(button.dataset.pmbRftReleaseKey,true);
+  });
+  const priorRftHeader=vehicleLocationsRftHeaderHtml;
+  vehicleLocationsRftHeaderHtml=()=>priorRftHeader().replace('<span>RFT’d</span>','<span>QC’d</span><span>RFT’d</span>');
+  const rftBucket=VEHICLE_LOCATION_BUCKET_DEFS.find(bucket=>bucket.key==='rft');
+  if(rftBucket) rftBucket.hint='QC signed off · PMB must mark RFT’d before emailing sales';
   markRftVehicleCollected = async function(key='',confirmed=true) {
     const v=selectedVehicle(key); const service=app.emailVehicleLocationService;
     if (!confirmed || !v || collected(v) || !vehicleRftLifecycleRoleAllowed() || !authority(v)
@@ -228,6 +265,6 @@
       `<div class="wide rft-detail-actions"><b>Transport handover</b>${rftTransportControlsHtml(v)}</div>`);
   };
   window.addEventListener('pdc-auth-locked',()=>{dismiss();});
-  window.PDC_RFT_ACTIONS_VERSION='2026.09.10.03';
+  window.PDC_RFT_ACTIONS_VERSION='2026.09.10.04';
   renderAll();
 })();
