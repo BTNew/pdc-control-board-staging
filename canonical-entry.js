@@ -65,10 +65,10 @@
 
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
-    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.10.review-pills';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.10.review-confident';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.10.review-pills';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.10.review-confident';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
