@@ -69,12 +69,13 @@
     document.head.appendChild(intakeScript);
     const rftStyle = document.createElement('link');
     rftStyle.rel = 'stylesheet';
-    rftStyle.href = 'pdc-rft-actions.css?v=2026.09.10.03';
+    rftStyle.href = 'pdc-rft-actions.css?v=2026.09.10.04';
     document.head.appendChild(rftStyle);
     const rftScript = document.createElement('script');
-    rftScript.src = 'pdc-rft-actions.js?v=2026.09.10.03';
+    rftScript.src = 'pdc-rft-actions.js?v=2026.09.10.04';
     document.head.appendChild(rftScript);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
   else load();
 })();
+
