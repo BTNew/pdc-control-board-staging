@@ -12,6 +12,16 @@
     return `<svg class="rft-action-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${paths[kind]}</svg>`;
   }
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function outlookBody(prepared) {
+    return String(prepared.text || '').replace(/The QC completion photo is attached\.[\r\n]*/g, '');
+  }
+  function openOutlook(prepared, navigate = url => { window.location.href = url; }) {
+    const recipient = String(prepared.recipient_email || '').trim();
+    if (!recipient || /[\r\n]/.test(recipient)) throw new Error('A valid salesperson email is required.');
+    const url = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(prepared.subject || '')}&body=${encodeURIComponent(outlookBody(prepared))}`;
+    navigate(url);
+    return url;
+  }
   function collected(v) {
     return Boolean(v.rftCollectedAt) || ['collected','completed'].includes(String(v.pdcLifecycleState || v.lifecycleState || '').toLowerCase())
       || ['collected','completed'].includes(String(v.pdcLocation || '').toLowerCase());
@@ -28,7 +38,7 @@
     const canCollect = allowed && authority && released && !pickedUp && collectionEnabled && !inFlight;
     return `<span class="rft-transport-controls rft-actions-clean" role="group" aria-label="RFT handover">
       <span class="rft-action rft-ready-status ${released ? 'is-ready' : 'is-pending'}" role="status" title="${released ? 'QC signed off — ready for transport' : 'Awaiting authoritative QC sign-off'}">${icon(released ? 'check' : 'clock')}<span>${released ? 'RFT’d' : 'Awaiting QC'}</span></span>
-      <button type="button" class="rft-action rft-email-action" data-rft-transport-booked-key="${esc(key)}" ${canEmail ? '' : 'disabled'} title="${hasDraft ? 'Open the unsent salesperson email with its QC photo attached' : 'Prepare the unsent salesperson email with its QC photo attached'}">${icon('mail')}<span>${inFlight ? 'Please wait…' : 'Email salesperson'}</span></button>
+      <button type="button" class="rft-action rft-email-action" data-rft-transport-booked-key="${esc(key)}" ${canEmail ? '' : 'disabled'} title="${hasDraft ? 'Open the unsent salesperson email in Outlook' : 'Prepare the unsent salesperson email in Outlook'}">${icon('mail')}<span>${inFlight ? 'Please wait…' : 'Email salesperson'}</span></button>
       ${pickedUp ? `<span class="rft-action rft-collected-status" role="status">${icon('check')}<span>Collected</span></span>` : `<button type="button" class="rft-action rft-collect-action" data-rft-collected-key="${esc(key)}" ${canCollect ? '' : 'disabled'} title="${canCollect ? 'Confirm the vehicle has physically left PMB' : 'Prepare the salesperson email with QC photo first'}">${icon('truck')}<span>Mark collected</span></button>`}
     </span>`;
   }
@@ -65,7 +75,7 @@
     return { ...data, mimeBytes, photo, photoType:type, text };
   }
   // Pure helpers are also used in Node and browser regressions.
-  if (typeof module === 'object' && module.exports) module.exports = { controls, ready, collected, verifyDraft };
+  if (typeof module === 'object' && module.exports) module.exports = { controls, ready, collected, verifyDraft, outlookBody, openOutlook };
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== STAGING
       || typeof rftTransportControlsHtml !== 'function') return;
 
@@ -84,20 +94,33 @@
     dialog = document.createElement('dialog');
     dialog.className = 'rft-email-review';
     dialog.setAttribute('aria-labelledby','rft-email-review-title');
-    dialog.innerHTML = `<header><div><h2 id="rft-email-review-title">Email salesperson</h2><p>Stock ${esc(stock)} · Unsent draft</p></div><button type="button" class="rft-dialog-close" aria-label="Close email review">×</button></header><div class="rft-email-review-content" role="status">Preparing the email and attached QC photo…</div>`;
+    dialog.innerHTML = `<header><div><h2 id="rft-email-review-title">Email salesperson</h2><p>Stock ${esc(stock)} · Unsent draft</p></div><button type="button" class="rft-dialog-close" aria-label="Close email review">×</button></header><div class="rft-email-review-content" role="status">Preparing the email and QC photo…</div>`;
     dialog.querySelector('.rft-dialog-close').onclick = dismiss;
     dialog.addEventListener('cancel',dismiss);
     document.body.appendChild(dialog);
     dialog.showModal();
     return dialog;
   }
-  function download(prepared) {
-    const url = URL.createObjectURL(new Blob([prepared.mimeBytes], {type:'message/rfc822'}));
-    const link = document.createElement('a');
-    link.href = url; link.download = prepared.draft_filename;
-    document.body.appendChild(link); link.click(); link.remove();
-    // A delayed revoke lets Outlook/Windows finish claiming the attachment.
-    setTimeout(() => URL.revokeObjectURL(url),60000);
+  async function copyPhoto(img, notice) {
+    try {
+      if (!navigator.clipboard?.write || typeof ClipboardItem === 'undefined') throw new Error('Clipboard unavailable');
+      const png = new Promise((resolve, reject) => {
+        const draw = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Photo unavailable')), 'image/png');
+          } catch (error) { reject(error); }
+        };
+        if (img.complete && img.naturalWidth) draw();
+        else { img.onload = draw; img.onerror = () => reject(new Error('Photo unavailable')); }
+      });
+      await navigator.clipboard.write([new ClipboardItem({'image/png': png})]);
+      notice.textContent = 'Photo copied. Paste it into the Outlook message with Ctrl+V before sending.';
+    } catch (_error) {
+      notice.textContent = 'Photo could not be copied automatically. Right-click the photo, choose Copy image, then paste it into Outlook.';
+    }
   }
   function showPrepared(target, prepared) {
     if (target !== dialog || !target.open) return false;
@@ -106,15 +129,19 @@
     content.removeAttribute('role');
     content.innerHTML = `<dl><dt>To</dt><dd>${esc(prepared.recipient_email)}</dd><dt>Subject</dt><dd>${esc(prepared.subject)}</dd></dl>
       <pre class="rft-email-body"></pre>
-      <section class="rft-email-attachment"><div>${icon('check')}<strong>QC completion photo attached</strong></div><img alt="Verified QC completion photo"/><small>${Math.ceil(prepared.photo.length/1024)} KB · verified against the stored QC photo</small></section>
-      <p class="rft-email-open-note" role="status">The attached email file has been prepared. If your browser is set to open .eml files automatically, it will open in your email app. Otherwise, open it from Downloads. Review it there and press Send. Nothing has been sent by the Board.</p>
-      <button type="button" class="rft-email-open-file">Open attached email (.eml)</button>`;
-    content.querySelector('pre').textContent = prepared.text;
+      <section class="rft-email-attachment"><div>${icon('check')}<strong>QC completion photo</strong></div><img alt="Verified QC completion photo"/><small>${Math.ceil(prepared.photo.length/1024)} KB · verified against the stored QC photo</small></section>
+      <p class="rft-email-open-note" role="status">Outlook has been requested, just like Email an update. Use Copy QC photo, then paste it into the message before sending. Nothing has been sent by the Board.</p>
+      <button type="button" class="rft-email-copy-photo">Copy QC photo</button>
+      <button type="button" class="rft-email-open-file">Open Outlook again</button>`;
+    content.querySelector('pre').textContent = outlookBody(prepared);
     // A data URL avoids exposing private storage links and is allowed by the existing CSP.
     let binary=''; for (let i=0;i<prepared.photo.length;i+=8192) binary+=String.fromCharCode(...prepared.photo.subarray(i,i+8192));
     content.querySelector('img').src = `data:${prepared.photoType};base64,${btoa(binary)}`;
-    content.querySelector('.rft-email-open-file').onclick = () => { if (currentView===prepared) download(prepared); };
-    download(prepared); // Single Email button action; no separate download-icon step.
+    content.querySelector('.rft-email-copy-photo').onclick = () => {
+      if (currentView===prepared) return copyPhoto(content.querySelector('img'), content.querySelector('.rft-email-open-note'));
+    };
+    content.querySelector('.rft-email-open-file').onclick = () => { if (currentView===prepared) openOutlook(prepared); };
+    openOutlook(prepared); // Same direct compose handoff as Email an update.
     return true;
   }
   function message(code) {
@@ -201,6 +228,6 @@
       `<div class="wide rft-detail-actions"><b>Transport handover</b>${rftTransportControlsHtml(v)}</div>`);
   };
   window.addEventListener('pdc-auth-locked',()=>{dismiss();});
-  window.PDC_RFT_ACTIONS_VERSION='2026.09.09.08';
+  window.PDC_RFT_ACTIONS_VERSION='2026.09.10.03';
   renderAll();
 })();

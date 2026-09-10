@@ -70,10 +70,10 @@
     document.head.appendChild(intakeScript);
     const rftStyle = document.createElement('link');
     rftStyle.rel = 'stylesheet';
-    rftStyle.href = 'pdc-rft-actions.css?v=2026.09.09.08';
+    rftStyle.href = 'pdc-rft-actions.css?v=2026.09.10.03';
     document.head.appendChild(rftStyle);
     const rftScript = document.createElement('script');
-    rftScript.src = 'pdc-rft-actions.js?v=2026.09.09.08';
+    rftScript.src = 'pdc-rft-actions.js?v=2026.09.10.03';
     document.head.appendChild(rftScript);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
