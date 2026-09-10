@@ -7471,13 +7471,6 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   overflow-x: auto;
   scrollbar-width: thin;
 }
-.incoming-work-checks[data-workshop-booking-required="true"] {
-  padding: 4px;
-  border: 2px solid #f59e0b;
-  border-radius: 8px;
-  background: #fffbeb;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, .16);
-}
 .incoming-card-age span { display: grid; gap: 1px; }
 .incoming-card-age small { color: #1e3a8a; font-size: .62rem; font-weight: 900; line-height: 1.1; white-space: nowrap; }
 .incoming-card-age.needs-workshop-booking small { color: #b45309; }

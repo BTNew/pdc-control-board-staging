@@ -7774,7 +7774,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ${isRftRow
           ? `<span class="rft-row-controls-slot">${rftControls}</span>`
           : `<span class="incoming-card-work-wrap">${workChecks}</span>
-        <span class="incoming-card-meta incoming-card-age ${escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}${bookingProjection.bookingRequired ? ' needs-workshop-booking' : ''}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : 'ETA'}</b><span>${escapeHtml(eta)}${bookingProjection.label ? `<small>${escapeHtml(bookingProjection.label)}</small>` : ''}</span></span>
+        <span class="incoming-card-meta incoming-card-age ${escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : 'ETA'}</b><span>${escapeHtml(bucketKey === 'pmb' ? pmbAgeLabel(vehicle) : eta)}</span></span>
         <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}</span></span>
         <span class="incoming-card-action">${primaryAction}${labelAction}${deleteAction}</span>`}
       </summary>
