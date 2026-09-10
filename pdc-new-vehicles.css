@@ -7,6 +7,12 @@
 @media(max-width:1250px){.nv-stations{grid-template-columns:repeat(3,minmax(190px,1fr))}}@media(max-width:1000px){.nv-stations{grid-template-columns:repeat(2,minmax(190px,1fr))}.nv-header{align-items:flex-start}.nv-approval{flex-direction:column;align-items:stretch}}@media(max-width:500px){.nv-stations{grid-template-columns:1fr}.nv-list{grid-template-columns:1fr}.nv-header{flex-direction:column}}
 
 /* Review tray above the station drop targets. */
+.nv-header-actions{flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.nv-header .nv-approve-button{min-height:44px;padding:10px 22px;border:0;background:#155db9;color:#fff;font-weight:700;white-space:nowrap}
+.nv-stations>.nv-station{border-top:5px solid var(--station-colour,#64748b);background:var(--station-tint,#f8fafc)}
+.nv-stations>.nv-station>header{background:color-mix(in srgb,var(--station-colour,#64748b) 13%,white);border-bottom-color:color-mix(in srgb,var(--station-colour,#64748b) 25%,white)}
+.nv-stations>.nv-station .nv-operation-pill{border-left:3px solid var(--station-colour,#64748b)}
+.nv-stations>.nv-station.nv-drop-active{border-color:var(--station-colour,#2367b5);box-shadow:inset 0 0 0 2px var(--station-colour,#2367b5)}
 .nv-review-tray{box-sizing:border-box;width:100%;min-height:110px;margin:0 0 18px;background:#fff9ec;border-color:#ead7ae}
 .nv-review-tray>header{padding:13px 16px}.nv-review-tray h3{font-size:16px}
 .nv-review-tray>div{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;max-height:320px;overflow-y:auto;padding:12px;align-items:start}
