@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260909120000",
-    "name": "workshop_live_shape_authority",
-    "file": "supabase/staging_only/20260909120000_workshop_live_shape_authority.sql",
-    "sha256": "1c9dd2fcf494e2e2243cf1cb5d7896efffed37026de91ca034e91922248c3870",
+    "version": "20260910002538",
+    "name": "qc_rft_snapshot_reconciliation",
+    "file": "supabase/staging_only/20260910002538_qc_rft_snapshot_reconciliation.sql",
+    "sha256": "74dad977cbbb1c5ccc064fa4799433d6b9cf65686cf72f53684e403fddbaedda",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Verified STAGING apply receipt run175: Workshop outstanding candidates preserve authoritative fitting-stage hours and truthful scheduling state."
+    "source": "STAGING apply and readback verified: canonical QC completion and RFT transfer timestamps; no vehicle mutations."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",

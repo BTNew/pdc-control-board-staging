@@ -23,6 +23,6 @@ assert.match(sql, /jsonb_array_length\(missing_source_line_ids\)<>0/);
 assert.match(sql, /AFTER INSERT OR UPDATE OR DELETE ON public\.pdc_authenticated_email_operation_lines/);
 assert.match(sql, /AFTER INSERT OR UPDATE OR DELETE ON public\.vehicle_workshop_line_adjustments/);
 assert.strictEqual(identity.application_version, '2026.09.09.04-workshop-live-shape-authority');
-assert.strictEqual(identity.observed_applied_database_migration.version, '20260909120000');
+assert.strictEqual(identity.observed_applied_database_migration.version, '20260910002538');
 assert.strictEqual(identity.production_unchanged, true);
 console.log('All-vehicle Job Card operation projection parity guard 493: PASS');
