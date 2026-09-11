@@ -939,6 +939,7 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
     return { ok: false, error: 'action_unavailable' };
   }
   let result;
+  const changeStartedAt = new Date(Date.now() - 60000).toISOString();
   try {
     result = await actions[actionName](payload);
     // Parts is tracked and warned on, but never retried through an override
@@ -950,6 +951,9 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
   }
   if ((!result || result.ok !== true) && options.suppressFailureAlert !== true) {
     window.alert(workshopDescribeSharedActionError(result));
+  }
+  if (result?.ok === true && /schedule|move|extend|cascade/i.test(actionName) && window.PDC_VEHICLE_HANDOVER) {
+    await window.PDC_VEHICLE_HANDOVER.warn(changeStartedAt);
   }
   if (options.suppressRender !== true) renderAction();
   return result || { ok: false, error: 'no_response' };
@@ -977,7 +981,7 @@ function workshopDescribeSharedActionError(result) {
     return 'That technician is already assigned to another booking during this period.';
   }
   if (error === 'vehicle_overlap' || (conflict && conflict.conflict_type === 'vehicle_overlap')) {
-    return 'This vehicle already has an active booking during this time. Choose a back-to-back or non-overlapping time.';
+    return 'This change would overlap a vehicle’s booking in another bay or station, including any booking pushed back by the change. No conflicting bookings were saved. Use Best slot to find a time with the 5-hour buffer, or move the affected later booking.';
   }
   if (error === 'sublet_away') {
     return 'This vehicle is away on Sublet on that date. Record its actual return or choose a date after it is back.';
@@ -2826,7 +2830,7 @@ function workshopSchedulableBayNumbers(stage = '') {
   return bays;
 }
 
-function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, notAfterDateKey = '') {
+function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, notAfterDateKey = '', vehicleWindows = []) {
   const normalizedStage = normalizePmbStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return null;
   let best = null;
@@ -2834,7 +2838,7 @@ function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefault
     // New work must only be offered against a positively confirmed active
     // shared bay. Existing/historical bookings still use the deliberately
     // lenient rendering path in workshopBayIsActive().
-    const slot = workshopFirstAvailableStartSlot(normalizedStage, bay, dateKey, hours, rows, notBeforeMinutes);
+    const slot = workshopFirstAvailableStartSlot(normalizedStage, bay, dateKey, hours, rows, notBeforeMinutes, 260, new Date(), vehicleWindows);
     if (!slot) continue;
     if (notAfterDateKey && slot.dateKey > notAfterDateKey) continue;
     const candidateStart = workshopDateAtOffset(slot.dateKey, slot.startMinutes).getTime();
@@ -5142,7 +5146,7 @@ function workshopNotBeforeMinutesForDate(dateKey = '', referenceNow = new Date()
   return Math.max(0, Math.ceil(offset / increment) * increment);
 }
 
-function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0) {
+function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, vehicleWindows = []) {
   const normalizedStage = normalizePmbStage(stage);
   const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);
   const increment = WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes;
@@ -5159,19 +5163,19 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
       hours: duration,
       status: 'planned',
     };
-    if (workshopNewBookingValidation(candidate).ok && !workshopHasConflict(candidate, rows)) return startMinutes;
+    if (workshopNewBookingValidation(candidate).ok && !workshopHasConflict(candidate, rows) && (!vehicleWindows.length || window.PDC_VEHICLE_HANDOVER?.fits(workshopEntryStart(candidate), workshopEntryEnd(candidate), vehicleWindows))) return startMinutes;
   }
   return null;
 }
 
-function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260, referenceNow = new Date()) {
+function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260, referenceNow = new Date(), vehicleWindows = []) {
   const requestedDate = workshopDateFromKey(dateKey) || new Date();
   let workDate = workshopCoerceWorkDate(requestedDate, 1);
   for (let dayIndex = 0; dayIndex < Math.max(1, Number(maxWorkdays) || 260); dayIndex += 1) {
     const candidateDateKey = workshopDateKey(workDate);
     const currentTimeFloor = workshopNotBeforeMinutesForDate(candidateDateKey, referenceNow);
     const firstMinutes = dayIndex === 0 ? Math.max(notBeforeMinutes, currentTimeFloor) : currentTimeFloor;
-    const startMinutes = workshopFirstAvailableStartMinutes(stage, bay, candidateDateKey, hours, rows, firstMinutes);
+    const startMinutes = workshopFirstAvailableStartMinutes(stage, bay, candidateDateKey, hours, rows, firstMinutes, vehicleWindows);
     if (startMinutes !== null) return { dateKey: candidateDateKey, startMinutes };
     workDate = workshopNextWorkdayDate(workDate);
   }
@@ -5610,6 +5614,14 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
     workshopRequireEtaSchedule(vehicle, new Date(0));
     return false;
   }
+  let vehicleWindows = [];
+  if (workshopSharedModeActive()) {
+    const ref = workshopSharedVehicleRef({vehicleKey: vehicleKey(vehicle), sharedVehicleId: vehicle.sharedVehicleId || vehicle.__emailVehicleId || vehicleId});
+    try {
+      if (!ref?.vehicleId || !window.PDC_VEHICLE_HANDOVER) throw new Error('Cross-station booking checks are unavailable. Refresh and try again.');
+      vehicleWindows = (await window.PDC_VEHICLE_HANDOVER.read(ref.vehicleId)).windows;
+    } catch (error) { window.alert(error.message); return false; }
+  }
   const nextOperationalMoment = workshopNormalizeStartDate(new Date());
   const today = workshopDateKey(nextOperationalMoment);
   const earliestDate = workshopDateKeyNotBefore(today, etaConstraint.earliestDateKey || '');
@@ -5625,12 +5637,12 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
       const notBeforeMinutes = windowIndex === 0 && windowStart === today
         ? Math.max(0, workshopMinuteOffset(nextOperationalMoment))
         : 0;
-      slot = workshopBestStageSlot(normalizedStage, windowStart, estimate, workshopLoadPlans(), notBeforeMinutes, windowEnd);
+      slot = workshopBestStageSlot(normalizedStage, windowStart, estimate, workshopLoadPlans(), notBeforeMinutes, windowEnd, vehicleWindows);
       windowStart = workshopCalendarDateKeyOffset(windowEnd, 1);
     }
   } else {
     const notBeforeMinutes = earliestDate === today ? Math.max(0, workshopMinuteOffset(nextOperationalMoment)) : 0;
-    slot = workshopBestStageSlot(normalizedStage, earliestDate, estimate, workshopLoadPlans(), notBeforeMinutes);
+    slot = workshopBestStageSlot(normalizedStage, earliestDate, estimate, workshopLoadPlans(), notBeforeMinutes, '', vehicleWindows);
   }
   if (!slot) {
     window.alert('No active bay has an available operational slot in the searched planning horizon. No booking was created.');
