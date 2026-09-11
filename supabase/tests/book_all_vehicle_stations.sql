@@ -8,10 +8,12 @@ DECLARE
  main_vehicle uuid:=gen_random_uuid(); it_vehicle uuid:=gen_random_uuid();
  missing_hours_vehicle uuid:=gen_random_uuid(); missing_eta_vehicle uuid:=gen_random_uuid();
  sublet_vehicle uuid:=gen_random_uuid(); blocked_vehicle uuid:=gen_random_uuid();
+ mid_save_vehicle uuid:=gen_random_uuid(); no_bay_vehicle uuid:=gen_random_uuid();
  fixtures uuid[]; version_number integer; before_bookings jsonb; booked_once jsonb;
  before_location jsonb; before_work jsonb; target_start timestamptz; target_end timestamptz;
  block_until timestamptz; blocker_booking uuid; blocker_stage uuid; blocker_bay uuid;
  booking_total integer; found_slot boolean; scan_day integer;
+ rpc_started timestamptz; rpc_seconds numeric; before_bays jsonb;
 BEGIN
  IF public.pdc_monitor_staging_guard() IS NOT TRUE THEN RAISE EXCEPTION 'wrong_environment'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended('pdc:workshop:top-level-mutation',0));
@@ -22,7 +24,7 @@ BEGIN
  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor,'email',actor_email,'role','authenticated')::text,true);
  PERFORM public.workshop_require_planner_operator();
  SELECT coalesce(jsonb_agg(to_jsonb(b) ORDER BY b.id),'[]') INTO before_bookings FROM public.workshop_bookings b;
- fixtures:=ARRAY[main_vehicle,it_vehicle,missing_hours_vehicle,missing_eta_vehicle,sublet_vehicle,blocked_vehicle];
+ fixtures:=ARRAY[main_vehicle,it_vehicle,missing_hours_vehicle,missing_eta_vehicle,sublet_vehicle,blocked_vehicle,mid_save_vehicle,no_bay_vehicle];
  FOREACH fixture IN ARRAY fixtures LOOP
   INSERT INTO public.vehicles(id,permanent_vehicle_id,stock_number,current_location,visible_on_board,created_by,updated_by)
   VALUES(fixture,fixture,'BOOKALL-'||left(fixture::text,8),CASE WHEN fixture=missing_hours_vehicle THEN 'YH' ELSE 'PMB' END,true,actor,actor);
@@ -33,7 +35,9 @@ BEGIN
   (main_vehicle,'SUBLET',NULL::numeric),(it_vehicle,'HOIST',0.50::numeric),
   (missing_hours_vehicle,'HOIST',1.00::numeric),(missing_hours_vehicle,'ELECTRICAL',NULL::numeric),
   (missing_eta_vehicle,'HOIST',1.00::numeric),(sublet_vehicle,'SUBLET',NULL::numeric),
-  (blocked_vehicle,'HOIST',1.00::numeric)
+  (blocked_vehicle,'HOIST',1.00::numeric),
+  (mid_save_vehicle,'HOIST',1.00::numeric),(mid_save_vehicle,'FITTING',1.00::numeric),
+  (no_bay_vehicle,'HOIST',1.00::numeric),(no_bay_vehicle,'FITTING',1.00::numeric)
  ) x(vehicle_id,stage_code,hours) LOOP
   INSERT INTO public.vehicle_workshop_line_adjustments(vehicle_id,line_key,source_kind,stage_code,description,estimated_hours,created_by,updated_by)
   VALUES(r.vehicle_id,'manual:'||gen_random_uuid()::text,'manual',r.stage_code,'Rollback booking fixture '||r.stage_code,r.hours,actor,actor);
@@ -51,7 +55,11 @@ BEGIN
  IF result->>'ok' IS DISTINCT FROM 'false' OR EXISTS(SELECT 1 FROM public.workshop_bookings WHERE vehicle_id=main_vehicle) THEN
   RAISE EXCEPTION 'stale_version_not_rejected: %',result;
  END IF;
+ rpc_started:=clock_timestamp();
  result:=public.book_all_vehicle_stations(main_vehicle,version_number);
+ rpc_seconds:=extract(epoch FROM clock_timestamp()-rpc_started);
+ PERFORM set_config('pdc.test_book_all_seconds',rpc_seconds::text,true);
+ IF rpc_seconds>=30 THEN RAISE EXCEPTION 'three_station_rpc_exceeded_30_seconds: %',rpc_seconds; END IF;
  IF result->>'ok' IS DISTINCT FROM 'true' OR jsonb_array_length(result->'bookings')<>3 THEN RAISE EXCEPTION 'three_stations_not_booked: %',result; END IF;
  IF EXISTS(SELECT 1 FROM public.workshop_bookings b JOIN public.workshop_stages s ON s.id=b.stage_id WHERE b.vehicle_id=main_vehicle AND s.code IN('SUBLET','PIT_INSPECTION')) THEN RAISE EXCEPTION 'excluded_station_booked'; END IF;
  IF EXISTS(SELECT 1 FROM public.workshop_bookings b WHERE b.vehicle_id=main_vehicle
@@ -115,7 +123,34 @@ BEGIN
  IF EXISTS(SELECT 1 FROM public.workshop_bookings a JOIN public.workshop_bookings b ON b.bay_id=a.bay_id AND b.id<>a.id
   WHERE a.vehicle_id=it_vehicle AND b.deleted_at IS NULL AND b.status IN('queued','planned','started','stoppage') AND tstzrange(a.scheduled_start_at,a.scheduled_end_at,'[)')&&tstzrange(b.scheduled_start_at,b.scheduled_end_at,'[)')) THEN RAISE EXCEPTION 'bay_booking_overlap'; END IF;
  IF (SELECT scheduled_start_at FROM public.workshop_bookings WHERE id=blocker_booking)<>target_start THEN RAISE EXCEPTION 'competing_booking_was_moved'; END IF;
+ -- An existing unallocated booking must not be reported as safely booked.
+ INSERT INTO public.workshop_bookings(vehicle_id,stage_id,bay_id,status,scheduled_start_at,scheduled_end_at,default_duration_minutes,created_by,updated_by)
+ VALUES(no_bay_vehicle,blocker_stage,NULL,'queued',target_start,target_end,60,actor,actor);
+ SELECT version INTO version_number FROM public.vehicles WHERE id=no_bay_vehicle;
+ result:=public.book_all_vehicle_stations(no_bay_vehicle,version_number);
+ IF result->>'ok' IS DISTINCT FROM 'false' OR result->>'error' IS DISTINCT FROM 'existing_booking_without_bay'
+  OR (SELECT count(*) FROM public.workshop_bookings WHERE vehicle_id=no_bay_vehicle)<>1
+  OR EXISTS(SELECT 1 FROM public.workshop_bookings WHERE vehicle_id=no_bay_vehicle AND bay_id IS NOT NULL)
+ THEN RAISE EXCEPTION 'unallocated_booking_not_rejected_atomically: %',result; END IF;
+ -- Deliberately make the later station's target invalid after preflight can pass.
+ -- Its active bays allow preflight; nullable bay_number is legal in the schema,
+ -- but the actual booking write rejects the missing bay number. The RPC has
+ -- already attempted the preceding Hoist stage, which must also roll back.
+ SELECT jsonb_agg(to_jsonb(b) ORDER BY b.id) INTO before_bays FROM public.workshop_bays b WHERE stage_id=(SELECT id FROM public.workshop_stages WHERE code='FITTING');
+ BEGIN
+  UPDATE public.workshop_bays SET bay_number=NULL WHERE stage_id=(SELECT id FROM public.workshop_stages WHERE code='FITTING') AND is_active;
+  SELECT version INTO version_number FROM public.vehicles WHERE id=mid_save_vehicle;
+  result:=public.book_all_vehicle_stations(mid_save_vehicle,version_number);
+  IF result->>'ok' IS DISTINCT FROM 'false' OR result->>'message' NOT ILIKE '%bay%'
+   OR EXISTS(SELECT 1 FROM public.workshop_bookings WHERE vehicle_id=mid_save_vehicle)
+  THEN RAISE EXCEPTION 'mid_save_failure_not_rolled_back: %',result; END IF;
+  RAISE EXCEPTION 'Restore temporary bay configuration after verified rollback' USING ERRCODE='ZX001';
+ EXCEPTION WHEN SQLSTATE 'ZX001' THEN NULL;
+ END;
+ IF before_bays IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(b) ORDER BY b.id) FROM public.workshop_bays b WHERE stage_id=(SELECT id FROM public.workshop_stages WHERE code='FITTING')) THEN RAISE EXCEPTION 'temporary_bay_configuration_not_restored'; END IF;
  IF before_bookings IS DISTINCT FROM (SELECT coalesce(jsonb_agg(to_jsonb(b) ORDER BY b.id),'[]') FROM public.workshop_bookings b WHERE NOT(b.vehicle_id=ANY(fixtures))) THEN RAISE EXCEPTION 'preexisting_bookings_changed'; END IF;
 END $test$;
+SELECT 'PASS: three stations, full multi-day duration, 5-hour gaps, existing/repeated booking preservation, IT ETA+7, bay/admin collisions, missing-hours and mid-save atomicity, unallocated booking guard, stale version, missing ETA and Sublet exclusion; all fixtures roll back' AS result,
+ current_setting('pdc.test_book_all_seconds')::numeric AS three_station_rpc_seconds;
 ROLLBACK;
-SELECT 'PASS: three stations, full multi-day duration, 5-hour gaps, existing/repeated booking preservation, IT ETA+7, bay/admin collisions, missing-hours atomicity, stale version, missing ETA and Sublet exclusion; all fixtures rolled back' AS result;
+
