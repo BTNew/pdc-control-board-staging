@@ -11653,6 +11653,14 @@ html[data-row-width="xl"] {
   text-transform: none !important;
 }
 
+/* The split Parts pill has two labels within its existing angled heading. */
+.pdc-grid-station-parts > span::after {
+  content: 'Jita';
+  display: block;
+  margin-top: 3px;
+  font: inherit;
+}
+
 /* Row labels stay in the DOM for accessibility, but are not repeated visually. */
 .incoming-work-label {
   display: none !important;
