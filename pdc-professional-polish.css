@@ -219,3 +219,12 @@ input:focus, select:focus, textarea:focus {
 .location-override-dialog select, .location-override-dialog textarea { width: 100%; }
 .location-override-dialog footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .location-override-dialog [role="alert"] { color: #b91c1c; }
+
+/* Compact Sublet identities leave room for the independent work description. */
+.sublet-table { min-width:1576px; width:100%; table-layout:fixed; }
+.sublet-table .sublet-summary-row td { width:auto!important; padding:4px 6px; font-size:12px; line-height:1.3; }
+.sublet-table th { padding:8px 6px; font-size:10px; }
+.sublet-table .sublet-summary-row td:nth-child(6),.sublet-table .sublet-summary-row td:nth-child(7),.sublet-table .sublet-summary-row .sublet-work-required { white-space:normal; overflow-wrap:anywhere; }
+.sublet-table .sublet-operation-details { margin:0; font-size:12px; line-height:1.35; color:#17283d; }
+.sublet-table .sublet-summary-row select,.sublet-table .sublet-summary-row input { font-size:12px; height:30px; min-height:30px; padding:3px; }
+.sublet-table .sublet-summary-row .small-button { min-height:28px; padding:4px 6px; font-size:11px; }

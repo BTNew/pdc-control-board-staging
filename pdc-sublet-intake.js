@@ -75,7 +75,7 @@
       const key=row.querySelector('[data-sublet-toggle]')?.dataset.subletToggle;
       const vehicle=subletVehicleByKey(key);
       if(!vehicle)return;
-      row.cells[6]?.insertAdjacentHTML('beforeend',detailsHtml(vehicle));
+      row.querySelector('.sublet-work-required')?.insertAdjacentHTML('beforeend',detailsHtml(vehicle));
       if(!row.querySelector('.sublet-status-pill.is-to-book'))return;
       const button=document.createElement('button');button.type='button';button.className='small-button primary';
       button.textContent='Book Sublet';button.disabled=!writable();button.addEventListener('click',()=>book(vehicle));
