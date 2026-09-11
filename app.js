@@ -5014,7 +5014,7 @@ function initEmailVehicleLocationsIfAvailable(options = {}) {
     } catch (_error) { return null; }
   }
   if (!app.emailVehicleLocationRealtime) app.emailVehicleLocationRealtime = app.emailVehicleLocationService.subscribe(() => {
-    if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true });
+    if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ trailing: true });
     else refreshEmailVehicleLocations();
     if (vehicleLifecycleAdministratorActive() && app.deletedVehicleSnapshotState !== 'idle') loadDeletedVehicleSnapshot({ force: true });
   });
@@ -16959,7 +16959,7 @@ function subscribeSharedNavisionVisibility() {
       if (generation !== app.sharedNavisionVisibleRealtimeGeneration || app.sharedNavisionVisibleRealtime !== channel) return;
       const revision = Number(payload?.new?.revision);
       if (!Number.isFinite(revision) || revision !== Number(app.sharedNavisionVisibleRevision)) {
-        if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true });
+        if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ trailing: true });
         else loadSharedNavisionVisibleRows({ force: true });
       }
     });
