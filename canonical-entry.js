@@ -65,10 +65,10 @@
 
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
-    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.11.sticky-stations';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.operation-updates';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.11.station-drag';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.12.operation-updates';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
