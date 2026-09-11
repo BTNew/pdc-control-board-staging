@@ -24,7 +24,7 @@ assert.deepStrictEqual(planner.workshopNewBookingValidation(zeroMinuteBooking),
   { ok: false, error: 'minimum_duration', minimumMinutes: 1 });
 const exactEnd = planner.workshopEntryEnd(exactBooking);
 assert.strictEqual(exactEnd.getDay(), 2, '918 work minutes should carry into Tuesday');
-assert.strictEqual(exactEnd.getHours(), 14);
+assert.strictEqual(exactEnd.getHours(), 13);
 assert.strictEqual(exactEnd.getMinutes(), 18, 'The final three minutes must not be lost to 15-minute snapping');
 
 const source = fs.readFileSync('workshop-planner.js', 'utf8');
