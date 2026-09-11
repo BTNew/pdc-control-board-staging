@@ -49,3 +49,9 @@
 @media(max-width:1599px){.nv-stations{grid-template-columns:repeat(4,minmax(192px,1fr));}}
 @media(max-width:1000px){.nv-stations{grid-template-columns:repeat(2,minmax(192px,1fr));}}
 @media(max-width:500px){.nv-stations{grid-template-columns:minmax(192px,1fr);}}
+
+/* Keep each drop-target label visible throughout its station column. */
+.main:has(#newvehicles.active) { overflow:visible !important; }
+.nv-stations { overflow:visible; }
+.nv-stations>.nv-station { overflow:clip; }
+.nv-stations>.nv-station>header { position:sticky; top:0; z-index:5; box-shadow:0 2px 4px #17283d14; }
