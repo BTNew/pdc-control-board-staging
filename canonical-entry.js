@@ -65,14 +65,17 @@
 
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
-    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.10.review-colours';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.11.positive-hours';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.11.approval-queue';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.11.positive-hours';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
     document.head.appendChild(intakeScript);
+    const subletIntake = document.createElement('script');
+    subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.11.positive-hours';
+    document.head.appendChild(subletIntake);
     const rftStyle = document.createElement('link');
     rftStyle.rel = 'stylesheet';
     rftStyle.href = 'pdc-rft-actions.css?v=2026.09.10.04';
@@ -84,4 +87,3 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
   else load();
 })();
-
