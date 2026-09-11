@@ -3927,7 +3927,7 @@ function renderAdminLists() {
   if (salesHost) {
     const salespersons = loadSalespersons();
     salesHost.innerHTML = salespersons.length
-      ? salespersons.map(record => `<span class="admin-chip salesperson-admin-chip"><strong>${escapeHtml(record.initials)} — ${escapeHtml(record.name)}</strong><small>${escapeHtml(record.email)}</small><button type="button" class="text-button" data-remove-salesperson="${escapeHtml(record.initials)}">Remove</button></span>`).join('')
+      ? `<div class="admin-reference-table-wrap"><table class="admin-reference-table salesperson-admin-table" aria-label="Salespersons"><thead><tr><th scope="col">Initials</th><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Actions</th></tr></thead><tbody>${salespersons.map(record => `<tr><td>${escapeHtml(record.initials)}</td><td><strong>${escapeHtml(record.name)}</strong></td><td>${escapeHtml(record.email)}</td><td class="admin-table-actions"><button type="button" class="text-button admin-action-danger" data-remove-salesperson="${escapeHtml(record.initials)}">Remove</button></td></tr>`).join('')}</tbody></table></div>`
       : '<div class="empty-state compact-empty"><strong>No salespersons yet</strong><span>Add initials, name and email to populate vehicle dropdowns.</span></div>';
   }
   $$('[data-remove-mechanic]').forEach(button => button.addEventListener('click', () => removeMechanicFromAdminList(button.dataset.removeMechanic)));
