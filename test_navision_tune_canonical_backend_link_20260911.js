@@ -1,0 +1,15 @@
+const fs=require('node:fs'), vm=require('node:vm'), assert=require('node:assert/strict');
+const source=fs.readFileSync(__dirname+'/app.js','utf8');
+new vm.Script(source);
+const start=source.indexOf('function backEndDataRows() {'), end=source.indexOf('\nfunction filteredBackEndDataRows',start);
+const vehicle={__emailVehicleId:'canonical-a',stock:'13021291',source:'microsoft_navision'};
+let shared=[];
+const ctx={app:{data:[vehicle]},deletedVehicleRecords:()=>[],isVehicleVisibleOnPdcSheet:()=>true,sharedNavisionBackEndRows:()=>shared,displayStockNumber:v=>v.stock,vehicleKey:v=>v.stock};
+vm.createContext(ctx);vm.runInContext(source.slice(start,end),ctx);
+shared=[{vehicle:{stock:'13021291'},canonicalVehicleId:'canonical-a',boardActivated:false}];
+assert.equal(ctx.backEndDataRows().length,1,'Tune-approved link must not create a second source row');
+shared[0].boardActivated=true;assert.equal(ctx.backEndDataRows().length,1);
+shared[0].canonicalVehicleId='different-id';assert.equal(ctx.backEndDataRows().length,2,'conflicting canonical identity must remain visible');
+shared[0].canonicalVehicleId='';assert.equal(ctx.backEndDataRows().length,2,'unlinked row must remain available');
+ctx.app.data=[];shared[0].canonicalVehicleId='canonical-a';assert.equal(ctx.backEndDataRows().length,1,'source must not disappear when operational snapshot is absent');
+console.log('PASS: linked Tune/Navision routes merge; unlinked, conflicting and snapshot-missing records remain visible.');
