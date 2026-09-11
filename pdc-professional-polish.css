@@ -196,3 +196,18 @@ input:focus, select:focus, textarea:focus {
   .topbar > div:first-child { min-width: 0; }
   .topbar .topbar-actions { align-items: center; align-self: center; }
 }
+
+/* Compact vehicle work detail: give descriptions the space, keep editing controls. */
+#vehicle-modal .vehicle-workshop-hours-draft-note,
+#vehicle-modal .vehicle-workshop-hours-evidence,
+#vehicle-modal .vehicle-workshop-hours-batch > div:first-child > small {
+  display: none;
+}
+@media (min-width: 821px) {
+  #vehicle-modal .modal-card {
+    width: min(1480px, calc(100vw - 40px)) !important;
+  }
+  #vehicle-modal .vehicle-workshop-line {
+    grid-template-columns: 24px minmax(240px, 1fr) 100px minmax(130px, .35fr) auto;
+  }
+}
