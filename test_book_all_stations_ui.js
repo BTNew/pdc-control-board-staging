@@ -106,6 +106,36 @@ test('both reported PMB stocks book using raw snapshot identity and refreshed ve
   }
 });
 
+test('Busselton Yard Hold imports book without an ETA or Navision vehicle details', async () => {
+  for (const current_location of ['Yard Hold', 'YH', ' yard hold ']) {
+    const s = setup({ serverVehicle: {
+      stock_number: '12728609', customer_name: 'BUSSELTON TOYOTA', current_location,
+      eta_to_kewdale: null, vehicle_description: null, model: null,
+      source_system: 'Authenticated email auto-import', navision_record_id: null,
+    } });
+    assert.equal(s.api.eligible(s.vehicle), true, current_location);
+    s.click(); await flush();
+    assert.equal(s.calls.length, 1, current_location);
+    assert.deepEqual(JSON.parse(s.calls[0].request.body), { p_vehicle_id: id, p_expected_version: 7 });
+    assert.match(s.elements.get('[data-book-all-result]').innerHTML, /1 station booked/);
+    assert.equal(s.context.app.emailVehicleLocationRows[0].current_location, current_location);
+    assert.equal(s.context.app.emailVehicleLocationRows[0].eta_to_kewdale, null);
+    assert.equal(s.context.app.emailVehicleLocationRows[0].vehicle_description, null);
+  }
+});
+
+test('Yard Hold display override cannot authorize a QC vehicle and IT still needs its ETA', async () => {
+  for (const serverVehicle of [
+    { current_location: 'QC', location_override: 'Yard Hold', eta_to_kewdale: null },
+    { current_location: 'IT', eta_to_kewdale: null },
+  ]) {
+    const s = setup({ serverVehicle });
+    assert.equal(s.api.eligible(s.vehicle), false, JSON.stringify(serverVehicle));
+    s.click(); await flush();
+    assert.equal(s.calls.length, 0, JSON.stringify(serverVehicle));
+  }
+});
+
 test('a missing fresh canonical row cannot fall back to an eligible stale mapped row', async () => {
   const s = setup({ freshSnapshotRows: [] });
   s.click(); await flush();
@@ -162,3 +192,4 @@ test('uncertain network result is not reported as a successful booking or rollba
   assert.match(s.elements.get('[data-book-all-result]').innerHTML, /could not be confirmed/);
   assert.doesNotMatch(s.elements.get('[data-book-all-result]').innerHTML, /station booked|No booking request/);
 });
+
