@@ -17695,7 +17695,9 @@ function backEndDataRows() {
   const activeCanonicalIds = new Set(app.data.map(vehicle => String(vehicle.__emailVehicleId || '').trim()).filter(Boolean));
   const unlinkedSharedRows = sharedNavisionBackEndRows().filter(row => {
     const canonicalId = String(row.canonicalVehicleId || '').trim();
-    return !(row.boardActivated && canonicalId && activeCanonicalIds.has(canonicalId));
+    // Tune approval and Navision activation are separate intake routes. A verified
+    // canonical link already identifies this vehicle, regardless of activation route.
+    return !(canonicalId && activeCanonicalIds.has(canonicalId));
   });
   return activeRows.concat(unlinkedSharedRows, deletedRecords).sort((a, b) => String(displayStockNumber(a.vehicle) || vehicleKey(a.vehicle) || '').localeCompare(String(displayStockNumber(b.vehicle) || vehicleKey(b.vehicle) || ''), 'en-AU', { numeric: true }));
 }
