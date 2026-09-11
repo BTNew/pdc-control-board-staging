@@ -13616,3 +13616,15 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
     flex: 1 1 145px;
   }
 }
+
+/* Keep workshop links compact despite the later desktop and polish stylesheets. */
+@media (min-width: 821px) and (pointer: fine) {
+  .sidebar .nav {
+    row-gap: 2px !important;
+  }
+  .sidebar .nav .nav-workshop-item {
+    min-height: 30px !important;
+    padding-block: 4px !important;
+    margin-block: 0;
+  }
+}
