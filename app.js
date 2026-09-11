@@ -13759,6 +13759,16 @@ function vehicleModalDealerIdentity(vehicle = {}) {
   return ['14450', '37047'].includes(dealer) ? dealer : '';
 }
 
+function vehicleModalCanOpenWithoutDealer(vehicle, identity) {
+  if (vehicle?.__emailVehicleServerAuthoritative !== true || vehicle.__emailVehicleIdentityConflict === true) return false;
+  const suppliedDealer = cleanNavisionText(vehicle.__sharedNavisionDealerCode || vehicle.dealerCode || vehicle.dealer_code || '');
+  if (suppliedDealer) return false;
+  const exact = exactAuthoritativeVehicleSnapshotRow(identity);
+  // External Tune intake has a canonical identity before a Navision match exists.
+  // Require the authenticated exact row; never infer a dealer from Stock or owner.
+  return exact.ok === true && exact.row?.source_system === 'tune_pmg';
+}
+
 function vehicleModalApplyDealerIdentity(vehicle, identity = app.vehicleModalIdentity) {
   if (!vehicle || !identity) return null;
   const boundDealer = cleanNavisionText(identity.dealerCode || '');
@@ -14064,7 +14074,8 @@ function openVehicleModal(stock) {
   app.vehicleModalIdentityReady = false;
   app.vehicleModalIdentityRecoveryAttempted = false;
   app.vehicleModalIdentityLastError = '';
-  if (!app.vehicleModalIdentity.canonicalId || !app.vehicleModalIdentity.stockBaseline || !app.vehicleModalIdentity.dealerCode) {
+  if (!app.vehicleModalIdentity.canonicalId || !app.vehicleModalIdentity.stockBaseline
+      || (!app.vehicleModalIdentity.dealerCode && !vehicleModalCanOpenWithoutDealer(vehicle, app.vehicleModalIdentity))) {
     app.vehicleModalIdentity = null;
     window.alert('The exact vehicle identity is unavailable. Refresh the list and try again. No vehicle was changed.');
     return false;
