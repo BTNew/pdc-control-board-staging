@@ -35,5 +35,5 @@ const recomputeStart = source.indexOf('async function workshopScheduleVehicleNex
 const recomputeEnd = source.indexOf('async function scheduleWorkshopVehicle', recomputeStart);
 const recompute = source.slice(recomputeStart, recomputeEnd);
 assert.match(recompute, /const nextOperationalMoment = workshopNormalizeStartDate\(new Date\(\)\)/);
-assert.match(recompute, /workshopBestStageSlot\(normalizedStage, windowStart, estimate, workshopLoadPlans\(\), notBeforeMinutes, windowEnd\)/);
+assert.match(recompute, /workshopBestStageSlot\(normalizedStage, windowStart, estimate, workshopLoadPlans\(\), notBeforeMinutes, windowEnd, vehicleWindows\)/);
 console.log('Workshop diagnostics hidden and Best slot current-time recompute: PASS');
