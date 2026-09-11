@@ -65,10 +65,10 @@
 
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
-    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.11.positive-hours';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.11.uniform-cards';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.11.positive-hours';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.11.uniform-cards';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };

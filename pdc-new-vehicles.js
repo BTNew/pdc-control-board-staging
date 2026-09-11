@@ -128,7 +128,7 @@
     const value=hoursFor(line,hourDrafts),missing=!positiveHours(value);
     const standard=line.hours_provenance==='craig_standard_pre_delivery_1_hour';
     return `<article class="nv-operation nv-operation-pill ${missing?'nv-hours-missing':''}" draggable="${line.department!=='138'&&writable()&&!saving&&!sourceChanged}" data-nv-line="${esc(line.line_identity)}">
-      <strong>${esc(line.description)}</strong><small>${line.department?`Dept ${esc(line.department)} · `:''}${esc(line.operation_code || (line.department ? 'Line '+line.original_line_number : line.operation_no))}</small>
+      <strong tabindex="0" title="${esc(line.description)}">${esc(line.description)}</strong><small>${line.department?`Dept ${esc(line.department)} · `:''}${esc(line.operation_code || (line.department ? 'Line '+line.original_line_number : line.operation_no))}</small>
       ${line.department==='138'?'<span class="nv-pill-suggestion">Bus 4×4 · Department 138</span>':!assigned&&suggested?`<span class="nv-pill-suggestion">Suggested: ${esc(suggested)}</span>`:''}
       <label class="nv-hours-label">Hours<input type="number" min="0.01" max="999.99" step="0.01" inputmode="decimal" aria-label="Hours for ${esc(line.description)}" aria-invalid="${missing}" data-nv-hours="${esc(line.line_identity)}" value="${esc(value??'')}" placeholder="Enter hours" ${standard?'readonly':''} ${!writable()||saving||sourceChanged?'disabled':''}></label>
       <small class="nv-hours-hint">${missing?'Hours required before approval':standard?'Pre-delivery · 1 hour standard':'Hours confirmed'}</small></article>`;

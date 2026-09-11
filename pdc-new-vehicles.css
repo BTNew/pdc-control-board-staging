@@ -36,3 +36,16 @@
 @media(max-width:1599px){.nv-stations{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:1000px){.nv-stations{grid-template-columns:repeat(2,minmax(0,1fr))}.nv-review-tray>div{max-height:360px}}
 @media(max-width:500px){.nv-stations{grid-template-columns:1fr}.nv-review-tray>div{grid-template-columns:1fr;max-height:360px}.nv-stations>.nv-station{min-height:180px}.nv-approval{position:static}}
+
+/* Uniform operation cards across the review tray and workshop columns. */
+.nv-operation-pill { box-sizing:border-box; width:170px; height:224px; padding:10px; display:grid; grid-template-rows:minmax(0,1fr) 16px 22px 34px 32px; gap:4px; margin:0 auto 9px; }
+.nv-operation-pill>strong { grid-row:1; min-height:0; overflow:auto; font-size:12px; line-height:1.4; font-weight:600; }
+.nv-operation-pill>small:not(.nv-hours-hint) { grid-row:2; margin:0; font-size:10px; }
+.nv-operation-pill>.nv-pill-suggestion { grid-row:3; margin:0; font-size:10px; line-height:1.1; }
+.nv-operation-pill>.nv-hours-label { grid-row:4; margin:0; }
+.nv-operation-pill>.nv-hours-hint { grid-row:5; margin:0; font-size:10px; line-height:1.4; }
+.nv-review-tray>div { grid-template-columns:repeat(auto-fill,170px); }
+.nv-stations { grid-template-columns:repeat(8,minmax(192px,1fr)); overflow-x:auto; }
+@media(max-width:1599px){.nv-stations{grid-template-columns:repeat(4,minmax(192px,1fr));}}
+@media(max-width:1000px){.nv-stations{grid-template-columns:repeat(2,minmax(192px,1fr));}}
+@media(max-width:500px){.nv-stations{grid-template-columns:minmax(192px,1fr);}}
