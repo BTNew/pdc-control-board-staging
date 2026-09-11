@@ -3145,7 +3145,7 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
     .filter(vehicle => workshopVehicleSearchText(vehicle).includes(clean))
     .map(vehicle => {
       const key = vehicleKey(vehicle);
-      const sharedRef = workshopSharedModeActive() ? workshopSharedVehicleRef({ vehicleKey: key }) : null;
+      const sharedRef = workshopSharedModeActive() ? workshopSharedVehicleRef({ vehicleKey: key, sharedVehicleId: vehicle.sharedVehicleId || (vehicle.__emailVehicleServerAuthoritative === true ? vehicle.__emailVehicleId : '') }) : null;
       const vehicleIdentity = sharedRef?.vehicleId ? `shared:${sharedRef.vehicleId}` : `legacy:${key}`;
       const bookings = workshopSortBookingsClosest((Array.isArray(plans) ? plans : []).filter(entry => (
         entry.status !== 'completed' && workshopPlanVehicleIdentity(entry) === vehicleIdentity
@@ -3169,6 +3169,9 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
       };
     })
     .filter(item => item.bookings.length || item.candidateInLane)
+    // Board and station projections can use different local keys for the same
+    // canonical vehicle. Collapse only the resolved identity, never the stock.
+    .filter((item, index, matches) => matches.findIndex(other => other.vehicleIdentity === item.vehicleIdentity) === index)
     .sort((a, b) => a.rank - b.rank
       || String(displayStockNumber(a.vehicle) || a.vehicleKey).localeCompare(String(displayStockNumber(b.vehicle) || b.vehicleKey))
       || a.vehicleKey.localeCompare(b.vehicleKey));

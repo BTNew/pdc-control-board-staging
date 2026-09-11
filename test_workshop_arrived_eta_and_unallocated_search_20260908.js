@@ -124,3 +124,18 @@ assert.match(appSource, /WORKSHOP_PLANNER_SCRIPT_VERSION = '2026\.09\.09\.03-fit
 assert.match(indexSource, /workshop-search=2026\.09\.08\.01/, 'entry-point cache key releases this remediation');
 
 console.log('Workshop arrived ETA bypass and unallocated search regression: PASS');
+
+// The board row and station projection share one canonical identity but have
+// different local keys. They must not create duplicate vehicle choices.
+context.app.data = [{ vehicleKey: snapshotVehicle.stock_number, stockNumber: snapshotVehicle.stock_number, customerName: 'Full board customer', model: 'Hilux DCC SR', __emailVehicleServerAuthoritative: true, __emailVehicleId: snapshotVehicle.id }];
+const duplicateSources = context.search(snapshotVehicle.stock_number, plans);
+assert.strictEqual(duplicateSources.length, 1, 'board plus snapshot yields one canonical vehicle');
+assert.strictEqual(duplicateSources[0].vehicle.model, 'Hilux DCC SR', 'retain the full board description');
+context.app.workshopEligibilitySnapshot.candidates = [{vehicle: snapshotVehicle}];
+assert.strictEqual(context.search(snapshotVehicle.stock_number, plans).length, 1, 'third eligibility projection remains one choice');
+const twoBookings = [{id:'a', sharedVehicleId:snapshotVehicle.id,status:'planned'}, {id:'b',sharedVehicleId:snapshotVehicle.id,status:'planned'}];
+assert.strictEqual(context.search(snapshotVehicle.stock_number, twoBookings)[0].bookings.length, 2, 'independent bookings remain available');
+context.workshopSharedVehicleRef = ({sharedVehicleId,vehicleKey}) => ({vehicleId:sharedVehicleId || `vehicle-${vehicleKey}`});
+context.app.data.push({sharedVehicleId:'different-canonical-vehicle',vehicleKey:snapshotVehicle.stock_number,stockNumber:snapshotVehicle.stock_number});
+const distinctPlans=[...twoBookings,{id:'c',sharedVehicleId:'different-canonical-vehicle',status:'planned'}];
+assert.strictEqual(context.search(snapshotVehicle.stock_number, distinctPlans).length, 2, 'different canonical IDs with the same stock remain distinct');
