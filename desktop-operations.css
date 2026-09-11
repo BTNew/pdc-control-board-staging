@@ -84,6 +84,7 @@
 
   .work-status-legend {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     min-height: 42px;
@@ -98,6 +99,11 @@
   .work-status-legend > strong { margin-right: 4px; color: #17212b; font-size: 13px; }
   .work-status-key {
     display: inline-flex;
+    flex: 0 0 176px;
+    width: 176px;
+    height: 32px;
+    justify-content: center;
+    white-space: nowrap;
     align-items: center;
     gap: 5px;
     min-height: 28px;
