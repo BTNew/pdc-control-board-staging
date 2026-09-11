@@ -1102,6 +1102,9 @@ function workflowHeaderFilterHtml(label = '', filterType = '', options = [], cur
 }
 
 function productionGridHeaderHtml(className = '', options = {}) {
+  const heading = (label, key) => options.incomingSort
+    ? incomingSortHeadingHtml(label, key, options.incomingSort)
+    : `<span>${escapeHtml(label)}</span>`;
   const meta1Label = options.meta1Label || 'Age / ETA';
   const meta2Label = options.meta2Label || 'Status';
   const actionLabel = options.actionLabel || 'Actions';
@@ -1171,22 +1174,23 @@ function productionGridHeaderHtml(className = '', options = {}) {
     <span class="pdc-grid-control-heading" aria-hidden="true"></span>
     <span class="pdc-grid-select-heading" aria-hidden="true"></span>
     <span class="pdc-grid-identity-heading">
-      <span>Key</span><span>Stock</span><span>Job Card</span><span>Customer</span>
+      ${heading('Key', 'key')}${heading('Stock', 'stock')}${heading('Job Card', 'jobcard')}${heading('Customer', 'customer')}
     </span>
-    <span class="pdc-grid-vehicle-heading">Vehicle</span>
+    <span class="pdc-grid-vehicle-heading">${heading('Vehicle', 'vehicle')}</span>
     <span class="pdc-grid-stations-heading">${stationHeaders}</span>
-    <span class="pdc-grid-meta-heading">${escapeHtml(meta1Label)}</span>
+    <span class="pdc-grid-meta-heading">${options.incomingSort ? heading(meta1Label, 'age') : escapeHtml(meta1Label)}</span>
     <span class="pdc-grid-status-heading">${escapeHtml(meta2Label)}</span>
     <span class="pdc-grid-action-heading">${escapeHtml(actionLabel)}</span>
   </div>`;
 }
 
-function vehicleLocationsRftHeaderHtml() {
+function vehicleLocationsRftHeaderHtml(sort = null) {
+  const heading = (label, key) => sort ? incomingSortHeadingHtml(label, key, sort) : `<span>${escapeHtml(label)}</span>`;
   return `<div class="pdc-production-grid-header rft-vehicle-locations-header">
     <span class="pdc-grid-control-heading" aria-hidden="true"></span>
     <span class="pdc-grid-select-heading" aria-hidden="true"></span>
-    <span class="pdc-grid-identity-heading"><span>Key</span><span>Stock</span><span>Job Card</span><span>Customer</span></span>
-    <span class="pdc-grid-vehicle-heading">Vehicle</span>
+    <span class="pdc-grid-identity-heading">${heading('Key', 'key')}${heading('Stock', 'stock')}${heading('Job Card', 'jobcard')}${heading('Customer', 'customer')}</span>
+    <span class="pdc-grid-vehicle-heading">${heading('Vehicle', 'vehicle')}</span>
     <span class="rft-controls-heading"><span>RFT’d</span><span>Email Sales Person</span><span>Collected</span></span>
   </div>`;
 }
@@ -7913,6 +7917,42 @@ function renderSalesDashboardBoard() {
   $$('[data-sales-prep-field]', host).forEach(input => input.addEventListener('change', () => { void updateSalesPreparationControl(input); }));
 }
 
+function incomingSortHeadingHtml(label, key, sort = {}) {
+  const active = sort.key === key;
+  const direction = active && sort.direction === 'asc' ? 'desc' : 'asc';
+  const next = key === 'age'
+    ? direction === 'asc' ? 'oldest age / earliest ETA first' : 'newest age / latest ETA first'
+    : direction === 'asc' ? 'ascending' : 'descending';
+  return `<button type="button" class="incoming-sort-heading${active ? ' is-active' : ''}" data-incoming-sort="${escapeHtml(key)}" aria-label="${escapeHtml(`Sort ${label}: ${next}`)}" title="${escapeHtml(`Sort ${label}: ${next}. Missing values stay last.`)}">${escapeHtml(label)} <span aria-hidden="true">${active ? sort.direction === 'asc' ? '↑' : '↓' : '↕'}</span></button>`;
+}
+
+function incomingCompareVehicles(a, b, sort = {}, bucket = '') {
+  const text = value => {
+    const result = String(value ?? '').trim();
+    return !result || /^[—–-]$/.test(result) ? null : result;
+  };
+  const value = vehicle => {
+    switch (sort.key) {
+      case 'key': return text(vehicleKeyNumber(vehicle));
+      case 'stock': return text(displayStockNumber(vehicle));
+      case 'jobcard': return text(vehicleJobcardNumber(vehicle));
+      case 'customer': return text(vehicleCustomerName(vehicle));
+      case 'vehicle': return text(displayVehicle(vehicle));
+      case 'age': return (bucket === 'pmb'
+        ? parseIsoTimestamp(pmbEnteredTimestamp(vehicle))
+        : parseDateAU(navisionEtaForVehicle(vehicle)))?.getTime() ?? null;
+      default: return parseDateAU(navisionEtaForVehicle(vehicle))?.getTime() ?? null;
+    }
+  };
+  const left = value(a), right = value(b);
+  if (left === null && right !== null) return 1;
+  if (right === null && left !== null) return -1;
+  const compare = (l, r) => String(l ?? '').localeCompare(String(r ?? ''), undefined, { numeric: true, sensitivity: 'base' });
+  const difference = left === null ? 0 : typeof left === 'number' ? left - right : compare(left, right);
+  return difference ? difference * (sort.direction === 'desc' ? -1 : 1)
+    : compare(displayStockNumber(a), displayStockNumber(b));
+}
+
 function renderIncomingDashboardBoard() {
   const host = $('#incoming-main-board');
   if (!host) return;
@@ -7927,6 +7967,7 @@ function renderIncomingDashboardBoard() {
   updateIncomingDashboardFilterOptions(rows);
   const filters = incomingDashboardFilterValues();
   updateIncomingMoreFiltersState(filters);
+  const sort = app.incomingDashboardSort || {};
   const filteredRows = rows.filter(vehicle => incomingVehicleMatchesFilters(vehicle, filters));
   const summary = $('#incoming-filter-summary');
   if (summary) {
@@ -7943,12 +7984,12 @@ function renderIncomingDashboardBoard() {
   host.innerHTML = sharedNavisionLocationsStatusHtml() + workStatusLegendHtml() + priorityHtml + defs.map(def => {
     if (filters.bucket && filters.bucket !== def.key) return '';
     const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
-      .sort((a, b) => (parseDateAU(navisionEtaForVehicle(a))?.getTime() || 9999999999999) - (parseDateAU(navisionEtaForVehicle(b))?.getTime() || 9999999999999));
+      .sort((a, b) => incomingCompareVehicles(a, b, sort, def.key));
     const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key, { workshopPlans, workshopProjectionAvailable })).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
     const identityHeader = vehicles.length
       ? def.key === 'rft'
-        ? vehicleLocationsRftHeaderHtml()
-        : productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Source / next step' })
+        ? vehicleLocationsRftHeaderHtml(sort)
+        : productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Source / next step', incomingSort: sort })
       : '';
     return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
@@ -7957,6 +7998,16 @@ function renderIncomingDashboardBoard() {
       <div class="incoming-bucket-list incoming-vertical-list">${identityHeader}${shown}</div>
     </details>`;
   }).join('');
+  $$('[data-incoming-sort]', host).forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    const key = button.dataset.incomingSort;
+    app.incomingDashboardSort = { key, direction: sort.key === key && sort.direction === 'asc' ? 'desc' : 'asc' };
+    const bucketClass = [...(button.closest('.incoming-bucket')?.classList || [])].find(name => name.startsWith('incoming-') && name !== 'incoming-bucket');
+    renderIncomingDashboardBoard();
+    const bucket = bucketClass ? [...host.querySelectorAll('.incoming-bucket')].find(row => row.classList.contains(bucketClass)) : host;
+    [...(bucket?.querySelectorAll('[data-incoming-sort]') || [])].find(control => control.dataset.incomingSort === key)?.focus({ preventScroll: true });
+  }));
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
     openVehicleCardFromVisibleBoard(button.dataset.openStock, button);

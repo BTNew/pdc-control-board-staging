@@ -11654,6 +11654,27 @@ html[data-row-width="xl"] {
 }
 
 /* The split Parts pill has two labels within its existing angled heading. */
+.incoming-sort-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 3px 1px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.incoming-sort-heading:hover,
+.incoming-sort-heading.is-active { color: #1756a9; background: #e0ecfa; }
+.incoming-sort-heading:focus-visible { outline: 2px solid #1756a9; outline-offset: 2px; }
+.incoming-sort-heading > span { font-size: 12px; }
+
 .pdc-grid-station-parts > span::after {
   content: 'Jita';
   display: block;
