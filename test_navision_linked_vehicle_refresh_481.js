@@ -15,6 +15,6 @@ assert.match(sql,/Exact Stock links one canonical operational vehicle/);
 assert.match(service,/colour: String\(row\.navision_colour \|\| ''\)\.trim\(\)/);
 assert.match(service,/navisionSalespersonRaw: String\(row\.navision_salesperson_raw \|\| ''\)\.trim\(\)/);
 assert.match(app,/canonicalVehicleId: item\.canonical_vehicle_id \|\| ''/);
-assert.match(app,/return !\(row\.boardActivated && canonicalId && activeCanonicalIds\.has\(canonicalId\)\)/);
+assert.match(app,/return !\(canonicalId && activeCanonicalIds\.has\(canonicalId\)\)/);
 assert.match(app,/linked into active rows/);
 console.log('Navision linked vehicle refresh 481: PASS');
