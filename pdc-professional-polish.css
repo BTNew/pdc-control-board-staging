@@ -239,9 +239,15 @@ input:focus, select:focus, textarea:focus {
 .sublet-table .sublet-row-actions .small-button:not(.primary) { border:1px solid #d9e0e8; background:#f8fafc; }
 .sublet-table .sublet-row-actions .small-button.primary { color:#fff; }
 
-/* Keep bulk booking inside the existing action column. */
-.incoming-card-action .incoming-book-all-stations { display:grid; gap:3px; min-width:0; max-width:100%; padding:7px 8px!important; white-space:normal!important; line-height:1.2!important; font-size:11px!important; overflow-wrap:break-word; }
-.incoming-book-all-stations small { font-size:10px; font-weight:500; }
+/* Share the action-column width between each booking list's header and rows. */
+#incoming-main-board .incoming-bucket-list:has(.incoming-book-all-stations) {
+  --pdc-grid-actions-width:260px;
+  --pdc-grid-template:16px 24px minmax(var(--pdc-grid-identity-min),1fr) var(--pdc-grid-vehicle-width) var(--pdc-grid-stations-width) var(--pdc-grid-meta-width) var(--pdc-grid-status-width) var(--pdc-grid-actions-width);
+  --pdc-grid-min:calc(56px + var(--pdc-grid-identity-min) + var(--pdc-grid-vehicle-width) + var(--pdc-grid-stations-width) + var(--pdc-grid-meta-width) + var(--pdc-grid-status-width) + var(--pdc-grid-actions-width) + 7 * var(--pdc-grid-gap));
+}
+#incoming-main-board .incoming-card-action:has(.incoming-book-all-stations) { flex-wrap:nowrap!important; }
+#incoming-main-board .incoming-card-action:has(.incoming-book-all-stations) > button { flex:0 0 auto; min-height:32px!important; margin:0; }
+.incoming-card-action .incoming-book-all-stations { display:inline-flex; align-items:center; justify-content:center; min-width:0; max-width:100%; padding:6px 8px!important; white-space:nowrap!important; line-height:1.2!important; font-size:11px!important; }
 .book-all-stations-dialog { width:min(680px,calc(100vw - 32px)); max-height:calc(100vh - 48px); overflow:auto; border:1px solid #cbd5e1; border-radius:12px; padding:22px; color:#17283d; }
 .book-all-stations-dialog::backdrop { background:#0f172a77; }
 .book-all-stations-dialog footer { display:flex; justify-content:flex-end; margin-top:16px; }
@@ -250,4 +256,3 @@ input:focus, select:focus, textarea:focus {
 .book-all-stations-table th,.book-all-stations-table td { padding:9px; text-align:left; border-bottom:1px solid #dbe3ee; font-size:12px; white-space:normal; }
 .book-all-stations-table th small { display:block; margin-top:3px; }
 .book-all-stations-error { color:#b91c1c; }
-

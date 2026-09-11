@@ -30,7 +30,7 @@
     // Keep transfer, QC and Open controls; replace only the old source-only badge.
     const retained = existingAction.replace(/<span class="badge neutral">(?:[^<]*Read only|Pilbara Service Review · R\/O loaded)<\/span>/g, '');
     const busy = pending.has(vehicleId(vehicle));
-    return `<button class="primary incoming-book-all-stations" type="button" data-book-all-stations="${esc(vehicleId(vehicle))}" ${busy ? 'disabled aria-busy="true"' : ''} title="Book each outstanding workshop station in its next available bay, with 5 hours between this vehicle’s jobs. Sublet is excluded."><span>${busy ? 'Booking stations…' : 'Book all stations'}</span><small>${busy ? 'Please wait' : 'Next available bookings'}</small></button>${retained}`;
+    return `${retained}<button class="primary incoming-book-all-stations" type="button" data-book-all-stations="${esc(vehicleId(vehicle))}" ${busy ? 'disabled aria-busy="true"' : ''} title="Book each outstanding workshop station in its next available bay, with 5 hours between this vehicle’s jobs. Sublet is excluded."><span>${busy ? 'Booking stations…' : 'Book all stations'}</span></button>`;
   }
   const dialog = document.createElement('dialog');
   dialog.className = 'book-all-stations-dialog';

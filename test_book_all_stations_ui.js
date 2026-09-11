@@ -71,7 +71,8 @@ test('new action replaces source text while preserving lifecycle controls and co
   const s = setup();
   const html = s.api.actionHtml(s.vehicle, '<span class="badge neutral">Imported by email · Read only</span><button data-yh-transfer-pmb="key">To PMB</button>');
   assert.match(html, /Book all stations/);
-  assert.match(html, /Next available bookings/);
+  assert.doesNotMatch(html, /<small>/);
+  assert.ok(html.indexOf('data-yh-transfer-pmb') < html.indexOf('data-book-all-stations'));
   assert.match(html, /data-yh-transfer-pmb/);
   assert.doesNotMatch(html, /Read only/);
   assert.doesNotMatch(html, /grid-template|incoming-card-action/);
@@ -192,4 +193,3 @@ test('uncertain network result is not reported as a successful booking or rollba
   assert.match(s.elements.get('[data-book-all-result]').innerHTML, /could not be confirmed/);
   assert.doesNotMatch(s.elements.get('[data-book-all-result]').innerHTML, /station booked|No booking request/);
 });
-
