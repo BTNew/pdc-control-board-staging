@@ -39,7 +39,7 @@ assert.match(controlContext.renderControl({state: 'complete', ordered: true}, pa
 
 function renderIncoming({ordered = false, blocked = false, complete = false} = {}) {
   const context = {
-    vehicleKey: () => 'TEST-STOCK', normalizePmbStage: value => value || '', inferredPmbStage: () => '',
+    vehicleNavisionJitaNumber: () => '', vehicleKey: () => 'TEST-STOCK', normalizePmbStage: value => value || '', inferredPmbStage: () => '',
     vehicleWorkshopBookingProjection: () => ({bookingRequired: false, activeBookings: []}),
     pdcJobDefsPartsFirst: () => [partsDef], pdcJobRequired: () => true, pdcJobComplete: () => complete,
     pmbStageForPdcJob: () => '', PMB_STAGE_TO_JOB_KEY: {}, isActivePartsStoppage: () => blocked,
@@ -56,8 +56,8 @@ function renderIncoming({ordered = false, blocked = false, complete = false} = {
 }
 const orderedCard = renderIncoming({ordered: true});
 assert.match(orderedCard, /incoming-work-check pdc-station-parts is-required is-ordered/);
-assert.match(orderedCard, /aria-label="Parts ordered"/);
-assert.match(orderedCard, /title="Parts ordered"/);
+assert.match(orderedCard, /aria-label="Parts ordered; No verified Navision JITA pre-order number"/);
+assert.match(orderedCard, /title="Top left: Parts ordered\. Bottom right: No verified Navision JITA pre-order number"/);
 assert.doesNotMatch(renderIncoming({ordered: true, blocked: true}), /is-ordered/);
 assert.match(renderIncoming({ordered: true, complete: true}), /is-complete/);
 
@@ -93,7 +93,7 @@ const secondSession = reconcileVehicleRows([{ ...firstSession }], [authoritative
 assert.strictEqual(firstSession.pdcPartsOrdered, true, 'refresh keeps authoritative ordered projection');
 assert.strictEqual(secondSession.pdcPartsOrdered, true, 'realtime/two-session reconciliation keeps authoritative ordered projection');
 const runtimeContext = {
-  vehicleKey: vehicle => vehicle.stock, normalizePmbStage: value => value || '', inferredPmbStage: () => '',
+  vehicleNavisionJitaNumber: () => '', vehicleKey: vehicle => vehicle.stock, normalizePmbStage: value => value || '', inferredPmbStage: () => '',
   vehicleWorkshopBookingProjection: () => ({bookingRequired: false, activeBookings: []}),
   pdcJobDefsPartsFirst: () => [{ ...partsDef, requireKey: 'pdcRequiresParts', completeKey: 'pdcCompleteParts' }],
   pdcJobRequired: (vehicle, def) => vehicle[def.requireKey] === true, pdcJobComplete: (vehicle, def) => vehicle[def.completeKey] === true,

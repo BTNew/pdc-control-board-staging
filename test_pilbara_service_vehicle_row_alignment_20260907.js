@@ -15,7 +15,7 @@ const defs = [
 ].map(([key, label]) => ({ key, label }));
 const context = {
   pdcJobDefsPartsFirst: () => defs,
-  vehicleKey: vehicle => vehicle.stock,
+  vehicleNavisionJitaNumber: () => '', vehicleKey: vehicle => vehicle.stock,
   normalizePmbStage: value => value || '',
   inferredPmbStage: () => '',
   vehicleWorkshopBookingProjection: () => ({ bookingRequired: false, activeBookings: [] }),

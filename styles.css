@@ -11722,6 +11722,49 @@ html[data-row-width="xl"] {
   box-shadow: inset 0 0 0 1px rgba(159, 17, 17, .12) !important;
 }
 
+.incoming-work-check.parts-jita-split {
+  overflow: hidden;
+  isolation: isolate;
+}
+.parts-jita-split::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  background: #fff0f3;
+  z-index: -1;
+}
+.parts-jita-split.has-jita::after { background: #edf9f1; }
+.parts-jita-split::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom right, transparent calc(50% - .65px), #64748b 50%, transparent calc(50% + .65px));
+  pointer-events: none;
+}
+.parts-jita-split .incoming-work-box.parts-jita-parts-marker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 50% !important;
+  height: 50% !important;
+  font-size: 12px !important;
+}
+.parts-jita-marker {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 50%;
+  height: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1;
+  color: #a3133b;
+}
+.has-jita .parts-jita-marker { color: #146c3b; }
+
 .incoming-work-check:hover {
   filter: brightness(.98) !important;
   box-shadow: 0 0 0 2px rgba(29, 78, 216, .14) !important;
