@@ -7674,6 +7674,15 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
     const title = stoppedBooking
       ? `${pdcGridJobLabel(def)} STOPPAGE${stoppedBooking.stoppageReason ? `: ${stoppedBooking.stoppageReason}` : ''}`
       : ordered ? `${pdcGridJobLabel(def)} ordered` : booked ? `${pdcGridJobLabel(def)} booked` : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
+    if (def.key === 'parts') {
+      const jitaNumber = vehicleNavisionJitaNumber(vehicle);
+      const jitaStatus = jitaNumber ? `JITA pre-order ${jitaNumber}` : 'No verified Navision JITA pre-order number';
+      return `<span class="${classes.join(' ')} parts-jita-split ${jitaNumber ? 'has-jita' : 'no-jita'}" role="img" title="${escapeHtml(`Top left: ${title}. Bottom right: ${jitaStatus}`)}" aria-label="${escapeHtml(`Parts ${state}; ${jitaStatus}`)}">
+        <span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">${marker}</span>
+        <span class="parts-jita-marker" aria-hidden="true">${jitaNumber ? '✓' : '●'}</span>
+        <span class="incoming-work-label">Parts / JITA</span>
+      </span>`;
+    }
     return `<span class="${classes.join(' ')}" title="${escapeHtml(title)}" aria-label="${escapeHtml(`${pdcGridJobLabel(def)} ${state}`)}">
       <span class="incoming-work-box" aria-hidden="true">${marker}</span>
       <span class="incoming-work-label">${escapeHtml(pdcGridJobLabel(def))}</span>
@@ -7689,6 +7698,7 @@ function workStatusLegendHtml() {
     <span class="work-status-key status-booked"><b>!</b> Booked / Parts ordered</span>
     <span class="work-status-key status-complete"><b>✓</b> Complete</span>
     <span class="work-status-key status-blocked"><b>!</b> STOPPAGE</span>
+    <span class="work-status-key parts-jita-key">Parts pill: top left <b>Parts</b> / bottom right <b>JITA</b></span>
   </div>`;
 }
 
