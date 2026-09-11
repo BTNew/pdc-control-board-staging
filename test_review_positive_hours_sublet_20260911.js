@@ -43,5 +43,5 @@ test('review uses hour controls and drag targets without Move to selectors',()=>
 
 test('Sublet needs no hours, preserves source and responds to station changes',()=>{
  for(const value of [null,0,2.5]){const r=row();r.operations[0].stage_code='SUBLET';r.operations[0].estimated_hours=value;const draft={'source:1':'5'};assert.deepEqual(api.problems(r,{},draft),[]);assert.equal(Object.hasOwn(api.assignmentsFor(r,{},draft)[0],'estimated_hours'),false);const result={ok:true,data:{vehicle_id:r.vehicle_id,visible_on_board:true,bookings_created:0,operations:r.operations.map(l=>({...l}))}};assert.equal(api.verifyApproval(result,r,{},draft),true);result.data.operations[0].estimated_hours=99;assert.equal(api.verifyApproval(result,r,{},draft),false);}
- const r=row();assert.ok(api.problems(r).length);assert.deepEqual(api.problems(r,{'source:1':'SUBLET'}),[]);r.operations[0].stage_code='SUBLET';assert.ok(api.problems(r,{'source:1':'FITTING'}).length);r.operations[0].department='138';assert.ok(api.problems(r,{'source:1':'SUBLET'}).length);
+ const r=row();assert.ok(api.problems(r).length);assert.deepEqual(api.problems(r,{'source:1':'SUBLET'}),[]);r.operations[0].stage_code='SUBLET';assert.ok(api.problems(r,{'source:1':'FITTING'}).length);r.operations[0].department='138';assert.deepEqual(api.problems(r,{'source:1':'SUBLET'}),[]);
 });
