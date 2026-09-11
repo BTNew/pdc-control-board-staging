@@ -7587,8 +7587,9 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
           ? `Source hours: ${operation.sourceEstimatedHours == null ? 'blank' : Number(operation.sourceEstimatedHours).toFixed(2)}`
           : '';
         const provenanceText = operation.hoursProvenance === 'pre_delivery_default_1_5' ? 'Business-rule default' : '';
-        const partsText = operation.partsSemantics === 'explicitly_backordered'
-          ? 'Parts backordered'
+        const partsFlags = importedPartsStatus(vehicle)?.operations?.[operation.operation_line_id];
+        const partsText = partsFlags ? `${partsFlags.label}. ${partsFlags.job_label}` : operation.partsSemantics === 'explicitly_backordered'
+          ? 'Job has outstanding parts'
           : operation.partsSemantics === 'review' ? 'Parts status review' : '';
         const reviewEvidence = [sourceHoursText, provenanceText, partsText].filter(Boolean).join(' · ');
         return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em>${reviewEvidence ? `<small>${escapeHtml(reviewEvidence)}</small>` : ''}</li>`;
@@ -7730,6 +7731,13 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
       ? `${pdcGridJobLabel(def)} STOPPAGE${stoppedBooking.stoppageReason ? `: ${stoppedBooking.stoppageReason}` : ''}`
       : ordered ? `${pdcGridJobLabel(def)} ordered` : booked ? `${pdcGridJobLabel(def)} booked` : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
     if (def.key === 'parts') {
+      const imported = typeof importedPartsStatus === 'function' ? importedPartsStatus(vehicle) : null;
+      if (imported) {
+        const jitaNumber = vehicleNavisionJitaNumber(vehicle);
+        const jitaStatus = jitaNumber ? `JITA pre-order ${jitaNumber}` : 'No verified Navision JITA pre-order number';
+        const glyph = {green: '✓', orange: '!', red: '●', grey: '—', review: '?'}[imported.colour];
+        return `<span class="incoming-work-check parts-jita-split imported-parts-${escapeHtml(imported.colour)} ${jitaNumber ? 'has-jita' : 'no-jita'}" role="img" title="${escapeHtml(importedPartsTitle(vehicle) + ' ' + jitaStatus)}" aria-label="${escapeHtml(imported.label + '; ' + jitaStatus)}"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">${glyph}</span><span class="parts-jita-marker" aria-hidden="true">${jitaNumber ? '✓' : '●'}</span><span class="incoming-work-label">Parts / JITA</span></span>`;
+      }
       const jitaNumber = vehicleNavisionJitaNumber(vehicle);
       const jitaStatus = jitaNumber ? `JITA pre-order ${jitaNumber}` : 'No verified Navision JITA pre-order number';
       return `<span class="${classes.join(' ')} parts-jita-split ${jitaNumber ? 'has-jita' : 'no-jita'}" role="img" title="${escapeHtml(`Top left: ${title}. Bottom right: ${jitaStatus}`)}" aria-label="${escapeHtml(`Parts ${state}; ${jitaStatus}`)}">
@@ -15699,7 +15707,21 @@ function partsMiscAcc(vehicle = {}) {
   return vehicle.pdcPartsMiscAcc === true || value === 'misc acc' || value === 'miscacc' || value.includes('misc acc');
 }
 
+function importedPartsStatus(vehicle = {}) {
+  const p = vehicle.pdcPartsFlags || vehicle.parts_flags;
+  return p && ['orange', 'red', 'green', 'grey', 'review'].includes(p.colour) ? p : null;
+}
+
+function importedPartsTitle(vehicle = {}) {
+  const p = importedPartsStatus(vehicle);
+  if (!p) return '';
+  const when = p.last_successful_import_at ? new Date(p.last_successful_import_at).toLocaleString('en-AU', {timeZone: 'Australia/Perth'}) : 'Not recorded';
+  return `${p.label}. Last successful import: ${when} (Perth). ${p.meaning || ''}`;
+}
+
 function partsDepartmentStatus(vehicle = {}) {
+  const imported = typeof importedPartsStatus === 'function' ? importedPartsStatus(vehicle) : null;
+  if (imported) return 'import:' + imported.label;
   const def = partsJobDef();
   const projected = canonicalVehicleWorkState(vehicle, def);
   if (projected.state === 'none') return 'notrequired';
@@ -15711,6 +15733,7 @@ function partsDepartmentStatus(vehicle = {}) {
 }
 
 function partsDepartmentStatusLabel(status = '') {
+  if (status.startsWith('import:')) return status.slice(7);
   return {
     notrequired: 'Not Required',
     notordered: 'Not Ordered',
@@ -15722,6 +15745,13 @@ function partsDepartmentStatusLabel(status = '') {
 }
 
 function partsDepartmentStatusClass(status = '') {
+  if (status.startsWith('import:')) {
+    const label = status.slice(7);
+    if (label === 'Parts attached — no recorded backorders') return 'parts-status-complete';
+    if (label === 'Parts on order — outstanding' || label === 'Parts attached; outstanding parts — check PO') return 'parts-status-ordered';
+    if (label === 'Outstanding parts — PO not confirmed') return 'parts-status-toorder';
+    return 'parts-status-unknown';
+  }
   return {
     notrequired: 'parts-status-complete',
     notordered: 'parts-status-toorder',
@@ -15733,6 +15763,8 @@ function partsDepartmentStatusClass(status = '') {
 }
 
 function partsLastUpdateLabel(vehicle = {}) {
+  const imported = typeof importedPartsStatus === 'function' ? importedPartsStatus(vehicle) : null;
+  if (imported?.last_successful_import_at) return 'Imported ' + new Date(imported.last_successful_import_at).toLocaleString('en-AU', { timeZone: 'Australia/Perth' });
   const candidates = [
     vehicle.pdcCompletePartsAt,
     vehicle.pdcPartsStoppageAt,
