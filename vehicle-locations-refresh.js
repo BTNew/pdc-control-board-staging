@@ -16,6 +16,7 @@ function createPdcOperationalRefreshCoordinator(options = {}) {
   const onFinish = typeof options.onFinish === 'function' ? options.onFinish : () => {};
   let generation = 0;
   let inFlight = null;
+  let trailingRefresh = null;
 
   function isCurrent(candidate) {
     return Number(candidate) === generation;
@@ -27,7 +28,13 @@ function createPdcOperationalRefreshCoordinator(options = {}) {
 
   function refresh(refreshOptions = {}) {
     const supersede = refreshOptions?.supersede === true;
-    if (inFlight && !supersede) return inFlight;
+    if (inFlight && !supersede) {
+      // Realtime revisions may arrive after a loader has read its snapshot.
+      // Coalesce them into one follow-up without overlapping database reads.
+      if (refreshOptions?.trailing === true) trailingRefresh = { ...refreshOptions };
+      return inFlight;
+    }
+    if (supersede) trailingRefresh = null;
     const route = String(refreshOptions?.route || getRoute() || 'dashboard').trim() || 'dashboard';
     const currentGeneration = ++generation;
     const startedAt = Date.now();
@@ -70,7 +77,12 @@ function createPdcOperationalRefreshCoordinator(options = {}) {
       onFinish(result);
       return result;
     }).finally(() => {
-      if (inFlight === promise) inFlight = null;
+      if (inFlight === promise) {
+        inFlight = null;
+        const queued = trailingRefresh;
+        trailingRefresh = null;
+        if (queued && isCurrent(currentGeneration)) return refresh(queued);
+      }
     });
     inFlight = promise;
     return promise;
@@ -79,6 +91,7 @@ function createPdcOperationalRefreshCoordinator(options = {}) {
   function invalidate() {
     generation += 1;
     inFlight = null;
+    trailingRefresh = null;
     return generation;
   }
 
