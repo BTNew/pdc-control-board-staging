@@ -24,6 +24,12 @@
   }
   const api = {jobCard, summaryHtml, compactQueue, visibleAdminEdit};
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
+  // The planner is lazy-loaded when staff open a station, potentially long
+  // after startup retries expire. Script load is the reliable ready signal.
+  const plannerLoaded = event => {
+    if (event.target?.id === 'workshop-planner-script') install();
+  };
+  if (typeof document !== 'undefined') document.addEventListener('load', plannerLoaded, true);
   function install() {
     if (window.PDC_PLANNER_SLIM_VERSION) return true;
     if (typeof workshopQueueCardHtml !== 'function' || typeof workshopAdminBlockHtml !== 'function') return false;
@@ -46,6 +52,7 @@
     const previousAdmin = workshopAdminBlockHtml;
     workshopAdminBlockHtml = (...args) => visibleAdminEdit(previousAdmin(...args));
     window.PDC_PLANNER_SLIM_VERSION = '2026.09.10.01';
+    if (typeof document !== 'undefined') document.removeEventListener('load', plannerLoaded, true);
     if (typeof renderWorkshopPlanner === 'function' && window.__activeWorkshopPlannerStage) renderWorkshopPlanner();
     return true;
   }

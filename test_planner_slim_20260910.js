@@ -35,3 +35,31 @@ test('runtime preserves snapshot key and JC and does not alter scheduling input'
  assert.equal(row.keyNumber,'12');assert.equal(row.jobCardNumber,'JC5');
  assert.match(ctx.workshopQueueCardHtml(row,'FITTING'),/Key 12 · JC5/);
 });
+test('opening a planner after startup retries expire still installs compact cards once',()=>{
+ const timers=[], listeners=new Set();
+ const document={addEventListener:(type,fn,capture)=>{assert.equal(type,'load');assert.equal(capture,true);listeners.add(fn);},
+  removeEventListener:(type,fn)=>listeners.delete(fn)};
+ const ctx={window:{},document,setTimeout:fn=>timers.push(fn)};
+ vm.runInNewContext(fs.readFileSync('pdc-planner-slim.js','utf8'),ctx);
+ for(let guard=0;timers.length&&guard<100;guard++) timers.shift()();
+ assert.equal(timers.length,0,'startup retries are exhausted');
+ assert.equal(ctx.window.PDC_PLANNER_SLIM_VERSION,undefined);
+ Object.assign(ctx,{vehicleJobcardNumber:()=>'',workshopSnapshotVehicleToPlannerRow:()=>({}),
+  workshopQueueCardHtml:()=>'<article draggable="false" aria-disabled="true"><b>Old tall layout</b><div class="workshop-queue-actions"><button disabled>Schedule</button></div></article>',
+  workshopAdminBlockHtml:()=>'',workshopPartsSummary:()=>({text:'Received',status:'received'}),
+  vehicleKeyNumber:()=> '12',vehicleCustomerName:()=> 'Test customer',workshopStageJobLines:()=>[],
+  workshopQueueVehicleDescription:()=> 'Prado',workshopQueueEstimatedLabel:()=> '1.25h'});
+ for(const listener of [...listeners]) listener({target:{id:'unrelated-script'}});
+ assert.equal(ctx.window.PDC_PLANNER_SLIM_VERSION,undefined,'ignore unrelated script loads');
+ const ready=[...listeners][0];
+ ready({target:{id:'workshop-planner-script'}});
+ const installed=ctx.workshopQueueCardHtml;
+ const html=installed({},'FITTING');
+ assert.match(html,/planner-slim-details/);
+ assert.match(html,/draggable="false" aria-disabled="true"/);
+ assert.match(html,/<button disabled>Schedule/);
+ assert.doesNotMatch(html,/Old tall layout/);
+ assert.equal(listeners.size,0,'readiness listener removed after installation');
+ ready({target:{id:'workshop-planner-script'}});
+ assert.equal(ctx.workshopQueueCardHtml,installed,'repeated notification never wraps twice');
+});
