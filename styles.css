@@ -13628,3 +13628,7 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
     margin-block: 0;
   }
 }
+
+.sublet-provider-admin-form { grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) auto; }
+.sublet-provider-admin-table input[type="email"] { width: 100%; min-width: 200px; padding: 6px 8px; }
+@media (max-width: 700px) { .sublet-provider-admin-form { grid-template-columns: 1fr; } }
