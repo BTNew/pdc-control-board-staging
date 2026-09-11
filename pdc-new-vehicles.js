@@ -20,13 +20,14 @@
   function assignmentsFor(row, choices = {}, hours = null) {
     return (row?.operations || []).map(line => ({line_identity: line.line_identity,
       stage_code: line.department === '138' ? 'BUS_4X4' : choices[line.line_identity] ?? (validStation(line.stage_code) ? line.stage_code : ''),
-      ...(hours ? {estimated_hours:positiveHours(hoursFor(line,hours))?Number(hoursFor(line,hours)):null} : {})}));
+      ...(hours && (line.department === '138' || (choices[line.line_identity] ?? line.stage_code) !== 'SUBLET') ? {estimated_hours:positiveHours(hoursFor(line,hours))?Number(hoursFor(line,hours)):null} : {})}));
   }
   function problems(row, choices = {}, hours = {}) {
     if (!row || row.status !== 'pending' || !Array.isArray(row.operations) || !row.operations.length) return ['No complete Job Card is available.'];
     const issues = [];
     if (assignmentsFor(row, choices).some(item => !validStation(item.stage_code))) issues.push('Choose a station for every operation.');
-    if (row.operations.some(line => !positiveHours(hoursFor(line,hours)))) issues.push('Enter positive hours for every operation (up to two decimal places).');
+    const assigned = new Map(assignmentsFor(row, choices).map(item => [item.line_identity, item.stage_code]));
+    if (row.operations.some(line => assigned.get(line.line_identity) !== 'SUBLET' && !positiveHours(hoursFor(line,hours)))) issues.push('Enter positive hours for workshop operations; Sublet does not require hours.');
     if (row.operations.some(line => line.completed === true || line.active !== true)) issues.push('An operation changed or has already been completed. Reload this Job Card.');
     if (new Set(row.operations.map(line => line.line_identity)).size !== row.operations.length) issues.push('Duplicate operation identity needs review.');
     return issues;
@@ -47,7 +48,7 @@
       const before=row.operations.find(line=>line.line_identity===wanted.line_identity);
       const after=data.operations.filter(line=>line.line_identity===wanted.line_identity);
       return after.length===1 && after[0].stage_code===wanted.stage_code && after[0].description===before.description
-        && after[0].source_line_id===before.source_line_id && after[0].estimated_hours===Number(hoursFor(before,hours))
+        && after[0].source_line_id===before.source_line_id && after[0].estimated_hours===(wanted.stage_code==='SUBLET'?before.estimated_hours:Number(hoursFor(before,hours)))
         && after[0].completed===false;
     });
   }
@@ -94,7 +95,7 @@
     const code=String(err?.message || '');
     if(/changed|stale|conflict|already_approved/.test(code)) return 'This Job Card changed or was approved in another session. Reload it before continuing.';
     if(/authorized|session/.test(code)) return 'Sign in with an approved staff account. Only Operators and Administrators can approve.';
-    if(/hours/.test(code)) return 'All operations need valid source or approved estimated hours before release.';
+    if(/hours/.test(code)) return 'Workshop operations need valid hours before release. Sublet does not require hours.';
     if(/stations/.test(code)) return 'Assign every operation to a station.';
     return 'The request could not be confirmed. Refresh the queue before retrying; no success has been assumed.';
   }
@@ -125,18 +126,19 @@
   function operation(line) {
     const assigned=assignmentsFor(selected,choices).find(item=>item.line_identity===line.line_identity)?.stage_code || '';
     const suggested=STATIONS.find(([code])=>code===line.stage_code)?.[1];
-    const value=hoursFor(line,hourDrafts),missing=!positiveHours(value);
+    const sublet=assigned==='SUBLET';
+    const value=hoursFor(line,hourDrafts),missing=!sublet&&!positiveHours(value);
     const standard=line.hours_provenance==='craig_standard_pre_delivery_1_hour';
     return `<article class="nv-operation nv-operation-pill ${missing?'nv-hours-missing':''}" draggable="${line.department!=='138'&&writable()&&!saving&&!sourceChanged}" data-nv-line="${esc(line.line_identity)}">
       <strong tabindex="0" title="${esc(line.description)}">${esc(line.description)}</strong><small>${line.department?`Dept ${esc(line.department)} · `:''}${esc(line.operation_code || (line.department ? 'Line '+line.original_line_number : line.operation_no))}</small>
       ${line.department==='138'?'<span class="nv-pill-suggestion">Bus 4×4 · Department 138</span>':!assigned&&suggested?`<span class="nv-pill-suggestion">Suggested: ${esc(suggested)}</span>`:''}
-      <label class="nv-hours-label">Hours<input type="number" min="0.01" max="999.99" step="0.01" inputmode="decimal" aria-label="Hours for ${esc(line.description)}" aria-invalid="${missing}" data-nv-hours="${esc(line.line_identity)}" value="${esc(value??'')}" placeholder="Enter hours" ${standard?'readonly':''} ${!writable()||saving||sourceChanged?'disabled':''}></label>
-      <small class="nv-hours-hint">${missing?'Hours required before approval':standard?'Pre-delivery · 1 hour standard':'Hours confirmed'}</small></article>`;
+      ${sublet?'':`<label class="nv-hours-label">Hours<input type="number" min="0.01" max="999.99" step="0.01" inputmode="decimal" aria-label="Hours for ${esc(line.description)}" aria-invalid="${missing}" data-nv-hours="${esc(line.line_identity)}" value="${esc(value??'')}" placeholder="Enter hours" ${standard?'readonly':''} ${!writable()||saving||sourceChanged?'disabled':''}></label>`}
+      <small class="nv-hours-hint">${sublet?'Hours not required':missing?'Hours required before approval':standard?'Pre-delivery · 1 hour standard':'Hours confirmed'}</small></article>`;
   }
   function stationSection(group, tray=false) {
     const theme=!tray&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(group.code):null;
     const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
-    return `<section class="nv-station ${tray?'needs-review nv-review-tray':''}" data-nv-drop="${group.code}"${style}><header><h3>${esc(group.label)}</h3><small>${group.lines.length} items · ${group.hours==null?'Hours need review':`${group.hours.toFixed(2)} h`}</small></header><div>${group.lines.map(operation).join('') || `<p class="nv-drop-hint">${tray?'All operations have been placed. Drag a pill back here to review it again.':'Drag pills here'}</p>`}</div></section>`;
+    return `<section class="nv-station ${tray?'needs-review nv-review-tray':''}" data-nv-drop="${group.code}"${style}><header><h3>${esc(group.label)}</h3><small>${group.lines.length} items · ${group.code==='SUBLET'?'Hours not required':group.hours==null?'Hours need review':`${group.hours.toFixed(2)} h`}</small></header><div>${group.lines.map(operation).join('') || `<p class="nv-drop-hint">${tray?'All operations have been placed. Drag a pill back here to review it again.':'Drag pills here'}</p>`}</div></section>`;
   }
   function render() {
     const badge=nav.querySelector('.new-vehicle-nav-count');badge.textContent=String(total);badge.hidden=!total;
@@ -162,10 +164,10 @@
       ${error?`<div class="nv-error" role="alert">${esc(error)}</div>`:''}${notice?`<div class="nv-notice" role="status">${esc(notice)}</div>`:''}
       ${selected?`<section class="nv-summary"><h3>${esc(selected.vehicle_description)}</h3><p>${esc(selected.customer_name)} · Job Card ${esc((selected.job_cards || []).join(', '))}</p><p>Location: <strong>${esc(selected.current_location || 'Pending')}</strong>${selected.eta_to_kewdale?` · Kewdale ETA: ${esc(selected.eta_to_kewdale)}`:''} · VIN: ${esc(selected.vin || 'Not recorded')}</p></section>
       ${sourceChanged?'<div class="nv-error" role="alert">Source data changed. <button type="button" data-nv-reload>Reload Job Card</button> before approving.</div>':''}
-      <p class="nv-help">Drag chips into their stations. Enter positive hours in every red field before approval. Pre-delivery is 1 hour standard. Department 138 stays in Bus 4×4. Sublet work appears in the Sublet To book list after approval, ready to select a provider. Your choices and hours are saved when you approve.</p>
+      <p class="nv-help">Drag chips into their stations. Enter positive hours in every red field before approval. Sublet does not require hours. Pre-delivery is 1 hour standard. Department 138 stays in Bus 4×4. Sublet work appears in the Sublet To book list after approval, ready to select a provider. Your choices and hours are saved when you approve.</p>
       ${stationSection(groups[0],true)}
       <div class="nv-stations">${groups.filter(group=>group.code).map(group=>stationSection(group)).join('')}</div>
-      <footer class="nv-approval"><div>${issues.length?issues.map(issue=>`<p>${esc(issue)}</p>`).join(''):'<p>All operations have a station and recorded hours.</p>'}<small>Approval adds this vehicle to its current location on the board. Nothing is booked or marked fitted.</small></div>
+      <footer class="nv-approval"><div>${issues.length?issues.map(issue=>`<p>${esc(issue)}</p>`).join(''):'<p>All operations have a station and required workshop hours.</p>'}<small>Approval adds this vehicle to its current location on the board. Nothing is booked or marked fitted.</small></div>
       ${approvalButton()}</footer>`:
       `<div class="nv-list">${items.map(card).join('') || `<div class="nv-empty"><h3>${loading?'Loading Job Cards…':error?'Queue unavailable':'No new vehicles waiting'}</h3><p>New report vehicles appear here after import processing. Existing board vehicles are not reset or pulled back into this queue.</p></div>`}</div>
       <div class="nv-pagination"><button data-nv-page="-1" ${offset===0||loading?'disabled':''}>Previous</button><span>${total?`${offset+1}–${Math.min(offset+items.length,total)} of ${total}`:'0 awaiting review'}</span><button data-nv-page="1" ${offset+items.length>=total||loading?'disabled':''}>Next</button></div>`}`;
@@ -185,10 +187,10 @@
         page.querySelectorAll('[data-nv-approve]').forEach(button=>button.disabled=!!(saving||sourceChanged||issues.length||!writable()));
         const info=page.querySelector('.nv-approval>div');
         info.querySelectorAll('p').forEach(p=>p.remove());
-        info.insertAdjacentHTML('afterbegin',issues.length?issues.map(x=>`<p>${esc(x)}</p>`).join(''):'<p>All operations have a station and positive hours.</p>');
+        info.insertAdjacentHTML('afterbegin',issues.length?issues.map(x=>`<p>${esc(x)}</p>`).join(''):'<p>All operations have a station and required workshop hours.</p>');
         stationGroups(selected,choices,hourDrafts).forEach(group=>{
           const total=page.querySelector(`[data-nv-drop="${group.code}"] header small`);
-          if(total)total.textContent=`${group.lines.length} items · ${group.hours==null?'Hours need review':group.hours.toFixed(2)+' h'}`;
+          if(total)total.textContent=`${group.lines.length} items · ${group.code==='SUBLET'?'Hours not required':group.hours==null?'Hours need review':group.hours.toFixed(2)+' h'}`;
         });
       });
       input.addEventListener('dragstart',event=>event.stopPropagation());
