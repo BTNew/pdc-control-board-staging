@@ -221,13 +221,23 @@ input:focus, select:focus, textarea:focus {
 .location-override-dialog [role="alert"] { color: #b91c1c; }
 
 /* Compact Sublet identities leave room for the independent work description. */
-.sublet-table { min-width:1576px; width:100%; table-layout:fixed; }
-.sublet-table .sublet-summary-row td { width:auto!important; padding:4px 6px; font-size:12px; line-height:1.3; }
-.sublet-table th { padding:8px 6px; font-size:10px; }
-.sublet-table .sublet-summary-row td:nth-child(6),.sublet-table .sublet-summary-row td:nth-child(7),.sublet-table .sublet-summary-row .sublet-work-required { white-space:normal; overflow-wrap:anywhere; }
-.sublet-table .sublet-operation-details { margin:0; font-size:12px; line-height:1.35; color:#17283d; }
-.sublet-table .sublet-summary-row select,.sublet-table .sublet-summary-row input { font-size:12px; height:30px; min-height:30px; padding:3px; }
-.sublet-table .sublet-summary-row .small-button { min-height:28px; padding:4px 6px; font-size:11px; }
+.sublet-table-wrap { max-width:100%; overscroll-behavior-x:contain; }
+.sublet-table { min-width:1612px; width:100%; table-layout:fixed; }
+.sublet-table .sublet-summary-row { height:70px; }
+.sublet-table.data-table .sublet-summary-row td { width:auto!important; padding:6px 8px!important; font-size:12px!important; line-height:1.4!important; vertical-align:middle; overflow-wrap:break-word!important; }
+.sublet-table th { padding:10px 8px; font-size:10px; text-align:left; }
+.sublet-table .sublet-summary-row td:nth-child(6),.sublet-table .sublet-summary-row td:nth-child(7),.sublet-table .sublet-summary-row .sublet-work-required { white-space:normal; overflow-wrap:break-word; word-break:normal; }
+.sublet-table .sublet-summary-row td:nth-child(6) strong { font-weight:600; }
+.sublet-table .sublet-operation-details { margin:0; font-size:12px; line-height:1.4; color:#17283d; }
+.sublet-table .sublet-summary-row select,.sublet-table .sublet-summary-row input[type="date"] { font-size:12px; height:32px; min-height:32px; padding:4px 6px; margin:0; }
+.sublet-table th:nth-child(5),.sublet-table .sublet-returned-cell { text-align:center; }
+.sublet-table .sublet-returned-check { justify-content:center; gap:5px; min-height:32px; white-space:nowrap; font-size:11px; }
+.sublet-table .sublet-summary-row .sublet-returned-check input { flex:0 0 16px; width:16px; min-width:16px; height:16px; min-height:16px; margin:0; padding:0; }
+.sublet-table .sublet-status-pill { width:100%; justify-content:center; padding:4px 5px; font-size:11px; }
+.sublet-table .sublet-summary-row .sublet-row-actions .small-button { display:block; width:100%; height:27px; min-height:27px; padding:4px 5px; font-size:11px; line-height:17px; white-space:nowrap; box-shadow:none; }
+.sublet-table .sublet-row-actions .small-button + .small-button { margin-top:4px; }
+.sublet-table .sublet-row-actions .small-button:not(.primary) { border:1px solid #d9e0e8; background:#f8fafc; }
+.sublet-table .sublet-row-actions .small-button.primary { color:#fff; }
 
 /* Keep bulk booking inside the existing action column. */
 .incoming-card-action .incoming-book-all-stations { display:grid; gap:3px; min-width:0; max-width:100%; padding:7px 8px!important; white-space:normal!important; line-height:1.2!important; font-size:11px!important; overflow-wrap:break-word; }
@@ -240,3 +250,4 @@ input:focus, select:focus, textarea:focus {
 .book-all-stations-table th,.book-all-stations-table td { padding:9px; text-align:left; border-bottom:1px solid #dbe3ee; font-size:12px; white-space:normal; }
 .book-all-stations-table th small { display:block; margin-top:3px; }
 .book-all-stations-error { color:#b91c1c; }
+

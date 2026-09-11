@@ -25202,7 +25202,7 @@ function renderSubletHome() {
     host.innerHTML = '<div class="empty-state"><strong>No Sublet vehicles match this filter</strong><span>Vehicles appear automatically when Sublet work is required. Adjust the filters or mark Sublet as required on the vehicle.</span></div>';
     return;
   }
-  host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><colgroup><col style="width:28px"><col style="width:48px"><col style="width:86px"><col style="width:100px"><col style="width:65px"><col style="width:145px"><col style="width:110px"><col style="width:300px"><col style="width:130px"><col style="width:122px"><col style="width:122px"><col style="width:110px"><col style="width:110px"></colgroup><thead><tr><th aria-label="Expand"></th><th>Key</th><th>Stock</th><th>Job card</th><th>Returned</th><th>Customer</th><th>Vehicle</th><th>Work required</th><th>Provider</th><th>Booking date</th><th>Due back</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
+  host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><colgroup><col style="width:28px"><col style="width:45px"><col style="width:90px"><col style="width:100px"><col style="width:76px"><col style="width:175px"><col style="width:98px"><col style="width:290px"><col style="width:140px"><col style="width:120px"><col style="width:120px"><col style="width:120px"><col style="width:110px"></colgroup><thead><tr><th aria-label="Expand"></th><th>Key</th><th>Stock</th><th>Job card</th><th>Returned</th><th>Customer</th><th>Vehicle</th><th>Work required</th><th>Provider</th><th>Booking date</th><th>Due back</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
     const vehicleOpenKey = vehicle.__subletVehicleKey || vehicleKey(vehicle);
     const key = vehicle.__subletBookingId || vehicle.__subletOperationKey || vehicleOpenKey;
     const stock = displayStockNumber(vehicle) || 'vehicle';
@@ -25217,7 +25217,7 @@ function renderSubletHome() {
       <td><strong>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</strong></td>
       <td><button class="sublet-stock-link" type="button" data-open-stock="${escapeHtml(vehicleOpenKey)}"><strong>${escapeHtml(stock === 'vehicle' ? '—' : stock)}</strong></button></td>
       <td><strong>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</strong></td>
-      <td><label class="sublet-returned-check"><input type="checkbox" aria-label="Mark stock ${accessibleStock}, ${escapeHtml(pmbBaySubletProvider(vehicle) || 'provider unassigned')}, returned from Sublet" data-sublet-returned="${escapeHtml(key)}" ${returned ? 'checked disabled' : ''}><span>Back</span></label></td>
+      <td class="sublet-returned-cell"><label class="sublet-returned-check"><input type="checkbox" aria-label="Mark stock ${accessibleStock}, ${escapeHtml(pmbBaySubletProvider(vehicle) || 'provider unassigned')}, returned from Sublet" data-sublet-returned="${escapeHtml(key)}" ${returned ? 'checked disabled' : ''}><span>Back</span></label></td>
       <td><strong title="${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}">${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</strong></td>
       <td><span title="${escapeHtml(displayVehicle(vehicle) || '')}">${escapeHtml(displayVehicle(vehicle) || '—')}</span></td>
       <td class="sublet-work-required"></td>
@@ -25225,7 +25225,7 @@ function renderSubletHome() {
       <td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}" ${returned ? 'disabled' : ''}></td>
       <td><input type="date" aria-label="Expected Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}" ${returned ? 'disabled' : ''}></td>
       <td><span class="sublet-status-pill is-${escapeHtml(state)} ${overdue ? 'is-overdue' : ''}">${escapeHtml(overdue ? 'OVERDUE' : statusLabel)}</span></td>
-      <td><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleOpenKey)}">Open vehicle</button></td>
+      <td class="sublet-row-actions"><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleOpenKey)}">Open vehicle</button></td>
     </tr>${expanded ? `<tr class="sublet-detail-row"><td colspan="13"><div class="sublet-detail-grid">
       <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(subletProviderContact(vehicle).email)}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></label>
       <label><span>Actual return</span><input type="date" aria-label="Actual Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}"></label>
