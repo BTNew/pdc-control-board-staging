@@ -13632,3 +13632,10 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 .sublet-provider-admin-form { grid-template-columns: minmax(180px, 1fr) minmax(220px, 1fr) auto; }
 .sublet-provider-admin-table input[type="email"] { width: 100%; min-width: 200px; padding: 6px 8px; }
 @media (max-width: 700px) { .sublet-provider-admin-form { grid-template-columns: 1fr; } }
+
+/* Imported flags express recorded evidence, independently of staff completion and JITA. */
+.incoming-work-check.imported-parts-green { background: #edf9f1 !important; color: #168342 !important; border-color: #168342 !important; }
+.incoming-work-check.imported-parts-orange { background: #fff1dc !important; color: #a15b00 !important; border-color: #d98200 !important; }
+.incoming-work-check.imported-parts-red { background: #fff0f3 !important; color: #ba163c !important; border-color: #ba163c !important; }
+.incoming-work-check.imported-parts-grey, .incoming-work-check.imported-parts-review { background: #eef0f3 !important; color: #536173 !important; border-color: #8995a5 !important; }
+.parts-status-unknown { background: #eef0f3; color: #536173; }
