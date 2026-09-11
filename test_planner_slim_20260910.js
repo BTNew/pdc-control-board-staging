@@ -1,6 +1,13 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const api=require('./pdc-planner-slim.js');
+test('compact cards reuse only an unambiguous canonical board key',()=>{
+ const rows=[{sharedVehicleId:'v1',stock:'A',keyNumber:'233'}];
+ assert.equal(api.recordedKey({sharedVehicleId:'v1'},rows),'233');
+ assert.equal(api.recordedKey({sharedVehicleId:'v2',stock:'A'},rows),'','matching stock alone is insufficient');
+ assert.equal(api.recordedKey({sharedVehicleId:'v1'},[...rows,...rows]),'','ambiguous rows remain unknown');
+ assert.equal(api.recordedKey({sharedVehicleId:'v1',key_number:'25'},rows),'25','snapshot key retains priority');
+});
 test('JC display uses recorded aliases and ignores placeholder values',()=>{
  assert.equal(api.jobCard({jobCardNumber:'Unknown',job_card_number:'JC1424638'}),'JC1424638');
  assert.equal(api.jobCard({pdcJobcard:'JC1',job_card_number:'JC2'}),'JC1');

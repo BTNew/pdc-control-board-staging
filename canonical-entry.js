@@ -57,7 +57,7 @@
     slimStyle.rel = 'stylesheet'; slimStyle.href = 'pdc-planner-slim.css?v=2026.09.10.01';
     document.head.appendChild(slimStyle);
     const slimScript = document.createElement('script');
-    slimScript.src = 'pdc-planner-slim.js?v=2026.09.11.lazy-ready';
+    slimScript.src = 'pdc-planner-slim.js?v=2026.09.11.lazy-ready-keys';
     document.head.appendChild(slimScript);
     const tileCleanup = document.createElement('script');
     tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.03';

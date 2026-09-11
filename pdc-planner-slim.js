@@ -13,6 +13,14 @@
     const jcLabel = jc && /^JC/i.test(jc) ? jc : 'JC ' + (jc || 'Not recorded');
     return `<div class="planner-slim-details"><strong>Key ${esc(key || '—')} · ${esc(jcLabel)}</strong><span title="${esc(customer)}">${esc(customer || 'Customer not recorded')}</span><span title="${esc(model)}">${esc(model || 'Model not recorded')}</span><small>Booking time: ${esc(duration)}</small><small class="workshop-parts-line parts-${esc(partsStatus)}">Parts: ${esc(parts)}</small></div>`;
   }
+  function recordedKey(vehicle = {}, boardRows = []) {
+    const key = row => row.keyNumber || row.key_number || row.keyNo || row.keyTag || row.pdcKeyNumber || row.vehicleKeyNumber || '';
+    if (recorded(key(vehicle))) return key(vehicle);
+    const id = vehicle.sharedVehicleId || vehicle.id;
+    if (!id) return '';
+    const matches = boardRows.filter(row => (row.sharedVehicleId || row.id) === id);
+    return matches.length === 1 && recorded(key(matches[0])) ? key(matches[0]) : '';
+  }
   function compactQueue(html, details) {
     // Preserve the original article's drag identity, disabled state and scheduling
     // controls verbatim. Only replace its descriptive content.
@@ -22,7 +30,7 @@
     return html.replace(/<button type="button" data-workshop-admin-block-rename[^>]*>Rename<\/button>/g, '')
       .replace(/(<span class="workshop-admin-block-controls">)/g, '<button type="button" class="planner-admin-description" data-workshop-admin-block-rename aria-label="Edit Admin description">Edit description</button>$1');
   }
-  const api = {jobCard, summaryHtml, compactQueue, visibleAdminEdit};
+  const api = {jobCard, summaryHtml, compactQueue, visibleAdminEdit, recordedKey};
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   // The planner is lazy-loaded when staff open a station, potentially long
   // after startup retries expire. Script load is the reliable ready signal.
@@ -37,13 +45,14 @@
     vehicleJobcardNumber = vehicle => jobCard(vehicle) || previousJobCard(vehicle);
     const previousSnapshot = workshopSnapshotVehicleToPlannerRow;
     workshopSnapshotVehicleToPlannerRow = function(vehicle = {}, ...args) {
-      return {...previousSnapshot(vehicle, ...args), keyNumber: vehicle.key_number || vehicle.keyNumber || '', jobCardNumber: jobCard(vehicle)};
+      const mapped = previousSnapshot(vehicle, ...args);
+      return {...mapped, keyNumber: recordedKey(vehicle) || recordedKey(mapped), jobCardNumber: jobCard(vehicle) || mapped.jobCardNumber || ''};
     };
     const previousQueue = workshopQueueCardHtml;
     workshopQueueCardHtml = function(vehicle = {}, stage = workshopState().stage, ...args) {
       const parts = workshopPartsSummary(vehicle);
       return compactQueue(previousQueue(vehicle, stage, ...args), {
-        key: vehicleKeyNumber(vehicle), jc: jobCard(vehicle, workshopStageJobLines(vehicle, stage)),
+        key: vehicleKeyNumber(vehicle) || recordedKey(vehicle, typeof app !== 'undefined' && Array.isArray(app.data) ? app.data : []), jc: jobCard(vehicle, workshopStageJobLines(vehicle, stage)),
         customer: vehicleCustomerName(vehicle) || vehicle.customerName || vehicle.customer_name,
         model: workshopQueueVehicleDescription(vehicle), duration: workshopQueueEstimatedLabel(vehicle, stage),
         parts: parts.text, partsStatus: parts.status,
