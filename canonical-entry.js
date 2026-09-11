@@ -73,6 +73,9 @@
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
     document.head.appendChild(intakeScript);
+    const locationOverride = document.createElement('script');
+    locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01';
+    document.head.appendChild(locationOverride);
     const subletIntake = document.createElement('script');
     subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.11.sublet-items';
     document.head.appendChild(subletIntake);

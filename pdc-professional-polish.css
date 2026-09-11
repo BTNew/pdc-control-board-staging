@@ -211,3 +211,11 @@ input:focus, select:focus, textarea:focus {
     grid-template-columns: 24px minmax(240px, 1fr) 100px minmax(130px, .35fr) auto;
   }
 }
+
+.location-override-warning { background: #fff0c2 !important; color: #854d0e !important; border: 1px solid #eab308; margin: 4px; }
+.location-override-dialog { width: min(480px, calc(100vw - 32px)); border: 1px solid #cbd5e1; border-radius: 12px; padding: 22px; }
+.location-override-dialog::backdrop { background: #0f172a77; }
+.location-override-dialog form, .location-override-dialog label { display: grid; gap: 10px; }
+.location-override-dialog select, .location-override-dialog textarea { width: 100%; }
+.location-override-dialog footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.location-override-dialog [role="alert"] { color: #b91c1c; }

@@ -99,6 +99,11 @@ function mapServerVehicle(row = {}) {
   };
   mapped.sourceLocationStatus = String(row.source_location_status || row.navision_location_status || row.navisionLocationStatus || '').trim();
   mapped.navisionLocationStatus = mapped.sourceLocationStatus;
+  mapped.pdcAutomaticLocation = row.automatic_location || row.current_location || 'Other';
+  mapped.pdcLocationOverride = row.location_override || '';
+  mapped.pdcLocationOverrideReason = row.location_override_reason || '';
+  mapped.pdcLocationOverrideAt = row.location_override_at || '';
+  if (mapped.pdcLocationOverride) mapped.pdcLocation = mapped.pdcLocationOverride;
   mapped.currentLocation = mapped.pdcLocation;
   mapped.navisionJitaIdentityVerified = row.navision_jita_identity_verified === true;
   mapped.navisionJitaNumberColumnPresent = row.navision_jita_column_present === true;
