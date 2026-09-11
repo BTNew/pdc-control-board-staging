@@ -9,9 +9,9 @@
     }
     return [...new Set(lines.filter(line => line.active !== false).map(line => line.jobCardNumber || line.job_card_number).filter(recorded).map(String))].join(', ');
   }
-  function summaryHtml({key, jc, customer, model, duration, parts, partsStatus} = {}) {
+  function summaryHtml({key, jc, stock, customer, model, duration, parts, partsStatus} = {}) {
     const jcLabel = jc && /^JC/i.test(jc) ? jc : 'JC ' + (jc || 'Not recorded');
-    return `<div class="planner-slim-details"><strong>Key ${esc(key || '—')} · ${esc(jcLabel)}</strong><span title="${esc(customer)}">${esc(customer || 'Customer not recorded')}</span><span title="${esc(model)}">${esc(model || 'Model not recorded')}</span><small>Booking time: ${esc(duration)}</small><small class="workshop-parts-line parts-${esc(partsStatus)}">Parts: ${esc(parts)}</small></div>`;
+    return `<div class="planner-slim-details"><strong>Key ${esc(key || '—')} · ${esc(jcLabel)}</strong><span class="planner-stock-number">Stock ${esc(stock || 'Not recorded')}</span><span title="${esc(customer)}">${esc(customer || 'Customer not recorded')}</span><span title="${esc(model)}">${esc(model || 'Model not recorded')}</span><small>Booking time: ${esc(duration)}</small><small class="workshop-parts-line parts-${esc(partsStatus)}">Parts: ${esc(parts)}</small></div>`;
   }
   function recordedKey(vehicle = {}, boardRows = []) {
     const key = row => row.keyNumber || row.key_number || row.keyNo || row.keyTag || row.pdcKeyNumber || row.vehicleKeyNumber || '';
@@ -53,6 +53,7 @@
       const parts = workshopPartsSummary(vehicle);
       return compactQueue(previousQueue(vehicle, stage, ...args), {
         key: vehicleKeyNumber(vehicle) || recordedKey(vehicle, typeof app !== 'undefined' && Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : []) || recordedKey(vehicle, typeof app !== 'undefined' && Array.isArray(app.data) ? app.data : []), jc: jobCard(vehicle, workshopStageJobLines(vehicle, stage)),
+        stock: displayStockNumber(vehicle),
         customer: vehicleCustomerName(vehicle) || vehicle.customerName || vehicle.customer_name,
         model: workshopQueueVehicleDescription(vehicle), duration: workshopQueueEstimatedLabel(vehicle, stage),
         parts: parts.text, partsStatus: parts.status,
