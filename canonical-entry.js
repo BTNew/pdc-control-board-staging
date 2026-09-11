@@ -73,6 +73,9 @@
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
     document.head.appendChild(intakeScript);
+    const bookAllStations = document.createElement('script');
+    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.11.01';
+    document.head.appendChild(bookAllStations);
     const locationOverride = document.createElement('script');
     locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01';
     document.head.appendChild(locationOverride);
