@@ -7,12 +7,22 @@
   const writable = () => ['operator', 'administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
   const pending = new Set();
   const vehicleId = vehicle => String(vehicle?.__emailVehicleId || '');
+  function currentVehicle(id, requireSnapshot = false) {
+    const mapped = (app.data || []).filter(vehicle => vehicleId(vehicle) === id);
+    if (mapped.length !== 1) return null;
+    if (requireSnapshot) {
+      // The snapshot stores raw server fields; app.data contains reconciled board rows.
+      const raw = (app.emailVehicleLocationRows || []).filter(row => String(row.id || '') === id);
+      if (raw.length !== 1 || Number(raw[0].version) !== Number(mapped[0].__emailVehicleVersion)) return null;
+    }
+    return mapped[0];
+  }
   function eligible(vehicle = {}) {
     if (!writable() || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(vehicleId(vehicle))) return false;
     if (!Number.isInteger(Number(vehicle.__emailVehicleVersion)) || Number(vehicle.__emailVehicleVersion) < 1 || vehicle.__locationIdentityReadOnly === true) return false;
     if (typeof sharedNavisionLocationAuthorityReady !== 'function' || !sharedNavisionLocationAuthorityReady()) return false;
     if (vehicle.deleted_at || vehicle.deletedAt || String(vehicle.lifecycle_state || vehicle.lifecycleState || 'active').toLowerCase() !== 'active') return false;
-    const location = vehicle.current_location || vehicle.currentLocation || vehicle.pdcAutomaticLocation || vehicle.pdcLocation;
+    const location = vehicle.current_location || vehicle.pdcAutomaticLocation || vehicle.currentLocation || vehicle.pdcLocation;
     return window.PDC_WORKSHOP_ELIGIBILITY?.scheduleEligibility({ ...vehicle, current_location: location }).enabled === true;
   }
   function actionHtml(vehicle, existingAction = '') {
@@ -48,7 +58,7 @@
   }
   async function book(id) {
     if (saving || pending.has(id) || !writable()) return;
-    const before = (app.emailVehicleLocationRows || []).find(vehicle => vehicleId(vehicle) === id) || (app.data || []).find(vehicle => vehicleId(vehicle) === id);
+    const before = currentVehicle(id);
     if (!before || !eligible(before)) return;
     saving = true;
     pending.add(id);
@@ -59,8 +69,9 @@
     renderIncomingDashboardBoard();
     try {
       if (await refreshEmailVehicleLocations() !== true) throw Error('The vehicle could not be refreshed. No booking request was sent. Refresh the board and try again.');
-      const selected = (app.emailVehicleLocationRows || []).find(vehicle => vehicleId(vehicle) === id);
-      if (!selected || !eligible(selected)) throw Error('This vehicle is no longer eligible for workshop booking. Check its location and ETA.');
+      const selected = currentVehicle(id, true);
+      if (!selected) throw Error('The refreshed vehicle could not be matched safely. No booking request was sent. Refresh the board and try again.');
+      if (!eligible(selected)) throw Error('This vehicle is no longer eligible for workshop booking. Check its location and ETA.');
       const config = window.PDC_SUPABASE_CONFIG;
       const token = getPdcSupabaseAccessToken();
       if (!token) throw Error('Please sign in again.');

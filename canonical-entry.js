@@ -74,7 +74,7 @@
     };
     document.head.appendChild(intakeScript);
     const bookAllStations = document.createElement('script');
-    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.11.01';
+    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.11.02-refresh-identity';
     document.head.appendChild(bookAllStations);
     const locationOverride = document.createElement('script');
     locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01';
