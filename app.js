@@ -7753,7 +7753,6 @@ function workStatusLegendHtml() {
     <span class="work-status-key status-booked"><b>!</b> Booked / Parts ordered</span>
     <span class="work-status-key status-complete"><b>✓</b> Complete</span>
     <span class="work-status-key status-blocked"><b>!</b> STOPPAGE</span>
-    <span class="work-status-key parts-jita-key">Parts pill: top left <b>Parts</b> / bottom right <b>JITA</b></span>
   </div>`;
 }
 
