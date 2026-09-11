@@ -228,3 +228,15 @@ input:focus, select:focus, textarea:focus {
 .sublet-table .sublet-operation-details { margin:0; font-size:12px; line-height:1.35; color:#17283d; }
 .sublet-table .sublet-summary-row select,.sublet-table .sublet-summary-row input { font-size:12px; height:30px; min-height:30px; padding:3px; }
 .sublet-table .sublet-summary-row .small-button { min-height:28px; padding:4px 6px; font-size:11px; }
+
+/* Keep bulk booking inside the existing action column. */
+.incoming-card-action .incoming-book-all-stations { display:grid; gap:3px; min-width:0; max-width:100%; padding:7px 8px!important; white-space:normal!important; line-height:1.2!important; font-size:11px!important; overflow-wrap:break-word; }
+.incoming-book-all-stations small { font-size:10px; font-weight:500; }
+.book-all-stations-dialog { width:min(680px,calc(100vw - 32px)); max-height:calc(100vh - 48px); overflow:auto; border:1px solid #cbd5e1; border-radius:12px; padding:22px; color:#17283d; }
+.book-all-stations-dialog::backdrop { background:#0f172a77; }
+.book-all-stations-dialog footer { display:flex; justify-content:flex-end; margin-top:16px; }
+.book-all-stations-table { overflow-x:auto; }
+.book-all-stations-table table { width:100%; min-width:420px; border-collapse:collapse; }
+.book-all-stations-table th,.book-all-stations-table td { padding:9px; text-align:left; border-bottom:1px solid #dbe3ee; font-size:12px; white-space:normal; }
+.book-all-stations-table th small { display:block; margin-top:3px; }
+.book-all-stations-error { color:#b91c1c; }

@@ -7840,7 +7840,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
           : `<span class="incoming-card-work-wrap">${workChecks}</span>
         <span class="incoming-card-meta incoming-card-age ${escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : 'ETA'}</b><span>${escapeHtml(bucketKey === 'pmb' ? pmbAgeLabel(vehicle) : eta)}</span></span>
         <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}</span></span>
-        <span class="incoming-card-action">${primaryAction}${labelAction}${deleteAction}</span>`}
+        <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${labelAction}${deleteAction}</span>`}
       </summary>
       <div class="incoming-vehicle-detail-grid">
         <div><b>Stock No.</b><span>${escapeHtml(stock)}</span></div>
@@ -8039,7 +8039,7 @@ function renderIncomingDashboardBoard() {
     const identityHeader = vehicles.length
       ? def.key === 'rft'
         ? vehicleLocationsRftHeaderHtml(sort)
-        : productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Source / next step', incomingSort: sort })
+        : productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Booking', incomingSort: sort })
       : '';
     return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
