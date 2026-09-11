@@ -11336,68 +11336,6 @@ function canTransferVehicleToPmb(vehicle) {
 }
 
 
-function pmbRequirementChecklistModal(vehicles = []) {
-  const rows = vehicles.filter(Boolean);
-  if (!rows.length) return Promise.resolve(null);
-  return new Promise(resolve => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay pmb-requirement-modal-overlay';
-    overlay.setAttribute('role', 'dialog');
-    overlay.setAttribute('aria-modal', 'true');
-    overlay.setAttribute('aria-labelledby', 'pmb-requirement-modal-title');
-    const previewRows = rows.map((vehicle, index) => {
-      const key = vehicleKey(vehicle);
-      const serverAuthoritative = vehicle.__emailVehicleServerAuthoritative === true;
-      const checks = PDC_JOB_DEFS.map(def => {
-        const checked = pdcJobRequired(vehicle, def) ? 'checked' : '';
-        return `<label class="check-option pdc-toggle-chip pdc-toggle-${escapeHtml(def.key)} ${checked ? 'is-on' : ''}"><input type="checkbox" data-pmb-requirement-row="${index}" data-pmb-requirement-key="${escapeHtml(def.key)}" ${checked} ${serverAuthoritative ? 'disabled' : ''} /> <span><b>${escapeHtml(def.short)}</b>${escapeHtml(def.label)}</span></label>`;
-      }).join('');
-      return `<article class="pmb-requirement-row" data-pmb-requirement-vehicle="${escapeHtml(key)}"><div>${vehicleIdentityStackHtml(vehicle)}<small>${escapeHtml(truncate(displayVehicle(vehicle), 52))}</small>${serverAuthoritative ? '<small>Required work is retained from the authenticated email import.</small>' : ''}</div><div class="form-row six-col check-grid slim-job-grid">${checks}</div></article>`;
-    }).join('');
-    overlay.innerHTML = `
-      <section class="modal-card pmb-requirement-modal-card">
-        <button class="modal-close" type="button" data-pmb-requirement-cancel aria-label="Cancel PMB transfer">×</button>
-        <div class="panel-header">
-          <div>
-            <h2 id="pmb-requirement-modal-title">Confirm PMB required work</h2>
-            <p>Before releasing Yard Hold/In Transit vehicles into PMB, tick what each vehicle needs: ${escapeHtml(currentPdcJobLabelList())}.</p>
-          </div>
-          <span class="badge neutral">${rows.length} vehicle${rows.length === 1 ? '' : 's'}</span>
-        </div>
-        <div class="pmb-requirement-modal-body">${previewRows}</div>
-        <div class="edit-actions pmb-requirement-actions">
-          <button class="primary" type="button" data-pmb-requirement-confirm>Confirm and transfer to PMB</button>
-          <button class="ghost" type="button" data-pmb-requirement-cancel>Cancel</button>
-        </div>
-      </section>`;
-    const cleanup = result => {
-      overlay.remove();
-      document.body.classList.remove('modal-open');
-      resolve(result);
-    };
-    overlay.addEventListener('click', event => {
-      if (event.target === overlay || event.target.closest('[data-pmb-requirement-cancel]')) cleanup(null);
-      const checkbox = event.target.closest('[data-pmb-requirement-key]');
-      if (checkbox) checkbox.closest('.pdc-toggle-chip')?.classList.toggle('is-on', checkbox.checked);
-      if (event.target.closest('[data-pmb-requirement-confirm]')) {
-        const selections = new Map();
-        rows.forEach((vehicle, index) => {
-          const updates = {};
-          PDC_JOB_DEFS.forEach(def => {
-            const input = overlay.querySelector(`[data-pmb-requirement-row="${index}"][data-pmb-requirement-key="${def.key}"]`);
-            updates[def.requireKey] = Boolean(input?.checked);
-          });
-          selections.set(vehicleKey(vehicle), updates);
-        });
-        cleanup(selections);
-      }
-    });
-    document.body.appendChild(overlay);
-    document.body.classList.add('modal-open');
-    overlay.querySelector('[data-pmb-requirement-confirm]')?.focus();
-  });
-}
-
 async function transferSelectedYhVehiclesToPmb() {
   if (sharedVehicleLocationMutationUnavailable('bulk transfer to PMB')) return false;
   const selected = selectedVehiclesForBulkEmail();
@@ -11415,8 +11353,7 @@ async function transferSelectedYhVehiclesToPmb() {
   const more = transferable.length > 10 ? `\n• plus ${transferable.length - 10} more` : '';
   if (!window.confirm(`Transfer ${transferable.length} Yard Hold/In Transit vehicle${transferable.length === 1 ? '' : 's'} to Vehicles at PMB?\n\n${preview}${more}\n\nThis is a manual PDC location change. Future Navision uploads will not move these vehicles back.`)) return;
 
-  const requirementSelections = await pmbRequirementChecklistModal(transferable);
-  if (!requirementSelections || transferable.some(vehicle => !vehicleLocationActionAllowed(vehicle, 'transfer to PMB'))) return;
+  if (transferable.some(vehicle => !vehicleLocationActionAllowed(vehicle, 'transfer to PMB'))) return;
 
   const transferTime = nowIsoString();
   const edits = loadVehicleEdits();
@@ -11449,7 +11386,6 @@ async function transferSelectedYhVehiclesToPmb() {
       pmbBayCompletedStage: '',
       pmbBayMechanic: '',
       pmbSubletProvider: '',
-      ...(requirementSelections.get(key) || {}),
     };
 
     Object.assign(vehicle, updates);
@@ -11480,8 +11416,7 @@ async function transferYhVehicleToPmb(key = '') {
   const customer = vehicleCustomerName(vehicle) || 'Unknown customer';
   if (!window.confirm(`Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
 
-  const requirementSelections = await pmbRequirementChecklistModal([vehicle]);
-  if (!requirementSelections || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
+  if (!vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
 
   if (vehicle.__emailVehicleServerAuthoritative === true && vehicleLifecycleSharedModeActive()) {
     const emailVehicleId = String(vehicle.__emailVehicleId || '').trim();
@@ -11548,7 +11483,6 @@ async function transferYhVehicleToPmb(key = '') {
     pmbBayCompletedStage: '',
     pmbBayMechanic: '',
     pmbSubletProvider: '',
-    ...(requirementSelections.get(rowKey) || {}),
   };
 
   Object.assign(vehicle, updates);
