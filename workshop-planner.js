@@ -4462,7 +4462,7 @@ function renderWorkshopPlanner(options = {}) {
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
     ${focusedBookingMode ? '' : workshopSearchControlHtml(state.search || '', plans)}
     ${stageTabs ? `<nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>` : ''}
-    ${focusedBookingMode && state.focusedBookingError ? `<section class="workshop-focused-booking-error" role="alert"><strong>Focused booking unavailable</strong><span>${escapeHtml(state.focusedBookingError)}</span><button type="button" class="small-button" data-workshop-focused-back>Back to Workshop planner</button></section>` : workshopStationSelectionHtml(selected)}
+    ${focusedBookingMode && state.focusedBookingError ? `<section class="workshop-focused-booking-error" role="alert"><strong>Focused booking unavailable</strong><span>${escapeHtml(state.focusedBookingError)}</span><button type="button" class="small-button" data-workshop-focused-back>Back to Workshop planner</button></section>` : ''}
     <div class="workshop-board-shell">
       ${focusedBookingMode ? '' : `<aside class="workshop-side-panel workshop-waiting-panel">
         <div class="workshop-side-heading"><strong>Unallocated vehicles</strong><span>${queue.length} unallocated · ${alreadyBookedOutstanding} already booked in bays</span></div>
@@ -4770,7 +4770,7 @@ function bindWorkshopPlanner(root) {
   root.querySelectorAll('[data-workshop-select-plan]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
     workshopSelectPlanForDetail(button.dataset.workshopSelectPlan);
-    renderWorkshopPlanner();
+    root.querySelectorAll('[data-workshop-plan-id]').forEach(card => card.classList.toggle('is-selected', card.dataset.workshopPlanId === button.dataset.workshopSelectPlan));
   }));
   root.querySelectorAll('[data-workshop-open-plan]').forEach(button => button.addEventListener('click', () => {
     const state = workshopState();

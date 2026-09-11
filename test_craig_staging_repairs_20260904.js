@@ -18,7 +18,7 @@ const readModelMigration = read(readModelMigrationPath);
 
 // Selected bay/station work is intentionally not a duplicate Vehicle Detail page.
 assert.ok(planner.includes('function workshopStationSelectionHtml('), 'compact station-only selected work renderer');
-assert.ok(planner.includes('workshopStationSelectionHtml(selected)'), 'planner uses compact station selection');
+assert.ok(!planner.includes('workshopStationSelectionHtml(selected)'), 'single-click does not render an inline work list');
 assert.ok(!planner.includes('workshopDetailPanelHtml(selected, focusedPlans'), 'duplicate general Job details panel is not rendered for a bay selection');
 const stationSelectionBody = planner.split('function workshopStationSelectionHtml(', 2)[1].split('function workshopDetailHtml(', 1)[0];
 assert.ok(!/data-workshop-open-(?:job|vehicle)/.test(stationSelectionBody), 'station selection has no full-detail launcher');
