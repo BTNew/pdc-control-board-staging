@@ -8028,7 +8028,7 @@ function renderIncomingDashboardBoard() {
   const defs = VEHICLE_LOCATION_BUCKET_DEFS;
   const priorityRows = workflowPriorityRows();
   const priorityHtml = filters.bucket ? '' : `<section class="incoming-priority-stoppages" aria-label="Parts and PMB STOPPAGES">
-    <div class="incoming-priority-stoppages-head"><strong>STOPPAGES / Fix First</strong><span>${priorityRows.length} active</span><small>Red priority list before RFT. Sort Parts STOPPAGES by Parts ETA so long-delay items fall lower.</small></div>
+    <div class="incoming-priority-stoppages-head"><strong>STOPPAGES / Fix First</strong><span>${priorityRows.length} active</span></div>
     <details class="fix-first-list incoming-priority-list"><summary>Show STOPPAGES</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
   </section>`;
   host.innerHTML = sharedNavisionLocationsStatusHtml() + workStatusLegendHtml() + priorityHtml + defs.map(def => {
