@@ -3814,18 +3814,69 @@ function removeMechanicFromAdminList(name = '') {
   });
 }
 
+
+function subletProviderEmailValid(email = '') {
+  return !email || /^[^\s@<>;,]+@[^\s@<>;,]+\.[^\s@<>;,]+$/.test(email);
+}
+
+function subletProviderContact(vehicle = {}) {
+  const records = loadSubletProviderRecords(true);
+  const id = cleanNavisionText(vehicle.__subletProviderId || '');
+  const name = pmbBaySubletProvider(vehicle);
+  const matches = id ? records.filter(row => row.id === id) : records.filter(row => row.active && cleanNavisionText(row.name).toLowerCase() === name.toLowerCase());
+  const record = matches.length === 1 ? matches[0] : null;
+  return { name: cleanNavisionText(record?.name || name), email: cleanNavisionText(vehicle.pmbSubletProviderEmail || record?.email || '') };
+}
+
+function renderSubletProviderAdminList() {
+  const host = $('#sublet-provider-list-admin');
+  if (!host) return;
+  const rows = loadSubletProviderRecords();
+  const disabled = workshopTechnicianAdminCanMutate() ? '' : 'disabled';
+  host.innerHTML = rows.length ? `<div class="admin-reference-table-wrap"><table class="admin-reference-table sublet-provider-admin-table"><thead><tr><th scope="col">Name</th><th scope="col">Email</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead><tbody>${rows.map(row => `<tr><td><strong>${escapeHtml(row.name)}</strong></td><td><input type="email" data-provider-email-input aria-label="Email for ${escapeHtml(row.name)}" value="${escapeHtml(row.email || '')}" placeholder="Email address" ${disabled}></td><td><span class="admin-status-badge is-active">Active</span></td><td class="admin-table-actions"><button type="button" class="text-button" data-save-provider-email="${escapeHtml(row.id)}" data-provider-version="${escapeHtml(String(row.version))}" ${disabled}>Save email</button><button type="button" class="text-button admin-action-danger" data-remove-provider="${escapeHtml(row.name)}" ${disabled}>Remove</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty-state compact-empty"><strong>No providers yet</strong><span>Add a provider name and email above.</span></div>';
+  $$('[data-save-provider-email]', host).forEach(button => on(button, 'click', () => saveSubletProviderEmail(button)));
+}
+
+async function saveSubletProviderEmail(button) {
+  if (!workshopTechnicianAdminCanMutate()) return false;
+  const input = button.closest('tr')?.querySelector('[data-provider-email-input]');
+  const email = String(input?.value || '').trim();
+  if (!subletProviderEmailValid(email) || (input && !input.reportValidity())) { window.alert('Enter a valid provider email address.'); return false; }
+  const service = initWorkshopReferenceDataServiceIfAvailable();
+  if (!service?.editSubletProvider) { window.alert('Cannot reach the shared provider list. No change was saved.'); return false; }
+  button.disabled = true;
+  try {
+    const result = await service.editSubletProvider(button.dataset.saveProviderEmail, Number(button.dataset.providerVersion), { email });
+    if (!result?.ok) { window.alert(result?.error === 'version_conflict' ? 'This provider changed in another session. Refresh the list and retry.' : 'Could not save the provider email.'); return false; }
+    renderAdminLists();
+    return true;
+  } catch (_) { window.alert('Could not save the provider email. Check your connection and retry.'); return false; }
+  finally { button.disabled = false; }
+}
+
+function fillSubletCreateProviderEmail() {
+  const id = $('#sublet-create-provider')?.value || '';
+  const matches = loadSubletProviderRecords().filter(row => row.id === id);
+  const input = $('#sublet-create-provider-email');
+  if (input) input.value = matches.length === 1 ? (matches[0].email || '') : '';
+}
+
 function addSubletProviderFromAdminInput() {
   const input = $('#sublet-provider-name-input');
   const entered = cleanNavisionText(input?.value || '');
   if (!entered) return;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
   if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
-  service.addSubletProvider(entered).then(result => {
+  const emailInput = $('#sublet-provider-email-input');
+  const email = String(emailInput?.value || '').trim();
+  if (!subletProviderEmailValid(email) || (emailInput && !emailInput.reportValidity())) { window.alert('Enter a valid provider email address.'); return; }
+  service.addSubletProvider(entered, email).then(result => {
     if (!result.ok) {
       window.alert(result.error === 'duplicate_name' ? `"${entered}" is already on the provider list.` : (result.error || 'Could not add provider.'));
       return;
     }
     if (input) input.value = '';
+    if (emailInput) emailInput.value = '';
     renderAdminLists();
     renderKpis();
   });
@@ -3922,7 +3973,7 @@ function renderAdminLists() {
   renderAdminList($('#mechanic-list-admin'), loadMechanics(), 'data-remove-mechanic', canManageTechnicians
     ? 'Add mechanics so they appear in the bay assignment dropdowns.'
     : 'The shared mechanic roster is read-only for this account. An administrator can add or remove mechanics.', { canMutate: canManageTechnicians });
-  renderAdminList($('#sublet-provider-list-admin'), loadSubletProviders(), 'data-remove-provider', 'Add outside providers for specialist work records.');
+  renderSubletProviderAdminList();
   const salesHost = $('#salesperson-list-admin');
   if (salesHost) {
     const salespersons = loadSalespersons();
@@ -24930,7 +24981,7 @@ async function updateSubletField(key = '', field = '', value = '') {
           window.alert('Choose an active canonical provider. No change was made.');
           return false;
         }
-        const providerEmail = field === 'pmbSubletProviderEmail' ? cleanValue : cleanNavisionText(current.pmbSubletProviderEmail || '');
+        const providerEmail = field === 'pmbSubletProviderEmail' ? cleanValue : cleanNavisionText(provider.email || '');
         response = await service.updateSubletBookingProvider(bookingId, current.__subletBookingVersion, provider.id, providerEmail, crypto.randomUUID());
       } else {
         const outDate = field === 'pmbSubletBookingDate' ? cleanValue : plainDateValue(current.pmbSubletBookingDate);
@@ -25019,10 +25070,13 @@ async function setSubletEmailSent(key = '', sent = false) {
 function draftSubletProviderEmail(key = '') {
   const vehicle = subletVehicleByKey(key);
   if (!vehicle) return;
-  const recipient = cleanNavisionText(vehicle.pmbSubletProviderEmail || '');
+  const contact = subletProviderContact(vehicle);
+  const recipient = contact.email;
+  if (!contact.name) { window.alert('Choose a sublet provider before drafting an email.'); return false; }
+  if (!recipient || !subletProviderEmailValid(recipient)) { window.alert('Add a valid email for this provider in Setup or in the booking before drafting.'); return false; }
   const stock = displayStockNumber(vehicle) || 'TBA';
   const subject = `Sublet booking - ${stock}`;
-  const body = [`Hello ${pmbBaySubletProvider(vehicle) || 'Sublet provider'},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
+  const body = [`Hello ${contact.name},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
   if (vehicle.__emailVehicleServerAuthoritative !== true) {
     recordVehicleAudit(vehicle, 'Sublet provider email drafted', { provider: pmbBaySubletProvider(vehicle), recipient, by: getCurrentOperatorName() });
     saveVehicleEdits(key, { pmbSubletEmailDraftedAt: nowIsoString(), pmbSubletEmailDraftedBy: getCurrentOperatorName() });
@@ -25126,6 +25180,7 @@ async function submitSubletCreate(event) {
 }
 
 function bindSubletCreateDialog() {
+  on($('#sublet-create-provider'), 'change', fillSubletCreateProviderEmail);
   on($('#sublet-create-open'), 'click', openSubletCreateDialog);
   on($('#sublet-create-close'), 'click', closeSubletCreateDialog);
   on($('#sublet-create-cancel'), 'click', closeSubletCreateDialog);
@@ -25208,7 +25263,7 @@ function renderSubletHome() {
       <td><span class="sublet-status-pill is-${escapeHtml(state)} ${overdue ? 'is-overdue' : ''}">${escapeHtml(overdue ? 'OVERDUE' : statusLabel)}</span></td>
       <td><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleOpenKey)}">Open vehicle</button></td>
     </tr>${expanded ? `<tr class="sublet-detail-row"><td colspan="12"><div class="sublet-detail-grid">
-      <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(vehicle.pmbSubletProviderEmail || '')}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></label>
+      <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(subletProviderContact(vehicle).email)}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></label>
       <label><span>Actual return</span><input type="date" aria-label="Actual Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}"></label>
       <label class="sublet-notes-field"><span>Notes</span><textarea rows="2" aria-label="Sublet notes for ${accessibleStock}" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}">${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea></label>
       <label class="sublet-email-check"><input type="checkbox" data-sublet-email-sent="${escapeHtml(key)}" ${vehicle.pmbSubletEmailSent ? 'checked' : ''}> Provider email sent</label>
