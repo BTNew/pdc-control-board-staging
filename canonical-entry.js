@@ -65,7 +65,7 @@
 
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
-    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.11.sublet-no-hours';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.11.sticky-stations';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
     intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.11.station-drag';
