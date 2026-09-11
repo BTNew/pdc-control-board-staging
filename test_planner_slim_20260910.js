@@ -7,6 +7,8 @@ test('compact cards reuse only an unambiguous canonical board key',()=>{
  assert.equal(api.recordedKey({sharedVehicleId:'v2',stock:'A'},rows),'','matching stock alone is insufficient');
  assert.equal(api.recordedKey({sharedVehicleId:'v1'},[...rows,...rows]),'','ambiguous rows remain unknown');
  assert.equal(api.recordedKey({sharedVehicleId:'v1',key_number:'25'},rows),'25','snapshot key retains priority');
+ assert.equal(api.recordedKey({sharedVehicleId:'v1'},[{id:'v1',key_number:'233'}]),'233','raw authoritative board snapshot');
+ assert.equal(api.recordedKey({sharedVehicleId:'v1'},[{id:'permanent-1',__emailVehicleId:'v1',keyNumber:'233'}]),'233','mapped board canonical ID');
 });
 test('JC display uses recorded aliases and ignores placeholder values',()=>{
  assert.equal(api.jobCard({jobCardNumber:'Unknown',job_card_number:'JC1424638'}),'JC1424638');

@@ -16,9 +16,9 @@
   function recordedKey(vehicle = {}, boardRows = []) {
     const key = row => row.keyNumber || row.key_number || row.keyNo || row.keyTag || row.pdcKeyNumber || row.vehicleKeyNumber || '';
     if (recorded(key(vehicle))) return key(vehicle);
-    const id = vehicle.sharedVehicleId || vehicle.id;
+    const id = vehicle.sharedVehicleId || vehicle.__emailVehicleId || vehicle.id;
     if (!id) return '';
-    const matches = boardRows.filter(row => (row.sharedVehicleId || row.id) === id);
+    const matches = boardRows.filter(row => (row.sharedVehicleId || row.__emailVehicleId || row.id) === id);
     return matches.length === 1 && recorded(key(matches[0])) ? key(matches[0]) : '';
   }
   function compactQueue(html, details) {
@@ -52,7 +52,7 @@
     workshopQueueCardHtml = function(vehicle = {}, stage = workshopState().stage, ...args) {
       const parts = workshopPartsSummary(vehicle);
       return compactQueue(previousQueue(vehicle, stage, ...args), {
-        key: vehicleKeyNumber(vehicle) || recordedKey(vehicle, typeof app !== 'undefined' && Array.isArray(app.data) ? app.data : []), jc: jobCard(vehicle, workshopStageJobLines(vehicle, stage)),
+        key: vehicleKeyNumber(vehicle) || recordedKey(vehicle, typeof app !== 'undefined' && Array.isArray(app.emailVehicleLocationRows) ? app.emailVehicleLocationRows : []) || recordedKey(vehicle, typeof app !== 'undefined' && Array.isArray(app.data) ? app.data : []), jc: jobCard(vehicle, workshopStageJobLines(vehicle, stage)),
         customer: vehicleCustomerName(vehicle) || vehicle.customerName || vehicle.customer_name,
         model: workshopQueueVehicleDescription(vehicle), duration: workshopQueueEstimatedLabel(vehicle, stage),
         parts: parts.text, partsStatus: parts.status,
