@@ -30,7 +30,7 @@ test('Sublet notes carry only active outstanding Sublet job details and escape s
     {stageCode:'FITTING',active:true,completed:false,description:'Fitting'},
     {stageCode:'SUBLET',active:false,completed:false,description:'Removed'}]};
   assert.equal(sublet.jobs(v).length,1);
-  assert.equal(sublet.notes(v),'JC JC123 · Supplier <kit> — 0.5 h');
+  assert.equal(sublet.notes(v),'JC JC123 · Supplier <kit>');
   assert.match(sublet.detailsHtml(v),/Supplier &lt;kit&gt;/);
   assert.deepEqual(sublet.jobs({...v,__emailVehicleServerAuthoritative:false}),[]);
   assert.deepEqual(sublet.jobs({...v,pdcQcOperationLinesProjectionPresent:false}),[]);

@@ -24511,11 +24511,13 @@ function subletRows() {
   return vehicleLocationBoardRows().flatMap(vehicle => {
     const needsSublet = Boolean(definition && pdcJobRequired(vehicle, definition) && !pdcJobComplete(vehicle, definition));
     const bookings = Array.isArray(vehicle.pdcSubletBookings) ? vehicle.pdcSubletBookings : [];
-    if (bookings.length) return bookings.map(booking => ({
+    const bookingRows = bookings.map(booking => ({
       ...vehicle,
       __subletVehicleKey: vehicleKey(vehicle),
       __subletBookingId: booking.bookingId,
       __subletBookingVersion: booking.version,
+      __subletOperationIdentity: booking.operationLineIdentity,
+      __subletOperationDescription: booking.operationDescription,
       __subletProviderId: booking.providerId,
       __subletBookingStatus: booking.status,
       pmbSubletProvider: booking.provider,
@@ -24525,6 +24527,18 @@ function subletRows() {
       pmbSubletActualReturnDate: booking.status === 'returned' ? booking.returnedAt : '',
       pmbSubletNotes: booking.notes,
     }));
+    const operationRows = typeof window !== 'undefined' && window.PDC_SUBLET_INTAKE
+      ? window.PDC_SUBLET_INTAKE.pending(vehicle).map(operation => ({
+        ...vehicle, __subletVehicleKey: vehicleKey(vehicle),
+        __subletOperationKey: vehicleKey(vehicle) + '::' + operation.lineIdentity,
+        __subletOperationIdentity: operation.lineIdentity,
+        __subletOperationDescription: operation.description,
+        __subletBookingId: '', __subletBookingStatus: '',
+        pmbSubletProvider: '', pmbSubletProviderEmail: '',
+        pmbSubletBookingDate: '', pmbSubletExpectedReturnDate: '', pmbSubletActualReturnDate: '',
+        pmbSubletNotes: window.PDC_SUBLET_INTAKE.notes(vehicle, operation.lineIdentity),
+      })) : [];
+    if (bookingRows.length || operationRows.length) return [...bookingRows, ...operationRows];
     const hasBookingRecord = Boolean(pmbBaySubletProvider(vehicle) || vehicle.pmbSubletBookingDate || vehicle.pmbSubletExpectedReturnDate || vehicle.pmbSubletActualReturnDate);
     return needsSublet || inferredPmbStage(vehicle) === 'SUBLET' || hasBookingRecord ? [vehicle] : [];
   });
@@ -24636,7 +24650,7 @@ function subletCalendarEvents(rows = []) {
     const bookingDate = plainDateValue(vehicle.pmbSubletBookingDate);
     const expectedReturnDate = plainDateValue(vehicle.pmbSubletExpectedReturnDate);
     const actualReturnDate = plainDateValue(vehicle.pmbSubletActualReturnDate);
-    const common = { key, mutationKey: vehicle.__subletBookingId || key, bookingId: vehicle.__subletBookingId || '', stock, keyNumber: vehicleKeyNumber(vehicle), provider, customer, vehicle: description, bookingDate };
+    const common = { key, mutationKey: vehicle.__subletBookingId || key, bookingId: vehicle.__subletBookingId || '', stock, keyNumber: vehicleKeyNumber(vehicle), provider, customer, operation: vehicle.__subletOperationDescription || '', vehicle: description, bookingDate };
     if (bookingDate) events.push({ ...common, date: bookingDate, type: 'outgoing', label: 'Going out', missingReturn: !expectedReturnDate && !actualReturnDate });
     if (actualReturnDate) events.push({ ...common, date: actualReturnDate, type: 'returned', label: 'Returned', missingReturn: false });
     else if (expectedReturnDate) events.push({ ...common, date: expectedReturnDate, type: 'due-back', label: 'Due back', missingReturn: false, overdue: expectedReturnDate < subletTodayDateKey() });
@@ -24758,7 +24772,7 @@ function renderSubletCalendar(rows = []) {
         ? `<label class="sublet-calendar-returned-check" title="Mark this Sublet booking returned"><input type="checkbox" data-sublet-calendar-returned="${escapeHtml(event.mutationKey)}" data-sublet-calendar-out-date="${escapeHtml(event.bookingDate)}" aria-label="Mark stock ${escapeHtml(event.stock)}, ${escapeHtml(event.provider)}, returned from Sublet"><span>Back</span></label>`
         : '';
       const identity = [event.label, event.stock, event.keyNumber ? `Key ${event.keyNumber}` : ''].filter(Boolean).join(' · ');
-      return `<article class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.overdue ? 'is-overdue' : ''} ${event.missingReturn ? 'is-missing-return' : ''}" draggable="true" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.mutationKey}:${date}`)}" data-sublet-calendar-drag-key="${escapeHtml(event.mutationKey)}" data-sublet-calendar-drag-type="${escapeHtml(event.type)}" data-sublet-calendar-drag-date="${escapeHtml(date)}"><button class="sublet-calendar-event-open" type="button" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}${event.keyNumber ? `, key ${event.keyNumber}` : ''}, ${event.provider}, ${fullDate}. Drag the card to move this date, or use the date field in List View.`)}"><span>${escapeHtml(identity)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.overdue ? '<em>OVERDUE</em>' : (event.missingReturn ? '<em>Return date needed</em>' : '')}</button>${returnCheck}</article>`;
+      return `<article class="sublet-calendar-event is-${escapeHtml(event.type)} ${event.overdue ? 'is-overdue' : ''} ${event.missingReturn ? 'is-missing-return' : ''}" draggable="true" data-sublet-calendar-event="${escapeHtml(`${event.type}:${event.mutationKey}:${date}`)}" data-sublet-calendar-drag-key="${escapeHtml(event.mutationKey)}" data-sublet-calendar-drag-type="${escapeHtml(event.type)}" data-sublet-calendar-drag-date="${escapeHtml(date)}"><button class="sublet-calendar-event-open" type="button" data-open-stock="${escapeHtml(event.key)}" aria-label="${escapeHtml(`${event.label}: stock ${event.stock}${event.keyNumber ? `, key ${event.keyNumber}` : ''}, ${event.provider}, ${fullDate}. Drag the card to move this date, or use the date field in List View.`)}"><span>${escapeHtml(identity)}</span><strong>${escapeHtml(event.provider)}</strong><small>${escapeHtml([event.operation, event.customer, event.vehicle].filter(Boolean).join(' · '))}</small>${event.overdue ? '<em>OVERDUE</em>' : (event.missingReturn ? '<em>Return date needed</em>' : '')}</button>${returnCheck}</article>`;
     }).join('');
     return `<section class="sublet-calendar-day ${outside ? 'is-outside-month' : ''} ${date === today ? 'is-today' : ''}" data-sublet-calendar-date="${escapeHtml(date)}" data-sublet-calendar-drop-date="${escapeHtml(date)}" role="gridcell" aria-label="${escapeHtml(fullDate)}"><header><span>${escapeHtml(subletCalendarDateLabel(date, range.mode === 'month' ? { day: 'numeric' } : { day: 'numeric', month: 'short' }))}</span>${date === today ? '<b>Today</b>' : ''}</header><div class="sublet-calendar-day-events">${eventHtml}</div></section>`;
   }).join('');
@@ -24898,7 +24912,7 @@ function subletIsOverdue(vehicle = {}) {
 
 function subletVehicleByKey(key = '') {
   const requested = String(key || '');
-  return subletRows().find(vehicle => vehicle.__subletBookingId === requested)
+  return subletRows().find(vehicle => vehicle.__subletBookingId === requested || vehicle.__subletOperationKey === requested)
     || subletRows().find(vehicle => vehicleKey(vehicle) === requested) || selectedVehicle(key);
 }
 
@@ -25161,11 +25175,16 @@ async function submitSubletCreate(event) {
   const outDate = plainDateValue($('#sublet-create-out-date')?.value || '');
   const returnDate = plainDateValue($('#sublet-create-return-date')?.value || '');
   if (exact.length !== 1) { error.textContent = 'Choose exactly one canonical vehicle result. No booking was created.'; return false; }
+  const operationIdentity = $('#sublet-create-operation')?.value || '';
+  const intake = window.PDC_SUBLET_INTAKE;
+  if (intake?.jobs(exact[0]).length && !intake.pending(exact[0]).some(line => line.lineIdentity === operationIdentity)) {
+    error.textContent = 'Choose one unbooked Sublet requirement.'; return false;
+  }
   if (!providerId) { error.textContent = 'Choose one canonical provider.'; return false; }
   if (!outDate || !returnDate || returnDate < outDate) { error.textContent = 'Expected return must be on or after the out date.'; return false; }
   const service = app.emailVehicleLocationService;
   if (!service?.createSubletBooking) { error.textContent = 'Shared Sublet booking service is unavailable. No booking was created.'; return false; }
-  const response = await service.createSubletBooking(vehicleId, vehicleVersion, providerId, outDate, returnDate, cleanNavisionText($('#sublet-create-provider-email')?.value || ''), cleanNavisionText($('#sublet-create-notes')?.value || ''));
+  const response = await service.createSubletBooking(vehicleId, vehicleVersion, providerId, outDate, returnDate, cleanNavisionText($('#sublet-create-provider-email')?.value || ''), cleanNavisionText($('#sublet-create-notes')?.value || ''), operationIdentity);
   if (!response?.ok) {
     error.textContent = response?.code === 'sublet_booking_overlap' ? 'These dates overlap another booking for this vehicle.' : `Booking was not created: ${response?.code || 'unknown_error'}.`;
     await refreshEmailVehicleLocations();
@@ -25240,7 +25259,7 @@ function renderSubletHome() {
   }
   host.innerHTML = `<div class="sublet-table-wrap"><table class="data-table compact-table sublet-table"><thead><tr><th aria-label="Expand"></th><th>Key</th><th>Stock</th><th>Job card</th><th>Returned</th><th>Customer</th><th>Vehicle</th><th>Provider</th><th>Booking date</th><th>Due back</th><th>Status</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
     const vehicleOpenKey = vehicle.__subletVehicleKey || vehicleKey(vehicle);
-    const key = vehicle.__subletBookingId || vehicleOpenKey;
+    const key = vehicle.__subletBookingId || vehicle.__subletOperationKey || vehicleOpenKey;
     const stock = displayStockNumber(vehicle) || 'vehicle';
     const accessibleStock = escapeHtml(stock);
     const expanded = app.subletExpandedRows.has(key);

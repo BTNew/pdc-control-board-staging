@@ -273,6 +273,7 @@ function mapServerVehicle(row = {}) {
   const canonicalBookings = (Array.isArray(row.sublet_bookings) ? row.sublet_bookings : []).map(booking => ({
     bookingId: String(booking?.booking_id || ''), vehicleId: String(booking?.vehicle_id || row.id || ''),
     vehicleVersion: Number(booking?.vehicle_version || row.version || 0), providerId: String(booking?.provider_id || ''),
+    operationLineIdentity: String(booking?.operation_line_identity || ''), operationDescription: String(booking?.operation_description || ''),
     provider: String(booking?.provider_name || ''), providerEmail: String(booking?.provider_email || ''),
     outDate: booking?.out_date || '', expectedReturnDate: booking?.expected_return_date || '',
     status: ['active', 'returned', 'cancelled'].includes(String(booking?.status || '')) ? String(booking.status) : 'cancelled',
@@ -287,7 +288,9 @@ function mapServerVehicle(row = {}) {
   const bookedBookings = canonicalBookings.filter(booking => ['active', 'returned'].includes(booking.status));
   if (bookedBookings.length) {
     mapped.pdcRequiresSublet = true;
-    mapped.pdcCompleteSublet = mapped.__subletActiveCount === 0;
+    mapped.pdcCompleteSublet = mapped.__subletActiveCount === 0 && !mapped.pdcQcOperationLines.some(line =>
+      line.active && !line.completed && line.stageCode === 'SUBLET' &&
+      !canonicalBookings.some(booking => booking.operationLineIdentity === line.lineIdentity && booking.status === 'returned'));
   }
   const activeBridge = canonicalBookings.filter(booking => booking.status === 'active').sort((a, b) => a.outDate.localeCompare(b.outDate))[0];
   const latestBridge = canonicalBookings.slice().sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
@@ -421,8 +424,9 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return { ok: true, code: body.code || 'ok', data: body.data || body };
     } catch (_error) { return { ok: false, code: unavailableCode, data: null }; }
   }
-  function createSubletBooking(vehicleId = '', vehicleVersion = 0, providerId = '', outDate = '', expectedReturnDate = '', providerEmail = '', notes = '') {
-    return subletRpc(PDC_SUBLET_CREATE_RPC, { p_vehicle_id: vehicleId, p_vehicle_version: Number(vehicleVersion) || 0, p_provider_id: providerId, p_out_date: outDate, p_expected_return_date: expectedReturnDate, p_provider_email: providerEmail, p_notes: notes }, 'sublet_create_unavailable');
+  function createSubletBooking(vehicleId = '', vehicleVersion = 0, providerId = '', outDate = '', expectedReturnDate = '', providerEmail = '', notes = '', operationLineIdentity = '') {
+    return subletRpc(operationLineIdentity ? 'create_pdc_sublet_operation_booking' : PDC_SUBLET_CREATE_RPC, {
+      ...(operationLineIdentity ? { p_operation_line_identity: operationLineIdentity } : {}), p_vehicle_id: vehicleId, p_vehicle_version: Number(vehicleVersion) || 0, p_provider_id: providerId, p_out_date: outDate, p_expected_return_date: expectedReturnDate, p_provider_email: providerEmail, p_notes: notes }, 'sublet_create_unavailable');
   }
   function updateSubletBooking(bookingId = '', expectedVersion = 0, outDate = '', expectedReturnDate = '', notes = null) {
     return subletRpc(PDC_SUBLET_BOOKING_UPDATE_RPC, { p_booking_id: bookingId, p_expected_version: Number(expectedVersion) || 0, p_out_date: outDate, p_expected_return_date: expectedReturnDate, p_notes: notes }, 'sublet_update_unavailable');
