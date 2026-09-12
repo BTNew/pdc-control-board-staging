@@ -63,6 +63,9 @@
     tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.03';
     document.head.appendChild(tileCleanup);
 
+    const partsConfirmation = document.createElement('script');
+    partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.12.01';
+    document.head.appendChild(partsConfirmation);
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
     intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.operation-updates';
