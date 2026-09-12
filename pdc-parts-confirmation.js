@@ -7,17 +7,30 @@
     return status?.parts_complete === true && status.override_source === 'authorised_email_confirmation' ? status : null;
   };
   const priorComplete = partsStateComplete;
-  partsStateComplete = vehicle => !!confirmation(vehicle) || priorComplete(vehicle);
+  partsStateComplete = vehicle => {
+    if (confirmation(vehicle)) return true;
+    const p = importedPartsStatus(vehicle);
+    return p?.feed === 'separate_parts_status' ? p.parts_complete === true : priorComplete(vehicle);
+  };
   const priorClass = partsDepartmentStatusClass;
-  partsDepartmentStatusClass = status => status === 'import:Parts complete — confirmed by Wayne' ? 'parts-status-complete' : priorClass(status);
+  partsDepartmentStatusClass = status => {
+    if (status === 'import:Parts complete — confirmed by Wayne' || status === 'import:All active jobs parts-ready') return 'parts-status-complete';
+    if (status === 'import:Parts outstanding — see job cards') return 'parts-status-ordered';
+    return priorClass(status);
+  };
   const time = value => new Date(value).toLocaleString('en-AU', {timeZone:'Australia/Perth'});
   const priorUpdated = partsLastUpdateLabel;
   partsLastUpdateLabel = vehicle => confirmation(vehicle)?.confirmed_at ? 'Confirmed by Wayne ' + time(confirmation(vehicle).confirmed_at) : priorUpdated(vehicle);
   const priorTitle = importedPartsTitle;
   importedPartsTitle = vehicle => {
     const status = confirmation(vehicle);
-    if (!status) return priorTitle(vehicle);
+    if (!status) {
+      const p = importedPartsStatus(vehicle);
+      if (p?.feed !== 'separate_parts_status') return priorTitle(vehicle);
+      const jobs = (p.jobs || []).map(j => `R/O ${j.job_number} (${j.company || 'scope unconfirmed'}/${j.division || '?' }): ${j.label}`).join('\n');
+      return `${p.label}\n${jobs}\nParts snapshot: ${p.parts_snapshot_at ? time(p.parts_snapshot_at) : 'Not recorded'}\nLast successful parts import: ${p.last_successful_parts_feed_import_at ? time(p.last_successful_parts_feed_import_at) : 'Not recorded'} (Perth).\n${p.meaning || ''}`;
+    }
     return status.label + '. Confirmed ' + time(status.confirmed_at) + ' (Perth). This email confirmation overrides import backorder flags. Original import evidence is retained.';
   };
-  window.PDC_PARTS_CONFIRMATION_VERSION = '2026.09.12.01';
+  window.PDC_PARTS_CONFIRMATION_VERSION = '2026.09.12.separate-parts';
 })();
