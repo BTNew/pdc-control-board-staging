@@ -172,7 +172,9 @@
     const disabled=!writable()||saving||sourceChanged;
     const provenance=line.hours_provenance==='craig_electrical_default_1_5_hours'?'Electrical default · 1.5 hours':line.hours_provenance==='explicit_description_time'?'Estimate stated in description':line.hours_provenance==='conflicting_description_times'?'Conflicting times — enter an estimate':'';
     const hint=sublet?'Hours not required':missing?'Hours required before approval':standard?'Pre-delivery · 1 hour standard':Object.hasOwn(hourDrafts,line.line_identity)?'Your estimate':provenance||'Hours confirmed';
-    return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''}" draggable="${!disabled}" data-nv-line="${esc(line.line_identity)}">
+    const theme=assigned&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(assigned):null;
+    const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
+    return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''}" draggable="${!disabled}" data-nv-line="${esc(line.line_identity)}"${style}>
       <small class="nv-line-meta" title="Drag to a station · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">⠿</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
       <strong>${esc(line.description)}</strong>
       <div class="nv-operation-controls">
@@ -325,7 +327,7 @@
   window.addEventListener('pdc-auth-locked',()=>{generation++;items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.12.compact-review';
+  window.PDC_NEW_VEHICLES_VERSION='2026.09.12.station-colours';
   window.PDC_NEW_VEHICLES=api;
   render();if(readable())void load();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});

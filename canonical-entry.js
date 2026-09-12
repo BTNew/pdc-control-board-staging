@@ -68,10 +68,10 @@
     document.head.appendChild(partsConfirmation);
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
-    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.compact-review';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.station-colours';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.12.compact-review';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.12.station-colours';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
