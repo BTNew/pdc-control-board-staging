@@ -186,6 +186,11 @@ function mapServerVehicle(row = {}) {
     if (item.completed_by) mapped[`${fields[1]}By`] = item.completed_by;
   }
   const allowedOperationKeys = new Set(['bus4x4', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet', 'pitinspection', 'parts', 'review']);
+  // Retain job-card headings from the full canonical projection, including cards
+  // whose first operation falls beyond the compact operation display limit.
+  mapped.pdcJobCardNumbers = [...new Set((Array.isArray(row.operation_lines) ? row.operation_lines : [])
+    .map(item => String(item?.job_card_number || item?.jobCardNumber || '').trim())
+    .filter(Boolean))];
   mapped.pdcEmailOperationLines = (Array.isArray(row.operation_lines) ? row.operation_lines : []).slice(0, 50).map(item => ({
     operation_line_id: String(item?.operation_line_id || item?.source_line_id || '').trim().toLowerCase(),
     operation_no: String(item?.operation_no || '').trim().toUpperCase(),
