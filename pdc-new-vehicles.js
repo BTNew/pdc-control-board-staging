@@ -42,8 +42,10 @@
   }
   function reviewOrder(row, choices = {}, drafts = {}) {
     const stages=new Map(assignmentsFor(row,choices).map(x=>[x.line_identity,x.stage_code]));
+    const stationOrder=new Map(['',...STATIONS.map(([code])=>code)].map((code,index)=>[code,index]));
+    const stationRank=line=>stationOrder.get(stages.get(line.line_identity))??0;
     const priority=line=>stages.get(line.line_identity)!=='SUBLET'&&!positiveHours(hoursFor(line,drafts))?0:1;
-    return [...(row?.operations||[])].sort((a,b)=>priority(a)-priority(b));
+    return [...(row?.operations||[])].sort((a,b)=>stationRank(a)-stationRank(b)||priority(a)-priority(b));
   }
   function verifyApproval(result,row,choices,hours={}) {
     const data=result?.data;
@@ -247,7 +249,7 @@
       ${error?`<div class="nv-error" role="alert">${esc(error)}</div>`:''}${notice?`<div class="nv-notice" role="status">${esc(notice)}</div>`:''}
       ${selected?`<section class="nv-summary"><h3>${esc(selected.vehicle_description)}</h3><p>${esc(selected.customer_name)} · Job Card ${esc((selected.job_cards || []).join(', '))}</p><p>Location: <strong>${esc(selected.current_location || 'Pending')}</strong>${selected.eta_to_kewdale?` · Kewdale ETA: ${esc(selected.eta_to_kewdale)}`:''} · VIN: ${esc(selected.vin || 'Not recorded')}</p></section>
       ${sourceChanged?'<div class="nv-error" role="alert">Source data changed. <button type="button" data-nv-reload>Reload Job Card</button> before approving.</div>':''}
-      <p class="nv-help">Read each description, then drag the row into a station bucket or choose its station below. Items needing hours appear first. Sublet does not require hours. Your choices and hours are saved when you approve.</p>
+      <p class="nv-help">Rows follow the station order above, starting with Needs Review. Items needing hours appear first within each station. Drag a row into a station bucket or use its station selector. Sublet does not require hours. Your choices and hours are saved when you approve.</p>
       <div class="nv-routing-buckets" aria-label="Drag operations into station buckets">${groups.map(group=>stationSection(group)).join('')}</div>
       <div class="nv-operation-list" aria-label="Operation descriptions and estimates">${reviewOrder(selected,choices,hourDrafts).map(operation).join('')}</div>
       <footer class="nv-approval"><div>${issues.length?issues.map(issue=>`<p>${esc(issue)}</p>`).join(''):'<p>All operations have a station and required workshop hours.</p>'}<small>Approval adds this vehicle to its current location on the board. Nothing is booked or marked fitted.</small></div>
@@ -327,7 +329,7 @@
   window.addEventListener('pdc-auth-locked',()=>{generation++;items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.12.station-colours';
+  window.PDC_NEW_VEHICLES_VERSION='2026.09.12.station-order';
   window.PDC_NEW_VEHICLES=api;
   render();if(readable())void load();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});
