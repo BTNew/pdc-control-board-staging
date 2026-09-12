@@ -7587,11 +7587,7 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
           ? `Source hours: ${operation.sourceEstimatedHours == null ? 'blank' : Number(operation.sourceEstimatedHours).toFixed(2)}`
           : '';
         const provenanceText = operation.hoursProvenance === 'pre_delivery_default_1_5' ? 'Business-rule default' : '';
-        const partsFlags = importedPartsStatus(vehicle)?.operations?.[operation.operation_line_id];
-        const partsText = partsFlags ? `${partsFlags.label}. ${partsFlags.job_label}` : operation.partsSemantics === 'explicitly_backordered'
-          ? 'Job has outstanding parts'
-          : operation.partsSemantics === 'review' ? 'Parts status review' : '';
-        const reviewEvidence = [sourceHoursText, provenanceText, partsText].filter(Boolean).join(' · ');
+        const reviewEvidence = [sourceHoursText, provenanceText].filter(Boolean).join(' · ');
         return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em>${reviewEvidence ? `<small>${escapeHtml(reviewEvidence)}</small>` : ''}</li>`;
       }).join('')}</ol>
     </section>`;

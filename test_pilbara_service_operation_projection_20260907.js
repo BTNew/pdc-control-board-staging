@@ -66,8 +66,6 @@ const legacyMapped = mapServerVehicle({
 assert.strictEqual(legacyMapped.pdcEmailOperationLines[0].partsSemantics, null);
 assert.match(app, /Source hours/);
 assert.match(app, /Business-rule default/);
-assert.match(app, /Job has outstanding parts/);
-assert.match(app, /Parts status review/);
 assert.match(app, /Pilbara Service Review · R\/O loaded/);
 assert.doesNotMatch(app, /pdc-station-review/, 'Service operation count must not add an eleventh top-row category control');
 assert.doesNotMatch(app, /const operationJobCard = operation\.job_card_number/, 'rendering must not expose the repeated repair-order subline');
