@@ -54,10 +54,10 @@
     // Planner-only presentation/search helper. It is versioned separately so
     // existing browsers pick up small planner fixes without touching mobile QC.
     const slimStyle = document.createElement('link');
-    slimStyle.rel = 'stylesheet'; slimStyle.href = 'pdc-planner-slim.css?v=2026.09.10.01';
+    slimStyle.rel = 'stylesheet'; slimStyle.href = 'pdc-planner-slim.css?v=2026.09.12.identity-fields';
     document.head.appendChild(slimStyle);
     const slimScript = document.createElement('script');
-    slimScript.src = 'pdc-planner-slim.js?v=2026.09.11.stock-line';
+    slimScript.src = 'pdc-planner-slim.js?v=2026.09.12.identity-fields';
     document.head.appendChild(slimScript);
     const tileCleanup = document.createElement('script');
     tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.03';

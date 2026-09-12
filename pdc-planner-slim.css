@@ -2,6 +2,13 @@
 .planner-slim-details {display:grid;gap:2px;min-width:0;font-size:11px;line-height:1.2;}
 .planner-slim-details>* {margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .planner-slim-details strong {font-size:12px;}
+.workshop-plan-chip.planner-identity-chip .workshop-plan-main > .planner-slim-details {display:grid!important;gap:2px;overflow:hidden;white-space:normal;}
+.workshop-plan-chip.planner-identity-chip .planner-slim-details > * {font-size:10px;line-height:1.1;font-weight:700;}
+.workshop-plan-chip.planner-identity-chip .planner-slim-details > strong {font-size:11px;font-weight:900;}
+.workshop-week-card.planner-identity-chip {padding:3px 6px;}
+.workshop-week-card.planner-identity-chip > .planner-slim-details {display:grid;gap:1px;}
+.workshop-week-card.planner-identity-chip .planner-slim-details > * {font-size:8.5px;line-height:1;font-weight:700;}
+.workshop-week-card.planner-identity-chip .planner-slim-details > strong {font-weight:900;}
 .workshop-queue-card .workshop-queue-actions {margin-top:3px!important;gap:4px!important;}
 .workshop-queue-card .workshop-queue-actions button {min-height:25px!important;padding:3px 6px!important;}
 .workshop-admin-block .planner-admin-description {position:relative;z-index:4;display:inline-block!important;align-self:start;min-height:24px;padding:2px 7px;margin-top:3px;border:1px solid #9a6a00;border-radius:4px;background:#fff8d7;color:#3c2a00;font-size:11px;cursor:pointer;}
