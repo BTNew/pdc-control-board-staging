@@ -32,5 +32,47 @@
     }
     return status.label + '. Confirmed ' + time(status.confirmed_at) + ' (Perth). This email confirmation overrides import backorder flags. Original import evidence is retained.';
   };
-  window.PDC_PARTS_CONFIRMATION_VERSION = '2026.09.12.separate-parts';
+  if (typeof partsMatchesOperationalFilter === 'function') {
+    const priorFilter = partsMatchesOperationalFilter;
+    partsMatchesOperationalFilter = (vehicle = {}, filter = 'notordered') => {
+      const p = importedPartsStatus(vehicle);
+      if (p?.feed !== 'separate_parts_status') return priorFilter(vehicle, filter);
+      if (filter === 'stoppage') return typeof isActivePartsStoppage === 'function' && isActivePartsStoppage(vehicle);
+      if (partsStateComplete(vehicle)) return false;
+      if (filter === 'ordered') return p.colour === 'orange';
+      if (filter === 'overdue') {
+        const days = partsWorstEtaDaysUntil(vehicle);
+        return Number.isFinite(days) && days < 0;
+      }
+      return p.colour === 'grey' || p.colour === 'review';
+    };
+  }
+  if (typeof renderPartsSummary === 'function') {
+    const priorSummary = renderPartsSummary;
+    renderPartsSummary = sourceRows => {
+      const rows = sourceRows || partsDepartmentSourceRows();
+      const result = priorSummary(rows);
+      if (rows.some(v => importedPartsStatus(v)?.feed === 'separate_parts_status')) {
+        const host = $('#parts-summary-grid');
+        const review = host?.querySelector('[data-parts-operational-filter="notordered"] span');
+        const outstanding = host?.querySelector('[data-parts-operational-filter="ordered"] span');
+        if (review) review.textContent = 'Parts Need Review';
+        if (outstanding) outstanding.textContent = 'Parts Outstanding';
+      }
+      return result;
+    };
+  }
+  if (typeof partsQueueRowHtml === 'function') {
+    const priorRow = partsQueueRowHtml;
+    partsQueueRowHtml = vehicle => {
+      const html = priorRow(vehicle);
+      const p = importedPartsStatus(vehicle);
+      if (p?.feed !== 'separate_parts_status') return html;
+      const details = (p.jobs || []).map(j => `R/O ${j.job_number}: ${j.label}`).map(escapeHtml).join('<br>');
+      const updated = partsLastUpdateLabel(vehicle);
+      return html.replace(/<span class="parts-status-pill ([^"]*)">([^<]*)<\/span>/,
+        (_, classes, label) => `<span class="parts-status-pill ${classes}" title="${escapeHtml(importedPartsTitle(vehicle))}">${label}</span><div class="subtle">${details}${updated ? '<br>' + escapeHtml(updated) : ''}</div>`);
+    };
+  }
+  window.PDC_PARTS_CONFIRMATION_VERSION = '2026.09.12.separate-parts.2';
 })();
