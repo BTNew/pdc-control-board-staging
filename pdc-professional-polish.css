@@ -256,3 +256,8 @@ input:focus, select:focus, textarea:focus {
 .book-all-stations-table th,.book-all-stations-table td { padding:9px; text-align:left; border-bottom:1px solid #dbe3ee; font-size:12px; white-space:normal; }
 .book-all-stations-table th small { display:block; margin-top:3px; }
 .book-all-stations-error { color:#b91c1c; }
+
+/* Craig's trial: hide this detail summary while retaining its submitted values. */
+#vehicle-modal .section-label:has(+ [data-pdc-work-state-grid]),
+#vehicle-modal [data-pdc-work-state-grid],
+#vehicle-modal .pdc-work-state-help { display:none!important; }
