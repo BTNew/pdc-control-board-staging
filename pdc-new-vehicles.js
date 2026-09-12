@@ -6,23 +6,7 @@
     ['FITTING', 'Fitting'], ['ELECTRICAL', 'Electrical'], ['FABRICATION', 'Fabrication'],
     ['HOIST', 'Hoist'], ['TINT', 'Tint'], ['TYRE', 'Tyre'], ['BUS_4X4', 'Bus 4×4'], ['SUBLET', 'Sublet'],
   ]);
-  // This page uses distinct station colours for both headings and review rows.
-  const STATION_COLOURS = Object.freeze({
-    '': {colour:'#c2410c',tint:'#fed7aa',ink:'#ffffff'},
-    FITTING: {colour:'#7e22ce',tint:'#f3e8ff',ink:'#ffffff'},
-    ELECTRICAL: {colour:'#166534',tint:'#dcfce7',ink:'#ffffff'},
-    FABRICATION: {colour:'#eab308',tint:'#fef9c3',ink:'#3f2a00'},
-    HOIST: {colour:'#1d4ed8',tint:'#dbeafe',ink:'#ffffff'},
-    TINT: {colour:'#0e7490',tint:'#cffafe',ink:'#ffffff'},
-    TYRE: {colour:'#be185d',tint:'#fce7f3',ink:'#ffffff'},
-    BUS_4X4: {colour:'#713f12',tint:'#ead6cb',ink:'#ffffff'},
-    SUBLET: {colour:'#334155',tint:'#e2e8f0',ink:'#ffffff'},
-  });
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  function stationStyle(code='') {
-    const theme=STATION_COLOURS[code]||STATION_COLOURS[''];
-    return ` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)};--station-ink:${esc(theme.ink)}"`;
-  }
   const validStation = code => STATIONS.some(([station]) => station === code);
   function reviewChoices(row) {
     return Object.fromEntries(assignmentsFor(row).map(line => [line.line_identity, line.stage_code]));
@@ -190,7 +174,9 @@
     const disabled=!writable()||saving||sourceChanged;
     const provenance=line.hours_provenance==='craig_electrical_default_1_5_hours'?'Electrical default · 1.5 hours':line.hours_provenance==='explicit_description_time'?'Estimate stated in description':line.hours_provenance==='conflicting_description_times'?'Conflicting times — enter an estimate':'';
     const hint=sublet?'Hours not required':missing?'Hours required before approval':standard?'Pre-delivery · 1 hour standard':Object.hasOwn(hourDrafts,line.line_identity)?'Your estimate':provenance||'Hours confirmed';
-    return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''}" draggable="${!disabled}" data-nv-line="${esc(line.line_identity)}"${stationStyle(assigned)}>
+    const theme=assigned&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(assigned):null;
+    const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
+    return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''}" draggable="${!disabled}" data-nv-line="${esc(line.line_identity)}"${style}>
       <small class="nv-line-meta" title="Drag to a station · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">⠿</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
       <strong>${esc(line.description)}</strong>
       <div class="nv-operation-controls">
@@ -199,7 +185,9 @@
       <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled?'disabled':''}><option value="">Needs Review</option>${STATIONS.map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select></label></div></article>`;
   }
   function stationSection(group) {
-    return `<section class="nv-station nv-bucket ${group.code?'':'needs-review'}" data-nv-drop="${group.code}"${stationStyle(group.code)}><header><h3>${esc(group.label)}</h3><small>${group.lines.length} items · ${group.code==='SUBLET'?'Hours not required':group.hours==null?'Hours need review':`${group.hours.toFixed(2)} h`}</small></header><p class="nv-drop-hint">Drop here</p></section>`;
+    const theme=group.code&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(group.code):null;
+    const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
+    return `<section class="nv-station nv-bucket ${group.code?'':'needs-review'}" data-nv-drop="${group.code}"${style}><header><h3>${esc(group.label)}</h3><small>${group.lines.length} items · ${group.code==='SUBLET'?'Hours not required':group.hours==null?'Hours need review':`${group.hours.toFixed(2)} h`}</small></header><p class="nv-drop-hint">Drop here</p></section>`;
   }
   async function approveUpdate(id) {
     const row=updateItems.find(x=>x.change_id===id),draft=updateDrafts[id]||{},actor=window.PDC_AUTH_CONTEXT?.userId;
@@ -341,7 +329,7 @@
   window.addEventListener('pdc-auth-locked',()=>{generation++;items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.12.distinct-colours';
+  window.PDC_NEW_VEHICLES_VERSION='2026.09.12.review-orange';
   window.PDC_NEW_VEHICLES=api;
   render();if(readable())void load();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});
