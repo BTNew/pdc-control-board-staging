@@ -13639,3 +13639,6 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 .incoming-work-check.imported-parts-red { background: #fff0f3 !important; color: #ba163c !important; border-color: #ba163c !important; }
 .incoming-work-check.imported-parts-grey, .incoming-work-check.imported-parts-review { background: #eef0f3 !important; color: #536173 !important; border-color: #8995a5 !important; }
 .parts-status-unknown { background: #eef0f3; color: #536173; }
+
+.incoming-work-check[data-open-sublet-stock] { cursor: pointer !important; font: inherit; margin: 0; box-shadow: none; }
+.incoming-work-check[data-open-sublet-stock]:focus-visible { outline: 2px solid #2563eb !important; outline-offset: 2px; }

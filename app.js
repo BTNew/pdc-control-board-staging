@@ -7742,6 +7742,10 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
         <span class="incoming-work-label">Parts / JITA</span>
       </span>`;
     }
+    if (def.key === 'sublet' && options.subletNavigation === true) {
+      const stock = cleanNavisionText(displayStockNumber(vehicle));
+      if (stock) return `<button type="button" class="${classes.join(' ')}" data-open-sublet-stock="${escapeHtml(stock)}" title="${escapeHtml(`${title} · Open Sublet for stock ${stock}`)}" aria-label="${escapeHtml(`Open Sublet for stock ${stock}; ${pdcGridJobLabel(def)} ${state}`)}"><span class="incoming-work-box" aria-hidden="true">${marker}</span><span class="incoming-work-label">${escapeHtml(pdcGridJobLabel(def))}</span></button>`;
+    }
     return `<span class="${classes.join(' ')}" title="${escapeHtml(title)}" aria-label="${escapeHtml(`${pdcGridJobLabel(def)} ${state}`)}">
       <span class="incoming-work-box" aria-hidden="true">${marker}</span>
       <span class="incoming-work-label">${escapeHtml(pdcGridJobLabel(def))}</span>
@@ -7782,7 +7786,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     available: options.workshopProjectionAvailable,
     plans: options.workshopPlans,
   });
-  const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: bucketKey === 'pmb' && options.stationTransfer !== false, bookingProjection });
+  const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: bucketKey === 'pmb' && options.stationTransfer !== false, bookingProjection, subletNavigation: options.subletNavigation === true });
   const stage = inferredPmbStage(vehicle);
   const rowStatus = incomingGridStatusLabel(vehicle, bucketKey);
   const subletProvider = pmbBaySubletProvider(vehicle);
@@ -8039,7 +8043,7 @@ function renderIncomingDashboardBoard() {
     if (filters.bucket && filters.bucket !== def.key) return '';
     const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
       .sort((a, b) => incomingCompareVehicles(a, b, sort, def.key));
-    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key, { workshopPlans, workshopProjectionAvailable })).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
+    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key, { workshopPlans, workshopProjectionAvailable, subletNavigation: true })).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
     const identityHeader = vehicles.length
       ? def.key === 'rft'
         ? vehicleLocationsRftHeaderHtml(sort)
@@ -8066,6 +8070,7 @@ function renderIncomingDashboardBoard() {
     event.stopPropagation();
     openVehicleCardFromVisibleBoard(button.dataset.openStock, button);
   }));
+  bindIncomingSubletLinks(host);
   bindVehicleLabelButtons(host);
   $$('[data-incoming-delete]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
@@ -8111,6 +8116,30 @@ function renderIncomingDashboardBoard() {
   updateCollapseToggleButtons();
   if (app.vehicleLocationsRefreshState !== 'refreshing') app.vehicleLocationsRefreshDisclosure = null;
   ensureOperationalRefreshControls();
+}
+
+function openSubletForStock(stock = '') {
+  const query = cleanNavisionText(stock);
+  const search = $('#sublet-search');
+  if (!query || !search) return false;
+  const matchingRows = subletRows().filter(vehicle => cleanNavisionText(displayStockNumber(vehicle)) === query);
+  app.subletViewMode = 'list';
+  app.subletOperationalFilter = ['to-book', 'booked', 'returned'].find(filter => matchingRows.some(vehicle => subletMatchesOperationalFilter(vehicle, filter))) || 'to-book';
+  const provider = $('#sublet-provider-filter');
+  if (provider) provider.value = 'all';
+  search.value = query;
+  showView('sublet');
+  search.focus();
+  search.select();
+  return true;
+}
+
+function bindIncomingSubletLinks(host = document) {
+  $$('[data-open-sublet-stock]', host).forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    openSubletForStock(button.dataset.openSubletStock);
+  }));
 }
 
 function bindIncomingCardSelection(host = document) {
@@ -25127,6 +25156,11 @@ function openSubletCreateDialog() {
   $('#sublet-create-out-date').value = today;
   $('#sublet-create-return-date').value = today;
   if (typeof dialog.showModal === 'function') dialog.showModal(); else dialog.setAttribute('open', '');
+  const search = cleanNavisionText($('#sublet-search')?.value || '');
+  if (search) {
+    $('#sublet-create-vehicle-search').value = search;
+    renderSubletCreateVehicleMatches();
+  }
   window.setTimeout(() => $('#sublet-create-vehicle-search')?.focus(), 0);
 }
 
