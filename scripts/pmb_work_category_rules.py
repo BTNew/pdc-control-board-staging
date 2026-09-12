@@ -28,6 +28,14 @@ def category(description):
     if (re.search(r'\b(?:HI[ -]?DRIVE|HIGH[ -]?DRIVE|BOSTON|MTE)\b.*(?:CANOP|BULL|MOTOR[ -]?BOD|BODIES|BODY)', s)
         or re.search(r'\bCANOP(?:Y|IES)\b|BODY[ -]?BUILDER', s)) and not re.search(r'SOCKET|OUTLET|ANDERSON|COMPRESSOR|BEACON|DECAL|FRIDGE[ -]?SLIDE|AIR[ -]?VENT|SECURITY[ -]?GRILL|ROOF[ -]?RACK|RHINO[ -]?RACK|CABINET|LIGHT', s):
         return 'SUBLET', 'canopy_body_builder'
+    if re.search(r'WHEEL[ -]?CHOCK', s):
+        return 'FITTING', 'wheel_chocks_fitting'
+    if re.search(r'TRIANGLE.*(?:MOUNT|HOLDER)|(?:MOUNT|HOLDER).*TRIANGLE', s):
+        return 'FABRICATION', 'mounted_triangle_holder_fabrication'
+    if re.search(r'MMT.*SEAT[ -]?COVERS?', s):
+        return 'SUBLET', 'mmt_seat_covers_sublet'
+    if re.search(r'MANUAL.*ROLLER.*PZQ7D0K050', s):
+        return 'FITTING', 'toyota_manual_roller_cover'
     if re.search(r'RYCO.*CATCH[ -]?CAN.*KIT', s):
         return 'FITTING', 'ryco_catch_can_kit'
     if re.search(r'ADDITIONAL.*(?:GENUINE|ALLOY).*RIM', s):
@@ -79,6 +87,10 @@ def propose(description, source_hours=None, fallback_station='REVIEW', departmen
     d = re.sub(r'\s+', ' ', str(description or '').upper()).strip()
     if station == 'ELECTRICAL':
         default_hours = Decimal('1.5'); default_provenance = 'craig_electrical_default_1_5_hours'
+    elif station == 'FITTING' and re.search(r'MANUAL.*ROLLER.*PZQ7D0K050', d):
+        default_hours = Decimal('3'); default_provenance = 'craig_manual_roller_cover_default_3_hours'
+    elif station == 'FITTING' and re.search(r'ARB.*COMMERCIAL.*BULL[ -]?BAR', d) and 'HILUX' in d and re.search(r'MY ?26', d):
+        default_hours = Decimal('5'); default_provenance = 'craig_my26_hilux_arb_commercial_bar_5_hours'
     elif station == 'FITTING' and re.search(r'RYCO.*CATCH[ -]?CAN.*KIT', d):
         default_hours = Decimal('1.5'); default_provenance = 'craig_ryco_catch_can_default_1_5_hours'
     elif station == 'FABRICATION':
