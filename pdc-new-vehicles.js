@@ -173,11 +173,12 @@
     const provenance=line.hours_provenance==='craig_electrical_default_1_5_hours'?'Electrical default · 1.5 hours':line.hours_provenance==='explicit_description_time'?'Estimate stated in description':line.hours_provenance==='conflicting_description_times'?'Conflicting times — enter an estimate':'';
     const hint=sublet?'Hours not required':missing?'Hours required before approval':standard?'Pre-delivery · 1 hour standard':Object.hasOwn(hourDrafts,line.line_identity)?'Your estimate':provenance||'Hours confirmed';
     return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''}" draggable="${!disabled}" data-nv-line="${esc(line.line_identity)}">
+      <small class="nv-line-meta" title="Drag to a station · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">⠿</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
       <strong>${esc(line.description)}</strong>
-      <div class="nv-operation-controls"><small class="nv-line-meta"><span aria-hidden="true">⠿</span> Drag to a station · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}</small>
-      <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled?'disabled':''}><option value="">Needs Review</option>${STATIONS.map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select></label>
-      ${sublet?'':`<label class="nv-hours-label">Hours<input type="number" min="0.01" max="999.99" step="0.01" inputmode="decimal" aria-label="Hours for ${esc(line.description)}" aria-invalid="${missing}" data-nv-hours="${esc(line.line_identity)}" value="${esc(value??'')}" placeholder="Required" ${standard?'readonly':''} ${disabled?'disabled':''}></label>`}
-      <small class="nv-hours-hint">${esc(hint)}</small></div></article>`;
+      <div class="nv-operation-controls">
+      ${sublet?'':`<label class="nv-hours-label">Hours<input type="number" min="0.01" max="999.99" step="0.01" inputmode="decimal" aria-label="Hours for ${esc(line.description)}" aria-invalid="${missing}" data-nv-hours="${esc(line.line_identity)}" value="${esc(value??'')}" placeholder="—" ${standard?'readonly':''} ${disabled?'disabled':''}></label>`}
+      <small class="nv-hours-hint">${esc(hint)}</small>
+      <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled?'disabled':''}><option value="">Needs Review</option>${STATIONS.map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select></label></div></article>`;
   }
   function stationSection(group) {
     const theme=group.code&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(group.code):null;
@@ -324,7 +325,7 @@
   window.addEventListener('pdc-auth-locked',()=>{generation++;items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.12.full-width-review';
+  window.PDC_NEW_VEHICLES_VERSION='2026.09.12.compact-review';
   window.PDC_NEW_VEHICLES=api;
   render();if(readable())void load();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});
