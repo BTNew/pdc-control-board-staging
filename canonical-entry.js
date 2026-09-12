@@ -64,7 +64,7 @@
     document.head.appendChild(tileCleanup);
 
     const partsConfirmation = document.createElement('script');
-    partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.12.separate-parts.2';
+    partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.12.separate-parts.3';
     document.head.appendChild(partsConfirmation);
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';

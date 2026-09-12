@@ -70,9 +70,23 @@
       if (p?.feed !== 'separate_parts_status') return html;
       const details = (p.jobs || []).map(j => `R/O ${j.job_number}: ${j.label}`).map(escapeHtml).join('<br>');
       const updated = partsLastUpdateLabel(vehicle);
-      return html.replace(/<span class="parts-status-pill ([^"]*)">([^<]*)<\/span>/,
-        (_, classes, label) => `<span class="parts-status-pill ${classes}" title="${escapeHtml(importedPartsTitle(vehicle))}">${label}</span><div class="subtle">${details}${updated ? '<br>' + escapeHtml(updated) : ''}</div>`);
+      return html.replace(/<tr(?=[\s>])/, '<tr data-parts-feed="true"').replace(/<span class="parts-status-pill ([^"]*)">([^<]*)<\/span>/,
+        (_, classes, label) => `<span class="parts-status-pill ${classes}" title="${escapeHtml(importedPartsTitle(vehicle))}">${label}</span><div class="subtle parts-feed-details">${details}${updated ? '<br>' + escapeHtml(updated) : ''}</div>`);
     };
   }
-  window.PDC_PARTS_CONFIRMATION_VERSION = '2026.09.12.separate-parts.2';
+  if (typeof document !== 'undefined') {
+    const style = document.createElement('style');
+    style.id = 'pdc-separate-parts-style';
+    style.textContent = `
+      #parts .parts-queue-table:has([data-parts-feed]) { min-width: 1500px; table-layout: auto; }
+      #parts .parts-queue-table:has([data-parts-feed]) th:nth-child(5),
+      #parts .parts-queue-table:has([data-parts-feed]) td:nth-child(5) { width: 300px !important; min-width: 300px !important; max-width: none !important; white-space: normal; overflow: visible; }
+      #parts [data-parts-feed] .parts-status-pill { white-space: normal; line-height: 1.35; }
+      #parts [data-parts-feed] .parts-status-pill.parts-status-ordered { background: #fff2d6; color: #7c4a00; border-color: #d58b1f; }
+      #parts [data-parts-feed] .parts-status-pill.parts-status-unknown { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+      #parts .parts-feed-details { margin-top: 5px; line-height: 1.5; font-size: 12px; color: #475569; }
+    `;
+    document.head.appendChild(style);
+  }
+  window.PDC_PARTS_CONFIRMATION_VERSION = '2026.09.12.separate-parts.3';
 })();
