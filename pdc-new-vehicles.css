@@ -76,7 +76,7 @@ body:has(#newvehicles.active) { overflow-x:clip !important; }
 .nv-bucket .nv-drop-hint{margin:0;padding:3px 10px 8px;text-align:left;font-size:10px;color:#526278}
 .nv-bucket.nv-drop-active{outline:3px solid var(--station-colour,#2367b5);outline-offset:-2px}
 .nv-operation-list{display:flex;flex-direction:column;gap:0;margin:10px 0 18px}
-.nv-operation-row{box-sizing:border-box;display:grid;grid-template-columns:42px minmax(0,1fr) 100px 160px 190px;align-items:center;column-gap:10px;width:100%;min-height:40px;height:auto;margin:0;padding:5px 8px;border-left:4px solid var(--station-colour,#c28b23);background:var(--station-tint,#fff9ec);border-radius:0;box-shadow:none}
+.nv-operation-row{box-sizing:border-box;display:grid;grid-template-columns:42px minmax(0,1fr) 100px 160px 190px;align-items:center;column-gap:10px;width:100%;min-height:40px;height:auto;margin:0;padding:5px 8px;border-left:4px solid var(--station-colour,#c2410c);background:var(--station-tint,#ffddb3);border-radius:0;box-shadow:none}
 .nv-operation-row+.nv-operation-row{border-top:0}
 .nv-operation-row:first-child{border-radius:9px 9px 0 0}.nv-operation-row:last-child{border-radius:0 0 9px 9px}.nv-operation-row:only-child{border-radius:9px}
 .nv-operation-row>strong{grid-column:2;grid-row:1;min-width:0;font-size:12px;line-height:1.4;font-weight:600;white-space:normal;overflow:visible;overflow-wrap:anywhere}
