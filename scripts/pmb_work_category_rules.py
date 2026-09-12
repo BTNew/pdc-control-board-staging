@@ -28,6 +28,10 @@ def category(description):
     if (re.search(r'\b(?:HI[ -]?DRIVE|HIGH[ -]?DRIVE|BOSTON|MTE)\b.*(?:CANOP|BULL|MOTOR[ -]?BOD|BODIES|BODY)', s)
         or re.search(r'\bCANOP(?:Y|IES)\b|BODY[ -]?BUILDER', s)) and not re.search(r'SOCKET|OUTLET|ANDERSON|COMPRESSOR|BEACON|DECAL|FRIDGE[ -]?SLIDE|AIR[ -]?VENT|SECURITY[ -]?GRILL|ROOF[ -]?RACK|RHINO[ -]?RACK|CABINET|LIGHT', s):
         return 'SUBLET', 'canopy_body_builder'
+    if re.search(r'RYCO.*CATCH[ -]?CAN.*KIT', s):
+        return 'FITTING', 'ryco_catch_can_kit'
+    if re.search(r'ADDITIONAL.*(?:GENUINE|ALLOY).*RIM', s):
+        return 'FABRICATION', 'additional_genuine_alloy_rim'
     if re.search(r'SPARE[ -]?(?:TYRE|WHEEL).*(?:HOLDER|MOUNT).*PMB.*CAB[ -]?RACK', s):
         return 'FABRICATION', 'pmb_cab_rack_tyre_holder'
     if (re.search(r'CERTIFIED.*MESH.*CAB[ -]?RACK.*BARRIER', s)
@@ -75,8 +79,15 @@ def propose(description, source_hours=None, fallback_station='REVIEW', departmen
     d = re.sub(r'\s+', ' ', str(description or '').upper()).strip()
     if station == 'ELECTRICAL':
         default_hours = Decimal('1.5'); default_provenance = 'craig_electrical_default_1_5_hours'
+    elif station == 'FITTING' and re.search(r'RYCO.*CATCH[ -]?CAN.*KIT', d):
+        default_hours = Decimal('1.5'); default_provenance = 'craig_ryco_catch_can_default_1_5_hours'
     elif station == 'FABRICATION':
-        if re.search(r'PMB.*STEEL.*TRAY|PMB.*TRAY.*STEEL', d):
+        if re.search(r'ADDITIONAL.*(?:GENUINE|ALLOY).*RIM', d):
+            default_hours = Decimal('0.5'); default_provenance = 'craig_additional_rim_default_0_5_hours'
+        elif re.search(r'TIE[ -]?DOWN.*POINT.*FLOOR', d):
+            quantity = re.search(r' X\s*(\d+)\b', d)
+            default_hours = Decimal(quantity[1] if quantity else '1'); default_provenance = 'craig_floor_tie_down_1_hour_each'
+        elif re.search(r'PMB.*STEEL.*TRAY|PMB.*TRAY.*STEEL', d):
             default_hours = Decimal('2'); default_provenance = 'craig_steel_tray_default_2_hours'
         elif re.search(r'MESH.*CAB[ -]?RACK.*BARRIER', d):
             default_hours = Decimal('0.5'); default_provenance = 'craig_mesh_cab_rack_default_0_5_hours'
