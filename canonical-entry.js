@@ -83,7 +83,7 @@
     locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01';
     document.head.appendChild(locationOverride);
     const subletIntake = document.createElement('script');
-    subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.11.sublet-columns';
+    subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.12.inline-provider';
     document.head.appendChild(subletIntake);
     const rftStyle = document.createElement('link');
     rftStyle.rel = 'stylesheet';
