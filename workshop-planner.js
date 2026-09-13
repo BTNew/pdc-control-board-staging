@@ -3562,11 +3562,8 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
     : etaConstraint.reason === 'invalid_eta'
       ? `${etaConstraint.location} · ETA to Kewdale is invalid; scheduling disabled`
       : '';
-  const bestSlotMinimumDate = etaConstraint.required
-    ? etaConstraint.bestSlotEarliestDateKey
-    : etaConstraint.earliestDateKey;
-  const earliestQueueDate = etaConstraint.ok ? workshopDateKeyNotBefore(dateKey, bestSlotMinimumDate) : dateKey;
-  const bestSlot = !schedulingDisabled ? workshopBestStageSlot(stage, earliestQueueDate, hours, rows) : null;
+  // Availability is resolved against fresh authority when Best slot is clicked.
+  // Do not search every bay and future day merely to paint the waiting list.
   const authorityExplanation = workshopOutstandingDisabledReasonLabel(authoritative?.disabledReason);
   const disabledExplanation = existingBooking
     ? 'An active booking already represents this requirement'
@@ -3580,11 +3577,11 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
     ${etaConstraint.required ? `<small class="workshop-eta-line ${etaConstraint.ok ? '' : 'is-invalid'}">${escapeHtml(etaConstraint.ok ? `${etaConstraint.location} · Earliest ETA + 7 booking ${etaConstraint.earliestDateKey} · Best slot from ${etaConstraint.bestSlotEarliestDateKey}` : etaExplanation)}</small>` : ''}
     <small class="workshop-parts-line parts-${escapeHtml(parts.status)}">Parts: ${escapeHtml(parts.text)}</small>
     ${existingBooking ? '<small class="workshop-booked-line">Active booking exists · shown here because the requirement remains outstanding</small>' : ''}
-    ${bestSlot ? `<small class="workshop-slot-hint">Best slot: ${escapeHtml(workshopSlotSummary(stage, bestSlot.bay, bestSlot.dateKey, bestSlot.startMinutes))}</small>` : ''}
+
     ${blocked ? '<em>STOPPAGE</em>' : ''}
     ${schedulingDisabled ? `<small class="workshop-scheduling-unavailable-reason">${escapeHtml(disabledExplanation)}</small>` : ''}
     <div class="workshop-queue-actions">
-      ${bestSlot ? `<button class="workshop-schedule-button best-slot" type="button" data-workshop-best-slot-vehicle="${escapeHtml(key)}" data-workshop-best-slot-stage="${escapeHtml(stage)}" data-workshop-best-slot-bay="${bestSlot.bay}" data-workshop-best-slot-date="${escapeHtml(bestSlot.dateKey)}" data-workshop-best-slot-start="${bestSlot.startMinutes}" data-workshop-best-slot-hours="${escapeHtml(hours)}">Best slot</button>` : ''}
+      ${!schedulingDisabled ? `<button class="workshop-schedule-button best-slot" type="button" data-workshop-best-slot-vehicle="${escapeHtml(key)}" data-workshop-best-slot-stage="${escapeHtml(stage)}" data-workshop-best-slot-hours="${escapeHtml(hours)}">Best slot</button>` : ''}
       <button class="workshop-schedule-button" type="button" data-workshop-schedule-vehicle="${escapeHtml(key)}" ${schedulingDisabled ? `disabled title="${escapeHtml(disabledExplanation)}"` : ''}>${existingBooking ? 'Already booked' : schedulingDisabled ? 'Scheduling unavailable' : 'Schedule'}</button>
     </div>
   </article>`;

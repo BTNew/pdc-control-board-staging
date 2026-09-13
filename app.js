@@ -5217,7 +5217,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5266,7 +5266,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -7601,7 +7601,8 @@ function refreshAuthenticatedOperationSummaryRow(row, vehicle = null) {
   if (!targetVehicle) return false;
   const current = row.querySelector('[data-auth-operation-summary]');
   const html = authenticatedEmailOperationLinesHtml(targetVehicle);
-  if (!current || !html) return false;
+  if (!current) return false;
+  if (!html) { current.remove(); return false; }
   const template = document.createElement('template');
   template.innerHTML = html.trim();
   const replacement = template.content.firstElementChild;
@@ -7617,7 +7618,11 @@ function refreshAuthenticatedOperationSummaryRow(row, vehicle = null) {
 async function loadAuthenticatedOperationSummary(row) {
   const vehicle = selectedVehicle(row?.dataset?.incomingRow);
   const canonicalId = vehicle ? vehicleWorkshopDetailCanonicalId(vehicle) : '';
-  if (!row || !vehicle || !canonicalId) return false;
+  if (!row || !vehicle) return false;
+  // Paint the retained source lines only when the row is opened, then apply
+  // the existing authoritative detail refresh and protected adjustments.
+  if (row.querySelector('[data-auth-operation-deferred]')) refreshAuthenticatedOperationSummaryRow(row, vehicle);
+  if (!canonicalId) return false;
   const ready = app.vehicleWorkshopDetailCache?.get(canonicalId);
   if (ready?.status === 'ready') return refreshAuthenticatedOperationSummaryRow(row, vehicle);
   if (!app.authenticatedOperationSummaryRequests) app.authenticatedOperationSummaryRequests = new Map();
@@ -7859,7 +7864,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ${risk && !isRftRow ? `<div class="wide parts-risk-detail"><b>PARTS RISK</b><span>Parts ETA ${escapeHtml(partsWorstEtaLabel(vehicle))} is later than the scheduled Workshop booking date</span></div>` : ''}
         ${canonicalSubletDetail}
         ${subletProviderField}
-        ${isRftRow ? '' : authenticatedEmailOperationLinesHtml(vehicle)}
+        ${isRftRow ? '' : `<div class="wide" data-auth-operation-summary="${escapeHtml(key)}" data-auth-operation-deferred></div>`}
       </div>
     </details>`;
 }

@@ -71,7 +71,7 @@
     intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.12.review-orange';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
