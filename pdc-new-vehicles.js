@@ -167,7 +167,7 @@
       <span class="nv-card-bottom">${esc(row.current_location || 'Location pending')}<small>${esc(new Date(row.received_at).toLocaleString('en-AU',{dateStyle:'medium',timeStyle:'short'}))}</small></span></button>`;
   }
   function operation(line) {
-    const assigned=assignmentsFor(selected,choices).find(item=>item.line_identity===line.line_identity)?.stage_code || '';
+    const assigned=choices[line.line_identity] ?? (validStation(line.stage_code) ? line.stage_code : line.department === '138' ? 'BUS_4X4' : '');
     const sublet=assigned==='SUBLET';
     const value=hoursFor(line,hourDrafts),missing=!sublet&&!positiveHours(value);
     const standard=line.hours_provenance==='craig_standard_pre_delivery_1_hour';
@@ -228,6 +228,8 @@
   function render() {
     const badge=nav.querySelector('.new-vehicle-nav-count');badge.textContent=String(total);badge.hidden=!total;
     nav.setAttribute('aria-label',`New Vehicles, ${total} awaiting review`);
+    // Keep the navigation count current without rebuilding an inactive page.
+    if(app.currentView!=='newvehicles') return;
     if(unidentified) {
       page.innerHTML=`<div class="nv-header"><div><h2>Unidentified Tune Review</h2><p>${unidentifiedTotal} R/O groups awaiting vehicle identity. No vehicles have been created for these groups.</p></div>
         <div class="nv-header-actions"><button data-nv-unidentified ${loading?'disabled':''}>New Vehicles</button><button data-nv-refresh ${loading?'disabled':''}>Refresh</button></div></div>
@@ -326,7 +328,7 @@
     return out;
   };
   window.addEventListener('pdc-auth-ready',()=>{offset=0;void load();});
-  window.addEventListener('pdc-auth-locked',()=>{generation++;items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
+  window.addEventListener('pdc-auth-locked',()=>{generation++;page.replaceChildren();items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
   window.PDC_NEW_VEHICLES_VERSION='2026.09.12.review-orange';
