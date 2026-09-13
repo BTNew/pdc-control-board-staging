@@ -127,5 +127,23 @@
     "commissioned": true,
     "review_status": "staging_applied",
     "source": "Repairs the reproduced automatic-clock/approval deadlock. Exact pending vehicle approval succeeded in rollback before and after deployment; independent booking contention returned retryable busy with zero writes. Scheduling calculations unchanged."
+  },
+  "workshop_eligibility_snapshot_performance_migration": {
+    "version": "20260913114903",
+    "name": "workshop_eligibility_snapshot_performance",
+    "file": "supabase/migrations/20260913114903_workshop_eligibility_snapshot_performance.sql",
+    "sha256": "28537921c3ca81cf9c71a75ef840c7dab8037e4c01d0009a5bfa39615341575d",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "Staging apply verified. Repeated eligibility calculations removed; 16 rollback assertions passed and original candidate responses retained with missing Yard Hold eligibility restored."
+  },
+  "workshop_location_override_authority_migration": {
+    "version": "20260913120215",
+    "name": "workshop_location_override_authority",
+    "file": "supabase/migrations/20260913120215_workshop_location_override_authority.sql",
+    "sha256": "21fe61d927c46a557d755476dbc070eed18140a0f6f6ae67a49aa5efb23ca207",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "Staging apply and independent function/permission review verified. 25 rollback assertions passed; effective location governs booking and ETA warnings while source location and existing booking times are retained."
   }
 }

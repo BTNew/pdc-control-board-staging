@@ -200,32 +200,38 @@
   async function load({silent=false}={}) {
     if(loading || saving || !readable()) return;
     const reviewAtStart=selected,previousError=error,previousSourceChanged=sourceChanged;
+    const loadingUnidentified=unidentified,loadingOffset=offset,loadingUpdateOffset=updateOffset;
     const stamp=++generation;loading=true;
-    if(!silent) {error='';render();}
+    if(!silent) error='';
+    render({preserveReview:!!(silent&&selected)});
     try {
-      const result=await rpc(unidentified?'list_pdc_unidentified_tune_reviews':'list_pdc_new_vehicle_reviews',{p_offset:offset,p_limit:limit});
-      if(!unidentified) {
-        try {
-          const changes=await rpc('list_pdc_tune_operation_changes',{p_offset:updateOffset,p_limit:50});
-          if(stamp!==generation) return;
-          updateItems=changes.data.items;updateTotal=changes.data.total;updateError='';
-        } catch(err) {updateError='Updated operation lines could not be loaded. Refresh to retry.';}
-      }
+      // These independent queues should not wait for each other's network round trip.
+      const [queue,changes]=await Promise.allSettled([
+        rpc(loadingUnidentified?'list_pdc_unidentified_tune_reviews':'list_pdc_new_vehicle_reviews',{p_offset:loadingOffset,p_limit:limit}),
+        ...(loadingUnidentified?[]:[rpc('list_pdc_tune_operation_changes',{p_offset:loadingUpdateOffset,p_limit:50})]),
+      ]);
       if(stamp!==generation) return;
-      if(unidentified) {unidentifiedItems=result.data.items;unidentifiedTotal=result.data.total;}
+      if(!loadingUnidentified) {
+        if(changes.status==='fulfilled') {updateItems=changes.value.data.items;updateTotal=changes.value.data.total;updateError='';}
+        else updateError='Updated operation lines could not be loaded. Refresh to retry.';
+      }
+      if(queue.status==='rejected')throw queue.reason;
+      const result=queue.value;
+      if(loadingUnidentified) {unidentifiedItems=result.data.items;unidentifiedTotal=result.data.total;}
       else {items=result.data.items;total=result.data.total;queueLoadFailed=false;}
       if(selected) {
         const latest=items.find(row=>row.vehicle_id===selected.vehicle_id);
         if(!latest || latest.snapshot_hash!==selected.snapshot_hash) sourceChanged=true;
       }
       error='';
-    } catch(err) {if(stamp===generation) {if(!unidentified)queueLoadFailed=true;error=message(err);}}
+    } catch(err) {if(stamp===generation) {if(!loadingUnidentified)queueLoadFailed=true;error=message(err);}}
     finally {if(stamp===generation) {
       loading=false;
       render({preserveReview:!!(silent&&selected&&selected===reviewAtStart&&error===previousError&&sourceChanged===previousSourceChanged)});
     }}
   }
   function choose(row) {
+    if(saving||!row)return;
     if(!selected){listScroll=window.scrollY;listVehicleId=row.vehicle_id;}
     selected=row;choices=reviewChoices(row);hourDrafts={};sourceChanged=false;requestKey='';approvalRequest=null;error='';notice='';updateSchedule=null;render();
     const heading=page.querySelector('.nv-header h2');
@@ -253,7 +259,7 @@
     };
   }
   function card(row) {
-    return `<button type="button" class="nv-card" data-nv-open="${esc(row.vehicle_id)}"><span class="nv-card-top"><strong>${esc(row.stock_number)}</strong><span class="nv-new-pill">New Job Card</span></span>
+    return `<button type="button" class="nv-card" data-nv-open="${esc(row.vehicle_id)}" ${saving?'disabled':''}><span class="nv-card-top"><strong>${esc(row.stock_number)}</strong><span class="nv-new-pill">New Job Card</span></span>
       <b>${esc(row.vehicle_description || 'Vehicle details pending')}</b><span>${esc(row.customer_name || 'Customer not recorded')}</span>
       <small>${esc((row.job_cards || []).join(', ') || 'Job Card not recorded')} · ${row.operations.length} operations</small>
       <span class="nv-card-bottom">${esc(row.current_location || 'Location pending')}<small>${esc(new Date(row.received_at).toLocaleString('en-AU',{dateStyle:'medium',timeStyle:'short'}))}</small></span></button>`;
@@ -292,6 +298,7 @@
     const ownsRequest=()=>session===sessionGeneration&&actor===window.PDC_AUTH_CONTEXT?.userId&&token===getPdcSupabaseAccessToken()&&writable()&&updateRequests[id]===ownedRequest;
     const request={p_change_id:id,p_snapshot_hash:row.snapshot_hash,p_stage_code:stage,p_estimated_hours:hours,p_idempotency_key:ownedRequest.key};
     let accepted=false;
+    generation++;loading=false;
     saving=true;error='';notice='';updateSchedule=null;render();
     try {
       let result;
@@ -335,7 +342,7 @@
       });
       card.querySelector('[data-approve-update]').addEventListener('click',()=>void approveUpdate(id));
     });
-    page.querySelectorAll('[data-update-page]').forEach(button=>button.addEventListener('click',()=>{updateOffset=Math.max(0,updateOffset+Number(button.dataset.updatePage)*50);void load();}));
+    page.querySelectorAll('[data-update-page]').forEach(button=>button.addEventListener('click',()=>{if(loading||saving)return;updateOffset=Math.max(0,updateOffset+Number(button.dataset.updatePage)*50);void load();}));
   }
   function render({preserveReview=false}={}) {
     const badge=nav.querySelector('.new-vehicle-nav-count');badge.textContent=String(total+updateTotal);badge.hidden=!(total+updateTotal);
@@ -355,9 +362,9 @@
         ${unidentifiedItems.map(group=>`<details class="nv-summary"><summary><strong>${esc(group.repair_order_number)}</strong> · Dept ${esc(group.department)} · ${group.operation_count} operations · ${Number(group.hours).toFixed(2)} h</summary>
           ${group.operations.map(line=>`<article class="nv-operation"><strong>${esc(line.description)}</strong><small>Line ${esc(line.line)} · ${Number(line.hours).toFixed(2)} h · ${esc(line.station)}</small></article>`).join('')}</details>`).join('') || `<p>${loading?'Loading…':'No unidentified Tune groups waiting.'}</p>`}
         <div class="nv-pagination"><button data-nv-page="-1" ${offset===0||loading?'disabled':''}>Previous</button><span>${unidentifiedTotal} groups</span><button data-nv-page="1" ${offset+unidentifiedItems.length>=unidentifiedTotal||loading?'disabled':''}>Next</button></div>`;
-      page.querySelector('[data-nv-unidentified]')?.addEventListener('click',()=>{unidentified=false;offset=0;void load();});
+      page.querySelector('[data-nv-unidentified]')?.addEventListener('click',()=>{if(loading||saving)return;unidentified=false;offset=0;void load();});
       page.querySelector('[data-nv-refresh]')?.addEventListener('click',()=>void load());
-      page.querySelectorAll('[data-nv-page]').forEach(button=>button.addEventListener('click',()=>{offset=Math.max(0,offset+Number(button.dataset.nvPage)*limit);void load();}));
+      page.querySelectorAll('[data-nv-page]').forEach(button=>button.addEventListener('click',()=>{if(loading||saving)return;offset=Math.max(0,offset+Number(button.dataset.nvPage)*limit);void load();}));
       return;
     }
     const issues=selected?problems(selected,choices,hourDrafts):[];
@@ -383,13 +390,13 @@
       bindUpdates();
     }
     page.querySelectorAll('[data-nv-open]').forEach(button=>button.addEventListener('click',()=>choose(items.find(row=>row.vehicle_id===button.dataset.nvOpen))));
-    page.querySelector('[data-nv-unidentified]')?.addEventListener('click',()=>{unidentified=true;offset=0;void load();});
+    page.querySelector('[data-nv-unidentified]')?.addEventListener('click',()=>{if(loading||saving)return;unidentified=true;offset=0;void load();});
     page.querySelector('[data-nv-refresh]')?.addEventListener('click',()=>void load());
     page.querySelector('[data-nv-back]')?.addEventListener('click',backToList);
     page.querySelector('[data-nv-updates]')?.addEventListener('click',()=>{const section=page.querySelector('.nv-operation-updates');section?.focus({preventScroll:true});section?.scrollIntoView({block:'start'});});
     page.querySelector('[data-nv-search]')?.addEventListener('input',event=>{queueSearch=event.target.value;render();});
     page.querySelector('[data-nv-reload]')?.addEventListener('click',()=>{const id=selected.vehicle_id;const row=items.find(item=>item.vehicle_id===id);if(row) choose(row);else {selected=null;render();void load();}});
-    page.querySelectorAll('[data-nv-page]').forEach(button=>button.addEventListener('click',()=>{offset=Math.max(0,offset+Number(button.dataset.nvPage)*limit);void load();}));
+    page.querySelectorAll('[data-nv-page]').forEach(button=>button.addEventListener('click',()=>{if(loading||saving)return;offset=Math.max(0,offset+Number(button.dataset.nvPage)*limit);void load();}));
     page.querySelectorAll('[data-nv-hours]').forEach(input=>{
       input.addEventListener('input',()=>{
         hourDrafts[input.dataset.nvHours]=input.value;requestKey='';approvalRequest=null;
@@ -424,13 +431,16 @@
   async function approve() {
     if(saving || !writable() || sourceChanged || problems(selected,choices,hourDrafts).length) return;
     const current=selected,selection={...choices},hours={...hourDrafts},actor=window.PDC_AUTH_CONTEXT.userId;
+    generation++;loading=false;
     saving=true;error='';render();
     if(!requestKey) requestKey=crypto.randomUUID();
     approvalRequest ||= {p_vehicle_id:current.vehicle_id,p_snapshot_hash:current.snapshot_hash,p_assignments:assignmentsFor(current,selection,hours),p_idempotency_key:requestKey};
+    const ownedRequest=approvalRequest,session=sessionGeneration,token=getPdcSupabaseAccessToken();
+    const ownsRequest=()=>session===sessionGeneration&&actor===window.PDC_AUTH_CONTEXT?.userId&&token===getPdcSupabaseAccessToken()&&writable()&&approvalRequest===ownedRequest;
     let accepted=false;
     try {
-      const result=await rpc('approve_pdc_new_vehicle_review',approvalRequest);
-      if(actor!==window.PDC_AUTH_CONTEXT?.userId) return;
+      const result=await rpc('approve_pdc_new_vehicle_review',ownedRequest);
+      if(!ownsRequest()) return;
       if(!verifyApproval(result,current,selection,hours)) throw new Error('readback_mismatch');
       accepted=true;selected=null;choices={};hourDrafts={};requestKey='';approvalRequest=null;sourceChanged=false;
       items=items.filter(row=>row.vehicle_id!==current.vehicle_id);total=Math.max(0,total-1);
@@ -438,8 +448,12 @@
       // The approval receipt is already verified. Keep the intake queue usable
       // while board projections refresh; a slow refresh must not hold Saving open.
       void Promise.allSettled([refreshEmailVehicleLocations(),loadSharedNavisionVisibleRows()]);
-    } catch(err) {error=accepted?'Approval saved. Refresh Vehicle Locations to see the new vehicle.':message(err);}
-    finally {saving=false;render();if(accepted)void load({silent:true});}
+    } catch(err) {if(accepted||ownsRequest())error=accepted?'Approval saved. Refresh Vehicle Locations to see the new vehicle.':message(err);}
+    finally {if(session===sessionGeneration&&(accepted||approvalRequest===ownedRequest)) {
+      saving=false;
+      if(!accepted&&!ownsRequest())error='Your sign-in session changed. Refresh the queue before continuing; the approval result has not been confirmed.';
+      render();if(accepted)void load({silent:true});
+    }}
   }
   const previousRender=renderActiveView;
   renderActiveView=function(...args){if(app.currentView==='newvehicles'){render();return;}return previousRender(...args);};

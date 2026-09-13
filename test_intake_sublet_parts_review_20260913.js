@@ -34,7 +34,7 @@ test('Parts STOPPAGE retains its reason and clear action alongside imported evid
 });
 
 function subletFixture(){
-  const nodes={},listeners={},state={token:'fixture-token',calls:[],refreshes:0,renders:0,closes:0,pending:[]};
+  const nodes={},listeners={},state={token:'fixture-token',calls:[],refreshes:0,renders:0,closes:0,pending:[],alerts:[]};
   for(const id of ['sublet-search','sublet-create-vehicle-id','sublet-create-error','sublet-create-vehicle-results','sublet-create-provider','sublet-create-out-date','sublet-create-return-date','sublet-create-vehicle-search','sublet-create-provider-email','sublet-create-notes','sublet-create-operation'])nodes[id]={value:'',textContent:'',innerHTML:'',disabled:false,isConnected:true,focus(){}};
   const submit={textContent:'Create booking',disabled:false,isConnected:true};
   const controls=Object.entries(nodes).filter(([id])=>!['sublet-search','sublet-create-error','sublet-create-vehicle-results'].includes(id)).map(([,node])=>node).concat(submit);
@@ -43,7 +43,7 @@ function subletFixture(){
   nodes['sublet-create-form']=form;nodes['sublet-create-dialog']=dialog;nodes['sublet-create-form button[type="submit"]']=submit;
   const vehicle={__emailVehicleId:'fixture-vehicle',__emailVehicleVersion:3};
   const service={createSubletBooking(...args){state.calls.push(args);const pending=deferred();state.pending.push(pending);return pending.promise;}};
-  const ctx={window:{PDC_AUTH_CONTEXT:{role:'administrator',userId:'fixture-user'},PDC_SUBLET_INTAKE:{jobs:()=>[{lineIdentity:'operation1'}],pending:()=>[{lineIdentity:'operation1'}]},addEventListener:(name,fn)=>{listeners[name]=fn;},setTimeout:fn=>fn()},
+  const ctx={window:{PDC_AUTH_CONTEXT:{role:'administrator',userId:'fixture-user'},PDC_SUBLET_INTAKE:{jobs:()=>[{lineIdentity:'operation1'}],pending:()=>[{lineIdentity:'operation1'}]},addEventListener:(name,fn)=>{listeners[name]=fn;},setTimeout:fn=>fn(),alert:message=>state.alerts.push(message)},
     app:{emailVehicleLocationService:service,subletOperationalFilter:'to-book'},$:selector=>nodes[selector.slice(1)],cleanNavisionText:clean,escapeHtml:escape,plainDateValue:clean,getPdcSupabaseAccessToken:()=>state.token,
     subletCreateCanonicalVehicles:()=>[vehicle],subletTodayDateKey:()=> '2026-09-14',loadSubletProviderRecords:()=>[{id:'provider1',name:'Synthetic provider'}],refreshEmailVehicleLocations:async()=>{state.refreshes++;},renderSubletHome:()=>{state.renders++;},renderSubletCreateVehicleMatches:()=>{}};
   vm.createContext(ctx);
@@ -88,6 +88,15 @@ test('uncertain Sublet save restores controls and retains the chosen requirement
     assert.equal(await request,false);assert.equal(f.dialog.open,true);assert.equal(f.submit.disabled,false);
     assert.equal(f.nodes['sublet-create-operation'].value,'operation1');assert.equal(f.nodes['sublet-create-notes'].value,'Synthetic tint');
     assert.match(f.nodes['sublet-create-error'].textContent,/could not be confirmed/);
+  }
+});
+
+test('a created Sublet booking keeps success and explains when its list refresh fails',async()=>{
+  for(const thrown of [false,true]){
+    const f=subletFixture();f.ctx.refreshEmailVehicleLocations=async()=>{if(thrown)throw new Error('offline');return false;};
+    const request=f.ctx.submitSubletCreate();f.state.pending[0].resolve({ok:true});
+    assert.equal(await request,true);assert.equal(f.dialog.open,false);assert.equal(f.ctx.app.subletOperationalFilter,'booked');
+    assert.match(f.state.alerts[0],/booking was created.*list could not be refreshed/);assert.equal(f.state.calls.length,1);
   }
 });
 

@@ -2560,6 +2560,10 @@ function workshopResolveConflictByNextSlot(candidate = {}, rows = workshopLoadPl
     candidate.hours,
     rows,
     requestedMinutes,
+    260,
+    new Date(),
+    [],
+    candidate.assignee || '',
   );
   if (!nextSlot) {
     window.alert(`${area} already has ${identity} booked during that time. No open sequence slot was found in this bay during the next 260 workdays; choose another bay or a later date.`);
@@ -2592,7 +2596,7 @@ function workshopShiftTrailingPlannedRows(candidate = {}, otherRows = [], { conf
       continue;
     }
     const originalStart = workshopEntryStart(row);
-    const slot = workshopFirstAvailableStartSlot(row.stage, row.bay, workshopDateKey(originalStart), row.hours, settled, workshopMinuteOffset(originalStart));
+    const slot = workshopFirstAvailableStartSlot(row.stage, row.bay, workshopDateKey(originalStart), row.hours, settled, workshopMinuteOffset(originalStart), 260, new Date(), [], row.assignee || '');
     if (!slot) return null;
     const shifted = { ...row, startAt: workshopDateAtOffset(slot.dateKey, slot.startMinutes).toISOString(), updatedAt: nowIsoString() };
     settled.push(shifted);
@@ -2676,27 +2680,27 @@ function workshopNewBookingValidation(entry = {}, now = null) {
   const durationMinutes = requestedDurationMinutes;
   const technicianId = workshopTechnicianIdForEntry(entry);
   let usesOvertime = false;
-  for (let offset = 0; offset < durationMinutes; offset += 1) {
-    // Sample the middle of each occupied work minute. workshopAddWorkMinutes()
-    // deliberately returns the exact end-of-window timestamp when an offset
-    // lands on that boundary (useful for display end times), but availability
-    // windows are half-open. Sampling at +0.5 minutes keeps validation inside
-    // the occupied minute and lets long cards continue at the next work start.
-    const proposedMinute = workshopAddWorkMinutes(start, offset + 0.5);
-    const dateKey = workshopDateKey(proposedMinute);
-    if (workshopIsClosureDate(proposedMinute)) return { ok: false, error: 'closure_date', date: dateKey };
-    if (!workshopIsConfiguredWorkingDay(proposedMinute)) return { ok: false, error: 'non_working_day', date: dateKey };
-    const minute = workshopMinuteOfDay(proposedMinute);
-    const windows = workshopAvailabilityWindowsForDate(proposedMinute);
-    const containingWindow = windows.find(window => minute >= window.startMinutes && minute < window.endMinutes);
-    if (!containingWindow) {
-      const inBreak = workshopBreakWindowsForDate(proposedMinute).some(window => minute >= window.startMinutes && minute < window.endMinutes);
-      return { ok: false, error: inBreak ? 'break_window' : 'outside_work_window', date: dateKey, minute };
-    }
+  let current = new Date(start);
+  let remaining = durationMinutes;
+  // Visit each occupied work window once. Restarting the calendar calculation
+  // for every minute made long jobs expensive for every possible Best slot.
+  while (remaining > 0) {
+    const windows = workshopAvailabilityWindowsForDate(current);
+    const minute = workshopMinuteOfDay(current);
+    const containingWindow = windows.find(window => minute >= window.startMinutes && minute < window.endMinutes)
+      || windows.find(window => minute < window.startMinutes);
+    if (!containingWindow) { current = workshopMoveToNextWorkStart(current); continue; }
+    if (minute < containingWindow.startMinutes) current = workshopSetClock(current, containingWindow.startMinutes);
+    const dateKey = workshopDateKey(current);
     usesOvertime = usesOvertime || containingWindow.overtime === true;
-    if (technicianId && workshopTechnicianIsOnLeave(technicianId, proposedMinute)) {
+    if (technicianId && workshopTechnicianIsOnLeave(technicianId, current)) {
       return { ok: false, error: 'technician_on_leave', date: dateKey, technicianId };
     }
+    const available = containingWindow.endMinutes - workshopMinuteOfDay(current);
+    if (remaining <= available) break;
+    remaining -= available;
+    const nextWindow = windows.find(window => window.startMinutes >= containingWindow.endMinutes && window.endMinutes > containingWindow.endMinutes);
+    current = nextWindow ? workshopSetClock(current, nextWindow.startMinutes) : workshopMoveToNextWorkStart(current);
   }
   return { ok: true, usesOvertime };
 }
@@ -2840,7 +2844,7 @@ function workshopSchedulableBayNumbers(stage = '') {
   return bays;
 }
 
-function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, notAfterDateKey = '', vehicleWindows = []) {
+function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, notAfterDateKey = '', vehicleWindows = [], fallbackAssignee = '', assignedMechanic = null) {
   const normalizedStage = normalizePmbStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return null;
   let best = null;
@@ -2848,7 +2852,8 @@ function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefault
     // New work must only be offered against a positively confirmed active
     // shared bay. Existing/historical bookings still use the deliberately
     // lenient rendering path in workshopBayIsActive().
-    const slot = workshopFirstAvailableStartSlot(normalizedStage, bay, dateKey, hours, rows, notBeforeMinutes, 260, new Date(), vehicleWindows);
+    const assignee = assignedMechanic === null ? workshopBayMechanic(normalizedStage, bay) || fallbackAssignee : assignedMechanic;
+    const slot = workshopFirstAvailableStartSlot(normalizedStage, bay, dateKey, hours, rows, notBeforeMinutes, 260, new Date(), vehicleWindows, assignee, notAfterDateKey);
     if (!slot) continue;
     if (notAfterDateKey && slot.dateKey > notAfterDateKey) continue;
     const candidateStart = workshopDateAtOffset(slot.dateKey, slot.startMinutes).getTime();
@@ -3282,11 +3287,14 @@ function workshopBookingSearchStatus(entry = {}) {
 function workshopBookingSearchMeta(entry = {}) {
   const start = parseIsoTimestamp(entry.startAt || '');
   const end = start ? workshopEntryEnd(entry) : null;
+  const dateOptions = { timeZone: 'Australia/Perth' };
+  const startDate = start?.toLocaleDateString('en-AU', dateOptions);
+  const endDate = end?.toLocaleDateString('en-AU', dateOptions);
   return {
     station: pmbStageLabel(entry.stage) || entry.stage || 'Unknown work group',
     bay: `Bay ${entry.bay || '—'}`,
-    date: !start ? 'Unknown date' : start.toLocaleDateString('en-AU'),
-    time: !start || !end ? 'Unknown time' : `${start.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}–${end.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}`,
+    date: !start ? 'Unknown date' : endDate && endDate !== startDate ? `${startDate} → ${endDate}` : startDate,
+    time: !start || !end ? 'Unknown time' : `${start.toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit' })}–${end.toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit' })}`,
     status: workshopBookingSearchStatus(entry),
   };
 }
@@ -4101,7 +4109,7 @@ function workshopDetailHtml(entry = null, options = {}) {
   const nextBay = Number(entry.bay) < workshopStageBayCount(entry.stage) ? Number(entry.bay) + 1 : 0;
   const bestBaySlot = completed
     ? null
-    : workshopBestStageSlot(entry.stage, workshopEntryDate(entry), entry.hours, workshopLoadPlans().filter(row => row.id !== entry.id), workshopMinuteOffset(workshopEntryStart(entry)));
+    : workshopBestStageSlot(entry.stage, workshopEntryDate(entry), entry.hours, workshopLoadPlans().filter(row => row.id !== entry.id), workshopMinuteOffset(workshopEntryStart(entry)), '', [], pmbBayMechanic(vehicle) || '', entry.assignee || null);
   const bestBaySummary = bestBaySlot ? workshopSlotSummary(entry.stage, bestBaySlot.bay, bestBaySlot.dateKey, bestBaySlot.startMinutes) : '';
   const durationInput = `<input name="hours" type="number" min="0.0166667" step="any" inputmode="decimal" value="${escapeHtml(workshopExactDurationHours(entry.hours).toFixed(2))}" required ${completed ? 'disabled' : ''} />`;
   const legacyScheduleControls = focused ? '' : [
@@ -5007,7 +5015,8 @@ function bindWorkshopPlanner(root) {
   root.querySelectorAll('[data-workshop-best-bay-plan]').forEach(button => button.addEventListener('click', event => {
     const plan = workshopLoadPlans().find(entry => entry.id === event.currentTarget.dataset.workshopBestBayPlan);
     if (!plan) return;
-    const bestSlot = workshopBestStageSlot(plan.stage, workshopEntryDate(plan), plan.hours, workshopLoadPlans().filter(row => row.id !== plan.id), workshopMinuteOffset(workshopEntryStart(plan)));
+    const vehicle = workshopVehicle(plan.vehicleKey);
+    const bestSlot = workshopBestStageSlot(plan.stage, workshopEntryDate(plan), plan.hours, workshopLoadPlans().filter(row => row.id !== plan.id), workshopMinuteOffset(workshopEntryStart(plan)), '', [], vehicle ? pmbBayMechanic(vehicle) || '' : '', plan.assignee || null);
     if (!bestSlot) return;
     const currentDate = workshopEntryDate(plan);
     const currentMinutes = workshopMinuteOffset(workshopEntryStart(plan));
@@ -5368,7 +5377,7 @@ function workshopAdminBlockConflict(candidate = {}, blocks = workshopLoadAdminBl
     && workshopIntervalsOverlap(start, end, parseIsoTimestamp(block.startAt), parseIsoTimestamp(block.endAt))) || null;
 }
 
-function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, vehicleWindows = []) {
+function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, vehicleWindows = [], assigneeValue = null) {
   const normalizedStage = normalizePmbStage(stage);
   const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);
   const increment = WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes;
@@ -5376,6 +5385,8 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
   if (rawNotBefore >= WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) return null;
   const firstStart = Math.ceil(rawNotBefore / increment) * increment;
   const adminBlocks = workshopLoadAdminBlocks();
+  const assignee = assigneeValue === null ? workshopBayMechanic(normalizedStage, bay) : assigneeValue;
+  if (assignee && workshopSharedModeActive() && !workshopSelectedTechnicianRef(assignee)) return null;
   for (let startMinutes = firstStart; startMinutes < WORKSHOP_PLANNER_CONFIG.dayLengthMinutes; startMinutes += WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes) {
     const candidate = {
       id: '__availability_check__',
@@ -5385,20 +5396,25 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
       startAt: workshopDateAtOffset(dateKey, startMinutes).toISOString(),
       hours: duration,
       status: 'planned',
+      assignee,
     };
-    if (workshopNewBookingValidation(candidate).ok && !workshopHasConflict(candidate, rows) && !workshopAdminBlockConflict(candidate, adminBlocks) && (!vehicleWindows.length || window.PDC_VEHICLE_HANDOVER?.fits(workshopEntryStart(candidate), workshopEntryEnd(candidate), vehicleWindows))) return startMinutes;
+    if (!workshopHasConflict(candidate, rows) && !workshopAdminBlockConflict(candidate, adminBlocks)
+      && !workshopAssigneeConflict(candidate, rows)
+      && (!vehicleWindows.length || window.PDC_VEHICLE_HANDOVER?.fits(workshopEntryStart(candidate), workshopEntryEnd(candidate), vehicleWindows))
+      && workshopNewBookingValidation(candidate).ok) return startMinutes;
   }
   return null;
 }
 
-function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260, referenceNow = new Date(), vehicleWindows = []) {
+function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260, referenceNow = new Date(), vehicleWindows = [], assigneeValue = null, notAfterDateKey = '') {
   const requestedDate = workshopDateFromKey(dateKey) || new Date();
   let workDate = workshopCoerceWorkDate(requestedDate, 1);
   for (let dayIndex = 0; dayIndex < Math.max(1, Number(maxWorkdays) || 260); dayIndex += 1) {
     const candidateDateKey = workshopDateKey(workDate);
+    if (notAfterDateKey && candidateDateKey > notAfterDateKey) return null;
     const currentTimeFloor = workshopNotBeforeMinutesForDate(candidateDateKey, referenceNow);
     const firstMinutes = dayIndex === 0 ? Math.max(notBeforeMinutes, currentTimeFloor) : currentTimeFloor;
-    const startMinutes = workshopFirstAvailableStartMinutes(stage, bay, candidateDateKey, hours, rows, firstMinutes, vehicleWindows);
+    const startMinutes = workshopFirstAvailableStartMinutes(stage, bay, candidateDateKey, hours, rows, firstMinutes, vehicleWindows, assigneeValue);
     if (startMinutes !== null) return { dateKey: candidateDateKey, startMinutes };
     workDate = workshopNextWorkdayDate(workDate);
   }
@@ -5551,7 +5567,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   const friendlyPlannedHours = workshopExactDurationHours(plannedHours).toFixed(2);
   const bay = 1;
   const selectedDate = workshopDateKeyNotBefore(workshopDateKey(workshopCoerceWorkDate(workshopDateFromKey(dateKey) || new Date(), 1)), etaConstraint.earliestDateKey);
-  const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours);
+  const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours, workshopLoadPlans(), 0, 260, new Date(), [], workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || '');
   const scheduledDate = firstSlot?.dateKey || selectedDate;
   const startMinutes = firstSlot?.startMinutes ?? 0;
   const bayOptions = Array.from({ length: workshopStageBayCount(normalizedStage) }, (_, index) => `<option value="${index + 1}">Bay ${workshopPad(index + 1)}</option>`).join('');
@@ -5584,7 +5600,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     if (!selected) return;
     const safeDate = workshopDateKey(workshopCoerceWorkDate(selected, 1));
     form.elements.date.value = safeDate;
-    const suggested = workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate, Number(form.elements.hours.value) || hours);
+    const suggested = workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate, Number(form.elements.hours.value) || hours, workshopLoadPlans(), 0, 260, new Date(), [], form.elements.assignee.value);
     if (suggested) {
       form.elements.date.value = suggested.dateKey;
       form.elements.startMinutes.value = String(suggested.startMinutes);
@@ -5594,6 +5610,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   overlay.querySelector('[name="bay"]')?.addEventListener('change', suggestAvailableTime);
   overlay.querySelector('[name="date"]')?.addEventListener('change', suggestAvailableTime);
   overlay.querySelector('[name="hours"]')?.addEventListener('change', suggestAvailableTime);
+  overlay.querySelector('[name="assignee"]')?.addEventListener('change', suggestAvailableTime);
   overlay.querySelector('[data-workshop-schedule-form]').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -5860,12 +5877,12 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
       const notBeforeMinutes = windowIndex === 0 && windowStart === today
         ? Math.max(0, workshopMinuteOffset(nextOperationalMoment))
         : 0;
-      slot = workshopBestStageSlot(normalizedStage, windowStart, estimate, workshopLoadPlans(), notBeforeMinutes, windowEnd, vehicleWindows);
+      slot = workshopBestStageSlot(normalizedStage, windowStart, estimate, workshopLoadPlans(), notBeforeMinutes, windowEnd, vehicleWindows, pmbBayMechanic(vehicle) || '');
       windowStart = workshopCalendarDateKeyOffset(windowEnd, 1);
     }
   } else {
     const notBeforeMinutes = earliestDate === today ? Math.max(0, workshopMinuteOffset(nextOperationalMoment)) : 0;
-    slot = workshopBestStageSlot(normalizedStage, earliestDate, estimate, workshopLoadPlans(), notBeforeMinutes, '', vehicleWindows);
+    slot = workshopBestStageSlot(normalizedStage, earliestDate, estimate, workshopLoadPlans(), notBeforeMinutes, '', vehicleWindows, pmbBayMechanic(vehicle) || '');
   }
   if (!slot) {
     window.alert('No active bay has an available operational slot in the searched planning horizon. No booking was created.');

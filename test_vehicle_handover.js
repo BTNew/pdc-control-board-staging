@@ -17,6 +17,8 @@ const start=source.indexOf('function workshopFirstAvailableStartMinutes(');
 const end=source.indexOf('\nfunction workshopFirstAvailableStartSlot(',start);
 const context={window:{PDC_VEHICLE_HANDOVER:handover},WORKSHOP_PLANNER_CONFIG:{schedulingIncrementMinutes:15,dayLengthMinutes:600},normalizePmbStage:s=>s,workshopExactDurationHours:n=>n,workshopDateAtOffset:(_,m)=>new Date(+at(7)+m*60000),workshopNewBookingValidation:()=>({ok:true}),workshopHasConflict:c=>c.bay===2&&+new Date(c.startAt)<+at(15),workshopLoadAdminBlocks:()=>[],workshopAdminBlockConflict:()=>null,workshopEntryStart:c=>new Date(c.startAt),workshopEntryEnd:c=>new Date(+new Date(c.startAt)+c.hours*3600000)};
 vm.createContext(context);vm.runInContext(source.slice(start,end),context);
+context.workshopBayMechanic=()=>'';
+context.workshopAssigneeConflict=()=>null;
 assert.equal(context.workshopFirstAvailableStartMinutes('ELEC',1,'2026-09-14',2,[],0,busy),420,'next slot starts at 14:00 after 09:00 finish + five hours');
 assert.equal(context.workshopFirstAvailableStartMinutes('ELEC',2,'2026-09-14',2,[],0,busy),480,'bay occupancy still applies');
 assert.equal(context.workshopFirstAvailableStartMinutes('ELEC',1,'2026-09-14',2,[],0,[{start_at:at(7),end_at:at(17)}]),null,'continue to a later workday if buffer exceeds closing');

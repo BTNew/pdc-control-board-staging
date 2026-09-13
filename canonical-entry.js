@@ -25,7 +25,7 @@
     document.head.appendChild(style);
 
     const script = document.createElement('script');
-    script.src = `pdc-qc-mobile.js?v=${version}`;
+    script.src = `pdc-qc-mobile.js?v=${version}&deep-review=2026.09.13.01`;
     const loadReview = () => {
       const reviewStyle = document.createElement('link');
       reviewStyle.rel = 'stylesheet';
@@ -71,7 +71,7 @@
     intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match&review-fixes=2026.09.13.01&operation-approval=2026.09.13.02';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&review-fixes=2026.09.13.01&operation-approval=2026.09.13.02';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&review-fixes=2026.09.13.01&operation-approval=2026.09.13.02&deep-review=2026.09.13.01';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
@@ -83,7 +83,7 @@
     locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01';
     document.head.appendChild(locationOverride);
     const subletIntake = document.createElement('script');
-    subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.12.inline-provider';
+    subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.12.inline-provider&deep-review=2026.09.13.01';
     document.head.appendChild(subletIntake);
     const rftStyle = document.createElement('link');
     rftStyle.rel = 'stylesheet';

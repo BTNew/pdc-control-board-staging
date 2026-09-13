@@ -18,6 +18,8 @@
   let refreshBusy = false;
   let fileInput = null;
   let photoTarget = '';
+  let photoTargetAuthority = null;
+  let authorityActor = window.PDC_AUTH_CONTEXT?.userId || '';
   const e = value => escapeHtml(String(value ?? ''));
   const mobile = () => media.matches;
   const canWrite = () => ['operator', 'administrator'].includes(String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase());
@@ -75,8 +77,10 @@
     fileInput.addEventListener('change', () => {
       const file = fileInput.files?.[0];
       const target = photoTarget;
+      const authority = photoTargetAuthority;
       fileInput.value = ''; // Selecting the same file after a failure must fire again.
-      if (file && target) void attachPhoto(target, file);
+      photoTarget = ''; photoTargetAuthority = null;
+      if (file && target && pdcWriteAuthorityCurrent(authority)) void attachPhoto(target, file);
     });
     return fileInput;
   }
@@ -98,7 +102,8 @@
     return 'Photo upload was not confirmed. Check your connection and tap Retry photo. No QC sign-off was recorded.';
   }
   async function attachPhoto(key, selectedFile) {
-    const actor = window.PDC_AUTH_CONTEXT?.userId;
+    const authority = capturePdcWriteAuthority();
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     let row = rowFor(key);
     if (!row || !canWrite() || busy(key)) return false;
     restorePhoto(row);
@@ -120,19 +125,21 @@
     feedback(key, 'saving', 'Preparing and uploading photo…');
     try {
       const preview = await readPreview(file);
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
       qcPhotoEvidence.set(key, { status: 'uploading', originalFilename: file.name, url: preview });
       renderQualityControlPage();
       await qcPageOperationMutationChain;
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
       const refreshed = await refreshEmailVehicleLocations();
       row = rowFor(key);
-      if (actor !== window.PDC_AUTH_CONTEXT?.userId) return false;
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
       if (!refreshed || !row) throw new Error('qc_photo_vehicle_refresh_failed');
       const service = app.emailVehicleLocationService;
       if (typeof service?.uploadQcPhotoEvidence !== 'function') throw new Error('qc_photo_service_unavailable');
       const result = row.pdcQcRetestCycleId
         ? await service.uploadQcPhotoEvidence(row.__emailVehicleId, row.__emailVehicleVersion, row.pdcQcRetestCycleId, file)
         : await service.uploadQcPhotoEvidence(row.__emailVehicleId, row.__emailVehicleVersion, file);
-      if (actor !== window.PDC_AUTH_CONTEXT?.userId) return false;
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
       const data = result?.data;
       const photo = { ...data, status: 'accepted', photoReceiptId: data?.photo_receipt_id,
         byteLength: data?.byte_length, originalByteLength: data?.original_byte_length,
@@ -147,13 +154,15 @@
       feedback(key, 'saved', 'Photo saved. Your completion evidence is recorded.');
       return true;
     } catch (error) {
-      if (actor !== window.PDC_AUTH_CONTEXT?.userId) return false;
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
       qcPhotoEvidence.set(key, { ...qcPhotoEvidence.get(key), status: 'error', photoReceiptId: '' });
       feedback(key, 'error', photoError(String(error?.message || '')));
       return false;
     } finally {
-      qcPagePhotoUploadInFlight.delete(key);
-      renderQualityControlPage();
+      if (pdcWriteAuthorityCurrent(authority)) {
+        qcPagePhotoUploadInFlight.delete(key);
+        renderQualityControlPage();
+      }
     }
   }
 
@@ -171,13 +180,15 @@
     renderQualityControlPage();
   }
   async function rejectVehicle(key) {
+    const authority = capturePdcWriteAuthority();
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     const row = rowFor(key), draft = rejectionDrafts.get(key);
     if (!row || !draft || !canWrite() || busy(key) || pending(key)) return false;
     const lines = qcPageOperationLines(row).filter(l => draft.selected.has(l.lineIdentity));
     if (!lines.length || lines.length !== draft.selected.size) { feedback(key, 'error', 'Select every item that needs repair before confirming.'); return false; }
     const reason = String(draft.reason || `Not fitted / QC repair: ${lines.map(l => l.description).join('; ')}`).trim().replace(/\s+/g, ' ').slice(0, 240);
     if (reason.length < 3) { feedback(key, 'error', 'Enter a reason of at least 3 characters.'); return false; }
-    const actor = window.PDC_AUTH_CONTEXT?.userId;
+    const actor = authority.actor;
     qcPageRejectInFlight.add(key);
     feedback(key, 'saving', `Rejecting ${lines.length} selected items and returning the vehicle to stoppages…`);
     try {
@@ -200,24 +211,30 @@
         if (!response.ok || !result?.ok) throw new Error(result?.message || result?.code || 'QC rejection was not confirmed.');
       } finally { clearTimeout(timeout); }
       const received = new Set((result.rejected_lines || []).map(l => l.line_identity));
-      if (actor !== window.PDC_AUTH_CONTEXT?.userId || result.vehicle_id !== row.__emailVehicleId || !result.receipt_id
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
+      if (result.vehicle_id !== row.__emailVehicleId || !result.receipt_id
           || result.current_location !== 'PMB' || result.workshop_status !== 'stoppage'
           || received.size !== lines.length || lines.some(l => !received.has(l.lineIdentity))) throw new Error('QC rejection read-back did not match the selected items. Refresh and check the vehicle.');
       rejected.set(key, Number(result.vehicle_version_after));
       forgetPhoto(row); rejectionDrafts.delete(key); qcSelectedVehicleKey = '';
       qcPageNotice = `${displayStockNumber(row) || key} — ${lines.length} QC items rejected. Returned to PMB Stoppage / Fix First for repair.`;
-      await refreshEmailVehicleLocations(); window.scrollTo(0, 0);
+      await refreshEmailVehicleLocations();
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
+      window.scrollTo(0, 0);
       return true;
     } catch (error) {
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
       if (/VERSION_CONFLICT/i.test(error.message || '')) draft.request = null;
       feedback(key, 'error', /VERSION_CONFLICT/i.test(error.message || '')
         ? 'The vehicle or an item changed. Refresh QC and review the selection before retrying.'
         : error.name === 'AbortError' ? 'Confirmation timed out. Retry to check the same request; do not create another rejection.'
         : error.message || 'QC rejection failed. Nothing was signed off.');
       return false;
-    } finally { qcPageRejectInFlight.delete(key); renderQualityControlPage(); }
+    } finally { if (pdcWriteAuthorityCurrent(authority)) { qcPageRejectInFlight.delete(key); renderQualityControlPage(); } }
   }
   async function signoff(key) {
+    const authority = capturePdcWriteAuthority();
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     const row = rowFor(key);
     if (!row || !canWrite() || busy(key) || pending(key) || rejectionDrafts.has(key) || !inspected(row)) return false;
     restorePhoto(row);
@@ -226,18 +243,21 @@
       const task = desktopSignoff(key); // Existing protected QC → RFT action.
       renderQualityControlPage();
       const result = await task;
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
       if (result === true || result?.ok === true) {
         forgetPhoto(row);
         await refreshEmailVehicleLocations();
+        if (!pdcWriteAuthorityCurrent(authority)) return false;
         window.scrollTo(0, 0);
         return true;
       }
       feedback(key, 'error', 'Sign-off was not completed. Your saved photo receipt is retained; refresh and check the checklist.');
       return false;
     } catch (_) {
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
       feedback(key, 'error', 'Sign-off was not confirmed. Refresh QC before retrying. Your saved photo receipt is retained.');
       return false;
-    } finally { renderQualityControlPage(); }
+    } finally { if (pdcWriteAuthorityCurrent(authority)) renderQualityControlPage(); }
   }
   async function refresh() {
     if (refreshBusy) return;
@@ -359,6 +379,7 @@
     bind('.qc-phone-picker', 'click', event => {
       if (event.currentTarget.getAttribute('aria-disabled') === 'true') { event.preventDefault(); return; }
       photoTarget = key;
+      photoTargetAuthority = capturePdcWriteAuthority();
       input.disabled = false;
     });
     input.disabled = !selected || busy(key) || pending(key) || !canWrite() || qcPhotoEvidenceIsValid(qcPhotoEvidence.get(key));
@@ -411,9 +432,20 @@
     }
   });
   window.addEventListener('pdc-auth-locked', event => {
+    photoTarget = ''; photoTargetAuthority = null;
+    if (fileInput) { fileInput.value = ''; fileInput.disabled = true; }
+    retryFiles.clear(); rejectionDrafts.clear(); rejected.clear();
     if (event.detail?.reason === 'session-revalidate') return;
-    qcPhotoEvidence.clear(); retryFiles.clear(); rejectionDrafts.clear(); rejected.clear();
+    qcPhotoEvidence.clear();
     try { Object.keys(sessionStorage).filter(key => key.startsWith(cachePrefix)).forEach(key => sessionStorage.removeItem(key)); } catch (_) {}
+  });
+  window.addEventListener('pdc-auth-ready', () => {
+    const actor = window.PDC_AUTH_CONTEXT?.userId || '';
+    if (actor !== authorityActor) {
+      retryFiles.clear(); rejectionDrafts.clear(); rejected.clear();
+      photoTarget = ''; photoTargetAuthority = null;
+      authorityActor = actor;
+    }
   });
   window.addEventListener('online', () => { if (mobile()) void refresh(); });
   window.addEventListener('offline', () => { if (mobile()) renderQualityControlPage(); });

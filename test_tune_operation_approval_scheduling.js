@@ -38,7 +38,8 @@ function fixture(){
   const calls=[],pending=[],refreshes=[],delays=[];
   const context={...ui,console,setTimeout:(resolve,ms)=>{delays.push({resolve,ms});return delays.length;},crypto:{randomUUID:()=>`key${calls.length}`},window:{PDC_AUTH_CONTEXT:{userId:'actor',role:'administrator'},__workshopDataService:{loadSnapshot:async reason=>{refreshes.push(reason);return true;}}},token:'token',rpc:async(name,payload)=>{calls.push({name,payload});return new Promise((resolve,reject)=>pending.push({resolve,reject}));},getPdcSupabaseAccessToken:()=>context.token,refreshEmailVehicleLocations:async()=>{refreshes.push('locations');return true;},loadSharedNavisionVisibleRows:async()=>{refreshes.push('navision');return true;},render(){},load(){return Promise.resolve();}};
   vm.createContext(context);
-  vm.runInContext(`let updateItems=${JSON.stringify([row])},updateTotal=1,updateDrafts={},updateRequests={},saving=false,error='',notice='',updateSchedule=null,sessionGeneration=0; const writable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT.role);`,context);
+  vm.runInContext(source.slice(source.indexOf('  let items='),source.indexOf('  const readable=')),context);
+  vm.runInContext(`updateItems=${JSON.stringify([row])};updateTotal=1;const writable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT.role);`,context);
   vm.runInContext(source.slice(source.indexOf('  function message(err)'),source.indexOf('  async function load('))+source.slice(source.indexOf('  async function approveUpdate(id)'),source.indexOf('  function bindUpdates()')),context);
   return {context,calls,pending,refreshes,delays,state:()=>vm.runInContext('({updateItems,saving,error,notice,updateSchedule,updateRequests})',context)};
 }
