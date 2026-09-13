@@ -74,6 +74,49 @@
     if(row.status!=='pending'||!row.already_on_board) issues.push('Refresh this vehicle before approving.');
     return issues;
   }
+  function verifyUpdateApproval(result,row,stage,hours) {
+    const data=result?.data, schedule=data?.schedule;
+    if(result?.ok!==true||data?.change_id!==row.change_id||data?.vehicle_id!==row.vehicle_id||data?.location_changed!==false
+      ||data?.operation?.description!==row.proposed.operation_description||data?.operation?.stage_code!==stage
+      ||(stage!=='SUBLET'&&Number(data?.operation?.estimated_hours)!==hours)||data?.operation?.completed!==false
+      ||typeof data.bookings_changed!=='boolean'||!schedule||!Array.isArray(schedule.bookings)||schedule.buffer_minutes!==300) return false;
+    const bookings=schedule.bookings,ids=new Set();
+    let extended=0,moved=0;
+    for(const booking of bookings) {
+      const text=value=>typeof value==='string'&&value.trim().length>0;
+      const time=value=>text(value)&&Number.isFinite(Date.parse(value));
+      if(!text(booking.booking_id)||ids.has(booking.booking_id)||!text(booking.vehicle_id)||!text(booking.stock_number)
+        ||!validStation(booking.stage_code)||booking.stage_code==='SUBLET'||!text(booking.bay_id)||!text(booking.bay_name)
+        ||!['queued','planned','started','stoppage'].includes(booking.status)
+        ||!['previous_start_at','previous_end_at','start_at','end_at'].every(key=>time(booking[key]))
+        ||Date.parse(booking.previous_end_at)<=Date.parse(booking.previous_start_at)||Date.parse(booking.end_at)<=Date.parse(booking.start_at)
+        ||Date.parse(booking.start_at)<Date.parse(booking.previous_start_at)
+        ||!Number.isFinite(booking.previous_estimated_hours)||booking.previous_estimated_hours<=0
+        ||!Number.isFinite(booking.estimated_hours)||booking.estimated_hours<=0) return false;
+      ids.add(booking.booking_id);
+      const startMoved=Date.parse(booking.start_at)!==Date.parse(booking.previous_start_at);
+      const endChanged=Date.parse(booking.end_at)!==Date.parse(booking.previous_end_at);
+      if(!startMoved&&!endChanged&&booking.estimated_hours===booking.previous_estimated_hours) return false;
+      if(startMoved)moved++;
+      if(booking.estimated_hours>booking.previous_estimated_hours)extended++;
+    }
+    return schedule.changed_count===bookings.length&&schedule.extended_count===extended&&schedule.moved_count===moved
+      &&data.bookings_changed===(bookings.length>0);
+  }
+  const hourLabel=value=>Number(value).toLocaleString('en-AU',{maximumFractionDigits:2});
+  function updateApprovalNotice(row,data) {
+    const schedule=data.schedule;
+    const approved=data.operation.stage_code==='SUBLET'?'Sublet operation approved':`operation approved at ${hourLabel(data.operation.estimated_hours)} hours`;
+    const outcome=schedule.changed_count
+      ? `${schedule.changed_count} bay booking${schedule.changed_count===1?'':'s'} updated${schedule.extended_count?`; ${schedule.extended_count} extended`:''}${schedule.moved_count?`; ${schedule.moved_count} moved to a later slot`:''}.`
+      : 'No booking times needed to change.';
+    return `${row.stock_number}: ${approved}. ${outcome}`;
+  }
+  function updateScheduleHtml(schedule) {
+    if(!schedule?.bookings?.length)return '';
+    const time=value=>new Date(value).toLocaleString('en-AU',{timeZone:'Australia/Perth',weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
+    return `<section class="nv-update-schedule" aria-label="Updated booking times"><h3>Updated booking times</h3><div><table><thead><tr><th>Stock</th><th>Station / bay</th><th>Start</th><th>Finish</th><th>Estimated hours</th></tr></thead><tbody>${schedule.bookings.map(booking=>`<tr><td>${esc(booking.stock_number)}</td><td>${esc(STATIONS.find(([code])=>code===booking.stage_code)?.[1]||booking.stage_code)} · ${esc(booking.bay_name)}</td><td>${esc(time(booking.start_at))}</td><td>${esc(time(booking.end_at))}</td><td>${esc(hourLabel(booking.estimated_hours))}</td></tr>`).join('')}</tbody></table></div><small>Later bookings follow workshop opening hours, with 5 hours between each vehicle’s jobs.</small></section>`;
+  }
   function operationUpdateHtml(row,draft={},canApprove=true,busy=false) {
     const stage=draft.stage ?? row.current_work?.stage_code ?? row.proposed?.proposed_station;
     const hours=draft.hours ?? row.effective_hours;
@@ -86,17 +129,18 @@
     <p><small>Imported ${esc(new Date(row.received_at).toLocaleString('en-AU',{timeZone:'Australia/Perth'}))} (Perth)</small></p>
     <div class="nv-update-controls"><label>Workshop <select data-update-stage ${busy||!canApprove?'disabled':''}><option value="">Choose station</option>${STATIONS.map(([code,label])=>`<option value="${code}" ${code===stage?'selected':''}>${esc(label)}</option>`).join('')}</select></label>
     <label>Approved hours <input data-update-hours type="number" min="0.01" max="999.99" step="0.01" value="${esc(hours??'')}" ${busy||!canApprove||stage==='SUBLET'?'disabled':''}></label>
-    <button type="button" class="primary" data-approve-update ${issues.length||!canApprove||busy?'disabled':''}>${busy?'Saving…':'Approve operation change'}</button></div>
-    <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Existing bookings, completed work and vehicle location are kept. Review affected booking times after approval.</small></article>`;
+    <button type="button" class="primary" data-approve-update ${issues.length||!canApprove||busy?'disabled':''}>${busy?'Saving…':'Approve change & update bookings'}</button></div>
+    <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Approval updates the station’s estimated hours and adjusts affected bay bookings. Later jobs move back when needed, with a 5-hour gap between each vehicle’s jobs. Sublet has no workshop bay.</small></article>`;
   }
 
-  const api={matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
+  const api={matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   if(typeof window==='undefined' || window.PDC_SUPABASE_CONFIG?.projectRef!==PROJECT
       || typeof showView!=='function' || window.PDC_NEW_VEHICLES_VERSION) return;
 
   let items=[],total=0,offset=0,selected=null,choices={},loading=false,saving=false,error='',notice='',sourceChanged=false;
   let updateItems=[],updateTotal=0,updateOffset=0,updateError='',updateDrafts={},updateRequests={};
+  let updateSchedule=null,sessionGeneration=0;
   let unidentified=false,unidentifiedItems=[],unidentifiedTotal=0;
   let generation=0,requestKey='',approvalRequest=null,hourDrafts={};
   let queueSearch='',listScroll=0,listVehicleId='';
@@ -126,19 +170,26 @@
       const res=await fetch(`${config.url.replace(/\/$/,'')}/rest/v1/rpc/${name}`,{method:'POST',signal:abort.signal,
         headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const result=await res.json();
-      if(actor!==window.PDC_AUTH_CONTEXT?.userId) throw new Error('session_changed');
-      if(!res.ok || result?.ok!==true) throw new Error(result?.code || 'request_failed');
+      if(actor!==window.PDC_AUTH_CONTEXT?.userId||token!==getPdcSupabaseAccessToken()||!readable()) throw new Error('session_changed');
+      if(!res.ok || result?.ok!==true) {
+        const failure=new Error(result?.code || 'request_failed');
+        if(name==='approve_pdc_tune_operation_change_with_schedule'&&result?.code==='operation_schedule_conflict'
+          &&typeof result.message==='string'&&result.message.trim())failure.userMessage=result.message.trim().slice(0,1000);
+        throw failure;
+      }
       return result;
     } finally {clearTimeout(timer);}
   }
   function message(err) {
     const code=String(err?.message || '');
+    if(code==='operation_schedule_conflict')return err.userMessage||'A later booking cannot be moved safely. Review the affected bookings before retrying. No changes were saved.';
     if(/changed|stale|conflict|already_approved/.test(code)) return 'This Job Card changed or was approved in another session. Reload it before continuing.';
     if(/authorized|session/.test(code)) return 'Sign in with an approved staff account. Only Operators and Administrators can approve.';
     if(/completed|protected|rework/.test(code)) return 'This work or vehicle is protected by completion history. Review rework before applying this change.';
     if(/long_description/.test(code)) return 'Review this long description in vehicle details before applying the update.';
     if(/hours/.test(code)) return 'Workshop operations need valid hours before release. Sublet does not require hours.';
     if(/stations/.test(code)) return 'Assign every operation to a station.';
+    if(/booking|cascade|schedule/.test(code)) return 'The operation could not be approved because its booking changes could not be completed safely. Refresh the queue and review affected bookings before retrying.';
     return 'The request could not be confirmed. Refresh the queue before retrying; no success has been assumed.';
   }
   async function load({silent=false}={}) {
@@ -171,7 +222,7 @@
   }
   function choose(row) {
     if(!selected){listScroll=window.scrollY;listVehicleId=row.vehicle_id;}
-    selected=row;choices=reviewChoices(row);hourDrafts={};sourceChanged=false;requestKey='';approvalRequest=null;error='';notice='';render();
+    selected=row;choices=reviewChoices(row);hourDrafts={};sourceChanged=false;requestKey='';approvalRequest=null;error='';notice='';updateSchedule=null;render();
     const heading=page.querySelector('.nv-header h2');
     heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true});window.scrollTo({top:0,left:0});
   }
@@ -232,20 +283,31 @@
     const hours=stage==='SUBLET'?null:Number(draft.hours??row.effective_hours);
     const identity=JSON.stringify([row.snapshot_hash,stage,hours]);
     if(updateRequests[id]?.identity!==identity) updateRequests[id]={identity,key:crypto.randomUUID()};
-    const request={p_change_id:id,p_snapshot_hash:row.snapshot_hash,p_stage_code:stage,p_estimated_hours:hours,p_idempotency_key:updateRequests[id].key};
-    saving=true;error='';render();
+    const ownedRequest=updateRequests[id],session=sessionGeneration,token=getPdcSupabaseAccessToken();
+    const ownsRequest=()=>session===sessionGeneration&&actor===window.PDC_AUTH_CONTEXT?.userId&&token===getPdcSupabaseAccessToken()&&writable()&&updateRequests[id]===ownedRequest;
+    const request={p_change_id:id,p_snapshot_hash:row.snapshot_hash,p_stage_code:stage,p_estimated_hours:hours,p_idempotency_key:ownedRequest.key};
+    let accepted=false;
+    saving=true;error='';notice='';updateSchedule=null;render();
     try {
-      const result=await rpc('approve_pdc_tune_operation_change',request);
-      if(actor!==window.PDC_AUTH_CONTEXT?.userId) return;
+      const result=await rpc('approve_pdc_tune_operation_change_with_schedule',request);
+      if(!ownsRequest()) return;
       const data=result.data;
-      if(data?.change_id!==id||data?.vehicle_id!==row.vehicle_id||data?.bookings_changed!==false||data?.location_changed!==false
-        ||data?.operation?.description!==row.proposed.operation_description||data?.operation?.stage_code!==stage
-        ||(stage!=='SUBLET'&&Number(data?.operation?.estimated_hours)!==hours)||data?.operation?.completed!==false) throw new Error('readback_mismatch');
-      updateItems=updateItems.filter(x=>x.change_id!==id);updateTotal=Math.max(0,updateTotal-1);delete updateDrafts[id];delete updateRequests[id];
-      notice=`${row.stock_number}: operation change approved. Existing bookings and location were kept; review affected booking times.`;
-      void Promise.allSettled([refreshEmailVehicleLocations(),loadSharedNavisionVisibleRows()]);
-    } catch(err) {error=message(err);}
-    finally {saving=false;render();void load({silent:true});}
+      if(!verifyUpdateApproval(result,row,stage,hours)) throw new Error('readback_mismatch');
+      accepted=true;
+      updateItems=updateItems.filter(x=>x.change_id!==id);updateTotal=Math.max(0,updateTotal-1);delete updateDrafts[id];
+      notice=updateApprovalNotice(row,data);updateSchedule=data.schedule;
+      // A verified receipt ends the save; projections refresh independently.
+      void Promise.allSettled([Promise.resolve().then(()=>refreshEmailVehicleLocations()),Promise.resolve().then(()=>loadSharedNavisionVisibleRows()),
+        Promise.resolve().then(()=>window.__workshopDataService?.loadSnapshot?.('tune_operation_change_approval'))]).then(results=>{
+          if(!ownsRequest())return;
+          if(results.some(result=>result.status==='rejected'||result.value===false)){notice+=' The change was saved. Refresh the board if its times have not updated yet.';render();}
+        });
+    } catch(err) {if(ownsRequest())error=message(err);}
+    finally {if(session===sessionGeneration&&updateRequests[id]===ownedRequest){
+      saving=false;
+      if(!ownsRequest())error='Your sign-in session changed. Refresh the queue before continuing; the approval result has not been confirmed.';
+      render();if(accepted&&ownsRequest())void load({silent:true});
+    }}
   }
   function bindUpdates() {
     page.querySelectorAll('[data-operation-change]').forEach(card=>{
@@ -262,8 +324,8 @@
     page.querySelectorAll('[data-update-page]').forEach(button=>button.addEventListener('click',()=>{updateOffset=Math.max(0,updateOffset+Number(button.dataset.updatePage)*50);void load();}));
   }
   function render({preserveReview=false}={}) {
-    const badge=nav.querySelector('.new-vehicle-nav-count');badge.textContent=String(total);badge.hidden=!total;
-    nav.setAttribute('aria-label',`New Vehicles, ${total} awaiting review`);
+    const badge=nav.querySelector('.new-vehicle-nav-count');badge.textContent=String(total+updateTotal);badge.hidden=!(total+updateTotal);
+    nav.setAttribute('aria-label',`New Vehicles, ${total} new vehicles and ${updateTotal} operation changes awaiting review`);
     // Keep the navigation count current without rebuilding an inactive page.
     if(app.currentView!=='newvehicles') return;
     if(preserveReview) {
@@ -290,8 +352,8 @@
     const approvalButton=()=>`<button class="primary nv-approve-button" type="button" data-nv-approve ${saving||sourceChanged||issues.length||!writable()?'disabled':''}>${saving?'Saving & adding to board…':'Approve & add to board'}</button>`;
     page.innerHTML=`<div class="nv-header"><div><span class="eyebrow">Tune / Revolution imports</span><h2>${selected?esc(selected.stock_number):'New Vehicles'}</h2>
       <p>${selected?'Review the operation stations, then approve the Job Card.':`${total} awaiting review before they enter Vehicle Locations.`}</p></div>
-      <div class="nv-header-actions">${selected?approvalButton()+'<button type="button" data-nv-back>← Vehicle list</button>':'<button type="button" data-nv-unidentified '+(loading?'disabled':'')+'>Unidentified Tune Review</button>'}<button type="button" data-nv-refresh ${loading||saving?'disabled':''}>${loading?'Refreshing…':'Refresh'}</button></div></div>
-      ${error?`<div class="nv-error" role="alert">${esc(error)}</div>`:''}${notice?`<div class="nv-notice" role="status">${esc(notice)}</div>`:''}
+      <div class="nv-header-actions">${selected?approvalButton()+'<button type="button" data-nv-back>← Vehicle list</button>':`${updateTotal?`<button type="button" data-nv-updates>${updateTotal} operation update${updateTotal===1?'':'s'}</button>`:''}<button type="button" data-nv-unidentified ${loading?'disabled':''}>Unidentified Tune Review</button>`}<button type="button" data-nv-refresh ${loading||saving?'disabled':''}>${loading?'Refreshing…':'Refresh'}</button></div></div>
+      ${error?`<div class="nv-error" role="alert">${esc(error)}</div>`:''}${notice?`<div class="nv-notice" role="status">${esc(notice)}</div>`:''}${updateScheduleHtml(updateSchedule)}
       ${selected?`<section class="nv-summary"><h3>${esc(selected.vehicle_description)}</h3><p>${esc(selected.customer_name)} · Job Card ${esc((selected.job_cards || []).join(', '))}</p><p>Location: <strong>${esc(selected.current_location || 'Pending')}</strong>${selected.eta_to_kewdale?` · Kewdale ETA: ${esc(selected.eta_to_kewdale)}`:''} · VIN: ${esc(selected.vin || 'Not recorded')}</p></section>
       ${sourceChanged?'<div class="nv-error" role="alert">Source data changed. <button type="button" data-nv-reload>Reload Job Card</button> before approving.</div>':''}
       <p class="nv-help">Rows follow the station order above, starting with Needs Review. Items needing hours appear first within each station. Drag a row into a station bucket or use its station selector. Sublet does not require hours. Your choices and hours are saved when you approve.</p>
@@ -303,13 +365,14 @@
       <div class="nv-list">${visibleItems.map(card).join('') || `<div class="nv-empty"><h3>${loading?'Loading Job Cards…':error?'Queue unavailable':queueSearch?'No vehicles on this page match':'No new vehicles waiting'}</h3><p>${queueSearch?'Clear the search or try another page.':'New report vehicles appear here after import processing. Existing board vehicles are not reset or pulled back into this queue.'}</p></div>`}</div>
       <div class="nv-pagination"><button data-nv-page="-1" ${offset===0||loading?'disabled':''}>Previous</button><span>${total?`${offset+1}–${Math.min(offset+items.length,total)} of ${total}`:'0 awaiting review'}</span><button data-nv-page="1" ${offset+items.length>=total||loading?'disabled':''}>Next</button></div>`}`;
     if(!selected) {
-      page.insertAdjacentHTML('beforeend',`<section class="nv-operation-updates" aria-label="Updated operation lines"><h2>Updated operation lines</h2><p>${updateTotal} changes awaiting approval for vehicles already on the board.</p>${updateError?`<p role="alert">${esc(updateError)}</p>`:''}${updateItems.map(row=>operationUpdateHtml(row,updateDrafts[row.change_id]||{},writable(),saving)).join('')||'<p>No updated operation lines waiting.</p>'}<div class="nv-pagination"><button data-update-page="-1" ${updateOffset===0||loading||saving?'disabled':''}>Previous changes</button><span>${updateTotal} changes</span><button data-update-page="1" ${updateOffset+updateItems.length>=updateTotal||loading||saving?'disabled':''}>Next changes</button></div></section>`);
+      page.insertAdjacentHTML('beforeend',`<section class="nv-operation-updates" aria-label="Updated operation lines" tabindex="-1"><h2>Updated operation lines</h2><p>${updateTotal} changes awaiting approval for vehicles already on the board.</p>${updateError?`<p role="alert">${esc(updateError)}</p>`:''}${updateItems.map(row=>operationUpdateHtml(row,updateDrafts[row.change_id]||{},writable(),saving)).join('')||'<p>No updated operation lines waiting.</p>'}<div class="nv-pagination"><button data-update-page="-1" ${updateOffset===0||loading||saving?'disabled':''}>Previous changes</button><span>${updateTotal} changes</span><button data-update-page="1" ${updateOffset+updateItems.length>=updateTotal||loading||saving?'disabled':''}>Next changes</button></div></section>`);
       bindUpdates();
     }
     page.querySelectorAll('[data-nv-open]').forEach(button=>button.addEventListener('click',()=>choose(items.find(row=>row.vehicle_id===button.dataset.nvOpen))));
     page.querySelector('[data-nv-unidentified]')?.addEventListener('click',()=>{unidentified=true;offset=0;void load();});
     page.querySelector('[data-nv-refresh]')?.addEventListener('click',()=>void load());
     page.querySelector('[data-nv-back]')?.addEventListener('click',backToList);
+    page.querySelector('[data-nv-updates]')?.addEventListener('click',()=>{const section=page.querySelector('.nv-operation-updates');section?.focus({preventScroll:true});section?.scrollIntoView({block:'start'});});
     page.querySelector('[data-nv-search]')?.addEventListener('input',event=>{queueSearch=event.target.value;render();});
     page.querySelector('[data-nv-reload]')?.addEventListener('click',()=>{const id=selected.vehicle_id;const row=items.find(item=>item.vehicle_id===id);if(row) choose(row);else {selected=null;render();void load();}});
     page.querySelectorAll('[data-nv-page]').forEach(button=>button.addEventListener('click',()=>{offset=Math.max(0,offset+Number(button.dataset.nvPage)*limit);void load();}));
@@ -374,7 +437,7 @@
     return out;
   };
   window.addEventListener('pdc-auth-ready',()=>{offset=0;void load();});
-  window.addEventListener('pdc-auth-locked',()=>{generation++;page.replaceChildren();items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
+  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;page.replaceChildren();items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
   window.PDC_NEW_VEHICLES_VERSION='2026.09.12.review-orange';

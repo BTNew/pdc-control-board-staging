@@ -8,7 +8,7 @@ const added={change_id:'c1',vehicle_id:'v1',stock_number:'12345678',status:'pend
 assert.deepEqual(updateProblems(added),[]);
 assert.match(operationUpdateHtml(added),/Already on board/);
 assert.match(operationUpdateHtml(added),/not on this vehicle yet/);
-assert.match(operationUpdateHtml(added),/Approve operation change/);
+assert.match(operationUpdateHtml(added),/Approve change & update bookings/);
 assert.ok(updateProblems({...added,effective_hours:0}).some(x=>x.includes('positive')));
 assert.deepEqual(updateProblems({...added,effective_hours:0},{stage:'SUBLET'}),[]);
 assert.ok(updateProblems({...added,status:'superseded'}).length);
@@ -24,7 +24,7 @@ assert.match(operationUpdateHtml(added,{},false),/data-approve-update disabled/)
 assert.match(operationUpdateHtml(added,{},true,true),/Saving…/);
 const ui=fs.readFileSync('pdc-new-vehicles.js','utf8');
 assert.match(ui,/p_snapshot_hash:row.snapshot_hash/);
-assert.match(ui,/updateRequests\[id\]\.key/);
-assert.match(ui,/bookings_changed!==false/);
+assert.match(ui,/p_idempotency_key:ownedRequest.key/);
+assert.match(ui,/verifyUpdateApproval\(result,row,stage,hours\)/);
 assert.match(ui,/location_changed!==false/);
 console.log('Tune operation review before/after, approval gating, escaping and receipt contract: PASS');
