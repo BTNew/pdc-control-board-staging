@@ -20,3 +20,12 @@ Verification on 13 September 2026:
 
 The Supabase advisor reports the new endpoint as an intentional authenticated security-definer RPC. Its actor, role, snapshot and staging checks are covered by the integration tests. See the [Supabase authenticated security-definer guidance](https://supabase.com/docs/guides/database/database-linter).
 
+## Concurrent booking updates repaired
+
+The first release passed isolated scheduling scenarios but missed a lock inversion with the automatic workshop clock. Approval could own a station revision row while waiting for a booking row; the clock owned the booking row and waited for that revision. An exact pending-vehicle rollback reproduced PostgreSQL deadlock 40P01.
+
+Migration 20260913063859 coordinates with the existing clock lock before operational writes, acquires booking locks before vehicle and required-work updates, and uses non-waiting row locks to avoid contention cycles with other planner or import actions. Scheduling calculations and the clock itself are unchanged. Transient contention returns a specific busy result after rolling back; the browser retries that result twice using the same request and approval key. Network errors and ordinary protected conflicts are not automatically retried. Session or permission changes cancel retries.
+
+A failed approval also no longer labels a successfully loaded, empty search result as Queue unavailable. Pending operation updates remain visible below the new-vehicle list.
+
+Follow-up verification: 477 Node checks passed, all 38 database regression assertions passed, and approval against the actual pending vehicle succeeded in rollback both before and after applying the repair: Hoist increased from 7 to 9 hours and two dependent bookings moved. An independent session holding a booking row produced a prompt retryable busy result with zero booking writes. A separate clock-holder experiment did not establish overlapping sessions and is not counted as a passed concurrency test. All verification transactions rolled back; the customer operation remains pending for approval.
