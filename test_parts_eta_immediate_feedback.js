@@ -12,6 +12,9 @@ let refreshCount = 0;
 const sharedVehicle = { __emailVehicleId: 'HERMES-TEST-PARTS-ETA', __emailVehicleVersion: 4, pdcPartsWorstEta: '' };
 const never = new Promise(() => {});
 const context = {
+  vehicleLifecycleSharedModeActive: () => true,
+  capturePdcWriteAuthority: () => ({ actor: 'test-operator', generation: 1 }),
+  pdcWriteAuthorityCurrent: () => true,
   cleanNavisionText: value => String(value || '').trim(),
   selectedVehicle: () => sharedVehicle,
   partsWorstEtaValue: vehicle => vehicle.pdcPartsWorstEta || '',

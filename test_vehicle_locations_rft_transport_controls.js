@@ -173,6 +173,9 @@ let confirmationCalls = [];
 let refreshCalls = 0;
 let renderCalls = 0;
 const actionContext = {
+  authorityGeneration: 0,
+  capturePdcWriteAuthority: () => ({ generation: actionContext.authorityGeneration, actor: 'test-operator' }),
+  pdcWriteAuthorityCurrent: authority => authority?.generation === actionContext.authorityGeneration,
   app: {
     emailVehicleLocationService: {
       setRftConfirmation736: async (id, version, confirmed, key) => {
@@ -217,7 +220,7 @@ vm.createContext(actionContext);
 vm.runInContext(`${actionSource}\nthis.book = markRftTransportBooked; this.collect = markRftVehicleCollected; this.confirm = markRftConfirmation;`, actionContext);
 const staleBooking = actionContext.book('11111111-1111-4111-8111-111111111111', true);
 setImmediate(() => {
-  actionContext.app.rftTransportActionGeneration += 1;
+  actionContext.authorityGeneration += 1;
   pendingBooking({ ok: true, code: 'rft_transport_booked', data: { vehicle_id: actionVehicle.__emailVehicleId } });
 });
 staleBooking.then(async result => {

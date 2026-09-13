@@ -435,12 +435,16 @@ function createPdcEmailVehicleLocationService(options = {}) {
   }
   async function subletRpc(name, payload, unavailableCode) {
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 60000);
     try {
-      const response = await request(`${url}/rest/v1/rpc/${name}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const response = await request(`${url}/rest/v1/rpc/${name}`, { method: 'POST', signal: abort.signal, headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const body = await response.json();
-      if (!response.ok || !body || body.ok === false) return { ok: false, code: subletResponseCode(body, response.status), data: body?.data || null };
+      if (token !== getAccessToken()) return { ok: false, code: 'session_changed', data: null };
+      if (!response.ok || !body || body.ok !== true) return { ok: false, code: subletResponseCode(body, response.status), data: body?.data || null };
       return { ok: true, code: body.code || 'ok', data: body.data || body };
     } catch (_error) { return { ok: false, code: unavailableCode, data: null }; }
+    finally { clearTimeout(timer); }
   }
   function createSubletBooking(vehicleId = '', vehicleVersion = 0, providerId = '', outDate = '', expectedReturnDate = '', providerEmail = '', notes = '', operationLineIdentity = '') {
     return subletRpc(operationLineIdentity ? 'create_pdc_sublet_operation_booking' : PDC_SUBLET_CREATE_RPC, {

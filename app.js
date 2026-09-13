@@ -5028,6 +5028,7 @@ async function saveAuthoritativeVehicleChanges(vehicle = {}, requestedCode = '',
 
 function resetEmailVehicleLocations() {
   app.emailVehicleLocationGeneration += 1;
+  app.subletMutationQueues?.clear?.();
   try { app.emailVehicleLocationRealtime?.unsubscribe?.(); } catch (_error) { /* best-effort teardown */ }
   app.emailVehicleLocationRealtime = null;
   app.emailVehicleLocationService = null;
@@ -5103,7 +5104,7 @@ function initEmailVehicleLocationsIfAvailable(options = {}) {
     } catch (_error) { return null; }
   }
   if (!app.emailVehicleLocationRealtime) app.emailVehicleLocationRealtime = app.emailVehicleLocationService.subscribe(() => {
-    if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true });
+    if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true, deferSupersede: true });
     else refreshEmailVehicleLocations();
     if (vehicleLifecycleAdministratorActive() && app.deletedVehicleSnapshotState !== 'idle') loadDeletedVehicleSnapshot({ force: true });
   });
@@ -5251,7 +5252,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5300,7 +5301,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -5323,6 +5324,42 @@ const qcPageRejectInFlight = new Set();
 let qcPageOperationMutationChain = Promise.resolve();
 let qcPageNotice = '';
 let qcSelectedVehicleKey = '';
+let pdcWriteAuthorityGeneration = 0;
+let qcPageAuthorityActor = window.PDC_AUTH_CONTEXT?.userId || '';
+
+function capturePdcWriteAuthority() {
+  return { generation: pdcWriteAuthorityGeneration, actor: window.PDC_AUTH_CONTEXT?.userId || '' };
+}
+
+function pdcWriteAuthorityCurrent(authority) {
+  return Boolean(authority?.actor && authority.generation === pdcWriteAuthorityGeneration
+    && authority.actor === window.PDC_AUTH_CONTEXT?.userId
+    && ['operator', 'administrator'].includes(window.PDC_AUTH_CONTEXT?.role));
+}
+
+function qcPageResetAuthority(event = {}) {
+  const interrupted = qcPageOperationPending.size || qcPagePhotoUploadInFlight.size
+    || qcPageSignoffInFlight.size || qcPageRejectInFlight.size;
+  pdcWriteAuthorityGeneration += 1;
+  qcPageOperationMutationChain = Promise.resolve();
+  qcPageOperationPending.clear(); qcPagePhotoUploadInFlight.clear();
+  qcPageSignoffInFlight.clear(); qcPageRejectInFlight.clear(); qcPageFeedback.clear();
+  app.partsCompletionInFlight?.clear(); app.partsStoppageInFlight?.clear();
+  app.rftTransportActionInFlight?.clear(); app.rftTransportActionOwners?.clear();
+  qcSelectedVehicleKey = '';
+  qcPageNotice = interrupted ? 'Your session changed. Queued QC actions were cancelled. Refresh and check the saved state before continuing.' : '';
+  if (event.detail?.reason !== 'session-revalidate') qcPhotoEvidence.clear();
+}
+
+window.addEventListener?.('pdc-auth-locked', qcPageResetAuthority);
+window.addEventListener?.('pdc-auth-ready', () => {
+  const actor = window.PDC_AUTH_CONTEXT?.userId || '';
+  if (actor !== qcPageAuthorityActor) {
+    qcPageResetAuthority();
+    qcPhotoEvidence.clear();
+    qcPageAuthorityActor = actor;
+  }
+});
 
 function qcPageIsMobile() {
   return Boolean(window.matchMedia?.('(max-width: 900px)').matches);
@@ -5510,9 +5547,11 @@ function qcPageReceiptLineApply(vehicle = {}, lineIdentity = '', result = {}) {
   return true;
 }
 
-async function qcPageAwaitOperationSnapshot(key = '', lineIdentity = '', completed = false, attempts = 3) {
+async function qcPageAwaitOperationSnapshot(key = '', lineIdentity = '', completed = false, attempts = 3, authority = capturePdcWriteAuthority()) {
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     await refreshEmailVehicleLocations();
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     const current = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
     const currentLine = qcPageOperationLines(current || {}).find(item => item.lineIdentity === String(lineIdentity || ''));
     if (currentLine && currentLine.completed === completed) return true;
@@ -5521,7 +5560,8 @@ async function qcPageAwaitOperationSnapshot(key = '', lineIdentity = '', complet
   return false;
 }
 
-async function qcPageSetOperationState(key = '', lineIdentity = '', checked = false) {
+async function qcPageSetOperationState(key = '', lineIdentity = '', checked = false, authority = capturePdcWriteAuthority()) {
+  if (!pdcWriteAuthorityCurrent(authority)) return false;
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
   const line = qcPageOperationLines(vehicle || {}).find(item => item.lineIdentity === String(lineIdentity || ''));
   const service = app.emailVehicleLocationService;
@@ -5533,8 +5573,10 @@ async function qcPageSetOperationState(key = '', lineIdentity = '', checked = fa
   }
   const result = await service.setQcOperationCompletion(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion,
     line.lineIdentity, Number(line.lineVersion || 0), checked, crypto.randomUUID());
+  if (!pdcWriteAuthorityCurrent(authority)) return false;
   if (!result?.ok || result.data?.line?.completed !== checked || !qcPageReceiptLineApply(vehicle, line.lineIdentity, result)) {
-    await qcPageAwaitOperationSnapshot(key, lineIdentity, checked, 1);
+    await qcPageAwaitOperationSnapshot(key, lineIdentity, checked, 1, authority);
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     qcPageFeedback.set(key, { kind: 'error', message: result?.code?.includes('version')
       ? 'This operation changed in another session. The latest QC state has been reloaded.'
       : 'This operation was not saved. Tap it again after the latest state loads.' });
@@ -5543,7 +5585,8 @@ async function qcPageSetOperationState(key = '', lineIdentity = '', checked = fa
   }
   qcPageFeedback.set(key, { kind: 'saved', message: `${line.operationNo || 'Operation'} saved. You can continue ticking other jobs.` });
   renderQualityControlPage();
-  void qcPageAwaitOperationSnapshot(key, lineIdentity, checked).then(converged => {
+  void qcPageAwaitOperationSnapshot(key, lineIdentity, checked, 3, authority).then(converged => {
+    if (!pdcWriteAuthorityCurrent(authority)) return;
     if (!converged) qcPageFeedback.set(key, { kind: 'error', message: 'Saved by receipt; the shared QC list is still syncing.' });
     renderQualityControlPage();
   });
@@ -5551,27 +5594,34 @@ async function qcPageSetOperationState(key = '', lineIdentity = '', checked = fa
 }
 
 function qcPageQueueOperationState(key = '', lineIdentity = '', checked = false, input = null) {
+  const authority = capturePdcWriteAuthority();
+  if (!pdcWriteAuthorityCurrent(authority)) return;
   const pendingKey = qcPagePendingKey(key, lineIdentity);
   if (qcPageOperationPending.has(pendingKey)) return;
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === String(key || '').trim());
   const line = qcPageOperationLines(vehicle || {}).find(item => item.lineIdentity === String(lineIdentity || ''));
   if (input && line) input.checked = line.completed === true;
-  qcPageOperationPending.set(pendingKey, { checked });
+  const queued = { checked, authority };
+  qcPageOperationPending.set(pendingKey, queued);
   qcPageFeedback.set(key, { kind: 'saving', message: `${line?.operationNo || 'Operation'} queued for saving…` });
   renderQualityControlPage();
   qcPageOperationMutationChain = qcPageOperationMutationChain
-    .then(() => qcPageSetOperationState(key, lineIdentity, checked))
+    .then(() => qcPageSetOperationState(key, lineIdentity, checked, authority))
     .catch(() => {
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
       qcPageFeedback.set(key, { kind: 'error', message: 'The operation could not be saved. The authoritative state was retained.' });
       return false;
     })
     .finally(() => {
+      if (qcPageOperationPending.get(pendingKey) !== queued) return;
       qcPageOperationPending.delete(pendingKey);
       renderQualityControlPage();
     });
 }
 
 async function qcPageAttachPhoto(key = '', input) {
+  const authority = capturePdcWriteAuthority();
+  if (!pdcWriteAuthorityCurrent(authority)) return false;
   const cleanKey = String(key || '').trim();
   if (!cleanKey || qcPagePhotoUploadInFlight.has(cleanKey)) return false;
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
@@ -5593,20 +5643,25 @@ async function qcPageAttachPhoto(key = '', input) {
     renderQualityControlPage();
     return false;
   }
-  const previewReader = new FileReader();
-  const preview = await new Promise(resolve => {
-    previewReader.addEventListener('load', () => resolve(String(previewReader.result || '')), { once: true });
-    previewReader.addEventListener('error', () => resolve(''), { once: true });
-    previewReader.readAsDataURL(file);
-  });
-  qcPhotoEvidence.set(cleanKey, { originalFilename: file.name, url: preview, originalByteLength: file.size, byteLength: 0, imageWidth: 0, imageHeight: 0, sha256: '' });
   qcPagePhotoUploadInFlight.add(cleanKey);
-  qcPageFeedback.set(cleanKey, { kind: 'saving', message: 'Uploading the private completion photo and recording its evidence receipt…' });
+  qcPageFeedback.set(cleanKey, { kind: 'saving', message: 'Preparing and uploading the private completion photo…' });
   renderQualityControlPage();
   try {
+    const previewReader = new FileReader();
+    const preview = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { previewReader.abort(); reject(new Error('photo_read_failed')); }, 15000);
+      previewReader.addEventListener('load', () => { clearTimeout(timer); resolve(String(previewReader.result || '')); }, { once: true });
+      const failed = () => { clearTimeout(timer); reject(new Error('photo_read_failed')); };
+      previewReader.addEventListener('error', failed, { once: true });
+      previewReader.addEventListener('abort', failed, { once: true });
+      previewReader.readAsDataURL(file);
+    });
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
+    qcPhotoEvidence.set(cleanKey, { originalFilename: file.name, url: preview, originalByteLength: file.size, byteLength: 0, imageWidth: 0, imageHeight: 0, sha256: '' });
     const result = vehicle.pdcQcRetestCycleId
       ? await service.uploadQcPhotoEvidence(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion, vehicle.pdcQcRetestCycleId, file)
       : await service.uploadQcPhotoEvidence(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion, file);
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     if (!result?.ok || !result.data?.photo_receipt_id) {
       qcPageFeedback.set(cleanKey, { kind: 'error', message: qcPagePhotoErrorMessage(result?.code) });
       renderQualityControlPage();
@@ -5623,13 +5678,23 @@ async function qcPageAttachPhoto(key = '', input) {
     qcPageFeedback.set(cleanKey, { kind: 'saved', message: `Photo compressed and stored (${Math.round(Number(result.data.original_byte_length || file.size) / 1024)} KB → ${Math.round(Number(result.data.byte_length || 0) / 1024)} KB). All active operation lines must be complete before sign-off.` });
     renderQualityControlPage();
     return true;
+  } catch (error) {
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
+    qcPageFeedback.set(cleanKey, { kind: 'error', message: error.message === 'photo_read_failed'
+      ? 'The photo could not be read. Choose the photo again before signing off.'
+      : 'The photo was not confirmed. Refresh QC and check the saved state before retrying.' });
+    return false;
   } finally {
-    qcPagePhotoUploadInFlight.delete(cleanKey);
-    renderQualityControlPage();
+    if (pdcWriteAuthorityCurrent(authority)) {
+      qcPagePhotoUploadInFlight.delete(cleanKey);
+      renderQualityControlPage();
+    }
   }
 }
 
 async function qcPageSignoff(key = '') {
+  const authority = capturePdcWriteAuthority();
+  if (!pdcWriteAuthorityCurrent(authority)) return false;
   const cleanKey = String(key || '').trim();
   if (!cleanKey || qcPageSignoffInFlight.has(cleanKey)) return false;
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
@@ -5643,7 +5708,8 @@ async function qcPageSignoff(key = '') {
   try {
     const result = vehicle.pdcQcRetestCycleId && typeof app.emailVehicleLocationService?.finalizeQcRetest === 'function'
       ? await app.emailVehicleLocationService.finalizeQcRetest(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion, vehicle.pdcQcRetestCycleId, photo.photoReceiptId, crypto.randomUUID())
-      : await completeVehicleQualityControl(cleanKey, photo);
+      : await completeVehicleQualityControl(cleanKey, photo, authority);
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     const succeeded = vehicle.pdcQcRetestCycleId ? result?.ok === true : result;
     if (succeeded) {
       qcPhotoEvidence.delete(cleanKey);
@@ -5653,7 +5719,7 @@ async function qcPageSignoff(key = '') {
     }
     return result;
   } finally {
-    qcPageSignoffInFlight.delete(cleanKey);
+    if (pdcWriteAuthorityCurrent(authority)) qcPageSignoffInFlight.delete(cleanKey);
   }
 }
 
@@ -5669,6 +5735,8 @@ function qcPageClearInvalidPhoto(key = '') {
 }
 
 async function qcPageRejectVehicle(key = '') {
+  const authority = capturePdcWriteAuthority();
+  if (!pdcWriteAuthorityCurrent(authority)) return false;
   const cleanKey = String(key || '').trim();
   if (!cleanKey || qcPageRejectInFlight.has(cleanKey)) return false;
   const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
@@ -5692,6 +5760,7 @@ async function qcPageRejectVehicle(key = '') {
   renderQualityControlPage();
   try {
     const result = await service.rejectQcVehicleToPmb(vehicle.__emailVehicleId, stock, vehicle.__emailVehicleVersion, reason, crypto.randomUUID());
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     if (!result?.ok) {
       qcPageFeedback.set(cleanKey, { kind: 'error', message: result?.code === 'PDC_766_VEHICLE_VERSION_CONFLICT' ? 'This vehicle changed in another session. Refresh and try again.' : `QC rejection was not recorded (${result?.code || 'unknown_error'}).` });
       renderQualityControlPage();
@@ -5700,10 +5769,11 @@ async function qcPageRejectVehicle(key = '') {
     qcSelectedVehicleKey = '';
     qcPageNotice = `Stock ${stock} moved to PMB Stoppage / Fix First as Pending QC fixes. Physical QC and repairs remain incomplete.`;
     await refreshEmailVehicleLocations();
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     renderQualityControlPage();
     return true;
   } finally {
-    qcPageRejectInFlight.delete(cleanKey);
+    if (pdcWriteAuthorityCurrent(authority)) qcPageRejectInFlight.delete(cleanKey);
   }
 }
 
@@ -6713,7 +6783,8 @@ function qualityControlVehicleHtml(vehicle = {}) {
   </article>`;
 }
 
-async function completeVehicleQualityControl(key = '', photoEvidence = null) {
+async function completeVehicleQualityControl(key = '', photoEvidence = null, authority = capturePdcWriteAuthority()) {
+  if (vehicleLifecycleSharedModeActive() && !pdcWriteAuthorityCurrent(authority)) return false;
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
   if (!vehicleInQualityControlGate(vehicle)) {
@@ -6734,7 +6805,9 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null) {
   if (!window.confirm(`Sign off QC and move ${label} to RFT?\n\nThis stores the named QC sign-off, exact completed-item snapshot and private photo evidence. No salesperson email or dealer-transit timer starts at QC.`)) return false;
 
   if (vehicleLifecycleSharedModeActive()) {
+    const service = app.emailVehicleLocationService;
     const ref = await vehicleLifecycleSharedRef(vehicle);
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     if (!ref || ref.outcome !== 'resolved') {
       window.alert(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
@@ -6743,7 +6816,8 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null) {
       window.alert('This vehicle is archived in shared data, so QC finalization was not applied. No change was made.');
       return false;
     }
-    const result = await app.emailVehicleLocationService.finalizeQcToRft700(ref.vehicleId, ref.version, photoEvidence.photoReceiptId, crypto.randomUUID());
+    const result = await service.finalizeQcToRft700(ref.vehicleId, ref.version, photoEvidence.photoReceiptId, crypto.randomUUID());
+    if (!pdcWriteAuthorityCurrent(authority)) return false;
     if (!result || result.ok !== true) {
       const qcFinalizationMessages = {
         salesperson_email_required: 'Assign an active salesperson with an email address before final sign-off. The stored photo receipt is retained and no vehicle state changed.',
@@ -6908,6 +6982,7 @@ function controlBoardStationPipelineMetrics(stage = '', snapshot = app.workshopE
     stage: normalizedStage,
     it: count(source.it),
     pmbWaiting: count(source.pmb_waiting ?? source.pmbWaiting),
+    yardHoldWaiting: count(source.yard_hold_waiting ?? source.yardHoldWaiting),
     inBays: count(source.in_bays ?? source.inBays),
     averageBayHours: Math.max(0, Number(source.average_bay_hours ?? source.averageBayHours) || 0),
     stoppage: count(source.stoppage),
@@ -6935,12 +7010,13 @@ function controlBoardStationPipelineHtml(stage = '') {
   const segments = [
     { key: 'it', label: 'IT', count: metrics.it },
     { key: 'waiting', label: 'PMB waiting', count: metrics.pmbWaiting },
+    { key: 'yard-hold', label: 'Yard Hold waiting', count: metrics.yardHoldWaiting },
     { key: 'bays', label: 'In bays', count: metrics.inBays },
     { key: 'stoppage', label: 'Stoppage', count: metrics.stoppage },
     { key: 'complete', label: 'Completed MTD', count: metrics.completedMtd },
   ];
   const total = segments.reduce((sum, item) => sum + item.count, 0);
-  const aria = `${pmbStageLabel(metrics.stage)} pipeline: ${metrics.it} IT, ${metrics.pmbWaiting} at PMB waiting, ${metrics.inBays} in bays, average bay time ${average}, ${metrics.stoppage} stoppage, ${metrics.completedMtd} completed month to date.`;
+  const aria = `${pmbStageLabel(metrics.stage)} pipeline: ${metrics.it} IT, ${metrics.pmbWaiting} at PMB waiting, ${metrics.yardHoldWaiting} at Yard Hold waiting, ${metrics.inBays} in bays, average bay time ${average}, ${metrics.stoppage} stoppage, ${metrics.completedMtd} completed month to date.`;
   const bar = total
     ? segments.filter(item => item.count > 0).map(item => `<span class="control-board-pipeline-segment is-${escapeHtml(item.key)}" style="--pipeline-weight:${item.count}" title="${escapeHtml(`${item.label}: ${item.count}`)}"><b>${item.count}</b></span>`).join('')
     : '<span class="control-board-pipeline-empty">No current or month-to-date activity</span>';
@@ -6949,6 +7025,7 @@ function controlBoardStationPipelineHtml(stage = '') {
     <span class="control-board-pipeline-legend">
       <span class="is-it"><i></i>IT <b>${metrics.it}</b></span>
       <span class="is-waiting"><i></i>PMB wait <b>${metrics.pmbWaiting}</b></span>
+      ${metrics.yardHoldWaiting ? `<span class="is-yard-hold"><i></i>YH wait <b>${metrics.yardHoldWaiting}</b></span>` : ''}
       <span class="is-bays"><i></i>Bays <b>${metrics.inBays}</b><small>avg ${escapeHtml(average)}</small></span>
       <span class="is-stoppage"><i></i>Stop <b>${metrics.stoppage}</b></span>
       <span class="is-complete"><i></i>Done MTD <b>${metrics.completedMtd}</b></span>
@@ -6981,7 +7058,7 @@ function renderWorkflowBoard() {
     const label = pmbStageLabel(stage);
     const countLabel = search ? `${vehicles.length}/${allVehicles.length}` : `${allVehicles.length}`;
     const rows = vehicles.map(vehicle => controlBoardStationVehicleHtml(vehicle, stage)).join('')
-      || `<div class="pmb-empty-drop">${escapeHtml(search ? 'No matching vehicles need this work.' : `No PMB vehicles currently need ${label} work.`)}</div>`;
+      || `<div class="pmb-empty-drop">${escapeHtml(search ? 'No matching vehicles need this work.' : `No eligible vehicles currently need ${label} work.`)}</div>`;
     const openAttr = app.workflowBucketsCollapsed ? '' : ' open';
     return `<details class="incoming-bucket workflow-stage-bucket control-board-station-row pmb-branch-${escapeHtml(stage.toLowerCase())}"${openAttr}>
       <summary class="incoming-bucket-title workflow-bucket-title">
@@ -16095,10 +16172,13 @@ async function authenticatedPartsTarget(key = '', selected = null) {
 }
 
 async function markVehiclePartsOrdered(key = '') {
+  const authority = vehicleLifecycleSharedModeActive() ? capturePdcWriteAuthority() : null;
+  if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   let vehicle = selectedVehicle(key);
   if (!vehicle) return;
   if (vehicle.__emailVehicleServerAuthoritative === true) {
     await refreshEmailVehicleLocations();
+    if (authority && !pdcWriteAuthorityCurrent(authority)) return;
     vehicle = selectedVehicle(key);
   }
   if (!vehicle || !partsHasValidAuthoritativeEta(vehicle)) {
@@ -16107,12 +16187,15 @@ async function markVehiclePartsOrdered(key = '') {
     return;
   }
   const sharedTarget = await authenticatedPartsTarget(key, vehicle);
+  if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
     if (!partsHasValidAuthoritativeEta(sharedVehicle)) {
       window.alert('The authoritative shared vehicle has no valid Parts ETA. Set the ETA and wait for confirmed readback before marking Parts ordered. No change was made.');
       await refreshEmailVehicleLocations();
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshSharedVehicleWorkState(sharedVehicle);
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       renderPartsHome();
       return;
     }
@@ -16122,6 +16205,7 @@ async function markVehiclePartsOrdered(key = '') {
       return;
     }
     const result = await service.markPartsOrdered(vehicleId, expectedVersion, crypto.randomUUID());
+    if (authority && !pdcWriteAuthorityCurrent(authority)) return;
     if (!result?.ok) {
       const message = result?.code === 'vehicle_version_conflict'
         ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
@@ -16140,13 +16224,17 @@ async function markVehiclePartsOrdered(key = '') {
           : `Parts could not be marked ordered (${escapeHtml(String(result?.code || 'unknown error'))}). No change was made.`;
       window.alert(message);
       await refreshEmailVehicleLocations();
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshSharedVehicleWorkState(sharedVehicle);
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       renderPartsHome();
       return;
     }
     const snapshotRefreshed = await refreshEmailVehicleLocations();
+    if (authority && !pdcWriteAuthorityCurrent(authority)) return;
     const refreshedVehicle = selectedVehicle(key) || sharedVehicle;
     const workRefreshed = await refreshSharedVehicleWorkState(refreshedVehicle);
+    if (authority && !pdcWriteAuthorityCurrent(authority)) return;
     if (!snapshotRefreshed || !workRefreshed || !partsOrdered(refreshedVehicle)) {
       window.alert('Parts ordered was accepted, but authoritative readback did not converge. No ordered state is shown; refresh before continuing.');
       renderPartsHome();
@@ -16159,9 +16247,12 @@ async function markVehiclePartsOrdered(key = '') {
 }
 
 async function markVehiclePartsComplete(key = '') {
+  const authority = vehicleLifecycleSharedModeActive() ? capturePdcWriteAuthority() : null;
+  if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   const sharedTarget = await authenticatedPartsTarget(key, vehicle);
+  if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   if (!sharedTarget) {
     window.alert('Parts completion requires the authenticated shared vehicle record. No change was made.');
     renderPartsHome();
@@ -16178,6 +16269,7 @@ async function markVehiclePartsComplete(key = '') {
   app.partsCompletionInFlight.add(vehicleId);
   try {
     const result = await service.markPartsComplete(vehicleId, sharedVehicle.stock, expectedVersion, crypto.randomUUID());
+    if (authority && !pdcWriteAuthorityCurrent(authority)) return;
     if (!result?.ok) {
       const message = result?.code === 'vehicle_version_conflict'
         ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
@@ -16198,14 +16290,18 @@ async function markVehiclePartsComplete(key = '') {
             : 'Parts could not be marked received on the shared vehicle record. No change was made.';
       window.alert(message);
       await refreshEmailVehicleLocations();
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshSharedVehicleWorkState(sharedVehicle);
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       renderPartsHome();
       return;
     }
     // Reconcile from the canonical vehicle UUID readback. The completion
     // response is receipt-backed; the row is never ticked by a local guess.
     await refreshEmailVehicleLocations();
+    if (authority && !pdcWriteAuthorityCurrent(authority)) return;
     await refreshSharedVehicleWorkState(sharedVehicle);
+    if (authority && !pdcWriteAuthorityCurrent(authority)) return;
     renderPartsHome();
     if (result.code === 'parts_completed' && result.data?.changed === true) {
       offerSalespersonChangeEmail(vehicle, {
@@ -16215,16 +16311,19 @@ async function markVehiclePartsComplete(key = '') {
       });
     }
   } finally {
-    app.partsCompletionInFlight.delete(vehicleId);
+    if (!authority || pdcWriteAuthorityCurrent(authority)) app.partsCompletionInFlight.delete(vehicleId);
   }
 }
 
 async function markVehiclePartsStoppage(key = '') {
+  const authority = vehicleLifecycleSharedModeActive() ? capturePdcWriteAuthority() : null;
+  if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   const reason = cleanNavisionText(window.prompt('Enter Parts STOPPAGE reason:', partsStoppageReason(vehicle) === 'Parts STOPPAGE recorded' ? '' : partsStoppageReason(vehicle)) || '');
   if (!reason) return;
   const sharedTarget = await authenticatedPartsTarget(key, vehicle);
+  if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
     if (typeof service.setPartsStoppage !== 'function') {
@@ -16236,8 +16335,11 @@ async function markVehiclePartsStoppage(key = '') {
     app.partsStoppageInFlight.add(vehicleId);
     try {
       const result = await service.setPartsStoppage(vehicleId, expectedVersion, 'set', reason, crypto.randomUUID());
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshEmailVehicleLocations();
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshSharedVehicleWorkState(sharedVehicle);
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       if (!result?.ok) {
         const message = result?.code === 'vehicle_version_conflict'
           ? 'This vehicle changed since the Parts row loaded. The latest shared row has been loaded; check it and try again.'
@@ -16252,7 +16354,7 @@ async function markVehiclePartsStoppage(key = '') {
       renderPartsHome();
       return;
     } finally {
-      app.partsStoppageInFlight.delete(vehicleId);
+      if (!authority || pdcWriteAuthorityCurrent(authority)) app.partsStoppageInFlight.delete(vehicleId);
     }
   }
   if (vehicle.__emailVehicleServerAuthoritative === true) {
@@ -16272,12 +16374,15 @@ async function markVehiclePartsStoppage(key = '') {
 }
 
 async function updateVehiclePartsWorstEta(key = '', value = '') {
+  const authority = vehicleLifecycleSharedModeActive() ? capturePdcWriteAuthority() : null;
+  if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   const eta = cleanNavisionText(value || '');
   const previousEta = partsWorstEtaValue(vehicle);
   const operator = getCurrentOperatorName();
   const sharedTarget = await authenticatedPartsTarget(key, vehicle);
+  if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
     if (typeof service.updatePartsEta !== 'function') {
@@ -16286,13 +16391,16 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
       return;
     }
     const result = await service.updatePartsEta(vehicleId, expectedVersion, eta);
+    if (authority && !pdcWriteAuthorityCurrent(authority)) return;
     if (!result?.ok) {
       const message = result?.code === 'vehicle_version_conflict'
         ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
         : 'The Parts ETA could not be saved to the shared vehicle record. No change was made.';
       window.alert(message);
       await refreshEmailVehicleLocations();
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshSharedVehicleWorkState(sharedVehicle);
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       renderPartsHome();
       return;
     }
@@ -16304,7 +16412,7 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
     void Promise.allSettled([
       refreshEmailVehicleLocations(),
       refreshSharedVehicleWorkState(sharedVehicle),
-    ]).then(() => renderPartsHome());
+    ]).then(() => { if (!authority || pdcWriteAuthorityCurrent(authority)) renderPartsHome(); });
     return;
   }
   recordVehicleAudit(vehicle, eta ? 'Parts worst ETA updated' : 'Parts worst ETA cleared', { eta, previousEta, by: operator });
@@ -16363,11 +16471,14 @@ function draftPartsEtaSalesEmail(key = '') {
 }
 
 async function clearVehiclePartsStoppage(key = '') {
+  const authority = vehicleLifecycleSharedModeActive() ? capturePdcWriteAuthority() : null;
+  if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   const vehicle = selectedVehicle(key);
   if (!vehicle) return;
   const reason = cleanNavisionText(window.prompt('Reason for clearing Parts STOPPAGE (recorded in audit history):', '') || '');
   if (!reason) return;
   const sharedTarget = await authenticatedPartsTarget(key, vehicle);
+  if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
     if (typeof service.setPartsStoppage !== 'function') {
@@ -16379,8 +16490,11 @@ async function clearVehiclePartsStoppage(key = '') {
     app.partsStoppageInFlight.add(vehicleId);
     try {
       const result = await service.setPartsStoppage(vehicleId, expectedVersion, 'clear', reason, crypto.randomUUID());
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshEmailVehicleLocations();
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshSharedVehicleWorkState(sharedVehicle);
+      if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       if (!result?.ok) {
         window.alert(result?.code === 'vehicle_version_conflict'
           ? 'This vehicle changed since the Parts row loaded. The latest shared row has been loaded; check it and try again.'
@@ -16391,7 +16505,7 @@ async function clearVehiclePartsStoppage(key = '') {
       renderPartsHome();
       return;
     } finally {
-      app.partsStoppageInFlight.delete(vehicleId);
+      if (!authority || pdcWriteAuthorityCurrent(authority)) app.partsStoppageInFlight.delete(vehicleId);
     }
   }
   if (vehicle.__emailVehicleServerAuthoritative === true) {
@@ -16595,23 +16709,32 @@ function rftVehicleDetailRow(vehicle = {}) {
 function beginRftTransportAction(key = '') {
   const actionKey = `rft:${String(key || '')}`;
   if (!String(key || '').trim()) return null;
+  const authority = capturePdcWriteAuthority();
+  if (!pdcWriteAuthorityCurrent(authority)) return null;
   if (!(app.rftTransportActionInFlight instanceof Set)) app.rftTransportActionInFlight = new Set();
+  if (!(app.rftTransportActionOwners instanceof Map)) app.rftTransportActionOwners = new Map();
   if (app.rftTransportActionInFlight.has(actionKey)) return null;
   const generation = Number(app.rftTransportActionGeneration || 0) + 1;
   app.rftTransportActionGeneration = generation;
   app.rftTransportActionInFlight.add(actionKey);
-  return { actionKey, generation };
+  const action = { actionKey, generation, authority };
+  app.rftTransportActionOwners.set(actionKey, action);
+  return action;
 }
 
 function rftTransportActionIsCurrent(action = null) {
   return Boolean(action
-    && Number(app.rftTransportActionGeneration || 0) === action.generation
+    && pdcWriteAuthorityCurrent(action.authority)
+    && app.rftTransportActionOwners?.get(action.actionKey) === action
     && app.rftTransportActionInFlight instanceof Set
     && app.rftTransportActionInFlight.has(action.actionKey));
 }
 
 function finishRftTransportAction(action = null) {
-  if (action && app.rftTransportActionInFlight instanceof Set) app.rftTransportActionInFlight.delete(action.actionKey);
+  if (action && app.rftTransportActionOwners?.get(action.actionKey) === action) {
+    app.rftTransportActionOwners.delete(action.actionKey);
+    app.rftTransportActionInFlight?.delete(action.actionKey);
+  }
 }
 
 async function markRftConfirmation(key = '', confirmed = false) {
@@ -17144,7 +17267,7 @@ function subscribeSharedNavisionVisibility() {
       if (generation !== app.sharedNavisionVisibleRealtimeGeneration || app.sharedNavisionVisibleRealtime !== channel) return;
       const revision = Number(payload?.new?.revision);
       if (!Number.isFinite(revision) || revision !== Number(app.sharedNavisionVisibleRevision)) {
-        if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true });
+        if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true, deferSupersede: true });
         else loadSharedNavisionVisibleRows({ force: true });
       }
     });
@@ -25004,8 +25127,21 @@ const SUBLET_SERVER_FIELD_MAP = Object.freeze({
 function queueSubletVehicleMutation(vehicleId = '', mutation) {
   const id = cleanNavisionText(vehicleId || '');
   if (!id || typeof mutation !== 'function') return Promise.resolve(false);
+  const actor = window.PDC_AUTH_CONTEXT?.userId;
+  const token = getPdcSupabaseAccessToken();
+  const service = app.emailVehicleLocationService;
+  const currentSession = () => !!actor && !!token && actor === window.PDC_AUTH_CONTEXT?.userId
+    && token === getPdcSupabaseAccessToken() && service === app.emailVehicleLocationService
+    && ['operator', 'administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
+  if (!currentSession()) return Promise.resolve(false);
   const previous = app.subletMutationQueues.get(id) || Promise.resolve();
-  const current = previous.catch(() => false).then(mutation);
+  const current = previous.catch(() => false).then(() => currentSession() ? mutation(currentSession) : false).catch(() => {
+    if (currentSession()) {
+      window.alert('The Sublet change could not be confirmed. Refresh Sublet and check the booking before retrying.');
+      renderSubletHome();
+    }
+    return false;
+  });
   app.subletMutationQueues.set(id, current);
   return current.finally(() => {
     if (app.subletMutationQueues.get(id) === current) app.subletMutationQueues.delete(id);
@@ -25058,7 +25194,7 @@ async function updateSubletField(key = '', field = '', value = '') {
       return false;
     }
     const bookingId = vehicle.__subletBookingId;
-    return queueSubletVehicleMutation(bookingId, async () => {
+    return queueSubletVehicleMutation(bookingId, async currentSession => {
       const current = subletVehicleByKey(bookingId);
       if (!current || current.__subletBookingStatus !== 'active') return false;
       let response;
@@ -25076,18 +25212,23 @@ async function updateSubletField(key = '', field = '', value = '') {
         const notes = field === 'pmbSubletNotes' ? cleanValue : null;
         response = await service.updateSubletBooking(bookingId, current.__subletBookingVersion, outDate, expectedReturnDate, notes);
       }
+      if (!currentSession()) return false;
       if (!response?.ok) {
         await refreshEmailVehicleLocations();
+        if (!currentSession()) return false;
         const message = response?.code === 'version_conflict'
-          ? 'This booking changed concurrently. The latest values were loaded; review and reapply your change.'
+          ? 'This booking changed concurrently. Refresh Sublet, review the current values and reapply your change.'
           : response?.code === 'sublet_booking_overlap'
             ? 'Those dates overlap another Sublet booking for this vehicle. No change was made.'
-            : `Shared canonical Sublet update failed: ${response?.code || 'unknown_error'}. No change was made.`;
+            : 'The Sublet change could not be confirmed. Refresh Sublet and check the booking before retrying.';
         window.alert(message);
         renderSubletHome();
         return false;
       }
-      await refreshEmailVehicleLocations();
+      let refreshed;
+      try { refreshed = await refreshEmailVehicleLocations(); } catch (_error) { refreshed = false; }
+      if (!currentSession()) return false;
+      if (refreshed === false) window.alert('The booking was saved, but its current details could not be refreshed. Refresh Sublet before making another change.');
       renderSubletHome();
       return true;
     });
@@ -25113,7 +25254,7 @@ async function setSubletReturned(key = '', returned = false, referenceDate = new
     const service = app.emailVehicleLocationService;
     if (!service?.returnSubletBooking) return false;
     const bookingId = vehicle.__subletBookingId;
-    return queueSubletVehicleMutation(bookingId, async () => {
+    return queueSubletVehicleMutation(bookingId, async currentSession => {
       const current = subletVehicleByKey(bookingId);
       if (!current) return false;
       const businessDate = subletTodayDateKey(referenceDate instanceof Date ? referenceDate : new Date());
@@ -25124,18 +25265,23 @@ async function setSubletReturned(key = '', returned = false, referenceDate = new
         return false;
       }
       const response = await service.returnSubletBooking(bookingId, current.__subletBookingVersion, `${businessDate}T12:00:00+08:00`);
+      if (!currentSession()) return false;
       if (!response?.ok) {
         await refreshEmailVehicleLocations();
+        if (!currentSession()) return false;
         const message = response?.code === 'version_conflict'
-          ? 'This booking changed concurrently. The latest booking was loaded.'
+          ? 'This booking changed concurrently. Refresh Sublet and check its current status before marking it Back again.'
           : response?.code === 'invalid_return'
             ? 'This booking cannot be marked Back before its Going Out date. Correct the Going Out date first.'
-            : `Return failed: ${response?.code || 'unknown_error'}. No change was made.`;
+            : 'The return could not be confirmed. Refresh Sublet and check whether this booking is marked Back before retrying.';
         window.alert(message);
         renderSubletHome();
         return false;
       }
-      await refreshEmailVehicleLocations();
+      let refreshed;
+      try { refreshed = await refreshEmailVehicleLocations(); } catch (_error) { refreshed = false; }
+      if (!currentSession()) return false;
+      if (refreshed === false) window.alert('The return was saved, but the booking could not be refreshed. Refresh Sublet before making another change.');
       renderSubletHome();
       return true;
     });
@@ -25312,8 +25458,10 @@ async function submitSubletCreate(event) {
     }
     closeSubletCreateDialog();
     const completedGeneration = subletCreateSession.generation;
-    await refreshEmailVehicleLocations();
+    let refreshed;
+    try { refreshed = await refreshEmailVehicleLocations(); } catch (_error) { refreshed = false; }
     if (sameSession() && subletCreateSession.generation === completedGeneration && !dialog.open) {
+      if (refreshed === false) window.alert('The booking was created, but the list could not be refreshed. Refresh Sublet before creating another booking for this requirement.');
       app.subletOperationalFilter = 'booked';
       renderSubletHome();
     }
@@ -25394,6 +25542,7 @@ function renderSubletHome() {
     const expanded = app.subletExpandedRows.has(key);
     const state = subletBookingState(vehicle);
     const returned = state === 'returned';
+    const canonical = vehicle.__emailVehicleServerAuthoritative === true;
     const overdue = subletIsOverdue(vehicle);
     const statusLabel = returned ? 'Returned' : (subletAwayOnDate(vehicle, subletTodayDateKey()) ? 'Away on Sublet' : (state === 'booked' ? 'Sublet Booked' : 'Sublet To Book'));
     return `<tr class="sublet-row sublet-summary-row ${overdue ? 'is-overdue' : ''} ${expanded ? 'is-expanded' : ''}">
@@ -25411,10 +25560,10 @@ function renderSubletHome() {
       <td><span class="sublet-status-pill is-${escapeHtml(state)} ${overdue ? 'is-overdue' : ''}">${escapeHtml(overdue ? 'OVERDUE' : statusLabel)}</span></td>
       <td class="sublet-row-actions"><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleOpenKey)}">Open vehicle</button></td>
     </tr>${expanded ? `<tr class="sublet-detail-row"><td colspan="13"><div class="sublet-detail-grid">
-      <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(subletProviderContact(vehicle).email)}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}"></label>
-      <label><span>Actual return</span><input type="date" aria-label="Actual Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}"></label>
-      <label class="sublet-notes-field"><span>Notes</span><textarea rows="2" aria-label="Sublet notes for ${accessibleStock}" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}">${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea></label>
-      <label class="sublet-email-check"><input type="checkbox" data-sublet-email-sent="${escapeHtml(key)}" ${vehicle.pmbSubletEmailSent ? 'checked' : ''}> Provider email sent</label>
+      <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(subletProviderContact(vehicle).email)}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}" ${canonical&&returned?'disabled title="Returned booking history is read-only"':''}></label>
+      <label><span>Actual return</span><input type="date" aria-label="Actual Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletActualReturnDate))}" data-sublet-field="pmbSubletActualReturnDate" data-sublet-key="${escapeHtml(key)}" ${canonical?'disabled title="Use Back to record the vehicle’s return"':''}></label>
+      <label class="sublet-notes-field"><span>Notes</span><textarea rows="2" aria-label="Sublet notes for ${accessibleStock}" data-sublet-field="pmbSubletNotes" data-sublet-key="${escapeHtml(key)}" ${canonical&&returned?'disabled title="Returned booking history is read-only"':''}>${escapeHtml(vehicle.pmbSubletNotes || '')}</textarea></label>
+      <label class="sublet-email-check"><input type="checkbox" data-sublet-email-sent="${escapeHtml(key)}" ${vehicle.pmbSubletEmailSent ? 'checked' : ''} ${canonical?'disabled title="Email sending is recorded by the shared booking service"':''}> Provider email sent</label>
       <div class="sublet-detail-actions"><button class="small-button" type="button" data-sublet-provider-email="${escapeHtml(key)}">Draft provider email</button><button class="small-button" type="button" data-sublet-sales-email="${escapeHtml(key)}">Draft sales update</button></div>
     </div></td></tr>` : ''}`;
   }).join('')}</tbody></table></div>`;

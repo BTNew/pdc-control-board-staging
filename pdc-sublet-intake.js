@@ -188,9 +188,17 @@
     const result=oldRender(...args);
     const host=document.getElementById('sublet-home-content');
     if(!host)return result;
+    // Project the queue once. Looking up each displayed row through
+    // subletVehicleByKey rebuilds every vehicle's requirements every time.
+    const vehiclesByKey=new Map();
+    subletRows().forEach(vehicle=>{
+      [vehicle.__subletBookingId,vehicle.__subletOperationKey,vehicleKey(vehicle)].filter(Boolean).forEach(key=>{
+        if(!vehiclesByKey.has(key))vehiclesByKey.set(key,vehicle);
+      });
+    });
     host.querySelectorAll('.sublet-summary-row').forEach(row=>{
       const key=row.querySelector('[data-sublet-toggle]')?.dataset.subletToggle;
-      const vehicle=subletVehicleByKey(key);
+      const vehicle=vehiclesByKey.get(key);
       if(!vehicle)return;
       row.querySelector('.sublet-work-required')?.insertAdjacentHTML('beforeend',detailsHtml(vehicle));
       if(!row.querySelector('.sublet-status-pill.is-to-book'))return;

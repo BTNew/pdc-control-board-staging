@@ -12282,7 +12282,22 @@ html[data-row-width="xl"] {
   .topbar-actions button { min-height: 44px !important; white-space: nowrap; }
 }
 
-/* Control Board is a read-only PMB work overview; bay scheduling lives in Workshop Planner. */
+/* Control Board shows eligible workshop work; bay scheduling lives in Workshop Planner. */
+#workflow .workshop-connection-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  font-size: .8rem;
+  line-height: 1.4;
+}
+#workflow .workshop-connection-banner.connected { border-color: #86d7aa; background: #ecfdf3; }
+#workflow .workshop-connection-banner.offline_error,
+#workflow .workshop-connection-banner.permission_denied { border-color: #f59e0b; background: #fffbeb; }
 .control-board-station-list { display: grid; gap: 8px; }
 .control-board-station-row { border-left-width: 5px !important; }
 .control-board-station-row .workflow-bucket-title {
@@ -12299,6 +12314,7 @@ html[data-row-width="xl"] {
 .control-board-pipeline-segment { min-width: 24px; flex: var(--pipeline-weight) 1 0; display: grid; place-items: center; color: #fff; font-size: .58rem; line-height: 1; }
 .control-board-pipeline-segment.is-it { background: #eab308; }
 .control-board-pipeline-segment.is-waiting { background: #3b82f6; }
+.control-board-pipeline-segment.is-yard-hold { background: #ea580c; }
 .control-board-pipeline-segment.is-bays { background: #8b5cf6; }
 .control-board-pipeline-segment.is-stoppage { background: #dc2626; }
 .control-board-pipeline-segment.is-complete { background: #16a34a; }
@@ -12310,6 +12326,7 @@ html[data-row-width="xl"] {
 .control-board-pipeline-legend small { color: #64748b; font-size: .5rem; }
 .control-board-pipeline-legend .is-it { color: #ca8a04; }
 .control-board-pipeline-legend .is-waiting { color: #2563eb; }
+.control-board-pipeline-legend .is-yard-hold { color: #c2410c; }
 .control-board-pipeline-legend .is-bays { color: #7c3aed; }
 .control-board-pipeline-legend .is-stoppage { color: #dc2626; }
 .control-board-pipeline-legend .is-complete { color: #15803d; }
@@ -12354,6 +12371,15 @@ html[data-row-width="xl"] {
 }
 .control-board-work-identity .pmb-identity-stack,
 .control-board-work-identity .incoming-identity { margin: 0; }
+#workflow .control-board-work-vehicle {
+  grid-template-columns: minmax(235px, 1.3fr) minmax(100px, 1fr) minmax(160px, 1.5fr) minmax(90px, .8fr) 65px minmax(95px, .8fr);
+  column-gap: 12px;
+}
+#workflow .control-board-work-vehicle > * { min-width: 0; }
+#workflow .control-board-work-identity .vehicle-identity-no-name {
+  --pdc-identity-template: 38px minmax(75px, 1fr) minmax(96px, 1.2fr);
+}
+#workflow .control-board-work-vehicle > .badge { white-space: normal; }
 .control-board-work-main,
 .control-board-work-customer,
 .control-board-work-location,

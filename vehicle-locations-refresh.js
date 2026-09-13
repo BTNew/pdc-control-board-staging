@@ -16,6 +16,32 @@ function createPdcOperationalRefreshCoordinator(options = {}) {
   const onFinish = typeof options.onFinish === 'function' ? options.onFinish : () => {};
   let generation = 0;
   let inFlight = null;
+  let queuedRefresh = null;
+
+  // A slow network can deliver revisions faster than snapshots complete.
+  // Keep one trailing refresh instead of running a full board load for each
+  // event. It starts after the current read, so it includes the newest write.
+  function queueLatest(refreshOptions) {
+    if (queuedRefresh) {
+      queuedRefresh.options = refreshOptions;
+      return queuedRefresh.promise;
+    }
+    const queued = { options: refreshOptions };
+    queued.promise = new Promise(resolve => { queued.resolve = resolve; });
+    queuedRefresh = queued;
+    return queued.promise;
+  }
+
+  function startQueuedRefresh() {
+    const queued = queuedRefresh;
+    if (!queued || inFlight) return;
+    queuedRefresh = null;
+    // Explicit route changes that occurred during a background refresh win.
+    const activeRoute = String(getRoute() || '');
+    const route = routeAdapters[activeRoute] ? activeRoute : queued.options.route;
+    refresh({ ...queued.options, route, deferSupersede: false }).then(queued.resolve,
+      error => queued.resolve({ ok: false, error: error?.message || 'refresh_failed' }));
+  }
 
   function isCurrent(candidate) {
     return Number(candidate) === generation;
@@ -27,6 +53,7 @@ function createPdcOperationalRefreshCoordinator(options = {}) {
 
   function refresh(refreshOptions = {}) {
     const supersede = refreshOptions?.supersede === true;
+    if (inFlight && supersede && refreshOptions?.deferSupersede === true) return queueLatest(refreshOptions);
     if (inFlight && !supersede) return inFlight;
     const route = String(refreshOptions?.route || getRoute() || 'dashboard').trim() || 'dashboard';
     const currentGeneration = ++generation;
@@ -70,7 +97,10 @@ function createPdcOperationalRefreshCoordinator(options = {}) {
       onFinish(result);
       return result;
     }).finally(() => {
-      if (inFlight === promise) inFlight = null;
+      if (inFlight === promise) {
+        inFlight = null;
+        startQueuedRefresh();
+      }
     });
     inFlight = promise;
     return promise;
@@ -79,6 +109,8 @@ function createPdcOperationalRefreshCoordinator(options = {}) {
   function invalidate() {
     generation += 1;
     inFlight = null;
+    if (queuedRefresh) queuedRefresh.resolve({ ok: false, stale: true, generation });
+    queuedRefresh = null;
     return generation;
   }
 
