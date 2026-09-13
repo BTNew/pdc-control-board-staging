@@ -11,12 +11,25 @@ function context() {
     partsWorstEtaDaysUntil:v=>v.days,
     isActivePartsStoppage:v=>v.stoppage===true,
     escapeHtml:s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),
+    incomingWorkChecklistHtml:v=>'<span class="incoming-work-check parts-jita-split imported-parts-green"><span>✓</span><span class="parts-jita-marker">'+(v.jita?'✓':'●')+'</span></span>',
     partsQueueRowHtml:()=>'<tr><td><span class="parts-status-pill parts-status-ordered">Parts outstanding</span></td></tr>'};
   vm.createContext(c);vm.runInContext(fs.readFileSync('pdc-parts-confirmation.js','utf8'),c);return c;
 }
 test('a legacy received tick cannot hide an active R/O backorder',()=>{
   const c=context(); assert.equal(c.partsStateComplete({pdcPartsReceived:true,pdcPartsFlags:{feed:'separate_parts_status',parts_complete:false,colour:'orange'}}),false);
   assert.equal(c.partsDepartmentStatusClass('import:Parts outstanding — see job cards'),'parts-status-ordered');
+});
+
+test('person-confirmed outline is distinct from imported green and preserves JITA evidence',()=>{
+  const c=context();
+  const v={pdcPartsFlags:{parts_complete:true,override_source:'authorised_email_confirmation',confirmed_at:'2026-09-13T00:00:00Z',confirmed_by_name:'Test Person'}};
+  assert.match(c.incomingWorkChecklistHtml(v),/person-confirmed-parts/);
+  assert.match(c.incomingWorkChecklistHtml(v),/parts-jita-marker">●/);
+  assert.match(c.incomingWorkChecklistHtml({...v,jita:true}),/parts-jita-marker">✓/);
+  assert.doesNotMatch(c.incomingWorkChecklistHtml({pdcPartsFlags:{parts_complete:true,colour:'green'}}),/person-confirmed-parts/);
+  assert.match(c.importedPartsTitle(v),/A person confirmed the parts are here/);
+  assert.match(c.partsLastUpdateLabel(v),/Confirmed by Test Person/);
+  assert.equal(c.partsDepartmentStatusClass('import:Parts complete — person confirmed'),'parts-status-complete');
 });
 test('all-active-job readiness supplies the green tick',()=>{
   const c=context();assert.equal(c.partsStateComplete({pdcPartsFlags:{feed:'separate_parts_status',parts_complete:true}}),true);
