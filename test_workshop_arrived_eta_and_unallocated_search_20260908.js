@@ -99,7 +99,7 @@ const context = {
   displayStockNumber: vehicle => vehicle.stockNumber,
 };
 vm.createContext(context);
-vm.runInContext(`${extractFunction('workshopSearchMatches')}\nthis.search = workshopSearchMatches;`, context);
+vm.runInContext(`${extractFunction('workshopSearchMatchRows')}\n${extractFunction('workshopSearchMatches')}\nthis.search = workshopSearchMatches;`, context);
 
 const plans = [
   { id: 'booking-1', sharedVehicleId: bookedVehicle.id, vehicleKey: bookedVehicle.stock_number, status: 'planned', startAt: '2026-09-10T08:00:00+08:00' },

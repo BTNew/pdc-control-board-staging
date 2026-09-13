@@ -36,7 +36,10 @@ test('Rejected Admin rename reloads original description and never reports succe
 });
 test('Versioned data service is loaded once before app initialization',()=>{
  const html=fs.readFileSync('index.html','utf8');
- assert.match(html,/id="workshop-data-service-script" data-loaded="true" src="workshop-data-service.js\?v=2026.09.10.02-admin-rename"/);
+ const scripts=[...html.matchAll(/<script id="workshop-data-service-script" data-loaded="true" src="(workshop-data-service.js\?[^\"]+)"/g)];
+ assert.equal(scripts.length,1);
+ const url=new URL(scripts[0][1].replace(/&amp;/g,'&'),'https://fixture.test/');
+ assert.equal(url.searchParams.get('v'),'2026.09.10.02-admin-rename');
+ assert.equal(url.searchParams.get('review-fixes'),'2026.09.13.01');
  assert.ok(html.indexOf('id="workshop-data-service-script"')<html.indexOf('<script src="app.js?'));
 });
-

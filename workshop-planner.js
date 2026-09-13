@@ -558,17 +558,27 @@ function workshopEntrySegmentForDate(entry = {}, dateKey = '', now = new Date())
   let dayStart = workshopDateFromKey(dateKey);
   if (!dayStart || !workshopIsConfiguredWorkingDay(dayStart)) return null;
   dayStart = workshopSetClock(dayStart, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
-  const dayEnd = workshopSetClock(dayStart, WORKSHOP_PLANNER_CONFIG.dayEndMinutes);
+  let dayEnd = workshopSetClock(dayStart, WORKSHOP_PLANNER_CONFIG.dayEndMinutes);
+  // A short working day uses the same timeline scale as weekdays, but its
+  // continuation card must stop at that day's actual opening/closing times.
+  // Keep recorded closure history visible using the original display envelope.
+  if (!workshopIsClosureDate(dayStart)) {
+    const windows = workshopAvailabilityWindowsForDate(dayStart);
+    if (!windows.length) return null;
+    dayStart = workshopSetClock(dayStart, Math.max(WORKSHOP_PLANNER_CONFIG.dayStartMinutes, windows[0].startMinutes));
+    dayEnd = workshopSetClock(dayEnd, Math.min(WORKSHOP_PLANNER_CONFIG.dayEndMinutes, windows[windows.length - 1].endMinutes));
+  }
   const start = workshopEntryStart(entry);
   const end = workshopEntryEffectiveEnd(entry, now);
   if (end <= dayStart || start >= dayEnd) return null;
   const segmentStart = start > dayStart ? start : dayStart;
   const segmentEnd = end < dayEnd ? end : dayEnd;
   const startMinutes = Math.max(0, workshopMinuteOffset(segmentStart));
-  const endMinutes = Math.min(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes, segmentEnd >= dayEnd ? WORKSHOP_PLANNER_CONFIG.dayLengthMinutes : workshopMinuteOffset(segmentEnd));
+  const displayEndMinutes = workshopMinuteOffset(dayEnd);
+  const endMinutes = Math.min(displayEndMinutes, workshopMinuteOffset(segmentEnd));
   return {
     start: startMinutes,
-    end: Math.max(startMinutes + WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes, endMinutes),
+    end: Math.min(displayEndMinutes, Math.max(startMinutes + WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes, endMinutes)),
     continuesFromPrevious: start < dayStart,
     continuesNext: end > dayEnd,
     historicalOnClosure: workshopIsClosureDate(dayStart),
@@ -3131,8 +3141,13 @@ function workshopBookingsForEntry(plans = [], entry = {}) {
 }
 
 function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
+  return workshopSearchMatchRows(query, plans);
+}
+
+function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), options = {}) {
   const clean = cleanNavisionText(query || '').toLowerCase();
   if (clean.length < 2) return [];
+  const lookup = options.ignoreLookup || typeof workshopCurrentSearchLookup !== 'function' ? null : workshopCurrentSearchLookup(query);
   const snapshot = window.__workshopDataService?.getTrustedSnapshot?.();
   const snapshotWorkItems = Array.isArray(snapshot?.work_items) ? snapshot.work_items : [];
   const snapshotRows = (Array.isArray(snapshot?.vehicles) ? snapshot.vehicles : [])
@@ -3150,9 +3165,18 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
     .map(vehicle => {
       const key = vehicleKey(vehicle);
       const sharedRef = workshopSharedModeActive() ? workshopSharedVehicleRef({ vehicleKey: key, sharedVehicleId: vehicle.sharedVehicleId || (vehicle.__emailVehicleServerAuthoritative === true ? vehicle.__emailVehicleId : '') }) : null;
-      const vehicleIdentity = sharedRef?.vehicleId ? `shared:${sharedRef.vehicleId}` : `legacy:${key}`;
-      const bookings = workshopSortBookingsClosest((Array.isArray(plans) ? plans : []).filter(entry => (
-        entry.status !== 'completed' && workshopPlanVehicleIdentity(entry) === vehicleIdentity
+      // A Board projection can hold a verified vehicle that is absent from this
+      // station snapshot. Its UUID authorizes only this scoped read request;
+      // navigation still verifies the exact booking in a fresh target snapshot.
+      const projectedId = vehicle.__emailVehicleServerAuthoritative === true
+        ? String(vehicle.__emailVehicleId || '').trim()
+        : snapshotRows.some(row => row === vehicle) ? String(vehicle.sharedVehicleId || vehicle.id || '').trim() : '';
+      const canonicalId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectedId) ? projectedId : sharedRef?.vehicleId;
+      const vehicleIdentity = canonicalId ? `shared:${canonicalId}` : `legacy:${key}`;
+      const remote = lookup?.status === 'ready' ? lookup.matches.get(vehicleIdentity) : null;
+      const bookingRows = remote?.ok ? remote.bookings : (Array.isArray(plans) ? plans : []);
+      const bookings = workshopSortBookingsClosest(bookingRows.filter(entry => (
+        !['completed', 'deleted', 'cancelled'].includes(entry.status) && workshopPlanVehicleIdentity(entry) === vehicleIdentity
       )));
       const candidateAuthority = sharedRef?.vehicleId
         ? (Array.isArray(snapshot?.outstanding_candidates) ? snapshot.outstanding_candidates : []).find(candidate => (
@@ -3167,18 +3191,88 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
         rank: workshopSearchRank(vehicle, clean),
         archived: Boolean(vehicle.isArchived || vehicle.archivedAt || statusCategory(vehicle) === 'deleted'),
         bookings,
+        bookingLookupError: remote && !remote.ok ? remote.error || 'request_failed' : '',
         candidateInLane: Boolean(candidateAuthority),
-        candidateAvailable: candidateAuthority?.schedule_enabled === true,
+        candidateAvailable: candidateAuthority?.schedule_enabled === true && candidateAuthority?.existing_booking !== true,
         candidateDisabledReason: candidateAuthority?.disabled_reason || '',
       };
     })
-    .filter(item => item.bookings.length || item.candidateInLane)
+    .filter(item => options.ignoreLookup || !lookup?.limited || lookup.matches.has(item.vehicleIdentity))
+    .filter(item => options.includeUnmatched || item.bookings.length || item.candidateInLane || item.bookingLookupError)
     // Board and station projections can use different local keys for the same
     // canonical vehicle. Collapse only the resolved identity, never the stock.
     .filter((item, index, matches) => matches.findIndex(other => other.vehicleIdentity === item.vehicleIdentity) === index)
     .sort((a, b) => a.rank - b.rank
       || String(displayStockNumber(a.vehicle) || a.vehicleKey).localeCompare(String(displayStockNumber(b.vehicle) || b.vehicleKey))
       || a.vehicleKey.localeCompare(b.vehicleKey));
+}
+
+
+// Search owns a separate read-only booking lookup. Its results never enter the
+// station snapshot or become scheduling authority for the visible board.
+function workshopCurrentSearchLookup(query = '') {
+  const lookup = workshopState().bookingSearchLookup;
+  const service = window.__workshopDataService;
+  return lookup && lookup.snapshot && lookup.service === service
+    && lookup.query === cleanNavisionText(query || '').toLowerCase()
+    && lookup.snapshot === service?.getTrustedSnapshot?.() ? lookup : null;
+}
+
+function workshopMapSearchBookings(result = {}, vehicle = {}) {
+  const vehicleId = String(result.vehicleId || '').trim();
+  if (!result.ok || !vehicleId || !Array.isArray(result.bookings)) return [];
+  return result.bookings.filter(booking => ['planned', 'queued', 'started', 'stoppage'].includes(booking.status))
+    .map(booking => workshopMapSnapshotBookingToLegacyRow({
+      ...booking,
+      vehicle_id: vehicleId,
+      vehicle: { id: vehicleId, stock_number: displayStockNumber(vehicle) || vehicleId },
+      version: booking.booking_version,
+      stage: { code: booking.stage_code },
+      bay: { bay_number: booking.bay_number },
+    }))
+    .filter(entry => entry && WORKSHOP_STAGE_SEQUENCE.includes(entry.stage)
+      && entry.bay > 0 && parseIsoTimestamp(entry.startAt || ''));
+}
+
+async function workshopLookupSearchVehicle(match = {}) {
+  const service = window.__workshopDataService;
+  const vehicleId = String(match.vehicleIdentity || '').startsWith('shared:') ? match.vehicleIdentity.slice(7) : '';
+  const dealerCode = typeof vehicleWorkshopDetailRequestDealerCode === 'function'
+    ? vehicleWorkshopDetailRequestDealerCode(match.vehicle || {}, window.PDC_SUPABASE_CONFIG || {}) : '';
+  if (!vehicleId || !dealerCode || typeof service?.lookupVehicleBookings !== 'function') return { ok: false, error: 'booking_lookup_unavailable' };
+  try {
+    const result = await service.lookupVehicleBookings(vehicleId, dealerCode);
+    if (!result?.ok || result.vehicleId !== vehicleId) return { ok: false, error: result?.error || 'booking_lookup_unavailable' };
+    return { ok: true, bookings: workshopMapSearchBookings(result, match.vehicle) };
+  } catch (_error) {
+    return { ok: false, error: 'request_failed' };
+  }
+}
+
+async function workshopLoadSearchBookings(query = '') {
+  const state = workshopState();
+  const service = window.__workshopDataService;
+  if (!workshopSharedModeActive() || typeof service?.lookupVehicleBookings !== 'function') return;
+  if (!service.getTrustedSnapshot?.()) { state.bookingSearchLookup = null; return; }
+  const clean = cleanNavisionText(query || '').toLowerCase();
+  if (clean.length < 2) { state.bookingSearchLookup = null; return; }
+  const current = workshopCurrentSearchLookup(clean);
+  if (current?.status === 'loading' || current?.status === 'ready') return current.promise;
+  const candidates = workshopSearchMatchRows(clean, workshopLoadPlans(), { includeUnmatched: true, ignoreLookup: true });
+  const lookup = { query: clean, service, snapshot: service.getTrustedSnapshot?.(), status: 'loading', matches: new Map(), limited: candidates.length > 25 };
+  state.bookingSearchLookup = lookup;
+  lookup.promise = (async () => {
+    const selected = candidates.slice(0, 25);
+    for (let index = 0; index < selected.length; index += 4) {
+      if (state.bookingSearchLookup !== lookup || state.search.toLowerCase() !== clean || window.__workshopDataService !== service) return;
+      const batch = selected.slice(index, index + 4);
+      const results = await Promise.all(batch.map(match => workshopLookupSearchVehicle(match)));
+      batch.forEach((match, offset) => lookup.matches.set(match.vehicleIdentity, results[offset]));
+    }
+    if (state.bookingSearchLookup !== lookup || state.search.toLowerCase() !== clean || window.__workshopDataService !== service) return;
+    lookup.status = 'ready';
+  })();
+  return lookup.promise;
 }
 
 function workshopBookingSearchStatus(entry = {}) {
@@ -3198,6 +3292,10 @@ function workshopBookingSearchMeta(entry = {}) {
 }
 
 function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
+  const lookupRequired = workshopSharedModeActive() && typeof window.__workshopDataService?.lookupVehicleBookings === 'function';
+  const lookup = workshopCurrentSearchLookup(query);
+  if (lookupRequired && !window.__workshopDataService?.getTrustedSnapshot?.()) return '<div class="workshop-search-state" role="status"><strong>Bookings temporarily unavailable</strong><span>Waiting for the workshop connection to refresh.</span></div>';
+  if (lookupRequired && (!lookup || lookup.status !== 'ready')) return '<div class="workshop-search-state" role="status"><strong>Finding bookings…</strong><span>Checking this vehicle across all workshop stations and dates.</span></div>';
   const matches = workshopSearchMatches(query, plans);
   if (cleanNavisionText(query || '').length < 2) return '';
   if (!matches.length) return '<div class="workshop-search-state" role="status"><strong>No booking found</strong><span>No vehicle matched that key, stock, job card, customer or vehicle description.</span></div>';
@@ -3214,6 +3312,7 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
       description: displayVehicle(vehicle) || 'Vehicle description unavailable',
     };
     const archived = match.archived ? '<span class="workshop-search-alert">Archived vehicle</span>' : '';
+    if (match.bookingLookupError) return `<article class="workshop-search-result" aria-disabled="true"><span class="workshop-search-result-vehicle"><strong>Stock ${escapeHtml(identity.stock)} · ${escapeHtml(identity.customer)}</strong></span><span class="workshop-search-result-state"><strong>Bookings could not be checked</strong><span>Refresh the search to try again.</span></span></article>`;
     if (!match.bookings.length) {
       if (!match.candidateAvailable || match.archived) {
         const reason = match.archived
@@ -3239,7 +3338,8 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
       </button>`;
     }).join('');
   }).join('');
-  return `${ambiguous}<div class="workshop-search-results-list">${rows}</div>`;
+  const limitNotice = lookup?.limited ? '<div class="workshop-search-state" role="status">Showing the first 25 matching vehicles. Refine the search for another vehicle.</div>' : '';
+  return `${ambiguous}${limitNotice}<div class="workshop-search-results-list">${rows}</div>`;
 }
 
 function workshopSearchControlHtml(query = '', plans = workshopLoadPlans()) {
@@ -3252,6 +3352,7 @@ function workshopSearchControlHtml(query = '', plans = workshopLoadPlans()) {
 }
 
 function workshopScrollToHighlightedVehicle(root = document) {
+  if (app.pendingWorkshopBookingLink?.search === true) return;
   const state = workshopState();
   const key = state.highlightVehicleKey;
   const planId = state.searchHighlightPlanId;
@@ -3259,7 +3360,7 @@ function workshopScrollToHighlightedVehicle(root = document) {
   window.requestAnimationFrame(() => {
     const bookingTarget = planId ? Array.from(root.querySelectorAll('[data-workshop-plan-id]')).find(element => element.dataset.workshopPlanId === planId) : null;
     const vehicleTarget = key ? Array.from(root.querySelectorAll('[data-workshop-locate-key]')).find(element => element.dataset.workshopLocateKey === key) : null;
-    const target = bookingTarget || vehicleTarget;
+    const target = planId ? bookingTarget : vehicleTarget;
     target?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'auto' : 'smooth', block: 'center', inline: 'center' });
     if (target && window.WorkshopNavigation?.replaceWorkshopHighlight) {
       window.WorkshopNavigation.replaceWorkshopHighlight(root, target, {
@@ -3283,28 +3384,63 @@ function workshopScrollToHighlightedVehicle(root = document) {
   });
 }
 
-function workshopSelectSearchBooking(bookingId = '', vehicleIdentity = '') {
+async function workshopSelectSearchBooking(bookingId = '', vehicleIdentity = '') {
   window.clearTimeout(app.workshopPlannerSearchTimer);
   const state = workshopState();
-  const plans = workshopLoadPlans();
+  const query = state.search;
+  const selectionGeneration = state.bookingSearchSelectionGeneration = (state.bookingSearchSelectionGeneration || 0) + 1;
+  state.bookingNavigationError = '';
+  let plans = workshopLoadPlans();
+  if (workshopSharedModeActive() && typeof window.__workshopDataService?.lookupVehicleBookings === 'function') {
+    const service = window.__workshopDataService;
+    const match = workshopSearchMatchRows(state.search, plans, { includeUnmatched: true }).find(item => item.vehicleIdentity === vehicleIdentity);
+    if (!match) return false;
+    const result = await workshopLookupSearchVehicle(match);
+    if (window.__workshopDataService !== service || state.search !== query || state.bookingSearchSelectionGeneration !== selectionGeneration) return false;
+    if (!result.ok) {
+      state.bookingNavigationError = 'This booking could not be checked. Please search again.';
+      renderWorkshopPlanner();
+      return false;
+    }
+    plans = result.bookings;
+  }
   const entry = workshopResolveBookingSelection(plans, bookingId, vehicleIdentity);
   if (!entry) {
+    state.bookingSearchLookup = null;
     state.searchOpen = true;
-    renderWorkshopPlanner();
+    workshopRefreshSearchResults(document.querySelector('#workshop-planner-root') || document, null, state.search);
     return false;
   }
-  const bookings = workshopSortBookingsClosest(workshopBookingsForEntry(plans, entry));
   state.stage = entry.stage;
   state.date = workshopEntryDate(entry);
   state.selectedPlanId = entry.id;
   state.highlightVehicleKey = entry.vehicleKey;
   state.searchHighlightPlanId = entry.id;
   state.searchOpen = false;
-  state.detailCollapsedForSelection = false;
-  state.detailManualOpen = true;
-  state.searchNotice = bookings.length > 1 ? `This vehicle has ${bookings.length} bookings. Showing the selected booking.` : '';
+  state.detailCollapsedForSelection = true;
+  state.detailManualOpen = false;
+  state.searchNotice = '';
+  state.focusedBookingMode = false;
+  state.focusedBookingId = '';
   workshopSaveView(state);
-  renderWorkshopPlanner();
+  if (workshopSharedModeActive()) {
+    app.pendingWorkshopOpenToday = false;
+    app.pendingWorkshopBookingLink = { bookingId: entry.id, vehicleId: entry.sharedVehicleId, stage: entry.stage, date: state.date, search: true, focused: false };
+    const dedicatedStage = normalizePmbStage(window.__activeWorkshopPlannerStage || '');
+    if (dedicatedStage !== entry.stage && typeof openWorkshopPlannerForStage === 'function') {
+      openWorkshopPlannerForStage(entry.stage);
+    } else {
+      const service = window.__workshopDataService;
+      const scope = service?.getScope?.();
+      if (scope?.stageCode === entry.stage && scope?.dateFrom === state.date && scope?.dateTo === state.date) {
+        await service.loadSnapshot?.('booking_search_navigation');
+      } else {
+        await service?.setScope?.({ stageCode: entry.stage, dateFrom: state.date, dateTo: state.date });
+      }
+      if (window.__workshopDataService !== service || state.bookingSearchSelectionGeneration !== selectionGeneration) return false;
+      renderWorkshopPlanner();
+    }
+  } else renderWorkshopPlanner();
   return true;
 }
 
@@ -3369,7 +3505,9 @@ function workshopRevealSearchMatch(query = '') {
   const state = workshopState();
   state.search = cleanNavisionText(query || '');
   state.searchOpen = state.search.length >= 2;
+  state.bookingNavigationError = '';
   if (!state.search) {
+    state.bookingSearchLookup = null;
     state.highlightVehicleKey = '';
     state.searchHighlightPlanId = '';
     state.searchNotice = '';
@@ -3379,22 +3517,36 @@ function workshopRevealSearchMatch(query = '') {
 
 function workshopBindSearchResultButtons(root = document) {
   root.querySelectorAll('[data-workshop-search-booking-id]').forEach(button => button.addEventListener('click', () => {
-    workshopSelectSearchBooking(button.dataset.workshopSearchBookingId, button.dataset.workshopSearchVehicleIdentity);
-    workshopScrollToHighlightedVehicle(root);
+    void workshopSelectSearchBooking(button.dataset.workshopSearchBookingId, button.dataset.workshopSearchVehicleIdentity);
   }));
   root.querySelectorAll('[data-workshop-search-unbooked-identity]').forEach(button => button.addEventListener('click', () => {
-    workshopSelectUnbookedSearchVehicle(button.dataset.workshopSearchUnbookedIdentity);
-    workshopScrollToHighlightedVehicle(root);
+    void workshopSelectUnbookedSearchVehicle(button.dataset.workshopSearchUnbookedIdentity);
   }));
 }
 
-function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
+async function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
   const state = workshopState();
+  const selectionGeneration = state.bookingSearchSelectionGeneration = (state.bookingSearchSelectionGeneration || 0) + 1;
   const match = workshopSearchMatches(state.search, workshopLoadPlans()).find(item => item.vehicleIdentity === vehicleIdentity && !item.bookings.length && item.candidateAvailable && !item.archived);
   if (!match) {
     state.searchOpen = true;
     renderWorkshopPlanner();
     return false;
+  }
+  if (workshopSharedModeActive() && typeof window.__workshopDataService?.lookupVehicleBookings === 'function') {
+    const service = window.__workshopDataService;
+    const query = state.search;
+    const result = await workshopLookupSearchVehicle(match);
+    if (window.__workshopDataService !== service || state.search !== query || state.bookingSearchSelectionGeneration !== selectionGeneration) return false;
+    if (!result.ok) {
+      state.bookingNavigationError = 'This vehicle’s bookings could not be checked. Please search again.';
+      renderWorkshopPlanner();
+      return false;
+    }
+    if (result.bookings.length) {
+      const closest = workshopSortBookingsClosest(result.bookings)[0];
+      return workshopSelectSearchBooking(closest.id, vehicleIdentity);
+    }
   }
   state.highlightVehicleKey = match.vehicleKey;
   state.searchHighlightPlanId = '';
@@ -3408,7 +3560,7 @@ function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
   return true;
 }
 
-function workshopRefreshSearchResults(root = document, input = null, query = '') {
+async function workshopRefreshSearchResults(root = document, input = null, query = '') {
   const state = workshopState();
   state.search = cleanNavisionText(query || '');
   state.searchOpen = state.search.length >= 2;
@@ -3423,6 +3575,13 @@ function workshopRefreshSearchResults(root = document, input = null, query = '')
   input?.setAttribute('aria-expanded', state.searchOpen ? 'true' : 'false');
   if (clear) clear.disabled = !state.search;
   workshopBindSearchResultButtons(root);
+  await workshopLoadSearchBookings(state.search);
+  if (state.search !== cleanNavisionText(query || '') || (input && !input.isConnected)) return;
+  const currentResults = root.querySelector('#workshop-booking-search-results');
+  if (currentResults?.isConnected) {
+    currentResults.innerHTML = state.searchOpen ? workshopSearchResultsHtml(state.search) : '';
+    workshopBindSearchResultButtons(root);
+  }
 }
 
 function workshopPartsSummary(vehicle = {}) {
@@ -3569,7 +3728,7 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
     ? 'An active booking already represents this requirement'
     : durationDisabled ? workshopOutstandingDisabledReasonLabel('estimated_duration_missing')
       : authorityDisabled ? authorityExplanation : etaExplanation;
-  return `<article class="workshop-queue-card workshop-unallocated-vehicle-pill ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''} ${schedulingDisabled ? 'is-scheduling-disabled' : ''}" draggable="${schedulingDisabled ? 'false' : 'true'}" ${schedulingDisabled ? 'aria-disabled="true"' : ''} data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="${escapeHtml(schedulingDisabled ? disabledExplanation : 'Drag onto a bay, use Best slot, or use Schedule')}">
+  return `<article class="workshop-queue-card workshop-unallocated-vehicle-pill ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''} ${schedulingDisabled ? 'is-scheduling-disabled' : ''}" draggable="${schedulingDisabled ? 'false' : 'true'}" ${schedulingDisabled ? 'aria-disabled="true"' : ''} tabindex="0" role="group" aria-label="${escapeHtml(`Vehicle ${displayStockNumber(vehicle) || key}. Press Enter to open job.`)}" data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="${escapeHtml(schedulingDisabled ? disabledExplanation : 'Drag onto a bay, use Best slot, or use Schedule')}">
     ${workshopVehicleIdentitySummaryHtml(vehicle)}
     <span>${escapeHtml(workshopQueueVehicleDescription(vehicle))}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
@@ -3700,6 +3859,18 @@ function workshopDropPreviewHtml({ vertical = false } = {}) {
   return `<div class="workshop-drop-preview${vertical ? ' is-vertical' : ''}" hidden aria-hidden="true"><span class="workshop-drop-preview-line"></span><span class="workshop-drop-preview-pill"></span></div>`;
 }
 
+function workshopUnavailableTimeHtml(dateKey = '', { vertical = false } = {}) {
+  const closed = workshopSubtractWindows([
+    { startMinutes: WORKSHOP_PLANNER_CONFIG.dayStartMinutes, endMinutes: WORKSHOP_PLANNER_CONFIG.dayEndMinutes },
+  ], workshopAvailabilityWindowsForDate(dateKey));
+  return closed.map(window => {
+    const start = window.startMinutes - WORKSHOP_PLANNER_CONFIG.dayStartMinutes;
+    const end = window.endMinutes - WORKSHOP_PLANNER_CONFIG.dayStartMinutes;
+    const label = `Closed ${workshopTimeLabelFromMinutes(start)}–${workshopTimeLabelFromMinutes(end)}`;
+    return `<div class="workshop-closed-time${vertical ? ' is-vertical' : ''}" style="--closed-start:${(start / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100}%;--closed-size:${((end - start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100}%;" aria-label="${escapeHtml(label)}"><span>Closed</span></div>`;
+  }).join('');
+}
+
 function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
   const count = workshopStageBayCount(stage);
   return Array.from({ length: count }, (_, index) => {
@@ -3713,6 +3884,7 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
     return `<div class="workshop-bay-row">
       <div class="workshop-bay-label"><div class="workshop-bay-label-heading"><strong>${escapeHtml(bayLabel)}</strong><button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span><label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}">${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
       <div class="workshop-bay-lane" data-workshop-drop-bay="${bay}" data-workshop-drop-stage="${escapeHtml(stage)}">
+        ${workshopUnavailableTimeHtml(dateKey)}
         ${workshopDropPreviewHtml()}
         ${adminBlocks.map(block => workshopAdminBlockHtml(block, dateKey)).join('')}
         ${plans.map(entry => workshopPlanChipHtml(entry, dateKey, rows)).join('')}
@@ -4373,7 +4545,14 @@ function renderWorkshopPlanner(options = {}) {
   // change only after an explicit protected mutation succeeds.
   let plans = workshopCascadePlans(authoritativePlans, new Date()).rows;
   if (dedicatedStage) plans = plans.filter(entry => entry.stage === dedicatedStage);
-  if (pendingBookingLink && normalizePmbStage(pendingBookingLink.stage || '') === stage) {
+  const navigationScope = window.__workshopDataService?.getScope?.();
+  const searchNavigationReady = pendingBookingLink?.search !== true || (
+    window.__workshopDataService?.getTrustedSnapshot?.()
+    && navigationScope?.stageCode === stage
+    && navigationScope?.dateFrom === pendingBookingLink.date
+    && navigationScope?.dateTo === pendingBookingLink.date
+  );
+  if (pendingBookingLink && normalizePmbStage(pendingBookingLink.stage || '') === stage && searchNavigationReady) {
     if (pendingBookingLink.focused === true) {
       const focused = workshopResolveFocusedBooking(pendingBookingLink, plans, stage);
       state.focusedBookingMode = true;
@@ -4387,13 +4566,31 @@ function renderWorkshopPlanner(options = {}) {
       workshopSaveView(state);
       app.pendingWorkshopBookingLink = null;
     } else {
-      const pendingPlan = plans.find(entry => String(entry.id || '') === String(pendingBookingLink.bookingId || ''));
+      const pendingPlan = plans.find(entry => !['completed', 'deleted', 'cancelled'].includes(entry.status)
+        && String(entry.id || '') === String(pendingBookingLink.bookingId || '')
+        && (!pendingBookingLink.vehicleId || String(entry.sharedVehicleId || '') === String(pendingBookingLink.vehicleId)));
       if (pendingPlan) {
         state.selectedPlanId = pendingPlan.id;
+        state.highlightVehicleKey = pendingPlan.vehicleKey;
         state.searchHighlightPlanId = pendingPlan.id;
+        if (pendingBookingLink.search === true) {
+          state.detailManualOpen = false;
+          state.detailCollapsedForSelection = true;
+          state.searchOpen = false;
+        }
         state.search = pendingPlan.vehicle?.stock || pendingPlan.vehicle?.customer || pendingPlan.vehicle?.id || '';
         workshopSaveView(state);
         app.pendingWorkshopBookingLink = null;
+      } else if (pendingBookingLink.search === true) {
+        const scope = window.__workshopDataService?.getScope?.();
+        if (window.__workshopDataService?.getTrustedSnapshot?.() && scope?.stageCode === stage
+          && scope?.dateFrom === pendingBookingLink.date && scope?.dateTo === pendingBookingLink.date) {
+          state.bookingNavigationError = 'This booking changed or is no longer active. Search again to find its current position.';
+          state.searchHighlightPlanId = '';
+          state.highlightVehicleKey = '';
+          state.selectedPlanId = '';
+          app.pendingWorkshopBookingLink = null;
+        }
       }
     }
   }
@@ -4458,6 +4655,7 @@ function renderWorkshopPlanner(options = {}) {
     </header>
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
     ${focusedBookingMode ? '' : workshopSearchControlHtml(state.search || '', plans)}
+    ${state.bookingNavigationError ? `<div class="workshop-search-state is-warning" role="alert">${escapeHtml(state.bookingNavigationError)}</div>` : ''}
     ${stageTabs ? `<nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>` : ''}
     ${focusedBookingMode && state.focusedBookingError ? `<section class="workshop-focused-booking-error" role="alert"><strong>Focused booking unavailable</strong><span>${escapeHtml(state.focusedBookingError)}</span><button type="button" class="small-button" data-workshop-focused-back>Back to Workshop planner</button></section>` : ''}
     <div class="workshop-board-shell">
@@ -4542,7 +4740,12 @@ function bindWorkshopPlanner(root) {
     const state = workshopState();
     state.searchOpen = cleanNavisionText(event.currentTarget.value || '').length >= 2;
     const results = root.querySelector('#workshop-booking-search-results');
-    if (results && state.searchOpen) results.hidden = false;
+    if (results && state.searchOpen) {
+      results.hidden = false;
+      const lookup = workshopCurrentSearchLookup(state.search);
+      if (lookup?.status === 'ready' && [...lookup.matches.values()].some(result => !result.ok)) state.bookingSearchLookup = null;
+      void workshopRefreshSearchResults(root, event.currentTarget, event.currentTarget.value);
+    }
   });
   searchInput?.addEventListener('input', event => {
     const input = event.currentTarget;
@@ -4552,7 +4755,7 @@ function bindWorkshopPlanner(root) {
       if (input.isConnected) workshopRefreshSearchResults(root, input, input.value);
     }, 180);
   });
-  searchInput?.addEventListener('keydown', event => {
+  searchInput?.addEventListener('keydown', async event => {
     if (event.key === 'Escape') {
       event.preventDefault();
       const state = workshopState();
@@ -4566,15 +4769,23 @@ function bindWorkshopPlanner(root) {
     event.preventDefault();
     window.clearTimeout(app.workshopPlannerSearchTimer);
     const state = workshopState();
-    const matches = workshopSearchMatches(event.currentTarget.value);
+    const query = event.currentTarget.value;
+    await workshopLoadSearchBookings(query);
+    if (state.search !== query) return;
+    const matches = workshopSearchMatches(query);
     if (matches.length === 1 && matches[0].bookings.length) {
       workshopSelectSearchBooking(matches[0].bookings[0].id, matches[0].vehicleIdentity);
       return;
     }
-    workshopRevealSearchMatch(event.currentTarget.value);
+    workshopRevealSearchMatch(query);
   });
   root.querySelector('[data-workshop-search-clear]')?.addEventListener('click', () => workshopRevealSearchMatch(''));
   workshopBindSearchResultButtons(root);
+  const searchState = workshopState();
+  if (searchState.searchOpen && cleanNavisionText(searchState.search || '').length >= 2
+    && window.__workshopDataService?.getTrustedSnapshot?.() && !workshopCurrentSearchLookup(searchState.search)) {
+    void workshopRefreshSearchResults(root, searchInput, searchState.search);
+  }
   root.querySelector('[data-workshop-detail-toggle]')?.addEventListener('click', () => {
     const state = workshopState();
     const selected = workshopLoadPlans().some(entry => entry.id === state.selectedPlanId);
@@ -4752,6 +4963,12 @@ function bindWorkshopPlanner(root) {
     workshopSetDragPreview(null);
     setTimeout(() => workshopClearLanePreviews(root), 0);
   }));
+  root.querySelectorAll('[data-workshop-job-vehicle]').forEach(card => card.addEventListener('keydown', event => {
+    if (event.target !== card || !['Enter', ' '].includes(event.key)) return;
+    event.preventDefault();
+    const plan = workshopLoadPlans().find(entry => entry.id === card.dataset.workshopPlanId);
+    openWorkshopVehicleJob(card.dataset.workshopJobVehicle, plan?.stage || workshopState().stage, plan?.id || '');
+  }));
   root.querySelectorAll('[data-workshop-job-vehicle]').forEach(card => card.addEventListener('dblclick', event => {
     event.preventDefault();
     const plan = workshopLoadPlans().find(entry => entry.id === card.dataset.workshopPlanId);
@@ -4762,6 +4979,11 @@ function bindWorkshopPlanner(root) {
   bindWorkshopUnallocatedDrop(root.querySelector('[data-workshop-unallocated-drop]'));
   root.querySelectorAll('[data-workshop-select-plan]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
+    if (event.detail === 0) {
+      const plan = workshopLoadPlans().find(entry => entry.id === button.dataset.workshopSelectPlan);
+      if (plan) openWorkshopVehicleJob(plan.vehicleKey, plan.stage, plan.id);
+      return;
+    }
     workshopSelectPlanForDetail(button.dataset.workshopSelectPlan);
     root.querySelectorAll('[data-workshop-plan-id]').forEach(card => card.classList.toggle('is-selected', card.dataset.workshopPlanId === button.dataset.workshopSelectPlan));
   }));
@@ -5139,6 +5361,13 @@ function workshopNotBeforeMinutesForDate(dateKey = '', referenceNow = new Date()
   return Math.max(0, Math.ceil(offset / increment) * increment);
 }
 
+function workshopAdminBlockConflict(candidate = {}, blocks = workshopLoadAdminBlocks()) {
+  const start = workshopEntryStart(candidate), end = workshopEntryEnd(candidate);
+  return blocks.find(block => normalizePmbStage(block.stage) === normalizePmbStage(candidate.stage)
+    && Number(block.bay) === Number(candidate.bay)
+    && workshopIntervalsOverlap(start, end, parseIsoTimestamp(block.startAt), parseIsoTimestamp(block.endAt))) || null;
+}
+
 function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, vehicleWindows = []) {
   const normalizedStage = normalizePmbStage(stage);
   const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);
@@ -5146,6 +5375,7 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
   const rawNotBefore = Math.max(0, Number(notBeforeMinutes) || 0);
   if (rawNotBefore >= WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) return null;
   const firstStart = Math.ceil(rawNotBefore / increment) * increment;
+  const adminBlocks = workshopLoadAdminBlocks();
   for (let startMinutes = firstStart; startMinutes < WORKSHOP_PLANNER_CONFIG.dayLengthMinutes; startMinutes += WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes) {
     const candidate = {
       id: '__availability_check__',
@@ -5156,7 +5386,7 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
       hours: duration,
       status: 'planned',
     };
-    if (workshopNewBookingValidation(candidate).ok && !workshopHasConflict(candidate, rows) && (!vehicleWindows.length || window.PDC_VEHICLE_HANDOVER?.fits(workshopEntryStart(candidate), workshopEntryEnd(candidate), vehicleWindows))) return startMinutes;
+    if (workshopNewBookingValidation(candidate).ok && !workshopHasConflict(candidate, rows) && !workshopAdminBlockConflict(candidate, adminBlocks) && (!vehicleWindows.length || window.PDC_VEHICLE_HANDOVER?.fits(workshopEntryStart(candidate), workshopEntryEnd(candidate), vehicleWindows))) return startMinutes;
   }
   return null;
 }
@@ -6428,7 +6658,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     }, 0);
     return `<section class="workshop-week-day ${isClosure ? 'is-closure' : ''}">
       <header><strong>${escapeHtml(date.toLocaleDateString('en-AU', { weekday: 'short' }))}</strong><span>${escapeHtml(date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit' }))}</span><small>${isClosure ? 'CLOSED · historical bookings remain visible' : `${escapeHtml(bookedHours.toFixed(bookedHours % 1 ? 1 : 0))}h booked`}</small></header>
-      <div class="workshop-week-day-lane" ${isClosure ? 'aria-disabled="true"' : `data-workshop-week-drop-date="${escapeHtml(dateKey)}"`}>${workshopWeeklyTimeGuideHtml()}${isClosure ? '' : workshopDropPreviewHtml({ vertical: true })}${adminBlocks.map(block => workshopWeeklyAdminBlockHtml(block, dateKey)).join('')}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
+      <div class="workshop-week-day-lane" ${isClosure ? 'aria-disabled="true"' : `data-workshop-week-drop-date="${escapeHtml(dateKey)}"`}>${workshopWeeklyTimeGuideHtml()}${workshopUnavailableTimeHtml(dateKey, { vertical: true })}${isClosure ? '' : workshopDropPreviewHtml({ vertical: true })}${adminBlocks.map(block => workshopWeeklyAdminBlockHtml(block, dateKey)).join('')}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
     </section>`;
   }).join('');
   const overlay = document.createElement('div');
@@ -6823,6 +7053,8 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopNextWorkdayDate,
     workshopNextDayFittingPartsWarnings,
     workshopNextDayFittingWarningEmailBody,
+    workshopAdminBlockConflict,
+    workshopUnavailableTimeHtml,
     workshopFirstAvailableStartMinutes,
     workshopFirstAvailableStartSlot,
     workshopBestStageSlot,

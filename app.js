@@ -1195,8 +1195,39 @@ function vehicleLocationsRftHeaderHtml(sort = null) {
   </div>`;
 }
 
-function incomingGridStatusLabel(vehicle = {}, bucketKey = '') {
-  if (bucketKey === 'pmb') return pmbStageLabel(inferredPmbStage(vehicle)) || 'Unallocated';
+function vehicleWorkshopActivityLabel(vehicle = {}, options = {}) {
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  let bookings = null;
+  if (vehicle.__emailVehicleServerAuthoritative === true && canonicalId && vehicle.__emailVehicleWorkshopBookingsAvailable === true) {
+    bookings = vehicle.salesWorkshopBookings;
+  } else {
+    const detail = canonicalId ? app.vehicleWorkshopDetailCache?.get(canonicalId) : null;
+    if (detail?.status === 'ready' && String(detail.detail?.vehicle_id || '') === canonicalId && Array.isArray(detail.detail?.bookings)) bookings = detail.detail.bookings;
+    else if (options.bookingProjection?.available === true) bookings = options.bookingProjection.activeBookings;
+  }
+  const rows = (Array.isArray(bookings) ? bookings : []).filter(booking => {
+    const id = String(booking?.vehicle_id || booking?.sharedVehicleId || '').trim();
+    return (!id || id === canonicalId) && !booking?.deleted_at
+      && ['queued', 'planned', 'started', 'stoppage', 'in_progress'].includes(String(booking?.status || '').toLowerCase());
+  });
+  const place = booking => {
+    const stage = pmbStageLabel(normalizePmbStage(booking.stageCode || booking.stage_code || booking.stage)) || booking.stageName || booking.stage_name || 'Workshop';
+    const bay = String(booking.bayName || booking.bay_name || '').trim()
+      || (booking.bayNumber || booking.bay_number || booking.bay ? `Bay ${booking.bayNumber || booking.bay_number || booking.bay}` : 'Bay not assigned');
+    return `${stage} · ${bay}`;
+  };
+  const live = rows.filter(booking => ['started', 'stoppage', 'in_progress'].includes(String(booking.status).toLowerCase()));
+  if (live.length > 1) return 'Multiple active bookings — check planners';
+  if (live.length) return `${String(live[0].status).toLowerCase() === 'stoppage' ? 'STOPPAGE' : 'In progress'} · ${place(live[0])}`;
+  const planned = rows.sort((a, b) => (Date.parse(a.scheduledStartAt || a.scheduled_start_at || a.startAt) || Infinity) - (Date.parse(b.scheduledStartAt || b.scheduled_start_at || b.startAt) || Infinity))[0];
+  if (planned) return `${Date.parse(planned.scheduledStartAt || planned.scheduled_start_at || planned.startAt) > Number(options.now ?? Date.now()) ? 'Booked next' : 'Planned — not started'} · ${place(planned)}`;
+  const stream = pmbStageLabel(inferredPmbStage(vehicle));
+  if (stream) return `PMB stream: ${stream}`;
+  return Array.isArray(bookings) ? 'No active workshop booking' : 'Workshop activity not loaded';
+}
+
+function incomingGridStatusLabel(vehicle = {}, bucketKey = '', options = {}) {
+  if (bucketKey === 'pmb') return vehicleWorkshopActivityLabel(vehicle, options);
   if (bucketKey === 'rft') return rftHomeStatusLabel(rftHomeStatus(vehicle));
   if (bucketKey === 'qc') return vehicle.pdcQcComplete === true ? 'QC signed off · awaiting RFT sync' : 'Awaiting QC sign-off';
   if (bucketKey === 'pit') return 'Department of Transport inspection';
@@ -3468,7 +3499,7 @@ function loadVehicleLifecycleSharedActionsIfConfigured() {
         initVehicleLifecycleSharedActionsIfEnabled();
         return;
       }
-      loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+      loadExternalScript(`workshop-data-service.js?review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
         .then(() => initVehicleLifecycleSharedActionsIfEnabled())
         .catch(() => { /* fail closed: configured shared lifecycle actions report service_unavailable */ });
     })
@@ -3722,6 +3753,8 @@ function bindNav() {
   on($('#customer-modal'), 'click', (e) => { if (e.target.id === 'customer-modal') closeCustomerModal(); });
   on($('#new-customer-form'), 'submit', addCustomerFromForm);
   document.addEventListener('keydown', (e) => {
+    // Native dialogs own their focus and Escape key while above these popups.
+    if (document.querySelector('dialog[open]')) return;
     const customerModal = $('#customer-modal');
     const vehicleModal = $('#vehicle-modal');
     const activeModal = customerModal?.hidden === false ? customerModal : vehicleModal?.hidden === false ? vehicleModal : null;
@@ -4356,10 +4389,11 @@ function showView(view, options) {
   const switchingPlannerStation = previousWasPlanner && Boolean(plannerStage) && previousRequestedView !== requestedView;
   const enteringWorkshopPlanner = nextView === 'workshop'
     && (!previousWasPlanner || previousRequestedView !== requestedView);
-  const focusedWorkshopIntent = app.pendingWorkshopBookingLink?.focused === true;
+  const focusedWorkshopIntent = app.pendingWorkshopBookingLink?.focused === true || app.pendingWorkshopBookingLink?.search === true;
+  if (focusedWorkshopIntent) app.pendingWorkshopOpenToday = false;
   if ((nextView !== 'workshop' || (switchingPlannerStation && !focusedWorkshopIntent))
       && typeof workshopResetFocusedBooking === 'function') workshopResetFocusedBooking();
-  if (enteringWorkshopPlanner) app.pendingWorkshopOpenToday = true;
+  if (enteringWorkshopPlanner && !focusedWorkshopIntent) app.pendingWorkshopOpenToday = true;
   // Dashboard completion projection deliberately uses an unscoped Workshop
   // service. Never reuse it for a station planner with different authority.
   if (enteringWorkshopPlanner && !previousWasPlanner && window.__workshopDataService) {
@@ -5213,11 +5247,11 @@ function renderWorkshopPlannerWhenReady() {
   // unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is explicitly set
   // to true; the planner UI/runtime is not modified by this load and
   // continues to operate exactly as before.
-  loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5262,11 +5296,11 @@ function ensureDashboardWorkshopProjectionReady() {
   }
   if (window.__dashboardWorkshopProjectionLoading) return false;
   window.__dashboardWorkshopProjectionLoading = true;
-  loadExternalScript(`workshop-data-service.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -6931,6 +6965,11 @@ function renderWorkflowBoard() {
   app.workflowSearch = search;
   const sharedEligibility = workshopEligibilitySharedAuthorityEnabled();
   if (sharedEligibility && app.workshopEligibilityState === 'idle') loadWorkshopEligibilitySnapshot('route_entry');
+  if (sharedEligibility && app.workshopEligibilityState !== 'connected') {
+    const unavailable = ['offline_error', 'permission_denied'].includes(app.workshopEligibilityState);
+    host.innerHTML = `<div class="workshop-connection-banner ${escapeHtml(app.workshopEligibilityState)}" role="status" aria-live="polite" aria-busy="${!unavailable}"><strong>${unavailable ? 'Workshop overview unavailable' : 'Loading workshop overview…'}</strong><span>${unavailable ? 'The latest workshop information could not be loaded. Refresh the page to try again.' : 'Checking required work and bookings. Counts will appear when the latest information is ready.'}</span></div>`;
+    return;
+  }
   const stationRows = WORKSHOP_CONTROL_BOARD_STATIONS.map(stage => {
     const allVehicles = pmbVehiclesNeedingStationWork(stage);
     const vehicles = search ? allVehicles.filter(vehicle => incomingSearchText(vehicle, 'pmb').includes(search)) : allVehicles;
@@ -6948,7 +6987,7 @@ function renderWorkflowBoard() {
       <summary class="incoming-bucket-title workflow-bucket-title">
         <span>${escapeHtml(label)}</span>
         <strong>${escapeHtml(countLabel)}</strong>
-        <small>Outstanding canonical requirements · PMB immediate · IT ETA-restricted</small>
+        <small>Required work · PMB and Yard Hold · In Transit from ETA + 7 days</small>
         ${controlBoardStationPipelineHtml(stage)}
         <span class="workflow-bucket-actions"><button class="small-button primary" type="button" data-open-workshop-stage="${escapeHtml(stage)}">Open ${escapeHtml(label)} Planner</button></span>
       </summary>
@@ -6957,12 +6996,12 @@ function renderWorkflowBoard() {
   }).join('');
 
   const authorityBanner = sharedEligibility
-    ? `<div class="workshop-connection-banner ${escapeHtml(app.workshopEligibilityState)}" role="status"><strong>Supabase eligibility: ${escapeHtml(app.workshopEligibilityState)}</strong><span>${escapeHtml(app.workshopEligibilityError || 'Control Board counts and planner candidates use the same canonical station relation.')}</span></div>`
+    ? `<div class="workshop-connection-banner ${escapeHtml(app.workshopEligibilityState)}" role="status"><strong>Workshop information connected</strong><span>${escapeHtml(app.workshopEligibilityError || 'Required work and planner bookings are synchronized.')}</span></div>`
     : '';
   host.innerHTML = `
     ${authorityBanner}
     <div class="branch-header workflow-pmb-header">
-      <div><strong>Workshop work overview</strong><span>Only authoritative PMB vehicles and IT vehicles with a Kewdale ETA appear where required station work remains outstanding. IT scheduling cannot start before that ETA.</span></div>
+      <div><strong>Workshop work overview</strong><span>Required work for eligible vehicles at PMB, in Yard Hold, or In Transit. In Transit bookings start no earlier than the Kewdale ETA plus 7 days.</span></div>
       <div class="branch-header-actions"><span class="badge neutral">${outstandingVehicleKeys.size} needing work · ${totalPmb} at PMB</span></div>
     </div>
     <div class="workflow-collapsible-board control-board-station-list">${stationHtml}</div>
@@ -7793,7 +7832,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   });
   const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: bucketKey === 'pmb' && options.stationTransfer !== false, bookingProjection, subletNavigation: options.subletNavigation === true });
   const stage = inferredPmbStage(vehicle);
-  const rowStatus = incomingGridStatusLabel(vehicle, bucketKey);
+  const rowStatus = incomingGridStatusLabel(vehicle, bucketKey, { bookingProjection });
   const subletProvider = pmbBaySubletProvider(vehicle);
   const canonicalSubletBooking = (Array.isArray(vehicle.pdcSubletBookings) ? vehicle.pdcSubletBookings : [])
     .filter(booking => ['active', 'returned'].includes(String(booking?.status || '')))
@@ -14520,9 +14559,9 @@ function renderDetail() {
         </div>
         <div class="form-row two-col">
           <label>
-            <span class="muted-label">Current PMB tile</span>
-            <input value="${escapeHtml(pmbStageLabel(inferredPmbStage(v)) || 'Unallocated')}" readonly />
-            <span class="field-help">Move vehicles between PMB buckets from the Workflow Board only, so bay movement stays consistent.</span>
+            <span class="muted-label">Workshop activity</span>
+            <input value="${escapeHtml(vehicleWorkshopActivityLabel(v))}" readonly />
+            <span class="field-help">PDC location: ${escapeHtml(pdcLocationLabel(vehiclePdcLocation(v)) || 'Not recorded')} · PMB stream: ${escapeHtml(pmbStageLabel(inferredPmbStage(v)) || 'Unassigned')}. Future bookings do not change the vehicle’s location.</span>
           </label>
           <label>
             <span class="muted-label">Bucket age</span>
@@ -15751,6 +15790,7 @@ function importedPartsTitle(vehicle = {}) {
 
 function partsDepartmentStatus(vehicle = {}) {
   const imported = typeof importedPartsStatus === 'function' ? importedPartsStatus(vehicle) : null;
+  if (typeof isActivePartsStoppage === 'function' && isActivePartsStoppage(vehicle)) return 'stoppage';
   if (imported) return 'import:' + imported.label;
   const def = partsJobDef();
   const projected = canonicalVehicleWorkState(vehicle, def);
@@ -15955,6 +15995,7 @@ function partsQueueRowHtml(vehicle = {}) {
   const customer = vehicleCustomerName(vehicle) || 'Dealer Order';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const blocker = status === 'stoppage' ? partsStoppageReason(vehicle) : '';
+  const importedEvidence = status === 'stoppage' ? importedPartsStatus(vehicle) : null;
 
   const jitaNumber = vehicleNavisionJitaNumber(vehicle);
   const etaValue = partsWorstEtaInputValue(vehicle);
@@ -15965,7 +16006,7 @@ function partsQueueRowHtml(vehicle = {}) {
     <td><button class="parts-compact-identity" type="button" data-open-stock="${escapeHtml(key)}"><strong>${escapeHtml(displayStockNumber(vehicle) || '—')}</strong></button></td>
     <td><strong>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</strong></td>
     <td><div class="parts-queue-customer"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong><span title="${escapeHtml(customer)}">${escapeHtml(customer)}</span></div></td>
-    <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span></td>
+    <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span>${importedEvidence ? `<div class="subtle" title="${escapeHtml(importedPartsTitle(vehicle))}">${escapeHtml(importedEvidence.label)}</div>` : ''}</td>
     <td class="parts-eta-cell"><input class="parts-eta-input" type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(etaValue)}" aria-label="Parts ETA for ${escapeHtml(displayStockNumber(vehicle) || 'vehicle')}" /></td>
     <td class="parts-eta-counter-cell"><span class="parts-eta-countdown ${escapeHtml(etaCountdownClass)}" data-parts-eta-counter="${escapeHtml(vehicleKey(vehicle))}">${escapeHtml(etaCountdown || '—')}</span></td>
     <td class="parts-queue-jita-cell">${jitaNumber ? `<span class="jita-icon yes" role="img" aria-label="Navision JITA number ${escapeHtml(jitaNumber)}" title="Navision JITA number ${escapeHtml(jitaNumber)}">✓</span>` : '<span class="parts-jita-empty" aria-label="No Navision JITA number">—</span>'}</td>
@@ -16732,6 +16773,31 @@ function collectedVehicleRows() {
     .sort((a, b) => (parseIsoTimestamp(b.rftCollectedAt || '')?.getTime() || 0) - (parseIsoTimestamp(a.rftCollectedAt || '')?.getTime() || 0));
 }
 
+function collectedTransitTiming(vehicle = {}, now = Date.now()) {
+  const started = parseIsoTimestamp(vehicle.dealerTransitStartedAt || '');
+  const closed = parseIsoTimestamp(vehicle.dealerTransitClosedAt || '');
+  if (!started) return { label: 'Start not recorded', note: 'Transit timing unavailable' };
+  const end = closed ? closed.getTime() : Number(now);
+  if (!Number.isFinite(end) || end < started.getTime()) return { label: 'Awaiting transit start', note: 'Check the recorded start time' };
+  const recorded = vehicle.dealerTransitDurationSeconds;
+  const seconds = closed && recorded !== null && recorded !== undefined && recorded !== '' && Number.isFinite(Number(recorded)) && Number(recorded) >= 0
+    ? Number(recorded) : Math.floor((end - started.getTime()) / 1000);
+  return { label: `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`, note: closed ? 'Delivered · transit complete' : 'In transit · awaiting delivery' };
+}
+
+function refreshCollectedTransitTimers() {
+  if (app.currentView !== 'collected' || !window.PDC_AUTH_CONTEXT) {
+    if (app.collectedTransitTimer) window.clearInterval(app.collectedTransitTimer);
+    app.collectedTransitTimer = null;
+    return;
+  }
+  $$('[data-collected-transit-start]', $('#collected-vehicles-content')).forEach(cell => {
+    const timing = collectedTransitTiming({ dealerTransitStartedAt: cell.dataset.collectedTransitStart, dealerTransitClosedAt: cell.dataset.collectedTransitEnd, dealerTransitDurationSeconds: cell.dataset.collectedTransitSeconds });
+    cell.querySelector('strong').textContent = timing.label;
+    cell.querySelector('small').textContent = timing.note;
+  });
+}
+
 function renderCollectedVehicles() {
   const host = $('#collected-vehicles-content');
   if (!host) return;
@@ -16740,15 +16806,16 @@ function renderCollectedVehicles() {
     host.innerHTML = '<div class="empty-state"><strong>No collected vehicles yet</strong><span>Vehicles appear here after the RFT transport handover is physically collected.</span></div>';
     return;
   }
-  host.innerHTML = `<div class="parts-table-wrap collected-table-wrap pdc-grid-table-wrap"><table class="data-table compact-table collected-table pdc-grid-table"><thead><tr><th>Collected</th><th>Stock</th><th>Job Card</th><th>Customer</th><th>Vehicle</th><th>Booked</th><th>Timer</th><th>Collected by</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
+  host.innerHTML = `<div class="parts-table-wrap collected-table-wrap pdc-grid-table-wrap"><table class="data-table compact-table collected-table pdc-grid-table"><thead><tr><th>Collected</th><th>Stock</th><th>Job Card</th><th>Customer</th><th>Vehicle</th><th>Transit started</th><th>Timer</th><th>Collected by</th><th>Actions</th></tr></thead><tbody>${rows.map(vehicle => {
     const key = vehicleKey(vehicle);
     const collectedAt = parseIsoTimestamp(vehicle.rftCollectedAt || '');
-    const bookedAt = parseIsoTimestamp(vehicle.dealerTransitStartedAt || vehicle.rftTransportBookedAt || '');
-    const elapsed = bookedAt && collectedAt ? Math.max(0, Math.floor((collectedAt - bookedAt) / 1000)) : null;
-    const timer = elapsed == null ? 'Open · awaiting delivery' : `${Math.floor(elapsed / 3600)}h ${Math.floor((elapsed % 3600) / 60)}m`;
-    return `<tr class="collected-vehicle-row"><td>${escapeHtml(collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '—')}</td><td class="pdc-id-cell"><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || '—')}</button></td><td>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</td><td>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</td><td>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</td><td>${escapeHtml(bookedAt ? bookedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '—')}</td><td><strong>${escapeHtml(timer)}</strong><small>Dealer-transit timer remains open</small></td><td>${escapeHtml(vehicle.rftCollectedBy || '')}</td><td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button></td></tr>`;
+    const transitStarted = parseIsoTimestamp(vehicle.dealerTransitStartedAt || '');
+    const timing = collectedTransitTiming(vehicle);
+    const dateOptions = { timeZone: 'Australia/Perth', dateStyle: 'short', timeStyle: 'short' };
+    return `<tr class="collected-vehicle-row"><td>${escapeHtml(collectedAt ? collectedAt.toLocaleString('en-AU', dateOptions) : '—')}</td><td class="pdc-id-cell"><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || '—')}</button></td><td>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</td><td>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</td><td>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</td><td>${escapeHtml(transitStarted ? transitStarted.toLocaleString('en-AU', dateOptions) : '—')}</td><td data-collected-transit-start="${escapeHtml(vehicle.dealerTransitStartedAt || '')}" data-collected-transit-end="${escapeHtml(vehicle.dealerTransitClosedAt || '')}" data-collected-transit-seconds="${escapeHtml(vehicle.dealerTransitDurationSeconds ?? '')}"><strong>${escapeHtml(timing.label)}</strong><small>${escapeHtml(timing.note)}</small></td><td>${escapeHtml(vehicle.rftCollectedBy || '')}</td><td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button></td></tr>`;
   }).join('')}</tbody></table></div>`;
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  if (!app.collectedTransitTimer) app.collectedTransitTimer = window.setInterval(refreshCollectedTransitTimers, 60000);
 }
 
 function completedVehicleRows() {
@@ -17740,7 +17807,7 @@ function sharedNavisionLocationsStatusHtml() {
   if (!sharedNavisionVisibilityConfigured()) return '';
   if (app.sharedNavisionVisibleState === 'idle' && !window.PDC_AUTH_CONTEXT) return '';
   const refreshing = app.vehicleLocationsRefreshState === 'refreshing';
-  const count = activeSharedNavisionRows().filter(item => item.board_activated === true).length;
+  const count = activeSharedNavisionRows().length;
   const realtimeHealthy = app.sharedNavisionVisibleRealtimeState === 'subscribed' && app.sharedNavisionVisibleRealtimeReconciled === true;
   const failedRefresh = app.vehicleLocationsRefreshState === 'error';
   const stale = failedRefresh || (!realtimeHealthy && app.sharedNavisionVisibleState === 'ready');
@@ -17760,7 +17827,7 @@ function sharedNavisionLocationsStatusHtml() {
       ? `Refresh failed (${app.vehicleLocationsRefreshError || 'refresh_failed'}). Previous authoritative Vehicle Locations data is stale. Retry without leaving this Board.`
       : app.sharedNavisionVisibleState === 'error'
         ? (app.sharedNavisionVisibleError || 'Shared Navision imports could not be loaded. Previous rows remain visible.')
-        : `${count} active Navision vehicle${count === 1 ? '' : 's'} · revision ${app.sharedNavisionVisibleRevision ?? '—'} · ${realtimeHealthy ? 'synchronized across signed-in computers' : 'live synchronization reconnecting'}${draftConflict}`;
+        : `${count} Navision source record${count === 1 ? '' : 's'} · approved job imports also appear on this board · revision ${app.sharedNavisionVisibleRevision ?? '—'} · ${realtimeHealthy ? 'synchronized across signed-in computers' : 'live synchronization reconnecting'}${draftConflict}`;
   const busy = refreshing ? ' aria-busy="true"' : '';
   return `<div class="backend-shared-status vehicle-locations-refresh ${statusClass}" role="status" aria-live="polite" aria-atomic="true"${busy}>
     <strong>${heading}</strong><span>${escapeHtml(detail)}</span>
@@ -25114,6 +25181,20 @@ function draftSubletSalesUpdate(key = '') {
   });
 }
 
+const subletCreateSession = { generation: 0, request: null };
+
+function resetSubletCreateSession() {
+  subletCreateSession.generation += 1;
+  const request = subletCreateSession.request;
+  subletCreateSession.request = null;
+  request?.controls.forEach((disabled, control) => { if (control.isConnected) control.disabled = disabled; });
+  $('#sublet-create-form')?.removeAttribute('aria-busy');
+  const submit = $('#sublet-create-form button[type="submit"]');
+  if (submit && request) submit.textContent = request.submitLabel;
+}
+
+window.addEventListener('pdc-auth-locked', () => closeSubletCreateDialog());
+
 function subletCreateCanonicalVehicles() {
   return vehicleLocationBoardRows().filter(vehicle => vehicle.__emailVehicleServerAuthoritative === true && vehicle.__emailVehicleId);
 }
@@ -25151,6 +25232,7 @@ function openSubletCreateDialog() {
   const dialog = $('#sublet-create-dialog');
   const form = $('#sublet-create-form');
   if (!dialog || !form) return;
+  resetSubletCreateSession();
   form.reset();
   $('#sublet-create-vehicle-id').value = '';
   $('#sublet-create-error').textContent = '';
@@ -25170,6 +25252,7 @@ function openSubletCreateDialog() {
 }
 
 function closeSubletCreateDialog() {
+  resetSubletCreateSession();
   const dialog = $('#sublet-create-dialog');
   if (!dialog) return;
   if (typeof dialog.close === 'function') dialog.close(); else dialog.removeAttribute('open');
@@ -25177,7 +25260,16 @@ function closeSubletCreateDialog() {
 
 async function submitSubletCreate(event) {
   event?.preventDefault?.();
+  if (subletCreateSession.request) return false;
+  const actor = window.PDC_AUTH_CONTEXT?.userId;
+  const token = getPdcSupabaseAccessToken();
+  const dialog = $('#sublet-create-dialog');
   const error = $('#sublet-create-error');
+  if (!dialog?.open) return false;
+  if (!actor || !token || !['operator', 'administrator'].includes(window.PDC_AUTH_CONTEXT?.role)) {
+    error.textContent = 'Sign in as an Operator or Administrator to create a booking.';
+    return false;
+  }
   const binding = cleanNavisionText($('#sublet-create-vehicle-id')?.value || '');
   const split = binding.lastIndexOf(':');
   const vehicleId = split > 0 ? binding.slice(0, split) : '';
@@ -25196,17 +25288,42 @@ async function submitSubletCreate(event) {
   if (!outDate || !returnDate || returnDate < outDate) { error.textContent = 'Expected return must be on or after the out date.'; return false; }
   const service = app.emailVehicleLocationService;
   if (!service?.createSubletBooking) { error.textContent = 'Shared Sublet booking service is unavailable. No booking was created.'; return false; }
-  const response = await service.createSubletBooking(vehicleId, vehicleVersion, providerId, outDate, returnDate, cleanNavisionText($('#sublet-create-provider-email')?.value || ''), cleanNavisionText($('#sublet-create-notes')?.value || ''), operationIdentity);
-  if (!response?.ok) {
-    error.textContent = response?.code === 'sublet_booking_overlap' ? 'These dates overlap another booking for this vehicle.' : `Booking was not created: ${response?.code || 'unknown_error'}.`;
+  const form = $('#sublet-create-form');
+  const submit = form.querySelector('button[type="submit"]');
+  const request = { generation: subletCreateSession.generation, submitLabel: submit?.textContent || 'Create booking',
+    controls: new Map(Array.from(form.querySelectorAll('input, select, textarea, button[type="submit"]')).map(control => [control, control.disabled])) };
+  const sameSession = () => actor === window.PDC_AUTH_CONTEXT?.userId && token === getPdcSupabaseAccessToken()
+    && service === app.emailVehicleLocationService && ['operator', 'administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
+  const current = () => sameSession() && subletCreateSession.request === request
+    && subletCreateSession.generation === request.generation && dialog.open;
+  subletCreateSession.request = request;
+  request.controls.forEach((_disabled, control) => { control.disabled = true; });
+  form.setAttribute('aria-busy', 'true');
+  if (submit) submit.textContent = 'Creating booking…';
+  error.textContent = '';
+  try {
+    const response = await service.createSubletBooking(vehicleId, vehicleVersion, providerId, outDate, returnDate, cleanNavisionText($('#sublet-create-provider-email')?.value || ''), cleanNavisionText($('#sublet-create-notes')?.value || ''), operationIdentity);
+    if (!current()) return false;
+    if (!response?.ok) {
+      error.textContent = response?.code === 'sublet_booking_overlap' ? 'These dates overlap another booking for this vehicle.'
+        : 'The booking could not be confirmed. Refresh Sublet and check this requirement before retrying.';
+      await refreshEmailVehicleLocations();
+      return false;
+    }
+    closeSubletCreateDialog();
+    const completedGeneration = subletCreateSession.generation;
     await refreshEmailVehicleLocations();
+    if (sameSession() && subletCreateSession.generation === completedGeneration && !dialog.open) {
+      app.subletOperationalFilter = 'booked';
+      renderSubletHome();
+    }
+    return true;
+  } catch (_error) {
+    if (current()) error.textContent = 'The booking could not be confirmed. Check your connection, then refresh Sublet before retrying.';
     return false;
+  } finally {
+    if (subletCreateSession.request === request) resetSubletCreateSession();
   }
-  closeSubletCreateDialog();
-  await refreshEmailVehicleLocations();
-  app.subletOperationalFilter = 'booked';
-  renderSubletHome();
-  return true;
 }
 
 function bindSubletCreateDialog() {

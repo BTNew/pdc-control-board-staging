@@ -105,6 +105,11 @@ function mapServerVehicle(row = {}) {
   mapped.pdcLocationOverrideAt = row.location_override_at || '';
   if (mapped.pdcLocationOverride) mapped.pdcLocation = mapped.pdcLocationOverride;
   mapped.currentLocation = mapped.pdcLocation;
+  // Preserve supplied operational fields without turning a planned booking into
+  // a physical location or changing a staff-assigned PMB stream.
+  for (const [source, target] of [['pmb_stage', 'pmbStage'], ['pmb_bay_stage', 'pmbBayStage'], ['pmb_bay_number', 'pmbBay'], ['active_workshop_booking_id', 'activeWorkshopBookingId'], ['workshop_status', 'workshopStatus']]) {
+    if (Object.prototype.hasOwnProperty.call(row, source)) mapped[target] = String(row[source] ?? '').trim();
+  }
   mapped.navisionJitaIdentityVerified = row.navision_jita_identity_verified === true;
   mapped.navisionJitaNumberColumnPresent = row.navision_jita_column_present === true;
   mapped.navisionJitaNumberAuthority = mapped.navisionJitaIdentityVerified && mapped.navisionJitaNumberColumnPresent
@@ -164,12 +169,14 @@ function mapServerVehicle(row = {}) {
     updatedAt: salesPreparation.updated_at || '',
     updatedBy: String(salesPreparation.updated_by || ''),
   };
+  mapped.__emailVehicleWorkshopBookingsAvailable = Array.isArray(row.workshop_bookings);
   mapped.salesWorkshopBookings = (Array.isArray(row.workshop_bookings) ? row.workshop_bookings : []).map(booking => ({
     bookingId: String(booking?.booking_id || ''),
     version: Number(booking?.version || 0),
     stageCode: String(booking?.stage_code || ''),
     stageName: String(booking?.stage_name || booking?.stage_code || ''),
     bayName: String(booking?.bay_name || ''),
+    bayNumber: booking?.bay_number ?? null,
     status: String(booking?.status || ''),
     scheduledStartAt: booking?.scheduled_start_at || '',
     scheduledEndAt: booking?.scheduled_end_at || '',

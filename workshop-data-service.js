@@ -496,6 +496,51 @@ function createWorkshopDataService(options) {
     return result.body && typeof result.body === 'object' ? result.body : { ok: false, error: 'invalid_response' };
   }
 
+  // Search reads a canonical vehicle's bookings across dates without replacing
+  // the scoped station snapshot or gaining mutation authority from the result.
+  async function lookupVehicleBookings(vehicleId, dealerCode) {
+    if (!enabled || destroyed) return { ok: false, error: 'not_available' };
+    const token = getAccessToken();
+    const role = String(getRole() || '').trim().toLowerCase();
+    if (!token || !['viewer', 'operator', 'administrator'].includes(role)) return { ok: false, error: 'permission_denied' };
+    const id = String(vehicleId || '').trim().toLowerCase();
+    const dealer = String(dealerCode || '').trim();
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuid.test(id) || !dealer) return { ok: false, error: 'invalid_identity' };
+    const generation = lifecycleGeneration;
+    try {
+      const response = await client.rpc(token, 'get_vehicle_workshop_detail_scoped', { p_vehicle_id: id, p_dealer_code: dealer });
+      if (destroyed || generation !== lifecycleGeneration || token !== getAccessToken()
+        || role !== String(getRole() || '').trim().toLowerCase()) return { ok: false, error: 'authority_superseded' };
+      if (!response?.ok) return { ok: false, error: [401, 403].includes(response?.status) ? 'permission_denied' : 'request_failed' };
+      const detail = response.body;
+      if (detail?.ok === false) return { ok: false, error: detail.code || detail.error || 'request_failed' };
+      if (!detail || String(detail.vehicle_id || '').toLowerCase() !== id || !Array.isArray(detail.bookings)) return { ok: false, error: 'invalid_response' };
+      const seen = new Set();
+      const bookings = [];
+      for (const booking of detail.bookings) {
+        const bookingId = String(booking?.booking_id || '').toLowerCase();
+        const unallocated = booking?.bay_number == null && ['queued', 'stoppage', 'completed'].includes(booking?.status);
+        if (!uuid.test(bookingId) || seen.has(bookingId)
+          || !/^[A-Z0-9_]+$/.test(String(booking?.stage_code || ''))
+          || (!unallocated && (!Number.isInteger(Number(booking?.bay_number)) || Number(booking.bay_number) < 1))
+          || !['queued', 'planned', 'started', 'stoppage', 'completed'].includes(booking?.status)
+          || !Number.isFinite(Date.parse(booking?.scheduled_start_at))
+          || !Number.isFinite(Date.parse(booking?.scheduled_end_at))
+          || Date.parse(booking.scheduled_end_at) <= Date.parse(booking.scheduled_start_at)) {
+          return { ok: false, error: 'invalid_response' };
+        }
+        seen.add(bookingId);
+        const allowed = ['booking_id', 'booking_version', 'stage_code', 'stage_name', 'bay_number', 'bay_name',
+          'status', 'scheduled_start_at', 'scheduled_end_at', 'default_duration_minutes', 'actual_start_at', 'actual_end_at'];
+        bookings.push(Object.fromEntries(allowed.filter(key => Object.prototype.hasOwnProperty.call(booking, key)).map(key => [key, booking[key]])));
+      }
+      return { ok: true, vehicleId: id, bookings };
+    } catch (_error) {
+      return { ok: false, error: 'request_failed' };
+    }
+  }
+
   function destroy() {
     if (destroyed) return;
     destroyed = true;
@@ -521,6 +566,7 @@ function createWorkshopDataService(options) {
     ),
     getLastRevision: () => lastRevision,
     getScope: () => (scope ? { ...scope } : null),
+    lookupVehicleBookings,
     loadSnapshot,
     setScope,
     onRevisionSignal,

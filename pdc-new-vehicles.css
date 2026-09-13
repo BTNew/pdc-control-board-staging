@@ -8,6 +8,7 @@
 
 /* Review tray above the station drop targets. */
 .nv-header-actions{flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.nv-queue-search{display:grid;gap:6px;max-width:520px;margin:0 0 18px;font-size:13px;font-weight:700}.nv-queue-search input{width:100%;box-sizing:border-box;min-height:38px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#17283d;font:inherit}.nv-queue-search small{font-size:12px;font-weight:400;color:#637185}
 .nv-header .nv-approve-button{min-height:44px;padding:10px 22px;border:0;background:#155db9;color:#fff;font-weight:700;white-space:nowrap}
 .nv-stations>.nv-station{border-top:5px solid var(--station-colour,#64748b);background:var(--station-tint,#f8fafc)}
 .nv-stations>.nv-station>header{background:color-mix(in srgb,var(--station-colour,#64748b) 13%,white);border-bottom-color:color-mix(in srgb,var(--station-colour,#64748b) 25%,white)}

@@ -565,3 +565,21 @@
     min-height: 32px !important;
   }
 }
+
+/* Keep vehicle Close reachable above the scrolling header on both detail tabs. */
+#vehicle-modal #modal-close {
+  position: sticky;
+  float: right;
+  top: 14px;
+  right: auto;
+  margin: 14px 14px -52px 0;
+  z-index: 50;
+}
+#vehicle-modal #vehicle-detail .panel-header {
+  padding-right: 70px !important;
+}
+/* Explicit display rules must continue to respect the view's hidden state. */
+#sublet-calendar-controls[hidden],
+.sublet-compact-toolbar label[hidden] {
+  display: none !important;
+}
