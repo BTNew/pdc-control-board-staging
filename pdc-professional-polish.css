@@ -292,3 +292,11 @@ input:focus, select:focus, textarea:focus {
 .sidebar > .brand .brand-logo[hidden],
 .sidebar > .brand .brand-logo-fallback[hidden] { display:none!important; }
 .app-shell.sidebar-collapsed .sidebar > .brand > .brand-logo-wrap { padding:4px; }
+
+/* PMB rows stay compact without the separate status column. */
+#incoming-main-board .incoming-bucket.incoming-pmb > .incoming-bucket-list {
+  --pdc-grid-template:16px 24px minmax(var(--pdc-grid-identity-min),1fr) var(--pdc-grid-vehicle-width) var(--pdc-grid-stations-width) var(--pdc-grid-meta-width) var(--pdc-grid-actions-width);
+  --pdc-grid-min:calc(56px + var(--pdc-grid-identity-min) + var(--pdc-grid-vehicle-width) + var(--pdc-grid-stations-width) + var(--pdc-grid-meta-width) + var(--pdc-grid-actions-width) + 6 * var(--pdc-grid-gap));
+}
+#incoming-main-board .incoming-pmb .pdc-grid-status-heading,
+#incoming-main-board .incoming-pmb .incoming-card-status { display:none!important; }
