@@ -68,10 +68,10 @@
     document.head.appendChild(partsConfirmation);
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
-    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match&review-fixes=2026.09.13.01&operation-approval=2026.09.13.01';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match&review-fixes=2026.09.13.01&operation-approval=2026.09.13.02';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&review-fixes=2026.09.13.01&operation-approval=2026.09.13.01';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&review-fixes=2026.09.13.01&operation-approval=2026.09.13.02';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };

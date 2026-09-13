@@ -139,6 +139,7 @@
       || typeof showView!=='function' || window.PDC_NEW_VEHICLES_VERSION) return;
 
   let items=[],total=0,offset=0,selected=null,choices={},loading=false,saving=false,error='',notice='',sourceChanged=false;
+  let queueLoadFailed=false;
   let updateItems=[],updateTotal=0,updateOffset=0,updateError='',updateDrafts={},updateRequests={};
   let updateSchedule=null,sessionGeneration=0;
   let unidentified=false,unidentifiedItems=[],unidentifiedTotal=0;
@@ -173,8 +174,11 @@
       if(actor!==window.PDC_AUTH_CONTEXT?.userId||token!==getPdcSupabaseAccessToken()||!readable()) throw new Error('session_changed');
       if(!res.ok || result?.ok!==true) {
         const failure=new Error(result?.code || 'request_failed');
-        if(name==='approve_pdc_tune_operation_change_with_schedule'&&result?.code==='operation_schedule_conflict'
-          &&typeof result.message==='string'&&result.message.trim())failure.userMessage=result.message.trim().slice(0,1000);
+        if(name==='approve_pdc_tune_operation_change_with_schedule') {
+          if(['operation_schedule_conflict','operation_schedule_busy'].includes(result?.code)
+            &&typeof result.message==='string'&&result.message.trim())failure.userMessage=result.message.trim().slice(0,1000);
+          if(result?.code==='operation_schedule_busy')failure.retryable=result.retry===true;
+        }
         throw failure;
       }
       return result;
@@ -182,6 +186,7 @@
   }
   function message(err) {
     const code=String(err?.message || '');
+    if(code==='operation_schedule_busy')return err.userMessage||'The workshop is being updated by another action. Please try approving again. No changes were saved.';
     if(code==='operation_schedule_conflict')return err.userMessage||'A later booking cannot be moved safely. Review the affected bookings before retrying. No changes were saved.';
     if(/changed|stale|conflict|already_approved/.test(code)) return 'This Job Card changed or was approved in another session. Reload it before continuing.';
     if(/authorized|session/.test(code)) return 'Sign in with an approved staff account. Only Operators and Administrators can approve.';
@@ -208,13 +213,13 @@
       }
       if(stamp!==generation) return;
       if(unidentified) {unidentifiedItems=result.data.items;unidentifiedTotal=result.data.total;}
-      else {items=result.data.items;total=result.data.total;}
+      else {items=result.data.items;total=result.data.total;queueLoadFailed=false;}
       if(selected) {
         const latest=items.find(row=>row.vehicle_id===selected.vehicle_id);
         if(!latest || latest.snapshot_hash!==selected.snapshot_hash) sourceChanged=true;
       }
       error='';
-    } catch(err) {if(stamp===generation) error=message(err);}
+    } catch(err) {if(stamp===generation) {if(!unidentified)queueLoadFailed=true;error=message(err);}}
     finally {if(stamp===generation) {
       loading=false;
       render({preserveReview:!!(silent&&selected&&selected===reviewAtStart&&error===previousError&&sourceChanged===previousSourceChanged)});
@@ -289,7 +294,16 @@
     let accepted=false;
     saving=true;error='';notice='';updateSchedule=null;render();
     try {
-      const result=await rpc('approve_pdc_tune_operation_change_with_schedule',request);
+      let result;
+      for(let attempt=0;;attempt++) {
+        if(!ownsRequest())return;
+        try {result=await rpc('approve_pdc_tune_operation_change_with_schedule',request);break;}
+        catch(err) {
+          // Only an explicit, rolled-back scheduling conflict is safe to retry automatically.
+          if(err.message!=='operation_schedule_busy'||err.retryable!==true||attempt>=2||!ownsRequest())throw err;
+          await new Promise(resolve=>setTimeout(resolve,[350,1000][attempt]));
+        }
+      }
       if(!ownsRequest()) return;
       const data=result.data;
       if(!verifyUpdateApproval(result,row,stage,hours)) throw new Error('readback_mismatch');
@@ -362,7 +376,7 @@
       <footer class="nv-approval"><div>${issues.length?issues.map(issue=>`<p>${esc(issue)}</p>`).join(''):'<p>All operations have a station and required workshop hours.</p>'}<small>Approval adds this vehicle to its current location on the board. Nothing is booked or marked fitted.</small></div>
       ${approvalButton()}</footer>`:
       `<label class="nv-queue-search">Find a new vehicle<input type="search" data-nv-search value="${esc(queueSearch)}" placeholder="Stock, customer or job card on this page" autocomplete="off"><small>Searches the ${items.length} vehicles on this page${queueSearch?` · ${visibleItems.length} matching`:''}.</small></label>
-      <div class="nv-list">${visibleItems.map(card).join('') || `<div class="nv-empty"><h3>${loading?'Loading Job Cards…':error?'Queue unavailable':queueSearch?'No vehicles on this page match':'No new vehicles waiting'}</h3><p>${queueSearch?'Clear the search or try another page.':'New report vehicles appear here after import processing. Existing board vehicles are not reset or pulled back into this queue.'}</p></div>`}</div>
+      <div class="nv-list">${visibleItems.map(card).join('') || `<div class="nv-empty"><h3>${loading?'Loading Job Cards…':queueLoadFailed?'Queue unavailable':queueSearch?'No vehicles on this page match':'No new vehicles waiting'}</h3><p>${queueLoadFailed?'Refresh to load the new vehicle queue.':queueSearch?'Clear the search or try another page.':'New report vehicles appear here after import processing. Existing board vehicles are not reset or pulled back into this queue.'}</p></div>`}</div>
       <div class="nv-pagination"><button data-nv-page="-1" ${offset===0||loading?'disabled':''}>Previous</button><span>${total?`${offset+1}–${Math.min(offset+items.length,total)} of ${total}`:'0 awaiting review'}</span><button data-nv-page="1" ${offset+items.length>=total||loading?'disabled':''}>Next</button></div>`}`;
     if(!selected) {
       page.insertAdjacentHTML('beforeend',`<section class="nv-operation-updates" aria-label="Updated operation lines" tabindex="-1"><h2>Updated operation lines</h2><p>${updateTotal} changes awaiting approval for vehicles already on the board.</p>${updateError?`<p role="alert">${esc(updateError)}</p>`:''}${updateItems.map(row=>operationUpdateHtml(row,updateDrafts[row.change_id]||{},writable(),saving)).join('')||'<p>No updated operation lines waiting.</p>'}<div class="nv-pagination"><button data-update-page="-1" ${updateOffset===0||loading||saving?'disabled':''}>Previous changes</button><span>${updateTotal} changes</span><button data-update-page="1" ${updateOffset+updateItems.length>=updateTotal||loading||saving?'disabled':''}>Next changes</button></div></section>`);
@@ -437,7 +451,7 @@
     return out;
   };
   window.addEventListener('pdc-auth-ready',()=>{offset=0;void load();});
-  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;page.replaceChildren();items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
+  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;page.replaceChildren();items=[];total=0;queueLoadFailed=false;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
   window.PDC_NEW_VEHICLES_VERSION='2026.09.12.review-orange';

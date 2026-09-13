@@ -118,5 +118,14 @@
     "commissioned": true,
     "review_status": "staging_applied",
     "source": "Staging apply and definition/privilege readback verified. 38 transactional integration assertions passed; all test data rolled back. Existing user approvals remain pending."
+  },
+  "tune_operation_approval_lock_coordination_migration": {
+    "version": "20260913063859",
+    "name": "tune_operation_approval_lock_coordination",
+    "file": "supabase/migrations/20260913063859_tune_operation_approval_lock_coordination.sql",
+    "sha256": "791e5ecd0dcaa4e270c4e090d81b510fdf04958ebb2a8ae1204133f1171ffb42",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "Repairs the reproduced automatic-clock/approval deadlock. Exact pending vehicle approval succeeded in rollback before and after deployment; independent booking contention returned retryable busy with zero writes. Scheduling calculations unchanged."
   }
 }
