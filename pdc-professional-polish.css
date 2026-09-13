@@ -261,3 +261,34 @@ input:focus, select:focus, textarea:focus {
 #vehicle-modal .section-label:has(+ [data-pdc-work-state-grid]),
 #vehicle-modal [data-pdc-work-state-grid],
 #vehicle-modal .pdc-work-state-help { display:none!important; }
+
+
+/* Logo-only sidebar header: use the original PMB artwork at a readable size. */
+.sidebar > .brand { display:block; }
+.sidebar > .brand > .brand-text,
+.sidebar > .brand::after { display:none!important; }
+.sidebar > .brand > .brand-logo-wrap {
+  box-sizing:border-box;
+  width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  padding:10px;
+  border:2px solid #1175a5;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 4px 14px rgba(0,0,0,.24);
+}
+.sidebar > .brand .brand-logo {
+  width:100%!important;
+  height:auto!important;
+  padding:0!important;
+  object-fit:contain;
+}
+.sidebar > .brand .brand-logo-fallback {
+  width:100%!important;
+  height:auto!important;
+  color:#1175a5;
+}
+.sidebar > .brand .brand-logo[hidden],
+.sidebar > .brand .brand-logo-fallback[hidden] { display:none!important; }
+.app-shell.sidebar-collapsed .sidebar > .brand > .brand-logo-wrap { padding:4px; }
