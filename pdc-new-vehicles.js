@@ -11,6 +11,11 @@
   function reviewChoices(row) {
     return Object.fromEntries(assignmentsFor(row).map(line => [line.line_identity, line.stage_code]));
   }
+  function matchingReviewRows(rows = [], query = '') {
+    const needle = String(query).trim().toLocaleLowerCase();
+    return needle ? rows.filter(row => [row.stock_number, row.customer_name, ...(row.job_cards || [])]
+      .some(value => String(value || '').toLocaleLowerCase().includes(needle))) : rows;
+  }
   const positiveHours = value => value !== null && value !== undefined && String(value).trim() !== ''
     && Number.isFinite(Number(value)) && Number(value)>0 && Number(value)<=999.99
     && Math.abs(Number(value)*100-Math.round(Number(value)*100))<1e-8;
@@ -85,7 +90,7 @@
     <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Existing bookings, completed work and vehicle location are kept. Review affected booking times after approval.</small></article>`;
   }
 
-  const api={reviewOrder,updateProblems,operationUpdateHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
+  const api={matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   if(typeof window==='undefined' || window.PDC_SUPABASE_CONFIG?.projectRef!==PROJECT
       || typeof showView!=='function' || window.PDC_NEW_VEHICLES_VERSION) return;
@@ -94,6 +99,7 @@
   let updateItems=[],updateTotal=0,updateOffset=0,updateError='',updateDrafts={},updateRequests={};
   let unidentified=false,unidentifiedItems=[],unidentifiedTotal=0;
   let generation=0,requestKey='',approvalRequest=null,hourDrafts={};
+  let queueSearch='',listScroll=0,listVehicleId='';
   const limit=50;
   const readable=()=>['viewer','operator','importer','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
   const writable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
@@ -137,6 +143,7 @@
   }
   async function load({silent=false}={}) {
     if(loading || saving || !readable()) return;
+    const reviewAtStart=selected,previousError=error,previousSourceChanged=sourceChanged;
     const stamp=++generation;loading=true;
     if(!silent) {error='';render();}
     try {
@@ -157,9 +164,38 @@
       }
       error='';
     } catch(err) {if(stamp===generation) error=message(err);}
-    finally {if(stamp===generation) {loading=false;render();}}
+    finally {if(stamp===generation) {
+      loading=false;
+      render({preserveReview:!!(silent&&selected&&selected===reviewAtStart&&error===previousError&&sourceChanged===previousSourceChanged)});
+    }}
   }
-  function choose(row) {selected=row;choices=reviewChoices(row);hourDrafts={};sourceChanged=false;requestKey='';approvalRequest=null;error='';notice='';render();}
+  function choose(row) {
+    if(!selected){listScroll=window.scrollY;listVehicleId=row.vehicle_id;}
+    selected=row;choices=reviewChoices(row);hourDrafts={};sourceChanged=false;requestKey='';approvalRequest=null;error='';notice='';render();
+    const heading=page.querySelector('.nv-header h2');
+    heading?.setAttribute('tabindex','-1');heading?.focus({preventScroll:true});window.scrollTo({top:0,left:0});
+  }
+  function backToList() {
+    if(saving)return;
+    selected=null;choices={};hourDrafts={};render();
+    page.querySelector(`[data-nv-open="${CSS.escape(listVehicleId)}"]`)?.focus({preventScroll:true});
+    window.scrollTo({top:listScroll,left:0});
+  }
+  function preserveEditorFocus() {
+    const active=document.activeElement;
+    if(!active||!page.contains(active))return ()=>{};
+    const attribute=['data-nv-hours','data-nv-stage','data-update-hours','data-update-stage','data-nv-search'].find(name=>active.hasAttribute(name));
+    if(!attribute)return ()=>{};
+    const update=active.closest('[data-operation-change]')?.dataset.operationChange;
+    const selector=(update?`[data-operation-change="${CSS.escape(update)}"] `:'')+`[${attribute}="${CSS.escape(active.getAttribute(attribute))}"]`;
+    const start=active.selectionStart,end=active.selectionEnd,direction=active.selectionDirection;
+    return ()=>{
+      const replacement=page.querySelector(selector);
+      if(!replacement||replacement.disabled)return;
+      replacement.focus({preventScroll:true});
+      if(typeof start==='number'&&typeof replacement.setSelectionRange==='function')replacement.setSelectionRange(start,end,direction);
+    };
+  }
   function card(row) {
     return `<button type="button" class="nv-card" data-nv-open="${esc(row.vehicle_id)}"><span class="nv-card-top"><strong>${esc(row.stock_number)}</strong><span class="nv-new-pill">New Job Card</span></span>
       <b>${esc(row.vehicle_description || 'Vehicle details pending')}</b><span>${esc(row.customer_name || 'Customer not recorded')}</span>
@@ -225,11 +261,17 @@
     });
     page.querySelectorAll('[data-update-page]').forEach(button=>button.addEventListener('click',()=>{updateOffset=Math.max(0,updateOffset+Number(button.dataset.updatePage)*50);void load();}));
   }
-  function render() {
+  function render({preserveReview=false}={}) {
     const badge=nav.querySelector('.new-vehicle-nav-count');badge.textContent=String(total);badge.hidden=!total;
     nav.setAttribute('aria-label',`New Vehicles, ${total} awaiting review`);
     // Keep the navigation count current without rebuilding an inactive page.
     if(app.currentView!=='newvehicles') return;
+    if(preserveReview) {
+      const refresh=page.querySelector('[data-nv-refresh]');
+      if(refresh){refresh.disabled=loading||saving;refresh.textContent=loading?'Refreshing…':'Refresh';}
+      return;
+    }
+    const restoreFocus=preserveEditorFocus();
     if(unidentified) {
       page.innerHTML=`<div class="nv-header"><div><h2>Unidentified Tune Review</h2><p>${unidentifiedTotal} R/O groups awaiting vehicle identity. No vehicles have been created for these groups.</p></div>
         <div class="nv-header-actions"><button data-nv-unidentified ${loading?'disabled':''}>New Vehicles</button><button data-nv-refresh ${loading?'disabled':''}>Refresh</button></div></div>
@@ -243,6 +285,7 @@
       return;
     }
     const issues=selected?problems(selected,choices,hourDrafts):[];
+    const visibleItems=matchingReviewRows(items,queueSearch);
     const groups=selected?stationGroups(selected,choices,hourDrafts):[];
     const approvalButton=()=>`<button class="primary nv-approve-button" type="button" data-nv-approve ${saving||sourceChanged||issues.length||!writable()?'disabled':''}>${saving?'Saving & adding to board…':'Approve & add to board'}</button>`;
     page.innerHTML=`<div class="nv-header"><div><span class="eyebrow">Tune / Revolution imports</span><h2>${selected?esc(selected.stock_number):'New Vehicles'}</h2>
@@ -256,7 +299,8 @@
       <div class="nv-operation-list" aria-label="Operation descriptions and estimates">${reviewOrder(selected,choices,hourDrafts).map(operation).join('')}</div>
       <footer class="nv-approval"><div>${issues.length?issues.map(issue=>`<p>${esc(issue)}</p>`).join(''):'<p>All operations have a station and required workshop hours.</p>'}<small>Approval adds this vehicle to its current location on the board. Nothing is booked or marked fitted.</small></div>
       ${approvalButton()}</footer>`:
-      `<div class="nv-list">${items.map(card).join('') || `<div class="nv-empty"><h3>${loading?'Loading Job Cards…':error?'Queue unavailable':'No new vehicles waiting'}</h3><p>New report vehicles appear here after import processing. Existing board vehicles are not reset or pulled back into this queue.</p></div>`}</div>
+      `<label class="nv-queue-search">Find a new vehicle<input type="search" data-nv-search value="${esc(queueSearch)}" placeholder="Stock, customer or job card on this page" autocomplete="off"><small>Searches the ${items.length} vehicles on this page${queueSearch?` · ${visibleItems.length} matching`:''}.</small></label>
+      <div class="nv-list">${visibleItems.map(card).join('') || `<div class="nv-empty"><h3>${loading?'Loading Job Cards…':error?'Queue unavailable':queueSearch?'No vehicles on this page match':'No new vehicles waiting'}</h3><p>${queueSearch?'Clear the search or try another page.':'New report vehicles appear here after import processing. Existing board vehicles are not reset or pulled back into this queue.'}</p></div>`}</div>
       <div class="nv-pagination"><button data-nv-page="-1" ${offset===0||loading?'disabled':''}>Previous</button><span>${total?`${offset+1}–${Math.min(offset+items.length,total)} of ${total}`:'0 awaiting review'}</span><button data-nv-page="1" ${offset+items.length>=total||loading?'disabled':''}>Next</button></div>`}`;
     if(!selected) {
       page.insertAdjacentHTML('beforeend',`<section class="nv-operation-updates" aria-label="Updated operation lines"><h2>Updated operation lines</h2><p>${updateTotal} changes awaiting approval for vehicles already on the board.</p>${updateError?`<p role="alert">${esc(updateError)}</p>`:''}${updateItems.map(row=>operationUpdateHtml(row,updateDrafts[row.change_id]||{},writable(),saving)).join('')||'<p>No updated operation lines waiting.</p>'}<div class="nv-pagination"><button data-update-page="-1" ${updateOffset===0||loading||saving?'disabled':''}>Previous changes</button><span>${updateTotal} changes</span><button data-update-page="1" ${updateOffset+updateItems.length>=updateTotal||loading||saving?'disabled':''}>Next changes</button></div></section>`);
@@ -265,7 +309,8 @@
     page.querySelectorAll('[data-nv-open]').forEach(button=>button.addEventListener('click',()=>choose(items.find(row=>row.vehicle_id===button.dataset.nvOpen))));
     page.querySelector('[data-nv-unidentified]')?.addEventListener('click',()=>{unidentified=true;offset=0;void load();});
     page.querySelector('[data-nv-refresh]')?.addEventListener('click',()=>void load());
-    page.querySelector('[data-nv-back]')?.addEventListener('click',()=>{if(saving)return;selected=null;choices={};render();});
+    page.querySelector('[data-nv-back]')?.addEventListener('click',backToList);
+    page.querySelector('[data-nv-search]')?.addEventListener('input',event=>{queueSearch=event.target.value;render();});
     page.querySelector('[data-nv-reload]')?.addEventListener('click',()=>{const id=selected.vehicle_id;const row=items.find(item=>item.vehicle_id===id);if(row) choose(row);else {selected=null;render();void load();}});
     page.querySelectorAll('[data-nv-page]').forEach(button=>button.addEventListener('click',()=>{offset=Math.max(0,offset+Number(button.dataset.nvPage)*limit);void load();}));
     page.querySelectorAll('[data-nv-hours]').forEach(input=>{
@@ -297,6 +342,7 @@
       group.addEventListener('drop',event=>{event.preventDefault();group.classList.remove('nv-drop-active');if(saving||!writable()||sourceChanged)return;const id=event.dataTransfer.getData('text/plain');if(!selected.operations.some(line=>line.line_identity===id))return;choices[id]=group.dataset.nvDrop;requestKey='';approvalRequest=null;render();});
     });
     page.querySelectorAll('[data-nv-approve]').forEach(button=>button.addEventListener('click',()=>void approve()));
+    restoreFocus();
   }
   async function approve() {
     if(saving || !writable() || sourceChanged || problems(selected,choices,hourDrafts).length) return;
@@ -328,7 +374,7 @@
     return out;
   };
   window.addEventListener('pdc-auth-ready',()=>{offset=0;void load();});
-  window.addEventListener('pdc-auth-locked',()=>{generation++;page.replaceChildren();items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
+  window.addEventListener('pdc-auth-locked',()=>{generation++;page.replaceChildren();items=[];total=0;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
   window.PDC_NEW_VEHICLES_VERSION='2026.09.12.review-orange';

@@ -15,7 +15,7 @@ assert.equal(handover.fits(at(14),at(16),[{start_at:'invalid',end_at:at(9)}]),fa
 const source=fs.readFileSync('workshop-planner.js','utf8');
 const start=source.indexOf('function workshopFirstAvailableStartMinutes(');
 const end=source.indexOf('\nfunction workshopFirstAvailableStartSlot(',start);
-const context={window:{PDC_VEHICLE_HANDOVER:handover},WORKSHOP_PLANNER_CONFIG:{schedulingIncrementMinutes:15,dayLengthMinutes:600},normalizePmbStage:s=>s,workshopExactDurationHours:n=>n,workshopDateAtOffset:(_,m)=>new Date(+at(7)+m*60000),workshopNewBookingValidation:()=>({ok:true}),workshopHasConflict:c=>c.bay===2&&+new Date(c.startAt)<+at(15),workshopEntryStart:c=>new Date(c.startAt),workshopEntryEnd:c=>new Date(+new Date(c.startAt)+c.hours*3600000)};
+const context={window:{PDC_VEHICLE_HANDOVER:handover},WORKSHOP_PLANNER_CONFIG:{schedulingIncrementMinutes:15,dayLengthMinutes:600},normalizePmbStage:s=>s,workshopExactDurationHours:n=>n,workshopDateAtOffset:(_,m)=>new Date(+at(7)+m*60000),workshopNewBookingValidation:()=>({ok:true}),workshopHasConflict:c=>c.bay===2&&+new Date(c.startAt)<+at(15),workshopLoadAdminBlocks:()=>[],workshopAdminBlockConflict:()=>null,workshopEntryStart:c=>new Date(c.startAt),workshopEntryEnd:c=>new Date(+new Date(c.startAt)+c.hours*3600000)};
 vm.createContext(context);vm.runInContext(source.slice(start,end),context);
 assert.equal(context.workshopFirstAvailableStartMinutes('ELEC',1,'2026-09-14',2,[],0,busy),420,'next slot starts at 14:00 after 09:00 finish + five hours');
 assert.equal(context.workshopFirstAvailableStartMinutes('ELEC',2,'2026-09-14',2,[],0,busy),480,'bay occupancy still applies');

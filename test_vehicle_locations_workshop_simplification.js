@@ -20,10 +20,38 @@ assert.doesNotMatch(render, /workshop-completed-panel|workshopCompletedCardHtml|
 assert.doesNotMatch(render, /<span class="completed">Completed<\/span>/);
 assert.match(render, /const activePlans = focusedBookingMode \? focusedPlans\.filter\(entry => entry\.status !== 'completed'\) : plans\.filter\(entry => entry\.stage === stage && entry\.status !== 'completed'\)/);
 assert.match(render, /const selectedDateBookingCount = todaysPlans\.length/);
-assert.match(planner, /entry\.status !== 'completed' && workshopPlanVehicleIdentity\(entry\) === vehicleIdentity/,
-  'completed bookings are omitted from planner search');
-assert.match(planner, /\.filter\(item => item\.bookings\.length \|\| item\.candidateInLane\)/,
-  'vehicles with only completed history disappear while current disabled candidates remain searchable');
+// Execute the matcher: retain disabled current candidates, omit completed-only
+// history, and distinguish a failed authoritative lookup from an unbooked car.
+const searchStart = planner.indexOf('function workshopSearchMatchRows(');
+const searchEnd = planner.indexOf('\nfunction workshopCurrentSearchLookup(', searchStart);
+assert.ok(searchStart >= 0 && searchEnd > searchStart);
+const historyVehicle={id:'11111111-1111-4111-8111-111111111111',vehicleKey:'history',stockNumber:'13000000'};
+const disabledVehicle={id:'22222222-2222-4222-8222-222222222222',vehicleKey:'disabled',stockNumber:'13000001'};
+const searchSnapshot={vehicles:[historyVehicle,disabledVehicle],work_items:[],outstanding_candidates:[{vehicle_id:disabledVehicle.id,stage_code:'FITTING',schedule_enabled:false,disabled_reason:'estimated_duration_missing'}]};
+let lookup=null;
+const searchContext={
+  app:{data:[],workshopEligibilitySnapshot:{candidates:[]}},window:{__workshopDataService:{getTrustedSnapshot:()=>searchSnapshot}},
+  workshopState:()=>({stage:'FITTING'}),workshopCurrentSearchLookup:()=>lookup,
+  cleanNavisionText:value=>String(value||'').trim(),workshopSnapshotVehicleToPlannerRow:vehicle=>({...vehicle,sharedVehicleId:vehicle.id}),
+  workshopSharedModeActive:()=>true,workshopSharedVehicleRef:({sharedVehicleId})=>({vehicleId:sharedVehicleId}),
+  workshopVehicleSearchText:vehicle=>vehicle.stockNumber,vehicleKey:vehicle=>vehicle.vehicleKey,
+  workshopSortBookingsClosest:rows=>rows,workshopPlanVehicleIdentity:entry=>`shared:${entry.sharedVehicleId}`,
+  normalizePmbStage:value=>value,workshopSearchRank:()=>0,statusCategory:()=> 'pmb',
+};
+vm.createContext(searchContext);vm.runInContext(planner.slice(searchStart,searchEnd),searchContext);
+const history=[{id:'done',sharedVehicleId:historyVehicle.id,status:'completed'}];
+assert.strictEqual(searchContext.workshopSearchMatchRows('13000000',history).length,0,'completed-only history is omitted');
+const disabledMatch=searchContext.workshopSearchMatchRows('13000001',history);
+assert.strictEqual(disabledMatch.length,1,'current candidate is searchable when missing hours disables scheduling');
+assert.strictEqual(disabledMatch[0].candidateAvailable,false);
+assert.strictEqual(disabledMatch[0].candidateDisabledReason,'estimated_duration_missing');
+const mixed=[...history,{id:'active',sharedVehicleId:historyVehicle.id,status:'planned'}];
+assert.deepStrictEqual(Array.from(searchContext.workshopSearchMatchRows('13000000',mixed)[0].bookings,entry=>entry.id),['active'],'only active booking is offered');
+lookup={status:'ready',matches:new Map([[`shared:${historyVehicle.id}`,{ok:false,error:'request_failed'}]])};
+const failedMatch=searchContext.workshopSearchMatchRows('13000000',history);
+assert.strictEqual(failedMatch.length,1,'failed lookup remains visible as an error, not false unbooked or missing');
+assert.strictEqual(failedMatch[0].bookingLookupError,'request_failed');
+assert.strictEqual(failedMatch[0].candidateAvailable,false);
 assert.match(css, /grid-template-columns: 222px minmax\(720px, 1fr\);/);
 
 const detailStart = planner.indexOf('function workshopDetailPanelHtml');

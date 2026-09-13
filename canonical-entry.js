@@ -68,10 +68,10 @@
     document.head.appendChild(partsConfirmation);
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
-    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match&review-fixes=2026.09.13.01';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&review-fixes=2026.09.13.01';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
@@ -80,7 +80,7 @@
     bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.12.01-slim-actions';
     document.head.appendChild(bookAllStations);
     const locationOverride = document.createElement('script');
-    locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01';
+    locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01';
     document.head.appendChild(locationOverride);
     const subletIntake = document.createElement('script');
     subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.12.inline-provider';

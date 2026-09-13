@@ -8,7 +8,7 @@ const queue=source.slice(start,source.indexOf('\nfunction ',start+10));
 function fixture(){
  const context={
   escapeHtml:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
-  vehicleKey:v=>v.stock,isPdcBlocked:()=>false,workshopPartsSummary:()=>({status:'none',text:'Unknown'}),
+  vehicleKey:v=>v.stock,displayStockNumber:v=>v.stock,isPdcBlocked:()=>false,workshopPartsSummary:()=>({status:'none',text:'Unknown'}),
   workshopState:()=>({stage:'FITTING',date:'2026-09-14'}),workshopQueueEstimatedLabel:()=> '8 h',
   workshopSchedulingDuration:()=>({hours:8}),workshopVehicleEtaConstraint:()=>({ok:true,required:false}),
   workshopSharedModeActive:()=>true,workshopOutstandingDisabledReasonLabel:v=>v||'',
