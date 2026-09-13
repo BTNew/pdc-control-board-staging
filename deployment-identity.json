@@ -145,5 +145,23 @@
     "commissioned": true,
     "review_status": "staging_applied",
     "source": "Staging apply and independent function/permission review verified. 25 rollback assertions passed; effective location governs booking and ETA warnings while source location and existing booking times are retained."
+  },
+  "workshop_operational_calendar_intervals_migration": {
+    "version": "20260913222020",
+    "name": "workshop_operational_calendar_intervals",
+    "file": "supabase/migrations/20260913222020_workshop_operational_calendar_intervals.sql",
+    "sha256": "55beb3a5e45a8c8681e6b2774aa78a9fb965a74b627911e783cf0d8519b89215",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "Staging-only Book all stations performance update; guarded function replacement and rollback equivalence tests verified."
+  },
+  "workshop_candidate_gate_point_lookup_migration": {
+    "version": "20260913222324",
+    "name": "workshop_candidate_gate_point_lookup",
+    "file": "supabase/migrations/20260913222324_workshop_candidate_gate_point_lookup.sql",
+    "sha256": "cc62753a46531c663c3120c806810382631bfc82a42f990bdb726790b263f586",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "Staging-only Book all stations performance update; guarded function replacement and rollback equivalence tests verified."
   }
 }

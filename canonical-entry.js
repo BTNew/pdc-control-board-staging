@@ -77,7 +77,7 @@
     };
     document.head.appendChild(intakeScript);
     const bookAllStations = document.createElement('script');
-    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.12.01-slim-actions';
+    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed';
     document.head.appendChild(bookAllStations);
     const locationOverride = document.createElement('script');
     locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01';
