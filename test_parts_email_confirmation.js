@@ -13,12 +13,12 @@ const context = {
 vm.createContext(context);
 const source = fs.readFileSync('pdc-parts-confirmation.js','utf8');
 vm.runInContext(source,context);
-const vehicle = {parts_flags:{parts_complete:true,override_source:'authorised_email_confirmation',label:'Parts complete — confirmed by Wayne',confirmed_at:'2026-09-12T00:00:00Z',import_status:{colour:'orange'}}};
+const vehicle = {parts_flags:{parts_complete:true,override_source:'authorised_email_confirmation',label:'Parts complete — person confirmed',confirmed_by_name:'Test Person',confirmed_at:'2026-09-12T00:00:00Z',import_status:{colour:'orange'}}};
 assert.equal(context.partsStateComplete(vehicle),true);
 assert.equal(context.partsStateComplete({parts_flags:{colour:'green'}}),false);
 assert.equal(context.partsDepartmentStatusClass('import:Parts complete — confirmed by Wayne'),'parts-status-complete');
 assert.equal(context.partsDepartmentStatusClass('import:Unknown / Needs review'),'original-class');
-assert.match(context.partsLastUpdateLabel(vehicle),/Confirmed by Wayne/);
+assert.match(context.partsLastUpdateLabel(vehicle),/Confirmed by Test Person/);
 assert.match(context.importedPartsTitle(vehicle),/overrides import backorder flags/);
 assert.equal(context.importedPartsTitle({}),'Original import status');
 vm.runInContext(source,context);

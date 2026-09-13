@@ -14,13 +14,14 @@
   };
   const priorClass = partsDepartmentStatusClass;
   partsDepartmentStatusClass = status => {
-    if (status === 'import:Parts complete — confirmed by Wayne' || status === 'import:All active jobs parts-ready') return 'parts-status-complete';
+    if (status === 'import:Parts complete — person confirmed' || status === 'import:Parts complete — confirmed by Wayne' || status === 'import:All active jobs parts-ready') return 'parts-status-complete';
     if (status === 'import:Parts outstanding — see job cards') return 'parts-status-ordered';
     return priorClass(status);
   };
   const time = value => new Date(value).toLocaleString('en-AU', {timeZone:'Australia/Perth'});
   const priorUpdated = partsLastUpdateLabel;
-  partsLastUpdateLabel = vehicle => confirmation(vehicle)?.confirmed_at ? 'Confirmed by Wayne ' + time(confirmation(vehicle).confirmed_at) : priorUpdated(vehicle);
+  const person = status => status.confirmed_by_name || status.confirmed_by || 'a person';
+  partsLastUpdateLabel = vehicle => confirmation(vehicle)?.confirmed_at ? 'Confirmed by ' + person(confirmation(vehicle)) + ' ' + time(confirmation(vehicle).confirmed_at) : priorUpdated(vehicle);
   const priorTitle = importedPartsTitle;
   importedPartsTitle = vehicle => {
     const status = confirmation(vehicle);
@@ -30,8 +31,15 @@
       const jobs = (p.jobs || []).map(j => `R/O ${j.job_number} (${j.company || 'scope unconfirmed'}/${j.division || '?' }): ${j.label}`).join('\n');
       return `${p.label}\n${jobs}\nParts snapshot: ${p.parts_snapshot_at ? time(p.parts_snapshot_at) : 'Not recorded'}\nLast successful parts import: ${p.last_successful_parts_feed_import_at ? time(p.last_successful_parts_feed_import_at) : 'Not recorded'} (Perth).\n${p.meaning || ''}`;
     }
-    return status.label + '. Confirmed ' + time(status.confirmed_at) + ' (Perth). This email confirmation overrides import backorder flags. Original import evidence is retained.';
+    return 'A person confirmed the parts are here. Confirmed by ' + person(status) + ' ' + time(status.confirmed_at) + ' (Perth). This email confirmation overrides import backorder flags. Original import evidence is retained.';
   };
+  if (typeof incomingWorkChecklistHtml === 'function') {
+    const priorChecklist = incomingWorkChecklistHtml;
+    incomingWorkChecklistHtml = (vehicle, ...args) => {
+      const html = priorChecklist(vehicle, ...args);
+      return confirmation(vehicle) ? html.replace('parts-jita-split ', 'parts-jita-split person-confirmed-parts ') : html;
+    };
+  }
   if (typeof partsMatchesOperationalFilter === 'function') {
     const priorFilter = partsMatchesOperationalFilter;
     partsMatchesOperationalFilter = (vehicle = {}, filter = 'notordered') => {
@@ -78,6 +86,8 @@
     const style = document.createElement('style');
     style.id = 'pdc-separate-parts-style';
     style.textContent = `
+      .incoming-work-check.parts-jita-split.person-confirmed-parts { background: #dcfce7 !important; color: #14532d !important; border: 2px solid #14532d !important; box-shadow: 0 0 0 1px #14532d; }
+      .incoming-work-check.parts-jita-split.person-confirmed-parts::after { background: #dcfce7 !important; }
       #parts .parts-queue-table:has([data-parts-feed]) { min-width: 1500px; table-layout: auto; }
       #parts .parts-queue-table:has([data-parts-feed]) th:nth-child(5),
       #parts .parts-queue-table:has([data-parts-feed]) td:nth-child(5) { width: 300px !important; min-width: 300px !important; max-width: none !important; white-space: normal; overflow: visible; }
@@ -88,5 +98,5 @@
     `;
     document.head.appendChild(style);
   }
-  window.PDC_PARTS_CONFIRMATION_VERSION = '2026.09.12.separate-parts.3';
+  window.PDC_PARTS_CONFIRMATION_VERSION = '2026.09.13.person-confirmed.1';
 })();
