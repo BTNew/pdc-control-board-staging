@@ -65,6 +65,11 @@ body:has(#newvehicles.active) { overflow-x:clip !important; }
 .nv-update-compare section { padding: 12px; background: #f4f6fa; border-radius: 6px; overflow-wrap: anywhere; }
 .nv-update-controls input { max-width: 120px; }
 .nv-update-issues { color: #b42318; }
+.nv-update-schedule { margin:16px 0;padding:16px;background:#f0f8f3;border:1px solid #b4d4bd;border-radius:10px; }
+.nv-update-schedule>div { overflow-x:auto; }
+.nv-update-schedule table { width:100%;border-collapse:collapse; }
+.nv-update-schedule th,.nv-update-schedule td { padding:8px;text-align:left;border-bottom:1px solid #cfdfd4;font-size:12px; }
+.nv-update-schedule>small { display:block;margin-top:10px; }
 @media(max-width:700px) { .nv-update-compare { grid-template-columns:1fr; } }
 
 /* Full-width review rows with station targets kept visible while scrolling. */

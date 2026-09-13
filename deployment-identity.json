@@ -109,5 +109,14 @@
     "sha256": "d0ea3713adf1cb6c5c665759986e9158e6b6436c36b73853d37bb93583cb88f5",
     "commissioned": true,
     "review_status": "staging_applied"
+  },
+  "tune_operation_schedule_approval_migration": {
+    "version": "20260913060848",
+    "name": "tune_operation_approval_schedule_cascade",
+    "file": "supabase/migrations/20260913060848_tune_operation_approval_schedule_cascade.sql",
+    "sha256": "b15a6bfa8512f65fc16ce794d444dd2083c268086e4241759e4558748af2a48e",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "Staging apply and definition/privilege readback verified. 38 transactional integration assertions passed; all test data rolled back. Existing user approvals remain pending."
   }
 }
