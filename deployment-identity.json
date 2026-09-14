@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260914062014",
-    "name": "mobile_qc_sublet_without_hours",
-    "file": "supabase/migrations/20260914062014_mobile_qc_sublet_without_hours.sql",
-    "sha256": "5aa665c4f262a83624f651575ef027b043739c6d4ea9fe1459e32c5bfc442fa9",
+    "version": "20260914093305",
+    "name": "workshop_capacity_replan_apply",
+    "file": "supabase/migrations/20260914093305_workshop_capacity_replan_apply.sql",
+    "sha256": "0c7934888d97324332fb3ab9aab8589c468d51df14238b9a2c32fe643677ad3d",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Sublet completion stage and hours-free QC support. 24 rollback database assertions passed after staging application; customer checks, photos, estimates and bookings retained."
+    "source": "Planner gap closing and bay efficiency. 143 synthetic rollback checks passed before application; no customer bookings moved by deployment."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -92,14 +92,14 @@
     "UID635 imported Stock 13000775 as one Navision-linked canonical vehicle with OP1-OP22, seven explicit zero-hour headers, five unknown-hour headers retained as NULL, and Pre-Delivery standardised to 1.50 hours.",
     "The isolated pmbcontroller Inbox monitor, mailbox and writer are contained after the requested one-shot import; the paused replay floor is UID636 and recurring automation was not resumed.",
     "Dedicated Workshop planners open directly on the selected station schedule without a duplicate Back to Control Board block or cross-station tab buttons.",
-    "Stock 13000775 displays all 22 genuine Job Card operations: seven mapped internal lines, one Sublet line and fourteen unresolved lines under Unallocated – mapping review.",
+    "Stock 13000775 displays all 22 genuine Job Card operations: seven mapped internal lines, one Sublet line and fourteen unresolved lines under Unallocated \u2013 mapping review.",
     "A database parity guard now checks every vehicle and rejects any operation import or mapping adjustment that would omit or duplicate a genuine Job Card operation in the Board/QC projection.",
     "Every active vehicle with current Navision data must have one exact-Stock canonical link; Navision and vehicle transactions fail closed on ambiguity, missing links or stale detail/location refresh.",
     "Stock 13000775 was removed from active staging through the authenticated Administrator reset path for a fresh test; its tombstone and audit evidence are retained.",
     "Gmail UID639 loaded Stock 13000769 as one Navision-linked vehicle with Job Card J139125493 and all 17 operations projected exactly once.",
     "Gmail UID640 loaded Stock 13017855 as one Navision-linked vehicle with Job Card J139125422 and all 20 operations projected exactly once; reflective safety striping routes to Sublet.",
     "Linked shared Navision source rows are merged into their one active Back End Data row; current Navision colour and source salesperson are projected from the authoritative link.",
-    "All 22 UID635 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated – mapping review rather than being omitted.",
+    "All 22 UID635 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated \u2013 mapping review rather than being omitted.",
     "Production and real outbound email delivery remain disabled and untouched."
   ],
   "pmb_rft_release_migration": {
@@ -209,6 +209,32 @@
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "Staging snapshot base now rejects a NULL staff role. Original role list, query and permissions retained; old and compact endpoints both return unauthorized with missing claims."
+    }
+  ],
+  "planner_capacity_migrations": [
+    {
+      "version": "20260914093240",
+      "name": "workshop_bay_capacity_configuration",
+      "file": "supabase/migrations/20260914093240_workshop_bay_capacity_configuration.sql",
+      "sha256": "ed7bb9ac2cc79cae9dd9a96079f7812534369017a6878d456602d3bdb89fb847",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20260914093252",
+      "name": "workshop_booking_capacity_duration_authority",
+      "file": "supabase/migrations/20260914093252_workshop_booking_capacity_duration_authority.sql",
+      "sha256": "31f52598e9bd2b9e385eaded1738875150ddd13774b90e49046a178c89ef626f",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20260914093305",
+      "name": "workshop_capacity_replan_apply",
+      "file": "supabase/migrations/20260914093305_workshop_capacity_replan_apply.sql",
+      "sha256": "0c7934888d97324332fb3ab9aab8589c468d51df14238b9a2c32fe643677ad3d",
+      "commissioned": true,
+      "review_status": "staging_applied"
     }
   ]
 }

@@ -30,10 +30,10 @@ assert.strictEqual(exactEnd.getMinutes(), 18, 'The final three minutes must not 
 const source = fs.readFileSync('workshop-planner.js', 'utf8');
 assert.ok(source.includes('const canonicalSharedHours = workshopSharedModeActive()'));
 assert.ok(source.includes('const duration = workshopSchedulingDuration(vehicle, normalizedStage);'));
-assert.ok(source.includes('? duration.hours'),
-  'shared scheduling derives exact duration from the authoritative station projection');
+assert.ok(source.includes('? workshopBookingDestinationHours(existing, normalizedStage, bay, duration.hours)'),
+  'shared scheduling adjusts the authoritative estimate once for the destination bay');
 assert.ok(source.includes('const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);'));
-assert.ok(source.includes('readonly title="Uses the canonical operation-line estimate"'));
+assert.ok(source.includes('readonly title="Operation estimate adjusted for bay efficiency"'));
 assert.ok(source.includes('name="hours" type="number" min="0.0166667"'),
   'the detail form must accept any positive whole-minute duration, including 47 minutes');
 assert.ok(!source.includes('name="hours" type="number" min="1"'),

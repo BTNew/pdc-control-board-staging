@@ -41,6 +41,7 @@ global.pmbStageBayCount = () => 2;
 const bays = [1,2].map(bay => ({id:`synthetic-bay-${bay}`,code:`FITTING-BAY-0${bay}`,is_active:true}));
 window.__workshopReferenceDataService.getCachedWorkshopBays = () => ({state:'connected_read_only',rows:bays});
 window.workshopSharedModeEnabled = () => true;
+window.PDC_PLANNER_CAPACITY = { allocatedHours: (_stage, _bay, hours) => require('./pdc-planner-capacity.js').allocatedHours(hours, 100) };
 let snapshot = {revision:1,bookings:[],vehicles:[],admin_blocks:[{id:'synthetic-training',version:1,stage_code:'FITTING',bay_number:1,block_type:'training',label:'Training',scheduled_start_at:day(21,7).toISOString(),scheduled_end_at:day(21,17).toISOString(),duration_minutes:600}]};
 window.__workshopDataService = {isEnabled:()=>true,getTrustedSnapshot:()=>snapshot};
 assert.equal(planner.workshopSharedModeActive(),true);
