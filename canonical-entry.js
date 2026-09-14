@@ -71,7 +71,7 @@
     intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match&review-fixes=2026.09.13.01&operation-approval=2026.09.13.02';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&review-fixes=2026.09.13.01&operation-approval=2026.09.13.02&deep-review=2026.09.13.01';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&ai-estimates=2026.09.14.01&review-fixes=2026.09.13.01&operation-approval=2026.09.13.02&deep-review=2026.09.13.01';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
@@ -96,3 +96,4 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
   else load();
 })();
+

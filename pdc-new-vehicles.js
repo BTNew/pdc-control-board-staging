@@ -104,6 +104,31 @@
       &&data.bookings_changed===(bookings.length>0);
   }
   const hourLabel=value=>Number(value).toLocaleString('en-AU',{maximumFractionDigits:2});
+  function operationHoursPresentation(line = {}, drafts = {}, assigned = line.stage_code) {
+    const value=hoursFor(line,drafts),edited=Object.prototype.hasOwnProperty.call(drafts,line.line_identity);
+    const note=typeof line.review_note==='string'?line.review_note.trim():'';
+    const basis=typeof line.estimate_basis==='string'?line.estimate_basis.trim():'';
+    const detail=[...new Set([note,basis&&`${edited?'Original estimate basis: ':''}${basis}`].filter(Boolean))].join('\n');
+    const matchesSource=positiveHours(line.source_estimated_hours)&&Number(line.source_estimated_hours)===Number(value);
+    let label;
+    if(assigned==='SUBLET') label='Hours not required';
+    else if(!edited&&!positiveHours(value)&&line.hours_provenance==='estimate_unable') label='Unable to estimate — confirm scope';
+    else if(!positiveHours(value)) label='Hours required before approval';
+    else if(edited) label='Your estimate';
+    else if(line.hours_provenance==='ai_estimated') label=`AI estimate · ${hourLabel(value)} hours`;
+    else if(line.hours_provenance==='craig_standard_pre_delivery_1_hour') label='Pre-delivery · 1 hour standard';
+    else if(line.hours_provenance==='craig_electrical_default_1_5_hours') label='Electrical default · 1.5 hours';
+    else if(line.hours_provenance==='explicit_description_time') label='Estimate stated in description';
+    else if(line.hours_provenance==='conflicting_description_times') label='Conflicting times — enter an estimate';
+    else if(String(line.hours_provenance||'').startsWith('craig_')) label='Hours confirmed';
+    else if(matchesSource&&(line.source_contract==='pilbara_service_open_jobcards_v1'||['source_explicit','source_estimate'].includes(line.hours_provenance))) label=`Tune estimate · ${hourLabel(value)} hours`;
+    else label='Hours confirmed';
+    return {label,detail};
+  }
+  function operationHoursHtml(line,drafts,assigned) {
+    const hint=operationHoursPresentation(line,drafts,assigned);
+    return `<small class="nv-hours-hint"${hint.detail?` title="${esc(hint.detail)}"`:''}>${esc(hint.label)}</small>`;
+  }
   function updateApprovalNotice(row,data) {
     const schedule=data.schedule;
     const approved=data.operation.stage_code==='SUBLET'?'Sublet operation approved':`operation approved at ${hourLabel(data.operation.estimated_hours)} hours`;
@@ -133,7 +158,7 @@
     <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Approval updates the station’s estimated hours and adjusts affected bay bookings. Later jobs move back when needed, with a 5-hour gap between each vehicle’s jobs. Sublet has no workshop bay.</small></article>`;
   }
 
-  const api={matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
+  const api={matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   if(typeof window==='undefined' || window.PDC_SUPABASE_CONFIG?.projectRef!==PROJECT
       || typeof showView!=='function' || window.PDC_NEW_VEHICLES_VERSION) return;
@@ -270,8 +295,6 @@
     const value=hoursFor(line,hourDrafts),missing=!sublet&&!positiveHours(value);
     const standard=line.hours_provenance==='craig_standard_pre_delivery_1_hour';
     const disabled=!writable()||saving||sourceChanged;
-    const provenance=line.hours_provenance==='craig_electrical_default_1_5_hours'?'Electrical default · 1.5 hours':line.hours_provenance==='explicit_description_time'?'Estimate stated in description':line.hours_provenance==='conflicting_description_times'?'Conflicting times — enter an estimate':'';
-    const hint=sublet?'Hours not required':missing?'Hours required before approval':standard?'Pre-delivery · 1 hour standard':Object.hasOwn(hourDrafts,line.line_identity)?'Your estimate':provenance||'Hours confirmed';
     const theme=assigned&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(assigned):null;
     const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
     return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''}" draggable="${!disabled}" data-nv-line="${esc(line.line_identity)}"${style}>
@@ -279,7 +302,7 @@
       <strong>${esc(line.description)}</strong>
       <div class="nv-operation-controls">
       ${sublet?'':`<label class="nv-hours-label">Hours<input type="number" min="0.01" max="999.99" step="0.01" inputmode="decimal" aria-label="Hours for ${esc(line.description)}" aria-invalid="${missing}" data-nv-hours="${esc(line.line_identity)}" value="${esc(value??'')}" placeholder="—" ${standard?'readonly':''} ${disabled?'disabled':''}></label>`}
-      <small class="nv-hours-hint">${esc(hint)}</small>
+      ${operationHoursHtml(line,hourDrafts,assigned)}
       <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled?'disabled':''}><option value="">Needs Review</option>${STATIONS.map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select></label></div></article>`;
   }
   function stationSection(group) {
@@ -402,7 +425,10 @@
         hourDrafts[input.dataset.nvHours]=input.value;requestKey='';approvalRequest=null;
         const invalid=!positiveHours(input.value),tile=input.closest('[data-nv-line]');
         tile.classList.toggle('nv-hours-missing',invalid);input.setAttribute('aria-invalid',String(invalid));
-        tile.querySelector('.nv-hours-hint').textContent=invalid?'Hours required before approval':'Hours confirmed';
+        const line=selected.operations.find(row=>row.line_identity===input.dataset.nvHours);
+        const hint=operationHoursPresentation(line,hourDrafts,choices[line.line_identity]??line.stage_code);
+        const hintElement=tile.querySelector('.nv-hours-hint');
+        hintElement.textContent=hint.label;hintElement.title=hint.detail;
         const issues=problems(selected,choices,hourDrafts);
         page.querySelectorAll('[data-nv-approve]').forEach(button=>button.disabled=!!(saving||sourceChanged||issues.length||!writable()));
         const info=page.querySelector('.nv-approval>div');
