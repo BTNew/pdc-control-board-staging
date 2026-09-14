@@ -18,6 +18,6 @@ assert.strictEqual(result.rows[0].stock,'HERMES-TEST-428');
 assert.strictEqual(result.rows[0].rftCollectedAt,'2026-08-25T10:00:00Z');
 assert.strictEqual(result.rows[0].lifecycleState,'completed');
 assert.match(app,/function isHermesSyntheticVehicle/);
-assert.match(app,/if \(isHermesSyntheticVehicle\(vehicle\)\) return/);
-assert.match(app,/vehicleCollectedFromRft\(vehicle\) && !isHermesSyntheticVehicle\(vehicle\)/);
+assert.match(app,/function completedHistoryRows\(\)[\s\S]*!isHermesSyntheticVehicle\(vehicle\)/);
+assert.match(app,/vehicle\.vehicleDeliveredState === true \|\| vehicleCollectedFromRft\(vehicle\)/);
 console.log('receipt-backed collected vehicle survives authoritative reconciliation: PASS');
