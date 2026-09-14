@@ -1,0 +1,9 @@
+#staff-usage-panel[hidden], .staff-usage-notice[hidden] { display:none !important; }
+#staff-usage-panel { margin-top:20px; }
+.staff-usage-controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+.staff-usage-controls select { min-width:130px; }
+.staff-usage-table { min-width:1000px; }
+.staff-usage-table td { vertical-align:top; }
+.staff-usage-table details { min-width:145px; }
+.staff-usage-table details div { margin-top:5px; white-space:normal; }
+.staff-usage-notice { display:block; padding:14px; line-height:1.4; font-size:11px; }

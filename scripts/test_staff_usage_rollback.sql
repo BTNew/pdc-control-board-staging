@@ -1,0 +1,30 @@
+begin;
+set local statement_timeout='30s';
+do $test$
+declare uid uuid; admin_id uuid; staff_email text; admin_email text; sid uuid:=gen_random_uuid(); b1 uuid:=gen_random_uuid(); b2 uuid:=gen_random_uuid(); r jsonb; blocked boolean; before_count bigint;
+begin
+ select auth_user_id,email into strict uid,staff_email from public.pdc_user_roles where role='operator' and active and account_status='approved' order by id limit 1;
+ select auth_user_id,email into strict admin_id,admin_email from public.pdc_user_roles where role='administrator' and active and account_status='approved' order by id limit 1;
+ insert into auth.sessions(id,user_id,created_at,updated_at) values(sid,uid,now(),now());
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',uid,'email',staff_email,'session_id',sid,'role','authenticated')::text,true);
+ select count(*) into before_count from pdc_usage_private.events where user_id=uid;
+ r:=public.record_pdc_usage_20260914(b1,'dashboard',3,true);
+ if r->>'ok'<>'true' then raise exception 'Record failed';end if;
+ r:=public.record_pdc_usage_20260914(b1,'dashboard',3,true);
+ if r->>'replay'<>'true' then raise exception 'Retry was not idempotent';end if;
+ perform public.record_pdc_usage_20260914(b2,'parts',4,true);
+ if(select count(*) from pdc_usage_private.events where user_id=uid)<>before_count+2 then raise exception 'Duplicate activity';end if;
+ if(select count(*) from pdc_usage_private.sessions where user_id=uid and session_id=sid)<>1 then raise exception 'Duplicate sign-in';end if;
+ blocked:=false;begin perform public.get_pdc_usage_report_20260914(30);exception when insufficient_privilege then blocked:=true;end;
+ if not blocked then raise exception 'Controller accessed admin report';end if;
+ blocked:=false;begin perform public.record_pdc_usage_20260914(gen_random_uuid(),'dashboard',201,true);exception when invalid_parameter_value then blocked:=true;end;
+ if not blocked then raise exception 'Unbounded click batch accepted';end if;
+ perform set_config('request.jwt.claims',jsonb_build_object('sub',admin_id,'email',admin_email,'role','authenticated')::text,true);
+ r:=public.get_pdc_usage_report_20260914(30);
+ if not exists(select 1 from jsonb_array_elements(r->'users') x where x->>'email'=staff_email and (x->>'clicks')::int>=7) then raise exception 'Admin aggregation missing';end if;
+ perform set_config('request.jwt.claims','{}',true);
+ blocked:=false;begin perform public.get_pdc_usage_report_20260914(30);exception when insufficient_privilege then blocked:=true;end;
+ if not blocked then raise exception 'Signed-out access accepted';end if;
+end $test$;
+select 'PASS: staff recording, unique sessions, retry deduplication, bounded batches, admin report and non-admin denial; all fixtures rolled back' as result;
+rollback;
