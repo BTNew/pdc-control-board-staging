@@ -26,7 +26,7 @@ assert.match(controller, /provolatile/);
 assert.match(controller, /PDC_APPROVE_STAGING_MIGRATION_20260905010200/);
 
 assert.match(app, /collected:\s*'Collected Vehicles'/);
-assert.match(html, /data-view="ai-auditor"[^>]*title="Requires separately approved AI Auditor access"[^>]*>AI Auditor · Restricted<\/button>/);
+assert.doesNotMatch(html, /<button\b[^>]*\bdata-view="(?:emailreview|ai-auditor)"[^>]*>/, 'AI Intake and AI Auditor are removed from page navigation');
 assert.match(html, /class="nav-scroll-cue"[^>]*>Swipe navigation for more/);
 assert.match(app, /class="table-scroll-cue"[^>]*>Swipe horizontally to view all columns/);
 assert.match(css, /\.table-scroll-cue/);
