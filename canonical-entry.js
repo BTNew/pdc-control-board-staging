@@ -64,7 +64,7 @@
     document.head.appendChild(tileCleanup);
 
     const serviceLocations = document.createElement('script');
-    serviceLocations.src = 'pdc-service-locations.js?v=2026.09.14.01';
+    serviceLocations.src = 'pdc-service-locations.js?v=2026.09.14.02';
     document.head.appendChild(serviceLocations);
     const partsConfirmation = document.createElement('script');
     partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.13.person-confirmed.1';
