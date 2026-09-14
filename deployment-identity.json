@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260914030349",
-    "name": "workshop_booking_validation_performance",
-    "file": "supabase/migrations/20260914030349_workshop_booking_validation_performance.sql",
-    "sha256": "f858149fb3bf2dec5ed74a6702aeff2c939d12d97dbc163210042c9129fe9a97",
+    "version": "20260914054444",
+    "name": "vehicle_snapshot_null_role_guard",
+    "file": "supabase/migrations/20260914054444_vehicle_snapshot_null_role_guard.sql",
+    "sha256": "5e5506e1118b4979549f46ce5d47baba8bf185e08b3916df55b850b03a14c900",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "STAGING application and readback verified: targeted eligibility validation, one estimate evaluation and calendar interval counting. Existing scheduling order, locks, access controls and conflict guards retained."
+    "source": "Staging snapshot base now rejects a NULL staff role. Original role list, query and permissions retained; old and compact endpoints both return unauthorized with missing claims."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -173,6 +173,33 @@
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "STAGING apply and readback verified: canonical QC completion and RFT transfer timestamps; no vehicle mutations."
+    },
+    {
+      "version": "20260914030349",
+      "name": "workshop_booking_validation_performance",
+      "file": "supabase/migrations/20260914030349_workshop_booking_validation_performance.sql",
+      "sha256": "f858149fb3bf2dec5ed74a6702aeff2c939d12d97dbc163210042c9129fe9a97",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "STAGING application and readback verified: targeted eligibility validation, one estimate evaluation and calendar interval counting. Existing scheduling order, locks, access controls and conflict guards retained."
+    },
+    {
+      "version": "20260914053929",
+      "name": "compact_vehicle_board_snapshot",
+      "file": "supabase/migrations/20260914053929_compact_vehicle_board_snapshot.sql",
+      "sha256": "a7a48880fe728c7bd008455d0fb6a4a1bbeec622dfe458c3458666a9220acf5c",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Applied to staging: additive authenticated read-only projection strips two unused duplicate fields; original endpoint retained."
+    },
+    {
+      "version": "20260914054015",
+      "name": "tune_owner_name_alias",
+      "file": "supabase/migrations/20260914054015_tune_owner_name_alias.sql",
+      "sha256": "52f19178f63acc3e86a510a5674354109a54327dde3dadf6c886dcd2098008b7",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Applied to staging: Owner Name fallback added without changing existing aliases, numeric parts semantics or permissions. Exact retained-source customer repair verified for stock13073094."
     }
   ]
 }

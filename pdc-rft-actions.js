@@ -266,5 +266,5 @@
   };
   window.addEventListener('pdc-auth-locked',()=>{dismiss();});
   window.PDC_RFT_ACTIONS_VERSION='2026.09.10.04';
-  renderAll();
+  if (['dashboard', 'rft', 'collected'].includes(app.currentView)) renderAll();
 })();

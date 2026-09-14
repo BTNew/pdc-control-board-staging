@@ -80,7 +80,7 @@
     };
     document.head.appendChild(intakeScript);
     const bookAllStations = document.createElement('script');
-    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed';
+    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed&render-cost=2026.09.14.01';
     document.head.appendChild(bookAllStations);
     const locationOverride = document.createElement('script');
     locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01';
@@ -93,7 +93,7 @@
     rftStyle.href = 'pdc-rft-actions.css?v=2026.09.10.04';
     document.head.appendChild(rftStyle);
     const rftScript = document.createElement('script');
-    rftScript.src = 'pdc-rft-actions.js?v=2026.09.10.04';
+    rftScript.src = 'pdc-rft-actions.js?v=2026.09.10.04&render-cost=2026.09.14.01';
     document.head.appendChild(rftScript);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });

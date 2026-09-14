@@ -194,5 +194,5 @@
     if (!button.disabled) void book(button.dataset.bookAllStations);
   }, true);
   window.PDC_BOOK_ALL_STATIONS = Object.freeze({ eligible, actionHtml });
-  if (typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
+  if (app.currentView === 'dashboard' && typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
 })();
