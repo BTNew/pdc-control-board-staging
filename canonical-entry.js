@@ -63,6 +63,9 @@
     tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.03';
     document.head.appendChild(tileCleanup);
 
+    const serviceLocations = document.createElement('script');
+    serviceLocations.src = 'pdc-service-locations.js?v=2026.09.14.01';
+    document.head.appendChild(serviceLocations);
     const partsConfirmation = document.createElement('script');
     partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.13.person-confirmed.1';
     document.head.appendChild(partsConfirmation);

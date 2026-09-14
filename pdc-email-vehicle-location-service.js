@@ -256,6 +256,7 @@ function mapServerVehicle(row = {}) {
   mapped.pdcQcRetestCycleId = String(qcRetest.cycle_id || '').trim();
   mapped.pdcQcRetestFreshCycleOpen = qcRetest.fresh_cycle_open === true;
   mapped.pdcQcRetestFreshPhotoAccepted = qcRetest.fresh_photo_accepted === true;
+  mapped.tuneServiceLocations = row.tune_service_locations && typeof row.tune_service_locations === 'object' ? row.tune_service_locations : {jobs:[]};
   mapped.pdcPartsFlags = row.parts_flags && typeof row.parts_flags === 'object' ? row.parts_flags : null;
   const partsUpdate = row.parts_update && typeof row.parts_update === 'object' ? row.parts_update : {};
   const qcFinalization = row.qc_finalization && typeof row.qc_finalization === 'object' ? row.qc_finalization : null;
