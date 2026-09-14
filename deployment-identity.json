@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260914054444",
-    "name": "vehicle_snapshot_null_role_guard",
-    "file": "supabase/migrations/20260914054444_vehicle_snapshot_null_role_guard.sql",
-    "sha256": "5e5506e1118b4979549f46ce5d47baba8bf185e08b3916df55b850b03a14c900",
+    "version": "20260914062014",
+    "name": "mobile_qc_sublet_without_hours",
+    "file": "supabase/migrations/20260914062014_mobile_qc_sublet_without_hours.sql",
+    "sha256": "5aa665c4f262a83624f651575ef027b043739c6d4ea9fe1459e32c5bfc442fa9",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Staging snapshot base now rejects a NULL staff role. Original role list, query and permissions retained; old and compact endpoints both return unauthorized with missing claims."
+    "source": "Sublet completion stage and hours-free QC support. 24 rollback database assertions passed after staging application; customer checks, photos, estimates and bookings retained."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -200,6 +200,15 @@
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "Applied to staging: Owner Name fallback added without changing existing aliases, numeric parts semantics or permissions. Exact retained-source customer repair verified for stock13073094."
+    },
+    {
+      "version": "20260914054444",
+      "name": "vehicle_snapshot_null_role_guard",
+      "file": "supabase/migrations/20260914054444_vehicle_snapshot_null_role_guard.sql",
+      "sha256": "5e5506e1118b4979549f46ce5d47baba8bf185e08b3916df55b850b03a14c900",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Staging snapshot base now rejects a NULL staff role. Original role list, query and permissions retained; old and compact endpoints both return unauthorized with missing claims."
     }
   ]
 }

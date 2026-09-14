@@ -5411,6 +5411,7 @@ function qcPageAllOperationLinesComplete(vehicle = {}) {
 }
 
 function qcPageOperationHoursLabel(line = {}) {
+  if (line.stageCode === 'SUBLET') return 'Hours not required';
   if (line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '') return 'Unknown hours';
   const numeric = Number(line.estimatedHours);
   return Number.isFinite(numeric) ? `${numeric.toFixed(2).replace(/\.00$/, '')} h` : 'Unknown hours';
@@ -5428,7 +5429,7 @@ function qcPageWorkItemsHtml(vehicle = {}) {
   const html = Object.entries(groups).map(([stage, lines]) => `<section class="qc-operation-group" aria-labelledby="qc-operation-${escapeHtml(stage)}">
     <h4 id="qc-operation-${escapeHtml(stage)}">${escapeHtml(qcPageStageLabel(stage))}</h4>
     ${lines.map(line => {
-    const hoursUnknown = line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '' || !Number.isFinite(Number(line.estimatedHours));
+    const hoursUnknown = stage !== 'SUBLET' && (line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '' || !Number.isFinite(Number(line.estimatedHours)));
     const mappingReview = stage === 'UNALLOCATED_MAPPING_REVIEW';
     const pending = qcPageOperationPending.get(qcPagePendingKey(key, line.lineIdentity));
     return `<label class="qc-work-item qc-operation-line ${line.completed ? 'is-complete' : 'is-required'} ${pending ? 'is-saving' : ''}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" ${pending ? 'aria-busy="true"' : ''}>

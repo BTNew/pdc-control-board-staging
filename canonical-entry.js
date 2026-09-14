@@ -25,7 +25,7 @@
     document.head.appendChild(style);
 
     const script = document.createElement('script');
-    script.src = `pdc-qc-mobile.js?v=${version}&deep-review=2026.09.13.01`;
+    script.src = `pdc-qc-mobile.js?v=${version}&deep-review=2026.09.13.01&sublet-qc=2026.09.14.01`;
     const loadReview = () => {
       const reviewStyle = document.createElement('link');
       reviewStyle.rel = 'stylesheet';
@@ -99,4 +99,3 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
   else load();
 })();
-
