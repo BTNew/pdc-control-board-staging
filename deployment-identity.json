@@ -163,5 +163,16 @@
     "commissioned": true,
     "review_status": "staging_applied",
     "source": "Staging-only Book all stations performance update; guarded function replacement and rollback equivalence tests verified."
-  }
+  },
+  "applied_database_migration_history": [
+    {
+      "version": "20260910002538",
+      "name": "qc_rft_snapshot_reconciliation",
+      "file": "supabase/staging_only/20260910002538_qc_rft_snapshot_reconciliation.sql",
+      "sha256": "74dad977cbbb1c5ccc064fa4799433d6b9cf65686cf72f53684e403fddbaedda",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "STAGING apply and readback verified: canonical QC completion and RFT transfer timestamps; no vehicle mutations."
+    }
+  ]
 }
