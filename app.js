@@ -8135,6 +8135,18 @@ function incomingCompareVehicles(a, b, sort = {}, bucket = '') {
 }
 
 function renderIncomingDashboardBoard() {
+  // Direct search, filter and live-refresh callbacks bypass renderActiveView.
+  // Keep their parsed local values within this synchronous render only.
+  const previousRenderJsonCache = activeRenderJsonCache;
+  activeRenderJsonCache = previousRenderJsonCache || new Map();
+  try {
+    return renderIncomingDashboardBoardContent();
+  } finally {
+    activeRenderJsonCache = previousRenderJsonCache;
+  }
+}
+
+function renderIncomingDashboardBoardContent() {
   const host = $('#incoming-main-board');
   if (!host) return;
   const disclosureState = app.vehicleLocationsRefreshDisclosure || captureIncomingBoardDisclosureState(host);
@@ -8150,6 +8162,13 @@ function renderIncomingDashboardBoard() {
   updateIncomingMoreFiltersState(filters);
   const sort = app.incomingDashboardSort || {};
   const filteredRows = rows.filter(vehicle => incomingVehicleMatchesFilters(vehicle, filters));
+  const rowsByBucket = new Map();
+  filteredRows.forEach(vehicle => {
+    const key = incomingBucketForVehicle(vehicle);
+    const bucket = rowsByBucket.get(key) || [];
+    bucket.push(vehicle);
+    rowsByBucket.set(key, bucket);
+  });
   const summary = $('#incoming-filter-summary');
   if (summary) {
     const workCount = Array.isArray(filters.work) ? filters.work.length : (filters.work ? 1 : 0);
@@ -8164,7 +8183,7 @@ function renderIncomingDashboardBoard() {
   </section>`;
   host.innerHTML = sharedNavisionLocationsStatusHtml() + workStatusLegendHtml() + priorityHtml + defs.map(def => {
     if (filters.bucket && filters.bucket !== def.key) return '';
-    const vehicles = filteredRows.filter(vehicle => incomingBucketForVehicle(vehicle) === def.key)
+    const vehicles = (rowsByBucket.get(def.key) || [])
       .sort((a, b) => incomingCompareVehicles(a, b, sort, def.key));
     const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key, { workshopPlans, workshopProjectionAvailable, subletNavigation: true })).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
     const identityHeader = vehicles.length

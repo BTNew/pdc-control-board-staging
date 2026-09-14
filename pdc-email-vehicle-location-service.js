@@ -3,7 +3,7 @@
 /* Staging-only, read-only consumer of authenticated email vehicle imports. */
 const PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd';
 const PDC_EMAIL_VEHICLE_REVISION_TABLE = 'pdc_email_vehicle_revision';
-const PDC_EMAIL_VEHICLE_SNAPSHOT_RPC = 'get_pdc_email_vehicle_location_snapshot';
+const PDC_EMAIL_VEHICLE_SNAPSHOT_RPC = 'get_pdc_email_vehicle_board_snapshot';
 const PDC_SUBLET_AUDIT_READ_RPC = 'get_pdc_sublet_audit_ledgers';
 const PDC_WORKSHOP_HOURS_BATCH_RPC = 'save_vehicle_workshop_line_hours_batch_768';
 const PDC_SUBLET_UPDATE_RPC = 'update_pdc_sublet_booking_field';

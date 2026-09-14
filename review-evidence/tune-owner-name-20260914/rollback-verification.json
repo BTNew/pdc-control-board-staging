@@ -1,0 +1,31 @@
+{
+  "rollback_test": {
+    "ok": true,
+    "vin": null,
+    "checks": "9 alias fixtures; 18 actual retained rows; other normalized fields; unchanged function permissions; vehicle state whitelist; 10 operational tables; immutable evidence and rows; current evidence pointer; idempotent repair replay; deferred constraints",
+    "customer": "HERTZ AUSTRALIA PTY LTD **",
+    "location": "Yard Hold",
+    "rollback": true,
+    "projection": {
+      "vin": null,
+      "customer_name": "HERTZ AUSTRALIA PTY LTD **",
+      "details_source": "tune_pmg",
+      "details_evidence_id": "e8436f7f-e0ad-4bab-adb5-f44e852d710f",
+      "vehicle_description": null
+    },
+    "booking_count": 0,
+    "operation_count": 18,
+    "operation_hours": 18.75,
+    "vehicle_description": null,
+    "immutable_evidence_customer": null
+  },
+  "post_rollback_readback": {
+    "version": 23,
+    "customer": null,
+    "location": "Yard Hold",
+    "alias_result": null,
+    "receipt_count": 0,
+    "operation_count": 18,
+    "operation_hours": 18.75
+  }
+}
