@@ -150,3 +150,59 @@ test('normal reviewed approval still uses the shared saver and explicit edited h
   const result=receipt(row);result.data.operations[0].estimated_hours=2.5;f.state.pending[0].resolve(result);await run;
   assert.equal(f.get('selected'),null);assert.equal(f.get('items.length'),0);assert.match(f.get('notice'),/approved and added/);
 });
+
+test('bulk button checks all pages and refreshes the board once after the batch',async()=>{
+  const rows=[vehicle('one'),vehicle('two')],f=fixture(rows);
+  f.set('queueSearch="only-one-card";offset=50;');
+  const run=f.context.approveAllReady();
+  await f.context.approveAllReady();await f.context.quickApprove('one');
+  assert.equal(f.state.pending.length,1,'repeat clicks and individual saves are blocked while checking');
+  assert.equal(f.state.pending[0].name,'list_pdc_new_vehicle_reviews');
+  assert.equal(f.state.pending[0].payload.p_offset,0,'bulk starts from the whole queue, not the current page');
+  f.state.pending[0].resolve({ok:true,data:{items:rows,total:2,offset:0,has_more:false}});
+  await new Promise(setImmediate);
+  assert.equal(f.state.pending[1].name,'approve_pdc_new_vehicle_review');
+  assert.equal(f.state.pending[1].payload.p_vehicle_id,'one');
+  f.state.pending[1].resolve(receipt(rows[0]));await new Promise(setImmediate);
+  assert.equal(f.state.refreshes,0,'there is no full board refresh per vehicle');
+  f.state.pending[2].resolve(receipt(rows[1]));await run;
+  assert.equal(f.get('saving'),false);assert.equal(f.get('bulkState'),null);assert.equal(f.get('items.length'),0);
+  assert.equal(f.state.refreshes,1);assert.equal(f.state.loads,1);assert.equal(f.get('offset'),0);
+  assert.match(f.get('notice'),/2 vehicles approved/);
+});
+
+test('bulk preflight failures stay visible and never start approvals or a clearing reload',async()=>{
+  const f=fixture(),run=f.context.approveAllReady();
+  f.state.pending[0].resolve({ok:true,data:{items:[vehicle(),vehicle()],total:2}});await run;
+  assert.equal(f.state.pending.length,1);assert.equal(f.state.refreshes,0);assert.equal(f.state.loads,0);
+  assert.match(f.get('error'),/queue changed/);assert.equal(f.get('saving'),false);
+});
+
+test('bulk unknown saves retain an identical request on retry',async()=>{
+  const row=vehicle(),f=fixture([row]);
+  const first=f.context.approveAllReady();f.state.pending[0].resolve({ok:true,data:{items:[row],total:1}});await new Promise(setImmediate);
+  f.state.pending[1].reject(new Error('offline'));await first;
+  assert.equal(f.get('items.length'),1);assert.match(f.get('notice'),/could not be confirmed/);
+  const retry=f.context.approveAllReady();f.state.pending[2].resolve({ok:true,data:{items:[row],total:1}});await new Promise(setImmediate);
+  assert.equal(f.state.pending[3].payload,f.state.pending[1].payload);
+  f.state.pending[3].resolve(receipt(row));await retry;assert.equal(f.get('items.length'),0);
+});
+
+test('bulk approval ownership cannot leak into another signed-in session',async()=>{
+  const row=vehicle(),f=fixture([row]),first=f.context.approveAllReady();
+  f.state.pending[0].resolve({ok:true,data:{items:[row],total:1}});await new Promise(setImmediate);
+  f.set('generation++;sessionGeneration++;bulkState=null;saving=false;bulkStop=true;');
+  f.context.window.PDC_AUTH_CONTEXT.userId='operator-two';f.state.token='token-two';
+  f.set('saving=true;notice="New session action";');
+  f.state.pending[1].resolve(receipt(row));await first;
+  assert.equal(f.get('saving'),true);assert.equal(f.get('notice'),'New session action');
+  assert.equal(f.state.refreshes,0);assert.equal(f.get('items.length'),1);
+});
+
+test('bulk token expiry unlocks the UI without accepting a late receipt',async()=>{
+  const row=vehicle(),f=fixture([row]),run=f.context.approveAllReady();
+  f.state.pending[0].resolve({ok:true,data:{items:[row],total:1}});await new Promise(setImmediate);
+  f.state.token='refreshed-token';f.state.pending[1].resolve(receipt(row));await run;
+  assert.equal(f.get('saving'),false);assert.equal(f.get('items.length'),1);assert.equal(f.state.loads,0);
+  assert.match(f.get('error'),/session changed/);assert.equal(f.state.refreshes,0);
+});

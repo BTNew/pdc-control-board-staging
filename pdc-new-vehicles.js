@@ -43,6 +43,9 @@
     if(row?.details_source==='identity_review') issues.push('Review this vehicle’s identity before approval.');
     if(row?.lifecycle_state && row.lifecycle_state!=='active' || row?.visible_on_board===true) issues.push('Review this vehicle’s current board status.');
     if((row?.operations||[]).some(line=>!validStation(line.stage_code))) issues.push('Review the suggested station assignments.');
+    if((row?.operations||[]).some(line=>['ai_estimated','estimate_unable','conflicting_description_times'].includes(line.hours_provenance))) issues.push('Review the proposed hours before approval.');
+    if((row?.operations||[]).some(line=>typeof line.review_note==='string'&&line.review_note.trim())) issues.push('Check the operation review notes before approval.');
+    if((row?.operations||[]).some(line=>line.rejected===true || line.source_kind && line.source_kind!=='authenticated')) issues.push('Review the operation source before approval.');
     if((row?.operations||[]).some(line=>line.hours_provenance==='craig_standard_pre_delivery_1_hour' && Number(line.estimated_hours)!==1)) issues.push('Review the standard pre-delivery hour.');
     return issues;
   }
@@ -183,7 +186,64 @@
     <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Approval updates the station’s estimated hours and adjusts affected bay bookings. Later jobs move back when needed, with a 1-hour gap between each vehicle’s jobs. Sublet has no workshop bay.</small></article>`;
   }
 
-  const api={quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
+  async function approveReadyQueue({listPage,approveRow,isCurrent=()=>true,shouldStop=()=>false,onProgress=()=>{},onApproved=()=>{},pageSize=50}) {
+    const report={checked:0,total:0,ready:0,needsReview:0,approved:[],failed:[],stopped:false};
+    const rows=[],seen=new Set();
+    const checkSession=()=>{if(!isCurrent())throw new Error('session_changed');};
+    const progress=phase=>onProgress({phase,checked:report.checked,total:report.total,ready:report.ready,needsReview:report.needsReview,approved:report.approved.length,failed:report.failed.length});
+    if(!Number.isInteger(pageSize)||pageSize<1||pageSize>100)throw new Error('invalid_page_size');
+    let expectedTotal=null;
+    // Freeze the full queue before approving: removing rows during offset-based
+    // pagination would otherwise skip vehicles on later pages.
+    do {
+      checkSession();
+      if(shouldStop()){report.stopped=true;return report;}
+      progress('checking');
+      const result=await listPage(rows.length,pageSize);
+      checkSession();
+      const data=result?.data;
+      if(result?.ok!==true||!Array.isArray(data?.items)||!Number.isInteger(data.total)||data.total<0
+        ||data.items.length>pageSize||data.offset!==undefined&&data.offset!==rows.length
+        ||expectedTotal!==null&&data.total!==expectedTotal)throw new Error('queue_changed');
+      expectedTotal=data.total;report.total=data.total;
+      if(rows.length+data.items.length>expectedTotal||!data.items.length&&rows.length<expectedTotal)throw new Error('queue_changed');
+      for(const row of data.items){
+        if(!row?.vehicle_id||seen.has(row.vehicle_id))throw new Error('queue_changed');
+        seen.add(row.vehicle_id);rows.push(row);
+      }
+      if(typeof data.has_more==='boolean'&&data.has_more!==(rows.length<expectedTotal))throw new Error('queue_changed');
+      report.checked=rows.length;
+    } while(rows.length<expectedTotal);
+    const ready=rows.filter(row=>quickApprovalProblems(row).length===0);
+    report.ready=ready.length;report.needsReview=rows.length-ready.length;
+    progress('approving');
+    for(const row of ready) {
+      checkSession();
+      if(shouldStop()){report.stopped=true;break;}
+      try {
+        const result=await approveRow(row);
+        checkSession();
+        if(!verifyApproval(result,row,reviewChoices(row),{}))throw new Error('readback_mismatch');
+        report.approved.push(row);onApproved(row);
+      } catch(err) {
+        checkSession();
+        report.failed.push({row,error:err});
+        // Only explicit, non-committing validation failures may continue.
+        // An unknown response may have saved, so stop without assuming success.
+        if(!['review_not_found','already_approved','review_not_pending','backend_identity_changed','existing_workshop_history_requires_review','review_changed','all_operations_need_stations','operation_hours_or_state_need_review'].includes(err?.message)) {
+          report.stopped=true;break;
+        }
+      }
+      progress('approving');
+    }
+    progress(report.stopped?'stopped':'done');
+    return report;
+  }
+  function bulkProgressText(state) {
+    if(state.phase==='checking')return `Checking all queued vehicles${state.total?` · ${state.checked} of ${state.total}`:'…'}`;
+    return `Adding ready vehicles · ${state.approved} of ${state.ready} approved${state.failed?` · ${state.failed} need attention`:''}. ${state.needsReview} left for review.`;
+  }
+  const api={approveReadyQueue,bulkProgressText,quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   if(typeof window==='undefined' || window.PDC_SUPABASE_CONFIG?.projectRef!==PROJECT
       || typeof showView!=='function' || window.PDC_NEW_VEHICLES_VERSION) return;
@@ -196,6 +256,7 @@
   let generation=0,requestKey='',approvalRequest=null,hourDrafts={};
   let queueSearch='',listScroll=0,listVehicleId='';
   let quickRequests={},quickErrors={},quickSavingId='';
+  let bulkState=null,bulkStop=false,bulkFailures=[];
   const limit=50;
   const readable=()=>['viewer','operator','importer','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
   const writable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
@@ -237,6 +298,9 @@
   }
   function message(err) {
     const code=String(err?.message || '');
+    if(code==='queue_changed')return 'The new-vehicle queue changed while it was being checked. Refresh and try again; no bulk approvals were started.';
+    if(['review_not_found','review_not_pending'].includes(code))return 'This vehicle is no longer waiting in the new-vehicle queue. Refresh to check its current status.';
+    if(code==='existing_workshop_history_requires_review')return 'Review this vehicle’s existing workshop history before approval.';
     if(code==='operation_schedule_busy')return err.userMessage||'The workshop is being updated by another action. Please try approving again. No changes were saved.';
     if(code==='operation_schedule_conflict')return err.userMessage||'A later booking cannot be moved safely. Review the affected bookings before retrying. No changes were saved.';
     if(/changed|stale|conflict|already_approved/.test(code)) return 'This Job Card changed or was approved in another session. Reload it before continuing.';
@@ -426,7 +490,10 @@
     const approvalButton=()=>`<button class="primary nv-approve-button" type="button" data-nv-approve ${saving||sourceChanged||issues.length||!writable()?'disabled':''}>${saving?'Saving & adding to board…':'Approve & add to board'}</button>`;
     page.innerHTML=`<div class="nv-header"><div><span class="eyebrow">Tune / Revolution imports</span><h2>${selected?esc(selected.stock_number):'New Vehicles'}</h2>
       <p>${selected?'Review the operation stations, then approve the Job Card.':`${total} awaiting review before they enter Vehicle Locations.`}</p></div>
-      <div class="nv-header-actions">${selected?approvalButton()+'<button type="button" data-nv-back>← Vehicle list</button>':`${updateTotal?`<button type="button" data-nv-updates>${updateTotal} operation update${updateTotal===1?'':'s'}</button>`:''}<button type="button" data-nv-unidentified ${loading?'disabled':''}>Unidentified Tune Review</button>`}<button type="button" data-nv-refresh ${loading||saving?'disabled':''}>${loading?'Refreshing…':'Refresh'}</button></div></div>
+      <div class="nv-header-actions">${selected?approvalButton()+'<button type="button" data-nv-back>← Vehicle list</button>':`${writable()?`<button type="button" class="nv-approve-button" data-nv-approve-ready title="Approve ready vehicles across all pages, regardless of the search filter" ${loading||saving||queueLoadFailed||!total?'disabled':''}>${bulkState?'Approving ready vehicles…':'Approve all ready'}</button>`:''}${updateTotal?`<button type="button" data-nv-updates>${updateTotal} operation update${updateTotal===1?'':'s'}</button>`:''}<button type="button" data-nv-unidentified ${loading||saving?'disabled':''}>Unidentified Tune Review</button>`}<button type="button" data-nv-refresh ${loading||saving?'disabled':''}>${loading?'Refreshing…':'Refresh'}</button></div></div>
+      ${!selected?'<p class="nv-help">Approve all ready checks every page. Vehicles with missing stations, hours or review notes stay here for review.</p>':''}
+      ${bulkState?`<div class="nv-bulk-progress" role="status"><span data-nv-bulk-progress>${esc(bulkProgressText(bulkState))}</span><button type="button" data-nv-bulk-stop ${bulkStop?'disabled':''}>${bulkStop?'Stopping…':'Stop after current vehicle'}</button></div>`:''}
+      ${!selected&&bulkFailures.length?`<details class="nv-bulk-failures"><summary>${bulkFailures.length} vehicle${bulkFailures.length===1?'':'s'} need attention</summary><ul>${bulkFailures.map(item=>`<li><strong>${esc(item.row.stock_number)}</strong> · ${esc(message(item.error))}</li>`).join('')}</ul></details>`:''}
       ${error?`<div class="nv-error" role="alert">${esc(error)}</div>`:''}${notice?`<div class="nv-notice" role="status">${esc(notice)}</div>`:''}${updateScheduleHtml(updateSchedule)}
       ${selected?`<section class="nv-summary"><h3>${esc(selected.vehicle_description)}</h3><p>${esc(selected.customer_name)} · Job Card ${esc((selected.job_cards || []).join(', '))}</p><p>Location: <strong>${esc(selected.current_location || 'Pending')}</strong>${selected.eta_to_kewdale?` · Kewdale ETA: ${esc(selected.eta_to_kewdale)}`:''} · VIN: ${esc(selected.vin || 'Not recorded')}</p></section>
       ${sourceChanged?'<div class="nv-error" role="alert">Source data changed. <button type="button" data-nv-reload>Reload Job Card</button> before approving.</div>':''}
@@ -445,6 +512,8 @@
     page.querySelectorAll('[data-nv-open]').forEach(button=>button.addEventListener('click',()=>choose(items.find(row=>row.vehicle_id===button.dataset.nvOpen))));
     page.querySelector('[data-nv-unidentified]')?.addEventListener('click',()=>{if(loading||saving)return;unidentified=true;offset=0;void load();});
     page.querySelector('[data-nv-refresh]')?.addEventListener('click',()=>void load());
+    page.querySelector('[data-nv-approve-ready]')?.addEventListener('click',()=>void approveAllReady());
+    page.querySelector('[data-nv-bulk-stop]')?.addEventListener('click',event=>{bulkStop=true;event.currentTarget.disabled=true;event.currentTarget.textContent='Stopping…';});
     page.querySelector('[data-nv-back]')?.addEventListener('click',backToList);
     page.querySelector('[data-nv-updates]')?.addEventListener('click',()=>{const section=page.querySelector('.nv-operation-updates');section?.focus({preventScroll:true});section?.scrollIntoView({block:'start'});});
     page.querySelector('[data-nv-search]')?.addEventListener('input',event=>{queueSearch=event.target.value;render();});
@@ -501,6 +570,55 @@
     quickSavingId=id;delete quickErrors[id];
     return saveReview(row,selection,hours,{quick:true});
   }
+  async function approveAllReady() {
+    if(selected||unidentified||saving||loading||queueLoadFailed||!writable()||!total)return;
+    const actor=window.PDC_AUTH_CONTEXT.userId,token=getPdcSupabaseAccessToken(),session=sessionGeneration;
+    const run={phase:'checking',checked:0,total:0,ready:0,approved:0,failed:0,needsReview:0};
+    const owns=()=>bulkState===run&&session===sessionGeneration&&actor===window.PDC_AUTH_CONTEXT?.userId&&token===getPdcSupabaseAccessToken()&&writable();
+    generation++;loading=false;saving=true;bulkState=run;bulkStop=false;bulkFailures=[];error='';notice='';render();
+    let approvedCount=0,attempted=false,completedScan=false;
+    try {
+      const report=await approveReadyQueue({
+        listPage:(pageOffset,pageLimit)=>rpc('list_pdc_new_vehicle_reviews',{p_offset:pageOffset,p_limit:pageLimit}),
+        isCurrent:owns,shouldStop:()=>bulkStop,
+        onProgress:state=>{if(!owns())return;Object.assign(run,state);const status=page.querySelector('[data-nv-bulk-progress]');if(status)status.textContent=bulkProgressText(run);},
+        approveRow:row=>{
+          const assignments=assignmentsFor(row,reviewChoices(row),{}),identity=JSON.stringify([row.snapshot_hash,assignments]);
+          if(quickRequests[row.vehicle_id]?.identity!==identity)quickRequests[row.vehicle_id]={identity,request:{p_vehicle_id:row.vehicle_id,p_snapshot_hash:row.snapshot_hash,p_assignments:assignments,p_idempotency_key:crypto.randomUUID()}};
+          attempted=true;
+          return rpc('approve_pdc_new_vehicle_review',quickRequests[row.vehicle_id].request);
+        },
+        onApproved:row=>{
+          approvedCount++;items=items.filter(item=>item.vehicle_id!==row.vehicle_id);total=Math.max(0,total-1);
+          delete quickRequests[row.vehicle_id];delete quickErrors[row.vehicle_id];
+        },
+      });
+      if(!owns())return;
+      completedScan=true;
+      bulkFailures=report.failed;
+      for(const item of report.failed)quickErrors[item.row.vehicle_id]=message(item.error);
+      notice=`${approvedCount} vehicle${approvedCount===1?'':'s'} approved and added to Vehicle Locations. ${report.needsReview} left for review.`;
+      if(!report.ready&&!report.stopped)notice='No vehicles are ready for automatic approval. Open the remaining cards to review their stations, hours or notes.';
+      if(report.stopped) {
+        notice+=(bulkStop?' Stopped at your request.':' Stopped because an approval could not be confirmed.');
+        const waiting=report.ready-approvedCount-report.failed.length;
+        if(waiting>0)notice+=` ${waiting} ready vehicle${waiting===1?'':'s'} still waiting.`;
+        if(!attempted&&run.phase==='checking')notice='Stopped checking the queue. No bulk approvals were started.';
+      }
+      if(report.failed.length)notice+=` ${report.failed.length} vehicle${report.failed.length===1?'':'s'} need attention.`;
+    } catch(err) {if(owns()) {error=message(err);if(approvedCount)notice=`${approvedCount} vehicle${approvedCount===1?'':'s'} confirmed added to Vehicle Locations before the batch stopped.`;}}
+    finally {
+      if(bulkState===run&&session===sessionGeneration) {
+        const current=owns();bulkState=null;saving=false;
+        if(!current)error='Your sign-in session changed. Refresh the queue before continuing; no further vehicles were approved.';
+        render();
+        if(current) {
+          if(attempted)void Promise.allSettled([refreshEmailVehicleLocations(),loadSharedNavisionVisibleRows()]);
+          if(attempted||completedScan){offset=0;void load({silent:true});}
+        }
+      }
+    }
+  }
   async function saveReview(current,selection,hours,{quick=false}={}) {
     const actor=window.PDC_AUTH_CONTEXT.userId;
     const nextId=items[items.findIndex(row=>row.vehicle_id===current.vehicle_id)+1]?.vehicle_id;
@@ -545,10 +663,10 @@
     return out;
   };
   window.addEventListener('pdc-auth-ready',()=>{offset=0;void load();});
-  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;page.replaceChildren();items=[];total=0;queueLoadFailed=false;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';quickRequests={};quickErrors={};quickSavingId='';error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
+  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;page.replaceChildren();items=[];total=0;queueLoadFailed=false;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';quickRequests={};quickErrors={};quickSavingId='';bulkState=null;bulkStop=true;bulkFailures=[];error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.14.compact-quick-approve';
+  window.PDC_NEW_VEHICLES_VERSION='2026.09.14.bulk-ready-approve';
   window.PDC_NEW_VEHICLES=api;
   render();if(readable())void load();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});
