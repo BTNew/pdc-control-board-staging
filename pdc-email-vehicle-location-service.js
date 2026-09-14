@@ -256,6 +256,7 @@ function mapServerVehicle(row = {}) {
   mapped.pdcQcRetestCycleId = String(qcRetest.cycle_id || '').trim();
   mapped.pdcQcRetestFreshCycleOpen = qcRetest.fresh_cycle_open === true;
   mapped.pdcQcRetestFreshPhotoAccepted = qcRetest.fresh_photo_accepted === true;
+  mapped.tuneServiceLocations = row.tune_service_locations && typeof row.tune_service_locations === 'object' ? row.tune_service_locations : {jobs:[]};
   mapped.pdcPartsFlags = row.parts_flags && typeof row.parts_flags === 'object' ? row.parts_flags : null;
   const partsUpdate = row.parts_update && typeof row.parts_update === 'object' ? row.parts_update : {};
   const qcFinalization = row.qc_finalization && typeof row.qc_finalization === 'object' ? row.qc_finalization : null;
@@ -378,46 +379,14 @@ function createPdcEmailVehicleLocationService(options = {}) {
   const request = options.fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
   const url = String(config.url || '').replace(/\/$/, ''); const key = String(config.publishableKey || '');
   if (!request || !key) throw new Error('Authenticated email vehicle locations require the staging browser client.');
-  let activeSnapshot = null;
-  const snapshotAuthorityLost = () => ({ ok: false, code: 'not_authenticated', data: null });
-  async function readSnapshot(token) {
+  async function snapshot() {
+    const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
       const response = await request(`${url}/rest/v1/rpc/${PDC_EMAIL_VEHICLE_SNAPSHOT_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' });
       const body = await response.json();
-      if (token !== getAccessToken()) return snapshotAuthorityLost();
       if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || `HTTP ${response.status}`, data: null };
       return { ok: true, code: body.code || 'ok', data: body.data || body };
     } catch (_error) { return { ok: false, code: 'snapshot_unavailable', data: null }; }
-  }
-  function startSnapshot(token) {
-    const owner = { token, queued: null };
-    activeSnapshot = owner;
-    owner.promise = readSnapshot(token).finally(() => {
-      if (activeSnapshot !== owner) return;
-      activeSnapshot = null;
-      if (!owner.queued) return;
-      if (getAccessToken() !== token) owner.queued.resolve(snapshotAuthorityLost());
-      else startSnapshot(token).then(owner.queued.resolve);
-    });
-    return owner.promise;
-  }
-  function snapshot() {
-    const token = getAccessToken();
-    if (activeSnapshot && activeSnapshot.token !== token) {
-      activeSnapshot.queued?.resolve(snapshotAuthorityLost());
-      activeSnapshot = null;
-    }
-    if (!token) return Promise.resolve(snapshotAuthorityLost());
-    if (!activeSnapshot) return startSnapshot(token);
-    // Direct mutation readbacks and realtime refreshes can arrive together.
-    // Keep one fresh trailing read, rather than downloading the whole board
-    // for each caller. Never reuse a pre-mutation snapshot as its readback.
-    if (!activeSnapshot.queued) {
-      const queued = {};
-      queued.promise = new Promise(resolve => { queued.resolve = resolve; });
-      activeSnapshot.queued = queued;
-    }
-    return activeSnapshot.queued.promise;
   }
   async function readSubletAuditLedgers(vehicleId = '', stockNumber = '', jobCardNumber = '') {
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
