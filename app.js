@@ -5263,7 +5263,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5312,7 +5312,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -5423,7 +5423,7 @@ function qcPageOperationHoursLabel(line = {}) {
   if (line.stageCode === 'SUBLET') return 'Hours not required';
   if (line.estimatedHours === null || line.estimatedHours === undefined || line.estimatedHours === '') return 'Unknown hours';
   const numeric = Number(line.estimatedHours);
-  return Number.isFinite(numeric) ? `${numeric.toFixed(2).replace(/\.00$/, '')} h` : 'Unknown hours';
+  return Number.isFinite(numeric) ? `${line.hoursProvenance==='ai_estimated'?'AI estimate · ':''}${numeric.toFixed(2).replace(/\.00$/, '')} h` : 'Unknown hours';
 }
 
 function qcPageStageLabel(stage = '') {
@@ -5444,7 +5444,7 @@ function qcPageWorkItemsHtml(vehicle = {}) {
     return `<label class="qc-work-item qc-operation-line ${line.completed ? 'is-complete' : 'is-required'} ${pending ? 'is-saving' : ''}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" ${pending ? 'aria-busy="true"' : ''}>
       <input type="checkbox" data-qc-operation-check="${escapeHtml(key)}" data-qc-line-identity="${escapeHtml(line.lineIdentity)}" data-qc-line-version="${Number(line.lineVersion || 0)}" ${line.completed ? 'checked' : ''} ${(mappingReview || hoursUnknown || pending) ? `disabled title="${pending ? 'Saving this operation' : mappingReview ? 'Station mapping review is required before QC completion' : 'Unknown operation hours require review before QC completion'}"` : ''} aria-label="${escapeHtml(`${line.operationNo || 'Manual'} ${line.description} ${pending ? 'saving' : mappingReview ? 'requires station mapping review' : hoursUnknown ? 'requires hours review' : line.completed ? 'completed' : 'not completed'}`)}" />
       <span class="qc-work-marker" aria-hidden="true">${pending ? '…' : line.completed ? '✓' : '○'}</span>
-      <span class="qc-work-copy"><strong>${escapeHtml(`${line.operationNo || 'Manual'} · ${line.description}`)}</strong><small>${escapeHtml(`${qcPageStageLabel(stage)} · ${qcPageOperationHoursLabel(line)} · ${line.jobCardNumber ? `JC ${line.jobCardNumber}` : line.sourceKind === 'manual' ? 'Audited manual line' : 'Source JC unavailable'}`)}</small></span>
+      <span class="qc-work-copy"><strong>${escapeHtml(`${line.operationNo || 'Manual'} · ${line.description}`)}</strong><small class="${line.hoursProvenance==='ai_estimated' && stage!=='SUBLET'?'pdc-ai-estimate':''}">${escapeHtml(`${qcPageStageLabel(stage)} · ${qcPageOperationHoursLabel(line)} · ${line.jobCardNumber ? `JC ${line.jobCardNumber}` : line.sourceKind === 'manual' ? 'Audited manual line' : 'Source JC unavailable'}`)}</small></span>
     </label>`;
   }).join('')}
   </section>`).join('');
@@ -13293,7 +13293,7 @@ function vehicleWorkshopHoursClass(line = {}, estimate = null) {
   if (Number.isFinite(confirmed) && confirmed >= 0) return { label: 'Confirmed hours', value: confirmed };
   if (estimate === null || estimate === undefined || String(estimate).trim() === '' || !Number.isFinite(Number(estimate)) || Number(estimate) < 0) return { label: 'Unknown hours', value: null };
   if (/supplier|provider|sublet/.test(provenance)) return { label: 'Supplier estimate', value: Number(estimate) };
-  if (/\bai\b|model/.test(provenance)) return { label: 'AI estimate', value: Number(estimate) };
+  if (/^ai(?:[_ -]|$)|\bmodel\b/.test(provenance)) return { label: 'AI estimate', value: Number(estimate) };
   if (/histor|previous|catalog|default/.test(provenance)) return { label: 'Historical estimate', value: Number(estimate) };
   if (/job[_ -]?card|confirm|staff|authenticated|manual/.test(provenance)) return { label: 'Confirmed hours', value: Number(estimate) };
   return { label: 'Unknown hours', value: Number(estimate) };
@@ -13442,8 +13442,9 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
     const lineKey = vehicleWorkshopLineIdentity(group.stage, line);
     const description = vehicleWorkshopLineDescription(line, `${presentation.label} work required`);
     const lineBookings = vehicleWorkshopBookingsForLine(group, line);
-    const hoursClass = vehicleWorkshopHoursClass(line, estimate);
-    const hoursEvidenceLabel = typeof vehicleWorkshopHoursEvidenceLabel === 'function' ? vehicleWorkshopHoursEvidenceLabel(projection, line) : '';
+    const aiHours = window.PdcEstimatedHours?.forVehicleLine(vehicle,line,estimate) || {ai:false};
+    const hoursClass = aiHours.ai ? {label:'AI estimate',value:estimate} : vehicleWorkshopHoursClass(line, estimate);
+    const hoursEvidenceLabel = aiHours.ai ? 'AI planning estimate · accepted hours' : typeof vehicleWorkshopHoursEvidenceLabel === 'function' ? vehicleWorkshopHoursEvidenceLabel(projection, line) : '';
     const hoursEvidence = hoursEvidenceLabel ? `<small class="vehicle-workshop-hours-evidence rule-${escapeHtml(projection.rule)}">${escapeHtml(hoursEvidenceLabel)}</small>` : '';
     const operationLineId = cleanNavisionText(line.operation_line_id || line.source_operation_line_id || '').trim().toLowerCase();
     const sourceDescription = cleanNavisionText(line.sourceDescription || line.description || '').replace(/^JC\s+[^·]+\s+·\s+OP\d+\s+·\s+/i, '');
@@ -13476,7 +13477,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
       : (group.bookings.length ? '<span class="vehicle-workshop-booking-static">Station booking shown below</span>' : `<span class="vehicle-workshop-not-booked">${escapeHtml(bookingFallback)}</span>`);
     const progress = vehicleWorkshopJobCardBookedActual(line, lineBookings);
     const progressHtml = progress === 'Not recorded' ? '' : `<small>${escapeHtml(progress)}</small>`;
-    return `<div class="vehicle-workshop-line">${number}<span class="vehicle-workshop-line-description"><strong>${escapeHtml(description)}</strong></span><span class="vehicle-workshop-line-hours">${hoursHtml}</span><span class="vehicle-workshop-line-booking">${progressHtml}${bookingCell}</span>${controls}</div>`;
+    return `<div class="vehicle-workshop-line">${number}<span class="vehicle-workshop-line-description"><strong>${escapeHtml(description)}</strong></span><span class="vehicle-workshop-line-hours${aiHours.ai?' pdc-ai-estimate':''}"${aiHours.detail?` title="${escapeHtml(aiHours.detail)}"`:''}>${aiHours.ai?'<small class="pdc-ai-estimate pdc-ai-estimate-badge">AI estimate</small>':''}${hoursHtml}</span><span class="vehicle-workshop-line-booking">${progressHtml}${bookingCell}</span>${controls}</div>`;
   }).join('');
   return `<div class="vehicle-workshop-lines">${rows}</div>`;
 }
