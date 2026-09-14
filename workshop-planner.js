@@ -4554,7 +4554,9 @@ function renderWorkshopPlanner(options = {}) {
   let plans = workshopCascadePlans(authoritativePlans, new Date()).rows;
   if (dedicatedStage) plans = plans.filter(entry => entry.stage === dedicatedStage);
   const navigationScope = window.__workshopDataService?.getScope?.();
-  const searchNavigationReady = pendingBookingLink?.search !== true || (
+  // Vehicle-card links need the same fresh destination as search links. The
+  // retained snapshot can exist while a refresh still withholds trusted rows.
+  const searchNavigationReady = (pendingBookingLink?.search !== true && pendingBookingLink?.focused !== true) || (
     window.__workshopDataService?.getTrustedSnapshot?.()
     && navigationScope?.stageCode === stage
     && navigationScope?.dateFrom === pendingBookingLink.date
