@@ -37,6 +37,28 @@
     if (new Set(row.operations.map(line => line.line_identity)).size !== row.operations.length) issues.push('Duplicate operation identity needs review.');
     return issues;
   }
+  function quickApprovalProblems(row) {
+    const issues=problems(row);
+    if(!row?.vehicle_id || !row?.snapshot_hash) issues.push('Refresh this Job Card before approving.');
+    if(row?.details_source==='identity_review') issues.push('Review this vehicle’s identity before approval.');
+    if(row?.lifecycle_state && row.lifecycle_state!=='active' || row?.visible_on_board===true) issues.push('Review this vehicle’s current board status.');
+    if((row?.operations||[]).some(line=>!validStation(line.stage_code))) issues.push('Review the suggested station assignments.');
+    if((row?.operations||[]).some(line=>line.hours_provenance==='craig_standard_pre_delivery_1_hour' && Number(line.estimated_hours)!==1)) issues.push('Review the standard pre-delivery hour.');
+    return issues;
+  }
+  function vehicleCardHtml(row,{canApprove=false,busy=false,refreshing=false,savingId='',error=''}={}) {
+    const issues=quickApprovalProblems(row),ready=issues.length===0;
+    const received=new Date(row.received_at),date=Number.isFinite(received.getTime())?received.toLocaleDateString('en-AU',{timeZone:'Australia/Perth',day:'numeric',month:'short'}):'';
+    return `<article class="nv-card" data-nv-card="${esc(row.vehicle_id)}" aria-label="Stock ${esc(row.stock_number)}" aria-busy="${savingId===row.vehicle_id}">
+      <button type="button" class="nv-card-main" data-nv-open="${esc(row.vehicle_id)}" aria-label="Review stock ${esc(row.stock_number)}" ${busy?'disabled':''}>
+      <span class="nv-card-top"><strong>${esc(row.stock_number)}</strong><span class="nv-new-pill ${ready?'nv-ready':'nv-needs-review'}">${ready?'Ready':'Needs review'}</span></span>
+      <b title="${esc(row.vehicle_description||'')}">${esc(row.vehicle_description||'Vehicle details pending')}</b><span class="nv-card-customer" title="${esc(row.customer_name||'')}">${esc(row.customer_name||'Customer not recorded')}</span>
+      <small title="${esc((row.job_cards||[]).join(', '))}">${esc((row.job_cards||[]).join(', ')||'Job Card not recorded')} · ${row.operations?.length||0} operations</small>
+      <span class="nv-card-bottom"><span>${esc(row.current_location||'Location pending')}</span><time title="${esc(Number.isFinite(received.getTime())?received.toLocaleString('en-AU',{timeZone:'Australia/Perth'}):'')}">${esc(date)}</time></span></button>
+      <div class="nv-card-actions"><button type="button" class="nv-card-review" data-nv-open="${esc(row.vehicle_id)}" ${busy?'disabled':''}>Review</button>
+      ${canApprove&&ready?`<button type="button" class="nv-quick-approve" data-nv-quick-approve="${esc(row.vehicle_id)}" aria-label="Approve stock ${esc(row.stock_number)} to board" ${busy||refreshing?'disabled':''}>${busy&&savingId===row.vehicle_id?'Saving…':'Approve to board'}</button>`:`<small title="${esc(issues.join(' '))}">${ready?'Ready for approval':'Check before approval'}</small>`}</div>
+      ${error?`<p class="nv-card-error" role="alert">${esc(error)}</p>`:''}</article>`;
+  }
   function stationGroups(row, choices = {}, drafts = {}) {
     const assignment = new Map(assignmentsFor(row, choices).map(item => [item.line_identity,item.stage_code]));
     return [['', 'Needs Review'], ...STATIONS].map(([code,label]) => {
@@ -158,7 +180,7 @@
     <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Approval updates the station’s estimated hours and adjusts affected bay bookings. Later jobs move back when needed, with a 5-hour gap between each vehicle’s jobs. Sublet has no workshop bay.</small></article>`;
   }
 
-  const api={matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
+  const api={quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   if(typeof window==='undefined' || window.PDC_SUPABASE_CONFIG?.projectRef!==PROJECT
       || typeof showView!=='function' || window.PDC_NEW_VEHICLES_VERSION) return;
@@ -170,6 +192,7 @@
   let unidentified=false,unidentifiedItems=[],unidentifiedTotal=0;
   let generation=0,requestKey='',approvalRequest=null,hourDrafts={};
   let queueSearch='',listScroll=0,listVehicleId='';
+  let quickRequests={},quickErrors={},quickSavingId='';
   const limit=50;
   const readable=()=>['viewer','operator','importer','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
   const writable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
@@ -271,7 +294,7 @@
   function preserveEditorFocus() {
     const active=document.activeElement;
     if(!active||!page.contains(active))return ()=>{};
-    const attribute=['data-nv-hours','data-nv-stage','data-update-hours','data-update-stage','data-nv-search'].find(name=>active.hasAttribute(name));
+    const attribute=['data-nv-hours','data-nv-stage','data-update-hours','data-update-stage','data-nv-search','data-nv-open','data-nv-quick-approve'].find(name=>active.hasAttribute(name));
     if(!attribute)return ()=>{};
     const update=active.closest('[data-operation-change]')?.dataset.operationChange;
     const selector=(update?`[data-operation-change="${CSS.escape(update)}"] `:'')+`[${attribute}="${CSS.escape(active.getAttribute(attribute))}"]`;
@@ -284,10 +307,8 @@
     };
   }
   function card(row) {
-    return `<button type="button" class="nv-card" data-nv-open="${esc(row.vehicle_id)}" ${saving?'disabled':''}><span class="nv-card-top"><strong>${esc(row.stock_number)}</strong><span class="nv-new-pill">New Job Card</span></span>
-      <b>${esc(row.vehicle_description || 'Vehicle details pending')}</b><span>${esc(row.customer_name || 'Customer not recorded')}</span>
-      <small>${esc((row.job_cards || []).join(', ') || 'Job Card not recorded')} · ${row.operations.length} operations</small>
-      <span class="nv-card-bottom">${esc(row.current_location || 'Location pending')}<small>${esc(new Date(row.received_at).toLocaleString('en-AU',{dateStyle:'medium',timeStyle:'short'}))}</small></span></button>`;
+    return vehicleCardHtml(row,{canApprove:writable(),busy:saving,refreshing:loading||queueLoadFailed,
+      savingId:quickSavingId,error:quickErrors[row.vehicle_id]||''});
   }
   function operation(line) {
     const assigned=choices[line.line_identity] ?? (validStation(line.stage_code) ? line.stage_code : line.department === '138' ? 'BUS_4X4' : '');
@@ -458,13 +479,28 @@
       group.addEventListener('drop',event=>{event.preventDefault();group.classList.remove('nv-drop-active');if(saving||!writable()||sourceChanged)return;const id=event.dataTransfer.getData('text/plain');if(!selected.operations.some(line=>line.line_identity===id))return;choices[id]=group.dataset.nvDrop;requestKey='';approvalRequest=null;render();});
     });
     page.querySelectorAll('[data-nv-approve]').forEach(button=>button.addEventListener('click',()=>void approve()));
+    page.querySelectorAll('[data-nv-quick-approve]').forEach(button=>button.addEventListener('click',()=>void quickApprove(button.dataset.nvQuickApprove)));
     restoreFocus();
   }
   async function approve() {
     if(saving || !writable() || sourceChanged || problems(selected,choices,hourDrafts).length) return;
-    const current=selected,selection={...choices},hours={...hourDrafts},actor=window.PDC_AUTH_CONTEXT.userId;
+    return saveReview(selected,{...choices},{...hourDrafts});
+  }
+  async function quickApprove(id) {
+    const row=items.find(item=>item.vehicle_id===id);
+    if(selected||saving||loading||queueLoadFailed||!writable()||quickApprovalProblems(row).length)return;
+    const selection=reviewChoices(row),hours={},assignments=assignmentsFor(row,selection,hours);
+    const identity=JSON.stringify([row.snapshot_hash,assignments]);
+    if(quickRequests[id]?.identity!==identity)quickRequests[id]={identity,request:{p_vehicle_id:id,p_snapshot_hash:row.snapshot_hash,p_assignments:assignments,p_idempotency_key:crypto.randomUUID()}};
+    approvalRequest=quickRequests[id].request;requestKey=approvalRequest.p_idempotency_key;
+    quickSavingId=id;delete quickErrors[id];
+    return saveReview(row,selection,hours,{quick:true});
+  }
+  async function saveReview(current,selection,hours,{quick=false}={}) {
+    const actor=window.PDC_AUTH_CONTEXT.userId;
+    const nextId=items[items.findIndex(row=>row.vehicle_id===current.vehicle_id)+1]?.vehicle_id;
     generation++;loading=false;
-    saving=true;error='';render();
+    saving=true;error='';notice='';render();
     if(!requestKey) requestKey=crypto.randomUUID();
     approvalRequest ||= {p_vehicle_id:current.vehicle_id,p_snapshot_hash:current.snapshot_hash,p_assignments:assignmentsFor(current,selection,hours),p_idempotency_key:requestKey};
     const ownedRequest=approvalRequest,session=sessionGeneration,token=getPdcSupabaseAccessToken();
@@ -475,6 +511,7 @@
       if(!ownsRequest()) return;
       if(!verifyApproval(result,current,selection,hours)) throw new Error('readback_mismatch');
       accepted=true;selected=null;choices={};hourDrafts={};requestKey='';approvalRequest=null;sourceChanged=false;
+      delete quickRequests[current.vehicle_id];delete quickErrors[current.vehicle_id];
       items=items.filter(row=>row.vehicle_id!==current.vehicle_id);total=Math.max(0,total-1);
       notice=`${current.stock_number} approved and added to Vehicle Locations. No workshop booking was created.`;
       // The approval receipt is already verified. Keep the intake queue usable
@@ -484,7 +521,13 @@
     finally {if(session===sessionGeneration&&(accepted||approvalRequest===ownedRequest)) {
       saving=false;
       if(!accepted&&!ownsRequest())error='Your sign-in session changed. Refresh the queue before continuing; the approval result has not been confirmed.';
-      render();if(accepted)void load({silent:true});
+      if(quick){quickSavingId='';if(!accepted)quickErrors[current.vehicle_id]=error;}
+      render();
+      if(quick){
+        const focusId=accepted?(nextId||items.at(-1)?.vehicle_id):current.vehicle_id;
+        if(focusId)page.querySelector(`[data-nv-open="${CSS.escape(focusId)}"]`)?.focus({preventScroll:true});
+      }
+      if(accepted)void load({silent:true});
     }}
   }
   const previousRender=renderActiveView;
@@ -497,10 +540,10 @@
     return out;
   };
   window.addEventListener('pdc-auth-ready',()=>{offset=0;void load();});
-  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;page.replaceChildren();items=[];total=0;queueLoadFailed=false;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
+  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;page.replaceChildren();items=[];total=0;queueLoadFailed=false;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';quickRequests={};quickErrors={};quickSavingId='';error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.12.review-orange';
+  window.PDC_NEW_VEHICLES_VERSION='2026.09.14.compact-quick-approve';
   window.PDC_NEW_VEHICLES=api;
   render();if(readable())void load();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});
