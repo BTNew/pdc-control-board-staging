@@ -704,17 +704,19 @@ function dateOnly(value) {
 
 function completedPmbDays(vehicle = {}) {
   const history = lifecycleHistoryForVehicle(vehicle);
-  if (Number.isFinite(Number(history.elapsedPmbToRftDays))) return Number(history.elapsedPmbToRftDays);
+  const recorded = history.elapsedPmbToRftDays;
+  if ((typeof recorded === 'number' || (typeof recorded === 'string' && recorded.trim())) && Number.isFinite(Number(recorded)) && Number(recorded) >= 0) return Number(recorded);
   const start = completedPmbStartDate(vehicle);
   const end = completedRftDate(vehicle);
-  if (!start || !end) return null;
-  return Math.max(0, (end - start) / (1000 * 60 * 60 * 24));
+  if (!start || !end || end < start) return null;
+  return (end - start) / 86400000;
 }
 
 function lifecycleDurationDays(vehicle = {}, key = '') {
   const history = lifecycleHistoryForVehicle(vehicle);
   const daysKey = `${key}Days`;
-  if (Number.isFinite(Number(history[daysKey]))) return Number(history[daysKey]);
+  const recorded = history[daysKey];
+  if ((typeof recorded === 'number' || (typeof recorded === 'string' && recorded.trim())) && Number.isFinite(Number(recorded)) && Number(recorded) >= 0) return Number(recorded);
   const pairs = {
     elapsedYardHoldToPmb: ['firstReachedYardHoldAt', 'firstEnteredPmbAt'],
     elapsedPmbToRft: ['firstEnteredPmbAt', 'firstBecameRftAt'],
@@ -731,7 +733,8 @@ function lifecycleDurationLabel(vehicle = {}, key = '') {
   if (!Number.isFinite(days)) return 'Unknown';
   const history = lifecycleHistoryForVehicle(vehicle);
   const secondsKey = `${key}Seconds`;
-  const seconds = Number.isFinite(Number(history[secondsKey])) ? String(history[secondsKey]) : String(days * 86400);
+  const recorded = history[secondsKey];
+  const seconds = (typeof recorded === 'number' || (typeof recorded === 'string' && recorded.trim())) && Number.isFinite(Number(recorded)) && Number(recorded) >= 0 ? String(recorded) : String(days * 86400);
   const dayText = Number(days).toFixed(6).replace(/0+$/, '').replace(/\.$/, '');
   return `${dayText} day${dayText === '1' ? '' : 's'} (${seconds} seconds)`;
 }
@@ -772,26 +775,32 @@ function completedPmbStatisticDaysLabel(value) {
   return `${rounded} day${rounded === 1 ? '' : 's'}`;
 }
 
-function renderCompletedPmbStatistics() {
+function renderCompletedPmbStatistics(rows = completedVehicleRows()) {
   const host = $('#completed-pmb-statistics');
   if (!host) return;
-  const stats = completedPmbStatistics(app.data.filter(vehicle => vehicle.vehicleDeliveredState === true || (String(vehicle.pdcLifecycleState || '').toLowerCase() === 'completed' && vehicle.dealerTransitClosedAt)).filter(vehicle => !isHermesSyntheticVehicle(vehicle)));
+  const historyRows = rows.map(vehicle => ({ vehicle, milestones: completedHistoryMilestones(vehicle) }));
+  const measures = [
+    ['pmbToRft', 'PMB → RFT', 'Work turnaround'],
+    ['rftToOd', 'RFT → OD recorded', 'Ready for transport to delivery confirmation'],
+    ['pmbToOd', 'PMB → OD recorded', 'Total recorded time'],
+  ].map(([key, label, note]) => {
+    const intervals = historyRows.map(row => completedHistoryInterval(row.vehicle, key, row.milestones));
+    return { key, label, note, dateOnly: intervals.some(interval => interval?.dateOnly), ...completedPmbStatisticsFromDays(intervals.map(interval => interval?.days ?? null)) };
+  });
   host.innerHTML = `<div class="completed-statistics-heading">
-      <div><span>PMB turnaround statistics</span><strong>Delivered vehicle history</strong></div>
-      <small>${stats.known} of ${stats.total} vehicle${stats.total === 1 ? '' : 's'} have usable PMB and RFT dates${stats.unknown ? ` · ${stats.unknown} excluded as unknown` : ''}</small>
+      <div><span>Completed vehicle turnaround</span><strong>${rows.length} delivered vehicle${rows.length === 1 ? '' : 's'}${($('#completed-search')?.value || '').trim() ? ' matching search' : ''}</strong></div>
+      <small>Averages use known dates only. Missing or reversed dates are excluded.</small>
     </div>
-    <div class="completed-statistics-grid">
-      <article class="completed-stat-card is-primary"><span>Average time at PMB</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.average))}</strong><small>Mean across vehicles with known dates</small></article>
-      <article class="completed-stat-card"><span>Median time</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.median))}</strong><small>Middle turnaround time</small></article>
-      <article class="completed-stat-card"><span>Fastest</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.fastest))}</strong><small>Shortest recorded turnaround</small></article>
-      <article class="completed-stat-card"><span>Longest</span><strong>${escapeHtml(completedPmbStatisticDaysLabel(stats.longest))}</strong><small>Longest recorded turnaround</small></article>
-      <article class="completed-stat-card"><span>Delivered vehicles</span><strong>${stats.total}</strong><small>${stats.known} included in PMB-time statistics</small></article>
+    <div class="completed-statistics-grid completed-history-statistics">
+      ${measures.map((stats, index) => `<article class="completed-stat-card ${index === 0 ? 'is-primary' : ''}"><span>Average ${escapeHtml(stats.label)}</span><strong>${escapeHtml(stats.dateOnly && stats.average !== null ? `${Math.round(stats.average * 10) / 10} days` : completedHistoryDurationLabel(stats.average === null ? null : { seconds: stats.average * 86400, days: stats.average, dateOnly: false }))}</strong><small>${escapeHtml(stats.note)} · ${stats.known} of ${rows.length} vehicle${rows.length === 1 ? '' : 's'} with known dates${stats.dateOnly ? ' · includes date-only records' : ''}</small></article>`).join('')}
     </div>`;
 }
 
 function shortDateAu(date) {
   if (!date) return '';
-  return date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const parsed = date instanceof Date ? date : new Date(date);
+  if (!Number.isFinite(parsed.getTime())) return '';
+  return parsed.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
 function pmbStageEnteredTimestamp(vehicle = {}) {
@@ -16963,76 +16972,142 @@ function renderCollectedVehicles() {
   if (!app.collectedTransitTimer) app.collectedTransitTimer = window.setInterval(refreshCollectedTransitTimers, 60000);
 }
 
-function completedVehicleRows() {
-  const q = ($('#completed-search')?.value || '').trim().toLowerCase();
-  const sharedCompleted = activeSharedNavisionRows()
+function completedHistoryMilestone(value = '') {
+  const text = String(value || '').trim();
+  if (!text) return null;
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(text);
+  const date = parseIsoTimestamp(dateOnly ? `${text}T00:00:00+08:00` : text);
+  if (!date) return null;
+  completedHistoryMilestone.formatter ||= new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Perth', year: 'numeric', month: '2-digit', day: '2-digit' });
+  const parts = Object.fromEntries(completedHistoryMilestone.formatter.formatToParts(date).map(part => [part.type, part.value]));
+  const calendarDate = `${parts.year}-${parts.month}-${parts.day}`;
+  if (dateOnly && calendarDate !== text) return null;
+  return { value: text, date, dateOnly, calendarDate };
+}
+
+function completedHistoryMilestones(vehicle = {}) {
+  const history = lifecycleHistoryForVehicle(vehicle);
+  const firstValid = values => values.map(completedHistoryMilestone).find(Boolean) || null;
+  return {
+    pmb: firstValid([history.firstEnteredPmbAt, vehicle.dateToPmb, vehicle.date_to_pmb]),
+    rft: firstValid([history.firstBecameRftAt, vehicle.rftTransferredAt, vehicle.dateToRft, vehicle.date_to_rft]),
+    delivered: firstValid([vehicle.dealerTransitClosedAt, vehicle.deliveredToDealerDate, vehicle.delivered_to_dealer_date]),
+  };
+}
+
+function completedHistoryInterval(vehicle = {}, key = '', milestones = completedHistoryMilestones(vehicle)) {
+  const pairs = { pmbToRft: ['pmb', 'rft'], rftToOd: ['rft', 'delivered'], pmbToOd: ['pmb', 'delivered'] };
+  const [from, to] = pairs[key] || [];
+  const start = milestones[from], end = milestones[to];
+  if (!start || !end) return null;
+  if (start.dateOnly || end.dateOnly) {
+    const days = (Date.parse(end.calendarDate) - Date.parse(start.calendarDate)) / 86400000;
+    return days >= 0 ? { days, seconds: null, dateOnly: true } : null;
+  }
+  const seconds = (end.date - start.date) / 1000;
+  return seconds >= 0 ? { days: seconds / 86400, seconds, dateOnly: false } : null;
+}
+
+function completedHistoryDurationLabel(interval) {
+  if (!interval || !Number.isFinite(interval.days) || interval.days < 0) return 'Unknown';
+  if (interval.dateOnly) return `${interval.days} day${interval.days === 1 ? '' : 's'} (date only)`;
+  const seconds = interval.seconds;
+  if (!Number.isFinite(seconds) || seconds < 0) return 'Unknown';
+  if (seconds > 0 && seconds < 60) return '<1m';
+  const minutes = Math.floor(seconds / 60);
+  return [Math.floor(minutes / 1440) ? `${Math.floor(minutes / 1440)}d` : '', Math.floor(minutes % 1440 / 60) ? `${Math.floor(minutes % 1440 / 60)}h` : '', minutes % 60 || minutes === 0 ? `${minutes % 60}m` : ''].filter(Boolean).join(' ');
+}
+
+function completedHistoryDateLabel(milestone) {
+  if (!milestone) return 'Not recorded';
+  completedHistoryDateLabel.formatter ||= new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Perth', day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return milestone.dateOnly ? `${shortDateAu(milestone.date)} (date only)` : completedHistoryDateLabel.formatter.format(milestone.date);
+}
+
+function completedHistoryRows() {
+  // History is retained independently of the current import file and collection UI.
+  const sharedCompleted = (Array.isArray(app.sharedNavisionVisibleRows) ? app.sharedNavisionVisibleRows : [])
     .filter(item => String(item.lifecycle_state || '').toLowerCase() === 'completed')
     .map(sharedNavisionLocationVehicle);
+  const candidates = app.data.concat(sharedCompleted).filter(vehicle => !isHermesSyntheticVehicle(vehicle) && (vehicle.vehicleDeliveredState === true || vehicleCollectedFromRft(vehicle)));
+  const canonicalId = vehicle => String(vehicle.__emailVehicleId || vehicle.__sharedNavisionCanonicalVehicleId || vehicle.canonicalVehicleId || '').trim();
   const deduplicated = new Map();
-  app.data.concat(sharedCompleted).forEach(vehicle => {
-    if (!vehicleCollectedFromRft(vehicle)) return;
-    if (isHermesSyntheticVehicle(vehicle)) return;
-    const identity = sharedNavisionIdentityToken(displayStockNumber(vehicle) || vehicleKey(vehicle));
+  candidates.forEach((vehicle, index) => {
+    const linkedId = canonicalId(vehicle);
+    // Stock numbers can repeat across dealers. Merge only explicit record links.
+    const identity = linkedId ? `vehicle:${linkedId}` : vehicle.__sharedNavisionRecordId ? `navision:${vehicle.__sharedNavisionRecordId}` : vehicle.id ? `legacy:${vehicle.id}` : `unlinked:${index}`;
     const retained = deduplicated.get(identity);
-    if (!retained || vehicle.__sharedNavisionCanonicalVehicleId) deduplicated.set(identity, vehicle);
+    if (!retained) { deduplicated.set(identity, vehicle); return; }
+    const primary = vehicle.__emailVehicleServerAuthoritative === true && retained.__emailVehicleServerAuthoritative !== true ? vehicle : retained;
+    const fallback = primary === retained ? vehicle : retained;
+    const merged = { ...fallback, ...primary };
+    for (const field of ['stock', 'client', 'vehicle', 'jobCardNumber', 'jobcard', 'keyNumber', 'dateToPmb', 'dateToRft', 'deliveredToDealerDate', 'dealerTransitClosedAt', 'rftTransferredAt']) {
+      if (!merged[field] && fallback[field]) merged[field] = fallback[field];
+    }
+    // A thinner Navision mirror cannot replace the canonical identity or evidence.
+    merged.lifecycleHistory = { ...(fallback.lifecycleHistory || {}), ...(primary.lifecycleHistory || {}) };
+    deduplicated.set(identity, merged);
   });
-  return Array.from(deduplicated.values())
-    .filter(vehicle => (vehicleCollectedFromRft(vehicle) && !isHermesSyntheticVehicle(vehicle) && vehicle.vehicleDeliveredState === true) || (String(vehicle.pdcLifecycleState || '').toLowerCase() === 'completed' && vehicle.dealerTransitClosedAt))
+  return Array.from(deduplicated.values());
+}
+
+function completedVehicleRows() {
+  const q = ($('#completed-search')?.value || '').trim().toLowerCase();
+  return completedHistoryRows()
     .filter(vehicle => {
       if (!q) return true;
       const hay = [
         displayStockNumber(vehicle), vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle), vehicle.client, vehicle.toyotaCustomer,
         displayVehicle(vehicle), vehicle.rftCollectedBy || '', vehicle.rftCollectedAt || '', vehicle.rftTransferredAt || '',
-        shortDateAu(completedPmbStartDate(vehicle)), shortDateAu(completedRftDate(vehicle)), completedPmbDaysLabel(vehicle), pdcCompletedJobsText(vehicle),
+        ...Object.values(completedHistoryMilestones(vehicle)).map(completedHistoryDateLabel), pdcCompletedJobsText(vehicle),
       ].join(' ').toLowerCase();
       return hay.includes(q);
     })
     .sort((a, b) => {
-      const timeA = parseIsoTimestamp(a.rftCollectedAt || '')?.getTime() || 0;
-      const timeB = parseIsoTimestamp(b.rftCollectedAt || '')?.getTime() || 0;
+      const timeA = completedHistoryMilestones(a).delivered?.date.getTime() || 0;
+      const timeB = completedHistoryMilestones(b).delivered?.date.getTime() || 0;
       if (timeA !== timeB) return timeB - timeA;
       return String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true });
     });
 }
 
+function completedHistoryCanOpen(vehicle = {}) {
+  const key = vehicleKey(vehicle);
+  if (!key) return false;
+  const matches = app.data.filter(row => vehicleKey(row) === key);
+  if (matches.length !== 1) return false;
+  const canonicalId = String(vehicle.__emailVehicleId || vehicle.__sharedNavisionCanonicalVehicleId || vehicle.canonicalVehicleId || '');
+  const retainedId = String(matches[0].__emailVehicleId || matches[0].canonicalVehicleId || '');
+  return canonicalId ? canonicalId === retainedId : matches[0].id === vehicle.id && !vehicle.__sharedNavisionReadOnly;
+}
+
 function renderCompletedVehicles() {
   const host = $('#completed-vehicles-content');
   if (!host) return;
-  renderCompletedPmbStatistics();
   const rows = completedVehicleRows();
+  renderCompletedPmbStatistics(rows);
   if (!rows.length) {
-    host.innerHTML = '<div class="empty-state"><strong>No completed vehicles yet</strong><span>Tick Collected on the RFT screen after a vehicle has been picked up.</span></div>';
+    const searching = ($('#completed-search')?.value || '').trim();
+    host.innerHTML = searching ? '<div class="empty-state"><strong>No matching completed vehicles</strong><span>Clear the search to see the retained delivery history.</span></div>' : '<div class="empty-state"><strong>No completed vehicles yet</strong><span>Delivered vehicles appear here when Navision confirms OD – Delivered to dealer.</span></div>';
     return;
   }
-  host.innerHTML = `<div class="parts-table-wrap completed-table-wrap pdc-grid-table-wrap"><table class="data-table compact-table completed-table pdc-grid-table">
+  host.innerHTML = `<div class="parts-table-wrap completed-table-wrap pdc-grid-table-wrap"><table class="data-table compact-table completed-table completed-history-table pdc-grid-table">
     <thead><tr>
-      <th>Collected</th><th>Key</th><th>Stock</th><th>Job Card</th><th>Customer</th><th>Vehicle</th>
-      <th>Delivered to Dealer</th><th>Date to PMB</th><th>Date to RFT</th><th>YH → PMB</th><th>PMB → RFT</th><th>YH → RFT</th><th>Completed by</th><th>Completed stations</th><th>Actions</th>
+      <th>Stock / job card</th><th>Customer / vehicle</th><th>PMB recorded</th><th>RFT</th><th>OD recorded</th><th>PMB → RFT</th><th>RFT → OD</th><th>Total PMB → OD</th><th>History</th>
     </tr></thead>
     <tbody>${rows.map(vehicle => {
       const key = vehicleKey(vehicle);
-      const collectedAt = parseIsoTimestamp(vehicle.rftCollectedAt || '');
-      const collectedLabel = shortDateAu(vehicle.deliveredToDealerDate || '') || (collectedAt ? collectedAt.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : '—');
-      const pmbStartLabel = shortDateAu(vehicle.dateToPmb || '') || shortDateAu(completedPmbStartDate(vehicle)) || '—';
-      const rftDateLabel = shortDateAu(vehicle.dateToRft || '') || shortDateAu(completedRftDate(vehicle)) || '—';
-      const yardHoldToPmbLabel = lifecycleDurationLabel(vehicle, 'elapsedYardHoldToPmb');
-      const pmbToRftLabel = lifecycleDurationLabel(vehicle, 'elapsedPmbToRft');
-      const yardHoldToRftLabel = lifecycleDurationLabel(vehicle, 'elapsedYardHoldToRft');
+      const canOpen = completedHistoryCanOpen(vehicle);
+      const milestones = completedHistoryMilestones(vehicle);
       return `<tr class="completed-vehicle-row">
-        <td><label class="rft-collected-check completed-collected-check is-locked" title="Collected vehicles are locked"><input type="checkbox" checked disabled /> <span>Collected</span></label></td>
-        <td class="pdc-id-cell pdc-key-cell">${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</td>
-        <td class="pdc-id-cell pdc-stock-cell"><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || '—')}</button></td>
-        <td class="pdc-id-cell pdc-jc-cell">${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</td>
-        <td class="pdc-name-cell"><span title="${escapeHtml(vehicleCustomerName(vehicle) || '')}">${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</span></td>
-        <td class="pdc-vehicle-cell"><span title="${escapeHtml(displayVehicle(vehicle))}">${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</span></td>
-        <td>${escapeHtml(collectedLabel)}</td><td>${escapeHtml(pmbStartLabel)}</td><td>${escapeHtml(rftDateLabel)}</td><td>${escapeHtml(yardHoldToPmbLabel)}</td><td>${escapeHtml(pmbToRftLabel)}</td><td>${escapeHtml(yardHoldToRftLabel)}</td>
-        <td>${escapeHtml(vehicle.rftCollectedBy || '')}</td>
-        <td class="pdc-completed-stations-cell">${escapeHtml(pdcGridCompletedJobsText(vehicle))}</td>
-        <td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button></td>
+        <td>${canOpen ? `<button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || '—')}</button>` : `<strong>${escapeHtml(displayStockNumber(vehicle) || '—')}</strong>`}<small>${escapeHtml(vehicleJobcardNumber(vehicle) || 'Job card not recorded')}</small></td>
+        <td><strong>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</strong><small>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</small></td>
+        ${['pmb', 'rft', 'delivered'].map(name => `<td>${escapeHtml(completedHistoryDateLabel(milestones[name]))}</td>`).join('')}
+        ${['pmbToRft', 'rftToOd', 'pmbToOd'].map(name => `<td class="completed-history-duration">${escapeHtml(completedHistoryDurationLabel(completedHistoryInterval(vehicle, name, milestones)))}</td>`).join('')}
+        <td><details><summary>Details</summary><dl><dt>Key</dt><dd>${escapeHtml(vehicleKeyNumber(vehicle) || 'Not recorded')}</dd><dt>Collected</dt><dd>${escapeHtml(completedHistoryDateLabel(completedHistoryMilestone(vehicle.rftCollectedAt)))}</dd><dt>Collected by</dt><dd>${escapeHtml(vehicle.rftCollectedBy || 'Not recorded')}</dd><dt>Completed stations</dt><dd>${escapeHtml(pdcGridCompletedJobsText(vehicle) || 'Not recorded')}</dd></dl>${canOpen ? `<button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>` : ''}</details></td>
       </tr>`;
     }).join('')}</tbody></table></div>`;
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
-  bindRftCollectedInputs(host);
 }
 
 function deletedVehiclesSearchText(record = {}) {
@@ -17446,10 +17521,13 @@ function sharedNavisionLocationVehicle(item = {}) {
       toyotaStatus: item.vehicle_status || '',
     })),
     lifecycleState: item.lifecycle_state || (completed ? 'completed' : 'active'),
+    pdcLifecycleState: item.lifecycle_state || (completed ? 'completed' : 'active'),
+    vehicleDeliveredState: completed,
+    dealerTransitClosedAt: item.dealer_transit_closed_at || (completed ? item.completed_at || '' : ''),
     completedVehicle: completed,
-    rftCollected: completed,
-    rftCollectedAt: item.completed_at || '',
-    rftCollectedBy: item.completed_by_email || 'Navision · Delivered at Dealer',
+    rftCollected: Boolean(item.rft_collected_at),
+    rftCollectedAt: item.rft_collected_at || '',
+    rftCollectedBy: item.rft_collected_by || '',
     completionReason: item.completion_reason || '',
     importedAt: item.updated_at || '',
     source: 'Shared Navision',
@@ -18347,14 +18425,20 @@ function exportDeletedVehiclesCsv() {
   URL.revokeObjectURL(url);
 }
 
-function exportCompletedVehiclesCsv() {
-  const rows = completedVehicleRows();
-  const headers = ['Stock','Key','Client','Vehicle','Collected At','PMB Start ETA to Kewdale','RFT Date','Days at PMB','Collected By','Completed Jobs'];
+function completedHistoryCsv(rows = completedVehicleRows()) {
+  const headers = ['Stock','Key','Job Card','Customer','Vehicle','PMB Recorded','PMB Precision','RFT','RFT Precision','OD Recorded','OD Precision','PMB to RFT Days','RFT to OD Days','Total PMB to OD Days','PMB to RFT Seconds','RFT to OD Seconds','Total PMB to OD Seconds','Collected At','Collected By','Completed Jobs'];
   const lines = [headers.join(',')].concat(rows.map(vehicle => [
-    displayStockNumber(vehicle), vehicleKeyNumber(vehicle), vehicle.client || vehicle.toyotaCustomer || '',
-    displayVehicle(vehicle), vehicle.rftCollectedAt || '', shortDateAu(completedPmbStartDate(vehicle)), shortDateAu(completedRftDate(vehicle)), completedPmbDays(vehicle) ?? '', vehicle.rftCollectedBy || '', pdcCompletedJobsText(vehicle),
+    displayStockNumber(vehicle), vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle), vehicleCustomerName(vehicle) || '', displayVehicle(vehicle),
+    ...Object.values(completedHistoryMilestones(vehicle)).flatMap(value => [value?.value || '', value ? (value.dateOnly ? 'date only' : 'timestamp') : 'unknown']),
+    ...['pmbToRft', 'rftToOd', 'pmbToOd'].map(key => completedHistoryInterval(vehicle, key)?.days ?? ''),
+    ...['pmbToRft', 'rftToOd', 'pmbToOd'].map(key => completedHistoryInterval(vehicle, key)?.seconds ?? ''),
+    vehicle.rftCollectedAt || '', vehicle.rftCollectedBy || '', pdcCompletedJobsText(vehicle),
   ].map(csvEscape).join(',')));
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  return lines.join('\n');
+}
+
+function exportCompletedVehiclesCsv() {
+  const blob = new Blob([completedHistoryCsv()], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

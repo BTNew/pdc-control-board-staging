@@ -54,7 +54,7 @@ assert.match(stagingHtml, /id="collected-vehicles-content"/);
 assert.match(css, /rft-booked-button/);
 assert.match(css, /collected/);
 assert.match(app, /!vehicleInCollectedState\(vehicle\)/);
-assert.match(app, /Delivered vehicle history/);
+assert.match(app, /Completed vehicle turnaround/);
 assert.match(app, /durableRftLifecycleEnabled\(\)/);
 assert.match(sql, /PDC_734_SECURITY_POSTCONDITION_FAILED/);
 assert.match(sql, /protected_completed_lifecycle/);
