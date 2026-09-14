@@ -52,6 +52,16 @@ test('quick readiness rejects completed, inactive, duplicate and nonpending inpu
   row.operations[0].estimated_hours=1;assert.deepEqual(ui.quickApprovalProblems(row),[]);
 });
 
+test('explicit identity and board state guards block quick approval before dispatch',async()=>{
+  const active=vehicle();active.lifecycle_state='active';active.visible_on_board=false;
+  assert.deepEqual(ui.quickApprovalProblems(active),[]);
+  for(const fields of [{details_source:'identity_review'},{lifecycle_state:'completed'},{lifecycle_state:'rft'},{visible_on_board:true}]){
+    const row={...vehicle(),...fields};assert.ok(ui.quickApprovalProblems(row).length);
+    assert.doesNotMatch(ui.vehicleCardHtml(row,{canApprove:true}),/data-nv-quick-approve=/);
+    const f=fixture([row]);await f.context.quickApprove(row.vehicle_id);assert.equal(f.state.pending.length,0);
+  }
+});
+
 test('compact card has independent review/approval controls and escapes source text',()=>{
   const row=vehicle();row.customer_name='<img src=x onerror=bad>';row.stock_number='"bad<stock>';
   const html=ui.vehicleCardHtml(row,{canApprove:true,error:'<script>bad</script>'});
