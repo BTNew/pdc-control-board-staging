@@ -2,7 +2,18 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createSlotRuntime, at, booking } = require('./tests/helpers/workshop-slot-runtime.cjs');
+const { createSlotRuntime: createRuntime, at, booking } = require('./tests/helpers/workshop-slot-runtime.cjs');
+function createSlotRuntime() {
+  const runtime = createRuntime();
+  // These scenarios start on September 14; the real clock must not move them.
+  const now = +at(13);
+  runtime.context.Date = class extends Date {
+    constructor(...args) { super(...(args.length ? args : [now])); }
+    static now() { return now; }
+    static [Symbol.hasInstance](value) { return value instanceof Date; }
+  };
+  return runtime;
+}
 const plain = value => JSON.parse(JSON.stringify(value));
 
 test('Best slot uses a different bay when its default mechanic is on leave', () => {
