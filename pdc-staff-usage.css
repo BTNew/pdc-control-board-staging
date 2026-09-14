@@ -1,5 +1,5 @@
 #staff-usage-panel[hidden], .staff-usage-notice[hidden] { display:none !important; }
-#staff-usage-panel { margin-top:20px; }
+#staff-usage-panel { grid-column:1 / -1; margin-top:20px; }
 .staff-usage-controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
 .staff-usage-controls select { min-width:130px; }
 .staff-usage-table { min-width:1000px; }
