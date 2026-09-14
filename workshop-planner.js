@@ -1200,6 +1200,7 @@ function workshopImportedJobLines(vehicle = {}) {
           description: line.description,
           job_card_number: line.jobCardNumber,
           estimated_hours: line.estimatedHours,
+          hours_provenance: line.hoursProvenance, estimate_basis: line.estimateBasis, review_note: line.reviewNote,
           stage_code: line.stageCode,
         }));
         // This projection has already applied durable station/hour adjustments.
@@ -1238,7 +1239,9 @@ function workshopImportedJobLines(vehicle = {}) {
       index,
       stage,
       hours: Number.isFinite(hours) && hours >= 0 ? hours : null,
-      confirmed: true,
+      hoursProvenance: String(line.hours_provenance || line.hoursProvenance || ''),
+      estimateBasis: String(line.estimate_basis || line.estimateBasis || ''),
+      confirmed: String(line.hours_provenance || line.hoursProvenance || '')!=='ai_estimated',
       source: 'authenticated-operation-line',
     }];
   });
@@ -3839,6 +3842,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${overtime ? ' · OVERTIME' : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       ${entry.legacyAmbiguityReason ? `<small class="workshop-legacy-ambiguity">${escapeHtml(entry.legacyAmbiguityReason)}</small>` : ''}
       <small class="workshop-plan-time">${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${workshopDurationInputValue(entry.hours)} h`)}</small>
+      ${workshopStageJobLines(vehicle,entry.stage).some(line=>line.hoursProvenance==='ai_estimated')?'<small class="pdc-ai-estimate pdc-ai-estimate-badge">Includes AI estimate</small>':''}
       <small class="workshop-plan-hours">${escapeHtml(`Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
       ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
     </button>
@@ -4023,7 +4027,7 @@ function workshopFocusedOperationLinesHtml(vehicle = {}, stage = '') {
   const lines = workshopStageJobLines(vehicle, stage).filter(line => line.source === 'authenticated-operation-line');
   const exactTotalMinutes = lines.reduce((sum, line) => sum + Math.round(Number(line.hours || 0) * 60), 0);
   const exactTotal = exactTotalMinutes / 60;
-  return `<section class="workshop-focused-operation-lines" aria-label="Authenticated operation lines"><strong>Authenticated operation lines · ${exactTotal.toFixed(2)} h exact (${exactTotalMinutes} min)</strong><ul>${lines.map(line => `<li><span>${escapeHtml(line.operationNo || 'Operation')}</span> ${escapeHtml(line.text)} <b>${Number(line.hours || 0).toFixed(2)} h</b></li>`).join('')}</ul></section>`;
+  return `<section class="workshop-focused-operation-lines" aria-label="Authenticated operation lines"><strong>Authenticated operation lines · ${exactTotal.toFixed(2)} h exact (${exactTotalMinutes} min)</strong><ul>${lines.map(line => `<li><span>${escapeHtml(line.operationNo || 'Operation')}</span> ${escapeHtml(line.text)} <b class="${line.hoursProvenance==='ai_estimated'?'pdc-ai-estimate':''}">${line.hoursProvenance==='ai_estimated'?'AI estimate · ':''}${Number(line.hours || 0).toFixed(2)} h</b></li>`).join('')}</ul></section>`;
 }
 
 function workshopDetailPanelHtml(entry = null, plans = [], options = {}) {
@@ -6789,6 +6793,7 @@ function workshopRequiredJobsForStageHtml(vehicle = {}, stage = '', stageLines =
       operationNo,
       text,
       hours: line?.hours,
+      hoursProvenance: line?.hoursProvenance,
       jobCardNumber: cleanNavisionText(line?.jobCardNumber || line?.job_card_number || vehicleJobcardNumber(vehicle) || ''),
     });
   });
@@ -6800,7 +6805,7 @@ function workshopRequiredJobsForStageHtml(vehicle = {}, stage = '', stageLines =
     const hours = line.hours === null || line.hours === undefined || String(line.hours).trim() === ''
       ? 'Hours unknown'
       : `${Number(line.hours).toFixed(2).replace(/\.00$/, '')} h`;
-    return `<li><strong>${escapeHtml(line.operationNo || 'Required')}</strong><span>${escapeHtml(line.text)}</span><em>${escapeHtml(hours)}${line.jobCardNumber ? ` · JC ${escapeHtml(line.jobCardNumber)}` : ''}</em></li>`;
+    return `<li><strong>${escapeHtml(line.operationNo || 'Required')}</strong><span>${escapeHtml(line.text)}</span><em class="${line.hoursProvenance==='ai_estimated'?'pdc-ai-estimate':''}">${line.hoursProvenance==='ai_estimated'?'AI estimate · ':''}${escapeHtml(hours)}${line.jobCardNumber ? ` · JC ${escapeHtml(line.jobCardNumber)}` : ''}</em></li>`;
   }).join('')}</ul>`;
 }
 

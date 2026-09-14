@@ -249,6 +249,8 @@ function mapServerVehicle(row = {}) {
   mapped.pdcQcOperationLines = (qcProjectionFieldPresent ? qcProjection : []).slice(0, 250).map(item => ({
     lineIdentity: String(item?.line_identity || ''), sourceKind: String(item?.source_kind || ''), sourceLineId: String(item?.source_line_id || ''),
     operationNo: String(item?.operation_no || ''), description: String(item?.description || '').trim(), jobCardNumber: String(item?.job_card_number || '').trim(),
+    hoursProvenance: String(item?.hours_provenance || ''), estimateBasis: String(item?.estimate_basis || ''), reviewNote: String(item?.review_note || ''),
+    sourceEstimatedHours: item?.source_estimated_hours == null ? null : Number(item.source_estimated_hours),
     estimatedHours: item?.estimated_hours == null || item?.estimated_hours === '' ? null : Number(item.estimated_hours), stageCode: String(item?.stage_code || '').toUpperCase(),
     active: item?.active === true, completed: item?.completed === true, completedBy: String(item?.completed_by || ''), completedAt: item?.completed_at || '', lineVersion: Number(item?.line_version || 0),
   })).filter(item => /^(?:source|manual):[0-9a-f-]{36}$/.test(item.lineIdentity) && item.sourceLineId && item.description && item.active);

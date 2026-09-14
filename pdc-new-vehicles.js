@@ -149,7 +149,7 @@
   }
   function operationHoursHtml(line,drafts,assigned) {
     const hint=operationHoursPresentation(line,drafts,assigned);
-    return `<small class="nv-hours-hint"${hint.detail?` title="${esc(hint.detail)}"`:''}>${esc(hint.label)}</small>`;
+    return `<small class="nv-hours-hint${hint.label.startsWith('AI estimate')?' pdc-ai-estimate':''}"${hint.detail?` title="${esc(hint.detail)}"`:''}>${esc(hint.label)}</small>`;
   }
   function updateApprovalNotice(row,data) {
     const schedule=data.schedule;
@@ -318,7 +318,7 @@
     const disabled=!writable()||saving||sourceChanged;
     const theme=assigned&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(assigned):null;
     const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
-    return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''}" draggable="${!disabled}" data-nv-line="${esc(line.line_identity)}"${style}>
+    return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''} ${operationHoursPresentation(line,hourDrafts,assigned).label.startsWith('AI estimate')?'nv-hours-ai':''}" draggable="${!disabled}" data-nv-line="${esc(line.line_identity)}"${style}>
       <small class="nv-line-meta" title="Drag to a station · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">⠿</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
       <strong>${esc(line.description)}</strong>
       <div class="nv-operation-controls">
@@ -456,6 +456,8 @@
         const hint=operationHoursPresentation(line,hourDrafts,choices[line.line_identity]??line.stage_code);
         const hintElement=tile.querySelector('.nv-hours-hint');
         hintElement.textContent=hint.label;hintElement.title=hint.detail;
+        tile.classList.toggle('nv-hours-ai',hint.label.startsWith('AI estimate'));
+        hintElement.classList.toggle('pdc-ai-estimate',hint.label.startsWith('AI estimate'));
         const issues=problems(selected,choices,hourDrafts);
         page.querySelectorAll('[data-nv-approve]').forEach(button=>button.disabled=!!(saving||sourceChanged||issues.length||!writable()));
         const info=page.querySelector('.nv-approval>div');
