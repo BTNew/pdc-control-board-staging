@@ -324,14 +324,20 @@
     generation++;loading=false;
     saving=true;error='';notice='';updateSchedule=null;render();
     try {
-      let result;
+      let result, waitingError;
+      const retryDeadline=Date.now()+65000;
       for(let attempt=0;;attempt++) {
         if(!ownsRequest())return;
+        if(waitingError&&Date.now()>=retryDeadline)throw waitingError;
         try {result=await rpc('approve_pdc_tune_operation_change_with_schedule',request);break;}
         catch(err) {
-          // Only an explicit, rolled-back scheduling conflict is safe to retry automatically.
-          if(err.message!=='operation_schedule_busy'||err.retryable!==true||attempt>=2||!ownsRequest())throw err;
-          await new Promise(resolve=>setTimeout(resolve,[350,1000][attempt]));
+          // The minute clock can hold its lock for up to 50 seconds. Wait through
+          // one cycle, reusing the exact request only after an explicit rollback.
+          if(err.message!=='operation_schedule_busy'||err.retryable!==true||attempt>=12||Date.now()>=retryDeadline||!ownsRequest())throw err;
+          waitingError=err;
+          notice='Waiting for the workshop update to finish. Your approval will retry automatically.';
+          render();
+          await new Promise(resolve=>setTimeout(resolve,Math.min([350,1000,2000][Math.min(attempt,2)],retryDeadline-Date.now())));
         }
       }
       if(!ownsRequest()) return;
@@ -346,10 +352,10 @@
           if(!ownsRequest())return;
           if(results.some(result=>result.status==='rejected'||result.value===false)){notice+=' The change was saved. Refresh the board if its times have not updated yet.';render();}
         });
-    } catch(err) {if(ownsRequest())error=message(err);}
+    } catch(err) {if(ownsRequest()){notice='';error=message(err);}}
     finally {if(session===sessionGeneration&&updateRequests[id]===ownedRequest){
       saving=false;
-      if(!ownsRequest())error='Your sign-in session changed. Refresh the queue before continuing; the approval result has not been confirmed.';
+      if(!ownsRequest()){notice='';error='Your sign-in session changed. Refresh the queue before continuing; the approval result has not been confirmed.';}
       render();if(accepted&&ownsRequest())void load({silent:true});
     }}
   }

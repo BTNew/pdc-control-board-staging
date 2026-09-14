@@ -36,12 +36,14 @@ test('approval rejects a schedule that moves a booking earlier than its accepted
 });
 function fixture(){
   const calls=[],pending=[],refreshes=[],delays=[];
+  let elapsed=0;
   const context={...ui,console,setTimeout:(resolve,ms)=>{delays.push({resolve,ms});return delays.length;},crypto:{randomUUID:()=>`key${calls.length}`},window:{PDC_AUTH_CONTEXT:{userId:'actor',role:'administrator'},__workshopDataService:{loadSnapshot:async reason=>{refreshes.push(reason);return true;}}},token:'token',rpc:async(name,payload)=>{calls.push({name,payload});return new Promise((resolve,reject)=>pending.push({resolve,reject}));},getPdcSupabaseAccessToken:()=>context.token,refreshEmailVehicleLocations:async()=>{refreshes.push('locations');return true;},loadSharedNavisionVisibleRows:async()=>{refreshes.push('navision');return true;},render(){},load(){return Promise.resolve();}};
+  context.Date=class extends Date{static now(){return elapsed;}};
   vm.createContext(context);
   vm.runInContext(source.slice(source.indexOf('  let items='),source.indexOf('  const readable=')),context);
   vm.runInContext(`updateItems=${JSON.stringify([row])};updateTotal=1;const writable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT.role);`,context);
   vm.runInContext(source.slice(source.indexOf('  function message(err)'),source.indexOf('  async function load('))+source.slice(source.indexOf('  async function approveUpdate(id)'),source.indexOf('  function bindUpdates()')),context);
-  return {context,calls,pending,refreshes,delays,state:()=>vm.runInContext('({updateItems,saving,error,notice,updateSchedule,updateRequests})',context)};
+  return {context,calls,pending,refreshes,delays,advance:ms=>{elapsed+=ms;},state:()=>vm.runInContext('({updateItems,saving,error,notice,updateSchedule,updateRequests})',context)};
 }
 test('real approval handler sends one exact request and refreshes planner after verified schedule receipt',async()=>{
   const f=fixture(),approval=f.context.approveUpdate('change1');
@@ -89,7 +91,7 @@ const busyFailure=()=>Object.assign(Error('operation_schedule_busy'),{retryable:
 test('known rolled-back busy approval retries the same request after a short delay, then accepts one success',async()=>{
   const f=fixture(),approval=f.context.approveUpdate('change1');
   f.pending[0].reject(busyFailure());await settle();
-  assert.equal(f.state().saving,true);assert.equal(f.state().updateItems.length,1);assert.equal(f.state().notice,'');
+  assert.equal(f.state().saving,true);assert.equal(f.state().updateItems.length,1);assert.match(f.state().notice,/Waiting for the workshop/);
   await f.context.approveUpdate('change1');assert.equal(f.calls.length,1);assert.deepEqual(f.delays.map(x=>x.ms),[350]);
   f.delays[0].resolve();await settle();
   assert.equal(f.calls.length,2);assert.equal(f.calls[0].payload,f.calls[1].payload);
@@ -99,26 +101,48 @@ test('known rolled-back busy approval retries the same request after a short del
   assert.deepEqual(f.refreshes,['locations','navision','tune_operation_change_approval']);
 });
 
-test('busy retry is limited to two delayed retries and keeps the pending approval when exhausted',async()=>{
+test('busy retry has a request cap and keeps the pending approval when exhausted',async()=>{
   const f=fixture(),approval=f.context.approveUpdate('change1');
-  for(let attempt=0;attempt<2;attempt++) {
+  for(let attempt=0;attempt<12;attempt++) {
     f.pending[attempt].reject(busyFailure());await settle();
     f.delays[attempt].resolve();await settle();
   }
-  f.pending[2].reject(busyFailure());await approval;
-  assert.equal(f.calls.length,3);assert.deepEqual(f.delays.map(x=>x.ms),[350,1000]);
+  f.pending[12].reject(busyFailure());await approval;
+  assert.equal(f.calls.length,13);assert.deepEqual(f.delays.map(x=>x.ms),[350,1000,...Array(10).fill(2000)]);
   assert(f.calls.every(call=>call.payload===f.calls[0].payload));
   assert.equal(f.state().saving,false);assert.equal(f.state().updateItems.length,1);
   assert.equal(f.state().error,busyFailure().userMessage);assert.equal(f.state().notice,'');assert.equal(f.refreshes.length,0);
 });
 
+test('approval survives the observed 47-second clock lock using one unchanged request',async()=>{
+  const f=fixture(),approval=f.context.approveUpdate('change1');
+  for(let attempt=0;attempt<8;attempt++){
+    f.advance(5000);f.pending[attempt].reject(busyFailure());await settle();
+    assert.equal(f.state().saving,true);assert.match(f.state().notice,/Waiting for the workshop/);
+    f.advance(f.delays[attempt].ms);f.delays[attempt].resolve();await settle();
+  }
+  assert(f.calls.every(call=>call.payload===f.calls[0].payload));
+  f.pending[8].resolve(receipt());await approval;await settle();
+  assert.equal(f.state().updateItems.length,0);assert.match(f.state().notice,/operation approved/);
+  assert.equal(f.refreshes.length,3);
+});
+
+test('elapsed retry deadline stops before another dispatch and retains approved hours',async()=>{
+  const f=fixture();vm.runInContext('updateDrafts.change1={stage:"BUS_4X4",hours:0.2};',f.context);
+  const approval=f.context.approveUpdate('change1');
+  f.pending[0].reject(busyFailure());await settle();f.advance(65000);f.delays[0].resolve();await approval;
+  assert.equal(f.calls.length,1);assert.equal(f.calls[0].payload.p_estimated_hours,0.2);
+  assert.equal(f.state().updateItems.length,1);assert.equal(f.state().saving,false);assert.equal(f.state().notice,'');
+  assert.match(f.state().error,/No changes were saved/);
+});
+
 test('a changed actor, token, session, request or approval permission cancels a delayed busy retry',async()=>{
   for(const change of [f=>{f.context.window.PDC_AUTH_CONTEXT.userId='other';},f=>{f.context.token='renewed';},
-    f=>vm.runInContext('sessionGeneration++;updateRequests={};',f.context),
-    f=>vm.runInContext('updateRequests.change1={};',f.context),f=>{f.context.window.PDC_AUTH_CONTEXT.role='viewer';}]) {
+    f=>vm.runInContext("sessionGeneration++;updateRequests={};notice='New session';",f.context),
+    f=>vm.runInContext("updateRequests.change1={};notice='New request';",f.context),f=>{f.context.window.PDC_AUTH_CONTEXT.role='viewer';}]) {
     const f=fixture(),approval=f.context.approveUpdate('change1');
     f.pending[0].reject(busyFailure());await settle();change(f);f.delays[0].resolve();await approval;
-    assert.equal(f.calls.length,1);assert.equal(f.state().updateItems.length,1);assert.equal(f.state().notice,'');assert.equal(f.refreshes.length,0);
+    assert.equal(f.calls.length,1);assert.equal(f.state().updateItems.length,1);assert(['','New session','New request'].includes(f.state().notice));assert.equal(f.refreshes.length,0);
   }
 });
 
