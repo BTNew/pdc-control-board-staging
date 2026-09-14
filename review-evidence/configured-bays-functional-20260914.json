@@ -1,0 +1,2389 @@
+{
+  "stages": [
+    {
+      "bays": 8,
+      "stage": "BUS_4X4",
+      "failures": 0,
+      "passing_actions": 40
+    },
+    {
+      "bays": 10,
+      "stage": "ELECTRICAL",
+      "failures": 0,
+      "passing_actions": 50
+    },
+    {
+      "bays": 13,
+      "stage": "FABRICATION",
+      "failures": 0,
+      "passing_actions": 65
+    },
+    {
+      "bays": 5,
+      "stage": "FITTING",
+      "failures": 0,
+      "passing_actions": 25
+    },
+    {
+      "bays": 3,
+      "stage": "HOIST",
+      "failures": 0,
+      "passing_actions": 15
+    },
+    {
+      "bays": 2,
+      "stage": "TINT",
+      "failures": 0,
+      "passing_actions": 10
+    },
+    {
+      "bays": 2,
+      "stage": "TYRE",
+      "failures": 0,
+      "passing_actions": 10
+    }
+  ],
+  "actions": [
+    {
+      "stage": "BUS_4X4",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "15c76e53-353d-4ee3-b165-bdb8ac07e414"
+      },
+      "elapsed_ms": 46.133
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-01",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 7.451
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 96.98
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-01",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 106.973
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-01",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 72.454
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "2eb9cceb-50d7-4e02-a26f-356f3d26a875"
+      },
+      "elapsed_ms": 23.448
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-02",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 5.335
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 92.05
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-02",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 96.051
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-02",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 72.817
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-03",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "56e9ba0b-43cb-43d9-b571-d3195296be57"
+      },
+      "elapsed_ms": 20.161
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-03",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 5.034
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-03",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 95.235
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-03",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 96.526
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-03",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 80.367
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-04",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "f8144f01-507e-4ca9-9dec-bd71c2703010"
+      },
+      "elapsed_ms": 20.501
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-04",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 5.135
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-04",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 95.176
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-04",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 97.023
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-04",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 75.597
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-05",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "685b552a-bb0e-4df9-88e6-8475ac0b2d0f"
+      },
+      "elapsed_ms": 20.782
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-05",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 5.038
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-05",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 94.961
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-05",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 102.765
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-05",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 78.771
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-06",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "9e239c54-dbb4-4bdc-9d94-f463be2916f7"
+      },
+      "elapsed_ms": 20.672
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-06",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 5.117
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-06",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 101.29
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-06",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 101.92
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-06",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 80.995
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-07",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "cb1cf91a-99f1-49df-8cf2-d3ec176929a9"
+      },
+      "elapsed_ms": 19.033
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-07",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.371
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-07",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 100.478
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-07",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 108.498
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-07",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 81.984
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-08",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "1c4cec64-68c2-4923-b4f6-07288c092a11"
+      },
+      "elapsed_ms": 19.021
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-08",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.813
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-08",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 105.958
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-08",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 107.457
+    },
+    {
+      "stage": "BUS_4X4",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "BUS_4X4-BAY-08",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 85.23
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "ea1bc72e-6b31-405b-b956-7556cde88593"
+      },
+      "elapsed_ms": 48.632
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-01",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.306
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 363.499
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-01",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 377.552
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-01",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 324.841
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "1b4e8244-c0e7-4470-a8c9-c0e19a7dc668"
+      },
+      "elapsed_ms": 51.365
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-02",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.385
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 378.906
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-02",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 373.971
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-02",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 325.351
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-03",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "00aaf463-8e1d-4ed1-b747-27f1a7d3c653"
+      },
+      "elapsed_ms": 42.365
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-03",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.269
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-03",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 369.436
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-03",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 371.414
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-03",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 326.74
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-04",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "61a06f8f-5115-46e7-8267-bbdf71ebe2c0"
+      },
+      "elapsed_ms": 42.366
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-04",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.213
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-04",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 366.476
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-04",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 376.522
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-04",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 325.804
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-05",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "a1a28c66-b472-47e9-8064-9c7d174ed8c4"
+      },
+      "elapsed_ms": 31.41
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-05",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.18
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-05",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 360.902
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-05",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 359.796
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-05",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 330.343
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-06",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "42ad0dfb-3f0c-4b81-9709-14be2fb9845e"
+      },
+      "elapsed_ms": 30.518
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-06",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.438
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-06",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 386.543
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-06",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 362.886
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-06",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 334.422
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-07",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "40264236-6dba-4bb7-bf11-43be97b34f17"
+      },
+      "elapsed_ms": 23.289
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-07",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.389
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-07",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 374.322
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-07",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 390.452
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-07",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 366.769
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-08",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "cc094669-473c-4d63-a37b-5d2601d8f79b"
+      },
+      "elapsed_ms": 23.232
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-08",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.35
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-08",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 363.823
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-08",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 380.875
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-08",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 351.113
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-09",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "fbd9d041-a305-45eb-8ddd-0f10b270e358"
+      },
+      "elapsed_ms": 21.954
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-09",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.347
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-09",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 367.271
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-09",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 371.696
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-09",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 348.672
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-10",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "bd6df783-1777-4403-a593-b66dd5531807"
+      },
+      "elapsed_ms": 19.338
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-10",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.272
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-10",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 358.428
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-10",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 365.038
+    },
+    {
+      "stage": "ELECTRICAL",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "ELECTRICAL-BAY-10",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 341.897
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "59a807df-2fde-443e-9f16-dc4988d8ba62"
+      },
+      "elapsed_ms": 19.115
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-01",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.493
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 237.196
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-01",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 236.625
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-01",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 216.242
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "32213383-272a-4f3e-80e3-3488c3a013b4"
+      },
+      "elapsed_ms": 83.703
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-02",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.388
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 318.091
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-02",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 303.639
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-02",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 220.904
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-03",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "434e5864-1c80-402b-a936-450696401b63"
+      },
+      "elapsed_ms": 44.206
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-03",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.536
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-03",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 270.202
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-03",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 273.982
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-03",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 229.253
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-04",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "52f21ed0-e303-4241-a37a-e94dbcef720b"
+      },
+      "elapsed_ms": 31.568
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-04",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.731
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-04",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 261.777
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-04",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 268.087
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-04",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 231.981
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-05",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "eea5c87e-d6fc-4b36-a319-d328360c1a54"
+      },
+      "elapsed_ms": 35.776
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-05",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.699
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-05",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 277.054
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-05",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 270.684
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-05",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 237.836
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-06",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "2a1854b0-326e-4dfe-8cb3-91a8ec895522"
+      },
+      "elapsed_ms": 35.715
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-06",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.521
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-06",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 272.566
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-06",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 269.152
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-06",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 233.511
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-07",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "b2673343-41a6-4882-a449-3ba418759c61"
+      },
+      "elapsed_ms": 35.552
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-07",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.626
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-07",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 278.792
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-07",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 275.691
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-07",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 238.417
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-08",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "a01e8c77-04ee-4040-beb6-9eff5972cbf4"
+      },
+      "elapsed_ms": 25.305
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-08",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.771
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-08",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 271.917
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-08",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 266.255
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-08",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 244.258
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-09",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "4373f9f8-f3fe-42b6-ba3b-0726a31f6231"
+      },
+      "elapsed_ms": 43.403
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-09",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.525
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-09",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 301.048
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-09",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 295.149
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-09",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 253.296
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-10",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "1f19074a-2ffb-4185-b283-2cb94468c8d1"
+      },
+      "elapsed_ms": 32.727
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-10",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.662
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-10",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 284.84
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-10",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 278.816
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-10",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 243.57
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-11",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "1b6feca4-5901-4d4c-8dbe-ce522c0cf25c"
+      },
+      "elapsed_ms": 26.13
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-11",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.314
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-11",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 278.554
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-11",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 275.429
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-11",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 248.064
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-12",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "d95c6008-f232-42cf-b411-a68a28a9e761"
+      },
+      "elapsed_ms": 32.71
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-12",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 5.51
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-12",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 301.053
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-12",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 310.215
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-12",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 271.447
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-13",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "4a92dd90-a3ab-4919-ae6c-709cf29e5298"
+      },
+      "elapsed_ms": 28.12
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-13",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.538
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-13",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 279.043
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-13",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 284.677
+    },
+    {
+      "stage": "FABRICATION",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FABRICATION-BAY-13",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 247.724
+    },
+    {
+      "stage": "FITTING",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "1464271d-00a8-4165-bc75-7ab06703c657"
+      },
+      "elapsed_ms": 66.037
+    },
+    {
+      "stage": "FITTING",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-01",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 5.221
+    },
+    {
+      "stage": "FITTING",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 516.412
+    },
+    {
+      "stage": "FITTING",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-01",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 434.007
+    },
+    {
+      "stage": "FITTING",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-01",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 388.286
+    },
+    {
+      "stage": "FITTING",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "6e065475-cd58-4c9e-a44d-d1533b37f808"
+      },
+      "elapsed_ms": 92.614
+    },
+    {
+      "stage": "FITTING",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-02",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.489
+    },
+    {
+      "stage": "FITTING",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 443.101
+    },
+    {
+      "stage": "FITTING",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-02",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 507.26
+    },
+    {
+      "stage": "FITTING",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-02",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 382.545
+    },
+    {
+      "stage": "FITTING",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-03",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "49fdeb20-d0d3-4986-948b-dbb44103da27"
+      },
+      "elapsed_ms": 71.81
+    },
+    {
+      "stage": "FITTING",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-03",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.49
+    },
+    {
+      "stage": "FITTING",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-03",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 460.675
+    },
+    {
+      "stage": "FITTING",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-03",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 433.081
+    },
+    {
+      "stage": "FITTING",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-03",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 359.363
+    },
+    {
+      "stage": "FITTING",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-04",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "840aa521-0b64-4ba1-a412-e1fae6f0d888"
+      },
+      "elapsed_ms": 74.857
+    },
+    {
+      "stage": "FITTING",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-04",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.421
+    },
+    {
+      "stage": "FITTING",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-04",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 452.433
+    },
+    {
+      "stage": "FITTING",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-04",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 447.128
+    },
+    {
+      "stage": "FITTING",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-04",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 373.466
+    },
+    {
+      "stage": "FITTING",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-05",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "427ca8ff-cdad-4a7c-bd24-3b76c04fa739"
+      },
+      "elapsed_ms": 76.538
+    },
+    {
+      "stage": "FITTING",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-05",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.579
+    },
+    {
+      "stage": "FITTING",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-05",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 456.332
+    },
+    {
+      "stage": "FITTING",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-05",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 454.445
+    },
+    {
+      "stage": "FITTING",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "FITTING-BAY-05",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 377.73
+    },
+    {
+      "stage": "HOIST",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "a1200908-3cae-4305-a16c-f92eb30b22dd"
+      },
+      "elapsed_ms": 41.592
+    },
+    {
+      "stage": "HOIST",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-01",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.618
+    },
+    {
+      "stage": "HOIST",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 230.211
+    },
+    {
+      "stage": "HOIST",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-01",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 232.41
+    },
+    {
+      "stage": "HOIST",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-01",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 184.485
+    },
+    {
+      "stage": "HOIST",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "cc558123-21d3-48c8-8fd7-24999c4711ba"
+      },
+      "elapsed_ms": 47.079
+    },
+    {
+      "stage": "HOIST",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-02",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.475
+    },
+    {
+      "stage": "HOIST",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 230.298
+    },
+    {
+      "stage": "HOIST",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-02",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 241.32
+    },
+    {
+      "stage": "HOIST",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-02",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 188.119
+    },
+    {
+      "stage": "HOIST",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-03",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "190a511a-2c80-4b9e-9958-f4a42acbc6df"
+      },
+      "elapsed_ms": 43.513
+    },
+    {
+      "stage": "HOIST",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-03",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.465
+    },
+    {
+      "stage": "HOIST",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-03",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 235.425
+    },
+    {
+      "stage": "HOIST",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-03",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 235.615
+    },
+    {
+      "stage": "HOIST",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "HOIST-BAY-03",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 191.17
+    },
+    {
+      "stage": "TINT",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "TINT-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "4d01e312-2afc-499e-8ed4-ceae18cf53cb"
+      },
+      "elapsed_ms": 60.618
+    },
+    {
+      "stage": "TINT",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "TINT-BAY-01",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.55
+    },
+    {
+      "stage": "TINT",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "TINT-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 295.231
+    },
+    {
+      "stage": "TINT",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "TINT-BAY-01",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 295.295
+    },
+    {
+      "stage": "TINT",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "TINT-BAY-01",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 233.75
+    },
+    {
+      "stage": "TINT",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "TINT-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "305d62e7-f219-4652-bb19-01fb66ddfa8a"
+      },
+      "elapsed_ms": 63.146
+    },
+    {
+      "stage": "TINT",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "TINT-BAY-02",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.651
+    },
+    {
+      "stage": "TINT",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "TINT-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 290.624
+    },
+    {
+      "stage": "TINT",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "TINT-BAY-02",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 295.856
+    },
+    {
+      "stage": "TINT",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "TINT-BAY-02",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 233.297
+    },
+    {
+      "stage": "TYRE",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "TYRE-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "6562fe0c-1ef2-49b4-966c-9b030e1c1e97"
+      },
+      "elapsed_ms": 75.562
+    },
+    {
+      "stage": "TYRE",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "TYRE-BAY-01",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.617
+    },
+    {
+      "stage": "TYRE",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "TYRE-BAY-01",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 356.47
+    },
+    {
+      "stage": "TYRE",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "TYRE-BAY-01",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 341.148
+    },
+    {
+      "stage": "TYRE",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "TYRE-BAY-01",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 262.977
+    },
+    {
+      "stage": "TYRE",
+      "action": "book",
+      "status": "PASS",
+      "bay_code": "TYRE-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T08:00:00+08:00",
+        "minutes": 30,
+        "booking_id": "ab4b7683-ec6e-4de7-aff3-52eeb5b2b8ac"
+      },
+      "elapsed_ms": 44.605
+    },
+    {
+      "stage": "TYRE",
+      "action": "complete",
+      "status": "PASS",
+      "bay_code": "TYRE-BAY-02",
+      "evidence": {
+        "completed": true
+      },
+      "elapsed_ms": 4.536
+    },
+    {
+      "stage": "TYRE",
+      "action": "move",
+      "status": "PASS",
+      "bay_code": "TYRE-BAY-02",
+      "evidence": {
+        "start": "2026-10-26T10:00:00+08:00",
+        "minutes": 45
+      },
+      "elapsed_ms": 312.642
+    },
+    {
+      "stage": "TYRE",
+      "action": "resize",
+      "status": "PASS",
+      "bay_code": "TYRE-BAY-02",
+      "evidence": {
+        "minutes": 45,
+        "quoted_minutes": 30
+      },
+      "elapsed_ms": 316.492
+    },
+    {
+      "stage": "TYRE",
+      "action": "stale_version",
+      "status": "PASS",
+      "bay_code": "TYRE-BAY-02",
+      "evidence": {
+        "error": "version_conflict"
+      },
+      "elapsed_ms": 271.236
+    }
+  ],
+  "bay_count": 43,
+  "elapsed_ms": 39296.36,
+  "preservation": [
+    "Every configured bay is unchanged",
+    "Every existing booking is unchanged",
+    "Every existing imported operation is unchanged",
+    "Every existing mechanic assignment is unchanged",
+    "Every existing vehicle is unchanged",
+    "Every existing vehicle work item is unchanged"
+  ],
+  "failed_actions": 0,
+  "passing_actions": 215,
+  "passing_assertions": 274,
+  "rollback_verified": true,
+  "project_ref": "cdsmnqxtyyoeoznmbidd",
+  "audit_date": "2026-09-14",
+  "scope": "Real configured bays; synthetic operator, vehicles and operations; complete transaction rolled back.",
+  "completion_scope": "Actual completion RPC on a separate synthetic stopped booking in each target bay; protected Start-to-now is intentionally not invoked against current work.",
+  "source_script": "tests/workshop_configured_bays_functional_rollback_20260914.sql"
+}

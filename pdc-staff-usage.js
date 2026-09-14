@@ -66,7 +66,6 @@
     generation++; reportGeneration++; sending = false; loadedFor = ''; queue.reset();
     const panel = doc.getElementById('staff-usage-panel');
     if (panel) { panel.hidden = true; panel.querySelector('[data-usage-content]').replaceChildren(); }
-    const notice = doc.getElementById('staff-usage-notice'); if (notice) notice.hidden = true;
   }
   function ready() {
     const user = context()?.userId || '';
@@ -74,7 +73,6 @@
     queue.identify(user);
     const panel = ensurePanel(); if (panel) panel.hidden = context()?.role !== 'administrator';
     onRoute(); flush();
-    const notice = doc.getElementById('staff-usage-notice'); if (notice) notice.hidden = !user;
   }
   function formatDate(value) {
     if (!value) return 'Never recorded';
@@ -122,12 +120,6 @@
   root.addEventListener('pagehide', flush);
   const observer = new root.MutationObserver(onRoute);
   doc.querySelectorAll('.view').forEach(view => observer.observe(view,{attributes:true,attributeFilter:['class']}));
-  const sidebar = doc.querySelector('.sidebar');
-  if (sidebar) {
-    const notice=doc.createElement('small'); notice.id='staff-usage-notice'; notice.className='staff-usage-notice'; notice.hidden=true;
-    notice.textContent='Sign-ins, page visits and click totals are recorded for board administrators.';
-    sidebar.append(notice);
-  }
   root.setInterval(flush,15000);
   ready();
 })(typeof window !== 'undefined' ? window : globalThis);
