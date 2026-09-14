@@ -1,0 +1,96 @@
+{
+  "migration": {
+    "version": "20260914103740",
+    "name": "workshop_vehicle_one_hour_handover",
+    "file": "supabase/migrations/20260914103740_workshop_vehicle_one_hour_handover.sql",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "One elapsed hour between the same vehicle's workshop bookings. 112 rollback checks plus 11 independent clock checks passed; scheduling permissions and overlap constraints retained. Existing bookings are not compacted by deployment."
+  },
+  "boundary_checks_after_application": {"count":14,"checks":[{"name":"All pre-existing bookings unchanged","status":"PASS"},{"name":"All pre-existing vehicles unchanged","status":"PASS"},{"name":"Clock overrun moves the next station to one hour after the live job forecast","status":"PASS"},{"name":"Clock preview changes no actual live or planned booking","status":"PASS"},{"name":"Close gaps preview does not write the proposed earlier time","status":"PASS"},{"name":"Close gaps pulls thirteen-hundred booking forward to the exact one-hour boundary","status":"PASS"},{"name":"Exactly sixty minutes between vehicle bookings has no warning","status":"PASS"},{"name":"Fifty-nine minutes still reports a short handover","status":"PASS"},{"name":"Moving the fifty-nine-minute gap to sixty clears the warning","status":"PASS"},{"name":"Multi-day duration still uses Friday and Saturday working minutes only","status":"PASS"},{"name":"One-hour handovers retain true vehicle non-overlap","status":"PASS"},{"name":"One-hour spacing finishing at Saturday noon still waits until Monday opening","status":"PASS"},{"name":"Planning-window DTO advertises sixty-minute spacing","status":"PASS"},{"name":"Synthetic operator is authorized","status":"PASS"}]},
+  "definitions": [
+    {
+      "signature": "book_all_vehicle_stations(uuid,integer)",
+      "md5": "6a67df560ba1732eb98bfb29968fdf43",
+      "owner": "postgres",
+      "prosecdef": true,
+      "provolatile": "v",
+      "proconfig": [
+        "search_path=pg_catalog, public"
+      ],
+      "proacl": "{postgres=X/postgres,service_role=X/postgres,authenticated=X/postgres}",
+      "old_buffer_present": false,
+      "one_hour_count": 3
+    },
+    {
+      "signature": "get_pdc_vehicle_planning_windows(uuid,timestamp with time zone)",
+      "md5": "2b0c02bf24f455e66e8fbbe30438c9e2",
+      "owner": "postgres",
+      "prosecdef": true,
+      "provolatile": "s",
+      "proconfig": [
+        "search_path=pg_catalog, public"
+      ],
+      "proacl": "{postgres=X/postgres,service_role=X/postgres,authenticated=X/postgres}",
+      "old_buffer_present": false,
+      "one_hour_count": 1
+    },
+    {
+      "signature": "pdc_tune_reconcile_booking_plan_20260913(uuid,text[],uuid)",
+      "md5": "3a14a77b05103bde274b2d48fa335fef",
+      "owner": "postgres",
+      "prosecdef": true,
+      "provolatile": "v",
+      "proconfig": [
+        "search_path=pg_catalog, public",
+        "statement_timeout=120s"
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "old_buffer_present": false,
+      "one_hour_count": 3
+    },
+    {
+      "signature": "replan_workshop_capacity(text,integer,integer,boolean,text,uuid)",
+      "md5": "dadc4da2a4812436dc61b3813c623aea",
+      "owner": "postgres",
+      "prosecdef": true,
+      "provolatile": "v",
+      "proconfig": [
+        "search_path=pg_catalog, public",
+        "statement_timeout=120s"
+      ],
+      "proacl": "{postgres=X/postgres,service_role=X/postgres,authenticated=X/postgres}",
+      "old_buffer_present": false,
+      "one_hour_count": 0
+    },
+    {
+      "signature": "workshop_capacity_plan(text,uuid,integer,timestamp with time zone)",
+      "md5": "5781cb0f39b1020cb7719c65cfe04f70",
+      "owner": "postgres",
+      "prosecdef": true,
+      "provolatile": "v",
+      "proconfig": [
+        "search_path=pg_catalog, public",
+        "statement_timeout=120s"
+      ],
+      "proacl": "{postgres=X/postgres,service_role=X/postgres}",
+      "old_buffer_present": false,
+      "one_hour_count": 4
+    },
+    {
+      "signature": "workshop_clock_tick(boolean,timestamp with time zone)",
+      "md5": "db78277273e8a418553d266d3a52165e",
+      "owner": "postgres",
+      "prosecdef": false,
+      "provolatile": "v",
+      "proconfig": [
+        "search_path=pg_catalog, public",
+        "lock_timeout=3s",
+        "statement_timeout=120s"
+      ],
+      "proacl": "{postgres=X/postgres}",
+      "old_buffer_present": false,
+      "one_hour_count": 3
+    }
+  ]
+}

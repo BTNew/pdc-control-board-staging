@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260914093305",
-    "name": "workshop_capacity_replan_apply",
-    "file": "supabase/migrations/20260914093305_workshop_capacity_replan_apply.sql",
-    "sha256": "0c7934888d97324332fb3ab9aab8589c468d51df14238b9a2c32fe643677ad3d",
+    "version": "20260914103740",
+    "name": "workshop_vehicle_one_hour_handover",
+    "file": "supabase/migrations/20260914103740_workshop_vehicle_one_hour_handover.sql",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Planner gap closing and bay efficiency. 143 synthetic rollback checks passed before application; no customer bookings moved by deployment."
+    "source": "One elapsed hour between the same vehicle's workshop bookings. 112 rollback checks plus 11 independent clock checks passed; scheduling permissions and overlap constraints retained. Existing bookings are not compacted by deployment.",
+    "sha256": "3c5df28278663455ccb47c1f26c7a92e2163e490dbbda9ce35d9437b1787c043"
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -236,5 +236,14 @@
       "commissioned": true,
       "review_status": "staging_applied"
     }
-  ]
+  ],
+  "workshop_one_hour_handover_migration": {
+    "version": "20260914103740",
+    "name": "workshop_vehicle_one_hour_handover",
+    "file": "supabase/migrations/20260914103740_workshop_vehicle_one_hour_handover.sql",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "One elapsed hour between the same vehicle's workshop bookings. 112 rollback checks plus 11 independent clock checks passed; scheduling permissions and overlap constraints retained. Existing bookings are not compacted by deployment.",
+    "sha256": "3c5df28278663455ccb47c1f26c7a92e2163e490dbbda9ce35d9437b1787c043"
+  }
 }

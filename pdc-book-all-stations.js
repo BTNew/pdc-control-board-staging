@@ -31,7 +31,7 @@
     // Keep transfer, QC and Open controls; replace only the old source-only badge.
     const retained = existingAction.replace(/<span class="badge neutral">(?:[^<]*Read only|Pilbara Service Review · R\/O loaded)<\/span>/g, '');
     const active = pending.get(vehicleId(vehicle));
-    return `${retained}<button class="primary incoming-book-all-stations" type="button" data-book-all-stations="${esc(vehicleId(vehicle))}" ${active ? 'disabled aria-busy="true"' : ''} title="Book each outstanding workshop station in its next available bay, with 5 hours between this vehicle’s jobs. Sublet is excluded."><span>${active ? (active.refreshing ? 'Updating board…' : 'Booking stations…') : 'Book all stations'}</span></button>`;
+    return `${retained}<button class="primary incoming-book-all-stations" type="button" data-book-all-stations="${esc(vehicleId(vehicle))}" ${active ? 'disabled aria-busy="true"' : ''} title="Book each outstanding workshop station in its next available bay, with 1 hour between this vehicle’s jobs. Sublet is excluded."><span>${active ? (active.refreshing ? 'Updating board…' : 'Booking stations…') : 'Book all stations'}</span></button>`;
   }
   const dialog = document.createElement('dialog');
   dialog.className = 'book-all-stations-dialog';
@@ -56,7 +56,7 @@
     const summary = `<p><strong>${count ? `${count} station${count === 1 ? '' : 's'} booked.` : 'No new bookings were needed.'}</strong></p>`;
     const rows = bookings.length ? `<div class="book-all-stations-table"><table><thead><tr><th>Station / bay</th><th>Start</th><th>Finish</th></tr></thead><tbody>${bookings.map(booking => `<tr><th scope="row">${esc(stageLabel(booking.stage))}<small>Bay ${esc(booking.bay)}</small></th><td>${esc(timeLabel(booking.start_at))}</td><td>${esc(timeLabel(booking.end_at))}</td></tr>`).join('')}</tbody></table></div>` : '';
     const skippedHtml = skipped.length ? `<p class="subtle">${skipped.map(item => `${esc(stageLabel(item.stage))}: ${esc(item.reason || 'already booked')}`).join('<br>')}</p>` : '';
-    return `${summary}${rows}${skippedHtml}<p class="subtle">Sublet is excluded. A 5-hour gap is allowed between this vehicle’s jobs.</p>`;
+    return `${summary}${rows}${skippedHtml}<p class="subtle">Sublet is excluded. A 1-hour gap is allowed between this vehicle’s jobs.</p>`;
   }
   function authorityCurrent(request) {
     return request.generation === sessionGeneration && request.actor === window.PDC_AUTH_CONTEXT?.userId &&
