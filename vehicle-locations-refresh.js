@@ -18,12 +18,21 @@ function createPdcOperationalRefreshCoordinator(options = {}) {
   let inFlight = null;
   let queuedRefresh = null;
 
+  function refreshSources(refreshOptions) {
+    const values = Array.isArray(refreshOptions.sources) ? refreshOptions.sources : [refreshOptions.source || 'full'];
+    return [...new Set(values.length ? values : ['full'])];
+  }
+
   // A slow network can deliver revisions faster than snapshots complete.
   // Keep one trailing refresh instead of running a full board load for each
   // event. It starts after the current read, so it includes the newest write.
   function queueLatest(refreshOptions) {
     if (queuedRefresh) {
-      queuedRefresh.options = refreshOptions;
+      // A later email revision must not discard a queued Navision/manual
+      // refresh, which still needs every authoritative reader.
+      queuedRefresh.options = { ...refreshOptions, sources: [...new Set([
+        ...refreshSources(queuedRefresh.options), ...refreshSources(refreshOptions),
+      ])] };
       return queuedRefresh.promise;
     }
     const queued = { options: refreshOptions };
@@ -67,6 +76,7 @@ function createPdcOperationalRefreshCoordinator(options = {}) {
       const context = {
         generation: currentGeneration,
         route,
+        sources: refreshSources(refreshOptions),
         isCurrent: () => isCurrent(currentGeneration),
       };
       try {
