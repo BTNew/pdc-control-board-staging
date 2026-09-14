@@ -1,0 +1,445 @@
+{
+  "frontendChecks": 655,
+  "databasePreApplyChecks": 143,
+  "postApplyDuration": [
+    {
+      "name": "100 percent keeps four quoted hours",
+      "status": "PASS"
+    },
+    {
+      "name": "80 percent allocates five hours",
+      "status": "PASS"
+    },
+    {
+      "name": "Adjusted short booking starts with unchanged allocation",
+      "status": "PASS"
+    },
+    {
+      "name": "Adjusted short real booking passes provenance guard",
+      "status": "PASS"
+    },
+    {
+      "name": "Book all chooses and schedules capacity-adjusted duration per available bay",
+      "status": "PASS"
+    },
+    {
+      "name": "Changing bay factor does not extend unmoved blockers",
+      "status": "PASS"
+    },
+    {
+      "name": "Clock reads allocated planned duration",
+      "status": "PASS"
+    },
+    {
+      "name": "Explicit quoted stage time converts allocation and preserves separate manual base",
+      "status": "PASS"
+    },
+    {
+      "name": "Explicit stage edit retains quoted-minute contract",
+      "status": "PASS"
+    },
+    {
+      "name": "Extending one job moves its follower without resetting manual allocation",
+      "status": "PASS"
+    },
+    {
+      "name": "Factor preview leaves booking unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "Failed resize does not change durable base",
+      "status": "PASS"
+    },
+    {
+      "name": "Follower has durable manual allocation before cascade",
+      "status": "PASS"
+    },
+    {
+      "name": "Fractional allocation rounds upward once",
+      "status": "PASS"
+    },
+    {
+      "name": "Initial booking captures base quote and applied factor",
+      "status": "PASS"
+    },
+    {
+      "name": "Legacy booking basis preserves longer existing allocations",
+      "status": "PASS"
+    },
+    {
+      "name": "Manual allocation remains independent from source hours",
+      "status": "PASS"
+    },
+    {
+      "name": "Manual allocation resize is accepted",
+      "status": "PASS"
+    },
+    {
+      "name": "Manual cascade leaves quote and context clean",
+      "status": "PASS"
+    },
+    {
+      "name": "Manual context is cleared after success",
+      "status": "PASS"
+    },
+    {
+      "name": "Manual extend persists allocated base through cascade",
+      "status": "PASS"
+    },
+    {
+      "name": "Manual resize stores exact inverse base without changing quote",
+      "status": "PASS"
+    },
+    {
+      "name": "Moving back to slower bay does not compound",
+      "status": "PASS"
+    },
+    {
+      "name": "Moving to normal bay uses durable base",
+      "status": "PASS"
+    },
+    {
+      "name": "Mutation snapshot exposes durable basis",
+      "status": "PASS"
+    },
+    {
+      "name": "New booking applies server bay duration before collision checks",
+      "status": "PASS"
+    },
+    {
+      "name": "New internal conversion functions are not client RPCs",
+      "status": "PASS"
+    },
+    {
+      "name": "New operation extends quote delta plus existing manual base",
+      "status": "PASS"
+    },
+    {
+      "name": "Operation quote remains five hours after capacity reconciliation",
+      "status": "PASS"
+    },
+    {
+      "name": "Pre-existing bay settings unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "Pre-existing bookings unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "Pre-existing quoted operation lines unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "Pre-existing vehicles unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "Rejected too-short resize is atomic",
+      "status": "PASS"
+    },
+    {
+      "name": "Repeated import reconciliation does not compound",
+      "status": "PASS"
+    },
+    {
+      "name": "Returned queue booking uses target bay capacity when reassigned",
+      "status": "PASS"
+    },
+    {
+      "name": "Same-bay time move retains manual allocation",
+      "status": "PASS"
+    },
+    {
+      "name": "Short capacity booking returns unallocated without duration reset",
+      "status": "PASS"
+    },
+    {
+      "name": "Short live booking can stop after bay factor changes",
+      "status": "PASS"
+    },
+    {
+      "name": "Short live job completes after bay efficiency changes without rewriting allocation",
+      "status": "PASS"
+    },
+    {
+      "name": "Short work scales exactly",
+      "status": "PASS"
+    },
+    {
+      "name": "Stale manual cascade rejects atomically and clears context",
+      "status": "PASS"
+    },
+    {
+      "name": "Started work stays fixed after capacity setting",
+      "status": "PASS"
+    },
+    {
+      "name": "Station snapshot exposes base and allocation separately",
+      "status": "PASS"
+    },
+    {
+      "name": "Synthetic operator is authorized",
+      "status": "PASS"
+    }
+  ],
+  "postApplyReplan": [
+    {
+      "result": {
+        "count": 46,
+        "timing": [
+          {
+            "scenario": "Close gaps full graph timing",
+            "measurement": {
+              "milliseconds": 1456.89
+            }
+          },
+          {
+            "scenario": "Full graph preview timing",
+            "measurement": {
+              "milliseconds": 2393.95,
+              "active_bookings": 156
+            }
+          },
+          {
+            "scenario": "Three booking atomic apply timing",
+            "measurement": {
+              "milliseconds": 2914.5
+            }
+          }
+        ],
+        "results": [
+          {
+            "name": "A later failure rolls back bay setting, prior booking and history",
+            "status": "PASS"
+          },
+          {
+            "name": "All pre-existing bookings are unchanged",
+            "status": "PASS"
+          },
+          {
+            "name": "All pre-existing vehicles are unchanged",
+            "status": "PASS"
+          },
+          {
+            "name": "Applied booking retains base minutes and factor",
+            "status": "PASS"
+          },
+          {
+            "name": "Apply preserves secondary assignment identity and new range",
+            "status": "PASS"
+          },
+          {
+            "name": "Atomic fixture moves downstream booking before extension",
+            "status": "PASS"
+          },
+          {
+            "name": "Blocked efficiency preserves fixed booking and setting",
+            "status": "PASS"
+          },
+          {
+            "name": "Capacity edits never change quoted operation minutes",
+            "status": "PASS"
+          },
+          {
+            "name": "Changed bay version invalidates review without writes",
+            "status": "PASS"
+          },
+          {
+            "name": "Close gaps changes only selected planner",
+            "status": "PASS"
+          },
+          {
+            "name": "Close gaps full graph timing",
+            "status": "PASS"
+          },
+          {
+            "name": "Close gaps moves follower earlier on its original bay",
+            "status": "PASS"
+          },
+          {
+            "name": "Close gaps never pushes a job later",
+            "status": "PASS"
+          },
+          {
+            "name": "Close gaps preview resolves safe existing graph",
+            "status": "PASS"
+          },
+          {
+            "name": "Compaction never alters fixed live work",
+            "status": "PASS"
+          },
+          {
+            "name": "Compaction obeys IT ETA plus seven",
+            "status": "PASS"
+          },
+          {
+            "name": "Configuration is available to an operator",
+            "status": "PASS"
+          },
+          {
+            "name": "Cross-station handover keeps five hours and Saturday opening",
+            "status": "PASS"
+          },
+          {
+            "name": "Earlier move has a constraint-safe application order",
+            "status": "PASS"
+          },
+          {
+            "name": "Effective Other override blocks capacity changes",
+            "status": "PASS"
+          },
+          {
+            "name": "Efficiency apply succeeds atomically",
+            "status": "PASS"
+          },
+          {
+            "name": "Efficiency preview can apply",
+            "status": "PASS"
+          },
+          {
+            "name": "Efficiency respects full Admin reservation",
+            "status": "PASS"
+          },
+          {
+            "name": "Extension cannot move a started follower",
+            "status": "PASS"
+          },
+          {
+            "name": "Fixture compaction has safe ordering",
+            "status": "PASS"
+          },
+          {
+            "name": "Four base hours at eighty percent allocate five hours",
+            "status": "PASS"
+          },
+          {
+            "name": "Full graph preview timing",
+            "status": "PASS"
+          },
+          {
+            "name": "Idempotency receipts cannot be edited directly",
+            "status": "PASS"
+          },
+          {
+            "name": "Idempotent retry does not change versions",
+            "status": "PASS"
+          },
+          {
+            "name": "Invalid efficiency is rejected",
+            "status": "PASS"
+          },
+          {
+            "name": "Invalid preview token is rejected",
+            "status": "PASS"
+          },
+          {
+            "name": "Later bay job follows extended root",
+            "status": "PASS"
+          },
+          {
+            "name": "Legacy bay DTO includes normal efficiency",
+            "status": "PASS"
+          },
+          {
+            "name": "Longer job skips Sublet absence on continuation day",
+            "status": "PASS"
+          },
+          {
+            "name": "Normal efficiency apply does not compound",
+            "status": "PASS"
+          },
+          {
+            "name": "Only the authorized public RPC can apply a capacity plan",
+            "status": "PASS"
+          },
+          {
+            "name": "Preview leaves bookings and bay unchanged",
+            "status": "PASS"
+          },
+          {
+            "name": "Repeated compaction has no additional synthetic changes",
+            "status": "PASS"
+          },
+          {
+            "name": "Repeated same efficiency does not compound or move jobs",
+            "status": "PASS"
+          },
+          {
+            "name": "Returning to normal restores original allocation",
+            "status": "PASS"
+          },
+          {
+            "name": "Secondary technician leave is respected on continuation day",
+            "status": "PASS"
+          },
+          {
+            "name": "Sublet never has workshop capacity",
+            "status": "PASS"
+          },
+          {
+            "name": "Synthetic operator is authorized",
+            "status": "PASS"
+          },
+          {
+            "name": "Three booking atomic apply timing",
+            "status": "PASS"
+          },
+          {
+            "name": "Unauthenticated capacity requests are rejected",
+            "status": "PASS"
+          },
+          {
+            "name": "Yard Hold without ETA remains eligible",
+            "status": "PASS"
+          }
+        ]
+      }
+    }
+  ],
+  "security": [
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "findings": [
+        {
+          "detail": "Table \\`public.workshop_capacity_receipts\\` has RLS enabled, but no policies exist",
+          "metadata": {
+            "name": "workshop_capacity_receipts",
+            "type": "table",
+            "schema": "public"
+          },
+          "observed_at": "2026-09-14T09:35:11.894Z"
+        }
+      ]
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "findings": [
+        {
+          "detail": "Function `public.get_workshop_capacity_configuration(p_stage_code text)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/get_workshop_capacity_configuration`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "get_workshop_capacity_configuration",
+            "schema": "public",
+            "language": "plpgsql",
+            "arguments": "p_stage_code text",
+            "security_definer": true
+          },
+          "observed_at": "2026-09-14T09:35:11.894Z"
+        },
+        {
+          "detail": "Function `public.replan_workshop_capacity(p_stage_code text, p_bay_number integer, p_efficiency_percent integer, p_apply boolean, p_expected_plan_hash text, p_idempotency_key uuid)` can be executed by the `authenticated` role as a `SECURITY DEFINER` function via `/rest/v1/rpc/replan_workshop_capacity`. Revoke `EXECUTE` or switch it to `SECURITY INVOKER` if that is not intentional.",
+          "metadata": {
+            "name": "replan_workshop_capacity",
+            "schema": "public",
+            "language": "plpgsql",
+            "arguments": "p_stage_code text, p_bay_number integer, p_efficiency_percent integer, p_apply boolean, p_expected_plan_hash text, p_idempotency_key uuid",
+            "security_definer": true
+          },
+          "observed_at": "2026-09-14T09:35:11.894Z"
+        }
+      ]
+    }
+  ]
+}

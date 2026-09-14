@@ -22,7 +22,7 @@ function createSlotRuntime(source = fs.readFileSync(plannerPath, 'utf8')) {
     ]),
   };
   const technicians = [{ id: 'tech-a', name: 'Mechanic A', active: true }, { id: 'tech-b', name: 'Mechanic B', active: true }];
-  const bays = [1, 2].map(bay => ({ id: `bay-${bay}`, code: `FITTING-BAY-0${bay}`, is_active: true, default_technician_id: null }));
+  const bays = [1, 2].map(bay => ({ id: `bay-${bay}`, code: `FITTING-BAY-0${bay}`, is_active: true, default_technician_id: null, efficiency_percent: 100 }));
   const snapshot = { bookings: [], admin_blocks: [], vehicles: [] };
   const context = vm.createContext({
     module: { exports: {} }, require: localRequire, Date, console,
@@ -32,6 +32,16 @@ function createSlotRuntime(source = fs.readFileSync(plannerPath, 'utf8')) {
     pmbStageBayCount: () => bays.length,
     window: {
       addEventListener: () => {},
+      PDC_PLANNER_CAPACITY: {
+        allocatedBaseMinutes: (stage, bay, minutes) => {
+          const match = bays.find(row => row.code === `${stage}-BAY-${String(bay).padStart(2, '0')}`);
+          return match ? localRequire('./pdc-planner-capacity.js').allocatedBaseMinutes(minutes, match.efficiency_percent) : null;
+        },
+        allocatedHours: (stage, bay, hours) => {
+          const match = bays.find(row => row.code === `${stage}-BAY-${String(bay).padStart(2, '0')}`);
+          return match ? localRequire('./pdc-planner-capacity.js').allocatedHours(hours, match.efficiency_percent) : null;
+        },
+      },
       PDC_VEHICLE_HANDOVER: localRequire('./pdc-vehicle-handover.js'),
       workshopSharedModeEnabled: () => true,
       __workshopDataService: { isEnabled: () => true, getTrustedSnapshot: () => snapshot, getLastSnapshot: () => snapshot },

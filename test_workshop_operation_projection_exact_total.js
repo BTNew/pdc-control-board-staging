@@ -57,7 +57,9 @@ assert.strictEqual(decrease.operation, 'resize');
 assert.strictEqual(decrease.shiftMinutes, 0);
 
 const source = fs.readFileSync('workshop-planner.js', 'utf8');
-assert.match(source, /Existing booking .* h; save to align/);
+assert.match(source, /Work estimate changed; save to update/);
 assert.match(source, /step="any"/);
-assert.match(source, /exact planned hours/);
+assert.match(source, /work hours/);
+assert.match(source, /currentPlan\?\.operationEstimateHours/);
+assert.match(source, /hours allocated in the bay/);
 console.log('Workshop complete operation projection and exact stage total: PASS');
