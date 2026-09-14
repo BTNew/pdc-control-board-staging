@@ -2,13 +2,14 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { percentage, allocatedHours, allocatedBaseMinutes, selectEfficiency, requestInput, createController } = require('./pdc-planner-capacity.js');
+const { workshopPlannerStageCodes } = require('./workshop-eligibility.js');
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
 const plan = () => ({ ok:true, can_apply:true, plan_hash:'server-plan-hash', changes:[], warnings:[], unchanged_count:2 });
-function fixture() {
+function fixture(stage = 'FITTING') {
   const calls = [], timers = new Map();
-  const state = { context:{ actor:'operator-a', token:'token-a', role:'operator', stage:'FITTING',
+  const state = { context:{ actor:'operator-a', token:'token-a', role:'operator', stage,
     config:{ projectRef:'cdsmnqxtyyoeoznmbidd', url:'https://cdsmnqxtyyoeoznmbidd.supabase.co', publishableKey:'public-fixture', workshop:{ sharedData:true } },
-    service:{ getTrustedSnapshot:() => ({ revision:1 }), getScope:() => ({ stageCode:'FITTING' }), getState:() => 'connected_editable' },
+    service:{ getTrustedSnapshot:() => ({ revision:1 }), getScope:() => ({ stageCode:stage }), getState:() => 'connected_editable' },
   }, reply:plan(), fetch:null };
   const controller = createController({ getContext:() => state.context, uuid:() => '11111111-1111-4111-8111-111111111111',
     setTimeout(fn) { const id = {}; timers.set(id, fn); return id; }, clearTimeout:id => timers.delete(id),
@@ -18,6 +19,30 @@ function fixture() {
   });
   return { state, controller, calls, timers };
 }
+test('all seven canonical planner routes can load efficiency and preview capacity controls', async () => {
+  const stages = workshopPlannerStageCodes();
+  assert.equal(stages.length, 7);
+  for (const stage of stages) {
+    const f = fixture(stage);
+    assert.equal(f.controller.canWrite(), true, `${stage} must expose enabled capacity controls`);
+    f.state.reply = {ok:true, stage_code:stage, bays:[{bay_number:1, efficiency_percent:100, version:1}]};
+    assert.equal((await f.controller.configuration(stage)).stage_code, stage);
+    f.state.reply = plan();
+    await f.controller.preview({stage});
+    await f.controller.preview({stage, bay:1, efficiency:80});
+    assert.deepEqual(f.calls.map(call => call.body.p_stage_code), [stage, stage, stage]);
+    assert.equal(f.calls[1].body.p_bay_number, null, 'Close gaps uses the whole selected station');
+    assert.equal(f.calls[2].body.p_bay_number, 1);
+    assert.equal(f.calls[2].body.p_efficiency_percent, 80);
+    assert.equal(f.calls.some(call => call.body.p_apply === true), false, 'loading or previewing controls never applies a plan');
+  }
+  for (const stage of ['PIT_INSPECTION', 'SUBLET']) {
+    const f = fixture(stage);
+    assert.equal(f.controller.canWrite(), false);
+    await assert.rejects(() => f.controller.preview({stage}));
+    assert.equal(f.calls.length, 0, 'non-planner stations stay excluded');
+  }
+});
 test('efficiency uses exact source minutes and 100% is normal', () => {
   assert.equal(allocatedHours(4, 100), 4); assert.equal(allocatedHours(4, 80), 5);
   assert.equal(allocatedHours(.17, 100), 10 / 60);

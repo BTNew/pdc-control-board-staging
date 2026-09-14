@@ -1,0 +1,15 @@
+{
+  "project": "cdsmnqxtyyoeoznmbidd",
+  "environment": "staging",
+  "bay": "FABRICATION-BAY-01",
+  "bay_id": "8707df84-f06d-4532-a716-54b1b812a8f7",
+  "before": { "is_active": false, "version": 4 },
+  "after": { "is_active": true, "version": 5 },
+  "updated_at": "2026-09-14T11:09:25.820483Z",
+  "audit_event_id": "6a3a3041-fb00-458b-a8e6-cdd3a763f948",
+  "method": "Guarded maintenance transaction with before/after audit; no user identity impersonation",
+  "guards": ["Exact bay ID and code", "Expected version 4", "Previously inactive", "Enabled physical planner"],
+  "booking_changes": 0,
+  "ui_verification": "Fabrication planner displays Bay 01 as Available with efficiency control enabled",
+  "other_inactive_bays": "Disabled PIT planner remains unchanged; Sublet remains a nonphysical provider queue"
+}

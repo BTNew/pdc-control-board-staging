@@ -2,7 +2,7 @@
 (function (root) {
   'use strict';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
-  const STAGES = new Set(['BUS4X4', 'FITTING', 'ELECTRICAL', 'FABRICATION', 'HOIST', 'TINT', 'TYRE']);
+  const STAGES = new Set(['BUS_4X4', 'FITTING', 'ELECTRICAL', 'FABRICATION', 'HOIST', 'TINT', 'TYRE']);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   function percentage(value) {
     if (value === null || value === undefined || String(value).trim() === '') return null;

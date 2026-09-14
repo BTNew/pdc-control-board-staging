@@ -419,6 +419,7 @@ body[data-current-view="workshop"] .content {
   padding: 5px;
   display: grid;
   align-content: start;
+  grid-auto-rows: max-content;
   gap: 4px;
 }
 
