@@ -145,7 +145,7 @@
     else if(line.hours_provenance==='explicit_description_time') label='Estimate stated in description';
     else if(line.hours_provenance==='conflicting_description_times') label='Conflicting times — enter an estimate';
     else if(String(line.hours_provenance||'').startsWith('craig_')) label='Hours confirmed';
-    else if(matchesSource&&(line.source_contract==='pilbara_service_open_jobcards_v1'||['source_explicit','source_estimate'].includes(line.hours_provenance))) label=`Tune estimate · ${hourLabel(value)} hours`;
+    else if(matchesSource&&(line.source_contract==='pilbara_service_open_jobcards_v1'||['source_explicit','source_estimate'].includes(line.hours_provenance))) label=`Tune hours · ${hourLabel(value)} hours`;
     else label='Hours confirmed';
     return {label,detail};
   }

@@ -8,16 +8,16 @@ test('AI estimate displays its effective time and review evidence',()=>{
   assert.deepEqual(present(item),{label:'AI estimate · 3 hours',detail:'Confirm kit fitment.\nComparable fitting allowance.'});
   assert.match(html(item),/>AI estimate · 3 hours<\/small>$/);
 });
-test('Tune source estimate is separate from AI and unknown sources stay neutral',()=>{
-  assert.equal(present(line({estimated_hours:1.25,source_estimated_hours:1.25,hours_provenance:'source_explicit'})).label,'Tune estimate · 1.25 hours');
+test('Confirmed Tune hours are separate from AI estimates and unknown sources stay neutral',()=>{
+  assert.equal(present(line({estimated_hours:1.25,source_estimated_hours:1.25,hours_provenance:'source_explicit'})).label,'Tune hours · 1.25 hours');
   assert.equal(present(line({source_contract:undefined,hours_provenance:undefined})).label,'Hours confirmed');
 });
-test('Tune label requires a matching positive source estimate',()=>{
+test('Tune label requires matching positive imported hours',()=>{
   for(const source of [0,null,undefined,'',1.5]){
     assert.equal(present(line({source_estimated_hours:source})).label,'Hours confirmed');
     assert.equal(present(line({source_estimated_hours:source,hours_provenance:'source_explicit'})).label,'Hours confirmed');
   }
-  assert.equal(present(line({source_contract:undefined,hours_provenance:'source_explicit',source_estimated_hours:'3.00'})).label,'Tune estimate · 3 hours');
+  assert.equal(present(line({source_contract:undefined,hours_provenance:'source_explicit',source_estimated_hours:'3.00'})).label,'Tune hours · 3 hours');
 });
 test('unestimable scope is explicit until the user enters hours',()=>{
   const item=line({hours_provenance:'estimate_unable',estimated_hours:null,source_estimated_hours:0,review_note:'Confirm the number of rows.'});
@@ -58,7 +58,7 @@ test('untrusted review evidence is escaped in markup',()=>{
   assert.match(result,/&lt;script&gt;alert\(&#39;x&#39;\)&lt;\/script&gt; &amp; note/);
 });
 test('missing or malformed evidence renders without meaningless tooltip text',()=>{
-  assert.equal(html(line({review_note:null,estimate_basis:{page:1}})),'<small class="nv-hours-hint">Tune estimate · 3 hours</small>');
+  assert.equal(html(line({review_note:null,estimate_basis:{page:1}})),'<small class="nv-hours-hint">Tune hours · 3 hours</small>');
   assert.equal(present().label,'Hours required before approval');
   assert.equal(present(line({review_note:' same ',estimate_basis:'same'})).detail,'same');
 });
