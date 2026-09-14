@@ -5079,7 +5079,9 @@ async function refreshEmailVehicleLocations(options = {}) {
   }
   app.emailVehicleLocationRevision = response.data?.revision ?? null;
   app.emailVehicleLocationError = '';
-  if (refreshGeneration == null || refreshGeneration === app.vehicleLocationsRefreshGeneration) renderAll();
+  // A coordinated refresh renders once after all of its readers settle.
+  // Rendering here as well rebuilds the board with a partial refresh.
+  if (refreshGeneration == null) renderAll();
   return true;
 }
 
@@ -5104,7 +5106,7 @@ function initEmailVehicleLocationsIfAvailable(options = {}) {
     } catch (_error) { return null; }
   }
   if (!app.emailVehicleLocationRealtime) app.emailVehicleLocationRealtime = app.emailVehicleLocationService.subscribe(() => {
-    if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true, deferSupersede: true });
+    if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true, deferSupersede: true, source: 'email_revision' });
     else refreshEmailVehicleLocations();
     if (vehicleLifecycleAdministratorActive() && app.deletedVehicleSnapshotState !== 'idle') loadDeletedVehicleSnapshot({ force: true });
   });
@@ -17790,7 +17792,9 @@ window.__pdcEnsureOperationalRefreshControls = ensureOperationalRefreshControls;
 
 function operationalRefreshCommonLoaders(route) {
   return {
-    sharedNavision: ({ generation }) => loadSharedNavisionVisibleRows({ force: true, refreshGeneration: generation }),
+    sharedNavision: ({ generation, sources }) => sources?.every(source => source === 'email_revision')
+      ? { ok: true, skipped: true }
+      : loadSharedNavisionVisibleRows({ force: true, refreshGeneration: generation }),
     operationalVehicleSnapshot: async ({ generation }) => {
       initEmailVehicleLocationsIfAvailable({ skipInitialRefresh: true });
       if (!app.emailVehicleLocationService) return { ok: false, error: 'operational_snapshot_unavailable' };
@@ -17816,7 +17820,7 @@ function operationalRefreshCommonLoaders(route) {
       const trusted = typeof service.getTrustedSnapshot === 'function' ? service.getTrustedSnapshot() : snapshot;
       return { ok: Boolean(trusted) && ['connected_editable', 'connected_read_only'].includes(state), snapshot, revision: service.getLastRevision?.() };
     },
-    routeAuthority: async () => {
+    routeAuthority: async ({ sources } = {}) => {
       const refreshes = [];
       if (['dashboard', 'workflow'].includes(route) && workshopEligibilitySharedAuthorityEnabled()) {
         if (!app.workshopEligibilityRealtime) workshopEligibilityOverviewSubscribe();
@@ -17824,7 +17828,9 @@ function operationalRefreshCommonLoaders(route) {
           ? loadWorkshopEligibilitySnapshot('vehicle_locations_refresh')
           : loadWorkshopEligibilitySnapshot(`operational_refresh:${route}`));
       }
-      if (typeof refreshWorkshopReferenceData === 'function') refreshes.push(refreshWorkshopReferenceData());
+      // Reference tables have their own realtime subscriptions and a periodic
+      // reconciliation. Vehicle-only events do not invalidate those tables.
+      if (!sources?.every(source => source === 'email_revision') && typeof refreshWorkshopReferenceData === 'function') refreshes.push(refreshWorkshopReferenceData());
       if (route === 'ai-auditor' && typeof loadPdcAuditorSnapshot === 'function') refreshes.push(loadPdcAuditorSnapshot({ force: true }));
       if (route === 'emailreview' && typeof refreshServerAiIntake === 'function') refreshes.push(refreshServerAiIntake({ silent: true }));
       const results = await Promise.all(refreshes);
@@ -21371,8 +21377,14 @@ function sharedNavisionApplyErrorMessage(result = {}) {
     return 'Navision apply was blocked by a duplicate or stale canonical vehicle identity. Preview the file again; nothing was imported and no browser-local fallback was attempted.';
   }
   if (code === 'stale_revision' || code === 'source_changed' || code === 'preview_changed') return 'The shared Navision data changed while this file was open. Preview the file again; nothing was imported.';
+  if (['55p03', '40p01', '40001'].includes(code)) return 'The workshop was updating at the same time and the Navision import could not obtain access. Nothing was imported. Your preview is still here; try Apply again shortly.';
+  if (code === '57014') return 'The Navision import took too long and was cancelled. Nothing was imported. Your preview is still here; try Apply again shortly.';
+  if (code === 'transport_unconfirmed') return 'The connection ended before the import result could be confirmed. Keep this preview and retry Apply to check the same import safely.';
+  if (code === 'suspicious_import_blocked') return `${navisionSafetyIssueMessage(data?.safety?.reason)} Nothing was imported.`;
+  if (code === 'sublet_provider_review_required') return 'A sublet provider in this file needs review. Check the provider names in the preview before applying. Nothing was imported.';
   if (code === 'unauthorized') return 'Importer or administrator access is required for shared Navision imports. Nothing was imported.';
-  return 'The shared Navision import was rejected before completion. Preview the file again or correct the flagged source row; nothing was imported and no browser-local fallback was attempted.';
+  const reference = /^[a-z0-9_]{1,80}$/.test(code) ? ` Reference: ${code}.` : '';
+  return `The shared Navision import was rejected before completion. Preview the file again or correct the flagged source row; nothing was imported and no browser-local fallback was attempted.${reference}`;
 }
 
 async function loadSharedNavisionCurrentRows(service, dealerCode, expectedRevision) {
@@ -21641,7 +21653,22 @@ async function applySharedNavisionImportPending(pending, authorityIdentity = '')
     return;
   }
   const idempotencyKey = `normal-upload:${pending.dealerCode}:${data.source_hash || sha256Hex(JSON.stringify(pending.rows))}`.slice(0, 200);
-  const applyResult = await service.apply(pending.rows, pending.previewResult, { ...pending.metadata, confirmed: true, idempotencyKey });
+  const applyOptions = { ...pending.metadata, confirmed: true, idempotencyKey };
+  let applyResult;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return;
+    try {
+      applyResult = await service.apply(pending.rows, pending.previewResult, applyOptions);
+    } catch {
+      // A lost response can follow a commit. Keep the same preview/key for a safe replay.
+      applyResult = { ok: false, code: 'transport_unconfirmed' };
+    }
+    const code = String(applyResult?.code || applyResult?.error || '').toLowerCase();
+    if (applyResult?.ok || !['55p03', '40p01', '40001'].includes(code) || attempt === 2) break;
+    // These database errors roll back the transaction; only retry the exact request.
+    await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1000));
+  }
+  if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return;
   if (!applyResult?.ok) {
     window.alert(sharedNavisionApplyErrorMessage(applyResult));
     return;
