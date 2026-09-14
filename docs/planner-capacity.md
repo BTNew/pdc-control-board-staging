@@ -6,7 +6,9 @@ Each physical workshop planner has **Close gaps** beside its refresh control and
 
 The button previews pulling planned jobs towards the next available time from now. Review the current and proposed dates, then choose **Apply changes**. Jobs stay in their bays and retain their order and assigned technicians. The selected planner is compacted across its full schedule, not just the day on screen.
 
-Workshop opening times, closures, admin blocks, technician leave, Sublet absences, vehicle eligibility and the five-hour gap between a vehicle's workshop jobs still apply. Started jobs, STOPPAGES and completed work stay fixed. If a job cannot safely move earlier, it stays where it is. Sublet has no physical bay and does not have this control.
+Workshop opening times, closures, admin blocks, technician leave, Sublet absences, vehicle eligibility and the one-hour gap between a vehicle's workshop jobs still apply. Started jobs, STOPPAGES and completed work stay fixed. If a job cannot safely move earlier, it stays where it is. Sublet has no physical bay and does not have this control.
+
+The vehicle gap is one elapsed hour, including time while the workshop is closed. Best slot, Book all stations, operation approvals and Close gaps use this same rule. Changing the rule does not itself move existing bookings.
 
 ## Bay efficiency
 

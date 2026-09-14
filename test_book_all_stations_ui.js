@@ -121,7 +121,7 @@ test('matching cache dispatches version 3 immediately without refresh and ignore
   assert.deepEqual(s.propagation(), { prevented: 2, stopped: 2 });
   assert.equal(s.closeButton.disabled, true);
   gate.resolve(response(booked())); await flush();
-  for (const text of [/1 station booked/, /Bay 2/, /Already booked/, /Sublet is excluded/, /5-hour gap/]) assert.match(s.html, text);
+  for (const text of [/1 station booked/, /Bay 2/, /Already booked/, /Sublet is excluded/, /1-hour gap/]) assert.match(s.html, text);
   assert.equal(s.timers.size, 0);
 });
 

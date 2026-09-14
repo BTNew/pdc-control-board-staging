@@ -34,9 +34,9 @@ const result = {
   saturdayRenderingFixed: {visibleChipRange:`${7+segment.start/60}:00–${7+segment.end/60}:00`,expected:'08:00–12:00',segment},
 };
 const busy = [{start_at:day(21,7).toISOString(),end_at:day(21,9).toISOString()}];
-assert.equal(handover.fits(day(21,13,59),day(21,15),busy),false);
-assert.equal(handover.fits(day(21,14),day(21,15),busy),true);
-result.handover = {fourHours59GapRejected:true,fiveHourGapAccepted:true};
+assert.equal(handover.fits(day(21,9,59),day(21,11),busy),false);
+assert.equal(handover.fits(day(21,10),day(21,11),busy),true);
+result.handover = {fiftyNineMinuteGapRejected:true,oneHourGapAccepted:true};
 global.pmbStageBayCount = () => 2;
 const bays = [1,2].map(bay => ({id:`synthetic-bay-${bay}`,code:`FITTING-BAY-0${bay}`,is_active:true}));
 window.__workshopReferenceDataService.getCachedWorkshopBays = () => ({state:'connected_read_only',rows:bays});

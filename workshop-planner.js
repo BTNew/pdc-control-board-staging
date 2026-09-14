@@ -993,7 +993,7 @@ function workshopDescribeSharedActionError(result) {
     return 'That technician is already assigned to another booking during this period.';
   }
   if (error === 'vehicle_overlap' || (conflict && conflict.conflict_type === 'vehicle_overlap')) {
-    return 'This change would overlap a vehicle’s booking in another bay or station, including any booking pushed back by the change. No conflicting bookings were saved. Use Best slot to find a time with the 5-hour buffer, or move the affected later booking.';
+    return 'This change would overlap a vehicle’s booking in another bay or station, including any booking pushed back by the change. No conflicting bookings were saved. Use Best slot to find a time with the 1-hour buffer, or move the affected later booking.';
   }
   if (error === 'sublet_away') {
     return 'This vehicle is away on Sublet on that date. Record its actual return or choose a date after it is back.';

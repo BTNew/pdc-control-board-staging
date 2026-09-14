@@ -95,13 +95,13 @@ test('inactive and unresolved assigned mechanics are not offered as valid slots'
   assert.equal(r.planner.workshopFirstAvailableStartMinutes('FITTING', 1, '2026-09-14', 1, [], 0, [], 'Unknown mechanic'), null);
 });
 
-test('Admin blocks, bay bookings and exact five-hour vehicle handover all constrain the same search', () => {
+test('Admin blocks, bay bookings and exact one-hour vehicle handover all constrain the same search', () => {
   const r = createSlotRuntime();
-  r.snapshot.admin_blocks.push({ id: 'admin', stage_code: 'FITTING', bay_number: 1, scheduled_start_at: at(14, 14).toISOString(), scheduled_end_at: at(14, 15).toISOString() });
+  r.snapshot.admin_blocks.push({ id: 'admin', stage_code: 'FITTING', bay_number: 1, scheduled_start_at: at(14, 10).toISOString(), scheduled_end_at: at(14, 11).toISOString() });
   const vehicleWindows = [{ start_at: at(14, 7), end_at: at(14, 9) }];
-  const rows = [booking(14, 15, 1)];
-  assert.equal(r.planner.workshopFirstAvailableStartMinutes('FITTING', 1, '2026-09-14', 1, rows, 0, vehicleWindows), 540);
-  assert.equal(r.planner.workshopFirstAvailableStartMinutes('FITTING', 2, '2026-09-14', 1, rows, 0, vehicleWindows), 420);
+  const rows = [booking(14, 11, 1)];
+  assert.equal(r.planner.workshopFirstAvailableStartMinutes('FITTING', 1, '2026-09-14', 1, rows, 0, vehicleWindows), 300);
+  assert.equal(r.planner.workshopFirstAvailableStartMinutes('FITTING', 2, '2026-09-14', 1, rows, 0, vehicleWindows), 180);
 });
 
 test('Saturday hours and Sunday closure carry a multi-day job into Monday', () => {

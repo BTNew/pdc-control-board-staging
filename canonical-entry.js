@@ -74,13 +74,13 @@
     intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match&compact-approve=2026.09.14.01&review-fixes=2026.09.13.01&operation-approval=2026.09.14.01';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&compact-approve=2026.09.14.01&ai-estimates=2026.09.14.01&review-fixes=2026.09.13.01&operation-approval=2026.09.14.01&deep-review=2026.09.13.01';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&compact-approve=2026.09.14.01&ai-estimates=2026.09.14.01&review-fixes=2026.09.13.01&operation-approval=2026.09.14.01&deep-review=2026.09.13.01&one-hour-gap=2026.09.14.01';
     intakeScript.onload = () => {
       if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
     };
     document.head.appendChild(intakeScript);
     const bookAllStations = document.createElement('script');
-    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed&render-cost=2026.09.14.01';
+    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed&render-cost=2026.09.14.01&one-hour-gap=2026.09.14.01';
     document.head.appendChild(bookAllStations);
     const locationOverride = document.createElement('script');
     locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01';

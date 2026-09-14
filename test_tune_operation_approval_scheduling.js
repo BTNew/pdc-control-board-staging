@@ -8,7 +8,7 @@ const ui=require('./pdc-new-vehicles.js');
 const source=fs.readFileSync(path.join(__dirname,'pdc-new-vehicles.js'),'utf8');
 const row={change_id:'change1',vehicle_id:'vehicle1',stock_number:'00123',snapshot_hash:'original-source',status:'pending',already_on_board:true,change_kind:'added',effective_hours:2,proposed:{proposed_station:'FITTING',operation_description:'Fit additional accessory'}};
 const booking={booking_id:'booking1',vehicle_id:'vehicle1',stock_number:'00123',stage_code:'FITTING',bay_id:'bay1',bay_name:'Bay 1',previous_start_at:'2026-09-14T07:00:00+08:00',previous_end_at:'2026-09-14T09:00:00+08:00',start_at:'2026-09-14T07:00:00+08:00',end_at:'2026-09-14T11:00:00+08:00',previous_estimated_hours:2,estimated_hours:4,status:'planned'};
-function receipt(bookings=[booking],stage='FITTING',hours=2){return {ok:true,data:{change_id:row.change_id,vehicle_id:row.vehicle_id,operation:{description:row.proposed.operation_description,stage_code:stage,estimated_hours:hours,completed:false},location_changed:false,bookings_changed:bookings.length>0,schedule:{bookings:JSON.parse(JSON.stringify(bookings)),changed_count:bookings.length,extended_count:bookings.filter(x=>x.estimated_hours>x.previous_estimated_hours).length,moved_count:bookings.filter(x=>Date.parse(x.start_at)!==Date.parse(x.previous_start_at)).length,buffer_minutes:300}}};}
+function receipt(bookings=[booking],stage='FITTING',hours=2){return {ok:true,data:{change_id:row.change_id,vehicle_id:row.vehicle_id,operation:{description:row.proposed.operation_description,stage_code:stage,estimated_hours:hours,completed:false},location_changed:false,bookings_changed:bookings.length>0,schedule:{bookings:JSON.parse(JSON.stringify(bookings)),changed_count:bookings.length,extended_count:bookings.filter(x=>x.estimated_hours>x.previous_estimated_hours).length,moved_count:bookings.filter(x=>Date.parse(x.start_at)!==Date.parse(x.previous_start_at)).length,buffer_minutes:60}}};}
 const clone=value=>JSON.parse(JSON.stringify(value));
 test('approval accepts exact operation and atomic extended/moved booking receipt, including minute precision',()=>{
   const next={...booking,booking_id:'booking2',vehicle_id:'vehicle2',stock_number:'00456',previous_start_at:booking.previous_end_at,previous_end_at:booking.end_at,start_at:booking.end_at,end_at:'2026-09-14T13:01:00+08:00',previous_estimated_hours:2+1/60,estimated_hours:2+1/60};
@@ -16,8 +16,17 @@ test('approval accepts exact operation and atomic extended/moved booking receipt
   assert.equal(ui.verifyUpdateApproval(reply,row,'FITTING',2),true);
   assert.match(ui.updateApprovalNotice(row,reply.data),/2 bay bookings updated; 1 extended; 1 moved to a later slot/);
   assert.match(ui.updateScheduleHtml(reply.data.schedule),/00456/);
+  assert.match(ui.updateScheduleHtml(reply.data.schedule),/with 1 hour between/);
   assert.equal(ui.verifyUpdateApproval(receipt([]),row,'FITTING',2),true);
   assert.equal(ui.verifyUpdateApproval(receipt([],'SUBLET',0),row,'SUBLET',null),true);
+});
+test('historic approval receipts remain valid only on an explicit server replay',()=>{
+  const reply=receipt();reply.data.schedule.buffer_minutes=300;
+  assert.equal(ui.verifyUpdateApproval(reply,row,'FITTING',2),false,'a new approval must confirm the current one-hour rule');
+  reply.replay='true';assert.equal(ui.verifyUpdateApproval(reply,row,'FITTING',2),false);
+  reply.replay=true;assert.equal(ui.verifyUpdateApproval(reply,row,'FITTING',2),true,'a committed historical replay is not a failed save');
+  assert.match(ui.updateScheduleHtml(reply.data.schedule),/saved approval used the previous spacing rule/);
+  reply.data.vehicle_id='different';assert.equal(ui.verifyUpdateApproval(reply,row,'FITTING',2),false,'replay does not weaken receipt identity validation');
 });
 test('approval rejects false success for wrong operation, invalid schedule, duplicate identity and misleading counts',()=>{
   const changes=[r=>{r.data.vehicle_id='other';},r=>{r.data.change_id='other';},r=>{r.data.operation.description='other';},r=>{r.data.operation.estimated_hours=5;},r=>{r.data.operation.completed=true;},r=>{r.data.location_changed=true;},r=>{r.data.bookings_changed=false;},r=>{delete r.data.schedule;},r=>{r.data.schedule.buffer_minutes=30;},r=>{r.data.schedule.changed_count=2;},r=>{r.data.schedule.extended_count=0;},r=>{r.data.schedule.moved_count=1;},r=>{r.data.schedule.bookings.push(clone(booking));r.data.schedule.changed_count=2;r.data.schedule.extended_count=2;},r=>{r.data.schedule.bookings[0].start_at='bad';},r=>{r.data.schedule.bookings[0].end_at=booking.start_at;},r=>{r.data.schedule.bookings[0].bay_id='';},r=>{r.data.schedule.bookings[0].vehicle_id='';},r=>{r.data.schedule.bookings[0].status='completed';},r=>{r.data.schedule.bookings[0].estimated_hours=-1;},r=>{r.data.schedule.bookings[0].stage_code='SUBLET';},r=>{r.data.schedule.bookings[0].end_at=booking.previous_end_at;r.data.schedule.bookings[0].estimated_hours=2;}];

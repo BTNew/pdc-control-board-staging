@@ -116,7 +116,7 @@ BEGIN
  vb:=pg_temp.ou_vehicle('capacity-follower'); PERFORM pg_temp.ou_operation(vb,'FITTING',2);
  root_id:=pg_temp.ou_booking('capacity-root',va,'FITTING',bay_a,(f+time '07:00') AT TIME ZONE 'Australia/Perth');
  follow_id:=pg_temp.ou_booking('capacity-follow',vb,'FITTING',bay_a,(f+time '11:00') AT TIME ZONE 'Australia/Perth');
- cross_id:=pg_temp.ou_booking('capacity-cross',va,'HOIST',bay_h,(f+time '16:00') AT TIME ZONE 'Australia/Perth');
+ cross_id:=pg_temp.ou_booking('capacity-cross',va,'HOIST',bay_h,(f+time '12:00') AT TIME ZONE 'Australia/Perth');
  PERFORM pg_temp.ou_assert((public.get_workshop_capacity_configuration('FITTING')->>'ok')::boolean,'Configuration is available to an operator');
  PERFORM pg_temp.ou_assert((SELECT efficiency_percent=100 FROM public.list_workshop_bays() WHERE id=bay_a),'Legacy bay DTO includes normal efficiency');
  t:=clock_timestamp();
@@ -130,8 +130,8 @@ BEGIN
    'Four base hours at eighty percent allocate five hours',p);
  PERFORM pg_temp.ou_assert((SELECT (x->>'new_start_at')::timestamptz=(f+time '12:00') AT TIME ZONE 'Australia/Perth'
     FROM jsonb_array_elements(p->'changes') x WHERE x->>'booking_id'=follow_id::text),'Later bay job follows extended root',p);
- PERFORM pg_temp.ou_assert((SELECT (x->>'new_start_at')::timestamptz=(f+1+time '08:00') AT TIME ZONE 'Australia/Perth'
-    FROM jsonb_array_elements(p->'changes') x WHERE x->>'booking_id'=cross_id::text),'Cross-station handover keeps five hours and Saturday opening',p);
+ PERFORM pg_temp.ou_assert((SELECT (x->>'new_start_at')::timestamptz=(f+time '13:00') AT TIME ZONE 'Australia/Perth'
+    FROM jsonb_array_elements(p->'changes') x WHERE x->>'booking_id'=cross_id::text),'Cross-station efficiency cascade keeps exactly one hour',p);
  t:=clock_timestamp();
  applied:=public.replan_workshop_capacity('FITTING',991,80,true,p->>'plan_hash',key);
  PERFORM pg_temp.ou_assert(true,'Three booking atomic apply timing',jsonb_build_object('milliseconds',round(extract(epoch FROM clock_timestamp()-t)*1000,2)));

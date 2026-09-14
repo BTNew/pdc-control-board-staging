@@ -98,10 +98,12 @@
   }
   function verifyUpdateApproval(result,row,stage,hours) {
     const data=result?.data, schedule=data?.schedule;
+    // A retry can return an immutable receipt saved before the one-hour rule.
+    const validBuffer=schedule?.buffer_minutes===60||(result?.replay===true&&schedule?.buffer_minutes===300);
     if(result?.ok!==true||data?.change_id!==row.change_id||data?.vehicle_id!==row.vehicle_id||data?.location_changed!==false
       ||data?.operation?.description!==row.proposed.operation_description||data?.operation?.stage_code!==stage
       ||(stage!=='SUBLET'&&Number(data?.operation?.estimated_hours)!==hours)||data?.operation?.completed!==false
-      ||typeof data.bookings_changed!=='boolean'||!schedule||!Array.isArray(schedule.bookings)||schedule.buffer_minutes!==300) return false;
+      ||typeof data.bookings_changed!=='boolean'||!schedule||!Array.isArray(schedule.bookings)||!validBuffer) return false;
     const bookings=schedule.bookings,ids=new Set();
     let extended=0,moved=0;
     for(const booking of bookings) {
@@ -161,8 +163,9 @@
   }
   function updateScheduleHtml(schedule) {
     if(!schedule?.bookings?.length)return '';
+    const note=schedule.buffer_minutes===300?'This saved approval used the previous spacing rule. New bookings use a 1-hour gap.':'Later bookings follow workshop opening hours, with 1 hour between each vehicle’s jobs.';
     const time=value=>new Date(value).toLocaleString('en-AU',{timeZone:'Australia/Perth',weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'});
-    return `<section class="nv-update-schedule" aria-label="Updated booking times"><h3>Updated booking times</h3><div><table><thead><tr><th>Stock</th><th>Station / bay</th><th>Start</th><th>Finish</th><th>Estimated hours</th></tr></thead><tbody>${schedule.bookings.map(booking=>`<tr><td>${esc(booking.stock_number)}</td><td>${esc(STATIONS.find(([code])=>code===booking.stage_code)?.[1]||booking.stage_code)} · ${esc(booking.bay_name)}</td><td>${esc(time(booking.start_at))}</td><td>${esc(time(booking.end_at))}</td><td>${esc(hourLabel(booking.estimated_hours))}</td></tr>`).join('')}</tbody></table></div><small>Later bookings follow workshop opening hours, with 5 hours between each vehicle’s jobs.</small></section>`;
+    return `<section class="nv-update-schedule" aria-label="Updated booking times"><h3>Updated booking times</h3><div><table><thead><tr><th>Stock</th><th>Station / bay</th><th>Start</th><th>Finish</th><th>Estimated hours</th></tr></thead><tbody>${schedule.bookings.map(booking=>`<tr><td>${esc(booking.stock_number)}</td><td>${esc(STATIONS.find(([code])=>code===booking.stage_code)?.[1]||booking.stage_code)} · ${esc(booking.bay_name)}</td><td>${esc(time(booking.start_at))}</td><td>${esc(time(booking.end_at))}</td><td>${esc(hourLabel(booking.estimated_hours))}</td></tr>`).join('')}</tbody></table></div><small>${esc(note)}</small></section>`;
   }
   function operationUpdateHtml(row,draft={},canApprove=true,busy=false) {
     const stage=draft.stage ?? row.current_work?.stage_code ?? row.proposed?.proposed_station;
@@ -177,7 +180,7 @@
     <div class="nv-update-controls"><label>Workshop <select data-update-stage ${busy||!canApprove?'disabled':''}><option value="">Choose station</option>${STATIONS.map(([code,label])=>`<option value="${code}" ${code===stage?'selected':''}>${esc(label)}</option>`).join('')}</select></label>
     <label>Approved hours <input data-update-hours type="number" min="0.01" max="999.99" step="0.01" value="${esc(hours??'')}" ${busy||!canApprove||stage==='SUBLET'?'disabled':''}></label>
     <button type="button" class="primary" data-approve-update ${issues.length||!canApprove||busy?'disabled':''}>${busy?'Saving…':'Approve change & update bookings'}</button></div>
-    <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Approval updates the station’s estimated hours and adjusts affected bay bookings. Later jobs move back when needed, with a 5-hour gap between each vehicle’s jobs. Sublet has no workshop bay.</small></article>`;
+    <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Approval updates the station’s estimated hours and adjusts affected bay bookings. Later jobs move back when needed, with a 1-hour gap between each vehicle’s jobs. Sublet has no workshop bay.</small></article>`;
   }
 
   const api={quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};

@@ -1,0 +1,494 @@
+{
+  "handover_boundaries_and_clock": {
+    "count": 14,
+    "checks": [
+      {
+        "name": "All pre-existing bookings unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "All pre-existing vehicles unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "Clock overrun moves the next station to one hour after the live job forecast",
+        "status": "PASS"
+      },
+      {
+        "name": "Clock preview changes no actual live or planned booking",
+        "status": "PASS"
+      },
+      {
+        "name": "Close gaps preview does not write the proposed earlier time",
+        "status": "PASS"
+      },
+      {
+        "name": "Close gaps pulls thirteen-hundred booking forward to the exact one-hour boundary",
+        "status": "PASS"
+      },
+      {
+        "name": "Exactly sixty minutes between vehicle bookings has no warning",
+        "status": "PASS"
+      },
+      {
+        "name": "Fifty-nine minutes still reports a short handover",
+        "status": "PASS"
+      },
+      {
+        "name": "Moving the fifty-nine-minute gap to sixty clears the warning",
+        "status": "PASS"
+      },
+      {
+        "name": "Multi-day duration still uses Friday and Saturday working minutes only",
+        "status": "PASS"
+      },
+      {
+        "name": "One-hour handovers retain true vehicle non-overlap",
+        "status": "PASS"
+      },
+      {
+        "name": "One-hour spacing finishing at Saturday noon still waits until Monday opening",
+        "status": "PASS"
+      },
+      {
+        "name": "Planning-window DTO advertises sixty-minute spacing",
+        "status": "PASS"
+      },
+      {
+        "name": "Synthetic operator is authorized",
+        "status": "PASS"
+      }
+    ]
+  },
+  "book_all": {
+    "count": 14,
+    "checks": [
+      {
+        "name": "All pre-existing bookings unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "All pre-existing vehicles unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "Book all combines existing vehicle handover, Admin block and occupied bay",
+        "status": "PASS"
+      },
+      {
+        "name": "Book all excludes Sublet and respects IT ETA plus seven",
+        "status": "PASS"
+      },
+      {
+        "name": "Book all keeps one elapsed hour between stations",
+        "status": "PASS"
+      },
+      {
+        "name": "Book all preserves canonical duration and open start times",
+        "status": "PASS"
+      },
+      {
+        "name": "Book all retains unassigned booking policy",
+        "status": "PASS"
+      },
+      {
+        "name": "Book all skips Sublet absence and closed Sunday",
+        "status": "PASS"
+      },
+      {
+        "name": "Failure after first station rolls back every booking",
+        "status": "PASS"
+      },
+      {
+        "name": "Long Book all succeeds across three stations",
+        "status": "PASS"
+      },
+      {
+        "name": "Missing later station hours makes no partial booking",
+        "status": "PASS"
+      },
+      {
+        "name": "Repeat Book all skips existing stations without duplicates",
+        "status": "PASS"
+      },
+      {
+        "name": "Stale Book all cannot alter existing bookings",
+        "status": "PASS"
+      },
+      {
+        "name": "Synthetic operator is authorized",
+        "status": "PASS"
+      }
+    ]
+  },
+  "operation_import_cascade": {
+    "count": 38,
+    "checks": [
+      {
+        "name": "A job actually started in the past extends without a past-start validation failure",
+        "status": "PASS"
+      },
+      {
+        "name": "Added import stays outside canonical work until approved",
+        "status": "PASS"
+      },
+      {
+        "name": "Added operation increases existing bay by exact 75 minutes",
+        "status": "PASS"
+      },
+      {
+        "name": "All pre-existing bookings are unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "All pre-existing vehicles are unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "Anonymous approval is rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "Approval preserves vehicle location and lifecycle",
+        "status": "PASS"
+      },
+      {
+        "name": "Approval receipt identifies exact extended and moved bookings",
+        "status": "PASS"
+      },
+      {
+        "name": "Approve modified operation succeeds",
+        "status": "PASS"
+      },
+      {
+        "name": "Approved bay extends to exact 12 hours across Saturday",
+        "status": "PASS"
+      },
+      {
+        "name": "Authenticated subject without approved role is rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "Authorization and hours denials preserve pending canonical work",
+        "status": "PASS"
+      },
+      {
+        "name": "Changed retry cannot approve twice",
+        "status": "PASS"
+      },
+      {
+        "name": "Completed operation remains protected",
+        "status": "PASS"
+      },
+      {
+        "name": "Completed station requires rework review",
+        "status": "PASS"
+      },
+      {
+        "name": "Conflict with another started job fails atomically",
+        "status": "PASS"
+      },
+      {
+        "name": "Exact approval retry replays without another extension",
+        "status": "PASS"
+      },
+      {
+        "name": "Modified import remains pending without changing hours",
+        "status": "PASS"
+      },
+      {
+        "name": "Next vehicle in same bay moves after extension",
+        "status": "PASS"
+      },
+      {
+        "name": "No affected booking overlaps Admin reservation",
+        "status": "PASS"
+      },
+      {
+        "name": "Primary and secondary assignment identities persist with correct windows",
+        "status": "PASS"
+      },
+      {
+        "name": "Pushed vehicle later station keeps one-hour gap",
+        "status": "PASS"
+      },
+      {
+        "name": "Queued bay booking extends and remains queued",
+        "status": "PASS"
+      },
+      {
+        "name": "Reconciliation deferral flags restored after successes and denials",
+        "status": "PASS"
+      },
+      {
+        "name": "Recursive vehicle chain moves later stations with one-hour gap",
+        "status": "PASS"
+      },
+      {
+        "name": "Same vehicle next station avoids Admin and closed Sunday",
+        "status": "PASS"
+      },
+      {
+        "name": "Saturday is open only 08 to 12 and Sunday is closed",
+        "status": "PASS"
+      },
+      {
+        "name": "Shared secondary technician cascades another bay booking",
+        "status": "PASS"
+      },
+      {
+        "name": "Stale review cannot approve an outdated change",
+        "status": "PASS"
+      },
+      {
+        "name": "Started booking extends without resetting actual lifecycle",
+        "status": "PASS"
+      },
+      {
+        "name": "Stopped booking extends and retains its stoppage history",
+        "status": "PASS"
+      },
+      {
+        "name": "Sublet approval needs no workshop hours or bay",
+        "status": "PASS"
+      },
+      {
+        "name": "Synthetic operator is authorized",
+        "status": "PASS"
+      },
+      {
+        "name": "Two-hour added Hoist operation increases seven-hour booking to nine",
+        "status": "PASS"
+      },
+      {
+        "name": "Unbooked operation updates work without inventing booking",
+        "status": "PASS"
+      },
+      {
+        "name": "Unsupported hour precision is rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "Updated operation has New Vehicles readback",
+        "status": "PASS"
+      },
+      {
+        "name": "Zero workshop hours are rejected",
+        "status": "PASS"
+      }
+    ]
+  },
+  "capacity_replan": {
+    "count": 46,
+    "timing": [
+      {
+        "scenario": "Close gaps full graph timing",
+        "measurement": {
+          "milliseconds": 1840.9
+        }
+      },
+      {
+        "scenario": "Full graph preview timing",
+        "measurement": {
+          "milliseconds": 1785.96,
+          "active_bookings": 156
+        }
+      },
+      {
+        "scenario": "Three booking atomic apply timing",
+        "measurement": {
+          "milliseconds": 1885.17
+        }
+      }
+    ],
+    "results": [
+      {
+        "name": "A later failure rolls back bay setting, prior booking and history",
+        "status": "PASS"
+      },
+      {
+        "name": "All pre-existing bookings are unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "All pre-existing vehicles are unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "Applied booking retains base minutes and factor",
+        "status": "PASS"
+      },
+      {
+        "name": "Apply preserves secondary assignment identity and new range",
+        "status": "PASS"
+      },
+      {
+        "name": "Atomic fixture moves downstream booking before extension",
+        "status": "PASS"
+      },
+      {
+        "name": "Blocked efficiency preserves fixed booking and setting",
+        "status": "PASS"
+      },
+      {
+        "name": "Capacity edits never change quoted operation minutes",
+        "status": "PASS"
+      },
+      {
+        "name": "Changed bay version invalidates review without writes",
+        "status": "PASS"
+      },
+      {
+        "name": "Close gaps changes only selected planner",
+        "status": "PASS"
+      },
+      {
+        "name": "Close gaps full graph timing",
+        "status": "PASS"
+      },
+      {
+        "name": "Close gaps moves follower earlier on its original bay",
+        "status": "PASS"
+      },
+      {
+        "name": "Close gaps never pushes a job later",
+        "status": "PASS"
+      },
+      {
+        "name": "Close gaps preview resolves safe existing graph",
+        "status": "PASS"
+      },
+      {
+        "name": "Compaction never alters fixed live work",
+        "status": "PASS"
+      },
+      {
+        "name": "Compaction obeys IT ETA plus seven",
+        "status": "PASS"
+      },
+      {
+        "name": "Configuration is available to an operator",
+        "status": "PASS"
+      },
+      {
+        "name": "Cross-station efficiency cascade keeps exactly one hour",
+        "status": "PASS"
+      },
+      {
+        "name": "Earlier move has a constraint-safe application order",
+        "status": "PASS"
+      },
+      {
+        "name": "Effective Other override blocks capacity changes",
+        "status": "PASS"
+      },
+      {
+        "name": "Efficiency apply succeeds atomically",
+        "status": "PASS"
+      },
+      {
+        "name": "Efficiency preview can apply",
+        "status": "PASS"
+      },
+      {
+        "name": "Efficiency respects full Admin reservation",
+        "status": "PASS"
+      },
+      {
+        "name": "Extension cannot move a started follower",
+        "status": "PASS"
+      },
+      {
+        "name": "Fixture compaction has safe ordering",
+        "status": "PASS"
+      },
+      {
+        "name": "Four base hours at eighty percent allocate five hours",
+        "status": "PASS"
+      },
+      {
+        "name": "Full graph preview timing",
+        "status": "PASS"
+      },
+      {
+        "name": "Idempotency receipts cannot be edited directly",
+        "status": "PASS"
+      },
+      {
+        "name": "Idempotent retry does not change versions",
+        "status": "PASS"
+      },
+      {
+        "name": "Invalid efficiency is rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "Invalid preview token is rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "Later bay job follows extended root",
+        "status": "PASS"
+      },
+      {
+        "name": "Legacy bay DTO includes normal efficiency",
+        "status": "PASS"
+      },
+      {
+        "name": "Longer job skips Sublet absence on continuation day",
+        "status": "PASS"
+      },
+      {
+        "name": "Normal efficiency apply does not compound",
+        "status": "PASS"
+      },
+      {
+        "name": "Only the authorized public RPC can apply a capacity plan",
+        "status": "PASS"
+      },
+      {
+        "name": "Preview leaves bookings and bay unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "Repeated compaction has no additional synthetic changes",
+        "status": "PASS"
+      },
+      {
+        "name": "Repeated same efficiency does not compound or move jobs",
+        "status": "PASS"
+      },
+      {
+        "name": "Returning to normal restores original allocation",
+        "status": "PASS"
+      },
+      {
+        "name": "Secondary technician leave is respected on continuation day",
+        "status": "PASS"
+      },
+      {
+        "name": "Sublet never has workshop capacity",
+        "status": "PASS"
+      },
+      {
+        "name": "Synthetic operator is authorized",
+        "status": "PASS"
+      },
+      {
+        "name": "Three booking atomic apply timing",
+        "status": "PASS"
+      },
+      {
+        "name": "Unauthenticated capacity requests are rejected",
+        "status": "PASS"
+      },
+      {
+        "name": "Yard Hold without ETA remains eligible",
+        "status": "PASS"
+      }
+    ]
+  },
+  "total_checks": 112,
+  "project": "cdsmnqxtyyoeoznmbidd",
+  "transaction": "Each suite ran complete ROLLBACK with proposed one-hour migration; pre-existing booking and vehicle rows unchanged."
+}

@@ -126,8 +126,8 @@ BEGIN
  ),'Book all excludes Sublet and respects IT ETA plus seven');
  PERFORM pg_temp.ou_assert(NOT EXISTS(
   SELECT 1 FROM public.workshop_bookings a JOIN public.workshop_bookings b ON a.vehicle_id=b.vehicle_id AND a.id<>b.id AND a.scheduled_start_at<b.scheduled_start_at
-  WHERE a.vehicle_id=v AND a.scheduled_end_at+interval '5 hours'>b.scheduled_start_at
- ),'Book all keeps five elapsed hours between stations');
+  WHERE a.vehicle_id=v AND a.scheduled_end_at+interval '1 hour'>b.scheduled_start_at
+ ),'Book all keeps one elapsed hour between stations');
  PERFORM pg_temp.ou_assert(NOT EXISTS(
   SELECT 1 FROM public.workshop_bookings b WHERE b.vehicle_id=v AND
    (NOT public.workshop_calendar_minute_available(b.scheduled_start_at)
@@ -177,7 +177,7 @@ BEGIN
  hbay:=pg_temp.ou_bay('book-all-existing-hoist','HOIST');
  PERFORM pg_temp.ou_booking('book-all-existing-hoist',v_conflict,'HOIST',hbay,(f+time '07:00') AT TIME ZONE 'Australia/Perth');
  SELECT id INTO sid FROM public.workshop_stages WHERE code='FITTING';
- busy_until:=(f+time '14:00') AT TIME ZONE 'Australia/Perth';
+ busy_until:=(f+time '10:00') AT TIME ZONE 'Australia/Perth';
  INSERT INTO public.workshop_admin_blocks(stage_id,bay_id,block_type,label,scheduled_start_at,scheduled_end_at,duration_minutes,created_by,updated_by)
  SELECT sid,b.id,'admin','Rollback Book all fixture',busy_until-interval '1 hour',busy_until,60,actor_id,actor_id
  FROM public.workshop_bays b WHERE b.stage_id=sid AND b.is_active;

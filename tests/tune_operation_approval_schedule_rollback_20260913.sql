@@ -176,7 +176,7 @@ BEGIN
  AND r->'data'->'schedule'->>'changed_count'='6'
  AND r->'data'->'schedule'->>'extended_count'='1'
  AND r->'data'->'schedule'->>'moved_count'='5'
- AND r->'data'->'schedule'->>'buffer_minutes'='300'
+ AND r->'data'->'schedule'->>'buffer_minutes'='60'
  AND jsonb_array_length(r->'data'->'schedule'->'bookings')=6,
  'Approval receipt identifies exact extended and moved bookings',r->'data'->'schedule');
  PERFORM pg_temp.ou_assert(public.workshop_vehicle_stage_estimated_hours(a,'FITTING')=12
@@ -187,10 +187,10 @@ BEGIN
  PERFORM pg_temp.ou_assert((SELECT scheduled_start_at=mon+interval '1h' AND scheduled_end_at=mon+interval '3h' FROM public.workshop_bookings WHERE id=ae),
  'Same vehicle next station avoids Admin and closed Sunday');
  PERFORM pg_temp.ou_assert((SELECT scheduled_start_at=mon AND scheduled_end_at=mon+interval '1h' FROM public.workshop_bookings WHERE id=bh),
- 'Pushed vehicle later station keeps five-hour gap');
+ 'Pushed vehicle later station keeps one-hour gap');
  PERFORM pg_temp.ou_assert((SELECT scheduled_start_at=mon+interval '3h' AND scheduled_end_at=mon+interval '4h' FROM public.workshop_bookings WHERE id=ce)
- AND (SELECT scheduled_start_at=mon+interval '9h' AND scheduled_end_at=mon+interval '10h' FROM public.workshop_bookings WHERE id=ct),
- 'Recursive vehicle chain moves later stations with five-hour gap');
+ AND (SELECT scheduled_start_at=mon+interval '5h' AND scheduled_end_at=mon+interval '6h' FROM public.workshop_bookings WHERE id=ct),
+ 'Recursive vehicle chain moves later stations with one-hour gap');
  PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM public.workshop_bookings x JOIN public.workshop_admin_blocks ab ON ab.bay_id=x.bay_id AND ab.deleted_at IS NULL
  WHERE x.vehicle_id IN(a,b,c) AND x.scheduled_start_at<ab.scheduled_end_at AND x.scheduled_end_at>ab.scheduled_start_at),
  'No affected booking overlaps Admin reservation');
