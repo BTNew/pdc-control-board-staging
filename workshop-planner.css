@@ -1410,6 +1410,8 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
 .workshop-focused-operation-lines li b { margin-left: auto; }
 .workshop-focused-booking-error { border-color: #fca5a5; background: #fff1f2; color: #9f1239; }
 .workshop-focused-booking-error button { margin-top: 10px; }
+/* Focused mode omits the waiting panel; give its only child the full board width. */
+.is-focused-booking .workshop-board-shell { grid-template-columns: minmax(0, 1fr); }
 .is-focused-booking .workshop-detail-panel { max-width: 980px; }
 .workshop-admin-block-modal { max-width: 680px; }
 .workshop-admin-palette {
