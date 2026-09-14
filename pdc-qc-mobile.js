@@ -27,8 +27,8 @@
   const pending = key => [...qcPageOperationPending.keys()].some(value => value.startsWith(`${key}::`));
   const busy = key => qcPagePhotoUploadInFlight.has(key) || qcPageRejectInFlight.has(key) || qcPageSignoffInFlight.has(key);
   const knownLine = line => line.stageCode !== 'UNALLOCATED_MAPPING_REVIEW'
-    && line.estimatedHours !== null && line.estimatedHours !== undefined && line.estimatedHours !== ''
-    && Number.isFinite(Number(line.estimatedHours));
+    && (line.stageCode === 'SUBLET' || (line.estimatedHours !== null && line.estimatedHours !== undefined && line.estimatedHours !== ''
+      && Number.isFinite(Number(line.estimatedHours))));
   const inspected = row => qcPageAllOperationLinesComplete(row) && qcPageOperationLines(row).every(knownLine);
   const cacheKey = row => `${cachePrefix}${window.PDC_AUTH_CONTEXT?.userId || ''}:${row.__emailVehicleId}:${row.pdcQcRetestCycleId || 'initial'}`;
 
@@ -301,7 +301,7 @@
     const lines = qcPageOperationLines(row);
     return `<section class="qc-phone-reject-panel" role="region" aria-label="Select items to reject">
       <h3>Select all items requiring repair</h3><p>Only the selected items and their hours will be sent back to <strong>PMB Stoppage / Fix First</strong>. No item is signed off by this action.</p>
-      <div class="qc-reject-selection">${lines.map(line => `<label><input type="checkbox" data-qc-reject-select="${e(line.lineIdentity)}" ${draft.selected.has(line.lineIdentity) ? 'checked' : ''} ${busy(key) ? 'disabled' : ''}><span>${e(line.description)}<small>${e(qcPageStageLabel(line.stageCode))} · ${line.estimatedHours == null ? 'Hours need review' : e(line.estimatedHours) + ' h'}</small></span></label>`).join('')}</div>
+      <div class="qc-reject-selection">${lines.map(line => `<label><input type="checkbox" data-qc-reject-select="${e(line.lineIdentity)}" ${draft.selected.has(line.lineIdentity) ? 'checked' : ''} ${busy(key) ? 'disabled' : ''}><span>${e(line.description)}<small>${e(qcPageStageLabel(line.stageCode))} · ${e(qcPageOperationHoursLabel(line))}</small></span></label>`).join('')}</div>
       <label for="qc-phone-reason">Additional reason (optional)</label><textarea id="qc-phone-reason" maxlength="240" rows="3" ${busy(key) ? 'disabled' : ''}>${e(draft.reason)}</textarea>
       <div class="qc-phone-reject-buttons"><button type="button" data-qc-cancel-reject ${busy(key) ? 'disabled' : ''}>Cancel</button><button type="button" class="qc-phone-danger" data-qc-confirm-reject ${busy(key) || !draft.selected.size ? 'disabled' : ''}>${qcPageRejectInFlight.has(key) ? 'Rejecting…' : 'Reject selected (' + draft.selected.size + ') → Stoppage'}</button></div>
     </section>`;
@@ -449,6 +449,6 @@
   });
   window.addEventListener('online', () => { if (mobile()) void refresh(); });
   window.addEventListener('offline', () => { if (mobile()) renderQualityControlPage(); });
-  window.PDC_QC_MOBILE_VERSION = '2026.09.09.13';
+  window.PDC_QC_MOBILE_VERSION = '2026.09.14.01-sublet-qc';
   updateMode();
 })();
