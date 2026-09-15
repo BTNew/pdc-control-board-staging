@@ -68,7 +68,7 @@ function setup(options = {}) {
     'vehicleCollectedFromRft', 'vehicleInCollectedState', 'navisionImportedToyotaTransitCategory',
     'statusCategory', 'vehicleHasNavisionSource', 'incomingBucketForVehicle',
     'incomingBucketLabel', 'incomingGridStatusLabel', 'canTransferVehicleToPmb',
-    'incomingVehicleDetailRow', 'vehicleLocationsScreenRows',
+    'incomingVehicleAge', 'incomingVehicleDetailRow', 'vehicleLocationsScreenRows',
   ];
   vm.runInContext(definitions[0] + '\nthis.bucketDefinitions = VEHICLE_LOCATION_BUCKET_DEFS;\n' + helpers.map(extractFunction).join('\n'), ctx);
   return ctx;
