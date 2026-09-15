@@ -1,0 +1,9 @@
+.workshop-emergency{margin:14px 18px;padding:14px 16px;border:1px solid #e4a1a7;border-left:4px solid #c52232;border-radius:9px;background:#fff7f7;color:#162d45}
+.workshop-emergency,.workshop-emergency *{box-sizing:border-box}.workshop-emergency h3{margin:0 0 5px;font-size:16px}.workshop-emergency p{margin:6px 0 10px;font-size:13px}
+.emergency-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:end}.emergency-controls label{display:grid;gap:4px;font-size:12px;font-weight:700}
+.emergency-controls input{width:210px;max-width:100%;min-height:38px;border:1px solid #bccce0;border-radius:6px;padding:8px 10px;background:white}
+.emergency-controls button{min-height:38px}.emergency-result:empty{display:none}.emergency-result{margin-top:12px}
+.emergency-table-wrap{overflow-x:auto;margin:8px 0;background:white;border:1px solid #d7e1ec;border-radius:6px}
+.emergency-table-wrap table{width:100%;border-collapse:collapse;font-size:12px}.emergency-table-wrap td,.emergency-table-wrap th{padding:8px 10px;text-align:left;border-bottom:1px solid #e3e9f1;white-space:nowrap}
+.emergency-table-wrap th{font-weight:700}.emergency-table-wrap small{display:block;font-weight:400}.workshop-emergency summary{cursor:pointer;font-size:13px;font-weight:700}
+@media(max-width:640px){.workshop-emergency{margin:12px 8px;padding:12px}.emergency-controls label{width:100%}.emergency-controls input{width:100%}.emergency-controls button{flex:1 1 150px}}
