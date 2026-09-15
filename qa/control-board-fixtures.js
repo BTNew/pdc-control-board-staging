@@ -21,6 +21,7 @@
       stages: stages.map(([code], index) => ({ code, display_name: code, planner_enabled: true, revision: index + 1 })),
       candidates: [], pipeline: [],
       board: {
+        calendar: { day_start_time: "07:00", day_end_time: "17:00", working_week: ["monday","tuesday","wednesday","thursday","friday","saturday"], closures: [], break_windows: [{scope:"saturday",start:"07:00",end:"08:00"},{scope:"saturday",start:"12:00",end:"17:00"}], overtime_windows: [] },
         bays: stages.flatMap(([stage, count], index) => Array.from({ length: count }, (_, offset) => ({
           bay_id: uuid(++number), stage_id: uuid(500 + index), stage_code: stage, bay_number: offset + 1,
           display_name: `${stage} Bay ${offset + 1}`, is_active: true, efficiency_percent: 100,
