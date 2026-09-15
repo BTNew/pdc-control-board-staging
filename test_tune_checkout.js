@@ -27,3 +27,12 @@ test('RFT selector includes the distinct source state and cache refreshes both r
  assert.match(html,/<select id="rft-status-filter">[\s\S]*?value="checked_out"[\s\S]*?<\/select>/);
  for(const file of ['app.js','pdc-email-vehicle-location-service.js'])assert.match(html,new RegExp(file.replaceAll('.','\\.')+'[^"\\n]*tune-checkout=2026\\.09\\.15\\.01'));
 });
+
+test('Tune checkout removes outstanding parts and Sublet records from active queues',()=>{
+ const ctx={partsStateComplete:()=>false,partsDepartmentStatus:()=> 'stoppage',PDC_JOB_DEFS:[],vehicleLocationBoardRows:()=>[{tuneCheckout:{confirmed:true}}]};vm.createContext(ctx);
+ vm.runInContext(app.slice(app.indexOf('function partsQueueVisibleVehicle('),app.indexOf('function partsDepartmentSourceRows(')),ctx);
+ vm.runInContext(app.slice(app.indexOf('function subletRows('),app.indexOf('function subletDateOrdinal(')),ctx);
+ assert.equal(ctx.partsQueueVisibleVehicle({tuneCheckout:{confirmed:true}}),false);
+ assert.equal(ctx.partsQueueVisibleVehicle({}),true);
+ assert.equal(ctx.subletRows().length,0);
+});

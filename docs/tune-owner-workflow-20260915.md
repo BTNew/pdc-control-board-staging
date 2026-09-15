@@ -1,0 +1,14 @@
+
+
+## 15 September 2026 — Owner-edited workflow: service keys and any-job checkout
+
+Authority: Craig asked to review and apply PMB Board Workflow (2).drawio (attachment 1d266ef0-5057-47ba-81fc-fb1220d0376c), then explicitly answered: "Complete vehicle when any job reaches 99". This supersedes the old all-99/mixed-job hold and the old instruction not to complete work on Tune checkout.
+
+- Exact current Navision Stock/Batch match remains authoritative for customer, vehicle, VIN, location and Navision ETA to Kewdale. This source ETA is not a workshop completion estimate.
+- Without Navision, use Tune Range # as displayed vehicle description and Owner Name as customer, keeping Stock as identity. Untouched incoming vehicles belong in NON-NAVISION VEHICLES, not Yard Hold. The current board represents this incoming group with no confirmed physical location (database Other), rather than asserting the vehicle is physically in a yard.
+- Read Key Number, Key Tag Number or Block Number as the vehicle key; read Parts Location or Tag # separately as parts location. Exact company/division/R/O/Stock mapping, alias conflict checks and snapshot protections still apply. A single valid positive numeric service key confirms incoming arrival at PMB. Zero, blank, All or conflicting keys do not confirm arrival. Do not pull a vehicle out of an existing physical bay, QC, PIT, Sublet or a terminal state on a repeated key import. New Vehicles still needs work approval.
+- ANY valid linked R/O Sub Status 99 completes the entire vehicle, even when another linked R/O is open. Record a Tune checkout receipt, close pending intake, complete active operation lines and work requirements, mark active workshop bookings completed, return active Sublet records with explicit Tune-source evidence, and close all linked active parts jobs. Move to RFT and clear any incoming/PMB location override. Preserve source lines/hours, previous parts flags/person evidence, bookings and actual labour timestamps as history. Do not fabricate a named QC inspection or actual labour duration. The recorded completion/return time is the import recording time, not an independently observed workshop/physical-return time.
+- Checkout wins over key arrival, Navision incoming grouping and open sibling jobs. New/changed/reopened work received after checkout remains logged for review; a repeated unchanged checkout must not duplicate receipts or re-open work.
+- Parts-only imports never create vehicles/jobs/operations/bookings and cannot re-open a checkout. Email monitoring remains PAUSED until Craig asks to restart.
+
+LIVE STAGING migration: 20260915035959_tune_owner_flowchart_service_arrival_and_any_job_checkout. The existing successful service apply calls the new guarded cleanup and arrival helpers; no new public client API or actor permission was added. Explicit owner instructions override contradictory wording in older handovers.
