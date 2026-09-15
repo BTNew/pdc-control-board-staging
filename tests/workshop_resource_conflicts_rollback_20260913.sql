@@ -14,6 +14,16 @@ BEGIN
  END IF;
 END $guard$;
 
+-- This regression graph deliberately covers a configured Saturday shift.
+-- Keep its calendar fixture independent of the deployed Monday-Friday calendar.
+-- Both this setting and every synthetic record are undone by the final ROLLBACK.
+UPDATE public.workshop_settings
+SET value='["monday","tuesday","wednesday","thursday","friday","saturday"]'::jsonb
+WHERE key='working_week';
+UPDATE public.workshop_settings
+SET value='[{"scope":"saturday","start":"07:00","end":"08:00"},{"scope":"saturday","start":"12:00","end":"17:00"}]'::jsonb
+WHERE key='break_windows';
+
 CREATE TEMP TABLE ou_context(actor uuid, email text, friday date, batch uuid) ON COMMIT DROP;
 CREATE TEMP SEQUENCE ou_source_order;
 CREATE TEMP TABLE ou_refs(name text PRIMARY KEY, id uuid NOT NULL) ON COMMIT DROP;
@@ -191,4 +201,3 @@ DO $unchanged$ BEGIN
 END $unchanged$;
 SELECT name,status,evidence FROM ou_results ORDER BY name;
 ROLLBACK;
-
