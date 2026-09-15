@@ -5806,6 +5806,7 @@ async function workshopScheduleSharedNewBooking({
   bayNumber = 0,
   scheduledStartAt = '',
   durationMinutes = 0,
+  cascade = true,
 } = {}, dispatchAction = workshopDispatchSharedAction) {
   const candidateStage = normalizePmbStage(requestedCandidate.stage);
   const requestedStage = normalizePmbStage(stageCode);
@@ -5829,21 +5830,7 @@ async function workshopScheduleSharedNewBooking({
   const candidate = { ...requestedCandidate, assignee, technicianId: technicianId || '' };
   if (!workshopRequireSchedulableCandidate(candidate)) return false;
   if (!workshopConfirmOtherDepartmentPlans(candidate, workshopLoadPlans())) return false;
-  const payload = {
-    operation: 'insert',
-    targetId: vehicleRef.vehicleId,
-    targetExpectedVersion: vehicleRef.version,
-    stageCode,
-    bayNumber,
-    scheduledStartAt,
-    durationMinutes,
-    technicianId,
-    shiftMinutes: durationMinutes,
-  };
   const managedDispatch = dispatchAction === workshopDispatchSharedAction;
-  const dispatch = nextPayload => managedDispatch
-    ? dispatchAction('cascadeSchedule', nextPayload, renderWorkshopPlanner, { suppressFailureAlert: true, suppressRender: true })
-    : dispatchAction('cascadeSchedule', nextPayload);
   const administratorRequest = workshopAdministratorCanMove() ? {
     vehicleId: vehicleRef.vehicleId,
     vehicleExpectedVersion: vehicleRef.version,
@@ -5853,18 +5840,18 @@ async function workshopScheduleSharedNewBooking({
     durationMinutes,
     technicianId,
     requestId: workshopNewRequestId(),
-    cascade: true,
-    metadata: { source: 'admin_unallocated_vehicle_pill', reason: 'website_drag_drop' },
+    cascade,
+    metadata: { source: cascade ? 'admin_unallocated_vehicle_pill' : 'planner_best_slot', reason: cascade ? 'website_drag_drop' : 'earliest_available_space' },
   } : null;
   let result = administratorRequest
-    ? await workshopDispatchSharedAction('administratorScheduleVehicle', administratorRequest,
+    ? await dispatchAction('administratorScheduleVehicle', administratorRequest,
       renderWorkshopPlanner, { suppressFailureAlert: true, suppressRender: true })
     : { ok: false, error: 'permission_denied' };
   if (administratorRequest && (!result || ['request_failed', 'no_response', 'runtime_failure'].includes(result.error))) {
     // Retry only an uncertain transport/runtime outcome and replay the exact
     // same object and request ID. The server receipt makes a committed first
     // attempt safe to replay; changed intent always requires a new drag.
-    result = await workshopDispatchSharedAction('administratorScheduleVehicle', administratorRequest,
+    result = await dispatchAction('administratorScheduleVehicle', administratorRequest,
       renderWorkshopPlanner, { suppressFailureAlert: true, suppressRender: true });
   }
   if (result && result.ok === false && result.error === 'vehicle_version_conflict') {
@@ -5977,10 +5964,12 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
     startMinutes: slot.startMinutes,
     hoursValue: estimate,
     preferRequestedTime: true,
+    // The chosen space is already free; do not move unrelated later jobs.
+    cascadeNewBooking: false,
   });
 }
 
-async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false } = {}) {
+async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false, cascadeNewBooking = true } = {}) {
   const rows = workshopLoadPlans();
   const existing = rows.find(entry => entry.id === planId) || rows.find(entry => entry.id === workshopPlanId(vehicleKeyValue, stage));
   const vehicle = workshopVehicle(existing?.vehicleKey || vehicleKeyValue, stage);
@@ -6093,6 +6082,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
       bayNumber: Number(bay),
       scheduledStartAt: start.toISOString(),
       durationMinutes,
+      cascade: cascadeNewBooking,
     });
   }
   if (!workshopRequireSchedulableCandidate(requestedCandidate)) return false;
