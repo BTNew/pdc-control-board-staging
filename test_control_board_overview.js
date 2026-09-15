@@ -6,7 +6,8 @@ const { performance } = require('node:perf_hooks');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { buildModel, render } = require('./control-board-overview.js');
+const overview = require('./control-board-overview.js');
+const { buildModel, render } = overview;
 const fixture = require('./qa/control-board-fixtures.js');
 const allItems = model => [...model.waiting, ...model.columns.flatMap(column => column.items)];
 
@@ -14,7 +15,7 @@ test('missing authoritative bay or booking arrays fail closed', () => {
   for (const snapshot of [null, {}, { board: {} }, { board: { bays: [] } }, { board: { bookings: [] } }]) assert.equal(buildModel(snapshot), null);
 });
 
-test('empty snapshot preserves all 43 physical bay columns and their order', () => {
+test('empty snapshot preserves all 43 physical bay rows and their order', () => {
   const model = buildModel(fixture.emptySnapshot());
   assert.equal(model.totalBays, 43);
   assert.deepEqual(model.stages, fixture.stages.map(([stage]) => stage));
@@ -161,7 +162,7 @@ test('stock, key, job card, customer and full vehicle description all remain sea
   }
 });
 
-test('search retains all bay columns, accurate totals, and an explicit no-results state', () => {
+test('search retains all bay rows, accurate totals, and an explicit no-results state', () => {
   const snapshot = fixture.populatedSnapshot();
   const full = buildModel(snapshot);
   const model = buildModel(snapshot, { search: 'NO-SUCH-DEMONSTRATION' });
@@ -212,20 +213,29 @@ function extracted(startName, endName) {
   return appSource.slice(start, end);
 }
 function integrationRuntime(overrides = {}) {
-  const calls = { exact: [], details: [], planner: [], load: [], scroll: [], jump: [], focus: [], removedClass: [] };
-  const scroller = { scrollLeft: 2700, scrollTop: 91, clientWidth: 1100, scrollBy: options => calls.scroll.push(options) };
+  const calls = { exact: [], details: [], planner: [], load: [], scroll: [], scrollTo: [], jump: [], focus: [], removedClass: [] };
+  const scroller = { scrollLeft: 2700, scrollTop: 91, clientWidth: 1100, scrollBy: options => calls.scroll.push(options), scrollTo: options => { calls.scrollTo.push(options); scroller.scrollLeft = options.left; scroller.scrollTop = options.top; } };
   const match = { tagName: 'BUTTON', scrollIntoView: options => calls.jump.push(options), focus: options => calls.focus.push(options) };
-  const columns = [{ dataset: { controlBoardStage: 'TYRE' }, scrollIntoView: options => calls.jump.push(options) }];
+  const columns = [{ dataset: { controlBoardStage: 'TYRE' }, offsetTop: 2400, scrollIntoView: options => calls.jump.push(options) }];
+  let html = '';
   const host = {
-    innerHTML: '', onclick: null,
-    querySelector: selector => selector === '.control-board-bays-scroll' ? scroller : selector === '[data-control-board-match]' ? match : null,
+    get innerHTML() { return html; }, set innerHTML(value) { html = value; }, onclick: null,
+    querySelector: selector => {
+      if (selector === '.control-board-bays-scroll') return scroller;
+      if (selector === '[data-control-board-match]') return html.includes('data-control-board-match') ? match : null;
+      if (selector === '[data-control-board-start]') {
+        const value = /data-control-board-start value="([^"]+)"/.exec(html)?.[1];
+        return value ? { value } : null;
+      }
+      return null;
+    },
     querySelectorAll: () => columns,
     contains: node => node.inside !== false,
   };
   const search = { value: '' }, floating = { hidden: false };
   const context = {
     app: { data: [], workflowSearch: '', workshopEligibilityState: 'connected', workshopEligibilitySnapshot: fixture.populatedSnapshot(), ...overrides },
-    window: { ControlBoardOverview: { buildModel, render } },
+    window: { ControlBoardOverview: overview },
     document: { body: { classList: { remove: name => calls.removedClass.push(name) } } },
     $: selector => ({ '#workflow-board': host, '#workflow-search': search, '#workflow-floating-column-header': floating }[selector] || null),
     workshopEligibilitySharedAuthorityEnabled: () => true,
@@ -236,12 +246,13 @@ function integrationRuntime(overrides = {}) {
     openVehicleWorkBookingsFromTile: tile => { calls.details.push(tile); return true; },
     openWorkshopPlannerForStage: stage => { calls.planner.push(stage); return true; },
     vehicleKey: vehicle => vehicle.stock || vehicle.id,
-    Date, Intl, console,
+    Date: class extends Date { constructor(...args) { super(...(args.length ? args : ['2026-09-15T01:00:00Z'])); } static now() { return Date.parse('2026-09-15T01:00:00Z'); } }, Intl, console,
   };
   vm.createContext(context);
   vm.runInContext(extracted('vehicleWorkshopPerthDateKey', 'vehicleWorkshopBookingTimeLabel'), context);
   vm.runInContext(extracted('renderWorkflowBoard', 'vehicleHasNavisionSource'), context);
-  return { context, calls, host, scroller, search, floating, match };
+  const click = dataset => host.onclick({ target: { closest: () => ({ dataset, hasAttribute: name => Object.hasOwn(dataset, name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())) }) } });
+  return { context, calls, host, scroller, search, floating, match, click };
 }
 
 test('actual app booking click uses canonical IDs and Perth date, including UTC previous day', () => {
@@ -303,13 +314,14 @@ test('actual app delegated navigation finds exact cards and horizontal scroll co
   const runtime = integrationRuntime();
   runtime.context.renderWorkflowBoard();
   const booking = runtime.context.app.workshopEligibilitySnapshot.board.bookings[0];
-  const click = dataset => runtime.host.onclick({ target: { closest: () => ({ dataset }) } });
+  const click = runtime.click;
   click({ controlBoardItem: 'booking', controlBoardId: booking.booking_id });
   assert.equal(runtime.calls.exact[0][0], booking.booking_id);
   click({ controlBoardPlanner: 'TYRE' });
   assert.deepEqual(runtime.calls.planner, ['TYRE']);
   click({ controlBoardJump: 'TYRE' });
-  assert.equal(runtime.calls.jump[0].inline, 'start');
+  assert.equal(runtime.calls.scrollTo[0].top, 2400);
+  assert.equal(runtime.calls.scrollTo[0].left, 2700);
   click({ controlBoardScroll: '1' });
   assert.equal(runtime.calls.scroll[0].left, 1020);
   click({ controlBoardScroll: '-1' });
@@ -325,4 +337,74 @@ test('actual Find command renders normalized search then reveals and focuses the
   assert.equal(runtime.calls.jump[0].block, 'nearest');
   assert.equal(runtime.calls.focus[0].preventScroll, true);
   assert.match(runtime.host.innerHTML, /matching jobs/);
+});
+
+test('timeline previous and next controls move by the visible date span and reset only horizontal scroll', () => {
+  const runtime = integrationRuntime();
+  runtime.context.renderWorkflowBoard();
+  runtime.click({ controlBoardShift: '14' });
+  assert.equal(runtime.context.app.controlBoardTimelineStart, '2026-09-29');
+  assert.equal(runtime.scroller.scrollLeft, 0);
+  assert.equal(runtime.scroller.scrollTop, 91);
+  runtime.click({ controlBoardShift: '-14' });
+  assert.equal(runtime.context.app.controlBoardTimelineStart, '2026-09-15');
+});
+
+test('timeline date picker changes the visible range and ignores an emptied field', () => {
+  const runtime = integrationRuntime();
+  runtime.context.renderWorkflowBoard();
+  runtime.host.onchange({ target: { matches: selector => selector === '[data-control-board-start]', value: '2026-10-01' } });
+  assert.equal(runtime.context.app.controlBoardTimelineStart, '2026-10-01');
+  assert.match(runtime.host.innerHTML, /data-control-board-start value="2026-10-01"/);
+  runtime.host.onchange({ target: { matches: () => true, value: '' } });
+  assert.equal(runtime.context.app.controlBoardTimelineStart, '2026-10-01');
+});
+
+test('More days extends the timeline up to 56 days while preserving both scroll positions', () => {
+  const runtime = integrationRuntime();
+  runtime.context.renderWorkflowBoard();
+  runtime.click({ controlBoardMore: '' });
+  assert.equal(runtime.context.app.controlBoardTimelineDays, 28);
+  assert.equal(runtime.scroller.scrollLeft, 2700);
+  assert.equal(runtime.scroller.scrollTop, 91);
+  runtime.click({ controlBoardMore: '' });
+  runtime.click({ controlBoardMore: '' });
+  runtime.click({ controlBoardMore: '' });
+  assert.equal(runtime.context.app.controlBoardTimelineDays, 56);
+  assert.match(runtime.host.innerHTML, /data-control-board-more disabled/);
+});
+
+test('Today returns to the current Perth date without changing the selected range length', () => {
+  const runtime = integrationRuntime({ controlBoardTimelineStart: '2026-11-01', controlBoardTimelineDays: 28 });
+  runtime.context.renderWorkflowBoard();
+  runtime.click({ controlBoardToday: '' });
+  assert.equal(runtime.context.app.controlBoardTimelineStart, '2026-09-15');
+  assert.equal(runtime.context.app.controlBoardTimelineDays, 28);
+});
+
+test('outside-date reveal opens the requested range without modifying any booking record', () => {
+  const runtime = integrationRuntime();
+  const original = structuredClone(runtime.context.app.workshopEligibilitySnapshot);
+  runtime.context.renderWorkflowBoard();
+  runtime.click({ controlBoardReveal: '2026-10-19' });
+  assert.equal(runtime.context.app.controlBoardTimelineStart, '2026-10-19');
+  assert.equal(runtime.scroller.scrollLeft, 0);
+  assert.deepEqual(runtime.context.app.workshopEligibilitySnapshot, original);
+  assert.equal(runtime.calls.load.length, 0);
+});
+
+test('Find automatically reveals and focuses a matching booking beyond the visible date range', () => {
+  const snapshot = fixture.emptySnapshot();
+  const source = fixture.booking(1, snapshot.board.bays[0], undefined, { scheduled_start_at: '2026-10-18T23:00:00Z', scheduled_end_at: '2026-10-19T00:00:00Z' });
+  snapshot.board.bookings.push(source);
+  const runtime = integrationRuntime({ workshopEligibilitySnapshot: snapshot });
+  runtime.search.value = source.vehicle.stock_number;
+  runtime.context.renderWorkflowBoard();
+  assert.equal(runtime.host.querySelector('[data-control-board-match]'), null);
+  runtime.context.findControlBoardOverviewMatch();
+  assert.equal(runtime.context.app.controlBoardTimelineStart, '2026-10-19');
+  assert.ok(runtime.host.querySelector('[data-control-board-match]'));
+  assert.equal(runtime.calls.jump[0].inline, 'center');
+  assert.equal(runtime.calls.focus[0].preventScroll, true);
+  assert.equal(runtime.calls.load.length, 0);
 });

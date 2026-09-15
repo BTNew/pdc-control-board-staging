@@ -7090,13 +7090,24 @@ function renderWorkflowBoard() {
     host.innerHTML = '<div class="workshop-connection-banner offline_error" role="status"><strong>Workshop overview unavailable</strong><span>The full bay list could not be loaded. Use Refresh board to try again.</span></div>';
     return;
   }
-  host.innerHTML = `<div class="workshop-connection-banner connected" role="status"><strong>Workshop information connected</strong><span>All physical bays · live booking updates</span></div>${overview.render(model)}`;
+  const timelineOptions = { startDate: app.controlBoardTimelineStart, dayCount: app.controlBoardTimelineDays || 14, now: new Date() };
+  host.innerHTML = `<div class="workshop-connection-banner connected" role="status"><strong>Workshop information connected</strong><span>All physical bays · live booking updates</span></div>${overview.render(model, timelineOptions)}`;
   const scroll = host.querySelector('.control-board-bays-scroll');
   if (scroll && app.controlBoardScroll) {
     scroll.scrollLeft = app.controlBoardScroll.left;
     scroll.scrollTop = app.controlBoardScroll.top;
   }
   const items = new Map([...model.waiting, ...model.columns.flatMap(column => column.items)].map(item => [`${item.kind}:${item.id}`, item]));
+  const changeDates = (date, dayCount = app.controlBoardTimelineDays || 14, keepHorizontal = false) => {
+    app.controlBoardTimelineStart = date;
+    app.controlBoardTimelineDays = dayCount;
+    if (scroll && !keepHorizontal) scroll.scrollLeft = 0;
+    renderWorkflowBoard();
+  };
+  const currentStart = () => host.querySelector('[data-control-board-start]')?.value || overview.dateKey(model.generatedAt) || overview.dateKey(new Date());
+  host.onchange = event => {
+    if (event.target.matches?.('[data-control-board-start]') && event.target.value) changeDates(event.target.value);
+  };
   host.onclick = event => {
     const target = event.target.closest('button');
     if (!target || !host.contains(target)) return;
@@ -7106,8 +7117,16 @@ function renderWorkflowBoard() {
     } else if (target.dataset.controlBoardPlanner) {
       openWorkshopPlannerForStage(target.dataset.controlBoardPlanner);
     } else if (target.dataset.controlBoardJump) {
-      const column = [...host.querySelectorAll('[data-control-board-stage]')].find(node => node.dataset.controlBoardStage === target.dataset.controlBoardJump);
-      column?.scrollIntoView({ inline: 'start', block: 'nearest' });
+      const department = [...host.querySelectorAll('[data-control-board-stage]')].find(node => node.dataset.controlBoardStage === target.dataset.controlBoardJump);
+      if (department && scroll) scroll.scrollTo({ top: department.offsetTop, left: scroll.scrollLeft, behavior: 'auto' });
+    } else if (target.hasAttribute('data-control-board-today')) {
+      changeDates(overview.dateKey(new Date()));
+    } else if (target.dataset.controlBoardShift) {
+      changeDates(overview.shiftDate(currentStart(), Number(target.dataset.controlBoardShift)));
+    } else if (target.hasAttribute('data-control-board-more')) {
+      changeDates(currentStart(), Math.min(56, (app.controlBoardTimelineDays || 14) + 14), true);
+    } else if (target.dataset.controlBoardReveal) {
+      changeDates(target.dataset.controlBoardReveal);
     } else if (target.dataset.controlBoardScroll) {
       scroll?.scrollBy({ left: Number(target.dataset.controlBoardScroll) * Math.max(246, scroll.clientWidth - 80), behavior: 'auto' });
     }
@@ -7131,7 +7150,20 @@ function openControlBoardOverviewItem(item) {
 function findControlBoardOverviewMatch() {
   app.workflowSearch = String($('#workflow-search')?.value || '').trim().toLowerCase();
   renderWorkflowBoard();
-  const match = $('#workflow-board')?.querySelector('[data-control-board-match]');
+  let match = $('#workflow-board')?.querySelector('[data-control-board-match]');
+  if (!match && app.workshopEligibilityState === 'connected') {
+    const overview = window.ControlBoardOverview;
+    const model = overview?.buildModel(app.workshopEligibilitySnapshot, { search: app.workflowSearch, stageOrder: WORKSHOP_CONTROL_BOARD_STATIONS });
+    const timeline = model && overview.buildTimeline(model, { startDate: app.controlBoardTimelineStart, dayCount: app.controlBoardTimelineDays || 14 });
+    const date = timeline?.outside[0]?.date;
+    if (date) {
+      app.controlBoardTimelineStart = date;
+      const scroll = $('#workflow-board')?.querySelector('.control-board-bays-scroll');
+      if (scroll) scroll.scrollLeft = 0;
+      renderWorkflowBoard();
+      match = $('#workflow-board')?.querySelector('[data-control-board-match]');
+    }
+  }
   match?.scrollIntoView({ inline: 'center', block: 'nearest' });
   if (match?.tagName === 'BUTTON') match.focus({ preventScroll: true });
 }

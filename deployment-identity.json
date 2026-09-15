@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260915033413",
-    "name": "control_board_physical_bay_snapshot",
-    "file": "supabase/migrations/20260915033413_control_board_physical_bay_snapshot.sql",
-    "sha256": "06f7594087a4acf424789a219710f08d159ddbd79d5ad1f669f7ec2e1439eeea",
+    "version": "20260915043856",
+    "name": "control_board_calendar_snapshot",
+    "file": "supabase/migrations/20260915043856_control_board_calendar_snapshot.sql",
+    "sha256": "d500870c81f67cb2246ecdd3ebc9c14b80ab0f65e9f788a878fedb4bb6507bce",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Read-only all-bay Control Board projection added to the existing authorized snapshot. 28 transactional checks passed and rolled back; 43 physical bays retained, no operational records created."
+    "source": "Read-only six-value workshop calendar added to the existing viewer-authorized Control Board snapshot. All 22 deployed read-only checks passed; original board fields and access controls retained, current imported vehicles untouched."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -218,6 +218,15 @@
       "review_status": "staging_applied",
       "source": "One elapsed hour between the same vehicle's workshop bookings. 112 rollback checks plus 11 independent clock checks passed; scheduling permissions and overlap constraints retained. Existing bookings are not compacted by deployment.",
       "sha256": "3c5df28278663455ccb47c1f26c7a92e2163e490dbbda9ce35d9437b1787c043"
+    },
+    {
+      "version": "20260915033413",
+      "name": "control_board_physical_bay_snapshot",
+      "file": "supabase/migrations/20260915033413_control_board_physical_bay_snapshot.sql",
+      "sha256": "06f7594087a4acf424789a219710f08d159ddbd79d5ad1f669f7ec2e1439eeea",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Read-only all-bay Control Board projection added to the existing authorized snapshot. 28 transactional checks passed and rolled back; 43 physical bays retained, no operational records created."
     }
   ],
   "planner_capacity_migrations": [
@@ -256,3 +265,4 @@
     "sha256": "3c5df28278663455ccb47c1f26c7a92e2163e490dbbda9ce35d9437b1787c043"
   }
 }
+
