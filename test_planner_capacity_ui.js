@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { percentage, allocatedHours, allocatedBaseMinutes, selectEfficiency, requestInput, createController } = require('./pdc-planner-capacity.js');
 const { workshopPlannerStageCodes } = require('./workshop-eligibility.js');
 const deferred = () => { let resolve; const promise = new Promise(done => { resolve = done; }); return { promise, resolve }; };
-const plan = () => ({ ok:true, can_apply:true, plan_hash:'server-plan-hash', changes:[], warnings:[], unchanged_count:2 });
+const plan = () => ({ ok:true, can_apply:true, plan_hash:'server-plan-hash', changes:[{ booking_id:'fixture-booking' }], warnings:[], unchanged_count:2 });
 function fixture(stage = 'FITTING') {
   const calls = [], timers = new Map();
   const state = { context:{ actor:'operator-a', token:'token-a', role:'operator', stage,
@@ -142,4 +142,16 @@ test('unconfirmed apply is bounded, cannot claim no changes and does not retry',
   for(const expire of f.timers.values())expire();
   await assert.rejects(()=>pending,/result could not be confirmed.*Refresh/);
   assert.equal(f.calls.length,2); assert.equal(f.controller.canApply,false); assert.equal(f.controller.busy,false);
+});
+
+test('empty Close gaps preview cannot submit a no-op but empty-bay efficiency can save', async () => {
+  const f=fixture(); f.state.reply={...plan(),changes:[]};
+  await f.controller.preview({stage:'FITTING'});
+  assert.equal(f.controller.canApply,false);
+  await assert.rejects(()=>f.controller.apply(),/Preview/);
+  assert.equal(f.calls.length,1);
+  await f.controller.preview({stage:'FITTING',bay:2,efficiency:80});
+  assert.equal(f.controller.canApply,true);
+  await f.controller.apply();
+  assert.equal(f.calls[2].body.p_apply,true);
 });
