@@ -15068,6 +15068,7 @@ function renderNavisionDetailSection(vehicle = {}) {
   const note = navisionDealerNoteText(vehicle);
   const fields = [
     ['Batch', vehicle.batch || vehicle.stock],
+    ['Dealer code', vehicleModalDealerIdentity(vehicle)],
     ['Production Month', productionMonthLabel(vehicle.prodMth || vehicle.productionMonth || '')],
     ['Model Description', vehicle.toyotaVehicle],
     ['Suffix Description', vehicle.suffix],
