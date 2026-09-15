@@ -108,6 +108,13 @@ function mapServerVehicle(row = {}) {
   mapped.pdcLocationOverrideAt = row.location_override_at || '';
   if (mapped.pdcLocationOverride) mapped.pdcLocation = mapped.pdcLocationOverride;
   mapped.currentLocation = mapped.pdcLocation;
+  // Work-state caches also carry server identity flags. Only an actual, valid
+  // vehicle snapshot establishes location authority over the Navision projection.
+  const canonicalLocations = ['YH', 'YARD HOLD', 'IT', 'IN TRANSIT', 'PMB', 'PIT', 'QC', 'RFT', 'OTHER', 'NON NAVISION VEHICLES', 'COLLECTED', 'COMPLETED'];
+  mapped.__emailVehicleLocationAuthoritative = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(mapped.__emailVehicleId)
+    && Number.isSafeInteger(mapped.__emailVehicleVersion) && mapped.__emailVehicleVersion > 0
+    && canonicalLocations.includes(String(row.current_location || '').trim().toUpperCase())
+    && canonicalLocations.includes(mapped.pdcLocation.toUpperCase());
   // Preserve supplied operational fields without turning a planned booking into
   // a physical location or changing a staff-assigned PMB stream.
   for (const [source, target] of [['pmb_stage', 'pmbStage'], ['pmb_bay_stage', 'pmbBayStage'], ['pmb_bay_number', 'pmbBay'], ['active_workshop_booking_id', 'activeWorkshopBookingId'], ['workshop_status', 'workshopStatus']]) {
@@ -137,6 +144,7 @@ function mapServerVehicle(row = {}) {
   mapped.vehicleLifecycleState = mapped.pdcLifecycleState;
   mapped.vehicleCollectedState = mapped.pdcLifecycleState === 'collected' || row.current_location === 'Collected';
   mapped.vehicleDeliveredState = mapped.pdcLifecycleState === 'completed' || row.current_location === 'Completed';
+  mapped.completedVehicle = mapped.vehicleDeliveredState;
   mapped.dealerTransitStartedAt = finalLifecycle.dealer_transit_started_at || row.dealer_transit_started_at || '';
   mapped.dealerTransitClosedAt = finalLifecycle.dealer_transit_closed_at || row.dealer_transit_closed_at || '';
   mapped.dealerTransitDurationSeconds = finalLifecycle.dealer_transit_duration_seconds ?? row.dealer_transit_duration_seconds ?? null;

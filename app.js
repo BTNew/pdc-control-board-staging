@@ -17759,12 +17759,17 @@ function vehicleLocationBoardRows(localRows = pdcSheetVehicles(), sharedRows = a
     if (!item) return identityAmbiguous ? { ...vehicle, __locationIdentityReadOnly: true } : vehicle;
     consumedShared.add(item);
     const shared = sharedNavisionLocationVehicle(item);
+    // Canonical operating state can be newer than the separate Navision reader.
+    // Its source status/ETA may refresh without undoing QC, rework or collection.
+    const authoritativeLocation = vehicle.__emailVehicleLocationAuthoritative === true
+      && vehicle.__emailVehicleServerAuthoritative === true ? cleanNavisionText(vehicle.pdcLocation) : '';
     return {
       ...shared,
       ...vehicle,
       toyotaStatus: shared.toyotaStatus,
       navisionLocationStatus: shared.navisionLocationStatus,
-      pdcLocation: shared.pdcLocation || vehicle.pdcLocation || '',
+      pdcLocation: authoritativeLocation || shared.pdcLocation || vehicle.pdcLocation || '',
+      __sharedNavisionCanonicalLocation: authoritativeLocation || shared.__sharedNavisionCanonicalLocation || '',
       etaAtDealer: shared.etaAtDealer,
       navisionKewdaleEta: shared.navisionKewdaleEta,
       importedAt: shared.importedAt || vehicle.importedAt || '',
