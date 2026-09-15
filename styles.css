@@ -3756,24 +3756,24 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   color: var(--muted);
   font-size: .62rem;
 }
-.pmb-branch-tint { border-left-color: #06b6d4; background: #ecfeff; }
+.pmb-branch-tint { border-left-color: #227889; background: #eaf7f9; }
 .pmb-branch-hoist { border-left-color: #805b43; background: #f5eee8; }
-.pmb-branch-fitting { border-left-color: #a855f7; background: #faf5ff; }
-.pmb-branch-fabrication { border-left-color: #f59e0b; background: #fffbeb; }
-.pmb-branch-electrical { border-left-color: #22c55e; background: #f0fdf4; }
-.pmb-branch-tyre { border-left-color: #0f766e; background: #f0fdfa; }
+.pmb-branch-fitting { border-left-color: #79528f; background: #f4eef8; }
+.pmb-branch-fabrication { border-left-color: #8c671d; background: #fbf5e5; }
+.pmb-branch-electrical { border-left-color: #557649; background: #eef4eb; }
+.pmb-branch-tyre { border-left-color: #a05270; background: #faedf2; }
 .pmb-branch-pit_inspection { border-left-color: #64748b; background: #f8fafc; }
-.pmb-branch-sublet { border-left-color: #db2777; background: #fdf2f8; }
+.pmb-branch-sublet { border-left-color: #5f6d7c; background: #eef1f5; }
 .pmb-stage-cell { margin-top: 4px; }
 .pmb-stage-badge {
   font-size: .66rem !important;
   padding: 2px 7px !important;
 }
-.pmb-stage-fabrication { background: #fffbeb !important; color: #92400e !important; border-color: rgba(245, 158, 11, .25) !important; }
-.pmb-stage-tint { background: #ecfeff !important; color: #155e75 !important; border-color: rgba(6, 182, 212, .25) !important; }
-.pmb-stage-build { background: #f5f3ff !important; color: #5b21b6 !important; border-color: rgba(139, 92, 246, .25) !important; }
-.pmb-stage-electrical { background: #f0fdf4 !important; color: #166534 !important; border-color: rgba(34, 197, 94, .25) !important; }
-.pmb-stage-sublet { background: #f8fafc !important; color: #334155 !important; border-color: rgba(100, 116, 139, .25) !important; }
+.pmb-stage-fabrication { background: #fbf5e5 !important; color: #8c671d !important; border-color: rgba(140, 103, 29, .25) !important; }
+.pmb-stage-tint { background: #eaf7f9 !important; color: #227889 !important; border-color: rgba(34, 120, 137, .25) !important; }
+.pmb-stage-build { background: #f4eef8 !important; color: #79528f !important; border-color: rgba(121, 82, 143, .25) !important; }
+.pmb-stage-electrical { background: #eef4eb !important; color: #557649 !important; border-color: rgba(85, 118, 73, .25) !important; }
+.pmb-stage-sublet { background: #eef1f5 !important; color: #5f6d7c !important; border-color: rgba(95, 109, 124, .25) !important; }
 .active-lite {
   background: #eef2ff !important;
   border-color: rgba(99, 102, 241, .25) !important;
@@ -3955,12 +3955,12 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   border: 1px solid rgba(15, 23, 42, .1);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .4);
 }
-.pmb-req-tint { background: #ecfeff; color: #155e75; border-color: rgba(6, 182, 212, .3); }
-.pmb-req-hoist { background: #f5eee8; color: #614330; border-color: rgba(128, 91, 67, .35); }
-.pmb-req-fitting { background: #eff6ff; color: #1d4ed8; border-color: rgba(37, 99, 235, .35); }
-.pmb-req-fabrication { background: #fffbeb; color: #92400e; border-color: rgba(245, 158, 11, .35); }
-.pmb-req-electrical { background: #f0fdf4; color: #166534; border-color: rgba(34, 197, 94, .35); }
-.pmb-req-tyre { background: #fef2f2; color: #991b1b; border-color: rgba(239, 68, 68, .4); }
+.pmb-req-tint { background: #eaf7f9; color: #227889; border-color: rgba(34, 120, 137, .3); }
+.pmb-req-hoist { background: #f5eee8; color: #805b43; border-color: rgba(128, 91, 67, .35); }
+.pmb-req-fitting { background: #f4eef8; color: #79528f; border-color: rgba(121, 82, 143, .35); }
+.pmb-req-fabrication { background: #fbf5e5; color: #8c671d; border-color: rgba(140, 103, 29, .35); }
+.pmb-req-electrical { background: #eef4eb; color: #557649; border-color: rgba(85, 118, 73, .35); }
+.pmb-req-tyre { background: #faedf2; color: #a05270; border-color: rgba(160, 82, 112, .4); }
 .pmb-req-pitInspection { background: #ecfdf5; color: #047857; border-color: rgba(16, 185, 129, .42); }
 .pmb-req-marker.is-complete {
   border-radius: 999px;
@@ -4055,12 +4055,12 @@ body.pmb-dragging .pmb-drop-lane {
 }
 .pmb-branch-unassigned { border-left-color: #94a3b8; background: #f8fafc; }
 .pmb-branch-unassigned .pmb-lane-title { background: #f8fafc; }
-.pmb-branch-tint .pmb-lane-title { background: #ecfeff; }
+.pmb-branch-tint .pmb-lane-title { background: #eaf7f9; }
 .pmb-branch-hoist .pmb-lane-title { background: #f5eee8; }
-.pmb-branch-fitting .pmb-lane-title { background: #faf5ff; }
-.pmb-branch-fabrication .pmb-lane-title { background: #fffbeb; }
-.pmb-branch-electrical .pmb-lane-title { background: #f0fdf4; }
-.pmb-branch-tyre .pmb-lane-title { background: #f0fdfa; }
+.pmb-branch-fitting .pmb-lane-title { background: #f4eef8; }
+.pmb-branch-fabrication .pmb-lane-title { background: #fbf5e5; }
+.pmb-branch-electrical .pmb-lane-title { background: #eef4eb; }
+.pmb-branch-tyre .pmb-lane-title { background: #faedf2; }
 .pmb-branch-pit_inspection .pmb-lane-title { background: #f8fafc; }
 @media (max-width: 1320px) {
   .pmb-drop-board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -4401,15 +4401,15 @@ body.pmb-dragging .pmb-drop-lane {
   align-content: start;
   gap: 12px;
 }
-.pmb-bay-board-fabrication { border-top: 5px solid #f59e0b; }
-.pmb-bay-board-tint { border-top: 5px solid #06b6d4; }
-.pmb-bay-board-express_hoist { border-top: 5px solid #0ea5e9; }
-.pmb-bay-board-express_fitout { border-top: 5px solid #a855f7; }
+.pmb-bay-board-fabrication { border-top: 5px solid #8c671d; }
+.pmb-bay-board-tint { border-top: 5px solid #227889; }
+.pmb-bay-board-express_hoist { border-top: 5px solid #805b43; }
+.pmb-bay-board-express_fitout { border-top: 5px solid #79528f; }
 .pmb-bay-board-hoist { border-top: 5px solid #805b43; }
-.pmb-bay-board-fitting { border-top: 5px solid #8b5cf6; }
-.pmb-bay-board-build { border-top: 5px solid #8b5cf6; }
-.pmb-bay-board-electrical { border-top: 5px solid #22c55e; }
-.pmb-bay-board-sublet { border-top: 5px solid #64748b; }
+.pmb-bay-board-fitting { border-top: 5px solid #79528f; }
+.pmb-bay-board-build { border-top: 5px solid #79528f; }
+.pmb-bay-board-electrical { border-top: 5px solid #557649; }
+.pmb-bay-board-sublet { border-top: 5px solid #5f6d7c; }
 .pmb-bay-board-header {
   display: flex;
   align-items: center;
@@ -6096,12 +6096,12 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   background: currentColor;
   color: white;
 }
-.pdc-toggle-tint { color: #0891b2 !important; background: #ecfeff !important; border-color: rgba(8, 145, 178, .28) !important; }
-.pdc-toggle-build { color: #7c3aed !important; background: #f5f3ff !important; border-color: rgba(124, 58, 237, .28) !important; }
-.pdc-toggle-electrical { color: #15803d !important; background: #f0fdf4 !important; border-color: rgba(21, 128, 61, .28) !important; }
+.pdc-toggle-tint { color: #227889 !important; background: #eaf7f9 !important; border-color: rgba(34, 120, 137, .28) !important; }
+.pdc-toggle-build { color: #79528f !important; background: #f4eef8 !important; border-color: rgba(121, 82, 143, .28) !important; }
+.pdc-toggle-electrical { color: #557649 !important; background: #eef4eb !important; border-color: rgba(85, 118, 73, .28) !important; }
 .pdc-toggle-parts { color: #3730a3 !important; background: #eef2ff !important; border-color: rgba(55, 48, 163, .28) !important; }
-.pdc-toggle-sublet { color: #475569 !important; background: #f8fafc !important; border-color: rgba(71, 85, 105, .28) !important; }
-.pdc-toggle-fabrication { color: #b45309 !important; background: #fffbeb !important; border-color: rgba(180, 83, 9, .28) !important; }
+.pdc-toggle-sublet { color: #5f6d7c !important; background: #eef1f5 !important; border-color: rgba(95, 109, 124, .28) !important; }
+.pdc-toggle-fabrication { color: #8c671d !important; background: #fbf5e5 !important; border-color: rgba(140, 103, 29, .28) !important; }
 .pmb-bay-detail-box {
   border-color: rgba(14, 165, 233, .35) !important;
   background: linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%) !important;
@@ -6304,22 +6304,22 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 }
 
 #vehicle-table [data-flag-key="pdcRequiresTint"],
-#vehicle-table [data-flag-key="pdcCompleteTint"] { accent-color: #06b6d4 !important; }
+#vehicle-table [data-flag-key="pdcCompleteTint"] { accent-color: #227889 !important; }
 
 #vehicle-table [data-flag-key="pdcRequiresHoist"],
 #vehicle-table [data-flag-key="pdcCompleteHoist"] { accent-color: #805b43 !important; }
 
 #vehicle-table [data-flag-key="pdcRequiresFitting"],
-#vehicle-table [data-flag-key="pdcCompleteFitting"] { accent-color: #0ea5e9 !important; }
+#vehicle-table [data-flag-key="pdcCompleteFitting"] { accent-color: #79528f !important; }
 
 #vehicle-table [data-flag-key="pdcRequiresFabrication"],
-#vehicle-table [data-flag-key="pdcCompleteFabrication"] { accent-color: #f59e0b !important; }
+#vehicle-table [data-flag-key="pdcCompleteFabrication"] { accent-color: #8c671d !important; }
 
 #vehicle-table [data-flag-key="pdcRequiresElectrical"],
-#vehicle-table [data-flag-key="pdcCompleteElectrical"] { accent-color: #22c55e !important; }
+#vehicle-table [data-flag-key="pdcCompleteElectrical"] { accent-color: #557649 !important; }
 
 #vehicle-table [data-flag-key="pdcRequiresTyre"],
-#vehicle-table [data-flag-key="pdcCompleteTyre"] { accent-color: #f97316 !important; }
+#vehicle-table [data-flag-key="pdcCompleteTyre"] { accent-color: #a05270 !important; }
 
 #vehicle-table [data-flag-key="pdcRequiresPitInspection"],
 #vehicle-table [data-flag-key="pdcCompletePitInspection"] { accent-color: #64748b !important; }
@@ -6356,12 +6356,12 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   font-size: .48rem !important;
 }
 
-.pdc-toggle-chip.pdc-toggle-tint { color: #0891b2 !important; }
-.pdc-toggle-chip.pdc-toggle-build { color: #7c3aed !important; }
+.pdc-toggle-chip.pdc-toggle-tint { color: #227889 !important; }
+.pdc-toggle-chip.pdc-toggle-build { color: #79528f !important; }
 .pdc-toggle-chip.pdc-toggle-parts { color: #dc2626 !important; }
-.pdc-toggle-chip.pdc-toggle-electrical { color: #16a34a !important; }
-.pdc-toggle-chip.pdc-toggle-sublet { color: #475569 !important; }
-.pdc-toggle-chip.pdc-toggle-fabrication { color: #d97706 !important; }
+.pdc-toggle-chip.pdc-toggle-electrical { color: #557649 !important; }
+.pdc-toggle-chip.pdc-toggle-sublet { color: #5f6d7c !important; }
+.pdc-toggle-chip.pdc-toggle-fabrication { color: #8c671d !important; }
 
 
 /* 2026-06-20: tighter dashboard columns - stop the table looking spread out */
@@ -6603,12 +6603,12 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   width: 100% !important;
 }
 
-#vehicle-table th.pdc-job-col[data-col-id="tint"] .sort-header { color: #0891b2 !important; }
-#vehicle-table th.pdc-job-col[data-col-id="build"] .sort-header { color: #7c3aed !important; }
+#vehicle-table th.pdc-job-col[data-col-id="tint"] .sort-header { color: #227889 !important; }
+#vehicle-table th.pdc-job-col[data-col-id="build"] .sort-header { color: #79528f !important; }
 #vehicle-table th.pdc-job-col[data-col-id="parts"] .sort-header { color: #dc2626 !important; }
-#vehicle-table th.pdc-job-col[data-col-id="electrical"] .sort-header { color: #16a34a !important; }
-#vehicle-table th.pdc-job-col[data-col-id="sublet"] .sort-header { color: #475569 !important; }
-#vehicle-table th.pdc-job-col[data-col-id="fabrication"] .sort-header { color: #d97706 !important; }
+#vehicle-table th.pdc-job-col[data-col-id="electrical"] .sort-header { color: #557649 !important; }
+#vehicle-table th.pdc-job-col[data-col-id="sublet"] .sort-header { color: #5f6d7c !important; }
+#vehicle-table th.pdc-job-col[data-col-id="fabrication"] .sort-header { color: #8c671d !important; }
 
 #vehicle-table td.pdc-job-cell .mini-check,
 #vehicle-table td.flag-cell .mini-check {
@@ -6628,20 +6628,20 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   margin: 0 !important;
 }
 
-#vehicle-table .mini-check.pdc-mini-tint input { accent-color: #06b6d4 !important; }
+#vehicle-table .mini-check.pdc-mini-tint input { accent-color: #227889 !important; }
 #vehicle-table .mini-check.pdc-mini-hoist input { accent-color: #805b43 !important; }
-#vehicle-table .mini-check.pdc-mini-fitting input { accent-color: #2563eb !important; }
-#vehicle-table .mini-check.pdc-mini-fabrication input { accent-color: #f59e0b !important; }
-#vehicle-table .mini-check.pdc-mini-electrical input { accent-color: #22c55e !important; }
-#vehicle-table .mini-check.pdc-mini-tyre input { accent-color: #ef4444 !important; }
+#vehicle-table .mini-check.pdc-mini-fitting input { accent-color: #79528f !important; }
+#vehicle-table .mini-check.pdc-mini-fabrication input { accent-color: #8c671d !important; }
+#vehicle-table .mini-check.pdc-mini-electrical input { accent-color: #557649 !important; }
+#vehicle-table .mini-check.pdc-mini-tyre input { accent-color: #a05270 !important; }
 #vehicle-table .mini-check.pdc-mini-pitInspection input { accent-color: #10b981 !important; }
 
-#vehicle-table .mini-check.pdc-mini-tint:has(input:checked) { background: #ecfeff !important; }
+#vehicle-table .mini-check.pdc-mini-tint:has(input:checked) { background: #eaf7f9 !important; }
 #vehicle-table .mini-check.pdc-mini-hoist:has(input:checked) { background: #f5eee8 !important; }
-#vehicle-table .mini-check.pdc-mini-fitting:has(input:checked) { background: #eff6ff !important; }
-#vehicle-table .mini-check.pdc-mini-fabrication:has(input:checked) { background: #fffbeb !important; }
-#vehicle-table .mini-check.pdc-mini-electrical:has(input:checked) { background: #f0fdf4 !important; }
-#vehicle-table .mini-check.pdc-mini-tyre:has(input:checked) { background: #fef2f2 !important; }
+#vehicle-table .mini-check.pdc-mini-fitting:has(input:checked) { background: #f4eef8 !important; }
+#vehicle-table .mini-check.pdc-mini-fabrication:has(input:checked) { background: #fbf5e5 !important; }
+#vehicle-table .mini-check.pdc-mini-electrical:has(input:checked) { background: #eef4eb !important; }
+#vehicle-table .mini-check.pdc-mini-tyre:has(input:checked) { background: #faedf2 !important; }
 #vehicle-table .mini-check.pdc-mini-pitInspection:has(input:checked) { background: #ecfdf5 !important; }
 
 /* Keep other main fields compact after reducing job columns */
@@ -7118,13 +7118,13 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .control-board-time-ticks span:last-child { transform:translateX(-100%); padding-right:4px; }
 .control-board-timeline-body { position:relative; }
 .control-board-timeline-department, .control-board-timeline-bay { --bay-color:#64748b; --bay-tint:#f5f7fa; display:flex; }
-.control-board-timeline-body .station-bus_4x4 { --bay-color:#2563eb; --bay-tint:#eff6ff; }
-.control-board-timeline-body .station-tint { --bay-color:#0891b2; --bay-tint:#ecfeff; }
+.control-board-timeline-body .station-bus_4x4 { --bay-color:#3e6690; --bay-tint:#edf2f8; }
+.control-board-timeline-body .station-tint { --bay-color:#227889; --bay-tint:#eaf7f9; }
 .control-board-timeline-body .station-hoist { --bay-color:#805b43; --bay-tint:#f5eee8; }
-.control-board-timeline-body .station-fitting { --bay-color:#a21caf; --bay-tint:#fdf4ff; }
-.control-board-timeline-body .station-fabrication { --bay-color:#d97706; --bay-tint:#fffbeb; }
-.control-board-timeline-body .station-electrical { --bay-color:#16a34a; --bay-tint:#f0fdf4; }
-.control-board-timeline-body .station-tyre { --bay-color:#0f766e; --bay-tint:#f0fdfa; }
+.control-board-timeline-body .station-fitting { --bay-color:#79528f; --bay-tint:#f4eef8; }
+.control-board-timeline-body .station-fabrication { --bay-color:#8c671d; --bay-tint:#fbf5e5; }
+.control-board-timeline-body .station-electrical { --bay-color:#557649; --bay-tint:#eef4eb; }
+.control-board-timeline-body .station-tyre { --bay-color:#a05270; --bay-tint:#faedf2; }
 .control-board-timeline-department { height:28px; background:var(--bay-tint); border-top:2px solid var(--bay-color); border-bottom:1px solid #d8e1ee; }
 .control-board-timeline-department strong { position:sticky; left:0; z-index:5; box-sizing:border-box; width:var(--bay-label-width); flex:0 0 var(--bay-label-width); padding:5px 10px; background:var(--bay-tint); color:var(--bay-color); font-size:12px; border-right:1px solid #b9c9dd; }
 .control-board-timeline-bay { min-height:var(--row-height); background:var(--bay-tint); border-bottom:1px solid #ced9e8; }
@@ -7708,12 +7708,12 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   box-shadow: 0 8px 20px rgba(251, 191, 36, .12);
 }
 .workflow-stage-bucket.pmb-branch-unassigned { border-left-color: #94a3b8; background: #f8fafc; }
-.workflow-stage-bucket.pmb-branch-tint { border-left-color: #06b6d4; background: #ecfeff; }
+.workflow-stage-bucket.pmb-branch-tint { border-left-color: #227889; background: #eaf7f9; }
 .workflow-stage-bucket.pmb-branch-hoist { border-left-color: #805b43; background: #f5eee8; }
-.workflow-stage-bucket.pmb-branch-fitting { border-left-color: #a855f7; background: #faf5ff; }
-.workflow-stage-bucket.pmb-branch-fabrication { border-left-color: #f59e0b; background: #fffbeb; }
-.workflow-stage-bucket.pmb-branch-electrical { border-left-color: #22c55e; background: #f0fdf4; }
-.workflow-stage-bucket.pmb-branch-tyre { border-left-color: #0f766e; background: #f0fdfa; }
+.workflow-stage-bucket.pmb-branch-fitting { border-left-color: #79528f; background: #f4eef8; }
+.workflow-stage-bucket.pmb-branch-fabrication { border-left-color: #8c671d; background: #fbf5e5; }
+.workflow-stage-bucket.pmb-branch-electrical { border-left-color: #557649; background: #eef4eb; }
+.workflow-stage-bucket.pmb-branch-tyre { border-left-color: #a05270; background: #faedf2; }
 .workflow-stage-bucket.pmb-branch-pit_inspection { border-left-color: #1d4ed8; background: #eff6ff; }
 .workflow-stage-bucket.pmb-branch-fix-first { border-left-color: #dc2626; background: #fef2f2; }
 .workflow-bucket-title {
@@ -7745,17 +7745,17 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
   gap: 0;
 }
 .workflow-stage-bucket.pmb-branch-tint .workflow-bucket-title,
-.workflow-stage-bucket.pmb-branch-tint .workflow-vertical-list { background: #ecfeff; }
+.workflow-stage-bucket.pmb-branch-tint .workflow-vertical-list { background: #eaf7f9; }
 .workflow-stage-bucket.pmb-branch-hoist .workflow-bucket-title,
 .workflow-stage-bucket.pmb-branch-hoist .workflow-vertical-list { background: #f5eee8; }
 .workflow-stage-bucket.pmb-branch-fitting .workflow-bucket-title,
-.workflow-stage-bucket.pmb-branch-fitting .workflow-vertical-list { background: #faf5ff; }
+.workflow-stage-bucket.pmb-branch-fitting .workflow-vertical-list { background: #f4eef8; }
 .workflow-stage-bucket.pmb-branch-fabrication .workflow-bucket-title,
-.workflow-stage-bucket.pmb-branch-fabrication .workflow-vertical-list { background: #fffbeb; }
+.workflow-stage-bucket.pmb-branch-fabrication .workflow-vertical-list { background: #fbf5e5; }
 .workflow-stage-bucket.pmb-branch-electrical .workflow-bucket-title,
-.workflow-stage-bucket.pmb-branch-electrical .workflow-vertical-list { background: #f0fdf4; }
+.workflow-stage-bucket.pmb-branch-electrical .workflow-vertical-list { background: #eef4eb; }
 .workflow-stage-bucket.pmb-branch-tyre .workflow-bucket-title,
-.workflow-stage-bucket.pmb-branch-tyre .workflow-vertical-list { background: #f0fdfa; }
+.workflow-stage-bucket.pmb-branch-tyre .workflow-vertical-list { background: #faedf2; }
 .workflow-stage-bucket.pmb-branch-pit_inspection .workflow-bucket-title,
 .workflow-stage-bucket.pmb-branch-pit_inspection .workflow-vertical-list { background: #eff6ff; }
 .workflow-stage-bucket.pmb-branch-fix-first .workflow-bucket-title,
