@@ -7075,6 +7075,8 @@ function controlBoardStationPipelineHtml(stage = '') {
 function renderWorkflowBoard() {
   const host = $('#workflow-board');
   if (!host) return;
+  host.controlBoardTimelineCleanup?.();
+  host.controlBoardTimelineCleanup = null;
   document.body.classList.remove('pmb-station-mode');
   app.activePmbBayStage = '';
   const oldScroll = host.querySelector?.('.control-board-bays-scroll');
@@ -7118,6 +7120,7 @@ function renderWorkflowBoard() {
     scroll.scrollLeft = app.controlBoardScroll.left;
     scroll.scrollTop = app.controlBoardScroll.top;
   }
+  host.controlBoardTimelineCleanup = overview.mountTimeline?.(host);
   const items = new Map([...model.waiting, ...model.columns.flatMap(column => column.items)].map(item => [`${item.kind}:${item.id}`, item]));
   const changeDates = (date, dayCount = app.controlBoardTimelineDays || 14, keepHorizontal = false) => {
     app.controlBoardTimelineStart = date;

@@ -240,9 +240,98 @@
     return `<div class="control-board-timeline-toolbar"><div><strong>${model.search ? model.columns.length : model.totalBays} bays · ${model.search ? model.columns.reduce((n, column) => n + column.items.filter(item => item.kind === 'booking').length, 0) + model.waiting.filter(item => item.kind === 'booking').length : model.totalBookings} bookings · ${model.search ? model.waiting.length : model.totalWaiting} unallocated</strong><span>${model.search ? `${model.matchingItems} matching jobs · Only matching bays shown · ` : ''}Scroll down for bays and right for later days. Perth time.</span></div><div class="control-board-timeline-dates"><button type="button" data-control-board-shift="-${timeline.dayCount}" aria-label="Previous ${timeline.dayCount} days">‹</button><label>From <input type="date" data-control-board-start value="${timeline.startDate}" aria-label="Timeline start date"></label><button type="button" data-control-board-today>Today</button><button type="button" data-control-board-shift="${timeline.dayCount}" aria-label="Next ${timeline.dayCount} days">›</button><button type="button" data-control-board-more${timeline.dayCount >= 56 ? ' disabled' : ''}>More days →</button></div></div>
       <nav class="control-board-department-links" aria-label="Jump to workshop department">${model.stages.map(stage => `<button type="button" data-control-board-jump="${escape(stage)}">${escape(stageLabel(stage))}</button>`).join('')}<span class="control-board-job-legend"><i class="is-planned"></i>Planned <i class="is-started"></i>Live <i class="is-stoppage"></i>Stoppage <i class="is-admin"></i>Admin block</span></nav>
       ${outside}${model.search && !model.matchingItems ? '<p class="control-board-no-results" role="status">No matching jobs. Clear the search to see all work.</p>' : ''}
-      <div class="control-board-bays-scroll control-board-timeline-scroll" tabindex="0" role="region" aria-label="Workshop timeline. Scroll down for all bays and horizontally for later days." style="--timeline-width:${timeline.width}px;--day-width:${timeline.dayWidth}px;--hour-width:${timeline.dayWidth / ((timeline.axisEnd - timeline.axisStart) / 60)}px">
-        <div class="control-board-timeline-grid"><div class="control-board-timeline-axis"><div class="control-board-timeline-axis-corner">Workshop / Bay</div><div class="control-board-timeline-days">${days}</div></div><div class="control-board-timeline-body">${rows}${timeline.nowLeft === null ? '' : `<div class="control-board-timeline-now" style="left:calc(var(--bay-label-width) + ${timeline.nowLeft}px)"><b>Now</b></div>`}</div></div>
+      <div class="control-board-timeline-shell" style="--timeline-width:${timeline.width}px;--day-width:${timeline.dayWidth}px;--hour-width:${timeline.dayWidth / ((timeline.axisEnd - timeline.axisStart) / 60)}px">
+        <div class="control-board-timeline-sticky-header">
+          <div class="control-board-timeline-header-viewport"><div class="control-board-timeline-axis"><div class="control-board-timeline-axis-corner">Workshop / Bay</div><div class="control-board-timeline-days">${days}</div></div></div>
+          <div class="control-board-pan-row"><span>Drag to pan ↔</span><div class="control-board-pan-rail" tabindex="0" role="scrollbar" aria-label="Pan workshop timeline to earlier or later dates" aria-orientation="horizontal" aria-controls="control-board-timeline-scroll" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" title="Drag left or right. Use arrow keys, Page Up / Down, Home or End."><span class="control-board-pan-thumb" aria-hidden="true"></span></div></div>
+        </div>
+        <div id="control-board-timeline-scroll" class="control-board-bays-scroll control-board-timeline-scroll" tabindex="0" role="region" aria-label="Workshop timeline. Scroll down for all bays and horizontally for later days.">
+          <div class="control-board-timeline-grid"><div class="control-board-timeline-body">${rows}${timeline.nowLeft === null ? '' : `<div class="control-board-timeline-now" style="left:calc(var(--bay-label-width) + ${timeline.nowLeft}px)"><b>Now</b></div>`}</div></div>
+        </div>
       </div>${waiting}`;
   }
-  return Object.freeze({ buildModel, buildTimeline, render, stageLabel, dateKey, shiftDate, searchDateRange });
+  function mountTimeline(host) {
+    const shell = host.querySelector('.control-board-timeline-shell');
+    const scroll = shell?.querySelector('.control-board-timeline-scroll');
+    const header = shell?.querySelector('.control-board-timeline-header-viewport');
+    const rail = shell?.querySelector('.control-board-pan-rail');
+    const thumb = shell?.querySelector('.control-board-pan-thumb');
+    if (!scroll || !header || !rail || !thumb) return () => {};
+    const view = host.ownerDocument.defaultView;
+    let drag = null;
+    const metrics = () => {
+      const max = Math.max(0, scroll.scrollWidth - scroll.clientWidth);
+      const width = rail.clientWidth;
+      const thumbWidth = Math.min(width, Math.max(32, width * scroll.clientWidth / Math.max(1, scroll.scrollWidth)));
+      return { max, width, thumbWidth, travel: Math.max(0, width - thumbWidth) };
+    };
+    const sync = () => {
+      const { max, thumbWidth, travel } = metrics();
+      const left = Math.max(0, Math.min(max, scroll.scrollLeft));
+      header.scrollLeft = left;
+      thumb.style.width = `${thumbWidth}px`;
+      thumb.style.transform = `translateX(${max ? left / max * travel : 0}px)`;
+      rail.setAttribute('aria-valuemax', String(Math.round(max)));
+      rail.setAttribute('aria-valuenow', String(Math.round(left)));
+      rail.setAttribute('aria-disabled', String(!max));
+    };
+    const panTo = value => {
+      scroll.scrollLeft = Math.max(0, Math.min(metrics().max, value));
+      sync();
+    };
+    const stopDrag = event => {
+      if (!drag || (event && event.pointerId !== drag.id)) return;
+      const id = drag.id;
+      drag = null;
+      rail.classList.remove('is-dragging');
+      if (rail.hasPointerCapture?.(id)) rail.releasePointerCapture(id);
+    };
+    const pointerDown = event => {
+      if (event.button !== 0 || drag) return;
+      const { max, travel, thumbWidth } = metrics();
+      if (!max || !travel) return;
+      event.preventDefault();
+      rail.focus({ preventScroll: true });
+      if (!thumb.contains(event.target)) {
+        panTo((event.clientX - rail.getBoundingClientRect().left - thumbWidth / 2) / travel * max);
+      }
+      drag = { id: event.pointerId, x: event.clientX, left: scroll.scrollLeft, scale: max / travel };
+      rail.classList.add('is-dragging');
+      rail.setPointerCapture(event.pointerId);
+    };
+    const pointerMove = event => {
+      if (!drag || event.pointerId !== drag.id) return;
+      event.preventDefault();
+      panTo(drag.left + (event.clientX - drag.x) * drag.scale);
+    };
+    const keyDown = event => {
+      const page = Math.max(64, scroll.clientWidth - 168);
+      const destinations = { ArrowLeft: scroll.scrollLeft - 64, ArrowRight: scroll.scrollLeft + 64, PageUp: scroll.scrollLeft - page, PageDown: scroll.scrollLeft + page, Home: 0, End: metrics().max };
+      if (!Object.hasOwn(destinations, event.key)) return;
+      event.preventDefault();
+      panTo(destinations[event.key]);
+    };
+    const wheel = event => {
+      if (!event.shiftKey && Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
+      const delta = event.shiftKey && !event.deltaX ? event.deltaY : event.deltaX;
+      if (!delta || !metrics().max) return;
+      event.preventDefault();
+      const factor = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scroll.clientWidth : 1;
+      panTo(scroll.scrollLeft + delta * factor);
+    };
+    const listeners = [[scroll, 'scroll', sync], [rail, 'pointerdown', pointerDown], [rail, 'pointermove', pointerMove], [rail, 'pointerup', stopDrag], [rail, 'pointercancel', stopDrag], [rail, 'lostpointercapture', stopDrag], [rail, 'keydown', keyDown], [header, 'wheel', wheel], [rail, 'wheel', wheel]];
+    listeners.forEach(([node, type, fn]) => node.addEventListener(type, fn, { passive: type === 'scroll' }));
+    const resize = view.ResizeObserver ? new view.ResizeObserver(sync) : null;
+    resize?.observe(scroll);
+    resize?.observe(rail);
+    if (!resize) view.addEventListener('resize', sync);
+    sync();
+    return () => {
+      stopDrag();
+      listeners.forEach(([node, type, fn]) => node.removeEventListener(type, fn));
+      resize?.disconnect();
+      if (!resize) view.removeEventListener('resize', sync);
+    };
+  }
+  return Object.freeze({ buildModel, buildTimeline, render, mountTimeline, stageLabel, dateKey, shiftDate, searchDateRange });
 });

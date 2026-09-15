@@ -7083,9 +7083,11 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .dashboard-workflow-panel { margin-bottom: 16px; }
 .workflow-board { padding: 16px 18px 18px; display: grid; gap: 16px; }
 
-/* The workshop overview is one continuous row of physical bay columns. */
+/* Keep the all-bay timeline on the page so its date axis can stick to the viewport. */
+html:has(body[data-current-view="workflow"]), body[data-current-view="workflow"] { overflow-x:clip !important; overflow-y:visible !important; }
+body[data-current-view="workflow"] .main, body[data-current-view="workflow"] .workflow-board-panel { overflow:visible !important; }
 #workflow, #workflow .workflow-board-panel, #workflow-board { min-width: 0; max-width: 100%; }
-#workflow-board { display: block; overflow: hidden; }
+#workflow-board { display: block; overflow: visible; }
 .control-board-timeline-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; }
 .control-board-timeline-toolbar > div:first-child { display:grid; gap:3px; }
 .control-board-timeline-toolbar strong { font-size:13px; }
@@ -7103,10 +7105,22 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .control-board-job-legend .is-started { background:#60a5fa; }
 .control-board-job-legend .is-stoppage { background:#dc2626; }
 .control-board-job-legend .is-admin { background:#facc15; }
-.control-board-timeline-scroll { --bay-label-width:168px; width:100%; max-width:100%; height:auto; max-height:none; overflow-x:auto; overflow-y:hidden; position:relative; border:1px solid #cbd6e4; border-radius:6px; background:#fff; scroll-padding:12px 12px 10px calc(var(--bay-label-width) + 12px); }
+.control-board-timeline-shell { --bay-label-width:168px; min-width:0; max-width:100%; }
+.control-board-timeline-sticky-header { position:sticky; top:0; z-index:40; background:#edf3fc; border:1px solid #94a9c4; border-radius:6px 6px 0 0; box-shadow:0 2px 4px #18334f1a; }
+.control-board-timeline-header-viewport { overflow:hidden; border-radius:6px 6px 0 0; }
+.control-board-pan-row { display:flex; align-items:center; gap:0; height:28px; background:#e5eefb; }
+.control-board-pan-row > span { flex:0 0 var(--bay-label-width); padding:0 10px; font-size:10px; color:#334e70; font-weight:700; }
+.control-board-pan-rail { position:relative; flex:1; height:22px; margin-right:3px; min-width:0; border:1px solid #b6c8df; border-radius:5px; background:#d8e4f3; cursor:grab; touch-action:none; user-select:none; }
+.control-board-pan-rail:focus-visible { outline:3px solid #2563eb; outline-offset:1px; }
+.control-board-pan-rail.is-dragging { cursor:grabbing; }
+.control-board-pan-rail[aria-disabled="true"] { opacity:.5; cursor:default; }
+.control-board-pan-thumb { position:absolute; top:2px; bottom:2px; left:0; min-width:0; border:1px solid #476c96; border-radius:4px; background:#6b8fb7; }
+.control-board-pan-thumb::after { content:""; position:absolute; top:3px; bottom:3px; left:calc(50% - 3px); width:6px; border-left:1px solid #e5eefb; border-right:1px solid #e5eefb; }
+.control-board-pan-rail:hover .control-board-pan-thumb, .control-board-pan-rail.is-dragging .control-board-pan-thumb { background:#476c96; }
+.control-board-timeline-scroll { width:100%; max-width:100%; height:auto; max-height:none; overflow-x:auto; overflow-y:hidden; position:relative; border:1px solid #cbd6e4; border-top:0; border-radius:0 0 6px 6px; background:#fff; scroll-padding:90px 12px 10px calc(var(--bay-label-width) + 12px); }
 .control-board-timeline-scroll:focus-visible { outline:3px solid #2563eb; outline-offset:2px; }
 .control-board-timeline-grid { width:calc(var(--bay-label-width) + var(--timeline-width)); min-width:100%; }
-.control-board-timeline-axis { display:flex; position:sticky; top:0; z-index:8; height:54px; background:#edf3fc; border-bottom:1px solid #94a9c4; }
+.control-board-timeline-axis { display:flex; width:calc(var(--bay-label-width) + var(--timeline-width)); min-width:100%; height:54px; background:#edf3fc; border-bottom:1px solid #94a9c4; }
 .control-board-timeline-axis-corner { position:sticky; left:0; z-index:9; flex:0 0 var(--bay-label-width); box-sizing:border-box; display:flex; align-items:center; padding:10px; background:#e5eefb; border-right:1px solid #94a9c4; font-size:11px; font-weight:800; }
 .control-board-timeline-days { display:flex; width:var(--timeline-width); }
 .control-board-timeline-day { flex-shrink:0; box-sizing:border-box; border-right:2px solid #94a9c4; position:relative; }
@@ -7125,7 +7139,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .control-board-timeline-body .station-fabrication { --bay-color:#8c671d; --bay-tint:#fbf5e5; }
 .control-board-timeline-body .station-electrical { --bay-color:#557649; --bay-tint:#eef4eb; }
 .control-board-timeline-body .station-tyre { --bay-color:#a05270; --bay-tint:#faedf2; }
-.control-board-timeline-department { height:28px; background:var(--bay-tint); border-top:2px solid var(--bay-color); border-bottom:1px solid #d8e1ee; }
+.control-board-timeline-department { scroll-margin-top:90px; height:28px; background:var(--bay-tint); border-top:2px solid var(--bay-color); border-bottom:1px solid #d8e1ee; }
 .control-board-timeline-department strong { position:sticky; left:0; z-index:5; box-sizing:border-box; width:var(--bay-label-width); flex:0 0 var(--bay-label-width); padding:5px 10px; background:var(--bay-tint); color:var(--bay-color); font-size:12px; border-right:1px solid #b9c9dd; }
 .control-board-timeline-bay { min-height:var(--row-height); background:var(--bay-tint); border-bottom:1px solid #ced9e8; }
 .control-board-timeline-bay-label { position:sticky; left:0; z-index:5; box-sizing:border-box; flex:0 0 var(--bay-label-width); width:var(--bay-label-width); background:var(--bay-tint); border-left:3px solid var(--bay-color); border-right:1px solid #94a9c4; padding:7px 8px; }
@@ -7151,7 +7165,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .control-board-timeline-waiting > div { display:flex; gap:7px; overflow:auto; padding:7px 0; }
 #workflow .control-board-timeline-waiting .control-board-bay-card { flex:0 0 220px; width:220px; padding:7px; gap:2px; font-size:11px; }
 .control-board-no-results { font-size:12px; color:#60748d; }
-@media (max-width:700px) { #workflow-board { padding:8px; } .control-board-timeline-toolbar { flex-wrap:wrap; } .control-board-job-legend { width:100%; margin-left:0; } .control-board-timeline-scroll { --bay-label-width:135px; } }
+@media (max-width:700px) { #workflow-board { padding:8px; } .control-board-timeline-toolbar { flex-wrap:wrap; } .control-board-job-legend { width:100%; margin-left:0; } .control-board-timeline-shell { --bay-label-width:135px; } }
 
 #workflow .control-board-bay-card { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; min-width: 0; gap: 4px; padding: 10px; text-align: left; border: 1px solid #fda4af; border-left: 4px solid #f43f5e; border-radius: 7px; background: #fff1f2; color: #18334f; box-shadow: 0 1px 3px #18334f0c; font-size: 12px; line-height: 1.35; cursor: pointer; }
 #workflow .control-board-bay-card > * { min-width: 0; overflow-wrap: anywhere; }
@@ -10599,7 +10613,6 @@ textarea {
 
 /* One horizontal scrollbar per list, never one scrollbar per vehicle. */
 .incoming-board,
-#workflow-board,
 #kanban,
 #schedule-content,
 #department-content,

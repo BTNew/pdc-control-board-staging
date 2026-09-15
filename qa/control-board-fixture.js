@@ -7,6 +7,7 @@
   let model;
   let startDate, dayCount = 14, resetHorizontal = false;
   function render() {
+    host.controlBoardTimelineCleanup?.();
     const previousScroll = resetHorizontal ? 0 : host.querySelector('.control-board-bays-scroll')?.scrollLeft || 0;
     const previousTop = host.querySelector('.control-board-bays-scroll')?.scrollTop || 0; resetHorizontal = false;
     const snapshot = scenario.value === 'populated' ? ControlBoardFixtures.populatedSnapshot() : scenario.value === 'empty' ? ControlBoardFixtures.emptySnapshot() : {};
@@ -15,6 +16,7 @@
     host.innerHTML = model ? ControlBoardOverview.render(model, { startDate, dayCount, now: new Date("2026-09-15T04:30:00Z") }) : '<div class="fixture-error" role="status">Workshop overview unavailable. No stale jobs are shown.</div>';
     const scroller = host.querySelector('.control-board-bays-scroll');
     if (scroller) { scroller.scrollLeft = previousScroll; scroller.scrollTop = previousTop; }
+    host.controlBoardTimelineCleanup = ControlBoardOverview.mountTimeline(host);
     status.textContent = model ? `${model.totalBays} physical bays; ${model.totalBookings} bookings; ${model.totalWaiting} waiting. Rendered in ${(performance.now() - started).toFixed(1)}ms.` : 'Unavailable scenario';
   }
   host.addEventListener('click', event => {
@@ -28,7 +30,7 @@
     } else if (jump) {
       const department = host.querySelector(`[data-control-board-stage="${jump.dataset.controlBoardJump}"]`);
       const scroll = host.querySelector('.control-board-bays-scroll');
-      if (department && scroll) scroll.scrollTo({top:department.offsetTop,left:scroll.scrollLeft});
+      if (department && scroll) department.scrollIntoView({block:'start',inline:'nearest'});
     } else if (event.target.closest('[data-control-board-shift]')) {
       startDate = ControlBoardOverview.shiftDate(host.querySelector('[data-control-board-start]').value, Number(event.target.closest('[data-control-board-shift]').dataset.controlBoardShift)); resetHorizontal = true; render();
     } else if (event.target.closest('[data-control-board-more]')) { dayCount = Math.min(56,dayCount+14); render();
