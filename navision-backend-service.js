@@ -10,7 +10,7 @@
 const NAVISION_STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd';
 const NAVISION_REVISION_TABLE = 'navision_backend_revision';
 const NAVISION_SOURCE_SYSTEM = 'microsoft_navision';
-const NAVISION_DEALER_CODES = Object.freeze(['14450', '37047']);
+const NAVISION_DEALER_CODES = Object.freeze(['14450', '37047', '002345', '001234']);
 
 function navisionProjectRefFromUrl(url = '') {
   const match = String(url).trim().match(/^https:\/\/([a-z0-9]+)\.supabase\.co(?:\/|$)/i);
@@ -239,3 +239,4 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
   window.PDC_NAVISION_BACKEND_SERVICE = { NAVISION_STAGING_PROJECT_REF, NAVISION_REVISION_TABLE, NAVISION_SOURCE_SYSTEM, NAVISION_DEALER_CODES, navisionPreviewBlockingState, createNavisionRpcClient, createNavisionBackendService };
 }
+
