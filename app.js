@@ -7704,13 +7704,13 @@ function authenticatedOperationLineLabel(value = '') {
 }
 
 const AUTHENTICATED_OPERATION_STATION_ORDER = Object.freeze([
-  { key: 'bus4x4', stage: 'BUS_4X4', label: 'Bus 4x4', colour: '#2563eb', tint: '#eff6ff' },
-  { key: 'tint', stage: 'TINT', label: 'Tint', colour: '#0891b2', tint: '#ecfeff' },
+  { key: 'bus4x4', stage: 'BUS_4X4', label: 'Bus 4x4', colour: '#3e6690', tint: '#edf2f8' },
+  { key: 'tint', stage: 'TINT', label: 'Tint', colour: '#227889', tint: '#eaf7f9' },
   { key: 'hoist', stage: 'HOIST', label: 'Hoist / GVM', colour: '#805b43', tint: '#f5eee8' },
-  { key: 'fitting', stage: 'FITTING', label: 'Fitting', colour: '#a21caf', tint: '#fdf4ff' },
-  { key: 'fabrication', stage: 'FABRICATION', label: 'Fabrication', colour: '#d97706', tint: '#fffbeb' },
-  { key: 'electrical', stage: 'ELECTRICAL', label: 'Electrical', colour: '#16a34a', tint: '#f0fdf4' },
-  { key: 'tyre', stage: 'TYRE', label: 'Tyres', colour: '#0f766e', tint: '#f0fdfa' },
+  { key: 'fitting', stage: 'FITTING', label: 'Fitting', colour: '#79528f', tint: '#f4eef8' },
+  { key: 'fabrication', stage: 'FABRICATION', label: 'Fabrication', colour: '#8c671d', tint: '#fbf5e5' },
+  { key: 'electrical', stage: 'ELECTRICAL', label: 'Electrical', colour: '#557649', tint: '#eef4eb' },
+  { key: 'tyre', stage: 'TYRE', label: 'Tyres', colour: '#a05270', tint: '#faedf2' },
   { key: 'pitinspection', stage: 'PIT_INSPECTION', label: 'Pit inspection', colour: '#475569', tint: '#f8fafc' },
   { key: 'parts', stage: 'PARTS', label: 'Parts', colour: '#dc2626', tint: '#fef2f2' },
   { key: 'review', stage: 'REVIEW', label: 'Review', colour: '#b45309', tint: '#fffbeb' },
@@ -12886,15 +12886,15 @@ async function loadVehicleHistoryForDetail(vehicle = {}) {
 }
 
 const VEHICLE_WORKSHOP_STATION_PRESENTATION = Object.freeze({
-  BUS_4X4: { label: 'Bus 4x4', colour: '#2563eb', tint: '#eff6ff' },
-  TINT: { label: 'Tint', colour: '#0891b2', tint: '#ecfeff' },
+  BUS_4X4: { label: 'Bus 4x4', colour: '#3e6690', tint: '#edf2f8' },
+  TINT: { label: 'Tint', colour: '#227889', tint: '#eaf7f9' },
   HOIST: { label: 'Hoist', colour: '#805b43', tint: '#f5eee8' },
-  FITTING: { label: 'Fitting', colour: '#a21caf', tint: '#fdf4ff' },
-  FABRICATION: { label: 'Fabrication', colour: '#d97706', tint: '#fffbeb' },
-  ELECTRICAL: { label: 'Electrical', colour: '#16a34a', tint: '#f0fdf4' },
-  TYRE: { label: 'Tyre', colour: '#0f766e', tint: '#f0fdfa' },
+  FITTING: { label: 'Fitting', colour: '#79528f', tint: '#f4eef8' },
+  FABRICATION: { label: 'Fabrication', colour: '#8c671d', tint: '#fbf5e5' },
+  ELECTRICAL: { label: 'Electrical', colour: '#557649', tint: '#eef4eb' },
+  TYRE: { label: 'Tyre', colour: '#a05270', tint: '#faedf2' },
   PIT_INSPECTION: { label: 'Pit inspection', colour: '#475569', tint: '#f8fafc' },
-  SUBLET: { label: 'Sublet', colour: '#64748b', tint: '#f8fafc' },
+  SUBLET: { label: 'Sublet', colour: '#5f6d7c', tint: '#eef1f5' },
   PARTS: { label: 'Parts', colour: '#dc2626', tint: '#fef2f2' },
   REVIEW: { label: 'Review', colour: '#b45309', tint: '#fffbeb' },
   OWNER_SUPPLIED_DOCUMENT: { label: 'Unallocated – mapping review', colour: '#64748b', tint: '#f8fafc' },
