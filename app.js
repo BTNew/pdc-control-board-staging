@@ -16071,6 +16071,7 @@ function partsMatchesOperationalFilter(vehicle = {}, filter = 'notordered') {
 }
 
 function partsQueueVisibleVehicle(vehicle = {}) {
+  if (vehicle.tuneCheckout?.confirmed === true) return false;
   // An active STOPPAGE remains actionable even when the prior Parts delivery
   // was marked complete; the canonical completion mutation clears this state.
   return !partsStateComplete(vehicle) || partsDepartmentStatus(vehicle) === 'stoppage';
@@ -16783,7 +16784,7 @@ function rftVehicleDetailRow(vehicle = {}) {
       </summary>
       <div class="incoming-vehicle-detail-grid">
         <div><b>RFT status</b><span>${escapeHtml(rftHomeStatusLabel(status))}</span></div>
-        ${vehicle.tuneCheckout?.confirmed === true ? `<div class="wide"><b>Checkout source</b><span>Tune Sub Status 99 · ${escapeHtml((vehicle.tuneCheckout.jobCards || []).map(job => job.ro).join(', '))}. Workshop and QC sign-offs retain their recorded state.</span></div>` : ''}
+        ${vehicle.tuneCheckout?.confirmed === true ? `<div class="wide"><b>Checkout source</b><span>Tune Sub Status 99 · ${escapeHtml((vehicle.tuneCheckout.jobCards || []).map(job => job.ro).join(', '))}. Work completed by Tune checkout; removed from active workshop, parts and Sublet queues. QC sign-off remains separately recorded.</span></div>` : ''}
         <div><b>Stock</b><span>${escapeHtml(stock)}</span></div>
         <div><b>Key</b><span>${escapeHtml(keyNo)}</span></div>
         <div><b>Customer</b><span>${escapeHtml(customer)}</span></div>
@@ -24894,6 +24895,7 @@ function subletRows() {
   // Canonical booking arrays are flattened so one vehicle can have independent
   // Lovells, Dobinson's, or other provider trips without overwriting history.
   return vehicleLocationBoardRows().flatMap(vehicle => {
+    if (vehicle.tuneCheckout?.confirmed === true) return [];
     const needsSublet = Boolean(definition && pdcJobRequired(vehicle, definition) && !pdcJobComplete(vehicle, definition));
     const bookings = Array.isArray(vehicle.pdcSubletBookings) ? vehicle.pdcSubletBookings : [];
     const bookingRows = bookings.map(booking => ({
