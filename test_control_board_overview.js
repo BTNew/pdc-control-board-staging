@@ -162,14 +162,51 @@ test('stock, key, job card, customer and full vehicle description all remain sea
   }
 });
 
-test('search retains all bay rows, accurate totals, and an explicit no-results state', () => {
+test('no-match search hides all bay rows with accurate totals and an explicit no-results state', () => {
   const snapshot = fixture.populatedSnapshot();
   const full = buildModel(snapshot);
   const model = buildModel(snapshot, { search: 'NO-SUCH-DEMONSTRATION' });
   assert.equal(model.totalBays, 43);
   assert.equal(model.totalBookings, full.totalBookings);
   assert.equal(model.matchingItems, 0);
+  assert.equal(model.columns.length, 0);
+  assert.equal(model.stages.length, 0);
+  assert.doesNotMatch(render(model), /data-control-board-bay=/);
   assert.match(render(model), /No matching jobs/);
+});
+
+test('vehicle search keeps only its booked bays and restores all bays when cleared', () => {
+  const snapshot = fixture.populatedSnapshot();
+  const original = structuredClone(snapshot);
+  const model = buildModel(snapshot, {search:'DEMO-0001'});
+  assert.equal(model.columns.length,2);
+  assert.deepEqual(model.stages,['BUS_4X4','TYRE']);
+  assert.equal(allItems(model).length,2);
+  assert.ok(allItems(model).every(item => item.vehicle.stock_number === 'DEMO-0001'));
+  assert.equal((render(model).match(/data-control-board-bay=/g)||[]).length,2);
+  assert.match(render(model), /2 bays · 2 bookings · 0 unallocated/);
+  assert.deepEqual(overview.searchDateRange(model),{startDate:'2026-09-15',dayCount:3});
+  const timeline = overview.buildTimeline(model, overview.searchDateRange(model));
+  assert.equal(timeline.outside.length,0);
+  assert.equal(new Set(timeline.rows.flatMap(row=>row.segments.map(segment=>segment.item.id))).size,2);
+  assert.equal(buildModel(snapshot,{search:''}).columns.length,43);
+  assert.deepEqual(snapshot,original,'search never changes source bookings');
+});
+
+test('unallocated-only matches remain visible without empty bay rows', () => {
+  const model = buildModel(fixture.populatedSnapshot(),{search:'DEMO-1000'});
+  assert.equal(model.columns.length,0);
+  assert.equal(model.waiting.length,1);
+  assert.match(render(model), /Unallocated · 1/);
+  assert.doesNotMatch(render(model), /No matching jobs/);
+  assert.equal(overview.searchDateRange(model),null);
+});
+
+test('search date span is bounded and keeps long-range bookings accessible', () => {
+  const snapshot=fixture.emptySnapshot();
+  snapshot.board.bookings.push(fixture.booking(1,snapshot.board.bays[0],undefined,{scheduled_end_at:'2027-09-15T04:00:00Z'}));
+  const model=buildModel(snapshot,{search:'DEMO-0001'});
+  assert.equal(overview.searchDateRange(model).dayCount,56);
 });
 
 test('admin blocks occupy only their canonical bay and do not inflate vehicle booking totals', () => {
@@ -367,6 +404,23 @@ test('actual Find command renders normalized search then reveals and focuses the
   assert.match(runtime.host.innerHTML, /matching jobs/);
 });
 
+test('search fits booking dates once and clearing restores the previous full-board range', () => {
+  const runtime=integrationRuntime({controlBoardTimelineStart:'2026-10-01',controlBoardTimelineDays:28});
+  runtime.search.value='DEMO-0001';
+  runtime.context.renderWorkflowBoard();
+  assert.equal(runtime.context.app.controlBoardTimelineStart,'2026-09-15');
+  assert.equal(runtime.context.app.controlBoardTimelineDays,3);
+  assert.equal(runtime.scroller.scrollLeft,0);
+  runtime.click({controlBoardShift:'3'});
+  assert.equal(runtime.context.app.controlBoardTimelineStart,'2026-09-18','manual date navigation is retained during a search');
+  runtime.search.value=''; runtime.context.app.workflowSearch='';
+  runtime.context.renderWorkflowBoard();
+  assert.equal(runtime.context.app.controlBoardTimelineStart,'2026-10-01');
+  assert.equal(runtime.context.app.controlBoardTimelineDays,28);
+  assert.equal(runtime.scroller.scrollLeft,2700);
+  assert.equal((runtime.host.innerHTML.match(/data-control-board-bay=/g)||[]).length,43);
+});
+
 test('timeline previous and next controls move by the visible date span and reset only horizontal scroll', () => {
   const runtime = integrationRuntime();
   runtime.context.renderWorkflowBoard();
@@ -428,7 +482,7 @@ test('Find automatically reveals and focuses a matching booking beyond the visib
   const runtime = integrationRuntime({ workshopEligibilitySnapshot: snapshot });
   runtime.search.value = source.vehicle.stock_number;
   runtime.context.renderWorkflowBoard();
-  assert.equal(runtime.host.querySelector('[data-control-board-match]'), null);
+  assert.ok(runtime.host.querySelector('[data-control-board-match]'), 'typing a vehicle search already fits its booking dates');
   runtime.context.findControlBoardOverviewMatch();
   assert.equal(runtime.context.app.controlBoardTimelineStart, '2026-10-19');
   assert.ok(runtime.host.querySelector('[data-control-board-match]'));
