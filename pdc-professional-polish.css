@@ -239,8 +239,8 @@ input:focus, select:focus, textarea:focus {
 .sublet-table .sublet-row-actions .small-button:not(.primary) { border:1px solid #d9e0e8; background:#f8fafc; }
 .sublet-table .sublet-row-actions .small-button.primary { color:#fff; }
 
-/* Share the action-column width between each booking list's header and rows. */
-#incoming-main-board .incoming-bucket-list:has(.incoming-book-all-stations) {
+/* Align every vehicle-location section, including rows without booking buttons. */
+#incoming-main-board .incoming-bucket:not(.incoming-rft) > .incoming-bucket-list {
   --pdc-grid-actions-width:260px;
   --pdc-grid-template:16px 24px minmax(var(--pdc-grid-identity-min),1fr) var(--pdc-grid-vehicle-width) var(--pdc-grid-stations-width) var(--pdc-grid-meta-width) var(--pdc-grid-status-width) var(--pdc-grid-actions-width);
   --pdc-grid-min:calc(56px + var(--pdc-grid-identity-min) + var(--pdc-grid-vehicle-width) + var(--pdc-grid-stations-width) + var(--pdc-grid-meta-width) + var(--pdc-grid-status-width) + var(--pdc-grid-actions-width) + 7 * var(--pdc-grid-gap));
@@ -293,10 +293,8 @@ input:focus, select:focus, textarea:focus {
 .sidebar > .brand .brand-logo-fallback[hidden] { display:none!important; }
 .app-shell.sidebar-collapsed .sidebar > .brand > .brand-logo-wrap { padding:4px; }
 
-/* PMB rows stay compact without the separate status column. */
-#incoming-main-board .incoming-bucket.incoming-pmb > .incoming-bucket-list {
-  --pdc-grid-template:16px 24px minmax(var(--pdc-grid-identity-min),1fr) var(--pdc-grid-vehicle-width) var(--pdc-grid-stations-width) var(--pdc-grid-meta-width) var(--pdc-grid-actions-width);
-  --pdc-grid-min:calc(56px + var(--pdc-grid-identity-min) + var(--pdc-grid-vehicle-width) + var(--pdc-grid-stations-width) + var(--pdc-grid-meta-width) + var(--pdc-grid-actions-width) + 6 * var(--pdc-grid-gap));
-}
+/* Reserve the shared status track while keeping PMB status text hidden. */
 #incoming-main-board .incoming-pmb .pdc-grid-status-heading,
 #incoming-main-board .incoming-pmb .incoming-card-status { display:none!important; }
+#incoming-main-board .incoming-pmb .pdc-grid-action-heading,
+#incoming-main-board .incoming-pmb .incoming-card-action { grid-column:8!important; }
