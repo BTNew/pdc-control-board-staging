@@ -13,8 +13,8 @@ const otherId = '22222222-2222-4222-8222-222222222222';
 const bookingId = '33333333-3333-4333-8333-333333333333';
 const intent = { bookingId, vehicleId, stage: 'HOIST', date: '2026-09-22', search: true, focused: false };
 const exact = { id: bookingId, sharedVehicleId: vehicleId, vehicleKey: 'canonical-12238276', stage: 'HOIST', status: 'planned', vehicle: { stock: '12238276' } };
-function render({trusted = true, scope = {stageCode:'HOIST',dateFrom:'2026-09-22',dateTo:'2026-09-22'}, plans = [exact]} = {}) {
-  const state = {selectedPlanId:'', detailManualOpen:true, searchOpen:true};
+function render({trusted = true, scope = {stageCode:'HOIST',dateFrom:'2026-09-22',dateTo:'2026-09-22'}, plans = [exact], previousState = {}} = {}) {
+  const state = {selectedPlanId:'', detailManualOpen:true, searchOpen:true, ...previousState};
   const app = {pendingWorkshopBookingLink:{...intent}};
   const context = {state, app, pendingBookingLink:app.pendingWorkshopBookingLink, plans, stage:'HOIST',
     window:{__workshopDataService:{getScope:()=>scope,getTrustedSnapshot:()=>trusted?{bookings:plans}:null}},
@@ -137,3 +137,20 @@ async function focusedDestinationRegression() {
   console.log('Focused destination snapshot: PASS (delayed scope, retained refresh rows, callback authority, exact booking and settled missing booking).');
 }
 focusedDestinationRegression().catch(error => { console.error(error); process.exitCode = 1; });
+
+// Control Board jumps leave a previous focused view and retain surrounding jobs.
+const neighbours = [exact, {...exact,id:'neighbour-before',sharedVehicleId:otherId}, {...exact,id:'neighbour-after',sharedVehicleId:otherId}];
+const boardResult = render({plans:neighbours,previousState:{focusedBookingMode:true,focusedBookingId:'old-focused-job',focusedBookingError:'old error'}});
+assert.equal(boardResult.state.focusedBookingMode,false);
+assert.equal(boardResult.state.focusedBookingId,'');
+assert.equal(boardResult.state.focusedBookingError,'');
+assert.equal(boardResult.state.selectedPlanId,bookingId);
+const visibleStart = source.indexOf('  const selected = plans.find(entry => entry.id === state.selectedPlanId) || null;', end);
+const visibleEnd = source.indexOf('  const stageVehicleList =', visibleStart);
+assert(visibleStart > end && visibleEnd > visibleStart);
+vm.runInNewContext(source.slice(visibleStart,visibleEnd)+'\nthis.visibleIds = activePlans.map(entry=>entry.id);',boardResult);
+assert.deepEqual(Array.from(boardResult.visibleIds),neighbours.map(entry=>entry.id),'selected booking and both neighbours remain visible');
+const waitingBoardResult = render({trusted:false,previousState:{focusedBookingMode:true,focusedBookingId:'old-focused-job'}});
+assert.equal(waitingBoardResult.state.focusedBookingMode,false);
+assert(waitingBoardResult.app.pendingWorkshopBookingLink,'pending link survives delayed destination');
+

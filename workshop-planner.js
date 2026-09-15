@@ -4605,6 +4605,12 @@ function renderWorkshopPlanner(options = {}) {
   let plans = workshopCascadePlans(authoritativePlans, new Date()).rows;
   if (dedicatedStage) plans = plans.filter(entry => entry.stage === dedicatedStage);
   const navigationScope = window.__workshopDataService?.getScope?.();
+  if (pendingBookingLink?.search === true) {
+    // A Control Board or search jump must not retain a previous single-job view.
+    state.focusedBookingMode = false;
+    state.focusedBookingId = '';
+    state.focusedBookingError = '';
+  }
   // Vehicle-card links need the same fresh destination as search links. The
   // retained snapshot can exist while a refresh still withholds trusted rows.
   const searchNavigationReady = (pendingBookingLink?.search !== true && pendingBookingLink?.focused !== true) || (
