@@ -118,7 +118,7 @@
     async function apply() {
       if (running) throw errorFor('A planner request is already running.', 'busy');
       const saved = preview;
-      if (!saved || saved.result.can_apply !== true || !current(saved.owner)) throw errorFor('Preview the current bookings before applying changes.', 'preview_required');
+      if (!saved || saved.result.can_apply !== true || (saved.input.bay === null && !saved.result.changes.length) || !current(saved.owner)) throw errorFor('Preview the current bookings before applying changes.', 'preview_required');
       const operation = {}; running = operation;
       try {
         const input = saved.input;
@@ -137,7 +137,7 @@
       clearPreview() { preview = null; },
       invalidate() { generation++; preview = null; running = null; },
       canWrite:() => available(context()),
-      get busy() { return Boolean(running); }, get canApply() { return Boolean(preview?.result.can_apply && current(preview.owner)); },
+      get busy() { return Boolean(running); }, get canApply() { return Boolean(preview?.result.can_apply && (preview.input.bay !== null || preview.result.changes.length > 0) && current(preview.owner)); },
     };
   }
   const exported = { percentage, allocatedHours, allocatedBaseMinutes, selectEfficiency, requestInput, createController };
@@ -228,6 +228,7 @@
     const blocked = !applied && result.can_apply === false;
     return (blocked ? `<p class="planner-capacity-warning" role="alert">${esc(result.message || 'These bookings cannot be changed safely. Review the affected bookings before trying again.')}</p>`
       : `<p><strong>${applied ? 'Changes saved.' : `${changes.length} booking${changes.length === 1 ? '' : 's'} would change.`}</strong></p>`)
+      + (!applied && !blocked && !changes.length ? '<p>No earlier safe moves are available. Gaps may remain while vehicles finish another station, wait for the 1-hour handover, or are unavailable. Each vehicle keeps its station order.</p>' : '')
       + (changes.length ? `<div class="planner-capacity-table"><table><thead><tr><th>Vehicle / bay</th><th>Current booking</th><th>${applied ? 'Updated booking' : 'Proposed booking'}</th></tr></thead><tbody>${changes.map(row => `<tr><td><strong>Stock ${esc(row.stock_number || '—')}</strong><small>${esc(stageLabel(row.stage_code))} · Bay ${esc(row.bay_number)}</small></td><td>${esc(timeLabel(row.old_start_at))}<small>to ${esc(timeLabel(row.old_end_at))}</small></td><td>${esc(timeLabel(row.new_start_at))}<small>to ${esc(timeLabel(row.new_end_at))}</small></td></tr>`).join('')}</tbody></table></div>` : '')
       + warnings.map(warning => `<p class="planner-capacity-warning">${esc(typeof warning === 'string' ? warning : warning.message || 'Check the booking sequence before applying.')}</p>`).join('')
       + (Number(result.unchanged_count) > 0 ? `<p>${esc(result.unchanged_count)} booking${Number(result.unchanged_count) === 1 ? '' : 's'} stay unchanged.</p>` : '');
@@ -275,7 +276,7 @@
     dialog.querySelector('h2').textContent = bay === null ? 'Close gaps' : 'Bay efficiency';
     dialog.querySelector('[data-capacity-subtitle]').textContent = `${stageLabel(stage)}${bay === null ? ' · all bays' : ` · Bay ${bay}`}`;
     dialog.querySelector('[data-capacity-explanation]').textContent = bay === null
-      ? 'Preview bringing queued and planned jobs forward into the next safe spaces from now.'
+      ? 'Preview filling the earliest safe spaces from now. Ready jobs can move ahead of waiting vehicles within the same bay.'
       : 'Allow more or less time for this bay’s queued and planned work. The preview shows the bookings that would move.';
     dialog.querySelector('[data-capacity-input-row]').hidden = bay === null;
     dialog.querySelector('[data-capacity-example]').hidden = bay === null;
