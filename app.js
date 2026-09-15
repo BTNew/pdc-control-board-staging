@@ -17558,7 +17558,7 @@ async function loadSharedNavisionVisibleRows(options = {}) {
   try {
     const rows = [];
     let expectedRevision = null;
-    for (const dealerCode of ['14450', '37047']) {
+    for (const dealerCode of ['14450', '37047', '002345', '001234']) {
       let cursor = {};
       let pageCount = 0;
       let exhausted = false;
@@ -20077,7 +20077,7 @@ function updateNavisionImportButton() {
   const previewing = app.navisionPreviewInFlight === true;
   const busy = applying || previewing;
   if (button) {
-    button.disabled = busy || !raw || (sharedMode && (!roleAllowed || !['14450', '37047'].includes(dealerCode)));
+    button.disabled = busy || !raw || (sharedMode && (!roleAllowed || !['14450', '37047', '002345', '001234'].includes(dealerCode)));
     button.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
     button.classList.toggle('is-loading', previewing);
     button.setAttribute('aria-busy', previewing ? 'true' : 'false');
@@ -21522,7 +21522,11 @@ function navisionPreviewItemLabel(item = {}) {
 
 function navisionClientPreflight(rows = [], dealerCode = '') {
   const sourceRows = Array.isArray(rows) ? rows : [];
-  const normalizedDealer = String(dealerCode || '').replace(/^0+/, '') || String(dealerCode || '');
+  const canonicalDealer = value => {
+    const code = String(value || '').trim().replace(/^0+/, '');
+    return code === '2345' ? '002345' : code === '1234' ? '001234' : code;
+  };
+  const normalizedDealer = canonicalDealer(dealerCode);
   const sourceIds = new Map();
   const stocks = new Map();
   const vins = new Map();
@@ -21539,11 +21543,11 @@ function navisionClientPreflight(rows = [], dealerCode = '') {
   const orderFor = row => normalizeBatch(row?.order || row?.toyota_order_number || '') || '';
   const declaredDealerFor = row => {
     const direct = row?.dealerCode || row?.dealer_code || row?.navisionDealerCode || row?.navision_dealer_code;
-    if (direct) return String(direct).replace(/^0+/, '') || String(direct);
+    if (direct) return canonicalDealer(direct);
     const columns = row?.navisionRawEvidence?.columns;
     if (!Array.isArray(columns)) return '';
-    const match = columns.find(column => cleanNavisionText(column?.header || '').toLowerCase() === 'dealer');
-    return match?.value ? String(match.value).replace(/^0+/, '') || String(match.value) : '';
+    const match = columns.find(column => ['dealer', 'dealercode', 'dealerno', 'dealernumber'].includes(cleanNavisionText(column?.header || '').toLowerCase().replace(/[^a-z0-9]/g, '')));
+    return match ? canonicalDealer(match.value || match.rawValue) : '';
   };
   const explicitValue = (row, keys) => keys.map(key => row?.[key]).find(value => String(value || '').trim()) || '';
   const validDate = value => {
@@ -21741,8 +21745,8 @@ async function importNavisionVehicles() {
     return;
   }
   const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
-  if (!['14450', '37047'].includes(dealerCode)) {
-    window.alert('Select the exact dealer code: Pilbara Toyota 14450 or Broome Toyota 37047. No preview was created.');
+  if (!['14450', '37047', '002345', '001234'].includes(dealerCode)) {
+    window.alert('Select the dealer code for this upload: 14450, 37047, 002345 or 001234. No preview was created.');
     return;
   }
   const options = navisionImportOptionsFromDom();
