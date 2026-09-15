@@ -19,13 +19,13 @@
   const version = '2026.09.10.01';
   const style = document.createElement('link');
   style.rel = 'stylesheet';
-  style.href = `pdc-qc-mobile.css?v=${version}`;
+  style.href = `pdc-qc-mobile.css?v=${version}&readable-text=2026.09.16.01`;
   document.head.appendChild(style);
   const load = () => {
     document.head.appendChild(style);
 
     const script = document.createElement('script');
-    script.src = `pdc-qc-mobile.js?v=${version}&deep-review=2026.09.13.01&sublet-qc=2026.09.14.01`;
+    script.src = `pdc-qc-mobile.js?v=${version}&deep-review=2026.09.13.01&sublet-qc=2026.09.14.01&readable-text=2026.09.16.01`;
     const loadReview = () => {
       const reviewStyle = document.createElement('link');
       reviewStyle.rel = 'stylesheet';

@@ -289,9 +289,10 @@
       const enabled = !locked && !waiting && knownLine(line);
       return `<div class="qc-phone-item ${line.completed ? 'is-checked' : ''}" data-qc-line-identity="${e(line.lineIdentity)}" ${waiting ? 'aria-busy="true"' : ''}>
         <label class="qc-phone-check"><input type="checkbox" data-qc-operation-check="${e(key)}" data-qc-line-identity="${e(line.lineIdentity)}" ${line.completed ? 'checked' : ''} ${enabled ? '' : 'disabled'} aria-label="${e(`Verify fitted: ${line.description}`)}">
-          <span><strong>${e(line.description || line.operationNo || `Item ${index + 1}`)}</strong><small>${e(qcPageStageLabel(line.stageCode))} · ${waiting ? 'Saving…' : line.completed ? 'Checked' : knownLine(line) ? 'Check fitted and correct' : 'Hours / station review required'}</small></span>
+          <span><strong>${e(line.description || line.operationNo || `Item ${index + 1}`)}</strong></span>
         </label>
-        <button type="button" class="qc-phone-missing" data-qc-not-fitted="${e(line.lineIdentity)}" ${busy(key) || pending(key) || !canWrite() ? 'disabled' : ''} aria-pressed="${rejectionDrafts.get(key)?.selected.has(line.lineIdentity) === true}" aria-label="${e(`Not fitted: ${line.description}`)}">${rejectionDrafts.get(key)?.selected.has(line.lineIdentity) ? 'Selected for repair' : 'Not fitted'}</button>
+        <div class="qc-phone-item-footer"><small>${e(qcPageStageLabel(line.stageCode))} · ${waiting ? 'Saving…' : line.completed ? 'Checked' : knownLine(line) ? 'Check fitted and correct' : 'Hours / station review required'}</small>
+        <button type="button" class="qc-phone-missing" data-qc-not-fitted="${e(line.lineIdentity)}" ${busy(key) || pending(key) || !canWrite() ? 'disabled' : ''} aria-pressed="${rejectionDrafts.get(key)?.selected.has(line.lineIdentity) === true}" aria-label="${e(`Not fitted: ${line.description}`)}">${rejectionDrafts.get(key)?.selected.has(line.lineIdentity) ? 'Selected for repair' : 'Not fitted'}</button></div>
       </div>`;
     }).join('');
   }

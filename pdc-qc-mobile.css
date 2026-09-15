@@ -59,9 +59,10 @@ html.pdc-qc-phone .pdc-auth-card { width: 100%; min-width: 0; max-width: 430px; 
 .qc-phone-check { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; margin: 0; cursor: pointer; }
 .qc-phone-check input[type="checkbox"] { appearance: auto; -webkit-appearance: checkbox; flex: 0 0 27px; width: 27px; min-width: 27px; height: 27px; margin: 2px 0 0; padding: 0; accent-color: #21865c; cursor: pointer; }
 .qc-phone-check > span { min-width: 0; display: block; }
-.qc-phone-check strong { display: block; font-size: 16px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; }
-.qc-phone-check small { display: block; margin-top: 5px; color: #5c718b; font-size: 12px; line-height: 1.4; }
-.qc-phone-app .qc-phone-missing { display: block; margin: 8px 0 0 auto; padding: 8px 12px; color: #a1372e; background: #fff8f5; border-color: #efcfc6; font-size: 13px; }
+.qc-phone-check strong { display: block; font-size: 18px; font-weight: 650; line-height: 22px; letter-spacing: -.2px; overflow-wrap: anywhere; }
+.qc-phone-item-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; margin-top: 8px; }
+.qc-phone-item-footer small { flex: 1; min-width: 0; color: #5c718b; font-size: 14px; line-height: 17px; overflow-wrap: anywhere; }
+.qc-phone-app .qc-phone-missing { display: block; flex-shrink: 0; margin: 0 0 0 auto; padding: 8px 12px; color: #a1372e; background: #fff8f5; border-color: #efcfc6; font-size: 15px; line-height: 19px; }
 .qc-phone-photo { margin-top: 22px; padding: 18px; border: 1px solid #d8e2ee; border-radius: 14px; background: #fff; }
 .qc-phone-photo > .qc-phone-muted { margin: 8px 0 16px; line-height: 1.5; }
 .qc-phone-photo .qc-phone-picker { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 52px; padding: 13px; border: 1px dashed #87a5c6; border-radius: 10px; background: #f2f7fd; color: #264c76; cursor: pointer; font-size: 15px; font-weight: 650; touch-action: manipulation; text-align: center; }
