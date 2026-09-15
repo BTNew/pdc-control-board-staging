@@ -579,7 +579,10 @@ function onSiteDaysLabel(vehicle = {}) {
 }
 
 function onSiteDaysClass(vehicle = {}) {
-  const days = onSiteDays(vehicle);
+  return vehicleAgeColourBand(onSiteDays(vehicle));
+}
+
+function vehicleAgeColourBand(days) {
   if (days === null) return 'unknown';
   if (days < 0) return 'future';
   if (days > 21) return 'critical';
@@ -7974,6 +7977,31 @@ function workStatusLegendHtml() {
   </div>`;
 }
 
+function incomingKewdaleAgeValue(vehicle = {}) {
+  const value = kewdaleEtaValue(vehicle);
+  // Shared imports can provide ISO dates; the age calculator uses AU dates.
+  const iso = /^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/.exec(value);
+  return iso ? `${iso[3]}/${iso[2]}/${iso[1]}` : value;
+}
+
+function incomingVehicleAge(vehicle = {}, bucketKey = '') {
+  const atPmb = bucketKey === 'pmb' || bucketKey === 'qc';
+  const atYardHold = bucketKey === 'yardhold';
+  if (!atPmb && !atYardHold) {
+    return { label: bucketKey === 'nonnavision' ? 'Unconfirmed' : locationAgeLabel(vehicle), colourClass: '', title: '' };
+  }
+  // The label and colour must use the same location-specific date.
+  // A missing PMB arrival must never fall back to a Kewdale ETA.
+  const days = atPmb ? pmbAgeDays(vehicle) : daysSinceDateValue(incomingKewdaleAgeValue(vehicle));
+  const count = days === null ? null : Math.abs(days);
+  const duration = count === null ? '—' : `${count} day${count === 1 ? '' : 's'}`;
+  return {
+    label: days !== null && days < 0 ? `Due in ${duration}` : duration,
+    colourClass: `pmb-age-${vehicleAgeColourBand(days)}`,
+    title: atPmb ? 'Days since arrival at PMB' : 'Days since Kewdale ETA',
+  };
+}
+
 function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const key = vehicleKey(vehicle);
   const sharedReadOnly = vehicle.__sharedNavisionReadOnly === true;
@@ -7985,13 +8013,13 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     && (bucketKey === 'yardhold' || bucketKey === 'nonnavision'
       || (bucketKey === 'pmb' && vehicleReadyForQualityControl(vehicle))
       || bucketKey === 'qc');
-  const eta = bucketKey === 'nonnavision' ? 'Unconfirmed' : locationAgeLabel(vehicle);
+  const locationAge = incomingVehicleAge(vehicle, bucketKey);
   const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '—';
   const keyNo = vehicleKeyNumber(vehicle) || '—';
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
-  const age = bucketKey === 'nonnavision' ? '—' : pmbAgeLabel(vehicle);
+  const age = ['pmb', 'qc', 'yardhold'].includes(bucketKey) ? locationAge.label : '—';
   const bookingProjection = vehicleWorkshopBookingProjection(vehicle, {
     available: options.workshopProjectionAvailable,
     plans: options.workshopPlans,
@@ -8056,7 +8084,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ${isRftRow
           ? `<span class="rft-row-controls-slot">${rftControls}</span>`
           : `<span class="incoming-card-work-wrap">${workChecks}</span>
-        <span class="incoming-card-meta incoming-card-age ${bucketKey === 'nonnavision' ? '' : escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(bucketKey === 'pmb' ? pmbAgeLabel(vehicle) : eta)}</span></span>
+        <span class="incoming-card-meta incoming-card-age ${escapeHtml(locationAge.colourClass)}" title="${escapeHtml(locationAge.title)}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(locationAge.label)}</span></span>
         <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}</span></span>
         <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${labelAction}${deleteAction}</span>`}
       </summary>
@@ -8206,9 +8234,9 @@ function incomingCompareVehicles(a, b, sort = {}, bucket = '') {
       case 'jobcard': return text(vehicleJobcardNumber(vehicle));
       case 'customer': return text(vehicleCustomerName(vehicle));
       case 'vehicle': return text(displayVehicle(vehicle));
-      case 'age': return (bucket === 'pmb'
+      case 'age': return (bucket === 'pmb' || bucket === 'qc'
         ? parseIsoTimestamp(pmbEnteredTimestamp(vehicle))
-        : parseDateAU(navisionEtaForVehicle(vehicle)))?.getTime() ?? null;
+        : parseDateAU(bucket === 'yardhold' ? incomingKewdaleAgeValue(vehicle) : navisionEtaForVehicle(vehicle)))?.getTime() ?? null;
       default: return parseDateAU(navisionEtaForVehicle(vehicle))?.getTime() ?? null;
     }
   };

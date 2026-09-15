@@ -6,7 +6,7 @@ const source = fs.readFileSync('app.js', 'utf8');
 const context = {
   escapeHtml: s => String(s), vehicleKeyNumber: v => v.key, displayStockNumber: v => v.stock,
   vehicleJobcardNumber: v => v.jobcard, vehicleCustomerName: v => v.customer, displayVehicle: v => v.vehicle,
-  pmbEnteredTimestamp: v => v.entered, navisionEtaForVehicle: v => v.eta,
+  pmbEnteredTimestamp: v => v.entered, navisionEtaForVehicle: v => v.eta, incomingKewdaleAgeValue: v => v.kewdale,
   parseIsoTimestamp: s => s ? new Date(s) : null, parseDateAU: s => s ? new Date(s) : null,
 };
 vm.createContext(context);
@@ -31,3 +31,8 @@ assert.match(context.incomingSortHeadingHtml('Stock','stock',{}), /Sort Stock: a
 assert.match(context.incomingSortHeadingHtml('Stock','stock',{key:'stock',direction:'asc'}), /Sort Stock: descending/);
 assert.match(context.incomingSortHeadingHtml('Age / ETA','age',{key:'age',direction:'desc'}), /oldest age \/ earliest ETA first/);
 console.log('Vehicle Locations column sort: PASS');
+
+const yardRows = [{stock:'1',kewdale:'2026-09-01',eta:'2026-09-20'}, {stock:'2',kewdale:'2026-09-10',eta:'2026-08-01'}, {stock:'3',eta:'2026-01-01'}];
+assert.deepEqual(sorted(yardRows,'age','asc','yardhold').map(v=>v.stock), ['1','2','3']);
+assert.deepEqual(sorted(yardRows,'age','desc','yardhold').map(v=>v.stock), ['2','1','3']);
+assert.deepEqual(sorted(ages,'age','asc','qc').map(v=>v.stock), ['1','2','3']);
