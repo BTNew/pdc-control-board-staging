@@ -320,8 +320,9 @@ test('actual app delegated navigation finds exact cards and horizontal scroll co
   click({ controlBoardPlanner: 'TYRE' });
   assert.deepEqual(runtime.calls.planner, ['TYRE']);
   click({ controlBoardJump: 'TYRE' });
-  assert.equal(runtime.calls.scrollTo[0].top, 2400);
-  assert.equal(runtime.calls.scrollTo[0].left, 2700);
+  assert.equal(runtime.calls.jump[0].block, 'start');
+  assert.equal(runtime.calls.jump[0].inline, 'nearest');
+  assert.equal(runtime.scroller.scrollLeft, 2700);
   click({ controlBoardScroll: '1' });
   assert.equal(runtime.calls.scroll[0].left, 1020);
   click({ controlBoardScroll: '-1' });

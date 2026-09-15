@@ -7103,7 +7103,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .control-board-job-legend .is-started { background:#60a5fa; }
 .control-board-job-legend .is-stoppage { background:#dc2626; }
 .control-board-job-legend .is-admin { background:#facc15; }
-.control-board-timeline-scroll { --bay-label-width:168px; width:100%; max-width:100%; height:clamp(380px,69vh,900px); overflow:auto; position:relative; border:1px solid #cbd6e4; border-radius:6px; background:#fff; scrollbar-gutter:stable; scroll-padding:60px 12px 10px calc(var(--bay-label-width) + 12px); }
+.control-board-timeline-scroll { --bay-label-width:168px; width:100%; max-width:100%; height:auto; max-height:none; overflow-x:auto; overflow-y:hidden; position:relative; border:1px solid #cbd6e4; border-radius:6px; background:#fff; scroll-padding:12px 12px 10px calc(var(--bay-label-width) + 12px); }
 .control-board-timeline-scroll:focus-visible { outline:3px solid #2563eb; outline-offset:2px; }
 .control-board-timeline-grid { width:calc(var(--bay-label-width) + var(--timeline-width)); min-width:100%; }
 .control-board-timeline-axis { display:flex; position:sticky; top:0; z-index:8; height:54px; background:#edf3fc; border-bottom:1px solid #94a9c4; }
@@ -7151,7 +7151,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .control-board-timeline-waiting > div { display:flex; gap:7px; overflow:auto; padding:7px 0; }
 #workflow .control-board-timeline-waiting .control-board-bay-card { flex:0 0 220px; width:220px; padding:7px; gap:2px; font-size:11px; }
 .control-board-no-results { font-size:12px; color:#60748d; }
-@media (max-width:700px) { #workflow-board { padding:8px; } .control-board-timeline-toolbar { flex-wrap:wrap; } .control-board-job-legend { width:100%; margin-left:0; } .control-board-timeline-scroll { --bay-label-width:135px; height:68vh; } }
+@media (max-width:700px) { #workflow-board { padding:8px; } .control-board-timeline-toolbar { flex-wrap:wrap; } .control-board-job-legend { width:100%; margin-left:0; } .control-board-timeline-scroll { --bay-label-width:135px; } }
 
 #workflow .control-board-bay-card { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; min-width: 0; gap: 4px; padding: 10px; text-align: left; border: 1px solid #fda4af; border-left: 4px solid #f43f5e; border-radius: 7px; background: #fff1f2; color: #18334f; box-shadow: 0 1px 3px #18334f0c; font-size: 12px; line-height: 1.35; cursor: pointer; }
 #workflow .control-board-bay-card > * { min-width: 0; overflow-wrap: anywhere; }
