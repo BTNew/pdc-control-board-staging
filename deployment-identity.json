@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260914103740",
-    "name": "workshop_vehicle_one_hour_handover",
-    "file": "supabase/migrations/20260914103740_workshop_vehicle_one_hour_handover.sql",
+    "version": "20260915033413",
+    "name": "control_board_physical_bay_snapshot",
+    "file": "supabase/migrations/20260915033413_control_board_physical_bay_snapshot.sql",
+    "sha256": "06f7594087a4acf424789a219710f08d159ddbd79d5ad1f669f7ec2e1439eeea",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "One elapsed hour between the same vehicle's workshop bookings. 112 rollback checks plus 11 independent clock checks passed; scheduling permissions and overlap constraints retained. Existing bookings are not compacted by deployment.",
-    "sha256": "3c5df28278663455ccb47c1f26c7a92e2163e490dbbda9ce35d9437b1787c043"
+    "source": "Read-only all-bay Control Board projection added to the existing authorized snapshot. 28 transactional checks passed and rolled back; 43 physical bays retained, no operational records created."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -92,14 +92,14 @@
     "UID635 imported Stock 13000775 as one Navision-linked canonical vehicle with OP1-OP22, seven explicit zero-hour headers, five unknown-hour headers retained as NULL, and Pre-Delivery standardised to 1.50 hours.",
     "The isolated pmbcontroller Inbox monitor, mailbox and writer are contained after the requested one-shot import; the paused replay floor is UID636 and recurring automation was not resumed.",
     "Dedicated Workshop planners open directly on the selected station schedule without a duplicate Back to Control Board block or cross-station tab buttons.",
-    "Stock 13000775 displays all 22 genuine Job Card operations: seven mapped internal lines, one Sublet line and fourteen unresolved lines under Unallocated \u2013 mapping review.",
+    "Stock 13000775 displays all 22 genuine Job Card operations: seven mapped internal lines, one Sublet line and fourteen unresolved lines under Unallocated – mapping review.",
     "A database parity guard now checks every vehicle and rejects any operation import or mapping adjustment that would omit or duplicate a genuine Job Card operation in the Board/QC projection.",
     "Every active vehicle with current Navision data must have one exact-Stock canonical link; Navision and vehicle transactions fail closed on ambiguity, missing links or stale detail/location refresh.",
     "Stock 13000775 was removed from active staging through the authenticated Administrator reset path for a fresh test; its tombstone and audit evidence are retained.",
     "Gmail UID639 loaded Stock 13000769 as one Navision-linked vehicle with Job Card J139125493 and all 17 operations projected exactly once.",
     "Gmail UID640 loaded Stock 13017855 as one Navision-linked vehicle with Job Card J139125422 and all 20 operations projected exactly once; reflective safety striping routes to Sublet.",
     "Linked shared Navision source rows are merged into their one active Back End Data row; current Navision colour and source salesperson are projected from the authoritative link.",
-    "All 22 UID635 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated \u2013 mapping review rather than being omitted.",
+    "All 22 UID635 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated – mapping review rather than being omitted.",
     "Production and real outbound email delivery remain disabled and untouched."
   ],
   "pmb_rft_release_migration": {
@@ -209,6 +209,15 @@
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "Staging snapshot base now rejects a NULL staff role. Original role list, query and permissions retained; old and compact endpoints both return unauthorized with missing claims."
+    },
+    {
+      "version": "20260914103740",
+      "name": "workshop_vehicle_one_hour_handover",
+      "file": "supabase/migrations/20260914103740_workshop_vehicle_one_hour_handover.sql",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "One elapsed hour between the same vehicle's workshop bookings. 112 rollback checks plus 11 independent clock checks passed; scheduling permissions and overlap constraints retained. Existing bookings are not compacted by deployment.",
+      "sha256": "3c5df28278663455ccb47c1f26c7a92e2163e490dbbda9ce35d9437b1787c043"
     }
   ],
   "planner_capacity_migrations": [
