@@ -7082,6 +7082,64 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 /* Best-practice workflow board */
 .dashboard-workflow-panel { margin-bottom: 16px; }
 .workflow-board { padding: 16px 18px 18px; display: grid; gap: 16px; }
+
+/* The workshop overview is one continuous row of physical bay columns. */
+#workflow, #workflow .workflow-board-panel, #workflow-board { min-width: 0; max-width: 100%; }
+#workflow-board { display: block; overflow: hidden; }
+.control-board-overview-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin: 12px 0; }
+.control-board-overview-toolbar > div:first-child { display: grid; gap: 4px; }
+.control-board-overview-toolbar strong { font-size: 15px; }
+.control-board-overview-toolbar span { font-size: 12px; color: #60748d; }
+.control-board-scroll-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+.control-board-scroll-actions button { width: 40px; height: 34px; border: 1px solid #c9d6e6; border-radius: 7px; background: #fff; color: #18334f; font-size: 20px; cursor: pointer; }
+.control-board-department-links { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding-bottom: 12px; }
+.control-board-department-links button { border: 1px solid #ccd8e7; border-radius: 6px; padding: 6px 10px; background: #fff; color: #243b56; font-size: 12px; cursor: pointer; }
+.control-board-job-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; font-size: 11px; color: #50617a; }
+.control-board-job-legend i { width: 10px; height: 10px; border-radius: 3px; margin-left: 5px; }
+.control-board-job-legend .is-planned { background: #fda4af; }
+.control-board-job-legend .is-started { background: #60a5fa; }
+.control-board-job-legend .is-stoppage { background: #dc2626; }
+.control-board-job-legend .is-admin { background: #facc15; }
+.control-board-bays-scroll { width: 100%; max-width: 100%; min-height: 370px; height: clamp(370px, 65vh, 780px); overflow: auto; overscroll-behavior: contain; border: 1px solid #cbd6e4; border-radius: 10px; background: #eef2f7; scrollbar-gutter: stable; }
+.control-board-bays-scroll:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+.control-board-bays-row { display: flex; flex-flow: row nowrap; align-items: stretch; width: max-content; min-width: 100%; min-height: 100%; gap: 10px; padding: 0 10px 12px; }
+.control-board-bay-column { --bay-color: #64748b; --bay-tint: #f5f7fa; flex: 0 0 246px; width: 246px; min-width: 0; background: #f9fbfd; border: 1px solid #d4dfea; border-top: 0; border-radius: 8px; }
+.control-board-bay-column.station-bus_4x4 { --bay-color: #2563eb; --bay-tint: #eff6ff; }
+.control-board-bay-column.station-tint { --bay-color: #0891b2; --bay-tint: #ecfeff; }
+.control-board-bay-column.station-hoist { --bay-color: #7c3aed; --bay-tint: #f5f3ff; }
+.control-board-bay-column.station-fitting { --bay-color: #a21caf; --bay-tint: #fdf4ff; }
+.control-board-bay-column.station-fabrication { --bay-color: #d97706; --bay-tint: #fffbeb; }
+.control-board-bay-column.station-electrical { --bay-color: #16a34a; --bay-tint: #f0fdf4; }
+.control-board-bay-column.station-tyre { --bay-color: #0f766e; --bay-tint: #f0fdfa; }
+.control-board-bay-heading { position: sticky; top: 0; z-index: 2; display: grid; gap: 5px; min-height: 124px; box-sizing: border-box; padding: 12px; background: var(--bay-tint); border-top: 4px solid var(--bay-color); border-bottom: 1px solid #ccd8e7; border-radius: 7px 7px 0 0; }
+.control-board-department { color: var(--bay-color); font-size: 12px; font-weight: 800; }
+.control-board-bay-heading h3 { display: flex; justify-content: space-between; gap: 8px; margin: 0; font-size: 18px; line-height: 1.2; }
+.control-board-bay-heading h3 span { font-size: 12px; padding: 3px 7px; border-radius: 20px; background: #fff; border: 1px solid #d5e0ec; }
+.control-board-bay-heading small { font-size: 11px; color: #607089; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.control-board-bay-heading button { justify-self: start; background: transparent; border: 0; padding: 0; font-size: 11px; color: #254d85; cursor: pointer; }
+.control-board-bay-inactive { font-size: 10px; color: #9a3412; }
+.control-board-bay-jobs { padding: 9px; display: grid; align-content: start; gap: 8px; }
+#workflow .control-board-bay-card { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; min-width: 0; gap: 4px; padding: 10px; text-align: left; border: 1px solid #fda4af; border-left: 4px solid #f43f5e; border-radius: 7px; background: #fff1f2; color: #18334f; box-shadow: 0 1px 3px #18334f0c; font-size: 12px; line-height: 1.35; cursor: pointer; }
+#workflow .control-board-bay-card > * { min-width: 0; overflow-wrap: anywhere; }
+#workflow .control-board-bay-card strong { font-size: 12px; }
+#workflow .control-board-card-customer { font-weight: 700; }
+#workflow .control-board-card-customer, #workflow .control-board-card-vehicle { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+#workflow .control-board-bay-card.is-started { border-color: #60a5fa; border-left-color: #2563eb; background: #dbeafe; }
+#workflow .control-board-bay-card.is-stoppage { border-color: #f87171; border-left-color: #b91c1c; background: #fee2e2; }
+#workflow .control-board-bay-card.is-admin { border-color: #eab308; border-left-color: #a16207; background: #fef9c3; cursor: default; }
+#workflow .control-board-bay-card.is-waiting, #workflow .control-board-bay-card.is-queued { border-color: #cbd5e1; border-left-color: #64748b; background: #fff; }
+#workflow button.control-board-bay-card:hover { box-shadow: 0 2px 8px #18334f25; }
+#workflow button.control-board-bay-card:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+.control-board-card-station { color: #50617a; font-size: 10px; font-weight: 800; }
+.control-board-bay-empty { padding: 18px 5px; margin: 0; text-align: center; font-size: 12px; color: #657995; }
+.control-board-no-results { font-size: 13px; color: #60748d; }
+@media (max-width: 700px) {
+  #workflow-board { padding: 10px; }
+  .control-board-job-legend { width: 100%; margin-left: 0; }
+  .control-board-overview-toolbar { gap: 8px; align-items: flex-start; }
+  .control-board-bays-scroll { height: 65vh; }
+  .control-board-bay-column { flex-basis: 230px; width: 230px; }
+}
 .workflow-summary-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control Board local layout fixture</title>
+  <link rel="stylesheet" href="../styles.css">
+  <style>
+    body { margin: 0; padding: 18px; background: #f3f6fa; font-family: Arial, sans-serif; }
+    .fixture-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 14px; margin-bottom: 12px; background: white; border: 1px solid #d8e1ed; border-radius: 10px; }
+    .fixture-toolbar h1 { margin: 0; font-size: 19px; }
+    .fixture-toolbar small { color: #64748b; }
+    .fixture-toolbar label { display: grid; gap: 5px; font-size: 12px; }
+    .fixture-toolbar input { min-width: 250px; }
+    #fixture-status { padding: 10px 0; min-height: 35px; font-size: 13px; color: #244; }
+    #workflow { display: block; }
+    .fixture-error { padding: 24px; background: #fff7ed; border: 1px solid #f59e0b; }
+  </style>
+</head>
+<body data-current-view="workflow">
+  <div class="fixture-toolbar">
+    <div><h1>Control Board layout fixture</h1><small>Synthetic local data only. Uses the actual board module and stylesheet.</small></div>
+    <label>Scenario<select id="fixture-scenario"><option value="populated">43 bays with jobs</option><option value="empty">43 empty bays</option><option value="missing">Unavailable snapshot</option></select></label>
+    <label>Find a job<input id="fixture-search" type="search" placeholder="Try DEMO-0001 or maintenance"></label>
+    <button id="fixture-find" type="button">Find</button>
+    <button id="fixture-clear" type="button">Clear</button>
+  </div>
+  <main id="workflow" class="view active"><div id="workflow-board"></div></main>
+  <div id="fixture-status" role="status" aria-live="polite"></div>
+  <script src="../control-board-overview.js"></script>
+  <script src="control-board-fixtures.js"></script>
+  <script src="control-board-fixture.js"></script>
+</body>
+</html>

@@ -3688,13 +3688,14 @@ function bindNav() {
   on($('#incoming-find'), 'click', renderIncomingDashboardBoard);
   on($('#incoming-clear-filters'), 'click', clearIncomingDashboardFilters);
   on($('#incoming-collapse-all'), 'click', toggleMainScreenRows);
-  on($('#workflow-collapse-all'), 'click', toggleWorkflowRows);
+  on($('#workflow-refresh'), 'click', () => loadWorkshopEligibilitySnapshot('manual'));
   on($('#rft-collapse-all'), 'click', toggleRftRows);
   on($('#completed-collapse-all'), 'click', toggleCompletedRows);
   on($('#deleted-collapse-all'), 'click', toggleDeletedRows);
   on($('#workflow-width-mode'), 'change', event => setWorkflowWidthMode(event.target.value));
   on($('#workflow-search'), 'input', event => { app.workflowSearch = String(event.target.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
-  on($('#workflow-find'), 'click', () => { app.workflowSearch = String($('#workflow-search')?.value || '').trim().toLowerCase(); renderWorkflowBoard(); });
+  on($('#workflow-find'), 'click', findControlBoardOverviewMatch);
+  on($('#workflow-search'), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); findControlBoardOverviewMatch(); } });
   on($('#workflow-clear-search'), 'click', clearWorkflowSearch);
   document.addEventListener('change', event => {
     const select = event.target?.closest?.('[data-workflow-header-filter]');
@@ -7072,60 +7073,67 @@ function renderWorkflowBoard() {
   if (!host) return;
   document.body.classList.remove('pmb-station-mode');
   app.activePmbBayStage = '';
+  const oldScroll = host.querySelector?.('.control-board-bays-scroll');
+  if (oldScroll) app.controlBoardScroll = { left: oldScroll.scrollLeft, top: oldScroll.scrollTop };
   const search = String($('#workflow-search')?.value || app.workflowSearch || '').trim().toLowerCase();
   app.workflowSearch = search;
   const sharedEligibility = workshopEligibilitySharedAuthorityEnabled();
   if (sharedEligibility && app.workshopEligibilityState === 'idle') loadWorkshopEligibilitySnapshot('route_entry');
   if (sharedEligibility && app.workshopEligibilityState !== 'connected') {
     const unavailable = ['offline_error', 'permission_denied'].includes(app.workshopEligibilityState);
-    host.innerHTML = `<div class="workshop-connection-banner ${escapeHtml(app.workshopEligibilityState)}" role="status" aria-live="polite" aria-busy="${!unavailable}"><strong>${unavailable ? 'Workshop overview unavailable' : 'Loading workshop overview…'}</strong><span>${unavailable ? 'The latest workshop information could not be loaded. Refresh the page to try again.' : 'Checking required work and bookings. Counts will appear when the latest information is ready.'}</span></div>`;
+    host.innerHTML = `<div class="workshop-connection-banner ${escapeHtml(app.workshopEligibilityState)}" role="status" aria-live="polite" aria-busy="${!unavailable}"><strong>${unavailable ? 'Workshop overview unavailable' : 'Loading workshop overview…'}</strong><span>${unavailable ? 'The latest workshop information could not be loaded. Use Refresh board to try again.' : 'Checking required work and bookings. Counts will appear when the latest information is ready.'}</span></div>`;
     return;
   }
-  const stationRows = WORKSHOP_CONTROL_BOARD_STATIONS.map(stage => {
-    const allVehicles = pmbVehiclesNeedingStationWork(stage);
-    const vehicles = search ? allVehicles.filter(vehicle => incomingSearchText(vehicle, 'pmb').includes(search)) : allVehicles;
-    return { stage, allVehicles, vehicles };
-  });
-  const totalPmb = workflowVehiclesForStep('pmb').length;
-  const outstandingVehicleKeys = new Set(stationRows.flatMap(row => row.allVehicles.map(vehicleKey)));
-  const stationHtml = stationRows.map(({ stage, allVehicles, vehicles }) => {
-    const label = pmbStageLabel(stage);
-    const countLabel = search ? `${vehicles.length}/${allVehicles.length}` : `${allVehicles.length}`;
-    const rows = vehicles.map(vehicle => controlBoardStationVehicleHtml(vehicle, stage)).join('')
-      || `<div class="pmb-empty-drop">${escapeHtml(search ? 'No matching vehicles need this work.' : `No eligible vehicles currently need ${label} work.`)}</div>`;
-    const openAttr = app.workflowBucketsCollapsed ? '' : ' open';
-    return `<details class="incoming-bucket workflow-stage-bucket control-board-station-row pmb-branch-${escapeHtml(stage.toLowerCase())}"${openAttr}>
-      <summary class="incoming-bucket-title workflow-bucket-title">
-        <span>${escapeHtml(label)}</span>
-        <strong>${escapeHtml(countLabel)}</strong>
-        <small>Required work · PMB and Yard Hold · In Transit from ETA + 7 days</small>
-        ${controlBoardStationPipelineHtml(stage)}
-        <span class="workflow-bucket-actions"><button class="small-button primary" type="button" data-open-workshop-stage="${escapeHtml(stage)}">Open ${escapeHtml(label)} Planner</button></span>
-      </summary>
-      <div class="control-board-work-list">${rows}</div>
-    </details>`;
-  }).join('');
+  const overview = window.ControlBoardOverview;
+  const model = overview?.buildModel(app.workshopEligibilitySnapshot, { search, stageOrder: WORKSHOP_CONTROL_BOARD_STATIONS });
+  if (!model) {
+    host.innerHTML = '<div class="workshop-connection-banner offline_error" role="status"><strong>Workshop overview unavailable</strong><span>The full bay list could not be loaded. Use Refresh board to try again.</span></div>';
+    return;
+  }
+  host.innerHTML = `<div class="workshop-connection-banner connected" role="status"><strong>Workshop information connected</strong><span>All physical bays · live booking updates</span></div>${overview.render(model)}`;
+  const scroll = host.querySelector('.control-board-bays-scroll');
+  if (scroll && app.controlBoardScroll) {
+    scroll.scrollLeft = app.controlBoardScroll.left;
+    scroll.scrollTop = app.controlBoardScroll.top;
+  }
+  const items = new Map([...model.waiting, ...model.columns.flatMap(column => column.items)].map(item => [`${item.kind}:${item.id}`, item]));
+  host.onclick = event => {
+    const target = event.target.closest('button');
+    if (!target || !host.contains(target)) return;
+    if (target.dataset.controlBoardItem) {
+      const item = items.get(`${target.dataset.controlBoardItem}:${target.dataset.controlBoardId}`);
+      if (item) openControlBoardOverviewItem(item);
+    } else if (target.dataset.controlBoardPlanner) {
+      openWorkshopPlannerForStage(target.dataset.controlBoardPlanner);
+    } else if (target.dataset.controlBoardJump) {
+      const column = [...host.querySelectorAll('[data-control-board-stage]')].find(node => node.dataset.controlBoardStage === target.dataset.controlBoardJump);
+      column?.scrollIntoView({ inline: 'start', block: 'nearest' });
+    } else if (target.dataset.controlBoardScroll) {
+      scroll?.scrollBy({ left: Number(target.dataset.controlBoardScroll) * Math.max(246, scroll.clientWidth - 80), behavior: 'auto' });
+    }
+  };
+  // Old floating table headers must not follow the new bay overview.
+  const floating = $('#workflow-floating-column-header');
+  if (floating) floating.hidden = true;
+}
 
-  const authorityBanner = sharedEligibility
-    ? `<div class="workshop-connection-banner ${escapeHtml(app.workshopEligibilityState)}" role="status"><strong>Workshop information connected</strong><span>${escapeHtml(app.workshopEligibilityError || 'Required work and planner bookings are synchronized.')}</span></div>`
-    : '';
-  host.innerHTML = `
-    ${authorityBanner}
-    <div class="branch-header workflow-pmb-header">
-      <div><strong>Workshop work overview</strong><span>Required work for eligible vehicles at PMB, in Yard Hold, or In Transit. In Transit bookings start no earlier than the Kewdale ETA plus 7 days.</span></div>
-      <div class="branch-header-actions"><span class="badge neutral">${outstandingVehicleKeys.size} needing work · ${totalPmb} at PMB</span></div>
-    </div>
-    <div class="workflow-collapsible-board control-board-station-list">${stationHtml}</div>
-  `;
-  $$('[data-open-workshop-stage]', host).forEach(button => button.addEventListener('click', event => {
-    event.preventDefault();
-    event.stopPropagation();
-    openWorkshopPlannerForStage(button.dataset.openWorkshopStage);
-  }));
-  $$('[data-open-work-bookings]', host).forEach(button => button.addEventListener('click', () => openVehicleWorkBookingsFromTile(button)));
+function openControlBoardOverviewItem(item) {
+  const source = item.source || {};
+  const vehicle = item.vehicle || {};
+  if (item.kind === 'booking' && source.scheduled_start_at && source.bay_id && !item.unassignedBay) {
+    return openVehicleWorkshopBooking(source.booking_id, item.stage, vehicleWorkshopBookingDateKey(source), source.vehicle_id || vehicle.id, vehicle.stock_number || '', source.bay_number || '');
+  }
+  const local = app.data.find(row => String(row.id || row.sharedVehicleId || '') === String(vehicle.id || ''));
+  if (local) return openVehicleWorkBookingsFromTile({ dataset: { openWorkBookings: vehicleKey(local), workStation: item.stage, workBay: '' } });
+  return openWorkshopPlannerForStage(item.stage);
+}
 
-  updateCollapseToggleButtons();
-  scheduleWorkflowFloatingHeaderUpdate();
+function findControlBoardOverviewMatch() {
+  app.workflowSearch = String($('#workflow-search')?.value || '').trim().toLowerCase();
+  renderWorkflowBoard();
+  const match = $('#workflow-board')?.querySelector('[data-control-board-match]');
+  match?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  if (match?.tagName === 'BUTTON') match.focus({ preventScroll: true });
 }
 
 function vehicleHasNavisionSource(vehicle = {}) {
