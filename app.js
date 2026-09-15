@@ -11549,7 +11549,7 @@ function canTransferVehicleToPmb(vehicle) {
   const current = statusCategory(vehicle);
   if (['pmb', 'pit', 'qc', 'rft', 'collected', 'completed'].includes(current)) return false;
   if (['PMB', 'PIT', 'QC', 'RFT'].includes(vehiclePdcLocation(vehicle))) return false;
-  if (incomingBucketForVehicle(vehicle) === 'nonnavision') return true;
+  if (!vehicleHasNavisionSource(vehicle)) return true;
   if (current === 'yardhold' || current === 'prodtransit') return true;
   const text = [
     navisionStatusText(vehicle),
