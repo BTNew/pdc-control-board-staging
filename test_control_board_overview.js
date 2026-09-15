@@ -260,7 +260,8 @@ test('actual app booking click uses canonical IDs and Perth date, including UTC 
   const snapshot = fixture.emptySnapshot();
   const source = fixture.booking(1, snapshot.board.bays[0], undefined, { scheduled_start_at: '2026-09-14T23:00:00Z' });
   runtime.context.openControlBoardOverviewItem({ kind: 'booking', stage: source.stage_code, vehicle: source.vehicle, source });
-  assert.deepEqual(runtime.calls.exact[0], [source.booking_id, 'BUS_4X4', '2026-09-15', source.vehicle_id, source.vehicle.stock_number, 1]);
+  assert.deepEqual(runtime.calls.exact[0].slice(0,6), [source.booking_id, 'BUS_4X4', '2026-09-15', source.vehicle_id, source.vehicle.stock_number, 1]);
+  assert.equal(runtime.calls.exact[0][6].showSurrounding, true);
   assert.equal(runtime.calls.details.length, 0);
 });
 
@@ -273,6 +274,29 @@ test('actual app queued click opens canonical vehicle Work & bookings without in
   assert.equal(runtime.calls.details[0].dataset.openWorkBookings, 'CANONICAL-MATCH');
   assert.equal(runtime.calls.details[0].dataset.workStation, 'FITTING');
   assert.equal(runtime.calls.details[0].dataset.workBay, '');
+});
+
+test('Control Board links request surrounding bookings while vehicle-detail links keep their focused mode', () => {
+  const context = {
+    app: {}, window: { VehicleRequirementsGuard: { exactBookingNavigationTarget: target => target.bookingId ? target : null } },
+    vehicleWorkshopStageCode: value => value, WORKSHOP_PLANNER_ROUTE_BY_STAGE: { FABRICATION: 'fab' },
+    closeVehicleModal() {}, openWorkshopPlannerForStage() {},
+  };
+  vm.createContext(context);
+  const start = appSource.indexOf('function openVehicleWorkshopBooking(');
+  const end = appSource.indexOf('\nasync function ', start);
+  vm.runInContext(appSource.slice(start,end),context);
+  assert.equal(context.openVehicleWorkshopBooking('booking-id','FABRICATION','2026-09-17','vehicle-id','stock',5,{showSurrounding:true}),true);
+  assert.equal(context.app.pendingWorkshopBookingLink.focused,false);
+  assert.equal(context.app.pendingWorkshopBookingLink.search,true);
+  assert.equal(context.app.pendingWorkshopBookingLink.date,'2026-09-17');
+  assert.equal(context.app.pendingWorkshopBookingLink.vehicleId,'vehicle-id');
+  assert.equal(context.openVehicleWorkshopBooking('booking-id','FABRICATION','2026-09-17','vehicle-id','stock',5),true);
+  assert.equal(context.app.pendingWorkshopBookingLink.focused,true);
+  assert.equal(context.app.pendingWorkshopBookingLink.search,undefined);
+  const pending = context.app.pendingWorkshopBookingLink;
+  assert.equal(context.openVehicleWorkshopBooking('','FABRICATION'),false);
+  assert.equal(context.app.pendingWorkshopBookingLink,pending,'invalid identity never replaces a valid navigation intent');
 });
 
 test('actual app missing local vehicle and unresolved bay fall back safely to its planner', () => {
@@ -317,6 +341,9 @@ test('actual app delegated navigation finds exact cards and horizontal scroll co
   const click = runtime.click;
   click({ controlBoardItem: 'booking', controlBoardId: booking.booking_id });
   assert.equal(runtime.calls.exact[0][0], booking.booking_id);
+  click({ controlBoardItem: 'booking', controlBoardId: booking.booking_id, controlBoardDate: '2026-09-17' });
+  assert.equal(runtime.calls.exact[1][2], '2026-09-17', 'continuation segment opens the clicked day');
+  assert.equal(runtime.calls.exact[1][6].showSurrounding, true);
   click({ controlBoardPlanner: 'TYRE' });
   assert.deepEqual(runtime.calls.planner, ['TYRE']);
   click({ controlBoardJump: 'TYRE' });

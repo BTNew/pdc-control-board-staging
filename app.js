@@ -5289,7 +5289,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5338,7 +5338,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -7116,7 +7116,7 @@ function renderWorkflowBoard() {
     if (!target || !host.contains(target)) return;
     if (target.dataset.controlBoardItem) {
       const item = items.get(`${target.dataset.controlBoardItem}:${target.dataset.controlBoardId}`);
-      if (item) openControlBoardOverviewItem(item);
+      if (item) openControlBoardOverviewItem(item, target.dataset.controlBoardDate);
     } else if (target.dataset.controlBoardPlanner) {
       openWorkshopPlannerForStage(target.dataset.controlBoardPlanner);
     } else if (target.dataset.controlBoardJump) {
@@ -7139,11 +7139,12 @@ function renderWorkflowBoard() {
   if (floating) floating.hidden = true;
 }
 
-function openControlBoardOverviewItem(item) {
+function openControlBoardOverviewItem(item, clickedDate = '') {
   const source = item.source || {};
   const vehicle = item.vehicle || {};
   if (item.kind === 'booking' && source.scheduled_start_at && source.bay_id && !item.unassignedBay) {
-    return openVehicleWorkshopBooking(source.booking_id, item.stage, vehicleWorkshopBookingDateKey(source), source.vehicle_id || vehicle.id, vehicle.stock_number || '', source.bay_number || '');
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(clickedDate) ? clickedDate : vehicleWorkshopBookingDateKey(source);
+    return openVehicleWorkshopBooking(source.booking_id, item.stage, date, source.vehicle_id || vehicle.id, vehicle.stock_number || '', source.bay_number || '', { showSurrounding: true });
   }
   const local = app.data.find(row => String(row.id || row.sharedVehicleId || '') === String(vehicle.id || ''));
   if (local) return openVehicleWorkBookingsFromTile({ dataset: { openWorkBookings: vehicleKey(local), workStation: item.stage, workBay: '' } });
@@ -13673,11 +13674,15 @@ function selectVehicleDetailPage(page = 'details') {
   if (app.vehicleDetailPage === 'work') loadVehicleWorkshopDetail(selectedVehicle() || {}, { force: true });
 }
 
-function openVehicleWorkshopBooking(bookingId = '', stage = '', date = '', vehicleId = '', stockNumber = '', bay = '') {
+function openVehicleWorkshopBooking(bookingId = '', stage = '', date = '', vehicleId = '', stockNumber = '', bay = '', options = {}) {
   const normalizedStage = vehicleWorkshopStageCode(stage);
   const target = window.VehicleRequirementsGuard?.exactBookingNavigationTarget?.({ bookingId, vehicleId, stockNumber, department: normalizedStage, date, bay });
   if (!target || !WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizedStage]) return false;
   app.pendingWorkshopBookingLink = { ...target, stage: normalizedStage, focused: true };
+  if (options.showSurrounding === true) {
+    app.pendingWorkshopBookingLink.focused = false;
+    app.pendingWorkshopBookingLink.search = true;
+  }
   closeVehicleModal();
   openWorkshopPlannerForStage(normalizedStage);
   return true;
