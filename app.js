@@ -144,7 +144,8 @@ const VEHICLE_LOCATION_BUCKET_DEFS = Object.freeze([
   { key: 'qc', label: 'QC', hint: 'All required station jobs complete · awaiting named QC sign-off' },
   { key: 'pit', label: 'PIT', hint: 'At the Department of Transport for inspection' },
   { key: 'pmb', label: 'PMB', hint: 'Vehicles at Perth Motor Bodies with work still active' },
-  { key: 'yardhold', label: 'YARD HOLD', hint: 'Yard Hold vehicles — release to PMB from here' },
+  { key: 'yardhold', label: 'YARD HOLD', hint: 'Navision Yard Hold vehicles — release to PMB from here' },
+  { key: 'nonnavision', label: 'NON-NAVISION VEHICLES', hint: 'No Navision location or ETA updates · move to PMB when the vehicle arrives' },
   { key: 'transit', label: 'IT', hint: 'In transit to WA / Kewdale' },
   { key: 'overseas', label: 'OTHER', hint: 'All other active vehicles' },
 ]);
@@ -1241,6 +1242,7 @@ function incomingGridStatusLabel(vehicle = {}, bucketKey = '', options = {}) {
   if (bucketKey === 'qc') return vehicle.pdcQcComplete === true ? 'QC signed off · awaiting RFT sync' : 'Awaiting QC sign-off';
   if (bucketKey === 'pit') return 'Department of Transport inspection';
   if (bucketKey === 'yardhold') return 'Yard Hold';
+  if (bucketKey === 'nonnavision') return 'Location unconfirmed';
   if (bucketKey === 'transit') return 'In Transit';
   if (bucketKey === 'overseas') return navisionStatusText(vehicle) || 'Overseas / Other';
   return statusCategoryLabel(vehicle) || incomingBucketLabel(bucketKey) || navisionStatusText(vehicle) || 'Current';
@@ -7126,14 +7128,29 @@ function renderWorkflowBoard() {
   scheduleWorkflowFloatingHeaderUpdate();
 }
 
+function vehicleHasNavisionSource(vehicle = {}) {
+  if (vehicle.__locationIdentityReadOnly === true || vehicle.__navisionDetailsIdentityConflict === true) return false;
+  if (String(vehicle.__sharedNavisionRecordId || '').trim()) return true;
+  // The snapshot only labels details as Navision after a unique, verified match.
+  if (vehicle.__navisionDetailsSource === 'microsoft_navision'
+    && String(vehicle.__navisionDetailsBackendRecordId || '').trim()) return true;
+  return [vehicle.source, vehicle.sourceSystem, vehicle.source_system]
+    .some(value => ['microsoft_navision', 'navision', 'shared navision'].includes(String(value || '').trim().toLowerCase()));
+}
+
 function incomingBucketForVehicle(vehicle = {}) {
   const category = statusCategory(vehicle);
-  const status = normalizeToyotaStatus(navisionStatusText(vehicle));
   if (category === 'completed') return 'completed';
+  if (category === 'collected') return 'collected';
+  const operationalLocation = vehiclePdcLocation(vehicle);
+  if (operationalLocation === 'PMB') return vehicle.pdcQcComplete === true ? 'qc' : 'pmb';
+  if (['PIT', 'QC', 'RFT'].includes(operationalLocation)) return operationalLocation.toLowerCase();
   if (category === 'rft') return 'rft';
   if (category === 'qc') return 'qc';
   if (category === 'pit') return 'pit';
   if (category === 'pmb') return 'pmb';
+  // This is an incoming display group, not a rewrite of location or history.
+  if (!vehicleHasNavisionSource(vehicle)) return 'nonnavision';
   if (category === 'yardhold') return 'yardhold';
   if (category === 'prodtransit') return 'transit';
   return 'overseas';
@@ -7920,21 +7937,21 @@ function workStatusLegendHtml() {
 function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const key = vehicleKey(vehicle);
   const sharedReadOnly = vehicle.__sharedNavisionReadOnly === true;
-  const identityReadOnly = vehicle.__locationIdentityReadOnly === true;
+  const identityReadOnly = vehicle.__locationIdentityReadOnly === true || vehicle.__navisionDetailsIdentityConflict === true;
   const emailReadOnly = vehicle.__emailVehicleReadOnly === true;
   const authorityPending = !sharedNavisionLocationAuthorityReady();
   const locationReadOnly = sharedReadOnly || identityReadOnly || emailReadOnly || authorityPending;
   const protectedLifecycleAllowed = emailReadOnly && !identityReadOnly && !authorityPending && vehicleLifecycleSharedModeActive()
-    && (bucketKey === 'yardhold'
+    && (bucketKey === 'yardhold' || bucketKey === 'nonnavision'
       || (bucketKey === 'pmb' && vehicleReadyForQualityControl(vehicle))
       || bucketKey === 'qc');
-  const eta = locationAgeLabel(vehicle);
+  const eta = bucketKey === 'nonnavision' ? 'Unconfirmed' : locationAgeLabel(vehicle);
   const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '—';
   const keyNo = vehicleKeyNumber(vehicle) || '—';
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
-  const age = pmbAgeLabel(vehicle);
+  const age = bucketKey === 'nonnavision' ? '—' : pmbAgeLabel(vehicle);
   const bookingProjection = vehicleWorkshopBookingProjection(vehicle, {
     available: options.workshopProjectionAvailable,
     plans: options.workshopPlans,
@@ -7961,8 +7978,8 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     ? (rftAction || (locationReadOnly ? `<span class="badge neutral">${readOnlyBadge}</span>` : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`))
     : locationReadOnly && !protectedLifecycleAllowed
     ? `<span class="badge neutral">${readOnlyBadge}</span>`
-    : bucketKey === 'yardhold'
-    ? `${sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle, { silent: true }) ? '<span class="badge neutral">Shared move unavailable</span>' : `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="Transfer Yard Hold vehicle to PMB">To PMB</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+    : bucketKey === 'yardhold' || bucketKey === 'nonnavision'
+    ? `${sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle, { silent: true }) || !canTransferVehicleToPmb(vehicle) ? '<span class="badge neutral">Shared move unavailable</span>' : `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="${bucketKey === 'nonnavision' ? 'Confirm vehicle arrival at PMB' : 'Transfer Yard Hold vehicle to PMB'}">To PMB</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
       ? `${vehicleReadyForQualityControl(vehicle)
         ? `<button class="primary" type="button" data-ready-for-qc="${escapeHtml(key)}" title="Move this all-green vehicle to the QC Gate">Ready for QC</button>`
@@ -7999,7 +8016,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ${isRftRow
           ? `<span class="rft-row-controls-slot">${rftControls}</span>`
           : `<span class="incoming-card-work-wrap">${workChecks}</span>
-        <span class="incoming-card-meta incoming-card-age ${escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : 'ETA'}</b><span>${escapeHtml(bucketKey === 'pmb' ? pmbAgeLabel(vehicle) : eta)}</span></span>
+        <span class="incoming-card-meta incoming-card-age ${bucketKey === 'nonnavision' ? '' : escapeHtml('pmb-age-' + onSiteDaysClass(vehicle))}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(bucketKey === 'pmb' ? pmbAgeLabel(vehicle) : eta)}</span></span>
         <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}</span></span>
         <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${labelAction}${deleteAction}</span>`}
       </summary>
@@ -11526,9 +11543,13 @@ function overrideSelectedVehiclesToYh() {
 
 function canTransferVehicleToPmb(vehicle) {
   if (!vehicle) return false;
-  if (vehicleLifecycleSharedModeActive() && vehicle.__emailVehicleServerAuthoritative !== true) return false;
+  if (vehicle.__locationIdentityReadOnly === true || vehicle.__navisionDetailsIdentityConflict === true
+    || vehicle.pdcSheetVisible === false || vehicle.deleted_at || vehicle.deletedAt || vehicle.is_active === false) return false;
+  if (vehicleLifecycleSharedModeActive() && (vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId)) return false;
   const current = statusCategory(vehicle);
-  if (current === 'pmb' || current === 'rft' || current === 'completed') return false;
+  if (['pmb', 'pit', 'qc', 'rft', 'collected', 'completed'].includes(current)) return false;
+  if (['PMB', 'PIT', 'QC', 'RFT'].includes(vehiclePdcLocation(vehicle))) return false;
+  if (!vehicleHasNavisionSource(vehicle)) return true;
   if (current === 'yardhold' || current === 'prodtransit') return true;
   const text = [
     navisionStatusText(vehicle),
@@ -11537,7 +11558,7 @@ function canTransferVehicleToPmb(vehicle) {
   ].map(value => String(value || '').toLowerCase()).join(' ');
   if (text.includes('yard hold') || text.includes('vehicle in yard hold') || text.includes('vehicle yard hold') || /\byh\b/.test(text)) return true;
   if (text.includes('in transit') || text.includes('production transit') || /\bit\b/.test(text)) return true;
-  return app.quickFilter === 'yardhold' || app.quickFilter === 'prodtransit';
+  return false;
 }
 
 
@@ -11614,7 +11635,7 @@ async function transferYhVehicleToPmb(key = '') {
   if (sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle)) return false;
   if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
   if (!canTransferVehicleToPmb(vehicle)) {
-    window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from this button.');
+    window.alert('Only incoming Yard Hold, Non-Navision or In Transit vehicles can be transferred to PMB from this button.');
     return;
   }
   const stock = displayStockNumber(vehicle) || 'No stock';
@@ -11644,7 +11665,9 @@ async function transferYhVehicleToPmb(key = '') {
       expectedVersion: ref.version,
     });
     if (!result || result.ok !== true) {
-      window.alert(typeof describeVehicleLifecycleActionError === 'function'
+      window.alert(result?.error === 'pmb_transfer_requires_incoming_location'
+        ? 'This vehicle is no longer in an incoming location. Refresh Vehicle Locations and check its current location before moving it to PMB.'
+        : typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && result.error)
         : 'The vehicle could not be moved into PMB.');
       await refreshEmailVehicleLocations();
