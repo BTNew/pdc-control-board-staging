@@ -258,6 +258,9 @@ function mapServerVehicle(row = {}) {
   mapped.pdcQcRetestCycleId = String(qcRetest.cycle_id || '').trim();
   mapped.pdcQcRetestFreshCycleOpen = qcRetest.fresh_cycle_open === true;
   mapped.pdcQcRetestFreshPhotoAccepted = qcRetest.fresh_photo_accepted === true;
+    const checkout = row.tune_checkout;
+    mapped.tuneCheckout = checkout?.confirmed === true && checkout.source === 'Tune Sub Status 99' && /^[0-9a-f-]{36}$/i.test(String(checkout.receipt_id || '')) && Array.isArray(checkout.job_cards) && checkout.job_cards.length > 0 && checkout.job_cards.every(job => String(job.sub_status) === '99')
+      ? { confirmed: true, receiptId: checkout.receipt_id, snapshotAt: checkout.snapshot_at, recordedAt: checkout.recorded_at, jobCards: checkout.job_cards } : null;
   mapped.tuneServiceLocations = row.tune_service_locations && typeof row.tune_service_locations === 'object' ? row.tune_service_locations : {jobs:[]};
   mapped.pdcPartsFlags = row.parts_flags && typeof row.parts_flags === 'object' ? row.parts_flags : null;
   const partsUpdate = row.parts_update && typeof row.parts_update === 'object' ? row.parts_update : {};

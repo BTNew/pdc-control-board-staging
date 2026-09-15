@@ -16599,6 +16599,7 @@ function exportPartsCsv() {
 
 function rftHomeStatus(vehicle = {}) {
   if (statusCategory(vehicle) !== 'rft') return '';
+  if (vehicle.tuneCheckout?.confirmed === true) return 'checked_out';
   const issues = vehicleRftGateIssues(vehicle);
   if (issues.length) return 'blocked';
   const required = pdcRequiredJobs(vehicle);
@@ -16607,11 +16608,12 @@ function rftHomeStatus(vehicle = {}) {
 }
 
 function rftHomeStatusLabel(status = '') {
-  return { blocked: 'Blocked', ready: 'Ready', complete: 'Complete' }[status] || 'Ready';
+  return { blocked: 'Blocked', ready: 'Ready', complete: 'Complete', checked_out: 'Checked out (Tune)' }[status] || 'Ready';
 }
 
 function rftHomeStatusClass(status = '') {
   return {
+    checked_out: 'parts-status-ordered rft-status-checked-out',
     blocked: 'parts-status-stoppage rft-status-blocked',
     ready: 'parts-status-ordered rft-status-ready',
     complete: 'parts-status-complete rft-status-complete',
@@ -16638,7 +16640,7 @@ function rftHomeRows() {
       return hay.includes(q);
     })
     .sort((a, b) => {
-      const rank = { blocked: 0, ready: 1, complete: 2 };
+      const rank = { blocked: 0, checked_out: 1, ready: 2, complete: 3 };
       const rankDiff = (rank[rftHomeStatus(a)] ?? 9) - (rank[rftHomeStatus(b)] ?? 9);
       if (rankDiff) return rankDiff;
       const timeA = parseIsoTimestamp(a.rftTransferredAt || a.pdcLocationUpdatedAt || '')?.getTime() || 0;
@@ -16655,10 +16657,11 @@ function renderRftSummary() {
     acc[status] = (acc[status] || 0) + 1;
     acc.open += 1;
     return acc;
-  }, { open: 0, blocked: 0, ready: 0, complete: 0 });
+  }, { open: 0, blocked: 0, ready: 0, complete: 0, checked_out: 0 });
   const cards = [
     ['blocked', 'Blocked', counts.blocked, 'Missing required sign-offs'],
     ['open', 'Open RFT', counts.open, 'All uncollected transport handovers'],
+    ['checked_out', 'Checked out (Tune)', counts.checked_out, 'Service report confirms checkout'],
     ['ready', 'Ready', counts.ready, 'Can be handed over'],
     ['complete', 'Complete', counts.complete, 'All required jobs ticked'],
   ];
@@ -16749,6 +16752,7 @@ function rftVehicleDetailRow(vehicle = {}) {
       </summary>
       <div class="incoming-vehicle-detail-grid">
         <div><b>RFT status</b><span>${escapeHtml(rftHomeStatusLabel(status))}</span></div>
+        ${vehicle.tuneCheckout?.confirmed === true ? `<div class="wide"><b>Checkout source</b><span>Tune Sub Status 99 · ${escapeHtml((vehicle.tuneCheckout.jobCards || []).map(job => job.ro).join(', '))}. Workshop and QC sign-offs retain their recorded state.</span></div>` : ''}
         <div><b>Stock</b><span>${escapeHtml(stock)}</span></div>
         <div><b>Key</b><span>${escapeHtml(keyNo)}</span></div>
         <div><b>Customer</b><span>${escapeHtml(customer)}</span></div>
