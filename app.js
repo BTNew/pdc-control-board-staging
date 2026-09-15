@@ -4478,6 +4478,7 @@ function showView(view, options) {
     lists: 'Setup',
     import: 'Navision Uploads',
     backup: 'Backup / Restore',
+    'user-management': 'User Management',
     zpl: 'Label Tools'
   };
   const pageTitle = $('#page-title');
@@ -5560,9 +5561,9 @@ function qcPageDetailHtml(vehicle = {}) {
     </header>
     <div class="qc-save-feedback ${feedback?.kind === 'error' ? 'is-error' : feedback?.kind === 'saved' ? 'is-saved' : ''}" role="status" aria-live="polite">${photoBusy ? '<progress class="qc-photo-progress" aria-label="Uploading QC photo"></progress><span>Uploading QC photo…</span>' : escapeHtml(feedback?.message || '')}</div>
     <div class="qc-detail-identifiers">${vehicleIdentityStackHtml(vehicle, { className: 'qc-identity', button: false })}</div>
-    <fieldset class="qc-work-checklist" aria-label="Completed work for selected vehicle"><legend>Completed work</legend><div class="qc-work-list">${qcPageWorkItemsHtml(vehicle)}</div></fieldset>
+    <fieldset class="qc-work-checklist" aria-label="Work to inspect for selected vehicle"><legend>Work to inspect</legend><div class="qc-work-list">${qcPageWorkItemsHtml(vehicle)}</div></fieldset>
     <div class="qc-photo-panel">
-      <div><strong>Completion photo</strong><p>Store one image in private staging evidence storage before final sign-off. The stored receipt, not browser state, is the authority.</p></div>
+      <div><strong>Completion photo</strong><p>Add a completion photo before signing off. The saved photo stays with the vehicle’s QC record.</p></div>
       <label class="qc-photo-picker" for="${escapeHtml(inputId)}" aria-disabled="${photoDisabledReason ? 'true' : 'false'}"><span>${photoValid ? 'Photo stored · choose another only after this receipt is cleared' : photo?.status === 'uploading' ? 'Uploading QC photo…' : 'Take or choose QC photo'}</span><input id="${escapeHtml(inputId)}" type="file" accept="image/*" data-qc-photo="${escapeHtml(key)}" aria-describedby="${escapeHtml(inputId)}-status"${photoDisabledReason ? ' disabled' : ''} /></label>
       <div id="${escapeHtml(inputId)}-status" class="qc-photo-status" aria-live="polite">${photoDisabledReason ? escapeHtml(photoDisabledReason) : ''}</div>
       ${photo?.url ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url)}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${photoValid ? `${escapeHtml(photo.originalFilename || 'Stored image')} · ${escapeHtml(String(photo.originalByteLength || photo.original_byte_length || 0))} → ${escapeHtml(String(photo.byteLength || photo.byte_length || 0))} bytes · ${escapeHtml(String(photo.imageWidth || photo.image_width || 0))}×${escapeHtml(String(photo.imageHeight || photo.image_height || 0))} · SHA-256 ${escapeHtml(photo.sha256 || '')}` : `${escapeHtml(photo.originalFilename || 'Selected image')} · Selected image; receipt validation is pending.`}</span></div>` : '<div class="qc-photo-empty">No stored completion photo</div>'}
@@ -22546,7 +22547,9 @@ function buildCrmBackup() {
     exportedAt: new Date().toISOString(),
     storage,
     vehicles: app.data,
-    instructions: 'Restore this JSON from Uploads > CRM backup / restore. CSV exports are for reporting only and are not a complete backup.'
+    instructions: vehicleLifecycleSharedModeActive()
+      ? 'Browser snapshot for reference only. This file cannot restore the shared database, accounts, bookings or photo storage. Shared recovery requires the database and storage backups.'
+      : 'Restore this JSON from Backup / Restore in browser-local mode. CSV exports are for reporting only and are not a complete backup.'
   };
   backup.summary = crmBackupStats(backup);
   return backup;
