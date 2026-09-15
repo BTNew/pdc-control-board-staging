@@ -327,26 +327,33 @@ body[data-current-view="workshop"] .content {
 
 .workshop-side-heading {
   min-height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 4px;
   padding: 6px 9px;
   border-bottom: 1px solid #93c5fd;
   background: #dbeafe;
   color: #0f172a;
   font-size: .72rem;
+  text-align: left;
 }
 
-.workshop-side-heading span {
-  display: grid;
-  min-width: 24px;
-  min-height: 22px;
-  place-items: center;
-  border-radius: 999px;
+.workshop-side-heading > strong {
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.workshop-side-heading > span {
+  display: block;
+  min-width: 0;
+  padding: 4px 7px;
+  border-radius: 6px;
   background: #fff;
   color: #1d4ed8;
   font-weight: 950;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .workshop-status-legend {
