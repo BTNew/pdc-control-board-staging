@@ -50,7 +50,7 @@ BEGIN
  SELECT actor INTO actor_id FROM ou_context;
  INSERT INTO public.vehicles(id,permanent_vehicle_id,stock_number,job_card_number,customer_name,vehicle_description,current_location,visible_on_board,
  source_system,source_record_id,source_payload,created_by,updated_by)
- VALUES(v,'operation-update-rollback-'||v,stock,'OU-JC-'||substr(v::text,1,8),'ROLLBACK FIXTURE '||tag,'Synthetic vehicle','PMB',true,
+ VALUES(v,'operation-update-rollback-'||v,stock,'OU-JC-'||substr(v::text,1,8),'ROLLBACK FIXTURE '||tag,'Synthetic vehicle',coalesce(nullif(current_setting('pdc.qc_test_location',true),''),'PMB'),true,
  'operation_update_rollback_20260913',v::text,'{"rollback_fixture":true}',actor_id,actor_id);
  INSERT INTO public.pdc_new_vehicle_reviews(vehicle_id,status,first_job_card,approved_at,approved_by)
  VALUES(v,'approved','OU-JC-'||substr(v::text,1,8),clock_timestamp(),actor_id);
@@ -106,7 +106,7 @@ END $fn$;
 
 
 DO $test$
-DECLARE v uuid; k uuid; a uuid; b uuid; pre uuid:=gen_random_uuid(); provider uuid:=gen_random_uuid(); op uuid; wb uuid; f date; key0 uuid; snap timestamptz:=clock_timestamp(); prior jsonb;
+DECLARE v uuid; k uuid; a uuid; b uuid; pre uuid:=gen_random_uuid(); provider uuid:=gen_random_uuid(); op uuid; wb uuid; f date; key0 uuid; snap timestamptz:=clock_timestamp(); prior jsonb; line jsonb; response jsonb; source_before jsonb; newer_pre uuid:=gen_random_uuid(); newer_apply uuid:=gen_random_uuid();
 BEGIN
  SELECT actor,batch,friday INTO a,b,f FROM ou_context;
  INSERT INTO public.pdc_pilbara_service_import_batches(batch_id,importer_version,source_hash,request_hash,idempotency_key,batch_kind,contract_revision,
@@ -133,8 +133,8 @@ BEGIN
  PERFORM pg_temp.ou_assert((SELECT vehicle_key_number='513' AND parts_location='05C1A' FROM pdc_codex_intake_private.service_location_fields WHERE vehicle_id=v),'Key Number header imports separately from parts location');
  UPDATE public.vehicles SET location_override='PMB',location_override_reason='Prior arrival' WHERE id=v;
  PERFORM pdc_codex_intake_private.capture_service_status(pre,b);
- PERFORM pg_temp.ou_assert((SELECT current_location='RFT' AND location_override IS NULL AND workshop_status='completed' AND qc_completed_at IS NULL FROM public.vehicles WHERE id=v),'Any 99 completes mixed vehicle without inventing QC');
- PERFORM pg_temp.ou_assert((SELECT bool_and((value->>'completed')::boolean) FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v))),'All operation lines completed');
+ PERFORM pg_temp.ou_assert((SELECT current_location='QC' AND location_override IS NULL AND workshop_status='completed' AND qc_completed_at IS NULL FROM public.vehicles WHERE id=v),'Any 99 queues QC and completes work without QC signoff');
+ PERFORM pg_temp.ou_assert((SELECT count(*)=2 AND bool_and(NOT (value->>'completed')::boolean) FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v))),'Both original QC lines remain unchecked');
  PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM pdc_parts_private.jobs WHERE vehicle_id=v AND closed_at IS NULL),'All vehicle parts jobs retired from active parts');
  PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM public.pdc_sublet_booking_instances WHERE vehicle_id=v AND status='active'),'Sublet no longer active');
  PERFORM pg_temp.ou_assert((SELECT status='completed' AND (to_jsonb(w)-ARRAY['status','version','updated_by','updated_at'])=(prior-ARRAY['status','version','updated_by','updated_at']) FROM public.workshop_bookings w WHERE id=wb),'Booking cleared with dates and actual labour retained');
@@ -154,11 +154,60 @@ BEGIN
  SELECT '01','1',job_card_number,key0,stock_number,'05C1A','0',snap,b FROM public.vehicles WHERE id=key0;
  PERFORM pdc_codex_intake_private.apply_service_arrival(b);
  PERFORM pg_temp.ou_assert((SELECT current_location='Other' FROM public.vehicles WHERE id=key0),'Zero key does not confirm arrival');
- PERFORM pg_temp.ou_assert((SELECT current_location='RFT' FROM public.vehicles WHERE id=v),'Checkout wins over key arrival');
+ PERFORM pg_temp.ou_assert((SELECT current_location='QC' FROM public.vehicles WHERE id=v),'Checkout wins over key arrival');
+
+ -- Verify the authenticated snapshot includes both original operation lines.
+ SELECT value INTO source_before FROM jsonb_array_elements(public.get_pdc_email_vehicle_location_snapshot()#>'{data,vehicles}')
+ WHERE value->>'id'=v::text;
+ PERFORM pg_temp.ou_assert(source_before->>'current_location'='QC'
+   AND jsonb_array_length(source_before->'operation_lines')=2
+   AND source_before#>>'{tune_checkout,confirmed}'='true','Authenticated snapshot retains QC operations and checkout evidence');
+ PERFORM pg_temp.ou_assert((SELECT lifecycle_state='active' AND rft_transferred_at IS NULL AND date_to_rft IS NULL FROM public.vehicles WHERE id=v),'Checkout invents no RFT milestones');
+ PERFORM pg_temp.ou_assert(cardinality(public.pdc_qc_gate_issues(v))=0,'QC gate opens after work completion');
+ -- Exercise the actual phone checklist RPC, including Sublet.
+ FOR line IN SELECT value FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) LOOP
+  SELECT public.set_pdc_qc_operation_completion_379(v,version,line->>'line_identity',(line->>'line_version')::integer,gen_random_uuid(),true)
+   INTO response FROM public.vehicles WHERE id=v;
+  PERFORM pg_temp.ou_assert((response->>'ok')::boolean,'Phone can tick '||(line->>'stage_code'));
+ END LOOP;
+ SELECT to_jsonb(x) INTO prior FROM public.vehicles x WHERE id=v;
+ PERFORM pdc_codex_intake_private.capture_service_status(pre,b);
+ PERFORM pg_temp.ou_assert((SELECT to_jsonb(x)=prior FROM public.vehicles x WHERE id=v)
+   AND (SELECT count(*)=2 AND bool_and((value->>'completed')::boolean) FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v))),
+   'Replay preserves both human QC checks and vehicle version');
+ BEGIN
+  UPDATE public.vehicles SET current_location='RFT',lifecycle_state='rft' WHERE id=v;
+  RAISE EXCEPTION 'FAIL Tune checkout bypassed QC';
+ EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+ END;
+ PERFORM pg_temp.ou_assert((SELECT current_location='QC' AND qc_completed_at IS NULL FROM public.vehicles WHERE id=v),'RFT rejects Tune checkout without final QC');
+ SELECT public.reject_pdc_qc_vehicle_to_pmb_stoppage_767(v,stock_number,version,'Rollback inspection failed',gen_random_uuid(),
+  (SELECT jsonb_agg(jsonb_build_object('line_identity',value->>'line_identity','line_version',(value->>'line_version')::integer)) FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v))))
+ INTO response FROM public.vehicles WHERE id=v;
+ PERFORM pg_temp.ou_assert((response->>'ok')::boolean,'Inspector can reject checked-out vehicle');
+ SELECT to_jsonb(x) INTO prior FROM public.vehicles x WHERE id=v;
+ INSERT INTO public.pdc_pilbara_service_import_batches
+ SELECT (jsonb_populate_record(NULL::public.pdc_pilbara_service_import_batches,to_jsonb(original)||
+  jsonb_build_object('source_hash',encode(extensions.digest(newer_apply::text,'sha256'),'hex'),'batch_id',newer_apply,'idempotency_key','newer-apply-'||newer_apply))).*
+ FROM public.pdc_pilbara_service_import_batches original WHERE batch_id=b;
+ INSERT INTO public.pdc_pilbara_service_import_batches
+ SELECT (jsonb_populate_record(NULL::public.pdc_pilbara_service_import_batches,to_jsonb(original)||
+  jsonb_build_object('source_hash',encode(extensions.digest(newer_apply::text,'sha256'),'hex'),'batch_id',newer_pre,'idempotency_key','newer-preview-'||newer_pre))).*
+ FROM public.pdc_pilbara_service_import_batches original WHERE batch_id=pre;
+ INSERT INTO public.pdc_pilbara_service_import_rows
+ SELECT (jsonb_populate_record(NULL::public.pdc_pilbara_service_import_rows,to_jsonb(original)||
+  jsonb_build_object('evidence_id',gen_random_uuid(),'batch_id',newer_pre,'raw_row',
+   jsonb_set(raw_row,'{source_snapshot_at}',to_jsonb((clock_timestamp()+interval '1 hour')::text))))).*
+ FROM public.pdc_pilbara_service_import_rows original WHERE batch_id=pre AND vehicle_id=v;
+ PERFORM pdc_codex_intake_private.capture_service_status(newer_pre,newer_apply);
+ PERFORM pg_temp.ou_assert((SELECT to_jsonb(x)=prior FROM public.vehicles x WHERE id=v)
+  AND EXISTS(SELECT 1 FROM public.vehicle_work_items WHERE vehicle_id=v AND required AND NOT completed),
+  'Newer 99 replay does not finish rejected QC rework or move it back to QC');
+
 END $test$;
 
 DO $extra$
-DECLARE c jsonb; v uuid; a uuid; b uuid; base_b uuid; pre uuid;
+DECLARE c jsonb; v uuid; a uuid; b uuid; base_b uuid; pre uuid; before_vehicle jsonb;
 BEGIN
  SELECT actor,batch INTO a,base_b FROM ou_context;
  FOR c IN SELECT value FROM jsonb_array_elements('[
@@ -166,20 +215,42 @@ BEGIN
   {"name":"legacy Status99 is ignored","raw":{"Status":"99","Sub Status":"22"},"checkout":false,"invalid":false},
   {"name":"legacy invalid Status is ignored","raw":{"Status":"All","Sub Status":"99"},"checkout":true,"invalid":false},
   {"name":"invalid substatus","raw":{"Sub Status":"All"},"checkout":false,"invalid":true},
-  {"name":"ordinary22 without Status","raw":{"Sub Status":"22"},"checkout":false,"invalid":false}
+  {"name":"ordinary22 without Status","raw":{"Sub Status":"22"},"checkout":false,"invalid":false},
+  {"name":"manual QC remains untouched","raw":{"Sub Status":"99"},"checkout":false,"invalid":false,"existing_qc":true},
+  {"name":"first99 after inspector rejection stays rework","raw":{"Sub Status":"99"},"checkout":false,"invalid":true,"rejected":true},
+  {"name":"unknown arrival stays unknown","raw":{"Sub Status":"99"},"checkout":true,"invalid":false,"unknown_arrival":true}
  ]'::jsonb) LOOP
   pre:=gen_random_uuid(); b:=gen_random_uuid();
   INSERT INTO public.pdc_pilbara_service_import_batches(batch_id,importer_version,source_hash,request_hash,idempotency_key,batch_kind,contract_revision,source_row_count,accepted_line_count,quarantined_line_count,matched_stock_count,unmatched_stock_count,ambiguous_stock_count,response,created_by,created_actor)
   SELECT b,importer_version,encode(extensions.digest(b::text,'sha256'),'hex'),request_hash,'substatus-apply-'||b,'apply','pmg_stock_v5',1,1,0,1,0,0,'{}',created_by,created_actor FROM public.pdc_pilbara_service_import_batches WHERE batch_id=base_b;
   INSERT INTO public.pdc_pilbara_service_import_batches(batch_id,importer_version,source_hash,request_hash,idempotency_key,batch_kind,contract_revision,source_row_count,accepted_line_count,quarantined_line_count,matched_stock_count,unmatched_stock_count,ambiguous_stock_count,response,created_by,created_actor)
   SELECT pre,importer_version,source_hash,request_hash,'substatus-preview-'||pre,'preview','pmg_stock_v5',1,1,0,1,0,0,'{}',created_by,created_actor FROM public.pdc_pilbara_service_import_batches WHERE batch_id=b;
+  PERFORM set_config('pdc.qc_test_location',CASE WHEN coalesce((c->>'unknown_arrival')::boolean,false) THEN 'Other' ELSE 'PMB' END,true);
   v:=pg_temp.ou_vehicle(c->>'name');
+  PERFORM set_config('pdc.qc_test_location','',true);
   PERFORM set_config('pdc.substatus_test_raw',(c->'raw')::text,true);
   UPDATE ou_context SET batch=pre;
   PERFORM pg_temp.ou_operation(v,'FITTING',1,1);
   UPDATE ou_context SET batch=b;
+  IF coalesce((c->>'existing_qc')::boolean,false) OR coalesce((c->>'rejected')::boolean,false) THEN
+   UPDATE public.vehicle_work_items SET completed=true,completed_by=a,completed_at=clock_timestamp() WHERE vehicle_id=v;
+   UPDATE public.vehicles SET current_location='QC' WHERE id=v;
+   IF coalesce((c->>'rejected')::boolean,false) THEN
+    PERFORM public.reject_pdc_qc_vehicle_to_pmb_stoppage_767(v,stock_number,version,'Rollback first checkout rework',gen_random_uuid())
+     FROM public.vehicles WHERE id=v;
+   END IF;
+  END IF;
+  SELECT to_jsonb(x) INTO before_vehicle FROM public.vehicles x WHERE id=v;
   PERFORM pdc_codex_intake_private.capture_service_status(pre,b);
-  PERFORM pg_temp.ou_assert((SELECT (current_location='RFT')=(c->>'checkout')::boolean FROM public.vehicles WHERE id=v),c->>'name');
+  PERFORM pg_temp.ou_assert(EXISTS(SELECT 1 FROM pdc_codex_intake_private.tune_checkout_receipts WHERE vehicle_id=v)=(c->>'checkout')::boolean,c->>'name');
+  IF coalesce((c->>'existing_qc')::boolean,false) OR coalesce((c->>'rejected')::boolean,false) THEN
+   PERFORM pg_temp.ou_assert((SELECT to_jsonb(x)=before_vehicle FROM public.vehicles x WHERE id=v),(c->>'name')||' preserves vehicle');
+  END IF;
+  IF coalesce((c->>'unknown_arrival')::boolean,false) THEN
+   PERFORM pg_temp.ou_assert((SELECT current_location='QC' AND date_to_pmb IS NULL AND date_to_rft IS NULL FROM public.vehicles WHERE id=v),'Status99 does not invent PMB arrival');
+   UPDATE public.vehicles SET version=version+1 WHERE id=v;
+   PERFORM pg_temp.ou_assert((SELECT date_to_pmb IS NULL FROM public.vehicles WHERE id=v),'Later QC edit keeps unknown PMB arrival');
+  END IF;
   PERFORM pg_temp.ou_assert(EXISTS(SELECT 1 FROM pdc_codex_intake_private.service_status_reviews WHERE batch_id=b AND stock_number=(SELECT stock_number FROM public.vehicles WHERE id=v))=(c->>'invalid')::boolean,(c->>'name')||' validation');
  END LOOP;
  PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_vehicles o LEFT JOIN public.vehicles current_row USING(id) WHERE to_jsonb(current_row) IS DISTINCT FROM o.row_data),'Existing vehicles unchanged');
@@ -187,4 +258,6 @@ BEGIN
 END $extra$;
 SELECT * FROM ou_results;
 ROLLBACK;
+
+
 
