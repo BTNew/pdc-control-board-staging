@@ -7118,7 +7118,7 @@ function renderWorkflowBoard() {
       openWorkshopPlannerForStage(target.dataset.controlBoardPlanner);
     } else if (target.dataset.controlBoardJump) {
       const department = [...host.querySelectorAll('[data-control-board-stage]')].find(node => node.dataset.controlBoardStage === target.dataset.controlBoardJump);
-      if (department && scroll) scroll.scrollTo({ top: department.offsetTop, left: scroll.scrollLeft, behavior: 'auto' });
+      if (department) department.scrollIntoView({ block: 'start', inline: 'nearest', behavior: 'auto' });
     } else if (target.hasAttribute('data-control-board-today')) {
       changeDates(overview.dateKey(new Date()));
     } else if (target.dataset.controlBoardShift) {
