@@ -5,6 +5,9 @@ const vm = require('vm');
 
 const appSource = fs.readFileSync('app.js', 'utf8');
 const css = fs.readFileSync('styles.css', 'utf8');
+const ageStart = appSource.indexOf('function incomingVehicleAge');
+const ageEnd = appSource.indexOf('\nfunction ', ageStart + 20);
+const ageSource = appSource.slice(ageStart, ageEnd);
 const rowStart = appSource.indexOf('function incomingVehicleDetailRow');
 const rowEnd = appSource.indexOf('\nfunction ', rowStart + 20);
 assert.ok(rowStart >= 0 && rowEnd > rowStart, 'Vehicle Locations row renderer exists');
@@ -80,7 +83,7 @@ const context = {
   authenticatedEmailOperationLinesHtml: () => '',
 };
 vm.createContext(context);
-vm.runInContext(`${rftHelperSource}\n${rowSource}\nthis.renderIncomingRftRow = incomingVehicleDetailRow;`, context);
+vm.runInContext(`${rftHelperSource}\n${ageSource}\n${rowSource}\nthis.renderIncomingRftRow = incomingVehicleDetailRow;`, context);
 
 let rendered = context.renderIncomingRftRow(vehicle, 'rft', {});
 assert.match(rendered, /incoming-rft-row/, 'Stock-shaped authoritative RFT row uses Vehicle Locations renderer');
