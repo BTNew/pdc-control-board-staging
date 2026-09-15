@@ -7706,7 +7706,7 @@ function authenticatedOperationLineLabel(value = '') {
 const AUTHENTICATED_OPERATION_STATION_ORDER = Object.freeze([
   { key: 'bus4x4', stage: 'BUS_4X4', label: 'Bus 4x4', colour: '#2563eb', tint: '#eff6ff' },
   { key: 'tint', stage: 'TINT', label: 'Tint', colour: '#0891b2', tint: '#ecfeff' },
-  { key: 'hoist', stage: 'HOIST', label: 'Hoist / GVM', colour: '#7c3aed', tint: '#f5f3ff' },
+  { key: 'hoist', stage: 'HOIST', label: 'Hoist / GVM', colour: '#805b43', tint: '#f5eee8' },
   { key: 'fitting', stage: 'FITTING', label: 'Fitting', colour: '#a21caf', tint: '#fdf4ff' },
   { key: 'fabrication', stage: 'FABRICATION', label: 'Fabrication', colour: '#d97706', tint: '#fffbeb' },
   { key: 'electrical', stage: 'ELECTRICAL', label: 'Electrical', colour: '#16a34a', tint: '#f0fdf4' },
@@ -12888,7 +12888,7 @@ async function loadVehicleHistoryForDetail(vehicle = {}) {
 const VEHICLE_WORKSHOP_STATION_PRESENTATION = Object.freeze({
   BUS_4X4: { label: 'Bus 4x4', colour: '#2563eb', tint: '#eff6ff' },
   TINT: { label: 'Tint', colour: '#0891b2', tint: '#ecfeff' },
-  HOIST: { label: 'Hoist', colour: '#7c3aed', tint: '#f5f3ff' },
+  HOIST: { label: 'Hoist', colour: '#805b43', tint: '#f5eee8' },
   FITTING: { label: 'Fitting', colour: '#a21caf', tint: '#fdf4ff' },
   FABRICATION: { label: 'Fabrication', colour: '#d97706', tint: '#fffbeb' },
   ELECTRICAL: { label: 'Electrical', colour: '#16a34a', tint: '#f0fdf4' },
