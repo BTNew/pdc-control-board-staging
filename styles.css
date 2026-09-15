@@ -3757,7 +3757,7 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   font-size: .62rem;
 }
 .pmb-branch-tint { border-left-color: #06b6d4; background: #ecfeff; }
-.pmb-branch-hoist { border-left-color: #8b5cf6; background: #f5f3ff; }
+.pmb-branch-hoist { border-left-color: #805b43; background: #f5eee8; }
 .pmb-branch-fitting { border-left-color: #a855f7; background: #faf5ff; }
 .pmb-branch-fabrication { border-left-color: #f59e0b; background: #fffbeb; }
 .pmb-branch-electrical { border-left-color: #22c55e; background: #f0fdf4; }
@@ -3956,7 +3956,7 @@ body.vehicle-table-header-pinned #vehicle-table thead {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .4);
 }
 .pmb-req-tint { background: #ecfeff; color: #155e75; border-color: rgba(6, 182, 212, .3); }
-.pmb-req-hoist { background: #f5f3ff; color: #5b21b6; border-color: rgba(139, 92, 246, .35); }
+.pmb-req-hoist { background: #f5eee8; color: #614330; border-color: rgba(128, 91, 67, .35); }
 .pmb-req-fitting { background: #eff6ff; color: #1d4ed8; border-color: rgba(37, 99, 235, .35); }
 .pmb-req-fabrication { background: #fffbeb; color: #92400e; border-color: rgba(245, 158, 11, .35); }
 .pmb-req-electrical { background: #f0fdf4; color: #166534; border-color: rgba(34, 197, 94, .35); }
@@ -4056,7 +4056,7 @@ body.pmb-dragging .pmb-drop-lane {
 .pmb-branch-unassigned { border-left-color: #94a3b8; background: #f8fafc; }
 .pmb-branch-unassigned .pmb-lane-title { background: #f8fafc; }
 .pmb-branch-tint .pmb-lane-title { background: #ecfeff; }
-.pmb-branch-hoist .pmb-lane-title { background: #f5f3ff; }
+.pmb-branch-hoist .pmb-lane-title { background: #f5eee8; }
 .pmb-branch-fitting .pmb-lane-title { background: #faf5ff; }
 .pmb-branch-fabrication .pmb-lane-title { background: #fffbeb; }
 .pmb-branch-electrical .pmb-lane-title { background: #f0fdf4; }
@@ -4405,7 +4405,7 @@ body.pmb-dragging .pmb-drop-lane {
 .pmb-bay-board-tint { border-top: 5px solid #06b6d4; }
 .pmb-bay-board-express_hoist { border-top: 5px solid #0ea5e9; }
 .pmb-bay-board-express_fitout { border-top: 5px solid #a855f7; }
-.pmb-bay-board-hoist { border-top: 5px solid #3b82f6; }
+.pmb-bay-board-hoist { border-top: 5px solid #805b43; }
 .pmb-bay-board-fitting { border-top: 5px solid #8b5cf6; }
 .pmb-bay-board-build { border-top: 5px solid #8b5cf6; }
 .pmb-bay-board-electrical { border-top: 5px solid #22c55e; }
@@ -6307,7 +6307,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 #vehicle-table [data-flag-key="pdcCompleteTint"] { accent-color: #06b6d4 !important; }
 
 #vehicle-table [data-flag-key="pdcRequiresHoist"],
-#vehicle-table [data-flag-key="pdcCompleteHoist"] { accent-color: #8b5cf6 !important; }
+#vehicle-table [data-flag-key="pdcCompleteHoist"] { accent-color: #805b43 !important; }
 
 #vehicle-table [data-flag-key="pdcRequiresFitting"],
 #vehicle-table [data-flag-key="pdcCompleteFitting"] { accent-color: #0ea5e9 !important; }
@@ -6629,7 +6629,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 }
 
 #vehicle-table .mini-check.pdc-mini-tint input { accent-color: #06b6d4 !important; }
-#vehicle-table .mini-check.pdc-mini-hoist input { accent-color: #8b5cf6 !important; }
+#vehicle-table .mini-check.pdc-mini-hoist input { accent-color: #805b43 !important; }
 #vehicle-table .mini-check.pdc-mini-fitting input { accent-color: #2563eb !important; }
 #vehicle-table .mini-check.pdc-mini-fabrication input { accent-color: #f59e0b !important; }
 #vehicle-table .mini-check.pdc-mini-electrical input { accent-color: #22c55e !important; }
@@ -6637,7 +6637,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 #vehicle-table .mini-check.pdc-mini-pitInspection input { accent-color: #10b981 !important; }
 
 #vehicle-table .mini-check.pdc-mini-tint:has(input:checked) { background: #ecfeff !important; }
-#vehicle-table .mini-check.pdc-mini-hoist:has(input:checked) { background: #f5f3ff !important; }
+#vehicle-table .mini-check.pdc-mini-hoist:has(input:checked) { background: #f5eee8 !important; }
 #vehicle-table .mini-check.pdc-mini-fitting:has(input:checked) { background: #eff6ff !important; }
 #vehicle-table .mini-check.pdc-mini-fabrication:has(input:checked) { background: #fffbeb !important; }
 #vehicle-table .mini-check.pdc-mini-electrical:has(input:checked) { background: #f0fdf4 !important; }
@@ -7120,7 +7120,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .control-board-timeline-department, .control-board-timeline-bay { --bay-color:#64748b; --bay-tint:#f5f7fa; display:flex; }
 .control-board-timeline-body .station-bus_4x4 { --bay-color:#2563eb; --bay-tint:#eff6ff; }
 .control-board-timeline-body .station-tint { --bay-color:#0891b2; --bay-tint:#ecfeff; }
-.control-board-timeline-body .station-hoist { --bay-color:#7c3aed; --bay-tint:#f5f3ff; }
+.control-board-timeline-body .station-hoist { --bay-color:#805b43; --bay-tint:#f5eee8; }
 .control-board-timeline-body .station-fitting { --bay-color:#a21caf; --bay-tint:#fdf4ff; }
 .control-board-timeline-body .station-fabrication { --bay-color:#d97706; --bay-tint:#fffbeb; }
 .control-board-timeline-body .station-electrical { --bay-color:#16a34a; --bay-tint:#f0fdf4; }
@@ -7709,7 +7709,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 }
 .workflow-stage-bucket.pmb-branch-unassigned { border-left-color: #94a3b8; background: #f8fafc; }
 .workflow-stage-bucket.pmb-branch-tint { border-left-color: #06b6d4; background: #ecfeff; }
-.workflow-stage-bucket.pmb-branch-hoist { border-left-color: #8b5cf6; background: #f5f3ff; }
+.workflow-stage-bucket.pmb-branch-hoist { border-left-color: #805b43; background: #f5eee8; }
 .workflow-stage-bucket.pmb-branch-fitting { border-left-color: #a855f7; background: #faf5ff; }
 .workflow-stage-bucket.pmb-branch-fabrication { border-left-color: #f59e0b; background: #fffbeb; }
 .workflow-stage-bucket.pmb-branch-electrical { border-left-color: #22c55e; background: #f0fdf4; }
@@ -7747,7 +7747,7 @@ body.pmb-schedule-adjusting .pmb-schedule-chip-slim {
 .workflow-stage-bucket.pmb-branch-tint .workflow-bucket-title,
 .workflow-stage-bucket.pmb-branch-tint .workflow-vertical-list { background: #ecfeff; }
 .workflow-stage-bucket.pmb-branch-hoist .workflow-bucket-title,
-.workflow-stage-bucket.pmb-branch-hoist .workflow-vertical-list { background: #f5f3ff; }
+.workflow-stage-bucket.pmb-branch-hoist .workflow-vertical-list { background: #f5eee8; }
 .workflow-stage-bucket.pmb-branch-fitting .workflow-bucket-title,
 .workflow-stage-bucket.pmb-branch-fitting .workflow-vertical-list { background: #faf5ff; }
 .workflow-stage-bucket.pmb-branch-fabrication .workflow-bucket-title,
