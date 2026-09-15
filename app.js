@@ -7093,6 +7093,23 @@ function renderWorkflowBoard() {
     host.innerHTML = '<div class="workshop-connection-banner offline_error" role="status"><strong>Workshop overview unavailable</strong><span>The full bay list could not be loaded. Use Refresh board to try again.</span></div>';
     return;
   }
+  if (search !== (app.controlBoardAppliedSearch || '')) {
+    if (search) {
+      if (!app.controlBoardAppliedSearch) app.controlBoardBeforeSearch = { start: app.controlBoardTimelineStart, days: app.controlBoardTimelineDays, scroll: app.controlBoardScroll };
+      const range = overview.searchDateRange(model);
+      if (range) {
+        app.controlBoardTimelineStart = range.startDate;
+        app.controlBoardTimelineDays = range.dayCount;
+      }
+      app.controlBoardScroll = { left: 0, top: 0 };
+    } else if (app.controlBoardBeforeSearch) {
+      app.controlBoardTimelineStart = app.controlBoardBeforeSearch.start;
+      app.controlBoardTimelineDays = app.controlBoardBeforeSearch.days;
+      app.controlBoardScroll = app.controlBoardBeforeSearch.scroll;
+      app.controlBoardBeforeSearch = null;
+    }
+    app.controlBoardAppliedSearch = search;
+  }
   const timelineOptions = { startDate: app.controlBoardTimelineStart, dayCount: app.controlBoardTimelineDays || 14, now: new Date() };
   host.innerHTML = `<div class="workshop-connection-banner connected" role="status"><strong>Workshop information connected</strong><span>All physical bays · live booking updates</span></div>${overview.render(model, timelineOptions)}`;
   const scroll = host.querySelector('.control-board-bays-scroll');

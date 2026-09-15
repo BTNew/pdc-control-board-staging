@@ -71,9 +71,10 @@
     });
     waiting.sort((a, b) => rank(a.stage) - rank(b.stage) || text(a.vehicle.stock_number).localeCompare(text(b.vehicle.stock_number), undefined, { numeric: true }) || compareTime(a, b));
     const matchedWaiting = waiting.filter(item => matches(item));
-    return { calendar: snapshot.board.calendar, generatedAt: snapshot.generated_at, columns, waiting: matchedWaiting, waitingTotal: waiting.length, totalBookings: seenBookings.size, totalWaiting: waiting.length, totalBays: columns.length, search,
+    const visibleColumns = search ? columns.filter(column => column.items.length > 0) : columns;
+    return { calendar: snapshot.board.calendar, generatedAt: snapshot.generated_at, columns: visibleColumns, waiting: matchedWaiting, waitingTotal: waiting.length, totalBookings: seenBookings.size, totalWaiting: waiting.length, totalBays: columns.length, search,
       matchingItems: matchedWaiting.length + columns.reduce((n, column) => n + column.items.length, 0),
-      stages: [...new Set(columns.map(column => column.stage))] };
+      stages: [...new Set(visibleColumns.map(column => column.stage))] };
   }
 
   function cardHtml(item, waiting = false) {
@@ -105,6 +106,15 @@
   }
   function shiftDate(value, offset) {
     return validDate(value) ? new Date(Date.parse(`${value}T00:00:00Z`) + offset * DAY).toISOString().slice(0, 10) : '';
+  }
+  function searchDateRange(model) {
+    const bookings = model.columns.flatMap(column => column.items).filter(item => item.kind === 'booking');
+    const ranges = bookings.map(item => ({ start: Date.parse(item.source.scheduled_start_at), end: Date.parse(item.source.scheduled_end_at) }))
+      .filter(range => Number.isFinite(range.start) && Number.isFinite(range.end) && range.end > range.start);
+    if (!ranges.length) return null;
+    const startDate = dateKey(new Date(Math.min(...ranges.map(range => range.start))));
+    const endDate = dateKey(new Date(Math.max(...ranges.map(range => range.end)) - 1));
+    return { startDate, dayCount: Math.min(56, Math.max(1, Math.round((Date.parse(endDate) - Date.parse(startDate)) / DAY) + 1)) };
   }
   const clockMinutes = value => {
     const match = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(text(value));
@@ -223,16 +233,16 @@
       previousStage = row.stage;
       const note = row.bay.is_active === false ? 'Inactive · existing bookings only' : `${text(row.bay.technician_name) || 'Unassigned'} · ${Number(row.bay.efficiency_percent) || 100}%`;
       const missing = row.unplotted.map(entry => `<button type="button" class="control-board-unplotted" data-control-board-match data-control-board-item="${escape(entry.item.kind)}" data-control-board-id="${escape(entry.item.id)}" title="${escape(entry.reason)}">${escape(entry.item.vehicle.stock_number || entry.item.source.label || 'Job')} · ${escape(entry.reason)}</button>`).join('');
-      return `${group}<div class="control-board-timeline-bay ${stationClass}" data-control-board-bay="${escape(row.bay.bay_id)}" aria-label="${escape(`${label} Bay ${row.bay.bay_number}`)}" style="--row-height:${Math.max(58, row.laneCount * 48 + 10)}px"><div class="control-board-timeline-bay-label"><button type="button" data-control-board-planner="${escape(row.stage)}" title="Open ${escape(label)} planner"><strong>Bay ${String(row.bay.bay_number).padStart(2, '0')}</strong><span>${row.total}</span></button><small title="${escape(note)}">${escape(note)}</small>${missing}</div><div class="control-board-timeline-track">${shading}${row.segments.map(timelineCard).join('')}</div></div>`;
+      return `${group}<div class="control-board-timeline-bay ${stationClass}" data-control-board-bay="${escape(row.bay.bay_id)}" aria-label="${escape(`${label} Bay ${row.bay.bay_number}`)}" style="--row-height:${Math.max(58, row.laneCount * 48 + 10)}px"><div class="control-board-timeline-bay-label"><button type="button" data-control-board-planner="${escape(row.stage)}" title="Open ${escape(label)} planner"><strong>Bay ${String(row.bay.bay_number).padStart(2, '0')}</strong><span>${model.search ? row.items.length : row.total}</span></button><small title="${escape(note)}">${escape(note)}</small>${missing}</div><div class="control-board-timeline-track">${shading}${row.segments.map(timelineCard).join('')}</div></div>`;
     }).join('');
     const outside = timeline.outside.length ? `<button class="small-button" type="button" data-control-board-reveal="${escape(timeline.outside[0].date)}">${timeline.outside.length} bookings outside these dates · Show</button>` : '';
     const waiting = model.waiting.length ? `<div class="control-board-timeline-waiting"><strong>Unallocated · ${model.waiting.length}</strong><div>${model.waiting.map(item => cardHtml(item, true)).join('')}</div></div>` : '';
-    return `<div class="control-board-timeline-toolbar"><div><strong>${model.totalBays} bays · ${model.totalBookings} bookings · ${model.totalWaiting} unallocated</strong><span>${model.search ? `${model.matchingItems} matching jobs · ` : ''}Scroll down for bays and right for later days. Perth time.</span></div><div class="control-board-timeline-dates"><button type="button" data-control-board-shift="-${timeline.dayCount}" aria-label="Previous ${timeline.dayCount} days">‹</button><label>From <input type="date" data-control-board-start value="${timeline.startDate}" aria-label="Timeline start date"></label><button type="button" data-control-board-today>Today</button><button type="button" data-control-board-shift="${timeline.dayCount}" aria-label="Next ${timeline.dayCount} days">›</button><button type="button" data-control-board-more${timeline.dayCount >= 56 ? ' disabled' : ''}>More days →</button></div></div>
+    return `<div class="control-board-timeline-toolbar"><div><strong>${model.search ? model.columns.length : model.totalBays} bays · ${model.search ? model.columns.reduce((n, column) => n + column.items.filter(item => item.kind === 'booking').length, 0) + model.waiting.filter(item => item.kind === 'booking').length : model.totalBookings} bookings · ${model.search ? model.waiting.length : model.totalWaiting} unallocated</strong><span>${model.search ? `${model.matchingItems} matching jobs · Only matching bays shown · ` : ''}Scroll down for bays and right for later days. Perth time.</span></div><div class="control-board-timeline-dates"><button type="button" data-control-board-shift="-${timeline.dayCount}" aria-label="Previous ${timeline.dayCount} days">‹</button><label>From <input type="date" data-control-board-start value="${timeline.startDate}" aria-label="Timeline start date"></label><button type="button" data-control-board-today>Today</button><button type="button" data-control-board-shift="${timeline.dayCount}" aria-label="Next ${timeline.dayCount} days">›</button><button type="button" data-control-board-more${timeline.dayCount >= 56 ? ' disabled' : ''}>More days →</button></div></div>
       <nav class="control-board-department-links" aria-label="Jump to workshop department">${model.stages.map(stage => `<button type="button" data-control-board-jump="${escape(stage)}">${escape(stageLabel(stage))}</button>`).join('')}<span class="control-board-job-legend"><i class="is-planned"></i>Planned <i class="is-started"></i>Live <i class="is-stoppage"></i>Stoppage <i class="is-admin"></i>Admin block</span></nav>
       ${outside}${model.search && !model.matchingItems ? '<p class="control-board-no-results" role="status">No matching jobs. Clear the search to see all work.</p>' : ''}
       <div class="control-board-bays-scroll control-board-timeline-scroll" tabindex="0" role="region" aria-label="Workshop timeline. Scroll down for all bays and horizontally for later days." style="--timeline-width:${timeline.width}px;--day-width:${timeline.dayWidth}px;--hour-width:${timeline.dayWidth / ((timeline.axisEnd - timeline.axisStart) / 60)}px">
         <div class="control-board-timeline-grid"><div class="control-board-timeline-axis"><div class="control-board-timeline-axis-corner">Workshop / Bay</div><div class="control-board-timeline-days">${days}</div></div><div class="control-board-timeline-body">${rows}${timeline.nowLeft === null ? '' : `<div class="control-board-timeline-now" style="left:calc(var(--bay-label-width) + ${timeline.nowLeft}px)"><b>Now</b></div>`}</div></div>
       </div>${waiting}`;
   }
-  return Object.freeze({ buildModel, buildTimeline, render, stageLabel, dateKey, shiftDate });
+  return Object.freeze({ buildModel, buildTimeline, render, stageLabel, dateKey, shiftDate, searchDateRange });
 });
