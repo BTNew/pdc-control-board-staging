@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {createService,progressHtml,esc}=require('./pdc-fitters.js');
+const {createService,progressHtml,timerModel,timerHtml,formatElapsed,esc}=require('./pdc-fitters.js');
 function fixture(fetch, options={}) {
   let context={actor:'staff-a',token:'test-session',role:'operator',config:{projectRef:'cdsmnqxtyyoeoznmbidd',url:'https://cdsmnqxtyyoeoznmbidd.supabase.co',publishableKey:'test-only',workshop:{sharedData:true}}};
   let seq=0;
@@ -42,6 +42,21 @@ test('session changes discard late responses and never replay under another acto
 test('server conflicts remain errors and are not mistaken for successful progress',async()=>{
   const f=fixture(async()=>reply({ok:false,error:'version_conflict'}));
   await assert.rejects(f.service.command({p_action:'line'}),e=>e.code==='version_conflict');assert.equal(f.service.retryPending,false);
+});
+test('planned vehicle conflicts identify the exact station and bay without claiming work has started',async()=>{
+  const f=fixture(async()=>reply({ok:false,error:'vehicle_overlap',blocker:{booking_id:'booking-tint',stage_code:'TINT',bay_number:2,status:'planned',start_at:'2026-09-16T02:00:00Z',end_at:'2026-09-16T03:00:00Z'}}));
+  await assert.rejects(f.service.command({p_action:'start'}),e=>{
+    assert.equal(e.code,'vehicle_overlap');assert.match(e.message,/Start blocked: this vehicle has a planned booking in Tint, Bay 2/);
+    assert.match(e.message,/10:00 am/);assert.match(e.message,/11:00 am/);assert.match(e.message,/Perth time/);
+    assert.doesNotMatch(e.message,/work in progress|vehicle is working/);return true;
+  });
+  assert.equal(f.service.retryPending,false);
+});
+test('conflict messaging distinguishes started, stopped and unidentified bookings',async()=>{
+  for(const [status,phrase] of [['started','work in progress'],['stoppage','a stopped job'],['unknown','another booking']]) {
+    const f=fixture(async()=>reply({ok:false,error:'vehicle_overlap',blocker:{stage_code:'FITTING',bay_number:3,status}}));
+    await assert.rejects(f.service.command({p_action:'resume'}),e=>e.message.includes(`Resume blocked: this vehicle has ${phrase} in Fitting, Bay 3`));
+  }
 });
 test('wrapped database calendar and bay conflicts have clear messages without raw error details',async()=>{
   for(const code of ['calendar_unavailable','calendar_duration_mismatch','fixed_booking_conflict','admin_block_conflict']){
@@ -94,7 +109,7 @@ test('concurrent roster reads coalesce and late former-user responses cannot see
 const flush=async()=>{for(let i=0;i<8;i++)await new Promise(resolve=>setImmediate(resolve));};
 function screenFixture() {
   const vm=require('node:vm'),fs=require('node:fs');
-  const calls=[],listeners={},intervals=[],elements={};let renders=0,html='',gate=null,commandError=null;
+  const calls=[],listeners={},intervals=[],elements={},events=[];let renders=0,html='',gate=null,commandGate=null,commandError=null,clockNow=0;
   const element=(name,extra={})=>elements[name]={handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},...extra};
   const mechanic=element('#fitter-mechanic',{tagName:'SELECT'});
   const line=element('[data-fitter-line]',{dataset:{fitterLine:'line-a'},checked:false,tagName:'INPUT'});
@@ -106,19 +121,23 @@ function screenFixture() {
   const stopType=element('#fitter-stop-type',{tagName:'SELECT'});
   const action=element('[data-fitter-action]',{dataset:{fitterAction:'resume'}});
   const sync={textContent:''};
+  const clock={textContent:''},timerLabel={textContent:''},timerHint={textContent:''};
+  const timerBox={className:'',querySelector:selector=>({'[data-fitter-clock]':clock,'[data-fitter-timer-label]':timerLabel,'[data-fitter-timer-hint]':timerHint}[selector]||null)};
   const host={get innerHTML(){return html;},set innerHTML(value){html=value;renders++;},
     querySelectorAll:selector=>elements[selector]?[elements[selector]]:[],
-    querySelector:selector=>selector==='.fitter-sync'?sync:null,
+    querySelector:selector=>selector==='.fitter-sync'?sync:selector==='[data-fitter-timer]'&&html.includes('data-fitter-timer')?timerBox:null,
     contains:node=>Object.values(elements).includes(node)};
   const doc={body:{dataset:{currentView:'fitters'}},hidden:false,activeElement:null,
     getElementById:id=>id==='fitters-host'?host:elements[`#${id}`]||null,addEventListener:(event,fn)=>{listeners[event]=fn;}};
   const data={jobs:[{id:'booking-a',version:1,status:'started',stage_name:'Fitting',bay_number:1,stock:'TEST',job_card:'J-TEST'}],
-    detail:{booking_id:'booking-a',version:1,status:'started',stage_code:'FITTING',catalog_hash:'scope-a',
+    detail:{booking_id:'booking-a',version:1,status:'started',stage_code:'FITTING',catalog_hash:'scope-a',actual_start_at:'2026-09-16T00:00:00Z',
+      timer:{elapsed_seconds:120,running:true,as_of:'2026-09-16T00:02:00Z',next_change_at:'2026-09-16T01:00:00Z'},
       lines:[{line_identity:'line-a',description:'Fit bracket',stage_code:'FITTING',hours:1,completed:false,note:'',scope_hash:'scope-a'}],
       progress:{percent:0,total_hours:1,completed_hours:0,total_lines:1,completed_lines:0,can_complete:false}}};
   const snapshot=value=>JSON.parse(JSON.stringify(value));
   const root={document:doc,PDC_AUTH_CONTEXT:{userId:'staff-a',role:'operator'},
     PDC_SUPABASE_CONFIG:{projectRef:'cdsmnqxtyyoeoznmbidd',url:'https://cdsmnqxtyyoeoznmbidd.supabase.co',publishableKey:'test',workshop:{sharedData:true}},
+    performance:{now:()=>clockNow},CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},dispatchEvent:event=>events.push(event),
     crypto:{randomUUID:()=>`request-${calls.length}`},addEventListener:(event,fn)=>{listeners[event]=fn;},
     fetch:async(url,options)=>{
       const rpc=url.split('/').pop(),body=JSON.parse(options.body);calls.push({rpc,body});
@@ -130,14 +149,17 @@ function screenFixture() {
       }
       if(rpc==='get_fitter_job')return reply(snapshot({ok:true,...data.detail}));
       if(rpc==='fitter_job_command'){
+        if(commandGate){const pending=commandGate;commandGate=null;await pending.promise;}
         assert.equal(body.p_expected_version,data.detail.version);
         assert.equal(body.p_catalog_hash,data.detail.catalog_hash);
-        if(commandError){const error=commandError;commandError=null;return reply({ok:false,error});}
+        if(commandError){const error=commandError;commandError=null;if(error==='unconfirmed')throw Error('network');return reply({ok:false,error});}
         data.detail.version++;data.jobs[0].version++;
-        if(body.p_action==='stop'||body.p_action==='resume'){
+        if(['stop','resume','start'].includes(body.p_action)){
           data.detail.status=data.jobs[0].status=body.p_action==='stop'?'stoppage':'started';
           data.detail.stoppage_reason=body.p_action==='stop'?body.p_note:null;
-          return reply({ok:true,action:body.p_action});
+          data.detail.timer.running=body.p_action!=='stop';
+          if(body.p_action==='start'){data.detail.actual_start_at='2026-09-16T00:02:00Z';data.detail.timer.elapsed_seconds=0;}
+          return reply({ok:true,action:body.p_action,booking_id:'booking-a'});
         }
         data.detail.lines[0].completed=body.p_completed;data.detail.lines[0].note=body.p_note;
         data.detail.progress={...data.detail.progress,percent:body.p_completed?100:0,completed_hours:body.p_completed?1:0,completed_lines:body.p_completed?1:0};
@@ -147,9 +169,11 @@ function screenFixture() {
     }};
   vm.runInNewContext(fs.readFileSync(require.resolve('./pdc-fitters.js'),'utf8'),{window:root,
     getPdcSupabaseAccessToken:()=> 'session',AbortController,setTimeout,clearTimeout,setInterval:fn=>intervals.push(fn)});
-  return {root,doc,data,calls,mechanic,line,note,saveNote,refresh,stop,confirmStop,stopReason,stopType,action,listeners,sync,
+  return {root,doc,data,calls,events,clock,timerLabel,timerBox,mechanic,line,note,saveNote,refresh,stop,confirmStop,stopReason,stopType,action,listeners,sync,
     get renders(){return renders;},get html(){return html;},poll:()=>intervals[0](),
     delayJobs(){let resolve;const promise=new Promise(r=>resolve=r);gate={promise};return resolve;},
+    delayCommand(){let resolve;const promise=new Promise(r=>resolve=r);commandGate={promise};return resolve;},
+    advanceClock(ms){clockNow+=ms;intervals[1]();},
     rejectCommand(error){commandError=error;},
     async open(){root.PdcFitters.open();await flush();mechanic.handlers.change({target:{value:'mechanic-a'}});await flush();}};
 }
@@ -214,4 +238,90 @@ test('a stoppage draft never follows a booking that disappears onto the next veh
   f.data.jobs=[{...f.data.jobs[0],id:'booking-b',stock:'OTHER-TEST'}];f.data.detail.booking_id='booking-b';
   f.poll();await flush();assert.doesNotMatch(f.html,/Record a workshop stoppage/);
   f.stop.handlers.click();assert.doesNotMatch(f.html,/Bracket missing from first vehicle/);
+});
+test('timer advances confirmed work time, respects breaks and pauses, and cannot invent a start',()=>{
+  const detail={status:'started',actual_start_at:'2026-09-16T00:00:00Z',timer:{elapsed_seconds:120,running:true,as_of:'2026-09-16T00:02:00Z',next_change_at:'2026-09-16T00:02:20Z'}};
+  assert.equal(formatElapsed(timerModel(detail,{connected:true,receivedAt:1000,now:6500}).seconds),'00:02:05');
+  const boundary=timerModel(detail,{receivedAt:1000,now:26000});assert.equal(boundary.tone,'paused');assert.equal(boundary.seconds,140);
+  assert.equal(timerModel({...detail,status:'stoppage'},{now:999999}).seconds,120);
+  assert.equal(timerModel({...detail,timer:{...detail.timer,running:false}},{now:999999}).seconds,120);
+  assert.equal(timerModel({...detail,status:'planned'}).label,'Not started');
+  assert.notEqual(timerModel({...detail,actual_start_at:null}).tone,'running');
+  assert.notEqual(timerModel(detail,{unconfirmed:true}).tone,'running');
+  for(const [action,label] of [['start','Start'],['resume','Resume'],['stop','Stoppage'],['complete','Completion'],['line','Save']]) {
+    const uncertain=timerModel(detail,{unconfirmed:true,unconfirmedAction:action,now:15000});
+    assert.equal(uncertain.label,`${label} not confirmed`);assert.equal(uncertain.seconds,120);
+  }
+  assert.notEqual(timerModel(detail,{connected:false}).tone,'running');
+  assert.equal(formatElapsed(360005),'100:00:05');assert.equal(formatElapsed(null),'--:--:--');
+  assert.match(timerModel({...detail,timer:{...detail.timer,history_complete:false}}).hint,/Approximate.*history is incomplete/);
+  assert.match(timerHtml(detail,{pendingAction:'start'}),/Starting job/);
+  assert.doesNotMatch(timerHtml(detail,{pendingAction:'start'}),/is-running/);
+});
+test('long-disconnected timer freezes at the last supported interval rather than claiming continued work',()=>{
+  const detail={status:'started',actual_start_at:'2026-09-16T00:00:00Z',timer:{elapsed_seconds:120,running:true,as_of:'2026-09-16T00:02:00Z',next_change_at:'2026-09-16T01:00:00Z'}};
+  const stale=timerModel(detail,{receivedAt:0,now:600000});
+  assert.equal(stale.tone,'unconfirmed');assert.equal(stale.seconds,150);
+});
+test('Start shows pending immediately, then a confirmed running timer and canonical planner event',async()=>{
+  const f=screenFixture();f.data.detail.status=f.data.jobs[0].status='planned';f.data.detail.actual_start_at=null;await f.open();
+  const release=f.delayCommand();f.action.dataset.fitterAction='start';f.action.handlers.click({currentTarget:f.action});
+  assert.match(f.html,/Starting job…/);assert.doesNotMatch(f.html,/fitter-timer is-running/);assert.equal(f.events.length,0);
+  release();await flush();assert.match(f.html,/fitter-timer is-running/);assert.match(f.html,/Job started on the workshop planner/);
+  assert.equal(f.events.length,1);assert.equal(f.events[0].type,'pdc-fitter-workshop-saved');
+  assert.equal(f.events[0].detail.bookingId,'booking-a');assert.equal(f.events[0].detail.stageCode,'FITTING');assert.equal(f.events[0].detail.action,'start');
+  f.advanceClock(5000);assert.equal(f.clock.textContent,'00:00:05');assert.equal(f.timerLabel.textContent,'Running');
+});
+test('rejected and unconfirmed starts never show running or notify the planner of success',async()=>{
+  for(const error of ['bay_already_started','parts_incomplete_entry','unconfirmed']){
+    const f=screenFixture();f.data.detail.status=f.data.jobs[0].status='planned';f.data.detail.actual_start_at=null;await f.open();
+    f.rejectCommand(error);f.action.dataset.fitterAction='start';f.action.handlers.click({currentTarget:f.action});await flush();
+    assert.equal(f.events.length,0);assert.doesNotMatch(f.html,/fitter-timer is-running/);
+    if(error==='unconfirmed')assert.match(f.html,/Start not confirmed/);
+    else if(error==='parts_incomplete_entry')assert.match(f.html,/Parts are not marked ready/);
+    else assert.match(f.html,/bay already has a running or stopped job/);
+  }
+});
+test('timer-only snapshots and one-second ticks do not replace the checklist or make extra requests',async()=>{
+  const f=screenFixture();await f.open();const renders=f.renders,calls=f.calls.length;
+  f.advanceClock(5000);assert.equal(f.clock.textContent,'00:02:05');assert.equal(f.renders,renders);assert.equal(f.calls.length,calls);
+  f.data.detail.timer.elapsed_seconds=130;f.data.detail.timer.as_of='2026-09-16T00:02:10Z';
+  f.poll();await flush();assert.equal(f.renders,renders);assert.equal(f.clock.textContent,'00:02:10');
+  f.root.PdcFitters.close();f.root.PdcFitters.open();await flush();
+  assert.match(f.html,/00:02:10/);assert.match(f.html,/fitter-timer is-running/);
+});
+test('pending stoppage freezes the displayed interval until authoritative paused timing arrives',async()=>{
+  const f=screenFixture();await f.open();f.advanceClock(7000);
+  assert.equal(f.clock.textContent,'00:02:07');
+  f.stop.handlers.click();f.stopReason.handlers.input({target:{value:'Waiting for parts'}});
+  const release=f.delayCommand();f.confirmStop.handlers.click();
+  assert.match(f.html,/Recording stoppage…/);assert.match(f.html,/00:02:07/);
+  f.advanceClock(5000);
+  assert.equal(f.clock.textContent,'00:02:07','pending state must neither rewind to the old poll nor keep counting');
+  assert.equal(f.timerLabel.textContent,'Recording stoppage…');assert.equal(f.events.length,0);
+  f.data.detail.timer.elapsed_seconds=132;f.data.detail.timer.as_of='2026-09-16T00:02:12Z';
+  release();await flush();
+  assert.match(f.html,/Paused · Stoppage/);assert.match(f.html,/00:02:12/);
+  f.advanceClock(5000);assert.equal(f.clock.textContent,'00:02:12');
+});
+test('an unconfirmed stoppage retains its visible frozen time through reads without claiming a stop',async()=>{
+  const f=screenFixture();await f.open();f.advanceClock(7000);
+  f.stop.handlers.click();f.stopReason.handlers.input({target:{value:'Waiting for parts'}});
+  const release=f.delayCommand();f.rejectCommand('unconfirmed');f.confirmStop.handlers.click();
+  f.advanceClock(4000);release();await flush();
+  assert.match(f.html,/Stoppage not confirmed/);assert.match(f.html,/00:02:07/);
+  assert.equal(f.events.length,0);assert.equal(f.data.detail.status,'started');
+  f.data.detail.timer.elapsed_seconds=135;f.data.detail.timer.as_of='2026-09-16T00:02:15Z';
+  f.doc.activeElement=null;f.poll();await flush();f.advanceClock(4000);
+  assert.equal(f.clock.textContent,'00:02:07');assert.equal(f.timerLabel.textContent,'Stoppage not confirmed');
+});
+test('offline timing freezes at the displayed value and a new authoritative snapshot can correct it',async()=>{
+  const f=screenFixture();await f.open();f.advanceClock(7000);f.listeners.offline();
+  assert.match(f.html,/00:02:07/);f.advanceClock(4000);
+  assert.equal(f.clock.textContent,'00:02:07');assert.equal(f.timerLabel.textContent,'Last confirmed time');
+  f.data.detail.status=f.data.jobs[0].status='stoppage';f.data.detail.timer.running=false;
+  f.data.detail.timer.elapsed_seconds=125;f.data.detail.timer.as_of='2026-09-16T00:02:11Z';
+  f.listeners.online();await flush();
+  assert.match(f.html,/00:02:05/,'fresh server timing must not be overridden by a stale display freeze');
+  assert.match(f.html,/Paused · Stoppage/);
 });

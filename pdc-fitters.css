@@ -28,6 +28,16 @@
 .fitter-job-heading h2 { font-size:26px; }
 .fitter-job-heading h2 span { display:inline-block; font-size:16px; font-weight:500; color:#536980; }
 .fitter-job-heading>p:last-child { font-size:14px; color:#536980; }
+.fitter-timer { display:grid; grid-template-columns:10px minmax(0,1fr) auto; gap:10px; align-items:center; padding:12px 14px; border:1px solid #c9d5df; border-radius:10px; background:#f2f5f8; }
+.fitter-timer-dot { width:10px; height:10px; border-radius:50%; background:#7c8996; }
+.fitter-timer strong { display:block; font-size:16px; line-height:1.25; }
+.fitter-timer small { display:block; margin-top:3px; font-size:12px; line-height:1.35; color:#516374; }
+.fitter-timer output { font-size:26px; line-height:1.1; font-weight:750; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fitter-timer.is-running { background:#eaf8ef; border-color:#8abb9e; color:#145c37; }
+.fitter-timer.is-running .fitter-timer-dot { background:#1b9757; box-shadow:0 0 0 4px #ccebd8; }
+.fitter-timer.is-paused,.fitter-timer.is-pending { background:#fff7e4; border-color:#dfc781; color:#6b4a08; }
+.fitter-timer.is-paused .fitter-timer-dot,.fitter-timer.is-pending .fitter-timer-dot { background:#b3810e; }
+.fitter-timer.is-unconfirmed { background:#fff3e9; border-color:#dcb99b; color:#795135; }
 .fitter-actions { margin:16px 0; }
 .fitter-actions p { font-size:14px; color:#536980; }
 .fitter-app .fitter-primary { color:white; background:#236d50; border-color:#236d50; }
@@ -82,6 +92,10 @@
  .fitter-notes { margin-left:0; }
  .fitter-line-check strong { font-size:18px; }
  .fitter-progress>b { font-size:12px; }
+ .fitter-timer { padding:10px; column-gap:9px; }
+ .fitter-timer output { font-size:24px; }
+ .fitter-timer small { grid-column:2/-1; }
 }
+@media(max-width:400px) { .fitter-timer { grid-template-columns:10px minmax(0,1fr); } .fitter-timer output { grid-column:2; } }
 
 @media(max-width:500px){html.pdc-qc-phone .qc-phone-header{flex-wrap:wrap;}html.pdc-qc-phone .qc-phone-header-actions{flex-wrap:wrap;}}
