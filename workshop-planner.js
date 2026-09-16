@@ -721,7 +721,9 @@ let workshopActiveQueuePointerDrag = null;
 let workshopSuppressMouseDragUntil = 0;
 
 function workshopAdministratorCanMove(role = (typeof window !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : '')) {
-  return String(role || '').trim().toLowerCase() === 'administrator';
+  // The existing receipt-backed RPC names are retained for deployed clients.
+  // Controller is stored as operator; administrative blocks have a separate gate.
+  return ['operator', 'administrator'].includes(String(role || '').trim().toLowerCase());
 }
 
 function workshopNewRequestId() {
