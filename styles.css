@@ -13072,6 +13072,7 @@ select[name="pdcLocation"]:focus,
 .nav-admin-menu[hidden], .nav-admin-group[hidden],
 .ai-board-advisor-panel[hidden], .email-intake-upload-panel[hidden],
 .email-intake-status[hidden], .table-toolbar[hidden], #email-intake-review-content[hidden] { display: none !important; }
+#nav-user-management[hidden], #user-management[hidden] { display: none !important; }
 .nav-admin-item { padding: 9px 12px; border-radius: 10px; font-size: .84rem; }
 .app-shell.sidebar-collapsed .nav-admin-group { position: relative; width: 100%; }
 .app-shell.sidebar-collapsed .nav-admin-menu { position: absolute; z-index: 70; top: 0; left: calc(100% + 8px); width: 226px; margin: 0; padding: 8px; border: 1px solid rgba(255,255,255,.14); border-radius: 12px; background: #111827; box-shadow: 0 18px 42px rgba(15,23,42,.35); }
