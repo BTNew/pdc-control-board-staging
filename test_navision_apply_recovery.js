@@ -31,7 +31,7 @@ function runtime(outcomes, onWait) {
     setTimeout: (done, ms) => { waits.push(ms); onWait?.(() => { current = false; }); done(); },
   };
   vm.createContext(context);
-  vm.runInContext(slice('function sharedNavisionApplyErrorMessage(') + '\n' + slice('async function applySharedNavisionImportPending('), context);
+  vm.runInContext(slice('function navisionDealerName(') + '\n' + slice('function sharedNavisionApplyErrorMessage(') + '\n' + slice('async function applySharedNavisionImportPending('), context);
   return { calls, waits, alerts, context, pending, run: () => context.applySharedNavisionImportPending(pending, 'same-user'),
     counts: () => ({ confirmations, renders }) };
 }
