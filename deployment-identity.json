@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260916074828",
-    "name": "workshop_start_safeupdate_initialization",
-    "file": "supabase/migrations/20260916074828_workshop_start_safeupdate_initialization.sql",
-    "sha256": "86ffbe6407d5f20ea7699cdb9469fe05714cb0feaee585b6d77e8688f707e27f",
+    "version": "20260916111044",
+    "name": "workshop_move_cascade_affected_chain",
+    "file": "supabase/migrations/20260916111044_workshop_move_cascade_affected_chain.sql",
+    "sha256": "401b25e04c72b1f2380b9c4eda561ad45f36b0ad261d4553d8dca4feaac018c5",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Real PostgREST HTTP reproduced SQLSTATE21000 before repair with safeupdate enforced. After repair,33 fitter/planner workflow assertions passed through the same connection; all operational fixtures rolled back and temporary test account/RPC removed. Fitter Start, weighted item progress, notes, stoppage, replay, resume and completion verified. No database safeguards or role grants changed."
+    "source": "Reproduced unnecessary distant-booking vehicle overlap before repair. After repair,41 synthetic rollback assertions passed; only overlapping queue followers move until a gap absorbs delay. Real conflict protections, receipts and function permissions retained; no existing operational rows changed."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -376,5 +376,14 @@
       "commissioned": true,
       "review_status": "staging_applied"
     }
-  ]
+  ],
+  "workshop_move_cascade_affected_chain_migration": {
+    "version": "20260916111044",
+    "name": "workshop_move_cascade_affected_chain",
+    "file": "supabase/migrations/20260916111044_workshop_move_cascade_affected_chain.sql",
+    "sha256": "401b25e04c72b1f2380b9c4eda561ad45f36b0ad261d4553d8dca4feaac018c5",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "Reproduced unnecessary distant-booking vehicle overlap before repair. After repair,41 synthetic rollback assertions passed; only overlapping queue followers move until a gap absorbs delay. Real conflict protections, receipts and function permissions retained; no existing operational rows changed."
+  }
 }

@@ -1043,6 +1043,8 @@ function workshopDescribeSharedActionError(result) {
     return 'That technician is already assigned to another booking during this period.';
   }
   if (error === 'vehicle_overlap' || (conflict && conflict.conflict_type === 'vehicle_overlap')) {
+    const detail = workshopVehicleConflictDetail(result);
+    if (detail) return `This move conflicts with ${detail}. No conflicting bookings were saved. Keep at least 1 hour between this vehicle’s bookings. Use Best slot or move the affected later booking.`;
     return 'This change would overlap a vehicle’s booking in another bay or station, including any booking pushed back by the change. No conflicting bookings were saved. Use Best slot to find a time with the 1-hour buffer, or move the affected later booking.';
   }
   if (error === 'sublet_away') {
@@ -1096,6 +1098,61 @@ function workshopDescribeSharedActionError(result) {
   }
   const exact = workshopAdministratorCanMove() ? workshopAdministratorErrorDetail(result) : '';
   return exact ? `The server rejected this change. No update was saved. ${exact}` : 'The server rejected this change. No update was saved, and the planner has reloaded the current shared data.';
+}
+
+function workshopVehicleConflictDetail(result = {}) {
+  // Error details are display-only. Never reverse-match a stock/key or read an
+  // untrusted/previous-session snapshot to identify the conflicting booking.
+  const object = value => value && typeof value === 'object' && !Array.isArray(value);
+  const uuid = value => typeof value === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.trim()) ? value.trim().toLowerCase() : '';
+  const text = value => typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 100) : '';
+  const envelopes = [result, result.body].filter(object);
+  for (const container of envelopes.slice()) {
+    for (const field of ['message', 'details']) {
+      if (typeof container[field] !== 'string' || container[field].length > 8192) continue;
+      const raw = container[field].trim().replace(/^Workshop Planner validation rejected booking:\s*/, '');
+      if (!raw.startsWith('{')) continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (object(parsed) && parsed.error === 'vehicle_overlap') envelopes.push(parsed);
+      } catch (_) { /* Incomplete or non-JSON errors keep the generic message. */ }
+    }
+  }
+  const details = envelopes.filter(value => value.error === 'vehicle_overlap' || value.conflict?.conflict_type === 'vehicle_overlap');
+  const existing = details.flatMap(value => [value.conflict?.existing_booking, value.blocker]).filter(object);
+  const ids = [...new Set([...details.map(value => uuid(value.conflict_booking_id)), ...existing.map(value => uuid(value.booking_id))].filter(Boolean))];
+  if (ids.length !== 1) return '';
+  const bookingId = ids[0];
+  const direct = existing.find(value => uuid(value.booking_id) === bookingId) || {};
+  let snapshot = null;
+  try { snapshot = typeof window !== 'undefined' ? window.__workshopDataService?.getTrustedSnapshot?.() : null; } catch (_) { /* No authority, no enrichment. */ }
+  const matches = Array.isArray(snapshot?.bookings) ? snapshot.bookings.filter(value => uuid(value?.booking_id) === bookingId) : [];
+  const saved = matches.length === 1 ? matches[0] : {};
+  const directVehicleId = uuid(direct.vehicle_id || direct.vehicle?.id);
+  const savedVehicleId = uuid(saved.vehicle_id || saved.vehicle?.id);
+  if (directVehicleId && savedVehicleId && directVehicleId !== savedVehicleId) return '';
+  const booking = { ...saved, ...direct };
+  const vehicleId = uuid(booking.vehicle_id || booking.vehicle?.id);
+  if (booking.vehicle?.id && uuid(booking.vehicle.id) !== vehicleId) return '';
+  const vehicles = vehicleId && Array.isArray(snapshot?.vehicles) ? snapshot.vehicles.filter(value => uuid(value?.id) === vehicleId) : [];
+  const vehicle = booking.vehicle || (vehicles.length === 1 ? vehicles[0] : {});
+  const stock = text(vehicle.stock_number);
+  const stageNames = { BUS_4X4: 'Bus 4×4', TINT: 'Tint', HOIST: 'Hoist', FITTING: 'Fitting', FABRICATION: 'Fabrication', ELECTRICAL: 'Electrical', TYRE: 'Tyre' };
+  const stage = stageNames[String(booking.stage?.code || booking.stage_code || '').toUpperCase()] || text(booking.stage?.display_name || booking.stage_name);
+  const bayNumber = Number(booking.bay?.bay_number ?? booking.bay_number);
+  const bay = Number.isSafeInteger(bayNumber) && bayNumber > 0 ? `Bay ${bayNumber}` : '';
+  const formatTime = value => {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(value) || value.length > 40) return '';
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+    return date.toLocaleString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  };
+  const start = formatTime(booking.scheduled_start_at);
+  const end = formatTime(booking.scheduled_end_at);
+  const location = [stage, bay].filter(Boolean).join(' · ');
+  const when = start ? `scheduled ${start}${end ? ` – ${end}` : ''} (Perth time)` : '';
+  if (!stock && !location && !when) return '';
+  return [stock ? `stock ${stock}` : 'another booking for this vehicle', location, when].filter(Boolean).join(' · ');
 }
 
 function workshopPersistPlanAction(label = 'Workshop planner update', rows = [], vehicle = null, action = '', details = {}) {
