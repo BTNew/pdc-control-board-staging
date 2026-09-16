@@ -3517,7 +3517,7 @@ function loadVehicleLifecycleSharedActionsIfConfigured() {
         initVehicleLifecycleSharedActionsIfEnabled();
         return;
       }
-      loadExternalScript(`workshop-data-service.js?review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+      loadExternalScript(`workshop-data-service.js?planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
         .then(() => initVehicleLifecycleSharedActionsIfEnabled())
         .catch(() => { /* fail closed: configured shared lifecycle actions report service_unavailable */ });
     })
@@ -5416,11 +5416,11 @@ function renderWorkshopPlannerWhenReady() {
   // unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is explicitly set
   // to true; the planner UI/runtime is not modified by this load and
   // continues to operate exactly as before.
-  loadExternalScript(`workshop-data-service.js?review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5465,7 +5465,7 @@ function ensureDashboardWorkshopProjectionReady() {
   }
   if (window.__dashboardWorkshopProjectionLoading) return false;
   window.__dashboardWorkshopProjectionLoading = true;
-  loadExternalScript(`workshop-data-service.js?review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
@@ -11887,6 +11887,15 @@ function canTransferVehicleToPmb(vehicle) {
 }
 
 
+function pmbPartsReleaseWarning(vehicles = []) {
+  const parts = partsJobDef();
+  const incomplete = vehicles.filter(vehicle => vehicle && pdcJobRequired(vehicle, parts) && !pdcJobComplete(vehicle, parts));
+  if (!incomplete.length) return '';
+  const stocks = incomplete.slice(0, 10).map(vehicle => `• ${displayStockNumber(vehicle) || 'No stock'}`).join('\n');
+  const more = incomplete.length > 10 ? `\n• plus ${incomplete.length - 10} more` : '';
+  return `WARNING — CAUTION\n${incomplete.length === 1 ? 'This vehicle will be released' : 'These vehicles will be released'} to PMB without Parts complete.\n\n${stocks}${more}\n\nContinue only if you intend to release with Parts incomplete.`;
+}
+
 async function transferSelectedYhVehiclesToPmb() {
   if (sharedVehicleLocationMutationUnavailable('bulk transfer to PMB')) return false;
   const selected = selectedVehiclesForBulkEmail();
@@ -11902,7 +11911,8 @@ async function transferSelectedYhVehiclesToPmb() {
 
   const preview = transferable.slice(0, 10).map(vehicle => `• ${vehicleIdentityTitle(vehicle) || 'No stock'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`).join('\n');
   const more = transferable.length > 10 ? `\n• plus ${transferable.length - 10} more` : '';
-  if (!window.confirm(`Transfer ${transferable.length} Yard Hold/In Transit vehicle${transferable.length === 1 ? '' : 's'} to Vehicles at PMB?\n\n${preview}${more}\n\nThis is a manual PDC location change. Future Navision uploads will not move these vehicles back.`)) return;
+  const partsWarning = pmbPartsReleaseWarning(transferable);
+  if (!window.confirm(`${partsWarning ? partsWarning + '\n\n' : ''}Transfer ${transferable.length} Yard Hold/In Transit vehicle${transferable.length === 1 ? '' : 's'} to Vehicles at PMB?\n\n${preview}${more}\n\nThis is a manual PDC location change. Future Navision uploads will not move these vehicles back.`)) return;
 
   if (transferable.some(vehicle => !vehicleLocationActionAllowed(vehicle, 'transfer to PMB'))) return;
 
@@ -11965,7 +11975,8 @@ async function transferYhVehicleToPmb(key = '') {
   }
   const stock = displayStockNumber(vehicle) || 'No stock';
   const customer = vehicleCustomerName(vehicle) || 'Unknown customer';
-  if (!window.confirm(`Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
+  const partsWarning = pmbPartsReleaseWarning([vehicle]);
+  if (!window.confirm(`${partsWarning ? partsWarning + '\n\n' : ''}Transfer ${stock} - ${customer} to PMB?\n\nThis is a manual PDC location change. Future Navision uploads will not move it back.`)) return;
 
   if (!vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
 
@@ -15206,6 +15217,10 @@ function renderDetail() {
     }
     const authoritativeLocationChanged = serverAuthoritative
       && pdcLocation !== normalizePdcLocation(form.dataset.pdcLocationBaseline || previousPdcLocation);
+    if (pdcLocation === 'PMB' && previousPdcLocation !== 'PMB') {
+      const partsWarning = pmbPartsReleaseWarning([authoritativeSaveVehicle]);
+      if (partsWarning && !window.confirm(partsWarning)) return;
+    }
     if (authoritativeLocationChanged) {
       const hasOtherAuthoritativeChanges = salespersonChanged
         || Object.keys(detailChanges).length > 0

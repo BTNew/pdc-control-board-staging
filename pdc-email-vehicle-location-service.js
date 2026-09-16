@@ -292,12 +292,19 @@ function mapServerVehicle(row = {}) {
   const projectedPartsValue = (field, fallback = null) => Object.prototype.hasOwnProperty.call(partsUpdate, field)
     ? partsUpdate[field]
     : (Object.prototype.hasOwnProperty.call(row, field) ? row[field] : fallback);
-  if (row.parts_required != null || projectedPartsValue('parts_required') != null) {
-    mapped.pdcRequiresParts = projectedPartsValue('parts_required', row.parts_required) === true;
+  const projectedPartsRequired = projectedPartsValue('parts_required', row.parts_required);
+  // Always replace the retained projection, including when this snapshot no
+  // longer supplies it. An older not-required decision must not survive refresh.
+  mapped.parts_update = {};
+  if (typeof projectedPartsRequired === 'boolean') {
+    mapped.pdcRequiresParts = projectedPartsRequired;
+    // Preserve an explicit not-required decision for the shared Parts helper.
+    // Missing projection fields must retain its existing stock-number fallback.
+    mapped.parts_update = { parts_required: projectedPartsRequired };
   }
-  mapped.pdcCompleteParts = row.parts_completed === true
-    || row.parts_received === true
-    || projectedPartsValue('parts_received', false) === true;
+  mapped.pdcCompleteParts = typeof partsUpdate.parts_received === 'boolean'
+    ? partsUpdate.parts_received
+    : row.parts_completed === true || row.parts_received === true;
   mapped.pdcPartsOrdered = projectedPartsValue('parts_ordered', false) === true;
   mapped.pdcPartsStoppage = projectedPartsValue('parts_stoppage', false) === true;
   mapped.pdcPartsStoppageReason = String(projectedPartsValue('parts_stoppage_reason', '') || '');

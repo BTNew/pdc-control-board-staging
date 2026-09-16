@@ -9,5 +9,8 @@ assert.ok(app.includes('const backendBody = Array.isArray(result.body) ? result.
 assert.ok(app.includes('HTTP ${result.status}'), 'RPC status is surfaced');
 assert.ok(app.includes('String(backendMessage).slice(0, 240)'), 'backend diagnostic is bounded');
 assert.ok(service.includes('row.parts_received === true'), 'top-level Parts received projection is accepted');
-assert.ok(service.includes("projectedPartsValue('parts_received', false) === true"), 'nested/root Parts received projection is accepted through the shared projection helper');
+const map = require('./pdc-email-vehicle-location-service.js').mapServerVehicle;
+assert.equal(map({ parts_update: { parts_received: true } }).pdcCompleteParts, true, 'nested receipt is accepted');
+assert.equal(map({ parts_received: true }).pdcCompleteParts, true, 'legacy root receipt is accepted');
+assert.equal(map({ parts_received: true, parts_completed: true, parts_update: { parts_received: false } }).pdcCompleteParts, false, 'current nested false takes precedence over stale root receipts');
 console.log('Shared Parts save diagnostics contract passed.');
