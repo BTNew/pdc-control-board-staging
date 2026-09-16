@@ -75,12 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260916014406",
-    "name": "fitter_only_access",
-    "file": "supabase/migrations/20260916014406_fitter_only_access.sql",
-    "sha256": "b1e78b11afadd3f083293c78359c8ef0b506cb2d08c2a2cfbad3a6eb864940c6",
+    "version": "20260916021045",
+    "name": "workshop_start_priority_for_unstarted_vehicle_jobs",
+    "file": "supabase/migrations/20260916021045_workshop_start_priority_for_unstarted_vehicle_jobs.sql",
+    "sha256": "ed9923a73a54551114b77125f0d50ac8e9c72ebf5bfdbbdad3a86efc60577fd2",
     "commissioned": true,
-    "review_status": "staging_applied"
+    "review_status": "staging_applied",
+    "source": "Priority Start verified with 51 rollback checks and 16 installed confirmation checks. Existing operational vehicles were unchanged by tests."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -274,6 +275,14 @@
       "name": "fitter_start_confirmation_and_work_timer",
       "file": "supabase/migrations/20260916012807_fitter_start_confirmation_and_work_timer.sql",
       "sha256": "07083a3fa824919df18234936c1ec99ad32bd2450e066acc72613e798aad3abb",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20260916014406",
+      "name": "fitter_only_access",
+      "file": "supabase/migrations/20260916014406_fitter_only_access.sql",
+      "sha256": "b1e78b11afadd3f083293c78359c8ef0b506cb2d08c2a2cfbad3a6eb864940c6",
       "commissioned": true,
       "review_status": "staging_applied"
     }

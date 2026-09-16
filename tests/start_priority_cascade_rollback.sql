@@ -1,6 +1,6 @@
 -- STAGING ONLY. Synthetic actor, vehicles, operations and bays; no existing
 -- operational records are written. Revision/audit effects and fixtures roll back.
--- Run this complete file in one connection after the operation-approval migration.
+-- Run this complete file in one connection after the priority Start migration.
 BEGIN;
 SET LOCAL statement_timeout = '120s';
 SET LOCAL lock_timeout = '20s';
@@ -111,54 +111,49 @@ END $fn$;
 
 
 
+CREATE TEMP TABLE priority_original_blocks AS SELECT id,to_jsonb(a) row_data FROM public.workshop_admin_blocks a;
 DO $checks$
-DECLARE v uuid; bay uuid; b uuid; earlier uuid; tech uuid:=gen_random_uuid(); d jsonb; r jsonb;
- early timestamptz:=public.workshop_admin_next_operational_minute(date_trunc('minute',clock_timestamp()));
- actual timestamptz:='2026-09-14 15:30:12+08'; pause_start timestamptz:='2026-09-14 16:00:27+08'; pause_end timestamptz:='2026-09-15 06:30:42+08';
- as_of timestamptz:='2026-09-15 07:00:57+08'; initial jsonb; existing_settings jsonb;
+DECLARE t timestamptz:=date_trunc('minute',statement_timestamp()); first_at timestamptz;
+ v uuid; other_v uuid; unrelated_v uuid; fitbay uuid; tintbay uuid; fabbay uuid; target uuid; tint uuid; follower uuid; successor uuid; unrelated uuid;
+ r jsonb; saved jsonb; block_saved jsonb; block_id uuid; ver integer;
 BEGIN
- INSERT INTO public.workshop_technicians(id,name,role_type,active) VALUES(tech,'Fitter blocker rollback','technician',true);
- v:=pg_temp.ou_vehicle('blocker');bay:=pg_temp.ou_bay('blocker','FITTING');
- UPDATE public.workshop_bays SET default_technician_id=tech WHERE id=bay;
- PERFORM pg_temp.ou_operation(v,'FITTING',1,1);PERFORM pg_temp.ou_operation(v,'TINT',1,2);
- earlier:=pg_temp.ou_booking('earlier',v,'TINT',pg_temp.ou_bay('earlier','TINT'),early,'started');
- b:=pg_temp.ou_booking('later',v,'FITTING',bay,public.workshop_admin_next_operational_minute(public.workshop_add_operational_minutes(early,60)+interval '1 hour'));
- d:=public.get_fitter_job(tech,b);
- SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) INTO initial FROM public.workshop_bookings x WHERE x.id IN(b,earlier);
- r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'start');
- PERFORM pg_temp.ou_assert(r->>'error'='vehicle_overlap' AND r#>>'{blocker,booking_id}'=earlier::text AND r#>>'{blocker,stage_code}'='TINT' AND r#>>'{blocker,status}'='started' AND r#>>'{blocker,end_at}' IS NOT NULL,'Already running Tint returns specific protected blocker rather than silent failure',r);
- PERFORM pg_temp.ou_assert((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.workshop_bookings x WHERE x.id IN(b,earlier))=initial,'Rejected start preserves both vehicle bookings exactly');
- PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM pdc_fitter_private.command_receipts WHERE result->>'booking_id'=b::text),'Rejected start is not recorded as success');
- 
- -- Isolated historical fixture tests opening-time seconds and an overnight stop.
- v:=pg_temp.ou_vehicle('timer');bay:=pg_temp.ou_bay('timer','FITTING');
- PERFORM pg_temp.ou_operation(v,'FITTING',1,1);
- b:=pg_temp.ou_booking('timer',v,'FITTING',bay,date_trunc('minute',actual),'started');
- UPDATE public.workshop_bookings SET actual_start_at=actual WHERE id=b;
- INSERT INTO public.workshop_booking_history(booking_id,event_type,before_data,after_data,metadata,actor_user_id,actor_email,created_at)
- VALUES(b,'resumed',jsonb_build_object('stoppage_started_at',pause_start),jsonb_build_object('stoppage_started_at',NULL),
- '{"rollback_fixture":true}',auth.uid(),public.current_actor_email(),pause_end);
- UPDATE public.workshop_bookings SET stoppage_accumulated_minutes=floor(extract(epoch FROM pause_end-pause_start)/60)::integer WHERE id=b;
- r:=pdc_fitter_private.timing(b,as_of);
- PERFORM pg_temp.ou_assert((r#>>'{timer,elapsed_seconds}')::numeric=3630 AND (r#>>'{timer,history_complete}')::boolean,'Overnight stoppage subtracts only workshop time and preserves seconds',r->'timer');
- UPDATE public.workshop_bookings SET status='stoppage',stoppage_started_at=as_of,stoppage_reason='Rollback parts pause' WHERE id=b;
- r:=pdc_fitter_private.timing(b,as_of+interval '10 minutes');
- PERFORM pg_temp.ou_assert((r#>>'{timer,elapsed_seconds}')::numeric=3630 AND NOT(r#>>'{timer,running}')::boolean,'Open stoppage freezes elapsed work seconds',r->'timer');
- UPDATE public.workshop_bookings SET status='started',stoppage_started_at=NULL,stoppage_reason=NULL WHERE id=b;
- r:=pdc_fitter_private.timing(b,'2026-09-15 20:00+08');
- PERFORM pg_temp.ou_assert(NOT(r#>>'{timer,running}')::boolean AND r#>'{timer,next_change_at}'='null'::jsonb,'Started job outside workshop hours does not keep timer running',r->'timer');
- UPDATE public.workshop_bookings SET actual_end_at=as_of,status='completed' WHERE id=b;
- r:=pdc_fitter_private.timing(b,as_of+interval '3 days');
- PERFORM pg_temp.ou_assert((r#>>'{timer,elapsed_seconds}')::numeric=3630 AND NOT(r#>>'{timer,running}')::boolean,'Completed timer stays at actual completion');
- UPDATE public.workshop_bookings SET stoppage_accumulated_minutes=stoppage_accumulated_minutes+1 WHERE id=b;
- r:=pdc_fitter_private.timing(b,as_of+interval '3 days');
- PERFORM pg_temp.ou_assert((r#>>'{timer,elapsed_seconds}')::numeric=3570 AND NOT(r#>>'{timer,history_complete}')::boolean,'Legacy missing pause evidence is conservative and explicitly flagged',r->'timer');
- PERFORM pg_temp.ou_assert(pdc_fitter_private.operational_seconds('2026-09-14 06:00:12+08','2026-09-14 06:00:47+08')=35,'Partial minute timer preserves seconds');
- PERFORM pg_temp.ou_assert(pdc_fitter_private.operational_seconds('2026-09-14 16:29:45+08','2026-09-15 06:00:15+08')=30,'Overnight opening boundaries preserve seconds');
- PERFORM pg_temp.ou_assert(pdc_fitter_private.operational_seconds('2026-09-18 16:29:45+08','2026-09-21 06:00:15+08')=30,'Weekend is excluded');
- PERFORM pg_temp.ou_assert(pdc_fitter_private.running_until('2026-09-14 06:01:20+08')='2026-09-14 16:30+08'::timestamptz,'Next timer boundary is workshop closing time');
+ v:=pg_temp.ou_vehicle('priority-cascade');other_v:=pg_temp.ou_vehicle('priority-follower');unrelated_v:=pg_temp.ou_vehicle('priority-unrelated');
+ fitbay:=pg_temp.ou_bay('priority-cascade','FITTING');tintbay:=pg_temp.ou_bay('priority-cascade-tint','TINT');fabbay:=pg_temp.ou_bay('priority-cascade-fab','FABRICATION');
+ PERFORM pg_temp.ou_operation(v,'FITTING',4,1);PERFORM pg_temp.ou_operation(v,'TINT',1,2);
+ PERFORM pg_temp.ou_operation(other_v,'TINT',1,1);PERFORM pg_temp.ou_operation(other_v,'FABRICATION',1,2);PERFORM pg_temp.ou_operation(unrelated_v,'FITTING',1,1);
+ first_at:=public.workshop_admin_next_operational_minute(t+interval '1 minute');
+ tint:=pg_temp.ou_booking('priority-cascade-tint',v,'TINT',tintbay,first_at);
+ target:=pg_temp.ou_booking('priority-cascade',v,'FITTING',fitbay,public.workshop_admin_next_operational_minute(public.workshop_add_operational_minutes(first_at,60)+interval '1 hour'));
+ follower:=pg_temp.ou_booking('priority-cascade-follower',other_v,'TINT',tintbay,public.workshop_add_operational_minutes(t,360),'queued');
+ SELECT public.workshop_admin_next_operational_minute(scheduled_end_at+interval '1 hour') INTO first_at FROM public.workshop_bookings WHERE id=follower;
+ successor:=pg_temp.ou_booking('priority-cascade-successor',other_v,'FABRICATION',fabbay,first_at);
+ unrelated:=pg_temp.ou_booking('priority-cascade-unrelated',unrelated_v,'FITTING',fitbay,public.workshop_admin_next_operational_minute(t+interval '14 days'));
+ SELECT to_jsonb(b) INTO saved FROM public.workshop_bookings b WHERE id=unrelated;
+ INSERT INTO public.workshop_admin_blocks(stage_id,bay_id,block_type,label,scheduled_start_at,scheduled_end_at,duration_minutes,created_by,updated_by)
+ SELECT stage_id,tintbay,'admin','Priority fixed downtime rollback',public.workshop_add_operational_minutes(t,270),public.workshop_add_operational_minutes(t,330),60,auth.uid(),auth.uid()
+ FROM public.workshop_bookings WHERE id=tint RETURNING id INTO block_id;
+ SELECT to_jsonb(a) INTO block_saved FROM public.workshop_admin_blocks a WHERE id=block_id;
+ -- Existing planned rows retain their previous100% basis until moved; the
+ -- replan must use the bay's new50% efficiency without violating its guards.
+ UPDATE public.workshop_bays SET efficiency_percent=50 WHERE id=tintbay;
+ SELECT version INTO ver FROM public.workshop_bookings WHERE id=target;
+ r:=public.start_workshop_work(target,ver,NULL,'{"rollback_fixture":true}');
+ PERFORM pg_temp.ou_assert((r->>'ok')::boolean AND (r->>'start_priority')::boolean AND (r->>'shifted_count')::int>=3,'Controller Start cascades displaced vehicle work and dependent bay queue',r);
+ PERFORM pg_temp.ou_assert((SELECT status='started' AND actual_start_at=t FROM public.workshop_bookings WHERE id=target),'Planner Start uses same actual-now priority rule');
+ PERFORM pg_temp.ou_assert((SELECT b.scheduled_start_at>=a.scheduled_end_at FROM public.workshop_bookings b,public.workshop_admin_blocks a WHERE b.id=tint AND a.id=block_id),'Displaced work skips protected bay downtime');
+ PERFORM pg_temp.ou_assert((SELECT bool_and(default_duration_minutes=120 AND capacity_efficiency_percent=50 AND public.workshop_operational_minutes_between(scheduled_start_at,scheduled_end_at)=120) FROM public.workshop_bookings WHERE id IN(tint,follower)),'Displaced work captures current50percent efficiency and keeps authoritative hours');
+ PERFORM pg_temp.ou_assert((SELECT a.status='queued' AND a.actual_start_at IS NULL AND a.scheduled_start_at>=b.scheduled_end_at FROM public.workshop_bookings a,public.workshop_bookings b WHERE a.id=follower AND b.id=tint),'Allocated queued follower moves safely without being started');
+ PERFORM pg_temp.ou_assert((SELECT s.scheduled_start_at>=f.scheduled_end_at+interval '1 hour' FROM public.workshop_bookings s,public.workshop_bookings f WHERE s.id=successor AND f.id=follower),'Cross-station dependent retains one-hour vehicle handover');
+ PERFORM pg_temp.ou_assert((SELECT to_jsonb(b)=saved FROM public.workshop_bookings b WHERE id=unrelated),'Unrelated future work stays byte-for-byte unchanged');
+ PERFORM pg_temp.ou_assert((SELECT to_jsonb(a)=block_saved FROM public.workshop_admin_blocks a WHERE id=block_id),'Downtime stays byte-for-byte unchanged');
+ PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM public.workshop_bookings a JOIN public.workshop_bookings b ON a.id<b.id
+  WHERE a.vehicle_id IN(v,other_v,unrelated_v) AND b.vehicle_id IN(v,other_v,unrelated_v)
+   AND ((a.bay_id=b.bay_id AND a.scheduled_start_at<b.scheduled_end_at AND a.scheduled_end_at>b.scheduled_start_at)
+    OR (a.vehicle_id=b.vehicle_id AND a.scheduled_start_at<b.scheduled_end_at+interval '1 hour' AND a.scheduled_end_at+interval '1 hour'>b.scheduled_start_at))),'Final cascading schedule has no bay or same-vehicle overlap');
 END $checks$;
-SELECT pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_bookings o JOIN public.workshop_bookings b ON b.id=o.id WHERE o.row_data<>to_jsonb(b)),'Existing operational bookings unchanged');
-SELECT pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_vehicles o JOIN public.vehicles v ON v.id=o.id WHERE o.row_data<>to_jsonb(v)),'Existing vehicles unchanged');
+SELECT pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_bookings o LEFT JOIN public.workshop_bookings b ON b.id=o.id WHERE o.row_data IS DISTINCT FROM to_jsonb(b)),'Existing operational bookings unchanged');
+SELECT pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_vehicles o LEFT JOIN public.vehicles v ON v.id=o.id WHERE o.row_data IS DISTINCT FROM to_jsonb(v)),'Existing vehicles unchanged');
+SELECT pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM priority_original_blocks o LEFT JOIN public.workshop_admin_blocks a ON a.id=o.id WHERE o.row_data IS DISTINCT FROM to_jsonb(a)),'Existing downtime unchanged');
 SELECT jsonb_agg(to_jsonb(r) ORDER BY name) results FROM ou_results r;
 ROLLBACK;
+
