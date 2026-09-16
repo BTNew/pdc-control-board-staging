@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {createService,progressHtml,timerModel,timerHtml,formatElapsed,esc}=require('./pdc-fitters.js');
+const {createService,progressHtml,timerModel,timerHtml,formatElapsed,startConfirmationMessage,esc}=require('./pdc-fitters.js');
 function fixture(fetch, options={}) {
   let context={actor:'staff-a',token:'test-session',role:'operator',config:{projectRef:'cdsmnqxtyyoeoznmbidd',url:'https://cdsmnqxtyyoeoznmbidd.supabase.co',publishableKey:'test-only',workshop:{sharedData:true}}};
   let seq=0;
@@ -9,7 +9,8 @@ function fixture(fetch, options={}) {
 }
 const reply=body=>({ok:true,json:async()=>body});
 test('fitter-only account can record work through the fitter command endpoint',async()=>{
-  const calls=[]; const f=fixture(async(url,options)=>{calls.push({url,options});return reply({ok:true});});
+  const calls=[];
+  const f=fixture(async(url,options)=>{calls.push({url,options});return reply({ok:true});});
   f.setContext({role:'fitter'});
   assert.equal(f.service.canWrite(),true);
   await f.service.command({p_action:'line',p_technician_id:'mechanic-a',p_booking_id:'booking-a'});
@@ -58,7 +59,7 @@ test('planned vehicle conflicts identify the exact station and bay without claim
   await assert.rejects(f.service.command({p_action:'start'}),e=>{
     assert.equal(e.code,'vehicle_overlap');assert.match(e.message,/Start blocked: this vehicle has a planned booking in Tint, Bay 2/);
     assert.match(e.message,/10:00 am/);assert.match(e.message,/11:00 am/);assert.match(e.message,/Perth time/);
-    assert.doesNotMatch(e.message,/work in progress|vehicle is working/);return true;
+    assert.match(e.message,/could not be moved safely/);assert.doesNotMatch(e.message,/work in progress|vehicle is working|review.*booking order/);return true;
   });
   assert.equal(f.service.retryPending,false);
 });
@@ -69,7 +70,7 @@ test('conflict messaging distinguishes started, stopped and unidentified booking
   }
 });
 test('wrapped database calendar and bay conflicts have clear messages without raw error details',async()=>{
-  for(const code of ['calendar_unavailable','calendar_duration_mismatch','fixed_booking_conflict','admin_block_conflict']){
+  for(const code of ['calendar_unavailable','calendar_duration_mismatch','fixed_booking_conflict','admin_block_conflict','technician_overlap']){
     const f=fixture(async()=>({ok:false,json:async()=>({code:'22023',message:`Workshop validation rejected: {"error":"${code}","private":"not for display"}`})}));
     await assert.rejects(f.service.command({p_action:'stop'}),e=>e.code===code&&!e.message.includes(code)&&!e.message.includes('private'));
   }
@@ -80,6 +81,15 @@ test('progress is clamped and accessible without making pills taller',()=>{
   assert.match(progressHtml(null,true),/aria-valuenow="0"/);
   assert.match(progressHtml({percent:30},true),/is-compact/);
   assert.equal(esc('<img src=x onerror=alert(1)>'),'&lt;img src=x onerror=alert(1)&gt;');
+});
+test('start confirmation reports moved bookings only from confirmed priority metadata',()=>{
+  assert.match(startConfirmationMessage({start_priority:true,shifted_count:1}),/1 affected booking moved later/);
+  assert.match(startConfirmationMessage({start_priority:true,shifted_count:3}),/3 affected bookings moved later/);
+  assert.match(startConfirmationMessage({start_priority:true,shifted_count:0}),/No other bookings needed to move/);
+  for(const result of [{},{shifted_count:3},{start_priority:true,shifted_count:-1},{start_priority:true,shifted_count:'3'}]) {
+    assert.equal(startConfirmationMessage(result),'Job started on the workshop planner.');
+  }
+  assert.equal(startConfirmationMessage({already_started:true,start_priority:false,shifted_count:0}),'This job is already running on the planner.');
 });
 test('timeout keeps a retry receipt rather than guessing whether the write committed',async()=>{
   const f=fixture(()=>new Promise(()=>{}));
@@ -169,7 +179,7 @@ function screenFixture() {
           data.detail.stoppage_reason=body.p_action==='stop'?body.p_note:null;
           data.detail.timer.running=body.p_action!=='stop';
           if(body.p_action==='start'){data.detail.actual_start_at='2026-09-16T00:02:00Z';data.detail.timer.elapsed_seconds=0;}
-          return reply({ok:true,action:body.p_action,booking_id:'booking-a'});
+          return reply({ok:true,action:body.p_action,booking_id:'booking-a',...data.commandResult});
         }
         data.detail.lines[0].completed=body.p_completed;data.detail.lines[0].note=body.p_note;
         data.detail.progress={...data.detail.progress,percent:body.p_completed?100:0,completed_hours:body.p_completed?1:0,completed_lines:body.p_completed?1:0};
@@ -282,13 +292,33 @@ test('Start shows pending immediately, then a confirmed running timer and canoni
   assert.equal(f.events[0].detail.bookingId,'booking-a');assert.equal(f.events[0].detail.stageCode,'FITTING');assert.equal(f.events[0].detail.action,'start');
   f.advanceClock(5000);assert.equal(f.clock.textContent,'00:00:05');assert.equal(f.timerLabel.textContent,'Running');
 });
+test('fitter Start leaves same-vehicle planned conflicts and priority reordering to the server',async()=>{
+  const f=screenFixture();f.data.detail.status=f.data.jobs[0].status='planned';f.data.detail.actual_start_at=null;
+  f.data.jobs[0].vehicle_id='vehicle-a';
+  f.data.jobs.push({id:'tint-booking',version:1,status:'planned',vehicle_id:'vehicle-a',stage_code:'TINT',stage_name:'Tint',bay_number:2,
+    stock:'TEST',job_card:'J-TEST',start_at:'2026-09-16T00:00:00Z',end_at:'2026-09-16T01:00:00Z'});
+  await f.open();const release=f.delayCommand();f.action.dataset.fitterAction='start';f.action.handlers.click({currentTarget:f.action});
+  const write=f.calls.find(call=>call.rpc==='fitter_job_command');assert.ok(write);
+  assert.equal(write.body.p_action,'start');assert.equal(write.body.p_booking_id,'booking-a');
+  assert.equal(write.body.p_expected_version,1);assert.equal(f.data.jobs[0].status,'planned');assert.equal(f.events.length,0);
+  assert.match(f.html,/Checking the schedule and moving affected unstarted bookings/);
+  assert.equal(f.data.jobs[1].start_at,'2026-09-16T00:00:00Z','the browser must not move the other booking optimistically');
+  // Only the canonical server result and subsequent fresh queue provide these changes.
+  f.data.jobs[1].start_at='2026-09-16T04:00:00Z';f.data.jobs[1].end_at='2026-09-16T05:00:00Z';
+  f.data.commandResult={start_priority:true,shifted_count:1};
+  release();await flush();
+  assert.equal(f.events.length,1);assert.match(f.html,/Job started on the workshop planner/);
+  assert.match(f.html,/1 affected booking moved later/);assert.match(f.html,/fitter-timer is-running/);
+  assert.equal(f.calls.filter(call=>call.rpc==='fitter_job_command').length,1);
+});
 test('rejected and unconfirmed starts never show running or notify the planner of success',async()=>{
-  for(const error of ['bay_already_started','parts_incomplete_entry','unconfirmed']){
+  for(const error of ['bay_already_started','parts_incomplete_entry','technician_overlap','unconfirmed']){
     const f=screenFixture();f.data.detail.status=f.data.jobs[0].status='planned';f.data.detail.actual_start_at=null;await f.open();
     f.rejectCommand(error);f.action.dataset.fitterAction='start';f.action.handlers.click({currentTarget:f.action});await flush();
     assert.equal(f.events.length,0);assert.doesNotMatch(f.html,/fitter-timer is-running/);
     if(error==='unconfirmed')assert.match(f.html,/Start not confirmed/);
     else if(error==='parts_incomplete_entry')assert.match(f.html,/Parts are not marked ready/);
+    else if(error==='technician_overlap')assert.match(f.html,/mechanic already has another running or stopped job/);
     else assert.match(f.html,/bay already has a running or stopped job/);
   }
 });

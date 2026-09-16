@@ -1,6 +1,6 @@
 -- STAGING ONLY. Synthetic actor, vehicles, operations and bays; no existing
 -- operational records are written. Revision/audit effects and fixtures roll back.
--- Run this complete file in one connection after the operation-approval migration.
+-- Run this complete file in one connection after the priority Start migration.
 BEGIN;
 SET LOCAL statement_timeout = '120s';
 SET LOCAL lock_timeout = '20s';
@@ -112,53 +112,60 @@ END $fn$;
 
 
 DO $checks$
-DECLARE v uuid; bay uuid; b uuid; earlier uuid; tech uuid:=gen_random_uuid(); d jsonb; r jsonb;
- early timestamptz:=public.workshop_admin_next_operational_minute(date_trunc('minute',clock_timestamp()));
- actual timestamptz:='2026-09-14 15:30:12+08'; pause_start timestamptz:='2026-09-14 16:00:27+08'; pause_end timestamptz:='2026-09-15 06:30:42+08';
- as_of timestamptz:='2026-09-15 07:00:57+08'; initial jsonb; existing_settings jsonb;
+DECLARE t timestamptz:=date_trunc('minute',statement_timestamp()); later timestamptz:=public.workshop_admin_next_operational_minute(statement_timestamp()+interval '2 days');
+ v uuid; v2 uuid; bay uuid; bay2 uuid; target uuid; live uuid; r jsonb; saved jsonb; ver integer;
+ tech uuid:=gen_random_uuid(); leave_tech uuid:=gen_random_uuid(); explicit_tech uuid:=gen_random_uuid(); leave_saved jsonb;
 BEGIN
- INSERT INTO public.workshop_technicians(id,name,role_type,active) VALUES(tech,'Fitter blocker rollback','technician',true);
- v:=pg_temp.ou_vehicle('blocker');bay:=pg_temp.ou_bay('blocker','FITTING');
- UPDATE public.workshop_bays SET default_technician_id=tech WHERE id=bay;
- PERFORM pg_temp.ou_operation(v,'FITTING',1,1);PERFORM pg_temp.ou_operation(v,'TINT',1,2);
- earlier:=pg_temp.ou_booking('earlier',v,'TINT',pg_temp.ou_bay('earlier','TINT'),early,'started');
- b:=pg_temp.ou_booking('later',v,'FITTING',bay,public.workshop_admin_next_operational_minute(public.workshop_add_operational_minutes(early,60)+interval '1 hour'));
- d:=public.get_fitter_job(tech,b);
- SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) INTO initial FROM public.workshop_bookings x WHERE x.id IN(b,earlier);
- r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'start');
- PERFORM pg_temp.ou_assert(r->>'error'='vehicle_overlap' AND r#>>'{blocker,booking_id}'=earlier::text AND r#>>'{blocker,stage_code}'='TINT' AND r#>>'{blocker,status}'='started' AND r#>>'{blocker,end_at}' IS NOT NULL,'Already running Tint returns specific protected blocker rather than silent failure',r);
- PERFORM pg_temp.ou_assert((SELECT jsonb_agg(to_jsonb(x) ORDER BY x.id) FROM public.workshop_bookings x WHERE x.id IN(b,earlier))=initial,'Rejected start preserves both vehicle bookings exactly');
- PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM pdc_fitter_private.command_receipts WHERE result->>'booking_id'=b::text),'Rejected start is not recorded as success');
+ -- Actual work keeps physical priority, even when its old estimated end expired.
+ v:=pg_temp.ou_vehicle('priority-live-vehicle');bay:=pg_temp.ou_bay('priority-live-tint','TINT');bay2:=pg_temp.ou_bay('priority-live-fit','FITTING');
+ PERFORM pg_temp.ou_operation(v,'TINT',1,1);PERFORM pg_temp.ou_operation(v,'FITTING',1,2);
+ live:=pg_temp.ou_booking('priority-live-tint',v,'TINT',bay,t-interval '2 hours','started');
+ target:=pg_temp.ou_booking('priority-live-fit',v,'FITTING',bay2,later);
+ SELECT to_jsonb(b),version INTO saved,ver FROM public.workshop_bookings b WHERE id=target;
+ r:=public.start_workshop_work(target,ver,NULL,'{}');
+ PERFORM pg_temp.ou_assert(r->>'error'='vehicle_overlap' AND r#>>'{blocker,booking_id}'=live::text,'Expired estimated end does not release a running vehicle',r);
+ UPDATE public.workshop_bookings SET status='stoppage',stoppage_started_at=t,stoppage_reason='Priority rollback parts hold' WHERE id=live;
+ r:=public.start_workshop_work(target,ver,NULL,'{}');
+ PERFORM pg_temp.ou_assert(r->>'error'='vehicle_overlap','Stopped same-vehicle work cannot be displaced',r);
+ PERFORM pg_temp.ou_assert((SELECT to_jsonb(b)=saved FROM public.workshop_bookings b WHERE id=target),'Protected vehicle rejection leaves target unchanged');
  
- -- Isolated historical fixture tests opening-time seconds and an overnight stop.
- v:=pg_temp.ou_vehicle('timer');bay:=pg_temp.ou_bay('timer','FITTING');
- PERFORM pg_temp.ou_operation(v,'FITTING',1,1);
- b:=pg_temp.ou_booking('timer',v,'FITTING',bay,date_trunc('minute',actual),'started');
- UPDATE public.workshop_bookings SET actual_start_at=actual WHERE id=b;
- INSERT INTO public.workshop_booking_history(booking_id,event_type,before_data,after_data,metadata,actor_user_id,actor_email,created_at)
- VALUES(b,'resumed',jsonb_build_object('stoppage_started_at',pause_start),jsonb_build_object('stoppage_started_at',NULL),
- '{"rollback_fixture":true}',auth.uid(),public.current_actor_email(),pause_end);
- UPDATE public.workshop_bookings SET stoppage_accumulated_minutes=floor(extract(epoch FROM pause_end-pause_start)/60)::integer WHERE id=b;
- r:=pdc_fitter_private.timing(b,as_of);
- PERFORM pg_temp.ou_assert((r#>>'{timer,elapsed_seconds}')::numeric=3630 AND (r#>>'{timer,history_complete}')::boolean,'Overnight stoppage subtracts only workshop time and preserves seconds',r->'timer');
- UPDATE public.workshop_bookings SET status='stoppage',stoppage_started_at=as_of,stoppage_reason='Rollback parts pause' WHERE id=b;
- r:=pdc_fitter_private.timing(b,as_of+interval '10 minutes');
- PERFORM pg_temp.ou_assert((r#>>'{timer,elapsed_seconds}')::numeric=3630 AND NOT(r#>>'{timer,running}')::boolean,'Open stoppage freezes elapsed work seconds',r->'timer');
- UPDATE public.workshop_bookings SET status='started',stoppage_started_at=NULL,stoppage_reason=NULL WHERE id=b;
- r:=pdc_fitter_private.timing(b,'2026-09-15 20:00+08');
- PERFORM pg_temp.ou_assert(NOT(r#>>'{timer,running}')::boolean AND r#>'{timer,next_change_at}'='null'::jsonb,'Started job outside workshop hours does not keep timer running',r->'timer');
- UPDATE public.workshop_bookings SET actual_end_at=as_of,status='completed' WHERE id=b;
- r:=pdc_fitter_private.timing(b,as_of+interval '3 days');
- PERFORM pg_temp.ou_assert((r#>>'{timer,elapsed_seconds}')::numeric=3630 AND NOT(r#>>'{timer,running}')::boolean,'Completed timer stays at actual completion');
- UPDATE public.workshop_bookings SET stoppage_accumulated_minutes=stoppage_accumulated_minutes+1 WHERE id=b;
- r:=pdc_fitter_private.timing(b,as_of+interval '3 days');
- PERFORM pg_temp.ou_assert((r#>>'{timer,elapsed_seconds}')::numeric=3570 AND NOT(r#>>'{timer,history_complete}')::boolean,'Legacy missing pause evidence is conservative and explicitly flagged',r->'timer');
- PERFORM pg_temp.ou_assert(pdc_fitter_private.operational_seconds('2026-09-14 06:00:12+08','2026-09-14 06:00:47+08')=35,'Partial minute timer preserves seconds');
- PERFORM pg_temp.ou_assert(pdc_fitter_private.operational_seconds('2026-09-14 16:29:45+08','2026-09-15 06:00:15+08')=30,'Overnight opening boundaries preserve seconds');
- PERFORM pg_temp.ou_assert(pdc_fitter_private.operational_seconds('2026-09-18 16:29:45+08','2026-09-21 06:00:15+08')=30,'Weekend is excluded');
- PERFORM pg_temp.ou_assert(pdc_fitter_private.running_until('2026-09-14 06:01:20+08')='2026-09-14 16:30+08'::timestamptz,'Next timer boundary is workshop closing time');
+ INSERT INTO public.workshop_technicians(id,name,role_type,active) VALUES(tech,'Priority busy default rollback','technician',true),
+ (leave_tech,'Priority leave default rollback','technician',true),(explicit_tech,'Priority explicit rollback','technician',true);
+ v:=pg_temp.ou_vehicle('priority-tech-live');v2:=pg_temp.ou_vehicle('priority-tech-target');
+ bay:=pg_temp.ou_bay('priority-tech-live','FITTING');bay2:=pg_temp.ou_bay('priority-tech-target','FITTING');
+ UPDATE public.workshop_bays SET default_technician_id=tech WHERE id=bay2;
+ PERFORM pg_temp.ou_operation(v,'FITTING',1,1);PERFORM pg_temp.ou_operation(v2,'FITTING',1,1);
+ live:=pg_temp.ou_booking('priority-tech-live',v,'FITTING',bay,t-interval '2 hours','started');
+ INSERT INTO public.workshop_booking_assignments(booking_id,technician_id,assignment_type,assigned_by,scheduled_start_at,scheduled_end_at)
+ SELECT id,tech,'primary',auth.uid(),scheduled_start_at,scheduled_end_at FROM public.workshop_bookings WHERE id=live;
+ target:=pg_temp.ou_booking('priority-tech-target',v2,'FITTING',bay2,later);
+ SELECT to_jsonb(b),version INTO saved,ver FROM public.workshop_bookings b WHERE id=target;
+ r:=public.start_workshop_work(target,ver,NULL,'{}');
+ PERFORM pg_temp.ou_assert(r->>'error'='technician_overlap' AND r#>>'{blocker,booking_id}'=live::text,'Default mechanic running another job stays protected after estimated end',r);
+ UPDATE public.workshop_bookings SET status='stoppage',stoppage_started_at=t,stoppage_reason='Priority rollback parts hold' WHERE id=live;
+ r:=public.start_workshop_work(target,ver,NULL,'{}');
+ PERFORM pg_temp.ou_assert(r->>'error'='technician_overlap','Default mechanic stopped in another bay cannot start twice');
+ PERFORM pg_temp.ou_assert((SELECT to_jsonb(b)=saved FROM public.workshop_bookings b WHERE id=target),'Technician conflict preserves target and version');
+ -- An explicit assigned mechanic supersedes the default bay mechanic.
+ INSERT INTO public.workshop_booking_assignments(booking_id,technician_id,assignment_type,assigned_by,scheduled_start_at,scheduled_end_at)
+ SELECT id,explicit_tech,'primary',auth.uid(),scheduled_start_at,scheduled_end_at FROM public.workshop_bookings WHERE id=target;
+ SELECT version INTO ver FROM public.workshop_bookings WHERE id=target;
+ r:=public.start_workshop_work(target,ver,NULL,'{}');
+ PERFORM pg_temp.ou_assert((r->>'ok')::boolean,'Explicit assignment supersedes unavailable default mechanic',r);
+ 
+ v:=pg_temp.ou_vehicle('priority-tech-leave');bay:=pg_temp.ou_bay('priority-tech-leave','FITTING');
+ UPDATE public.workshop_bays SET default_technician_id=leave_tech WHERE id=bay;
+ PERFORM pg_temp.ou_operation(v,'FITTING',1,1);target:=pg_temp.ou_booking('priority-tech-leave',v,'FITTING',bay,later);
+ SELECT to_jsonb(b),version INTO saved,ver FROM public.workshop_bookings b WHERE id=target;
+ -- Scoped solely to this fresh synthetic technician; transaction is rolled back.
+ SELECT value INTO leave_saved FROM public.workshop_settings WHERE key='technician_leave';
+ UPDATE public.workshop_settings SET value=value||jsonb_build_array(jsonb_build_object('date',(t AT TIME ZONE 'Australia/Perth')::date,'technician_id',leave_tech))
+ WHERE key='technician_leave';
+ r:=public.start_workshop_work(target,ver,NULL,'{}');
+ PERFORM pg_temp.ou_assert(r->>'error'='technician_unavailable','Default mechanic leave is respected without explicit assignment',r);
+ PERFORM pg_temp.ou_assert((SELECT to_jsonb(b)=saved FROM public.workshop_bookings b WHERE id=target),'Leave rejection saves no partial start');
 END $checks$;
-SELECT pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_bookings o JOIN public.workshop_bookings b ON b.id=o.id WHERE o.row_data<>to_jsonb(b)),'Existing operational bookings unchanged');
-SELECT pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_vehicles o JOIN public.vehicles v ON v.id=o.id WHERE o.row_data<>to_jsonb(v)),'Existing vehicles unchanged');
+SELECT pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_bookings o LEFT JOIN public.workshop_bookings b ON b.id=o.id WHERE o.row_data IS DISTINCT FROM to_jsonb(b)),'Existing operational bookings unchanged');
+SELECT pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_vehicles o LEFT JOIN public.vehicles v ON v.id=o.id WHERE o.row_data IS DISTINCT FROM to_jsonb(v)),'Existing vehicles unchanged');
 SELECT jsonb_agg(to_jsonb(r) ORDER BY name) results FROM ou_results r;
 ROLLBACK;

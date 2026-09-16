@@ -13,13 +13,14 @@
     mechanic_unavailable:'This mechanic is inactive or unavailable. Select another mechanic.',
     reason_required:'Enter a reason for the stoppage.',
     parts_incomplete_entry:'Parts are not marked ready. Ask the controller to confirm the parts or record an authorised override before starting this job.',
-    vehicle_overlap:'This vehicle has another booking that prevents this change. Ask the controller to review its booking order.',
+    vehicle_overlap:'A protected booking for this vehicle prevents this change. Ask the controller to check that work before continuing.',
     bay_overlap:'This bay has another job in progress. Ask the controller to check its bookings.',
     bay_already_started:'This bay already has a running or stopped job. Ask the controller to complete it or release its bay.',
     schedule_changed:'The schedule changed during this action. Refresh, review the latest bookings and try again.',
     schedule_write_order_blocked:'The affected jobs cannot be safely moved. Ask the controller to review the surrounding bookings.',
     no_available_slot:'No suitable working time is available. Ask the controller to review the surrounding bookings.',
     technician_unavailable:'The assigned mechanic is unavailable during this work. Ask the controller to check the assignment.',
+    technician_overlap:'This mechanic already has another running or stopped job. Complete or release that work before starting another.',
     fixed_booking_conflict:'Live work or an admin block is reserving this bay. Refresh and ask the controller to review the booking.',
     admin_block_conflict:'An admin block is reserving this bay. Ask the controller to review the booking.',
     calendar_unavailable:'This booking needs its workshop hours checked. Refresh and ask the controller to review it.',
@@ -52,7 +53,10 @@
     const format=value=>Number.isFinite(Date.parse(value))?new Date(value).toLocaleString('en-AU',{timeZone:'Australia/Perth',weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
     const start=format(blocker.start_at||blocker.scheduled_start_at),end=format(blocker.end_at||blocker.scheduled_end_at);
     const when=start?` (${start}${end?` – ${end}`:''}, Perth time)`:'';
-    return `${action==='start'?'Start blocked':action==='resume'?'Resume blocked':'Change blocked'}: this vehicle ${situation} in ${where}${when}. Ask the controller to review the vehicle’s booking order.`;
+    const help=action==='start'
+      ? ['started','stoppage'].includes(blocker.status)?'Ask the controller to resolve that protected work before starting this job.':'This booking could not be moved safely. Ask the controller to check it before starting this job.'
+      : 'Ask the controller to check this booking before continuing.';
+    return `${action==='start'?'Start blocked':action==='resume'?'Resume blocked':'Change blocked'}: this vehicle ${situation} in ${where}${when}. ${help}`;
   }
   function progressHtml(progress, compact = false) {
     const p = Math.max(0, Math.min(100, Number(progress?.percent) || 0));
@@ -70,7 +74,7 @@
     const result={tone:'idle',label:'Not started',hint:'Start job to begin recording work.',seconds:0};
     const frozen=Number.isFinite(options.frozenSeconds)?Math.max(0,options.frozenSeconds):elapsed;
     const pending={start:'Starting job…',resume:'Resuming job…',stop:'Recording stoppage…',complete:'Completing job…',line:'Saving work…'}[options.pendingAction];
-    if(pending) return {...result,tone:'pending',label:pending,hint:'Waiting for the workshop to confirm.',seconds:frozen};
+    if(pending) return {...result,tone:'pending',label:pending,hint:options.pendingAction==='start'?'Checking the schedule and moving affected unstarted bookings where needed.':'Waiting for the workshop to confirm.',seconds:frozen};
     if(options.unconfirmed) return {...result,tone:'unconfirmed',label:({start:'Start not confirmed',resume:'Resume not confirmed',stop:'Stoppage not confirmed',complete:'Completion not confirmed'}[options.unconfirmedAction]||'Save not confirmed'),hint:'Check / retry the last save before continuing.',seconds:frozen};
     if(options.connected===false) return {...result,tone:'unconfirmed',label:'Last confirmed time',hint:'Reconnect or refresh to check this job.',seconds:frozen};
     if(!['started','stoppage','completed'].includes(detail?.status)) return result;
@@ -88,6 +92,11 @@
   function timerHtml(detail, options) {
     const timer=timerModel(detail,options);
     return `<div class="fitter-timer is-${timer.tone}" data-fitter-timer role="group" aria-label="Job work timer"><span class="fitter-timer-dot" aria-hidden="true"></span><div><strong data-fitter-timer-label>${esc(timer.label)}</strong><small data-fitter-timer-hint>${esc(timer.hint)}</small></div><output data-fitter-clock aria-label="Elapsed work time">${formatElapsed(timer.seconds)}</output></div>`;
+  }
+  function startConfirmationMessage(result={}) {
+    if(result.already_started) return 'This job is already running on the planner.';
+    const count=result.start_priority===true&&Number.isInteger(result.shifted_count)&&result.shifted_count>=0?result.shifted_count:null;
+    return 'Job started on the workshop planner.'+(count===null?'':count===0?' No other bookings needed to move.':` ${count} affected booking${count===1?'':'s'} moved later.`);
   }
   function createService(options) {
     let generation = 0, busy = false, retry = null;
@@ -179,7 +188,7 @@
     const waiting = planned.filter(j=>j.id!==current?.id);
     return { current, next:waiting[0] || null, upcoming:waiting.slice(1), otherActive:active.filter(j=>j.id!==current?.id) };
   }
-  const api = { createService, progressHtml, timerModel, timerHtml, formatElapsed, fitterJobFlow, esc };
+  const api = { createService, progressHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.PdcFitters = api;
   const doc = root.document;
@@ -257,7 +266,7 @@
       <div class="fitter-layout">
       <section class="fitter-work" aria-label="Selected job">${job && detail ? `<div class="fitter-job-heading"><p class="fitter-kicker">${esc(job.stage_name)} · Bay ${esc(job.bay_number ?? '—')} · ${esc(state(detail.status))}</p><h2>${esc(job.stock)} <span>${esc(job.job_card)}</span></h2><p>${esc(job.customer)} · ${esc(job.vehicle)}</p><p class="fitter-time">${esc(time(job.start_at))} – ${esc(time(job.end_at))}</p>${timerHtml(detail,timingOptions())}${progressHtml(detail.progress)}<p>${detail.progress.completed_lines} of ${detail.progress.total_lines} items complete · Progress uses approved work hours.</p></div>
       ${detail.status==='stoppage' ? `<div class="fitter-warning"><strong>Job stopped</strong><p>${esc(detail.stoppage_reason)}</p></div>` : ''}
-      <div class="fitter-actions">${['planned','queued'].includes(detail.status) ? `<button class="fitter-primary" data-fitter-action="start" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='start'?'Starting job…':'Start job'}</button><p>Start this booking on the workshop planner.</p>` : detail.status==='stoppage' ? `<button class="fitter-primary" data-fitter-action="resume" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='resume'?'Resuming job…':'Resume job'}</button>` : detail.status==='started' ? `<button data-fitter-stop ${locked||!editable?'disabled':''}>Parts / other stoppage</button>` : ''}</div>
+      <div class="fitter-actions">${['planned','queued'].includes(detail.status) ? `<button class="fitter-primary" data-fitter-action="start" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='start'?'Starting job…':'Start job'}</button><p>Start this job first. Its other unstarted bookings and affected queues move later where needed.</p>` : detail.status==='stoppage' ? `<button class="fitter-primary" data-fitter-action="resume" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='resume'?'Resuming job…':'Resume job'}</button>` : detail.status==='started' ? `<button data-fitter-stop ${locked||!editable?'disabled':''}>Parts / other stoppage</button>` : ''}</div>
       ${stopOpen ? `<div class="fitter-stop-panel" role="group" aria-label="Record a workshop stoppage"><label for="fitter-stop-type">Stoppage type<select id="fitter-stop-type" ${locked?'disabled':''}><option ${stopType==='Parts'?'selected':''}>Parts</option><option ${stopType==='Other'?'selected':''}>Other</option></select></label><label for="fitter-stop-reason">What is holding up the work?<textarea id="fitter-stop-reason" rows="3" maxlength="1900" ${locked?'disabled':''}>${esc(stopReason)}</textarea></label><button type="button" data-fitter-confirm-stop ${locked?'disabled':''}>Record stoppage</button><button type="button" data-fitter-cancel-stop ${locked?'disabled':''}>Cancel</button></div>` : ''}
       ${detail.progress.unknown_hours ? '<p class="fitter-warning">Some items need approved hours. Ask the controller to review these before completing the bay job.</p>' : ''}
       <h3>Items for this bay</h3><div class="fitter-lines">${own.map((l,i)=>lineCard(l,i,editable)).join('') || '<p class="fitter-empty">No approved operation lines for this bay. Ask the controller to review the vehicle.</p>'}</div>
@@ -346,7 +355,7 @@
         handover={bookingId:result.booking_id||selected,stock:jobs.find(j=>j.id===selected)?.stock||'Bay job'};
         scrollToCurrent=true;
       } else handover=null;
-      message=result.action==='complete'?'':result.already_started?'This job is already running on the planner.':result.action==='start'?'Job started on the workshop planner.':result.action==='resume'?'Job resumed on the workshop planner.':'Saved to the workshop planner.';
+      message=result.action==='complete'?'':result.action==='start'?startConfirmationMessage(result):result.action==='resume'?'Job resumed on the workshop planner.':'Saved to the workshop planner.';
       connected=false;
     } catch(e) { message=e.message; if(e.code!=='busy') connected=false; }
     finally {

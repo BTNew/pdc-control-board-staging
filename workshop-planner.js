@@ -714,6 +714,8 @@ let workshopSharedPlansCache = { snapshot: null, bookings: null, rows: null };
 let workshopLastAdministratorMove = null;
 let workshopAdminPaletteDurationMinutes = 30;
 let workshopAdminBlockFeedback = { tone: '', message: '' };
+const WORKSHOP_PENDING_STARTS = new Set();
+let workshopStartFeedback = { stage: '', message: '' };
 const WORKSHOP_ADMIN_SAFE_DURATION_DAYS = 90;
 let workshopActiveQueuePointerDrag = null;
 let workshopSuppressMouseDragUntil = 0;
@@ -3861,7 +3863,8 @@ function workshopPlanLifecycleActionsHtml(entry = {}) {
   if (status === 'started') {
     return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-stop-plan="${escapeHtml(planId)}" aria-label="Place job on STOPPAGE">STOPPAGE</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
   }
-  return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-start-plan="${escapeHtml(planId)}" aria-label="Start job">Start job</button></div>`;
+  const pending = WORKSHOP_PENDING_STARTS.has(planId);
+  return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-start-plan="${escapeHtml(planId)}" aria-label="${pending ? 'Starting job' : 'Start job'}" ${pending ? 'disabled aria-busy="true"' : ''}>${pending ? 'Starting…' : 'Start job'}</button></div>`;
 }
 
 function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans()) {
@@ -4136,7 +4139,7 @@ function workshopStationSelectionHtml(entry = null) {
       <label><span>Technician</span><select name="assignee" ${completed ? 'disabled' : ''}>${workshopAssigneeOptions(entry.stage, entry.assignee || workshopBayMechanic(entry.stage, entry.bay) || pmbBayMechanic(vehicle))}</select></label>
       <div class="workshop-station-selection-actions">
         ${completed ? '<span class="badge success">Completed</span>' : '<button class="primary" type="submit">Save plan</button>'}
-        ${completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started ? 'disabled' : ''}>${started ? 'Started' : 'Start job'}</button><button class="small-button ${stopped ? 'active-lite' : ''}" type="button" ${stopped ? `data-workshop-resume-plan="${escapeHtml(entry.id)}"` : `data-workshop-stop-plan="${escapeHtml(entry.id)}"`}>${stopped ? 'Resume job' : 'STOPPAGE'}</button><button class="small-button active-lite" type="button" data-workshop-complete-plan="${escapeHtml(entry.id)}">Complete work</button>`}
+        ${completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started || WORKSHOP_PENDING_STARTS.has(entry.id) ? 'disabled' : ''} ${WORKSHOP_PENDING_STARTS.has(entry.id) ? 'aria-busy="true"' : ''}>${started ? 'Started' : WORKSHOP_PENDING_STARTS.has(entry.id) ? 'Starting…' : 'Start job'}</button><button class="small-button ${stopped ? 'active-lite' : ''}" type="button" ${stopped ? `data-workshop-resume-plan="${escapeHtml(entry.id)}"` : `data-workshop-stop-plan="${escapeHtml(entry.id)}"`}>${stopped ? 'Resume job' : 'STOPPAGE'}</button><button class="small-button active-lite" type="button" data-workshop-complete-plan="${escapeHtml(entry.id)}">Complete work</button>`}
       </div>
     </form>
   </section>`;
@@ -4185,7 +4188,7 @@ function workshopDetailHtml(entry = null, options = {}) {
     `<button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>`,
     `<button class="small-button" type="button" data-workshop-open-vehicle="${escapeHtml(entry.vehicleKey)}">Full vehicle</button>`,
   ].join('');
-  const lifecycleControls = completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started ? 'disabled' : ''}>${started ? 'Started' : 'Start job'}</button>
+  const lifecycleControls = completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started || WORKSHOP_PENDING_STARTS.has(entry.id) ? 'disabled' : ''} ${WORKSHOP_PENDING_STARTS.has(entry.id) ? 'aria-busy="true"' : ''}>${started ? 'Started' : WORKSHOP_PENDING_STARTS.has(entry.id) ? 'Starting…' : 'Start job'}</button>
       <button class="small-button ${stopped ? 'active-lite' : ''}" type="button" ${stopped ? `data-workshop-resume-plan="${escapeHtml(entry.id)}"` : `data-workshop-stop-plan="${escapeHtml(entry.id)}"`}>${stopped ? 'Resume job' : 'STOPPAGE'}</button>
       <button class="small-button active-lite" type="button" data-workshop-complete-plan="${escapeHtml(entry.id)}">Complete work</button>`;
   return `<form class="workshop-job-detail" data-workshop-detail-form data-workshop-plan-form-id="${escapeHtml(entry.id)}">
@@ -4735,6 +4738,7 @@ function renderWorkshopPlanner(options = {}) {
         ${!focusedBookingMode && workshopAdminBlockFeedback.message ? `<div class="workshop-admin-block-feedback ${escapeHtml(workshopAdminBlockFeedback.tone)}" role="status" aria-live="polite">${escapeHtml(workshopAdminBlockFeedback.message)}</div>` : ''}
       </div>
     </header>
+    ${workshopStartFeedback.stage === stage && workshopStartFeedback.message ? `<div class="workshop-search-state" role="status" aria-live="polite">${escapeHtml(workshopStartFeedback.message)}</div>` : ''}
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
     ${focusedBookingMode ? '' : workshopSearchControlHtml(state.search || '', plans)}
     ${state.bookingNavigationError ? `<div class="workshop-search-state is-warning" role="alert">${escapeHtml(state.bookingNavigationError)}</div>` : ''}
@@ -6271,21 +6275,51 @@ async function saveWorkshopDetailForm(event) {
   renderWorkshopPlanner();
 }
 
+function workshopDescribeStartActionError(result) {
+  if (result?.error === 'vehicle_overlap') {
+    return 'A protected booking for this vehicle could not be moved safely. No changes were saved. Ask the controller to check that work before starting this job.';
+  }
+  if (result?.error === 'technician_overlap') {
+    return 'This mechanic already has another running or stopped job. No changes were saved. Complete or release that work before starting another.';
+  }
+  if (['no_response','runtime_failure','request_failed'].includes(result?.error) || !result) {
+    return 'Start could not be confirmed. Refresh the planner to check this job before trying again.';
+  }
+  return workshopDescribeSharedActionError(result);
+}
+
 async function startWorkshopPlan(planId = '') {
+  if (WORKSHOP_PENDING_STARTS.has(planId)) return;
   const rows = workshopLoadPlans();
   const entry = rows.find(row => row.id === planId);
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle) return;
+  if (workshopSharedModeActive()) {
+    // Start is a server transaction: it prioritises this job, moves unstarted
+    // vehicle/queue bookings, and protects live work and admin blocks. A cached
+    // local conflict check cannot decide whether the current schedule is safe.
+    WORKSHOP_PENDING_STARTS.add(planId);
+    workshopStartFeedback={stage:entry.stage,message:'Starting job… Checking the schedule and moving affected unstarted bookings where needed.'};
+    renderWorkshopPlanner();
+    try {
+      const result=await workshopDispatchSharedAction('startWork', {
+        bookingId: entry.sharedBookingId || entry.id,
+        expectedVersion: entry.sharedVersion,
+      }, renderWorkshopPlanner, {suppressRender:true,suppressFailureAlert:true});
+      const shifted=result?.start_priority===true&&Number.isInteger(result.shifted_count)&&result.shifted_count>=0?result.shifted_count:null;
+      workshopStartFeedback={stage:entry.stage,message:result?.ok===true
+        ? result.already_started?'This job is already running on the planner.':`Job started.${shifted===null?'':shifted===0?' No other bookings needed to move.':` ${shifted} affected booking${shifted===1?'':'s'} moved later.`}`
+        : workshopDescribeStartActionError(result)};
+      if(result?.ok!==true) window.alert(workshopStartFeedback.message);
+      return result;
+    } finally {
+      WORKSHOP_PENDING_STARTS.delete(planId);
+      renderWorkshopPlanner();
+    }
+  }
   const alreadyStarted = workshopStartedBayConflict(entry, rows);
   if (alreadyStarted) {
     window.alert(`${pmbStageLabel(entry.stage)} Bay ${entry.bay} already has a started job. Stop or complete that job before starting another in this bay.`);
-    return;
-  }
-  if (workshopSharedModeActive()) {
-    await workshopDispatchSharedAction('startWork', {
-      bookingId: entry.sharedBookingId || entry.id,
-      expectedVersion: entry.sharedVersion,
-    });
     return;
   }
   if (!workshopRequireOperatorProfile()) return;
