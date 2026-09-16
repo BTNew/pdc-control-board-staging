@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260916021045",
-    "name": "workshop_start_priority_for_unstarted_vehicle_jobs",
-    "file": "supabase/migrations/20260916021045_workshop_start_priority_for_unstarted_vehicle_jobs.sql",
-    "sha256": "ed9923a73a54551114b77125f0d50ac8e9c72ebf5bfdbbdad3a86efc60577fd2",
+    "version": "20260916064146",
+    "name": "controller_vehicle_chip_access",
+    "file": "supabase/migrations/20260916064146_controller_vehicle_chip_access.sql",
+    "sha256": "c5a3294b7a5b7b9c5dde99d03f45b4ae86ab0bd7c3a16bc82f8388a9664d1f2b",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Priority Start verified with 51 rollback checks and 16 installed confirmation checks. Existing operational vehicles were unchanged by tests."
+    "source": "Controller scheduling, move, retry, undo and permission boundaries verified with isolated rollback fixtures; 904 JavaScript checks passed."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -100,7 +100,8 @@
     "Gmail UID640 loaded Stock 13017855 as one Navision-linked vehicle with Job Card J139125422 and all 20 operations projected exactly once; reflective safety striping routes to Sublet.",
     "Linked shared Navision source rows are merged into their one active Back End Data row; current Navision colour and source salesperson are projected from the authoritative link.",
     "All 22 UID635 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated – mapping review rather than being omitted.",
-    "Production and real outbound email delivery remain disabled and untouched."
+    "Production and real outbound email delivery remain disabled and untouched.",
+    "Controllers can use receipt-backed vehicle chip scheduling, moves and own-move undo. Administrator-only setup and admin blocks retain their separate authorization."
   ],
   "pmb_rft_release_migration": {
     "version": "20260910011051",
@@ -285,6 +286,15 @@
       "sha256": "b1e78b11afadd3f083293c78359c8ef0b506cb2d08c2a2cfbad3a6eb864940c6",
       "commissioned": true,
       "review_status": "staging_applied"
+    },
+    {
+      "version": "20260916021045",
+      "name": "workshop_start_priority_for_unstarted_vehicle_jobs",
+      "file": "supabase/migrations/20260916021045_workshop_start_priority_for_unstarted_vehicle_jobs.sql",
+      "sha256": "ed9923a73a54551114b77125f0d50ac8e9c72ebf5bfdbbdad3a86efc60577fd2",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Priority Start verified with 51 rollback checks and 16 installed confirmation checks. Existing operational vehicles were unchanged by tests."
     }
   ],
   "planner_capacity_migrations": [
