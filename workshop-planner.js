@@ -78,6 +78,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 const WORKSHOP_ELIGIBILITY_RUNTIME = globalThis.PDC_WORKSHOP_ELIGIBILITY
   || (typeof require === 'function' ? require('./workshop-eligibility.js') : null);
 if (!WORKSHOP_ELIGIBILITY_RUNTIME) throw new Error('Canonical workshop eligibility module failed to load');
+const WORKSHOP_BOOKING_TIMING = globalThis.PDC_WORKSHOP_BOOKING_TIMING
+  || (typeof require === 'function' ? require('./workshop-booking-timing.js') : null);
+if (!WORKSHOP_BOOKING_TIMING) throw new Error('Workshop booking timing module failed to load');
 
 const WORKSHOP_STAGE_SEQUENCE = Object.freeze(WORKSHOP_ELIGIBILITY_RUNTIME.workshopPlannerStageCodes());
 const WORKSHOP_VISIBLE_STAGE_SEQUENCE = WORKSHOP_STAGE_SEQUENCE;
@@ -535,23 +538,16 @@ function workshopEntryIsOvertime(entry = {}, now = new Date()) {
 }
 
 function workshopEntryEffectiveEnd(entry = {}, now = new Date()) {
-  const plannedEnd = workshopEntryEnd(entry);
-  if (entry.status === 'completed') {
-    const actualEnd = parseIsoTimestamp(entry.actualEndAt || '');
-    return actualEnd && actualEnd > plannedEnd ? actualEnd : plannedEnd;
-  }
-  if (entry.status === 'started') {
-    // A live job occupies the bay until the operator explicitly completes it
-    // or places it on STOPPAGE. Once the estimate is exceeded, extend the
-    // visible chip through the current operational moment rather than ending
-    // it at estimate + one scheduling increment.
-    const liveMoment = workshopLatestWorkMoment(now);
-    return liveMoment > plannedEnd ? liveMoment : plannedEnd;
-  }
-  if (!workshopEntryIsOvertime(entry, now)) return plannedEnd;
-  const liveMoment = entry.status === 'stoppage' ? parseIsoTimestamp(entry.stoppageAt || '') : now;
-  const latest = workshopLatestWorkMoment(liveMoment || plannedEnd);
-  return workshopAddWorkMinutes(latest, WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes);
+  return new Date(WORKSHOP_BOOKING_TIMING.effectiveEnd({
+    status: entry.status,
+    actual_end_at: entry.actualEndAt,
+    stoppage_started_at: entry.stoppageAt,
+  }, {
+    plannedEnd: workshopEntryEnd(entry), now,
+    latestWorkMoment: value => workshopLatestWorkMoment(new Date(value)),
+    addWorkMinutes: (value, minutes) => workshopAddWorkMinutes(new Date(value), minutes),
+    incrementMinutes: WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes,
+  }));
 }
 
 function workshopEntrySegmentForDate(entry = {}, dateKey = '', now = new Date()) {

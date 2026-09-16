@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260916064146",
-    "name": "controller_vehicle_chip_access",
-    "file": "supabase/migrations/20260916064146_controller_vehicle_chip_access.sql",
-    "sha256": "c5a3294b7a5b7b9c5dde99d03f45b4ae86ab0bd7c3a16bc82f8388a9664d1f2b",
+    "version": "20260916065517",
+    "name": "workshop_start_clock_version_rebase",
+    "file": "supabase/migrations/20260916065517_workshop_start_clock_version_rebase.sql",
+    "sha256": "13298e980e2852b30b57f0eca35f4e30e431ce9e2907e168c55affd9f41331f2",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Controller scheduling, move, retry, undo and permission boundaries verified with isolated rollback fixtures; 904 JavaScript checks passed."
+    "source": "29 candidate and29 installed rollback checks passed. Exact stock13021292 stale-clock request starts and shifts9 planned bookings in mandatory rollback. Only proven recent clock-only version changes may rebase; manual changes, concurrent scope edits and receipt identity remain protected."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -295,6 +295,24 @@
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "Priority Start verified with 51 rollback checks and 16 installed confirmation checks. Existing operational vehicles were unchanged by tests."
+    },
+    {
+      "version": "20260916064146",
+      "name": "controller_vehicle_chip_access",
+      "file": "supabase/migrations/20260916064146_controller_vehicle_chip_access.sql",
+      "sha256": "c5a3294b7a5b7b9c5dde99d03f45b4ae86ab0bd7c3a16bc82f8388a9664d1f2b",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Controller scheduling, move, retry, undo and permission boundaries verified with isolated rollback fixtures; 904 JavaScript checks passed."
+    },
+    {
+      "version": "20260916065145",
+      "name": "workshop_overview_canonical_timing_fields",
+      "file": "supabase/migrations/20260916065145_workshop_overview_canonical_timing_fields.sql",
+      "sha256": "c8ee479cc09d5352364486b1dc6f6f0da0ec5bc3911cf9bed9d12334204b5c4a",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "20 installed rollback assertions passed;146 active bookings match all7 station snapshots. Read-only timing fields and approved-viewer revision endpoint; table RLS unchanged."
     }
   ],
   "planner_capacity_migrations": [

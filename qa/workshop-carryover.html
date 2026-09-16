@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en-AU">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workshop carry-over verification</title>
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../pdc-fitters.css">
+<style>body{margin:0;padding:16px;font:14px system-ui;background:#f3f6fa}h1{font-size:22px}#checks{background:white;padding:12px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:12px}#workflow{display:block}</style>
+<body data-current-view="workflow">
+<h1>Workshop carry-over verification</h1>
+<p>Synthetic bookings only. Wednesday 16 September, 2:30 pm Perth time.</p>
+<div id="checks" role="status"></div>
+<main id="workflow" class="view active"><div id="workflow-board"></div></main>
+<script src="../workshop-booking-timing.js"></script>
+<script src="../control-board-overview.js"></script>
+<script src="../pdc-fitters.js"></script>
+<script src="control-board-fixtures.js"></script>
+<script>
+const fixture=ControlBoardFixtures.emptySnapshot();
+fixture.generated_at='2026-09-16T06:30:00Z';
+fixture.board.calendar={day_start_time:'06:00',day_end_time:'16:30',working_week:['monday','tuesday','wednesday','thursday','friday'],closures:[],break_windows:[],overtime_windows:[],scheduling_increment_minutes:15};
+fixture.board.bays=fixture.board.bays.filter(b=>['TINT','HOIST','FITTING','FABRICATION'].includes(b.stage_code)&&b.bay_number===1);
+function add(number,stage,fields){const bay=fixture.board.bays.find(b=>b.stage_code===stage);fixture.board.bookings.push(ControlBoardFixtures.booking(number,bay,ControlBoardFixtures.vehicle(number),fields));}
+add(1,'TINT',{status:'started',scheduled_start_at:'2026-09-15T23:19:00Z',scheduled_end_at:'2026-09-16T00:19:00Z',actual_start_at:'2026-09-15T23:19:00Z',fitter_progress:{percent:30,completed_hours:3,total_hours:10}});
+add(2,'HOIST',{status:'started',scheduled_start_at:'2026-09-15T06:00:00Z',scheduled_end_at:'2026-09-15T08:00:00Z',actual_start_at:'2026-09-15T06:00:00Z'});
+add(3,'FITTING',{status:'planned',scheduled_start_at:'2026-09-16T07:30:00Z',scheduled_end_at:'2026-09-17T00:00:00Z'});
+add(4,'FABRICATION',{status:'stoppage',scheduled_start_at:'2026-09-15T06:00:00Z',scheduled_end_at:'2026-09-15T07:00:00Z',actual_start_at:'2026-09-15T06:00:00Z',stoppage_started_at:'2026-09-16T01:00:00Z'});
+const model=ControlBoardOverview.buildModel(fixture),options={startDate:'2026-09-16',dayCount:6,now:new Date(fixture.generated_at)};
+const timeline=ControlBoardOverview.buildTimeline(model,options);
+document.getElementById('workflow-board').innerHTML=ControlBoardOverview.render(model,options);
+ControlBoardOverview.mountTimeline(document.getElementById('workflow-board'));
+const hours=ms=>new Date(ms).toLocaleTimeString('en-AU',{timeZone:'Australia/Perth',hour:'2-digit',minute:'2-digit'});
+document.getElementById('checks').textContent=timeline.rows.map(r=>r.stage+': '+r.segments.map(s=>s.date+' '+hours(s.start)+'–'+hours(s.end)).join(', ')).join(' | ');
+</script>
+</body></html>

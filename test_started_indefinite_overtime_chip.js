@@ -5,9 +5,11 @@ const fs = require('fs');
 const planner = fs.readFileSync('workshop-planner.js', 'utf8');
 const css = fs.readFileSync('workshop-planner.css', 'utf8');
 
-assert.ok(planner.includes("if (entry.status === 'started')"), 'started jobs have a dedicated live-end rule');
-assert.ok(planner.includes('const liveMoment = workshopLatestWorkMoment(now);'), 'started jobs extend through the current operational moment');
-assert.ok(planner.includes('return liveMoment > plannedEnd ? liveMoment : plannedEnd;'), 'started chips do not stop at estimate plus one increment');
+const { createSlotRuntime, at } = require('./tests/helpers/workshop-slot-runtime.cjs');
+const runtime = createSlotRuntime();
+runtime.planner.workshopSyncConfigFromSharedSettings();
+const running = { status: 'started', startAt: at(16, 7).toISOString(), endAt: at(16, 8).toISOString(), hours: 1 };
+assert.equal(+runtime.planner.workshopEntryEffectiveEnd(running, at(16, 14, 26)), +at(16, 14, 26), 'started chips extend through the operational moment, not estimate plus one increment');
 assert.ok(planner.includes("overtime ? ' · OVERTIME' : ''"), 'overdue started chips identify OVERTIME');
 assert.ok(planner.includes('window.setInterval(() => {') && planner.includes('}, 60000);'), 'Workshop Planner rerenders live timing every minute');
 assert.ok(css.includes('@keyframes workshop-overtime-flash'), 'overtime animation exists');

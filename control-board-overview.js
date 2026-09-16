@@ -1,9 +1,10 @@
 (function (root, factory) {
   'use strict';
-  const api = factory();
+  const timing = root.PDC_WORKSHOP_BOOKING_TIMING || (typeof require === 'function' ? require('./workshop-booking-timing.js') : null);
+  const api = factory(timing);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.ControlBoardOverview = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (timing) {
   'use strict';
   const labels = Object.freeze({ BUS_4X4: 'Bus 4×4', TINT: 'Tint', HOIST: 'Hoist', FITTING: 'Fitting', FABRICATION: 'Fabrication', ELECTRICAL: 'Electrical', TYRE: 'Tyre' });
   const activeStatuses = new Set(['queued', 'planned', 'started', 'stoppage']);
@@ -15,6 +16,13 @@
     stock: text(vehicle.stock_number) || '—', customer: text(vehicle.customer_name) || 'Customer not recorded',
     description: text(vehicle.vehicle_description) || [vehicle.make, vehicle.model].map(text).filter(Boolean).join(' ') || 'Vehicle details pending',
   });
+  const itemIdentity = item => {
+    const result = identity(item.vehicle);
+    const job = text(item.displayIdentity?.job || item.displayIdentity?.jobCard);
+    if (!text(item.vehicle?.job_card_number) && job) result.job = job;
+    if (!text(item.vehicle?.key_number) && text(item.displayIdentity?.key)) result.key = text(item.displayIdentity.key);
+    return result;
+  };
   const visibleVehicle = vehicle => vehicle && !vehicle.deleted_at && vehicle.is_deleted !== true && vehicle.visible_on_board !== false && (!vehicle.lifecycle_state || vehicle.lifecycle_state === 'active');
   const compareTime = (a, b) => {
     const live = item => item.status === 'started' || item.status === 'stoppage' ? 0 : 1;
@@ -42,7 +50,8 @@
       const vehicleId = text(source.vehicle_id || vehicle.id);
       if (vehicleId) bookedWork.add(`${vehicleId}:${stage}`);
       const column = bays.get(text(source.bay_id));
-      const item = { kind: 'booking', id, stage, status, vehicle, source, unassignedBay: !!source.bay_id && (!column || column.stage !== stage) };
+      const displayIdentity = vehicleId ? options.displayIdentities?.get?.(`${vehicleId.toLowerCase()}:${stage}`) : null;
+      const item = { kind: 'booking', id, stage, status, vehicle, source, displayIdentity, unassignedBay: !!source.bay_id && (!column || column.stage !== stage) };
       if (column && column.stage === stage) column.items.push(item);
       else waiting.push(item);
     });
@@ -51,7 +60,7 @@
       const id = `${vehicleId}:${stage}`;
       if (!vehicleId || !labels[stage] || !visibleVehicle(vehicle) || bookedWork.has(id) || seenCandidates.has(id)) return;
       seenCandidates.add(id);
-      waiting.push({ kind: 'candidate', id, stage, status: 'waiting', vehicle, source, unassignedBay: false });
+      waiting.push({ kind: 'candidate', id, stage, status: 'waiting', vehicle, source, displayIdentity: options.displayIdentities?.get?.(`${vehicleId.toLowerCase()}:${stage}`), unassignedBay: false });
     });
     (snapshot.board.admin_blocks || []).forEach(source => {
       const id = text(source.admin_block_id || source.block_id || source.id), column = bays.get(text(source.bay_id));
@@ -61,7 +70,7 @@
     });
     const matches = (item, column) => {
       if (!search) return true;
-      const person = identity(item.vehicle);
+      const person = itemIdentity(item);
       return [person.key, person.job, person.stock, person.customer, person.description, stageLabel(item.stage), column ? `Bay ${column.bay.bay_number}` : 'Unallocated', column?.bay.display_name, item.source.label].map(text).join(' ').toLowerCase().includes(search);
     };
     columns.forEach(column => {
@@ -79,7 +88,7 @@
 
   function cardHtml(item, waiting = false) {
     if (item.kind === 'admin') return `<div class="control-board-bay-card is-admin" data-control-board-match><strong>${escape(item.source.label || 'Admin block')}</strong><span>Admin block</span></div>`;
-    const person = identity(item.vehicle);
+    const person = itemIdentity(item);
     const state = { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', waiting: 'Unallocated' }[item.status] || '';
     const action = item.kind === 'booking' ? 'Open booking' : 'Open workshop';
     const title = `${action} · ${stageLabel(item.stage)} · ${state}\nKey ${person.key} · Job card ${person.job}\nStock ${person.stock}\n${person.customer}\n${person.description}`;
@@ -107,9 +116,11 @@
   function shiftDate(value, offset) {
     return validDate(value) ? new Date(Date.parse(`${value}T00:00:00Z`) + offset * DAY).toISOString().slice(0, 10) : '';
   }
-  function searchDateRange(model) {
+  function searchDateRange(model, options = {}) {
+    const config = calendarConfig(model.calendar);
+    const projection = config && timing ? bookingProjection(config, options.now || new Date()) : null;
     const bookings = model.columns.flatMap(column => column.items).filter(item => item.kind === 'booking');
-    const ranges = bookings.map(item => ({ start: Date.parse(item.source.scheduled_start_at), end: Date.parse(item.source.scheduled_end_at) }))
+    const ranges = bookings.map(item => ({ start: Date.parse(item.source.scheduled_start_at), end: projection ? projection(item.source) : Date.parse(item.source.scheduled_end_at) }))
       .filter(range => Number.isFinite(range.start) && Number.isFinite(range.end) && range.end > range.start);
     if (!ranges.length) return null;
     const startDate = dateKey(new Date(Math.min(...ranges.map(range => range.start))));
@@ -137,7 +148,9 @@
     const normalize = windows => windows.map(w => ({ start: clockMinutes(w.start), end: clockMinutes(w.end), date: w.date ? validDate(w.date) : '', scope: text(w.scope || w.day || 'global').toLowerCase(), rawDate: w.date }));
     const breaks = normalize(raw.break_windows), overtime = normalize(raw.overtime_windows);
     if ([...breaks, ...overtime].some(w => !Number.isFinite(w.start) || !Number.isFinite(w.end) || w.start >= w.end || (w.rawDate && !w.date) || !['global', 'working_day', ...dayNames].includes(w.scope)) || raw.closures.some(c => !validDate(c.date))) return null;
-    return { start, end, working: new Set(raw.working_week.map(day => text(day).toLowerCase())), closed: new Set(raw.closures.map(c => c.date)), breaks, overtime };
+    const increment = Number(raw.scheduling_increment_minutes ?? 15);
+    if (!Number.isFinite(increment) || increment <= 0 || increment > 1440) return null;
+    return { start, end, increment, working: new Set(raw.working_week.map(day => text(day).toLowerCase())), closed: new Set(raw.closures.map(c => c.date)), breaks, overtime };
   }
   function windowsForDate(config, date) {
     const day = dayNames[new Date(`${date}T00:00:00Z`).getUTCDay()];
@@ -152,14 +165,50 @@
     });
     return windows;
   }
+  function bookingProjection(config, now) {
+    // Cache calendar windows across every bay; a large board should calculate
+    // the same date once. All arithmetic is explicitly Perth time.
+    const cache = new Map();
+    const windows = date => {
+      if (!cache.has(date)) cache.set(date, windowsForDate(config, date));
+      return cache.get(date);
+    };
+    const midnight = date => Date.parse(`${date}T00:00:00+08:00`);
+    const latestWorkMoment = value => {
+      let date = dateKey(new Date(value));
+      const minute = Math.floor((value - midnight(date)) / 60000);
+      for (let days = 0; days < 370; days++, date = shiftDate(date, -1)) {
+        const limit = days ? 1440 : minute;
+        const eligible = windows(date).filter(window => window.start <= limit);
+        if (eligible.length) return midnight(date) + Math.min(limit, eligible[eligible.length - 1].end) * 60000;
+      }
+      return NaN;
+    };
+    const addWorkMinutes = (value, minutes) => {
+      let date = dateKey(new Date(value)), remaining = minutes;
+      let minute = Math.floor((value - midnight(date)) / 60000);
+      for (let days = 0; days < 370; days++, date = shiftDate(date, 1), minute = 0) {
+        for (const window of windows(date)) {
+          const start = Math.max(minute, window.start);
+          if (start >= window.end) continue;
+          const available = window.end - start;
+          if (remaining <= available) return midnight(date) + (start + remaining) * 60000;
+          remaining -= available;
+        }
+      }
+      return NaN;
+    };
+    return booking => timing.effectiveEnd(booking, { now, latestWorkMoment, addWorkMinutes, incrementMinutes: config.increment });
+  }
   function buildTimeline(model, options = {}) {
     const config = calendarConfig(model.calendar);
-    if (!config) return null;
+    if (!config || !timing) return null;
     const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+    const effectiveEnd = bookingProjection(config, now);
     const startDate = validDate(options.startDate) || dateKey(model.generatedAt) || dateKey(now);
     const dayCount = Math.max(1, Math.min(56, Math.floor(Number(options.dayCount) || 14)));
-    const axisStart = Math.floor(Math.min(config.start, ...config.overtime.map(w => w.start)) / 60) * 60;
-    const axisEnd = Math.ceil(Math.max(config.end, ...config.overtime.map(w => w.end)) / 60) * 60;
+    const axisStart = Math.min(config.start, ...config.overtime.map(w => w.start));
+    const axisEnd = Math.max(config.end, ...config.overtime.map(w => w.end));
     const dayWidth = Math.max(640, (axisEnd - axisStart) / 60 * 64), width = dayWidth * dayCount;
     const firstMs = Date.parse(`${startDate}T00:00:00+08:00`), lastMs = firstMs + dayCount * DAY;
     const days = Array.from({ length: dayCount }, (_, day) => {
@@ -171,18 +220,22 @@
       const segments = [], unplotted = [], laneEnds = [];
       const sorted = [...column.items].sort((a, b) => Date.parse(a.source.scheduled_start_at) - Date.parse(b.source.scheduled_start_at) || a.id.localeCompare(b.id));
       sorted.forEach(item => {
-        const start = Date.parse(item.source.scheduled_start_at), end = Date.parse(item.source.scheduled_end_at);
-        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) { const entry = { item, reason: 'Booking time unavailable' }; unscheduled.push(entry); unplotted.push(entry); return; }
+        const start = Date.parse(item.source.scheduled_start_at), plannedEnd = Date.parse(item.source.scheduled_end_at), end = effectiveEnd(item.source);
+        if (!Number.isFinite(start) || !Number.isFinite(plannedEnd) || plannedEnd <= start || !Number.isFinite(end) || end <= start) { const entry = { item, reason: 'Booking time unavailable' }; unscheduled.push(entry); unplotted.push(entry); return; }
         if (end <= firstMs || start >= lastMs) { outside.push({ item, reason: 'Outside displayed dates', date: dateKey(item.source.scheduled_start_at) }); return; }
         const pieces = [];
         const from = Math.max(0, Math.floor((start - firstMs) / DAY)), to = Math.min(dayCount - 1, Math.floor((end - 1 - firstMs) / DAY));
         for (let day = from; day <= to; day++) {
-          for (const window of days[day].windows) {
+          const historicalOnClosure = config.closed.has(days[day].date) && config.working.has(dayNames[new Date(`${days[day].date}T00:00:00Z`).getUTCDay()]);
+          const displayWindows = historicalOnClosure ? [{ start: config.start, end: config.end }] : days[day].windows;
+          for (const window of displayWindows) {
             const a = Math.max(start, days[day].startMs + window.start * 60000), b = Math.min(end, days[day].startMs + window.end * 60000);
             if (b <= a) continue;
             const startMinute = (a - days[day].startMs) / 60000, endMinute = (b - days[day].startMs) / 60000;
             const left = day * dayWidth + (startMinute - axisStart) / (axisEnd - axisStart) * dayWidth;
-            pieces.push({ item, day, date: days[day].date, start: a, end: b, left, width: (endMinute - startMinute) / (axisEnd - axisStart) * dayWidth });
+            pieces.push({ item, day, date: days[day].date, start: a, end: b, left, historicalOnClosure,
+              continuesFromPrevious: start < days[day].startMs, continuesNext: end > days[day].startMs + DAY,
+              width: (endMinute - startMinute) / (axisEnd - axisStart) * dayWidth });
           }
         }
         if (!pieces.length) { const entry = { item, reason: 'Outside current workshop hours' }; unscheduled.push(entry); unplotted.push(entry); return; }
@@ -202,11 +255,13 @@
     return `${hour % 12 || 12}${remainder ? ':' + String(remainder).padStart(2, '0') : ''} ${hour < 12 ? 'am' : 'pm'}`;
   }
   function timelineCard(segment) {
-    const item = segment.item, person = identity(item.vehicle);
+    const item = segment.item, person = itemIdentity(item);
     const state = { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', admin: 'Admin block' }[item.status];
     const title = item.kind === 'admin' ? item.source.label || 'Admin block' : `Key ${person.key} · JC ${person.job} · Stock ${person.stock}\n${person.customer}\n${person.description}`;
+    const midnight = Date.parse(`${segment.date}T00:00:00+08:00`);
+    const timingLabel = `${segment.date} · ${timeLabel((segment.start - midnight) / 60000)}–${timeLabel((segment.end - midnight) / 60000)}${segment.continuesFromPrevious ? ' · Continued from previous day' : ''}${segment.continuesNext ? ' · Continues next working day' : ''}${segment.historicalOnClosure ? ' · Recorded booking on closure' : ''}`;
     const tag = item.kind === 'admin' ? 'div' : 'button';
-    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${segment.width < 130 ? ' is-short' : ''}" style="left:${segment.left}px;width:${segment.width}px;top:${segment.lane * 48 + 5}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}" title="${escape(`${state} · ${title}`)}" aria-label="${escape(`${state} · ${title}`)}">
+    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${segment.width < 130 ? ' is-short' : ''}" style="left:${segment.left}px;width:${segment.width}px;top:${segment.lane * 48 + 5}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}" title="${escape(`${state} · ${title}\n${timingLabel}`)}" aria-label="${escape(`${state} · ${title} · ${timingLabel}`)}">
       <strong>${item.kind === 'admin' ? escape(title) : `Key ${escape(person.key)} · JC ${escape(person.job)} · Stock ${escape(person.stock)}`}</strong>
       ${item.kind === 'admin' ? '' : `<span>${escape(person.customer)} · ${escape(person.description)}</span>`}
       ${item.kind === 'admin' ? '' : (typeof window !== 'undefined' ? window.PdcFitters?.progressHtml(item.source.fitter_progress, true) || '' : '')}
@@ -216,7 +271,14 @@
     const timeline = buildTimeline(model, options);
     if (!timeline) return '<div class="workshop-connection-banner offline_error" role="status"><strong>Workshop timeline unavailable</strong><span>The workshop calendar could not be loaded. Refresh board to try again.</span></div>';
     const formatDay = key => new Date(`${key}T12:00:00Z`).toLocaleDateString('en-AU', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
-    const ticks = Array.from({ length: Math.floor((timeline.axisEnd - timeline.axisStart) / 60) + 1 }, (_, i) => `<span style="left:${i * 60 / (timeline.axisEnd - timeline.axisStart) * 100}%">${escape(timeLabel(timeline.axisStart + i * 60))}</span>`).join('');
+    const tickMinutes = Array.from({ length: Math.floor((timeline.axisEnd - timeline.axisStart) / 60) + 1 }, (_, i) => timeline.axisStart + i * 60);
+    if (tickMinutes[tickMinutes.length - 1] !== timeline.axisEnd) {
+      // Leave room for the exact closing label (for example 4:30 pm) rather
+      // than overlapping it with the preceding hourly label.
+      if (timeline.axisEnd - tickMinutes[tickMinutes.length - 1] < 60 && tickMinutes.length > 1) tickMinutes.pop();
+      tickMinutes.push(timeline.axisEnd);
+    }
+    const ticks = tickMinutes.map(minute => `<span style="left:${(minute - timeline.axisStart) / (timeline.axisEnd - timeline.axisStart) * 100}%">${escape(timeLabel(minute))}</span>`).join('');
     const days = timeline.days.map(day => `<div class="control-board-timeline-day${day.date === timeline.today ? ' is-today' : ''}${day.windows.length ? '' : ' is-closed'}" style="width:${timeline.dayWidth}px"><strong>${escape(formatDay(day.date))}${day.windows.length ? '' : ' · Closed'}</strong><div class="control-board-time-ticks">${ticks}</div></div>`).join('');
     const shading = timeline.days.map((day, index) => {
       let cursor = timeline.axisStart;

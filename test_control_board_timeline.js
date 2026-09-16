@@ -155,12 +155,13 @@ test('bookings entirely before or after the visible date range remain in the out
   assert.deepEqual(result.outside.map(itemId).sort(), [earlier.booking_id, later.booking_id].sort());
 });
 
-test('a recorded booking wholly on a new closure remains discoverable instead of disappearing', () => {
+test('a recorded booking on a new closure keeps its position, matching the station planner history', () => {
   const value = snapshot({ closures: [{ date: '2026-09-18' }] });
   const booking = addBooking(value, 1, stamp('2026-09-18', '07:00'), stamp('2026-09-18', '08:00'));
   const result = timeline(value);
-  assert.equal(segments(result).length, 0);
-  assert.ok([...result.outside, ...result.unscheduled].some(item => itemId(item) === booking.booking_id));
+  assert.deepEqual(shape(forBooking(result, booking.booking_id)), [['2026-09-18', 420, 480]]);
+  assert.equal(forBooking(result, booking.booking_id)[0].historicalOnClosure, true);
+  assert.deepEqual(result.days[0].windows, []);
 });
 
 test('missing or malformed calendar cannot silently render using hardcoded weekday defaults', () => {

@@ -2172,6 +2172,9 @@ const app = {
   workshopEligibilityError: '',
   workshopEligibilityRequestGeneration: 0,
   workshopEligibilityRevisionPending: false,
+  workshopEligibilitySnapshotRequest: null,
+  workshopEligibilityRevisionRequest: null,
+  workshopEligibilityClockMinute: null,
   workshopEligibilityRealtime: null,
   workshopEligibilityReconnectTimer: null,
   singleSearchFocus: {},
@@ -4368,11 +4371,17 @@ function installWorkshopRecoveryListeners() {
   const reconcileVisiblePlanner = () => {
     if (app.currentView === 'workshop' && document.visibilityState === 'visible') {
       window.__workshopDataService?.reconcileRevision?.('visible_planner_revision');
+    } else if (app.currentView === 'workflow' && document.visibilityState === 'visible') {
+      reconcileWorkshopEligibilityRevision('visible_overview_revision');
+      refreshWorkshopEligibilityClock();
     }
   };
   const onOnline = () => window.__workshopRealtimeManager?.forceReconnect?.();
   const onVisibility = () => {
-    if (document.visibilityState === 'visible') window.__workshopDataService?.onVisibilityReturn?.();
+    if (document.visibilityState === 'visible') {
+      window.__workshopDataService?.onVisibilityReturn?.();
+      if (app.currentView === 'workflow') reconcileVisiblePlanner();
+    }
   };
   window.addEventListener('online', onOnline);
   window.addEventListener('focus', reconcileVisiblePlanner);
@@ -5370,7 +5379,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5419,7 +5428,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -6284,6 +6293,11 @@ function workshopEligibilitySharedAuthorityEnabled() {
 function teardownWorkshopEligibilityOverview({ clearSnapshot = false } = {}) {
   app.workshopEligibilityRequestGeneration += 1;
   app.workshopEligibilityRevisionPending = false;
+  app.workshopEligibilitySnapshotRequest?.controller?.abort();
+  app.workshopEligibilityRevisionRequest?.controller?.abort();
+  app.workshopEligibilitySnapshotRequest = null;
+  app.workshopEligibilityRevisionRequest = null;
+  app.workshopEligibilityClockMinute = null;
   const realtime = app.workshopEligibilityRealtime;
   app.workshopEligibilityRealtime = null;
   if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
@@ -6301,6 +6315,10 @@ function failWorkshopEligibilityOverviewSubscription(owner, status = 'Realtime u
   // Invalidate every snapshot request issued under the failed authority
   // session before releasing the channel. A late response is therefore inert.
   app.workshopEligibilityRequestGeneration += 1;
+  app.workshopEligibilitySnapshotRequest?.controller?.abort();
+  app.workshopEligibilityRevisionRequest?.controller?.abort();
+  app.workshopEligibilitySnapshotRequest = null;
+  app.workshopEligibilityRevisionRequest = null;
   app.workshopEligibilityRealtime = null;
   app.workshopEligibilitySnapshot = null;
   app.workshopEligibilityRevisionPending = false;
@@ -6317,6 +6335,7 @@ function failWorkshopEligibilityOverviewSubscription(owner, status = 'Realtime u
 
 function workshopEligibilityOverviewSubscribe() {
   if (app.workshopEligibilityRealtime || typeof createPdcSupabaseRealtimeSubscription !== 'function') return;
+  installWorkshopRecoveryListeners();
   app.workshopEligibilitySnapshot = null;
   app.workshopEligibilityState = 'reconnecting';
   // Install an owner token before opening the transport. Supabase adapters may
@@ -6324,6 +6343,7 @@ function workshopEligibilityOverviewSubscribe() {
   // callback authoritative and ensures the returned failed handle is disposed.
   const owner = {
     handle: null,
+    subscribed: false,
     unsubscribe() {
       const handle = owner.handle;
       owner.handle = null;
@@ -6336,14 +6356,12 @@ function workshopEligibilityOverviewSubscribe() {
     handle = createPdcSupabaseRealtimeSubscription(window.PDC_SUPABASE_CONFIG, {
       onChange: () => {
         if (app.workshopEligibilityRealtime !== owner) return;
-        if (app.workshopEligibilityState === 'connected') {
-          loadWorkshopEligibilitySnapshot('realtime');
-        } else {
-          app.workshopEligibilityRevisionPending = true;
-        }
+        app.workshopEligibilityRevisionPending = true;
+        if (owner.subscribed) reconcileWorkshopEligibilityRevision('realtime');
       },
       onSubscribed: () => {
         if (app.workshopEligibilityRealtime !== owner) return null;
+        owner.subscribed = true;
         if (app.workshopEligibilityReconnectTimer) clearTimeout(app.workshopEligibilityReconnectTimer);
         app.workshopEligibilityReconnectTimer = null;
         return loadWorkshopEligibilitySnapshot('subscribed');
@@ -6359,7 +6377,78 @@ function workshopEligibilityOverviewSubscribe() {
   if (app.workshopEligibilityRealtime !== owner) owner.unsubscribe();
 }
 
-async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
+function workshopEligibilityRequestIsCurrent(request) {
+  if (request.generation !== app.workshopEligibilityRequestGeneration || app.workshopEligibilityRealtime !== request.owner) return false;
+  if (getPdcSupabaseAccessToken() === request.token && (window.PDC_AUTH_CONTEXT?.role || null) === request.role) return true;
+  teardownWorkshopEligibilityOverview({ clearSnapshot: true });
+  app.workshopEligibilityState = 'permission_denied';
+  app.workshopEligibilityError = 'Sign in again to load current workshop information.';
+  if (app.currentView === 'workflow') renderWorkflowBoard();
+  return false;
+}
+
+function workshopEligibilityReadError(error) {
+  app.workshopEligibilitySnapshot = null;
+  app.workshopEligibilityState = error?.status === 401 || error?.status === 403 ? 'permission_denied' : 'offline_error';
+  app.workshopEligibilityError = error?.message || String(error);
+  if (app.currentView === 'workflow') renderWorkflowBoard();
+}
+
+function refreshWorkshopEligibilityClock() {
+  if (app.currentView !== 'workflow' || document.visibilityState !== 'visible'
+      || app.workshopEligibilityState !== 'connected' || !app.workshopEligibilitySnapshot
+      || !getPdcSupabaseAccessToken()) return;
+  const minute = Math.floor(Date.now() / 60000);
+  if (app.workshopEligibilityClockMinute === minute) return;
+  // A clock redraw must not interrupt panning, typing or a booking dialog.
+  if (document.querySelector?.('.modal-overlay:not([hidden]), dialog[open], .control-board-pan-rail.is-dragging')
+      || document.activeElement?.matches?.('input, textarea, select')) return;
+  app.workshopEligibilityClockMinute = minute;
+  renderWorkflowBoard();
+}
+
+function reconcileWorkshopEligibilityRevision(reason = 'revision_check') {
+  if (!workshopEligibilitySharedAuthorityEnabled() || app.currentView !== 'workflow' || document.visibilityState !== 'visible') return Promise.resolve(null);
+  const token = getPdcSupabaseAccessToken();
+  if (!token) return Promise.resolve(null);
+  const owner = app.workshopEligibilityRealtime;
+  if (!owner) { workshopEligibilityOverviewSubscribe(); return Promise.resolve(null); }
+  if (!owner.subscribed || app.workshopEligibilitySnapshotRequest) return Promise.resolve(null);
+  if (app.workshopEligibilityRevisionRequest) return app.workshopEligibilityRevisionRequest.promise;
+  const request = { owner, token, role: window.PDC_AUTH_CONTEXT?.role || null,
+    generation: app.workshopEligibilityRequestGeneration, controller: new AbortController(), promise: null };
+  app.workshopEligibilityRevisionRequest = request;
+  const timeout = window.setTimeout(() => request.controller.abort(), 8000);
+  request.promise = (async () => {
+    let reload = false;
+    try {
+      const response = await fetch(`${window.PDC_SUPABASE_CONFIG.url}/rest/v1/rpc/get_workshop_overview_revisions`, {
+        method: 'POST', body: '{}',
+        headers: { apikey: window.PDC_SUPABASE_CONFIG.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        cache: 'no-store', signal: request.controller.signal,
+      });
+      if (!response.ok) throw Object.assign(new Error('Workshop freshness could not be checked.'), { status: response.status });
+      const rows = await response.json();
+      if (!workshopEligibilityRequestIsCurrent(request)) return null;
+      if (!Array.isArray(rows) || rows.length === 0 || rows.some(row => !row.stage_code || !/^\d+$/.test(String(row.revision ?? '')))
+          || new Set(rows.map(row => row.stage_code)).size !== rows.length) throw new Error('Workshop freshness returned an invalid revision.');
+      const revisions = new Map(rows.map(row => [row.stage_code, String(row.revision)]));
+      const stages = app.workshopEligibilitySnapshot?.stages;
+      reload = app.workshopEligibilityState !== 'connected' || !Array.isArray(stages) || stages.length === 0 || stages.length !== rows.length
+        || stages.some(stage => revisions.get(stage.code) !== String(stage.revision));
+      app.workshopEligibilityRevisionPending = false;
+    } catch (error) {
+      if (workshopEligibilityRequestIsCurrent(request)) workshopEligibilityReadError(error);
+    } finally {
+      window.clearTimeout(timeout);
+      if (app.workshopEligibilityRevisionRequest === request) app.workshopEligibilityRevisionRequest = null;
+    }
+    return reload && workshopEligibilityRequestIsCurrent(request) ? loadWorkshopEligibilitySnapshot(reason) : null;
+  })();
+  return request.promise;
+}
+
+function loadWorkshopEligibilitySnapshot(reason = 'manual') {
   if (!workshopEligibilitySharedAuthorityEnabled()) return null;
   const token = getPdcSupabaseAccessToken();
   if (!token) {
@@ -6377,12 +6466,25 @@ async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
     return null;
   }
   const authorityOwner = app.workshopEligibilityRealtime;
-  if (!authorityOwner) return null;
-  const generation = ++app.workshopEligibilityRequestGeneration;
-  app.workshopEligibilityState = 'loading';
+  if (!authorityOwner?.subscribed) return null;
+  // Route entry, manual refresh and Realtime can coincide. One in-flight
+  // snapshot wins; a later revision check detects any change made during it.
+  if (app.workshopEligibilitySnapshotRequest) {
+    if (reason === 'confirmed_fitter_write') app.workshopEligibilityRevisionPending = true;
+    return app.workshopEligibilitySnapshotRequest.promise;
+  }
+  const request = { owner: authorityOwner, token, role: window.PDC_AUTH_CONTEXT?.role || null,
+    generation: ++app.workshopEligibilityRequestGeneration, controller: new AbortController(), promise: null };
+  app.workshopEligibilityRevisionRequest?.controller?.abort();
+  app.workshopEligibilityRevisionRequest = null;
+  app.workshopEligibilitySnapshotRequest = request;
+  const retainVisibleSnapshot = app.workshopEligibilityState === 'connected' && app.workshopEligibilitySnapshot;
+  if (!retainVisibleSnapshot) app.workshopEligibilityState = 'loading';
   app.workshopEligibilityError = '';
-  if (app.currentView === 'workflow') renderWorkflowBoard();
-  try {
+  if (!retainVisibleSnapshot && app.currentView === 'workflow') renderWorkflowBoard();
+  const timeout = window.setTimeout(() => request.controller.abort(), 20000);
+  request.promise = (async () => {
+   try {
     const response = await fetch(`${window.PDC_SUPABASE_CONFIG.url}/rest/v1/rpc/get_workshop_eligibility_snapshot`, {
       method: 'POST',
       headers: {
@@ -6391,28 +6493,33 @@ async function loadWorkshopEligibilitySnapshot(reason = 'manual') {
         'Content-Type': 'application/json',
       },
       body: '{}',
+      cache: 'no-store', signal: request.controller.signal,
     });
-    if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? 'Not authorized to read workshop eligibility.' : `Eligibility RPC failed (${response.status}).`);
+    if (!response.ok) throw Object.assign(new Error(response.status === 401 || response.status === 403 ? 'Not authorized to read workshop eligibility.' : `Eligibility RPC failed (${response.status}).`), { status: response.status });
     const snapshot = await response.json();
-    if (generation !== app.workshopEligibilityRequestGeneration || app.workshopEligibilityRealtime !== authorityOwner) return null;
+    if (!workshopEligibilityRequestIsCurrent(request)) return null;
     if (!snapshot || !Array.isArray(snapshot.stages) || !Array.isArray(snapshot.candidates)) throw new Error('Eligibility RPC returned an invalid snapshot.');
     app.workshopEligibilitySnapshot = snapshot;
     app.workshopEligibilityState = 'connected';
     app.workshopEligibilityError = '';
+    app.workshopEligibilityClockMinute = Math.floor(Date.now() / 60000);
     if (app.currentView === 'workflow') renderWorkflowBoard();
-    if (app.workshopEligibilityRevisionPending) {
-      app.workshopEligibilityRevisionPending = false;
-      return loadWorkshopEligibilitySnapshot('realtime_pending');
-    }
     return snapshot;
   } catch (error) {
-    if (generation !== app.workshopEligibilityRequestGeneration || app.workshopEligibilityRealtime !== authorityOwner) return null;
-    app.workshopEligibilitySnapshot = null;
-    app.workshopEligibilityState = 'offline_error';
-    app.workshopEligibilityError = error?.message || String(error);
-    if (app.currentView === 'workflow') renderWorkflowBoard();
+    if (!workshopEligibilityRequestIsCurrent(request)) return null;
+    workshopEligibilityReadError(error);
     return null;
+  } finally {
+    window.clearTimeout(timeout);
+    if (app.workshopEligibilitySnapshotRequest === request) {
+      app.workshopEligibilitySnapshotRequest = null;
+      if (app.workshopEligibilityRevisionPending && app.workshopEligibilityState === 'connected') {
+        void reconcileWorkshopEligibilityRevision('realtime_pending');
+      }
+    }
   }
+  })();
+  return request.promise;
 }
 
 function workshopEligibilityCandidateVehicle(candidate = {}) {
@@ -7175,7 +7282,10 @@ function renderWorkflowBoard() {
     return;
   }
   const overview = window.ControlBoardOverview;
-  const model = overview?.buildModel(app.workshopEligibilitySnapshot, { search, stageOrder: WORKSHOP_CONTROL_BOARD_STATIONS });
+  const displayIdentities = window.WorkshopDisplayIdentity?.build(
+    typeof pdcSheetVehicles === 'function' ? pdcSheetVehicles() : [], normalizePmbStage,
+  );
+  const model = overview?.buildModel(app.workshopEligibilitySnapshot, { search, stageOrder: WORKSHOP_CONTROL_BOARD_STATIONS, displayIdentities });
   if (!model) {
     host.innerHTML = '<div class="workshop-connection-banner offline_error" role="status"><strong>Workshop overview unavailable</strong><span>The full bay list could not be loaded. Use Refresh board to try again.</span></div>';
     return;
