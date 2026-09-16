@@ -984,8 +984,21 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'vehicle_version_conflict') {
     return 'This vehicle changed while it was being scheduled. The latest record has been loaded; please try again.';
   }
+  if (error === 'fixed_booking_conflict' || error === 'live_booking_conflict') {
+    return 'This change conflicts with a job already running or on stoppage. No changes were saved. Check the occupied bay or choose another available time.';
+  }
+  if (error === 'admin_block_conflict') {
+    return 'That time is reserved by an admin block, such as leave or bay downtime. No changes were saved. Choose an available bay or a time after the block.';
+  }
+  if (error === 'concurrent_queue_change' || error === 'schedule_changed') {
+    return 'The schedule changed while this action was being checked. The planner has refreshed; review the latest bookings and try again.';
+  }
+  if (error === 'schedule_write_order_blocked' || error === 'no_available_slot') {
+    return 'The affected jobs could not be safely moved into available working time. No changes were saved. Ask the controller to review the surrounding bookings.';
+  }
+  if (error === 'technician_unavailable') return 'An assigned mechanic is unavailable during this work. Check their assignment or leave before starting.';
   if (error === 'bay_already_started') {
-    return 'This bay already has a started job. Stop or complete that job before starting another in this department bay.';
+    return 'This bay already has a running or stopped job. Complete it or release its bay before starting another.';
   }
   if (error === 'bay_overlap' || (conflict && conflict.conflict_type === 'bay_overlap')) {
     return 'That bay is already occupied during this time. The planner has refreshed to the latest version.';

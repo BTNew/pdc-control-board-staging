@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260915043856",
-    "name": "control_board_calendar_snapshot",
-    "file": "supabase/migrations/20260915043856_control_board_calendar_snapshot.sql",
-    "sha256": "d500870c81f67cb2246ecdd3ebc9c14b80ab0f65e9f788a878fedb4bb6507bce",
+    "version": "20260916004621",
+    "name": "workshop_historical_job_stoppage",
+    "file": "supabase/migrations/20260916004621_workshop_historical_job_stoppage.sql",
+    "sha256": "abda4f158bd8af71f1422229f011ed9a3be1f3ac2741701d8b49666bb448f3bc",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Read-only six-value workshop calendar added to the existing viewer-authorized Control Board snapshot. All 22 deployed read-only checks passed; original board fields and access controls retained, current imported vehicles untouched."
+    "source": "Historical running-job stoppage calendar repair. All14 rollback checks passed; read-only live validation now succeeds for all3 affected bookings. Existing booking state preserved."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -227,6 +227,39 @@
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "Read-only all-bay Control Board projection added to the existing authorized snapshot. 28 transactional checks passed and rolled back; 43 physical bays retained, no operational records created."
+    },
+    {
+      "version": "20260915043856",
+      "name": "control_board_calendar_snapshot",
+      "file": "supabase/migrations/20260915043856_control_board_calendar_snapshot.sql",
+      "sha256": "d500870c81f67cb2246ecdd3ebc9c14b80ab0f65e9f788a878fedb4bb6507bce",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Read-only six-value workshop calendar added to the existing viewer-authorized Control Board snapshot. All 22 deployed read-only checks passed; original board fields and access controls retained, current imported vehicles untouched."
+    },
+    {
+      "version": "20260916004559",
+      "name": "workshop_admin_fixed_conflict_consistency",
+      "file": "supabase/migrations/20260916004559_workshop_admin_fixed_conflict_consistency.sql",
+      "sha256": "822682db8152e9f74779accea8d8372fcaf95019c2d6413963dca8a49cae4ae0",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20260916004611",
+      "name": "workshop_start_conflict_safe_schedule",
+      "file": "supabase/migrations/20260916004611_workshop_start_conflict_safe_schedule.sql",
+      "sha256": "ebe42fbc9bad4068279cecb63edfa290ee8cf656cf900b82a9f8e19a1100f3b7",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20260916004616",
+      "name": "workshop_eligibility_snapshot_optimization",
+      "file": "supabase/migrations/20260916004616_workshop_eligibility_snapshot_optimization.sql",
+      "sha256": "94ab60ab6b2719ff3b5a4426a07cc23354becc6377a7204b6f8f49bf25aec3b5",
+      "commissioned": true,
+      "review_status": "staging_applied"
     }
   ],
   "planner_capacity_migrations": [
@@ -265,4 +298,3 @@
     "sha256": "3c5df28278663455ccb47c1f26c7a92e2163e490dbbda9ce35d9437b1787c043"
   }
 }
-
