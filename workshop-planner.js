@@ -711,9 +711,11 @@ let workshopLastAdministratorMove = null;
 let workshopAdminPaletteDurationMinutes = 30;
 let workshopAdminBlockFeedback = { tone: '', message: '' };
 const WORKSHOP_PENDING_STARTS = new Set();
+const WORKSHOP_PENDING_BOOKING_ACTIONS = new Map();
 let workshopStartFeedback = { stage: '', message: '' };
 const WORKSHOP_ADMIN_SAFE_DURATION_DAYS = 90;
 let workshopActiveQueuePointerDrag = null;
+let workshopActivePointerResize = null;
 let workshopSuppressMouseDragUntil = 0;
 
 function workshopAdministratorCanMove(role = (typeof window !== 'undefined' ? window.PDC_AUTH_CONTEXT?.role : '')) {
@@ -936,40 +938,70 @@ function workshopSharedLegacyAmbiguity(payload = {}) {
   return workshopLoadPlans().find(row => row.id === bookingId && row.legacyAmbiguityReason) || null;
 }
 
+function workshopBeginBookingAction(bookingId, actionName) {
+  const id = String(bookingId || '').trim().toLowerCase();
+  if (!id || WORKSHOP_PENDING_BOOKING_ACTIONS.has(id)) return null;
+  const token = { bookingId: id, actionName, actor: window.PDC_AUTH_CONTEXT?.userId, role: window.PDC_AUTH_CONTEXT?.role };
+  WORKSHOP_PENDING_BOOKING_ACTIONS.set(id, token);
+  return token;
+}
+
+function workshopEndBookingAction(token) {
+  if (token && WORKSHOP_PENDING_BOOKING_ACTIONS.get(token.bookingId) === token) {
+    WORKSHOP_PENDING_BOOKING_ACTIONS.delete(token.bookingId);
+  }
+}
+
 async function workshopDispatchSharedAction(actionName, payload, renderAction = renderWorkshopPlanner, options = {}) {
   if (!workshopSharedModeActive()) return null;
-  if (!await workshopEnsureCurrentDeployment()) return { ok: false, error: 'stale_deployment_reload' };
-  const ambiguous = workshopSharedLegacyAmbiguity(payload);
-  if (ambiguous) {
-    const result = { ok: false, error: 'legacy_ambiguity_blocked', bookingId: ambiguous.id };
-    window.alert(`${ambiguous.legacyAmbiguityReason} No change was made.`);
-    renderAction();
-    return result;
+  const bookingId = String(payload?.bookingId || (actionName === 'cascadeSchedule' && payload?.operation !== 'schedule' ? payload?.targetId : '') || '').trim().toLowerCase();
+  const suppliedToken = options.bookingActionToken;
+  const actionToken = bookingId ? (suppliedToken || workshopBeginBookingAction(bookingId, actionName)) : null;
+  if (bookingId && (!actionToken || actionToken.bookingId !== bookingId || WORKSHOP_PENDING_BOOKING_ACTIONS.get(bookingId) !== actionToken)) {
+    return { ok: false, error: 'booking_action_in_flight' };
   }
-  const actions = window.__workshopSharedActions;
-  if (!actions || typeof actions[actionName] !== 'function') {
-    window.alert('Shared workshop mode is connected but this action is not yet available. No change was made.');
-    return { ok: false, error: 'action_unavailable' };
-  }
-  let result;
-  const changeStartedAt = new Date(Date.now() - 60000).toISOString();
   try {
-    result = await actions[actionName](payload);
-    // Parts is tracked and warned on, but never retried through an override
-    // path: a Parts-gate response now proves a stale runtime/database contract.
-  } catch (error) {
-    result = workshopAdministratorCanMove()
-      ? { ok: false, error: 'runtime_failure', message: error?.message || String(error || '') }
-      : { ok: false, error: 'runtime_failure' };
+    if (!await workshopEnsureCurrentDeployment()) return { ok: false, error: 'stale_deployment_reload' };
+    if (actionToken && (actionToken.actor !== window.PDC_AUTH_CONTEXT?.userId || actionToken.role !== window.PDC_AUTH_CONTEXT?.role)) {
+      return { ok: false, error: 'authority_superseded' };
+    }
+    const ambiguous = workshopSharedLegacyAmbiguity(payload);
+    if (ambiguous) {
+      const result = { ok: false, error: 'legacy_ambiguity_blocked', bookingId: ambiguous.id };
+      window.alert(`${ambiguous.legacyAmbiguityReason} No change was made.`);
+      renderAction();
+      return result;
+    }
+    const actions = window.__workshopSharedActions;
+    if (!actions || typeof actions[actionName] !== 'function') {
+      window.alert('Shared workshop mode is connected but this action is not yet available. No change was made.');
+      return { ok: false, error: 'action_unavailable' };
+    }
+    let result;
+    const changeStartedAt = new Date(Date.now() - 60000).toISOString();
+    try {
+      result = await actions[actionName](payload);
+      // Parts is tracked and warned on, but never retried through an override
+      // path: a Parts-gate response now proves a stale runtime/database contract.
+    } catch (error) {
+      result = workshopAdministratorCanMove()
+        ? { ok: false, error: 'runtime_failure', message: error?.message || String(error || '') }
+        : { ok: false, error: 'runtime_failure' };
+    }
+    if ((!result || result.ok !== true) && options.suppressFailureAlert !== true) {
+      window.alert(workshopDescribeSharedActionError(result));
+    }
+    if (result?.ok === true && result.refreshRequired === true && options.suppressFailureAlert !== true) {
+      window.alert('Your change was saved, but the planner could not refresh yet. Refresh the planner before making another change.');
+    }
+    if (result?.ok === true && result.refreshRequired !== true && /schedule|move|extend|cascade/i.test(actionName) && window.PDC_VEHICLE_HANDOVER) {
+      await window.PDC_VEHICLE_HANDOVER.warn(changeStartedAt);
+    }
+    if (options.suppressRender !== true) renderAction();
+    return result || { ok: false, error: 'no_response' };
+  } finally {
+    if (!suppliedToken) workshopEndBookingAction(actionToken);
   }
-  if ((!result || result.ok !== true) && options.suppressFailureAlert !== true) {
-    window.alert(workshopDescribeSharedActionError(result));
-  }
-  if (result?.ok === true && /schedule|move|extend|cascade/i.test(actionName) && window.PDC_VEHICLE_HANDOVER) {
-    await window.PDC_VEHICLE_HANDOVER.warn(changeStartedAt);
-  }
-  if (options.suppressRender !== true) renderAction();
-  return result || { ok: false, error: 'no_response' };
 }
 
 // Human-readable, never-a-stack-trace error mapping per section 14 of the
@@ -978,6 +1010,10 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
 function workshopDescribeSharedActionError(result) {
   const error = result && result.error;
   const conflict = result && result.conflict;
+  if (result?.outcomeUnknown === true || ['runtime_failure', 'no_response', 'request_failed'].includes(error)) {
+    return 'The change could not be confirmed. Refresh the planner to check its current state before trying again.';
+  }
+  if (error === 'booking_action_in_flight') return 'This booking is already being updated. Wait for that change to finish.';
   if (error === 'version_conflict') {
     return 'This booking was changed by another user. The planner has refreshed to the latest version.';
   }
@@ -1052,7 +1088,7 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'bay_required' || error === 'bay_inactive_or_wrong_station') return 'Choose an active bay belonging to this Workshop station.';
   if (error === 'technician_inactive_or_missing') return 'Choose an active Workshop technician.';
   if (error === 'technician_leave_conflict' || error === 'technician_on_leave') return 'That technician is on leave during this booking.';
-  if (error === 'action_unavailable' || error === 'no_response' || error === 'runtime_failure') {
+  if (error === 'action_unavailable') {
     const exact = workshopAdministratorCanMove() ? workshopAdministratorErrorDetail(result) : '';
     return exact
       ? `This action failed before it could be confirmed. No change was saved. ${exact}`
@@ -5027,14 +5063,22 @@ function bindWorkshopPlanner(root) {
     chip.querySelector('[data-admin-block-delete]')?.addEventListener('click', event => { event.stopPropagation(); void workshopDeleteAdminBlock(block); });
     chip.querySelector('[data-admin-block-pointer-resize]')?.addEventListener('pointerdown', event => {
       event.preventDefault(); event.stopPropagation();
+      const resizeToken = {};
+      workshopActivePointerResize = resizeToken;
       const startX = event.clientX; const initial = block.durationMinutes;
       const laneWidth = chip.parentElement?.getBoundingClientRect().width || 1;
-      const finish = upEvent => {
+      const cancel = () => {
         window.removeEventListener('pointerup', finish);
+        window.removeEventListener('pointercancel', cancel);
+        if (workshopActivePointerResize === resizeToken) workshopActivePointerResize = null;
+      };
+      const finish = upEvent => {
+        cancel();
         const deltaMinutes = workshopSnapMinutes(((upEvent.clientX - startX) / laneWidth) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
         if (deltaMinutes) void workshopResizeAdminBlock(block, initial + deltaMinutes);
       };
       window.addEventListener('pointerup', finish, { once: true });
+      window.addEventListener('pointercancel', cancel, { once: true });
     });
   });
   root.querySelectorAll('[data-workshop-plan-id]').forEach(chip => chip.addEventListener('dragstart', event => {
@@ -6296,21 +6340,24 @@ async function startWorkshopPlan(planId = '') {
     // Start is a server transaction: it prioritises this job, moves unstarted
     // vehicle/queue bookings, and protects live work and admin blocks. A cached
     // local conflict check cannot decide whether the current schedule is safe.
+    const bookingActionToken = workshopBeginBookingAction(entry.sharedBookingId || entry.id, 'startWork');
+    if (!bookingActionToken) return;
     WORKSHOP_PENDING_STARTS.add(planId);
     workshopStartFeedback={stage:entry.stage,message:'Starting job… Checking the schedule and moving affected unstarted bookings where needed.'};
-    renderWorkshopPlanner();
     try {
+      renderWorkshopPlanner();
       const result=await workshopDispatchSharedAction('startWork', {
         bookingId: entry.sharedBookingId || entry.id,
         expectedVersion: entry.sharedVersion,
-      }, renderWorkshopPlanner, {suppressRender:true,suppressFailureAlert:true});
+      }, renderWorkshopPlanner, {suppressRender:true,suppressFailureAlert:true,bookingActionToken});
       const shifted=result?.start_priority===true&&Number.isInteger(result.shifted_count)&&result.shifted_count>=0?result.shifted_count:null;
       workshopStartFeedback={stage:entry.stage,message:result?.ok===true
-        ? result.already_started?'This job is already running on the planner.':`Job started.${shifted===null?'':shifted===0?' No other bookings needed to move.':` ${shifted} affected booking${shifted===1?'':'s'} moved later.`}`
+        ? result.refreshRequired===true?'The job start was confirmed, but the planner could not refresh yet. Refresh the planner before making another change.':result.already_started?'This job is already running on the planner.':`Job started.${shifted===null?'':shifted===0?' No other bookings needed to move.':` ${shifted} affected booking${shifted===1?'':'s'} moved later.`}`
         : workshopDescribeStartActionError(result)};
       if(result?.ok!==true) window.alert(workshopStartFeedback.message);
       return result;
     } finally {
+      workshopEndBookingAction(bookingActionToken);
       WORKSHOP_PENDING_STARTS.delete(planId);
       renderWorkshopPlanner();
     }
@@ -6374,11 +6421,15 @@ async function completeWorkshopPlan(planId = '') {
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle) return;
   if (workshopSharedModeActive()) {
-    await workshopDispatchSharedAction('completeWork', {
-      bookingId: entry.sharedBookingId || entry.id,
-      expectedVersion: entry.sharedVersion,
-      workKey: entry.stage,
-    });
+    const bookingActionToken = workshopBeginBookingAction(entry.sharedBookingId || entry.id, 'completeWork');
+    if (!bookingActionToken) return;
+    try {
+      await workshopDispatchSharedAction('completeWork', {
+        bookingId: entry.sharedBookingId || entry.id,
+        expectedVersion: entry.sharedVersion,
+        workKey: entry.stage,
+      }, renderWorkshopPlanner, { bookingActionToken });
+    } finally { workshopEndBookingAction(bookingActionToken); }
     return;
   }
   if (!workshopRequireOperatorProfile()) return;
@@ -6497,13 +6548,17 @@ async function stopWorkshopPlan(planId = '') {
       window.alert('Start the job before recording a workshop STOPPAGE.');
       return;
     }
-    const reason = await workshopStoppageReasonModal(entry, vehicle);
-    if (!reason) return;
-    await workshopDispatchSharedAction('stopWork', {
-      bookingId: entry.sharedBookingId || entry.id,
-      expectedVersion: entry.sharedVersion,
-      reason,
-    });
+    const bookingActionToken = workshopBeginBookingAction(entry.sharedBookingId || entry.id, 'stopWork');
+    if (!bookingActionToken) return;
+    try {
+      const reason = await workshopStoppageReasonModal(entry, vehicle);
+      if (!reason) return;
+      await workshopDispatchSharedAction('stopWork', {
+        bookingId: entry.sharedBookingId || entry.id,
+        expectedVersion: entry.sharedVersion,
+        reason,
+      }, renderWorkshopPlanner, { bookingActionToken });
+    } finally { workshopEndBookingAction(bookingActionToken); }
     return;
   }
   if (!workshopRequireOperatorProfile()) return;
@@ -6539,10 +6594,14 @@ async function resumeWorkshopPlan(planId = '') {
   const vehicle = entry ? workshopVehicle(entry.vehicleKey) : null;
   if (!entry || !vehicle || entry.status !== 'stoppage') return;
   if (workshopSharedModeActive()) {
-    await workshopDispatchSharedAction('resumeWork', {
-      bookingId: entry.sharedBookingId || entry.id,
-      expectedVersion: entry.sharedVersion,
-    });
+    const bookingActionToken = workshopBeginBookingAction(entry.sharedBookingId || entry.id, 'resumeWork');
+    if (!bookingActionToken) return;
+    try {
+      await workshopDispatchSharedAction('resumeWork', {
+        bookingId: entry.sharedBookingId || entry.id,
+        expectedVersion: entry.sharedVersion,
+      }, renderWorkshopPlanner, { bookingActionToken });
+    } finally { workshopEndBookingAction(bookingActionToken); }
     return;
   }
   if (!workshopRequireOperatorProfile()) return;
@@ -6567,12 +6626,15 @@ async function resumeWorkshopPlan(planId = '') {
 function startWorkshopResize(handle, event) {
   event.preventDefault();
   event.stopPropagation();
+  if (workshopActivePointerResize) return;
   const planId = handle.dataset.workshopResizePlan;
   const rows = workshopLoadPlans();
   const entry = rows.find(row => row.id === planId);
   const chip = handle.closest('[data-workshop-plan-id]');
   const lane = handle.closest('[data-workshop-drop-bay]');
   if (!entry || !chip || !lane) return;
+  const resizeToken = {};
+  workshopActivePointerResize = resizeToken;
   const originX = event.clientX;
   const originalDurationMinutes = Number(entry.scheduledDurationMinutes) > 0
     ? Number(entry.scheduledDurationMinutes)
@@ -6586,9 +6648,18 @@ function startWorkshopResize(handle, event) {
     chip.style.setProperty('--plan-width', `${(visibleMinutes / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100}%`);
     chip.dataset.previewHours = String(hours);
   };
-  const onUp = async () => {
+  const cancel = cancelEvent => {
     document.removeEventListener('pointermove', onMove);
     document.removeEventListener('pointerup', onUp);
+    document.removeEventListener('pointercancel', cancel);
+    if (workshopActivePointerResize === resizeToken) workshopActivePointerResize = null;
+    if (cancelEvent?.type === 'pointercancel') {
+      delete chip.dataset.previewHours;
+      renderWorkshopPlanner();
+    }
+  };
+  const onUp = async () => {
+    cancel();
     const hours = Number(chip.dataset.previewHours || entry.hours);
     delete chip.dataset.previewHours;
     const candidate = { ...entry, hours, endAt: '', updatedAt: nowIsoString() };
@@ -6671,6 +6742,7 @@ function startWorkshopResize(handle, event) {
   };
   document.addEventListener('pointermove', onMove);
   document.addEventListener('pointerup', onUp);
+  document.addEventListener('pointercancel', cancel, { once: true });
 }
 
 function workshopWeeklyCardHtml(entry = {}, dateKey = '') {
@@ -7077,9 +7149,13 @@ function setupWorkshopPlannerClock() {
   if (app.workshopPlannerTimer) window.clearInterval(app.workshopPlannerTimer);
   if (app.currentView !== 'workshop') return;
   app.workshopPlannerTimer = window.setInterval(() => {
-    if (app.currentView !== 'workshop') return;
+    if (app.currentView !== 'workshop' || document.hidden) return;
     const active = document.activeElement;
-    if (document.querySelector('.modal-overlay') || active?.closest?.('.workshop-job-detail, .workshop-search')) {
+    if (document.querySelector('.modal-overlay:not([hidden]), dialog[open]')
+      || workshopActiveQueuePointerDrag || workshopActivePointerResize || workshopCurrentDragPreview()
+      || WORKSHOP_PENDING_BOOKING_ACTIONS.size
+      || active?.closest?.('.workshop-job-detail, .workshop-search')
+      || (active?.closest?.('#workshop-planner-root') && /^(INPUT|TEXTAREA|SELECT)$/.test(active.tagName))) {
       updateWorkshopNowLine(document.querySelector('#workshop-planner-root') || document);
       return;
     }

@@ -255,7 +255,7 @@
     const savingLabel=({start:'Starting job…',resume:'Resuming job…',stop:'Recording stoppage…',complete:'Completing job…'}[pendingAction]||'Saving to workshop…');
     const editable = connected && !completedHere && service.canWrite() && detail?.status === 'started';
     const lines = detail?.lines || [], own = lines.filter(l=>l.stage_code===detail.stage_code), other = lines.filter(l=>l.stage_code!==detail.stage_code);
-    target.innerHTML = `<div class="fitter-app"><header class="fitter-header"><div><h1>Fitters bay</h1><p>Your work, shared with the workshop planner</p></div><nav aria-label="Fitter navigation"><button type="button" data-fitter-qc>QC</button><button type="button" data-fitter-refresh ${locked ? 'disabled' : ''}>Refresh</button><button type="button" data-fitter-signout ${saving ? 'disabled' : ''}>Sign out</button></nav></header>
+    target.innerHTML = `<div class="fitter-app"><header class="fitter-header"><div><h1>Fitters bay</h1><p>Your work, shared with the workshop planner</p></div><nav aria-label="Fitter navigation"><button type="button" data-fitter-refresh ${locked ? 'disabled' : ''}>Refresh</button><button type="button" data-fitter-signout ${saving ? 'disabled' : ''}>Sign out</button></nav></header>
       <div class="fitter-toolbar"><label for="fitter-mechanic">Mechanic<select id="fitter-mechanic" ${locked ? 'disabled' : ''}><option value="">Select your name</option>${roster.map(t=>`<option value="${esc(t.id)}" ${t.id===mechanic?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><p class="fitter-sync" role="status">${saving ? savingLabel : loading ? 'Refreshing…' : connected ? `Connected · Updated ${esc(new Date(lastSync).toLocaleTimeString('en-AU',{timeZone:'Australia/Perth',hour:'numeric',minute:'2-digit',second:'2-digit'}))}` : 'Not connected · Changes unavailable'}</p></div>
       ${message ? `<div class="fitter-notice" role="status">${esc(message)}</div>` : ''}
       ${handoverText ? `<div class="fitter-handover" role="status">${esc(handoverText)}</div>` : ''}
@@ -369,7 +369,6 @@
     on('#fitter-mechanic','change',e=>{ mechanic=e.target.value; selected=''; detail=null; handover=null; scrollToCurrent=false; stopOpen=false; stopReason=''; message=''; void refresh(); });
     on('[data-fitter-refresh]','click',()=>{ message=''; void refresh({forceRoster:true}); });
     on('[data-fitter-job]','click',e=>{ if(saving||loading||service.retryPending) return; selected=e.currentTarget.dataset.fitterJob; detail=null; handover=null; scrollToCurrent=false; stopOpen=false; stopReason=''; message=''; void refresh(); });
-    on('[data-fitter-qc]','click',()=>{ if(typeof showView==='function') showView('qc'); });
     on('[data-fitter-signout]','click',()=>doc.querySelector('#pdc-auth-signout')?.click());
     on('[data-fitter-action]','click',e=>void act(e.currentTarget.dataset.fitterAction));
     on('[data-fitter-line]','change',e=>{ const n=e.currentTarget; const checked=n.checked; n.checked=!checked; void act('line',n.dataset.fitterLine,checked); });

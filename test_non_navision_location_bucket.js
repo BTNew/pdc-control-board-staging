@@ -245,6 +245,7 @@ test('the existing transfer action sends canonical ID/version and regroups only 
     let refreshes = 0;
     Object.assign(ctx, {
       selectedVehicle: () => row,
+      pmbPartsReleaseWarning: () => '',
       vehicleLocationActionAllowed: () => true,
       vehicleCustomerName: item => item.client,
       reconcileVehicleLifecycleServerResult: (item, result) => Object.assign(item, result.vehicle),

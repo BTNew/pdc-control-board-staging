@@ -25,7 +25,7 @@
     document.head.appendChild(style);
 
     const script = document.createElement('script');
-    script.src = `pdc-qc-mobile.js?v=${version}&deep-review=2026.09.13.01&sublet-qc=2026.09.14.01&readable-text=2026.09.16.01&fitters=2026.09.16.01`;
+    script.src = `pdc-qc-mobile.js?v=${version}&deep-review=2026.09.13.01&sublet-qc=2026.09.14.01&readable-text=2026.09.16.01&fitters=2026.09.16.01&separate-screens-pmb-warning=2026.09.16.01`;
     const loadReview = () => {
       const reviewStyle = document.createElement('link');
       reviewStyle.rel = 'stylesheet';
@@ -83,7 +83,7 @@
     bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed&render-cost=2026.09.14.01&one-hour-gap=2026.09.14.01';
     document.head.appendChild(bookAllStations);
     const locationOverride = document.createElement('script');
-    locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01';
+    locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01&separate-screens-pmb-warning=2026.09.16.01';
     document.head.appendChild(locationOverride);
     const subletIntake = document.createElement('script');
     subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.12.inline-provider&deep-review=2026.09.13.01';

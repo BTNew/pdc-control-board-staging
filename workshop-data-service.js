@@ -158,11 +158,12 @@ function createWorkshopSupabaseClient(config, fetchImpl) {
     };
   }
 
-  async function rpc(accessToken, name, params) {
+  async function rpc(accessToken, name, params, options = {}) {
     const res = await fetchFn(`${url}/rest/v1/rpc/${name}`, {
       method: 'POST',
       headers: headers(accessToken),
-      body: JSON.stringify(params || {})
+      body: JSON.stringify(params || {}),
+      signal: options.signal
     });
     let body = null;
     try {
@@ -217,6 +218,8 @@ function createWorkshopDataService(options) {
   const debounceMs = typeof options.debounceMs === 'number' ? options.debounceMs : 250;
   const scheduleTimeout = options.scheduleTimeout || ((fn, ms) => setTimeout(fn, ms));
   const clearScheduledTimeout = options.clearScheduledTimeout || clearTimeout;
+  const snapshotTimeoutMs = Number.isFinite(options.snapshotTimeoutMs) && options.snapshotTimeoutMs > 0 ? options.snapshotTimeoutMs : 15000;
+  const refreshWaitTimeoutMs = Number.isFinite(options.refreshWaitTimeoutMs) && options.refreshWaitTimeoutMs > 0 ? options.refreshWaitTimeoutMs : 20000;
   let scope = normalizeWorkshopSnapshotScope(options.scope);
 
   const enabled = workshopSharedModeEnabled(config);
@@ -245,7 +248,9 @@ function createWorkshopDataService(options) {
     trailingReloadRequested = false;
     // Detach any unresolved request from the current authority session. Its
     // finally block checks identity before changing current-session state.
+    const previousLoad = activeLoadToken;
     activeLoadToken = null;
+    previousLoad?.cancel?.();
     if (activeRevisionProbe) {
       const probe = activeRevisionProbe;
       activeRevisionProbe = null;
@@ -291,7 +296,18 @@ function createWorkshopDataService(options) {
     const generation = lifecycleGeneration;
     const requestRole = getRole();
     const requestScopeGeneration = scopeGeneration;
-    const loadToken = {};
+    // The completion promise includes any genuine trailing revision refresh.
+    // Mutation preflight waits here instead of requesting a new refresh every
+    // 100ms, which previously kept its own authority permanently untrusted.
+    const loadToken = { controller: typeof AbortController === 'function' ? new AbortController() : null };
+    loadToken.promise = new Promise(resolve => { loadToken.finish = resolve; });
+    const cancelled = new Promise((_resolve, reject) => {
+      loadToken.cancel = () => {
+        loadToken.controller?.abort();
+        reject(new Error('workshop_snapshot_cancelled'));
+      };
+    });
+    const timeout = scheduleTimeout(() => loadToken.cancel(), snapshotTimeoutMs);
     activeLoadToken = loadToken;
     try {
       const rpcName = scope ? 'get_station_workshop_snapshot' : 'get_workshop_snapshot';
@@ -300,7 +316,10 @@ function createWorkshopDataService(options) {
         p_date_from: scope.dateFrom,
         p_date_to: scope.dateTo,
       } : {};
-      const result = await client.rpc(token, rpcName, rpcParams);
+      const result = await Promise.race([
+        client.rpc(token, rpcName, rpcParams, { signal: loadToken.controller?.signal }),
+        cancelled,
+      ]);
       if (destroyed || generation !== lifecycleGeneration) return null;
       if (requestScopeGeneration !== scopeGeneration) return null;
       if (token !== getAccessToken() || requestRole !== getRole()) {
@@ -335,19 +354,58 @@ function createWorkshopDataService(options) {
       setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
       return lastSnapshot;
     } finally {
+      clearScheduledTimeout(timeout);
       // Do not return from finally when authority invalidation detached this
       // request: doing so overrides the explicit null failure result with
       // undefined and hides the caller-visible denial contract.
-      if (activeLoadToken === loadToken) {
-        activeLoadToken = null;
-        if (!destroyed && generation === lifecycleGeneration && trailingReloadRequested) {
-          trailingReloadRequested = false;
-          // A newer change arrived while we were mid-fetch; reload again so we
-          // never settle on a stale intermediate snapshot.
-          await loadSnapshot('trailing');
+      try {
+        if (activeLoadToken === loadToken) {
+          activeLoadToken = null;
+          if (!destroyed && generation === lifecycleGeneration && trailingReloadRequested) {
+            trailingReloadRequested = false;
+            // A newer change arrived while we were mid-fetch; reload again so we
+            // never settle on a stale intermediate snapshot.
+            await loadSnapshot('trailing');
+          }
         }
-      }
+      } finally { loadToken.finish(); }
     }
+  }
+
+  async function awaitSnapshotRefresh(reason, afterCurrent = false) {
+    const generation = lifecycleGeneration;
+    const newerSignalPending = Boolean(pendingReloadTimer);
+    if (pendingReloadTimer) {
+      clearScheduledTimeout(pendingReloadTimer);
+      pendingReloadTimer = null;
+    }
+    let completion;
+    if (activeLoadToken) {
+      // A confirmed write needs a read issued after the commit. A reader merely
+      // waiting for connectivity does not create a second read or invalidate it.
+      if (afterCurrent || newerSignalPending) {
+        snapshotTrusted = false;
+        trailingReloadRequested = true;
+      }
+      completion = activeLoadToken.promise;
+    } else {
+      completion = loadSnapshot(reason);
+    }
+    let timer;
+    const deadline = new Promise(resolve => {
+      timer = scheduleTimeout(() => {
+        if (destroyed || generation !== lifecycleGeneration) { resolve(); return; }
+        snapshotTrusted = false;
+        trailingReloadRequested = false;
+        if (pendingReloadTimer) clearScheduledTimeout(pendingReloadTimer);
+        pendingReloadTimer = null;
+        activeLoadToken?.cancel?.();
+        if (!destroyed) setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
+        resolve();
+      }, refreshWaitTimeoutMs);
+    });
+    try { await Promise.race([completion, deadline]); }
+    finally { clearScheduledTimeout(timer); }
   }
 
   function scheduleSnapshotReload(reason) {
@@ -462,13 +520,9 @@ function createWorkshopDataService(options) {
   }
 
   async function recoverEditableAuthority() {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
-      await loadSnapshot(attempt === 0 ? 'mutation_preflight' : 'mutation_preflight_wait');
-      if (isEditable() && snapshotTrusted && !pendingReloadTimer && !activeLoadToken && !trailingReloadRequested) return true;
-      if (!enabled || destroyed || !getAccessToken()) return false;
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    return false;
+    if (!['operator', 'administrator'].includes(getRole())) return false;
+    await awaitSnapshotRefresh('mutation_preflight');
+    return !destroyed && isEditable() && snapshotTrusted && !pendingReloadTimer && !activeLoadToken && !trailingReloadRequested;
   }
 
   function ensureEditable() {
@@ -487,6 +541,16 @@ function createWorkshopDataService(options) {
     if (!enabled) {
       throw new Error('workshop-data-service: shared mode is not enabled; no writable operational path exists');
     }
+    const mutationAuthority = { generation: lifecycleGeneration, token: getAccessToken(), role: getRole(), scopeGeneration };
+    const authorityFailure = () => {
+      if (!destroyed && mutationAuthority.generation === lifecycleGeneration
+          && mutationAuthority.scopeGeneration === scopeGeneration
+          && mutationAuthority.token === getAccessToken() && mutationAuthority.role === getRole()) return null;
+      if (!destroyed && mutationAuthority.generation === lifecycleGeneration) {
+        invalidateAuthority(getAccessToken() ? WORKSHOP_CONNECTION_STATE.RECONNECTING : WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+      }
+      return { ok: false, error: destroyed ? 'destroyed' : 'authority_superseded', state };
+    };
     const administratorReconnectMutation = (
       getRole() === 'administrator'
       && Boolean(getAccessToken())
@@ -500,7 +564,10 @@ function createWorkshopDataService(options) {
     // idempotency atomically. No local data is accepted as authority and all
     // other mutations continue to require a trusted connected snapshot.
     const editable = administratorReconnectMutation ? true : ensureEditable();
-    if (!(editable === true || (editable && await editable))) {
+    const editableReady = editable === true || (editable && await editable);
+    const preflightFailure = authorityFailure();
+    if (preflightFailure) return preflightFailure;
+    if (!editableReady) {
       return { ok: false, error: 'not_editable', state };
     }
     // Every mutation requires exactly one non-null expected-version param.
@@ -517,14 +584,12 @@ function createWorkshopDataService(options) {
       invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
       return { ok: false, error: 'permission_denied', state: WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED };
     }
-    const generation = lifecycleGeneration;
     const result = await client.rpc(token, rpcName, params);
     // Sign-out, role/token refresh, scope teardown, or destroy makes every
     // result from the prior authority generation inert before caller/UI code
     // can interpret it as a successful operation.
-    if (destroyed || generation !== lifecycleGeneration) {
-      return { ok: false, error: destroyed ? 'destroyed' : 'authority_superseded', state };
-    }
+    const commandAuthorityFailure = authorityFailure();
+    if (commandAuthorityFailure) return commandAuthorityFailure;
     if (!getAccessToken()) {
       invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
       return { ok: false, error: 'permission_denied', state: WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED };
@@ -535,18 +600,24 @@ function createWorkshopDataService(options) {
         // administrator-only override), so re-establish read authority only
         // through a fresh authenticated snapshot rather than retaining rows.
         invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+        // This invalidation is our own response to the rejected permission,
+        // not a new actor. Still guard the following read against real changes.
+        mutationAuthority.generation = lifecycleGeneration;
         if (!destroyed && getAccessToken()) await loadSnapshot('mutation_permission_recheck');
       }
       const canonicalError = workshopCanonicalMutationError(result.body);
       if (![401, 403].includes(result.status) && !destroyed && getAccessToken()) {
-        await loadSnapshot(canonicalError ? 'rejected_canonical_mutation' : 'rejected_http_mutation');
+        await awaitSnapshotRefresh(canonicalError ? 'rejected_canonical_mutation' : 'rejected_http_mutation', true);
       }
+      const rejectedAuthorityFailure = authorityFailure();
+      if (rejectedAuthorityFailure) return rejectedAuthorityFailure;
       const body = result.body;
       const serverCode = body && typeof body === 'object' ? (body.code || body.error || body.error_code) : null;
       const serverMessage = body && typeof body === 'object'
         ? (body.message || body.error_description || body.details || body.hint)
         : (typeof body === 'string' ? body : null);
-      return { ok: false, error: canonicalError || serverCode || 'request_failed', code: serverCode || null, message: serverMessage || null, status: result.status, body };
+      return { ok: false, error: canonicalError || serverCode || 'request_failed', code: serverCode || null, message: serverMessage || null, status: result.status, body,
+        ...(!canonicalError && (result.status >= 500 || result.status === 408) ? { outcomeUnknown: true } : {}) };
     }
     const body = result.body || {};
     if (body.ok === false && ['version_conflict', 'vehicle_version_conflict'].includes(body.error)) {
@@ -554,14 +625,24 @@ function createWorkshopDataService(options) {
       // authoritative snapshot so the caller reconciles from truth. Await the
       // refresh: returning while it is still in flight lets the UI immediately
       // reuse the same stale vehicle/booking version and fail forever.
-      await loadSnapshot('rejected_stale_mutation');
+      await awaitSnapshotRefresh('rejected_stale_mutation', true);
+      const staleAuthorityFailure = authorityFailure();
+      if (staleAuthorityFailure) return staleAuthorityFailure;
       return body;
     }
     if (body.ok === true) {
       // Successful mutation: reconcile from the confirmed result rather
       // than trusting an optimistic local guess. The shared-action caller
       // renders only after this authoritative refresh has completed.
-      await loadSnapshot('successful_mutation');
+      await awaitSnapshotRefresh('successful_mutation', true);
+      const savedAuthorityFailure = authorityFailure();
+      if (savedAuthorityFailure) return savedAuthorityFailure;
+      if (!snapshotTrusted || activeLoadToken || pendingReloadTimer || trailingReloadRequested
+          || ![WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE, WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY].includes(state)) {
+        // The command itself is confirmed. A failed read must never imply it
+        // was rejected or prompt an automatic duplicate write.
+        return { ...body, reconciliation: 'pending', refreshRequired: true };
+      }
     }
     return body;
   }

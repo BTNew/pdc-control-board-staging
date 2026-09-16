@@ -16,7 +16,8 @@ function fixture({shared=true}={}) {
     renderWorkshopPlanner:()=>renders.push(c.workshopPlanLifecycleActionsHtml(rows[0])),
     workshopDispatchSharedAction:async(action,payload,_render,options)=>{calls.push({action,payload,options});await pending;return reply;}};
   vm.createContext(c);
-  vm.runInContext('const WORKSHOP_PENDING_STARTS=new Set(); let workshopStartFeedback={stage:"",message:""};'+
+  vm.runInContext('const WORKSHOP_PENDING_STARTS=new Set(); const WORKSHOP_PENDING_BOOKING_ACTIONS=new Map(); let workshopStartFeedback={stage:"",message:""};'+
+    slice('function workshopBeginBookingAction(','async function workshopDispatchSharedAction(')+
     slice('function workshopDescribeSharedActionError(','function workshopPersistPlanAction(')+
     slice('function workshopPlanLifecycleActionsHtml(','function workshopPlanChipHtml(')+
     slice('function workshopDescribeStartActionError(','async function completeWorkshopPlan('),c);

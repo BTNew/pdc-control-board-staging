@@ -68,6 +68,9 @@
   const vehicleId=selected.__emailVehicleId,version=Number(selected.__emailVehicleVersion);
   const location=clear?'':form.elements.location.value,reason=clear?'':form.elements.reason.value.trim();
   if(!reason&&!clear){error.textContent='Enter a reason for the override.';return;}
+  const destination=clear?(selected.pdcAutomaticLocation||selected.pdcLocation):location;
+  const partsWarning=destination==='PMB'&&vehiclePdcLocation(selected)!=='PMB'?pmbPartsReleaseWarning([selected]):'';
+  if(partsWarning&&!window.confirm(partsWarning))return;
   const request=begin();let timeout;
   try{
    const config=window.PDC_SUPABASE_CONFIG,token=getPdcSupabaseAccessToken();if(!token)throw Error('Please sign in again.');
