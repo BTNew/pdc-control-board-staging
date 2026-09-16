@@ -1,11 +1,48 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fitter workflow — isolated demonstration</title><link rel="stylesheet" href="../pdc-fitters.css"><style>body{margin:16px;background:#f2f5f8}.demo-tools{padding:8px;background:#fff2b7;font:14px system-ui}.demo-tools button{margin:4px}</style><body data-current-view="fitters"><div class="demo-tools">Isolated test data · no network or live bookings<button id="demo-controller">Controller starts job</button><button id="demo-offline">Fail next save</button><button id="demo-scope">Change operation hours</button><button id="demo-viewer">View only</button></div><div id="fitters-host"></div><script>
-window.PDC_AUTH_CONTEXT={userId:'demo-actor',role:'operator'};window.PDC_SUPABASE_CONFIG={projectRef:'cdsmnqxtyyoeoznmbidd',url:'https://cdsmnqxtyyoeoznmbidd.supabase.co',publishableKey:'DEMO-NO-NETWORK',workshop:{sharedData:true}};function getPdcSupabaseAccessToken(){return 'demo';}function showView(){document.querySelector('.demo-tools').textContent='QC navigation selected (isolated demo)';}
-let version=1,status='planned',fail=false,hash='scope-1',reason='',receipts=new Map();
-let actualStart=null,actualEnd=null,stoppedAt=null,pausedSeconds=0;
-const timing=()=>{const at=Date.now(),end=actualEnd||stoppedAt||at;return {actual_start_at:actualStart?new Date(actualStart).toISOString():null,actual_end_at:actualEnd?new Date(actualEnd).toISOString():null,timer:{elapsed_seconds:actualStart?Math.max(0,(end-actualStart)/1000-pausedSeconds):0,running:status==='started',as_of:new Date(at).toISOString(),next_change_at:new Date(at+3600000).toISOString(),history_complete:true}};};
-const lines=[{line_identity:'one',description:'Pre-delivery inspection and road test',stage_code:'FITTING',hours:1,scope_hash:'a',completed:false,note:''},{line_identity:'two',description:'SUPPLY AND FIT ARB SUMMIT BAR MK2 HILUX MY265 — check radar clearance and mounting hardware',stage_code:'FITTING',hours:2,scope_hash:'b',completed:false,note:'Check bracket clearance before tightening.'},{line_identity:'three',description:'Tray, towbar and electrical accessories package',stage_code:'FITTING',hours:7,scope_hash:'c',completed:false,note:''},{line_identity:'four',description:'Window tint · darkest legal',stage_code:'TINT',hours:1,scope_hash:'d',completed:false,note:''}];
-const progress=()=>{let own=lines.filter(l=>l.stage_code==='FITTING'),total=own.reduce((n,l)=>n+l.hours,0),done=own.filter(l=>l.completed).reduce((n,l)=>n+l.hours,0);return {total_hours:total,completed_hours:done,percent:Math.floor(done/total*100),total_lines:3,completed_lines:own.filter(l=>l.completed).length,can_complete:done===total,unknown_hours:0};};
-const booking=(id,n)=>({...(id==='job-1'?timing():{}),id,version,status:id==='job-1'?status:'planned',stage_code:'FITTING',stage_name:'Fitting',bay_number:1,bay_name:'Fitting Bay 1',start_at:'2026-09-16T00:00:00Z',end_at:'2026-09-17T02:00:00Z',stock:'DEMO-00'+n,job_card:'DEMO-JC'+n,customer:'Demonstration Customer',vehicle:'HiLux 4x4 2.8L WorkMate',progress:id==='job-1'?progress():null});
-window.fetch=async(url,opts)=>{let b=JSON.parse(opts.body),name=url.split('/').pop(),result;if(name==='get_fitter_roster')result={ok:true,technicians:[{id:'demo-mechanic',name:'Demo mechanic'}]};else if(name==='get_fitter_jobs')result={ok:true,bays:[{number:1,stage:'Fitting',active:true}],jobs:[...(status==='completed'?[]:[booking('job-1',1)]),booking('job-2',2),booking('job-3',3)]};else if(name==='get_fitter_job')result={ok:true,...(b.p_booking_id==='job-1'?timing():{}),booking_id:b.p_booking_id,version,status:b.p_booking_id==='job-1'?status:'planned',stage_code:'FITTING',stoppage_reason:reason,lines:b.p_booking_id==='job-1'?lines:lines.map(l=>({...l,completed:false,note:''})),progress:b.p_booking_id==='job-1'?progress():{...progress(),completed_hours:0,percent:0,completed_lines:0,can_complete:false},catalog_hash:hash};else if(name==='fitter_job_command'){await new Promise(resolve=>setTimeout(resolve,650));if(fail){fail=false;throw Error('demo offline');}if(receipts.has(b.p_request_id))result=receipts.get(b.p_request_id);else {if(b.p_action==='start'){status='started';actualStart=actualStart||Date.now();}if(b.p_action==='line'){let l=lines.find(l=>l.line_identity===b.p_line_identity);l.completed=b.p_completed;l.note=b.p_note;}if(b.p_action==='stop'){status='stoppage';reason=b.p_note;stoppedAt=Date.now();}if(b.p_action==='resume'){pausedSeconds+=(Date.now()-stoppedAt)/1000;stoppedAt=null;status='started';}if(b.p_action==='complete'){actualEnd=Date.now();status='completed';}version++;result={ok:true,action:b.p_action,booking_id:b.p_booking_id};receipts.set(b.p_request_id,result);}}else throw Error('Unexpected endpoint '+name);return {ok:true,json:async()=>structuredClone(result)};};
-document.getElementById('demo-controller').onclick=()=>{status='started';actualStart=actualStart||Date.now();version++;};document.getElementById('demo-offline').onclick=()=>{fail=true;};document.getElementById('demo-scope').onclick=()=>{hash='scope-2';lines[0].hours=2;lines[0].scope_hash='changed';lines[0].scope_changed=true;lines[0].completed=false;};document.getElementById('demo-viewer').onclick=()=>{PDC_AUTH_CONTEXT.role='viewer';};
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fitter workflow — isolated demonstration</title><link rel="stylesheet" href="../pdc-fitters.css">
+<style>body{margin:16px;background:#f2f5f8}.demo-tools{padding:8px;background:#fff2b7;font:14px system-ui}.demo-tools button{margin:4px;min-height:36px}</style>
+<body data-current-view="fitters"><div class="demo-tools">Isolated test data · no network or live bookings
+<button id="demo-controller">Controller starts job</button><button id="demo-offline">Fail next save</button><button id="demo-scope">Change operation hours</button><button id="demo-viewer">View only</button></div><div id="fitters-host"></div>
+<script>
+window.PDC_AUTH_CONTEXT={userId:'demo-actor',role:'operator'};
+window.PDC_SUPABASE_CONFIG={projectRef:'cdsmnqxtyyoeoznmbidd',url:'https://cdsmnqxtyyoeoznmbidd.supabase.co',publishableKey:'DEMO-NO-NETWORK',workshop:{sharedData:true}};
+function getPdcSupabaseAccessToken(){return 'demo';}
+function showView(){document.querySelector('.demo-tools').textContent='QC navigation selected (isolated demo)';}
+const template=[
+{line_identity:'one',description:'Pre-delivery inspection and road test',stage_code:'FITTING',hours:1,scope_hash:'a',completed:false,note:''},
+{line_identity:'two',description:'SUPPLY AND FIT ARB SUMMIT BAR MK2 HILUX MY265 — check radar clearance and mounting hardware',stage_code:'FITTING',hours:2,scope_hash:'b',completed:false,note:'Check bracket clearance before tightening.'},
+{line_identity:'three',description:'Tray, towbar and electrical accessories package',stage_code:'FITTING',hours:7,scope_hash:'c',completed:false,note:''},
+{line_identity:'four',description:'Window tint · darkest legal',stage_code:'TINT',hours:1,scope_hash:'d',completed:false,note:''}];
+const records=new Map([1,2,3].map(n=>['job-'+n,{id:'job-'+n,n,version:1,status:'planned',hash:'scope-1',reason:'',lines:structuredClone(template),actualStart:null,actualEnd:null,stoppedAt:null,pausedSeconds:0}]));
+let fail=false,selected='job-1';const receipts=new Map();
+function timing(j){const at=Date.now(),end=j.actualEnd||j.stoppedAt||at;return {actual_start_at:j.actualStart?new Date(j.actualStart).toISOString():null,actual_end_at:j.actualEnd?new Date(j.actualEnd).toISOString():null,timer:{elapsed_seconds:j.actualStart?Math.max(0,(end-j.actualStart)/1000-j.pausedSeconds):0,running:j.status==='started',as_of:new Date(at).toISOString(),next_change_at:new Date(at+3600000).toISOString(),history_complete:true}};}
+function progress(j){const own=j.lines.filter(l=>l.stage_code==='FITTING'),total=own.reduce((n,l)=>n+l.hours,0),done=own.filter(l=>l.completed).reduce((n,l)=>n+l.hours,0);return {total_hours:total,completed_hours:done,percent:Math.floor(done/total*100),total_lines:own.length,completed_lines:own.filter(l=>l.completed).length,can_complete:done===total,unknown_hours:0};}
+function booking(j){return {...timing(j),id:j.id,version:j.version,status:j.status,stage_code:'FITTING',stage_name:'Fitting',bay_number:1,bay_name:'Fitting Bay 1',start_at:'2026-09-'+(15+j.n)+'T00:00:00Z',end_at:'2026-09-'+(16+j.n)+'T02:00:00Z',stock:'DEMO-00'+j.n,job_card:'DEMO-JC'+j.n,customer:'Demonstration Customer',vehicle:'HiLux 4x4 2.8L WorkMate',progress:progress(j)};}
+window.fetch=async(url,opts)=>{
+ const b=JSON.parse(opts.body),name=url.split('/').pop(),j=records.get(b.p_booking_id);let result;
+ if(name==='get_fitter_roster')result={ok:true,technicians:[{id:'demo-mechanic',name:'Demo mechanic'}]};
+ else if(name==='get_fitter_jobs')result={ok:true,bays:[{number:1,stage:'Fitting',active:true}],jobs:[...records.values()].filter(j=>j.status!=='completed').map(booking)};
+ else if(name==='get_fitter_job'){selected=j.id;result={ok:true,...timing(j),booking_id:j.id,version:j.version,status:j.status,stage_code:'FITTING',stoppage_reason:j.reason,lines:j.lines,progress:progress(j),catalog_hash:j.hash};}
+ else if(name==='fitter_job_command'){
+  await new Promise(resolve=>setTimeout(resolve,650));
+  if(fail){fail=false;throw Error('demo offline');}
+  if(receipts.has(b.p_request_id))result=receipts.get(b.p_request_id);
+  else if(b.p_expected_version!==j.version)result={ok:false,error:'version_conflict'};
+  else if(b.p_action==='complete'&&!progress(j).can_complete)result={ok:false,error:'items_incomplete'};
+  else{
+   if(b.p_action==='start'){j.status='started';j.actualStart=j.actualStart||Date.now();}
+   if(b.p_action==='line'){const l=j.lines.find(l=>l.line_identity===b.p_line_identity);l.completed=b.p_completed;l.note=b.p_note;}
+   if(b.p_action==='stop'){j.status='stoppage';j.reason=b.p_note;j.stoppedAt=Date.now();}
+   if(b.p_action==='resume'){j.pausedSeconds+=(Date.now()-j.stoppedAt)/1000;j.stoppedAt=null;j.status='started';}
+   if(b.p_action==='complete'){j.actualEnd=Date.now();j.status='completed';}
+   j.version++;result={ok:true,action:b.p_action,booking_id:j.id,status:j.status,...timing(j)};receipts.set(b.p_request_id,result);
+  }
+ }else throw Error('Unexpected endpoint '+name);
+ return {ok:true,json:async()=>structuredClone(result)};
+};
+document.getElementById('demo-controller').onclick=()=>{const j=records.get(selected);j.status='started';j.actualStart=j.actualStart||Date.now();j.version++;};
+document.getElementById('demo-offline').onclick=()=>{fail=true;};
+document.getElementById('demo-scope').onclick=()=>{const j=records.get(selected);j.hash='scope-2';j.lines[0].hours=2;j.lines[0].scope_hash='changed';j.lines[0].scope_changed=true;j.lines[0].completed=false;};
+document.getElementById('demo-viewer').onclick=()=>{PDC_AUTH_CONTEXT.role='viewer';};
 </script><script src="../pdc-fitters.js"></script><script>PdcFitters.open();</script></body></html>
