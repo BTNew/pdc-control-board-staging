@@ -170,7 +170,16 @@
       canWrite:() => available(options.context(), true),
     };
   }
-  const api = { createService, progressHtml, timerModel, timerHtml, formatElapsed, esc };
+  function fitterJobFlow(jobs, selected = '') {
+    // Queue order comes from the planner. A stopped job remains current work;
+    // a later planned job must never displace work already in progress.
+    const active = jobs.filter(j=>['started','stoppage'].includes(j.status));
+    const planned = jobs.filter(j=>['planned','queued'].includes(j.status));
+    const current = active.find(j=>j.id===selected) || active[0] || planned[0] || null;
+    const waiting = planned.filter(j=>j.id!==current?.id);
+    return { current, next:waiting[0] || null, upcoming:waiting.slice(1), otherActive:active.filter(j=>j.id!==current?.id) };
+  }
+  const api = { createService, progressHtml, timerModel, timerHtml, formatElapsed, fitterJobFlow, esc };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.PdcFitters = api;
   const doc = root.document;
@@ -183,6 +192,7 @@
   let loading = false, refreshing = false, connected = false, message = '', loadGeneration = 0, initialized = false, lastSync = 0;
   let stopOpen = false, stopReason = '', stopType = 'Parts', saving = false, pendingDraftKey = '', pendingAction = '';
   let detailReceivedAt = 0, timerFreeze = null;
+  let handover = null, scrollToCurrent = false;
   const clockNow=()=>root.performance?.now?.() ?? Date.now();
   const timingOptions=()=>({connected,receivedAt:detailReceivedAt,now:clockNow(),
     pendingAction:saving||loading?pendingAction:'',unconfirmed:service.retryPending,unconfirmedAction:service.retryAction,
@@ -207,9 +217,15 @@
   const host = () => doc.getElementById('fitters-host');
   const time = value => value ? new Date(value).toLocaleString('en-AU', {timeZone:'Australia/Perth',weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}) : 'Not scheduled';
   const state = value => ({started:'In progress',stoppage:'Stopped',planned:'Planned',queued:'Queued',completed:'Completed'}[value] || value);
-  function jobCard(job, index) {
-    const heading = job.status === 'started' ? 'On now' : job.status === 'stoppage' ? 'Stoppage' : index === 0 ? 'Next to start' : index === 1 ? 'Next job' : index === 2 ? 'Following job' : 'Later';
-    return `<button type="button" class="fitter-job${selected === job.id ? ' is-selected' : ''}" data-fitter-job="${esc(job.id)}" ${saving || loading || service.retryPending ? 'disabled' : ''}><span class="fitter-kicker">${heading} · ${esc(job.stage_name)} / Bay ${esc(job.bay_number ?? '—')}</span><strong>${esc(job.stock || 'Stock not recorded')}</strong><span>${esc(job.customer || 'Customer not recorded')}</span><span>${esc(job.vehicle || 'Vehicle details pending')}</span><small>${esc(time(job.start_at))}</small>${progressHtml(job.progress, true)}</button>`;
+  function jobPreview(job) {
+    return `<strong>${esc(job.stock || 'Stock not recorded')}</strong><span>${esc(job.customer || 'Customer not recorded')} · ${esc(job.vehicle || 'Vehicle details pending')}</span><small>${esc(job.stage_name)} · Bay ${esc(job.bay_number ?? '—')} · ${esc(time(job.start_at))}</small>`;
+  }
+  function nextJobHtml(flow, locked, editable) {
+    const unsaved=[...drafts.keys()].some(k=>k.startsWith(selected+':'));
+    const ready=detail?.progress?.can_complete && !unsaved;
+    const completeLabel=(saving||loading)&&pendingAction==='complete'?'Completing job…':flow.otherActive.length?'Complete & return to active work':flow.next?'Complete & open next job':'Complete bay job';
+    const help=unsaved?'Save your notes before completing this bay.':detail?.status==='stoppage'?'Resume this job before completing the bay.':ready?'All items are done. Complete this bay to continue.':'Tick off every item in this bay before completing the job.';
+    return `<footer class="fitter-finish" aria-label="Finish current job and continue"><div class="fitter-finish-action"><div><h3>Finish this bay</h3><p>${esc(help)}</p></div><button type="button" class="fitter-primary" data-fitter-action="complete" ${locked||!editable||!ready?'disabled':''}>${completeLabel}</button></div><div class="fitter-next" aria-label="Next job preview"><span class="fitter-kicker">Next job</span>${flow.next?`${jobPreview(flow.next)}<p>${flow.otherActive.length?'Available after your active jobs are completed.':'Opens automatically after the current job is completed.'} You choose when to start it.</p>`:'<p>No further jobs assigned at the moment.</p>'}</div>${flow.upcoming.length?`<details class="fitter-upcoming"><summary>Later jobs (${flow.upcoming.length})</summary>${flow.upcoming.map(j=>`<div class="fitter-later-job">${jobPreview(j)}</div>`).join('')}</details>`:''}</footer>`;
   }
   function lineCard(line, index, editable) {
     const draft = drafts.get(`${selected}:${line.line_identity}`), note = draft?.note ?? line.note;
@@ -224,31 +240,37 @@
     const focus = doc.activeElement, focusId = focus?.id, selection = focus?.selectionStart != null ? [focus.selectionStart,focus.selectionEnd] : null;
     const openNotes = new Set([...target.querySelectorAll('.fitter-notes[open] textarea')].map(n=>n.dataset.fitterNote));
     const job = jobs.find(j=>j.id===selected), locked = saving || loading || service.retryPending;
+    const flow = fitterJobFlow(jobs,selected);
+    const completedHere = handover?.bookingId===selected;
+    const handoverText = !handover?'':!connected||completedHere?`${handover.stock} completed. Refreshing your next assigned job…`:!job?`${handover.stock} completed. No more jobs are assigned at the moment.`:['planned','queued'].includes(job.status)?`${handover.stock} completed. Your next job is ready below. Press Start job when you are ready.`:`${handover.stock} completed. Your other active job is shown below.`;
     const savingLabel=({start:'Starting job…',resume:'Resuming job…',stop:'Recording stoppage…',complete:'Completing job…'}[pendingAction]||'Saving to workshop…');
-    const editable = connected && service.canWrite() && detail?.status === 'started';
+    const editable = connected && !completedHere && service.canWrite() && detail?.status === 'started';
     const lines = detail?.lines || [], own = lines.filter(l=>l.stage_code===detail.stage_code), other = lines.filter(l=>l.stage_code!==detail.stage_code);
     target.innerHTML = `<div class="fitter-app"><header class="fitter-header"><div><h1>Fitters bay</h1><p>Your work, shared with the workshop planner</p></div><nav aria-label="Fitter navigation"><button type="button" data-fitter-qc>QC</button><button type="button" data-fitter-refresh ${locked ? 'disabled' : ''}>Refresh</button><button type="button" data-fitter-signout ${saving ? 'disabled' : ''}>Sign out</button></nav></header>
       <div class="fitter-toolbar"><label for="fitter-mechanic">Mechanic<select id="fitter-mechanic" ${locked ? 'disabled' : ''}><option value="">Select your name</option>${roster.map(t=>`<option value="${esc(t.id)}" ${t.id===mechanic?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><p class="fitter-sync" role="status">${saving ? savingLabel : loading ? 'Refreshing…' : connected ? `Connected · Updated ${esc(new Date(lastSync).toLocaleTimeString('en-AU',{timeZone:'Australia/Perth',hour:'numeric',minute:'2-digit',second:'2-digit'}))}` : 'Not connected · Changes unavailable'}</p></div>
       ${message ? `<div class="fitter-notice" role="status">${esc(message)}</div>` : ''}
+      ${handoverText ? `<div class="fitter-handover" role="status">${esc(handoverText)}</div>` : ''}
       ${service.retryPending ? '<div class="fitter-warning">The last save is unconfirmed. Retrying checks the same action and cannot apply it twice. <button type="button" data-fitter-retry>Check / retry last save</button></div>' : ''}
       ${!service.canWrite() && connected ? '<p class="fitter-warning">View only. An operator account is needed to record work.</p>' : ''}
       ${mechanic ? `<p class="fitter-bay-summary">${bays.length ? bays.map(b=>`${esc(b.stage)} · Bay ${esc(b.number ?? '—')}${b.active?'':' (inactive)'}`).join(' / ') : 'Jobs individually assigned to this mechanic appear below.'}</p>` : ''}
-      <div class="fitter-layout"><aside class="fitter-queue" aria-label="Current and upcoming jobs">${jobs.map(jobCard).join('') || `<div class="fitter-empty">${loading ? 'Loading jobs…' : mechanic ? 'No active jobs assigned. Ask the controller to assign your name to a bay or booking.' : 'Select your mechanic name to see your bays and jobs.'}</div>`}</aside>
+      ${flow.otherActive.length ? `<details class="fitter-active-jobs"><summary>Other active jobs (${flow.otherActive.length})</summary>${flow.otherActive.map(j=>`<button type="button" data-fitter-job="${esc(j.id)}" ${locked?'disabled':''}>${esc(j.stock)} · ${esc(j.stage_name)} / Bay ${esc(j.bay_number)} · ${esc(state(j.status))}</button>`).join('')}</details>` : ''}
+      <div class="fitter-layout">
       <section class="fitter-work" aria-label="Selected job">${job && detail ? `<div class="fitter-job-heading"><p class="fitter-kicker">${esc(job.stage_name)} · Bay ${esc(job.bay_number ?? '—')} · ${esc(state(detail.status))}</p><h2>${esc(job.stock)} <span>${esc(job.job_card)}</span></h2><p>${esc(job.customer)} · ${esc(job.vehicle)}</p><p class="fitter-time">${esc(time(job.start_at))} – ${esc(time(job.end_at))}</p>${timerHtml(detail,timingOptions())}${progressHtml(detail.progress)}<p>${detail.progress.completed_lines} of ${detail.progress.total_lines} items complete · Progress uses approved work hours.</p></div>
       ${detail.status==='stoppage' ? `<div class="fitter-warning"><strong>Job stopped</strong><p>${esc(detail.stoppage_reason)}</p></div>` : ''}
-      <div class="fitter-actions">${['planned','queued'].includes(detail.status) ? `<button class="fitter-primary" data-fitter-action="start" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='start'?'Starting job…':'Start job'}</button><p>Start this booking on the workshop planner.</p>` : detail.status==='stoppage' ? `<button class="fitter-primary" data-fitter-action="resume" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='resume'?'Resuming job…':'Resume job'}</button>` : detail.status==='started' ? `<button data-fitter-stop ${locked||!editable?'disabled':''}>Parts / other stoppage</button><button class="fitter-primary" data-fitter-action="complete" ${locked||!editable||!detail.progress.can_complete||[...drafts.keys()].some(k=>k.startsWith(selected+':'))?'disabled':''}>Complete bay job</button>` : ''}</div>
+      <div class="fitter-actions">${['planned','queued'].includes(detail.status) ? `<button class="fitter-primary" data-fitter-action="start" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='start'?'Starting job…':'Start job'}</button><p>Start this booking on the workshop planner.</p>` : detail.status==='stoppage' ? `<button class="fitter-primary" data-fitter-action="resume" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='resume'?'Resuming job…':'Resume job'}</button>` : detail.status==='started' ? `<button data-fitter-stop ${locked||!editable?'disabled':''}>Parts / other stoppage</button>` : ''}</div>
       ${stopOpen ? `<div class="fitter-stop-panel" role="group" aria-label="Record a workshop stoppage"><label for="fitter-stop-type">Stoppage type<select id="fitter-stop-type" ${locked?'disabled':''}><option ${stopType==='Parts'?'selected':''}>Parts</option><option ${stopType==='Other'?'selected':''}>Other</option></select></label><label for="fitter-stop-reason">What is holding up the work?<textarea id="fitter-stop-reason" rows="3" maxlength="1900" ${locked?'disabled':''}>${esc(stopReason)}</textarea></label><button type="button" data-fitter-confirm-stop ${locked?'disabled':''}>Record stoppage</button><button type="button" data-fitter-cancel-stop ${locked?'disabled':''}>Cancel</button></div>` : ''}
       ${detail.progress.unknown_hours ? '<p class="fitter-warning">Some items need approved hours. Ask the controller to review these before completing the bay job.</p>' : ''}
       <h3>Items for this bay</h3><div class="fitter-lines">${own.map((l,i)=>lineCard(l,i,editable)).join('') || '<p class="fitter-empty">No approved operation lines for this bay. Ask the controller to review the vehicle.</p>'}</div>
+      ${nextJobHtml(flow,locked,editable)}
       ${other.length ? `<details class="fitter-other"><summary>All other vehicle items (${other.length}) · View only</summary>${other.map((l,i)=>lineCard(l,own.length+i,false)).join('')}</details>` : ''}
-      <p class="fitter-help">Tick items as the work is completed. Complete bay job finishes this workshop booking; QC inspection remains a separate step.</p>` : `<div class="fitter-empty">${loading && selected ? 'Loading operation lines…' : 'Your selected job will appear here.'}</div>`}</section></div></div>`;
+      <p class="fitter-help">Complete this bay after ticking off its work. Your next assigned job opens automatically; QC inspection remains a separate step.</p>` : `<div class="fitter-empty">${loading ? 'Loading your job…' : !mechanic ? 'Select your mechanic name to see your current job.' : 'No more jobs assigned. New work will appear here when the controller books it.'}</div>`}</section></div></div>`;
     target.querySelectorAll('.fitter-notes textarea').forEach(n=>{ if(openNotes.has(n.dataset.fitterNote)) n.closest('details').open=true; });
     if (focusId && selection) { const next=doc.getElementById(focusId); next?.focus({preventScroll:true}); next?.setSelectionRange?.(...selection); }
     bind(target);
   }
   function viewKey() { return JSON.stringify([roster, mechanic, jobs, bays, selected, detail, connected, message],(key,value)=>['timer','generated_at','server_now'].includes(key)?undefined:value); }
   async function refresh({ background = false, forceRoster = false } = {}) {
-    if (!active() || loading || saving || (background && refreshing)) return;
+    if (!active() || loading || saving || service.retryPending || (background && refreshing)) return;
     const generation = ++loadGeneration, mechanicBefore = mechanic, before = viewKey();
     refreshing = true; loading = !background;
     if (!background) render();
@@ -262,7 +284,9 @@
         const list = await service.jobs(nextMechanic);
         if (generation!==loadGeneration || mechanicBefore!==mechanic || !active()) return;
         nextJobs=list.jobs; nextBays=list.bays;
-        nextSelected=nextJobs.some(j=>j.id===selected) ? selected : nextJobs[0]?.id || '';
+        // Only the freshly assigned queue can supply the next job. The preview
+        // may have changed while the fitter was completing the current work.
+        nextSelected=fitterJobFlow(nextJobs,selected).current?.id || '';
         nextDetail=nextSelected ? await service.job(nextMechanic,nextSelected) : null;
         if (generation!==loadGeneration || !active()) return;
       }
@@ -281,6 +305,13 @@
         const sync=host()?.querySelector('.fitter-sync');
         if(sync && connected) sync.textContent=`Connected · Updated ${new Date(lastSync).toLocaleTimeString('en-AU',{timeZone:'Australia/Perth',hour:'numeric',minute:'2-digit',second:'2-digit'})}`;
         updateTimer();
+      }
+      if (scrollToCurrent && connected && handover?.bookingId!==selected) {
+        scrollToCurrent=false;
+        const heading=host()?.querySelector('.fitter-job-heading h2, .fitter-empty');
+        heading?.setAttribute?.('tabindex','-1');
+        heading?.focus?.({preventScroll:true});
+        (host()?.querySelector('.fitter-handover') || heading)?.scrollIntoView?.({block:'start'});
       }
     } }
   }
@@ -311,16 +342,24 @@
       if (retry && pendingDraftKey) drafts.delete(pendingDraftKey);
       pendingDraftKey = '';
       stopOpen=false; stopReason='';
-      message=result.action==='complete'?'Bay job completed. Your next job is shown below.':result.already_started?'This job is already running on the planner.':result.action==='start'?'Job started on the workshop planner.':result.action==='resume'?'Job resumed on the workshop planner.':'Saved to the workshop planner.';
+      if(result.action==='complete') {
+        handover={bookingId:result.booking_id||selected,stock:jobs.find(j=>j.id===selected)?.stock||'Bay job'};
+        scrollToCurrent=true;
+      } else handover=null;
+      message=result.action==='complete'?'':result.already_started?'This job is already running on the planner.':result.action==='start'?'Job started on the workshop planner.':result.action==='resume'?'Job resumed on the workshop planner.':'Saved to the workshop planner.';
       connected=false;
     } catch(e) { message=e.message; if(e.code!=='busy') connected=false; }
-    finally { saving=false; await refresh(); pendingAction=''; }
+    finally {
+      saving=false;
+      if(service.retryPending) { pendingAction=''; render(); }
+      else { await refresh(); pendingAction=''; }
+    }
   }
   function bind(target) {
     const on=(selector,event,fn)=>target.querySelectorAll(selector).forEach(n=>n.addEventListener(event,fn));
-    on('#fitter-mechanic','change',e=>{ mechanic=e.target.value; selected=''; detail=null; stopOpen=false; stopReason=''; message=''; void refresh(); });
+    on('#fitter-mechanic','change',e=>{ mechanic=e.target.value; selected=''; detail=null; handover=null; scrollToCurrent=false; stopOpen=false; stopReason=''; message=''; void refresh(); });
     on('[data-fitter-refresh]','click',()=>{ message=''; void refresh({forceRoster:true}); });
-    on('[data-fitter-job]','click',e=>{ selected=e.currentTarget.dataset.fitterJob; detail=null; stopOpen=false; stopReason=''; message=''; void refresh(); });
+    on('[data-fitter-job]','click',e=>{ if(saving||loading||service.retryPending) return; selected=e.currentTarget.dataset.fitterJob; detail=null; handover=null; scrollToCurrent=false; stopOpen=false; stopReason=''; message=''; void refresh(); });
     on('[data-fitter-qc]','click',()=>{ if(typeof showView==='function') showView('qc'); });
     on('[data-fitter-signout]','click',()=>doc.querySelector('#pdc-auth-signout')?.click());
     on('[data-fitter-action]','click',e=>void act(e.currentTarget.dataset.fitterAction));
@@ -336,7 +375,7 @@
   }
   api.open = () => { render(); if(!initialized) {initialized=true;void refresh();} };
   api.close = () => { freezeTimer(); loadGeneration++; loading=false; refreshing=false; initialized=false; connected=false; };
-  const reset=()=>{service.invalidate();api.close();roster=[];mechanic='';jobs=[];bays=[];selected='';detail=null;detailReceivedAt=0;timerFreeze=null;pendingAction='';stopOpen=false;stopReason='';drafts.clear();message='';render();};
+  const reset=()=>{service.invalidate();api.close();roster=[];mechanic='';jobs=[];bays=[];selected='';detail=null;handover=null;scrollToCurrent=false;detailReceivedAt=0;timerFreeze=null;pendingAction='';stopOpen=false;stopReason='';drafts.clear();message='';render();};
   root.addEventListener('pdc-auth-locked',reset);
   root.addEventListener('pdc-auth-ready',()=>{if(active())api.open();});
   root.addEventListener('offline',()=>{freezeTimer();loadGeneration++;loading=false;refreshing=false;connected=false;message='Offline. Saved work is shown; reconnect before changing this job.';render();});
