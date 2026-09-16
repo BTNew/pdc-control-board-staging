@@ -1,0 +1,170 @@
+{
+  "passed": 41,
+  "checks": [
+    {
+      "name": "Actually shifted descendant cannot overlap its own other-station booking",
+      "status": "PASS"
+    },
+    {
+      "name": "Actually shifted descendant still respects assigned technician in another bay",
+      "status": "PASS"
+    },
+    {
+      "name": "All pre-existing admin blocks unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "All pre-existing bookings byte-for-byte unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "All pre-existing move receipts unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "All pre-existing technician assignments unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "All pre-existing vehicles byte-for-byte unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "Bay rejection retains all booking and audit rows",
+      "status": "PASS"
+    },
+    {
+      "name": "Controller move retains approved-actor guard",
+      "status": "PASS"
+    },
+    {
+      "name": "Controller receipt-backed entry point uses the minimal displacement chain",
+      "status": "PASS"
+    },
+    {
+      "name": "Controller stale version rejects without touching target or descendants",
+      "status": "PASS"
+    },
+    {
+      "name": "Destination gap absorbs displacement without unrelated-vehicle veto",
+      "status": "PASS"
+    },
+    {
+      "name": "Displaced follower cannot overwrite protected bay downtime",
+      "status": "PASS"
+    },
+    {
+      "name": "Displacement traverses only the overlapping chain",
+      "status": "PASS"
+    },
+    {
+      "name": "Distant bookings and other-vehicle parallel work retain exact rows, versions and history",
+      "status": "PASS"
+    },
+    {
+      "name": "Early descendant failure rolls back later-first descendant writes and history atomically",
+      "status": "PASS"
+    },
+    {
+      "name": "First sufficient gap ends cascade before distant queue",
+      "status": "PASS"
+    },
+    {
+      "name": "Fixed-work rejection is atomic and preserves admin block",
+      "status": "PASS"
+    },
+    {
+      "name": "Follower gaps reduce later displacement instead of applying one constant shift",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed Controller endpoint still rejects non-website SQL transport",
+      "status": "PASS"
+    },
+    {
+      "name": "Installed website session guard is unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "Late target conflict rolls back already shifted follower and audit",
+      "status": "PASS"
+    },
+    {
+      "name": "Nearest follower moves only to target end",
+      "status": "PASS"
+    },
+    {
+      "name": "No follower moves at free-space boundary 0",
+      "status": "PASS"
+    },
+    {
+      "name": "No follower moves at free-space boundary 1",
+      "status": "PASS"
+    },
+    {
+      "name": "Only displaced follower receives one cascade audit event",
+      "status": "PASS"
+    },
+    {
+      "name": "Ordinary move still rejects actual occupied destination bay",
+      "status": "PASS"
+    },
+    {
+      "name": "Rejected stale request does not create success receipt",
+      "status": "PASS"
+    },
+    {
+      "name": "Replay adds no move, version increment, assignment, audit or duplicate receipt",
+      "status": "PASS"
+    },
+    {
+      "name": "Response lists only the genuinely displaced follower",
+      "status": "PASS"
+    },
+    {
+      "name": "Same request replay returns original successful move receipt",
+      "status": "PASS"
+    },
+    {
+      "name": "Slower bay does not silently replan untouched distant work",
+      "status": "PASS"
+    },
+    {
+      "name": "Slower destination bay uses authoritative capacity when building the affected chain",
+      "status": "PASS"
+    },
+    {
+      "name": "Synthetic operator is authorized",
+      "status": "PASS"
+    },
+    {
+      "name": "Target and displaced follower both use current fifty-percent capacity",
+      "status": "PASS"
+    },
+    {
+      "name": "Target keeps requested destination and authoritative two-hour range",
+      "status": "PASS"
+    },
+    {
+      "name": "Target vehicle overlapping another station remains protected",
+      "status": "PASS"
+    },
+    {
+      "name": "Technician rejection leaves bookings, assignments and history unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "Unaffected vehicle keeps its existing one-hour handover",
+      "status": "PASS"
+    },
+    {
+      "name": "Unshifted boundary booking receives no version or audit churn 0",
+      "status": "PASS"
+    },
+    {
+      "name": "Unshifted boundary booking receives no version or audit churn 1",
+      "status": "PASS"
+    }
+  ],
+  "rolled_back": true
+}
