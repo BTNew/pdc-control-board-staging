@@ -75,13 +75,12 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260916004621",
-    "name": "workshop_historical_job_stoppage",
-    "file": "supabase/migrations/20260916004621_workshop_historical_job_stoppage.sql",
-    "sha256": "abda4f158bd8af71f1422229f011ed9a3be1f3ac2741701d8b49666bb448f3bc",
+    "version": "20260916012807",
+    "name": "fitter_start_confirmation_and_work_timer",
+    "file": "supabase/migrations/20260916012807_fitter_start_confirmation_and_work_timer.sql",
+    "sha256": "07083a3fa824919df18234936c1ec99ad32bd2450e066acc72613e798aad3abb",
     "commissioned": true,
-    "review_status": "staging_applied",
-    "source": "Historical running-job stoppage calendar repair. All14 rollback checks passed; read-only live validation now succeeds for all3 affected bookings. Existing booking state preserved."
+    "review_status": "staging_applied"
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -260,6 +259,15 @@
       "sha256": "94ab60ab6b2719ff3b5a4426a07cc23354becc6377a7204b6f8f49bf25aec3b5",
       "commissioned": true,
       "review_status": "staging_applied"
+    },
+    {
+      "version": "20260916004621",
+      "name": "workshop_historical_job_stoppage",
+      "file": "supabase/migrations/20260916004621_workshop_historical_job_stoppage.sql",
+      "sha256": "abda4f158bd8af71f1422229f011ed9a3be1f3ac2741701d8b49666bb448f3bc",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Historical running-job stoppage calendar repair. All14 rollback checks passed; read-only live validation now succeeds for all3 affected bookings. Existing booking state preserved."
     }
   ],
   "planner_capacity_migrations": [

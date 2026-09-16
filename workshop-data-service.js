@@ -173,7 +173,23 @@ function createWorkshopSupabaseClient(config, fetchImpl) {
     return { status: res.status, ok: res.ok, body };
   }
 
-  return { rpc };
+  async function readRevision(accessToken, scope, options = {}) {
+    // This is an authenticated freshness check, never an anonymous fallback
+    // or an alternative source of booking / mutation authority.
+    if (!accessToken) return { ok: false, status: 401, body: null };
+    const stageCode = scope && String(scope.stageCode || '').trim().toUpperCase();
+    if (scope && !/^[A-Z0-9_]+$/.test(stageCode)) return { ok: false, status: 400, body: null };
+    const table = scope ? 'workshop_station_revision' : 'workshop_revision';
+    const filter = scope ? `stage_code=eq.${encodeURIComponent(stageCode)}` : 'id=eq.1';
+    const res = await fetchFn(`${url}/rest/v1/${table}?select=revision&${filter}&limit=1`, {
+      method: 'GET', headers: headers(accessToken), cache: 'no-store', signal: options.signal
+    });
+    let body = null;
+    try { body = await res.json(); } catch (_err) { /* malformed response is not current authority */ }
+    return { status: res.status, ok: res.ok, body };
+  }
+
+  return { rpc, readRevision };
 }
 
 /**
@@ -215,6 +231,7 @@ function createWorkshopDataService(options) {
   let snapshotTrusted = false;
   let pendingReloadTimer = null;
   let activeLoadToken = null;
+  let activeRevisionProbe = null;
   let trailingReloadRequested = false;
   let destroyed = false;
   let lifecycleGeneration = 0;
@@ -229,6 +246,12 @@ function createWorkshopDataService(options) {
     // Detach any unresolved request from the current authority session. Its
     // finally block checks identity before changing current-session state.
     activeLoadToken = null;
+    if (activeRevisionProbe) {
+      const probe = activeRevisionProbe;
+      activeRevisionProbe = null;
+      clearScheduledTimeout(probe.timeout);
+      probe.controller?.abort();
+    }
     if (pendingReloadTimer) {
       clearScheduledTimeout(pendingReloadTimer);
       pendingReloadTimer = null;
@@ -266,6 +289,7 @@ function createWorkshopDataService(options) {
     }
     snapshotTrusted = false;
     const generation = lifecycleGeneration;
+    const requestRole = getRole();
     const requestScopeGeneration = scopeGeneration;
     const loadToken = {};
     activeLoadToken = loadToken;
@@ -279,6 +303,10 @@ function createWorkshopDataService(options) {
       const result = await client.rpc(token, rpcName, rpcParams);
       if (destroyed || generation !== lifecycleGeneration) return null;
       if (requestScopeGeneration !== scopeGeneration) return null;
+      if (token !== getAccessToken() || requestRole !== getRole()) {
+        invalidateAuthority(getAccessToken() ? WORKSHOP_CONNECTION_STATE.RECONNECTING : WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+        return null;
+      }
       if (!result.ok) {
         if (result.status === 404) {
           setState(WORKSHOP_CONNECTION_STATE.INCOMPATIBLE);
@@ -340,10 +368,66 @@ function createWorkshopDataService(options) {
   }
 
   function onRevisionSignal(newRevision) {
-    if (newRevision != null && newRevision === lastRevision) {
+    if (newRevision != null && lastRevision != null && String(newRevision) === String(lastRevision)) {
       return; // duplicate/no-op signal; debounce discards it safely
     }
     scheduleSnapshotReload('revision_changed');
+  }
+
+  function reconcileRevision(reason = 'revision_check') {
+    if (!enabled || destroyed || typeof client.readRevision !== 'function') return Promise.resolve(null);
+    const token = getAccessToken();
+    const role = getRole();
+    if (!token) {
+      invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+      return Promise.resolve(null);
+    }
+    if (activeRevisionProbe) return activeRevisionProbe.promise;
+    // A confirmed-write event already uses the revision debounce. Routine
+    // checks must not add a trailing full snapshot to a refresh in progress.
+    if (activeLoadToken || pendingReloadTimer) return Promise.resolve(null);
+    const generation = lifecycleGeneration;
+    const requestScopeGeneration = scopeGeneration;
+    const probe = { controller: typeof AbortController === 'function' ? new AbortController() : null, timeout: null, promise: null };
+    activeRevisionProbe = probe;
+    probe.timeout = scheduleTimeout(() => probe.controller?.abort(), 8000);
+    probe.promise = (async () => {
+      try {
+        const result = await client.readRevision(token, scope ? { ...scope } : null, { signal: probe.controller?.signal });
+        if (destroyed || generation !== lifecycleGeneration || requestScopeGeneration !== scopeGeneration) return null;
+        if (token !== getAccessToken() || role !== getRole()) {
+          invalidateAuthority(getAccessToken() ? WORKSHOP_CONNECTION_STATE.RECONNECTING : WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+          return null;
+        }
+        if (!result?.ok && [401, 403].includes(result?.status)) {
+          invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+          return null;
+        }
+        const revision = Array.isArray(result?.body) && result.body.length === 1 ? result.body[0]?.revision : null;
+        if (!result?.ok || revision == null || !/^\d+$/.test(String(revision))) {
+          // Empty RLS results and network failures cannot validate stale rows.
+          snapshotTrusted = false;
+          setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
+          return null;
+        }
+        if (lastRevision != null && String(revision) === String(lastRevision) && snapshotTrusted) return lastSnapshot;
+        // Compare again after the response: a Realtime event may have already
+        // started the same refresh while this tiny read was in flight.
+        if (activeLoadToken || pendingReloadTimer) return null;
+        snapshotTrusted = false;
+        setState(WORKSHOP_CONNECTION_STATE.RECONNECTING);
+        return await loadSnapshot(reason);
+      } catch (_error) {
+        if (destroyed || generation !== lifecycleGeneration || requestScopeGeneration !== scopeGeneration) return null;
+        snapshotTrusted = false;
+        setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
+        return null;
+      } finally {
+        clearScheduledTimeout(probe.timeout);
+        if (activeRevisionProbe === probe) activeRevisionProbe = null;
+      }
+    })();
+    return probe.promise;
   }
 
   function onReconnect() {
@@ -570,6 +654,7 @@ function createWorkshopDataService(options) {
     loadSnapshot,
     setScope,
     onRevisionSignal,
+    reconcileRevision,
     onReconnect,
     onAuthorityLost,
     onVisibilityReturn,

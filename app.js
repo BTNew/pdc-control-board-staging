@@ -3454,6 +3454,7 @@ function updateWorkshopBrowserRoute(view = '', historyMode = 'push') {
 
 function init() {
   ensureAppDataAvailable();
+  installFitterWorkshopRefreshBridge();
   migrateLegacyAutocareArrivalsToPmb();
   renderAppVersionMarker();
   renderHostingSecurityWarning();
@@ -4364,16 +4365,82 @@ function scheduleWorkshopPlannerRender() {
 
 function installWorkshopRecoveryListeners() {
   if (window.__workshopRecoveryListenerCleanup) return;
+  const reconcileVisiblePlanner = () => {
+    if (app.currentView === 'workshop' && document.visibilityState === 'visible') {
+      window.__workshopDataService?.reconcileRevision?.('visible_planner_revision');
+    }
+  };
   const onOnline = () => window.__workshopRealtimeManager?.forceReconnect?.();
   const onVisibility = () => {
     if (document.visibilityState === 'visible') window.__workshopDataService?.onVisibilityReturn?.();
   };
   window.addEventListener('online', onOnline);
+  window.addEventListener('focus', reconcileVisiblePlanner);
   document.addEventListener('visibilitychange', onVisibility);
+  // Realtime is the immediate path. A tiny revision read also repairs a
+  // missed event while the controller leaves this planner open all day.
+  // Unchanged revisions do not fetch bookings or redraw the board.
+  const revisionTimer = window.setInterval(reconcileVisiblePlanner, 10000);
   window.__workshopRecoveryListenerCleanup = () => {
     window.removeEventListener('online', onOnline);
+    window.removeEventListener('focus', reconcileVisiblePlanner);
     document.removeEventListener('visibilitychange', onVisibility);
+    window.clearInterval(revisionTimer);
     window.__workshopRecoveryListenerCleanup = null;
+  };
+}
+
+function installFitterWorkshopRefreshBridge() {
+  if (window.__fitterWorkshopRefreshBridgeCleanup) return;
+  let channel = null;
+  let refreshTimer = null;
+  const refreshVisibleBoard = () => {
+    refreshTimer = null;
+    if (document.visibilityState !== 'visible' || !getPdcSupabaseAccessToken()) return;
+    if (app.currentView === 'workshop') {
+      // A confirmed command may cascade into other departments. Never filter
+      // by the caller's stage or use event data as authoritative booking data.
+      window.__workshopDataService?.onRevisionSignal?.();
+    } else if (app.currentView === 'workflow') {
+      if (app.workshopEligibilityState === 'loading') app.workshopEligibilityRevisionPending = true;
+      else loadWorkshopEligibilitySnapshot('confirmed_fitter_write');
+    }
+  };
+  const queueRefresh = () => {
+    if (refreshTimer) window.clearTimeout(refreshTimer);
+    refreshTimer = window.setTimeout(refreshVisibleBoard, 200);
+  };
+  const onSaved = () => {
+    if (!getPdcSupabaseAccessToken()) return;
+    queueRefresh();
+    // Only an invalidation signal crosses tabs: no names, tokens, booking
+    // contents or inferred success state. Each recipient reads under its own
+    // current authentication and scoped snapshot rules.
+    try { channel?.postMessage({ type: 'fitter-workshop-saved' }); } catch (_error) { /* polling / Realtime remain available */ }
+  };
+  const closeChannel = () => {
+    if (refreshTimer) window.clearTimeout(refreshTimer);
+    refreshTimer = null;
+    channel?.close();
+    channel = null;
+  };
+  const openChannel = () => {
+    if (channel || typeof window.BroadcastChannel !== 'function' || !window.PDC_SUPABASE_CONFIG?.url) return;
+    try {
+      channel = new window.BroadcastChannel(`pdc-workshop-saved:${window.PDC_SUPABASE_CONFIG.url}`);
+      channel.onmessage = event => { if (event.data?.type === 'fitter-workshop-saved') queueRefresh(); };
+    } catch (_error) { channel = null; }
+  };
+  window.addEventListener('pdc-fitter-workshop-saved', onSaved);
+  window.addEventListener('pagehide', closeChannel);
+  window.addEventListener('pageshow', openChannel);
+  openChannel();
+  window.__fitterWorkshopRefreshBridgeCleanup = () => {
+    closeChannel();
+    window.removeEventListener('pdc-fitter-workshop-saved', onSaved);
+    window.removeEventListener('pagehide', closeChannel);
+    window.removeEventListener('pageshow', openChannel);
+    window.__fitterWorkshopRefreshBridgeCleanup = null;
   };
 }
 
@@ -5293,7 +5360,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.02`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5342,7 +5409,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.02`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
