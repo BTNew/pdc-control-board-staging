@@ -211,6 +211,7 @@ function mapServerVehicle(row = {}) {
     .filter(Boolean))];
   mapped.pdcEmailOperationLines = (Array.isArray(row.operation_lines) ? row.operation_lines : []).slice(0, 50).map(item => ({
     operation_line_id: String(item?.operation_line_id || item?.source_line_id || '').trim().toLowerCase(),
+    department: String(item?.department ?? '').trim(),
     operation_no: String(item?.operation_no || '').trim().toUpperCase(),
     work_key: canonicalWorkKey(item?.work_key),
     job_card_number: String(item?.job_card_number || item?.jobCardNumber || '').trim().slice(0, 80),
@@ -259,6 +260,7 @@ function mapServerVehicle(row = {}) {
   mapped.pdcQcOperationLinesProjectionPresent = qcProjectionFieldPresent;
   mapped.pdcQcOperationLines = (qcProjectionFieldPresent ? qcProjection : []).slice(0, 250).map(item => ({
     lineIdentity: String(item?.line_identity || ''), sourceKind: String(item?.source_kind || ''), sourceLineId: String(item?.source_line_id || ''),
+    department: String(item?.department ?? '').trim(),
     operationNo: String(item?.operation_no || ''), description: String(item?.description || '').trim(), jobCardNumber: String(item?.job_card_number || '').trim(),
     hoursProvenance: String(item?.hours_provenance || ''), estimateBasis: String(item?.estimate_basis || ''), reviewNote: String(item?.review_note || ''),
     sourceEstimatedHours: item?.source_estimated_hours == null ? null : Number(item.source_estimated_hours),

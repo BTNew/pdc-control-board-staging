@@ -8,6 +8,12 @@
   ]);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const validStation = code => STATIONS.some(([station]) => station === code);
+  const department138 = line => String(line?.department ?? '').trim() === '138';
+  const assignedStation = (line, choices = {}) => department138(line) ? 'BUS_4X4'
+    : choices[line.line_identity] ?? (validStation(line.stage_code) ? line.stage_code : '');
+  const updateDepartment138 = row => department138({department:row.proposed?.department ?? row.current_work?.department ?? row.department});
+  const updateStation = (row, draft = {}) => updateDepartment138(row) ? 'BUS_4X4'
+    : draft.stage ?? row.current_work?.stage_code ?? row.proposed?.proposed_station;
   function reviewChoices(row) {
     return Object.fromEntries(assignmentsFor(row).map(line => [line.line_identity, line.stage_code]));
   }
@@ -24,8 +30,8 @@
   }
   function assignmentsFor(row, choices = {}, hours = null) {
     return (row?.operations || []).map(line => ({line_identity: line.line_identity,
-      stage_code: choices[line.line_identity] ?? (validStation(line.stage_code) ? line.stage_code : line.department === '138' ? 'BUS_4X4' : ''),
-      ...(hours && ((choices[line.line_identity] ?? line.stage_code) !== 'SUBLET') ? {estimated_hours:positiveHours(hoursFor(line,hours))?Number(hoursFor(line,hours)):null} : {})}));
+      stage_code: assignedStation(line, choices),
+      ...(hours && assignedStation(line, choices) !== 'SUBLET' ? {estimated_hours:positiveHours(hoursFor(line,hours))?Number(hoursFor(line,hours)):null} : {})}));
   }
   function problems(row, choices = {}, hours = {}) {
     if (!row || row.status !== 'pending' || !Array.isArray(row.operations) || !row.operations.length) return ['No complete Job Card is available.'];
@@ -90,7 +96,7 @@
     });
   }
   function updateProblems(row, draft={}) {
-    const stage=draft.stage ?? row.current_work?.stage_code ?? row.proposed?.proposed_station;
+    const stage=updateStation(row,draft);
     const hours=draft.hours ?? row.effective_hours;
     const issues=[];
     if(!validStation(stage)) issues.push('Choose a workshop station.');
@@ -171,7 +177,7 @@
     return `<section class="nv-update-schedule" aria-label="Updated booking times"><h3>Updated booking times</h3><div><table><thead><tr><th>Stock</th><th>Station / bay</th><th>Start</th><th>Finish</th><th>Estimated hours</th></tr></thead><tbody>${schedule.bookings.map(booking=>`<tr><td>${esc(booking.stock_number)}</td><td>${esc(STATIONS.find(([code])=>code===booking.stage_code)?.[1]||booking.stage_code)} · ${esc(booking.bay_name)}</td><td>${esc(time(booking.start_at))}</td><td>${esc(time(booking.end_at))}</td><td>${esc(hourLabel(booking.estimated_hours))}</td></tr>`).join('')}</tbody></table></div><small>${esc(note)}</small></section>`;
   }
   function operationUpdateHtml(row,draft={},canApprove=true,busy=false) {
-    const stage=draft.stage ?? row.current_work?.stage_code ?? row.proposed?.proposed_station;
+    const stage=updateStation(row,draft),locked=updateDepartment138(row);
     const hours=draft.hours ?? row.effective_hours;
     const issues=updateProblems(row,draft);
     return `<article class="nv-update-card" data-operation-change="${esc(row.change_id)}"><header><h3>${esc(row.stock_number)} · ${row.change_kind==='added'?'Added operation':'Changed operation'}</h3><span>Already on board · ${esc(row.current_location)}</span></header>
@@ -180,7 +186,7 @@
     <section><h4>Latest Tune line</h4><p>${esc(row.proposed?.operation_description)}</p><small>${esc(row.proposed?.source_estimated_hours??'Not supplied')} source hours</small></section></div>
     ${row.current_work?`<p>Current workshop plan: ${esc(row.current_work.stage_code)} · ${esc(row.current_work.estimated_hours)} hours${row.current_work.completed?' · Completed':''}</p>`:''}
     <p><small>Imported ${esc(new Date(row.received_at).toLocaleString('en-AU',{timeZone:'Australia/Perth'}))} (Perth)</small></p>
-    <div class="nv-update-controls"><label>Workshop <select data-update-stage ${busy||!canApprove?'disabled':''}><option value="">Choose station</option>${STATIONS.map(([code,label])=>`<option value="${code}" ${code===stage?'selected':''}>${esc(label)}</option>`).join('')}</select></label>
+    <div class="nv-update-controls"><label>Workshop <select data-update-stage ${busy||!canApprove||locked?'disabled':''}>${locked?'':'<option value="">Choose station</option>'}${STATIONS.filter(([code])=>!locked||code==='BUS_4X4').map(([code,label])=>`<option value="${code}" ${code===stage?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138 jobs use Bus 4×4 bays.</small>':''}</label>
     <label>Approved hours <input data-update-hours type="number" min="0.01" max="999.99" step="0.01" value="${esc(hours??'')}" ${busy||!canApprove||stage==='SUBLET'?'disabled':''}></label>
     <button type="button" class="primary" data-approve-update ${issues.length||!canApprove||busy?'disabled':''}>${busy?'Saving…':'Approve change & update bookings'}</button></div>
     <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Approval updates the station’s estimated hours and adjusts affected bay bookings. Later jobs move back when needed, with a 1-hour gap between each vehicle’s jobs. Sublet has no workshop bay.</small></article>`;
@@ -243,7 +249,7 @@
     if(state.phase==='checking')return `Checking all queued vehicles${state.total?` · ${state.checked} of ${state.total}`:'…'}`;
     return `Adding ready vehicles · ${state.approved} of ${state.ready} approved${state.failed?` · ${state.failed} need attention`:''}. ${state.needsReview} left for review.`;
   }
-  const api={approveReadyQueue,bulkProgressText,quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
+  const api={department138,assignedStation,updateDepartment138,updateStation,approveReadyQueue,bulkProgressText,quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   if(typeof window==='undefined' || window.PDC_SUPABASE_CONFIG?.projectRef!==PROJECT
       || typeof showView!=='function' || window.PDC_NEW_VEHICLES_VERSION) return;
@@ -378,20 +384,20 @@
       savingId:quickSavingId,error:quickErrors[row.vehicle_id]||''});
   }
   function operation(line) {
-    const assigned=choices[line.line_identity] ?? (validStation(line.stage_code) ? line.stage_code : line.department === '138' ? 'BUS_4X4' : '');
+    const assigned=assignedStation(line,choices),locked=department138(line);
     const sublet=assigned==='SUBLET';
     const value=hoursFor(line,hourDrafts),missing=!sublet&&!positiveHours(value);
     const standard=line.hours_provenance==='craig_standard_pre_delivery_1_hour';
     const disabled=!writable()||saving||sourceChanged;
     const theme=assigned&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(assigned):null;
     const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
-    return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''} ${operationHoursPresentation(line,hourDrafts,assigned).label.startsWith('AI estimate')?'nv-hours-ai':''}" draggable="${!disabled}" data-nv-line="${esc(line.line_identity)}"${style}>
-      <small class="nv-line-meta" title="Drag to a station · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">⠿</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
+    return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''} ${operationHoursPresentation(line,hourDrafts,assigned).label.startsWith('AI estimate')?'nv-hours-ai':''}" draggable="${!disabled&&!locked}" data-nv-line="${esc(line.line_identity)}"${style}>
+      <small class="nv-line-meta" title="${locked?'Dept 138 jobs use Bus 4×4 bays':'Drag to a station'} · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">${locked?'':'⠿'}</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
       <strong>${esc(line.description)}</strong>
       <div class="nv-operation-controls">
       ${sublet?'':`<label class="nv-hours-label">Hours<input type="number" min="0.01" max="999.99" step="0.01" inputmode="decimal" aria-label="Hours for ${esc(line.description)}" aria-invalid="${missing}" data-nv-hours="${esc(line.line_identity)}" value="${esc(value??'')}" placeholder="—" ${standard?'readonly':''} ${disabled?'disabled':''}></label>`}
       ${operationHoursHtml(line,hourDrafts,assigned)}
-      <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled?'disabled':''}><option value="">Needs Review</option>${STATIONS.map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select></label></div></article>`;
+      <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled||locked?'disabled':''}>${locked?'':'<option value="">Needs Review</option>'}${STATIONS.filter(([code])=>!locked||code==='BUS_4X4').map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138 jobs use Bus 4×4 bays.</small>':''}</label></div></article>`;
   }
   function stationSection(group) {
     const theme=group.code&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(group.code):null;
@@ -401,7 +407,7 @@
   async function approveUpdate(id) {
     const row=updateItems.find(x=>x.change_id===id),draft=updateDrafts[id]||{},actor=window.PDC_AUTH_CONTEXT?.userId;
     if(saving||!writable()||!row||updateProblems(row,draft).length) return;
-    const stage=draft.stage ?? row.current_work?.stage_code ?? row.proposed.proposed_station;
+    const stage=updateStation(row,draft);
     const hours=stage==='SUBLET'?null:Number(draft.hours??row.effective_hours);
     const identity=JSON.stringify([row.snapshot_hash,stage,hours]);
     if(updateRequests[id]?.identity!==identity) updateRequests[id]={identity,key:crypto.randomUUID()};
@@ -450,7 +456,7 @@
   function bindUpdates() {
     page.querySelectorAll('[data-operation-change]').forEach(card=>{
       const id=card.dataset.operationChange;
-      card.querySelector('[data-update-stage]').addEventListener('change',event=>{updateDrafts[id]={...updateDrafts[id],stage:event.target.value};delete updateRequests[id];render();});
+      card.querySelector('[data-update-stage]').addEventListener('change',event=>{if(updateDepartment138(updateItems.find(row=>row.change_id===id)))return;updateDrafts[id]={...updateDrafts[id],stage:event.target.value};delete updateRequests[id];render();});
       card.querySelector('[data-update-hours]').addEventListener('input',event=>{
         updateDrafts[id]={...updateDrafts[id],hours:event.target.value};delete updateRequests[id];
         const issues=updateProblems(updateItems.find(x=>x.change_id===id),updateDrafts[id]);
@@ -525,7 +531,7 @@
         const invalid=!positiveHours(input.value),tile=input.closest('[data-nv-line]');
         tile.classList.toggle('nv-hours-missing',invalid);input.setAttribute('aria-invalid',String(invalid));
         const line=selected.operations.find(row=>row.line_identity===input.dataset.nvHours);
-        const hint=operationHoursPresentation(line,hourDrafts,choices[line.line_identity]??line.stage_code);
+        const hint=operationHoursPresentation(line,hourDrafts,assignedStation(line,choices));
         const hintElement=tile.querySelector('.nv-hours-hint');
         hintElement.textContent=hint.label;hintElement.title=hint.detail;
         tile.classList.toggle('nv-hours-ai',hint.label.startsWith('AI estimate'));
@@ -543,14 +549,14 @@
       input.addEventListener('dragstart',event=>event.stopPropagation());
     });
     page.querySelectorAll('[data-nv-stage]').forEach(select=>{
-      select.addEventListener('change',()=>{if(saving||!writable()||sourceChanged)return;choices[select.dataset.nvStage]=select.value;requestKey='';approvalRequest=null;render();});
+      select.addEventListener('change',()=>{if(saving||!writable()||sourceChanged||department138(selected.operations.find(line=>line.line_identity===select.dataset.nvStage)))return;choices[select.dataset.nvStage]=select.value;requestKey='';approvalRequest=null;render();});
       select.addEventListener('dragstart',event=>event.stopPropagation());
     });
-    page.querySelectorAll('[data-nv-line]').forEach(tile=>tile.addEventListener('dragstart',event=>{if(saving||!writable()||sourceChanged){event.preventDefault();return;}event.dataTransfer.setData('text/plain',tile.dataset.nvLine);event.dataTransfer.effectAllowed='move';}));
+    page.querySelectorAll('[data-nv-line]').forEach(tile=>tile.addEventListener('dragstart',event=>{if(saving||!writable()||sourceChanged||department138(selected.operations.find(line=>line.line_identity===tile.dataset.nvLine))){event.preventDefault();return;}event.dataTransfer.setData('text/plain',tile.dataset.nvLine);event.dataTransfer.effectAllowed='move';}));
     page.querySelectorAll('[data-nv-drop]').forEach(group=>{
       group.addEventListener('dragover',event=>{if(!saving&&writable()&&!sourceChanged){event.preventDefault();group.classList.add('nv-drop-active');}});
       group.addEventListener('dragleave',event=>{if(!group.contains(event.relatedTarget))group.classList.remove('nv-drop-active');});
-      group.addEventListener('drop',event=>{event.preventDefault();group.classList.remove('nv-drop-active');if(saving||!writable()||sourceChanged)return;const id=event.dataTransfer.getData('text/plain');if(!selected.operations.some(line=>line.line_identity===id))return;choices[id]=group.dataset.nvDrop;requestKey='';approvalRequest=null;render();});
+      group.addEventListener('drop',event=>{event.preventDefault();group.classList.remove('nv-drop-active');if(saving||!writable()||sourceChanged)return;const id=event.dataTransfer.getData('text/plain'),line=selected.operations.find(line=>line.line_identity===id);if(!line||department138(line))return;choices[id]=group.dataset.nvDrop;requestKey='';approvalRequest=null;render();});
     });
     page.querySelectorAll('[data-nv-approve]').forEach(button=>button.addEventListener('click',()=>void approve()));
     page.querySelectorAll('[data-nv-quick-approve]').forEach(button=>button.addEventListener('click',()=>void quickApprove(button.dataset.nvQuickApprove)));
