@@ -54,7 +54,12 @@
 .fitter-progress>span { position:absolute; inset:0 auto 0 0; background:#59b987; }
 .fitter-progress>b { position:relative; display:block; text-align:center; padding:4px 6px; font-size:13px; color:#103d2a; white-space:nowrap; }
 .fitter-progress.is-compact { position:absolute; bottom:2px; left:3px; right:3px; height:5px; border-radius:3px; pointer-events:none; }
-.workshop-plan-chip:has(>.fitter-progress),.control-board-timeline-job:has(>.fitter-progress) { padding-bottom:7px; }
+/* Reserve a separate strip below lifecycle controls, without increasing pill height. */
+.workshop-plan-chip:has(>.fitter-progress) > .workshop-plan-lifecycle-actions { bottom:16px; }
+.workshop-plan-chip:has(>.fitter-progress) > .workshop-plan-main { height:calc(100% - 38px); }
+.workshop-plan-chip > .fitter-progress.is-compact { bottom:3px; right:12px; height:10px; z-index:14; }
+.workshop-plan-chip > .fitter-progress.is-compact::after { content:attr(aria-valuenow) '%'; position:absolute; inset:0; text-align:center; font-size:9px; font-weight:800; line-height:10px; color:#103d2a; }
+.control-board-timeline-job:has(>.fitter-progress) { padding-bottom:7px; }
 @media(max-width:1024px) {
  body[data-current-view="fitters"] .sidebar,body[data-current-view="fitters"] .main>.topbar { display:none !important; }
  body[data-current-view="fitters"] .app-shell { grid-template-columns:minmax(0,1fr) !important; min-width:0 !important; }
