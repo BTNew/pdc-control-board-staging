@@ -94,6 +94,10 @@ function createNavisionBackendService(options = {}) {
     const sourceSystem = String(metadata.sourceSystem || NAVISION_SOURCE_SYSTEM).trim().toLowerCase();
     const dealerCode = String(metadata.dealerCode || '').trim();
     if (sourceSystem !== NAVISION_SOURCE_SYSTEM) return { ok: false, error: 'invalid_source_system' };
+    if (dealerCode === 'combined') return call('preview_navision_combined_import', {
+      p_rows: rows, p_source_name: String(metadata.sourceName || 'navision.json').slice(0, 255),
+      p_source_timestamp: metadata.sourceTimestamp || null,
+    });
     if (!NAVISION_DEALER_CODES.includes(dealerCode)) return { ok: false, error: 'invalid_dealer_code' };
     return call('preview_navision_backend_import', {
       p_rows: rows,
@@ -109,6 +113,7 @@ function createNavisionBackendService(options = {}) {
     const sourceSystem = String(metadata.sourceSystem || NAVISION_SOURCE_SYSTEM).trim().toLowerCase();
     const dealerCode = String(metadata.dealerCode || '').trim();
     if (sourceSystem !== NAVISION_SOURCE_SYSTEM) return { ok: false, error: 'invalid_source_system' };
+    if (dealerCode === 'combined') return call('approve_navision_combined_initial_scopes', { p_rows: rows });
     if (!NAVISION_DEALER_CODES.includes(dealerCode)) return { ok: false, error: 'invalid_dealer_code' };
     return call('approve_navision_initial_scope', {
       p_rows: rows,
@@ -122,7 +127,7 @@ function createNavisionBackendService(options = {}) {
     const sourceSystem = String(options.sourceSystem || NAVISION_SOURCE_SYSTEM).trim().toLowerCase();
     const dealerCode = String(options.dealerCode || '').trim();
     if (sourceSystem !== NAVISION_SOURCE_SYSTEM) return { ok: false, error: 'invalid_source_system' };
-    if (!NAVISION_DEALER_CODES.includes(dealerCode)) return { ok: false, error: 'invalid_dealer_code' };
+    if (!NAVISION_DEALER_CODES.includes(dealerCode) && dealerCode !== 'combined') return { ok: false, error: 'invalid_dealer_code' };
     const previewData = previewResult?.data?.data || previewResult?.data;
     if (!previewData?.preview_hash || !previewData?.source_hash || !Number.isInteger(previewData?.base_revision)) {
       return { ok: false, error: 'valid_preview_required' };
@@ -130,11 +135,10 @@ function createNavisionBackendService(options = {}) {
     const blockingState = navisionPreviewBlockingState(previewData);
     if (blockingState.blocking) return { ok: false, error: 'preview_has_blocking_issues', data: blockingState };
     if (!options.idempotencyKey) return { ok: false, error: 'idempotency_key_required' };
-    return call('apply_navision_backend_import', {
+    return call(dealerCode === 'combined' ? 'apply_navision_combined_import' : 'apply_navision_backend_import', {
       p_idempotency_key: String(options.idempotencyKey),
       p_rows: rows,
-      p_source_system: sourceSystem,
-      p_dealer_code: dealerCode,
+      ...(dealerCode === 'combined' ? {} : { p_source_system: sourceSystem, p_dealer_code: dealerCode }),
       p_source_name: String(options.sourceName || 'navision.json').slice(0, 255),
       p_source_timestamp: options.sourceTimestamp || null,
       p_source_hash: previewData.source_hash,
@@ -239,4 +243,3 @@ if (typeof module !== 'undefined' && module.exports) {
 if (typeof window !== 'undefined') {
   window.PDC_NAVISION_BACKEND_SERVICE = { NAVISION_STAGING_PROJECT_REF, NAVISION_REVISION_TABLE, NAVISION_SOURCE_SYSTEM, NAVISION_DEALER_CODES, navisionPreviewBlockingState, createNavisionRpcClient, createNavisionBackendService };
 }
-

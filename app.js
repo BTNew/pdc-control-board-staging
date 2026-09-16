@@ -20331,7 +20331,7 @@ function updateNavisionImportButton() {
   const previewing = app.navisionPreviewInFlight === true;
   const busy = applying || previewing;
   if (button) {
-    button.disabled = busy || !raw || (sharedMode && (!roleAllowed || !['14450', '37047', '002345', '001234'].includes(dealerCode)));
+    button.disabled = busy || !raw || (sharedMode && (!roleAllowed || !['combined', '14450', '37047', '002345', '001234'].includes(dealerCode)));
     button.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
     button.classList.toggle('is-loading', previewing);
     button.setAttribute('aria-busy', previewing ? 'true' : 'false');
@@ -21743,6 +21743,7 @@ function navisionSafetyIssueMessage(reason = '') {
 }
 
 function navisionDealerName(dealerCode = '') {
+  if (dealerCode === 'combined') return '014450, 001234 and 002345';
   return String(dealerCode) === '14450' ? 'Pilbara Toyota' : String(dealerCode) === '37047' ? 'Broome Toyota' : `dealer ${dealerCode || 'not selected'}`;
 }
 
@@ -21757,6 +21758,7 @@ function navisionPreviewIssueMessage(reason = '') {
     duplicate_vin: 'This VIN appears in more than one source row.',
     duplicate_toyota_order: 'This Toyota Order appears in more than one source row.',
     wrong_dealer_scope: 'This row declares a different dealer from the selected dealer.',
+    missing_dealer_column: 'Combined uploads need a Dealer column for every row.',
     invalid_status_code: 'The explicit workflow status code is not supported by the shared import contract.',
     invalid_date: 'The explicit date is not a valid ISO or Australian date.',
     invalid_location_code: 'The explicit location code must be YH, PMB or RFT.',
@@ -21781,6 +21783,8 @@ function navisionClientPreflight(rows = [], dealerCode = '') {
     return code === '2345' ? '002345' : code === '1234' ? '001234' : code;
   };
   const normalizedDealer = canonicalDealer(dealerCode);
+  const combined = dealerCode === 'combined';
+  const combinedDealers = ['14450', '001234', '002345'];
   const sourceIds = new Map();
   const stocks = new Map();
   const vins = new Map();
@@ -21817,6 +21821,7 @@ function navisionClientPreflight(rows = [], dealerCode = '') {
     return date.getUTCFullYear() === Number(match[3]) && date.getUTCMonth() === Number(match[2]) - 1 && date.getUTCDate() === Number(match[1]);
   };
   sourceRows.forEach((row, index) => {
+    if (combined && !combinedDealers.includes(declaredDealerFor(row))) return;
     add(sourceIds, sourceIdFor(row), index);
     add(stocks, stockFor(row), index);
     add(vins, vinFor(row), index);
@@ -21828,6 +21833,7 @@ function navisionClientPreflight(rows = [], dealerCode = '') {
     const vin = vinFor(row);
     const order = orderFor(row);
     const declaredDealer = declaredDealerFor(row);
+    if (combined && declaredDealer && !combinedDealers.includes(declaredDealer)) return;
     const status = explicitValue(row, ['pdcStatus', 'pdc_status', 'workflowStatus', 'workflow_status', 'statusCode', 'status_code']);
     const location = explicitValue(row, ['pdcLocation', 'pdc_location', 'locationCode', 'location_code']);
     const date = explicitValue(row, ['pdcEtaDate', 'pdc_eta_date', 'locationDate', 'location_date']);
@@ -21836,7 +21842,8 @@ function navisionClientPreflight(rows = [], dealerCode = '') {
     let classification = 'conflict';
     if (!row || typeof row !== 'object' || Array.isArray(row)) { reason = 'row_not_object'; field = 'source_record_id'; classification = 'invalid'; }
     else if (!sourceRecordId) { reason = 'missing_source_record_id'; field = 'source_record_id'; classification = 'invalid'; }
-    else if (declaredDealer && declaredDealer !== normalizedDealer) { reason = 'wrong_dealer_scope'; field = 'dealer_code'; }
+    else if (combined && !declaredDealer) { reason = 'missing_dealer_column'; field = 'dealer_code'; classification = 'invalid'; }
+    else if (!combined && declaredDealer && declaredDealer !== normalizedDealer) { reason = 'wrong_dealer_scope'; field = 'dealer_code'; }
     else if ((sourceIds.get(sourceRecordId) || []).length > 1) { reason = 'duplicate_source_record_id'; field = 'source_record_id'; }
     else if (stock && (stocks.get(stock) || []).length > 1) { reason = 'duplicate_stock_number'; field = 'stock'; }
     else if (vin && (vins.get(vin) || []).length > 1) { reason = 'duplicate_vin'; field = 'vin'; }
@@ -21854,7 +21861,7 @@ function mergeNavisionPreflightData(data = {}, preflight = {}) {
   if (!issues.length) return data;
   const items = Array.isArray(data.items) ? data.items.map(item => ({ ...item })) : [];
   issues.forEach(issue => {
-    const index = Number(issue.row_index || 0) - 1;
+    const index = items.findIndex(item => Number(item.row_index) === Number(issue.row_index));
     if (index < 0 || index >= items.length) return;
     items[index] = { ...items[index], ...issue };
   });
@@ -21912,7 +21919,9 @@ async function loadSharedNavisionCurrentRows(service, dealerCode, expectedRevisi
 async function enrichSharedNavisionPreviewChanges(state = {}, service = null) {
   const data = state.previewData || {};
   if (!service || !Number.isInteger(data.base_revision)) return false;
-  const existingRows = await loadSharedNavisionCurrentRows(service, state.dealerCode, data.base_revision);
+  const scopes = state.dealerCode === 'combined' ? (data.dealer_groups || []).map(group => group.dealer_code) : [state.dealerCode];
+  const snapshots = await Promise.all(scopes.map(dealer => loadSharedNavisionCurrentRows(service, dealer, data.base_revision)));
+  const existingRows = snapshots.every(rows => Array.isArray(rows)) ? snapshots.flat() : null;
   if (!existingRows) return false;
   const byId = new Map(existingRows.map(row => [String(row.id || ''), row]));
   const items = Array.isArray(data.items) ? data.items : [];
@@ -21940,6 +21949,12 @@ function renderSharedNavisionChangeDetails(state = {}, data = {}) {
   }).join('')}</section>` : '';
   const issueHtml = issues.length ? `<section class="navision-human-detail navision-human-errors"><h4>Rows that need attention</h4><ul>${issues.map(item => `<li><strong>${escapeHtml(navisionPreviewItemLabel(item))}:</strong> ${escapeHtml(navisionPreviewIssueMessage(item.reason))}</li>`).join('')}</ul><p>Fix these rows in the source file, then preview it again. Nothing has been imported.</p></section>` : '';
   return `${changedHtml}${issueHtml}`;
+}
+
+function renderNavisionCombinedSummary(data = {}) {
+  if (!Array.isArray(data.dealer_groups)) return '';
+  const excluded = Array.isArray(data.excluded_rows) ? data.excluded_rows : [];
+  return `<section class="navision-human-detail"><h4>Combined dealer upload</h4><ul>${data.dealer_groups.map(group => `<li>Dealer ${escapeHtml(String(group.dealer_code).padStart(6, '0'))}: ${Number(group.counts?.total || 0)} vehicles</li>`).join('')}</ul>${excluded.length ? `<p>${excluded.length} row${excluded.length === 1 ? '' : 's'} excluded from this upload:</p><ul>${excluded.map(row => `<li>${escapeHtml(navisionPreviewItemLabel(row))} · dealer ${escapeHtml(row.dealer_code)} (outside the selected dealers)</li>`).join('')}</ul>` : ''}</section>`;
 }
 
 function renderSharedNavisionPreview(state = {}, applied = false) {
@@ -21970,6 +21985,7 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
     ? `<div class="navision-import-success" role="status" aria-live="polite"><span class="navision-import-success-tick" aria-hidden="true">✓</span><div><strong>Navision import complete</strong><span>Received ${total} car record${total === 1 ? '' : 's'} for ${escapeHtml(navisionDealerName(state.dealerCode))}.</span></div></div>`
     : `<div class="summary-row ${blocking ? 'error' : 'success'}"><strong>${blocking ? 'This file needs attention before it can be imported' : 'Navision file checked and ready'}</strong><span>Received ${total} car record${total === 1 ? '' : 's'} for ${escapeHtml(navisionDealerName(state.dealerCode))}. ${blocking ? 'Nothing was changed.' : 'This is a preview. Nothing has changed yet.'}</span></div>`;
   host.innerHTML = `${resultBanner}
+    ${renderNavisionCombinedSummary(data)}
     <div class="scot-summary-grid navision-human-summary">
       <div class="summary-stat"><span>${applied ? 'Added to Back End Data' : 'Would be added'}</span><strong>${added}</strong></div>
       <div class="summary-stat"><span>${applied ? 'Cars modified' : 'Would be modified'}</span><strong>${changed}</strong></div>
@@ -21999,8 +22015,8 @@ async function importNavisionVehicles() {
     return;
   }
   const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
-  if (!['14450', '37047', '002345', '001234'].includes(dealerCode)) {
-    window.alert('Select the dealer code for this upload: 14450, 37047, 002345 or 001234. No preview was created.');
+  if (!['combined', '14450', '37047', '002345', '001234'].includes(dealerCode)) {
+    window.alert('Select the combined upload or an individual dealer before previewing.');
     return;
   }
   const options = navisionImportOptionsFromDom();
@@ -22153,7 +22169,7 @@ async function applySharedNavisionImportPending(pending, authorityIdentity = '')
     return;
   }
   const totals = ['new', 'changed', 'unchanged', 'missing', 'invalid', 'conflict'].map(key => `${key} ${Number(counts[key] || 0)}`).join(', ');
-  if (!window.confirm(`Apply this exact shared Navision preview?\n\nDealer: ${pending.dealerCode}\n${totals}\n\nThis writes only to the shared Navision backend. Browser-local authority, workflow, location, Parts and workshop data will not change.`)) return;
+  if (!window.confirm(`Apply this exact shared Navision preview?\n\nDealer: ${navisionDealerName(pending.dealerCode)}\n${totals}\n\nThis writes only to the shared Navision backend. Browser-local authority, workflow, location, Parts and workshop data will not change.`)) return;
   service = navisionSharedBackendService();
   if (!service || !navisionSharedPendingStillCurrent(pending, authorityIdentity)) {
     window.alert('Import authority, service, or preview input changed before dispatch. Preview again; nothing was changed.');

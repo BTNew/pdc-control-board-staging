@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260916111044",
-    "name": "workshop_move_cascade_affected_chain",
-    "file": "supabase/migrations/20260916111044_workshop_move_cascade_affected_chain.sql",
-    "sha256": "401b25e04c72b1f2380b9c4eda561ad45f36b0ad261d4553d8dca4feaac018c5",
+    "version": "20260916120534",
+    "name": "navision_combined_stock_lookup_index",
+    "file": "supabase/migrations/20260916120534_navision_combined_stock_lookup_index.sql",
+    "sha256": "e9e213c0d4282178fe52f1669d52201548270dae05721d5ed859e5a4efc99137",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Reproduced unnecessary distant-booking vehicle overlap before repair. After repair,41 synthetic rollback assertions passed; only overlapping queue followers move until a gap absorbs delay. Real conflict protections, receipts and function permissions retained; no existing operational rows changed."
+    "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -322,6 +322,78 @@
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "29 candidate and29 installed rollback checks passed. Exact stock13021292 stale-clock request starts and shifts9 planned bookings in mandatory rollback. Only proven recent clock-only version changes may rebase; manual changes, concurrent scope edits and receipt identity remain protected."
+    },
+    {
+      "version": "20260916111044",
+      "name": "workshop_move_cascade_affected_chain",
+      "file": "supabase/migrations/20260916111044_workshop_move_cascade_affected_chain.sql",
+      "sha256": "401b25e04c72b1f2380b9c4eda561ad45f36b0ad261d4553d8dca4feaac018c5",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Reproduced unnecessary distant-booking vehicle overlap before repair. After repair,41 synthetic rollback assertions passed; only overlapping queue followers move until a gap absorbs delay. Real conflict protections, receipts and function permissions retained; no existing operational rows changed."
+    },
+    {
+      "version": "20260916113402",
+      "name": "navision_combined_dealer_upload",
+      "file": "supabase/migrations/20260916113402_navision_combined_dealer_upload.sql",
+      "sha256": "903391e9abfa7556ad0772178103c21ec829aadb978b6f38912f9f736ff9605d",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916113750",
+      "name": "navision_combined_preview_alias_fix",
+      "file": "supabase/migrations/20260916113750_navision_combined_preview_alias_fix.sql",
+      "sha256": "9ae9dceb30d2998bf24a02ecb8a3a82764a8d64f598c2bdc94bd710bc0a2fe3f",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916114226",
+      "name": "navision_combined_upload_timeouts",
+      "file": "supabase/migrations/20260916114226_navision_combined_upload_timeouts.sql",
+      "sha256": "23fdd87266090f9bc7707a54970f93615bf43a35b58dbce65e896198a8bf7257",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916115321",
+      "name": "navision_combined_upload_performance",
+      "file": "supabase/migrations/20260916115321_navision_combined_upload_performance.sql",
+      "sha256": "1759fdb1c2593a7952c5de00e257a8cbaf08ec2689b3df7eaa2c7999e347258f",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916115718",
+      "name": "navision_combined_existing_vehicle_links",
+      "file": "supabase/migrations/20260916115718_navision_combined_existing_vehicle_links.sql",
+      "sha256": "3d1e64b740a472169addaa17753d133df7c709cdaaa1c57cb61458c957952e22",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916115915",
+      "name": "navision_combined_link_revision_alias",
+      "file": "supabase/migrations/20260916115915_navision_combined_link_revision_alias.sql",
+      "sha256": "750539f96dd3863965a97773142fd1035d96af709f29525b88608d10988dd516",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916120314",
+      "name": "navision_combined_parity_check_performance",
+      "file": "supabase/migrations/20260916120314_navision_combined_parity_check_performance.sql",
+      "sha256": "faa6d6a5a5795735441002ed343ac470666fc88f299753ae8ac9cc6c6bf20498",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
     }
   ],
   "planner_capacity_migrations": [
@@ -385,5 +457,79 @@
     "commissioned": true,
     "review_status": "staging_applied",
     "source": "Reproduced unnecessary distant-booking vehicle overlap before repair. After repair,41 synthetic rollback assertions passed; only overlapping queue followers move until a gap absorbs delay. Real conflict protections, receipts and function permissions retained; no existing operational rows changed."
-  }
+  },
+  "navision_combined_upload_migrations": [
+    {
+      "version": "20260916113402",
+      "name": "navision_combined_dealer_upload",
+      "file": "supabase/migrations/20260916113402_navision_combined_dealer_upload.sql",
+      "sha256": "903391e9abfa7556ad0772178103c21ec829aadb978b6f38912f9f736ff9605d",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916113750",
+      "name": "navision_combined_preview_alias_fix",
+      "file": "supabase/migrations/20260916113750_navision_combined_preview_alias_fix.sql",
+      "sha256": "9ae9dceb30d2998bf24a02ecb8a3a82764a8d64f598c2bdc94bd710bc0a2fe3f",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916114226",
+      "name": "navision_combined_upload_timeouts",
+      "file": "supabase/migrations/20260916114226_navision_combined_upload_timeouts.sql",
+      "sha256": "23fdd87266090f9bc7707a54970f93615bf43a35b58dbce65e896198a8bf7257",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916115321",
+      "name": "navision_combined_upload_performance",
+      "file": "supabase/migrations/20260916115321_navision_combined_upload_performance.sql",
+      "sha256": "1759fdb1c2593a7952c5de00e257a8cbaf08ec2689b3df7eaa2c7999e347258f",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916115718",
+      "name": "navision_combined_existing_vehicle_links",
+      "file": "supabase/migrations/20260916115718_navision_combined_existing_vehicle_links.sql",
+      "sha256": "3d1e64b740a472169addaa17753d133df7c709cdaaa1c57cb61458c957952e22",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916115915",
+      "name": "navision_combined_link_revision_alias",
+      "file": "supabase/migrations/20260916115915_navision_combined_link_revision_alias.sql",
+      "sha256": "750539f96dd3863965a97773142fd1035d96af709f29525b88608d10988dd516",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916120314",
+      "name": "navision_combined_parity_check_performance",
+      "file": "supabase/migrations/20260916120314_navision_combined_parity_check_performance.sql",
+      "sha256": "faa6d6a5a5795735441002ed343ac470666fc88f299753ae8ac9cc6c6bf20498",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916120534",
+      "name": "navision_combined_stock_lookup_index",
+      "file": "supabase/migrations/20260916120534_navision_combined_stock_lookup_index.sql",
+      "sha256": "e9e213c0d4282178fe52f1669d52201548270dae05721d5ed859e5a4efc99137",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    }
+  ]
 }
