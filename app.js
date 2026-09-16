@@ -4468,6 +4468,7 @@ function teardownWorkshopPlannerScope(options) {
 function showView(view, options) {
   options = options || {};
   let requestedView = view || 'dashboard';
+  if (window.PDC_AUTH_CONTEXT?.role === 'fitter') requestedView = 'fitters';
   // Hidden navigation is not an authority boundary. Reject direct/hash/history
   // routing before changing state, history, active classes or menu expansion.
   if (requestedView === 'deleted' && !vehicleLifecycleAdministratorActive()) {
@@ -5226,6 +5227,15 @@ function initEmailVehicleLocationsIfAvailable(options = {}) {
 // the Workshop Planner view (or returns after a session refresh) gets the
 // data service without needing to navigate away and back.
 window.addEventListener?.('pdc-auth-ready', () => {
+  const fitterOnly = window.PDC_AUTH_CONTEXT?.role === 'fitter';
+  document.body.classList.toggle('fitter-only', fitterOnly);
+  if (fitterOnly) {
+    teardownWorkshopPlannerScope();
+    teardownWorkshopEligibilityOverview({ clearSnapshot: true });
+    closeVehicleModal();
+    showView('fitters', { historyMode: 'replace' });
+    return;
+  }
   // Auth-ready also represents live token/role changes. Existing planner
   // services must discard their prior authority generation before reuse;
   // init alone intentionally reuses the instance and is not sufficient.

@@ -99,3 +99,8 @@
 @media(max-width:400px) { .fitter-timer { grid-template-columns:10px minmax(0,1fr); } .fitter-timer output { grid-column:2; } }
 
 @media(max-width:500px){html.pdc-qc-phone .qc-phone-header{flex-wrap:wrap;}html.pdc-qc-phone .qc-phone-header-actions{flex-wrap:wrap;}}
+/* Fitter accounts have one destination. The server independently denies all
+   other operational endpoints; this also prevents stale/hash navigation flashes. */
+body.fitter-only .nav > :not([data-view="fitters"]),
+body.fitter-only .view:not(#fitters),
+body.fitter-only #hosting-security-warning { display: none !important; }
