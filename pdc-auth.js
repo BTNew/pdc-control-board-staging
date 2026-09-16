@@ -50,7 +50,7 @@
   function approvedRole(roleRow, userEmail = '') {
     const email = String(userEmail || '').trim().toLowerCase();
     const roleEmail = String(roleRow?.email || '').trim().toLowerCase();
-    const allowedRoles = new Set(['viewer', 'operator', 'importer', 'administrator']);
+    const allowedRoles = new Set(['viewer', 'operator', 'importer', 'administrator', 'fitter']);
     return Boolean(roleRow?.active && email && roleEmail === email && allowedRoles.has(String(roleRow?.role || '')));
   }
 

@@ -8,6 +8,16 @@ function fixture(fetch, options={}) {
   return {service:createService({context:()=>context,fetch,uuid:()=>`request-${++seq}`,timeoutMs:100,...options}),setContext:c=>{context={...context,...c};}};
 }
 const reply=body=>({ok:true,json:async()=>body});
+test('fitter-only account can record work through the fitter command endpoint',async()=>{
+  const calls=[]; const f=fixture(async(url,options)=>{calls.push({url,options});return reply({ok:true});});
+  f.setContext({role:'fitter'});
+  assert.equal(f.service.canWrite(),true);
+  await f.service.command({p_action:'line',p_technician_id:'mechanic-a',p_booking_id:'booking-a'});
+  assert.equal(calls.length,1);
+  assert.match(calls[0].url,/\/rpc\/fitter_job_command$/);
+  f.setContext({role:'viewer'});
+  assert.equal(f.service.canWrite(),false);
+});
 test('fitter RPC targets the existing authenticated staging project',async()=>{
   const calls=[];const {service}=fixture(async(url,options)=>{calls.push({url,options});return reply({ok:true,jobs:[]});});
   await service.jobs('mechanic-a');

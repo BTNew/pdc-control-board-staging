@@ -98,7 +98,7 @@
     const available = (c, write) => Boolean(c?.actor && c.token && c.config?.projectRef === PROJECT
       && c.config.url?.replace(/\/$/, '') === `https://${PROJECT}.supabase.co`
       && c.config.workshop?.sharedData === true
-      && (!write || ['operator','administrator'].includes(c.role)));
+      && (!write || ['operator','administrator','fitter'].includes(c.role)));
     function current(owner, write) {
       const c = options.context();
       return owner.generation === generation && owner.actor === c.actor && owner.token === c.token

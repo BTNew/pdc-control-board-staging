@@ -75,10 +75,10 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260916012807",
-    "name": "fitter_start_confirmation_and_work_timer",
-    "file": "supabase/migrations/20260916012807_fitter_start_confirmation_and_work_timer.sql",
-    "sha256": "07083a3fa824919df18234936c1ec99ad32bd2450e066acc72613e798aad3abb",
+    "version": "20260916014406",
+    "name": "fitter_only_access",
+    "file": "supabase/migrations/20260916014406_fitter_only_access.sql",
+    "sha256": "b1e78b11afadd3f083293c78359c8ef0b506cb2d08c2a2cfbad3a6eb864940c6",
     "commissioned": true,
     "review_status": "staging_applied"
   },
@@ -268,6 +268,14 @@
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "Historical running-job stoppage calendar repair. All14 rollback checks passed; read-only live validation now succeeds for all3 affected bookings. Existing booking state preserved."
+    },
+    {
+      "version": "20260916012807",
+      "name": "fitter_start_confirmation_and_work_timer",
+      "file": "supabase/migrations/20260916012807_fitter_start_confirmation_and_work_timer.sql",
+      "sha256": "07083a3fa824919df18234936c1ec99ad32bd2450e066acc72613e798aad3abb",
+      "commissioned": true,
+      "review_status": "staging_applied"
     }
   ],
   "planner_capacity_migrations": [
@@ -304,5 +312,23 @@
     "review_status": "staging_applied",
     "source": "One elapsed hour between the same vehicle's workshop bookings. 112 rollback checks plus 11 independent clock checks passed; scheduling permissions and overlap constraints retained. Existing bookings are not compacted by deployment.",
     "sha256": "3c5df28278663455ccb47c1f26c7a92e2163e490dbbda9ce35d9437b1787c043"
-  }
+  },
+  "fitter_only_access_migrations": [
+    {
+      "version": "20260916014351",
+      "name": "fitter_only_role",
+      "file": "supabase/migrations/20260916014351_fitter_only_role.sql",
+      "sha256": "faf29d950201da39f3cc4f7319a56e7b83a841920585358fb9a5a73cba26df40",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20260916014406",
+      "name": "fitter_only_access",
+      "file": "supabase/migrations/20260916014406_fitter_only_access.sql",
+      "sha256": "b1e78b11afadd3f083293c78359c8ef0b506cb2d08c2a2cfbad3a6eb864940c6",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    }
+  ]
 }
