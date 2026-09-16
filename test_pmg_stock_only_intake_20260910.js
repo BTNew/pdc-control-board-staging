@@ -3,11 +3,11 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const ui=require('./pdc-new-vehicles.js');
-test('Department 138 follows explicit station choices',()=>{
+test('Department 138 always uses Bus 4x4 while other departments follow explicit station choices',()=>{
   const row={operations:[{line_identity:'a',department:'138',stage_code:'ELECTRICAL',estimated_hours:0},{line_identity:'b',department:'139',stage_code:'TYRE',estimated_hours:1.5}]};
-  assert.deepEqual(ui.assignmentsFor(row,{a:'TINT',b:'FITTING'}),[{line_identity:'a',stage_code:'TINT'},{line_identity:'b',stage_code:'FITTING'}]);
-  const group=ui.stationGroups(row,{a:'TINT'}).find(x=>x.code==='TINT');
-  assert.equal(group.lines.length,1);assert.equal(group.hours,null,'zero-hour work still needs hours when moved to another workshop station');
+  assert.deepEqual(ui.assignmentsFor(row,{a:'TINT',b:'FITTING'}),[{line_identity:'a',stage_code:'BUS_4X4'},{line_identity:'b',stage_code:'FITTING'}]);
+  const group=ui.stationGroups(row,{a:'TINT'}).find(x=>x.code==='BUS_4X4');
+  assert.equal(group.lines.length,1);assert.equal(group.hours,null,'zero-hour Department 138 work still needs workshop hours');
 });
 test('unknown station stays available for review while known proposals remain selected',()=>{
   const row={operations:[{line_identity:'a',department:'139',stage_code:'REVIEW'},{line_identity:'b',department:'139',stage_code:'ELECTRICAL'}]};

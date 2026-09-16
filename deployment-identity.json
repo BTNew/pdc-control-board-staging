@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260916120534",
-    "name": "navision_combined_stock_lookup_index",
-    "file": "supabase/migrations/20260916120534_navision_combined_stock_lookup_index.sql",
-    "sha256": "e9e213c0d4282178fe52f1669d52201548270dae05721d5ed859e5a4efc99137",
+    "version": "20260916121430",
+    "name": "department138_bus_bays",
+    "file": "supabase/migrations/20260916121430_department138_bus_bays.sql",
+    "sha256": "fdf227d6d05365e573f57b28a8695ff4169260bba7c701c0776f9231929675d9",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    "source": "Department 138 always routes to Bus 4x4; 22 active unbooked vehicles corrected, 157 saved station adjustments audited, source hours/provenance and progress preserved. Canonical, board, review and write guards verified; mixed department 139 work retained."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -391,6 +391,15 @@
       "name": "navision_combined_parity_check_performance",
       "file": "supabase/migrations/20260916120314_navision_combined_parity_check_performance.sql",
       "sha256": "faa6d6a5a5795735441002ed343ac470666fc88f299753ae8ac9cc6c6bf20498",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    },
+    {
+      "version": "20260916120534",
+      "name": "navision_combined_stock_lookup_index",
+      "file": "supabase/migrations/20260916120534_navision_combined_stock_lookup_index.sql",
+      "sha256": "e9e213c0d4282178fe52f1669d52201548270dae05721d5ed859e5a4efc99137",
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."

@@ -62,6 +62,16 @@ test('real approval handler sends one exact request and refreshes planner after 
   assert.equal(f.state().saving,false);assert.equal(f.state().updateItems.length,0);assert.match(f.state().notice,/1 extended/);
   assert.deepEqual(f.refreshes,['locations','navision','tune_operation_change_approval']);
 });
+
+test('Department 138 approval handler sends Bus 4x4 and workshop hours despite an old station choice',async()=>{
+  const f=fixture();
+  vm.runInContext("updateItems[0].proposed.department='138';updateItems[0].current_work={stage_code:'FITTING',completed:false};updateDrafts.change1={stage:'SUBLET'};",f.context);
+  const approval=f.context.approveUpdate('change1');
+  assert.equal(f.calls[0].payload.p_stage_code,'BUS_4X4');
+  assert.equal(f.calls[0].payload.p_estimated_hours,2);
+  f.pending[0].resolve(receipt([],'BUS_4X4',2));await approval;
+  assert.equal(f.state().updateItems.length,0);
+});
 test('uncertain approval keeps the reviewed card and retries the exact idempotency key',async()=>{
   const f=fixture(),first=f.context.approveUpdate('change1');f.pending[0].reject(Error('offline'));await first;
   assert.equal(f.state().updateItems.length,1);assert.match(f.state().error,/could not be confirmed/);
