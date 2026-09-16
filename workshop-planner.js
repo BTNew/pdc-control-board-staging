@@ -646,6 +646,7 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     id: booking.booking_id,
     sharedBookingId: booking.booking_id,
     sharedVersion: booking.version,
+    fitterProgress: booking.fitter_progress || null,
     sharedVehicleId,
     sharedBayId: bay ? String(bay.id || bay.bay_id || booking.bay_id || '') : String(booking.bay_id || ''),
     // sharedVehicleId remains the only authority. The display key is resolved
@@ -3887,6 +3888,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
     </button>
     ${lifecycleActionsHtml}
+    ${window.PdcFitters?.progressHtml(entry.fitterProgress, true) || ''}
     ${entry.legacyAmbiguityReason ? '' : `<span class="workshop-plan-resize" data-workshop-resize-plan="${escapeHtml(entry.id)}" title="Drag to change duration"></span>`}
   </article>`;
 }

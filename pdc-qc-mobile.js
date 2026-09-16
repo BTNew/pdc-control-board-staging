@@ -354,7 +354,7 @@
     const selection = reasonFocused ? [focus.selectionStart, focus.selectionEnd] : null;
     if (reasonFocused && rejectionDrafts.has(key)) rejectionDrafts.get(key).reason = focus.value;
     host.innerHTML = `<div class="qc-phone-app">
-      <header class="qc-phone-header"><div>${selected ? '<button type="button" class="qc-phone-back" data-qc-back-to-list>← QC vehicles</button>' : '<h1>QC <span class="qc-phone-environment">Staging</span></h1>'}<p>${selected ? 'Vehicle inspection' : `${rows.length} vehicle${rows.length === 1 ? '' : 's'} awaiting QC`}</p></div><div class="qc-phone-header-actions"><button type="button" data-qc-phone-refresh ${refreshBusy || (key && (busy(key) || pending(key))) ? 'disabled' : ''}>${refreshBusy ? 'Refreshing…' : 'Refresh'}</button><button type="button" class="qc-phone-signout" data-qc-phone-signout>Sign out</button></div></header>
+      <header class="qc-phone-header"><div>${selected ? '<button type="button" class="qc-phone-back" data-qc-back-to-list>← QC vehicles</button>' : '<h1>QC <span class="qc-phone-environment">Staging</span></h1>'}<p>${selected ? 'Vehicle inspection' : `${rows.length} vehicle${rows.length === 1 ? '' : 's'} awaiting QC`}</p></div><div class="qc-phone-header-actions"><button type="button" data-qc-open-fitters>Fitters</button><button type="button" data-qc-phone-refresh ${refreshBusy || (key && (busy(key) || pending(key))) ? 'disabled' : ''}>${refreshBusy ? 'Refreshing…' : 'Refresh'}</button><button type="button" class="qc-phone-signout" data-qc-phone-signout>Sign out</button></div></header>
       ${qcPageNotice ? `<div class="qc-phone-notice" role="status" aria-live="polite">${e(qcPageNotice)}</div>` : ''}
       ${navigator.onLine === false ? '<div class="qc-phone-notice is-error" role="alert">Offline. Reconnect before saving QC or uploading photos.</div>' : ''}
       ${selected ? detail(selected) : `<section class="qc-phone-list" aria-label="Vehicles awaiting QC">${rows.length ? rows.map(vehicleCard).join('') : `<div class="qc-phone-empty"><h2>${app.emailVehicleLocationError ? 'QC list unavailable' : 'No vehicles awaiting QC'}</h2><p>${app.emailVehicleLocationError ? 'Check your connection and tap Refresh.' : 'Vehicles will appear here when ready for inspection.'}</p></div>`}</section>`}
@@ -362,6 +362,7 @@
     const bind = (selector, event, fn) => host.querySelectorAll(selector).forEach(node => node.addEventListener(event, fn));
     bind('[data-qc-open-vehicle]', 'click', event => { qcSelectedVehicleKey = event.currentTarget.dataset.qcOpenVehicle; qcPageNotice = ''; window.history.pushState({ pdcView: 'qc', qcMobileVehicle: qcSelectedVehicleKey }, '', '#/qc'); renderQualityControlPage(); window.scrollTo(0, 0); });
     bind('[data-qc-back-to-list]', 'click', () => { qcSelectedVehicleKey = ''; window.history.replaceState({ pdcView: 'qc' }, '', '#/qc'); renderQualityControlPage(); window.scrollTo(0, 0); });
+    bind('[data-qc-open-fitters]', 'click', () => showView('fitters'));
     bind('[data-qc-phone-refresh]', 'click', () => { void refresh(); });
     bind('[data-qc-phone-signout]', 'click', () => { document.querySelector('#pdc-auth-signout')?.click(); });
     bind('[data-qc-operation-check]', 'change', event => {
@@ -412,12 +413,16 @@
     panel.querySelector('[data-qc-confirm-reject]')?.addEventListener('click', () => { void rejectVehicle(key); });
   }
   renderQualityControlPage = function () { return mobile() ? renderPhone() : renderDesktop(); };
-  showView = function (view, options) { return desktopShowView(mobile() ? 'qc' : view, options); };
+  showView = function (view, options) {
+    const next = mobile() && view !== 'fitters' ? 'qc' : view;
+    document.documentElement.classList.toggle('pdc-qc-phone', mobile() && next !== 'fitters');
+    return desktopShowView(next, options);
+  };
   function updateMode() {
-    document.documentElement.classList.toggle('pdc-qc-phone', mobile());
+    document.documentElement.classList.toggle('pdc-qc-phone', mobile() && window.location.hash !== '#/fitters');
     if (mobile()) {
       const authFragment = window.location.hash && !window.location.hash.startsWith('#/');
-      showView('qc', { historyMode: authFragment ? 'none' : 'replace' });
+      showView(window.location.hash === '#/fitters' ? 'fitters' : 'qc', { historyMode: authFragment ? 'none' : 'replace' });
     } else if (app.currentView === 'qc') renderQualityControlPage();
   }
   media.addEventListener?.('change', updateMode);
