@@ -3549,6 +3549,7 @@ function setAdminNavigationExpanded(expanded) {
 }
 
 function syncAdminNavigationVisibility() {
+  syncUserManagementAccess();
   const group = $('#nav-admin-group');
   // The group also contains destinations historically available to approved
   // non-administrator staff. Every destination and write remains role/RLS
@@ -4177,13 +4178,39 @@ async function renderBackupStatusPanel() {
 // re-verifies the caller is an active administrator server-side. This
 // frontend code is a convenience UI, not the security boundary.
 // ---------------------------------------------------------------------
-const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null };
+const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null, generation: 0 };
+
+function userManagementAdministratorActive() {
+  return window.PDC_AUTH_CONTEXT?.role === 'administrator';
+}
+
+function resetUserManagementAuthorityState() {
+  USER_MANAGEMENT_STATE.generation += 1;
+  USER_MANAGEMENT_STATE.rows = [];
+  const channel = USER_MANAGEMENT_STATE.realtimeChannel;
+  USER_MANAGEMENT_STATE.realtimeChannel = null;
+  if (channel) {
+    try { window.PDC_SUPABASE?.removeChannel?.(channel); } catch (_error) { /* best-effort teardown */ }
+  }
+  document.getElementById('user-management-content')?.replaceChildren();
+}
+
+function syncUserManagementAccess() {
+  const allowed = userManagementAdministratorActive();
+  const navItem = document.getElementById('nav-user-management');
+  const view = document.getElementById('user-management');
+  if (navItem) navItem.hidden = !allowed;
+  if (view) view.hidden = !allowed;
+  if (!allowed) resetUserManagementAuthorityState();
+  return allowed;
+}
 
 function userManagementSharedModeReady() {
   return backupStatusSharedModeReady(); // same gating: shared mode + signed-in administrator
 }
 
 async function loadUserManagementRows() {
+  if (!userManagementSharedModeReady()) return [];
   const client = window.PDC_SUPABASE;
   const { data, error } = await client
     .from('pdc_user_roles')
@@ -4239,23 +4266,25 @@ function userManagementRowHtml(row) {
 }
 
 async function renderUserManagementScreen() {
-  const navItem = $('#nav-user-management');
+  if (!syncUserManagementAccess()) return;
   const host = $('#user-management-content');
   if (!host) return;
 
   if (!userManagementSharedModeReady()) {
-    if (navItem) navItem.hidden = false;
     host.innerHTML = '<div class="empty-state compact-empty"><strong>Administrator access required</strong></div>';
     return;
   }
-  if (navItem) navItem.hidden = false;
+  const generation = ++USER_MANAGEMENT_STATE.generation;
   host.innerHTML = '<div class="empty-state compact-empty"><strong>Loading…</strong></div>';
 
   subscribeUserManagementRealtime();
 
   try {
-    USER_MANAGEMENT_STATE.rows = await loadUserManagementRows();
+    const rows = await loadUserManagementRows();
+    if (generation !== USER_MANAGEMENT_STATE.generation || !userManagementSharedModeReady()) return;
+    USER_MANAGEMENT_STATE.rows = rows;
   } catch (error) {
+    if (generation !== USER_MANAGEMENT_STATE.generation || !userManagementSharedModeReady()) return;
     host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load users</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
     return;
   }
@@ -4277,6 +4306,7 @@ async function renderUserManagementScreen() {
 }
 
 function subscribeUserManagementRealtime() {
+  if (!userManagementSharedModeReady()) return;
   const client = window.PDC_SUPABASE;
   if (!client || typeof client.channel !== 'function') return;
   if (USER_MANAGEMENT_STATE.realtimeChannel) return; // already subscribed for this session
@@ -4297,6 +4327,7 @@ function subscribeUserManagementRealtime() {
 }
 
 async function userManagementCallRpc(rpcName, params, successMessage) {
+  if (!userManagementSharedModeReady()) return false;
   const client = window.PDC_SUPABASE;
   const { error } = await client.rpc(rpcName, params);
   if (error) {
@@ -4480,6 +4511,10 @@ function showView(view, options) {
   if (window.PDC_AUTH_CONTEXT?.role === 'fitter') requestedView = 'fitters';
   // Hidden navigation is not an authority boundary. Reject direct/hash/history
   // routing before changing state, history, active classes or menu expansion.
+  if (requestedView === 'user-management' && !userManagementAdministratorActive()) {
+    resetUserManagementAuthorityState();
+    requestedView = 'dashboard';
+  }
   if (requestedView === 'deleted' && !vehicleLifecycleAdministratorActive()) {
     resetDeletedVehicleAuthorityState();
     requestedView = 'dashboard';
@@ -5236,6 +5271,10 @@ function initEmailVehicleLocationsIfAvailable(options = {}) {
 // the Workshop Planner view (or returns after a session refresh) gets the
 // data service without needing to navigate away and back.
 window.addEventListener?.('pdc-auth-ready', () => {
+  const userManagementAllowed = syncUserManagementAccess();
+  if (!userManagementAllowed && (app.currentView === 'user-management' || app.currentRequestedView === 'user-management')) {
+    showView('dashboard', { historyMode: 'replace' });
+  }
   const fitterOnly = window.PDC_AUTH_CONTEXT?.role === 'fitter';
   document.body.classList.toggle('fitter-only', fitterOnly);
   if (fitterOnly) {
@@ -5261,8 +5300,6 @@ window.addEventListener?.('pdc-auth-ready', () => {
   if (!vehicleLifecycleAdministratorActive() && (app.currentView === 'deleted' || app.currentRequestedView === 'deleted')) {
     showView('dashboard', { historyMode: 'replace' });
   }
-  const navItem = document.getElementById('nav-user-management');
-  if (navItem) navItem.hidden = false;
   if (app.currentView === 'emailreview' && typeof renderAiBoardAdvisor === 'function') renderAiBoardAdvisor();
   resetPdcAuditorAuthorityState();
   if (app.currentView === 'ai-auditor') loadPdcAuditorSnapshot({ force: true });
@@ -5283,6 +5320,10 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // state so a disabled user's already-open tab cannot continue showing
 // (or silently re-deriving UI from) previously-loaded operational data.
 window.addEventListener?.('pdc-auth-locked', () => {
+  resetUserManagementAuthorityState();
+  const userManagementView = document.getElementById('user-management');
+  if (userManagementView) userManagementView.hidden = true;
+  if (app.currentView === 'user-management' || app.currentRequestedView === 'user-management') showView('dashboard', { historyMode: 'replace' });
   invalidateVehicleLocationsRefresh();
   resetEmailVehicleLocations();
   resetDeletedVehicleAuthorityState();

@@ -6,7 +6,7 @@ const source=fs.readFileSync('./app.js','utf8');
 test('fitter login routes directly to its section without starting broad data services',()=>{
  const calls=[];
  const handler=source.slice(source.indexOf("window.addEventListener?.('pdc-auth-ready', () => {"),source.indexOf('// Independent-review remediation, finding #5 / critical blocker #5:',source.indexOf("window.addEventListener?.('pdc-auth-ready', () => {")));
- const context={window:{PDC_AUTH_CONTEXT:{role:'fitter'},addEventListener:(_,fn)=>fn()},document:{body:{classList:{toggle:(...v)=>calls.push(v)}}},
+ const context={syncUserManagementAccess:()=>false,app:{currentView:'fitters'},window:{PDC_AUTH_CONTEXT:{role:'fitter'},addEventListener:(_,fn)=>fn()},document:{body:{classList:{toggle:(...v)=>calls.push(v)}}},
  teardownWorkshopPlannerScope:()=>calls.push('planner-stopped'),teardownWorkshopEligibilityOverview:()=>calls.push('overview-stopped'),closeVehicleModal:()=>calls.push('modal-closed'),showView:(...v)=>calls.push(v)};
  vm.runInNewContext(handler,context);
  assert.equal(calls.at(-1)[0],'fitters');
