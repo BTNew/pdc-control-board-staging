@@ -913,51 +913,6 @@
           </section>
         </div>
 
-        <div class="import-layout autocare-layout">
-          <section class="panel import-card" id="autocare-scan-card">
-            <div class="panel-header compact">
-              <div>
-                <h2>Autocare Despatch Upload</h2>
-                <p>Scans Autocare ePOD despatch notices. A matched vehicle becomes active at PMB and lands in Unallocated; an existing PMB bucket is retained, and RFT or Completed vehicles are never moved backwards.</p>
-              </div>
-            </div>
-            <label class="drop-zone autocare-drop-zone" for="autocare-upload">
-              <input id="autocare-upload" type="file" accept="application/pdf,.pdf" multiple />
-              <span class="drop-icon autocare-icon">DN</span>
-              <strong>Drop or select Autocare notice PDFs</strong>
-              <span>Matches by VIN first, then Batch / Stock / Toyota batch where available.</span>
-            </label>
-            <div class="scan-card">
-              <div class="scan-line autocare-files"><span>Files selected</span><strong>0 files</strong></div>
-              <div class="scan-line autocare-detected"><span>Vehicles detected</span><strong>0 detected</strong></div>
-              <div class="scan-line autocare-matched"><span>Matched / PMB arrival</span><strong>0 matched</strong></div>
-              <button class="primary full" id="scan-autocare" type="button" disabled>Scan Autocare notice</button>
-            </div>
-          </section>
-
-          <section class="panel review-panel">
-            <div class="panel-header">
-              <div>
-                <h2>Autocare despatch results</h2>
-                <p>Vehicles found on the notice but not in the CRM are listed here for review.</p>
-              </div>
-              <div class="panel-actions">
-                <button class="small-button" id="autocare-zpl-all" type="button" disabled>Print labels from notice</button>
-                <button class="small-button" id="autocare-zpl-unmatched" type="button" disabled>Print not-in-system</button>
-                <button class="small-button" id="autocare-clear" type="button" disabled>Clear results</button>
-              </div>
-            </div>
-            <div class="autocare-paste-panel">
-              <label class="zpl-field">
-                <span>Optional paste area</span>
-                <textarea id="autocare-paste" rows="5" spellcheck="false" placeholder="If browser PDF text extraction is unavailable, paste Autocare notice text here and scan again."></textarea>
-              </label>
-            </div>
-            <div class="autocare-status-list" id="autocare-status-list">
-              <div class="empty-state compact-empty"><strong>No Autocare notice scanned</strong><span>Upload a despatch notice to update matched vehicles and see any VINs/batches not in the system.</span></div>
-            </div>
-          </section>
-        </div>
 
       </section>
     </main>
