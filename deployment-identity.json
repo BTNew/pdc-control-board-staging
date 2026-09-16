@@ -75,13 +75,13 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260916065517",
-    "name": "workshop_start_clock_version_rebase",
-    "file": "supabase/migrations/20260916065517_workshop_start_clock_version_rebase.sql",
-    "sha256": "13298e980e2852b30b57f0eca35f4e30e431ce9e2907e168c55affd9f41331f2",
+    "version": "20260916074828",
+    "name": "workshop_start_safeupdate_initialization",
+    "file": "supabase/migrations/20260916074828_workshop_start_safeupdate_initialization.sql",
+    "sha256": "86ffbe6407d5f20ea7699cdb9469fe05714cb0feaee585b6d77e8688f707e27f",
     "commissioned": true,
     "review_status": "staging_applied",
-    "source": "29 candidate and29 installed rollback checks passed. Exact stock13021292 stale-clock request starts and shifts9 planned bookings in mandatory rollback. Only proven recent clock-only version changes may rebase; manual changes, concurrent scope edits and receipt identity remain protected."
+    "source": "Real PostgREST HTTP reproduced SQLSTATE21000 before repair with safeupdate enforced. After repair,33 fitter/planner workflow assertions passed through the same connection; all operational fixtures rolled back and temporary test account/RPC removed. Fitter Start, weighted item progress, notes, stoppage, replay, resume and completion verified. No database safeguards or role grants changed."
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -313,6 +313,15 @@
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "20 installed rollback assertions passed;146 active bookings match all7 station snapshots. Read-only timing fields and approved-viewer revision endpoint; table RLS unchanged."
+    },
+    {
+      "version": "20260916065517",
+      "name": "workshop_start_clock_version_rebase",
+      "file": "supabase/migrations/20260916065517_workshop_start_clock_version_rebase.sql",
+      "sha256": "13298e980e2852b30b57f0eca35f4e30e431ce9e2907e168c55affd9f41331f2",
+      "commissioned": true,
+      "review_status": "staging_applied",
+      "source": "29 candidate and29 installed rollback checks passed. Exact stock13021292 stale-clock request starts and shifts9 planned bookings in mandatory rollback. Only proven recent clock-only version changes may rebase; manual changes, concurrent scope edits and receipt identity remain protected."
     }
   ],
   "planner_capacity_migrations": [
