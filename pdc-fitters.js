@@ -4,6 +4,13 @@
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const errors = {
+    conversion_sections_required:'Complete and confirm each conversion section before finishing the parent job.',
+    conversion_model_review:'The model or conversion scope needs controller review.',
+    conversion_deferred:'Clear or finish deferred work and blockers before confirming this section complete.',
+    conversion_checklist_required:'The controller must confirm the applicable manufacturer completion checklist and its scope before Section 12 can be completed.',
+    conversion_controller_required:'A controller must confirm the manufacturer checklist.',
+    conversion_reopen_section:'Reopen Section 12 before changing its checklist reference.',
+    conversion_invalid:'Check the section details and enter non-negative hours.',
     version_conflict:'This job changed on another screen. Refresh, review the latest items and try again.',
     scope_changed:'The operation list or hours changed. Refresh and review the updated items.',
     assignment_changed:'This job is no longer assigned to this mechanic. Refresh the job list.',
@@ -266,13 +273,14 @@
     return `<strong>${esc(job.stock || 'Stock not recorded')}</strong><span>${esc(job.customer || 'Customer not recorded')} · ${esc(job.vehicle || 'Vehicle details pending')}</span><small>${esc(job.stage_name)} · Bay ${esc(job.bay_number ?? '—')} · ${esc(time(job.start_at))}</small>`;
   }
   function nextJobHtml(flow, locked, editable) {
-    const unsaved=[...drafts.keys()].some(k=>k.startsWith(selected+':'));
+    const unsaved=[...drafts.keys()].some(k=>k.startsWith(selected+':')) || root.PdcConversions?.hasDrafts();
     const ready=detail?.progress?.can_complete && !unsaved;
     const completeLabel=(saving||loading)&&pendingAction==='complete'?'Completing job…':flow.otherActive.length?'Complete & return to active work':flow.next?'Complete & open next job':'Complete bay job';
     const help=unsaved?'Save your notes before completing this bay.':detail?.status==='stoppage'?'Resume this job before completing the bay.':ready?'All items are done. Complete this bay to continue.':'Tick off every item in this bay before completing the job.';
     return `<footer class="fitter-finish" aria-label="Finish current job and continue"><div class="fitter-finish-action"><div><h3>Finish this bay</h3><p>${esc(help)}</p></div><button type="button" class="fitter-primary" data-fitter-action="complete" ${locked||!editable||!ready?'disabled':''}>${completeLabel}</button></div><div class="fitter-next" aria-label="Next job preview"><span class="fitter-kicker">Next job</span>${flow.next?`${jobPreview(flow.next)}<p>${flow.otherActive.length?'Available after your active jobs are completed.':'Opens automatically after the current job is completed.'} You choose when to start it.</p>`:'<p>No further jobs assigned at the moment.</p>'}</div>${flow.upcoming.length?`<details class="fitter-upcoming"><summary>Later jobs (${flow.upcoming.length})</summary>${flow.upcoming.map(j=>`<div class="fitter-later-job">${jobPreview(j)}</div>`).join('')}</details>`:''}</footer>`;
   }
   function lineCard(line, index, editable) {
+    if(line.conversion) return root.PdcConversions.html(line,{editable:editable&&!saving&&!loading&&!service.retryPending,controller:['operator','administrator'].includes(root.PDC_AUTH_CONTEXT?.role),booking:selected});
     const draft = drafts.get(`${selected}:${line.line_identity}`), note = draft?.note ?? line.note;
     const disabled = !editable || saving || loading || service.retryPending;
     return `<article class="fitter-line${line.completed ? ' is-done' : ''}"><label class="fitter-line-check"><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" ${line.completed ? 'checked' : ''} ${disabled ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
@@ -368,14 +376,14 @@
       }
     } }
   }
-  async function act(action, lineId, completed, retry=false) {
+  async function act(action, lineId, completed, retry=false, conversionChange=null) {
     if (saving || loading || (!retry && (!connected || !detail))) return;
     const line=detail?.lines.find(l=>l.line_identity===lineId), key=`${selected}:${lineId}`, draft=drafts.get(key);
     if (draft && draft.scope!==line?.scope_hash) { message='This item changed while you were writing. Review it and copy your note before refreshing.'; render(); return; }
     if (action==='stop' && stopReason.trim().length<3) { message='Enter a short reason for the stoppage.'; render(); return; }
     const body={p_technician_id:mechanic,p_booking_id:selected,p_expected_version:detail?.version,
       p_catalog_hash:detail?.catalog_hash,p_action:action,p_line_identity:lineId||null,
-      p_completed:completed??null,p_note:action==='stop'?`${stopType}: ${stopReason.trim()}`:line?(draft?.note??line.note??''):null};
+      p_completed:completed??null,p_note:conversionChange?JSON.stringify(conversionChange):action==='stop'?`${stopType}: ${stopReason.trim()}`:line?(draft?.note??line.note??''):null};
     if (!retry) pendingDraftKey = lineId ? key : '';
     // Do not make a fitter's tap disappear merely because polling is running.
     // The command still carries the displayed version and scope to the server.
@@ -391,6 +399,7 @@
           action:result.action,revision:result.revision,
         }}));
       }
+      if (result.action==='conversion') root.PdcConversions.confirmSave();
       if (lineId) drafts.delete(key);
       if (retry && pendingDraftKey) drafts.delete(pendingDraftKey);
       pendingDraftKey = '';
@@ -409,6 +418,7 @@
     }
   }
   function bind(target) {
+    root.PdcConversions?.bind(target,(lineId,change)=>act('conversion',lineId,null,false,change));
     const on=(selector,event,fn)=>target.querySelectorAll(selector).forEach(n=>n.addEventListener(event,fn));
     on('#fitter-mechanic','change',e=>{ mechanic=e.target.value; selected=''; detail=null; handover=null; scrollToCurrent=false; stopOpen=false; stopReason=''; message=''; void refresh(); });
     on('[data-fitter-refresh]','click',()=>{ message=''; void refresh({forceRoster:true}); });
@@ -427,7 +437,7 @@
   }
   api.open = () => { render(); if(!initialized) {initialized=true;void refresh();} };
   api.close = () => { freezeTimer(); loadGeneration++; service.invalidateReads(); loading=false; refreshing=false; initialized=false; connected=false; };
-  const reset=()=>{service.invalidate();api.close();roster=[];mechanic='';jobs=[];bays=[];selected='';detail=null;handover=null;scrollToCurrent=false;detailReceivedAt=0;timerFreeze=null;pendingAction='';stopOpen=false;stopReason='';drafts.clear();message='';render();};
+  const reset=()=>{service.invalidate();api.close();roster=[];mechanic='';jobs=[];bays=[];selected='';detail=null;handover=null;scrollToCurrent=false;detailReceivedAt=0;timerFreeze=null;pendingAction='';stopOpen=false;stopReason='';drafts.clear();root.PdcConversions?.reset();message='';render();};
   root.addEventListener('pdc-auth-locked',reset);
   root.addEventListener('pdc-auth-ready',()=>{if(active())api.open();});
   root.addEventListener('offline',()=>{freezeTimer();loadGeneration++;loading=false;refreshing=false;connected=false;message='Offline. Saved work is shown; reconnect before changing this job.';render();});
@@ -436,6 +446,7 @@
   doc.addEventListener('visibilitychange',()=>{if(!doc.hidden&&active()&&!targetBeingEdited())void refresh({background:true});});
   setInterval(()=>{if(active()&&!doc.hidden&&!targetBeingEdited())void refresh({background:true});},10000);
   setInterval(updateTimer,1000);
-  function targetBeingEdited() { return host()?.contains(doc.activeElement) && /TEXTAREA|SELECT/.test(doc.activeElement.tagName); }
-  root.addEventListener('beforeunload',e=>{if(saving||drafts.size||service.retryPending){e.preventDefault();e.returnValue='';}});
+  function targetBeingEdited() { return root.PdcConversions?.hasDrafts() || (host()?.contains(doc.activeElement) && /INPUT|TEXTAREA|SELECT/.test(doc.activeElement.tagName)); }
+  root.addEventListener('beforeunload',e=>{if(saving||drafts.size||root.PdcConversions?.hasDrafts()||service.retryPending){e.preventDefault();e.returnValue='';}});
 })(typeof window !== 'undefined' ? window : globalThis);
+
