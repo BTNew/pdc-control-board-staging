@@ -66,7 +66,16 @@ function createNavisionRpcClient(config, fetchImpl) {
     try { body = await response.json(); } catch { body = null; }
     return { ok: response.ok, status: response.status, body };
   }
-  return { projectRef, rpc };
+  async function visibleRevision(accessToken, options = {}) {
+    if (!accessToken) return { ok: false, status: 401, body: null };
+    const response = await fetchFn(`${url}/rest/v1/${NAVISION_REVISION_TABLE}?select=revision&singleton=eq.true&limit=1`, {
+      cache: 'no-store', signal: options.signal,
+      headers: { apikey: publishableKey, Authorization: `Bearer ${accessToken}` },
+    });
+    const body = await response.json().catch(() => null);
+    return { ok: response.ok, status: response.status, body };
+  }
+  return { projectRef, rpc, visibleRevision };
 }
 
 function createNavisionBackendService(options = {}) {
@@ -189,6 +198,29 @@ function createNavisionBackendService(options = {}) {
     const page = scopedPageParams(scope, cursor, limit, expectedRevision);
     return page.ok ? call('export_navision_backend_records', page.params) : Promise.resolve(page);
   };
+  async function visibleRevision() {
+    const token = getAccessToken();
+    if (!token || typeof client.visibleRevision !== 'function') return { ok: false, error: 'revision_unavailable' };
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const scheduleTimeout = options.scheduleTimeout || setTimeout;
+    const clearScheduledTimeout = options.clearScheduledTimeout || clearTimeout;
+    const timeoutMs = Number.isFinite(options.revisionTimeoutMs) && options.revisionTimeoutMs > 0 ? options.revisionTimeoutMs : 5000;
+    let timeout;
+    try {
+      const response = await Promise.race([
+        client.visibleRevision(token, { signal: controller?.signal }),
+        new Promise((_, reject) => { timeout = scheduleTimeout(() => {
+          controller?.abort(); reject(new Error('navision_revision_timeout'));
+        }, timeoutMs); }),
+      ]);
+      if (token !== getAccessToken()) return { ok: false, error: 'not_authenticated' };
+      const value = response.body?.[0]?.revision;
+      const revision = Number(value);
+      return response.ok && value != null && Number.isSafeInteger(revision) && revision >= 0
+        ? { ok: true, revision } : { ok: false, error: 'revision_unavailable' };
+    } catch (_error) { return { ok: false, error: token === getAccessToken() ? 'revision_unavailable' : 'not_authenticated' }; }
+    finally { clearScheduledTimeout(timeout); }
+  }
   const reconciliation = (batchId, offset = 0, limit = 250) => call('get_navision_reconciliation_report', {
     p_batch_id: batchId,
     p_after_row_index: Math.max(0, Number(offset) || 0),
@@ -228,6 +260,7 @@ function createNavisionBackendService(options = {}) {
     apply,
     snapshot,
     visibleSnapshot,
+    visibleRevision,
     exportRecords,
     reconciliation,
     rollback,

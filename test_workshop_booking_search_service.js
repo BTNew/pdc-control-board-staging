@@ -13,7 +13,13 @@ function setup(respond, options = {}) {
   const calls = [];
   const service = createWorkshopDataService({ config: { workshop: { sharedData: true } }, getAccessToken: () => token,
     getRole: () => options.role || 'operator', client: { rpc: async (auth, name, params) => {
-      calls.push({ auth, name, params }); return respond(name, params);
+      calls.push({ auth, name, params });
+      const result = await respond(name, params);
+      // Existing single-vehicle cases exercise the new metadata transport.
+      if (name === 'get_workshop_booking_search_scoped' && result?.ok && result.body?.ok !== false) {
+        return { ...result, body: { ok: true, results: [{ ...result.body, dealer_code: params.p_vehicles[0].dealer_code }] } };
+      }
+      return result;
     } } });
   return { service, calls, setToken: value => { token = value; } };
 }
@@ -23,7 +29,7 @@ test('lookup uses canonical dealer-scoped read without changing the station snap
   assert.equal(result.ok, true); assert.equal(result.vehicleId, vehicleId);
   assert.equal(result.bookings[0].booking_id, bookingId);
   assert.equal(result.bookings[0].unexpected_detail, undefined); assert.equal(result.line_adjustments, undefined);
-  assert.deepEqual(calls, [{ auth: 'session-one', name: 'get_vehicle_workshop_detail_scoped', params: { p_vehicle_id: vehicleId, p_dealer_code: 'PMG' } }]);
+  assert.deepEqual(calls, [{ auth: 'session-one', name: 'get_workshop_booking_search_scoped', params: { p_vehicles: [{ vehicle_id: vehicleId, dealer_code: 'PMG' }] } }]);
   assert.equal(service.getLastSnapshot(), null); assert.equal(service.getTrustedSnapshot(), null);
 });
 test('authoritative empty bookings can identify an unbooked vehicle', async () => {
@@ -102,7 +108,7 @@ test('authority loss and destroy discard late reads', async () => {
   }
 });
 test('navigation scope changes discard a late lookup', async () => {
-  let release; const { service } = setup(name => name === 'get_vehicle_workshop_detail_scoped'
+  let release; const { service } = setup(name => name === 'get_workshop_booking_search_scoped'
     ? new Promise(resolve => { release = resolve; }) : Promise.resolve({ ok: true, body: { revision: 1, bookings: [] } }));
   const pending = service.lookupVehicleBookings(vehicleId, 'PMG');
   await service.setScope({ stageCode: 'FITTING', dateFrom: '2026-09-16', dateTo: '2026-09-16' });
