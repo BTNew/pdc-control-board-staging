@@ -9,10 +9,12 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const validStation = code => STATIONS.some(([station]) => station === code);
   const department138 = line => String(line?.department ?? '').trim() === '138';
-  const assignedStation = (line, choices = {}) => department138(line) ? 'BUS_4X4'
+  const department138Station = line => /\bTINT(?:ING|S)?\b/i.test(String(line?.description ?? line?.operation_description ?? ''))
+    && !/BONNET[ -]*PROTECT|WEATHER[ -]*(?:SHIELD|SHEILD)/i.test(String(line?.description ?? line?.operation_description ?? '')) ? 'TINT' : 'BUS_4X4';
+  const assignedStation = (line, choices = {}) => department138(line) ? department138Station(line)
     : choices[line.line_identity] ?? (validStation(line.stage_code) ? line.stage_code : '');
   const updateDepartment138 = row => department138({department:row.proposed?.department ?? row.current_work?.department ?? row.department});
-  const updateStation = (row, draft = {}) => updateDepartment138(row) ? 'BUS_4X4'
+  const updateStation = (row, draft = {}) => updateDepartment138(row) ? department138Station(row.proposed ?? row.current_work ?? row)
     : draft.stage ?? row.current_work?.stage_code ?? row.proposed?.proposed_station;
   function reviewChoices(row) {
     return Object.fromEntries(assignmentsFor(row).map(line => [line.line_identity, line.stage_code]));
@@ -186,7 +188,7 @@
     <section><h4>Latest Tune line</h4><p>${esc(row.proposed?.operation_description)}</p><small>${esc(row.proposed?.source_estimated_hours??'Not supplied')} source hours</small></section></div>
     ${row.current_work?`<p>Current workshop plan: ${esc(row.current_work.stage_code)} · ${esc(row.current_work.estimated_hours)} hours${row.current_work.completed?' · Completed':''}</p>`:''}
     <p><small>Imported ${esc(new Date(row.received_at).toLocaleString('en-AU',{timeZone:'Australia/Perth'}))} (Perth)</small></p>
-    <div class="nv-update-controls"><label>Workshop <select data-update-stage ${busy||!canApprove||locked?'disabled':''}>${locked?'':'<option value="">Choose station</option>'}${STATIONS.filter(([code])=>!locked||code==='BUS_4X4').map(([code,label])=>`<option value="${code}" ${code===stage?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138 jobs use Bus 4×4 bays.</small>':''}</label>
+    <div class="nv-update-controls"><label>Workshop <select data-update-stage ${busy||!canApprove||locked?'disabled':''}>${locked?'':'<option value="">Choose station</option>'}${STATIONS.filter(([code])=>!locked||code===stage).map(([code,label])=>`<option value="${code}" ${code===stage?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138: window tint uses Tint; other work uses Bus 4×4.</small>':''}</label>
     <label>Approved hours <input data-update-hours type="number" min="0.01" max="999.99" step="0.01" value="${esc(hours??'')}" ${busy||!canApprove||stage==='SUBLET'?'disabled':''}></label>
     <button type="button" class="primary" data-approve-update ${issues.length||!canApprove||busy?'disabled':''}>${busy?'Saving…':'Approve change & update bookings'}</button></div>
     <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Approval updates the station’s estimated hours and adjusts affected bay bookings. Later jobs move back when needed, with a 1-hour gap between each vehicle’s jobs. Sublet has no workshop bay.</small></article>`;
@@ -249,7 +251,7 @@
     if(state.phase==='checking')return `Checking all queued vehicles${state.total?` · ${state.checked} of ${state.total}`:'…'}`;
     return `Adding ready vehicles · ${state.approved} of ${state.ready} approved${state.failed?` · ${state.failed} need attention`:''}. ${state.needsReview} left for review.`;
   }
-  const api={department138,assignedStation,updateDepartment138,updateStation,approveReadyQueue,bulkProgressText,quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
+  const api={department138Station,department138,assignedStation,updateDepartment138,updateStation,approveReadyQueue,bulkProgressText,quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   if(typeof window==='undefined' || window.PDC_SUPABASE_CONFIG?.projectRef!==PROJECT
       || typeof showView!=='function' || window.PDC_NEW_VEHICLES_VERSION) return;
@@ -416,12 +418,12 @@
     const theme=assigned&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(assigned):null;
     const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
     return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''} ${operationHoursPresentation(line,hourDrafts,assigned).label.startsWith('AI estimate')?'nv-hours-ai':''}" draggable="${!disabled&&!locked}" data-nv-line="${esc(line.line_identity)}"${style}>
-      <small class="nv-line-meta" title="${locked?'Dept 138 jobs use Bus 4×4 bays':'Drag to a station'} · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">${locked?'':'⠿'}</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
+      <small class="nv-line-meta" title="${locked?'Dept 138: window tint uses Tint; other work uses Bus 4×4':'Drag to a station'} · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">${locked?'':'⠿'}</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
       <strong>${esc(line.description)}</strong>
       <div class="nv-operation-controls">
       ${sublet?'':`<label class="nv-hours-label">Hours<input type="number" min="0.01" max="999.99" step="0.01" inputmode="decimal" aria-label="Hours for ${esc(line.description)}" aria-invalid="${missing}" data-nv-hours="${esc(line.line_identity)}" value="${esc(value??'')}" placeholder="—" ${standard?'readonly':''} ${disabled?'disabled':''}></label>`}
       ${operationHoursHtml(line,hourDrafts,assigned)}
-      <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled||locked?'disabled':''}>${locked?'':'<option value="">Needs Review</option>'}${STATIONS.filter(([code])=>!locked||code==='BUS_4X4').map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138 jobs use Bus 4×4 bays.</small>':''}</label></div></article>`;
+      <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled||locked?'disabled':''}>${locked?'':'<option value="">Needs Review</option>'}${STATIONS.filter(([code])=>!locked||code===assigned).map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138: window tint uses Tint; other work uses Bus 4×4.</small>':''}</label></div></article>`;
   }
   function stationSection(group) {
     const theme=group.code&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(group.code):null;
