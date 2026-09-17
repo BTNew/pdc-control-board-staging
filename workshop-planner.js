@@ -3084,6 +3084,9 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
     stockNumber: vehicle.stock_number || '',
     vin: vehicle.vin || '',
     jobCardNumber: vehicle.job_card_number || '',
+    jobCardNumbers: Array.isArray(vehicle.job_card_numbers) ? vehicle.job_card_numbers.filter(value => typeof value === 'string') : [],
+    keyNumber: vehicle.key_number || '',
+    vehicle: vehicle.vehicle_description || vehicle.model || '',
     client: vehicle.customer_name || '',
     customerName: vehicle.customer_name || '',
     customer: vehicle.customer_name || '',
@@ -3247,14 +3250,19 @@ function workshopEtaRiskLabel(risk = null) {
   return `ETA RISK · earliest ${risk.earliestDateKey || 'unknown'}`;
 }
 
+function workshopSearchJobCards(vehicle = {}) {
+  return [...new Set([vehicleJobcardNumber(vehicle), ...(Array.isArray(vehicle.jobCardNumbers) ? vehicle.jobCardNumbers : []), ...(Array.isArray(vehicle.job_card_numbers) ? vehicle.job_card_numbers : [])]
+    .filter(value => typeof value === 'string' && value.trim()).map(value => value.trim()))];
+}
+
 function workshopVehicleSearchText(vehicle = {}) {
-  return [vehicleKey(vehicle), displayStockNumber(vehicle), vehicle.keyNumber, vehicleKeyNumber(vehicle), vehicle.pdcJobcard, vehicleJobcardNumber(vehicle), vehicleCustomerName(vehicle), vehicle.vehicle, vehicle.toyotaVehicle, displayVehicle(vehicle)]
+  return [vehicleKey(vehicle), displayStockNumber(vehicle), vehicle.keyNumber, vehicleKeyNumber(vehicle), vehicle.pdcJobcard, ...workshopSearchJobCards(vehicle), vehicleCustomerName(vehicle), vehicle.vehicle, vehicle.toyotaVehicle, displayVehicle(vehicle)]
     .filter(Boolean).join(' ').toLowerCase();
 }
 
 function workshopSearchRank(vehicle = {}, query = '') {
   const clean = cleanNavisionText(query || '').toLowerCase();
-  const exactFields = [vehicleKey(vehicle), displayStockNumber(vehicle), vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle)]
+  const exactFields = [vehicleKey(vehicle), displayStockNumber(vehicle), vehicleKeyNumber(vehicle), ...workshopSearchJobCards(vehicle)]
     .map(value => cleanNavisionText(value || '').toLowerCase());
   if (exactFields.includes(clean)) return 0;
   const customer = cleanNavisionText(vehicleCustomerName(vehicle) || '').toLowerCase();
