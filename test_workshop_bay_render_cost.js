@@ -17,6 +17,7 @@ function fixture(text = source) {
   ];
   const ctx = {
     WORKSHOP_PLANNER_CONFIG: { dayLengthMinutes: 630 },
+    WORKSHOP_PENDING_BAY_ASSIGNMENTS: new Set(),
     workshopStageBayCount: () => 13,
     workshopEntrySegmentForDate: (entry) => { counts.segment++; return entry.visible ? { start: entry.minute || 0, end: (entry.minute || 0) + 60, continuesNext: !!entry.continuesNext } : null; },
     workshopLoadAdminBlocks: () => { counts.blocks++; return blocks; },
@@ -97,6 +98,19 @@ test('standalone chip rendering still resolves its own date segment', () => {
   assert(ctx.workshopPlanChipHtml(rows()[0], '2026-09-17', []).includes('data-workshop-plan-id="later"'));
   assert.equal(counts.segment, 1);
   assert.equal(ctx.workshopPlanChipHtml({ ...rows()[0], visible: false }, '2026-09-18', []), '');
+});
+
+test('pending assignment disables only its own selector and normal markup is restored on completion', () => {
+  const { ctx } = fixture();
+  const before = ctx.workshopBayRowsHtml('FITTING', '2026-09-17', rows());
+  ctx.WORKSHOP_PENDING_BAY_ASSIGNMENTS.add('FITTING:2');
+  const pending = ctx.workshopBayRowsHtml('FITTING', '2026-09-17', rows());
+  const selector = pending.match(/<select[^>]*data-workshop-bay-mechanic-number="2"[^>]*>/)?.[0];
+  assert.match(selector, / disabled aria-busy="true"/);
+  assert.equal((pending.match(/ disabled aria-busy="true"/g) || []).length, 1);
+  assert.equal(pending.replace(' disabled aria-busy="true"', ''), before);
+  ctx.WORKSHOP_PENDING_BAY_ASSIGNMENTS.clear();
+  assert.equal(ctx.workshopBayRowsHtml('FITTING', '2026-09-17', rows()), before);
 });
 
 module.exports = { fixture, rows };

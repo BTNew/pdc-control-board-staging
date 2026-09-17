@@ -105,11 +105,12 @@ function createWorkshopReferenceSupabaseClient(config, fetchImpl) {
     };
   }
 
-  async function rpc(accessToken, name, params) {
+  async function rpc(accessToken, name, params, options = {}) {
     const res = await fetchFn(`${url}/rest/v1/rpc/${name}`, {
       method: 'POST',
       headers: headers(accessToken),
-      body: JSON.stringify(params || {})
+      body: JSON.stringify(params || {}),
+      ...(options.signal ? { signal: options.signal } : {})
     });
     let body = null;
     try {
@@ -159,6 +160,12 @@ function createWorkshopReferenceDataService(options) {
   // fixes. Only the response matching the most recently STARTED request
   // for a resource is ever allowed to write the cache.
   const loadGeneration = {};
+  let authorityGeneration = 0;
+  const pendingBayAssignments = new Map();
+  const scheduleTimeout = options.scheduleTimeout || ((fn, ms) => setTimeout(fn, ms));
+  const clearScheduledTimeout = options.clearScheduledTimeout || clearTimeout;
+  const bayAssignmentTimeoutMs = Number.isFinite(options.bayAssignmentTimeoutMs) && options.bayAssignmentTimeoutMs > 0
+    ? options.bayAssignmentTimeoutMs : 15000;
 
   function setState(resourceKey, state, error) {
     cache[resourceKey] = cache[resourceKey] || { rows: [], state: WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTING, error: null };
@@ -319,6 +326,145 @@ function createWorkshopReferenceDataService(options) {
     return cache[resourceKey] || { rows: [], state: WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTING, error: null };
   }
 
+  async function setBayDefaultTechnician(bayId, expectedVersion, technicianId, context = {}) {
+    const resourceKey = 'workshopBays';
+    const id = String(bayId || '').trim();
+    const intended = technicianId == null || technicianId === '' ? null : String(technicianId).trim();
+    if (!id || (technicianId != null && technicianId !== '' && !intended)) return { ok: false, error: 'invalid_assignment' };
+    if (!client) return { ok: false, error: 'no_client' };
+    const token = getAccessToken();
+    if (!token) return { ok: false, error: 'not_authenticated' };
+    if (pendingBayAssignments.has(id)) return { ok: false, error: 'assignment_in_progress' };
+    const cached = getCached(resourceKey).rows.find(row => row && String(row.id) === id);
+    const observedKnown = Object.prototype.hasOwnProperty.call(context, 'observedTechnicianId')
+      || Boolean(cached && Object.prototype.hasOwnProperty.call(cached, 'default_technician_id'));
+    const observed = Object.prototype.hasOwnProperty.call(context, 'observedTechnicianId')
+      ? context.observedTechnicianId : cached?.default_technician_id;
+    const originalDefault = observed == null || observed === '' ? null : String(observed);
+    const owner = { generation: authorityGeneration, token };
+    pendingBayAssignments.set(id, owner);
+    const current = () => {
+      if (owner.generation !== authorityGeneration || owner.token !== getAccessToken()
+          || pendingBayAssignments.get(id) !== owner) return false;
+      try { return typeof context.isCurrent !== 'function' || context.isCurrent(); } catch (_error) { return false; }
+    };
+    const lost = () => ({ ok: false, error: 'authority_superseded' });
+    const call = async (name, params) => {
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      let timeout;
+      try {
+        return await Promise.race([
+          client.rpc(token, name, params, { signal: controller?.signal }),
+          new Promise((_resolve, reject) => {
+            timeout = scheduleTimeout(() => { controller?.abort(); reject(new Error('request_timeout')); }, bayAssignmentTimeoutMs);
+          }),
+        ]);
+      } finally { clearScheduledTimeout(timeout); }
+    };
+    const freshBay = async (markEditable = false) => {
+      if (!current()) return lost();
+      // Supersede older cache reads but never use a retained cache as the
+      // version source for a write. Each attempt requires this fresh response.
+      const generation = loadGeneration[resourceKey] = (loadGeneration[resourceKey] || 0) + 1;
+      const wasEditable = getCached(resourceKey).state === WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTED_EDITABLE;
+      let result;
+      try { result = await call('list_workshop_bays', { p_include_inactive: true }); }
+      catch (error) {
+        if (!current()) return lost();
+        const failure = { ok: false, error: error?.message === 'request_timeout' ? 'request_timeout' : 'request_failed' };
+        if (generation === loadGeneration[resourceKey]) commitResourceState(resourceKey, [], WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, failure);
+        return failure;
+      }
+      if (!current()) return lost();
+      if (!result?.ok || !Array.isArray(result.body)) {
+        const permission = [401,403].includes(result?.status) || result?.body?.code === '42501';
+        const failure = { ok: false, error: permission ? 'permission_denied' : rpcFailureCode(result?.body, 'bay_refresh_failed'), detail: result?.body };
+        if (generation === loadGeneration[resourceKey]) commitResourceState(resourceKey, [], permission
+          ? WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED : WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, failure);
+        return failure;
+      }
+      const matches = result.body.filter(row => row && String(row.id) === id);
+      const row = matches.length === 1 ? matches[0] : null;
+      const version = row?.version;
+      const valid = row && Number.isSafeInteger(version) && version >= 0
+        && Object.prototype.hasOwnProperty.call(row, 'default_technician_id')
+        && (row.default_technician_id === null || typeof row.default_technician_id === 'string');
+      if (!valid) {
+        const failure = { ok: false, error: 'bay_refresh_failed' };
+        if (generation === loadGeneration[resourceKey]) commitResourceState(resourceKey, [], WORKSHOP_REFERENCE_CONNECTION_STATE.OFFLINE_ERROR, failure);
+        return failure;
+      }
+      if (generation === loadGeneration[resourceKey]) commitResourceState(resourceKey, result.body,
+        markEditable || wasEditable ? WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTED_EDITABLE : WORKSHOP_REFERENCE_CONNECTION_STATE.CONNECTED_READ_ONLY, null);
+      return current() ? { ok: true, row } : lost();
+    };
+    const same = row => (row.default_technician_id || null) === intended;
+    const merged = row => ({ ok: true, alreadyApplied: true, bay_id: id, technician_id: intended, version: row.version });
+    try {
+      let fresh = await freshBay();
+      if (!fresh.ok) return fresh;
+      if (same(fresh.row)) return merged(fresh.row);
+      // A reset to Unassigned is deliberately safe to reassign. A newly
+      // selected different person is not: retain the concurrent user's choice.
+      if (observedKnown && fresh.row.default_technician_id != null
+          && fresh.row.default_technician_id !== originalDefault) return { ok: false, error: 'bay_assignment_changed' };
+      if (!observedKnown && fresh.row.default_technician_id != null && fresh.row.version !== expectedVersion) {
+        return { ok: false, error: 'bay_assignment_changed' };
+      }
+      for (let attempt = 0; attempt < 2; attempt++) {
+        if (!current()) return lost();
+        const attemptDefault = fresh.row.default_technician_id || null;
+        let result;
+        try {
+          result = await call('set_bay_default_technician', {
+            p_bay_id: id, p_expected_version: fresh.row.version, p_technician_id: intended,
+          });
+        } catch (error) {
+          if (!current()) return lost();
+          // The response can be lost after a committed write. Reconcile, but
+          // never automatically replay an uncertain mutation.
+          const readback = await freshBay();
+          if (!current()) return lost();
+          if (readback.ok && same(readback.row)) return merged(readback.row);
+          return { ok: false, error: error?.message === 'request_timeout' ? 'request_timeout' : 'request_failed', outcomeUnknown: true };
+        }
+        if (!current()) return lost();
+        const body = result?.body;
+        if (result?.ok && body?.ok === true) {
+          const readback = await freshBay(true);
+          if (!current()) return lost();
+          if (!readback.ok || !same(readback.row)) return { ...body, ok: true, refreshRequired: true,
+            reconciliation: readback.ok ? 'changed_after_save' : 'pending' };
+          return current() ? { ...body, ok: true } : lost();
+        }
+        const permission = [401,403].includes(result?.status) || body?.code === '42501';
+        const error = permission ? 'permission_denied' : rpcFailureCode(body, 'request_failed');
+        if (permission) {
+          commitResourceState(resourceKey, [], WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, body);
+          return { ok: false, error, detail: body };
+        }
+        const readback = await freshBay();
+        if (!current()) return lost();
+        const outcomeUnknown = body?.ok !== false && ((result?.ok && body?.ok !== true)
+          || (!result?.ok && (result?.status >= 500 || result?.status === 408)));
+        if (outcomeUnknown && readback.ok && same(readback.row)) return merged(readback.row);
+        const definitiveConflict = body?.ok === false && error === 'version_conflict';
+        if (definitiveConflict && readback.ok) {
+          if (same(readback.row)) return merged(readback.row);
+          if (readback.row.default_technician_id != null && readback.row.default_technician_id !== attemptDefault) {
+            return { ok: false, error: 'bay_assignment_changed' };
+          }
+          if (attempt === 0) { fresh = readback; continue; }
+        }
+        return { ok: false, error, detail: body,
+          ...(outcomeUnknown ? { outcomeUnknown: true } : {}) };
+      }
+      return { ok: false, error: 'version_conflict' };
+    } finally {
+      if (pendingBayAssignments.get(id) === owner) pendingBayAssignments.delete(id);
+    }
+  }
+
   function subscribeToResource(resourceKey) {
     const resource = WORKSHOP_REFERENCE_RESOURCES[resourceKey];
     if (!resource || !subscribeRealtime) return { unsubscribe: () => {} };
@@ -362,6 +508,9 @@ function createWorkshopReferenceDataService(options) {
   }
 
   function unsubscribeAll() {
+    authorityGeneration += 1;
+    pendingBayAssignments.clear();
+    Object.keys(loadGeneration).forEach(key => { loadGeneration[key] += 1; });
     Object.keys(realtimeSubscriptions).forEach((key) => {
       try { realtimeSubscriptions[key].unsubscribe(); } catch (_err) { /* ignore */ }
       delete realtimeSubscriptions[key];
@@ -501,8 +650,7 @@ function createWorkshopReferenceDataService(options) {
     getCachedWorkshopBays: () => getCached('workshopBays'),
     setWorkshopBayActive: (bayId, expectedVersion, active) =>
       mutate('workshopBays', 'set_workshop_bay_active', { p_bay_id: bayId, p_expected_version: expectedVersion, p_active: !!active }),
-    setBayDefaultTechnician: (bayId, expectedVersion, technicianId) =>
-      mutate('workshopBays', 'set_bay_default_technician', { p_bay_id: bayId, p_expected_version: expectedVersion, p_technician_id: technicianId || null }),
+    setBayDefaultTechnician,
     subscribeWorkshopBays: () => subscribeToResource('workshopBays'),
 
     // Workshop configuration (not a "resource" in the same list/add/edit
