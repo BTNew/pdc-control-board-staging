@@ -3517,7 +3517,7 @@ function loadVehicleLifecycleSharedActionsIfConfigured() {
         initVehicleLifecycleSharedActionsIfEnabled();
         return;
       }
-      loadExternalScript(`workshop-data-service.js?speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+      loadExternalScript(`workshop-data-service.js?planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
         .then(() => initVehicleLifecycleSharedActionsIfEnabled())
         .catch(() => { /* fail closed: configured shared lifecycle actions report service_unavailable */ });
     })
@@ -5424,11 +5424,11 @@ function renderWorkshopPlannerWhenReady() {
   // unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is explicitly set
   // to true; the planner UI/runtime is not modified by this load and
   // continues to operate exactly as before.
-  loadExternalScript(`workshop-data-service.js?speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5473,11 +5473,11 @@ function ensureDashboardWorkshopProjectionReady() {
   }
   if (window.__dashboardWorkshopProjectionLoading) return false;
   window.__dashboardWorkshopProjectionLoading = true;
-  loadExternalScript(`workshop-data-service.js?speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -18383,8 +18383,14 @@ function operationalRefreshCommonLoaders(route) {
       const stage = normalizePmbStage(app.activeWorkshopPlannerStage || workshop.stage || '');
       const date = cleanNavisionText(workshop.date || '').match(/^\d{4}-\d{2}-\d{2}$/)?.[0] || new Date().toISOString().slice(0, 10);
       if (!stage) return { ok: true, skipped: true };
-      await service.setScope({ stageCode: stage, dateFrom: date, dateTo: date });
-      const snapshot = await service.loadSnapshot(`operational_refresh:${route}`);
+      const nextScope = { stageCode: stage, dateFrom: date, dateTo: date };
+      const scopeChanged = typeof service.getScope === 'function'
+        && JSON.stringify(service.getScope()) !== JSON.stringify(nextScope);
+      const scopedSnapshot = await service.setScope(nextScope);
+      // A scope change already issues and awaits its authoritative read.
+      // Keep explicit same-scope refreshes fresh without downloading the new
+      // date/station twice when navigation and Refresh overlap.
+      const snapshot = scopeChanged ? scopedSnapshot : await service.loadSnapshot(`operational_refresh:${route}`);
       const state = typeof service.getState === 'function' ? service.getState() : '';
       const trusted = typeof service.getTrustedSnapshot === 'function' ? service.getTrustedSnapshot() : snapshot;
       return { ok: Boolean(trusted) && ['connected_editable', 'connected_read_only'].includes(state), snapshot, revision: service.getLastRevision?.() };

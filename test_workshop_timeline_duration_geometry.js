@@ -21,7 +21,8 @@ assert.match(planner, /const width = \(\(segment\.end - segment\.start\) \/ WORK
 assert.equal((120 / 600) * 100, 20, 'a 120-minute booking occupies exactly 20% of a 10-hour board');
 assert.match(planner, /class="workshop-timeline" style="\$\{workshopTimelineCssVariables\(\)\}"/);
 assert.match(planner, /class="workshop-plan-time"/);
-assert.match(planner, /workshopEntryTimeLabel\(entry\).*workshopDurationInputValue\(entry\.hours\).* h/);
+assert.match(planner, /const timeLabel = workshopEntryTimeLabel\(entry\)/);
+assert.match(planner, /timeLabel.*workshopDurationInputValue\(entry\.hours\).* h/);
 assert.match(css, /var\(--workshop-half-hour-width/);
 assert.match(css, /var\(--workshop-hour-width/);
 const dailyTimelineCss = css.slice(css.indexOf('.workshop-time-axis'), css.indexOf('.workshop-drop-preview'));
