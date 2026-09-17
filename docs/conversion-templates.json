@@ -1,0 +1,292 @@
+{
+  "coaster": {
+    "id": "coaster",
+    "model": "Toyota Coaster",
+    "version": "2026-09-17.1",
+    "sections": [
+      {
+        "id": "PA",
+        "label": "Pre-assembly A",
+        "description": "Transfer case and crossmember preparation",
+        "planned_minutes": 120,
+        "preassembly": true,
+        "provisional": false
+      },
+      {
+        "id": "PB",
+        "label": "Pre-assembly B",
+        "description": "Front differential and K-frame preparation",
+        "planned_minutes": 210,
+        "preassembly": true,
+        "provisional": false
+      },
+      {
+        "id": "PC",
+        "label": "Pre-assembly C",
+        "description": "Both front hubs and brake rotors",
+        "planned_minutes": 120,
+        "preassembly": true,
+        "provisional": false
+      },
+      {
+        "id": "1",
+        "label": "Section 1",
+        "description": "Vehicle preparation, hoisting, wheels and driveshaft removal",
+        "planned_minutes": 120,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "2",
+        "label": "Section 2",
+        "description": "Rear lift: dismantling, springs, axle modification and reassembly",
+        "planned_minutes": 480,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "3",
+        "label": "Section 3",
+        "description": "Transfer case and crossmember installation",
+        "planned_minutes": 180,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "4",
+        "label": "Section 4",
+        "description": "Gearbox crossmember replacement",
+        "planned_minutes": 90,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "5",
+        "label": "Section 5",
+        "description": "Front dismantling and front/rear K-frame installation",
+        "planned_minutes": 450,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "6",
+        "label": "Section 6",
+        "description": "Driveshaft installation and supports",
+        "planned_minutes": 150,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "7",
+        "label": "Section 7",
+        "description": "Front suspension, steering, CV shafts, hubs and brakes",
+        "planned_minutes": 705,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "8",
+        "label": "Section 8",
+        "description": "Front sway bar and bash guard",
+        "planned_minutes": 120,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "9",
+        "label": "Section 9",
+        "description": "Driver, passenger and emergency exit steps",
+        "planned_minutes": 240,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "10",
+        "label": "Section 10",
+        "description": "Mudflaps and brackets",
+        "planned_minutes": 120,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "11",
+        "label": "Section 11",
+        "description": "Electrical harnesses, modules, controls and speed ratio box",
+        "planned_minutes": 480,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "12",
+        "label": "Section 12",
+        "description": "Completion checks and sign-off \u2014 provisional allowance",
+        "planned_minutes": 180,
+        "preassembly": false,
+        "provisional": true
+      }
+    ],
+    "preassembly_minutes": 450,
+    "installation_minutes": 3315,
+    "total_minutes": 3765,
+    "main_technicians": 1,
+    "status": "workshop_planning_allowance",
+    "review_after_comparable_builds": 3,
+    "note": "Owner-supplied main-technician planning allowance; Section 12 scope remains provisional.",
+    "manual_reference": {
+      "title": "Bus 4x4 - Service Manager_Coaster Bus4x4 Complete Build Installation Instruction Manual.pdf",
+      "sha256": "e7d7b5e53d431f87ad9ccc436fee2b66e48f1452f769a05cc1f0fb2a5fd0152a",
+      "pages": 8,
+      "revision": "Not stated in supplied PDF",
+      "completion_checklist": "Not included: Section 12 is listed on page 2, but the document ends after Section 11."
+    }
+  },
+  "hiace_commuter": {
+    "id": "hiace_commuter",
+    "model": "Toyota HiAce Commuter",
+    "version": "2026-09-17.1",
+    "sections": [
+      {
+        "id": "PA",
+        "label": "Pre-assembly A",
+        "description": "Adaptor housing preparation",
+        "planned_minutes": 60,
+        "preassembly": true,
+        "provisional": false
+      },
+      {
+        "id": "PB",
+        "label": "Pre-assembly B",
+        "description": "Transfer case preparation",
+        "planned_minutes": 30,
+        "preassembly": true,
+        "provisional": false
+      },
+      {
+        "id": "PC",
+        "label": "Pre-assembly C",
+        "description": "Both front hubs and stub-axle assemblies",
+        "planned_minutes": 120,
+        "preassembly": true,
+        "provisional": false
+      },
+      {
+        "id": "PD",
+        "label": "Pre-assembly D",
+        "description": "Differential mounting to K-frame",
+        "planned_minutes": 90,
+        "preassembly": true,
+        "provisional": false
+      },
+      {
+        "id": "1",
+        "label": "Section 1",
+        "description": "Vehicle preparation: hoist, steering restraint, battery, engine brace, wheels, guards and driveshaft removal",
+        "planned_minutes": 120,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "2",
+        "label": "Section 2",
+        "description": "Rear lift: axle relocation, welding, differential change and reassembly",
+        "planned_minutes": 360,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "3",
+        "label": "Section 3",
+        "description": "Extension housing installation and associated modifications",
+        "planned_minutes": 120,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "4",
+        "label": "Section 4",
+        "description": "Transfer case and crossmember installation",
+        "planned_minutes": 120,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "5",
+        "label": "Section 5",
+        "description": "Dismantle and prepare front end",
+        "planned_minutes": 180,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "6",
+        "label": "Section 6",
+        "description": "Steering and K-frame installation",
+        "planned_minutes": 180,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "7",
+        "label": "Section 7",
+        "description": "Front suspension, CV shafts, hubs, brakes and ABS assembly",
+        "planned_minutes": 240,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "8",
+        "label": "Section 8",
+        "description": "Driveshaft installation, supports and selector reconnection",
+        "planned_minutes": 90,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "9",
+        "label": "Section 9",
+        "description": "Breather installation",
+        "planned_minutes": 30,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "10",
+        "label": "Section 10",
+        "description": "Splash guards, mudflaps and wheel-arch flares",
+        "planned_minutes": 120,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "11",
+        "label": "Section 11",
+        "description": "Electrical harness installation and rear-light relocation",
+        "planned_minutes": 240,
+        "preassembly": false,
+        "provisional": false
+      },
+      {
+        "id": "12",
+        "label": "Section 12",
+        "description": "Completion checks and sign-off \u2014 provisional allowance",
+        "planned_minutes": 180,
+        "preassembly": false,
+        "provisional": true
+      }
+    ],
+    "preassembly_minutes": 300,
+    "installation_minutes": 1980,
+    "total_minutes": 2280,
+    "main_technicians": 1,
+    "status": "workshop_planning_allowance",
+    "review_after_comparable_builds": 3,
+    "note": "Draft 33-hour installation allocation pending workshop validation. The supplied BUS 4X4 HiAce manual, page 2, expects under 32 hours excluding pre-assembly; crew size and individual stage times are unspecified.",
+    "manual_reference": {
+      "title": "Bus 4x4 - Service Manager HiAce Commuter Bus4x4 Installation Manual.pdf",
+      "sha256": "ed5fa25f054c05a365f0fae597fd0828a5e70834d9c3dd670ac94e9e8b79172e",
+      "pages": 8,
+      "revision": "Not stated in supplied PDF",
+      "completion_checklist": "Not included: Section 12 is listed on page 2, but the document ends after Section 11."
+    }
+  }
+}

@@ -113,3 +113,7 @@
 body.fitter-only .nav > :not([data-view="fitters"]),
 body.fitter-only .view:not(#fitters),
 body.fitter-only #hosting-security-warning { display: none !important; }
+
+/* Conversion parent and section checklists */
+.conversion h4{margin:0 0 8px;font-size:1.1rem}.conversion-section{border:1px solid #ccd5df;border-radius:8px;margin:8px 0;padding:12px}.conversion-section.is-done{border-color:#23834b;background:#f1faf4}.conversion summary{cursor:pointer;display:flex;justify-content:space-between;gap:12px}.conversion summary span{flex:1}.conversion-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.conversion-form{display:grid;gap:10px;margin:12px 0}.conversion-form label{display:grid;gap:5px}.conversion-form input,.conversion-form select,.conversion-form textarea{font:inherit;max-width:100%;padding:8px;border:1px solid #aab7c5;border-radius:5px;box-sizing:border-box}.conversion-form input[type=checkbox]{width:auto}.conversion-form button{justify-self:start;padding:10px 16px}.conversion-planning{margin-top:16px}.conversion-form small{color:#526375}.conversion-section summary b{white-space:nowrap}
+
