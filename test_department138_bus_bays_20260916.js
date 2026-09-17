@@ -38,7 +38,7 @@ test('Department 138 review tile offers only Bus 4x4, allows hours and cannot dr
   assert.match(html,/data-nv-stage="[^"]+"[^>]*disabled/);
   assert.match(html,/<option value="BUS_4X4" selected>/);
   assert.doesNotMatch(html,/<option value="(?:FITTING|SUBLET|TINT)"/);
-  assert.match(html,/Dept 138 jobs use Bus 4×4 bays/);
+  assert.match(html,/Dept 138: window tint uses Tint; other work uses Bus 4×4/);
   assert.match(html,/data-nv-hours="[^"]+" value="2.25"/);
 });
 
@@ -114,4 +114,38 @@ test('other departments still move normally on a Department 138 vehicle',async()
   const context=detailRuntime('139');context.vehicle.department='138';
   assert.equal(await context.moveVehicleWorkshopSourceLineStage({dataset:{lineKey}},'ELECTRICAL'),true);
   assert.equal(context.requests[0].p_stage_code,'ELECTRICAL');
+});
+
+test('Department 138 window tint stays in Tint through review and approval without changing source hours',()=>{
+  for (const description of ['WINDOW TINT','M1 WINDOW TINT','DARKEST LEGAL WINDOW TINT','Window tinting']) {
+    const tint={...line,description,stage_code:'BUS_4X4',estimated_hours:1.5};
+    const row={vehicle_id:'v1',status:'pending',operations:[tint]};
+    const choices={[lineKey]:'BUS_4X4'};
+    assert.equal(api.assignedStation(tint,choices),'TINT');
+    const assignment=api.assignmentsFor(row,choices,{})[0];
+    assert.equal(assignment.stage_code,'TINT');
+    assert.equal(assignment.estimated_hours,1.5);
+    assert.equal(api.stationGroups(row,choices).find(group=>group.code==='TINT').hours,1.5);
+    assert.equal(tint.stage_code,'BUS_4X4');
+    const context={...api,choices,hourDrafts:{},saving:false,sourceChanged:false,writable:()=>true};
+    vm.createContext(context);
+    vm.runInContext(intake.slice(intake.indexOf('  function operation(line)'),intake.indexOf('  function stationSection(group)')),context);
+    const html=context.operation(tint);
+    assert.match(html,/<option value="TINT" selected>/);
+    assert.doesNotMatch(html,/<option value="BUS_4X4"/);
+    assert.equal(api.verifyApproval({ok:true,data:{vehicle_id:'v1',visible_on_board:true,bookings_created:0,operations:[{...tint,stage_code:'TINT'}]}},row,choices),true);
+  }
+});
+
+test('tinted protectors remain Bus 4x4 while changed window tint uses Tint',()=>{
+  for (const description of ['TINTED WEATHER SHIELDS','TINTED BONNET PROTECTOR','Accessory']) {
+    assert.equal(api.assignedStation({...line,description}),'BUS_4X4');
+  }
+  const row={change_id:'c1',status:'pending',already_on_board:true,effective_hours:1.75,
+    proposed:{department:'138',description:'WINDOW TINT',proposed_station:'BUS_4X4'},
+    current_work:{stage_code:'BUS_4X4',completed:false}};
+  assert.equal(api.updateStation(row,{stage:'BUS_4X4'}),'TINT');
+  const html=api.operationUpdateHtml(row,{stage:'BUS_4X4'});
+  assert.match(html,/<option value="TINT" selected>/);
+  assert.doesNotMatch(html,/<option value="BUS_4X4"/);
 });
