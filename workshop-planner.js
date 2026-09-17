@@ -3982,10 +3982,10 @@ function workshopPlanLifecycleActionsHtml(entry = {}) {
   return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-start-plan="${escapeHtml(planId)}" aria-label="${pending ? 'Starting job' : 'Start job'}" ${pending ? 'disabled aria-busy="true"' : ''}>${pending ? 'Starting…' : 'Start job'}</button></div>`;
 }
 
-function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans()) {
+function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans(), visibleSegment = null) {
   const vehicle = workshopVehicle(entry.vehicleKey);
   if (!vehicle) return '';
-  const segment = workshopEntrySegmentForDate(entry, dateKey);
+  const segment = visibleSegment || workshopEntrySegmentForDate(entry, dateKey);
   if (!segment) return '';
   const left = (segment.start / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
   const width = ((segment.end - segment.start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
@@ -4006,14 +4006,15 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const lifecycleActionsHtml = workshopPlanLifecycleActionsHtml(entry);
   const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', etaRisk ? 'is-eta-risk' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', lifecycleActionsHtml ? 'has-lifecycle-actions' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
   const conflictNote = assigneeConflict ? ` · WARNING: ${entry.assignee} is booked on another vehicle at this time` : '';
-  return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
+  const timeLabel = workshopEntryTimeLabel(entry);
+  return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${timeLabel} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
     <button class="workshop-plan-main" type="button" data-workshop-select-plan="${escapeHtml(entry.id)}">
       <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
       <small class="workshop-plan-customer">${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${overtime ? ' · OVERTIME' : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       ${entry.legacyAmbiguityReason ? `<small class="workshop-legacy-ambiguity">${escapeHtml(entry.legacyAmbiguityReason)}</small>` : ''}
-      <small class="workshop-plan-time">${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${workshopDurationInputValue(entry.hours)} h`)}</small>
+      <small class="workshop-plan-time">${escapeHtml(`${timeLabel} · ${workshopDurationInputValue(entry.hours)} h`)}</small>
       ${workshopStageJobLines(vehicle,entry.stage).some(line=>line.hoursProvenance==='ai_estimated')?'<small class="pdc-ai-estimate pdc-ai-estimate-badge">Includes AI estimate</small>':''}
       <small class="workshop-plan-hours">${escapeHtml(`Parts ${parts.label}${parts.eta && !['issued', 'notrequired'].includes(parts.status) ? ` · ETA ${parts.eta}` : ''}`)}</small>
       ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
@@ -4058,21 +4059,40 @@ function workshopUnavailableTimeHtml(dateKey = '', { vertical = false } = {}) {
 
 function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
   const count = workshopStageBayCount(stage);
+  // Reuse calculations within this render only, so live timing and reference changes
+  // are still recomputed on the next render without a cross-snapshot cache.
+  const plansByBay = new Map();
+  const blocksByBay = new Map();
+  for (const entry of rows) {
+    const bay = Number(entry.bay);
+    if (entry.stage !== stage || !Number.isInteger(bay) || bay < 1 || bay > count || entry.status === 'completed') continue;
+    const segment = workshopEntrySegmentForDate(entry, dateKey);
+    if (!segment) continue;
+    if (!plansByBay.has(bay)) plansByBay.set(bay, []);
+    plansByBay.get(bay).push({ entry, segment });
+  }
+  for (const block of count > 0 ? workshopLoadAdminBlocks() : []) {
+    const bay = Number(block.bay);
+    if (block.stage !== stage || !Number.isInteger(bay) || bay < 1 || bay > count || !workshopAdminBlockSegment(block, dateKey)) continue;
+    if (!blocksByBay.has(bay)) blocksByBay.set(bay, []);
+    blocksByBay.get(bay).push(block);
+  }
+  const unavailableHtml = count > 0 ? workshopUnavailableTimeHtml(dateKey) : '';
   return Array.from({ length: count }, (_, index) => {
     const bay = index + 1;
-    const plans = rows.filter(entry => entry.stage === stage && Number(entry.bay) === bay && entry.status !== 'completed' && workshopEntrySegmentForDate(entry, dateKey))
-      .sort((a, b) => String(a.startAt).localeCompare(String(b.startAt)));
+    const plans = (plansByBay.get(bay) || [])
+      .sort((a, b) => String(a.entry.startAt).localeCompare(String(b.entry.startAt)));
     const defaultAssignee = workshopBayMechanic(stage, bay);
-    const adminBlocks = workshopLoadAdminBlocks().filter(block => block.stage === stage && Number(block.bay) === bay && workshopAdminBlockSegment(block, dateKey));
+    const adminBlocks = blocksByBay.get(bay) || [];
     const bayLabel = `Bay ${workshopPad(bay)}`;
     const assigneeLabel = 'Bay mechanic';
     return `<div class="workshop-bay-row">
       <div class="workshop-bay-label"><div class="workshop-bay-label-heading"><strong>${escapeHtml(bayLabel)}</strong><button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span><label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}">${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
       <div class="workshop-bay-lane" data-workshop-drop-bay="${bay}" data-workshop-drop-stage="${escapeHtml(stage)}">
-        ${workshopUnavailableTimeHtml(dateKey)}
+        ${unavailableHtml}
         ${workshopDropPreviewHtml()}
         ${adminBlocks.map(block => workshopAdminBlockHtml(block, dateKey)).join('')}
-        ${plans.map(entry => workshopPlanChipHtml(entry, dateKey, rows)).join('')}
+        ${plans.map(({ entry, segment }) => workshopPlanChipHtml(entry, dateKey, rows, segment)).join('')}
       </div>
     </div>`;
   }).join('');
@@ -4094,7 +4114,52 @@ function workshopCurrentDragPreview() {
 }
 
 function workshopSetDragPreview(preview = null) {
+  if (!preview) workshopCancelLanePreviewFrame();
   app.workshopDragPreview = preview || null;
+}
+
+let workshopLanePreviewFrame = null;
+let workshopPendingLanePreview = null;
+const workshopLanePreviewPaints = new WeakMap();
+
+function workshopCancelLanePreviewFrame(lane = null) {
+  if (lane && workshopPendingLanePreview?.lane !== lane) return;
+  if (workshopLanePreviewFrame !== null) window.cancelAnimationFrame?.(workshopLanePreviewFrame);
+  workshopLanePreviewFrame = null;
+  workshopPendingLanePreview = null;
+}
+
+function workshopPaintLanePointer(lane, clientX, clientY, vertical = false) {
+  if (!lane || lane.isConnected === false) return;
+  // Read the current geometry at paint/drop time: horizontal and page scrolling
+  // may move the lane during a drag, so a drag-start rectangle is not safe.
+  const rect = lane.getBoundingClientRect();
+  const position = vertical ? clientY - rect.top : clientX - rect.left;
+  const extent = vertical ? rect.height : rect.width;
+  const minutes = workshopClampStartMinutes((position / Math.max(1, extent)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
+  workshopUpdateLanePreview(lane, minutes);
+}
+
+function workshopQueueLanePreview(lane, event, vertical = false) {
+  workshopPendingLanePreview = { lane, clientX: event.clientX, clientY: event.clientY, vertical };
+  if (workshopLanePreviewFrame !== null) return;
+  if (typeof window.requestAnimationFrame !== 'function') {
+    workshopFlushLanePreview(lane, event, vertical);
+    return;
+  }
+  workshopLanePreviewFrame = window.requestAnimationFrame(() => {
+    const pending = workshopPendingLanePreview;
+    workshopLanePreviewFrame = null;
+    workshopPendingLanePreview = null;
+    if (pending) workshopPaintLanePointer(pending.lane, pending.clientX, pending.clientY, pending.vertical);
+  });
+}
+
+function workshopFlushLanePreview(lane, event, vertical = false) {
+  workshopCancelLanePreviewFrame();
+  // A release can arrive before the next animation frame or at a new position.
+  // Resolve that final position synchronously before the existing save checks.
+  workshopPaintLanePointer(lane, event.clientX, event.clientY, vertical);
 }
 
 function workshopCurrentDropTarget() {
@@ -4110,6 +4175,7 @@ function workshopClearDropTarget() {
 }
 
 function workshopClearLanePreviews(scope = document) {
+  if (!workshopPendingLanePreview || scope === document || scope === workshopPendingLanePreview.lane || scope.contains?.(workshopPendingLanePreview.lane)) workshopCancelLanePreviewFrame();
   scope.querySelectorAll('.workshop-drop-preview').forEach(preview => {
     preview.hidden = true;
     preview.style.removeProperty('--drop-preview-left');
@@ -4123,6 +4189,7 @@ function workshopClearLanePreviews(scope = document) {
 }
 
 function workshopHideLanePreview(lane) {
+  workshopCancelLanePreviewFrame(lane);
   const preview = lane?.querySelector('.workshop-drop-preview');
   if (!preview) return;
   preview.hidden = true;
@@ -4150,8 +4217,12 @@ function workshopUpdateLanePreview(lane, startMinutes = 0) {
   if (!(allocatedHours > 0)) { preview.hidden = true; return; }
   const hours = Math.max(1 / 60, allocatedHours);
   const dateKey = lane.dataset.workshopWeekDropDate || workshopState().date;
-  lane.dataset.workshopRequestedStartMinutes = String(safeMinutes);
+  if (lane.dataset.workshopRequestedStartMinutes !== String(safeMinutes)) lane.dataset.workshopRequestedStartMinutes = String(safeMinutes);
   workshopSetDropTarget({ stage, bay, dateKey, startMinutes: safeMinutes });
+  const paintKey = `${safeMinutes}:${hours}:${WORKSHOP_PLANNER_CONFIG.dayLengthMinutes}`;
+  const previousPaint = workshopLanePreviewPaints.get(lane);
+  if (!preview.hidden && previousPaint?.preview === preview && previousPaint.key === paintKey) return;
+  workshopLanePreviewPaints.set(lane, { preview, key: paintKey });
   const label = workshopPreviewLabel(safeMinutes, hours);
   preview.hidden = false;
   if (preview.classList.contains('is-vertical')) {
@@ -5028,7 +5099,15 @@ function bindWorkshopPlanner(root) {
       const vehicle = workshopVehicle(card.dataset.workshopVehicleKey, workshopState().stage);
       let activeLane = null;
       let activated = false;
+      let pointerFrame = null;
+      let pendingPointer = null;
+      const cancelPointerFrame = () => {
+        if (pointerFrame !== null) window.cancelAnimationFrame?.(pointerFrame);
+        pointerFrame = null;
+        pendingPointer = null;
+      };
       const cleanup = () => {
+        cancelPointerFrame();
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', finish);
         window.removeEventListener('pointercancel', cancel);
@@ -5051,11 +5130,7 @@ function bindWorkshopPlanner(root) {
           hours: workshopSchedulingDuration(vehicle, workshopState().stage)?.hours || 0,
         });
       };
-      const move = event => {
-        if (event.pointerId !== pointerId) return;
-        if (!activated && Math.hypot(event.clientX - startX, event.clientY - startY) < 8) return;
-        activate();
-        event.preventDefault();
+      const paintPointer = event => {
         const lane = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-workshop-drop-bay]') || null;
         if (activeLane && activeLane !== lane) {
           activeLane.classList.remove('drag-over');
@@ -5064,11 +5139,27 @@ function bindWorkshopPlanner(root) {
         activeLane = lane;
         if (!lane) return;
         lane.classList.add('drag-over');
-        const rect = lane.getBoundingClientRect();
-        workshopUpdateLanePreview(lane, workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes));
+        workshopPaintLanePointer(lane, event.clientX, event.clientY);
+      };
+      const move = event => {
+        if (event.pointerId !== pointerId) return;
+        if (!activated && Math.hypot(event.clientX - startX, event.clientY - startY) < 8) return;
+        activate();
+        event.preventDefault();
+        pendingPointer = { clientX: event.clientX, clientY: event.clientY };
+        if (pointerFrame !== null) return;
+        if (typeof window.requestAnimationFrame !== 'function') { paintPointer(pendingPointer); return; }
+        pointerFrame = window.requestAnimationFrame(() => {
+          const pointer = pendingPointer;
+          pointerFrame = null;
+          pendingPointer = null;
+          if (pointer) paintPointer(pointer);
+        });
       };
       const finish = event => {
         if (event.pointerId !== pointerId) return;
+        cancelPointerFrame();
+        if (activated) paintPointer(event);
         const lane = activeLane;
         const stage = lane?.dataset.workshopDropStage;
         const bay = Number(lane?.dataset.workshopDropBay);
@@ -5257,9 +5348,7 @@ function bindWorkshopLane(lane) {
   lane.addEventListener('dragover', event => {
     event.preventDefault();
     lane.classList.add('drag-over');
-    const rect = lane.getBoundingClientRect();
-    const requestedStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
-    workshopUpdateLanePreview(lane, requestedStartMinutes);
+    workshopQueueLanePreview(lane, event);
   });
   lane.addEventListener('dragleave', event => {
     if (!lane.contains(event.relatedTarget)) {
@@ -5269,6 +5358,7 @@ function bindWorkshopLane(lane) {
   });
   lane.addEventListener('drop', event => {
     event.preventDefault();
+    workshopFlushLanePreview(lane, event);
     lane.classList.remove('drag-over');
     const rect = lane.getBoundingClientRect();
     const fallbackStartMinutes = workshopClampStartMinutes(((event.clientX - rect.left) / Math.max(1, rect.width)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
@@ -6722,14 +6812,40 @@ function startWorkshopResize(handle, event) {
     : workshopExactDurationMinutesFromHours(entry.hours);
   const originalHours = originalDurationMinutes / 60;
   const segment = workshopEntrySegmentForDate(entry, workshopState().date);
-  const onMove = moveEvent => {
+  const pointerId = event.pointerId;
+  let previewFrame = null;
+  let pendingMove = null;
+  let paintedHours = null;
+  const paintMove = moveEvent => {
+    if (chip.isConnected === false || lane.isConnected === false) return;
     const deltaMinutes = workshopSnapMinutes(((moveEvent.clientX - originX) / Math.max(1, lane.getBoundingClientRect().width)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
     const hours = Math.max(1, originalDurationMinutes + deltaMinutes) / 60;
+    if (paintedHours === hours) return;
+    paintedHours = hours;
     const visibleMinutes = Math.min(WORKSHOP_PLANNER_CONFIG.dayLengthMinutes - (segment?.start || 0), hours * 60);
     chip.style.setProperty('--plan-width', `${(visibleMinutes / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100}%`);
     chip.dataset.previewHours = String(hours);
   };
+  const cancelFrame = () => {
+    if (previewFrame !== null && typeof window !== 'undefined') window.cancelAnimationFrame?.(previewFrame);
+    previewFrame = null;
+    pendingMove = null;
+  };
+  const onMove = moveEvent => {
+    if (pointerId != null && moveEvent.pointerId !== pointerId) return;
+    pendingMove = { clientX: moveEvent.clientX };
+    if (previewFrame !== null) return;
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') { paintMove(pendingMove); return; }
+    previewFrame = window.requestAnimationFrame(() => {
+      const pending = pendingMove;
+      previewFrame = null;
+      pendingMove = null;
+      if (pending) paintMove(pending);
+    });
+  };
   const cancel = cancelEvent => {
+    if (pointerId != null && cancelEvent?.pointerId != null && cancelEvent.pointerId !== pointerId) return;
+    cancelFrame();
     document.removeEventListener('pointermove', onMove);
     document.removeEventListener('pointerup', onUp);
     document.removeEventListener('pointercancel', cancel);
@@ -6739,7 +6855,11 @@ function startWorkshopResize(handle, event) {
       renderWorkshopPlanner();
     }
   };
-  const onUp = async () => {
+  const onUp = async upEvent => {
+    if (pointerId != null && upEvent?.pointerId !== pointerId) return;
+    const finalMove = Number.isFinite(upEvent?.clientX) ? upEvent : pendingMove;
+    cancelFrame();
+    if (finalMove) paintMove(finalMove);
     cancel();
     const hours = Number(chip.dataset.previewHours || entry.hours);
     delete chip.dataset.previewHours;
@@ -6823,7 +6943,7 @@ function startWorkshopResize(handle, event) {
   };
   document.addEventListener('pointermove', onMove);
   document.addEventListener('pointerup', onUp);
-  document.addEventListener('pointercancel', cancel, { once: true });
+  document.addEventListener('pointercancel', cancel);
 }
 
 function workshopWeeklyCardHtml(entry = {}, dateKey = '') {
@@ -6987,9 +7107,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     lane.addEventListener('dragover', event => {
       event.preventDefault();
       lane.classList.add('drag-over');
-      const rect = lane.getBoundingClientRect();
-      const startMinutes = workshopClampStartMinutes(((event.clientY - rect.top) / Math.max(1, rect.height)) * WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
-      workshopUpdateLanePreview(lane, startMinutes);
+      workshopQueueLanePreview(lane, event, true);
     });
     lane.addEventListener('dragleave', event => {
       if (!lane.contains(event.relatedTarget)) {
@@ -6999,6 +7117,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     });
     lane.addEventListener('drop', event => {
       event.preventDefault();
+      workshopFlushLanePreview(lane, event, true);
       lane.classList.remove('drag-over');
       const planId = event.dataTransfer.getData('application/x-workshop-plan-id');
       const rect = lane.getBoundingClientRect();

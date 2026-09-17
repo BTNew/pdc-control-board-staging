@@ -232,10 +232,16 @@ function createWorkshopDataService(options) {
   // This flag is cleared before every refresh/revision and on every failure;
   // only a successful authenticated snapshot response restores trust.
   let snapshotTrusted = false;
+  let successfulSnapshotSequence = 0;
   let pendingReloadTimer = null;
   let activeLoadToken = null;
   let activeRevisionProbe = null;
   let trailingReloadRequested = false;
+  // Realtime can report the same commit while its mandatory readback is
+  // already in flight. Keep numbered invalidations separate from explicit
+  // post-commit reads: a snapshot may satisfy the former, never the latter.
+  let pendingRevision = null;
+  let pendingUnknownRevision = false;
   let destroyed = false;
   let lifecycleGeneration = 0;
   let scopeGeneration = 0;
@@ -246,6 +252,8 @@ function createWorkshopDataService(options) {
     lastSnapshot = null;
     lastRevision = null;
     trailingReloadRequested = false;
+    pendingRevision = null;
+    pendingUnknownRevision = false;
     // Detach any unresolved request from the current authority session. Its
     // finally block checks identity before changing current-session state.
     const previousLoad = activeLoadToken;
@@ -293,6 +301,10 @@ function createWorkshopDataService(options) {
       return lastSnapshot;
     }
     snapshotTrusted = false;
+    // This read starts after all invalidations currently known to us. Only
+    // signals arriving during this request can require another read.
+    pendingRevision = null;
+    pendingUnknownRevision = false;
     const generation = lifecycleGeneration;
     const requestRole = getRole();
     const requestScopeGeneration = scopeGeneration;
@@ -341,7 +353,13 @@ function createWorkshopDataService(options) {
       }
       lastSnapshot = result.body;
       lastRevision = result.body && result.body.revision;
+      if (revisionCovers(lastRevision, pendingRevision)) pendingRevision = null;
+      if (!pendingRevision && !pendingUnknownRevision && pendingReloadTimer) {
+        clearScheduledTimeout(pendingReloadTimer);
+        pendingReloadTimer = null;
+      }
       snapshotTrusted = Boolean(lastSnapshot && typeof lastSnapshot === 'object' && lastRevision != null);
+      if (snapshotTrusted) successfulSnapshotSequence += 1;
       const role = getRole();
       setState(role === 'operator' || role === 'administrator'
         ? WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE
@@ -361,8 +379,11 @@ function createWorkshopDataService(options) {
       try {
         if (activeLoadToken === loadToken) {
           activeLoadToken = null;
-          if (!destroyed && generation === lifecycleGeneration && trailingReloadRequested) {
+          if (!destroyed && generation === lifecycleGeneration
+              && (trailingReloadRequested || pendingRevision || pendingUnknownRevision)) {
             trailingReloadRequested = false;
+            if (pendingReloadTimer) clearScheduledTimeout(pendingReloadTimer);
+            pendingReloadTimer = null;
             // A newer change arrived while we were mid-fetch; reload again so we
             // never settle on a stale intermediate snapshot.
             await loadSnapshot('trailing');
@@ -374,7 +395,6 @@ function createWorkshopDataService(options) {
 
   async function awaitSnapshotRefresh(reason, afterCurrent = false) {
     const generation = lifecycleGeneration;
-    const newerSignalPending = Boolean(pendingReloadTimer);
     if (pendingReloadTimer) {
       clearScheduledTimeout(pendingReloadTimer);
       pendingReloadTimer = null;
@@ -383,7 +403,7 @@ function createWorkshopDataService(options) {
     if (activeLoadToken) {
       // A confirmed write needs a read issued after the commit. A reader merely
       // waiting for connectivity does not create a second read or invalidate it.
-      if (afterCurrent || newerSignalPending) {
+      if (afterCurrent) {
         snapshotTrusted = false;
         trailingReloadRequested = true;
       }
@@ -397,6 +417,8 @@ function createWorkshopDataService(options) {
         if (destroyed || generation !== lifecycleGeneration) { resolve(); return; }
         snapshotTrusted = false;
         trailingReloadRequested = false;
+        pendingRevision = null;
+        pendingUnknownRevision = false;
         if (pendingReloadTimer) clearScheduledTimeout(pendingReloadTimer);
         pendingReloadTimer = null;
         activeLoadToken?.cancel?.();
@@ -408,8 +430,22 @@ function createWorkshopDataService(options) {
     finally { clearScheduledTimeout(timer); }
   }
 
-  function scheduleSnapshotReload(reason) {
+  function normalizedRevision(value) {
+    if (typeof value === 'number' && !Number.isSafeInteger(value)) return null;
+    const text = String(value ?? '');
+    return /^\d+$/.test(text) ? text.replace(/^0+(?=\d)/, '') : null;
+  }
+
+  function revisionCovers(current, required) {
+    const a = normalizedRevision(current), b = normalizedRevision(required);
+    return a !== null && b !== null && (a.length > b.length || (a.length === b.length && a >= b));
+  }
+
+  function scheduleSnapshotReload(reason, revision) {
     if (!enabled || destroyed) return;
+    const known = normalizedRevision(revision);
+    if (known === null) pendingUnknownRevision = true;
+    else if (!revisionCovers(pendingRevision, known)) pendingRevision = known;
     // A newer revision is known to exist, so the retained snapshot is not
     // current during debounce or reload and must not feed advisory output.
     snapshotTrusted = false;
@@ -421,15 +457,18 @@ function createWorkshopDataService(options) {
     }
     pendingReloadTimer = scheduleTimeout(() => {
       pendingReloadTimer = null;
-      loadSnapshot(reason);
+      // The active read checks the pending revision before it settles. Do
+      // not turn a possibly covered Realtime event into an unconditional
+      // second download (explicit mutation readbacks still do that).
+      if (!activeLoadToken) loadSnapshot(reason);
     }, debounceMs);
   }
 
   function onRevisionSignal(newRevision) {
-    if (newRevision != null && lastRevision != null && String(newRevision) === String(lastRevision)) {
+    if (revisionCovers(lastRevision, newRevision)) {
       return; // duplicate/no-op signal; debounce discards it safely
     }
-    scheduleSnapshotReload('revision_changed');
+    scheduleSnapshotReload('revision_changed', newRevision);
   }
 
   function reconcileRevision(reason = 'revision_check') {
@@ -446,6 +485,12 @@ function createWorkshopDataService(options) {
     if (activeLoadToken || pendingReloadTimer) return Promise.resolve(null);
     const generation = lifecycleGeneration;
     const requestScopeGeneration = scopeGeneration;
+    const snapshotSequenceAtStart = successfulSnapshotSequence;
+    const newerSnapshotIsTrusted = () => successfulSnapshotSequence > snapshotSequenceAtStart
+      && !destroyed && generation === lifecycleGeneration && requestScopeGeneration === scopeGeneration
+      && token === getAccessToken() && role === getRole()
+      && snapshotTrusted && !activeLoadToken && !pendingReloadTimer && !trailingReloadRequested
+      && [WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY, WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE].includes(state);
     const probe = { controller: typeof AbortController === 'function' ? new AbortController() : null, timeout: null, promise: null };
     activeRevisionProbe = probe;
     probe.timeout = scheduleTimeout(() => probe.controller?.abort(), 8000);
@@ -463,6 +508,10 @@ function createWorkshopDataService(options) {
         }
         const revision = Array.isArray(result?.body) && result.body.length === 1 ? result.body[0]?.revision : null;
         if (!result?.ok || revision == null || !/^\d+$/.test(String(revision))) {
+          // A slow failed transport check cannot revoke a newer authenticated
+          // snapshot completed in this same authority/scope. Permission errors
+          // above, and empty/malformed successful RLS responses, still fail closed.
+          if (!result?.ok && newerSnapshotIsTrusted()) return lastSnapshot;
           // Empty RLS results and network failures cannot validate stale rows.
           snapshotTrusted = false;
           setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
@@ -477,6 +526,7 @@ function createWorkshopDataService(options) {
         return await loadSnapshot(reason);
       } catch (_error) {
         if (destroyed || generation !== lifecycleGeneration || requestScopeGeneration !== scopeGeneration) return null;
+        if (newerSnapshotIsTrusted()) return lastSnapshot;
         snapshotTrusted = false;
         setState(WORKSHOP_CONNECTION_STATE.OFFLINE_READ_ONLY);
         return null;
@@ -501,7 +551,11 @@ function createWorkshopDataService(options) {
 
   function onVisibilityReturn() {
     if (!enabled || destroyed) return;
-    loadSnapshot('visibility_return');
+    // Foreground and focus commonly arrive together. The revision probe is
+    // authenticated and coalesced, and only fetches rows if they changed.
+    return typeof client.readRevision === 'function'
+      ? reconcileRevision('visibility_return')
+      : loadSnapshot('visibility_return');
   }
 
   function onTokenRefresh() {

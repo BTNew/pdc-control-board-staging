@@ -96,7 +96,7 @@ test('overall wait is bounded across continuing revision-triggered reads', async
   const h = fixture(); await h.service.loadSnapshot('initial');
   const first = deferred(), trailing = deferred(); let reads = 0;
   h.setRead(() => ++reads === 1 ? first.promise : trailing.promise);
-  const action = h.mutate(); await flush(); h.service.onRevisionSignal(2); h.fire(250);
+  const action = h.mutate(); await flush(); h.service.onRevisionSignal(3); h.fire(250);
   first.resolve(response(2, 'started')); await flush();
   h.fire(20000); const result = await action;
   assert.equal(result.ok, true); assert.equal(result.refreshRequired, true); assert.equal(h.writes().length, 1);

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workshop interaction speed — isolated QA</title>
+  <link rel="stylesheet" href="../workshop-planner.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 24px; background: #eef2f7; color: #14243c; font: 15px system-ui, sans-serif; }
+    main { max-width: 1400px; margin: auto; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    p { line-height: 1.5; }
+    .qa-toolbar { display: flex; gap: 20px; align-items: center; margin: 16px 0; }
+    button { padding: 10px 16px; border: 1px solid #92a6bf; border-radius: 6px; background: white; color: #14243c; font-weight: 700; cursor: pointer; }
+    #status { min-height: 48px; padding: 12px; background: #edf9f3; border: 1px solid #8bbba5; border-radius: 6px; flex: 1; }
+    #planner { overflow-x: auto; border: 1px solid #acbdd0; border-radius: 8px; background: white; }
+    .qa-grid { min-width: 980px; --workshop-hour-width: 9.523809%; --workshop-half-hour-width: 4.761904%; }
+    .qa-header { display: grid; grid-template-columns: 160px minmax(600px,1fr); border-bottom: 1px solid #849bb8; background: #e7effa; }
+    .qa-header > strong { padding: 16px; }
+    .workshop-bay-label strong { font-size: 14px; }
+    .workshop-bay-label span { font-size: 12px; }
+    .qa-tile-title { display: block; padding: 12px 12px 3px; font-size: 14px !important; }
+    .qa-tile-detail { display: block; padding: 3px 12px; font-size: 12px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .workshop-plan-resize { touch-action: none; }
+    pre { white-space: pre-wrap; background: #fff; border: 1px solid #c8d3e1; padding: 12px; border-radius: 6px; font-size: 12px; }
+    .qa-note { color: #52657d; font-size: 13px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Workshop tile interaction check</h1>
+  <p>Drag the pink booking into another bay or time. Drag its striped right edge to change its duration.</p>
+  <p class="qa-note">Synthetic data only. This page loads the local planner source and stylesheet. Saves stay in memory; it makes no authentication or server calls. It tests the real drag and resize handlers, not database scheduling rules.</p>
+  <div class="qa-toolbar"><button id="reset" type="button" disabled>Reset synthetic booking</button><output id="status" aria-live="polite">Loading local planner functions…</output></div>
+  <div id="planner" aria-label="Synthetic workshop planner"></div>
+  <h2>Last captured save</h2>
+  <pre id="command">No save yet.</pre>
+</main>
+<script>
+(async () => {
+  'use strict';
+  const status = document.getElementById('status');
+  const command = document.getElementById('command');
+  const root = document.getElementById('planner');
+  const resetButton = document.getElementById('reset');
+  const source = await fetch('../workshop-planner.js', { cache: 'no-store' }).then(response => {
+    if (!response.ok) throw Error('Local planner source could not be loaded.');
+    return response.text();
+  });
+  const section = (start, end) => {
+    const first = source.indexOf(start), last = source.indexOf(end, first + start.length);
+    if (first < 0 || last < 0) throw Error(`Planner source section is unavailable: ${start}`);
+    return source.slice(first, last);
+  };
+  const fn = name => section(`function ${name}(`, '\nfunction ');
+  const date = '2026-09-17';
+  let booking, saveCount = 0, runtime;
+  const app = {};
+  const config = { dayLengthMinutes: 630, dayStartMinutes: 360, dayEndMinutes: 990, schedulingIncrementMinutes: 15 };
+  const initial = () => ({ id: 'qa-booking', sharedBookingId: 'qa-booking', sharedVersion: 1, vehicleKey: 'qa-vehicle',
+    stage: 'FITTING', bay: 1, status: 'planned', hours: 2, scheduledDurationMinutes: 120, startMinutes: 60,
+    startAt: '2026-09-16T23:00:00Z', updatedAt: '2026-09-16T22:00:00Z' });
+  const timeLabel = minutes => {
+    const total = config.dayStartMinutes + minutes, hour = Math.floor(total / 60);
+    return `${hour % 12 || 12}:${String(total % 60).padStart(2, '0')} ${hour >= 12 ? 'pm' : 'am'}`;
+  };
+  const persist = (action, payload) => {
+    saveCount++; booking.sharedVersion++;
+    status.textContent = `Saved ${action} ${saveCount} · Fitting / Bay ${booking.bay} · ${timeLabel(booking.startMinutes)} · ${booking.scheduledDurationMinutes} minutes`;
+    command.textContent = JSON.stringify({ action, ...payload, result: { bay: booking.bay, startMinutes: booking.startMinutes,
+      durationMinutes: booking.scheduledDurationMinutes, version: booking.sharedVersion } }, null, 2);
+    render();
+    return { ok: true };
+  };
+  // The only persistence boundary is replaced. The production code still
+  // chooses move/resize/extend commands and supplies its final pointer values.
+  const harness = {
+    app, WORKSHOP_PLANNER_CONFIG: config,
+    workshopState: () => ({ date }), workshopLoadPlans: () => [booking],
+    workshopDefaultBookingHours: () => 1,
+    workshopBookingDestinationHours: (_entry, _stage, _bay, hours) => hours,
+    workshopBayAllocatedHours: (_stage, _bay, hours) => hours,
+    workshopLoadAdminBlocks: () => [],
+    workshopEntrySegmentForDate: entry => ({ start: entry.startMinutes, end: Math.min(config.dayLengthMinutes, entry.startMinutes + entry.scheduledDurationMinutes) }),
+    nowIsoString: () => new Date().toISOString(), workshopRequireSchedulableCandidate: () => true,
+    workshopConfirmOtherDepartmentPlans: () => true, workshopSharedModeActive: () => true,
+    renderWorkshopPlanner: () => render(),
+    moveWorkshopDroppedPlan: async (id, stage, bay, dateKey, startMinutes, options) => {
+      if (id !== booking.id) throw Error('Unexpected synthetic booking.');
+      booking.stage = stage; booking.bay = bay; booking.startMinutes = startMinutes;
+      booking.startAt = new Date(Date.parse(`${dateKey}T06:00:00+08:00`) + startMinutes * 60000).toISOString();
+      return persist('move', { id, stage, bay, date: dateKey, startMinutes, options });
+    },
+    workshopDispatchSharedAction: async (action, payload) => {
+      booking.scheduledDurationMinutes = payload.durationMinutes; booking.hours = payload.durationMinutes / 60;
+      return persist(action, payload);
+    },
+    scheduleWorkshopVehicle: () => { throw Error('This isolated fixture only moves its existing synthetic booking.'); },
+    workshopCreatePaletteAdminBlock: () => { throw Error('Admin block writes are disabled in this fixture.'); },
+  };
+  const declarations = `const {${Object.keys(harness).join(',')}} = harness; let workshopActivePointerResize = null;\n`;
+  const extracted = ['workshopPad', 'workshopSnapMinutes', 'workshopClampStartMinutes', 'workshopExactDurationHours',
+    'workshopExactDurationMinutesFromHours', 'workshopTimeLabelFromMinutes', 'workshopDropPreviewHtml'].map(fn).join('\n')
+    + '\n' + section('function workshopCurrentDragPreview()', 'function workshopProgressSummary(')
+    + '\n' + section('function bindWorkshopLane(', 'async function saveWorkshopBayMechanic(')
+    + '\n' + section('function startWorkshopResize(', 'function workshopWeeklyCardHtml(');
+  const nativeChipBindings = section("root.querySelectorAll('[data-workshop-plan-id]').forEach(chip => chip.addEventListener('dragstart'", "root.querySelectorAll('[data-workshop-job-vehicle]').forEach(card => card.addEventListener('keydown'");
+  runtime = new Function('harness', declarations + extracted + `\nreturn {
+    bindWorkshopLane, startWorkshopResize, workshopDropPreviewHtml, workshopClearLanePreviews, workshopSetDragPreview,
+    bindChips(root) { ${nativeChipBindings} }
+  };`)(harness);
+  function render() {
+    if (!runtime || !booking) return;
+    const axis = Array.from({ length: 11 }, (_, hour) => `<span style="left:${hour * 60 / config.dayLengthMinutes * 100}%">${timeLabel(hour * 60)}</span>`).join('');
+    const tile = `<article class="workshop-plan-chip" draggable="true" data-workshop-plan-id="qa-booking" style="--plan-left:${booking.startMinutes / config.dayLengthMinutes * 100}%;--plan-width:${booking.scheduledDurationMinutes / config.dayLengthMinutes * 100}%" aria-label="Synthetic booking, drag to move">
+      <strong class="qa-tile-title">Synthetic booking</strong><span class="qa-tile-detail">${timeLabel(booking.startMinutes)} · ${booking.scheduledDurationMinutes} minutes</span>
+      <small class="qa-tile-detail">Drag tile to move</small><span class="workshop-plan-resize" data-workshop-resize-plan="qa-booking" role="button" aria-label="Resize synthetic booking" title="Drag this edge to resize"></span></article>`;
+    root.innerHTML = `<div class="qa-grid"><div class="qa-header"><strong>Fitting / Bay</strong><div class="workshop-time-axis">${axis}</div></div>${[1,2,3].map(bay => `<div class="workshop-bay-row"><div class="workshop-bay-label"><strong>Bay ${String(bay).padStart(2,'0')}</strong><span>Synthetic test bay</span></div><div class="workshop-bay-lane" data-workshop-drop-stage="FITTING" data-workshop-drop-bay="${bay}">${runtime.workshopDropPreviewHtml()}${booking.bay === bay ? tile : ''}</div></div>`).join('')}</div>`;
+    root.querySelectorAll('[data-workshop-drop-bay]').forEach(runtime.bindWorkshopLane);
+    runtime.bindChips(root);
+    root.querySelectorAll('[data-workshop-resize-plan]').forEach(handle => handle.addEventListener('pointerdown', event => runtime.startWorkshopResize(handle, event)));
+  }
+  resetButton.addEventListener('click', () => {
+    runtime.workshopSetDragPreview(null); runtime.workshopClearLanePreviews(root);
+    booking = initial(); saveCount = 0; command.textContent = 'No save yet.';
+    status.textContent = 'Ready · Fitting / Bay 1 · 7:00 am · 120 minutes'; render();
+  });
+  resetButton.disabled = false; resetButton.click();
+})().catch(error => {
+  document.getElementById('status').textContent = `Fixture error: ${error.message}`;
+  console.error(error);
+});
+</script>
+</body>
+</html>
