@@ -711,6 +711,7 @@ let workshopLastAdministratorMove = null;
 let workshopAdminPaletteDurationMinutes = 30;
 let workshopAdminBlockFeedback = { tone: '', message: '' };
 const WORKSHOP_PENDING_STARTS = new Set();
+const WORKSHOP_PENDING_BAY_ASSIGNMENTS = new Set();
 const WORKSHOP_PENDING_BOOKING_ACTIONS = new Map();
 let workshopStartFeedback = { stage: '', message: '' };
 const WORKSHOP_ADMIN_SAFE_DURATION_DAYS = 90;
@@ -4087,7 +4088,7 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
     const bayLabel = `Bay ${workshopPad(bay)}`;
     const assigneeLabel = 'Bay mechanic';
     return `<div class="workshop-bay-row">
-      <div class="workshop-bay-label"><div class="workshop-bay-label-heading"><strong>${escapeHtml(bayLabel)}</strong><button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span><label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}">${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
+      <div class="workshop-bay-label"><div class="workshop-bay-label-heading"><strong>${escapeHtml(bayLabel)}</strong><button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span><label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}"${WORKSHOP_PENDING_BAY_ASSIGNMENTS.has(`${stage}:${bay}`) ? ' disabled aria-busy="true"' : ''}>${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
       <div class="workshop-bay-lane" data-workshop-drop-bay="${bay}" data-workshop-drop-stage="${escapeHtml(stage)}">
         ${unavailableHtml}
         ${workshopDropPreviewHtml()}
@@ -5405,6 +5406,18 @@ function bindWorkshopLane(lane) {
   });
 }
 
+function workshopBayAssignmentError(result = {}) {
+  const code = result.error || result.code || result.detail?.code || 'request_failed';
+  if (code === 'assignment_cancelled' || code === 'authority_superseded') return '';
+  if (code === 'assignment_in_progress') return 'This bay assignment is still saving. Please wait for it to finish.';
+  if (code === 'permission_denied' || code === 'not_authenticated') return 'Your session could not authorise this change. Sign in again with an administrator account.';
+  if (code === 'technician_already_assigned_to_bay') return `This technician is already assigned to ${result.conflict?.bay_code || result.detail?.conflict?.bay_code || 'another bay'}. Clear that assignment before choosing this bay.`;
+  if (code === 'version_conflict' || code === 'bay_assignment_changed') return 'This bay was assigned by another session. Its latest assignment has been loaded; review it before choosing a technician again.';
+  if (code === 'technician_inactive' || code === 'technician_not_found') return 'This technician is no longer active in the roster. Refresh and choose an active technician.';
+  if (code === 'network_error' || code === 'request_timeout' || code === 'bay_refresh_failed' || code === 'request_failed') return 'The bay assignment could not be confirmed. Check the connection and try again.';
+  return `The bay assignment could not be saved (${code}). ${result.detail?.message || 'Refresh the bay list and try again.'}`;
+}
+
 async function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
   const assignee = cleanNavisionText(value || '');
   if (workshopSharedModeActive()) {
@@ -5437,36 +5450,67 @@ async function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
       window.alert('The shared reference-data service is not available, so the bay default could not be saved.');
       return;
     }
-    const result = await service.setBayDefaultTechnician(bayRef.id, bayRef.version, technicianId);
-    if (!result || !result.ok) {
-      window.alert(`The bay default technician could not be saved (${(result && result.error) || 'unknown error'}). The shared data will refresh to show the current authoritative value.`);
-      renderWorkshopPlanner();
-      return;
-    }
-
-    // Backfilling the new default onto currently-unassigned planned
-    // bookings in this bay remains a separate, per-booking operational
-    // change through the protected assign_booking_technician RPC (one
-    // booking at a time, with each booking's own expected version) --
-    // unrelated to the bay-default write itself, which is now
-    // complete and authoritative above.
-    if (assignee && technicianId) {
-      const currentPlans = workshopLoadPlans();
-      const targets = currentPlans.filter(entry => entry.stage === normalizePmbStage(stage) && Number(entry.bay) === Number(bay) && entry.status === 'planned' && !entry.assignee);
-      let skipped = 0;
-      for (const entry of targets) {
-        const assignResult = await window.__workshopSharedActions.assignBookingTechnician({
-          bookingId: entry.sharedBookingId || entry.id,
-          expectedVersion: entry.sharedVersion,
-          technicianId,
-        });
-        if (!assignResult || !assignResult.ok) skipped += 1;
-      }
-      renderWorkshopPlanner();
-      if (skipped) window.alert(`${assignee} was saved as the bay default, but ${skipped} overlapping booking${skipped === 1 ? ' was' : 's were'} left unassigned because that mechanic is already booked elsewhere.`);
-      return;
-    }
+    const pendingKey = `${stage}:${Number(bay)}`;
+    if (WORKSHOP_PENDING_BAY_ASSIGNMENTS.has(pendingKey)) return;
+    const currentView = app.currentView;
+    const currentStage = workshopState().stage;
+    const currentDate = workshopState().date;
+    const readToken = () => typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+    const currentToken = readToken();
+    const currentUser = window.PDC_AUTH_CONTEXT?.userId;
+    const currentRole = window.PDC_AUTH_CONTEXT?.role;
+    const isCurrent = () => app.currentView === currentView && workshopState().stage === currentStage && workshopState().date === currentDate
+      && currentToken === readToken() && currentUser === window.PDC_AUTH_CONTEXT?.userId && currentRole === window.PDC_AUTH_CONTEXT?.role;
+    let defaultSaved = false;
+    WORKSHOP_PENDING_BAY_ASSIGNMENTS.add(pendingKey);
     renderWorkshopPlanner();
+    try {
+      const result = await service.setBayDefaultTechnician(bayRef.id, bayRef.version, technicianId, {
+        observedTechnicianId: bayRef.default_technician_id,
+        isCurrent,
+      });
+      if (!result || !result.ok) {
+        const message = workshopBayAssignmentError(result || {});
+        if (message && isCurrent()) window.alert(message);
+        return;
+      }
+      defaultSaved = true;
+      if (result.refreshRequired) {
+        if (isCurrent()) window.alert('The technician assignment was saved, but the latest bay list could not be confirmed. Refresh before assigning more technicians.');
+        return;
+      }
+      if (!isCurrent() || result.alreadyApplied) return;
+
+      // Backfilling the new default onto currently-unassigned planned
+      // bookings in this bay remains a separate, per-booking operational
+      // change through the protected assign_booking_technician RPC (one
+      // booking at a time, with each booking's own expected version) --
+      // unrelated to the bay-default write itself, which is now
+      // complete and authoritative above.
+      if (assignee && technicianId) {
+        const currentPlans = workshopLoadPlans();
+        const targets = currentPlans.filter(entry => entry.stage === normalizePmbStage(stage) && Number(entry.bay) === Number(bay) && entry.status === 'planned' && !entry.assignee);
+        let skipped = 0;
+        for (const entry of targets) {
+          if (!isCurrent()) break;
+          const assignResult = await window.__workshopSharedActions.assignBookingTechnician({
+            bookingId: entry.sharedBookingId || entry.id,
+            expectedVersion: entry.sharedVersion,
+            technicianId,
+          });
+          if (!assignResult || !assignResult.ok) skipped += 1;
+        }
+        if (skipped && isCurrent()) window.alert(`${assignee} was saved as the bay default, but ${skipped} overlapping booking${skipped === 1 ? ' was' : 's were'} left unassigned because that mechanic is already booked elsewhere.`);
+        return;
+      }
+    } catch (_) {
+      if (isCurrent()) window.alert(defaultSaved
+        ? 'The bay default was saved, but updating its unassigned bookings could not be completed. Refresh to check the booking assignments.'
+        : 'The bay assignment could not be confirmed. Check the connection, refresh the bay list and try again.');
+    } finally {
+      WORKSHOP_PENDING_BAY_ASSIGNMENTS.delete(pendingKey);
+      if (isCurrent()) renderWorkshopPlanner();
+    }
     return;
   }
 
