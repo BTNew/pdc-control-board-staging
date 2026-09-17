@@ -100,7 +100,8 @@ def validate(r):
 def finalize_rows(rows):
     result=[]
     for original in rows:
-        r=dict(original)
+        from pmb_workshop_standards import apply_reviewed_standard
+        r=apply_reviewed_standard(original)
         # A previous generic Unable must not bypass a verified catalogue match.
         matched=catalogue_estimate(r)
         if matched and (not r.get('arb_review') or r['arb_review'].get('status')=='unable'):
@@ -116,4 +117,3 @@ def finalize_rows(rows):
         if a: r['raw_row']=dict(r.get('raw_row') or {},arb_review=a)
         result.append(r)
     return result
-
