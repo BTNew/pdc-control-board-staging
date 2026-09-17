@@ -114,9 +114,9 @@ DO $checks$
 DECLARE v uuid; bay uuid; b uuid; tech uuid:=gen_random_uuid(); othertech uuid:=gen_random_uuid(); op uuid; d jsonb; l jsonb; r jsonb; rid uuid; request jsonb; s jsonb; before_ops jsonb; caught boolean;
 BEGIN
  PERFORM pg_temp.ou_assert(pdc_fitter_private.conversion_model('Bus 4x4 Conversion SLWB & Commuter','HiAce Commuter Bus')='hiace_commuter','HiAce Commuter template matches');
- PERFORM pg_temp.ou_assert(pdc_fitter_private.conversion_model('Bus 4x4 Conversion SLWB & Commuter','HiAce SLWB Van')='review','HiAce van is not guessed to be a Commuter');
+ PERFORM pg_temp.ou_assert(pdc_fitter_private.conversion_model('Bus 4x4 Conversion SLWB & Commuter','HiAce SLWB Van')='hiace_commuter','Owner standard matches the named Commuter conversion on a HiAce');
  PERFORM pg_temp.ou_assert(pdc_fitter_private.conversion_model('Coaster Bus 4x4 Conversion Bull bar & Snorkel','Coaster') IS NULL,'Accessories do not receive the parent checklist');
- PERFORM pg_temp.ou_assert(pdc_fitter_private.conversion_model('Bus 4x4 Conversion SLWB & Commuter','TOYHIA')='review','Unknown model held for review');
+ PERFORM pg_temp.ou_assert(pdc_fitter_private.conversion_model('Bus 4x4 Conversion SLWB & Commuter','TOYHIA')='hiace_commuter','Short HiAce range plus named Commuter conversion matches automatically');
  PERFORM pg_temp.ou_assert((SELECT sum((x->>'planned_minutes')::int)=3765 FROM jsonb_array_elements(pdc_fitter_private.conversion_catalog()#>'{coaster,sections}') x),'Coaster exact 62h45m');
  PERFORM pg_temp.ou_assert((SELECT sum((x->>'planned_minutes')::int)=2280 FROM jsonb_array_elements(pdc_fitter_private.conversion_catalog()#>'{hiace_commuter,sections}') x),'HiAce exact 38h');
  INSERT INTO public.workshop_technicians(id,name,role_type,active) VALUES(tech,'Conversion rollback','technician',true),(othertech,'Other conversion rollback','technician',true);
