@@ -3418,13 +3418,37 @@ async function workshopLoadSearchBookings(query = '') {
   state.bookingSearchLookup = lookup;
   lookup.promise = (async () => {
     const selected = candidates.slice(0, 25);
-    for (let index = 0; index < selected.length; index += 4) {
-      if (state.bookingSearchLookup !== lookup || state.search.toLowerCase() !== clean || window.__workshopDataService !== service) return;
-      const batch = selected.slice(index, index + 4);
-      const results = await Promise.all(batch.map(match => workshopLookupSearchVehicle(match)));
-      batch.forEach((match, offset) => lookup.matches.set(match.vehicleIdentity, results[offset]));
+    const current = () => state.bookingSearchLookup === lookup && state.search.toLowerCase() === clean
+      && window.__workshopDataService === service && lookup.snapshot === service.getTrustedSnapshot?.();
+    if (!current()) return;
+    if (typeof service.lookupVehicleBookingsBatch === 'function') {
+      const requests = selected.map(match => ({ match,
+        vehicleId: String(match.vehicleIdentity || '').startsWith('shared:') ? match.vehicleIdentity.slice(7) : '',
+        dealerCode: typeof vehicleWorkshopDetailRequestDealerCode === 'function'
+          ? vehicleWorkshopDetailRequestDealerCode(match.vehicle || {}, window.PDC_SUPABASE_CONFIG || {}) : '',
+      }));
+      const valid = requests.filter(request => request.vehicleId && request.dealerCode);
+      let response;
+      try {
+        response = valid.length ? await service.lookupVehicleBookingsBatch(valid.map(({ vehicleId, dealerCode }) => ({ vehicleId, dealerCode }))) : { ok: true, results: [] };
+      } catch (_error) { response = { ok: false, error: 'request_failed' }; }
+      if (!current()) return;
+      for (const request of requests) {
+        const result = response?.ok && Array.isArray(response.results)
+          ? response.results.find(result => result.vehicleId === request.vehicleId && result.dealerCode === request.dealerCode) : null;
+        lookup.matches.set(request.match.vehicleIdentity, result?.ok
+          ? { ok: true, bookings: workshopMapSearchBookings(result, request.match.vehicle) }
+          : { ok: false, error: result?.error || response?.error || 'booking_lookup_unavailable' });
+      }
+    } else if (selected.length <= 4) {
+      // Compatibility for a briefly mixed frontend deployment stays bounded.
+      const results = await Promise.all(selected.map(match => workshopLookupSearchVehicle(match)));
+      if (!current()) return;
+      selected.forEach((match, index) => lookup.matches.set(match.vehicleIdentity, results[index]));
+    } else {
+      selected.forEach(match => lookup.matches.set(match.vehicleIdentity, { ok: false, error: 'booking_search_upgrade_required' }));
     }
-    if (state.bookingSearchLookup !== lookup || state.search.toLowerCase() !== clean || window.__workshopDataService !== service) return;
+    if (!current()) return;
     lookup.status = 'ready';
   })();
   return lookup.promise;
@@ -3470,7 +3494,7 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
       description: displayVehicle(vehicle) || 'Vehicle description unavailable',
     };
     const archived = match.archived ? '<span class="workshop-search-alert">Archived vehicle</span>' : '';
-    if (match.bookingLookupError) return `<article class="workshop-search-result" aria-disabled="true"><span class="workshop-search-result-vehicle"><strong>Stock ${escapeHtml(identity.stock)} · ${escapeHtml(identity.customer)}</strong></span><span class="workshop-search-result-state"><strong>Bookings could not be checked</strong><span>Refresh the search to try again.</span></span></article>`;
+    if (match.bookingLookupError) return `<article class="workshop-search-result" aria-disabled="true"><span class="workshop-search-result-vehicle"><strong>Stock ${escapeHtml(identity.stock)} · ${escapeHtml(identity.customer)}</strong></span><span class="workshop-search-result-state"><strong>Bookings could not be checked</strong><span>${match.bookingLookupError === 'booking_search_upgrade_required' ? 'Refine the search to a specific vehicle, or refresh the planner.' : 'Refresh the search to try again.'}</span></span></article>`;
     if (!match.bookings.length) {
       if (!match.candidateAvailable || match.archived) {
         const reason = match.archived

@@ -427,7 +427,50 @@ function createPdcEmailVehicleLocationService(options = {}) {
     });
     return owner.promise;
   }
-  function snapshot() {
+  async function reconcileSnapshot(knownRevision) {
+    const token = getAccessToken();
+    if (!token) return snapshotAuthorityLost();
+    let revision = null;
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const scheduleTimeout = options.scheduleTimeout || setTimeout;
+    const clearScheduledTimeout = options.clearScheduledTimeout || clearTimeout;
+    const timeoutMs = Number.isFinite(options.revisionTimeoutMs) && options.revisionTimeoutMs > 0 ? options.revisionTimeoutMs : 5000;
+    let timeout;
+    try {
+      // RLS applies to this one-row read exactly as it does to the realtime
+      // subscription. Reconnects need a freshness check, not another full board.
+      const { response, body } = await Promise.race([
+        (async () => {
+          const response = await request(`${url}/rest/v1/${PDC_EMAIL_VEHICLE_REVISION_TABLE}?select=revision&singleton=eq.true&limit=1`, {
+            cache: 'no-store', signal: controller?.signal,
+            headers: { apikey: key, Authorization: `Bearer ${token}` },
+          });
+          return { response, body: await response.json() };
+        })(),
+        new Promise((_, reject) => { timeout = scheduleTimeout(() => {
+          controller?.abort(); reject(new Error('email_revision_timeout'));
+        }, timeoutMs); }),
+      ]);
+      if (token !== getAccessToken()) return snapshotAuthorityLost();
+      if (response.ok && Array.isArray(body) && body.length === 1 && body[0].revision != null) revision = Number(body[0].revision);
+    } catch (_error) { /* Fall back to a fresh authorized snapshot. */ }
+    finally { clearScheduledTimeout(timeout); }
+    if (token !== getAccessToken()) return snapshotAuthorityLost();
+    if (Number.isSafeInteger(revision) && revision >= 0) {
+      if (knownRevision != null && Number(knownRevision) === revision) return { ok: true, unchanged: true, data: { revision } };
+      // Only reuse an initial in-flight read after proving it includes every
+      // revision observed after subscription. Mutation readbacks never use this.
+      const pending = activeSnapshot;
+      if (pending && pending.token === token) {
+        const result = await pending.promise;
+        if (token !== getAccessToken()) return snapshotAuthorityLost();
+        if (result.ok && result.data?.revision != null && Number(result.data.revision) >= revision) return result;
+      }
+    }
+    return snapshot();
+  }
+  function snapshot(options = {}) {
+    if (options.reconcile === true) return reconcileSnapshot(options.knownRevision);
     const token = getAccessToken();
     if (activeSnapshot && activeSnapshot.token !== token) {
       activeSnapshot.queued?.resolve(snapshotAuthorityLost());

@@ -263,6 +263,7 @@
   let queueSearch='',listScroll=0,listVehicleId='';
   let quickRequests={},quickErrors={},quickSavingId='';
   let bulkState=null,bulkStop=false,bulkFailures=[];
+  let badgeCounts=null,countRequest=null;
   const limit=50;
   const readable=()=>['viewer','operator','importer','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
   const writable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
@@ -282,6 +283,7 @@
   async function rpc(name,payload) {
     const config=window.PDC_SUPABASE_CONFIG;
     const actor=window.PDC_AUTH_CONTEXT?.userId;
+    const role=window.PDC_AUTH_CONTEXT?.role,session=sessionGeneration;
     const token=getPdcSupabaseAccessToken();
     if(!token || !actor || !readable() || new URL(config.url).hostname!==`${PROJECT}.supabase.co`) throw new Error('not_authorized');
     const abort=new AbortController(), timer=setTimeout(()=>abort.abort(),60000);
@@ -289,7 +291,8 @@
       const res=await fetch(`${config.url.replace(/\/$/,'')}/rest/v1/rpc/${name}`,{method:'POST',signal:abort.signal,
         headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const result=await res.json();
-      if(actor!==window.PDC_AUTH_CONTEXT?.userId||token!==getPdcSupabaseAccessToken()||!readable()) throw new Error('session_changed');
+      if(actor!==window.PDC_AUTH_CONTEXT?.userId||role!==window.PDC_AUTH_CONTEXT?.role||token!==getPdcSupabaseAccessToken()
+          ||config!==window.PDC_SUPABASE_CONFIG||session!==sessionGeneration||!readable()) throw new Error('session_changed');
       if(!res.ok || result?.ok!==true) {
         const failure=new Error(result?.code || 'request_failed');
         if(name==='approve_pdc_tune_operation_change_with_schedule') {
@@ -322,7 +325,7 @@
     if(loading || saving || !readable()) return;
     const reviewAtStart=selected,previousError=error,previousSourceChanged=sourceChanged;
     const loadingUnidentified=unidentified,loadingOffset=offset,loadingUpdateOffset=updateOffset;
-    const stamp=++generation;loading=true;
+    const stamp=++generation;loading=true;badgeCounts=null;
     if(!silent) error='';
     render({preserveReview:!!(silent&&selected)});
     try {
@@ -350,6 +353,27 @@
       loading=false;
       render({preserveReview:!!(silent&&selected&&selected===reviewAtStart&&error===previousError&&sourceChanged===previousSourceChanged)});
     }}
+  }
+  function renderBadge() {
+    const counts=badgeCounts||{new_vehicles:total,operation_changes:updateTotal};
+    const count=counts.new_vehicles+counts.operation_changes;
+    const badge=nav.querySelector('.new-vehicle-nav-count');badge.textContent=String(count);badge.hidden=!count;
+    nav.setAttribute('aria-label',`New Vehicles, ${counts.new_vehicles} new vehicles and ${counts.operation_changes} operation changes awaiting review`);
+  }
+  async function loadCounts() {
+    if(countRequest || loading || saving || !readable())return;
+    const request={generation,session:sessionGeneration};countRequest=request;
+    try {
+      const result=await rpc('get_pdc_review_counts',{}),counts=result.data;
+      if(countRequest!==request || request.generation!==generation || request.session!==sessionGeneration || app.currentView==='newvehicles')return;
+      if(!Number.isInteger(counts?.new_vehicles)||counts.new_vehicles<0||!Number.isInteger(counts?.operation_changes)||counts.operation_changes<0)return;
+      badgeCounts=counts;renderBadge();
+    } catch(_) { /* Keep the last confirmed badge; entering review fetches both queues. */ }
+    finally {if(countRequest===request)countRequest=null;}
+  }
+  function refreshBackground() {
+    if(document.visibilityState!=='visible'||!readable())return;
+    return app.currentView==='newvehicles'?load({silent:true}):loadCounts();
   }
   function choose(row) {
     if(saving||!row)return;
@@ -468,8 +492,7 @@
     page.querySelectorAll('[data-update-page]').forEach(button=>button.addEventListener('click',()=>{if(loading||saving)return;updateOffset=Math.max(0,updateOffset+Number(button.dataset.updatePage)*50);void load();}));
   }
   function render({preserveReview=false}={}) {
-    const badge=nav.querySelector('.new-vehicle-nav-count');badge.textContent=String(total+updateTotal);badge.hidden=!(total+updateTotal);
-    nav.setAttribute('aria-label',`New Vehicles, ${total} new vehicles and ${updateTotal} operation changes awaiting review`);
+    renderBadge();
     // Keep the navigation count current without rebuilding an inactive page.
     if(app.currentView!=='newvehicles') return;
     if(preserveReview) {
@@ -668,12 +691,14 @@
     if(['emailreview','ai-auditor'].includes(app.currentView)){document.getElementById('nav-admin-toggle')?.classList.add('active');setAdminNavigationExpanded(true);}
     return out;
   };
-  window.addEventListener('pdc-auth-ready',()=>{offset=0;void load();});
-  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;page.replaceChildren();items=[];total=0;queueLoadFailed=false;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';quickRequests={};quickErrors={};quickSavingId='';bulkState=null;bulkStop=true;bulkFailures=[];error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
-  const timer=setInterval(()=>{if(document.visibilityState==='visible'&&readable())void load({silent:true});},30000);
+  window.addEventListener('pdc-auth-ready',()=>{offset=0;void refreshBackground();});
+  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;badgeCounts=null;countRequest=null;page.replaceChildren();items=[];total=0;queueLoadFailed=false;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';quickRequests={};quickErrors={};quickSavingId='';bulkState=null;bulkStop=true;bulkFailures=[];error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
+  const timer=setInterval(()=>void refreshBackground(),30000);
+  document.addEventListener('visibilitychange',()=>void refreshBackground());
+  window.addEventListener('online',()=>void refreshBackground());
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
   window.PDC_NEW_VEHICLES_VERSION='2026.09.14.bulk-ready-approve';
   window.PDC_NEW_VEHICLES=api;
-  render();if(readable())void load();
+  render();void refreshBackground();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});
 })();

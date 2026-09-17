@@ -75,13 +75,12 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260916121430",
-    "name": "department138_bus_bays",
-    "file": "supabase/migrations/20260916121430_department138_bus_bays.sql",
-    "sha256": "fdf227d6d05365e573f57b28a8695ff4169260bba7c701c0776f9231929675d9",
+    "version": "20260917004122",
+    "name": "review_fitter_incremental_refresh",
+    "file": "supabase/migrations/20260917004122_review_fitter_incremental_refresh.sql",
+    "sha256": "b92c4d4abbacc8371d66ed6f034e997fab89ba6459bcf57d0d5a22c63abab002",
     "commissioned": true,
-    "review_status": "staging_applied",
-    "source": "Department 138 always routes to Bus 4x4; 22 active unbooked vehicles corrected, 157 saved station adjustments audited, source hours/provenance and progress preserved. Canonical, board, review and write guards verified; mixed department 139 work retained."
+    "review_status": "staging_applied"
   },
   "notes": [
     "Targeted Workshop, Parts and PMB stoppage clearing is receipt-backed and exact-version protected.",
@@ -539,6 +538,33 @@
       "commissioned": true,
       "review_status": "staging_applied",
       "source": "Combined three-dealer upload: authenticated preview, atomic apply, exclusions, exact existing-vehicle links and rollback verification."
+    }
+  ],
+  "department138_bus_bays_migration": {
+    "version": "20260916121430",
+    "name": "department138_bus_bays",
+    "file": "supabase/migrations/20260916121430_department138_bus_bays.sql",
+    "sha256": "fdf227d6d05365e573f57b28a8695ff4169260bba7c701c0776f9231929675d9",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "Department 138 always routes to Bus 4x4; 22 active unbooked vehicles corrected, 157 saved station adjustments audited, source hours/provenance and progress preserved. Canonical, board, review and write guards verified; mixed department 139 work retained."
+  },
+  "website_refresh_performance_migrations": [
+    {
+      "version": "20260917003948",
+      "name": "workshop_booking_search_batch",
+      "file": "supabase/migrations/20260917003948_workshop_booking_search_batch.sql",
+      "sha256": "db0a5c4912c58574fb1efcf7bf94c366842fcb819362106a72314f7f492bd447",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20260917004122",
+      "name": "review_fitter_incremental_refresh",
+      "file": "supabase/migrations/20260917004122_review_fitter_incremental_refresh.sql",
+      "sha256": "b92c4d4abbacc8371d66ed6f034e997fab89ba6459bcf57d0d5a22c63abab002",
+      "commissioned": true,
+      "review_status": "staging_applied"
     }
   ]
 }

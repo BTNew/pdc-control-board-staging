@@ -39,6 +39,5 @@ test('unsupported scopes and unconfirmed apply never reach shared service',async
  assert.equal((await service.apply([],{}, {dealerCode:'002345'})).error,'explicit_confirmation_required');
 });
 test('visible refresh includes all four dealer scopes',()=>{
- assert(app.includes("for (const dealerCode of ['14450', '37047', '002345', '001234'])"));
+ assert(app.includes("['14450', '37047', '002345', '001234'].map(async dealerCode =>"));
 });
-

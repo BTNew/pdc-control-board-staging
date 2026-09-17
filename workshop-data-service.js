@@ -661,49 +661,107 @@ function createWorkshopDataService(options) {
     return result.body && typeof result.body === 'object' ? result.body : { ok: false, error: 'invalid_response' };
   }
 
-  // Search reads a canonical vehicle's bookings across dates without replacing
-  // the scoped station snapshot or gaining mutation authority from the result.
-  async function lookupVehicleBookings(vehicleId, dealerCode) {
+  // Search reads booking metadata only, across stations and dates. Neither a
+  // search result nor its versions replace the station's mutation authority.
+  async function lookupVehicleBookingsBatch(vehicles) {
     if (!enabled || destroyed) return { ok: false, error: 'not_available' };
     const token = getAccessToken();
     const role = String(getRole() || '').trim().toLowerCase();
     if (!token || !['viewer', 'operator', 'administrator'].includes(role)) return { ok: false, error: 'permission_denied' };
-    const id = String(vehicleId || '').trim().toLowerCase();
-    const dealer = String(dealerCode || '').trim();
     const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuid.test(id) || !dealer) return { ok: false, error: 'invalid_identity' };
+    if (!Array.isArray(vehicles) || !vehicles.length || vehicles.length > 25) return { ok: false, error: 'invalid_identity' };
+    const requested = vehicles.map(vehicle => ({
+      vehicle_id: String(vehicle?.vehicleId || '').trim().toLowerCase(),
+      dealer_code: String(vehicle?.dealerCode || '').trim(),
+    }));
+    if (requested.some(vehicle => !uuid.test(vehicle.vehicle_id) || !vehicle.dealer_code || vehicle.dealer_code.length > 80)
+      || new Set(requested.map(vehicle => vehicle.vehicle_id)).size !== requested.length) return { ok: false, error: 'invalid_identity' };
     const generation = lifecycleGeneration;
+    const current = () => !destroyed && generation === lifecycleGeneration && token === getAccessToken()
+      && role === String(getRole() || '').trim().toLowerCase();
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    let timeout;
     try {
-      const response = await client.rpc(token, 'get_vehicle_workshop_detail_scoped', { p_vehicle_id: id, p_dealer_code: dealer });
-      if (destroyed || generation !== lifecycleGeneration || token !== getAccessToken()
-        || role !== String(getRole() || '').trim().toLowerCase()) return { ok: false, error: 'authority_superseded' };
-      if (!response?.ok) return { ok: false, error: [401, 403].includes(response?.status) ? 'permission_denied' : 'request_failed' };
-      const detail = response.body;
-      if (detail?.ok === false) return { ok: false, error: detail.code || detail.error || 'request_failed' };
-      if (!detail || String(detail.vehicle_id || '').toLowerCase() !== id || !Array.isArray(detail.bookings)) return { ok: false, error: 'invalid_response' };
-      const seen = new Set();
-      const bookings = [];
-      for (const booking of detail.bookings) {
-        const bookingId = String(booking?.booking_id || '').toLowerCase();
-        const unallocated = booking?.bay_number == null && ['queued', 'stoppage', 'completed'].includes(booking?.status);
-        if (!uuid.test(bookingId) || seen.has(bookingId)
-          || !/^[A-Z0-9_]+$/.test(String(booking?.stage_code || ''))
-          || (!unallocated && (!Number.isInteger(Number(booking?.bay_number)) || Number(booking.bay_number) < 1))
-          || !['queued', 'planned', 'started', 'stoppage', 'completed'].includes(booking?.status)
-          || !Number.isFinite(Date.parse(booking?.scheduled_start_at))
-          || !Number.isFinite(Date.parse(booking?.scheduled_end_at))
-          || Date.parse(booking.scheduled_end_at) <= Date.parse(booking.scheduled_start_at)) {
-          return { ok: false, error: 'invalid_response' };
+      const read = async () => {
+        const response = await client.rpc(token, 'get_workshop_booking_search_scoped', { p_vehicles: requested }, { signal: controller?.signal });
+        if (!current()) return { ok: false, error: 'authority_superseded' };
+        if (controller?.signal.aborted) return { ok: false, error: 'request_failed' };
+        // A rolling deployment may briefly lack this exact function. Never
+        // turn a broad search back into 25 expensive detail requests, and never
+        // retry authorization, network or server failures through another RPC.
+        if (!response?.ok && response?.status === 404 && response?.body?.code === 'PGRST202') {
+          if (requested.length > 4) return { ok: false, error: 'booking_search_upgrade_required' };
+          const results = await Promise.all(requested.map(async vehicle => {
+            const legacy = await client.rpc(token, 'get_vehicle_workshop_detail_scoped', {
+              p_vehicle_id: vehicle.vehicle_id, p_dealer_code: vehicle.dealer_code,
+            }, { signal: controller?.signal });
+            if (!legacy?.ok) return { ok: false, vehicle_id: vehicle.vehicle_id, dealer_code: vehicle.dealer_code,
+              error: [401, 403].includes(legacy?.status) ? 'permission_denied' : 'request_failed' };
+            return { ...legacy.body, dealer_code: vehicle.dealer_code,
+              ...(legacy.body?.ok === false ? { vehicle_id: vehicle.vehicle_id } : {}) };
+          }));
+          return { ok: true, results };
         }
-        seen.add(bookingId);
-        const allowed = ['booking_id', 'booking_version', 'stage_code', 'stage_name', 'bay_number', 'bay_name',
-          'status', 'scheduled_start_at', 'scheduled_end_at', 'default_duration_minutes', 'actual_start_at', 'actual_end_at'];
-        bookings.push(Object.fromEntries(allowed.filter(key => Object.prototype.hasOwnProperty.call(booking, key)).map(key => [key, booking[key]])));
+        if (!response?.ok) return { ok: false, error: [401, 403].includes(response?.status) ? 'permission_denied' : 'request_failed' };
+        return response.body;
+      };
+      const body = await Promise.race([read(), new Promise((_, reject) => {
+        timeout = scheduleTimeout(() => { controller?.abort(); reject(new Error('booking_search_timeout')); }, snapshotTimeoutMs);
+      })]);
+      if (!current()) return { ok: false, error: 'authority_superseded' };
+      if (body?.ok === false) return { ok: false, error: body.error || body.code || 'request_failed' };
+      if (body?.ok !== true || !Array.isArray(body.results) || body.results.length !== requested.length) return { ok: false, error: 'invalid_response' };
+      const received = new Set();
+      const bookingIds = new Set();
+      const results = [];
+      for (const detail of body.results) {
+        const id = String(detail?.vehicle_id || '').toLowerCase();
+        const identity = requested.find(vehicle => vehicle.vehicle_id === id && vehicle.dealer_code === detail?.dealer_code);
+        if (!identity || received.has(id)) return { ok: false, error: 'invalid_response' };
+        received.add(id);
+        if (detail.ok === false) {
+          results.push({ ok: false, vehicleId: id, dealerCode: identity.dealer_code, error: detail.code || detail.error || 'request_failed' });
+          continue;
+        }
+        const parsed = validateVehicleBookingMetadata(detail, uuid, bookingIds);
+        if (!parsed) return { ok: false, error: 'invalid_response' };
+        results.push({ ok: true, vehicleId: id, dealerCode: identity.dealer_code, bookings: parsed });
       }
-      return { ok: true, vehicleId: id, bookings };
+      return { ok: true, results };
     } catch (_error) {
-      return { ok: false, error: 'request_failed' };
+      return { ok: false, error: current() ? 'request_failed' : 'authority_superseded' };
+    } finally { clearScheduledTimeout(timeout); }
+  }
+
+  function validateVehicleBookingMetadata(detail, uuid, bookingIds) {
+    if (!Array.isArray(detail.bookings)) return null;
+    const bookings = [];
+    for (const booking of detail.bookings) {
+      const bookingId = String(booking?.booking_id || '').toLowerCase();
+      const unallocated = booking?.bay_number == null && ['queued', 'stoppage', 'completed'].includes(booking?.status);
+      if (!uuid.test(bookingId) || bookingIds.has(bookingId)
+        || !Number.isInteger(booking?.booking_version) || booking.booking_version < 0
+        || !/^[A-Z0-9_]+$/.test(String(booking?.stage_code || ''))
+        || (!unallocated && (!Number.isInteger(Number(booking?.bay_number)) || Number(booking.bay_number) < 1))
+        || !['queued', 'planned', 'started', 'stoppage', 'completed'].includes(booking?.status)
+        || !Number.isFinite(Date.parse(booking?.scheduled_start_at))
+        || !Number.isFinite(Date.parse(booking?.scheduled_end_at))
+        || Date.parse(booking.scheduled_end_at) <= Date.parse(booking.scheduled_start_at)) {
+        return null;
+      }
+      bookingIds.add(bookingId);
+      const allowed = ['booking_id', 'booking_version', 'stage_code', 'stage_name', 'bay_number', 'bay_name',
+        'status', 'scheduled_start_at', 'scheduled_end_at', 'default_duration_minutes', 'actual_start_at', 'actual_end_at'];
+      bookings.push(Object.fromEntries(allowed.filter(key => Object.prototype.hasOwnProperty.call(booking, key)).map(key => [key, booking[key]])));
     }
+    return bookings;
+  }
+
+  async function lookupVehicleBookings(vehicleId, dealerCode) {
+    const result = await lookupVehicleBookingsBatch([{ vehicleId, dealerCode }]);
+    if (!result.ok) return result;
+    const { dealerCode: _dealer, ...vehicle } = result.results[0];
+    return vehicle;
   }
 
   function destroy() {
@@ -732,6 +790,7 @@ function createWorkshopDataService(options) {
     getLastRevision: () => lastRevision,
     getScope: () => (scope ? { ...scope } : null),
     lookupVehicleBookings,
+    lookupVehicleBookingsBatch,
     loadSnapshot,
     setScope,
     onRevisionSignal,

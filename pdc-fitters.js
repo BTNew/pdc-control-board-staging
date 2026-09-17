@@ -101,6 +101,7 @@
   function createService(options) {
     let generation = 0, busy = false, retry = null;
     let rosterCache = null, rosterRequest = null;
+    let refreshCache = null, refreshRequest = null, readGeneration = 0;
     const now = options.now || Date.now;
     const rosterTtlMs = options.rosterTtlMs ?? 60000;
     const error = (message, code) => Object.assign(Error(message), { code });
@@ -143,6 +144,7 @@
       if (retry && !isRetry) throw error('Check or retry the previous action first.', 'unconfirmed');
       const request = isRetry ? retry : { body:{ ...body, p_request_id:options.uuid() }, owner:{ ...options.context(), generation } };
       if (!request) throw error('There is no action to retry.', 'no_retry');
+      invalidateReads();
       busy = true;
       try {
         const result = await rpc('fitter_job_command', request.body, true, request.owner);
@@ -168,12 +170,46 @@
       rosterRequest = request;
       return request.promise;
     }
+    function invalidateReads() { readGeneration++; refreshCache=null; refreshRequest=null; }
+    async function refresh(id, booking = '', { force = false } = {}) {
+      // A foreground refresh supersedes any older background read. Never let a
+      // response started before a command become the next revision baseline.
+      if (force) invalidateReads();
+      const owner={...options.context(),generation}, stamp=readGeneration;
+      const cached=!force && refreshCache && current(refreshCache.owner,false)
+        && refreshCache.id===id && refreshCache.result.selected===booking ? refreshCache : null;
+      const known=cached?.revision || null;
+      if (refreshRequest && current(refreshRequest.owner,false) && refreshRequest.stamp===stamp
+          && refreshRequest.id===id && refreshRequest.booking===booking && refreshRequest.known===known) return refreshRequest.promise;
+      const request={owner,stamp,id,booking,known,promise:null};
+      request.promise=rpc('get_fitter_refresh',{p_technician_id:id,p_booking_id:booking||null,p_known_revision:known},false,owner).then(result=>{
+        if(stamp!==readGeneration || refreshRequest!==request || !current(owner,false)) throw error('The job changed while refreshing. Refresh to check the latest work.','session_changed');
+        if(typeof result.revision!=='string' || !result.revision) throw error('The workshop update could not be confirmed. Refresh to retry.','invalid_refresh');
+        let snapshot;
+        if(result.unchanged===true) {
+          if(!cached || result.revision!==known || (result.booking_id||'')!==cached.result.selected
+              || (cached.result.detail && (!result.timing?.timer || !result.timing.server_now))) {
+            throw error('The workshop update could not be confirmed. Refresh to retry.','invalid_refresh');
+          }
+          snapshot={...cached.result,detail:cached.result.detail?{...cached.result.detail,...result.timing}:null};
+        } else {
+          if(!Array.isArray(result.jobs) || !Array.isArray(result.bays)) throw error('The job list could not be confirmed. Refresh to retry.','invalid_refresh');
+          const selected=fitterJobFlow(result.jobs,booking).current?.id || '';
+          if((result.booking_id||'')!==selected || (selected && result.detail?.booking_id!==selected)) throw error('The job list changed while refreshing. Refresh to retry.','invalid_refresh');
+          snapshot={jobs:result.jobs,bays:result.bays,selected,detail:selected?result.detail:null};
+        }
+        refreshCache={owner,id,revision:result.revision,result:snapshot};
+        return snapshot;
+      }).finally(()=>{if(refreshRequest===request)refreshRequest=null;});
+      refreshRequest=request;
+      return request.promise;
+    }
     return {
-      roster,
+      roster, refresh, invalidateReads,
       jobs:id => rpc('get_fitter_jobs', {p_technician_id:id}, false),
       job:(id, booking) => rpc('get_fitter_job', {p_technician_id:id,p_booking_id:booking}, false),
       command, retry:() => command(null, true),
-      invalidate() { generation++; retry = null; rosterCache = null; rosterRequest = null; },
+      invalidate() { generation++; retry = null; rosterCache = null; rosterRequest = null; invalidateReads(); },
       get busy() { return busy; }, get retryPending() { return Boolean(retry); },
       get retryAction() { return retry?.body.p_action || ''; },
       canWrite:() => available(options.context(), true),
@@ -279,7 +315,7 @@
   }
   function viewKey() { return JSON.stringify([roster, mechanic, jobs, bays, selected, detail, connected, message],(key,value)=>['timer','generated_at','server_now'].includes(key)?undefined:value); }
   async function refresh({ background = false, forceRoster = false } = {}) {
-    if (!active() || loading || saving || service.retryPending || (background && refreshing)) return;
+    if (!active() || loading || saving || service.retryPending || (background && (doc.hidden || refreshing))) return;
     const generation = ++loadGeneration, mechanicBefore = mechanic, before = viewKey();
     refreshing = true; loading = !background;
     if (!background) render();
@@ -290,6 +326,13 @@
       const nextMechanic = nextRoster.some(t=>t.id===mechanicBefore) ? mechanicBefore : '';
       let nextJobs = [], nextBays = [], nextSelected = '', nextDetail = null;
       if (nextMechanic) {
+        if(rosterResult.refresh_supported===true) {
+          const snapshot=await service.refresh(nextMechanic,selected,{force:!background});
+          if(generation!==loadGeneration || mechanicBefore!==mechanic || !active())return;
+          nextJobs=snapshot.jobs;nextBays=snapshot.bays;nextSelected=snapshot.selected;nextDetail=snapshot.detail;
+        } else {
+        // Older deployments keep the existing authoritative read path until the
+        // roster explicitly advertises the incremental endpoint.
         const list = await service.jobs(nextMechanic);
         if (generation!==loadGeneration || mechanicBefore!==mechanic || !active()) return;
         nextJobs=list.jobs; nextBays=list.bays;
@@ -298,6 +341,7 @@
         nextSelected=fitterJobFlow(nextJobs,selected).current?.id || '';
         nextDetail=nextSelected ? await service.job(nextMechanic,nextSelected) : null;
         if (generation!==loadGeneration || !active()) return;
+        }
       }
       // Apply the matching list and operation scope together. An interaction
       // superseding a background read must never receive its late job details.
@@ -382,7 +426,7 @@
     on('[data-fitter-retry]','click',()=>void act(null,null,null,true));
   }
   api.open = () => { render(); if(!initialized) {initialized=true;void refresh();} };
-  api.close = () => { freezeTimer(); loadGeneration++; loading=false; refreshing=false; initialized=false; connected=false; };
+  api.close = () => { freezeTimer(); loadGeneration++; service.invalidateReads(); loading=false; refreshing=false; initialized=false; connected=false; };
   const reset=()=>{service.invalidate();api.close();roster=[];mechanic='';jobs=[];bays=[];selected='';detail=null;handover=null;scrollToCurrent=false;detailReceivedAt=0;timerFreeze=null;pendingAction='';stopOpen=false;stopReason='';drafts.clear();message='';render();};
   root.addEventListener('pdc-auth-locked',reset);
   root.addEventListener('pdc-auth-ready',()=>{if(active())api.open();});

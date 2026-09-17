@@ -3517,7 +3517,7 @@ function loadVehicleLifecycleSharedActionsIfConfigured() {
         initVehicleLifecycleSharedActionsIfEnabled();
         return;
       }
-      loadExternalScript(`workshop-data-service.js?planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
+      loadExternalScript(`workshop-data-service.js?speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-data-service-script')
         .then(() => initVehicleLifecycleSharedActionsIfEnabled())
         .catch(() => { /* fail closed: configured shared lifecycle actions report service_unavailable */ });
     })
@@ -5201,12 +5201,17 @@ async function refreshEmailVehicleLocations(options = {}) {
   }
   const refreshGeneration = options.refreshGeneration;
   const generation = ++app.emailVehicleLocationGeneration;
-  const response = await service.snapshot();
+  const response = await service.snapshot(options.checkRevision === true
+    ? { reconcile: true, knownRevision: app.emailVehicleLocationRevision } : {});
   if (generation !== app.emailVehicleLocationGeneration || service !== app.emailVehicleLocationService || authority !== String(window.PDC_AUTH_CONTEXT?.userId || '')) return false;
   if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return false;
   if (!response.ok) {
     app.emailVehicleLocationError = response.code || response.error || 'snapshot_unavailable';
     return false;
+  }
+  if (response.unchanged === true) {
+    app.emailVehicleLocationError = '';
+    return true;
   }
   const serverRows = applyPendingAuthoritativeVehicleReceiptOverlays(Array.isArray(response.data?.vehicles) ? response.data.vehicles : []);
   app.emailVehicleLocationRows = applyPendingSharedWorkStateOverlays(serverRows);
@@ -5256,8 +5261,10 @@ function initEmailVehicleLocationsIfAvailable(options = {}) {
       });
     } catch (_error) { return null; }
   }
-  if (!app.emailVehicleLocationRealtime) app.emailVehicleLocationRealtime = app.emailVehicleLocationService.subscribe(() => {
-    if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true, deferSupersede: true, source: 'email_revision' });
+  if (!app.emailVehicleLocationRealtime) app.emailVehicleLocationRealtime = app.emailVehicleLocationService.subscribe((revision, event) => {
+    if (event?.reconnect) void refreshEmailVehicleLocations({ checkRevision: true });
+    else if (revision != null && Number(revision) === Number(app.emailVehicleLocationRevision)) return;
+    else if (app.vehicleLocationsRefreshCoordinator) void refreshVehicleLocations({ supersede: true, deferSupersede: true, source: 'email_revision' });
     else refreshEmailVehicleLocations();
     if (vehicleLifecycleAdministratorActive() && app.deletedVehicleSnapshotState !== 'idle') loadDeletedVehicleSnapshot({ force: true });
   });
@@ -5379,6 +5386,7 @@ window.addEventListener?.('pdc-auth-locked', () => {
   resetServerAiIntakeAuthorityState({ clearData: true });
   clearSharedNavisionVisibilityReconnectTimer();
   app.sharedNavisionVisibleGeneration += 1;
+  app.sharedNavisionVisibleLoadPromise = null;
   releaseSharedNavisionVisibilityChannel();
   app.sharedNavisionVisibleRealtimeState = 'idle';
   app.sharedNavisionVisibleReconnectAttempt = 0;
@@ -5416,11 +5424,11 @@ function renderWorkshopPlannerWhenReady() {
   // unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is explicitly set
   // to true; the planner UI/runtime is not modified by this load and
   // continues to operate exactly as before.
-  loadExternalScript(`workshop-data-service.js?planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5465,11 +5473,11 @@ function ensureDashboardWorkshopProjectionReady() {
   }
   if (window.__dashboardWorkshopProjectionLoading) return false;
   window.__dashboardWorkshopProjectionLoading = true;
-  loadExternalScript(`workshop-data-service.js?planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -17801,8 +17809,9 @@ function subscribeSharedNavisionVisibility() {
         app.sharedNavisionVisibleStableTimer = null;
       }, 10000);
       renderSharedNavisionVisibilityState();
-      // Close the load-before-subscribe race by reconciling once healthy ownership is proven.
-      if (firstHealthySubscription) loadSharedNavisionVisibleRows({ force: true });
+      // Check the revision after subscription to close the load/subscribe race
+      // without discarding and repeating an unchanged multi-page download.
+      if (firstHealthySubscription) void reconcileSharedNavisionVisibility(generation, channel);
       return;
     }
     if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
@@ -17814,7 +17823,36 @@ function subscribeSharedNavisionVisibility() {
   });
 }
 
-async function loadSharedNavisionVisibleRows(options = {}) {
+async function reconcileSharedNavisionVisibility(generation, channel) {
+  const service = navisionSharedBackendService();
+  const current = () => generation === app.sharedNavisionVisibleRealtimeGeneration
+    && channel === app.sharedNavisionVisibleRealtime && app.sharedNavisionVisibleRealtimeState === 'subscribed';
+  const result = await service?.visibleRevision?.();
+  if (!current()) return;
+  // The first download may still be running. Its revision can prove that it
+  // already contains everything observed by the post-subscription check.
+  if (app.sharedNavisionVisibleLoadPromise) await app.sharedNavisionVisibleLoadPromise;
+  if (!current()) return;
+  if (result?.ok && app.sharedNavisionVisibleState === 'ready'
+      && app.sharedNavisionVisibleRevision != null
+      && Number(app.sharedNavisionVisibleRevision) >= result.revision) {
+    app.sharedNavisionVisibleRealtimeReconciled = true;
+    renderSharedNavisionVisibilityState();
+    return;
+  }
+  return loadSharedNavisionVisibleRows({ force: true });
+}
+
+function loadSharedNavisionVisibleRows(options = {}) {
+  if (app.sharedNavisionVisibleState === 'loading' && options.force !== true) return app.sharedNavisionVisibleLoadPromise;
+  const pending = readSharedNavisionVisibleRows(options).finally(() => {
+    if (app.sharedNavisionVisibleLoadPromise === pending) app.sharedNavisionVisibleLoadPromise = null;
+  });
+  app.sharedNavisionVisibleLoadPromise = pending;
+  return pending;
+}
+
+async function readSharedNavisionVisibleRows(options = {}) {
   const force = options.force === true;
   const refreshGeneration = options.refreshGeneration;
   if (app.sharedNavisionVisibleState === 'loading' && !force) return;
@@ -17826,6 +17864,11 @@ async function loadSharedNavisionVisibleRows(options = {}) {
   }
   subscribeSharedNavisionVisibility();
 
+  // Only a read begun under this established subscription can independently
+  // prove freshness. An initial/reconnecting read may miss a revision before
+  // subscription, so its result must await the post-subscription revision check.
+  const subscribedChannel = app.sharedNavisionVisibleRealtimeState === 'subscribed' ? app.sharedNavisionVisibleRealtime : null;
+  const subscriptionGeneration = app.sharedNavisionVisibleRealtimeGeneration;
   const generation = ++app.sharedNavisionVisibleGeneration;
   if (app.sharedNavisionVisibleRealtimeState === 'subscribed') app.sharedNavisionVisibleRealtimeReconciled = false;
   app.sharedNavisionVisibleState = 'loading';
@@ -17834,21 +17877,22 @@ async function loadSharedNavisionVisibleRows(options = {}) {
   renderBackEndData();
   if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
   try {
-    const rows = [];
     let expectedRevision = null;
-    for (const dealerCode of ['14450', '37047', '002345', '001234']) {
+    const dealerRows = await Promise.all(['14450', '37047', '002345', '001234'].map(async dealerCode => {
+      const rows = [];
       let cursor = {};
       let pageCount = 0;
       let exhausted = false;
       while (pageCount < 25) {
+        if (generation !== app.sharedNavisionVisibleGeneration) return [];
         const result = await service.visibleSnapshot(
           { sourceSystem: 'microsoft_navision', dealerCode },
           cursor,
           500,
           expectedRevision,
         );
-        if (generation !== app.sharedNavisionVisibleGeneration) return { ok: false, stale: true };
-        if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return { ok: false, stale: true };
+        if (generation !== app.sharedNavisionVisibleGeneration) return [];
+        if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return [];
         if (!result?.ok) throw new Error(result?.error || 'shared_navision_visibility_failed');
         const data = sharedNavisionVisibleData(result) || {};
         const revision = Number(data.revision);
@@ -17865,13 +17909,17 @@ async function loadSharedNavisionVisibleRows(options = {}) {
         cursor = { recordId: data.next_record_id };
       }
       if (!exhausted) throw new Error('shared_navision_page_limit_exceeded');
-    }
+      return rows;
+    }));
     if (generation !== app.sharedNavisionVisibleGeneration) return { ok: false, stale: true };
     if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return { ok: false, stale: true };
-    app.sharedNavisionVisibleRows = rows;
+    app.sharedNavisionVisibleRows = dealerRows.flat();
     app.sharedNavisionVisibleRevision = expectedRevision;
     app.sharedNavisionVisibleState = 'ready';
-    app.sharedNavisionVisibleRealtimeReconciled = app.sharedNavisionVisibleRealtimeState === 'subscribed' && Boolean(app.sharedNavisionVisibleRealtime);
+    app.sharedNavisionVisibleRealtimeReconciled = Boolean(subscribedChannel)
+      && subscribedChannel === app.sharedNavisionVisibleRealtime
+      && subscriptionGeneration === app.sharedNavisionVisibleRealtimeGeneration
+      && app.sharedNavisionVisibleRealtimeState === 'subscribed';
   } catch (error) {
     if (generation !== app.sharedNavisionVisibleGeneration) return { ok: false, stale: true };
     if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return { ok: false, stale: true };
