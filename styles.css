@@ -13765,3 +13765,13 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 
 .incoming-work-check[data-open-sublet-stock] { cursor: pointer !important; font: inherit; margin: 0; box-shadow: none; }
 .incoming-work-check[data-open-sublet-stock]:focus-visible { outline: 2px solid #2563eb !important; outline-offset: 2px; }
+
+/* The intake department preference is intentionally limited to Locations/New Vehicles. */
+.incoming-search-panel.incoming-search-only { grid-template-columns: minmax(240px, 1fr) minmax(190px, 230px) auto; }
+.incoming-department-control select { width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #0f172a; font: inherit; }
+@media (max-width: 1100px) {
+  .incoming-search-only .incoming-filter-meta { grid-column: 1 / -1; margin: 0; white-space: normal; }
+}
+@media (max-width: 760px) {
+  .incoming-search-panel.incoming-search-only { grid-template-columns: 1fr; }
+}

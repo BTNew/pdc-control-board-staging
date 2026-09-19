@@ -185,8 +185,9 @@ test('vehicle search keeps only its booked bays and restores all bays when clear
   assert.ok(allItems(model).every(item => item.vehicle.stock_number === 'DEMO-0001'));
   assert.equal((render(model).match(/data-control-board-bay=/g)||[]).length,2);
   assert.match(render(model), /2 bays · 2 bookings · 0 unallocated/);
-  assert.deepEqual(overview.searchDateRange(model),{startDate:'2026-09-15',dayCount:3});
-  const timeline = overview.buildTimeline(model, overview.searchDateRange(model));
+  const range = overview.searchDateRange(model,{now:new Date('2026-09-15T01:00:00Z')});
+  assert.deepEqual(range,{startDate:'2026-09-15',dayCount:3});
+  const timeline = overview.buildTimeline(model, {...range,now:new Date('2026-09-15T01:00:00Z')});
   assert.equal(timeline.outside.length,0);
   assert.equal(new Set(timeline.rows.flatMap(row=>row.segments.map(segment=>segment.item.id))).size,2);
   assert.equal(buildModel(snapshot,{search:''}).columns.length,43);
@@ -272,7 +273,8 @@ function integrationRuntime(overrides = {}) {
   const search = { value: '' }, floating = { hidden: false };
   const context = {
     app: { data: [], workflowSearch: '', workshopEligibilityState: 'connected', workshopEligibilitySnapshot: fixture.populatedSnapshot(), ...overrides },
-    window: { ControlBoardOverview: overview },
+    // Keep live carry-over projections on the same clock as the fixture and app VM.
+    window: { ControlBoardOverview: {...overview,searchDateRange:(model,options={})=>overview.searchDateRange(model,{now:new Date('2026-09-15T01:00:00Z'),...options})} },
     document: { body: { classList: { remove: name => calls.removedClass.push(name) } } },
     $: selector => ({ '#workflow-board': host, '#workflow-search': search, '#workflow-floating-column-header': floating }[selector] || null),
     workshopEligibilitySharedAuthorityEnabled: () => true,

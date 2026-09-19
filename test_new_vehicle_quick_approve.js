@@ -26,6 +26,7 @@ function fixture(rows=[vehicle()]){
   vm.createContext(context);
   vm.runInContext(source.slice(source.indexOf('  let items='),source.indexOf('  const readable=')),context);
   vm.runInContext(source.slice(source.indexOf('  function message(err)'),source.indexOf('  async function load(')),context);
+  vm.runInContext(source.slice(source.indexOf('  function applyDepartmentSelection('),source.indexOf('  function choose(')),context);
   vm.runInContext(source.slice(source.indexOf('  async function approve()'),source.indexOf('  const previousRender=')),context);
   vm.runInContext('items=rows;total=rows.length;',context);
   return {context,state,set:code=>vm.runInContext(code,context),get:code=>vm.runInContext(code,context)};

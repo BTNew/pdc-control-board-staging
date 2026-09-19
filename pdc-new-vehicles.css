@@ -28,6 +28,13 @@
 
 /* Review tray above the station drop targets. */
 .nv-header-actions{flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.nv-department-filter{display:flex;align-items:center;gap:7px;max-width:100%;font-size:12px;font-weight:700;color:#526278}
+.nv-department-filter select{box-sizing:border-box;min-height:38px;max-width:100%;padding:7px 28px 7px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#22364e}
+.nv-department-filter select:focus-visible{outline:2px solid #155db9;outline-offset:2px}
+.nv-department-filter select:disabled{opacity:.6;cursor:default}
+.nv-department-note{padding:12px 16px;border:1px solid #d9bd7f;border-radius:8px;background:#fff8e8;color:#674914;font-size:13px;line-height:1.5}
+@media(max-width:500px){.nv-header-actions{justify-content:flex-start}.nv-department-filter{flex-basis:100%;justify-content:space-between}.nv-department-filter select{flex:1;min-width:0}}
+@media(pointer:coarse){.nv-department-filter select{min-height:44px}}
 .nv-queue-search{display:grid;gap:6px;max-width:520px;margin:0 0 18px;font-size:13px;font-weight:700}.nv-queue-search input{width:100%;box-sizing:border-box;min-height:38px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#17283d;font:inherit}.nv-queue-search small{font-size:12px;font-weight:400;color:#637185}
 .nv-header .nv-approve-button{min-height:44px;padding:10px 22px;border:0;background:#155db9;color:#fff;font-weight:700;white-space:nowrap}
 .nv-stations>.nv-station{border-top:5px solid var(--station-colour,#64748b);background:var(--station-tint,#f8fafc)}

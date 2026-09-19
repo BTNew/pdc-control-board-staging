@@ -51,6 +51,7 @@ function fixture(){
   vm.createContext(context);
   vm.runInContext(source.slice(source.indexOf('  let items='),source.indexOf('  const readable=')),context);
   vm.runInContext(`updateItems=${JSON.stringify([row])};updateTotal=1;const writable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT.role);`,context);
+  vm.runInContext(source.slice(source.indexOf('  function applyDepartmentSelection('),source.indexOf('  function choose(')),context);
   vm.runInContext(source.slice(source.indexOf('  function message(err)'),source.indexOf('  async function load('))+source.slice(source.indexOf('  async function approveUpdate(id)'),source.indexOf('  function bindUpdates()')),context);
   return {context,calls,pending,refreshes,delays,advance:ms=>{elapsed+=ms;},state:()=>vm.runInContext('({updateItems,saving,error,notice,updateSchedule,updateRequests})',context)};
 }
