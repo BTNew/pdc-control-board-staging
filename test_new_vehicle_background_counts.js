@@ -7,7 +7,7 @@ const source=fs.readFileSync(require.resolve('./pdc-new-vehicles.js'),'utf8');
 function fixture() {
   const calls=[],badge={},nav={querySelector:()=>badge,setAttribute(name,value){this[name]=value;}},app={currentView:'dashboard'},document={visibilityState:'visible'};
   let allowed=true,release=null,reject=false;
-  const context=vm.createContext({app,document,nav,Promise,Number,
+  const context=vm.createContext({...require('./pdc-new-vehicles.js'),app,document,nav,Promise,Number,
     readable:()=>allowed,message:e=>e.message,render:()=>{},
     rpc:async(name)=>{calls.push(name);if(release)await new Promise(resolve=>release=resolve);if(reject)throw Error('offline');
       return name==='get_pdc_review_counts'?{ok:true,data:{new_vehicles:12,operation_changes:4}}:{ok:true,data:{items:[],total:name==='list_pdc_new_vehicle_reviews'?3:2}};}});

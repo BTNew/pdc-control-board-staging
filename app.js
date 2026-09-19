@@ -3689,6 +3689,10 @@ function bindNav() {
   on($('#dashboard-clear-pd'), 'click', clearDashboardPdImport);
   on($('#incoming-search'), 'input', queueIncomingDashboardRender);
   bindVehicleLocationsRefreshClickDelegation();
+  on($('#incoming-department-filter'), 'change', event => window.PDC_DEPARTMENT_FILTER?.setSelection(event.target.value));
+  window.addEventListener('pdc-department-filter-changed', syncIncomingDepartmentFilter);
+  const departmentSelect = $('#incoming-department-filter');
+  if (departmentSelect) departmentSelect.value = incomingDepartmentFilterValue();
   on($('#incoming-status-filter'), 'change', renderIncomingDashboardBoard);
   on($('#incoming-bucket-filter'), 'change', renderIncomingDashboardBoard);
   on($('#incoming-rep-filter'), 'change', renderIncomingDashboardBoard);
@@ -7494,9 +7498,33 @@ function incomingWorkFilterValues() {
     .filter(Boolean);
 }
 
+function incomingDepartmentFilterValue() {
+  return typeof window === 'object' ? window.PDC_DEPARTMENT_FILTER?.getSelection() || '' : '';
+}
+
+function syncIncomingDepartmentFilter() {
+  const control = $('#incoming-department-filter');
+  if (control) control.value = incomingDepartmentFilterValue();
+  if (app.currentView !== 'dashboard') return;
+  app.selectedRows.clear();
+  if (app.singleSearchFocus) app.singleSearchFocus.incoming = '';
+  renderIncomingDashboardBoard();
+}
+
+function pruneIncomingDepartmentSelection(rows = []) {
+  if (app.currentView !== 'dashboard') return;
+  const visible = new Set(rows.map(vehicleKey));
+  [...app.selectedRows].forEach(key => { if (!visible.has(key)) app.selectedRows.delete(key); });
+}
+
+function incomingDepartmentPriorityRows(filters = incomingDashboardFilterValues()) {
+  return workflowPriorityRows().filter(row => incomingVehicleMatchesFilters(row.vehicle, filters));
+}
+
 function incomingDashboardFilterValues() {
   return {
     search: String($('#incoming-search')?.value || '').trim().toLowerCase(),
+    department: incomingDepartmentFilterValue(),
     status: String($('#incoming-status-filter')?.value || '').trim(),
     bucket: String($('#incoming-bucket-filter')?.value || '').trim(),
     rep: String($('#incoming-rep-filter')?.value || '').trim(),
@@ -7513,6 +7541,7 @@ function incomingWorkFilterMatches(vehicle = {}, workKey = '') {
 }
 
 function incomingVehicleMatchesFilters(vehicle = {}, filters = incomingDashboardFilterValues()) {
+  if (filters.department && (typeof window !== 'object' || window.PDC_DEPARTMENT_FILTER?.matches(vehicle, filters.department) !== true)) return false;
   const bucket = incomingBucketForVehicle(vehicle);
   if (!bucket) return false;
   const status = navisionStatusText(vehicle) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || '';
@@ -7628,7 +7657,8 @@ function clearIncomingDashboardFilters() {
     if (input) input.value = '';
   });
   $$('input[name="incoming-work-filter"]').forEach(input => { input.checked = false; });
-  renderIncomingDashboardBoard();
+  if (incomingDepartmentFilterValue()) window.PDC_DEPARTMENT_FILTER.setSelection('');
+  else renderIncomingDashboardBoard();
 }
 
 function workflowSearchText(vehicle = {}) {
@@ -8542,6 +8572,7 @@ function renderIncomingDashboardBoardContent() {
   updateIncomingMoreFiltersState(filters);
   const sort = app.incomingDashboardSort || {};
   const filteredRows = rows.filter(vehicle => incomingVehicleMatchesFilters(vehicle, filters));
+  pruneIncomingDepartmentSelection(filteredRows);
   const rowsByBucket = new Map();
   filteredRows.forEach(vehicle => {
     const key = incomingBucketForVehicle(vehicle);
@@ -8552,11 +8583,11 @@ function renderIncomingDashboardBoardContent() {
   const summary = $('#incoming-filter-summary');
   if (summary) {
     const workCount = Array.isArray(filters.work) ? filters.work.length : (filters.work ? 1 : 0);
-    const active = [filters.search && `search “${filters.search}”`, filters.status, filters.bucket && incomingBucketLabel(filters.bucket), filters.rep, workCount && `${workCount} work type${workCount === 1 ? '' : 's'}`].filter(Boolean);
+    const active = [filters.department && `Department ${filters.department}`, filters.search && `search “${filters.search}”`, filters.status, filters.bucket && incomingBucketLabel(filters.bucket), filters.rep, workCount && `${workCount} work type${workCount === 1 ? '' : 's'}`].filter(Boolean);
     summary.textContent = `${filteredRows.length} of ${rows.length} vehicles shown${active.length ? ` · ${active.join(' · ')}` : ''}`;
   }
   const defs = VEHICLE_LOCATION_BUCKET_DEFS;
-  const priorityRows = workflowPriorityRows();
+  const priorityRows = incomingDepartmentPriorityRows(filters);
   const priorityHtml = filters.bucket ? '' : `<section class="incoming-priority-stoppages" aria-label="Parts and PMB STOPPAGES">
     <div class="incoming-priority-stoppages-head"><strong>STOPPAGES / Fix First</strong><span>${priorityRows.length} active</span></div>
     <details class="fix-first-list incoming-priority-list"><summary>Show STOPPAGES</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
@@ -9197,7 +9228,7 @@ function showWorkImportReviewModal({ kind = 'pd', parsed = {}, filename = '', ex
 
 function updateIncomingMoreFiltersState(filters = incomingDashboardFilterValues()) {
   const workCount = Array.isArray(filters.work) ? filters.work.length : (filters.work ? 1 : 0);
-  const activeCount = (filters.rep ? 1 : 0) + workCount;
+  const activeCount = (filters.rep ? 1 : 0) + (filters.department ? 1 : 0) + workCount;
   const details = $('#incoming-more-filters');
   const label = details ? $('[data-incoming-more-filter-label]', details) : null;
   if (label) label.textContent = activeCount ? `More filters (${activeCount} active)` : 'More filters';

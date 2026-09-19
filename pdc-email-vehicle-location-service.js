@@ -203,6 +203,8 @@ function mapServerVehicle(row = {}) {
     if (item.completed_at) mapped[`${fields[1]}At`] = item.completed_at;
     if (item.completed_by) mapped[`${fields[1]}By`] = item.completed_by;
   }
+  if (Array.isArray(row.department_codes)) mapped.pdcDepartmentCodes = [...new Set(row.department_codes.map(value => String(value ?? '').trim()).filter(value => /^\d{3}$/.test(value)))].sort();
+  if (typeof row.has_unknown_department === 'boolean') mapped.pdcHasUnknownDepartment = row.has_unknown_department;
   const allowedOperationKeys = new Set(['bus4x4', 'tint', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet', 'pitinspection', 'parts', 'review']);
   // Retain job-card headings from the full canonical projection, including cards
   // whose first operation falls beyond the compact operation display limit.

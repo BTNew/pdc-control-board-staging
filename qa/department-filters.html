@@ -1,0 +1,224 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Department filter browser verification</title><link rel="stylesheet" href="../styles.css"><link rel="stylesheet" href="../pdc-new-vehicles.css"><style>html,body{min-height:100%;height:auto;overflow:auto}body{display:block;margin:0;background:#f3f6fa;font-family:Arial,sans-serif;color:#17314d;padding:24px}main{max-width:1400px;margin:auto}.qa-panel{background:white;border:1px solid #d3deeb;border-radius:12px;padding:20px;margin:18px 0}.qa-intro{margin:0 0 10px;color:#45627d;line-height:1.5}.qa-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}.qa-controls button{padding:9px 14px;min-height:38px}.qa-request{font-size:12px;white-space:pre-wrap;color:#426381;background:#f1f5fa;padding:10px;border-radius:6px;overflow-wrap:anywhere}.qa-row{display:grid;grid-template-columns:32px 130px minmax(160px,1fr) minmax(140px,1fr);gap:12px;align-items:center;padding:14px;border-bottom:1px solid #d9e1eb}.qa-row:last-child{border-bottom:0}.qa-row small{color:#546f88}.qa-guard{display:flex;gap:10px;flex-wrap:wrap}.qa-guard span{background:#e8f1f9;border:1px solid #c7d7e6;padding:8px;border-radius:6px;font-size:13px}.qa-status{font-size:13px;color:#1c6548;line-height:1.5}.qa-help{font-size:12px;color:#56728c}.qa-priority{padding:10px;font-size:13px}.qa-panel h2{margin:0 0 12px}.nv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}.incoming-search-panel{margin:0!important}.qa-panel .incoming-bucket{margin-top:12px}@media(max-width:600px){body{padding:10px}.qa-panel{padding:12px}.qa-row{grid-template-columns:26px 100px 1fr;gap:6px}.qa-row small{grid-column:2/4}}</style></head><body><main><h1>Department filter verification</h1><p class="qa-intro">Synthetic vehicles only. This fixture loads the actual department preference helper and New Vehicles card templates, plus extracted Vehicle Locations filtering and list rendering. It makes no network or database changes.</p><section class="qa-panel"><h2>Vehicle Locations</h2><div class="incoming-search-panel incoming-search-only" role="search" aria-label="Search Vehicle Locations">
+            <label>
+              <span>Search vehicles</span>
+              <input id="incoming-search" type="search" placeholder="Customer, stock, order, rego, key number or vehicle..." />
+            </label>
+            <label class="incoming-department-control" for="incoming-department-filter">
+              <span>Department</span>
+              <select id="incoming-department-filter">
+                <option value="">All departments</option>
+                <option value="138">138 — Bus 4×4</option>
+                <option value="139">139 — PD</option>
+              </select>
+            </label>
+            <div class="incoming-filter-meta" id="incoming-filter-summary">All active vehicles</div></div><div class="qa-controls"><button id="qa-clear" type="button">Clear filters</button><button id="qa-select" type="button">Select shown vehicles</button><span class="qa-status" id="qa-selected"></span></div><div id="incoming-main-board"></div></section><section id="newvehicles" class="qa-panel nv-root"><h2>New Vehicles</h2><div class="qa-controls"><div id="qa-nv-filter"></div><span id="qa-nv-count" class="qa-status"></span></div><div class="qa-request" id="qa-request"></div><p class="qa-help">Responses are simulated with membership applied before pagination. Mixed-department work must be reviewed when a single department is selected.</p><div class="nv-list" id="qa-nv-cards"></div><p class="qa-status" id="qa-review-message" role="status"></p></section><section class="qa-panel"><h2>Control Board shared-data guard</h2><p class="qa-help">This is a data-scope assertion, not the full planner UI. All four source records remain available to other pages regardless of these two view filters.</p><div class="qa-guard" id="qa-guard"></div><p class="qa-status" id="qa-invariant"></p></section></main><script src="../pdc-department-filter.js"></script><script>window.module={exports:{}};</script><script src="../pdc-new-vehicles.js"></script><script>const nv=window.module.exports;delete window.module;
+const $=(selector,host=document)=>host.querySelector(selector),$$=(selector,host=document)=>Array.from(host.querySelectorAll(selector));
+const rows=[{id:'bus',stock:'BUS-1',pdcDepartmentCodes:['138'],bucket:'pmb',status:'PMB',rep:'Alice',work:['tint'],customer:'Synthetic Bus customer',description:'Bus 4×4 vehicle'},{id:'pd',stock:'PD-1',pdcDepartmentCodes:['139'],bucket:'pmb',status:'PMB',rep:'Bob',work:['fitting'],customer:'Synthetic PD customer',description:'Hilux dual cab'},{id:'mixed',stock:'MIX-1',pdcDepartmentCodes:['138','139'],bucket:'pmb',status:'PMB',rep:'Alice',work:['fitting'],customer:'Synthetic mixed customer',description:'Vehicle with mixed department work'},{id:'unknown',stock:'UNK-1',pdcDepartmentCodes:[],bucket:'yardhold',status:'YH',rep:'Bob',work:[],customer:'Synthetic unconfirmed customer',description:'Vehicle with unconfirmed department'}];
+const priority=rows.map(vehicle=>({vehicle}));const app={currentView:'dashboard',selectedRows:new Set(),singleSearchFocus:{incoming:''},data:rows,vehicleLocationsRefreshState:'idle',incomingDashboardSort:{}};
+const vehicleKey=row=>row.id,vehicleLocationBoardRows=()=>rows,vehicleCollectedFromRft=()=>false,vehicleInCollectedState=()=>false,incomingBucketForVehicle=row=>row.bucket,incomingSearchText=row=>[row.stock,row.customer,row.description].join(' ').toLowerCase(),navisionStatusText=row=>row.status,pdcLocationLabel=value=>value,vehiclePdcLocation=row=>row.status,consultantName=row=>row.rep,incomingWorkFilterMatches=(row,key)=>row.work.includes(key),workflowPriorityRows=()=>priority;
+const captureIncomingBoardDisclosureState=()=>({}),ensureDashboardWorkshopProjectionReady=()=>false,sharedNavisionLocationAuthorityReady=()=>true,updateIncomingDashboardFilterOptions=()=>{},updateIncomingMoreFiltersState=()=>{},VEHICLE_LOCATION_BUCKET_DEFS=[{key:'pmb',label:'PMB',hint:'Synthetic PMB vehicles',open:true},{key:'yardhold',label:'Yard Hold',hint:'Synthetic Yard Hold vehicle',open:true}],incomingBucketLabel=value=>value,escapeHtml=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fixFirstRowsHtml=items=>items.map(item=>'<div class="qa-priority">'+escapeHtml(item.vehicle.stock)+' · Synthetic stoppage</div>').join(''),sharedNavisionLocationsStatusHtml=()=>'',workStatusLegendHtml=()=>'',incomingCompareVehicles=(a,b)=>a.id.localeCompare(b.id),productionGridHeaderHtml=()=>'',vehicleLocationsRftHeaderHtml=()=>'';
+const incomingVehicleDetailRow=row=>'<div class="qa-row" data-vehicle="'+row.id+'"><input type="checkbox" data-qa-select="'+row.id+'" aria-label="Select '+row.stock+'" '+(app.selectedRows.has(row.id)?'checked':'')+'><strong>'+row.stock+'</strong><span>'+row.customer+'</span><small>'+row.description+'</small></div>';
+const bindIncomingSubletLinks=()=>{},bindVehicleLabelButtons=()=>{},bindAuthenticatedOperationSummaries=()=>{},bindFixFirstRows=()=>{},bindRftCollectedInputs=()=>{},revealSingleVehicleSearchResult=()=>{},restoreIncomingBoardDisclosureState=()=>{},updateCollapseToggleButtons=()=>{},ensureOperationalRefreshControls=()=>{};
+function updateInlineSelectionBars(){$('#qa-selected').textContent=app.selectedRows.size+' selected; hidden rows are excluded.'}
+function bindIncomingCardSelection(host){$$('[data-qa-select]',host).forEach(input=>input.addEventListener('change',()=>{if(input.checked)app.selectedRows.add(input.dataset.qaSelect);else app.selectedRows.delete(input.dataset.qaSelect);updateInlineSelectionBars()}))}
+function incomingDepartmentFilterValue() {
+  return typeof window === 'object' ? window.PDC_DEPARTMENT_FILTER?.getSelection() || '' : '';
+}
+
+
+function syncIncomingDepartmentFilter() {
+  const control = $('#incoming-department-filter');
+  if (control) control.value = incomingDepartmentFilterValue();
+  if (app.currentView !== 'dashboard') return;
+  app.selectedRows.clear();
+  if (app.singleSearchFocus) app.singleSearchFocus.incoming = '';
+  renderIncomingDashboardBoard();
+}
+
+
+function pruneIncomingDepartmentSelection(rows = []) {
+  if (app.currentView !== 'dashboard') return;
+  const visible = new Set(rows.map(vehicleKey));
+  [...app.selectedRows].forEach(key => { if (!visible.has(key)) app.selectedRows.delete(key); });
+}
+
+
+function incomingDepartmentPriorityRows(filters = incomingDashboardFilterValues()) {
+  return workflowPriorityRows().filter(row => incomingVehicleMatchesFilters(row.vehicle, filters));
+}
+
+
+function incomingWorkFilterValues() {
+  return $$('input[name="incoming-work-filter"]')
+    .filter(input => input.checked)
+    .map(input => String(input.value || '').trim().toLowerCase())
+    .filter(Boolean);
+}
+
+
+function incomingDashboardFilterValues() {
+  return {
+    search: String($('#incoming-search')?.value || '').trim().toLowerCase(),
+    department: incomingDepartmentFilterValue(),
+    status: String($('#incoming-status-filter')?.value || '').trim(),
+    bucket: String($('#incoming-bucket-filter')?.value || '').trim(),
+    rep: String($('#incoming-rep-filter')?.value || '').trim(),
+    work: incomingWorkFilterValues(),
+  };
+}
+
+
+function incomingVehicleMatchesFilters(vehicle = {}, filters = incomingDashboardFilterValues()) {
+  if (filters.department && (typeof window !== 'object' || window.PDC_DEPARTMENT_FILTER?.matches(vehicle, filters.department) !== true)) return false;
+  const bucket = incomingBucketForVehicle(vehicle);
+  if (!bucket) return false;
+  const status = navisionStatusText(vehicle) || pdcLocationLabel(vehiclePdcLocation(vehicle)) || '';
+  const rep = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '';
+  if (filters.bucket && bucket !== filters.bucket) return false;
+  if (filters.status && status !== filters.status) return false;
+  if (filters.rep && rep !== filters.rep) return false;
+  const workFilters = Array.isArray(filters.work) ? filters.work : (filters.work ? [filters.work] : []);
+  if (workFilters.length && !workFilters.some(work => incomingWorkFilterMatches(vehicle, work))) return false;
+  if (filters.search && !incomingSearchText(vehicle, bucket).includes(filters.search)) return false;
+  return true;
+}
+
+
+function vehicleLocationsScreenRows(rows = vehicleLocationBoardRows()) {
+  return (Array.isArray(rows) ? rows : [])
+    .filter(vehicle => incomingBucketForVehicle(vehicle) && !vehicleCollectedFromRft(vehicle) && !vehicleInCollectedState(vehicle));
+}
+
+
+function clearIncomingDashboardFilters() {
+  ['#incoming-search', '#incoming-status-filter', '#incoming-bucket-filter', '#incoming-rep-filter'].forEach(selector => {
+    const input = $(selector);
+    if (input) input.value = '';
+  });
+  $$('input[name="incoming-work-filter"]').forEach(input => { input.checked = false; });
+  if (incomingDepartmentFilterValue()) window.PDC_DEPARTMENT_FILTER.setSelection('');
+  else renderIncomingDashboardBoard();
+}
+
+
+function renderIncomingDashboardBoardContent() {
+  const host = $('#incoming-main-board');
+  if (!host) return;
+  const disclosureState = app.vehicleLocationsRefreshDisclosure || captureIncomingBoardDisclosureState(host);
+  const workshopProjectionAvailable = ensureDashboardWorkshopProjectionReady();
+  const workshopPlans = workshopProjectionAvailable && typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : null;
+  const rows = vehicleLocationsScreenRows();
+  if (!sharedNavisionLocationAuthorityReady() && app.vehicleLocationsRefreshState !== 'refreshing') app.selectedRows.clear();
+  else [...app.selectedRows].forEach(key => {
+    if (app.sharedNavisionLocationReadOnlyKeys?.has(key)) app.selectedRows.delete(key);
+  });
+  updateIncomingDashboardFilterOptions(rows);
+  const filters = incomingDashboardFilterValues();
+  updateIncomingMoreFiltersState(filters);
+  const sort = app.incomingDashboardSort || {};
+  const filteredRows = rows.filter(vehicle => incomingVehicleMatchesFilters(vehicle, filters));
+  pruneIncomingDepartmentSelection(filteredRows);
+  const rowsByBucket = new Map();
+  filteredRows.forEach(vehicle => {
+    const key = incomingBucketForVehicle(vehicle);
+    const bucket = rowsByBucket.get(key) || [];
+    bucket.push(vehicle);
+    rowsByBucket.set(key, bucket);
+  });
+  const summary = $('#incoming-filter-summary');
+  if (summary) {
+    const workCount = Array.isArray(filters.work) ? filters.work.length : (filters.work ? 1 : 0);
+    const active = [filters.department && `Department ${filters.department}`, filters.search && `search “${filters.search}”`, filters.status, filters.bucket && incomingBucketLabel(filters.bucket), filters.rep, workCount && `${workCount} work type${workCount === 1 ? '' : 's'}`].filter(Boolean);
+    summary.textContent = `${filteredRows.length} of ${rows.length} vehicles shown${active.length ? ` · ${active.join(' · ')}` : ''}`;
+  }
+  const defs = VEHICLE_LOCATION_BUCKET_DEFS;
+  const priorityRows = incomingDepartmentPriorityRows(filters);
+  const priorityHtml = filters.bucket ? '' : `<section class="incoming-priority-stoppages" aria-label="Parts and PMB STOPPAGES">
+    <div class="incoming-priority-stoppages-head"><strong>STOPPAGES / Fix First</strong><span>${priorityRows.length} active</span></div>
+    <details class="fix-first-list incoming-priority-list"><summary>Show STOPPAGES</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
+  </section>`;
+  host.innerHTML = sharedNavisionLocationsStatusHtml() + workStatusLegendHtml() + priorityHtml + defs.map(def => {
+    if (filters.bucket && filters.bucket !== def.key) return '';
+    const vehicles = (rowsByBucket.get(def.key) || [])
+      .sort((a, b) => incomingCompareVehicles(a, b, sort, def.key));
+    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key, { workshopPlans, workshopProjectionAvailable, subletNavigation: true })).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
+    const identityHeader = vehicles.length
+      ? def.key === 'rft'
+        ? vehicleLocationsRftHeaderHtml(sort)
+        : productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Booking', incomingSort: sort })
+      : '';
+    return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
+      <summary class="incoming-bucket-title">
+        <span>${escapeHtml(def.label)}</span><strong>${vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
+      </summary>
+      <div class="incoming-bucket-list incoming-vertical-list">${identityHeader}${shown}</div>
+    </details>`;
+  }).join('');
+  $$('[data-incoming-sort]', host).forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    const key = button.dataset.incomingSort;
+    app.incomingDashboardSort = { key, direction: sort.key === key && sort.direction === 'asc' ? 'desc' : 'asc' };
+    const bucketClass = [...(button.closest('.incoming-bucket')?.classList || [])].find(name => name.startsWith('incoming-') && name !== 'incoming-bucket');
+    renderIncomingDashboardBoard();
+    const bucket = bucketClass ? [...host.querySelectorAll('.incoming-bucket')].find(row => row.classList.contains(bucketClass)) : host;
+    [...(bucket?.querySelectorAll('[data-incoming-sort]') || [])].find(control => control.dataset.incomingSort === key)?.focus({ preventScroll: true });
+  }));
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    openVehicleCardFromVisibleBoard(button.dataset.openStock, button);
+  }));
+  bindIncomingSubletLinks(host);
+  bindVehicleLabelButtons(host);
+  $$('[data-incoming-delete]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    deleteIncomingVehicleFromMain(button.dataset.incomingDelete);
+  }));
+  $$('[data-yh-transfer-pmb]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    transferYhVehicleToPmb(button.dataset.yhTransferPmb);
+  }));
+  $$('[data-pit-transfer]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    moveVehiclePitLocation(button.dataset.pitTransfer, 'to_pit');
+  }));
+  $$('[data-pit-return-pmb]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    moveVehiclePitLocation(button.dataset.pitReturnPmb, 'to_pmb');
+  }));
+  $$('[data-ready-for-qc]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    markVehicleReadyForQualityControl(button.dataset.readyForQc);
+  }));
+  $$('[data-open-qc-vehicle]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    qcSelectedVehicleKey = button.dataset.openQcVehicle || '';
+    showView('qc');
+    renderQualityControlPage();
+  }));
+  $$('[data-pmb-bay-provider-key]', host).forEach(select => {
+    select.addEventListener('click', event => event.stopPropagation());
+    select.addEventListener('change', () => updatePmbBaySubletProvider(select.dataset.pmbBayProviderKey, select.dataset.pmbBayProviderStage, select.value));
+  });
+  $$('[data-auth-operation-work]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    openAuthenticatedOperationWorkshop(button.dataset.authOperationWork);
+  }));
+  bindAuthenticatedOperationSummaries(host);
+  bindFixFirstRows(host);
+  bindRftCollectedInputs(host);
+  bindIncomingCardSelection(host);
+  revealSingleVehicleSearchResult(host, filteredRows, filters.search, 'incoming');
+  updateInlineSelectionBars(filteredRows);
+  restoreIncomingBoardDisclosureState(host, disclosureState);
+  updateCollapseToggleButtons();
+  if (app.vehicleLocationsRefreshState !== 'refreshing') app.vehicleLocationsRefreshDisclosure = null;
+  ensureOperationalRefreshControls();
+}
+
+
+function renderIncomingDashboardBoard(){renderIncomingDashboardBoardContent();$('#qa-guard').innerHTML=vehicleLocationBoardRows().map(row=>'<span>'+row.stock+'</span>').join('');$('#qa-invariant').textContent='PASS — '+vehicleLocationBoardRows().length+' of 4 source vehicles remain available. Global priority list: '+workflowPriorityRows().length+'.'}
+const reviewRows=rows.map(row=>({vehicle_id:row.id,stock_number:row.stock,customer_name:row.customer,vehicle_description:row.description,status:'pending',snapshot_hash:'synthetic-'+row.id,lifecycle_state:'active',visible_on_board:false,job_cards:['QA-'+row.id.toUpperCase()],current_location:row.status,received_at:'2026-09-19T01:00:00Z',department_codes:row.pdcDepartmentCodes,has_unknown_department:row.pdcDepartmentCodes.length===0,operations:(row.pdcDepartmentCodes.length?row.pdcDepartmentCodes:['']).map((department,index)=>({line_identity:'source:'+row.id+'-'+index,department,stage_code:department==='138'?'BUS_4X4':'FITTING',description:'Synthetic approved work',estimated_hours:1,active:true,source_kind:'authenticated'}))}));
+function renderNewVehicles(){const department=window.PDC_DEPARTMENT_FILTER.getSelection();const request=nv.departmentReadRequest('list_pdc_new_vehicle_reviews',{p_limit:50,p_offset:0},department);const matching=reviewRows.filter(row=>window.PDC_DEPARTMENT_FILTER.matches(row,department));const result={ok:true,data:{department,vehicles:matching}};nv.verifyDepartmentResponse(result,department);$('#qa-nv-filter').innerHTML=nv.departmentFilterHtml(department);$('#qa-nv-count').textContent=matching.length+' vehicles in simulated scoped response';$('#qa-request').textContent='Simulated read: '+request.name+' '+JSON.stringify(request.payload);$('#qa-nv-cards').innerHTML=matching.map(row=>nv.vehicleCardHtml(row,{canApprove:true,department})).join('');$('#qa-nv-filter select').addEventListener('change',event=>window.PDC_DEPARTMENT_FILTER.setSelection(event.target.value));$$('[data-nv-open]').forEach(button=>button.addEventListener('click',()=>{const row=reviewRows.find(row=>row.vehicle_id===button.dataset.nvOpen);$('#qa-review-message').textContent='Synthetic review: '+row.stock+' · all '+row.operations.length+' operations remain available to review.'}));$$('[data-nv-quick-approve]').forEach(button=>button.addEventListener('click',()=>{$('#qa-review-message').textContent='Synthetic fixture only — no approval was sent.'}));}
+$('#incoming-department-filter').addEventListener('change',event=>window.PDC_DEPARTMENT_FILTER.setSelection(event.target.value));window.addEventListener('pdc-department-filter-changed',()=>{syncIncomingDepartmentFilter();renderNewVehicles()});$('#incoming-search').addEventListener('input',renderIncomingDashboardBoard);$('#qa-clear').addEventListener('click',()=>{clearIncomingDashboardFilters();renderNewVehicles()});$('#qa-select').addEventListener('click',()=>{rows.filter(row=>incomingVehicleMatchesFilters(row)).forEach(row=>app.selectedRows.add(row.id));renderIncomingDashboardBoard()});syncIncomingDepartmentFilter();renderNewVehicles();window.departmentFixture={rows,app,reviewRows,nv,renderIncomingDashboardBoard,renderNewVehicles};</script></body></html>
