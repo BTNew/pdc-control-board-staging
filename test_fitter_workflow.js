@@ -136,6 +136,7 @@ function screenFixture() {
   const note=element('[data-fitter-note]',{dataset:{fitterNote:'line-a'},value:'',tagName:'TEXTAREA'});
   const saveNote=element('[data-fitter-save-note]',{dataset:{fitterSaveNote:'line-a'}});
   const refresh=element('[data-fitter-refresh]');
+  const busRetry=element('[data-bus-fitter-retry]');
   const stop=element('[data-fitter-stop]'),confirmStop=element('[data-fitter-confirm-stop]');
   const stopReason=element('#fitter-stop-reason',{tagName:'TEXTAREA',focus(){doc.activeElement=this;}});
   const stopType=element('#fitter-stop-type',{tagName:'SELECT'});
@@ -145,7 +146,7 @@ function screenFixture() {
   const timerBox={className:'',querySelector:selector=>({'[data-fitter-clock]':clock,'[data-fitter-timer-label]':timerLabel,'[data-fitter-timer-hint]':timerHint}[selector]||null)};
   const host={get innerHTML(){return html;},set innerHTML(value){html=value;renders++;},
     querySelectorAll:selector=>elements[selector]?[elements[selector]]:[],
-    querySelector:selector=>selector==='.fitter-sync'?sync:selector==='[data-fitter-timer]'&&html.includes('data-fitter-timer')?timerBox:null,
+    querySelector:selector=>selector==='.fitter-sync'?sync:selector==='[data-fitter-timer]'&&html.includes('data-fitter-timer')?timerBox:elements[selector]||null,
     contains:node=>Object.values(elements).includes(node)};
   const doc={body:{dataset:{currentView:'fitters'}},hidden:false,activeElement:null,
     getElementById:id=>id==='fitters-host'?host:elements[`#${id}`]||null,addEventListener:(event,fn)=>{listeners[event]=fn;}};
@@ -189,7 +190,7 @@ function screenFixture() {
     }};
   vm.runInNewContext(fs.readFileSync(require.resolve('./pdc-fitters.js'),'utf8'),{window:root,
     getPdcSupabaseAccessToken:()=> 'session',AbortController,setTimeout,clearTimeout,setInterval:fn=>intervals.push(fn)});
-  return {root,doc,data,calls,events,clock,timerLabel,timerBox,mechanic,line,note,saveNote,refresh,stop,confirmStop,stopReason,stopType,action,listeners,sync,
+  return {root,doc,data,calls,events,clock,timerLabel,timerBox,mechanic,line,note,saveNote,refresh,stop,confirmStop,stopReason,stopType,action,listeners,sync,busRetry,
     get renders(){return renders;},get html(){return html;},poll:()=>intervals[0](),
     delayJobs(){let resolve;const promise=new Promise(r=>resolve=r);gate={promise};return resolve;},
     delayCommand(){let resolve;const promise=new Promise(r=>resolve=r);commandGate={promise};return resolve;},
@@ -206,6 +207,49 @@ test('unchanged background polls keep the current screen intact and use the cach
   assert.equal(f.calls.filter(c=>c.rpc==='get_fitter_job').length,6,'operation scope remains authoritative on every poll');
   assert.match(f.sync.textContent,/Connected · Updated/);
   f.refresh.handlers.click();await flush();assert.equal(f.calls.filter(c=>c.rpc==='get_fitter_roster').length,2);
+});
+
+function supplierFixture() {
+  const f=screenFixture();let callback,dirty=true,fail=false,pending=false,authority='same',gate=null;
+  const calls=[],confirmed=[];
+  const supplier={line_identity:'supplier-line',scope_hash:'supplier-scope',version:3,stage_code:'TINT',description:'External window tint',status:'vendor_completed'};
+  f.data.detail.vehicle_id='vehicle-a';f.data.detail.stage_code='BUS_4X4';f.data.jobs[0].stage_name='Bus 4×4';
+  f.data.detail.lines[0]={...f.data.detail.lines[0],stage_code:'BUS_4X4',supplier_work:supplier};
+  f.data.detail.supplier_lines=[supplier];
+  const service={authorityKey:()=>authority,get retryPending(){return pending;},
+    async supplier(change){calls.push(change);if(gate){const release=gate;gate=null;await release;}if(fail){fail=false;pending=true;throw Object.assign(Error('Supplier save unconfirmed'),{code:'unconfirmed'});}return{ok:true};},
+    async retry(){calls.push('retry');pending=false;return{ok:true};},invalidate(){authority='other';pending=false;}};
+  f.root.PdcBusWorkflow={service:()=>service,hasDrafts:()=>dirty,supplierHtml:(lines,opts)=>{assert.equal(lines[0].stage_code,'TINT');assert.equal(opts.bookingId,'booking-a');assert.equal(opts.technicianId,'mechanic-a');return '<p>Supplier physical check fixture</p>';},bindSuppliers:(_host,save)=>{callback=save;},confirmSupplierSave:key=>{confirmed.push(key);dirty=false;},reset:()=>{service.invalidate();dirty=false;}};
+  return {...f,get html(){return f.html;},get renders(){return f.renders;},supplierCalls:calls,confirmed,
+    save:()=>callback({vehicleId:'vehicle-a',lineIdentity:'supplier-line',scopeHash:'supplier-scope',version:3,status:'technician_verified',bookingId:'booking-a',technicianId:'mechanic-a',note:'Checked on vehicle',draftKey:'supplier-draft'}),
+    failNext:()=>{fail=true;},changeAuthority:()=>{authority='different';},
+    delaySave:()=>{let resolve;gate=new Promise(r=>resolve=r);return resolve;}};
+}
+
+test('fitter supplier controls include same-vehicle Tint and route physical checks through dedicated service',async()=>{
+  const f=supplierFixture();await f.open();
+  assert.match(f.html,/Supplier physical check fixture/);assert.match(f.html,/Physical verification below/);
+  assert.doesNotMatch(f.html,/data-fitter-line="line-a"/,'supplier lines cannot use ordinary completion checkbox');
+  f.save();await flush();
+  assert.equal(f.supplierCalls.length,1);assert.equal(f.supplierCalls[0].status,'technician_verified');
+  assert.deepEqual(f.confirmed,['supplier-draft']);
+  assert.equal(f.calls.filter(c=>c.rpc==='fitter_job_command').length,0);
+  assert.equal(f.events.length,1);assert.equal(f.events[0].detail.action,'supplier');
+});
+
+test('unconfirmed supplier save locks other writes and polling, then retries and clears the same draft',async()=>{
+  const f=supplierFixture();await f.open();f.failNext();f.save();await flush();
+  assert.match(f.html,/supplier save is unconfirmed/);assert.equal(f.confirmed.length,0);assert.equal(f.events.length,0);
+  const count=f.calls.length;f.poll();await flush();assert.equal(f.calls.length,count);
+  f.action.handlers.click({currentTarget:f.action});f.line.handlers.change({currentTarget:f.line});await flush();
+  assert.equal(f.calls.filter(c=>c.rpc==='fitter_job_command').length,0);
+  f.busRetry.handlers.click();await flush();
+  assert.equal(f.supplierCalls[1],'retry');assert.deepEqual(f.confirmed,['supplier-draft']);assert.equal(f.events.length,1);
+});
+
+test('late supplier response after authority changes cannot clear drafts or announce saved work',async()=>{
+  const f=supplierFixture();await f.open();const release=f.delaySave();f.save();f.changeAuthority();release();await flush();
+  assert.equal(f.confirmed.length,0);assert.equal(f.events.length,0);assert.doesNotMatch(f.html,/Supplier work verification saved/);
 });
 test('a line tap during background polling saves immediately and supersedes the old read',async()=>{
   const f=screenFixture();await f.open();const release=f.delayJobs();f.poll();await flush();
