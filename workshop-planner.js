@@ -535,12 +535,18 @@ function workshopEntryEnd(entry = {}) {
   return workshopAddWorkMinutes(start, durationMinutes, entry);
 }
 
+function workshopEntryDisplayCalendar(entry = {}) {
+  // Persisted records adopt the Bus shift only when the server marks their
+  // calendar migration. Unmigrated history keeps its original display hours.
+  return entry.busCalendarVersion === 1 || !entry.endAt ? entry : null;
+}
+
 function workshopEntryUsesConfiguredOvertime(entry = {}) {
   const start = workshopEntryStart(entry);
   const end = workshopEntryEnd(entry);
   let date = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   while (date <= end) {
-    for (const window of workshopAvailabilityWindowsForDate(date).filter(item => item.overtime)) {
+    for (const window of workshopAvailabilityWindowsForDate(date, workshopEntryDisplayCalendar(entry)).filter(item => item.overtime)) {
       if (workshopIntervalsOverlap(start, end, workshopSetClock(date, window.startMinutes), workshopSetClock(date, window.endMinutes))) return true;
     }
     date.setDate(date.getDate() + 1);
@@ -553,32 +559,34 @@ function workshopEntryIsOvertime(entry = {}, now = new Date()) {
   const stoppageMoment = entry.status === 'stoppage' ? parseIsoTimestamp(entry.stoppageAt || '') : null;
   if (entry.status === 'stoppage' && !stoppageMoment) return false;
   const liveMoment = stoppageMoment || now;
-  return workshopLatestWorkMoment(liveMoment) > workshopEntryEnd(entry);
+  return workshopLatestWorkMoment(liveMoment, workshopEntryDisplayCalendar(entry)) > workshopEntryEnd(entry);
 }
 
 function workshopEntryEffectiveEnd(entry = {}, now = new Date()) {
+  const calendar = workshopEntryDisplayCalendar(entry);
   return new Date(WORKSHOP_BOOKING_TIMING.effectiveEnd({
     status: entry.status,
     actual_end_at: entry.actualEndAt,
     stoppage_started_at: entry.stoppageAt,
   }, {
     plannedEnd: workshopEntryEnd(entry), now,
-    latestWorkMoment: value => workshopLatestWorkMoment(new Date(value)),
-    addWorkMinutes: (value, minutes) => workshopAddWorkMinutes(new Date(value), minutes, entry.busCalendarVersion === 1 || !entry.endAt ? entry : null),
+    latestWorkMoment: value => workshopLatestWorkMoment(new Date(value), calendar),
+    addWorkMinutes: (value, minutes) => workshopAddWorkMinutes(new Date(value), minutes, calendar),
     incrementMinutes: WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes,
   }));
 }
 
 function workshopEntrySegmentForDate(entry = {}, dateKey = '', now = new Date()) {
+  const calendar = workshopEntryDisplayCalendar(entry);
   let dayStart = workshopDateFromKey(dateKey);
-  if (!dayStart || !workshopIsConfiguredWorkingDay(dayStart)) return null;
+  if (!dayStart || !workshopIsConfiguredWorkingDay(dayStart, calendar)) return null;
   dayStart = workshopSetClock(dayStart, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
   let dayEnd = workshopSetClock(dayStart, WORKSHOP_PLANNER_CONFIG.dayEndMinutes);
   // A short working day uses the same timeline scale as weekdays, but its
   // continuation card must stop at that day's actual opening/closing times.
   // Keep recorded closure history visible using the original display envelope.
   if (!workshopIsClosureDate(dayStart)) {
-    const windows = workshopAvailabilityWindowsForDate(dayStart);
+    const windows = workshopAvailabilityWindowsForDate(dayStart, calendar);
     if (!windows.length) return null;
     dayStart = workshopSetClock(dayStart, Math.max(WORKSHOP_PLANNER_CONFIG.dayStartMinutes, windows[0].startMinutes));
     dayEnd = workshopSetClock(dayEnd, Math.min(WORKSHOP_PLANNER_CONFIG.dayEndMinutes, windows[windows.length - 1].endMinutes));

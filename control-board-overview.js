@@ -165,7 +165,16 @@
     });
     return windows;
   }
-  function bookingProjection(config, now) {
+  function bookingCalendarConfig(config, booking, cache) {
+    const bay = Number(booking.bay_number ?? booking.bay?.bay_number);
+    if (booking.bus_calendar_version !== 1 || text(booking.stage_code || booking.stage?.code) !== 'BUS_4X4'
+        || !Number.isInteger(bay) || bay < 1 || bay > 10) return config;
+    const end = [8, 9].includes(bay) ? 840 : 900;
+    if (!cache.has(end)) cache.set(end, { ...config, start: 360, end,
+      working: new Set(['monday', 'tuesday', 'wednesday', 'thursday', 'friday']), overtime: [] });
+    return cache.get(end);
+  }
+  function calendarBookingProjection(config, now) {
     // Cache calendar windows across every bay; a large board should calculate
     // the same date once. All arithmetic is explicitly Perth time.
     const cache = new Map();
@@ -200,11 +209,19 @@
     };
     return booking => timing.effectiveEnd(booking, { now, latestWorkMoment, addWorkMinutes, incrementMinutes: config.increment });
   }
+  function bookingProjection(config, now, calendars = new Map()) {
+    const projections = new Map();
+    return booking => {
+      const scoped = bookingCalendarConfig(config, booking, calendars);
+      if (!projections.has(scoped)) projections.set(scoped, calendarBookingProjection(scoped, now));
+      return projections.get(scoped)(booking);
+    };
+  }
   function buildTimeline(model, options = {}) {
     const config = calendarConfig(model.calendar);
     if (!config || !timing) return null;
     const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
-    const effectiveEnd = bookingProjection(config, now);
+    const calendars = new Map(), effectiveEnd = bookingProjection(config, now, calendars);
     const startDate = validDate(options.startDate) || dateKey(model.generatedAt) || dateKey(now);
     const dayCount = Math.max(1, Math.min(56, Math.floor(Number(options.dayCount) || 14)));
     const axisStart = Math.min(config.start, ...config.overtime.map(w => w.start));
@@ -215,19 +232,29 @@
       const date = shiftDate(startDate, day);
       return { date, startMs: firstMs + day * DAY, windows: windowsForDate(config, date) };
     });
+    const scopedWindows = new Map();
+    const windowsForBookingDay = (bookingCalendar, day) => {
+      if (bookingCalendar === config) return day.windows;
+      if (!scopedWindows.has(bookingCalendar)) scopedWindows.set(bookingCalendar, new Map());
+      const cache = scopedWindows.get(bookingCalendar);
+      if (!cache.has(day.date)) cache.set(day.date, windowsForDate(bookingCalendar, day.date));
+      return cache.get(day.date);
+    };
     const outside = [], unscheduled = [];
     const rows = model.columns.map(column => {
       const segments = [], unplotted = [], laneEnds = [];
       const sorted = [...column.items].sort((a, b) => Date.parse(a.source.scheduled_start_at) - Date.parse(b.source.scheduled_start_at) || a.id.localeCompare(b.id));
       sorted.forEach(item => {
+        const bookingCalendar = bookingCalendarConfig(config, item.source, calendars);
         const start = Date.parse(item.source.scheduled_start_at), plannedEnd = Date.parse(item.source.scheduled_end_at), end = effectiveEnd(item.source);
         if (!Number.isFinite(start) || !Number.isFinite(plannedEnd) || plannedEnd <= start || !Number.isFinite(end) || end <= start) { const entry = { item, reason: 'Booking time unavailable' }; unscheduled.push(entry); unplotted.push(entry); return; }
         if (end <= firstMs || start >= lastMs) { outside.push({ item, reason: 'Outside displayed dates', date: dateKey(item.source.scheduled_start_at) }); return; }
         const pieces = [];
         const from = Math.max(0, Math.floor((start - firstMs) / DAY)), to = Math.min(dayCount - 1, Math.floor((end - 1 - firstMs) / DAY));
         for (let day = from; day <= to; day++) {
-          const historicalOnClosure = config.closed.has(days[day].date) && config.working.has(dayNames[new Date(`${days[day].date}T00:00:00Z`).getUTCDay()]);
-          const displayWindows = historicalOnClosure ? [{ start: config.start, end: config.end }] : days[day].windows;
+          const historicalOnClosure = bookingCalendar.closed.has(days[day].date) && bookingCalendar.working.has(dayNames[new Date(`${days[day].date}T00:00:00Z`).getUTCDay()]);
+          const displayWindows = historicalOnClosure ? [{ start: config.start, end: config.end }]
+            : windowsForBookingDay(bookingCalendar, days[day]);
           for (const window of displayWindows) {
             const a = Math.max(start, days[day].startMs + window.start * 60000), b = Math.min(end, days[day].startMs + window.end * 60000);
             if (b <= a) continue;
