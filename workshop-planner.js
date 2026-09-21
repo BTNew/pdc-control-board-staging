@@ -252,7 +252,25 @@ function workshopDefaultBookingHours() {
   return WORKSHOP_PLANNER_CONFIG.defaultBookingDurationMinutes / 60;
 }
 
-function workshopIsConfiguredWorkingDay(date = new Date()) {
+function workshopBusShift(context = null) {
+  if (!context || String(context.stage || context.stage_code || '').toUpperCase() !== 'BUS_4X4') return null;
+  const bay = Number(context.bay ?? context.bay_number);
+  if (!Number.isInteger(bay) || bay < 1 || bay > 10) return null;
+  let vehicle = context.calendarVehicle || null;
+  if (!vehicle && (context.sharedVehicleId || context.vehicleKey)) vehicle = workshopVehicle(context.sharedVehicleId || context.vehicleKey, 'BUS_4X4');
+  const codes = Array.isArray(vehicle?.department_codes) ? vehicle.department_codes : Array.isArray(vehicle?.pdcDepartmentCodes) ? vehicle.pdcDepartmentCodes : [];
+  // Department membership is supplied by the scoped snapshot. Never infer it
+  // from Bus4x4, the selected department filter, vehicle model or stock text.
+  const is138 = context.busCalendarVersion === 1 || vehicle?.bus_workflow_department138 === true || codes.some(code => String(code) === '138');
+  return is138 ? { startMinutes:360, endMinutes:[8,9].includes(bay) ? 840 : 900 } : null;
+}
+
+function workshopCalendarStartMinutes(context = null) {
+  return workshopBusShift(context)?.startMinutes ?? WORKSHOP_PLANNER_CONFIG.dayStartMinutes;
+}
+
+function workshopIsConfiguredWorkingDay(date = new Date(), context = null) {
+  if (workshopBusShift(context)) return date.getDay() >= 1 && date.getDay() <= 5;
   return WORKSHOP_PLANNER_CONFIG.workingDayIndexes.includes(date.getDay());
 }
 
@@ -260,14 +278,14 @@ function workshopIsClosureDate(date = new Date()) {
   return WORKSHOP_PLANNER_CONFIG.closureDateKeys.includes(workshopDateKey(date));
 }
 
-function workshopIsWorkday(date = new Date()) {
-  return workshopIsConfiguredWorkingDay(date) && !workshopIsClosureDate(date);
+function workshopIsWorkday(date = new Date(), context = null) {
+  return workshopIsConfiguredWorkingDay(date, context) && !workshopIsClosureDate(date);
 }
 
-function workshopCoerceWorkDate(date = new Date(), direction = 1) {
-  let next = workshopSetClock(date, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
+function workshopCoerceWorkDate(date = new Date(), direction = 1, context = null) {
+  let next = workshopSetClock(date, workshopCalendarStartMinutes(context));
   const step = direction < 0 ? -1 : 1;
-  while (!workshopIsWorkday(next)) next.setDate(next.getDate() + step);
+  while (!workshopIsWorkday(next, context)) next.setDate(next.getDate() + step);
   return next;
 }
 
@@ -377,13 +395,14 @@ function workshopSubtractWindows(windows, exclusions) {
   return result.filter(window => window.endMinutes > window.startMinutes);
 }
 
-function workshopAvailabilityWindowsForDate(dateValue = new Date()) {
+function workshopAvailabilityWindowsForDate(dateValue = new Date(), context = null) {
   const date = dateValue instanceof Date ? new Date(dateValue) : workshopDateFromKey(dateValue);
-  if (!date || !workshopIsWorkday(date)) return [];
-  const overtime = WORKSHOP_PLANNER_CONFIG.overtimeWindowsByDateOrScope
+  if (!date || !workshopIsWorkday(date, context)) return [];
+  const shift = workshopBusShift(context);
+  const overtime = (shift ? [] : WORKSHOP_PLANNER_CONFIG.overtimeWindowsByDateOrScope)
     .filter(window => workshopWindowApplies(window, date))
     .map(window => ({ ...window, overtime: true }));
-  const regular = [{ startMinutes: WORKSHOP_PLANNER_CONFIG.dayStartMinutes, endMinutes: WORKSHOP_PLANNER_CONFIG.dayEndMinutes, overtime: false }];
+  const regular = [{ startMinutes: shift?.startMinutes ?? WORKSHOP_PLANNER_CONFIG.dayStartMinutes, endMinutes: shift?.endMinutes ?? WORKSHOP_PLANNER_CONFIG.dayEndMinutes, overtime: false }];
   const breaks = WORKSHOP_PLANNER_CONFIG.breakWindowsByDateOrScope.filter(window => workshopWindowApplies(window, date));
   const windows = workshopSubtractWindows([...regular, ...overtime], breaks)
     .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
@@ -407,26 +426,26 @@ function workshopDateAtOffset(dateKey, minuteOffset = 0) {
   return workshopSetClock(date, WORKSHOP_PLANNER_CONFIG.dayStartMinutes + workshopClampStartMinutes(minuteOffset));
 }
 
-function workshopMoveToNextWorkStart(date = new Date()) {
+function workshopMoveToNextWorkStart(date = new Date(), context = null) {
   const next = new Date(date);
   next.setDate(next.getDate() + 1);
-  return workshopNormalizeStartDate(workshopCoerceWorkDate(next, 1));
+  return workshopNormalizeStartDate(workshopCoerceWorkDate(next, 1, context), context);
 }
 
-function workshopMoveToPreviousWorkEnd(date = new Date()) {
+function workshopMoveToPreviousWorkEnd(date = new Date(), context = null) {
   const previous = new Date(date);
   previous.setDate(previous.getDate() - 1);
-  const workDate = workshopCoerceWorkDate(previous, -1);
-  const windows = workshopAvailabilityWindowsForDate(workDate);
+  const workDate = workshopCoerceWorkDate(previous, -1, context);
+  const windows = workshopAvailabilityWindowsForDate(workDate, context);
   return workshopSetClock(workDate, windows.length ? windows[windows.length - 1].endMinutes : WORKSHOP_PLANNER_CONFIG.dayEndMinutes);
 }
 
-function workshopNormalizeStartDate(value = new Date()) {
+function workshopNormalizeStartDate(value = new Date(), context = null) {
   let date = value instanceof Date ? new Date(value) : new Date(value);
   if (Number.isNaN(date.getTime())) date = new Date();
-  if (!workshopIsWorkday(date)) date = workshopCoerceWorkDate(date, 1);
+  if (!workshopIsWorkday(date, context)) date = workshopCoerceWorkDate(date, 1, context);
   for (let guard = 0; guard < 370; guard += 1) {
-    const windows = workshopAvailabilityWindowsForDate(date);
+    const windows = workshopAvailabilityWindowsForDate(date, context);
     const minute = workshopMinuteOfDay(date);
     for (const window of windows) {
       if (minute <= window.startMinutes) return workshopSetClock(date, window.startMinutes);
@@ -435,16 +454,16 @@ function workshopNormalizeStartDate(value = new Date()) {
         return workshopSetClock(date, Math.min(snapped, window.endMinutes));
       }
     }
-    date = workshopCoerceWorkDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1), 1);
+    date = workshopCoerceWorkDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1), 1, context);
   }
-  return workshopSetClock(date, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
+  return workshopSetClock(date, workshopCalendarStartMinutes(context));
 }
 
-function workshopLatestWorkMoment(value = new Date()) {
+function workshopLatestWorkMoment(value = new Date(), context = null) {
   let date = value instanceof Date ? new Date(value) : new Date(value);
   if (Number.isNaN(date.getTime())) date = new Date();
-  if (!workshopIsWorkday(date)) return workshopMoveToPreviousWorkEnd(date);
-  const windows = workshopAvailabilityWindowsForDate(date);
+  if (!workshopIsWorkday(date, context)) return workshopMoveToPreviousWorkEnd(date, context);
+  const windows = workshopAvailabilityWindowsForDate(date, context);
   const minute = workshopMinuteOfDay(date);
   let latest = null;
   for (const window of windows) {
@@ -452,24 +471,24 @@ function workshopLatestWorkMoment(value = new Date()) {
     latest = workshopSetClock(date, Math.min(minute, window.endMinutes));
     if (minute <= window.endMinutes) break;
   }
-  return latest || workshopMoveToPreviousWorkEnd(date);
+  return latest || workshopMoveToPreviousWorkEnd(date, context);
 }
 
-function workshopAddWorkMinutes(startValue = new Date(), minutes = 0) {
+function workshopAddWorkMinutes(startValue = new Date(), minutes = 0, context = null) {
   let current = startValue instanceof Date ? new Date(startValue) : new Date(startValue);
   if (Number.isNaN(current.getTime())) current = new Date();
   const initialMinute = workshopMinuteOfDay(current);
-  const startsInsideWindow = workshopIsWorkday(current)
-    && workshopAvailabilityWindowsForDate(current).some(window => initialMinute >= window.startMinutes && initialMinute < window.endMinutes);
-  if (!startsInsideWindow) current = workshopNormalizeStartDate(current);
+  const startsInsideWindow = workshopIsWorkday(current, context)
+    && workshopAvailabilityWindowsForDate(current, context).some(window => initialMinute >= window.startMinutes && initialMinute < window.endMinutes);
+  if (!startsInsideWindow) current = workshopNormalizeStartDate(current, context);
   let remaining = Math.max(0, Number(minutes) || 0);
   while (remaining > 0) {
-    const windows = workshopAvailabilityWindowsForDate(current);
+    const windows = workshopAvailabilityWindowsForDate(current, context);
     const minute = workshopMinuteOfDay(current);
     const window = windows.find(item => minute >= item.startMinutes && minute < item.endMinutes)
       || windows.find(item => minute < item.startMinutes);
     if (!window) {
-      current = workshopMoveToNextWorkStart(current);
+      current = workshopMoveToNextWorkStart(current, context);
       continue;
     }
     if (minute < window.startMinutes) current = workshopSetClock(current, window.startMinutes);
@@ -477,19 +496,19 @@ function workshopAddWorkMinutes(startValue = new Date(), minutes = 0) {
     if (remaining <= available) return new Date(current.getTime() + remaining * 60000);
     remaining -= available;
     const nextWindow = windows.find(item => item.startMinutes >= window.endMinutes && item.endMinutes > window.endMinutes);
-    current = nextWindow ? workshopSetClock(current, nextWindow.startMinutes) : workshopMoveToNextWorkStart(current);
+    current = nextWindow ? workshopSetClock(current, nextWindow.startMinutes) : workshopMoveToNextWorkStart(current, context);
   }
   return current;
 }
 
-function workshopWorkMinutesBetween(startValue, endValue) {
+function workshopWorkMinutesBetween(startValue, endValue, context = null) {
   const start = startValue instanceof Date ? new Date(startValue) : new Date(startValue);
   const end = endValue instanceof Date ? new Date(endValue) : new Date(endValue);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
   let date = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   let total = 0;
   while (date <= end) {
-    for (const window of workshopAvailabilityWindowsForDate(date)) {
+    for (const window of workshopAvailabilityWindowsForDate(date, context)) {
       const windowStart = workshopSetClock(date, window.startMinutes);
       const windowEnd = workshopSetClock(date, window.endMinutes);
       const overlapStart = start > windowStart ? start : windowStart;
@@ -513,7 +532,7 @@ function workshopEntryEnd(entry = {}) {
   // Historical rows on a date that later became closed remain renderable at
   // their recorded wall-clock position; closure/leave only block new writes.
   if (!workshopIsWorkday(start)) return new Date(start.getTime() + durationMinutes * 60000);
-  return workshopAddWorkMinutes(start, durationMinutes);
+  return workshopAddWorkMinutes(start, durationMinutes, entry);
 }
 
 function workshopEntryUsesConfiguredOvertime(entry = {}) {
@@ -545,7 +564,7 @@ function workshopEntryEffectiveEnd(entry = {}, now = new Date()) {
   }, {
     plannedEnd: workshopEntryEnd(entry), now,
     latestWorkMoment: value => workshopLatestWorkMoment(new Date(value)),
-    addWorkMinutes: (value, minutes) => workshopAddWorkMinutes(new Date(value), minutes),
+    addWorkMinutes: (value, minutes) => workshopAddWorkMinutes(new Date(value), minutes, entry.busCalendarVersion === 1 || !entry.endAt ? entry : null),
     incrementMinutes: WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes,
   }));
 }
@@ -642,6 +661,7 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     id: booking.booking_id,
     sharedBookingId: booking.booking_id,
     sharedVersion: booking.version,
+    busCalendarVersion: booking.bus_calendar_version === 1 ? 1 : null,
     fitterProgress: booking.fitter_progress || null,
     sharedVehicleId,
     sharedBayId: bay ? String(bay.id || bay.bay_id || booking.bay_id || '') : String(booking.bay_id || ''),
@@ -1054,6 +1074,10 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'parts_incomplete' || error === 'parts_incomplete_blocked' || error === 'parts_incomplete_entry') {
     return 'This staging runtime is stale: Parts must not block workshop work. Refresh the page; if this repeats, report the HTTP error shown to an Administrator.';
   }
+  if (error === 'bus_stage_parts_required') return 'Department 138 stage parts need confirmation. Open Workshop flow / parts readiness and confirm the parts required for this stage before allocating it.';
+  if (error === 'bus_bay_vehicle_incompatible') return 'This vehicle is not compatible with this Bus 4×4 bay. Bay 3 is for HiAce vehicles only; select a compatible bay.';
+  if (error === 'bus_shift_outside_hours') return 'This booking is outside the Department 138 shift. Check its start and finish against the bay and mechanic working hours.';
+  if (error === 'bus_supplier_verification_required') return 'Supplier work still needs a physical check by the assigned technician before this bay can be completed.';
   if (error === 'not_editable' || error === 'permission_denied' || error === 'forbidden') {
     return 'You do not have permission to make this change.';
   }
@@ -2659,7 +2683,7 @@ function workshopEntryDate(entry = {}) {
 function workshopEntryInterval(entry = {}) {
   const startDate = workshopEntryStart(entry);
   const hours = workshopExactDurationHours(entry.hours) || workshopClampDurationHours(entry.hours);
-  const endDate = workshopAddWorkMinutes(startDate, hours * 60);
+  const endDate = workshopEntryEnd(entry);
   return { startDate, endDate, start: workshopMinuteOffset(startDate), hours };
 }
 
@@ -2819,9 +2843,9 @@ function workshopNewBookingValidation(entry = {}, now = null) {
     }
   }
   if (workshopIsClosureDate(start)) return { ok: false, error: 'closure_date', date: workshopDateKey(start) };
-  if (!workshopIsConfiguredWorkingDay(start)) return { ok: false, error: 'non_working_day', date: workshopDateKey(start) };
+  if (!workshopIsConfiguredWorkingDay(start, entry)) return { ok: false, error: 'non_working_day', date: workshopDateKey(start) };
   const startMinute = workshopMinuteOfDay(start);
-  const startWindow = workshopAvailabilityWindowsForDate(start).find(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
+  const startWindow = workshopAvailabilityWindowsForDate(start, entry).find(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
   if (!startWindow) {
     const inBreak = workshopBreakWindowsForDate(start).some(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
     return { ok: false, error: inBreak ? 'break_window' : 'outside_work_window', date: workshopDateKey(start), minute: startMinute };
@@ -2834,11 +2858,11 @@ function workshopNewBookingValidation(entry = {}, now = null) {
   // Visit each occupied work window once. Restarting the calendar calculation
   // for every minute made long jobs expensive for every possible Best slot.
   while (remaining > 0) {
-    const windows = workshopAvailabilityWindowsForDate(current);
+    const windows = workshopAvailabilityWindowsForDate(current, entry);
     const minute = workshopMinuteOfDay(current);
     const containingWindow = windows.find(window => minute >= window.startMinutes && minute < window.endMinutes)
       || windows.find(window => minute < window.startMinutes);
-    if (!containingWindow) { current = workshopMoveToNextWorkStart(current); continue; }
+    if (!containingWindow) { current = workshopMoveToNextWorkStart(current, entry); continue; }
     if (minute < containingWindow.startMinutes) current = workshopSetClock(current, containingWindow.startMinutes);
     const dateKey = workshopDateKey(current);
     usesOvertime = usesOvertime || containingWindow.overtime === true;
@@ -2849,7 +2873,7 @@ function workshopNewBookingValidation(entry = {}, now = null) {
     if (remaining <= available) break;
     remaining -= available;
     const nextWindow = windows.find(window => window.startMinutes >= containingWindow.endMinutes && window.endMinutes > containingWindow.endMinutes);
-    current = nextWindow ? workshopSetClock(current, nextWindow.startMinutes) : workshopMoveToNextWorkStart(current);
+    current = nextWindow ? workshopSetClock(current, nextWindow.startMinutes) : workshopMoveToNextWorkStart(current, entry);
   }
   return { ok: true, usesOvertime };
 }
@@ -2993,7 +3017,7 @@ function workshopSchedulableBayNumbers(stage = '') {
   return bays;
 }
 
-function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, notAfterDateKey = '', vehicleWindows = [], fallbackAssignee = '', assignedMechanic = null, existingEntry = null) {
+function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, notAfterDateKey = '', vehicleWindows = [], fallbackAssignee = '', assignedMechanic = null, existingEntry = null, calendarVehicle = null) {
   const normalizedStage = normalizePmbStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return null;
   let best = null;
@@ -3004,7 +3028,7 @@ function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefault
     const assignee = assignedMechanic === null ? workshopBayMechanic(normalizedStage, bay) || fallbackAssignee : assignedMechanic;
     const allocatedHours = workshopBookingDestinationHours(existingEntry, normalizedStage, bay, hours);
     if (!(allocatedHours > 0)) continue;
-    const slot = workshopFirstAvailableStartSlot(normalizedStage, bay, dateKey, allocatedHours, rows, notBeforeMinutes, 260, new Date(), vehicleWindows, assignee, notAfterDateKey);
+    const slot = workshopFirstAvailableStartSlot(normalizedStage, bay, dateKey, allocatedHours, rows, notBeforeMinutes, 260, new Date(), vehicleWindows, assignee, notAfterDateKey, calendarVehicle || (existingEntry ? workshopVehicle(existingEntry.sharedVehicleId || existingEntry.vehicleKey, normalizedStage) : null));
     if (!slot) continue;
     if (notAfterDateKey && slot.dateKey > notAfterDateKey) continue;
     const candidateStart = workshopDateAtOffset(slot.dateKey, slot.startMinutes).getTime();
@@ -3076,6 +3100,8 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
     __workshopStationSnapshotAuthoritative: true,
     id: vehicle.id,
     sharedVehicleId: vehicle.id,
+    bus_workflow_department138: vehicle.bus_workflow_department138 === true,
+    department_codes: Array.isArray(vehicle.department_codes) ? vehicle.department_codes.slice() : [],
     permanentVehicleId: vehicle.permanent_vehicle_id || '',
     vehicleKey: vehicle.stock_number || vehicle.permanent_vehicle_id || vehicle.id,
     // This station snapshot is restricted to planner operators/admins. Customer
@@ -3931,6 +3957,7 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
     ${blocked ? '<em>STOPPAGE</em>' : ''}
     ${schedulingDisabled ? `<small class="workshop-scheduling-unavailable-reason">${escapeHtml(disabledExplanation)}</small>` : ''}
     <div class="workshop-queue-actions">
+      ${stage === 'BUS_4X4' && WORKSHOP_UUID_PATTERN.test(String(vehicle.sharedVehicleId || '')) ? `<button class="workshop-schedule-button" type="button" data-bus-workflow-open="${escapeHtml(vehicle.sharedVehicleId)}">Workshop flow / parts readiness</button>` : ''}
       ${!schedulingDisabled ? `<button class="workshop-schedule-button best-slot" type="button" data-workshop-best-slot-vehicle="${escapeHtml(key)}" data-workshop-best-slot-stage="${escapeHtml(stage)}" data-workshop-best-slot-hours="${escapeHtml(hours)}">Best slot</button>` : ''}
       <button class="workshop-schedule-button" type="button" data-workshop-schedule-vehicle="${escapeHtml(key)}" ${schedulingDisabled ? `disabled title="${escapeHtml(disabledExplanation)}"` : ''}>${existingBooking ? 'Already booked' : schedulingDisabled ? 'Scheduling unavailable' : 'Schedule'}</button>
     </div>
@@ -4333,6 +4360,7 @@ function workshopStationSelectionHtml(entry = null) {
       <label><span>Exact planned hours</span><input name="hours" type="number" min="0.0166667" step="any" inputmode="decimal" value="${escapeHtml(workshopExactDurationHours(entry.hours).toFixed(2))}" required ${completed ? 'disabled' : ''}></label>
       <label><span>Technician</span><select name="assignee" ${completed ? 'disabled' : ''}>${workshopAssigneeOptions(entry.stage, entry.assignee || workshopBayMechanic(entry.stage, entry.bay) || pmbBayMechanic(vehicle))}</select></label>
       <div class="workshop-station-selection-actions">
+        ${entry.stage === 'BUS_4X4' && WORKSHOP_UUID_PATTERN.test(String(entry.sharedVehicleId || '')) ? `<button class="small-button" type="button" data-bus-workflow-open="${escapeHtml(entry.sharedVehicleId)}">Workshop flow / parts readiness</button>` : ''}
         ${completed ? '<span class="badge success">Completed</span>' : '<button class="primary" type="submit">Save plan</button>'}
         ${completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started || WORKSHOP_PENDING_STARTS.has(entry.id) ? 'disabled' : ''} ${WORKSHOP_PENDING_STARTS.has(entry.id) ? 'aria-busy="true"' : ''}>${started ? 'Started' : WORKSHOP_PENDING_STARTS.has(entry.id) ? 'Starting…' : 'Start job'}</button><button class="small-button ${stopped ? 'active-lite' : ''}" type="button" ${stopped ? `data-workshop-resume-plan="${escapeHtml(entry.id)}"` : `data-workshop-stop-plan="${escapeHtml(entry.id)}"`}>${stopped ? 'Resume job' : 'STOPPAGE'}</button><button class="small-button active-lite" type="button" data-workshop-complete-plan="${escapeHtml(entry.id)}">Complete work</button>`}
       </div>
@@ -4350,7 +4378,7 @@ function workshopDetailHtml(entry = null, options = {}) {
       <strong>Legacy review required · editing blocked</strong>
       <span>${escapeHtml(entry.legacyAmbiguityReason)}</span>
       <div class="workshop-detail-actions">
-        <button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>
+        <button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>${entry.stage === 'BUS_4X4' && WORKSHOP_UUID_PATTERN.test(String(entry.sharedVehicleId || '')) ? `<button class="small-button" type="button" data-bus-workflow-open="${escapeHtml(entry.sharedVehicleId)}">Workshop flow / parts readiness</button>` : ''}
         <button class="small-button" type="button" data-workshop-open-vehicle="${escapeHtml(entry.vehicleKey)}">Full vehicle</button>
       </div>
     </div>`;
@@ -4380,7 +4408,7 @@ function workshopDetailHtml(entry = null, options = {}) {
     completed || !previousBay ? '' : `<button class="small-button" type="button" data-workshop-quick-move-plan="${escapeHtml(entry.id)}" data-workshop-quick-move-stage="${escapeHtml(entry.stage)}" data-workshop-quick-move-bay="${previousBay}">← Bay ${escapeHtml(workshopPad(previousBay))}</button>`,
     completed || !nextBay ? '' : `<button class="small-button" type="button" data-workshop-quick-move-plan="${escapeHtml(entry.id)}" data-workshop-quick-move-stage="${escapeHtml(entry.stage)}" data-workshop-quick-move-bay="${nextBay}">Bay ${escapeHtml(workshopPad(nextBay))} →</button>`,
     completed || !bestBaySlot ? '' : `<button class="small-button" type="button" data-workshop-best-bay-plan="${escapeHtml(entry.id)}">Best bay/time</button>`,
-    `<button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>`,
+    `<button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>${entry.stage === 'BUS_4X4' && WORKSHOP_UUID_PATTERN.test(String(entry.sharedVehicleId || '')) ? `<button class="small-button" type="button" data-bus-workflow-open="${escapeHtml(entry.sharedVehicleId)}">Workshop flow / parts readiness</button>` : ''}`,
     `<button class="small-button" type="button" data-workshop-open-vehicle="${escapeHtml(entry.vehicleKey)}">Full vehicle</button>`,
   ].join('');
   const lifecycleControls = completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started || WORKSHOP_PENDING_STARTS.has(entry.id) ? 'disabled' : ''} ${WORKSHOP_PENDING_STARTS.has(entry.id) ? 'aria-busy="true"' : ''}>${started ? 'Started' : WORKSHOP_PENDING_STARTS.has(entry.id) ? 'Starting…' : 'Start job'}</button>
@@ -4933,6 +4961,7 @@ function renderWorkshopPlanner(options = {}) {
         ${!focusedBookingMode && workshopAdminBlockFeedback.message ? `<div class="workshop-admin-block-feedback ${escapeHtml(workshopAdminBlockFeedback.tone)}" role="status" aria-live="polite">${escapeHtml(workshopAdminBlockFeedback.message)}</div>` : ''}
       </div>
     </header>
+    ${stage === 'BUS_4X4' ? '<div data-bus-workflow-host></div>' : ''}
     ${workshopStartFeedback.stage === stage && workshopStartFeedback.message ? `<div class="workshop-search-state" role="status" aria-live="polite">${escapeHtml(workshopStartFeedback.message)}</div>` : ''}
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
     ${focusedBookingMode ? '' : workshopSearchControlHtml(state.search || '', plans)}
@@ -4958,6 +4987,15 @@ function renderWorkshopPlanner(options = {}) {
     ${focusedBookingMode ? '<div class="workshop-board-note">Focused booking mode shows only the selected canonical booking. Use Back to Workshop planner to return to the full station board.</div>' : '<div class="workshop-board-note">How to use: drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. The red current-time line stays visible on the planner and clamps to the workshop edge outside work hours. Double-click any vehicle to open its job.</div>'}
   </div>`;
   bindWorkshopPlanner(renderHost);
+  const busHost = renderHost.querySelector('[data-bus-workflow-host]');
+  if (busHost && window.PdcBusWorkflow) {
+    const requested = state.busWorkflowVehicleId || selected?.sharedVehicleId || '';
+    const candidate = stageVehicleList.find(v => v.sharedVehicleId === requested);
+    const plan = plans.find(p => p.sharedVehicleId === requested);
+    const vehicleId = candidate?.sharedVehicleId || plan?.sharedVehicleId || '';
+    const identity = candidate ? displayStockNumber(candidate) : plan?.vehicle?.stock_number || plan?.vehicleKey || '';
+    window.PdcBusWorkflow.mountPlanner({host:busHost, vehicleId, identity, stageCode:stage});
+  }
   updateWorkshopNowLine(renderHost);
   setupWorkshopPlannerClock();
   workshopScrollToHighlightedVehicle(renderHost);
@@ -4965,6 +5003,14 @@ function renderWorkshopPlanner(options = {}) {
 }
 
 function bindWorkshopPlanner(root) {
+  root.querySelectorAll('[data-bus-workflow-open]').forEach(button => button.addEventListener('click', event => {
+    event.preventDefault(); event.stopPropagation();
+    const id = button.dataset.busWorkflowOpen;
+    if (!WORKSHOP_UUID_PATTERN.test(String(id || ''))) return;
+    workshopState().busWorkflowVehicleId = id;
+    renderWorkshopPlanner();
+    root.querySelector('[data-bus-workflow-host]')?.scrollIntoView?.({block:'start'});
+  }));
   if (root.dataset.workshopIncrementalBound !== '1') {
     root.dataset.workshopIncrementalBound = '1';
     root.addEventListener('click', event => {
@@ -5720,7 +5766,7 @@ function workshopAdminBlockConflict(candidate = {}, blocks = workshopLoadAdminBl
     && workshopIntervalsOverlap(start, end, parseIsoTimestamp(block.startAt), parseIsoTimestamp(block.endAt))) || null;
 }
 
-function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, vehicleWindows = [], assigneeValue = null) {
+function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, vehicleWindows = [], assigneeValue = null, calendarVehicle = null) {
   const normalizedStage = normalizePmbStage(stage);
   const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);
   const increment = WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes;
@@ -5734,6 +5780,7 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
     const candidate = {
       id: '__availability_check__',
       vehicleKey: '__availability_check__',
+      calendarVehicle,
       stage: normalizedStage,
       bay: Number(bay),
       startAt: workshopDateAtOffset(dateKey, startMinutes).toISOString(),
@@ -5749,7 +5796,7 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
   return null;
 }
 
-function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260, referenceNow = new Date(), vehicleWindows = [], assigneeValue = null, notAfterDateKey = '') {
+function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260, referenceNow = new Date(), vehicleWindows = [], assigneeValue = null, notAfterDateKey = '', calendarVehicle = null) {
   const requestedDate = workshopDateFromKey(dateKey) || new Date();
   let workDate = workshopCoerceWorkDate(requestedDate, 1);
   for (let dayIndex = 0; dayIndex < Math.max(1, Number(maxWorkdays) || 260); dayIndex += 1) {
@@ -5757,7 +5804,7 @@ function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hour
     if (notAfterDateKey && candidateDateKey > notAfterDateKey) return null;
     const currentTimeFloor = workshopNotBeforeMinutesForDate(candidateDateKey, referenceNow);
     const firstMinutes = dayIndex === 0 ? Math.max(notBeforeMinutes, currentTimeFloor) : currentTimeFloor;
-    const startMinutes = workshopFirstAvailableStartMinutes(stage, bay, candidateDateKey, hours, rows, firstMinutes, vehicleWindows, assigneeValue);
+    const startMinutes = workshopFirstAvailableStartMinutes(stage, bay, candidateDateKey, hours, rows, firstMinutes, vehicleWindows, assigneeValue, calendarVehicle);
     if (startMinutes !== null) return { dateKey: candidateDateKey, startMinutes };
     workDate = workshopNextWorkdayDate(workDate);
   }
@@ -5915,7 +5962,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   const plannedHours = authoritativeHours || hours;
   const friendlyPlannedHours = workshopExactDurationHours(plannedHours).toFixed(2);
   const selectedDate = workshopDateKeyNotBefore(workshopDateKey(workshopCoerceWorkDate(workshopDateFromKey(dateKey) || new Date(), 1)), etaConstraint.earliestDateKey);
-  const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours, workshopLoadPlans(), 0, 260, new Date(), [], workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || '');
+  const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours, workshopLoadPlans(), 0, 260, new Date(), [], workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || '', '', vehicle);
   const scheduledDate = firstSlot?.dateKey || selectedDate;
   const startMinutes = firstSlot?.startMinutes ?? 0;
   const bayOptions = Array.from({ length: workshopStageBayCount(normalizedStage) }, (_, index) => `<option value="${index + 1}" ${index + 1 === bay ? 'selected' : ''}>Bay ${workshopPad(index + 1)}</option>`).join('');
@@ -5953,7 +6000,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
       if (!(allocated > 0)) { form.elements.hours.value = ''; return; }
       form.elements.hours.value = workshopDurationInputValue(allocated);
     }
-    const suggested = workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate, Number(form.elements.hours.value) || hours, workshopLoadPlans(), 0, 260, new Date(), [], form.elements.assignee.value);
+    const suggested = workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate, Number(form.elements.hours.value) || hours, workshopLoadPlans(), 0, 260, new Date(), [], form.elements.assignee.value, '', vehicle);
     if (suggested) {
       form.elements.date.value = suggested.dateKey;
       form.elements.startMinutes.value = String(suggested.startMinutes);
@@ -6222,12 +6269,12 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
       const notBeforeMinutes = windowIndex === 0 && windowStart === today
         ? Math.max(0, workshopMinuteOffset(nextOperationalMoment))
         : 0;
-      slot = workshopBestStageSlot(normalizedStage, windowStart, estimate, workshopLoadPlans(), notBeforeMinutes, windowEnd, vehicleWindows, pmbBayMechanic(vehicle) || '');
+      slot = workshopBestStageSlot(normalizedStage, windowStart, estimate, workshopLoadPlans(), notBeforeMinutes, windowEnd, vehicleWindows, pmbBayMechanic(vehicle) || '', null, null, vehicle);
       windowStart = workshopCalendarDateKeyOffset(windowEnd, 1);
     }
   } else {
     const notBeforeMinutes = earliestDate === today ? Math.max(0, workshopMinuteOffset(nextOperationalMoment)) : 0;
-    slot = workshopBestStageSlot(normalizedStage, earliestDate, estimate, workshopLoadPlans(), notBeforeMinutes, '', vehicleWindows, pmbBayMechanic(vehicle) || '');
+    slot = workshopBestStageSlot(normalizedStage, earliestDate, estimate, workshopLoadPlans(), notBeforeMinutes, '', vehicleWindows, pmbBayMechanic(vehicle) || '', null, null, vehicle);
   }
   if (!slot) {
     window.alert('No active bay has an available operational slot in the searched planning horizon. No booking was created.');
@@ -6318,6 +6365,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   const requestedCandidate = {
     ...(existing || {}),
     id: existing?.id || '__new_workshop_booking__',
+    calendarVehicle: vehicle,
     stage: normalizedStage,
     bay: Number(bay),
     status: 'planned',
@@ -7475,6 +7523,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopManualDurationSharedPayload,
     workshopIntervalsOverlap,
     workshopAvailabilityWindowsForDate,
+    workshopBusShift,
     workshopBreakWindowsForDate,
     workshopNewBookingValidation,
     workshopRequireSchedulableCandidate,

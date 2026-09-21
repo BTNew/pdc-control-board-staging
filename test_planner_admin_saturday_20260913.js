@@ -1,6 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
+// Best-slot planning excludes the past: keep this September fixture independent of today's date.
+require('node:test').mock.timers.enable({apis:['Date'],now:new Date('2026-09-14T00:00:00Z')});
 const base = __dirname;
 global.parseIsoTimestamp = value => { const date = new Date(value); return Number.isNaN(+date) ? null : date; };
 global.cleanNavisionText = value => String(value ?? '').trim();

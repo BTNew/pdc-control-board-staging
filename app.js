@@ -207,7 +207,7 @@ const PMB_WIP_LIMITS = {
 };
 
 const PMB_STAGE_BAY_COUNTS = {
-  BUS_4X4: 8,
+  BUS_4X4: 10,
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
@@ -218,7 +218,7 @@ const PMB_STAGE_BAY_COUNTS = {
 };
 
 const PMB_STAGE_CAPACITY_LABELS = {
-  BUS_4X4: '8 bays',
+  BUS_4X4: '10 bays · includes buffer and QA',
   FABRICATION: '13 bays',
   TYRE: '2 bays · 1 wheel alignment bay',
   SUBLET: 'Provider queue',
@@ -5432,7 +5432,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5481,7 +5481,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
