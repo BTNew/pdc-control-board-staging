@@ -45,6 +45,8 @@ const WORKSHOP_MUTATION_RPCS = Object.freeze([
   'resize_workshop_booking',
   'change_booking_bay',
   'assign_booking_technician',
+  'set_pdc_bus_booking_team',
+  'record_pdc_bus_helper_labour',
   'start_workshop_work',
   'stop_workshop_work',
   'resume_workshop_work',
@@ -78,6 +80,8 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   resize_workshop_booking: 'p_expected_version',
   change_booking_bay: 'p_expected_version',
   assign_booking_technician: 'p_expected_version',
+  set_pdc_bus_booking_team: 'p_expected_version',
+  record_pdc_bus_helper_labour: 'p_expected_version',
   start_workshop_work: 'p_expected_version',
   stop_workshop_work: 'p_expected_version',
   resume_workshop_work: 'p_expected_version',
@@ -113,6 +117,12 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'bay_overlap', 'vehicle_overlap', 'calendar_unavailable',
   'calendar_duration_mismatch', 'invalid_schedule_interval', 'minimum_duration',
   'bay_inactive_or_wrong_station', 'technician_inactive_or_missing',
+  'bus_stage_parts_required', 'bus_bay_vehicle_incompatible',
+  'bus_shift_outside_hours', 'bus_supplier_verification_required',
+  'bus_technician_shift_conflict',
+  'invalid_team', 'active_department138_booking_required', 'technician_unavailable',
+  'request_conflict', 'invalid_helper_labour', 'started_department138_booking_required',
+  'helper_assignment_or_work_time_invalid',
   'technician_leave_conflict', 'technician_overlap', 'live_booking_conflict',
   'concurrent_queue_change', 'sublet_away',
   'admin_block_conflict', 'fixed_booking_conflict', 'invalid_admin_block_type',
@@ -130,6 +140,20 @@ function workshopCanonicalMutationError(body) {
   const match = message.match(/["']error["']\s*:\s*["']([a-z0-9_]+)["']/i);
   const extracted = match ? String(match[1] || '').toLowerCase() : '';
   return WORKSHOP_CANONICAL_MUTATION_ERRORS.has(extracted) ? extracted : '';
+}
+
+// Display only: keep the stage from a known validation response without
+// treating arbitrary server text as vehicle identity or mutation authority.
+function workshopMutationWorkflowStage(body) {
+  if (!body || typeof body !== 'object') return '';
+  const values = [body];
+  for (const field of ['message', 'details']) {
+    if (typeof body[field] !== 'string' || body[field].length > 8192) continue;
+    const raw = body[field].trim().replace(/^Workshop Planner validation rejected booking:\s*/, '');
+    try { values.push(JSON.parse(raw)); } catch (_) { /* Not a JSON validation detail. */ }
+  }
+  const stage = values.find(value => ['mechanical', 'electrical', 'accessory'].includes(value?.workflow_stage))?.workflow_stage;
+  return stage || '';
 }
 
 function workshopSharedModeEnabled(config) {
@@ -671,6 +695,7 @@ function createWorkshopDataService(options) {
         ? (body.message || body.error_description || body.details || body.hint)
         : (typeof body === 'string' ? body : null);
       return { ok: false, error: canonicalError || serverCode || 'request_failed', code: serverCode || null, message: serverMessage || null, status: result.status, body,
+        workflow_stage: canonicalError ? workshopMutationWorkflowStage(body) : '',
         ...(!canonicalError && (result.status >= 500 || result.status === 408) ? { outcomeUnknown: true } : {}) };
     }
     const body = result.body || {};

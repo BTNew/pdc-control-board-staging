@@ -35,6 +35,7 @@ function fixture(overrides = {}) {
     workshopStageJobLines:() => [], parseIsoTimestamp:() => null,
     pmbStageLabel:v => v, workshopExactDurationHours:v => Number(v),
     workshopAssigneeOptions:() => '<option value="">Select technician</option>',
+    workshopBookingTeamHtml:() => '',
     workshopBayMechanic:() => '', pmbBayMechanic:() => '',
     ...overrides,
   };
@@ -118,7 +119,7 @@ test('workflow selection rejects malformed identity and stops the surrounding qu
     const state = {};
     const root = {
       querySelectorAll:selector => selector === '[data-bus-workflow-open]' ? [{dataset:{busWorkflowOpen:id},addEventListener:(_,fn) => {handler=fn;}}] : [],
-      querySelector:() => ({scrollIntoView:() => {scrollCount++;}}),
+      querySelector:selector => selector === '[data-bus-workflow-host]' ? {scrollIntoView:() => {scrollCount++;}} : null,
     };
     const context = {root,workshopState:() => state,renderWorkshopPlanner:() => {renderCount++;},WORKSHOP_UUID_PATTERN:/^[0-9a-f-]{36}$/i};
     vm.createContext(context); vm.runInContext(binding, context); context.bindWorkshopPlanner(root);

@@ -24,7 +24,7 @@ Preserve manual priorities. Changed forecasts flag downstream plans for review; 
 
 ## Resources
 
-Weekdays, Perth local time: John Castagna, Andy McCormick, James Ierino, Paul Guiye, Ren Karlos and Mudassar Rasheed 06:00–15:00; Nick Darter and Gabriel Colborne 06:00–14:00. Retain configured breaks, leave and closures. Nick receives no automatic capacity reduction for supervision. Andy remains flexible controller/QA support, not a full-time fixed production allocation. New Paul/Ren training begins 21 September under Andy.
+Weekdays, Perth local time: John Castagna, Andrew McCormick, James Ierino, Paul Guiye, Ren Karlos and Mudassar Rasheed 06:00–15:00; Nick Darker and Gabriel Colborne 06:00–14:00. Bhavesh confirmed Andy means Andrew, and Nick Darter was a typo for Nick Darker. Retain configured breaks, leave and closures. Nick receives no automatic capacity reduction for supervision. Andrew remains flexible controller/QA support, not a full-time fixed production allocation. New Paul/Ren training begins 21 September under Andrew.
 
 | Bay | Use |
 |---|---|
@@ -34,14 +34,22 @@ Weekdays, Perth local time: John Castagna, Andy McCormick, James Ierino, Paul Gu
 | 4 | Ren, supervised mechanical/fabrication; HiAce or Coaster, 5.5 t hoist |
 | 5–6 | Non-hoist accessory/progression buffers |
 | 7 | Flexible QA, urgent work and rectification; mobile column hoist approximately 20 t |
-| 8 | Nick, electrical lead |
+| 8 | Nick Darker, electrical lead; HiAce, Coaster and light vehicles |
 | 9 | Gabriel, electrical/fitment under Nick; HiAce, Coaster and light vehicles |
 | 10 | Mudassar, accessory/mine-spec fitment; major wiring under Nick |
 
 Resource templates do not establish an account identity from a similar name. Unmatched or conflicting names require review. Bay suitability must consider the actual vehicle and work; these capacities are not a certification of lifting safety.
 
-## Open planning inputs
+## Clarifications confirmed 23 September 2026
 
-QA duration, net productive capacity where breaks are unspecified, Bay 8 model compatibility, public-holiday exceptions and whether the pit notice is measured in calendar or working hours need confirmation before precise completion promises. Use visible unknowns and planning warnings; do not invent those values.
+QA uses an approximate three-hour planning allowance, to refine against actual builds; this does not overwrite Tune or staff operation hours. Pit notice is normally two to three working days after reliable electrical and QA forecasts. No production on public holidays or workshop closures. The calendar includes verified Perth holidays for 2026–2027 and configured closures; review dates beyond that horizon. Existing break settings remain in force.
 
-Source service reports still preserve Tune/staff hours, mandatory ARB review for unsupported internal missing estimates, New Vehicles/Updated Operations gates, scoped identity and replay safeguards. Sub Status 80/99 retains current guarded QC/checkout handling. Parts-only reports create no jobs, operations or bookings. No outgoing-email authority is added by this rule change.
+Electrical/accessory work can span Bays 8–10 under Nick's direction. The stage-parts check remains destination-specific: Electrical for Bays 8/9 and Accessory for Bay 10. Imported green parts alone does not replace this physical readiness confirmation.
+
+One vehicle occupies one physical booking. Assign a primary technician and explicit helpers to that booking, checking all staff availability. Team reservations span the booking; supervision alone does not require reserving a supervisor. Record actual helper person-minutes separately; team size does not divide planned hours. Do not complete the shared Bus4x4 station merely to end mechanical work if electrical or conversion sections remain open.
+
+See the [illustrated user guide](bus4x4-user-guide.html) for the actual controls and handover steps.
+
+Source service reports still preserve Tune/staff hours, mandatory ARB review for unsupported internal missing estimates, New Vehicles/Updated Operations gates, scoped identity and replay safeguards. Sub Status 80/99 retains current guarded QC/checkout handling. Parts-only reports create no jobs, operations or bookings.
+
+Craig authorised Bhavesh as a Department 138 board controller on 23 September. Authenticated instructions can be actioned without repeat owner approval, and replies to Bhavesh are authorised when he requests work or information. Existing exact identity, capacity, physical confirmation and release checks remain mandatory; ambiguous facts require clarification. This does not add outgoing authority for other recipients.

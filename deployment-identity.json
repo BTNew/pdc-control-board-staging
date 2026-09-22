@@ -75,10 +75,11 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20260921012445",
-    "name": "workshop_planned_return_to_queue",
-    "file": "supabase/migrations/20260921012445_workshop_planned_return_to_queue.sql",
-    "sha256": "3189f4ccfefce0734d730c0f228ce32d07ece8761d5854cb8959ea2bb28a9a6d",
+    "version": "20260922211301",
+    "name": "dept138_timer_restore_boundary",
+    "file": "supabase/migrations/20260922211301_dept138_timer_restore_boundary.sql",
+    "sha256": "fa1005f6462d54503830b89ee80b7cbec79837fccf46d746f80d1e996d9fb8c5",
+    "database_version": "20260922211401",
     "commissioned": true,
     "review_status": "staging_applied"
   },
@@ -639,5 +640,51 @@
     "tests": "1210 Node tests and 227 rollback database assertions passed; actual affected arrangement preview/apply also verified in rollback",
     "operational_correction": "User-approved return of misplaced Coaster booking to Unallocated; work and hours preserved; mechanical parts remain unconfirmed",
     "live_verification": "Two successive real cron ticks at 09:26 and 09:27 Perth on 21 September: HiAce advances with 3,542 minutes unchanged and matching mechanic assignment; all clock errors cleared; Coaster remains Unallocated with parts unconfirmed."
+  },
+  "department138_followup_migrations": [
+    {
+      "version": "20260922203826",
+      "name": "dept138_team_and_planning_clarifications",
+      "file": "supabase/migrations/20260922203826_dept138_team_and_planning_clarifications.sql",
+      "sha256": "b2ad3d27a1addf87da9e39d67cbd913b62f70aba96964fe281282a06e98006b8",
+      "database_version": "20260922205854",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20260922204812",
+      "name": "bhavesh_dept138_intake_sender",
+      "file": "supabase/migrations/20260922204812_bhavesh_dept138_intake_sender.sql",
+      "sha256": "d3205e28e1a5365f6af0fa3a7cb3993571152bc670a8611f42c1c73cc4641d02",
+      "database_version": "20260922210207",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20260922205948",
+      "name": "dept138_paused_bay_timer",
+      "file": "supabase/migrations/20260922205948_dept138_paused_bay_timer.sql",
+      "sha256": "c7c1d2302fb9d66aec36dce32dafb6d4aee23cba9590e47c5088b1dc36c9ff61",
+      "database_version": "20260922211234",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20260922211301",
+      "name": "dept138_timer_restore_boundary",
+      "file": "supabase/migrations/20260922211301_dept138_timer_restore_boundary.sql",
+      "sha256": "fa1005f6462d54503830b89ee80b7cbec79837fccf46d746f80d1e996d9fb8c5",
+      "database_version": "20260922211401",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    }
+  ],
+  "department138_followup_release": {
+    "asset_version": "2026.09.23.01",
+    "scope": "Department 138 shared teams, parts readiness, search visibility, calendar and paused-work timer; delegated Bhavesh intake",
+    "tests": "1230 Node checks passed; shared-team, calendar, timer, sender and existing clock rollback suites passed; actual controls and illustrated guide checked on desktop/mobile",
+    "preserved": "Existing vehicles, operation hours, staff corrections, bookings, fitter progress and parts fingerprints unchanged by deployment",
+    "guide": "docs/bus4x4-user-guide.html",
+    "service_import_limit": "Sender authentication and scope/disabled-actor guards tested; positive service-file preview/apply requires a future authorised bound importer transaction."
   }
 }

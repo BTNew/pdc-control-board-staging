@@ -130,8 +130,9 @@ UPDATE public.workshop_settings SET value=CASE key
  WHEN 'working_week' THEN '["monday","tuesday","wednesday","thursday","friday"]'::jsonb
  WHEN 'future_only_schedule_enforcement' THEN 'true'::jsonb ELSE '[]'::jsonb END
 WHERE key IN('day_start_time','day_end_time','working_week','future_only_schedule_enforcement','break_windows','closures','overtime_windows','technician_leave');
-CREATE TEMP TABLE bc_context AS SELECT (date_trunc('week',greatest(clock_timestamp()+interval '30 days',
- coalesce((SELECT max(scheduled_end_at) FROM public.workshop_bookings),clock_timestamp())+interval '30 days') AT TIME ZONE 'Australia/Perth')::date+7) base_day;
+-- Use a holiday-free synthetic window for clock/shift mechanics; exact official holidays are tested in dept138_team_planning_rollback.sql.
+CREATE TEMP TABLE bc_context AS SELECT greatest(date '2028-02-07',(date_trunc('week',greatest(clock_timestamp()+interval '30 days',
+ coalesce((SELECT max(scheduled_end_at) FROM public.workshop_bookings),clock_timestamp())+interval '30 days') AT TIME ZONE 'Australia/Perth')::date+7)) base_day;
 CREATE TEMP TABLE bc_original_assignments AS SELECT id,to_jsonb(a) row_data FROM public.workshop_booking_assignments a;
 CREATE TEMP TABLE bc_original_blocks AS SELECT id,to_jsonb(a) row_data FROM public.workshop_admin_blocks a;
 CREATE TEMP TABLE bc_original_operations AS SELECT operation_id,to_jsonb(o) row_data FROM public.pdc_pilbara_service_operations o;
@@ -238,11 +239,19 @@ BEGIN
   at_time:=pg_temp.bc_at(day+step*7+CASE WHEN variant='electrical9-friday' THEN 4 ELSE 0 END,
     CASE WHEN variant='mechanical-close' THEN time '15:01' ELSE time '14:01' END);
   expected_start:=pg_temp.bc_at(day+step*7+CASE WHEN variant='electrical9-friday' THEN 7 ELSE 1 END,time '06:00');
+  -- Public holidays added to the Department138 calendar remain closed even when Monday is a weekday.
+  WHILE extract(isodow FROM expected_start AT TIME ZONE 'Australia/Perth')>5
+    OR pdc_bus_private.planning_calendar()->'closures' ? (expected_start AT TIME ZONE 'Australia/Perth')::date::text LOOP
+   expected_start:=expected_start+interval '1 day';
+  END LOOP;
   result:=pg_temp.bc_tick(variant,at_time);
   PERFORM pg_temp.ou_assert((SELECT scheduled_start_at=expected_start AND scheduled_end_at=expected_start+interval '1 hour' FROM public.workshop_bookings WHERE id=b),variant||' resumes next open weekday at six');
   step:=step+1;
  END LOOP;
  -- Break and closure cannot become productive capacity during a long cascade.
+ -- Keep this break-specific case away from public holidays; holiday exclusion has separate assertions.
+ WHILE EXISTS(SELECT 1 FROM generate_series(0,3) offset_day WHERE
+  pdc_bus_private.planning_calendar()->'closures' ? (day+step*7+offset_day)::text) LOOP day:=day+7; END LOOP;
  PERFORM set_config('qa.bus_clock_case','break-closure',true);
  UPDATE public.workshop_settings SET value='[{"scope":"global","start":"12:00","end":"12:30"}]'::jsonb WHERE key='break_windows';
  UPDATE public.workshop_settings SET value=jsonb_build_array(jsonb_build_object('date',(day+step*7+1)::text)) WHERE key='closures';

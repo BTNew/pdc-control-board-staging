@@ -12,10 +12,10 @@
   function workState(status) {
     return status === 'started' ? 'Running' : status === 'stoppage' ? 'Stopped' : '';
   }
-  function summaryHtml({key, jc, stock, customer, model, status} = {}) {
+  function summaryHtml({key, jc, stock, customer, model, status, team} = {}) {
     const jcLabel = jc && /^JC/i.test(jc) ? jc : 'JC ' + (jc || 'Not recorded');
     const state = workState(status);
-    return `<span class="planner-slim-details"><strong>${state ? `<span class="planner-work-state">${state} · </span>` : ''}Key ${esc(key || '—')} · ${esc(jcLabel)}</strong><span class="planner-stock-number">Stock ${esc(stock || 'Not recorded')}</span><span title="${esc(customer)}">${esc(customer || 'Customer not recorded')}</span><span title="${esc(model)}">${esc(model || 'Model not recorded')}</span></span>`;
+    return `<span class="planner-slim-details"><strong>${state ? `<span class="planner-work-state">${state} · </span>` : ''}Key ${esc(key || '—')} · ${esc(jcLabel)}</strong><span class="planner-stock-number">Stock ${esc(stock || 'Not recorded')}</span><span title="${esc(customer)}">${esc(customer || 'Customer not recorded')}</span><span title="${esc(model)}">${esc(model || 'Model not recorded')}</span>${team ? `<span class="planner-team" title="${esc(team)}">${esc(team)}</span>` : ''}</span>`;
   }
   function recordedKey(vehicle = {}, boardRows = []) {
     const key = row => row.keyNumber || row.key_number || row.keyNo || row.keyTag || row.pdcKeyNumber || row.vehicleKeyNumber || '';
@@ -30,9 +30,9 @@
     // controls verbatim. Only replace its descriptive content.
     return html.replace(/^(<article\b[^>]*>)[\s\S]*?(<div class="workshop-queue-actions">)/, (_, start, actions) => start + summaryHtml(details) + actions);
   }
-  function identityTitle({key,jc,stock,customer,model,status}={}) {
+  function identityTitle({key,jc,stock,customer,model,status,team}={}) {
     const jcLabel = jc && /^JC/i.test(jc) ? jc : 'JC ' + (jc || 'Not recorded');
-    return `${workState(status) ? workState(status) + ' · ' : ''}Key ${key||'—'} · ${jcLabel} · Stock ${stock||'Not recorded'} · ${customer||'Customer not recorded'} · ${model||'Model not recorded'}`;
+    return `${workState(status) ? workState(status) + ' · ' : ''}Key ${key||'—'} · ${jcLabel} · Stock ${stock||'Not recorded'} · ${customer||'Customer not recorded'} · ${model||'Model not recorded'}${team ? ' · ' + team : ''}`;
   }
   function bookedArticleIdentity(html,details) {
     return html.replace(/^<article class="/,'<article class="planner-identity-chip ')
@@ -82,7 +82,7 @@
       workshopPlanChipHtml=function(entry={},...args){
         const html=previousPlan(entry,...args);
         const vehicle=html&&workshopVehicle(entry.sharedVehicleId||entry.vehicleId||entry.vehicleKey,entry.stage);
-        return vehicle?compactPlan(html,{...detailsFor(vehicle,entry.stage),status:entry.status}):html;
+        return vehicle?compactPlan(html,{...detailsFor(vehicle,entry.stage),status:entry.status,team:typeof workshopBookingTeamLabel === 'function' ? workshopBookingTeamLabel(entry) : ''}):html;
       };
     }
     if(typeof workshopWeeklyCardHtml==='function'){
@@ -90,7 +90,7 @@
       workshopWeeklyCardHtml=function(entry={},...args){
         const html=previousWeek(entry,...args);
         const vehicle=html&&workshopVehicle(entry.sharedVehicleId||entry.vehicleId||entry.vehicleKey,entry.stage);
-        return vehicle?compactWeek(html,{...detailsFor(vehicle,entry.stage),status:entry.status}):html;
+        return vehicle?compactWeek(html,{...detailsFor(vehicle,entry.stage),status:entry.status,team:typeof workshopBookingTeamLabel === 'function' ? workshopBookingTeamLabel(entry) : ''}):html;
       };
     }
     const previousAdmin = workshopAdminBlockHtml;

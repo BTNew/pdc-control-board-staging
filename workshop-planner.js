@@ -274,12 +274,16 @@ function workshopIsConfiguredWorkingDay(date = new Date(), context = null) {
   return WORKSHOP_PLANNER_CONFIG.workingDayIndexes.includes(date.getDay());
 }
 
-function workshopIsClosureDate(date = new Date()) {
-  return WORKSHOP_PLANNER_CONFIG.closureDateKeys.includes(workshopDateKey(date));
+function workshopIsClosureDate(date = new Date(), context = null) {
+  const key = workshopDateKey(date);
+  if (WORKSHOP_PLANNER_CONFIG.closureDateKeys.includes(key)) return true;
+  if (!workshopBusShift(context)) return false;
+  const calendar = typeof window !== 'undefined' ? window.__workshopDataService?.getLastSnapshot?.()?.planning_calendar : null;
+  return calendar?.verified === true && Array.isArray(calendar.closures) && calendar.closures.includes(key);
 }
 
 function workshopIsWorkday(date = new Date(), context = null) {
-  return workshopIsConfiguredWorkingDay(date, context) && !workshopIsClosureDate(date);
+  return workshopIsConfiguredWorkingDay(date, context) && !workshopIsClosureDate(date, context);
 }
 
 function workshopCoerceWorkDate(date = new Date(), direction = 1, context = null) {
@@ -670,6 +674,8 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     sharedBookingId: booking.booking_id,
     sharedVersion: booking.version,
     busCalendarVersion: booking.bus_calendar_version === 1 ? 1 : null,
+    busWorkflowDepartment138: vehicle.bus_workflow_department138 === true
+      || (Array.isArray(vehicle.department_codes) && vehicle.department_codes.some(code => String(code) === '138')),
     fitterProgress: booking.fitter_progress || null,
     sharedVehicleId,
     sharedBayId: bay ? String(bay.id || bay.bay_id || booking.bay_id || '') : String(booking.bay_id || ''),
@@ -696,6 +702,13 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     capacityEfficiencyPercent: Number(booking.capacity_efficiency_percent) > 0 ? Number(booking.capacity_efficiency_percent) : null,
     assignee: assignment ? assignment.technician_name || '' : '',
     technicianId: assignment ? assignment.technician_id || '' : '',
+    helperAssignments: Array.isArray(booking.helper_assignments)
+      ? booking.helper_assignments.map(row => ({ technicianId: String(row.technician_id || ''), name: String(row.technician_name || '') })).filter(row => row.technicianId)
+      : (Array.isArray(booking.helper_technician_ids) ? booking.helper_technician_ids.map(id => ({technicianId:String(id),name:''})) : []),
+    helperLabour: Array.isArray(booking.helper_labour) ? booking.helper_labour : [],
+    helperLabourMinutes: Number(booking.helper_labour_minutes || 0),
+    helperAssignmentHistory: Array.isArray(booking.helper_assignment_history)
+      ? booking.helper_assignment_history.map(row => ({technicianId:String(row.technician_id || ''),name:String(row.technician_name || ''),assignedAt:row.assigned_at,releasedAt:row.released_at})).filter(row => row.technicianId) : [],
     status: legacyStatus,
     stoppageReason: booking.stoppage_reason || '',
     stoppageAt: booking.stoppage_started_at || '',
@@ -1017,6 +1030,7 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
         ? { ok: false, error: 'runtime_failure', message: error?.message || String(error || '') }
         : { ok: false, error: 'runtime_failure' };
     }
+    if (result?.error === 'bus_stage_parts_required') workshopRememberReadinessFailure(result, payload);
     if ((!result || result.ok !== true) && options.suppressFailureAlert !== true) {
       window.alert(workshopDescribeSharedActionError(result));
     }
@@ -1062,6 +1076,12 @@ function workshopDescribeSharedActionError(result) {
     return 'The affected jobs could not be safely moved into available working time. No changes were saved. Ask the controller to review the surrounding bookings.';
   }
   if (error === 'technician_unavailable') return 'An assigned mechanic is unavailable during this work. Check their assignment or leave before starting.';
+  if (error === 'invalid_team') return 'Choose one primary technician and up to eight different helpers. Each person can appear only once on this team.';
+  if (error === 'active_department138_booking_required') return 'Team changes require an active Department 138 booking in a physical bay. Refresh and select that booking.';
+  if (error === 'request_conflict') return 'This save reference was already used for different values. Refresh and review the saved team or helper time before trying again.';
+  if (error === 'invalid_helper_labour') return 'Enter 1–720 whole actual helper minutes, a valid Perth work date/time and a note describing the work.';
+  if (error === 'started_department138_booking_required') return 'Helper time can be recorded after the Department 138 booking has started, including after completion.';
+  if (error === 'helper_assignment_or_work_time_invalid') return 'Choose a recorded helper and a time when they were assigned as a helper on this booking, between its actual start and finish (or now if still running).';
   if (error === 'bay_already_started') {
     return 'This bay already has a running or stopped job. Complete it or release its bay before starting another.';
   }
@@ -1082,9 +1102,13 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'parts_incomplete' || error === 'parts_incomplete_blocked' || error === 'parts_incomplete_entry') {
     return 'This staging runtime is stale: Parts must not block workshop work. Refresh the page; if this repeats, report the HTTP error shown to an Administrator.';
   }
-  if (error === 'bus_stage_parts_required') return 'Department 138 stage parts need confirmation. Open Workshop flow / parts readiness and confirm the parts required for this stage before allocating it.';
+  if (error === 'bus_stage_parts_required') {
+    const stage = ['mechanical', 'electrical', 'accessory'].includes(result.workflow_stage) ? result.workflow_stage : 'requested stage';
+    return `The ${stage} parts check has not been confirmed for the current work. Open Workshop flow / parts readiness, check the required parts, select Confirmed available for this stage and save. Then retry the allocation. If parts are outstanding, keep the vehicle in Unallocated.`;
+  }
   if (error === 'bus_bay_vehicle_incompatible') return 'This vehicle is not compatible with this Bus 4×4 bay. Bay 3 is for HiAce vehicles only; select a compatible bay.';
   if (error === 'bus_shift_outside_hours') return 'This booking is outside the Department 138 shift. Check its start and finish against the bay and mechanic working hours.';
+  if (error === 'bus_technician_shift_conflict') return 'A technician on this team finishes at 14:00. Choose a booking within that person’s working hours or a team available for the whole booking. Supervision alone does not require a helper assignment.';
   if (error === 'bus_supplier_verification_required') return 'Supplier work still needs a physical check by the assigned technician before this bay can be completed.';
   if (error === 'not_editable' || error === 'permission_denied' || error === 'forbidden') {
     return 'You do not have permission to make this change.';
@@ -1131,6 +1155,25 @@ function workshopDescribeSharedActionError(result) {
   }
   const exact = workshopAdministratorCanMove() ? workshopAdministratorErrorDetail(result) : '';
   return exact ? `The server rejected this change. No update was saved. ${exact}` : 'The server rejected this change. No update was saved, and the planner has reloaded the current shared data.';
+}
+
+function workshopRememberReadinessFailure(result = {}, payload = {}) {
+  const bookingId = String(payload.bookingId || payload.targetId || '');
+  const entry = bookingId ? workshopLoadPlans().find(row => (row.sharedBookingId || row.id) === bookingId) : null;
+  const vehicleId = String(payload.vehicleId || entry?.sharedVehicleId || '');
+  if (result.error !== 'bus_stage_parts_required' || !WORKSHOP_UUID_PATTERN.test(vehicleId)) return false;
+  workshopState().readinessFailure = { vehicleId, message: workshopDescribeSharedActionError(result) };
+  return true;
+}
+
+function workshopReadinessFailureHtml(stage = '', vehicles = [], plans = []) {
+  const failure = workshopState().readinessFailure;
+  if (stage !== 'BUS_4X4' || !failure || !WORKSHOP_UUID_PATTERN.test(String(failure.vehicleId || ''))) return '';
+  const vehicle = vehicles.find(row => row.sharedVehicleId === failure.vehicleId);
+  const plan = plans.find(row => row.sharedVehicleId === failure.vehicleId && row.stage === stage);
+  if (!vehicle && !plan) return '';
+  const identity = vehicle ? displayStockNumber(vehicle) : plan.vehicleKey;
+  return `<section class="workshop-readiness-failure" role="status"><strong>Stock ${escapeHtml(identity || '')}: parts check required</strong><p>${escapeHtml(failure.message)}</p><button class="small-button" type="button" data-bus-workflow-open="${escapeHtml(failure.vehicleId)}">Open this vehicle’s parts readiness</button><button class="small-button" type="button" data-workshop-dismiss-readiness>Dismiss</button></section>`;
 }
 
 function workshopVehicleConflictDetail(result = {}) {
@@ -2829,6 +2872,16 @@ function workshopTechnicianIdForEntry(entry = {}) {
   return ref ? String(ref.technicianId || '') : '';
 }
 
+function workshopEntryTechnicianIds(entry = {}) {
+  return [...new Set([workshopTechnicianIdForEntry(entry), ...(entry.helperAssignments || []).map(row => row.technicianId)].filter(Boolean))];
+}
+
+function workshopBookingTeamLabel(entry = {}) {
+  const primary = cleanNavisionText(entry.assignee || '');
+  const helpers = (entry.helperAssignments || []).map(row => cleanNavisionText(row.name || '') || 'Assigned helper');
+  return [primary ? `Primary: ${primary}` : '', helpers.length ? `Helpers: ${helpers.join(', ')}` : ''].filter(Boolean).join(' · ');
+}
+
 function workshopTechnicianIsOnLeave(technicianId = '', dateValue = new Date()) {
   const dates = WORKSHOP_PLANNER_CONFIG.technicianLeaveByTechnicianId[String(technicianId || '')] || [];
   return dates.includes(workshopDateKey(dateValue));
@@ -2850,7 +2903,7 @@ function workshopNewBookingValidation(entry = {}, now = null) {
       return { ok: false, error: 'past_start', now: referenceNow.toISOString() };
     }
   }
-  if (workshopIsClosureDate(start)) return { ok: false, error: 'closure_date', date: workshopDateKey(start) };
+  if (workshopIsClosureDate(start, entry)) return { ok: false, error: 'closure_date', date: workshopDateKey(start) };
   if (!workshopIsConfiguredWorkingDay(start, entry)) return { ok: false, error: 'non_working_day', date: workshopDateKey(start) };
   const startMinute = workshopMinuteOfDay(start);
   const startWindow = workshopAvailabilityWindowsForDate(start, entry).find(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
@@ -2859,7 +2912,7 @@ function workshopNewBookingValidation(entry = {}, now = null) {
     return { ok: false, error: inBreak ? 'break_window' : 'outside_work_window', date: workshopDateKey(start), minute: startMinute };
   }
   const durationMinutes = requestedDurationMinutes;
-  const technicianId = workshopTechnicianIdForEntry(entry);
+  const technicianIds = workshopEntryTechnicianIds(entry);
   let usesOvertime = false;
   let current = new Date(start);
   let remaining = durationMinutes;
@@ -2874,7 +2927,8 @@ function workshopNewBookingValidation(entry = {}, now = null) {
     if (minute < containingWindow.startMinutes) current = workshopSetClock(current, containingWindow.startMinutes);
     const dateKey = workshopDateKey(current);
     usesOvertime = usesOvertime || containingWindow.overtime === true;
-    if (technicianId && workshopTechnicianIsOnLeave(technicianId, current)) {
+    const technicianId = technicianIds.find(id => workshopTechnicianIsOnLeave(id, current));
+    if (technicianId) {
       return { ok: false, error: 'technician_on_leave', date: dateKey, technicianId };
     }
     const available = containingWindow.endMinutes - workshopMinuteOfDay(current);
@@ -2911,13 +2965,17 @@ function workshopRequireSchedulableCandidate(entry = {}) {
 
 function workshopAssigneeConflict(entry = {}, rows = workshopLoadPlans()) {
   const assignee = cleanNavisionText(entry.assignee || '').toLowerCase();
-  if (!assignee || entry.status === 'completed') return null;
+  const technicianIds = workshopEntryTechnicianIds(entry);
+  if ((!assignee && !technicianIds.length) || ['completed','deleted','cancelled'].includes(entry.status)) return null;
   const start = workshopEntryStart(entry);
   const end = workshopEntryEffectiveEnd(entry);
   return rows.find(other => {
-    if (other.id === entry.id || other.status === 'completed') return false;
+    if (other.id === entry.id || ['completed','deleted','cancelled'].includes(other.status)) return false;
     if (other.stage === entry.stage && Number(other.bay) === Number(entry.bay)) return false;
-    if (cleanNavisionText(other.assignee || '').toLowerCase() !== assignee) return false;
+    const otherIds = workshopEntryTechnicianIds(other);
+    const sharedTechnician = technicianIds.some(id => otherIds.includes(id));
+    const sameLegacyName = assignee && cleanNavisionText(other.assignee || '').toLowerCase() === assignee;
+    if (!sharedTechnician && !sameLegacyName) return false;
     const otherStart = workshopEntryStart(other);
     const otherEnd = workshopEntryEffectiveEnd(other);
     return workshopIntervalsOverlap(start.getTime(), end.getTime(), otherStart.getTime(), otherEnd.getTime());
@@ -2933,7 +2991,7 @@ function workshopRequireAvailableAssignee(entry = {}, rows = workshopLoadPlans()
   if (!conflict) return true;
   const vehicle = workshopVehicle(conflict.vehicleKey);
   const identity = vehicle ? (displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'another vehicle') : 'another vehicle';
-  window.alert(`${entry.assignee} is already booked on ${identity} at that time. Move one booking or choose another mechanic.`);
+  window.alert(`A technician on this team is already booked on ${identity} at that time. Move one booking or choose an available team.`);
   return false;
 }
 
@@ -3987,11 +4045,18 @@ function workshopOutstandingDisabledReasonLabel(reason = '') {
 
 const WORKSHOP_INCREMENTAL_RENDER_BATCH = 12;
 
-function workshopIncrementalRenderRows(rows = [], limit = WORKSHOP_INCREMENTAL_RENDER_BATCH) {
+function workshopIncrementalRenderRows(rows = [], limit = WORKSHOP_INCREMENTAL_RENDER_BATCH, highlightedVehicleKey = '') {
   const safeRows = Array.isArray(rows) ? rows : [];
   const safeLimit = Math.max(WORKSHOP_INCREMENTAL_RENDER_BATCH, Number(limit) || WORKSHOP_INCREMENTAL_RENDER_BATCH);
+  const highlightedIndex = highlightedVehicleKey
+    ? safeRows.findIndex(row => vehicleKey(row) === highlightedVehicleKey) : -1;
+  // A searched candidate must be rendered before we promise to highlight it.
+  // Pin only an off-page match; keep authority, disabled state and totals intact.
+  const orderedRows = highlightedIndex >= safeLimit
+    ? [safeRows[highlightedIndex], ...safeRows.slice(0, highlightedIndex), ...safeRows.slice(highlightedIndex + 1)]
+    : safeRows;
   return {
-    visible: safeRows.slice(0, safeLimit),
+    visible: orderedRows.slice(0, safeLimit),
     remaining: Math.max(0, safeRows.length - safeLimit),
   };
 }
@@ -4056,6 +4121,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
       <small class="workshop-plan-customer">${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
+      ${entry.helperAssignments?.length ? `<small class="workshop-plan-team">${escapeHtml(workshopBookingTeamLabel(entry))}</small>` : ''}
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${overtime ? ' · OVERTIME' : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       ${entry.legacyAmbiguityReason ? `<small class="workshop-legacy-ambiguity">${escapeHtml(entry.legacyAmbiguityReason)}</small>` : ''}
       <small class="workshop-plan-time">${escapeHtml(`${timeLabel} · ${workshopDurationInputValue(entry.hours)} h`)}</small>
@@ -4325,6 +4391,130 @@ function workshopFocusedOperationLinesHtml(vehicle = {}, stage = '') {
   return `<section class="workshop-focused-operation-lines" aria-label="Authenticated operation lines"><strong>Authenticated operation lines · ${exactTotal.toFixed(2)} h exact (${exactTotalMinutes} min)</strong><ul>${lines.map(line => `<li><span>${escapeHtml(line.operationNo || 'Operation')}</span> ${escapeHtml(line.text)} <b class="${line.hoursProvenance==='ai_estimated'?'pdc-ai-estimate':''}">${line.hoursProvenance==='ai_estimated'?'AI estimate · ':''}${Number(line.hours || 0).toFixed(2)} h</b></li>`).join('')}</ul></section>`;
 }
 
+function workshopTeamRoster() {
+  const rows = window.__workshopReferenceDataService?.getCachedTechnicians?.()?.rows;
+  return (Array.isArray(rows) ? rows : []).filter(row => row.active !== false && WORKSHOP_UUID_PATTERN.test(String(row.id || '')))
+    .map(row => ({id:String(row.id),name:String(row.name || '')})).sort((a,b) => a.name.localeCompare(b.name));
+}
+
+function workshopHelperLabourTechnicians(entry = {}) {
+  return [...new Map([...(entry.helperAssignmentHistory || []), ...(entry.helperAssignments || [])]
+    .filter(row => row.technicianId).map(row => [row.technicianId, row])).values()];
+}
+
+function workshopHelperLabourHtml(entry = {}) {
+  const helpers = workshopHelperLabourTechnicians(entry);
+  if (!entry.actualStartAt || !helpers.length || !['started','stoppage','completed','queued'].includes(entry.status)) return '';
+  const history = Array.isArray(entry.helperLabour) ? entry.helperLabour : [];
+  const pending = workshopState().helperLabourPending;
+  const retry = pending?.payload?.bookingId === entry.sharedBookingId ? pending.payload : null;
+  const workedAt = retry?.workedAt || entry.actualEndAt || new Date().toISOString();
+  const localTime = new Date(Date.parse(workedAt) + 8 * 3600000).toISOString().slice(0,16);
+  const canManage = ['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
+  const disabled = canManage && window.__workshopSharedActions?.recordHelperLabour ? '' : 'disabled';
+  return `<form class="workshop-booking-team" data-workshop-helper-labour-form data-workshop-booking-id="${escapeHtml(entry.sharedBookingId)}" data-workshop-booking-version="${escapeHtml(entry.sharedVersion)}">
+    <strong>Record helper time</strong><p>Actual helper labour: ${escapeHtml(Number(entry.helperLabourMinutes || 0))} minutes. This adds person-minutes separately and does not change the booking’s planned hours or elapsed job time.</p>
+    ${history.length ? `<ul>${history.map(row => `<li>${escapeHtml(row.technician_name || 'Helper')}: ${escapeHtml(row.minutes)} minutes · ${escapeHtml(row.note || '')}</li>`).join('')}</ul>` : ''}
+    <label><span>Helper technician</span><select name="helperTechnicianId" required ${disabled}>${helpers.map(row => `<option value="${escapeHtml(row.technicianId)}" ${row.technicianId === retry?.technicianId ? 'selected' : ''}>${escapeHtml(row.name || 'Assigned helper')}</option>`).join('')}</select></label>
+    <label><span>Actual work date/time (Perth)</span><input type="datetime-local" name="helperWorkedAt" value="${escapeHtml(localTime)}" required ${disabled}></label>
+    <label><span>Actual minutes worked</span><input type="number" name="helperMinutes" min="1" max="720" step="1" value="${escapeHtml(retry?.minutes || '')}" required ${disabled}></label>
+    <label><span>Work performed / training note</span><input name="helperNote" maxlength="500" value="${escapeHtml(retry?.note || '')}" required ${disabled}></label>
+    ${retry ? '<p role="status">The previous save could not be confirmed. Retry these same values to check that receipt without recording time twice.</p>' : ''}
+    <button class="primary" type="submit" ${disabled}>${retry ? 'Retry helper time save' : 'Record helper time'}</button>
+    ${canManage ? '' : '<p>Ask a controller to record actual helper time.</p>'}
+  </form>`;
+}
+
+async function saveWorkshopHelperLabour(event) {
+  event.preventDefault();
+  if (!['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role)) return false;
+  const state = workshopState();
+  if (state.helperLabourSaving) return false;
+  const form = event.currentTarget;
+  const bookingId = String(form.dataset.workshopBookingId || '');
+  const entry = workshopLoadPlans().find(row => row.sharedBookingId === bookingId);
+  if (!entry || entry.stage !== 'BUS_4X4' || !entry.actualStartAt || !['started','stoppage','completed','queued'].includes(entry.status)) return false;
+  const data = new FormData(form);
+  const technicianId = String(data.get('helperTechnicianId') || '');
+  const minutes = Number(data.get('helperMinutes'));
+  const note = String(data.get('helperNote') || '').trim();
+  const localTime = String(data.get('helperWorkedAt') || '');
+  const date = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(localTime) ? new Date(localTime + ':00+08:00') : null;
+  if (!workshopHelperLabourTechnicians(entry).some(row => row.technicianId === technicianId) || !Number.isInteger(minutes) || minutes < 1 || minutes > 720 || !note || !date || Number.isNaN(date.getTime())) {
+    window.alert('Choose an assigned helper, a valid Perth work time, 1–720 actual minutes and a work note.'); return false;
+  }
+  const owner = `${window.PDC_AUTH_CONTEXT?.userId || ''}:${window.PDC_AUTH_CONTEXT?.role || ''}`;
+  const intent = JSON.stringify({bookingId,technicianId,workedAt:date.toISOString(),minutes,note});
+  const pending = state.helperLabourPending;
+  if (pending && (pending.owner !== owner || pending.intent !== intent)) {
+    window.alert('A previous helper-time save is unconfirmed. Refresh and resolve that save before recording different time.'); return false;
+  }
+  if (!pending && String(entry.sharedVersion) !== form.dataset.workshopBookingVersion) {
+    window.alert('This booking changed. Review its recorded helper time before saving again.'); renderWorkshopPlanner(); return false;
+  }
+  const payload = pending?.payload || {bookingId,expectedVersion:entry.sharedVersion,technicianId,workedAt:date.toISOString(),minutes,note,requestId:workshopNewRequestId()};
+  state.helperLabourPending = {owner,intent,payload};
+  state.helperLabourSaving = true;
+  let result;
+  try { result = await workshopDispatchSharedAction('recordHelperLabour', payload, renderWorkshopPlanner, {suppressRender:true}); }
+  finally { state.helperLabourSaving = false; }
+  const uncertain = !result || result.outcomeUnknown === true || ['runtime_failure','request_failed','no_response','authority_superseded'].includes(result.error);
+  if (!uncertain) state.helperLabourPending = null;
+  renderWorkshopPlanner();
+  return result?.ok === true;
+}
+
+function workshopBookingTeamHtml(entry = {}) {
+  const department138 = entry.busWorkflowDepartment138 === true || entry.busCalendarVersion === 1 || workshopBusShift(entry);
+  if (entry.stage !== 'BUS_4X4' || !department138 || !workshopSharedModeActive() || !WORKSHOP_UUID_PATTERN.test(String(entry.sharedBookingId || ''))) return '';
+  const helpers = Array.isArray(entry.helperAssignments) ? entry.helperAssignments : [];
+  const summary = workshopBookingTeamLabel(entry) || 'No technicians assigned';
+  if (['completed','deleted','cancelled'].includes(entry.status) || !entry.bay) return `<section class="workshop-booking-team"><strong>Team on this booking</strong><p>${escapeHtml(summary)}</p></section>${workshopHelperLabourHtml(entry)}`;
+  const roster = workshopTeamRoster();
+  const knownIds = new Set(roster.map(row => row.id));
+  const recorded = [...(entry.technicianId && !knownIds.has(entry.technicianId) ? [{id:entry.technicianId,name:entry.assignee || 'Recorded primary'}] : []), ...helpers.filter(row => !knownIds.has(row.technicianId)).map(row => ({id:row.technicianId,name:row.name || 'Recorded helper'}))];
+  const options = [...roster, ...recorded];
+  const helperIds = new Set(helpers.map(row => row.technicianId));
+  const canManage = ['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
+  const disabled = canManage && roster.length && window.__workshopSharedActions?.setBookingTeam ? '' : 'disabled';
+  return `<form class="workshop-booking-team" data-workshop-team-form data-workshop-booking-id="${escapeHtml(entry.sharedBookingId)}" data-workshop-booking-version="${escapeHtml(entry.sharedVersion)}">
+    <strong>Team on this booking · Bay ${escapeHtml(entry.bay)}</strong>
+    <p>Keep the vehicle in its one physical bay. Add technicians working together here; their other bookings and leave are checked. Planned hours stay unchanged. Record each helper’s actual labour separately.</p>
+    <label><span>Primary technician</span><select name="primaryTechnicianId" required ${disabled}><option value="">Choose primary technician</option>${options.map(row => `<option value="${escapeHtml(row.id)}" ${row.id === entry.technicianId ? 'selected' : ''}>${escapeHtml(row.name)}${knownIds.has(row.id) ? '' : ' (unavailable — choose an active technician)'}</option>`).join('')}</select></label>
+    <fieldset ${disabled}><legend>Helpers / training team</legend>${options.map(row => `<label class="workshop-team-choice"><input type="checkbox" name="helperTechnicianIds" value="${escapeHtml(row.id)}" ${helperIds.has(row.id) ? 'checked' : ''}>${escapeHtml(row.name)}${knownIds.has(row.id) ? '' : ' (unavailable)'}</label>`).join('')}</fieldset>
+    <label><span>Team note (optional)</span><input name="teamNote" maxlength="500" placeholder="For example: completing mechanical training together" ${disabled}></label>
+    <button class="primary" type="submit" ${disabled}>Save team</button>${!canManage ? '<p>Ask a controller to change the team.</p>' : disabled ? '<p role="status">The active technician roster or team action is unavailable. Refresh before changing the team.</p>' : ''}
+  </form>${workshopHelperLabourHtml(entry)}`;
+}
+
+async function saveWorkshopBookingTeam(event) {
+  event.preventDefault();
+  if (!['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role)) return false;
+  const form = event.currentTarget;
+  const bookingId = String(form.dataset.workshopBookingId || '');
+  const entry = workshopLoadPlans().find(row => row.sharedBookingId === bookingId);
+  if (!entry || entry.stage !== 'BUS_4X4' || !entry.bay || ['completed','deleted','cancelled'].includes(entry.status)
+      || String(entry.sharedVersion) !== form.dataset.workshopBookingVersion) {
+    window.alert('This booking changed. Review its current team before saving again.');
+    renderWorkshopPlanner(); return false;
+  }
+  const data = new FormData(form);
+  const primaryTechnicianId = String(data.get('primaryTechnicianId') || '');
+  const helperTechnicianIds = [...new Set(data.getAll('helperTechnicianIds').map(String))];
+  const rosterIds = new Set(workshopTeamRoster().map(row => row.id));
+  if (!rosterIds.has(primaryTechnicianId) || helperTechnicianIds.some(id => !rosterIds.has(id))) {
+    window.alert('Choose active technicians for every team role. No team change was sent.'); return false;
+  }
+  if (helperTechnicianIds.includes(primaryTechnicianId)) {
+    window.alert('The primary technician is already on this booking. Untick them from Helpers before saving.'); return false;
+  }
+  const result = await workshopDispatchSharedAction('setBookingTeam', {
+    bookingId, expectedVersion:entry.sharedVersion, primaryTechnicianId, helperTechnicianIds,
+    requestId:workshopNewRequestId(), note:String(data.get('teamNote') || '').trim(),
+  });
+  return result?.ok === true;
+}
+
 function workshopDetailPanelHtml(entry = null, plans = [], options = {}) {
   const state = workshopState();
   const focused = options.focused === true;
@@ -4373,6 +4563,7 @@ function workshopStationSelectionHtml(entry = null) {
         ${completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started || WORKSHOP_PENDING_STARTS.has(entry.id) ? 'disabled' : ''} ${WORKSHOP_PENDING_STARTS.has(entry.id) ? 'aria-busy="true"' : ''}>${started ? 'Started' : WORKSHOP_PENDING_STARTS.has(entry.id) ? 'Starting…' : 'Start job'}</button><button class="small-button ${stopped ? 'active-lite' : ''}" type="button" ${stopped ? `data-workshop-resume-plan="${escapeHtml(entry.id)}"` : `data-workshop-stop-plan="${escapeHtml(entry.id)}"`}>${stopped ? 'Resume job' : 'STOPPAGE'}</button><button class="small-button active-lite" type="button" data-workshop-complete-plan="${escapeHtml(entry.id)}">Complete work</button>`}
       </div>
     </form>
+    ${workshopBookingTeamHtml(entry)}
   </section>`;
 }
 
@@ -4442,7 +4633,7 @@ function workshopDetailHtml(entry = null, options = {}) {
       ${legacyScheduleControls}
       ${lifecycleControls}
     </div>
-  </form>`;
+  </form>${workshopBookingTeamHtml(entry)}`;
 }
 
 function workshopLinkReadinessModalReportHtml(report = {}) {
@@ -4940,7 +5131,7 @@ function renderWorkshopPlanner(options = {}) {
     state.incrementalRenderScope = incrementalScope;
     state.incrementalQueueLimit = WORKSHOP_INCREMENTAL_RENDER_BATCH;
   }
-  const queueBatch = workshopIncrementalRenderRows(queue, state.incrementalQueueLimit);
+  const queueBatch = workshopIncrementalRenderRows(queue, state.incrementalQueueLimit, state.highlightVehicleKey);
   const todaysPlans = activePlans.filter(entry => workshopEntrySegmentForDate(entry, dateKey));
   const selectedDateBookingCount = todaysPlans.length;
   const assigneeConflicts = todaysPlans.filter(entry => workshopEntryHasAssigneeConflict(entry, plans)).length;
@@ -4954,6 +5145,7 @@ function renderWorkshopPlanner(options = {}) {
     <header class="workshop-planner-header">
       <div><h2>${escapeHtml(focusedBookingMode ? 'Focused Workshop booking' : (dedicatedStage ? 'Selected station schedule' : 'Workshop bay planner'))}</h2><p>Configured Workshop calendar. Long blocks continue through the next valid work interval; breaks and closures are not claimed as working time.</p></div>
       <div class="workshop-date-controls">
+        ${stage === 'BUS_4X4' ? '<a class="small-button" href="docs/bus4x4-user-guide.html" target="_blank" rel="noopener">Department 138 user guide</a>' : ''}
         ${focusedBookingMode ? '<button class="small-button" type="button" data-workshop-focused-back>← Back to Workshop planner</button>' : ''}
         <div class="workshop-date-nav">
           <input type="date" data-workshop-date aria-label="Workshop planner date" value="${escapeHtml(dateKey)}" />
@@ -4969,6 +5161,7 @@ function renderWorkshopPlanner(options = {}) {
         ${!focusedBookingMode && workshopAdminBlockFeedback.message ? `<div class="workshop-admin-block-feedback ${escapeHtml(workshopAdminBlockFeedback.tone)}" role="status" aria-live="polite">${escapeHtml(workshopAdminBlockFeedback.message)}</div>` : ''}
       </div>
     </header>
+    ${workshopReadinessFailureHtml(stage, stageVehicleList, plans)}
     ${stage === 'BUS_4X4' ? '<div data-bus-workflow-host></div>' : ''}
     ${workshopStartFeedback.stage === stage && workshopStartFeedback.message ? `<div class="workshop-search-state" role="status" aria-live="polite">${escapeHtml(workshopStartFeedback.message)}</div>` : ''}
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
@@ -5011,6 +5204,10 @@ function renderWorkshopPlanner(options = {}) {
 }
 
 function bindWorkshopPlanner(root) {
+  root.querySelector('[data-workshop-dismiss-readiness]')?.addEventListener('click', () => {
+    workshopState().readinessFailure = null;
+    renderWorkshopPlanner();
+  });
   root.querySelectorAll('[data-bus-workflow-open]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault(); event.stopPropagation();
     const id = button.dataset.busWorkflowOpen;
@@ -5384,6 +5581,8 @@ function bindWorkshopPlanner(root) {
   root.querySelectorAll('[data-workshop-resize-plan]').forEach(handle => handle.addEventListener('pointerdown', event => startWorkshopResize(handle, event)));
   root.querySelectorAll('[data-workshop-extend-plan]').forEach(button => button.addEventListener('click', () => extendWorkshopPlan(button.dataset.workshopExtendPlan, Number(button.dataset.workshopExtendHours))));
   root.querySelector('[data-workshop-detail-form]')?.addEventListener('submit', saveWorkshopDetailForm);
+  root.querySelector('[data-workshop-team-form]')?.addEventListener('submit', saveWorkshopBookingTeam);
+  root.querySelector('[data-workshop-helper-labour-form]')?.addEventListener('submit', saveWorkshopHelperLabour);
   root.querySelector('[data-workshop-open-job]')?.addEventListener('click', event => {
     const selectedPlan = workshopLoadPlans().find(entry => entry.id === workshopState().selectedPlanId);
     openWorkshopVehicleJob(event.currentTarget.dataset.workshopOpenJob, selectedPlan?.stage || workshopState().stage, selectedPlan?.id || '');
@@ -7068,6 +7267,7 @@ function workshopWeeklyCardHtml(entry = {}, dateKey = '') {
     <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
     <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}`)}</small>
     <em>${escapeHtml(entry.hours)}h</em>
+    ${entry.helperAssignments?.length ? `<small>${escapeHtml(workshopBookingTeamLabel(entry))}</small>` : ''}
   </article>`;
 }
 
