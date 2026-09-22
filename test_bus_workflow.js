@@ -77,6 +77,26 @@ test('pit notice distinguishes required from requested and booked and flags deli
   hints=planningHints({forecasts:{vehicle_ready:ready,delivery:'2026-09-21T12:00:00Z'},downstream_review_required:true},now);
   assert(hints.some(h=>h.code==='delivery_risk'));assert(hints.some(h=>h.code==='downstream_review'));
 });
+
+test('working-day buffer and pit notice skip Perth public holidays and workshop closures',()=>{
+  const closures=['2026-09-28',{date:'2026-09-30'}];
+  assert.equal(addWeekdays('2026-09-25T07:00:00Z',2,closures),'2026-10-01T07:00:00.000Z');
+  assert.equal(addWeekdays('2026-09-29T00:00:00Z',-3,closures),'2026-09-23T00:00:00.000Z');
+  const plan={forecasts:{vehicle_ready:'2026-09-29T00:00:00Z'},pit_status:'required',planning_calendar:{closures,verified:true,verified_through:'2027-12-31'}};
+  const due=planningHints(plan,Date.parse('2026-09-23T01:00:00Z')).find(h=>h.code==='pit_notice');
+  assert.equal(due.tone,'review');assert.equal(due.request_from,'2026-09-23T00:00:00.000Z');assert.equal(due.request_by,'2026-09-24T00:00:00.000Z');
+  assert.equal(planningHints(plan,Date.parse('2026-09-25T00:00:00Z')).find(h=>h.code==='pit_notice').tone,'risk');
+  assert.equal(planningHints({...plan,pit_status:'booked'}).filter(h=>h.code==='pit_notice').length,0);
+});
+
+test('QA allowance is advisory and dates beyond verified holidays require review',()=>{
+  const plan={forecasts:{electrical_complete:'2028-01-03T00:00:00Z'},planning_calendar:{closures:[],verified:true,verified_through:'2027-12-31'}};
+  const before=JSON.stringify(plan),hints=planningHints(plan);
+  assert.match(hints.find(h=>h.code==='qa_allowance').text,/3 hours/);
+  assert(hints.some(h=>h.code==='calendar_review'));
+  assert.equal(JSON.stringify(plan),before);assert.equal(plan.forecasts.vehicle_ready,undefined);
+  assert.equal(addWeekdays('2026-09-23T00:00:00Z',Infinity),null);
+});
 test('supplier controls preserve source evidence and only explicit physical confirmation closes work',()=>{
   let html=supplierHtml([line],{vehicleId:vehicle,editable:true,controller:false,bookingId:booking,technicianId:technician});
   assert.match(html,/Internal labour: 0 h \(source: 0.01 h retained\)/);assert.match(html,/physical_check/);assert.match(html,/Confirm physical check/);assert.doesNotMatch(html,/<script>/);assert.doesNotMatch(html,/<select name="status"/);

@@ -1,0 +1,396 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bus4x4 board — user guide</title><style>
+:root{color-scheme:light;font-family:Arial,sans-serif;color:#163047;background:#f3f6f8}body{margin:0}header{background:#133b50;color:white;padding:20px 32px;display:flex;justify-content:space-between;align-items:center}header a{color:white}header button{background:white;color:#133b50;border:0;border-radius:5px;padding:10px 16px;font:inherit;cursor:pointer}.layout{display:grid;grid-template-columns:245px minmax(0,920px);gap:32px;max-width:1230px;margin:28px auto;padding:0 24px}nav{align-self:start;position:sticky;top:20px;display:grid;gap:12px;font-size:14px}nav a{color:#27546b;text-decoration:none;line-height:1.35}article{background:white;border:1px solid #d9e2e8;border-radius:10px;padding:32px;min-width:0}h1{font-size:32px;line-height:1.12;margin-top:0}h2{font-size:23px;line-height:1.2;border-top:2px solid #e5ebef;padding-top:28px;margin-top:36px;scroll-margin-top:20px}h3{font-size:18px}p,li{font-size:16px;line-height:1.6}li{margin:8px 0}a{color:#086a8d}img{display:block;max-width:100%;height:auto;margin:24px auto;border:1px solid #becad5;border-radius:5px}table{border-collapse:collapse;width:100%;font-size:14px;line-height:1.5}th,td{padding:11px;border:1px solid #dae2e8;text-align:left;vertical-align:top}th{background:#eaf1f5}.table{overflow-x:auto}code{overflow-wrap:anywhere}footer{font-size:13px;color:#5c7180;text-align:center;padding:24px}@media(max-width:850px){.layout{display:block;padding:0 12px;margin:16px auto}nav{position:static;margin:0 8px 20px;display:grid;grid-template-columns:1fr 1fr}article{padding:20px}header{padding:16px}h1{font-size:28px}}@media print{header,nav,footer{display:none}.layout{display:block;margin:0;padding:0}article{border:0;padding:0}body{background:white}h2{break-after:avoid}h3{break-after:avoid}tr,img{break-inside:avoid}p,li{font-size:11pt}.table{overflow:visible}a{color:inherit;text-decoration:none}img{max-height:220mm;object-fit:contain}table{font-size:10pt}}
+</style><header><a href="../">Open the board</a><button type="button" onclick="window.print()">Print / save PDF</button></header><main class="layout"><nav aria-label="Guide contents"><a href="#section-1">The three things to keep separate</a><a href="#section-2">Daily start: a five-minute check</a><a href="#section-3">1. Receive the vehicle and review its job</a><a href="#section-4">2. Check parts before allocating a production bay</a><a href="#section-5">3. Find the job in Unallocated</a><a href="#section-6">4. Allocate the first bay and technician</a><a href="#section-7">5. Start work and use the bay iPad</a><a href="#section-8">6. Mechanical handover, buffer and electrical</a><a href="#section-9">7. QA and pit inspection</a><a href="#section-10">8. Rustproofing, wash, QC/RFT and delivery</a><a href="#section-11">9. Forecasts and downstream reminders</a><a href="#section-12">10. Colours and statuses at a glance</a><a href="#section-13">11. If a change will not save</a><a href="#section-14">12. End-of-day handover</a></nav><article><h1>Bus4x4 board: from import to delivery</h1>
+<p>Working guide for Bhavesh and the Department 138 team · 23 September 2026</p>
+<p>This guide follows the Department 138 workshop controls. Pictures use training examples of the actual controls; they do not record work on a customer vehicle.</p>
+<p>Open <a href="https://btnew.github.io/pdc-control-board-staging/">the staging board</a> and press Ctrl+F5 on a Windows computer to load the latest version. On an iPad, reload the page. Sign in with your own staff account. The controller uses Bus 4×4 under Workshop Planners; technicians use Fitters bay.</p>
+<h2 id="section-1">The three things to keep separate</h2>
+<ul>
+<li>The vehicle&#39;s location tells you where the vehicle is recorded: for example, Yard Hold, PMB or RFT.</li>
+<li>The bay booking reserves a physical bay and a technician for a period. A planned booking does not mean work has started.</li>
+<li>Workshop flow records the build stage, dependencies, parts checks and forecasts. Saving this panel does not create a booking, send a supplier request or certify completion.</li>
+</ul>
+<p>A vehicle in Vehicle Locations → PMB is not automatically allocated to a technician. It still needs approved outstanding workshop work, supported hours, stage-parts readiness and an available bay booking.</p>
+<p>One vehicle has one physical bay position at a time. If two people work together on it, record the primary technician and helpers against that one booking. Do not create a second overlapping vehicle booking in the other person&#39;s normal bay.</p>
+<h2 id="section-2">Daily start: a five-minute check</h2>
+<ol>
+<li>Open Bus 4×4, press Refresh Vehicle, and check the selected date.</li>
+<li>Check the Unallocated vehicles list and search for the next job by its full job-card number, stock or key.</li>
+<li>Open the vehicle&#39;s Workshop flow / parts readiness. Review the current stage, outstanding dependencies, supplier work and forecasts.</li>
+<li>Check today&#39;s bay and technician availability. Production must skip workshop closures, public holidays and recorded leave.</li>
+<li>Resolve urgent parts, supplier or forecast warnings before promising a start or finish.</li>
+</ol>
+<h2 id="section-3">1. Receive the vehicle and review its job</h2>
+<p>Where: New Vehicles, then Review on the vehicle.</p>
+<ol>
+<li>Check the stock, linked job card, model, customer, location and vehicle identity before editing anything. Use the actual job-card number as well as the stock when several jobs belong to one vehicle.</li>
+<li>Read every operation description. Department 138 window tint goes to Tint; other Department 138 work stays in Bus 4×4. A tinted weather shield or bonnet protector is not window tint.</li>
+<li>Check the hours. Missing-hour items appear first within their station. Orange AI estimate means an estimate to review; it is not a measured actual time or a time supplied by Tune. Keep explicit Tune hours and workshop-approved corrections unless you are deliberately reviewing them.</li>
+<li>Enter a supported estimate for a red missing-hours field. Use the operation&#39;s actual scope, the approved workshop standards and the current ARB fitting reference where applicable. Do not enter a tiny number merely to bypass the review.</li>
+<li>Check supplier work separately. Supported supplier placeholders remain visible against the vehicle but do not consume normal internal scheduling labour. An arbitrary small estimate alone does not prove the job is supplier work.</li>
+<li>Select Approve &amp; add to board when the review is complete. The list may also offer Approve to board for a ready vehicle.</li>
+</ol>
+<p>What approval does: saves the reviewed operations and hours and makes the vehicle available on the board at its current location. It does not book a bay, start work or mark an item fitted.</p>
+<p>What holds approval: an unresolved identity, an unassigned operation, missing required hours, an operation that changed during review, or an account without approval permission. Resolve the message shown; do not recreate the vehicle to get around it.</p>
+<p>If an already-approved job receives a new or changed Tune line, review it in Updated Operations. Approve change &amp; update bookings is a different action: it can adjust affected booking durations and later queues. Read its booking-time summary before continuing. This differs from merely changing a forecast in Workshop flow.</p>
+<h3>Arrival details and early supplier work</h3>
+<p>Check the arrival/Cars In information against the exact vehicle. The report&#39;s Block Number is the vehicle key number; Tag # is the parts location. Give suppliers the key together with the stock or registration, not the key alone.</p>
+<p>Organise tint, signage, flares/hatch covers and seat covers while the vehicle is waiting in the yard where possible. MMT&#39;s approximate first-week timing is planning guidance; it is not a confirmed appointment.</p>
+<h2 id="section-4">2. Check parts before allocating a production bay</h2>
+<p>Where: Bus 4×4 → Workshop flow / parts readiness → Stage parts readiness — required before production allocation.</p>
+<p>There are separate checks for Mechanical parts, Electrical parts and Accessory parts.</p>
+<ol>
+<li>Check the parts needed to start and reasonably progress the particular stage.</li>
+<li>Select Confirmed available for this stage only after that check.</li>
+<li>Enter a note under What was checked / parts still needed. State what is available and any relevant limitation. A readiness confirmation needs evidence, not just a dropdown selection.</li>
+<li>Select Save workshop flow and wait for confirmation.</li>
+<li>If the stage cannot reasonably proceed, select Parts outstanding, record what is missing, and keep the job waiting rather than occupying a production bay.</li>
+</ol>
+<p>The parts pill and the stage readiness check answer different questions. Imported green or a person-confirmed green outline does not automatically complete the mechanical/electrical/accessory readiness form.</p>
+<h3>Reading the parts pill</h3>
+<div class="table"><table>
+<thead>
+<tr>
+<th>Appearance or wording</th>
+<th>Meaning</th>
+<th>What you should do</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Orange: parts outstanding</td>
+<td>At least one relevant active job has a recorded backorder. A PO may be recorded for at least one outstanding part, not necessarily all.</td>
+<td>Open the job-level details and identify the affected R/O and missing items.</td>
+</tr>
+<tr>
+<td>Green from a parts import</td>
+<td>The saved active jobs meet the recorded parts rules.</td>
+<td>Still check physical readiness for the production stage.</td>
+</tr>
+<tr>
+<td>Green with a dark green outline</td>
+<td>A person has confirmed the parts are here; the confirmation evidence is retained.</td>
+<td>Read the confirmation&#39;s scope. It is not permission to tick fitted work or supplier installation.</td>
+</tr>
+<tr>
+<td>Grey / needs review</td>
+<td>No attached parts recorded, or readiness remains unresolved.</td>
+<td>Check whether parts are required; labour-only work may need no parts.</td>
+</tr>
+<tr>
+<td>Invalid/unknown report data</td>
+<td>The latest row could not safely replace the prior status.</td>
+<td>Review the issue. Blank, “All” and unexpected flag values are not treated as zero.</td>
+</tr>
+</tbody></table></div>
+<p>Parts remain separate for each R/O. One complete R/O does not clear another linked active R/O&#39;s outstanding parts. A parts-only report never creates a vehicle, operation or booking.</p>
+<p><img src="assets/bus4x4-guide/stage-parts.png" alt="Stage parts readiness — training example"></p>
+<h2 id="section-5">3. Find the job in Unallocated</h2>
+<p>Where: Bus 4×4 → Unallocated vehicles, or Find a workshop booking.</p>
+<p>Search by the full job card, stock or key. The search can also locate a job already booked outside the day you are viewing. Select the returned booking to see its actual position.</p>
+<p>A job appears as unallocated when it has approved, active, outstanding work for this station and that work is not already represented by an active booking. Its location must be eligible. The current planner admits PMB and Yard Hold; an In Transit vehicle needs a valid Kewdale ETA and is subject to the displayed ETA-plus-seven-days planning limit.</p>
+<p>Already booked work belongs on the planner rather than appearing as another bookable copy in Unallocated. Completed, checked-out, deleted, unapproved or identity-held records must not be recreated simply because they are absent from this list.</p>
+<p>If you can see a vehicle in PMB but not in Unallocated:</p>
+<ol>
+<li>Clear the search, use Refresh Vehicle, and confirm the Department 138/Bus 4×4 context.</li>
+<li>Search its job card and stock. Check for an existing booking on another date or bay.</li>
+<li>Check New Vehicles and Updated Operations for outstanding review.</li>
+<li>Check whether Bus 4×4 work is actually still required and incomplete, and whether the source job is active.</li>
+<li>Read the disabled card&#39;s reason, such as Hours unknown, an ETA issue or Already booked.</li>
+<li>If the exact job is still missing, email <a href="mailto:pmbcontroller@gmail.com">pmbcontroller@gmail.com</a> with the stock, R/O, key and screenshot. Do not change checkout status or create a duplicate as a workaround.</li>
+</ol>
+<h2 id="section-6">4. Allocate the first bay and technician</h2>
+<p>Where: the vehicle&#39;s Schedule button in Bus 4×4.</p>
+<ol>
+<li>Complete and save the appropriate stage parts readiness check.</li>
+<li>Select Schedule.</li>
+<li>Choose the physical Bay, Date, Start time and Technician.</li>
+<li>Review Planned hours. These come from the approved operation estimate and scheduling settings; supplier placeholders should not add internal labour. A read-only field is not an invitation to edit source hours elsewhere just to fit a slot.</li>
+<li>Select Add to planner. Wait for the saved result, then check the job appears in the intended bay, under the intended technician, on the intended date.</li>
+</ol>
+<p>Best slot offers the earliest suitable availability. You can also drag an unallocated vehicle onto a bay/time. Review any proposed movement of later planned jobs. Running or stopped work cannot be silently overwritten. A bay default is a convenience; the actual technician on this booking is what matters.</p>
+<h3>Choosing the bay</h3>
+<div class="table"><table>
+<thead>
+<tr>
+<th>Bay</th>
+<th>Normal use and technician</th>
+<th>Important condition</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>James Ierino — mechanical</td>
+<td>HiAce or Coaster; supervised training as needed.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Paul Guiye — mechanical</td>
+<td>HiAce or Coaster; training under Andrew.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>John Castagna — mechanical</td>
+<td>HiAce only. No Coaster because of height restrictions.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Ren Karlos — mechanical/fabrication</td>
+<td>HiAce or Coaster; training under Andrew.</td>
+</tr>
+<tr>
+<td>5–6</td>
+<td>Non-hoist accessory, progression or waiting</td>
+<td>Use deliberately for the next work or waiting stage.</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Flexible QA, urgent work and rectification</td>
+<td>Andrew&#39;s controller/QA role remains flexible.</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Nick Darker — electrical lead</td>
+<td>HiAce, Coaster and light vehicles.</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Gabriel Colborne — electrical/fitment</td>
+<td>Work under Nick&#39;s direction.</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Mudassar Rasheed — accessory/mine-spec fitout</td>
+<td>Light vehicles, HiAce or Coaster as appropriate; major wiring under Nick.</td>
+</tr>
+</tbody></table></div>
+<p>Electrical/accessory work can run in Bays 8, 9 and 10. Nick&#39;s main bay is not a restriction confining all electrical work to Bay 8.</p>
+<p>Normal weekdays are 06:00–15:00 for the mechanical team and Mudassar; 06:00–14:00 for Nick and Gabriel. Keep Nick&#39;s full available productive shift; do not apply an extra supervision deduction. Recorded breaks, leave and closures still apply. Public holidays/workshop closures must have no production hours allocated.</p>
+<h3>Two technicians on one build</h3>
+<p>Use Team on this booking to keep the actual crew together on one physical booking.</p>
+<ul>
+<li>Keep one booking in the bay where the vehicle is physically standing.</li>
+<li>Record one primary technician and the additional helpers on that same booking.</li>
+<li>Supervision alone does not require assigning Andrew to the booking. Selecting him as primary or helper reserves him for the whole booking; there is no partial-shift helper reservation control.</li>
+<li>Check every selected person&#39;s availability. A helper cannot also be committed to an overlapping job elsewhere.</li>
+<li>Do not halve the approved conversion allowance merely because two people are present. Record helper labour separately from main-technician conversion time.</li>
+</ul>
+<p>Allocate the vehicle to its actual physical bay, select that booking, open Team on this booking, select the primary technician and helper(s), then select Save team. Refresh the saved booking and check the team and physical bay before work starts. For example, two people working together in Bay 4 belong on one Bay 4 booking, regardless of their usual bays.</p>
+<p>Controllers and administrators can save the team. Each assigned technician can find the same booking in Fitters bay under their own name. Work progress belongs to the one job; do not restart a second timer or create duplicate bookings.</p>
+<p>To record helper labour, the controller opens Record helper time after the job has started. Choose Helper technician, enter Actual work date/time (Perth), Actual minutes worked and Work performed / training note, then select Record helper time. Record actual time only, using a date/time within both the helper assignment and the started booking period. Record accrued helper time before releasing the booking to Unallocated where possible; it can also be entered after restart or completion using the original work time. This is stored separately from the main-technician allowance and does not shorten or extend the booking automatically. If the save is uncertain, use Retry helper time save and check the saved result before entering another record.</p>
+<p><img src="assets/bus4x4-guide/team.png" alt="Team on one physical booking — training example"></p>
+<h2 id="section-7">5. Start work and use the bay iPad</h2>
+<p>Where: Fitters bay.</p>
+<ol>
+<li>Sign in and choose your name in Mechanic.</li>
+<li>Check the stock, job card, vehicle, bay and scheduled work. A booking-specific technician assignment overrides the bay default.</li>
+<li>Press Start job when you physically begin. Wait for In progress and a connected/saved state before recording work.</li>
+<li>Read each operation. Tick it only after that item is actually finished. Other stations&#39; items may be visible as context without being editable here.</li>
+<li>Add and save an operation note when you need to explain incomplete work, a finding or a handover.</li>
+<li>If work stops, choose Parts / other stoppage, select Parts or Other, explain What is holding up the work?, then Record stoppage. Use Resume job when work genuinely resumes.</li>
+</ol>
+<p>The Department 138 timer follows recorded work in the actual bay and pauses for recorded Unallocated waiting, stoppages, breaks and workshop closure. If earlier timing history cannot be verified, it shows Progress update required instead of an invented elapsed time. Elapsed time belongs to its booking. Resuming the same booking retains that history; creating a separate booking does not merge the earlier clock into it. It does not automatically divide total time among conversion sections. Keep section actuals, helper labour and delays separate.</p>
+<h3>Physically check supplier work</h3>
+<p>Under Supplier work · physical checks, inspect the item on the actual vehicle. A controller records Required → Ordered → Vendor completed with supplier/order/completion evidence using Save supplier progress.</p>
+<p>The assigned technician, after starting the job, records What did you physically check?, ticks I physically checked this work on this vehicle and confirm it is complete, then selects Confirm physical check. This creates Technician verified. Leave missing or unfinished work outstanding and tell the controller. A vendor&#39;s “done” email is not the physical check.</p>
+<p><img src="assets/bus4x4-guide/supplier-check.png" alt="Technician physical check on an iPad — training example"></p>
+<h3>Tick a conversion section, not the whole conversion early</h3>
+<p>The main conversion operation opens the model&#39;s checklist automatically for a supported exact match:</p>
+<div class="table"><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Main-technician planning allowance</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>HiAce Commuter</td>
+<td>38 hours, including 5 hours pre-assembly</td>
+</tr>
+<tr>
+<td>Coaster</td>
+<td>62 hours 45 minutes, including 7 hours 30 minutes pre-assembly</td>
+</tr>
+</tbody></table></div>
+<p>Open the relevant section. Select Current section / in progress, enter cumulative Actual main-technician hours and Estimated hours remaining, and record any Blocker, Deferred tightening, connections or checks and Workshop update / completion evidence. Select Save section update.</p>
+<p>Tick Section completed — workshop confirmed only when that section is done. Pre-assembly already completed can be confirmed individually; it then contributes no remaining work. If its actual time is unknown, leave it unknown rather than copying the allowance.</p>
+<p>The parent conversion becomes complete only when all required sections are confirmed. Section 12 still requires the applicable manufacturer completion-checklist reference/scope and the technician&#39;s actual completion checks. An imported complete status does not replace these checks. Additional repairs, rework, helper labour and waiting are recorded separately.</p>
+<h2 id="section-8">6. Mechanical handover, buffer and electrical</h2>
+<p>Where: Bus 4×4 → Workshop flow / parts readiness and the existing booking.</p>
+<ol>
+<li>When mechanical work is actually finished, save its completion forecast/update and choose Buffer / wheel alignment as the current stage, with Electrical as the next stage.</li>
+<li>Record wheel alignment, rectification or delayed supplier work under Waiting reason / outstanding dependency and controller notes. Plan approximately 2–3 working days before electrical, subject to real readiness and availability.</li>
+<li>Arrange alignment and supplier work through the normal controller process. Saving a date or note in Workshop flow does not contact the supplier.</li>
+<li>Move the existing open booking using the planner&#39;s move controls, or drag it to Return to Unallocated to release the bay while keeping work open. For a started job, choose Just move or STOPPAGE as appropriate; use STOPPAGE when there is an actual wait/blocker and record its reason. A planned booking has a simpler return confirmation. A direct move retains its primary/helpers; returning to Unallocated releases assignments, so select the team again at the next allocation.</li>
+<li>Before electrical, confirm readiness for the destination bay: Electrical parts for Bays 8/9; Accessory parts for Bay 10. Choose an available compatible bay and technician under Nick&#39;s direction, then confirm the saved booking and Team on this booking.</li>
+<li>Set current stage Electrical and record the electrical completion forecast. The technician completes final wiring, connections and checks; mechanically running a loom did not complete these items.</li>
+</ol>
+<p>Saving Buffer in Workshop flow alone does not pause a timer or release the bay. Record the actual booking move or stoppage separately.</p>
+<p>Do not use “Complete bay job” simply to end the mechanical phase if Bus 4×4 operations remain unfinished. Department 138 mechanical and electrical work share the Bus 4×4 station. Keep unfinished operations and conversion sections open while the physical bay/technician and workflow stage change.</p>
+<p>When every item required for that bay job is genuinely complete, use the fitter&#39;s Complete bay job action (or its next-job variant). Completion remains separate from QC. The next assigned job may then open automatically; do not start it until ready.</p>
+<h2 id="section-9">7. QA and pit inspection</h2>
+<p>Where: Workshop flow / parts readiness → QA, pit inspection and final delivery.</p>
+<ol>
+<li>After electrical, set Current stage → QA / rectification and set QA / rectification → In progress when inspection starts.</li>
+<li>Allow approximately 3 hours per vehicle for QA planning, adjusting for the build and actual findings. The 3-hour planning default is not proof that QA occurred and should not overwrite an explicitly approved operation estimate.</li>
+<li>Keep rectification open until finished. Set QA Completed only on confirmed completion.</li>
+<li>Enter a credible Vehicle ready for pit — after QA (Perth) forecast. This is readiness for the pit, not the final delivery promise.</li>
+<li>Contact Ron with approximately 48–72 hours notice, normally 2–3 working days, once electrical and QA forecasts are reliable.  The reminder skips weekends and recorded public holidays/workshop closures.</li>
+<li>Select Requested — awaiting booking and enter Pit request sent only after the request was actually made.</li>
+<li>Select Booking confirmed and enter Confirmed pit appointment only after receiving confirmation.</li>
+<li>Select Passed — result confirmed and record Pit passed only after the actual successful result. Retain a note/reference for the result.</li>
+</ol>
+<p>Record physical movement separately: To PIT is available from an eligible PMB Unallocated row; use Return to PMB only when the vehicle actually returns. A row already meeting the QC gate may instead show Ready for QC.</p>
+<p>Pit inspection is a workflow milestone; it is not a separate internal workshop station to invent. A request, a forecast and a confirmed appointment are three different states.</p>
+<p><img src="assets/bus4x4-guide/qa-pit.png" alt="Separate QA, pit request, booking and passed states — training example"></p>
+<h2 id="section-10">8. Rustproofing, wash, QC/RFT and delivery</h2>
+<p>Late rustproofing: after pits, set the corresponding workshop stage. Record whether it is required, ordered or vendor-completed with the supporting supplier evidence. Complete any required physical verification on the supplier line. Do not record a physical return just because a supplier gives an ETA.</p>
+<p>Wash: arrange it once preceding work is ready. Set Wash → Requested when requested, and Completed after confirmation. Leave unresolved rework or supplier checks visible.</p>
+<p>Release preparation: choose Ready for release checks → Ready for existing QC / RFT checks only when ready for that independent inspection. This is a planning status; it does not sign the vehicle off.</p>
+<p>QC Sign-off: the actual QC process checks every required operation, parts readiness and the vehicle&#39;s eligible location/status. The vehicle must meet the existing QC gate, including required workshop work complete and return to PMB Unallocated. From the eligible PMB row, select Ready for QC, then Open QC finalization. The authorised inspector checks the items, saves the required completion photo, then uses Sign off QC → RFT. If something is wrong, use the available rejection action and identify the items/faults; rectification remains visible. Finishing fitter work does not perform QC.</p>
+<p>Delivery / transport: record the confirmed date under Confirmed delivery / transport (Perth) and set the workflow stage when appropriate. Use the established RFT/collection process for the actual handover. A delivery forecast alone does not prove collection, delivery or completion. Do not use an import status as a shortcut around unfinished conversion or QC checks.</p>
+<h2 id="section-11">9. Forecasts and downstream reminders</h2>
+<p>Workshop flow has four date/time fields: mechanical completion, electrical completion, vehicle ready for pit after QA, and confirmed delivery/transport. Enter the current best supported dates, in Perth time, and explain significant changes in Controller planning notes / reason for changed forecasts.</p>
+<p>The panel uses these forecasts to highlight the buffer, pit-request timing and a delivery risk. It flags downstream review when a forecast changes. Save the changed forecast first; then review electrical, QA, pit, rustproofing, wash and delivery arrangements and acknowledge the downstream-review checkbox when they have actually been checked.</p>
+<p>A forecast change does not silently reschedule bookings. Inspect and change the actual planner/supplier arrangements separately. By contrast, an explicit scheduling move or approved operation-hours update can move affected planned work; review the saved result.</p>
+<p>The conversion checklist has a separate remaining-work assessment. It needs a promised completion date, workshop-confirmed available main-technician capacity, actual section progress and known delays ahead. At risk means the remaining work/delays threaten the promise. Progress update required means information is missing or stale; it is not a reliable “on time” result. Do not promise release while a manufacturer completion gate remains open.</p>
+<p><img src="assets/bus4x4-guide/forecasts.png" alt="Forecast fields and working-day guidance — training example"></p>
+<h2 id="section-12">10. Colours and statuses at a glance</h2>
+<p>Read the label as well as the colour; colours describe different things in different panels.</p>
+<div class="table"><table>
+<thead>
+<tr>
+<th>Screen</th>
+<th>Label/appearance</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>New Vehicles</td>
+<td>Red hours field</td>
+<td>A required usable workshop estimate is missing/invalid.</td>
+</tr>
+<tr>
+<td>Hours</td>
+<td>Orange AI estimate</td>
+<td>Proposed estimate for review, with its source retained.</td>
+</tr>
+<tr>
+<td>Planner</td>
+<td>Planned (pink legend)</td>
+<td>Booking exists; work has not started.</td>
+</tr>
+<tr>
+<td>Planner</td>
+<td>Live / In progress (blue)</td>
+<td>Started workshop work.</td>
+</tr>
+<tr>
+<td>Planner</td>
+<td>STOPPAGE (red)</td>
+<td>Work is stopped; read the reason.</td>
+</tr>
+<tr>
+<td>Planner</td>
+<td>Admin block (yellow)</td>
+<td>Reserved non-production time such as leave or bay downtime.</td>
+</tr>
+<tr>
+<td>Supplier</td>
+<td>Required / Ordered / Vendor completed</td>
+<td>Supplier progress; not yet a technician&#39;s physical verification.</td>
+</tr>
+<tr>
+<td>Supplier</td>
+<td>Technician verified (green)</td>
+<td>Assigned technician recorded the physical check.</td>
+</tr>
+<tr>
+<td>Workflow</td>
+<td>Review/risk warning</td>
+<td>A dependency, missing fact or changed forecast needs attention.</td>
+</tr>
+<tr>
+<td>Save status</td>
+<td>Saving / unconfirmed / unsaved</td>
+<td>Do not assume the change reached the board.</td>
+</tr>
+</tbody></table></div>
+<p>For the parts colours and dark-green person-confirmation outline, use the separate parts table in Section 2.</p>
+<h2 id="section-13">11. If a change will not save</h2>
+<p>Do not repeatedly drag the vehicle, duplicate the job or invent hours to force it through. Read the full message and check whether the change actually saved before retrying.</p>
+<div class="table"><table>
+<thead>
+<tr>
+<th>Message/problem</th>
+<th>Next action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Stage parts need confirmation</td>
+<td>Open Workshop flow, check the correct stage, enter evidence, Save workshop flow, then retry the allocation.</td>
+</tr>
+<tr>
+<td>Missing/invalid estimated hours</td>
+<td>Review the exact operation(s); obtain a supported estimate. Do not use 0.01 merely to pass validation.</td>
+</tr>
+<tr>
+<td>Already booked / vehicle overlap</td>
+<td>Locate its existing booking, including another date/station. Move the existing booking rather than creating a duplicate. Separate vehicle station bookings retain the required gap.</td>
+</tr>
+<tr>
+<td>Technician overlap/unavailable</td>
+<td>Check this person&#39;s other work and leave; choose an available person/time. For shared work, check helpers too.</td>
+</tr>
+<tr>
+<td>Bay occupied / live or stopped job conflict</td>
+<td>Review the job occupying the bay. Finish or release it only if that reflects reality; otherwise choose a different slot.</td>
+</tr>
+<tr>
+<td>Admin block / outside shift / closure</td>
+<td>Use available working time. Do not book production over leave, downtime or a closed day.</td>
+</tr>
+<tr>
+<td>Vehicle incompatible with bay</td>
+<td>Use the correct bay. In particular, Bay 3 is HiAce-only.</td>
+</tr>
+<tr>
+<td>Away on Sublet</td>
+<td>Verify and record the actual return through the proper process, or plan after its confirmed return.</td>
+</tr>
+<tr>
+<td>Changed on another screen / stale version</td>
+<td>Refresh and review the current saved record before reapplying your intended change.</td>
+</tr>
+<tr>
+<td>Save outcome unconfirmed</td>
+<td>Use Check / retry last save where offered. Otherwise refresh and inspect the exact booking/status before retrying; the first save might have succeeded.</td>
+</tr>
+<tr>
+<td>Permission/account error</td>
+<td>Confirm you are signed in with the correct role. Ask the controller/administrator; do not borrow another person&#39;s login.</td>
+</tr>
+<tr>
+<td>Supplier physical check required</td>
+<td>The assigned technician starts the job, inspects the work, adds evidence and confirms it. A controller&#39;s vendor-complete status alone is insufficient.</td>
+</tr>
+<tr>
+<td>Conversion incomplete / Section 12 held</td>
+<td>Finish and confirm the required sections and obtain the applicable completion-checklist scope. Do not tick an unfinished item to release the vehicle.</td>
+</tr>
+<tr>
+<td>Generic “server rejected”</td>
+<td>Refresh once, check the exact saved state and capture the full message, job card, stock/key, bay, technician, proposed date/time and screenshot. Email those facts to <a href="mailto:pmbcontroller@gmail.com">pmbcontroller@gmail.com</a> for investigation.</td>
+</tr>
+</tbody></table></div>
+<p>A parts-readiness rejection is resolved by checking the required stage, recording what was checked and saving Workshop flow before retrying. It does not mean the vehicle needs importing again.</p>
+<h2 id="section-14">12. End-of-day handover</h2>
+<ul>
+<li>Save section progress and honest remaining hours. Keep blockers/deferred work visible.</li>
+<li>Check that every live vehicle has the right physical bay and assigned people.</li>
+<li>Refresh mechanical/electrical readiness and supplier progress where facts changed.</li>
+<li>Review the next stage, pit request/booking, QA, rustproofing, wash and delivery after forecast changes.</li>
+<li>Leave unfinished work open. Mark complete only on confirmed workshop evidence.</li>
+</ul>
+<p>Calendar: the Department 138 planner uses Perth public holidays published for 2026–2027 plus configured workshop closures. Review later dates before promising completion. <a href="https://www.wa.gov.au/service/employment/workplace-arrangements/public-holidays-western-australia">WA Government holiday dates</a>.</p>
+<p>For help, email <a href="mailto:pmbcontroller@gmail.com">pmbcontroller@gmail.com</a> with the job card, stock/key, intended action, bay/technician, date/time and any error shown. Bhavesh is an authorised controller; his requests can be actioned and replied to directly.</p>
+</article></main><footer>PMB · Department 138 · Training guide · 23 September 2026</footer></html>

@@ -35,6 +35,29 @@ function buildWorkshopSharedActions(dataService) {
   }
 
   return {
+    setBookingTeam({ bookingId, expectedVersion, primaryTechnicianId, helperTechnicianIds, requestId, note }) {
+      return mutate('set_pdc_bus_booking_team', {
+        p_booking_id: bookingId,
+        p_expected_version: expectedVersion,
+        p_primary_technician_id: primaryTechnicianId,
+        p_helper_technician_ids: helperTechnicianIds || [],
+        p_request_id: requestId,
+        p_note: note || '',
+      });
+    },
+
+    recordHelperLabour({ bookingId, expectedVersion, technicianId, workedAt, minutes, note, requestId }) {
+      return mutate('record_pdc_bus_helper_labour', {
+        p_booking_id: bookingId,
+        p_expected_version: expectedVersion,
+        p_technician_id: technicianId,
+        p_worked_at: workedAt,
+        p_minutes: minutes,
+        p_note: note,
+        p_request_id: requestId,
+      });
+    },
+
     scheduleVehicleWork({ vehicleId, vehicleExpectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, technicianId, overrideReason, metadata }) {
       return mutate('schedule_vehicle_work', {
         p_vehicle_id: vehicleId,

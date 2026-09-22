@@ -81,15 +81,21 @@
   }
   function timerModel(detail, options = {}) {
     const timer=detail?.timer, elapsed=Number.isFinite(timer?.elapsed_seconds)?Math.max(0,timer.elapsed_seconds):null;
+    const unknownHistory=timer?.history_complete===false&&elapsed===null;
     const timingHint=text=>timer?.history_complete===false?`${text} Approximate: earlier stoppage history is incomplete.`:text;
     const result={tone:'idle',label:'Not started',hint:'Start job to begin recording work.',seconds:0};
-    const frozen=Number.isFinite(options.frozenSeconds)?Math.max(0,options.frozenSeconds):elapsed;
+    // A newly unverified history supersedes any previously displayed clock.
+    // Never turn a missing authoritative total into zero or keep advancing it.
+    const frozen=unknownHistory?null:Number.isFinite(options.frozenSeconds)?Math.max(0,options.frozenSeconds):elapsed;
     const pending={start:'Starting job…',resume:'Resuming job…',stop:'Recording stoppage…',complete:'Completing job…',line:'Saving work…'}[options.pendingAction];
     if(pending) return {...result,tone:'pending',label:pending,hint:options.pendingAction==='start'?'Checking the schedule and moving affected unstarted bookings where needed.':'Waiting for the workshop to confirm.',seconds:frozen};
     if(options.unconfirmed) return {...result,tone:'unconfirmed',label:({start:'Start not confirmed',resume:'Resume not confirmed',stop:'Stoppage not confirmed',complete:'Completion not confirmed'}[options.unconfirmedAction]||'Save not confirmed'),hint:'Check / retry the last save before continuing.',seconds:frozen};
     if(options.connected===false) return {...result,tone:'unconfirmed',label:'Last confirmed time',hint:'Reconnect or refresh to check this job.',seconds:frozen};
-    if(!['started','stoppage','completed'].includes(detail?.status)) return result;
+    if(unknownHistory) return {...result,tone:'unconfirmed',label:'Progress update required',hint:'Timing history is incomplete. Ask the controller to review the recorded work and waiting periods.',seconds:null};
+    const queuedWork=detail?.status==='queued'&&detail.actual_start_at&&timer?.basis==='department138_bay_working_hours';
+    if(!['started','stoppage','completed'].includes(detail?.status)&&!queuedWork) return result;
     if(!detail.actual_start_at || elapsed===null) return {...result,tone:'pending',label:'Checking job timer',hint:'Waiting for confirmed timing from the workshop.',seconds:null};
+    if(queuedWork) return {...result,tone:'paused',label:'Paused · Unallocated',hint:timingHint('Recorded work time is held while this job waits for its next allocation.'),seconds:elapsed};
     if(detail.status==='stoppage') return {...result,tone:'paused',label:'Paused · Stoppage',hint:timingHint('Work time is paused until you resume.'),seconds:elapsed};
     if(detail.status==='completed') return {...result,label:'Job completed',hint:timingHint('Recorded work time.'),seconds:elapsed};
     if(timer.running!==true) return {...result,tone:'paused',label:'Outside working time',hint:timingHint('The timer pauses for breaks and workshop closure.'),seconds:elapsed};
@@ -478,4 +484,3 @@
   function targetBeingEdited() { return root.PdcBusWorkflow?.hasDrafts() || root.PdcConversions?.hasDrafts() || (host()?.contains(doc.activeElement) && /INPUT|TEXTAREA|SELECT/.test(doc.activeElement.tagName)); }
   root.addEventListener('beforeunload',e=>{if(saving||drafts.size||root.PdcConversions?.hasDrafts()||root.PdcBusWorkflow?.hasDrafts()||busPending()||service.retryPending){e.preventDefault();e.returnValue='';}});
 })(typeof window !== 'undefined' ? window : globalThis);
-
