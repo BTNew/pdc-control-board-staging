@@ -3550,6 +3550,7 @@ function setAdminNavigationExpanded(expanded) {
 
 function syncAdminNavigationVisibility() {
   syncUserManagementAccess();
+  window.PdcUpdateHistory?.syncAccess();
   const group = $('#nav-admin-group');
   // The group also contains destinations historically available to approved
   // non-administrator staff. Every destination and write remains role/RLS
@@ -4519,6 +4520,10 @@ function showView(view, options) {
     resetUserManagementAuthorityState();
     requestedView = 'dashboard';
   }
+  if (requestedView === 'update-history' && !userManagementAdministratorActive()) {
+    window.PdcUpdateHistory?.reset();
+    requestedView = 'dashboard';
+  }
   if (requestedView === 'deleted' && !vehicleLifecycleAdministratorActive()) {
     resetDeletedVehicleAuthorityState();
     requestedView = 'dashboard';
@@ -4564,6 +4569,7 @@ function showView(view, options) {
   app.activeWorkshopPlannerStage = plannerStage;
   window.__activeWorkshopPlannerStage = plannerStage;
   if (app.currentView === 'fitters' && nextView !== 'fitters') window.PdcFitters?.close();
+  if (app.currentView === 'update-history' && nextView !== 'update-history') window.PdcUpdateHistory?.close();
   if (app.currentView === 'lists' && nextView !== 'lists') window.PdcWorkshopHours?.reset();
   app.currentRequestedView = requestedView;
   app.currentView = nextView;
@@ -4571,7 +4577,7 @@ function showView(view, options) {
   if (document.body?.dataset) document.body.dataset.currentView = requestedView;
   $$('.view').forEach(el => el.classList.toggle('active', el.id === requestedView || (departmentStage && el.id === 'department') || (plannerStage && el.id === 'workshop')));
   $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView || (plannerStage && el.dataset.view === 'workshop')));
-  const adminViews = new Set(['user-management', 'lists', 'import', 'backup', 'deleted', 'completed', 'backend']);
+  const adminViews = new Set(['user-management', 'update-history', 'lists', 'import', 'backup', 'deleted', 'completed', 'backend']);
   const adminActive = adminViews.has(requestedView);
   $('#nav-admin-toggle')?.classList.toggle('active', adminActive);
   if (adminActive && syncAdminNavigationVisibility()) setAdminNavigationExpanded(true);
@@ -4598,6 +4604,7 @@ function showView(view, options) {
     import: 'Navision Uploads',
     backup: 'Backup / Restore',
     'user-management': 'User Management',
+    'update-history': 'Update history',
     zpl: 'Label Tools'
   };
   const pageTitle = $('#page-title');
@@ -5286,6 +5293,10 @@ window.addEventListener?.('pdc-auth-ready', () => {
   if (!userManagementAllowed && (app.currentView === 'user-management' || app.currentRequestedView === 'user-management')) {
     showView('dashboard', { historyMode: 'replace' });
   }
+  if (!userManagementAllowed && (app.currentView === 'update-history' || app.currentRequestedView === 'update-history')) {
+    window.PdcUpdateHistory?.reset();
+    showView('dashboard', { historyMode: 'replace' });
+  }
   const fitterOnly = window.PDC_AUTH_CONTEXT?.role === 'fitter';
   document.body.classList.toggle('fitter-only', fitterOnly);
   if (fitterOnly) {
@@ -5332,6 +5343,8 @@ window.addEventListener?.('pdc-auth-ready', () => {
 // (or silently re-deriving UI from) previously-loaded operational data.
 window.addEventListener?.('pdc-auth-locked', () => {
   resetUserManagementAuthorityState();
+  window.PdcUpdateHistory?.reset();
+  if (app.currentView === 'update-history' || app.currentRequestedView === 'update-history') showView('dashboard', { historyMode: 'replace' });
   const userManagementView = document.getElementById('user-management');
   if (userManagementView) userManagementView.hidden = true;
   if (app.currentView === 'user-management' || app.currentRequestedView === 'user-management') showView('dashboard', { historyMode: 'replace' });
@@ -6044,6 +6057,9 @@ function renderActiveView() {
       break;
     case 'user-management':
       renderUserManagementScreen();
+      break;
+    case 'update-history':
+      window.PdcUpdateHistory?.open();
       break;
     case 'import':
       renderReviewTable(false);
