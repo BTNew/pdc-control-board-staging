@@ -68,3 +68,11 @@ The sales table now shows PMB status and location, distinguishing a planned book
 The private snapshot decorator uses only already-authorised canonical vehicle IDs. It reads the existing PMB parts helper (including authorised person-confirmed precedence), allowlists job number/status, and adds latest recorded parts ETA/stoppage/receipt information. Unknown parts values remain Not recorded. No raw emails, sender identities, technician identities, booking metadata or operation payloads are returned. Five sales ticks remain independent and editable; all shared workshop facts are read-only. No public PDC function, table data, operational permissions or root board assets were changed.
 
 Validation: 1,280 frontend checks; staging rollback verifies exact canonical booking projection, latest parts ETA, salesperson scope, disabled/anonymous denial, private-field filtering and full vehicle/source/booking/parts fingerprints unchanged after reads and fixture rollback.
+
+## Zebra labels — 1 October 2026
+
+Sales labels now use the exact current PDC vehicleToZplBlock layout: 540×360 dots, key number, stock, job card, customer, vehicle, salesperson and department, one copy per vehicle. The sales preview reflects those fields. Print Zebra labels uses the same bundled QZ Tray2.2.6 connector, preferred printer names and raw UTF-8/no scaling settings as PDC. QZ Tray must be running; the sales URL may require local QZ approval. No browser page-print dialog is used.
+
+The module is isolated to sales. Root app.js, PDC label code, database and permissions remain unchanged. Only current scoped selected rows can be printed; access lost during connection cancels before submitting a job. Stockless order identifiers never become stock numbers. Source carets/tildes and control whitespace are cleaned exactly as in PDC.
+
+Tests compare generated ZPL byte-for-byte with the existing PDC function for populated/default/unsafe inputs, and verify multi-label raw jobs, discovery, missing-printer failures and sign-out cancellation with a mock printer. Physical Zebra output was not printed during this change.
