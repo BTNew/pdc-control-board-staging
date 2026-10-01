@@ -18,9 +18,11 @@ test('search and sorting retain missing-last order and source records',()=>{
 function harness(){
  const elements=new Map(),events={},calls=[];
  function el(id){if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',hidden:false,disabled:false,value:'',
+  dataset:{},classList:{toggle(){}},setAttribute(){},removeAttribute(){},
   events:{},addEventListener(name,fn){this.events[name]=fn;},close(){this.closed=true;},showModal(){this.closed=false;}});
   return elements.get(id);}
- const window={document:{hidden:false,getElementById:el,addEventListener(){}},
+ const nav=['dashboard','pipeline','labels','finance'].map(view=>{const e=el('nav-'+view);e.dataset.salesView=view;return e;});
+ const window={document:{hidden:false,getElementById:el,querySelectorAll:()=>nav,addEventListener(){}},
   PDC_AUTH_CONTEXT:{role:'salesperson',userId:'A'},PDC_SUPABASE:{rpc(name,args){
    return new Promise(resolve=>calls.push({name,args,resolve}));}},addEventListener(name,fn){events[name]=fn;},setInterval(){}};
  vm.runInNewContext(fs.readFileSync('sales/sales.js','utf8'),{window,globalThis:window,module:undefined,Set,Date,console});
@@ -35,6 +37,34 @@ test('sign-out clears data and a delayed read cannot refill the previous account
  await tick();
  assert.equal(h.el('vehicle-table').innerHTML,'');assert.equal(h.el('sales-detail-content').innerHTML,'');
  assert.equal(h.el('sales-refresh').disabled,false);
+});
+test('combined month, Toyota status and JITA filters restrict the visible authorised set',()=>{
+ const rows=[{stock:'1',production_month:'06/26',toyota_status:'Yard Hold',jita:true},
+ {stock:'2',production_month:'06/26',toyota_status:'Yard Hold',jita:null},
+ {stock:'3',production_month:'07/26',toyota_status:'In Transit',jita:true}];
+ assert.deepEqual(sales.selectRows(rows,{category:'all',month:'06/26',status:'Yard Hold',jita:'yes',sort:'stock',direction:1}).map(r=>r.stock),['1']);
+ assert.deepEqual(sales.selectRows(rows,{category:'all',jita:'unknown',sort:'stock',direction:1}).map(r=>r.stock),['2']);
+});
+test('labels and pipeline retain authorised identities and clear on access revocation',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson',display_name:'Example'},items:[{tracking_id:'own-id',stock:'13001',order:'2026001',client:'Private customer',toyota_status:'Yard Hold'}]}});
+ await tick();assert.match(h.el('sales-pipeline').innerHTML,/Private customer/);
+ h.el('vehicle-table').events.change({target:{dataset:{select:'own-id'},checked:true}});
+ h.el('sales-view-labels').events.click();assert.match(h.el('sales-labels').innerHTML,/Private customer/);
+ assert.equal(h.el('sales-print-labels').disabled,false);
+ delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();
+ assert.equal(h.el('sales-pipeline').innerHTML,'');assert.equal(h.el('sales-labels').innerHTML,'');
+ assert.equal(h.el('sales-print-labels').disabled,true);
+});
+test('Finance opens its placeholder without issuing a finance request; stale selected labels are removed on refresh',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson',display_name:'Example'},items:[{tracking_id:'old-id',stock:'13001',client:'Old assignment'}]}});
+ await tick();h.el('vehicle-table').events.change({target:{dataset:{select:'old-id'},checked:true}});
+ h.el('nav-finance').events.click();assert.equal(h.el('sales-finance-view').hidden,false);
+ assert.equal(h.el('sales-dashboard-view').hidden,true);assert.equal(h.el('sales-page-title').textContent,'Finance');
+ assert.equal(h.calls.length,1);
+ h.el('nav-dashboard').events.click();h.el('sales-refresh').events.click();
+ h.calls[1].resolve({data:{context:{role:'salesperson',display_name:'Example'},items:[]}});
+ await tick();assert.doesNotMatch(h.el('sales-labels').innerHTML,/Old assignment/);
+ assert.equal(h.el('sales-print-labels').disabled,true);
 });
 test('failed refresh clears stale records and can be retried',async()=>{
  const h=harness();
