@@ -831,13 +831,13 @@
     "validation": "1280 frontend checks; staging scoped read and fingerprint rollback checks"
   },
   "broome_salesperson_labels": {
-    "asset_version": "2026.10.01.06",
-    "format": "Exact PDC vehicleToZplBlock: 540x360 dots, seven fields, one copy",
+    "asset_version": "2026.10.01.07",
+    "format": "Owner-supplied sales ZPL: 540x360 dots; stock at top/bottom, separate customer/salesperson, model, suffix/trim/colour and VIN; two copies",
     "connection": "Existing local vendor QZ Tray 2.2.6; same preferred Zebra printers and raw UTF-8/no scaling settings",
     "operational_writes": false,
     "database_changes": false,
-    "stockless_orders": "Blank stock retained; no order substitution",
+    "stockless_orders": "NO STOCK in both stock fields; Toyota order and key never substitute for stock",
     "physical_printer_validation": "Not performed; mocked QZ job verified",
-    "validation": "PDC output parity, command sanitisation, multiple labels, discovery, access-revocation cancellation and UI sign-out handling"
+    "validation": "Requested ZPL golden fixture, Navision field mapping, command sanitisation, two copies per block with one QZ copy, discovery, access-revocation cancellation and UI sign-out handling"
   }
 }

@@ -60,3 +60,21 @@ Ticks are stored in pdc_sales_private.ordering_progress, never in public.vehicle
 Validation: all five saved/unticked and returned by the staging snapshot; another salesperson/unknown order/arbitrary field/stale version/disabled account/anonymous access denied; full PDC vehicle, Navision, import-batch and workshop booking fingerprints unchanged. All verification fixtures rolled back. Frontend checks cover successful save, pending-state guard, failed-save restoration, older poll responses and sign-out races.
 
 The complete 1,277-check frontend suite passed. The example salesperson browser preview saved all five ticks and retained them after reloading; administrator intake/account controls stayed hidden.
+
+## PMB status and vehicle detail — 1 October 2026
+
+The sales table now shows PMB status and location, distinguishing a planned booking from work started or stopped. Clicking the stock/order number opens current PMB status first, then parts, each recorded bay booking and vehicle/delivery details. Bookings include scheduled and actual dates, stoppage reason and recorded fitter completion counts where available. Multiple simultaneous active stages remain visible. Completed work and cleared stoppages are not presented as active.
+
+The private snapshot decorator uses only already-authorised canonical vehicle IDs. It reads the existing PMB parts helper (including authorised person-confirmed precedence), allowlists job number/status, and adds latest recorded parts ETA/stoppage/receipt information. Unknown parts values remain Not recorded. No raw emails, sender identities, technician identities, booking metadata or operation payloads are returned. Five sales ticks remain independent and editable; all shared workshop facts are read-only. No public PDC function, table data, operational permissions or root board assets were changed.
+
+Validation: 1,280 frontend checks; staging rollback verifies exact canonical booking projection, latest parts ETA, salesperson scope, disabled/anonymous denial, private-field filtering and full vehicle/source/booking/parts fingerprints unchanged after reads and fixture rollback.
+
+## Zebra labels — 1 October 2026
+
+Craig supplied a new sales-only Zebra format after the original PDC-parity release. Sales labels use 540×360 dots with stock in 50-dot text at (20,20) and (20,300). Customer, salesperson, vehicle model, suffix/trim/colour and VIN each use 25-dot text on their own lines at y90/125/160/195/260. The customer/salesperson overlap in the supplied sample was explicitly resolved by Craig in favour of separate lines. 500-dot fields retain the supplied label width. The specification/colour field allows two lines so long descriptions retain the colour; VIN is moved to y260 to keep those lines separate.
+
+Each vehicle block requests two copies through ^PQ2. QZ job copies stays 1, preventing four copies. Print 2 copies per vehicle uses the existing bundled QZ Tray 2.2.6 connector and preferred Zebra printers with raw UTF-8 and no scaling. The selected rows must remain authorised while connecting. Source carets/tildes and control whitespace are cleaned as before. The browser preview reflects the same fields and positions.
+
+An explicit Navision suffix already appended to the vehicle display is removed from the model line and included with trim and colour on the specification line. Missing stock prints NO STOCK twice; neither key nor Toyota order masquerades as stock. VIN comes from the existing authorised sales snapshot. No new database projection or data writes are needed.
+
+Root PDC app.js and its label format remain unchanged. Tests verify the requested ZPL, leading zeros, combined-source field mapping, stockless handling, command cleaning, multi-vehicle/two-copy jobs, discovery and access cancellation. Physical Zebra output was not printed during verification. Finance remains its live placeholder; Andy’s separate finance design preview is local only.

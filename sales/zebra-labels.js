@@ -9,30 +9,32 @@ function cleanZplField(value) {
 }
 
 function vehicleToZplBlock(vehicle) {
-  const keyNumber = cleanZplField(vehicle.keyNumber || vehicle.batch || 'NO KEY');
-  const stock = cleanZplField(vehicle.stock || '—');
-  const jobCard = cleanZplField(vehicle.jobCard || '—');
+  const stock = cleanZplField(vehicle.stock || 'NO STOCK');
   const customer = cleanZplField(vehicle.customer || '(Dealer Order)');
   const model = cleanZplField(vehicle.model || 'Vehicle not listed');
   const sales = cleanZplField(vehicle.sales || '—');
-  const department = cleanZplField(vehicle.department || 'PDC');
+  const description = cleanZplField(vehicle.description || 'Details not recorded');
+  const vin = cleanZplField(vehicle.vin || 'VIN not recorded');
   return [
     '^XA', '^PW540', '^LL360', '^LH0,0', '^CI28',
-    `^FO18,12^A0N,62,62^FB504,1,0,L,0^FD${keyNumber}^FS`,
-    `^FO18,82^A0N,28,28^FB504,1,0,L,0^FDSTOCK ${stock}^FS`,
-    `^FO18,116^A0N,25,25^FB504,1,0,L,0^FDJOB CARD ${jobCard}^FS`,
-    `^FO18,150^A0N,27,27^FB504,2,2,L,0^FD${customer}^FS`,
-    `^FO18,210^A0N,25,25^FB504,2,2,L,0^FD${model}^FS`,
-    `^FO18,276^A0N,23,23^FB504,1,0,L,0^FDSALES ${sales}^FS`,
-    `^FO18,308^A0N,22,22^FB504,1,0,L,0^FD${department}^FS`,
-    '^PQ1', '^XZ'
+    `^FO20,20^A0N,50,50^FB500,1,0,L,0^FD${stock}^FS`,
+    `^FO20,90^A0N,25,25^FB500,1,0,L,0^FD${customer}^FS`,
+    `^FO20,125^A0N,25,25^FB500,1,0,L,0^FD${sales}^FS`,
+    `^FO20,160^A0N,25,25^FB500,1,0,L,0^FD${model}^FS`,
+    `^FO20,195^A0N,25,25^FB500,2,0,L,0^FD${description}^FS`,
+    `^FO20,260^A0N,25,25^FB500,1,0,L,0^FD${vin}^FS`,
+    `^FO20,300^A0N,50,50^FB500,1,0,L,0^FD${stock}^FS`,
+    '^PQ2', '^XZ'
   ].join('\n');
 }
 function labelData(row){
- return {keyNumber:cleanZplField(row.key_number||row.stock||'NO KEY'),stock:cleanZplField(row.stock||''),
- jobCard:cleanZplField(row.job_card||''),customer:cleanZplField(row.client||'Dealer Order'),
- model:cleanZplField(row.vehicle||''),sales:cleanZplField(row.salesperson_name||row.salesperson_code||''),
- department:cleanZplField(row.division||'Broome Toyota')};
+ const suffix=cleanZplField(row.suffix),model=cleanZplField(row.vehicle);
+ // Navision's vehicle display can already end with its separate suffix description.
+ const modelOnly=suffix&&model.toLowerCase().endsWith(' '+suffix.toLowerCase())?model.slice(0,-suffix.length).trim():model;
+ const descriptions=[suffix,cleanZplField(row.trim),cleanZplField(row.colour)].filter(Boolean);
+ return {stock:cleanZplField(row.stock||''),customer:cleanZplField(row.client||'(Dealer Order)'),
+ model:modelOnly,sales:cleanZplField(row.salesperson_name||row.salesperson_code||''),
+ description:descriptions.filter((v,i)=>descriptions.findIndex(x=>x.toLowerCase()===v.toLowerCase())===i).join(' '),vin:cleanZplField(row.vin)};
 }
 function build(rows){return rows.map(r=>vehicleToZplBlock(labelData(r))).join('\n\n');}
 const printerNames=['BT-Zebra-EricComp','dc-01\\BT-Zebra-EricComp','192.168.0.164'];
