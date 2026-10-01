@@ -4246,6 +4246,7 @@ function userManagementRowActionsHtml(row) {
         <option value="operator" ${row.role === 'operator' ? 'selected' : ''}>controller</option>
         <option value="importer" ${row.role === 'importer' ? 'selected' : ''}>importer</option>
         <option value="administrator" ${row.role === 'administrator' ? 'selected' : ''}>administrator</option>
+        <option value="salesperson" ${row.role === 'salesperson' ? 'selected' : ''}>salesperson</option>
       </select>
       <button class="small-button" data-um-change-role="${email}">Change role</button>
       <button class="small-button text-button" data-um-disable="${email}">Disable</button>
