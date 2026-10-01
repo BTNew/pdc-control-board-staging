@@ -109,7 +109,7 @@ test('Navision sales parser preserves order identity, blank stock and quoted cus
  assert.throws(()=>parser.parse('Order,COSI,Dealer,Salesperson\n1,Yes,37047,"BG'),/unclosed quote/);
 });
 test('order-only detail shows bookings safely and disappears when access changes on refresh',async()=>{
- const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{tracking_id:'order-id',order:'000123',stock:'',client:'Example',bay_bookings:[{stage:'Fitting',bay:'<unsafe>',status:'scheduled',scheduled_start_at:'2026-10-05T01:00:00Z'}]}]}});
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{tracking_id:'order-id',canonical_vehicle_id:'canonical-test',order:'000123',stock:'',client:'Example',bay_bookings:[{stage:'Fitting',bay:'<unsafe>',status:'planned',scheduled_start_at:'2026-10-05T01:00:00Z'}]}]}});
  await tick();assert.match(h.el('vehicle-table').innerHTML,/Awaiting stock number/);assert.match(h.el('vehicle-table').innerHTML,/000123/);
  h.el('vehicle-table').events.click({target:{closest(selector){return selector==='[data-open]'?{dataset:{open:'order-id'}}:null;}}});
  assert.match(h.el('sales-detail-content').innerHTML,/Bay bookings/);assert.match(h.el('sales-detail-content').innerHTML,/&lt;unsafe&gt;/);
@@ -173,4 +173,31 @@ test('sign-out suppresses a delayed checkbox response and clears its pending sta
  delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();
  h.calls[1].resolve({data:{...orderingRow,tray_complete:true,ordering_version:1}});await tick();
  assert.equal(h.el('vehicle-table').innerHTML,'');assert.equal(h.el('sales-checklist-status').textContent,'');
+});
+
+test('PMB distinguishes scheduled bay from actual work and preserves multiple active stages',()=>{
+ const r={canonical_vehicle_id:'v',pmb_location:'PMB',bay_bookings:[{booking_id:'b',status:'planned',stage:'Fitting',bay:'Bay 2',scheduled_start_at:'2026-10-05T01:00:00Z'}]};
+ assert.equal(sales.pmbSummary(r).status,'Booked · Fitting / Bay 2');
+ r.bay_bookings.push({booking_id:'c',status:'started',stage:'Electrical',bay:'Bay 1'},{booking_id:'d',status:'stoppage',stage:'Fitting',bay:'Bay 3'});
+ assert.ok(sales.pmbSummary(r).status.includes('Work started · Electrical / Bay 1; Work stopped'));
+ assert.equal(sales.pmbSummary({...r,canonical_vehicle_id:null}).status,'Not linked to PMB');
+ assert.equal(sales.pmbSummary({...r,bay_bookings:[],workshop_status:'completed',pmb_stoppage_started_at:'yesterday',pmb_stoppage_cleared_at:'today'}).status,'Completed');
+});
+test('parts source authority and unknown receipt stay distinct',()=>{
+ assert.equal(sales.partsStatus(null),'Not recorded');
+ assert.equal(sales.partsStatus({required:null,received:null}),'Not recorded');
+ assert.equal(sales.partsStatus({required:false}),'No parts required');
+ assert.equal(sales.partsStatus({required:true,ordered:true}),'Parts ordered · awaiting receipt');
+ assert.equal(sales.partsStatus({status:'Parts outstanding — see job cards',received:true}),'Parts outstanding — see job cards');
+});
+test('stock detail shows read-only current PMB, parts and planned/actual progress; escapes source text',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{tracking_id:'v',canonical_vehicle_id:'c',stock:'123',
+ pmb_location:'PMB',parts:{status:'Parts outstanding',eta:'2026-10-07',stoppage:true,stoppage_reason:'<script>test</script>',jobs:[{job_number:'001',status:'PO recorded'}]},
+ bay_bookings:[{status:'started',stage:'Fitting',bay:'Bay 2',actual_start_at:'2026-10-01T01:00:00Z',progress:{completed_lines:2,total_lines:4,percent:50}}]}]}});await tick();
+ h.el('vehicle-table').events.click({target:{closest:sel=>sel==='[data-open]'?{dataset:{open:'v'}}:null}});
+ const html=h.el('sales-detail-content').innerHTML;
+ for(const text of ['Work started','Bay 2','Parts outstanding','2026-10-07','PO recorded','2 of 4 items complete','50%','read-only'])assert.ok(html.includes(text),text);
+ assert.ok(html.indexOf('PMB status')<html.indexOf('Vehicle and delivery details'));
+ assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>/);
+ assert.doesNotMatch(html,/type="checkbox"/);
 });

@@ -40,7 +40,30 @@
       return String(aa).localeCompare(String(bb),undefined,{numeric:true,sensitivity:'base'}) * filters.direction;
     });
   }
-  const api = { category, flag, selectRows, escapeHtml };
+  const bookingLabels={queued:'Awaiting bay booking',planned:'Booked',started:'Work started',stoppage:'Work stopped',completed:'Completed',deleted:'Deleted'};
+  function bookingStatus(value){return bookingLabels[value]||value||'Not recorded';}
+  function pmbSummary(row){
+    if(!row.canonical_vehicle_id)return {status:'Not linked to PMB',location:'PMB details appear when the order is linked',bookings:[]};
+    const all=Array.isArray(row.bay_bookings)?row.bay_bookings:[];
+    const live=all.filter(b=>['started','stoppage'].includes(b.status));
+    const active=live.find(b=>b.booking_id===row.active_workshop_booking_id);
+    const bookings=active?[active,...live.filter(b=>b!==active)]:live;
+    if(bookings.length)return {status:bookings.map(b=>bookingStatus(b.status)+' · '+(b.stage||'Workshop')+' / '+(b.bay||'Bay not recorded')).join('; '),location:row.pmb_location||'Location not recorded',bookings};
+    const planned=all.filter(b=>b.status==='planned').sort((a,b)=>String(a.scheduled_start_at||'9999').localeCompare(String(b.scheduled_start_at||'9999')));
+    if(row.pmb_stoppage_started_at&&!row.pmb_stoppage_cleared_at)return {status:'Work stopped'+(row.pmb_stoppage_reason?' · '+row.pmb_stoppage_reason:''),location:row.pmb_location||'Location not recorded',bookings:[]};
+    if(planned.length)return {status:'Booked · '+(planned[0].stage||'Workshop')+' / '+(planned[0].bay||'Bay not recorded'),location:row.pmb_location||'Location not recorded',bookings:[planned[0]]};
+    return {status:row.workshop_status?bookingStatus(row.workshop_status):(row.pmb_stage||'Status not recorded'),location:row.pmb_location||'Location not recorded',bookings:[]};
+  }
+  function partsStatus(parts){
+    if(!parts)return 'Not recorded';
+    if(parts.status)return parts.status;
+    if(parts.received===true)return 'Parts received';
+    if(parts.required===false)return 'No parts required';
+    if(parts.ordered===true)return 'Parts ordered · awaiting receipt';
+    if(parts.required===true)return 'Parts required · order not confirmed';
+    return 'Not recorded';
+  }
+  const api = { category, flag, selectRows, escapeHtml, pmbSummary, partsStatus, bookingStatus };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
@@ -51,7 +74,7 @@
     ['salesperson_code','SP'],['stock','SN'],['production_month','P/Month'],['client','Client'],
     ['vehicle','Vehicle'],['tint','Tint'],['build_po','Build PO'],['build_complete','Build Complete'],
     ['tray_ordered','Tray Ordered'],['tray_complete','Tray Complete'],['toyota_status','Toyota Status'],
-    ['kewdale_eta','Kewdale ETA'],['pmb_location','PDC Location'],['navision_notes','Navision Notes'],['jita','JITA']
+    ['kewdale_eta','Kewdale ETA'],['pmb_location','PMB Status'],['navision_notes','Navision Notes'],['jita','JITA']
   ];
   const flagKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete','jita']);
   const orderingKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete']);
@@ -138,8 +161,8 @@
         if (key==='stock') return '<td><button type="button" class="stock-button" data-open="'+escapeHtml(row.tracking_id)+'">'+
           escapeHtml(val||row.order||'Unconfirmed')+'</button><span class="subtle">Toyota '+escapeHtml(row.order||'Not recorded')+'</span>'+(!val?'<span class="subtle">Awaiting stock number</span>':'')+(row.source_current===false?'<span class="source-warning">Not in latest PDC import</span>':'')+(row.identity_conflict?'<span class="source-warning">Order link needs review</span>':'')+'</td>';
         if (key==='toyota_status') return '<td><span class="status-pill '+category(row)+'" title="'+escapeHtml(val||'Not recorded')+'">'+escapeHtml(val||'Not recorded')+'</span></td>';
-        if (key==='pmb_location') return '<td>'+escapeHtml(val||(row.canonical_vehicle_id?'Not recorded':'Not linked to PMB'))+
-          (row.pmb_stage?'<div class="subtle">'+escapeHtml(row.pmb_stage)+'</div>':'')+'</td>';
+        if (key==='pmb_location') {const summary=pmbSummary(row);return '<td class="pmb-status-cell"><strong>'+escapeHtml(summary.status)+'</strong><div class="subtle">'+escapeHtml(summary.location)+'</div>'+
+          (summary.bookings[0]?.scheduled_start_at?'<div class="subtle">Booked '+escapeHtml(dateLabel(summary.bookings[0].scheduled_start_at))+'</div>':'')+'</td>';}
         return '<td class="'+(key==='navision_notes'?'notes-cell':'')+'" title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</td>';
       }).join('')+'<td><button type="button" class="view-button" data-open="'+escapeHtml(row.tracking_id)+'">View details</button></td></tr>').join(''):'<tr><td colspan="16"><div class="empty-state">No vehicles match this view.</div></td></tr>')+'</tbody>';
     renderSecondaryViews();
@@ -162,14 +185,32 @@
     ];
     $('sales-detail-content').innerHTML='<div class="panel-header"><div><h2>'+escapeHtml(r.stock||r.order||'Vehicle')+
       '</h2><p>'+escapeHtml(r.client)+'</p></div><button type="button" class="small-button" id="sales-detail-close">Close</button></div>'+
-      '<dl class="detail-grid">'+details.map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+
-      '</dd></div>').join('')+'</dl><h3>Bay bookings</h3>'+bookingHtml(r.bay_bookings)+'<h3>Navision notes</h3><p class="detail-notes">'+escapeHtml(r.navision_notes||'No notes recorded')+'</p>';
+      workshopHtml(r)+'<h3>Vehicle and delivery details</h3><dl class="detail-grid">'+details.map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+
+      '</dd></div>').join('')+'</dl><h3>Navision notes</h3><p class="detail-notes">'+escapeHtml(r.navision_notes||'No notes recorded')+'</p>';
     $('sales-detail-close').addEventListener('click',()=>{ state.detailId=null;$('sales-detail').close(); $('sales-detail-content').innerHTML=''; });
     if(!$('sales-detail').open)$('sales-detail').showModal();
   }
   function bookingHtml(bookings) {
     if(!Array.isArray(bookings)||!bookings.length)return '<p class="detail-notes">No bay bookings recorded.</p>';
-    return '<div class="booking-list">'+bookings.map(b=>'<article class="booking-card"><strong>'+escapeHtml(b.stage||'Workshop')+' · '+escapeHtml(b.bay||'Bay not recorded')+'</strong><span class="status-pill">'+escapeHtml(b.status||'Not recorded')+'</span><dl><div><dt>Scheduled</dt><dd>'+escapeHtml(dateLabel(b.scheduled_start_at))+' → '+escapeHtml(dateLabel(b.scheduled_end_at))+'</dd></div><div><dt>Started</dt><dd>'+escapeHtml(dateLabel(b.actual_start_at))+'</dd></div><div><dt>Finished</dt><dd>'+escapeHtml(dateLabel(b.actual_end_at))+'</dd></div></dl></article>').join('')+'</div>';
+    return '<div class="booking-list">'+bookings.map(b=>'<article class="booking-card"><strong>'+escapeHtml(b.stage||'Workshop')+' · '+escapeHtml(b.bay||'Bay not recorded')+'</strong><span class="status-pill">'+escapeHtml(bookingStatus(b.status))+'</span><dl><div><dt>Scheduled</dt><dd>'+escapeHtml(dateLabel(b.scheduled_start_at))+' → '+escapeHtml(dateLabel(b.scheduled_end_at))+'</dd></div><div><dt>Started</dt><dd>'+escapeHtml(dateLabel(b.actual_start_at))+'</dd></div><div><dt>Finished</dt><dd>'+escapeHtml(dateLabel(b.actual_end_at))+'</dd></div></dl>'+
+      (b.stoppage_reason?'<p class="detail-notes">Stopped: '+escapeHtml(b.stoppage_reason)+(b.stoppage_started_at?' · '+escapeHtml(dateLabel(b.stoppage_started_at)):'')+'</p>':'')+
+      (b.progress?'<p class="detail-notes">Recorded work: '+escapeHtml(b.progress.completed_lines)+' of '+escapeHtml(b.progress.total_lines)+' items complete · '+escapeHtml(b.progress.percent)+'%</p>':'')+'</article>').join('')+'</div>';
+  }
+  function workshopHtml(row){
+    const summary=pmbSummary(row),parts=row.parts;
+    if(!row.canonical_vehicle_id)return '<section class="pmb-overview"><h3>PMB status</h3><p>'+escapeHtml(summary.status)+'. '+escapeHtml(summary.location)+'.</p></section>';
+    const yesNo=value=>value===true?'Yes':value===false?'No':'Not recorded';
+    const facts=[['Location',summary.location],['PMB arrival',row.pmb_arrival_date],['PMB stage',row.pmb_stage],
+      ['QC completed',row.qc_completed_at?dateLabel(row.qc_completed_at):null],['Ready for transport confirmed',row.rft_confirmed_at?dateLabel(row.rft_confirmed_at):null],
+      ['Transferred to RFT',row.rft_transferred_at?dateLabel(row.rft_transferred_at):null]];
+    return '<section class="pmb-overview"><h3>PMB status</h3><p class="pmb-current">'+escapeHtml(summary.status)+'</p><p class="subtle">Live PMB information · read-only · updated '+escapeHtml(dateLabel(row.pmb_updated_at))+'</p><dl class="detail-grid">'+facts.map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+'</dd></div>').join('')+'</dl></section>'+
+      '<h3>Parts</h3><p class="parts-current">'+escapeHtml(partsStatus(parts))+'</p>'+
+      (parts?'<dl class="detail-grid">'+[['Parts required',yesNo(parts.required)],['Order recorded',yesNo(parts.ordered)],['Receipt recorded',yesNo(parts.received)],
+        ['Parts ETA',parts.eta],['Parts feed updated',parts.snapshot_at?dateLabel(parts.snapshot_at):null],['PMB parts update',parts.updated_at?dateLabel(parts.updated_at):null]]
+        .map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+'</dd></div>').join('')+'</dl>'+
+        (parts.stoppage===true?'<p class="parts-stoppage">Parts stoppage: '+escapeHtml(parts.stoppage_reason||'Reason not recorded')+'</p>':'')+
+        (Array.isArray(parts.jobs)&&parts.jobs.length?'<div class="parts-jobs">'+parts.jobs.map(j=>'<p><strong>Job '+escapeHtml(j.job_number||'Not recorded')+'</strong> · '+escapeHtml(j.status||'Status not recorded')+'</p>').join('')+'</div>':''):'')+
+      '<h3>Bay bookings and work progress</h3>'+bookingHtml(row.bay_bookings);
   }
   async function saveOrderingFlag(id,key,checked) {
     const row=state.items.find(r=>r.tracking_id===id);
