@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://cdsmnqxtyyoeoznmbidd.supabase.co wss://cdsmnqxtyyoeoznmbidd.supabase.co; img-src 'self' data:; form-action 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'">
 <title>Broome Toyota · Dashboard</title>
-<link rel="stylesheet" href="sales.css?v=2026.10.01.08">
+<link rel="stylesheet" href="sales.css?v=2026.10.01.09">
 <link rel="stylesheet" href="../site-switcher.css?v=2026.10.01.01">
 </head>
 <body class="auth-pending" data-auth-state="checking" data-pdc-site="broome">
@@ -83,7 +83,7 @@
 <div id="sales-error" class="sales-error" role="alert" hidden></div>
 <section id="sales-dashboard-view" class="sales-view"><div id="status-tabs" class="status-cards" aria-label="Vehicle status"></div><section class="panel tracker-panel"><div class="panel-header"><div><h2>Navision vehicle tracker</h2><p id="sales-sync" class="sales-sync" aria-live="polite"></p></div><div class="panel-actions"><button class="small-button" id="sales-show-all" type="button">Show all</button><button class="small-button" id="sales-clear-filters" type="button">Clear filters</button><button class="primary" id="sales-view-labels" type="button">View labels</button></div></div>
 <div class="table-toolbar"><label class="search-label"><span>Search</span><input id="search" type="search" placeholder="Stock, Toyota order, client, vehicle, notes…"></label><label id="salesperson-filter-label" hidden><span>Salesperson</span><select id="salesperson-filter"></select></label><label><span>Production month</span><select id="sales-month-filter"><option value="">All months</option></select></label><label><span>Toyota status</span><select id="sales-status-filter"><option value="">All statuses</option></select></label><label><span>JITA</span><select id="sales-jita-filter"><option value="">All</option><option value="yes">Yes</option><option value="no">No</option><option value="unknown">Not recorded</option></select></label></div>
-<div id="sales-summary" class="sales-summary"></div><p class="tracking-note">Your five ordering ticks are saved separately from PDC progress. Click the stock number for PMB status, parts, locations and booking dates.</p><p id="sales-checklist-status" class="tracking-note" role="status" aria-live="polite"></p><div class="table-wrap"><table class="data-table" id="vehicle-table" aria-label="Your authorised vehicles"></table></div></section>
+<div id="sales-summary" class="sales-summary"></div><p class="tracking-note">Only COSI sold vehicles are shown. Your five ordering ticks are saved separately from PDC progress. Click the stock number for PMB status, parts, locations and booking dates.</p><p id="sales-checklist-status" class="tracking-note" role="status" aria-live="polite"></p><div class="table-wrap"><table class="data-table" id="vehicle-table" aria-label="Your authorised vehicles"></table></div></section>
 <section class="panel" id="sales-order-intake" hidden><div class="panel-header"><div><h2>Import Navision orders</h2><p>Administrator access · Batch / Stock can be blank for COSI Yes orders. Toyota order, Broome dealer and salesperson are required. This import updates the sales tracker only.</p></div></div><div class="order-intake-body"><label><span>Broome Toyota export</span><input id="sales-order-file" type="file" accept=".csv,.tsv,.txt,text/csv,text/plain,text/tab-separated-values"></label><label><span>Or paste rows with their Navision headings</span><textarea id="sales-order-text" rows="5" placeholder="Order, COSI, Dealer, Salesperson, Batch…"></textarea></label><div class="panel-actions"><button class="small-button" id="sales-order-preview" type="button">Review orders</button><button class="primary" id="sales-order-apply" type="button" disabled>Import reviewed orders</button></div><p id="sales-order-message" role="status"></p></div></section>
 <section class="panel" id="sales-accounts" hidden><div class="panel-header"><div><h2>Salesperson access</h2><p>Approve a registration and link it to one salesperson for Broome Toyota.</p></div><button class="small-button" id="sales-load-accounts" type="button">Load accounts</button></div><form class="sales-account-form" id="sales-access-form"><label><span>Registered account</span><select id="sales-account" required></select></label><label><span>Salesperson</span><select id="sales-person" required></select></label><button class="primary" id="sales-grant" type="submit">Save salesperson access</button></form><p id="sales-account-message" role="status"></p></section></section>
 <section id="sales-pipeline-view" class="sales-view" hidden><div class="section-intro"><h2>Vehicle pipeline</h2><p>Your vehicles grouped by their current Toyota status. Open a vehicle to see shared PMB progress.</p></div><div id="sales-pipeline" class="pipeline-grid"></div></section>
@@ -95,9 +95,9 @@
 <script src="../vendor/supabase/supabase-2.110.5.js"></script>
 <script src="../pdc-supabase-config.staging.js?v=2026.09.04.0110-pdc14-location-replay"></script>
 <script src="../site-switcher.js?v=2026.10.01.01"></script>
-<script src="navision-orders.js?v=2026.10.01.08"></script>
-<script src="zebra-labels.js?v=2026.10.01.08"></script>
-<script src="sales.js?v=2026.10.01.08"></script>
+<script src="navision-orders.js?v=2026.10.01.09"></script>
+<script src="zebra-labels.js?v=2026.10.01.09"></script>
+<script src="sales.js?v=2026.10.01.09"></script>
 <script src="../pdc-auth.js?v=2026.08.11.27-auth-foreground&amp;fitter-only=2026.09.16.01&amp;sales-site=2026.10.01.01"></script>
 <script src="../pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
 </body>

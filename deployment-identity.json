@@ -757,6 +757,15 @@
       "database_version": "20261001080236",
       "commissioned": true,
       "review_status": "staging_applied"
+    },
+    {
+      "version": "20261001094452",
+      "name": "broome_sales_cosi_scope",
+      "file": "supabase/migrations/20261001094452_broome_sales_cosi_scope.sql",
+      "sha256": "1b3ca383453b92926b69d710cf0cd8ac07ea80a4bfee39cab57a9d14980267b3",
+      "database_version": "20261001095357",
+      "commissioned": true,
+      "review_status": "staging_applied"
     }
   ],
   "previous_observed_applied_database_migration": {
@@ -769,7 +778,7 @@
     "review_status": "staging_applied"
   },
   "broome_salesperson_site": {
-    "asset_version": "2026.10.01.06",
+    "asset_version": "2026.10.01.09",
     "path": "sales/",
     "dealer_code": "37047",
     "server_scoped": true,
@@ -857,5 +866,14 @@
       "changed": 0,
       "pdc_and_sales_records_unchanged": true
     }
+  },
+  "broome_salesperson_cosi_scope": {
+    "asset_version": "2026.10.01.09",
+    "visible_vehicles": "Explicit COSI Yes/true/1 only, including stocked orders; missing/No/unknown excluded",
+    "salesperson_filter": "Counts, location/status and month options, pipeline, linked summary and label scope follow selected salesperson",
+    "negative_import": "Existing exact order retains UUID/display/checklist but updates private COSI evidence; cleared salesperson allowed; no new unsold stockless orders",
+    "source_precedence": "Latest source/private COSI including explicit blank; identical import refreshes authority when shared source newer",
+    "operational_writes": false,
+    "validation": "1299 frontend checks; real staging COSI/source/identity/checklist/scope rollback suites and complete PDC fingerprints unchanged"
   }
 }

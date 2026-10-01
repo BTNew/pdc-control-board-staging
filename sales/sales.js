@@ -19,13 +19,16 @@
     return 'dealer';
   }
   function flag(value) {
-    if (value === true || /^(?:yes|true|1)$/i.test(String(value))) return 'yes';
-    if (value === false || /^(?:no|false|0)$/i.test(String(value))) return 'no';
+    if (value === true || /^(?:yes|true|1)$/i.test(String(value).trim())) return 'yes';
+    if (value === false || /^(?:no|false|0)$/i.test(String(value).trim())) return 'no';
     return 'unknown';
+  }
+  function scopeRows(rows, salesperson='') {
+    return rows.filter(row=>flag(row.cosi)==='yes'&&(!salesperson||row.salesperson_code===salesperson));
   }
   function selectRows(rows, filters) {
     const search = String(filters.search || '').toLowerCase();
-    return rows.filter(row =>
+    return scopeRows(rows,filters.salesperson).filter(row =>
       (filters.category === 'all' || category(row) === filters.category) &&
       (!filters.salesperson || row.salesperson_code === filters.salesperson) &&
       (!filters.month || row.production_month === filters.month) &&
@@ -63,7 +66,7 @@
     if(parts.required===true)return 'Parts required · order not confirmed';
     return 'Not recorded';
   }
-  const api = { category, flag, selectRows, escapeHtml, pmbSummary, partsStatus, bookingStatus };
+  const api = { category, flag, scopeRows, selectRows, escapeHtml, pmbSummary, partsStatus, bookingStatus };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
@@ -105,7 +108,7 @@
     for(const id of ['sales-month-filter','sales-status-filter'])$(id).innerHTML='';
     $('sales-jita-filter').value='';
   }
-  const categoryDescriptions={all:'Shows every authorised vehicle',unconfirmed:'Rows without a stock number',production:'Production and early transit statuses',transit:'Shipment, WA transit and wharf',yardhold:'Location status YH or yard hold',hold:'Delayed, wholesale, PD and wharf waits',released:'Body builder and TWA despatch',dealer:'Remaining source statuses'};
+  const categoryDescriptions={all:'COSI sold vehicles in this view',unconfirmed:'Rows without a stock number',production:'Production and early transit statuses',transit:'Shipment, WA transit and wharf',yardhold:'Location status YH or yard hold',hold:'Delayed, wholesale, PD and wharf waits',released:'Body builder and TWA despatch',dealer:'Remaining source statuses'};
   function showView(view) {
     if(!['dashboard','pipeline','labels','finance'].includes(view))return;
     state.view=view;
@@ -118,21 +121,23 @@
     if(view!=='finance')render();
   }
   function populateFilters() {
+    const scoped=scopeRows(state.items,state.filters.salesperson);
     for(const [id,key,label] of [['sales-month-filter','production_month','All months'],['sales-status-filter','toyota_status','All statuses']]) {
       const value=$(id).value;
-      const options=[...new Set(state.items.map(r=>r[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+      const options=[...new Set(scoped.map(r=>r[key]).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
       $(id).innerHTML='<option value="">'+label+'</option>'+options.map(x=>'<option value="'+escapeHtml(x)+'">'+escapeHtml(x)+'</option>').join('');
       $(id).value=options.includes(value)?value:'';
       state.filters[key==='production_month'?'month':'status']=$(id).value;
     }
   }
   function renderSecondaryViews() {
+    const scoped=scopeRows(state.items,state.filters.salesperson);
     $('sales-pipeline').innerHTML=categories.filter(([key])=>key!=='all').map(([key,label])=>{
-      const rows=state.items.filter(r=>category(r)===key);
+      const rows=scoped.filter(r=>category(r)===key);
       return '<section class="pipeline-column"><h2>'+label+' <span>'+rows.length+'</span></h2>'+
         (rows.length?rows.map(r=>'<button class="pipeline-card" type="button" data-open="'+escapeHtml(r.tracking_id)+'"><strong>'+escapeHtml(r.stock||r.order||'Unconfirmed')+'</strong><p>'+escapeHtml(r.client||'Customer not recorded')+'</p><p>'+escapeHtml(r.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+key+'">'+escapeHtml(r.toyota_status||'Not recorded')+'</span>'+(r.pmb_location?'<p>PMB: '+escapeHtml(r.pmb_location)+'</p>':'')+'</button>').join(''):'<div class="empty-state">No vehicles</div>')+'</section>';
     }).join('');
-    const labels=state.items.filter(r=>state.selected.has(r.tracking_id));
+    const labels=scoped.filter(r=>state.selected.has(r.tracking_id));
     $('sales-labels').innerHTML=labels.length?labels.map(r=>{
       const data=root.BROOME_ZEBRA_LABELS.labelData(r);
       return '<div class="label-item"><article class="vehicle-label zebra-label" aria-label="Zebra label for '+escapeHtml(r.stock||'Toyota order '+r.order)+'">'+
@@ -145,12 +150,17 @@
     $('sales-print-labels').disabled=!labels.length||state.printBusy;
   }
   function render() {
+    const scoped=scopeRows(state.items,state.filters.salesperson);
+    const currentIds=new Set(scoped.map(r=>r.tracking_id));
+    for(const id of state.selected)if(!currentIds.has(id))state.selected.delete(id);
+    if(state.detailId&&!currentIds.has(state.detailId)){state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}
     const rows=selectRows(state.items,state.filters);
     $('status-tabs').innerHTML=categories.map(([key,label]) => '<button type="button" data-category="'+key+
       '" class="status-card '+key+(state.filters.category===key?' active':'')+'" aria-pressed="'+(state.filters.category===key)+'">'+
-      '<span>'+label+'</span><strong>'+state.items.filter(r=>key==='all'||category(r)===key).length+'</strong><small>'+categoryDescriptions[key]+'</small></button>').join('');
+      '<span>'+label+'</span><strong>'+scoped.filter(r=>key==='all'||category(r)===key).length+'</strong><small>'+categoryDescriptions[key]+'</small></button>').join('');
     $('sales-summary').innerHTML='<span>'+rows.length+' vehicles shown</span><span>'+
-      state.items.filter(r=>r.canonical_vehicle_id).length+' linked to PMB</span><span>'+state.selected.size+' selected for labels</span>';
+      scoped.filter(r=>r.canonical_vehicle_id).length+' linked to PMB</span><span>'+state.selected.size+' selected for labels</span>';
+    $('sales-data-count').textContent=scoped.length+' COSI vehicles · Navision';
     $('vehicle-table').innerHTML='<thead><tr>'+columns.map(([key,label])=>'<th aria-sort="'+
       (state.filters.sort===key?(state.filters.direction===1?'ascending':'descending'):'none')+
       '">'+(key==='salesperson_code'?'<input type="checkbox" id="sales-select-visible" aria-label="Select visible vehicles for labels" '+(rows.length&&rows.every(r=>state.selected.has(r.tracking_id))?'checked':'')+'>':'')+'<button type="button" data-sort="'+key+'">'+label+(state.filters.sort===key?(state.filters.direction===1?' ↑':' ↓'):'')+
@@ -176,7 +186,7 @@
     renderSecondaryViews();
   }
   function openDetail(id) {
-    const r=state.items.find(row=>row.tracking_id===id); if (!r) return;
+    const r=scopeRows(state.items,state.filters.salesperson).find(row=>row.tracking_id===id); if (!r) return;
     state.detailId=id;
     const details=[
       ['Stock',r.stock],['Toyota order',r.order],['Division',r.division],['Salesperson',r.salesperson_name],
@@ -221,7 +231,7 @@
       '<h3>Bay bookings and work progress</h3>'+bookingHtml(row.bay_bookings);
   }
   async function saveOrderingFlag(id,key,checked) {
-    const row=state.items.find(r=>r.tracking_id===id);
+    const row=scopeRows(state.items,state.filters.salesperson).find(r=>r.tracking_id===id);
     if(!row||row.identity_conflict||!orderingKeys.has(key)||state.saving.has(id)||!['salesperson','administrator'].includes(state.context?.role))return;
     const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId;
     const label=columns.find(([name])=>name===key)[1];
@@ -249,13 +259,13 @@
   }
   async function printLabels(){
     if(state.view!=='labels'||state.printBusy)return;
-    const rows=state.items.filter(r=>state.selected.has(r.tracking_id));
+    const rows=scopeRows(state.items,state.filters.salesperson).filter(r=>state.selected.has(r.tracking_id));
     if(!rows.length||!['administrator','salesperson'].includes(state.context?.role))return;
     const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId,ids=rows.map(r=>r.tracking_id);
     state.printBusy=true;renderSecondaryViews();$('sales-label-status').textContent='Connecting to Zebra printer…';
     try{
       const printer=await root.BROOME_ZEBRA_LABELS.print(rows,()=>generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&
-        ids.every(id=>state.items.some(r=>r.tracking_id===id)));
+        ids.every(id=>scopeRows(state.items,state.filters.salesperson).some(r=>r.tracking_id===id)&&state.selected.has(id)));
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)$('sales-label-status').textContent='Sent 2 label copies for each of '+rows.length+' vehicle'+(rows.length===1?'':'s')+' to '+printer+'.';
     }catch(error){
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)$('sales-label-status').textContent=(error.message||'Printing failed.')+' QZ Tray must be running; approve the sales website in QZ Tray if prompted.';
@@ -275,7 +285,7 @@
       if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId)return;
       if(error)throw error;
       if(!apply&&revision!==state.orderRevision)return;
-      $('sales-order-message').textContent=(apply?'Imported':'Reviewed')+' '+data.accepted+' orders · '+data.without_stock+' awaiting stock · '+data.skipped_unsold+' unsold rows without stock skipped.';
+      $('sales-order-message').textContent=(apply?'Imported':'Reviewed')+' '+data.accepted+' orders · '+data.without_stock+' awaiting stock · '+data.skipped_unsold+' unsold rows without stock excluded.'+(data.visibility_updates?' '+data.visibility_updates+' existing orders updated for COSI visibility.':'');
       state.reviewedOrders=apply?null:rows;
       if(apply){$('sales-order-text').value='';$('sales-order-file').value='';await refresh();}
     }catch(e){if(generation===state.generation){state.reviewedOrders=null;$('sales-order-message').textContent=e.message||'Orders could not be imported.';}}
@@ -292,7 +302,7 @@
       if (!['administrator','salesperson'].includes(data.context?.role)) throw new Error('Sales access is not approved.');
       // A poll started before a tick save must not replace its newer confirmed version.
       const previous=new Map(state.items.map(r=>[r.tracking_id,r]));
-      state.items=data.items.map(r=>{
+      state.items=scopeRows(data.items).map(r=>{
         const old=previous.get(r.tracking_id);
         if(old&&(old.ordering_version||0)>(r.ordering_version||0)){
           for(const name of orderingKeys)r[name]=old[name];
@@ -302,24 +312,23 @@
       }); state.context=data.context; message('');
       $('sales-order-intake').hidden=data.context.role!=='administrator';
       $('sales-open-order-intake').hidden=data.context.role!=='administrator';
-      if(state.detailId){if(data.items.some(r=>r.tracking_id===state.detailId))openDetail(state.detailId);else{state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}}
-      const currentIds=new Set(data.items.map(r=>r.tracking_id));
+      if(state.detailId){if(state.items.some(r=>r.tracking_id===state.detailId))openDetail(state.detailId);else{state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}}
+      const currentIds=new Set(state.items.map(r=>r.tracking_id));
       for(const id of state.selected)if(!currentIds.has(id))state.selected.delete(id);
-      populateFilters();
       $('sales-data-date').textContent=dateLabel(data.navision_updated_at);
-      $('sales-data-count').textContent=data.items.length+' vehicles · Navision';
       $('sales-scope').textContent=data.context.role==='administrator'?'Broome Toyota · Administrator view':
         data.context.display_name+' · My vehicles · Broome Toyota';
       $('sales-sync').textContent='Navision updated '+dateLabel(data.navision_updated_at)+' · Checked '+dateLabel(data.checked_at)+' (Perth)';
       $('salesperson-filter-label').hidden=data.context.role!=='administrator';
       if (data.context.role==='administrator') {
         const selected=state.filters.salesperson;
-        const people=[...new Set(data.items.map(r=>r.salesperson_code).filter(Boolean))].sort();
+        const people=[...new Set(state.items.map(r=>r.salesperson_code).filter(Boolean))].sort();
         $('salesperson-filter').innerHTML='<option value="">All salespeople</option>'+people.map(code=>'<option value="'+
           escapeHtml(code)+'">'+escapeHtml(code)+'</option>').join('');
-        $('salesperson-filter').value=selected; $('sales-accounts').hidden=false;
+        state.filters.salesperson=people.includes(selected)?selected:'';
+        $('salesperson-filter').value=state.filters.salesperson; $('sales-accounts').hidden=false;
       } else { $('sales-accounts').hidden=true; state.accounts=null; $('sales-account').innerHTML=''; $('sales-person').innerHTML=''; }
-      render();
+      populateFilters();render();
     } catch (error) {
       if (generation!==state.generation || principal!==root.PDC_AUTH_CONTEXT?.userId) return;
       clear(); message(error.message||'Unable to refresh vehicles. Try again.');
@@ -385,11 +394,11 @@
   $('sales-show-all').addEventListener('click',()=>{state.filters.category='all';render();});
   $('sales-clear-filters').addEventListener('click',()=>{
     state.filters=defaultFilters();$('search').value='';$('salesperson-filter').value='';
-    for(const id of ['sales-month-filter','sales-status-filter','sales-jita-filter'])$(id).value='';render();
+    for(const id of ['sales-month-filter','sales-status-filter','sales-jita-filter'])$(id).value='';populateFilters();render();
   });
   for(const [id,key] of [['sales-month-filter','month'],['sales-status-filter','status'],['sales-jita-filter','jita']])$(id).addEventListener('change',event=>{state.filters[key]=event.target.value;render();});
   $('search').addEventListener('input',event=>{state.filters.search=event.target.value;render();});
-  $('salesperson-filter').addEventListener('change',event=>{state.filters.salesperson=event.target.value;render();});
+  $('salesperson-filter').addEventListener('change',event=>{state.filters.salesperson=event.target.value;state.selected.clear();populateFilters();render();});
   $('status-tabs').addEventListener('click',event=>{const button=event.target.closest('[data-category]');if(button){state.filters.category=button.dataset.category;render();}});
   $('vehicle-table').addEventListener('click',event=>{
     const sort=event.target.closest('[data-sort]'); if(sort){const key=sort.dataset.sort;state.filters.direction=state.filters.sort===key?-state.filters.direction:1;state.filters.sort=key;render();}
@@ -399,7 +408,7 @@
     const orderingId=event.target.dataset.orderingId;
     if(orderingId){saveOrderingFlag(orderingId,event.target.dataset.orderingFlag,event.target.checked);return;}
     const id=event.target.dataset.select;
-    if(id&&state.items.some(r=>r.tracking_id===id)){if(event.target.checked)state.selected.add(id);else state.selected.delete(id);}
+    if(id&&scopeRows(state.items,state.filters.salesperson).some(r=>r.tracking_id===id)){if(event.target.checked)state.selected.add(id);else state.selected.delete(id);}
     if(event.target.id==='sales-select-visible')for(const r of selectRows(state.items,state.filters)){if(event.target.checked)state.selected.add(r.tracking_id);else state.selected.delete(r.tracking_id);}
     render();
   });
