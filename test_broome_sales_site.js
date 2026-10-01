@@ -134,3 +134,43 @@ test('an edited export cannot regain approval from an earlier review response',a
  h.calls[1].resolve({data:{accepted:1,without_stock:1,skipped_unsold:0}});await tick();
  assert.equal(h.el('sales-order-apply').disabled,true);assert.equal(h.el('sales-order-message').textContent,'');
 });
+const orderingRow={tracking_id:'own-order',stock:'13001',order:'000123',tint:false,build_po:false,build_complete:false,tray_ordered:false,tray_complete:false,ordering_version:0,jita:true};
+test('five sales ordering checkboxes save through only the isolated RPC and JITA stays read-only',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
+ assert.equal((h.el('vehicle-table').innerHTML.match(/data-ordering-flag=/g)||[]).length,5);
+ assert.doesNotMatch(h.el('vehicle-table').innerHTML,/data-ordering-flag="jita"/);
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'tint'},checked:true}});
+ assert.equal(h.calls[1].name,'set_broome_sales_ordering_flag');
+ assert.deepEqual(JSON.parse(JSON.stringify(h.calls[1].args)),{p_tracking_id:'own-order',p_flag:'tint',p_checked:true,p_expected_version:0});
+ assert.match(h.el('vehicle-table').innerHTML,/data-ordering-flag="tint"[^>]*checked[^>]*disabled/);
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'build_po'},checked:true}});assert.equal(h.calls.length,2);
+ h.calls[1].resolve({data:{...orderingRow,tint:true,ordering_version:1}});await tick();
+ assert.match(h.el('vehicle-table').innerHTML,/data-ordering-flag="tint"[^>]*checked/);
+ assert.doesNotMatch(h.el('vehicle-table').innerHTML,/data-ordering-flag="tint"[^>]*disabled/);
+ assert.match(h.el('sales-checklist-status').textContent,/Tint saved/);
+});
+test('failed checkbox saves restore the last confirmed value and keep the error visible',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'tray_ordered'},checked:true}});
+ h.calls[1].resolve({error:{message:'Checklist changed elsewhere. Refresh and try again.'}});await tick();
+ assert.doesNotMatch(h.el('vehicle-table').innerHTML,/data-ordering-flag="tray_ordered"[^>]*checked/);
+ assert.match(h.el('sales-error').textContent,/changed elsewhere/);assert.match(h.el('sales-checklist-status').textContent,/not saved/);
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'other-order',orderingFlag:'tint'},checked:true}});
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'jita'},checked:false}});
+ assert.equal(h.calls.length,2);
+});
+test('a stale background snapshot cannot undo a newer saved tick',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
+ h.el('sales-refresh').events.click();
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'build_complete'},checked:true}});
+ h.calls[2].resolve({data:{...orderingRow,build_complete:true,ordering_version:1}});await tick();
+ h.calls[1].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
+ assert.match(h.el('vehicle-table').innerHTML,/data-ordering-flag="build_complete"[^>]*checked/);
+});
+test('sign-out suppresses a delayed checkbox response and clears its pending status',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'tray_complete'},checked:true}});
+ delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();
+ h.calls[1].resolve({data:{...orderingRow,tray_complete:true,ordering_version:1}});await tick();
+ assert.equal(h.el('vehicle-table').innerHTML,'');assert.equal(h.el('sales-checklist-status').textContent,'');
+});

@@ -75,11 +75,11 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20261001065741",
-    "name": "broome_sales_tracking_journey",
-    "file": "supabase/migrations/20261001065741_broome_sales_tracking_journey.sql",
-    "sha256": "287f51195fe2dbd7533e7584a435f0803037703e274e0941ac517eb5d024ef57",
-    "database_version": "20261001071419",
+    "version": "20261001073107",
+    "name": "broome_sales_ordering_checklist",
+    "file": "supabase/migrations/20261001073107_broome_sales_ordering_checklist.sql",
+    "sha256": "64f8389a199b732170dfdbc37de3da58f0089db19719dd0f52aa9954317a7c44",
+    "database_version": "20261001073729",
     "commissioned": true,
     "review_status": "staging_applied"
   },
@@ -739,6 +739,15 @@
       "database_version": "20261001071419",
       "commissioned": true,
       "review_status": "staging_applied"
+    },
+    {
+      "version": "20261001073107",
+      "name": "broome_sales_ordering_checklist",
+      "file": "supabase/migrations/20261001073107_broome_sales_ordering_checklist.sql",
+      "sha256": "64f8389a199b732170dfdbc37de3da58f0089db19719dd0f52aa9954317a7c44",
+      "database_version": "20261001073729",
+      "commissioned": true,
+      "review_status": "staging_applied"
     }
   ],
   "previous_observed_applied_database_migration": {
@@ -751,7 +760,7 @@
     "review_status": "staging_applied"
   },
   "broome_salesperson_site": {
-    "asset_version": "2026.10.01.03",
+    "asset_version": "2026.10.01.04",
     "path": "sales/",
     "dealer_code": "37047",
     "server_scoped": true,
@@ -785,5 +794,23 @@
     "retention": "Missing source rows remain visible with freshness warning; explicit PDC deletion authority retained",
     "rdr_removal": "Pending owner confirmation of authoritative Navision field and value",
     "validation": "Order-only/COSI, stock transition UUID continuity, retention, own-sales scope, import denial, anonymous/direct-table denial and full PDC source/vehicle/booking fingerprints verified in rollback"
+  },
+  "broome_salesperson_ordering": {
+    "asset_version": "2026.10.01.04",
+    "editable_flags": [
+      "tint",
+      "build_po",
+      "build_complete",
+      "tray_ordered",
+      "tray_complete"
+    ],
+    "storage": "pdc_sales_private.ordering_progress",
+    "scope": "Current approved salesperson owns visible order; administrator can maintain Broome orders",
+    "writes_to_pdc": false,
+    "seeded_flags": 0,
+    "concurrency": "Expected-version guarded field update; older polls cannot undo confirmed saves",
+    "validation": "Five ticks and unticks returned by snapshot, cross-person/unknown-order/arbitrary-field/stale-version/disabled/anonymous writes denied; complete PDC vehicle/source/import/booking fingerprints unchanged in rollback",
+    "frontend_tests": 1277,
+    "browser_validation": "Example salesperson: all five ticked, saved and retained after reload; intake/account controls hidden"
   }
 }
