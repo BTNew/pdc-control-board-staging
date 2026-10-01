@@ -839,5 +839,23 @@
     "stockless_orders": "NO STOCK in both stock fields; Toyota order and key never substitute for stock",
     "physical_printer_validation": "Not performed; mocked QZ job verified",
     "validation": "Requested ZPL golden fixture, Navision field mapping, command sanitisation, two copies per block with one QZ copy, discovery, access-revocation cancellation and UI sign-out handling"
+  },
+  "broome_salesperson_import_format": {
+    "asset_version": "2026.10.01.08",
+    "sales_only": true,
+    "database_changes": false,
+    "operational_writes": false,
+    "salesperson": "Plain short code or code plus exact eight-digit Navision suffix; unknown values retained for rejection",
+    "vin": "Valid explicit VIN or complete validated WMI/VDS/Frame components",
+    "eta": "Day-first D/M/YYYY converted to ISO date; invalid calendar date rejected",
+    "admin_ui": "Top Import Navision orders action opens existing isolated intake; hidden and guarded for salespeople",
+    "supplied_export_preview": {
+      "accepted": 260,
+      "without_stock": 98,
+      "skipped_unsold": 0,
+      "applied": false,
+      "changed": 0,
+      "pdc_and_sales_records_unchanged": true
+    }
   }
 }

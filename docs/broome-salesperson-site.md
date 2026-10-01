@@ -78,3 +78,12 @@ Each vehicle block requests two copies through ^PQ2. QZ job copies stays 1, prev
 An explicit Navision suffix already appended to the vehicle display is removed from the model line and included with trim and colour on the specification line. Missing stock prints NO STOCK twice; neither key nor Toyota order masquerades as stock. VIN comes from the existing authorised sales snapshot. No new database projection or data writes are needed.
 
 Root PDC app.js and its label format remain unchanged. Tests verify the requested ZPL, leading zeros, combined-source field mapping, stockless handling, command cleaning, multi-vehicle/two-copy jobs, discovery and access cancellation. Physical Zebra output was not printed during verification. Finance remains its live placeholder; Andy’s separate finance design preview is local only.
+
+
+## Navision export format and sales intake — 1 October 2026
+
+Use the administrator-only Import Navision orders button at the top of the Broome sales page. It opens the existing sales intake; the sidebar still has no Uploads menu. Batch/Stock may be blank for COSI Yes sold orders. The root PDC shared-backend importer continues to require stock and is unchanged. A blank stock cell does not mean the entire order row is empty.
+
+The supplied Navision paste has 260 unique Broome orders: 162 stocked and 98 without stock, all COSI Yes. Salesperson export values consisting of a short code plus an eight-digit Navision suffix are normalised to the active code; unfamiliar names/suffixes remain unguessed and fail existing validation. Toyota Order leading zeros and exact dealer scope are retained. Complete WMI/VDS Number/Frame components supply the VIN display; incomplete or invalid components remain blank. Day-first D/M/YYYY ETAs become unambiguous ISO dates, with invalid calendar dates rejected. Customer surname can fall back to Dealer Customer Name.
+
+A real staging read-only preview of the supplied order keys accepted all 260, including 98 without stock, skipped 0, applied false and changed 0. The old full salesperson value reproduced the existing active-code validation failure. Full PDC vehicle/Navision/booking/parts/import-batch and sales-order fingerprints were unchanged. No customer export was applied. The source paste remains local and is excluded from GitHub; only synthetic examples appear in tests/browser evidence.

@@ -90,7 +90,7 @@
     state.selected.clear();
     state.saving.clear();$('sales-checklist-status').textContent='';
     state.detailId=null;state.reviewedOrders=null;state.importBusy=false;state.orderRevision++;
-    $('sales-order-intake').hidden=true;$('sales-order-text').value='';$('sales-order-file').value='';
+    $('sales-order-intake').hidden=true;$('sales-open-order-intake').hidden=true;$('sales-order-text').value='';$('sales-order-file').value='';
     $('sales-order-message').textContent='';$('sales-order-apply').disabled=true;$('sales-order-preview').disabled=false;
     $('vehicle-table').innerHTML=''; $('status-tabs').innerHTML=''; $('sales-summary').innerHTML='';
     $('sales-pipeline').innerHTML=''; $('sales-labels').innerHTML=''; $('sales-print-labels').disabled=true;
@@ -301,6 +301,7 @@
         return r;
       }); state.context=data.context; message('');
       $('sales-order-intake').hidden=data.context.role!=='administrator';
+      $('sales-open-order-intake').hidden=data.context.role!=='administrator';
       if(state.detailId){if(data.items.some(r=>r.tracking_id===state.detailId))openDetail(state.detailId);else{state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}}
       const currentIds=new Set(data.items.map(r=>r.tracking_id));
       for(const id of state.selected)if(!currentIds.has(id))state.selected.delete(id);
@@ -358,6 +359,11 @@
   $('sales-load-accounts').addEventListener('click',()=>loadAccounts().catch(e=>{$('sales-account-message').textContent=e.message;}));
   $('sales-refresh').addEventListener('click',refresh);
   $('sales-order-preview').addEventListener('click',()=>importOrders(false));
+  $('sales-open-order-intake').addEventListener('click',()=>{
+    if(state.context?.role!=='administrator')return;
+    showView('dashboard');$('sales-order-intake').scrollIntoView({behavior:'smooth',block:'start'});
+    $('sales-order-text').focus({preventScroll:true});
+  });
   $('sales-order-apply').addEventListener('click',()=>importOrders(true));
   $('sales-order-text').addEventListener('input',invalidateOrderReview);
   $('sales-order-file').addEventListener('change',async event=>{
