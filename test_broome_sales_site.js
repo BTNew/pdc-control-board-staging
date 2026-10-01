@@ -99,3 +99,38 @@ test('sales entry has no operational loaders, local record cache or static custo
  assert.doesNotMatch(js,/localStorage|sessionStorage|\.from\(['"]vehicles|update_pdc_vehicle/);
  assert.match(html,/data-pdc-site="broome"/);assert.match(html,/id="pdc-site-switcher"/);
 });
+test('Navision sales parser preserves order identity, blank stock and quoted customer values',()=>{
+ const parser=require('./sales/navision-orders.js');
+ const rows=parser.parse('Report title\nOrder,COSI,Dealer,Salesperson,Batch,Customer Surname,Model Description\n000123,Yes,37047,BG,,"Example, Customer",HiLux\n000124,No,37047,CW,13002,Example,Prado');
+ assert.equal(rows[0].order,'000123');assert.equal(rows[0].batch,'');assert.equal(rows[0].cosi,'Yes');assert.equal(rows[0].client,'Example, Customer');
+ assert.equal(rows[1].batch,'13002');assert.throws(()=>parser.parse('Order,COSI,Dealer\n1,Yes,37047'),/Salesperson|salesperson/);
+ assert.equal(parser.parse('Order,COSI,Dealer,Salesperson\n00123,Yes,037047,BG')[0].dealer_code,'37047');
+ assert.equal(parser.parse('Order,COSI,Dealer,Salesperson\n00123,Yes,002345,BG')[0].dealer_code,'002345');
+ assert.throws(()=>parser.parse('Order,COSI,Dealer,Salesperson\n1,Yes,37047,"BG'),/unclosed quote/);
+});
+test('order-only detail shows bookings safely and disappears when access changes on refresh',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{tracking_id:'order-id',order:'000123',stock:'',client:'Example',bay_bookings:[{stage:'Fitting',bay:'<unsafe>',status:'scheduled',scheduled_start_at:'2026-10-05T01:00:00Z'}]}]}});
+ await tick();assert.match(h.el('vehicle-table').innerHTML,/Awaiting stock number/);assert.match(h.el('vehicle-table').innerHTML,/000123/);
+ h.el('vehicle-table').events.click({target:{closest(selector){return selector==='[data-open]'?{dataset:{open:'order-id'}}:null;}}});
+ assert.match(h.el('sales-detail-content').innerHTML,/Bay bookings/);assert.match(h.el('sales-detail-content').innerHTML,/&lt;unsafe&gt;/);
+ assert.equal(h.el('sales-order-intake').hidden,true);h.el('sales-order-preview').events.click();assert.equal(h.calls.length,1);
+ h.el('sales-refresh').events.click();h.calls[1].resolve({data:{context:{role:'salesperson'},items:[]}});await tick();
+ assert.equal(h.el('sales-detail-content').innerHTML,'');assert.equal(h.el('sales-detail').closed,true);
+});
+test('administrator import requires a reviewed export and editing it invalidates approval',async()=>{
+ const h=harness();h.window.BROOME_NAVISION_ORDERS=require('./sales/navision-orders.js');
+ h.calls[0].resolve({data:{context:{role:'administrator'},items:[]}});await tick();
+ h.el('sales-order-text').value='Order,COSI,Dealer,Salesperson\n000123,Yes,37047,BG';h.el('sales-order-preview').events.click();
+ assert.equal(h.calls[1].name,'import_broome_sales_orders');assert.equal(h.calls[1].args.p_apply,false);
+ h.calls[1].resolve({data:{accepted:1,without_stock:1,skipped_unsold:0}});await tick();assert.equal(h.el('sales-order-apply').disabled,false);
+ h.el('sales-order-text').events.input();assert.equal(h.el('sales-order-apply').disabled,true);
+ h.el('sales-order-apply').events.click();await tick();assert.equal(h.calls.length,2);
+});
+test('an edited export cannot regain approval from an earlier review response',async()=>{
+ const h=harness();h.window.BROOME_NAVISION_ORDERS=require('./sales/navision-orders.js');
+ h.calls[0].resolve({data:{context:{role:'administrator'},items:[]}});await tick();
+ h.el('sales-order-text').value='Order,COSI,Dealer,Salesperson\n000123,Yes,37047,BG';h.el('sales-order-preview').events.click();
+ h.el('sales-order-text').value='Order,COSI,Dealer,Salesperson\n000999,Yes,37047,CW';h.el('sales-order-text').events.input();
+ h.calls[1].resolve({data:{accepted:1,without_stock:1,skipped_unsold:0}});await tick();
+ assert.equal(h.el('sales-order-apply').disabled,true);assert.equal(h.el('sales-order-message').textContent,'');
+});
