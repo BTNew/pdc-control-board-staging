@@ -136,11 +136,11 @@
     $('sales-labels').innerHTML=labels.length?labels.map(r=>{
       const data=root.BROOME_ZEBRA_LABELS.labelData(r);
       return '<div class="label-item"><article class="vehicle-label zebra-label" aria-label="Zebra label for '+escapeHtml(r.stock||'Toyota order '+r.order)+'">'+
-      '<strong class="label-key">'+escapeHtml(data.keyNumber)+'</strong><div class="label-stock">STOCK '+escapeHtml(data.stock||'—')+'</div>'+
-      '<div class="label-job">JOB CARD '+escapeHtml(data.jobCard||'—')+'</div><div class="label-customer">'+escapeHtml(data.customer||'(Dealer Order)')+'</div>'+
-      '<div class="label-model">'+escapeHtml(data.model||'Vehicle not listed')+'</div><div class="label-sales">SALES '+escapeHtml(data.sales||'—')+'</div>'+
-      '<div class="label-department">'+escapeHtml(data.department)+'</div></article>'+
-      (!r.stock?'<p class="label-warning">Toyota order '+escapeHtml(r.order||'Not recorded')+' · awaiting stock number. The label stock field remains blank.</p>':'')+'</div>';
+      '<strong class="label-stock-top">'+escapeHtml(data.stock||'NO STOCK')+'</strong><div class="label-customer">'+escapeHtml(data.customer||'(Dealer Order)')+'</div>'+
+      '<div class="label-sales">'+escapeHtml(data.sales||'—')+'</div><div class="label-model">'+escapeHtml(data.model||'Vehicle not listed')+'</div>'+
+      '<div class="label-description">'+escapeHtml(data.description||'Details not recorded')+'</div><div class="label-vin">'+escapeHtml(data.vin||'VIN not recorded')+'</div>'+
+      '<strong class="label-stock-bottom">'+escapeHtml(data.stock||'NO STOCK')+'</strong></article>'+
+      (!r.stock?'<p class="label-warning">Toyota order '+escapeHtml(r.order||'Not recorded')+' · awaiting stock number. Both stock fields print NO STOCK.</p>':'')+'</div>';
     }).join(''):'<div class="empty-state">Select vehicles on the Dashboard, then choose View labels.</div>';
     $('sales-print-labels').disabled=!labels.length||state.printBusy;
   }
@@ -256,7 +256,7 @@
     try{
       const printer=await root.BROOME_ZEBRA_LABELS.print(rows,()=>generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&
         ids.every(id=>state.items.some(r=>r.tracking_id===id)));
-      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)$('sales-label-status').textContent='Sent '+rows.length+' label'+(rows.length===1?'':'s')+' to '+printer+'.';
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)$('sales-label-status').textContent='Sent 2 label copies for each of '+rows.length+' vehicle'+(rows.length===1?'':'s')+' to '+printer+'.';
     }catch(error){
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)$('sales-label-status').textContent=(error.message||'Printing failed.')+' QZ Tray must be running; approve the sales website in QZ Tray if prompted.';
     }finally{
