@@ -8,10 +8,10 @@ This release uses the existing staging Supabase project. Production is unchanged
 
 1. The salesperson opens the website and chooses **Request access**, using their own email and password. Existing registered users can use their current sign-in.
 2. An approved administrator signs in and uses the top **Website** dropdown to choose **Broome Toyota**.
-3. Under **Salesperson access**, choose **Load accounts**. Select the salesperson account and the appropriate salesperson code, then choose **Assign access**. For Bryce Guthrie, choose **BG**.
+3. Under **Salesperson access**, choose **Load accounts**. Select the salesperson account and the appropriate salesperson code, then choose **Save salesperson access**. For Bryce Guthrie, choose **BG**.
 4. The salesperson signs in or refreshes. The website will show their assigned Broome vehicles. They can also use the PMB address: salesperson accounts automatically open the sales website.
 
-Assign access approves a pending account or updates an existing salesperson assignment. It cannot convert administrator or operational accounts. No invitations or emails are sent by this setup panel.
+Save salesperson access approves a pending account or updates an existing salesperson assignment. It cannot convert administrator or operational accounts. No invitations or emails are sent by this setup panel.
 
 ## Shared vehicle details
 
