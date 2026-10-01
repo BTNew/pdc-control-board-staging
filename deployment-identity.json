@@ -742,7 +742,7 @@
     "review_status": "staging_applied"
   },
   "broome_salesperson_site": {
-    "asset_version": "2026.10.01.01",
+    "asset_version": "2026.10.01.02",
     "path": "sales/",
     "dealer_code": "37047",
     "server_scoped": true,
@@ -752,5 +752,19 @@
     "operational_vehicle_writes": false,
     "seeded_account_scopes": 0,
     "validation": "1266 frontend checks passed; real staging role/RLS and account assignment rollback checks passed with vehicle and source fingerprints unchanged."
+  },
+  "broome_salesperson_dashboard": {
+    "asset_version": "2026.10.01.02",
+    "reference": "Owner supplied local tracker screenshot, 1 October 2026",
+    "navigation": [
+      "Dashboard",
+      "Pipeline",
+      "Labels",
+      "Finance"
+    ],
+    "finance": "Placeholder only; no finance records or workflow introduced",
+    "operational_writes": false,
+    "database_changes": false,
+    "validation": "1269 frontend checks passed; desktop/reference and phone layouts plus pipeline/details, labels, Finance and access-clearing verified."
   }
 }

@@ -28,3 +28,11 @@ The page refreshes every 30 seconds while visible and supports manual Refresh. V
 ## Validation
 
 The full 1,266-check frontend suite passed. Database checks exercised own-vehicle access, direct-table RLS, PMB denial, anonymous denial, inactive/disabled/mismatched accounts, administrator-only assignment and pending approval. All fixtures were rolled back; complete vehicle and source row fingerprints remained unchanged. Staging migrations and their database versions/hashes are recorded in deployment-identity.json.
+
+## Dashboard layout — 1 October 2026
+
+The salesperson page follows the supplied local tracker screenshot: dark sidebar, coloured status summary cards and compact stock/order table. Navigation has Dashboard, Pipeline, Labels and Finance. No Uploads menu is provided.
+
+Dashboard summary cards, search and month/status/JITA filters operate on the same server-authorised rows. Selected vehicles can be viewed and printed as labels. Pipeline groups the authorised rows by source status and opens the same shared vehicle details. Preparation flags remain read-only. Finance is a Coming soon placeholder; no finance records, amounts or workflow have been added.
+
+This layout release changes only salesperson assets, tests and release documentation. PMB operational files and installed database functions are unchanged. The 1,269-check suite passed, with new tests for combined filters, clearing pipeline/labels on revocation, Finance navigation and stale label selection after refreshed access.
