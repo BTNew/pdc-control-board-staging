@@ -45,7 +45,7 @@
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
   const defaultFilters=()=>({category:'all',search:'',salesperson:'',month:'',status:'',jita:'',sort:'stock',direction:1});
-  const state = { items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,
+  const state = { items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,saving:new Map(),
     filters:defaultFilters() };
   const columns = [
     ['salesperson_code','SP'],['stock','SN'],['production_month','P/Month'],['client','Client'],
@@ -54,6 +54,7 @@
     ['kewdale_eta','Kewdale ETA'],['pmb_location','PDC Location'],['navision_notes','Navision Notes'],['jita','JITA']
   ];
   const flagKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete','jita']);
+  const orderingKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete']);
   function message(text) { $('sales-error').textContent=text; $('sales-error').hidden=!text; }
   function dateLabel(value) {
     if (!value) return 'Not recorded';
@@ -64,6 +65,7 @@
   function clear() {
     state.generation++; state.busy=false; state.items=[]; state.context=null; state.accounts=null;
     state.selected.clear();
+    state.saving.clear();$('sales-checklist-status').textContent='';
     state.detailId=null;state.reviewedOrders=null;state.importBusy=false;state.orderRevision++;
     $('sales-order-intake').hidden=true;$('sales-order-text').value='';$('sales-order-file').value='';
     $('sales-order-message').textContent='';$('sales-order-apply').disabled=true;$('sales-order-preview').disabled=false;
@@ -126,6 +128,11 @@
         const val=row[key];
         if (key==='salesperson_code')return '<td><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order||'vehicle')+' for labels" '+(state.selected.has(row.tracking_id)?'checked':'')+'>'+escapeHtml(val||'—')+'</td>';
         if (key==='production_month')return '<td><span class="month-pill">'+escapeHtml(val||'—')+'</span></td>';
+        if (orderingKeys.has(key)) {
+          const pending=state.saving.get(row.tracking_id),checked=pending?.key===key?pending.checked:val===true;
+          const label=columns.find(([name])=>name===key)[1]+' for '+(row.stock||'Toyota order '+(row.order||'not recorded'));
+          return '<td class="sales-flag"><input class="ordering-checkbox" type="checkbox" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" aria-label="'+escapeHtml(label)+'" '+(checked?'checked ':'')+(pending||row.identity_conflict?'disabled ':'')+'title="Sales ordering checklist"></td>';
+        }
         if (flagKeys.has(key)) { const f=flag(val); return '<td class="sales-flag '+(key==='jita'?'jita':'')+'"><span class="flag-indicator '+f+'" role="img" aria-label="'+
           (f==='yes'?'Recorded yes':f==='no'?'Recorded no':'Not recorded')+'">'+(f==='yes'?'✓':f==='no'?'×':'—')+'</span></td>'; }
         if (key==='stock') return '<td><button type="button" class="stock-button" data-open="'+escapeHtml(row.tracking_id)+'">'+
@@ -164,6 +171,33 @@
     if(!Array.isArray(bookings)||!bookings.length)return '<p class="detail-notes">No bay bookings recorded.</p>';
     return '<div class="booking-list">'+bookings.map(b=>'<article class="booking-card"><strong>'+escapeHtml(b.stage||'Workshop')+' · '+escapeHtml(b.bay||'Bay not recorded')+'</strong><span class="status-pill">'+escapeHtml(b.status||'Not recorded')+'</span><dl><div><dt>Scheduled</dt><dd>'+escapeHtml(dateLabel(b.scheduled_start_at))+' → '+escapeHtml(dateLabel(b.scheduled_end_at))+'</dd></div><div><dt>Started</dt><dd>'+escapeHtml(dateLabel(b.actual_start_at))+'</dd></div><div><dt>Finished</dt><dd>'+escapeHtml(dateLabel(b.actual_end_at))+'</dd></div></dl></article>').join('')+'</div>';
   }
+  async function saveOrderingFlag(id,key,checked) {
+    const row=state.items.find(r=>r.tracking_id===id);
+    if(!row||row.identity_conflict||!orderingKeys.has(key)||state.saving.has(id)||!['salesperson','administrator'].includes(state.context?.role))return;
+    const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId;
+    const label=columns.find(([name])=>name===key)[1];
+    state.saving.set(id,{key,checked});message('');$('sales-checklist-status').textContent='Saving '+label+'…';render();
+    try{
+      const {data,error}=await root.PDC_SUPABASE.rpc('set_broome_sales_ordering_flag',{
+        p_tracking_id:id,p_flag:key,p_checked:checked,p_expected_version:row.ordering_version||0
+      });
+      if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId)return;
+      if(error||!data||data.tracking_id!==id)throw error||new Error('The ordering tick could not be saved.');
+      const current=state.items.find(r=>r.tracking_id===id);
+      if(current&&(data.ordering_version||0)>=(current.ordering_version||0)){
+        for(const name of orderingKeys)current[name]=data[name]===true;
+        current.ordering_version=data.ordering_version;current.ordering_updated_at=data.ordering_updated_at;
+      }
+      $('sales-checklist-status').textContent=label+' saved for '+(row.stock||'Toyota order '+row.order)+'.';
+    }catch(e){
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId){
+        state.saving.delete(id);render();$('sales-checklist-status').textContent='Tick was not saved. Refresh and try again.';
+        message(e.message||'The ordering tick could not be saved.');
+      }
+    }finally{
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId){state.saving.delete(id);render();}
+    }
+  }
   function invalidateOrderReview(){state.orderRevision++;state.reviewedOrders=null;$('sales-order-apply').disabled=true;$('sales-order-message').textContent='';}
   async function importOrders(apply) {
     if(state.context?.role!=='administrator'||state.importBusy)return;
@@ -191,7 +225,16 @@
       if (generation!==state.generation || principal!==root.PDC_AUTH_CONTEXT?.userId) return;
       if (error || !data || !Array.isArray(data.items)) throw error||new Error('Vehicle data could not be loaded.');
       if (!['administrator','salesperson'].includes(data.context?.role)) throw new Error('Sales access is not approved.');
-      state.items=data.items; state.context=data.context; message('');
+      // A poll started before a tick save must not replace its newer confirmed version.
+      const previous=new Map(state.items.map(r=>[r.tracking_id,r]));
+      state.items=data.items.map(r=>{
+        const old=previous.get(r.tracking_id);
+        if(old&&(old.ordering_version||0)>(r.ordering_version||0)){
+          for(const name of orderingKeys)r[name]=old[name];
+          r.ordering_version=old.ordering_version;r.ordering_updated_at=old.ordering_updated_at;
+        }
+        return r;
+      }); state.context=data.context; message('');
       $('sales-order-intake').hidden=data.context.role!=='administrator';
       if(state.detailId){if(data.items.some(r=>r.tracking_id===state.detailId))openDetail(state.detailId);else{state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}}
       const currentIds=new Set(data.items.map(r=>r.tracking_id));
@@ -282,6 +325,8 @@
     const open=event.target.closest('[data-open]'); if(open)openDetail(open.dataset.open);
   });
   $('vehicle-table').addEventListener('change',event=>{
+    const orderingId=event.target.dataset.orderingId;
+    if(orderingId){saveOrderingFlag(orderingId,event.target.dataset.orderingFlag,event.target.checked);return;}
     const id=event.target.dataset.select;
     if(id&&state.items.some(r=>r.tracking_id===id)){if(event.target.checked)state.selected.add(id);else state.selected.delete(id);}
     if(event.target.id==='sales-select-visible')for(const r of selectRows(state.items,state.filters)){if(event.target.checked)state.selected.add(r.tracking_id);else state.selected.delete(r.tracking_id);}
