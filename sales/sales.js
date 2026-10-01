@@ -68,7 +68,7 @@
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
   const defaultFilters=()=>({category:'all',search:'',salesperson:'',month:'',status:'',jita:'',sort:'stock',direction:1});
-  const state = { items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,saving:new Map(),
+  const state = { items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,printBusy:false,saving:new Map(),
     filters:defaultFilters() };
   const columns = [
     ['salesperson_code','SP'],['stock','SN'],['production_month','P/Month'],['client','Client'],
@@ -86,7 +86,7 @@
       date.toLocaleString('en-AU',{timeZone:'Australia/Perth',dateStyle:'medium',timeStyle:'short'});
   }
   function clear() {
-    state.generation++; state.busy=false; state.items=[]; state.context=null; state.accounts=null;
+    state.generation++; state.busy=false; state.printBusy=false;$('sales-label-status').textContent=''; state.items=[]; state.context=null; state.accounts=null;
     state.selected.clear();
     state.saving.clear();$('sales-checklist-status').textContent='';
     state.detailId=null;state.reviewedOrders=null;state.importBusy=false;state.orderRevision++;
@@ -133,8 +133,16 @@
         (rows.length?rows.map(r=>'<button class="pipeline-card" type="button" data-open="'+escapeHtml(r.tracking_id)+'"><strong>'+escapeHtml(r.stock||r.order||'Unconfirmed')+'</strong><p>'+escapeHtml(r.client||'Customer not recorded')+'</p><p>'+escapeHtml(r.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+key+'">'+escapeHtml(r.toyota_status||'Not recorded')+'</span>'+(r.pmb_location?'<p>PMB: '+escapeHtml(r.pmb_location)+'</p>':'')+'</button>').join(''):'<div class="empty-state">No vehicles</div>')+'</section>';
     }).join('');
     const labels=state.items.filter(r=>state.selected.has(r.tracking_id));
-    $('sales-labels').innerHTML=labels.length?labels.map(r=>'<article class="vehicle-label"><small>Broome Toyota · '+escapeHtml(r.salesperson_code||'')+'</small><p><strong>'+escapeHtml(r.stock||r.order||'Unconfirmed')+'</strong></p><p>'+escapeHtml(r.client||'Customer not recorded')+'</p><p>'+escapeHtml(r.vehicle||'Vehicle not recorded')+'</p><small>Toyota order '+escapeHtml(r.order||'Not recorded')+'</small></article>').join(''):'<div class="empty-state">Select vehicles on the Dashboard, then choose View labels.</div>';
-    $('sales-print-labels').disabled=!labels.length;
+    $('sales-labels').innerHTML=labels.length?labels.map(r=>{
+      const data=root.BROOME_ZEBRA_LABELS.labelData(r);
+      return '<div class="label-item"><article class="vehicle-label zebra-label" aria-label="Zebra label for '+escapeHtml(r.stock||'Toyota order '+r.order)+'">'+
+      '<strong class="label-key">'+escapeHtml(data.keyNumber)+'</strong><div class="label-stock">STOCK '+escapeHtml(data.stock||'—')+'</div>'+
+      '<div class="label-job">JOB CARD '+escapeHtml(data.jobCard||'—')+'</div><div class="label-customer">'+escapeHtml(data.customer||'(Dealer Order)')+'</div>'+
+      '<div class="label-model">'+escapeHtml(data.model||'Vehicle not listed')+'</div><div class="label-sales">SALES '+escapeHtml(data.sales||'—')+'</div>'+
+      '<div class="label-department">'+escapeHtml(data.department)+'</div></article>'+
+      (!r.stock?'<p class="label-warning">Toyota order '+escapeHtml(r.order||'Not recorded')+' · awaiting stock number. The label stock field remains blank.</p>':'')+'</div>';
+    }).join(''):'<div class="empty-state">Select vehicles on the Dashboard, then choose View labels.</div>';
+    $('sales-print-labels').disabled=!labels.length||state.printBusy;
   }
   function render() {
     const rows=selectRows(state.items,state.filters);
@@ -237,6 +245,22 @@
       }
     }finally{
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId){state.saving.delete(id);render();}
+    }
+  }
+  async function printLabels(){
+    if(state.view!=='labels'||state.printBusy)return;
+    const rows=state.items.filter(r=>state.selected.has(r.tracking_id));
+    if(!rows.length||!['administrator','salesperson'].includes(state.context?.role))return;
+    const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId,ids=rows.map(r=>r.tracking_id);
+    state.printBusy=true;renderSecondaryViews();$('sales-label-status').textContent='Connecting to Zebra printer…';
+    try{
+      const printer=await root.BROOME_ZEBRA_LABELS.print(rows,()=>generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&
+        ids.every(id=>state.items.some(r=>r.tracking_id===id)));
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)$('sales-label-status').textContent='Sent '+rows.length+' label'+(rows.length===1?'':'s')+' to '+printer+'.';
+    }catch(error){
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)$('sales-label-status').textContent=(error.message||'Printing failed.')+' QZ Tray must be running; approve the sales website in QZ Tray if prompted.';
+    }finally{
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId){state.printBusy=false;renderSecondaryViews();}
     }
   }
   function invalidateOrderReview(){state.orderRevision++;state.reviewedOrders=null;$('sales-order-apply').disabled=true;$('sales-order-message').textContent='';}
@@ -345,7 +369,7 @@
   });
   for(const button of root.document.querySelectorAll?.('[data-sales-view]')||[])button.addEventListener('click',()=>showView(button.dataset.salesView));
   $('sales-view-labels').addEventListener('click',()=>showView('labels'));
-  $('sales-print-labels').addEventListener('click',()=>{if(state.view==='labels'&&state.selected.size)root.print();});
+  $('sales-print-labels').addEventListener('click',printLabels);
   $('sales-sidebar-toggle').addEventListener('click',()=>{
     const collapsed=$('app-shell').classList.toggle('sidebar-collapsed');
     $('sales-sidebar-toggle').textContent=collapsed?'›':'‹';

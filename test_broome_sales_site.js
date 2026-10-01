@@ -23,7 +23,7 @@ function harness(){
   return elements.get(id);}
  const nav=['dashboard','pipeline','labels','finance'].map(view=>{const e=el('nav-'+view);e.dataset.salesView=view;return e;});
  const window={document:{hidden:false,getElementById:el,querySelectorAll:()=>nav,addEventListener(){}},
-  PDC_AUTH_CONTEXT:{role:'salesperson',userId:'A'},PDC_SUPABASE:{rpc(name,args){
+  BROOME_ZEBRA_LABELS:require('./sales/zebra-labels.js'),PDC_AUTH_CONTEXT:{role:'salesperson',userId:'A'},PDC_SUPABASE:{rpc(name,args){
    return new Promise(resolve=>calls.push({name,args,resolve}));}},addEventListener(name,fn){events[name]=fn;},setInterval(){}};
  vm.runInNewContext(fs.readFileSync('sales/sales.js','utf8'),{window,globalThis:window,module:undefined,Set,Date,console});
  return{window,events,calls,el};
@@ -200,4 +200,14 @@ test('stock detail shows read-only current PMB, parts and planned/actual progres
  assert.ok(html.indexOf('PMB status')<html.indexOf('Vehicle and delivery details'));
  assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>/);
  assert.doesNotMatch(html,/type="checkbox"/);
+});
+
+test('sales print button uses scoped Zebra rows and clears delayed status on sign-out',async()=>{
+ const h=harness(),printed=[];let finish;
+ h.window.BROOME_ZEBRA_LABELS={...h.window.BROOME_ZEBRA_LABELS,print:(rows,authorised)=>{printed.push({rows,authorised});return new Promise(resolve=>finish=resolve);}};
+ h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{tracking_id:'own',stock:'001',client:'Example customer'}]}});await tick();
+ h.el('vehicle-table').events.change({target:{dataset:{select:'own'},checked:true}});h.el('sales-view-labels').events.click();
+ h.el('sales-print-labels').events.click();assert.equal(printed.length,1);assert.equal(printed[0].rows[0].stock,'001');assert.equal(printed[0].authorised(),true);assert.equal(h.el('sales-print-labels').disabled,true);
+ delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();assert.equal(printed[0].authorised(),false);finish('BT-Zebra-EricComp');await tick();
+ assert.equal(h.el('sales-label-status').textContent,'');assert.equal(h.el('sales-labels').innerHTML,'');
 });
