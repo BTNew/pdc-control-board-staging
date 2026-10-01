@@ -75,11 +75,11 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20261001073107",
-    "name": "broome_sales_ordering_checklist",
-    "file": "supabase/migrations/20261001073107_broome_sales_ordering_checklist.sql",
-    "sha256": "64f8389a199b732170dfdbc37de3da58f0089db19719dd0f52aa9954317a7c44",
-    "database_version": "20261001073729",
+    "version": "20261001075814",
+    "name": "broome_sales_pmb_details",
+    "file": "supabase/migrations/20261001075814_broome_sales_pmb_details.sql",
+    "sha256": "27290f4c630a5c20bc39ee0033166a47bb1d58a414564b577c9f00171fc663ef",
+    "database_version": "20261001080236",
     "commissioned": true,
     "review_status": "staging_applied"
   },
@@ -748,6 +748,15 @@
       "database_version": "20261001073729",
       "commissioned": true,
       "review_status": "staging_applied"
+    },
+    {
+      "version": "20261001075814",
+      "name": "broome_sales_pmb_details",
+      "file": "supabase/migrations/20261001075814_broome_sales_pmb_details.sql",
+      "sha256": "27290f4c630a5c20bc39ee0033166a47bb1d58a414564b577c9f00171fc663ef",
+      "database_version": "20261001080236",
+      "commissioned": true,
+      "review_status": "staging_applied"
     }
   ],
   "previous_observed_applied_database_migration": {
@@ -760,7 +769,7 @@
     "review_status": "staging_applied"
   },
   "broome_salesperson_site": {
-    "asset_version": "2026.10.01.04",
+    "asset_version": "2026.10.01.05",
     "path": "sales/",
     "dealer_code": "37047",
     "server_scoped": true,
@@ -812,5 +821,13 @@
     "validation": "Five ticks and unticks returned by snapshot, cross-person/unknown-order/arbitrary-field/stale-version/disabled/anonymous writes denied; complete PDC vehicle/source/import/booking fingerprints unchanged in rollback",
     "frontend_tests": 1277,
     "browser_validation": "Example salesperson: all five ticked, saved and retained after reload; intake/account controls hidden"
+  },
+  "broome_salesperson_pmb": {
+    "asset_version": "2026.10.01.05",
+    "operational_writes": false,
+    "canonical_link_only": true,
+    "parts_authority": "Existing PMB parts helper with person-confirmed priority plus latest vehicle_parts_updates ETA/stoppage; safe display projection",
+    "bookings": "Exact vehicle, non-deleted/non-quarantined; status, stage/bay, planned/actual dates, stoppage and existing fitter progress summary",
+    "validation": "1280 frontend checks; staging scoped read and fingerprint rollback checks"
   }
 }
