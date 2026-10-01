@@ -75,11 +75,11 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20261001052630",
-    "name": "broome_sales_access_indexes",
-    "file": "supabase/migrations/20261001052630_broome_sales_access_indexes.sql",
-    "sha256": "b9fd29dc88b15777df81eca769442bc009d3b90501a1f68c1754a8f0fd968d40",
-    "database_version": "20261001052741",
+    "version": "20261001065741",
+    "name": "broome_sales_tracking_journey",
+    "file": "supabase/migrations/20261001065741_broome_sales_tracking_journey.sql",
+    "sha256": "287f51195fe2dbd7533e7584a435f0803037703e274e0941ac517eb5d024ef57",
+    "database_version": "20261001071419",
     "commissioned": true,
     "review_status": "staging_applied"
   },
@@ -730,6 +730,15 @@
       "database_version": "20261001052741",
       "commissioned": true,
       "review_status": "staging_applied"
+    },
+    {
+      "version": "20261001065741",
+      "name": "broome_sales_tracking_journey",
+      "file": "supabase/migrations/20261001065741_broome_sales_tracking_journey.sql",
+      "sha256": "287f51195fe2dbd7533e7584a435f0803037703e274e0941ac517eb5d024ef57",
+      "database_version": "20261001071419",
+      "commissioned": true,
+      "review_status": "staging_applied"
     }
   ],
   "previous_observed_applied_database_migration": {
@@ -742,11 +751,11 @@
     "review_status": "staging_applied"
   },
   "broome_salesperson_site": {
-    "asset_version": "2026.10.01.02",
+    "asset_version": "2026.10.01.03",
     "path": "sales/",
     "dealer_code": "37047",
     "server_scoped": true,
-    "source_identity": "navision_backend_records.id",
+    "source_identity": "tracked_orders.id; seeded from existing Navision UUID, otherwise stable sales order UUID",
     "canonical_link": "canonical_vehicle_id",
     "copies_of_vehicle_records_created": false,
     "operational_vehicle_writes": false,
@@ -766,5 +775,15 @@
     "operational_writes": false,
     "database_changes": false,
     "validation": "1269 frontend checks passed; desktop/reference and phone layouts plus pipeline/details, labels, Finance and access-clearing verified."
+  },
+  "broome_salesperson_journey": {
+    "asset_version": "2026.10.01.03",
+    "early_orders": "Stockless orders accepted only with explicit COSI Yes/true/1 and Toyota order number",
+    "identity": "Exact dealer + Toyota order; leading zeros retained; ambiguous source links flagged and not joined",
+    "operational_writes": false,
+    "intake": "Administrator-only sales store; no PDC import/vehicle/booking mutations",
+    "retention": "Missing source rows remain visible with freshness warning; explicit PDC deletion authority retained",
+    "rdr_removal": "Pending owner confirmation of authoritative Navision field and value",
+    "validation": "Order-only/COSI, stock transition UUID continuity, retention, own-sales scope, import denial, anonymous/direct-table denial and full PDC source/vehicle/booking fingerprints verified in rollback"
   }
 }

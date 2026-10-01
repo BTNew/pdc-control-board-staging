@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   const categories = [
-    ['all','All vehicles'],['unconfirmed','Unconfirmed'],['production','Production'],
+    ['all','All vehicles'],['unconfirmed','Awaiting stock'],['production','Production'],
     ['transit','In Transit'],['yardhold','YH / Yard Hold'],['hold','Hold/Waiting'],
     ['released','Released'],['dealer','Dealer']
   ];
@@ -45,13 +45,13 @@
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
   const defaultFilters=()=>({category:'all',search:'',salesperson:'',month:'',status:'',jita:'',sort:'stock',direction:1});
-  const state = { items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),
+  const state = { items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,
     filters:defaultFilters() };
   const columns = [
     ['salesperson_code','SP'],['stock','SN'],['production_month','P/Month'],['client','Client'],
     ['vehicle','Vehicle'],['tint','Tint'],['build_po','Build PO'],['build_complete','Build Complete'],
     ['tray_ordered','Tray Ordered'],['tray_complete','Tray Complete'],['toyota_status','Toyota Status'],
-    ['kewdale_eta','Kewdale ETA'],['pmb_location','PMB Location'],['navision_notes','Navision Notes'],['jita','JITA']
+    ['kewdale_eta','Kewdale ETA'],['pmb_location','PDC Location'],['navision_notes','Navision Notes'],['jita','JITA']
   ];
   const flagKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete','jita']);
   function message(text) { $('sales-error').textContent=text; $('sales-error').hidden=!text; }
@@ -64,6 +64,9 @@
   function clear() {
     state.generation++; state.busy=false; state.items=[]; state.context=null; state.accounts=null;
     state.selected.clear();
+    state.detailId=null;state.reviewedOrders=null;state.importBusy=false;state.orderRevision++;
+    $('sales-order-intake').hidden=true;$('sales-order-text').value='';$('sales-order-file').value='';
+    $('sales-order-message').textContent='';$('sales-order-apply').disabled=true;$('sales-order-preview').disabled=false;
     $('vehicle-table').innerHTML=''; $('status-tabs').innerHTML=''; $('sales-summary').innerHTML='';
     $('sales-pipeline').innerHTML=''; $('sales-labels').innerHTML=''; $('sales-print-labels').disabled=true;
     $('sales-data-date').textContent=''; $('sales-data-count').textContent='';
@@ -126,7 +129,7 @@
         if (flagKeys.has(key)) { const f=flag(val); return '<td class="sales-flag '+(key==='jita'?'jita':'')+'"><span class="flag-indicator '+f+'" role="img" aria-label="'+
           (f==='yes'?'Recorded yes':f==='no'?'Recorded no':'Not recorded')+'">'+(f==='yes'?'✓':f==='no'?'×':'—')+'</span></td>'; }
         if (key==='stock') return '<td><button type="button" class="stock-button" data-open="'+escapeHtml(row.tracking_id)+'">'+
-          escapeHtml(val||row.order||'Unconfirmed')+'</button><span class="subtle">Toyota '+escapeHtml(row.order||'Not recorded')+'</span></td>';
+          escapeHtml(val||row.order||'Unconfirmed')+'</button><span class="subtle">Toyota '+escapeHtml(row.order||'Not recorded')+'</span>'+(!val?'<span class="subtle">Awaiting stock number</span>':'')+(row.source_current===false?'<span class="source-warning">Not in latest PDC import</span>':'')+(row.identity_conflict?'<span class="source-warning">Order link needs review</span>':'')+'</td>';
         if (key==='toyota_status') return '<td><span class="status-pill '+category(row)+'" title="'+escapeHtml(val||'Not recorded')+'">'+escapeHtml(val||'Not recorded')+'</span></td>';
         if (key==='pmb_location') return '<td>'+escapeHtml(val||(row.canonical_vehicle_id?'Not recorded':'Not linked to PMB'))+
           (row.pmb_stage?'<div class="subtle">'+escapeHtml(row.pmb_stage)+'</div>':'')+'</td>';
@@ -136,10 +139,13 @@
   }
   function openDetail(id) {
     const r=state.items.find(row=>row.tracking_id===id); if (!r) return;
+    state.detailId=id;
     const details=[
       ['Stock',r.stock],['Toyota order',r.order],['Division',r.division],['Salesperson',r.salesperson_name],
       ['Vehicle',r.vehicle],['Colour',r.colour],['Suffix',r.suffix],['Trim',r.trim],['VIN',r.vin],
       ['Production month',r.production_month],['Toyota status',r.toyota_status],['Kewdale ETA',r.kewdale_eta],
+      ['Dealer / body builder ETA',r.dealer_eta],['Port / plant ETA',r.port_plant_eta],['PMB arrival',r.pmb_arrival_date],
+      ['Delivered to dealer',r.dealer_delivered_date],['Transport booked',r.transport_booked_at?dateLabel(r.transport_booked_at):null],['Collected',r.collected_at?dateLabel(r.collected_at):null],
       ['PMB location',r.pmb_location],['PMB stage',r.pmb_stage],['Workshop progress',r.workshop_status],
       ['Key number',r.key_number],['Job card',r.job_card],['Sales type',r.sales_type],
       ['Customer category',r.customer_category],['QC completed',r.qc_completed_at?dateLabel(r.qc_completed_at):null],
@@ -150,9 +156,31 @@
     $('sales-detail-content').innerHTML='<div class="panel-header"><div><h2>'+escapeHtml(r.stock||r.order||'Vehicle')+
       '</h2><p>'+escapeHtml(r.client)+'</p></div><button type="button" class="small-button" id="sales-detail-close">Close</button></div>'+
       '<dl class="detail-grid">'+details.map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+
-      '</dd></div>').join('')+'</dl><h3>Navision notes</h3><p class="detail-notes">'+escapeHtml(r.navision_notes||'No notes recorded')+'</p>';
-    $('sales-detail-close').addEventListener('click',()=>{ $('sales-detail').close(); $('sales-detail-content').innerHTML=''; });
-    $('sales-detail').showModal();
+      '</dd></div>').join('')+'</dl><h3>Bay bookings</h3>'+bookingHtml(r.bay_bookings)+'<h3>Navision notes</h3><p class="detail-notes">'+escapeHtml(r.navision_notes||'No notes recorded')+'</p>';
+    $('sales-detail-close').addEventListener('click',()=>{ state.detailId=null;$('sales-detail').close(); $('sales-detail-content').innerHTML=''; });
+    if(!$('sales-detail').open)$('sales-detail').showModal();
+  }
+  function bookingHtml(bookings) {
+    if(!Array.isArray(bookings)||!bookings.length)return '<p class="detail-notes">No bay bookings recorded.</p>';
+    return '<div class="booking-list">'+bookings.map(b=>'<article class="booking-card"><strong>'+escapeHtml(b.stage||'Workshop')+' · '+escapeHtml(b.bay||'Bay not recorded')+'</strong><span class="status-pill">'+escapeHtml(b.status||'Not recorded')+'</span><dl><div><dt>Scheduled</dt><dd>'+escapeHtml(dateLabel(b.scheduled_start_at))+' → '+escapeHtml(dateLabel(b.scheduled_end_at))+'</dd></div><div><dt>Started</dt><dd>'+escapeHtml(dateLabel(b.actual_start_at))+'</dd></div><div><dt>Finished</dt><dd>'+escapeHtml(dateLabel(b.actual_end_at))+'</dd></div></dl></article>').join('')+'</div>';
+  }
+  function invalidateOrderReview(){state.orderRevision++;state.reviewedOrders=null;$('sales-order-apply').disabled=true;$('sales-order-message').textContent='';}
+  async function importOrders(apply) {
+    if(state.context?.role!=='administrator'||state.importBusy)return;
+    const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId,revision=state.orderRevision;
+    state.importBusy=true;$('sales-order-preview').disabled=true;$('sales-order-apply').disabled=true;
+    try{
+      const rows=apply?state.reviewedOrders:root.BROOME_NAVISION_ORDERS.parse($('sales-order-text').value);
+      if(!rows)throw new Error('Review the export before importing.');
+      const {data,error}=await root.PDC_SUPABASE.rpc('import_broome_sales_orders',{p_rows:rows,p_apply:apply});
+      if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId)return;
+      if(error)throw error;
+      if(!apply&&revision!==state.orderRevision)return;
+      $('sales-order-message').textContent=(apply?'Imported':'Reviewed')+' '+data.accepted+' orders · '+data.without_stock+' awaiting stock · '+data.skipped_unsold+' unsold rows without stock skipped.';
+      state.reviewedOrders=apply?null:rows;
+      if(apply){$('sales-order-text').value='';$('sales-order-file').value='';await refresh();}
+    }catch(e){if(generation===state.generation){state.reviewedOrders=null;$('sales-order-message').textContent=e.message||'Orders could not be imported.';}}
+    finally{if(generation===state.generation){state.importBusy=false;$('sales-order-preview').disabled=false;$('sales-order-apply').disabled=!state.reviewedOrders;}}
   }
   async function refresh() {
     if (state.busy || !root.PDC_AUTH_CONTEXT) return;
@@ -164,6 +192,8 @@
       if (error || !data || !Array.isArray(data.items)) throw error||new Error('Vehicle data could not be loaded.');
       if (!['administrator','salesperson'].includes(data.context?.role)) throw new Error('Sales access is not approved.');
       state.items=data.items; state.context=data.context; message('');
+      $('sales-order-intake').hidden=data.context.role!=='administrator';
+      if(state.detailId){if(data.items.some(r=>r.tracking_id===state.detailId))openDetail(state.detailId);else{state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}}
       const currentIds=new Set(data.items.map(r=>r.tracking_id));
       for(const id of state.selected)if(!currentIds.has(id))state.selected.delete(id);
       populateFilters();
@@ -219,6 +249,16 @@
   });
   $('sales-load-accounts').addEventListener('click',()=>loadAccounts().catch(e=>{$('sales-account-message').textContent=e.message;}));
   $('sales-refresh').addEventListener('click',refresh);
+  $('sales-order-preview').addEventListener('click',()=>importOrders(false));
+  $('sales-order-apply').addEventListener('click',()=>importOrders(true));
+  $('sales-order-text').addEventListener('input',invalidateOrderReview);
+  $('sales-order-file').addEventListener('change',async event=>{
+    invalidateOrderReview();const file=event.target.files?.[0],generation=state.generation;
+    if(!file)return;
+    if(file.size>8000000){$('sales-order-message').textContent='Use an export smaller than 8 MB.';return;}
+    try{const text=await file.text();if(generation===state.generation&&state.context?.role==='administrator')$('sales-order-text').value=text;}
+    catch(e){if(generation===state.generation)$('sales-order-message').textContent='The export could not be read.';}
+  });
   for(const button of root.document.querySelectorAll?.('[data-sales-view]')||[])button.addEventListener('click',()=>showView(button.dataset.salesView));
   $('sales-view-labels').addEventListener('click',()=>showView('labels'));
   $('sales-print-labels').addEventListener('click',()=>{if(state.view==='labels'&&state.selected.size)root.print();});
@@ -252,6 +292,6 @@
   root.addEventListener('pdc-auth-locked',clear);
   root.document.addEventListener('visibilitychange',()=>{if(!root.document.hidden)refresh();});
   root.setInterval(()=>{if(!root.document.hidden&&state.view!=='finance')refresh();},30000);
-  $('sales-detail').addEventListener('close',()=>{$('sales-detail-content').innerHTML='';});
+  $('sales-detail').addEventListener('close',()=>{state.detailId=null;$('sales-detail-content').innerHTML='';});
   if(root.PDC_AUTH_CONTEXT)refresh();
 })(typeof window === 'object' ? window : globalThis);
