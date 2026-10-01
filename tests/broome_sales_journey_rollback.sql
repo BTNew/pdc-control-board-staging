@@ -33,7 +33,7 @@ BEGIN
   snap:=public.get_broome_sales_snapshot();
   IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snap->'items') e WHERE e->>'tracking_id'=target_id::text AND e->>'stock'='' AND e->>'order'='000-SALES-TEST') THEN RAISE EXCEPTION 'Early order not visible'; END IF;
   -- Simulate a later Navision stock allocation; source UUID differs, sales UUID stays.
-  UPDATE public.navision_backend_records SET normalized_data=jsonb_build_object('batch','TEST-STOCK','order','000-SALES-TEST','consultant','BG'),updated_at=now()+interval '1 second' WHERE id=source_row.id;
+  UPDATE public.navision_backend_records SET normalized_data=jsonb_build_object('batch','TEST-STOCK','order','000-SALES-TEST','consultant','BG','cosi','Yes'),updated_at=now()+interval '1 second' WHERE id=source_row.id;
   snap:=public.get_broome_sales_snapshot();
   IF (SELECT count(*) FROM jsonb_array_elements(snap->'items') e WHERE e->>'tracking_id'=target_id::text)<>1 OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(snap->'items') e WHERE e->>'tracking_id'=target_id::text AND e->>'stock'='TEST-STOCK') THEN RAISE EXCEPTION 'Order-to-stock identity split'; END IF;
   UPDATE public.navision_backend_records SET is_current=false,record_status='not_in_latest_batch',missing_since_batch_id=last_seen_batch_id WHERE id=source_row.id;

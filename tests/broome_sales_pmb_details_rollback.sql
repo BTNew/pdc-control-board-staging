@@ -12,7 +12,7 @@ BEGIN
  SELECT md5(jsonb_build_array((SELECT jsonb_agg(to_jsonb(v) ORDER BY id) FROM public.vehicles v),(SELECT jsonb_agg(to_jsonb(ns) ORDER BY id) FROM public.navision_backend_records ns),(SELECT jsonb_agg(to_jsonb(b) ORDER BY id) FROM public.workshop_bookings b),(SELECT jsonb_agg(to_jsonb(u) ORDER BY id) FROM public.vehicle_parts_updates u))::text) INTO before_hash;
  BEGIN
  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.auth_user_id,'email',actor.email,'role','authenticated')::text,true);
- UPDATE public.navision_backend_records SET is_current=false,record_status='not_in_latest_batch',missing_since_batch_id=last_seen_batch_id,canonical_vehicle_id=target,updated_at=clock_timestamp()+interval '1 day',normalized_data=jsonb_build_object('order','PMB-DETAIL-TEST','consultant','BG','batch',(SELECT stock_number FROM public.vehicles WHERE id=target)) WHERE id=n.id;
+ UPDATE public.navision_backend_records SET is_current=false,record_status='not_in_latest_batch',missing_since_batch_id=last_seen_batch_id,canonical_vehicle_id=target,updated_at=clock_timestamp()+interval '1 day',normalized_data=jsonb_build_object('order','PMB-DETAIL-TEST','consultant','BG','cosi','Yes','batch',(SELECT stock_number FROM public.vehicles WHERE id=target)) WHERE id=n.id;
  UPDATE public.vehicles SET salesperson_manual_override=false WHERE id=target;
  INSERT INTO public.vehicle_parts_updates(vehicle_id,parts_required,parts_ordered,parts_received,parts_stoppage,parts_stoppage_reason,worst_eta,updated_by,updated_at)
  VALUES(target,true,true,false,true,'Example parts delay','2026-10-07',actor.auth_user_id,clock_timestamp()+interval '1 day');
