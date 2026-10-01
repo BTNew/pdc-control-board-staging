@@ -19,7 +19,7 @@ function harness(){
  const elements=new Map(),events={},calls=[];
  function el(id){if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',hidden:false,disabled:false,value:'',
   dataset:{},classList:{toggle(){}},setAttribute(){},removeAttribute(){},
-  events:{},addEventListener(name,fn){this.events[name]=fn;},close(){this.closed=true;},showModal(){this.closed=false;}});
+  events:{},addEventListener(name,fn){this.events[name]=fn;},close(){this.closed=true;},showModal(){this.closed=false;},scrollIntoView(){this.scrolled=true;},focus(){this.focused=true;}});
   return elements.get(id);}
  const nav=['dashboard','pipeline','labels','finance'].map(view=>{const e=el('nav-'+view);e.dataset.salesView=view;return e;});
  const window={document:{hidden:false,getElementById:el,querySelectorAll:()=>nav,addEventListener(){}},
@@ -107,6 +107,14 @@ test('Navision sales parser preserves order identity, blank stock and quoted cus
  assert.equal(parser.parse('Order,COSI,Dealer,Salesperson\n00123,Yes,037047,BG')[0].dealer_code,'37047');
  assert.equal(parser.parse('Order,COSI,Dealer,Salesperson\n00123,Yes,002345,BG')[0].dealer_code,'002345');
  assert.throws(()=>parser.parse('Order,COSI,Dealer,Salesperson\n1,Yes,37047,"BG'),/unclosed quote/);
+});
+test('top sales intake action is administrator-only, opens the existing intake and clears on sign-out',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'administrator'},items:[]}});await tick();
+ assert.equal(h.el('sales-open-order-intake').hidden,false);h.el('nav-finance').events.click();h.el('sales-open-order-intake').events.click();
+ assert.equal(h.el('sales-dashboard-view').hidden,false);assert.equal(h.el('sales-finance-view').hidden,true);assert.equal(h.el('sales-order-intake').scrolled,true);assert.equal(h.el('sales-order-text').focused,true);assert.equal(h.calls.length,1);
+ delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();assert.equal(h.el('sales-open-order-intake').hidden,true);
+ const own=harness();own.calls[0].resolve({data:{context:{role:'salesperson'},items:[]}});await tick();
+ assert.equal(own.el('sales-open-order-intake').hidden,true);own.el('sales-open-order-intake').events.click();assert.equal(own.el('sales-order-intake').scrolled,undefined);assert.equal(own.calls.length,1);
 });
 test('order-only detail shows bookings safely and disappears when access changes on refresh',async()=>{
  const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{tracking_id:'order-id',canonical_vehicle_id:'canonical-test',order:'000123',stock:'',client:'Example',bay_bookings:[{stage:'Fitting',bay:'<unsafe>',status:'planned',scheduled_start_at:'2026-10-05T01:00:00Z'}]}]}});
