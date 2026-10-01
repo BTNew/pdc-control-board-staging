@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://cdsmnqxtyyoeoznmbidd.supabase.co wss://cdsmnqxtyyoeoznmbidd.supabase.co; img-src 'self' data:; form-action 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+<title>Broome Toyota · My vehicles</title>
+<link rel="stylesheet" href="tracker.css?v=2026.10.01.01">
+<link rel="stylesheet" href="sales.css?v=2026.10.01.01">
+<link rel="stylesheet" href="../site-switcher.css?v=2026.10.01.01">
+</head>
+<body class="auth-pending" data-auth-state="checking" data-pdc-site="broome">
+  <main class="pdc-auth-gate" id="pdc-auth-gate" aria-labelledby="pdc-auth-title">
+    <section class="pdc-auth-card">
+      <img class="pdc-auth-brand" src="assets/broome-toyota-logo.png" alt="Broome Toyota" />
+      <p class="eyebrow">Broome Toyota Vehicle Tracking</p>
+      <h1 id="pdc-auth-title">Checking secure sign-in…</h1>
+      <p id="pdc-auth-detail">Checking for an existing approved staff session.</p>
+      <div class="pdc-auth-actions">
+        <form class="pdc-password-form" id="pdc-password-form" hidden>
+          <label><span>Email address</span><input id="pdc-login-email" type="email" autocomplete="username" required /></label>
+          <label><span>Password</span><input id="pdc-login-password" type="password" autocomplete="current-password" required /></label>
+          <p class="pdc-auth-form-error" id="pdc-login-error" role="alert" hidden></p>
+          <button class="primary" id="pdc-password-login" type="submit">Sign in</button>
+          <div class="pdc-auth-links">
+            <button class="text-button" id="pdc-show-forgot-password" type="button">Forgot password?</button>
+            <button class="text-button" id="pdc-show-create-account" type="button">Request access</button>
+          </div>
+        </form>
+
+        <form class="pdc-password-form" id="pdc-create-account-form" hidden>
+          <label><span>Full name</span><input id="pdc-signup-full-name" type="text" autocomplete="name" required /></label>
+          <label><span>Work email</span><input id="pdc-signup-email" type="email" autocomplete="username" required /></label>
+          <label><span>Password</span><input id="pdc-signup-password" type="password" autocomplete="new-password" minlength="12" required /></label>
+          <label><span>Confirm password</span><input id="pdc-signup-confirm-password" type="password" autocomplete="new-password" minlength="12" required /></label>
+          <p class="pdc-auth-form-error" id="pdc-signup-error" role="alert" hidden></p>
+          <p class="pdc-auth-form-success" id="pdc-signup-success" role="status" hidden></p>
+          <button class="primary" id="pdc-signup-submit" type="submit">Create account</button>
+          <div class="pdc-auth-links">
+            <button class="text-button" id="pdc-signup-back-to-login" type="button">Back to sign in</button>
+          </div>
+        </form>
+
+        <form class="pdc-password-form" id="pdc-forgot-password-form" hidden>
+          <label><span>Work email</span><input id="pdc-forgot-email" type="email" autocomplete="username" required /></label>
+          <p class="pdc-auth-form-error" id="pdc-forgot-error" role="alert" hidden></p>
+          <p class="pdc-auth-form-success" id="pdc-forgot-success" role="status" hidden></p>
+          <button class="primary" id="pdc-forgot-submit" type="submit">Send reset link</button>
+          <div class="pdc-auth-links">
+            <button class="text-button" id="pdc-forgot-back-to-login" type="button">Back to sign in</button>
+          </div>
+        </form>
+
+        <form class="pdc-password-form" id="pdc-new-password-form" hidden>
+          <label><span>New password</span><input id="pdc-new-password" type="password" autocomplete="new-password" minlength="12" required /></label>
+          <label><span>Confirm new password</span><input id="pdc-confirm-password" type="password" autocomplete="new-password" minlength="12" required /></label>
+          <button class="primary" id="pdc-save-password" type="submit">Save password</button>
+        </form>
+        <button class="primary" id="pdc-microsoft-login" type="button" hidden>Sign in with Microsoft</button>
+        <button class="ghost" id="pdc-auth-denied-signout" type="button" hidden>Use another account</button>
+
+        <div class="pdc-auth-pending-notice" id="pdc-auth-pending-notice" hidden>
+          <p>Your account has been created and is awaiting administrator approval.</p>
+          <button class="ghost" id="pdc-pending-signout" type="button">Sign out</button>
+        </div>
+        <div class="pdc-auth-disabled-notice" id="pdc-auth-disabled-notice" hidden>
+          <p>Your account access has been disabled. Contact an administrator if you believe this is an error.</p>
+          <button class="ghost" id="pdc-disabled-signout" type="button">Sign out</button>
+        </div>
+        <div class="pdc-auth-rejected-notice" id="pdc-auth-rejected-notice" hidden>
+          <p>Your registration was not approved. Contact an administrator for details.</p>
+          <button class="ghost" id="pdc-rejected-signout" type="button">Sign out</button>
+        </div>
+      </div>
+      <small>Only individually approved staff accounts can access operational data. New registrations require administrator approval before any access is granted.</small>
+    </section>
+  </main>
+<div class="app-shell" id="app-shell" inert aria-hidden="true">
+<aside class="sidebar"><div class="brand"><div class="brand-logo-wrap"><img class="brand-logo" src="assets/broome-toyota-logo.png" alt="Broome Toyota"></div><div class="brand-text"><div class="brand-title">Broome Toyota</div><div class="brand-subtitle">New Vehicle Tracking</div></div></div><nav class="nav"><button class="nav-item active" type="button">My vehicles</button></nav><div class="sidebar-card"><div class="muted-label">Shared vehicle information</div><p>Navision details and PMB progress in one view.</p><span id="sales-scope" class="sales-scope"></span></div></aside>
+<main class="main"><header class="topbar"><div><div class="eyebrow">Broome Toyota New Vehicle Tracking</div><h1>My vehicles</h1></div><div class="topbar-actions"><label class="site-switcher" data-site-switcher hidden><span>Website</span><select id="pdc-site-switcher" aria-label="Switch website" disabled><option value="pmb">PMB</option><option value="broome" selected>Broome Toyota</option></select></label><span id="pdc-auth-user" hidden></span><button class="ghost" id="pdc-auth-signout" type="button" hidden>Sign out</button></div></header>
+<div id="sales-error" class="sales-error" role="alert" hidden></div><section class="panel"><div class="panel-header"><div><h2>Vehicle tracker</h2><p id="sales-sync" class="sales-sync" aria-live="polite"></p></div><div class="panel-actions"><button class="small-button" id="sales-refresh" type="button">Refresh</button></div></div><div class="table-toolbar"><label><span>Search</span><input id="search" type="search" placeholder="Stock, order, client, vehicle or notes"></label><label id="salesperson-filter-label" hidden><span>Salesperson</span><select id="salesperson-filter"></select></label></div><div id="status-tabs" class="status-tabs" aria-label="Vehicle status"></div><div id="sales-summary" class="sales-summary"></div><div class="table-wrap"><table class="data-table compact-table" id="vehicle-table"></table></div></section>
+<section class="panel" id="sales-accounts" hidden><div class="panel-header"><div><h2>Salesperson access</h2><p>Approve a registration and link it to one salesperson for Broome Toyota. Existing PMB staff roles are managed on PMB.</p></div><button class="small-button" id="sales-load-accounts" type="button">Load accounts</button></div><form class="sales-account-form" id="sales-access-form"><label><span>Registered account</span><select id="sales-account" required></select></label><label><span>Salesperson</span><select id="sales-person" required></select></label><button class="primary" id="sales-grant" type="submit">Save salesperson access</button></form><p id="sales-account-message" role="status"></p></section></main></div>
+<dialog id="sales-detail" class="sales-detail" aria-label="Vehicle details"><div id="sales-detail-content"></div></dialog>
+<noscript>JavaScript is required for secure salesperson sign-in.</noscript>
+<script src="../vendor/supabase/supabase-2.110.5.js"></script>
+<script src="../pdc-supabase-config.staging.js?v=2026.09.04.0110-pdc14-location-replay"></script>
+<script src="../site-switcher.js?v=2026.10.01.01"></script>
+<script src="sales.js?v=2026.10.01.01"></script>
+<script src="../pdc-auth.js?v=2026.08.11.27-auth-foreground&amp;fitter-only=2026.09.16.01&amp;sales-site=2026.10.01.01"></script>
+<script src="../pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
+</body>
+</html>

@@ -50,8 +50,18 @@
   function approvedRole(roleRow, userEmail = '') {
     const email = String(userEmail || '').trim().toLowerCase();
     const roleEmail = String(roleRow?.email || '').trim().toLowerCase();
-    const allowedRoles = new Set(['viewer', 'operator', 'importer', 'administrator', 'fitter']);
+    const allowedRoles = new Set(['viewer', 'operator', 'importer', 'administrator', 'fitter', 'salesperson']);
     return Boolean(roleRow?.active && email && roleEmail === email && allowedRoles.has(String(roleRow?.role || '')));
+  }
+
+  function routeApprovedSite(role) {
+    const salesSite = document.body.dataset.pdcSite === 'broome';
+    const target = role === 'salesperson' && !salesSite ? 'sales/'
+      : salesSite && !['salesperson', 'administrator'].includes(role) ? '../' : null;
+    if (!target) return false;
+    lockOwnRoleAuthority('site_changed');
+    window.location.replace(new URL(target, window.location.href).href);
+    return true;
   }
 
   function authPrincipalKey(session) {
@@ -273,6 +283,7 @@
     // controller), refresh the visible permissions live without requiring
     // a page reload.
     if (state.role.role !== role.role) {
+      if (routeApprovedSite(role.role)) return;
       state.role = role;
       window.PDC_AUTH_CONTEXT = Object.freeze({
         ...window.PDC_AUTH_CONTEXT,
@@ -285,6 +296,8 @@
   }
 
   async function unlockApplication(session, roleRow, expectedAuthGeneration, expectedRoleLookupGeneration) {
+    if (expectedAuthGeneration !== state.authGeneration || expectedRoleLookupGeneration !== state.roleLookupGeneration) return false;
+    if (routeApprovedSite(roleRow.role)) return false;
     const monitored = await subscribeOwnRoleChannel(String(session.user.email || '').toLowerCase());
     if (
       !monitored
