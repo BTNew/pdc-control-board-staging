@@ -113,7 +113,7 @@ test('saved views contain personal filter choices rather than salesperson or ope
  assert.equal(h.calls[2].name,'save_broome_sales_crm');const args=JSON.parse(JSON.stringify(h.calls[2].args));
  assert.equal(args.p_kind,'view');assert.equal(args.p_id,null);assert.equal(args.p_tracking_id,null);assert.equal(args.p_expected_version,0);
  assert.equal(args.p_data.filters.quick,'waiting_finance');assert.equal(args.p_data.filters.search,'HiLux');
- assert.deepEqual(Object.keys(args.p_data.filters).sort(),['category','direction','jita','month','quick','search','sort','status']);
+ assert.deepEqual(Object.keys(args.p_data.filters).sort(),['category','direction','month','quick','search','sort','status']);
  assert.doesNotMatch(JSON.stringify(args),/salesperson_code|salesperson_id|canonical_vehicle|dealer_code|user_role_id/);
 });
 test('a sign-out during the post-save refresh cannot restore saved-view success or private options',async()=>{

@@ -38,12 +38,12 @@ test('sign-out clears data and a delayed read cannot refill the previous account
  assert.equal(h.el('vehicle-table').innerHTML,'');assert.equal(h.el('sales-detail-content').innerHTML,'');
  assert.equal(h.el('sales-refresh').disabled,false);
 });
-test('combined month, Toyota status and JITA filters restrict the visible authorised set',()=>{
+test('month and Toyota status filters ignore the removed legacy JITA preference',()=>{
  const rows=[{cosi:'Yes',salesperson_code:'BG',stock:'1',production_month:'06/26',toyota_status:'Yard Hold',jita:true},
  {cosi:'Yes',salesperson_code:'BG',stock:'2',production_month:'06/26',toyota_status:'Yard Hold',jita:null},
  {cosi:'Yes',salesperson_code:'BG',stock:'3',production_month:'07/26',toyota_status:'In Transit',jita:true}];
- assert.deepEqual(sales.selectRows(rows,{category:'all',month:'06/26',status:'Yard Hold',jita:'yes',sort:'stock',direction:1}).map(r=>r.stock),['1']);
- assert.deepEqual(sales.selectRows(rows,{category:'all',jita:'unknown',sort:'stock',direction:1}).map(r=>r.stock),['2']);
+ assert.deepEqual(sales.selectRows(rows,{category:'all',month:'06/26',status:'Yard Hold',jita:'yes',sort:'stock',direction:1}).map(r=>r.stock),['1','2']);
+ assert.deepEqual(sales.selectRows(rows,{category:'all',jita:'unknown',sort:'stock',direction:1}).map(r=>r.stock),['1','2','3']);
 });
 test('labels and pipeline retain authorised identities and clear on access revocation',async()=>{
  const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson',display_name:'Example'},items:[{cosi:'Yes',salesperson_code:'BG',tracking_id:'own-id',stock:'13001',order:'2026001',client:'Private customer',toyota_status:'Yard Hold'}]}});
@@ -123,7 +123,7 @@ test('order-only detail shows bookings safely and disappears when access changes
  assert.equal(h.el('sales-detail-content').innerHTML,'');assert.equal(h.el('sales-detail').closed,true);
 });
 const orderingRow={cosi:'Yes',salesperson_code:'BG',tracking_id:'own-order',stock:'13001',order:'000123',tint:false,tint_complete:false,build_po:false,build_complete:false,tray_ordered:false,tray_complete:false,ordering_version:0,jita:true};
-test('three sales ordering selectors save through only the isolated RPC and JITA stays read-only',async()=>{
+test('three sales ordering tick boxes save through only the isolated RPC and JITA is absent',async()=>{
  const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
  assert.equal((h.el('vehicle-table').innerHTML.match(/data-ordering-flag=/g)||[]).length,3);
  assert.doesNotMatch(h.el('vehicle-table').innerHTML,/data-ordering-flag="jita"/);
@@ -203,7 +203,7 @@ test('sales print button uses scoped Zebra rows and clears delayed status on sig
 test('TINT BUILD and TRAY preserve existing raised and completed progress',()=>{
  for(const [key,complete] of [['tint','tint_complete'],['build_po','build_complete'],['tray_ordered','tray_complete']]){
  assert.equal(sales.orderingState({},key),'not_needed');assert.equal(sales.orderingState({[key]:true},key),'orders_raised');assert.equal(sales.orderingState({[complete]:true},key),'completed');
- const html=sales.orderingControl({tracking_id:'example',order:'EXAMPLE',[complete]:true},key);assert.match(html,/ordering-status completed/);assert.match(html,/<option value="completed" selected>/);assert.equal((html.match(/<option/g)||[]).length,3);
+ const html=sales.orderingControl({tracking_id:'example',order:'EXAMPLE',[complete]:true},key);assert.match(html,/ordering-status completed/);assert.match(html,/role="checkbox"/);assert.match(html,/aria-checked="true"/);assert.doesNotMatch(html,/<select/);
  }
 });
 test('sales status selectors reject arbitrary states and hidden completion fields',async()=>{
@@ -214,4 +214,17 @@ test('sales status selectors reject arbitrary states and hidden completion field
 test('ordering status sort distinguishes grey orange and green',()=>{
  const rows=[{cosi:'Yes',salesperson_code:'BG',stock:'3',tint:true,tint_complete:true},{cosi:'Yes',salesperson_code:'BG',stock:'1',tint:false},{cosi:'Yes',salesperson_code:'BG',stock:'2',tint:true}];
  assert.deepEqual(sales.selectRows(rows,{category:'all',sort:'tint',direction:1}).map(r=>r.stock),['1','2','3']);
+});
+
+test('sales tick boxes cycle all three colours on desktop and mobile without PDC writes',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
+ assert.doesNotMatch(h.el('vehicle-table').innerHTML,/JITA|class="sales-flag/);
+ let row={...orderingRow};
+ for(const [index,current,next] of [[1,'not_needed','orders_raised'],[2,'orders_raised','completed'],[3,'completed','not_needed']]){
+  const control={dataset:{orderingId:'own-order',orderingFlag:'tint',orderingStatus:current}};
+  h.el(index===2?'sales-mobile-vehicles':'vehicle-table').events.click({target:{closest:()=>control}});
+  assert.equal(h.calls[index].name,'set_broome_sales_ordering_status');assert.equal(h.calls[index].args.p_status,next);
+  row={...row,tint:next!=='not_needed',tint_complete:next==='completed',ordering_version:index};h.calls[index].resolve({data:row});await tick();
+  assert.match(h.el('vehicle-table').innerHTML,new RegExp('ordering-status '+next));
+ }
 });

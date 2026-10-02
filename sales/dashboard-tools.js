@@ -22,41 +22,48 @@ function etaInfo(value,today=perthToday()){
  const [y,m,d]=key.split('-'),n=Math.abs(delta);
  return {date:d+'/'+m+'/'+y,label:delta>0?'Due in '+n+' day'+(n===1?'':'s'):delta<0?n+' day'+(n===1?'':'s')+' past ETA':'Due today',tone:delta<0?'past':'due',days:delta};
 }
-const defaults=[60,110,90,160,180,135,135,135,185,125,200,185,48,165];
+const defaults=[60,115,75,145,180,75,75,75,180,125,180,150,145];
 function width(value,fallback){return typeof value==='number'&&Number.isFinite(value)?Math.max(40,Math.min(600,Math.round(value))):fallback;}
 function readWidths(text){try{const a=JSON.parse(text);return defaults.map((v,i)=>width(Array.isArray(a)?a[i]:null,v));}catch{return defaults.slice();}}
+function resizeWidths(values,index,delta){
+ const out=values.slice(),other=index===out.length-1?index-1:index+1;
+ if(!Number.isInteger(index)||index<0||index>=out.length||!Number.isFinite(delta))return out;
+ const change=Math.max(Math.max(40-out[index],out[other]-600),Math.min(Math.min(600-out[index],out[other]-40),Math.round(delta)));
+ out[index]+=change;out[other]-=change;return out;
+}
 function initColumns(table,reset){
  if(!table?.querySelectorAll)return;
- const key='broome-sales-column-widths-v2';
+ const key='broome-sales-column-widths-v3';
  let widths=defaults.slice(),drag=null;
  try{widths=readWidths(root.localStorage?.getItem(key));}catch{}
  function save(){try{root.localStorage?.setItem(key,JSON.stringify(widths));}catch{}}
  function apply(){
   const cols=table.querySelectorAll('col');
-  cols.forEach((col,i)=>{col.style.width=widths[i]+'px';});
+  const total=widths.reduce((a,b)=>a+b,0);
+  cols.forEach((col,i)=>{col.style.width=(widths[i]/total*100)+'%';});
   table.querySelectorAll('[data-resize]').forEach(handle=>handle.setAttribute('aria-valuenow',String(widths[Number(handle.dataset.resize)])));
-  const total=widths.reduce((a,b)=>a+b,0);table.style.width=total+'px';table.style.minWidth=total+'px';
+  table.style.width='100%';table.style.minWidth='0';
  }
  function finish(){if(drag){drag=null;save();}}
  table.addEventListener('pointerdown',e=>{
   const h=e.target.closest('[data-resize]');if(!h||e.button!==0)return;
   e.preventDefault();e.stopPropagation();const i=Number(h.dataset.resize);
   if(!Number.isInteger(i)||i<0||i>=defaults.length)return;
-  drag={i,x:e.clientX,start:widths[i],pointer:e.pointerId};h.setPointerCapture?.(e.pointerId);
+  drag={i,x:e.clientX,start:widths.slice(),pointer:e.pointerId,scale:widths.reduce((a,b)=>a+b,0)/(table.getBoundingClientRect?.().width||widths.reduce((a,b)=>a+b,0))};h.setPointerCapture?.(e.pointerId);
  });
- table.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.pointer)return;widths[drag.i]=width(drag.start+e.clientX-drag.x,defaults[drag.i]);apply();});
+ table.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.pointer)return;widths=resizeWidths(drag.start,drag.i,(e.clientX-drag.x)*drag.scale);apply();});
  table.addEventListener('pointerup',finish);table.addEventListener('pointercancel',finish);table.addEventListener('lostpointercapture',finish);
  table.addEventListener('keydown',e=>{
   const h=e.target.closest('[data-resize]');if(!h)return;const i=Number(h.dataset.resize);
   if(!Number.isInteger(i)||i<0||i>=defaults.length)return;
   if(!['ArrowLeft','ArrowRight','Home'].includes(e.key))return;
-  e.preventDefault();e.stopPropagation();widths[i]=e.key==='Home'?defaults[i]:width(widths[i]+(e.key==='ArrowRight'?1:-1)*(e.shiftKey?40:10),defaults[i]);apply();save();
+  e.preventDefault();e.stopPropagation();widths=resizeWidths(widths,i,e.key==='Home'?defaults[i]-widths[i]:(e.key==='ArrowRight'?1:-1)*(e.shiftKey?40:10));apply();save();
  });
- table.addEventListener('dblclick',e=>{const h=e.target.closest('[data-resize]');if(h){const i=Number(h.dataset.resize);widths[i]=defaults[i];apply();save();}});
+ table.addEventListener('dblclick',e=>{const h=e.target.closest('[data-resize]');if(h){const i=Number(h.dataset.resize);widths=resizeWidths(widths,i,defaults[i]-widths[i]);apply();save();}});
  reset?.addEventListener('click',()=>{widths=defaults.slice();apply();save();});
  return {apply,clear:finish};
 }
-const api={dateKey,perthToday,etaInfo,readWidths,defaults,initColumns};
+const api={dateKey,perthToday,etaInfo,readWidths,defaults,resizeWidths,initColumns};
 if(typeof module==='object'&&module.exports)module.exports=api;
 root.BROOME_SALES_TOOLS=api;
 })(typeof window==='object'?window:globalThis);

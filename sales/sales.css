@@ -42,7 +42,20 @@ body.auth-pending .app-shell{display:none}body.auth-approved .pdc-auth-gate{disp
 
 .customer-email-content{padding:18px}.customer-email-card{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid #dce4ed;border-radius:10px;margin:12px 0;padding:14px}.customer-email-card h3{margin:0 0 6px}.customer-email-card p{margin:4px 0}.customer-email-state{font-size:13px;font-weight:600}.customer-template{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;background:#f6f8fa;padding:14px;border-radius:8px}.customer-email-content details{margin-top:16px}.customer-email-content summary{cursor:pointer;font-weight:600}@media(max-width:600px){.customer-email-card{align-items:flex-start;flex-direction:column}.customer-email-content{padding:12px}}
 
-.ordering-status{width:100%;border-radius:8px;padding:7px 5px;font-size:10px;font-weight:600;border:1px solid #cbd2db;cursor:pointer}.ordering-status.not_needed{background:#eef0f3;color:#465365;border-color:#cbd2db}.ordering-status.orders_raised{background:#ffe4ba;color:#8b4600;border-color:#eab367}.ordering-status.completed{background:#d9f5e3;color:#175b36;border-color:#95d5ae}.ordering-status:disabled{cursor:wait;opacity:.65}.ordering-status:focus-visible{outline:3px solid #3579b8;outline-offset:2px}.ordering-status option{background:#fff;color:#203047}.mobile-ordering label{display:grid;gap:5px;min-width:130px}.sales-ordering-cell{padding:5px!important}
+.ordering-status{display:inline-flex;align-items:center;justify-content:center;width:min(20px,100%);height:auto;aspect-ratio:1;border-radius:4px;padding:0;font-size:16px;line-height:1;font-weight:700;border:1px solid #cbd2db;cursor:pointer}.ordering-status.not_needed{background:#eef0f3;color:#465365;border-color:#cbd2db}.ordering-status.orders_raised{background:#ffe4ba;color:#8b4600;border-color:#eab367}.ordering-status.completed{background:#d9f5e3;color:#175b36;border-color:#95d5ae}.ordering-status:disabled{cursor:wait;opacity:.65}.ordering-status:focus-visible{outline:3px solid #3579b8;outline-offset:2px}.ordering-status option{background:#fff;color:#203047}.mobile-ordering label{display:grid;gap:5px;min-width:130px}.sales-ordering-cell{padding:2px!important;text-align:center}
 
-/* The vehicle list grows with the page; only wide columns scroll horizontally. */
-.tracker-panel>.table-wrap{max-height:none;overflow-x:auto;overflow-y:visible;min-height:0}
+/* Sales columns share the page width while the list grows vertically. */
+.tracker-panel>.table-wrap{max-height:none;overflow:visible;min-height:0;min-width:0}
+#vehicle-table{width:100%;min-width:0;max-width:100%;table-layout:fixed}
+#vehicle-table th,#vehicle-table td{white-space:normal;overflow-wrap:anywhere;min-width:0;padding-left:4px;padding-right:4px}
+#vehicle-table th{padding-right:9px;font-size:9px}
+#vehicle-table .subtle{white-space:normal;overflow-wrap:anywhere}
+#vehicle-table .status-pill{white-space:normal;overflow-wrap:anywhere}
+#vehicle-table .month-pill{display:inline-block;padding:3px 4px;max-width:100%}
+#vehicle-table .stock-button{max-width:100%;text-align:left;overflow-wrap:anywhere}
+#vehicle-table .sales-action{min-width:0;max-width:100%;font-size:10px}
+#vehicle-table .pmb-status-cell strong{font-size:10px}
+.table-toolbar{grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr))}
+@media(max-width:650px){.table-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}.mobile-ordering{grid-template-columns:repeat(3,minmax(0,1fr))!important}.mobile-ordering label{min-width:0;justify-items:start}.mobile-ordering .ordering-status{width:30px;height:30px}}
+
+#vehicle-table th{overflow-wrap:normal}#vehicle-table th:nth-child(6),#vehicle-table th:nth-child(7),#vehicle-table th:nth-child(8){padding:2px;white-space:nowrap}
