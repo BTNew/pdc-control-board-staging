@@ -42,6 +42,18 @@
     }
     return true;
   }
+  const orderingLabels={tint:'TINT',build_po:'BUILD',tray_ordered:'TRAY'};
+  const orderingValues={not_needed:'Not Needed',orders_raised:'Orders Raised',completed:'Completed'};
+  const orderingFields=['tint','tint_complete','build_po','build_complete','tray_ordered','tray_complete'];
+  function orderingState(row,key){
+    const complete={tint:'tint_complete',build_po:'build_complete',tray_ordered:'tray_complete'}[key];
+    return row[complete]===true?'completed':row[key]===true?'orders_raised':'not_needed';
+  }
+  function orderingControl(row,key,pending){
+    const value=pending?.key===key?pending.status:orderingState(row,key);
+    const label=orderingLabels[key]+' for '+(row.stock||'Toyota order '+(row.order||'not recorded'));
+    return '<select class="ordering-status '+value+'" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" aria-label="'+escapeHtml(label)+'" '+(pending||row.identity_conflict?'disabled ':'')+'title="Sales ordering status">'+Object.entries(orderingValues).map(([status,name])=>'<option value="'+status+'" '+(value===status?'selected':'')+'>'+name+'</option>').join('')+'</select>';
+  }
   function selectRows(rows, filters) {
     const search = String(filters.search || '').toLowerCase();
     return scopeRows(rows,filters.salesperson).filter(row =>
@@ -53,7 +65,8 @@
       (!search || [row.stock,row.order,row.client,row.vehicle,row.vin,row.navision_notes,row.pmb_location]
         .some(value => String(value || '').toLowerCase().includes(search)))
     ).slice().sort((a,b) => {
-      const aa = a[filters.sort], bb = b[filters.sort];
+      const rank=row=>['not_needed','orders_raised','completed'].indexOf(orderingState(row,filters.sort));
+      const aa = orderingLabels[filters.sort]?rank(a):a[filters.sort], bb = orderingLabels[filters.sort]?rank(b):b[filters.sort];
       if (aa == null || aa === '') return bb == null || bb === '' ? 0 : 1;
       if (bb == null || bb === '') return -1;
       return String(aa).localeCompare(String(bb),undefined,{numeric:true,sensitivity:'base'}) * filters.direction;
@@ -82,7 +95,7 @@
     if(parts.required===true)return 'Parts required · order not confirmed';
     return 'Not recorded';
   }
-  const api = { category, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, partsStatus, bookingStatus };
+  const api = { category, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, partsStatus, bookingStatus, orderingState, orderingControl };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
@@ -91,12 +104,11 @@
     filters:defaultFilters(),workspace:null,workspaceRequest:0,workspaceBusy:false,savedView:'',searchTimer:null,html:new Map() };
   const columns = [
     ['salesperson_code','SP'],['stock','SN'],['production_month','P/Month'],['client','Client'],
-    ['vehicle','Vehicle'],['tint','Tint'],['build_po','Build PO'],['build_complete','Build Complete'],
-    ['tray_ordered','Tray Ordered'],['tray_complete','Tray Complete'],['toyota_status','Toyota Status'],
+    ['vehicle','Vehicle'],['tint','TINT'],['build_po','BUILD'],['tray_ordered','TRAY'],['toyota_status','Toyota Status'],
     ['kewdale_eta','Kewdale ETA'],['pmb_location','PMB Status'],['navision_notes','Navision Notes'],['jita','JITA']
   ];
   const flagKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete','jita']);
-  const orderingKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete']);
+  const orderingKeys = new Set(['tint','build_po','tray_ordered']);
   function html(id,content){if(state.html.get(id)!==content){$(id).innerHTML=content;state.html.set(id,content);}}
   const viewNames=['myday','dashboard','pipeline','alerts','finance','labels','history','customeremails'];
   const viewTitles={myday:'My Day',dashboard:'Dashboard',pipeline:'Pipeline',alerts:'Alerts',finance:'Finance',labels:'Labels',history:'History',customeremails:'Customer emails'};
@@ -262,16 +274,12 @@
     html('vehicle-table','<colgroup>'+[...columns,['action','Action']].map(()=>'<col>').join('')+'</colgroup><thead><tr>'+columns.map(([key,label],index)=>'<th aria-sort="'+
       (state.filters.sort===key?(state.filters.direction===1?'ascending':'descending'):'none')+
       '">'+(key==='salesperson_code'?'<input type="checkbox" id="sales-select-visible" aria-label="Select visible vehicles for labels" '+(rows.length&&rows.every(r=>state.selected.has(r.tracking_id))?'checked':'')+'>':'')+'<button type="button" data-sort="'+key+'">'+label+(state.filters.sort===key?(state.filters.direction===1?' ↑':' ↓'):'')+
-      '</button>'+resizeHandle(index,label)+'</th>').join('')+'<th>Action'+resizeHandle(15,'Action')+'</th></tr></thead><tbody>'+
+      '</button>'+resizeHandle(index,label)+'</th>').join('')+'<th>Action'+resizeHandle(columns.length,'Action')+'</th></tr></thead><tbody>'+
       (rows.length?rows.map(row=>'<tr class="'+(state.selected.has(row.tracking_id)?'selected':'')+'">'+columns.map(([key])=>{
         const val=row[key];
         if (key==='salesperson_code')return '<td><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order||'vehicle')+' for labels" '+(state.selected.has(row.tracking_id)?'checked':'')+'>'+escapeHtml(val||'—')+'</td>';
         if (key==='production_month')return '<td><span class="month-pill">'+escapeHtml(val||'—')+'</span></td>';
-        if (orderingKeys.has(key)) {
-          const pending=state.saving.get(row.tracking_id),checked=pending?.key===key?pending.checked:val===true;
-          const label=columns.find(([name])=>name===key)[1]+' for '+(row.stock||'Toyota order '+(row.order||'not recorded'));
-          return '<td class="sales-flag"><input class="ordering-checkbox" type="checkbox" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" aria-label="'+escapeHtml(label)+'" '+(checked?'checked ':'')+(pending||row.identity_conflict?'disabled ':'')+'title="Sales ordering checklist"></td>';
-        }
+        if (orderingKeys.has(key)) return '<td class="sales-ordering-cell">'+orderingControl(row,key,state.saving.get(row.tracking_id))+'</td>';
         if (flagKeys.has(key)) { const f=flag(val); return '<td class="sales-flag '+(key==='jita'?'jita':'')+'"><span class="flag-indicator '+f+'" role="img" aria-label="'+
           (f==='yes'?'Recorded yes':f==='no'?'Recorded no':'Not recorded')+'">'+(f==='yes'?'✓':f==='no'?'×':'—')+'</span></td>'; }
         if (key==='stock') return '<td><button type="button" class="stock-button" data-open="'+escapeHtml(row.tracking_id)+'">'+
@@ -281,9 +289,9 @@
         if (key==='pmb_location') {const summary=pmbSummary(row);return '<td class="pmb-status-cell"><strong>'+escapeHtml(summary.status)+'</strong><div class="subtle">'+escapeHtml(summary.location)+'</div>'+
           (summary.bookings[0]?.scheduled_start_at?'<div class="subtle">Booked '+escapeHtml(dateLabel(summary.bookings[0].scheduled_start_at))+'</div>':'')+'</td>';}
         return '<td class="'+(key==='navision_notes'?'notes-cell':'')+'" title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</td>';
-      }).join('')+'<td>'+actionHtml(row)+'</td></tr>').join(''):'<tr><td colspan="16"><div class="empty-state">No vehicles match this view.</div></td></tr>')+'</tbody>');
+      }).join('')+'<td>'+actionHtml(row)+'</td></tr>').join(''):'<tr><td colspan="14"><div class="empty-state">No vehicles match this view.</div></td></tr>')+'</tbody>');
     columnWidths?.apply();
-    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+' for labels" '+(state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(row.stock||'Order '+row.order)+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div><strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(row.toyota_status||'Status not recorded')+'</span><p class="mobile-pmb">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>{const pending=state.saving.get(row.tracking_id);return '<label><input type="checkbox" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" '+((pending?.key===key?pending.checked:row[key]===true)?'checked ':'')+(pending||row.identity_conflict?'disabled ':'')+'>'+columns.find(([name])=>name===key)[1]+'</label>';}).join('')+'</div><button class="small-button" type="button" data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
+    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+' for labels" '+(state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(row.stock||'Order '+row.order)+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div><strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(row.toyota_status||'Status not recorded')+'</span><p class="mobile-pmb">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id))+'</label>').join('')+'</div><button class="small-button" type="button" data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
     if(focusKey)root.document.querySelector?.((focusKey.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-ordering-id="'+focusKey.id+'"][data-ordering-flag="'+focusKey.flag+'"]')?.focus?.({preventScroll:true});
     renderSecondaryViews();
   }
@@ -357,28 +365,28 @@
         (Array.isArray(parts.jobs)&&parts.jobs.length?'<div class="parts-jobs">'+parts.jobs.map(j=>'<p><strong>Job '+escapeHtml(j.job_number||'Not recorded')+'</strong> · '+escapeHtml(j.status||'Status not recorded')+'</p>').join('')+'</div>':''):'')+
       '<h3>Bay bookings and work progress</h3>'+bookingHtml(row.bay_bookings);
   }
-  async function saveOrderingFlag(id,key,checked) {
+  async function saveOrderingFlag(id,key,status) {
     const row=scopeRows(state.items,state.filters.salesperson).find(r=>r.tracking_id===id);
-    if(!row||row.identity_conflict||!orderingKeys.has(key)||state.saving.has(id)||!['salesperson','administrator'].includes(state.context?.role))return;
+    if(!row||row.identity_conflict||!orderingKeys.has(key)||!Object.hasOwn(orderingValues,status)||state.saving.has(id)||!['salesperson','administrator'].includes(state.context?.role))return;
     const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId;
     const label=columns.find(([name])=>name===key)[1];
-    state.saving.set(id,{key,checked});message('');$('sales-checklist-status').textContent='Saving '+label+'…';render();
+    state.saving.set(id,{key,status});message('');$('sales-checklist-status').textContent='Saving '+label+'…';render();
     try{
-      const {data,error}=await root.PDC_SUPABASE.rpc('set_broome_sales_ordering_flag',{
-        p_tracking_id:id,p_flag:key,p_checked:checked,p_expected_version:row.ordering_version||0
+      const {data,error}=await root.PDC_SUPABASE.rpc('set_broome_sales_ordering_status',{
+        p_tracking_id:id,p_item:{tint:'tint',build_po:'build',tray_ordered:'tray'}[key],p_status:status,p_expected_version:row.ordering_version||0
       });
       if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId)return;
-      if(error||!data||data.tracking_id!==id)throw error||new Error('The ordering tick could not be saved.');
+      if(error||!data||data.tracking_id!==id||data.ordering_version!==(row.ordering_version||0)+1||!orderingFields.every(name=>typeof data[name]==='boolean'))throw error||new Error('The ordering status could not be confirmed. Refresh and check it before trying again.');
       const current=state.items.find(r=>r.tracking_id===id);
       if(current&&(data.ordering_version||0)>=(current.ordering_version||0)){
-        for(const name of orderingKeys)current[name]=data[name]===true;
+        for(const name of orderingFields)current[name]=data[name]===true;
         current.ordering_version=data.ordering_version;current.ordering_updated_at=data.ordering_updated_at;
       }
       $('sales-checklist-status').textContent=label+' saved for '+(row.stock||'Toyota order '+row.order)+'.';
     }catch(e){
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId){
-        state.saving.delete(id);render();$('sales-checklist-status').textContent='Tick was not saved. Refresh and try again.';
-        message(e.message||'The ordering tick could not be saved.');
+        state.saving.delete(id);render();$('sales-checklist-status').textContent='Status could not be confirmed. Refresh and check it before trying again.';
+        message(e.message||'The ordering status could not be confirmed. Refresh and check it before trying again.');
       }
     }finally{
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId){state.saving.delete(id);render();}
@@ -432,7 +440,7 @@
       state.items=scopeRows(data.items).map(r=>{
         const old=previous.get(r.tracking_id);
         if(old&&(old.ordering_version||0)>(r.ordering_version||0)){
-          for(const name of orderingKeys)r[name]=old[name];
+          for(const name of orderingFields)r[name]=old[name];
           r.ordering_version=old.ordering_version;r.ordering_updated_at=old.ordering_updated_at;
         }
         return r;
@@ -539,7 +547,7 @@
   $('vehicle-table').addEventListener('change',event=>{
     if(emailAction(event.target))return;
     const orderingId=event.target.dataset.orderingId;
-    if(orderingId){saveOrderingFlag(orderingId,event.target.dataset.orderingFlag,event.target.checked);return;}
+    if(orderingId){saveOrderingFlag(orderingId,event.target.dataset.orderingFlag,event.target.value);return;}
     const id=event.target.dataset.select;
     if(id&&scopeRows(state.items,state.filters.salesperson).some(r=>r.tracking_id===id)){if(event.target.checked)state.selected.add(id);else state.selected.delete(id);}
     if(event.target.id==='sales-select-visible')for(const r of selectRows(state.items,state.filters)){if(event.target.checked)state.selected.add(r.tracking_id);else state.selected.delete(r.tracking_id);}
@@ -553,7 +561,7 @@
   $('sales-detail').addEventListener('close',()=>{state.detailId=null;$('sales-detail-content').innerHTML='';});
   $('sales-mobile-vehicles').addEventListener('click',event=>{const open=event.target.closest('[data-open]');if(open)openDetail(open.dataset.open);});
   $('sales-mobile-vehicles').addEventListener('change',event=>{
-    const t=event.target;if(emailAction(t))return;if(t.dataset.orderingId){saveOrderingFlag(t.dataset.orderingId,t.dataset.orderingFlag,t.checked);return;}
+    const t=event.target;if(emailAction(t))return;if(t.dataset.orderingId){saveOrderingFlag(t.dataset.orderingId,t.dataset.orderingFlag,t.value);return;}
     if(t.dataset.select&&scopeRows(state.items,state.filters.salesperson).some(r=>r.tracking_id===t.dataset.select)){if(t.checked)state.selected.add(t.dataset.select);else state.selected.delete(t.dataset.select);render();}
   });
   $('sales-saved-view').addEventListener('change',event=>{
