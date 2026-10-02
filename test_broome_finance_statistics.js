@@ -81,3 +81,41 @@ test('switching salesperson or signing out clears settlement dialog and pending 
  const h=harness();await loaded(h);view(h,'statistics');action(h,'financeDate','current');h.setScope('CW');h.window.BROOME_SALES_FINANCE.syncScope();assert.equal(h.el('finance-settlement-date-dialog').closed,true);assert.equal(h.el('finance-settlement-date-content').innerHTML,'');
  h.window.BROOME_SALES_FINANCE.clear();assert.equal(h.el('sales-finance').innerHTML,'');
 });
+
+const productApplications=[
+ {...applications[1],id:'bn',customer:'Broome New Example',group_name:'Broome',new_used:'New',rsa:15.10,mvi:30.20,access:'Yes'},
+ {...applications[1],id:'pu',customer:'Pilbara Used Example',group_name:'Port Hedland',new_used:'Used',rsa:0,mvi:40.30,access:'No'},
+ {...applications[1],id:'pn',customer:'Pilbara New Example',group_name:'Pilbara',new_used:'New',rsa:25.20,mvi:null,access:'Yes'},
+ {...applications[2],id:'old',customer:'Previous Month Example',group_name:'Broome',new_used:'New',rsa:9,mvi:8,access:'Yes'},
+ {...applications[0],id:'pipe',customer:'Pipeline Example',group_name:'Port Hedland',new_used:'Used',rsa:100,mvi:100,access:'Yes'},
+ {...applications[3],id:'unknown',customer:'Undated Example',group_name:'Broome',new_used:'Used',rsa:null,mvi:0,access:''}
+];
+test('monthly product totals count settled contracts and positive product amounts with precise cents',()=>{
+ const report=finance.financeStatistics(productApplications,month);
+ assert.equal(report.contractCount,3);assert.equal(report.accessCount,2);assert.equal(report.rsaCount,2);assert.equal(report.rsaTotal,40.30);assert.equal(report.mviCount,2);assert.equal(report.mviTotal,70.50);
+ assert.equal(report.pipelineCount,1);assert.equal(report.undated,1);
+ const past=report.months.find(r=>r.month===previous);assert.equal(past.count,1);assert.equal(past.rsaCount,1);assert.equal(past.accessCount,1);assert.equal(past.mviCount,1);
+ assert.equal(finance.financeStatistics(productApplications,'all').contractCount,5);assert.equal(finance.financeStatistics(productApplications,'undated').mviCount,0);
+});
+test('location and New/Used filters apply to settlements, previous months and the pipeline together',()=>{
+ assert.equal(finance.financeGroup(' PORT   HEDLAND '),'pilbara');assert.equal(finance.financeGroup('Pilbara'),'pilbara');assert.equal(finance.financeGroup('Broome'),'broome');assert.equal(finance.financeGroup('unknown'),'');
+ const report=finance.financeStatistics(productApplications,month,{group:'pilbara',newUsed:'used'});
+ assert.deepEqual(report.settled.map(r=>r.id),['pu']);assert.equal(report.contractCount,1);assert.equal(report.rsaCount,0);assert.equal(report.mviCount,1);assert.equal(report.accessCount,0);assert.equal(report.pipelineCount,1);assert.equal(report.undated,0);assert.deepEqual(report.months.map(r=>r.month),[month]);
+ assert.equal(finance.financeStatistics(productApplications,month,{group:'broome',newUsed:'new'}).contractCount,1);
+ assert.equal(finance.financeStatistics(productApplications,month,{group:'pilbara',newUsed:'new'}).contractCount,1);
+ assert.equal(finance.financeStatistics([...productApplications,{...productApplications[0],group_name:'Unknown'}],month,{group:'broome'}).contractCount,1);
+});
+test('statistics dropdowns filter displayed customers without saving and reset on sign-out',async()=>{
+ const h=harness();await loaded(h,true,productApplications);view(h,'statistics');
+ function filter(key,value){h.el('sales-finance').events.change({target:{value,hasAttribute:k=>k===key}});}
+ filter('data-finance-group','pilbara');filter('data-finance-new-used','used');
+ let html=h.el('sales-finance').innerHTML;assert.match(html,/Pilbara Used Example/);assert.doesNotMatch(html,/Broome New Example|Pilbara New Example|Previous Month Example/);assert.match(html,/<option value="pilbara" selected>/);assert.match(html,/<option value="used" selected>/);assert.match(html,/RSI products \(RSA\)/);assert.match(html,/\$40\.30 total/);assert.equal(h.calls.length,1);
+ period(h,'undated');html=h.el('sales-finance').innerHTML;assert.match(html,/<option value="undated" selected>/);assert.match(html,/No settlements in this period/);
+ // Statistics filters must not restrict the editable pipeline when changing views.
+ view(h,'pipeline');assert.match(h.el('sales-finance').innerHTML,/Pipeline Example/);
+ h.window.BROOME_SALES_FINANCE.clear();const p=h.window.BROOME_SALES_FINANCE.refresh();h.calls[1].resolve({data:{context:{role:'administrator',can_edit_finance:true},entries:productApplications,vehicle_options:[],salespeople:[]}});await p;view(h,'statistics');html=h.el('sales-finance').innerHTML;assert.match(html,/<option value="all" selected>/);assert.match(html,/Broome New Example/);
+});
+test('filtered product statistics retain salesperson boundaries and private amount protections',async()=>{
+ const h=harness();h.setScope('BG');await loaded(h,false,[...productApplications,{...productApplications[0],id:'other',customer:'Other Salesperson Example',salesperson_code:'CW'}]);view(h,'statistics');
+ const html=h.el('sales-finance').innerHTML;assert.doesNotMatch(html,/Other Salesperson Example|RSI products \(RSA\)|MVI products|\$40\.30|\$70\.50/);assert.match(html,/Access products/);assert.match(html,/Finance location/);
+});
