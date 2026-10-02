@@ -22,7 +22,7 @@ for (const dealer of ['002345','001234','14450','37047']) {
      {...metadata,confirmed:true,idempotencyKey:'test'});
    assert.equal(result.ok,true);assert.equal(calls.length,6);
    for(const c of calls)assert.equal(c.params.p_dealer_code,dealer);
-   assert(html.includes('value="'+dealer+'"'));
+   assert.match(html,/data-navision-profile="broome"/);assert.match(html,/data-navision-profile="pilbara"/);
  });
  test(dealer+' accepts declared dealer strings and numeric spreadsheet cells',()=>{
    for(const value of [dealer,Number(dealer),' '+dealer+' ']){

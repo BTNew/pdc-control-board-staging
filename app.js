@@ -3680,6 +3680,15 @@ function bindNav() {
   on($('#navision-upload'), 'change', handleNavisionFileSelect);
   on($('#navision-paste'), 'input', updateNavisionImportButton);
   on($('#navision-dealer-code'), 'change', updateNavisionImportButton);
+  document.querySelectorAll('[data-navision-profile]').forEach(button=>on(button,'click',()=>{
+    if(app.navisionPreviewInFlight||app.navisionSharedApplyInFlight)return;
+    const profile=button.dataset.navisionProfile;
+    if(!['broome','pilbara'].includes(profile))return;
+    clearNavisionImport();$('#navision-dealer-code').value=profile;
+    document.querySelectorAll('[data-navision-profile]').forEach(tab=>{tab.setAttribute('aria-selected',String(tab===button));tab.classList.toggle('active',tab===button);});
+    $('#navision-profile-help').textContent=profile==='broome'?'Broome Toyota 037047, plus Toyota head office 001234 and 002345.':'Pilbara Toyota 014450, plus Toyota head office 001234 and 002345.';
+    updateNavisionImportButton();
+  }));
 
   on($('#dashboard-navision-paste'), 'input', updateDashboardNavisionPasteButtons);
   on($('#dashboard-import-navision'), 'click', importDashboardNavisionPaste);
@@ -20471,7 +20480,7 @@ function updateNavisionImportButton() {
   const previewing = app.navisionPreviewInFlight === true;
   const busy = applying || previewing;
   if (button) {
-    button.disabled = busy || !raw || (sharedMode && (!roleAllowed || !['combined', '14450', '37047', '002345', '001234'].includes(dealerCode)));
+    button.disabled = busy || !raw || (sharedMode && (!roleAllowed || !['broome', 'pilbara', 'combined', '14450', '37047', '002345', '001234'].includes(dealerCode)));
     button.title = sharedMode && !roleAllowed ? 'Importer or administrator access is required.' : '';
     button.classList.toggle('is-loading', previewing);
     button.setAttribute('aria-busy', previewing ? 'true' : 'false');
@@ -20489,6 +20498,7 @@ function updateNavisionImportButton() {
       : 'Confirm and Apply';
   }
   if (clear) clear.disabled = busy || (!raw && !app.navisionImport && !app.pendingSharedNavisionImport);
+  document.querySelectorAll('[data-navision-profile]').forEach(tab=>{tab.disabled=busy;});
   ['navision-upload', 'navision-paste', 'navision-dealer-code'].forEach(id => {
     const control = $('#' + id);
     if (control) control.disabled = busy;
@@ -20577,10 +20587,11 @@ async function handleNavisionFileSelect(event) {
       if (summary) summary.innerHTML = '<div class="empty-state compact-empty"><strong>'+escapeHtml(file.name)+'</strong><span>'+escapeHtml(sourceLabel)+'. '+rows.length+' Broome source rows detected, including orders without Batch / Stock. Click Preview Data to check the sold orders.</span></div>';
       return;
     }
-    const preview = parseNavisionInput(text, navisionImportOptionsFromDom());
+    const selectedProfile=($('#navision-dealer-code')?.value||'').trim();
+    const preview = parseNavisionInput(text, {...navisionImportOptionsFromDom(),uploadProfile:['broome','pilbara'].includes(selectedProfile)?selectedProfile:null});
     if (summary) {
       const warning = preview.vehicles.length ? '' : ` ${preview.warnings?.[0] || 'No usable vehicle rows were found.'}`;
-      summary.innerHTML = `<div class="empty-state compact-empty"><strong>${escapeHtml(file.name)}</strong><span>${escapeHtml(sourceLabel)}. ${preview.vehicles.length} vehicle row${preview.vehicles.length === 1 ? '' : 's'} detected.${escapeHtml(warning)}${preview.vehicles.length ? ' Click Import vehicle updates to continue.' : ''}</span></div>`;
+      summary.innerHTML = `<div class="empty-state compact-empty"><strong>${escapeHtml(file.name)}</strong><span>${escapeHtml(sourceLabel)}. ${preview.vehicles.length} vehicle row${preview.vehicles.length === 1 ? '' : 's'} detected.${escapeHtml(warning)}${preview.vehicles.length ? ' Click Preview Data to continue.' : ''}</span></div>`;
     }
   } catch (error) {
     console.error('File import failed', error);
@@ -20866,7 +20877,7 @@ function clearNavisionImport() {
   updateNavisionImportButton();
   const summary = $('#navision-status-list');
   if (summary) {
-    summary.innerHTML = '<div class="empty-state compact-empty"><strong>No Navision text imported</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, then click Import vehicle updates.</span></div>';
+    summary.innerHTML = '<div class="empty-state compact-empty"><strong>No Navision text imported</strong><span>Paste copied Navision rows, or upload a text/CSV/XLSX file, then click Preview Data.</span></div>';
   }
   updateNavisionControlStats(null);
 }
@@ -21508,6 +21519,16 @@ function parseNavisionInput(text, options = {}) {
       columns: rawHeaders.map((header, columnIndex) => ({ header, value: String(row[columnIndex] ?? '') })),
     };
     vehicle.navisionRawEvidence = rawEvidence;
+    if (['broome','pilbara'].includes(options.uploadProfile)) {
+      const order=getNavisionValue(row,headerMap,'Order');
+      const cosi=getNavisionValue(row,headerMap,'COSI');
+      const dealer=getNavisionValue(row,headerMap,'Dealer');
+      vehicle.order=order;vehicle.cosi=cosi;vehicle.dealer_code=dealer;
+      vehicle.id=vehicle.stock|| (order ? 'TOYOTA-ORDER-'+order : '');
+      vehicle.batch=vehicle.stock;
+      vehicles.push(vehicle);
+      return;
+    }
     if (!vehicle.stock) {
       warnings.push(`Row ${excelRow}: skipped because Batch / Stock is blank.`);
       rejectedRows.push(rawEvidence);
@@ -21890,6 +21911,8 @@ function navisionSafetyIssueMessage(reason = '') {
 }
 
 function navisionDealerName(dealerCode = '') {
+  if(dealerCode==='broome')return 'Broome Upload · 037047 + 001234 + 002345';
+  if(dealerCode==='pilbara')return 'Pilbara Upload · 014450 + 001234 + 002345';
   if (dealerCode === 'combined') return '014450, 001234 and 002345';
   return String(dealerCode) === '14450' ? 'Pilbara Toyota' : String(dealerCode) === '37047' ? 'Broome Toyota' : `dealer ${dealerCode || 'not selected'}`;
 }
@@ -21930,8 +21953,8 @@ function navisionClientPreflight(rows = [], dealerCode = '') {
     return code === '2345' ? '002345' : code === '1234' ? '001234' : code;
   };
   const normalizedDealer = canonicalDealer(dealerCode);
-  const combined = dealerCode === 'combined';
-  const combinedDealers = ['14450', '001234', '002345'];
+  const combined = ['combined','broome','pilbara'].includes(dealerCode);
+  const combinedDealers = [dealerCode==='broome'?'37047':'14450', '001234', '002345'];
   const sourceIds = new Map();
   const stocks = new Map();
   const vins = new Map();
@@ -22066,7 +22089,7 @@ async function loadSharedNavisionCurrentRows(service, dealerCode, expectedRevisi
 async function enrichSharedNavisionPreviewChanges(state = {}, service = null) {
   const data = state.previewData || {};
   if (!service || !Number.isInteger(data.base_revision)) return false;
-  const scopes = state.dealerCode === 'combined' ? (data.dealer_groups || []).map(group => group.dealer_code) : [state.dealerCode];
+  const scopes = ['combined','broome','pilbara'].includes(state.dealerCode) ? (data.dealer_groups || []).map(group => group.dealer_code) : [state.dealerCode];
   const snapshots = await Promise.all(scopes.map(dealer => loadSharedNavisionCurrentRows(service, dealer, data.base_revision)));
   const existingRows = snapshots.every(rows => Array.isArray(rows)) ? snapshots.flat() : null;
   if (!existingRows) return false;
@@ -22101,7 +22124,7 @@ function renderSharedNavisionChangeDetails(state = {}, data = {}) {
 function renderNavisionCombinedSummary(data = {}) {
   if (!Array.isArray(data.dealer_groups)) return '';
   const excluded = Array.isArray(data.excluded_rows) ? data.excluded_rows : [];
-  return `<section class="navision-human-detail"><h4>Combined dealer upload</h4><ul>${data.dealer_groups.map(group => `<li>Dealer ${escapeHtml(String(group.dealer_code).padStart(6, '0'))}: ${Number(group.counts?.total || 0)} vehicles</li>`).join('')}</ul>${excluded.length ? `<p>${excluded.length} row${excluded.length === 1 ? '' : 's'} excluded from this upload:</p><ul>${excluded.map(row => `<li>${escapeHtml(navisionPreviewItemLabel(row))} · dealer ${escapeHtml(row.dealer_code)} (outside the selected dealers)</li>`).join('')}</ul>` : ''}</section>`;
+  return `<section class="navision-human-detail"><h4>Combined dealer upload</h4><ul>${data.dealer_groups.map(group => `<li>Dealer ${escapeHtml(String(group.dealer_code).padStart(6, '0'))}: ${Number(group.counts?.total || 0)} vehicles</li>`).join('')}</ul>${excluded.length ? `<p>${excluded.length} row${excluded.length === 1 ? '' : 's'} excluded from this upload:</p><ul>${excluded.map(row => `<li>${escapeHtml(navisionPreviewItemLabel(row))} · dealer ${escapeHtml(row.dealer_code)} (${row.reason === 'unsold_without_stock' ? 'not COSI sold and no stock number' : 'outside the selected dealers'})</li>`).join('')}</ul>` : ''}</section>`;
 }
 
 function renderSharedNavisionPreview(state = {}, applied = false) {
@@ -22199,12 +22222,12 @@ async function importNavisionVehicles() {
     return;
   }
   const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
-  if (!['combined', '14450', '37047', '002345', '001234'].includes(dealerCode)) {
-    window.alert('Select the combined upload or an individual dealer before previewing.');
+  if (!['broome','pilbara','combined', '14450', '37047', '002345', '001234'].includes(dealerCode)) {
+    window.alert('Choose Broome Upload or Pilbara Upload before previewing.');
     return;
   }
   if (dealerCode === '37047') return await previewBroomeNavisionOrders(text);
-  const options = navisionImportOptionsFromDom();
+  const options = {...navisionImportOptionsFromDom(),uploadProfile:['broome','pilbara'].includes(dealerCode)?dealerCode:null};
   const parsed = parseNavisionInput(text, options);
   if (parsed.rejectedRows?.length) {
     app.pendingSharedNavisionImport = null;

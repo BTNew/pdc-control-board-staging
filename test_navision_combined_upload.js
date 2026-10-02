@@ -39,5 +39,5 @@ test('combined issue merge preserves original source indexes around excluded and
 test('combined preview lists included counts and excluded stock/dealer for review',()=>{
  const html=f.context.renderNavisionCombinedSummary({dealer_groups:[{dealer_code:'14450',counts:{total:1}},{dealer_code:'001234',counts:{total:1}}],excluded_rows:[{stock_number:'91000004',dealer_code:'090000',row_index:4}]});
  assert.match(html,/014450/);assert.match(html,/001234/);assert.match(html,/91000004/);assert.match(html,/090000/);
- assert.match(fs.readFileSync('index.html','utf8'),/value="combined" selected/);
+ assert.match(fs.readFileSync('index.html','utf8'),/value="pilbara" selected/);
 });
