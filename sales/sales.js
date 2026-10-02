@@ -1,6 +1,8 @@
 (function (root) {
   'use strict';
   const dateTools = root.BROOME_SALES_TOOLS || (typeof module === 'object' && module.exports ? require('./dashboard-tools.js') : null);
+  // Sales planner roster only; shared PMB people, imports and access remain unchanged.
+  const salespeople = Object.freeze(['BG','AW','PM','CW']);
   const categories = [
     ['all','All vehicles'],['unconfirmed','Awaiting stock'],['production','Production'],
     ['transit','In Transit'],['yardhold','YH / Yard Hold'],['hold','Hold/Waiting'],
@@ -26,7 +28,7 @@
     return 'unknown';
   }
   function scopeRows(rows, salesperson='', visibility='visible') {
-    return rows.filter(row=>flag(row.cosi)==='yes'&&row.source_current!==false&&
+    return rows.filter(row=>salespeople.includes(row.salesperson_code)&&flag(row.cosi)==='yes'&&row.source_current!==false&&
       (visibility==='hidden'?row.sales_hidden===true:row.sales_hidden!==true)&&(!salesperson||row.salesperson_code===salesperson));
   }
   function todayKey(){return new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Perth'});}
@@ -98,7 +100,7 @@
     if(parts.required===true)return 'Parts required · order not confirmed';
     return 'Not recorded';
   }
-  const api = { category, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, partsStatus, bookingStatus, orderingState, orderingControl };
+  const api = { salespeople, category, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, partsStatus, bookingStatus, orderingState, orderingControl };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
@@ -130,7 +132,7 @@
   function populateSalespeople(){
     if(state.context?.role!=='administrator')return;
     const selected=state.filters.salesperson;
-    const people=[...new Set([...state.items.map(r=>r.salesperson_code),...state.hiddenItems.map(r=>r.salesperson_code),...(state.workspace?.salespeople||[]).map(p=>p.code)].filter(Boolean))].sort();
+    const people=salespeople;
     html('salesperson-filter','<option value="">All salespeople</option>'+people.map(code=>'<option value="'+escapeHtml(code)+'">'+escapeHtml(code)+'</option>').join(''));
     state.filters.salesperson=people.includes(selected)?selected:'';
     $('salesperson-filter').value=state.filters.salesperson;

@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const sales=require('./sales/sales.js');
-const fixture=(stock,eta,extra={})=>({tracking_id:stock,stock,cosi:'Yes',kewdale_eta:eta,...extra});
+const fixture=(stock,eta,extra={})=>({tracking_id:stock,stock,cosi:'Yes',salesperson_code:'BG',kewdale_eta:eta,...extra});
 const filters={category:'all',sort:'kewdale_eta',direction:1};
 test('Kewdale ETA sorts the reported day/month dates chronologically in both directions',()=>{
  const rows=[fixture('september','01/09/2026'),fixture('august','03/08/2026'),fixture('april','01/04/2025'),fixture('september3','03/09/2026')];
