@@ -1,5 +1,6 @@
 (function (root) {
   'use strict';
+  const dateTools = root.BROOME_SALES_TOOLS || (typeof module === 'object' && module.exports ? require('./dashboard-tools.js') : null);
   const categories = [
     ['all','All vehicles'],['unconfirmed','Awaiting stock'],['production','Production'],
     ['transit','In Transit'],['yardhold','YH / Yard Hold'],['hold','Hold/Waiting'],
@@ -67,7 +68,8 @@
         .some(value => String(value || '').toLowerCase().includes(search)))
     ).slice().sort((a,b) => {
       const rank=row=>['not_needed','orders_raised','completed'].indexOf(orderingState(row,filters.sort));
-      const aa = orderingLabels[filters.sort]?rank(a):a[filters.sort], bb = orderingLabels[filters.sort]?rank(b):b[filters.sort];
+      const sortValue=row=>filters.sort==='kewdale_eta'?dateTools?.dateKey(row.kewdale_eta):orderingLabels[filters.sort]?rank(row):row[filters.sort];
+      const aa = sortValue(a), bb = sortValue(b);
       if (aa == null || aa === '') return bb == null || bb === '' ? 0 : 1;
       if (bb == null || bb === '') return -1;
       return String(aa).localeCompare(String(bb),undefined,{numeric:true,sensitivity:'base'}) * filters.direction;
