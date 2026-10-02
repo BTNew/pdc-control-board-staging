@@ -133,6 +133,19 @@ function createNavisionBackendService(options = {}) {
     });
   }
 
+
+  async function reviewCompleteSnapshot(rows, previewResult, metadata = {}) {
+    const profile = String(metadata.dealerCode || '').trim();
+    const data = previewResult?.data?.data || previewResult?.data;
+    if (!Array.isArray(rows) || !['broome','pilbara'].includes(profile)) return {ok:false,error:'invalid_upload_profile'};
+    if (!data?.source_hash || !data?.preview_hash || !Number.isInteger(data.base_revision)) return {ok:false,error:'valid_preview_required'};
+    return call('review_navision_complete_snapshot', {
+      p_profile:profile,p_rows:rows,p_source_name:String(metadata.sourceName || 'navision.json').slice(0,255),
+      p_source_timestamp:metadata.sourceTimestamp || null,p_source_hash:data.source_hash,
+      p_preview_hash:data.preview_hash,p_expected_revision:data.base_revision,
+    });
+  }
+
   async function apply(rows, previewResult, options = {}) {
     if (options.confirmed !== true) return { ok: false, error: 'explicit_confirmation_required' };
     const sourceSystem = String(options.sourceSystem || NAVISION_SOURCE_SYSTEM).trim().toLowerCase();
@@ -259,6 +272,7 @@ function createNavisionBackendService(options = {}) {
     browserLocalAuthorityCutover: false,
     preview,
     approveInitialScope,
+    reviewCompleteSnapshot,
     apply,
     snapshot,
     visibleSnapshot,

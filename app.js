@@ -20424,7 +20424,8 @@ function updateNavisionControlStats(result = null) {
     const values = [['.navision-file strong', fileName], ['.navision-detected strong', count + ' rows'], ['.navision-updated strong', summary ? summary.applied ? summary.changed + ' sales orders updated' : summary.without_stock + ' sold orders without stock accepted' : raw ? 'Broome sales order upload' : '0 changed']];
     values.forEach(([selector,value])=>{const el=card.querySelector(selector);if(el)el.textContent=value;});return;
   }
-  const preview = raw && !result ? parseNavisionInput(raw, navisionImportOptionsFromDom()) : null;
+  const selectedProfile = ($('#navision-dealer-code')?.value || '').trim();
+  const preview = raw && !result ? parseNavisionInput(raw, {...navisionImportOptionsFromDom(),uploadProfile:['broome','pilbara'].includes(selectedProfile)?selectedProfile:null}) : null;
   const rowCount = result?.parsed?.vehicles?.length ?? preview?.vehicles?.length ?? 0;
   const changed = result ? ((result.added?.length || 0) + (result.updated?.length || 0)) : 0;
   const fileEl = card.querySelector('.navision-file strong');
@@ -22208,6 +22209,46 @@ async function applyBroomeNavisionOrders(pending, authorityIdentity) {
   } finally {updateNavisionImportButton();}
 }
 
+
+function navisionCompleteSnapshotReviewable(pending = {}) {
+  const data = pending.previewData || {}, block = navisionSharedPreviewBlockingState(data);
+  const groups = Array.isArray(data.dealer_groups) ? data.dealer_groups : [];
+  return ['broome','pilbara'].includes(pending.dealerCode)
+    && String(window.PDC_AUTH_CONTEXT?.role || '').toLowerCase() === 'administrator'
+    && block.safetyBlocking && block.affected === 0 && groups.length > 0
+    && groups.some(group => group.blocking === true)
+    && groups.every(group => group.blocking !== true ||
+      ['suspicious_partial_snapshot','unproven_empty_dealer_scope'].includes(group.safety?.reason));
+}
+
+async function reviewNavisionCompleteSnapshot(pending, service, authorityIdentity = navisionSharedApplyAuthorityIdentity()) {
+  if (!navisionCompleteSnapshotReviewable(pending) || !service?.reviewCompleteSnapshot
+      || !navisionSharedPendingStillCurrent(pending, authorityIdentity)) return false;
+  const data = pending.previewData;
+  renderSharedNavisionPreview(pending);
+  const summary = data.dealer_groups.map(group =>
+    `Dealer ${String(group.dealer_code).padStart(6,'0')}: ${Number(group.counts?.total || 0)} in this file; ${Number(group.counts?.missing || 0)} not in this file.`).join('\n');
+  if (!window.confirm(`Confirm this is the complete current Navision export for the included dealers?\n\n${summary}\n\nContinue only if this is the full export, not a filtered or partial list. Missing vehicles will leave the active sales planner under the existing Navision rules; their history is retained. Dealers absent from this file are unchanged.\n\nThis reviews only this exact file for your account for two hours. You will still confirm the import separately. It does not create vehicles on the PDC board or change bookings, Parts or workshop progress.`)) return false;
+  if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return false;
+  const approval = await service.reviewCompleteSnapshot(pending.rows, pending.previewResult, pending.metadata);
+  if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return false;
+  if (!approval?.ok) {
+    window.alert(sharedNavisionApplyErrorMessage(approval));
+    return false;
+  }
+  const result = await service.preview(pending.rows, pending.metadata);
+  if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return false;
+  if (!result?.ok) {
+    window.alert('The reviewed file could not be rechecked. Preview it again; nothing was imported.');
+    return false;
+  }
+  pending.previewResult = result;
+  pending.previewData = mergeNavisionPreflightData(navisionSharedPreviewData(result) || {}, pending.clientPreflight);
+  renderSharedNavisionPreview(pending);
+  updateNavisionImportButton();
+  return true;
+}
+
 async function importNavisionVehicles() {
   if (app.navisionPreviewInFlight === true) return;
   setNavisionPreviewBusy(true);
@@ -22251,6 +22292,7 @@ async function importNavisionVehicles() {
   const rows = parsed.vehicles;
   const clientPreflight = navisionClientPreflight(rows, dealerCode);
   const metadata = { sourceSystem: 'microsoft_navision', dealerCode, sourceName: app.navisionFileName || 'Pasted text', sourceTimestamp: null };
+  const previewAuthorityIdentity = navisionSharedApplyAuthorityIdentity();
   let previewResult = await service.preview(rows, metadata);
   if (!previewResult?.ok) {
     app.pendingSharedNavisionImport = null;
@@ -22261,7 +22303,7 @@ async function importNavisionVehicles() {
   let previewData = mergeNavisionPreflightData(navisionSharedPreviewData(previewResult) || {}, clientPreflight);
   let blockingState = navisionSharedPreviewBlockingState(previewData);
   const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
-  if (blockingState.safetyBlocking && blockingState.safetyReason === 'unproven_empty_dealer_scope' && role === 'administrator') {
+  if (!['broome','pilbara'].includes(dealerCode) && blockingState.safetyBlocking && blockingState.safetyReason === 'unproven_empty_dealer_scope' && role === 'administrator') {
     const approved = window.confirm(`Establish the first Navision baseline for ${navisionDealerName(dealerCode)}?\n\nDealer: ${dealerCode}\nRows: ${rows.length}\n\nThe server will approve only this exact snapshot for your account for two hours. It will still reject invalid rows, duplicate identities, cross-dealer matches and stale previews. No vehicle location, Parts or workshop data will change.`);
     if (approved) {
       const approvalResult = await service.approveInitialScope(rows, metadata);
@@ -22281,7 +22323,11 @@ async function importNavisionVehicles() {
       }
     }
   }
+  if (previewAuthorityIdentity !== navisionSharedApplyAuthorityIdentity() || !navisionSharedImportRoleAllowed()
+      || dealerCode !== ($('#navision-dealer-code')?.value || '').trim()
+      || sha256Hex(text.trim()) !== sha256Hex(($('#navision-paste')?.value || '').trim())) return;
   app.pendingSharedNavisionImport = { rows, parsed, dealerCode, metadata, previewResult, previewData, clientPreflight, browserLocalSha256, sourceTextSha256: sha256Hex(text.trim()) };
+  await reviewNavisionCompleteSnapshot(app.pendingSharedNavisionImport, service);
   try {
     await enrichSharedNavisionPreviewChanges(app.pendingSharedNavisionImport, service);
   } catch (error) {
@@ -22359,6 +22405,12 @@ async function applySharedNavisionImportPending(pending, authorityIdentity = '')
     counts = data.counts || {};
     blockingState = navisionSharedPreviewBlockingState(data);
     renderSharedNavisionPreview(pending);
+  }
+  if (blockingState.blocking && navisionCompleteSnapshotReviewable(pending)) {
+    await reviewNavisionCompleteSnapshot(pending, service, authorityIdentity);
+    if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return;
+    data = pending.previewData; counts = data.counts || {};
+    blockingState = navisionSharedPreviewBlockingState(data);
   }
   if (blockingState.blocking) {
     const { invalid, conflict, affected } = blockingState;
