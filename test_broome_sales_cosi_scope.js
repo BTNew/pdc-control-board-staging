@@ -53,11 +53,11 @@ test('dashboard, pipeline and dropdown options contain only COSI vehicles in the
  assert.match(h.el('sales-data-count').textContent,/\b2\b/);assert.match(h.el('sales-summary').innerHTML,/1 linked to PMB/);
  assert.match(h.el('vehicle-table').innerHTML,/BG yard customer/);assert.match(h.el('vehicle-table').innerHTML,/BG awaiting customer/);
  assert.doesNotMatch(h.el('vehicle-table').innerHTML,/CW production customer|CW dealer customer/);
- assert.match(h.el('sales-pipeline').innerHTML,/BG yard customer/);assert.match(h.el('sales-pipeline').innerHTML,/BG awaiting customer/);
+ h.el('nav-pipeline').events.click();assert.match(h.el('sales-pipeline').innerHTML,/BG yard customer/);assert.match(h.el('sales-pipeline').innerHTML,/BG awaiting customer/);
  assert.doesNotMatch(h.el('sales-pipeline').innerHTML,/CW production customer|CW dealer customer/);
  assert.match(h.el('sales-month-filter').innerHTML,/06\/26|07\/26/);assert.doesNotMatch(h.el('sales-month-filter').innerHTML,/09\/26|10\/26/);
  assert.match(h.el('sales-status-filter').innerHTML,/Yard Hold/);assert.doesNotMatch(h.el('sales-status-filter').innerHTML,/Delivered - At Dealer/);
- choose(h,'salesperson-filter','CW');
+ h.el('nav-dashboard').events.click();choose(h,'salesperson-filter','CW');
  assert.equal(cardCount(h,'all'),2);assert.equal(cardCount(h,'production'),1);assert.equal(cardCount(h,'dealer'),1);
  assert.equal(cardCount(h,'unconfirmed'),0);assert.equal(cardCount(h,'yardhold'),0);
  assert.doesNotMatch(h.el('sales-month-filter').innerHTML,/06\/26|07\/26/);assert.doesNotMatch(h.el('sales-pipeline').innerHTML,/BG yard customer|BG awaiting customer/);

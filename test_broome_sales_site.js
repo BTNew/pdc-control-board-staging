@@ -47,7 +47,7 @@ test('combined month, Toyota status and JITA filters restrict the visible author
 });
 test('labels and pipeline retain authorised identities and clear on access revocation',async()=>{
  const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson',display_name:'Example'},items:[{cosi:'Yes',tracking_id:'own-id',stock:'13001',order:'2026001',client:'Private customer',toyota_status:'Yard Hold'}]}});
- await tick();assert.match(h.el('sales-pipeline').innerHTML,/Private customer/);
+ await tick();assert.equal(h.el('sales-pipeline').innerHTML,'');h.el('nav-pipeline').events.click();assert.match(h.el('sales-pipeline').innerHTML,/Private customer/);h.el('nav-dashboard').events.click();
  h.el('vehicle-table').events.change({target:{dataset:{select:'own-id'},checked:true}});
  h.el('sales-view-labels').events.click();assert.match(h.el('sales-labels').innerHTML,/Private customer/);
  assert.equal(h.el('sales-print-labels').disabled,false);
