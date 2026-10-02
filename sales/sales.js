@@ -98,8 +98,8 @@
   const flagKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete','jita']);
   const orderingKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete']);
   function html(id,content){if(state.html.get(id)!==content){$(id).innerHTML=content;state.html.set(id,content);}}
-  const viewNames=['myday','dashboard','pipeline','alerts','finance','leads','labels','history','customeremails'];
-  const viewTitles={myday:'My Day',dashboard:'Dashboard',pipeline:'Pipeline',alerts:'Alerts',finance:'Finance',leads:'Leads',labels:'Labels',history:'History',customeremails:'Customer emails'};
+  const viewNames=['myday','dashboard','pipeline','alerts','finance','labels','history','customeremails'];
+  const viewTitles={myday:'My Day',dashboard:'Dashboard',pipeline:'Pipeline',alerts:'Alerts',finance:'Finance',labels:'Labels',history:'History',customeremails:'Customer emails'};
   function currentContext(){return state.workspace?.context||state.context;}
   function moduleOptions(){return {getRows:()=>scopeRows(state.items,state.filters.salesperson),getContext:currentContext,getSalesperson:()=>state.filters.salesperson,getView:()=>state.view,
     openVehicle:openDetail,showView,onChanged:()=>refreshWorkspace().then(render)};}
@@ -129,7 +129,7 @@
     $('sales-saved-view').value=state.savedView;
   }
   async function refreshWorkspace(){
-    if(!root.BROOME_SALES_CRM&&!root.BROOME_SALES_LEADS)return;
+    if(!root.BROOME_SALES_CRM)return;
     const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId,request=++state.workspaceRequest;
     if(!principal)return;
     state.workspaceBusy=true;
@@ -137,12 +137,12 @@
       const {data,error}=await root.PDC_SUPABASE.rpc('get_broome_sales_workspace');
       if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId||request!==state.workspaceRequest)return;
       if(error||!data||!['administrator','salesperson'].includes(data.context?.role))throw error||new Error('Sales workspace is unavailable.');
-      if(root.BROOME_SALES_FINANCE)data.finance=state.financeProjection||[];state.workspace=data;populateSalespeople();
-      root.BROOME_SALES_CRM?.setWorkspace(data);root.BROOME_SALES_LEADS?.setWorkspace(data);
+      if(root.BROOME_SALES_FINANCE)data.finance=state.financeProjection||[];data.leads=[];state.workspace=data;populateSalespeople();
+      root.BROOME_SALES_CRM?.setWorkspace(data);
       attachWorkspace();populateSavedViews();$('sales-workspace-status').textContent='';
     }catch(e){
       if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId||request!==state.workspaceRequest)return;
-      state.workspace=null;root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_LEADS?.clear();attachWorkspace();populateSavedViews();
+      state.workspace=null;root.BROOME_SALES_CRM?.clear();attachWorkspace();populateSavedViews();
       $('sales-workspace-status').textContent=e.message||'Sales updates could not be loaded. Refresh to retry.';
     }finally{if(generation===state.generation&&request===state.workspaceRequest)state.workspaceBusy=false;}
   }
@@ -173,7 +173,7 @@
   function clear() {
     state.generation++;state.workspaceRequest++;state.workspace=null;state.workspaceBusy=false;state.savedView='';state.html.clear();
     if(state.searchTimer!==null)root.clearTimeout?.(state.searchTimer);state.searchTimer=null;
-    root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_LEADS?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
+    root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
     $('sales-mobile-vehicles').innerHTML='';$('sales-saved-view').innerHTML='';$('sales-view-name').value='';$('sales-view-status').textContent='';$('sales-workspace-status').textContent='';
     state.busy=false; state.printBusy=false;$('sales-save-view').disabled=false;$('sales-label-status').textContent=''; state.items=[]; state.context=null; state.accounts=null;
     state.selected.clear();
@@ -239,7 +239,7 @@
   }
   function render() {
     root.BROOME_SALES_EMAIL?.syncScope();root.BROOME_CUSTOMER_EMAILS?.render();
-    root.BROOME_SALES_CRM?.syncScope?.();root.BROOME_SALES_LEADS?.syncScope?.();
+    root.BROOME_SALES_CRM?.syncScope?.();
     const scoped=scopeRows(state.items,state.filters.salesperson);
     $('sales-data-count').textContent=scoped.length+' COSI vehicles · Navision';
     const currentIds=new Set(scoped.map(r=>r.tracking_id));
@@ -247,7 +247,6 @@
     if(state.detailId&&!currentIds.has(state.detailId)){state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}
     if(state.view!=='dashboard'){
       if(state.view==='finance'&&root.BROOME_SALES_FINANCE)root.BROOME_SALES_FINANCE.render();
-      else if(state.view==='leads')root.BROOME_SALES_LEADS?.render();
       else if(['myday','alerts','finance','history'].includes(state.view))root.BROOME_SALES_CRM?.render(state.view);
       renderSecondaryViews();return;
     }
@@ -566,7 +565,7 @@
     populateFilters();render();
   });
   $('sales-save-view').addEventListener('click',saveView);
-  root.BROOME_SALES_CRM?.init(moduleOptions());root.BROOME_SALES_LEADS?.init(moduleOptions());
+  root.BROOME_SALES_CRM?.init(moduleOptions());
   const columnWidths=root.BROOME_SALES_TOOLS?.initColumns($('vehicle-table'),$('sales-reset-widths'));
   root.BROOME_SALES_EMAIL?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation,state.filters.salesperson])});
   root.BROOME_CUSTOMER_EMAILS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
