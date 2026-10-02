@@ -20406,6 +20406,15 @@ function updateNavisionControlStats(result = null) {
   if (!card) return;
   const raw = ($('#navision-paste')?.value || '').trim();
   const fileName = app.navisionFileName || (raw ? 'Pasted text' : 'Waiting for text');
+  const broome = ($('#navision-dealer-code')?.value || '').trim() === '37047';
+  if (broome) {
+    let count = 0; try { count = raw ? window.BROOME_NAVISION_IMPORT?.parse(prepareNavisionText(raw))?.length || 0 : 0; } catch { /* Preview reports the actual format error. */ }
+    const pending = app.pendingSharedNavisionImport;
+    const current = pending?.route === 'broome_sales_orders' && pending.sourceTextSha256 === sha256Hex(raw);
+    const summary = current ? pending.previewData : app.broomeNavisionLastResult?.sourceTextSha256 === sha256Hex(raw) ? app.broomeNavisionLastResult.data : null;
+    const values = [['.navision-file strong', fileName], ['.navision-detected strong', count + ' rows'], ['.navision-updated strong', summary ? summary.applied ? summary.changed + ' sales orders updated' : summary.without_stock + ' sold orders without stock accepted' : raw ? 'Broome sales order upload' : '0 changed']];
+    values.forEach(([selector,value])=>{const el=card.querySelector(selector);if(el)el.textContent=value;});return;
+  }
   const preview = raw && !result ? parseNavisionInput(raw, navisionImportOptionsFromDom()) : null;
   const rowCount = result?.parsed?.vehicles?.length ?? preview?.vehicles?.length ?? 0;
   const changed = result ? ((result.added?.length || 0) + (result.updated?.length || 0)) : 0;
@@ -20434,7 +20443,12 @@ function updateNavisionImportAccessStatus(sharedMode = Boolean($('#navision-deal
     return true;
   }
   host.hidden = false;
-  const allowed = navisionSharedImportRoleAllowed();
+  const broome = ($('#navision-dealer-code')?.value || '').trim() === '37047';
+  const allowed = broome ? window.BROOME_NAVISION_IMPORT?.allowed() === true : navisionSharedImportRoleAllowed();
+  if (broome) {
+    host.className = `navision-import-access-status ${allowed ? 'is-ready' : 'is-blocked'}`;
+    host.innerHTML = allowed ? '<strong>Broome sales import ready</strong><span>COSI sold orders can have a blank Batch / Stock. Toyota Order is required. This updates the sales tracker only.</span>' : '<strong>Broome administrator access required</strong><span>An approved administrator must preview and apply Broome sales order uploads.</span>';return allowed;
+  }
   host.className = `navision-import-access-status ${allowed ? 'is-ready' : 'is-blocked'}`;
   host.innerHTML = allowed
     ? '<strong>Import access ready</strong><span>Your account can preview and apply shared Navision imports.</span>'
@@ -20557,6 +20571,12 @@ async function handleNavisionFileSelect(event) {
     }
     if (input) input.value = text;
     updateNavisionImportButton();
+    const broome = ($('#navision-dealer-code')?.value || '').trim() === '37047';
+    if (broome) {
+      const rows = window.BROOME_NAVISION_IMPORT.parse(prepareNavisionText(text));
+      if (summary) summary.innerHTML = '<div class="empty-state compact-empty"><strong>'+escapeHtml(file.name)+'</strong><span>'+escapeHtml(sourceLabel)+'. '+rows.length+' Broome source rows detected, including orders without Batch / Stock. Click Preview Data to check the sold orders.</span></div>';
+      return;
+    }
     const preview = parseNavisionInput(text, navisionImportOptionsFromDom());
     if (summary) {
       const warning = preview.vehicles.length ? '' : ` ${preview.warnings?.[0] || 'No usable vehicle rows were found.'}`;
@@ -20842,6 +20862,7 @@ function clearNavisionImport() {
   app.navisionImport = null;
   app.pendingNavisionImport = null;
   app.pendingSharedNavisionImport = null;
+  app.broomeNavisionLastResult = null;
   updateNavisionImportButton();
   const summary = $('#navision-status-list');
   if (summary) {
@@ -22127,6 +22148,43 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
     <details class="navision-technical-details"><summary>Technical details</summary><div class="subtle navision-note">Dealer ${escapeHtml(state.dealerCode || '')} · ${applied ? `receipt ${escapeHtml(data.receipt_id || data.receiptId || 'returned by server')} · revision ${escapeHtml(data.revision ?? data.result_revision ?? '')}` : `preview ${escapeHtml(data.preview_hash || '')}`} · browser check ${escapeHtml(state.browserLocalSha256 || '')}</div></details>`;
 }
 
+
+function renderBroomeNavisionOrders(pending, applied = false) {
+  const host = $('#navision-status-list'); if (!host) return;
+  const data = pending.previewData || {}, early = Number(data.without_stock || 0), accepted = Number(data.accepted || 0);
+  const sold = pending.rows.filter(row=>/^(yes|true|1)$/i.test(String(row.cosi||'').trim())).length;
+  host.innerHTML = '<div class="summary-row success" role="status"><strong>'+ (applied ? 'Broome sales order import complete' : 'Broome sales orders checked and ready') + '</strong><span>'+ (applied ? Number(data.changed||0)+' sales records updated.' : 'Preview only. Nothing has changed yet.') + '</span></div><div class="scot-summary-grid navision-human-summary"><div class="summary-stat"><span>Source rows</span><strong>'+pending.rows.length+'</strong></div><div class="summary-stat"><span>COSI sold orders</span><strong>'+sold+'</strong></div><div class="summary-stat"><span>Sold orders without Batch / Stock</span><strong>'+early+'</strong></div><div class="summary-stat"><span>Eligible source orders</span><strong>'+accepted+'</strong></div><div class="summary-stat"><span>Unsold rows not added</span><strong>'+Number(data.skipped_unsold||0)+'</strong></div><div class="summary-stat"><span>Existing COSI visibility updates</span><strong>'+Number(data.visibility_updates||0)+'</strong></div></div><div class="parts-help-strip"><strong>Broome sales tracker only:</strong><span>Blank Batch / Stock is accepted for COSI Yes orders with a Toyota Order number and recognised salesperson. Orders keep the same tracking identity when a stock number arrives. PDC vehicles, Parts, locations and workshop bookings are unchanged. Unsold vehicles are hidden from the sales dashboard.</span></div><p><a href="sales/">Open Broome Toyota sales tracker</a></p>';
+}
+async function previewBroomeNavisionOrders(text) {
+  const identity = navisionSharedApplyAuthorityIdentity(), sourceHash = sha256Hex(text.trim());
+  app.pendingSharedNavisionImport = null; app.broomeNavisionLastResult = null;
+  try {
+    const pending = await window.BROOME_NAVISION_IMPORT?.preview(prepareNavisionText(text));
+    if (!pending) return;
+    if (identity !== navisionSharedApplyAuthorityIdentity() || ($('#navision-dealer-code')?.value || '').trim() !== '37047' || sha256Hex(($('#navision-paste')?.value || '').trim()) !== sourceHash) return;
+    app.pendingSharedNavisionImport = {...pending,sourceTextSha256:sourceHash};
+    renderBroomeNavisionOrders(app.pendingSharedNavisionImport);
+  } catch (error) {
+    if (identity !== navisionSharedApplyAuthorityIdentity()) return;
+    const host = $('#navision-status-list');
+    if (host) host.innerHTML = '<div class="summary-row error" role="alert"><strong>Broome order preview needs attention</strong><span>'+escapeHtml(error.message||'The file could not be checked.')+'</span><span>No orders were imported. A blank Batch / Stock is allowed when COSI is Yes; every included order still needs its Toyota Order number and recognised salesperson.</span></div>';
+  } finally {updateNavisionImportButton();}
+}
+async function applyBroomeNavisionOrders(pending, authorityIdentity) {
+  if (!navisionSharedPendingStillCurrent(pending, authorityIdentity) || !window.BROOME_NAVISION_IMPORT?.allowed()) return;
+  try {
+    const data = await window.BROOME_NAVISION_IMPORT.apply(pending);
+    if (!data || !navisionSharedPendingStillCurrent(pending, authorityIdentity)) return;
+    app.pendingSharedNavisionImport = null;
+    app.broomeNavisionLastResult = {sourceTextSha256:pending.sourceTextSha256,data};
+    renderBroomeNavisionOrders({...pending,previewData:data},true);
+  } catch(error) {
+    if (navisionSharedPendingStillCurrent(pending, authorityIdentity)) {
+      const host = $('#navision-status-list');if(host)host.innerHTML='<div class="summary-row error" role="alert"><strong>Broome import could not be confirmed</strong><span>'+escapeHtml(error.message||'Keep this preview and retry.')+'</span></div>';
+    }
+  } finally {updateNavisionImportButton();}
+}
+
 async function importNavisionVehicles() {
   if (app.navisionPreviewInFlight === true) return;
   setNavisionPreviewBusy(true);
@@ -22145,6 +22203,7 @@ async function importNavisionVehicles() {
     window.alert('Select the combined upload or an individual dealer before previewing.');
     return;
   }
+  if (dealerCode === '37047') return await previewBroomeNavisionOrders(text);
   const options = navisionImportOptionsFromDom();
   const parsed = parseNavisionInput(text, options);
   if (parsed.rejectedRows?.length) {
@@ -22256,6 +22315,7 @@ async function applySharedNavisionImport() {
 }
 
 async function applySharedNavisionImportPending(pending, authorityIdentity = '') {
+  if (pending?.route === 'broome_sales_orders') return await applyBroomeNavisionOrders(pending, authorityIdentity);
   let data = pending.previewData || {};
   let counts = data.counts || {};
   let blockingState = navisionSharedPreviewBlockingState(data);
