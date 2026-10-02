@@ -1,0 +1,209 @@
+-- Staging-only, fictional sales CRM fixtures. Every write is rolled back.
+-- Hold one consistent view while live imports/background maintenance may run.
+BEGIN ISOLATION LEVEL REPEATABLE READ;
+CREATE FUNCTION pg_temp.crm_public_fingerprint() RETURNS text LANGUAGE plpgsql AS $fn$
+DECLARE t record; value_hash text; result text:='';
+BEGIN
+ FOR t IN SELECT c.oid,c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p') ORDER BY c.relname LOOP
+  EXECUTE format('SELECT md5(count(*)::text||'':''||coalesce(string_agg(row_hash,'''' ORDER BY row_hash),'''')) FROM (SELECT md5(to_jsonb(x)::text) row_hash FROM public.%I x) rows',t.relname) INTO value_hash;
+  result:=result||t.relname||':'||value_hash||';';
+ END LOOP;
+ RETURN md5(result);
+END $fn$;
+CREATE FUNCTION pg_temp.crm_private_fingerprint() RETURNS text LANGUAGE plpgsql AS $fn$
+DECLARE t record; value_hash text; result text:='';
+BEGIN
+ FOR t IN SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='pdc_sales_private' AND c.relkind='r' ORDER BY c.relname LOOP
+  EXECUTE format('SELECT md5(count(*)::text||'':''||coalesce(string_agg(row_hash,'''' ORDER BY row_hash),'''')) FROM (SELECT md5(to_jsonb(x)::text) row_hash FROM pdc_sales_private.%I x) rows',t.relname) INTO value_hash;
+  result:=result||t.relname||':'||value_hash||';';
+ END LOOP;
+ RETURN md5(result);
+END $fn$;
+DO $test$
+DECLARE actor public.pdc_user_roles; viewer public.pdc_user_roles; person public.salespeople;
+ global_before text; global_private_before text; global_after text; global_private_after text; ops_before text; function_before text;
+ payload jsonb; result jsonb; workspace jsonb; own_id uuid; other_id uuid; unsold_id uuid;
+ contact_id uuid; task_id uuid; note_id uuid:=gen_random_uuid(); view_id uuid; finance_id uuid; previous_finance_id uuid; lead_id uuid; alert_id uuid;
+ denied boolean; task_version integer; timeline_count integer; alert_count integer; t record;
+BEGIN
+ IF (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1 THEN RAISE EXCEPTION 'STAGING environment required'; END IF;
+ SELECT * INTO actor FROM public.pdc_user_roles WHERE active AND account_status='approved' AND role::text='administrator' AND auth_user_id IS NOT NULL LIMIT 1;
+ SELECT * INTO viewer FROM public.pdc_user_roles WHERE active AND account_status='approved' AND role::text='viewer' AND auth_user_id IS NOT NULL LIMIT 1;
+ SELECT * INTO person FROM public.salespeople WHERE code='BG' AND active;
+ IF actor.id IS NULL OR viewer.id IS NULL OR person.id IS NULL OR NOT EXISTS(SELECT 1 FROM public.salespeople WHERE code='PM' AND active) THEN RAISE EXCEPTION 'Missing rollback test accounts or active salesperson fixtures'; END IF;
+ global_before:=pg_temp.crm_public_fingerprint(); global_private_before:=pg_temp.crm_private_fingerprint();
+ SELECT md5(jsonb_agg(jsonb_build_array(p.oid,pg_get_functiondef(p.oid),p.proacl) ORDER BY p.oid)::text) INTO function_before FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.prokind='f';
+ IF has_function_privilege('anon','public.get_broome_sales_workspace()','EXECUTE') OR has_function_privilege('anon','public.save_broome_sales_crm(text,uuid,uuid,jsonb,integer)','EXECUTE') THEN RAISE EXCEPTION 'Anonymous CRM execution granted'; END IF;
+ IF EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname IN ('get_broome_sales_workspace','save_broome_sales_crm') AND p.prosecdef) THEN RAISE EXCEPTION 'Public CRM wrapper is SECURITY DEFINER'; END IF;
+ FOR t IN SELECT c.relname,c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='pdc_sales_private' AND c.relname LIKE 'crm_%' AND c.relkind='r' LOOP
+  IF NOT t.relrowsecurity OR has_table_privilege('authenticated','pdc_sales_private.'||t.relname,'SELECT,INSERT,UPDATE,DELETE') OR has_table_privilege('anon','pdc_sales_private.'||t.relname,'SELECT,INSERT,UPDATE,DELETE') THEN RAISE EXCEPTION 'Unsafe private CRM table permissions: %',t.relname; END IF;
+ END LOOP;
+ IF has_function_privilege('authenticated','pdc_sales_private.crm_observe(jsonb)','EXECUTE') OR has_function_privilege('authenticated','pdc_sales_private.crm_finance_refs()','EXECUTE') THEN RAISE EXCEPTION 'Sensitive private helper directly executable'; END IF;
+ BEGIN
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.auth_user_id,'email',actor.email,'role','authenticated')::text,true);
+  payload:=jsonb_build_array(
+   jsonb_build_object('dealer_code','37047','order','CRM-ROLLBACK-EARLY','batch','','cosi','Yes','consultant','BG','client','Example CRM customer','vehicle','Example Hilux','navisionSubLocationDescription','Production','navisionEtaAtDealerBB','2026-11-01'),
+   jsonb_build_object('dealer_code','37047','order','CRM-ROLLBACK-OTHER','batch','EXAMPLE-OTHER','cosi','Yes','consultant','PM','client','Other example customer','vehicle','Example Prado'),
+   jsonb_build_object('dealer_code','37047','order','CRM-ROLLBACK-UNSOLD','batch','EXAMPLE-UNSOLD','cosi','No','consultant','BG','client','Unsold example'));
+  result:=public.import_broome_sales_orders(payload,true);
+  SELECT id INTO own_id FROM pdc_sales_private.tracked_orders WHERE order_key='CRM-ROLLBACK-EARLY';
+  SELECT id INTO other_id FROM pdc_sales_private.tracked_orders WHERE order_key='CRM-ROLLBACK-OTHER';
+  SELECT id INTO unsold_id FROM pdc_sales_private.tracked_orders WHERE order_key='CRM-ROLLBACK-UNSOLD';
+  IF own_id IS NULL OR other_id IS NULL THEN RAISE EXCEPTION 'Missing fictional imported orders'; END IF;
+  UPDATE public.pdc_user_roles SET role=NULL,active=false,account_status='pending' WHERE id=viewer.id;
+  PERFORM public.assign_broome_sales_access(viewer.id,person.id);
+  -- From here every action under test must leave every public table unchanged.
+  ops_before:=pg_temp.crm_public_fingerprint();
+  workspace:=public.get_broome_sales_workspace();
+  IF workspace#>>'{context,can_edit_finance}'<>'true' OR jsonb_array_length(workspace->'history')<>0 OR workspace#>>'{context,history_status}'<>'awaiting_authoritative_rdr' THEN RAISE EXCEPTION 'Admin capabilities/RDR readiness incorrect'; END IF;
+  IF EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'alerts') a WHERE a->>'tracking_id'=own_id::text) THEN RAISE EXCEPTION 'Initial observation emitted false alerts'; END IF;
+  SELECT count(*) INTO timeline_count FROM pdc_sales_private.crm_timeline WHERE tracking_id=own_id;
+  PERFORM public.get_broome_sales_workspace();
+  IF (SELECT count(*) FROM pdc_sales_private.crm_timeline WHERE tracking_id=own_id)<>timeline_count THEN RAISE EXCEPTION 'Unchanged poll emitted duplicate timeline'; END IF;
+  result:=public.save_broome_sales_crm('finance',NULL,own_id,jsonb_build_object('approval_status','approved','approval_date','2026-10-02','documents_status','complete','documents_date','2026-10-02','settlement_status','pending','access_status','approved','access_date','2026-10-02','payout_status','pending','shared_update','Approved; waiting on settlement','amount',42000,'commission',900,'internal_notes','Private example finance note','lender','Example lender'),0);
+  finance_id:=(result#>>'{record,id}')::uuid;
+  IF result#>>'{record,amount}'<>'42000' OR result#>>'{record,current_application}'<>'true' THEN RAISE EXCEPTION 'Admin finance save missing ledger fields'; END IF;
+  previous_finance_id:=finance_id;
+  result:=public.save_broome_sales_crm('finance',NULL,own_id,jsonb_build_object('approval_status','pending','shared_update','Second application under review','current_application',true),0);
+  finance_id:=(result#>>'{record,id}')::uuid;
+  IF (SELECT count(*) FROM pdc_sales_private.crm_records WHERE tracking_id=own_id AND kind='finance')<>2 OR (SELECT count(*) FROM pdc_sales_private.crm_records WHERE tracking_id=own_id AND kind='finance' AND data->>'current_application'='true')<>1 OR (SELECT version FROM pdc_sales_private.crm_records WHERE id=previous_finance_id)<>2 THEN RAISE EXCEPTION 'Finance history/current application guard failed'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('finance',previous_finance_id,own_id,jsonb_build_object('shared_update','Stale application'),1);EXCEPTION WHEN serialization_failure THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Finance automatic promotion did not protect versions'; END IF;
+  result:=public.save_broome_sales_crm('finance',previous_finance_id,own_id,jsonb_build_object('shared_update','Historical application update'),2);
+  IF result#>>'{record,amount}'<>'42000' OR result#>>'{record,internal_notes}'<>'Private example finance note' THEN RAISE EXCEPTION 'Partial finance patch lost private ledger fields'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('finance',NULL,own_id,jsonb_build_object('approval_status','invented'),0);EXCEPTION WHEN OTHERS THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Unknown finance status accepted'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('finance',finance_id,own_id,jsonb_build_object('settlement_status','settled'),1);EXCEPTION WHEN OTHERS THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Settlement without date accepted'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('finance',finance_id,own_id,jsonb_build_object('payout_status','complete'),1);EXCEPTION WHEN OTHERS THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Existing-loan payout without date accepted'; END IF;
+  result:=public.save_broome_sales_crm('finance',NULL,other_id,jsonb_build_object('approval_status','applied','amount',35000,'commission',500,'internal_notes','Other salesperson private finance'),0);
+  result:=public.save_broome_sales_crm('view',NULL,NULL,jsonb_build_object('name','Administrator personal view','filters',jsonb_build_object('quick','needs_attention')),0);
+  view_id:=(result#>>'{record,id}')::uuid;
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',viewer.auth_user_id,'email',viewer.email,'role','authenticated')::text,true);
+  workspace:=public.get_broome_sales_workspace();
+  IF workspace#>>'{context,can_edit_finance}'<>'false' OR jsonb_array_length(workspace->'finance_accounts')<>0 THEN RAISE EXCEPTION 'Salesperson finance capability expanded'; END IF;
+  IF EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'order_refs') e WHERE e->>'salesperson_code' IS DISTINCT FROM 'BG') OR EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'finance') e WHERE e->>'tracking_id'=other_id::text OR e ?| ARRAY['amount','commission','lender','application_date','internal_notes']) THEN RAISE EXCEPTION 'Finance private fields or other salesperson leaked'; END IF;
+  IF EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'views') e WHERE e->>'id'=view_id::text) THEN RAISE EXCEPTION 'Administrator personal saved view leaked'; END IF;
+  result:=public.save_broome_sales_crm('contact',NULL,own_id,jsonb_build_object('next_contact_date','2026-10-05','last_contact_date','2026-10-02','next_action','Call customer','email','example@example.invalid','phone','0400 000 000'),0);
+  contact_id:=(result#>>'{record,id}')::uuid;
+  result:=public.save_broome_sales_crm('contact',contact_id,own_id,jsonb_build_object('next_contact_date',''),1);
+  IF result#>'{record,next_contact_date}'<>'null'::jsonb OR result#>>'{record,next_action}'<>'Call customer' THEN RAISE EXCEPTION 'Empty date or partial contact patch failed'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('contact',contact_id,own_id,jsonb_build_object('next_contact_date','2026-02-30'),2);EXCEPTION WHEN OTHERS THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Invalid calendar date accepted'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('contact',contact_id,own_id,jsonb_build_object('current_location','Fake PDC edit'),2);EXCEPTION WHEN OTHERS THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'PDC field accepted in sales contact'; END IF;
+  result:=public.save_broome_sales_crm('note',note_id,own_id,jsonb_build_object('activity_type','call','body','Example customer call'),0);
+  result:=public.save_broome_sales_crm('note',note_id,own_id,jsonb_build_object('activity_type','call','body','Example customer call'),0);
+  IF (SELECT count(*) FROM pdc_sales_private.crm_records WHERE id=note_id)<>1 OR result#>>'{record,version}'<>'1' THEN RAISE EXCEPTION 'Append-only activity retry duplicated'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('note',note_id,own_id,jsonb_build_object('body','Overwrite history'),1);EXCEPTION WHEN OTHERS THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Append-only history overwritten'; END IF;
+  result:=public.save_broome_sales_crm('task',NULL,own_id,jsonb_build_object('title','Prepare example documents','due_date','2026-10-04','completed',false),0);
+  task_id:=(result#>>'{record,id}')::uuid;
+  result:=public.save_broome_sales_crm('task',task_id,own_id,jsonb_build_object('completed',true),1); task_version:=2;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('task',task_id,own_id,jsonb_build_object('completed',false),1);EXCEPTION WHEN serialization_failure THEN denied:=true;END;
+  IF NOT denied OR (SELECT version FROM pdc_sales_private.crm_records WHERE id=task_id)<>2 THEN RAISE EXCEPTION 'Stale/concurrent task version overwrote'; END IF;
+
+  -- The calendar moves an existing customer reminder by changing only its date.
+  result:=public.save_broome_sales_crm('contact',contact_id,own_id,jsonb_build_object('next_contact_date','2026-11-09'),2);
+  IF result#>>'{record,next_contact_date}'<>'2026-11-09' OR result#>>'{record,next_action}'<>'Call customer' OR result#>>'{record,email}'<>'example@example.invalid' OR result#>>'{record,phone}'<>'0400 000 000' OR result#>>'{record,last_contact_date}'<>'2026-10-02' THEN RAISE EXCEPTION 'Calendar reminder move changed contact details'; END IF;
+  -- The calendar task uses its stable identity/version, retaining title and completion.
+  result:=public.save_broome_sales_crm('task',task_id,own_id,jsonb_build_object('title','Prepare example documents','due_date','2026-11-10','completed',true),2);task_version:=3;
+  IF result#>>'{record,id}'<>task_id::text OR result#>>'{record,title}'<>'Prepare example documents' OR result#>>'{record,due_date}'<>'2026-11-10' OR result#>>'{record,completed}'<>'true' THEN RAISE EXCEPTION 'Calendar task move lost identity or fields'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('task',task_id,own_id,jsonb_build_object('due_date','2026-11-11'),2);EXCEPTION WHEN serialization_failure THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Calendar stale move overwrote another edit'; END IF;
+  result:=public.save_broome_sales_crm('delivery',NULL,own_id,jsonb_build_object('documents',true,'accessories',false,'finance',false,'handover',false,'promised_delivery_date','2026-11-05'),0);
+  IF result#>>'{record,documents}'<>'true' OR result#>>'{record,promised_delivery_date}'<>'2026-11-05' THEN RAISE EXCEPTION 'Sales delivery checklist failed'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('task',NULL,other_id,jsonb_build_object('title','Cross-person edit'),0);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Cross-person task accepted'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('task',NULL,gen_random_uuid(),jsonb_build_object('title','Unknown order'),0);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Unknown tracking identity accepted'; END IF;
+  IF unsold_id IS NOT NULL THEN
+   denied:=false;BEGIN PERFORM public.save_broome_sales_crm('task',NULL,unsold_id,jsonb_build_object('title','Unsold order'),0);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+   IF NOT denied THEN RAISE EXCEPTION 'Unsold order accepted'; END IF;
+  END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('finance',finance_id,own_id,jsonb_build_object('approval_status','approved','approval_date','2026-10-02'),1);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Ordinary salesperson edited finance'; END IF;
+  result:=public.save_broome_sales_crm('lead',NULL,NULL,jsonb_build_object('customer_name','Prospective example','stage','enquiry','salesperson_code','PM','vehicle_interest','Example Hilux','next_contact_date','2026-10-07'),0);
+  lead_id:=(result#>>'{record,id}')::uuid;
+  IF result#>>'{record,salesperson_code}'<>'BG' THEN RAISE EXCEPTION 'Salesperson changed their own lead owner'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('lead',lead_id,NULL,jsonb_build_object('stage','order'),1);EXCEPTION WHEN OTHERS THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Ordered lead without exact order accepted'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('lead',lead_id,other_id,jsonb_build_object('stage','order'),1);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Lead linked to another salesperson'; END IF;
+  result:=public.save_broome_sales_crm('lead',lead_id,own_id,jsonb_build_object('stage','order'),1);
+  IF result#>>'{record,tracking_id}'<>own_id::text OR result#>>'{record,version}'<>'2' THEN RAISE EXCEPTION 'Exact lead/order linkage failed'; END IF;
+  result:=public.save_broome_sales_crm('view',NULL,NULL,jsonb_build_object('name','My due deliveries','filters',jsonb_build_object('quick','due_week','category','all','direction',1)),0);
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('view',view_id,NULL,jsonb_build_object('name','Take administrator view'),1);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Cross-account saved view edit accepted'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('view',NULL,NULL,jsonb_build_object('name','Unsafe scope','filters',jsonb_build_object('salesperson','PM')),0);EXCEPTION WHEN OTHERS THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Saved view stores another salesperson scope'; END IF;
+  result:=public.save_broome_sales_crm('view',NULL,NULL,jsonb_build_object('name','Unknown data view','filters',jsonb_build_object('category','unknown','jita','unknown','sort','tray_complete','direction',-1)),0);
+  IF result#>>'{record,filters,category}'<>'unknown' THEN RAISE EXCEPTION 'Valid unknown-status saved view rejected'; END IF;
+  -- Actual changes to the fictional private import produce observations, never root imports.
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.auth_user_id,'email',actor.email,'role','authenticated')::text,true);
+  result:=public.import_broome_sales_orders(jsonb_build_array((payload->0)||jsonb_build_object('batch','EXAMPLE-ALLOCATED','navisionSubLocationDescription','Ready for transport','navisionEtaAtDealerBB','2026-11-04')),true);
+  workspace:=public.get_broome_sales_workspace();
+  IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'alerts') a WHERE a->>'tracking_id'=own_id::text AND a->>'event_type'='stock_allocated') OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'alerts') a WHERE a->>'tracking_id'=own_id::text AND a->>'event_type'='eta_changed') THEN RAISE EXCEPTION 'Observed stock allocation/ETA alert missing'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'order_refs') e WHERE e->>'tracking_id'=own_id::text AND e->>'stock'='EXAMPLE-ALLOCATED') THEN RAISE EXCEPTION 'Stock allocation changed permanent order identity'; END IF;
+  SELECT count(*) INTO timeline_count FROM pdc_sales_private.crm_timeline WHERE tracking_id=own_id;
+  PERFORM public.get_broome_sales_workspace();
+  IF timeline_count<>(SELECT count(*) FROM pdc_sales_private.crm_timeline WHERE tracking_id=own_id) THEN RAISE EXCEPTION 'Observed change replay duplicated timeline'; END IF;
+  SELECT id INTO alert_id FROM pdc_sales_private.crm_timeline WHERE tracking_id=own_id AND is_alert ORDER BY occurred_at LIMIT 1;
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',viewer.auth_user_id,'email',viewer.email,'role','authenticated')::text,true);
+  result:=public.save_broome_sales_crm('dismiss_alert',alert_id,own_id,'{}'::jsonb,0);
+  IF result#>>'{record,dismissed_at}' IS NULL THEN RAISE EXCEPTION 'Personal alert dismissal failed'; END IF;
+  result:=public.save_broome_sales_crm('dismiss_alert',alert_id,own_id,'{}'::jsonb,1);
+  IF result#>>'{record,dismissed_at}' IS NULL THEN RAISE EXCEPTION 'Idempotent personal alert dismissal lost timestamp'; END IF;
+  workspace:=public.get_broome_sales_workspace();
+  IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'alerts') a WHERE a->>'id'=alert_id::text AND a->>'dismissed_at' IS NOT NULL) THEN RAISE EXCEPTION 'Dismissed alert not recorded personally'; END IF;
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.auth_user_id,'email',actor.email,'role','authenticated')::text,true);
+  workspace:=public.get_broome_sales_workspace();
+  IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'alerts') a WHERE a->>'id'=alert_id::text AND a->>'dismissed_at' IS NULL) THEN RAISE EXCEPTION 'One person dismissed another account alert'; END IF;
+  result:=public.save_broome_sales_crm('finance_access',viewer.id,NULL,jsonb_build_object('enabled',true),0);
+  IF result#>>'{record,version}'<>'1' THEN RAISE EXCEPTION 'Private finance grant failed'; END IF;
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',viewer.auth_user_id,'email',viewer.email,'role','authenticated')::text,true);
+  workspace:=public.get_broome_sales_workspace();
+  IF workspace#>>'{context,can_edit_finance}'<>'true' OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'order_refs') e WHERE e->>'tracking_id'=other_id::text) OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'finance') e WHERE e->>'tracking_id'=other_id::text AND e ? 'amount') THEN RAISE EXCEPTION 'Exact finance editor private ledger access failed'; END IF;
+  IF EXISTS(SELECT 1 FROM jsonb_array_elements(public.get_broome_sales_snapshot()->'items') e WHERE e->>'tracking_id'=other_id::text) THEN RAISE EXCEPTION 'Finance editing widened existing sales snapshot'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('task',NULL,other_id,jsonb_build_object('title','Finance editor tried sales scope expansion'),0);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Finance editor widened CRM task scope'; END IF;
+  denied:=false;BEGIN PERFORM public.set_broome_sales_ordering_flag(other_id,'tint',true,0);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Finance editor widened ordering tick scope'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('finance_access',viewer.id,NULL,jsonb_build_object('enabled',false),1);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Salesperson finance editor can grant finance access'; END IF;
+  IF public.is_pdc_role('operator') OR public.is_pdc_role('viewer') THEN RAISE EXCEPTION 'Finance grant expanded PDC roles'; END IF;
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.auth_user_id,'email',actor.email,'role','authenticated')::text,true);
+  result:=public.save_broome_sales_crm('finance_access',viewer.id,NULL,jsonb_build_object('enabled',false),1);
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',viewer.auth_user_id,'email',viewer.email,'role','authenticated')::text,true);
+  workspace:=public.get_broome_sales_workspace();
+  IF workspace#>>'{context,can_edit_finance}'<>'false' OR EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'finance') e WHERE e ?| ARRAY['amount','commission','lender','internal_notes']) OR EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'order_refs') e WHERE e->>'tracking_id'=other_id::text) THEN RAISE EXCEPTION 'Revoked finance grant retained private fields/order references'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('finance',finance_id,own_id,jsonb_build_object('shared_update','Save after grant revocation'),1);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Revoked finance grant can save'; END IF;
+  IF pg_temp.crm_public_fingerprint()<>ops_before THEN RAISE EXCEPTION 'CRM operations changed a public PDC/source/import/workshop/parts/role/audit table'; END IF;
+  IF function_before<>(SELECT md5(jsonb_agg(jsonb_build_array(p.oid,pg_get_functiondef(p.oid),p.proacl) ORDER BY p.oid)::text) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.prokind='f') THEN RAISE EXCEPTION 'CRM operations changed a public function/permission'; END IF;
+  -- Losing COSI access hides private CRM data and rejects stale editors immediately.
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.auth_user_id,'email',actor.email,'role','authenticated')::text,true);
+  result:=public.import_broome_sales_orders(jsonb_build_array((payload->0)||jsonb_build_object('cosi','No')),true);
+  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',viewer.auth_user_id,'email',viewer.email,'role','authenticated')::text,true);
+  workspace:=public.get_broome_sales_workspace();
+  IF EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'tasks') e WHERE e->>'tracking_id'=own_id::text) OR EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'finance') e WHERE e->>'tracking_id'=own_id::text) THEN RAISE EXCEPTION 'Lost COSI access retained CRM data'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('task',task_id,own_id,jsonb_build_object('completed',false),task_version);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Lost COSI access allowed stale CRM save'; END IF;
+  UPDATE public.pdc_user_roles SET active=false,account_status='disabled' WHERE id=viewer.id;
+  denied:=false;BEGIN PERFORM public.get_broome_sales_workspace();EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Disabled account can read CRM'; END IF;
+  denied:=false;BEGIN PERFORM public.save_broome_sales_crm('view',NULL,NULL,jsonb_build_object('name','Disabled view'),0);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Disabled account can write CRM'; END IF;
+  PERFORM set_config('request.jwt.claims','{}',true);
+  denied:=false;BEGIN PERFORM public.get_broome_sales_workspace();EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
+  IF NOT denied THEN RAISE EXCEPTION 'Signed-out account can read CRM'; END IF;
+  RAISE EXCEPTION 'Rollback successful CRM fixtures' USING errcode='ZX001';
+ EXCEPTION WHEN SQLSTATE 'ZX001' THEN NULL;
+ END;
+ global_after:=pg_temp.crm_public_fingerprint(); global_private_after:=pg_temp.crm_private_fingerprint();
+ IF global_after<>global_before THEN RAISE EXCEPTION 'CRM rollback public-table fingerprint changed: before %, after %',global_before,global_after; END IF;
+ IF global_private_after<>global_private_before THEN RAISE EXCEPTION 'CRM rollback private-sales fingerprint changed: before %, after %',global_private_before,global_private_after; END IF;
+END $test$;
+SELECT 'Sales CRM CRUD, statuses/date validation, finance redaction/history/grants, scoped lead links, personal views/alerts, observation replay, stale versions, disabled/anonymous denial and complete public-table/function fingerprints passed; fixtures rolled back' AS verification;
+ROLLBACK;

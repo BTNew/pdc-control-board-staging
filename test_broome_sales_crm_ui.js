@@ -10,7 +10,7 @@ function harness({admin=false,finance=false}={}) {
   const h={rows:[{tracking_id:'BG-order',cosi:true,salesperson_code:'BG',stock:'13001',order:'000001',client:'Bryce customer',vehicle:'HiLux'},
     {tracking_id:'PM-order',cosi:'Yes',salesperson_code:'PM',order:'000002',client:'Other customer',vehicle:'Prado'},
     {tracking_id:'unsold',cosi:'No',salesperson_code:'BG',stock:'13003',client:'Unsold customer'}],person:'BG',context:{role:admin?'administrator':'salesperson'}};
-  h.host={crypto:require('node:crypto'),BROOME_SALES_LEADS:require('./sales/leads.js'),PDC_AUTH_CONTEXT:{userId:'approved-user',role:admin?'administrator':'salesperson'},document:{getElementById:el},addEventListener(type,fn){events[type]=fn;},
+  h.host={crypto:require('node:crypto'),PDC_AUTH_CONTEXT:{userId:'approved-user',role:admin?'administrator':'salesperson'},document:{getElementById:el},addEventListener(type,fn){events[type]=fn;},
     PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}}};
   h.api=crm.createWorkspace(h.host);h.api.init({getRows:()=>h.rows,getContext:()=>h.context,getSalesperson:()=>h.person,openVehicle:id=>opens.push(id),showView:view=>{h.view=view;},onChanged:(...args)=>changes.push(args)});
   h.workspace={context:{can_edit_finance:finance},contacts:[{id:'c-bg',tracking_id:'BG-order',version:1,next_contact_date:today,next_action:'Call Bryce customer'},
@@ -122,7 +122,7 @@ test('finance access is an exact account grant and never changes operational rol
 });
 test('CRM source uses isolated sales RPCs without a browser record cache or operational writes',()=>{
   const source=fs.readFileSync('sales/crm-workspace.js','utf8');
-  assert.doesNotMatch(source,/localStorage|sessionStorage|\.from\(|update_pdc|set_pdc|save_workshop|requestNotificationPermission|Notification\(/);
+  assert.doesNotMatch(source,/localStorage|sessionStorage|PDC_SUPABASE\.from\(|update_pdc|set_pdc|save_workshop|requestNotificationPermission|Notification\(/);
   assert.match(source,/save_broome_sales_crm/);assert.match(source,/get_broome_sales_workspace/);
 });
 test('structured alerts show changed facts and dated bay states without object placeholders',()=>{
@@ -168,18 +168,70 @@ test('Finance mobile cards retain labelled statuses, dates, updates and actions 
   assert.match(html,/crm-finance-cell/);assert.match(html,/crm-finance-actions/);assert.match(html,/Shared update/);assert.match(html,/Updated/);assert.match(html,/data-crm-open="BG-order"/);
   assert.doesNotMatch(html,/Manager-only note|Private lender|50000|2000|Other customer/);
 });
-test('My Day scopes due lead reminders separately from COSI order contacts and excludes terminal leads',async()=>{
-  const h=harness({admin:true});const yesterday=new Date(today+'T00:00:00Z');yesterday.setUTCDate(yesterday.getUTCDate()-1);const tomorrow=new Date(today+'T00:00:00Z');tomorrow.setUTCDate(tomorrow.getUTCDate()+1);
-  h.workspace.leads=[{id:'own-enquiry',salesperson_code:'BG',customer_name:'Own enquiry customer',vehicle_interest:'HiLux enquiry',stage:'enquiry',next_contact_date:today,next_action:'Discuss quote'},
-    {id:'own-test',salesperson_code:'BG',customer_name:'Own test drive customer',vehicle_interest:'Prado',stage:'testdrive',next_contact_date:yesterday.toISOString().slice(0,10),next_action:'Book test drive'},
-    {id:'other',salesperson_code:'PM',customer_name:'Other salesperson lead',stage:'quote',next_contact_date:today},
-    ...['order','lost'].map(stage=>({id:stage,salesperson_code:'BG',customer_name:'Terminal '+stage+' customer',stage,next_contact_date:today})),
-    {id:'future',salesperson_code:'BG',customer_name:'Future contact customer',stage:'quote',next_contact_date:tomorrow.toISOString().slice(0,10)}];
-  h.api.setWorkspace(h.workspace);h.api.render('myday');let html=h.el('sales-myday').innerHTML;
-  assert.match(html,/Lead follow-ups<\/span><strong>2/);assert.match(html,/Order contacts due<\/span><strong>1/);assert.match(html,/Own enquiry customer|Own test drive customer|Discuss quote|Overdue/);
-  assert.doesNotMatch(html,/Other salesperson lead|Terminal order customer|Terminal lost customer|Future contact customer/);
-  await h.el('sales-myday').events.click({target:button({crmShow:'leads'})});assert.equal(h.view,'leads');assert.equal(h.calls.length,0);
-  h.person='PM';h.api.render('myday');html=h.el('sales-myday').innerHTML;assert.match(html,/Other salesperson lead/);assert.doesNotMatch(html,/Own enquiry customer|Own test drive customer/);
-  const own=harness();own.context.salesperson_code='BG';own.person='';own.workspace.leads=h.workspace.leads;own.api.setWorkspace(own.workspace);own.api.render('myday');assert.match(own.el('sales-myday').innerHTML,/Own enquiry customer/);assert.doesNotMatch(own.el('sales-myday').innerHTML,/Other salesperson lead/);
-  delete own.context.salesperson_code;own.api.render('myday');assert.doesNotMatch(own.el('sales-myday').innerHTML,/Own enquiry customer|Other salesperson lead/);
+
+test('My Day ignores leads and keeps ordered vehicle reminders only',()=>{
+  const h=harness({admin:true});h.workspace.leads=[{id:'ignored',customer_name:'Private enquiry',salesperson_code:'BG',next_contact_date:today,stage:'enquiry'}];
+  h.api.setWorkspace(h.workspace);h.api.render('myday');
+  assert.match(h.el('sales-myday').innerHTML,/crm-calendar-grid|Call Bryce customer|Own follow-up/);
+  assert.doesNotMatch(h.el('sales-myday').innerHTML,/Private enquiry|Lead follow-ups|Open Leads/);
+  assert.equal(h.api.getWorkspace().leads,undefined);
+});
+test('calendar weeks start on Monday and handle leap dates and year changes',()=>{
+  assert.equal(crm.calendarDays('2026-10')[0],'2026-09-28');
+  assert.equal(crm.calendarDays('2026-10').at(-1),'2026-11-01');
+  assert.equal(crm.calendarDays('2024-02').includes('2024-02-29'),true);
+  assert.equal(crm.calendarDays('2026-02').includes('2026-02-29'),false);
+  assert.equal(crm.shiftMonth('2026-12',1),'2027-01');assert.equal(crm.shiftMonth('2026-01',-1),'2025-12');
+  assert.throws(()=>crm.calendarDays('2026-13'),/valid/);
+});
+test('task drag saves the exact source identity, due date and version, preserving completion',async()=>{
+  const h=harness();const drag=h.api.beginCalendarDrag('task','t-bg');assert.ok(drag);
+  const pending=h.api.moveCalendarEntry(drag,'2026-11-04');assert.equal(h.calls.length,1);
+  const args=h.calls[0].args;assert.equal(args.p_tracking_id,'BG-order');assert.equal(args.p_id,'t-bg');assert.equal(args.p_expected_version,2);
+  assert.deepEqual(args.p_data,{title:'Own follow-up',due_date:'2026-11-04',completed:false});
+  h.calls[0].resolve({data:{record:{id:'t-bg',tracking_id:'BG-order',...args.p_data,version:3}}});await pending;
+  assert.equal(h.api.getWorkspace().tasks[0].due_date,'2026-11-04');assert.match(h.el('sales-myday').innerHTML,/Moved to/);
+});
+test('customer reminder drag changes only the reminder date and never contacts or PDC dates',async()=>{
+  const h=harness();h.workspace.contacts[0].email='customer@example.invalid';h.api.setWorkspace(h.workspace);
+  const drag=h.api.beginCalendarDrag('contact','c-bg'),pending=h.api.moveCalendarEntry(drag,'2026-10-09');
+  assert.deepEqual(h.calls[0].args.p_data,{next_contact_date:'2026-10-09'});
+  h.calls[0].resolve({data:{record:{id:'c-bg',tracking_id:'BG-order',next_contact_date:'2026-10-09',version:2}}});await pending;
+  assert.equal(h.api.getWorkspace().contacts[0].email,'customer@example.invalid');
+  assert.equal(h.api.getWorkspace().contacts[0].next_action,'Call Bryce customer');
+  assert.equal(h.api.beginCalendarDrag('delivery','d-bg'),null);assert.equal(h.api.beginCalendarDrag('eta','BG-order'),null);
+});
+test('drag fails closed on reassignment, stale versions and salesperson change',async()=>{
+  const h=harness();assert.equal(h.api.beginCalendarDrag('task','t-pm'),null);
+  let drag=h.api.beginCalendarDrag('task','t-bg');h.workspace.tasks[0].version=3;h.api.setWorkspace(h.workspace);
+  await assert.rejects(h.api.moveCalendarEntry(drag,'2026-10-05'),/changed/);assert.equal(h.calls.length,0);
+  drag=h.api.beginCalendarDrag('task','t-bg');h.person='PM';h.api.render('myday');assert.equal(await h.api.moveCalendarEntry(drag,'2026-10-05'),null);assert.equal(h.calls.length,0);
+  h.person='BG';h.api.render('myday');drag=h.api.beginCalendarDrag('task','t-bg');h.rows=[];assert.equal(await h.api.moveCalendarEntry(drag,'2026-10-05'),null);
+});
+test('failed reschedule keeps the saved date and delayed sign-out cannot restore data',async()=>{
+  const h=harness();let drag=h.api.beginCalendarDrag('task','t-bg'),pending=h.api.moveCalendarEntry(drag,'2026-10-05');
+  h.calls[0].resolve({error:{message:'Record version conflict'}});await assert.rejects(pending,/conflict/);assert.equal(h.api.getWorkspace().tasks[0].due_date,today);
+  drag=h.api.beginCalendarDrag('task','t-bg');pending=h.api.moveCalendarEntry(drag,'2026-10-06');delete h.host.PDC_AUTH_CONTEXT;h.context=null;h.events['pdc-auth-locked']();
+  h.calls[1].resolve({data:{record:{id:'t-bg',tracking_id:'BG-order',due_date:'2026-10-06',version:3}}});
+  assert.equal(await pending,null);assert.equal(h.api.getWorkspace(),null);assert.equal(h.el('sales-myday').innerHTML,'');
+});
+test('calendar click edits a task with its current version and polling preserves dirty input',async()=>{
+  const h=harness();await h.el('sales-myday').events.click({target:button({calendarKind:'task',calendarId:'t-bg'})});
+  let html=h.el('sales-myday').innerHTML;assert.match(html,/Edit task|name="due_date"|data-crm-version="2"/);
+  const form={dataset:{crmForm:'task',crmId:'t-bg',crmTracking:'BG-order',crmVersion:'2'},elements:[{name:'title',type:'text',value:'Unsaved task'},{name:'due_date',type:'date',value:'2026-11-07'},{name:'completed',type:'checkbox',checked:false}]};
+  h.el('sales-myday').events.input({target:{closest:()=>form}});h.workspace.tasks[0].title='Newer server task';h.workspace.tasks[0].version=3;h.api.setWorkspace(h.workspace);
+  html=h.el('sales-myday').innerHTML;assert.match(html,/value="Unsaved task"|value="2026-11-07"|data-crm-version="2"/);
+  assert.equal(h.api.beginCalendarDrag('task','t-bg'),null);
+  await h.el('sales-myday').events.click({target:button({calendarClose:''})});assert.ok(h.api.beginCalendarDrag('task','t-bg'));
+});
+test('calendar drop event routes a genuine drag to the day, ignoring external drags',async()=>{
+  const h=harness(),events=h.el('sales-myday').events;let prevented=0;
+  const transfer={setData(){}};
+  events.dragstart({target:button({calendarKind:'task',calendarId:'t-bg'}),dataTransfer:transfer,preventDefault(){prevented++;}});
+  assert.equal(transfer.effectAllowed,'move');
+  const target={dataset:{calendarDay:'2026-10-09'},closest(){return this;}};
+  const pending=events.drop({target,preventDefault(){prevented++;}});assert.equal(h.calls[0].args.p_data.due_date,'2026-10-09');
+  h.calls[0].resolve({data:{record:{id:'t-bg',tracking_id:'BG-order',title:'Own follow-up',due_date:'2026-10-09',completed:false,version:3}}});await pending;
+  await events.drop({target,preventDefault(){throw new Error('External drop should not be consumed');}});
+  assert.equal(h.calls.length,1);assert.equal(prevented,1);
 });

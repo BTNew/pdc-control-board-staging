@@ -19,7 +19,7 @@
   };
   const financeLabels = {approval:'Approval',documents:'Documents',settlement:'Settlement',access:'Access product',payout:'Existing loan payout'};
   const privateFinance = new Set(['lender','application_date','amount','commission','internal_notes']);
-  const arrays = ['contacts','activities','tasks','delivery','finance','leads','views','timeline','alerts','history','order_refs','finance_accounts'];
+  const arrays = ['contacts','activities','tasks','delivery','finance','views','timeline','alerts','history','order_refs','finance_accounts'];
   const e = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function isSold(row) { return row.cosi === true || /^(yes|true|1)$/i.test(String(row.cosi ?? '').trim()); }
   function dateValue(value) {
@@ -39,6 +39,19 @@
     const date=new Date(/^\d{4}-\d{2}-\d{2}$/.test(String(value))?value+'T00:00:00+08:00':value);
     if(!Number.isFinite(date.getTime())) return 'Not recorded';
     return date.toLocaleString('en-AU',{timeZone:'Australia/Perth',dateStyle:'medium',...(time?{timeStyle:'short'}:{})});
+  }
+
+  function calendarDays(month) {
+    if(!/^20\d{2}-(0[1-9]|1[0-2])$|^2100-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Choose a valid calendar month.');
+    const first=new Date(month+'-01T00:00:00Z'),start=new Date(first);
+    start.setUTCDate(1-(first.getUTCDay()+6)%7);
+    const last=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0));
+    const size=Math.ceil(((first.getUTCDay()+6)%7+last.getUTCDate())/7)*7;
+    return Array.from({length:size},(_,i)=>{const day=new Date(start);day.setUTCDate(start.getUTCDate()+i);return day.toISOString().slice(0,10);});
+  }
+  function shiftMonth(month,step) {
+    const date=new Date(month+'-01T00:00:00Z');date.setUTCMonth(date.getUTCMonth()+step);
+    return date.toISOString().slice(0,7);
   }
   function orderLabel(row) {
     return (row.stock ? 'Stock '+row.stock : 'Toyota order '+(row.order||'Not recorded'))+' · '+(row.client||'Customer not recorded');
@@ -117,7 +130,7 @@
     return result;
   }
   function createWorkspace(host) {
-    const state={options:null,workspace:null,principal:null,generation:0,scope:'',view:'myday',detailId:null,detailMarkup:null,editor:null,message:'',busy:new Set(),drafts:new Map(),creates:new Map(),html:new Map()};
+    const state={options:null,workspace:null,principal:null,generation:0,scope:'',view:'myday',detailId:null,detailMarkup:null,editor:null,calendarMonth:null,calendarEditor:null,calendarDrag:null,message:'',busy:new Set(),drafts:new Map(),creates:new Map(),html:new Map()};
     const $=id=>host.document?.getElementById(id);
     const principal=()=>host.PDC_AUTH_CONTEXT?.userId||null;
     const context=()=>state.options?.getContext?.()||null;
@@ -151,13 +164,13 @@
       if(state.principal!==principal() || !principal() || !context()) { clear();return false; }
       const next=salesperson();
       if(state.scope!==next) {
-        state.scope=next;state.generation++;state.drafts.clear();state.creates.clear();state.busy.clear();state.editor=null;state.detailId=null;state.detailMarkup=null;state.message='';state.html.clear();
+        state.scope=next;state.generation++;state.drafts.clear();state.creates.clear();state.busy.clear();state.editor=null;state.calendarEditor=null;state.calendarDrag=null;state.detailId=null;state.detailMarkup=null;state.message='';state.html.clear();
         for(const id of ['sales-myday','sales-alerts','sales-finance','sales-history','sales-crm-detail'])if($(id))$(id).innerHTML='';
       }
       return !!state.workspace;
     }
     function clear() {
-      state.generation++;state.workspace=null;state.principal=principal();state.scope=salesperson();state.busy.clear();state.drafts.clear();state.creates.clear();state.html.clear();state.editor=null;state.detailId=null;state.detailMarkup=null;state.message='';
+      state.generation++;state.workspace=null;state.principal=principal();state.scope=salesperson();state.busy.clear();state.drafts.clear();state.creates.clear();state.html.clear();state.editor=null;state.calendarEditor=null;state.calendarDrag=null;state.detailId=null;state.detailMarkup=null;state.message='';
       for(const id of ['sales-myday','sales-alerts','sales-finance','sales-history','sales-crm-detail']) if($(id))$(id).innerHTML='';
     }
     function init(options) {
@@ -227,27 +240,82 @@
     }
     function itemTitle(row) {return '<strong>'+e(orderLabel(row))+'</strong><span class="crm-muted">'+e(row?.vehicle||'')+'</span>';}
     function linkedTitle(id,finance=false) {const row=rowFor(id,finance);return row?itemTitle(row):'<strong>Vehicle no longer in this view</strong>';}
-    function taskCard(task) {
-      const row=rowFor(task.tracking_id),today=perthToday();
-      return '<article class="crm-card"><div class="crm-card-top">'+linkedTitle(task.tracking_id)+'<span class="crm-badge '+(task.due_date<today?'crm-late':'')+'">'+(task.due_date<today?'Overdue · ':'Due · ')+e(dateLabel(task.due_date))+'</span></div><p>'+e(task.title)+'</p><div class="crm-card-actions">'+openButton(row)+'<button class="small-button" type="button" data-crm-task-toggle="'+e(task.id)+'">'+(task.completed?'Reopen task':'Mark done')+'</button></div></article>';
+
+    function calendarEntries() {
+      const entries=[];
+      for(const record of recordList('tasks')) if(record.due_date&&record.completed!==true) entries.push({kind:'task',id:record.id,trackingId:record.tracking_id,date:record.due_date,title:record.title||'Task',version:record.version});
+      for(const record of recordList('contacts')) if(record.next_contact_date) entries.push({kind:'contact',id:record.id,trackingId:record.tracking_id,date:record.next_contact_date,title:record.next_action||'Contact customer',version:record.version});
+      for(const record of recordList('delivery')) if(record.promised_delivery_date&&record.handover!==true) entries.push({kind:'delivery',id:record.id,trackingId:record.tracking_id,date:record.promised_delivery_date,title:'Promised customer delivery'});
+      for(const row of currentRows()) if(row.kewdale_eta&&/^\d{4}-\d{2}-\d{2}$/.test(row.kewdale_eta)) entries.push({kind:'eta',id:row.tracking_id,trackingId:row.tracking_id,date:row.kewdale_eta,title:'Kewdale ETA · estimated'});
+      return entries.sort((a,b)=>a.date.localeCompare(b.date)||a.kind.localeCompare(b.kind)||String(a.id).localeCompare(String(b.id)));
+    }
+    function calendarEvent(entry) {
+      const row=rowFor(entry.trackingId),movable=['task','contact'].includes(entry.kind),late=movable&&entry.date<perthToday(),busy=state.busy.has(keyFor(entry.kind,entry.id,entry.trackingId));
+      return '<button type="button" class="crm-calendar-event crm-calendar-'+e(entry.kind)+(late?' crm-calendar-overdue':'')+'" data-calendar-kind="'+e(entry.kind)+'" data-calendar-id="'+e(entry.id)+'"'+(movable&&!busy?' draggable="true"':'')+(busy?' disabled':'')+' aria-label="'+e(entry.title+' · '+orderLabel(row)+' · '+dateLabel(entry.date)+(movable?' · Click to edit or drag to a day':' · Open vehicle'))+'"><span>'+e(entry.title)+'</span><small>'+e(row.stock||'Order '+row.order)+' · '+e(row.client)+'</small>'+(late?'<small>Overdue · '+e(dateLabel(entry.date))+'</small>':'')+'</button>';
+    }
+    function calendarEditorHtml() {
+      const editor=state.calendarEditor;if(!editor)return '';
+      const record=editor.id?recordList(editor.kind==='task'?'tasks':'contacts').find(r=>r.id===editor.id):null;
+      if(editor.id&&!record){state.calendarEditor=null;return '';}
+      const trackingId=record?.tracking_id||null,kind=editor.kind;
+      const data=formRecord(kind,record?.id,trackingId,record||{due_date:editor.date||perthToday(),completed:false});
+      const fields=(record?'<div class="crm-wide">'+linkedTitle(trackingId)+'</div>':orderPicker(currentRows(),data.tracking_id||''))+(kind==='task'?field('title','Task / reminder',data.title,'text','required maxlength="200"')+field('due_date','Due date',data.due_date,'date','required min="2000-01-01" max="2100-12-31"')+(record?checked('completed','Completed',data.completed===true):''):textarea('next_action','Customer reminder',data.next_action,'maxlength="200"')+field('next_contact_date','Reminder date',data.next_contact_date,'date','min="2000-01-01" max="2100-12-31"'));
+      return '<section class="panel crm-editor crm-calendar-editor"><div class="panel-header"><h3>'+(record?'Edit '+(kind==='task'?'task':'customer reminder'):'Add task / reminder')+'</h3><button type="button" class="small-button" data-calendar-close>Close</button></div>'+formStart(kind,record?.id,trackingId,record?.version||0)+fields+saveButton('Save '+(kind==='task'?'task':'reminder'))+'</form>'+(record?openButton(rowFor(trackingId)):'')+'</section>';
     }
     function renderMyDay() {
-      const today=perthToday(),soon=new Date(today+'T00:00:00Z');soon.setUTCDate(soon.getUTCDate()+7);const end=soon.toISOString().slice(0,10);
-      const tasks=recordList('tasks').filter(t=>t.completed!==true).sort((a,b)=>String(a.due_date||'9999').localeCompare(String(b.due_date||'9999')));
-      const due=tasks.filter(t=>t.due_date && t.due_date<=today),upcoming=tasks.filter(t=>!t.due_date||t.due_date>today);
-      const contacts=recordList('contacts').filter(c=>c.next_contact_date && c.next_contact_date<=today).sort((a,b)=>a.next_contact_date.localeCompare(b.next_contact_date));
-      const leads=(host.BROOME_SALES_LEADS?.scopeRows?.(state.workspace?.leads||[],context(),salesperson())||[])
-        .filter(lead=>['enquiry','testdrive','quote'].includes(lead.stage)&&lead.next_contact_date&&lead.next_contact_date<=today)
-        .sort((a,b)=>a.next_contact_date.localeCompare(b.next_contact_date));
-      const deliveries=recordList('delivery').filter(d=>d.handover!==true && d.promised_delivery_date && d.promised_delivery_date>=today && d.promised_delivery_date<=end).sort((a,b)=>a.promised_delivery_date.localeCompare(b.promised_delivery_date));
-      const late=due.filter(t=>t.due_date<today).length;
-      const cards='<div class="crm-summary-cards crm-day-summary"><article><span>Tasks due</span><strong>'+due.length+'</strong><small>'+late+' overdue</small></article><article><span>Order contacts due</span><strong>'+contacts.length+'</strong><small>COSI vehicle customers</small></article><article><span>Lead follow-ups</span><strong>'+leads.length+'</strong><small>Today and overdue</small></article><article><span>Upcoming deliveries</span><strong>'+deliveries.length+'</strong><small>Promised in the next 7 days</small></article></div>';
-      const contactsHtml=contacts.map(c=>'<article class="crm-card">'+linkedTitle(c.tracking_id)+'<p>'+e(c.next_action||'Contact customer')+'</p><span class="crm-badge '+(c.next_contact_date<today?'crm-late':'')+'">'+e(dateLabel(c.next_contact_date))+'</span><div class="crm-card-actions">'+openButton(rowFor(c.tracking_id),'Contact details')+'</div></article>').join('');
-      const leadsHtml='<section class="crm-next"><h3>Lead follow-ups</h3>'+(leads.length?'<div class="crm-columns">'+leads.map(lead=>'<article class="crm-card"><strong>'+e(lead.customer_name||'Customer not recorded')+'</strong><span class="crm-muted">'+e(lead.vehicle_interest||'Vehicle interest not recorded')+' · '+e({enquiry:'Enquiry',testdrive:'Test drive',quote:'Quote'}[lead.stage])+'</span><p>'+e(lead.next_action||'Follow up with customer')+'</p><span class="crm-badge '+(lead.next_contact_date<today?'crm-late':'')+'">'+(lead.next_contact_date<today?'Overdue · ':'Due · ')+e(dateLabel(lead.next_contact_date))+'</span><div class="crm-card-actions"><button type="button" class="small-button" data-crm-show="leads">Open Leads</button></div></article>').join('')+'</div>':'<p class="crm-empty">No enquiry, test drive or quote follow-ups due.</p>')+'</section>';
-      const deliveryHtml=deliveries.map(d=>'<article class="crm-card">'+linkedTitle(d.tracking_id)+'<p>Promised delivery · '+e(dateLabel(d.promised_delivery_date))+'</p><span class="crm-muted">'+['documents','accessories','finance','handover'].filter(k=>d[k]===true).length+' of 4 delivery checks complete</span><div class="crm-card-actions">'+openButton(rowFor(d.tracking_id),'Delivery checklist')+'</div></article>').join('');
-      const draft=formRecord('task',null,null,{});
-      const newTask=currentRows().length?'<details class="crm-create-task"><summary>Add a follow-up task</summary>'+formStart('task',null,null)+orderPicker(currentRows(),draft.tracking_id)+field('title','Task',draft.title,'text','required maxlength="200"')+field('due_date','Due date',draft.due_date,'date','required min="2000-01-01" max="2100-12-31"')+saveButton('Add task')+'</form></details>':'';
-      setHtml('sales-myday','<div class="section-intro"><h2>My Day</h2><p>Lead follow-ups, sold-order contacts and delivery plans in your view. All dates use Perth time.</p></div>'+messageHtml()+cards+newTask+'<div class="crm-columns"><section><h3>Tasks due</h3>'+(due.map(taskCard).join('')||'<p class="crm-empty">No tasks due.</p>')+'</section><section><h3>Order contacts due</h3>'+(contactsHtml||'<p class="crm-empty">No sold-order contact reminders due.</p>')+'</section><section><h3>Upcoming deliveries</h3>'+(deliveryHtml||'<p class="crm-empty">No promised deliveries recorded for the next 7 days.</p>')+'</section></div>'+leadsHtml+(upcoming.length?'<section class="crm-next"><h3>Next tasks</h3><div class="crm-columns">'+upcoming.slice(0,9).map(taskCard).join('')+'</div></section>':''));
+      const today=perthToday();state.calendarMonth=state.calendarMonth||today.slice(0,7);
+      const month=state.calendarMonth,days=calendarDays(month),entries=calendarEntries();
+      const tasks=entries.filter(r=>r.kind==='task'&&r.date<=today),contacts=entries.filter(r=>r.kind==='contact'&&r.date<=today);
+      const overdue=entries.filter(r=>['task','contact'].includes(r.kind)&&r.date<days[0]);
+      const monthTitle=new Date(month+'-01T00:00:00Z').toLocaleDateString('en-AU',{timeZone:'UTC',month:'long',year:'numeric'});
+      const cards='<div class="crm-summary-cards"><article><span>Tasks due</span><strong>'+tasks.length+'</strong><small>Today and overdue</small></article><article><span>Customer reminders due</span><strong>'+contacts.length+'</strong><small>Ordered vehicles only</small></article><article><span>Vehicle deliveries this month</span><strong>'+entries.filter(r=>r.kind==='delivery'&&r.date.startsWith(month)).length+'</strong><small>Promised customer delivery dates</small></article></div>';
+      const cells=days.map(day=>'<section class="crm-calendar-day'+(day.startsWith(month)?'':' crm-calendar-outside')+(day===today?' crm-calendar-today':'')+'" data-calendar-day="'+day+'" aria-label="'+e(dateLabel(day))+'"><button type="button" class="crm-calendar-date" data-calendar-add="'+day+'" aria-label="Add task on '+e(dateLabel(day))+'">'+Number(day.slice(-2))+(day===today?' <span>Today</span>':'')+'</button><div class="crm-calendar-events">'+entries.filter(entry=>entry.date===day).map(calendarEvent).join('')+'</div></section>').join('');
+      setHtml('sales-myday','<div class="section-intro crm-heading"><div><h2>My Day</h2><p>Tasks, customer reminders and delivery plans for ordered vehicles. Click a task or reminder to edit it, or drag it to another day. Dates use Perth time.</p></div>'+(currentRows().length?'<button type="button" class="primary" data-calendar-add="'+today+'">Add task / reminder</button>':'')+'</div>'+messageHtml()+cards+calendarEditorHtml()+'<section class="panel crm-calendar-panel"><div class="crm-calendar-toolbar"><h3>'+e(monthTitle)+'</h3><div><button type="button" class="small-button" data-calendar-month="-1" aria-label="Previous month"'+(month==='2000-01'?' disabled':'')+'>‹</button><button type="button" class="small-button" data-calendar-today>Today</button><button type="button" class="small-button" data-calendar-month="1" aria-label="Next month"'+(month==='2100-12'?' disabled':'')+'>›</button></div></div><div class="crm-calendar-legend"><span>Tasks</span><span>Customer reminders</span><span>Promised delivery</span><span>Kewdale estimate · read-only</span></div><div class="crm-calendar-scroll"><div class="crm-calendar-weekdays">'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day=>'<span>'+day+'</span>').join('')+'</div><div class="crm-calendar-grid">'+cells+'</div></div></section>'+(overdue.length?'<section class="crm-calendar-earlier"><h3>Earlier outstanding tasks and reminders</h3><div>'+overdue.map(calendarEvent).join('')+'</div></section>':''));
+    }
+    function calendarRecord(kind,id) {
+      if(!['task','contact'].includes(kind))return null;
+      return recordList(kind==='task'?'tasks':'contacts').find(record=>record.id===id)||null;
+    }
+    function beginCalendarDrag(kind,id) {
+      if(!scopeGuard())return null;
+      const record=calendarRecord(kind,id);
+      if(!record||state.busy.has(keyFor(kind,id,record.tracking_id))||state.drafts.has(keyFor(kind,id,record.tracking_id)))return null;
+      return {kind,id,trackingId:record.tracking_id,version:record.version,generation:state.generation,owner:principal()};
+    }
+    async function moveCalendarEntry(drag,date) {
+      if(!scopeGuard()||!drag||drag.generation!==state.generation||drag.owner!==principal())return null;
+      date=dateValue(date);if(!date)return null;
+      const record=calendarRecord(drag.kind,drag.id);
+      if(!record||record.tracking_id!==drag.trackingId)return null;
+      if(record.version!==drag.version)throw new Error('This reminder changed. Refresh before moving it.');
+      if(state.drafts.has(keyFor(drag.kind,drag.id,record.tracking_id)))throw new Error('Save or close your edits before moving this reminder.');
+      const before=drag.kind==='task'?record.due_date:record.next_contact_date;
+      if(before===date)return record;
+      const patch=drag.kind==='task'?{title:record.title,due_date:date,completed:record.completed===true}:{next_contact_date:date};
+      const result=await save(drag.kind,record.id,record.tracking_id,patch,drag.version);
+      if(result&&drag.generation===state.generation&&drag.owner===principal()) {state.message='Moved to '+dateLabel(date)+'.';render('myday');repaintDetail();}
+      return result;
+    }
+    function bindCalendar(container) {
+      container.addEventListener('dragstart',event=>{
+        const button=event.target.closest?.('[data-calendar-kind]'),data=button?.dataset;
+        const drag=data?beginCalendarDrag(data.calendarKind,data.calendarId):null;
+        if(!drag){event.preventDefault();return;}
+        state.calendarDrag=drag;event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain','sales-calendar-reminder');
+      });
+      container.addEventListener('dragover',event=>{
+        const day=event.target.closest?.('[data-calendar-day]');
+        if(!day||!state.calendarDrag)return;event.preventDefault();event.dataTransfer.dropEffect='move';
+        container.querySelectorAll?.('.crm-calendar-drop').forEach(node=>node.classList.remove('crm-calendar-drop'));day.classList.add('crm-calendar-drop');
+      });
+      const clearDrop=()=>container.querySelectorAll?.('.crm-calendar-drop').forEach(node=>node.classList.remove('crm-calendar-drop'));
+      container.addEventListener('dragend',()=>{state.calendarDrag=null;clearDrop();});
+      container.addEventListener('drop',async event=>{
+        const day=event.target.closest?.('[data-calendar-day]'),drag=state.calendarDrag;
+        state.calendarDrag=null;clearDrop();if(!day||!drag)return;event.preventDefault();
+        try{await moveCalendarEntry(drag,day.dataset.calendarDay);}
+        catch(error){if(drag.generation===state.generation&&drag.owner===principal()){state.message=errorMessage(error);render('myday');}}
+      });
     }
     function renderAlerts() {
       const records=recordList('alerts').filter(a=>!a.dismissed_at).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
@@ -342,6 +410,7 @@
     function bindContainer(container) {
       if(!container || container.dataset?.crmBound==='yes') return;
       if(container.dataset)container.dataset.crmBound='yes';
+      if(container.id==='sales-myday')bindCalendar(container);
       container.addEventListener('input',event=>{const form=event.target.closest?.('[data-crm-form]');if(form)rememberForm(form);});
       container.addEventListener('change',event=>{const form=event.target.closest?.('[data-crm-form]');if(form)rememberForm(form);});
       container.addEventListener('submit',async event=>{
@@ -361,6 +430,7 @@
           state.creates.delete(keyFor(kind,null,form.dataset.crmTracking));
           if(status)status.textContent='Saved.';
           if(kind==='finance')state.editor=null;
+          if(state.view==='myday'&&state.calendarEditor?.kind===kind)state.calendarEditor=null;
           render(state.view);repaintDetail();
         } catch(error) {
           if(generation===state.generation&&owner===principal()) {state.message=errorMessage(error);if(status)status.textContent=state.message;}
@@ -368,6 +438,16 @@
       });
       container.addEventListener('click',async event=> {
         if(!scopeGuard())return;
+        const calendarButton=event.target.closest?.('[data-calendar-month],[data-calendar-today],[data-calendar-add],[data-calendar-close],[data-calendar-kind]');
+        if(calendarButton&&['calendarMonth','calendarToday','calendarAdd','calendarClose','calendarKind'].some(key=>Object.hasOwn(calendarButton.dataset,key))){
+          const d=calendarButton.dataset;
+          if(d.calendarMonth){const month=shiftMonth(state.calendarMonth||perthToday().slice(0,7),Number(d.calendarMonth));if(month>='2000-01'&&month<='2100-12')state.calendarMonth=month;}
+          else if(d.calendarToday!==undefined)state.calendarMonth=perthToday().slice(0,7);
+          else if(d.calendarClose!==undefined){const editor=state.calendarEditor,record=editor?.id?calendarRecord(editor.kind,editor.id):null;if(editor){state.drafts.delete(keyFor(editor.kind,editor.id,record?.tracking_id));state.creates.delete(keyFor(editor.kind,null,record?.tracking_id));}state.calendarEditor=null;}
+          else if(d.calendarAdd&&currentRows().length){state.calendarEditor={kind:'task',date:dateValue(d.calendarAdd)};}
+          else if(d.calendarKind){const record=calendarRecord(d.calendarKind,d.calendarId);if(record)state.calendarEditor={kind:d.calendarKind,id:record.id};else {const entry=calendarEntries().find(r=>r.kind===d.calendarKind&&r.id===d.calendarId);if(entry)state.options?.openVehicle?.(entry.trackingId);return;}}
+          state.message='';render('myday');$('sales-myday')?.querySelector?.('.crm-calendar-editor')?.scrollIntoView?.({block:'nearest'});return;
+        }
         const button=event.target.closest?.('[data-crm-open],[data-crm-task-toggle],[data-crm-dismiss],[data-crm-new-finance],[data-crm-edit-finance],[data-crm-finance-cancel],[data-crm-finance-access],[data-crm-show]');
         if(!button)return;const data=button.dataset;
         if(data.crmOpen!==undefined){if(ids().has(data.crmOpen))state.options?.openVehicle?.(data.crmOpen);return;}
@@ -423,10 +503,10 @@
       setWorkspace(data);
     }
     function getWorkspace() {return state.workspace;}
-    const api={init,setWorkspace,render,detailHtml,bindDetail,clear,save,refresh,getWorkspace,syncScope:scopeGuard,refreshDetail:repaintDetail,financeSummary,perthToday,dateLabel};
+    const api={init,setWorkspace,render,detailHtml,bindDetail,clear,save,refresh,getWorkspace,beginCalendarDrag,moveCalendarEntry,syncScope:scopeGuard,refreshDetail:repaintDetail,financeSummary,perthToday,dateLabel};
     return api;
   }
-  const exports={createWorkspace,validate,isSold,dateValue,dateLabel,perthToday,orderLabel,statusLabel,financeSummary,eventDetails};
+  const exports={createWorkspace,validate,isSold,dateValue,dateLabel,perthToday,orderLabel,statusLabel,financeSummary,eventDetails,calendarDays,shiftMonth};
   if(typeof module==='object'&&module.exports)module.exports=exports;
   if(root.document)root.BROOME_SALES_CRM=createWorkspace(root);
 })(typeof window==='object'?window:globalThis);
