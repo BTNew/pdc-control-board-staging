@@ -1,0 +1,185 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+const crm=require('./sales/crm-workspace.js');
+const today=crm.perthToday();
+function element(id) {
+  return {id,innerHTML:'',textContent:'',dataset:{},events:{},addEventListener(type,fn){this.events[type]=fn;},querySelector(){return null;},scrollIntoView(){}};
+}
+function harness({admin=false,finance=false}={}) {
+  const elements=new Map(),calls=[],events={},changes=[],opens=[];
+  const el=id=>{if(!elements.has(id))elements.set(id,element(id));return elements.get(id);};
+  const h={rows:[{tracking_id:'BG-order',cosi:true,salesperson_code:'BG',stock:'13001',order:'000001',client:'Bryce customer',vehicle:'HiLux'},
+    {tracking_id:'PM-order',cosi:'Yes',salesperson_code:'PM',order:'000002',client:'Other customer',vehicle:'Prado'},
+    {tracking_id:'unsold',cosi:'No',salesperson_code:'BG',stock:'13003',client:'Unsold customer'}],person:'BG',context:{role:admin?'administrator':'salesperson'}};
+  h.host={crypto:require('node:crypto'),BROOME_SALES_LEADS:require('./sales/leads.js'),PDC_AUTH_CONTEXT:{userId:'approved-user',role:admin?'administrator':'salesperson'},document:{getElementById:el},addEventListener(type,fn){events[type]=fn;},
+    PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}}};
+  h.api=crm.createWorkspace(h.host);h.api.init({getRows:()=>h.rows,getContext:()=>h.context,getSalesperson:()=>h.person,openVehicle:id=>opens.push(id),showView:view=>{h.view=view;},onChanged:(...args)=>changes.push(args)});
+  h.workspace={context:{can_edit_finance:finance},contacts:[{id:'c-bg',tracking_id:'BG-order',version:1,next_contact_date:today,next_action:'Call Bryce customer'},
+    {id:'c-pm',tracking_id:'PM-order',version:1,next_contact_date:today,next_action:'Other private call'},
+    {id:'c-unsold',tracking_id:'unsold',version:1,next_contact_date:today,next_action:'Unsold private call'}],
+    tasks:[{id:'t-bg',tracking_id:'BG-order',version:2,title:'Own follow-up',due_date:today,completed:false},{id:'t-pm',tracking_id:'PM-order',version:1,title:'Other private task',due_date:today,completed:false}],
+    delivery:[{id:'d-bg',tracking_id:'BG-order',version:1,promised_delivery_date:today,documents:true},{id:'d-pm',tracking_id:'PM-order',version:1,promised_delivery_date:today}],
+    activities:[{id:'a-bg',tracking_id:'BG-order',activity_type:'note',body:'Own contact history',occurred_at:today+'T01:00:00Z'}],
+    finance:[{id:'f-bg',tracking_id:'BG-order',version:2,current_application:true,approval_status:'approved',approval_date:today,settlement_status:'pending',shared_update:'Shared update',lender:'Private lender',amount:50000,commission:2000,internal_notes:'Manager-only note'},
+      {id:'f-pm',tracking_id:'PM-order',version:1,current_application:true,approval_status:'pending',shared_update:'Other finance private'}],
+    order_refs:h.rows.filter(crm.isSold).map(row=>({...row})),finance_accounts:[{id:'exact-role-id',name:'Approved editor',email:'editor@example.invalid',enabled:false,version:0}],
+    alerts:[{id:'alert-bg',tracking_id:'BG-order',version:1,title:'Own ETA changed',details:'An observed update',occurred_at:today+'T02:00:00Z'},
+      {id:'alert-pm',tracking_id:'PM-order',version:1,title:'Other private alert',occurred_at:today+'T02:00:00Z'}],
+    timeline:[{id:'event-bg',tracking_id:'BG-order',title:'Stock allocated',details:'Observed stock update',occurred_at:today+'T03:00:00Z'}],history:[]};
+  h.api.setWorkspace(h.workspace);Object.assign(h,{el,calls,events,changes,opens});return h;
+}
+function button(dataset){return {dataset,disabled:false,closest(){return this;}};}
+const flush=()=>new Promise(resolve=>setImmediate(resolve));
+test('My Day and alerts use COSI rows and the selected salesperson without a first-load request',()=>{
+  const h=harness({admin:true});assert.equal(h.calls.length,0);h.api.render('myday');
+  const html=h.el('sales-myday').innerHTML;assert.match(html,/Own follow-up/);assert.match(html,/Call Bryce customer/);
+  assert.doesNotMatch(html,/Other private|Other customer|Unsold private|Unsold customer/);
+  h.api.render('alerts');assert.match(h.el('sales-alerts').innerHTML,/Own ETA changed/);assert.doesNotMatch(h.el('sales-alerts').innerHTML,/Other private alert/);
+  h.person='PM';h.api.render('myday');assert.match(h.el('sales-myday').innerHTML,/Other private task/);assert.doesNotMatch(h.el('sales-myday').innerHTML,/Own follow-up|Bryce customer/);
+});
+test('Finance strips private amounts and notes from ordinary sales data and DOM',()=>{
+  const h=harness();h.api.render('finance');const html=h.el('sales-finance').innerHTML;
+  assert.match(html,/Approved|Shared update/);assert.doesNotMatch(html,/Manager-only note|Private lender|50000|2000|crm-new-finance|Finance staff only|finance-access/);
+  assert.doesNotMatch(JSON.stringify(h.api.getWorkspace().finance),/Manager-only note|Private lender|50000/);
+  assert.equal(h.api.getWorkspace().finance_accounts.length,0);
+  h.person='';h.rows=h.rows.filter(row=>row.salesperson_code==='BG');h.api.render('finance');assert.doesNotMatch(h.el('sales-finance').innerHTML,/Other finance private|Other customer/);
+});
+test('manager Finance renders only capability-approved controls and exact order links',async()=>{
+  const h=harness({admin:true,finance:true});h.api.render('finance');
+  assert.match(h.el('sales-finance').innerHTML,/New finance entry|Finance editor access/);
+  await h.el('sales-finance').events.click({target:button({crmEditFinance:'f-bg'})});
+  const html=h.el('sales-finance').innerHTML;assert.match(html,/Finance staff only|Manager-only note|Private lender/);assert.match(html,/data-crm-tracking="BG-order"/);
+  assert.doesNotMatch(html,/Other finance private/);
+  h.person='PM';h.api.render('finance');assert.doesNotMatch(h.el('sales-finance').innerHTML,/Manager-only note|Bryce customer/);
+});
+test('Finance cannot use an auth role to bypass the workspace editing capability',async()=>{
+  const h=harness({admin:true,finance:false});h.api.render('finance');assert.doesNotMatch(h.el('sales-finance').innerHTML,/data-crm-new-finance|Finance staff only/);
+  await assert.rejects(h.api.save('finance','f-bg','BG-order',{approval_status:'pending'},2),/Finance editor access/);assert.equal(h.calls.length,0);
+});
+test('date and finance validation preserve independent finance and payout statuses',()=>{
+  assert.equal(crm.perthToday(new Date('2026-10-01T17:30:00Z')),'2026-10-02');
+  assert.equal(crm.dateValue('2024-02-29'),'2024-02-29');assert.throws(()=>crm.dateValue('2026-02-29'),/calendar/);
+  assert.throws(()=>crm.dateValue('1999-12-31'),/2000/);assert.equal(crm.dateValue(''),null);
+  for(const [key,status] of [['approval','approved'],['documents','complete'],['settlement','settled'],['access','active'],['payout','complete']])assert.throws(()=>crm.validate('finance',{[key+'_status']:status}),/date/);
+  const data=crm.validate('finance',{approval_status:'approved',approval_date:today,settlement_status:'pending',payout_status:'complete',payout_date:today});
+  assert.equal(data.settlement_status,'pending');assert.equal(data.payout_status,'complete');
+  assert.throws(()=>crm.validate('finance',{settlement_status:'delivered'}),/valid/);
+  assert.throws(()=>crm.validate('task',{title:'Call',due_date:''}),/due date/);assert.throws(()=>crm.validate('contact',{email:'invalid'}),/email/);
+  assert.throws(()=>crm.validate('contact',{stock_number:'fake'}),/cannot be changed/);assert.throws(()=>crm.validate('note',{body:'',activity_type:'note'}),/Enter/);
+});
+test('record identity and cross-person writes are checked before submitting',async()=>{
+  const h=harness();await assert.rejects(h.api.save('contact',null,'PM-order',{next_action:'No'},0),/no longer/);
+  await assert.rejects(h.api.save('delivery',null,'unsold',{handover:true},0),/no longer/);
+  assert.equal(h.calls.length,0);
+  const pending=h.api.save('contact','c-bg','BG-order',{next_contact_date:today,next_action:'Call'},1);
+  assert.equal(h.calls[0].name,'save_broome_sales_crm');assert.equal(h.calls[0].args.p_tracking_id,'BG-order');assert.equal(h.calls[0].args.p_expected_version,1);
+  h.calls[0].resolve({data:{record:{id:'c-bg',tracking_id:'BG-order',next_contact_date:today,next_action:'Call',version:2}}});assert.equal((await pending).version,2);assert.equal(h.changes.length,1);
+});
+test('duplicate writes are suppressed and replay conflicts preserve the latest saved record',async()=>{
+  const h=harness();const fields={title:'Follow up',due_date:today,completed:true};
+  const pending=h.api.save('task','t-bg','BG-order',fields,2);
+  await assert.rejects(h.api.save('task','t-bg','BG-order',fields,2),/already saving/);assert.equal(h.calls.length,1);
+  h.calls[0].resolve({error:{message:'record version conflict'}});await assert.rejects(pending,/version conflict/);
+  assert.equal(h.api.getWorkspace().tasks.find(t=>t.id==='t-bg').completed,false);
+  const next=h.api.save('task','t-bg','BG-order',fields,2);assert.equal(h.calls.length,2);
+  h.calls[1].resolve({data:{record:{id:'t-bg',tracking_id:'BG-order',...fields,version:3}}});assert.equal((await next).completed,true);
+});
+test('a delayed save cannot restore records or messages after sign-out',async()=>{
+  const h=harness();const pending=h.api.save('contact','c-bg','BG-order',{next_action:'Private draft'},1);
+  delete h.host.PDC_AUTH_CONTEXT;h.context=null;h.events['pdc-auth-locked']();
+  h.calls[0].resolve({data:{record:{id:'c-bg',tracking_id:'BG-order',next_action:'Private saved response',version:2}}});
+  assert.equal(await pending,null);assert.equal(h.changes.length,0);assert.equal(h.api.getWorkspace(),null);
+  for(const id of ['sales-myday','sales-alerts','sales-finance','sales-history'])assert.equal(h.el(id).innerHTML,'');
+});
+test('selected-person changes invalidate delayed saves and remove old details',async()=>{
+  const h=harness();h.el('sales-crm-detail').innerHTML=h.api.detailHtml(h.rows[0]);
+  const pending=h.api.save('contact','c-bg','BG-order',{next_action:'Private draft'},1);h.person='PM';h.api.render('myday');
+  h.calls[0].resolve({data:{record:{id:'c-bg',tracking_id:'BG-order',next_action:'Late private response',version:2}}});
+  assert.equal(await pending,null);assert.equal(h.changes.length,0);assert.equal(h.api.detailHtml(h.rows[0]),'');assert.equal(h.el('sales-crm-detail').innerHTML,'');assert.doesNotMatch(h.el('sales-myday').innerHTML,/Late private response|Bryce customer/);
+});
+test('a delayed workspace refresh cannot leak into a replacement account',async()=>{
+  const h=harness();const pending=h.api.refresh();h.host.PDC_AUTH_CONTEXT={userId:'replacement',role:'salesperson'};h.events['pdc-auth-ready']();
+  h.calls[0].resolve({data:h.workspace});await pending;assert.equal(h.api.getWorkspace(),null);assert.equal(h.el('sales-myday').innerHTML,'');
+});
+test('details escape customer notes and workshop timeline and never expose Finance private fields',()=>{
+  const h=harness();h.workspace.activities[0].body='<img src=x onerror=alert(1)>';h.workspace.timeline[0].title='<unsafe event>';
+  h.api.setWorkspace(h.workspace);const row={...h.rows[0],pmb_arrival_date:today,bay_bookings:[{booking_id:'booking',stage:'Tint',bay:'<unsafe bay>',scheduled_start_at:today+'T04:00:00Z',actual_start_at:today+'T04:05:00Z'}]};
+  const html=h.api.detailHtml(row);assert.match(html,/&lt;img|&lt;unsafe event&gt;|&lt;unsafe bay&gt;|Bay booking|Work started/);
+  assert.doesNotMatch(html,/<img src=x|Manager-only note|Private lender|Other private/);assert.match(html,/does not mark RDR/);
+  h.api.render('history');assert.match(h.el('sales-history').innerHTML,/RDR confirmation is awaiting/);
+});
+test('unsaved inputs survive polling and are cleared when scope changes',()=>{
+  const h=harness();h.el('sales-crm-detail').innerHTML=h.api.detailHtml(h.rows[0]);h.api.bindDetail('BG-order');
+  const form={dataset:{crmForm:'contact',crmId:'c-bg',crmTracking:'BG-order',crmVersion:'1'},elements:[{name:'next_action',type:'text',value:'Unsaved follow-up draft'}]};
+  h.el('sales-crm-detail').events.input({target:{closest:()=>form}});h.workspace.contacts[0].next_action='New server version';h.workspace.contacts[0].version=2;
+  h.api.setWorkspace(h.workspace);let html=h.api.detailHtml(h.rows[0]);assert.match(html,/Unsaved follow-up draft/);assert.match(html,/data-crm-version="1"/);
+  h.person='PM';h.api.render('myday');h.person='BG';h.api.render('myday');html=h.api.detailHtml(h.rows[0]);assert.doesNotMatch(html,/Unsaved follow-up draft/);assert.match(html,/New server version/);
+});
+test('finance access is an exact account grant and never changes operational roles',async()=>{
+  const h=harness({admin:true,finance:true});h.api.render('finance');const action=h.el('sales-finance').events.click({target:button({crmFinanceAccess:'exact-role-id'})});
+  assert.equal(h.calls[0].args.p_kind,'finance_access');assert.equal(h.calls[0].args.p_id,'exact-role-id');assert.equal(h.calls[0].args.p_tracking_id,null);assert.deepEqual(h.calls[0].args.p_data,{enabled:true});
+  h.calls[0].resolve({data:{record:{id:'exact-role-id',enabled:true,version:1}}});await action;assert.equal(h.api.getWorkspace().finance_accounts[0].enabled,true);
+  const sales=harness();await assert.rejects(sales.api.save('finance_access','exact-role-id',null,{enabled:true},0),/Administrator/);assert.equal(sales.calls.length,0);
+});
+test('CRM source uses isolated sales RPCs without a browser record cache or operational writes',()=>{
+  const source=fs.readFileSync('sales/crm-workspace.js','utf8');
+  assert.doesNotMatch(source,/localStorage|sessionStorage|\.from\(|update_pdc|set_pdc|save_workshop|requestNotificationPermission|Notification\(/);
+  assert.match(source,/save_broome_sales_crm/);assert.match(source,/get_broome_sales_workspace/);
+});
+test('structured alerts show changed facts and dated bay states without object placeholders',()=>{
+  const details={before:{kewdale_eta:'2026-10-01',dealer_eta:null},after:{kewdale_eta:'2026-10-04',dealer_eta:null}};
+  assert.match(crm.eventDetails(details,'eta_changed'),/Kewdale ETA: .*1 Oct 2026.*→.*4 Oct 2026/);
+  assert.doesNotMatch(crm.eventDetails(details,'eta_changed'),/Dealer ETA|\[object Object\]/);
+  assert.match(crm.eventDetails({before:'',after:'13001'},'stock_allocated'),/Awaiting allocation → 13001/);
+  const bookings={before:[],after:[{booking_id:'private-booking-id',stage:'Tint',bay:'Bay A',status:'started',scheduled_start_at:'2026-10-03T01:00:00Z',actual_start_at:'2026-10-03T01:05:00Z'}]};
+  const rendered=crm.eventDetails(bookings,'workshop_changed');assert.match(rendered,/No bay bookings → Tint · Bay A · Work started · Booked .*Started/);assert.doesNotMatch(rendered,/private-booking-id|\[object Object\]/);
+  const h=harness();h.workspace.alerts[0].event_type='eta_changed';h.workspace.alerts[0].details=details;h.api.setWorkspace(h.workspace);h.api.render('alerts');assert.match(h.el('sales-alerts').innerHTML,/Kewdale ETA/);assert.doesNotMatch(h.el('sales-alerts').innerHTML,/\[object Object\]/);
+});
+test('an uncertain note submission retains its unique ID and occurrence time for a safe retry',async()=>{
+  const h=harness();h.el('sales-crm-detail').innerHTML=h.api.detailHtml(h.rows[0]);h.api.bindDetail('BG-order');
+  const submit=element('submit'),status=element('status'),form={dataset:{crmForm:'note',crmId:'',crmTracking:'BG-order',crmVersion:'0'},elements:[{name:'activity_type',type:'select-one',value:'call'},{name:'body',type:'textarea',value:'Customer called'}],querySelector:selector=>selector==='[type="submit"]'?submit:status};
+  const event={target:{closest:()=>form},preventDefault(){}};
+  const first=h.el('sales-crm-detail').events.submit(event);assert.equal(submit.disabled,true);assert.match(h.calls[0].args.p_id,/^[a-f0-9-]{36}$/);const firstArgs=h.calls[0].args;
+  h.calls[0].resolve({error:{message:'Connection interrupted'}});await first;assert.equal(submit.disabled,false);assert.match(status.textContent,/Connection interrupted/);
+  const retry=h.el('sales-crm-detail').events.submit(event);assert.equal(h.calls[1].args.p_id,firstArgs.p_id);assert.equal(h.calls[1].args.p_data.occurred_at,firstArgs.p_data.occurred_at);
+  h.calls[1].resolve({data:{record:{id:firstArgs.p_id,tracking_id:'BG-order',...firstArgs.p_data,version:1}}});await retry;
+  assert.equal(h.api.getWorkspace().activities.filter(note=>note.id===firstArgs.p_id).length,1);
+});
+test('revoking Finance editing removes hidden private forms and invalidates pending finance responses',async()=>{
+  const h=harness({finance:true});h.api.render('finance');await h.el('sales-finance').events.click({target:button({crmEditFinance:'f-bg'})});assert.match(h.el('sales-finance').innerHTML,/Manager-only note/);
+  const pending=h.api.save('finance','f-bg','BG-order',{shared_update:'Pending finance update'},2);
+  h.workspace.context.can_edit_finance=false;h.api.setWorkspace(h.workspace);assert.doesNotMatch(h.el('sales-finance').innerHTML,/Manager-only note|Private lender|Finance staff only|data-crm-new-finance/);
+  h.calls[0].resolve({data:{record:{id:'f-bg',tracking_id:'BG-order',internal_notes:'Late private response',version:3}}});assert.equal(await pending,null);assert.equal(h.changes.length,0);
+  assert.doesNotMatch(JSON.stringify(h.api.getWorkspace().finance),/Late private response|Manager-only note/);
+});
+test('workspace polling renders only the active CRM view',()=>{
+  const h=harness();h.api.clear();h.api.init({getRows:()=>h.rows,getContext:()=>h.context,getSalesperson:()=>h.person,getView:()=> 'alerts'});h.api.setWorkspace(h.workspace);
+  assert.match(h.el('sales-alerts').innerHTML,/Own ETA changed/);assert.equal(h.el('sales-myday').innerHTML,'');assert.equal(h.el('sales-finance').innerHTML,'');
+});
+test('a vehicle reassignment during a save suppresses its response within the same account',async()=>{
+  const h=harness();const pending=h.api.save('contact','c-bg','BG-order',{next_action:'Pending own update'},1);
+  h.rows=h.rows.filter(row=>row.tracking_id!=='BG-order');
+  h.calls[0].resolve({data:{record:{id:'c-bg',tracking_id:'BG-order',next_action:'Late assigned vehicle update',version:2}}});assert.equal(await pending,null);assert.equal(h.changes.length,0);
+  h.api.setWorkspace(h.workspace);assert.equal(h.api.getWorkspace().contacts.length,0);assert.equal(h.api.getWorkspace().finance.length,0);assert.equal(h.api.getWorkspace().order_refs.length,0);
+  h.api.render('myday');assert.doesNotMatch(h.el('sales-myday').innerHTML,/Late assigned vehicle update|Bryce customer/);
+});
+test('Finance mobile cards retain labelled statuses, dates, updates and actions without private fields',()=>{
+  const h=harness();h.api.render('finance');const html=h.el('sales-finance').innerHTML;
+  for(const label of ['Approval','Documents','Settlement','Access product','Existing loan payout','Shared update','Action'])assert.match(html,new RegExp('data-label="'+label+'"'));
+  assert.match(html,/crm-finance-cell/);assert.match(html,/crm-finance-actions/);assert.match(html,/Shared update/);assert.match(html,/Updated/);assert.match(html,/data-crm-open="BG-order"/);
+  assert.doesNotMatch(html,/Manager-only note|Private lender|50000|2000|Other customer/);
+});
+test('My Day scopes due lead reminders separately from COSI order contacts and excludes terminal leads',async()=>{
+  const h=harness({admin:true});const yesterday=new Date(today+'T00:00:00Z');yesterday.setUTCDate(yesterday.getUTCDate()-1);const tomorrow=new Date(today+'T00:00:00Z');tomorrow.setUTCDate(tomorrow.getUTCDate()+1);
+  h.workspace.leads=[{id:'own-enquiry',salesperson_code:'BG',customer_name:'Own enquiry customer',vehicle_interest:'HiLux enquiry',stage:'enquiry',next_contact_date:today,next_action:'Discuss quote'},
+    {id:'own-test',salesperson_code:'BG',customer_name:'Own test drive customer',vehicle_interest:'Prado',stage:'testdrive',next_contact_date:yesterday.toISOString().slice(0,10),next_action:'Book test drive'},
+    {id:'other',salesperson_code:'PM',customer_name:'Other salesperson lead',stage:'quote',next_contact_date:today},
+    ...['order','lost'].map(stage=>({id:stage,salesperson_code:'BG',customer_name:'Terminal '+stage+' customer',stage,next_contact_date:today})),
+    {id:'future',salesperson_code:'BG',customer_name:'Future contact customer',stage:'quote',next_contact_date:tomorrow.toISOString().slice(0,10)}];
+  h.api.setWorkspace(h.workspace);h.api.render('myday');let html=h.el('sales-myday').innerHTML;
+  assert.match(html,/Lead follow-ups<\/span><strong>2/);assert.match(html,/Order contacts due<\/span><strong>1/);assert.match(html,/Own enquiry customer|Own test drive customer|Discuss quote|Overdue/);
+  assert.doesNotMatch(html,/Other salesperson lead|Terminal order customer|Terminal lost customer|Future contact customer/);
+  await h.el('sales-myday').events.click({target:button({crmShow:'leads'})});assert.equal(h.view,'leads');assert.equal(h.calls.length,0);
+  h.person='PM';h.api.render('myday');html=h.el('sales-myday').innerHTML;assert.match(html,/Other salesperson lead/);assert.doesNotMatch(html,/Own enquiry customer|Own test drive customer/);
+  const own=harness();own.context.salesperson_code='BG';own.person='';own.workspace.leads=h.workspace.leads;own.api.setWorkspace(own.workspace);own.api.render('myday');assert.match(own.el('sales-myday').innerHTML,/Own enquiry customer/);assert.doesNotMatch(own.el('sales-myday').innerHTML,/Other salesperson lead/);
+  delete own.context.salesperson_code;own.api.render('myday');assert.doesNotMatch(own.el('sales-myday').innerHTML,/Own enquiry customer|Other salesperson lead/);
+});

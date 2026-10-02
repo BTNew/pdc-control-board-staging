@@ -766,6 +766,24 @@
       "database_version": "20261001095357",
       "commissioned": true,
       "review_status": "staging_applied"
+    },
+    {
+      "version": "20261001232750",
+      "name": "broome_sales_crm_workspace",
+      "file": "supabase/migrations/20261001232750_broome_sales_crm_workspace.sql",
+      "sha256": "85767a0b332d742b22f07a4d4f98fbf4a61732e8d6097db25ca88e0bb488d2b1",
+      "database_version": "20261001234607",
+      "commissioned": true,
+      "review_status": "staging_applied"
+    },
+    {
+      "version": "20261001235104",
+      "name": "broome_sales_crm_observation_repair",
+      "file": "supabase/migrations/20261001235104_broome_sales_crm_observation_repair.sql",
+      "sha256": "166ab8d85924fdfc8ae0b267ab7a069391e53b4650c39f89ac374d1bc4892033",
+      "database_version": "20261001235216",
+      "commissioned": true,
+      "review_status": "staging_applied"
     }
   ],
   "previous_observed_applied_database_migration": {
@@ -778,7 +796,7 @@
     "review_status": "staging_applied"
   },
   "broome_salesperson_site": {
-    "asset_version": "2026.10.01.09",
+    "asset_version": "2026.10.02.01",
     "path": "sales/",
     "dealer_code": "37047",
     "server_scoped": true,
@@ -875,5 +893,25 @@
     "source_precedence": "Latest source/private COSI including explicit blank; identical import refreshes authority when shared source newer",
     "operational_writes": false,
     "validation": "1299 frontend checks; real staging COSI/source/identity/checklist/scope rollback suites and complete PDC fingerprints unchanged"
+  },
+  "broome_salesperson_crm": {
+    "asset_version": "2026.10.02.01",
+    "navigation": [
+      "My Day",
+      "Dashboard",
+      "Pipeline",
+      "Alerts",
+      "Finance",
+      "Leads",
+      "Labels",
+      "History"
+    ],
+    "operational_writes": false,
+    "existing_pdc_permissions_changed": false,
+    "production_changed": false,
+    "storage": "pdc_sales_private.crm_*",
+    "finance": "Approved administrator or exact private sales finance capability; ordinary sales API excludes amounts, commissions, lender/application fields and internal notes",
+    "history": "Awaiting exact authoritative Navision RDR column/value; no automatic removal",
+    "validation": "1345 Node tests; zero frontend privileged-token findings; complete staging rollback CRUD/scoping/redaction/version/observation/public-table+function fingerprints passed; authenticated real-source184COSI read; desktop/390px-phone fictional workflow saves and draft preservation verified"
   }
 }
