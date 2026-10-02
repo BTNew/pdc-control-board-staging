@@ -13195,6 +13195,23 @@ function lifecycleHistoryHtml(vehicle = {}, detail = null) {
   </section>`;
 }
 
+function vehicleHistoryActorLabel(entry = {}, recordedIdField = 'actor_id') {
+  const actor = entry.actor && typeof entry.actor === 'object' ? entry.actor : {};
+  const text = value => String(value || '').trim();
+  const isId = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+  // Actor projections come from the authorised history RPC, never the edited row.
+  const label = text(actor.label);
+  if (label && !isId(label)) return label;
+  const email = text(actor.email || entry.actor_email);
+  const name = text(actor.display_name);
+  if (email) return name && name !== email ? `${name} (${email})` : email;
+  if (name && !isId(name)) return name;
+  if (actor.kind === 'automation') return 'Automated action';
+  const recordedId = text(entry[recordedIdField] || actor.id);
+  if (recordedId && !isId(recordedId)) return recordedId;
+  return recordedId ? 'User not identified' : 'User not recorded';
+}
+
 function renderAuditTrailSection(vehicle = {}) {
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   const state = canonicalId ? app.vehicleHistoryCache.get(canonicalId) : null;
@@ -13203,17 +13220,17 @@ function renderAuditTrailSection(vehicle = {}) {
   const serverRows = Array.isArray(detail?.audit_events) ? detail.audit_events : [];
   const movements = Array.isArray(detail?.movements) ? detail.movements : [];
   const historyRows = [
-    ...movements.map(item => ({ at: item.moved_at, action: 'Vehicle moved', by: item.moved_by || 'Shared authority', detail: [`${item.from_location || 'Unknown'} → ${item.to_location || 'Unknown'}`, item.from_pmb_stage || item.to_pmb_stage ? `${item.from_pmb_stage || 'Unallocated'} → ${item.to_pmb_stage || 'Unallocated'}` : '', item.reason || ''].filter(Boolean).join(' · ') })),
-    ...serverRows.map(item => ({ at: item.created_at, action: `${String(item.action || 'update').replace(/_/g, ' ')} · ${String(item.table_name || 'vehicle').replace(/_/g, ' ')}`, by: item.actor_email || 'System authority', detail: authoritativeAuditChangeSummary(item) })),
-    ...localRows.map(item => ({ at: item.at, action: item.action || 'Update', by: `${item.by || item.user || 'Unknown operator'}${item.role ? ` (${item.role})` : ''}`, detail: Object.entries(item.details || {}).filter(([key, value]) => key !== 'by' && value !== undefined && value !== '').map(([key, value]) => `${key.replace(/_/g, ' ')}: ${compactAuditValue(value)}`).join(' · ') })),
+    ...movements.map(item => ({ at: item.moved_at, action: 'Vehicle moved', by: vehicleHistoryActorLabel(item, 'moved_by'), detail: [`${item.from_location || 'Unknown'} → ${item.to_location || 'Unknown'}`, item.from_pmb_stage || item.to_pmb_stage ? `${item.from_pmb_stage || 'Unallocated'} → ${item.to_pmb_stage || 'Unallocated'}` : '', item.reason || ''].filter(Boolean).join(' · ') })),
+    ...serverRows.map(item => ({ at: item.created_at, action: `${String(item.action || 'update').replace(/_/g, ' ')} · ${String(item.table_name || 'vehicle').replace(/_/g, ' ')}`, by: vehicleHistoryActorLabel(item), detail: authoritativeAuditChangeSummary(item) })),
+    ...localRows.map(item => ({ at: item.at, action: item.action || 'Update', by: `Browser record: ${item.by || item.user || 'Unknown operator'}${item.role ? ` (${item.role})` : ''}`, detail: Object.entries(item.details || {}).filter(([key, value]) => key !== 'by' && value !== undefined && value !== '').map(([key, value]) => `${key.replace(/_/g, ' ')}: ${compactAuditValue(value)}`).join(' · ') })),
   ].sort((a, b) => String(b.at || '').localeCompare(String(a.at || ''))).slice(0, 150);
   const status = !canonicalId ? '<div class="subtle">This legacy vehicle has no canonical shared ID, so only browser-recorded history is available.</div>'
     : state?.status === 'loading' || !state ? '<div class="subtle" role="status">Loading authoritative import receipts, movements and audit events…</div>'
       : state.status === 'error' ? `<div class="subtle">Authoritative history unavailable: ${escapeHtml(state.message || 'request failed')}</div>` : '';
   const list = historyRows.length ? `<div class="audit-log-list">${historyRows.map(entry => {
     const when = parseIsoTimestamp(entry.at);
-    const whenLabel = when ? when.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : 'Unknown time';
-    return `<div class="audit-log-item"><strong>${escapeHtml(entry.action)}</strong><span>${escapeHtml(whenLabel)} · ${escapeHtml(entry.by)}${entry.detail ? ` · ${escapeHtml(entry.detail)}` : ''}</span></div>`;
+    const whenLabel = when ? when.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Australia/Perth' }) : 'Unknown time';
+    return `<div class="audit-log-item"><strong>${escapeHtml(entry.action)}</strong><span class="vehicle-history-actor">By: ${escapeHtml(entry.by)} · ${escapeHtml(whenLabel)} (Perth)</span>${entry.detail ? `<span>${escapeHtml(entry.detail)}</span>` : ''}</div>`;
   }).join('')}</div>` : '<div class="subtle">No movement or audit events have been recorded for this vehicle yet.</div>';
   return `<div class="vehicle-audit-detail">${lifecycleHistoryHtml(vehicle, detail)}<div class="muted-label">How this vehicle was imported</div>${vehicleImportProvenanceHtml(vehicle, detail)}${status}<div class="muted-label vehicle-history-label">Detailed history</div>${list}</div>`;
 }
