@@ -4155,10 +4155,13 @@ function workshopDropPreviewHtml({ vertical = false } = {}) {
   return `<div class="workshop-drop-preview${vertical ? ' is-vertical' : ''}" hidden aria-hidden="true"><span class="workshop-drop-preview-line"></span><span class="workshop-drop-preview-pill"></span></div>`;
 }
 
-function workshopUnavailableTimeHtml(dateKey = '', { vertical = false } = {}) {
+function workshopUnavailableTimeHtml(dateKey = '', { vertical = false, stage = '', bay = 0 } = {}) {
+  // Physical Bus bay shading uses the established bay shift, independently of
+  // a booking's department/history. This is display-only calendar context.
+  const calendarContext = stage === 'BUS_4X4' ? { stage, bay, busCalendarVersion: 1 } : null;
   const closed = workshopSubtractWindows([
     { startMinutes: WORKSHOP_PLANNER_CONFIG.dayStartMinutes, endMinutes: WORKSHOP_PLANNER_CONFIG.dayEndMinutes },
-  ], workshopAvailabilityWindowsForDate(dateKey));
+  ], workshopAvailabilityWindowsForDate(dateKey, calendarContext));
   return closed.map(window => {
     const start = window.startMinutes - WORKSHOP_PLANNER_CONFIG.dayStartMinutes;
     const end = window.endMinutes - WORKSHOP_PLANNER_CONFIG.dayStartMinutes;
@@ -4187,9 +4190,12 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
     if (!blocksByBay.has(bay)) blocksByBay.set(bay, []);
     blocksByBay.get(bay).push(block);
   }
-  const unavailableHtml = count > 0 ? workshopUnavailableTimeHtml(dateKey) : '';
+  const unavailableByCalendar = new Map();
   return Array.from({ length: count }, (_, index) => {
     const bay = index + 1;
+    const calendarKey = stage === 'BUS_4X4' ? ([8, 9].includes(bay) ? 'bus-short' : 'bus-standard') : 'shared';
+    if (!unavailableByCalendar.has(calendarKey)) unavailableByCalendar.set(calendarKey, workshopUnavailableTimeHtml(dateKey, { stage, bay }));
+    const unavailableHtml = unavailableByCalendar.get(calendarKey);
     const plans = (plansByBay.get(bay) || [])
       .sort((a, b) => String(a.entry.startAt).localeCompare(String(b.entry.startAt)));
     const defaultAssignee = workshopBayMechanic(stage, bay);
@@ -7373,7 +7379,7 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     }, 0);
     return `<section class="workshop-week-day ${isClosure ? 'is-closure' : ''}">
       <header><strong>${escapeHtml(date.toLocaleDateString('en-AU', { weekday: 'short' }))}</strong><span>${escapeHtml(date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit' }))}</span><small>${isClosure ? 'CLOSED · historical bookings remain visible' : `${escapeHtml(bookedHours.toFixed(bookedHours % 1 ? 1 : 0))}h booked`}</small></header>
-      <div class="workshop-week-day-lane" ${isClosure ? 'aria-disabled="true"' : `data-workshop-week-drop-date="${escapeHtml(dateKey)}"`}>${workshopWeeklyTimeGuideHtml()}${workshopUnavailableTimeHtml(dateKey, { vertical: true })}${isClosure ? '' : workshopDropPreviewHtml({ vertical: true })}${adminBlocks.map(block => workshopWeeklyAdminBlockHtml(block, dateKey)).join('')}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
+      <div class="workshop-week-day-lane" ${isClosure ? 'aria-disabled="true"' : `data-workshop-week-drop-date="${escapeHtml(dateKey)}"`}>${workshopWeeklyTimeGuideHtml()}${workshopUnavailableTimeHtml(dateKey, { vertical: true, stage: normalizedStage, bay: Number(bay) })}${isClosure ? '' : workshopDropPreviewHtml({ vertical: true })}${adminBlocks.map(block => workshopWeeklyAdminBlockHtml(block, dateKey)).join('')}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
     </section>`;
   }).join('');
   const overlay = document.createElement('div');

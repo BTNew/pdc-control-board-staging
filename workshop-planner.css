@@ -998,7 +998,7 @@ body[data-current-view="workshop"] .content {
 .workshop-week-header > div:last-child { display: flex; gap: 6px; padding-right: 32px; }
 .workshop-week-grid { display: grid; grid-template-columns: repeat(var(--workshop-week-columns, 5), minmax(190px, 1fr)); gap: 6px; min-width: 1040px; }
 .workshop-week-day.is-closure > header { background: #e2e8f0; color: #334155; }
-.workshop-week-day.is-closure .workshop-week-day-lane { background: repeating-linear-gradient(135deg, #f8fafc 0 10px, #e2e8f0 10px 20px); }
+.workshop-week-day.is-closure .workshop-week-day-lane { background-color: #f8fafc; }
 .workshop-week-day { min-width: 0; border: 1px solid #94a3b8; background: #fff; }
 .workshop-week-day > header { display: grid; grid-template-columns: auto 1fr; gap: 2px 6px; align-items: center; min-height: 48px; padding: 6px 8px; border-bottom: 1px solid #94a3b8; background: #dbeafe; }
 .workshop-week-day > header strong { color: #0f172a; font-size: .78rem; }
@@ -1474,7 +1474,7 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
   place-items: center;
   overflow: hidden;
   pointer-events: none;
-  background: repeating-linear-gradient(135deg, #f1f5f9 0 8px, #e2e8f0 8px 16px);
+  background: repeating-linear-gradient(135deg, #64748b18 0px, #64748b18 4px, #64748b0c 4px, #64748b0c 8px);
   color: #475569;
 }
 .workshop-closed-time > span {
