@@ -24,11 +24,15 @@ function monthLabel(value){
  const y=Number(m[2].length===2?'20'+m[2]:m[2]);
  return new Intl.DateTimeFormat('en-AU',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,Number(m[1])-1,1)));
 }
+function signatureName(draft,row={}){
+ const recorded=oneLine(draft.facts?.salesperson_name);
+ return !draft.status||draft.status==='draft'?oneLine(row.salesperson_name)||recorded:recorded;
+}
 function draftText(draft,row={}){
  const base=template(draft.template_kind),facts=draft.facts||{};
  const eta=root.BROOME_SALES_TOOLS?.etaInfo(facts.perth_eta_date);
  const values={vehicle_model:facts.vehicle_model,production_month:monthLabel(facts.production_month),
-  perth_eta_date:eta?.days!==null?eta?.date:'',salesperson_name:facts.salesperson_name};
+  perth_eta_date:eta?.days!==null?eta?.date:'',salesperson_name:signatureName(draft,row)};
  return {recipient:draft.recipient||row.crm_contact?.email||'',subject:draft.subject||fill(base.subject,values),body:draft.body||fill(base.body,values)};
 }
 function validate(data){
@@ -83,7 +87,7 @@ function open(id){
  const row=rows().find(r=>r.tracking_id===d.tracking_id),text=draftText(d,row);
  active={...d};busy=false;$('customer-email-title').textContent=title(d.template_kind);
  $('customer-email-to').value=text.recipient;$('customer-email-subject').value=text.subject;$('customer-email-body').value=text.body;
- $('customer-email-first-name').value='';$('customer-email-signature-name').value=d.facts?.salesperson_name||'';$('customer-email-signature-phone').value='';$('customer-email-signature-email').value='';
+ $('customer-email-first-name').value='';$('customer-email-signature-name').value=signatureName(d,row);$('customer-email-signature-phone').value='';$('customer-email-signature-email').value='';
  $('customer-email-state').textContent=d.status==='prepared'?'This draft has already been prepared. Mark it as sent after sending, or reopen it only if it was not sent.':d.status==='draft'?'Review all details and fill any remaining placeholders before preparing the email.':'This is a saved record of an earlier customer update.';
  for(const name of ['to','subject','body'])$('customer-email-'+name).readOnly=d.status!=='draft';
  $('customer-email-fill-fields').hidden=d.status!=='draft';

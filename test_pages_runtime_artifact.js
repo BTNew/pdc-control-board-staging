@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const vm = require('node:vm');
 const builder = require('./scripts/build_pages_runtime.js');
 
 const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pdc-pages-artifact-test-'));
@@ -140,4 +141,68 @@ test('Pages workflow publishes only the guarded runtime artifact from staging ma
   const actions = [...workflow.matchAll(/uses: actions\/[^@\s]+@([^\s]+)/g)];
   assert.equal(actions.length, 5);
   for (const action of actions) assert.match(action[1], /^[0-9a-f]{40}$/);
+});
+
+test('same-repository PR source observation is GET-only, enum-only and cannot configure or deploy Pages', async () => {
+  const workflow = fs.readFileSync(path.join(__dirname, '.github/workflows/pages-runtime.yml'), 'utf8');
+  const observation = workflow.match(/      - name: Observe Pages source for a same-repository pull request\r?\n([\s\S]+?)      - name: Require the GitHub Actions publishing source/);
+  assert.ok(observation, 'the PR-only source observation step must exist separately from the main publishing guard');
+  const block = observation[1];
+  const condition = block.match(/if: ([^\r\n]+)/)?.[1];
+  assert.ok(condition, 'source observation needs an explicit scope condition');
+  assert.match(condition, /github\.event_name == 'pull_request'/);
+  assert.match(condition, /github\.repository == 'BTNew\/pdc-control-board-staging'/);
+  assert.match(condition, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
+  assert.match(block, /PAGES_READ_TOKEN: \$\{\{ github\.token \}\}/);
+  assert.match(workflow, /build:[\s\S]*?permissions:\s*contents: read\s*pages: read/);
+  assert.doesNotMatch(block, /configure-pages|deploy-pages|pages: write|id-token: write|method:\s*['"](?:POST|PUT|PATCH|DELETE)['"]/i);
+  const repo = 'BTNew/pdc-control-board-staging';
+  const event = (eventName, repository = repo, headRepository = repo) => ({event_name:eventName,repository,ref:'refs/heads/main',event:{pull_request:{head:{repo:{full_name:headRepository}}}}});
+  const allowed = github => vm.runInNewContext(condition, {github}, {timeout:100});
+  assert.equal(allowed(event('pull_request')), true);
+  assert.equal(allowed(event('pull_request', repo, 'fictional-fork/staging')), false);
+  assert.equal(allowed(event('pull_request', 'fictional-owner/other')), false);
+  assert.equal(allowed(event('push')), false);
+  assert.equal(allowed(event('workflow_dispatch')), false);
+  for (const pattern of [
+    /- name: Require the GitHub Actions publishing source\s+if: ([^\r\n]+)/,
+    /- name: Configure Pages metadata\s+if: ([^\r\n]+)/,
+    /\n  deploy:\s*\n    if: ([^\r\n]+)/
+  ]) {
+    const guard = workflow.match(pattern)?.[1];
+    assert.ok(guard, 'publishing and configuration must keep explicit non-PR conditions');
+    assert.equal(vm.runInNewContext(guard, {github:event('pull_request')}, {timeout:100}), false);
+  }
+  const code = block.match(/node --input-type=module <<'NODE'\r?\n([\s\S]+?)\r?\n          NODE/)?.[1];
+  assert.ok(code, 'the source observation must use the reviewed standalone read-only script');
+  const run = async (buildType, ok = true, status = 200) => {
+    const logs = [], calls = [];
+    const sandbox = {
+      process:{env:{GITHUB_API_URL:'https://api.github.com',GITHUB_REPOSITORY:repo,PAGES_READ_TOKEN:'FictionalPreviewTokenOnly'}},
+      console:{log:value=>logs.push(String(value))},
+      fetch:async(url, options)=>{calls.push({url,options});return {ok,status,json:async()=>({build_type:buildType,unreviewed_metadata:'FictionalPrivateMetadataOnly'})};}
+    };
+    let error;
+    try { await vm.runInNewContext('(async()=>{\n'+code+'\n})()', sandbox, {timeout:100}); } catch (e) { error = e; }
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'https://api.github.com/repos/'+repo+'/pages');
+    assert.equal(calls[0].options.method || 'GET', 'GET');
+    assert.equal(calls[0].options.body, undefined);
+    assert.equal(calls[0].options.headers.Authorization, 'Bearer FictionalPreviewTokenOnly');
+    assert.equal(calls[0].options.headers['X-GitHub-Api-Version'], '2026-03-10');
+    assert.equal(logs.some(line=>/FictionalPreviewTokenOnly|FictionalPrivateMetadataOnly/.test(line)), false);
+    return {logs,error};
+  };
+  for (const type of ['legacy','workflow']) {
+    const result = await run(type);
+    assert.equal(result.error, undefined);
+    assert.deepEqual(result.logs, ['Pages build_type: '+type]);
+  }
+  const unknown = await run('FictionalUnrecognizedBuildType');
+  assert.match(unknown.error?.message || '', /unknown build type/);
+  assert.doesNotMatch(unknown.error.message, /FictionalUnrecognizedBuildType|FictionalPreviewTokenOnly|FictionalPrivateMetadataOnly/);
+  assert.deepEqual(unknown.logs, []);
+  const failure = await run('workflow', false, 403);
+  assert.match(failure.error?.message || '', /HTTP 403/);
+  assert.deepEqual(failure.logs, []);
 });

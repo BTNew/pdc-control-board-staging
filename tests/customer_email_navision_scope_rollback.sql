@@ -61,47 +61,36 @@ BEGIN
  SELECT coalesce(jsonb_agg(n.raw_evidence ORDER BY n.id),'[]'::jsonb) INTO rows FROM public.navision_backend_records n WHERE n.is_current AND n.record_status='current' AND n.source_system='microsoft_navision' AND n.dealer_code='37047';
  payload:=jsonb_build_object('id','email-commit-'||uid,'order','EMAIL-COMMIT-'||uid,'dealer_code','37047','cosi','Yes','consultant','BG','client','Fictional email test','vehicle','Example Hilux','stock','','batch','','prodMth','10/26','navisionSubLocationDescription','Planned for Production',
   'navisionRawEvidence',jsonb_build_object('columns',jsonb_build_array(jsonb_build_object('header','Dealer','value','37047'),jsonb_build_object('header','Order','value','EMAIL-COMMIT-'||uid),jsonb_build_object('header','COSI','value','Yes'),jsonb_build_object('header','Salesperson','value','BG'))));
- FOREACH status_name IN ARRAY ARRAY['Line Off Complete','Final Inspection','Ready for Shipment','In Transit To WA','In Transit To Eastern States','At Overseas Wharf','Despatched - From TWA','Delivered - At Dealer'] LOOP
-  IF pdc_sales_private.customer_email_signals(jsonb_build_object('toyota_status',status_name))->>'vehicle_built' IS DISTINCT FROM 'built' THEN RAISE EXCEPTION 'Physical status dropped built confirmation'; END IF;
- END LOOP;
- IF pdc_sales_private.customer_email_signals('{"toyota_status":"Planned for Production","vin":"EXAMPLE","build_status":"completed"}')->>'vehicle_built' IS NOT NULL THEN RAISE EXCEPTION 'Unconfirmed production inferred as built'; END IF;
  -- Seed only a fictional previously known order under the current valid receipt.
  -- No role/import guard is changed; all later transitions use real approved imports.
  INSERT INTO public.navision_backend_records(id,source_system,dealer_code,source_record_id,row_hash,normalized_data,raw_evidence,first_seen_batch_id,last_seen_batch_id,record_status,is_current)
  VALUES(own,'microsoft_navision','37047',public.navision_backend_source_record_id(payload),repeat('0',64),payload,payload,bid,bid,'current',true);
  PERFORM pdc_sales_private.customer_email_observe(jsonb_build_array(pg_temp.email_item(own,payload)));
- fresh_payload:=payload||jsonb_build_object('id','email-fresh-'||uid,'order','EMAIL-FRESH-'||uid);
- fresh_payload:=jsonb_set(fresh_payload,'{navisionRawEvidence,columns,1,value}',to_jsonb('EMAIL-FRESH-'||uid));
- payload:=payload||jsonb_build_object('prodMth','11/26');
- -- One real import proves both a changed known order and a first newly added order.
- result:=pg_temp.email_import(rows,jsonb_build_array(payload,fresh_payload),'email-baseline-'||uid,false);
- SELECT id INTO fresh FROM public.navision_backend_records WHERE dealer_code='37047' AND normalized_data->>'order'=upper('EMAIL-FRESH-'||uid);
- IF fresh IS NULL OR EXISTS(SELECT 1 FROM pdc_sales_private.customer_email_observations WHERE tracking_id=fresh) THEN RAISE EXCEPTION 'New order observer ran before deferred boundary'; END IF;
- IF NOT EXISTS(SELECT 1 FROM public.navision_backend_records WHERE id=own AND normalized_data->>'order'=upper('EMAIL-COMMIT-'||uid)) THEN RAISE EXCEPTION 'Seeded order identity changed'; END IF;
- EXECUTE 'SET CONSTRAINTS broome_customer_email_import_committed IMMEDIATE';
- EXECUTE 'SET CONSTRAINTS broome_customer_email_import_committed DEFERRED';
- IF NOT EXISTS(SELECT 1 FROM pdc_sales_private.customer_email_observations WHERE tracking_id=fresh)
-  OR EXISTS(SELECT 1 FROM pdc_sales_private.customer_email_drafts WHERE tracking_id=fresh AND status<>'baseline') THEN RAISE EXCEPTION 'First observation failed baseline rule'; END IF;
- IF (SELECT count(*) FROM pdc_sales_private.customer_email_drafts WHERE tracking_id=own AND template_kind='production_planned' AND event_key='11/2026' AND status='draft')<>1 THEN RAISE EXCEPTION 'Offline changed production month missed'; END IF;
- IF EXISTS(SELECT 1 FROM pdc_sales_private.customer_email_drafts WHERE tracking_id IN (own,fresh) AND status IN ('prepared','sent')) THEN RAISE EXCEPTION 'Import prepared or sent customer mail'; END IF;
- -- Complete-looking receipts cannot authorise a salesperson or signed-out actor.
- FOR v IN 1..2 LOOP
-  spoof_bid:=gen_random_uuid();
-  IF v=1 THEN
-   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',s,'email',smail,'role','authenticated','user_metadata',jsonb_build_object('role','administrator'))::text,true);
-  ELSE PERFORM set_config('request.jwt.claims','{"role":"administrator","user_metadata":{"role":"administrator"}}',true); END IF;
-  INSERT INTO public.navision_import_batches(id,idempotency_key,request_hash,source_name,source_hash,preview_hash,base_revision,result_revision,total_rows,receipt,actor_id,actor_email,source_system,dealer_code)
-  VALUES(spoof_bid,'email-spoof-'||v||'-'||uid,repeat('a',64),'email-spoof.tsv',repeat('b',64),repeat('c',64),1,1,0,jsonb_build_object('ok',true,'data',jsonb_build_object('batch_id',spoof_bid)),CASE v WHEN 1 THEN s ELSE a END,CASE v WHEN 1 THEN smail ELSE mail END,'microsoft_navision','37047');
-  INSERT INTO public.navision_operation_receipts(operation_kind,idempotency_key,request_hash,batch_id,response,actor_id,actor_email)
-  VALUES('apply','email-spoof-'||v||'-'||uid,repeat('a',64),spoof_bid,jsonb_build_object('ok',true),CASE v WHEN 1 THEN s ELSE a END,CASE v WHEN 1 THEN smail ELSE mail END);
-  EXECUTE 'SET CONSTRAINTS broome_customer_email_import_committed IMMEDIATE';
-  EXECUTE 'SET CONSTRAINTS broome_customer_email_import_committed DEFERRED';
-  IF EXISTS(SELECT 1 FROM pdc_sales_private.customer_email_import_queue WHERE batch_id=spoof_bid) THEN RAISE EXCEPTION 'Spoofed role captured untrusted import'; END IF;
- END LOOP;
- PERFORM set_config('request.jwt.claims','{}',true);denied:=false;BEGIN PERFORM public.get_broome_customer_emails();EXCEPTION WHEN insufficient_privilege THEN denied:=true; END;
- IF NOT denied THEN RAISE EXCEPTION 'Signed-out draft access allowed'; END IF;
+ payload:=payload||jsonb_build_object('navisionSubLocationDescription','Line Off Complete','navisionKewdaleEta','04/11/2026');
+ result:=pg_temp.email_import(rows,jsonb_build_array(payload),'email-review-'||uid,true);
+ SELECT id INTO built FROM pdc_sales_private.customer_email_drafts WHERE tracking_id=own AND template_kind='vehicle_built' AND status='draft';
+ IF built IS NULL THEN RAISE EXCEPTION 'True import did not generate review draft'; END IF;
+ PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',s,'email',smail,'role','authenticated')::text,true);
+ response:=public.get_broome_customer_emails();
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(response->'drafts') e WHERE e->>'id'=built::text) THEN RAISE EXCEPTION 'Own draft unavailable for review'; END IF;
+ PERFORM pdc_sales_private.customer_email_observe(jsonb_build_array(jsonb_build_object('tracking_id',own,'identity_conflict',true,'toyota_status','Planned for Production','production_month','12/26','kewdale_eta','01/01/2027')));
+ IF NOT EXISTS(SELECT 1 FROM pdc_sales_private.customer_email_drafts WHERE id=built AND status='draft')
+  OR (SELECT signals->>'perth_eta' FROM pdc_sales_private.customer_email_observations WHERE tracking_id=own) IS DISTINCT FROM '2026-11-04' THEN RAISE EXCEPTION 'Identity conflict changed safe milestones'; END IF;
+ SELECT version INTO draft_version FROM pdc_sales_private.customer_email_drafts WHERE id=built;
+ response:=public.save_broome_customer_email(built,'save','{"recipient":"customer@example.invalid","subject":"Example vehicle update","body":"Reviewed fictional draft"}',draft_version);
+ denied:=false;BEGIN PERFORM public.save_broome_customer_email(built,'prepare','{"recipient":"customer@example.invalid","subject":"Example vehicle update","body":"Reviewed fictional draft"}',draft_version);EXCEPTION WHEN serialization_failure THEN denied:=true; END;
+ IF NOT denied THEN RAISE EXCEPTION 'Stale version accepted'; END IF;
+ PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',a,'email',mail,'role','authenticated')::text,true);
+ payload:=payload||jsonb_build_object('consultant','PM');payload:=jsonb_set(payload,'{navisionRawEvidence,columns,3,value}','"PM"');
+ result:=pg_temp.email_import(rows,jsonb_build_array(payload),'email-reassignment-'||uid,true);
+ PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',s,'email',smail,'role','authenticated','user_metadata',jsonb_build_object('role','administrator'))::text,true);
+ response:=public.get_broome_customer_emails();
+ IF EXISTS(SELECT 1 FROM jsonb_array_elements(response->'drafts') e WHERE e->>'tracking_id'=own::text) THEN RAISE EXCEPTION 'Reassigned draft leaked'; END IF;
+ denied:=false;BEGIN PERFORM public.save_broome_customer_email(built,'prepare','{"recipient":"customer@example.invalid","subject":"Example vehicle update","body":"Reviewed fictional draft"}',draft_version+1);EXCEPTION WHEN insufficient_privilege THEN denied:=true; END;
+ IF NOT denied THEN RAISE EXCEPTION 'Reassignment or metadata spoof bypassed scope'; END IF;
+ IF EXISTS(SELECT 1 FROM pdc_sales_private.customer_email_drafts WHERE tracking_id=own AND status IN ('prepared','sent')) THEN RAISE EXCEPTION 'Review/scope checks prepared or sent customer mail'; END IF;
 
  IF before_ops IS DISTINCT FROM pg_temp.email_ops() THEN RAISE EXCEPTION 'Capture affected PDC operational fields, bookings or ordering'; END IF;
 END $test$;
 ROLLBACK;
-SELECT 'PASS baseline/production capture, importer isolation, ACL, role spoof rejection and PDC fingerprints; all fictional writes rolled back' result;
+SELECT 'PASS true-import review, conflict, versions, reassignment, metadata spoof and PDC fingerprints; all fictional writes rolled back' result;

@@ -39,6 +39,23 @@ jobs:
         run: node scripts/check_frontend_secrets.js
       - name: Build only the reviewed public runtime
         run: node scripts/build_pages_runtime.js --output _site
+      - name: Observe Pages source for a same-repository pull request
+        if: github.event_name == 'pull_request' && github.repository == 'BTNew/pdc-control-board-staging' && github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          PAGES_READ_TOKEN: ${{ github.token }}
+        run: |
+          node --input-type=module <<'NODE'
+          const url = `${process.env.GITHUB_API_URL}/repos/${process.env.GITHUB_REPOSITORY}/pages`;
+          const response = await fetch(url, { headers: {
+            Authorization: `Bearer ${process.env.PAGES_READ_TOKEN}`,
+            Accept: 'application/vnd.github+json',
+            'X-GitHub-Api-Version': '2026-03-10'
+          } });
+          if (!response.ok) throw new Error(`Cannot observe Pages publishing source (HTTP ${response.status}).`);
+          const pages = await response.json();
+          if (!['legacy', 'workflow'].includes(pages.build_type)) throw new Error('Pages publishing source returned an unknown build type.');
+          console.log(`Pages build_type: ${pages.build_type}`);
+          NODE
       - name: Require the GitHub Actions publishing source
         if: github.event_name != 'pull_request' && github.repository == 'BTNew/pdc-control-board-staging' && github.ref == 'refs/heads/main'
         env:

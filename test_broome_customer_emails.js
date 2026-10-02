@@ -66,6 +66,39 @@ test('event facts fill known information without guessing a customer first name'
  assert.match(t.body,/\{\{customer_first_name\}\}/);assert.match(t.body,/\{\{salesperson_phone\}\}/);assert.doesNotMatch(t.body,/EXAMPLE COMPANY/);
  assert.throws(()=>customer.validate(t),/placeholders/);
 });
+test('editable draft signatures follow current ownership without replacing saved reviews or customer contacts',()=>{
+ const facts=Object.freeze({vehicle_model:'Example Hilux',salesperson_name:'Original salesperson'});
+ const draft=Object.freeze({template_kind:'vehicle_built',status:'draft',facts});
+ const row=Object.freeze({salesperson_name:'Current salesperson',crm_contact:Object.freeze({email:'customer@example.invalid'})});
+ const generated=customer.draftText(draft,row);
+ assert.match(generated.body,/Kind Regards,\nCurrent salesperson\nBroome Toyota/);
+ assert.doesNotMatch(generated.body,/Original salesperson/);assert.equal(generated.recipient,'customer@example.invalid');
+ assert.match(generated.body,/\{\{salesperson_phone\}\} \| \{\{salesperson_email\}\}/);
+ const saved={...draft,recipient:'reviewed@example.invalid',subject:'Reviewed subject',body:'Reviewed wording.\nKind Regards,\nChosen signer\n0400 000 000 | chosen@example.invalid'};
+ assert.deepEqual(customer.draftText(saved,row),{recipient:saved.recipient,subject:saved.subject,body:saved.body});
+ for(const status of ['prepared','sent'])assert.deepEqual(customer.draftText({...saved,status},row),{recipient:saved.recipient,subject:saved.subject,body:saved.body});
+ assert.equal(facts.salesperson_name,'Original salesperson');assert.equal(row.crm_contact.email,'customer@example.invalid');
+});
+test('reassigned draft dialog defaults the current signature while prepared and sent messages stay exact',async()=>{
+ const h=uiHarness();h.rows[0].salesperson_name='Current salesperson';
+ const facts={vehicle_model:'Example Hilux',salesperson_name:'Original salesperson'};
+ const draft={id:'reassigned-draft',tracking_id:'own-order',template_kind:'vehicle_built',status:'draft',version:1,facts};
+ const click=()=>h.el('sales-customeremails').events.click({target:{dataset:{customerReview:draft.id},hasAttribute(){return false;},closest(){return this;}}});
+ await h.reply({drafts:[draft]});click();
+ assert.equal(h.el('customer-email-signature-name').value,'Current salesperson');
+ assert.match(h.el('customer-email-body').value,/Kind Regards,\nCurrent salesperson\nBroome Toyota/);
+ assert.equal(h.el('customer-email-fill-fields').hidden,false);
+ const savedBody='Hi Example, reviewed message.\nKind Regards,\nChosen historical signer\n0400 000 000 | chosen@example.invalid';
+ await h.reply({drafts:[{...draft,version:2,recipient:'reviewed@example.invalid',subject:'Reviewed subject',body:savedBody}]});click();
+ assert.equal(h.el('customer-email-signature-name').value,'Current salesperson');
+ assert.equal(h.el('customer-email-body').value,savedBody);
+ for(const [index,status]of ['prepared','sent'].entries()){
+  await h.reply({drafts:[{...draft,status,version:3+index,recipient:'reviewed@example.invalid',subject:'Reviewed subject',body:savedBody}]});click();
+  assert.equal(h.el('customer-email-to').value,'reviewed@example.invalid');assert.equal(h.el('customer-email-subject').value,'Reviewed subject');
+  assert.equal(h.el('customer-email-body').value,savedBody);assert.equal(h.el('customer-email-body').readOnly,true);
+  assert.equal(h.el('customer-email-signature-name').value,'Original salesperson');assert.equal(h.el('customer-email-fill-fields').hidden,true);
+ }
+});
 test('reviewed text persists exactly and source values cannot inject another placeholder',()=>{
  const d={template_kind:'vehicle_built',recipient:'saved@example.invalid',subject:'Reviewed subject',body:'Hi Example, reviewed text.'};
  assert.deepEqual(customer.draftText(d,{crm_contact:{email:'changed@example.invalid'}}),{recipient:d.recipient,subject:d.subject,body:d.body});
