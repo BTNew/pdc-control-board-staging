@@ -191,13 +191,10 @@
     state.selected.clear();
     state.saving.clear();$('sales-checklist-status').textContent='';
     state.detailId=null;state.reviewedOrders=null;state.importBusy=false;state.orderRevision++;
-    $('sales-order-intake').hidden=true;$('sales-open-order-intake').hidden=true;$('sales-order-text').value='';$('sales-order-file').value='';
-    $('sales-order-message').textContent='';$('sales-order-apply').disabled=true;$('sales-order-preview').disabled=false;
     $('vehicle-table').innerHTML=''; $('status-tabs').innerHTML=''; $('sales-summary').innerHTML='';
     $('sales-pipeline').innerHTML=''; $('sales-labels').innerHTML=''; $('sales-print-labels').disabled=true;
     $('sales-data-date').textContent=''; $('sales-data-count').textContent='';
-    $('sales-sync').textContent=''; $('sales-scope').textContent=''; $('sales-accounts').hidden=true;
-    $('sales-account').innerHTML=''; $('sales-person').innerHTML=''; $('sales-account-message').textContent='';
+    $('sales-sync').textContent=''; $('sales-scope').textContent='';
     $('salesperson-filter').innerHTML=''; $('salesperson-filter-label').hidden=true;
     $('sales-detail').close(); $('sales-detail-content').innerHTML=''; message('');
     $('sales-refresh').disabled=false;
@@ -408,24 +405,6 @@
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId){state.printBusy=false;renderSecondaryViews();}
     }
   }
-  function invalidateOrderReview(){state.orderRevision++;state.reviewedOrders=null;$('sales-order-apply').disabled=true;$('sales-order-message').textContent='';}
-  async function importOrders(apply) {
-    if(state.context?.role!=='administrator'||state.importBusy)return;
-    const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId,revision=state.orderRevision;
-    state.importBusy=true;$('sales-order-preview').disabled=true;$('sales-order-apply').disabled=true;
-    try{
-      const rows=apply?state.reviewedOrders:root.BROOME_NAVISION_ORDERS.parse($('sales-order-text').value);
-      if(!rows)throw new Error('Review the export before importing.');
-      const {data,error}=await root.PDC_SUPABASE.rpc('import_broome_sales_orders',{p_rows:rows,p_apply:apply});
-      if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId)return;
-      if(error)throw error;
-      if(!apply&&revision!==state.orderRevision)return;
-      $('sales-order-message').textContent=(apply?'Imported':'Reviewed')+' '+data.accepted+' orders · '+data.without_stock+' awaiting stock · '+data.skipped_unsold+' unsold rows without stock excluded.'+(data.visibility_updates?' '+data.visibility_updates+' existing orders updated for COSI visibility.':'');
-      state.reviewedOrders=apply?null:rows;
-      if(apply){$('sales-order-text').value='';$('sales-order-file').value='';await refresh();}
-    }catch(e){if(generation===state.generation){state.reviewedOrders=null;$('sales-order-message').textContent=e.message||'Orders could not be imported.';}}
-    finally{if(generation===state.generation){state.importBusy=false;$('sales-order-preview').disabled=false;$('sales-order-apply').disabled=!state.reviewedOrders;}}
-  }
   async function refresh() {
     if (state.busy || !root.PDC_AUTH_CONTEXT) return;
     const generation=state.generation; const principal=root.PDC_AUTH_CONTEXT.userId;
@@ -445,8 +424,6 @@
         }
         return r;
       }); state.context=data.context; message('');
-      $('sales-order-intake').hidden=data.context.role!=='administrator';
-      $('sales-open-order-intake').hidden=data.context.role!=='administrator';
       if(state.detailId&&!state.items.some(r=>r.tracking_id===state.detailId)){state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}
       const currentIds=new Set(state.items.map(r=>r.tracking_id));
       for(const id of state.selected)if(!currentIds.has(id))state.selected.delete(id);
@@ -455,9 +432,7 @@
         data.context.display_name+' · My vehicles · Broome Toyota';
       $('sales-sync').textContent='Navision updated '+dateLabel(data.navision_updated_at)+' · Checked '+dateLabel(data.checked_at)+' (Perth)';
       $('salesperson-filter-label').hidden=data.context.role!=='administrator';
-      if (data.context.role==='administrator') {
-        populateSalespeople();$('sales-accounts').hidden=false;
-      } else { $('sales-accounts').hidden=true; state.accounts=null; $('sales-account').innerHTML=''; $('sales-person').innerHTML=''; }
+      if (data.context.role==='administrator') populateSalespeople();
       if(state.detailId){const detailRow=state.items.find(r=>r.tracking_id===state.detailId);if(detailRow){html('sales-pmb-live',workshopHtml(detailRow));html('sales-source-detail',vehicleInfoHtml(detailRow));}}
       attachWorkspace();populateFilters();render();await refreshWorkspace();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_FINANCE?.refresh();
@@ -468,54 +443,7 @@
       clear(); message(error.message||'Unable to refresh vehicles. Try again.');
     } finally { if (generation===state.generation) {state.busy=false; $('sales-refresh').disabled=false;} }
   }
-  async function loadAccounts() {
-    if (state.context?.role!=='administrator') return;
-    const generation=state.generation;
-    const {data,error}=await root.PDC_SUPABASE.rpc('get_broome_sales_accounts');
-    if (generation!==state.generation || root.PDC_AUTH_CONTEXT?.role!=='administrator') return;
-    if (error) { $('sales-account-message').textContent=error.message; return; }
-    state.accounts=data;
-    $('sales-account').innerHTML='<option value="">Choose a registration</option>'+data.accounts.map(a=>'<option value="'+
-      escapeHtml(a.id)+'">'+escapeHtml(a.name+' · '+a.email+' · '+a.status)+'</option>').join('');
-    $('sales-person').innerHTML='<option value="">Choose a salesperson</option>'+data.salespeople.map(s=>'<option value="'+
-      escapeHtml(s.id)+'">'+escapeHtml(s.code+' · '+s.name)+'</option>').join('');
-    $('sales-account-message').textContent=data.accounts.length?'':'No pending registrations or salesperson accounts.';
-  }
-  $('sales-account').addEventListener('change',()=>{
-    const a=state.accounts?.accounts.find(a=>a.id===$('sales-account').value);
-    $('sales-person').value=a?.salesperson_id||'';
-  });
-  $('sales-access-form').addEventListener('submit',async event=>{
-    event.preventDefault(); if (state.context?.role!=='administrator') return;
-    const account=$('sales-account').value, salesperson=$('sales-person').value;
-    if (!account||!salesperson) return;
-    const generation=state.generation; $('sales-grant').disabled=true;
-    try {
-      const {error}=await root.PDC_SUPABASE.rpc('assign_broome_sales_access',{p_user_role_id:account,p_salesperson_id:salesperson});
-      if (generation!==state.generation) return;
-      if (error) throw error;
-      await loadAccounts(); if (generation!==state.generation) return;
-      $('sales-account-message').textContent='Salesperson access saved. The account can now sign in to Broome Toyota.';
-    } catch(error) { if (generation===state.generation) $('sales-account-message').textContent=error.message; }
-    finally { $('sales-grant').disabled=false; }
-  });
-  $('sales-load-accounts').addEventListener('click',()=>loadAccounts().catch(e=>{$('sales-account-message').textContent=e.message;}));
   $('sales-refresh').addEventListener('click',refresh);
-  $('sales-order-preview').addEventListener('click',()=>importOrders(false));
-  $('sales-open-order-intake').addEventListener('click',()=>{
-    if(state.context?.role!=='administrator')return;
-    showView('dashboard');$('sales-order-intake').scrollIntoView({behavior:'smooth',block:'start'});
-    $('sales-order-text').focus({preventScroll:true});
-  });
-  $('sales-order-apply').addEventListener('click',()=>importOrders(true));
-  $('sales-order-text').addEventListener('input',invalidateOrderReview);
-  $('sales-order-file').addEventListener('change',async event=>{
-    invalidateOrderReview();const file=event.target.files?.[0],generation=state.generation;
-    if(!file)return;
-    if(file.size>8000000){$('sales-order-message').textContent='Use an export smaller than 8 MB.';return;}
-    try{const text=await file.text();if(generation===state.generation&&state.context?.role==='administrator')$('sales-order-text').value=text;}
-    catch(e){if(generation===state.generation)$('sales-order-message').textContent='The export could not be read.';}
-  });
   for(const button of root.document.querySelectorAll?.('[data-sales-view]')||[])button.addEventListener('click',()=>showView(button.dataset.salesView));
   $('sales-view-labels').addEventListener('click',()=>showView('labels'));
   $('sales-print-labels').addEventListener('click',printLabels);

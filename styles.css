@@ -13775,3 +13775,5 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 @media (max-width: 760px) {
   .incoming-search-panel.incoming-search-only { grid-template-columns: 1fr; }
 }
+
+.navision-upload-tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.navision-upload-tabs button{border:1px solid #d4dce8;border-radius:9px;padding:12px 20px;background:#fff;color:#263c55;font:inherit;font-weight:600;cursor:pointer}.navision-upload-tabs button.active{background:#ed111e;color:#fff;border-color:#ed111e}.navision-upload-tabs button:focus-visible{outline:3px solid #456fbd;outline-offset:2px}

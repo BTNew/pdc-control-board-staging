@@ -79,7 +79,7 @@ test('account replacement suppresses stale data and salesperson sees no admin se
  h.calls[0].resolve({data:{context:{role:'administrator'},items:[{cosi:'Yes',tracking_id:'private',stock:'999'}]}});
  h.calls[1].resolve({data:{context:{role:'salesperson',display_name:'Other'},items:[{cosi:'Yes',tracking_id:'own',stock:'111'}]}});
  await tick();assert.doesNotMatch(h.el('vehicle-table').innerHTML,/999/);
- assert.match(h.el('vehicle-table').innerHTML,/111/);assert.equal(h.el('sales-accounts').hidden,true);
+ assert.match(h.el('vehicle-table').innerHTML,/111/);
  assert.equal(h.el('salesperson-filter-label').hidden,true);
 });
 test('site switcher cannot navigate a salesperson and exposes both sites to admin',()=>{
@@ -108,39 +108,19 @@ test('Navision sales parser preserves order identity, blank stock and quoted cus
  assert.equal(parser.parse('Order,COSI,Dealer,Salesperson\n00123,Yes,002345,BG')[0].dealer_code,'002345');
  assert.throws(()=>parser.parse('Order,COSI,Dealer,Salesperson\n1,Yes,37047,"BG'),/unclosed quote/);
 });
-test('top sales intake action is administrator-only, opens the existing intake and clears on sign-out',async()=>{
- const h=harness();h.calls[0].resolve({data:{context:{role:'administrator'},items:[]}});await tick();
- assert.equal(h.el('sales-open-order-intake').hidden,false);h.el('nav-finance').events.click();h.el('sales-open-order-intake').events.click();
- assert.equal(h.el('sales-dashboard-view').hidden,false);assert.equal(h.el('sales-finance-view').hidden,true);assert.equal(h.el('sales-order-intake').scrolled,true);assert.equal(h.el('sales-order-text').focused,true);assert.equal(h.calls.length,1);
- delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();assert.equal(h.el('sales-open-order-intake').hidden,true);
- const own=harness();own.calls[0].resolve({data:{context:{role:'salesperson'},items:[]}});await tick();
- assert.equal(own.el('sales-open-order-intake').hidden,true);own.el('sales-open-order-intake').events.click();assert.equal(own.el('sales-order-intake').scrolled,undefined);assert.equal(own.calls.length,1);
+test('sales has no upload or account editor for either role',async()=>{
+ for(const role of ['administrator','salesperson']){const h=harness();h.calls[0].resolve({data:{context:{role},items:[]}});await tick();assert.equal(h.calls.length,1);assert.equal(h.el('sales-order-preview').events.click,undefined);assert.equal(h.el('sales-access-form').events.submit,undefined);}
+ const page=fs.readFileSync(require.resolve('./sales/index.html'),'utf8');assert.doesNotMatch(page,/sales-order-intake|sales-accounts|sales-open-order-intake/);
+ const code=fs.readFileSync(require.resolve('./sales/sales.js'),'utf8');assert.doesNotMatch(code,/import_broome_sales_orders|assign_broome_sales_access/);
 });
 test('order-only detail shows bookings safely and disappears when access changes on refresh',async()=>{
  const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{cosi:'Yes',tracking_id:'order-id',canonical_vehicle_id:'canonical-test',order:'000123',stock:'',client:'Example',bay_bookings:[{stage:'Fitting',bay:'<unsafe>',status:'planned',scheduled_start_at:'2026-10-05T01:00:00Z'}]}]}});
  await tick();assert.match(h.el('vehicle-table').innerHTML,/Awaiting stock number/);assert.match(h.el('vehicle-table').innerHTML,/000123/);
  h.el('vehicle-table').events.click({target:{closest(selector){return selector==='[data-open]'?{dataset:{open:'order-id'}}:null;}}});
  assert.match(h.el('sales-detail-content').innerHTML,/Bay bookings/);assert.match(h.el('sales-detail-content').innerHTML,/&lt;unsafe&gt;/);
- assert.equal(h.el('sales-order-intake').hidden,true);h.el('sales-order-preview').events.click();assert.equal(h.calls.length,1);
+ assert.equal(h.calls.length,1);
  h.el('sales-refresh').events.click();h.calls[1].resolve({data:{context:{role:'salesperson'},items:[]}});await tick();
  assert.equal(h.el('sales-detail-content').innerHTML,'');assert.equal(h.el('sales-detail').closed,true);
-});
-test('administrator import requires a reviewed export and editing it invalidates approval',async()=>{
- const h=harness();h.window.BROOME_NAVISION_ORDERS=require('./sales/navision-orders.js');
- h.calls[0].resolve({data:{context:{role:'administrator'},items:[]}});await tick();
- h.el('sales-order-text').value='Order,COSI,Dealer,Salesperson\n000123,Yes,37047,BG';h.el('sales-order-preview').events.click();
- assert.equal(h.calls[1].name,'import_broome_sales_orders');assert.equal(h.calls[1].args.p_apply,false);
- h.calls[1].resolve({data:{accepted:1,without_stock:1,skipped_unsold:0}});await tick();assert.equal(h.el('sales-order-apply').disabled,false);
- h.el('sales-order-text').events.input();assert.equal(h.el('sales-order-apply').disabled,true);
- h.el('sales-order-apply').events.click();await tick();assert.equal(h.calls.length,2);
-});
-test('an edited export cannot regain approval from an earlier review response',async()=>{
- const h=harness();h.window.BROOME_NAVISION_ORDERS=require('./sales/navision-orders.js');
- h.calls[0].resolve({data:{context:{role:'administrator'},items:[]}});await tick();
- h.el('sales-order-text').value='Order,COSI,Dealer,Salesperson\n000123,Yes,37047,BG';h.el('sales-order-preview').events.click();
- h.el('sales-order-text').value='Order,COSI,Dealer,Salesperson\n000999,Yes,37047,CW';h.el('sales-order-text').events.input();
- h.calls[1].resolve({data:{accepted:1,without_stock:1,skipped_unsold:0}});await tick();
- assert.equal(h.el('sales-order-apply').disabled,true);assert.equal(h.el('sales-order-message').textContent,'');
 });
 const orderingRow={cosi:'Yes',tracking_id:'own-order',stock:'13001',order:'000123',tint:false,tint_complete:false,build_po:false,build_complete:false,tray_ordered:false,tray_complete:false,ordering_version:0,jita:true};
 test('three sales ordering selectors save through only the isolated RPC and JITA stays read-only',async()=>{
