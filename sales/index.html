@@ -8,7 +8,7 @@
 <title>Broome Toyota · Dashboard</title>
 <link rel="stylesheet" href="sales.css?v=2026.10.02.08">
 <link rel="stylesheet" href="crm-workspace.css?v=2026.10.02.05">
-<link rel="stylesheet" href="finance-pipeline.css?v=2026.10.02.10">
+<link rel="stylesheet" href="finance-pipeline.css?v=2026.10.02.11">
 <link rel="stylesheet" href="../site-switcher.css?v=2026.10.01.01">
 </head>
 <body class="auth-pending" data-auth-state="checking" data-pdc-site="broome">
@@ -115,6 +115,7 @@
 <div class="panel-actions"><button class="small-button" id="customer-email-save" type="button">Save draft</button><button class="primary" id="customer-email-download" type="button">Prepare Outlook email</button><button class="small-button" id="customer-email-open" type="button">Open email app</button><button class="small-button" id="customer-email-skip" type="button">Skip this update</button><button class="primary" id="customer-email-sent" type="button">Mark as sent</button><button class="small-button" id="customer-email-reopen" type="button">Reopen — not sent</button></div>
 <p class="tracking-note">Nothing is sent automatically. Open the downloaded email in Outlook, check the recipient and signature, and send it yourself. If Outlook opens it as a received message, use Forward and recheck the details. Only reopen a prepared draft if it was not sent.</p>
 <p id="customer-email-status" role="status" aria-live="polite"></p></dialog>
+<dialog id="finance-settlement-date-dialog" class="sales-detail finance-date-dialog" aria-labelledby="finance-settlement-date-title"><div id="finance-settlement-date-content"></div></dialog>
 <dialog id="finance-add-dialog" class="sales-detail finance-add-dialog" aria-labelledby="finance-add-title"><div id="finance-add-content"></div></dialog>
 <noscript>JavaScript is required for secure salesperson sign-in.</noscript>
 <script src="../vendor/supabase/supabase-2.110.5.js"></script>
@@ -125,7 +126,7 @@
 <script src="dashboard-tools.js?v=2026.10.02.07"></script>
 <script src="email-actions.js?v=2026.10.02.05"></script>
 <script src="customer-emails.js?v=2026.10.02.05"></script>
-<script src="finance-pipeline.js?v=2026.10.02.10"></script>
+<script src="finance-pipeline.js?v=2026.10.02.11"></script>
 <script src="sales.js?v=2026.10.02.09"></script>
 <script src="../pdc-auth.js?v=2026.08.11.27-auth-foreground&amp;fitter-only=2026.09.16.01&amp;sales-site=2026.10.01.01"></script>
 <script src="../pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
