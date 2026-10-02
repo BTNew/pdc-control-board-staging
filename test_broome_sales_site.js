@@ -1,14 +1,14 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const sales=require('./sales/sales.js');
 test('tracker keeps yard hold and consignment categories and unknown flags distinct',()=>{
- assert.equal(sales.category({cosi:'Yes',stock:'130',location_status:'YH',toyota_status:'In Transit'}),'yardhold');
- assert.equal(sales.category({cosi:'Yes',stock:'130',toyota_status:'Vehicle Out on Consignment'}),'released');
- assert.equal(sales.category({cosi:'Yes',stock:'',toyota_status:'Yard Hold'}),'unconfirmed');
+ assert.equal(sales.category({cosi:'Yes',salesperson_code:'BG',stock:'130',location_status:'YH',toyota_status:'In Transit'}),'yardhold');
+ assert.equal(sales.category({cosi:'Yes',salesperson_code:'BG',stock:'130',toyota_status:'Vehicle Out on Consignment'}),'released');
+ assert.equal(sales.category({cosi:'Yes',salesperson_code:'BG',stock:'',toyota_status:'Yard Hold'}),'unconfirmed');
  for(const v of [null,undefined,'', 'Unknown'])assert.equal(sales.flag(v),'unknown');
  assert.equal(sales.flag(false),'no');assert.equal(sales.flag(true),'yes');
 });
 test('search and sorting retain missing-last order and source records',()=>{
- const records=[{cosi:'Yes',stock:'100',client:'Amy'},{cosi:'Yes',stock:'20',client:'Bryce'},{cosi:'Yes',stock:'',client:'Bryce'}];
+ const records=[{cosi:'Yes',salesperson_code:'BG',stock:'100',client:'Amy'},{cosi:'Yes',salesperson_code:'BG',stock:'20',client:'Bryce'},{cosi:'Yes',salesperson_code:'BG',stock:'',client:'Bryce'}];
  const filters={category:'all',search:'',sort:'stock',direction:-1};
  assert.deepEqual(sales.selectRows(records,filters).map(r=>r.stock),['100','20','']);
  assert.equal(sales.selectRows(records,{...filters,search:'bryce'}).length,2);
@@ -33,20 +33,20 @@ test('sign-out clears data and a delayed read cannot refill the previous account
  const h=harness();assert.equal(h.calls.length,1);
  h.el('sales-detail-content').innerHTML='Private customer';
  delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();
- h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{cosi:'Yes',tracking_id:'old',stock:'123',client:'Private customer'}]}});
+ h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{cosi:'Yes',salesperson_code:'BG',tracking_id:'old',stock:'123',client:'Private customer'}]}});
  await tick();
  assert.equal(h.el('vehicle-table').innerHTML,'');assert.equal(h.el('sales-detail-content').innerHTML,'');
  assert.equal(h.el('sales-refresh').disabled,false);
 });
 test('combined month, Toyota status and JITA filters restrict the visible authorised set',()=>{
- const rows=[{cosi:'Yes',stock:'1',production_month:'06/26',toyota_status:'Yard Hold',jita:true},
- {cosi:'Yes',stock:'2',production_month:'06/26',toyota_status:'Yard Hold',jita:null},
- {cosi:'Yes',stock:'3',production_month:'07/26',toyota_status:'In Transit',jita:true}];
+ const rows=[{cosi:'Yes',salesperson_code:'BG',stock:'1',production_month:'06/26',toyota_status:'Yard Hold',jita:true},
+ {cosi:'Yes',salesperson_code:'BG',stock:'2',production_month:'06/26',toyota_status:'Yard Hold',jita:null},
+ {cosi:'Yes',salesperson_code:'BG',stock:'3',production_month:'07/26',toyota_status:'In Transit',jita:true}];
  assert.deepEqual(sales.selectRows(rows,{category:'all',month:'06/26',status:'Yard Hold',jita:'yes',sort:'stock',direction:1}).map(r=>r.stock),['1']);
  assert.deepEqual(sales.selectRows(rows,{category:'all',jita:'unknown',sort:'stock',direction:1}).map(r=>r.stock),['2']);
 });
 test('labels and pipeline retain authorised identities and clear on access revocation',async()=>{
- const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson',display_name:'Example'},items:[{cosi:'Yes',tracking_id:'own-id',stock:'13001',order:'2026001',client:'Private customer',toyota_status:'Yard Hold'}]}});
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson',display_name:'Example'},items:[{cosi:'Yes',salesperson_code:'BG',tracking_id:'own-id',stock:'13001',order:'2026001',client:'Private customer',toyota_status:'Yard Hold'}]}});
  await tick();assert.equal(h.el('sales-pipeline').innerHTML,'');h.el('nav-pipeline').events.click();assert.match(h.el('sales-pipeline').innerHTML,/Private customer/);h.el('nav-dashboard').events.click();
  h.el('vehicle-table').events.change({target:{dataset:{select:'own-id'},checked:true}});
  h.el('sales-view-labels').events.click();assert.match(h.el('sales-labels').innerHTML,/Private customer/);
@@ -56,7 +56,7 @@ test('labels and pipeline retain authorised identities and clear on access revoc
  assert.equal(h.el('sales-print-labels').disabled,true);
 });
 test('Finance opens its placeholder without issuing a finance request; stale selected labels are removed on refresh',async()=>{
- const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson',display_name:'Example'},items:[{cosi:'Yes',tracking_id:'old-id',stock:'13001',client:'Old assignment'}]}});
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson',display_name:'Example'},items:[{cosi:'Yes',salesperson_code:'BG',tracking_id:'old-id',stock:'13001',client:'Old assignment'}]}});
  await tick();h.el('vehicle-table').events.change({target:{dataset:{select:'old-id'},checked:true}});
  h.el('nav-finance').events.click();assert.equal(h.el('sales-finance-view').hidden,false);
  assert.equal(h.el('sales-dashboard-view').hidden,true);assert.equal(h.el('sales-page-title').textContent,'Finance');
@@ -68,7 +68,7 @@ test('Finance opens its placeholder without issuing a finance request; stale sel
 });
 test('failed refresh clears stale records and can be retried',async()=>{
  const h=harness();
- h.calls[0].resolve({data:{context:{role:'salesperson',display_name:'Bryce'},items:[{cosi:'Yes',tracking_id:'1',stock:'123'}]}});
+ h.calls[0].resolve({data:{context:{role:'salesperson',display_name:'Bryce'},items:[{cosi:'Yes',salesperson_code:'BG',tracking_id:'1',stock:'123'}]}});
  await tick();assert.match(h.el('vehicle-table').innerHTML,/123/);
  h.el('sales-refresh').events.click();h.calls[1].resolve({error:{message:'Access revoked'}});
  await tick();assert.equal(h.el('vehicle-table').innerHTML,'');assert.equal(h.el('sales-refresh').disabled,false);
@@ -76,8 +76,8 @@ test('failed refresh clears stale records and can be retried',async()=>{
 });
 test('account replacement suppresses stale data and salesperson sees no admin selector',async()=>{
  const h=harness();h.window.PDC_AUTH_CONTEXT={role:'salesperson',userId:'B'};h.events['pdc-auth-ready']();
- h.calls[0].resolve({data:{context:{role:'administrator'},items:[{cosi:'Yes',tracking_id:'private',stock:'999'}]}});
- h.calls[1].resolve({data:{context:{role:'salesperson',display_name:'Other'},items:[{cosi:'Yes',tracking_id:'own',stock:'111'}]}});
+ h.calls[0].resolve({data:{context:{role:'administrator'},items:[{cosi:'Yes',salesperson_code:'BG',tracking_id:'private',stock:'999'}]}});
+ h.calls[1].resolve({data:{context:{role:'salesperson',display_name:'Other'},items:[{cosi:'Yes',salesperson_code:'BG',tracking_id:'own',stock:'111'}]}});
  await tick();assert.doesNotMatch(h.el('vehicle-table').innerHTML,/999/);
  assert.match(h.el('vehicle-table').innerHTML,/111/);
  assert.equal(h.el('salesperson-filter-label').hidden,true);
@@ -114,7 +114,7 @@ test('sales has no upload or account editor for either role',async()=>{
  const code=fs.readFileSync(require.resolve('./sales/sales.js'),'utf8');assert.doesNotMatch(code,/import_broome_sales_orders|assign_broome_sales_access/);
 });
 test('order-only detail shows bookings safely and disappears when access changes on refresh',async()=>{
- const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{cosi:'Yes',tracking_id:'order-id',canonical_vehicle_id:'canonical-test',order:'000123',stock:'',client:'Example',bay_bookings:[{stage:'Fitting',bay:'<unsafe>',status:'planned',scheduled_start_at:'2026-10-05T01:00:00Z'}]}]}});
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{cosi:'Yes',salesperson_code:'BG',tracking_id:'order-id',canonical_vehicle_id:'canonical-test',order:'000123',stock:'',client:'Example',bay_bookings:[{stage:'Fitting',bay:'<unsafe>',status:'planned',scheduled_start_at:'2026-10-05T01:00:00Z'}]}]}});
  await tick();assert.match(h.el('vehicle-table').innerHTML,/Awaiting stock number/);assert.match(h.el('vehicle-table').innerHTML,/000123/);
  h.el('vehicle-table').events.click({target:{closest(selector){return selector==='[data-open]'?{dataset:{open:'order-id'}}:null;}}});
  assert.match(h.el('sales-detail-content').innerHTML,/Bay bookings/);assert.match(h.el('sales-detail-content').innerHTML,/&lt;unsafe&gt;/);
@@ -122,7 +122,7 @@ test('order-only detail shows bookings safely and disappears when access changes
  h.el('sales-refresh').events.click();h.calls[1].resolve({data:{context:{role:'salesperson'},items:[]}});await tick();
  assert.equal(h.el('sales-detail-content').innerHTML,'');assert.equal(h.el('sales-detail').closed,true);
 });
-const orderingRow={cosi:'Yes',tracking_id:'own-order',stock:'13001',order:'000123',tint:false,tint_complete:false,build_po:false,build_complete:false,tray_ordered:false,tray_complete:false,ordering_version:0,jita:true};
+const orderingRow={cosi:'Yes',salesperson_code:'BG',tracking_id:'own-order',stock:'13001',order:'000123',tint:false,tint_complete:false,build_po:false,build_complete:false,tray_ordered:false,tray_complete:false,ordering_version:0,jita:true};
 test('three sales ordering selectors save through only the isolated RPC and JITA stays read-only',async()=>{
  const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
  assert.equal((h.el('vehicle-table').innerHTML.match(/data-ordering-flag=/g)||[]).length,3);
@@ -179,7 +179,7 @@ test('parts source authority and unknown receipt stay distinct',()=>{
  assert.equal(sales.partsStatus({status:'Parts outstanding — see job cards',received:true}),'Parts outstanding — see job cards');
 });
 test('stock detail shows read-only current PMB, parts and planned/actual progress; escapes source text',async()=>{
- const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{cosi:'Yes',tracking_id:'v',canonical_vehicle_id:'c',stock:'123',
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{cosi:'Yes',salesperson_code:'BG',tracking_id:'v',canonical_vehicle_id:'c',stock:'123',
  pmb_location:'PMB',parts:{status:'Parts outstanding',eta:'2026-10-07',stoppage:true,stoppage_reason:'<script>test</script>',jobs:[{job_number:'001',status:'PO recorded'}]},
  bay_bookings:[{status:'started',stage:'Fitting',bay:'Bay 2',actual_start_at:'2026-10-01T01:00:00Z',progress:{completed_lines:2,total_lines:4,percent:50}}]}]}});await tick();
  h.el('vehicle-table').events.click({target:{closest:sel=>sel==='[data-open]'?{dataset:{open:'v'}}:null}});
@@ -193,7 +193,7 @@ test('stock detail shows read-only current PMB, parts and planned/actual progres
 test('sales print button uses scoped Zebra rows and clears delayed status on sign-out',async()=>{
  const h=harness(),printed=[];let finish;
  h.window.BROOME_ZEBRA_LABELS={...h.window.BROOME_ZEBRA_LABELS,print:(rows,authorised)=>{printed.push({rows,authorised});return new Promise(resolve=>finish=resolve);}};
- h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{cosi:'Yes',tracking_id:'own',stock:'001',client:'Example customer'}]}});await tick();
+ h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{cosi:'Yes',salesperson_code:'BG',tracking_id:'own',stock:'001',client:'Example customer'}]}});await tick();
  h.el('vehicle-table').events.change({target:{dataset:{select:'own'},checked:true}});h.el('sales-view-labels').events.click();
  h.el('sales-print-labels').events.click();assert.equal(printed.length,1);assert.equal(printed[0].rows[0].stock,'001');assert.equal(printed[0].authorised(),true);assert.equal(h.el('sales-print-labels').disabled,true);
  delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();assert.equal(printed[0].authorised(),false);finish('BT-Zebra-EricComp');await tick();
@@ -212,6 +212,6 @@ test('sales status selectors reject arbitrary states and hidden completion field
  assert.equal(h.calls.length,1);
 });
 test('ordering status sort distinguishes grey orange and green',()=>{
- const rows=[{cosi:'Yes',stock:'3',tint:true,tint_complete:true},{cosi:'Yes',stock:'1',tint:false},{cosi:'Yes',stock:'2',tint:true}];
+ const rows=[{cosi:'Yes',salesperson_code:'BG',stock:'3',tint:true,tint_complete:true},{cosi:'Yes',salesperson_code:'BG',stock:'1',tint:false},{cosi:'Yes',salesperson_code:'BG',stock:'2',tint:true}];
  assert.deepEqual(sales.selectRows(rows,{category:'all',sort:'tint',direction:1}).map(r=>r.stock),['1','2','3']);
 });

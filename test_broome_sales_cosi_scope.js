@@ -96,10 +96,38 @@ test('refresh removes a vehicle whose COSI becomes No from detail, labels and or
  select(h,'bg-yard');h.el('sales-view-labels').events.click();await tick();
  assert.equal(h.calls.length,before,'A hidden order cannot trigger an ordering write');assert.doesNotMatch(h.el('sales-labels').innerHTML,/BG yard customer/);
 });
-test('a salesperson selection absent from the refreshed COSI feed resets to all remaining vehicles',async()=>{
+test('the fixed sales roster keeps a selected salesperson with no current orders',async()=>{
  const h=harness();await load(h);choose(h,'salesperson-filter','BG');
  h.el('sales-refresh').events.click();await load(h,records().filter(r=>r.salesperson_code==='CW'));
- assert.equal(h.el('salesperson-filter').value,'');assert.equal(cardCount(h,'all'),2);
- assert.match(h.el('vehicle-table').innerHTML,/CW production customer/);assert.match(h.el('vehicle-table').innerHTML,/CW dealer customer/);
- assert.doesNotMatch(h.el('salesperson-filter').innerHTML,/value="BG"/);
+ assert.equal(h.el('salesperson-filter').value,'BG');assert.equal(cardCount(h,'all'),0);
+ assert.doesNotMatch(h.el('vehicle-table').innerHTML,/CW production customer|CW dealer customer/);
+ assert.match(h.el('salesperson-filter').innerHTML,/value="BG"/);
+ choose(h,'salesperson-filter','');assert.equal(cardCount(h,'all'),2);
+});
+
+
+test('only the four current salespeople enter visible and hidden planner scopes; shared rows are untouched',()=>{
+ const rows=['BG','AW','PM','CW','ZZ','',null].flatMap((code,index)=>[
+  {cosi:true,source_current:true,salesperson_code:code,tracking_id:'visible-'+index},
+  {cosi:true,source_current:true,salesperson_code:code,tracking_id:'hidden-'+index,sales_hidden:true}
+ ]);
+ const before=JSON.stringify(rows);
+ assert.deepEqual(sales.salespeople,['BG','AW','PM','CW']);
+ assert.deepEqual(sales.scopeRows(rows).map(r=>r.salesperson_code),['BG','AW','PM','CW']);
+ assert.deepEqual(sales.scopeRows(rows,'','hidden').map(r=>r.salesperson_code),['BG','AW','PM','CW']);
+ assert.deepEqual(sales.scopeRows(rows,'ZZ'),[]);
+ assert.equal(JSON.stringify(rows),before);
+});
+
+test('the fixed selector and every dashboard count exclude additional imported salesperson codes',async()=>{
+ const h=harness(),excluded={...records()[0],tracking_id:'zz-yard',stock:'13990000',salesperson_code:'ZZ',client:'Excluded example customer',production_month:'01/27',toyota_status:'Other person location'};
+ await load(h,[...records(),excluded]);
+ const options=[...h.el('salesperson-filter').innerHTML.matchAll(/<option value="([^"]+)"/g)].map(m=>m[1]);
+ assert.deepEqual(options,['BG','AW','PM','CW']);
+ assert.equal(cardCount(h,'all'),4);
+ for(const id of ['vehicle-table','sales-pipeline','sales-month-filter','sales-status-filter'])assert.doesNotMatch(h.el(id).innerHTML,/Excluded example|Other person location|01\/27/);
+ for(const [code,count] of [['BG',2],['AW',0],['PM',0],['CW',2]]){
+  choose(h,'salesperson-filter',code);assert.equal(cardCount(h,'all'),count);
+ }
+ assert.equal(h.calls.length,1,'Roster selection must not write shared PDC data');
 });
