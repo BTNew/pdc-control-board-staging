@@ -37,3 +37,8 @@ My Day uses a Monday-first month calendar in Perth time. Incomplete vehicle task
 ## Broome orders from the PMB upload page — 2 October 2026
 
 Selecting Broome Toyota sales orders (37047) on PMB Navision Uploads now routes Preview Data and Confirm and Apply through the existing isolated import_broome_sales_orders RPC. It reuses the same parser as the sales intake. A blank Batch / Stock is accepted for COSI sold orders with exact Toyota Order and active salesperson. The preview counts all source rows and identifies sold stockless orders. Other dealer/combined uploads retain the shared PMB stock-required import route and safeguards. Broome uploads update private sales records only; they do not activate or mutate PDC vehicles, locations, Parts, bookings or browser authority. Input changes, account changes, altered reviewed rows and duplicate in-flight clicks block stale apply.
+
+
+## Three sales ordering statuses — 2 October 2026
+
+The dashboard has three editable columns: TINT, BUILD and TRAY. Each status selector supports grey Not Needed, orange Orders Raised and green Completed, including on mobile. Legacy order/completion ticks determine the initial colours; no existing completion is reset. The new versioned set_broome_sales_ordering_status RPC writes only private ordering_progress. A tint_complete column adds Tint completion without using PMB work or Toyota built milestones. Stale/scope-changed saves are refused and newer confirmed versions survive polling. Other items are preserved during a status save. Existing private legacy RPC remains compatible; all PDC operational/import data and production remain unchanged. Column widths use fourteen bounded numbers under broome-sales-column-widths-v2.

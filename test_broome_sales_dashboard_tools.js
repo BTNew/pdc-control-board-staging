@@ -18,7 +18,7 @@ test('column preferences admit only bounded numeric widths and discard customer 
  assert.deepEqual(tools.readWidths('bad JSON'),tools.defaults);
  assert.deepEqual(tools.readWidths('{"customer":"PRIVATE"}'),tools.defaults);
  const out=tools.readWidths('[99999,-4,"PRIVATE",null,100.4]');
- assert.deepEqual(out.slice(0,5),[600,40,90,160,100]);assert.equal(out.length,16);
+ assert.deepEqual(out.slice(0,5),[600,40,90,160,100]);assert.equal(out.length,14);
 });
 test('column pointer and keyboard changes preserve bounded widths and save only numbers',()=>{
  const events={},stored=[],cols=tools.defaults.map(()=>({style:{}}));
@@ -32,7 +32,7 @@ test('column pointer and keyboard changes preserve bounded widths and save only 
  assert.equal(cols[0].style.width,'170px');assert.equal(handles[0]['aria-valuenow'],'170');
  events.keydown({...base,key:'ArrowRight'});assert.equal(cols[0].style.width,'180px');
  events.keydown({...base,key:'Home'});assert.equal(cols[0].style.width,'60px');
- assert.ok(stored.every(([k,v])=>k==='broome-sales-column-widths-v1'&&v.every(x=>typeof x==='number')));
+ assert.ok(stored.every(([k,v])=>k==='broome-sales-column-widths-v2'&&v.every(x=>typeof x==='number')));
 });
 test('four templates match the examples without inventing equipment or recipients',()=>{
  const r={stock:'13032821',order:'0026001',client:'PARK',vehicle:'LC300 GR Sport',kewdale_eta:'2026-08-03'};
@@ -102,5 +102,5 @@ test('new sales tools contain no operational write, email send endpoint or custo
   const code=fs.readFileSync(f,'utf8');assert.doesNotMatch(code,/PDC_SUPABASE|\.rpc\(|fetch\(|sendMail|access_token|service_role/);
  }
  assert.doesNotMatch(fs.readFileSync('sales/email-actions.js','utf8'),/localStorage|sessionStorage|indexedDB/);
- const html=fs.readFileSync('sales/index.html','utf8');assert.match(html,/email-actions\.js\?v=2026\.10\.02\.05/);assert.match(html,/dashboard-tools\.js\?v=2026\.10\.02\.05/);
+ const html=fs.readFileSync('sales/index.html','utf8');assert.match(html,/email-actions\.js\?v=2026\.10\.02\.05/);assert.match(html,/dashboard-tools\.js\?v=2026\.10\.02\.07/);
 });

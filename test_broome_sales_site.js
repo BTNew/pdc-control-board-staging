@@ -142,42 +142,42 @@ test('an edited export cannot regain approval from an earlier review response',a
  h.calls[1].resolve({data:{accepted:1,without_stock:1,skipped_unsold:0}});await tick();
  assert.equal(h.el('sales-order-apply').disabled,true);assert.equal(h.el('sales-order-message').textContent,'');
 });
-const orderingRow={cosi:'Yes',tracking_id:'own-order',stock:'13001',order:'000123',tint:false,build_po:false,build_complete:false,tray_ordered:false,tray_complete:false,ordering_version:0,jita:true};
-test('five sales ordering checkboxes save through only the isolated RPC and JITA stays read-only',async()=>{
+const orderingRow={cosi:'Yes',tracking_id:'own-order',stock:'13001',order:'000123',tint:false,tint_complete:false,build_po:false,build_complete:false,tray_ordered:false,tray_complete:false,ordering_version:0,jita:true};
+test('three sales ordering selectors save through only the isolated RPC and JITA stays read-only',async()=>{
  const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
- assert.equal((h.el('vehicle-table').innerHTML.match(/data-ordering-flag=/g)||[]).length,5);
+ assert.equal((h.el('vehicle-table').innerHTML.match(/data-ordering-flag=/g)||[]).length,3);
  assert.doesNotMatch(h.el('vehicle-table').innerHTML,/data-ordering-flag="jita"/);
- h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'tint'},checked:true}});
- assert.equal(h.calls[1].name,'set_broome_sales_ordering_flag');
- assert.deepEqual(JSON.parse(JSON.stringify(h.calls[1].args)),{p_tracking_id:'own-order',p_flag:'tint',p_checked:true,p_expected_version:0});
- assert.match(h.el('vehicle-table').innerHTML,/data-ordering-flag="tint"[^>]*checked[^>]*disabled/);
- h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'build_po'},checked:true}});assert.equal(h.calls.length,2);
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'tint'},value:'orders_raised'}});
+ assert.equal(h.calls[1].name,'set_broome_sales_ordering_status');
+ assert.deepEqual(JSON.parse(JSON.stringify(h.calls[1].args)),{p_tracking_id:'own-order',p_item:'tint',p_status:'orders_raised',p_expected_version:0});
+ assert.match(h.el('vehicle-table').innerHTML,/ordering-status orders_raised[^>]*data-ordering-flag="tint"[^>]*disabled/);
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'build_po'},value:'completed'}});assert.equal(h.calls.length,2);
  h.calls[1].resolve({data:{...orderingRow,tint:true,ordering_version:1}});await tick();
- assert.match(h.el('vehicle-table').innerHTML,/data-ordering-flag="tint"[^>]*checked/);
+ assert.match(h.el('vehicle-table').innerHTML,/ordering-status orders_raised[^>]*data-ordering-flag="tint"/);
  assert.doesNotMatch(h.el('vehicle-table').innerHTML,/data-ordering-flag="tint"[^>]*disabled/);
- assert.match(h.el('sales-checklist-status').textContent,/Tint saved/);
+ assert.match(h.el('sales-checklist-status').textContent,/TINT saved/);
 });
-test('failed checkbox saves restore the last confirmed value and keep the error visible',async()=>{
+test('failed status saves restore the last confirmed value and keep the error visible',async()=>{
  const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
- h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'tray_ordered'},checked:true}});
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'tray_ordered'},value:'orders_raised'}});
  h.calls[1].resolve({error:{message:'Checklist changed elsewhere. Refresh and try again.'}});await tick();
- assert.doesNotMatch(h.el('vehicle-table').innerHTML,/data-ordering-flag="tray_ordered"[^>]*checked/);
- assert.match(h.el('sales-error').textContent,/changed elsewhere/);assert.match(h.el('sales-checklist-status').textContent,/not saved/);
- h.el('vehicle-table').events.change({target:{dataset:{orderingId:'other-order',orderingFlag:'tint'},checked:true}});
- h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'jita'},checked:false}});
+ assert.match(h.el('vehicle-table').innerHTML,/ordering-status not_needed[^>]*data-ordering-flag="tray_ordered"/);
+ assert.match(h.el('sales-error').textContent,/changed elsewhere/);assert.match(h.el('sales-checklist-status').textContent,/could not be confirmed/);
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'other-order',orderingFlag:'tint'},value:'orders_raised'}});
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'jita'},value:'not_needed'}});
  assert.equal(h.calls.length,2);
 });
-test('a stale background snapshot cannot undo a newer saved tick',async()=>{
+test('a stale background snapshot cannot undo a newer saved status',async()=>{
  const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
  h.el('sales-refresh').events.click();
- h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'build_complete'},checked:true}});
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'build_po'},value:'orders_raised'}});
  h.calls[2].resolve({data:{...orderingRow,build_complete:true,ordering_version:1}});await tick();
  h.calls[1].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
- assert.match(h.el('vehicle-table').innerHTML,/data-ordering-flag="build_complete"[^>]*checked/);
+ assert.match(h.el('vehicle-table').innerHTML,/ordering-status completed[^>]*data-ordering-flag="build_po"/);
 });
-test('sign-out suppresses a delayed checkbox response and clears its pending status',async()=>{
+test('sign-out suppresses a delayed status response and clears its pending status',async()=>{
  const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
- h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'tray_complete'},checked:true}});
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:'tray_ordered'},value:'orders_raised'}});
  delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();
  h.calls[1].resolve({data:{...orderingRow,tray_complete:true,ordering_version:1}});await tick();
  assert.equal(h.el('vehicle-table').innerHTML,'');assert.equal(h.el('sales-checklist-status').textContent,'');
@@ -218,4 +218,20 @@ test('sales print button uses scoped Zebra rows and clears delayed status on sig
  h.el('sales-print-labels').events.click();assert.equal(printed.length,1);assert.equal(printed[0].rows[0].stock,'001');assert.equal(printed[0].authorised(),true);assert.equal(h.el('sales-print-labels').disabled,true);
  delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();assert.equal(printed[0].authorised(),false);finish('BT-Zebra-EricComp');await tick();
  assert.equal(h.el('sales-label-status').textContent,'');assert.equal(h.el('sales-labels').innerHTML,'');
+});
+
+test('TINT BUILD and TRAY preserve existing raised and completed progress',()=>{
+ for(const [key,complete] of [['tint','tint_complete'],['build_po','build_complete'],['tray_ordered','tray_complete']]){
+ assert.equal(sales.orderingState({},key),'not_needed');assert.equal(sales.orderingState({[key]:true},key),'orders_raised');assert.equal(sales.orderingState({[complete]:true},key),'completed');
+ const html=sales.orderingControl({tracking_id:'example',order:'EXAMPLE',[complete]:true},key);assert.match(html,/ordering-status completed/);assert.match(html,/<option value="completed" selected>/);assert.equal((html.match(/<option/g)||[]).length,3);
+ }
+});
+test('sales status selectors reject arbitrary states and hidden completion fields',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[{...orderingRow}]}});await tick();
+ for(const [key,value] of [['tint','invented'],['build_complete','completed'],['tray_complete','completed']])h.el('vehicle-table').events.change({target:{dataset:{orderingId:'own-order',orderingFlag:key},value}});
+ assert.equal(h.calls.length,1);
+});
+test('ordering status sort distinguishes grey orange and green',()=>{
+ const rows=[{cosi:'Yes',stock:'3',tint:true,tint_complete:true},{cosi:'Yes',stock:'1',tint:false},{cosi:'Yes',stock:'2',tint:true}];
+ assert.deepEqual(sales.selectRows(rows,{category:'all',sort:'tint',direction:1}).map(r=>r.stock),['1','2','3']);
 });
