@@ -54,7 +54,7 @@
     // Planner-only presentation/search helper. It is versioned separately so
     // existing browsers pick up small planner fixes without touching mobile QC.
     const slimStyle = document.createElement('link');
-    slimStyle.rel = 'stylesheet'; slimStyle.href = 'pdc-planner-slim.css?v=2026.09.12.identity-fields';
+    slimStyle.rel = 'stylesheet'; slimStyle.href = 'pdc-planner-slim.css?v=2026.09.12.identity-fields&pill-lines=2026.10.02.15';
     document.head.appendChild(slimStyle);
     const slimScript = document.createElement('script');
     slimScript.src = 'pdc-planner-slim.js?v=2026.09.12.identity-fields&fitter-sync=2026.09.16.03&bhavesh-followup=2026.09.23.01';
