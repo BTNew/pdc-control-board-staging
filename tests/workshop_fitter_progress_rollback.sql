@@ -1,3 +1,4 @@
+-- AUDIT COPY: current, latest applied backend snapshot is authoritative. Source/runtime unchanged.
 -- STAGING ONLY. Synthetic actor, vehicles, operations and bays; no existing
 -- operational records are written. Revision/audit effects and fixtures roll back.
 -- Run this complete file in one connection after the operation-approval migration.
@@ -14,6 +15,15 @@ BEGIN
   RAISE EXCEPTION 'Wrong environment: rollback verification is STAGING only';
  END IF;
 END $guard$;
+
+-- The real lifecycle clock is used by Start/Resume. Make that clock available only
+-- for this fixture transaction, including an audit run after the actual closing time.
+INSERT INTO public.workshop_settings(key,value,scope) VALUES
+ ('day_start_time','"00:00"','global'),('day_end_time','"23:59"','global'),
+ ('working_week','["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]','global'),
+ ('closures','[]','global'),('break_windows','[]','global'),('overtime_windows','[]','global')
+ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+
 
 CREATE TEMP TABLE ou_context(actor uuid, email text, friday date, batch uuid) ON COMMIT DROP;
 CREATE TEMP SEQUENCE ou_source_order;

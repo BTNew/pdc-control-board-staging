@@ -24,11 +24,15 @@ function monthLabel(value){
  const y=Number(m[2].length===2?'20'+m[2]:m[2]);
  return new Intl.DateTimeFormat('en-AU',{month:'long',year:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(y,Number(m[1])-1,1)));
 }
+function signatureName(draft,row={}){
+ const recorded=oneLine(draft.facts?.salesperson_name);
+ return !draft.status||draft.status==='draft'?oneLine(row.salesperson_name)||recorded:recorded;
+}
 function draftText(draft,row={}){
  const base=template(draft.template_kind),facts=draft.facts||{};
  const eta=root.BROOME_SALES_TOOLS?.etaInfo(facts.perth_eta_date);
  const values={vehicle_model:facts.vehicle_model,production_month:monthLabel(facts.production_month),
-  perth_eta_date:eta?.days!==null?eta?.date:'',salesperson_name:facts.salesperson_name};
+  perth_eta_date:eta?.days!==null?eta?.date:'',salesperson_name:signatureName(draft,row)};
  return {recipient:draft.recipient||row.crm_contact?.email||'',subject:draft.subject||fill(base.subject,values),body:draft.body||fill(base.body,values)};
 }
 function validate(data){
@@ -43,13 +47,13 @@ if(typeof module==='object'&&module.exports)module.exports=api;
 root.BROOME_CUSTOMER_EMAILS=api;
 if(!root.document)return;
 const $=id=>root.document.getElementById(id);
-let options,queue=[],error='',active=null,busy=false,epoch=0,request=0,principal='';
+let options,queue=[],error='',capturePending=false,active=null,busy=false,epoch=0,request=0,principal='';
 const title=k=>types.find(([key])=>key===k)?.[1]||'Customer update';
 const token=()=>options?.getToken?.();
 const rows=()=>options?.getRows?.()||[];
 const visible=()=>queue.filter(d=>rows().some(r=>r.tracking_id===d.tracking_id));
 function close(){active=null;busy=false;$('customer-email-dialog').close();for(const id of ['to','subject','body','first-name','signature-name','signature-phone','signature-email'])$('customer-email-'+id).value='';$('customer-email-status').textContent='';}
-function clear(){epoch++;request++;queue=[];error='';principal=token();close();$('sales-customeremails').innerHTML='';}
+function clear(){epoch++;request++;queue=[];error='';capturePending=false;principal=token();close();$('sales-customeremails').innerHTML='';}
 function syncScope(){
  if(token()!==principal){clear();return;}
  if(active&&!visible().some(d=>d.id===active.id))close();
@@ -61,7 +65,8 @@ function render(){
   const row=rows().find(r=>r.tracking_id===d.tracking_id),label=row?.stock||'Toyota order '+(row?.order||'');
   return '<article class="customer-email-card"><div><h3>'+esc(title(d.template_kind))+'</h3><p>'+esc(label)+' · '+esc(d.facts?.vehicle_model||row?.vehicle||'')+'</p><p>'+esc(row?.client||'')+'</p><span class="customer-email-state">'+esc(({draft:'Ready for review',prepared:'Prepared — confirm after sending',sent:'Marked as sent',skipped:'Skipped',superseded:'Replaced by a newer update'})[d.status]||d.status)+'</span></div><button class="small-button" data-customer-review="'+esc(d.id)+'" type="button">'+(d.status==='draft'?'Review email':'View email')+'</button></article>';
  }).join('');}
- $('sales-customeremails').innerHTML='<section class="panel"><div class="panel-header"><div><h2>Customer updates</h2><p>'+pending.length+' update'+(pending.length===1?'':'s')+' awaiting review or confirmation.</p></div><button class="small-button" data-customer-refresh type="button">Refresh customer emails</button></div><div class="customer-email-content"><p class="tracking-note">Status changes prepare drafts while the sales page is open. Review and send each email yourself, then mark it as sent. A downloaded draft is not recorded as sent.</p><p class="tracking-note">The first check establishes a starting point. It does not create emails for old statuses. Repeated checks and imports reuse the same vehicle update.</p>'+
+ $('sales-customeremails').innerHTML='<section class="panel"><div class="panel-header"><div><h2>Customer updates</h2><p>'+pending.length+' update'+(pending.length===1?'':'s')+' awaiting review or confirmation.</p></div><button class="small-button" data-customer-refresh type="button">Refresh customer emails</button></div><div class="customer-email-content"><p class="tracking-note">Navision status updates prepare drafts for your review, even while this page is closed. Review and send each email yourself, then mark it as sent. A downloaded draft is not recorded as sent.</p><p class="tracking-note">An order’s first import establishes its starting point. It does not create emails for old statuses. Repeated checks and imports reuse the same vehicle update.</p>'+
+  (capturePending?'<p class="tracking-note" role="status">Some vehicle updates are waiting for a retry. Refresh customer emails to try again.</p>':'')+
   (error?'<p role="alert">'+esc(error)+'</p>':'')+(pending.length?cards(pending):'<p>No new customer updates to review.</p>')+
   '<details><summary>Earlier updates ('+past.length+')</summary>'+cards(past)+'</details><details><summary>Preview the three email templates</summary>'+types.map(([kind,label])=>{const t=template(kind);return '<h3>'+label+'</h3><strong>'+esc(t.subject)+'</strong><pre class="customer-template">'+esc(t.body)+'</pre>';}).join('')+'</details></div></section>';
 }
@@ -72,9 +77,9 @@ async function refresh(){
   const {data,error:rpcError}=await root.PDC_SUPABASE.rpc('get_broome_customer_emails');
   if(generation!==epoch||identity!==token()||sequence!==request)return;
   if(rpcError||!Array.isArray(data?.drafts)||!['administrator','salesperson'].includes(data.context?.role))throw rpcError||new Error('Customer emails could not be loaded.');
-  queue=data.drafts;error='';
+  queue=data.drafts;error='';capturePending=Number.isSafeInteger(data.capture_pending)&&data.capture_pending>0;
   if(active){const latest=visible().find(d=>d.id===active.id);if(!latest||latest.version!==active.version){close();error='An open update changed. Review the current version before continuing.';}}
- }catch(e){if(generation!==epoch||identity!==token()||sequence!==request)return;queue=[];close();error=e.message||'Customer emails could not be loaded. Refresh to retry.';}
+ }catch(e){if(generation!==epoch||identity!==token()||sequence!==request)return;queue=[];capturePending=false;close();error=e.message||'Customer emails could not be loaded. Refresh to retry.';}
  render();
 }
 function open(id){
@@ -82,7 +87,7 @@ function open(id){
  const row=rows().find(r=>r.tracking_id===d.tracking_id),text=draftText(d,row);
  active={...d};busy=false;$('customer-email-title').textContent=title(d.template_kind);
  $('customer-email-to').value=text.recipient;$('customer-email-subject').value=text.subject;$('customer-email-body').value=text.body;
- $('customer-email-first-name').value='';$('customer-email-signature-name').value=d.facts?.salesperson_name||'';$('customer-email-signature-phone').value='';$('customer-email-signature-email').value='';
+ $('customer-email-first-name').value='';$('customer-email-signature-name').value=signatureName(d,row);$('customer-email-signature-phone').value='';$('customer-email-signature-email').value='';
  $('customer-email-state').textContent=d.status==='prepared'?'This draft has already been prepared. Mark it as sent after sending, or reopen it only if it was not sent.':d.status==='draft'?'Review all details and fill any remaining placeholders before preparing the email.':'This is a saved record of an earlier customer update.';
  for(const name of ['to','subject','body'])$('customer-email-'+name).readOnly=d.status!=='draft';
  $('customer-email-fill-fields').hidden=d.status!=='draft';

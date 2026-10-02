@@ -1,3 +1,4 @@
+-- AUDIT COPY: current, latest applied backend snapshot is authoritative. Source/runtime unchanged.
 -- Synthetic fixture only. Everything rolls back, including auth accounts and source rows.
 BEGIN ISOLATION LEVEL REPEATABLE READ;
 DO $test$
@@ -12,7 +13,7 @@ BEGIN
  UPDATE public.pdc_user_roles SET role='salesperson',active=true,account_status='approved' WHERE email='sales-hide-person@example.invalid' RETURNING id INTO role_id;
  INSERT INTO public.salespeople(id,name,code,active) VALUES(person,'Visibility fixture','HIDEQA',true),(other_person,'Other visibility fixture','HIDEQB',true);
  INSERT INTO pdc_sales_private.account_scopes(user_role_id,salesperson_id,assigned_by) VALUES(role_id,person,a);
- SELECT id INTO batch FROM public.navision_import_batches ORDER BY id LIMIT 1;
+ SELECT id INTO batch FROM public.navision_import_batches WHERE source_system='microsoft_navision' AND dealer_code='37047' AND status='applied' AND rolled_back_at IS NULL ORDER BY result_revision DESC,applied_at DESC,id DESC LIMIT 1;
  IF batch IS NULL THEN RAISE EXCEPTION 'Need existing staging batch reference'; END IF;
  INSERT INTO public.navision_backend_records(id,source_record_id,row_hash,normalized_data,raw_evidence,first_seen_batch_id,last_seen_batch_id,source_system,dealer_code,record_status)
  VALUES

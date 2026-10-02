@@ -17,7 +17,7 @@ function patch(key,value){
 function projection(entries){
  // Only explicitly saved applications can supply a salesperson's finance summary.
  const latest=new Map();for(const r of [...entries].sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))||String(b.id).localeCompare(String(a.id))))if(r.tracking_id&&!latest.has(r.tracking_id))latest.set(r.tracking_id,r);
- return [...latest.values()].map(r=>({id:r.id,tracking_id:r.tracking_id,version:r.version,current_application:true,approval_status:r.approval==='Yes'?'approved':r.approval==='No'?'declined':'not_started',settlement_status:r.settlement==='Yes'?'settled':r.settlement==='No'?'pending':'not_started',access_status:r.access==='Yes'?'active':r.access==='No'?'not_required':'requested',payout_status:r.payout_complete==='Yes'?'complete':r.payout_complete==='No'?'pending':'not_required',shared_update:r.notes||''}));
+ return [...latest.values()].map(r=>({id:r.id,tracking_id:r.tracking_id,version:r.version,current_application:true,approval_status:r.approval==='Yes'?'approved':r.approval==='No'?'declined':'not_started',settlement_status:r.settlement==='Yes'?'settled':r.settlement==='No'?'pending':'not_started',settlement_date:r.settlement_date||'',access_status:r.access==='Yes'?'active':r.access==='No'?'not_required':'',payout_status:r.payout_complete==='Yes'?'complete':r.payout_complete==='No'?'pending':'',shared_update:r.notes||''}));
 }
 
 function matchVehicles(rows,text){

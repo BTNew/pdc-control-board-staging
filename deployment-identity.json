@@ -796,7 +796,7 @@
     "review_status": "staging_applied"
   },
   "broome_salesperson_site": {
-    "asset_version": "2026.10.02.01",
+    "asset_version": "2026.10.02.19",
     "path": "sales/",
     "dealer_code": "37047",
     "server_scoped": true,
@@ -805,34 +805,51 @@
     "copies_of_vehicle_records_created": false,
     "operational_vehicle_writes": false,
     "seeded_account_scopes": 0,
-    "validation": "1266 frontend checks passed; real staging role/RLS and account assignment rollback checks passed with vehicle and source fingerprints unchanged."
+    "validation": "Current staging entry assets match the reviewed source; account isolation and PDC preservation are covered by the sales regression and database rollback suites. Physical printer and external email handling require local confirmation.",
+    "asset_versions": {
+      "sales.css": "2026.10.02.18",
+      "crm-workspace.css": "2026.10.02.05",
+      "finance-pipeline.css": "2026.10.02.14",
+      "zebra-labels.js": "2026.10.02.05",
+      "crm-workspace.js": "2026.10.02.19",
+      "dashboard-tools.js": "2026.10.02.18",
+      "email-actions.js": "2026.10.02.05",
+      "customer-emails.js": "2026.10.02.19",
+      "finance-pipeline.js": "2026.10.02.19",
+      "sales.js": "2026.10.02.19"
+    }
   },
   "broome_salesperson_dashboard": {
-    "asset_version": "2026.10.01.02",
+    "asset_version": "2026.10.02.19",
     "reference": "Owner supplied local tracker screenshot, 1 October 2026",
     "navigation": [
+      "My Day",
       "Dashboard",
       "Pipeline",
+      "Customer emails",
+      "Alerts",
+      "Finance",
       "Labels",
-      "Finance"
+      "History"
     ],
-    "finance": "Placeholder only; no finance records or workflow introduced",
+    "finance": "Manually added finance applications with inline editing, existing-vehicle autocomplete or standalone customer details, and filtered pipeline/monthly statistics; vehicles are not automatically enrolled.",
     "operational_writes": false,
-    "database_changes": false,
-    "validation": "1269 frontend checks passed; desktop/reference and phone layouts plus pipeline/details, labels, Finance and access-clearing verified."
+    "database_changes": true,
+    "validation": "Desktop/mobile layout, status save/cycle, scope clearing and non-overflow behavior verified in sales tests and fictional browser checks.",
+    "layout": "JITA removed. Three colour-cycling TINT/BUILD/TRAY tick boxes; fixed page-width desktop table, adjacent-column resizing and mobile vehicle cards."
   },
   "broome_salesperson_journey": {
-    "asset_version": "2026.10.01.03",
+    "asset_version": "2026.10.02.19",
     "early_orders": "Stockless orders accepted only with explicit COSI Yes/true/1 and Toyota order number",
     "identity": "Exact dealer + Toyota order; leading zeros retained; ambiguous source links flagged and not joined",
     "operational_writes": false,
-    "intake": "Administrator-only sales store; no PDC import/vehicle/booking mutations",
-    "retention": "Missing source rows remain visible with freshness warning; explicit PDC deletion authority retained",
+    "intake": "PMB Navision Uploads only: Broome and Pilbara profiles refresh the shared backend; no import or account editor on Sales.",
+    "retention": "Sales lists use only the latest successfully applied dealer snapshot. Missing source vehicles disappear from the sales planner immediately, while PDC retention/history remains separate. Hidden demos or drive cars can be restored if still current.",
     "rdr_removal": "Pending owner confirmation of authoritative Navision field and value",
-    "validation": "Order-only/COSI, stock transition UUID continuity, retention, own-sales scope, import denial, anonymous/direct-table denial and full PDC source/vehicle/booking fingerprints verified in rollback"
+    "validation": "COSI/stockless identity continuity, latest-source visibility, hiding/restoring, assigned-sales scope and isolated sales ordering are covered by regression and rollback suites."
   },
   "broome_salesperson_ordering": {
-    "asset_version": "2026.10.01.04",
+    "asset_version": "2026.10.02.19",
     "editable_flags": [
       "tint",
       "build_po",
@@ -845,9 +862,20 @@
     "writes_to_pdc": false,
     "seeded_flags": 0,
     "concurrency": "Expected-version guarded field update; older polls cannot undo confirmed saves",
-    "validation": "Five ticks and unticks returned by snapshot, cross-person/unknown-order/arbitrary-field/stale-version/disabled/anonymous writes denied; complete PDC vehicle/source/import/booking fingerprints unchanged in rollback",
-    "frontend_tests": 1277,
-    "browser_validation": "Example salesperson: all five ticked, saved and retained after reload; intake/account controls hidden"
+    "validation": "Expected-version guarded private updates, complete colour cycles, legacy status preservation, revoked access cancellation and PDC nonmutation verified.",
+    "browser_validation": "Fictional desktop/mobile status cycles and fixed-width layout verified; no live operational state changed.",
+    "editable_statuses": [
+      "tint",
+      "build",
+      "tray"
+    ],
+    "colour_cycle": [
+      "Not Needed (grey)",
+      "Orders Raised (orange)",
+      "Completed (green)"
+    ],
+    "presentation": "Tick boxes cycle all three states on desktop/mobile; legacy order/completion fields remain compatible in private storage.",
+    "column_preferences": "13 bounded numeric proportions under broome-sales-column-widths-v3; resizing shares total page width with a neighbour."
   },
   "broome_salesperson_pmb": {
     "asset_version": "2026.10.01.05",
@@ -858,7 +886,7 @@
     "validation": "1280 frontend checks; staging scoped read and fingerprint rollback checks"
   },
   "broome_salesperson_labels": {
-    "asset_version": "2026.10.01.07",
+    "asset_version": "2026.10.02.05",
     "format": "Owner-supplied sales ZPL: 540x360 dots; stock at top/bottom, separate customer/salesperson, model, suffix/trim/colour and VIN; two copies",
     "connection": "Existing local vendor QZ Tray 2.2.6; same preferred Zebra printers and raw UTF-8/no scaling settings",
     "operational_writes": false,
@@ -868,14 +896,13 @@
     "validation": "Requested ZPL golden fixture, Navision field mapping, command sanitisation, two copies per block with one QZ copy, discovery, access-revocation cancellation and UI sign-out handling"
   },
   "broome_salesperson_import_format": {
-    "asset_version": "2026.10.01.08",
-    "sales_only": true,
-    "database_changes": false,
-    "operational_writes": false,
+    "asset_version": "2026.10.02.16",
+    "sales_only": false,
+    "database_changes": true,
     "salesperson": "Plain short code or code plus exact eight-digit Navision suffix; unknown values retained for rejection",
     "vin": "Valid explicit VIN or complete validated WMI/VDS/Frame components",
     "eta": "Day-first D/M/YYYY converted to ISO date; invalid calendar date rejected",
-    "admin_ui": "Top Import Navision orders action opens existing isolated intake; hidden and guarded for salespeople",
+    "admin_ui": "PMB only: Broome Upload (037047 + 001234 + 002345) and Pilbara Upload (014450 + 001234 + 002345), with preview/apply and explicit complete-export review when required; no uploads on Sales.",
     "supplied_export_preview": {
       "accepted": 260,
       "without_stock": 98,
@@ -883,35 +910,72 @@
       "applied": false,
       "changed": 0,
       "pdc_and_sales_records_unchanged": true
-    }
+    },
+    "shared_backend_updates": true,
+    "workshop_writes": false
   },
   "broome_salesperson_cosi_scope": {
-    "asset_version": "2026.10.01.09",
+    "asset_version": "2026.10.02.19",
     "visible_vehicles": "Explicit COSI Yes/true/1 only, including stocked orders; missing/No/unknown excluded",
     "salesperson_filter": "Counts, location/status and month options, pipeline, linked summary and label scope follow selected salesperson",
     "negative_import": "Existing exact order retains UUID/display/checklist but updates private COSI evidence; cleared salesperson allowed; no new unsold stockless orders",
     "source_precedence": "Latest source/private COSI including explicit blank; identical import refreshes authority when shared source newer",
     "operational_writes": false,
-    "validation": "1299 frontend checks; real staging COSI/source/identity/checklist/scope rollback suites and complete PDC fingerprints unchanged"
+    "validation": "1299 frontend checks; real staging COSI/source/identity/checklist/scope rollback suites and complete PDC fingerprints unchanged",
+    "salesperson_roster": [
+      "BG",
+      "AW",
+      "PM",
+      "CW"
+    ]
   },
   "broome_salesperson_crm": {
-    "asset_version": "2026.10.02.01",
+    "asset_version": "2026.10.02.19",
     "navigation": [
       "My Day",
       "Dashboard",
       "Pipeline",
+      "Customer emails",
       "Alerts",
       "Finance",
-      "Leads",
       "Labels",
       "History"
     ],
     "operational_writes": false,
     "existing_pdc_permissions_changed": false,
     "production_changed": false,
-    "storage": "pdc_sales_private.crm_*",
+    "storage": "pdc_sales_private CRM, finance, ordering, visibility and customer-email records; current vehicle facts come from the shared Navision backend.",
     "finance": "Approved administrator or exact private sales finance capability; ordinary sales API excludes amounts, commissions, lender/application fields and internal notes",
-    "history": "Awaiting exact authoritative Navision RDR column/value; no automatic removal",
-    "validation": "1345 Node tests; zero frontend privileged-token findings; complete staging rollback CRUD/scoping/redaction/version/observation/public-table+function fingerprints passed; authenticated real-source184COSI read; desktop/390px-phone fictional workflow saves and draft preservation verified"
+    "history": "Missing latest-source vehicles leave active sales views; retained private history is separate. Explicit RDR field/value remains unconfirmed and is not inferred from dealer delivery.",
+    "validation": "Current sales regression tests cover scope, concurrency, redaction and state clearing. Database rollback checks cover PDC nonmutation. Live operational edits and external sending are outside this validation.",
+    "my_day": "Monday-first Perth calendar; vehicle tasks/contact reminders can be edited or moved to another day. Leads navigation and data are not consumed by the sales page."
+  },
+  "broome_salesperson_customer_emails": {
+    "asset_version": "2026.10.02.19",
+    "templates": [
+      "Production planned",
+      "Vehicle built",
+      "Perth ETA received"
+    ],
+    "trigger": "Successful approved Navision imports capture status/date changes even while Sales is closed; the first import establishes an order baseline. Failed capture retries on import, review or save. No unattended sender.",
+    "deduplication": "Unique stable tracking ID + template kind + canonical event; versioned preparation prevents duplicate claims. Staff explicitly confirm sent or reopen an unsent draft.",
+    "review": "Required customer first name, vehicle model and salesperson name/contact placeholders must be complete before preparation; Perth ETA is explicitly distinct from handover.",
+    "operational_writes": false,
+    "external_email_validation": "MIME bytes and attachment preservation verified; installed Outlook/default handler behavior and actual sending require local confirmation."
+  },
+  "broome_salesperson_finance": {
+    "asset_version": "2026.10.02.19",
+    "storage": "pdc_sales_private.finance_applications",
+    "enrollment": "Only explicitly added applications; existing-vehicle autocomplete or customer-only standalone entry. No PDC vehicle creation.",
+    "financiers": [
+      "TFS",
+      "TFM",
+      "FARADAY",
+      "OTHER"
+    ],
+    "editing": "Slim inline-editable fifteen-column pipeline; customer-only display; version-guarded saves preserve unsaved changes.",
+    "statistics": "Settled contracts, RSA, Access and MVI counts plus amount totals by selected month, Broome/Pilbara and New/Used; no settlement month is guessed.",
+    "privacy": "Finance-edit capability controls full application fields; ordinary salespeople see only their assigned redacted applications.",
+    "operational_writes": false
   }
 }

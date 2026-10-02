@@ -34,9 +34,18 @@
     const parts=new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Perth',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
     return ['year','month','day'].map(type=>parts.find(p=>p.type===type).value).join('-');
   }
+  function calendarDateKey(value) {
+    // This module loads before the dashboard tools in the browser. Resolve them
+    // when formatting, after all scripts have loaded, and share their date rules.
+    const tools=root.BROOME_SALES_TOOLS || (typeof module==='object'&&module.exports?require('./dashboard-tools.js'):null);
+    return tools?.dateKey(value)||null;
+  }
   function dateLabel(value, time=false) {
     if (!value) return 'Not recorded';
-    const date=new Date(/^\d{4}-\d{2}-\d{2}$/.test(String(value))?value+'T00:00:00+08:00':value);
+    const text=String(value).trim(),calendarDate=/^\d{4}-\d{2}-\d{2}$|^\d{1,2}\/\d{1,2}\/\d{4}$/.test(text);
+    const key=calendarDate?calendarDateKey(text):null;
+    if(calendarDate&&!key)return 'Not recorded';
+    const date=new Date(calendarDate?key+'T00:00:00+08:00':value);
     if(!Number.isFinite(date.getTime())) return 'Not recorded';
     return date.toLocaleString('en-AU',{timeZone:'Australia/Perth',dateStyle:'medium',...(time?{timeStyle:'short'}:{})});
   }
@@ -246,7 +255,10 @@
       for(const record of recordList('tasks')) if(record.due_date&&record.completed!==true) entries.push({kind:'task',id:record.id,trackingId:record.tracking_id,date:record.due_date,title:record.title||'Task',version:record.version});
       for(const record of recordList('contacts')) if(record.next_contact_date) entries.push({kind:'contact',id:record.id,trackingId:record.tracking_id,date:record.next_contact_date,title:record.next_action||'Contact customer',version:record.version});
       for(const record of recordList('delivery')) if(record.promised_delivery_date&&record.handover!==true) entries.push({kind:'delivery',id:record.id,trackingId:record.tracking_id,date:record.promised_delivery_date,title:'Promised customer delivery'});
-      for(const row of currentRows()) if(row.kewdale_eta&&/^\d{4}-\d{2}-\d{2}$/.test(row.kewdale_eta)) entries.push({kind:'eta',id:row.tracking_id,trackingId:row.tracking_id,date:row.kewdale_eta,title:'Kewdale ETA · estimated'});
+      for(const row of currentRows()) {
+        const date=calendarDateKey(row.kewdale_eta);
+        if(date) entries.push({kind:'eta',id:row.tracking_id,trackingId:row.tracking_id,date,title:'Kewdale ETA · estimated'});
+      }
       return entries.sort((a,b)=>a.date.localeCompare(b.date)||a.kind.localeCompare(b.kind)||String(a.id).localeCompare(String(b.id)));
     }
     function calendarEvent(entry) {

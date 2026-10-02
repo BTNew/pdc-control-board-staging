@@ -40,9 +40,10 @@
       Boolean(row.crm_contact?.next_contact_date&&row.crm_contact.next_contact_date<=today)||
       (row.crm_tasks||[]).some(t=>!t.completed&&t.due_date&&t.due_date<=today);
     if(quick==='due_week'){
-      const due=row.crm_delivery?.promised_delivery_date||row.dealer_eta;
-      const end=new Date(today+'T00:00:00Z');end.setUTCDate(end.getUTCDate()+7);
-      return Boolean(due&&due>=today&&due<=end.toISOString().slice(0,10));
+      const due=dateTools?.dateKey(row.crm_delivery?.promised_delivery_date||row.dealer_eta),start=dateTools?.dateKey(today);
+      if(!due||!start)return false;
+      const end=new Date(start+'T00:00:00Z');end.setUTCDate(end.getUTCDate()+7);
+      return due>=start&&due<=end.toISOString().slice(0,10);
     }
     return true;
   }
