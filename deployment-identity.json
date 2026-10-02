@@ -8,6 +8,14 @@
   "mailbox_runtime_changed": true,
   "complete_vehicle_delete_commissioned": false,
   "candidate_database_migration": null,
+  "vehicle_history_actor_attribution_migration": {
+    "version": "20261002233438",
+    "name": "pdc_history_recorded_actor_attribution",
+    "file": "supabase/migrations/20261002233438_pdc_history_recorded_actor_attribution.sql",
+    "sha256": "d21dc0bf5e1e81a5ade6307bdfd10f9fbd6294ca04a1f78e60ff736cdc5f51f0",
+    "commissioned": true,
+    "review_status": "staging_applied"
+  },
   "checklist_closure_migration": {
     "version": "20260831280000",
     "name": "pdc_checklist_completion_booking_preservation",

@@ -4161,6 +4161,10 @@ body.pmb-dragging .pmb-drop-lane {
   font-size: .68rem;
   color: #64748b;
 }
+.audit-log-item .vehicle-history-actor {
+  color: #334155;
+  font-weight: 600;
+}
 
 /* Applied PDC best-practice controls: blocked work, WIP, ageing and TV board */
 .pmb-drop-lane.is-over-limit {
