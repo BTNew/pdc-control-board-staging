@@ -292,7 +292,7 @@
       if(!scopeGuard()) return;
       if(view==='myday') renderMyDay();
       else if(view==='alerts') renderAlerts();
-      else if(view==='finance') renderFinance();
+      else if(view==='finance') {if(host.BROOME_SALES_FINANCE)host.BROOME_SALES_FINANCE.render();else renderFinance();}
       else if(view==='history') renderHistory();
     }
     function timeline(row) {

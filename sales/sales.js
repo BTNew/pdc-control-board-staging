@@ -137,7 +137,7 @@
       const {data,error}=await root.PDC_SUPABASE.rpc('get_broome_sales_workspace');
       if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId||request!==state.workspaceRequest)return;
       if(error||!data||!['administrator','salesperson'].includes(data.context?.role))throw error||new Error('Sales workspace is unavailable.');
-      state.workspace=data;populateSalespeople();
+      if(root.BROOME_SALES_FINANCE)data.finance=state.financeProjection||[];state.workspace=data;populateSalespeople();
       root.BROOME_SALES_CRM?.setWorkspace(data);root.BROOME_SALES_LEADS?.setWorkspace(data);
       attachWorkspace();populateSavedViews();$('sales-workspace-status').textContent='';
     }catch(e){
@@ -173,7 +173,7 @@
   function clear() {
     state.generation++;state.workspaceRequest++;state.workspace=null;state.workspaceBusy=false;state.savedView='';state.html.clear();
     if(state.searchTimer!==null)root.clearTimeout?.(state.searchTimer);state.searchTimer=null;
-    root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_LEADS?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();columnWidths?.clear();
+    root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_LEADS?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
     $('sales-mobile-vehicles').innerHTML='';$('sales-saved-view').innerHTML='';$('sales-view-name').value='';$('sales-view-status').textContent='';$('sales-workspace-status').textContent='';
     state.busy=false; state.printBusy=false;$('sales-save-view').disabled=false;$('sales-label-status').textContent=''; state.items=[]; state.context=null; state.accounts=null;
     state.selected.clear();
@@ -246,7 +246,8 @@
     for(const id of state.selected)if(!currentIds.has(id))state.selected.delete(id);
     if(state.detailId&&!currentIds.has(state.detailId)){state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}
     if(state.view!=='dashboard'){
-      if(state.view==='leads')root.BROOME_SALES_LEADS?.render();
+      if(state.view==='finance'&&root.BROOME_SALES_FINANCE)root.BROOME_SALES_FINANCE.render();
+      else if(state.view==='leads')root.BROOME_SALES_LEADS?.render();
       else if(['myday','alerts','finance','history'].includes(state.view))root.BROOME_SALES_CRM?.render(state.view);
       renderSecondaryViews();return;
     }
@@ -452,6 +453,7 @@
       } else { $('sales-accounts').hidden=true; state.accounts=null; $('sales-account').innerHTML=''; $('sales-person').innerHTML=''; }
       if(state.detailId){const detailRow=state.items.find(r=>r.tracking_id===state.detailId);if(detailRow){html('sales-pmb-live',workshopHtml(detailRow));html('sales-source-detail',vehicleInfoHtml(detailRow));}}
       attachWorkspace();populateFilters();render();await refreshWorkspace();
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_FINANCE?.refresh();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_CUSTOMER_EMAILS?.refresh();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)render();
     } catch (error) {
@@ -568,5 +570,6 @@
   const columnWidths=root.BROOME_SALES_TOOLS?.initColumns($('vehicle-table'),$('sales-reset-widths'));
   root.BROOME_SALES_EMAIL?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation,state.filters.salesperson])});
   root.BROOME_CUSTOMER_EMAILS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
+  root.BROOME_SALES_FINANCE?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation]),onLoaded:projection=>{state.financeProjection=projection;if(state.workspace){state.workspace.finance=projection;root.BROOME_SALES_CRM?.setWorkspace(state.workspace);attachWorkspace();}}});
   if(root.PDC_AUTH_CONTEXT)refresh();
 })(typeof window === 'object' ? window : globalThis);
