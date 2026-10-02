@@ -102,5 +102,5 @@ test('new sales tools contain no operational write, email send endpoint or custo
   const code=fs.readFileSync(f,'utf8');assert.doesNotMatch(code,/PDC_SUPABASE|\.rpc\(|fetch\(|sendMail|access_token|service_role/);
  }
  assert.doesNotMatch(fs.readFileSync('sales/email-actions.js','utf8'),/localStorage|sessionStorage|indexedDB/);
- const html=fs.readFileSync('sales/index.html','utf8');assert.match(html,/email-actions\.js\?v=2026\.10\.02\.03/);assert.match(html,/dashboard-tools\.js\?v=2026\.10\.02\.03/);
+ const html=fs.readFileSync('sales/index.html','utf8');assert.match(html,/email-actions\.js\?v=2026\.10\.02\.04/);assert.match(html,/dashboard-tools\.js\?v=2026\.10\.02\.04/);
 });
