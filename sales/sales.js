@@ -98,8 +98,8 @@
   const flagKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete','jita']);
   const orderingKeys = new Set(['tint','build_po','build_complete','tray_ordered','tray_complete']);
   function html(id,content){if(state.html.get(id)!==content){$(id).innerHTML=content;state.html.set(id,content);}}
-  const viewNames=['myday','dashboard','pipeline','alerts','finance','leads','labels','history'];
-  const viewTitles={myday:'My Day',dashboard:'Dashboard',pipeline:'Pipeline',alerts:'Alerts',finance:'Finance',leads:'Leads',labels:'Labels',history:'History'};
+  const viewNames=['myday','dashboard','pipeline','alerts','finance','leads','labels','history','customeremails'];
+  const viewTitles={myday:'My Day',dashboard:'Dashboard',pipeline:'Pipeline',alerts:'Alerts',finance:'Finance',leads:'Leads',labels:'Labels',history:'History',customeremails:'Customer emails'};
   function currentContext(){return state.workspace?.context||state.context;}
   function moduleOptions(){return {getRows:()=>scopeRows(state.items,state.filters.salesperson),getContext:currentContext,getSalesperson:()=>state.filters.salesperson,getView:()=>state.view,
     openVehicle:openDetail,showView,onChanged:()=>refreshWorkspace().then(render)};}
@@ -173,7 +173,7 @@
   function clear() {
     state.generation++;state.workspaceRequest++;state.workspace=null;state.workspaceBusy=false;state.savedView='';state.html.clear();
     if(state.searchTimer!==null)root.clearTimeout?.(state.searchTimer);state.searchTimer=null;
-    root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_LEADS?.clear();root.BROOME_SALES_EMAIL?.clear();columnWidths?.clear();
+    root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_LEADS?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();columnWidths?.clear();
     $('sales-mobile-vehicles').innerHTML='';$('sales-saved-view').innerHTML='';$('sales-view-name').value='';$('sales-view-status').textContent='';$('sales-workspace-status').textContent='';
     state.busy=false; state.printBusy=false;$('sales-save-view').disabled=false;$('sales-label-status').textContent=''; state.items=[]; state.context=null; state.accounts=null;
     state.selected.clear();
@@ -238,7 +238,7 @@
     $('sales-print-labels').disabled=!labels.length||state.printBusy;
   }
   function render() {
-    root.BROOME_SALES_EMAIL?.syncScope();
+    root.BROOME_SALES_EMAIL?.syncScope();root.BROOME_CUSTOMER_EMAILS?.render();
     root.BROOME_SALES_CRM?.syncScope?.();root.BROOME_SALES_LEADS?.syncScope?.();
     const scoped=scopeRows(state.items,state.filters.salesperson);
     $('sales-data-count').textContent=scoped.length+' COSI vehicles · Navision';
@@ -452,6 +452,7 @@
       } else { $('sales-accounts').hidden=true; state.accounts=null; $('sales-account').innerHTML=''; $('sales-person').innerHTML=''; }
       if(state.detailId){const detailRow=state.items.find(r=>r.tracking_id===state.detailId);if(detailRow){html('sales-pmb-live',workshopHtml(detailRow));html('sales-source-detail',vehicleInfoHtml(detailRow));}}
       attachWorkspace();populateFilters();render();await refreshWorkspace();
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_CUSTOMER_EMAILS?.refresh();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)render();
     } catch (error) {
       if (generation!==state.generation || principal!==root.PDC_AUTH_CONTEXT?.userId) return;
@@ -566,5 +567,6 @@
   root.BROOME_SALES_CRM?.init(moduleOptions());root.BROOME_SALES_LEADS?.init(moduleOptions());
   const columnWidths=root.BROOME_SALES_TOOLS?.initColumns($('vehicle-table'),$('sales-reset-widths'));
   root.BROOME_SALES_EMAIL?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation,state.filters.salesperson])});
+  root.BROOME_CUSTOMER_EMAILS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
   if(root.PDC_AUTH_CONTEXT)refresh();
 })(typeof window === 'object' ? window : globalThis);
