@@ -1,7 +1,51 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict');
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 require('./sales/dashboard-tools.js');
 const customer=require('./sales/customer-emails.js'),email=require('./sales/email-actions.js');
+function uiHarness(){
+ const elements=new Map(),calls=[];
+ const el=id=>{if(!elements.has(id))elements.set(id,{id,innerHTML:'',textContent:'',value:'',events:{},addEventListener(type,fn){this.events[type]=fn;},close(){},showModal(){}});return elements.get(id);};
+ const h={context:{role:'salesperson'},token:'session-one',rows:[{tracking_id:'own-order',stock:'13001',client:'Example customer',vehicle:'Example Hilux'}],el,calls};
+ h.host={document:{getElementById:el},PDC_AUTH_CONTEXT:{role:'salesperson'},PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}}};
+ vm.runInNewContext(fs.readFileSync(require.resolve('./sales/customer-emails.js'),'utf8'),{window:h.host},{filename:'customer-emails.js'});
+ h.api=h.host.BROOME_CUSTOMER_EMAILS;
+ h.api.init({getContext:()=>h.context,getToken:()=>h.token,getRows:()=>h.rows});
+ h.reply=async data=>{const pending=h.api.refresh();calls.at(-1).resolve({data:{drafts:[],context:{role:'salesperson'},...data}});await pending;};
+ return h;
+}
+test('customer updates describe closed-page import capture and review without promising old emails',()=>{
+ const h=uiHarness();h.api.render();const html=h.el('sales-customeremails').innerHTML;
+ assert.match(html,/Navision status updates prepare drafts for your review, even while this page is closed/);
+ assert.match(html,/first import establishes its starting point/);
+ assert.match(html,/Review and send each email yourself/);
+ assert.match(html,/A downloaded draft is not recorded as sent/);
+ assert.doesNotMatch(html,/sales page is open|first check|waiting for a retry/);
+ assert.equal(h.calls.length,0);
+});
+test('pending capture renders a safe retry notice and clears after recovery or omitted status',async()=>{
+ const h=uiHarness(),draft={id:'draft-one',tracking_id:'own-order',template_kind:'vehicle_built',status:'draft',version:1,facts:{vehicle_model:'Example Hilux'}};
+ await h.reply({capture_pending:2,drafts:[draft]});let html=h.el('sales-customeremails').innerHTML;
+ assert.match(html,/role="status">Some vehicle updates are waiting for a retry/);
+ assert.match(html,/Refresh customer emails to try again/);assert.match(html,/Ready for review/);
+ await h.reply({capture_pending:0,drafts:[draft]});html=h.el('sales-customeremails').innerHTML;
+ assert.doesNotMatch(html,/waiting for a retry/);assert.match(html,/Ready for review/);
+ await h.reply({capture_pending:1});assert.match(h.el('sales-customeremails').innerHTML,/waiting for a retry/);
+ await h.reply({});assert.doesNotMatch(h.el('sales-customeremails').innerHTML,/waiting for a retry/);
+ await h.reply({capture_pending:'<img src=x onerror="alert(1)">'});
+ assert.doesNotMatch(h.el('sales-customeremails').innerHTML,/<img|onerror|waiting for a retry/);
+ assert.ok(h.calls.every(call=>call.name==='get_broome_customer_emails'));
+});
+test('capture notices clear on refresh error and cannot return after sign-out or account replacement',async()=>{
+ const h=uiHarness();await h.reply({capture_pending:1});
+ const failed=h.api.refresh();h.calls.at(-1).resolve({error:{message:'<img src=x> Retry failed'}});await failed;
+ assert.doesNotMatch(h.el('sales-customeremails').innerHTML,/waiting for a retry|<img/);
+ assert.match(h.el('sales-customeremails').innerHTML,/&lt;img src=x&gt; Retry failed/);
+ await h.reply({capture_pending:1});h.token='session-two';h.api.render();
+ assert.doesNotMatch(h.el('sales-customeremails').innerHTML,/waiting for a retry|Retry failed/);
+ const delayed=h.api.refresh();h.context=null;h.token=null;delete h.host.PDC_AUTH_CONTEXT;h.api.clear();
+ h.calls.at(-1).resolve({data:{drafts:[],context:{role:'salesperson'},capture_pending:5}});await delayed;
+ assert.equal(h.el('sales-customeremails').innerHTML,'');
+});
 test('three customer templates use placeholders and salesperson contact signature',()=>{
  assert.equal(customer.types.length,3);
  for(const [kind] of customer.types){

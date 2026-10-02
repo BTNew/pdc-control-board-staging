@@ -18,7 +18,7 @@ function harness(role='administrator') {
  }
  const nav=['myday','dashboard','pipeline','alerts','finance','leads','labels','history'].map(view=>{const e=el('nav-'+view);e.dataset.salesView=view;return e;});
  let crmOptions,crmScope='';
- const window={document:{hidden:false,activeElement:null,getElementById:el,querySelectorAll:()=>nav,querySelector(){return null;},addEventListener(){}},
+ const window={document:{hidden:false,activeElement:null,getElementById:el,querySelectorAll:()=>nav,querySelector(){return null;},addEventListener(){}},BROOME_SALES_TOOLS:require('./sales/dashboard-tools.js'),
   PDC_AUTH_CONTEXT:{role,userId:'user-A'},BROOME_ZEBRA_LABELS:require('./sales/zebra-labels.js'),
   BROOME_SALES_CRM:{init(options){crmOptions=options;crmCalls.init.push(options);},setWorkspace(data){crmCalls.setWorkspace.push(data);},clear(){crmCalls.clear++;el('sales-crm-detail').innerHTML='';},
    syncScope(){const scope=crmOptions?.getSalesperson();crmCalls.syncScope.push(scope);if(scope!==crmScope){crmScope=scope;el('sales-crm-detail').innerHTML='';}},render(){},detailHtml(){return '';},bindDetail(){}},
@@ -47,6 +47,22 @@ test('quick views use authoritative finance status fields, real dates and curren
  assert.equal(sales.quickMatch({...sold,dealer_eta:'2026-10-10'},'due_week','2026-10-02'),false);
  assert.equal(sales.quickMatch({...sold,dealer_eta:'2026-10-09'},'due_week','2026-10-02'),true);
  assert.equal(sales.quickMatch({...sold,dealer_eta:'2026-10-07',crm_delivery:{promised_delivery_date:'2026-10-20'}},'due_week','2026-10-02'),false);
+});
+test('Due this week compares Australian and ISO dealer estimates as strict calendar dates',()=>{
+ for(const dealer_eta of ['04/10/2026','2026-10-04','08/10/2026'])assert.equal(sales.quickMatch({...sold,dealer_eta},'due_week','2026-10-01'),true,dealer_eta);
+ for(const dealer_eta of ['30/09/2026','09/10/2026','31/02/2026','2026-02-30','',null])assert.equal(sales.quickMatch({...sold,dealer_eta},'due_week','2026-10-01'),false,String(dealer_eta));
+ assert.equal(sales.quickMatch({...sold,dealer_eta:'04/10/2026',crm_delivery:{promised_delivery_date:'2026-10-20'}},'due_week','2026-10-01'),false,'promised customer date takes priority');
+ assert.equal(sales.quickMatch({...sold,dealer_eta:'20/10/2026',crm_delivery:{promised_delivery_date:'04/10/2026'}},'due_week','2026-10-01'),true);
+ assert.equal(sales.quickMatch({...sold,dealer_eta:'03/01/2027'},'due_week','2026-12-29'),true,'year boundary');
+});
+test('Due this week preset displays a matching Australian Navision ETA without saving',async()=>{
+ const tools=require('./sales/dashboard-tools.js'),start=tools.perthToday(),date=new Date(start+'T00:00:00Z');date.setUTCDate(date.getUTCDate()+3);
+ const key=date.toISOString().slice(0,10),[year,month,day]=key.split('-'),australian=day+'/'+month+'/'+year;
+ const rows=[{...sold,client:'Due Australian customer',dealer_eta:australian},{...sold,tracking_id:'other',client:'Missing ETA customer',dealer_eta:''},{...sold,tracking_id:'invalid',client:'Invalid ETA customer',dealer_eta:'31/02/2026'}];
+ const h=harness();await initial(h,'administrator',rows);const requests=h.calls.length;
+ change(h,'sales-saved-view','preset:due_week');
+ assert.match(h.el('vehicle-table').innerHTML,/Due Australian customer/);assert.doesNotMatch(h.el('vehicle-table').innerHTML,/Missing ETA customer|Invalid ETA customer/);
+ assert.equal(h.calls.length,requests);
 });
 test('loaded sales modules receive the separate workspace only after the scoped vehicle snapshot',async()=>{
  const h=harness();assert.equal(h.crmCalls.init.length,1);assert.equal(h.calls.length,1);assert.equal(h.crmCalls.setWorkspace.length,0);

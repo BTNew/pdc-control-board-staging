@@ -1,18 +1,24 @@
+-- AUDIT COPY: current, latest applied backend snapshot is authoritative. Source/runtime unchanged.
 BEGIN;
 DO $test$
 DECLARE actor public.pdc_user_roles; viewer public.pdc_user_roles; person public.salespeople;
- n public.navision_backend_records; target uuid; snap jsonb; row_data jsonb; before_hash text; fixture_hash text; after_hash text; denied boolean;
+ n public.navision_backend_records; target uuid; batch uuid; snap jsonb; row_data jsonb; before_hash text; fixture_hash text; after_hash text; denied boolean;
 BEGIN
+ IF NOT public.pdc_monitor_staging_guard() THEN RAISE EXCEPTION 'Staging only'; END IF;
+ SELECT id INTO batch FROM public.navision_import_batches WHERE source_system='microsoft_navision' AND dealer_code='37047' AND status='applied' AND rolled_back_at IS NULL ORDER BY result_revision DESC,applied_at DESC,id DESC LIMIT 1;
+ IF batch IS NULL THEN RAISE EXCEPTION 'Need latest applied Broome batch'; END IF;
  SELECT * INTO actor FROM public.pdc_user_roles WHERE active AND account_status='approved' AND role='administrator' AND auth_user_id IS NOT NULL LIMIT 1;
  SELECT * INTO viewer FROM public.pdc_user_roles WHERE active AND account_status='approved' AND role='viewer' AND auth_user_id IS NOT NULL LIMIT 1;
  SELECT * INTO person FROM public.salespeople WHERE active AND code='BG';
- SELECT * INTO n FROM public.navision_backend_records WHERE dealer_code='37047' AND is_current AND canonical_vehicle_id IS NULL LIMIT 1;
- SELECT v.id INTO target FROM public.vehicles v WHERE v.deleted_at IS NULL AND EXISTS(SELECT 1 FROM public.workshop_bookings b WHERE b.vehicle_id=v.id AND b.deleted_at IS NULL AND b.status<>'deleted' AND NOT coalesce(b.legacy_ambiguity_quarantined,false)) LIMIT 1;
+ SELECT ns.* INTO n FROM public.navision_backend_records ns JOIN public.vehicles v ON v.id=ns.canonical_vehicle_id WHERE ns.dealer_code='37047' AND ns.is_current AND v.deleted_at IS NULL AND EXISTS(SELECT 1 FROM public.workshop_bookings b WHERE b.vehicle_id=v.id AND b.deleted_at IS NULL AND b.status<>'deleted' AND NOT coalesce(b.legacy_ambiguity_quarantined,false)) ORDER BY ns.id LIMIT 1;
+ -- Reuse this source row's own exact canonical vehicle. Do not attach a second
+ -- Navision identity to an already-linked stock number or bypass the alias guard.
+ target:=n.canonical_vehicle_id;
  IF actor.id IS NULL OR viewer.id IS NULL OR person.id IS NULL OR n.id IS NULL OR target IS NULL THEN RAISE EXCEPTION 'Missing fixtures'; END IF;
  SELECT md5(jsonb_build_array((SELECT jsonb_agg(to_jsonb(v) ORDER BY id) FROM public.vehicles v),(SELECT jsonb_agg(to_jsonb(ns) ORDER BY id) FROM public.navision_backend_records ns),(SELECT jsonb_agg(to_jsonb(b) ORDER BY id) FROM public.workshop_bookings b),(SELECT jsonb_agg(to_jsonb(u) ORDER BY id) FROM public.vehicle_parts_updates u))::text) INTO before_hash;
  BEGIN
  PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.auth_user_id,'email',actor.email,'role','authenticated')::text,true);
- UPDATE public.navision_backend_records SET is_current=false,record_status='not_in_latest_batch',missing_since_batch_id=last_seen_batch_id,canonical_vehicle_id=target,updated_at=clock_timestamp()+interval '1 day',normalized_data=jsonb_build_object('order','PMB-DETAIL-TEST','consultant','BG','cosi','Yes','batch',(SELECT stock_number FROM public.vehicles WHERE id=target)) WHERE id=n.id;
+ UPDATE public.navision_backend_records SET is_current=true,record_status='current',last_seen_batch_id=batch,missing_since_batch_id=NULL,canonical_vehicle_id=target,updated_at=clock_timestamp()+interval '1 day',normalized_data=jsonb_build_object('order','PMB-DETAIL-TEST','consultant','BG','cosi','Yes','batch',(SELECT stock_number FROM public.vehicles WHERE id=target)) WHERE id=n.id;
  UPDATE public.vehicles SET salesperson_manual_override=false WHERE id=target;
  INSERT INTO public.vehicle_parts_updates(vehicle_id,parts_required,parts_ordered,parts_received,parts_stoppage,parts_stoppage_reason,worst_eta,updated_by,updated_at)
  VALUES(target,true,true,false,true,'Example parts delay','2026-10-07',actor.auth_user_id,clock_timestamp()+interval '1 day');
@@ -30,6 +36,8 @@ BEGIN
  IF EXISTS(SELECT 1 FROM jsonb_array_elements(snap->'items') e WHERE e->>'salesperson_code'<>'BG') OR public.is_pdc_role('viewer') OR public.is_pdc_role('operator') THEN RAISE EXCEPTION 'Sales access widened'; END IF;
  SELECT md5(jsonb_build_array((SELECT jsonb_agg(to_jsonb(v) ORDER BY id) FROM public.vehicles v),(SELECT jsonb_agg(to_jsonb(ns) ORDER BY id) FROM public.navision_backend_records ns),(SELECT jsonb_agg(to_jsonb(b) ORDER BY id) FROM public.workshop_bookings b),(SELECT jsonb_agg(to_jsonb(u) ORDER BY id) FROM public.vehicle_parts_updates u))::text) INTO after_hash;
  IF fixture_hash<>after_hash THEN RAISE EXCEPTION 'Read changed PDC records'; END IF;
+ UPDATE public.navision_backend_records SET is_current=false,record_status='not_in_latest_batch',missing_since_batch_id=batch WHERE id=n.id;
+ IF EXISTS(SELECT 1 FROM jsonb_array_elements(public.get_broome_sales_snapshot()->'items') e WHERE e->>'navision_record_id'=n.id::text) THEN RAISE EXCEPTION 'Missing source remained on sales dashboard'; END IF;
  UPDATE public.pdc_user_roles SET active=false,account_status='disabled' WHERE id=viewer.id;
  denied:=false;BEGIN PERFORM public.get_broome_sales_snapshot();EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;
  IF NOT denied THEN RAISE EXCEPTION 'Disabled account can read'; END IF;

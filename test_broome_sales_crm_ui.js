@@ -1,4 +1,4 @@
-const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const crm=require('./sales/crm-workspace.js');
 const today=crm.perthToday();
 function element(id) {
@@ -134,6 +134,32 @@ test('structured alerts show changed facts and dated bay states without object p
   const rendered=crm.eventDetails(bookings,'workshop_changed');assert.match(rendered,/No bay bookings → Tint · Bay A · Work started · Booked .*Started/);assert.doesNotMatch(rendered,/private-booking-id|\[object Object\]/);
   const h=harness();h.workspace.alerts[0].event_type='eta_changed';h.workspace.alerts[0].details=details;h.api.setWorkspace(h.workspace);h.api.render('alerts');assert.match(h.el('sales-alerts').innerHTML,/Kewdale ETA/);assert.doesNotMatch(h.el('sales-alerts').innerHTML,/\[object Object\]/);
 });
+test('Navision calendar dates keep Australian day/month order and timestamp times use Perth',()=>{
+  assert.match(crm.dateLabel('03/08/2026'),/^3 Aug 2026$/);
+  assert.match(crm.dateLabel('24/08/2026'),/^24 Aug 2026$/);
+  assert.equal(crm.dateLabel('2026-08-03'),crm.dateLabel('03/08/2026'));
+  assert.match(crm.dateLabel('29/02/2024'),/^29 Feb 2024$/);
+  const timestamp=crm.dateLabel('2026-08-02T17:30:00Z',true);
+  assert.match(timestamp,/3 Aug 2026/);assert.match(timestamp,/1:30 am/);
+  for(const value of ['31/02/2026','2026-02-30','not-a-date','',null])assert.equal(crm.dateLabel(value),'Not recorded');
+});
+test('CRM resolves the shared date parser with the actual browser script load order',()=>{
+  const window={document:{getElementById(){return null;}}},context=vm.createContext({window,module:undefined});
+  vm.runInContext(fs.readFileSync('sales/crm-workspace.js','utf8'),context);
+  vm.runInContext(fs.readFileSync('sales/dashboard-tools.js','utf8'),context);
+  assert.equal(window.BROOME_SALES_CRM.dateLabel('03/08/2026'),'3 Aug 2026');
+  assert.equal(window.BROOME_SALES_CRM.dateLabel('24/08/2026'),'24 Aug 2026');
+});
+test('Australian ETA changes show correct dates in alerts and the vehicle timeline',()=>{
+  const details={before:{kewdale_eta:'03/08/2026'},after:{kewdale_eta:'24/08/2026'}};
+  assert.equal(crm.eventDetails(details,'eta_changed'),'Kewdale ETA: 3 Aug 2026 → 24 Aug 2026');
+  const h=harness();h.workspace.alerts[0].event_type='eta_changed';h.workspace.alerts[0].details=details;
+  h.workspace.timeline[0].event_type='eta_changed';h.workspace.timeline[0].details=details;
+  h.api.setWorkspace(h.workspace);h.api.render('alerts');
+  for(const html of [h.el('sales-alerts').innerHTML,h.api.detailHtml(h.rows[0])]){
+    assert.match(html,/Kewdale ETA: 3 Aug 2026 → 24 Aug 2026/);assert.doesNotMatch(html,/8 Mar 2026|Kewdale ETA: Not recorded/);
+  }
+});
 test('an uncertain note submission retains its unique ID and occurrence time for a safe retry',async()=>{
   const h=harness();h.el('sales-crm-detail').innerHTML=h.api.detailHtml(h.rows[0]);h.api.bindDetail('BG-order');
   const submit=element('submit'),status=element('status'),form={dataset:{crmForm:'note',crmId:'',crmTracking:'BG-order',crmVersion:'0'},elements:[{name:'activity_type',type:'select-one',value:'call'},{name:'body',type:'textarea',value:'Customer called'}],querySelector:selector=>selector==='[type="submit"]'?submit:status};
@@ -168,6 +194,15 @@ test('Finance mobile cards retain labelled statuses, dates, updates and actions 
   assert.match(html,/crm-finance-cell/);assert.match(html,/crm-finance-actions/);assert.match(html,/Shared update/);assert.match(html,/Updated/);assert.match(html,/data-crm-open="BG-order"/);
   assert.doesNotMatch(html,/Manager-only note|Private lender|50000|2000|Other customer/);
 });
+test('vehicle finance detail shows the saved settlement date and leaves blank Access unrecorded',()=>{
+  const h=harness(),finance=require('./sales/finance-pipeline.js');
+  h.workspace.finance=finance.projection([{id:'saved-finance',tracking_id:'BG-order',version:1,created_at:'2026-10-01',approval:'Yes',settlement:'Yes',settlement_date:'2026-09-30',access:'',finance_comm:272,naf:38919}]);
+  h.api.setWorkspace(h.workspace);const html=h.api.detailHtml(h.rows[0]);
+  assert.match(html,/<dt>Settlement<\/dt><dd><span[^>]*>Settled<\/span><small>30 Sept 2026<\/small>/);
+  assert.match(html,/<dt>Access product<\/dt><dd><span[^>]*>Not recorded<\/span>/);
+  assert.match(html,/<dt>Existing loan payout<\/dt><dd><span[^>]*>Not recorded<\/span>/);
+  assert.doesNotMatch(html,/38919|272|>Requested<\/span>/);
+});
 
 test('My Day ignores leads and keeps ordered vehicle reminders only',()=>{
   const h=harness({admin:true});h.workspace.leads=[{id:'ignored',customer_name:'Private enquiry',salesperson_code:'BG',next_contact_date:today,stage:'enquiry'}];
@@ -183,6 +218,30 @@ test('calendar weeks start on Monday and handle leap dates and year changes',()=
   assert.equal(crm.calendarDays('2026-02').includes('2026-02-29'),false);
   assert.equal(crm.shiftMonth('2026-12',1),'2027-01');assert.equal(crm.shiftMonth('2026-01',-1),'2025-12');
   assert.throws(()=>crm.calendarDays('2026-13'),/valid/);
+});
+test('My Day places Australian and ISO Kewdale ETAs on their actual days, read-only and in scope',async()=>{
+  const h=harness({admin:true});h.rows=[
+    {...h.rows[0],tracking_id:'eta-ambiguous',kewdale_eta:'03/10/2026'},
+    {...h.rows[0],tracking_id:'eta-high-day',kewdale_eta:'24/10/2026'},
+    {...h.rows[0],tracking_id:'eta-iso',kewdale_eta:'2026-10-09'},
+    {...h.rows[0],tracking_id:'eta-invalid',kewdale_eta:'31/02/2026'},
+    {...h.rows[0],tracking_id:'eta-blank',kewdale_eta:''},
+    {...h.rows[1],tracking_id:'eta-other-person',kewdale_eta:'03/10/2026'}
+  ];
+  h.api.setWorkspace(h.workspace);h.api.render('myday');
+  const [year,month]=today.split('-').map(Number),steps=(2026-year)*12+10-month;
+  if(steps)await h.el('sales-myday').events.click({target:button({calendarMonth:String(steps)})});
+  const html=h.el('sales-myday').innerHTML;
+  for(const [date,id] of [['2026-10-03','eta-ambiguous'],['2026-10-24','eta-high-day'],['2026-10-09','eta-iso']]){
+    const cell=html.match(new RegExp('<section[^>]*data-calendar-day="'+date+'"[^>]*>([\\s\\S]*?)</section>'))?.[1];
+    assert.ok(cell,date);assert.ok(cell.includes('data-calendar-id="'+id+'"'),id+' is on '+date);
+    assert.match(cell,/data-calendar-kind="eta"/);assert.doesNotMatch(cell,/draggable="true"/);
+    assert.equal(h.api.beginCalendarDrag('eta',id),null);
+  }
+  assert.doesNotMatch(html,/data-calendar-id="eta-(?:invalid|blank|other-person)"/);
+  assert.equal(h.calls.length,0);
+  await h.el('sales-myday').events.click({target:button({calendarKind:'eta',calendarId:'eta-high-day'})});
+  assert.deepEqual(h.opens,['eta-high-day']);assert.equal(h.calls.length,0);
 });
 test('task drag saves the exact source identity, due date and version, preserving completion',async()=>{
   const h=harness();const drag=h.api.beginCalendarDrag('task','t-bg');assert.ok(drag);

@@ -1,3 +1,4 @@
+-- AUDIT COPY: current, latest applied backend snapshot is authoritative. Source/runtime unchanged.
 -- Staging-only, fictional sales CRM fixtures. Every write is rolled back.
 -- Hold one consistent view while live imports/background maintenance may run.
 BEGIN ISOLATION LEVEL REPEATABLE READ;
@@ -22,7 +23,7 @@ END $fn$;
 DO $test$
 DECLARE actor public.pdc_user_roles; viewer public.pdc_user_roles; person public.salespeople;
  global_before text; global_private_before text; global_after text; global_private_after text; ops_before text; function_before text;
- payload jsonb; result jsonb; workspace jsonb; own_id uuid; other_id uuid; unsold_id uuid;
+ batch uuid; payload jsonb; result jsonb; workspace jsonb; own_id uuid; other_id uuid; unsold_id uuid;
  contact_id uuid; task_id uuid; note_id uuid:=gen_random_uuid(); view_id uuid; finance_id uuid; previous_finance_id uuid; lead_id uuid; alert_id uuid;
  denied boolean; task_version integer; timeline_count integer; alert_count integer; t record;
 BEGIN
@@ -46,6 +47,14 @@ BEGIN
    jsonb_build_object('dealer_code','37047','order','CRM-ROLLBACK-OTHER','batch','EXAMPLE-OTHER','cosi','Yes','consultant','PM','client','Other example customer','vehicle','Example Prado'),
    jsonb_build_object('dealer_code','37047','order','CRM-ROLLBACK-UNSOLD','batch','EXAMPLE-UNSOLD','cosi','No','consultant','BG','client','Unsold example'));
   result:=public.import_broome_sales_orders(payload,true);
+
+  -- Fixture evidence belongs to the latest successfully applied backend snapshot.
+  SELECT id INTO batch FROM public.navision_import_batches WHERE source_system='microsoft_navision' AND dealer_code='37047' AND status='applied' AND rolled_back_at IS NULL ORDER BY result_revision DESC,applied_at DESC,id DESC LIMIT 1;
+  IF batch IS NULL THEN RAISE EXCEPTION 'Need latest applied Broome batch'; END IF;
+  IF EXISTS(SELECT 1 FROM public.navision_backend_records WHERE source_record_id LIKE 'CRM-ROLLBACK-%') THEN RAISE EXCEPTION 'Fictional source identity already exists'; END IF;
+  INSERT INTO public.navision_backend_records(source_system,dealer_code,source_record_id,row_hash,normalized_data,raw_evidence,first_seen_batch_id,last_seen_batch_id,record_status,is_current)
+  SELECT 'microsoft_navision','37047',e->>'order',repeat('0',64),e,'{}',batch,batch,'current',true FROM jsonb_array_elements(payload) e;
+
   SELECT id INTO own_id FROM pdc_sales_private.tracked_orders WHERE order_key='CRM-ROLLBACK-EARLY';
   SELECT id INTO other_id FROM pdc_sales_private.tracked_orders WHERE order_key='CRM-ROLLBACK-OTHER';
   SELECT id INTO unsold_id FROM pdc_sales_private.tracked_orders WHERE order_key='CRM-ROLLBACK-UNSOLD';
@@ -134,6 +143,13 @@ BEGIN
   -- Actual changes to the fictional private import produce observations, never root imports.
   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.auth_user_id,'email',actor.email,'role','authenticated')::text,true);
   result:=public.import_broome_sales_orders(jsonb_build_array((payload->0)||jsonb_build_object('batch','EXAMPLE-ALLOCATED','navisionSubLocationDescription','Ready for transport','navisionEtaAtDealerBB','2026-11-04')),true);
+  
+  -- Check all sales calls before changing only the fictional backend fixture.
+  IF pg_temp.crm_public_fingerprint()<>ops_before THEN RAISE EXCEPTION 'CRM changed public data before source simulation'; END IF;
+  UPDATE public.navision_backend_records SET normalized_data=(payload->0)||jsonb_build_object('batch','EXAMPLE-ALLOCATED','navisionSubLocationDescription','Ready for transport','navisionEtaAtDealerBB','2026-11-04')
+  WHERE source_system='microsoft_navision' AND dealer_code='37047' AND source_record_id='CRM-ROLLBACK-EARLY';
+  ops_before:=pg_temp.crm_public_fingerprint();
+
   workspace:=public.get_broome_sales_workspace();
   IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'alerts') a WHERE a->>'tracking_id'=own_id::text AND a->>'event_type'='stock_allocated') OR NOT EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'alerts') a WHERE a->>'tracking_id'=own_id::text AND a->>'event_type'='eta_changed') THEN RAISE EXCEPTION 'Observed stock allocation/ETA alert missing'; END IF;
   IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'order_refs') e WHERE e->>'tracking_id'=own_id::text AND e->>'stock'='EXAMPLE-ALLOCATED') THEN RAISE EXCEPTION 'Stock allocation changed permanent order identity'; END IF;
@@ -176,6 +192,10 @@ BEGIN
   -- Losing COSI access hides private CRM data and rejects stale editors immediately.
   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',actor.auth_user_id,'email',actor.email,'role','authenticated')::text,true);
   result:=public.import_broome_sales_orders(jsonb_build_array((payload->0)||jsonb_build_object('cosi','No')),true);
+
+  UPDATE public.navision_backend_records SET normalized_data=normalized_data||jsonb_build_object('cosi','No')
+  WHERE source_system='microsoft_navision' AND dealer_code='37047' AND source_record_id='CRM-ROLLBACK-EARLY';
+
   PERFORM set_config('request.jwt.claims',jsonb_build_object('sub',viewer.auth_user_id,'email',viewer.email,'role','authenticated')::text,true);
   workspace:=public.get_broome_sales_workspace();
   IF EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'tasks') e WHERE e->>'tracking_id'=own_id::text) OR EXISTS(SELECT 1 FROM jsonb_array_elements(workspace->'finance') e WHERE e->>'tracking_id'=own_id::text) THEN RAISE EXCEPTION 'Lost COSI access retained CRM data'; END IF;
