@@ -18,7 +18,7 @@ test('column preferences admit only bounded numeric widths and discard customer 
  assert.deepEqual(tools.readWidths('bad JSON'),tools.defaults);
  assert.deepEqual(tools.readWidths('{"customer":"PRIVATE"}'),tools.defaults);
  const out=tools.readWidths('[99999,-4,"PRIVATE",null,100.4]');
- assert.deepEqual(out.slice(0,5),[600,40,90,160,100]);assert.equal(out.length,14);
+ assert.deepEqual(out.slice(0,5),[600,40,75,145,100]);assert.equal(out.length,13);
 });
 test('column pointer and keyboard changes preserve bounded widths and save only numbers',()=>{
  const events={},stored=[],cols=tools.defaults.map(()=>({style:{}}));
@@ -26,13 +26,13 @@ test('column pointer and keyboard changes preserve bounded widths and save only 
  const table={style:{},addEventListener(k,fn){events[k]=fn;},querySelectorAll(s){return s==='col'?cols:handles;}};
  const window={localStorage:{getItem(){return '[120]';},setItem(k,v){stored.push([k,JSON.parse(v)]);}}};
  vm.runInNewContext(fs.readFileSync('sales/dashboard-tools.js','utf8'),{window,Date,Intl,JSON,Number,module:undefined});
- const controller=window.BROOME_SALES_TOOLS.initColumns(table);controller.apply();assert.equal(cols[0].style.width,'120px');
+ const controller=window.BROOME_SALES_TOOLS.initColumns(table);controller.apply();assert.equal(cols[0].style.width,(120/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100)+'%');
  const target={closest:()=>handles[0]},base={target,preventDefault(){},stopPropagation(){}};
  events.pointerdown({...base,button:0,clientX:100,pointerId:7});events.pointermove({clientX:150,pointerId:7});events.pointerup();
- assert.equal(cols[0].style.width,'170px');assert.equal(handles[0]['aria-valuenow'],'170');
- events.keydown({...base,key:'ArrowRight'});assert.equal(cols[0].style.width,'180px');
- events.keydown({...base,key:'Home'});assert.equal(cols[0].style.width,'60px');
- assert.ok(stored.every(([k,v])=>k==='broome-sales-column-widths-v2'&&v.every(x=>typeof x==='number')));
+ assert.equal(Number.parseFloat(cols[0].style.width),170/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100);assert.equal(handles[0]['aria-valuenow'],'170');
+ events.keydown({...base,key:'ArrowRight'});assert.equal(Number.parseFloat(cols[0].style.width),180/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100);
+ events.keydown({...base,key:'Home'});assert.equal(Number.parseFloat(cols[0].style.width),60/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100);
+ assert.ok(stored.every(([k,v])=>k==='broome-sales-column-widths-v3'&&v.every(x=>typeof x==='number')));
 });
 test('four templates match the examples without inventing equipment or recipients',()=>{
  const r={stock:'13032821',order:'0026001',client:'PARK',vehicle:'LC300 GR Sport',kewdale_eta:'2026-08-03'};
@@ -102,5 +102,13 @@ test('new sales tools contain no operational write, email send endpoint or custo
   const code=fs.readFileSync(f,'utf8');assert.doesNotMatch(code,/PDC_SUPABASE|\.rpc\(|fetch\(|sendMail|access_token|service_role/);
  }
  assert.doesNotMatch(fs.readFileSync('sales/email-actions.js','utf8'),/localStorage|sessionStorage|indexedDB/);
- const html=fs.readFileSync('sales/index.html','utf8');assert.match(html,/email-actions\.js\?v=2026\.10\.02\.05/);assert.match(html,/dashboard-tools\.js\?v=2026\.10\.02\.07/);
+ const html=fs.readFileSync('sales/index.html','utf8');assert.match(html,/email-actions\.js\?v=2026\.10\.02\.05/);assert.match(html,/dashboard-tools\.js\?v=2026\.10\.02\.18/);
+});
+
+test('resizing shares width with a neighbour and never grows the table',()=>{
+ for(const index of [0,5,tools.defaults.length-1])for(const delta of [-10000,-20,20,10000]){
+  const before=tools.defaults.slice(),after=tools.resizeWidths(before,index,delta);
+  assert.equal(after.reduce((a,b)=>a+b,0),before.reduce((a,b)=>a+b,0));
+  assert.ok(after.every(n=>n>=40&&n<=600));assert.deepEqual(before,tools.defaults);
+ }
 });
