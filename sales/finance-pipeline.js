@@ -107,7 +107,7 @@ function monthOptions(report){
  const date=new Date(perthDay().slice(0,7)+'-01T00:00:00Z'),months=new Set(report.months.map(r=>r.month));
  for(let i=0;i<12;i++){months.add(date.toISOString().slice(0,7));date.setUTCMonth(date.getUTCMonth()-1);}
  if(/^[0-9]{4}-[0-9]{2}$/.test(statisticsMonth))months.add(statisticsMonth);
- return [...months].sort().reverse().concat(['all'],report.undated?['undated']:[]);
+ return [...months].sort().reverse().concat(['all'],report.undated||statisticsMonth==='undated'?['undated']:[]);
 }
 function statisticsHtml(report,all){
  const cards=[['Settled applications / contracts',report.contractCount],['Access products',report.accessCount],['Active pipeline',report.pipelineCount],['Approved in pipeline',report.approved]];

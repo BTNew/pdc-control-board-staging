@@ -110,6 +110,7 @@ test('statistics dropdowns filter displayed customers without saving and reset o
  function filter(key,value){h.el('sales-finance').events.change({target:{value,hasAttribute:k=>k===key}});}
  filter('data-finance-group','pilbara');filter('data-finance-new-used','used');
  let html=h.el('sales-finance').innerHTML;assert.match(html,/Pilbara Used Example/);assert.doesNotMatch(html,/Broome New Example|Pilbara New Example|Previous Month Example/);assert.match(html,/<option value="pilbara" selected>/);assert.match(html,/<option value="used" selected>/);assert.match(html,/RSI products \(RSA\)/);assert.match(html,/\$40\.30 total/);assert.equal(h.calls.length,1);
+ period(h,'undated');html=h.el('sales-finance').innerHTML;assert.match(html,/<option value="undated" selected>/);assert.match(html,/No settlements in this period/);
  // Statistics filters must not restrict the editable pipeline when changing views.
  view(h,'pipeline');assert.match(h.el('sales-finance').innerHTML,/Pipeline Example/);
  h.window.BROOME_SALES_FINANCE.clear();const p=h.window.BROOME_SALES_FINANCE.refresh();h.calls[1].resolve({data:{context:{role:'administrator',can_edit_finance:true},entries:productApplications,vehicle_options:[],salespeople:[]}});await p;view(h,'statistics');html=h.el('sales-finance').innerHTML;assert.match(html,/<option value="all" selected>/);assert.match(html,/Broome New Example/);
