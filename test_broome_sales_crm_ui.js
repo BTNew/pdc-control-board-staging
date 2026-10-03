@@ -198,10 +198,12 @@ test('vehicle finance detail shows the saved settlement date and leaves blank Ac
   const h=harness(),finance=require('./sales/finance-pipeline.js');
   h.workspace.finance=finance.projection([{id:'saved-finance',tracking_id:'BG-order',version:1,created_at:'2026-10-01',approval:'Yes',settlement:'Yes',settlement_date:'2026-09-30',access:'',finance_comm:272,naf:38919}]);
   h.api.setWorkspace(h.workspace);const html=h.api.detailHtml(h.rows[0]);
-  assert.match(html,/<dt>Settlement<\/dt><dd><span[^>]*>Settled<\/span><small>30 Sept 2026<\/small>/);
-  assert.match(html,/<dt>Access product<\/dt><dd><span[^>]*>Not recorded<\/span>/);
-  assert.match(html,/<dt>Existing loan payout<\/dt><dd><span[^>]*>Not recorded<\/span>/);
-  assert.doesNotMatch(html,/38919|272|>Requested<\/span>/);
+  const financeHtml=html.match(/<details><summary>Finance status<\/summary>[\s\S]*?<\/details>/)?.[0];
+  assert.ok(financeHtml,'the vehicle detail must include its Finance status section');
+  assert.match(financeHtml,/<dt>Settlement<\/dt><dd><span[^>]*>Settled<\/span><small>30 Sept 2026<\/small>/);
+  assert.match(financeHtml,/<dt>Access product<\/dt><dd><span[^>]*>Not recorded<\/span>/);
+  assert.match(financeHtml,/<dt>Existing loan payout<\/dt><dd><span[^>]*>Not recorded<\/span>/);
+  assert.doesNotMatch(financeHtml,/38919|272|>Requested<\/span>/);
 });
 
 test('My Day ignores leads and keeps ordered vehicle reminders only',()=>{
