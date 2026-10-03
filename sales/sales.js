@@ -194,7 +194,7 @@
     $('sales-visibility-status').textContent='';$('sales-hidden-toggle').disabled=false;
     state.generation++;state.workspaceRequest++;state.workspace=null;state.workspaceBusy=false;state.savedView='';state.html.clear();
     if(state.searchTimer!==null)root.clearTimeout?.(state.searchTimer);state.searchTimer=null;
-    root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
+    root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_BUILDS?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
     $('sales-mobile-vehicles').innerHTML='';$('sales-saved-view').innerHTML='';$('sales-view-name').value='';$('sales-view-status').textContent='';$('sales-workspace-status').textContent='';
     state.busy=false; state.printBusy=false;state.printerBusy=false;state.printers=[];state.printerName='';$('sales-label-printer').innerHTML='<option value="">Connect to load printers</option>';$('sales-label-printer').disabled=true;$('sales-connect-printer').disabled=false;$('sales-save-view').disabled=false;$('sales-label-status').textContent=''; state.items=[]; state.context=null; state.accounts=null;
     state.selected.clear();
@@ -258,7 +258,7 @@
   }
   function render() {
     root.BROOME_SALES_EMAIL?.syncScope();root.BROOME_CUSTOMER_EMAILS?.render();
-    root.BROOME_SALES_CRM?.syncScope?.();
+    root.BROOME_SALES_CRM?.syncScope?.();root.BROOME_SALES_BUILDS?.syncScope();root.BROOME_SALES_BUILDS?.render();
     const scoped=scopeRows(state.items,state.filters.salesperson);
     $('sales-data-count').textContent=scoped.length+' COSI vehicles · Navision';
     const currentIds=new Set(scoped.map(r=>r.tracking_id));
@@ -349,10 +349,11 @@
 
     $('sales-detail-content').innerHTML='<div class="panel-header"><div><h2>'+escapeHtml(r.stock||r.order||'Vehicle')+
       '</h2><p>'+escapeHtml(r.client)+'</p></div><button type="button" class="small-button" id="sales-detail-close">Close</button></div>'+
-      '<div id="sales-pmb-live">'+workshopHtml(r)+'</div>'+(root.BROOME_SALES_CRM?.detailHtml(r)||'')+'<div id="sales-source-detail">'+vehicleInfoHtml(r)+'</div>';
+      '<div id="sales-pmb-live">'+workshopHtml(r)+'</div>'+(root.BROOME_SALES_BUILDS?.detailHtml(r)||'')+(root.BROOME_SALES_CRM?.detailHtml(r)||'')+'<div id="sales-source-detail">'+vehicleInfoHtml(r)+'</div>';
     $('sales-detail-close').addEventListener('click',()=>{ state.detailId=null;$('sales-detail').close(); $('sales-detail-content').innerHTML=''; });
     state.html.delete('sales-pmb-live');state.html.delete('sales-source-detail');
     root.BROOME_SALES_CRM?.bindDetail(id);
+    root.BROOME_SALES_BUILDS?.bindDetail(id);
     if(!$('sales-detail').open)$('sales-detail').showModal();
   }
   function bookingHtml(bookings) {
@@ -466,7 +467,10 @@
       $('salesperson-filter-label').hidden=data.context.role!=='administrator';
       if (data.context.role==='administrator') populateSalespeople();
       if(state.detailId){const detailRow=state.items.find(r=>r.tracking_id===state.detailId);if(detailRow){html('sales-pmb-live',workshopHtml(detailRow));html('sales-source-detail',vehicleInfoHtml(detailRow));}}
-      attachWorkspace();populateFilters();render();await refreshWorkspace();
+      attachWorkspace();populateFilters();render();
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_BUILDS?.refresh();
+      if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId)return;
+      await refreshWorkspace();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_FINANCE?.refresh();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_CUSTOMER_EMAILS?.refresh();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&state.showHidden)await loadHiddenVehicles();
@@ -577,7 +581,7 @@
   root.addEventListener('pdc-auth-locked',clear);
   root.document.addEventListener('visibilitychange',()=>{if(!root.document.hidden)refresh();});
   root.setInterval(()=>{if(!root.document.hidden)refresh();},30000);
-  $('sales-detail').addEventListener('close',()=>{state.detailId=null;$('sales-detail-content').innerHTML='';});
+  $('sales-detail').addEventListener('close',()=>{state.detailId=null;root.BROOME_SALES_BUILDS?.closeDetail();$('sales-detail-content').innerHTML='';});
   $('sales-mobile-vehicles').addEventListener('click',event=>{if(cycleOrderingControl(event))return;const open=event.target.closest('[data-open]');if(open)openDetail(open.dataset.open);});
   $('sales-mobile-vehicles').addEventListener('change',event=>{
     const t=event.target;if(emailAction(t))return;if(t.dataset.orderingId){saveOrderingFlag(t.dataset.orderingId,t.dataset.orderingFlag,t.value);return;}
@@ -593,6 +597,7 @@
   });
   $('sales-save-view').addEventListener('click',saveView);
   root.BROOME_SALES_CRM?.init(moduleOptions());
+  root.BROOME_SALES_BUILDS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
   const columnWidths=root.BROOME_SALES_TOOLS?.initColumns($('vehicle-table'),$('sales-reset-widths'));
   root.BROOME_SALES_EMAIL?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation,state.filters.salesperson])});
   root.BROOME_CUSTOMER_EMAILS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
