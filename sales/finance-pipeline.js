@@ -86,10 +86,10 @@ const editor=()=>ctx?.can_edit_finance===true;
 const visible=()=>entries.filter(r=>!selected()||r.salesperson_code===selected());
 const candidates=()=>refs.filter(r=>!selected()||r.salesperson_code===selected());
 let financeView='pipeline',statisticsMonth=perthDay().slice(0,7),statisticsGroup='all',statisticsNewUsed='all',dateRenderPending=false;
-let vehicleMatches=[],activeMatch=-1,pickedCustomer='',columnFilters={},filterEditing=null;
+let vehicleMatches=[],activeMatch=-1,pickedCustomer='',columnFilters={};
 function close(){vehicleMatches=[];activeMatch=-1;pickedCustomer='';creating=null;createBusy=false;$('finance-add-dialog').close();$('finance-add-content').innerHTML='';}
-function clear(){closeFilter();columnFilters={};dateRenderPending=false;financeView='pipeline';statisticsMonth=perthDay().slice(0,7);statisticsGroup='all';statisticsNewUsed='all';epoch++;request++;entries=[];refs=[];people=[];ctx=null;drafts.clear();busy.clear();message='';principal=token();scope=selected();close();$('sales-finance').innerHTML='';}
-function guard(){if(token()!==principal){clear();return true;}if(selected()!==scope){scope=selected();epoch++;closeFilter();columnFilters={};dateRenderPending=false;drafts.clear();busy.clear();message='';close();return true;}return false;}
+function clear(){columnFilters={};dateRenderPending=false;financeView='pipeline';statisticsMonth=perthDay().slice(0,7);statisticsGroup='all';statisticsNewUsed='all';epoch++;request++;entries=[];refs=[];people=[];ctx=null;drafts.clear();busy.clear();message='';principal=token();scope=selected();close();$('sales-finance').innerHTML='';}
+function guard(){if(token()!==principal){clear();return true;}if(selected()!==scope){scope=selected();epoch++;columnFilters={};dateRenderPending=false;drafts.clear();busy.clear();message='';close();return true;}return false;}
 function select(key,value,attrs){return '<select '+attrs+' title="'+esc(value||'Not selected')+'">'+(choices[key].includes(value)?choices[key]:[value,...choices[key]]).map(v=>'<option value="'+esc(v)+'"'+(v===value?' selected':'')+'>'+esc(v||'—')+'</option>').join('')+'</select>';}
 function input(key,value,attrs){return choices[key]?select(key,value,attrs):key==='notes'?'<input type="text" maxlength="4000" '+attrs+' value="'+esc(value||'')+'" title="'+esc(value||'')+'">':'<input '+attrs+' type="'+(amounts.has(key)?'number':'text')+'" '+(amounts.has(key)?'min="0" max="999999999.99" step="0.01"':'maxlength="200"')+' value="'+esc(value??'')+'">';}
 function render(force=false){
@@ -107,7 +107,7 @@ function render(force=false){
  const all=visible(),report=financeStatistics(all,statisticsMonth,financeView==='statistics'?{group:statisticsGroup,newUsed:statisticsNewUsed}:{}),baseList=financeView==='statistics'?report.settled:financeView==='all'?all:report.pipeline;
  const list=financeView==='statistics'?baseList:filterFinanceEntries(baseList,columnFilters,editor());
  const widths=[17,5,6,6,4,5.5,5,4,4,6,6,8.5,14.5,4,4.5];
- const table='<div class="table-wrap finance-table-wrap"><table class="finance-pipeline-table" aria-label="Finance applications"><colgroup>'+widths.map(w=>'<col style="width:'+w+'%">').join('')+'</colgroup><thead><tr>'+columns.map(([k,label])=>'<th scope="col">'+(financeView==='statistics'||(!editor()&&privateFields.has(k))?label:'<button type="button" class="finance-header-filter'+(columnFilters[k]?' active':'')+'" data-finance-filter="'+k+'" aria-label="Filter '+label+'" aria-haspopup="dialog" title="'+(columnFilters[k]?'Filter applied — ':'')+'Filter '+label+'"><span>'+label+'</span><span aria-hidden="true">'+(columnFilters[k]?'●':'▾')+'</span></button>')+'</th>').join('')+'</tr></thead><tbody>'+list.map(r=>{
+ const table='<div class="table-wrap finance-table-wrap"><table class="finance-pipeline-table" aria-label="Finance applications"><colgroup>'+widths.map(w=>'<col style="width:'+w+'%">').join('')+'</colgroup><thead><tr>'+columns.map(([k,label])=>'<th scope="col"><span class="finance-header-label">'+label+'</span>'+(financeView==='statistics'||(!editor()&&privateFields.has(k))?'':filterSelectHtml(k,label,baseList))+'</th>').join('')+'</tr></thead><tbody>'+list.map(r=>{
   const draft=drafts.get(r.id),data={...r,...draft?.data,...draft?.raw},saving=busy.has(r.id),conflict=draft&&draft.version!==r.version,invalid=Object.keys(draft?.errors||{}).length>0;
   return '<tr>'+columns.map(([k,label])=>{
    const hidden=!editor()&&privateFields.has(k),value=k==='total_comm'?total({...r,...draft?.data}):data[k];
@@ -122,51 +122,40 @@ function render(force=false){
    return '<td class="'+state+'" data-label="'+label+'">'+control+'</td>';
   }).join('')+'</tr>';
  }).join('')+'</tbody></table></div>';
- const viewControl='<label class="finance-view-picker"><span>Finance view</span><select data-finance-view aria-label="Finance view">'+[['pipeline','Pipeline'],['statistics','Statistics'],['all','All applications']].map(([key,name])=>'<option value="'+key+'" '+(financeView===key?'selected':'')+'>'+name+'</option>').join('')+'</select></label>';
- $('sales-finance').innerHTML='<section class="panel finance-home"><div class="panel-header"><div><h2>'+(financeView==='statistics'?'Finance statistics':'Finance applications')+'</h2><p>'+(financeView==='statistics'?'Monthly settlements and the current application pipeline.':editor()?'Edit the cells, then save the row.':'View your applications and finance updates.')+'</p></div><div class="panel-actions">'+viewControl+(editor()?'<button class="primary" type="button" data-finance-add>Add finance entry</button>':'')+'<button class="small-button" type="button" data-finance-refresh>Refresh finance</button></div></div><p class="tracking-note" role="status">'+esc(message)+'</p>'+(financeView==='statistics'?statisticsHtml(report,all):'')+'<div class="finance-pipeline-heading">'+(financeView==='statistics'?'SETTLED APPLICATIONS':financeView==='all'?'ALL FINANCE APPLICATIONS':'ACTIVE FINANCE PIPELINE')+'</div>'+(financeView==='statistics'?(list.length?table:'<div class="empty-state">No settlements in this period.</div>'):filterSummaryHtml(baseList,list)+table+(list.length?'':'<div class="empty-state">'+(baseList.length?'No entries match these filters. Clear filters to show all entries.':'No finance entries in this view. Choose Add finance entry to add a customer or link an existing vehicle.')+'</div>'))+'</section>';
+ const viewControl='<div class="finance-view-buttons" role="group" aria-label="Finance view">'+[['pipeline','Pipeline'],['statistics','Statistics'],['all','All applications']].map(([key,name])=>'<button type="button" data-finance-view="'+key+'" aria-pressed="'+(financeView===key)+'">'+name+'</button>').join('')+'</div>';
+ $('sales-finance').innerHTML='<section class="panel finance-home"><div class="panel-header"><div><h2>'+(financeView==='statistics'?'Finance statistics':'Finance applications')+'</h2><p>'+(financeView==='statistics'?'Monthly settlements and the current application pipeline.':editor()?'Edit the cells, then save the row.':'View your applications and finance updates.')+'</p></div><div class="panel-actions">'+viewControl+(editor()?'<button class="primary" type="button" data-finance-add>Add finance entry</button>':'')+'<button class="small-button" type="button" data-finance-refresh>Refresh finance</button></div></div><p class="tracking-note" role="status">'+esc(message)+'</p>'+(financeView==='statistics'?statisticsHtml(report,all):'')+'<div class="finance-pipeline-heading">'+(financeView==='statistics'?'SETTLED APPLICATIONS':financeView==='all'?'ALL FINANCE APPLICATIONS':'ACTIVE FINANCE PIPELINE')+'</div>'+(financeView==='statistics'?(list.length?table:'<div class="empty-state">No settlements in this period.</div>'):filterSummaryHtml(baseList,list)+mobileFiltersHtml(baseList)+table+(list.length?'':'<div class="empty-state">'+(baseList.length?'No entries match these filters. Clear filters to show all entries.':'No finance entries in this view. Choose Add finance entry to add a customer or link an existing vehicle.')+'</div>'))+'</section>';
  if(restore){const el=$('sales-finance').querySelector('[data-finance-id="'+restore.id+'"][data-finance-key="'+restore.key+'"]');if(el&&!el.disabled){el.focus({preventScroll:true});if(typeof el.setSelectionRange==='function'&&el.type!=='number'&&el.tagName!=='SELECT')try{el.setSelectionRange(restore.start,restore.end);}catch{}}}
 }
 
 function filterSummaryHtml(baseList,list){
  const count=Object.keys(columnFilters).filter(k=>editor()||!privateFields.has(k)).length;
  const shown=new Set(list.map(r=>r.id)),hiddenEdits=baseList.filter(r=>drafts.has(r.id)&&!shown.has(r.id)).length;
- return '<div class="finance-filter-summary"><span role="status" aria-live="polite">'+list.length+' of '+baseList.length+' entries'+(count?' · '+count+' column '+(count===1?'filter':'filters'):'')+'</span><button class="small-button" type="button" data-finance-filters>Filter columns</button>'+(count?'<button class="small-button" type="button" data-finance-clear-filters>Clear filters</button>':'')+(hiddenEdits?'<span class="finance-filter-drafts">'+hiddenEdits+' unsaved '+(hiddenEdits===1?'row is':'rows are')+' hidden by filters.</span>':'')+'</div>';
+ return '<div class="finance-filter-summary"><span role="status" aria-live="polite">'+list.length+' of '+baseList.length+' entries'+(count?' · '+count+' column '+(count===1?'filter':'filters'):'')+'</span>'+(count?'<button class="small-button" type="button" data-finance-clear-filters>Clear filters</button>':'')+(hiddenEdits?'<span class="finance-filter-drafts">'+hiddenEdits+' unsaved '+(hiddenEdits===1?'row is':'rows are')+' hidden by filters.</span>':'')+'</div>';
 }
-function closeFilter(){filterEditing=null;$('finance-filter-dialog').close();$('finance-filter-content').innerHTML='';}
-function openFilter(key){
- guard();if(!ctx||financeView==='statistics')return;
- const available=columns.filter(([k])=>editor()||!privateFields.has(k));
- if(key&&!available.some(([k])=>k===key))return;
- filterEditing=key||available[0][0];renderFilter();$('finance-filter-dialog').showModal();
- $('finance-filter-content').querySelector('[name="'+(['customer','notes'].includes(filterEditing)?'query':'value')+'"]').focus();
-}
-function renderFilter(){
- const key=filterEditing;if(!key||(!editor()&&privateFields.has(key)))return;
- const rule=columnFilters[key]||{},list=financeView==='all'?visible():visible().filter(r=>r.settlement!=='Yes');
- const values=financeFilterOptions(list,key,editor()).filter(v=>v!=='');
+function filterSelectHtml(key,label,list,mobile=false){
+ const rule=columnFilters[key]||{},values=financeFilterOptions(list,key,editor()).filter(v=>v!=='');
  if(rule.mode==='value'&&!values.includes(rule.value))values.push(rule.value);
  const chosen=rule.mode==='blank'?'blank':rule.mode==='value'?'value:'+rule.value:'all';
- const label=columns.find(([k])=>k===key)[1],numeric=filterAmounts.has(key),text=['customer','notes'].includes(key);
- $('finance-filter-content').innerHTML='<div class="panel-header"><h2 id="finance-filter-title">Filter '+esc(label)+'</h2><button class="small-button" type="button" data-finance-filter-close>Close</button></div><form id="finance-filter-form"><label><span>Column</span><select name="column" aria-label="Filter column">'+columns.filter(([k])=>editor()||!privateFields.has(k)).map(([k,l])=>'<option value="'+k+'"'+(k===key?' selected':'')+'>'+l+'</option>').join('')+'</select></label>'+(text?'<label><span>Contains</span><input name="query" type="search" maxlength="4000" autocomplete="off" value="'+esc(rule.query||'')+'" placeholder="Search '+esc(label.toLowerCase())+'"></label>':'')+'<label><span>Value</span><select name="value" aria-label="Filter value"><option value="all"'+(chosen==='all'?' selected':'')+'>All values</option><option value="blank"'+(chosen==='blank'?' selected':'')+'>Not recorded</option>'+values.map(v=>'<option value="'+esc('value:'+v)+'"'+(chosen==='value:'+v?' selected':'')+'>'+esc(numeric?currency(Number(v)):key==='settlement'?v==='undated'?'Settled — date not recorded':settlementDateLabel(v):v.length>100?v.slice(0,100)+'…':v)+'</option>').join('')+'</select></label>'+(numeric?'<div class="finance-filter-range"><label><span>Minimum</span><input name="min" type="number" min="0" max="999999999.99" step="0.01" value="'+esc(rule.min??'')+'"></label><label><span>Maximum</span><input name="max" type="number" min="0" max="999999999.99" step="0.01" value="'+esc(rule.max??'')+'"></label></div>':'')+'<div class="panel-actions"><button class="primary" type="submit">Apply filter</button><button class="small-button" type="button" data-finance-filter-clear>Clear this filter</button></div><p id="finance-filter-error" role="alert"></p></form>';
+ return '<select class="finance-header-filter'+(columnFilters[key]?' active':'')+'" data-finance-filter="'+key+'"'+(mobile?' data-finance-filter-mobile':'')+' aria-label="Filter '+esc(label)+'"><option value="all"'+(chosen==='all'?' selected':'')+'>All values</option><option value="blank"'+(chosen==='blank'?' selected':'')+'>Not recorded</option>'+values.map(value=>'<option value="'+esc('value:'+value)+'"'+(chosen==='value:'+value?' selected':'')+'>'+esc(filterAmounts.has(key)?currency(Number(value)):key==='settlement'?value==='undated'?'Settled — date not recorded':settlementDateLabel(value):value.length>100?value.slice(0,100)+'…':value)+'</option>').join('')+'</select>';
 }
-function applyFilter(event){
- event.preventDefault();guard();const key=filterEditing;if(!key||(!editor()&&privateFields.has(key)))return;
- try{
-  const values=new FormData(event.target),value=String(values.get('value')||'all');
-  const rule={mode:value==='blank'?'blank':value.startsWith('value:')?'value':'all',value:value.startsWith('value:')?value.slice(6):''};
-  if(['customer','notes'].includes(key))rule.query=String(values.get('query')||'').trim();
-  if(filterAmounts.has(key)){
-   rule.min=String(values.get('min')||'').trim();rule.max=String(values.get('max')||'').trim();
-   const min=money(rule.min),max=money(rule.max);if(min!==null&&max!==null&&min>max)throw new Error('Minimum must be no greater than maximum.');
-  }
-  if(rule.mode==='all'&&!rule.query&&!rule.min&&!rule.max)delete columnFilters[key];else columnFilters[key]=rule;
-  closeFilter();render(true);focusFilter(key);
- }catch(error){$('finance-filter-error').textContent=error.message||'Check the filter values.';}
+function mobileFiltersHtml(list){
+ return '<div class="finance-mobile-filters" aria-label="Finance column filters">'+columns.filter(([key])=>editor()||!privateFields.has(key)).map(([key,label])=>'<label class="finance-filter-field"><span>'+label+'</span>'+filterSelectHtml(key,label,list,true)+'</label>').join('')+'</div>';
+}
+function applyFilterSelect(target){
+ if(guard()){render(true);return;}
+ const key=target.dataset.financeFilter;
+ if(!ctx||financeView==='statistics'||!columns.some(([k])=>k===key)||(!editor()&&privateFields.has(key)))return;
+ const value=String(target.value??''),list=financeView==='all'?visible():visible().filter(r=>r.settlement!=='Yes');
+ const existing=columnFilters[key],saved=financeFilterOptions(list,key,editor());
+ if(value==='all')delete columnFilters[key];
+ else if(value==='blank')columnFilters[key]={mode:'blank'};
+ else if(value.startsWith('value:')&&value.length>6&&(saved.includes(value.slice(6))||(existing?.mode==='value'&&existing.value===value.slice(6))))columnFilters[key]={mode:'value',value:value.slice(6)};
+ else {render(true);focusFilter(key);return;}
+ render(true);focusFilter(key);
 }
 function focusFilter(key){
- const target=$('sales-finance').querySelector('[data-finance-filter="'+key+'"]');
  const mobile=root.matchMedia?.('(max-width:800px)')?.matches;
- (mobile?$('sales-finance').querySelector('[data-finance-filters]'):target)?.focus?.({preventScroll:true});
+ $('sales-finance').querySelector((mobile?'.finance-mobile-filters ':'.finance-pipeline-table ')+'[data-finance-filter="'+key+'"]')?.focus?.({preventScroll:true});
 }
 
 async function refresh(){
@@ -176,10 +165,10 @@ async function refresh(){
   const {data,error}=await root.PDC_SUPABASE.rpc('get_broome_finance_pipeline');
   if(identity!==token()||generation!==epoch||sequence!==request)return;
   if(error||!Array.isArray(data?.entries)||!['administrator','salesperson'].includes(data.context?.role))throw error||new Error('Finance applications could not be loaded.');
-  if(editor()&&!data.context.can_edit_finance){drafts.clear();busy.clear();columnFilters={};closeFilter();close();dateRenderPending=false;}
+  if(editor()&&!data.context.can_edit_finance){drafts.clear();busy.clear();columnFilters={};close();dateRenderPending=false;}
   ctx=data.context;entries=data.entries;refs=data.vehicle_options||[];people=data.salespeople||[];
   options.onLoaded?.(projection(entries));
- }catch(e){if(identity!==token()||generation!==epoch||sequence!==request)return;entries=[];refs=[];people=[];ctx=null;drafts.clear();columnFilters={};closeFilter();close();dateRenderPending=false;options.onLoaded?.([]);message=e.message||'Finance could not be loaded. Refresh to retry.';}
+ }catch(e){if(identity!==token()||generation!==epoch||sequence!==request)return;entries=[];refs=[];people=[];ctx=null;drafts.clear();columnFilters={};close();dateRenderPending=false;options.onLoaded?.([]);message=e.message||'Finance could not be loaded. Refresh to retry.';}
  if(options.getView?.()==='finance')render();
 }
 
@@ -283,15 +272,11 @@ function init(settings){
   }
   const status=$('sales-finance').querySelector('[role="status"]');if(status)status.textContent=message;
  });
- $('sales-finance').addEventListener('click',e=>{const t=e.target.closest('[data-finance-add],[data-finance-refresh],[data-finance-save],[data-finance-discard],[data-finance-month],[data-finance-filter],[data-finance-filters],[data-finance-clear-filters]');if(!t)return;guard();if(t.hasAttribute('data-finance-filter'))openFilter(t.dataset.financeFilter);else if(t.hasAttribute('data-finance-filters'))openFilter();else if(t.hasAttribute('data-finance-clear-filters')){columnFilters={};closeFilter();render(true);$('sales-finance').querySelector('[data-finance-filters]')?.focus?.({preventScroll:true});}else if(t.hasAttribute('data-finance-add'))add();else if(t.hasAttribute('data-finance-refresh'))refresh();else if(t.dataset.financeMonth){statisticsMonth=t.dataset.financeMonth;render(true);}else if(t.dataset.financeSave)saveRow(t.dataset.financeSave);else if(t.dataset.financeDiscard){drafts.delete(t.dataset.financeDiscard);message='Edits discarded. The current saved entry is shown.';render(true);}});
+ $('sales-finance').addEventListener('click',e=>{const t=e.target.closest('[data-finance-add],[data-finance-refresh],[data-finance-save],[data-finance-discard],[data-finance-month],[data-finance-view],[data-finance-clear-filters]');if(!t)return;if(guard()){render(true);return;}if(t.hasAttribute('data-finance-view')){if(!['pipeline','statistics','all'].includes(t.dataset.financeView))return;financeView=t.dataset.financeView;render(true);$('sales-finance').querySelector('[data-finance-view="'+financeView+'"]')?.focus?.({preventScroll:true});}else if(t.hasAttribute('data-finance-clear-filters')){columnFilters={};render(true);focusFilter('customer');}else if(t.hasAttribute('data-finance-add'))add();else if(t.hasAttribute('data-finance-refresh'))refresh();else if(t.dataset.financeMonth){statisticsMonth=t.dataset.financeMonth;render(true);}else if(t.dataset.financeSave)saveRow(t.dataset.financeSave);else if(t.dataset.financeDiscard){drafts.delete(t.dataset.financeDiscard);message='Edits discarded. The current saved entry is shown.';render(true);}});
 
- $('sales-finance').addEventListener('focusout',e=>{if(e.target.dataset.financeKey==='settlement_date'&&dateRenderPending&&!e.relatedTarget?.closest?.('[data-finance-save],[data-finance-discard]'))root.setTimeout(()=>{if(dateRenderPending)render();},0);});
- $('sales-finance').addEventListener('change',e=>{if(e.target.hasAttribute('data-finance-view')){financeView=['pipeline','statistics','all'].includes(e.target.value)?e.target.value:'pipeline';render(true);}else if(e.target.hasAttribute('data-finance-period')){statisticsMonth=e.target.value;render(true);}else if(e.target.hasAttribute('data-finance-group')){statisticsGroup=['all','broome','pilbara'].includes(e.target.value)?e.target.value:'all';render(true);}else if(e.target.hasAttribute('data-finance-new-used')){statisticsNewUsed=['all','new','used'].includes(e.target.value)?e.target.value:'all';render(true);}});
+ $('sales-finance').addEventListener('focusout',e=>{if(e.target.dataset.financeKey==='settlement_date'&&dateRenderPending&&!e.relatedTarget?.closest?.('[data-finance-save],[data-finance-discard],[data-finance-view],[data-finance-filter]'))root.setTimeout(()=>{if(dateRenderPending)render();},0);});
+ $('sales-finance').addEventListener('change',e=>{if(e.target.hasAttribute('data-finance-filter')){applyFilterSelect(e.target);}else if(e.target.hasAttribute('data-finance-period')){statisticsMonth=e.target.value;render(true);}else if(e.target.hasAttribute('data-finance-group')){statisticsGroup=['all','broome','pilbara'].includes(e.target.value)?e.target.value:'all';render(true);}else if(e.target.hasAttribute('data-finance-new-used')){statisticsNewUsed=['all','new','used'].includes(e.target.value)?e.target.value:'all';render(true);}});
 
- $('finance-filter-dialog').addEventListener('cancel',closeFilter);
- $('finance-filter-content').addEventListener('submit',applyFilter);
- $('finance-filter-content').addEventListener('change',e=>{if(e.target.name!=='column')return;guard();if(!filterEditing||!columns.some(([k])=>k===e.target.value&&(editor()||!privateFields.has(k))))return;filterEditing=e.target.value;renderFilter();$('finance-filter-content').querySelector('[name="column"]').focus();});
- $('finance-filter-content').addEventListener('click',e=>{if(e.target.closest('[data-finance-filter-close]')){closeFilter();return;}if(e.target.closest('[data-finance-filter-clear]')){guard();const key=filterEditing;if(!key||(!editor()&&privateFields.has(key)))return;delete columnFilters[key];closeFilter();render(true);focusFilter(key);}});
  $('finance-add-dialog').addEventListener('cancel',close);
  $('finance-add-content').addEventListener('click',e=>{
   if(e.target.closest('[data-finance-close]')){close();return;}

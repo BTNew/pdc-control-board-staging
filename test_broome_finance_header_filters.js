@@ -97,109 +97,154 @@ function harness() {
   const button=(dataset={},attrs=[])=>({dataset,hasAttribute:name=>attrs.includes(name)||Object.keys(dataset).some(k=>'data-'+k.replace(/[A-Z]/g,c=>'-'+c.toLowerCase())===name),getAttribute:name=>dataset[name.replace(/^data-/,'').replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]??'',closest(){return this;}});
   async function refresh(records=rows,canEdit=true) {const pending=api.refresh();calls.at(-1).resolve({data:{context:{role:canEdit?'administrator':'salesperson',can_edit_finance:canEdit},entries:copy(records),vehicle_options:[],salespeople:[]}});await pending;}
   function click(dataset={},attrs=[]) {return el('sales-finance').events.click({target:button(dataset,attrs)});}
-  function change(attribute,value) {return el('sales-finance').events.change({target:{value,hasAttribute:name=>name===attribute}});}
-  function apply(column,fields={}) {
-    click({financeFilter:column});
-    const form={id:'finance-filter-form',values:{column,value:'all',query:'',min:'',max:'',...fields},querySelector:selector=>el('finance-filter-form').querySelector(selector),closest(){return this;}};
-    return el('finance-filter-content').events.submit({target:form,preventDefault(){this.prevented=true;}});
+  function filter(key,value,mobile=false) {
+    return el('sales-finance').events.change({target:{value,dataset:{financeFilter:key,...(mobile?{financeFilterMobile:key}:{})},hasAttribute:name=>name==='data-finance-filter'||(mobile&&name==='data-finance-filter-mobile')}});
   }
   function edit(id,key,value) {
     const tr={controls:new Map(),querySelector(selector){if(!this.controls.has(selector))this.controls.set(selector,{hidden:true,disabled:false,textContent:'',title:'',querySelector(){return null;}});return this.controls.get(selector);}};
     return el('sales-finance').events.input({target:{dataset:{financeId:id,financeKey:key},value,closest:()=>tr}});
   }
-  return {el,calls,api,window,refresh,click,change,apply,edit,html:()=>el('sales-finance').innerHTML,
+  return {el,calls,api,window,refresh,click,filter,edit,html:()=>el('sales-finance').innerHTML,
     setScope:value=>scope=value,setToken:value=>{token=value;window.PDC_AUTH_CONTEXT={userId:value};},setView:value=>view=value};
 }
 const tbody=h=>h.html().match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1]||'';
+function filterSelect(h,key,mobile=false) {
+  const tag=Array.from(h.html().matchAll(/<select\b([^>]*)>([\s\S]*?)<\/select>/g)).find(match=>
+    mobile ? match[1].includes('data-finance-filter-mobile')&&(match[1].includes('data-finance-filter="'+key+'"')||match[1].includes('data-finance-filter-mobile="'+key+'"'))
+      : !match[1].includes('data-finance-filter-mobile')&&match[1].includes('data-finance-filter="'+key+'"'));
+  assert.ok(tag,'native '+(mobile?'mobile ':'header ')+'select for '+key);
+  return {attributes:tag[1],options:tag[2],html:tag[0]};
+}
+const optionValues=control=>Array.from(control.options.matchAll(/<option\b[^>]*value="([^"]*)"/g),match=>match[1]);
+const selectedValue=control=>control.options.match(/<option\b[^>]*value="([^"]*)"[^>]*\bselected\b/)?.[1];
 
-test('every available finance header opens a filter and mobile toolbar exposes the same controls without saving', async () => {
+test('headers have accessible native dropdowns and view buttons without a filter modal or view select', async () => {
   const h=harness();await h.refresh();
-  for(const [key] of finance.columns)assert.match(h.html(),new RegExp('data-finance-filter="'+key+'"'));
-  assert.match(h.html(),/data-finance-filters/);assert.doesNotMatch(h.html(),/data-finance-clear-filters/,'no recovery control is needed before filtering');
-  h.click({financeFilter:'approval'});assert.equal(h.el('finance-filter-dialog').closed,false);assert.match(h.el('finance-filter-content').innerHTML,/id="finance-filter-form"/);
-  assert.match(h.el('finance-filter-content').innerHTML,/name="column"/);assert.match(h.el('finance-filter-content').innerHTML,/name="value"/);
-  assert.match(h.el('finance-filter-content').innerHTML,/value="value:Yes"/);assert.match(h.el('finance-filter-content').innerHTML,/value="blank"/);
-  h.el('finance-filter-dialog').events.cancel();assert.equal(h.el('finance-filter-dialog').closed,true);
-  h.click({},['data-finance-filters']);assert.equal(h.el('finance-filter-dialog').closed,false);assert.match(h.el('finance-filter-content').innerHTML,/name="column"/);
-  h.apply('approval',{value:'value:Yes'});assert.match(h.html(),/data-finance-clear-filters/);assert.match(h.html(),/class="finance-header-filter active" data-finance-filter="approval"/);assert.match(h.html(),/<span aria-hidden="true">●<\/span>/);
+  for(const [key,label] of finance.columns) {
+    const control=filterSelect(h,key);
+    assert.match(control.attributes,/class="[^"]*\bfinance-header-filter\b/);
+    assert.match(control.attributes,/aria-label="[^"]+"/);
+    assert.match(control.options,/value="all"/);assert.match(control.options,/value="blank"/);
+    const header=h.html().match(new RegExp('<th\\b[^>]*>(?:(?!<\\/th>)[\\s\\S])*?data-finance-filter="'+key+'"(?:(?!<\\/th>)[\\s\\S])*?<\\/th>'))?.[0];
+    assert.ok(header,key+' dropdown belongs to its table header');assert.match(header,/<span class="finance-header-label">/);assert.ok(header.includes(label));
+  }
+  for(const key of ['pipeline','statistics','all'])assert.match(h.html(),new RegExp('<button\\b[^>]*type="button"[^>]*data-finance-view="'+key+'"[^>]*aria-pressed="'+(key==='pipeline'?'true':'false')+'"'));
+  assert.doesNotMatch(h.html(),/<select\b[^>]*data-finance-view|data-finance-filters|aria-haspopup="dialog"|finance-filter-form|finance-filter-dialog/);
+  const index=fs.readFileSync(path.join(__dirname,'sales/index.html'),'utf8');assert.doesNotMatch(index,/id="finance-filter-dialog"|id="finance-filter-content"/);
+  h.click({financeView:'all'});assert.match(tbody(h),/Example Casey|Example Emery/);
+  assert.match(h.html(),/<button\b[^>]*data-finance-view="all"[^>]*aria-pressed="true"/);assert.equal(h.calls.length,1);
+});
+
+test('mobile dropdowns expose the same saved choices and apply immediately without saving', async () => {
+  const h=harness();await h.refresh();
+  for(const [key] of finance.columns) {
+    const header=filterSelect(h,key),mobile=filterSelect(h,key,true);
+    assert.match(mobile.attributes,/aria-label="[^"]+"/);assert.deepEqual(optionValues(mobile),optionValues(header),key);
+  }
+  h.filter('approval','value:Yes',true);
+  assert.match(tbody(h),/Example Avery|Example Devon/);assert.doesNotMatch(tbody(h),/Example Bailey/);
+  assert.equal(selectedValue(filterSelect(h,'approval')),'value:Yes');assert.equal(selectedValue(filterSelect(h,'approval',true)),'value:Yes');
   assert.equal(h.calls.length,1);assert.equal(h.calls[0].name,'get_broome_finance_pipeline');
 });
 
-test('header value, contains and amount filters combine, with a clear recovery from no matching rows', async () => {
-  const h=harness();await h.refresh();h.change('data-finance-view','all');
-  h.apply('approval',{value:'value:Yes'});assert.equal(h.el('finance-filter-dialog').closed,true);
-  assert.match(tbody(h),/Example Avery|Example Devon/);assert.doesNotMatch(tbody(h),/Example Bailey|Example Casey|Example Emery/);
-  h.apply('customer',{query:'AvErY'});assert.match(tbody(h),/Example Avery/);assert.doesNotMatch(tbody(h),/Example Devon/);
-  h.apply('finance_comm',{min:'10',max:'10'});assert.match(tbody(h),/Example Avery/);
-  h.apply('notes',{query:'not-a-matching-update'});assert.equal(tbody(h),'');assert.match(h.html(),/No .*match|No .*entries|No .*applications/i);
+test('exact column dropdowns combine with AND and clear recovers from no matching saved rows', async () => {
+  const h=harness();await h.refresh();h.click({financeView:'all'});
+  h.filter('approval','value:Yes');assert.match(tbody(h),/Example Avery|Example Devon/);assert.doesNotMatch(tbody(h),/Example Bailey|Example Casey|Example Emery/);
+  h.filter('customer','value:Example Avery');assert.match(tbody(h),/Example Avery/);assert.doesNotMatch(tbody(h),/Example Devon/);
+  h.filter('finance_comm','value:10');assert.match(tbody(h),/Example Avery/);
+  h.filter('approval','value:No');assert.equal(tbody(h),'');assert.match(h.html(),/No .*match|No .*entries|No .*applications/i);
   h.click({},['data-finance-clear-filters']);for(const row of rows)assert.match(tbody(h),new RegExp(row.customer));
-  assert.equal(h.calls.length,1,'view and filter changes must not save finance or change PDC records');
+  assert.equal(h.calls.length,1,'view and filters must not save finance or alter PDC records');
 });
 
-test('blank selections exclude a stored zero and filter options escape customer-controlled text', async () => {
+test('blank numeric selections exclude a stored zero and customer-controlled options are escaped', async () => {
   const records=[...rows,{...rows[0],id:'unsafe',customer:'<img src=x onerror=alert(1)> & Example',notes:'<script>fictional</script>'}];
-  const h=harness();await h.refresh(records);h.change('data-finance-view','all');
-  h.apply('finance_comm',{value:'blank'});assert.match(tbody(h),/Example Devon/);assert.doesNotMatch(tbody(h),/Example Casey/);
-  h.click({},['data-finance-clear-filters']);h.click({financeFilter:'customer'});
-  const dialog=h.el('finance-filter-content').innerHTML;assert.match(dialog,/&lt;img/);assert.doesNotMatch(dialog,/<img|onerror="|<script>/);
+  const h=harness();await h.refresh(records);h.click({financeView:'all'});
+  h.filter('finance_comm','blank');assert.match(tbody(h),/Example Devon/);assert.doesNotMatch(tbody(h),/Example Casey/);
+  h.filter('finance_comm','value:0');assert.match(tbody(h),/Example Casey/);assert.doesNotMatch(tbody(h),/Example Devon/);
+  const control=filterSelect(h,'customer');assert.match(control.options,/&lt;img/);assert.match(control.options,/&amp;/);assert.doesNotMatch(control.options,/<img|<script>/);
   assert.equal(h.calls.length,1);
 });
 
-test('filters use saved values while preserving unsaved edits through hide, clear, poll and view changes', async () => {
-  const h=harness();await h.refresh();h.change('data-finance-view','all');h.edit('alpha','customer','Pending customer draft');
-  h.apply('customer',{query:'Pending customer draft'});assert.equal(tbody(h),'','drafts must not alter saved matching values');
-  h.click({},['data-finance-clear-filters']);assert.match(tbody(h),/value="Pending customer draft"/);
-  h.apply('approval',{value:'value:No'});assert.doesNotMatch(tbody(h),/Pending customer draft/);
+test('dropdown choices come from scoped saved base rows rather than other filters or unsaved drafts', async () => {
+  const h=harness();h.setScope('BG');await h.refresh();h.click({financeView:'all'});
+  h.edit('alpha','customer','Pending customer draft');
+  const before=optionValues(filterSelect(h,'customer'));assert.ok(before.includes('value:Example Avery'));assert.ok(!before.some(value=>value.includes('Pending customer draft')));
+  assert.ok(!before.includes('value:Example Bailey'),'a different salesperson customer must not enter filter choices');
+  h.filter('approval','value:No');assert.match(tbody(h),/Example Emery/);
+  assert.deepEqual(optionValues(filterSelect(h,'customer')),before,'one column filter must not narrow another column choices');
+  h.filter('approval','all');h.filter('customer','value:Example Avery');assert.match(tbody(h),/value="Pending customer draft"/);
+  assert.equal(h.calls.length,1);
+});
+
+test('an active exact value survives refresh and view changes when it disappears from saved choices', async () => {
+  const h=harness();await h.refresh();h.click({financeView:'all'});h.filter('customer','value:Example Avery');
+  await h.refresh(rows.filter(row=>row.id!=='alpha'));assert.equal(tbody(h),'');
+  assert.equal(selectedValue(filterSelect(h,'customer')),'value:Example Avery');assert.ok(optionValues(filterSelect(h,'customer')).includes('value:Example Avery'));
+  assert.equal(selectedValue(filterSelect(h,'customer',true)),'value:Example Avery');
+  h.click({financeView:'statistics'});h.click({financeView:'pipeline'});
+  assert.equal(selectedValue(filterSelect(h,'customer')),'value:Example Avery');assert.equal(tbody(h),'');
+  h.filter('customer','all');assert.match(tbody(h),/Example Bailey|Example Devon/);assert.equal(h.calls.length,2);
+});
+
+test('saved-value filters preserve unsaved edits through hide, clear, poll and view changes', async () => {
+  const h=harness();await h.refresh();h.click({financeView:'all'});h.edit('alpha','customer','Pending customer draft');
+  h.filter('customer','value:Example Avery');assert.match(tbody(h),/value="Pending customer draft"/);
+  h.click({},['data-finance-clear-filters']);h.filter('approval','value:No');assert.doesNotMatch(tbody(h),/Pending customer draft/);
   await h.refresh();assert.doesNotMatch(tbody(h),/Pending customer draft/);
-  h.change('data-finance-view','statistics');h.change('data-finance-view','all');assert.doesNotMatch(tbody(h),/Pending customer draft/,'view changes must preserve the approval filter');
+  h.click({financeView:'statistics'});h.click({financeView:'all'});assert.doesNotMatch(tbody(h),/Pending customer draft/);
   h.click({},['data-finance-clear-filters']);assert.match(tbody(h),/value="Pending customer draft"/);
   assert.equal(h.calls.length,2);assert.ok(h.calls.every(call=>call.name==='get_broome_finance_pipeline'));
   const save=h.click({financeSave:'alpha'});assert.equal(h.calls[2].name,'save_broome_finance_application');assert.equal(h.calls[2].args.p_data.customer,'Pending customer draft');assert.equal(h.calls[2].args.p_expected_version,1);
   h.calls[2].resolve({data:{record:{...rows[0],customer:'Pending customer draft',version:2}}});await save;
 });
 
-test('settlement header choices display human dates and filter exact saved dates without writing', async () => {
-  const h=harness(),records=[...rows,{...rows[0],id:'undated',customer:'Example Undated',settlement:'Yes',settlement_date:''}];await h.refresh(records);h.change('data-finance-view','all');h.click({financeFilter:'settlement'});
-  const dialog=h.el('finance-filter-content').innerHTML,dateOption=dialog.match(new RegExp('<option value="value:'+month+'-01"[^>]*>([^<]*)<\\/option>'))?.[1];
-  assert.ok(dateOption,'the ISO date is the exact filter value');assert.notEqual(dateOption,month+'-01','the label must format the date for a person');assert.match(dialog,/value="value:undated"[^>]*>[^<]*date not recorded/i);assert.doesNotMatch(dialog,/value="value:Yes"|value="value:No"/);
-  h.apply('settlement',{value:'value:'+month+'-01'});assert.match(tbody(h),/Example Casey/);assert.match(tbody(h),/Example Emery/);assert.doesNotMatch(tbody(h),/Example Avery|Example Undated/);
-  h.apply('settlement',{value:'value:undated'});assert.match(tbody(h),/Example Undated/);assert.doesNotMatch(tbody(h),/Example Casey|Example Emery/);
-  h.apply('settlement',{value:'blank'});assert.match(tbody(h),/Example Avery/);assert.doesNotMatch(tbody(h),/Example Casey|Example Emery|Example Undated/);assert.equal(h.calls.length,1);
+test('settlement dropdowns show human dates and match exact saved dates or missing dates', async () => {
+  const h=harness(),records=[...rows,{...rows[0],id:'undated',customer:'Example Undated',settlement:'Yes',settlement_date:''}];await h.refresh(records);h.click({financeView:'all'});
+  const control=filterSelect(h,'settlement'),dateOption=control.options.match(new RegExp('<option value="value:'+month+'-01"[^>]*>([^<]*)<\\/option>'))?.[1];
+  assert.ok(dateOption,'the ISO date remains the exact filter value');assert.notEqual(dateOption,month+'-01','the label formats the date for a person');assert.match(control.options,/value="value:undated"[^>]*>[^<]*date not recorded/i);assert.doesNotMatch(control.options,/value="value:Yes"|value="value:No"/);
+  h.filter('settlement','value:'+month+'-01');assert.match(tbody(h),/Example Casey|Example Emery/);assert.doesNotMatch(tbody(h),/Example Avery|Example Undated/);
+  h.filter('settlement','value:undated');assert.match(tbody(h),/Example Undated/);assert.doesNotMatch(tbody(h),/Example Casey|Example Emery/);
+  h.filter('settlement','blank');assert.match(tbody(h),/Example Avery/);assert.doesNotMatch(tbody(h),/Example Casey|Example Emery|Example Undated/);assert.equal(h.calls.length,1);
 });
 
-test('header filters never shrink settlement statistics or their period and location calculations', async () => {
-  const h=harness();await h.refresh();h.change('data-finance-view','all');h.apply('approval',{value:'value:Yes'});
-  const before=h.calls.length;h.change('data-finance-view','statistics');
+test('header filters do not shrink settlement statistics and survive view-button changes', async () => {
+  const h=harness();await h.refresh();h.click({financeView:'all'});h.filter('approval','value:Yes');
+  const before=h.calls.length;h.click({financeView:'statistics'});
   assert.match(h.html(),/Example Casey/);assert.match(h.html(),/Example Emery/);
   assert.match(h.html(),/Settled applications \/ contracts<\/span><strong>2<\/strong>/);
   assert.match(h.html(),/Settled NAF<\/span><strong>\$4,000\.00<\/strong>/);
-  h.change('data-finance-view','all');assert.doesNotMatch(tbody(h),/Example Casey|Example Emery/);assert.match(tbody(h),/Example Avery/);
-  assert.equal(h.calls.length,before);
+  h.click({financeView:'all'});assert.doesNotMatch(tbody(h),/Example Casey|Example Emery/);assert.match(tbody(h),/Example Avery/);
+  assert.equal(selectedValue(filterSelect(h,'approval')),'value:Yes');assert.equal(h.calls.length,before);
 });
 
-test('account and salesperson scope changes reset filters and close the dialog rather than carrying hidden drafts', async () => {
-  const h=harness();await h.refresh();h.change('data-finance-view','all');h.edit('alpha','notes','Private unsaved note');h.apply('approval',{value:'value:Yes'});h.click({financeFilter:'customer'});
-  h.setScope('BG');h.api.syncScope();h.api.render();assert.equal(h.el('finance-filter-dialog').closed,true);assert.equal(h.el('finance-filter-content').innerHTML,'');
-  assert.match(tbody(h),/Example Emery/);assert.doesNotMatch(tbody(h),/Private unsaved note|Example Bailey/);
-  h.apply('approval',{value:'value:Yes'});h.click({financeFilter:'customer'});h.setToken('replacement-finance-account');h.api.syncScope();assert.equal(h.el('finance-filter-dialog').closed,true);assert.equal(h.html(),'');
-  await h.refresh();h.change('data-finance-view','all');assert.match(tbody(h),/Example Emery/);assert.doesNotMatch(tbody(h),/Private unsaved note/);
+test('account and salesperson scope changes discard filters and hidden drafts', async () => {
+  const h=harness();await h.refresh();h.click({financeView:'all'});h.edit('alpha','notes','Private unsaved note');h.filter('approval','value:Yes');
+  h.setScope('BG');h.api.syncScope();h.api.render();
+  assert.match(tbody(h),/Example Emery/);assert.doesNotMatch(tbody(h),/Private unsaved note|Example Bailey/);assert.equal(selectedValue(filterSelect(h,'approval')),'all');
+  h.filter('approval','value:Yes');h.setToken('replacement-finance-account');h.api.syncScope();assert.equal(h.html(),'');
+  await h.refresh();h.click({financeView:'all'});assert.match(tbody(h),/Example Emery/);assert.doesNotMatch(tbody(h),/Private unsaved note/);assert.equal(selectedValue(filterSelect(h,'approval')),'all');
   assert.ok(h.calls.every(call=>call.name==='get_broome_finance_pipeline'));
 });
 
-test('permission downgrade clears filters and private dialog content; forged private choices cannot restrict or expose rows', async () => {
-  const h=harness();await h.refresh();h.change('data-finance-view','all');h.apply('approval',{value:'value:Yes'});h.click({financeFilter:'financier'});
-  assert.match(h.el('finance-filter-content').innerHTML,/value:TFM|value:FARADAY/);
-  await h.refresh(rows,false);assert.equal(h.el('finance-filter-dialog').closed,true);assert.equal(h.el('finance-filter-content').innerHTML,'');
-  for(const key of privateKeys)assert.doesNotMatch(h.html(),new RegExp('data-finance-filter="'+key+'"'));
-  assert.match(tbody(h),/Example Bailey|Example Emery/,'public filters must reset too');
-  h.click({financeFilter:'financier'});assert.equal(h.el('finance-filter-dialog').closed,true);
-  h.click({},['data-finance-filters']);const dialog=h.el('finance-filter-content').innerHTML;
-  for(const key of privateKeys)assert.doesNotMatch(dialog,new RegExp('<option value="'+key+'"'));
-  h.el('finance-filter-content').events.change({target:{name:'column',value:'financier'}});
-  assert.equal(h.el('finance-filter-content').innerHTML,dialog,'a forged private column change must not replace the allowed public filter');
-  h.el('finance-filter-dialog').events.cancel();h.click({financeFilter:'finance_comm'});assert.equal(h.el('finance-filter-dialog').closed,true);
-  const form={id:'finance-filter-form',values:{column:'finance_comm',value:'value:999999',query:'',min:'999999',max:''},querySelector:selector=>h.el('finance-filter-form').querySelector(selector),closest(){return this;}};
-  h.el('finance-filter-content').events.submit({target:form,preventDefault(){}});
-  assert.match(tbody(h),/Example Bailey|Example Emery/);assert.doesNotMatch(h.el('finance-filter-content').innerHTML,/value:TFM|value:FARADAY/);
+test('permission downgrade removes private dropdowns and rejects forged private keys', async () => {
+  const h=harness();await h.refresh();h.click({financeView:'all'});h.filter('approval','value:Yes');
+  assert.ok(optionValues(filterSelect(h,'financier')).includes('value:TFM'));
+  await h.refresh(rows,false);
+  for(const key of privateKeys)assert.doesNotMatch(h.html(),new RegExp('data-finance-filter(?:-mobile)?="'+key+'"'));
+  assert.match(tbody(h),/Example Bailey/);assert.match(tbody(h),/Example Emery/);assert.equal(selectedValue(filterSelect(h,'approval')),'all');
+  const before=tbody(h);
+  for(const key of privateKeys)h.filter(key,'value:999999');
+  assert.equal(tbody(h),before,'forged private filters cannot restrict public rows');assert.doesNotMatch(h.html(),/value:TFM|value:FARADAY|value:5000|value:20\.1/);
+  h.filter('approval','value:No');assert.match(tbody(h),/Example Bailey|Example Emery/);assert.doesNotMatch(tbody(h),/Example Avery|Example Devon/);
   assert.equal(h.calls.length,2);assert.ok(h.calls.every(call=>call.name==='get_broome_finance_pipeline'));
+});
+
+test('forged keys and unsupported dropdown values leave the current exact filter unchanged', async () => {
+  const h=harness();await h.refresh();h.click({financeView:'all'});h.filter('approval','value:Yes');
+  const before=tbody(h);
+  for(const key of ['unknown','current_location','constructor','__proto__'])h.filter(key,'blank');
+  for(const value of ['value:unsupported','contains:Yes','value:','min:0','Yes',''])h.filter('approval',value);
+  assert.equal(tbody(h),before);assert.equal(selectedValue(filterSelect(h,'approval')),'value:Yes');assert.equal(h.calls.length,1);
+  h.filter('approval','all');assert.match(tbody(h),/Example Bailey/);assert.equal(selectedValue(filterSelect(h,'approval')),'all');
 });
