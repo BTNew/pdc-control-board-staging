@@ -274,7 +274,7 @@
     $('sales-hidden-toggle').setAttribute('aria-pressed',String(state.showHidden));
     $('sales-hidden-toggle').disabled=state.hiddenBusy;
     $('sales-tracker-title').textContent=state.showHidden?'Hidden vehicles':'Navision vehicle tracker';
-    $('sales-tracker-help').textContent=state.showHidden?'These vehicles are hidden from the sales dashboard, My Day, pipeline, labels and customer email lists. Choose Show on sales planner in the Action menu to restore a vehicle. Vehicles absent from the latest successful Navision update are removed from both lists.':'Only COSI sold vehicles are shown. TINT, BUILD and TRAY: grey = Not Needed, orange = Orders Raised, green = Completed. Click a status to change it. These are saved separately from PDC progress. Click the stock number for PMB status, parts, locations and booking dates.';
+    $('sales-tracker-help').textContent=state.showHidden?'These vehicles are hidden from the sales dashboard, My Day, labels and customer email lists. Choose Show on sales planner in the Action menu to restore a vehicle. Vehicles absent from the latest successful Navision update are removed from both lists.':'';
     html('status-tabs',categories.map(([key,label]) => '<button type="button" data-category="'+key+
       '" class="status-card '+key+(state.filters.category===key?' active':'')+'" aria-pressed="'+(state.filters.category===key)+'">'+
       '<span>'+label+'</span><strong>'+scoped.filter(r=>key==='all'||category(r)===key).length+'</strong><small>'+categoryDescriptions[key]+'</small></button>').join(''));
