@@ -1,0 +1,25 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const crypto=require('node:crypto');
+test('published Karratha release has exact applied staging migration and own runtime identity',()=>{
+ const identity=JSON.parse(fs.readFileSync(path.join(__dirname,'deployment-identity.json'),'utf8'));
+ const migration=identity.karratha_department_migration;
+ assert.equal(identity.staging_project_ref,'cdsmnqxtyyoeoznmbidd');
+ assert.equal(migration?.commissioned,true);assert.equal(migration.review_status,'staging_applied');
+ assert.equal(migration.file.match(/\/(\d+)_/)[1],String(migration.version));
+ const bytes=fs.readFileSync(path.join(__dirname,migration.file));
+ assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),migration.sha256);
+ const sql=bytes.toString('utf8');
+ assert.match(sql,/CREATE SCHEMA karratha_pdc/);
+ assert.match(sql,/Existing protected/);
+ assert.doesNotMatch(sql,/\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+(?:public|auth|storage|pdc_sales_private)\./i);
+ assert.doesNotMatch(sql,/REFERENCES\s+(?:public|auth|storage|pdc_sales_private)\./i);
+ assert.doesNotMatch(sql,/CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.(?!\w*karratha)/i);
+ const config=fs.readFileSync(path.join(__dirname,'karratha/config.js'),'utf8');
+ assert.match(config,/karratha-pdc-auth-v1/);assert.doesNotMatch(config,/sb_secret_|service_role|vjdtsswhroyguxyfjdkt/);
+ const publicManifest=JSON.parse(fs.readFileSync(path.join(__dirname,'deployment-manifest.json'),'utf8'));
+ assert.deepEqual(Object.keys(publicManifest).sort(),['salesTrackerVersion','siteVersion','workshopPlannerVersion']);
+});
