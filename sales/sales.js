@@ -48,18 +48,19 @@
     return true;
   }
   const orderingLabels={tint:'TINT',build_po:'BUILD',tray_ordered:'TRAY'};
-  const orderingValues={not_needed:'Not Needed',orders_raised:'Orders Raised',completed:'Completed'};
-  const orderingFields=['tint','tint_complete','build_po','build_complete','tray_ordered','tray_complete'];
+  const orderingValues={not_decided:'Not decided',not_needed:'Not required',orders_raised:'Orders Raised',completed:'Completed'};
+  const orderingFields=['tint','tint_complete','build_po','build_complete','tray_ordered','tray_complete','tint_not_required','build_not_required','tray_not_required'];
   function orderingState(row,key){
     const complete={tint:'tint_complete',build_po:'build_complete',tray_ordered:'tray_complete'}[key];
-    return row[complete]===true?'completed':row[key]===true?'orders_raised':'not_needed';
+    const notRequired={tint:'tint_not_required',build_po:'build_not_required',tray_ordered:'tray_not_required'}[key];
+    return row[complete]===true?'completed':row[key]===true?'orders_raised':row[notRequired]===true?'not_needed':'not_decided';
   }
-  function nextOrderingState(value){return value==='not_needed'?'orders_raised':value==='orders_raised'?'completed':'not_needed';}
+  function nextOrderingState(value){return value==='not_decided'?'not_needed':value==='not_needed'?'orders_raised':value==='orders_raised'?'completed':'not_decided';}
   function orderingControl(row,key,pending){
     const value=pending?.key===key?pending.status:orderingState(row,key);
     const label=orderingLabels[key]+' for '+(row.stock||'Toyota order '+(row.order||'not recorded'));
     const name=orderingValues[value],next=orderingValues[nextOrderingState(value)];
-    return '<button type="button" role="checkbox" class="ordering-status '+value+'" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" data-ordering-status="'+value+'" aria-checked="'+(value==='completed'?'true':value==='orders_raised'?'mixed':'false')+'" aria-label="'+escapeHtml(label+': '+name+'. Click for '+next)+'" '+(pending||row.identity_conflict||row.sales_hidden?'disabled ':'')+'title="'+escapeHtml(name+' — click for '+next)+'"><span aria-hidden="true">'+(value==='completed'?'✓':value==='orders_raised'?'−':'')+'</span></button>';
+    return '<button type="button" role="checkbox" class="ordering-status '+value+'" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" data-ordering-status="'+value+'" aria-checked="'+(value==='completed'?'true':value==='not_decided'?'false':'mixed')+'" aria-label="'+escapeHtml(label+': '+name+'. Click for '+next)+'" '+(pending||row.identity_conflict||row.sales_hidden?'disabled ':'')+'title="'+escapeHtml(name+' — click for '+next)+'"><span aria-hidden="true">'+(value==='completed'?'✓':value==='orders_raised'?'−':value==='not_needed'?'/':'')+'</span></button>';
   }
   function selectRows(rows, filters) {
     const search = String(filters.search || '').toLowerCase();
@@ -71,7 +72,7 @@
       (!search || [row.stock,row.order,row.client,row.vehicle,row.vin,row.navision_notes,row.pmb_location]
         .some(value => String(value || '').toLowerCase().includes(search)))
     ).slice().sort((a,b) => {
-      const rank=row=>['not_needed','orders_raised','completed'].indexOf(orderingState(row,filters.sort));
+      const rank=row=>['not_decided','not_needed','orders_raised','completed'].indexOf(orderingState(row,filters.sort));
       const sortValue=row=>filters.sort==='kewdale_eta'?dateTools?.dateKey(row.kewdale_eta):orderingLabels[filters.sort]?rank(row):row[filters.sort];
       const aa = sortValue(a), bb = sortValue(b);
       if (aa == null || aa === '') return bb == null || bb === '' ? 0 : 1;
