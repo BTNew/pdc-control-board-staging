@@ -1,0 +1,45 @@
+#update-history-content { min-width:0; color:#18324c; }
+.update-history-header { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 20px 12px; border-bottom:1px solid #e4ebf3; }
+.update-history-header h2 { margin:0 0 6px; font-size:20px; }
+.update-history-header p { margin:0; color:#5b7088; line-height:1.5; font-size:13px; }
+.update-history-header button { flex:none; min-height:40px; min-width:92px; }
+.update-history-header button:focus-visible { outline:2px solid #2563eb; outline-offset:3px; }
+.update-history-status { margin:12px 20px; min-height:20px; color:#60758b; font-size:12px; line-height:1.5; }
+.update-history-status.is-error { color:#9b341b; background:#fff3ed; padding:10px 12px; border-radius:7px; }
+.update-history-feeds { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr)); gap:12px; padding:0 20px 20px; }
+.update-history-feed { min-width:0; padding:16px; border:1px solid #d8e3ee; border-radius:10px; background:#fff; }
+.update-history-feed-heading { display:grid; grid-template-rows:minmax(44px,auto) auto; justify-items:start; align-content:start; gap:7px; margin-bottom:16px; }
+.update-history-feed h3 { margin:0; font-size:15px; line-height:1.45; overflow-wrap:anywhere; }
+.update-history-badge { display:inline-flex; align-items:center; padding:4px 8px; max-width:100%; box-sizing:border-box; border-radius:6px; font-size:11px; font-weight:700; line-height:1.35; overflow-wrap:anywhere; }
+.update-history-badge.is-success { color:#166349; background:#e9f5ee; }
+.update-history-badge.is-failure { color:#9d2b30; background:#ffecef; }
+.update-history-badge.is-pending { color:#885715; background:#fff3da; }
+.update-history-badge.is-neutral { color:#52647b; background:#eef2f6; }
+.update-history-caption { margin:0 0 5px; font-size:12px; line-height:1.45; color:#637991; }
+.update-history-date { margin:0; font-size:16px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; }
+.update-history-count { margin:5px 0 0; color:#5b7088; font-size:12px; }
+.update-history-detail { margin:10px 0 0; color:#5b7088; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.update-history-attempt { margin:12px 0 0; padding:9px 10px; border-radius:6px; background:#fff6e6; color:#79531c; font-size:12px; line-height:1.5; }
+.update-history-attempt span { display:block; margin-top:2px; }
+.update-history-recent { padding:16px 20px 20px; border-top:1px solid #e4ebf3; }
+.update-history-recent h3 { margin:0 0 5px; font-size:16px; }
+.update-history-table-wrap { width:100%; overflow:auto; margin-top:14px; }
+.update-history-table { width:100%; table-layout:auto; border-collapse:collapse; font-size:13px; }
+.update-history-table th { text-align:left; background:#f3f6fa; color:#5b7088; font-size:11px; text-transform:uppercase; }
+.update-history-table th,.update-history-table td { padding:11px 10px; border-bottom:1px solid #e1e9f2; vertical-align:top; line-height:1.5; }
+.update-history-table td { overflow-wrap:anywhere; }
+.update-history-table td:first-child { min-width:150px; font-weight:600; }
+.update-history-table td:nth-child(2) { min-width:160px; }
+.update-history-empty { margin:0; padding:20px; color:#637991; font-size:14px; }
+@media (max-width:600px) {
+  .update-history-header { align-items:flex-start; padding:16px; }
+  .update-history-header h2 { font-size:18px; }
+  .update-history-feeds { padding:0 16px 16px; }
+  .update-history-status { margin:12px 16px; }
+  .update-history-recent { padding:16px; }
+  .update-history-table thead { display:none; }
+  .update-history-table tbody,.update-history-table tr,.update-history-table td { display:block; }
+  .update-history-table tr { padding:9px 0; border-bottom:1px solid #e1e9f2; }
+  .update-history-table td { min-width:0 !important; padding:4px 0; border:0; }
+  .update-history-table td::before { content:attr(data-label); display:inline-block; min-width:84px; padding-right:8px; font-size:11px; font-weight:600; color:#637991; }
+}

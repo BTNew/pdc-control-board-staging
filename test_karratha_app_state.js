@@ -1,91 +1,41 @@
 'use strict';
-// Executes the real app event handlers against fictional state and a minimal DOM.
-// This tests account/scope/form behavior; visual layout is verified in the browser.
-const test=require('node:test');
-const assert=require('node:assert/strict');
-const vm=require('node:vm');
-const fs=require('node:fs');
-const path=require('node:path');
-const code=fs.readFileSync(path.resolve(__dirname,'./karratha/app.js'),'utf8');
-const tick=()=>new Promise(resolve=>setImmediate(resolve));
-const baseContext={centre:'KARRATHA',user_id:'fixture-a',role:'administrator',display_name:'Fictional staff',membership_version:1,can_edit:true,can_admin:true,can_import:true};
-const baseSnapshot={revision:1,context:baseContext,vehicles:[{id:'v1',stock_number:'0012345',customer_name:'Fictional Customer',model:'Example vehicle',location:'on_site',source_current:true}],
- jobs:[{id:'j1',vehicle_id:'v1',selected:true,identity_status:'matched',job_card_number:'RO1',version:1},
- {id:'j2',vehicle_id:'v1',selected:false,identity_status:'matched',job_card_number:'RO2',version:1},
- {id:'j3',vehicle_id:null,selected:false,identity_status:'unmatched',job_card_number:'RO-unmatched',stock_number:'',store_code:'135',version:1}],
- operations:[{id:'o1',vehicle_id:'v1',job_id:'j1',original_line_number:1,description:'First selected operation',stage_code:'FITTING',estimated_hours:1,source_estimated_hours:1,parts_required:false,version:1},
- {id:'o2',vehicle_id:'v1',job_id:'j2',original_line_number:2,description:'Second card operation',stage_code:'TINT',estimated_hours:1,source_estimated_hours:1,parts_required:false,version:1},
- {id:'o3',job_id:'j3',original_line_number:3,description:'Unmatched original description',stage_code:'REVIEW',parts_required:null,source_row:{note:'Original raw evidence'},version:1}],
- bookings:[],bays:[],technicians:[],history:[],memberships:[],settings:[{id:'set1',key:'import_contract',version:1,value:{mapping_verified:true,column_mapping:{},allowed_dealer_codes:['14450']}},{id:'set2',key:'calendar',value:{day_start:'06:00',day_end:'16:30'}}]};
-function harness(options={}){
- let context={...baseContext,...options.context},epoch=1,snapshot=structuredClone({...baseSnapshot,context}),changed;
- const elements=new Map(),listeners={},intervals=[],calls=[];
+// Structural VM/DOM check only. No browser, network, persistent storage or real accounts.
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),crypto=require('node:crypto');
+const ui=path.join(__dirname,'karratha'),html=fs.readFileSync(path.join(ui,'index.html'),'utf8');
+async function boot(ready,serverReady=true){
+ const ids=new Map(),nodes=[],events=new Map(),requests=[],loaded=new Set(),errors=[],storage=new Map(),subscriptions=[];let context,timer=0;
+ const listeners=(target,type,handler)=>{const key=target+':'+type;if(!events.has(key))events.set(key,[]);events.get(key).push(handler);};
+ const dispatch=(target,event)=>{for(const handler of events.get(target+':'+event.type)||[])try{const pending=handler(event);pending?.catch?.(error=>errors.push(error.stack||error.message));}catch(error){errors.push(error.stack||error.message);}};
+ function parse(markup){const result=[],stack=[],voidTags=new Set(['meta','link','input','img','br','hr','col','source','area','base','wbr']);for(const match of markup.matchAll(/<(\/?)([a-z][\w-]*)\b([^>]*?)>/gi)){const tag=match[2].toLowerCase();if(match[1]){while(stack.length){if(stack.pop().tagName.toLowerCase()===tag)break;}continue;}const node=new Element(tag);for(const attr of match[3].matchAll(/([\w-]+)(?:="([^"]*)")?/g))node.setAttribute(attr[1],attr[2]??'');const parent=stack.at(-1);if(parent){node.parentElement=parent;parent.children.push(node);}else result.push(node);if(!voidTags.has(tag)&&!match[3].endsWith('/'))stack.push(node);}return result;}
+ function matches(node,selector){if(selector.startsWith('#'))return node.id===selector.slice(1).split(/[\s.:\[]/)[0];const tag=selector.match(/^[a-z][\w-]*/i)?.[0];if(tag&&node.tagName.toLowerCase()!==tag.toLowerCase())return false;for(const entry of selector.matchAll(/\.([\w-]+)/g))if(!node.classList.contains(entry[1]))return false;for(const entry of selector.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]/g))if(!node.hasAttribute(entry[1])||(entry[2]!==undefined&&node.getAttribute(entry[1])!==entry[2]))return false;return true;}
  class Element{
-  constructor(id){this.id=id;this.innerHTML='';this.textContent='';this.open=false;this.value='';this.hidden=false;this.disabled=false;this.listeners={};this.classes=new Set();this.elements={};this.values={};
-   this.classList={add:name=>this.classes.add(name),remove:name=>this.classes.delete(name),contains:name=>this.classes.has(name),toggle:(name,force)=>{if(force??!this.classes.has(name))this.classes.add(name);else this.classes.delete(name);}};}
-  addEventListener(name,handler){this.listeners[name]=handler;}
-  setAttribute(name,value){this[name]=value;}
-  replaceChildren(){this.innerHTML='';this.textContent='';}
-  showModal(){this.open=true;}
-  close(){this.open=false;this.listeners.close?.({target:this});}
-  querySelector(){return element(this.id+'-submit');}
+  constructor(tag='div'){this.tagName=tag.toUpperCase();this.id='';this.dataset={};this.attributes={};this.style={setProperty(){},removeProperty(){}};this.children=[];this.childNodes=this.children;this.listeners=[];this.hidden=false;this.value='';this.checked=false;this.disabled=false;this.textContent='';this.scrollTop=0;this.clientWidth=1200;this.offsetWidth=1200;this.clientHeight=900;this.offsetHeight=40;this.isConnected=true;this.classes=new Set();this.classList={add:(...names)=>names.forEach(name=>this.classes.add(name)),remove:(...names)=>names.forEach(name=>this.classes.delete(name)),contains:name=>this.classes.has(name),toggle:(name,force)=>{const enabled=force??!this.classes.has(name);enabled?this.classes.add(name):this.classes.delete(name);return enabled;},[Symbol.iterator]:()=>this.classes.values()};nodes.push(this);}
+  setAttribute(key,value){this.attributes[key]=String(value);if(key==='id'){this.id=String(value);ids.set(this.id,this);}if(key==='class'){this.className=String(value);this.classes=new Set(String(value).split(/\s+/));}if(key.startsWith('data-'))this.dataset[key.slice(5).replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]=String(value);if(key==='value')this.value=String(value);if(key==='hidden')this.hidden=true;}
+  getAttribute(key){return this.attributes[key]??null;}hasAttribute(key){return Object.hasOwn(this.attributes,key);}removeAttribute(key){delete this.attributes[key];}
+  addEventListener(type,handler){listeners(this.id||this.tagName+nodes.indexOf(this),type,handler);}removeEventListener(){}dispatchEvent(event){dispatch(this.id||this.tagName+nodes.indexOf(this),event);return true;}
+  appendChild(node){node.parentElement=this;this.children.push(node);if(node.tagName==='SCRIPT'&&node.src)queueMicrotask(()=>{try{load(node.src);node.onload?.();node.dispatchEvent({type:'load'});}catch(error){errors.push(error.stack||error.message);node.onerror?.();}});return node;}
+  append(...children){children.forEach(child=>this.appendChild(child));}prepend(node){this.children.unshift(node);node.parentElement=this;}after(node){this.parentElement?.appendChild(node);}before(node){this.parentElement?.appendChild(node);}insertBefore(node){return this.appendChild(node);}insertAdjacentElement(_where,node){return this.parentElement?.appendChild(node)||this.appendChild(node);}insertAdjacentHTML(_where,markup){this.append(...parse(markup));}replaceChildren(...children){this.children=[];this.append(...children);}remove(){this.isConnected=false;}contains(node){return this===node||this.children.includes(node);}closest(selector){return matches(this,selector)?this:this.parentElement?.closest(selector)||null;}
+  querySelector(selector){return this.querySelectorAll(selector)[0]||null;}querySelectorAll(selector){const descendants=[];const walk=node=>{for(const child of node.children||[]){descendants.push(child);walk(child);}};walk(this);return descendants.filter(node=>selector.split(',').some(part=>matches(node,part.trim())));}get elements(){const fields=this.querySelectorAll('input,select,textarea,button');for(const field of fields)if(field.attributes.name)fields[field.attributes.name]=field;return fields;}
+  getBoundingClientRect(){return {width:1200,height:40,left:0,top:0,right:1200,bottom:40};}focus(){document.activeElement=this;}blur(){}reset(){}close(){this.open=false;}showModal(){this.open=true;}scrollIntoView(){}scrollTo(){}setPointerCapture(){}releasePointerCapture(){}click(){this.dispatchEvent({type:'click',target:this,preventDefault(){}});}set innerHTML(markup){this._html=markup;this.children=parse(markup);this.children.forEach(node=>node.parentElement=this);}get innerHTML(){return this._html||'';}
  }
- function element(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);}
- const document={hidden:false,getElementById:element,addEventListener(name,handler){listeners[name]=handler;}};
- const api={clear(){calls.push({clear:true});},async snapshot(){calls.push({snapshot:true});if(options.snapshotHandler)return options.snapshotHandler();return structuredClone(snapshot);},async save(action,id,version,data){calls.push({action,id,version,data});return {record:{id,version:version+1}};}};
- const auth={getContext:()=>context,getOwner:()=>context?.user_id+':'+epoch,onChanged(handler){changed=handler;},adoptContext(data){context={...data};},lock(){context=null;epoch++;changed?.();}};
- const nuvu={fields:[],async read(file){return {name:file.name,hash:'fixture-hash',sheets:['Data']};},table(){return {headers:['Stock'],rows:[{}]};}};
- const window={KARRATHA_API:api,KARRATHA_AUTH:auth,KARRATHA_NUVU:nuvu,KARRATHA_CALENDAR:{add:(date,n)=>{const d=new Date(date+'T12:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);},days:()=>['2030-01-01'],init(){},render(){}},
-  KARRATHA_AUTH_READY:Promise.resolve(),crypto:require('node:crypto').webcrypto,setInterval(fn){intervals.push(fn);},addEventListener(){}};
- class FormDataFixture{constructor(node){this.values=node.values;}get(name){return this.values[name]??'';}has(name){return Object.hasOwn(this.values,name);}}
- vm.runInNewContext(code,{window,document,FormData:FormDataFixture,Intl,Date,Set,Map,Array,Object,String,Number,Boolean,JSON,Promise});
- return {window,e:element,calls,async ready(){await tick();},setSnapshot(data){snapshot=structuredClone(data);},async click(dataset){listeners.click({target:{closest(){return {dataset,hasAttribute(name){return Object.hasOwn(dataset,name.replace(/^data-/,'').replace(/-([a-z])/g,(_,a)=>a.toUpperCase()));}};}}});await tick();},
-  async change(target){listeners.change({target});await tick();},async poll(){intervals[0]();await tick();},async changeContext(value){context=value;epoch++;changed();await tick();},
-  async submit(values){element('edit-form').values=values;await element('edit-form').listeners.submit({preventDefault(){},currentTarget:element('edit-form')});await tick();}};
+ const document={readyState:'loading',hidden:false,visibilityState:'visible',createElement:tag=>new Element(tag),createTextNode:text=>({textContent:text}),getElementById:id=>ids.get(id)||null,querySelector:selector=>nodes.find(node=>matches(node,selector))||null,querySelectorAll:selector=>nodes.filter(node=>selector.split(',').some(part=>matches(node,part.trim()))),addEventListener:(type,handler)=>listeners('document',type,handler),removeEventListener(){},dispatchEvent:event=>dispatch('document',event)};
+ parse(html);document.body=nodes.find(node=>node.tagName==='BODY');document.head=nodes.find(node=>node.tagName==='HEAD');document.documentElement=nodes.find(node=>node.tagName==='HTML');document.activeElement=document.body;
+ const user={id:'00000000-0000-4000-8000-000000000135',email:'fictional-own135@example.test',user_metadata:{full_name:'Fictional Department135 staff'}};
+ const session={user,access_token:'fictional-token',refresh_token:'fictional-refresh'};
+ const membership={centre:'KARRATHA',store_code:'135',user_id:user.id,role:'administrator',active:true,account_status:'approved',membership_version:'fictional-membership1',engine_version:'pmb-native135-candidate-v1',ready:serverReady};
+ async function offlineFetch(url,options={}){requests.push({url:String(url),method:options.method||'GET',body:options.body});const parsed=new URL(String(url));assert.equal(parsed.origin,'https://cdsmnqxtyyoeoznmbidd.supabase.co');const route=parsed.pathname;assert.ok(route.startsWith('/rest/v1/k135_')||route.startsWith('/rest/v1/rpc/k135_'),'Foreign endpoint '+route);let data={ok:true,data:{items:[],vehicles:[],bookings:[],jobs:[],total:0,offset:0,has_more:false,department:'135'},revision:0};if(route.endsWith('/k135_get_native_engine_context'))data=membership;if(route.endsWith('/k135_pdc_user_roles'))data=[{email:user.email,role:'administrator',active:true,account_status:'approved'}];if(/_list_(technicians|salespeople|sublet_providers|workshop_bays)$/.test(route))data=[];if(/k135_(backup_runs|restore_test_runs)$/.test(route))data=[];return new Response(JSON.stringify(data),{status:200});}
+ const factory=(_url,_key,options)=>({auth:{getSession:async()=>({data:{session},error:null}),getUser:async()=>({data:{user},error:null}),onAuthStateChange:()=>({data:{subscription:{unsubscribe(){}}}}),signOut:async()=>({error:null})},rpc:async(name,payload)=>{const response=await options.global.fetch('https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/'+name,{method:'POST',body:JSON.stringify(payload)});return {data:await response.json(),error:null};},from:name=>{const query={select(){return query;},eq(){return query;},order(){return query;},limit(){return query;},async maybeSingle(){const result=await query;return {...result,data:result.data[0]||null};},then(resolve,reject){return options.global.fetch('https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/'+name).then(async response=>({data:await response.json(),error:null})).then(resolve,reject);}};return query;},channel:topic=>{const channel={on(type,spec,callback){subscriptions.push({topic,type,spec,callback});return channel;},subscribe(handler){handler('SUBSCRIBED');return channel;},unsubscribe(){return Promise.resolve();}};return channel;},removeChannel:async()=>{},removeAllChannels:async()=>{}});
+ context={document,console:{log(){},warn(){},error(...args){if(String(args[0]).includes('startup error'))errors.push(args.join(' '));}},URL,URLSearchParams,Response,Request,Headers,Blob,AbortController,TextEncoder,TextDecoder,structuredClone,crypto:crypto.webcrypto,Intl,Date,CustomEvent:class{constructor(type,options){this.type=type;this.detail=options?.detail;}},location:{href:'https://fixture.test/karratha/',origin:'https://fixture.test',pathname:'/karratha/',hash:'#/dashboard',search:'',replace(){}},history:{replaceState(){},pushState(){}},navigator:{onLine:true,userAgent:'structural-node-test'},localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,String(value)),removeItem:key=>storage.delete(key),key:index=>[...storage.keys()][index],get length(){return storage.size;}},sessionStorage:{getItem(){return null;},setItem(){},removeItem(){}},supabase:{createClient:factory},fetch:offlineFetch,innerWidth:1400,innerHeight:900,matchMedia:()=>({matches:false,addEventListener(){},removeEventListener(){}}),addEventListener:(type,handler)=>listeners('window',type,handler),removeEventListener(){},dispatchEvent:event=>dispatch('window',event),setTimeout:(handler,delay=0)=>{if(!delay)queueMicrotask(handler);return ++timer;},clearTimeout(){},setInterval:()=>++timer,clearInterval(){},requestAnimationFrame:()=>++timer,cancelAnimationFrame(){},getComputedStyle:()=>({display:'block',getPropertyValue:()=>''}),MutationObserver:class{observe(){}disconnect(){}},ResizeObserver:class{observe(){}disconnect(){}},alert(){},confirm:()=>false,Element,HTMLElement:Element,HTMLInputElement:Element,HTMLSelectElement:Element,HTMLTextAreaElement:Element,Node:{ELEMENT_NODE:1},CSS:{escape:value=>value}};
+ context.window=context;context.globalThis=context;vm.createContext(context);
+ function load(src){const file=new URL(src,'https://fixture.test/karratha/').pathname.slice('/karratha/'.length);if(loaded.has(file))return;if(file.startsWith('vendor/')||file==='pd135-nuvu-parser.js')return;const absolute=path.join(ui,file);assert.ok(fs.existsSync(absolute),file+' missing own runtime asset');loaded.add(file);let code=fs.readFileSync(absolute,'utf8');if(file==='pd135-api-map.js')code=code.replace(/"ready": (?:false|true)/,'"ready": '+String(ready));vm.runInContext(code,context,{filename:file});}
+ for(const script of html.matchAll(/<script\b[^>]*src="([^"]+)"/g))load(script[1].replaceAll('&amp;','&'));
+ document.readyState='interactive';dispatch('document',{type:'DOMContentLoaded'});await context.PDC_AUTH_READY;for(let i=0;i<12;i++)await new Promise(resolve=>setImmediate(resolve));
+ return {context,ids,requests,loaded,errors,storage,subscriptions};
 }
-test('unmatched card opens original work review without a vehicle',async()=>{
- const h=harness();await h.ready();await h.click({job:'j3'});
- assert.equal(h.e('detail-dialog').open,true);assert.match(h.e('detail-content').innerHTML,/RO-unmatched/);
- assert.match(h.e('detail-content').innerHTML,/Unmatched original description/);assert.match(h.e('detail-content').innerHTML,/Original raw evidence/);
- assert.doesNotMatch(h.e('detail-content').innerHTML,/data-book-operation|data-parts|data-location/);
+test('locked copied native shell binds without issuing any network request',async()=>{const fixture=await boot(false);assert.equal(fixture.requests.length,0);assert.equal(fixture.ids.get('pdc-auth-title').textContent,'Login setup required');assert.equal(fixture.context.PDC_SUPABASE_CONFIG.url,'');assert.ok(fixture.loaded.has('app.js'));assert.equal(fixture.errors.length,0,fixture.errors.join('\n'));});
+test('valid saved own sign-in with server commissioning gate remains locked without operational requests',async()=>{const fixture=await boot(true,false);assert.equal(fixture.ids.get('pdc-auth-title').textContent,'Signed in \u2014 awaiting verification');assert.match(fixture.ids.get('pdc-auth-detail').textContent,/sign-in is saved.*board remains locked/);assert.equal(fixture.context.PDC_AUTH_CONTEXT,undefined);assert.equal(fixture.context.__pdcCachedAccessToken,undefined);assert.equal(fixture.ids.get('app-shell').hasAttribute('inert'),true);assert.equal(fixture.ids.get('pdc-auth-denied-signout').hidden,false);assert.equal(fixture.requests.length,1);assert.ok(fixture.requests[0].url.endsWith('/k135_get_native_engine_context'));for(const registration of fixture.subscriptions)assert.equal(registration.spec.schema,'karratha135_pdc');assert.equal(fixture.errors.length,0,fixture.errors.join('\n'));const saved=await fixture.context.PDC_SUPABASE.auth.getSession();assert.equal(saved.data.session.user.email,'fictional-own135@example.test');});
+test('synthetic own native sign-in and empty module bootstrap use only own mapped requests',async()=>{const fixture=await boot(true);assert.equal(fixture.context.PDC_AUTH_CONTEXT?.centreCode,'135');assert.equal(fixture.context.PDC_AUTH_CONTEXT?.role,'administrator');assert.ok(fixture.requests.some(call=>call.url.endsWith('/k135_get_native_engine_context')));assert.equal(fixture.errors.length,0,fixture.errors.join('\n'));assert.ok(fixture.loaded.has('pdc-new-vehicles.js'));for(const call of fixture.requests)assert.match(call.url,/\/k135_/);for(const registration of fixture.subscriptions)assert.equal(registration.spec.schema,'karratha135_pdc');assert.ok(fixture.ids.get('pdc-password-form'));for(const id of ['dashboard','workshop','qc','parts'])assert.ok(fixture.ids.has(id));
 });
-test('viewer sees no editor or administrator buttons and synthetic edit clicks do not write',async()=>{
- const h=harness({context:{role:'viewer',can_edit:false,can_admin:false,can_import:false}});await h.ready();await h.click({job:'j1'});
- assert.doesNotMatch(h.e('detail-content').innerHTML,/data-operation|data-parts|data-book-operation|data-external|data-deselect/);
- assert.doesNotMatch(h.e('navigation').innerHTML,/Centre settings/);await h.click({operation:'o1'});
- assert.equal(h.e('edit-dialog').open,false);assert.equal(h.calls.filter(call=>call.action).length,0);
-});
-test('active vehicle board does not include unselected and unmatched cards',async()=>{
- const h=harness();await h.ready();assert.match(h.e('page-content').innerHTML,/RO1/);
- assert.doesNotMatch(h.e('page-content').innerHTML,/RO2|RO-unmatched|Second card operation/);
-});
-test('polling preserves dirty open forms and uses the captured expected version',async()=>{
- const h=harness();await h.ready();await h.click({parts:'o1'});assert.equal(h.e('edit-dialog').open,true);
- h.e('edit-content').innerHTML+='DIRTY_UNSAVED_TEXT';const next=structuredClone(baseSnapshot);next.operations[0].version=2;h.setSnapshot(next);await h.poll();
- assert.equal(h.e('edit-dialog').open,true);assert.match(h.e('edit-content').innerHTML,/DIRTY_UNSAVED_TEXT/);
- await h.submit({received:'on',location:'Fictional shelf',notes:'User draft'});
- const save=h.calls.find(call=>call.action==='parts');assert.equal(save.version,1);assert.equal(save.id,'o1');assert.equal(save.data.notes,'User draft');
-});
-test('account or capability loss discards dialogs and source preview/file state',async()=>{
- const h=harness();await h.ready();await h.window.KARRATHA_APP.showView('newvehicles');await tick();
- await h.change({id:'nuvu-file',dataset:{},files:[{name:'Fictional-source.xlsx'}]});assert.match(h.e('page-content').innerHTML,/Fictional-source.xlsx/);
- await h.click({operation:'o1'});assert.equal(h.e('edit-dialog').open,true);
- await h.changeContext({...baseContext,role:'viewer',can_edit:false,can_admin:false,can_import:false,membership_version:2});
- assert.equal(h.e('edit-dialog').open,false);assert.equal(h.e('detail-dialog').open,false);assert.equal(h.e('edit-content').innerHTML,'');
- assert.doesNotMatch(h.e('page-content').innerHTML,/Fictional-source.xlsx|data-apply-import|data-confirm-mapping/);
- await h.changeContext(null);assert.equal(h.e('page-content').innerHTML,'');assert.ok(h.calls.some(call=>call.clear));
-});
-test('approval sends only explicitly selected exact job-card IDs',async()=>{
- const h=harness();await h.ready();h.window.KARRATHA_APP.showView('newvehicles');await tick();
- await h.change({id:'check',dataset:{selectJob:'j2'},checked:true});await h.click({approveSelected:''});
- const saves=h.calls.filter(call=>call.action==='job_selection');assert.equal(saves.length,1);assert.equal(saves[0].id,'j2');assert.equal(saves[0].version,1);assert.equal(saves[0].data.selected,true);
-});
-test('Sunday calendar selection submits ISO weekday seven and a supported increment',async()=>{
- const h=harness();await h.ready();const next=structuredClone(baseSnapshot);
- next.settings[1].value={timezone:'Australia/Perth',working_week:[7],day_start:'06:00',day_end:'16:30',scheduling_increment_minutes:15,break_windows:[],closures:[],future_only:true};
- h.setSnapshot(next);await h.window.KARRATHA_APP.refresh();await h.click({calendarSettings:''});
- assert.match(h.e('edit-content').innerHTML,/name="weekday_7" checked/);
- assert.doesNotMatch(h.e('edit-content').innerHTML,/name="weekday_0"/);
- await h.submit({weekday_7:'on',day_start:'06:00',day_end:'16:30',increment:'15',breaks:'',closures:''});
- const save=h.calls.find(call=>call.action==='setting');assert.deepEqual(Array.from(save.data.value.working_week),[7]);assert.equal(save.data.value.scheduling_increment_minutes,15);
-});
+
+
+

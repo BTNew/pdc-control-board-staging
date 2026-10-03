@@ -2,8 +2,8 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const path=require('node:path');
-global.XLSX=require(path.resolve(__dirname,'./vendor/xlsx/xlsx.full.min.js'));
-const nuvu=require(path.resolve(__dirname,'./karratha/nuvu.js'));
+global.XLSX=require(path.resolve(__dirname,'./karratha/vendor/xlsx/xlsx.full.min.js'));
+const nuvu=require(path.resolve(__dirname,'./karratha/pd135-nuvu-parser.js'));
 const mapping={stock_number:'Stock',repair_order_number:'Job',original_line_number:'Line',operation_description:'Description',
  source_estimated_hours:'Hours',store_code:'Store',stage_code:'Stage',parts_required:'Parts',dealer_code:'Dealer'};
 const header=['Stock','Job','Line','Description','Hours','Store','Stage','Parts','Dealer'];
@@ -84,3 +84,4 @@ test('long source description is neither truncated nor split into fake operation
  assert.equal(rows[0].operation_description,description);
  assert.equal(rows[0].raw_row.Description,description);
 });
+
