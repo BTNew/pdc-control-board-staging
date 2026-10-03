@@ -8,7 +8,7 @@ const vm = require('node:vm');
 const { findPrivilegedTokens } = require('./check_frontend_secrets.js');
 
 const ENTRY_POINTS = Object.freeze([
-  'index.html', 'sales/index.html', 'docs/bus4x4-user-guide.html',
+  'index.html', 'sales/index.html', 'karratha/index.html', 'docs/bus4x4-user-guide.html',
   'no-vehicles.html', 'staging.html', 'test-50.html', 'test-75.html', 'test-100.html'
 ]);
 const RUNTIME_FILES = Object.freeze([
@@ -21,6 +21,9 @@ const RUNTIME_FILES = Object.freeze([
   'docs/assets/bus4x4-guide/stage-parts.png', 'docs/assets/bus4x4-guide/supplier-check.png',
   'docs/assets/bus4x4-guide/team.png', 'docs/bus4x4-user-guide.html',
   'email-board-data.js', 'favicon.svg', 'index.html',
+  'karratha/api.js', 'karratha/app.js', 'karratha/auth.js',
+  'karratha/calendar.css', 'karratha/calendar.js', 'karratha/config.js',
+  'karratha/index.html', 'karratha/karratha.css', 'karratha/nuvu.js',
   'navision-backend-service.js', 'navision-vin.js', 'no-vehicles.html',
   'pdc-ai-auditor-stage-a.js', 'pdc-ai-intake-review.css', 'pdc-ai-intake-review.js',
   'pdc-ai-intake-service.js', 'pdc-auth-registration.js', 'pdc-auth.js',
@@ -40,6 +43,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-sublet-intake.js', 'pdc-supabase-config.staging.js', 'pdc-update-history.css',
   'pdc-update-history.js', 'pdc-vehicle-handover.js', 'pdc-workshop-hours.js',
   'pdc-workshop-tile-cleanup.js', 'pdc-workshop-usability.js',
+  'pd-department-navigation.js',
   'sales/assets/broome-toyota-logo.png', 'sales/build-requirements.css',
   'sales/build-requirements.js', 'sales/crm-workspace.css',
   'sales/crm-workspace.js', 'sales/customer-emails.js', 'sales/dashboard-tools.js',
@@ -55,6 +59,7 @@ const RUNTIME_FILES = Object.freeze([
   'vehicle-modal-identity.js', 'vehicle-requirements-guard.js',
   'vendor/pdfjs/LICENSE', 'vendor/pdfjs/pdf.min.js', 'vendor/pdfjs/pdf.worker.min.js',
   'vendor/qz/qz-tray.js', 'vendor/supabase/supabase-2.110.5.js',
+  'vendor/xlsx/LICENSE', 'vendor/xlsx/xlsx.full.min.js',
   'workshop-booking-timing.js', 'workshop-data-service.js', 'workshop-display-identity.js',
   'workshop-eligibility.js', 'workshop-navigation.js', 'workshop-planner.css',
   'workshop-planner.js', 'workshop-realtime.js', 'workshop-reference-data-service.js',

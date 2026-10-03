@@ -886,7 +886,11 @@
     ],
     "presentation": "Tick boxes cycle four choices on desktop/mobile; separate private per-item not_required flags retain a deliberate decision while preserving legacy order/completion fields and existing empty values.",
     "explicit_not_required": {
-      "private_fields": ["tint_not_required", "build_not_required", "tray_not_required"],
+      "private_fields": [
+        "tint_not_required",
+        "build_not_required",
+        "tray_not_required"
+      ],
       "migration_version": "20261003010048",
       "migration_file": "supabase/migrations/20261003010048_broome_sales_ordering_four_states.sql",
       "migration_sha256": "489fe63482cab77dbe3542cc92789b25de1f865779cb02ead78b32898731553c",
@@ -995,5 +999,14 @@
     "statistics": "Settled contracts, RSA, Access and MVI counts plus amount totals by selected month, Broome/Pilbara and New/Used; no settlement month is guessed.",
     "privacy": "Finance-edit capability controls full application fields; ordinary salespeople see only their assigned redacted applications.",
     "operational_writes": false
+  },
+  "karratha_department_migration": {
+    "version": "20261003084740",
+    "name": "karratha_pdc_isolated_workshop",
+    "file": "supabase/migrations/20261003084740_karratha_pdc_isolated_workshop.sql",
+    "sha256": "7aa360a7ada6b3e49ddf07420ebfa24de4ef72ba8b6a24de1854c5ea526d5ced",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "source": "Exact guarded staging migration; existing object/role/data fingerprints unchanged in its transaction. Independent14-table recovery and full lifecycle rollback suites passed. Karratha operational graph and membership are separate; shared Navision read-only."
   }
 }
