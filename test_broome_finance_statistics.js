@@ -34,7 +34,7 @@ const applications=[
  {id:'undated',customer:'Example Undated',settlement:'Yes',financier:'OTHER',naf:3000,finance_comm:0.10,dof_daf:0.20,salesperson_code:'BG',version:1,updated_at:month+'-01T00:00:00Z'}
 ];
 async function loaded(h,editor=true,records=applications){const p=h.window.BROOME_SALES_FINANCE.refresh();h.calls[0].resolve({data:{context:{role:editor?'administrator':'salesperson',can_edit_finance:editor},entries:records,vehicle_options:[],salespeople:[]}});await p;}
-function view(h,value){h.el('sales-finance').events.change({target:{value,hasAttribute:k=>k==='data-finance-view'}});}
+function view(h,value){h.el('sales-finance').events.click({target:{closest:()=>({dataset:{financeView:value},hasAttribute:k=>k==='data-finance-view'})}});}
 function period(h,value){h.el('sales-finance').events.change({target:{value,hasAttribute:k=>k==='data-finance-period'}});}
 function action(h,key,id){h.el('sales-finance').events.click({target:{closest:()=>({hasAttribute:()=>false,dataset:{[key]:id}})}});}
 test('monthly settlement totals use real dates, retain legacy undated records and sum decimal cents',()=>{
