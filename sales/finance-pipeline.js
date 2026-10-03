@@ -7,7 +7,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 function money(value){if(value===''||value==null)return null;const text=String(value).trim();if(!/^\d+(?:\.\d{1,2})?$/.test(text)||Number(text)>999999999.99)throw new Error('Use a positive amount with up to two decimal places.');return Number(text);}
 function total(data){return ['finance_comm','dof_daf','mvi','rsa'].reduce((n,k)=>n+Math.round((Number(data[k])||0)*100),0)/100;}
 function patch(key,value){
- if(key==='settlement_date'){const date=String(value||'');if(date&&!validSettlementDate(date))throw new Error('Use a valid settlement date up to today.');return {settlement_date:date};}
+ if(key==='settlement_date'){const date=String(value||'');if(date&&!validSettlementDate(date))throw new Error('Use a valid settlement date up to today.');return {settlement:date?'Yes':'No',settlement_date:date};}
  if(!columns.some(([k])=>k===key)||key==='total_comm')throw new Error('Choose an editable finance field.');
  if(amounts.has(key))return {[key]:money(value)};
  const text=String(value??'').trim();if(text.length>(key==='notes'?4000:200))throw new Error('This field is too long.');
@@ -53,6 +53,7 @@ function financeStatistics(rows,month=perthDay().slice(0,7),filters={}){
 
 const filterAmounts=new Set([...amounts,'total_comm']);
 function financeFilterValue(row,key){
+ if(key==='settlement')return row.settlement==='Yes'?(validSettlementDate(row.settlement_date||'')?row.settlement_date:'undated'):'';
  if(key==='total_comm')return String(total(row));
  const value=row[key];if(value==null||String(value).trim()==='')return '';
  return filterAmounts.has(key)&&Number.isFinite(Number(value))?String(Number(value)):String(value).trim();
@@ -84,30 +85,40 @@ const token=()=>options?.getToken?.(),selected=()=>options?.getSalesperson?.()||
 const editor=()=>ctx?.can_edit_finance===true;
 const visible=()=>entries.filter(r=>!selected()||r.salesperson_code===selected());
 const candidates=()=>refs.filter(r=>!selected()||r.salesperson_code===selected());
-let financeView='pipeline',statisticsMonth=perthDay().slice(0,7),statisticsGroup='all',statisticsNewUsed='all',dateEditing=null;
+let financeView='pipeline',statisticsMonth=perthDay().slice(0,7),statisticsGroup='all',statisticsNewUsed='all',dateRenderPending=false;
 let vehicleMatches=[],activeMatch=-1,pickedCustomer='',columnFilters={},filterEditing=null;
 function close(){vehicleMatches=[];activeMatch=-1;pickedCustomer='';creating=null;createBusy=false;$('finance-add-dialog').close();$('finance-add-content').innerHTML='';}
-function clear(){closeFilter();columnFilters={};closeDate();financeView='pipeline';statisticsMonth=perthDay().slice(0,7);statisticsGroup='all';statisticsNewUsed='all';epoch++;request++;entries=[];refs=[];people=[];ctx=null;drafts.clear();busy.clear();message='';principal=token();scope=selected();close();$('sales-finance').innerHTML='';}
-function guard(){if(token()!==principal){clear();return;}if(selected()!==scope){scope=selected();epoch++;closeFilter();columnFilters={};closeDate();drafts.clear();busy.clear();message='';close();}}
+function clear(){closeFilter();columnFilters={};dateRenderPending=false;financeView='pipeline';statisticsMonth=perthDay().slice(0,7);statisticsGroup='all';statisticsNewUsed='all';epoch++;request++;entries=[];refs=[];people=[];ctx=null;drafts.clear();busy.clear();message='';principal=token();scope=selected();close();$('sales-finance').innerHTML='';}
+function guard(){if(token()!==principal){clear();return true;}if(selected()!==scope){scope=selected();epoch++;closeFilter();columnFilters={};dateRenderPending=false;drafts.clear();busy.clear();message='';close();return true;}return false;}
 function select(key,value,attrs){return '<select '+attrs+' title="'+esc(value||'Not selected')+'">'+(choices[key].includes(value)?choices[key]:[value,...choices[key]]).map(v=>'<option value="'+esc(v)+'"'+(v===value?' selected':'')+'>'+esc(v||'—')+'</option>').join('')+'</select>';}
 function input(key,value,attrs){return choices[key]?select(key,value,attrs):key==='notes'?'<input type="text" maxlength="4000" '+attrs+' value="'+esc(value||'')+'" title="'+esc(value||'')+'">':'<input '+attrs+' type="'+(amounts.has(key)?'number':'text')+'" '+(amounts.has(key)?'min="0" max="999999999.99" step="0.01"':'maxlength="200"')+' value="'+esc(value??'')+'">';}
-function render(){
- guard();if(!options?.getContext?.()){$('sales-finance').innerHTML='';return;}
- // Do not replace controls while the user is typing, or lose unsubmitted cell edits on a poll.
- const focus=root.document.activeElement,restore=focus?.dataset?.financeId?{id:focus.dataset.financeId,key:focus.dataset.financeKey,start:focus.selectionStart,end:focus.selectionEnd}:null;
+function render(force=false){
+ const scopeChanged=guard();if(!options?.getContext?.()){$('sales-finance').innerHTML='';return;}
+ // Native date inputs keep partly typed day/month segments internally. Leave a focused
+ // date control intact on polls; refresh it on blur, unless scope or permission is lost.
+ const focus=root.document.activeElement;
+ if(!force&&!scopeChanged&&focus?.dataset?.financeKey==='settlement_date'&&editor()){
+  const row=visible().find(r=>r.id===focus.dataset.financeId);
+  if(row&&!busy.has(row.id)){dateRenderPending=true;const d=drafts.get(row.id),tr=focus.closest('tr');if((d&&d.version!==row.version)||Number(focus.dataset.financeVersion)!==row.version){tr.querySelector('[data-finance-save]').disabled=true;message='This finance entry changed. Discard edits and refresh.';const status=$('sales-finance').querySelector('[role="status"]');if(status)status.textContent=message;}return;}
+ }
+ dateRenderPending=false;
+ const restore=focus?.dataset?.financeId?{id:focus.dataset.financeId,key:focus.dataset.financeKey,start:focus.selectionStart,end:focus.selectionEnd}:null;
 
  const all=visible(),report=financeStatistics(all,statisticsMonth,financeView==='statistics'?{group:statisticsGroup,newUsed:statisticsNewUsed}:{}),baseList=financeView==='statistics'?report.settled:financeView==='all'?all:report.pipeline;
  const list=financeView==='statistics'?baseList:filterFinanceEntries(baseList,columnFilters,editor());
- const widths=[17,5,6,6,4,5.5,5,4,4,6,6,6,17,4,4.5];
+ const widths=[17,5,6,6,4,5.5,5,4,4,6,6,8.5,14.5,4,4.5];
  const table='<div class="table-wrap finance-table-wrap"><table class="finance-pipeline-table" aria-label="Finance applications"><colgroup>'+widths.map(w=>'<col style="width:'+w+'%">').join('')+'</colgroup><thead><tr>'+columns.map(([k,label])=>'<th scope="col">'+(financeView==='statistics'||(!editor()&&privateFields.has(k))?label:'<button type="button" class="finance-header-filter'+(columnFilters[k]?' active':'')+'" data-finance-filter="'+k+'" aria-label="Filter '+label+'" aria-haspopup="dialog" title="'+(columnFilters[k]?'Filter applied — ':'')+'Filter '+label+'"><span>'+label+'</span><span aria-hidden="true">'+(columnFilters[k]?'●':'▾')+'</span></button>')+'</th>').join('')+'</tr></thead><tbody>'+list.map(r=>{
   const draft=drafts.get(r.id),data={...r,...draft?.data,...draft?.raw},saving=busy.has(r.id),conflict=draft&&draft.version!==r.version,invalid=Object.keys(draft?.errors||{}).length>0;
   return '<tr>'+columns.map(([k,label])=>{
    const hidden=!editor()&&privateFields.has(k),value=k==='total_comm'?total({...r,...draft?.data}):data[k];
    let control=k==='total_comm'?hidden?'—':'<span class="finance-amount" title="'+esc(currency(value))+'">'+esc(currency(value))+'</span>':
-    hidden?'—':editor()?input(k,value,'data-finance-id="'+esc(r.id)+'" data-finance-key="'+k+'" aria-label="'+esc(label+' for '+r.customer)+'"'+(saving?' disabled':'')):esc(value??'—');
+    hidden?'—':editor()?input(k,value,'data-finance-id="'+esc(r.id)+'" data-finance-key="'+k+'" data-finance-version="'+r.version+'" aria-label="'+esc(label+' for '+r.customer)+'"'+(saving?' disabled':'')):esc(value??'—');
    if(k==='customer')control='<div class="finance-customer-cell">'+control+(editor()?'<div class="finance-row-actions"><button class="small-button" type="button" data-finance-save="'+esc(r.id)+'" aria-label="Save row for '+esc(r.customer)+'" '+(!draft?'hidden ':'')+(!draft||saving||conflict||invalid?'disabled':'')+'>'+(saving?'…':'Save')+'</button><button class="small-button" type="button" data-finance-discard="'+esc(r.id)+'" aria-label="Discard edits for '+esc(r.customer)+'" '+(!draft?'hidden':'')+'>×</button></div>':'')+'</div>'+(conflict?'<small class="finance-conflict">Changed elsewhere. Discard edits and refresh.</small>':'');
-   if(k==='settlement'&&data.settlement==='Yes')control='<div class="finance-settlement-cell">'+control+(editor()?'<button type="button" class="finance-date-button" data-finance-date="'+esc(r.id)+'" aria-label="Settlement date for '+esc(r.customer)+'" title="'+esc(data.settlement_date?'Settlement date: '+data.settlement_date:'Add settlement date')+'">▦</button>':'')+'</div>';
-   const state=['approval','settlement','access','payout_complete'].includes(k)?data[k]==='Yes'?' finance-yes':data[k]==='No'?' finance-no':'':'';
+   if(k==='settlement'){
+    const date=data.settlement_date||'',undated=data.settlement==='Yes'&&!validSettlementDate(date)&&!draft?.errors?.settlement_date;
+    control=(editor()?'<input class="finance-settlement-date" type="date" data-finance-id="'+esc(r.id)+'" data-finance-key="settlement_date" data-finance-version="'+r.version+'" aria-label="Settlement date for '+esc(r.customer)+'" value="'+esc(date)+'" min="1900-01-01" max="'+perthDay()+'"'+(saving?' disabled':'')+'>':esc(validSettlementDate(date)?settlementDateLabel(date):undated?'Settled — date not recorded':'—'))+(editor()&&undated?'<small class="finance-settlement-undated">Settled — date not recorded</small>':'');
+   }
+   const state=k==='settlement'?(validSettlementDate(data.settlement_date||'')&&!draft?.errors?.settlement_date?' finance-yes':''):['approval','access','payout_complete'].includes(k)?data[k]==='Yes'?' finance-yes':data[k]==='No'?' finance-no':'':'';
    return '<td class="'+state+'" data-label="'+label+'">'+control+'</td>';
   }).join('')+'</tr>';
  }).join('')+'</tbody></table></div>';
@@ -136,7 +147,7 @@ function renderFilter(){
  if(rule.mode==='value'&&!values.includes(rule.value))values.push(rule.value);
  const chosen=rule.mode==='blank'?'blank':rule.mode==='value'?'value:'+rule.value:'all';
  const label=columns.find(([k])=>k===key)[1],numeric=filterAmounts.has(key),text=['customer','notes'].includes(key);
- $('finance-filter-content').innerHTML='<div class="panel-header"><h2 id="finance-filter-title">Filter '+esc(label)+'</h2><button class="small-button" type="button" data-finance-filter-close>Close</button></div><form id="finance-filter-form"><label><span>Column</span><select name="column" aria-label="Filter column">'+columns.filter(([k])=>editor()||!privateFields.has(k)).map(([k,l])=>'<option value="'+k+'"'+(k===key?' selected':'')+'>'+l+'</option>').join('')+'</select></label>'+(text?'<label><span>Contains</span><input name="query" type="search" maxlength="4000" autocomplete="off" value="'+esc(rule.query||'')+'" placeholder="Search '+esc(label.toLowerCase())+'"></label>':'')+'<label><span>Value</span><select name="value" aria-label="Filter value"><option value="all"'+(chosen==='all'?' selected':'')+'>All values</option><option value="blank"'+(chosen==='blank'?' selected':'')+'>Not recorded</option>'+values.map(v=>'<option value="'+esc('value:'+v)+'"'+(chosen==='value:'+v?' selected':'')+'>'+esc(numeric?currency(Number(v)):v.length>100?v.slice(0,100)+'…':v)+'</option>').join('')+'</select></label>'+(numeric?'<div class="finance-filter-range"><label><span>Minimum</span><input name="min" type="number" min="0" max="999999999.99" step="0.01" value="'+esc(rule.min??'')+'"></label><label><span>Maximum</span><input name="max" type="number" min="0" max="999999999.99" step="0.01" value="'+esc(rule.max??'')+'"></label></div>':'')+'<div class="panel-actions"><button class="primary" type="submit">Apply filter</button><button class="small-button" type="button" data-finance-filter-clear>Clear this filter</button></div><p id="finance-filter-error" role="alert"></p></form>';
+ $('finance-filter-content').innerHTML='<div class="panel-header"><h2 id="finance-filter-title">Filter '+esc(label)+'</h2><button class="small-button" type="button" data-finance-filter-close>Close</button></div><form id="finance-filter-form"><label><span>Column</span><select name="column" aria-label="Filter column">'+columns.filter(([k])=>editor()||!privateFields.has(k)).map(([k,l])=>'<option value="'+k+'"'+(k===key?' selected':'')+'>'+l+'</option>').join('')+'</select></label>'+(text?'<label><span>Contains</span><input name="query" type="search" maxlength="4000" autocomplete="off" value="'+esc(rule.query||'')+'" placeholder="Search '+esc(label.toLowerCase())+'"></label>':'')+'<label><span>Value</span><select name="value" aria-label="Filter value"><option value="all"'+(chosen==='all'?' selected':'')+'>All values</option><option value="blank"'+(chosen==='blank'?' selected':'')+'>Not recorded</option>'+values.map(v=>'<option value="'+esc('value:'+v)+'"'+(chosen==='value:'+v?' selected':'')+'>'+esc(numeric?currency(Number(v)):key==='settlement'?v==='undated'?'Settled — date not recorded':settlementDateLabel(v):v.length>100?v.slice(0,100)+'…':v)+'</option>').join('')+'</select></label>'+(numeric?'<div class="finance-filter-range"><label><span>Minimum</span><input name="min" type="number" min="0" max="999999999.99" step="0.01" value="'+esc(rule.min??'')+'"></label><label><span>Maximum</span><input name="max" type="number" min="0" max="999999999.99" step="0.01" value="'+esc(rule.max??'')+'"></label></div>':'')+'<div class="panel-actions"><button class="primary" type="submit">Apply filter</button><button class="small-button" type="button" data-finance-filter-clear>Clear this filter</button></div><p id="finance-filter-error" role="alert"></p></form>';
 }
 function applyFilter(event){
  event.preventDefault();guard();const key=filterEditing;if(!key||(!editor()&&privateFields.has(key)))return;
@@ -149,7 +160,7 @@ function applyFilter(event){
    const min=money(rule.min),max=money(rule.max);if(min!==null&&max!==null&&min>max)throw new Error('Minimum must be no greater than maximum.');
   }
   if(rule.mode==='all'&&!rule.query&&!rule.min&&!rule.max)delete columnFilters[key];else columnFilters[key]=rule;
-  closeFilter();render();focusFilter(key);
+  closeFilter();render(true);focusFilter(key);
  }catch(error){$('finance-filter-error').textContent=error.message||'Check the filter values.';}
 }
 function focusFilter(key){
@@ -165,13 +176,14 @@ async function refresh(){
   const {data,error}=await root.PDC_SUPABASE.rpc('get_broome_finance_pipeline');
   if(identity!==token()||generation!==epoch||sequence!==request)return;
   if(error||!Array.isArray(data?.entries)||!['administrator','salesperson'].includes(data.context?.role))throw error||new Error('Finance applications could not be loaded.');
-  if(editor()&&!data.context.can_edit_finance){drafts.clear();busy.clear();columnFilters={};closeFilter();close();closeDate();}
+  if(editor()&&!data.context.can_edit_finance){drafts.clear();busy.clear();columnFilters={};closeFilter();close();dateRenderPending=false;}
   ctx=data.context;entries=data.entries;refs=data.vehicle_options||[];people=data.salespeople||[];
   options.onLoaded?.(projection(entries));
- }catch(e){if(identity!==token()||generation!==epoch||sequence!==request)return;entries=[];refs=[];people=[];ctx=null;drafts.clear();columnFilters={};closeFilter();close();closeDate();options.onLoaded?.([]);message=e.message||'Finance could not be loaded. Refresh to retry.';}
+ }catch(e){if(identity!==token()||generation!==epoch||sequence!==request)return;entries=[];refs=[];people=[];ctx=null;drafts.clear();columnFilters={};closeFilter();close();dateRenderPending=false;options.onLoaded?.([]);message=e.message||'Finance could not be loaded. Refresh to retry.';}
  if(options.getView?.()==='finance')render();
 }
 
+function settlementDateLabel(value){return /^\d{4}-\d{2}-\d{2}$/.test(value)?value.slice(8,10)+'/'+value.slice(5,7)+'/'+value.slice(0,4):value;}
 function currency(value){return new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD',maximumFractionDigits:2}).format(value);}
 function monthLabel(key){if(key==='all')return 'All months';if(key==='undated')return 'Date not recorded';return new Date(key+'-01T00:00:00Z').toLocaleDateString('en-AU',{timeZone:'Australia/Perth',month:'long',year:'numeric'});}
 function monthOptions(report){
@@ -185,24 +197,7 @@ function statisticsHtml(report,all){
  if(editor())cards.push(['RSI products (RSA)',report.rsaCount,currency(report.rsaTotal)],['MVI products',report.mviCount,currency(report.mviTotal)],['Settled NAF',currency(report.naf)],['Settled commission',currency(report.commission)],['Pipeline NAF',currency(report.pipelineNaf)]);
  const monthly='<table class="finance-statistics-table"><thead><tr><th>Month</th><th>Contracts</th><th>Access</th>'+(editor()?'<th>RSI</th><th>MVI</th><th>NAF</th><th>Commission</th>':'')+'</tr></thead><tbody>'+report.months.map(r=>'<tr><td><button type="button" class="finance-month-link" data-finance-month="'+r.month+'">'+esc(monthLabel(r.month))+'</button></td><td>'+r.count+'</td><td>'+r.accessCount+'</td>'+(editor()?'<td>'+r.rsaCount+'</td><td>'+r.mviCount+'</td><td>'+esc(currency(r.naf))+'</td><td>'+esc(currency(r.commission))+'</td>':'')+'</tr>').join('')+'</tbody></table>';
  const filters='<label class="finance-month-picker"><span>Location</span><select data-finance-group aria-label="Finance location">'+[['all','All locations'],['broome','Broome'],['pilbara','Pilbara']].map(([key,label])=>'<option value="'+key+'" '+(statisticsGroup===key?'selected':'')+'>'+label+'</option>').join('')+'</select></label><label class="finance-month-picker"><span>New / Used</span><select data-finance-new-used aria-label="Finance New / Used">'+[['all','New and Used'],['new','New'],['used','Used']].map(([key,label])=>'<option value="'+key+'" '+(statisticsNewUsed===key?'selected':'')+'>'+label+'</option>').join('')+'</select></label>';
- return '<section class="finance-statistics"><div class="finance-stat-filters"><label class="finance-month-picker"><span>Settlement month</span><select data-finance-period aria-label="Settlement month">'+monthOptions(report).map(key=>'<option value="'+key+'" '+(key===statisticsMonth?'selected':'')+'>'+esc(monthLabel(key))+'</option>').join('')+'</select></label>'+filters+'</div><p class="finance-stat-note">Contracts and products are counted on applications settled in the selected period. RSI uses the RSA column; RSI and MVI are counted when an amount is recorded above $0. Pilbara includes Port Hedland entries.</p><div class="finance-stat-cards">'+cards.map(([label,value,amount])=>'<article><span>'+label+'</span><strong>'+value+'</strong>'+(amount?'<small>'+esc(amount)+' total</small>':'')+'</article>').join('')+'</div>'+(report.undated?'<p class="finance-undated">'+report.undated+' settled '+(report.undated===1?'entry has':'entries have')+' no settlement date. Choose Date not recorded and use the date button to assign the correct month.</p>':'')+'<div class="finance-stat-panels"><section><h3>Previous months</h3>'+(report.months.length?monthly:'<p>No dated settlements yet.</p>')+'</section>'+(editor()?'<section><h3>Financier overview</h3><table class="finance-statistics-table"><thead><tr><th>Financier</th><th>Pipeline</th><th>Settled in period</th></tr></thead><tbody>'+report.financiers.map(r=>'<tr><td>'+r.name+'</td><td>'+r.pipeline+'</td><td>'+r.settled+'</td></tr>').join('')+'</tbody></table></section>':'')+'</div></section>';
-}
-function closeDate(){dateEditing=null;$('finance-settlement-date-dialog').close();$('finance-settlement-date-content').innerHTML='';}
-function openDate(id){
- guard();const row=visible().find(r=>r.id===id),draft=drafts.get(id),data={...row,...draft?.data,...draft?.raw};
- if(!editor()||!row||data.settlement!=='Yes'||busy.has(id))return;
- dateEditing={id,version:draft?.version||row.version};
- $('finance-settlement-date-content').innerHTML='<h2 id="finance-settlement-date-title">Settlement date</h2><p>'+esc(row.customer)+'</p><form id="finance-settlement-date-form"><label><span>Date settled</span><input type="date" name="settlement_date" value="'+esc(data.settlement_date||perthDay())+'" min="1900-01-01" max="'+perthDay()+'" required></label><p class="tracking-note">Choose the actual settlement date, then save the finance row.</p><div class="panel-actions"><button type="submit" class="primary">Use date</button><button type="button" class="small-button" data-finance-date-close>Cancel</button></div><p id="finance-date-error" role="status"></p></form>';
- $('finance-settlement-date-dialog').showModal();
-}
-function useDate(e){
- e.preventDefault();guard();if(!dateEditing||!editor())return;
- const row=visible().find(r=>r.id===dateEditing.id);if(!row||row.version!==dateEditing.version){closeDate();message='This finance entry changed. Refresh before saving.';render();return;}
- try{
-  const data=patch('settlement_date',new FormData(e.target).get('settlement_date'));if(!data.settlement_date)throw new Error('Choose the settlement date.');
-  const d=drafts.get(row.id)||{version:row.version,data:{},raw:{},errors:{}};Object.assign(d.data,data);delete d.errors.settlement_date;drafts.set(row.id,d);
-  closeDate();message='Settlement date entered. Save the row to confirm it.';render();
- }catch(error){$('finance-date-error').textContent=error.message;}
+ return '<section class="finance-statistics"><div class="finance-stat-filters"><label class="finance-month-picker"><span>Settlement month</span><select data-finance-period aria-label="Settlement month">'+monthOptions(report).map(key=>'<option value="'+key+'" '+(key===statisticsMonth?'selected':'')+'>'+esc(monthLabel(key))+'</option>').join('')+'</select></label>'+filters+'</div><p class="finance-stat-note">Contracts and products are counted on applications settled in the selected period. RSI uses the RSA column; RSI and MVI are counted when an amount is recorded above $0. Pilbara includes Port Hedland entries.</p><div class="finance-stat-cards">'+cards.map(([label,value,amount])=>'<article><span>'+label+'</span><strong>'+value+'</strong>'+(amount?'<small>'+esc(amount)+' total</small>':'')+'</article>').join('')+'</div>'+(report.undated?'<p class="finance-undated">'+report.undated+' settled '+(report.undated===1?'entry has':'entries have')+' no settlement date. Choose Date not recorded, enter the actual date in Settlement and save the row to assign the correct month.</p>':'')+'<div class="finance-stat-panels"><section><h3>Previous months</h3>'+(report.months.length?monthly:'<p>No dated settlements yet.</p>')+'</section>'+(editor()?'<section><h3>Financier overview</h3><table class="finance-statistics-table"><thead><tr><th>Financier</th><th>Pipeline</th><th>Settled in period</th></tr></thead><tbody>'+report.financiers.map(r=>'<tr><td>'+r.name+'</td><td>'+r.pipeline+'</td><td>'+r.settled+'</td></tr>').join('')+'</tbody></table></section>':'')+'</div></section>';
 }
 function add(){guard();if(!editor())return;creating={id:root.crypto.randomUUID()};createBusy=false;
  $('finance-add-content').innerHTML='<div class="panel-header"><div><h2 id="finance-add-title">Add finance entry</h2><p>Link an existing vehicle, or add a finance customer.</p></div><button class="small-button" type="button" data-finance-close>Close finance entry</button></div><form id="finance-add-form" class="finance-add-form"><fieldset class="finance-mode"><legend>Application</legend><label><input type="radio" name="mode" value="existing" checked> Find existing vehicle</label><label><input type="radio" name="mode" value="new"> Customer only</label></fieldset><div id="finance-existing-fields"><div class="finance-find-vehicle"><label><span>Find vehicle</span><input id="finance-vehicle-search" type="search" placeholder="Stock, Toyota order, customer or vehicle" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="finance-vehicle-matches" autocomplete="off"></label><div id="finance-vehicle-matches" class="finance-vehicle-matches" role="listbox" aria-label="Matching vehicles" hidden></div><p id="finance-vehicle-match-status" class="finance-match-status" role="status" aria-live="polite"></p></div><label><span>Existing vehicle</span><select name="tracking_id" id="finance-vehicle-picker"></select></label></div><div id="finance-new-fields" hidden><label><span>Salesperson (optional)</span><select name="salesperson_code"><option value="">Unassigned</option>'+people.map(p=>'<option value="'+esc(p.code)+'"'+(p.code===(selected()||ctx.salesperson_code)?' selected':'')+'>'+esc(p.code+' · '+p.name)+'</option>').join('')+'</select></label></div><label><span>Customer</span><input name="customer" maxlength="200" required></label><label><span>New / Used</span>'+select('new_used','New','name="new_used"')+'</label><label><span>Group</span>'+select('group_name','Broome','name="group_name"')+'</label><label><span>Financier</span>'+select('financier','','name="financier"')+'</label><p class="tracking-note">Enter the remaining application details on the Finance page after adding the entry.</p><button class="primary" type="submit">Add finance entry</button><p id="finance-add-message" role="status"></p></form>';
@@ -245,13 +240,14 @@ function chooseVehicle(id){
 }
 async function saveRow(id){
  guard();const row=visible().find(r=>r.id===id),draft=drafts.get(id);if(!editor()||!row||!draft||busy.has(id)||Object.keys(draft.errors||{}).length)return;
- const identity=token(),generation=epoch;busy.add(id);render();
+ if(draft.version!==row.version){message='This finance entry changed. Discard edits and refresh.';render(true);return;}
+ const identity=token(),generation=epoch;busy.add(id);render(true);
  try{
   const {data,error}=await root.PDC_SUPABASE.rpc('save_broome_finance_application',{p_id:id,p_tracking_id:row.tracking_id||null,p_vehicle:null,p_salesperson_code:null,p_data:draft.data,p_expected_version:draft.version});
   if(identity!==token()||generation!==epoch)return;if(error||!data?.record)throw error||new Error('Finance was not saved.');
   entries=entries.map(r=>r.id===id?data.record:r);drafts.delete(id);message='Finance entry saved.';options.onLoaded?.(projection(entries));
  }catch(e){if(identity===token()&&generation===epoch)message=e.message||'Finance was not saved. Your edits remain in the row.';}
- finally{if(identity===token()&&generation===epoch){busy.delete(id);render();}}
+ finally{if(identity===token()&&generation===epoch){busy.delete(id);render(true);}}
 }
 async function create(e){
  e.preventDefault();guard();if(!creating||createBusy||!editor())return;const form=e.target,identity=token(),generation=epoch,id=creating.id;
@@ -263,29 +259,39 @@ async function create(e){
   createBusy=true;form.querySelector('button[type="submit"]').disabled=true;
   const {data,error}=await root.PDC_SUPABASE.rpc('save_broome_finance_application',{p_id:id,p_tracking_id:tracking||null,p_vehicle:vehicle,p_salesperson_code:existing?null:values.get('salesperson_code')||null,p_data:fields,p_expected_version:0});
   if(identity!==token()||generation!==epoch||creating?.id!==id)return;if(error||!data?.record)throw error||new Error('Finance entry was not added.');
-  entries=[...entries.filter(r=>r.id!==id),data.record];message='Finance entry added. Enter the application details in its row.';options.onLoaded?.(projection(entries));close();render();
+  entries=[...entries.filter(r=>r.id!==id),data.record];message='Finance entry added. Enter the application details in its row.';options.onLoaded?.(projection(entries));close();render(true);
  }catch(error){if(identity===token()&&generation===epoch&&creating?.id===id)$('finance-add-message').textContent=error.message||'Finance entry was not added.';}
  finally{if(identity===token()&&generation===epoch&&creating?.id===id){createBusy=false;form.querySelector('button[type="submit"]').disabled=false;}}
 }
 function init(settings){
  options=settings;principal=token();scope=selected();
  $('sales-finance').addEventListener('input',e=>{
-  const t=e.target,id=t.dataset.financeId,key=t.dataset.financeKey;if(!id||!key||!editor()||busy.has(id))return;const row=visible().find(r=>r.id===id);if(!row)return;
-  const d=drafts.get(id)||{version:row.version,data:{},raw:{},errors:{}};d.raw[key]=t.value;drafts.set(id,d);
-  try{Object.assign(d.data,patch(key,t.value));delete d.errors[key];if(key==='settlement')d.data.settlement_date=t.value==='Yes'?(d.data.settlement_date||row.settlement_date||perthDay()):'';const tr=t.closest('tr');tr.querySelector('[data-finance-save]').hidden=false;tr.querySelector('[data-finance-discard]').hidden=false;tr.querySelector('[data-finance-save]').disabled=Object.keys(d.errors).length>0||d.version!==row.version;const totalCell=tr.querySelector('[data-label="Total Comm"]');if(totalCell){const value=currency(total({...row,...d.data})),amount=totalCell.querySelector('.finance-amount');if(amount){amount.textContent=value;amount.title=value;}}message='';if(key==='settlement')render();}
-  catch(error){d.errors[key]=error.message;message=error.message;t.closest('tr').querySelector('[data-finance-save]').disabled=true;const status=$('sales-finance').querySelector('[role="status"]');if(status)status.textContent=message;}
+  guard();const t=e.target,id=t.dataset.financeId,key=t.dataset.financeKey;if(!id||!key||!editor()||busy.has(id))return;const row=visible().find(r=>r.id===id);if(!row)return;
+  const displayedVersion=Number(t.dataset.financeVersion),d=drafts.get(id)||{version:Number.isInteger(displayedVersion)?displayedVersion:row.version,data:{},raw:{},errors:{}};d.raw[key]=t.value;drafts.set(id,d);
+  const tr=t.closest('tr'),save=tr.querySelector('[data-finance-save]');save.hidden=false;tr.querySelector('[data-finance-discard]').hidden=false;
+  try{
+   if(key==='settlement_date'&&t.validity?.badInput)throw new Error('Finish entering a valid settlement date, or clear the date.');
+   Object.assign(d.data,patch(key,t.value));delete d.errors[key];
+   save.disabled=Object.keys(d.errors).length>0||d.version!==row.version;
+   const totalCell=tr.querySelector('[data-label="Total Comm"]');if(totalCell){const value=currency(total({...row,...d.data})),amount=totalCell.querySelector('.finance-amount');if(amount){amount.textContent=value;amount.title=value;}}
+   message=key==='settlement_date'?'Settlement date changed. Save the row to update statistics.':'';
+  }catch(error){d.errors[key]=error.message;message=error.message;save.disabled=true;}
+  if(key==='settlement_date'){
+   const cell=tr.querySelector('[data-label="Settlement"]');cell?.classList.toggle('finance-yes',!d.errors[key]&&validSettlementDate(t.value));cell?.classList.remove('finance-no');
+   const undated=cell?.querySelector('.finance-settlement-undated');if(undated)undated.hidden=true;
+   t.setAttribute('aria-invalid',String(!!d.errors[key]));
+  }
+  const status=$('sales-finance').querySelector('[role="status"]');if(status)status.textContent=message;
  });
- $('sales-finance').addEventListener('click',e=>{const t=e.target.closest('[data-finance-add],[data-finance-refresh],[data-finance-save],[data-finance-discard],[data-finance-date],[data-finance-month],[data-finance-filter],[data-finance-filters],[data-finance-clear-filters]');if(!t)return;guard();if(t.hasAttribute('data-finance-filter'))openFilter(t.dataset.financeFilter);else if(t.hasAttribute('data-finance-filters'))openFilter();else if(t.hasAttribute('data-finance-clear-filters')){columnFilters={};closeFilter();render();$('sales-finance').querySelector('[data-finance-filters]')?.focus?.({preventScroll:true});}else if(t.hasAttribute('data-finance-add'))add();else if(t.hasAttribute('data-finance-refresh'))refresh();else if(t.dataset.financeDate)openDate(t.dataset.financeDate);else if(t.dataset.financeMonth){statisticsMonth=t.dataset.financeMonth;render();}else if(t.dataset.financeSave)saveRow(t.dataset.financeSave);else if(t.dataset.financeDiscard){drafts.delete(t.dataset.financeDiscard);message='Edits discarded. The current saved entry is shown.';render();}});
+ $('sales-finance').addEventListener('click',e=>{const t=e.target.closest('[data-finance-add],[data-finance-refresh],[data-finance-save],[data-finance-discard],[data-finance-month],[data-finance-filter],[data-finance-filters],[data-finance-clear-filters]');if(!t)return;guard();if(t.hasAttribute('data-finance-filter'))openFilter(t.dataset.financeFilter);else if(t.hasAttribute('data-finance-filters'))openFilter();else if(t.hasAttribute('data-finance-clear-filters')){columnFilters={};closeFilter();render(true);$('sales-finance').querySelector('[data-finance-filters]')?.focus?.({preventScroll:true});}else if(t.hasAttribute('data-finance-add'))add();else if(t.hasAttribute('data-finance-refresh'))refresh();else if(t.dataset.financeMonth){statisticsMonth=t.dataset.financeMonth;render(true);}else if(t.dataset.financeSave)saveRow(t.dataset.financeSave);else if(t.dataset.financeDiscard){drafts.delete(t.dataset.financeDiscard);message='Edits discarded. The current saved entry is shown.';render(true);}});
 
- $('sales-finance').addEventListener('change',e=>{if(e.target.hasAttribute('data-finance-view')){financeView=['pipeline','statistics','all'].includes(e.target.value)?e.target.value:'pipeline';render();}else if(e.target.hasAttribute('data-finance-period')){statisticsMonth=e.target.value;render();}else if(e.target.hasAttribute('data-finance-group')){statisticsGroup=['all','broome','pilbara'].includes(e.target.value)?e.target.value:'all';render();}else if(e.target.hasAttribute('data-finance-new-used')){statisticsNewUsed=['all','new','used'].includes(e.target.value)?e.target.value:'all';render();}});
+ $('sales-finance').addEventListener('focusout',e=>{if(e.target.dataset.financeKey==='settlement_date'&&dateRenderPending&&!e.relatedTarget?.closest?.('[data-finance-save],[data-finance-discard]'))root.setTimeout(()=>{if(dateRenderPending)render();},0);});
+ $('sales-finance').addEventListener('change',e=>{if(e.target.hasAttribute('data-finance-view')){financeView=['pipeline','statistics','all'].includes(e.target.value)?e.target.value:'pipeline';render(true);}else if(e.target.hasAttribute('data-finance-period')){statisticsMonth=e.target.value;render(true);}else if(e.target.hasAttribute('data-finance-group')){statisticsGroup=['all','broome','pilbara'].includes(e.target.value)?e.target.value:'all';render(true);}else if(e.target.hasAttribute('data-finance-new-used')){statisticsNewUsed=['all','new','used'].includes(e.target.value)?e.target.value:'all';render(true);}});
 
  $('finance-filter-dialog').addEventListener('cancel',closeFilter);
  $('finance-filter-content').addEventListener('submit',applyFilter);
  $('finance-filter-content').addEventListener('change',e=>{if(e.target.name!=='column')return;guard();if(!filterEditing||!columns.some(([k])=>k===e.target.value&&(editor()||!privateFields.has(k))))return;filterEditing=e.target.value;renderFilter();$('finance-filter-content').querySelector('[name="column"]').focus();});
- $('finance-filter-content').addEventListener('click',e=>{if(e.target.closest('[data-finance-filter-close]')){closeFilter();return;}if(e.target.closest('[data-finance-filter-clear]')){guard();const key=filterEditing;if(!key||(!editor()&&privateFields.has(key)))return;delete columnFilters[key];closeFilter();render();focusFilter(key);}});
- $('finance-settlement-date-dialog').addEventListener('cancel',closeDate);
- $('finance-settlement-date-content').addEventListener('click',e=>{if(e.target.closest('[data-finance-date-close]'))closeDate();});
- $('finance-settlement-date-content').addEventListener('submit',useDate);
+ $('finance-filter-content').addEventListener('click',e=>{if(e.target.closest('[data-finance-filter-close]')){closeFilter();return;}if(e.target.closest('[data-finance-filter-clear]')){guard();const key=filterEditing;if(!key||(!editor()&&privateFields.has(key)))return;delete columnFilters[key];closeFilter();render(true);focusFilter(key);}});
  $('finance-add-dialog').addEventListener('cancel',close);
  $('finance-add-content').addEventListener('click',e=>{
   if(e.target.closest('[data-finance-close]')){close();return;}

@@ -61,6 +61,15 @@ test('filter choices normalize duplicates and blanks without altering saved rows
   assert.equal(JSON.stringify(values),before);
 });
 
+test('settlement filters distinguish actual saved dates, legacy undated contracts and pending applications', () => {
+  const records=[...rows,{...rows[0],id:'undated',settlement:'Yes',settlement_date:''},{...rows[0],id:'invalid-date',settlement:'Yes',settlement_date:'2024-02-30'},{...rows[0],id:'old-date',settlement:'Yes',settlement_date:'2024-02-29'},{...rows[0],id:'stale-pending-date',settlement:'No',settlement_date:month+'-01'}],before=JSON.stringify(records);
+  assert.equal(finance.financeFilterValue(records[2],'settlement'),month+'-01');assert.equal(finance.financeFilterValue(records[5],'settlement'),'undated');assert.equal(finance.financeFilterValue(records[6],'settlement'),'undated');assert.equal(finance.financeFilterValue(records[8],'settlement'),'');
+  assert.deepEqual(new Set(finance.financeFilterOptions(records,'settlement',false)),new Set(['',month+'-01','2024-02-29','undated']));
+  assert.deepEqual(ids(finance.filterFinanceEntries(records,{settlement:rule({mode:'value',value:month+'-01'})},false)),['gamma','epsilon']);
+  assert.deepEqual(ids(finance.filterFinanceEntries(records,{settlement:rule({mode:'value',value:'undated'})},true)),['undated','invalid-date']);
+  assert.deepEqual(ids(finance.filterFinanceEntries(records,{settlement:rule({mode:'blank'})},true)),['alpha','beta','delta','stale-pending-date']);assert.equal(JSON.stringify(records),before);
+});
+
 test('ordinary salespeople cannot filter or discover private amounts and unknown keys are ignored', () => {
   const filters=Object.fromEntries(privateKeys.map(key=>[key,rule({mode:'value',value:'impossible',min:'999999999'})]));
   assert.deepEqual(ids(finance.filterFinanceEntries(rows,filters,false)),ids(rows));
@@ -147,6 +156,15 @@ test('filters use saved values while preserving unsaved edits through hide, clea
   assert.equal(h.calls.length,2);assert.ok(h.calls.every(call=>call.name==='get_broome_finance_pipeline'));
   const save=h.click({financeSave:'alpha'});assert.equal(h.calls[2].name,'save_broome_finance_application');assert.equal(h.calls[2].args.p_data.customer,'Pending customer draft');assert.equal(h.calls[2].args.p_expected_version,1);
   h.calls[2].resolve({data:{record:{...rows[0],customer:'Pending customer draft',version:2}}});await save;
+});
+
+test('settlement header choices display human dates and filter exact saved dates without writing', async () => {
+  const h=harness(),records=[...rows,{...rows[0],id:'undated',customer:'Example Undated',settlement:'Yes',settlement_date:''}];await h.refresh(records);h.change('data-finance-view','all');h.click({financeFilter:'settlement'});
+  const dialog=h.el('finance-filter-content').innerHTML,dateOption=dialog.match(new RegExp('<option value="value:'+month+'-01"[^>]*>([^<]*)<\\/option>'))?.[1];
+  assert.ok(dateOption,'the ISO date is the exact filter value');assert.notEqual(dateOption,month+'-01','the label must format the date for a person');assert.match(dialog,/value="value:undated"[^>]*>[^<]*date not recorded/i);assert.doesNotMatch(dialog,/value="value:Yes"|value="value:No"/);
+  h.apply('settlement',{value:'value:'+month+'-01'});assert.match(tbody(h),/Example Casey/);assert.match(tbody(h),/Example Emery/);assert.doesNotMatch(tbody(h),/Example Avery|Example Undated/);
+  h.apply('settlement',{value:'value:undated'});assert.match(tbody(h),/Example Undated/);assert.doesNotMatch(tbody(h),/Example Casey|Example Emery/);
+  h.apply('settlement',{value:'blank'});assert.match(tbody(h),/Example Avery/);assert.doesNotMatch(tbody(h),/Example Casey|Example Emery|Example Undated/);assert.equal(h.calls.length,1);
 });
 
 test('header filters never shrink settlement statistics or their period and location calculations', async () => {
