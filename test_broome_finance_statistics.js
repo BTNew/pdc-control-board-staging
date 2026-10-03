@@ -69,16 +69,17 @@ test('customer-only creation submits no model, stock or order and requires expli
  const p=h.el('finance-add-content').events.submit({target:form,preventDefault(){}});assert.equal(JSON.stringify(h.calls[1].args.p_vehicle),'{}');assert.equal(h.calls[1].args.p_tracking_id,null);assert.equal(h.calls[1].args.p_data.financier,'OTHER');
  h.calls[1].resolve({data:{record:{id:'finance-fixture',customer:'Example customer only',settlement:'',version:1}}});await p;
 });
-test('settlement date is a draft until Save row and stale edits cannot overwrite a newer record',async()=>{
- const h=harness();await loaded(h);view(h,'statistics');action(h,'financeDate','current');assert.equal(h.el('finance-settlement-date-dialog').closed,false);assert.equal(h.calls.length,1);
- const form={values:{settlement_date:previous+'-02'}};h.el('finance-settlement-date-content').events.submit({target:form,preventDefault(){}});assert.equal(h.calls.length,1);assert.equal(h.el('finance-settlement-date-dialog').closed,true);
- action(h,'financeSave','current');assert.equal(h.calls[1].name,'save_broome_finance_application');assert.equal(h.calls[1].args.p_data.settlement_date,previous+'-02');assert.equal(h.calls[1].args.p_expected_version,1);
- h.calls[1].resolve({data:{record:{...applications[1],settlement_date:previous+'-02',version:2}}});await tick();assert.doesNotMatch(h.el('sales-finance').innerHTML,/Example Current/);
- period(h,previous);action(h,'financeDate','current');const refresh=h.window.BROOME_SALES_FINANCE.refresh();h.calls[2].resolve({data:{context:{role:'administrator',can_edit_finance:true},entries:[{...applications[1],settlement_date:previous+'-02',version:3}],vehicle_options:[],salespeople:[]}});await refresh;
- h.el('finance-settlement-date-content').events.submit({target:form,preventDefault(){}});assert.equal(h.calls.length,3);assert.match(h.el('sales-finance').innerHTML,/changed/);
+test('settlement column edits a native date directly and preserves undated legacy records without marking them green',async()=>{
+ const h=harness();await loaded(h);view(h,'all');const html=h.el('sales-finance').innerHTML;
+ assert.match(html,/<input[^>]*type="date"[^>]*data-finance-id="current"[^>]*data-finance-key="settlement_date"|<input[^>]*data-finance-id="current"[^>]*data-finance-key="settlement_date"[^>]*type="date"/);
+ assert.match(html,/value="202[0-9]-[0-9]{2}-01"/);assert.doesNotMatch(html,/data-finance-key="settlement"|data-finance-date=|finance-settlement-date-dialog/);
+ const legacy=html.match(/<tr>(?:(?!<\/tr>)[\s\S])*?data-finance-id="undated"(?:(?!<\/tr>)[\s\S])*?<\/tr>/)?.[0];
+ assert.ok(legacy);assert.match(legacy,/Date not recorded/i);assert.doesNotMatch(legacy,/<td class="[^"]*finance-yes[^"]*" data-label="Settlement"/);assert.equal(h.calls.length,1);
 });
-test('switching salesperson or signing out clears settlement dialog and pending edits',async()=>{
- const h=harness();await loaded(h);view(h,'statistics');action(h,'financeDate','current');h.setScope('CW');h.window.BROOME_SALES_FINANCE.syncScope();assert.equal(h.el('finance-settlement-date-dialog').closed,true);assert.equal(h.el('finance-settlement-date-content').innerHTML,'');
+test('ordinary salespeople see a settlement date rather than an editable legacy select or date dialog',async()=>{
+ const h=harness();await loaded(h,false);view(h,'all');const html=h.el('sales-finance').innerHTML;
+ assert.doesNotMatch(html,/data-finance-key="settlement_date"|data-finance-key="settlement"|data-finance-date=|type="date"/);assert.match(html,/Date not recorded/i);
+ h.setScope('CW');h.window.BROOME_SALES_FINANCE.syncScope();h.window.BROOME_SALES_FINANCE.render();assert.match(h.el('sales-finance').innerHTML,/Example Previous/);assert.doesNotMatch(h.el('sales-finance').innerHTML,/Example Current/);
  h.window.BROOME_SALES_FINANCE.clear();assert.equal(h.el('sales-finance').innerHTML,'');
 });
 
