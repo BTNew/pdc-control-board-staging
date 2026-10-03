@@ -40,7 +40,7 @@ test('Zebra discovery matches PDC preferred printers and refuses unrelated print
  assert.equal(zebra.choosePrinter(['Office','ZDesigner ZD421']),'ZDesigner ZD421');
  assert.throws(()=>zebra.choosePrinter(['Office laser']),/Zebra printer not found/);
 });
-function printerHarness(){const calls=[],window={qz:{websocket:{isActive:()=>true},printers:{find:async()=>['BT-Zebra-EricComp']},configs:{create:(name,options)=>({name,options})},print:async(config,data)=>calls.push({config,data})}};
+function printerHarness(){const calls=[],window={qz:{websocket:{isActive:()=>true,connect:async()=>{}},printers:{find:async()=>['BT-Zebra-EricComp']},configs:{create:(name,options)=>({name,options})},print:async(config,data)=>calls.push({config,data})}};
  vm.runInNewContext(fs.readFileSync('sales/zebra-labels.js','utf8'),{window,module:undefined});return {api:window.BROOME_ZEBRA_LABELS,calls};}
 test('selected labels request two copies per block and one QZ job copy, without multiplying to four',async()=>{
  const h=printerHarness();assert.equal(await h.api.print([{stock:'001'},{stock:'002'}]),'BT-Zebra-EricComp');
@@ -51,4 +51,61 @@ test('selected labels request two copies per block and one QZ job copy, without 
 test('access revoked during printer connection cancels before sending labels',async()=>{
  const h=printerHarness();await assert.rejects(h.api.print([{stock:'001'}],()=>false),/Vehicle access changed/);assert.equal(h.calls.length,0);
  await assert.rejects(h.api.print([]),/Select vehicles/);assert.equal(h.calls.length,0);
+});
+
+function connectionHarness(options={}){
+ const calls={scripts:[],connect:[],find:[],config:[],print:[]};let active=options.active||false;
+ const qz={websocket:{isActive:()=>active,connect:async config=>{calls.connect.push(config);await options.connect?.(config);active=true;}},printers:{find:async()=>{calls.find.push(true);return options.find?options.find():options.queues||['BT-Zebra-EricComp'];}},configs:{create:(name,settings)=>{const config={name,settings};calls.config.push(config);return config;}},print:async(config,data)=>{calls.print.push({config,data});return options.print?.(config,data);}};
+ const window={qz:options.load?undefined:qz,document:{createElement(){return {events:{},addEventListener(name,fn){this.events[name]=fn;},remove(){this.removed=true;}};},head:{appendChild(script){calls.scripts.push(script);}}}};
+ vm.runInNewContext(fs.readFileSync('sales/zebra-labels.js','utf8'),{window,module:undefined});return {api:window.BROOME_ZEBRA_LABELS,calls,qz,window};
+}
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('connection diagnostics list exact available printers without submitting a label job',async()=>{
+ const h=connectionHarness({queues:['Office laser',' BT-Zebra-EricComp ','bt-zebra-ericcomp','',null,2]});
+ const result=await h.api.checkConnection();assert.equal(result.connected,true);assert.equal(result.printer,'BT-Zebra-EricComp');assert.deepEqual(Array.from(result.printers),['Office laser','BT-Zebra-EricComp']);
+ assert.equal(h.calls.connect.length,1);assert.deepEqual(JSON.parse(JSON.stringify(h.calls.connect[0])),{retries:2,delay:1});assert.equal(h.calls.find.length,1);assert.equal(h.calls.config.length,0);assert.equal(h.calls.print.length,0);
+ const noZebra=connectionHarness({queues:['Office laser']});const status=await noZebra.api.checkConnection();assert.equal(status.connected,true);assert.equal(status.printer,'');assert.deepEqual(Array.from(status.printers),['Office laser']);assert.equal(noZebra.calls.print.length,0);
+});
+
+test('explicit printer selections require an exact current queue and never silently fall back',async()=>{
+ assert.throws(()=>zebra.choosePrinter(['B','Office laser']),/Zebra printer not found/,'a short unrelated name must not reverse-match a preferred queue');
+ assert.equal(zebra.choosePrinter(['ZDesigner First','ZDesigner Second'],'zdesigner second'),'ZDesigner Second');
+ assert.throws(()=>zebra.choosePrinter(['BT-Zebra-EricComp'],'BT-Zebra'),/selected printer.*no longer available/i);
+ const h=connectionHarness({active:true,queues:['BT-Zebra-EricComp','ZDesigner Second']});assert.equal(await h.api.print([{stock:'EXAMPLE'}],()=>true,'ZDesigner Second'),'ZDesigner Second');assert.equal(h.calls.print[0].config.name,'ZDesigner Second');
+ await assert.rejects(h.api.print([{stock:'EXAMPLE'}],()=>true,'Missing Zebra'),/selected printer.*no longer available/i);assert.equal(h.calls.print.length,1);assert.equal(h.calls.config.length,1);
+});
+
+test('the connector script and websocket attempt are shared while pending and load failures permit a clean retry',async()=>{
+ const h=connectionHarness({load:true}),first=h.api.checkConnection(),second=h.api.checkConnection();assert.equal(h.calls.scripts.length,1);assert.equal(h.calls.scripts[0].src,'../vendor/qz/qz-tray.js?v=2.2.6');assert.equal(h.calls.print.length,0);
+ h.calls.scripts[0].events.error();await assert.rejects(first,/could not load/);await assert.rejects(second,/could not load/);assert.equal(h.calls.scripts[0].removed,true);
+ const retry=h.api.checkConnection();assert.equal(h.calls.scripts.length,2);h.window.qz=h.qz;h.calls.scripts[1].events.load();await retry;assert.equal(h.calls.connect.length,1);assert.equal(h.calls.print.length,0);
+ let finish;const connecting=connectionHarness({connect:()=>new Promise(resolve=>finish=resolve)}),a=connecting.api.checkConnection(),b=connecting.api.listPrinters();await tick();assert.equal(connecting.calls.connect.length,1);finish();await Promise.all([a,b]);assert.equal(connecting.calls.connect.length,1);assert.equal(connecting.calls.find.length,2);assert.equal(connecting.calls.print.length,0);
+});
+
+test('failed websocket connections retain the original error and allow a later manual retry',async()=>{
+ let attempts=0;const h=connectionHarness({connect:async()=>{if(++attempts===1)throw 'Browser blocked localhost connection';}});
+ await assert.rejects(h.api.checkConnection(),error=>{assert.equal(error.phase,'connect');assert.match(error.message,/Browser blocked localhost connection/);assert.match(error.message,/Apps on this device.*local network/i);return true;});assert.equal(h.calls.find.length,0);assert.equal(h.calls.print.length,0);
+ assert.equal((await h.api.checkConnection()).printer,'BT-Zebra-EricComp');assert.equal(h.calls.connect.length,2);assert.equal(h.calls.print.length,0);
+});
+
+test('access lost before connection, during connection or discovery cancels diagnostics and printing',async()=>{
+ const denied=connectionHarness({load:true});await assert.rejects(denied.api.checkConnection(()=>false),/Vehicle access changed/);assert.equal(denied.calls.scripts.length,0);
+ await assert.rejects(denied.api.print([{stock:'EXAMPLE'}],()=>false),/Vehicle access changed/);assert.equal(denied.calls.print.length,0);
+ let allowed=true,finish;const connecting=connectionHarness({connect:()=>new Promise(resolve=>finish=resolve)}),pending=connecting.api.checkConnection(()=>allowed);await tick();allowed=false;finish();await assert.rejects(pending,/Vehicle access changed/);assert.equal(connecting.calls.find.length,0);
+ allowed=true;let found;const discovering=connectionHarness({active:true,find:()=>new Promise(resolve=>found=resolve)}),printing=discovering.api.print([{stock:'EXAMPLE'}],()=>allowed);await tick();allowed=false;found(['BT-Zebra-EricComp']);await assert.rejects(printing,/Vehicle access changed/);assert.equal(discovering.calls.config.length,0);assert.equal(discovering.calls.print.length,0);
+});
+
+test('printer-discovery and job rejection errors keep string details and never retry a submitted job',async()=>{
+ const discovery=connectionHarness({active:true,find:async()=>{throw 'QZ permission denied';}});await assert.rejects(discovery.api.checkConnection(),error=>{assert.equal(error.phase,'printers');assert.match(error.message,/QZ permission denied/);return true;});assert.equal(discovery.calls.print.length,0);
+ const job=connectionHarness({active:true,print:async()=>{throw 'Printer queue offline';}});await assert.rejects(job.api.print([{stock:'EXAMPLE'}]),error=>{assert.equal(error.phase,'print');assert.match(error.message,/Printer queue offline/);return true;});assert.equal(job.calls.print.length,1,'an uncertain submission must not automatically print another copy');
+ assert.equal(zebra.errorMessage('Specific failure'),'Specific failure');assert.equal(zebra.errorMessage(new Error('Error details')),'Error details');assert.equal(zebra.errorMessage(null),'Printing failed.');assert.equal(zebra.errorMessage({privateCustomer:'do not serialize'}),'Printing failed.');assert.equal(zebra.errorMessage('', 'Check connection'),'Check connection');
+});
+
+test('the Sales CSP permits exactly the bundled QZ secure loopback hosts and ports',()=>{
+ const html=fs.readFileSync('sales/index.html','utf8'),policy=html.match(/http-equiv="Content-Security-Policy" content="([^"]+)"/)?.[1],connect=policy?.match(/(?:^|;)\s*connect-src ([^;]+)/)?.[1].split(/\s+/)||[];
+ for(const host of ['localhost','localhost.qz.io'])for(const port of [8181,8282,8383,8484])assert.ok(connect.includes('wss://'+host+':'+port),'QZ endpoint missing: '+host+':'+port);
+ const qzHosts=connect.filter(value=>value.includes('localhost'));assert.equal(qzHosts.length,8);assert.ok(connect.includes("'self'"));assert.ok(connect.some(value=>/^https:\/\/[\w]+\.supabase\.co$/.test(value)));
+ assert.doesNotMatch(connect.join(' '),/(?:^|\s)(?:\*|wss?:)(?=\s|$)|(?:^|\s)(?:wss?:\/\/\*|ws:\/\/)/,'printer permission must not broaden to all hosts or insecure websockets');
+ const code=fs.readFileSync('sales/zebra-labels.js','utf8');assert.doesNotMatch(code,/setCertificatePromise|setSignaturePromise|private-key|usingSecure\s*:\s*false/,'manual QZ approval must not be bypassed');
 });

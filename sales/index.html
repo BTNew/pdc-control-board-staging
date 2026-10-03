@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://cdsmnqxtyyoeoznmbidd.supabase.co wss://cdsmnqxtyyoeoznmbidd.supabase.co; img-src 'self' data:; form-action 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'none'; connect-src 'self' https://cdsmnqxtyyoeoznmbidd.supabase.co wss://cdsmnqxtyyoeoznmbidd.supabase.co wss://localhost:8181 wss://localhost:8282 wss://localhost:8383 wss://localhost:8484 wss://localhost.qz.io:8181 wss://localhost.qz.io:8282 wss://localhost.qz.io:8383 wss://localhost.qz.io:8484; img-src 'self' data:; form-action 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'">
 <title>Broome Toyota · Dashboard</title>
-<link rel="stylesheet" href="sales.css?v=2026.10.02.18&amp;compact-dashboard=2026.10.03.01&amp;ordering-four-states=2026.10.03.01">
+<link rel="stylesheet" href="sales.css?v=2026.10.02.18&amp;compact-dashboard=2026.10.03.01&amp;ordering-four-states=2026.10.03.01&amp;labels-qz=2026.10.03.01">
 <link rel="stylesheet" href="crm-workspace.css?v=2026.10.02.05">
 <link rel="stylesheet" href="finance-pipeline.css?v=2026.10.02.14&amp;header-filters=2026.10.03.01&amp;settlement-date=2026.10.03.01">
 <link rel="stylesheet" href="../site-switcher.css?v=2026.10.01.01">
@@ -94,7 +94,7 @@
 <div id="sales-summary" class="sales-summary"></div><p id="sales-tracker-help" class="tracking-note"></p><p id="sales-visibility-status" class="tracking-note" role="status" aria-live="polite"></p><p id="sales-checklist-status" class="tracking-note" role="status" aria-live="polite"></p><div id="sales-mobile-vehicles" class="sales-mobile-vehicles"></div><div class="table-wrap"><table class="data-table" id="vehicle-table" aria-label="Your authorised vehicles"></table></div></section>
 </section>
 <section id="sales-pipeline-view" class="sales-view" hidden><div class="section-intro"><h2>Vehicle pipeline</h2><p>Your vehicles grouped by their current Toyota status. Open a vehicle to see shared PMB progress.</p></div><div id="sales-pipeline" class="pipeline-grid"></div></section>
-<section id="sales-labels-view" class="sales-view" hidden><section class="panel"><div class="panel-header"><div><h2>Zebra vehicle labels</h2><p>540 × 360 labels · Stock, customer, salesperson, vehicle details and VIN · Two copies per vehicle. QZ Tray must be running.</p></div><button class="primary" id="sales-print-labels" type="button" disabled>Print 2 copies per vehicle</button></div><p id="sales-label-status" class="tracking-note" role="status" aria-live="polite"></p><div id="sales-labels" class="labels-grid"></div></section></section>
+<section id="sales-labels-view" class="sales-view" hidden><section class="panel"><div class="panel-header"><div><h2>Zebra vehicle labels</h2><p>540 × 360 labels · Stock, customer, salesperson, vehicle details and VIN · Two copies per vehicle. QZ Tray must be running.</p></div><div class="panel-actions sales-printer-actions"><button class="small-button" id="sales-connect-printer" type="button">Connect &amp; find printers</button><label class="sales-printer-picker"><span>Zebra printer</span><select id="sales-label-printer" aria-label="Zebra label printer" disabled><option value="">Connect to load printers</option></select></label><button class="primary" id="sales-print-labels" type="button" disabled>Print 2 copies per vehicle</button></div></div><p id="sales-label-status" class="tracking-note" role="status" aria-live="polite"></p><div id="sales-labels" class="labels-grid"></div></section></section>
 <section id="sales-finance-view" class="sales-view" hidden><div id="sales-finance"></div></section>
 </main></div>
 <dialog id="sales-detail" class="sales-detail" aria-label="Vehicle details"><div id="sales-detail-content"></div></dialog>
@@ -121,13 +121,13 @@
 <script src="../vendor/supabase/supabase-2.110.5.js"></script>
 <script src="../pdc-supabase-config.staging.js?v=2026.09.04.0110-pdc14-location-replay"></script>
 <script src="../site-switcher.js?v=2026.10.01.01"></script>
-<script src="zebra-labels.js?v=2026.10.02.05"></script>
+<script src="zebra-labels.js?v=2026.10.02.05&amp;labels-qz=2026.10.03.01"></script>
 <script src="crm-workspace.js?v=2026.10.02.19"></script>
 <script src="dashboard-tools.js?v=2026.10.02.18"></script>
 <script src="email-actions.js?v=2026.10.02.05"></script>
 <script src="customer-emails.js?v=2026.10.02.19"></script>
 <script src="finance-pipeline.js?v=2026.10.02.19&amp;header-filters=2026.10.03.01&amp;settlement-date=2026.10.03.01"></script>
-<script src="sales.js?v=2026.10.02.19&amp;compact-dashboard=2026.10.03.01&amp;ordering-four-states=2026.10.03.01"></script>
+<script src="sales.js?v=2026.10.02.19&amp;compact-dashboard=2026.10.03.01&amp;ordering-four-states=2026.10.03.01&amp;labels-qz=2026.10.03.01"></script>
 <script src="../pdc-auth.js?v=2026.08.11.27-auth-foreground&amp;fitter-only=2026.09.16.01&amp;sales-site=2026.10.01.01"></script>
 <script src="../pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
 </body>

@@ -71,3 +71,6 @@ body.auth-pending .app-shell{display:none}body.auth-approved .pdc-auth-gate{disp
 #sales-tracker-help:empty,#sales-visibility-status:empty{display:none}
 @media(min-width:651px){.tracker-panel>.table-toolbar input,.tracker-panel>.table-toolbar select,.tracker-panel>.saved-views input,.tracker-panel>.saved-views select{height:32px;padding:6px 10px}.tracker-panel>.panel-header button,.tracker-panel>.saved-views button{min-height:32px;padding:6px 10px}}
 @media(max-width:650px){.tracker-panel>.panel-header button,.tracker-panel>.saved-views button,.tracker-panel>.table-toolbar input,.tracker-panel>.table-toolbar select{min-height:44px}.tracker-panel>.table-toolbar .search-label{grid-column:1/-1}}
+
+/* Sales label printer checks do not send a print job. */
+.sales-printer-picker{display:flex;align-items:center;gap:7px;min-width:0}.sales-printer-picker>span{margin:0}.sales-printer-picker select{max-width:260px;padding:8px;font-size:12px}.sales-printer-actions{min-width:0}.sales-printer-actions button{min-height:38px}@media(max-width:650px){.sales-printer-actions{width:100%}.sales-printer-picker{flex:1 1 100%}.sales-printer-picker select{max-width:none;flex:1;min-height:44px}.sales-printer-actions button{min-height:44px}}

@@ -38,31 +38,73 @@ function labelData(row){
 }
 function build(rows){return rows.map(r=>vehicleToZplBlock(labelData(r))).join('\n\n');}
 const printerNames=['BT-Zebra-EricComp','dc-01\\BT-Zebra-EricComp','192.168.0.164'];
-let connectorLoad=null;
-async function connect(){
- if(!root.qz){if(!connectorLoad)connectorLoad=new Promise((resolve,reject)=>{
- const script=root.document.createElement('script');script.src='../vendor/qz/qz-tray.js?v=2.2.6';script.async=true;
- script.addEventListener('load',resolve,{once:true});script.addEventListener('error',()=>{connectorLoad=null;reject(new Error('The printer connection could not load. Please try again.'));},{once:true});
- root.document.head.appendChild(script);
- });await connectorLoad;}
- const qz=root.qz;if(!qz?.websocket||!qz?.printers||!qz?.configs||!qz?.print)throw new Error('QZ Tray must be installed and running to print Zebra labels.');
- if(!qz.websocket.isActive())await qz.websocket.connect({retries:2,delay:1});return qz;
+let connectorLoad=null,connectionAttempt=null;
+function errorMessage(error,fallback='Printing failed.'){
+ const value=typeof error==='string'?error:typeof error?.message==='string'?error.message:'';
+ return value.trim()||fallback;
 }
-function choosePrinter(printers){
- const list=Array.isArray(printers)?printers:[printers].filter(Boolean);
+function authorise(stillAuthorised){if(!stillAuthorised())throw new Error('Vehicle access changed. Refresh before printing.');}
+function phaseError(error,phase){
+ const label=phase==='connect'?'Could not connect to QZ Tray.':phase==='printers'?'Could not read printers from QZ Tray.':'QZ Tray could not accept the label job.';
+ const help=phase==='connect'?'Make sure QZ Tray is running. In your browser site settings, allow Apps on this device / local network access, and approve the QZ Tray request when prompted.':phase==='printers'?'Approve the QZ Tray request and check that the Zebra printer is installed on this computer.':'Check the selected printer and its queue before trying again.';
+ const result=new Error(label+' '+errorMessage(error,'No further error details were supplied.')+' '+help);result.phase=phase;return result;
+}
+async function connect(stillAuthorised){
+ authorise(stillAuthorised);
+ if(!root.qz){
+  if(!connectorLoad)connectorLoad=new Promise((resolve,reject)=>{
+   const script=root.document.createElement('script');script.src='../vendor/qz/qz-tray.js?v=2.2.6';script.async=true;
+   script.addEventListener('load',resolve,{once:true});script.addEventListener('error',()=>{connectorLoad=null;script.remove?.();reject(new Error('The printer connection could not load. Please try again.'));},{once:true});
+   root.document.head.appendChild(script);
+  });
+  await connectorLoad;
+ }
+ authorise(stillAuthorised);
+ const qz=root.qz;
+ if(typeof qz?.websocket?.isActive!=='function'||typeof qz?.websocket?.connect!=='function'||typeof qz?.printers?.find!=='function'||typeof qz?.configs?.create!=='function'||typeof qz?.print!=='function'){
+  connectorLoad=null;throw new Error('The QZ Tray browser connector did not load correctly. Refresh and try again.');
+ }
+ if(!qz.websocket.isActive()){
+  if(!connectionAttempt)connectionAttempt=Promise.resolve().then(()=>qz.websocket.connect({retries:2,delay:1})).catch(error=>{throw phaseError(error,'connect');}).finally(()=>{connectionAttempt=null;});
+  await connectionAttempt;
+ }
+ authorise(stillAuthorised);return qz;
+}
+function printerList(printers){
+ const list=Array.isArray(printers)?printers:[printers],seen=new Set();
+ return list.filter(name=>typeof name==='string'&&name.trim()).map(name=>name.trim()).filter(name=>{const key=name.toLowerCase();if(seen.has(key))return false;seen.add(key);return true;});
+}
+function choosePrinter(printers,explicitPrinter=''){
+ const list=printerList(printers);
+ if(explicitPrinter){
+  const name=String(explicitPrinter).trim(),match=list.find(value=>value.toLowerCase()===name.toLowerCase());
+  if(match)return match;
+  throw new Error('The selected printer is no longer available. Load printers and choose it again.');
+ }
  for(const target of printerNames){const match=list.find(n=>String(n).toLowerCase()===target.toLowerCase());if(match)return match;}
- for(const target of printerNames){const match=list.find(n=>{const a=String(n).toLowerCase(),b=target.toLowerCase();return a&&(a.includes(b)||b.includes(a));});if(match)return match;}
+ for(const target of printerNames){const match=list.find(n=>String(n).toLowerCase().includes(target.toLowerCase()));if(match)return match;}
  const match=list.find(n=>/zebra|zdesigner|bt-zebra/i.test(String(n)));if(match)return match;
  throw new Error('Zebra printer not found. Check the printer is available on this computer.');
 }
-async function print(rows,stillAuthorised=()=>true){
+async function listPrinters(stillAuthorised=()=>true){
+ const qz=await connect(stillAuthorised);let names;
+ try{names=await qz.printers.find();}catch(error){authorise(stillAuthorised);throw phaseError(error,'printers');}
+ authorise(stillAuthorised);return printerList(names);
+}
+async function checkConnection(stillAuthorised=()=>true){
+ const printers=await listPrinters(stillAuthorised);let printer='';
+ try{printer=choosePrinter(printers);}catch{/* The connection can work without a Zebra queue installed. */}
+ return {connected:true,printers,printer};
+}
+async function print(rows,stillAuthorised=()=>true,explicitPrinter=''){
  if(!rows.length)throw new Error('Select vehicles to print.');
- const zpl=build(rows),qz=await connect(),printer=choosePrinter(await qz.printers.find());
- if(!stillAuthorised())throw new Error('Vehicle access changed. Refresh before printing.');
- await qz.print(qz.configs.create(printer,{copies:1,scaleContent:false,encoding:'UTF-8'}),[{type:'raw',format:'plain',data:zpl}]);
+ authorise(stillAuthorised);
+ const zpl=build(rows),printers=await listPrinters(stillAuthorised),printer=choosePrinter(printers,explicitPrinter),qz=root.qz;
+ authorise(stillAuthorised);
+ try{await qz.print(qz.configs.create(printer,{copies:1,scaleContent:false,encoding:'UTF-8'}),[{type:'raw',format:'plain',data:zpl}]);}catch(error){authorise(stillAuthorised);throw phaseError(error,'print');}
  return printer;
 }
-const api={cleanZplField,vehicleToZplBlock,labelData,build,choosePrinter,print};
+const api={cleanZplField,vehicleToZplBlock,labelData,build,choosePrinter,errorMessage,listPrinters,checkConnection,print};
 if(typeof module==='object'&&module.exports)module.exports=api;
 root.BROOME_ZEBRA_LABELS=api;
 })(typeof window==='object'?window:globalThis);
