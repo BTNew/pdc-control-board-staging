@@ -1,4 +1,4 @@
--- Migration 20261003015156_sales_source_vin_and_labels: private Sales display only.
+-- Migration 20261003020727_sales_source_vin_and_labels: private Sales display only.
 -- Does not backfill VIN, alter any source/canonical record, or change shared PDC helpers/permissions.
 DO $$ BEGIN
  IF (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1 THEN RAISE EXCEPTION 'STAGING environment required'; END IF;
