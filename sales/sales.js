@@ -108,7 +108,7 @@
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
   const defaultFilters=()=>({category:'all',search:'',salesperson:'',month:'',status:'',quick:'',sort:'stock',direction:1});
-  const state = { hiddenItems:[],showHidden:false,hiddenBusy:false,hiddenRequest:0,visibilitySaving:new Set(),visibilityConfirmed:new Map(),refreshQueued:false,items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,printBusy:false,saving:new Map(),
+  const state = { hiddenItems:[],showHidden:false,hiddenBusy:false,hiddenRequest:0,visibilitySaving:new Set(),visibilityConfirmed:new Map(),refreshQueued:false,items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,printBusy:false,printerBusy:false,printers:[],printerName:'',saving:new Map(),
     filters:defaultFilters(),workspace:null,workspaceRequest:0,workspaceBusy:false,savedView:'',searchTimer:null,html:new Map() };
   const columns = [
     ['salesperson_code','SP'],['stock','SN'],['production_month','P/Month'],['client','Client'],
@@ -196,7 +196,7 @@
     if(state.searchTimer!==null)root.clearTimeout?.(state.searchTimer);state.searchTimer=null;
     root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
     $('sales-mobile-vehicles').innerHTML='';$('sales-saved-view').innerHTML='';$('sales-view-name').value='';$('sales-view-status').textContent='';$('sales-workspace-status').textContent='';
-    state.busy=false; state.printBusy=false;$('sales-save-view').disabled=false;$('sales-label-status').textContent=''; state.items=[]; state.context=null; state.accounts=null;
+    state.busy=false; state.printBusy=false;state.printerBusy=false;state.printers=[];state.printerName='';$('sales-label-printer').innerHTML='<option value="">Connect to load printers</option>';$('sales-label-printer').disabled=true;$('sales-connect-printer').disabled=false;$('sales-save-view').disabled=false;$('sales-label-status').textContent=''; state.items=[]; state.context=null; state.accounts=null;
     state.selected.clear();
     state.saving.clear();$('sales-checklist-status').textContent='';
     state.detailId=null;state.reviewedOrders=null;state.importBusy=false;state.orderRevision++;
@@ -243,6 +243,7 @@
         (rows.length?rows.map(r=>'<button class="pipeline-card" type="button" data-open="'+escapeHtml(r.tracking_id)+'"><strong>'+escapeHtml(r.stock||r.order||'Unconfirmed')+'</strong><p>'+escapeHtml(r.client||'Customer not recorded')+'</p><p>'+escapeHtml(r.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+key+'">'+escapeHtml(r.toyota_status||'Not recorded')+'</span>'+(r.pmb_location?'<p>PMB: '+escapeHtml(r.pmb_location)+'</p>':'')+'</button>').join(''):'<div class="empty-state">No vehicles</div>')+'</section>';
     }).join(''));else html('sales-pipeline','');
     if(state.view!=='labels'){html('sales-labels','');$('sales-print-labels').disabled=true;return;}
+    $('sales-connect-printer').disabled=state.printerBusy||state.printBusy;$('sales-label-printer').disabled=state.printerBusy||state.printBusy||!state.printers.length;
     const labels=scoped.filter(r=>state.selected.has(r.tracking_id));
     html('sales-labels',labels.length?labels.map(r=>{
       const data=root.BROOME_ZEBRA_LABELS.labelData(r);
@@ -251,9 +252,9 @@
       '<div class="label-sales">'+escapeHtml(data.sales||'—')+'</div><div class="label-model">'+escapeHtml(data.model||'Vehicle not listed')+'</div>'+
       '<div class="label-description">'+escapeHtml(data.description||'Details not recorded')+'</div><div class="label-vin">'+escapeHtml(data.vin||'VIN not recorded')+'</div>'+
       '<strong class="label-stock-bottom">'+escapeHtml(data.stock||'NO STOCK')+'</strong></article>'+
-      (!r.stock?'<p class="label-warning">Toyota order '+escapeHtml(r.order||'Not recorded')+' · awaiting stock number. Both stock fields print NO STOCK.</p>':'')+'</div>';
+      (!r.stock?'<p class="label-warning">Toyota order '+escapeHtml(r.order||'Not recorded')+' · awaiting stock number. Both stock fields print NO STOCK.</p>':'')+(!data.vin?'<p class="label-warning">VIN is not available in the uploaded vehicle data. Labels update when Navision supplies it.</p>':'')+'</div>';
     }).join(''):'<div class="empty-state">Select vehicles on the Dashboard, then choose View labels.</div>');
-    $('sales-print-labels').disabled=!labels.length||state.printBusy;
+    $('sales-print-labels').disabled=!labels.length||state.printBusy||state.printerBusy;
   }
   function render() {
     root.BROOME_SALES_EMAIL?.syncScope();root.BROOME_CUSTOMER_EMAILS?.render();
@@ -403,18 +404,35 @@
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId){state.saving.delete(id);render();}
     }
   }
+  async function connectPrinter(){
+    if(state.printerBusy||state.printBusy||!['administrator','salesperson'].includes(state.context?.role)||state.view!=='labels')return;
+    const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId,salesperson=state.filters.salesperson;
+    const current=()=>generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&state.view==='labels'&&salesperson===state.filters.salesperson&&['administrator','salesperson'].includes(state.context?.role);
+    state.printerBusy=true;renderSecondaryViews();$('sales-label-status').textContent='Connecting to QZ Tray and checking printers…';
+    try{
+      const result=await root.BROOME_ZEBRA_LABELS.checkConnection(current);if(!current())return;
+      state.printers=result.printers;
+      let saved='';try{saved=root.localStorage?.getItem('broome-sales-qz-printer-v1')||'';}catch{}
+      state.printerName=state.printers.includes(saved)?saved:result.printer||'';
+      html('sales-label-printer','<option value="">Choose a Zebra / ZPL printer</option>'+state.printers.map(name=>'<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>').join(''));
+      $('sales-label-printer').value=state.printerName;
+      $('sales-label-status').textContent=state.printerName?'QZ Tray connected. Printer: '+state.printerName+'.':state.printers.length?'QZ Tray connected. Choose the Zebra / ZPL printer from the list.':'QZ Tray connected, but no printer queues were found on this computer.';
+    }catch(error){if(current()){$('sales-label-status').textContent=root.BROOME_ZEBRA_LABELS.errorMessage(error)+' If prompted, allow this website to connect to QZ Tray / apps on this device.';}}
+    finally{if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId){state.printerBusy=false;if(!current())$('sales-label-status').textContent='Printer check cancelled. Connect again for this view.';renderSecondaryViews();}}
+  }
   async function printLabels(){
-    if(state.view!=='labels'||state.printBusy)return;
+    if(state.view!=='labels'||state.printBusy||state.printerBusy)return;
     const rows=scopeRows(state.items,state.filters.salesperson).filter(r=>state.selected.has(r.tracking_id));
     if(!rows.length||!['administrator','salesperson'].includes(state.context?.role))return;
-    const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId,ids=rows.map(r=>r.tracking_id);
+    if(state.printers.length&&!state.printerName){$('sales-label-status').textContent='Choose the Zebra / ZPL printer before printing.';return;}
+    const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId,ids=rows.map(r=>r.tracking_id),facts=new Map(rows.map(r=>[r.tracking_id,JSON.stringify(root.BROOME_ZEBRA_LABELS.labelData(r))]));
     state.printBusy=true;renderSecondaryViews();$('sales-label-status').textContent='Connecting to Zebra printer…';
     try{
-      const printer=await root.BROOME_ZEBRA_LABELS.print(rows,()=>generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&
-        ids.every(id=>scopeRows(state.items,state.filters.salesperson).some(r=>r.tracking_id===id)&&state.selected.has(id)));
+      const printer=await root.BROOME_ZEBRA_LABELS.print(rows,()=>state.view==='labels'&&generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&
+        ids.every(id=>{const current=scopeRows(state.items,state.filters.salesperson).find(r=>r.tracking_id===id);return current&&state.selected.has(id)&&JSON.stringify(root.BROOME_ZEBRA_LABELS.labelData(current))===facts.get(id);}),state.printerName);
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)$('sales-label-status').textContent='Sent 2 label copies for each of '+rows.length+' vehicle'+(rows.length===1?'':'s')+' to '+printer+'.';
     }catch(error){
-      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)$('sales-label-status').textContent=(error.message||'Printing failed.')+' QZ Tray must be running; approve the sales website in QZ Tray if prompted.';
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)$('sales-label-status').textContent=(root.BROOME_ZEBRA_LABELS.errorMessage?.(error)||error?.message||String(error||'Printing failed.'))+' QZ Tray must be running. Allow QZ Tray / apps on this device if prompted.';
     }finally{
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId){state.printBusy=false;renderSecondaryViews();}
     }
@@ -511,6 +529,8 @@
   for(const button of root.document.querySelectorAll?.('[data-sales-view]')||[])button.addEventListener('click',()=>showView(button.dataset.salesView));
   $('sales-view-labels').addEventListener('click',()=>showView('labels'));
   $('sales-print-labels').addEventListener('click',printLabels);
+  $('sales-connect-printer').addEventListener('click',connectPrinter);
+  $('sales-label-printer').addEventListener('change',event=>{const name=event.target.value;state.printerName=state.printers.includes(name)?name:'';try{if(state.printerName)root.localStorage?.setItem('broome-sales-qz-printer-v1',state.printerName);else root.localStorage?.removeItem('broome-sales-qz-printer-v1');}catch{}});
   $('sales-sidebar-toggle').addEventListener('click',()=>{
     const collapsed=$('app-shell').classList.toggle('sidebar-collapsed');
     $('sales-sidebar-toggle').textContent=collapsed?'›':'‹';

@@ -96,7 +96,13 @@ test('site switcher cannot navigate a salesperson and exposes both sites to admi
 test('sales entry has no operational loaders, local record cache or static customer payload',()=>{
  const html=fs.readFileSync('sales/index.html','utf8'),js=fs.readFileSync('sales/sales.js','utf8');
  assert.doesNotMatch(html,/src="(?:\.\.\/)?(?:app|email-board-data|workshop-planner|data-staging-empty)\.js/);
- assert.doesNotMatch(js,/localStorage|sessionStorage|\.from\(['"]vehicles|update_pdc_vehicle/);
+ assert.doesNotMatch(js,/sessionStorage|\.from\(['"]vehicles|update_pdc_vehicle/);
+ // Only the selected local printer name may persist. Vehicle/customer records
+ // remain in the authenticated snapshot and are never cached in browser storage.
+ const storageCalls=[...js.matchAll(/root\.localStorage\?\.([a-zA-Z]+)\(([^)]*)\)/g)];
+ assert.equal((js.match(/localStorage/g)||[]).length,3);assert.equal(storageCalls.length,3);
+ assert.deepEqual(storageCalls.map(match=>[match[1],match[2]]),[
+  ['getItem',"'broome-sales-qz-printer-v1'"],['setItem',"'broome-sales-qz-printer-v1',state.printerName"],['removeItem',"'broome-sales-qz-printer-v1'"]]);
  assert.match(html,/data-pdc-site="broome"/);assert.match(html,/id="pdc-site-switcher"/);
 });
 test('Navision sales parser preserves order identity, blank stock and quoted customer values',()=>{
