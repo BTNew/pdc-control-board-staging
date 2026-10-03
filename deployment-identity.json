@@ -843,7 +843,7 @@
     "operational_writes": false,
     "database_changes": true,
     "validation": "Desktop/mobile layout, status save/cycle, scope clearing and non-overflow behavior verified in sales tests and fictional browser checks.",
-    "layout": "JITA removed. Three colour-cycling TINT/BUILD/TRAY tick boxes; fixed page-width desktop table, adjacent-column resizing and mobile vehicle cards."
+    "layout": "JITA removed. TINT/BUILD/TRAY tick boxes cycle empty Not decided, dark grey slash Not required, orange Orders Raised and green Completed; fixed page-width desktop table, adjacent-column resizing and mobile vehicle cards."
   },
   "broome_salesperson_journey": {
     "asset_version": "2026.10.02.19",
@@ -877,11 +877,21 @@
       "tray"
     ],
     "colour_cycle": [
-      "Not Needed (grey)",
+      "Not decided (pale empty)",
+      "Not required (dark grey slash)",
       "Orders Raised (orange)",
       "Completed (green)"
     ],
-    "presentation": "Tick boxes cycle all three states on desktop/mobile; legacy order/completion fields remain compatible in private storage.",
+    "presentation": "Tick boxes cycle four choices on desktop/mobile; separate private per-item not_required flags retain a deliberate decision while preserving legacy order/completion fields and existing empty values.",
+    "explicit_not_required": {
+      "private_fields": ["tint_not_required", "build_not_required", "tray_not_required"],
+      "migration_version": "20261003010048",
+      "migration_file": "supabase/migrations/20261003010048_broome_sales_ordering_four_states.sql",
+      "migration_sha256": "489fe63482cab77dbe3542cc92789b25de1f865779cb02ead78b32898731553c",
+      "review_status": "staging_applied",
+      "existing_values_preserved": true,
+      "pdc_operational_writes": false
+    },
     "column_preferences": "13 bounded numeric proportions under broome-sales-column-widths-v3; resizing shares total page width with a neighbour."
   },
   "broome_salesperson_pmb": {
