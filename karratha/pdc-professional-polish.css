@@ -1,0 +1,300 @@
+/* Staging professional polish — visual only. No workflow or data behaviour. */
+:root {
+  --pdc-ink: #172033;
+  --pdc-muted: #667085;
+  --pdc-surface: #ffffff;
+  --pdc-canvas: #f4f6f9;
+  --pdc-line: #d9e0e8;
+  --pdc-red: #d71920;
+  --pdc-red-dark: #b91c22;
+  --pdc-radius: 12px;
+  --pdc-shadow: 0 10px 28px rgba(16, 24, 40, .08);
+}
+
+body {
+  background: var(--pdc-canvas);
+  color: var(--pdc-ink);
+}
+
+.pdc-auth-gate {
+  background:
+    radial-gradient(circle at 14% 14%, rgba(215, 25, 32, .10), transparent 29rem),
+    radial-gradient(circle at 86% 82%, rgba(32, 73, 120, .10), transparent 30rem),
+    #f6f8fb;
+}
+
+.pdc-auth-card {
+  width: min(100% - 32px, 440px);
+  border: 1px solid rgba(16, 24, 40, .08);
+  border-top: 5px solid var(--pdc-red);
+  border-radius: 14px;
+  box-shadow: 0 24px 56px rgba(16, 24, 40, .14);
+}
+
+.pdc-auth-brand {
+  width: 188px;
+  max-height: 96px;
+  object-fit: contain;
+  margin-bottom: 14px;
+}
+
+.pdc-auth-card .eyebrow,
+.topbar .eyebrow {
+  color: var(--pdc-red-dark);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+
+.pdc-auth-card h1 {
+  letter-spacing: -.03em;
+  font-size: clamp(28px, 4vw, 34px);
+}
+
+.pdc-auth-card input {
+  min-height: 46px;
+  border-radius: 9px;
+  border-color: #c6d0dc;
+  box-shadow: none;
+}
+
+.pdc-auth-card input:focus {
+  border-color: var(--pdc-red);
+  box-shadow: 0 0 0 4px rgba(215, 25, 32, .12);
+}
+
+.pdc-auth-card .primary,
+.primary {
+  background: var(--pdc-red);
+  border-color: var(--pdc-red);
+  box-shadow: 0 8px 16px rgba(215, 25, 32, .18);
+}
+
+.pdc-auth-card .primary:hover,
+.primary:hover {
+  background: var(--pdc-red-dark);
+  border-color: var(--pdc-red-dark);
+}
+
+.pdc-auth-card::after {
+  content: "STAGING ENVIRONMENT";
+  display: block;
+  width: fit-content;
+  margin: 18px auto 0;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #fff4e5;
+  color: #9a5b13;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.sidebar {
+  border-right: 1px solid rgba(255,255,255,.07);
+  box-shadow: 12px 0 28px rgba(16,24,40,.08);
+}
+
+.brand {
+  padding-bottom: 18px;
+  border-bottom: 1px solid rgba(255,255,255,.10);
+}
+
+.brand::after {
+  content: "STAGING";
+  display: inline-flex;
+  margin: 10px 0 0 50px;
+  padding: 3px 7px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 999px;
+  color: #ffd5d5;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .1em;
+}
+
+.nav-section-label {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.nav-item {
+  border-radius: 8px;
+  margin: 2px 10px;
+  width: calc(100% - 20px);
+}
+
+.nav-item.active {
+  box-shadow: inset 3px 0 0 var(--pdc-red), 0 6px 14px rgba(0,0,0,.14);
+}
+
+.topbar {
+  min-height: 82px;
+  padding: 12px 16px;
+  border: 1px solid var(--pdc-line);
+  border-radius: 12px;
+  border-bottom: 1px solid var(--pdc-line);
+  background: rgba(255,255,255,.94);
+  box-shadow: 0 2px 12px rgba(16,24,40,.04);
+}
+
+.topbar h1 {
+  letter-spacing: -.025em;
+}
+
+.panel {
+  border: 1px solid var(--pdc-line);
+  border-radius: var(--pdc-radius);
+  box-shadow: 0 4px 12px rgba(16,24,40,.035);
+}
+
+.panel-header {
+  border-bottom: 1px solid #edf0f4;
+  padding-bottom: 16px;
+}
+
+.panel-header h2 {
+  letter-spacing: -.018em;
+}
+
+input, select, textarea {
+  border-radius: 8px;
+  border-color: #cfd8e3;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--pdc-red);
+  box-shadow: 0 0 0 3px rgba(215,25,32,.12);
+}
+
+.small-button, .ghost {
+  border-radius: 8px;
+}
+
+.status-pill, .badge {
+  border-radius: 999px;
+  font-weight: 750;
+}
+
+.empty-state {
+  border: 1px dashed #c9d3df;
+  border-radius: 10px;
+  background: #fafbfd;
+  padding: 28px;
+}
+
+@media (max-width: 820px) {
+  .brand::after { margin-left: 0; }
+  .topbar { min-height: 70px; }
+  .panel { border-radius: 10px; }
+}
+
+@media (min-width: 821px) {
+  .topbar { align-items: center !important; }
+  .topbar > div:first-child { min-width: 0; }
+  .topbar .topbar-actions { align-items: center; align-self: center; }
+}
+
+/* Compact vehicle work detail: give descriptions the space, keep editing controls. */
+#vehicle-modal .vehicle-workshop-hours-draft-note,
+#vehicle-modal .vehicle-workshop-hours-evidence,
+#vehicle-modal .vehicle-workshop-hours-batch > div:first-child > small {
+  display: none;
+}
+@media (min-width: 821px) {
+  #vehicle-modal .modal-card {
+    width: min(1480px, calc(100vw - 40px)) !important;
+  }
+  #vehicle-modal .vehicle-workshop-line {
+    grid-template-columns: 24px minmax(240px, 1fr) 100px minmax(130px, .35fr) auto;
+  }
+}
+
+.location-override-warning { background: #fff0c2 !important; color: #854d0e !important; border: 1px solid #eab308; margin: 4px; }
+.location-override-dialog { width: min(480px, calc(100vw - 32px)); border: 1px solid #cbd5e1; border-radius: 12px; padding: 22px; }
+.location-override-dialog::backdrop { background: #0f172a77; }
+.location-override-dialog form, .location-override-dialog label { display: grid; gap: 10px; }
+.location-override-dialog select, .location-override-dialog textarea { width: 100%; }
+.location-override-dialog footer { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.location-override-dialog [role="alert"] { color: #b91c1c; }
+
+/* Compact Sublet identities leave room for the independent work description. */
+.sublet-table-wrap { max-width:100%; overscroll-behavior-x:contain; }
+.sublet-table { min-width:1612px; width:100%; table-layout:fixed; }
+.sublet-table .sublet-summary-row { height:70px; }
+.sublet-table.data-table .sublet-summary-row td { width:auto!important; padding:6px 8px!important; font-size:12px!important; line-height:1.4!important; vertical-align:middle; overflow-wrap:break-word!important; }
+.sublet-table th { padding:10px 8px; font-size:10px; text-align:left; }
+.sublet-table .sublet-summary-row td:nth-child(6),.sublet-table .sublet-summary-row td:nth-child(7),.sublet-table .sublet-summary-row .sublet-work-required { white-space:normal; overflow-wrap:break-word; word-break:normal; }
+.sublet-table .sublet-summary-row td:nth-child(6) strong { font-weight:600; }
+.sublet-table .sublet-operation-details { margin:0; font-size:12px; line-height:1.4; color:#17283d; }
+.sublet-table .sublet-summary-row select,.sublet-table .sublet-summary-row input[type="date"] { font-size:12px; height:32px; min-height:32px; padding:4px 6px; margin:0; }
+.sublet-table th:nth-child(5),.sublet-table .sublet-returned-cell { text-align:center; }
+.sublet-table .sublet-returned-check { justify-content:center; gap:5px; min-height:32px; white-space:nowrap; font-size:11px; }
+.sublet-table .sublet-summary-row .sublet-returned-check input { flex:0 0 16px; width:16px; min-width:16px; height:16px; min-height:16px; margin:0; padding:0; }
+.sublet-table .sublet-status-pill { width:100%; justify-content:center; padding:4px 5px; font-size:11px; }
+.sublet-table .sublet-summary-row .sublet-row-actions .small-button { display:block; width:100%; height:27px; min-height:27px; padding:4px 5px; font-size:11px; line-height:17px; white-space:nowrap; box-shadow:none; }
+.sublet-table .sublet-row-actions .small-button + .small-button { margin-top:4px; }
+.sublet-table .sublet-row-actions .small-button:not(.primary) { border:1px solid #d9e0e8; background:#f8fafc; }
+.sublet-table .sublet-row-actions .small-button.primary { color:#fff; }
+
+/* Align every vehicle-location section, including rows without booking buttons. */
+#incoming-main-board .incoming-bucket:not(.incoming-rft) > .incoming-bucket-list {
+  --pdc-grid-actions-width:260px;
+  --pdc-grid-template:16px 24px minmax(var(--pdc-grid-identity-min),1fr) var(--pdc-grid-vehicle-width) var(--pdc-grid-stations-width) var(--pdc-grid-meta-width) var(--pdc-grid-status-width) var(--pdc-grid-actions-width);
+  --pdc-grid-min:calc(56px + var(--pdc-grid-identity-min) + var(--pdc-grid-vehicle-width) + var(--pdc-grid-stations-width) + var(--pdc-grid-meta-width) + var(--pdc-grid-status-width) + var(--pdc-grid-actions-width) + 7 * var(--pdc-grid-gap));
+}
+#incoming-main-board .incoming-card-action:has(.incoming-book-all-stations) { flex-wrap:nowrap!important; }
+#incoming-main-board .incoming-card-action:has(.incoming-book-all-stations) > button { flex:0 0 auto; min-height:32px!important; margin:0; }
+.incoming-card-action .incoming-book-all-stations { display:inline-flex; align-items:center; justify-content:center; min-width:0; max-width:100%; padding:6px 8px!important; white-space:nowrap!important; line-height:1.2!important; font-size:11px!important; }
+.book-all-stations-dialog { width:min(680px,calc(100vw - 32px)); max-height:calc(100vh - 48px); overflow:auto; border:1px solid #cbd5e1; border-radius:12px; padding:22px; color:#17283d; }
+.book-all-stations-dialog::backdrop { background:#0f172a77; }
+.book-all-stations-dialog footer { display:flex; justify-content:flex-end; margin-top:16px; }
+.book-all-stations-table { overflow-x:auto; }
+.book-all-stations-table table { width:100%; min-width:420px; border-collapse:collapse; }
+.book-all-stations-table th,.book-all-stations-table td { padding:9px; text-align:left; border-bottom:1px solid #dbe3ee; font-size:12px; white-space:normal; }
+.book-all-stations-table th small { display:block; margin-top:3px; }
+.book-all-stations-error { color:#b91c1c; }
+
+/* Craig's trial: hide this detail summary while retaining its submitted values. */
+#vehicle-modal .section-label:has(+ [data-pdc-work-state-grid]),
+#vehicle-modal [data-pdc-work-state-grid],
+#vehicle-modal .pdc-work-state-help { display:none!important; }
+
+
+/* Logo-only sidebar header: use the original PMB artwork at a readable size. */
+.sidebar > .brand { display:block; }
+.sidebar > .brand > .brand-text,
+.sidebar > .brand::after { display:none!important; }
+.sidebar > .brand > .brand-logo-wrap {
+  box-sizing:border-box;
+  width:100%!important;
+  min-width:0!important;
+  height:auto!important;
+  padding:10px;
+  border:2px solid #1175a5;
+  border-radius:12px;
+  background:#fff;
+  box-shadow:0 4px 14px rgba(0,0,0,.24);
+}
+.sidebar > .brand .brand-logo {
+  width:100%!important;
+  height:auto!important;
+  padding:0!important;
+  object-fit:contain;
+}
+.sidebar > .brand .brand-logo-fallback {
+  width:100%!important;
+  height:auto!important;
+  color:#1175a5;
+}
+.sidebar > .brand .brand-logo[hidden],
+.sidebar > .brand .brand-logo-fallback[hidden] { display:none!important; }
+.app-shell.sidebar-collapsed .sidebar > .brand > .brand-logo-wrap { padding:4px; }
+
+/* Reserve the shared status track while keeping PMB status text hidden. */
+#incoming-main-board .incoming-pmb .pdc-grid-status-heading,
+#incoming-main-board .incoming-pmb .incoming-card-status { display:none!important; }
+#incoming-main-board .incoming-pmb .pdc-grid-action-heading,
+#incoming-main-board .incoming-pmb .incoming-card-action { grid-column:8!important; }

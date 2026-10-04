@@ -1,0 +1,1519 @@
+/* Daily PMB workshop bay planner — Monday to Friday, 7:00am to 4:00pm. */
+
+body[data-current-view="workshop"] .content {
+  padding: 12px;
+}
+
+.workshop-planner-panel {
+  overflow: hidden;
+  padding: 0 !important;
+  min-height: calc(100vh - 96px);
+}
+
+.workshop-planner {
+  display: grid;
+  grid-template-rows: auto auto auto auto minmax(500px, 1fr) auto;
+  min-height: calc(100vh - 96px);
+  background: #f8fafc;
+}
+
+.workshop-planner-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 18px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+.workshop-connection-banner {
+  margin: 0;
+  padding: 8px 16px;
+  font-size: .78rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.workshop-connection-ok {
+  background: #dcfce7;
+  color: #166534;
+  border-bottom: 1px solid #86efac;
+}
+
+.workshop-connection-warn {
+  background: #fef3c7;
+  color: #92400e;
+  border-bottom: 1px solid #fbbf24;
+}
+
+.workshop-connection-error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-bottom: 1px solid #fca5a5;
+}
+
+.workshop-planner-header h2 {
+  margin: 0 0 3px;
+  font-size: 1.18rem;
+  color: #0f172a;
+}
+
+.workshop-planner-dedicated {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.workshop-planner-dedicated > [data-workshop-station-content] {
+  min-width: 0;
+  min-height: 0;
+}
+
+.workshop-station-board {
+  min-height: calc(100vh - 190px);
+}
+
+.workshop-station-loading {
+  min-height: 150px;
+  contain: content;
+}
+
+.workshop-planner-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: .77rem;
+}
+
+.workshop-date-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 620px;
+}
+
+.workshop-planner-header > div:first-child { min-width: min(280px, 100%); flex: 1 1 280px; }
+.workshop-date-controls > * { min-width: 0; flex: 0 1 auto; }
+.workshop-planner-header p { overflow-wrap: anywhere; }
+
+.workshop-date-nav,
+.workshop-date-shift-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.workshop-date-controls input[data-workshop-date] {
+  width: 160px;
+  min-width: 160px;
+  flex: 0 0 160px;
+}
+
+.workshop-date-shift-group .small-button {
+  white-space: nowrap;
+}
+
+.workshop-date-controls .warning-button {
+  border-color: #f59e0b;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.workshop-unallocated-vehicle-pill {
+  border-radius: 999px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.workshop-unallocated-vehicle-pill:active { cursor: grabbing; }
+
+.workshop-date-controls input {
+  min-height: 36px;
+  border: 2px solid #2563eb;
+  border-radius: 8px;
+  padding: 5px 10px;
+  color: #0f172a;
+  font-weight: 850;
+  background: #fff;
+}
+
+.workshop-date-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 16px;
+  border-bottom: 1px solid #dbe3ed;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: .76rem;
+}
+
+.workshop-date-summary strong { font-size: .84rem; }
+
+.workshop-stage-tabs {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(78px, 1fr));
+  gap: 0;
+  border-bottom: 1px solid #94a3b8;
+  background: #dbeafe;
+}
+
+.workshop-stage-tab {
+  min-height: 44px;
+  border: 0;
+  border-right: 1px solid #93c5fd;
+  background: #dbeafe;
+  color: #1e3a8a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 7px 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.workshop-stage-tab:hover { background: #bfdbfe; }
+
+.workshop-stage-tab.active {
+  background: #1d4ed8;
+  color: #fff;
+  box-shadow: inset 0 -4px 0 #fbbf24;
+}
+
+.workshop-stage-tab strong {
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.75);
+  color: #1e3a8a;
+  font-size: .68rem;
+}
+
+.workshop-stage-tab.active strong { background: #fff; }
+
+.workshop-job-detail {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.4fr) minmax(190px, .8fr) 90px minmax(160px, .7fr) auto;
+  align-items: end;
+  gap: 9px;
+  min-height: 66px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #cbd5e1;
+  background: #fff;
+}
+
+.workshop-job-detail.is-empty {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  color: #64748b;
+  font-size: .76rem;
+}
+
+.workshop-job-detail.is-empty strong { color: #0f172a; }
+
+.workshop-detail-identity {
+  display: grid;
+  gap: 3px;
+  align-self: center;
+  min-width: 0;
+}
+
+.workshop-detail-identity strong,
+.workshop-detail-identity span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workshop-detail-identity strong { color: #0f172a; font-size: .82rem; }
+.workshop-detail-identity span { color: #64748b; font-size: .68rem; font-weight: 800; }
+.workshop-detail-identity small { color: #475569; font-size: .62rem; font-weight: 850; }
+.workshop-detail-status-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.workshop-inline-meta { color: #1e3a8a; font-size: .62rem; font-weight: 900; }
+.workshop-slot-hint { color: #1d4ed8 !important; font-weight: 900 !important; }
+.workshop-eta-line { color: #92400e !important; font-weight: 850 !important; }
+.workshop-eta-line.is-invalid { color: #b91c1c !important; }
+
+.workshop-job-detail label {
+  display: grid;
+  gap: 3px;
+  color: #475569;
+  font-size: .61rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.workshop-job-detail input,
+.workshop-job-detail select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  padding: 5px 7px;
+  background: #fff;
+  color: #0f172a;
+  font-size: .72rem;
+  font-weight: 750;
+}
+
+.workshop-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.workshop-detail-actions button { white-space: nowrap; }
+.workshop-detail-actions .danger-text { color: #b91c1c; }
+
+.workshop-schedule-card {
+  width: min(760px, calc(100vw - 28px));
+  padding: 22px;
+}
+
+.workshop-schedule-card header h2 { margin: 0 0 4px; }
+.workshop-schedule-card header p { margin: 0; color: #64748b; }
+.workshop-schedule-card form { display: grid; gap: 16px; margin-top: 18px; }
+.workshop-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(110px, 1fr));
+  gap: 10px;
+}
+.workshop-schedule-grid label { display: grid; gap: 5px; color: #475569; font-size: .7rem; font-weight: 900; text-transform: uppercase; }
+.workshop-schedule-grid input,
+.workshop-schedule-grid select { width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 9px; background: #fff; color: #0f172a; font-weight: 750; }
+.workshop-schedule-note { margin: 0; padding: 10px 12px; border-radius: 8px; background: #eff6ff; color: #1e3a8a; font-size: .76rem; font-weight: 750; }
+
+@media (max-width: 820px) {
+  .workshop-schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 520px) {
+  .workshop-schedule-grid { grid-template-columns: 1fr; }
+}
+
+.workshop-board-shell {
+  display: grid;
+  grid-template-columns: 222px minmax(720px, 1fr);
+  min-height: 500px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.workshop-side-panel {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  border-right: 1px solid #94a3b8;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.workshop-completed-panel {
+  grid-template-rows: auto minmax(0, 1fr);
+  border-right: 0;
+  border-left: 1px solid #94a3b8;
+}
+
+.workshop-side-heading {
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 4px;
+  padding: 6px 9px;
+  border-bottom: 1px solid #93c5fd;
+  background: #dbeafe;
+  color: #0f172a;
+  font-size: .72rem;
+  text-align: left;
+}
+
+.workshop-side-heading > strong {
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.workshop-side-heading > span {
+  display: block;
+  min-width: 0;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: #fff;
+  color: #1d4ed8;
+  font-weight: 950;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.workshop-status-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.workshop-status-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: .58rem;
+  font-weight: 950;
+  color: #0f172a;
+  background: #e2e8f0;
+}
+
+.workshop-status-legend .planned { background: #fecdd3; }
+.workshop-status-legend .live { background: #dbeafe; }
+.workshop-status-legend .stoppage { background: #fee2e2; }
+.workshop-status-legend .completed { background: #dcfce7; }
+
+.workshop-search {
+  display: grid;
+  gap: 3px;
+  padding: 7px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: .58rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.workshop-search input {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 7px;
+  background: #fff;
+  font-size: .72rem;
+}
+
+.workshop-unallocated-drop {
+  margin: 6px;
+  min-height: 48px;
+  display: grid;
+  place-content: center;
+  gap: 2px;
+  padding: 7px;
+  border: 2px dashed #60a5fa;
+  border-radius: 7px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  text-align: center;
+  transition: background .12s ease, box-shadow .12s ease;
+}
+
+.workshop-unallocated-drop strong { font-size: .67rem; }
+.workshop-unallocated-drop span { font-size: .55rem; font-weight: 750; }
+.workshop-unallocated-drop.drag-over { background: #bfdbfe; box-shadow: inset 0 0 0 2px #2563eb; }
+
+.workshop-side-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 5px;
+  display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
+  gap: 4px;
+}
+
+.workshop-queue-card,
+.workshop-other-date-card,
+.workshop-completed-card {
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 6px 7px;
+  border: 1px solid #fca5a5;
+  border-left: 4px solid #ef4444;
+  border-radius: 5px;
+  background: #fee2e2;
+  color: #0f172a;
+  text-align: left;
+  cursor: grab;
+}
+
+.workshop-queue-card strong,
+.workshop-other-date-card strong,
+.workshop-completed-card strong { font-size: .72rem; }
+.workshop-queue-card span,
+.workshop-other-date-card span,
+.workshop-completed-card span { font-size: .64rem; font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workshop-queue-card small,
+.workshop-completed-card small { color: #64748b; font-size: .58rem; font-weight: 800; }
+.workshop-queue-card em { color: #b91c1c; font-size: .54rem; font-style: normal; font-weight: 950; }
+.workshop-schedule-button {
+  width: 100%;
+  margin-top: 4px;
+  min-height: 28px;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: .64rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+.workshop-schedule-button:hover { background: #1e40af; }
+.workshop-queue-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-top: 4px; }
+.workshop-schedule-button.best-slot { border-color: #0f766e; background: #0f766e; }
+.workshop-schedule-button.best-slot:hover { background: #115e59; }
+.workshop-queue-card.is-blocked { border-color: #dc2626; background: #fecaca; }
+.workshop-queue-card.is-scheduling-disabled { border-color: #c2410c; background: #fff7ed; cursor: not-allowed; }
+.workshop-queue-card.is-scheduling-disabled .workshop-eta-line.is-invalid { color: #9a3412; font-weight: 800; }
+.workshop-queue-card .workshop-scheduling-unavailable-reason {
+  color: #9a3412;
+  font-size: .58rem;
+  font-weight: 850;
+  line-height: 1.25;
+  white-space: normal;
+}
+.workshop-parts-line { color: #475569 !important; font-weight: 900 !important; }
+.workshop-parts-line.parts-stoppage,
+.workshop-parts-line.parts-notordered,
+.workshop-parts-line.parts-miscacc { color: #b91c1c !important; }
+.workshop-parts-line.parts-onorder { color: #92400e !important; }
+.workshop-parts-line.parts-issued,
+.workshop-parts-line.parts-notrequired { color: #166534 !important; }
+
+.workshop-other-dates {
+  max-height: 150px;
+  overflow: auto;
+  padding: 6px;
+  border-top: 1px solid #cbd5e1;
+  display: grid;
+  gap: 4px;
+}
+
+.workshop-other-dates > strong { color: #475569; font-size: .62rem; text-transform: uppercase; }
+.workshop-other-date-card { border-color: #93c5fd; border-left-color: #3b82f6; background: #eff6ff; cursor: pointer; }
+.workshop-completed-card { border-color: #86efac; border-left-color: #16a34a; background: #dcfce7; cursor: pointer; }
+
+.workshop-empty {
+  padding: 12px 8px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 7px;
+  color: #64748b;
+  background: rgba(255,255,255,.7);
+  text-align: center;
+  font-size: .67rem;
+}
+
+.workshop-timeline-scroll {
+  min-width: 0;
+  overflow: auto;
+  background: #fff;
+}
+
+.workshop-timeline {
+  position: relative;
+  min-width: 760px;
+}
+
+.workshop-time-header,
+.workshop-bay-row {
+  display: grid;
+  grid-template-columns: 160px minmax(600px, 1fr);
+}
+
+.workshop-time-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 48px;
+  border-bottom: 1px solid #64748b;
+  background: #eff6ff;
+}
+
+.workshop-bay-label {
+  position: sticky;
+  left: 0;
+  z-index: 8;
+  min-width: 160px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 7px 8px;
+  border-right: 1px solid #94a3b8;
+  background: #f8fafc;
+}
+
+.workshop-bay-label strong { color: #0f172a; font-size: .72rem; }
+.workshop-bay-label-heading { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.workshop-bay-label-heading button {
+  border: 1px solid #93c5fd;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: .5rem;
+  font-weight: 950;
+  cursor: pointer;
+}
+.workshop-bay-label-heading button:hover { border-color: #2563eb; background: #dbeafe; }
+.workshop-bay-label span { color: #64748b; font-size: .58rem; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workshop-bay-label label { display: grid; grid-template-columns: 1fr; gap: 2px; margin-top: 2px; }
+.workshop-bay-label label small { color: #64748b; font-size: .48rem; font-weight: 900; text-transform: uppercase; }
+.workshop-bay-label select { width: 100%; min-height: 24px; border: 1px solid #cbd5e1; border-radius: 5px; background: #fff; padding: 2px 4px; color: #0f172a; font-size: .58rem; font-weight: 750; }
+
+.workshop-time-header .workshop-bay-label { z-index: 22; background: #dbeafe; }
+
+.workshop-time-axis {
+  position: relative;
+  display: block;
+  min-height: 48px;
+  overflow: visible;
+  z-index: 6;
+  background: repeating-linear-gradient(to right, rgba(148,163,184,.42) 0 1px, transparent 1px var(--workshop-half-hour-width, 5.555556%));
+}
+
+.workshop-time-axis span {
+  position: absolute;
+  top: 7px;
+  z-index: 7;
+  transform: translateX(-50%);
+  color: #1e293b;
+  font-size: .66rem;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.workshop-time-axis span:first-child { transform: none; }
+.workshop-time-axis span:last-child { transform: translateX(-100%); }
+
+.workshop-bay-row {
+  min-height: 108px;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.workshop-bay-row:nth-child(even) .workshop-bay-label { background: #f1f5f9; }
+
+.workshop-bay-lane {
+  position: relative;
+  min-height: 108px;
+  background-color: #fff;
+  background-image:
+    repeating-linear-gradient(to right, rgba(148,163,184,.25) 0 1px, transparent 1px var(--workshop-half-hour-width, 5.555556%)),
+    repeating-linear-gradient(to right, rgba(59,130,246,.14) 0 2px, transparent 2px var(--workshop-hour-width, 11.111111%));
+  transition: background-color .12s ease, box-shadow .12s ease;
+}
+
+.workshop-bay-lane.drag-over {
+  background-color: #dbeafe;
+  box-shadow: inset 0 0 0 3px #3b82f6;
+}
+
+.workshop-drop-preview {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.workshop-drop-preview-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--drop-preview-left, 0%);
+  width: 3px;
+  background: #1d4ed8;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.55), 0 0 12px rgba(37,99,235,.35);
+}
+
+.workshop-drop-preview-pill {
+  position: absolute;
+  top: 10px;
+  left: var(--drop-preview-left, 0%);
+  width: max(var(--drop-preview-width, 5%), 68px);
+  height: 64px;
+  border: 2px dashed #1d4ed8;
+  border-left: 6px solid #1d4ed8;
+  border-radius: 7px;
+  background: rgba(219,234,254,.7);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.7), 0 4px 12px rgba(37,99,235,.18);
+}
+
+.workshop-drop-preview-pill::after {
+  content: attr(data-preview-label);
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  display: inline-flex;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(30,64,175,.96);
+  color: #fff;
+  font-size: .56rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.workshop-drop-preview.is-vertical .workshop-drop-preview-line {
+  top: var(--drop-preview-top, 0%);
+  bottom: auto;
+  left: 0;
+  right: 0;
+  width: auto;
+  height: 3px;
+}
+
+.workshop-drop-preview.is-vertical .workshop-drop-preview-pill {
+  top: var(--drop-preview-top, 0%);
+  left: 34px;
+  right: 6px;
+  width: auto;
+  height: max(var(--drop-preview-height, 8%), 44px);
+}
+
+.workshop-plan-chip {
+  position: absolute;
+  z-index: 5;
+  top: 6px;
+  left: var(--plan-left);
+  width: max(var(--plan-width), 62px);
+  height: 96px;
+  border: 2px solid #fb7185;
+  border-left: 6px solid #e11d48;
+  border-radius: 5px;
+  background: #fecdd3;
+  box-shadow: 0 2px 5px rgba(15,23,42,.12);
+  overflow: hidden;
+  cursor: grab;
+}
+
+@keyframes workshop-started-blue-pulse {
+  0%, 100% { background: #dbeafe; box-shadow: 0 0 0 1px rgba(37,99,235,.2), 0 2px 5px rgba(15,23,42,.12); }
+  50% { background: #93c5fd; box-shadow: 0 0 0 4px rgba(37,99,235,.32), 0 5px 12px rgba(30,64,175,.22); }
+}
+
+.workshop-plan-chip.is-started {
+  border-color: #2563eb;
+  border-left-color: #1d4ed8;
+  background: #dbeafe;
+  animation: workshop-started-blue-pulse 1.25s ease-in-out infinite;
+}
+.workshop-plan-chip.is-blocked { border-color: #dc2626; border-left-color: #991b1b; background: #fecaca; }
+.workshop-plan-chip.is-selected { box-shadow: 0 0 0 3px #fbbf24, 0 5px 10px rgba(15,23,42,.18); z-index: 10; }
+.workshop-plan-chip.is-stoppage { border-color: #991b1b; border-left-color: #7f1d1d; background: #fee2e2; }
+.workshop-plan-chip.has-assignee-conflict {
+  outline: 3px solid #f59e0b;
+  outline-offset: 1px;
+}
+.workshop-assignee-warning { color: #b45309 !important; font-weight: 950 !important; }
+
+@keyframes workshop-search-glow {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(14,165,233,.28), 0 0 20px rgba(14,165,233,.55); }
+  50% { box-shadow: 0 0 0 7px rgba(37,99,235,.4), 0 0 32px rgba(37,99,235,.8); }
+}
+.workshop-plan-chip.is-search-match,
+.workshop-queue-card.is-search-match,
+.workshop-completed-card.is-search-match {
+  z-index: 18;
+  outline: 3px solid #0284c7;
+  outline-offset: 2px;
+  animation: workshop-search-glow 1.15s ease-in-out 4;
+}
+
+@keyframes workshop-overtime-flash {
+  0%, 100% { background: #dc2626; box-shadow: 0 0 0 2px rgba(220,38,38,.3), 0 3px 8px rgba(127,29,29,.24); }
+  50% { background: #7f1d1d; box-shadow: 0 0 0 4px rgba(239,68,68,.48), 0 6px 14px rgba(127,29,29,.4); }
+}
+
+.workshop-plan-chip.is-overtime {
+  border-color: #7f1d1d;
+  background: #fecdd3;
+  color: #fff;
+  animation: workshop-overtime-flash 1.1s ease-in-out infinite;
+  z-index: 14;
+}
+
+.workshop-plan-chip.is-overtime > button,
+.workshop-plan-chip.is-overtime small { color: #fff !important; }
+.workshop-scroll-cue { display: none; }
+.workshop-plan-chip.is-eta-risk { border-color: #dc2626; border-left-color: #991b1b; background: #fff1f2; }
+.workshop-plan-chip .workshop-eta-risk-label { color: #b91c1c !important; font-weight: 950; }
+.workshop-plan-chip.uses-configured-overtime,
+.workshop-week-card.uses-configured-overtime {
+  border: 3px solid #7c3aed;
+  box-shadow: inset 0 0 0 2px rgba(196,181,253,.65);
+}
+.workshop-plan-chip.historical-on-closure,
+.workshop-week-card.historical-on-closure {
+  background-image: repeating-linear-gradient(135deg, rgba(100,116,139,.18) 0 7px, transparent 7px 14px);
+  border-style: dashed;
+}
+.workshop-plan-chip.continues-from-previous { border-left-style: double; border-left-width: 8px; }
+.workshop-plan-chip.continues-next { border-right: 5px double #1d4ed8; }
+
+.workshop-plan-chip > .workshop-plan-main {
+  width: 100%;
+  height: calc(100% - 25px);
+  border: 0;
+  background: transparent;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  padding: 6px 13px 4px 7px;
+  color: #0f172a;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.workshop-plan-lifecycle-actions {
+  position: absolute;
+  z-index: 13;
+  left: 3px;
+  right: 12px;
+  bottom: 3px;
+  height: 20px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+}
+
+.workshop-plan-lifecycle-actions > button {
+  width: auto;
+  min-width: 0;
+  padding-inline: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  height: 100%;
+  border: 1px solid #1d4ed8;
+  border-radius: 4px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: .55rem;
+  font-weight: 950;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+}
+
+.workshop-plan-lifecycle-actions > button:hover,
+.workshop-plan-lifecycle-actions > button:focus-visible {
+  background: #dbeafe;
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.workshop-plan-lifecycle-actions > button.workshop-complete-action {
+  border-color: #15803d;
+  background: #dcfce7;
+  color: #14532d;
+}
+
+.workshop-plan-lifecycle-actions > button.workshop-complete-action:hover,
+.workshop-plan-lifecycle-actions > button.workshop-complete-action:focus-visible {
+  background: #bbf7d0;
+  outline-color: #16a34a;
+}
+
+.workshop-plan-chip.has-lifecycle-actions .workshop-plan-main > span {
+  display: none;
+}
+
+.workshop-plan-chip.has-lifecycle-actions .workshop-plan-main {
+  line-height: 1.05;
+}
+
+.workshop-plan-chip strong,
+.workshop-plan-chip span,
+.workshop-plan-chip small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workshop-plan-chip strong { font-size: .74rem; font-weight: 950; line-height: 1.08; }
+.workshop-plan-chip span { font-size: .62rem; font-weight: 900; line-height: 1.08; }
+.workshop-plan-chip small { color: #334155; font-size: .57rem; font-weight: 900; line-height: 1.08; }
+.workshop-plan-chip .workshop-plan-time,
+.workshop-plan-chip .workshop-plan-hours { color: #172554; font-weight: 950; }
+
+.workshop-plan-resize {
+  position: absolute;
+  z-index: 12;
+  top: 3px;
+  right: 1px;
+  bottom: 3px;
+  width: 10px;
+  cursor: ew-resize;
+  background: repeating-linear-gradient(to right, rgba(71,85,105,.55) 0 1px, transparent 1px 3px);
+}
+
+.workshop-now-line {
+  position: absolute;
+  z-index: 30;
+  top: 48px;
+  bottom: 0;
+  width: 3px;
+  background: #dc2626;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(220,38,38,.25);
+}
+
+.workshop-now-line span {
+  position: sticky;
+  top: 50px;
+  display: inline-flex;
+  transform: translateX(4px);
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: .55rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.workshop-board-note {
+  padding: 8px 12px;
+  border-top: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  font-size: .7rem;
+}
+
+.workshop-date-summary {
+  display: grid;
+  gap: 2px;
+}
+
+.workshop-date-summary > span {
+  color: #475569;
+  font-size: .72rem;
+  font-weight: 800;
+}
+
+.workshop-job-card { width: min(920px, calc(100vw - 40px)); max-height: calc(100vh - 40px); overflow: auto; }
+.workshop-job-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+.workshop-job-card h2 { margin: 0 0 4px; }
+.workshop-job-card p { margin: 0; color: #64748b; font-size: .76rem; }
+.workshop-job-vehicle-summary { display: grid; gap: 4px; padding: 11px; border: 1px solid #bfdbfe; border-radius: 9px; background: #eff6ff; margin-bottom: 12px; }
+.workshop-job-vehicle-summary strong { color: #0f172a; }
+.workshop-job-vehicle-summary span,
+.workshop-job-vehicle-summary small { color: #475569; font-size: .72rem; font-weight: 750; }
+.workshop-job-hours-grid { display: grid; grid-template-columns: repeat(2, minmax(260px, 1fr)); gap: 7px; }
+.workshop-job-row { display: grid; grid-template-columns: 1fr 95px 34px; align-items: center; gap: 7px; padding: 8px; border: 1px solid #e2e8f0; border-left: 5px solid #94a3b8; border-radius: 8px; background: #f8fafc; }
+.workshop-job-row.is-required { border-left-color: #ef4444; background: #fff7ed; }
+.workshop-job-row.is-complete { border-left-color: #16a34a; background: #f0fdf4; }
+.workshop-job-row > span { display: grid; gap: 2px; }
+.workshop-job-row strong { color: #0f172a; font-size: .78rem; }
+.workshop-job-row small { color: #64748b; font-size: .58rem; font-weight: 850; text-transform: uppercase; }
+.workshop-job-row input { width: 100%; min-height: 34px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 7px; font-weight: 850; }
+.workshop-job-row em { color: #64748b; font-size: .62rem; font-style: normal; font-weight: 800; }
+.workshop-job-notes { display: grid; gap: 4px; margin-top: 10px; padding: 9px; border: 1px solid #e2e8f0; border-radius: 8px; }
+.workshop-job-notes strong { color: #0f172a; font-size: .72rem; }
+.workshop-job-notes span { color: #475569; font-size: .68rem; line-height: 1.4; }
+
+.workshop-current-stage-time {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 320px);
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 2px solid #2563eb;
+  border-radius: 10px;
+  background: #eff6ff;
+}
+.workshop-current-stage-time > div { display: grid; gap: 3px; }
+.workshop-current-stage-time strong { color: #0f172a; font-size: .86rem; }
+.workshop-current-stage-time span { color: #475569; font-size: .7rem; font-weight: 750; }
+.workshop-current-stage-time label { display: grid; gap: 4px; color: #475569; font-size: .62rem; font-weight: 900; text-transform: uppercase; }
+.workshop-current-stage-time input { min-height: 36px; border: 1px solid #93c5fd; border-radius: 7px; padding: 5px 8px; font-weight: 850; }
+.workshop-job-lines { display: grid; gap: 6px; }
+.workshop-required-jobs { display: grid; gap: 7px; padding: 10px 12px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; }
+.workshop-required-jobs > header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; color: #475569; font-size: .68rem; }
+.workshop-required-jobs > header strong { color: #1e3a8a; font-size: .78rem; }
+.workshop-required-job-list { display: grid; gap: 6px; margin: 0; padding: 0; color: #0f172a; font-size: .74rem; font-weight: 700; list-style: none; }
+.workshop-required-job-list li { display: grid; grid-template-columns: minmax(48px, auto) minmax(180px, 1fr) auto; gap: 10px; align-items: center; padding: 7px 9px; border: 1px solid #bfdbfe; border-radius: 7px; background: #fff; }
+.workshop-required-job-list li strong { color: #1d4ed8; }
+.workshop-required-job-list li em { color: #475569; font-size: .68rem; font-style: normal; white-space: nowrap; }
+.workshop-job-lines > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: #475569; font-size: .68rem; }
+.workshop-job-lines > header strong { color: #0f172a; font-size: .76rem; }
+.workshop-job-line-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 210px) 110px;
+  gap: 8px;
+  align-items: end;
+  padding: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.workshop-job-line-row > span { align-self: center; color: #0f172a; font-size: .72rem; font-weight: 750; line-height: 1.3; }
+.workshop-job-line-row label { display: grid; gap: 3px; }
+.workshop-job-line-row small { color: #64748b; font-size: .55rem; font-weight: 900; text-transform: uppercase; }
+.workshop-job-line-row select,
+.workshop-job-line-row input { width: 100%; min-height: 34px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 7px; background: #fff; font-weight: 750; }
+.workshop-job-lines-empty { padding: 12px; border: 1px dashed #94a3b8; border-radius: 8px; color: #64748b; background: #f8fafc; font-size: .7rem; text-align: center; }
+
+.workshop-return-card { width: min(620px, calc(100vw - 40px)); }
+.workshop-return-card > header { margin-bottom: 12px; }
+.workshop-return-card h2 { margin: 0 0 4px; }
+.workshop-return-options { display: grid; gap: 8px; }
+.workshop-return-options label { display: grid; grid-template-columns: auto 1fr; gap: 9px; align-items: start; padding: 10px; border: 1px solid #cbd5e1; border-radius: 9px; cursor: pointer; }
+.workshop-return-options span { display: grid; gap: 2px; }
+.workshop-return-options strong { color: #0f172a; font-size: .78rem; }
+.workshop-return-options small { color: #64748b; font-size: .68rem; line-height: 1.35; }
+.workshop-return-reason { display: grid; gap: 4px; margin-top: 10px; color: #475569; font-size: .65rem; font-weight: 900; }
+.workshop-return-reason input { min-height: 38px; border: 1px solid #cbd5e1; border-radius: 7px; padding: 6px 8px; }
+
+.workshop-vehicle-link-card { width: min(940px, calc(100vw - 40px)); max-height: calc(100vh - 40px); overflow: auto; }
+.workshop-vehicle-link-card > header { margin-bottom: 12px; }
+.workshop-vehicle-link-card h2, .workshop-vehicle-link-card h3 { margin: 0 0 5px; }
+.workshop-vehicle-link-card h3 { font-size: .78rem; }
+.workshop-link-identity { display: grid; gap: 6px; margin-bottom: 12px; }
+.workshop-link-identity > div { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.workshop-link-identity span, .workshop-link-decision span { color: #64748b; font-size: .66rem; font-weight: 900; text-transform: uppercase; letter-spacing: .03em; }
+.workshop-link-identity code, .workshop-link-candidates code { overflow-wrap: anywhere; white-space: normal; }
+.workshop-link-candidates { min-width: 720px; }
+.workshop-link-candidates td { vertical-align: top; }
+.workshop-link-decision { display: grid; gap: 7px; margin-top: 12px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; background: #f8fafc; }
+.workshop-link-decision > div { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px; }
+.workshop-link-decision strong { font-size: .73rem; overflow-wrap: anywhere; }
+
+.workshop-week-card-shell { width: min(1420px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; }
+.workshop-week-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 10px; }
+.workshop-week-header h2 { margin: 0 0 4px; }
+.workshop-week-header > div:last-child { display: flex; gap: 6px; padding-right: 32px; }
+.workshop-week-grid { display: grid; grid-template-columns: repeat(var(--workshop-week-columns, 5), minmax(190px, 1fr)); gap: 6px; min-width: 1040px; }
+.workshop-week-day.is-closure > header { background: #e2e8f0; color: #334155; }
+.workshop-week-day.is-closure .workshop-week-day-lane { background-color: #f8fafc; }
+.workshop-week-day { min-width: 0; border: 1px solid #94a3b8; background: #fff; }
+.workshop-week-day > header { display: grid; grid-template-columns: auto 1fr; gap: 2px 6px; align-items: center; min-height: 48px; padding: 6px 8px; border-bottom: 1px solid #94a3b8; background: #dbeafe; }
+.workshop-week-day > header strong { color: #0f172a; font-size: .78rem; }
+.workshop-week-day > header span { color: #1e3a8a; font-size: .67rem; font-weight: 850; }
+.workshop-week-day > header small { grid-column: 1 / -1; color: #475569; font-size: .58rem; font-weight: 850; }
+.workshop-week-day-lane { position: relative; height: 500px; overflow: hidden; background: repeating-linear-gradient(to bottom, rgba(148,163,184,.25) 0 1px, transparent 1px 12.5%); }
+.workshop-week-day-lane.drag-over { background-color: #dbeafe; box-shadow: inset 0 0 0 3px #2563eb; }
+.workshop-week-day-lane > span { position: absolute; z-index: 1; left: 2px; transform: translateY(-50%); color: #94a3b8; font-size: .48rem; font-weight: 850; pointer-events: none; }
+.workshop-week-card {
+  position: absolute;
+  z-index: 3;
+  top: var(--week-top);
+  left: 33px;
+  right: 4px;
+  height: max(var(--week-height), 44px);
+  min-height: 44px;
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  padding: 4px 24px 4px 6px;
+  border: 1px solid #fb7185;
+  border-left: 5px solid #e11d48;
+  border-radius: 5px;
+  background: #fecdd3;
+  color: #0f172a;
+  cursor: grab;
+  overflow: hidden;
+}
+.workshop-week-card.is-live { border-color: #2563eb; border-left-color: #1d4ed8; background: #dbeafe; cursor: grab; }
+.workshop-week-card strong,
+.workshop-week-card span,
+.workshop-week-card small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workshop-week-card strong { font-size: .62rem; }
+.workshop-week-card span { font-size: .55rem; font-weight: 800; }
+.workshop-week-card small { color: #475569; font-size: .5rem; font-weight: 750; }
+.workshop-week-card em { position: absolute; right: 4px; top: 4px; color: #9f1239; font-size: .53rem; font-style: normal; font-weight: 950; }
+.workshop-week-card-shell > footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; color: #64748b; font-size: .68rem; }
+.workshop-week-admin-block {
+  position: absolute;
+  z-index: 2;
+  top: var(--week-top);
+  left: 33px;
+  right: 4px;
+  height: max(var(--week-height), 22px);
+  min-height: 22px;
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  padding: 3px 5px;
+  border: 1px solid #9a6a00;
+  border-radius: 5px;
+  background: #ffd84d;
+  color: #3c2a00;
+  font-size: .56rem;
+  overflow: hidden;
+}
+.workshop-week-admin-block strong,
+.workshop-week-admin-block small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workshop-week-admin-block strong { font-size: .58rem; }
+.workshop-week-admin-block small { font-size: .5rem; font-weight: 800; }
+.workshop-week-admin-block.continues-from-previous { border-left-style: dashed; }
+.workshop-week-admin-block.continues-next { border-right-style: dashed; }
+
+@media (max-width: 1400px) {
+  .workshop-board-shell { grid-template-columns: 190px minmax(680px, 1fr); }
+  .workshop-job-detail { grid-template-columns: minmax(210px, 1.2fr) minmax(175px, .8fr) 80px minmax(135px, .7fr); }
+  .workshop-detail-actions { grid-column: 1 / -1; justify-content: flex-start; }
+}
+
+@media (max-width: 1300px) {
+  .workshop-board-shell {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    overflow: visible;
+  }
+  .workshop-board-shell > * { min-width: 0; }
+  .workshop-side-panel { max-height: 310px; border-right: 0; border-bottom: 1px solid #94a3b8; }
+  .workshop-timeline-scroll {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable;
+    scrollbar-color: #64748b #e2e8f0;
+  }
+  .workshop-scroll-cue {
+    position: sticky;
+    left: 8px;
+    top: 4px;
+    z-index: 30;
+    display: inline-flex;
+    width: max-content;
+    margin: 4px 8px;
+    padding: 4px 8px;
+    border: 1px solid #93c5fd;
+    border-radius: 999px;
+    background: rgba(239, 246, 255, .96);
+    color: #1e3a8a;
+    font-size: .68rem;
+    font-weight: 900;
+  }
+  .workshop-completed-panel { display: none; }
+  .workshop-planner-header { align-items: flex-start; flex-direction: column; }
+  .workshop-stage-tabs { grid-template-columns: repeat(4, minmax(90px, 1fr)); }
+  .workshop-job-hours-grid { grid-template-columns: 1fr; }
+  .workshop-current-stage-time { grid-template-columns: 1fr; }
+  .workshop-job-line-row { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 820px) {
+  .workshop-planner-panel { overflow: visible; }
+  .workshop-planner,
+  .workshop-planner-dedicated,
+  .workshop-planner-dedicated > [data-workshop-station-content] {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .workshop-planner,
+  .workshop-station-board { grid-template-columns: minmax(0, 1fr); }
+  .workshop-planner-header,
+  .workshop-date-summary { min-width: 0; }
+  .workshop-date-controls { width: 100%; justify-content: flex-start; }
+  .workshop-board-shell {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+    overflow: visible;
+  }
+  .workshop-side-panel {
+    max-height: 310px;
+    border-right: 0;
+    border-bottom: 1px solid #94a3b8;
+  }
+  .workshop-timeline-scroll {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+  }
+  .workshop-stage-tabs { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .workshop-stage-tab { min-width: 0; padding-inline: 4px; }
+  .workshop-booking-search { grid-template-columns: minmax(0, 1fr); }
+  .workshop-booking-search > button { justify-self: start; }
+}
+
+
+/* Phase A — compact Job Details and stable-identity planner booking search. */
+.workshop-planner { grid-template-rows: none; grid-auto-rows: auto; }
+.workshop-board-shell { min-height: 500px; }
+.workshop-booking-search {
+  position: relative;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: minmax(260px, 560px) auto;
+  align-items: end;
+  gap: 7px;
+  padding: 7px 12px;
+  border-bottom: 1px solid #cbd5e1;
+  background: #f8fafc;
+}
+.workshop-booking-search > label { display: grid; gap: 3px; color: #334155; font-size: .61rem; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+.workshop-booking-search input { width: 100%; min-height: 34px; padding: 6px 9px; border: 1px solid #94a3b8; border-radius: 7px; background: #fff; color: #0f172a; font-size: .75rem; }
+.workshop-search-results { position: absolute; top: calc(100% - 3px); left: 12px; right: 12px; z-index: 100; max-height: min(520px, 62vh); overflow: auto; padding: 7px; border: 1px solid #94a3b8; border-radius: 0 0 10px 10px; background: #fff; box-shadow: 0 18px 38px rgba(15, 23, 42, .24); }
+.workshop-search-results-list { display: grid; gap: 5px; }
+.workshop-search-result { width: 100%; display: grid; grid-template-columns: minmax(250px, 1fr) minmax(250px, 1fr) max-content; gap: 12px; align-items: center; min-height: 52px; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 7px; background: #fff; color: #0f172a; text-align: left; }
+button.workshop-search-result { cursor: pointer; }
+button.workshop-search-result:hover, button.workshop-search-result:focus-visible { border-color: #2563eb; background: #eff6ff; outline: 2px solid rgba(37, 99, 235, .3); outline-offset: 1px; }
+.workshop-search-result-vehicle, .workshop-search-result-booking, .workshop-search-result-state { min-width: 0; display: grid; gap: 2px; }
+.workshop-search-result strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .7rem; }
+.workshop-search-result span { color: #475569; font-size: .64rem; font-weight: 750; }
+.workshop-search-result-flags { display: flex; justify-content: flex-end; gap: 4px; }
+.workshop-search-alert, .workshop-search-closest { display: inline-flex; padding: 3px 6px; border-radius: 999px; white-space: nowrap; color: #92400e !important; background: #fef3c7; font-size: .58rem !important; font-weight: 950 !important; }
+.workshop-search-closest { color: #1e3a8a !important; background: #dbeafe; }
+.workshop-search-result.is-unbooked { border-style: dashed; }
+.workshop-search-state { display: grid; gap: 2px; padding: 9px 10px; color: #475569; font-size: .7rem; }
+.workshop-search-state strong { color: #0f172a; }
+.workshop-search-state.is-warning { margin-bottom: 6px; border-radius: 6px; background: #fffbeb; color: #92400e; }
+
+.workshop-detail-panel { position: relative; z-index: 20; border-bottom: 1px solid #cbd5e1; background: #fff; }
+.workshop-detail-summary { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 10px 4px 12px; }
+.workshop-detail-summary > div:first-child { min-width: 0; display: flex; align-items: baseline; gap: 10px; }
+.workshop-detail-summary strong { color: #0f172a; font-size: .76rem; }
+.workshop-detail-summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #64748b; font-size: .66rem; }
+.workshop-detail-summary-actions { display: flex; align-items: center; gap: 4px; }
+.workshop-detail-toggle { width: 30px; min-height: 28px; padding: 2px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #334155; font-size: 1rem; font-weight: 850; }
+.workshop-detail-panel.is-expanded .workshop-detail-toggle span { display: inline-block; transform: rotate(180deg); }
+.workshop-detail-panel.is-collapsed .workshop-detail-content { display: none !important; min-height: 0; height: 0; overflow: hidden; }
+.workshop-detail-content { min-height: 0; }
+.workshop-detail-content > .workshop-job-detail { border-top: 1px solid #e2e8f0; border-bottom: 0; }
+.workshop-detail-content > .workshop-job-detail.is-empty { min-height: 40px; }
+.workshop-booking-navigator { display: grid; grid-template-columns: minmax(210px, 1fr) auto minmax(220px, .8fr) auto; align-items: end; gap: 7px; padding: 6px 12px; border-top: 1px solid #dbeafe; background: #eff6ff; }
+.workshop-booking-navigator > span { align-self: center; color: #1e3a8a; font-size: .67rem; font-weight: 850; }
+.workshop-booking-navigator label { display: grid; gap: 2px; color: #475569; font-size: .57rem; font-weight: 900; text-transform: uppercase; }
+.workshop-booking-navigator select { min-height: 30px; padding: 4px 6px; border: 1px solid #93c5fd; border-radius: 6px; background: #fff; color: #0f172a; font-size: .65rem; }
+.workshop-plan-chip.is-search-match { z-index: 12; outline: 3px solid #f59e0b; outline-offset: 2px; animation: workshop-search-pulse 1.1s ease-in-out 3; }
+@keyframes workshop-search-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } 50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, .38); } }
+@media (prefers-reduced-motion: reduce) {
+  .workshop-plan-chip.is-search-match,
+  .workshop-plan-chip.is-started,
+  .workshop-plan-chip.is-overtime { animation: none; }
+  .workshop-plan-chip.is-overtime { background: #b91c1c; color: #fff; }
+}
+@media (max-width: 900px) {
+  .workshop-booking-search { grid-template-columns: 1fr auto; }
+  .workshop-search-result { grid-template-columns: 1fr; }
+  .workshop-search-result-flags { justify-content: flex-start; }
+  .workshop-booking-navigator { grid-template-columns: 1fr 1fr; }
+  .workshop-booking-navigator > span, .workshop-booking-navigator label { grid-column: 1 / -1; }
+}
+@media (max-width: 820px) {
+  .workshop-booking-search { grid-template-columns: minmax(0, 1fr); }
+  .workshop-booking-search > button { justify-self: start; }
+}
+
+.workshop-link-readiness-card { width: min(1040px, calc(100vw - 32px)); max-height: min(860px, calc(100vh - 32px)); display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 12px; }
+.workshop-link-readiness-summary { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); gap: 7px; }
+.workshop-link-readiness-summary > div { min-width: 0; display: grid; gap: 3px; padding: 9px 10px; border: 1px solid #cbd5e1; background: #f8fafc; }
+.workshop-link-readiness-summary span { color: #475569; font-size: .68rem; font-weight: 750; }
+.workshop-link-readiness-summary strong { color: #0f172a; font-size: 1.3rem; }
+.workshop-link-readiness-table { min-height: 0; overflow: auto; border: 1px solid #cbd5e1; }
+.workshop-link-readiness-table table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.workshop-link-readiness-table th, .workshop-link-readiness-table td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; font-size: .72rem; }
+.workshop-link-readiness-table th { position: sticky; top: 0; background: #f1f5f9; z-index: 2; }
+.workshop-link-readiness-table th:nth-child(1) { width: 24%; }
+.workshop-link-readiness-table th:nth-child(2) { width: 20%; }
+.workshop-link-readiness-table td { overflow-wrap: anywhere; }
+.workshop-link-readiness-table td:first-child { display: grid; gap: 2px; }
+.workshop-link-readiness-table td:first-child span { color: #64748b; font-size: .65rem; }
+@media (max-width: 900px) {
+  .workshop-link-readiness-summary { grid-template-columns: repeat(2, minmax(110px, 1fr)); }
+}
+
+/* Reconciled from the verified current staging artifact during the
+   production-readiness topology reset. Keep mobile planner controls readable
+   while retaining the intentionally scrollable bay timeline. */
+@media (max-width: 620px) {
+  .workshop-planner-header {
+    gap: 12px;
+    padding: 13px 12px 11px;
+  }
+
+  .workshop-date-controls {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 7px;
+  }
+
+  .workshop-date-nav {
+    grid-column: 1 / -1;
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .workshop-date-controls input[data-workshop-date] {
+    width: 160px;
+    min-width: 0;
+    flex: 0 1 160px;
+  }
+
+  .workshop-date-controls button {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    white-space: normal;
+  }
+
+  .workshop-date-shift-group {
+    flex: 0 1 auto;
+  }
+
+  .workshop-date-shift-group button {
+    width: auto;
+    min-width: 92px;
+  }
+
+  .workshop-date-controls [data-workshop-parts-warning],
+  .workshop-date-controls [data-workshop-link-readiness] {
+    grid-column: 1 / -1;
+  }
+
+  .workshop-date-summary {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 5px;
+    padding: 9px 12px;
+  }
+
+  .workshop-date-summary > span {
+    min-width: 0;
+    white-space: normal;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .workshop-status-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .workshop-booking-search {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 8px 12px;
+  }
+
+  .workshop-booking-search > button {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .workshop-stage-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workshop-stage-tab {
+    min-width: 0;
+  }
+
+  .workshop-detail-summary {
+    align-items: flex-start;
+  }
+
+  .workshop-detail-summary > div:first-child {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .workshop-board-note {
+    font-size: .72rem;
+    line-height: 1.45;
+  }
+}
+
+/* Administrator downtime blocks are deliberately yellow and visually distinct
+   from the preserved orange missing-booking warning treatment. */
+.workshop-admin-block {
+  position: absolute;
+  z-index: 8;
+  top: 7px;
+  bottom: 7px;
+  left: var(--plan-left);
+  width: var(--plan-width);
+  min-width: 24px;
+  box-sizing: border-box;
+  padding: 7px 18px 7px 8px;
+  overflow: visible;
+  border: 2px solid #9a6a00;
+  border-radius: 9px;
+  background: #ffd84d;
+  color: #3c2a00;
+  box-shadow: 0 3px 8px rgba(74, 49, 0, .2);
+  cursor: grab;
+  touch-action: manipulation;
+}
+.workshop-admin-block:focus-visible { outline: 3px solid #315bce; outline-offset: 2px; }
+.workshop-admin-block strong, .workshop-admin-block small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workshop-admin-block.continues-from-previous,
+.workshop-admin-block.is-continuation { border-left-style: dashed; }
+.workshop-admin-block.continues-next { border-right-style: dashed; }
+.workshop-admin-block.is-continuation strong { font-size: .66rem; }
+.workshop-admin-block-controls {
+  display: none;
+  position: absolute;
+  z-index: 3;
+  top: calc(100% + 3px);
+  left: 0;
+  padding: 4px;
+  gap: 3px;
+  border: 1px solid #9a6a00;
+  border-radius: 7px;
+  background: #fff8d7;
+  box-shadow: 0 3px 10px rgba(0,0,0,.2);
+  white-space: nowrap;
+}
+.workshop-admin-block:hover .workshop-admin-block-controls,
+.workshop-admin-block:focus-within .workshop-admin-block-controls { display: flex; }
+.workshop-admin-block-controls button { min-height: 32px; padding: 4px 7px; border: 1px solid #9a6a00; border-radius: 5px; background: white; color: #3c2a00; }
+.workshop-admin-block-resize { position: absolute; inset: 0 0 0 auto; width: 13px; border-left: 2px dotted #6f4d00; cursor: ew-resize; touch-action: none; }
+.workshop-status-legend .admin { border-color: #9a6a00; background: #ffd84d; color: #3c2a00; }
+.workshop-admin-block-add { border-color: #9a6a00 !important; background: #ffd84d !important; color: #3c2a00 !important; }
+.workshop-admin-block-feedback {
+  flex: 1 1 280px;
+  min-width: 220px;
+  max-width: 620px;
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: .74rem;
+  line-height: 1.3;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.workshop-admin-block-feedback.pending { border-color: #93c5fd; background: #eff6ff; color: #1e3a8a; }
+.workshop-admin-block-feedback.success { border-color: #86efac; background: #f0fdf4; color: #166534; }
+.workshop-admin-block-feedback.error { border-color: #fca5a5; background: #fff1f2; color: #9f1239; }
+.workshop-focused-operation-lines,
+.workshop-focused-booking-error {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.workshop-focused-operation-lines strong,
+.workshop-focused-booking-error strong,
+.workshop-focused-booking-error span { display: block; }
+.workshop-focused-operation-lines ul { margin: 8px 0 0; padding-left: 20px; }
+.workshop-focused-operation-lines li { display: flex; gap: 7px; flex-wrap: wrap; line-height: 1.45; }
+.workshop-focused-operation-lines li b { margin-left: auto; }
+.workshop-focused-booking-error { border-color: #fca5a5; background: #fff1f2; color: #9f1239; }
+.workshop-focused-booking-error button { margin-top: 10px; }
+/* Focused mode omits the waiting panel; give its only child the full board width. */
+.is-focused-booking .workshop-board-shell { grid-template-columns: minmax(0, 1fr); }
+.is-focused-booking .workshop-detail-panel { max-width: 980px; }
+.workshop-admin-block-modal { max-width: 680px; }
+.workshop-admin-palette {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 5px;
+  border: 1px solid #d4a72c;
+  border-radius: 999px;
+  background: #fff8d7;
+  color: #3c2a00;
+}
+.workshop-admin-palette-hint { font-size: .66rem; font-weight: 800; white-space: nowrap; }
+.workshop-admin-palette-tile {
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 2px solid #9a6a00;
+  border-radius: 999px;
+  background: #ffd84d;
+  color: #3c2a00;
+  cursor: grab;
+  font-weight: 900;
+}
+.workshop-admin-palette-tile:active { cursor: grabbing; }
+.workshop-admin-palette-duration { display: inline-flex; align-items: center; gap: 3px; font-size: .62rem; font-weight: 800; white-space: nowrap; }
+.workshop-admin-palette-duration input { width: 52px; min-height: 28px; padding: 3px 5px; border: 1px solid #b88b13; border-radius: 5px; background: white; color: #3c2a00; }
+@media (max-width: 900px) {
+  .workshop-admin-palette { width: 100%; justify-content: space-between; border-radius: 8px; }
+  .workshop-admin-palette-hint { display: none; }
+}
+@media (pointer: coarse) {
+  .workshop-admin-palette-tile { min-height: 44px; }
+}
+@media (pointer: coarse) {
+  .workshop-admin-block-controls { display: flex; }
+  .workshop-admin-block { min-height: 64px; }
+}
+
+.workshop-closed-time {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: var(--closed-start);
+  width: var(--closed-size);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  background: repeating-linear-gradient(135deg, #64748b18 0px, #64748b18 4px, #64748b0c 4px, #64748b0c 8px);
+  color: #475569;
+}
+.workshop-closed-time > span {
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #f1f5f9;
+  font-size: 10px;
+  font-weight: 700;
+}
+.workshop-closed-time.is-vertical {
+  top: var(--closed-start);
+  bottom: auto;
+  left: 0;
+  width: 100%;
+  height: var(--closed-size);
+}
+.workshop-readiness-failure {
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid #c98824;
+  border-radius: 8px;
+  background: #fff7e6;
+  color: #563400;
+}
+.workshop-readiness-failure p { margin: 8px 0; }
+.workshop-readiness-failure button { margin: 4px 8px 0 0; }
+.workshop-booking-team {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  margin-top: 12px;
+  border: 1px solid #ccd5df;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.workshop-booking-team p { margin: 0; line-height: 1.5; }
+.workshop-booking-team > label { display: grid; gap: 6px; }
+.workshop-booking-team fieldset { display: flex; flex-wrap: wrap; gap: 10px 18px; border: 1px solid #ccd5df; padding: 12px; }
+.workshop-booking-team .workshop-team-choice { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.workshop-booking-team input[type="checkbox"] { width: 18px; height: 18px; }
+.workshop-booking-team select, .workshop-booking-team input:not([type="checkbox"]) { min-height: 40px; }
+.workshop-booking-team > button { justify-self: start; min-height: 40px; }

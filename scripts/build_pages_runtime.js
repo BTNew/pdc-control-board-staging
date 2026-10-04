@@ -8,7 +8,7 @@ const vm = require('node:vm');
 const { findPrivilegedTokens } = require('./check_frontend_secrets.js');
 
 const ENTRY_POINTS = Object.freeze([
-  'index.html', 'sales/index.html', 'karratha/index.html', 'karratha/native-verification.html', 'docs/bus4x4-user-guide.html',
+  'index.html', 'sales/index.html', 'karratha/index.html', 'docs/bus4x4-user-guide.html',
   'no-vehicles.html', 'staging.html', 'test-50.html', 'test-75.html', 'test-100.html'
 ]);
 const RUNTIME_FILES = Object.freeze([
@@ -21,10 +21,110 @@ const RUNTIME_FILES = Object.freeze([
   'docs/assets/bus4x4-guide/stage-parts.png', 'docs/assets/bus4x4-guide/supplier-check.png',
   'docs/assets/bus4x4-guide/team.png', 'docs/bus4x4-user-guide.html',
   'email-board-data.js', 'favicon.svg', 'index.html',
-  'karratha/api.js', 'karratha/app.js', 'karratha/auth.js',
-  'karratha/calendar.css', 'karratha/calendar.js', 'karratha/config.js',
-  'karratha/index.html', 'karratha/karratha.css', 'karratha/nuvu.js',
-  'karratha/native-verification.html', 'karratha/native-verification.js',
+  // Department 135: frozen native PMB runtime plus reviewed isolated boundary assets.
+  'karratha/ai-auditor.css',
+  'karratha/ai-board-advisor.js',
+  'karratha/app.js',
+  'karratha/arb-labor-catalog.js',
+  'karratha/assets/brand-logo.svg',
+  'karratha/assets/pmb-logo.png',
+  'karratha/broome-navision-import.js',
+  'karratha/canonical-entry.js',
+  'karratha/control-board-overview.js',
+  'karratha/data-staging-empty.js',
+  'karratha/deployment-manifest.json',
+  'karratha/desktop-operations.css',
+  'karratha/email-board-data.js',
+  'karratha/favicon.svg',
+  'karratha/index.html',
+  'karratha/navision-backend-service.js',
+  'karratha/navision-vin.js',
+  'karratha/pd135-api-map.js',
+  'karratha/pd135-navigation.js',
+  'karratha/pd135-nuvu-intake.css',
+  'karratha/pd135-nuvu-intake.js',
+  'karratha/pd135-nuvu-parser.js',
+  'karratha/pd135-transport.js',
+  'karratha/pdc-ai-auditor-stage-a.js',
+  'karratha/pdc-ai-intake-review.css',
+  'karratha/pdc-ai-intake-review.js',
+  'karratha/pdc-ai-intake-service.js',
+  'karratha/pdc-auth-registration.js',
+  'karratha/pdc-auth.js',
+  'karratha/pdc-book-all-stations.js',
+  'karratha/pdc-bus-workflow.css',
+  'karratha/pdc-bus-workflow.js',
+  'karratha/pdc-completed-history.css',
+  'karratha/pdc-conversions.js',
+  'karratha/pdc-department-filter.js',
+  'karratha/pdc-email-ai-successor-inbox.css',
+  'karratha/pdc-email-ai-successor-inbox.js',
+  'karratha/pdc-email-ai-v2-actions.js',
+  'karratha/pdc-email-vehicle-location-service.js',
+  'karratha/pdc-emergency-priority.css',
+  'karratha/pdc-emergency-priority.js',
+  'karratha/pdc-estimated-hours.css',
+  'karratha/pdc-estimated-hours.js',
+  'karratha/pdc-fitters.css',
+  'karratha/pdc-fitters.js',
+  'karratha/pdc-location-override.js',
+  'karratha/pdc-new-vehicles.css',
+  'karratha/pdc-new-vehicles.js',
+  'karratha/pdc-parts-confirmation.js',
+  'karratha/pdc-planner-capacity.css',
+  'karratha/pdc-planner-capacity.js',
+  'karratha/pdc-planner-slim.css',
+  'karratha/pdc-planner-slim.js',
+  'karratha/pdc-professional-polish.css',
+  'karratha/pdc-qc-mobile.css',
+  'karratha/pdc-qc-mobile.js',
+  'karratha/pdc-qc-rework.js',
+  'karratha/pdc-review-stations.css',
+  'karratha/pdc-review-stations.js',
+  'karratha/pdc-rft-actions.css',
+  'karratha/pdc-rft-actions.js',
+  'karratha/pdc-service-locations.js',
+  'karratha/pdc-stacked-jobcards.css',
+  'karratha/pdc-stacked-jobcards.js',
+  'karratha/pdc-staff-usage.css',
+  'karratha/pdc-staff-usage.js',
+  'karratha/pdc-sublet-intake.js',
+  'karratha/pdc-supabase-config.staging.js',
+  'karratha/pdc-update-history.css',
+  'karratha/pdc-update-history.js',
+  'karratha/pdc-vehicle-handover.js',
+  'karratha/pdc-workshop-hours.js',
+  'karratha/pdc-workshop-tile-cleanup.js',
+  'karratha/pdc-workshop-usability.js',
+  'karratha/sales/navision-orders.js',
+  'karratha/scripts/stage2b_c4_browser_export.js',
+  'karratha/site-switcher.css',
+  'karratha/site-switcher.js',
+  'karratha/staging-browser-assessment.js',
+  'karratha/styles.css',
+  'karratha/vehicle-lifecycle-actions.js',
+  'karratha/vehicle-location-lifecycle.js',
+  'karratha/vehicle-locations-refresh-ui.js',
+  'karratha/vehicle-locations-refresh.js',
+  'karratha/vehicle-modal-identity.js',
+  'karratha/vehicle-requirements-guard.js',
+  'karratha/vendor/pdfjs/LICENSE',
+  'karratha/vendor/pdfjs/pdf.min.js',
+  'karratha/vendor/pdfjs/pdf.worker.min.js',
+  'karratha/vendor/qz/qz-tray.js',
+  'karratha/vendor/supabase/supabase-2.110.5.js',
+  'karratha/vendor/xlsx/LICENSE',
+  'karratha/vendor/xlsx/xlsx.full.min.js',
+  'karratha/workshop-booking-timing.js',
+  'karratha/workshop-data-service.js',
+  'karratha/workshop-display-identity.js',
+  'karratha/workshop-eligibility.js',
+  'karratha/workshop-navigation.js',
+  'karratha/workshop-planner.css',
+  'karratha/workshop-planner.js',
+  'karratha/workshop-realtime.js',
+  'karratha/workshop-reference-data-service.js',
+  'karratha/workshop-shared-actions.js',
   'navision-backend-service.js', 'navision-vin.js', 'no-vehicles.html',
   'pdc-ai-auditor-stage-a.js', 'pdc-ai-intake-review.css', 'pdc-ai-intake-review.js',
   'pdc-ai-intake-service.js', 'pdc-auth-registration.js', 'pdc-auth.js',
@@ -116,7 +216,7 @@ function validateDependencies(sourceRoot, filename, text) {
   // Existing literal dependencies cover deferred planner, PDF, QZ and mobile loaders.
   // The reviewed vendor bundles use their own bundled internals, so do not treat
   // vendor-internal module examples or generated filenames as site dependencies.
-  if (filename.endsWith('.js') && !filename.startsWith('vendor/')) {
+  if (filename.endsWith('.js') && !filename.startsWith('vendor/') && !filename.startsWith('karratha/vendor/')) {
     for (const m of text.matchAll(/["'`]([^"'`\r\n]+?\.(?:js|css|json|html|png|svg|woff2?)(?:\?[^"'`\r\n]*)?)["'`]/g)) {
       const literal = m[1].split('?')[0];
       if (!/^[A-Za-z0-9_.\/-]+$/.test(literal)) continue;
@@ -128,12 +228,14 @@ function validateDependencies(sourceRoot, filename, text) {
 }
 
 function validateEmptyFallbacks(buffers) {
+  for (const prefix of ['', 'karratha/']) {
   const context = { window: {} };
-  for (const filename of ['data-staging-empty.js', 'email-board-data.js']) vm.runInNewContext(buffers.get(filename).toString('utf8'), context, { timeout: 100 });
+  for (const filename of ['data-staging-empty.js', 'email-board-data.js']) vm.runInNewContext(buffers.get(prefix + filename).toString('utf8'), context, { timeout: 100 });
   const tracking = context.window.VEHICLE_TRACKING_DATA;
   const email = context.window.PDC_EMAIL_BOARD_DATA;
   if (!tracking || !email || !Array.isArray(tracking.vehicles) || tracking.vehicles.length || !Array.isArray(email.vehicles) || email.vehicles.length || !Array.isArray(email.reviews) || email.reviews.length || Object.keys(tracking.toyotaMatches || {}).length) throw new Error('Public fallback contains operational records');
   if (Object.keys(tracking).some(k => !['report', 'vehicles', 'toyotaMatches'].includes(k)) || Object.keys(email).some(k => !['generatedAt', 'source', 'vehicles', 'reviews'].includes(k))) throw new Error('Public fallback has unreviewed fields');
+  }
 }
 
 function validateRuntime(sourceRoot) {
