@@ -35,3 +35,16 @@ test('Sales keeps its existing navigation and PMB operational code is not import
   const html = fs.readFileSync(require('node:path').join(__dirname, 'index.html'), 'utf8');
   assert.equal((html.match(/src="pd-department-navigation\.js\?v=2026\.10\.03\.01"/g) || []).length, 1);
 });
+
+test('Department 135 uses a full navigation selector after own approval and sends no operations', () => {
+  const ownSource=fs.readFileSync(require('node:path').join(__dirname,'karratha/pd135-navigation.js'),'utf8');
+  const handlers={},visits=[],labels=[];
+  const document={readyState:'complete',querySelector:()=>({after:label=>labels.push(label)}),getElementById:()=>null,createElement:tag=>({tag,children:[],events:{},append(...children){this.children.push(...children);},setAttribute(){},addEventListener(type,handler){this.events[type]=handler;}})};
+  const window={PDC_AUTH_CONTEXT:null,location:{assign:url=>visits.push(url)},addEventListener:(type,handler)=>handlers[type]=handler};
+  vm.runInNewContext(ownSource,{window,document});
+  const label=labels[0],select=label.children[1];assert.equal(label.hidden,true);assert.equal(select.disabled,true);
+  window.PDC_AUTH_CONTEXT={centreCode:'135',role:'controller'};handlers['pdc-auth-ready']();assert.equal(label.hidden,false);
+  assert.deepEqual(select.children.map(option=>option.value),['135','pmb']);select.value='pmb';select.events.change();assert.deepEqual(visits,['https://btnew.github.io/pdc-control-board-staging/']);
+  window.PDC_AUTH_CONTEXT=null;handlers['pdc-auth-locked']();assert.equal(label.hidden,true);
+  assert.doesNotMatch(ownSource,/\.rpc\(|\.from\(|fetch\(|localStorage|sessionStorage/);
+});

@@ -1,0 +1,101 @@
+(() => {
+  'use strict';
+  const location = window.location;
+  const pathname = String(location.pathname || '');
+  if (pathname.endsWith('/index.html')) {
+    const canonicalPath = pathname.slice(0, -'/index.html'.length) || '/';
+    location.replace(`${canonicalPath}${location.search || ''}${location.hash || ''}`);
+    return;
+  }
+
+  // The same authenticated website becomes a QC-only client on phones.
+  // Never rewrite OAuth/password-recovery fragments.
+  const phone = window.matchMedia?.('(max-width: 900px), (pointer: coarse) and (max-width: 1024px)').matches;
+  const requestedIntake = !phone && location.hash === '#/newvehicles';
+  document.documentElement.classList.toggle('pdc-qc-phone', Boolean(phone && location.hash !== '#/fitters'));
+  if (phone && location.hash !== '#/fitters' && (!location.hash || location.hash.startsWith('#/'))) {
+    window.history.replaceState({ pdcView: 'qc' }, '', `${location.pathname}${location.search}#/qc`);
+  }
+  const version = '2026.09.10.01';
+  const style = document.createElement('link');
+  style.rel = 'stylesheet';
+  style.href = `pdc-qc-mobile.css?v=${version}&readable-text=2026.09.16.01`;
+  document.head.appendChild(style);
+  const load = () => {
+    document.head.appendChild(style);
+
+    const script = document.createElement('script');
+    script.src = `pdc-qc-mobile.js?v=${version}&deep-review=2026.09.13.01&sublet-qc=2026.09.14.01&readable-text=2026.09.16.01&fitters=2026.09.16.01&separate-screens-pmb-warning=2026.09.16.01`;
+    const loadReview = () => {
+      const reviewStyle = document.createElement('link');
+      reviewStyle.rel = 'stylesheet';
+      reviewStyle.href = 'pdc-review-stations.css?v=2026.09.09.12';
+      document.head.appendChild(reviewStyle);
+      const review = document.createElement('script');
+      review.src = 'pdc-review-stations.js?v=2026.09.09.12';
+      document.head.appendChild(review);
+    };
+    const loadRework = () => {
+      const rework = document.createElement('script');
+      rework.src = 'pdc-qc-rework.js?v=2026.09.09.10';
+      rework.onload = () => {
+        const usability = document.createElement('script');
+        usability.src = 'pdc-workshop-usability.js?v=2026.09.09.13';
+        usability.onload = loadReview; usability.onerror = loadReview;
+        document.head.appendChild(usability);
+      };
+      rework.onerror = loadReview;
+      document.head.appendChild(rework);
+    };
+    script.onload = loadRework;
+    script.onerror = () => { document.documentElement.classList.remove('pdc-qc-phone'); loadRework(); };
+    document.head.appendChild(script);
+
+    // Planner-only presentation/search helper. It is versioned separately so
+    // existing browsers pick up small planner fixes without touching mobile QC.
+    const slimStyle = document.createElement('link');
+    slimStyle.rel = 'stylesheet'; slimStyle.href = 'pdc-planner-slim.css?v=2026.09.12.identity-fields&pill-lines=2026.10.02.15';
+    document.head.appendChild(slimStyle);
+    const slimScript = document.createElement('script');
+    slimScript.src = 'pdc-planner-slim.js?v=2026.09.12.identity-fields&fitter-sync=2026.09.16.03&bhavesh-followup=2026.09.23.01';
+    document.head.appendChild(slimScript);
+    const tileCleanup = document.createElement('script');
+    tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.03';
+    document.head.appendChild(tileCleanup);
+
+    const serviceLocations = document.createElement('script');
+    serviceLocations.src = 'pdc-service-locations.js?v=2026.09.14.03';
+    document.head.appendChild(serviceLocations);
+    const partsConfirmation = document.createElement('script');
+    partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.13.person-confirmed.1';
+    document.head.appendChild(partsConfirmation);
+    const intakeStyle = document.createElement('link');
+    intakeStyle.rel = 'stylesheet';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match&compact-approve=2026.09.14.01&review-fixes=2026.09.13.01&operation-approval=2026.09.14.01&bulk-ready=2026.09.14.01&department-filter=2026.09.19.01';
+    document.head.appendChild(intakeStyle);
+    const intakeScript = document.createElement('script');
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&compact-approve=2026.09.14.01&ai-estimates=2026.09.14.01&review-fixes=2026.09.13.01&operation-approval=2026.09.14.01&deep-review=2026.09.13.01&one-hour-gap=2026.09.14.01&tune-hours=2026.09.14.01&bulk-ready=2026.09.14.01&department138-bus=2026.09.16.01&department138-tint=2026.09.17.01&speed=2026.09.17.01&planner-speed=2026.09.17.02&department-filter=2026.09.19.01';
+    intakeScript.onload = () => {
+      if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
+    };
+    document.head.appendChild(intakeScript);
+    const bookAllStations = document.createElement('script');
+    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed&render-cost=2026.09.14.01&one-hour-gap=2026.09.14.01';
+    document.head.appendChild(bookAllStations);
+    const locationOverride = document.createElement('script');
+    locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01&separate-screens-pmb-warning=2026.09.16.01';
+    document.head.appendChild(locationOverride);
+    const subletIntake = document.createElement('script');
+    subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.12.inline-provider&deep-review=2026.09.13.01';
+    document.head.appendChild(subletIntake);
+    const rftStyle = document.createElement('link');
+    rftStyle.rel = 'stylesheet';
+    rftStyle.href = 'pdc-rft-actions.css?v=2026.09.10.04';
+    document.head.appendChild(rftStyle);
+    const rftScript = document.createElement('script');
+    rftScript.src = 'pdc-rft-actions.js?v=2026.09.10.04&render-cost=2026.09.14.01';
+    document.head.appendChild(rftScript);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
+  else load();
+})();
