@@ -8,7 +8,7 @@ const vm = require('node:vm');
 const { findPrivilegedTokens } = require('./check_frontend_secrets.js');
 
 const ENTRY_POINTS = Object.freeze([
-  'index.html', 'sales/index.html', 'karratha/index.html', 'docs/bus4x4-user-guide.html',
+  'index.html', 'sales/index.html', 'karratha/index.html', 'karratha/native-verification.html', 'docs/bus4x4-user-guide.html',
   'no-vehicles.html', 'staging.html', 'test-50.html', 'test-75.html', 'test-100.html'
 ]);
 const RUNTIME_FILES = Object.freeze([
@@ -24,6 +24,7 @@ const RUNTIME_FILES = Object.freeze([
   'karratha/api.js', 'karratha/app.js', 'karratha/auth.js',
   'karratha/calendar.css', 'karratha/calendar.js', 'karratha/config.js',
   'karratha/index.html', 'karratha/karratha.css', 'karratha/nuvu.js',
+  'karratha/native-verification.html', 'karratha/native-verification.js',
   'navision-backend-service.js', 'navision-vin.js', 'no-vehicles.html',
   'pdc-ai-auditor-stage-a.js', 'pdc-ai-intake-review.css', 'pdc-ai-intake-review.js',
   'pdc-ai-intake-service.js', 'pdc-auth-registration.js', 'pdc-auth.js',
