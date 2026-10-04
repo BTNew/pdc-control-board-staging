@@ -5,6 +5,22 @@
   const MD5 = /^[0-9a-f]{32}$/;
   const bool = value => typeof value === 'boolean' ? value : null;
   const count = value => Number.isSafeInteger(value) && value >= 0 ? value : null;
+  const ERROR_GUARDS = Object.freeze({
+    'Genuine website POST required': 'transport_guard',
+    'Repeatable-read verification transaction required': 'isolation_guard',
+    'Exact staging required': 'staging_guard',
+    'Exact approved verifier identity required': 'identity_guard',
+    'Only an unreleased engine can run this fixed fixture': 'readiness_guard',
+    'Unexpected pre-existing fixture state': 'fixture_state_guard',
+    'Live protected fence requires a consistent transaction snapshot': 'snapshot_guard',
+    'Unreviewed concurrent cron allocator properties': 'allocator_guard'
+  });
+  function projectError(error) {
+    const result = { ok: false, phase: 'request_error' };
+    if (typeof error?.code === 'string' && /^[A-Z0-9]{5}$/.test(error.code)) result.error_code = error.code;
+    if (typeof error?.message === 'string' && Object.prototype.hasOwnProperty.call(ERROR_GUARDS, error.message)) result.error_guard = ERROR_GUARDS[error.message];
+    return result;
+  }
   const timestamp = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) && Number.isFinite(Date.parse(value)) ? value : null;
   function sequenceState(value) {
     if (!value || count(value.last_value) === null || count(value.log_cnt) === null || bool(value.is_called) === null) return null;
@@ -25,8 +41,8 @@
     const native = value.native_acceptance;
     if (native && typeof native === 'object') {
       result.native_acceptance = { ok: native.ok === true };
-      for (const key of ['native_public_facades','checks']) if (count(native[key]) !== null) result.native_acceptance[key] = native[key];
-      for (const key of ['photo_receipt_and_policy_linkage','photo_object_bytes_upload_download_tested','no_backdated_work','persisted']) if (bool(native[key]) !== null) result.native_acceptance[key] = native[key];
+      if (count(native.checks) !== null) result.native_acceptance.checks = native.checks;
+      for (const key of ['native_public_facades','photo_receipt_and_policy_linkage','photo_object_bytes_upload_download_tested','no_backdated_work','persisted']) if (bool(native[key]) !== null) result.native_acceptance[key] = native[key];
     }
     const fitter = value.fitter_request_path_acceptance;
     if (fitter && typeof fitter === 'object') {
@@ -84,7 +100,7 @@
       return fetcher(input, { ...options, redirect: 'error' });
     };
   }
-  if (typeof module === 'object' && module.exports) { module.exports = { project, passed, guardedFetch }; return; }
+  if (typeof module === 'object' && module.exports) { module.exports = { project, passed, projectError, guardedFetch }; return; }
   // The only RPC called here is the explicitly approved no-argument fixture.
   let generation = 0, pending = false, client;
   function init() {
@@ -120,7 +136,12 @@
         status.textContent = 'Running the isolated verification…';
         const response = await client.rpc('k135_verify_native_fixture', {});
         if (generation !== requestGeneration) return;
-        if (response.error) { status.textContent = 'Verification could not complete. Check administrator approval and try again.'; return; }
+        if (response.error) {
+          const diagnostic = projectError(response.error);
+          if (diagnostic.error_code || diagnostic.error_guard) { output.textContent = JSON.stringify(diagnostic, null, 2); output.hidden = false; }
+          status.textContent = 'Verification could not complete. Check administrator approval and try again.';
+          return;
+        }
         const safe = project(response.data);
         output.textContent = JSON.stringify(safe, null, 2); output.hidden = false;
         status.textContent = passed(response.data) ? 'Verification passed. Operational access remains closed.' : 'Verification needs review. Operational access remains closed.';

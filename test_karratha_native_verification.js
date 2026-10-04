@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const source=fs.readFileSync(path.join(__dirname,'karratha/native-verification.js'),'utf8');
 const verifier=require('./karratha/native-verification.js');
 const hash='a'.repeat(64);
-function success(){return {ok:true,phase:'complete',candidate_sha256:hash,compact_installer_sha256:hash,fixture_sha256:hash,genuine_website_transport:true,native_planner_gate_unchanged:true,synthetic_rows_rolled_back:true,readiness_still_false:true,native_acceptance:{ok:true,native_public_facades:169,no_backdated_work:true,persisted:false},installed_definition_proof:{ok:true,expected_methods:677,present_methods:677,exact_body_count:677,exact_definition_count:677,mismatches:[]},protected_fence:{protected:{ok:true,shared_sequences_reset:false}}};}
+function success(){return {ok:true,phase:'complete',candidate_sha256:hash,compact_installer_sha256:hash,fixture_sha256:hash,genuine_website_transport:true,native_planner_gate_unchanged:true,synthetic_rows_rolled_back:true,readiness_still_false:true,native_acceptance:{ok:true,native_public_facades:true,no_backdated_work:true,persisted:false},installed_definition_proof:{ok:true,expected_methods:677,present_methods:677,exact_body_count:677,exact_definition_count:677,mismatches:[]},protected_fence:{protected:{ok:true,shared_sequences_reset:false}}};}
 async function fixture(options={}){
  const elements=Object.fromEntries(['verify-native','verification-status','verification-result'].map(id=>[id,{textContent:'',hidden:id==='verification-result',disabled:false,handlers:{},addEventListener(type,handler){this.handlers[type]=handler;}}]));
  const events={},calls=[];let authHandler,captured;
@@ -17,7 +17,7 @@ async function fixture(options={}){
 }
 test('safe projection excludes raw claims, tokens, customer rows, failure text and sequence states',()=>{
  const value=success();Object.assign(value,{access_token:'SECRET',failure_message:'Private customer detail',rows:[{customer:'PRIVATE'}],claims:{email:'private@example.test'}});value.protected_fence.own_sequence_advances=[{last_value:999}];value.installed_definition_proof.mismatches=[{body:'PRIVATE SQL'}];
- const output=JSON.stringify(verifier.project(value));assert.doesNotMatch(output,/SECRET|PRIVATE|private@example|failure_message|own_sequence_advances/);assert.match(output,/mismatch_count/);assert.match(output,/677/);
+ const output=JSON.stringify(verifier.project(value));assert.doesNotMatch(output,/SECRET|PRIVATE|private@example|failure_message|own_sequence_advances/);assert.match(output,/mismatch_count/);assert.match(output,/677/);assert.equal(verifier.project(value).native_acceptance.native_public_facades,true);
  value.fitter_request_path_acceptance={ok:true,checks:36,own_aliases:7,old_paths_denied:true,native_post_write_gate_preserved:true,separate_fitter_browser_session_tested:false,raw_rows:[{customer:'PRIVATE'}]};const fitter=verifier.project(value).fitter_request_path_acceptance;assert.equal(fitter.checks,36);assert.equal(fitter.separate_fitter_browser_session_tested,false);assert.equal(fitter.raw_rows,undefined);
 });
 test('passing output requires the genuine transport, rollback, closed gate and protected proof',()=>{
@@ -47,6 +47,29 @@ test('auth replacement during account proof prevents dispatch and duplicate clic
 });
 test('server failure displays only a generic message without raw error text',async()=>{
  const f=await fixture({rpc:async()=>({data:null,error:{message:'Private customer and SECRET access token'}})});await f.click();assert.equal(f.elements['verification-result'].hidden,true);assert.doesNotMatch(f.elements['verification-status'].textContent,/Private|SECRET/);
+});
+
+test('diagnostic projection accepts only SQLSTATE and exact approved guard messages',()=>{
+ const messages={
+  'Genuine website POST required':'transport_guard',
+  'Repeatable-read verification transaction required':'isolation_guard',
+  'Exact staging required':'staging_guard',
+  'Exact approved verifier identity required':'identity_guard',
+  'Only an unreleased engine can run this fixed fixture':'readiness_guard',
+  'Unexpected pre-existing fixture state':'fixture_state_guard',
+  'Live protected fence requires a consistent transaction snapshot':'snapshot_guard',
+  'Unreviewed concurrent cron allocator properties':'allocator_guard'};
+ for(const [message,guard] of Object.entries(messages)){
+  const safe=verifier.projectError({code:'42501',message,details:'PRIVATE SQL customer',hint:'SECRET',claims:{user:'PRIVATE'}});
+  assert.equal(safe.error_code,'42501');assert.equal(safe.error_guard,guard);assert.doesNotMatch(JSON.stringify(safe),/PRIVATE|SECRET|details|hint|claims/);
+ }
+ for(const message of ['Genuine website POST required PRIVATE','Exact staging required\nSECRET','toString','__proto__'])assert.equal(verifier.projectError({code:'25001',message}).error_guard,undefined);
+ for(const code of ['42501 SECRET','PGRST202','25001\n',42501,null])assert.equal(verifier.projectError({code,message:'Private customer data'}).error_code,undefined);
+});
+
+test('known failed request shows bounded diagnostic without arbitrary response data',async()=>{
+ const f=await fixture({rpc:async()=>({data:null,error:{code:'25001',message:'Repeatable-read verification transaction required',details:'PRIVATE SQL',hint:'SECRET'}})});
+ await f.click();const shown=JSON.parse(f.elements['verification-result'].textContent);assert.equal(shown.error_code,'25001');assert.equal(shown.error_guard,'isolation_guard');assert.equal(f.elements['verification-result'].hidden,false);assert.doesNotMatch(f.elements['verification-result'].textContent,/PRIVATE|SECRET|details|hint/);assert.doesNotMatch(f.elements['verification-status'].textContent,/passed/);
 });
 test('temporary page has no credentials form and script does not fetch, extract or log credentials',()=>{
  const html=fs.readFileSync(path.join(__dirname,'karratha/native-verification.html'),'utf8');assert.doesNotMatch(html,/<input|<form|https:\/\/[^c]/);assert.match(html,/href="\.\/"/);assert.match(html,/script-src 'self'/);assert.doesNotMatch(source,/(?:\.|\[["\'])(?:access_token|refresh_token)|localStorage|sessionStorage|Authorization|console\./);
