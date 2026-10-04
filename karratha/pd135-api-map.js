@@ -261,6 +261,7 @@ window.K135_RUNTIME_ASSETS = Object.freeze([
   "app.js",
   "arb-labor-catalog.js",
   "assets/brand-logo.svg",
+  "assets/karratha-toyota-logo.svg",
   "assets/pmb-logo.png",
   "broome-navision-import.js",
   "canonical-entry.js",
