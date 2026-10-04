@@ -27,6 +27,7 @@ const RUNTIME_FILES = Object.freeze([
   'karratha/app.js',
   'karratha/arb-labor-catalog.js',
   'karratha/assets/brand-logo.svg',
+  'karratha/assets/karratha-toyota-logo.svg',
   'karratha/assets/pmb-logo.png',
   'karratha/broome-navision-import.js',
   'karratha/canonical-entry.js',
