@@ -46,5 +46,7 @@ test('Department 135 uses a full navigation selector after own approval and send
   window.PDC_AUTH_CONTEXT={centreCode:'135',role:'controller'};handlers['pdc-auth-ready']();assert.equal(label.hidden,false);
   assert.deepEqual(select.children.map(option=>option.value),['135','pmb']);select.value='pmb';select.events.change();assert.deepEqual(visits,['https://btnew.github.io/pdc-control-board-staging/']);
   window.PDC_AUTH_CONTEXT=null;handlers['pdc-auth-locked']();assert.equal(label.hidden,true);
-  assert.doesNotMatch(ownSource,/\.rpc\(|\.from\(|fetch\(|localStorage|sessionStorage/);
+  assert.doesNotMatch(ownSource,/\.rpc\(|\.from\(|localStorage|sessionStorage|apply_navision|activate_navision|link_navision|preview_navision|public\.navision/);
+  assert.match(ownSource,/createNavisionBackendService/);
+  assert.match(ownSource,/visibleSnapshot/);
 });
