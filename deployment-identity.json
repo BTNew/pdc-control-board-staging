@@ -1008,5 +1008,14 @@
     "commissioned": true,
     "review_status": "staging_applied",
     "source": "Exact guarded staging migration; existing object/role/data fingerprints unchanged in its transaction. Independent14-table recovery and full lifecycle rollback suites passed. Karratha operational graph and membership are separate; shared Navision read-only."
+  },
+  "navision_preview_performance_migration": {
+    "version": "20261004235337",
+    "file": "supabase/migrations/20261004235337_navision_upload_splitter_linear_grouping.sql",
+    "sha256": "ff2e8fe78f2f3a7261f24b573f2fe3fdfd6c3f4ebb73cbc0605c351111339189",
+    "project_ref": "cdsmnqxtyyoeoznmbidd",
+    "commissioned": true,
+    "review_status": "staging_applied",
+    "scope": "Existing private splitter assembly only; exact validation and permissions preserved"
   }
 }

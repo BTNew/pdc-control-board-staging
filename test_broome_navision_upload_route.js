@@ -13,14 +13,14 @@ const text=header+'\n'+Array.from({length:260},(_,i)=>['TEST-ORDER-'+i,i<98?'':'
 function receipt(applied=false){return {accepted:260,without_stock:98,skipped_unsold:0,visibility_updates:0,changed:applied?260:0,applied};}
 function host(callback){const calls=[];const h={PDC_SUPABASE_CONFIG:{projectRef:'cdsmnqxtyyoeoznmbidd'},PDC_AUTH_CONTEXT:{userId:'example-admin',email:'admin@example.invalid',role:'administrator'},BROOME_NAVISION_ORDERS:parser,PDC_SUPABASE:{rpc:async(name,args)=>{calls.push({name,args});return callback?callback(name,args):{data:receipt(args.p_apply),error:null};}}};return {h,calls,api:createImporter(h)};}
 function runtime(dealer='37047',callback){
- const r=host(callback),status={innerHTML:''},stats=new Map();
+ const r=host(callback),status={innerHTML:''},stats=new Map(),parseCalls=[];
  const elements={'#navision-paste':{value:text},'#navision-dealer-code':{value:dealer},'#navision-status-list':status,'#navision-scan-card':{querySelector:s=>{if(!stats.has(s))stats.set(s,{textContent:''});return stats.get(s);}}};
- const context={window:r.h,app:{pendingSharedNavisionImport:null},$:s=>elements[s],sha256Hex:s=>crypto.createHash('sha256').update(s).digest('hex'),prepareNavisionText:s=>s,escapeHtml:s=>String(s).replaceAll('<','&lt;'),updateNavisionImportButton(){},navisionWaitForBusyPaint:async()=>{},setNavisionPreviewBusy(v){context.app.navisionPreviewInFlight=v;},navisionImportOptionsFromDom:()=>({}),parseNavisionInput:()=>{throw new Error('PMB batch-required parser called');},importNavisionVehiclesLocal(){throw new Error('Local importer called');}};
+ const context={window:r.h,app:{pendingSharedNavisionImport:null},$:s=>elements[s],sha256Hex:s=>crypto.createHash('sha256').update(s).digest('hex'),prepareNavisionText:s=>s,escapeHtml:s=>String(s).replaceAll('<','&lt;'),updateNavisionImportButton(){},navisionWaitForBusyPaint:async()=>{},setNavisionPreviewBusy(v){context.app.navisionPreviewInFlight=v;},navisionImportOptionsFromDom:()=>({}),parseNavisionInput:(sourceText,options)=>{parseCalls.push({sourceText,options});throw new Error('PMB batch-required parser called');},importNavisionVehiclesLocal(){throw new Error('Local importer called');}};
  r.h.BROOME_NAVISION_IMPORT=r.api;
  r.h.alert=msg=>{throw new Error('Unexpected alert: '+msg);};
  vm.createContext(context);
- for(const name of ['function navisionSharedImportRoleAllowed(','function navisionSharedApplyAuthorityIdentity(','function navisionSharedPendingStillCurrent(','function renderBroomeNavisionOrders(','async function previewBroomeNavisionOrders(','async function applyBroomeNavisionOrders(','async function importNavisionVehicles(','function updateNavisionControlStats('])vm.runInContext(slice(name),context);
- return {...r,context,elements,status,stats};
+ for(const name of ['function navisionSharedImportRoleAllowed(','function navisionSharedApplyAuthorityIdentity(','function navisionSharedPendingStillCurrent(','function navisionSharedPreviewRequestStillCurrent(','function sharedNavisionPreviewErrorMessage(','function reportSharedNavisionPreviewError(','function renderBroomeNavisionOrders(','async function previewBroomeNavisionOrders(','async function applyBroomeNavisionOrders(','async function importNavisionVehicles(','function updateNavisionControlStats('])vm.runInContext(slice(name),context);
+ return {...r,context,elements,status,stats,parseCalls};
 }
 test('Broome root preview accepts all 260 sold orders, including 98 blank batches',async()=>{
  const r=runtime();await r.context.importNavisionVehicles();const p=r.context.app.pendingSharedNavisionImport;
@@ -33,7 +33,13 @@ test('Broome root preview accepts all 260 sold orders, including 98 blank batche
  assert.match(r.status.innerHTML,/import complete/);
 });
 test('Other dealer profiles retain the stock-required PMB parser',async()=>{
- for(const dealer of ['14450','001234','002345','combined']){const r=runtime(dealer);await assert.rejects(r.context.importNavisionVehicles(),/PMB batch-required parser called/);assert.equal(r.calls.length,0);assert.equal(r.context.app.navisionPreviewInFlight,false);}
+ for(const dealer of ['14450','001234','002345','combined']){
+  const r=runtime(dealer),alerts=[];r.h.alert=message=>alerts.push(message);
+  await r.context.importNavisionVehicles();
+  assert.equal(r.parseCalls.length,1);assert.equal(r.parseCalls[0].sourceText,text);assert.equal(r.parseCalls[0].options.uploadProfile,null);
+  assert.equal(r.calls.length,0);assert.equal(r.context.app.pendingSharedNavisionImport,null);assert.equal(r.context.app.navisionPreviewInFlight,false);
+  assert.match(alerts[0],/file could not be checked/);assert.doesNotMatch(alerts[0],/PMB batch-required parser called/);
+ }
 });
 test('Broome upload is denied to salespeople, importers, anonymous users and production',async()=>{
  for(const role of ['salesperson','importer','viewer','']){const r=host();r.h.PDC_AUTH_CONTEXT.role=role;await assert.rejects(r.api.preview(text),/Administrator access/);assert.equal(r.calls.length,0);}
