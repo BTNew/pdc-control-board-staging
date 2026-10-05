@@ -1,11 +1,24 @@
 (function(root){
 'use strict';
 const types=[['released','Vehicle Released to Broome'],['update','Request Update'],['build','New Vehicle Build'],['tint','Tint PO Email']];
-const recipients={released:'',update:'',build:'',tint:'jono@performancetinting.com.au'};
+const recipients={released:'amy.elkington@broometoyota.com.au',update:'',build:'',tint:'jono@performancetinting.com.au'};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const oneLine=v=>String(v??'').replace(/[\r\n\u0000-\u001f\u007f]+/g,' ').trim();
+function releaseTemplate(rows){
+ if(!Array.isArray(rows)||!rows.length)throw new Error('Select a vehicle for the release email.');
+ const references=rows.map(row=>oneLine(row.stock)||'Toyota order '+(oneLine(row.order)||'not recorded'));
+ const details=rows.map((row,index)=>{
+  const stock=oneLine(row.stock),order=oneLine(row.order);
+  return (rows.length>1?(index+1)+'. ':'')+(stock?'Stock number: '+stock:'Stock number: Awaiting allocation')+
+   (order?'\nToyota order: '+order:'')+'\nCustomer Name: '+(oneLine(row.client)||'Not recorded')+
+   '\nVehicle: '+(oneLine(row.vehicle)||'Not recorded')+(row.transport_number?'\nTransport number: '+oneLine(row.transport_number):'');
+ });
+ return {to:recipients.released,cc:'',subject:(rows.length>1?'Vehicles':'Vehicle')+' released to Broome - '+references.join(', '),
+  body:'Hi Amy,\n\n'+(rows.length>1?'The following '+rows.length+' vehicles have':'The following vehicle has')+' been released to Broome.\n\n'+details.join('\n\n')+'\n\nKind Regards,'};
+}
 function template(kind,row){
  if(!types.some(([k])=>k===kind))throw new Error('Choose an email action.');
+ if(kind==='released')return releaseTemplate([row]);
  const stock=oneLine(row.stock),order=oneLine(row.order),id=stock||'Toyota order '+(order||'not recorded');
  const vehicle=oneLine(row.vehicle)||'Not recorded',customer=oneLine(row.client)||'Not recorded';
  const facts=(stock?'Stock number: '+stock:'Toyota order: '+(order||'Not recorded')+'\nStock number: Awaiting allocation')+'\nCustomer Name: '+customer+'\nVehicle: '+vehicle;
@@ -71,24 +84,35 @@ function mailto(draft){
 let options=null,active=null,epoch=0,busy=false;
 const $=id=>root.document.getElementById(id);
 function scopeToken(){return options?.getToken?.();}
-function current(){return active&&active.token===scopeToken()&&options.getRows().some(r=>r.tracking_id===active.id);}
+const identity=row=>JSON.stringify([row.dealer_code||'',row.order||'',row.stock||'']);
+function current(){
+ if(!active||active.token!==scopeToken())return false;
+ const rows=new Map(options.getRows().map(row=>[row.tracking_id,row]));
+ return active.vehicles.every(vehicle=>{const row=rows.get(vehicle.id);return row&&!row.identity_conflict&&identity(row)===vehicle.identity;});
+}
 function clear(){
  epoch++;active=null;busy=false;
  const dialog=$('sales-email');if(dialog?.open)dialog.close();
  for(const id of ['sales-email-to','sales-email-cc','sales-email-subject','sales-email-body','sales-email-files'])if($(id))$(id).value='';
  if($('sales-email-status'))$('sales-email-status').textContent='';
  if($('sales-email-title'))$('sales-email-title').textContent='Create email';
+ if($('sales-email-intro'))$('sales-email-intro').textContent='Review the vehicle details, recipient and attachments before sending.';
  if($('sales-email-download'))$('sales-email-download').disabled=false;
 }
 function syncScope(){if(active&&!current())clear();}
 function open(kind,id){
- const row=options.getRows().find(r=>r.tracking_id===id);if(!row)return;
- clear();const d=template(kind,row);active={id,token:scopeToken()};
- $('sales-email-title').textContent=types.find(([k])=>k===kind)?.[1]||'Create email';
+ const available=new Map(options.getRows().map(row=>[row.tracking_id,row])),row=available.get(id);if(!row||row.identity_conflict)return;
+ const selected=kind==='released'?(options.getSelectedRows?.()||[]):[];
+ const requested=selected.length>1?[...new Set(selected.map(r=>r.tracking_id))]:[id];
+ const rows=requested.map(key=>available.get(key));
+ if(rows.some(r=>!r||r.identity_conflict)){clear();options.onError?.('A selected vehicle is no longer available or has an uncertain reference. Refresh your selection before creating the email.');return;}
+ clear();const d=kind==='released'?releaseTemplate(rows):template(kind,row);active={token:scopeToken(),vehicles:rows.map(r=>({id:r.tracking_id,identity:identity(r)}))};
+ $('sales-email-title').textContent=(types.find(([k])=>k===kind)?.[1]||'Create email')+(rows.length>1?' ('+rows.length+' vehicles)':'');
+ if($('sales-email-intro'))$('sales-email-intro').textContent=rows.length>1?'One email for all '+rows.length+' selected vehicles. Review the details, recipient and attachments before sending.':'Review the vehicle details, recipient and attachments before sending.';
  for(const key of ['to','cc','subject','body'])$('sales-email-'+key).value=d[key];
  $('sales-email-files').value='';$('sales-email-status').textContent='';$('sales-email').showModal();
 }
-function readDraft(){if(!current()){clear();throw new Error('Vehicle access changed. Reopen the email from your dashboard.');}
+function readDraft(){if(!current()){clear();throw new Error('Vehicle access or reference changed. Reopen the email from your dashboard.');}
  return Object.fromEntries(['to','cc','subject','body'].map(k=>[k,$('sales-email-'+k).value]));}
 function status(text){$('sales-email-status').textContent=text;}
 async function download(){
@@ -118,7 +142,7 @@ function init(opts){
  $('sales-email-close').addEventListener('click',clear);$('sales-email').addEventListener('close',()=>{if(!$('sales-email').open)clear();});
  $('sales-email-download').addEventListener('click',download);$('sales-email-open').addEventListener('click',openMail);
 }
-const api={types,template,addresses,attachmentLimits,eml,mailto,init,open,clear,syncScope};
+const api={types,template,releaseTemplate,addresses,attachmentLimits,eml,mailto,init,open,clear,syncScope};
 if(typeof module==='object'&&module.exports)module.exports=api;
 root.BROOME_SALES_EMAIL=api;
 })(typeof window==='object'?window:globalThis);

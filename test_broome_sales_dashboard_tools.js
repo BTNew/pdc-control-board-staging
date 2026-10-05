@@ -41,7 +41,7 @@ test('four templates match the examples without inventing equipment or recipient
  assert.equal(email.template('build',r).subject,'New vehicle order for 13032821 - PMG Build');
  for(const kind of ['released','update','build','tint'])assert.match(email.template(kind,r).body,/PARK/);
  assert.doesNotMatch(email.template('build',r).body,/Steel tray|tyre hangers/);
- assert.equal(email.template('released',r).to,'');assert.equal(email.template('update',r).to,'');
+ assert.equal(email.template('released',r).to,'amy.elkington@broometoyota.com.au');assert.equal(email.template('update',r).to,'');
  assert.throws(()=>email.template('fake',r));
 });
 test('stockless email uses the exact Toyota order and does not fabricate a stock number',()=>{
@@ -74,12 +74,12 @@ test('attachment limits stop oversize batches before file reads',()=>{
  assert.doesNotThrow(()=>email.attachmentLimits([{size:10*1024*1024},{size:10*1024*1024}]));
 });
 function emailHarness(){
- const els=new Map(),downloads=[];let token='A',rows=[{tracking_id:'own',stock:'1',client:'Private customer',vehicle:'HiLux'}];
+ const els=new Map(),downloads=[],errors=[];let token='A',rows=[{tracking_id:'own',stock:'1',client:'Private customer',vehicle:'HiLux'}],selected=[];
  function el(id){if(!els.has(id))els.set(id,{value:'',textContent:'',files:[],open:false,events:{},addEventListener(k,fn){this.events[k]=fn;},showModal(){this.open=true;},close(){this.open=false;}});return els.get(id);}
  const window={document:{getElementById:el,body:{appendChild(){}},createElement(){return {click(){downloads.push(this.download);},remove(){}};}},Blob,URL:{createObjectURL(){return 'blob:fixture';},revokeObjectURL(){}},setTimeout(){},location:{href:''},btoa:s=>Buffer.from(s,'binary').toString('base64')};
  vm.runInNewContext(fs.readFileSync('sales/email-actions.js','utf8'),{window,TextEncoder,Uint8Array,Date,module:undefined});
- const ui=window.BROOME_SALES_EMAIL;ui.init({getRows:()=>rows,getToken:()=>token});
- return {ui,el,window,downloads,setToken(v){token=v;},setRows(v){rows=v;}};
+ const ui=window.BROOME_SALES_EMAIL;ui.init({getRows:()=>rows,getSelectedRows:()=>selected,getToken:()=>token,onError:message=>errors.push(message)});
+ return {ui,el,window,downloads,errors,setToken(v){token=v;},setRows(v){rows=v;},setSelected(v){selected=v;}};
 }
 test('email dialog only opens for scoped rows and clears all private fields when scope changes',()=>{
  const h=emailHarness();h.ui.open('update','other');assert.equal(h.el('sales-email').open,false);
@@ -102,7 +102,7 @@ test('new sales tools contain no operational write, email send endpoint or custo
   const code=fs.readFileSync(f,'utf8');assert.doesNotMatch(code,/PDC_SUPABASE|\.rpc\(|fetch\(|sendMail|access_token|service_role/);
  }
  assert.doesNotMatch(fs.readFileSync('sales/email-actions.js','utf8'),/localStorage|sessionStorage|indexedDB/);
- const html=fs.readFileSync('sales/index.html','utf8');assert.match(html,/email-actions\.js\?v=2026\.10\.02\.05/);assert.match(html,/dashboard-tools\.js\?v=2026\.10\.02\.18/);
+ const html=fs.readFileSync('sales/index.html','utf8');assert.match(html,/email-actions\.js\?v=2026\.10\.05\.03/);assert.match(html,/dashboard-tools\.js\?v=2026\.10\.02\.18/);
 });
 
 test('resizing shares width with a neighbour and never grows the table',()=>{
@@ -111,4 +111,44 @@ test('resizing shares width with a neighbour and never grows the table',()=>{
   assert.equal(after.reduce((a,b)=>a+b,0),before.reduce((a,b)=>a+b,0));
   assert.ok(after.every(n=>n>=40&&n<=600));assert.deepEqual(before,tools.defaults);
  }
+});
+
+test('combined Broome release lists every exact stock or Toyota order in the subject and full details in the body',()=>{
+ const rows=[{stock:'00123',order:'250000001',client:'Customer café',vehicle:'HiLux',transport_number:'000987'},{order:'0000456',client:'Second customer',vehicle:'Coaster'}];
+ const draft=email.releaseTemplate(rows);assert.equal(draft.to,'amy.elkington@broometoyota.com.au');
+ assert.equal(draft.subject,'Vehicles released to Broome - 00123, Toyota order 0000456');
+ for(const text of ['00123','250000001','0000456','Customer café','Second customer','HiLux','Coaster','000987'])assert.ok(draft.body.includes(text),text);
+ assert.match(draft.body,/Stock number: Awaiting allocation/);assert.throws(()=>email.releaseTemplate([]));
+ const message=email.eml(draft,[],'release_fixture');assert.match(message,/^X-Unsent: 1\r\nTo: amy\.elkington@broometoyota\.com\.au\r\n/);
+ const subject=[...message.matchAll(/=\?UTF-8\?B\?([^?]+)\?=/g)].map(m=>Buffer.from(m[1],'base64').toString('utf8')).join('');assert.equal(subject,draft.subject);
+ const large=email.releaseTemplate(Array.from({length:40},(_,i)=>({stock:'QA-'+i,client:'Fictional',vehicle:'HiLux'})));
+ const folded=email.eml(large,[],'large_release');assert.equal([...folded.matchAll(/=\?UTF-8\?B\?([^?]+)\?=/g)].map(m=>Buffer.from(m[1],'base64').toString('utf8')).join(''),large.subject);
+});
+
+test('release action uses all selected authorised rows once and resolves their real source details',()=>{
+ const h=emailHarness(),rows=[{tracking_id:'own',stock:'1',client:'First',vehicle:'HiLux'},{tracking_id:'two',order:'002',client:'Second',vehicle:'Coaster'},{tracking_id:'other',stock:'3',client:'Not selected'}];
+ h.setRows(rows);h.setSelected([{...rows[0],client:'Untrusted replacement'},rows[1],rows[0]]);h.ui.open('released','other');
+ assert.equal(h.el('sales-email-to').value,'amy.elkington@broometoyota.com.au');assert.equal(h.el('sales-email-subject').value,'Vehicles released to Broome - 1, Toyota order 002');
+ assert.match(h.el('sales-email-body').value,/First/);assert.match(h.el('sales-email-body').value,/Second/);assert.doesNotMatch(h.el('sales-email-body').value,/Not selected|Untrusted replacement/);
+ assert.match(h.el('sales-email-title').textContent,/2 vehicles/);h.ui.open('update','other');assert.equal(h.el('sales-email-subject').value,'Request update - 3');assert.doesNotMatch(h.el('sales-email-body').value,/Second/);
+ h.setSelected([]);h.ui.open('released','own');assert.equal(h.el('sales-email-subject').value,'Vehicle released to Broome - 1');
+});
+
+test('missing or ambiguous selected vehicles prevent a partial release email',()=>{
+ const h=emailHarness(),own={tracking_id:'own',stock:'1'},two={tracking_id:'two',stock:'2'};
+ h.setRows([own]);h.setSelected([own,two]);h.ui.open('released','own');assert.equal(h.el('sales-email').open,false);assert.match(h.errors[0],/no longer available/);
+ h.setRows([own,{...two,identity_conflict:true}]);h.ui.open('released','own');assert.equal(h.el('sales-email-body').value,'');assert.equal(h.errors.length,2);
+});
+
+test('losing any batch vehicle or changing its source reference clears the entire release draft',()=>{
+ const h=emailHarness(),rows=[{tracking_id:'own',stock:'1',order:'001'},{tracking_id:'two',stock:'2',order:'002'}];
+ h.setRows(rows);h.setSelected(rows);h.ui.open('released','own');h.setRows([rows[0]]);h.ui.syncScope();assert.equal(h.el('sales-email').open,false);assert.equal(h.el('sales-email-subject').value,'');
+ h.setRows(rows);h.ui.open('released','own');h.setRows([rows[0],{...rows[1],order:'003'}]);h.ui.syncScope();assert.equal(h.el('sales-email-body').value,'');
+});
+
+test('pending combined release download stops if a secondary vehicle loses access during attachment reads',async()=>{
+ const h=emailHarness(),rows=[{tracking_id:'own',stock:'1'},{tracking_id:'two',stock:'2'}];h.setRows(rows);h.setSelected(rows);h.ui.open('released','own');let resolve;
+ h.el('sales-email-files').files=[{name:'fixture.pdf',size:2,arrayBuffer:()=>new Promise(r=>resolve=r)}];
+ const pending=h.el('sales-email-download').events.click();h.setRows([rows[0]]);h.ui.syncScope();resolve(Uint8Array.from([1,2]).buffer);await pending;
+ assert.deepEqual(h.downloads,[]);assert.equal(h.el('sales-email-to').value,'');assert.equal(h.window.location.href,'');
 });

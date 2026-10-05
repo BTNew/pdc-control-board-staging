@@ -71,7 +71,7 @@ test('changing salesperson resets unavailable month and status filters, closes d
  assert.equal(h.el('sales-month-filter').value,'');assert.equal(h.el('sales-status-filter').value,'');
  assert.equal(h.el('sales-detail').closed,true);assert.equal(h.el('sales-detail-content').innerHTML,'');
  assert.doesNotMatch(h.el('sales-labels').innerHTML,/BG yard customer/);assert.equal(h.el('sales-print-labels').disabled,true);
- assert.match(h.el('sales-summary').innerHTML,/0 selected for labels/);
+ assert.match(h.el('sales-summary').innerHTML,/0 selected<\/span>/);
  assert.match(h.el('vehicle-table').innerHTML,/CW production customer/);assert.match(h.el('vehicle-table').innerHTML,/CW dealer customer/);
  assert.equal(h.calls.length,1,'Changing dashboard scope must not write operational data');
 });
