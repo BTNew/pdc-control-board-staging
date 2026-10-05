@@ -270,8 +270,11 @@ test('drag fails closed on reassignment, stale versions and salesperson change',
   h.person='BG';h.api.render('myday');drag=h.api.beginCalendarDrag('task','t-bg');h.rows=[];assert.equal(await h.api.moveCalendarEntry(drag,'2026-10-05'),null);
 });
 test('failed reschedule keeps the saved date and delayed sign-out cannot restore data',async()=>{
-  const h=harness();let drag=h.api.beginCalendarDrag('task','t-bg'),pending=h.api.moveCalendarEntry(drag,'2026-10-05');
-  h.calls[0].resolve({error:{message:'Record version conflict'}});await assert.rejects(pending,/conflict/);assert.equal(h.api.getWorkspace().tasks[0].due_date,today);
+  const h=harness(),savedDate='2026-10-01';
+  // Keep both moves distinct from the saved date even when the test runs on 5/6 October.
+  h.workspace.tasks[0].due_date=savedDate;h.api.setWorkspace(h.workspace);
+  let drag=h.api.beginCalendarDrag('task','t-bg'),pending=h.api.moveCalendarEntry(drag,'2026-10-05');
+  h.calls[0].resolve({error:{message:'Record version conflict'}});await assert.rejects(pending,/conflict/);assert.equal(h.api.getWorkspace().tasks[0].due_date,savedDate);
   drag=h.api.beginCalendarDrag('task','t-bg');pending=h.api.moveCalendarEntry(drag,'2026-10-06');delete h.host.PDC_AUTH_CONTEXT;h.context=null;h.events['pdc-auth-locked']();
   h.calls[1].resolve({data:{record:{id:'t-bg',tracking_id:'BG-order',due_date:'2026-10-06',version:3}}});
   assert.equal(await pending,null);assert.equal(h.api.getWorkspace(),null);assert.equal(h.el('sales-myday').innerHTML,'');

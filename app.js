@@ -20574,6 +20574,33 @@ function navisionSharedPendingStillCurrent(pending, authorityIdentity = '') {
   );
 }
 
+function navisionSharedPreviewRequestStillCurrent(request = {}) {
+  return navisionSharedImportRoleAllowed()
+    && request.authorityIdentity === navisionSharedApplyAuthorityIdentity()
+    && request.dealerCode === ($('#navision-dealer-code')?.value || '').trim()
+    && request.sourceTextSha256 === sha256Hex(($('#navision-paste')?.value || '').trim());
+}
+
+function sharedNavisionPreviewErrorMessage(result = {}) {
+  const code = String(result.code || result.error || '').toLowerCase();
+  if (code === '57014') return 'Checking the Navision file took too long and stopped. Nothing was imported. Your pasted data is still here. Please try Preview Data again.';
+  if (code === 'preview_connection_failed') return 'The connection ended before the Navision file check could finish. Nothing was imported. Your pasted data is still here. Check your connection and try Preview Data again.';
+  if (code === 'service_unavailable') return 'The Navision service is unavailable. Nothing was imported. Your pasted data is still here. Please try Preview Data again.';
+  if (code === '401' || code === '42501' || code === 'unauthorized' || code === 'not_authenticated') return 'Your import access could not be confirmed. Nothing was imported. Your pasted data is still here. Sign in with importer or administrator access, then preview it again.';
+  const reference = /^[a-z0-9_]{1,80}$/.test(code) ? ` Reference: ${code}.` : '';
+  return `The Navision file could not be checked. Nothing was imported. Your pasted data is still here. Please try Preview Data again.${reference}`;
+}
+
+function reportSharedNavisionPreviewError(result, request) {
+  if (!navisionSharedPreviewRequestStillCurrent(request)) return;
+  app.pendingSharedNavisionImport = null;
+  const message = sharedNavisionPreviewErrorMessage(result);
+  const host = $('#navision-status-list');
+  if (host) host.innerHTML = `<div class="summary-row error" role="alert"><strong>Navision preview could not finish</strong><span>${escapeHtml(message)}</span></div>`;
+  updateNavisionImportButton();
+  window.alert(message);
+}
+
 async function handleNavisionFileSelect(event) {
   const file = event.target.files?.[0];
   if (!file) return;
@@ -22270,6 +22297,8 @@ async function importNavisionVehicles() {
   if (app.navisionPreviewInFlight === true) return;
   setNavisionPreviewBusy(true);
   await navisionWaitForBusyPaint();
+  let previewRequest = null;
+  let previewDispatched = false;
   try {
   const input = $('#navision-paste');
   const text = input?.value || '';
@@ -22285,6 +22314,12 @@ async function importNavisionVehicles() {
     return;
   }
   if (dealerCode === '37047') return await previewBroomeNavisionOrders(text);
+  previewRequest = {
+    authorityIdentity: navisionSharedApplyAuthorityIdentity(),
+    dealerCode,
+    sourceTextSha256: sha256Hex(text.trim()),
+  };
+  app.pendingSharedNavisionImport = null;
   const options = {...navisionImportOptionsFromDom(),uploadProfile:['broome','pilbara'].includes(dealerCode)?dealerCode:null};
   const parsed = parseNavisionInput(text, options);
   if (parsed.rejectedRows?.length) {
@@ -22302,19 +22337,19 @@ async function importNavisionVehicles() {
   }
   const service = navisionSharedBackendService();
   if (!service) {
-    window.alert('The staging shared Navision backend is unavailable. No localStorage fallback was attempted and no data changed.');
+    reportSharedNavisionPreviewError({ code: 'service_unavailable' }, previewRequest);
     return;
   }
   const browserLocalSha256 = navisionBrowserAuthoritySha256();
   const rows = parsed.vehicles;
   const clientPreflight = navisionClientPreflight(rows, dealerCode);
   const metadata = { sourceSystem: 'microsoft_navision', dealerCode, sourceName: app.navisionFileName || 'Pasted text', sourceTimestamp: null };
-  const previewAuthorityIdentity = navisionSharedApplyAuthorityIdentity();
+  const previewAuthorityIdentity = previewRequest.authorityIdentity;
+  previewDispatched = true;
   let previewResult = await service.preview(rows, metadata);
+  if (!navisionSharedPreviewRequestStillCurrent(previewRequest)) return;
   if (!previewResult?.ok) {
-    app.pendingSharedNavisionImport = null;
-    updateNavisionImportButton();
-    window.alert(`Shared Navision preview failed: ${previewResult?.error || 'service unavailable'}. No local data changed.`);
+    reportSharedNavisionPreviewError(previewResult || {}, previewRequest);
     return;
   }
   let previewData = mergeNavisionPreflightData(navisionSharedPreviewData(previewResult) || {}, clientPreflight);
@@ -22328,10 +22363,9 @@ async function importNavisionVehicles() {
         window.alert(`Initial dealer-scope review failed: ${approvalResult?.error || 'server unavailable'}. Nothing was imported or changed.`);
       } else {
         previewResult = await service.preview(rows, metadata);
+        if (!navisionSharedPreviewRequestStillCurrent(previewRequest)) return;
         if (!previewResult?.ok) {
-          app.pendingSharedNavisionImport = null;
-          updateNavisionImportButton();
-          window.alert(`Shared Navision preview failed after dealer-scope review: ${previewResult?.error || 'service unavailable'}. Nothing was imported or changed.`);
+          reportSharedNavisionPreviewError(previewResult || {}, previewRequest);
           return;
         } else {
           previewData = mergeNavisionPreflightData(navisionSharedPreviewData(previewResult) || {}, clientPreflight);
@@ -22352,6 +22386,9 @@ async function importNavisionVehicles() {
   }
   renderSharedNavisionPreview(app.pendingSharedNavisionImport);
   updateNavisionImportButton();
+  } catch (error) {
+    if (!previewRequest) throw error;
+    reportSharedNavisionPreviewError({ code: previewDispatched ? 'preview_connection_failed' : 'preview_check_failed' }, previewRequest);
   } finally {
     setNavisionPreviewBusy(false);
   }
