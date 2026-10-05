@@ -89,6 +89,17 @@ const fixtureScript=`
    await page.locator('#search').fill('001234');await page.waitForFunction(()=>document.getElementById('sales-summary').textContent.includes('2 vehicles shown'));
    if(width<=650){for(const id of ['22222222-2222-4222-8222-222222222222','33333333-3333-4333-8333-333333333333'])await activeArea.locator('[data-select="'+id+'"]').check();}
    else await page.locator('#sales-select-visible').check();
+   const releaseAction=activeArea.locator('.sales-action').first();assert.match(await releaseAction.locator('option[value="released"]').innerText(),/2 selected/);
+   await releaseAction.selectOption('released');await page.locator('#sales-email').waitFor({state:'visible'});
+   assert.equal(await page.locator('#sales-email-to').inputValue(),'amy.elkington@broometoyota.com.au');
+   const releaseSubject=await page.locator('#sales-email-subject').inputValue();assert.equal(releaseSubject,'Vehicles released to Broome - QA-101, Toyota order 250000002');
+   assert.match(await page.locator('#sales-email-body').inputValue(),/Fictional North Coast Customer/);assert.match(await page.locator('#sales-email-body').inputValue(),/Fictional Long Customer Name/);
+   await page.screenshot({path:path.join(output,name+'-release-email.png')});
+   const [releaseDownload]=await Promise.all([page.waitForEvent('download'),page.locator('#sales-email-download').click()]);
+   const releaseFile=path.join(output,name+'-fictional-release.eml');await releaseDownload.saveAs(releaseFile);const releaseMessage=fs.readFileSync(releaseFile,'utf8');
+   assert.match(releaseMessage,/^X-Unsent: 1\r\nTo: amy\.elkington@broometoyota\.com\.au\r\n/);
+   assert.equal([...releaseMessage.matchAll(/=\?UTF-8\?B\?([^?]+)\?=/g)].map(m=>Buffer.from(m[1],'base64').toString('utf8')).join(''),releaseSubject);
+   await page.locator('#sales-email-close').click();
    await page.locator('#sales-dispatch-selected').click();await page.waitForFunction(()=>document.getElementById('sales-dispatch-status').textContent.includes('2 vehicles marked'));
    assert.equal(await page.locator('#status-tabs [data-category="autocare"] strong').innerText(),'2');
    await page.screenshot({path:path.join(output,name+'-autocare.png'),fullPage:true});
