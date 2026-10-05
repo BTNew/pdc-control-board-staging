@@ -31,7 +31,7 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
   for (const file of ['canonical-entry.js', 'pdc-fitters.js', 'workshop-data-service.js', 'workshop-reference-data-service.js', 'workshop-shared-actions.js', 'workshop-realtime.js', 'pdc-planner-slim.js', 'pdc-qc-mobile.js', 'pdc-qc-rework.js', 'pdc-rft-actions.js']) assert.equal(manifest.files.find(row => row.file === file).unchanged, true, file);
 });
 // Reviewed root-only import error handling/cache change. Department 135 copy stays frozen.
-const approvedRootImportPatch = Object.freeze({ 'app.js': '2f710918918b3ebe6573ba04020ed5b485f63563ad92b12af1caae63d7e033ba', 'index.html': '2b3664b33afed617a8540cef8dacc20bd27eddb9cdcd6a78063b4ae17a0c71f6' });
+const approvedRootImportPatch = Object.freeze({ 'app.js': '2f710918918b3ebe6573ba04020ed5b485f63563ad92b12af1caae63d7e033ba', 'index.html': '2f8528fc78a0504cb55cd3044f2c244fd91a80f710cf8beca5ce52e616568fd5' });
 test('PMB/Sales runtime preserves its frozen baseline and the approved root import patch', () => {
   for (const item of manifest.files) {
     let bytes = fs.readFileSync(path.join(original, item.file));

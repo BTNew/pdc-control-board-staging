@@ -74,3 +74,11 @@ test('other functions and protected PMB, Sales, Karratha and shared-source rows 
   assert.match(sql, /fence_snapshot IS DISTINCT FROM rows_before/);
   assert.match(sql, /Protected operational or shared source rows changed during splitter repair/);
 });
+
+test('the Preview error refresh marker belongs to the loaded root app script', () => {
+  const html = fs.readFileSync(require.resolve('./index.html'), 'utf8');
+  const app = [...html.matchAll(/<script\b[^>]*\bsrc="(app\.js[^"]*)"/g)].map(m => m[1]);
+  assert.equal(app.length, 1);
+  assert.ok(app[0].includes('navision-preview-errors=2026.10.05.01'));
+  assert.equal((html.match(/navision-preview-errors=/g) || []).length, 1);
+});
