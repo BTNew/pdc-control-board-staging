@@ -804,7 +804,7 @@
     "review_status": "staging_applied"
   },
   "broome_salesperson_site": {
-    "asset_version": "2026.10.02.19",
+    "asset_version": "2026.10.05.01",
     "path": "sales/",
     "dealer_code": "37047",
     "server_scoped": true,
@@ -815,22 +815,23 @@
     "seeded_account_scopes": 0,
     "validation": "Current staging entry assets match the reviewed source; account isolation and PDC preservation are covered by the sales regression and database rollback suites. Physical printer and external email handling require local confirmation.",
     "asset_versions": {
-      "sales.css": "2026.10.02.18",
+      "sales.css": "2026.10.05.01",
       "crm-workspace.css": "2026.10.02.05",
       "finance-pipeline.css": "2026.10.02.14",
       "zebra-labels.js": "2026.10.02.05",
-      "crm-workspace.js": "2026.10.02.19",
+      "crm-workspace.js": "2026.10.05.01",
       "dashboard-tools.js": "2026.10.02.18",
       "email-actions.js": "2026.10.02.05",
       "customer-emails.js": "2026.10.02.19",
       "finance-pipeline.js": "2026.10.02.19",
-      "sales.js": "2026.10.02.19",
+      "sales.js": "2026.10.05.01",
       "build-requirements.css": "2026.10.03.02",
-      "build-requirements.js": "2026.10.03.02"
+      "build-requirements.js": "2026.10.03.02",
+      "vehicle-notes.js": "2026.10.05.01"
     }
   },
   "broome_salesperson_dashboard": {
-    "asset_version": "2026.10.02.19",
+    "asset_version": "2026.10.05.01",
     "reference": "Owner supplied local tracker screenshot, 1 October 2026",
     "navigation": [
       "My Day",
@@ -848,7 +849,7 @@
     "layout": "JITA removed. TINT/BUILD/TRAY tick boxes cycle empty Not decided, dark grey slash Not required, orange Orders Raised and green Completed; fixed page-width desktop table, adjacent-column resizing and mobile vehicle cards."
   },
   "broome_salesperson_journey": {
-    "asset_version": "2026.10.02.19",
+    "asset_version": "2026.10.05.01",
     "early_orders": "Stockless orders accepted only with explicit COSI Yes/true/1 and Toyota order number",
     "identity": "Exact dealer + Toyota order; leading zeros retained; ambiguous source links flagged and not joined",
     "operational_writes": false,
@@ -858,7 +859,7 @@
     "validation": "COSI/stockless identity continuity, latest-source visibility, hiding/restoring, assigned-sales scope and isolated sales ordering are covered by regression and rollback suites."
   },
   "broome_salesperson_ordering": {
-    "asset_version": "2026.10.02.19",
+    "asset_version": "2026.10.05.01",
     "editable_flags": [
       "tint",
       "build_po",
@@ -938,7 +939,7 @@
     "workshop_writes": false
   },
   "broome_salesperson_cosi_scope": {
-    "asset_version": "2026.10.02.19",
+    "asset_version": "2026.10.05.01",
     "visible_vehicles": "Explicit COSI Yes/true/1 only, including stocked orders; missing/No/unknown excluded",
     "salesperson_filter": "Counts, location/status and month options, pipeline, linked summary and label scope follow selected salesperson",
     "negative_import": "Existing exact order retains UUID/display/checklist but updates private COSI evidence; cleared salesperson allowed; no new unsold stockless orders",
@@ -953,7 +954,7 @@
     ]
   },
   "broome_salesperson_crm": {
-    "asset_version": "2026.10.02.19",
+    "asset_version": "2026.10.05.01",
     "navigation": [
       "My Day",
       "Dashboard",
@@ -1017,5 +1018,27 @@
     "commissioned": true,
     "review_status": "staging_applied",
     "scope": "Existing private splitter assembly only; exact validation and permissions preserved"
+  },
+  "broome_salesperson_vehicle_notes": {
+    "asset_version": "2026.10.05.01",
+    "table": "pdc_sales_private.vehicle_notes",
+    "source_identity": "dealer + Toyota order via stable tracking_id",
+    "navision_overwrite": false,
+    "max_characters_per_field": 4000,
+    "optimistic_version_check": true,
+    "public_table_access": false,
+    "validation": "1654 frontend regressions, four fictional browser viewports, and scoped staging save/concurrency/access rollback checks; no operational vehicle changes.",
+    "migrations": [
+      {
+        "file": "supabase/migrations/20261005033028_broome_sales_vehicle_notes.sql",
+        "sha256": "e8604fe4cca99efc561e312331a03ec8c5df83390448674c50fff82eeb3f3ad6",
+        "review_status": "staging_applied"
+      },
+      {
+        "file": "supabase/migrations/20261005033956_broome_sales_vehicle_notes_private_policy.sql",
+        "sha256": "0a89e73a5a90d7cdd274df4132861726f6bca7ebd02248df9df40c2822c55898",
+        "review_status": "staging_applied"
+      }
+    ]
   }
 }
