@@ -15,6 +15,11 @@
    return !!user();
   }
   const repaint=()=>options?.onChanged?.();
+  function hasSavedNotes(id){
+   if(!syncScope()||!allowed(id))return false;
+   const record=records.get(id);
+   return Boolean(record&&(record.notes.trim()||record.custom_information.trim()));
+  }
   async function load(){
    if(!syncScope())return;
    const epoch=generation,who=user(),seq=++request;loadError='';
@@ -77,7 +82,7 @@
    host.addEventListener?.('pdc-auth-locked',clear);host.addEventListener?.('pdc-auth-failed',clear);
    return api;
   }
-  const api={init,clear,syncScope,load,toggleHtml,rowHtml,editorHtml};return api;
+  const api={init,clear,syncScope,load,toggleHtml,rowHtml,editorHtml,hasSavedNotes};return api;
  }
  if(typeof module==='object'&&module.exports)module.exports={create};
  if(root.document)root.BROOME_VEHICLE_NOTES=create(root);

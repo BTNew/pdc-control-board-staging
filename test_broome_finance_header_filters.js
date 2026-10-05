@@ -89,7 +89,7 @@ function harness() {
       querySelectorAll(){return [];}
     });return elements.get(id);
   }
-  const window={document:{getElementById:el,activeElement:null},crypto:{randomUUID:()=> 'finance-filter-created'},PDC_AUTH_CONTEXT:{userId:token},PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}}};
+  const window={setTimeout:()=>1,clearTimeout(){},document:{getElementById:el,activeElement:null},crypto:{randomUUID:()=> 'finance-filter-created'},PDC_AUTH_CONTEXT:{userId:token},PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}}};
   class FormData {constructor(form){this.form=form;}get(key){return this.form.values?.[key]??this.form.querySelector?.('[name="'+key+'"]')?.value??'';}}
   vm.runInNewContext(source,{window,globalThis:window,module:undefined,console,Map,Set,FormData});
   const api=window.BROOME_SALES_FINANCE;

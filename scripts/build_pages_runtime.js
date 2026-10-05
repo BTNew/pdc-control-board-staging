@@ -151,7 +151,7 @@ const RUNTIME_FILES = Object.freeze([
   'sales/crm-workspace.js', 'sales/customer-emails.js', 'sales/dashboard-tools.js',
   'sales/email-actions.js', 'sales/finance-pipeline.css', 'sales/finance-pipeline.js',
   'sales/index.html', 'sales/navision-orders.js', 'sales/sales.css',
-  'sales/sales.js', 'sales/vehicle-notes.js', 'sales/zebra-labels.js',
+  'sales/sales.js', 'sales/vehicle-notes.js', 'sales/completed-vehicles.js', 'sales/zebra-labels.js',
   // Existing read-only browser helper is loaded by index.html; no other scripts ship.
   'scripts/stage2b_c4_browser_export.js',
   'site-switcher.css', 'site-switcher.js', 'staging-browser-assessment.js', 'staging.html',
