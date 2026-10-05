@@ -284,9 +284,9 @@
     const noteFocus=noteForm?{id:noteForm.dataset.notesForm,name:focus.name,start:focus.selectionStart,end:focus.selectionEnd,mobile:!!focus.closest?.('#sales-mobile-vehicles')}:null;
     const focusKey=focus?.dataset?.orderingId?{id:focus.dataset.orderingId,flag:focus.dataset.orderingFlag,mobile:!!focus.closest?.('#sales-mobile-vehicles')}:null;
     const rows=selectRows(state.showHidden?state.hiddenItems:state.items,{...state.filters,visibility:state.showHidden?'hidden':'visible'});
-    const dispatchSelected=rows.filter(r=>state.selected.has(r.tracking_id)&&dispatchEligible(r)&&r.autocare_dispatched!==true);
+    const checked=selectedRows(),dispatchSelected=checked.filter(r=>dispatchEligible(r)&&r.autocare_dispatched!==true);
     $('sales-dispatch-selected').disabled=state.showHidden||state.dispatchBusy||!dispatchSelected.length;
-    $('sales-dispatch-selected').textContent=state.dispatchBusy?'Saving dispatch…':'Mark selected Dispatched Autocare'+(dispatchSelected.length?' ('+dispatchSelected.length+')':'');
+    $('sales-dispatch-selected').textContent=state.dispatchBusy?'Saving dispatch…':'Mark selected Dispatched Autocare'+(checked.length?' ('+checked.length+')':'');
     $('sales-hidden-toggle').textContent=state.showHidden?'Show dashboard':'Hidden vehicles';
     $('sales-hidden-toggle').setAttribute('aria-pressed',String(state.showHidden));
     $('sales-hidden-toggle').disabled=state.hiddenBusy;
@@ -337,10 +337,16 @@
     return '<div class="mobile-navision-notes'+(manual?' has-staff-note':'')+'"><strong>Navision notes</strong><p>'+escapeHtml(row.navision_notes||'No Navision notes')+'</p>'+(manual?'<span class="manual-note-label">Staff note saved — expand notes below</span>':'')+'</div>';
   }
 
+  function selectedRows(){return scopeRows(state.items,state.filters.salesperson).filter(row=>state.selected.has(row.tracking_id));}
   async function saveAutocareDispatch(ids,dispatched=true){
     if(state.dispatchBusy||state.showHidden||!root.PDC_AUTH_CONTEXT||!['administrator','salesperson'].includes(state.context?.role))return;
-    const rows=scopeRows(state.items,state.filters.salesperson).filter(r=>ids.includes(r.tracking_id)&&!r.identity_conflict&&(dispatched?dispatchEligible(r)&&r.autocare_dispatched!==true:r.autocare_dispatched===true));
-    if(!rows.length)return;
+    const requested=new Set(ids),checked=scopeRows(state.items,state.filters.salesperson).filter(r=>requested.has(r.tracking_id));
+    if(!requested.size)return;
+    if(checked.length!==requested.size||checked.some(r=>r.identity_conflict||(dispatched&&!dispatchEligible(r)))){
+      $('sales-dispatch-status').textContent='No vehicles were moved. A selected vehicle is unavailable, needs its reference checked, or is already at Dealer. Review your selection and try again.';return;
+    }
+    const rows=checked.filter(r=>dispatched?r.autocare_dispatched!==true:r.autocare_dispatched===true),already=checked.length-rows.length;
+    if(!rows.length){$('sales-dispatch-status').textContent='The selected vehicles are already '+(dispatched?'in':'outside')+' Dispatched Autocare.';return;}
     const generation=state.generation,principal=root.PDC_AUTH_CONTEXT.userId,scope=state.filters.salesperson,request=++state.dispatchRequest;
     state.dispatchBusy=true;$('sales-dispatch-status').textContent='Saving Autocare dispatch…';render();
     try{
@@ -349,13 +355,13 @@
       if(error||!Array.isArray(data?.items)||data.items.length!==rows.length||new Set(data.items.map(r=>r.tracking_id)).size!==rows.length||data.items.some(r=>!rows.some(old=>old.tracking_id===r.tracking_id&&r.autocare_dispatch_version===(old.autocare_dispatch_version||0)+1)||r.autocare_dispatched!==dispatched||!Number.isInteger(r.autocare_dispatch_version)))throw error||new Error('Dispatch was not saved. Refresh and try again.');
       const saved=new Map(data.items.map(r=>[r.tracking_id,r]));
       state.items=state.items.map(r=>{const patch=saved.get(r.tracking_id);return patch&&(r.autocare_dispatch_version||0)<=patch.autocare_dispatch_version?{...r,...patch}:r;});
-      for(const row of rows)state.selected.delete(row.tracking_id);
+      for(const row of checked)state.selected.delete(row.tracking_id);
       if(dispatched){state.filters.category='autocare';state.filters.status='';$('sales-status-filter').value='';}
-      $('sales-dispatch-status').textContent=rows.length+' vehicle'+(rows.length===1?'':'s')+(dispatched?' marked Dispatched Autocare.':' removed from Autocare dispatch.');
+      $('sales-dispatch-status').textContent=checked.length+' vehicle'+(checked.length===1?'':'s')+(dispatched?' marked Dispatched Autocare':' removed from Autocare dispatch')+(already?' ('+already+' already '+(dispatched?'there':'removed')+')':'')+'.';
     }catch(error){if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&scope===state.filters.salesperson)$('sales-dispatch-status').textContent=error.message||'Dispatch was not saved. Refresh and try again.';}
     finally{if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&request===state.dispatchRequest){state.dispatchBusy=false;render();}}
   }
-  $('sales-dispatch-selected').addEventListener('click',()=>saveAutocareDispatch(selectRows(state.items,state.filters).filter(r=>state.selected.has(r.tracking_id)).map(r=>r.tracking_id)));
+  $('sales-dispatch-selected').addEventListener('click',()=>saveAutocareDispatch(selectedRows().map(r=>r.tracking_id)));
   function resizeHandle(index,label){return '<span class="column-resize" role="separator" tabindex="0" data-resize="'+index+'" aria-orientation="vertical" aria-label="Resize '+escapeHtml(label)+' column" aria-valuemin="40" aria-valuemax="600" title="Drag to resize. Arrow keys adjust width; Home or double-click resets."></span>';}
   function etaHtml(value){
     const info=root.BROOME_SALES_TOOLS?.etaInfo(value);
@@ -367,13 +373,15 @@
     return '<select class="sales-action" data-email-id="'+id+'" aria-label="'+label+'" '+(row.identity_conflict||state.visibilitySaving.has(row.tracking_id)?'disabled ':'')+'><option value="">Select action…</option>'+
       (row.sales_hidden?'<option value="show">Show on sales planner</option>':'<option value="details">View details</option>'+
       (root.BROOME_SALES_EMAIL?.types||[]).map(([key,title])=>'<option value="'+key+'">'+title+(key==='released'&&state.selected.size>1?' ('+state.selected.size+' selected)':'')+'</option>').join('')+
-      (row.autocare_dispatched===true?'<option value="autocare-clear">Undo Autocare dispatch</option>':dispatchEligible(row)?'<option value="autocare-dispatch">Dispatched Autocare</option>':'')+'<option value="hide">Hide from sales planner</option>')+'</select>';
+      (dispatchEligible(row)&&(row.autocare_dispatched!==true||state.selected.size>1)?'<option value="autocare-dispatch">Dispatched Autocare'+(state.selected.size>1?' ('+state.selected.size+' selected)':'')+'</option>':'')+
+      (row.autocare_dispatched===true?'<option value="autocare-clear">Undo Autocare dispatch'+(state.selected.size>1?' (this vehicle)':'')+'</option>':'')+'<option value="hide">Hide from sales planner</option>')+'</select>';
   }
   function emailAction(target){
     if(!target.dataset.emailId)return false;
     const id=target.dataset.emailId,kind=target.value;target.value='';
     if(kind==='hide'||kind==='show')setVehicleVisibility(id,kind==='hide');
-    else if(kind==='autocare-dispatch'||kind==='autocare-clear')saveAutocareDispatch([id],kind==='autocare-dispatch');
+    else if(kind==='autocare-dispatch')saveAutocareDispatch(state.selected.size>1?selectedRows().map(r=>r.tracking_id):[id]);
+    else if(kind==='autocare-clear')saveAutocareDispatch([id],false);
     else if(kind==='details')openDetail(id);else if(kind)root.BROOME_SALES_EMAIL?.open(kind,id);
     return true;
   }
@@ -659,7 +667,7 @@
   root.BROOME_SALES_BUILDS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
   root.BROOME_VEHICLE_NOTES?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getVisibleRows:()=>selectRows(state.items,state.filters),getScope:()=>state.filters.salesperson,isHidden:()=>state.showHidden,reference:vehicleReference,onChanged:render});
   const columnWidths=root.BROOME_SALES_TOOLS?.initColumns($('vehicle-table'),$('sales-reset-widths'));
-  root.BROOME_SALES_EMAIL?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getSelectedRows:()=>scopeRows(state.items,state.filters.salesperson).filter(row=>state.selected.has(row.tracking_id)),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation,state.filters.salesperson]),onError:text=>$('sales-workspace-status').textContent=text});
+  root.BROOME_SALES_EMAIL?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getSelectedRows:selectedRows,getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation,state.filters.salesperson]),onError:text=>$('sales-workspace-status').textContent=text});
   root.BROOME_CUSTOMER_EMAILS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
   root.BROOME_SALES_FINANCE?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation]),onLoaded:projection=>{state.financeProjection=projection;if(state.workspace){state.workspace.finance=projection;root.BROOME_SALES_CRM?.setWorkspace(state.workspace);attachWorkspace();}}});
   if(root.PDC_AUTH_CONTEXT)refresh();

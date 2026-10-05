@@ -19,10 +19,10 @@ test('transport-number search keeps leading zero references and existing approve
  assert.deepEqual(sales.selectRows(rows,{category:'all',search:'001234',salesperson:'BG',sort:'stock',direction:1}).map(r=>r.tracking_id),['one']);
  assert.equal(sales.selectRows(rows,{category:'all',search:'001234',sort:'stock',direction:1}).length,2);
 });
-test('batch dispatch sends only checked visible vehicles and waits for a validated server confirmation',async()=>{
+test('batch dispatch includes checked vehicles outside the current search and waits for server confirmation',async()=>{
  const h=harness();h.calls[0].resolve(snap([base,{...base,tracking_id:'two',stock:'QA-2'},{...base,tracking_id:'other',transport_number:'009999'}]));await tick();h.select('other');h.el('search').events.input({target:{value:'001234'}});h.select('one');h.select('two');h.el('sales-dispatch-selected').events.click();
- assert.equal(h.calls[1].name,'set_broome_sales_autocare_dispatch');assert.deepEqual(copy(h.calls[1].args),{p_entries:[{tracking_id:'one',expected_version:0},{tracking_id:'two',expected_version:0}],p_dispatched:true});assert.equal(h.el('sales-dispatch-selected').disabled,true);assert.doesNotMatch(h.el('vehicle-table').innerHTML,/class="status-pill autocare/);
- h.calls[1].resolve({data:{items:['one','two'].map(tracking_id=>({tracking_id,autocare_dispatched:true,autocare_dispatch_version:1}))}});await tick();assert.match(h.el('vehicle-table').innerHTML,/status-pill autocare/);assert.match(h.el('sales-dispatch-status').textContent,/2 vehicles marked/);assert.doesNotMatch(h.el('vehicle-table').innerHTML,/data-select="other"/);
+ assert.equal(h.calls[1].name,'set_broome_sales_autocare_dispatch');assert.deepEqual(copy(h.calls[1].args),{p_entries:[{tracking_id:'one',expected_version:0},{tracking_id:'two',expected_version:0},{tracking_id:'other',expected_version:0}],p_dispatched:true});assert.equal(h.el('sales-dispatch-selected').disabled,true);assert.doesNotMatch(h.el('vehicle-table').innerHTML,/class="status-pill autocare/);
+ h.calls[1].resolve({data:{items:['one','two','other'].map(tracking_id=>({tracking_id,autocare_dispatched:true,autocare_dispatch_version:1}))}});await tick();assert.match(h.el('vehicle-table').innerHTML,/status-pill autocare/);assert.match(h.el('sales-dispatch-status').textContent,/3 vehicles marked/);assert.doesNotMatch(h.el('vehicle-table').innerHTML,/data-select="other"/);
 });
 test('failed or malformed dispatch does not update tiles and remains retryable',async()=>{
  for(const response of [{error:{message:'Conflict'}},{data:{items:[{tracking_id:'other',autocare_dispatched:true,autocare_dispatch_version:1}]}},{data:{items:[{tracking_id:'one',autocare_dispatched:true,autocare_dispatch_version:0}]}}]){
@@ -37,4 +37,25 @@ test('stale polls cannot remove a confirmed mark, but fresh dealer status still 
 test('scope changes and sign-out suppress delayed responses and inaccessible vehicles cannot start requests',async()=>{
  for(const invalid of [{identity_conflict:true},{source_current:false},{sales_hidden:true},{toyota_status:'Delivered - At Dealer'}]){const h=harness();h.calls[0].resolve(snap([{...base,...invalid}]));await tick();h.action('one','autocare-dispatch');assert.equal(h.calls.length,1);}
  const h=harness();h.calls[0].resolve(snap([base]));await tick();h.action('one','autocare-dispatch');delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();h.calls[1].resolve({data:{items:[{tracking_id:'one',autocare_dispatched:true,autocare_dispatch_version:1}]}});await tick();assert.equal(h.el('vehicle-table').innerHTML,'');assert.equal(h.el('sales-dispatch-status').textContent,'');
+});
+
+test('row-menu transfer moves all five checked vehicles and excludes an unchecked vehicle',async()=>{
+ const h=harness(),rows=Array.from({length:6},(_,i)=>({...base,tracking_id:'vehicle-'+i,stock:'QA-'+i}));h.calls[0].resolve(snap(rows));await tick();
+ for(let i=0;i<5;i++)h.select('vehicle-'+i);assert.match(h.el('vehicle-table').innerHTML,/Dispatched Autocare \(5 selected\)/);
+ h.action('vehicle-2','autocare-dispatch');assert.deepEqual(copy(h.calls[1].args.p_entries).map(r=>r.tracking_id),rows.slice(0,5).map(r=>r.tracking_id));
+ h.calls[1].resolve({data:{items:rows.slice(0,5).map(r=>({tracking_id:r.tracking_id,autocare_dispatched:true,autocare_dispatch_version:1}))}});await tick();
+ assert.match(h.el('sales-dispatch-status').textContent,/5 vehicles marked/);assert.match(h.el('sales-summary').innerHTML,/0 selected/);
+ h.el('sales-clear-filters').events.click();assert.match(h.el('status-tabs').innerHTML,/data-category="autocare"[^]*?<strong>5<\/strong>/);
+ assert.match(h.el('vehicle-table').innerHTML,/status-pill released/);
+});
+
+test('row menu on an already dispatched vehicle transfers the rest of the selection once',async()=>{
+ const h=harness(),rows=[{...base,autocare_dispatched:true,autocare_dispatch_version:1},{...base,tracking_id:'two',stock:'QA-2'},{...base,tracking_id:'three',stock:'QA-3'}];h.calls[0].resolve(snap(rows));await tick();rows.forEach(r=>h.select(r.tracking_id));
+ h.action('one','autocare-dispatch');assert.deepEqual(copy(h.calls[1].args.p_entries),[{tracking_id:'two',expected_version:0},{tracking_id:'three',expected_version:0}]);
+ h.calls[1].resolve({data:{items:['two','three'].map(tracking_id=>({tracking_id,autocare_dispatched:true,autocare_dispatch_version:1}))}});await tick();assert.equal(h.el('sales-dispatch-status').textContent,'3 vehicles marked Dispatched Autocare (1 already there).');assert.match(h.el('sales-summary').innerHTML,/0 selected/);
+});
+
+test('an ineligible checked vehicle prevents a partial batch and retains the selection for correction',async()=>{
+ const h=harness();h.calls[0].resolve(snap([base,{...base,tracking_id:'dealer',toyota_status:'Delivered - At Dealer'}]));await tick();h.select('one');h.select('dealer');h.action('one','autocare-dispatch');
+ assert.equal(h.calls.length,1);assert.match(h.el('sales-dispatch-status').textContent,/No vehicles were moved/);assert.match(h.el('sales-summary').innerHTML,/2 selected/);assert.doesNotMatch(h.el('vehicle-table').innerHTML,/status-pill autocare/);
 });
