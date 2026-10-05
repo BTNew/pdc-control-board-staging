@@ -82,14 +82,21 @@ const api={columns,choices,patch,money,total,projection,matchVehicles,perthDay,v
 if(!root.document)return;
 const $=id=>root.document.getElementById(id);let options,entries=[],refs=[],people=[],ctx=null,epoch=0,request=0,principal='',scope='',drafts=new Map(),busy=new Set(),message='',creating=null,createBusy=false;
 const token=()=>options?.getToken?.(),selected=()=>options?.getSalesperson?.()||'';
+const autoSaveTimers=new Map(),saveStates=new Map();
+function cancelAutoSave(id){if(autoSaveTimers.has(id)){root.clearTimeout?.(autoSaveTimers.get(id));autoSaveTimers.delete(id);}}
+function resetAutoSave(){for(const id of autoSaveTimers.keys())cancelAutoSave(id);saveStates.clear();}
+function queueAutoSave(id,delay=700){
+ cancelAutoSave(id);const identity=token(),generation=epoch;
+ autoSaveTimers.set(id,root.setTimeout(()=>{autoSaveTimers.delete(id);if(identity===token()&&generation===epoch)saveRow(id,true);},delay));
+}
 const editor=()=>ctx?.can_edit_finance===true;
 const visible=()=>entries.filter(r=>!selected()||r.salesperson_code===selected());
 const candidates=()=>refs.filter(r=>!selected()||r.salesperson_code===selected());
 let financeView='pipeline',statisticsMonth=perthDay().slice(0,7),statisticsGroup='all',statisticsNewUsed='all',dateRenderPending=false;
 let vehicleMatches=[],activeMatch=-1,pickedCustomer='',columnFilters={};
 function close(){vehicleMatches=[];activeMatch=-1;pickedCustomer='';creating=null;createBusy=false;$('finance-add-dialog').close();$('finance-add-content').innerHTML='';}
-function clear(){columnFilters={};dateRenderPending=false;financeView='pipeline';statisticsMonth=perthDay().slice(0,7);statisticsGroup='all';statisticsNewUsed='all';epoch++;request++;entries=[];refs=[];people=[];ctx=null;drafts.clear();busy.clear();message='';principal=token();scope=selected();close();$('sales-finance').innerHTML='';}
-function guard(){if(token()!==principal){clear();return true;}if(selected()!==scope){scope=selected();epoch++;columnFilters={};dateRenderPending=false;drafts.clear();busy.clear();message='';close();return true;}return false;}
+function clear(){resetAutoSave();columnFilters={};dateRenderPending=false;financeView='pipeline';statisticsMonth=perthDay().slice(0,7);statisticsGroup='all';statisticsNewUsed='all';epoch++;request++;entries=[];refs=[];people=[];ctx=null;drafts.clear();busy.clear();message='';principal=token();scope=selected();close();$('sales-finance').innerHTML='';}
+function guard(){if(token()!==principal){clear();return true;}if(selected()!==scope){resetAutoSave();scope=selected();epoch++;columnFilters={};dateRenderPending=false;drafts.clear();busy.clear();message='';close();return true;}return false;}
 function select(key,value,attrs){return '<select '+attrs+' title="'+esc(value||'Not selected')+'">'+(choices[key].includes(value)?choices[key]:[value,...choices[key]]).map(v=>'<option value="'+esc(v)+'"'+(v===value?' selected':'')+'>'+esc(v||'—')+'</option>').join('')+'</select>';}
 function input(key,value,attrs){return choices[key]?select(key,value,attrs):key==='notes'?'<input type="text" maxlength="4000" '+attrs+' value="'+esc(value||'')+'" title="'+esc(value||'')+'">':'<input '+attrs+' type="'+(amounts.has(key)?'number':'text')+'" '+(amounts.has(key)?'min="0" max="999999999.99" step="0.01"':'maxlength="200"')+' value="'+esc(value??'')+'">';}
 function render(force=false){
@@ -99,7 +106,7 @@ function render(force=false){
  const focus=root.document.activeElement;
  if(!force&&!scopeChanged&&focus?.dataset?.financeKey==='settlement_date'&&editor()){
   const row=visible().find(r=>r.id===focus.dataset.financeId);
-  if(row&&!busy.has(row.id)){dateRenderPending=true;const d=drafts.get(row.id),tr=focus.closest('tr');if((d&&d.version!==row.version)||Number(focus.dataset.financeVersion)!==row.version){tr.querySelector('[data-finance-save]').disabled=true;message='This finance entry changed. Discard edits and refresh.';const status=$('sales-finance').querySelector('[role="status"]');if(status)status.textContent=message;}return;}
+  if(row){dateRenderPending=true;const d=drafts.get(row.id),tr=focus.closest('tr');if(!busy.has(row.id)&&((d&&d.version!==row.version)||Number(focus.dataset.financeVersion)!==row.version)){tr.querySelector('[data-finance-save]').disabled=true;message='This finance entry changed. Discard edits and refresh.';const status=$('sales-finance').querySelector('[role="status"]');if(status)status.textContent=message;}return;}
  }
  dateRenderPending=false;
  const restore=focus?.dataset?.financeId?{id:focus.dataset.financeId,key:focus.dataset.financeKey,start:focus.selectionStart,end:focus.selectionEnd}:null;
@@ -112,21 +119,35 @@ function render(force=false){
   return '<tr>'+columns.map(([k,label])=>{
    const hidden=!editor()&&privateFields.has(k),value=k==='total_comm'?total({...r,...draft?.data}):data[k];
    let control=k==='total_comm'?hidden?'—':'<span class="finance-amount" title="'+esc(currency(value))+'">'+esc(currency(value))+'</span>':
-    hidden?'—':editor()?input(k,value,'data-finance-id="'+esc(r.id)+'" data-finance-key="'+k+'" data-finance-version="'+r.version+'" aria-label="'+esc(label+' for '+r.customer)+'"'+(saving?' disabled':'')):esc(value??'—');
-   if(k==='customer')control='<div class="finance-customer-cell">'+control+(editor()?'<div class="finance-row-actions"><button class="small-button" type="button" data-finance-save="'+esc(r.id)+'" aria-label="Save row for '+esc(r.customer)+'" '+(!draft?'hidden ':'')+(!draft||saving||conflict||invalid?'disabled':'')+'>'+(saving?'…':'Save')+'</button><button class="small-button" type="button" data-finance-discard="'+esc(r.id)+'" aria-label="Discard edits for '+esc(r.customer)+'" '+(!draft?'hidden':'')+'>×</button></div>':'')+'</div>'+(conflict?'<small class="finance-conflict">Changed elsewhere. Discard edits and refresh.</small>':'');
+    hidden?'—':editor()?input(k,value,'data-finance-id="'+esc(r.id)+'" data-finance-key="'+k+'" data-finance-version="'+(draft?.version??r.version)+'" aria-label="'+esc(label+' for '+r.customer)+'"'):esc(value??'—');
+   if(k==='customer')control='<div class="finance-customer-cell">'+control+(editor()?'<div class="finance-row-actions"><button class="small-button" type="button" data-finance-save="'+esc(r.id)+'" aria-label="Save row for '+esc(r.customer)+'" '+(!draft?'hidden ':'')+(!draft||saving||conflict||invalid?'disabled':'')+'>'+(saving?'…':saveStates.get(r.id)?.state==='error'?'Retry':'Save')+'</button><button class="small-button" type="button" data-finance-discard="'+esc(r.id)+'" aria-label="Discard edits for '+esc(r.customer)+'" '+(!draft?'hidden ':'')+(saving?'disabled':'')+'>×</button></div>':'')+'</div>'+(editor()?saveStatusHtml(r.id):'')+(conflict?'<small class="finance-conflict">Changed elsewhere. Discard edits and refresh.</small>':'');
    if(k==='settlement'){
     const date=data.settlement_date||'',undated=data.settlement==='Yes'&&!validSettlementDate(date)&&!draft?.errors?.settlement_date;
-    control=(editor()?'<input class="finance-settlement-date" type="date" data-finance-id="'+esc(r.id)+'" data-finance-key="settlement_date" data-finance-version="'+r.version+'" aria-label="Settlement date for '+esc(r.customer)+'" value="'+esc(date)+'" min="1900-01-01" max="'+perthDay()+'"'+(saving?' disabled':'')+'>':esc(validSettlementDate(date)?settlementDateLabel(date):undated?'Settled — date not recorded':'—'))+(editor()&&undated?'<small class="finance-settlement-undated">Settled — date not recorded</small>':'');
+    control=(editor()?'<input class="finance-settlement-date" type="date" data-finance-id="'+esc(r.id)+'" data-finance-key="settlement_date" data-finance-version="'+(draft?.version??r.version)+'" aria-label="Settlement date for '+esc(r.customer)+'" value="'+esc(date)+'" min="1900-01-01" max="'+perthDay()+'">':esc(validSettlementDate(date)?settlementDateLabel(date):undated?'Settled — date not recorded':'—'))+(editor()&&undated?'<small class="finance-settlement-undated">Settled — date not recorded</small>':'');
    }
    const state=k==='settlement'?(validSettlementDate(data.settlement_date||'')&&!draft?.errors?.settlement_date?' finance-yes':''):['approval','access','payout_complete'].includes(k)?data[k]==='Yes'?' finance-yes':data[k]==='No'?' finance-no':'':'';
    return '<td class="'+state+'" data-label="'+label+'">'+control+'</td>';
   }).join('')+'</tr>';
  }).join('')+'</tbody></table></div>';
  const viewControl='<div class="finance-view-buttons" role="group" aria-label="Finance view">'+[['pipeline','Pipeline'],['statistics','Statistics'],['all','All applications']].map(([key,name])=>'<button type="button" data-finance-view="'+key+'" aria-pressed="'+(financeView===key)+'">'+name+'</button>').join('')+'</div>';
- $('sales-finance').innerHTML='<section class="panel finance-home"><div class="panel-header"><div><h2>'+(financeView==='statistics'?'Finance statistics':'Finance applications')+'</h2><p>'+(financeView==='statistics'?'Monthly settlements and the current application pipeline.':editor()?'Edit the cells, then save the row.':'View your applications and finance updates.')+'</p></div><div class="panel-actions">'+viewControl+(editor()?'<button class="primary" type="button" data-finance-add>Add finance entry</button>':'')+'<button class="small-button" type="button" data-finance-refresh>Refresh finance</button></div></div><p class="tracking-note" role="status">'+esc(message)+'</p>'+(financeView==='statistics'?statisticsHtml(report,all):'')+'<div class="finance-pipeline-heading">'+(financeView==='statistics'?'SETTLED APPLICATIONS':financeView==='all'?'ALL FINANCE APPLICATIONS':'ACTIVE FINANCE PIPELINE')+'</div>'+(financeView==='statistics'?(list.length?table:'<div class="empty-state">No settlements in this period.</div>'):filterSummaryHtml(baseList,list)+mobileFiltersHtml(baseList)+table+(list.length?'':'<div class="empty-state">'+(baseList.length?'No entries match these filters. Clear filters to show all entries.':'No finance entries in this view. Choose Add finance entry to add a customer or link an existing vehicle.')+'</div>'))+'</section>';
+ $('sales-finance').innerHTML='<section class="panel finance-home"><div class="panel-header"><div><h2>'+(financeView==='statistics'?'Finance statistics':'Finance applications')+'</h2><p>'+(financeView==='statistics'?'Monthly settlements and the current application pipeline.':editor()?'Changes save automatically as you edit.':'View your applications and finance updates.')+'</p></div><div class="panel-actions">'+viewControl+(editor()?'<button class="primary" type="button" data-finance-add>Add finance entry</button>':'')+'<button class="small-button" type="button" data-finance-refresh>Refresh finance</button></div></div><p class="tracking-note" role="status">'+esc(message)+'</p>'+(financeView==='statistics'?statisticsHtml(report,all):'')+'<div class="finance-pipeline-heading">'+(financeView==='statistics'?'SETTLED APPLICATIONS':financeView==='all'?'ALL FINANCE APPLICATIONS':'ACTIVE FINANCE PIPELINE')+'</div>'+(financeView==='statistics'?(list.length?table:'<div class="empty-state">No settlements in this period.</div>'):filterSummaryHtml(baseList,list)+mobileFiltersHtml(baseList)+table+(list.length?'':'<div class="empty-state">'+(baseList.length?'No entries match these filters. Clear filters to show all entries.':'No finance entries in this view. Choose Add finance entry to add a customer or link an existing vehicle.')+'</div>'))+'</section>';
  if(restore){const el=$('sales-finance').querySelector('[data-finance-id="'+restore.id+'"][data-finance-key="'+restore.key+'"]');if(el&&!el.disabled){el.focus({preventScroll:true});if(typeof el.setSelectionRange==='function'&&el.type!=='number'&&el.tagName!=='SELECT')try{el.setSelectionRange(restore.start,restore.end);}catch{}}}
 }
 
+function saveStatusHtml(id){const info=saveStates.get(id)||{state:'',text:''};return '<small class="finance-save-status" data-finance-status="'+esc(id)+'" data-state="'+info.state+'" role="status" aria-live="polite">'+esc(info.text)+'</small>';}
+function updateSaveState(id,state,text){
+ saveStates.set(id,{state,text});if(options.getView?.()!=='finance')return;
+ const host=$('sales-finance'),status=host.querySelector('[data-finance-status="'+id+'"]');
+ if(status){status.textContent=text;status.setAttribute?.('data-state',state);}
+ const field=host.querySelector('[data-finance-id="'+id+'"]'),tr=field?.closest?.('tr'),row=visible().find(r=>r.id===id),draft=drafts.get(id);
+ if(tr&&row){const saving=busy.has(id),invalid=Object.keys(draft?.errors||{}).length>0,conflict=draft&&draft.version!==row.version;
+  const save=tr.querySelector('[data-finance-save]'),discard=tr.querySelector('[data-finance-discard]');
+  if(save){save.hidden=!draft;save.disabled=!draft||saving||invalid||!!conflict;save.textContent=saving?'…':state==='error'?'Retry':'Save';}
+  if(discard){discard.hidden=!draft;discard.disabled=saving;}
+  for(const control of tr.querySelectorAll?.('[data-finance-id]')||[])control.dataset.financeVersion=String(draft?.version??row.version);
+ }
+}
+function renderAfterSave(){const active=root.document.activeElement?.dataset;if(options.getView?.()==='finance'&&!active?.financeKey&&!active?.financeFilter&&!active?.financeView)render(true);}
 function filterSummaryHtml(baseList,list){
  const count=Object.keys(columnFilters).filter(k=>editor()||!privateFields.has(k)).length;
  const shown=new Set(list.map(r=>r.id)),hiddenEdits=baseList.filter(r=>drafts.has(r.id)&&!shown.has(r.id)).length;
@@ -160,15 +181,22 @@ function focusFilter(key){
 
 async function refresh(){
  if(!options?.getContext?.()||!root.PDC_AUTH_CONTEXT)return;
- const identity=token(),generation=epoch,sequence=++request;
+ const identity=token(),generation=epoch,sequence=++request;let accessRejected=false;
  try{
   const {data,error}=await root.PDC_SUPABASE.rpc('get_broome_finance_pipeline');
   if(identity!==token()||generation!==epoch||sequence!==request)return;
-  if(error||!Array.isArray(data?.entries)||!['administrator','salesperson'].includes(data.context?.role))throw error||new Error('Finance applications could not be loaded.');
-  if(editor()&&!data.context.can_edit_finance){drafts.clear();busy.clear();columnFilters={};close();dateRenderPending=false;}
-  ctx=data.context;entries=data.entries;refs=data.vehicle_options||[];people=data.salespeople||[];
+  accessRejected=!!data&&!['administrator','salesperson'].includes(data.context?.role);
+  if(error||!Array.isArray(data?.entries)||accessRejected)throw error||new Error('Finance applications could not be loaded.');
+  if(editor()&&!data.context.can_edit_finance){epoch++;request++;resetAutoSave();drafts.clear();busy.clear();columnFilters={};close();dateRenderPending=false;}
+  ctx=data.context;entries=data.entries.map(r=>{const current=entries.find(old=>old.id===r.id);return current&&current.version>r.version?current:r;});refs=data.vehicle_options||[];people=data.salespeople||[];
   options.onLoaded?.(projection(entries));
- }catch(e){if(identity!==token()||generation!==epoch||sequence!==request)return;entries=[];refs=[];people=[];ctx=null;drafts.clear();columnFilters={};close();dateRenderPending=false;options.onLoaded?.([]);message=e.message||'Finance could not be loaded. Refresh to retry.';}
+ }catch(e){
+  if(identity!==token()||generation!==epoch||sequence!==request)return;
+  message=e.message||'Finance could not be loaded. Refresh to retry.';
+  if(editor()&&drafts.size&&!accessRejected&&!['42501','PGRST301','PGRST302'].includes(e.code)&&![401,403].includes(e.status)){
+   for(const id of drafts.keys()){cancelAutoSave(id);if(!busy.has(id))updateSaveState(id,'error',message+' Your edits are retained. Retry when ready.');}
+  }else{resetAutoSave();busy.clear();epoch++;entries=[];refs=[];people=[];ctx=null;drafts.clear();columnFilters={};close();dateRenderPending=false;options.onLoaded?.([]);}
+ }
  if(options.getView?.()==='finance')render();
 }
 
@@ -186,7 +214,7 @@ function statisticsHtml(report,all){
  if(editor())cards.push(['RSI products (RSA)',report.rsaCount,currency(report.rsaTotal)],['MVI products',report.mviCount,currency(report.mviTotal)],['Settled NAF',currency(report.naf)],['Settled commission',currency(report.commission)],['Pipeline NAF',currency(report.pipelineNaf)]);
  const monthly='<table class="finance-statistics-table"><thead><tr><th>Month</th><th>Contracts</th><th>Access</th>'+(editor()?'<th>RSI</th><th>MVI</th><th>NAF</th><th>Commission</th>':'')+'</tr></thead><tbody>'+report.months.map(r=>'<tr><td><button type="button" class="finance-month-link" data-finance-month="'+r.month+'">'+esc(monthLabel(r.month))+'</button></td><td>'+r.count+'</td><td>'+r.accessCount+'</td>'+(editor()?'<td>'+r.rsaCount+'</td><td>'+r.mviCount+'</td><td>'+esc(currency(r.naf))+'</td><td>'+esc(currency(r.commission))+'</td>':'')+'</tr>').join('')+'</tbody></table>';
  const filters='<label class="finance-month-picker"><span>Location</span><select data-finance-group aria-label="Finance location">'+[['all','All locations'],['broome','Broome'],['pilbara','Pilbara']].map(([key,label])=>'<option value="'+key+'" '+(statisticsGroup===key?'selected':'')+'>'+label+'</option>').join('')+'</select></label><label class="finance-month-picker"><span>New / Used</span><select data-finance-new-used aria-label="Finance New / Used">'+[['all','New and Used'],['new','New'],['used','Used']].map(([key,label])=>'<option value="'+key+'" '+(statisticsNewUsed===key?'selected':'')+'>'+label+'</option>').join('')+'</select></label>';
- return '<section class="finance-statistics"><div class="finance-stat-filters"><label class="finance-month-picker"><span>Settlement month</span><select data-finance-period aria-label="Settlement month">'+monthOptions(report).map(key=>'<option value="'+key+'" '+(key===statisticsMonth?'selected':'')+'>'+esc(monthLabel(key))+'</option>').join('')+'</select></label>'+filters+'</div><p class="finance-stat-note">Contracts and products are counted on applications settled in the selected period. RSI uses the RSA column; RSI and MVI are counted when an amount is recorded above $0. Pilbara includes Port Hedland entries.</p><div class="finance-stat-cards">'+cards.map(([label,value,amount])=>'<article><span>'+label+'</span><strong>'+value+'</strong>'+(amount?'<small>'+esc(amount)+' total</small>':'')+'</article>').join('')+'</div>'+(report.undated?'<p class="finance-undated">'+report.undated+' settled '+(report.undated===1?'entry has':'entries have')+' no settlement date. Choose Date not recorded, enter the actual date in Settlement and save the row to assign the correct month.</p>':'')+'<div class="finance-stat-panels"><section><h3>Previous months</h3>'+(report.months.length?monthly:'<p>No dated settlements yet.</p>')+'</section>'+(editor()?'<section><h3>Financier overview</h3><table class="finance-statistics-table"><thead><tr><th>Financier</th><th>Pipeline</th><th>Settled in period</th></tr></thead><tbody>'+report.financiers.map(r=>'<tr><td>'+r.name+'</td><td>'+r.pipeline+'</td><td>'+r.settled+'</td></tr>').join('')+'</tbody></table></section>':'')+'</div></section>';
+ return '<section class="finance-statistics"><div class="finance-stat-filters"><label class="finance-month-picker"><span>Settlement month</span><select data-finance-period aria-label="Settlement month">'+monthOptions(report).map(key=>'<option value="'+key+'" '+(key===statisticsMonth?'selected':'')+'>'+esc(monthLabel(key))+'</option>').join('')+'</select></label>'+filters+'</div><p class="finance-stat-note">Contracts and products are counted on applications settled in the selected period. RSI uses the RSA column; RSI and MVI are counted when an amount is recorded above $0. Pilbara includes Port Hedland entries.</p><div class="finance-stat-cards">'+cards.map(([label,value,amount])=>'<article><span>'+label+'</span><strong>'+value+'</strong>'+(amount?'<small>'+esc(amount)+' total</small>':'')+'</article>').join('')+'</div>'+(report.undated?'<p class="finance-undated">'+report.undated+' settled '+(report.undated===1?'entry has':'entries have')+' no settlement date. Choose Date not recorded, enter the actual date in Settlement to assign the correct month.</p>':'')+'<div class="finance-stat-panels"><section><h3>Previous months</h3>'+(report.months.length?monthly:'<p>No dated settlements yet.</p>')+'</section>'+(editor()?'<section><h3>Financier overview</h3><table class="finance-statistics-table"><thead><tr><th>Financier</th><th>Pipeline</th><th>Settled in period</th></tr></thead><tbody>'+report.financiers.map(r=>'<tr><td>'+r.name+'</td><td>'+r.pipeline+'</td><td>'+r.settled+'</td></tr>').join('')+'</tbody></table></section>':'')+'</div></section>';
 }
 function add(){guard();if(!editor())return;creating={id:root.crypto.randomUUID()};createBusy=false;
  $('finance-add-content').innerHTML='<div class="panel-header"><div><h2 id="finance-add-title">Add finance entry</h2><p>Link an existing vehicle, or add a finance customer.</p></div><button class="small-button" type="button" data-finance-close>Close finance entry</button></div><form id="finance-add-form" class="finance-add-form"><fieldset class="finance-mode"><legend>Application</legend><label><input type="radio" name="mode" value="existing" checked> Find existing vehicle</label><label><input type="radio" name="mode" value="new"> Customer only</label></fieldset><div id="finance-existing-fields"><div class="finance-find-vehicle"><label><span>Find vehicle</span><input id="finance-vehicle-search" type="search" placeholder="Stock, Toyota order, customer or vehicle" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="finance-vehicle-matches" autocomplete="off"></label><div id="finance-vehicle-matches" class="finance-vehicle-matches" role="listbox" aria-label="Matching vehicles" hidden></div><p id="finance-vehicle-match-status" class="finance-match-status" role="status" aria-live="polite"></p></div><label><span>Existing vehicle</span><select name="tracking_id" id="finance-vehicle-picker"></select></label></div><div id="finance-new-fields" hidden><label><span>Salesperson (optional)</span><select name="salesperson_code"><option value="">Unassigned</option>'+people.map(p=>'<option value="'+esc(p.code)+'"'+(p.code===(selected()||ctx.salesperson_code)?' selected':'')+'>'+esc(p.code+' · '+p.name)+'</option>').join('')+'</select></label></div><label><span>Customer</span><input name="customer" maxlength="200" required></label><label><span>New / Used</span>'+select('new_used','New','name="new_used"')+'</label><label><span>Group</span>'+select('group_name','Broome','name="group_name"')+'</label><label><span>Financier</span>'+select('financier','','name="financier"')+'</label><p class="tracking-note">Enter the remaining application details on the Finance page after adding the entry.</p><button class="primary" type="submit">Add finance entry</button><p id="finance-add-message" role="status"></p></form>';
@@ -227,16 +255,32 @@ function chooseVehicle(id){
  for(const [field,value] of [['new_used',row.new_used],['group_name',row.group_name]])if(choices[field].includes(value))form.querySelector('[name="'+field+'"]').value=value;
  hideMatches();$('finance-add-message').textContent='';$('finance-vehicle-match-status').textContent='Vehicle selected. Customer details filled in.';
 }
-async function saveRow(id){
- guard();const row=visible().find(r=>r.id===id),draft=drafts.get(id);if(!editor()||!row||!draft||busy.has(id)||Object.keys(draft.errors||{}).length)return;
- if(draft.version!==row.version){message='This finance entry changed. Discard edits and refresh.';render(true);return;}
- const identity=token(),generation=epoch;busy.add(id);render(true);
+async function saveRow(id,automatic=false){
+ guard();cancelAutoSave(id);const row=visible().find(r=>r.id===id),draft=drafts.get(id);if(!editor()||!row||!draft||busy.has(id)||Object.keys(draft.errors||{}).length)return;
+ const identity=token(),generation=epoch,revision=draft.revision||0,dataToSave={...draft.data};let saved=false;
+ if(Object.keys(dataToSave).every(key=>(row[key]??null)===(dataToSave[key]??null))){drafts.delete(id);updateSaveState(id,'saved','Saved');renderAfterSave();return;}
+ if(draft.version!==row.version){message='This finance entry changed. Discard edits and refresh.';updateSaveState(id,'error',message);if(!automatic)render(true);return;}
+ request++;busy.add(id);updateSaveState(id,'saving','Saving…');
  try{
-  const {data,error}=await root.PDC_SUPABASE.rpc('save_broome_finance_application',{p_id:id,p_tracking_id:row.tracking_id||null,p_vehicle:null,p_salesperson_code:null,p_data:draft.data,p_expected_version:draft.version});
-  if(identity!==token()||generation!==epoch)return;if(error||!data?.record)throw error||new Error('Finance was not saved.');
-  entries=entries.map(r=>r.id===id?data.record:r);drafts.delete(id);message='Finance entry saved.';options.onLoaded?.(projection(entries));
- }catch(e){if(identity===token()&&generation===epoch)message=e.message||'Finance was not saved. Your edits remain in the row.';}
- finally{if(identity===token()&&generation===epoch){busy.delete(id);render(true);}}
+  const {data,error}=await root.PDC_SUPABASE.rpc('save_broome_finance_application',{p_id:id,p_tracking_id:row.tracking_id||null,p_vehicle:null,p_salesperson_code:null,p_data:dataToSave,p_expected_version:draft.version});
+  if(identity!==token()||generation!==epoch)return;if(error||data?.record?.id!==id||!Number.isInteger(data.record.version)||data.record.version<=draft.version)throw error||new Error('Finance was not saved.');
+  entries=entries.map(r=>r.id===id&&r.version<=data.record.version?data.record:r);saved=true;request++;
+  if(drafts.get(id)===draft){
+   if((draft.revision||0)===revision)drafts.delete(id);
+   else{
+    for(const key of Object.keys(draft.data))if((draft.fieldRevisions?.[key]||0)<=revision)delete draft.data[key];
+    for(const key of Object.keys(draft.raw))if((draft.fieldRevisions?.[key]||0)<=revision)delete draft.raw[key];
+    draft.version=data.record.version;
+   }
+  }
+  message='Finance entry saved.';options.onLoaded?.(projection(entries));
+ }catch(e){if(identity===token()&&generation===epoch){message=(e.message||'Finance was not saved.')+' Your edits remain in the row. Retry when ready.';updateSaveState(id,'error',message);}}
+ finally{if(identity===token()&&generation===epoch){
+  busy.delete(id);cancelAutoSave(id);
+  if(saved){const pending=drafts.get(id);updateSaveState(id,pending?'pending':'saved',pending?'More changes waiting to save':'Saved');if(pending&&!Object.keys(pending.errors||{}).length)queueAutoSave(id);}
+  else updateSaveState(id,'error',message);
+  renderAfterSave();
+ }}
 }
 async function create(e){
  e.preventDefault();guard();if(!creating||createBusy||!editor())return;const form=e.target,identity=token(),generation=epoch,id=creating.id;
@@ -255,16 +299,19 @@ async function create(e){
 function init(settings){
  options=settings;principal=token();scope=selected();
  $('sales-finance').addEventListener('input',e=>{
-  guard();const t=e.target,id=t.dataset.financeId,key=t.dataset.financeKey;if(!id||!key||!editor()||busy.has(id))return;const row=visible().find(r=>r.id===id);if(!row)return;
-  const displayedVersion=Number(t.dataset.financeVersion),d=drafts.get(id)||{version:Number.isInteger(displayedVersion)?displayedVersion:row.version,data:{},raw:{},errors:{}};d.raw[key]=t.value;drafts.set(id,d);
+  guard();const t=e.target,id=t.dataset.financeId,key=t.dataset.financeKey;if(!id||!key||!editor())return;const row=visible().find(r=>r.id===id);if(!row)return;
+  cancelAutoSave(id);const displayedVersion=Number(t.dataset.financeVersion),d=drafts.get(id)||{version:Number.isInteger(displayedVersion)?displayedVersion:row.version,data:{},raw:{},errors:{},revision:0,fieldRevisions:{}};
+  d.revision=(d.revision||0)+1;d.fieldRevisions=d.fieldRevisions||{};d.fieldRevisions[key]=d.revision;d.raw[key]=t.value;drafts.set(id,d);
   const tr=t.closest('tr'),save=tr.querySelector('[data-finance-save]');save.hidden=false;tr.querySelector('[data-finance-discard]').hidden=false;
   try{
-   if(key==='settlement_date'&&t.validity?.badInput)throw new Error('Finish entering a valid settlement date, or clear the date.');
-   Object.assign(d.data,patch(key,t.value));delete d.errors[key];
-   save.disabled=Object.keys(d.errors).length>0||d.version!==row.version;
+   if(t.validity?.badInput)throw new Error(key==='settlement_date'?'Finish entering a valid settlement date, or clear the date.':'Finish entering a valid amount, or clear the field.');
+   const changes=patch(key,t.value);Object.assign(d.data,changes);for(const field of Object.keys(changes))d.fieldRevisions[field]=d.revision;delete d.errors[key];
+   save.disabled=busy.has(id)||Object.keys(d.errors).length>0||d.version!==row.version;
    const totalCell=tr.querySelector('[data-label="Total Comm"]');if(totalCell){const value=currency(total({...row,...d.data})),amount=totalCell.querySelector('.finance-amount');if(amount){amount.textContent=value;amount.title=value;}}
-   message=key==='settlement_date'?'Settlement date changed. Save the row to update statistics.':'';
-  }catch(error){d.errors[key]=error.message;message=error.message;save.disabled=true;}
+   message=key==='settlement_date'?'Settlement date will save when you finish entering it.':'Changes waiting to save.';
+   updateSaveState(id,'pending','Waiting to save');
+   if(key!=='settlement_date'&&!Object.keys(d.errors).length)queueAutoSave(id);
+  }catch(error){d.errors[key]=error.message;message=error.message;save.disabled=true;updateSaveState(id,'error',error.message);}
   if(key==='settlement_date'){
    const cell=tr.querySelector('[data-label="Settlement"]');cell?.classList.toggle('finance-yes',!d.errors[key]&&validSettlementDate(t.value));cell?.classList.remove('finance-no');
    const undated=cell?.querySelector('.finance-settlement-undated');if(undated)undated.hidden=true;
@@ -272,10 +319,15 @@ function init(settings){
   }
   const status=$('sales-finance').querySelector('[role="status"]');if(status)status.textContent=message;
  });
- $('sales-finance').addEventListener('click',e=>{const t=e.target.closest('[data-finance-add],[data-finance-refresh],[data-finance-save],[data-finance-discard],[data-finance-month],[data-finance-view],[data-finance-clear-filters]');if(!t)return;if(guard()){render(true);return;}if(t.hasAttribute('data-finance-view')){if(!['pipeline','statistics','all'].includes(t.dataset.financeView))return;financeView=t.dataset.financeView;render(true);$('sales-finance').querySelector('[data-finance-view="'+financeView+'"]')?.focus?.({preventScroll:true});}else if(t.hasAttribute('data-finance-clear-filters')){columnFilters={};render(true);focusFilter('customer');}else if(t.hasAttribute('data-finance-add'))add();else if(t.hasAttribute('data-finance-refresh'))refresh();else if(t.dataset.financeMonth){statisticsMonth=t.dataset.financeMonth;render(true);}else if(t.dataset.financeSave)saveRow(t.dataset.financeSave);else if(t.dataset.financeDiscard){drafts.delete(t.dataset.financeDiscard);message='Edits discarded. The current saved entry is shown.';render(true);}});
+ $('sales-finance').addEventListener('click',e=>{const t=e.target.closest('[data-finance-add],[data-finance-refresh],[data-finance-save],[data-finance-discard],[data-finance-month],[data-finance-view],[data-finance-clear-filters]');if(!t)return;if(guard()){render(true);return;}if(t.hasAttribute('data-finance-view')){if(!['pipeline','statistics','all'].includes(t.dataset.financeView))return;financeView=t.dataset.financeView;render(true);$('sales-finance').querySelector('[data-finance-view="'+financeView+'"]')?.focus?.({preventScroll:true});}else if(t.hasAttribute('data-finance-clear-filters')){columnFilters={};render(true);focusFilter('customer');}else if(t.hasAttribute('data-finance-add'))add();else if(t.hasAttribute('data-finance-refresh'))refresh();else if(t.dataset.financeMonth){statisticsMonth=t.dataset.financeMonth;render(true);}else if(t.dataset.financeSave)saveRow(t.dataset.financeSave);else if(t.dataset.financeDiscard){if(busy.has(t.dataset.financeDiscard))return;cancelAutoSave(t.dataset.financeDiscard);saveStates.delete(t.dataset.financeDiscard);drafts.delete(t.dataset.financeDiscard);message='Edits discarded. The current saved entry is shown.';render(true);}});
 
- $('sales-finance').addEventListener('focusout',e=>{if(e.target.dataset.financeKey==='settlement_date'&&dateRenderPending&&!e.relatedTarget?.closest?.('[data-finance-save],[data-finance-discard],[data-finance-view],[data-finance-filter]'))root.setTimeout(()=>{if(dateRenderPending)render();},0);});
- $('sales-finance').addEventListener('change',e=>{if(e.target.hasAttribute('data-finance-filter')){applyFilterSelect(e.target);}else if(e.target.hasAttribute('data-finance-period')){statisticsMonth=e.target.value;render(true);}else if(e.target.hasAttribute('data-finance-group')){statisticsGroup=['all','broome','pilbara'].includes(e.target.value)?e.target.value:'all';render(true);}else if(e.target.hasAttribute('data-finance-new-used')){statisticsNewUsed=['all','new','used'].includes(e.target.value)?e.target.value:'all';render(true);}});
+ $('sales-finance').addEventListener('focusout',e=>{
+  const id=e.target.dataset.financeId;if(id&&drafts.has(id)&&!e.relatedTarget?.closest?.('[data-finance-save],[data-finance-discard],[data-finance-view],[data-finance-filter]'))queueAutoSave(id,20);
+  if(e.target.dataset.financeKey==='settlement_date'&&dateRenderPending&&!e.relatedTarget?.closest?.('[data-finance-save],[data-finance-discard],[data-finance-view],[data-finance-filter]'))root.setTimeout(()=>{if(dateRenderPending)render();},0);
+ });
+ $('sales-finance').addEventListener('change',e=>{if(e.target.dataset?.financeId){queueAutoSave(e.target.dataset.financeId,20);}else if(e.target.hasAttribute('data-finance-filter')){applyFilterSelect(e.target);}else if(e.target.hasAttribute('data-finance-period')){statisticsMonth=e.target.value;render(true);}else if(e.target.hasAttribute('data-finance-group')){statisticsGroup=['all','broome','pilbara'].includes(e.target.value)?e.target.value:'all';render(true);}else if(e.target.hasAttribute('data-finance-new-used')){statisticsNewUsed=['all','new','used'].includes(e.target.value)?e.target.value:'all';render(true);}});
+ $('sales-finance').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset.financeId){e.preventDefault();saveRow(e.target.dataset.financeId,true);}});
+ root.addEventListener?.('beforeunload',e=>{if(token()===principal&&(drafts.size||busy.size)){e.preventDefault();e.returnValue='';}});
 
  $('finance-add-dialog').addEventListener('cancel',close);
  $('finance-add-content').addEventListener('click',e=>{

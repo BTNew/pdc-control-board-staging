@@ -804,7 +804,7 @@
     "review_status": "staging_applied"
   },
   "broome_salesperson_site": {
-    "asset_version": "2026.10.05.01",
+    "asset_version": "2026.10.05.02",
     "path": "sales/",
     "dealer_code": "37047",
     "server_scoped": true,
@@ -815,23 +815,24 @@
     "seeded_account_scopes": 0,
     "validation": "Current staging entry assets match the reviewed source; account isolation and PDC preservation are covered by the sales regression and database rollback suites. Physical printer and external email handling require local confirmation.",
     "asset_versions": {
-      "sales.css": "2026.10.05.01",
+      "sales.css": "2026.10.05.02",
       "crm-workspace.css": "2026.10.02.05",
-      "finance-pipeline.css": "2026.10.02.14",
+      "build-requirements.css": "2026.10.03.02",
+      "finance-pipeline.css": "2026.10.05.02",
       "zebra-labels.js": "2026.10.02.05",
-      "crm-workspace.js": "2026.10.05.01",
+      "crm-workspace.js": "2026.10.05.02",
+      "build-requirements.js": "2026.10.03.02",
       "dashboard-tools.js": "2026.10.02.18",
       "email-actions.js": "2026.10.02.05",
       "customer-emails.js": "2026.10.02.19",
-      "finance-pipeline.js": "2026.10.02.19",
-      "sales.js": "2026.10.05.01",
-      "build-requirements.css": "2026.10.03.02",
-      "build-requirements.js": "2026.10.03.02",
-      "vehicle-notes.js": "2026.10.05.01"
+      "finance-pipeline.js": "2026.10.05.02",
+      "completed-vehicles.js": "2026.10.05.02",
+      "vehicle-notes.js": "2026.10.05.02",
+      "sales.js": "2026.10.05.02"
     }
   },
   "broome_salesperson_dashboard": {
-    "asset_version": "2026.10.05.01",
+    "asset_version": "2026.10.05.02",
     "reference": "Owner supplied local tracker screenshot, 1 October 2026",
     "navigation": [
       "My Day",
@@ -840,7 +841,7 @@
       "Alerts",
       "Finance",
       "Labels",
-      "History"
+      "Completed vehicles"
     ],
     "finance": "Manually added finance applications with inline editing, existing-vehicle autocomplete or standalone customer details, and filtered pipeline/monthly statistics; vehicles are not automatically enrolled.",
     "operational_writes": false,
@@ -849,7 +850,7 @@
     "layout": "JITA removed. TINT/BUILD/TRAY tick boxes cycle empty Not decided, dark grey slash Not required, orange Orders Raised and green Completed; fixed page-width desktop table, adjacent-column resizing and mobile vehicle cards."
   },
   "broome_salesperson_journey": {
-    "asset_version": "2026.10.05.01",
+    "asset_version": "2026.10.05.02",
     "early_orders": "Stockless orders accepted only with explicit COSI Yes/true/1 and Toyota order number",
     "identity": "Exact dealer + Toyota order; leading zeros retained; ambiguous source links flagged and not joined",
     "operational_writes": false,
@@ -859,7 +860,7 @@
     "validation": "COSI/stockless identity continuity, latest-source visibility, hiding/restoring, assigned-sales scope and isolated sales ordering are covered by regression and rollback suites."
   },
   "broome_salesperson_ordering": {
-    "asset_version": "2026.10.05.01",
+    "asset_version": "2026.10.05.02",
     "editable_flags": [
       "tint",
       "build_po",
@@ -939,7 +940,7 @@
     "workshop_writes": false
   },
   "broome_salesperson_cosi_scope": {
-    "asset_version": "2026.10.05.01",
+    "asset_version": "2026.10.05.02",
     "visible_vehicles": "Explicit COSI Yes/true/1 only, including stocked orders; missing/No/unknown excluded",
     "salesperson_filter": "Counts, location/status and month options, pipeline, linked summary and label scope follow selected salesperson",
     "negative_import": "Existing exact order retains UUID/display/checklist but updates private COSI evidence; cleared salesperson allowed; no new unsold stockless orders",
@@ -954,7 +955,7 @@
     ]
   },
   "broome_salesperson_crm": {
-    "asset_version": "2026.10.05.01",
+    "asset_version": "2026.10.05.02",
     "navigation": [
       "My Day",
       "Dashboard",
@@ -962,14 +963,14 @@
       "Alerts",
       "Finance",
       "Labels",
-      "History"
+      "Completed vehicles"
     ],
     "operational_writes": false,
     "existing_pdc_permissions_changed": false,
     "production_changed": false,
     "storage": "pdc_sales_private CRM, finance, ordering, visibility and customer-email records; current vehicle facts come from the shared Navision backend.",
     "finance": "Approved administrator or exact private sales finance capability; ordinary sales API excludes amounts, commissions, lender/application fields and internal notes",
-    "history": "Missing latest-source vehicles leave active sales views; retained private history is separate. Explicit RDR field/value remains unconfirmed and is not inferred from dealer delivery.",
+    "history": "Completed vehicles lists retained COSI orders omitted from the latest successful dealer upload; read-only saved notes retained. Reappearance restores active membership. Customer handover and RDR are not inferred from absence or dealer delivery.",
     "validation": "Current sales regression tests cover scope, concurrency, redaction and state clearing. Database rollback checks cover PDC nonmutation. Live operational edits and external sending are outside this validation.",
     "my_day": "Monday-first Perth calendar; vehicle tasks/contact reminders can be edited or moved to another day. Leads navigation and data are not consumed by the sales page."
   },
@@ -987,7 +988,7 @@
     "external_email_validation": "MIME bytes and attachment preservation verified; installed Outlook/default handler behavior and actual sending require local confirmation."
   },
   "broome_salesperson_finance": {
-    "asset_version": "2026.10.02.19",
+    "asset_version": "2026.10.05.02",
     "storage": "pdc_sales_private.finance_applications",
     "enrollment": "Only explicitly added applications; existing-vehicle autocomplete or customer-only standalone entry. No PDC vehicle creation.",
     "financiers": [
@@ -999,7 +1000,8 @@
     "editing": "Slim inline-editable fifteen-column pipeline; customer-only display; version-guarded saves preserve unsaved changes.",
     "statistics": "Settled contracts, RSA, Access and MVI counts plus amount totals by selected month, Broome/Pilbara and New/Used; no settlement month is guessed.",
     "privacy": "Finance-edit capability controls full application fields; ordinary salespeople see only their assigned redacted applications.",
-    "operational_writes": false
+    "operational_writes": false,
+    "page_header": "The existing Finance headings and column filters stay at the top while the document scrolls; mobile retains its compact pipeline title."
   },
   "karratha_department_migration": {
     "version": "20261003084740",
@@ -1020,7 +1022,7 @@
     "scope": "Existing private splitter assembly only; exact validation and permissions preserved"
   },
   "broome_salesperson_vehicle_notes": {
-    "asset_version": "2026.10.05.01",
+    "asset_version": "2026.10.05.02",
     "table": "pdc_sales_private.vehicle_notes",
     "source_identity": "dealer + Toyota order via stable tracking_id",
     "navision_overwrite": false,
@@ -1039,6 +1041,52 @@
         "sha256": "0a89e73a5a90d7cdd274df4132861726f6bca7ebd02248df9df40c2822c55898",
         "review_status": "staging_applied"
       }
-    ]
+    ],
+    "manual_note_indicator": "Soft orange Navision Notes cell when confirmed saved staff notes or custom information is nonempty; drafts and import-only notes do not trigger it; clears after saved notes are removed."
+  },
+  "broome_salesperson_completed_vehicles": {
+    "asset_version": "2026.10.05.02",
+    "source": "Retained COSI orders absent from the latest successfully applied dealer upload; exact dealer and Toyota order, approved salesperson scope",
+    "automatic_reappearance": true,
+    "customer_handover_inferred": false,
+    "operational_writes": false,
+    "migrations": [
+      {
+        "file": "supabase/migrations/20261005041418_broome_sales_completed_navision_archive.sql",
+        "sha256": "cd3b4578a8ad416520fa3204df9c0b55d2c9d325afc8ba0019d17cf713e2ce31",
+        "review_status": "staging_applied"
+      },
+      {
+        "file": "supabase/migrations/20261005042640_broome_sales_completed_lookup_performance.sql",
+        "sha256": "efe393828a9d28b7e97b7b0026c4cf2efd2220b56596ce61346bccbb84197d47",
+        "review_status": "staging_applied"
+      }
+    ],
+    "verification": "Live latest-upload membership audit and rollback reappearance, retention, scope and full record nonmutation checks; optimized output exactly matched the initial archive."
+  },
+  "broome_salesperson_finance_autosave": {
+    "asset_version": "2026.10.05.02",
+    "scope": "Existing explicitly added Finance applications only; same approved server RPC and version checks",
+    "behaviour": "Debounced per-row saves; dropdown/date commits save immediately; typing during a save is queued; Saved/Saving/error messages and Retry; unsaved changes retained after failed requests",
+    "navigation": "Local page navigation preserves queued edits; browser close warns while saves remain pending",
+    "operational_writes": false
+  },
+  "broome_salesperson_control_alignment": {
+    "asset_version": "2026.10.05.02",
+    "scope": "Sales topbar dropdown labels and header/tracker action buttons",
+    "control_height": "40 pixels on desktop/tablet; 44 pixels on phone",
+    "verification": "Four fictional browser viewports; matching computed heights and fonts, labels above both dropdowns, no page overflow"
+  },
+  "broome_salesperson_autocare_dispatch": {
+    "asset_version": "2026.10.05.02",
+    "source": "Transport Load No. from latest successful Navision upload",
+    "identity": "Exact authorised current dealer + Toyota order; atomic selection, version checks and audit",
+    "precedence": "Delivered - At Dealer overrides manual dispatch; missing orders remain Completed",
+    "operational_writes": false,
+    "migration": {
+      "file": "supabase/migrations/20261005045032_broome_sales_autocare_dispatch.sql",
+      "sha256": "9c18563b59837caea9c2ddb602cc7f03149b08c0b5295cf18a5529298dd9c475",
+      "review_status": "staging_applied"
+    }
   }
 }

@@ -37,7 +37,7 @@ function harness(){
    rows.set(id,{tr,date,cell,save:tr.querySelector('[data-finance-save]'),discard:tr.querySelector('[data-finance-discard]')});
   }return rows.get(id);
  }
- const window={document:{getElementById:el,activeElement:null},setTimeout(handler){deferred.push(handler);return deferred.length;},crypto:{randomUUID:()=> 'settlement-created'},PDC_AUTH_CONTEXT:{userId:token},PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}}};
+ const window={document:{getElementById:el,activeElement:null},setTimeout(handler,delay=0){if(delay===0)deferred.push(handler);return deferred.length;},clearTimeout(){},crypto:{randomUUID:()=> 'settlement-created'},PDC_AUTH_CONTEXT:{userId:token},PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}}};
  vm.runInNewContext(source,{window,globalThis:window,module:undefined,console,Map,Set,FormData:class{constructor(form){this.form=form;}get(key){return this.form.values?.[key]||'';}}});
  const api=window.BROOME_SALES_FINANCE;api.init({getToken:()=>token,getContext:()=>context,getSalesperson:()=>scope,getView:()=> 'finance'});
  async function refresh(records=entries,canEdit=true){const pending=api.refresh();calls.at(-1).resolve({data:{context:{role:canEdit?'administrator':'salesperson',can_edit_finance:canEdit},entries:clone(records),vehicle_options:[],salespeople:[]}});await pending;}
@@ -67,7 +67,7 @@ test('settlement cells use native dates, show legacy uncertainty and mark only v
  assert.doesNotMatch(h.html(),/data-finance-key="settlement"|data-finance-date=|finance-date-button/);assert.equal(h.calls.length,1);
 });
 
-test('typing a date updates settlement styling in place and monthly totals only change after explicit Save',async()=>{
+test('typing a date updates settlement styling in place and monthly totals only change after a confirmed save',async()=>{
  const h=harness();await h.refresh();h.action('financeView','all');const initial=h.writes(),row=h.edit('pending',previousDate);
  assert.equal(h.writes(),initial,'typing must retain native date controls');assert.equal(h.calls.length,1);assert.equal(row.save.hidden,false);assert.equal(row.save.disabled,false);assert.equal(row.cell.classList.contains('finance-yes'),true);
  h.action('financeView','statistics');h.change('data-finance-period',previous);contractCount(h,0);

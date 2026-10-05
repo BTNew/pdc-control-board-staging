@@ -34,3 +34,16 @@
 
 /* Entering the actual settlement date marks a saved application as settled. */
 .finance-pipeline-table input.finance-settlement-date{font-size:10px;padding:2px 1px;color:#173b57}.finance-pipeline-table .finance-yes input.finance-settlement-date{background:#d6fae8;border-color:#82c8a7}.finance-settlement-date[aria-invalid=true]{border-color:#b62c3c!important}.finance-settlement-undated{display:block;font-size:9px;line-height:1.2;color:#7b5212}.finance-settlement-undated[hidden]{display:none}@media(max-width:800px){.finance-pipeline-table input.finance-settlement-date{font-size:12px}}
+/* Let the document own vertical scrolling so the real headings and filters
+   can stay with the page rather than sticking inside an unscrollable wrapper. */
+.finance-home.panel{overflow:visible}
+@media(min-width:801px){
+ .finance-home .finance-table-wrap{overflow:visible}
+ .finance-pipeline-table thead{position:sticky;top:0;z-index:5;box-shadow:0 3px 8px #14233426}
+ .finance-pipeline-table thead th{background:#17496d}
+}
+@media(max-width:800px){.finance-pipeline-heading{position:sticky;top:0;z-index:5}}
+.finance-save-status{display:block;font-size:10px;line-height:1.25;color:#526a82;overflow-wrap:anywhere}
+.finance-save-status:empty{display:none}
+.finance-save-status[data-state=saved]{color:#216a4d}
+.finance-save-status[data-state=error]{color:#a31325}
