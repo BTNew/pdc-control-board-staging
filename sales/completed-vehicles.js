@@ -79,7 +79,7 @@
     if(error||!data||!Array.isArray(data.items)||!['administrator','salesperson'].includes(data.context?.role))
      throw error||new Error('Completed vehicle access could not be checked.');
     // Never accept an active record in this list, even if a malformed response arrives.
-    state.rows=selectRows(data.items,'',data.context.role==='salesperson'?data.context.salesperson_code:'');
+    state.rows=selectRows(data.items,'',data.context.role==='salesperson'&&data.context.can_view_all_salespeople!==true?data.context.salesperson_code:'');
     state.updatedAt=data.navision_updated_at;state.loaded=true;
    }catch(error){
     if(user===principal()&&selected===scope()&&request===state.request){

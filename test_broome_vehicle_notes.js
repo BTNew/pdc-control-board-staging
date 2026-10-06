@@ -2,13 +2,13 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {create}=require('./sales/vehicle-notes.js');
 const {vehicleReference,selectRows}=require('./sales/sales.js');
-function harness(){
+function harness(canEditRow){
  const elements=new Map(),events={},calls=[];let renders=0,scope='',hidden=false;
  const rows=[{tracking_id:'own',cosi:true,salesperson_code:'BG',order:'250026008',stock:''},{tracking_id:'second',cosi:true,salesperson_code:'BG',order:'000025001',stock:'1301'}];
  let visible=[rows[0]];
  const el=id=>{if(!elements.has(id))elements.set(id,{events:{},addEventListener(k,fn){this.events[k]=fn;}});return elements.get(id);};
  const host={PDC_AUTH_CONTEXT:{userId:'A'},PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}},document:{getElementById:el},addEventListener(k,fn){events[k]=fn;}};
- const api=create(host).init({getRows:()=>rows,getVisibleRows:()=>visible,getScope:()=>scope,isHidden:()=>hidden,reference:vehicleReference,onChanged:()=>renders++});
+ const api=create(host).init({getRows:()=>rows,getVisibleRows:()=>visible,getScope:()=>scope,canEditRow,isHidden:()=>hidden,reference:vehicleReference,onChanged:()=>renders++});
  const click=(selector,data)=>el('vehicle-table').events.click({target:{closest:s=>s===selector?{dataset:data}:null}});
  const form=(notes='Working notes',custom='Customer requires morning handover')=>({dataset:{notesForm:'own'},elements:{namedItem:name=>({value:name==='notes'?notes:custom})},querySelector:()=>({textContent:''}),closest(){return this;}});
  const input=f=>el('vehicle-table').events.input({target:{closest:()=>f}});
@@ -18,6 +18,12 @@ function harness(){
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const saved=(version=1,notes='Working notes',custom='Customer requires morning handover')=>({tracking_id:'own',notes,custom_information:custom,version,updated_at:'2026-10-05T03:00:00Z'});
 async function ready(h,data=[]){const p=h.api.load();h.calls[0].resolve({data});await p;}
+test('another salesperson notes can be read and expanded, while draft capture and save remain disabled',async()=>{
+ const h=harness(()=>false);await ready(h,[saved(1,'Read-only team note')]);h.click('[data-notes-toggle]',{notesToggle:'own'});
+ assert.match(h.api.rowHtml(h.rows[0]),/Read-only team note/);assert.match(h.api.rowHtml(h.rows[0]),/type="submit"[^>]+disabled/);
+ h.input(h.form('Forbidden change'));h.save(h.form('Forbidden change'));await tick();
+ assert.equal(h.calls.length,1);assert.doesNotMatch(h.api.rowHtml(h.rows[0]),/Forbidden change/);
+});
 test('Toyota Order Number remains an exact reference and searchable until Batch arrives',()=>{
  const row={stock:'',order:'250026008',cosi:true,salesperson_code:'BG'};
  assert.equal(vehicleReference(row),'Toyota Order 250026008');

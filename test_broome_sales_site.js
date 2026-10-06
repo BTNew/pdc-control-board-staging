@@ -29,6 +29,52 @@ function harness(){
  return{window,events,calls,el};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
+const teamContext={role:'salesperson',display_name:'Bryce fixture',salesperson_code:'BG',can_view_all_salespeople:true};
+const teamRows=[{cosi:true,salesperson_code:'BG',tracking_id:'own-team',stock:'QA-BG',client:'Own team fixture'},
+ {cosi:true,salesperson_code:'AW',tracking_id:'other-team',stock:'QA-AW',client:'Other team fixture'}];
+async function openTeam(h){
+ h.calls[0].resolve({data:{context:teamContext,items:[teamRows[0]]}});await tick();
+ assert.equal(h.calls[1].name,'get_broome_sales_board_snapshot');
+ h.calls[1].resolve({data:{context:teamContext,items:teamRows}});await tick();
+}
+test('approved team viewer gets a salesperson dropdown, starts on own vehicles and switches to others or all',async()=>{
+ const h=harness();await openTeam(h);
+ assert.equal(h.el('salesperson-filter-label').hidden,false);assert.equal(h.el('salesperson-filter').value,'BG');
+ assert.match(h.el('vehicle-table').innerHTML,/Own team fixture/);assert.doesNotMatch(h.el('vehicle-table').innerHTML,/Other team fixture/);
+ h.el('salesperson-filter').events.change({target:{value:'AW'}});
+ assert.match(h.el('vehicle-table').innerHTML,/Other team fixture/);assert.doesNotMatch(h.el('vehicle-table').innerHTML,/Own team fixture/);
+ assert.match(h.el('vehicle-table').innerHTML,/View only/);assert.match(h.el('vehicle-table').innerHTML,/data-ordering-id="other-team"[^>]+disabled/);
+ h.el('salesperson-filter').events.change({target:{value:''}});
+ assert.match(h.el('vehicle-table').innerHTML,/Own team fixture/);assert.match(h.el('vehicle-table').innerHTML,/Other team fixture/);
+});
+test('team viewer cannot trigger another salesperson ordering, visibility or dispatch writes through forged controls',async()=>{
+ const h=harness();await openTeam(h);h.el('salesperson-filter').events.change({target:{value:'AW'}});
+ h.el('vehicle-table').events.change({target:{dataset:{orderingId:'other-team',orderingFlag:'tint'},value:'completed'}});
+ h.el('vehicle-table').events.change({target:{dataset:{emailId:'other-team'},value:'hide'}});
+ h.el('vehicle-table').events.change({target:{dataset:{emailId:'other-team'},value:'autocare-dispatch'}});
+ await tick();assert.equal(h.calls.length,2);assert.match(h.el('sales-dispatch-status').textContent,/view only/);
+ h.el('vehicle-table').events.change({target:{dataset:{select:'other-team'},checked:true}});
+ assert.equal(h.el('sales-dispatch-selected').disabled,true);
+});
+test('revoking team viewing clears other-owner rows, closes details and removes the dropdown',async()=>{
+ const h=harness();await openTeam(h);h.el('salesperson-filter').events.change({target:{value:'AW'}});
+ h.el('vehicle-table').events.change({target:{dataset:{emailId:'other-team'},value:'details'}});
+ assert.match(h.el('sales-detail-content').innerHTML,/Other team fixture/);
+ h.el('sales-refresh').events.click();assert.equal(h.calls[2].name,'get_broome_sales_board_snapshot');h.calls[2].resolve({data:{context:{...teamContext,can_view_all_salespeople:false},items:[teamRows[0]]}});await tick();
+ assert.equal(h.calls.length,3);assert.equal(h.el('salesperson-filter-label').hidden,true);assert.equal(h.el('salesperson-filter').value,'');
+ assert.doesNotMatch(h.el('vehicle-table').innerHTML,/Other team fixture/);assert.equal(h.el('sales-detail-content').innerHTML,'');
+});
+test('late team-board response cannot refill a signed-out account',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:teamContext,items:[teamRows[0]]}});await tick();
+ delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();
+ h.calls[1].resolve({data:{context:teamContext,items:teamRows}});await tick();
+ assert.equal(h.el('vehicle-table').innerHTML,'');assert.equal(h.el('salesperson-filter-label').hidden,true);
+});
+test('Andy administrator view retains all-salesperson dropdown without the extra team-view request',async()=>{
+ const h=harness();h.calls[0].resolve({data:{context:{role:'administrator',display_name:'Andy fixture',can_view_all_salespeople:true},items:teamRows}});await tick();
+ assert.equal(h.calls.length,1);assert.equal(h.el('salesperson-filter-label').hidden,false);assert.equal(h.el('salesperson-filter').value,'');
+ assert.match(h.el('vehicle-table').innerHTML,/Own team fixture/);assert.match(h.el('vehicle-table').innerHTML,/Other team fixture/);
+});
 test('sign-out clears data and a delayed read cannot refill the previous account',async()=>{
  const h=harness();assert.equal(h.calls.length,1);
  h.el('sales-detail-content').innerHTML='Private customer';

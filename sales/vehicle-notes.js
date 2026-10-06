@@ -7,6 +7,7 @@
   const user=()=>host.PDC_AUTH_CONTEXT?.userId||null;
   const rows=()=>options?.getRows?.()||[];
   const allowed=id=>rows().some(r=>r.tracking_id===id&&!r.identity_conflict);
+  const editable=id=>allowed(id)&&options?.canEditRow?.(rows().find(r=>r.tracking_id===id))!==false;
   function clear(){generation++;request++;principal=user();scope=options?.getScope?.()||'';loaded=false;loadError='';records.clear();drafts.clear();expanded.clear();busy.clear();messages.clear();}
   function syncScope(){
    if(principal!==user()||scope!==(options?.getScope?.()||''))clear();
@@ -40,19 +41,19 @@
   }
   function editorHtml(row){
    const id=row.tracking_id;if(!expanded.has(id)||options?.isHidden?.())return '';
-   const record=records.get(id),draft=drafts.get(id),data=draft||record||{},disabled=busy.has(id)||!loaded||!allowed(id);
+   const record=records.get(id),draft=drafts.get(id),data=draft||record||{},disabled=busy.has(id)||!loaded||!editable(id);
    return '<form class="vehicle-notes-editor" data-notes-form="'+escape(id)+'"><div class="vehicle-notes-heading"><strong>'+escape(options?.reference?.(row)||row.order||row.stock||'Vehicle')+' · Notes &amp; custom information</strong><button type="button" class="small-button" data-notes-toggle="'+escape(id)+'">Collapse notes</button></div><div class="vehicle-notes-fields"><label><span>Vehicle notes</span><textarea name="notes" rows="3" maxlength="4000" placeholder="Customer requests, conversations or delivery notes…"'+(disabled?' disabled':'')+'>'+escape(data.notes||'')+'</textarea></label><label><span>Custom information</span><textarea name="custom_information" rows="3" maxlength="4000" placeholder="Other details you want to keep with this vehicle…"'+(disabled?' disabled':'')+'>'+escape(data.custom_information||'')+'</textarea></label></div><div class="vehicle-notes-actions"><button type="submit" class="primary"'+(disabled?' disabled':'')+'>'+(busy.has(id)?'Saving…':'Save notes')+'</button><button type="button" class="small-button" data-notes-reload="'+escape(id)+'"'+(busy.has(id)?' disabled':'')+'>Reload saved notes</button><span class="vehicle-notes-status" role="status" aria-live="polite">'+escape(messages.get(id)||loadError||(draft?'Unsaved changes':!loaded?'Loading notes…':record?'Saved '+new Date(record.updated_at).toLocaleString('en-AU',{timeZone:'Australia/Perth',dateStyle:'medium',timeStyle:'short'}):'No staff notes yet'))+'</span></div></form>';
   }
   function rowHtml(row){const html=editorHtml(row);return html?'<tr class="vehicle-notes-row"><td colspan="13">'+html+'</td></tr>':'';}
   function capture(form){
-   const id=form?.dataset?.notesForm;if(!id||!syncScope()||!allowed(id)||busy.has(id)||!loaded)return;
+   const id=form?.dataset?.notesForm;if(!id||!syncScope()||!editable(id)||busy.has(id)||!loaded)return;
    const notes=form.elements.namedItem('notes').value,custom_information=form.elements.namedItem('custom_information').value;
    drafts.set(id,{notes,custom_information,version:drafts.get(id)?.version??records.get(id)?.version??0});messages.delete(id);
    const status=form.querySelector('.vehicle-notes-status');if(status)status.textContent='Unsaved changes';
   }
   async function save(form){
    capture(form);const id=form?.dataset?.notesForm,draft=drafts.get(id);
-   if(!draft||busy.has(id)||!loaded||!allowed(id)||options?.isHidden?.())return;
+   if(!draft||busy.has(id)||!loaded||!editable(id)||options?.isHidden?.())return;
    const epoch=generation,who=user();busy.add(id);messages.delete(id);repaint();
    try{
     const {data,error}=await host.PDC_SUPABASE.rpc('save_broome_sales_vehicle_notes',{p_tracking_id:id,p_notes:draft.notes,p_custom_information:draft.custom_information,p_expected_version:draft.version});

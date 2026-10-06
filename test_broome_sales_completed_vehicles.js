@@ -43,6 +43,12 @@ test('scope changes suppress old responses and salesperson reads only the assign
  const sp=harness();sp.host.PDC_AUTH_CONTEXT.role='salesperson';sp.setView('history');sp.api.render();sp.calls[0].resolve(response([row,{...row,tracking_id:'x',salesperson_code:'AW',client:'Unassigned fixture'}],'salesperson'));await tick();
  assert.match(sp.el('completed-results').innerHTML,/Fictional archive customer/);assert.doesNotMatch(sp.el('completed-results').innerHTML,/Unassigned fixture/);
 });
+test('approved team viewer can filter Completed vehicles to another salesperson without changing role',async()=>{
+ const h=harness();h.host.PDC_AUTH_CONTEXT.role='salesperson';h.setScope('AW');h.setView('history');h.api.render();
+ const result=response([row,{...row,tracking_id:'team-other',salesperson_code:'AW',client:'Shared completed fixture'}],'salesperson');
+ result.data.context.can_view_all_salespeople=true;h.calls[0].resolve(result);await tick();
+ assert.match(h.el('completed-results').innerHTML,/Shared completed fixture/);assert.doesNotMatch(h.el('completed-results').innerHTML,/Fictional archive customer/);
+});
 test('a new active snapshot invalidates a closed archive and cancels an older pending archive response',async()=>{
  const h=harness();h.setView('history');h.api.render();h.api.currentSnapshot();
  h.calls[0].resolve(response());h.calls[1].resolve(response([]));await tick();assert.doesNotMatch(h.el('completed-results').innerHTML,/Fictional archive customer/);
