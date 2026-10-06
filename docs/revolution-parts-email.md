@@ -6,13 +6,17 @@ Use `revolution_automated_parts_workbook` with the original Gmail message and at
 
 Both receiving Gmail SPF for the exact sender and aligned DMARC must pass. Bind the authentication object to the same Gmail message ID, mailbox, direct sender and report. Reject alternate Reply-To, mismatched evidence, other subjects and other senders. Existing Craig and Bhavesh paths retain their rules. The route remains management-only, security invoker, and staging-only; there are no new API grants, account activations or person-confirmation privileges.
 
-Scope is Company `01`, Division `1`, Department `138`. Aggregate valid numeric flags by exact R/O; preserve row-level evidence. Exclude Department 139 before application. The server also rejects non-138 payload rows and mixed-department target jobs. Only existing exact active visible board jobs receive parts-feed updates. Missing, hidden, completed, purged or conflicting jobs remain held: parts reports never create or approve vehicles, operations or bookings.
+Scope is Company `01`, Division `1`, Departments `138` and `139`, following Craig's expanded service-import and all-email monitoring authority on 6 October 2026. Aggregate valid numeric flags by exact department and R/O; preserve row-level evidence. The server rejects other departments and target jobs whose department is not the single exact source department. Only existing exact active visible board jobs receive parts-feed updates. Missing, hidden, completed, purged or conflicting jobs remain held: parts reports never create or approve vehicles, operations or bookings. Bhavesh's delegated instruction/import scope remains Department 138.
 
 Retain the producer's verified timezone for the extraction timestamp. This report's extraction minute matched its originating email Date with `+1100`; do not reinterpret that hour as Perth. Existing stale/equal-snapshot, stock-conflict, numeric/PO-consistency and attachment replay protections remain active.
 
 “Complete” in the report name is not a person confirming physical receipt. Recalculate vehicle colour across all active linked jobs and retain person-confirmed outlines and stage-readiness requirements.
 
 ## Validation
+
+Migration `20261006090000_revolution_parts_138_139_scope` extends the automated report path to Department 139. Staging deployment and rollback assertions passed for both departments, rejection of Department 140 and cross-department R/Os, mixed/hidden/missing jobs, invalid flags, replay and freshness, source authentication and unchanged grants. All four synthetic vehicles and their jobs/receipts were rolled back; readback confirmed zero fixtures and the importer remained disabled. No live Department 139 parts report was applied as part of this scope deployment.
+
+The hourly monitor reads incoming mail from all senders and all subjects for effects on either department, including service and parts files, staff confirmations, supplier dates and delays. Reading does not confer instruction authority or turn dispatch/ETA into physical receipt. Maintain existing review gates and exact supported audited workflows. Preserve checkpoint and historic receipts; do not replay old mixed reports with an expanded row set under their existing attachment hashes.
 
 Applied staging migration `20261006033522_revolution_dept138_parts_email` contains deployment assertions with all synthetic fixtures and receipts rolled back. Cases cover accepted reports, sender/authentication binding, wrong source/company/division, Department 139 rejection, mixed/hidden/missing jobs, replay conflict, stale/equal snapshots, numeric flags, PO consistency, backorder clearing and unchanged public grants.
 
