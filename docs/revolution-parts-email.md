@@ -17,3 +17,12 @@ Retain the producer's verified timezone for the extraction timestamp. This repor
 Applied staging migration `20261006033522_revolution_dept138_parts_email` contains deployment assertions with all synthetic fixtures and receipts rolled back. Cases cover accepted reports, sender/authentication binding, wrong source/company/division, Department 139 rejection, mixed/hidden/missing jobs, replay conflict, stale/equal snapshots, numeric flags, PO consistency, backorder clearing and unchanged public grants.
 
 Nine focused parts projection checks passed. Full local suite: 1,669 passed, 14 failed; the identical 14 failures reproduce on untouched upstream `97f6d17`, including historical fixture/snapshot and touch-drag extraction failures. No frontend code changed. Security advisors reported no finding on either changed function. Live report readback verified all 42 matched job updates across 39 vehicles, three changed flags, 39 unchanged flags and 29 unmatched R/Os. A guarded transaction proved vehicles, operations, hours/adjustments, bookings, person confirmations, untargeted jobs and importer disabled state unchanged. Private mail/workbook and per-row receipts are retained outside the public repository.
+
+
+## Job-level rolling variant
+
+The same authenticated sender also supplies subject **PMG PD Parts Status** with **PMG PD Parts Status V1 - Job 1.xls** (or `.xlsx`). This is a separate exact subject/filename pair. Its OOXML rows contain Dept, Stock, Rego, R/O and three numeric flags; preserve originals and use the established Stock-first/exact-Rego fallback. The **Changed Recently = 1** header means omitted jobs retain prior flags. It does not mean absent jobs or absent lines have completed.
+
+Receiving evidence may show PMB as the direct recipient, or Craig as the exact To address with PMB present in the actual CC-address array. The mailbox, exact sender, bound message ID, receiving Gmail SPF and aligned DMARC remain mandatory. Never substitute the mailbox for the actual To header. Other subject/filename pairs or recipient combinations remain rejected.
+
+Migration `20261006034419_revolution_job_parts_report` passed rollback assertions with this job-level variant and authentic-recipient shape, including missing/wrong CC rejection. Nine focused parts checks passed. Actual report application/readback matched34 jobs/vehicles:11 backorders cleared,23 unchanged,18 unmatchedheld. All source/staff hours, bookings, vehicle state, person confirmations, unrelated jobs and disabled importer state were protected.
