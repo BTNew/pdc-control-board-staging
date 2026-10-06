@@ -3684,9 +3684,7 @@ function bindNav() {
     if(app.navisionPreviewInFlight||app.navisionSharedApplyInFlight)return;
     const profile=button.dataset.navisionProfile;
     if(!['broome','pilbara'].includes(profile))return;
-    clearNavisionImport();$('#navision-dealer-code').value=profile;
-    document.querySelectorAll('[data-navision-profile]').forEach(tab=>{tab.setAttribute('aria-selected',String(tab===button));tab.classList.toggle('active',tab===button);});
-    $('#navision-profile-help').textContent=profile==='broome'?'Broome Toyota 037047, plus Toyota head office 001234 and 002345.':'Pilbara Toyota 014450, plus Toyota head office 001234 and 002345.';
+    setNavisionUploadProfile(profile);
     updateNavisionImportButton();
   }));
 
@@ -20427,6 +20425,76 @@ function renderScotSummary(scanned = false) {
 }
 
 
+function setNavisionUploadProfile(profile) {
+  const control = $('#navision-dealer-code');
+  if (!control || !['broome', 'pilbara'].includes(profile)) return false;
+  if (control.value !== profile) {
+    app.navisionImport = null;
+    app.pendingNavisionImport = null;
+    app.pendingSharedNavisionImport = null;
+    app.broomeNavisionLastResult = null;
+    const summary = $('#navision-status-list');
+    if (summary) summary.innerHTML = '<div class="empty-state compact-empty"><strong>Upload selection changed</strong><span>Your source data is still here. Click Preview Data to check it for the selected upload.</span></div>';
+  }
+  control.value = profile;
+  document.querySelectorAll('[data-navision-profile]').forEach(tab => {
+    const selected = tab.dataset.navisionProfile === profile;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.classList.toggle('active', selected);
+  });
+  const help = $('#navision-profile-help');
+  if (help) help.textContent = profile === 'broome'
+    ? 'Broome Toyota 037047, plus Toyota head office 001234 and 002345.'
+    : 'Pilbara Toyota 014450, plus Toyota head office 001234 and 002345.';
+  return true;
+}
+
+function assessNavisionUploadProfile(rows = [], selectedProfile = '') {
+  const counts = { broome: 0, pilbara: 0, headOffice: 0, other: 0 };
+  let invalidDealerRow = 0;
+  const canonical = value => String(value ?? '').trim().replace(/^0+/, '') || '';
+  rows.forEach((row, index) => {
+    // Only the original Dealer column can select the upload; names, filenames,
+    // comments and Swap From Dealer must never determine a row's dealer scope.
+    const columns = row?.navisionRawEvidence?.columns;
+    const dealers = Array.isArray(columns) ? columns.filter(column =>
+      ['dealer', 'dealercode', 'dealerno', 'dealernumber'].includes(
+        String(column.header || '').toLowerCase().replace(/[^a-z0-9]/g, ''))
+    ).map(column => canonical(column.value || column.rawValue)) : [];
+    const codes = [...new Set(dealers)];
+    const code = codes[0];
+    if (codes.length !== 1 || !/^[0-9]{1,6}$/.test(code || '')
+        || (row.dealer_code && canonical(row.dealer_code) !== code)) {
+      invalidDealerRow ||= index + 1;
+      return;
+    }
+    if (code === '37047') counts.broome++;
+    else if (code === '14450') counts.pilbara++;
+    else if (['1234', '2345'].includes(code)) counts.headOffice++;
+    else counts.other++;
+  });
+  const detectedProfile = invalidDealerRow ? '' : counts.broome && !counts.pilbara ? 'broome'
+    : counts.pilbara && !counts.broome ? 'pilbara' : '';
+  const profile = detectedProfile || selectedProfile;
+  const eligible = Number(counts[profile] || 0) + counts.headOffice;
+  const label = profile === 'broome' ? 'Broome Upload' : 'Pilbara Upload';
+  let message = `${label}: ${Number(counts[profile] || 0)} dealer rows and ${counts.headOffice} Toyota head office rows detected.`;
+  const excluded = rows.length - eligible;
+  if (excluded) message += ` ${excluded} rows are outside this upload or need a Dealer check; they will be listed for review.`;
+  if (detectedProfile && detectedProfile !== selectedProfile) message = `${label} detected from the Dealer column. Preview Data will select it automatically. ${message}`;
+  const blockedMessage = invalidDealerRow
+    ? `Row ${invalidDealerRow} needs one unambiguous original Dealer column. Check the Dealer values and paste the corrected export. Nothing was imported.`
+    : !eligible ? 'This file has no vehicles for Broome (037047), Pilbara (014450), or Toyota head office (001234 / 002345). Check the Dealer column and upload the correct export. Nothing was imported.' : '';
+  return { profile, detectedProfile, eligible, excluded, counts, message, blockedMessage, invalidDealerRow };
+}
+
+function renderNavisionUploadProfileDetection(assessment = null) {
+  const host = $('#navision-profile-detection');
+  if (!host) return;
+  host.hidden = !assessment;
+  host.textContent = assessment ? assessment.blockedMessage || assessment.message : '';
+}
+
 function updateNavisionControlStats(result = null) {
   const card = $('#navision-scan-card');
   if (!card) return;
@@ -20443,6 +20511,8 @@ function updateNavisionControlStats(result = null) {
   }
   const selectedProfile = ($('#navision-dealer-code')?.value || '').trim();
   const preview = raw && !result ? parseNavisionInput(raw, {...navisionImportOptionsFromDom(),uploadProfile:['broome','pilbara'].includes(selectedProfile)?selectedProfile:null}) : null;
+  renderNavisionUploadProfileDetection(raw && preview?.vehicles?.length && ['broome', 'pilbara'].includes(selectedProfile)
+    ? assessNavisionUploadProfile(preview.vehicles, selectedProfile) : null);
   const rowCount = result?.parsed?.vehicles?.length ?? preview?.vehicles?.length ?? 0;
   const changed = result ? ((result.added?.length || 0) + (result.updated?.length || 0)) : 0;
   const fileEl = card.querySelector('.navision-file strong');
@@ -20583,6 +20653,17 @@ function navisionSharedPreviewRequestStillCurrent(request = {}) {
 
 function sharedNavisionPreviewErrorMessage(result = {}) {
   const code = String(result.code || result.error || '').toLowerCase();
+  if (code === 'upload_dealer_column_invalid') {
+    const row = Number.isSafeInteger(result.rowIndex) && result.rowIndex > 0 ? `Row ${result.rowIndex}` : 'Each row';
+    return `${row} needs one unambiguous original Dealer column. Check the Dealer values and paste the corrected export. Your pasted data is still here; nothing was imported.`;
+  }
+  if (code === 'upload_no_supported_dealers') return 'This file has no vehicles for Broome (037047), Pilbara (014450), or Toyota head office (001234 / 002345). Check the Dealer column and upload the correct export. Your pasted data is still here; nothing was imported.';
+  if (code === '22023') {
+    const detail = String(result.data?.message || result.message || '').trim();
+    if (detail === 'No eligible rows for the selected upload') return 'No vehicles match the selected upload. Use Broome Upload for Dealer 037047 or Pilbara Upload for Dealer 014450. Both accept Toyota head office 001234 and 002345. Your pasted data is still here; nothing was imported.';
+    if (/^Row [0-9]+ (?:needs one unambiguous original Dealer column|has conflicting Dealer values|without Batch needs a Toyota Order number)$/.test(detail)) return `${detail}. Check that row in the source export and preview again. Your pasted data is still here; nothing was imported.`;
+    return 'The Navision file has a format or Dealer issue. Include the original headings, a Dealer value on every row, and a Toyota Order number when Batch is blank. Your pasted data is still here; nothing was imported.';
+  }
   if (code === '57014') return 'Checking the Navision file took too long and stopped. Nothing was imported. Your pasted data is still here. Please try Preview Data again.';
   if (code === 'preview_connection_failed') return 'The connection ended before the Navision file check could finish. Nothing was imported. Your pasted data is still here. Check your connection and try Preview Data again.';
   if (code === 'service_unavailable') return 'The Navision service is unavailable. Nothing was imported. Your pasted data is still here. Please try Preview Data again.';
@@ -20610,6 +20691,7 @@ async function handleNavisionFileSelect(event) {
     app.navisionFileName = file.name;
     app.navisionImport = null;
     app.pendingNavisionImport = null;
+    app.pendingSharedNavisionImport = null;
     if (summary) summary.innerHTML = `<div class="empty-state compact-empty"><strong>${escapeHtml(file.name)}</strong><span>Reading file...</span></div>`;
     let text = '';
     let sourceLabel = 'Text loaded';
@@ -20632,8 +20714,17 @@ async function handleNavisionFileSelect(event) {
       if (summary) summary.innerHTML = '<div class="empty-state compact-empty"><strong>'+escapeHtml(file.name)+'</strong><span>'+escapeHtml(sourceLabel)+'. '+rows.length+' Broome source rows detected, including orders without Batch / Stock. Click Preview Data to check the sold orders.</span></div>';
       return;
     }
-    const selectedProfile=($('#navision-dealer-code')?.value||'').trim();
+    let selectedProfile=($('#navision-dealer-code')?.value||'').trim();
     const preview = parseNavisionInput(text, {...navisionImportOptionsFromDom(),uploadProfile:['broome','pilbara'].includes(selectedProfile)?selectedProfile:null});
+    if (['broome', 'pilbara'].includes(selectedProfile) && preview.vehicles.length) {
+      const assessment = assessNavisionUploadProfile(preview.vehicles, selectedProfile);
+      if (assessment.detectedProfile && assessment.profile !== selectedProfile) {
+        setNavisionUploadProfile(assessment.profile);
+        selectedProfile = assessment.profile;
+        updateNavisionImportButton();
+      }
+      renderNavisionUploadProfileDetection(assessNavisionUploadProfile(preview.vehicles, selectedProfile));
+    }
     if (summary) {
       const warning = preview.vehicles.length ? '' : ` ${preview.warnings?.[0] || 'No usable vehicle rows were found.'}`;
       summary.innerHTML = `<div class="empty-state compact-empty"><strong>${escapeHtml(file.name)}</strong><span>${escapeHtml(sourceLabel)}. ${preview.vehicles.length} vehicle row${preview.vehicles.length === 1 ? '' : 's'} detected.${escapeHtml(warning)}${preview.vehicles.length ? ' Click Preview Data to continue.' : ''}</span></div>`;
@@ -22308,7 +22399,7 @@ async function importNavisionVehicles() {
     window.alert('Importer or administrator access is required for shared Navision imports. Ask an administrator to assign the importer role. Nothing changed.');
     return;
   }
-  const dealerCode = ($('#navision-dealer-code')?.value || '').trim();
+  let dealerCode = ($('#navision-dealer-code')?.value || '').trim();
   if (!['broome','pilbara','combined', '14450', '37047', '002345', '001234'].includes(dealerCode)) {
     window.alert('Choose Broome Upload or Pilbara Upload before previewing.');
     return;
@@ -22322,6 +22413,20 @@ async function importNavisionVehicles() {
   app.pendingSharedNavisionImport = null;
   const options = {...navisionImportOptionsFromDom(),uploadProfile:['broome','pilbara'].includes(dealerCode)?dealerCode:null};
   const parsed = parseNavisionInput(text, options);
+  if (['broome', 'pilbara'].includes(dealerCode) && parsed.vehicles.length) {
+    const assessment = assessNavisionUploadProfile(parsed.vehicles, dealerCode);
+    if (assessment.detectedProfile && assessment.profile !== dealerCode) {
+      setNavisionUploadProfile(assessment.profile);
+      dealerCode = assessment.profile;
+      parsed.options.uploadProfile = dealerCode;
+      previewRequest.dealerCode = dealerCode;
+    }
+    renderNavisionUploadProfileDetection(assessNavisionUploadProfile(parsed.vehicles, dealerCode));
+    if (assessment.blockedMessage) {
+      reportSharedNavisionPreviewError({ code: assessment.invalidDealerRow ? 'upload_dealer_column_invalid' : 'upload_no_supported_dealers', rowIndex: assessment.invalidDealerRow }, previewRequest);
+      return;
+    }
+  }
   if (parsed.rejectedRows?.length) {
     app.pendingSharedNavisionImport = null;
     renderNavisionSummary({ parsed, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], skipped: parsed.warnings });
