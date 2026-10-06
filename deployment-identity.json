@@ -1098,5 +1098,13 @@
       "sha256": "9c18563b59837caea9c2ddb602cc7f03149b08c0b5295cf18a5529298dd9c475",
       "review_status": "staging_applied"
     }
+  },
+  "revolution_dept138_parts_email_migration": {
+    "version": "20261006033522",
+    "name": "revolution_dept138_parts_email",
+    "file": "supabase/migrations/20261006033522_revolution_dept138_parts_email.sql",
+    "sha256": "c739c7a14518709594bd60017f4e9971c3344b929526bb66b63385ad8781ec74",
+    "commissioned": true,
+    "review_status": "staging_applied"
   }
 }
