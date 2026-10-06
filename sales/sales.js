@@ -63,11 +63,11 @@
     return row[complete]===true?'completed':row[key]===true?'orders_raised':row[notRequired]===true?'not_needed':'not_decided';
   }
   function nextOrderingState(value){return value==='not_decided'?'not_needed':value==='not_needed'?'orders_raised':value==='orders_raised'?'completed':'not_decided';}
-  function orderingControl(row,key,pending){
+  function orderingControl(row,key,pending,editable=true){
     const value=pending?.key===key?pending.status:orderingState(row,key);
     const label=orderingLabels[key]+' for '+(row.stock||'Toyota order '+(row.order||'not recorded'));
     const name=orderingValues[value],next=orderingValues[nextOrderingState(value)];
-    return '<button type="button" role="checkbox" class="ordering-status '+value+'" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" data-ordering-status="'+value+'" aria-checked="'+(value==='completed'?'true':value==='not_decided'?'false':'mixed')+'" aria-label="'+escapeHtml(label+': '+name+'. Click for '+next)+'" '+(pending||row.identity_conflict||row.sales_hidden?'disabled ':'')+'title="'+escapeHtml(name+' — click for '+next)+'"><span aria-hidden="true">'+(value==='completed'?'✓':value==='orders_raised'?'−':value==='not_needed'?'/':'')+'</span></button>';
+    return '<button type="button" role="checkbox" class="ordering-status '+value+'" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" data-ordering-status="'+value+'" aria-checked="'+(value==='completed'?'true':value==='not_decided'?'false':'mixed')+'" aria-label="'+escapeHtml(label+': '+name+(editable?'. Click for '+next:'. View only'))+'" '+(pending||row.identity_conflict||row.sales_hidden||!editable?'disabled ':'')+'title="'+escapeHtml(name+(editable?' — click for '+next:' — view only'))+'"><span aria-hidden="true">'+(value==='completed'?'✓':value==='orders_raised'?'−':value==='not_needed'?'/':'')+'</span></button>';
   }
   function selectRows(rows, filters) {
     const search = String(filters.search || '').toLowerCase();
@@ -127,6 +127,8 @@
   const viewNames=['myday','dashboard','pipeline','alerts','finance','labels','history','customeremails'];
   const viewTitles={myday:'My Day',dashboard:'Dashboard',pipeline:'Pipeline',alerts:'Alerts',finance:'Finance',labels:'Labels',history:'Completed vehicles',customeremails:'Customer emails'};
   function currentContext(){return state.workspace?.context||state.context;}
+  function canViewAllSalespeople(){return state.context?.role==='administrator'||state.context?.can_view_all_salespeople===true;}
+  function canEditRow(row){return state.context?.role==='administrator'||(state.context?.role==='salesperson'&&(state.context.can_view_all_salespeople!==true||row?.salesperson_code===state.context.salesperson_code));}
   function moduleOptions(){return {getRows:()=>scopeRows(state.items,state.filters.salesperson),getContext:currentContext,getSalesperson:()=>state.filters.salesperson,getView:()=>state.view,
     openVehicle:openDetail,showView,onChanged:()=>refreshWorkspace().then(render)};}
   function attachWorkspace(){
@@ -139,7 +141,7 @@
     }
   }
   function populateSalespeople(){
-    if(state.context?.role!=='administrator')return;
+    if(!canViewAllSalespeople())return;
     const selected=state.filters.salesperson;
     const people=salespeople;
     html('salesperson-filter','<option value="">All salespeople</option>'+people.map(code=>'<option value="'+escapeHtml(code)+'">'+escapeHtml(code)+'</option>').join(''));
@@ -285,7 +287,7 @@
     const focusKey=focus?.dataset?.orderingId?{id:focus.dataset.orderingId,flag:focus.dataset.orderingFlag,mobile:!!focus.closest?.('#sales-mobile-vehicles')}:null;
     const rows=selectRows(state.showHidden?state.hiddenItems:state.items,{...state.filters,visibility:state.showHidden?'hidden':'visible'});
     const checked=selectedRows(),dispatchSelected=checked.filter(r=>dispatchEligible(r)&&r.autocare_dispatched!==true);
-    $('sales-dispatch-selected').disabled=state.showHidden||state.dispatchBusy||!dispatchSelected.length;
+    $('sales-dispatch-selected').disabled=state.showHidden||state.dispatchBusy||!dispatchSelected.length||checked.some(r=>!canEditRow(r));
     $('sales-dispatch-selected').textContent=state.dispatchBusy?'Saving dispatch…':'Mark selected Dispatched Autocare'+(checked.length?' ('+checked.length+')':'');
     $('sales-hidden-toggle').textContent=state.showHidden?'Show dashboard':'Hidden vehicles';
     $('sales-hidden-toggle').setAttribute('aria-pressed',String(state.showHidden));
@@ -308,7 +310,7 @@
         const val=row[key];
         if (key==='salesperson_code')return '<td><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order||'vehicle')+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'>'+escapeHtml(val||'—')+'</td>';
         if (key==='production_month')return '<td><span class="month-pill">'+escapeHtml(val||'—')+'</span></td>';
-        if (orderingKeys.has(key)) return '<td class="sales-ordering-cell">'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null))+'</td>';
+        if (orderingKeys.has(key)) return '<td class="sales-ordering-cell">'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</td>';
         if (key==='stock') return '<td class="vehicle-reference-cell">'+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button type="button" class="stock-button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+
           escapeHtml(val||row.order||'Reference not recorded')+'</button><span class="subtle">'+(val?'Toyota Order '+escapeHtml(row.order||'Not recorded'):'Toyota Order Number')+'</span>'+(!val?'<span class="subtle">Awaiting stock number</span>':'')+(row.source_current===false?'<span class="source-warning">Not in latest PDC import</span>':'')+(row.identity_conflict?'<span class="source-warning">Order link needs review</span>':'')+'</td>';
         if (key==='toyota_status') return '<td><span class="status-pill '+category(row)+'" title="'+escapeHtml(row.toyota_status||'Not recorded')+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<small class="subtle">Transport '+escapeHtml(row.transport_number)+'</small>':'')+'</td>';
@@ -322,7 +324,7 @@
         return '<td title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</td>';
       }).join('')+'<td>'+actionHtml(row)+'</td></tr>'+(root.BROOME_VEHICLE_NOTES?.rowHtml(row)||'')).join(''):'<tr><td colspan="13"><div class="empty-state">No vehicles match this view.</div></td></tr>')+'</tbody>');
     columnWidths?.apply();
-    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div><strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+'<p class="mobile-pmb">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
+    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div><strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+'<p class="mobile-pmb">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
     if(focusKey)root.document.querySelector?.((focusKey.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-ordering-id="'+focusKey.id+'"][data-ordering-flag="'+focusKey.flag+'"]')?.focus?.({preventScroll:true});
     if(noteFocus){
       const field=root.document.querySelector?.((noteFocus.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-notes-form="'+noteFocus.id+'"] [name="'+noteFocus.name+'"]');
@@ -342,6 +344,7 @@
     if(state.dispatchBusy||state.showHidden||!root.PDC_AUTH_CONTEXT||!['administrator','salesperson'].includes(state.context?.role))return;
     const requested=new Set(ids),checked=scopeRows(state.items,state.filters.salesperson).filter(r=>requested.has(r.tracking_id));
     if(!requested.size)return;
+    if(checked.some(r=>!canEditRow(r))){$('sales-dispatch-status').textContent='Other salespeople’s vehicles are view only. Select your own vehicles to change Autocare dispatch.';return;}
     if(checked.length!==requested.size||checked.some(r=>r.identity_conflict||(dispatched&&!dispatchEligible(r)))){
       $('sales-dispatch-status').textContent='No vehicles were moved. A selected vehicle is unavailable, needs its reference checked, or is already at Dealer. Review your selection and try again.';return;
     }
@@ -370,6 +373,7 @@
   }
   function actionHtml(row){
     const id=escapeHtml(row.tracking_id),label='Action for '+escapeHtml(row.stock||'Toyota order '+row.order);
+    if(!canEditRow(row))return '<select class="sales-action" data-email-id="'+id+'" aria-label="'+label+'"><option value="">View only…</option><option value="details">View details</option></select>';
     return '<select class="sales-action" data-email-id="'+id+'" aria-label="'+label+'" '+(row.identity_conflict||state.visibilitySaving.has(row.tracking_id)?'disabled ':'')+'><option value="">Select action…</option>'+
       (row.sales_hidden?'<option value="show">Show on sales planner</option>':'<option value="details">View details</option>'+
       (root.BROOME_SALES_EMAIL?.types||[]).map(([key,title])=>'<option value="'+key+'">'+title+(key==='released'&&state.selected.size>1?' ('+state.selected.size+' selected)':'')+'</option>').join('')+
@@ -409,10 +413,10 @@
 
     $('sales-detail-content').innerHTML='<div class="panel-header"><div><h2>'+escapeHtml(vehicleReference(r))+
       '</h2><p>'+escapeHtml(r.client)+'</p></div><button type="button" class="small-button" id="sales-detail-close">Close</button></div>'+
-      '<div id="sales-pmb-live">'+workshopHtml(r)+'</div>'+(root.BROOME_SALES_BUILDS?.detailHtml(r)||'')+(root.BROOME_SALES_CRM?.detailHtml(r)||'')+'<div id="sales-source-detail">'+vehicleInfoHtml(r)+'</div>';
+      '<div id="sales-pmb-live">'+workshopHtml(r)+'</div>'+(root.BROOME_SALES_BUILDS?.detailHtml(r)||'')+(canEditRow(r)?root.BROOME_SALES_CRM?.detailHtml(r)||'':'<p class="tracking-note">Other salesperson’s vehicle · view only</p>')+'<div id="sales-source-detail">'+vehicleInfoHtml(r)+'</div>';
     $('sales-detail-close').addEventListener('click',()=>{ state.detailId=null;$('sales-detail').close(); $('sales-detail-content').innerHTML=''; });
     state.html.delete('sales-pmb-live');state.html.delete('sales-source-detail');
-    root.BROOME_SALES_CRM?.bindDetail(id);
+    if(canEditRow(r))root.BROOME_SALES_CRM?.bindDetail(id);
     root.BROOME_SALES_BUILDS?.bindDetail(id);
     if(!$('sales-detail').open)$('sales-detail').showModal();
   }
@@ -440,7 +444,7 @@
   }
   async function saveOrderingFlag(id,key,status) {
     const row=scopeRows(state.items,state.filters.salesperson).find(r=>r.tracking_id===id);
-    if(!row||row.identity_conflict||!orderingKeys.has(key)||!Object.hasOwn(orderingValues,status)||state.saving.has(id)||!['salesperson','administrator'].includes(state.context?.role))return;
+    if(!row||!canEditRow(row)||row.identity_conflict||!orderingKeys.has(key)||!Object.hasOwn(orderingValues,status)||state.saving.has(id)||!['salesperson','administrator'].includes(state.context?.role))return;
     const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId;
     const label=columns.find(([name])=>name===key)[1];
     state.saving.set(id,{key,status});message('');$('sales-checklist-status').textContent='Saving '+label+'…';render();
@@ -503,7 +507,12 @@
     const generation=state.generation; const principal=root.PDC_AUTH_CONTEXT.userId;
     state.busy=true; $('sales-refresh').disabled=true;
     try {
-      const {data,error}=await root.PDC_SUPABASE.rpc('get_broome_sales_snapshot');
+      const boardRequest=state.context?.role==='salesperson'&&state.context.can_view_all_salespeople===true;
+      let {data,error}=await root.PDC_SUPABASE.rpc(boardRequest?'get_broome_sales_board_snapshot':'get_broome_sales_snapshot');
+      if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId)return;
+      if(!boardRequest&&!error&&data?.context?.role==='salesperson'&&data.context.can_view_all_salespeople===true){
+        ({data,error}=await root.PDC_SUPABASE.rpc('get_broome_sales_board_snapshot'));
+      }
       if (generation!==state.generation || principal!==root.PDC_AUTH_CONTEXT?.userId) return;
       if (error || !data || !Array.isArray(data.items)) throw error||new Error('Vehicle data could not be loaded.');
       if (!['administrator','salesperson'].includes(data.context?.role)) throw new Error('Sales access is not approved.');
@@ -519,16 +528,20 @@
           r.autocare_dispatched=old.autocare_dispatched;r.autocare_dispatch_version=old.autocare_dispatch_version;r.autocare_dispatched_at=old.autocare_dispatched_at;
         }
         return r;
-      }); state.context=data.context; message('');root.BROOME_COMPLETED_VEHICLES?.currentSnapshot();
+      });
+      if(!state.context&&data.context.role==='salesperson'&&data.context.can_view_all_salespeople===true)state.filters.salesperson=data.context.salesperson_code;
+      state.context=data.context;
+      if(!canViewAllSalespeople()){state.filters.salesperson='';$('salesperson-filter').value='';}
+      message('');root.BROOME_COMPLETED_VEHICLES?.currentSnapshot();
       if(state.detailId&&!state.items.some(r=>r.tracking_id===state.detailId)){state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}
       const currentIds=new Set(state.items.map(r=>r.tracking_id));
       for(const id of state.selected)if(!currentIds.has(id))state.selected.delete(id);
       $('sales-data-date').textContent=dateLabel(data.navision_updated_at);
       $('sales-scope').textContent=data.context.role==='administrator'?'Broome Toyota · Administrator view':
-        data.context.display_name+' · My vehicles · Broome Toyota';
+        data.context.display_name+(canViewAllSalespeople()?' · Sales team view · Broome Toyota':' · My vehicles · Broome Toyota');
       $('sales-sync').textContent='Navision updated '+dateLabel(data.navision_updated_at)+' · Checked '+dateLabel(data.checked_at)+' (Perth)';
-      $('salesperson-filter-label').hidden=data.context.role!=='administrator';
-      if (data.context.role==='administrator') populateSalespeople();
+      $('salesperson-filter-label').hidden=!canViewAllSalespeople();
+      if(canViewAllSalespeople())populateSalespeople();
       if(state.detailId){const detailRow=state.items.find(r=>r.tracking_id===state.detailId);if(detailRow){html('sales-pmb-live',workshopHtml(detailRow));html('sales-source-detail',vehicleInfoHtml(detailRow));}}
       attachWorkspace();populateFilters();render();
       root.BROOME_VEHICLE_NOTES?.load();
@@ -566,7 +579,7 @@
   }
   async function setVehicleVisibility(id,hidden){
     const row=scopeRows(hidden?state.items:state.hiddenItems,state.filters.salesperson,hidden?'visible':'hidden').find(r=>r.tracking_id===id);
-    if(!row||row.identity_conflict||state.visibilitySaving.has(id)||state.saving.has(id)||!['administrator','salesperson'].includes(state.context?.role))return;
+    if(!row||!canEditRow(row)||row.identity_conflict||state.visibilitySaving.has(id)||state.saving.has(id)||!['administrator','salesperson'].includes(state.context?.role))return;
     const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId,version=row.sales_visibility_version||0;
     state.visibilitySaving.add(id);message('');$('sales-visibility-status').textContent=hidden?'Hiding vehicle…':'Showing vehicle…';render();
     try{
@@ -665,7 +678,7 @@
   root.BROOME_COMPLETED_VEHICLES?.init(moduleOptions());
   root.BROOME_SALES_CRM?.init(moduleOptions());
   root.BROOME_SALES_BUILDS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
-  root.BROOME_VEHICLE_NOTES?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getVisibleRows:()=>selectRows(state.items,state.filters),getScope:()=>state.filters.salesperson,isHidden:()=>state.showHidden,reference:vehicleReference,onChanged:render});
+  root.BROOME_VEHICLE_NOTES?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getVisibleRows:()=>selectRows(state.items,state.filters),getScope:()=>state.filters.salesperson,canEditRow,isHidden:()=>state.showHidden,reference:vehicleReference,onChanged:render});
   const columnWidths=root.BROOME_SALES_TOOLS?.initColumns($('vehicle-table'),$('sales-reset-widths'));
   root.BROOME_SALES_EMAIL?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getSelectedRows:selectedRows,getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation,state.filters.salesperson]),onError:text=>$('sales-workspace-status').textContent=text});
   root.BROOME_CUSTOMER_EMAILS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});

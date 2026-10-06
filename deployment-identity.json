@@ -100,14 +100,14 @@
     "UID635 imported Stock 13000775 as one Navision-linked canonical vehicle with OP1-OP22, seven explicit zero-hour headers, five unknown-hour headers retained as NULL, and Pre-Delivery standardised to 1.50 hours.",
     "The isolated pmbcontroller Inbox monitor, mailbox and writer are contained after the requested one-shot import; the paused replay floor is UID636 and recurring automation was not resumed.",
     "Dedicated Workshop planners open directly on the selected station schedule without a duplicate Back to Control Board block or cross-station tab buttons.",
-    "Stock 13000775 displays all 22 genuine Job Card operations: seven mapped internal lines, one Sublet line and fourteen unresolved lines under Unallocated – mapping review.",
+    "Stock 13000775 displays all 22 genuine Job Card operations: seven mapped internal lines, one Sublet line and fourteen unresolved lines under Unallocated \u2013 mapping review.",
     "A database parity guard now checks every vehicle and rejects any operation import or mapping adjustment that would omit or duplicate a genuine Job Card operation in the Board/QC projection.",
     "Every active vehicle with current Navision data must have one exact-Stock canonical link; Navision and vehicle transactions fail closed on ambiguity, missing links or stale detail/location refresh.",
     "Stock 13000775 was removed from active staging through the authenticated Administrator reset path for a fresh test; its tombstone and audit evidence are retained.",
     "Gmail UID639 loaded Stock 13000769 as one Navision-linked vehicle with Job Card J139125493 and all 17 operations projected exactly once.",
     "Gmail UID640 loaded Stock 13017855 as one Navision-linked vehicle with Job Card J139125422 and all 20 operations projected exactly once; reflective safety striping routes to Sublet.",
     "Linked shared Navision source rows are merged into their one active Back End Data row; current Navision colour and source salesperson are projected from the authoritative link.",
-    "All 22 UID635 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated – mapping review rather than being omitted.",
+    "All 22 UID635 operations are projected on the Board; 14 without an approved station mapping remain visible under Unallocated \u2013 mapping review rather than being omitted.",
     "Production and real outbound email delivery remain disabled and untouched.",
     "Controllers can use receipt-backed vehicle chip scheduling, moves and own-move undo. Administrator-only setup and admin blocks retain their separate authorization.",
     "Broome Toyota salesperson website reads scoped shared Navision and PMB records. Approved administrators switch between PMB and Broome Toyota; approved salespeople receive only their assigned Broome vehicles. Pending accounts require administrator assignment."
@@ -804,7 +804,7 @@
     "review_status": "staging_applied"
   },
   "broome_salesperson_site": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "path": "sales/",
     "dealer_code": "37047",
     "server_scoped": true,
@@ -815,24 +815,24 @@
     "seeded_account_scopes": 0,
     "validation": "Current staging entry assets match the reviewed source; account isolation and PDC preservation are covered by the sales regression and database rollback suites. Physical printer and external email handling require local confirmation.",
     "asset_versions": {
-      "sales.css": "2026.10.05.04",
+      "sales.css": "2026.10.06.01",
       "crm-workspace.css": "2026.10.02.05",
       "build-requirements.css": "2026.10.03.02",
-      "finance-pipeline.css": "2026.10.05.04",
+      "finance-pipeline.css": "2026.10.06.01",
       "zebra-labels.js": "2026.10.02.05",
-      "crm-workspace.js": "2026.10.05.04",
+      "crm-workspace.js": "2026.10.06.01",
       "build-requirements.js": "2026.10.03.02",
       "dashboard-tools.js": "2026.10.02.18",
-      "email-actions.js": "2026.10.05.04",
+      "email-actions.js": "2026.10.06.01",
       "customer-emails.js": "2026.10.02.19",
-      "finance-pipeline.js": "2026.10.05.04",
-      "completed-vehicles.js": "2026.10.05.04",
-      "vehicle-notes.js": "2026.10.05.04",
-      "sales.js": "2026.10.05.04"
+      "finance-pipeline.js": "2026.10.06.01",
+      "completed-vehicles.js": "2026.10.06.01",
+      "vehicle-notes.js": "2026.10.06.01",
+      "sales.js": "2026.10.06.01"
     }
   },
   "broome_salesperson_dashboard": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "reference": "Owner supplied local tracker screenshot, 1 October 2026",
     "navigation": [
       "My Day",
@@ -850,7 +850,7 @@
     "layout": "JITA removed. TINT/BUILD/TRAY tick boxes cycle empty Not decided, dark grey slash Not required, orange Orders Raised and green Completed; fixed page-width desktop table, adjacent-column resizing and mobile vehicle cards."
   },
   "broome_salesperson_journey": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "early_orders": "Stockless orders accepted only with explicit COSI Yes/true/1 and Toyota order number",
     "identity": "Exact dealer + Toyota order; leading zeros retained; ambiguous source links flagged and not joined",
     "operational_writes": false,
@@ -860,7 +860,7 @@
     "validation": "COSI/stockless identity continuity, latest-source visibility, hiding/restoring, assigned-sales scope and isolated sales ordering are covered by regression and rollback suites."
   },
   "broome_salesperson_ordering": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "editable_flags": [
       "tint",
       "build_po",
@@ -940,7 +940,7 @@
     "workshop_writes": false
   },
   "broome_salesperson_cosi_scope": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "visible_vehicles": "Explicit COSI Yes/true/1 only, including stocked orders; missing/No/unknown excluded",
     "salesperson_filter": "Counts, location/status and month options, pipeline, linked summary and label scope follow selected salesperson",
     "negative_import": "Existing exact order retains UUID/display/checklist but updates private COSI evidence; cleared salesperson allowed; no new unsold stockless orders",
@@ -955,7 +955,7 @@
     ]
   },
   "broome_salesperson_crm": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "navigation": [
       "My Day",
       "Dashboard",
@@ -988,7 +988,7 @@
     "external_email_validation": "MIME bytes and attachment preservation verified; installed Outlook/default handler behavior and actual sending require local confirmation."
   },
   "broome_salesperson_finance": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "storage": "pdc_sales_private.finance_applications",
     "enrollment": "Only explicitly added applications; existing-vehicle autocomplete or customer-only standalone entry. No PDC vehicle creation.",
     "financiers": [
@@ -1022,7 +1022,7 @@
     "scope": "Existing private splitter assembly only; exact validation and permissions preserved"
   },
   "broome_salesperson_vehicle_notes": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "table": "pdc_sales_private.vehicle_notes",
     "source_identity": "dealer + Toyota order via stable tracking_id",
     "navision_overwrite": false,
@@ -1045,7 +1045,7 @@
     "manual_note_indicator": "Soft orange Navision Notes cell when confirmed saved staff notes or custom information is nonempty; drafts and import-only notes do not trigger it; clears after saved notes are removed."
   },
   "broome_salesperson_completed_vehicles": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "source": "Retained COSI orders absent from the latest successfully applied dealer upload; exact dealer and Toyota order, approved salesperson scope",
     "automatic_reappearance": true,
     "customer_handover_inferred": false,
@@ -1065,14 +1065,14 @@
     "verification": "Live latest-upload membership audit and rollback reappearance, retention, scope and full record nonmutation checks; optimized output exactly matched the initial archive."
   },
   "broome_salesperson_finance_autosave": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "scope": "Existing explicitly added Finance applications only; same approved server RPC and version checks",
     "behaviour": "Debounced per-row saves; dropdown/date commits save immediately; typing during a save is queued; Saved/Saving/error messages and Retry; unsaved changes retained after failed requests",
     "navigation": "Local page navigation preserves queued edits; browser close warns while saves remain pending",
     "operational_writes": false
   },
   "broome_salesperson_broome_release_email": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "recipient": "amy.elkington@broometoyota.com.au",
     "selection": "Vehicle Released to Broome combines multiple checked authorised vehicles into one draft; other email actions remain per vehicle",
     "subject": "Every selected stock number, or exact Toyota order if stock is not yet allocated",
@@ -1081,13 +1081,13 @@
     "scope_guard": "Every included vehicle must remain authorised with the same source reference before opening an email app or downloading attachments"
   },
   "broome_salesperson_control_alignment": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "scope": "Sales topbar dropdown labels and header/tracker action buttons",
     "control_height": "40 pixels on desktop/tablet; 44 pixels on phone",
     "verification": "Four fictional browser viewports; matching computed heights and fonts, labels above both dropdowns, no page overflow"
   },
   "broome_salesperson_autocare_dispatch": {
-    "asset_version": "2026.10.05.04",
+    "asset_version": "2026.10.06.01",
     "source": "Transport Load No. from latest successful Navision upload",
     "selection": "Selection button and row menu transfer every checked authorised vehicle, including checks outside the current search; existing dispatch marks are retained and counted; an ineligible selection blocks partial transfer",
     "identity": "Exact authorised current dealer + Toyota order; atomic selection, version checks and audit",
@@ -1113,5 +1113,20 @@
     "sha256": "a764fa31d127995bc2b45dd96c818952fd7b30c127ebe9f06ee39e8e8f58f0c0",
     "commissioned": true,
     "review_status": "staging_applied"
+  },
+  "broome_salesperson_team_board_view": {
+    "asset_version": "2026.10.06.01",
+    "scope": "Broome dealer 37047 only; approved account capability for shared vehicle viewing",
+    "default_view": "Assigned salesperson, with All salespeople and BG/AW/PM/CW dropdown",
+    "permissions": "Shared viewing does not expand own-vehicle editing, Finance, CRM/customer-email preparation, account administration or PMB operations",
+    "staging_migration": {
+      "version": "20261006054957",
+      "database_version": "20261006055335",
+      "name": "broome_sales_team_board_view",
+      "file": "supabase/migrations/20261006054957_broome_sales_team_board_view.sql",
+      "sha256": "c8156548ba594fa9696bb50fed39a58c5a67510d4b3182d0cdb57b1d6f00f005",
+      "review_status": "staging_applied"
+    },
+    "verification": "Rollback tests passed: own/shared reads, revocation, disabled/mismatched/anonymous denial, four cross-owner write denials, raw table isolation and unchanged vehicle/Navision/Sales record fingerprints"
   }
 }

@@ -1,5 +1,11 @@
 # Broome Toyota sales dashboard tools — 2 October 2026
 
+## Sales team viewing — 6 October 2026
+
+Andy’s existing administrator account retains the salesperson dropdown. Bryce’s BG account can also select BG, AW, PM, CW or All salespeople on the Broome vehicle board, Pipeline, labels and Completed vehicles. His initial view is BG. Current Navision, PMB details, accessories and saved vehicle notes are available for the selected salesperson. Other salespeople’s vehicles are view only; Bryce keeps his existing own-vehicle editing permissions. Finance, customer-email preparation, CRM editing, user administration and PMB operational permissions are not expanded.
+
+The database stores the account-specific viewing permission in private account_scopes. Only an approved administrator can change it through set_broome_sales_board_view_access. The separate get_broome_sales_board_snapshot endpoint broadens approved reading; the original own-vehicle snapshot and all mutation authorization remain unchanged. Revocation, disabling the account and a mismatched authentication identity revoke the next read. The browser clears stale selections and details after permission changes. Verification uses rolled-back fixtures, with no vehicle or import edits or external sending.
+
 The Dashboard Action menu offers Vehicle Released to Broome, Request Update, New Vehicle Build and Tint PO Email. View details remains available in the menu and through the stock number.
 
 Each email opens an editable review window containing the selected vehicle's stock or exact Toyota order, customer and model. The build template includes recorded Navision notes and Kewdale ETA. It never substitutes Kewdale ETA for a confirmed PMG arrival date or invents vehicle equipment. Jono's tint address is provided from Craig's example; release and PMG recipients remain editable and blank until their addresses are confirmed.
