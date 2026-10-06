@@ -1106,5 +1106,12 @@
     "sha256": "c739c7a14518709594bd60017f4e9971c3344b929526bb66b63385ad8781ec74",
     "commissioned": true,
     "review_status": "staging_applied"
+  },
+  "revolution_job_parts_report_migration": {
+    "version": "20261006034419",
+    "file": "supabase/migrations/20261006034419_revolution_job_parts_report.sql",
+    "sha256": "a764fa31d127995bc2b45dd96c818952fd7b30c127ebe9f06ee39e8e8f58f0c0",
+    "commissioned": true,
+    "review_status": "staging_applied"
   }
 }
