@@ -22298,9 +22298,9 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
       <div class="summary-stat"><span>Already up to date</span><strong>${unchanged}</strong></div>
       <div class="summary-stat"><span>Not in this file</span><strong>${missing}</strong></div>
       <div class="summary-stat"><span>Rows needing attention</span><strong>${invalid + conflict}</strong></div>
-      <div class="summary-stat"><span>Cars activated or moved</span><strong>0</strong></div>
+      <div class="summary-stat"><span>Delivered - At Dealer</span><strong>To Completed</strong></div>
     </div>
-    <div class="parts-help-strip"><strong>${applied ? 'What happened:' : 'Import rule:'}</strong><span>${applied ? `The shared Navision records were updated. ${added} added, ${changed} modified and ${unchanged} already current.` : 'A Navision upload updates Back End Data only. It does not activate cars, move them, change Parts or alter workshop bookings.'}</span></div>
+    <div class="parts-help-strip"><strong>${applied ? 'What happened:' : 'Import rule:'}</strong><span>${applied ? `The shared Navision records were updated. ${added} added, ${changed} modified and ${unchanged} already current. Confirmed Delivered - At Dealer vehicles are in Completed Vehicles with their active PMB bookings cancelled. Their history is retained.` : 'A Navision upload updates the shared vehicle details. Delivered - At Dealer moves linked PMB vehicles to Completed Vehicles and cancels their active bookings. History is retained; work items, Parts and QC results are preserved.'}</span></div>
     ${!applied && blockingState.inconsistentFlag ? '<div class="summary-row warning"><strong>Preview rechecked</strong><span>No invalid or conflicting rows were found. The database will validate the exact preview again before applying any change.</span></div>' : ''}
     ${!applied && blockingState.safetyBlocking ? `<div class="summary-row error"><strong>Server safety check blocked this import</strong><span>${escapeHtml(navisionSafetyIssueMessage(blockingState.safetyReason))} Nothing was changed.</span></div>` : ''}
     ${renderSharedNavisionChangeDetails(state, data)}
@@ -22363,7 +22363,7 @@ async function reviewNavisionCompleteSnapshot(pending, service, authorityIdentit
   renderSharedNavisionPreview(pending);
   const summary = data.dealer_groups.map(group =>
     `Dealer ${String(group.dealer_code).padStart(6,'0')}: ${Number(group.counts?.total || 0)} in this file; ${Number(group.counts?.missing || 0)} not in this file.`).join('\n');
-  if (!window.confirm(`Confirm this is the complete current Navision export for the included dealers?\n\n${summary}\n\nContinue only if this is the full export, not a filtered or partial list. Missing vehicles will leave the active sales planner under the existing Navision rules; their history is retained. Dealers absent from this file are unchanged.\n\nThis reviews only this exact file for your account for two hours. You will still confirm the import separately. It does not create vehicles on the PDC board or change bookings, Parts or workshop progress.`)) return false;
+  if (!window.confirm(`Confirm this is the complete current Navision export for the included dealers?\n\n${summary}\n\nContinue only if this is the full export, not a filtered or partial list. Missing vehicles will leave the active sales planner under the existing Navision rules; their history is retained. Dealers absent from this file are unchanged.\n\nThis reviews only this exact file for your account for two hours. You will still confirm the import separately. When applied, Delivered - At Dealer completes linked PMB vehicles and cancels their active bookings. Work items, Parts and QC results are preserved.`)) return false;
   if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return false;
   const approval = await service.reviewCompleteSnapshot(pending.rows, pending.previewResult, pending.metadata);
   if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return false;
@@ -22589,7 +22589,7 @@ async function applySharedNavisionImportPending(pending, authorityIdentity = '')
     return;
   }
   const totals = ['new', 'changed', 'unchanged', 'missing', 'invalid', 'conflict'].map(key => `${key} ${Number(counts[key] || 0)}`).join(', ');
-  if (!window.confirm(`Apply this exact shared Navision preview?\n\nDealer: ${navisionDealerName(pending.dealerCode)}\n${totals}\n\nThis writes only to the shared Navision backend. Browser-local authority, workflow, location, Parts and workshop data will not change.`)) return;
+  if (!window.confirm(`Apply this exact shared Navision preview?\n\nDealer: ${navisionDealerName(pending.dealerCode)}\n${totals}\n\nThis updates the shared Navision records. Delivered - At Dealer moves linked PMB vehicles to Completed Vehicles and cancels their active bookings. Booking history, work items, Parts and QC results are preserved.`)) return;
   service = navisionSharedBackendService();
   if (!service || !navisionSharedPendingStillCurrent(pending, authorityIdentity)) {
     window.alert('Import authority, service, or preview input changed before dispatch. Preview again; nothing was changed.');
