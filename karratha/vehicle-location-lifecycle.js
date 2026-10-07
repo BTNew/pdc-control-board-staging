@@ -11,7 +11,7 @@ const YARD_HOLD_STATUSES = Object.freeze(new Set([
   'vehicle waiting for wholesale',
 ]));
 const BODY_BUILDER_RELEASE_STATUS = 'delivered - at body builder';
-const DEALER_COMPLETION_STATUS = 'delivered - at dealer';
+const DEALER_FITMENT_ARRIVAL_STATUS = 'delivered - at dealer';
 
 function normalizeLifecycleStatus(value = '') {
   return String(value == null ? '' : value)
@@ -86,13 +86,10 @@ function resolveVehicleLifecycleLocation(vehicle = {}, options = {}) {
   const etaDate = lifecycleDateKey(lifecycleEta(vehicle));
 
   if (completed) return { location: 'Completed', transition: 'preserve_completed', status, businessDate, etaDate, pmbLatched: true };
-  if (status === DEALER_COMPLETION_STATUS) {
-    return pmbLatched
-      ? { location: 'Completed', transition: 'dealer_completed', status, businessDate, etaDate, pmbLatched }
-      : { location: current || 'Other', transition: 'dealer_before_pmb_ignored', status, businessDate, etaDate, pmbLatched };
-  }
   if (['RFT', 'QC', 'PIT'].includes(current)) return { location: current, transition: 'preserve_manual_progress', status, businessDate, etaDate, pmbLatched };
   if (pmbLatched) return { location: 'PMB', transition: 'preserve_pmb_latch', status, businessDate, etaDate, pmbLatched };
+  // Department 135 builds at the dealer; retain exact source status and existing progress.
+  if (status === DEALER_FITMENT_ARRIVAL_STATUS) return { location: 'PMB', transition: 'dealer_fitment_arrived', status, businessDate, etaDate, pmbLatched: false };
   if (status === BODY_BUILDER_RELEASE_STATUS) return { location: 'PMB', transition: 'released_to_pmb', status, businessDate, etaDate, pmbLatched: false };
   if (current === 'YH') return { location: 'YH', transition: 'preserve_yh_latch', status, businessDate, etaDate, pmbLatched: false };
   if (YARD_HOLD_STATUSES.has(status) && etaDate && etaDate < businessDate) {
@@ -116,7 +113,7 @@ const exported = {
   PDC_BUSINESS_TIME_ZONE,
   YARD_HOLD_STATUSES,
   BODY_BUILDER_RELEASE_STATUS,
-  DEALER_COMPLETION_STATUS,
+  DEALER_FITMENT_ARRIVAL_STATUS,
   normalizeLifecycleStatus,
   lifecycleStatusFromVehicle,
   businessDateInTimeZone,
