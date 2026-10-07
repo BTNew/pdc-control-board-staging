@@ -11,7 +11,7 @@
   <script src="canonical-entry.js?compact-approve=2026.09.14.01&amp;ai-estimates=2026.09.14.01&amp;operation-approval=2026.09.14.01&amp;performance=2026.09.13.01&amp;review-orange-match=2026.09.12.01&amp;review-orange=2026.09.12.01&amp;station-order=2026.09.12.01&amp;station-colours=2026.09.12.01&amp;compact-review=2026.09.12.01&amp;job-chip-fields=2026.09.12.01&amp;review-layout=2026.09.12.01&amp;inline-provider=2026.09.12.01&amp;parts-confirmation=2026.09.13.person-confirmed.1&amp;operation-updates=2026.09.12.01&amp;v=2026.09.11.sublet-columns&amp;planner-ready=2026.09.11.03&amp;book-all-stations=2026.09.11.02-refresh-identity&amp;weekday-hours=2026.09.11.01&amp;sublet-layout=2026.09.11.02&amp;slim-actions=2026.09.12.01&amp;review-fixes=2026.09.13.01&amp;deep-review=2026.09.13.01&amp;book-all-speed=2026.09.14.01&amp;service-locations=2026.09.14.03&amp;render-cost=2026.09.14.01&amp;sublet-qc=2026.09.14.01&amp;one-hour-gap=2026.09.14.01&amp;tune-hours=2026.09.14.01&amp;bulk-ready=2026.09.14.01&amp;qc-readable-text=2026.09.16.01&fitters=2026.09.16.03&amp;pmb-warning-fitters-qc=2026.09.16.01&amp;department138-bus=2026.09.16.01&amp;department138-tint=2026.09.17.01&amp;speed=2026.09.17.01&amp;planner-speed=2026.09.17.02&amp;department-filter=2026.09.19.01&amp;bhavesh-followup=2026.09.23.01&amp;pill-lines=2026.10.02.15"></script>
   <title>Karratha PMG — Department 135</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="site-switcher.css?v=2026.10.01.01" />
+  <link rel="stylesheet" href="site-switcher.css?v=2026.10.07.01" />
   <link rel="stylesheet" href="styles.css?upload-profiles=2026.10.02.08&amp;v=2026.08.29.741-rft-draft&amp;vehicle-locations-refresh=2026.08.30.773-class-refresh&amp;parts-received=2026.08.29.751-authenticated&amp;qc-photo-mobile=2026.08.30.767-qc-reject-mobile&amp;hours-batch=2026.08.30.768&amp;sublet-projection=2026.08.30.900&amp;pdc14=2026.09.04.0110-canonical-state&amp;qc-mobile-refresh=2026.09.04.02&amp;location-summary=2026.09.10.01&amp;parts-jita=2026.09.11.01&amp;jita-heading=2026.09.11.01&amp;location-sort=2026.09.11.01&amp;planner-nav=2026.09.11.01&amp;provider-email=2026.09.11.01&amp;parts-flags=2026.09.11.01&amp;sublet-jump=2026.09.12.01&amp;deep-review=2026.09.13.01&amp;bay-timeline=2026.09.15.02&amp;department-colours=2026.09.15.02&amp;calendar-page-scroll=2026.09.15.01&amp;timeline-pan=2026.09.16.01&amp;admin-users=2026.09.16.01&amp;department-filter=2026.09.19.01&amp;history-actors=2026.10.03.01" />
   <!-- Legacy release markers remain discoverable for compatibility checks; prior vehicle-locations-refresh=2026.08.29.738, vehicle-locations-refresh=2026.08.30.771-slimline-bar and vehicle-modal-identity.js?v=2026.08.30.771-slimline-bar remain compatibility markers while changed assets use the 773 release URLs above and below. The previous deployed module marker vehicle-locations-refresh-ui.js?v=2026.08.30.771-slimline-bar is retained for source-contract compatibility. The authenticated Parts receipt successor uses the 751 cache marker. styles.css?v=2026.08.29.737-email-update-modal-front email-modal=2026.08.29.737-email-update-modal-front styles.css?v=2026.08.29.736-rft-final-controls app.js?v=2026.08.27.706-final-authoritative-lifecycle pdc-email-vehicle-location-service.js?v=2026.08.27.706-final-authoritative-lifecycle -->
   <link rel="stylesheet" href="pdc-ai-intake-review.css?v=2026.07.28.20-ai-review-card-separation" />
@@ -110,6 +110,7 @@
 
       </div>
 
+<label class="site-switcher" data-site-switcher hidden><span>Website</span><select id="pdc-site-switcher" aria-label="Switch website" disabled><option value="pmb">PMG (Dept 138/139)</option><option value="karratha">Karratha Toyota (135)</option><option value="broome">Broome Toyota (Sales)</option></select></label>
       <div class="nav-scroll-cue" aria-hidden="true">Swipe navigation for more →</div>
       <nav class="nav">
         <button type="button" class="nav-item active" data-view="dashboard" data-short="LOC">Vehicle Locations</button>
@@ -149,7 +150,7 @@
           <h1 id="page-title">Vehicle Locations</h1>
         </div>
         <div class="topbar-actions">
-          <label class="site-switcher" data-site-switcher hidden><span>Website</span><select id="pdc-site-switcher" aria-label="Switch website" disabled><option value="pmb">PMB</option><option value="broome">Broome Toyota</option></select></label>
+
           <span class="pdc-auth-user" id="pdc-auth-user" hidden></span>
           <button class="ghost" id="pdc-auth-signout" type="button" hidden>Sign out</button>
 
@@ -876,7 +877,7 @@
         </div>
         </section>
 
-        
+
     </main>
   </div>
 
@@ -931,8 +932,8 @@
   <script src="pd135-api-map.js"></script>
   <script src="pd135-transport.js"></script>
   <script src="pdc-supabase-config.staging.js?v=2026.09.04.0110-pdc14-location-replay"></script>
-  <script src="site-switcher.js?v=2026.10.01.01"></script>
-  <script src="pd135-navigation.js?v=2026.10.04.01"></script>
+  <script src="site-switcher.js?v=2026.10.07.01"></script>
+  <script src="pd135-navigation.js?v=2026.10.07.01"></script>
   <script src="pdc-auth.js?v=2026.08.11.27-auth-foreground&amp;fitter-only=2026.09.16.01&amp;sales-site=2026.10.01.01"></script>
   <script src="pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
   <script src="pdc-update-history.js?v=2026.09.30.01"></script>

@@ -1,0 +1,13 @@
+# Department 135 owner-supplied service and parts files
+
+Craig authorised the 7 October 2026 Karratha service and parts workbooks for Department 135 only. This does not expand the PMB email monitor or change its 138/139 scope.
+
+The management-only `karratha135_intake.import_owner_attachment_20261007` connector binds each source workbook and prepared payload to an immutable manifest. It uses the existing isolated Department 135 native service preview/apply engine. It accepts an explicit owner attachment envelope; it does not pretend the workbook came from Gmail or create a staff session. Anonymous, authenticated and service-role callers have no direct execution grant.
+
+Run service before parts. Preserve the original workbook, raw rows, source snapshot time, source hours (including zero), company 01/division 1, department 135 and exact stock/job-card/line identities. The caller must verify the dedicated importer starts disabled, run in a single bound transaction, verify its original disabled state is restored and read back the saved receipts. No routine import approves New Vehicles or Updated Operations, invents hours, restores vehicles, creates bookings or signs off QC.
+
+The parts connector reuses PMB's exact existing active-job matching and numeric flag/freshness rules in the isolated Department 135 schema. It creates no jobs, vehicles or operations. A matching job card on a pending-review, hidden/At Dealer, deleted or closed job is not eligible. Record these as held or disregarded; a receipt with zero changes is not a parts-complete confirmation. Preserve the original report and row outcomes for review; do not alter an old receipt or blindly replay it after a vehicle is approved.
+
+Live function comparison on 7 October confirmed equivalent service preview/apply, New Vehicles approval, operation-change approval and guarded QC finalisation after mapping only isolated schemas, department scope, locks, settings and the QC evidence bucket. Current September catalogue review preserved unresolved source zero hours for staff review. Rollback tests verified replay protection, no PMB data changes, importer restoration and no QC sign-offs/bookings. The actual workbook transaction was then committed and read back: 45 vehicles, 51 job cards, 112 service lines; parts updated zero jobs because no report row matched an eligible active board job. Private source workbooks and operational evidence are kept outside the published website.
+
+Website navigation uses one administrator Website control under the logo on all three sites: PMG (Dept 138/139), Karratha Toyota (135), and Broome Toyota (Sales). It only navigates; each destination retains its own authentication and data boundary.
