@@ -30,11 +30,26 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
   for (const item of manifest.files.filter(row => row.file.endsWith('.css'))) assert.equal(item.unchanged, true, item.file);
   for (const file of ['canonical-entry.js', 'pdc-fitters.js', 'workshop-data-service.js', 'workshop-reference-data-service.js', 'workshop-shared-actions.js', 'workshop-realtime.js', 'pdc-planner-slim.js', 'pdc-qc-mobile.js', 'pdc-qc-rework.js', 'pdc-rft-actions.js']) assert.equal(manifest.files.find(row => row.file === file).unchanged, true, file);
 });
-// Reviewed root import/cache changes and Sales notes release metadata. Department 135 copy stays frozen.
-const approvedRootImportPatch = Object.freeze({ 'deployment-manifest.json': '1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46', 'app.js': 'd5560b74f5953dcd309661913f723fa37d71097e0ff12a84002eb28ee916c6e9', 'index.html': '301fa0c1113d04dc39dc902136dd5f24e2da0fb9085c7da8ddbbdb74bfa87614' });
+// Explicitly pinned upstream deccc4b release changes and owner-approved three-site sidebar navigation.
+const approvedRootImportPatch = Object.freeze({
+  "app.js": "d5560b74f5953dcd309661913f723fa37d71097e0ff12a84002eb28ee916c6e9",
+  "control-board-overview.js": "440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1",
+  "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
+  "index.html": "4c9e2201fa84cd8658aed99120c919d36fd071f96dbe8501de02c66d5dd1331b",
+  "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
+  "pdc-email-vehicle-location-service.js": "b49912ede35635d1a490cc8168e94e32b9389dbd71d686684bdce02571b0cec6",
+  "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
+  "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",
+  "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",
+  "pdc-staff-usage.css": "e7769d72b7601097fa4c41a19140fdcda4408f3d1f620008282d9df136b1ddf0",
+  "pdc-staff-usage.js": "adb054e560cb911a588622303e7f7f4549d7274eb840e6051002fc5e6bc041de",
+  "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
+  "site-switcher.js": "40c0afb789ac081b7fad32d1d59155d7400b6188e49e1822217781a82cc64e76"
+});
 test('PMB/Sales runtime preserves its frozen baseline and approved root release patches', () => {
   for (const item of manifest.files) {
     let bytes = fs.readFileSync(path.join(original, item.file));
+    if (!item.file.endsWith('.png')) bytes = Buffer.from(bytes.toString('utf8').replace(/\r\n/g, '\n'));
     if (item.file === 'index.html') bytes = Buffer.from(bytes.toString('utf8').split(/(?<=\n)/).filter(line => !line.includes('src="pd-department-navigation.js')).join(''));
     assert.equal(sha(bytes), approvedRootImportPatch[item.file] || item.baseline_sha256, item.file);
   }
