@@ -1,0 +1,35 @@
+/* Compact operation-change review. Keep descriptions and validation visible. */
+#newvehicles .nv-operation-updates{margin-top:18px;padding-top:14px}
+#newvehicles .nv-operation-updates>h2{margin:0 0 4px;font-size:17px}
+#newvehicles .nv-operation-updates>p{margin:0 0 10px}
+#newvehicles .nv-update-card{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:4px 14px;margin:8px 0;padding:10px 12px;border-radius:8px;min-width:0}
+#newvehicles .nv-update-card>header{grid-column:1/-1;gap:8px;margin:0;padding:0;min-width:0}
+#newvehicles .nv-update-card h3{margin:0;font-size:14px;line-height:1.35;overflow-wrap:anywhere}
+#newvehicles .nv-update-card>header>span{font-size:11px;line-height:1.35}
+#newvehicles .nv-update-card>p{grid-column:1;margin:0;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+#newvehicles .nv-update-card>p>small{font-size:10px}
+#newvehicles .nv-update-compare{grid-column:1;grid-row:3;gap:8px;min-width:0}
+#newvehicles .nv-update-compare>section{min-width:0;padding:6px 8px;border-radius:4px}
+#newvehicles .nv-update-compare h4{margin:0 0 3px;font-size:11px;line-height:1.35}
+#newvehicles .nv-update-compare p{margin:0;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+#newvehicles .nv-update-compare small{font-size:10px;line-height:1.35}
+#newvehicles .nv-update-controls{grid-column:2;grid-row:2/span 5;display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:5px 8px;align-content:start;align-items:start;min-width:0}
+#newvehicles .nv-update-controls>label{display:grid;gap:3px;margin:0;min-width:0;font-size:11px;line-height:1.35}
+#newvehicles .nv-update-controls label small{font-size:10px;line-height:1.35}
+#newvehicles .nv-update-controls select,#newvehicles .nv-update-controls input{box-sizing:border-box;width:100%;max-width:100%;height:32px;min-height:32px;padding:4px 6px;font-size:12px;margin:0}
+#newvehicles .nv-update-controls>button{grid-column:1/-1;width:100%;min-height:34px;height:auto;margin:2px 0 0;padding:6px 9px;font-size:12px;line-height:1.35;white-space:normal}
+#newvehicles .nv-update-card>.nv-update-issues:empty{display:none}
+#newvehicles .nv-update-card>.nv-update-issues{font-size:11px}
+#newvehicles .nv-update-card>small{grid-column:1;margin:0;font-size:10px;line-height:1.4;overflow-wrap:anywhere}
+@media(max-width:1100px){
+ #newvehicles .nv-update-card{grid-template-columns:minmax(0,1fr);gap:6px;padding:10px}
+ #newvehicles .nv-update-compare{grid-row:auto}
+ #newvehicles .nv-update-controls{grid-column:1;grid-row:auto;grid-template-columns:minmax(160px,1fr) 100px minmax(160px,1fr);align-items:start}
+ #newvehicles .nv-update-controls>button{grid-column:auto;align-self:center;min-height:40px;margin:0}
+}
+@media(max-width:700px){
+ #newvehicles .nv-update-compare{grid-template-columns:1fr}
+ #newvehicles .nv-update-controls{grid-template-columns:minmax(0,1fr) 100px}
+ #newvehicles .nv-update-controls>button{grid-column:1/-1;min-height:44px}
+ #newvehicles .nv-update-controls select,#newvehicles .nv-update-controls input{height:40px;min-height:40px}
+}

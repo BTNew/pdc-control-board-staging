@@ -91,6 +91,7 @@
   function bookingStatus(value){return bookingLabels[value]||value||'Not recorded';}
   function pmbSummary(row){
     if(!row.canonical_vehicle_id)return {status:'Not linked to PMB',location:'PMB details appear when the order is linked',bookings:[]};
+    if(row.lifecycle_state==='completed'||String(row.pmb_location||'').trim().toLowerCase()==='completed')return {status:'Completed · Delivered to dealer',location:'Completed Vehicles',bookings:[]};
     const all=Array.isArray(row.bay_bookings)?row.bay_bookings:[];
     const live=all.filter(b=>['started','stoppage'].includes(b.status));
     const active=live.find(b=>b.booking_id===row.active_workshop_booking_id);

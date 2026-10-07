@@ -12,10 +12,11 @@ BEGIN
   IF NOT public.pdc_monitor_staging_guard() THEN RAISE EXCEPTION 'Staging required'; END IF;
   SELECT v.id,b.id,b.last_seen_batch_id INTO v_id,b_id,b_batch
   FROM public.vehicles v JOIN public.navision_backend_records b ON b.canonical_vehicle_id=v.id
-  WHERE v.lifecycle_state='completed' AND v.dealer_transit_closed_at IS NOT NULL
+  WHERE v.lifecycle_state='completed'
     AND b.is_current AND b.record_status='current'
+    AND regexp_replace(lower(b.normalized_data->>'toyotaStatus'),'[[:space:]–—-]','','g')='deliveredatdealer'
     AND EXISTS(SELECT 1 FROM public.pdc_rft_transport_lifecycle_receipts_734 r WHERE r.vehicle_id=v.id AND r.action='delivered')
-  ORDER BY v.dealer_transit_closed_at DESC LIMIT 1;
+  ORDER BY v.dealer_transit_closed_at DESC NULLS LAST,v.id LIMIT 1;
   IF v_id IS NULL OR b_batch IS NULL THEN RAISE EXCEPTION 'No completed receipt-backed verification row'; END IF;
   SELECT jsonb_build_object('stock',stock_number,'lifecycle',lifecycle_state,'location',current_location,
     'pmb',date_to_pmb,'rft',date_to_rft,'rft_transfer',rft_transferred_at,'confirmed',rft_confirmed_at,
