@@ -1,7 +1,40 @@
 (function (root) {
   'use strict';
-  const PAGES = new Set(['dashboard','qc','workflow','planner-bus-4x4','planner-tint','planner-hoist','planner-fitting','planner-fab','planner-elec','planner-tyre','parts','sublet','user-management','lists','import','backup','deleted','collected','completed','backend','newvehicles','emailreview','ai-auditor','other']);
+  const PAGE_LABELS = Object.freeze({
+    dashboard:'Vehicle Locations', qc:'QC Sign-off', fitters:'Fitters Bay', workflow:'Control Board',
+    'planner-bus-4x4':'Bus 4×4', 'planner-tint':'Tint', 'planner-hoist':'Hoist',
+    'planner-fitting':'Fitting', 'planner-fab':'Fabrication', 'planner-elec':'Electrical', 'planner-tyre':'Tyres',
+    workshop:'Workshop Planner', visibility:'Workshop Visibility', tv:'TV Board', schedule:'Schedule',
+    department:'Departments', parts:'Parts', sublet:'Sublet', rft:'Ready for Transport',
+    'user-management':'User Management', lists:'Setup', import:'Navision Uploads',
+    'update-history':'Update History', backup:'Backup / Restore', deleted:'Deleted Vehicles',
+    collected:'Collected Vehicles', completed:'Completed Vehicles', backend:'Back End Data',
+    newvehicles:'New Vehicles', emailreview:'Email Review', 'ai-auditor':'AI Auditor', zpl:'Labels',
+    'sales-myday':'Sales · My Day', 'sales-dashboard':'Sales · Dashboard', 'sales-pipeline':'Sales · Vehicle Pipeline',
+    'sales-customeremails':'Sales · Customer Emails', 'sales-alerts':'Sales · Alerts',
+    'sales-finance':'Finance · Pipeline', 'sales-finance-statistics':'Finance · Statistics',
+    'sales-finance-applications':'Finance · All Applications', 'sales-labels':'Sales · Labels',
+    'sales-history':'Sales · Completed Vehicles', other:'Other'
+  });
+  const PAGES = new Set(Object.keys(PAGE_LABELS));
   const cleanPage = page => PAGES.has(page) ? page : 'other';
+  function resolvePage(doc) {
+    const salesNav = doc.querySelector('.nav-item.active[data-sales-view]');
+    const salesView = doc.querySelector('.sales-view:not([hidden])');
+    if (salesNav || salesView) {
+      const name = salesNav?.dataset.salesView || salesView?.id?.replace(/^sales-(.+)-view$/, '$1');
+      if (name === 'finance') {
+        const tab = doc.querySelector('[data-finance-view][aria-pressed="true"]')?.dataset.financeView;
+        if (tab === 'statistics') return 'sales-finance-statistics';
+        if (tab === 'all') return 'sales-finance-applications';
+      }
+      return cleanPage('sales-' + name);
+    }
+    const view = doc.querySelector('.view.active')?.id;
+    const nav = doc.querySelector('.nav-item.active[data-view]')?.dataset.view;
+    // All seven station planners render inside the same workshop section.
+    return cleanPage(view === 'workshop' && nav?.startsWith('planner-') ? nav : view || nav || 'dashboard');
+  }
   class UsageQueue {
     constructor(uuid) { this.uuid = uuid; this.reset(); }
     reset() { this.user = ''; this.page = ''; this.queue = []; this.current = null; }
@@ -68,7 +101,7 @@
       return activity === 'used' ? used : activity === 'unused' ? !used : true;
     });
   }
-  if (typeof module !== 'undefined') module.exports = { UsageQueue, cleanPage, sortUsageUsers, filterUsageUsers, usagePresence };
+  if (typeof module !== 'undefined') module.exports = { UsageQueue, cleanPage, resolvePage, PAGE_LABELS, sortUsageUsers, filterUsageUsers, usagePresence };
   if (!root.document) return;
   const doc = root.document;
   const queue = new UsageQueue(() => root.crypto.randomUUID());
@@ -79,10 +112,7 @@
   const expandedUsers = new Set();
   const monotonicNow = () => root.performance?.now ? root.performance.now() : Date.now();
   const context = () => root.PDC_AUTH_CONTEXT;
-  const page = () => {
-    const view = doc.querySelector('.view.active')?.id;
-    return cleanPage(PAGES.has(view) ? view : doc.querySelector('.nav-item.active[data-view]')?.dataset.view || 'dashboard');
-  };
+  const page = () => resolvePage(doc);
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function signedRequest(name, body) {
     const ctx = context(), token = root.__pdcCachedAccessToken, config = root.PDC_SUPABASE_CONFIG;
@@ -95,11 +125,17 @@
   }
   async function flush() {
     if (sending || !context()?.userId || queue.user !== context().userId) return;
-    const batch = queue.next(); if (!batch) return;
     const owner = generation; sending = true;
     try {
-      const result = await signedRequest('record_pdc_usage_20260914', batch);
-      if (owner === generation && result?.ok) queue.acknowledge(batch.p_batch_id);
+      // Drain short navigation bursts without leaving later pages queued for minutes.
+      // Bound each flush and stop on failure so retries retain the original batch ID.
+      for (let sent = 0; sent < 8; sent++) {
+        if (owner !== generation || queue.user !== context()?.userId) return;
+        const batch = queue.next(); if (!batch) return;
+        const result = await signedRequest('record_pdc_usage_20260914', batch);
+        if (owner !== generation || !result?.ok) return;
+        queue.acknowledge(batch.p_batch_id);
+      }
     } catch (_) { /* Retry the same batch ID without doubling successful writes. */ }
     finally { if (owner === generation) sending = false; }
   }
@@ -107,7 +143,7 @@
   function onRoute() {
     if (authLocked) return;
     if (authOwner !== (context()?.userId || '') || authRole !== (context()?.role || '')) { ready(); return; }
-    if (!context()?.userId) return;
+    if (!context()?.userId || doc.visibilityState === 'hidden') return;
     queue.visit(page());
     if (!reportVisible()) { wasReportVisible = false; return; }
     const enteringReport = !wasReportVisible; wasReportVisible = true;
@@ -145,13 +181,13 @@
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleString('en-AU',{timeZone:'Australia/Perth',dateStyle:'medium',timeStyle:'short'});
   }
-  const labels = {'dashboard':'Vehicle Locations','workflow':'Control Board','qc':'QC Sign-off','newvehicles':'New Vehicles','user-management':'User Management','planner-bus-4x4':'Bus 4×4','planner-tint':'Tint','planner-hoist':'Hoist','planner-fitting':'Fitting','planner-fab':'Fabrication','planner-elec':'Electrical','planner-tyre':'Tyres'};
+  const labels = PAGE_LABELS;
   function ensurePanel() {
     let panel = doc.getElementById('staff-usage-panel');
     if (panel) return panel;
     const parent = doc.querySelector('#user-management .pdc-lists-layout'); if (!parent) return null;
     panel = doc.createElement('section'); panel.id = 'staff-usage-panel'; panel.className = 'panel pdc-list-panel'; panel.hidden = true;
-    panel.innerHTML = '<div class="panel-header"><div><h2>Board usage</h2><p>Sign-ins, page visits and clicks by staff member.</p></div><div class="staff-usage-controls"><label>Period <select data-usage-days><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select></label><button type="button" class="small-button" data-usage-refresh>Refresh usage</button></div></div>'+
+    panel.innerHTML = '<div class="panel-header"><div><h2>Website activity</h2><p>Activity across PDC, workshop planners and Sales, including Finance and customer emails.</p></div><div class="staff-usage-controls"><label>Period <select data-usage-days><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select></label><button type="button" class="small-button" data-usage-refresh>Refresh usage</button></div></div>'+
       '<div class="staff-usage-toolbar"><label class="staff-usage-search">Find staff<input type="search" data-usage-search placeholder="Search name or email" autocomplete="off"></label><label>Activity<select data-usage-activity><option value="all">All staff</option><option value="active">Active now</option><option value="used">Used in selected period</option><option value="unused">No activity in period</option></select></label><label>Sort by<select data-usage-sort><option value="last_active_at">Last activity</option><option value="last_sign_in_at">Last sign-in</option><option value="sign_ins">Sign-ins</option><option value="active_days">Active days</option><option value="page_visits">Page visits</option><option value="clicks">Clicks</option><option value="name">Name / email</option></select></label><button type="button" class="small-button staff-usage-direction" data-usage-direction>Newest first ↓</button></div>'+
       '<p class="staff-usage-results" data-usage-results></p><p class="staff-usage-note" data-usage-note></p><div class="staff-usage-sr-only" data-usage-status role="status" aria-live="polite" aria-atomic="true"></div><div data-usage-content></div><details class="staff-usage-about"><summary>About counts</summary><p data-usage-counts></p></details>';
     parent.append(panel);
@@ -248,7 +284,9 @@
     }
   }
   doc.addEventListener('click', event => {
-    if (!event.isTrusted || !event.target?.closest?.('#app-shell') || !context()?.userId) return;
+    if (!event.isTrusted || authLocked || doc.visibilityState === 'hidden' || !event.target?.closest?.('#app-shell, dialog') || !context()?.userId) return;
+    // Synchronise a changed principal before attributing the click to a queue.
+    if (authOwner !== context().userId || authRole !== context().role) ready();
     queue.click(); root.setTimeout(onRoute,0);
   }, true);
   root.addEventListener('pdc-auth-ready', ready);
@@ -258,7 +296,7 @@
   doc.addEventListener('visibilitychange', () => { if (doc.visibilityState === 'hidden') { wasReportVisible = false; flush(); } else onRoute(); });
   root.addEventListener('pagehide', flush);
   const observer = new root.MutationObserver(onRoute);
-  doc.querySelectorAll('.view').forEach(view => observer.observe(view,{attributes:true,attributeFilter:['class']}));
+  doc.querySelectorAll('.view, .sales-view').forEach(view => observer.observe(view,{attributes:true,attributeFilter:['class','hidden']}));
   root.setInterval(flush,15000);
   root.setInterval(() => {
     if (authOwner !== (context()?.userId || '') || authRole !== (context()?.role || '')) { if (!authLocked) ready(); return; }
