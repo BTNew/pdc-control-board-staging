@@ -678,6 +678,10 @@
 
   async function initialize() {
     lockApplication();
+    if (window.PDC_SUPABASE_CONFIG?.departmentPaused === true) {
+      setMessage('Department 135 is paused', 'We are focusing on Departments 138 and 139. Your existing records and history have been preserved.', 'denied');
+      return;
+    }
     const config = authConfig();
     if (!window.supabase?.createClient || !config.url || !config.publishableKey || config.publishableKey.includes('PASTE_')) {
       setMessage('Login setup required', 'The browser authentication configuration has not been installed for this deployment.', 'setup');

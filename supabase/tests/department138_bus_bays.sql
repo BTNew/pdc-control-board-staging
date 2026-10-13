@@ -111,8 +111,9 @@ BEGIN
   WHERE o.department='138'
  LOOP
   checked:=checked+1;
-  IF projected->>'work_key' IS DISTINCT FROM 'bus4x4'
-   OR projected->>'classification' IS DISTINCT FROM 'BUS_4X4'
+  IF NOT (coalesce(projected->>'work_key'='bus4x4' AND projected->>'classification'='BUS_4X4',false)
+    OR coalesce(projected->>'work_key'='tint' AND projected->>'classification'='TINT'
+      AND projected->>'station_assignment_source'='department_138_tint_exception',false))
   THEN RAISE EXCEPTION 'board_department138_projection_failed: %',projected; END IF;
  END LOOP;
  IF checked=0 THEN RAISE EXCEPTION 'board_department138_test_exercised_no_lines'; END IF;
@@ -124,7 +125,7 @@ BEGIN
    stage_code,description,estimated_hours,manual_assignment_locked,created_by,updated_by)
   VALUES(fixture,'source:'||operation_write,'source','FITTING','Department 138 write guard',1.25,true,actor,actor);
  EXCEPTION WHEN check_violation THEN
-  IF SQLERRM<>'department_138_requires_bus_4x4' THEN RAISE; END IF;
+  IF SQLERRM<>'department_138_requires_correct_station' THEN RAISE; END IF;
   rejected:=true;
  END;
  IF NOT rejected THEN RAISE EXCEPTION 'department138_invalid_insert_accepted'; END IF;
@@ -137,7 +138,7 @@ BEGIN
   UPDATE public.vehicle_workshop_line_adjustments SET stage_code='FITTING',version=version+1
   WHERE adjustment_id=adjustment_write;
  EXCEPTION WHEN check_violation THEN
-  IF SQLERRM<>'department_138_requires_bus_4x4' THEN RAISE; END IF;
+  IF SQLERRM<>'department_138_requires_correct_station' THEN RAISE; END IF;
   rejected:=true;
  END;
  IF NOT rejected THEN RAISE EXCEPTION 'department138_invalid_update_accepted'; END IF;
@@ -147,7 +148,7 @@ BEGIN
  BEGIN
   UPDATE public.vehicle_workshop_line_adjustments SET active=true,version=version+1 WHERE adjustment_id=adjustment_write;
  EXCEPTION WHEN check_violation THEN
-  IF SQLERRM<>'department_138_requires_bus_4x4' THEN RAISE; END IF;
+  IF SQLERRM<>'department_138_requires_correct_station' THEN RAISE; END IF;
   rejected:=true;
  END;
  IF NOT rejected THEN RAISE EXCEPTION 'department138_invalid_reactivation_accepted'; END IF;
