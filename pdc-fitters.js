@@ -148,7 +148,7 @@
         if (!current(owner, write)) throw error('Your sign-in changed. Refresh before continuing.', 'session_changed');
         if (!result.ok || result.body?.ok !== true) {
           const code = serverErrorCode(result.body);
-          throw error(bookingConflictMessage(result.body,body?.p_action)||errors[code] || 'The workshop could not save this change. Refresh and ask the controller to check the booking if it continues.', code);
+          throw error(bookingConflictMessage(result.body,body?.p_action)||errors[code] || (write ? 'The workshop could not save this change. Refresh and ask the controller to check the booking if it continues.' : 'The workshop could not load your jobs. Refresh and ask the controller to check access if it continues.'), code);
         }
         return result.body;
       } catch (e) {
@@ -254,7 +254,7 @@
   const busPending = () => Boolean(busService()?.retryPending);
   let supplierDraftKey = '';
   let roster = [], mechanic = '', jobs = [], bays = [], selected = '', detail = null;
-  let loading = false, refreshing = false, connected = false, message = '', loadGeneration = 0, initialized = false, lastSync = 0;
+  let loading = false, refreshing = false, connected = false, message = '', readErrorMessage = '', loadGeneration = 0, initialized = false, lastSync = 0;
   let stopOpen = false, stopReason = '', stopType = 'Parts', saving = false, pendingDraftKey = '', pendingAction = '';
   let detailReceivedAt = 0, timerFreeze = null;
   let handover = null, scrollToCurrent = false;
@@ -374,7 +374,9 @@
       selected=nextSelected; detail=nextDetail; detailReceivedAt=clockNow();
       if(!service.retryPending || timerFreeze?.bookingId!==nextSelected) timerFreeze=null;
       connected=true; lastSync=Date.now();
-    } catch(e) { if (generation===loadGeneration) { freezeTimer(); connected=false; message=e.message; } }
+      if(message===readErrorMessage) message='';
+      readErrorMessage='';
+    } catch(e) { if (generation===loadGeneration) { freezeTimer(); connected=false; message=readErrorMessage=e.message; } }
     finally { if (generation===loadGeneration) {
       loading=false; refreshing=false;
       if (!background || before!==viewKey()) render();

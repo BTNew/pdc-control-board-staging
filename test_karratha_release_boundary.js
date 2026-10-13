@@ -29,6 +29,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     // Shared PDC/Sales now includes Sales activity; the native centre retains its
     // original own-engine tracker. Pin that unchanged asset independently.
     if (item.file === 'pdc-staff-usage.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'adb054e560cb911a588622303e7f7f4549d7274eb840e6051002fc5e6bc041de',item.file);
+    // PMG now has a read-error recovery repair; keep the isolated fitter asset at its original baseline.
+    else if (item.file === 'pdc-fitters.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -38,10 +40,12 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 });
 // Explicitly pinned upstream deccc4b release changes and owner-approved three-site sidebar navigation.
 const approvedRootImportPatch = Object.freeze({
+  // Owner-authorised PMG fitter read recovery, 13 October 2026.
+  "pdc-fitters.js": "907dc77d86a313f87a09f706515221ef9b3bc9814edcea91aa1ac4a982f4a146",
   "app.js": "d5560b74f5953dcd309661913f723fa37d71097e0ff12a84002eb28ee916c6e9",
   "control-board-overview.js": "440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "b4e52c47fcca96f954e6c3f2b430a9a5a4f4b5a50e363f2ac7131b781a126d16",
+  "index.html": "512ddc3b870b8d1fac66975719f378b26afbdd73474af673c95e5caca7375954",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "b49912ede35635d1a490cc8168e94e32b9389dbd71d686684bdce02571b0cec6",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",

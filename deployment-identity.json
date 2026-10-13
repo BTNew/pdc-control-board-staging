@@ -1140,5 +1140,13 @@
     },
     "access": "Private management-only SECURITY INVOKER functions; no PUBLIC, anonymous, authenticated or service-role execution grants",
     "verification": "Genuine-report rollback and committed readback: preview then apply, service before parts, source/hash/snapshot/scope guards, replay receipts, native review/QC preservation, exact disabled importer restoration and unchanged PMG/bookings/native-function/grant fingerprints"
+  },
+  "fitter_refresh_request_gate_migration": {
+    "version": "20261013042847",
+    "name": "fitter_refresh_request_gate",
+    "file": "supabase/migrations/20261013042847_fitter_refresh_request_gate.sql",
+    "sha256": "7e6bf9ee54eb1f893b4e142b55f0df7a75cc0c0231876b0cd45e809abd3b1936",
+    "commissioned": true,
+    "review_status": "staging_applied"
   }
 }
