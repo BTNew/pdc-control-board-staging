@@ -140,3 +140,19 @@ test('optimized checkbox saves and completion force immediate full refreshes and
   s.action.handlers.click({currentTarget:s.action});await flush();
   assert.equal(s.calls.at(-1).body.p_known_revision,null);assert.match(s.html,/No more jobs assigned/);
 });
+
+test('failed read says jobs could not load and never creates an uncertain save',async()=>{
+  const config={projectRef:'cdsmnqxtyyoeoznmbidd',url:'https://cdsmnqxtyyoeoznmbidd.supabase.co',workshop:{sharedData:true}};
+  const service=createService({context:()=>({actor:'staff',token:'session',role:'fitter',config}),
+    fetch:async()=>({ok:false,json:async()=>({code:'42501',message:'This account can access Fitters bay only'})})});
+  await assert.rejects(service.refresh('mechanic',''),e=>/could not load your jobs/.test(e.message)&&!/could not save/.test(e.message));
+  assert.equal(service.retryPending,false);
+});
+test('successful refresh clears a previous loading error without sending a command',async()=>{
+  const s=screen();const fetch=s.root.fetch;let fail=true;
+  s.root.fetch=(...args)=>fail?Promise.resolve({ok:false,json:async()=>({code:'42501'})}):fetch(...args);
+  s.root.PdcFitters.open();await flush();assert.match(s.html,/could not load your jobs/);
+  fail=false;s.poll();await flush();
+  assert.doesNotMatch(s.html,/could not load your jobs/);assert.match(s.html,/Connected/);
+  assert.equal(s.calls.filter(c=>c.name==='fitter_job_command').length,0);
+});
