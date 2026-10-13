@@ -45,7 +45,7 @@ const approvedRootImportPatch = Object.freeze({
   "app.js": "d5560b74f5953dcd309661913f723fa37d71097e0ff12a84002eb28ee916c6e9",
   "control-board-overview.js": "440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "512ddc3b870b8d1fac66975719f378b26afbdd73474af673c95e5caca7375954",
+  "index.html": "9ac30b80deaa09b67dce4712aeca12daa4870aaf35aa260985c7a2f2270c00cc",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "b49912ede35635d1a490cc8168e94e32b9389dbd71d686684bdce02571b0cec6",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
@@ -54,7 +54,7 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-staff-usage.css": "e7769d72b7601097fa4c41a19140fdcda4408f3d1f620008282d9df136b1ddf0",
   "pdc-staff-usage.js": "decb91ede49d1b512cb14c1cc74214efbaedcc5b21c3f8f227cbfa9e827cd364",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
-  "site-switcher.js": "40c0afb789ac081b7fad32d1d59155d7400b6188e49e1822217781a82cc64e76"
+  "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938"
 });
 test('PMB/Sales runtime preserves its frozen baseline and approved root release patches', () => {
   for (const item of manifest.files) {

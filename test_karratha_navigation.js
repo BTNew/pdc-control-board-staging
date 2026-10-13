@@ -11,11 +11,11 @@ function page(role, site) {
   vm.runInNewContext(source, {window, document, URL});
   return {window, handlers, events, visits, label, select};
 }
-test('administrator can switch between all three sites from every site', () => {
-  for (const current of Object.keys(routes)) for (const destination of Object.keys(routes)) {
+test('administrator can switch between active PMG and Sales sites, including from the parked site', () => {
+  for (const current of Object.keys(routes)) for (const destination of ['pmb','broome']) {
     const p = page('administrator', current);
     assert.equal(p.label.hidden, false); assert.equal(p.select.disabled, false);
-    assert.equal(p.select.value, current);
+    assert.equal(p.select.value, current === 'karratha' ? 'pmb' : current);
     p.select.value = destination; p.events.change();
     assert.deepEqual(p.visits, destination === current ? [] : [root + routes[destination]]);
   }
@@ -27,7 +27,7 @@ test('existing role and session guard protects navigation on all sites', () => {
       p.select.value = 'broome'; p.events.change(); assert.equal(p.visits.length, 0);
     }
     const p = page('administrator', site); p.window.PDC_AUTH_CONTEXT = null; p.handlers['pdc-auth-locked']();
-    assert.equal(p.label.hidden, true); assert.equal(p.select.value, site);
+    assert.equal(p.label.hidden, true); assert.equal(p.select.value, site === 'karratha' ? 'pmb' : site);
   }
 });
 test('one Website control sits under each sidebar logo before navigation', () => {
@@ -37,8 +37,17 @@ test('one Website control sits under each sidebar logo before navigation', () =>
     assert.equal(html.split('id="pdc-site-switcher"').length - 1, 1, file);
     assert.ok(sidebar.indexOf('data-site-switcher') > sidebar.indexOf('<img'), file);
     assert.ok(sidebar.indexOf('data-site-switcher') < sidebar.indexOf('<nav'), file);
-    for (const label of ['PMG (Dept 138/139)', 'Karratha Toyota (135)', 'Broome Toyota (Sales)']) assert.ok(sidebar.includes(label));
+    for (const label of ['PMG (Dept 138/139)', 'Broome Toyota (Sales)']) assert.ok(sidebar.includes(label));
+    assert.ok(!sidebar.includes('<option value="karratha">'));
     assert.ok(!html.includes('src="pd-department-navigation'));
+  }
+});
+
+test('a forged Department 135 dropdown value cannot navigate to the paused board',()=>{
+  for(const site of Object.keys(routes)){
+    const p=page('administrator',site);
+    p.select.value='karratha';p.events.change();
+    assert.equal(p.visits.length,0);
   }
 });
 test('navigation performs no board writes and Karratha freshness coordinator remains', () => {

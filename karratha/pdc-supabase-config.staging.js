@@ -20,6 +20,8 @@ window.PDC_SUPABASE_CONFIG = {
   environment: 'staging',
   projectRef: 'cdsmnqxtyyoeoznmbidd',
   centreCode: '135',
+  // Owner pause: preserve Department 135 while validating PMG 138/139.
+  departmentPaused: true,
   dealerCode: '14450',
   url: 'https://cdsmnqxtyyoeoznmbidd.supabase.co',
   publishableKey: 'sb_publishable_hJiXYk7aDCGcijf946MX2g_WVDXnQfk',

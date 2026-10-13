@@ -5,12 +5,12 @@
   const current = document.body.dataset.pdcSite === 'broome' ? 'broome'
     : /\/karratha(?:\/|$)/.test(window.location.pathname || new URL(window.location.href).pathname) ? 'karratha' : 'pmb';
   const base = new URL(current === 'pmb' ? './' : '../', window.location.href);
-  const destinations = { pmb: './', karratha: 'karratha/', broome: 'sales/' };
+  const destinations = { pmb: './', broome: 'sales/' };
   function sync() {
     const admin = window.PDC_AUTH_CONTEXT?.role === 'administrator';
     select.closest('[data-site-switcher]').hidden = !admin;
     select.disabled = !admin;
-    select.value = current;
+    select.value = Object.hasOwn(destinations, current) ? current : 'pmb';
   }
   select.addEventListener('change', () => {
     if (window.PDC_AUTH_CONTEXT?.role !== 'administrator') return sync();
