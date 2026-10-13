@@ -2,6 +2,8 @@
 
 The owner authorised hourly availability checks and a full pre-opening check, including booking moves, locations and fitter workflows. The working page is the staging-labelled website at `https://btnew.github.io/pdc-control-board-staging/`; staff use this database for real work.
 
+Two heartbeats are active in the existing Codex chat: `PDC hourly website checks` at 17 minutes past each hour, and `PDC full pre-opening function checks` at 05:30 Monday through Friday. Times are Australia/Perth. Their schedules are managed in the app, not by this repository or the web server.
+
 ## Isolation boundary
 
 Do not put a synthetic vehicle into the working board or move customer bookings. The database's existing `pdc_reject_shared_board_qa_fixture_347` trigger deliberately rejects routine QA fixtures there. A visible tile named TEST VEHICLE would still risk changing capacity, cascades, counts and notifications. The TEST VEHICLE is generated in a disposable local restore and is rolled back afterwards. No existing live guard is changed or bypassed.
