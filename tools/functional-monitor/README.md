@@ -1,0 +1,37 @@
+# Scheduled website function checks
+
+The owner authorised hourly availability checks and a full pre-opening check, including booking moves, locations and fitter workflows. The working page is the staging-labelled website at `https://btnew.github.io/pdc-control-board-staging/`; staff use this database for real work.
+
+## Isolation boundary
+
+Do not put a synthetic vehicle into the working board or move customer bookings. The database's existing `pdc_reject_shared_board_qa_fixture_347` trigger deliberately rejects routine QA fixtures there. A visible tile named TEST VEHICLE would still risk changing capacity, cascades, counts and notifications. The TEST VEHICLE is generated in a disposable local restore and is rolled back afterwards. No existing live guard is changed or bypassed.
+
+The local runner uses the newest completed, integrity-verified encrypted backup from `C:\Users\craig\PDCBackups`, requiring the exact staging project and a backup no older than eight hours. It imports the previously verified local restore helper by a pinned hash, starts a fresh PostgreSQL cluster bound only to 127.0.0.1, uses a generated SCRAM password, restores original permissions, and disables copied jobs. Network-capable database extensions are excluded. Every scenario rolls back. The owned local server stops and plaintext dump/data/password files are removed. Any cleanup failure is an actionable failure.
+
+Reports and detailed diagnostics remain under `work/functional-monitor-private` outside the repository. Never publish, email or upload backup contents, customer data, credentials, detailed SQL logs or screenshots containing customer information. The existing six-hour backup and Revolution email-import schedule remain unchanged. The paused workshop-risk monitor remains paused.
+
+## Hourly check
+
+Run `node tools/functional-monitor/check_website.cjs --output <fresh-private-run-directory>` from this repository. It checks nine published entry points, eight critical assets, signed-out denial on three read endpoints, and the critical workshop/Finance/activity browser-code regressions. It has no staff bearer token, operational write RPC, email client or database credentials.
+
+## Full check
+
+First run the same Node command with `--full` for the complete website regression suite. Then use the bundled Python executable to run `tools/functional-monitor/run_isolated_workflows.py --output <fresh-private-run-directory>`.
+
+The database groups cover booking moves and conflict scope; Start priority/cascade and safety; fitter line completion and approved-hour progress; Unallocated returns; close gaps; location overrides; working hours; Best slot; emergency priority; Finance; Autocare dispatch; Broome/Pilbara import access; exact dealer-delivery lifecycle cleanup; and website activity/permissions. These scenarios exercise the restored database functions, rather than changing the working fleet. A generated TEST VEHICLE is independently inserted/read/rolled back.
+
+The historical Start-now tests get an explicit open calendar within their own rollback transaction so a tea break or the 05:30 run does not create a false failure. The separate calendar scenario checks the actual workshop hours. The location scenario's historical five-hour assertion is adapted to the owner's current one-hour handover rule. Delivery uses a new synthetic order and exact dealer linkage, not a historical customer stock that may already be completed.
+
+Before a full run, use the Supabase connector for a **read-only** fingerprint query against project `cdsmnqxtyyoeoznmbidd`: select each relevant public function's name, identity arguments and `md5(pg_get_functiondef(oid))`. Save the timestamped result in a private JSON file with `project`, `checked_at` and `functions` keys and pass `--fingerprints <file>`. The function list is schedule_vehicle_work, move_workshop_booking, start_workshop_work, stop_workshop_work, resume_workshop_work, complete_workshop_work, return_work_to_queue, fitter_job_command, get_fitter_job, get_station_workshop_snapshot, get_vehicle_workshop_detail_scoped, set_pdc_vehicle_location_1500, get_broome_finance_pipeline, get_broome_sales_board_snapshot, reconcile_navision_delivery_734 and get_pdc_usage_report_20260914. If the copy differs, report the version gap. Never claim a restored old function proves the current live version works.
+
+## Coverage and reporting
+
+These checks do not establish that every possible situation works. Report PASS, FAIL, BLOCKED and NOT RUN separately. Distinguish a stale fixture/backup or missing test capability from a confirmed website defect. Never fix failing tests by disabling a working-board permission, conflict, parts-readiness or delivery guard.
+
+The Python exit code describes the selected database scenarios and restore/cleanup only. A zero exit code is not a whole-site all-clear: read `backend_version_check`, `coverage_gaps`, and `overall` from `summary.json` as well. The overall result explicitly retains missing browser, Storage and provider coverage.
+
+Authenticated live browser checks and actual dragging through the UI are currently **BLOCKED**: the computer-use connection fails to initialise. The local restore also has no browser API bridge configured. Do not substitute moves on real bays. Until an isolated browser frontend/backend is available, report this gap explicitly; database moves and browser-code regression tests are different evidence. Storage object file contents and external service settings are excluded from the backup, so photo uploads, actual email delivery and provider integrations are not established by these runs.
+
+Scheduled tasks should produce a brief update in the current chat for new failures, missing coverage, meaningful recovery or worsening failures, with Perth time and the affected function. Keep a minimal comparison baseline locally and avoid repeating the same unchanged failure on every run. The PC and desktop app must remain running for these local scheduled checks.
+
+Use fresh timestamped run directories. Do not reset or stash unrelated working-tree changes. Check that the source being tested matches the deployed source; update through a separate checkout if necessary. Do not merge/deploy a new repair automatically as part of monitoring.
