@@ -39,27 +39,27 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
   for (const item of manifest.files.filter(row => row.file.endsWith('.css'))) assert.equal(item.unchanged, true, item.file);
   for (const file of ['canonical-entry.js', 'pdc-fitters.js', 'workshop-data-service.js', 'workshop-reference-data-service.js', 'workshop-shared-actions.js', 'workshop-realtime.js', 'pdc-planner-slim.js', 'pdc-qc-mobile.js', 'pdc-qc-rework.js', 'pdc-rft-actions.js']) assert.equal(manifest.files.find(row => row.file === file).unchanged, true, file);
 });
-// Explicitly pinned upstream deccc4b release changes and owner-approved three-site sidebar navigation.
+// Explicitly pinned upstream releases and owner-approved navigation, including the 15 October PMG planner grouping.
 const approvedRootImportPatch = Object.freeze({
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
-  "pdc-workshop-departments.js": "14fb32fa69c5d6e20628386f86e956e91c5373a3ffecd049e9659603fbe53352",
-  "workshop-planner.js": "3a403721c007bee8f3b42efee70909ac291d5e4370d7625406fbc95b7f9ad8cf",
-  "workshop-planner.css": "4f9d216636c8dee83ba1a7a88cba801016ba9487a89d1ea30e3eab048a196838",
+  "pdc-workshop-departments.js": "3bb9c1175b78362acfc02f156bbe5824888f161f29fcd35bf6feec21107e2756",
+  "workshop-planner.js": "10aa79af9b04c9da390b40d8eef0698598bf3c2c9e556d9fe46ecc6c56638cd7",
+  "workshop-planner.css": "e748e91f2b0ed9624a8f9d28ae2f642739b186f2897b14dd54afd80e7a6f876a",
   "scripts/build_pages_runtime.js": "b8d0246d48dc6547a21ef70f729aff89488858e081c3c07b3dcad77ff0718ab2",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   "pdc-new-vehicles.js": "034fbd702e35d531208e24d43817d251e526de233f924caf33a193d606de54a3",
   "pdc-new-vehicles.css": "2ee29702e0b5ca62692891cbf5467894fe670e4b65961f32ca619aa2225cfe10",
   "docs/bus4x4-workflow.md": "41f5d960995b0f9cd0ca7dbb351d7e84f8f17725ac7213ada63c2918c63cc5e2",
-  "docs/bus4x4-user-guide.md": "ae2f0107933c4750c7ea869d7ae849e266e2e23da12a81d8578228c74d40b388",
-  "docs/bus4x4-user-guide.html": "293e50f1180a036df641228ab7ac29e696c3bded8b104f5b28aa7ec39d266564",
+  "docs/bus4x4-user-guide.md": "e3867fde6345ef8fea5e8e2a67bbe42e447bf9e26597bf033d88c848cfa5402e",
+  "docs/bus4x4-user-guide.html": "d4338aa64abdf56841c08afd7849a8eca691f7b16111598a007e93332e4f3651",
   "canonical-entry.js": "56e379448f3a01325027be3809db7257adb71f68765c9c1b19cf226dccc3b407",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
-  "app.js": "a0230a4d162c4937124c2f88ec553ef4f36fbaf77b667c67e72b38a4afe46c58",
+  "app.js": "b757ef47d6c51c5dc7af182843c91fe96bcd2b5611c91ca6183ab3ff6fd19eda",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "73842d93870b786cdd2f70d5b84781ba5b98e5572003626da5be0ca8a6e12e49",
+  "index.html": "5b65fe96aba4e562bdcdb4267fd97dea8145f1b73a2bd48a5ebafaced47b5eb7",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "b49912ede35635d1a490cc8168e94e32b9389dbd71d686684bdce02571b0cec6",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
