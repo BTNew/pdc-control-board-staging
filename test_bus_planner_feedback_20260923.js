@@ -82,7 +82,8 @@ test('authoritative candidate hours survive null vehicle estimates and blocked c
   const snapshot={vehicles,work_items:[],bookings:[],outstanding_candidates:[
     {vehicle_id:UUID,existing_booking:false,schedule_enabled:true,estimated_hours:88.28,requirements:[]},
     {vehicle_id:BOOK,existing_booking:false,schedule_enabled:false,disabled_reason:'bus_stage_parts_required',estimated_hours:19.82,requirements:[]} ]};
-  const c=functions(['workshopPlannerVehiclesForStage'],{
+  const c=functions(['workshopCategoryAuthority','workshopPlannerVehiclesForStage'],{
+    workshopDepartmentLayout:()=>null,
     workshopStageVehicles:()=>[],normalizePmbStage:v=>v,workshopSharedModeActive:()=>true,
     window:{__activeWorkshopPlannerStage:'BUS_4X4',__workshopDataService:{getLastSnapshot:()=>snapshot}},
     WORKSHOP_ELIGIBILITY_RUNTIME:{workshopCanonicalEligibility:()=>({candidates:[]})},

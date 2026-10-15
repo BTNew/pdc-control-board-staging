@@ -673,6 +673,7 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     id: booking.booking_id,
     sharedBookingId: booking.booking_id,
     sharedVersion: booking.version,
+    workCategory: booking.work_category || '',
     busCalendarVersion: booking.bus_calendar_version === 1 ? 1 : null,
     busWorkflowDepartment138: vehicle.bus_workflow_department138 === true
       || (Array.isArray(vehicle.department_codes) && vehicle.department_codes.some(code => String(code) === '138')),
@@ -1623,7 +1624,8 @@ function workshopLoadView() {
   return {
     date: workshopDateKey(date),
     stage: WORKSHOP_STAGE_SEQUENCE.includes(saved?.stage) ? saved.stage : 'FABRICATION',
-    busBayGroup: window.PDC_WORKSHOP_DEPARTMENTS?.group(saved?.busBayGroup)?.id || '',
+    busBayGroup: window.PDC_WORKSHOP_DEPARTMENTS?.category(saved?.busBayGroup)?.id || 'mechanical',
+    busShowAllBays: saved?.busShowAllBays === true,
     selectedPlanId: '',
     search: '',
     searchOpen: false,
@@ -1637,7 +1639,7 @@ function workshopLoadView() {
 }
 
 function workshopSaveView(state = {}) {
-  if (typeof saveJson === 'function') saveJson(WORKSHOP_VIEW_STORAGE_KEY, { date: state.date, stage: state.stage, busBayGroup: state.busBayGroup || '' });
+  if (typeof saveJson === 'function') saveJson(WORKSHOP_VIEW_STORAGE_KEY, { date: state.date, stage: state.stage, busBayGroup: state.busBayGroup || 'mechanical', busShowAllBays:state.busShowAllBays === true });
 }
 
 function workshopState() {
@@ -1705,14 +1707,16 @@ function workshopVehicle(key = '', stage = '') {
   if (authorityMatches.length !== 1) {
     return { ...plannerRow, __workshopOutstanding: { existingBooking: false, scheduleEnabled: false, disabledReason: 'authority_unavailable' } };
   }
-  const authority = authorityMatches[0];
+  const authority = workshopCategoryAuthority(authorityMatches[0], requestedStage);
   const authoritativeHours = Number(authority.estimated_hours);
   return {
     ...plannerRow,
     workshopEstimatedHoursByStage: authoritativeHours > 0
       ? { ...plannerRow.workshopEstimatedHoursByStage, [requestedStage]: authoritativeHours }
-      : plannerRow.workshopEstimatedHoursByStage,
+      : requestedStage === 'BUS_4X4' && authority.work_category ? {...plannerRow.workshopEstimatedHoursByStage, BUS_4X4:null} : plannerRow.workshopEstimatedHoursByStage,
     __workshopOutstanding: {
+      workCategory: authority.work_category || '',
+      categoryCompleted: authority.completed === true,
       existingBooking: authority.existing_booking === true,
       scheduleEnabled: authority.schedule_enabled === true,
       disabledReason: authority.disabled_reason || '',
@@ -3232,13 +3236,15 @@ function workshopPlannerVehiclesForStage(stage = '') {
   });
   return scopedVehicles.map(vehicle => {
     const vehicleId = String(vehicle.id || '').trim();
-    const authority = authoritativeById?.get(vehicleId);
+    const authority = workshopCategoryAuthority(authoritativeById?.get(vehicleId), dedicatedStage);
     const displayWorkItems = Array.isArray(authority?.requirements)
       ? authority.requirements
       : (workItemsByVehicle.get(vehicleId) || []);
     const scoped = workshopSnapshotVehicleToPlannerRow(vehicle, displayWorkItems, dedicatedStage);
     const fallback = canonicalById.get(vehicleId);
     const outstanding = {
+      workCategory: authority?.work_category || '',
+      categoryCompleted: authority?.completed === true,
       existingBooking: authority ? authority.existing_booking === true : fallback?.existingBooking === true,
       scheduleEnabled: authority ? authority.schedule_enabled === true : fallback?.schedule?.enabled === true,
       disabledReason: authority?.disabled_reason || fallback?.schedule?.reason || '',
@@ -3248,12 +3254,12 @@ function workshopPlannerVehiclesForStage(stage = '') {
       pmbJobs: { ...scoped.pmbJobs },
       workshopEstimatedHoursByStage: Number(authority?.estimated_hours) > 0
         ? { ...scoped.workshopEstimatedHoursByStage, [dedicatedStage]: Number(authority.estimated_hours) }
-        : scoped.workshopEstimatedHoursByStage,
+        : dedicatedStage === 'BUS_4X4' && authority?.work_category ? {...scoped.workshopEstimatedHoursByStage, BUS_4X4:null} : scoped.workshopEstimatedHoursByStage,
       __workshopOutstanding: outstanding,
       sharedVehicleId: vehicle.id,
       id: vehicle.id
     };
-  }).sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || '')));
+  }).filter(vehicle => vehicle.__workshopOutstanding?.categoryCompleted !== true).sort((a, b) => String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || '')));
 }
 
 function workshopRefreshDedicatedDate(dateKey = '') {
@@ -4123,6 +4129,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
       <small class="workshop-plan-customer">${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</small>
+      ${entry.workCategory ? `<small class="workshop-plan-category">${escapeHtml(window.PDC_WORKSHOP_DEPARTMENTS?.categoryLabel(entry.workCategory) || entry.workCategory)}</small>` : ''}
       ${entry.helperAssignments?.length ? `<small class="workshop-plan-team">${escapeHtml(workshopBookingTeamLabel(entry))}</small>` : ''}
       <small>${escapeHtml(`${statusLabel}${assignee ? ` · ${assignee}` : ''}${overtime ? ' · OVERTIME' : ''}${segment.usesConfiguredOvertime ? ' · CONFIGURED OVERTIME' : ''}${segment.historicalOnClosure ? ' · HISTORICAL CLOSURE' : ''}`)}</small>
       ${entry.legacyAmbiguityReason ? `<small class="workshop-legacy-ambiguity">${escapeHtml(entry.legacyAmbiguityReason)}</small>` : ''}
@@ -4176,11 +4183,16 @@ function workshopUnavailableTimeHtml(dateKey = '', { vertical = false, stage = '
 function workshopDepartmentLayout() {
   return typeof window === 'object' ? window.PDC_WORKSHOP_DEPARTMENTS : null;
 }
+function workshopCategoryAuthority(authority, stage) {
+  if (!authority || stage !== 'BUS_4X4') return authority;
+  const layout = workshopDepartmentLayout();
+  return layout?.selectedCategory(authority, layout.category(workshopState().busBayGroup)?.code || 'BUS_MECHANICAL') || authority;
+}
 function workshopSelectedBusGroup() {
   const layout = workshopDepartmentLayout();
   if (!layout) return null;
   const state = workshopState();
-  return state.focusedBookingMode ? null : layout.group(state.busBayGroup);
+  return state.focusedBookingMode || state.busShowAllBays ? null : layout.category(state.busBayGroup);
 }
 function workshopVisibleBays(stage) {
   const selected = stage === 'BUS_4X4' ? workshopSelectedBusGroup() : null;
@@ -4193,12 +4205,12 @@ function workshopDestinationTabs(stage) {
   const layout = workshopDepartmentLayout();
   if (!layout) return '';
   const department = window.PDC_DEPARTMENT_FILTER?.getSelection() || '';
-  const busGroup = workshopState().busBayGroup || '';
+  const busGroup = workshopState().busBayGroup || 'mechanical';
   return `<nav class="workshop-planner-sections" aria-label="Workshop planners">${layout.plannerSections(department).map(section => {
-    const allBusBays = section.id === '138' ? `<button type="button" class="workshop-stage-tab${stage === 'BUS_4X4' && !busGroup ? ' active' : ''}" data-workshop-layout-stage="BUS_4X4" data-workshop-layout-group="" aria-pressed="${stage === 'BUS_4X4' && !busGroup}">All 10 bays</button>` : '';
+    const allBusBays = section.id === '138' ? `<label class="workshop-stage-tab"><input type="checkbox" data-workshop-all-bus-bays${workshopState().busShowAllBays ? ' checked' : ''}> Show all 10 bays (including Progression)</label>` : '';
     const tabs = section.options.map(option => {
       const active = option.stage === stage && (!option.group || option.group === busGroup);
-      return `<button type="button" class="workshop-stage-tab${active ? ' active' : ''}" data-workshop-layout-stage="${option.stage}" data-workshop-layout-group="${option.group}" aria-pressed="${active}">${escapeHtml(option.label.replace(' · shared',''))}${option.bays ? `<small>Bays ${option.bays.join(', ')}</small>` : ''}</button>`;
+      return `<button type="button" class="workshop-stage-tab${active ? ' active' : ''}" data-workshop-layout-stage="${option.stage}" data-workshop-layout-group="${option.group}" data-workshop-external="${option.external === true}" aria-pressed="${active}">${escapeHtml(option.label.replace(' · shared',''))}${option.external ? '<small>External inspection</small>' : option.bays ? `<small>Preferred bays ${option.bays.join(', ')}</small>` : ''}</button>`;
     }).join('');
     return `<section class="workshop-planner-section${section.id === 'shared' ? ' is-shared' : ''}" data-workshop-planner-section="${section.id}"><h3>${escapeHtml(section.label)}</h3><div class="workshop-stage-tabs">${allBusBays}${tabs}</div></section>`;
   }).join('')}</nav>`;
@@ -5184,7 +5196,7 @@ function renderWorkshopPlanner(options = {}) {
   renderHost.innerHTML = `<div class="${dedicatedStage ? 'workshop-planner workshop-station-board' : 'workshop-planner'}${focusedBookingMode ? ' is-focused-booking' : ''}" data-planner-stage="${escapeHtml(stage)}">
     ${sharedBanner}
     <header class="workshop-planner-header">
-      <div><h2>${escapeHtml(focusedBookingMode ? 'Focused Workshop booking' : (workshopDepartmentLayout()?.plannerTitle(stage) || 'Workshop bay planner'))}</h2><p>${escapeHtml(stage === 'BUS_4X4' ? 'Ten individual Bus 4×4 bays. Use All 10 bays or select a bay group below.' : stage === 'TINT' || stage === 'TYRE' ? 'One shared schedule for both departments.' : `${pmbStageLabel(stage)} · individual PMB bays`)} Configured breaks and closures remain visible on the schedule.</p></div>
+      <div><h2>${escapeHtml(focusedBookingMode ? 'Focused Workshop booking' : (workshopDepartmentLayout()?.plannerTitle(stage) || 'Workshop bay planner'))}</h2><p>${escapeHtml(stage === 'BUS_4X4' ? 'Choose the work category to book. Show all bays to use another compatible bay or a Progression bay.' : stage === 'TINT' || stage === 'TYRE' ? 'One shared schedule for both departments.' : `${pmbStageLabel(stage)} · individual PMB bays`)} Configured breaks and closures remain visible on the schedule.</p></div>
       <div class="workshop-date-controls">
         ${stage === 'BUS_4X4' ? '<a class="small-button" href="docs/bus4x4-user-guide.html" target="_blank" rel="noopener">Department 138 user guide</a>' : ''}
         ${focusedBookingMode ? '<button class="small-button" type="button" data-workshop-focused-back>← Back to Workshop planner</button>' : ''}
@@ -5249,8 +5261,13 @@ function renderWorkshopPlanner(options = {}) {
 
 function bindWorkshopPlanner(root) {
   if (typeof pdcWorkshopDepartmentChanged === 'function') root.querySelector('[data-workshop-department]')?.addEventListener('change',pdcWorkshopDepartmentChanged);
+  root.querySelector('[data-workshop-all-bus-bays]')?.addEventListener('change', event => { workshopState().busShowAllBays=event.target.checked; workshopSaveView(workshopState()); renderWorkshopPlanner(); });
   root.querySelectorAll('[data-workshop-layout-stage]').forEach(button => button.addEventListener('click',() => {
-    const state=workshopState(); state.busBayGroup=button.dataset.workshopLayoutGroup || '';
+    if (button.dataset.workshopExternal === 'true') {
+      showView('sublet');
+      return;
+    }
+    const state=workshopState(); state.busBayGroup=button.dataset.workshopLayoutGroup || 'mechanical';
     workshopClearSelectedDetail(state); workshopSaveView(state);
     if (button.dataset.workshopLayoutStage === state.stage) renderWorkshopPlanner();
     else openWorkshopPlannerForStage(button.dataset.workshopLayoutStage);
@@ -6430,7 +6447,7 @@ async function workshopScheduleSharedNewBooking({
     technicianId,
     requestId: workshopNewRequestId(),
     cascade,
-    metadata: { source: cascade ? 'admin_unallocated_vehicle_pill' : 'planner_best_slot', reason: cascade ? 'website_drag_drop' : 'earliest_available_space' },
+    metadata: { source: cascade ? 'admin_unallocated_vehicle_pill' : 'planner_best_slot', reason: cascade ? 'website_drag_drop' : 'earliest_available_space', ...(candidate.workCategory ? {work_category:candidate.workCategory} : {}) },
   } : null;
   let result = administratorRequest
     ? await dispatchAction('administratorScheduleVehicle', administratorRequest,
@@ -6457,7 +6474,8 @@ async function workshopScheduleSharedNewBooking({
   return !!(result && result.ok);
 }
 
-async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKeyValue = '', stage = '', hours = 0 } = {}) {
+async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKeyValue = '', stage = '', hours = 0, workCategory = '' } = {}) {
+  if (stage === 'BUS_4X4' && workshopDepartmentLayout()?.category(workCategory)) workshopState().busBayGroup=workshopDepartmentLayout().category(workCategory).id;
   const normalizedStage = workshopRequirePlannerStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) {
     window.alert('This work type does not use a Workshop bay. No booking was created.');
@@ -6603,7 +6621,9 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   }
   const start = workshopDateAtOffset(dateKey, startMinutes);
   if (!workshopRequireEtaSchedule(vehicle, start)) return false;
-  const duration = workshopSchedulingDuration(vehicle, normalizedStage);
+  const duration = existing?.workCategory && Number(existing.operationEstimateHours) > 0
+    ? { hours: Number(existing.operationEstimateHours) }
+    : workshopSchedulingDuration(vehicle, normalizedStage);
   if (workshopSharedModeActive() && !duration) {
     window.alert('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
     return false;
@@ -6624,6 +6644,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     ...(existing || {}),
     id: existing?.id || '__new_workshop_booking__',
     calendarVehicle: vehicle,
+    workCategory: existing?.workCategory || vehicle.__workshopOutstanding?.workCategory || '',
     stage: normalizedStage,
     bay: Number(bay),
     status: 'planned',

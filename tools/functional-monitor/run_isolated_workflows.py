@@ -27,6 +27,7 @@ SCENARIOS = [
     ("Start job safety guards", "tests/start_priority_guards_rollback.sql"),
     ("Fitters line items and weighted progress", "tests/workshop_fitter_progress_rollback.sql"),
     ("Fitters follow destination bay assignments", "tests/fitter_bay_default_assignment_rollback.sql"),
+    ("Job card work categories and completion", "tests/jobcard_work_categories_rollback.sql"),
     ("Return planned bookings to Unallocated", "tests/workshop_planned_unallocate_rollback.sql"),
     ("Close gaps with ready jobs", "tests/workshop_close_gaps_ready_jobs_rollback.sql"),
     ("Vehicle locations and bay ownership", "tests/workshop_location_override_booking_rollback_20260913.sql"),

@@ -5,7 +5,8 @@ const fixture=require('./qa/control-board-fixtures.js');
 const planner=fs.readFileSync('workshop-planner.js','utf8');
 test('138 has five Bus4x4 destinations plus the shared Tint and Tyre stations',()=>{
  const options=layout.options('138');assert.equal(options.length,7);
- assert.deepEqual(options.slice(0,5).map(x=>[x.label,x.bays]),[['Mechanical',[1,2,3,4]],['Progression',[5,6]],['QA',[7]],['Electrical',[8,9]],['Accessory Fitting',[10]]]);
+ assert.deepEqual(options.slice(0,5).map(x=>[x.label,x.bays]),[['Mechanical',[1,2,3,4]],['Accessories',[10]],['Electrical',[8,9]],['QA',[7]],['Pit',[]]]);
+ assert.equal(options[4].external,true);
  assert.deepEqual(options.slice(5).map(x=>x.stage),['TINT','TYRE']);
  assert.deepEqual(layout.BUS_GROUPS.flatMap(x=>x.bays),[1,2,3,4,5,6,7,8,9,10]);
 });
