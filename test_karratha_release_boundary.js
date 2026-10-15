@@ -31,7 +31,7 @@ test('all frozen native files outside declared boundary adaptations retain origi
     if (item.file === 'pdc-staff-usage.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'adb054e560cb911a588622303e7f7f4549d7274eb840e6051002fc5e6bc041de',item.file);
     // PMG now has a read-error recovery repair; keep the isolated fitter asset at its original baseline.
     else if (item.file === 'control-board-overview.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1',item.file);
-    else if (['pdc-fitters.js','canonical-entry.js','control-board-overview.js','pdc-new-vehicles.css','workshop-planner.css'].includes(item.file)) assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
+    else if (['pdc-fitters.js','canonical-entry.js','control-board-overview.js','pdc-new-vehicles.css','workshop-planner.css','pdc-review-stations.js'].includes(item.file)) assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -41,6 +41,8 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 });
 // Explicitly pinned upstream releases and owner-approved navigation, including the 15 October PMG planner grouping.
 const approvedRootImportPatch = Object.freeze({
+  // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
+  "pdc-review-stations.js": "6bf2164d30fdfb5950c82d309e8a82cc4a587bbd32438f978e19f826734049bc",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
   "pdc-workshop-departments.js": "3bb9c1175b78362acfc02f156bbe5824888f161f29fcd35bf6feec21107e2756",
@@ -53,13 +55,13 @@ const approvedRootImportPatch = Object.freeze({
   "docs/bus4x4-workflow.md": "41f5d960995b0f9cd0ca7dbb351d7e84f8f17725ac7213ada63c2918c63cc5e2",
   "docs/bus4x4-user-guide.md": "e3867fde6345ef8fea5e8e2a67bbe42e447bf9e26597bf033d88c848cfa5402e",
   "docs/bus4x4-user-guide.html": "d4338aa64abdf56841c08afd7849a8eca691f7b16111598a007e93332e4f3651",
-  "canonical-entry.js": "56e379448f3a01325027be3809db7257adb71f68765c9c1b19cf226dccc3b407",
+  "canonical-entry.js": "250d29098ae9c66ca404d139e69ee2e7e50acf51ac74b718dca0e8c457dafd36",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
   "app.js": "b757ef47d6c51c5dc7af182843c91fe96bcd2b5611c91ca6183ab3ff6fd19eda",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "5b65fe96aba4e562bdcdb4267fd97dea8145f1b73a2bd48a5ebafaced47b5eb7",
+  "index.html": "adfaa682e6265f241c46a62a8c5891c1b5a3f0cf045f6f549c33e5b36bbd1933",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "b49912ede35635d1a490cc8168e94e32b9389dbd71d686684bdce02571b0cec6",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",

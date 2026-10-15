@@ -32,7 +32,7 @@
       reviewStyle.href = 'pdc-review-stations.css?v=2026.09.09.12';
       document.head.appendChild(reviewStyle);
       const review = document.createElement('script');
-      review.src = 'pdc-review-stations.js?v=2026.09.09.12';
+      review.src = 'pdc-review-stations.js?v=2026.09.09.12&nonnav138-bookings=2026.10.15.01';
       document.head.appendChild(review);
     };
     const loadRework = () => {
