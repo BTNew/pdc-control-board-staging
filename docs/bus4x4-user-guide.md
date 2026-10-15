@@ -16,6 +16,8 @@ Department 138 uses ordinary workshop booking controls, with five Bus4x4 destina
 
 Selecting 138 shows its Bus4x4 bays and the shared Tint/Tyre bays. Selecting 139 shows Hoist, Fitting, Fabrication, Electrical and the same shared Tint/Tyre bays. Shared bookings remain visible regardless of which department created them. There is one booking and one capacity record per physical bay.
 
+The navigation has three sections: **Workshop Planner — Bus 4×4 (138)**, **Workshop Planner — PMB (139)**, then **Shared Bays** underneath. Open **All 10 Bus 4×4 bays** to see every individual Bus bay; the group buttons narrow that view when needed. PMB keeps separate Hoist, Fitting, Fabrication and Electrical schedules, each showing its own individual bays. Tint and Tyres have one shared schedule each, available to both departments.
+
 Use a destination to open its bays. The booking form retains all ten Bus4x4 bay choices, so a controller can place fitting work in an electrical bay when appropriate. Existing physical restrictions still apply: Bus4x4 Bay 3 is HiAce-only.
 
 ## Job cards and incoming changes

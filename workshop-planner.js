@@ -4193,7 +4193,15 @@ function workshopDestinationTabs(stage) {
   const layout = workshopDepartmentLayout();
   if (!layout) return '';
   const department = window.PDC_DEPARTMENT_FILTER?.getSelection() || '';
-  return `<nav class="workshop-stage-tabs" aria-label="Booking destination">${layout.options(department).map(option => `<button type="button" class="workshop-stage-tab${option.stage===stage && (!option.group || option.group===workshopState().busBayGroup)?' active':''}" data-workshop-layout-stage="${option.stage}" data-workshop-layout-group="${option.group}">${escapeHtml(option.label)}${option.bays?`<small>Bays ${option.bays.join(', ')}</small>`:''}</button>`).join('')}${stage==='BUS_4X4'?'<button type="button" class="workshop-stage-tab" data-workshop-layout-stage="BUS_4X4" data-workshop-layout-group="">Show all 10 Bus4x4 bays</button>':''}</nav>`;
+  const busGroup = workshopState().busBayGroup || '';
+  return `<nav class="workshop-planner-sections" aria-label="Workshop planners">${layout.plannerSections(department).map(section => {
+    const allBusBays = section.id === '138' ? `<button type="button" class="workshop-stage-tab${stage === 'BUS_4X4' && !busGroup ? ' active' : ''}" data-workshop-layout-stage="BUS_4X4" data-workshop-layout-group="" aria-pressed="${stage === 'BUS_4X4' && !busGroup}">All 10 bays</button>` : '';
+    const tabs = section.options.map(option => {
+      const active = option.stage === stage && (!option.group || option.group === busGroup);
+      return `<button type="button" class="workshop-stage-tab${active ? ' active' : ''}" data-workshop-layout-stage="${option.stage}" data-workshop-layout-group="${option.group}" aria-pressed="${active}">${escapeHtml(option.label.replace(' · shared',''))}${option.bays ? `<small>Bays ${option.bays.join(', ')}</small>` : ''}</button>`;
+    }).join('');
+    return `<section class="workshop-planner-section${section.id === 'shared' ? ' is-shared' : ''}" data-workshop-planner-section="${section.id}"><h3>${escapeHtml(section.label)}</h3><div class="workshop-stage-tabs">${allBusBays}${tabs}</div></section>`;
+  }).join('')}</nav>`;
 }
 
 function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
@@ -5176,7 +5184,7 @@ function renderWorkshopPlanner(options = {}) {
   renderHost.innerHTML = `<div class="${dedicatedStage ? 'workshop-planner workshop-station-board' : 'workshop-planner'}${focusedBookingMode ? ' is-focused-booking' : ''}" data-planner-stage="${escapeHtml(stage)}">
     ${sharedBanner}
     <header class="workshop-planner-header">
-      <div><h2>${escapeHtml(focusedBookingMode ? 'Focused Workshop booking' : (dedicatedStage ? 'Selected station schedule' : 'Workshop bay planner'))}</h2><p>Configured Workshop calendar. Long blocks continue through the next valid work interval; breaks and closures are not claimed as working time.</p></div>
+      <div><h2>${escapeHtml(focusedBookingMode ? 'Focused Workshop booking' : (workshopDepartmentLayout()?.plannerTitle(stage) || 'Workshop bay planner'))}</h2><p>${escapeHtml(stage === 'BUS_4X4' ? 'Ten individual Bus 4×4 bays. Use All 10 bays or select a bay group below.' : stage === 'TINT' || stage === 'TYRE' ? 'One shared schedule for both departments.' : `${pmbStageLabel(stage)} · individual PMB bays`)} Configured breaks and closures remain visible on the schedule.</p></div>
       <div class="workshop-date-controls">
         ${stage === 'BUS_4X4' ? '<a class="small-button" href="docs/bus4x4-user-guide.html" target="_blank" rel="noopener">Department 138 user guide</a>' : ''}
         ${focusedBookingMode ? '<button class="small-button" type="button" data-workshop-focused-back>← Back to Workshop planner</button>' : ''}

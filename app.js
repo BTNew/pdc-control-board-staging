@@ -3571,7 +3571,13 @@ function resetDeletedVehicleAuthorityState() {
 }
 
 function bindNav() {
-  $$('.nav-item[data-view]').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+  $$('.nav-item[data-view]').forEach(btn => btn.addEventListener('click', () => {
+    if (btn.dataset.view === 'planner-bus-4x4') {
+      app.pendingBusBayGroup = '';
+      if (typeof workshopResetFocusedBooking === 'function') workshopResetFocusedBooking();
+    }
+    showView(btn.dataset.view);
+  }));
   on($('#nav-admin-toggle'), 'click', () => {
     if (!syncAdminNavigationVisibility()) return;
     setAdminNavigationExpanded($('#nav-admin-toggle')?.getAttribute('aria-expanded') !== 'true');
@@ -4618,7 +4624,7 @@ function showView(view, options) {
   const pageTitle = $('#page-title');
   if (pageTitle) pageTitle.textContent = departmentDef
     ? departmentDef.label
-    : (plannerStage ? `${pmbStageLabel(plannerStage)} Planner` : (titleMap[requestedView] || 'Control Board'));
+    : (plannerStage ? (window.PDC_WORKSHOP_DEPARTMENTS?.plannerTitle(plannerStage) || `${pmbStageLabel(plannerStage)} Planner`) : (titleMap[requestedView] || 'Control Board'));
   if (requestedView !== 'dashboard' && app.frozenHeaderCleanup) {
     app.frozenHeaderCleanup();
     app.frozenHeaderCleanup = null;
@@ -5453,7 +5459,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?department-bays=2026.10.15.01&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5502,7 +5508,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?department-bays=2026.10.15.01&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -7343,7 +7349,7 @@ function controlBoardStationPipelineHtml(stage = '') {
 
 function pdcWorkshopDepartmentControls() {
   const department = window.PDC_DEPARTMENT_FILTER?.getSelection() || '';
-  return `<label class="pdc-workshop-department-choice">Department <select data-workshop-department aria-label="Workshop department"><option value=""${!department?' selected':''}>All departments</option><option value="138"${department==='138'?' selected':''}>138 — Bus 4×4</option><option value="139"${department==='139'?' selected':''}>139 — PD</option></select></label>`;
+  return `<label class="pdc-workshop-department-choice">Department <select data-workshop-department aria-label="Workshop department"><option value=""${!department?' selected':''}>All departments</option><option value="138"${department==='138'?' selected':''}>138 — Bus 4×4</option><option value="139"${department==='139'?' selected':''}>139 — PMB</option></select></label>`;
 }
 function pdcWorkshopDepartmentChanged(event) {
   window.PDC_DEPARTMENT_FILTER?.setSelection(event.target.value);
@@ -7352,6 +7358,10 @@ function pdcSyncWorkshopDepartmentNavigation() {
   const layout = window.PDC_WORKSHOP_DEPARTMENTS;
   if (!layout) return;
   const department = window.PDC_DEPARTMENT_FILTER?.getSelection() || '';
+  document.querySelectorAll('[data-workshop-nav-department]').forEach(heading => {
+    const owner = heading.dataset.workshopNavDepartment;
+    heading.classList.toggle('pdc-department-hidden', Boolean(department && owner !== 'shared' && owner !== department));
+  });
   for (const def of WORKSHOP_CANONICAL_STATION_DEFS) {
     document.querySelectorAll(`.nav-workshop-item[data-view="${def.route}"]`).forEach(button => {
       button.classList.toggle('pdc-department-hidden', !layout.stageVisible(def.code,department));

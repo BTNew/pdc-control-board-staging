@@ -30,6 +30,22 @@
     const pd = PD.map(stage => ({id:stage,stage,group:'',label:names[stage],shared:false}));
     return dept === '138' ? [...bus,...shared] : dept === '139' ? [...pd,...shared] : [...bus,...pd,...shared];
   }
+  function plannerTitle(stage) {
+    if (stage === 'BUS_4X4') return 'Workshop Planner — Bus 4×4 (138)';
+    if (PD.includes(stage)) return 'Workshop Planner — PMB (139)';
+    if (SHARED.includes(stage)) return 'Shared Bays — ' + (stage === 'TYRE' ? 'Tyres' : 'Tint');
+    return 'Workshop Planner';
+  }
+  function plannerSections(department) {
+    const destinations = options(department);
+    const definitions = [
+      {id:'138', label:plannerTitle('BUS_4X4'), stages:['BUS_4X4']},
+      {id:'139', label:plannerTitle('FITTING'), stages:PD},
+      {id:'shared', label:'Shared Bays · Tint and Tyres (138 & 139)', stages:SHARED},
+    ];
+    return definitions.map(section => ({...section, options:destinations.filter(option => section.stages.includes(option.stage))}))
+      .filter(section => section.options.length);
+  }
   function bayLabel(stage, bay) {
     const base = 'Bay '+String(bay).padStart(2,'0');
     return stage === 'BUS_4X4' && groupForBay(bay) ? groupForBay(bay).label+' · '+base : base;
@@ -43,5 +59,5 @@
     if (/\b(?:TYRES?|TIRES?|RIMS?)\b|WHEEL[ -]*(?:ALIGNMENT|BALANC(?:E|ING))|\b(?:2ND|SECOND|EXTRA|ADDITIONAL)\s+SPARE\s+(?:GENUINE\s+)?WHEEL\b/.test(text)) return 'TYRE';
     return 'BUS_4X4';
   }
-  return Object.freeze({BUS_GROUPS,SHARED,PD,normalize,group,groupForBay,stageVisible,options,bayLabel,sharedStation});
+  return Object.freeze({BUS_GROUPS,SHARED,PD,normalize,group,groupForBay,stageVisible,options,plannerTitle,plannerSections,bayLabel,sharedStation});
 });
