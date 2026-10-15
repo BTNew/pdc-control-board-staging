@@ -336,11 +336,13 @@ test('Clear filters restores All departments while approval focus preserves the 
   assert.equal(f.c.app.currentView, 'dashboard');
 });
 
-test('shared department preference is wired to Locations without entering Control Board or station code', () => {
+test('department preference selects physical station views without hiding shared vehicle bookings', () => {
   assert.match(appSource, /addEventListener\('pdc-department-filter-changed',\s*syncIncomingDepartmentFilter\)/);
-  assert.doesNotMatch(appFunction('renderWorkflowBoard'), /PDC_DEPARTMENT_FILTER|incomingDepartmentFilterValue|incomingVehicleMatchesFilters/);
+  assert.match(appFunction('renderWorkflowBoard'), /PDC_DEPARTMENT_FILTER/);
+  assert.doesNotMatch(appFunction('renderWorkflowBoard'), /incomingVehicleMatchesFilters/);
   assert.doesNotMatch(appFunction('workflowPriorityRows'), /PDC_DEPARTMENT_FILTER|incomingDepartmentFilterValue|incomingVehicleMatchesFilters/);
   assert.doesNotMatch(appFunction('vehicleLocationBoardRows'), /PDC_DEPARTMENT_FILTER|incomingDepartmentFilterValue|incomingVehicleMatchesFilters/);
   const stationSource = fs.readFileSync(path.join(__dirname, 'workshop-planner.js'), 'utf8');
-  assert.doesNotMatch(stationSource, /PDC_DEPARTMENT_FILTER|incomingDepartmentFilterValue/);
+  assert.match(stationSource, /PDC_DEPARTMENT_FILTER/);
+  assert.doesNotMatch(stationSource, /incomingDepartmentFilterValue/);
 });

@@ -28,3 +28,8 @@ assert.match(ui,/p_idempotency_key:ownedRequest.key/);
 assert.match(ui,/verifyUpdateApproval\(result,row,stage,hours\)/);
 assert.match(ui,/location_changed!==false/);
 console.log('Tune operation review before/after, approval gating, escaping and receipt contract: PASS');
+
+// Held automation explains the next action without exposing raw database errors.
+assert.match(operationUpdateHtml({...added,automation_result:{code:'estimated_hours_required'}}),/An estimated time is needed/);
+assert.match(operationUpdateHtml({...added,automation_result:{code:'operation_schedule_conflict',detail:'PRIVATE DATABASE DETAIL'}}),/Review its bookings/);
+assert.doesNotMatch(operationUpdateHtml({...added,automation_result:{code:'operation_schedule_conflict',detail:'PRIVATE DATABASE DETAIL'}}),/PRIVATE DATABASE DETAIL/);

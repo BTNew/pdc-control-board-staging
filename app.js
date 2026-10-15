@@ -195,7 +195,7 @@ const PMB_STAGE_LABELS = new Map([
 
 const PMB_WIP_LIMITS = {
   '': 12,
-  BUS_4X4: 8,
+  BUS_4X4: 10,
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
@@ -218,7 +218,7 @@ const PMB_STAGE_BAY_COUNTS = {
 };
 
 const PMB_STAGE_CAPACITY_LABELS = {
-  BUS_4X4: '10 bays · includes buffer and QA',
+  BUS_4X4: '10 bays · Mechanical, Progression, QA, Electrical and Accessory Fitting',
   FABRICATION: '13 bays',
   TYRE: '2 bays · 1 wheel alignment bay',
   SUBLET: 'Provider queue',
@@ -5453,7 +5453,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?department-bays=2026.10.15.01&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5502,7 +5502,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?department-bays=2026.10.15.01&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -7340,6 +7340,36 @@ function controlBoardStationPipelineHtml(stage = '') {
   </span>`;
 }
 
+
+function pdcWorkshopDepartmentControls() {
+  const department = window.PDC_DEPARTMENT_FILTER?.getSelection() || '';
+  return `<label class="pdc-workshop-department-choice">Department <select data-workshop-department aria-label="Workshop department"><option value=""${!department?' selected':''}>All departments</option><option value="138"${department==='138'?' selected':''}>138 — Bus 4×4</option><option value="139"${department==='139'?' selected':''}>139 — PD</option></select></label>`;
+}
+function pdcWorkshopDepartmentChanged(event) {
+  window.PDC_DEPARTMENT_FILTER?.setSelection(event.target.value);
+}
+function pdcSyncWorkshopDepartmentNavigation() {
+  const layout = window.PDC_WORKSHOP_DEPARTMENTS;
+  if (!layout) return;
+  const department = window.PDC_DEPARTMENT_FILTER?.getSelection() || '';
+  for (const def of WORKSHOP_CANONICAL_STATION_DEFS) {
+    document.querySelectorAll(`.nav-workshop-item[data-view="${def.route}"]`).forEach(button => {
+      button.classList.toggle('pdc-department-hidden', !layout.stageVisible(def.code,department));
+    });
+  }
+}
+window.addEventListener('pdc-department-filter-changed', () => {
+  pdcSyncWorkshopDepartmentNavigation();
+  if (app.currentView === 'workflow') renderWorkflowBoard();
+  if (app.currentView !== 'workshop') return;
+  const stage = app.activeWorkshopPlannerStage || app.workshopPlanner?.stage;
+  const department = window.PDC_DEPARTMENT_FILTER?.getSelection() || '';
+  if (stage && window.PDC_WORKSHOP_DEPARTMENTS && !window.PDC_WORKSHOP_DEPARTMENTS.stageVisible(stage,department)) {
+    openWorkshopPlannerForStage(department === '138' ? 'BUS_4X4' : 'FITTING');
+  } else if (typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
+});
+window.addEventListener('pdc-auth-ready',pdcSyncWorkshopDepartmentNavigation);
+
 function renderWorkflowBoard() {
   const host = $('#workflow-board');
   if (!host) return;
@@ -7362,7 +7392,7 @@ function renderWorkflowBoard() {
   const displayIdentities = window.WorkshopDisplayIdentity?.build(
     typeof pdcSheetVehicles === 'function' ? pdcSheetVehicles() : [], normalizePmbStage,
   );
-  const model = overview?.buildModel(app.workshopEligibilitySnapshot, { search, stageOrder: WORKSHOP_CONTROL_BOARD_STATIONS, displayIdentities });
+  const model = overview?.buildModel(app.workshopEligibilitySnapshot, { search, stageOrder: WORKSHOP_CONTROL_BOARD_STATIONS, displayIdentities, department: window.PDC_DEPARTMENT_FILTER?.getSelection() || '' });
   if (!model) {
     host.innerHTML = '<div class="workshop-connection-banner offline_error" role="status"><strong>Workshop overview unavailable</strong><span>The full bay list could not be loaded. Use Refresh board to try again.</span></div>';
     return;
@@ -7385,7 +7415,7 @@ function renderWorkflowBoard() {
     app.controlBoardAppliedSearch = search;
   }
   const timelineOptions = { startDate: app.controlBoardTimelineStart, dayCount: app.controlBoardTimelineDays || 14, now: new Date() };
-  host.innerHTML = `<div class="workshop-connection-banner connected" role="status"><strong>Workshop information connected</strong><span>All physical bays · live booking updates</span></div>${overview.render(model, timelineOptions)}`;
+  host.innerHTML = `${pdcWorkshopDepartmentControls()}<div class="workshop-connection-banner connected" role="status"><strong>Workshop information connected</strong><span>Selected department bays · Tint and Tyres shared by 138 / 139</span></div>${overview.render(model, timelineOptions)}`;
   const scroll = host.querySelector('.control-board-bays-scroll');
   if (scroll && app.controlBoardScroll) {
     scroll.scrollLeft = app.controlBoardScroll.left;
@@ -7401,6 +7431,7 @@ function renderWorkflowBoard() {
   };
   const currentStart = () => host.querySelector('[data-control-board-start]')?.value || overview.dateKey(model.generatedAt) || overview.dateKey(new Date());
   host.onchange = event => {
+    if (event.target.matches?.('[data-workshop-department]')) { pdcWorkshopDepartmentChanged(event); return; }
     if (event.target.matches?.('[data-control-board-start]') && event.target.value) changeDates(event.target.value);
   };
   host.onclick = event => {
@@ -7410,6 +7441,8 @@ function renderWorkflowBoard() {
       const item = items.get(`${target.dataset.controlBoardItem}:${target.dataset.controlBoardId}`);
       if (item) openControlBoardOverviewItem(item, target.dataset.controlBoardDate);
     } else if (target.dataset.controlBoardPlanner) {
+      if (typeof workshopState === 'function') workshopState().busBayGroup = target.dataset.controlBoardGroup || '';
+      app.pendingBusBayGroup = target.dataset.controlBoardGroup || '';
       openWorkshopPlannerForStage(target.dataset.controlBoardPlanner);
     } else if (target.dataset.controlBoardJump) {
       const department = [...host.querySelectorAll('[data-control-board-stage]')].find(node => node.dataset.controlBoardStage === target.dataset.controlBoardJump);
@@ -13442,6 +13475,17 @@ function vehicleWorkshopDepartment138(vehicle = {}, line = {}, detail = null) {
   return department ? department === '138' : vehicleDepartmentCode(vehicle) === '138';
 }
 
+
+function vehicleWorkshop138AllowedStation(vehicle, lineKey, detail, fallbackDescription = '') {
+  const identity = String(lineKey || '').replace(/^source:/,'');
+  const lines = [detail?.job_card_lines,detail?.operation_lines,detail?.work_lines,vehicle.pdcQcOperationLines,vehicle.pdcEmailOperationLines].filter(Array.isArray).flat();
+  const line = lines.find(item => String(item.line_identity || item.line_key || item.lineIdentity || item.source_line_id || item.sourceLineId || item.operation_line_id || '').replace(/^source:/,'') === identity);
+  const acceptedStage = String(line?.stage_code || line?.stageCode || '').toUpperCase();
+  if (['BUS_4X4','TINT','TYRE'].includes(acceptedStage)) return acceptedStage;
+  const description = line?.description || fallbackDescription;
+  return window.PDC_WORKSHOP_DEPARTMENTS?.sharedStation(description) || 'BUS_4X4';
+}
+
 function vehicleWorkshopGroups(vehicle = {}, detail = null) {
   const requirements = Array.isArray(detail?.requirements) ? detail.requirements : vehicleWorkshopLocalRequirements(vehicle);
   const bookings = Array.isArray(detail?.bookings) ? detail.bookings : [];
@@ -13935,13 +13979,13 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
     const scheduleButton = canEdit && hasSchedulableHours && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage] && !activeBooking
       ? `<button type="button" class="vehicle-workshop-schedule-next" data-vehicle-workshop-schedule-next ${mutationData} data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" title="Choose the earliest available time across all active bays">Best slot</button>` : '';
     const busOnly = vehicleWorkshopDepartment138(vehicle, line);
-    const lineStages = busOnly ? ['BUS_4X4'] : validStages;
+    const lineStages = busOnly ? [group.stage] : validStages;
     const stationOptions = lineStages.map(stage => {
       const option = vehicleWorkshopStationPresentation(stage);
       return `<option value="${escapeHtml(stage)}"${stage === group.stage ? ' selected' : ''}>${escapeHtml(option.label)}</option>`;
     }).join('');
     const moveControl = canEdit && !line.fallback && (busOnly || validStages.length > 1)
-      ? `<label class="vehicle-workshop-line-station"><span>Station</span><select data-vehicle-workshop-line-stage ${mutationData}${busOnly?' disabled':''}>${stationOptions}</select>${busOnly?'<small>Dept 138 jobs use Bus 4×4 bays.</small>':''}</label>` : '';
+      ? `<label class="vehicle-workshop-line-station"><span>Station</span><select data-vehicle-workshop-line-stage ${mutationData}${busOnly?' disabled':''}>${stationOptions}</select>${busOnly?'<small>Dept 138 uses Bus 4×4, with separate shared Tint and Tyres work.</small>':''}</label>` : '';
     const canRemoveSource = typeof vehicleWorkshopOperationAdministratorActive === 'function' && vehicleWorkshopOperationAdministratorActive() && operationLineId && operationNo && !complete && !line.adjustmentProtected && line.authenticatedEmailOperation === true;
     const controls = canEdit ? `<span class="vehicle-workshop-line-actions">${moveControl}${scheduleButton}<button type="button" data-vehicle-workshop-line-edit ${mutationData}>Edit line</button>${line.workshopManualLine ? `<button type="button" class="is-danger" data-vehicle-workshop-line-delete data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}">Remove</button>` : ''}${canRemoveSource ? `<button type="button" class="is-danger" data-vehicle-workshop-operation-remove data-operation-line-id="${escapeHtml(operationLineId)}" data-operation-no="${escapeHtml(operationNo)}" data-operation-description="${escapeHtml(sourceDescription)}" data-operation-department="${escapeHtml(group.stage)}" data-operation-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-operation-stock="${escapeHtml(displayStockNumber(vehicle))}" data-operation-job-card="${escapeHtml(vehicleJobcardNumber(vehicle))}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}" data-source-evidence="${escapeHtml(JSON.stringify({ operation_line_id: operationLineId, operation_no: operationNo, description: sourceDescription, stage_code: group.stage, estimated_hours: projection.schedulingHours, selected_hours_field: projection.evidence?.selectedField || null }))}">Remove operation</button>` : ''}</span>` : '';
     const handleData = `data-vehicle-workshop-line-handle data-stage="${escapeHtml(group.stage)}" data-vehicle-id="${escapeHtml(canonicalVehicleId)}" data-vehicle-key="${escapeHtml(vehicleIdentity)}" data-booking-id="${escapeHtml(activeBooking?.booking_id || activeBooking?.id || '')}" data-hours="${escapeHtml(totalHours ?? estimate ?? '')}"`;
@@ -14056,8 +14100,8 @@ async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId 
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
   if (!vehicleWorkshopCanEditLines() || !canonicalId || !detail) return false;
-  if (vehicleWorkshopDepartment138(vehicle, {line_key:lineKey}, detail) && vehicleWorkshopStageCode(stage) !== 'BUS_4X4') {
-    if (showError) window.alert('Dept 138 jobs must use Bus 4×4 bays. Refresh this vehicle to load its current station.');
+  if (vehicleWorkshopDepartment138(vehicle, {line_key:lineKey}, detail) && vehicleWorkshopStageCode(stage) !== vehicleWorkshop138AllowedStation(vehicle,lineKey,detail,description)) {
+    if (showError) window.alert('Dept 138 work uses its assigned Bus 4×4, Tint or Tyres station. Refresh this vehicle to load its current station.');
     return false;
   }
   const nextDescription = hoursOnly ? description : window.prompt(lineKey ? 'Workshop line description' : 'New Workshop line description', description || '');
@@ -14108,8 +14152,8 @@ async function moveVehicleWorkshopSourceLineStage(select, targetStage) {
   const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
   const lineKey = String(select?.dataset?.lineKey || '');
   if (!select || !vehicleWorkshopCanEditLines() || !canonicalId || !detail || !/^source:[0-9a-f-]{36}$/i.test(lineKey)) return false;
-  if (vehicleWorkshopDepartment138(vehicle, {line_key:lineKey}, detail) && vehicleWorkshopStageCode(targetStage) !== 'BUS_4X4') {
-    window.alert('Dept 138 jobs must use Bus 4×4 bays.');
+  if (vehicleWorkshopDepartment138(vehicle, {line_key:lineKey}, detail) && vehicleWorkshopStageCode(targetStage) !== vehicleWorkshop138AllowedStation(vehicle,lineKey,detail)) {
+    window.alert('Dept 138 uses Bus 4×4 bays, with shared Tint and Tyre bays for those operations.');
     return false;
   }
   const config = window.PDC_SUPABASE_CONFIG || {};

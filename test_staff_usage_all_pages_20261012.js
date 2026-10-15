@@ -77,7 +77,7 @@ test('Every published PDC view/navigation and Sales view has a named activity pa
 });
 
 test('Client and database page allowlists stay identical', () => {
-  const sql = fs.readFileSync(path.join(__dirname, 'supabase/migrations/20261012065327_all_pages_staff_activity.sql'), 'utf8');
+  const sql = fs.readFileSync(path.join(__dirname, 'supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql'), 'utf8');
   const list = sql.match(/p_page not in \(([\s\S]*?)\)/)[1];
   assert.deepEqual([...list.matchAll(/'([^']+)'/g)].map(m => m[1]).sort(), Object.keys(PAGE_LABELS).sort());
   assert.ok(sql.includes("'administrator','fitter','salesperson'"));

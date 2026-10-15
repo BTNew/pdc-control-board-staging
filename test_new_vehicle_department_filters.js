@@ -84,13 +84,13 @@ test('unidentified groups and badge counts use the same department scope',async(
   assert.equal(f.calls[0].name,'list_pdc_unidentified_tune_reviews_by_department');
   assert.equal(f.calls[1].name,'get_pdc_review_counts_by_department');
   f.resolve(0,[],{total:51});f.resolve(1,[],{new_vehicles:6,operation_changes:3});await load;
-  assert.equal(f.badge.textContent,'9');assert.match(f.page.innerHTML,/51 groups/);assert.match(f.page.innerHTML,/data-nv-department/);
+  assert.equal(f.badge.textContent,'6');assert.match(f.page.innerHTML,/51 groups/);assert.match(f.page.innerHTML,/data-nv-department/);
   f.context.app.currentView='dashboard';const counts=f.context.loadCounts();
   assert.deepEqual(plain(f.calls[2].payload),{p_department:'138'});
   f.context.window.PDC_DEPARTMENT_FILTER.setSelection('139');
   f.resolve(3,[],{new_vehicles:4,operation_changes:1});await tick();
   f.resolve(2,[],{new_vehicles:100,operation_changes:100});await counts;
-  assert.equal(f.badge.textContent,'5','late old-scope badge is ignored');
+  assert.equal(f.badge.textContent,'4','late old-scope badge is ignored');
 });
 
 test('scope mismatch and missing scoped RPC fail closed without showing an unfiltered queue',async()=>{

@@ -150,7 +150,9 @@ test('readiness action uses requested canonical vehicle and never reverse matche
   functions(['workshopRememberReadinessFailure','workshopReadinessFailureHtml'],c);
   assert.equal(c.workshopRememberReadinessFailure({error:'bus_stage_parts_required'},{vehicleId:'412'}),false);
   assert.equal(c.workshopRememberReadinessFailure({error:'bus_stage_parts_required'},{vehicleId:UUID}),true);
-  assert.match(c.workshopReadinessFailureHtml('BUS_4X4',[{sharedVehicleId:UUID,stock:'12311021'}],[]),new RegExp('data-bus-workflow-open="'+UUID+'"'));
+  const message=c.workshopReadinessFailureHtml('BUS_4X4',[{sharedVehicleId:UUID,stock:'12311021'}],[]);
+  assert.match(message,/Stock 12311021: refresh booking rules/);
+  assert.doesNotMatch(message,/data-bus-workflow-open=/);
   assert.equal(c.workshopReadinessFailureHtml('BUS_4X4',[],[]),'');
   assert.equal(c.workshopReadinessFailureHtml('TINT',[],[entry]),'');
 });

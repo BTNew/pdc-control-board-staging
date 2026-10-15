@@ -11,7 +11,7 @@
   // The same authenticated website becomes a QC-only client on phones.
   // Never rewrite OAuth/password-recovery fragments.
   const phone = window.matchMedia?.('(max-width: 900px), (pointer: coarse) and (max-width: 1024px)').matches;
-  const requestedIntake = !phone && location.hash === '#/newvehicles';
+  const requestedIntake = !phone && ['#/newvehicles','#/operationupdates'].includes(location.hash);
   document.documentElement.classList.toggle('pdc-qc-phone', Boolean(phone && location.hash !== '#/fitters'));
   if (phone && location.hash !== '#/fitters' && (!location.hash || location.hash.startsWith('#/'))) {
     window.history.replaceState({ pdcView: 'qc' }, '', `${location.pathname}${location.search}#/qc`);
@@ -71,12 +71,12 @@
     document.head.appendChild(partsConfirmation);
     const intakeStyle = document.createElement('link');
     intakeStyle.rel = 'stylesheet';
-    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match&compact-approve=2026.09.14.01&review-fixes=2026.09.13.01&operation-approval=2026.09.14.01&bulk-ready=2026.09.14.01&department-filter=2026.09.19.01';
+    intakeStyle.href = 'pdc-new-vehicles.css?v=2026.09.12.review-orange-match&compact-approve=2026.09.14.01&review-fixes=2026.09.13.01&operation-approval=2026.09.14.01&bulk-ready=2026.09.14.01&department-filter=2026.09.19.01&accepted-updates=2026.10.15.01';
     document.head.appendChild(intakeStyle);
     const intakeScript = document.createElement('script');
-    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&compact-approve=2026.09.14.01&ai-estimates=2026.09.14.01&review-fixes=2026.09.13.01&operation-approval=2026.09.14.01&deep-review=2026.09.13.01&one-hour-gap=2026.09.14.01&tune-hours=2026.09.14.01&bulk-ready=2026.09.14.01&department138-bus=2026.09.16.01&department138-tint=2026.09.17.01&speed=2026.09.17.01&planner-speed=2026.09.17.02&department-filter=2026.09.19.01';
+    intakeScript.src = 'pdc-new-vehicles.js?v=2026.09.13.render-performance&compact-approve=2026.09.14.01&ai-estimates=2026.09.14.01&review-fixes=2026.09.13.01&operation-approval=2026.09.14.01&deep-review=2026.09.13.01&one-hour-gap=2026.09.14.01&tune-hours=2026.09.14.01&bulk-ready=2026.09.14.01&department138-bus=2026.09.16.01&department138-tint=2026.09.17.01&speed=2026.09.17.01&planner-speed=2026.09.17.02&department-filter=2026.09.19.01&accepted-updates=2026.10.15.01';
     intakeScript.onload = () => {
-      if (requestedIntake && typeof showView === 'function') showView('newvehicles', { historyMode: 'replace' });
+      if (requestedIntake && typeof showView === 'function') showView(location.hash.slice(2), { historyMode: 'replace' });
     };
     document.head.appendChild(intakeScript);
     const bookAllStations = document.createElement('script');

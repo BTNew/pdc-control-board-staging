@@ -31,7 +31,7 @@ function fixture() {
   };
   c.renderWorkshopPlanner = () => renders.push(c.workshopBayRowsHtml('FITTING', state.date, []));
   vm.createContext(c);
-  vm.runInContext(section('function workshopBayRowsHtml(', 'function workshopMechanicOptions(')
+  vm.runInContext(section('function workshopDepartmentLayout(', 'function workshopMechanicOptions(')
     + section('function workshopBayAssignmentError(', 'function bindWorkshopUnallocatedDrop('), c);
   return { c, calls, assignments, alerts, renders, pending, state, bays,
     setSave: fn => { save = fn; }, setAssign: fn => { assign = fn; }, setPlans: rows => { plans = rows; },

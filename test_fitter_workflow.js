@@ -228,8 +228,8 @@ function supplierFixture() {
 
 test('fitter supplier controls include same-vehicle Tint and route physical checks through dedicated service',async()=>{
   const f=supplierFixture();await f.open();
-  assert.match(f.html,/Supplier physical check fixture/);assert.match(f.html,/Physical verification below/);
-  assert.doesNotMatch(f.html,/data-fitter-line="line-a"/,'supplier lines cannot use ordinary completion checkbox');
+  assert.match(f.html,/Supplier physical check fixture/);assert.doesNotMatch(f.html,/Physical verification below/);
+  assert.match(f.html,/data-fitter-line="line-a"/,'supplier lines use the ordinary completion checkbox');
   f.save();await flush();
   assert.equal(f.supplierCalls.length,1);assert.equal(f.supplierCalls[0].status,'technician_verified');
   assert.deepEqual(f.confirmed,['supplier-draft']);

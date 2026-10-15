@@ -1173,7 +1173,7 @@ function workshopReadinessFailureHtml(stage = '', vehicles = [], plans = []) {
   const plan = plans.find(row => row.sharedVehicleId === failure.vehicleId && row.stage === stage);
   if (!vehicle && !plan) return '';
   const identity = vehicle ? displayStockNumber(vehicle) : plan.vehicleKey;
-  return `<section class="workshop-readiness-failure" role="status"><strong>Stock ${escapeHtml(identity || '')}: parts check required</strong><p>${escapeHtml(failure.message)}</p><button class="small-button" type="button" data-bus-workflow-open="${escapeHtml(failure.vehicleId)}">Open this vehicle’s parts readiness</button><button class="small-button" type="button" data-workshop-dismiss-readiness>Dismiss</button></section>`;
+  return `<section class="workshop-readiness-failure" role="status"><strong>Stock ${escapeHtml(identity || '')}: refresh booking rules</strong><p>${escapeHtml(failure.message)}</p><button class="small-button" type="button" data-workshop-dismiss-readiness>Dismiss</button></section>`;
 }
 
 function workshopVehicleConflictDetail(result = {}) {
@@ -1623,6 +1623,7 @@ function workshopLoadView() {
   return {
     date: workshopDateKey(date),
     stage: WORKSHOP_STAGE_SEQUENCE.includes(saved?.stage) ? saved.stage : 'FABRICATION',
+    busBayGroup: window.PDC_WORKSHOP_DEPARTMENTS?.group(saved?.busBayGroup)?.id || '',
     selectedPlanId: '',
     search: '',
     searchOpen: false,
@@ -1636,7 +1637,7 @@ function workshopLoadView() {
 }
 
 function workshopSaveView(state = {}) {
-  if (typeof saveJson === 'function') saveJson(WORKSHOP_VIEW_STORAGE_KEY, { date: state.date, stage: state.stage });
+  if (typeof saveJson === 'function') saveJson(WORKSHOP_VIEW_STORAGE_KEY, { date: state.date, stage: state.stage, busBayGroup: state.busBayGroup || '' });
 }
 
 function workshopState() {
@@ -3087,7 +3088,7 @@ function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefault
   const normalizedStage = normalizePmbStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return null;
   let best = null;
-  for (const bay of workshopSchedulableBayNumbers(normalizedStage)) {
+  for (const bay of workshopSchedulableBayNumbers(normalizedStage).filter(number => normalizedStage !== 'BUS_4X4' || workshopVisibleBays(normalizedStage).includes(number))) {
     // New work must only be offered against a positively confirmed active
     // shared bay. Existing/historical bookings still use the deliberately
     // lenient rendering path in workshopBayIsActive().
@@ -4013,6 +4014,7 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
       : authorityDisabled ? authorityExplanation : etaExplanation;
   return `<article class="workshop-queue-card workshop-unallocated-vehicle-pill ${blocked ? 'is-blocked' : ''} ${highlighted ? 'is-search-match' : ''} ${schedulingDisabled ? 'is-scheduling-disabled' : ''}" draggable="${schedulingDisabled ? 'false' : 'true'}" ${schedulingDisabled ? 'aria-disabled="true"' : ''} tabindex="0" role="group" aria-label="${escapeHtml(`Vehicle ${displayStockNumber(vehicle) || key}. Press Enter to open job.`)}" data-workshop-vehicle-key="${escapeHtml(key)}" data-workshop-job-vehicle="${escapeHtml(key)}" data-workshop-locate-key="${escapeHtml(key)}" title="${escapeHtml(schedulingDisabled ? disabledExplanation : 'Drag onto a bay, use Best slot, or use Schedule')}">
     ${workshopVehicleIdentitySummaryHtml(vehicle)}
+    ${['TINT','TYRE'].includes(stage) ? '<small>Shared '+escapeHtml(stage === 'TINT' ? 'Tint' : 'Tyres')+' work · linked to original job card</small>' : ''}
     <span>${escapeHtml(workshopQueueVehicleDescription(vehicle))}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
     <small class="workshop-estimated-hours-line">Estimated: ${escapeHtml(hoursLabel)}</small>
@@ -4023,7 +4025,7 @@ function workshopQueueCardHtml(vehicle = {}, stage = workshopState().stage, date
     ${blocked ? '<em>STOPPAGE</em>' : ''}
     ${schedulingDisabled ? `<small class="workshop-scheduling-unavailable-reason">${escapeHtml(disabledExplanation)}</small>` : ''}
     <div class="workshop-queue-actions">
-      ${stage === 'BUS_4X4' && WORKSHOP_UUID_PATTERN.test(String(vehicle.sharedVehicleId || '')) ? `<button class="workshop-schedule-button" type="button" data-bus-workflow-open="${escapeHtml(vehicle.sharedVehicleId)}">Workshop flow / parts readiness</button>` : ''}
+
       ${!schedulingDisabled ? `<button class="workshop-schedule-button best-slot" type="button" data-workshop-best-slot-vehicle="${escapeHtml(key)}" data-workshop-best-slot-stage="${escapeHtml(stage)}" data-workshop-best-slot-hours="${escapeHtml(hours)}">Best slot</button>` : ''}
       <button class="workshop-schedule-button" type="button" data-workshop-schedule-vehicle="${escapeHtml(key)}" ${schedulingDisabled ? `disabled title="${escapeHtml(disabledExplanation)}"` : ''}>${existingBooking ? 'Already booked' : schedulingDisabled ? 'Scheduling unavailable' : 'Schedule'}</button>
     </div>
@@ -4170,6 +4172,30 @@ function workshopUnavailableTimeHtml(dateKey = '', { vertical = false, stage = '
   }).join('');
 }
 
+
+function workshopDepartmentLayout() {
+  return typeof window === 'object' ? window.PDC_WORKSHOP_DEPARTMENTS : null;
+}
+function workshopSelectedBusGroup() {
+  const layout = workshopDepartmentLayout();
+  if (!layout) return null;
+  const state = workshopState();
+  return state.focusedBookingMode ? null : layout.group(state.busBayGroup);
+}
+function workshopVisibleBays(stage) {
+  const selected = stage === 'BUS_4X4' ? workshopSelectedBusGroup() : null;
+  return selected ? [...selected.bays] : Array.from({length:workshopStageBayCount(stage)},(_,i)=>i+1);
+}
+function workshopBayChoiceLabel(stage,bay) {
+  return workshopDepartmentLayout()?.bayLabel(stage,bay) || 'Bay '+workshopPad(bay);
+}
+function workshopDestinationTabs(stage) {
+  const layout = workshopDepartmentLayout();
+  if (!layout) return '';
+  const department = window.PDC_DEPARTMENT_FILTER?.getSelection() || '';
+  return `<nav class="workshop-stage-tabs" aria-label="Booking destination">${layout.options(department).map(option => `<button type="button" class="workshop-stage-tab${option.stage===stage && (!option.group || option.group===workshopState().busBayGroup)?' active':''}" data-workshop-layout-stage="${option.stage}" data-workshop-layout-group="${option.group}">${escapeHtml(option.label)}${option.bays?`<small>Bays ${option.bays.join(', ')}</small>`:''}</button>`).join('')}${stage==='BUS_4X4'?'<button type="button" class="workshop-stage-tab" data-workshop-layout-stage="BUS_4X4" data-workshop-layout-group="">Show all 10 Bus4x4 bays</button>':''}</nav>`;
+}
+
 function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
   const count = workshopStageBayCount(stage);
   // Reuse calculations within this render only, so live timing and reference changes
@@ -4191,8 +4217,7 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
     blocksByBay.get(bay).push(block);
   }
   const unavailableByCalendar = new Map();
-  return Array.from({ length: count }, (_, index) => {
-    const bay = index + 1;
+  return workshopVisibleBays(stage).map(bay => {
     const calendarKey = stage === 'BUS_4X4' ? ([8, 9].includes(bay) ? 'bus-short' : 'bus-standard') : 'shared';
     if (!unavailableByCalendar.has(calendarKey)) unavailableByCalendar.set(calendarKey, workshopUnavailableTimeHtml(dateKey, { stage, bay }));
     const unavailableHtml = unavailableByCalendar.get(calendarKey);
@@ -4200,7 +4225,7 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
       .sort((a, b) => String(a.entry.startAt).localeCompare(String(b.entry.startAt)));
     const defaultAssignee = workshopBayMechanic(stage, bay);
     const adminBlocks = blocksByBay.get(bay) || [];
-    const bayLabel = `Bay ${workshopPad(bay)}`;
+    const bayLabel = workshopBayChoiceLabel(stage,bay);
     const assigneeLabel = 'Bay mechanic';
     return `<div class="workshop-bay-row">
       <div class="workshop-bay-label"><div class="workshop-bay-label-heading"><strong>${escapeHtml(bayLabel)}</strong><button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span><label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}"${WORKSHOP_PENDING_BAY_ASSIGNMENTS.has(`${stage}:${bay}`) ? ' disabled aria-busy="true"' : ''}>${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
@@ -4564,7 +4589,7 @@ function workshopStationSelectionHtml(entry = null) {
       <label><span>Exact planned hours</span><input name="hours" type="number" min="0.0166667" step="any" inputmode="decimal" value="${escapeHtml(workshopExactDurationHours(entry.hours).toFixed(2))}" required ${completed ? 'disabled' : ''}></label>
       <label><span>Technician</span><select name="assignee" ${completed ? 'disabled' : ''}>${workshopAssigneeOptions(entry.stage, entry.assignee || workshopBayMechanic(entry.stage, entry.bay) || pmbBayMechanic(vehicle))}</select></label>
       <div class="workshop-station-selection-actions">
-        ${entry.stage === 'BUS_4X4' && WORKSHOP_UUID_PATTERN.test(String(entry.sharedVehicleId || '')) ? `<button class="small-button" type="button" data-bus-workflow-open="${escapeHtml(entry.sharedVehicleId)}">Workshop flow / parts readiness</button>` : ''}
+
         ${completed ? '<span class="badge success">Completed</span>' : '<button class="primary" type="submit">Save plan</button>'}
         ${completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started || WORKSHOP_PENDING_STARTS.has(entry.id) ? 'disabled' : ''} ${WORKSHOP_PENDING_STARTS.has(entry.id) ? 'aria-busy="true"' : ''}>${started ? 'Started' : WORKSHOP_PENDING_STARTS.has(entry.id) ? 'Starting…' : 'Start job'}</button><button class="small-button ${stopped ? 'active-lite' : ''}" type="button" ${stopped ? `data-workshop-resume-plan="${escapeHtml(entry.id)}"` : `data-workshop-stop-plan="${escapeHtml(entry.id)}"`}>${stopped ? 'Resume job' : 'STOPPAGE'}</button><button class="small-button active-lite" type="button" data-workshop-complete-plan="${escapeHtml(entry.id)}">Complete work</button>`}
       </div>
@@ -4583,7 +4608,7 @@ function workshopDetailHtml(entry = null, options = {}) {
       <strong>Legacy review required · editing blocked</strong>
       <span>${escapeHtml(entry.legacyAmbiguityReason)}</span>
       <div class="workshop-detail-actions">
-        <button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>${entry.stage === 'BUS_4X4' && WORKSHOP_UUID_PATTERN.test(String(entry.sharedVehicleId || '')) ? `<button class="small-button" type="button" data-bus-workflow-open="${escapeHtml(entry.sharedVehicleId)}">Workshop flow / parts readiness</button>` : ''}
+        <button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>
         <button class="small-button" type="button" data-workshop-open-vehicle="${escapeHtml(entry.vehicleKey)}">Full vehicle</button>
       </div>
     </div>`;
@@ -4613,7 +4638,7 @@ function workshopDetailHtml(entry = null, options = {}) {
     completed || !previousBay ? '' : `<button class="small-button" type="button" data-workshop-quick-move-plan="${escapeHtml(entry.id)}" data-workshop-quick-move-stage="${escapeHtml(entry.stage)}" data-workshop-quick-move-bay="${previousBay}">← Bay ${escapeHtml(workshopPad(previousBay))}</button>`,
     completed || !nextBay ? '' : `<button class="small-button" type="button" data-workshop-quick-move-plan="${escapeHtml(entry.id)}" data-workshop-quick-move-stage="${escapeHtml(entry.stage)}" data-workshop-quick-move-bay="${nextBay}">Bay ${escapeHtml(workshopPad(nextBay))} →</button>`,
     completed || !bestBaySlot ? '' : `<button class="small-button" type="button" data-workshop-best-bay-plan="${escapeHtml(entry.id)}">Best bay/time</button>`,
-    `<button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>${entry.stage === 'BUS_4X4' && WORKSHOP_UUID_PATTERN.test(String(entry.sharedVehicleId || '')) ? `<button class="small-button" type="button" data-bus-workflow-open="${escapeHtml(entry.sharedVehicleId)}">Workshop flow / parts readiness</button>` : ''}`,
+    `<button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>`,
     `<button class="small-button" type="button" data-workshop-open-vehicle="${escapeHtml(entry.vehicleKey)}">Full vehicle</button>`,
   ].join('');
   const lifecycleControls = completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started || WORKSHOP_PENDING_STARTS.has(entry.id) ? 'disabled' : ''} ${WORKSHOP_PENDING_STARTS.has(entry.id) ? 'aria-busy="true"' : ''}>${started ? 'Started' : WORKSHOP_PENDING_STARTS.has(entry.id) ? 'Starting…' : 'Start job'}</button>
@@ -5017,8 +5042,10 @@ function renderWorkshopPlanner(options = {}) {
   const root = document.querySelector('#workshop-planner-root');
   if (!root) return;
   const state = workshopState();
+  if (typeof app.pendingBusBayGroup === 'string') { state.busBayGroup = app.pendingBusBayGroup; delete app.pendingBusBayGroup; }
   const pendingBookingLink = typeof app !== 'undefined' ? app.pendingWorkshopBookingLink : null;
   const pendingWorkContext = typeof app !== 'undefined' ? app.pendingVehicleWorkContext : null;
+  if (pendingBookingLink || pendingWorkContext) state.busBayGroup = '';
   if (pendingWorkContext?.station && normalizePmbStage(pendingWorkContext.station) === normalizePmbStage(state.stage)) {
     if (pendingWorkContext.bay) state.bay = String(pendingWorkContext.bay);
     app.pendingVehicleWorkContext = null;
@@ -5144,7 +5171,7 @@ function renderWorkshopPlanner(options = {}) {
   const stageVehicleCounts = dedicatedStage
     ? new Map([[stage, stageVehicleList.length]])
     : new Map(WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => [value, value === stage ? stageVehicleList.length : workshopStageVehicles(value).length]));
-  const stageTabs = dedicatedStage || focusedBookingMode ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => `<button type="button" class="workshop-stage-tab ${value === stage ? 'active' : ''}" data-workshop-stage="${escapeHtml(value)}"><span>${escapeHtml(pmbStageLabel(value))}</span><strong>${stageVehicleCounts.get(value)}</strong></button>`).join('');
+  const stageTabs = workshopDepartmentLayout() || dedicatedStage || focusedBookingMode ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => `<button type="button" class="workshop-stage-tab ${value === stage ? 'active' : ''}" data-workshop-stage="${escapeHtml(value)}"><span>${escapeHtml(pmbStageLabel(value))}</span><strong>${stageVehicleCounts.get(value)}</strong></button>`).join('');
   const sharedBanner = sharedModeActive ? workshopConnectionBannerHtml() : '';
   renderHost.innerHTML = `<div class="${dedicatedStage ? 'workshop-planner workshop-station-board' : 'workshop-planner'}${focusedBookingMode ? ' is-focused-booking' : ''}" data-planner-stage="${escapeHtml(stage)}">
     ${sharedBanner}
@@ -5168,11 +5195,14 @@ function renderWorkshopPlanner(options = {}) {
       </div>
     </header>
     ${workshopReadinessFailureHtml(stage, stageVehicleList, plans)}
-    ${stage === 'BUS_4X4' ? '<div data-bus-workflow-host></div>' : ''}
+
     ${workshopStartFeedback.stage === stage && workshopStartFeedback.message ? `<div class="workshop-search-state" role="status" aria-live="polite">${escapeHtml(workshopStartFeedback.message)}</div>` : ''}
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
     ${focusedBookingMode ? '' : workshopSearchControlHtml(state.search || '', plans)}
     ${state.bookingNavigationError ? `<div class="workshop-search-state is-warning" role="alert">${escapeHtml(state.bookingNavigationError)}</div>` : ''}
+    ${!focusedBookingMode && typeof pdcWorkshopDepartmentControls === 'function' ? pdcWorkshopDepartmentControls() : ''}
+    ${focusedBookingMode ? '' : workshopDestinationTabs(stage)}
+    ${stage === 'TINT' || stage === 'TYRE' ? '<p class="workshop-board-note">Shared by Departments 138 and 139. All bookings are shown and reserve the same physical bays.</p>' : ''}
     ${stageTabs ? `<nav class="workshop-stage-tabs" aria-label="Workshop departments">${stageTabs}</nav>` : ''}
     ${focusedBookingMode && state.focusedBookingError ? `<section class="workshop-focused-booking-error" role="alert"><strong>Focused booking unavailable</strong><span>${escapeHtml(state.focusedBookingError)}</span><button type="button" class="small-button" data-workshop-focused-back>Back to Workshop planner</button></section>` : ''}
     <div class="workshop-board-shell">
@@ -5210,6 +5240,13 @@ function renderWorkshopPlanner(options = {}) {
 }
 
 function bindWorkshopPlanner(root) {
+  if (typeof pdcWorkshopDepartmentChanged === 'function') root.querySelector('[data-workshop-department]')?.addEventListener('change',pdcWorkshopDepartmentChanged);
+  root.querySelectorAll('[data-workshop-layout-stage]').forEach(button => button.addEventListener('click',() => {
+    const state=workshopState(); state.busBayGroup=button.dataset.workshopLayoutGroup || '';
+    workshopClearSelectedDetail(state); workshopSaveView(state);
+    if (button.dataset.workshopLayoutStage === state.stage) renderWorkshopPlanner();
+    else openWorkshopPlannerForStage(button.dataset.workshopLayoutStage);
+  }));
   root.querySelector('[data-workshop-dismiss-readiness]')?.addEventListener('click', () => {
     workshopState().readinessFailure = null;
     renderWorkshopPlanner();
@@ -6165,7 +6202,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     return;
   }
   const baseHours = duration?.hours || workshopDefaultBookingHours();
-  const bay = workshopSchedulableBayNumbers(normalizedStage).find(number => workshopBayAllocatedHours(normalizedStage, number, baseHours) > 0) || 1;
+  const bay = workshopSchedulableBayNumbers(normalizedStage).find(number => workshopVisibleBays(normalizedStage).includes(number) && workshopBayAllocatedHours(normalizedStage, number, baseHours) > 0) || 1;
   const hours = workshopBayAllocatedHours(normalizedStage, bay, baseHours);
   if (!(hours > 0)) {
     window.alert('Bay efficiency is still loading. Refresh the planner and try again.');
@@ -6178,7 +6215,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours, workshopLoadPlans(), 0, 260, new Date(), [], workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || '', '', vehicle);
   const scheduledDate = firstSlot?.dateKey || selectedDate;
   const startMinutes = firstSlot?.startMinutes ?? 0;
-  const bayOptions = Array.from({ length: workshopStageBayCount(normalizedStage) }, (_, index) => `<option value="${index + 1}" ${index + 1 === bay ? 'selected' : ''}>Bay ${workshopPad(index + 1)}</option>`).join('');
+  const bayOptions = Array.from({ length: workshopStageBayCount(normalizedStage) }, (_, index) => `<option value="${index + 1}" ${index + 1 === bay ? 'selected' : ''}>${escapeHtml(workshopBayChoiceLabel(normalizedStage,index + 1))}</option>`).join('');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay workshop-schedule-overlay';
   overlay.setAttribute('role', 'dialog');
@@ -6188,7 +6225,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     <header><h2>Schedule ${escapeHtml(pmbStageLabel(normalizedStage))} work</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</p></header>
     <form data-workshop-schedule-form>
       <div class="workshop-schedule-grid">
-        <label><span>Bay</span><select name="bay">${bayOptions}</select></label>
+        <label><span>Bay</span><select name="bay">${bayOptions}</select>${normalizedStage === 'BUS_4X4' ? '<small>Choose any suitable Bus4x4 bay to override the usual group, including an electrical bay for fitting.</small>' : ''}</label>
         <label><span>Date</span><input name="date" type="date" value="${escapeHtml(scheduledDate)}" ${etaConstraint.earliestDateKey ? `min="${escapeHtml(etaConstraint.earliestDateKey)}"` : ''} required></label>
         <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(startMinutes)}</select></label>
         <label><span>Planned hours</span><input name="hours" type="number" min="0.01" step="any" value="${escapeHtml(friendlyPlannedHours)}" ${authoritativeHours ? 'readonly title="Operation estimate adjusted for bay efficiency"' : ''} required></label>

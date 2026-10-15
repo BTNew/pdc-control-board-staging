@@ -1,7 +1,12 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 test('Department 135 retains the exact PMB planner and calendar helper implementations',()=>{
- for(const file of ['workshop-planner.css','workshop-booking-timing.js','workshop-display-identity.js','workshop-data-service.js','workshop-reference-data-service.js','workshop-shared-actions.js','workshop-realtime.js','workshop-navigation.js','control-board-overview.js','pdc-planner-capacity.js','pdc-planner-slim.js']) assert.deepEqual(fs.readFileSync(path.join(__dirname,'karratha',file)),fs.readFileSync(path.join(__dirname,file)),file);
+ for(const file of ['workshop-booking-timing.js','workshop-display-identity.js','workshop-data-service.js','workshop-reference-data-service.js','workshop-shared-actions.js','workshop-realtime.js','workshop-navigation.js','pdc-planner-capacity.js','pdc-planner-slim.js']) assert.deepEqual(fs.readFileSync(path.join(__dirname,'karratha',file)),fs.readFileSync(path.join(__dirname,file)),file);
+});
+test('Department135 retains its original planner presentation',()=>{
+ const crypto=require('node:crypto');
+ const hashes={"workshop-planner.css": "ac0c86ee34a4785aeee648513da5b9ce188fabf0425f9964dc6ea94f34ae53f1", "control-board-overview.js": "440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1"};
+ for(const [file,hash] of Object.entries(hashes))assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(__dirname,'karratha',file),'utf8').replace(/\r\n/g,'\n')).digest('hex'),hash);
 });
 test('all six native planner routes remain and no Bus route can be selected',()=>{
  const html=fs.readFileSync(path.join(__dirname,'karratha/index.html'),'utf8');
