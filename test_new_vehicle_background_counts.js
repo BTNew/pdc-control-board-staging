@@ -19,7 +19,7 @@ function fixture() {
 test('background routes fetch badge counts without expanding either review list',async()=>{
   const f=fixture();for(let i=0;i<6;i++)await f.api.refreshBackground();
   assert.equal(f.calls.length,6);assert.ok(f.calls.every(n=>n==='get_pdc_review_counts'));
-  assert.equal(f.badge.textContent,'16');assert.equal(f.badge.hidden,false);
+  assert.equal(f.badge.textContent,'12');assert.equal(f.badge.hidden,false);
   assert.equal(f.api.state().total,0,'badge reads must not pretend the full queue was loaded');
 });
 test('review route retains both full queue refreshes with their current counts',async()=>{
@@ -41,5 +41,5 @@ test('sign-out discards pending badge counts and transient failures retain last 
   const f=fixture(),release=f.hold();const pending=f.api.refreshBackground();f.api.reset();release();await pending;
   assert.equal(f.api.state().badgeCounts,null);
   const healthy=fixture();await healthy.api.refreshBackground();healthy.fail();await healthy.api.refreshBackground();
-  assert.equal(healthy.badge.textContent,'16');assert.equal(healthy.api.state().total,0);
+  assert.equal(healthy.badge.textContent,'12');assert.equal(healthy.api.state().total,0);
 });

@@ -9,7 +9,7 @@
     'user-management':'User Management', lists:'Setup', import:'Navision Uploads',
     'update-history':'Update History', backup:'Backup / Restore', deleted:'Deleted Vehicles',
     collected:'Collected Vehicles', completed:'Completed Vehicles', backend:'Back End Data',
-    newvehicles:'New Vehicles', emailreview:'Email Review', 'ai-auditor':'AI Auditor', zpl:'Labels',
+    newvehicles:'New Vehicles', operationupdates:'Operation Updates', emailreview:'Email Review', 'ai-auditor':'AI Auditor', zpl:'Labels',
     'sales-myday':'Sales · My Day', 'sales-dashboard':'Sales · Dashboard', 'sales-pipeline':'Sales · Vehicle Pipeline',
     'sales-customeremails':'Sales · Customer Emails', 'sales-alerts':'Sales · Alerts',
     'sales-finance':'Finance · Pipeline', 'sales-finance-statistics':'Finance · Statistics',

@@ -289,6 +289,7 @@ function integrationRuntime(overrides = {}) {
   };
   vm.createContext(context);
   vm.runInContext(extracted('vehicleWorkshopPerthDateKey', 'vehicleWorkshopBookingTimeLabel'), context);
+  vm.runInContext(extracted('pdcWorkshopDepartmentControls','pdcSyncWorkshopDepartmentNavigation'),context);
   vm.runInContext(extracted('renderWorkflowBoard', 'vehicleHasNavisionSource'), context);
   const click = dataset => host.onclick({ target: { closest: () => ({ dataset, hasAttribute: name => Object.hasOwn(dataset, name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase())) }) } });
   return { context, calls, host, scroller, search, floating, match, click };

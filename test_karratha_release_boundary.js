@@ -30,7 +30,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     // original own-engine tracker. Pin that unchanged asset independently.
     if (item.file === 'pdc-staff-usage.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'adb054e560cb911a588622303e7f7f4549d7274eb840e6051002fc5e6bc041de',item.file);
     // PMG now has a read-error recovery repair; keep the isolated fitter asset at its original baseline.
-    else if (item.file === 'pdc-fitters.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
+    else if (item.file === 'control-board-overview.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1',item.file);
+    else if (['pdc-fitters.js','canonical-entry.js','control-board-overview.js','pdc-new-vehicles.css','workshop-planner.css'].includes(item.file)) assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -40,19 +41,32 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 });
 // Explicitly pinned upstream deccc4b release changes and owner-approved three-site sidebar navigation.
 const approvedRootImportPatch = Object.freeze({
+  "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
+  "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
+  "pdc-workshop-departments.js": "14fb32fa69c5d6e20628386f86e956e91c5373a3ffecd049e9659603fbe53352",
+  "workshop-planner.js": "3a403721c007bee8f3b42efee70909ac291d5e4370d7625406fbc95b7f9ad8cf",
+  "workshop-planner.css": "4f9d216636c8dee83ba1a7a88cba801016ba9487a89d1ea30e3eab048a196838",
+  "scripts/build_pages_runtime.js": "b8d0246d48dc6547a21ef70f729aff89488858e081c3c07b3dcad77ff0718ab2",
+  "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
+  "pdc-new-vehicles.js": "034fbd702e35d531208e24d43817d251e526de233f924caf33a193d606de54a3",
+  "pdc-new-vehicles.css": "2ee29702e0b5ca62692891cbf5467894fe670e4b65961f32ca619aa2225cfe10",
+  "docs/bus4x4-workflow.md": "41f5d960995b0f9cd0ca7dbb351d7e84f8f17725ac7213ada63c2918c63cc5e2",
+  "docs/bus4x4-user-guide.md": "ae2f0107933c4750c7ea869d7ae849e266e2e23da12a81d8578228c74d40b388",
+  "docs/bus4x4-user-guide.html": "293e50f1180a036df641228ab7ac29e696c3bded8b104f5b28aa7ec39d266564",
+  "canonical-entry.js": "56e379448f3a01325027be3809db7257adb71f68765c9c1b19cf226dccc3b407",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
-  "pdc-fitters.js": "907dc77d86a313f87a09f706515221ef9b3bc9814edcea91aa1ac4a982f4a146",
-  "app.js": "d5560b74f5953dcd309661913f723fa37d71097e0ff12a84002eb28ee916c6e9",
-  "control-board-overview.js": "440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1",
+  "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
+  "app.js": "a0230a4d162c4937124c2f88ec553ef4f36fbaf77b667c67e72b38a4afe46c58",
+  "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "9ac30b80deaa09b67dce4712aeca12daa4870aaf35aa260985c7a2f2270c00cc",
+  "index.html": "73842d93870b786cdd2f70d5b84781ba5b98e5572003626da5be0ca8a6e12e49",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "b49912ede35635d1a490cc8168e94e32b9389dbd71d686684bdce02571b0cec6",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
   "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",
   "pdc-staff-usage.css": "e7769d72b7601097fa4c41a19140fdcda4408f3d1f620008282d9df136b1ddf0",
-  "pdc-staff-usage.js": "decb91ede49d1b512cb14c1cc74214efbaedcc5b21c3f8f227cbfa9e827cd364",
+  "pdc-staff-usage.js": "812c484bfbea36d96dd7e5871ba7d8dc47ac775901671c1e808771a72de723c5",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
   "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938"
 });

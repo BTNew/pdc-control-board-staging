@@ -130,7 +130,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-ai-auditor-stage-a.js', 'pdc-ai-intake-review.css', 'pdc-ai-intake-review.js',
   'pdc-ai-intake-service.js', 'pdc-auth-registration.js', 'pdc-auth.js',
   'pdc-book-all-stations.js', 'pdc-bus-workflow.css', 'pdc-bus-workflow.js',
-  'pdc-completed-history.css', 'pdc-conversions.js', 'pdc-department-filter.js',
+  'pdc-completed-history.css', 'pdc-conversions.js', 'pdc-department-filter.js', 'pdc-workshop-departments.js',
   'pdc-email-ai-successor-inbox.css', 'pdc-email-ai-successor-inbox.js',
   'pdc-email-ai-v2-actions.js', 'pdc-email-vehicle-location-service.js',
   'pdc-emergency-priority.css', 'pdc-emergency-priority.js',

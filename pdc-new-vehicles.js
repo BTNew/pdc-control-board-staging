@@ -31,8 +31,7 @@
     return `<label class="nv-department-filter"><span>Department</span><select data-nv-department aria-label="New Vehicles department" ${disabled?'disabled':''}><option value="" ${!code?'selected':''}>All departments</option><option value="138" ${code==='138'?'selected':''}>138 — Bus 4×4</option><option value="139" ${code==='139'?'selected':''}>139 — PD</option></select></label>`;
   }
   const department138 = line => String(line?.department ?? '').trim() === '138';
-  const department138Station = line => /\bTINT(?:ING|S)?\b/i.test(String(line?.description ?? line?.operation_description ?? ''))
-    && !/BONNET[ -]*PROTECT|WEATHER[ -]*(?:SHIELD|SHEILD)/i.test(String(line?.description ?? line?.operation_description ?? '')) ? 'TINT' : 'BUS_4X4';
+  const department138Station = line => (typeof window === 'object' ? window.PDC_WORKSHOP_DEPARTMENTS : require('./pdc-workshop-departments.js')).sharedStation(line?.description ?? line?.operation_description ?? '');
   const assignedStation = (line, choices = {}) => department138(line) ? department138Station(line)
     : choices[line.line_identity] ?? (validStation(line.stage_code) ? line.stage_code : '');
   const updateDepartment138 = row => department138({department:row.proposed?.department ?? row.current_work?.department ?? row.department});
@@ -204,16 +203,30 @@
     const stage=updateStation(row,draft),locked=updateDepartment138(row);
     const hours=draft.hours ?? row.effective_hours;
     const issues=updateProblems(row,draft);
+    const heldCode=row.automation_result?.code;
+    const heldReason={
+      estimated_hours_required:'An estimated time is needed before this change can be applied.',
+      conflicting_description_times:'The uploaded description contains conflicting times. Check the estimate.',
+      station_needs_review:'Choose the workshop responsible for this operation.',
+      vehicle_or_review_state_protected:'The vehicle has moved beyond normal workshop updates. Review its current status.',
+      completed_station_requires_rework_review:'This workshop stage is completed. Review any rework separately.',
+      completed_or_removed_line_protected:'This operation is completed or removed. Review any rework separately.',
+      operation_schedule_busy:'The schedule was being updated. Retry automatic approval shortly.',
+      operation_schedule_conflict:'The revised work could not fit the current booking rules. Review its bookings.',
+      operation_identity_changed:'The matching operation has changed. Refresh and check the job card.',
+      operation_identity_needs_review:'Check the vehicle, job card and operation line before approving.',
+      source_evidence_mismatch:'The uploaded evidence needs review before this change can be applied.'
+    }[heldCode]||(heldCode?'This change needs review before it can be applied.':'');
     return `<article class="nv-update-card" data-operation-change="${esc(row.change_id)}"><header><h3>${esc(row.stock_number)} · ${row.change_kind==='added'?'Added operation':'Changed operation'}</h3><span>Already on board · ${esc(row.current_location)}</span></header>
     <p>${esc(row.customer_name)} · Job ${esc(row.job_number)} · Line ${esc(row.line_number)}${row.company?' · '+esc(row.company):''}${row.division?' / '+esc(row.division):''}</p>
     <div class="nv-update-compare"><section><h4>Previously accepted Tune line</h4><p>${row.change_kind==='added'?'New line — not on this vehicle yet':esc(row.before?.operation_description)}</p><small>${row.change_kind==='added'?'':esc(row.before?.source_estimated_hours??'Not supplied')+' source hours'}</small></section>
     <section><h4>Latest Tune line</h4><p>${esc(row.proposed?.operation_description)}</p><small>${esc(row.proposed?.source_estimated_hours??'Not supplied')} source hours</small></section></div>
     ${row.current_work?`<p>Current workshop plan: ${esc(row.current_work.stage_code)} · ${esc(row.current_work.estimated_hours)} hours${row.current_work.completed?' · Completed':''}</p>`:''}
     <p><small>Imported ${esc(new Date(row.received_at).toLocaleString('en-AU',{timeZone:'Australia/Perth'}))} (Perth)</small></p>
-    <div class="nv-update-controls"><label>Workshop <select data-update-stage ${busy||!canApprove||locked?'disabled':''}>${locked?'':'<option value="">Choose station</option>'}${STATIONS.filter(([code])=>!locked||code===stage).map(([code,label])=>`<option value="${code}" ${code===stage?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138: window tint uses Tint; other work uses Bus 4×4.</small>':''}</label>
+    <div class="nv-update-controls"><label>Workshop <select data-update-stage ${busy||!canApprove||locked?'disabled':''}>${locked?'':'<option value="">Choose station</option>'}${STATIONS.filter(([code])=>!locked||code===stage).map(([code,label])=>`<option value="${code}" ${code===stage?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138: Tint and Tyres use shared bays; other work uses Bus 4×4.</small>':''}</label>
     <label>Approved hours <input data-update-hours type="number" min="0.01" max="999.99" step="0.01" value="${esc(hours??'')}" ${busy||!canApprove||stage==='SUBLET'?'disabled':''}></label>
     <button type="button" class="primary" data-approve-update ${issues.length||!canApprove||busy?'disabled':''}>${busy?'Saving…':'Approve change & update bookings'}</button></div>
-    <p class="nv-update-issues">${issues.map(esc).join(' ')}</p><small>Approval updates the station’s estimated hours and adjusts affected bay bookings. Later jobs move back when needed, with a 1-hour gap between each vehicle’s jobs. Sublet has no workshop bay.</small></article>`;
+    <p class="nv-update-issues">${[heldReason,...issues].filter(Boolean).map(esc).join(' ')}</p><small>Approval updates the station’s estimated hours and adjusts affected bay bookings. Later jobs move back when needed, with a 1-hour gap between each vehicle’s jobs. Sublet has no workshop bay.</small></article>`;
   }
 
   async function approveReadyQueue({listPage,approveRow,isCurrent=()=>true,shouldStop=()=>false,onProgress=()=>{},onApproved=()=>{},pageSize=50,department=''}) {
@@ -302,8 +315,14 @@
   nav.innerHTML='New Vehicles <span class="new-vehicle-nav-count" hidden></span>';
   document.querySelector('.nav-item[data-view="dashboard"]')?.insertAdjacentElement('beforebegin',nav);
   nav.addEventListener('click',()=>showView('newvehicles'));
-  const page=document.createElement('section');page.id='newvehicles';page.className='view';
+  let page=document.createElement('section');page.id='newvehicles';page.className='view';
   page.setAttribute('aria-label','New vehicle Job Card review');document.querySelector('main.main')?.appendChild(page);
+  const newVehiclePage=page,updatePage=document.createElement('section');
+  updatePage.id='operationupdates';updatePage.className='view';updatePage.setAttribute('aria-label','Operation updates needing attention');
+  document.querySelector('main.main')?.appendChild(updatePage);
+  const updateNav=document.createElement('button');updateNav.type='button';updateNav.className='nav-item nav-admin-item';updateNav.dataset.view='operationupdates';updateNav.dataset.short='UPD';
+  updateNav.innerHTML='Operation Updates <span class="new-vehicle-nav-count" hidden></span>';
+  (adminMenu||nav.parentElement)?.appendChild(updateNav);updateNav.addEventListener('click',()=>showView('operationupdates'));
 
   async function rpc(name,payload) {
     const config=window.PDC_SUPABASE_CONFIG;
@@ -384,9 +403,10 @@
   }
   function renderBadge() {
     const counts=badgeCounts||{new_vehicles:total,operation_changes:updateTotal};
-    const count=counts.new_vehicles+counts.operation_changes;
+    const count=counts.new_vehicles;
     const badge=nav.querySelector('.new-vehicle-nav-count');badge.textContent=String(count);badge.hidden=!count;
-    nav.setAttribute('aria-label',`New Vehicles, ${counts.new_vehicles} new vehicles and ${counts.operation_changes} operation changes awaiting review`);
+    nav.setAttribute('aria-label',`New Vehicles, ${counts.new_vehicles} new vehicles awaiting review`);
+    if(typeof updateNav!=='undefined'){const updates=updateNav.querySelector('.new-vehicle-nav-count');updates.textContent=String(counts.operation_changes);updates.hidden=!counts.operation_changes;}
   }
   async function loadCounts() {
     if(countRequest || loading || saving || !readable())return;
@@ -402,7 +422,7 @@
   }
   function refreshBackground() {
     if(document.visibilityState!=='visible'||!readable())return;
-    return app.currentView==='newvehicles'?load({silent:true}):loadCounts();
+    return ['newvehicles','operationupdates'].includes(app.currentView)?load({silent:true}):loadCounts();
   }
   function applyDepartmentSelection(value) {
     const department=normalizeReviewDepartment(value);
@@ -468,12 +488,12 @@
     const theme=assigned&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(assigned):null;
     const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
     return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''} ${operationHoursPresentation(line,hourDrafts,assigned).label.startsWith('AI estimate')?'nv-hours-ai':''}" draggable="${!disabled&&!locked}" data-nv-line="${esc(line.line_identity)}"${style}>
-      <small class="nv-line-meta" title="${locked?'Dept 138: window tint uses Tint; other work uses Bus 4×4':'Drag to a station'} · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">${locked?'':'⠿'}</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
+      <small class="nv-line-meta" title="${locked?'Dept 138: Tint and Tyres use shared bays; other work uses Bus 4×4':'Drag to a station'} · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">${locked?'':'⠿'}</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
       <strong>${esc(line.description)}</strong>
       <div class="nv-operation-controls">
       ${sublet?'':`<label class="nv-hours-label">Hours<input type="number" min="0.01" max="999.99" step="0.01" inputmode="decimal" aria-label="Hours for ${esc(line.description)}" aria-invalid="${missing}" data-nv-hours="${esc(line.line_identity)}" value="${esc(value??'')}" placeholder="—" ${standard?'readonly':''} ${disabled?'disabled':''}></label>`}
       ${operationHoursHtml(line,hourDrafts,assigned)}
-      <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled||locked?'disabled':''}>${locked?'':'<option value="">Needs Review</option>'}${STATIONS.filter(([code])=>!locked||code===assigned).map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138: window tint uses Tint; other work uses Bus 4×4.</small>':''}</label></div></article>`;
+      <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled||locked?'disabled':''}>${locked?'':'<option value="">Needs Review</option>'}${STATIONS.filter(([code])=>!locked||code===assigned).map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138: Tint and Tyres use shared bays; other work uses Bus 4×4.</small>':''}</label></div></article>`;
   }
   function stationSection(group) {
     const theme=group.code&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(group.code):null;
@@ -530,6 +550,17 @@
       render();if(accepted&&ownsRequest())void load({silent:true});
     }}
   }
+  async function retryAutomaticUpdates() {
+    if(saving||loading||!writable())return;
+    const session=sessionGeneration,department=filterDepartment;saving=true;error='';render();
+    try {
+      const result=await rpc('retry_pdc_accepted_operation_updates',{p_department:department||null});
+      if(session!==sessionGeneration||department!==filterDepartment)return;
+      if(!Number.isInteger(result?.data?.approved)||!Number.isInteger(result?.data?.needs_attention))throw Error('unconfirmed_response');
+      notice=result.data.approved+' operation updates applied automatically. '+result.data.needs_attention+' still need attention.';
+    } catch(err){if(session===sessionGeneration)error=message(err);}
+    finally {if(session===sessionGeneration){saving=false;render();void load({silent:true});}}
+  }
   function bindUpdates() {
     page.querySelectorAll('[data-operation-change]').forEach(card=>{
       const id=card.dataset.operationChange;
@@ -547,10 +578,17 @@
   function render({preserveReview=false}={}) {
     renderBadge();
     // Keep the navigation count current without rebuilding an inactive page.
-    if(app.currentView!=='newvehicles') return;
+    if(!['newvehicles','operationupdates'].includes(app.currentView)) return;
     if(preserveReview) {
       const refresh=page.querySelector('[data-nv-refresh]');
       if(refresh){refresh.disabled=loading||saving;refresh.textContent=loading?'Refreshing…':'Refresh';}
+      return;
+    }
+    if(app.currentView==='operationupdates') {
+      page.innerHTML=`<div class="nv-header"><div><h2>Operation Updates</h2><p>Uploaded work is added automatically to accepted vehicles. These ${updateTotal} updates need attention before they can be applied.</p></div><div class="nv-header-actions">${departmentFilterHtml(filterDepartment,saving)}${writable()?'<button data-update-retry '+(saving||loading?'disabled':'')+'>Retry automatic updates</button>':''}<button data-nv-refresh ${loading||saving?'disabled':''}>Refresh</button></div></div>${error?'<p class="nv-error" role="alert">'+esc(error)+'</p>':''}${notice?'<p role="status">'+esc(notice)+'</p>':''}${updateScheduleHtml(updateSchedule)}<section class="nv-operation-updates" aria-label="Operation updates needing attention">${updateError?'<p role="alert">'+esc(updateError)+'</p>':''}${updateItems.map(row=>operationUpdateHtml(row,updateDrafts[row.change_id]||{},writable(),saving)).join('')||'<p>No operation updates need attention.</p>'}<div class="nv-pagination"><button data-update-page="-1" ${updateOffset===0||loading||saving?'disabled':''}>Previous</button><span>${updateTotal} updates</span><button data-update-page="1" ${updateOffset+updateItems.length>=updateTotal||loading||saving?'disabled':''}>Next</button></div></section>`;
+      bindUpdates();bindDepartmentFilter();
+      page.querySelector('[data-nv-refresh]')?.addEventListener('click',()=>void load());
+      page.querySelector('[data-update-retry]')?.addEventListener('click',()=>void retryAutomaticUpdates());
       return;
     }
     const restoreFocus=preserveEditorFocus();
@@ -573,7 +611,7 @@
     const approvalButton=()=>`<button class="primary nv-approve-button" type="button" data-nv-approve ${saving||sourceChanged||issues.length||!writable()?'disabled':''}>${saving?'Saving & adding to board…':'Approve & add to board'}</button>`;
     page.innerHTML=`<div class="nv-header"><div><span class="eyebrow">Tune / Revolution imports</span><h2>${selected?esc(selected.stock_number):'New Vehicles'}</h2>
       <p>${selected?'Review the operation stations, then approve the Job Card.':`${total} awaiting review before they enter Vehicle Locations.`}</p></div>
-      <div class="nv-header-actions">${departmentFilterHtml(filterDepartment,saving)}${selected?approvalButton()+'<button type="button" data-nv-back>← Vehicle list</button>':`${writable()?`<button type="button" class="nv-approve-button" data-nv-approve-ready title="Approve ready vehicles across all pages${filterDepartment?` in department ${filterDepartment}`:''}, regardless of the text search" ${loading||saving||queueLoadFailed||!total?'disabled':''}>${bulkState?'Approving ready vehicles…':filterDepartment?`Approve ready — ${filterDepartment}`:'Approve all ready'}</button>`:''}${updateTotal?`<button type="button" data-nv-updates>${updateTotal} operation update${updateTotal===1?'':'s'}</button>`:''}<button type="button" data-nv-unidentified ${loading||saving?'disabled':''}>Unidentified Tune Review</button>`}<button type="button" data-nv-refresh ${loading||saving?'disabled':''}>${loading?'Refreshing…':'Refresh'}</button></div></div>
+      <div class="nv-header-actions">${departmentFilterHtml(filterDepartment,saving)}${selected?approvalButton()+'<button type="button" data-nv-back>← Vehicle list</button>':`${writable()?`<button type="button" class="nv-approve-button" data-nv-approve-ready title="Approve ready vehicles across all pages${filterDepartment?` in department ${filterDepartment}`:''}, regardless of the text search" ${loading||saving||queueLoadFailed||!total?'disabled':''}>${bulkState?'Approving ready vehicles…':filterDepartment?`Approve ready — ${filterDepartment}`:'Approve all ready'}</button>`:''}<button type="button" data-nv-unidentified ${loading||saving?'disabled':''}>Unidentified Tune Review</button>`}<button type="button" data-nv-refresh ${loading||saving?'disabled':''}>${loading?'Refreshing…':'Refresh'}</button></div></div>
       ${!selected?`<p class="nv-help">${filterDepartment?`Showing department ${filterDepartment}. Approve ready checks every page in this department. Vehicles with work from other or unconfirmed departments need individual review.`:'Approve all ready checks every page.'} Vehicles with missing stations, hours or review notes stay here for review.</p>`:''}
       ${bulkState?`<div class="nv-bulk-progress" role="status"><span data-nv-bulk-progress>${esc(bulkProgressText(bulkState))}</span><button type="button" data-nv-bulk-stop ${bulkStop?'disabled':''}>${bulkStop?'Stopping…':'Stop after current vehicle'}</button></div>`:''}
       ${!selected&&bulkFailures.length?`<details class="nv-bulk-failures"><summary>${bulkFailures.length} vehicle${bulkFailures.length===1?'':'s'} need attention</summary><ul>${bulkFailures.map(item=>`<li><strong>${esc(item.row.stock_number)}</strong> · ${esc(message(item.error))}</li>`).join('')}</ul></details>`:''}
@@ -589,17 +627,12 @@
       `<label class="nv-queue-search">Find a new vehicle<input type="search" data-nv-search value="${esc(queueSearch)}" placeholder="Stock, customer or job card on this page" autocomplete="off"><small>Searches the ${items.length} vehicles on this page${queueSearch?` · ${visibleItems.length} matching`:''}.</small></label>
       <div class="nv-list">${visibleItems.map(card).join('') || `<div class="nv-empty"><h3>${loading?'Loading Job Cards…':queueLoadFailed?'Queue unavailable':queueSearch?'No vehicles on this page match':'No new vehicles waiting'}</h3><p>${queueLoadFailed?'Refresh to load the new vehicle queue.':queueSearch?'Clear the search or try another page.':'New report vehicles appear here after import processing. Existing board vehicles are not reset or pulled back into this queue.'}</p></div>`}</div>
       <div class="nv-pagination"><button data-nv-page="-1" ${offset===0||loading?'disabled':''}>Previous</button><span>${total?`${offset+1}–${Math.min(offset+items.length,total)} of ${total}`:'0 awaiting review'}</span><button data-nv-page="1" ${offset+items.length>=total||loading?'disabled':''}>Next</button></div>`}`;
-    if(!selected) {
-      page.insertAdjacentHTML('beforeend',`<section class="nv-operation-updates" aria-label="Updated operation lines" tabindex="-1"><h2>Updated operation lines</h2><p>${updateTotal} changes awaiting approval for vehicles already on the board.</p>${updateError?`<p role="alert">${esc(updateError)}</p>`:''}${updateItems.map(row=>operationUpdateHtml(row,updateDrafts[row.change_id]||{},writable(),saving)).join('')||'<p>No updated operation lines waiting.</p>'}<div class="nv-pagination"><button data-update-page="-1" ${updateOffset===0||loading||saving?'disabled':''}>Previous changes</button><span>${updateTotal} changes</span><button data-update-page="1" ${updateOffset+updateItems.length>=updateTotal||loading||saving?'disabled':''}>Next changes</button></div></section>`);
-      bindUpdates();
-    }
     page.querySelectorAll('[data-nv-open]').forEach(button=>button.addEventListener('click',()=>choose(items.find(row=>row.vehicle_id===button.dataset.nvOpen))));
     page.querySelector('[data-nv-unidentified]')?.addEventListener('click',()=>{if(loading||saving)return;unidentified=true;offset=0;void load();});
     page.querySelector('[data-nv-refresh]')?.addEventListener('click',()=>void load());
     page.querySelector('[data-nv-approve-ready]')?.addEventListener('click',()=>void approveAllReady());
     page.querySelector('[data-nv-bulk-stop]')?.addEventListener('click',event=>{bulkStop=true;event.currentTarget.disabled=true;event.currentTarget.textContent='Stopping…';});
     page.querySelector('[data-nv-back]')?.addEventListener('click',backToList);
-    page.querySelector('[data-nv-updates]')?.addEventListener('click',()=>{const section=page.querySelector('.nv-operation-updates');section?.focus({preventScroll:true});section?.scrollIntoView({block:'start'});});
     page.querySelector('[data-nv-search]')?.addEventListener('input',event=>{queueSearch=event.target.value;render();});
     page.querySelector('[data-nv-reload]')?.addEventListener('click',()=>{const id=selected.vehicle_id;const row=items.find(item=>item.vehicle_id===id);if(row) choose(row);else {selected=null;render();void load();}});
     page.querySelectorAll('[data-nv-page]').forEach(button=>button.addEventListener('click',()=>{if(loading||saving)return;offset=Math.max(0,offset+Number(button.dataset.nvPage)*limit);void load();}));
@@ -742,23 +775,24 @@
     }}
   }
   const previousRender=renderActiveView;
-  renderActiveView=function(...args){if(app.currentView==='newvehicles'){render();return;}return previousRender(...args);};
+  renderActiveView=function(...args){if(['newvehicles','operationupdates'].includes(app.currentView)){render();return;}return previousRender(...args);};
   const previousView=showView;
   showView=function(view,options){
+    if(['newvehicles','operationupdates'].includes(view)){if(app.currentView!==view){generation++;loading=false;}page=view==='operationupdates'?updatePage:newVehiclePage;selected=null;unidentified=false;error='';notice='';}
     const out=previousView(view,options);
-    if(app.currentView==='newvehicles'){document.getElementById('page-title').textContent='New Vehicles';render();void load({silent:true});}
-    if(['emailreview','ai-auditor'].includes(app.currentView)){document.getElementById('nav-admin-toggle')?.classList.add('active');setAdminNavigationExpanded(true);}
+    if(['newvehicles','operationupdates'].includes(app.currentView)){document.getElementById('page-title').textContent=app.currentView==='operationupdates'?'Operation Updates':'New Vehicles';render();void load({silent:true});}
+    if(['emailreview','ai-auditor','operationupdates'].includes(app.currentView)){document.getElementById('nav-admin-toggle')?.classList.add('active');setAdminNavigationExpanded(true);}
     return out;
   };
   window.addEventListener('pdc-auth-ready',()=>{offset=0;void refreshBackground();});
   window.addEventListener('pdc-department-filter-changed',event=>applyDepartmentSelection(event.detail?.department));
-  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;badgeCounts=null;countRequest=null;pendingDepartment=null;filterDepartment=normalizeReviewDepartment(window.PDC_DEPARTMENT_FILTER?.getSelection?.());page.replaceChildren();items=[];total=0;queueLoadFailed=false;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';quickRequests={};quickErrors={};quickSavingId='';bulkState=null;bulkStop=true;bulkFailures=[];error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
+  window.addEventListener('pdc-auth-locked',()=>{generation++;sessionGeneration++;badgeCounts=null;countRequest=null;pendingDepartment=null;filterDepartment=normalizeReviewDepartment(window.PDC_DEPARTMENT_FILTER?.getSelection?.());newVehiclePage.replaceChildren();updatePage.replaceChildren();items=[];total=0;queueLoadFailed=false;updateItems=[];updateTotal=0;updateOffset=0;updateDrafts={};updateRequests={};updateSchedule=null;updateError='';unidentifiedItems=[];unidentifiedTotal=0;unidentified=false;selected=null;choices={};hourDrafts={};queueSearch='';listScroll=0;listVehicleId='';quickRequests={};quickErrors={};quickSavingId='';bulkState=null;bulkStop=true;bulkFailures=[];error='';notice='';loading=false;saving=false;approvalRequest=null;requestKey='';render();});
   const timer=setInterval(()=>void refreshBackground(),30000);
   document.addEventListener('visibilitychange',()=>void refreshBackground());
   window.addEventListener('online',()=>void refreshBackground());
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.19.department-filters';
+  window.PDC_NEW_VEHICLES_VERSION='2026.10.15.accepted-operation-updates';
   window.PDC_NEW_VEHICLES=api;
   render();void refreshBackground();
-  if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});
+  if(['#/newvehicles','#/operationupdates'].includes(window.location.hash))showView(window.location.hash.slice(2),{historyMode:'none'});
 })();

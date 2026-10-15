@@ -29,6 +29,8 @@ test('an operation approval error does not make a loaded vehicle queue unavailab
   assert.match(f.page.innerHTML,/Clear the search or try another page/);
   assert.doesNotMatch(f.page.innerHTML,/Queue unavailable/);
   assert.match(f.page.innerHTML,/role="alert">The operation and booking times could not be saved safely/);
+  assert.doesNotMatch(f.page.innerHTML,/12657478 · Added operation/);
+  f.set("app.currentView='operationupdates';render();");
   assert.match(f.page.innerHTML,/12657478 · Added operation/);
   assert.match(f.page.innerHTML,/Approve change &amp; update bookings|Approve change & update bookings/);
 });
@@ -54,6 +56,8 @@ test('an operation update list failure does not relabel a successful empty new v
   };
   await f.context.load();
   assert.match(f.page.innerHTML,/No new vehicles waiting/);
+  assert.doesNotMatch(f.page.innerHTML,/Updated operation lines could not be loaded/);
+  f.set("app.currentView='operationupdates';render();");
   assert.match(f.page.innerHTML,/Updated operation lines could not be loaded/);
   assert.doesNotMatch(f.page.innerHTML,/Queue unavailable/);
 });

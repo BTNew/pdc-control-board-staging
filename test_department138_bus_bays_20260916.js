@@ -38,7 +38,7 @@ test('Department 138 review tile offers only Bus 4x4, allows hours and cannot dr
   assert.match(html,/data-nv-stage="[^"]+"[^>]*disabled/);
   assert.match(html,/<option value="BUS_4X4" selected>/);
   assert.doesNotMatch(html,/<option value="(?:FITTING|SUBLET|TINT)"/);
-  assert.match(html,/Dept 138: window tint uses Tint; other work uses Bus 4×4/);
+  assert.match(html,/Dept 138: Tint and Tyres use shared bays; other work uses Bus 4×4/);
   assert.match(html,/data-nv-hours="[^"]+" value="2.25"/);
 });
 
@@ -114,6 +114,15 @@ test('other departments still move normally on a Department 138 vehicle',async()
   const context=detailRuntime('139');context.vehicle.department='138';
   assert.equal(await context.moveVehicleWorkshopSourceLineStage({dataset:{lineKey}},'ELECTRICAL'),true);
   assert.equal(context.requests[0].p_stage_code,'ELECTRICAL');
+});
+
+test('editing accepted 138 lines retains their canonical station including historical bookings',async()=>{
+  for(const stage of ['BUS_4X4','TINT','TYRE']) {
+    const context=detailRuntime();
+    Object.assign(context.detail.job_card_lines[0],{stage_code:stage,description:'Tyres upgrade'});
+    assert.equal(await context.saveVehicleWorkshopLine({stage,lineKey,description:'Tyres upgrade',hours:2.25,hoursOnly:true}),true);
+    assert.equal(context.requests[0].p_stage_code,stage);
+  }
 });
 
 test('Department 138 window tint stays in Tint through review and approval without changing source hours',()=>{

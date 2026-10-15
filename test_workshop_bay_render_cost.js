@@ -49,7 +49,7 @@ function fixture(text = source) {
     window: {},
   };
   vm.createContext(ctx);
-  vm.runInContext(extract(text, 'workshopPlanChipHtml') + '\n' + extract(text, 'workshopBayRowsHtml'), ctx);
+  vm.runInContext(extract(text, 'workshopPlanChipHtml') + '\n' + ['workshopDepartmentLayout','workshopSelectedBusGroup','workshopVisibleBays','workshopBayChoiceLabel','workshopBayRowsHtml'].map(name=>extract(text,name)).join('\n'), ctx);
   return { ctx, counts, blocks };
 }
 function rows() {

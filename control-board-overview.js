@@ -1,10 +1,11 @@
 (function (root, factory) {
   'use strict';
   const timing = root.PDC_WORKSHOP_BOOKING_TIMING || (typeof require === 'function' ? require('./workshop-booking-timing.js') : null);
-  const api = factory(timing);
+  const layout = root.PDC_WORKSHOP_DEPARTMENTS || (typeof require === 'function' ? require('./pdc-workshop-departments.js') : null);
+  const api = factory(timing, layout);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.ControlBoardOverview = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (timing) {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (timing, layout) {
   'use strict';
   const labels = Object.freeze({ BUS_4X4: 'Bus 4×4', TINT: 'Tint', HOIST: 'Hoist', FITTING: 'Fitting', FABRICATION: 'Fabrication', ELECTRICAL: 'Electrical', TYRE: 'Tyre' });
   const activeStatuses = new Set(['queued', 'planned', 'started', 'stoppage']);
@@ -34,18 +35,20 @@
     if (!Array.isArray(snapshot?.board?.bays) || !Array.isArray(snapshot?.board?.bookings)) return null;
     const search = text(options.search).toLowerCase();
     const order = options.stageOrder || Object.keys(labels);
+    const department = layout?.normalize(options.department) || '';
+    const visible = stage => !layout || layout.stageVisible(stage, department);
     const rank = stage => { const index = order.indexOf(stage); return index < 0 ? order.length : index; };
     const bays = new Map();
     snapshot.board.bays.forEach(bay => {
       const id = text(bay.bay_id), stage = text(bay.stage_code);
-      if (id && labels[stage] && !bay.deleted_at && !bays.has(id)) bays.set(id, { bay, stage, items: [], total: 0 });
+      if (id && labels[stage] && visible(stage) && !bay.deleted_at && !bays.has(id)) bays.set(id, { bay, stage, items: [], total: 0 });
     });
     const columns = [...bays.values()].sort((a, b) => rank(a.stage) - rank(b.stage) || Number(a.bay.bay_number) - Number(b.bay.bay_number) || text(a.bay.bay_id).localeCompare(text(b.bay.bay_id)));
     const waiting = [], bookedWork = new Set(), seenBookings = new Set(), seenCandidates = new Set(), seenBlocks = new Set();
     snapshot.board.bookings.forEach(source => {
       const id = text(source.booking_id), stage = text(source.stage_code), status = text(source.status);
       const vehicle = source.vehicle;
-      if (!id || seenBookings.has(id) || !labels[stage] || !activeStatuses.has(status) || source.deleted_at || !visibleVehicle(vehicle)) return;
+      if (!id || seenBookings.has(id) || !labels[stage] || !visible(stage) || !activeStatuses.has(status) || source.deleted_at || !visibleVehicle(vehicle)) return;
       seenBookings.add(id);
       const vehicleId = text(source.vehicle_id || vehicle.id);
       if (vehicleId) bookedWork.add(`${vehicleId}:${stage}`);
@@ -58,7 +61,7 @@
     (snapshot.candidates || []).forEach(source => {
       const stage = text(source.stage_code), vehicle = source.vehicle, vehicleId = text(vehicle?.id);
       const id = `${vehicleId}:${stage}`;
-      if (!vehicleId || !labels[stage] || !visibleVehicle(vehicle) || bookedWork.has(id) || seenCandidates.has(id)) return;
+      if (!vehicleId || !labels[stage] || !visible(stage) || !visibleVehicle(vehicle) || bookedWork.has(id) || seenCandidates.has(id)) return;
       seenCandidates.add(id);
       waiting.push({ kind: 'candidate', id, stage, status: 'waiting', vehicle, source, displayIdentity: options.displayIdentities?.get?.(`${vehicleId.toLowerCase()}:${stage}`), unassignedBay: false });
     });
@@ -81,7 +84,7 @@
     waiting.sort((a, b) => rank(a.stage) - rank(b.stage) || text(a.vehicle.stock_number).localeCompare(text(b.vehicle.stock_number), undefined, { numeric: true }) || compareTime(a, b));
     const matchedWaiting = waiting.filter(item => matches(item));
     const visibleColumns = search ? columns.filter(column => column.items.length > 0) : columns;
-    return { calendar: snapshot.board.calendar, generatedAt: snapshot.generated_at, columns: visibleColumns, waiting: matchedWaiting, waitingTotal: waiting.length, totalBookings: seenBookings.size, totalWaiting: waiting.length, totalBays: columns.length, search,
+    return { department, calendar: snapshot.board.calendar, generatedAt: snapshot.generated_at, columns: visibleColumns, waiting: matchedWaiting, waitingTotal: waiting.length, totalBookings: seenBookings.size, totalWaiting: waiting.length, totalBays: columns.length, search,
       matchingItems: matchedWaiting.length + columns.reduce((n, column) => n + column.items.length, 0),
       stages: [...new Set(visibleColumns.map(column => column.stage))] };
   }
@@ -319,16 +322,18 @@
     let previousStage = '';
     const rows = timeline.rows.map(row => {
       const stationClass = `station-${escape(row.stage.toLowerCase())}`, label = stageLabel(row.stage);
-      const group = previousStage !== row.stage ? `<div class="control-board-timeline-department ${stationClass}" data-control-board-stage="${escape(row.stage)}"><strong>${escape(label)}</strong><span></span></div>` : '';
-      previousStage = row.stage;
+      const groupId = row.stage === 'BUS_4X4' ? 'bus-'+(layout?.groupForBay(row.bay.bay_number)?.id || '') : row.stage;
+      const groupLabel = row.stage === 'BUS_4X4' ? 'Bus 4×4 · '+(layout?.groupForBay(row.bay.bay_number)?.label || label) : label+(layout?.SHARED.includes(row.stage) ? ' · shared 138 / 139' : '');
+      const group = previousStage !== groupId ? `<div class="control-board-timeline-department ${stationClass}" data-control-board-stage="${escape(row.stage)}"><strong>${escape(groupLabel)}</strong><span></span></div>` : '';
+      previousStage = groupId;
       const note = row.bay.is_active === false ? 'Inactive · existing bookings only' : `${text(row.bay.technician_name) || 'Unassigned'} · ${Number(row.bay.efficiency_percent) || 100}%`;
       const missing = row.unplotted.map(entry => `<button type="button" class="control-board-unplotted" data-control-board-match data-control-board-item="${escape(entry.item.kind)}" data-control-board-id="${escape(entry.item.id)}" title="${escape(entry.reason)}">${escape(entry.item.vehicle.stock_number || entry.item.source.label || 'Job')} · ${escape(entry.reason)}</button>`).join('');
-      return `${group}<div class="control-board-timeline-bay ${stationClass}" data-control-board-bay="${escape(row.bay.bay_id)}" aria-label="${escape(`${label} Bay ${row.bay.bay_number}`)}" style="--row-height:${Math.max(58, row.laneCount * 48 + 10)}px"><div class="control-board-timeline-bay-label"><button type="button" data-control-board-planner="${escape(row.stage)}" title="Open ${escape(label)} planner"><strong>Bay ${String(row.bay.bay_number).padStart(2, '0')}</strong><span>${model.search ? row.items.length : row.total}</span></button><small title="${escape(note)}">${escape(note)}</small>${missing}</div><div class="control-board-timeline-track">${shading}${row.segments.map(timelineCard).join('')}</div></div>`;
+      return `${group}<div class="control-board-timeline-bay ${stationClass}" data-control-board-bay="${escape(row.bay.bay_id)}" aria-label="${escape(`${label} Bay ${row.bay.bay_number}`)}" style="--row-height:${Math.max(58, row.laneCount * 48 + 10)}px"><div class="control-board-timeline-bay-label"><button type="button" data-control-board-planner="${escape(row.stage)}" data-control-board-group="${escape(layout?.groupForBay(row.stage === 'BUS_4X4' ? row.bay.bay_number : 0)?.id || '')}" title="Open ${escape(label)} planner"><strong>Bay ${String(row.bay.bay_number).padStart(2, '0')}</strong><span>${model.search ? row.items.length : row.total}</span></button><small title="${escape(note)}">${escape(note)}</small>${missing}</div><div class="control-board-timeline-track">${shading}${row.segments.map(timelineCard).join('')}</div></div>`;
     }).join('');
     const outside = timeline.outside.length ? `<button class="small-button" type="button" data-control-board-reveal="${escape(timeline.outside[0].date)}">${timeline.outside.length} bookings outside these dates · Show</button>` : '';
     const waiting = model.waiting.length ? `<div class="control-board-timeline-waiting"><strong>Unallocated · ${model.waiting.length}</strong><div>${model.waiting.map(item => cardHtml(item, true)).join('')}</div></div>` : '';
     return `<div class="control-board-timeline-toolbar"><div><strong>${model.search ? model.columns.length : model.totalBays} bays · ${model.search ? model.columns.reduce((n, column) => n + column.items.filter(item => item.kind === 'booking').length, 0) + model.waiting.filter(item => item.kind === 'booking').length : model.totalBookings} bookings · ${model.search ? model.waiting.length : model.totalWaiting} unallocated</strong><span>${model.search ? `${model.matchingItems} matching jobs · Only matching bays shown · ` : ''}Scroll down for bays and right for later days. Perth time.</span></div><div class="control-board-timeline-dates"><button type="button" data-control-board-shift="-${timeline.dayCount}" aria-label="Previous ${timeline.dayCount} days">‹</button><label>From <input type="date" data-control-board-start value="${timeline.startDate}" aria-label="Timeline start date"></label><button type="button" data-control-board-today>Today</button><button type="button" data-control-board-shift="${timeline.dayCount}" aria-label="Next ${timeline.dayCount} days">›</button><button type="button" data-control-board-more${timeline.dayCount >= 56 ? ' disabled' : ''}>More days →</button></div></div>
-      <nav class="control-board-department-links" aria-label="Jump to workshop department">${model.stages.map(stage => `<button type="button" data-control-board-jump="${escape(stage)}">${escape(stageLabel(stage))}</button>`).join('')}<span class="control-board-job-legend"><i class="is-planned"></i>Planned <i class="is-started"></i>Live <i class="is-stoppage"></i>Stoppage <i class="is-admin"></i>Admin block</span></nav>
+      <nav class="control-board-department-links" aria-label="Jump to workshop department">${(layout ? layout.options(model.department).filter(option => model.stages.includes(option.stage)) : model.stages.map(stage => ({stage,label:stageLabel(stage),group:''}))).map(option => `<button type="button" data-control-board-planner="${escape(option.stage)}" data-control-board-group="${escape(option.group)}">${escape(option.label)}</button>`).join('')}<span class="control-board-job-legend"><i class="is-planned"></i>Planned <i class="is-started"></i>Live <i class="is-stoppage"></i>Stoppage <i class="is-admin"></i>Admin block</span></nav>
       ${outside}${model.search && !model.matchingItems ? '<p class="control-board-no-results" role="status">No matching jobs. Clear the search to see all work.</p>' : ''}
       <div class="control-board-timeline-shell" style="--timeline-width:${timeline.width}px;--day-width:${timeline.dayWidth}px;--hour-width:${timeline.dayWidth / ((timeline.axisEnd - timeline.axisStart) / 60)}px">
         <div class="control-board-timeline-sticky-header">
