@@ -59,6 +59,7 @@ async function run({full = false, output, skipNetwork = false} = {}) {
     'test_workshop_start_priority.js','test_workshop_start_safeupdate.js',
     'test_workshop_shared_cascade_persistence.js','test_workshop_stoppage_fix_first.js',
     'test_workshop_fitter_live_sync.js','test_fitter_workflow.js','test_fitter_handover.js',
+    'test_jobcard_work_categories.js',
     'test_control_board_overview.js','test_vehicle_locations_refresh.js',
     'test_navision_apply_recovery.js','test_broome_finance_autosave.js',
     'test_staff_usage_all_pages_20261012.js'

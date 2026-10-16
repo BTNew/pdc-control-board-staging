@@ -30,6 +30,8 @@ Before a full run, use the Supabase connector for a **read-only** fingerprint qu
 
 The fitter destination-bay regression also moves an unstarted booking between two synthetic bays, then reads the destination mechanic's queue and checklist through the restricted fitter refresh path. It checks retained assignment history, manual overrides, same-bay time moves and technician conflicts, including a soft-deleted booking whose retained assignment must not block the destination fitter. It runs only in the disposable loopback database and does not establish real iPad UI interaction.
 
+The work-category regression checks separate Bus Mechanical/Electrical/QA estimates and reservations, remaining categories in the real station response, category-only fitter checklists and completion, explicit zero-hour QA tasks, changed operation estimates, saved manual category choices, protected whole-job bookings, and Book all. It verifies that existing operational bookings are unchanged by these fixture scenarios. The hourly browser-code suite also checks category projection and shared destinations. These are not browser dragging tests.
+
 These checks do not establish that every possible situation works. Report PASS, FAIL, BLOCKED and NOT RUN separately. Distinguish a stale fixture/backup or missing test capability from a confirmed website defect. Never fix failing tests by disabling a working-board permission, conflict, parts-readiness or delivery guard.
 
 The Python exit code describes the selected database scenarios and restore/cleanup only. A zero exit code is not a whole-site all-clear: read `backend_version_check`, `coverage_gaps`, and `overall` from `summary.json` as well. The overall result explicitly retains missing browser, Storage and provider coverage.
