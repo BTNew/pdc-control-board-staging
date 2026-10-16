@@ -21,9 +21,20 @@
     {id:'electrical',code:'BUS_ELECTRICAL',label:'Electrical',bays:[8,9]},
     {id:'qa',code:'BUS_QA',label:'QA',bays:[7]},
     {id:'pit',code:'BUS_PIT',label:'Pit',bays:[],external:true},
-  ].map(item => Object.freeze({...item,bays:Object.freeze(item.bays)})));
+  ].map(item => Object.freeze({...item,bays:Object.freeze(item.bays),
+    view:'planner-bus-'+item.id,path:'workshop/bus-4x4/'+item.id})));
   const names = {BUS_4X4:'Bus 4×4',TINT:'Tint · shared',TYRE:'Tyres · shared',HOIST:'Hoist',FITTING:'Fitting',FABRICATION:'Fab',ELECTRICAL:'Electrical',SUBLET:'Sublet'};
   const category = value => BUS_WORK.find(item => item.code === value || item.id === value) || null;
+  const categoryForView = value => BUS_WORK.find(item => item.view === value) || null;
+  function externalPitLines(vehicle = {}) {
+    const lifecycle = String(vehicle.pdcLifecycleState || vehicle.vehicleLifecycleState || vehicle.lifecycleState || '').toLowerCase();
+    const location = String(vehicle.pdcLocation || '').toLowerCase();
+    if (vehicle.__emailVehicleServerAuthoritative !== true || vehicle.pdcQcOperationLinesProjectionPresent !== true
+        || vehicle.tuneCheckout?.confirmed === true || vehicle.completedVehicle === true || vehicle.vehicleCollectedState === true
+        || ['collected','completed','deleted'].includes(lifecycle) || ['collected','completed'].includes(location)) return [];
+    return (vehicle.pdcQcOperationLines || []).filter(line => line.active === true && line.completed !== true
+      && line.department === '138' && line.stageCode === 'PIT_INSPECTION');
+  }
   const categoryLabel = value => category(value)?.label || names[value] || value;
   const categoryStage = value => value === 'BUS_PIT' ? 'PIT_INSPECTION' : category(value) ? 'BUS_4X4' : value;
   function categoryChoices(department) {
@@ -92,5 +103,5 @@
     if (/\b(?:TYRES?|TIRES?|RIMS?)\b|WHEEL[ -]*(?:ALIGNMENT|BALANC(?:E|ING))|\b(?:2ND|SECOND|EXTRA|ADDITIONAL)\s+SPARE\s+(?:GENUINE\s+)?WHEEL\b/.test(text)) return 'TYRE';
     return 'BUS_4X4';
   }
-  return Object.freeze({BUS_GROUPS,BUS_WORK,SHARED,PD,normalize,group,groupForBay,category,categoryLabel,categoryStage,categoryChoices,selectedCategory,splitGroups,stageVisible,options,plannerTitle,plannerSections,bayLabel,sharedStation});
+  return Object.freeze({BUS_GROUPS,BUS_WORK,SHARED,PD,normalize,group,groupForBay,category,categoryForView,externalPitLines,categoryLabel,categoryStage,categoryChoices,selectedCategory,splitGroups,stageVisible,options,plannerTitle,plannerSections,bayLabel,sharedStation});
 });

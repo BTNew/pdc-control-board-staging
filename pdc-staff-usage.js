@@ -16,8 +16,20 @@
     'sales-finance-applications':'Finance · All Applications', 'sales-labels':'Sales · Labels',
     'sales-history':'Sales · Completed Vehicles', other:'Other'
   });
+  // Category navigation shares the existing reporting buckets. Pit is an
+  // external department view, never a physical Workshop or Sublet booking.
+  const PAGE_ALIASES = Object.freeze({
+    'planner-bus-mechanical':'planner-bus-4x4',
+    'planner-bus-accessory':'planner-bus-4x4',
+    'planner-bus-electrical':'planner-bus-4x4',
+    'planner-bus-qa':'planner-bus-4x4',
+    'planner-bus-pit':'department', 'bus-pit':'department',
+  });
   const PAGES = new Set(Object.keys(PAGE_LABELS));
-  const cleanPage = page => PAGES.has(page) ? page : 'other';
+  const cleanPage = page => {
+    const canonical = PAGE_ALIASES[page] || page;
+    return PAGES.has(canonical) ? canonical : 'other';
+  };
   function resolvePage(doc) {
     const salesNav = doc.querySelector('.nav-item.active[data-sales-view]');
     const salesView = doc.querySelector('.sales-view:not([hidden])');
@@ -31,9 +43,9 @@
       return cleanPage('sales-' + name);
     }
     const view = doc.querySelector('.view.active')?.id;
-    const nav = doc.querySelector('.nav-item.active[data-view]')?.dataset.view;
-    // All seven station planners render inside the same workshop section.
-    return cleanPage(view === 'workshop' && nav?.startsWith('planner-') ? nav : view || nav || 'dashboard');
+    const route = doc.querySelector('.nav-item.active[data-view]')?.dataset.view || doc.body?.dataset.currentView;
+    // Station/category planners share a section; all-bays has no sidebar item.
+    return cleanPage(view === 'workshop' && route?.startsWith('planner-') ? route : view || route || 'dashboard');
   }
   class UsageQueue {
     constructor(uuid) { this.uuid = uuid; this.reset(); }
@@ -101,7 +113,7 @@
       return activity === 'used' ? used : activity === 'unused' ? !used : true;
     });
   }
-  if (typeof module !== 'undefined') module.exports = { UsageQueue, cleanPage, resolvePage, PAGE_LABELS, sortUsageUsers, filterUsageUsers, usagePresence };
+  if (typeof module !== 'undefined') module.exports = { UsageQueue, cleanPage, resolvePage, PAGE_LABELS, PAGE_ALIASES, sortUsageUsers, filterUsageUsers, usagePresence };
   if (!root.document) return;
   const doc = root.document;
   const queue = new UsageQueue(() => root.crypto.randomUUID());

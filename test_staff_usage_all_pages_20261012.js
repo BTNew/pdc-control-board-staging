@@ -4,23 +4,24 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const {resolvePage, PAGE_LABELS} = require('./pdc-staff-usage.js');
+const {resolvePage, cleanPage, PAGE_LABELS, PAGE_ALIASES} = require('./pdc-staff-usage.js');
 const code = fs.readFileSync(path.join(__dirname, 'pdc-staff-usage.js'), 'utf8');
 const tick = () => new Promise(resolve => setImmediate(resolve));
 
-function browser({sales = false, view = 'dashboard', role = 'operator', signedIn = true, hidden = false, offline = false} = {}) {
+function browser({sales = false, view = 'dashboard', role = 'operator', signedIn = true, hidden = false, offline = false, navVisible = true} = {}) {
   const events = {window:new Map(), document:new Map()}, requests = [], timeouts = [], intervals = new Map(), watched = [];
   let uuid = 0, observer, current = view, financeTab = 'pipeline';
   const html = fs.readFileSync(path.join(__dirname, sales ? 'sales/index.html' : 'index.html'), 'utf8');
   const views = [...html.matchAll(/<section id="([^"]+)" class="(?:view|sales-view)(?: active)?"/g)].map(m => ({id:m[1]}));
   const doc = {
     visibilityState:hidden ? 'hidden' : 'visible',
+    body:{dataset:{get currentView() { return current; }}},
     querySelector(selector) {
       if (selector === '.nav-item.active[data-sales-view]') return sales ? {dataset:{salesView:current}} : null;
       if (selector === '.sales-view:not([hidden])') return sales ? {id:'sales-' + current + '-view'} : null;
       if (selector === '[data-finance-view][aria-pressed="true"]') return sales && current === 'finance' ? {dataset:{financeView:financeTab}} : null;
-      if (selector === '.view.active') return sales ? null : {id:current.startsWith('planner-') ? 'workshop' : current};
-      if (selector === '.nav-item.active[data-view]') return sales ? null : {dataset:{view:current}};
+      if (selector === '.view.active') return sales ? null : {id:current === 'planner-bus-pit' ? 'bus-pit' : current.startsWith('planner-') ? 'workshop' : current};
+      if (selector === '.nav-item.active[data-view]') return sales || !navVisible ? null : {dataset:{view:current}};
       return null;
     },
     querySelectorAll(selector) { return selector === '.view, .sales-view' ? views : []; },
@@ -65,14 +66,16 @@ function browser({sales = false, view = 'dashboard', role = 'operator', signedIn
 test('Every published PDC view/navigation and Sales view has a named activity page', () => {
   const pdc = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
   for (const m of pdc.matchAll(/data-view="([^"]+)"|<section id="([^"]+)" class="view(?: active)?"/g)) {
-    assert.ok(PAGE_LABELS[m[1] || m[2]], m[1] || m[2]);
+    const view = m[1] || m[2];
+    assert.notEqual(cleanPage(view), 'other', view);
+    assert.ok(PAGE_LABELS[cleanPage(view)], view);
   }
   const sales = fs.readFileSync(path.join(__dirname, 'sales/index.html'), 'utf8');
   for (const m of sales.matchAll(/<section id="sales-(.+?)-view" class="sales-view"/g)) assert.ok(PAGE_LABELS['sales-' + m[1]], m[1]);
   for (const file of ['index.html', 'sales/index.html']) {
     const html = fs.readFileSync(path.join(__dirname, file), 'utf8');
     assert.equal([...html.matchAll(/src="(?:\.\.\/)?pdc-staff-usage\.js\?/g)].length, 1, file);
-    assert.ok(html.includes('all-pages=2026.10.12.01'), file);
+    assert.ok(html.includes('all-pages=2026.10.16.01'), file);
   }
 });
 
@@ -80,6 +83,7 @@ test('Client and database page allowlists stay identical', () => {
   const sql = fs.readFileSync(path.join(__dirname, 'supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql'), 'utf8');
   const list = sql.match(/p_page not in \(([\s\S]*?)\)/)[1];
   assert.deepEqual([...list.matchAll(/'([^']+)'/g)].map(m => m[1]).sort(), Object.keys(PAGE_LABELS).sort());
+  for (const canonical of Object.values(PAGE_ALIASES)) assert.ok(PAGE_LABELS[canonical], canonical);
   assert.ok(sql.includes("'administrator','fitter','salesperson'"));
 });
 
@@ -89,6 +93,39 @@ test('Workshop station pages keep individual names inside the shared workshop se
     assert.equal(resolvePage(b.doc), name);
     assert.equal(b.requests[0].body.p_page, name);
   }
+});
+
+test('Bus category visits and clicks use the existing Bus reporting bucket while Pit uses Departments', async () => {
+  const busViews = ['planner-bus-mechanical', 'planner-bus-accessory', 'planner-bus-electrical', 'planner-bus-qa'];
+  for (const view of busViews) {
+    const b = browser({view}); await tick();
+    assert.equal(resolvePage(b.doc), 'planner-bus-4x4');
+    await b.click(); await b.interval();
+    assert.ok(b.requests.some(request => request.body.p_page === 'planner-bus-4x4' && request.body.p_clicks === 1));
+    assert.ok(b.requests.every(request => request.body.p_page === 'planner-bus-4x4'));
+  }
+  for (const view of ['planner-bus-pit', 'bus-pit']) {
+    const b = browser({view}); await tick(); await b.click(); await b.interval();
+    assert.equal(resolvePage(b.doc), 'department');
+    assert.ok(b.requests.some(request => request.body.p_page === 'department' && request.body.p_clicks === 1));
+    assert.ok(b.requests.every(request => request.body.p_page === 'department'));
+  }
+  const allBays = browser({view:'planner-bus-4x4', navVisible:false}); await tick();
+  assert.equal(resolvePage(allBays.doc), 'planner-bus-4x4');
+  assert.equal(allBays.requests[0].body.p_page, 'planner-bus-4x4');
+});
+
+test('moving between Bus categories keeps one Bus visit and entering Pit records a separate department visit', async () => {
+  const b = browser({view:'planner-bus-mechanical'}); await tick();
+  await b.click({navigate:'planner-bus-electrical'}); await b.interval();
+  await b.click({navigate:'planner-bus-pit'}); await b.interval();
+  await b.click(); await b.interval();
+  const batches = b.requests.map(request => request.body);
+  assert.equal(batches.filter(batch => batch.p_visit && batch.p_page === 'planner-bus-4x4').length, 1);
+  assert.equal(batches.filter(batch => batch.p_visit && batch.p_page === 'department').length, 1);
+  assert.equal(batches.filter(batch => batch.p_page === 'planner-bus-4x4').reduce((total, batch) => total + batch.p_clicks, 0), 2);
+  assert.equal(batches.filter(batch => batch.p_page === 'department').reduce((total, batch) => total + batch.p_clicks, 0), 1);
+  assert.ok(batches.every(batch => PAGE_LABELS[batch.p_page] && batch.p_page !== 'other'));
 });
 
 test('Sales user visits all pages; Finance tabs and customer-email dialog clicks retain correct attribution', async () => {
