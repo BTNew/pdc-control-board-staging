@@ -3206,9 +3206,8 @@ function workshopSnapshotVehicleToPlannerRow(vehicle = {}, workItems = [], stage
 }
 
 function workshopPlannerVehiclesForStage(stage = '') {
-  const rows = workshopStageVehicles(stage);
   const dedicatedStage = normalizePmbStage(window.__activeWorkshopPlannerStage || '');
-  if (!dedicatedStage || !workshopSharedModeActive()) return rows;
+  if (!dedicatedStage || !workshopSharedModeActive()) return workshopStageVehicles(stage);
   const snapshot = window.__workshopDataService?.getLastSnapshot?.();
   const snapshotVehicles = Array.isArray(snapshot?.vehicles) ? snapshot.vehicles : [];
   const bookings = Array.isArray(snapshot?.bookings) ? snapshot.bookings : [];
@@ -5061,8 +5060,13 @@ function renderWorkshopPlanner(options = {}) {
   if (workshopSharedModeActive()) workshopSyncConfigFromSharedSettings();
   const root = document.querySelector('#workshop-planner-root');
   if (!root) return;
+  // A direct interaction may paint before the snapshot's queued frame runs.
+  // Consume that frame while retaining later refreshes and their new state.
+  // Clock projections leave full legacy reconciliation to the queued render.
+  if (!projectionOnly && typeof cancelWorkshopPlannerRender === 'function') cancelWorkshopPlannerRender();
   const state = workshopState();
   if (typeof app.pendingBusBayGroup === 'string') { state.busBayGroup = app.pendingBusBayGroup; delete app.pendingBusBayGroup; }
+  if (typeof app.pendingBusShowAllBays === 'boolean') { state.busShowAllBays = app.pendingBusShowAllBays; delete app.pendingBusShowAllBays; }
   const pendingBookingLink = typeof app !== 'undefined' ? app.pendingWorkshopBookingLink : null;
   const pendingWorkContext = typeof app !== 'undefined' ? app.pendingVehicleWorkContext : null;
   if (pendingBookingLink || pendingWorkContext) state.busBayGroup = '';
@@ -5261,15 +5265,14 @@ function renderWorkshopPlanner(options = {}) {
 
 function bindWorkshopPlanner(root) {
   if (typeof pdcWorkshopDepartmentChanged === 'function') root.querySelector('[data-workshop-department]')?.addEventListener('change',pdcWorkshopDepartmentChanged);
-  root.querySelector('[data-workshop-all-bus-bays]')?.addEventListener('change', event => { workshopState().busShowAllBays=event.target.checked; workshopSaveView(workshopState()); renderWorkshopPlanner(); });
+  root.querySelector('[data-workshop-all-bus-bays]')?.addEventListener('change', event => {
+    const state = workshopState();
+    showView(event.target.checked ? 'planner-bus-4x4' : workshopDepartmentLayout().category(state.busBayGroup || 'mechanical').view);
+  });
   root.querySelectorAll('[data-workshop-layout-stage]').forEach(button => button.addEventListener('click',() => {
-    if (button.dataset.workshopExternal === 'true') {
-      showView('sublet');
-      return;
-    }
-    const state=workshopState(); state.busBayGroup=button.dataset.workshopLayoutGroup || 'mechanical';
-    workshopClearSelectedDetail(state); workshopSaveView(state);
-    if (button.dataset.workshopLayoutStage === state.stage) renderWorkshopPlanner();
+    const category = workshopDepartmentLayout()?.category(button.dataset.workshopLayoutGroup);
+    workshopResetFocusedBooking();
+    if (category) showView(category.view);
     else openWorkshopPlannerForStage(button.dataset.workshopLayoutStage);
   }));
   root.querySelector('[data-workshop-dismiss-readiness]')?.addEventListener('click', () => {

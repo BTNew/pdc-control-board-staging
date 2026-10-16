@@ -264,9 +264,15 @@ const WORKSHOP_STATION_ROUTE_DEFS = Object.freeze(WORKSHOP_ELIGIBILITY.workshopP
   stage: def.code,
   label: def.label,
 })));
-const WORKSHOP_PLANNER_VIEWS = Object.freeze(Object.fromEntries(WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.view, def.stage])));
+const WORKSHOP_PLANNER_VIEWS = Object.freeze(Object.fromEntries([
+  ...WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.view, def.stage]),
+  ...(window.PDC_WORKSHOP_DEPARTMENTS?.BUS_WORK || []).filter(item => !item.external).map(item => [item.view, 'BUS_4X4']),
+]));
 const WORKSHOP_PLANNER_ROUTE_BY_STAGE = Object.freeze(Object.fromEntries(WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.stage, def.view])));
-const WORKSHOP_PLANNER_ROUTE_BY_PATH = Object.freeze(Object.fromEntries(WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.path, def.view])));
+const WORKSHOP_PLANNER_ROUTE_BY_PATH = Object.freeze(Object.fromEntries([
+  ...WORKSHOP_STATION_ROUTE_DEFS.map(def => [def.path, def.view]),
+  ...(window.PDC_WORKSHOP_DEPARTMENTS?.BUS_WORK || []).map(item => [item.path, item.view]),
+]));
 const WORKSHOP_CONTROL_BOARD_STATIONS = PMB_BAY_STATION_SEQUENCE;
 
 const PDC_JOB_DEFS = [
@@ -3443,6 +3449,8 @@ function workshopViewFromLocation() {
 }
 
 function workshopLocationPathForView(view = '') {
+  const category = window.PDC_WORKSHOP_DEPARTMENTS?.categoryForView?.(view);
+  if (category) return category.path;
   const station = WORKSHOP_STATION_ROUTE_DEFS.find(def => def.view === view);
   return station ? station.path : (view === 'workshop' ? 'workshop' : String(view || 'dashboard'));
 }
@@ -3572,8 +3580,7 @@ function resetDeletedVehicleAuthorityState() {
 
 function bindNav() {
   $$('.nav-item[data-view]').forEach(btn => btn.addEventListener('click', () => {
-    if (btn.dataset.view === 'planner-bus-4x4') {
-      app.pendingBusBayGroup = '';
+    if (btn.dataset.view === 'planner-bus-4x4' || window.PDC_WORKSHOP_DEPARTMENTS?.categoryForView?.(btn.dataset.view)) {
       if (typeof workshopResetFocusedBooking === 'function') workshopResetFocusedBooking();
     }
     showView(btn.dataset.view);
@@ -3583,6 +3590,7 @@ function bindNav() {
     setAdminNavigationExpanded($('#nav-admin-toggle')?.getAttribute('aria-expanded') !== 'true');
   });
   syncAdminNavigationVisibility();
+  pdcSyncWorkshopDepartmentNavigation();
   if (!window.__pdcWorkshopRouteListenersInstalled && typeof window.addEventListener === 'function') {
     const restoreRoute = () => showView(workshopViewFromLocation(), { historyMode: 'none' });
     window.addEventListener('popstate', restoreRoute);
@@ -4033,7 +4041,7 @@ function renderAdminList(host, items, removeAttr, emptyText, options = {}) {
   </table></div>`;
 }
 
-function renderAdminLists() {
+function renderAdminLists(options = {}) {
   const canManageTechnicians = workshopTechnicianAdminCanMutate();
   const mechanicInput = $('#mechanic-name-input');
   const mechanicButton = $('#add-mechanic-list-button');
@@ -4055,7 +4063,8 @@ function renderAdminLists() {
   $$('[data-remove-mechanic]').forEach(button => button.addEventListener('click', () => removeMechanicFromAdminList(button.dataset.removeMechanic)));
   $$('[data-remove-provider]').forEach(button => button.addEventListener('click', () => removeSubletProviderFromAdminList(button.dataset.removeProvider)));
   $$('[data-remove-salesperson]').forEach(button => button.addEventListener('click', () => removeSalespersonFromAdminList(button.dataset.removeSalesperson)));
-  renderBackupStatusPanel();
+  // Reference-only updates still hide history immediately when authority changes.
+  if (options.refreshBackup !== false || !backupStatusSharedModeReady()) renderBackupStatusPanel();
 }
 
 // Admin-visible backup status widget (Setup screen). Reads only from
@@ -4543,11 +4552,12 @@ function showView(view, options) {
     requestedView = 'dashboard';
   }
   if (requestedView === 'pipeline') requestedView = 'workflow';
-  if (requestedView.startsWith('planner-') && !WORKSHOP_PLANNER_VIEWS[requestedView]) requestedView = 'workflow';
+  const categoryDestination = window.PDC_WORKSHOP_DEPARTMENTS?.categoryForView?.(requestedView);
+  if (requestedView.startsWith('planner-') && !WORKSHOP_PLANNER_VIEWS[requestedView] && !categoryDestination) requestedView = 'workflow';
   if (requestedView === 'workshop' && !workshopCombinedPlannerRollbackEnabled()) requestedView = 'workflow';
   const departmentStage = PRODUCTION_DEPARTMENT_VIEWS[requestedView] || '';
   const plannerStage = WORKSHOP_PLANNER_VIEWS[requestedView] || '';
-  const nextView = departmentStage ? 'department' : (plannerStage ? 'workshop' : requestedView);
+  const nextView = categoryDestination?.external ? 'bus-pit' : (departmentStage ? 'department' : (plannerStage ? 'workshop' : requestedView));
   const previousRequestedView = app.currentRequestedView || app.currentView || 'dashboard';
   if (app.currentView && app.currentView !== nextView && app.vehicleLocationsRefreshCoordinator?.isRefreshing?.()) {
     // A refresh started on another route must become inert before its late
@@ -4556,20 +4566,25 @@ function showView(view, options) {
   }
   const previousWasPlanner = previousRequestedView === 'workshop' || Boolean(WORKSHOP_PLANNER_VIEWS[previousRequestedView]);
   const enteringWorkflowBoard = requestedView === 'workflow' && previousRequestedView !== 'workflow';
-  const switchingPlannerStation = previousWasPlanner && Boolean(plannerStage) && previousRequestedView !== requestedView;
+  const switchingPlannerStation = previousWasPlanner && Boolean(plannerStage) && WORKSHOP_PLANNER_VIEWS[previousRequestedView] !== plannerStage;
   const enteringWorkshopPlanner = nextView === 'workshop'
-    && (!previousWasPlanner || previousRequestedView !== requestedView);
+    && (!previousWasPlanner || switchingPlannerStation);
   const focusedWorkshopIntent = app.pendingWorkshopBookingLink?.focused === true || app.pendingWorkshopBookingLink?.search === true;
   if (focusedWorkshopIntent) app.pendingWorkshopOpenToday = false;
-  if ((nextView !== 'workshop' || (switchingPlannerStation && !focusedWorkshopIntent))
+  if ((nextView !== 'workshop' || (previousRequestedView !== requestedView && !focusedWorkshopIntent))
       && typeof workshopResetFocusedBooking === 'function') workshopResetFocusedBooking();
+  if (plannerStage === 'BUS_4X4' && !focusedWorkshopIntent) {
+    app.pendingBusBayGroup = categoryDestination?.id
+      || window.PDC_WORKSHOP_DEPARTMENTS?.category(app.workshopPlanner?.busBayGroup)?.id || 'mechanical';
+    app.pendingBusShowAllBays = !categoryDestination;
+  }
   if (enteringWorkshopPlanner && !focusedWorkshopIntent) app.pendingWorkshopOpenToday = true;
   // Dashboard completion projection deliberately uses an unscoped Workshop
   // service. Never reuse it for a station planner with different authority.
   if (enteringWorkshopPlanner && !previousWasPlanner && window.__workshopDataService) {
     teardownWorkshopPlannerScope();
   }
-  if (previousWasPlanner && previousRequestedView !== requestedView) teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation });
+  if (previousWasPlanner && (nextView !== 'workshop' || switchingPlannerStation)) teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation });
   if (previousRequestedView === 'workflow' && requestedView !== 'workflow') teardownWorkshopEligibilityOverview({ clearSnapshot: true });
   releaseHeavyViewDom(app.currentView, nextView);
   if (requestedView !== 'workflow') {
@@ -4589,7 +4604,7 @@ function showView(view, options) {
   app.currentView = nextView;
   updateWorkshopBrowserRoute(requestedView, options.historyMode || 'push');
   if (document.body?.dataset) document.body.dataset.currentView = requestedView;
-  $$('.view').forEach(el => el.classList.toggle('active', el.id === requestedView || (departmentStage && el.id === 'department') || (plannerStage && el.id === 'workshop')));
+  $$('.view').forEach(el => el.classList.toggle('active', el.id === nextView));
   $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView || (plannerStage && el.dataset.view === 'workshop')));
   const adminViews = new Set(['user-management', 'update-history', 'lists', 'import', 'backup', 'deleted', 'completed', 'backend']);
   const adminActive = adminViews.has(requestedView);
@@ -4624,6 +4639,7 @@ function showView(view, options) {
   const pageTitle = $('#page-title');
   if (pageTitle) pageTitle.textContent = departmentDef
     ? departmentDef.label
+    : categoryDestination ? `Bus 4×4 — ${categoryDestination.label}${categoryDestination.external ? ' · External inspection' : ''}`
     : (plannerStage ? (window.PDC_WORKSHOP_DEPARTMENTS?.plannerTitle(plannerStage) || `${pmbStageLabel(plannerStage)} Planner`) : (titleMap[requestedView] || 'Control Board'));
   if (requestedView !== 'dashboard' && app.frozenHeaderCleanup) {
     app.frozenHeaderCleanup();
@@ -4648,6 +4664,7 @@ const HEAVY_VIEW_HOSTS = Object.freeze({
   emailreview: ['email-intake-review-content'],
   'ai-auditor': ['ai-auditor-report'],
   sublet: ['sublet-home-content'],
+  'bus-pit': ['bus-pit-content'],
   rft: ['rft-home-content', 'rft-summary-grid'],
   completed: ['completed-vehicles-content'],
   deleted: ['deleted-vehicles-content'],
@@ -4811,8 +4828,10 @@ function initWorkshopReferenceDataServiceIfAvailable() {
       if (typeof workshopSyncConfigFromSharedSettings === 'function') {
         try { workshopSyncConfigFromSharedSettings(); } catch (_err) { /* keep last-known-good config */ }
       }
-      renderAdminLists();
-      renderKpis();
+      // Reference changes keep visible controls current. Backup history is
+      // independent and is loaded when Setup opens or its refresh is used.
+      if (app.currentView === 'lists') renderAdminLists({ refreshBackup: false });
+      if (app.currentView === 'dashboard') renderKpis();
       if (app.currentView === 'workshop') scheduleWorkshopPlannerRender();
     }
   });
@@ -5215,6 +5234,7 @@ function resetEmailVehicleLocations() {
   app.vehicleHistoryCache = new Map();
   app.vehicleHistoryRequestGeneration += 1;
   if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+  if (app.currentView === 'bus-pit') renderBusPitInspections();
 }
 
 async function refreshEmailVehicleLocations(options = {}) {
@@ -5232,6 +5252,7 @@ async function refreshEmailVehicleLocations(options = {}) {
   if (refreshGeneration != null && refreshGeneration !== app.vehicleLocationsRefreshGeneration) return false;
   if (!response.ok) {
     app.emailVehicleLocationError = response.code || response.error || 'snapshot_unavailable';
+    if (app.currentView === 'bus-pit' && refreshGeneration == null) renderBusPitInspections();
     return false;
   }
   if (response.unchanged === true) {
@@ -5459,7 +5480,7 @@ function renderWorkshopPlannerWhenReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?jobcard-categories=2026.10.15.01&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?jobcard-categories=2026.10.15.01&site-speed=2026.10.16.01&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
       if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
@@ -5508,7 +5529,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?jobcard-categories=2026.10.15.01&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?jobcard-categories=2026.10.15.01&site-speed=2026.10.16.01&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -6049,6 +6070,9 @@ function renderActiveView() {
       break;
     case 'sublet':
       renderSubletHome();
+      break;
+    case 'bus-pit':
+      renderBusPitInspections();
       break;
     case 'rft':
       renderRftHome();
@@ -7280,7 +7304,8 @@ function controlBoardStationVehicleHtml(vehicle = {}, stage = '') {
 
 function openWorkshopPlannerForStage(stage = '') {
   const normalizedStage = normalizePmbStage(stage);
-  const route = WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizedStage];
+  const category = normalizedStage === 'BUS_4X4' ? window.PDC_WORKSHOP_DEPARTMENTS?.category(app.pendingBusBayGroup) : null;
+  const route = category?.view || WORKSHOP_PLANNER_ROUTE_BY_STAGE[normalizedStage];
   if (!route) return;
   showView(route);
 }
@@ -7370,6 +7395,11 @@ function pdcSyncWorkshopDepartmentNavigation() {
 }
 window.addEventListener('pdc-department-filter-changed', () => {
   pdcSyncWorkshopDepartmentNavigation();
+  if (app.currentView === 'bus-pit') {
+    if (window.PDC_DEPARTMENT_FILTER?.getSelection() === '139') showView('planner-fitting');
+    else renderBusPitInspections();
+    return;
+  }
   if (app.currentView === 'workflow') renderWorkflowBoard();
   if (app.currentView !== 'workshop') return;
   const stage = app.activeWorkshopPlannerStage || app.workshopPlanner?.stage;
@@ -17963,6 +17993,7 @@ function vehicleLocationActionAllowed(vehicleOrKey, operation = 'change') {
 function renderSharedNavisionVisibilityState() {
   renderBackEndData();
   if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+  if (app.currentView === 'bus-pit') renderBusPitInspections();
 }
 
 function clearSharedNavisionVisibilityReconnectTimer() {
@@ -18154,6 +18185,7 @@ async function readSharedNavisionVisibleRows(options = {}) {
   if (refreshGeneration == null || refreshGeneration === app.vehicleLocationsRefreshGeneration) {
     renderBackEndData();
     if (app.currentView === 'dashboard') renderIncomingDashboardBoard();
+    if (app.currentView === 'bus-pit') renderBusPitInspections();
   }
   return { ...refreshResult, revision: app.sharedNavisionVisibleRevision, count: app.sharedNavisionVisibleRows.length };
 }
@@ -18418,7 +18450,7 @@ function vehicleLocationsRefreshRoleCanRead(role = window.PDC_AUTH_CONTEXT?.role
 
 const OPERATIONAL_REFRESH_ROUTES = Object.freeze([
   'dashboard', 'qc', 'workflow', 'workshop', 'visibility', 'tv', 'schedule',
-  'department', 'parts', 'sublet', 'rft', 'completed', 'collected', 'deleted',
+  'department', 'parts', 'sublet', 'bus-pit', 'rft', 'completed', 'collected', 'deleted',
   'backend', 'emailreview', 'ai-auditor',
 ]);
 
@@ -18426,7 +18458,7 @@ function operationalRefreshRouteLabel(route = '') {
   return ({
     dashboard: 'Vehicle Locations', qc: 'QC', workflow: 'Control Board', workshop: 'Workshop Planner',
     visibility: 'Operations', tv: 'PDC TV', schedule: 'Production', department: 'Department',
-    parts: 'Parts', sublet: 'Sublet', rft: 'RFT', completed: 'Completed Vehicles',
+    parts: 'Parts', sublet: 'Sublet', 'bus-pit': 'Bus Pit inspections', rft: 'RFT', completed: 'Completed Vehicles',
     collected: 'Collected Vehicles', deleted: 'Deleted Vehicles', backend: 'Back End Data',
     emailreview: 'AI / Email Intake', 'ai-auditor': 'AI Auditor',
   })[route] || 'Operational page';
@@ -25819,6 +25851,28 @@ function renderEmailIntakeReview() {
 function plainDateValue(value = '') {
   const match = String(value || '').match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] : '';
+}
+
+function renderBusPitInspections() {
+  const host = $('#bus-pit-content');
+  if (!host) return;
+  const unavailable = app.emailVehicleLocationError || app.sharedNavisionVisibleState === 'error'
+    || typeof window.PDC_WORKSHOP_DEPARTMENTS?.externalPitLines !== 'function';
+  const loading = app.emailVehicleLocationRevision == null || app.sharedNavisionVisibleState !== 'ready'
+    || (app.operationalRefreshState === 'refreshing' && app.operationalRefreshRoute === 'bus-pit');
+  if (unavailable || loading) {
+    host.innerHTML = `<div class="empty-state" role="status"><strong>${unavailable ? 'Pit inspections unavailable' : 'Loading Pit inspections…'}</strong><span>${unavailable ? 'The latest job-card information could not be loaded. Use Refresh to try again.' : 'Checking current vehicle and job-card information.'}</span></div>`;
+    return;
+  }
+  const vehicles = vehicleLocationBoardRows();
+  if (vehicles.some(vehicle => vehicle.__emailVehicleServerAuthoritative === true && vehicle.pdcQcOperationLinesProjectionPresent !== true)) {
+    host.innerHTML = '<div class="empty-state" role="status"><strong>Pit inspections unavailable</strong><span>Job-card details are incomplete. Use Refresh to try again.</span></div>';
+    return;
+  }
+  const rows = vehicles.flatMap(vehicle => (window.PDC_WORKSHOP_DEPARTMENTS?.externalPitLines(vehicle) || []).map(line => ({ vehicle, line })));
+  host.innerHTML = rows.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Stock</th><th>Customer</th><th>Vehicle</th><th>Job card</th><th>Inspection required</th><th>Location</th><th></th></tr></thead><tbody>${rows.map(({ vehicle, line }) => `<tr><td>${escapeHtml(displayStockNumber(vehicle) || '—')}</td><td>${escapeHtml(vehicleCustomerName(vehicle) || '—')}</td><td>${escapeHtml(displayVehicle(vehicle) || '—')}</td><td>${escapeHtml(line.jobCardNumber || vehicleJobcardNumber(vehicle) || '—')}</td><td>${escapeHtml(line.description)}</td><td>${escapeHtml(vehiclePdcLocation(vehicle) || '—')}</td><td><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleKey(vehicle))}">Open vehicle</button></td></tr>`).join('')}</tbody></table></div>`
+    : '<div class="empty-state"><strong>No open Bus Pit inspections</strong><span>No active Department 138 job-card lines currently require external Pit inspection.</span></div>';
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
 }
 
 function subletRows() {

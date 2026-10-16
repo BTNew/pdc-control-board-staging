@@ -66,9 +66,17 @@ test('booking navigation replaces a pending open-today intent while normal plann
   const end = appSource.indexOf('\n', appSource.indexOf('if (enteringWorkshopPlanner && !focusedWorkshopIntent)', start));
   const source = appSource.slice(start, end);
   for (const mode of ['focused', 'search', 'ordinary']) {
-    const context = { app: { pendingWorkshopOpenToday: true, pendingWorkshopBookingLink: mode === 'ordinary' ? null : { [mode]: true } }, nextView: 'workshop', switchingPlannerStation: true, enteringWorkshopPlanner: true };
+    let resets = 0;
+    const context = {
+      app: { pendingWorkshopOpenToday: true, pendingWorkshopBookingLink: mode === 'ordinary' ? null : { [mode]: true } },
+      nextView: 'workshop', previousRequestedView: 'planner-fitting', requestedView: 'planner-bus-mechanical',
+      plannerStage: 'BUS_4X4', categoryDestination: { id: 'mechanical' }, enteringWorkshopPlanner: true,
+      workshopResetFocusedBooking() { resets++; context.app.pendingWorkshopBookingLink = null; },
+    };
     vm.runInNewContext(source, context);
     assert.equal(context.app.pendingWorkshopOpenToday, mode === 'ordinary');
     if (mode !== 'ordinary') assert.equal(context.app.pendingWorkshopBookingLink[mode], true);
+    assert.equal(resets, mode === 'ordinary' ? 1 : 0);
+    assert.equal(context.app.pendingBusBayGroup, mode === 'ordinary' ? 'mechanical' : undefined);
   }
 });
