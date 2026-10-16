@@ -233,3 +233,34 @@ test('Pit renderer distinguishes loading, failed, incomplete and confirmed-empty
   context.app.sharedNavisionVisibleState = 'ready';
   context.resetEmailVehicleLocations(); assert.match(host.innerHTML, /Loading Pit/); assert.doesNotMatch(host.innerHTML, /PIT-1/);
 });
+
+test('unchanged background recovery repaints a Pit error once while coordinated and healthy checks keep their existing paint owner', async () => {
+  let response = { ok: false, code: 'snapshot_unavailable' }, paints = 0;
+  const context = {
+    app: { currentView: 'bus-pit', emailVehicleLocationGeneration: 0, emailVehicleLocationRevision: 7,
+      vehicleLocationsRefreshGeneration: 3, emailVehicleLocationService: { snapshot: async () => response } },
+    window: { PDC_AUTH_CONTEXT: { userId: 'fixture-user' } }, getPdcSupabaseAccessToken: () => 'fixture-session',
+    renderBusPitInspections() { paints++; },
+    renderAll() { throw new Error('Unchanged data must not rebuild unrelated views'); },
+  };
+  vm.createContext(context);
+  vm.runInContext(section(appSource, 'async function refreshEmailVehicleLocations(', 'function initEmailVehicleLocationsIfAvailable('), context);
+  assert.equal(await context.refreshEmailVehicleLocations(), false);
+  assert.equal(paints, 1, 'The failed background read displays its error');
+  response = { ok: true, unchanged: true };
+  assert.equal(await context.refreshEmailVehicleLocations({ checkRevision: true }), true);
+  assert.equal(context.app.emailVehicleLocationError, '');
+  assert.equal(paints, 2, 'Successful reconnect clears the visible error even without new rows');
+  await context.refreshEmailVehicleLocations({ checkRevision: true });
+  assert.equal(paints, 2, 'Healthy unchanged revision checks do not repaint');
+  response = { ok: false, code: 'snapshot_unavailable' };
+  await context.refreshEmailVehicleLocations({ refreshGeneration: 3 });
+  response = { ok: true, unchanged: true };
+  await context.refreshEmailVehicleLocations({ checkRevision: true, refreshGeneration: 3 });
+  assert.equal(context.app.emailVehicleLocationError, '');
+  assert.equal(paints, 2, 'The coordinated refresh retains sole responsibility for its final paint');
+  context.app.currentView = 'dashboard';
+  context.app.emailVehicleLocationError = 'snapshot_unavailable';
+  await context.refreshEmailVehicleLocations({ checkRevision: true });
+  assert.equal(paints, 2, 'A hidden Pit view is not rebuilt on recovery');
+});
