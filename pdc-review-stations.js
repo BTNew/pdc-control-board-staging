@@ -33,6 +33,16 @@
       }
     }
     if (dealers.size === 1) return [...dealers][0];
+    // Native PMG intake also accepts Department 138 vehicles without Navision.
+    // This supplies a request scope only: the RPC still checks the signed-in
+    // actor, exact UUID, active jobs and approved New Vehicles review. Never
+    // override an explicit/conflicting dealer or infer scope from a rego alone.
+    if (dealers.size === 0 && uuid(canonicalId) && stock
+        && vehicle.__emailVehicleServerAuthoritative === true
+        && vehicle.source === 'tune_pmg' && vehicle.pdcSheetVisible === true
+        && vehicle.pdcHasUnknownDepartment === false
+        && Array.isArray(vehicle.pdcDepartmentCodes)
+        && vehicle.pdcDepartmentCodes.length === 1 && vehicle.pdcDepartmentCodes[0] === '138') return '14450';
     return ''; // An authenticated vehicle must never borrow the default dealer.
   }
   function reviewLines(vehicle = {}) {
