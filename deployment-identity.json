@@ -1148,5 +1148,14 @@
     "sha256": "7e6bf9ee54eb1f893b4e142b55f0df7a75cc0c0231876b0cd45e809abd3b1936",
     "commissioned": true,
     "review_status": "staging_applied"
+  },
+  "department138_reviewed_operation_categories": {
+    "version": "20261016031038",
+    "name": "dept138_reviewed_operation_categories",
+    "file": "supabase/migrations/20261016031038_dept138_reviewed_operation_categories.sql",
+    "sha256": "c117b9751258bff1352e1d097fc4c9d6526b2c96f2aad902c6d234727b500a01",
+    "database_version": "20261016033519",
+    "commissioned": true,
+    "review_status": "staging_applied"
   }
 }
