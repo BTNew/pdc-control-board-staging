@@ -232,13 +232,40 @@ DO $bookall$
 DECLARE v uuid; r jsonb;
 BEGIN
  v:=pg_temp.ou_vehicle('category-book-all');
+ UPDATE public.vehicles SET model='Toyota Coaster',vehicle_description='Synthetic Coaster category fixture' WHERE id=v;
  PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,1,'138','Battery compartment protection');
- PERFORM pg_temp.ou_operation(v,'BUS_4X4',1.5,2,'138','Driving lights');
+ PERFORM pg_temp.ou_operation(v,'BUS_4X4',9,2,'138','Driving lights');
  PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,3,'138','POST REGO BUS 4X4 CERTIFICATION');
  r:=public.book_all_vehicle_stations(v,(SELECT version FROM public.vehicles WHERE id=v));
  PERFORM pg_temp.ou_assert(r->>'ok'='true' AND (SELECT count(DISTINCT work_category)=3 FROM public.workshop_bookings WHERE vehicle_id=v AND deleted_at IS NULL),'Book all stations creates separate category bookings',r);
  PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM public.workshop_bookings b JOIN public.workshop_bays bay ON bay.id=b.bay_id WHERE b.vehicle_id=v AND NOT pdc_work_categories_private.preferred_bay(b.work_category,bay.bay_number)),'Book all chooses the category preferred bays');
+ PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM public.workshop_bookings b JOIN public.workshop_bays bay ON bay.id=b.bay_id WHERE b.vehicle_id=v AND bay.bay_number=3),'Book all skips HiAce-only Bay 3 for a Coaster');
+ PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM public.workshop_bookings b WHERE b.vehicle_id=v AND NOT pdc_bus_private.minute_available(b.scheduled_start_at,b.bay_id)),'Book all starts every Bus category within its own bay shift');
+ PERFORM pg_temp.ou_assert((SELECT (scheduled_end_at AT TIME ZONE 'Australia/Perth')::date>(scheduled_start_at AT TIME ZONE 'Australia/Perth')::date FROM public.workshop_bookings WHERE vehicle_id=v AND work_category='BUS_ELECTRICAL'),'Long Electrical category continues into another Bus shift');
+ PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM jsonb_array_elements(r->'bookings') item JOIN public.workshop_bookings b ON b.id=(item->>'booking_id')::uuid WHERE (item->>'end_at')::timestamptz IS DISTINCT FROM b.scheduled_end_at),'Book all reports the same Bus shift finish that booking validation saves');
 END $bookall$;
+DO $incompatible_bookall$
+DECLARE v uuid; r jsonb; rule jsonb; booking_count integer;
+BEGIN
+ v:=pg_temp.ou_vehicle('category-book-all-incompatible');
+ UPDATE public.vehicles SET model='Toyota Coaster',vehicle_description='Synthetic incompatible-bay category fixture' WHERE id=v;
+ PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,1,'138','Battery compartment protection');
+ -- Exercise the real physical guard with only its incompatible Mechanical bay
+ -- available. Restore bay configuration and any incidental effects afterward.
+ BEGIN
+  UPDATE public.workshop_bays SET is_active=(bay_number=3)
+   WHERE stage_id=(SELECT id FROM public.workshop_stages WHERE code='BUS_4X4') AND bay_number IN(1,2,3,4);
+  SELECT pdc_bus_private.booking_rule(v,b.id,NULL) INTO STRICT rule FROM public.workshop_bays b
+   JOIN public.workshop_stages s ON s.id=b.stage_id WHERE s.code='BUS_4X4' AND b.bay_number=3;
+  r:=public.book_all_vehicle_stations(v,(SELECT version FROM public.vehicles WHERE id=v));
+  SELECT count(*) INTO booking_count FROM public.workshop_bookings WHERE vehicle_id=v;
+  RAISE EXCEPTION USING ERRCODE='PT002',MESSAGE='Restore incompatible-bay fixture configuration';
+ EXCEPTION WHEN SQLSTATE 'PT002' THEN NULL;
+ END;
+ PERFORM pg_temp.ou_assert(rule->>'error'='bus_bay_vehicle_incompatible','Physical HiAce-only bay guard remains enforced');
+ PERFORM pg_temp.ou_assert(r->>'ok'='false' AND r->>'error'='no_available_slot','Book all reports no slot when every preferred bay is incompatible',r);
+ PERFORM pg_temp.ou_assert(booking_count=0,'Incompatible category booking leaves no partial reservation');
+END $incompatible_bookall$;
 DO $shared_override$
 DECLARE v uuid; bay uuid; op uuid; r jsonb; t timestamptz;
 BEGIN

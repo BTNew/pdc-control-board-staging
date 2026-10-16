@@ -1278,6 +1278,7 @@ DECLARE
  minutes integer; best_minutes integer; increment integer; current_version integer;
  earliest timestamptz; horizon timestamptz; candidate timestamptz; finish timestamptz;
  blocked_until timestamptz; away_date date; best_start timestamptz; best_end timestamptz; best_bay integer;
+ calendar_bay uuid;
  failure text; failure_code text;
 BEGIN
  IF NOT public.pdc_monitor_staging_guard() THEN RAISE EXCEPTION 'This action is available on staging only.'; END IF;
@@ -1327,11 +1328,14 @@ BEGIN
  FOR item IN SELECT value FROM jsonb_array_elements(pending) LOOP
   minutes:=(item->>'minutes')::integer; best_start:=NULL; best_end:=NULL; best_bay:=NULL;
   FOR bay IN SELECT * FROM public.workshop_bays WHERE stage_id=(item->>'id')::uuid AND is_active AND (item->>'work_category' IS NULL OR pdc_work_categories_private.preferred_bay(item->>'work_category',bay_number)) ORDER BY bay_number LOOP
+   -- Preferred category bays still have vehicle compatibility requirements.
+   IF item->>'code'='BUS_4X4' AND (pdc_bus_private.booking_rule(v.id,bay.id,NULL)->>'ok') IS DISTINCT FROM 'true' THEN CONTINUE; END IF;
+   calendar_bay:=CASE WHEN item->>'code'='BUS_4X4' AND pdc_bus_private.active_vehicle(v.id) THEN bay.id END;
    minutes:=public.workshop_capacity_duration_minutes((item->>'minutes')::numeric,bay.id);
    candidate:=to_timestamp(ceil(extract(epoch FROM earliest)/(increment*60))*(increment*60));
    WHILE candidate<horizon AND (best_start IS NULL OR candidate<best_start) LOOP
-    IF NOT public.workshop_calendar_minute_available(candidate) THEN candidate:=candidate+make_interval(mins=>increment); CONTINUE; END IF;
-    finish:=public.workshop_add_operational_minutes(candidate,minutes);
+    IF NOT (CASE WHEN calendar_bay IS NULL THEN public.workshop_calendar_minute_available(candidate) ELSE pdc_bus_private.minute_available(candidate,calendar_bay) END) THEN candidate:=candidate+make_interval(mins=>increment); CONTINUE; END IF;
+    finish:=pdc_bus_private.clock_add_minutes(candidate,minutes,calendar_bay);
     IF finish>horizon THEN EXIT; END IF;
     -- A vehicle cannot work in a bay while it is away with a Sublet provider.
     SELECT d::date INTO away_date FROM generate_series((candidate AT TIME ZONE 'Australia/Perth')::date::timestamp,((finish-interval '1 minute') AT TIME ZONE 'Australia/Perth')::date::timestamp,interval '1 day') d
