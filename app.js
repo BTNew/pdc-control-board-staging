@@ -8128,6 +8128,11 @@ function authenticatedOperationLineLabel(value = '') {
 }
 
 const AUTHENTICATED_OPERATION_STATION_ORDER = Object.freeze([
+  { key: 'bus_mechanical', stage: 'BUS_4X4', label: 'Bus 4×4 · Mechanical', colour: '#3e6690', tint: '#edf2f8' },
+  { key: 'bus_accessories', stage: 'BUS_4X4', label: 'Bus 4×4 · Accessories', colour: '#79528f', tint: '#f4eef8' },
+  { key: 'bus_electrical', stage: 'BUS_4X4', label: 'Bus 4×4 · Electrical', colour: '#557649', tint: '#eef4eb' },
+  { key: 'bus_qa', stage: 'BUS_4X4', label: 'Bus 4×4 · QA', colour: '#227889', tint: '#eaf7f9' },
+  { key: 'bus_pit', stage: 'PIT_INSPECTION', label: 'Bus 4×4 · Pit (external)', colour: '#475569', tint: '#f8fafc' },
   { key: 'bus4x4', stage: 'BUS_4X4', label: 'Bus 4x4', colour: '#3e6690', tint: '#edf2f8' },
   { key: 'tint', stage: 'TINT', label: 'Tint', colour: '#227889', tint: '#eaf7f9' },
   { key: 'hoist', stage: 'HOIST', label: 'Hoist / GVM', colour: '#805b43', tint: '#f5eee8' },
@@ -8137,6 +8142,7 @@ const AUTHENTICATED_OPERATION_STATION_ORDER = Object.freeze([
   { key: 'tyre', stage: 'TYRE', label: 'Tyres', colour: '#a05270', tint: '#faedf2' },
   { key: 'pitinspection', stage: 'PIT_INSPECTION', label: 'Pit inspection', colour: '#475569', tint: '#f8fafc' },
   { key: 'parts', stage: 'PARTS', label: 'Parts', colour: '#dc2626', tint: '#fef2f2' },
+  { key: 'sublet', stage: 'SUBLET', label: 'Sublet', colour: '#8c671d', tint: '#fbf5e5' },
   { key: 'review', stage: 'REVIEW', label: 'Review', colour: '#b45309', tint: '#fffbeb' },
 ]);
 
@@ -8144,6 +8150,22 @@ function authenticatedOperationSummaryLines(vehicle = {}) {
   const raw = (Array.isArray(vehicle.pdcEmailOperationLines) ? vehicle.pdcEmailOperationLines : []).slice(0, 50);
   const canonicalId = typeof vehicleWorkshopDetailCanonicalId === 'function' ? vehicleWorkshopDetailCanonicalId(vehicle) : '';
   const detailState = canonicalId ? app.vehicleWorkshopDetailCache?.get(canonicalId) : null;
+  // The scoped job-card projection owns categories, edits and effective hours.
+  // Never merge legacy import rows back into an authoritative (even empty) list.
+  if (detailState?.status === 'ready' && Array.isArray(detailState.detail?.job_card_lines)) {
+    return detailState.detail.job_card_lines.filter(line => line.active !== false && line.rejected !== true).map(line => {
+      const stage = String(line.stage_code || '').toUpperCase();
+      const workKey = { BUS_4X4: 'bus4x4', PIT_INSPECTION: 'pitinspection', UNALLOCATED_MAPPING_REVIEW: 'review' }[stage] || stage.toLowerCase();
+      const categoryKey = String(line.work_category || '').toLowerCase();
+      const summaryStationKey = categoryKey === 'unallocated_mapping_review' ? 'review'
+        : AUTHENTICATED_OPERATION_STATION_ORDER.some(station => station.key === categoryKey) ? categoryKey : workKey;
+      return { ...line, work_key: workKey, summaryStationKey, authoritativeJobCardLine: true,
+        operation_line_id: line.source_line_id, workshopLineKey: line.line_identity,
+        estimatedHours: line.estimated_hours == null || line.estimated_hours === '' ? null : Number(line.estimated_hours),
+        estimatedHoursSource: line.hours_provenance, sourceEstimatedHours: line.source_estimated_hours,
+        hoursProvenance: line.hours_provenance, description: cleanNavisionText(line.description || '') };
+    });
+  }
   const adjustments = detailState?.status === 'ready' && Array.isArray(detailState.detail?.line_adjustments) ? detailState.detail.line_adjustments : [];
   const adjustmentByKey = new Map(adjustments.filter(item => item?.source_kind !== 'manual' && item?.line_key).map(item => [String(item.line_key), item]));
   return raw.flatMap(operation => {
@@ -8151,7 +8173,7 @@ function authenticatedOperationSummaryLines(vehicle = {}) {
     const lineKey = typeof vehicleWorkshopLineIdentity === 'function' ? vehicleWorkshopLineIdentity(sourceStation?.stage || '', operation || {}) : '';
     const adjustment = adjustmentByKey.get(lineKey);
     if (adjustment?.active === false) return [];
-    const targetStation = adjustment ? AUTHENTICATED_OPERATION_STATION_ORDER.find(station => station.stage === vehicleWorkshopStageCode(adjustment.stage_code)) : sourceStation;
+    const targetStation = adjustment ? AUTHENTICATED_OPERATION_STATION_ORDER.find(station => !station.key.startsWith('bus_') && station.stage === vehicleWorkshopStageCode(adjustment.stage_code)) : sourceStation;
     const adjustedHours = adjustment && adjustment.estimated_hours !== null && adjustment.estimated_hours !== undefined && String(adjustment.estimated_hours).trim() !== ''
       ? Number(adjustment.estimated_hours)
       : operation?.estimatedHours;
@@ -8177,18 +8199,18 @@ function authenticatedOperationSummaryLines(vehicle = {}) {
 function authenticatedEmailOperationLinesHtml(vehicle = {}) {
   const operations = authenticatedOperationSummaryLines(vehicle)
     .filter(operation => operation
-      && authenticatedOperationLineValid(operation.operation_no)
+      && (operation.authoritativeJobCardLine || authenticatedOperationLineValid(operation.operation_no))
       && operation.description
-      && AUTHENTICATED_OPERATION_STATION_ORDER.some(station => station.key === String(operation.work_key || '').trim().toLowerCase()))
+      && AUTHENTICATED_OPERATION_STATION_ORDER.some(station => station.key === String(operation.summaryStationKey || operation.work_key || '').trim().toLowerCase()))
     .sort((a, b) => {
       const left = authenticatedOperationLineSortValue(a.operation_no);
       const right = authenticatedOperationLineSortValue(b.operation_no);
       return left[0] - right[0] || left[1] - right[1] || left[2].localeCompare(right[2]);
     });
   if (!operations.length) return '';
-  const stationColumns = AUTHENTICATED_OPERATION_STATION_ORDER.filter(station => station.stage !== 'PIT_INSPECTION').map(station => ({
+  const stationColumns = AUTHENTICATED_OPERATION_STATION_ORDER.map(station => ({
     ...station,
-    operations: operations.filter(operation => String(operation.work_key || '').trim().toLowerCase() === station.key),
+    operations: operations.filter(operation => String(operation.summaryStationKey || operation.work_key || '').trim().toLowerCase() === station.key),
   })).filter(station => station.operations.length);
   const vehicleIdentity = typeof vehicleKey === 'function'
     ? vehicleKey(vehicle)
@@ -8205,7 +8227,7 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
       }).filter(value => value !== null);
       const totalHours = statedHours.length ? statedHours.reduce((sum, value) => sum + value, 0) : null;
       const totalHoursLabel = totalHours === null ? 'Unknown hours' : `${totalHours.toFixed(2)} h`;
-      return `<section class="authenticated-operation-station" data-operation-station="${escapeHtml(station.stage)}" style="--station-colour:${escapeHtml(station.colour)};--station-tint:${escapeHtml(station.tint)}">
+      return `<section class="authenticated-operation-station" data-operation-station="${escapeHtml(station.stage)}" data-operation-category="${escapeHtml(station.key)}" style="--station-colour:${escapeHtml(station.colour)};--station-tint:${escapeHtml(station.tint)}">
       <header><strong>${escapeHtml(station.label)}</strong><small>${station.operations.length} job${station.operations.length === 1 ? '' : 's'} · ${escapeHtml(totalHoursLabel)}</small></header>
       <ol aria-label="${escapeHtml(`${station.label} jobs`)}">${station.operations.map(operation => {
         const aiEstimate = operation.estimatedHours != null && operation.estimatedHoursSource === 'ai_estimate';
@@ -8253,7 +8275,8 @@ async function loadAuthenticatedOperationSummary(row) {
   if (row.querySelector('[data-auth-operation-deferred]')) refreshAuthenticatedOperationSummaryRow(row, vehicle);
   if (!canonicalId) return false;
   const ready = app.vehicleWorkshopDetailCache?.get(canonicalId);
-  if (ready?.status === 'ready') return refreshAuthenticatedOperationSummaryRow(row, vehicle);
+  const vehicleVersion = Number(vehicle.__emailVehicleVersion || vehicle.version || 0);
+  if (ready?.status === 'ready' && Number(ready.detail?.vehicle_version || 0) >= vehicleVersion) return refreshAuthenticatedOperationSummaryRow(row, vehicle);
   if (!app.authenticatedOperationSummaryRequests) app.authenticatedOperationSummaryRequests = new Map();
   let request = app.authenticatedOperationSummaryRequests.get(canonicalId);
   if (!request) {
