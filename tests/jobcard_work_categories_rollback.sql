@@ -170,9 +170,17 @@ BEGIN
 END $categories$;
 
 DO $completion$
-DECLARE v uuid; bay uuid; b uuid; tech uuid:=gen_random_uuid(); cat text; l jsonb; d jsonb; r jsonb; op uuid;
+DECLARE v uuid; bay uuid; b uuid; tech uuid:=gen_random_uuid(); cat text; l jsonb; d jsonb; r jsonb; op uuid; started_at timestamptz;
 BEGIN
  v:=pg_temp.ou_vehicle('category-completion'); bay:=pg_temp.ou_bay('category-completion','BUS_4X4');
+ -- Completion scope is under test, not starting outside a shift. Select a
+ -- genuinely available past shift using the unchanged Bus calendar guard.
+ -- This keeps overnight/weekend runs meaningful without bypassing that guard.
+ SELECT max(candidate) INTO started_at
+ FROM generate_series(0,14) AS days(n)
+ CROSS JOIN LATERAL (SELECT ((current_date-days.n)::timestamp+interval '6 hours') AT TIME ZONE 'Australia/Perth' AS candidate) AS shifts
+ WHERE candidate < now()-interval '1 minute' AND pdc_bus_private.minute_available(candidate,bay);
+ IF started_at IS NULL THEN RAISE EXCEPTION 'No available past Bus shift for completion fixture'; END IF;
  INSERT INTO public.workshop_technicians(id,name,role_type,active) VALUES(tech,'Category rollback fitter','technician',true);
  UPDATE public.workshop_bays SET default_technician_id=tech WHERE id=bay;
  PERFORM pg_temp.ou_operation(v,'BUS_4X4',2,1,'138','Battery Compartment & Relay Box Protection');
@@ -181,7 +189,7 @@ BEGIN
  PERFORM pg_temp.ou_operation(v,'BUS_4X4',0,4,'138','95 LITRES OF FUEL');
  FOREACH cat IN ARRAY ARRAY['BUS_MECHANICAL','BUS_ELECTRICAL','BUS_QA'] LOOP
   PERFORM pdc_work_categories_private.set_context(v,'BUS_4X4',jsonb_build_object('work_category',cat));
-  b:=pg_temp.ou_booking(cat,v,'BUS_4X4',bay,date_trunc('minute',now())-interval '1 minute','started');
+  b:=pg_temp.ou_booking(cat,v,'BUS_4X4',bay,started_at,'started');
   PERFORM set_config('pdc.work_category','',true);
   d:=public.get_fitter_job(tech,b);
   FOR l IN SELECT x FROM jsonb_array_elements(d->'lines') x LOOP
@@ -202,7 +210,7 @@ BEGIN
  PERFORM pg_temp.ou_assert((SELECT NOT completed AND required FROM public.vehicle_work_items WHERE vehicle_id=v AND work_key=(SELECT work_key FROM public.workshop_stages WHERE code='BUS_4X4')),'New accepted work restores outstanding work without changing completed bookings');
  PERFORM pg_temp.ou_assert((SELECT count(*)=3 FROM public.workshop_bookings WHERE vehicle_id=v AND status='completed'),'Completed category booking history remains intact');
  PERFORM pdc_work_categories_private.set_context(v,'BUS_4X4','{"work_category":"BUS_MECHANICAL"}');
- b:=pg_temp.ou_booking('category-added-work',v,'BUS_4X4',bay,date_trunc('minute',now())-interval '1 minute','started');
+ b:=pg_temp.ou_booking('category-added-work',v,'BUS_4X4',bay,started_at,'started');
  PERFORM set_config('pdc.work_category','',true);
  d:=public.get_fitter_job(tech,b);
  PERFORM pg_temp.ou_assert(jsonb_array_length(d->'lines')=1 AND (d#>>'{progress,total_hours}')::numeric=0.5,'Fitter receives only the new outstanding operation');
