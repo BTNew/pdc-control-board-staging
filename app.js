@@ -18628,7 +18628,8 @@ function operationalRefreshCommonLoaders(route) {
     operationalVehicleSnapshot: async ({ generation }) => {
       initEmailVehicleLocationsIfAvailable({ skipInitialRefresh: true });
       if (!app.emailVehicleLocationService) return { ok: false, error: 'operational_snapshot_unavailable' };
-      return { ok: await refreshEmailVehicleLocations({ refreshGeneration: generation }) };
+      const ok = await refreshEmailVehicleLocations({ refreshGeneration: generation });
+      return { ok, error: ok ? '' : app.emailVehicleLocationError || 'refresh_failed' };
     },
     workOperationStates: async () => {
       // The authenticated dashboard uses the email/Navision snapshot and

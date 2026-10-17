@@ -19,12 +19,12 @@ function runtime(options = {}) {
   return { service, reads, timers, cleared, setToken: value => { token = value; } };
 }
 
-test('a stalled board read releases one coalesced fresh import refresh after 15 seconds', async () => {
+test('a stalled board read releases one coalesced fresh import refresh after the bounded 45-second deadline', async () => {
   const r = runtime();
   const stalled = r.service.snapshot();
   const updates = Array.from({ length: 50 }, () => r.service.snapshot());
   assert.equal(r.reads.length, 1);
-  assert.equal(r.timers[0].ms, 15000);
+  assert.equal(r.timers[0].ms, 45000);
   r.timers[0].fn();
   assert.equal((await stalled).code, 'snapshot_timeout');
   assert.equal(r.reads[0].options.signal.aborted, true);
@@ -88,4 +88,46 @@ test('a revision reconnect recovers when its in-flight board snapshot stalls', a
   r.timers[0].fn(); assert.equal((await first).code, 'snapshot_timeout'); await tick();
   assert.equal(r.reads.length, 3);
   r.reads[2].gate.resolve(reply(2)); assert.equal((await reconnect).data.revision, 2);
+});
+
+test('a valid slow board read and body transfer finish without the former 15-second cutoff', async () => {
+  let now = 0, nextId = 0; const deadlines = new Map();
+  const r = runtime({
+    scheduleTimeout: (fn, ms) => { const id = ++nextId; deadlines.set(id, { at: now + ms, fn }); return id; },
+    clearScheduledTimeout: id => deadlines.delete(id),
+  });
+  async function advance(ms) {
+    now += ms;
+    for (const [id, timer] of [...deadlines]) if (timer.at <= now) { deadlines.delete(id); timer.fn(); }
+    await tick();
+  }
+  let settled = false; const pending = r.service.snapshot().then(value => { settled = true; return value; });
+  await advance(15000);
+  assert.equal(settled, false, 'a valid read may take more than fifteen seconds');
+  await advance(6240);
+  const body = deferred();
+  r.reads[0].gate.resolve({ ok: true, json: () => body.promise }); await tick();
+  await advance(13760);
+  assert.equal(settled, false, 'the response body also needs transfer time');
+  body.resolve({ ok: true, data: { revision: 15, vehicles: Array.from({ length: 439 }, (_, i) => ({ id: `fixture-${i}` })) } });
+  const result = await pending;
+  assert.equal(result.ok, true); assert.equal(result.data.vehicles.length, 439);
+  assert.equal(r.reads[0].options.signal.aborted, false);
+  assert.equal(deadlines.size, 0);
+});
+
+test('operational refresh exposes the actual snapshot failure instead of a generic error', async () => {
+  const fs = require('node:fs'), vm = require('node:vm');
+  const source = fs.readFileSync(require.resolve('./app.js'), 'utf8');
+  const start = source.indexOf('function operationalRefreshCommonLoaders(route)');
+  const end = source.indexOf('function getOperationalRefreshCoordinator()', start);
+  const context = { app: { emailVehicleLocationService: {}, emailVehicleLocationError: '' },
+    initEmailVehicleLocationsIfAvailable() {},
+    refreshEmailVehicleLocations: async () => { context.app.emailVehicleLocationError = 'snapshot_timeout'; return false; } };
+  vm.createContext(context); vm.runInContext(source.slice(start, end), context);
+  const result = await context.operationalRefreshCommonLoaders('dashboard').operationalVehicleSnapshot({ generation: 1 });
+  assert.equal(result.ok, false); assert.equal(result.error, 'snapshot_timeout');
+  context.refreshEmailVehicleLocations = async () => true;
+  const recovered = await context.operationalRefreshCommonLoaders('dashboard').operationalVehicleSnapshot({ generation: 2 });
+  assert.equal(recovered.ok, true); assert.equal(recovered.error, '');
 });

@@ -412,7 +412,9 @@ function createPdcEmailVehicleLocationService(options = {}) {
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     const scheduleTimeout = options.scheduleTimeout || setTimeout;
     const clearScheduledTimeout = options.clearScheduledTimeout || clearTimeout;
-    const timeoutMs = Number.isFinite(options.snapshotTimeoutMs) && options.snapshotTimeoutMs > 0 ? options.snapshotTimeoutMs : 15000;
+    // Allow the database/API time budget plus response transfer on slower links.
+    // The authenticated full-board read can legitimately exceed 15 seconds.
+    const timeoutMs = Number.isFinite(options.snapshotTimeoutMs) && options.snapshotTimeoutMs > 0 ? options.snapshotTimeoutMs : 45000;
     let timeout;
     try {
       // Bound both the request and body download. A stalled read must release
