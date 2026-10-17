@@ -5232,15 +5232,6 @@ function renderWorkshopPlanner(options = {}) {
     ${focusedBookingMode ? '<div class="workshop-board-note">Focused booking mode shows only the selected canonical booking. Use Back to Workshop planner to return to the full station board.</div>' : '<div class="workshop-board-note">How to use: drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. The red current-time line stays visible on the planner and clamps to the workshop edge outside work hours. Double-click any vehicle to open its job.</div>'}
   </div>`;
   bindWorkshopPlanner(renderHost);
-  const busHost = renderHost.querySelector('[data-bus-workflow-host]');
-  if (busHost && window.PdcBusWorkflow) {
-    const requested = state.busWorkflowVehicleId || selected?.sharedVehicleId || '';
-    const candidate = stageVehicleList.find(v => v.sharedVehicleId === requested);
-    const plan = plans.find(p => p.sharedVehicleId === requested);
-    const vehicleId = candidate?.sharedVehicleId || plan?.sharedVehicleId || '';
-    const identity = candidate ? displayStockNumber(candidate) : plan?.vehicle?.stock_number || plan?.vehicleKey || '';
-    window.PdcBusWorkflow.mountPlanner({host:busHost, vehicleId, identity, stageCode:stage});
-  }
   updateWorkshopNowLine(renderHost);
   setupWorkshopPlannerClock();
   workshopScrollToHighlightedVehicle(renderHost);
@@ -5253,14 +5244,6 @@ function bindWorkshopPlanner(root) {
     workshopState().readinessFailure = null;
     renderWorkshopPlanner();
   });
-  root.querySelectorAll('[data-bus-workflow-open]').forEach(button => button.addEventListener('click', event => {
-    event.preventDefault(); event.stopPropagation();
-    const id = button.dataset.busWorkflowOpen;
-    if (!WORKSHOP_UUID_PATTERN.test(String(id || ''))) return;
-    workshopState().busWorkflowVehicleId = id;
-    renderWorkshopPlanner();
-    root.querySelector('[data-bus-workflow-host]')?.scrollIntoView?.({block:'start'});
-  }));
   if (root.dataset.workshopIncrementalBound !== '1') {
     root.dataset.workshopIncrementalBound = '1';
     root.addEventListener('click', event => {
