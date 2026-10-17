@@ -60,10 +60,10 @@ const approvedRootImportPatch = Object.freeze({
   "canonical-entry.js": "250d29098ae9c66ca404d139e69ee2e7e50acf51ac74b718dca0e8c457dafd36",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
-  "app.js": "0b539ae195c9d4f65c7d2fba18556f556b4d4e456f65002d6d6b540e4c4b869d",
+  "app.js": "2472ee9ffe25d6f3da5adf9e29268cfe48c956f17b7c5e8a99d908629db935b4",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "4f4f5b60e3ababfe505fb45d92142d8d087a63c1273550870c2156a94bd1536d",
+  "index.html": "e66c6bb714ca326d90ff43cb3f894a2b6dbd4f1a7fa392f3b4804f1f3e2a850f",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "fd5fb92d5369d5312959d178388d8adcfe08ef3fec91d00de363529c869a11e3",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
