@@ -3525,7 +3525,7 @@ function loadVehicleLifecycleSharedActionsIfConfigured() {
         initVehicleLifecycleSharedActionsIfEnabled();
         return;
       }
-      loadExternalScript(`workshop-data-service.js?planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script')
+      loadExternalScript(`workshop-data-service.js?connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script')
         .then(() => initVehicleLifecycleSharedActionsIfEnabled())
         .catch(() => { /* fail closed: configured shared lifecycle actions report service_unavailable */ });
     })
@@ -4893,11 +4893,11 @@ function initWorkshopSharedServicesIfEnabled() {
     });
     window.__workshopDataService = dataService;
 
-    // The first successful station Realtime subscription performs the
-    // authoritative initial resync. Avoid issuing a duplicate scoped RPC
-    // immediately before that subscription; if Realtime is not loaded yet,
-    // retain the one-shot initial snapshot fallback.
-    if (typeof createWorkshopRealtimeManager !== 'function' || typeof createPdcSupabaseRealtimeSubscription !== 'function') {
+    // Read the selected station while the socket connects; the data service
+    // keeps editing locked until its post-subscription revision check succeeds.
+    if (typeof createWorkshopRealtimeManager === 'function' && typeof createPdcSupabaseRealtimeSubscription === 'function') {
+      dataService.startConnecting();
+    } else {
       dataService.loadSnapshot('initial_without_realtime');
     }
   }
@@ -5467,7 +5467,7 @@ window.addEventListener?.('pdc-auth-locked', () => {
 
 function renderWorkshopPlannerWhenReady() {
   const requestedStage = app.activeWorkshopPlannerStage || '';
-  if (typeof renderWorkshopPlanner === 'function') {
+  if (typeof renderWorkshopPlanner === 'function' && !window.__workshopPlannerModulesLoading) {
     initWorkshopSharedServicesIfEnabled();
     if (app.activeWorkshopPlannerStage === requestedStage) renderWorkshopPlanner();
     return;
@@ -5480,14 +5480,17 @@ function renderWorkshopPlannerWhenReady() {
   // unless window.PDC_SUPABASE_CONFIG.workshop.sharedData is explicitly set
   // to true; the planner UI/runtime is not modified by this load and
   // continues to operate exactly as before.
-  loadExternalScript(`workshop-data-service.js?planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script')
-    .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
-    .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
-    .catch(() => { /* non-fatal: shared mode simply stays unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script'))
+  Promise.all([
+    loadExternalScript(`workshop-data-service.js?connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script'),
+    loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'),
+    loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'),
+    loadExternalScript(`workshop-planner.js?planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script')
+  ])
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
-      if (app.currentView !== 'workshop' || app.activeWorkshopPlannerStage !== requestedStage) return;
+      // Navigation can change while these shared modules download. Initialize
+      // the current destination, never the station captured by the first click.
+      if (app.currentView !== 'workshop') return;
       initWorkshopSharedServicesIfEnabled();
       if (typeof renderWorkshopPlanner === 'function') renderWorkshopPlanner();
     })
@@ -5529,7 +5532,7 @@ function ensureDashboardWorkshopProjectionReady() {
   }
   if (window.__dashboardWorkshopProjectionLoading) return false;
   window.__dashboardWorkshopProjectionLoading = true;
-  loadExternalScript(`workshop-data-service.js?planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
