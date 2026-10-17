@@ -256,6 +256,7 @@ function createWorkshopDataService(options) {
   // This flag is cleared before every refresh/revision and on every failure;
   // only a successful authenticated snapshot response restores trust.
   let snapshotTrusted = false;
+  let realtimeRequired = false;
   let initialConnectionPending = false;
   let initialSubscriptionEstablished = false;
   let initialConnectionProbe = null;
@@ -572,6 +573,7 @@ function createWorkshopDataService(options) {
   // read proves that no commit was missed before the channel became ready.
   function startConnecting() {
     if (!enabled || destroyed || initialConnectionPending) return;
+    realtimeRequired = true;
     initialConnectionPending = true;
     return loadSnapshot('initial_connecting');
   }
@@ -637,6 +639,7 @@ function createWorkshopDataService(options) {
   function onAuthorityLost() {
     if (!enabled || destroyed) return;
     initialSubscriptionEstablished = false;
+    if (realtimeRequired) initialConnectionPending = true;
     invalidateAuthority(WORKSHOP_CONNECTION_STATE.RECONNECTING);
   }
 

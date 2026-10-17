@@ -121,6 +121,8 @@ test('planner downloads all four independent modules together and initializes on
     initWorkshopSharedServicesIfEnabled: () => initialized++ };
   vm.createContext(context); vm.runInContext(body, context); context.renderWorkshopPlannerWhenReady();
   assert.equal(calls.length, 4); assert.equal(initialized, 0);
+  context.renderWorkshopPlannerWhenReady(); context.renderWorkshopPlannerWhenReady();
+  assert.equal(calls.length, 4, 'rapid navigation joins one shared module load');
   gates.slice(0, 3).forEach(g => g.resolve()); await tick(); assert.equal(initialized, 0);
   context.app.activeWorkshopPlannerStage = 'TINT';
   context.renderWorkshopPlanner = () => {}; gates[3].resolve(); await tick();

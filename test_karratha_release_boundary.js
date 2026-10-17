@@ -42,7 +42,7 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 });
 // Explicitly pinned upstream releases and owner-approved navigation, including the 17 October planner strip removal.
 const approvedRootImportPatch = Object.freeze({
-  "workshop-data-service.js": "b85eb33f75205815cf4ceed282755c803da7fade062cdaf5d9e45579bbe734e8",
+  "workshop-data-service.js": "d209eea558e915048e639d911813a14b5c467f056452f2caa19ad36d9ca44152",
   // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
   "pdc-review-stations.js": "6bf2164d30fdfb5950c82d309e8a82cc4a587bbd32438f978e19f826734049bc",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
@@ -60,10 +60,10 @@ const approvedRootImportPatch = Object.freeze({
   "canonical-entry.js": "250d29098ae9c66ca404d139e69ee2e7e50acf51ac74b718dca0e8c457dafd36",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
-  "app.js": "265535232052d953de1fbf311b52d3f6a59e60300072bf4eb08cf1336b89e3a2",
+  "app.js": "0b539ae195c9d4f65c7d2fba18556f556b4d4e456f65002d6d6b540e4c4b869d",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "3a33ccad16efaccd1e028d6615c62b80d8f9ef8e9cd526a461062a1b3908b493",
+  "index.html": "4f4f5b60e3ababfe505fb45d92142d8d087a63c1273550870c2156a94bd1536d",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "fd5fb92d5369d5312959d178388d8adcfe08ef3fec91d00de363529c869a11e3",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",

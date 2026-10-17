@@ -3525,7 +3525,7 @@ function loadVehicleLifecycleSharedActionsIfConfigured() {
         initVehicleLifecycleSharedActionsIfEnabled();
         return;
       }
-      loadExternalScript(`workshop-data-service.js?connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script')
+      loadExternalScript(`workshop-data-service.js?station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(APP_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script')
         .then(() => initVehicleLifecycleSharedActionsIfEnabled())
         .catch(() => { /* fail closed: configured shared lifecycle actions report service_unavailable */ });
     })
@@ -4519,17 +4519,21 @@ function removeWorkshopRecoveryListeners() {
 function teardownWorkshopPlannerScope(options) {
   options = options || {};
   if (typeof cancelWorkshopPlannerRender === 'function') cancelWorkshopPlannerRender();
-  if (typeof removeWorkshopRecoveryListeners === 'function') removeWorkshopRecoveryListeners();
-  try { window.__workshopRealtimeManager?.stop?.(); } catch (_error) { /* best-effort route teardown */ }
-  try { window.__workshopDataService?.destroy?.(); } catch (_error) { /* best-effort route teardown */ }
-  window.__workshopRealtimeManager = null;
-  window.__workshopDataService = null;
-  window.__workshopSharedActions = null;
+  // Keep the revision-only socket while changing station. setScope clears
+  // the old station's rows and authority before the destination is rendered.
+  if (!options.preserveConnection) {
+    if (typeof removeWorkshopRecoveryListeners === 'function') removeWorkshopRecoveryListeners();
+    try { window.__workshopRealtimeManager?.stop?.(); } catch (_error) { /* best-effort route teardown */ }
+    try { window.__workshopDataService?.destroy?.(); } catch (_error) { /* best-effort route teardown */ }
+    window.__workshopRealtimeManager = null;
+    window.__workshopDataService = null;
+    window.__workshopSharedActions = null;
+  }
   window.__activeWorkshopPlannerStage = '';
   const root = document.getElementById('workshop-planner-root');
   const stationContent = options.preserveShell ? root?.querySelector?.('[data-workshop-station-content]') : null;
   if (stationContent) {
-    stationContent.innerHTML = '<div class="empty-state workshop-station-loading" role="status"><strong>Loading selected station</strong><span>Releasing the previous station and preparing its replacement…</span></div>';
+    stationContent.innerHTML = '<div class="empty-state workshop-station-loading" role="status"><strong>Loading selected station</strong><span>Fetching the latest bookings for this station…</span></div>';
   } else if (root) root.replaceChildren();
 }
 
@@ -4584,7 +4588,7 @@ function showView(view, options) {
   if (enteringWorkshopPlanner && !previousWasPlanner && window.__workshopDataService) {
     teardownWorkshopPlannerScope();
   }
-  if (previousWasPlanner && (nextView !== 'workshop' || switchingPlannerStation)) teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation });
+  if (previousWasPlanner && (nextView !== 'workshop' || switchingPlannerStation)) teardownWorkshopPlannerScope({ preserveShell: switchingPlannerStation, preserveConnection: switchingPlannerStation });
   if (previousRequestedView === 'workflow' && requestedView !== 'workflow') teardownWorkshopEligibilityOverview({ clearSnapshot: true });
   releaseHeavyViewDom(app.currentView, nextView);
   if (requestedView !== 'workflow') {
@@ -4858,18 +4862,19 @@ function initWorkshopSharedServicesIfEnabled() {
 
   if (typeof workshopApplyOpenDateDefault === 'function') workshopApplyOpenDateDefault();
 
+  const pendingBookingDate = app.pendingWorkshopBookingLink
+    && normalizePmbStage(app.pendingWorkshopBookingLink.stage || '') === normalizePmbStage(app.activeWorkshopPlannerStage || '')
+    ? cleanNavisionText(app.pendingWorkshopBookingLink.date || '')
+    : '';
+  if (pendingBookingDate && typeof workshopState === 'function') workshopState().date = pendingBookingDate;
+  const plannerDate = pendingBookingDate || (typeof workshopState === 'function'
+    ? workshopState().date
+    : new Date().toISOString().slice(0, 10));
+
   if (!window.__workshopDataService) {
     if (typeof createWorkshopDataService !== 'function' || typeof createWorkshopSupabaseClient !== 'function') return;
 
     const client = createWorkshopSupabaseClient(window.PDC_SUPABASE_CONFIG);
-    const pendingBookingDate = app.pendingWorkshopBookingLink
-      && normalizePmbStage(app.pendingWorkshopBookingLink.stage || '') === normalizePmbStage(app.activeWorkshopPlannerStage || '')
-      ? cleanNavisionText(app.pendingWorkshopBookingLink.date || '')
-      : '';
-    if (pendingBookingDate && typeof workshopState === 'function') workshopState().date = pendingBookingDate;
-    const plannerDate = pendingBookingDate || (typeof workshopState === 'function'
-      ? workshopState().date
-      : new Date().toISOString().slice(0, 10));
     const dataService = createWorkshopDataService({
       config: window.PDC_SUPABASE_CONFIG,
       client,
@@ -4900,6 +4905,12 @@ function initWorkshopSharedServicesIfEnabled() {
     } else {
       dataService.loadSnapshot('initial_without_realtime');
     }
+  } else if (app.activeWorkshopPlannerStage) {
+    // Same-stage category clicks do nothing. New scopes cancel old reads
+    // and clear their rows before fetching only the destination snapshot.
+    window.__workshopDataService.setScope({
+      stageCode: app.activeWorkshopPlannerStage, dateFrom: plannerDate, dateTo: plannerDate
+    });
   }
 
   // Deliberately re-checked every call, same reasoning as the shared-
@@ -4908,12 +4919,20 @@ function initWorkshopSharedServicesIfEnabled() {
   // happen after the data service already exists (e.g. pdc-auth-ready
   // firing on login before the planner has ever been opened).
   if (!window.__workshopRealtimeManager && typeof createWorkshopRealtimeManager === 'function' && typeof createPdcSupabaseRealtimeSubscription === 'function') {
+    const dataService = window.__workshopDataService;
     window.__workshopRealtimeManager = createWorkshopRealtimeManager({
-      dataService: window.__workshopDataService,
+      dataService,
       subscribe: (handlers) => createPdcSupabaseRealtimeSubscription(
         window.PDC_SUPABASE_CONFIG,
-        handlers,
-        app.activeWorkshopPlannerStage ? { stageCode: app.activeWorkshopPlannerStage } : null,
+        { ...handlers, onChange: payload => {
+          const row = payload?.new || payload;
+          const stage = dataService.getScope?.()?.stageCode;
+          // Revision events contain no booking rows. Ignore other stations;
+          // unknown events still invalidate rather than assuming freshness.
+          if (stage && row?.stage_code && row.stage_code !== stage) return;
+          handlers.onChange(payload);
+        } },
+        app.activeWorkshopPlannerStage ? { allStations: true } : null,
       ),
       onStatusChange: () => {
         if (app.currentView === 'workshop') scheduleWorkshopPlannerRender();
@@ -5472,6 +5491,9 @@ function renderWorkshopPlannerWhenReady() {
     if (app.activeWorkshopPlannerStage === requestedStage) renderWorkshopPlanner();
     return;
   }
+  // Rapid station clicks share the pending module load and its single render.
+  // The completion callback below reads the latest destination.
+  if (window.__workshopPlannerModulesLoading) return;
   const root = $('#workshop-planner-root');
   if (root) root.innerHTML = '<div class="empty-state"><strong>Loading Workshop Planner</strong><span>Preparing scheduling controls…</span></div>';
   window.__workshopPlannerModulesLoading = true;
@@ -5481,7 +5503,7 @@ function renderWorkshopPlannerWhenReady() {
   // to true; the planner UI/runtime is not modified by this load and
   // continues to operate exactly as before.
   Promise.all([
-    loadExternalScript(`workshop-data-service.js?connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script'),
+    loadExternalScript(`workshop-data-service.js?station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script'),
     loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'),
     loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'),
     loadExternalScript(`workshop-planner.js?planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01`, 'workshop-planner-script')
@@ -5532,7 +5554,7 @@ function ensureDashboardWorkshopProjectionReady() {
   }
   if (window.__dashboardWorkshopProjectionLoading) return false;
   window.__dashboardWorkshopProjectionLoading = true;
-  loadExternalScript(`workshop-data-service.js?connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script')
+  loadExternalScript(`workshop-data-service.js?station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-data-service-script')
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
