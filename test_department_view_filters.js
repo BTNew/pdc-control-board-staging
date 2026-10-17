@@ -343,6 +343,7 @@ test('department preference selects physical station views without hiding shared
   assert.doesNotMatch(appFunction('workflowPriorityRows'), /PDC_DEPARTMENT_FILTER|incomingDepartmentFilterValue|incomingVehicleMatchesFilters/);
   assert.doesNotMatch(appFunction('vehicleLocationBoardRows'), /PDC_DEPARTMENT_FILTER|incomingDepartmentFilterValue|incomingVehicleMatchesFilters/);
   const stationSource = fs.readFileSync(path.join(__dirname, 'workshop-planner.js'), 'utf8');
-  assert.match(stationSource, /PDC_DEPARTMENT_FILTER/);
+  assert.match(stationSource, /pdcWorkshopDepartmentControls\(\)/);
+  assert.match(stationSource, /addEventListener\('change',pdcWorkshopDepartmentChanged\)/);
   assert.doesNotMatch(stationSource, /incomingDepartmentFilterValue/);
 });

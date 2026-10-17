@@ -39,15 +39,15 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
   for (const item of manifest.files.filter(row => row.file.endsWith('.css'))) assert.equal(item.unchanged, true, item.file);
   for (const file of ['canonical-entry.js', 'pdc-fitters.js', 'workshop-data-service.js', 'workshop-reference-data-service.js', 'workshop-shared-actions.js', 'workshop-realtime.js', 'pdc-planner-slim.js', 'pdc-qc-mobile.js', 'pdc-qc-rework.js', 'pdc-rft-actions.js']) assert.equal(manifest.files.find(row => row.file === file).unchanged, true, file);
 });
-// Explicitly pinned upstream releases and owner-approved navigation, including the 15 October PMG planner grouping.
+// Explicitly pinned upstream releases and owner-approved navigation, including the 17 October planner strip removal.
 const approvedRootImportPatch = Object.freeze({
   // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
   "pdc-review-stations.js": "6bf2164d30fdfb5950c82d309e8a82cc4a587bbd32438f978e19f826734049bc",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
   "pdc-workshop-departments.js": "06326c4e7bb3aa1b301c4c5cd42024927ca3bac1f6c9ef7ce5dcce871d41ed29",
-  "workshop-planner.js": "fc8a88cea54e16d18a3f4feec45c6eb5e4226560f4480cec26eb79a424b0a902",
-  "workshop-planner.css": "e748e91f2b0ed9624a8f9d28ae2f642739b186f2897b14dd54afd80e7a6f876a",
+  "workshop-planner.js": "b5fc2a1b5aebf17d77564d61ec6218c6d42eb3e2c287ddcd7353de92ed5a3c9d",
+  "workshop-planner.css": "0866d1ffc9546de5890575dea8ddf9ae1ebf17b8b1406a4682ec1a814428cf6f",
   "scripts/build_pages_runtime.js": "b8d0246d48dc6547a21ef70f729aff89488858e081c3c07b3dcad77ff0718ab2",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   "pdc-new-vehicles.js": "034fbd702e35d531208e24d43817d251e526de233f924caf33a193d606de54a3",
@@ -58,10 +58,10 @@ const approvedRootImportPatch = Object.freeze({
   "canonical-entry.js": "250d29098ae9c66ca404d139e69ee2e7e50acf51ac74b718dca0e8c457dafd36",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
-  "app.js": "2d368bcb4219382f09101a012b8f7bb9b23e1516d50ef385cb4cd85dc142a79e",
+  "app.js": "9dca4f867c3111078aa66facbf70781174ea710d77b2b959b8bdf300925ea184",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "5a04d3ced764502cfa59e6d791d60acea94d034acb7d52791a7ece92901983b4",
+  "index.html": "7919a006ce7abf6028875dc47d0fe2e9c35d1cb0c93986ae298d4da6032ab31a",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "b49912ede35635d1a490cc8168e94e32b9389dbd71d686684bdce02571b0cec6",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
