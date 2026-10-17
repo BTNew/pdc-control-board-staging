@@ -1,6 +1,8 @@
 # Workshop categories and loading performance — 16 October 2026
 
-The PMG sidebar now provides direct category links: Bus 4×4 Mechanical, Accessories, Electrical, QA and external Pit; PMB Hoist, Fab, Fitting and Electrical; shared Tint and Tyres. Department selection applies on initial entry as well as after changing departments. Each Bus category has a stable address for reload and browser Back. The existing All 10 bays option remains available for cross-bay placement, including Progression bays. Physical bay IDs and booking rules are unchanged.
+The PMG sidebar now provides direct category links: Bus 4×4 Mechanical, Accessories, Electrical, QA and external Pit; PMB Hoist, Fab, Fitting and Electrical; shared Tint and Tyres. Department selection applies on initial entry as well as after changing departments. Each Bus category has a stable address for reload and browser Back. The Control Board shows all physical bays, including Progression bays. Booking forms retain compatible bay overrides. Physical bay IDs and booking rules are unchanged.
+
+On 17 October, the duplicate Bus, PMB and Shared navigation rows and their All 10 bays checkbox were removed from the planners. Use the left menu for category schedules and the Control Board for the full bay overview.
 
 Pit displays outstanding canonical Department 138 inspection lines and opens the existing vehicle detail. It distinguishes loading, unavailable, incomplete and empty data. It refreshes when either source finishes loading or fails. Pit is external work and does not create a physical bay. Activity uses the existing Bus and Departments reporting buckets without changing the database allowlist.
 

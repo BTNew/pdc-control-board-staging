@@ -136,25 +136,22 @@ test('Back, hash navigation and reload restore category selection without resett
   assert.equal(f.calls.teardown, teardown + 1, 'Changing physical station still tears down the old scope');
 });
 
-test('in-planner tabs share sidebar routes and all ten physical bays remain available', () => {
+test('all-bays routes remain available while the sidebar selects individual categories', () => {
   const f = navigationFixture('138'); f.click('planner-bus-mechanical');
-  const tabs = layout.BUS_WORK.map(item => element('', { workshopLayoutStage: 'BUS_4X4', workshopLayoutGroup: item.id, workshopExternal: String(!!item.external) }));
-  const checkbox = element();
-  const controls = { querySelector: selector => selector === '[data-workshop-all-bus-bays]' ? checkbox : null,
-    querySelectorAll: () => tabs };
-  f.context.bindWorkshopPlanner(controls);
-  tabs[2].click(); assert.deepEqual(f.selected(), ['planner-bus-electrical']);
-  checkbox.handlers.change({ target: { checked: true } });
+  f.context.showView('planner-bus-4x4');
   assert.equal(f.context.window.location.hash, '#/workshop/bus-4x4');
   assert.equal(f.state.busShowAllBays, true);
   assert.deepEqual(Array.from(f.context.workshopVisibleBays('BUS_4X4')), [1,2,3,4,5,6,7,8,9,10]);
-  checkbox.handlers.change({ target: { checked: false } });
-  assert.equal(f.state.busBayGroup, 'electrical', 'Turning off all-bays restores the prior work category');
+  f.click('planner-bus-electrical');
+  assert.equal(f.state.busBayGroup, 'electrical');
   assert.equal(f.state.busShowAllBays, false);
+  f.restore('#/workshop/bus-4x4');
+  assert.equal(f.state.busShowAllBays, true);
+  assert.deepEqual(Array.from(f.context.workshopVisibleBays('BUS_4X4')), [1,2,3,4,5,6,7,8,9,10]);
   f.restore('#/workshop/bus-4x4/electrical');
   assert.equal(f.state.busShowAllBays, false);
   assert.deepEqual(Array.from(f.context.workshopVisibleBays('BUS_4X4')), [8,9]);
-  tabs[4].click();
+  f.click('planner-bus-pit');
   assert.equal(f.context.app.currentView, 'bus-pit');
   assert.deepEqual(f.selected(), ['planner-bus-pit']);
 });

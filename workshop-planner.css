@@ -1523,9 +1523,3 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
 .pdc-workshop-department-choice select{min-height:36px;min-width:190px}
 .nav-workshop-item.pdc-department-hidden,.nav-section-label.pdc-department-hidden{display:none!important}
 .workshop-stage-tab small{display:block;font-size:11px;font-weight:400;margin-top:3px}
-.workshop-planner-sections{display:grid;gap:12px;margin:12px 0}
-.workshop-planner-section{padding:12px;border:1px solid #dbe3ee;border-radius:10px;background:#fff}
-.workshop-planner-section h3{margin:0 0 8px;font-size:14px;color:#16324f}
-.workshop-planner-section .workshop-stage-tabs{display:flex;margin:0;flex-wrap:wrap}
-.workshop-planner-section .workshop-stage-tab{flex:1 1 120px;flex-direction:column;gap:3px}
-.workshop-planner-section.is-shared{border-color:#b9dace;background:#f5fbf8}
