@@ -102,7 +102,7 @@ test('a never-settling email revision probe aborts after five seconds and falls 
   r.reads[1].gate.resolve(snapshotReply(13));
   const response = await reconciled;
   assert.equal(response.data.revision, 13); assert.notEqual(response.unchanged, true);
-  assert.deepEqual(clock.cleared, [1]);
+  assert.deepEqual(clock.cleared, [1, 2]);
   r.reads[0].gate.resolve(reply([{ revision: 12 }])); await tick();
   assert.equal(r.reads.length, 2, 'late probe cannot add reads or replace the fresh snapshot');
 });

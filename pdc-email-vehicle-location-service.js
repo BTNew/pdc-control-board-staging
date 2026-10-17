@@ -409,13 +409,30 @@ function createPdcEmailVehicleLocationService(options = {}) {
   let activeSnapshot = null;
   const snapshotAuthorityLost = () => ({ ok: false, code: 'not_authenticated', data: null });
   async function readSnapshot(token) {
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const scheduleTimeout = options.scheduleTimeout || setTimeout;
+    const clearScheduledTimeout = options.clearScheduledTimeout || clearTimeout;
+    const timeoutMs = Number.isFinite(options.snapshotTimeoutMs) && options.snapshotTimeoutMs > 0 ? options.snapshotTimeoutMs : 15000;
+    let timeout;
     try {
-      const response = await request(`${url}/rest/v1/rpc/${PDC_EMAIL_VEHICLE_SNAPSHOT_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' });
-      const body = await response.json();
-      if (token !== getAccessToken()) return snapshotAuthorityLost();
-      if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || `HTTP ${response.status}`, data: null };
-      return { ok: true, code: body.code || 'ok', data: body.data || body };
-    } catch (_error) { return { ok: false, code: 'snapshot_unavailable', data: null }; }
+      // Bound both the request and body download. A stalled read must release
+      // the queue so later import notifications can fetch a fresh snapshot.
+      const result = await Promise.race([
+        (async () => {
+          const response = await request(`${url}/rest/v1/rpc/${PDC_EMAIL_VEHICLE_SNAPSHOT_RPC}`, { method: 'POST', signal: controller?.signal, headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' });
+          const body = await response.json();
+          if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || `HTTP ${response.status}`, data: null };
+          return { ok: true, code: body.code || 'ok', data: body.data || body };
+        })(),
+        new Promise(resolve => { timeout = scheduleTimeout(() => {
+          resolve({ ok: false, code: 'snapshot_timeout', data: null });
+          controller?.abort();
+        }, timeoutMs); }),
+      ]);
+      return token === getAccessToken() ? result : snapshotAuthorityLost();
+    } catch (_error) {
+      return token === getAccessToken() ? { ok: false, code: 'snapshot_unavailable', data: null } : snapshotAuthorityLost();
+    } finally { clearScheduledTimeout(timeout); }
   }
   function startSnapshot(token) {
     const owner = { token, queued: null };
