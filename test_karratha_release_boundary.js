@@ -32,6 +32,7 @@ test('all frozen native files outside declared boundary adaptations retain origi
     // PMG now has a read-error recovery repair; keep the isolated fitter asset at its original baseline.
     else if (item.file === 'control-board-overview.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1',item.file);
     else if (['pdc-fitters.js','canonical-entry.js','control-board-overview.js','pdc-new-vehicles.css','workshop-planner.css','pdc-review-stations.js'].includes(item.file)) assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
+    else if (item.file === 'workshop-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'004267f09a9fa4f5ad0852dd8f983e25395d8352f8b0f9fb798777b3d733e9ff',item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -41,6 +42,7 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 });
 // Explicitly pinned upstream releases and owner-approved navigation, including the 17 October planner strip removal.
 const approvedRootImportPatch = Object.freeze({
+  "workshop-data-service.js": "b85eb33f75205815cf4ceed282755c803da7fade062cdaf5d9e45579bbe734e8",
   // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
   "pdc-review-stations.js": "6bf2164d30fdfb5950c82d309e8a82cc4a587bbd32438f978e19f826734049bc",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
@@ -58,10 +60,10 @@ const approvedRootImportPatch = Object.freeze({
   "canonical-entry.js": "250d29098ae9c66ca404d139e69ee2e7e50acf51ac74b718dca0e8c457dafd36",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
-  "app.js": "9dca4f867c3111078aa66facbf70781174ea710d77b2b959b8bdf300925ea184",
+  "app.js": "677b71fe2812205fc61ad704c2334f53bce73a9c117fe676e3351e824e76e99c",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "7919a006ce7abf6028875dc47d0fe2e9c35d1cb0c93986ae298d4da6032ab31a",
+  "index.html": "2055c348570952304218be1f3f4d587e34c74cd8b9748eeccc6c05309cb9b988",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "b49912ede35635d1a490cc8168e94e32b9389dbd71d686684bdce02571b0cec6",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",

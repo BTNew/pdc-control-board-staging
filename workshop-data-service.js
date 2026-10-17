@@ -256,6 +256,9 @@ function createWorkshopDataService(options) {
   // This flag is cleared before every refresh/revision and on every failure;
   // only a successful authenticated snapshot response restores trust.
   let snapshotTrusted = false;
+  let initialConnectionPending = false;
+  let initialSubscriptionEstablished = false;
+  let initialConnectionProbe = null;
   let successfulSnapshotSequence = 0;
   let pendingReloadTimer = null;
   let activeLoadToken = null;
@@ -272,6 +275,7 @@ function createWorkshopDataService(options) {
 
   function invalidateAuthority(nextState = WORKSHOP_CONNECTION_STATE.RECONNECTING) {
     lifecycleGeneration += 1;
+    initialConnectionProbe?.cancel();
     snapshotTrusted = false;
     lastSnapshot = null;
     lastRevision = null;
@@ -385,9 +389,10 @@ function createWorkshopDataService(options) {
       snapshotTrusted = Boolean(lastSnapshot && typeof lastSnapshot === 'object' && lastRevision != null);
       if (snapshotTrusted) successfulSnapshotSequence += 1;
       const role = getRole();
-      setState(role === 'operator' || role === 'administrator'
-        ? WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE
-        : WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY);
+      setState(initialConnectionPending ? WORKSHOP_CONNECTION_STATE.CONNECTING
+        : role === 'operator' || role === 'administrator'
+          ? WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE
+          : WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY);
       onSnapshot(lastSnapshot, reason || 'load');
       return lastSnapshot;
     } catch (_err) {
@@ -562,14 +567,76 @@ function createWorkshopDataService(options) {
     return probe.promise;
   }
 
+  // Fetch rows alongside the initial socket handshake. Keep them private
+  // until a post-subscription revision
+  // read proves that no commit was missed before the channel became ready.
+  function startConnecting() {
+    if (!enabled || destroyed || initialConnectionPending) return;
+    initialConnectionPending = true;
+    return loadSnapshot('initial_connecting');
+  }
+
+  async function finishInitialConnection() {
+    const generation = lifecycleGeneration, scopeAtStart = scopeGeneration;
+    const token = getAccessToken(), role = getRole();
+    const current = () => !destroyed && generation === lifecycleGeneration
+      && scopeAtStart === scopeGeneration && token === getAccessToken() && role === getRole();
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    let timer;
+    const probeHandle = {};
+    initialConnectionProbe = probeHandle;
+    const deadline = new Promise(resolve => {
+      probeHandle.cancel = () => { controller?.abort(); resolve(null); };
+      timer = scheduleTimeout(probeHandle.cancel, 5000);
+    });
+    try {
+      // Start this tiny check only after SUBSCRIBED, while joining the full read.
+      const probe = typeof client.readRevision === 'function'
+        ? Promise.resolve().then(() => client.readRevision(token, scope ? { ...scope } : null,
+          { signal: controller?.signal })).catch(() => null) : Promise.resolve(null);
+      const [result] = await Promise.all([
+        Promise.race([probe, deadline]), activeLoadToken?.promise || Promise.resolve()
+      ]);
+      if (!current()) return null;
+      if ([401, 403].includes(result?.status)) {
+        invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+        return null;
+      }
+      const revision = result?.ok && Array.isArray(result.body) && result.body.length === 1
+        ? normalizedRevision(result.body[0]?.revision) : null;
+      // A successful empty/malformed RLS response cannot authorize retained rows.
+      if (result?.ok && revision === null) {
+        invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+        return null;
+      }
+      initialConnectionPending = false;
+      if (revision === null || !snapshotTrusted || !revisionCovers(lastRevision, revision)
+          || pendingReloadTimer || activeLoadToken || trailingReloadRequested) {
+        // Failed/unsupported probes and missed commits use a fresh read issued
+        // after subscription. Never treat the speculative read as proof here.
+        return await awaitSnapshotRefresh('initial_subscribed', true);
+      }
+      setState(role === 'operator' || role === 'administrator'
+        ? WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE : WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY);
+      onSnapshot(lastSnapshot, 'initial_subscribed');
+      return lastSnapshot;
+    } finally {
+      clearScheduledTimeout(timer);
+      if (initialConnectionProbe === probeHandle) initialConnectionProbe = null;
+    }
+  }
+
   function onReconnect() {
     if (destroyed) return;
+    initialSubscriptionEstablished = true;
+    if (initialConnectionPending) return finishInitialConnection();
     setState(WORKSHOP_CONNECTION_STATE.RECONNECTING);
     return loadSnapshot('reconnect');
   }
 
   function onAuthorityLost() {
     if (!enabled || destroyed) return;
+    initialSubscriptionEstablished = false;
     invalidateAuthority(WORKSHOP_CONNECTION_STATE.RECONNECTING);
   }
 
@@ -582,10 +649,11 @@ function createWorkshopDataService(options) {
       : loadSnapshot('visibility_return');
   }
 
-  function onTokenRefresh() {
+  async function onTokenRefresh() {
     if (!enabled || destroyed) return;
     invalidateAuthority(WORKSHOP_CONNECTION_STATE.RECONNECTING);
-    return loadSnapshot('token_refresh');
+    const result = await loadSnapshot('token_refresh');
+    return initialConnectionPending && initialSubscriptionEstablished ? finishInitialConnection() : result;
   }
 
   async function setScope(nextScope) {
@@ -594,10 +662,12 @@ function createWorkshopDataService(options) {
     scope = normalized;
     scopeGeneration += 1;
     invalidateAuthority(WORKSHOP_CONNECTION_STATE.CONNECTING);
-    return loadSnapshot('scope_changed');
+    const result = await loadSnapshot('scope_changed');
+    return initialConnectionPending && initialSubscriptionEstablished ? finishInitialConnection() : result;
   }
 
   async function recoverEditableAuthority() {
+    if (initialConnectionPending) return false;
     if (!['operator', 'administrator'].includes(getRole())) return false;
     await awaitSnapshotRefresh('mutation_preflight');
     return !destroyed && isEditable() && snapshotTrusted && !pendingReloadTimer && !activeLoadToken && !trailingReloadRequested;
@@ -852,12 +922,13 @@ function createWorkshopDataService(options) {
   return {
     isEnabled: () => enabled,
     getState: () => state,
-    getLastSnapshot: () => lastSnapshot,
+    getLastSnapshot: () => initialConnectionPending ? null : lastSnapshot,
     // Advisory consumers use this method rather than getLastSnapshot(). It
     // deliberately returns null for retained offline, unauthorized, pending,
     // reconnecting, or superseded snapshots.
     getTrustedSnapshot: () => (
       snapshotTrusted
+      && !initialConnectionPending
       && !destroyed
       && !pendingReloadTimer
       && !activeLoadToken
@@ -871,6 +942,7 @@ function createWorkshopDataService(options) {
     lookupVehicleBookings,
     lookupVehicleBookingsBatch,
     loadSnapshot,
+    startConnecting,
     setScope,
     onRevisionSignal,
     reconcileRevision,
