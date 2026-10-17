@@ -48,6 +48,7 @@ test('working shell loads department layout and retires readiness panels',()=>{
  assert.doesNotMatch(html,/<script[^>]*src="pdc-bus-workflow.js/);
  assert.doesNotMatch(planner,/<button[^>]+data-bus-workflow-open/);
  assert.doesNotMatch(planner,/<div[^>]+data-bus-workflow-host/);
+ assert.doesNotMatch(planner,/PdcBusWorkflow\.mountPlanner|data-bus-workflow-host|data-bus-workflow-open|busWorkflowVehicleId/);
 });
 test('database change preserves compatibility, source history and bookings',()=>{
  const sql=fs.readFileSync('supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql','utf8');
