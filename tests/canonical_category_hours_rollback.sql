@@ -68,8 +68,8 @@ END $$;
 ROLLBACK TO attempt;
 DO $$ DECLARE f record; a public.vehicle_workshop_line_adjustments; r jsonb; ver bigint; BEGIN
  SELECT * INTO f FROM hours_fixture;
- INSERT INTO public.vehicle_workshop_line_adjustments(vehicle_id,line_key,source_kind,stage_code,description,estimated_hours,manual_assignment_locked,correction_origin)
- VALUES(f.vehicle_id,f.l->>'line_identity','source','FABRICATION',f.l->>'description',1,true,'manual_operator')
+ INSERT INTO public.vehicle_workshop_line_adjustments(vehicle_id,line_key,source_kind,stage_code,description,estimated_hours,manual_assignment_locked,correction_origin,created_by,updated_by)
+ VALUES(f.vehicle_id,f.l->>'line_identity','source','FABRICATION',f.l->>'description',1,true,'manual_operator',auth.uid(),auth.uid())
  ON CONFLICT(vehicle_id,line_key) DO UPDATE SET manual_assignment_locked=true,estimated_hours=1
  RETURNING * INTO a;
  SELECT version INTO ver FROM public.vehicles WHERE id=f.vehicle_id;
