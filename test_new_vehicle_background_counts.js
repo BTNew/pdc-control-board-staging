@@ -13,7 +13,7 @@ function fixture() {
       return name==='get_pdc_review_counts'?{ok:true,data:{new_vehicles:12,operation_changes:4}}:{ok:true,data:{items:[],total:name==='list_pdc_new_vehicle_reviews'?3:2}};}});
   vm.runInContext(source.slice(source.indexOf('  let items='),source.indexOf('  const readable='))
     +source.slice(source.indexOf('  async function load('),source.indexOf('  function choose('))
-    +'\nglobalThis.api={refreshBackground,load,loadCounts,state:()=>({items,total,updateTotal,badgeCounts,loading}),reset:()=>{generation++;sessionGeneration++;badgeCounts=null;countRequest=null;},busy:value=>{saving=value;}};',context);
+    +'\nglobalThis.api={refreshBackground,load,loadCounts,state:()=>({items,total,updateTotal,badgeCounts,loading,error}),failedReview:()=>{selected={vehicle_id:"reviewing",snapshot_hash:"before"};error="Approval could not be confirmed";},reset:()=>{generation++;sessionGeneration++;badgeCounts=null;countRequest=null;},busy:value=>{saving=value;}};',context);
   return {api:context.api,calls,badge,nav,app,document,setAllowed:value=>allowed=value,fail:()=>{reject=true;},hold:()=>{release=true;return ()=>release();}};
 }
 test('background routes fetch badge counts without expanding either review list',async()=>{
@@ -26,6 +26,14 @@ test('review route retains both full queue refreshes with their current counts',
   const f=fixture();await f.api.refreshBackground();f.app.currentView='newvehicles';await f.api.refreshBackground();
   assert.deepEqual(f.calls,['get_pdc_review_counts','list_pdc_new_vehicle_reviews','list_pdc_tune_operation_changes']);
   assert.equal(f.api.state().badgeCounts,null);assert.equal(f.api.state().total,3);assert.equal(f.api.state().updateTotal,2);
+});
+
+test('background queue success preserves an approval failure until explicit refresh',async()=>{
+  const f=fixture();f.app.currentView='newvehicles';f.api.failedReview();
+  await f.api.load({silent:true});
+  assert.equal(f.api.state().error,'Approval could not be confirmed');
+  await f.api.load();
+  assert.equal(f.api.state().error,'');
 });
 test('hidden documents, unapproved users and an active save do not poll the review queues',async()=>{
   const f=fixture();f.document.visibilityState='hidden';await f.api.refreshBackground();

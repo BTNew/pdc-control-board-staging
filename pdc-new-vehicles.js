@@ -394,7 +394,9 @@
         const latest=items.find(row=>row.vehicle_id===selected.vehicle_id);
         if(!latest || latest.snapshot_hash!==selected.snapshot_hash) sourceChanged=true;
       }
-      error='';
+      // A successful background list read does not confirm a failed approval.
+      // Keep that failure visible until staff explicitly refresh or retry.
+      if(!silent||!selected) error='';
     } catch(err) {if(stamp===generation) {if(!loadingUnidentified)queueLoadFailed=true;error=message(err);}}
     finally {if(stamp===generation) {
       loading=false;
