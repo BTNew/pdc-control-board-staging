@@ -735,7 +735,20 @@ function createWorkshopDataService(options) {
       invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
       return { ok: false, error: 'permission_denied', state: WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED };
     }
-    const result = await client.rpc(token, rpcName, params);
+    let result = await client.rpc(token, rpcName, params);
+    // PostgreSQL 55P03 aborts the transaction before it can commit. Only the
+    // two receipt-backed administrator booking commands may retry this known
+    // temporary lock failure. Reuse the exact intent, version and request ID;
+    // never retry an uncertain response or a changed authority session here.
+    const retryableBookingIntent = getRole() === 'administrator'
+      && ['administrator_move_workshop_booking', 'administrator_schedule_workshop_vehicle'].includes(rpcName)
+      && typeof params?.p_request_id === 'string' && params.p_request_id.length > 0;
+    for (let retry = 0; retry < 2 && retryableBookingIntent
+        && !result.ok && result.status === 500 && result.body?.code === '55P03'; retry += 1) {
+      const retryAuthorityFailure = authorityFailure();
+      if (retryAuthorityFailure) return retryAuthorityFailure;
+      result = await client.rpc(token, rpcName, params);
+    }
     // Sign-out, role/token refresh, scope teardown, or destroy makes every
     // result from the prior authority generation inert before caller/UI code
     // can interpret it as a successful operation.
