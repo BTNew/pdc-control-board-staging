@@ -167,7 +167,7 @@ BEGIN
  PERFORM pg_temp.ou_assert((SELECT default_duration_minutes=180 FROM public.workshop_bookings WHERE id=bid),'Unknown hours never shrink a booking');
  v:=pg_temp.ou_vehicle('mixed retry');
  UPDATE public.vehicles SET current_location='QC' WHERE id=v;
- cid:=pg_temp.ou_change(v,NULL,1,'Tint all windows',1,'138');
+ cid:=pg_temp.ou_change(v,NULL,1,'Darkest Legal Window Tint',1,'138');
  PERFORM pg_temp.ou_change(v,NULL,2,'ARB Roof Rack',2,'139');
  UPDATE public.vehicles SET current_location='PMB' WHERE id=v;
  r:=public.retry_pdc_accepted_operation_updates('139');
