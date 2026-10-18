@@ -63,7 +63,7 @@ const approvedRootImportPatch = Object.freeze({
   "app.js": "b597b6f6fe455814a868d53d117efaf4ac746f06f6d76d7197017b92078612f5",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "a583d2e8be3f598e0bb9f63545a55045c1045ba6a241f958c001057b71a0f7ca",
+  "index.html": "caba1cbc507b6106a153d8c0c77ace9b1b7cb3b5e969d52aa362ac8b1ad4fd6d",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "fd5fb92d5369d5312959d178388d8adcfe08ef3fec91d00de363529c869a11e3",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
