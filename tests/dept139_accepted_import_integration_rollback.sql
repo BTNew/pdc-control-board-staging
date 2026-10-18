@@ -82,7 +82,7 @@ BEGIN
  RETURN b;
 END $fn$;
 
-CREATE FUNCTION pg_temp.ou_operation(vid uuid, stage text, hrs numeric, line_no integer DEFAULT 1,dept text DEFAULT '139',descr text DEFAULT NULL)
+CREATE FUNCTION pg_temp.ou_operation(vid uuid, stage text, hrs numeric, line_no integer DEFAULT 1,dept text DEFAULT '139',descr text DEFAULT NULL,source_stage text DEFAULT NULL)
 RETURNS uuid LANGUAGE plpgsql AS $fn$
 DECLARE op uuid:=gen_random_uuid(); ev uuid:=gen_random_uuid(); p jsonb; v public.vehicles%rowtype; batch_id uuid; wk text; source_order_no integer:=nextval('pg_temp.ou_source_order');
 BEGIN
@@ -91,13 +91,13 @@ BEGIN
  SELECT work_key INTO STRICT wk FROM public.workshop_stages WHERE code=stage;
  p:=jsonb_build_object('stock_number',v.stock_number,'repair_order_number',v.job_card_number,'original_line_number',line_no,'source_order',line_no,
  'department',dept,'operation_description',coalesce(descr,'Fixture work '||stage||' line '||line_no),'source_estimated_hours',hrs,'effective_estimated_hours',hrs,
- 'proposed_station',stage,'hours_provenance','source_explicit','semantic_hash',repeat('c',64),'parts_on_backorder_raw','');
+ 'proposed_station',coalesce(source_stage,stage),'hours_provenance','source_explicit','semantic_hash',repeat('c',64),'parts_on_backorder_raw','');
  INSERT INTO public.pdc_pilbara_service_import_rows(evidence_id,batch_id,importer_version,source_order,stock_number,repair_order_number,original_line_number,
  semantic_hash,normalized_payload,raw_row,decision,reason,vehicle_id)
  VALUES(ev,batch_id,'pilbara_service_open_jobcards_v1',source_order_no,v.stock_number,v.job_card_number,line_no,repeat('c',64),p,'{"Company":"01","Division":"1"}','insert','rollback_original',vid);
  INSERT INTO public.pdc_pilbara_service_operations(operation_id,importer_version,stock_number,repair_order_number,original_line_number,source_order,vehicle_id,
  operation_description,source_estimated_hours,effective_estimated_hours,hours_provenance,parts_semantics,classification,semantic_hash,raw_evidence_id,department,proposed_station)
- VALUES(op,'pilbara_service_open_jobcards_v1',v.stock_number,v.job_card_number,line_no,line_no,vid,p->>'operation_description',hrs,hrs,'source_explicit','review','Review',repeat('c',64),ev,dept,stage);
+ VALUES(op,'pilbara_service_open_jobcards_v1',v.stock_number,v.job_card_number,line_no,line_no,vid,p->>'operation_description',hrs,hrs,'source_explicit','review','Review',repeat('c',64),ev,dept,p->>'proposed_station');
  INSERT INTO public.vehicle_work_items(vehicle_id,work_key,required,completed) VALUES(vid,wk,true,false)
  ON CONFLICT(vehicle_id,work_key) DO UPDATE SET required=true;
  RETURN op;
@@ -165,8 +165,7 @@ BEGIN
   PERFORM pg_temp.ou_assert((SELECT count(*) FROM public.pdc_pilbara_service_operations WHERE vehicle_id=v)=1,'139 replay does not duplicate: '||item.category);
  END LOOP;
  v:=pg_temp.ou_vehicle('139 newly routed source estimate');
- op:=pg_temp.ou_operation(v,'FITTING',2.75,1,'139','Snorkel - Ram Head');
- UPDATE public.pdc_pilbara_service_operations SET proposed_station='REVIEW' WHERE operation_id=op;
+ op:=pg_temp.ou_operation(v,'FITTING',2.75,1,'139','Snorkel - Ram Head','REVIEW');
  SELECT l INTO line FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l LIMIT 1;
  PERFORM pg_temp.ou_assert(line->>'stage_code'='FITTING' AND public.workshop_vehicle_stage_estimated_hours(v,'FITTING')=2.75,'139 booking estimate uses canonical routed operations',jsonb_build_object('line',line,'hours',public.workshop_vehicle_stage_estimated_hours(v,'FITTING')));
  v:=pg_temp.ou_vehicle('Department 139 missing estimate');
