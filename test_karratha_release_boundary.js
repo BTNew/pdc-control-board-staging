@@ -42,13 +42,13 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 });
 // Explicitly pinned upstream releases and owner-approved navigation, including the 18 October full-week planner scope repair.
 const approvedRootImportPatch = Object.freeze({
-  "workshop-data-service.js": "c6759bcf1bd503ff4d0eddbffd4dc1e8eab677770bceef0ce4e7e1bcedfbd8cb",
+  "workshop-data-service.js": "f9f2622deab914325c3c9ab888590349e32bcbde3ad4f25209d0280bb1632503",
   // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
   "pdc-review-stations.js": "6bf2164d30fdfb5950c82d309e8a82cc4a587bbd32438f978e19f826734049bc",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
   "pdc-workshop-departments.js": "06326c4e7bb3aa1b301c4c5cd42024927ca3bac1f6c9ef7ce5dcce871d41ed29",
-  "workshop-planner.js": "0308e642b4e541ab097ed4cb08d2572f97306bf25940026483431b9f18dc1ba6",
+  "workshop-planner.js": "606cbc57d00824c90da00ec3c58a46dcaae0b007e05f99d21c80e332add36770",
   "workshop-planner.css": "0866d1ffc9546de5890575dea8ddf9ae1ebf17b8b1406a4682ec1a814428cf6f",
   "scripts/build_pages_runtime.js": "b8d0246d48dc6547a21ef70f729aff89488858e081c3c07b3dcad77ff0718ab2",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
@@ -60,10 +60,10 @@ const approvedRootImportPatch = Object.freeze({
   "canonical-entry.js": "250d29098ae9c66ca404d139e69ee2e7e50acf51ac74b718dca0e8c457dafd36",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
-  "app.js": "5abad928ab733ea30595d3272d4f9420d84e12ad4b9337d33d529a31c95fdd1a",
+  "app.js": "fc57112bfb68c673d059dfe5bcb2dd8bfb05d7e626a2d856050eb490b2cfced5",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "2d1a2371e52d3acaa63eb08753ed1494519697af960e5e637475c0e32d0c9f7d",
+  "index.html": "a18aeac0e7721d8b403d8d89889df85254440ff0c7d18386b189d9ab1e3c474f",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "fd5fb92d5369d5312959d178388d8adcfe08ef3fec91d00de363529c869a11e3",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
