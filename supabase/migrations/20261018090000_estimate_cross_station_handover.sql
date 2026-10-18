@@ -61,7 +61,7 @@ BEGIN
  -- Category bookings use their own current work estimate; legacy bookings retain whole-station scope.
  -- Never manufacture a booking for a newly required, unbooked station.
  FOR item IN SELECT * FROM pg_temp.pdc_tune_cascade_plan
-  WHERE vehicle_id=p_vehicle_id AND bay_id IS NOT NULL AND status='planned' ORDER BY ordinal
+  WHERE vehicle_id=p_vehicle_id AND stage_code<>'BUS_4X4' AND bay_id IS NOT NULL AND status='planned' ORDER BY ordinal
  LOOP
   IF EXISTS(SELECT 1 FROM pg_temp.pdc_tune_cascade_plan x
     JOIN public.workshop_bookings other_booking ON other_booking.id=x.booking_id
@@ -255,7 +255,7 @@ BEGIN
       date_trunc('minute',clock_timestamp())+
       (v_increment-mod((extract(epoch from clock_timestamp())/60)::bigint,v_increment)) * interval '1 minute' END;
     IF public.pdc_vehicle_department_membership_20260919(p_vehicle_id)->'department_codes' ? '139'
-       AND NOT (public.pdc_vehicle_department_membership_20260919(p_vehicle_id)->'department_codes' ? '138') THEN
+       AND v_stage<>'BUS_4X4' THEN
     v_cascade:=pdc_operation_updates_private.reconcile_estimate_bookings_20261018(
       p_vehicle_id,ARRAY[v_stage],NULL,v_system_actor);
     v_count:=v_count+coalesce((v_cascade->>'changed_count')::integer,0);
