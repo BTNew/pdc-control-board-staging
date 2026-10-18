@@ -42,7 +42,7 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 });
 // Explicitly pinned upstream releases and owner-approved navigation, including the 18 October full-week planner scope repair.
 const approvedRootImportPatch = Object.freeze({
-  "workshop-data-service.js": "d209eea558e915048e639d911813a14b5c467f056452f2caa19ad36d9ca44152",
+  "workshop-data-service.js": "c6759bcf1bd503ff4d0eddbffd4dc1e8eab677770bceef0ce4e7e1bcedfbd8cb",
   // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
   "pdc-review-stations.js": "6bf2164d30fdfb5950c82d309e8a82cc4a587bbd32438f978e19f826734049bc",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
@@ -63,7 +63,7 @@ const approvedRootImportPatch = Object.freeze({
   "app.js": "b597b6f6fe455814a868d53d117efaf4ac746f06f6d76d7197017b92078612f5",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "a9bd6604a3192ad13b35b17840959ea1d8273d7845a8cffc16814b6833180930",
+  "index.html": "caba1cbc507b6106a153d8c0c77ace9b1b7cb3b5e969d52aa362ac8b1ad4fd6d",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "fd5fb92d5369d5312959d178388d8adcfe08ef3fec91d00de363529c869a11e3",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
