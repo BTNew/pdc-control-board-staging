@@ -13594,6 +13594,7 @@ function vehicleWorkshopGroups(vehicle = {}, detail = null) {
       const adjustment = (detail.line_adjustments || []).find(item => item.line_key === line.line_identity || item.adjustment_id === line.source_line_id);
       const stage = vehicleWorkshopStageCode(line.stage_code);
       ensure(stage).lines.push({...line,workshopLineKey:line.line_identity,authoritativeJobCardLine:true,
+        work_key:stage === 'BUS_4X4' ? 'bus4x4' : stage.toLowerCase(),
         estimatedHours:line.estimated_hours,sourceEstimatedHours:line.source_estimated_hours,
         operation_line_id:line.source_line_id,sourceDescription:line.description,sourceOperationNo:line.operation_no,
         authenticatedEmailOperation:line.source_kind === 'authenticated',workshopManualLine:line.source_kind === 'manual',
@@ -13960,6 +13961,7 @@ function vehicleWorkshopHoursBatchRowsFromPage(page) {
       workKey: String(input.dataset.workKey || '').trim().toLowerCase(),
       estimatedHours: raw === '' ? null : Number(raw),
       raw,
+      changed: raw !== String(input.dataset.originalHours ?? '').trim(),
     };
   });
 }
@@ -14010,7 +14012,7 @@ async function saveVehicleWorkshopLineHoursBatch(button) {
   const vehicle = selectedVehicle() || {};
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
-  const rows = vehicleWorkshopHoursBatchRowsFromPage(page);
+  const rows = vehicleWorkshopHoursBatchRowsFromPage(page).filter(row => row.changed);
   if (!page || !canonicalId || !detail || !rows.length || rows.some(row => !vehicleWorkshopHoursBatchValueValid(row))) {
     window.alert('Enter valid hours from 0 to 999.99 with no more than two decimal places. Blank means unknown.');
     return false;
