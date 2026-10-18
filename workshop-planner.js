@@ -7387,12 +7387,32 @@ async function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey 
   openWorkshopWeeklyView(stage, bay, weekKey || dateKey);
 }
 
-function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
+let workshopWeeklyLoadSequence = 0;
+async function workshopLoadWeeklySnapshot(stage, dates) {
+  const sequence = ++workshopWeeklyLoadSequence;
+  const service = window.__workshopDataService;
+  if (!workshopSharedModeActive() || !service?.getScope?.()?.stageCode) return true;
+  const scope = { stageCode: stage, dateFrom: workshopDateKey(dates[0]), dateTo: workshopDateKey(dates[dates.length - 1]) };
+  try {
+    await service.setScope(scope);
+  } catch (_) { return false; }
+  if (sequence !== workshopWeeklyLoadSequence || window.__workshopDataService !== service) return false;
+  const current = service.getScope?.();
+  const snapshot = service.getTrustedSnapshot?.();
+  return Boolean(snapshot && current?.stageCode === scope.stageCode
+    && current.dateFrom === scope.dateFrom && current.dateTo === scope.dateTo
+    && snapshot.scope?.stage_code === scope.stageCode
+    && snapshot.scope.date_from === scope.dateFrom && snapshot.scope.date_to === scope.dateTo);
+}
+
+async function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
   const normalizedStage = normalizePmbStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return;
   document.querySelector('[data-workshop-week-overlay]')?.remove();
+  if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
   const weekStart = workshopWeekStart(anchorDate || workshopState().date);
   const dates = workshopWeekDates(weekStart);
+  if (!await workshopLoadWeeklySnapshot(normalizedStage, dates)) return;
   const plans = workshopCascadeAndSave(workshopLoadPlans()).filter(entry => entry.stage === normalizedStage && Number(entry.bay) === Number(bay) && entry.status !== 'completed');
   const columns = dates.map(date => {
     const dateKey = workshopDateKey(date);
@@ -7420,8 +7440,10 @@ function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     <footer><span>Planned jobs snap to ${escapeHtml(WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes)} minutes and update the daily board immediately. Closures are read-only; historical bookings remain visible. Started and STOPPAGE jobs can also be moved safely, with audit and bay-state updates. Completed jobs stay fixed.</span><button class="primary" type="button" data-workshop-week-close>Done</button></footer>
   </section>`;
   const close = () => {
+    workshopWeeklyLoadSequence += 1;
     overlay.remove();
     if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
+    workshopRefreshDedicatedDate(workshopState().date);
   };
   overlay.querySelectorAll('[data-workshop-week-close]').forEach(button => button.addEventListener('click', close));
   overlay.querySelectorAll('[data-workshop-week-admin-block-rename]').forEach(button => button.addEventListener('click', () => {
