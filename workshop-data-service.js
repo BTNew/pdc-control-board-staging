@@ -743,7 +743,9 @@ function createWorkshopDataService(options) {
     const retryableBookingIntent = getRole() === 'administrator'
       && ['administrator_move_workshop_booking', 'administrator_schedule_workshop_vehicle'].includes(rpcName)
       && typeof params?.p_request_id === 'string' && params.p_request_id.length > 0;
-    for (let retry = 0; retry < 2 && retryableBookingIntent
+    // Clock reconciliation can hold the workshop gate longer than three lock
+    // waits. Allow seven bounded attempts, still only for confirmed rollbacks.
+    for (let retry = 0; retry < 6 && retryableBookingIntent
         && !result.ok && result.status === 500 && result.body?.code === '55P03'; retry += 1) {
       const retryAuthorityFailure = authorityFailure();
       if (retryAuthorityFailure) return retryAuthorityFailure;
@@ -782,7 +784,7 @@ function createWorkshopDataService(options) {
         : (typeof body === 'string' ? body : null);
       return { ok: false, error: canonicalError || serverCode || 'request_failed', code: serverCode || null, message: serverMessage || null, status: result.status, body,
         workflow_stage: canonicalError ? workshopMutationWorkflowStage(body) : '',
-        ...(!canonicalError && (result.status >= 500 || result.status === 408) ? { outcomeUnknown: true } : {}) };
+        ...(!canonicalError && serverCode !== '55P03' && (result.status >= 500 || result.status === 408) ? { outcomeUnknown: true } : {}) };
     }
     const body = result.body || {};
     if (body.ok === false && ['version_conflict', 'vehicle_version_conflict'].includes(body.error)) {

@@ -1054,6 +1054,7 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
 function workshopDescribeSharedActionError(result) {
   const error = result && result.error;
   const conflict = result && result.conflict;
+  if (error === '55P03') return 'The workshop is busy finishing another update. No changes were saved. Please try again shortly.';
   if (result?.outcomeUnknown === true || ['runtime_failure', 'no_response', 'request_failed'].includes(error)) {
     return 'The change could not be confirmed. Refresh the planner to check its current state before trying again.';
   }
