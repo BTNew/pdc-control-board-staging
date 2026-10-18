@@ -273,9 +273,17 @@ function createWorkshopDataService(options) {
   let destroyed = false;
   let lifecycleGeneration = 0;
   let scopeGeneration = 0;
+  // Small, memory-only return-navigation cache. A fresh authenticated station
+  // revision must match before any retained rows regain display/edit authority.
+  const scopeSnapshots = new Map();
+  const now = options.now || Date.now;
+  let snapshotToken = null, snapshotRole = null, scopeCacheProbe = null;
 
-  function invalidateAuthority(nextState = WORKSHOP_CONNECTION_STATE.RECONNECTING) {
+  function invalidateAuthority(nextState = WORKSHOP_CONNECTION_STATE.RECONNECTING, preserveScopeCache = false) {
     lifecycleGeneration += 1;
+    scopeCacheProbe?.cancel();
+    scopeCacheProbe = null;
+    if (!preserveScopeCache) scopeSnapshots.clear();
     initialConnectionProbe?.cancel();
     snapshotTrusted = false;
     lastSnapshot = null;
@@ -381,6 +389,8 @@ function createWorkshopDataService(options) {
         return lastSnapshot;
       }
       lastSnapshot = result.body;
+      snapshotToken = token;
+      snapshotRole = requestRole;
       lastRevision = result.body && result.body.revision;
       if (revisionCovers(lastRevision, pendingRevision)) pendingRevision = null;
       if (!pendingRevision && !pendingUnknownRevision && pendingReloadTimer) {
@@ -473,6 +483,7 @@ function createWorkshopDataService(options) {
 
   function scheduleSnapshotReload(reason, revision) {
     if (!enabled || destroyed) return;
+    scopeSnapshots.clear();
     const known = normalizedRevision(revision);
     if (known === null) pendingUnknownRevision = true;
     else if (!revisionCovers(pendingRevision, known)) pendingRevision = known;
@@ -662,10 +673,73 @@ function createWorkshopDataService(options) {
   async function setScope(nextScope) {
     const normalized = normalizeWorkshopSnapshotScope(nextScope);
     if (JSON.stringify(normalized) === JSON.stringify(scope)) return lastSnapshot;
+    const token = getAccessToken(), role = getRole();
+    if (token !== snapshotToken || role !== snapshotRole) scopeSnapshots.clear();
+    if (scope && snapshotTrusted && !activeLoadToken && !pendingReloadTimer && !trailingReloadRequested
+        && !initialConnectionPending && initialSubscriptionEstablished
+        && token === snapshotToken && role === snapshotRole
+        && lastSnapshot?.scope?.stage_code === scope.stageCode
+        && lastSnapshot.scope.date_from === scope.dateFrom && lastSnapshot.scope.date_to === scope.dateTo) {
+      const key = JSON.stringify(scope);
+      scopeSnapshots.delete(key);
+      scopeSnapshots.set(key, { body: JSON.parse(JSON.stringify(lastSnapshot)), at: now(), token, role });
+      while (scopeSnapshots.size > 8) scopeSnapshots.delete(scopeSnapshots.keys().next().value);
+    }
+    const cached = normalized && scopeSnapshots.get(JSON.stringify(normalized));
     scope = normalized;
     scopeGeneration += 1;
-    invalidateAuthority(WORKSHOP_CONNECTION_STATE.CONNECTING);
-    const result = await loadSnapshot('scope_changed');
+    invalidateAuthority(WORKSHOP_CONNECTION_STATE.CONNECTING, true);
+    if (cached && token && cached.token === token && cached.role === role && now() - cached.at < 90000
+        && initialSubscriptionEstablished && !initialConnectionPending && typeof client.readRevision === 'function') {
+      const generation = lifecycleGeneration, scopeAtStart = scopeGeneration;
+      const sequenceAtStart = successfulSnapshotSequence;
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      let timer;
+      const probe = {};
+      scopeCacheProbe = probe;
+      const deadline = new Promise(resolve => {
+        probe.cancel = () => { controller?.abort(); resolve(null); };
+        timer = scheduleTimeout(probe.cancel, 1500);
+      });
+      let result;
+      try {
+        result = await Promise.race([
+          Promise.resolve().then(() => client.readRevision(token, { ...scope }, { signal: controller?.signal })).catch(() => null),
+          deadline,
+        ]);
+      } finally {
+        clearScheduledTimeout(timer);
+        if (scopeCacheProbe === probe) scopeCacheProbe = null;
+      }
+      if (destroyed || generation !== lifecycleGeneration || scopeAtStart !== scopeGeneration) return null;
+      if (token !== getAccessToken() || role !== getRole()) {
+        invalidateAuthority(getAccessToken() ? WORKSHOP_CONNECTION_STATE.RECONNECTING : WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+        return null;
+      }
+      const revision = result?.ok && Array.isArray(result.body) && result.body.length === 1
+        ? normalizedRevision(result.body[0]?.revision) : null;
+      if ([401, 403].includes(result?.status) || (result?.ok && revision === null)) {
+        invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
+        return null;
+      }
+      // A revision event or explicit refresh may have finished while the probe
+      // was pending. Never replace that newer read with the retained payload.
+      if (successfulSnapshotSequence > sequenceAtStart && snapshotTrusted
+          && !activeLoadToken && !pendingReloadTimer && !trailingReloadRequested) return lastSnapshot;
+      if (revision !== null && String(cached.body.revision) === String(revision)
+          && !pendingRevision && !pendingUnknownRevision && !pendingReloadTimer && !activeLoadToken) {
+        lastSnapshot = JSON.parse(JSON.stringify(cached.body));
+        lastRevision = cached.body.revision;
+        snapshotToken = token; snapshotRole = role;
+        snapshotTrusted = true;
+        successfulSnapshotSequence += 1;
+        setState(role === 'operator' || role === 'administrator'
+          ? WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE : WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY);
+        onSnapshot(lastSnapshot, 'scope_revision_verified');
+        return lastSnapshot;
+      }
+    }
+    const result = await awaitSnapshotRefresh('scope_changed');
     return initialConnectionPending && initialSubscriptionEstablished ? finishInitialConnection() : result;
   }
 
@@ -735,6 +809,7 @@ function createWorkshopDataService(options) {
       invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
       return { ok: false, error: 'permission_denied', state: WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED };
     }
+    scopeSnapshots.clear();
     let result = await client.rpc(token, rpcName, params);
     // PostgreSQL 55P03 aborts the transaction before it can commit. Only the
     // two receipt-backed administrator booking commands may retry this known
