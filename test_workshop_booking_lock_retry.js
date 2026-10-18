@@ -10,11 +10,11 @@ function fixture(){
  return {service,writes,handler:fn=>handler=fn,token:v=>token=v,role:v=>role=v,
   run:async(name='administrator_schedule_workshop_vehicle',params={p_request_id:'same-receipt',p_vehicle_expected_version:3})=>{await service.loadSnapshot('initial');return service.mutate(name,params);}};
 }
-test('known rolled-back lock failures retry the exact booking intent and receipt, at most twice',async()=>{
- const f=fixture();let n=0;f.handler(async()=>++n<3?lock:success);assert.equal((await f.run()).ok,true);assert.equal(f.writes.length,3);
+test('known rolled-back lock failures can recover after six waits with the exact intent and receipt',async()=>{
+ const f=fixture();let n=0;f.handler(async()=>++n<7?lock:success);assert.equal((await f.run()).ok,true);assert.equal(f.writes.length,7);
  for(const w of f.writes){assert.strictEqual(w.params,f.writes[0].params);assert.equal(w.t,'same-user');assert.equal(w.params.p_vehicle_expected_version,3);}
 });
-test('persistent contention stops after three attempts',async()=>{const f=fixture();f.handler(async()=>lock);assert.equal((await f.run()).code,'55P03');assert.equal(f.writes.length,3);});
+test('persistent contention stops after seven attempts with a known rollback',async()=>{const f=fixture();f.handler(async()=>lock);const r=await f.run();assert.equal(r.code,'55P03');assert.notEqual(r.outcomeUnknown,true);assert.equal(f.writes.length,7);});
 test('move commands keep their booking version and receipt through a lock retry',async()=>{
  const f=fixture();let n=0;f.handler(async()=>++n===1?lock:success);assert.equal((await f.run('administrator_move_workshop_booking',{p_request_id:'move-receipt',p_expected_version:4})).ok,true);assert.equal(f.writes.length,2);assert.strictEqual(f.writes[0].params,f.writes[1].params);
 });
