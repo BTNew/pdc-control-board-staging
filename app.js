@@ -4760,7 +4760,7 @@ function createPdcSupabaseRealtimeSubscription(config, handlers, scope = null) {
   const filter = stageCode ? `stage_code=eq.${stageCode}` : undefined;
   const changeSpec = { event: '*', schema: 'public', table, ...(filter ? { filter } : {}) };
   const channel = client
-    .channel(stageCode ? `workshop-station-revision-${stageCode.toLowerCase()}` : allStations ? 'workshop-all-station-revisions' : 'workshop-revision')
+    .channel(stageCode ? `workshop-station-revision-${stageCode.toLowerCase()}` : allStations ? (scope?.overview ? 'workshop-overview-station-revisions' : 'workshop-all-station-revisions') : 'workshop-revision')
     .on('postgres_changes', changeSpec, payload => {
       if (typeof handlers?.onChange === 'function') handlers.onChange(payload);
     })
@@ -6504,7 +6504,7 @@ function workshopEligibilityOverviewSubscribe() {
       },
       onError: status => failWorkshopEligibilityOverviewSubscription(owner, status),
       onClosed: status => failWorkshopEligibilityOverviewSubscription(owner, status || 'Realtime closed'),
-    }, { allStations: true });
+    }, { allStations: true, overview: true });
   } catch (error) {
     failWorkshopEligibilityOverviewSubscription(owner, error?.message || 'Realtime subscribe failed');
     return;
@@ -8152,7 +8152,7 @@ function authenticatedOperationSummaryLines(vehicle = {}) {
   const detailState = canonicalId ? app.vehicleWorkshopDetailCache?.get(canonicalId) : null;
   // The scoped job-card projection owns categories, edits and effective hours.
   // Never merge legacy import rows back into an authoritative (even empty) list.
-  if (detailState?.status === 'ready' && Array.isArray(detailState.detail?.job_card_lines)) {
+  if (['ready', 'loading'].includes(detailState?.status) && Array.isArray(detailState.detail?.job_card_lines)) {
     return detailState.detail.job_card_lines.filter(line => line.active !== false && line.rejected !== true).map(line => {
       const stage = String(line.stage_code || '').toUpperCase();
       const workKey = { BUS_4X4: 'bus4x4', PIT_INSPECTION: 'pitinspection', UNALLOCATED_MAPPING_REVIEW: 'review' }[stage] || stage.toLowerCase();
@@ -14189,7 +14189,7 @@ async function loadVehicleWorkshopDetail(vehicle = {}, { force = false } = {}) {
   }
   const generation = ++app.vehicleWorkshopDetailRequestGeneration;
   const selectedKey = vehicleKey(vehicle);
-  app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'loading' });
+  app.vehicleWorkshopDetailCache.set(canonicalId, { status: 'loading', detail: existing?.detail || null });
   if (app.vehicleDetailPage === 'work' && vehicleKey(selectedVehicle() || {}) === selectedKey) renderDetail();
   try {
     const dealerCode = vehicleWorkshopDetailRequestDealerCode(vehicle, config);
@@ -16765,7 +16765,9 @@ function partsDepartmentRows(sourceRows = partsDepartmentSourceRows()) {
     .filter(vehicleHasBatchNumber)
     .filter(partsQueueVisibleVehicle)
     .filter(vehicle => partsMatchesOperationalFilter(vehicle, operationalFilter))
-    .filter(vehicle => !departmentFilter || vehicleDepartmentCode(vehicle) === departmentFilter)
+    .filter(vehicle => !departmentFilter || (window.PDC_DEPARTMENT_FILTER?.departmentCodes
+      ? window.PDC_DEPARTMENT_FILTER.departmentCodes(vehicle).includes(departmentFilter)
+      : vehicleDepartmentCode(vehicle) === departmentFilter))
     .filter(vehicle => {
       if (!q) return true;
       const hay = [displayStockNumber(vehicle), vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle),

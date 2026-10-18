@@ -47,6 +47,15 @@ test('authoritative empty list cannot resurrect stale imported lines; manual wor
   state.vehicleWorkshopDetailCache.get('synthetic').detail.job_card_lines=[line(1,'BUS_ELECTRICAL',2,'BUS_4X4',{source_kind:'manual',operation_no:null,description:'Manual <repair>'})];
   assert.match(context.authenticatedEmailOperationLinesHtml(vehicle),/Manual &lt;repair>/);
 });
+
+test('refreshing an open editor retains the last canonical categories instead of reverting to Review',()=>{
+  const {context,state}=fixture([line(1,'FITTING',1.5,'FITTING',{department:'139'})]);
+  const vehicle={pdcEmailOperationLines:[{operation_no:'OP1',description:'Obsolete review row',work_key:'review',estimatedHours:1.5}]};
+  state.vehicleWorkshopDetailCache.get('synthetic').status='loading';
+  const html=context.authenticatedEmailOperationLinesHtml(vehicle);
+  assert.match(html,/data-operation-category="fitting"/);
+  assert.doesNotMatch(html,/Obsolete review row|data-operation-category="review"/);
+});
 test('legacy adjustment fallback keeps Bus physical station without inventing Mechanical category',()=>{
   const {context,state}=fixture(undefined);
   state.vehicleWorkshopDetailCache.get('synthetic').detail.line_adjustments=[{source_kind:'source',line_key:'source:legacy',stage_code:'BUS_4X4',estimated_hours:4}];
