@@ -164,11 +164,16 @@ BEGIN
   PERFORM pg_temp.ou_assert(r->>'ok'='true' AND line->>'stage_code'=item.category AND (line->>'estimated_hours')::numeric=item.hours+1,'Accepted 139 updated hours: '||item.category,jsonb_build_object('automation',r,'line',line));
   PERFORM pg_temp.ou_assert((SELECT count(*) FROM public.pdc_pilbara_service_operations WHERE vehicle_id=v)=1,'139 replay does not duplicate: '||item.category);
  END LOOP;
+ v:=pg_temp.ou_vehicle('139 newly routed source estimate');
+ op:=pg_temp.ou_operation(v,'FITTING',2.75,1,'139','Snorkel - Ram Head');
+ UPDATE public.pdc_pilbara_service_operations SET proposed_station='REVIEW' WHERE operation_id=op;
+ SELECT l INTO line FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l LIMIT 1;
+ PERFORM pg_temp.ou_assert(line->>'stage_code'='FITTING' AND public.workshop_vehicle_stage_estimated_hours(v,'FITTING')=2.75,'139 booking estimate uses canonical routed operations',jsonb_build_object('line',line,'hours',public.workshop_vehicle_stage_estimated_hours(v,'FITTING')));
  v:=pg_temp.ou_vehicle('Department 139 missing estimate');
  cid:=pg_temp.ou_change(v,NULL,0,'LED Lightbar - For Bull Bar',1,'139');
  PERFORM pg_temp.ou_assert((SELECT status='pending' AND automation_result->>'ok' IS DISTINCT FROM 'true' FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid),'139 zero estimate stays in review');
  PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_bookings o LEFT JOIN public.workshop_bookings b ON b.id=o.id WHERE o.row_data IS DISTINCT FROM to_jsonb(b)),'Existing bookings preserved');
- PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_vehicles o LEFT JOIN public.vehicles v ON v.id=o.id WHERE o.row_data IS DISTINCT FROM to_jsonb(v)),'Existing vehicles preserved');
+ PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM ou_original_vehicles o LEFT JOIN public.vehicles current_vehicle ON current_vehicle.id=o.id WHERE o.row_data IS DISTINCT FROM to_jsonb(current_vehicle)),'Existing vehicles preserved');
 END $integration139$;
 SELECT name,status FROM ou_results ORDER BY name;
 ROLLBACK;

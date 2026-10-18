@@ -6,6 +6,7 @@ DO $guard$ BEGIN
  THEN RAISE EXCEPTION 'staging_management_without_user_impersonation_required'; END IF;
  IF md5(replace(pg_get_functiondef('pdc_work_categories_private.route_import_line_20261017(jsonb,boolean)'::regprocedure),chr(13),'')) <> '22a45f28b9fa506b35407a42ff15664b'
  OR md5(replace(pg_get_functiondef('pdc_operation_updates_private.proposal(uuid)'::regprocedure),chr(13),'')) <> '5c22e9ad49cf60de859a92befb08e723'
+ OR md5(replace(pg_get_functiondef('public.workshop_vehicle_stage_estimated_hours(uuid,text)'::regprocedure),chr(13),'')) <> 'c17d57c063cd741439b8401732843dd3'
  THEN RAISE EXCEPTION 'reviewed_import_rule_dependencies_changed'; END IF;
 END $guard$;
 SET LOCAL lock_timeout='5s';
@@ -192,6 +193,27 @@ BEGIN
  IF stage<>'SUBLET' AND NOT coalesce(category='BUS_QA' AND h=0,false) AND (h IS NULL OR h<=0 OR h>999.99 OR mod(h,0.01)<>0)
  THEN RETURN jsonb_build_object('ok',false,'code','estimated_hours_required','proposal',choice); END IF;
  RETURN choice||jsonb_build_object('ok',true,'stage_code',stage,'estimated_hours',coalesce(h,0));
+END $function$
+;
+CREATE OR REPLACE FUNCTION public.workshop_vehicle_stage_estimated_hours(p_vehicle_id uuid, p_stage_code text)
+ RETURNS numeric
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
+DECLARE lines jsonb; result numeric; stage text:=public.workshop_canonical_stage_code(p_stage_code);
+BEGIN
+ IF coalesce((public.pdc_qc_rework_scope_20260909(p_vehicle_id)->>'active')::boolean,false)
+ THEN RETURN pdc_work_categories_private.base_workshop_vehicle_stage_estimated_hours(p_vehicle_id,p_stage_code); END IF;
+ lines:=public.pdc_qc_operation_lines_379(p_vehicle_id);
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(lines) l WHERE l->>'department' IN('138','139'))
+ AND NOT EXISTS(SELECT 1 FROM pdc_work_categories_private.line_overrides WHERE vehicle_id=p_vehicle_id)
+ THEN RETURN pdc_work_categories_private.base_workshop_vehicle_stage_estimated_hours(p_vehicle_id,p_stage_code); END IF;
+ SELECT CASE WHEN count(*) FILTER(WHERE jsonb_typeof(l->'estimated_hours') IS DISTINCT FROM 'number')=0
+ THEN nullif(sum((l->>'estimated_hours')::numeric),0) END INTO result
+ FROM jsonb_array_elements(lines) l WHERE coalesce((l->>'active')::boolean,true) AND l->>'stage_code'=stage
+ AND NOT pdc_work_categories_private.line_completed(p_vehicle_id,l);
+ RETURN result;
 END $function$
 ;
 
