@@ -111,6 +111,28 @@ test('visible Setup lists update after reference reads without multiplying backu
   await f.context.renderBackupStatusPanel();
   assert.equal(f.stats.backupReads.length, 6, 'the explicit backup refresh remains fresh');
   assert.match(f.backupHost.innerHTML, /Last recorded success/);
+  f.context.renderActiveView();
+  await tick();
+  assert.equal(f.stats.backupReads.length, 6, 'a fresh Setup re-render does not poll backup history again');
+});
+
+test('Setup backup history stays quiet while the page is hidden and reloads once it is stale', async () => {
+  const hidden = fixture('lists');
+  hidden.context.document = { visibilityState: 'hidden', addEventListener() {} };
+  hidden.context.renderActiveView();
+  await tick();
+  assert.equal(hidden.stats.backupReads.length, 0, 'a hidden Setup view does not poll');
+  hidden.context.document.visibilityState = 'visible';
+  hidden.context.renderActiveView();
+  await tick();
+  assert.equal(hidden.stats.backupReads.length, 3, 'showing Setup loads history once');
+  hidden.context.renderActiveView();
+  await tick();
+  assert.equal(hidden.stats.backupReads.length, 3, 'the visible view keeps that result');
+  hidden.context.app.backupStatusLoadedAt = Date.now() - (15 * 60 * 1000 + 1);
+  hidden.context.renderActiveView();
+  await tick();
+  assert.equal(hidden.stats.backupReads.length, 6, 'the slow poll window loads history again');
 });
 
 test('opening Setup after a hidden realtime update shows current references and loads backup history', async () => {
