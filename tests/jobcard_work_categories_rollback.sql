@@ -64,13 +64,20 @@ BEGIN
  RETURN v;
 END $fn$;
 
-CREATE FUNCTION pg_temp.ou_bay(tag text, stage text) RETURNS uuid LANGUAGE plpgsql AS $fn$
-DECLARE b uuid:=gen_random_uuid(); sid uuid;
+CREATE FUNCTION pg_temp.ou_bay(tag text, stage text, category text DEFAULT 'BUS_MECHANICAL') RETURNS uuid LANGUAGE plpgsql AS $fn$
+DECLARE b uuid:=gen_random_uuid(); sid uuid; number integer; existing uuid;
 BEGIN
  SELECT id INTO STRICT sid FROM public.workshop_stages WHERE code=stage AND active;
+ IF stage='BUS_4X4' THEN
+  number:=CASE category WHEN 'BUS_ELECTRICAL' THEN 8 WHEN 'BUS_QA' THEN 7 WHEN 'BUS_ACCESSORIES' THEN 10 ELSE 4 END;
+  SELECT id INTO existing FROM public.workshop_bays WHERE stage_id=sid AND bay_number=number AND code LIKE 'OU-%';
+  IF existing IS NOT NULL THEN RETURN existing; END IF;
+  -- Owned loopback only: relocate the copied bay number, retaining its bookings unchanged.
+  UPDATE public.workshop_bays SET bay_number=1000+number WHERE stage_id=sid AND bay_number=number;
+ END IF;
  INSERT INTO public.workshop_bays(id,stage_id,code,display_name,is_active)
  VALUES(b,sid,'OU-'||b,'Rollback fixture '||tag,true);
- UPDATE public.workshop_bays SET bay_number=(SELECT coalesce(max(bay_number),0)+1 FROM public.workshop_bays WHERE stage_id=sid) WHERE id=b;
+ UPDATE public.workshop_bays SET bay_number=coalesce(number,(SELECT coalesce(max(bay_number),0)+1 FROM public.workshop_bays WHERE stage_id=sid)) WHERE id=b;
  INSERT INTO ou_refs VALUES('bay-'||tag,b);
  RETURN b;
 END $fn$;
@@ -113,7 +120,7 @@ END $fn$;
 
 
 DO $categories$
-DECLARE v uuid; op uuid; bay uuid; sid uuid; t timestamptz; r jsonb; b uuid; elec uuid; h numeric; before_work jsonb;
+DECLARE v uuid; op uuid; bay uuid; eb uuid; sid uuid; t timestamptz; r jsonb; b uuid; elec uuid; h numeric; before_work jsonb;
 BEGIN
  v:=pg_temp.ou_vehicle('work-categories');
  op:=pg_temp.ou_operation(v,'BUS_4X4',2,1,'138','Battery Compartment & Relay Box Protection');
@@ -128,16 +135,33 @@ BEGIN
  PERFORM pg_temp.ou_assert(pdc_work_categories_private.suggest('{"department":"138","description":"External pit inspection"}')='BUS_PIT','Pit is external');
  PERFORM pg_temp.ou_assert(pdc_work_categories_private.suggest('{"department":"138","operation_code":"BV2DC","description":"Dash cameras"}')='SUBLET','Known outsourced dash cameras stay Sublet');
  bay:=pg_temp.ou_bay('work-categories','BUS_4X4');
+ eb:=pg_temp.ou_bay('electrical-categories','BUS_4X4','BUS_ELECTRICAL');
  SELECT stage_id INTO sid FROM public.workshop_bays WHERE id=bay;
  SELECT (friday::timestamp+interval '6 hours') AT TIME ZONE 'Australia/Perth' INTO t FROM ou_context;
+ r:=public.workshop_validate_booking(NULL,v,sid,eb,t,public.workshop_add_operational_minutes(t,120),120,'planned',NULL,false);
+ PERFORM pdc_work_categories_private.set_context(v,'BUS_4X4','{"work_category":"BUS_MECHANICAL"}');
+ r:=public.workshop_validate_booking(NULL,v,sid,eb,t,public.workshop_add_operational_minutes(t,120),120,'planned',NULL,false);
+ PERFORM pg_temp.ou_assert(r->>'error'='category_bay_mismatch','Preview rejects Mechanical in Electrical bay',r);
+ PERFORM set_config('pdc.work_category','',true);
  r:=public.schedule_vehicle_work(v,(SELECT version FROM public.vehicles WHERE id=v),'BUS_4X4',(SELECT bay_number FROM public.workshop_bays WHERE id=bay),t,120,NULL,NULL,'{"work_category":"BUS_MECHANICAL"}');
  PERFORM pg_temp.ou_assert(r->>'ok'='true','Mechanical category books with normal planner guards',r);
  b:=(r#>>'{booking,booking_id}')::uuid;
+ BEGIN
+  UPDATE public.workshop_bookings SET bay_id=eb WHERE id=b;
+  RAISE EXCEPTION 'Unexpected category move accepted';
+ EXCEPTION WHEN SQLSTATE '22023' THEN
+  PERFORM pg_temp.ou_assert(SQLERRM LIKE '%category_bay_mismatch%','Direct writes reject a wrong category bay',jsonb_build_object('error',SQLERRM));
+ END;
  PERFORM pg_temp.ou_assert((SELECT work_category='BUS_MECHANICAL' AND default_duration_minutes=120 FROM public.workshop_bookings WHERE id=b),'Booking stores category and exact category duration');
  PERFORM pg_temp.ou_assert(jsonb_array_length(pdc_fitter_private.lines(v,b))=1,'Mechanical fitter checklist excludes Electrical and QA');
- r:=public.schedule_vehicle_work(v,(SELECT version FROM public.vehicles WHERE id=v),'BUS_4X4',(SELECT bay_number FROM public.workshop_bays WHERE id=bay),t,90,NULL,NULL,'{"work_category":"BUS_ELECTRICAL"}');
+ BEGIN
+  r:=public.schedule_vehicle_work(v,(SELECT version FROM public.vehicles WHERE id=v),'BUS_4X4',(SELECT bay_number FROM public.workshop_bays WHERE id=eb),t+interval '1 hour',90,NULL,NULL,'{"work_category":"BUS_ELECTRICAL"}');
+ EXCEPTION WHEN SQLSTATE '22023' THEN
+  IF SQLERRM NOT LIKE '%vehicle_overlap%' THEN RAISE; END IF;
+  r:=jsonb_build_object('ok',false,'error','vehicle_overlap');
+ END;
  PERFORM pg_temp.ou_assert(r->>'ok'='false','Different categories cannot bypass physical booking conflicts',r);
- r:=public.schedule_vehicle_work(v,(SELECT version FROM public.vehicles WHERE id=v),'BUS_4X4',(SELECT bay_number FROM public.workshop_bays WHERE id=bay),t+interval '4 hours',90,NULL,NULL,'{"work_category":"BUS_ELECTRICAL"}');
+ r:=public.schedule_vehicle_work(v,(SELECT version FROM public.vehicles WHERE id=v),'BUS_4X4',(SELECT bay_number FROM public.workshop_bays WHERE id=eb),t+interval '4 hours',90,NULL,NULL,'{"work_category":"BUS_ELECTRICAL"}');
  PERFORM pg_temp.ou_assert(r->>'ok'='true','Another category can book the same vehicle later',r);
  elec:=(r#>>'{booking,booking_id}')::uuid;
  PERFORM pg_temp.ou_assert((SELECT default_duration_minutes=90 FROM public.workshop_bookings WHERE id=elec),'Electrical booking does not use whole Bus hours');
@@ -188,6 +212,12 @@ BEGIN
  PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,3,'138','POST REGO BUS 4X4 CERTIFICATION');
  PERFORM pg_temp.ou_operation(v,'BUS_4X4',0,4,'138','95 LITRES OF FUEL');
  FOREACH cat IN ARRAY ARRAY['BUS_MECHANICAL','BUS_ELECTRICAL','BUS_QA'] LOOP
+  bay:=pg_temp.ou_bay('completion-'||cat,'BUS_4X4',cat);
+  UPDATE public.workshop_bays SET default_technician_id=NULL WHERE default_technician_id=tech AND id<>bay;
+  UPDATE public.workshop_bays SET default_technician_id=tech WHERE id=bay;
+  SELECT max(candidate) INTO started_at FROM generate_series(0,14) AS days(n)
+  CROSS JOIN LATERAL (SELECT ((current_date-days.n)::timestamp+interval '10 hours') AT TIME ZONE 'Australia/Perth' AS candidate) shifts
+  WHERE candidate<now()-interval '1 minute' AND pdc_bus_private.minute_available(candidate,bay);
   PERFORM pdc_work_categories_private.set_context(v,'BUS_4X4',jsonb_build_object('work_category',cat));
   b:=pg_temp.ou_booking(cat,v,'BUS_4X4',bay,started_at,'started');
   PERFORM set_config('pdc.work_category','',true);
@@ -203,13 +233,16 @@ BEGIN
   PERFORM pg_temp.ou_assert(r->>'ok'='true' AND pdc_work_categories_private.completed(v,cat),'Only completed scope is recorded: '||cat,r);
   PERFORM pg_temp.ou_assert((SELECT completed=(cat='BUS_QA') FROM public.vehicle_work_items WHERE vehicle_id=v AND work_key=(SELECT work_key FROM public.workshop_stages WHERE code='BUS_4X4')),'Whole Bus work completes only after final category: '||cat);
  END LOOP;
- op:=pg_temp.ou_operation(v,'BUS_4X4',0.5,5,'138','New relay box protection');
+ op:=pg_temp.ou_operation(v,'BUS_4X4',0.5,5,'138','Battery Compartment & Relay Box Protection');
  PERFORM public.pdc_auditor_recalculate_required_work_226(ARRAY[v]);
  PERFORM pg_temp.ou_assert(NOT pdc_work_categories_private.completed(v,'BUS_MECHANICAL') AND pdc_work_categories_private.completed(v,'BUS_ELECTRICAL'),'New accepted operation reopens only its changed category');
  PERFORM pg_temp.ou_assert(pdc_work_categories_private.hours(v,'BUS_MECHANICAL')=0.5,'Reopened category excludes unchanged completed hours');
  PERFORM pg_temp.ou_assert((SELECT NOT completed AND required FROM public.vehicle_work_items WHERE vehicle_id=v AND work_key=(SELECT work_key FROM public.workshop_stages WHERE code='BUS_4X4')),'New accepted work restores outstanding work without changing completed bookings');
  PERFORM pg_temp.ou_assert((SELECT count(*)=3 FROM public.workshop_bookings WHERE vehicle_id=v AND status='completed'),'Completed category booking history remains intact');
  PERFORM pdc_work_categories_private.set_context(v,'BUS_4X4','{"work_category":"BUS_MECHANICAL"}');
+ bay:=pg_temp.ou_bay('completion-mechanical','BUS_4X4');
+ UPDATE public.workshop_bays SET default_technician_id=NULL WHERE default_technician_id=tech AND id<>bay;
+ UPDATE public.workshop_bays SET default_technician_id=tech WHERE id=bay;
  b:=pg_temp.ou_booking('category-added-work',v,'BUS_4X4',bay,started_at,'started');
  PERFORM set_config('pdc.work_category','',true);
  d:=public.get_fitter_job(tech,b);
@@ -220,9 +253,9 @@ DO $split$
 DECLARE v uuid; bay uuid; b uuid; op uuid; r jsonb; t timestamptz;
 BEGIN
  v:=pg_temp.ou_vehicle('legacy-split'); bay:=pg_temp.ou_bay('legacy-split','BUS_4X4');
- op:=pg_temp.ou_operation(v,'BUS_4X4',2,1,'138','Battery compartment');
- PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,2,'138','Driving lights');
- SELECT (friday::timestamp+interval '6 hours') AT TIME ZONE 'Australia/Perth' INTO t FROM ou_context;
+ op:=pg_temp.ou_operation(v,'BUS_4X4',2,1,'138','Battery Compartment & Relay Box Protection');
+ PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,2,'138','Pre-Delivery (Commercial)');
+ SELECT (friday::timestamp+interval '7 days 6 hours') AT TIME ZONE 'Australia/Perth' INTO t FROM ou_context;
  b:=pg_temp.ou_booking('legacy-split',v,'BUS_4X4',bay,t);
  r:=public.set_vehicle_work_category(v,(SELECT version FROM public.vehicles WHERE id=v),'source:'||op,'BUS_ACCESSORIES',0);
  PERFORM pg_temp.ou_assert(r->>'error'='category_booking_exists','Whole-job reservation protects its scope until explicitly split');
@@ -241,8 +274,8 @@ DECLARE v uuid; r jsonb;
 BEGIN
  v:=pg_temp.ou_vehicle('category-book-all');
  UPDATE public.vehicles SET model='Toyota Coaster',vehicle_description='Synthetic Coaster category fixture' WHERE id=v;
- PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,1,'138','Battery compartment protection');
- PERFORM pg_temp.ou_operation(v,'BUS_4X4',9,2,'138','Driving lights');
+ PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,1,'138','Battery Compartment & Relay Box Protection');
+ PERFORM pg_temp.ou_operation(v,'BUS_4X4',9,2,'138','Pre-Delivery (Commercial)');
  PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,3,'138','POST REGO BUS 4X4 CERTIFICATION');
  r:=public.book_all_vehicle_stations(v,(SELECT version FROM public.vehicles WHERE id=v));
  PERFORM pg_temp.ou_assert(r->>'ok'='true' AND (SELECT count(DISTINCT work_category)=3 FROM public.workshop_bookings WHERE vehicle_id=v AND deleted_at IS NULL),'Book all stations creates separate category bookings',r);
@@ -257,7 +290,7 @@ DECLARE v uuid; r jsonb; rule jsonb; booking_count integer;
 BEGIN
  v:=pg_temp.ou_vehicle('category-book-all-incompatible');
  UPDATE public.vehicles SET model='Toyota Coaster',vehicle_description='Synthetic incompatible-bay category fixture' WHERE id=v;
- PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,1,'138','Battery compartment protection');
+ PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,1,'138','Battery Compartment & Relay Box Protection');
  -- Exercise the real physical guard with only its incompatible Mechanical bay
  -- available. Restore bay configuration and any incidental effects afterward.
  BEGIN

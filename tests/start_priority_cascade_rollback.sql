@@ -16,6 +16,20 @@ BEGIN
  END IF;
 END $guard$;
 
+
+-- Start and resume exercise the current minute, including an after-hours test run.
+-- This calendar belongs only to the disposable loopback copy and rolls back.
+DO $local_calendar$ BEGIN
+ IF inet_server_addr() IS DISTINCT FROM '127.0.0.1'::inet THEN
+  RAISE EXCEPTION 'Disposable loopback database required for clock fixture';
+ END IF;
+END $local_calendar$;
+INSERT INTO public.workshop_settings(key,value,scope) VALUES
+ ('day_start_time','"00:00"','global'),('day_end_time','"23:59"','global'),
+ ('working_week','["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]','global'),
+ ('closures','[]','global'),('break_windows','[]','global'),('overtime_windows','[]','global')
+ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+
 CREATE TEMP TABLE ou_context(actor uuid, email text, friday date, batch uuid) ON COMMIT DROP;
 CREATE TEMP SEQUENCE ou_source_order;
 CREATE TEMP TABLE ou_refs(name text PRIMARY KEY, id uuid NOT NULL) ON COMMIT DROP;

@@ -1110,6 +1110,7 @@ function workshopDescribeSharedActionError(result) {
     return `The ${stage} parts check has not been confirmed for the current work. Open Workshop flow / parts readiness, check the required parts, select Confirmed available for this stage and save. Then retry the allocation. If parts are outstanding, keep the vehicle in Unallocated.`;
   }
   if (error === 'bus_bay_vehicle_incompatible') return 'This vehicle is not compatible with this Bus 4×4 bay. Bay 3 is for HiAce vehicles only; select a compatible bay.';
+  if (error === 'category_bay_mismatch') return 'This job belongs to a different Bus 4×4 work category. Open its Mechanical, Electrical, Accessories or QA planner and choose a bay there.';
   if (error === 'bus_shift_outside_hours') return 'This booking is outside the Department 138 shift. Check its start and finish against the bay and mechanic working hours.';
   if (error === 'bus_technician_shift_conflict') return 'A technician on this team finishes at 14:00. Choose a booking within that person’s working hours or a team available for the whole booking. Supervision alone does not require a helper assignment.';
   if (error === 'bus_supplier_verification_required') return 'Supplier work still needs a physical check by the assigned technician before this bay can be completed.';
@@ -5336,8 +5337,10 @@ function renderWorkshopPlanner(options = {}) {
   const focusedBookingMode = state.focusedBookingMode === true;
   const focusedPlans = focusedBookingMode ? (selected ? plans.filter(entry => entry.id === selected.id) : []) : plans;
   const dateKey = state.date;
+  const selectedCategoryBays = stage === 'BUS_4X4' ? new Set(workshopVisibleBays(stage).map(Number)) : null;
   const activePlans = (focusedBookingMode ? focusedPlans : plans.filter(entry => entry.stage === stage))
-    .filter(entry => entry.status !== 'completed' && Number(entry.bay) > 0);
+    .filter(entry => entry.status !== 'completed' && Number(entry.bay) > 0
+      && (!selectedCategoryBays || selectedCategoryBays.has(Number(entry.bay))));
   const stageVehicleList = workshopPlannerVehiclesForStage(stage);
   const returnedPlans = focusedBookingMode ? [] : workshopReturnedQueuePlans(plans, stage,
     stage === 'BUS_4X4' ? workshopSelectedBusGroup()?.code || '' : '');

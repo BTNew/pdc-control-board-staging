@@ -83,7 +83,7 @@ BEGIN
  SELECT batch INTO batch_id FROM ou_context;
  SELECT work_key INTO STRICT wk FROM public.workshop_stages WHERE code=stage;
  p:=jsonb_build_object('stock_number',v.stock_number,'repair_order_number',v.job_card_number,'original_line_number',line_no,'source_order',line_no,
- 'department',dept,'operation_description','Fixture work '||stage||' line '||line_no,'source_estimated_hours',hrs,'effective_estimated_hours',hrs,
+ 'department',dept,'operation_description',CASE WHEN dept='138' AND stage='BUS_4X4' THEN 'Battery Compartment & Relay Box Protection' ELSE 'Fixture work '||stage||' line '||line_no END,'source_estimated_hours',hrs,'effective_estimated_hours',hrs,
  'proposed_station',stage,'hours_provenance','source_explicit','semantic_hash',repeat('c',64),'parts_on_backorder_raw','');
  INSERT INTO public.pdc_pilbara_service_import_rows(evidence_id,batch_id,importer_version,source_order,stock_number,repair_order_number,original_line_number,
  semantic_hash,normalized_payload,raw_row,decision,reason,vehicle_id)
