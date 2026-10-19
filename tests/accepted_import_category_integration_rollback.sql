@@ -235,14 +235,19 @@ BEGIN
  PERFORM pg_temp.ou_assert(jsonb_array_length(pdc_fitter_private.lines(v,mb))=1 AND jsonb_array_length(pdc_fitter_private.lines(v,eb))=2,'New operation appears only in Electrical fitter checklist');
 END $split_bookings$;
 DO $started_scope$
-DECLARE v uuid; m uuid; e uuid; bay uuid; sid uuid; mb uuid; eb uuid; cid uuid; r jsonb; past timestamptz; d date;
+DECLARE v uuid; m uuid; e uuid; bay uuid; electrical_bay uuid; sid uuid; mb uuid; eb uuid; cid uuid; r jsonb; past timestamptz; d date;
 BEGIN
  v:=pg_temp.ou_vehicle('started category estimate');
  m:=pg_temp.ou_operation(v,'BUS_4X4',1,1,'138','Coaster Bus 4x4 Conversion - 6 Speed 2.8');
  e:=pg_temp.ou_operation(v,'BUS_4X4',2,2,'138','Coaster Bus Side Insert with Jump Start and Battery Isolator');
  bay:=pg_temp.ou_bay('started scope','BUS_4X4');
  SELECT stage_id INTO sid FROM public.workshop_bays WHERE id=bay;
- UPDATE public.workshop_bays SET bay_number=(SELECT max(bay_number)+1 FROM public.workshop_bays WHERE stage_id=sid) WHERE id=bay;
+ -- Owned loopback fixture: dedicate actual category numbers to synthetic bays.
+ UPDATE public.workshop_bays SET bay_number=1004 WHERE stage_id=sid AND bay_number=4;
+ UPDATE public.workshop_bays SET bay_number=4 WHERE id=bay;
+ electrical_bay:=pg_temp.ou_bay('later electrical scope','BUS_4X4');
+ UPDATE public.workshop_bays SET bay_number=1008 WHERE stage_id=sid AND bay_number=8;
+ UPDATE public.workshop_bays SET bay_number=8 WHERE id=electrical_bay;
  SELECT (candidate::date+time '06:00') AT TIME ZONE 'Australia/Perth' INTO past
  FROM generate_series((clock_timestamp() AT TIME ZONE 'Australia/Perth')::date-14,(clock_timestamp() AT TIME ZONE 'Australia/Perth')::date-1,interval '1 day') candidate
  WHERE pdc_bus_private.minute_available((candidate::date+time '06:00') AT TIME ZONE 'Australia/Perth',bay)
@@ -256,7 +261,7 @@ BEGIN
  ORDER BY candidate LIMIT 1;
  IF d IS NULL THEN RAISE EXCEPTION 'No open later-booking fixture day'; END IF;
  PERFORM pdc_work_categories_private.set_context(v,'BUS_4X4','{"work_category":"BUS_ELECTRICAL"}');
- eb:=pg_temp.ou_booking('later electrical',v,'BUS_4X4',bay,(d+time '06:00') AT TIME ZONE 'Australia/Perth');
+ eb:=pg_temp.ou_booking('later electrical',v,'BUS_4X4',electrical_bay,(d+time '06:00') AT TIME ZONE 'Australia/Perth');
  PERFORM set_config('pdc.work_category','',true);
  cid:=pg_temp.ou_change(v,m,2.5,'Coaster Bus 4x4 Conversion - 6 Speed 2.8',1,'138');
  SELECT automation_result INTO r FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;

@@ -25,6 +25,20 @@ INSERT INTO public.workshop_settings(key,value,scope) VALUES
 ON CONFLICT(key) DO UPDATE SET value=excluded.value;
 
 
+
+-- Start and resume exercise the current minute, including an after-hours test run.
+-- This calendar belongs only to the disposable loopback copy and rolls back.
+DO $local_calendar$ BEGIN
+ IF inet_server_addr() IS DISTINCT FROM '127.0.0.1'::inet THEN
+  RAISE EXCEPTION 'Disposable loopback database required for clock fixture';
+ END IF;
+END $local_calendar$;
+INSERT INTO public.workshop_settings(key,value,scope) VALUES
+ ('day_start_time','"00:00"','global'),('day_end_time','"23:59"','global'),
+ ('working_week','["monday","tuesday","wednesday","thursday","friday","saturday","sunday"]','global'),
+ ('closures','[]','global'),('break_windows','[]','global'),('overtime_windows','[]','global')
+ON CONFLICT(key) DO UPDATE SET value=excluded.value;
+
 CREATE TEMP TABLE ou_context(actor uuid, email text, friday date, batch uuid) ON COMMIT DROP;
 CREATE TEMP SEQUENCE ou_source_order;
 CREATE TEMP TABLE ou_refs(name text PRIMARY KEY, id uuid NOT NULL) ON COMMIT DROP;
@@ -169,7 +183,7 @@ BEGIN
  PERFORM pg_temp.ou_assert((r->>'ok')::boolean,'Resume shares planner state',r);
  d:=public.get_fitter_job(tech,b);
  -- Changed scope invalidates only that item, and stale clients cannot check it.
- INSERT INTO public.vehicle_workshop_line_adjustments(vehicle_id,line_key,source_kind,stage_code,description,estimated_hours,created_by,updated_by) VALUES(v,'source:'||op,'source','FITTING','Fixture work FITTING line 1',2,auth.uid(),auth.uid());
+ INSERT INTO public.vehicle_workshop_line_adjustments(vehicle_id,line_key,source_kind,stage_code,description,estimated_hours,manual_assignment_locked,correction_origin,created_by,updated_by) VALUES(v,'source:'||op,'source','FITTING','Fixture work FITTING line 1',2,true,'manual_operator',auth.uid(),auth.uid());
  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'line','source:'||op,true,'');
  PERFORM pg_temp.ou_assert(r->>'error'='scope_changed','Import changes reject stale catalogue');
  d:=public.get_fitter_job(tech,b);
