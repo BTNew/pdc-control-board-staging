@@ -28,6 +28,8 @@ Before a full run, use the Supabase connector for a **read-only** fingerprint qu
 
 ## Coverage and reporting
 
+The returned-booking regression returns synthetic reservations to Unallocated, then reserves a compatible bay again through ordinary and cascade moves. It checks retained booking identity, restored planned status, stale-version rejection, protected lifecycle transitions, original work/history and cleanup. It selects open dates from the configured calendar. These are isolated database checks, not actual browser dragging.
+
 The fitter destination-bay regression also moves an unstarted booking between two synthetic bays, then reads the destination mechanic's queue and checklist through the restricted fitter refresh path. It checks retained assignment history, manual overrides, same-bay time moves and technician conflicts, including a soft-deleted booking whose retained assignment must not block the destination fitter. It runs only in the disposable loopback database and does not establish real iPad UI interaction.
 
 The work-category regression checks separate Bus Mechanical/Electrical/QA estimates and reservations, remaining categories in the real station response, category-only fitter checklists and completion, explicit zero-hour QA tasks, changed operation estimates, saved manual category choices, protected whole-job bookings, and Book all. It verifies that existing operational bookings are unchanged by these fixture scenarios. The hourly browser-code suite also checks category projection and shared destinations. These are not browser dragging tests.

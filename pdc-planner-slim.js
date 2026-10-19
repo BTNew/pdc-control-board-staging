@@ -77,6 +77,14 @@
     workshopQueueCardHtml = function(vehicle = {}, stage = workshopState().stage, ...args) {
       return compactQueue(previousQueue(vehicle, stage, ...args),detailsFor(vehicle,stage));
     };
+    if (typeof workshopReturnedQueueCardHtml === 'function') {
+      const previousReturnedQueue = workshopReturnedQueueCardHtml;
+      workshopReturnedQueueCardHtml = function(entry) {
+        const html = previousReturnedQueue(entry);
+        const vehicle = html && workshopVehicle(entry.vehicleKey, entry.stage);
+        return vehicle ? compactQueue(html, detailsFor(vehicle, entry.stage)) : html;
+      };
+    }
     if(typeof workshopPlanChipHtml==='function'){
       const previousPlan=workshopPlanChipHtml;
       workshopPlanChipHtml=function(entry={},...args){

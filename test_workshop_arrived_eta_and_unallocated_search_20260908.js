@@ -102,7 +102,7 @@ vm.createContext(context);
 vm.runInContext(`${extractFunction('workshopReturnedQueuePlans') + '\n' + extractFunction('workshopSearchMatchRows')}\n${extractFunction('workshopSearchMatches')}\nthis.search = workshopSearchMatches;`, context);
 
 const plans = [
-  { id: 'booking-1', sharedVehicleId: bookedVehicle.id, vehicleKey: bookedVehicle.stock_number, status: 'planned', startAt: '2026-09-10T08:00:00+08:00' },
+  { id: 'booking-1', stage:'TINT', sharedVehicleId: bookedVehicle.id, vehicleKey: bookedVehicle.stock_number, status: 'planned', startAt: '2026-09-10T08:00:00+08:00' },
   { id: 'booking-completed', sharedVehicleId: completedOnlyVehicle.id, vehicleKey: completedOnlyVehicle.stock_number, status: 'completed', startAt: '2026-09-01T08:00:00+08:00' },
 ];
 const exactUnallocated = context.search('13015144', plans);
@@ -133,9 +133,9 @@ assert.strictEqual(duplicateSources.length, 1, 'board plus snapshot yields one c
 assert.strictEqual(duplicateSources[0].vehicle.model, 'Hilux DCC SR', 'retain the full board description');
 context.app.workshopEligibilitySnapshot.candidates = [{vehicle: snapshotVehicle}];
 assert.strictEqual(context.search(snapshotVehicle.stock_number, plans).length, 1, 'third eligibility projection remains one choice');
-const twoBookings = [{id:'a', sharedVehicleId:snapshotVehicle.id,status:'planned'}, {id:'b',sharedVehicleId:snapshotVehicle.id,status:'planned'}];
+const twoBookings = [{id:'a',stage:'TINT', sharedVehicleId:snapshotVehicle.id,status:'planned'}, {id:'b',stage:'TINT',sharedVehicleId:snapshotVehicle.id,status:'planned'}];
 assert.strictEqual(context.search(snapshotVehicle.stock_number, twoBookings)[0].bookings.length, 2, 'independent bookings remain available');
 context.workshopSharedVehicleRef = ({sharedVehicleId,vehicleKey}) => ({vehicleId:sharedVehicleId || `vehicle-${vehicleKey}`});
 context.app.data.push({sharedVehicleId:'different-canonical-vehicle',vehicleKey:snapshotVehicle.stock_number,stockNumber:snapshotVehicle.stock_number});
-const distinctPlans=[...twoBookings,{id:'c',sharedVehicleId:'different-canonical-vehicle',status:'planned'}];
+const distinctPlans=[...twoBookings,{id:'c',stage:'TINT',sharedVehicleId:'different-canonical-vehicle',status:'planned'}];
 assert.strictEqual(context.search(snapshotVehicle.stock_number, distinctPlans).length, 2, 'different canonical IDs with the same stock remain distinct');

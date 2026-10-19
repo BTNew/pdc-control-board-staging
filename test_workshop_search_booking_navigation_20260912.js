@@ -69,39 +69,40 @@ async function main() {
   await context.workshopLoadSearchBookings('88001038');
   const matches = context.workshopSearchMatches('88001038');
   assert.equal(matches.length, 1);
-  assert.equal(matches[0].bookings.length, 5, 'all five station/date bookings found despite empty selected-day snapshot');
+  assert.equal(matches[0].bookings.length, 1, 'only selected station booking found across dates despite empty selected-day snapshot');
   assert.equal(matches[0].candidateAvailable, false, 'already-booked station never falsely offered in unallocated lane');
   const html = context.workshopSearchResultsHtml('88001038');
-  for (const row of bookedRows) assert.ok(html.includes('data-workshop-search-booking-id="' + row.booking_id + '"'));
+  for (const row of bookedRows) assert.equal(html.includes('data-workshop-search-booking-id="' + row.booking_id + '"'),row.stage_code===state.stage);
+  assert.equal(await context.workshopSelectSearchBooking('hoist','shared:'+vehicleId),false,'stale other-station selection cannot navigate away');
   assert.doesNotMatch(html, /Select unbooked vehicle/);
   assert.equal(snapshot.bookings.length, 0, 'lookup never mutates scoped board snapshot');
   const before = calls;
-  await context.workshopSelectSearchBooking('hoist', 'shared:' + vehicleId);
+  await context.workshopSelectSearchBooking('elec', 'shared:' + vehicleId);
   assert.equal(calls, before + 1, 'selection rechecks latest authorized booking position');
-  assert.equal(route, 'HOIST');
-  assert.equal(state.date, '2026-09-16');
+  assert.equal(route, '');
+  assert.equal(state.date, '2026-09-17');
   assert.equal(state.detailManualOpen, false);
   assert.equal(state.detailCollapsedForSelection, true);
-  assert.equal(context.app.pendingWorkshopBookingLink.bookingId, 'hoist');
+  assert.equal(context.app.pendingWorkshopBookingLink.bookingId, 'elec');
   assert.equal(context.app.pendingWorkshopBookingLink.vehicleId, vehicleId);
   assert.equal(context.app.pendingWorkshopBookingLink.search, true);
-  context.window.__activeWorkshopPlannerStage = 'HOIST';
+  context.window.__activeWorkshopPlannerStage = 'ELECTRICAL';
   route = '';
-  await context.workshopSelectSearchBooking('hoist', 'shared:' + vehicleId);
+  await context.workshopSelectSearchBooking('elec', 'shared:' + vehicleId);
   assert.equal(route, '');
-  assert.equal(scope.stageCode, 'HOIST');
-  assert.equal(scope.dateFrom, '2026-09-16');
+  assert.equal(scope.stageCode, 'ELECTRICAL');
+  assert.equal(scope.dateFrom, '2026-09-17');
   assert.ok(rendered > 0);
 
-  response = { ok: true, vehicleId, bookings: [row('hoist', 'HOIST', '2026-09-22T09:00:00+08:00', 3)] };
-  await context.workshopSelectSearchBooking('hoist', 'shared:' + vehicleId);
+  response = { ok: true, vehicleId, bookings: [row('elec', 'ELECTRICAL', '2026-09-22T09:00:00+08:00', 3)] };
+  await context.workshopSelectSearchBooking('elec', 'shared:' + vehicleId);
   assert.equal(state.date, '2026-09-22', 'moved booking navigates to newly verified date');
   response = { ok: false, error: 'permission_denied' };
   state.bookingSearchLookup = null;
   await context.workshopLoadSearchBookings('88001038');
   assert.match(context.workshopSearchResultsHtml('88001038'), /Bookings could not be checked/);
   assert.doesNotMatch(context.workshopSearchResultsHtml('88001038'), /Select unbooked vehicle/);
-  await context.workshopSelectSearchBooking('hoist', 'shared:' + vehicleId);
+  await context.workshopSelectSearchBooking('elec', 'shared:' + vehicleId);
   assert.match(state.bookingNavigationError, /could not be checked/);
 
   response = { ok: true, vehicleId, bookings: [row('unallocated', 'FITTING', '2026-09-12T08:00:00+08:00', null, 'queued'), row('completed-unallocated','FITTING','2026-09-01T08:00:00+08:00',null,'completed'), ...bookedRows] };
@@ -132,15 +133,15 @@ async function main() {
   assert.match(context.workshopSearchResultsHtml('88001038'), /temporarily unavailable/);
   snapshot = savedSnapshot;
   const resolutions = [];
-  response = { ok: true, vehicleId, bookings: bookedRows };
+  response = { ok: true, vehicleId, bookings: [...bookedRows,row('elec-next','ELECTRICAL','2026-09-21T07:00:00+08:00')] };
   service.lookupVehicleBookings = () => new Promise(done => resolutions.push(done));
-  const earlierSelection = context.workshopSelectSearchBooking('hoist', 'shared:' + vehicleId);
-  const latestSelection = context.workshopSelectSearchBooking('tyre', 'shared:' + vehicleId);
+  const earlierSelection = context.workshopSelectSearchBooking('elec', 'shared:' + vehicleId);
+  const latestSelection = context.workshopSelectSearchBooking('elec-next', 'shared:' + vehicleId);
   resolutions[1](response);
   assert.equal(await latestSelection, true);
   resolutions[0](response);
   assert.equal(await earlierSelection, false, 'older click cannot override latest selected job');
-  assert.equal(route, 'TYRE');
+  assert.equal(route, '');
   assert.equal(state.date, '2026-09-21');
 
   const pendingCode = source.slice(source.indexOf("if (pendingBookingLink && normalizePmbStage"), source.indexOf('  if (state.focusedBookingMode && state.focusedBookingId)'));
@@ -158,7 +159,7 @@ async function main() {
   const originalMatcher=context.workshopSearchMatches;
   context.workshopSearchMatches=(query,plans)=>originalMatcher(query,plans);
   await context.workshopLoadSearchBookings(state.search);
-  assert.equal(context.workshopSearchMatches(state.search)[0].bookings.length,5,
+  assert.equal(context.workshopSearchMatches(state.search)[0].bookings.length,1,
     'authenticated Board-only identity resolves outside station snapshot even with two-argument presentation wrapper');
   assert.equal(snapshot.bookings.length,0);
   assert.equal(context.workshopSearchMatches(state.search)[0].candidateAvailable,false,

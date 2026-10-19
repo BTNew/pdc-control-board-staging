@@ -45,7 +45,7 @@ test('Best slot click invokes the fresh scheduling path and prevents duplicate s
  let click,resolve;const calls=[];
  const button={dataset:{workshopBestSlotVehicle:'canonical-fixture',workshopBestSlotStage:'FITTING',workshopBestSlotHours:'8'},disabled:false,isConnected:true,
   addEventListener:(type,fn)=>{click=fn;},setAttribute:()=>{},removeAttribute:()=>{}};
- const context={root:{querySelectorAll:()=>[button]},workshopScheduleVehicleNextAvailable:args=>{calls.push(args);return new Promise(done=>{resolve=done;});}};
+ const context={root:{querySelectorAll:selector=>selector==='[data-workshop-best-slot-vehicle]'?[button]:[]},workshopScheduleVehicleNextAvailable:args=>{calls.push(args);return new Promise(done=>{resolve=done;});}};
  vm.runInNewContext(handler,context);const event={preventDefault(){},stopPropagation(){}};
  const pending=click(event);await click(event);assert.equal(calls.length,1);assert.equal(calls[0].vehicleKeyValue,'canonical-fixture');assert.equal(calls[0].stage,'FITTING');assert.equal(calls[0].hours,8);assert(button.disabled);
  resolve(false);await pending;assert.equal(button.disabled,false);
