@@ -1523,3 +1523,8 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
 .pdc-workshop-department-choice select{min-height:36px;min-width:190px}
 .nav-workshop-item.pdc-department-hidden,.nav-section-label.pdc-department-hidden{display:none!important}
 .workshop-stage-tab small{display:block;font-size:11px;font-weight:400;margin-top:3px}
+
+/* Search is a drag source; its overlay must not intercept a bay drop. */
+.workshop-search-result[draggable="true"] { cursor: grab; }
+.workshop-search-result[draggable="true"]:active { cursor: grabbing; }
+.workshop-search-results.is-dragging { pointer-events: none; opacity: .35; }
