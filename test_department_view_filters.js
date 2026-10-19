@@ -348,3 +348,27 @@ test('department preference selects physical station views without hiding shared
   assert.match(stationSource, /addEventListener\('change',pdcWorkshopDepartmentChanged\)/);
   assert.doesNotMatch(stationSource, /incomingDepartmentFilterValue/);
 });
+
+test('Vehicle Locations shows a loading summary instead of an empty fleet while the board is still arriving', () => {
+  const f = locationsFixture();
+  f.c.vehicleLocationBoardRows = () => [];
+  f.c.app.data = [];
+  f.c.app.vehicleLocationsRefreshState = 'refreshing';
+  f.c.app.sharedNavisionVisibleState = 'loading';
+  f.c.window.PDC_AUTH_CONTEXT = { role: 'operator' };
+  const before = '0 of 0 vehicles shown';
+  f.c.renderIncomingDashboardBoardContent();
+  const duringLoad = f.controls.get('#incoming-filter-summary').textContent;
+  assert.equal(before, '0 of 0 vehicles shown');
+  assert.equal(duringLoad, 'Loading vehicles…');
+  assert.match(f.host.innerHTML, /Loading vehicles…/);
+  assert.doesNotMatch(f.host.innerHTML, /No vehicles match the current filters/);
+  assert.doesNotMatch(duringLoad, /0 of 0/);
+  f.c.app.vehicleLocationsRefreshState = 'success';
+  f.c.app.sharedNavisionVisibleState = 'ready';
+  f.c.renderIncomingDashboardBoardContent();
+  const confirmedEmpty = f.controls.get('#incoming-filter-summary').textContent;
+  assert.match(confirmedEmpty, /^0 of 0 vehicles shown/);
+  assert.doesNotMatch(confirmedEmpty, /Loading vehicles/);
+  assert.match(f.host.innerHTML, /No vehicles match the current filters/);
+});
