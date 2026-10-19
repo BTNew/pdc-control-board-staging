@@ -3814,6 +3814,11 @@ function workshopRevealSearchMatch(query = '') {
 }
 
 function workshopBindSearchResultButtons(root = document) {
+  root.querySelectorAll('[data-workshop-select-returned-plan]').forEach(button => {
+    if (button.dataset.returnedSelectionBound === '1') return;
+    button.dataset.returnedSelectionBound = '1';
+    button.addEventListener('click', () => workshopSelectReturnedPlan(button.dataset.workshopSelectReturnedPlan));
+  });
   root.querySelectorAll('[data-workshop-search-booking-id]').forEach(button => button.addEventListener('click', () => {
     void workshopSelectSearchBooking(button.dataset.workshopSearchBookingId, button.dataset.workshopSearchVehicleIdentity);
   }));
@@ -5610,9 +5615,6 @@ function bindWorkshopPlanner(root) {
   root.querySelectorAll('[data-workshop-drop-bay]').forEach(lane => bindWorkshopLane(lane));
   bindWorkshopAdminPalette(root);
   bindWorkshopUnallocatedDrop(root.querySelector('[data-workshop-unallocated-drop]'));
-  root.querySelectorAll('[data-workshop-select-returned-plan]').forEach(button => button.addEventListener('click', () => {
-    workshopSelectReturnedPlan(button.dataset.workshopSelectReturnedPlan);
-  }));
   root.querySelectorAll('[data-workshop-select-plan]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
     if (event.detail === 0) {
