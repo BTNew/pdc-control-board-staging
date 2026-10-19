@@ -12,7 +12,7 @@ const vehicleId = '11111111-1111-4111-8111-111111111111';
 const otherId = '22222222-2222-4222-8222-222222222222';
 const bookingId = '33333333-3333-4333-8333-333333333333';
 const intent = { bookingId, vehicleId, stage: 'HOIST', date: '2026-09-22', search: true, focused: false };
-const exact = { id: bookingId, sharedVehicleId: vehicleId, vehicleKey: 'canonical-12238276', stage: 'HOIST', status: 'planned', vehicle: { stock: '12238276' } };
+const exact = { id: bookingId, sharedVehicleId: vehicleId, vehicleKey: 'canonical-12238276', stage: 'HOIST', status: 'planned', bay: 1, vehicle: { stock: '12238276' } };
 function render({trusted = true, scope = {stageCode:'HOIST',dateFrom:'2026-09-22',dateTo:'2026-09-22'}, plans = [exact], previousState = {}} = {}) {
   const state = {selectedPlanId:'', detailManualOpen:true, searchOpen:true, ...previousState};
   const app = {pendingWorkshopBookingLink:{...intent}};
