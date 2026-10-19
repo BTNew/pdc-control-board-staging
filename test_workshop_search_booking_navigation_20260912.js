@@ -195,6 +195,46 @@ async function main() {
     'returned canonical reservation stays selectable when read-only booking search omits queued work');
   assert.doesNotMatch(returnedHtml,/Scheduling unavailable|data-workshop-search-unbooked-identity/,
     'reuse existing reservation rather than offering duplicate scheduling');
+  const savedStage = state.stage;
+  const savedSearch = state.search;
+  const savedData = context.app.data;
+  const savedPlans = context.workshopLoadPlans;
+  const savedTrusted = service.getTrustedSnapshot;
+  const fittingVehicle = { ...vehicle, vehicleKey: '13091177', stockNumber: '13091177' };
+  const fittingSnapshot = {
+    revision: 30,
+    vehicles: [fittingVehicle],
+    work_items: [],
+    bookings: [],
+    outstanding_candidates: [{ vehicle_id: vehicleId, stage_code: 'FITTING', schedule_enabled: true, existing_booking: false }],
+  };
+  state.stage = 'FITTING';
+  state.search = '13091177';
+  context.app.data = [fittingVehicle];
+  context.workshopLoadPlans = () => [];
+  service.getLastSnapshot = () => fittingSnapshot;
+  service.getTrustedSnapshot = () => null;
+  state.bookingSearchLookup = {
+    query: '13091177',
+    service,
+    snapshot: fittingSnapshot,
+    status: 'ready',
+    matches: new Map([['shared:' + vehicleId, { ok: true, bookings: [] }]]),
+  };
+  const duringDrop = context.workshopSearchResultsHtml('13091177');
+  assert.doesNotMatch(duringDrop, /No booking found/);
+  assert.match(duringDrop, /data-workshop-search-drag-vehicle="shared:/);
+  state.bookingSearchLookup = { query: '13091177', service, snapshot: { revision: 29 }, status: 'ready', matches: new Map() };
+  const finding = context.workshopSearchResultsHtml('13091177');
+  assert.match(finding, /Finding bookings/);
+  assert.doesNotMatch(finding, /No booking found/);
+  state.stage = savedStage;
+  state.search = savedSearch;
+  context.app.data = savedData;
+  context.workshopLoadPlans = savedPlans;
+  delete service.getLastSnapshot;
+  service.getTrustedSnapshot = savedTrusted;
+  state.bookingSearchLookup = null;
   console.log('Workshop search navigation and returned reservation selection: PASS.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

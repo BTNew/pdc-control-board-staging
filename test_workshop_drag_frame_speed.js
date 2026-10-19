@@ -101,7 +101,13 @@ test('weekly vertical preview coalesces and final release follows the vertical c
   assert.equal(f.saves[0][4], 180); assert.equal(f.raf.size, 0);
 });
 
-function touchFixture() {
+function extract(name) {
+  const match = new RegExp('function ' + name + '\\(').exec(source);
+  const tail = source.slice(match.index);
+  const next = /\nfunction \w+\(/.exec(tail);
+  return next ? tail.slice(0, next.index) : tail;
+}
+function touchFixture(options = {}) {
   const f = fixture(), cardListeners = new Map(), windowListeners = new Map(); let hits = 0;
   const card = { dataset: { workshopVehicleKey: 'vehicle-1' }, getAttribute: () => null,
     addEventListener: (name, fn) => cardListeners.set(name, fn), removeEventListener: name => cardListeners.delete(name),
@@ -109,11 +115,13 @@ function touchFixture() {
   Object.assign(f.c.window, { addEventListener: (name, fn) => windowListeners.set(name, fn), removeEventListener: name => windowListeners.delete(name) });
   Object.assign(f.c.document, { elementFromPoint(x, y) { hits++; return y < 0 ? null : f.lanes[y >= 100 ? 1 : 0].lane; } });
   Object.assign(f.c, { card, root: f.root, workshopVehicle: () => ({ id: 'vehicle-1' }), workshopSchedulingDuration: () => ({ hours: 1 }) });
-  const start = source.indexOf("card.addEventListener('pointerdown', downEvent => {");
+  const start = source.indexOf("card.addEventListener('dragstart', event => {");
   const end = source.indexOf("\n  });\n  root.querySelectorAll('[data-workshop-vehicle-key]').forEach(card => card.addEventListener('dragend'", start);
-  vm.runInContext('let workshopActiveQueuePointerDrag = null, workshopSuppressMouseDragUntil = 0;' + source.slice(start, end), f.c);
-  cardListeners.get('pointerdown')({ pointerType: 'touch', pointerId: 4, clientX: 110, clientY: 30, target: { closest: () => null } });
-  return { ...f, cardListeners, windowListeners, get hits() { return hits; }, fire(name, values = {}) { return windowListeners.get(name)({ pointerId: 4, preventDefault() {}, ...values }); } };
+  vm.runInContext('let workshopActiveQueuePointerDrag = null, workshopSuppressMouseDragUntil = 0;\n'
+    + [extract('workshopDropLaneAtPoint'), extract('workshopStartPointerDragSession'), source.slice(start, end)].join('\n'), f.c);
+  const down = extra => cardListeners.get('pointerdown')({ pointerType: 'touch', pointerId: 4, clientX: 110, clientY: 30, target: { closest: () => null }, ...extra });
+  if (options.down !== false) down();
+  return { ...f, cardListeners, windowListeners, down, get hits() { return hits; }, fire(name, values = {}) { return windowListeners.get(name)({ pointerId: 4, preventDefault() {}, ...values }); } };
 }
 
 test('touch drag batches hit tests and releases into the final bay before its pending frame', () => {
@@ -125,6 +133,42 @@ test('touch drag batches hit tests and releases into the final bay before its pe
   f.fire('pointerup', { clientX: 300, clientY: 150 });
   assert.equal(f.raf.size, 0); assert.equal(f.saves.length, 1); assert.equal(f.saves[0].bay, 2); assert.equal(f.saves[0].startMinutes, 200);
   assert.equal(f.saves[0].preferRequestedTime, true); assert.equal(f.windowListeners.size, 0);
+});
+
+test('a mouse release over a bay schedules when the card is far down the list and an overlay covers the lane', () => {
+  const f = touchFixture({ down: false });
+  const overlay = { closest: () => null };
+  let points = 0;
+  f.c.document.elementsFromPoint = (_x, y) => {
+    points += 1;
+    return y < 0 ? [overlay] : [overlay, f.lanes[y >= 100 ? 1 : 0].lane];
+  };
+  f.down({ pointerType: 'mouse', clientX: 12, clientY: 3890 });
+  f.fire('pointermove', { clientX: 40, clientY: 3890 });
+  f.fire('pointerup', { clientX: 300, clientY: 150 });
+  assert.equal(f.saves.length, 1);
+  assert.equal(f.saves[0].bay, 2);
+  assert.equal(f.saves[0].startMinutes, 200);
+  assert.equal(f.saves[0].vehicleKeyValue, 'vehicle-1');
+  assert.equal(f.saves[0].preferRequestedTime, true);
+  assert.ok(points > 0);
+  assert.equal(f.hits, 0, 'viewport hit testing does not use the scrolled card offset');
+});
+
+test('a pointer session claims the card before native drag, and a synthetic dragstart still carries the payload', () => {
+  const claimed = touchFixture();
+  let prevented = false;
+  claimed.cardListeners.get('dragstart')({ preventDefault() { prevented = true; }, dataTransfer: { setData() {}, effectAllowed: '' } });
+  assert.equal(prevented, true);
+  const synthetic = touchFixture({ down: false });
+  const data = {};
+  prevented = false;
+  synthetic.cardListeners.get('dragstart')({ preventDefault() { prevented = true; }, dataTransfer: { setData: (key, value) => { data[key] = value; }, effectAllowed: '' } });
+  assert.equal(prevented, false);
+  assert.equal(data['application/x-workshop-vehicle-key'], 'vehicle-1');
+  const button = touchFixture({ down: false });
+  button.down({ target: { closest: () => ({}) } });
+  assert.equal(button.windowListeners.size, 0);
 });
 
 test('touch cancellation and release outside the planner cancel pending work without scheduling', () => {

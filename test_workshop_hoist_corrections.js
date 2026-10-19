@@ -66,8 +66,24 @@ test('Fabrication uses the same snapshot totals after a drop', () => {
   assert.match(source, /workshopUnallocatedHeadingCounts\(outstanding, returnedPlans/);
 });
 
-test('an untrusted refresh keeps the last heading and a committed schedule closes the dialog', () => {
+test('an untrusted refresh keeps the last heading and a confirmed write closes the dialog before refresh', () => {
   assert.match(source, /retainedQueueHeading/);
   assert.match(source, /result\.committed === true/);
-  assert.match(source, /if \(scheduled\) finish\(\)/);
+  assert.match(source, /workshopBindScheduleCommitClose\(window\.__workshopDataService, finish\)/);
+  assert.match(source, /if \(scheduled\) commitClose\.closeOnce\(\)/);
+  const start = source.indexOf('const WORKSHOP_SCHEDULE_DIALOG_RPCS');
+  const end = source.indexOf('function openWorkshopScheduleModal');
+  vm.runInContext(source.slice(start, end), context);
+  let closed = 0;
+  const service = { setWriteCommittedListener(listener) { this.listener = listener; return null; } };
+  const binding = context.workshopBindScheduleCommitClose(service, () => { closed += 1; });
+  service.listener('start_workshop_work', { ok: true });
+  assert.equal(closed, 0, 'an unrelated confirmed write leaves Add to planner open');
+  service.listener('administrator_schedule_workshop_vehicle', { ok: false });
+  assert.equal(closed, 0);
+  service.listener('administrator_schedule_workshop_vehicle', { ok: true });
+  service.listener('administrator_move_workshop_booking', { ok: true });
+  assert.equal(closed, 1);
+  binding.restore();
+  assert.equal(service.listener, null);
 });

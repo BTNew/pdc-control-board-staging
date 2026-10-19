@@ -48,19 +48,20 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 const approvedRootImportPatch = Object.freeze({
   "pdc-planner-slim.js": "d9b51f217cc1fb85d2a4a009f54d2902e9d2388f023984b6f20f158a6a090709",
   "pdc-review-stations.css": "e65e01d446092ae60f05460e7073f07e3bed4ba0299d4858d1c875be9b2e8fb7",
-  // Confirmed workshop writes stay committed if the readback authority changes.
-  // Department 135 stays parked and keeps the previous service bytes.
-  "workshop-data-service.js": "49e0045daf84c3e54d54812121c86223af6431479ece0c4c71b3c1cefedb6d4a",
+  // Confirmed workshop writes stay committed if the readback authority changes,
+  // and the dialog listener fires before the snapshot refresh. Department 135
+  // stays parked and keeps the previous service bytes.
+  "workshop-data-service.js": "68b14765b5b0ad92ef5fce5aba364386d3a4c16d0e507f36d5d7f0f509c271da",
   // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
   "pdc-review-stations.js": "851ebde33942fd3a3542f2292093483b6f9bc9f3ff9feb6cfc96aa8e6cf51488",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
   "pdc-workshop-departments.js": "06326c4e7bb3aa1b301c4c5cd42024927ca3bac1f6c9ef7ce5dcce871d41ed29",
-  // Shared planner: close a confirmed Add to planner dialog, follow the bay
-  // mechanic unless the user overrides it, keep unallocated counts on the
-  // snapshot totals for every station, and keep search on the last snapshot
-  // while a post-drop refresh is in flight. Department 135's copy stays frozen.
-  "workshop-planner.js": "53dc6739995cc070b2d27aea55e65bcdd028c197c7ac468911d7ad0c6c5343bc",
+  // Shared planner: pointer-capture drops from a deep queue or search overlay,
+  // keep the last search rows during a post-drop refresh, close Add to planner
+  // when the write is confirmed, follow the bay mechanic, and keep unallocated
+  // counts on the snapshot totals. Department 135's copy stays frozen.
+  "workshop-planner.js": "418c084832ecf8d681870490eb968e7448e940adbaff2a8f7332300187a7d26a",
   "workshop-planner.css": "b227830d512dc1980a9bdc9a5610e04890f0d9707bb3e343556ed8a2ee3b4bee",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
@@ -75,18 +76,19 @@ const approvedRootImportPatch = Object.freeze({
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
-  // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02, and
-  // the Vehicle Locations summary that says "Loading vehicles…" until the
-  // board snapshot arrives.
-  "app.js": "167803167e922bd8baa1b83b6c251ea233cff751625bcc75fbc1ca79de86e2ec",
+  // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
+  // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
+  // says "Loading vehicles…" until the board snapshot arrives.
+  "app.js": "9e744a4109a45488bf45ceb9b0c2338f6f576987af3ab4f80f217a11340ce697",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
-  // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02
-  // and location-loading=2026.10.19.01, and adds publish-minify=2026.10.19.01.
+  // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02,
+  // location-loading=2026.10.19.01 and publish-minify=2026.10.19.01, and adds
+  // planner-followup=2026.10.19.01.
   // Source app.js stays the pin above. The Pages artifact minifies that source.
   // Department 135's pages stay frozen.
-  "index.html": "f50a8bf6c511920983cb6ffebbee4e7897719b3e12f0ba303853ad1ba724ae84",
+  "index.html": "9a547b689aecb437eb98085858db04fb2c5521b7688fc443be66b1fe5f0aacfb",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
