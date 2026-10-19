@@ -18,3 +18,29 @@
 /* Embedded in the existing Review operation row, with full-width controls. */
 .authenticated-operation-station li > .review-station-control { grid-column: 1 / -1; width: 100%; box-sizing: border-box; margin-top: 8px; }
 .authenticated-operation-station .review-station-control small { display: block; grid-column: auto; }
+
+/* Review work is a readable list, with the station choice at the right edge. */
+.authenticated-operation-station[data-operation-station="REVIEW"] { grid-column: 1 / -1; }
+.authenticated-operation-station[data-operation-station="REVIEW"] li {
+  grid-template-columns: auto minmax(0, 1fr) 5.5rem minmax(220px, 300px);
+  align-items: center;
+}
+.authenticated-operation-station[data-operation-station="REVIEW"] li > small { grid-column: 2; margin: 0; }
+.authenticated-operation-station li > .review-station-control {
+  grid-column: 4; grid-row: 1 / span 2; width: auto; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: transparent;
+}
+.authenticated-operation-station .review-station-control > label,
+.authenticated-operation-station .review-station-control > small {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.authenticated-operation-station .review-station-fields { display: flex; flex-direction: row; gap: 6px; }
+.authenticated-operation-station .review-station-fields select { width: 100%; min-height: 34px; font-size: 13px; padding: 5px 8px; }
+.authenticated-operation-station .review-station-fields button { width: auto; min-height: 34px; padding: 5px 8px; }
+.authenticated-operation-station .review-station-fields button:disabled { display: none; }
+.authenticated-operation-station .review-station-message:empty { display: none; }
+@media (max-width: 700px) {
+  .authenticated-operation-station[data-operation-station="REVIEW"] li { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .authenticated-operation-station li > .review-station-control { grid-column: 2 / -1; grid-row: auto; }
+}

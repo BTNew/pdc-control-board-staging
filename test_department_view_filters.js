@@ -212,6 +212,7 @@ function locationsFixture(initial = '138') {
     vehicleCollectedFromRft: () => false, vehicleInCollectedState: () => false,
     incomingBucketForVehicle: row => row.bucket,
     incomingSearchText: row => row.stock.toLowerCase(),
+    vehicleJobcardNumber: row => row.jobCardNumber || '',
     navisionStatusText: row => row.status, pdcLocationLabel: value => value,
     vehiclePdcLocation: row => row.status, consultantName: row => row.rep,
     incomingWorkFilterMatches: (row, key) => row.work.includes(key),
@@ -239,7 +240,7 @@ function locationsFixture(initial = '138') {
     ensureOperationalRefreshControls: () => {}, showView: view => { c.app.currentView = view; },
   };
   vm.createContext(c);
-  for (const name of ['incomingDepartmentFilterValue', 'syncIncomingDepartmentFilter', 'pruneIncomingDepartmentSelection',
+  for (const name of ['vehicleJobcardSearchNumbers', 'vehicleMatchesJobcardSearch', 'incomingDepartmentFilterValue', 'syncIncomingDepartmentFilter', 'pruneIncomingDepartmentSelection',
     'incomingDepartmentPriorityRows', 'incomingWorkFilterValues', 'incomingDashboardFilterValues',
     'incomingVehicleMatchesFilters', 'vehicleLocationsScreenRows', 'clearIncomingDashboardFilters',
     'focusVehiclesAfterWorkImport', 'renderIncomingDashboardBoardContent']) vm.runInContext(appFunction(name), c);

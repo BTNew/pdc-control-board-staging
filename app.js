@@ -7607,9 +7607,22 @@ function incomingBucketLabel(bucketKey = '') {
   return VEHICLE_LOCATION_BUCKET_DEFS.find(def => def.key === bucketKey)?.label || bucketKey || 'OTHER';
 }
 
+function vehicleJobcardSearchNumbers(vehicle = {}) {
+  const lines = [...(vehicle.pdcEmailOperationLines || []), ...(vehicle.pdcQcOperationLines || [])];
+  return [...new Set([vehicleJobcardNumber(vehicle), vehicle.job_card_number,
+    ...(vehicle.pdcJobCardNumbers || []), ...lines.map(line => line.job_card_number || line.jobCardNumber)]
+    .filter(Boolean).map(value => String(value).trim().toLowerCase()))];
+}
+
+function vehicleMatchesJobcardSearch(vehicle = {}, query = '') {
+  const needle = String(query || '').toLowerCase().replace(/[\s-]/g, '');
+  return Boolean(needle && /\d/.test(needle) && vehicleJobcardSearchNumbers(vehicle)
+    .some(number => number.replace(/[\s-]/g, '').includes(needle)));
+}
+
 function incomingSearchText(vehicle = {}, bucketKey = '') {
   return [
-    displayStockNumber(vehicle), vehicle.stock, vehicle.batch,
+    displayStockNumber(vehicle), vehicle.stock, vehicle.batch, ...vehicleJobcardSearchNumbers(vehicle),
     vehicleKeyNumber(vehicle), vehicleJobcardNumber(vehicle), vehicle.rego, vehicle.registration, vehicle.client, vehicle.toyotaCustomer,
     vehicle.vehicle, vehicle.toyotaVehicle, displayVehicle(vehicle), navisionStatusText(vehicle), incomingBucketLabel(bucketKey),
     vehicle.consultant, vehicle.salesperson, vehicle.salesPerson, vehicle.owner, vehicle.navisionNotes, vehicle.dealerComments,
@@ -7678,7 +7691,7 @@ function incomingVehicleMatchesFilters(vehicle = {}, filters = incomingDashboard
   if (filters.rep && rep !== filters.rep) return false;
   const workFilters = Array.isArray(filters.work) ? filters.work : (filters.work ? [filters.work] : []);
   if (workFilters.length && !workFilters.some(work => incomingWorkFilterMatches(vehicle, work))) return false;
-  if (filters.search && !incomingSearchText(vehicle, bucket).includes(filters.search)) return false;
+  if (filters.search && !incomingSearchText(vehicle, bucket).includes(filters.search) && !vehicleMatchesJobcardSearch(vehicle, filters.search)) return false;
   return true;
 }
 
@@ -7795,7 +7808,7 @@ function workflowSearchText(vehicle = {}) {
 function workflowVehicleMatchesSearch(vehicle = {}, search = '') {
   const needle = String(search || '').trim().toLowerCase();
   if (!needle) return true;
-  return workflowSearchText(vehicle).includes(needle);
+  return workflowSearchText(vehicle).includes(needle) || vehicleMatchesJobcardSearch(vehicle, needle);
 }
 
 function workflowSearchValue() {
@@ -8240,7 +8253,7 @@ function authenticatedEmailOperationLinesHtml(vehicle = {}) {
           : '';
         const provenanceText = operation.hoursProvenance === 'pre_delivery_default_1_5' ? 'Business-rule default' : '';
         const reviewEvidence = [sourceHoursText, provenanceText].filter(Boolean).join(' · ');
-        return `<li><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em>${reviewEvidence ? `<small>${escapeHtml(reviewEvidence)}</small>` : ''}</li>`;
+        return `<li data-operation-source-id="${escapeHtml(operation.operation_line_id || '')}"><strong>${escapeHtml(authenticatedOperationLineLabel(operation.operation_no))}</strong><span>${escapeHtml(operation.description)}</span><em${hoursClass}>${escapeHtml(hoursText)}${estimateLabel}</em>${reviewEvidence ? `<small>${escapeHtml(reviewEvidence)}</small>` : ''}</li>`;
       }).join('')}</ol>
     </section>`;
     }).join('')}</div>
@@ -11452,7 +11465,7 @@ function filteredVehicles() {
   return pdcSheetVehicles().filter(v => {
     const productionLabel = productionMonthLabel(v.prodMth || v.productionMonth || '');
     const hay = [v.stock, v.client, v.toyotaCustomer, displayVehicle(v), v.vehicle, v.toyotaVehicle, v.toyotaStatus, pdcLocationLabel(v.pdcLocation), pmbStageLabel(inferredPmbStage(v)), pmbRequirementText(v), pdcCompletedJobsText(v), pdcOutstandingJobsText(v), isPdcBlocked(v) ? 'blocked' : '', pdcBlockReason(v), pmbStageAgeLabel(v), v.deliveryDate, v.etaAtDealer, productionLabel, v.prodMth, v.autocareVin, v.autocareBatch, v.autocareLoadNumber, v.navisionDealerComments, v.financeNote, v.navisionVehicleNote, consultantName(v), salesPersonInitials(consultantName(v)), v.source, v.internalStatus, ...(v.poTasks || [])].join(' ').toLowerCase();
-    const matchesQuery = !q || hay.includes(q);
+    const matchesQuery = !q || hay.includes(q) || vehicleMatchesJobcardSearch(v, q);
     const matchesStatus = !status || v.toyotaStatus === status;
     const matchesSales = !sales || salesPersonInitials(consultantName(v)) === sales;
     const matchesProduction = !production || productionLabel === production;

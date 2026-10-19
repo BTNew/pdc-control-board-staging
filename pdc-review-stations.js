@@ -58,7 +58,7 @@
     const hours = line.estimatedHours == null ? 'Hours still need review' : `${Number(line.estimatedHours)} h · hours unchanged`;
     return `<div class="review-station-control" data-review-control data-review-vehicle="${esc(vehicle.__emailVehicleId)}" data-review-line="${esc(line.lineIdentity)}">
       <label for="review-station-${esc(suffix)}">Assign this Review item to a station</label>
-      ${writable ? `<div class="review-station-fields"><select id="review-station-${esc(suffix)}" data-review-station-select ${busy ? 'disabled' : ''} aria-label="${esc(`Station for ${line.description}`)}"><option value="">Choose station…</option>${STATIONS.map(([code, name]) => `<option value="${code}"${code === value ? ' selected' : ''}>${name}</option>`).join('')}</select><button type="button" data-review-station-save ${busy || !stationValid(value) ? 'disabled' : ''}>${busy ? 'Saving…' : 'Save station'}</button></div>` : '<p>Operator or Administrator access is required to assign a station.</p>'}
+      ${writable ? `<div class="review-station-fields"><select id="review-station-${esc(suffix)}" data-review-station-select ${busy ? 'disabled' : ''} aria-label="${esc(`Station for ${line.description}`)}"><option value="">Choose Station…</option>${STATIONS.map(([code, name]) => `<option value="${code}"${code === value ? ' selected' : ''}>${name}</option>`).join('')}</select><button type="button" data-review-station-save ${busy || !stationValid(value) ? 'disabled' : ''}>${busy ? 'Saving…' : 'Save station'}</button></div>` : '<p>Operator or Administrator access is required to assign a station.</p>'}
       <small>${esc(hours)}. Assignment does not tick off the item.</small><span class="review-station-message" role="status" aria-live="polite">${esc(message)}</span>
     </div>`;
   }
@@ -137,8 +137,9 @@
     const nodes = reviewSection ? [...reviewSection.querySelectorAll('ol > li')] : [];
     for (const line of lines) {
       const label = authenticatedOperationLineLabel(line.operationNo);
-      const matches = nodes.filter(node => node.querySelector('strong')?.textContent === label
-        && node.querySelector('span')?.textContent === line.description);
+      const exact = nodes.filter(node => node.dataset.operationSourceId === line.sourceLineId);
+      const matches = exact.length ? exact : nodes.filter(node => !node.dataset.operationSourceId
+        && node.querySelector('strong')?.textContent === label && node.querySelector('span')?.textContent === line.description);
       if (matches.length === 1 && !matches[0].querySelector('[data-review-control]')) {
         matches[0].insertAdjacentHTML('beforeend', htmlFor(vehicle, line, 'locations'));
       } else {
