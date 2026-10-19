@@ -83,10 +83,10 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20261019012546",
-    "name": "jobcard_required_work_sync",
-    "file": "supabase/migrations/20261019012546_jobcard_required_work_sync.sql",
-    "sha256": "97f2460152c14e4b32b093693cbde0b90fa03a13d0ab4280eef851a92015670b",
+    "version": "20261019020651",
+    "name": "unallocate_preserve_booking_calendar",
+    "file": "supabase/migrations/20261019020651_unallocate_preserve_booking_calendar.sql",
+    "sha256": "18c63a5fed11365fbe78fc6d7dfa7e4878c7cc891b6e523290ab8174ccd7735d",
     "commissioned": true,
     "review_status": "staging_applied"
   },

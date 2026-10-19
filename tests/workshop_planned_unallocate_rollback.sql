@@ -80,7 +80,7 @@ BEGIN
  SELECT batch INTO batch_id FROM ou_context;
  SELECT work_key INTO STRICT wk FROM public.workshop_stages WHERE code=stage;
  p:=jsonb_build_object('stock_number',v.stock_number,'repair_order_number',v.job_card_number,'original_line_number',line_no,'source_order',line_no,
- 'department',dept,'operation_description','Fixture work '||stage||' line '||line_no,'source_estimated_hours',hrs,'effective_estimated_hours',hrs,
+ 'department',dept,'operation_description',CASE WHEN dept='138' AND stage='BUS_4X4' THEN 'Coaster Bus 4x4 Conversion - 6 Speed 2.8' ELSE 'Fixture work '||stage||' line '||line_no END,'source_estimated_hours',hrs,'effective_estimated_hours',hrs,
  'proposed_station',stage,'hours_provenance','source_explicit','semantic_hash',repeat('c',64),'parts_on_backorder_raw','');
  INSERT INTO public.pdc_pilbara_service_import_rows(evidence_id,batch_id,importer_version,source_order,stock_number,repair_order_number,original_line_number,
  semantic_hash,normalized_payload,raw_row,decision,reason,vehicle_id)
@@ -166,13 +166,19 @@ DECLARE day date; scenario text; b uuid; v uuid; bay uuid; stage text; state pub
  assignments_before jsonb; history_before jsonb; history_after jsonb; source_before jsonb; work_before jsonb; workflow_before jsonb;
 BEGIN
  day:=date_trunc('week',greatest(clock_timestamp()+interval '30 days',coalesce((SELECT max(scheduled_end_at) FROM public.workshop_bookings),clock_timestamp())+interval '30 days') AT TIME ZONE 'Australia/Perth')::date+7;
- FOREACH scenario IN ARRAY ARRAY['fitting-planned','coaster-planned','fitting-started','fitting-stoppage'] LOOP
+ FOREACH scenario IN ARRAY ARRAY['fitting-planned','coaster-planned','coaster-long-planned','coaster-long-started','fitting-started','fitting-stoppage'] LOOP
   PERFORM set_config('qa.bus_clock_case','unallocate-'||scenario,true);
-  stage:=CASE WHEN scenario='coaster-planned' THEN 'BUS_4X4' ELSE 'FITTING' END;
-  state:=CASE scenario WHEN 'fitting-started' THEN 'started' WHEN 'fitting-stoppage' THEN 'stoppage' ELSE 'planned' END;
-  bay:=CASE WHEN stage='BUS_4X4' THEN pg_temp.bc_bay(3) ELSE pg_temp.ou_bay('unallocate-'||scenario,'FITTING') END;
-  b:=pg_temp.bc_booking('unallocate-'||scenario,stage,bay,pg_temp.bc_at(day,time '07:00'),60,CASE WHEN stage='BUS_4X4' THEN 'legacy' ELSE 'none' END,state,'Toyota Coaster');
+  stage:=CASE WHEN scenario LIKE 'coaster%' THEN 'BUS_4X4' ELSE 'FITTING' END;
+  state:=CASE scenario WHEN 'fitting-started' THEN 'started' WHEN 'coaster-long-started' THEN 'started' WHEN 'fitting-stoppage' THEN 'stoppage' ELSE 'planned' END;
+  bay:=CASE WHEN stage='BUS_4X4' THEN pg_temp.bc_bay(CASE WHEN scenario LIKE 'coaster-long%' THEN 1 ELSE 3 END) ELSE pg_temp.ou_bay('unallocate-'||scenario,'FITTING') END;
+  b:=pg_temp.bc_booking('unallocate-'||scenario,stage,bay,pg_temp.bc_at(day,time '07:00'),CASE WHEN scenario LIKE 'coaster-long%' THEN 1200 ELSE 60 END,CASE WHEN scenario LIKE 'coaster-long%' THEN 'current' WHEN stage='BUS_4X4' THEN 'legacy' ELSE 'none' END,state,'Toyota Coaster');
   SELECT vehicle_id,version,to_jsonb(x) INTO v,ver,before_row FROM public.workshop_bookings x WHERE id=b;
+  IF scenario LIKE 'coaster-long%' THEN
+   result:=public.workshop_validate_booking(b,v,(before_row->>'stage_id')::uuid,NULL,
+    (before_row->>'scheduled_start_at')::timestamptz,(before_row->>'scheduled_end_at')::timestamptz,
+    (before_row->>'default_duration_minutes')::integer,'queued',NULL,true);
+   PERFORM pg_temp.ou_assert(result->>'error'='calendar_duration_mismatch',scenario||' reproduces general-calendar mismatch without bay',result);
+  END IF;
   PERFORM public.workshop_write_history(b,'created',NULL,public.workshop_booking_snapshot(b),'{"rollback_fixture":"planned_unallocate"}');
   SELECT to_jsonb(x) INTO vehicle_before FROM public.vehicles x WHERE id=v;
   SELECT jsonb_agg(to_jsonb(a) ORDER BY id) INTO assignments_before FROM public.workshop_booking_assignments a WHERE booking_id=b;
@@ -196,6 +202,14 @@ BEGIN
   EXCEPTION WHEN SQLSTATE '22023' THEN denied:=true;
   END;
   PERFORM pg_temp.ou_assert(denied,scenario||' direct transition stays denied after version conflict');
+  denied:=false;
+  BEGIN
+   PERFORM public.workshop_authorize_transition(b,'return_to_queue');
+   UPDATE public.workshop_bookings SET status='queued',bay_id=NULL,returned_to_queue_at=clock_timestamp(),
+    default_duration_minutes=default_duration_minutes+17,version=version+1 WHERE id=b;
+  EXCEPTION WHEN SQLSTATE '22023' THEN denied:=true;
+  END;
+  PERFORM pg_temp.ou_assert(denied,scenario||' return exemption cannot change duration');
   result:=public.return_work_to_queue(b,ver,NULL,'{"source":"planned_unallocate_rollback"}');
   PERFORM pg_temp.ou_assert(result->>'ok'='true',scenario||' authorized return to Unallocated succeeds',result);
   SELECT to_jsonb(x) INTO after_row FROM public.workshop_bookings x WHERE id=b;
