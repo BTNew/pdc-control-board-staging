@@ -13908,7 +13908,10 @@ function vehicleWorkshopDetailRequestDealerCode(vehicle = {}, config = {}) {
   if (['14450', '37047'].includes(dealer)) return dealer;
   // Imported PMG vehicles may have a customer-account code instead of a dealer.
   // This selects a read scope only; the server verifies accepted job evidence.
-  return vehicle.__emailVehicleServerAuthoritative === true && config.dealerCode === '14450' ? '14450' : '';
+  const navisionCanonical = vehicle.__sharedNavisionReadOnly === true
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(vehicle.__sharedNavisionCanonicalVehicleId || ''));
+  return (vehicle.__emailVehicleServerAuthoritative === true || navisionCanonical)
+    && config.dealerCode === '14450' ? '14450' : '';
 }
 
 function vehicleWorkshopDetailResponse(detail, canonicalId = '') {

@@ -63,7 +63,7 @@ const approvedRootImportPatch = Object.freeze({
   "canonical-entry.js": "3b0245057b942bf001f076d6595a944c0be4818d454c190bdd95ba323b37c748",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
-  "app.js": "97562b78abdb489153394ea06417b3a99190ddb1e027b9dcafe472bbae875c64",
+  "app.js": "c1b1de025fb4eac3097dff83398e21b7a35195995c123c320b62ebd05e977d31",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   "index.html": "efa421f995f421b46355a6c00b8a491682ad1d66652c7c1792952bbb2614f922",
