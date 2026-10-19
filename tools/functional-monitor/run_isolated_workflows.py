@@ -22,6 +22,8 @@ BACKUPS = Path(r"C:\Users\craig\PDCBackups")
 EXPECTED_PROJECT = "cdsmnqxtyyoeoznmbidd"
 RESTORE_HELPER_SHA256 = "2ffeafaae46ed40ab083a0979282a4cb1f309cef85aeeb361c0a30ff2b2b2d5a"
 SCENARIOS = [
+    ("Forward clock cascade and delayed arrivals", "tests/workshop_clock_arrival_floor_rollback.sql"),
+    ("Current backlog forward cascade", "tests/workshop_clock_current_backlog_rollback.sql"),
     ("Moving bookings and conflict scope", "tests/workshop_move_conflict_scope_rollback.sql"),
     ("Start job priority and cascade", "tests/start_priority_cascade_rollback.sql"),
     ("Start job safety guards", "tests/start_priority_guards_rollback.sql"),
