@@ -30,7 +30,7 @@ test('independent shared operations split without inventing conversion hours',()
  for(const d of ['Tyres upgrade','6 x rims and tyres','Wheel alignment','Second spare genuine wheel'])assert.equal(layout.sharedStation(d),'TYRE',d);
  for(const d of ['Coaster bus 4x4 conversion with tyres','Spare wheel carrier','Wheel nut indicators','Wheel chocks','Wheelchair lift','Bonnet protector'])assert.equal(layout.sharedStation(d),'BUS_4X4',d);
 });
-test('group view narrows display but all physical bays remain override choices',()=>{
+test('group view and Schedule both use the selected station bays',()=>{
  const state={busBayGroup:'mechanical'},context={window:{PDC_WORKSHOP_DEPARTMENTS:layout},workshopState:()=>state,workshopStageBayCount:()=>10,workshopPad:n=>String(n).padStart(2,'0')};
  vm.createContext(context);vm.runInContext(planner.slice(planner.indexOf('function workshopDepartmentLayout('),planner.indexOf('function workshopBayRowsHtml(')),context);
  assert.deepEqual(Array.from(context.workshopVisibleBays('BUS_4X4')),[1,2,3,4]);
@@ -40,7 +40,8 @@ test('group view narrows display but all physical bays remain override choices',
  state.busBayGroup='';assert.equal(context.workshopVisibleBays('BUS_4X4').length,10);
  assert.match(context.workshopBayChoiceLabel('BUS_4X4',10),/Accessory Fitting/);
  const start=planner.indexOf('function openWorkshopScheduleModal('),modal=planner.slice(start,planner.indexOf('\nfunction ',start+1));
- assert.match(modal,/length: workshopStageBayCount\(normalizedStage\)/);assert.match(modal,/override/i);
+ assert.match(modal,/workshopVisibleBays\(normalizedStage\)\.map/);
+ assert.doesNotMatch(modal,/Choose any suitable Bus4x4 bay/);
 });
 test('working shell loads department layout and retires readiness panels',()=>{
  const html=fs.readFileSync('index.html','utf8');
