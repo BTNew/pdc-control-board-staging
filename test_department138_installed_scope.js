@@ -44,7 +44,7 @@ test('Schedule offers the selected category bays, and both planner loaders are c
  assert.match(modal,/workshopVisibleBays\(normalizedStage\)\.map/);
  assert.doesNotMatch(modal,/Choose any suitable Bus4x4 bay/);
  const app=fs.readFileSync('app.js','utf8');
- assert.equal((app.match(/workshop-planner\.js\?station-scope=2026\.10\.19\.02/g)||[]).length,2);
+ assert.equal((app.match(/workshop-planner\.js\?station-scope=2026\.10\.19\.03/g)||[]).length,2);
  const mapper=fs.readFileSync('pdc-email-vehicle-location-service.js','utf8');
  assert.match(mapper,/workCategory: String\(item\?\.work_category/);
 });
