@@ -47,4 +47,6 @@ Existing identity, dealer/role scope, location readiness, completed work, QC/RFT
 
 ## Verification
 
+Existing unresolved Review lines can use a saved positive AI estimate, with `ai_estimate` provenance, when source labour is absent. Positive source labour always wins. This does not release historical baselines automatically: when the owner requests existing work reclassified, review the exact current lines and release only their obsolete routing holds. Record the prior rules and baselines in a private owner receipt, verify the canonical categories and required-work flags, and preserve staff choices, completed work, source evidence and bay bookings. Assigning work sections must not rebook items returned to Unallocated.
+
 Use `tests/automatic_jobcard_additions_rollback.sql` only through the owned disposable database workflow described in `tools/functional-monitor/README.md`; never create live test vehicles. UI regression coverage is `test_automatic_jobcard_additions.js`. Check notes, Electrical routing, provisional versus source hours, replay, private-function permissions and unchanged pre-existing bookings. Actual browser dragging and external email delivery require separate evidence.

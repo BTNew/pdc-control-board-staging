@@ -83,10 +83,10 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20261019052824",
-    "name": "workshop_clock_unallocated_scope",
-    "file": "supabase/migrations/20261019052824_workshop_clock_unallocated_scope.sql",
-    "sha256": "cb4d901d53c8dec67087fda2a18f2424c660a553f7f8199bcbb92605a988c84c",
+    "version": "20261019063242",
+    "name": "resolve_existing_review_routing",
+    "file": "supabase/migrations/20261019063242_resolve_existing_review_routing.sql",
+    "sha256": "f9f39e78f2d5d6972a796f59615750b2093b5d0555dcd08856f97836cc570bdf",
     "commissioned": true,
     "review_status": "staging_applied"
   },
@@ -1170,6 +1170,14 @@
     "name": "workshop_clock_unallocated_scope",
     "file": "supabase/migrations/20261019052824_workshop_clock_unallocated_scope.sql",
     "sha256": "cb4d901d53c8dec67087fda2a18f2424c660a553f7f8199bcbb92605a988c84c",
+    "commissioned": true,
+    "review_status": "staging_applied"
+  },
+  "existing_review_routing_migration": {
+    "version": "20261019063242",
+    "name": "resolve_existing_review_routing",
+    "file": "supabase/migrations/20261019063242_resolve_existing_review_routing.sql",
+    "sha256": "f9f39e78f2d5d6972a796f59615750b2093b5d0555dcd08856f97836cc570bdf",
     "commissioned": true,
     "review_status": "staging_applied"
   }
