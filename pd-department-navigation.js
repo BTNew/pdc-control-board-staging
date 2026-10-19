@@ -13,7 +13,9 @@
   select.id = 'pdc-pd-department-switcher';
   select.setAttribute('aria-label', 'Switch PD department');
   select.disabled = true;
-  for (const [value, text] of [['pmb', 'PMB'], ['karratha', 'Karratha PMG']]) {
+  const departments = [['pmb', 'PMB']];
+  if (window.PDC135_BOARD_ENABLED === true) departments.push(['karratha', 'Karratha PMG']);
+  for (const [value, text] of departments) {
     const option = document.createElement('option');
     option.value = value;
     option.textContent = text;
