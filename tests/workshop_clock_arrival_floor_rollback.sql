@@ -150,7 +150,7 @@ END $fn$;
 
 
 DO $isolate$
-DECLARE d text; needle text:='WHERE b.deleted_at IS NULL AND b.status IN(''planned'',''queued'',''started'',''stoppage'');';
+DECLARE d text; needle text:='AND NOT (b.status=''queued'' AND b.bay_id IS NULL AND b.actual_start_at IS NULL);';
 BEGIN
  d:=pg_get_functiondef('public.workshop_clock_tick(boolean,timestamptz)'::regprocedure);
  IF strpos(d,needle)=0 THEN RAISE EXCEPTION 'Clock fixture scope changed'; END IF;
@@ -158,7 +158,7 @@ BEGIN
  EXECUTE d;
 END $isolate$;
 DO $exercise$
-DECLARE v uuid; follower uuid; bay uuid; other_bay uuid; b uuid; b2 uuid; linked uuid;
+DECLARE v uuid; follower uuid; bay uuid; other_bay uuid; b uuid; b2 uuid; linked uuid; returned uuid; returned_before jsonb;
  day date; at_time timestamptz; tick_at timestamptz; r jsonb; preview jsonb; before_rows jsonb;
 BEGIN
  SELECT friday+350 INTO day FROM ou_context;
@@ -173,6 +173,10 @@ BEGIN
  b:=pg_temp.ou_booking('clock-arrival',v,'FITTING',bay,at_time);
  b2:=pg_temp.ou_booking('clock-follower',follower,'FITTING',bay,public.workshop_add_operational_minutes(at_time,60));
  linked:=pg_temp.ou_booking('clock-linked',v,'ELECTRICAL',other_bay,public.workshop_clock_next_minute(at_time+interval '2 days'));
+ returned:=pg_temp.ou_booking('clock-returned',follower,'FITTING',bay,public.workshop_clock_next_minute(at_time+interval '4 days'));
+ r:=public.return_work_to_queue(returned,(SELECT version FROM public.workshop_bookings WHERE id=returned),NULL,'{"source":"clock_unallocated_rollback"}');
+ PERFORM pg_temp.ou_assert(r->>'ok'='true','Synthetic follower returned to Unallocated',r);
+ SELECT to_jsonb(x) INTO returned_before FROM public.workshop_bookings x WHERE id=returned;
  SELECT jsonb_agg(to_jsonb(x)-ARRAY['scheduled_start_at','scheduled_end_at','version','updated_at','updated_by','eta_at_booking','eta_risk_status','eta_risk_detected_at','default_duration_minutes','capacity_base_minutes','capacity_estimate_minutes','capacity_efficiency_percent']) INTO before_rows FROM public.workshop_bookings x WHERE id IN(b,b2,linked);
  -- A normal arrival update can invalidate an already-planned start.
  UPDATE public.vehicles SET current_location='IT',location_override=NULL,eta_to_kewdale=day+7 WHERE id=v;
@@ -183,6 +187,7 @@ BEGIN
  r:=public.workshop_clock_tick(true,tick_at);
  PERFORM pg_temp.ou_assert(r->>'ok'='true','Arrival change does not freeze cascade',r);
  PERFORM pg_temp.ou_assert((r->>'moved_count')::int=3,'Both bay and cross-station followers cascade',r);
+ PERFORM pg_temp.ou_assert((SELECT to_jsonb(x)=returned_before FROM public.workshop_bookings x WHERE id=returned),'Unallocated job stays untouched and does not block followers');
  PERFORM pg_temp.ou_assert(r->'plans'=preview->'plans','Persisted movement matches preview');
  PERFORM pg_temp.ou_assert((SELECT default_duration_minutes=60 FROM public.workshop_bookings WHERE id=b),'Previously allocated hours are never cut');
  PERFORM pg_temp.ou_assert((SELECT default_duration_minutes=120 FROM public.workshop_bookings WHERE id=b2),'Added work gets sufficient bay capacity');
