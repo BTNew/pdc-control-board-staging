@@ -27,6 +27,7 @@ SCENARIOS = [
     ("Moving bookings and conflict scope", "tests/workshop_move_conflict_scope_rollback.sql"),
     ("Start job priority and cascade", "tests/start_priority_cascade_rollback.sql"),
     ("Start job safety guards", "tests/start_priority_guards_rollback.sql"),
+    ("Start ignores returned Unallocated reservations", "tests/start_unallocated_reservations_rollback.sql"),
     ("Fitters line items and weighted progress", "tests/workshop_fitter_progress_rollback.sql"),
     ("Fitters follow destination bay assignments", "tests/fitter_bay_default_assignment_rollback.sql"),
     ("Job card work categories and completion", "tests/jobcard_work_categories_rollback.sql"),
@@ -179,7 +180,7 @@ def run(output: Path, scenario_names: list[str] | None = None, fingerprints: Pat
             validate_sql(text)
             # Make the synthetic label unambiguous without changing identifiers.
             text = text.replace("ROLLBACK FIXTURE ", "TEST VEHICLE ")
-            if relative.startswith("tests/start_priority_"):
+            if relative.startswith(("tests/start_priority_", "tests/start_unallocated_")):
                 # These historical start-now scenarios assume now is an open
                 # minute. Give only their transaction an explicit test calendar;
                 # the separate working-hours scenario tests the real calendar.
