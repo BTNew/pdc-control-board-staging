@@ -129,8 +129,18 @@ BEGIN
  PERFORM pg_temp.ou_assert(r->>'error'='vehicle_overlap','Stopped same-vehicle work cannot be displaced',r);
  PERFORM pg_temp.ou_assert((SELECT to_jsonb(b)=saved FROM public.workshop_bookings b WHERE id=target),'Protected vehicle rejection leaves target unchanged');
  
+END $checks$;
+
+-- Keep each independent safety group within its own bounded statement.
+-- The surrounding transaction still rolls back all fixtures and assertions.
+DO $checks$
+DECLARE t timestamptz:=date_trunc('minute',statement_timestamp()); later timestamptz:=public.workshop_admin_next_operational_minute(statement_timestamp()+interval '2 days');
+ v uuid; v2 uuid; bay uuid; bay2 uuid; target uuid; live uuid; r jsonb; saved jsonb; ver integer;
+ tech uuid:=gen_random_uuid(); leave_tech uuid:=gen_random_uuid(); explicit_tech uuid:=gen_random_uuid(); leave_saved jsonb;
+BEGIN
  INSERT INTO public.workshop_technicians(id,name,role_type,active) VALUES(tech,'Priority busy default rollback','technician',true),
  (leave_tech,'Priority leave default rollback','technician',true),(explicit_tech,'Priority explicit rollback','technician',true);
+ INSERT INTO ou_refs VALUES('leave-technician',leave_tech);
  v:=pg_temp.ou_vehicle('priority-tech-live');v2:=pg_temp.ou_vehicle('priority-tech-target');
  bay:=pg_temp.ou_bay('priority-tech-live','FITTING');bay2:=pg_temp.ou_bay('priority-tech-target','FITTING');
  UPDATE public.workshop_bays SET default_technician_id=tech WHERE id=bay2;
@@ -153,6 +163,14 @@ BEGIN
  r:=public.start_workshop_work(target,ver,NULL,'{}');
  PERFORM pg_temp.ou_assert((r->>'ok')::boolean,'Explicit assignment supersedes unavailable default mechanic',r);
  
+END $checks$;
+
+DO $checks$
+DECLARE t timestamptz:=date_trunc('minute',statement_timestamp()); later timestamptz:=public.workshop_admin_next_operational_minute(statement_timestamp()+interval '2 days');
+ v uuid; v2 uuid; bay uuid; bay2 uuid; target uuid; live uuid; r jsonb; saved jsonb; ver integer;
+ tech uuid:=gen_random_uuid(); leave_tech uuid:=gen_random_uuid(); explicit_tech uuid:=gen_random_uuid(); leave_saved jsonb;
+BEGIN
+ SELECT id INTO leave_tech FROM ou_refs WHERE name='leave-technician';
  v:=pg_temp.ou_vehicle('priority-tech-leave');bay:=pg_temp.ou_bay('priority-tech-leave','FITTING');
  UPDATE public.workshop_bays SET default_technician_id=leave_tech WHERE id=bay;
  PERFORM pg_temp.ou_operation(v,'FITTING',1,1);target:=pg_temp.ou_booking('priority-tech-leave',v,'FITTING',bay,later);
