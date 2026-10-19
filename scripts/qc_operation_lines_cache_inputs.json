@@ -1,0 +1,157 @@
+{
+  "root": "public.pdc_qc_operation_lines_379(uuid)",
+  "reviewed_body_md5": "b677d7bfdf67c046fd05922da249325c",
+  "time_or_user_dependent": false,
+  "walk": "schema-qualified and unqualified calls, depth 7, from|join relation names checked against pg_class",
+  "functions": [
+    "pdc_bus_private.operation_station",
+    "pdc_codex_intake_private.arb_hours_review_valid",
+    "pdc_codex_intake_private.service_catalogue_hours_20260917",
+    "pdc_work_categories_private.adjustment_signature",
+    "pdc_work_categories_private.base_pdc_qc_operation_lines_379",
+    "pdc_work_categories_private.before_import_rules_20261017",
+    "pdc_work_categories_private.import_description_hash_20261017",
+    "pdc_work_categories_private.route_before_automatic_20261019",
+    "pdc_work_categories_private.route_import_line_20261017",
+    "pdc_work_categories_private.source_signature",
+    "pdc_work_categories_private.stage",
+    "pdc_work_categories_private.suggest",
+    "public.pdc_department138_station_20260917",
+    "public.pdc_is_pre_delivery_20260910",
+    "public.pdc_pending_work_category_20260912",
+    "public.pdc_pending_work_category_before_dept138_20260916",
+    "public.pdc_qc_operation_lines_379",
+    "public.pdc_standard_operation_hours_20260910",
+    "public.pdc_tune_approved_operation_source_20260912",
+    "public.workshop_canonical_stage_code",
+    "public.workshop_normalize_identifier",
+    "public.workshop_stage_code_for_work_key"
+  ],
+  "relations": [
+    {
+      "schema": "pdc_bus_private",
+      "name": "operation_routing_history_20261015",
+      "invalidation": "operation"
+    },
+    {
+      "schema": "pdc_operation_updates_private",
+      "name": "ai_routing_20261019",
+      "invalidation": "global"
+    },
+    {
+      "schema": "pdc_work_categories_private",
+      "name": "import_baseline_20261017",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "pdc_work_categories_private",
+      "name": "import_rules_139_20261018",
+      "invalidation": "global"
+    },
+    {
+      "schema": "pdc_work_categories_private",
+      "name": "import_rules_20261017",
+      "invalidation": "global"
+    },
+    {
+      "schema": "pdc_work_categories_private",
+      "name": "line_overrides",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "pdc_work_categories_private",
+      "name": "owner_line_reviews",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "navision_backend_records",
+      "invalidation": "global"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_authenticated_email_operation_lines",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_new_vehicle_reviews",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_pilbara_service_classification_current",
+      "invalidation": "operation"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_pilbara_service_classification_history",
+      "invalidation": "operation"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_pilbara_service_import_batches",
+      "invalidation": "global"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_pilbara_service_import_rows",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_pilbara_service_operation_history",
+      "invalidation": "operation"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_pilbara_service_operations",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_qc_operation_completions_379",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_qc_operation_rejections_381",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "pdc_tune_operation_change_reviews",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "vehicle_work_items",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "vehicle_workshop_line_adjustments",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "vehicles",
+      "invalidation": "vehicle_row"
+    },
+    {
+      "schema": "public",
+      "name": "workshop_bookings",
+      "invalidation": "vehicle"
+    },
+    {
+      "schema": "public",
+      "name": "workshop_stage_aliases",
+      "invalidation": "global"
+    },
+    {
+      "schema": "public",
+      "name": "workshop_stages",
+      "invalidation": "global"
+    }
+  ]
+}
