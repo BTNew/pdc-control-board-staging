@@ -3435,7 +3435,10 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
   const clean = cleanNavisionText(query || '').toLowerCase();
   if (clean.length < 2) return [];
   const lookup = options.ignoreLookup || typeof workshopCurrentSearchLookup !== 'function' ? null : workshopCurrentSearchLookup(query);
-  const snapshot = window.__workshopDataService?.getTrustedSnapshot?.();
+  // A post-drop refresh clears trusted authority. Keep matching the last
+  // outstanding rows so search does not flash "No booking found".
+  const searchService = window.__workshopDataService;
+  const snapshot = searchService?.getTrustedSnapshot?.() || searchService?.getLastSnapshot?.() || null;
   const snapshotWorkItems = Array.isArray(snapshot?.work_items) ? snapshot.work_items : [];
   const snapshotRows = (Array.isArray(snapshot?.vehicles) ? snapshot.vehicles : [])
     .map(vehicle => workshopSnapshotVehicleToPlannerRow(vehicle, snapshotWorkItems, workshopState().stage));
@@ -3868,11 +3871,117 @@ function workshopRevealSearchMatch(query = '') {
   renderWorkshopPlanner();
 }
 
+function workshopDropLaneAtPoint(clientX, clientY) {
+  const nodes = typeof document.elementsFromPoint === 'function'
+    ? document.elementsFromPoint(clientX, clientY)
+    : [typeof document.elementFromPoint === 'function' ? document.elementFromPoint(clientX, clientY) : null];
+  for (const node of nodes || []) {
+    const lane = node?.closest?.('[data-workshop-drop-bay]');
+    if (lane) return lane;
+  }
+  return null;
+}
+
+// Mouse and touch both use pointer capture. Native HTML5 drop from a card
+// deep in .workshop-side-list fires dragstart/dragend and never drop: Chrome
+// hit-tests from the scrolled source. The search overlay has the same gap,
+// because pointer-events changes during a native drag do not retarget it.
+function workshopStartPointerDragSession(source, downEvent, root, session = {}) {
+  if (source?.getAttribute?.('aria-disabled') === 'true') return;
+  const nestedControl = downEvent.target?.closest?.('button, a, input, select, textarea');
+  if (nestedControl && nestedControl !== source) return;
+  if (workshopActiveQueuePointerDrag) return;
+  const pointerId = downEvent.pointerId;
+  const startX = downEvent.clientX;
+  const startY = downEvent.clientY;
+  let activeLane = null;
+  let activated = false;
+  let pointerFrame = null;
+  let pendingPointer = null;
+  workshopActiveQueuePointerDrag = { pointerId, source };
+  const cancelPointerFrame = () => {
+    if (pointerFrame !== null) window.cancelAnimationFrame?.(pointerFrame);
+    pointerFrame = null;
+    pendingPointer = null;
+  };
+  const cleanup = () => {
+    cancelPointerFrame();
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', finish);
+    window.removeEventListener('pointercancel', cancel);
+    source.removeEventListener?.('lostpointercapture', cancel);
+    if (source.hasPointerCapture?.(pointerId)) source.releasePointerCapture(pointerId);
+    if (activeLane) activeLane.classList.remove('drag-over');
+    workshopSetDragPreview(null);
+    workshopClearLanePreviews(root);
+    root?.querySelector?.('#workshop-booking-search-results')?.classList.remove('is-dragging');
+    if (workshopActiveQueuePointerDrag?.source === source) workshopActiveQueuePointerDrag = null;
+    workshopSuppressMouseDragUntil = Date.now() + 750;
+  };
+  const activate = () => {
+    if (activated) return;
+    activated = true;
+    if (source.dataset) source.dataset.workshopPointerDragged = '1';
+    source.setPointerCapture?.(pointerId);
+    source.addEventListener?.('lostpointercapture', cancel);
+    root?.querySelector?.('#workshop-booking-search-results')?.classList.add('is-dragging');
+    const preview = session.preview?.();
+    if (preview) workshopSetDragPreview(preview);
+  };
+  const paintPointer = event => {
+    const lane = workshopDropLaneAtPoint(event.clientX, event.clientY);
+    if (activeLane && activeLane !== lane) {
+      activeLane.classList.remove('drag-over');
+      workshopHideLanePreview(activeLane);
+    }
+    activeLane = lane;
+    if (!lane) return;
+    lane.classList.add('drag-over');
+    workshopPaintLanePointer(lane, event.clientX, event.clientY);
+  };
+  const move = event => {
+    if (event.pointerId !== pointerId) return;
+    if (!activated && Math.hypot(event.clientX - startX, event.clientY - startY) < 8) return;
+    activate();
+    event.preventDefault();
+    pendingPointer = { clientX: event.clientX, clientY: event.clientY };
+    if (pointerFrame !== null) return;
+    if (typeof window.requestAnimationFrame !== 'function') { paintPointer(pendingPointer); return; }
+    pointerFrame = window.requestAnimationFrame(() => {
+      const pointer = pendingPointer;
+      pointerFrame = null;
+      pendingPointer = null;
+      if (pointer) paintPointer(pointer);
+    });
+  };
+  const finish = event => {
+    if (event.pointerId !== pointerId) return;
+    cancelPointerFrame();
+    if (activated) paintPointer(event);
+    const lane = activeLane;
+    const stage = lane?.dataset.workshopDropStage;
+    const bay = Number(lane?.dataset.workshopDropBay);
+    const dateKey = workshopState().date;
+    const startMinutes = Number(lane?.dataset.workshopRequestedStartMinutes);
+    cleanup();
+    if (!activated || !lane || !stage || !Number.isFinite(bay) || !Number.isFinite(startMinutes)) return;
+    session.onDrop?.({ stage, bay, dateKey, startMinutes });
+  };
+  const cancel = event => {
+    if (event?.pointerId != null && event.pointerId !== pointerId) return;
+    cleanup();
+  };
+  window.addEventListener('pointermove', move, { passive: false });
+  window.addEventListener('pointerup', finish);
+  window.addEventListener('pointercancel', cancel);
+}
+
 function workshopBindSearchDragResults(root) {
   root.querySelectorAll('[data-workshop-search-drag-plan], [data-workshop-search-drag-vehicle]').forEach(button => {
     if (button.dataset.searchDragBound === '1') return;
     button.dataset.searchDragBound = '1';
     button.addEventListener('dragstart', event => {
+      if (workshopActiveQueuePointerDrag) { event.preventDefault(); return; }
       if (!event.dataTransfer || !window.__workshopDataService?.getTrustedSnapshot?.()) {
         event.preventDefault(); return;
       }
@@ -3899,12 +4008,51 @@ function workshopBindSearchDragResults(root) {
       // Keep the drag source alive, but let lanes under the search receive drops.
       root.querySelector('#workshop-booking-search-results')?.classList.add('is-dragging');
     });
+    button.addEventListener('pointerdown', downEvent => {
+      const planId = button.dataset.workshopSearchDragPlan;
+      workshopStartPointerDragSession(button, downEvent, root, {
+        preview() {
+          if (planId) {
+            const plan = workshopReturnedPlanForAction(planId);
+            return plan ? { type: 'plan', hours: Number(plan.hours), entry: plan } : null;
+          }
+          const match = workshopSearchDragVehicle(button);
+          const hours = match ? workshopSchedulingDuration(workshopVehicle(match.vehicleKey, workshopState().stage), workshopState().stage)?.hours : 0;
+          return hours > 0 ? { type: 'queue', hours } : null;
+        },
+        onDrop({ stage, bay, dateKey, startMinutes }) {
+          if (!window.__workshopDataService?.getTrustedSnapshot?.()) return;
+          if (planId) {
+            const plan = workshopReturnedPlanForAction(planId);
+            if (!plan) return;
+            void moveWorkshopDroppedPlan(plan.id, stage, bay, dateKey, startMinutes, { preferRequestedTime: true });
+            return;
+          }
+          const match = workshopSearchDragVehicle(button);
+          const hours = match ? workshopSchedulingDuration(workshopVehicle(match.vehicleKey, workshopState().stage), workshopState().stage)?.hours : 0;
+          if (!match || !(hours > 0)) return;
+          void scheduleWorkshopVehicle({ vehicleKeyValue: match.vehicleKey, stage, bay, dateKey, startMinutes, hoursValue: hours, preferRequestedTime: true });
+        },
+      });
+    });
+    button.addEventListener('click', event => {
+      if (button.dataset.workshopPointerDragged !== '1') return;
+      delete button.dataset.workshopPointerDragged;
+      event.preventDefault();
+      event.stopPropagation();
+    }, true);
     button.addEventListener('dragend', () => {
       root.querySelector('#workshop-booking-search-results')?.classList.remove('is-dragging');
       workshopSetDragPreview(null);
       workshopClearLanePreviews(root);
     });
   });
+}
+
+function workshopSearchDragVehicle(button) {
+  return workshopSearchMatches(workshopState().search, workshopLoadPlans()).find(item =>
+    item.vehicleIdentity === button.dataset.workshopSearchDragVehicle && item.candidateAvailable
+    && !item.archived && !item.bookingLookupError && !item.bookings.length && !item.returnedBookings?.length) || null;
 }
 
 function workshopBindDragAutoScroll(root) {
@@ -5627,91 +5775,16 @@ function bindWorkshopPlanner(root) {
       });
     });
     card.addEventListener('pointerdown', downEvent => {
-      if (downEvent.pointerType === 'mouse' || card.getAttribute('aria-disabled') === 'true' || downEvent.target.closest('button')) return;
-      if (workshopActiveQueuePointerDrag) return;
-      const pointerId = downEvent.pointerId;
-      const startX = downEvent.clientX;
-      const startY = downEvent.clientY;
       const vehicle = workshopVehicle(card.dataset.workshopVehicleKey, workshopState().stage);
-      let activeLane = null;
-      let activated = false;
-      let pointerFrame = null;
-      let pendingPointer = null;
-      const cancelPointerFrame = () => {
-        if (pointerFrame !== null) window.cancelAnimationFrame?.(pointerFrame);
-        pointerFrame = null;
-        pendingPointer = null;
-      };
-      const cleanup = () => {
-        cancelPointerFrame();
-        window.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', finish);
-        window.removeEventListener('pointercancel', cancel);
-        card.removeEventListener('lostpointercapture', cancel);
-        if (card.hasPointerCapture?.(pointerId)) card.releasePointerCapture(pointerId);
-        if (activeLane) activeLane.classList.remove('drag-over');
-        workshopSetDragPreview(null);
-        workshopClearLanePreviews(root);
-        workshopActiveQueuePointerDrag = null;
-        workshopSuppressMouseDragUntil = Date.now() + 750;
-      };
-      const activate = () => {
-        if (activated) return;
-        activated = true;
-        workshopActiveQueuePointerDrag = { pointerId, card };
-        card.setPointerCapture?.(pointerId);
-        card.addEventListener('lostpointercapture', cancel);
-        workshopSetDragPreview({
+      workshopStartPointerDragSession(card, downEvent, root, {
+        preview: () => ({
           type: 'queue',
           hours: workshopSchedulingDuration(vehicle, workshopState().stage)?.hours || 0,
-        });
-      };
-      const paintPointer = event => {
-        const lane = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('[data-workshop-drop-bay]') || null;
-        if (activeLane && activeLane !== lane) {
-          activeLane.classList.remove('drag-over');
-          workshopHideLanePreview(activeLane);
-        }
-        activeLane = lane;
-        if (!lane) return;
-        lane.classList.add('drag-over');
-        workshopPaintLanePointer(lane, event.clientX, event.clientY);
-      };
-      const move = event => {
-        if (event.pointerId !== pointerId) return;
-        if (!activated && Math.hypot(event.clientX - startX, event.clientY - startY) < 8) return;
-        activate();
-        event.preventDefault();
-        pendingPointer = { clientX: event.clientX, clientY: event.clientY };
-        if (pointerFrame !== null) return;
-        if (typeof window.requestAnimationFrame !== 'function') { paintPointer(pendingPointer); return; }
-        pointerFrame = window.requestAnimationFrame(() => {
-          const pointer = pendingPointer;
-          pointerFrame = null;
-          pendingPointer = null;
-          if (pointer) paintPointer(pointer);
-        });
-      };
-      const finish = event => {
-        if (event.pointerId !== pointerId) return;
-        cancelPointerFrame();
-        if (activated) paintPointer(event);
-        const lane = activeLane;
-        const stage = lane?.dataset.workshopDropStage;
-        const bay = Number(lane?.dataset.workshopDropBay);
-        const dateKey = workshopState().date;
-        const startMinutes = Number(lane?.dataset.workshopRequestedStartMinutes);
-        cleanup();
-        if (!activated || !lane || !stage || !Number.isFinite(bay) || !Number.isFinite(startMinutes)) return;
-        void scheduleWorkshopVehicle({ vehicleKeyValue: card.dataset.workshopVehicleKey, stage, bay, dateKey, startMinutes, preferRequestedTime: true });
-      };
-      const cancel = event => {
-        if (event?.pointerId != null && event.pointerId !== pointerId) return;
-        cleanup();
-      };
-      window.addEventListener('pointermove', move, { passive: false });
-      window.addEventListener('pointerup', finish);
-      window.addEventListener('pointercancel', cancel);
+        }),
+        onDrop: ({ stage, bay, dateKey, startMinutes }) => {
+          void scheduleWorkshopVehicle({ vehicleKeyValue: card.dataset.workshopVehicleKey, stage, bay, dateKey, startMinutes, preferRequestedTime: true });
+        },
+      });
     });
   });
   root.querySelectorAll('[data-workshop-vehicle-key]').forEach(card => card.addEventListener('dragend', () => {
@@ -6434,6 +6507,36 @@ function workshopScheduleTimeOptions(selectedMinutes = 0) {
     .join('');
 }
 
+const WORKSHOP_SCHEDULE_DIALOG_RPCS = new Set([
+  'administrator_schedule_workshop_vehicle',
+  'administrator_move_workshop_booking',
+  'schedule_vehicle_work',
+  'move_workshop_booking',
+  'cascade_workshop_schedule',
+  'cascade_workshop_booking_move',
+]);
+
+function workshopBindScheduleCommitClose(service, finish) {
+  let closed = false;
+  const closeOnce = () => {
+    if (closed) return false;
+    closed = true;
+    if (typeof finish === 'function') finish();
+    return true;
+  };
+  const previous = typeof service?.setWriteCommittedListener === 'function'
+    ? service.setWriteCommittedListener((rpcName, body) => {
+      if (body?.ok === true && WORKSHOP_SCHEDULE_DIALOG_RPCS.has(rpcName)) closeOnce();
+    })
+    : null;
+  return {
+    closeOnce,
+    restore() {
+      if (typeof service?.setWriteCommittedListener === 'function') service.setWriteCommittedListener(previous || null);
+    },
+  };
+}
+
 function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '', planId = '') {
   const returnedPlan = planId ? workshopReturnedPlanForAction(planId) : null;
   if (planId && !returnedPlan) return;
@@ -6540,17 +6643,22 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
       return;
     }
     const requestedStartMinutes = Number(form.elements.startMinutes.value);
-    const scheduled = await scheduleWorkshopVehicle({
-      planId,
-      vehicleKeyValue,
-      stage: normalizedStage,
-      bay: Number(form.elements.bay.value),
-      dateKey: workshopDateKey(selected),
-      startMinutes: requestedStartMinutes,
-      hoursValue: workshopExactDurationHours(form.elements.hours.value),
-      assigneeValue: form.elements.assignee.value,
-    });
-    if (scheduled) finish();
+    const commitClose = workshopBindScheduleCommitClose(window.__workshopDataService, finish);
+    try {
+      const scheduled = await scheduleWorkshopVehicle({
+        planId,
+        vehicleKeyValue,
+        stage: normalizedStage,
+        bay: Number(form.elements.bay.value),
+        dateKey: workshopDateKey(selected),
+        startMinutes: requestedStartMinutes,
+        hoursValue: workshopExactDurationHours(form.elements.hours.value),
+        assigneeValue: form.elements.assignee.value,
+      });
+      if (scheduled) commitClose.closeOnce();
+    } finally {
+      commitClose.restore();
+    }
   });
   overlay.addEventListener('click', event => { if (event.target === overlay) finish(); });
   document.body.appendChild(overlay);

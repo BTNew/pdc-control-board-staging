@@ -167,6 +167,36 @@ test('RPC client forwards read cancellation without inventing automatic mutation
   assert.equal(calls[0][1].signal, controller.signal); assert.equal(calls[1][1].signal, undefined); assert.equal(calls.length, 2);
 });
 
+test('confirmed write notifies the dialog before the snapshot refresh resolves', async () => {
+  const h = fixture(); await h.service.loadSnapshot('initial');
+  const pending = deferred(); h.setRead(() => pending.promise);
+  const seen = [];
+  h.service.setWriteCommittedListener((rpcName, body) => seen.push({ rpcName, ok: body.ok }));
+  let settled = false;
+  const action = h.mutate().then(value => { settled = true; return value; });
+  await flush();
+  assert.equal(settled, false);
+  assert.deepEqual(seen, [{ rpcName: 'start_workshop_work', ok: true }]);
+  assert.equal(h.writes().length, 1);
+  pending.resolve(response(2, 'started'));
+  assert.equal((await action).ok, true);
+  assert.equal(settled, true);
+  h.service.destroy();
+});
+
+test('a dialog listener cannot fail a confirmed write, and a rejection does not notify', async () => {
+  const h = fixture(); await h.service.loadSnapshot('initial');
+  h.service.setWriteCommittedListener(() => { throw new Error('dialog closed'); });
+  assert.equal((await h.mutate()).ok, true);
+  const rejected = fixture(); await rejected.service.loadSnapshot('initial');
+  rejected.setWrite(async () => ({ ok: true, status: 200, body: { ok: false, error: 'version_conflict' } }));
+  const seen = [];
+  rejected.service.setWriteCommittedListener(name => seen.push(name));
+  assert.equal((await rejected.mutate()).error, 'version_conflict');
+  assert.deepEqual(seen, []);
+  h.service.destroy(); rejected.service.destroy();
+});
+
 test('proxy and timeout responses preserve uncertainty without masking canonical rejections', async () => {
   for (const status of [408, 500, 502, 503, 504]) {
     const h = fixture(); await h.service.loadSnapshot('initial');

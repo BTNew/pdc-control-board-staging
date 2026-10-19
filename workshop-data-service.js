@@ -756,6 +756,20 @@ function createWorkshopDataService(options) {
     return recoverEditableAuthority();
   }
 
+  let writeCommittedListener = null;
+  function setWriteCommittedListener(listener) {
+    const previous = writeCommittedListener;
+    writeCommittedListener = typeof listener === 'function' ? listener : null;
+    return previous;
+  }
+  function notifyWriteCommitted(rpcName, body) {
+    const listener = writeCommittedListener;
+    if (typeof listener !== 'function') return;
+    try { listener(rpcName, body); } catch (_error) {
+      // Closing the dialog must not change the mutation result.
+    }
+  }
+
   async function mutate(rpcName, params) {
     if (!WORKSHOP_MUTATION_RPCS.includes(rpcName)) {
       throw new Error(`workshop-data-service: unknown mutation RPC ${rpcName}`);
@@ -837,6 +851,7 @@ function createWorkshopDataService(options) {
       // success, and mark the command committed so the planner does not ask
       // the user to send it again.
       const confirmedWrite = result?.ok === true && result.body?.ok === true;
+      if (confirmedWrite) notifyWriteCommitted(rpcName, result.body);
       return confirmedWrite
         ? { ...commandAuthorityFailure, committed: true, refreshRequired: true }
         : commandAuthorityFailure;
@@ -883,9 +898,9 @@ function createWorkshopDataService(options) {
       return body;
     }
     if (body.ok === true) {
-      // Successful mutation: reconcile from the confirmed result rather
-      // than trusting an optimistic local guess. The shared-action caller
-      // renders only after this authoritative refresh has completed.
+      // The write is confirmed. Tell the open dialog now, then still wait
+      // for the authoritative snapshot before this promise resolves.
+      notifyWriteCommitted(rpcName, body);
       await awaitSnapshotRefresh('successful_mutation', true);
       const savedAuthorityFailure = authorityFailure();
       if (savedAuthorityFailure) return { ...savedAuthorityFailure, committed: true, refreshRequired: true };
@@ -1054,6 +1069,7 @@ function createWorkshopDataService(options) {
     onVisibilityReturn,
     onTokenRefresh,
     mutate,
+    setWriteCommittedListener,
     readAdminBlockAudit,
     destroy
   };
