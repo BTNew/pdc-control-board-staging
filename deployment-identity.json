@@ -83,10 +83,10 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20261019075449",
-    "name": "owner_temporary_board_visibility_holds",
-    "file": "supabase/migrations/20261019075449_owner_temporary_board_visibility_holds.sql",
-    "sha256": "91bf2028c5160fdca68145cde24c8730c9ac2017f03d93e043ab1f77b5d6c1b3",
+    "version": "20261019084844",
+    "name": "bus_bay3_exact_tune_hiace_model_code",
+    "file": "supabase/migrations/20261019084844_bus_bay3_exact_tune_hiace_model_code.sql",
+    "sha256": "8fc66e0d42a2fa66ca4d456c0459b487d33bef3c2f92c177db25c5f94ef95d8b",
     "commissioned": true,
     "review_status": "staging_applied"
   },
@@ -1210,6 +1210,14 @@
     "name": "owner_temporary_board_visibility_holds",
     "file": "supabase/migrations/20261019075449_owner_temporary_board_visibility_holds.sql",
     "sha256": "91bf2028c5160fdca68145cde24c8730c9ac2017f03d93e043ab1f77b5d6c1b3",
+    "commissioned": true,
+    "review_status": "staging_applied"
+  },
+  "bus_bay3_hiace_model_code_migration": {
+    "version": "20261019084844",
+    "name": "bus_bay3_exact_tune_hiace_model_code",
+    "file": "supabase/migrations/20261019084844_bus_bay3_exact_tune_hiace_model_code.sql",
+    "sha256": "8fc66e0d42a2fa66ca4d456c0459b487d33bef3c2f92c177db25c5f94ef95d8b",
     "commissioned": true,
     "review_status": "staging_applied"
   }
