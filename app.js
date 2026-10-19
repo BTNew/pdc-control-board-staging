@@ -7071,6 +7071,7 @@ function reconcileVehicleLifecycleServerResult(vehicle = {}, result = {}) {
 }
 
 function vehicleReadyForQualityControl(vehicle = {}) {
+  if (vehicle.pdcHasUnclassifiedOperationWork === true) return false;
   if (vehiclePdcLocation(vehicle) !== 'PMB' || vehicle.pdcQcComplete === true || isPdcBlocked(vehicle) || isActivePartsStoppage(vehicle)) return false;
   if (pdcQualityControlRequirementDefinitions(vehicle).some(job => !pdcJobComplete(vehicle, job))) return false;
   const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
