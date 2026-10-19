@@ -29,6 +29,16 @@ test('helper lookup indexes cover only the proven sequential scans and roll back
   assert.equal(fs.existsSync(path.join('supabase/migrations', path.basename(downPath))), false);
 });
 
-test('a local database uses both indexes and the rollback removes them', () => {
+function postgresProofAvailable() {
+  if (process.env.PGHOST) return true;
+  try {
+    execFileSync('sudo', ['-u', 'postgres', 'psql', '-d', 'postgres', '-c', 'SELECT 1'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test('a local database uses both indexes and the rollback removes them', { skip: !postgresProofAvailable() }, () => {
   execFileSync(process.execPath, ['scripts/run_helper_lookup_indexes_local.js'], { stdio: 'inherit' });
 });
