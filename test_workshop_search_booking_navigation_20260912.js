@@ -60,7 +60,7 @@ const context = {
   pmbStageLabel: value => value,
   workshopRefreshSearchResults: () => {},
 };
-names.push('workshopSearchMatchRows');
+names.push('workshopSearchMatchRows', 'workshopReturnedQueuePlans');
 vm.createContext(context);
 vm.runInContext(names.map(extract).join('\n'), context);
 async function main() {
@@ -170,6 +170,17 @@ async function main() {
   await context.workshopLoadSearchBookings(state.search);
   assert.equal(unauthorizedReads,0,'untrusted UUID/stock alias cannot authorize the read');
   assert.match(context.workshopSearchResultsHtml(state.search),/Bookings could not be checked/);
-  console.log('Workshop search navigation: PASS (cross-date/station, moved booking, exact identity, read failures, stale requests, no detail expansion).');
+  snapshot = {revision:21,vehicles:[vehicle],work_items:[],bookings:[],outstanding_candidates:[]};
+  context.app.data=[vehicle];
+  context.workshopSharedVehicleRef=({sharedVehicleId})=>({vehicleId:sharedVehicleId});
+  state.stage='ELECTRICAL';
+  state.bookingSearchLookup={query:state.search,service,snapshot,status:'ready',matches:new Map([[`shared:${vehicleId}`,{ok:true,bookings:[]}]])};
+  context.workshopLoadPlans=()=>[{id:'returned-existing',sharedVehicleId:vehicleId,vehicleKey:vehicle.vehicleKey,stage:'ELECTRICAL',sharedStatus:'queued',sharedBayId:'',bay:0,hours:88.31666666666666,status:'planned'}];
+  const returnedHtml=context.workshopSearchResultsHtml(state.search);
+  assert.match(returnedHtml,/data-workshop-select-returned-plan="returned-existing"/,
+    'returned canonical reservation stays selectable when read-only booking search omits queued work');
+  assert.doesNotMatch(returnedHtml,/Scheduling unavailable|data-workshop-search-unbooked-identity/,
+    'reuse existing reservation rather than offering duplicate scheduling');
+  console.log('Workshop search navigation and returned reservation selection: PASS.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

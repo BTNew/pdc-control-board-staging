@@ -21,8 +21,28 @@ assert.equal(context.workshopReturnedQueuePlans(rows,'BUS_4X4').length,2);
 assert.equal(result[0],base,'retain canonical booking identity and hours');
 const html=context.workshopReturnedQueueCardHtml(base);
 assert.match(html,/data-workshop-plan-id="returned"/);
-assert.match(html,/88.3167 allocated hours retained/);
+assert.match(html,/88.32 allocated hours retained/);
 assert.match(html,/draggable="true"/);
+assert.match(html,/data-workshop-select-returned-plan="returned"/);
+const state={stage:'BUS_4X4',searchOpen:true};
+let selected='', rendered=0;
+let trusted=true;
+Object.assign(context,{
+  workshopState:()=>state,workshopSelectedBusGroup:()=>({code:'BUS_MECHANICAL'}),
+  workshopLoadPlans:()=>rows,workshopSharedModeActive:()=>true,
+  window:{__workshopDataService:{getTrustedSnapshot:()=>trusted?{}:null}},
+  workshopSelectPlanForDetail:id=>{selected=id;},
+  renderWorkshopPlanner:()=>{rendered++;},document:{querySelector:()=>null},
+});
+assert.equal(context.workshopSelectReturnedPlan('returned'),true);
+assert.equal(selected,'returned','select existing reservation without creating another');
+assert.equal(state.searchOpen,false);
+assert.equal(state.searchHighlightPlanId,'returned');
+assert.equal(context.workshopSelectReturnedPlan('electrical'),false,'respect current category');
+assert.equal(context.workshopSelectReturnedPlan('reserved'),false,'reject already scheduled reservation');
+trusted=false;
+assert.equal(context.workshopSelectReturnedPlan('returned'),false,'stale snapshot cannot select a reservation');
+assert.equal(rendered,1);
 assert.doesNotMatch(html,/data-workshop-schedule-vehicle/,'do not create a duplicate booking');
 assert.match(source,/sharedStatus: booking.status/);
 assert.match(source,/entry.status !== 'completed' && Number\(entry.bay\) > 0/,'bay counters exclude queued reservations');
