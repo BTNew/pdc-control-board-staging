@@ -99,6 +99,15 @@ test('sales and the parked department page do not take the live board defer chan
   assert.equal(karrathaHtml.includes('pdc-deferred-script-order.js'), false);
 });
 
+test('staging integrity installs the minifiers before it builds a Pages artifact', () => {
+  const workflow = fs.readFileSync('.github/workflows/staging-integrity.yml', 'utf8');
+  const install = workflow.indexOf('npm ci --ignore-scripts');
+  const legacy = workflow.indexOf('node test_legacy_website_links.js');
+  const suite = workflow.indexOf('node --test test_*.js');
+  assert.ok(install !== -1 && legacy !== -1 && suite !== -1);
+  assert.ok(install < legacy && install < suite);
+});
+
 test('the Pages workflow installs the minifiers without adding a publish action', () => {
   const workflow = fs.readFileSync('.github/workflows/pages-runtime.yml', 'utf8');
   assert.match(workflow, /npm ci --ignore-scripts/);
