@@ -830,7 +830,17 @@ function createWorkshopDataService(options) {
     // result from the prior authority generation inert before caller/UI code
     // can interpret it as a successful operation.
     const commandAuthorityFailure = authorityFailure();
-    if (commandAuthorityFailure) return commandAuthorityFailure;
+    if (commandAuthorityFailure) {
+      // The HTTP body can confirm the write before a token, role, or scope
+      // change makes the follow-up read belong to a different authority.
+      // Keep ok false so the old payload is not treated as the new actor's
+      // success, and mark the command committed so the planner does not ask
+      // the user to send it again.
+      const confirmedWrite = result?.ok === true && result.body?.ok === true;
+      return confirmedWrite
+        ? { ...commandAuthorityFailure, committed: true, refreshRequired: true }
+        : commandAuthorityFailure;
+    }
     if (!getAccessToken()) {
       invalidateAuthority(WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED);
       return { ok: false, error: 'permission_denied', state: WORKSHOP_CONNECTION_STATE.PERMISSION_DENIED };
@@ -878,7 +888,7 @@ function createWorkshopDataService(options) {
       // renders only after this authoritative refresh has completed.
       await awaitSnapshotRefresh('successful_mutation', true);
       const savedAuthorityFailure = authorityFailure();
-      if (savedAuthorityFailure) return savedAuthorityFailure;
+      if (savedAuthorityFailure) return { ...savedAuthorityFailure, committed: true, refreshRequired: true };
       if (!snapshotTrusted || activeLoadToken || pendingReloadTimer || trailingReloadRequested
           || ![WORKSHOP_CONNECTION_STATE.CONNECTED_EDITABLE, WORKSHOP_CONNECTION_STATE.CONNECTED_READ_ONLY].includes(state)) {
         // The command itself is confirmed. A failed read must never imply it

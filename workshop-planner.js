@@ -1033,7 +1033,8 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
         : { ok: false, error: 'runtime_failure' };
     }
     if (result?.error === 'bus_stage_parts_required') workshopRememberReadinessFailure(result, payload);
-    if ((!result || result.ok !== true) && options.suppressFailureAlert !== true) {
+    const commandCommitted = result?.ok === true || result?.committed === true;
+    if ((!result || result.ok !== true) && !commandCommitted && options.suppressFailureAlert !== true) {
       window.alert(workshopDescribeSharedActionError(result));
     }
     if (result?.ok === true && result.refreshRequired === true && options.suppressFailureAlert !== true) {
@@ -2727,6 +2728,23 @@ function workshopBayIsActive(stage = '', bay = 0) {
   return ref ? ref.is_active !== false : true;
 }
 
+function workshopTechnicianNameById(id = '') {
+  const cleanId = String(id || '').trim();
+  if (!cleanId) return '';
+  const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
+  const rows = service?.getCachedTechnicians?.()?.rows || [];
+  const technician = rows.find(row => row && String(row.id || '') === cleanId);
+  return technician ? cleanNavisionText(technician.name) : '';
+}
+
+function workshopNextScheduleTechnician(stage = '', bay = 0, vehicle = null, { followsBay = true, manualValue = '' } = {}) {
+  const bayDefault = workshopBayMechanic(stage, bay) || (typeof pmbBayMechanic === 'function' ? pmbBayMechanic(vehicle) : '') || '';
+  // A new unstarted booking follows the selected bay's default mechanic.
+  // A deliberate choice in the dialog is kept when the bay changes.
+  if (followsBay) return bayDefault;
+  return cleanNavisionText(manualValue || '');
+}
+
 function workshopBayDefaultTechnicianName(stage = '', bay = 0) {
   const ref = workshopSharedBayRef(stage, bay);
   if (!ref || !ref.default_technician_id) return '';
@@ -4248,7 +4266,9 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const etaRisk = workshopEtaRiskForEntry(entry, vehicle);
   const etaRiskLabel = workshopEtaRiskLabel(etaRisk);
   const draggable = entry.status !== 'completed' && !entry.legacyAmbiguityReason;
-  const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
+  const savedTechnician = cleanNavisionText(entry.assignee || '')
+    || (typeof workshopTechnicianNameById === 'function' ? workshopTechnicianNameById(entry.technicianId) : '');
+  const assignee = savedTechnician || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'completed' ? 'COMPLETED' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
   const lifecycleActionsHtml = workshopPlanLifecycleActionsHtml(entry);
   const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', etaRisk ? 'is-eta-risk' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', lifecycleActionsHtml ? 'has-lifecycle-actions' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
@@ -5175,6 +5195,29 @@ function openWorkshopAdminBlockModal() {
   overlay.querySelector('[name="blockType"]')?.focus();
 }
 
+function workshopUnallocatedHeadingCounts(outstanding = [], returnedPlans = [], counts = null) {
+  const returnedIds = new Set((returnedPlans || []).map(entry => String(entry?.sharedVehicleId || '')).filter(Boolean));
+  const outstandingList = Array.isArray(outstanding) ? outstanding : [];
+  const returnedOutstanding = outstandingList.filter(vehicle => returnedIds.has(String(vehicle?.sharedVehicleId || vehicle?.id || ''))).length;
+  const outstandingCount = Number(counts?.outstanding_candidates);
+  const unscheduledCount = Number(counts?.unscheduled_candidates);
+  // The station snapshot already counts outstanding work and active bookings.
+  // A partial vehicle array must not replace those totals. Queued bayless
+  // returns are active bookings in that count, and they belong in Unallocated.
+  if (Number.isFinite(outstandingCount) && Number.isFinite(unscheduledCount)) {
+    return {
+      unallocated: unscheduledCount + returnedOutstanding,
+      booked: Math.max(0, outstandingCount - unscheduledCount - returnedOutstanding),
+    };
+  }
+  const booked = outstandingList.filter(vehicle => {
+    const id = String(vehicle?.sharedVehicleId || vehicle?.id || '');
+    return vehicle?.__workshopOutstanding?.existingBooking === true && !returnedIds.has(id);
+  }).length;
+  const unallocated = outstandingList.filter(vehicle => vehicle?.__workshopOutstanding?.existingBooking !== true).length + returnedOutstanding;
+  return { unallocated, booked };
+}
+
 function workshopReturnedQueuePlans(plans, stage, category = '') {
   return plans.filter(entry => entry.stage === stage && entry.sharedStatus === 'queued'
     && !entry.sharedBayId && Number(entry.bay) === 0
@@ -5348,7 +5391,18 @@ function renderWorkshopPlanner(options = {}) {
   const outstanding = focusedBookingMode ? [] : stageVehicleList;
   const unscheduled = focusedBookingMode ? [] : outstanding.filter(vehicle => vehicle.__workshopOutstanding?.existingBooking !== true
     || returnedVehicleIds.has(vehicle.sharedVehicleId || vehicle.id));
-  const alreadyBookedOutstanding = focusedBookingMode ? 0 : Math.max(0, outstanding.length - unscheduled.length);
+  const queueHeading = focusedBookingMode
+    ? { unallocated: 0, booked: 0 }
+    : workshopUnallocatedHeadingCounts(outstanding, returnedPlans, window.__workshopDataService?.getLastSnapshot?.()?.counts);
+  let unallocatedHeadingCount = queueHeading.unallocated;
+  let alreadyBookedOutstanding = queueHeading.booked;
+  const queueHeadingTrusted = !sharedModeActive || !dedicatedStage || Boolean(window.__workshopDataService?.getTrustedSnapshot?.());
+  if (!focusedBookingMode && !queueHeadingTrusted && state.retainedQueueHeading?.stage === stage && state.retainedQueueHeading?.dateKey === dateKey) {
+    unallocatedHeadingCount = state.retainedQueueHeading.unallocated;
+    alreadyBookedOutstanding = state.retainedQueueHeading.booked;
+  } else if (!focusedBookingMode && queueHeadingTrusted && sharedModeActive && dedicatedStage) {
+    state.retainedQueueHeading = { stage, dateKey, unallocated: unallocatedHeadingCount, booked: alreadyBookedOutstanding };
+  }
   // Once a vehicle is assigned to this station's physical bay it is no longer
   // actionable in the Outstanding candidates pile. The authoritative total is
   // still retained separately for reporting and reconciliation.
@@ -5400,7 +5454,7 @@ function renderWorkshopPlanner(options = {}) {
     ${focusedBookingMode && state.focusedBookingError ? `<section class="workshop-focused-booking-error" role="alert"><strong>Focused booking unavailable</strong><span>${escapeHtml(state.focusedBookingError)}</span><button type="button" class="small-button" data-workshop-focused-back>Back to Workshop planner</button></section>` : ''}
     <div class="workshop-board-shell">
       ${focusedBookingMode ? '' : `<aside class="workshop-side-panel workshop-waiting-panel">
-        <div class="workshop-side-heading"><strong>Unallocated vehicles</strong><span>${queue.length + returnedVehicleIds.size} unallocated · ${alreadyBookedOutstanding} already booked in bays</span></div>
+        <div class="workshop-side-heading"><strong>Unallocated vehicles</strong><span>${unallocatedHeadingCount} unallocated · ${alreadyBookedOutstanding} already booked in bays</span></div>
         <div class="workshop-unallocated-drop" data-workshop-unallocated-drop><strong>Return to Unallocated</strong><span>Planned or live: choose Just move or STOPPAGE</span></div>
         <div class="workshop-side-list">${returnedPlans.map(workshopReturnedQueueCardHtml).join('')}${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || (returnedPlans.length ? '' : '<div class="workshop-empty">No outstanding requirements in this department.</div>')}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
       </aside>`}
@@ -6416,7 +6470,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
         <label><span>Date</span><input name="date" type="date" value="${escapeHtml(scheduledDate)}" ${etaConstraint.earliestDateKey ? `min="${escapeHtml(etaConstraint.earliestDateKey)}"` : ''} required></label>
         <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(startMinutes)}</select></label>
         <label><span>Planned hours</span><input name="hours" type="number" min="0.01" step="any" value="${escapeHtml(friendlyPlannedHours)}" ${authoritativeHours ? 'readonly title="Operation estimate adjusted for bay efficiency"' : ''} required></label>
-        <label><span>Technician</span><select name="assignee">${workshopAssigneeOptions(normalizedStage, workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle))}</select></label>
+        <label><span>Technician</span><select name="assignee">${workshopAssigneeOptions(normalizedStage, typeof workshopNextScheduleTechnician === 'function' ? workshopNextScheduleTechnician(normalizedStage, bay, vehicle) : (workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle)))}</select></label>
       </div>
       <p class="workshop-schedule-note">Later bookings in this bay move automatically, preserving their order and duration and skipping non-working days.${etaConstraint.required ? ` ${escapeHtml(etaConstraint.location)} earliest permitted booking date: ${escapeHtml(etaConstraint.earliestDateKey)}.` : ''}</p>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-schedule-cancel>Cancel</button><button class="primary" type="submit">Add to planner</button></div>
@@ -6443,11 +6497,32 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
       form.elements.startMinutes.value = String(suggested.startMinutes);
     }
   };
+  let technicianFollowsBay = true;
+  const selectBayTechnician = () => {
+    if (!technicianFollowsBay) return;
+    const form = overlay.querySelector('[data-workshop-schedule-form]');
+    const select = form?.elements?.assignee;
+    if (!select) return;
+    const name = typeof workshopNextScheduleTechnician === 'function'
+      ? workshopNextScheduleTechnician(normalizedStage, Number(form.elements.bay.value), vehicle)
+      : (workshopBayMechanic(normalizedStage, Number(form.elements.bay.value)) || pmbBayMechanic(vehicle) || '');
+    if ([...(select.options || [])].some(option => option.value === name)) select.value = name;
+  };
   overlay.querySelectorAll('[data-workshop-schedule-cancel]').forEach(button => button.addEventListener('click', finish));
-  overlay.querySelector('[name="bay"]')?.addEventListener('change', suggestAvailableTime);
+  overlay.querySelector('[name="bay"]')?.addEventListener('change', () => {
+    selectBayTechnician();
+    suggestAvailableTime();
+  });
   overlay.querySelector('[name="date"]')?.addEventListener('change', suggestAvailableTime);
   overlay.querySelector('[name="hours"]')?.addEventListener('change', suggestAvailableTime);
-  overlay.querySelector('[name="assignee"]')?.addEventListener('change', suggestAvailableTime);
+  overlay.querySelector('[name="assignee"]')?.addEventListener('change', () => {
+    const form = overlay.querySelector('[data-workshop-schedule-form]');
+    const bayTechnician = typeof workshopNextScheduleTechnician === 'function'
+      ? workshopNextScheduleTechnician(normalizedStage, Number(form.elements.bay.value), vehicle)
+      : (workshopBayMechanic(normalizedStage, Number(form.elements.bay.value)) || pmbBayMechanic(vehicle) || '');
+    technicianFollowsBay = form?.elements?.assignee?.value === bayTechnician;
+    suggestAvailableTime();
+  });
   overlay.querySelector('[data-workshop-schedule-form]').addEventListener('submit', async event => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -6629,12 +6704,13 @@ async function workshopScheduleSharedNewBooking({
     // an automatic retry. The refreshed record requires a new deliberate drag.
     result = { ...result, message: result.message || 'The vehicle changed before this exact drag could be committed. Drag it again from the refreshed Unallocated list.' };
   }
+  const saved = !!(result && (result.ok === true || result.committed === true));
   if (managedDispatch) {
-    if (!result || result.ok !== true) window.alert(workshopDescribeSharedActionError(result));
-    if (workshopAdministratorCanMove() && result?.ok) workshopRememberAdministratorMove(result);
-    renderWorkshopPlanner();
+    if (!saved) window.alert(workshopDescribeSharedActionError(result));
+    if (workshopAdministratorCanMove() && result?.ok === true) workshopRememberAdministratorMove(result);
+    try { renderWorkshopPlanner(); } catch (error) { console.error('Workshop planner refresh failed after a scheduling command.', error); }
   }
-  return !!(result && result.ok);
+  return saved;
 }
 
 async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKeyValue = '', stage = '', hours = 0, workCategory = '', planId = '' } = {}) {
@@ -6843,8 +6919,8 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
         cascade,
         metadata: { source: preferRequestedTime ? 'planner_chip_drop' : 'planner_booking_move', reason: 'website_drag_drop' },
       });
-      if (workshopAdministratorCanMove() && result?.ok) workshopRememberAdministratorMove(result);
-      return !!(result && result.ok);
+      if (workshopAdministratorCanMove() && result?.ok === true) workshopRememberAdministratorMove(result);
+      return !!(result && (result.ok === true || result.committed === true));
     }
     const vehicleRef = await workshopVerifiedCanonicalVehicleRef(vehicle);
     if (!vehicleRef || vehicleRef.ok === false) {
@@ -7499,7 +7575,9 @@ function workshopWeeklyCardHtml(entry = {}, dateKey = '') {
   const top = (segment.start / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
   const height = ((segment.end - segment.start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
   const draggable = entry.status !== 'completed';
-  const assignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || '';
+  const savedTechnician = cleanNavisionText(entry.assignee || '')
+    || (typeof workshopTechnicianNameById === 'function' ? workshopTechnicianNameById(entry.technicianId) : '');
+  const assignee = savedTechnician || workshopBayMechanic(entry.stage, entry.bay) || '';
   const statusLabel = entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
   return `<article class="workshop-week-card ${entry.status !== 'planned' ? 'is-live' : ''} ${segment.usesConfiguredOvertime ? 'uses-configured-overtime' : ''} ${segment.historicalOnClosure ? 'historical-on-closure' : ''}" ${draggable ? 'draggable="true"' : ''} data-workshop-week-plan="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" style="--week-top:${top}%;--week-height:${height}%;" title="${escapeHtml(`${workshopEntryTimeLabel(entry)} · ${entry.hours} hours${segment.usesConfiguredOvertime ? ' · configured overtime' : ''}${segment.historicalOnClosure ? ' · historical booking on closure' : ''}${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to another day/time' : ' · drag to move this live job safely'}`)}">
     <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')}</strong>

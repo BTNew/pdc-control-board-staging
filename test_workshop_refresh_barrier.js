@@ -121,6 +121,21 @@ for (const change of ['logout', 'token', 'role', 'scope', 'destroy']) {
   });
 }
 
+test('confirmed write stays committed when readback authority changes', async () => {
+  const h = fixture(); await h.service.loadSnapshot('initial');
+  const old = deferred(); h.setRead(() => old.promise); const action = h.mutate(); await flush();
+  h.setToken('actor-two'); h.service.onTokenRefresh();
+  const result = await action;
+  assert.equal(result.ok, false);
+  assert.equal(result.error, 'authority_superseded');
+  assert.equal(result.committed, true);
+  assert.equal(result.refreshRequired, true);
+  assert.equal(result.booking_id, undefined);
+  assert.equal(h.writes().length, 1);
+  old.resolve(response(99)); await flush();
+  h.service.destroy();
+});
+
 test('authority change during preflight cannot submit a queued write as the replacement actor', async () => {
   const h = fixture(), old = deferred(); h.setRead(() => old.promise);
   const background = h.service.loadSnapshot('initial'), action = h.mutate(); await flush();
