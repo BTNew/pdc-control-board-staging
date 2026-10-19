@@ -992,7 +992,7 @@ function createWorkshopDataService(options) {
         return null;
       }
       bookingIds.add(bookingId);
-      const allowed = ['booking_id', 'booking_version', 'stage_code', 'stage_name', 'bay_number', 'bay_name',
+      const allowed = ['booking_id', 'booking_version', 'work_category', 'stage_code', 'stage_name', 'bay_number', 'bay_name',
         'status', 'scheduled_start_at', 'scheduled_end_at', 'default_duration_minutes', 'actual_start_at', 'actual_end_at'];
       bookings.push(Object.fromEntries(allowed.filter(key => Object.prototype.hasOwnProperty.call(booking, key)).map(key => [key, booking[key]])));
     }

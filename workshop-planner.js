@@ -3613,9 +3613,9 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
       description: displayVehicle(vehicle) || 'Vehicle description unavailable',
     };
     const archived = match.archived ? '<span class="workshop-search-alert">Archived vehicle</span>' : '';
-    if (!match.archived && match.returnedBookings?.length) return match.returnedBookings.map(entry => `<button type="button" class="workshop-search-result is-unbooked" data-workshop-select-returned-plan="${escapeHtml(entry.id)}">
+    if (!match.archived && match.returnedBookings?.length) return match.returnedBookings.map(entry => `<button type="button" class="workshop-search-result is-unbooked" data-workshop-select-returned-plan="${escapeHtml(entry.id)}" draggable="true" data-workshop-search-drag-plan="${escapeHtml(entry.id)}">
       <span class="workshop-search-result-vehicle"><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></span>
-      <span class="workshop-search-result-state"><strong>Select returned booking</strong><span>Unallocated · ${escapeHtml(Number(entry.hours).toFixed(2))} hours retained. Select to open this booking.</span></span>
+      <span class="workshop-search-result-state"><strong>Drag to a bay</strong><span>Unallocated · ${escapeHtml(Number(entry.hours).toFixed(2))} hours retained. Or select to open this booking.</span></span>
     </button>`).join('');
     if (match.bookingLookupError) return `<article class="workshop-search-result" aria-disabled="true"><span class="workshop-search-result-vehicle"><strong>Stock ${escapeHtml(identity.stock)} · ${escapeHtml(identity.customer)}</strong></span><span class="workshop-search-result-state"><strong>Bookings could not be checked</strong><span>${match.bookingLookupError === 'booking_search_upgrade_required' ? 'Refine the search to a specific vehicle, or refresh the planner.' : 'Refresh the search to try again.'}</span></span></article>`;
     if (!match.bookings.length) {
@@ -3628,9 +3628,9 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
           <span class="workshop-search-result-state">${archived}<strong>Scheduling unavailable</strong><span>${escapeHtml(reason)}</span></span>
         </article>`;
       }
-      return `<button type="button" class="workshop-search-result is-unbooked" data-workshop-search-unbooked-identity="${escapeHtml(match.vehicleIdentity)}">
+      return `<button type="button" class="workshop-search-result is-unbooked" data-workshop-search-unbooked-identity="${escapeHtml(match.vehicleIdentity)}" draggable="true" data-workshop-search-drag-vehicle="${escapeHtml(match.vehicleIdentity)}">
         <span class="workshop-search-result-vehicle"><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></span>
-        <span class="workshop-search-result-state">${archived}<strong>Select unbooked vehicle</strong><span>Show and highlight this vehicle in the unallocated candidate lane.</span></span>
+        <span class="workshop-search-result-state">${archived}<strong>Drag to a bay</strong><span>Or select to highlight this vehicle in Unallocated.</span></span>
       </button>`;
     }
     return match.bookings.map((entry, bookingIndex) => {
@@ -3823,7 +3823,90 @@ function workshopRevealSearchMatch(query = '') {
   renderWorkshopPlanner();
 }
 
+function workshopBindSearchDragResults(root) {
+  root.querySelectorAll('[data-workshop-search-drag-plan], [data-workshop-search-drag-vehicle]').forEach(button => {
+    if (button.dataset.searchDragBound === '1') return;
+    button.dataset.searchDragBound = '1';
+    button.addEventListener('dragstart', event => {
+      if (!event.dataTransfer || !window.__workshopDataService?.getTrustedSnapshot?.()) {
+        event.preventDefault(); return;
+      }
+      const planId = button.dataset.workshopSearchDragPlan;
+      if (planId) {
+        const plan = workshopReturnedPlanForAction(planId);
+        if (!plan) { event.preventDefault(); return; }
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('application/x-workshop-plan-id', plan.id);
+        workshopSetDragPreview({ type: 'plan', hours: Number(plan.hours), entry: plan });
+      } else {
+        const match = workshopSearchMatches(workshopState().search, workshopLoadPlans()).find(item =>
+          item.vehicleIdentity === button.dataset.workshopSearchDragVehicle && item.candidateAvailable
+          && !item.archived && !item.bookingLookupError && !item.bookings.length && !item.returnedBookings?.length);
+        if (!match) { event.preventDefault(); return; }
+        const vehicle = workshopVehicle(match.vehicleKey, workshopState().stage);
+        const hours = workshopSchedulingDuration(vehicle, workshopState().stage)?.hours;
+        if (!(hours > 0)) { event.preventDefault(); return; }
+        event.dataTransfer.effectAllowed = 'copy';
+        event.dataTransfer.setData('application/x-workshop-vehicle-key', match.vehicleKey);
+        event.dataTransfer.setData('text/plain', match.vehicleKey);
+        workshopSetDragPreview({ type: 'queue', hours });
+      }
+      // Keep the drag source alive, but let lanes under the search receive drops.
+      root.querySelector('#workshop-booking-search-results')?.classList.add('is-dragging');
+    });
+    button.addEventListener('dragend', () => {
+      root.querySelector('#workshop-booking-search-results')?.classList.remove('is-dragging');
+      workshopSetDragPreview(null);
+      workshopClearLanePreviews(root);
+    });
+  });
+}
+
+function workshopBindDragAutoScroll(root) {
+  if (root.dataset.dragAutoScrollBound === '1') return;
+  root.dataset.dragAutoScrollBound = '1';
+  let frame = null, point = null, lastAt = 0;
+  const stop = () => {
+    if (frame !== null) window.cancelAnimationFrame(frame);
+    frame = null; point = null; lastAt = 0;
+    root.querySelector('#workshop-booking-search-results')?.classList.remove('is-dragging');
+  };
+  const velocity = (value, low, high) => {
+    const edge = 65;
+    if (value < low || value > high) return 0;
+    return value < low + edge ? -Math.ceil(18 * (1 - (value - low) / edge))
+      : value > high - edge ? Math.ceil(18 * (1 - (high - value) / edge)) : 0;
+  };
+  const tick = () => {
+    frame = null;
+    if (!point || !root.isConnected || !workshopCurrentDragPreview() || Date.now() - lastAt > 500) { stop(); return; }
+    const dy = velocity(point.y, 0, window.innerHeight);
+    if (dy) window.scrollBy(0, dy);
+    const scroller = root.querySelector('.workshop-timeline-scroll');
+    if (scroller) {
+      const r = scroller.getBoundingClientRect();
+      if (point.y >= r.top && point.y <= r.bottom) {
+        const dx = velocity(point.x, Math.max(0, r.left), Math.min(window.innerWidth, r.right));
+        if (dx) scroller.scrollLeft += dx;
+      }
+    }
+    frame = window.requestAnimationFrame(tick);
+  };
+  const move = event => {
+    if (!root.isConnected || !workshopCurrentDragPreview()) return;
+    point = {x:event.clientX,y:event.clientY}; lastAt = Date.now();
+    if (frame === null) frame = window.requestAnimationFrame(tick);
+  };
+  root.addEventListener('dragover', move);
+  root.addEventListener('pointermove', move);
+  root.addEventListener('drop', stop);
+  root.addEventListener('dragend', stop);
+  root.addEventListener('pointerup', stop);
+  root.addEventListener('pointercancel', stop);
+}
+
 function workshopBindSearchResultButtons(root = document) {
+  workshopBindSearchDragResults(root);
   root.querySelectorAll('[data-workshop-select-returned-plan]').forEach(button => {
     if (button.dataset.returnedSelectionBound === '1') return;
     button.dataset.returnedSelectionBound = '1';
@@ -3856,8 +3939,13 @@ async function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
       renderWorkshopPlanner();
       return false;
     }
-    if (result.bookings.length) {
-      const closest = workshopSortBookingsClosest(result.bookings)[0];
+    const stationBookings = result.bookings.filter(entry =>
+      normalizePmbStage(entry.stage) === normalizePmbStage(state.stage)
+      && (entry.stage !== 'BUS_4X4' || !workshopSelectedBusGroup()?.code
+        || (entry.workCategory ? entry.workCategory === workshopSelectedBusGroup().code
+          : workshopSelectedBusGroup().bays.includes(Number(entry.bay)))));
+    if (stationBookings.length) {
+      const closest = workshopSortBookingsClosest(stationBookings)[0];
       return workshopSelectSearchBooking(closest.id, vehicleIdentity);
     }
   }
@@ -5327,6 +5415,7 @@ function bindWorkshopPlanner(root) {
       renderWorkshopPlanner();
     });
   }
+  workshopBindDragAutoScroll(root);
   root.querySelectorAll('[data-workshop-focused-back]').forEach(button => button.addEventListener('click', workshopExitFocusedBooking));
   root.querySelector('[data-workshop-back-control]')?.addEventListener('click', () => showView('workflow'));
 

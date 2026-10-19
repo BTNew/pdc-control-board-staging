@@ -36,6 +36,15 @@ test('authoritative empty bookings can identify an unbooked vehicle', async () =
   const { service } = setup(async () => ({ ok: true, body: { vehicle_id: vehicleId, bookings: [] } }));
   assert.deepEqual(await service.lookupVehicleBookings(vehicleId, 'PMG'), { ok: true, vehicleId, bookings: [] });
 });
+
+test('search metadata retains the category needed to isolate Bus station results', async () => {
+  const body = detail();
+  body.bookings[0].work_category = 'BUS_ELECTRICAL';
+  const { service } = setup(async () => ({ ok: true, body }));
+  const result = await service.lookupVehicleBookings(vehicleId, 'PMG');
+  assert.equal(result.bookings[0].work_category, 'BUS_ELECTRICAL');
+  assert.equal(result.bookings[0].unexpected_detail, undefined);
+});
 test('an unallocated STOPPAGE does not hide another valid booking', async () => {
   const body = detail();
   body.bookings.push({ ...booking(), booking_id: '33333333-3333-4333-8333-333333333333', status: 'stoppage', bay_number: null });

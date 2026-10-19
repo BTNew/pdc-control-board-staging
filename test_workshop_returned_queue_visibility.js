@@ -30,6 +30,7 @@ let trusted=true;
 Object.assign(context,{
   workshopState:()=>state,workshopSelectedBusGroup:()=>({code:'BUS_MECHANICAL'}),
   workshopLoadPlans:()=>rows,workshopSharedModeActive:()=>true,
+  workshopBindSearchDragResults:()=>{},
   window:{__workshopDataService:{getTrustedSnapshot:()=>trusted?{}:null}},
   workshopSelectPlanForDetail:id=>{selected=id;},
   renderWorkshopPlanner:()=>{rendered++;},document:{querySelector:()=>null},
