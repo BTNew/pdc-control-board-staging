@@ -31,7 +31,7 @@ test('all frozen native files outside declared boundary adaptations retain origi
     if (item.file === 'pdc-staff-usage.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'adb054e560cb911a588622303e7f7f4549d7274eb840e6051002fc5e6bc041de',item.file);
     // PMG now has a read-error recovery repair; keep the isolated fitter asset at its original baseline.
     else if (item.file === 'control-board-overview.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1',item.file);
-    else if (['pdc-fitters.js','canonical-entry.js','control-board-overview.js','pdc-new-vehicles.css','workshop-planner.css','pdc-review-stations.js'].includes(item.file)) assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
+    else if (['pdc-fitters.js','canonical-entry.js','control-board-overview.js','pdc-new-vehicles.css','workshop-planner.css','pdc-review-stations.js','pdc-review-stations.css'].includes(item.file)) assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
     else if (item.file === 'workshop-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'004267f09a9fa4f5ad0852dd8f983e25395d8352f8b0f9fb798777b3d733e9ff',item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
@@ -42,9 +42,10 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 });
 // Explicitly pinned upstream releases and owner-approved navigation, including the 18 October full-week planner scope repair.
 const approvedRootImportPatch = Object.freeze({
+  "pdc-review-stations.css": "e65e01d446092ae60f05460e7073f07e3bed4ba0299d4858d1c875be9b2e8fb7",
   "workshop-data-service.js": "9e073b911ce66de675d0cae2def4b4ff0b5e3f9cf92a04e86b51a41986094b80",
   // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
-  "pdc-review-stations.js": "6bf2164d30fdfb5950c82d309e8a82cc4a587bbd32438f978e19f826734049bc",
+  "pdc-review-stations.js": "7f710f3d3f976c508c82ed7a0ee325e068e1fa08c34787e898e26673023e1b20",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
   "pdc-workshop-departments.js": "06326c4e7bb3aa1b301c4c5cd42024927ca3bac1f6c9ef7ce5dcce871d41ed29",
@@ -60,10 +61,10 @@ const approvedRootImportPatch = Object.freeze({
   "canonical-entry.js": "35989ac35c070a8f3ed0f9976f0932e1678df3b0b1af50fa691987515f21732a",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
-  "app.js": "f2596aa2f055032c24444eaea3856966643b31efde4fbc896e1961327917f791",
+  "app.js": "c0ef4ce39312f18873cdba842d88a0b8f1bafce53a99de983070dcf35a721480",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "dfe1d10b7bb3fff02bf07d87090a038f7eb0a91254c5ef1e38d0b18b1d880cb4",
+  "index.html": "4cefdd930cd62002e91878c2c63b53e16ae7c4e1fadf434881c33fa7cdc04843",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "ac17427f069fd60e255cab90be6f6737ed5da700e6b87334472a13638e5dc123",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
