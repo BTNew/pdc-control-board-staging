@@ -4064,7 +4064,12 @@ function renderAdminLists(options = {}) {
   $$('[data-remove-provider]').forEach(button => button.addEventListener('click', () => removeSubletProviderFromAdminList(button.dataset.removeProvider)));
   $$('[data-remove-salesperson]').forEach(button => button.addEventListener('click', () => removeSalespersonFromAdminList(button.dataset.removeSalesperson)));
   // Reference-only updates still hide history immediately when authority changes.
-  if (options.refreshBackup !== false || !backupStatusSharedModeReady()) renderBackupStatusPanel();
+  // A normal re-render does not ask again while a fresh result is on screen.
+  if (options.refreshBackup === false) {
+    if (!backupStatusSharedModeReady()) renderBackupStatusPanel();
+  } else {
+    requestBackupStatus();
+  }
 }
 
 // Admin-visible backup status widget (Setup screen). Reads only from
@@ -4102,12 +4107,16 @@ function formatBackupStatusDate(value) {
   });
 }
 
+const BACKUP_SUCCESS_WARNING_MS = 6 * 60 * 60 * 1000;
+const BACKUP_RUNNING_WARNING_MS = 3 * 60 * 60 * 1000;
+const BACKUP_STATUS_POLL_MS = 15 * 60 * 1000;
+
 function backupHistoryHealth(runs, lastSuccess, now = Date.now()) {
   const warnings = [];
   const lastTime = Date.parse(lastSuccess && (lastSuccess.finished_at || lastSuccess.started_at));
   if (!Number.isFinite(lastTime)) warnings.push('No successful backup is recorded.');
-  else if (now - lastTime > 3 * 60 * 60 * 1000) warnings.push('No successful backup has been recorded in the past three hours.');
-  const unfinished = (runs || []).filter(run => run.status === 'running' && now - Date.parse(run.started_at) > 3 * 60 * 60 * 1000);
+  else if (now - lastTime > BACKUP_SUCCESS_WARNING_MS) warnings.push('No successful backup has been recorded in the past six hours.');
+  const unfinished = (runs || []).filter(run => run.status === 'running' && now - Date.parse(run.started_at) > BACKUP_RUNNING_WARNING_MS);
   if (unfinished.length) warnings.push(`${unfinished.length} older backup attempt(s) have no recorded completion.`);
   if (lastSuccess && !lastSuccess.file_path) warnings.push('The latest successful record has no backup file location.');
   return warnings;
@@ -4122,6 +4131,7 @@ async function renderBackupStatusPanel() {
     panel.hidden = true;
     return;
   }
+  if (typeof app !== 'undefined' && app) app.backupStatusLoadedAt = Date.now();
   panel.hidden = false;
   host.innerHTML = '<div class="empty-state compact-empty"><strong>Loading backup status…</strong></div>';
 
@@ -4191,8 +4201,36 @@ async function renderBackupStatusPanel() {
       ${recentFailures.length ? `<div class="parts-help-strip"><strong>Recent failure detail:</strong><span>${recentFailures.map(run => `${escapeHtml(new Date(run.started_at).toLocaleString())} — ${escapeHtml(run.error_message || 'unknown error')}`).join(' · ')}</span></div>` : ''}
     `;
   } catch (error) {
+    if (typeof app !== 'undefined' && app) app.backupStatusLoadedAt = 0;
     host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load backup status</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
   }
+}
+
+function backupStatusPageVisible() {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+  return typeof app !== 'undefined' && app.currentView === 'lists';
+}
+
+function requestBackupStatus() {
+  ensureBackupStatusPoll();
+  if (!backupStatusSharedModeReady()) {
+    renderBackupStatusPanel();
+    return;
+  }
+  if (!backupStatusPageVisible()) return;
+  const loadedAt = app.backupStatusLoadedAt || 0;
+  if (loadedAt && Date.now() - loadedAt < BACKUP_STATUS_POLL_MS) return;
+  return renderBackupStatusPanel();
+}
+
+function ensureBackupStatusPoll() {
+  if (typeof app === 'undefined' || !app || app.backupStatusPollBound) return;
+  const timer = typeof window !== 'undefined' ? window.setInterval : undefined;
+  const listen = typeof document !== 'undefined' && typeof document.addEventListener === 'function';
+  if (typeof timer !== 'function' && !listen) return;
+  app.backupStatusPollBound = true;
+  if (typeof timer === 'function') timer(() => requestBackupStatus(), BACKUP_STATUS_POLL_MS);
+  if (listen) document.addEventListener('visibilitychange', () => requestBackupStatus());
 }
 
 // ---------------------------------------------------------------------

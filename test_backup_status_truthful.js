@@ -22,8 +22,12 @@ const context = vm.createContext({ Date, console, PRODUCTION_SUPABASE_PROJECT_RE
 vm.runInContext(source.slice(begin,end),context);
 const health = context.backupHistoryHealth;
 assert.match(health([],null,now).join(' '), /No successful backup is recorded/);
-assert.match(health([],old,now).join(' '), /past three hours/);
+assert.match(health([],old,now).join(' '), /past six hours/);
 assert.equal(health([],{...old,finished_at:'2026-09-14T11:00:00Z'},now).length,0);
+assert.equal(health([],{...old,finished_at:'2026-09-14T08:00:00Z'},now).length,0);
+assert.match(health([],{...old,finished_at:'2026-09-14T05:00:00Z'},now).join(' '), /past six hours/);
+assert.match(health([{status:'running',started_at:'2026-09-14T07:00:00Z'}],{...old,finished_at:'2026-09-14T11:00:00Z'},now).join(' '), /no recorded completion/);
+assert.doesNotMatch(health([{status:'running',started_at:'2026-09-14T07:00:00Z'}],{...old,finished_at:'2026-09-14T11:00:00Z'},now).join(' '), /past six hours/);
 assert.match(health([{status:'running',started_at:'2026-08-28T12:22:23Z'}],old,now).join(' '), /no recorded completion/);
 assert.match(health([],{...old,file_path:null},now).join(' '), /no backup file location/);
 (async()=>{

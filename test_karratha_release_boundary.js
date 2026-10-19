@@ -63,10 +63,16 @@ const approvedRootImportPatch = Object.freeze({
   "canonical-entry.js": "eeea68b46e644d88dd986ff81fe50ac5e350706141048d554da1c2ef8639c70c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
-  "app.js": "cbd7d174d2ca3560533187c67ca6d9ce2152e5131238a25287dd5f3f5c70156b",
+  // Deliberate live-board change, 19 October 2026. Department 135 stays parked:
+  // this pin is the safeguard that rejects an unreviewed edit of the shared
+  // app.js. The only approved difference is Setup backup polling (15-minute
+  // refresh while that screen is visible). Craig approved the success warning
+  // moving from three hours to six hours so it matches the backup schedule.
+  "app.js": "e06cd71c527e8091ab5ecb8f473b65c4883902e44120d60315486fbd5e2e6388",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  "index.html": "068bccfc60e1b760414c1a796de319c736c33e66f5385e644125d48e6849b796",
+  // Same release: index.html only gains backup-status=2026.10.19.01 on the app.js URL.
+  "index.html": "f702a9911cfc40067fb84d8693d40080b405fd02bb11e032372759251d76fb06",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
