@@ -83,10 +83,10 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20261019065746",
-    "name": "revolution_service_job1_filename",
-    "file": "supabase/migrations/20261019065746_revolution_service_job1_filename.sql",
-    "sha256": "7bc39b3f9bd2157542f10eda80fc5d68ebd3343f205a45a96e53ca47cf8214cf",
+    "version": "20261019075449",
+    "name": "owner_temporary_board_visibility_holds",
+    "file": "supabase/migrations/20261019075449_owner_temporary_board_visibility_holds.sql",
+    "sha256": "91bf2028c5160fdca68145cde24c8730c9ac2017f03d93e043ab1f77b5d6c1b3",
     "commissioned": true,
     "review_status": "staging_applied"
   },
@@ -1202,6 +1202,14 @@
     "name": "revolution_service_job1_filename",
     "file": "supabase/migrations/20261019065746_revolution_service_job1_filename.sql",
     "sha256": "7bc39b3f9bd2157542f10eda80fc5d68ebd3343f205a45a96e53ca47cf8214cf",
+    "commissioned": true,
+    "review_status": "staging_applied"
+  },
+  "owner_temporary_visibility_holds_migration": {
+    "version": "20261019075449",
+    "name": "owner_temporary_board_visibility_holds",
+    "file": "supabase/migrations/20261019075449_owner_temporary_board_visibility_holds.sql",
+    "sha256": "91bf2028c5160fdca68145cde24c8730c9ac2017f03d93e043ab1f77b5d6c1b3",
     "commissioned": true,
     "review_status": "staging_applied"
   }
