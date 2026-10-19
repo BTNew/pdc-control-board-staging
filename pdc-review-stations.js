@@ -45,6 +45,26 @@
         && vehicle.pdcDepartmentCodes.length === 1 && vehicle.pdcDepartmentCodes[0] === '138') return '14450';
     return ''; // An authenticated vehicle must never borrow the default dealer.
   }
+  function resolveReadDealerScope(vehicle, sharedRows, bound, config, original) {
+    if (vehicle.__emailVehicleServerAuthoritative !== true) return original(vehicle, config);
+    const exact = resolveDealerScope(vehicle, sharedRows, bound);
+    if (exact) return exact;
+    // This wrapper used to replace the main page's commissioned PMG read path
+    // with the older Department138-only rule. Accepted139 job evidence is now
+    // verified by the scoped RPC. Supply its request scope without extending
+    // write authority or allowing a conflicting dealer/vehicle identity.
+    const id = scopeText(vehicle.__emailVehicleId), stock = scopeText(vehicle.stock || vehicle.stock_number || vehicle.stockNumber);
+    const departments = vehicle.pdcDepartmentCodes;
+    if (config?.projectRef !== PROJECT || config?.dealerCode !== '14450' || !uuid(id) || !stock
+        || !['tune_pmg', 'microsoft_navision'].includes(vehicle.source)
+        || vehicle.pdcSheetVisible !== true || vehicle.pdcHasUnknownDepartment !== false
+        || !Array.isArray(departments) || !departments.length || departments.some(d => !['138', '139'].includes(d))) return '';
+    if ([vehicle.__sharedNavisionDealerCode, vehicle.dealerCode, vehicle.dealer_code].some(d => scopeText(d) === '37047')) return '';
+    const linked = (Array.isArray(sharedRows) ? sharedRows : []).filter(r => r.canonical_vehicle_id === id && r.is_current === true && r.record_status === 'current');
+    if (linked.some(r => scopeText(r.stock_number) !== stock || scopeText(r.dealer_code) === '37047')) return '';
+    if (bound?.canonicalId === id && (scopeText(bound.stockBaseline) !== stock || bound.dealerCode === '37047')) return '';
+    return '14450';
+  }
   function reviewLines(vehicle = {}) {
     if (vehicle.__emailVehicleServerAuthoritative !== true || vehicle.pdcQcComplete === true
         || vehicle.pdcQcOperationLinesProjectionPresent !== true
@@ -83,15 +103,14 @@
       && q?.stage_code === stage && q?.active === true && q?.completed === false
       && q?.description === line.description && q?.estimated_hours === line.estimatedHours;
   }
-  const api = { STATIONS, reviewLines, controlHtml, movePayload, verifyMove, resolveDealerScope };
+  const api = { STATIONS, reviewLines, controlHtml, movePayload, verifyMove, resolveDealerScope, resolveReadDealerScope };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT
       || typeof renderQualityControlPage !== 'function' || window.PDC_REVIEW_STATIONS_VERSION) return;
 
   const oldDealerScope = vehicleWorkshopDetailRequestDealerCode;
   vehicleWorkshopDetailRequestDealerCode = function (vehicle = {}, config = {}) {
-    if (vehicle.__emailVehicleServerAuthoritative !== true) return oldDealerScope(vehicle, config);
-    return resolveDealerScope(vehicle, app.sharedNavisionVisibleRows, app.vehicleModalIdentity);
+    return resolveReadDealerScope(vehicle, app.sharedNavisionVisibleRows, app.vehicleModalIdentity, config, oldDealerScope);
   };
   const choices = new Map(), messages = new Map(), saving = new Set();
   const rowId = (v, line) => `${v.__emailVehicleId}:${line.lineIdentity}`;
