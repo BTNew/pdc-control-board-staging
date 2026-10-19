@@ -45,6 +45,18 @@ assert.equal(context.workshopSelectReturnedPlan('reserved'),false,'reject alread
 trusted=false;
 assert.equal(context.workshopSelectReturnedPlan('returned'),false,'stale snapshot cannot select a reservation');
 assert.equal(rendered,1);
+const bindStart=source.indexOf('function workshopBindSearchResultButtons(');
+const bindEnd=source.indexOf('\nasync function workshopSelectUnbookedSearchVehicle(',bindStart);
+vm.runInContext(source.slice(bindStart,bindEnd),context);
+let clickHandler=null,bindings=0;
+const freshSearchButton={dataset:{workshopSelectReturnedPlan:'returned'},addEventListener:(event,fn)=>{assert.equal(event,'click');clickHandler=fn;bindings++;}};
+const root={querySelectorAll:selector=>selector==='[data-workshop-select-returned-plan]'?[freshSearchButton]:[]};
+context.workshopBindSearchResultButtons(root);
+context.workshopBindSearchResultButtons(root);
+assert.equal(bindings,1,'async search replacement attaches one handler without duplicate bindings');
+trusted=true;opened=null;
+clickHandler();
+assert.deepEqual(opened,{key:'123',stage:'BUS_4X4',id:'returned'},'fresh async search result opens the retained booking');
 assert.doesNotMatch(html,/data-workshop-schedule-vehicle/,'do not create a duplicate booking');
 assert.match(source,/sharedStatus: booking.status/);
 assert.match(source,/entry.status !== 'completed' && Number\(entry.bay\) > 0/,'bay counters exclude queued reservations');

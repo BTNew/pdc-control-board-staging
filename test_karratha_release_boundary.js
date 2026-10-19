@@ -49,7 +49,7 @@ const approvedRootImportPatch = Object.freeze({
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
   "pdc-workshop-departments.js": "06326c4e7bb3aa1b301c4c5cd42024927ca3bac1f6c9ef7ce5dcce871d41ed29",
-  "workshop-planner.js": "f5b838bca4fdf30c8315db86265c08e5d1589764e07c044358d71312a99dceb4",
+  "workshop-planner.js": "9780878ee36839945df1f3e544b39833aeb4f401c00fa0b2b50fa5c2eb94ad83",
   "workshop-planner.css": "0866d1ffc9546de5890575dea8ddf9ae1ebf17b8b1406a4682ec1a814428cf6f",
   "scripts/build_pages_runtime.js": "b8d0246d48dc6547a21ef70f729aff89488858e081c3c07b3dcad77ff0718ab2",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
