@@ -5,10 +5,12 @@ const layout=require('./pdc-workshop-departments');
 function fn(name){const start=source.indexOf('function '+name+'(');assert(start>=0);const tail=source.slice(start),end=/\n(?:async )?function \w+\(/.exec(tail);return end?tail.slice(0,end.index):tail;}
 test('category survives canonical board projection and the Mechanical dialog excludes Electrical/QA',()=>{
  const state={stage:'BUS_4X4',busBayGroup:'',busShowAllBays:true,focusedBookingMode:true};
- const board={__emailVehicleServerAuthoritative:true,__emailVehicleId:'vehicle',pdcQcOperationLinesProjectionPresent:true,pdcQcOperationLines:[
-  {sourceLineId:'m',operationNo:'OP1',description:'Conversion',stageCode:'BUS_4X4',workCategory:'BUS_MECHANICAL',estimatedHours:60},
-  {sourceLineId:'e',operationNo:'OP2',description:'Light bar',stageCode:'BUS_4X4',workCategory:'BUS_ELECTRICAL',estimatedHours:2.2},
-  {sourceLineId:'q',operationNo:'OP3',description:'Fuel',stageCode:'BUS_4X4',workCategory:'BUS_QA',estimatedHours:.15}]};
+ const mapServerVehicle=require('./pdc-email-vehicle-location-service').mapServerVehicle;
+ const board=mapServerVehicle({id:'vehicle',qc_operation_lines:[
+  {source_line_id:'00000000-0000-4000-8000-000000000001',line_identity:'source:00000000-0000-4000-8000-000000000001',active:true,operation_no:'OP1',description:'Conversion',stage_code:'BUS_4X4',work_category:'BUS_MECHANICAL',estimated_hours:60},
+  {source_line_id:'00000000-0000-4000-8000-000000000002',line_identity:'source:00000000-0000-4000-8000-000000000002',active:true,operation_no:'OP2',description:'Light bar',stage_code:'BUS_4X4',work_category:'BUS_ELECTRICAL',estimated_hours:2.2},
+  {source_line_id:'00000000-0000-4000-8000-000000000003',line_identity:'source:00000000-0000-4000-8000-000000000003',active:true,operation_no:'OP3',description:'Fuel',stage_code:'BUS_4X4',work_category:'BUS_QA',estimated_hours:.15}]});
+
  const c={app:{currentRequestedView:'planner-bus-mechanical'},window:{PDC_WORKSHOP_DEPARTMENTS:layout},
   workshopState:()=>state,workshopSharedModeActive:()=>true,pdcSheetVehicles:()=>[board],cleanNavisionText:x=>String(x||''),
   normalizePmbStage:x=>x,vehicleWorkshopStageCode:x=>x,WORKSHOP_STAGE_SEQUENCE:['BUS_4X4','TINT'],
@@ -42,7 +44,7 @@ test('Schedule offers the selected category bays, and both planner loaders are c
  assert.match(modal,/workshopVisibleBays\(normalizedStage\)\.map/);
  assert.doesNotMatch(modal,/Choose any suitable Bus4x4 bay/);
  const app=fs.readFileSync('app.js','utf8');
- assert.equal((app.match(/workshop-planner\.js\?station-scope=2026\.10\.19\.01/g)||[]).length,2);
+ assert.equal((app.match(/workshop-planner\.js\?station-scope=2026\.10\.19\.02/g)||[]).length,2);
  const mapper=fs.readFileSync('pdc-email-vehicle-location-service.js','utf8');
  assert.match(mapper,/workCategory: String\(item\?\.work_category/);
 });

@@ -275,6 +275,7 @@ function mapServerVehicle(row = {}) {
 
   mapped.pdcQcOperationLines = (qcProjectionFieldPresent ? qcProjection : []).slice(0, 250).map(item => ({
     lineIdentity: String(item?.line_identity || ''), sourceKind: String(item?.source_kind || ''), sourceLineId: String(item?.source_line_id || ''),
+    workCategory: String(item?.work_category || '').toUpperCase(),
     department: String(item?.department ?? '').trim(),
     operationNo: String(item?.operation_no || ''), description: String(item?.description || '').trim(), jobCardNumber: String(item?.job_card_number || '').trim(),
     hoursProvenance: String(item?.hours_provenance || ''), estimateBasis: String(item?.estimate_basis || ''), reviewNote: String(item?.review_note || ''),

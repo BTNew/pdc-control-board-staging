@@ -5404,7 +5404,7 @@ function renderWorkshopPlanner(options = {}) {
       <section class="workshop-timeline-scroll">
         <div class="workshop-scroll-cue" role="note">Swipe or scroll schedule horizontally →</div>
         <div class="workshop-timeline" style="${workshopTimelineCssVariables()}">
-          <div class="workshop-time-header"><div class="workshop-bay-label"><strong>${escapeHtml(`${pmbStageLabel(stage)} bays`)}</strong><span>${escapeHtml(`${workshopStageBayCount(stage)} physical bay${workshopStageBayCount(stage) === 1 ? '' : 's'}`)}</span></div><div class="workshop-time-axis">${workshopTimeAxisHtml()}</div></div>
+          <div class="workshop-time-header"><div class="workshop-bay-label"><strong>${escapeHtml(`${pmbStageLabel(stage)} bays`)}</strong><span>${escapeHtml(`${workshopVisibleBays(stage).length} physical bay${workshopVisibleBays(stage).length === 1 ? '' : 's'}`)}</span></div><div class="workshop-time-axis">${workshopTimeAxisHtml()}</div></div>
           <div class="workshop-now-line" data-workshop-now-line hidden><span>Now</span></div>
           ${workshopBayRowsHtml(stage, dateKey, focusedPlans)}
         </div>
