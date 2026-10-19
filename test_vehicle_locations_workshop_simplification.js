@@ -31,7 +31,7 @@ const searchSnapshot={vehicles:[historyVehicle,disabledVehicle],work_items:[],ou
 let lookup=null;
 const searchContext={
   app:{data:[],workshopEligibilitySnapshot:{candidates:[]}},window:{__workshopDataService:{getTrustedSnapshot:()=>searchSnapshot}},
-  workshopState:()=>({stage:'FITTING'}),workshopCurrentSearchLookup:()=>lookup,
+  workshopReturnedQueuePlans:()=>[],workshopState:()=>({stage:'FITTING'}),workshopCurrentSearchLookup:()=>lookup,
   cleanNavisionText:value=>String(value||'').trim(),workshopSnapshotVehicleToPlannerRow:vehicle=>({...vehicle,sharedVehicleId:vehicle.id}),
   workshopSharedModeActive:()=>true,workshopSharedVehicleRef:({sharedVehicleId})=>({vehicleId:sharedVehicleId}),
   workshopVehicleSearchText:vehicle=>vehicle.stockNumber,vehicleKey:vehicle=>vehicle.vehicleKey,

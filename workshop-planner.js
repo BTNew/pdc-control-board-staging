@@ -3452,6 +3452,9 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
         vehicle,
         vehicleKey: key,
         vehicleIdentity,
+        returnedBookings: workshopReturnedQueuePlans(plans, workshopState().stage,
+          workshopState().stage === 'BUS_4X4' && typeof workshopSelectedBusGroup === 'function' ? workshopSelectedBusGroup()?.code || '' : '')
+          .filter(entry => workshopPlanVehicleIdentity(entry) === vehicleIdentity),
         rank: workshopSearchRank(vehicle, clean),
         archived: Boolean(vehicle.isArchived || vehicle.archivedAt || statusCategory(vehicle) === 'deleted'),
         bookings,
@@ -3462,7 +3465,7 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
       };
     })
     .filter(item => options.ignoreLookup || !lookup?.limited || lookup.matches.has(item.vehicleIdentity))
-    .filter(item => options.includeUnmatched || item.bookings.length || item.candidateInLane || item.bookingLookupError)
+    .filter(item => options.includeUnmatched || item.bookings.length || item.returnedBookings.length || item.candidateInLane || item.bookingLookupError)
     // Board and station projections can use different local keys for the same
     // canonical vehicle. Collapse only the resolved identity, never the stock.
     .filter((item, index, matches) => matches.findIndex(other => other.vehicleIdentity === item.vehicleIdentity) === index)
@@ -3603,6 +3606,10 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
       description: displayVehicle(vehicle) || 'Vehicle description unavailable',
     };
     const archived = match.archived ? '<span class="workshop-search-alert">Archived vehicle</span>' : '';
+    if (!match.archived && match.returnedBookings?.length) return match.returnedBookings.map(entry => `<button type="button" class="workshop-search-result is-unbooked" data-workshop-select-returned-plan="${escapeHtml(entry.id)}">
+      <span class="workshop-search-result-vehicle"><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></span>
+      <span class="workshop-search-result-state"><strong>Select returned booking</strong><span>Unallocated · ${escapeHtml(Number(entry.hours).toFixed(2))} hours retained. Select to open this booking.</span></span>
+    </button>`).join('');
     if (match.bookingLookupError) return `<article class="workshop-search-result" aria-disabled="true"><span class="workshop-search-result-vehicle"><strong>Stock ${escapeHtml(identity.stock)} · ${escapeHtml(identity.customer)}</strong></span><span class="workshop-search-result-state"><strong>Bookings could not be checked</strong><span>${match.bookingLookupError === 'booking_search_upgrade_required' ? 'Refine the search to a specific vehicle, or refresh the planner.' : 'Refresh the search to try again.'}</span></span></article>`;
     if (!match.bookings.length) {
       if (!match.candidateAvailable || match.archived) {
@@ -5056,7 +5063,21 @@ function workshopReturnedQueueCardHtml(entry) {
     data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}"
     aria-label="${escapeHtml(`Returned booking ${identity}. Drag to a bay or press Enter to open job.`)}">
     <strong>Stock ${escapeHtml(identity)}</strong><div>Returned to Unallocated</div>
-    <div>${escapeHtml(String(entry.hours))} allocated hours retained</div><small>Drag to a bay to reallocate this booking.</small></article>`;
+    <div>${escapeHtml(Number(entry.hours).toFixed(2))} allocated hours retained</div><small>Drag to a bay to reallocate this booking.</small>
+    <button type="button" class="small-button" data-workshop-select-returned-plan="${escapeHtml(entry.id)}">Select job</button></article>`;
+}
+
+function workshopSelectReturnedPlan(planId) {
+  const state = workshopState();
+  const category = state.stage === 'BUS_4X4' ? workshopSelectedBusGroup()?.code || '' : '';
+  const plan = workshopReturnedQueuePlans(workshopLoadPlans(), state.stage, category).find(entry => entry.id === planId);
+  if (!plan || (workshopSharedModeActive() && !window.__workshopDataService?.getTrustedSnapshot?.())) return false;
+  workshopSelectPlanForDetail(plan.id);
+  state.searchOpen = false;
+  state.searchHighlightPlanId = plan.id;
+  renderWorkshopPlanner();
+  document.querySelector('[data-workshop-detail-form]')?.scrollIntoView({ block: 'center' });
+  return true;
 }
 
 function renderWorkshopPlanner(options = {}) {
@@ -5589,6 +5610,9 @@ function bindWorkshopPlanner(root) {
   root.querySelectorAll('[data-workshop-drop-bay]').forEach(lane => bindWorkshopLane(lane));
   bindWorkshopAdminPalette(root);
   bindWorkshopUnallocatedDrop(root.querySelector('[data-workshop-unallocated-drop]'));
+  root.querySelectorAll('[data-workshop-select-returned-plan]').forEach(button => button.addEventListener('click', () => {
+    workshopSelectReturnedPlan(button.dataset.workshopSelectReturnedPlan);
+  }));
   root.querySelectorAll('[data-workshop-select-plan]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
     if (event.detail === 0) {
