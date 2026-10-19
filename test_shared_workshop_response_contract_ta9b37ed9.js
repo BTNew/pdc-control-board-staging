@@ -95,6 +95,7 @@ const renderContext = {
   escapeHtml: value => String(value),
 };
 vm.createContext(renderContext);
+vm.runInContext(sourceSlice('function vehicleImportedAdditionsHtml', '\nfunction renderVehicleWorkshopWorkPage'), renderContext);
 vm.runInContext(sourceSlice('function renderVehicleWorkshopWorkPage', '\nasync function loadVehicleWorkshopDetail'), renderContext);
 const unavailableHtml = renderContext.renderVehicleWorkshopWorkPage({});
 assert.match(unavailableHtml, /Booking data unavailable/, 'error state is visibly unavailable');
