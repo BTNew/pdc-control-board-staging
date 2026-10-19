@@ -23,6 +23,8 @@ This private function requires the staging management connection and rejects bro
 
 The existing import capture calls `pdc_operation_updates_private.process_pending` automatically. After teaching a description already imported, call the same processor for the exact affected vehicle IDs, with a bounded batch and a recorded reason. Read back the receipt and canonical vehicle operations. Never mark a review approved directly or insert operations around the normal evidence and scheduling checks.
 
+Use named processor arguments: `p_vehicle_ids`, `p_limit`, and optionally `p_department`. The third argument is a department filter, not a reason; put the reason in the private run ledger. Background booking history uses the actor already recorded on the authenticated source batch, bound to the exact accepted change and booking write. A disabled import account remains disabled. Do not activate it, change its role, or borrow a staff login to supply audit attribution.
+
 ## Categories
 
 | Source department | Destinations |

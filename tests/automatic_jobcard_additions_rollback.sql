@@ -145,13 +145,14 @@ BEGIN
 END $fn$;
 
 DO $test$
-DECLARE v uuid; cid uuid; result jsonb; l jsonb; actor_claims text:=current_setting('request.jwt.claims',true);
+DECLARE v uuid; v2 uuid; cid uuid; op uuid; bay uuid; bid uuid; d date; result jsonb; l jsonb; actor_claims text:=current_setting('request.jwt.claims',true);
 BEGIN
  PERFORM set_config('request.jwt.claims','',true);
  PERFORM pdc_operation_updates_private.remember_ai_routing_20261019('138','WARRANTY','JOB_CARD_NOTES',0,0.99,'Administrative warranty heading, no physical labour');
  PERFORM pdc_operation_updates_private.remember_ai_routing_20261019('138','NEW ELECTRICAL FIXTURE','BUS_ELECTRICAL',1.5,0.95,'Synthetic electrical addition with temporary labour estimate');
  PERFORM pdc_operation_updates_private.remember_ai_routing_20261019('138','NEW QA FIXTURE','BUS_QA',0,0.95,'Synthetic explicit zero-hour QA task');
  PERFORM pdc_operation_updates_private.remember_ai_routing_20261019('139','NEW FITTING FIXTURE','FITTING',2,0.95,'Synthetic fitting addition with temporary labour estimate');
+ PERFORM pdc_operation_updates_private.remember_ai_routing_20261019('139','DELIVERED UNREGISTERED FIXTURE','JOB_CARD_NOTES',0,0.95,'Synthetic delivery instruction with no labour');
  PERFORM set_config('request.jwt.claims',actor_claims,true);
  UPDATE public.pdc_user_roles SET role='administrator' WHERE auth_user_id=(SELECT actor FROM ou_context);
  INSERT INTO public.pdc_auditor_user_dealer_scopes(auth_user_id,normalized_email,dealer_code,environment,active)
@@ -181,6 +182,30 @@ BEGIN
  SELECT x INTO l FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) x WHERE x->>'description'='NEW FITTING FIXTURE';
  PERFORM pg_temp.ou_assert(l->>'stage_code'='FITTING' AND (l->>'estimated_hours')::numeric=3.75,'Source hours beat AI estimate',l);
  PERFORM pg_temp.ou_assert((SELECT count(*)=4 FROM public.pdc_pilbara_service_operations WHERE vehicle_id=v),'Replay creates no duplicate lines');
+ v2:=pg_temp.ou_vehicle('background additions');
+ cid:=pg_temp.ou_change(v2,NULL,0,'DELIVERED UNREGISTERED FIXTURE',1,'139');
+ SELECT approval_receipt INTO result FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;
+ PERFORM pg_temp.ou_assert(result->>'ok'='true','139 note automatically accepted',result);
+ SELECT x INTO l FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v2)) x WHERE x->>'description'='DELIVERED UNREGISTERED FIXTURE';
+ PERFORM pg_temp.ou_assert(l->>'stage_code'='JOB_CARD_NOTES','139 note retained as information',l);
+ op:=pg_temp.ou_operation(v2,'FITTING',1,2,'139','Fixture fitting base work');
+ bay:=pg_temp.ou_bay('background fitting','FITTING');
+ SELECT friday+21 INTO d FROM ou_context;
+ bid:=pg_temp.ou_booking('background fitting',v2,'FITTING',bay,(d+time '08:00') AT TIME ZONE 'Australia/Perth');
+ PERFORM set_config('request.jwt.claims','',true);
+ cid:=pg_temp.ou_change(v2,NULL,1,'NEW FITTING FIXTURE',3,'139');
+ SELECT approval_receipt INTO result FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;
+ PERFORM pg_temp.ou_assert(result->>'ok'='true','Management import adjusts existing booking with real batch actor',coalesce(result,(SELECT automation_result FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid)));
+ PERFORM pg_temp.ou_assert(auth.uid() IS NULL AND coalesce(current_setting('request.jwt.claims',true),'')='','Management actor context restored');
+ PERFORM pg_temp.ou_assert((SELECT default_duration_minutes=120 FROM public.workshop_bookings WHERE id=bid),'New line extends reservation');
+ UPDATE public.pdc_user_roles SET active=false,account_status='rejected',role=NULL WHERE auth_user_id=(SELECT actor FROM ou_context);
+ cid:=pg_temp.ou_change(v2,NULL,1,'NEW FITTING FIXTURE',4,'139');
+ SELECT approval_receipt INTO result FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;
+ PERFORM pg_temp.ou_assert(result->>'ok'='true','Disabled importer retains source attribution without login',coalesce(result,(SELECT automation_result FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid)));
+ PERFORM pg_temp.ou_assert(EXISTS(SELECT 1 FROM public.workshop_booking_history WHERE booking_id=bid AND actor_user_id=(SELECT actor FROM ou_context) AND metadata->>'actor_basis'='authenticated_source_batch'),'Booking history names immutable batch actor');
+ PERFORM pg_temp.ou_assert((SELECT NOT active AND account_status='rejected' AND role IS NULL FROM public.pdc_user_roles WHERE auth_user_id=(SELECT actor FROM ou_context)) AND auth.uid() IS NULL,'Importer stays disabled and no staff session borrowed');
+ UPDATE public.pdc_user_roles SET active=true,account_status='approved',role='administrator' WHERE auth_user_id=(SELECT actor FROM ou_context);
+ PERFORM set_config('request.jwt.claims',actor_claims,true);
  UPDATE public.vehicles SET current_location='QC' WHERE id=v;
  cid:=pg_temp.ou_change(v,NULL,2,'NEW ELECTRICAL FIXTURE',5,'138');
  PERFORM pg_temp.ou_assert((SELECT status='pending' AND automation_result->>'code'='vehicle_or_review_state_protected' FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid),'QC guard remains authoritative');

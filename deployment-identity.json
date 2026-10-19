@@ -83,10 +83,10 @@
     "sha256": "7b08caa9418fde60feeafdef9f50ca8db4ef04c1101ab731043602b909630ce4"
   },
   "observed_applied_database_migration": {
-    "version": "20261019000641",
-    "name": "automatic_jobcard_additions",
-    "file": "supabase/migrations/20261019000641_automatic_jobcard_additions.sql",
-    "sha256": "d5c4042e86b6409200f2146b383dd160f356ed1eca0e202b14e1916acb2ffdf3",
+    "version": "20261019003228",
+    "name": "background_jobcard_source_history",
+    "file": "supabase/migrations/20261019003228_background_jobcard_source_history.sql",
+    "sha256": "16c3b6dc4000660c258b9dbd8d2753257740df44ac94d6c9d5d2ffc5eeba5010",
     "commissioned": true,
     "review_status": "staging_applied"
   },
