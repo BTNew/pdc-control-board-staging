@@ -45,6 +45,23 @@ test('runtime preserves snapshot key and JC and does not alter scheduling input'
  assert.equal(row.keyNumber,'12');assert.equal(row.jobCardNumber,'JC5');
  assert.match(ctx.workshopQueueCardHtml(row,'FITTING'),/Key 12 · JC5/);
 });
+test('returned cards receive the same original identity layout and retain their scheduling controls',()=>{
+ const entry={id:'returned',vehicleKey:'stock1',stage:'BUS_4X4'};
+ const controls='<div class="workshop-queue-actions"><button data-workshop-returned-best-slot="returned">Best slot</button><button data-workshop-returned-schedule="returned">Schedule</button></div>';
+ const ctx={window:{},setTimeout(){},vehicleJobcardNumber:()=>'',workshopSnapshotVehicleToPlannerRow:()=>({}),
+ workshopQueueCardHtml:()=>'',workshopAdminBlockHtml:()=>'',
+ workshopReturnedQueueCardHtml:()=>'<article draggable="true" data-workshop-plan-id="returned"><b>Old returned layout</b>'+controls+'</article>',
+ workshopVehicle:()=>({keyNumber:'516',jobCardNumber:'JTEST'}),displayStockNumber:()=> 'stock1',vehicleKeyNumber:v=>v.keyNumber,
+ vehicleCustomerName:()=> 'Synthetic customer',workshopStageJobLines:()=>[],workshopQueueVehicleDescription:()=> 'Coaster'};
+ vm.runInNewContext(slimSource,ctx);
+ const html=ctx.workshopReturnedQueueCardHtml(entry);
+ assert.match(html,/Key 516 · JC JTEST/);assert.match(html,/planner-slim-details/);
+ assert.match(html,/data-workshop-plan-id="returned"/);assert.ok(html.endsWith(controls+'</article>'));
+ assert.doesNotMatch(html,/Old returned layout/);
+ assert.match(fs.readFileSync('canonical-entry.js','utf8'),/pdc-planner-slim\.js\?returned-queue=2026\.10\.19\.01/);
+ assert.match(fs.readFileSync('index.html','utf8'),/canonical-entry\.js\?returned-queue=2026\.10\.19\.01/);
+});
+
 test('opening a planner after startup retries expire still installs compact cards once',()=>{
  const timers=[], listeners=new Set();
  const document={addEventListener:(type,fn,capture)=>{assert.equal(type,'load');assert.equal(capture,true);listeners.add(fn);},
