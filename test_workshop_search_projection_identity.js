@@ -22,7 +22,7 @@ function fixture({ eligible = true, station = false } = {}) {
   const c = { app: { data: [vehicle], workshopEligibilitySnapshot: { candidates: eligible ? [{ vehicle, stage_code: 'HOIST', disabled_reason: 'estimated_duration_missing' }] : [] } },
     window: { __workshopDataService: service, PDC_SUPABASE_CONFIG: { dealerCode: '14450' } },
     workshopState: () => state, workshopLoadPlans: () => [], workshopSharedModeActive: () => true,
-    cleanNavisionText: String, workshopSnapshotVehicleToPlannerRow: v => ({ ...v }),
+    cleanNavisionText: String, workshopSnapshotVehicleToPlannerRow: v => ({ ...v, __workshopStationSnapshotAuthoritative: true }),
     workshopVehicleSearchText: v => v.stock.toLowerCase(), vehicleKey: v => v.vehicleKey,
     workshopSharedVehicleRef: () => station ? { vehicleId: id } : { ok: false, error: 'vehicle_identity_not_found' },
     workshopSortBookingsClosest: rows => rows, normalizePmbStage: v => v,
@@ -56,4 +56,13 @@ test('a later eligibility projection of the same vehicle does not lose station i
   await f.c.workshopLoadSearchBookings('TEST');
   assert.equal(f.calls.length, 1);
   assert.equal(f.calls[0][0].vehicleId, id);
+});
+test('canonical station projection wins over a legacy duplicate resolved to the same vehicle', async () => {
+  const f = fixture({ station: true, eligible: false });
+  f.c.app.data = [{ id: 'old-local-row', vehicleKey: 'TEST', stock: 'TEST', dealer_code: 'CUSTOMER_ACCOUNT' }];
+  f.c.vehicleWorkshopDetailRequestDealerCode = v => v.dealer_code === 'CUSTOMER_ACCOUNT' ? '' : '14450';
+  await f.c.workshopLoadSearchBookings('TEST');
+  assert.equal(f.calls.length, 1, 'Legacy display fields cannot suppress the canonical scoped request');
+  assert.equal(f.calls[0][0].vehicleId, id);
+  assert.equal(f.state.bookingSearchLookup.matches.get('shared:' + id).ok, true);
 });

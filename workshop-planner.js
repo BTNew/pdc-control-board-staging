@@ -3419,11 +3419,16 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
   const eligibilityRows = (Array.isArray(app.workshopEligibilitySnapshot?.candidates) ? app.workshopEligibilitySnapshot.candidates : [])
     .map(candidate => candidate?.vehicle ? workshopSnapshotVehicleToPlannerRow(candidate.vehicle, candidate.work_items || candidate.requirements || [], candidate.stage_code || workshopState().stage) : null)
     .filter(Boolean);
+  const projectionRows = new Set([...snapshotRows, ...eligibilityRows]);
+  const projectionRank = vehicle => vehicle.__emailVehicleServerAuthoritative === true ? 3 : projectionRows.has(vehicle) ? 2 : 0;
   const pool = [...new Map([...app.data, ...snapshotRows, ...eligibilityRows].map(vehicle => {
     const sharedId = String(vehicle?.sharedVehicleId || vehicle?.id || '').trim();
     const key = sharedId || String(vehicleKey(vehicle) || '').trim();
     return [key, vehicle];
-  }).filter(([key]) => key)).values()];
+  }).filter(([key]) => key)).values()].sort((a, b) => projectionRank(b) - projectionRank(a));
+  // A legacy row can resolve to the same UUID while retaining an old customer
+  // account in its dealer field. Keep the canonical projection at deduplication
+  // so stale display fields cannot suppress its scoped read request.
   return pool
     .filter(vehicle => workshopVehicleSearchText(vehicle).includes(clean))
     .map(vehicle => {
