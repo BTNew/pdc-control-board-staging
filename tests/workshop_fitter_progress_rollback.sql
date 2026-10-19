@@ -185,7 +185,8 @@ BEGIN
  -- Changed scope invalidates only that item, and stale clients cannot check it.
  INSERT INTO public.vehicle_workshop_line_adjustments(vehicle_id,line_key,source_kind,stage_code,description,estimated_hours,manual_assignment_locked,correction_origin,created_by,updated_by) VALUES(v,'source:'||op,'source','FITTING','Fixture work FITTING line 1',2,true,'manual_operator',auth.uid(),auth.uid());
  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'line','source:'||op,true,'');
- PERFORM pg_temp.ou_assert(r->>'error'='scope_changed','Import changes reject stale catalogue');
+ PERFORM pg_temp.ou_assert(r->>'error' IN ('scope_changed','version_conflict'),'Import changes reject stale catalogue or booking version',r);
+ PERFORM pg_temp.ou_assert(public.get_fitter_job(tech,b)->>'catalog_hash' IS DISTINCT FROM d->>'catalog_hash','Changed hours change the catalogue hash');
  d:=public.get_fitter_job(tech,b);
  PERFORM pg_temp.ou_assert((d#>>'{progress,completed_hours}')::numeric=2 AND (d#>>'{progress,total_hours}')::numeric=11,'Changed hours revoke previous item completion',d->'progress');
  FOR payload IN SELECT l FROM jsonb_array_elements(d->'lines') l WHERE l->>'stage_code'='FITTING' AND NOT (l->>'completed')::boolean LOOP
