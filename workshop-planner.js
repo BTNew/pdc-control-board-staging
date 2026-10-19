@@ -3429,12 +3429,13 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
     .map(vehicle => {
       const key = vehicleKey(vehicle);
       const sharedRef = workshopSharedModeActive() ? workshopSharedVehicleRef({ vehicleKey: key, sharedVehicleId: vehicle.sharedVehicleId || (vehicle.__emailVehicleServerAuthoritative === true ? vehicle.__emailVehicleId : '') }) : null;
-      // A Board projection can hold a verified vehicle that is absent from this
-      // station snapshot. Its UUID authorizes only this scoped read request;
+      // Board and eligibility projections can hold a verified vehicle absent
+      // from this station snapshot. Their UUID selects only this scoped read;
       // navigation still verifies the exact booking in a fresh target snapshot.
       const projectedId = vehicle.__emailVehicleServerAuthoritative === true
         ? String(vehicle.__emailVehicleId || '').trim()
-        : snapshotRows.some(row => row === vehicle) ? String(vehicle.sharedVehicleId || vehicle.id || '').trim() : '';
+        : snapshotRows.includes(vehicle) || eligibilityRows.includes(vehicle)
+          ? String(vehicle.sharedVehicleId || vehicle.id || '').trim() : '';
       const canonicalId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectedId) ? projectedId : sharedRef?.vehicleId;
       const vehicleIdentity = canonicalId ? `shared:${canonicalId}` : `legacy:${key}`;
       const remote = lookup?.status === 'ready' ? lookup.matches.get(vehicleIdentity) : null;
@@ -3455,6 +3456,12 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
       const categoryAuthority = typeof workshopCategoryAuthority === 'function'
         ? workshopCategoryAuthority(stationAuthority, workshopState().stage) : stationAuthority;
       const candidateAuthority = categoryAuthority?.completed === true || categoryAuthority?.disabled_reason === 'no_category_work' ? null : categoryAuthority;
+      const eligibilityCandidate = canonicalId ? (app.workshopEligibilitySnapshot?.candidates || []).find(candidate => (
+        String(candidate?.vehicle?.id || candidate?.vehicle_id || '') === canonicalId
+        && normalizePmbStage(candidate?.stage_code || candidate?.stage || '') === normalizePmbStage(workshopState().stage)
+      )) : null;
+      const eligibilityInfo = typeof workshopCategoryAuthority === 'function'
+        ? workshopCategoryAuthority(eligibilityCandidate, workshopState().stage) : eligibilityCandidate;
       return {
         vehicle,
         vehicleKey: key,
@@ -3467,12 +3474,13 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
         bookings,
         bookingLookupError: remote && !remote.ok ? remote.error || 'request_failed' : '',
         candidateInLane: Boolean(candidateAuthority),
+        candidateHasWork: Boolean(eligibilityInfo && eligibilityInfo.completed !== true && eligibilityInfo.disabled_reason !== 'no_category_work'),
         candidateAvailable: candidateAuthority?.schedule_enabled === true && candidateAuthority?.existing_booking !== true,
-        candidateDisabledReason: candidateAuthority?.disabled_reason || '',
+        candidateDisabledReason: candidateAuthority?.disabled_reason || eligibilityInfo?.disabled_reason || '',
       };
     })
     .filter(item => options.ignoreLookup || !lookup?.limited || lookup.matches.has(item.vehicleIdentity))
-    .filter(item => options.includeUnmatched || item.bookings.length || item.returnedBookings.length || item.candidateInLane || item.bookingLookupError)
+    .filter(item => options.includeUnmatched || item.bookings.length || item.returnedBookings.length || item.candidateInLane || item.candidateHasWork || item.bookingLookupError)
     // Board and station projections can use different local keys for the same
     // canonical vehicle. Collapse only the resolved identity, never the stock.
     .filter((item, index, matches) => matches.findIndex(other => other.vehicleIdentity === item.vehicleIdentity) === index)
@@ -3622,7 +3630,8 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
       if (!match.candidateAvailable || match.archived) {
         const reason = match.archived
           ? 'Archived vehicles cannot be scheduled.'
-          : (match.candidateDisabledReason || 'This vehicle is not currently available in the selected station candidate lane.');
+          : (match.candidateDisabledReason ? workshopOutstandingDisabledReasonLabel(match.candidateDisabledReason)
+            : 'This vehicle is not currently available in the selected station candidate lane.');
         return `<article class="workshop-search-result is-unbooked is-scheduling-disabled" aria-disabled="true">
           <span class="workshop-search-result-vehicle"><strong>Key ${escapeHtml(identity.key)} · Stock ${escapeHtml(identity.stock)} · JC ${escapeHtml(identity.jobcard)}</strong><span>${escapeHtml(identity.customer)} · ${escapeHtml(identity.description)}</span></span>
           <span class="workshop-search-result-state">${archived}<strong>Scheduling unavailable</strong><span>${escapeHtml(reason)}</span></span>

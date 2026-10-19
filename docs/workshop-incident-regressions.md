@@ -15,9 +15,14 @@ Do not infer a historical cause without evidence. Reopen an issue if it recurs.
 - Approved PMG records without dealer mappings require exact accepted job
   evidence before scoped reads. No client fallback grants write authority.
 - Permission denials and read failures must not be displayed as an empty queue.
+- Combining the Board, station and eligibility projections must retain the
+  canonical read identity even when a vehicle is absent from this station.
+  Eligibility can explain missing hours but cannot grant station scheduling
+  authority. Cover that combined path, not just the separate API adapter.
 
 Regression coverage: `test_workshop_search_station_scope.js`,
 `test_workshop_booking_search_service.js`, `test_workshop_pmg_read_scope.js`,
+`test_workshop_search_projection_identity.js`,
 `tests/planner_search_returned_visibility_rollback.sql`.
 
 ## Estimates and running work
