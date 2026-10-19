@@ -49,12 +49,27 @@ test('artifact keeps exact entry, deferred modules, PDF/QZ workers and guide byt
   }
   const outputRoot = path.join(temporaryRoot, 'artifact');
   const result = builder.buildRuntimeArtifact(sourceRoot, outputRoot);
-  assert.equal(result.fileCount, builder.RUNTIME_FILES.length);
-  assert.deepEqual(filesBelow(outputRoot), [...builder.RUNTIME_FILES]);
+  const published = new Set(['app.js', 'styles.css']);
+  const expected = [...builder.RUNTIME_FILES, ...builder.PUBLISHED_SOURCE_MAPS].sort();
+  assert.equal(result.fileCount, expected.length);
+  assert.deepEqual(filesBelow(outputRoot), expected);
   for (const filename of builder.RUNTIME_FILES) {
     const digest = root => crypto.createHash('sha256').update(fs.readFileSync(path.join(root, filename))).digest('hex');
+    if (published.has(filename)) {
+      assert.notEqual(digest(outputRoot), digest(sourceRoot), filename + ' is minified only in the published artifact');
+      assert.ok(fs.readFileSync(path.join(outputRoot, filename)).length < fs.readFileSync(path.join(sourceRoot, filename)).length, filename);
+      continue;
+    }
     assert.equal(digest(outputRoot), digest(sourceRoot), filename + ' must keep its URL, content and file bytes');
   }
+  const publishedApp = fs.readFileSync(path.join(outputRoot, 'app.js'), 'utf8');
+  const publishedCss = fs.readFileSync(path.join(outputRoot, 'styles.css'), 'utf8');
+  assert.match(publishedApp, /function init\(/);
+  assert.match(publishedApp, /sourceMappingURL=app\.js\.map/);
+  assert.match(fs.readFileSync(path.join(outputRoot, 'app.js.map'), 'utf8'), /"sourcesContent"/);
+  assert.match(publishedCss, /\.pdc-auth-gate/);
+  assert.match(publishedCss, /sourceMappingURL=styles\.css\.map/);
+  assert.match(fs.readFileSync(path.join(sourceRoot, 'app.js'), 'utf8'), /document\.readyState === 'loading'/);
   for (const filename of excluded) assert.equal(fs.existsSync(path.join(outputRoot, filename)), false, filename);
   for (const filename of builder.ENTRY_POINTS) assert.ok(fs.existsSync(path.join(outputRoot, filename)), filename);
   for (const filename of ['workshop-planner.js', 'workshop-shared-actions.js', 'workshop-realtime.js', 'vendor/qz/qz-tray.js', 'vendor/pdfjs/pdf.worker.min.js', 'scripts/stage2b_c4_browser_export.js']) assert.ok(fs.existsSync(path.join(outputRoot, filename)), filename);

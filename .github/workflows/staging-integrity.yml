@@ -48,6 +48,8 @@ jobs:
           const missing = [...new Set(local.filter(x => !fs.existsSync(x)))];
           if (missing.length) throw new Error(`missing local assets: ${missing.join(', ')}`);
           NODE
+      - name: Install the publish-time minifiers
+        run: npm ci --ignore-scripts
       - name: Verify canonical website links and retired entry points
         run: node test_legacy_website_links.js
       - name: Run staging regression suite

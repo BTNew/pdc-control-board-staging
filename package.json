@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "description": "Publish-time minifiers for the GitHub Pages artifact. Application source stays unminified.",
+  "devDependencies": {
+    "csso": "5.0.5",
+    "terser": "5.44.1"
+  }
+}

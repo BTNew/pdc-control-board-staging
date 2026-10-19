@@ -33,6 +33,8 @@ jobs:
         with:
           node-version: '22'
           package-manager-cache: false
+      - name: Install the publish-time minifiers
+        run: npm ci --ignore-scripts
       - name: Run website regressions and artifact guards
         run: node --test test_*.js
       - name: Reject privileged frontend credentials
