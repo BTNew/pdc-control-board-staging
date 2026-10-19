@@ -13408,6 +13408,7 @@ function vehicleWorkshopStageCode(value = '') {
 }
 
 function vehicleWorkshopStationPresentation(stage = '') {
+  if(stage==='JOB_CARD_NOTES')return {label:'Jobcard notes',colour:'#475569',tint:'#f8fafc'};
   const code = vehicleWorkshopStageCode(stage);
   return VEHICLE_WORKSHOP_STATION_PRESENTATION[code] || { label: pmbStageLabel(code) || code.replace(/_/g, ' '), colour: '#475569', tint: '#f8fafc' };
 }
@@ -14069,7 +14070,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
   const presentation = {...vehicleWorkshopStationPresentation(group.stage), ...(group.label ? {label:group.label} : {})};
   const complete = group.requirements.length > 0 && group.requirements.every(item => item.completed === true);
   const isDeferredPit = group.stage === 'PIT_INSPECTION';
-  const canEditCategory = vehicleWorkshopCanEditLines() && !complete && group.stage !== 'PARTS' && group.evidenceOnly !== true;
+  const canEditCategory = vehicleWorkshopCanEditLines() && !complete && group.stage !== 'PARTS' && group.stage !== 'JOB_CARD_NOTES' && group.evidenceOnly !== true;
   const canEdit = canEditCategory && !isDeferredPit && group.requirements.length > 0;
   const isPartsStage = group.stage === 'PARTS';
   const projections = group.lines.map(line => typeof vehicleWorkshopHoursProjection === 'function'
@@ -14125,7 +14126,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
     const number = canEdit && hasSchedulableHours && canonicalVehicleId && WORKSHOP_PLANNER_ROUTE_BY_STAGE[group.stage]
       ? `<button type="button" class="vehicle-workshop-line-number" draggable="true" ${handleData} aria-label="Drag ${escapeHtml(description)} to a workshop bay">${index + 1}</button>`
       : `<span class="vehicle-workshop-line-number">${index + 1}</span>`;
-    const bookingCell = isDeferredPit ? '<span class="vehicle-workshop-not-booked">External Department of Transport inspection · no on-site bay</span>' : lineBookings.length ? vehicleWorkshopBookingRowsHtml(lineBookings, bookingFallback, vehicle)
+    const bookingCell = group.stage === 'JOB_CARD_NOTES' ? '<span class="vehicle-workshop-not-booked">Information only · no bay required</span>' : isDeferredPit ? '<span class="vehicle-workshop-not-booked">External Department of Transport inspection · no on-site bay</span>' : lineBookings.length ? vehicleWorkshopBookingRowsHtml(lineBookings, bookingFallback, vehicle)
       : (group.bookings.length ? '<span class="vehicle-workshop-booking-static">Station booking shown below</span>' : `<span class="vehicle-workshop-not-booked">${escapeHtml(bookingFallback)}</span>`);
     const progress = vehicleWorkshopJobCardBookedActual(line, lineBookings);
     const progressHtml = progress === 'Not recorded' ? '' : `<small>${escapeHtml(progress)}</small>`;
@@ -14154,6 +14155,17 @@ function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', 
   return `<section class="vehicle-workshop-station${isPartsStage ? ' parts-no-hour-gate' : ''}${evidenceOnly ? ' is-evidence-only' : ''}" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" data-work-category="${escapeHtml(group.category || '')}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${description}</p></div>${addButton}<span class="vehicle-workshop-station-status ${statusClass}">${statusLabel}</span><span class="vehicle-workshop-station-total">${isPartsStage ? 'No hours required' : escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${splitBooking}${vehicleWorkshopCompactLinesHtml(group, bookingFallback, vehicle, validStages)}${stationBookings}</section>`;
 }
 
+function vehicleImportedAdditionsHtml(detail = {}) {
+  const rows = Array.isArray(detail?.imported_additions) ? detail.imported_additions : [];
+  if (!rows.length) return '';
+  return `<section class="vehicle-workshop-warning" aria-label="Imported jobcard additions"><h3>Imported jobcard additions</h3><p>These lines are already on this card. Automatic routing is pending or an existing work safeguard needs attention.</p>${rows.map(row => {
+    const state = /completed|protected|rework/.test(row.status || '') ? 'Existing completed work retained — check rework before scheduling'
+      : /schedule|busy/.test(row.status || '') ? 'Automatic scheduling retry pending'
+      : 'Automatic classification pending';
+    return `<div><strong>${escapeHtml(row.job_card || '')} · Line ${escapeHtml(String(row.line_number || ''))}</strong><p>${escapeHtml(row.description || '')}</p><small>${escapeHtml(state)}</small></div>`;
+  }).join('')}</section>`;
+}
+
 function renderVehicleWorkshopWorkPage(vehicle = {}) {
   const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
   const state = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId) : null;
@@ -14167,12 +14179,12 @@ function renderVehicleWorkshopWorkPage(vehicle = {}) {
       : '';
   const validStages = groups.filter(group => group.requirements.some(item => item?.required === true && item?.completed !== true)).map(group => group.stage);
   const content = groups.length ? groups.map(group => vehicleWorkshopStationHtml(group, bookingFallback, vehicle, validStages)).join('') : '<div class="empty-state"><strong>No required work</strong><span>This vehicle has no canonical required Workshop work.</span></div>';
-  const batchableCount = groups.flatMap(group => group.stage === 'PARTS' ? [] : group.lines).filter(line => /^[0-9a-f-]{36}$/i.test(String(line.operation_line_id || line.source_operation_line_id || '')) && !line.fallback && !line.workshopManualLine).length;
+  const batchableCount = groups.flatMap(group => ['PARTS','JOB_CARD_NOTES'].includes(group.stage) ? [] : group.lines).filter(line => /^[0-9a-f-]{36}$/i.test(String(line.operation_line_id || line.source_operation_line_id || '')) && !line.fallback && !line.workshopManualLine).length;
   const batchMessage = app.vehicleWorkshopHoursBatchMessage ? `<span class="vehicle-workshop-hours-batch-message" role="status" aria-live="polite">${escapeHtml(app.vehicleWorkshopHoursBatchMessage)}</span>` : '';
   const batchToolbar = vehicleWorkshopCanEditLines() && batchableCount
     ? `<div class="vehicle-workshop-hours-batch"><div><strong>Edit Job Card hours</strong><small>${batchableCount} operation row${batchableCount === 1 ? '' : 's'} · drafts stay local until saved</small></div><div class="vehicle-workshop-hours-batch-actions"><button type="button" class="primary compact" data-vehicle-workshop-hours-batch-save disabled>Save all hours</button><button type="button" class="ghost compact" data-vehicle-workshop-hours-batch-reset>Cancel/reset</button></div>${batchMessage}</div>`
     : '';
-  return `<div class="vehicle-workshop-page" data-vehicle-workshop-page data-vehicle-workshop-hours-batch-page>${batchToolbar}<div class="vehicle-workshop-intro"><h3>Required work</h3></div>${warning}${vehicleWorkshopRemovalReceiptHtml()}<div class="vehicle-workshop-stations">${content}</div></div>`;
+  return `<div class="vehicle-workshop-page" data-vehicle-workshop-page data-vehicle-workshop-hours-batch-page>${batchToolbar}<div class="vehicle-workshop-intro"><h3>Required work</h3></div>${warning}${vehicleImportedAdditionsHtml(state?.status === 'ready' ? state.detail : null)}${vehicleWorkshopRemovalReceiptHtml()}<div class="vehicle-workshop-stations">${content}</div></div>`;
 }
 
 async function loadVehicleWorkshopDetail(vehicle = {}, { force = false } = {}) {

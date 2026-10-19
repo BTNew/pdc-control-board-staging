@@ -189,7 +189,12 @@ BEGIN
  op:=pg_temp.ou_operation(v,'BUS_4X4',1,1,'138','Coaster Bus 4x4 Conversion - 6 Speed 2.8');
  SELECT b.id INTO STRICT bay FROM public.workshop_bays b JOIN public.workshop_stages s ON s.id=b.stage_id
   WHERE s.code='BUS_4X4' AND b.bay_number=1 AND b.is_active;
- SELECT friday+140 INTO d FROM ou_context;
+ -- Choose an open fixture day; the moving date can otherwise land on Good Friday.
+ SELECT candidate::date INTO d FROM ou_context c
+ CROSS JOIN LATERAL generate_series(c.friday+140,c.friday+160,interval '1 day') candidate
+ WHERE pdc_bus_private.minute_available((candidate::date+time '06:00') AT TIME ZONE 'Australia/Perth',bay)
+ ORDER BY candidate LIMIT 1;
+ IF d IS NULL THEN RAISE EXCEPTION 'No open whole-job fixture day'; END IF;
  bid:=pg_temp.ou_booking('whole-job',v,'BUS_4X4',bay,(d+time '06:00') AT TIME ZONE 'Australia/Perth');
  cid:=pg_temp.ou_change(v,NULL,1.5,'Battery Isolator Mounted on Bull Bar',2,'138');
  SELECT automation_result INTO r FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;
@@ -245,7 +250,11 @@ BEGIN
  IF past IS NULL THEN RAISE EXCEPTION 'No available past started-booking fixture shift'; END IF;
  PERFORM pdc_work_categories_private.set_context(v,'BUS_4X4','{"work_category":"BUS_MECHANICAL"}');
  mb:=pg_temp.ou_booking('started mechanical',v,'BUS_4X4',bay,past,'started');
- SELECT friday+140 INTO d FROM ou_context;
+ SELECT candidate::date INTO d FROM ou_context c
+ CROSS JOIN LATERAL generate_series(c.friday+140,c.friday+160,interval '1 day') candidate
+ WHERE pdc_bus_private.minute_available((candidate::date+time '06:00') AT TIME ZONE 'Australia/Perth',bay)
+ ORDER BY candidate LIMIT 1;
+ IF d IS NULL THEN RAISE EXCEPTION 'No open later-booking fixture day'; END IF;
  PERFORM pdc_work_categories_private.set_context(v,'BUS_4X4','{"work_category":"BUS_ELECTRICAL"}');
  eb:=pg_temp.ou_booking('later electrical',v,'BUS_4X4',bay,(d+time '06:00') AT TIME ZONE 'Australia/Perth');
  PERFORM set_config('pdc.work_category','',true);

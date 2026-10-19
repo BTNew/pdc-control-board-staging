@@ -318,11 +318,7 @@
   let page=document.createElement('section');page.id='newvehicles';page.className='view';
   page.setAttribute('aria-label','New vehicle Job Card review');document.querySelector('main.main')?.appendChild(page);
   const newVehiclePage=page,updatePage=document.createElement('section');
-  updatePage.id='operationupdates';updatePage.className='view';updatePage.setAttribute('aria-label','Operation updates needing attention');
-  document.querySelector('main.main')?.appendChild(updatePage);
-  const updateNav=document.createElement('button');updateNav.type='button';updateNav.className='nav-item nav-admin-item';updateNav.dataset.view='operationupdates';updateNav.dataset.short='UPD';
-  updateNav.innerHTML='Operation Updates <span class="new-vehicle-nav-count" hidden></span>';
-  (adminMenu||nav.parentElement)?.appendChild(updateNav);updateNav.addEventListener('click',()=>showView('operationupdates'));
+  // Retired approval route redirects to the owning vehicle board.
 
   async function rpc(name,payload) {
     const config=window.PDC_SUPABASE_CONFIG;
@@ -780,6 +776,7 @@
   renderActiveView=function(...args){if(['newvehicles','operationupdates'].includes(app.currentView)){render();return;}return previousRender(...args);};
   const previousView=showView;
   showView=function(view,options){
+    if(view==='operationupdates')return previousView('dashboard',{...options,historyMode:'replace'});
     if(['newvehicles','operationupdates'].includes(view)){if(app.currentView!==view){generation++;loading=false;}page=view==='operationupdates'?updatePage:newVehiclePage;selected=null;unidentified=false;error='';notice='';}
     const out=previousView(view,options);
     if(['newvehicles','operationupdates'].includes(app.currentView)){document.getElementById('page-title').textContent=app.currentView==='operationupdates'?'Operation Updates':'New Vehicles';render();void load({silent:true});}
@@ -793,7 +790,7 @@
   document.addEventListener('visibilitychange',()=>void refreshBackground());
   window.addEventListener('online',()=>void refreshBackground());
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.10.15.accepted-operation-updates';
+  window.PDC_NEW_VEHICLES_VERSION='2026.10.19.automatic-jobcard-additions';
   window.PDC_NEW_VEHICLES=api;
   render();void refreshBackground();
   if(['#/newvehicles','#/operationupdates'].includes(window.location.hash))showView(window.location.hash.slice(2),{historyMode:'none'});

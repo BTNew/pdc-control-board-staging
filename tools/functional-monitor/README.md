@@ -34,6 +34,8 @@ The work-category regression checks separate Bus Mechanical/Electrical/QA estima
 
 The accepted-import regression follows synthetic uploaded operations through automatic acceptance into canonical categories and fitter checklists. It checks explicit source hours, later hour updates, external Pit and zero-hour QA, separate Mechanical/Electrical reservations, existing whole-job bookings, retained manual categories, QC protection and explicit missing-category/hour exceptions. It also verifies that existing copied vehicles and bookings stay unchanged. Actual provider email delivery remains outside this SQL coverage.
 
+The automatic-additions regression verifies learned AI routing, information-only jobcard notes, provisional hours without altering source hours, replay safety, private worker permissions and protected additions appearing on the owning vehicle card. Ordinary accepted-jobcard additions no longer require the Operation Updates page. See `tools/import-routing/README.md` for the worker contract; the initial New Vehicles and completed-work protections remain active.
+
 These checks do not establish that every possible situation works. Report PASS, FAIL, BLOCKED and NOT RUN separately. Distinguish a stale fixture/backup or missing test capability from a confirmed website defect. Never fix failing tests by disabling a working-board permission, conflict, parts-readiness or delivery guard.
 
 The Python exit code describes the selected database scenarios and restore/cleanup only. A zero exit code is not a whole-site all-clear: read `backend_version_check`, `coverage_gaps`, and `overall` from `summary.json` as well. The overall result explicitly retains missing browser, Storage and provider coverage.
