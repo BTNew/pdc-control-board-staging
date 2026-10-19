@@ -25,7 +25,7 @@ assert.match(html,/88.32 allocated hours retained/);
 assert.match(html,/draggable="true"/);
 assert.match(html,/data-workshop-select-returned-plan="returned"/);
 const state={stage:'BUS_4X4',searchOpen:true};
-let selected='', rendered=0;
+let selected='', rendered=0, opened=null;
 let trusted=true;
 Object.assign(context,{
   workshopState:()=>state,workshopSelectedBusGroup:()=>({code:'BUS_MECHANICAL'}),
@@ -33,9 +33,11 @@ Object.assign(context,{
   window:{__workshopDataService:{getTrustedSnapshot:()=>trusted?{}:null}},
   workshopSelectPlanForDetail:id=>{selected=id;},
   renderWorkshopPlanner:()=>{rendered++;},document:{querySelector:()=>null},
+  openWorkshopVehicleJob:(key,stage,id)=>{opened={key,stage,id};},
 });
 assert.equal(context.workshopSelectReturnedPlan('returned'),true);
 assert.equal(selected,'returned','select existing reservation without creating another');
+assert.deepEqual(opened,{key:'123',stage:'BUS_4X4',id:'returned'},'open existing booking in the vehicle job dialog');
 assert.equal(state.searchOpen,false);
 assert.equal(state.searchHighlightPlanId,'returned');
 assert.equal(context.workshopSelectReturnedPlan('electrical'),false,'respect current category');
