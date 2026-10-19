@@ -260,6 +260,18 @@ function mapServerVehicle(row = {}) {
     : (Array.isArray(row.operation_lines) && row.operation_lines.some(item => String(item?.line_identity || '').trim()) ? row.operation_lines : null);
   const qcProjectionFieldPresent = Array.isArray(qcProjection);
   mapped.pdcQcOperationLinesProjectionPresent = qcProjectionFieldPresent;
+  mapped.pdcHasUnclassifiedOperationWork = (qcProjection || []).some(item => item?.active === true
+    && item?.rejected !== true && item?.completed !== true
+    && ['REVIEW', 'UNALLOCATED_MAPPING_REVIEW', ''].includes(String(item?.stage_code || '').toUpperCase()));
+  for (const item of qcProjection || []) {
+    if (item?.active !== true || item?.rejected === true || item?.completed === true) continue;
+    const stage = String(item?.stage_code || '').toUpperCase();
+    const key = ['BUS_MECHANICAL','BUS_ACCESSORIES','BUS_ELECTRICAL','BUS_QA','BUS_PIT','BUS_4X4'].includes(stage)
+      ? 'bus4x4' : canonicalWorkKey(stage);
+    const fields = WORK_FIELDS[key];
+    if (fields && stage !== 'JOB_CARD_NOTES') mapped[fields[0]] = true;
+  }
+
   mapped.pdcQcOperationLines = (qcProjectionFieldPresent ? qcProjection : []).slice(0, 250).map(item => ({
     lineIdentity: String(item?.line_identity || ''), sourceKind: String(item?.source_kind || ''), sourceLineId: String(item?.source_line_id || ''),
     department: String(item?.department ?? '').trim(),
