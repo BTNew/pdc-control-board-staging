@@ -62,7 +62,9 @@ const approvedRootImportPatch = Object.freeze({
   // while a post-drop refresh is in flight. Department 135's copy stays frozen.
   "workshop-planner.js": "53dc6739995cc070b2d27aea55e65bcdd028c197c7ac468911d7ad0c6c5343bc",
   "workshop-planner.css": "b227830d512dc1980a9bdc9a5610e04890f0d9707bb3e343556ed8a2ee3b4bee",
-  "scripts/build_pages_runtime.js": "b8d0246d48dc6547a21ef70f729aff89488858e081c3c07b3dcad77ff0718ab2",
+  // Publish minifies app.js and styles.css in the Pages artifact only.
+  // Department 135 still compares the unminified source pin below.
+  "scripts/build_pages_runtime.js": "f39cb3b2b550ac467feb7acbec932c091a8ad75229531e539fc706ec665210d3",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   "pdc-new-vehicles.js": "61d1ca7d26cc8416002474f54b09d2268eaf21a6f4705d3251f521fceacf7fab",
   "pdc-new-vehicles.css": "2ee29702e0b5ca62692891cbf5467894fe670e4b65961f32ca619aa2225cfe10",
@@ -79,9 +81,12 @@ const approvedRootImportPatch = Object.freeze({
   "app.js": "167803167e922bd8baa1b83b6c251ea233cff751625bcc75fbc1ca79de86e2ec",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  // app.js?v= keeps backup-status=2026.10.19.01 and hoist-corrections=2026.10.19.02,
-  // and adds location-loading=2026.10.19.01. Department 135's pages stay frozen.
-  "index.html": "7039ab439494d0e2fb1a2885c0eb67f2f788c94e0ed11c8669d0978d22fb88cf",
+  // Live board defers its startup scripts and drops the empty and assessment tags.
+  // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02
+  // and location-loading=2026.10.19.01, and adds publish-minify=2026.10.19.01.
+  // Source app.js stays the pin above. The Pages artifact minifies that source.
+  // Department 135's pages stay frozen.
+  "index.html": "f50a8bf6c511920983cb6ffebbee4e7897719b3e12f0ba303853ad1ba724ae84",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",

@@ -132,7 +132,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-ai-auditor-stage-a.js', 'pdc-ai-intake-review.css', 'pdc-ai-intake-review.js',
   'pdc-ai-intake-service.js', 'pdc-auth-registration.js', 'pdc-auth.js',
   'pdc-book-all-stations.js', 'pdc-bus-workflow.css', 'pdc-bus-workflow.js',
-  'pdc-completed-history.css', 'pdc-conversions.js', 'pdc-department-filter.js', 'pdc-workshop-departments.js',
+  'pdc-completed-history.css', 'pdc-conversions.js', 'pdc-deferred-script-order.js', 'pdc-department-filter.js', 'pdc-workshop-departments.js',
   'pdc-email-ai-successor-inbox.css', 'pdc-email-ai-successor-inbox.js',
   'pdc-email-ai-v2-actions.js', 'pdc-email-vehicle-location-service.js',
   'pdc-emergency-priority.css', 'pdc-emergency-priority.js',
@@ -154,7 +154,8 @@ const RUNTIME_FILES = Object.freeze([
   'sales/email-actions.js', 'sales/finance-pipeline.css', 'sales/finance-pipeline.js',
   'sales/index.html', 'sales/navision-orders.js', 'sales/sales.css',
   'sales/sales.js', 'sales/vehicle-notes.js', 'sales/completed-vehicles.js', 'sales/zebra-labels.js',
-  // Existing read-only browser helper is loaded by index.html; no other scripts ship.
+  // The read-only browser helper stays allowlisted so it can be restored.
+  // index.html no longer loads it on startup. No other scripts/ files ship.
   'scripts/stage2b_c4_browser_export.js',
   'site-switcher.css', 'site-switcher.js', 'staging-browser-assessment.js', 'staging.html',
   'styles.css', 'test-50.html', 'test-75.html', 'test-100.html',
@@ -263,6 +264,56 @@ function validateRuntime(sourceRoot) {
   return { sourceRoot, buffers, fileCount: buffers.size, byteCount: [...buffers.values()].reduce((n, b) => n + b.length, 0) };
 }
 
+const PUBLISH_ASSET_VERSION = '2026.10.19.01';
+const PUBLISHED_SOURCE_MAPS = Object.freeze(['app.js.map', 'styles.css.map']);
+
+function loadPublishMinifiers() {
+  let terser;
+  let csso;
+  try {
+    terser = require('terser');
+    csso = require('csso');
+  } catch (error) {
+    throw new Error('Publish-time minifier is missing. Run npm ci before building the Pages artifact.');
+  }
+  if (typeof terser.minify_sync !== 'function' || typeof csso.minify !== 'function') {
+    throw new Error('Publish-time minifier is missing. Run npm ci before building the Pages artifact.');
+  }
+  return { terser, csso };
+}
+
+function assertPublishedTextSafe(filename, text) {
+  if (findPrivilegedTokens(text).length) throw new Error(`Privileged token in published asset: ${filename}; value redacted`);
+}
+
+function publishedAsset(filename, bytes) {
+  if (filename !== 'app.js' && filename !== 'styles.css') return [[filename, bytes]];
+  const { terser, csso } = loadPublishMinifiers();
+  const source = bytes.toString('utf8');
+  if (filename === 'app.js') {
+    const result = terser.minify_sync({ 'app.js': source }, {
+      compress: { unused: false, side_effects: false },
+      mangle: { toplevel: false },
+      sourceMap: { filename: 'app.js', url: 'app.js.map', includeSources: true }
+    });
+    if (!result || result.error || !result.code || !result.code.includes('function init(') || !result.code.includes('sourceMappingURL=app.js.map')) {
+      throw new Error('Could not minify published app.js');
+    }
+    const map = typeof result.map === 'string' ? result.map : JSON.stringify(result.map || '');
+    if (!map.includes('"sourcesContent"')) throw new Error('Could not minify published app.js');
+    assertPublishedTextSafe('app.js', result.code);
+    return [['app.js', Buffer.from(result.code)], ['app.js.map', Buffer.from(map)]];
+  }
+  const result = csso.minify(source, { filename: 'styles.css', sourceMap: true, restructure: false });
+  let css = result && result.css || '';
+  if (!css.includes('.pdc-auth-gate')) throw new Error('Could not minify published styles.css');
+  if (!css.includes('sourceMappingURL=styles.css.map')) css += '\n/*# sourceMappingURL=styles.css.map */\n';
+  const map = result.map ? result.map.toString() : '';
+  if (!map.includes('"sources"')) throw new Error('Could not minify published styles.css');
+  assertPublishedTextSafe('styles.css', css);
+  return [['styles.css', Buffer.from(css)], ['styles.css.map', Buffer.from(map)]];
+}
+
 function buildRuntimeArtifact(sourceRoot, outputRoot) {
   const prepared = validateRuntime(sourceRoot);
   outputRoot = path.resolve(outputRoot);
@@ -276,13 +327,20 @@ function buildRuntimeArtifact(sourceRoot, outputRoot) {
   const realAncestor = fs.realpathSync(ancestor);
   if ((process.platform === 'win32' ? realAncestor.toLowerCase() !== ancestor.toLowerCase() : realAncestor !== ancestor)) throw new Error('Artifact output cannot pass through a symlink or redirected directory');
   // Do not delete or overwrite existing artifacts. A fresh destination is required.
+  // Source app.js and styles.css stay unchanged. Only these published copies are minified.
   fs.mkdirSync(outputRoot, { recursive: true });
-  for (const [filename, bytes] of prepared.buffers) {
+  const outputs = [];
+  for (const [filename, bytes] of prepared.buffers) outputs.push(...publishedAsset(filename, bytes));
+  for (const [filename, bytes] of outputs) {
     const target = path.join(outputRoot, filename);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.writeFileSync(target, bytes, { flag: 'wx' });
   }
-  return { outputRoot, fileCount: prepared.fileCount, byteCount: prepared.byteCount };
+  return {
+    outputRoot,
+    fileCount: outputs.length,
+    byteCount: outputs.reduce((total, pair) => total + pair[1].length, 0)
+  };
 }
 
 if (require.main === module) {
@@ -298,4 +356,7 @@ if (require.main === module) {
   } catch (error) { console.error(`Runtime Pages build failed: ${error.message}`); process.exitCode = 1; }
 }
 
-module.exports = { ENTRY_POINTS, RUNTIME_FILES, safePublicPath, validateRuntime, buildRuntimeArtifact };
+module.exports = {
+  ENTRY_POINTS, RUNTIME_FILES, PUBLISH_ASSET_VERSION, PUBLISHED_SOURCE_MAPS,
+  safePublicPath, validateRuntime, buildRuntimeArtifact
+};

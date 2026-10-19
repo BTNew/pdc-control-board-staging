@@ -1,2 +1,3 @@
 # Raw authenticated QA evidence is retained locally only.
 private-evidence/
+node_modules/
