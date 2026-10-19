@@ -673,6 +673,7 @@ function workshopMapSnapshotBookingToLegacyRow(booking = {}, vehicleById = null)
     id: booking.booking_id,
     sharedBookingId: booking.booking_id,
     sharedVersion: booking.version,
+    sharedStatus: booking.status,
     workCategory: booking.work_category || '',
     busCalendarVersion: booking.bus_calendar_version === 1 ? 1 : null,
     busWorkflowDepartment138: vehicle.bus_workflow_department138 === true
@@ -5041,6 +5042,23 @@ function openWorkshopAdminBlockModal() {
   overlay.querySelector('[name="blockType"]')?.focus();
 }
 
+function workshopReturnedQueuePlans(plans, stage, category = '') {
+  return plans.filter(entry => entry.stage === stage && entry.sharedStatus === 'queued'
+    && !entry.sharedBayId && Number(entry.bay) === 0
+    && (!category || !entry.workCategory || entry.workCategory === category));
+}
+
+function workshopReturnedQueueCardHtml(entry) {
+  const vehicle = workshopVehicle(entry.vehicleKey, entry.stage);
+  if (!vehicle) return '';
+  const identity = displayStockNumber(vehicle) || entry.vehicleKey;
+  return `<article class="workshop-queue-card" draggable="true" tabindex="0" role="group"
+    data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}"
+    aria-label="${escapeHtml(`Returned booking ${identity}. Drag to a bay or press Enter to open job.`)}">
+    <strong>Stock ${escapeHtml(identity)}</strong><div>Returned to Unallocated</div>
+    <div>${escapeHtml(String(entry.hours))} allocated hours retained</div><small>Drag to a bay to reallocate this booking.</small></article>`;
+}
+
 function renderWorkshopPlanner(options = {}) {
   const projectionOnly = options.projectionOnly === true;
   if (workshopSharedModeActive()) workshopSyncConfigFromSharedSettings();
@@ -5160,15 +5178,20 @@ function renderWorkshopPlanner(options = {}) {
   const focusedBookingMode = state.focusedBookingMode === true;
   const focusedPlans = focusedBookingMode ? (selected ? plans.filter(entry => entry.id === selected.id) : []) : plans;
   const dateKey = state.date;
-  const activePlans = focusedBookingMode ? focusedPlans.filter(entry => entry.status !== 'completed') : plans.filter(entry => entry.stage === stage && entry.status !== 'completed');
+  const activePlans = (focusedBookingMode ? focusedPlans : plans.filter(entry => entry.stage === stage))
+    .filter(entry => entry.status !== 'completed' && Number(entry.bay) > 0);
   const stageVehicleList = workshopPlannerVehiclesForStage(stage);
+  const returnedPlans = focusedBookingMode ? [] : workshopReturnedQueuePlans(plans, stage,
+    stage === 'BUS_4X4' ? workshopSelectedBusGroup()?.code || '' : '');
+  const returnedVehicleIds = new Set(returnedPlans.map(entry => entry.sharedVehicleId));
   const outstanding = focusedBookingMode ? [] : stageVehicleList;
-  const unscheduled = focusedBookingMode ? [] : outstanding.filter(vehicle => vehicle.__workshopOutstanding?.existingBooking !== true);
+  const unscheduled = focusedBookingMode ? [] : outstanding.filter(vehicle => vehicle.__workshopOutstanding?.existingBooking !== true
+    || returnedVehicleIds.has(vehicle.sharedVehicleId || vehicle.id));
   const alreadyBookedOutstanding = focusedBookingMode ? 0 : Math.max(0, outstanding.length - unscheduled.length);
   // Once a vehicle is assigned to this station's physical bay it is no longer
   // actionable in the Outstanding candidates pile. The authoritative total is
   // still retained separately for reporting and reconciliation.
-  const queue = focusedBookingMode ? [] : unscheduled;
+  const queue = focusedBookingMode ? [] : unscheduled.filter(vehicle => !returnedVehicleIds.has(vehicle.sharedVehicleId || vehicle.id));
   const incrementalScope = `${stage}:${dateKey}`;
   if (state.incrementalRenderScope !== incrementalScope) {
     state.incrementalRenderScope = incrementalScope;
@@ -5216,9 +5239,9 @@ function renderWorkshopPlanner(options = {}) {
     ${focusedBookingMode && state.focusedBookingError ? `<section class="workshop-focused-booking-error" role="alert"><strong>Focused booking unavailable</strong><span>${escapeHtml(state.focusedBookingError)}</span><button type="button" class="small-button" data-workshop-focused-back>Back to Workshop planner</button></section>` : ''}
     <div class="workshop-board-shell">
       ${focusedBookingMode ? '' : `<aside class="workshop-side-panel workshop-waiting-panel">
-        <div class="workshop-side-heading"><strong>Unallocated vehicles</strong><span>${queue.length} unallocated · ${alreadyBookedOutstanding} already booked in bays</span></div>
+        <div class="workshop-side-heading"><strong>Unallocated vehicles</strong><span>${queue.length + returnedVehicleIds.size} unallocated · ${alreadyBookedOutstanding} already booked in bays</span></div>
         <div class="workshop-unallocated-drop" data-workshop-unallocated-drop><strong>Return to Unallocated</strong><span>Planned or live: choose Just move or STOPPAGE</span></div>
-        <div class="workshop-side-list">${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || '<div class="workshop-empty">No outstanding requirements in this department.</div>'}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
+        <div class="workshop-side-list">${returnedPlans.map(workshopReturnedQueueCardHtml).join('')}${queueBatch.visible.map(vehicle => workshopQueueCardHtml(vehicle, stage, dateKey, plans)).join('') || (returnedPlans.length ? '' : '<div class="workshop-empty">No outstanding requirements in this department.</div>')}${workshopIncrementalLoadMoreHtml('queue', queueBatch)}</div>
       </aside>`}
       <section class="workshop-timeline-scroll">
         <div class="workshop-scroll-cue" role="note">Swipe or scroll schedule horizontally →</div>
