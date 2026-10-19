@@ -334,7 +334,8 @@
       if(actor!==window.PDC_AUTH_CONTEXT?.userId||role!==window.PDC_AUTH_CONTEXT?.role||token!==getPdcSupabaseAccessToken()
           ||config!==window.PDC_SUPABASE_CONFIG||session!==sessionGeneration||!readable()) throw new Error('session_changed');
       if(!res.ok || result?.ok!==true) {
-        const failure=new Error(result?.code || 'request_failed');
+        const knownStationError = result?.message === 'department_138_requires_correct_station';
+        const failure=new Error(knownStationError ? result.message : result?.code || 'request_failed');
         if(name==='approve_pdc_tune_operation_change_with_schedule') {
           if(['operation_schedule_conflict','operation_schedule_busy'].includes(result?.code)
             &&typeof result.message==='string'&&result.message.trim())failure.userMessage=result.message.trim().slice(0,1000);
@@ -347,6 +348,7 @@
   }
   function message(err) {
     const code=String(err?.message || '');
+    if(code==='department_138_requires_correct_station')return 'An operation’s selected station conflicts with its saved Department 138 routing. No changes were saved. Refresh the Job Card; if it persists, its routing rule needs correcting.';
     if(code==='department_scope_mismatch')return 'This department could not be confirmed. Refresh before approving vehicles.';
     if(code==='queue_changed')return 'The new-vehicle queue changed while it was being checked. Refresh and try again; no bulk approvals were started.';
     if(['review_not_found','review_not_pending'].includes(code))return 'This vehicle is no longer waiting in the new-vehicle queue. Refresh to check its current status.';

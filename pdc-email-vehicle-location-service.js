@@ -214,6 +214,7 @@ function mapServerVehicle(row = {}) {
   mapped.pdcEmailOperationLines = (Array.isArray(row.operation_lines) ? row.operation_lines : []).slice(0, 50).map(item => ({
     operation_line_id: String(item?.operation_line_id || item?.source_line_id || '').trim().toLowerCase(),
     department: String(item?.department ?? '').trim(),
+    workCategory: String(item?.work_category || '').toUpperCase(),
     operation_no: String(item?.operation_no || '').trim().toUpperCase(),
     work_key: canonicalWorkKey(item?.work_key),
     job_card_number: String(item?.job_card_number || item?.jobCardNumber || '').trim().slice(0, 80),
