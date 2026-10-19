@@ -31,6 +31,7 @@ SCENARIOS = [
     ("Accepted imports retain categories and source hours", "tests/accepted_import_category_integration_rollback.sql"),
     ("Automatic additions, notes and scoped card visibility", "tests/automatic_jobcard_additions_rollback.sql"), ('Jobcard required work synchronization', 'tests/jobcard_required_work_rollback.sql'),
     ("Return planned bookings to Unallocated", "tests/workshop_planned_unallocate_rollback.sql"),
+    ("Reallocate returned bookings", "tests/workshop_returned_reallocation_rollback.sql"),
     ("Close gaps with ready jobs", "tests/workshop_close_gaps_ready_jobs_rollback.sql"),
     ("Vehicle locations and bay ownership", "tests/workshop_location_override_booking_rollback_20260913.sql"),
     ("Calendar and working hours", "tests/workshop_hours_0600_1630_rollback.sql"),

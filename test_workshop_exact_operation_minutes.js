@@ -29,7 +29,7 @@ assert.strictEqual(exactEnd.getMinutes(), 18, 'The final three minutes must not 
 
 const source = fs.readFileSync('workshop-planner.js', 'utf8');
 assert.ok(source.includes('const canonicalSharedHours = workshopSharedModeActive()'));
-assert.ok(source.includes('const duration = workshopSchedulingDuration(vehicle, normalizedStage);'));
+assert.ok(source.includes(': workshopSchedulingDuration(vehicle, normalizedStage);'));
 assert.ok(source.includes('? workshopBookingDestinationHours(existing, normalizedStage, bay, duration.hours)'),
   'shared scheduling adjusts the authoritative estimate once for the destination bay');
 assert.ok(source.includes('const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);'));

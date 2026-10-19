@@ -11,7 +11,7 @@ assert.match(appSource, /vehicleModalIdentity/, 'modal must retain a stable iden
 assert.match(appSource, /identity.*stock|stock.*identity/, 'modal binding must retain the displayed stock baseline');
 assert.match(appSource, /No mutation was made|No vehicle was changed/, 'unresolved identity must fail closed');
 const plannerSource = fs.readFileSync('workshop-planner.js', 'utf8');
-assert.match(plannerSource, /const duration = workshopSchedulingDuration\(vehicle, normalizedStage\)/, 'shared booking duration must be derived from authoritative projection');
+assert.match(plannerSource, /const duration = returnedPlan \? [^;]+ : workshopSchedulingDuration\(vehicle, normalizedStage\)/, 'shared booking duration must be derived from authoritative projection');
 
 const start = appSource.indexOf('function vehicleWorkshopGroups(');
 const end = appSource.indexOf('\nfunction vehicleWorkshopJobCardValue', start);

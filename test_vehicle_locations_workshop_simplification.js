@@ -45,7 +45,7 @@ const disabledMatch=searchContext.workshopSearchMatchRows('13000001',history);
 assert.strictEqual(disabledMatch.length,1,'current candidate is searchable when missing hours disables scheduling');
 assert.strictEqual(disabledMatch[0].candidateAvailable,false);
 assert.strictEqual(disabledMatch[0].candidateDisabledReason,'estimated_duration_missing');
-const mixed=[...history,{id:'active',sharedVehicleId:historyVehicle.id,status:'planned'}];
+const mixed=[...history,{id:'active',stage:'FITTING',sharedVehicleId:historyVehicle.id,status:'planned'}];
 assert.deepStrictEqual(Array.from(searchContext.workshopSearchMatchRows('13000000',mixed)[0].bookings,entry=>entry.id),['active'],'only active booking is offered');
 lookup={status:'ready',matches:new Map([[`shared:${historyVehicle.id}`,{ok:false,error:'request_failed'}]])};
 const failedMatch=searchContext.workshopSearchMatchRows('13000000',history);
