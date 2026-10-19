@@ -8782,10 +8782,20 @@ function renderIncomingDashboardBoardContent() {
     rowsByBucket.set(key, bucket);
   });
   const summary = $('#incoming-filter-summary');
+  // An authenticated board with no rows yet is still loading. Do not present
+  // that wait as an empty fleet. A successful or failed refresh may still say 0.
+  const locationsStillLoading = rows.length === 0
+    && app.vehicleLocationsRefreshState !== 'success'
+    && app.vehicleLocationsRefreshState !== 'error'
+    && (app.vehicleLocationsRefreshState === 'refreshing'
+      || app.sharedNavisionVisibleState === 'loading'
+      || (Boolean(window.PDC_AUTH_CONTEXT) && (app.sharedNavisionVisibleState === 'idle' || app.sharedNavisionVisibleState == null)));
   if (summary) {
     const workCount = Array.isArray(filters.work) ? filters.work.length : (filters.work ? 1 : 0);
     const active = [filters.department && `Department ${filters.department}`, filters.search && `search “${filters.search}”`, filters.status, filters.bucket && incomingBucketLabel(filters.bucket), filters.rep, workCount && `${workCount} work type${workCount === 1 ? '' : 's'}`].filter(Boolean);
-    summary.textContent = `${filteredRows.length} of ${rows.length} vehicles shown${active.length ? ` · ${active.join(' · ')}` : ''}`;
+    summary.textContent = locationsStillLoading
+      ? 'Loading vehicles…'
+      : `${filteredRows.length} of ${rows.length} vehicles shown${active.length ? ` · ${active.join(' · ')}` : ''}`;
   }
   const defs = VEHICLE_LOCATION_BUCKET_DEFS;
   const priorityRows = incomingDepartmentPriorityRows(filters);
@@ -8797,7 +8807,7 @@ function renderIncomingDashboardBoardContent() {
     if (filters.bucket && filters.bucket !== def.key) return '';
     const vehicles = (rowsByBucket.get(def.key) || [])
       .sort((a, b) => incomingCompareVehicles(a, b, sort, def.key));
-    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key, { workshopPlans, workshopProjectionAvailable, subletNavigation: true })).join('') || '<div class="pmb-empty-drop">No vehicles match the current filters</div>';
+    const shown = vehicles.map(vehicle => incomingVehicleDetailRow(vehicle, def.key, { workshopPlans, workshopProjectionAvailable, subletNavigation: true })).join('') || `<div class="pmb-empty-drop">${locationsStillLoading ? 'Loading vehicles…' : 'No vehicles match the current filters'}</div>`;
     const identityHeader = vehicles.length
       ? def.key === 'rft'
         ? vehicleLocationsRftHeaderHtml(sort)
@@ -8805,7 +8815,7 @@ function renderIncomingDashboardBoardContent() {
       : '';
     return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
-        <span>${escapeHtml(def.label)}</span><strong>${vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
+        <span>${escapeHtml(def.label)}</span><strong>${locationsStillLoading ? '…' : vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
       </summary>
       <div class="incoming-bucket-list incoming-vertical-list">${identityHeader}${shown}</div>
     </details>`;

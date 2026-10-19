@@ -73,14 +73,15 @@ const approvedRootImportPatch = Object.freeze({
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
-  // app.js keeps Setup backup polling and adds hoist-corrections=2026.10.19.02
-  // so the shared planner fix is fetched.
-  "app.js": "05eddde597e9b7403b5c4d63497546daaa89744ea82c2e4c2938c4faf5ab1a18",
+  // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02, and
+  // the Vehicle Locations summary that says "Loading vehicles…" until the
+  // board snapshot arrives.
+  "app.js": "167803167e922bd8baa1b83b6c251ea233cff751625bcc75fbc1ca79de86e2ec",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  // app.js?v= keeps backup-status=2026.10.19.01 and adds hoist-corrections=2026.10.19.02.
-  // Department 135's pages stay frozen.
-  "index.html": "0a5aca3b75bbdea9406414c8b3c996bc900b64385fb18f763fee9443eb62273a",
+  // app.js?v= keeps backup-status=2026.10.19.01 and hoist-corrections=2026.10.19.02,
+  // and adds location-loading=2026.10.19.01. Department 135's pages stay frozen.
+  "index.html": "7039ab439494d0e2fb1a2885c0eb67f2f788c94e0ed11c8669d0978d22fb88cf",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
