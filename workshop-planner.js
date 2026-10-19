@@ -5076,7 +5076,7 @@ function workshopSelectReturnedPlan(planId) {
   state.searchOpen = false;
   state.searchHighlightPlanId = plan.id;
   renderWorkshopPlanner();
-  document.querySelector('[data-workshop-detail-form]')?.scrollIntoView({ block: 'center' });
+  openWorkshopVehicleJob(plan.vehicleKey, plan.stage, plan.id);
   return true;
 }
 
