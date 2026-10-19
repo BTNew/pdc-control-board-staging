@@ -1,7 +1,9 @@
 -- Staging only. Remove supabase_realtime members the live front end does not
 -- subscribe to. This does not drop tables, delete rows, or resume Department 135.
--- Parked Karratha tables leave the publication and can be added back by the
--- rollback file. Undo is not under supabase/migrations.
+-- Every karratha135_pdc table that is in the publication is in drop_members.
+-- The tables, their data, history and migrations stay. Restore them with
+-- supabase/rollbacks/20261019141000_realtime_publication_prune.down.sql.
+-- That undo file is not under supabase/migrations.
 DO $migration$
 DECLARE
  expected text[] := ARRAY[
@@ -117,4 +119,15 @@ BEGIN
  FOREACH item IN ARRAY drop_members LOOP
   EXECUTE format('ALTER PUBLICATION supabase_realtime DROP TABLE %I.%I', split_part(item, '.', 1), split_part(item, '.', 2));
  END LOOP;
+ IF EXISTS (
+  SELECT 1
+  FROM pg_publication_rel pr
+  JOIN pg_publication p ON p.oid = pr.prpubid
+  JOIN pg_class c ON c.oid = pr.prrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE p.pubname = 'supabase_realtime'
+    AND n.nspname = 'karratha135_pdc'
+ ) THEN
+  RAISE EXCEPTION 'karratha_publication_remains';
+ END IF;
 END $migration$;

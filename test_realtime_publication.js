@@ -61,6 +61,7 @@ test('realtime prune drops only tables the front end does not subscribe to', () 
   assert.ok(drop.filter(name => name.startsWith('karratha135_pdc.')).length === 14);
   assert.match(forward, /pdc_monitor_staging_guard\(\)/);
   assert.match(forward, /reviewed_publication_changed/);
+  assert.match(forward, /karratha_publication_remains/);
   assert.match(forward, /ALTER PUBLICATION supabase_realtime DROP TABLE %I\.%I/);
   assert.equal((forward.match(/DROP TABLE/g) || []).length, 1);
   assert.doesNotMatch(forward, /\bDELETE FROM\b/);
