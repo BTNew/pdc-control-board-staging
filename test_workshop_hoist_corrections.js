@@ -49,6 +49,23 @@ test('unallocated counts use the snapshot totals instead of a partial vehicle li
   assert.deepEqual(plain(context.workshopUnallocatedHeadingCounts([], [{ sharedVehicleId: 'missing' }], counts)), { unallocated: 95, booked: 5 });
 });
 
+test('Fabrication uses the same snapshot totals after a drop', () => {
+  const outstanding = Array.from({ length: 150 }, (_, index) => ({
+    id: 'f' + index,
+    sharedVehicleId: 'f' + index,
+    __workshopOutstanding: { existingBooking: index < 31 },
+  }));
+  const partial = {
+    unallocated: outstanding.filter(vehicle => vehicle.__workshopOutstanding.existingBooking !== true).length,
+    booked: outstanding.filter(vehicle => vehicle.__workshopOutstanding.existingBooking === true).length,
+  };
+  assert.deepEqual(partial, { unallocated: 119, booked: 31 });
+  const counts = { outstanding_candidates: 151, unscheduled_candidates: 150 };
+  const heading = context.workshopUnallocatedHeadingCounts(outstanding, [], counts);
+  assert.deepEqual({ unallocated: heading.unallocated, booked: heading.booked }, { unallocated: 150, booked: 1 });
+  assert.match(source, /workshopUnallocatedHeadingCounts\(outstanding, returnedPlans/);
+});
+
 test('an untrusted refresh keeps the last heading and a committed schedule closes the dialog', () => {
   assert.match(source, /retainedQueueHeading/);
   assert.match(source, /result\.committed === true/);

@@ -56,10 +56,11 @@ const approvedRootImportPatch = Object.freeze({
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
   "pdc-workshop-departments.js": "06326c4e7bb3aa1b301c4c5cd42024927ca3bac1f6c9ef7ce5dcce871d41ed29",
-  // Hoist planner: close a confirmed Add to planner dialog, follow the bay
-  // mechanic unless the user overrides it, and keep unallocated counts on the
-  // snapshot totals. Department 135's planner copy stays frozen.
-  "workshop-planner.js": "50bde9763024f3cb0da672c8a6bb428fc21d3d1152241cd129b3705b11bfcabf",
+  // Shared planner: close a confirmed Add to planner dialog, follow the bay
+  // mechanic unless the user overrides it, keep unallocated counts on the
+  // snapshot totals for every station, and keep search on the last snapshot
+  // while a post-drop refresh is in flight. Department 135's copy stays frozen.
+  "workshop-planner.js": "53dc6739995cc070b2d27aea55e65bcdd028c197c7ac468911d7ad0c6c5343bc",
   "workshop-planner.css": "b227830d512dc1980a9bdc9a5610e04890f0d9707bb3e343556ed8a2ee3b4bee",
   "scripts/build_pages_runtime.js": "b8d0246d48dc6547a21ef70f729aff89488858e081c3c07b3dcad77ff0718ab2",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
@@ -72,14 +73,14 @@ const approvedRootImportPatch = Object.freeze({
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
-  // app.js keeps Setup backup polling and adds hoist-corrections=2026.10.19.01
-  // so the planner fix is fetched.
-  "app.js": "35f3ee5bf038d5296abb39ba53e7d3d96a76c41d07658a4f3ac7d9aa59114daf",
+  // app.js keeps Setup backup polling and adds hoist-corrections=2026.10.19.02
+  // so the shared planner fix is fetched.
+  "app.js": "05eddde597e9b7403b5c4d63497546daaa89744ea82c2e4c2938c4faf5ab1a18",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
-  // app.js?v= keeps backup-status=2026.10.19.01 and adds hoist-corrections=2026.10.19.01.
+  // app.js?v= keeps backup-status=2026.10.19.01 and adds hoist-corrections=2026.10.19.02.
   // Department 135's pages stay frozen.
-  "index.html": "07c4b5a8a7496b47fe4e026687e370354f9377c538f6a0caf245826373d406b5",
+  "index.html": "0a5aca3b75bbdea9406414c8b3c996bc900b64385fb18f763fee9443eb62273a",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",

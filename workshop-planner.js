@@ -3523,9 +3523,12 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
 function workshopCurrentSearchLookup(query = '') {
   const lookup = workshopState().bookingSearchLookup;
   const service = window.__workshopDataService;
+  // A post-drop refresh clears trusted authority but keeps the last snapshot.
+  // Search may keep showing that snapshot. It must not treat the gap as an outage.
+  const displayed = service?.getTrustedSnapshot?.() || service?.getLastSnapshot?.() || null;
   return lookup && lookup.snapshot && lookup.service === service
     && lookup.query === cleanNavisionText(query || '').toLowerCase()
-    && lookup.snapshot === service?.getTrustedSnapshot?.() ? lookup : null;
+    && displayed && lookup.snapshot === displayed ? lookup : null;
 }
 
 function workshopMapSearchBookings(result = {}, vehicle = {}) {
@@ -3563,7 +3566,11 @@ async function workshopLoadSearchBookings(query = '') {
   const state = workshopState();
   const service = window.__workshopDataService;
   if (!workshopSharedModeActive() || typeof service?.lookupVehicleBookings !== 'function') return;
-  if (!service.getTrustedSnapshot?.()) { state.bookingSearchLookup = null; return; }
+  if (!service.getTrustedSnapshot?.()) {
+    const retained = service.getLastSnapshot?.();
+    if (!retained || state.bookingSearchLookup?.snapshot !== retained) state.bookingSearchLookup = null;
+    return;
+  }
   const clean = cleanNavisionText(query || '').toLowerCase();
   if (clean.length < 2) { state.bookingSearchLookup = null; return; }
   const current = workshopCurrentSearchLookup(clean);
@@ -3631,7 +3638,8 @@ function workshopBookingSearchMeta(entry = {}) {
 function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
   const lookupRequired = workshopSharedModeActive() && typeof window.__workshopDataService?.lookupVehicleBookings === 'function';
   const lookup = workshopCurrentSearchLookup(query);
-  if (lookupRequired && !window.__workshopDataService?.getTrustedSnapshot?.()) return '<div class="workshop-search-state" role="status"><strong>Bookings temporarily unavailable</strong><span>Waiting for the workshop connection to refresh.</span></div>';
+  const searchService = window.__workshopDataService;
+  if (lookupRequired && !searchService?.getTrustedSnapshot?.() && !searchService?.getLastSnapshot?.()) return '<div class="workshop-search-state" role="status"><strong>Bookings temporarily unavailable</strong><span>Waiting for the workshop connection to refresh.</span></div>';
   if (lookupRequired && (!lookup || lookup.status !== 'ready')) return '<div class="workshop-search-state" role="status"><strong>Finding bookings…</strong><span>Checking this vehicle in the selected station across all dates.</span></div>';
   const matches = workshopSearchMatches(query, plans);
   if (cleanNavisionText(query || '').length < 2) return '';
