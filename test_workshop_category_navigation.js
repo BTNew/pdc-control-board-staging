@@ -180,10 +180,11 @@ function pitVehicle(overrides = {}) {
   return { stock: 'PIT-1', __emailVehicleServerAuthoritative: true, pdcQcOperationLinesProjectionPresent: true,
     pdcQcOperationLines: [{ lineIdentity: 'source:fixture', description: 'External inspection', department: '138', stageCode: 'PIT_INSPECTION', active: true, completed: false }], ...overrides };
 }
-test('Pit list uses only active outstanding Department 138 inspection lines from canonical projections', () => {
+test('Pit list uses only active outstanding Pit lines from canonical projections', () => {
   const vehicle = pitVehicle(), line = vehicle.pdcQcOperationLines[0];
   const before = JSON.stringify(vehicle);
-  for (const change of [{ department: '139' }, { stageCode: 'SUBLET' }, { stageCode: 'BUS_4X4' }, { active: false }, { completed: true }]) {
+  // r406 (F18): Pit by stage or wording in any department; a non-Pit description on another stage is not Pit.
+  for (const change of [{ stageCode: 'SUBLET' }, { stageCode: 'BUS_4X4' }, { active: false }, { completed: true }, { rejected: true }]) {
     assert.deepEqual(layout.externalPitLines(pitVehicle({ pdcQcOperationLines: [{ ...line, ...change }] })), []);
   }
   for (const change of [{ __emailVehicleServerAuthoritative: false }, { pdcQcOperationLinesProjectionPresent: false }, { tuneCheckout: { confirmed: true } },

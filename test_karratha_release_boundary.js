@@ -56,13 +56,13 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-review-stations.js": "851ebde33942fd3a3542f2292093483b6f9bc9f3ff9feb6cfc96aa8e6cf51488",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
-  "pdc-workshop-departments.js": "116ef396963f11485de134452a321198c3e39a2e7a40247cbe668e49a193c9a9",
+  "pdc-workshop-departments.js": "e32a0224bac142a0868aaf54f3f42b2e147a560bd22b8e3127e5715f22f333e6",
   // Shared planner: pointer-capture drops from a deep queue or search overlay,
   // keep the last search rows during a post-drop refresh, close Add to planner
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
   // counts on the snapshot totals; planner cards offer a controller reset for
   // a running item left too long (r384). Department 135's copy stays frozen.
-  "workshop-planner.js": "63c25ca45f840d8bb592e9de158e8fa75aad0edd202a9f813b99051d560a8f2d",
+  "workshop-planner.js": "a1e30a117d6797b8dbdd6d6cd94a049677d0ee892cafdccd71c91e2c556e8ab6",
   "workshop-planner.css": "1700e8952c6e36735deffc7e792b85ce4d0ba4acab312d6fc7251d9098682ef1",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
@@ -92,7 +92,7 @@ const approvedRootImportPatch = Object.freeze({
   // r400: QC no longer asks for the Pit inspection or job-card notes lines.
   // r401: Pit and weigh never counts as required work; optional Pit tick for any department.
   // r405: a Pit and weigh / Pit inspection line is Pit by its wording, whatever its category (F14).
-  "app.js": "28988ebd1e9e18605bc3353ff4a4e28f3937008edd77c8ece6fee4e1920e4e36",
+  "app.js": "363f94abeefcb07506fe3ea63fb228038f8d1be0c9e912e2ea37c75bc08deab4",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -110,7 +110,7 @@ const approvedRootImportPatch = Object.freeze({
   // r400: app.js adds qc-pit-notes=2026.10.20.01.
   // r401: app.js and pdc-email-vehicle-location-service.js add pit-neutral=2026.10.20.01.
   // r405: app.js adds pit-text=2026.10.20.01.
-  "index.html": "99066c1a3e653c288ce5ce486f44920819c228cf8c52450e126601d3a0071c02",
+  "index.html": "3442ee9406a22747899dbf13b378a45fb285661b6af6fdcba33f54b2e36f24dd",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   "pdc-email-vehicle-location-service.js": "91558fdb4e34d5707d53e91aa94b1e18097630a749bf0bba571af4eb83ba3ceb",
