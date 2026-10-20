@@ -32,3 +32,8 @@ span.ordering-status{cursor:default}
 .sales-notes-po-list>.sales-notes-po-group-head:first-child,.sales-notes-accessory-head+.sales-notes-po-group-head,.sales-accessory-admin>summary+.sales-notes-po-group-head{margin-top:0}
 .sales-notes-accessories .sales-accessory-admin{margin:2px 0 0;border-top:0;padding-top:0}
 .sales-notes-accessories .sales-accessory-admin>summary{min-height:0;margin:0 0 3px;font-size:12px;line-height:1.4}
+.sales-notes-po-delayed{background:#fff4d6;color:#7a5600}
+.sales-notes-delay{display:inline-flex;align-items:center;gap:4px;margin-left:auto;font-size:11px;font-weight:600;color:#52687a;white-space:nowrap;cursor:pointer;text-transform:none;letter-spacing:0}
+.sales-notes-delay input{margin:0;width:14px;height:14px}
+.sales-notes-delay-lifted,.sales-notes-delay-error{font-size:11px;font-weight:600;color:#a11d1d}
+.sales-yard-hold-flag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;background:#fde2e2;color:#a11d1d;font-size:11px;font-weight:700;white-space:nowrap}

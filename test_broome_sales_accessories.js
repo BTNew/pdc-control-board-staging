@@ -102,7 +102,10 @@ test('Sales entrypoint loads the accessory module before build requirements and 
   assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/\.sales-notes-accessory-line\{[^}]*grid-template-columns:minmax\(0,1fr\) 124px/);
   assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/\.sales-notes-po-review\{[^}]*#ffe4ba/);
   assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/\.sales-notes-po-red\{[^}]*#fde2e2/);
-  assert.doesNotMatch(module,/localStorage|sessionStorage|\.from\(|insert\(|<input|<form|set_ordering|import_sales/);assert.match(module,/rpc\('get_broome_sales_accessories'\)/);
+  assert.doesNotMatch(module,/localStorage|sessionStorage|\.from\(|insert\(|<form|set_ordering|import_sales/);assert.match(module,/rpc\('get_broome_sales_accessories'\)/);
+  // r418: the only input is the "Delay until yard hold" box and the only write is its RPC.
+  assert.deepEqual([...module.matchAll(/<input[^']*/g)].map(m=>m[0]),['<input type="checkbox" data-accessory-delay="']);
+  assert.deepEqual([...new Set([...module.matchAll(/rpc\('([a-z_]+)'/g)].map(m=>m[1]))].sort(),['get_broome_sales_accessories','set_broome_sales_accessory_delay']);
 });
 test('migration keeps the importer management-only and the read RPC signed-in only',()=>{
   const sql=fs.readFileSync('supabase/migrations/20261020074958_r392_sales_accessory_lines.sql','utf8');

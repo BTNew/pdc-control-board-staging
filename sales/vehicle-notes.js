@@ -61,7 +61,7 @@
   function editorHtml(row){
    const id=row.tracking_id;if(!expanded.has(id)||options?.isHidden?.())return '';
    const record=records.get(id),draft=drafts.get(id),data=draft||record||{},disabled=busy.has(id)||!loaded||!editable(id);
-   const accessoryLines=host.BROOME_SALES_ACCESSORIES?.notesPanelHtml?.(row)||'';
+   const accessoryLines=host.BROOME_SALES_ACCESSORIES?.notesPanelHtml?.(row,{editable:editable(id)})||'';
    return '<form class="vehicle-notes-editor" data-notes-form="'+escape(id)+'"><div class="vehicle-notes-heading"><strong>'+escape(options?.reference?.(row)||row.order||row.stock||'Vehicle')+' · Custom information</strong><button type="button" class="small-button" data-notes-toggle="'+escape(id)+'">Collapse</button></div><div class="vehicle-notes-layout">'+accessoryLines+'<div class="vehicle-notes-fields"><label><span>Custom information</span><textarea name="custom_information" rows="3" maxlength="4000" placeholder="Other details you want to keep with this vehicle…"'+(disabled?' disabled':'')+'>'+escape(data.custom_information||'')+'</textarea></label></div></div><div class="vehicle-notes-actions"><button type="submit" class="primary"'+(disabled?' disabled':'')+'>'+(busy.has(id)?'Saving…':'Save')+'</button><button type="button" class="small-button" data-notes-reload="'+escape(id)+'"'+(busy.has(id)?' disabled':'')+'>Reload saved notes</button><span class="vehicle-notes-status" role="status" aria-live="polite">'+escape(messages.get(id)||loadError||(draft?'Unsaved changes':!loaded?'Loading notes…':record?'Saved '+new Date(record.updated_at).toLocaleString('en-AU',{timeZone:'Australia/Perth',dateStyle:'medium',timeStyle:'short'}):'No staff notes yet'))+'</span></div></form>';
   }
   function rowHtml(row){const html=editorHtml(row);return html?'<tr class="vehicle-notes-row"><td colspan="13">'+html+'</td></tr>':'';}
@@ -86,7 +86,8 @@
   }
   function bind(container){
    if(!container)return;
-   container.addEventListener('input',event=>capture(event.target.closest('[data-notes-form]')));
+   // r418: the "Delay until yard hold" boxes save on their own; they are never part of the notes draft.
+   container.addEventListener('input',event=>{if(event.target?.matches?.('[data-accessory-delay]'))return;capture(event.target.closest('[data-notes-form]'));});
    container.addEventListener('submit',event=>{const form=event.target.closest('[data-notes-form]');if(form){event.preventDefault();save(form);}});
    container.addEventListener('click',event=>{
     const toggleButton=event.target.closest('[data-notes-toggle]');if(toggleButton){toggle(toggleButton.dataset.notesToggle);return;}

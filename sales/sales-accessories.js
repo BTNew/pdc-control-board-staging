@@ -6,6 +6,8 @@
   const groups=[['build','Build'],['tray','Tray'],['tint','Tint'],['admin','Admin']];
   const tickGroups={tint:'tint',build_po:'build',tray_ordered:'tray'};
   const derivedStates=new Set(['green','grey','red','review']);
+  const delayStates=new Set(['none','delayed','lifted']);
+  const liftedMessage='Vehicle is at yard hold, delay removed, please raise the PO';
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const orderKey=value=>String(value??'').trim().toUpperCase();
   const sameSource=(record,row)=>Boolean(record?.navision_record_id&&row?.navision_record_id)&&record.navision_record_id===row.navision_record_id;
@@ -26,31 +28,48 @@
     const lines=record.lines.map(line=>{
       if(!line||typeof line!=='object'||!groups.some(([key])=>key===line.group))throw new Error('Invalid accessory line.');
       return {group:line.group,line:text(line.line),item:text(line.item),type:text(line.type),sublet:text(line.sublet),po:text(line.po),
-        po_state:text(line.po_state),notes:text(line.notes),in_house:line.in_house===true};
+        po_state:text(line.po_state),notes:text(line.notes),in_house:line.in_house===true,
+        // r418: export line identity and "Delay until yard hold" state from the server (none / delayed / lifted).
+        line_key:/^[0-9a-f]{64}$/.test(text(line.line_key))?text(line.line_key):'',delay:delayStates.has(line.delay)?line.delay:'none'};
     });
     return {tracking_id:text(record.tracking_id),navision_record_id:text(record.navision_record_id),order:text(record.order),stock:text(record.stock),
-      quote:text(record.quote),source_file:text(record.source_file),snapshot_at:record.snapshot_at||null,derived,lines};
+      quote:text(record.quote),source_file:text(record.source_file),snapshot_at:record.snapshot_at||null,derived,lines,
+      at_or_past_yard_hold:record.at_or_past_yard_hold===true,delay_lifted_lines:Number.isInteger(record.delay_lifted_lines)&&record.delay_lifted_lines>0?record.delay_lifted_lines:0};
   }
   const emptySentence='No accessory lines in the latest sales export.';
   // Same classification as the r394 derived ticks: blank is red, unrecognised text is amber review, a PO or C&S ONLY / SELL ONLY / NO UPDATE is green.
+  // r418: a Not raised line delayed until yard hold is amber "Delayed – yard hold" (never red) until the server lifts it.
   function poTone(line) {
     const po=line.po.trim();
-    if(!po||line.po_state==='blank')return 'red';
+    if(!po||line.po_state==='blank')return line.delay==='delayed'?'delayed':'red';
     if(line.po_state==='other')return 'review';
     return 'green';
   }
-  function poLabel(line){return poTone(line)==='red'?'Not raised':line.po.trim();}
-  function lineHtml(line) {
+  function poLabel(line){const tone=poTone(line);return tone==='red'?'Not raised':tone==='delayed'?'Delayed – yard hold':line.po.trim();}
+  // The tick box shows on Not raised lines while the vehicle is before yard hold (and on delayed lines, to untick).
+  function delayHtml(line,view) {
+    if(!view?.tracking_id||!line.line_key||line.delay==='lifted')return '';
+    const tone=poTone(line);if(tone!=='red'&&tone!=='delayed')return '';
+    if(tone==='red'&&view.at_or_past_yard_hold)return '';
+    const key=view.tracking_id+'|'+line.line_key,busy=view.busy?.has?.(key),message=view.messages?.get?.(key);
+    return '<label class="sales-notes-delay"><input type="checkbox" data-accessory-delay="'+escapeHtml(line.line_key)+'" data-accessory-vehicle="'+escapeHtml(view.tracking_id)+'"'+
+      (line.delay==='delayed'?' checked':'')+(busy||view.editable===false?' disabled':'')+'><span>'+(busy?'Saving…':'Delay until yard hold')+'</span></label>'+
+      (message?'<small class="sales-notes-delay-error" role="alert">'+escapeHtml(message)+'</small>':'');
+  }
+  function lineHtml(line,view) {
     const note=line.notes.trim();
-    return '<div class="sales-notes-accessory-line"><div class="sales-notes-accessory-item"><span>'+escapeHtml(line.item)+'</span>'+(note?'<small class="sales-notes-accessory-note">'+escapeHtml(note)+'</small>':'')+'</div><div class="sales-notes-accessory-po sales-notes-po-'+poTone(line)+'">'+escapeHtml(poLabel(line))+'</div></div>';
+    return '<div class="sales-notes-accessory-line"><div class="sales-notes-accessory-item"><span>'+escapeHtml(line.item)+'</span>'+(note?'<small class="sales-notes-accessory-note">'+escapeHtml(note)+'</small>':'')+
+      (line.delay==='lifted'&&poTone(line)==='red'?'<small class="sales-notes-delay-lifted" role="alert">'+liftedMessage+'</small>':'')+delayHtml(line,view)+
+      '</div><div class="sales-notes-accessory-po sales-notes-po-'+poTone(line)+'">'+escapeHtml(poLabel(line))+'</div></div>';
   }
   // r417: every accessory type (accessory, aftermarket, miscacc, special, other) is one list grouped by PO; Admin stays separate.
   // r416: lines that share a PO sit together. PO numbers first in ascending order, then other raised
   // values (C&S ONLY, SELL ONLY, NO UPDATE, review text) A to Z, and every Not raised line last. A stable sort keeps the
   // export order inside each group. Display only: no line, PO, tick or note changes.
   const poCollator=new Intl.Collator('en',{numeric:true,sensitivity:'base'});
-  function poGroupKey(line){return poTone(line)==='red'?'':line.po.trim().replace(/\s+/g,' ').toUpperCase();}
-  function poRank(line){return poTone(line)==='red'?2:line.po_state==='po'||/^PO\d/i.test(line.po.trim())?0:1;}
+  // r418: delayed lines form their own group after Not raised.
+  function poGroupKey(line){const tone=poTone(line);return tone==='red'?'':tone==='delayed'?'delayed':line.po.trim().replace(/\s+/g,' ').toUpperCase();}
+  function poRank(line){const tone=poTone(line);return tone==='red'?2:tone==='delayed'?3:line.po_state==='po'||/^PO\d/i.test(line.po.trim())?0:1;}
   function poGroups(lines) {
     const groups=new Map();
     lines.forEach((line,index)=>{
@@ -58,27 +77,32 @@
       if(!groups.has(key))groups.set(key,{key,rank:poRank(line),label:poLabel(line),first:index,lines:[]});
       const group=groups.get(key);group.rank=Math.min(group.rank,poRank(line));group.lines.push(line);
     });
-    return [...groups.values()].sort((a,b)=>a.rank-b.rank||(a.rank===2?0:poCollator.compare(a.key,b.key))||a.first-b.first);
+    return [...groups.values()].sort((a,b)=>a.rank-b.rank||(a.rank>=2?0:poCollator.compare(a.key,b.key))||a.first-b.first);
   }
-  function groupedLinesHtml(lines,alwaysLabel=false) {
+  const groupLabel=group=>group.rank===2?'Not raised':group.rank===3?'Delayed – yard hold':group.label;
+  const groupId=group=>group.rank===2?'not-raised':group.rank===3?'delayed':group.key;
+  function groupedLinesHtml(lines,alwaysLabel=false,view=null) {
     const groups=poGroups(lines);
     // The combined list always names its PO groups. In Admin a label only helps when there is more than one group.
-    if(groups.length<2&&!alwaysLabel)return groups.map(group=>group.lines.map(lineHtml).join('')).join('');
-    return groups.map(group=>'<div class="sales-notes-po-group-head" data-po-group="'+escapeHtml(group.rank===2?'not-raised':group.key)+'">'+
-      escapeHtml((group.rank===2?'Not raised':group.label)+' · '+group.lines.length+' line'+(group.lines.length===1?'':'s'))+'</div>'+group.lines.map(lineHtml).join('')).join('');
+    const linesHtml=group=>group.lines.map(line=>lineHtml(line,view)).join('');
+    if(groups.length<2&&!alwaysLabel)return groups.map(linesHtml).join('');
+    return groups.map(group=>'<div class="sales-notes-po-group-head" data-po-group="'+escapeHtml(groupId(group))+'">'+
+      escapeHtml(groupLabel(group)+' · '+group.lines.length+' line'+(group.lines.length===1?'':'s'))+'</div>'+linesHtml(group)).join('');
   }
-  function notesLinesHtml(record) {
+  function notesLinesHtml(record,view=null) {
+    view=view?{...view,tracking_id:record?.tracking_id||'',at_or_past_yard_hold:record?.at_or_past_yard_hold===true}:null;
     const lines=Array.isArray(record?.lines)?record.lines:[];
     const admin=lines.filter(line=>line.group==='admin'),rest=lines.filter(line=>line.group!=='admin');
     if(!rest.length&&!admin.length)return '<section class="sales-notes-accessories" aria-label="Accessory lines"><p class="sales-notes-accessory-empty">'+emptySentence+'</p></section>';
     let html='';
-    if(rest.length)html+='<section class="sales-notes-accessory-type sales-notes-po-list" data-po-list="accessories">'+groupedLinesHtml(rest,true)+'</section>';
+    if(rest.length)html+='<section class="sales-notes-accessory-type sales-notes-po-list" data-po-list="accessories">'+groupedLinesHtml(rest,true,view)+'</section>';
     // r417: Admin (Pit and Weigh, Transport...) is always visible under a plain heading; no collapsible boxes in the order dropdown.
-    if(admin.length)html+='<section class="sales-notes-accessory-type sales-notes-admin-list" data-admin-list="admin"><h3 class="sales-notes-accessory-head">Admin · '+admin.length+' line'+(admin.length===1?'':'s')+'</h3>'+groupedLinesHtml(admin)+'</section>';
+    if(admin.length)html+='<section class="sales-notes-accessory-type sales-notes-admin-list" data-admin-list="admin"><h3 class="sales-notes-accessory-head">Admin · '+admin.length+' line'+(admin.length===1?'':'s')+'</h3>'+groupedLinesHtml(admin,false,view)+'</section>';
     return '<section class="sales-notes-accessories" aria-label="Accessory lines">'+html+'</section>';
   }
   function createSalesAccessories(host) {
     let options,records=new Map(),epoch=0,request=0,identity='',readStatus='idle';
+    const delayBusy=new Set(),delayMessages=new Map();
     const context=()=>options?.getContext?.();
     const currentIdentity=()=>JSON.stringify([host.PDC_AUTH_CONTEXT?.userId||null,options?.getToken?.()??null,context()?.role||null,context()?.salesperson_code||null]);
     // The dashboard salesperson filter is a view, not a cache key. Ticks stay for every vehicle this user may see.
@@ -87,7 +111,7 @@
       if(ctx?.role==='salesperson'&&!salespeople.has(owner))return [];
       return eligibleRows(options?.getRows?.()||[],'').filter(row=>!owner||row.salesperson_code===owner);
     };
-    function clear(){epoch++;request++;records.clear();identity=currentIdentity();readStatus='idle';}
+    function clear(){epoch++;request++;records.clear();delayBusy.clear();delayMessages.clear();identity=currentIdentity();readStatus='idle';}
     function syncScope() {
       if(!host.PDC_AUTH_CONTEXT?.userId||!['administrator','salesperson'].includes(context()?.role)){clear();return false;}
       if(identity!==currentIdentity())clear();
@@ -102,10 +126,10 @@
     }
     // The Build/Tray/Tint line table used to render in the stock detail. Lines now render only in the notes panel.
     function detailHtml(){return '';}
-    function notesPanelHtml(row) {
+    function notesPanelHtml(row,settings={}) {
       if(!row||!syncScope())return '';
       const record=recordFor(row);
-      if(record)return notesLinesHtml(record);
+      if(record)return notesLinesHtml(record,{editable:settings.editable!==false,busy:delayBusy,messages:delayMessages});
       return readStatus==='ready'?'<section class="sales-notes-accessories" aria-label="Accessory lines"><p class="sales-notes-accessory-empty">'+emptySentence+'</p></section>':'';
     }
     // r394: the derived tick is the only state shown for TINT / BUILD / TRAY; manual values are ignored.
@@ -114,6 +138,26 @@
       const group=tickGroups[key];if(!group)return null;
       const record=recordFor(row);
       return record?record.derived[group]:null;
+    }
+    // r418: tick / untick "Delay until yard hold". The server checks access, the line and yard hold; the list re-reads after.
+    async function setDelay(trackingId,lineKey,delayed) {
+      const row=rows().find(item=>item.tracking_id===trackingId),record=row&&recordFor(row);
+      const line=record?.lines.find(item=>item.line_key===lineKey),key=trackingId+'|'+lineKey;
+      if(!line||delayBusy.has(key))return;
+      const generation=epoch,owner=currentIdentity();
+      delayBusy.add(key);delayMessages.delete(key);options?.onUpdate?.();
+      try {
+        const {data,error}=await host.PDC_SUPABASE.rpc('set_broome_sales_accessory_delay',{p_tracking_id:trackingId,p_line_key:lineKey,p_delayed:delayed});
+        if(generation!==epoch||owner!==currentIdentity())return;
+        if(error)throw error;
+        if(data?.tracking_id!==trackingId||data?.line_key!==lineKey||data?.delayed!==delayed)throw new Error('The change could not be confirmed. Reload to check it.');
+      }catch(error){if(generation===epoch&&owner===currentIdentity())delayMessages.set(key,error?.message||'The delay could not be saved.');}
+      finally{if(generation===epoch&&owner===currentIdentity()){delayBusy.delete(key);await refresh();}}
+    }
+    function rowFlagHtml(row) {
+      const record=row&&recordFor(row);
+      if(!record?.delay_lifted_lines)return '';
+      return '<span class="sales-yard-hold-flag" role="status" title="'+escapeHtml(liftedMessage)+'">Raise PO · at yard hold</span>';
     }
     async function refresh() {
       if(!syncScope())return;
@@ -138,12 +182,17 @@
       options=settings;clear();
       host.addEventListener?.('pdc-auth-locked',clear);host.addEventListener?.('pdc-auth-failed',clear);
       host.addEventListener?.('pdc-auth-ready',()=>{if(identity!==currentIdentity())clear();});
+      host.document?.addEventListener?.('change',event=>{
+        const box=event.target?.closest?.('[data-accessory-delay]');if(!box)return;
+        const delayed=box.checked===true;box.checked=!delayed;// shown from the server's answer, never optimistically
+        void setDelay(box.dataset.accessoryVehicle,box.dataset.accessoryDelay,delayed);
+      });
       return api;
     }
-    const api={init,clear,syncScope,refresh,detailHtml,notesPanelHtml,tickFor,recordFor};
+    const api={init,clear,syncScope,refresh,detailHtml,notesPanelHtml,tickFor,recordFor,setDelay,rowFlagHtml};
     return api;
   }
-  const exports={escapeHtml,normaliseRecord,notesLinesHtml,poGroups,eligibleRows,createSalesAccessories};
+  const exports={escapeHtml,normaliseRecord,notesLinesHtml,poGroups,eligibleRows,createSalesAccessories,liftedMessage};
   if(typeof module==='object'&&module.exports)module.exports=exports;
   if(root.document)root.BROOME_SALES_ACCESSORIES=createSalesAccessories(root);
 })(typeof window==='object'?window:globalThis);

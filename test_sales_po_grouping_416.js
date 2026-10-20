@@ -99,11 +99,11 @@ test('subtle header style, cache tokens bumped, and the module stays read-only',
   assert.doesNotMatch(css.match(/\.sales-notes-po-group-head\{[^}]*\}/)[0],/border|background/);
   assert.match(css,/\.sales-notes-accessory-line\{[^}]*grid-template-columns:minmax\(0,1fr\) 124px/);
   assert.match(index,/sales-accessories\.css\?[^"]*po-groups=2026\.10\.21\.01/);
-  assert.match(index,/sales-accessories\.js\?[^"]*tick-scope=2026\.10\.20\.07&amp;po-groups=2026\.10\.21\.01&amp;po-list=2026\.10\.21\.02"/);
-  assert.match(index,/sales-accessories\.css\?[^"]*po-groups=2026\.10\.21\.01&amp;po-list=2026\.10\.21\.02"/);
+  assert.match(index,/sales-accessories\.js\?[^"]*tick-scope=2026\.10\.20\.07&amp;po-groups=2026\.10\.21\.01&amp;po-list=2026\.10\.21\.02/);
+  assert.match(index,/sales-accessories\.css\?[^"]*po-groups=2026\.10\.21\.01&amp;po-list=2026\.10\.21\.02/);
   assert.match(css,/\.sales-notes-po-list>\.sales-notes-po-group-head:first-child/);
   assert.doesNotMatch(module,/typeSections|Special \(sublet\)|'Aftermarket'|'Miscam'/);
-  assert.doesNotMatch(module,/localStorage|sessionStorage|\.from\(|insert\(|<input|<form|set_ordering|import_sales/);
+  assert.doesNotMatch(module,/localStorage|sessionStorage|\.from\(|insert\(|<form|set_ordering|import_sales/);
 });
 
 test('the Sales release cannot reload fitter screens, and fitters never reload over unsaved notes',()=>{
