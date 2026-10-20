@@ -129,7 +129,9 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'admin_block_not_found', 'invalid_label', 'invalid_idempotency_key',
   'idempotency_conflict', 'no_available_slot',
   'protected_booking', 'receipt_not_found', 'undo_actor_mismatch',
-  'already_undone', 'undo_expired', 'undo_conflict'
+  'already_undone', 'undo_expired', 'undo_conflict',
+  // r417 (F32): bay rule warning the planner did or did not confirm.
+  'bay_rule_warning', 'bay_rule_not_confirmed'
 ]);
 
 function workshopCanonicalMutationError(body) {

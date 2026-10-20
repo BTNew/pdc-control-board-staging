@@ -29,7 +29,40 @@
  * afterwards either way.
  */
 
-function buildWorkshopSharedActions(dataService) {
+// r417 (F32): a bay category or vehicle rule that does not match (Bay 8 is
+// Electrical, Bay 3 is HiAce) comes back as a warning, not an error. Ask the
+// planner; if they confirm, send the same change once more with the rules they
+// confirmed, under a new request ID. The server logs every override.
+function workshopBayRuleRequestId() {
+  const cryptoApi = typeof globalThis === 'object' ? globalThis.crypto : null;
+  if (cryptoApi && typeof cryptoApi.randomUUID === 'function') return cryptoApi.randomUUID();
+  const bytes = new Uint8Array(16);
+  if (cryptoApi && typeof cryptoApi.getRandomValues === 'function') cryptoApi.getRandomValues(bytes);
+  else for (let i = 0; i < 16; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function workshopBayRuleQuestion(result) {
+  const lines = result.rules.map(rule => `• ${String(rule?.message || rule?.rule || 'A bay rule does not match.')}`).join('\n');
+  return `This bay's rule does not match:\n\n${lines}\n\nBook it here anyway? The override is logged with your name. Choose Cancel to leave everything as it is.`;
+}
+
+async function workshopConfirmBayRuleWarning(mutate, name, params, ask) {
+  const first = await mutate(name, params);
+  if (!first || first.ok !== false || first.warning !== true || first.requires_confirmation !== true
+      || !Array.isArray(first.rules) || !first.rules.length) return first;
+  const confirmFn = typeof ask === 'function' ? ask
+    : (typeof window === 'object' && typeof window.confirm === 'function' ? window.confirm.bind(window) : null);
+  if (!confirmFn || !confirmFn(workshopBayRuleQuestion(first))) {
+    return { ok: false, error: 'bay_rule_not_confirmed', cancelled: true, rules: first.rules };
+  }
+  const rules = first.rules.map(rule => String(rule?.rule || '')).filter(Boolean);
+  return mutate(name, { ...params, p_metadata: { ...(params.p_metadata || {}), bay_rule_confirm: { rules } }, p_request_id: workshopBayRuleRequestId() });
+}
+
+function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {}) {
   function mutate(name, params) {
     return dataService.mutate(name, params);
   }
@@ -288,7 +321,7 @@ function buildWorkshopSharedActions(dataService) {
     },
 
     administratorMoveBooking({ bookingId, expectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, overrideReason = null, metadata = {}, requestId, cascade = false }) {
-      return mutate('administrator_move_workshop_booking', {
+      return workshopConfirmBayRuleWarning(mutate, 'administrator_move_workshop_booking', {
         p_booking_id: bookingId,
         p_expected_version: expectedVersion,
         p_stage_code: stageCode,
@@ -299,11 +332,11 @@ function buildWorkshopSharedActions(dataService) {
         p_metadata: metadata,
         p_request_id: requestId,
         p_cascade: cascade,
-      });
+      }, confirmBayRule);
     },
 
     administratorScheduleVehicle({ vehicleId, vehicleExpectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, technicianId = null, metadata = {}, requestId, cascade = true }) {
-      return mutate('administrator_schedule_workshop_vehicle', {
+      return workshopConfirmBayRuleWarning(mutate, 'administrator_schedule_workshop_vehicle', {
         p_vehicle_id: vehicleId,
         p_vehicle_expected_version: vehicleExpectedVersion,
         p_stage_code: stageCode,
@@ -314,7 +347,7 @@ function buildWorkshopSharedActions(dataService) {
         p_metadata: metadata,
         p_request_id: requestId,
         p_cascade: cascade,
-      });
+      }, confirmBayRule);
     },
 
     undoAdministratorBookingMove({ receiptId, expectedVersion, requestId }) {
@@ -337,7 +370,7 @@ function buildWorkshopSharedActions(dataService) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { buildWorkshopSharedActions };
+  module.exports = { buildWorkshopSharedActions, workshopConfirmBayRuleWarning, workshopBayRuleQuestion };
 }
 if (typeof window !== 'undefined') {
   window.buildWorkshopSharedActions = buildWorkshopSharedActions;

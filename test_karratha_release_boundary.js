@@ -33,6 +33,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     else if (item.file === 'control-board-overview.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1',item.file);
     else if (['pdc-fitters.js','canonical-entry.js','control-board-overview.js','pdc-new-vehicles.css','workshop-planner.css','pdc-review-stations.js','pdc-review-stations.css'].includes(item.file)) assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
     else if (item.file === 'pdc-planner-slim.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
+    // r417: the PMG copy asks to confirm a bay rule warning; the hidden Karratha copy stays frozen.
+    else if (item.file === 'workshop-shared-actions.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'6080315b8615d544ecec0ad324be883e064ecb912a2c5a28c41a19f11d4980d5',item.file);
     else if (item.file === 'workshop-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'004267f09a9fa4f5ad0852dd8f983e25395d8352f8b0f9fb798777b3d733e9ff',item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
@@ -51,7 +53,8 @@ const approvedRootImportPatch = Object.freeze({
   // Confirmed workshop writes stay committed if the readback authority changes,
   // and the dialog listener fires before the snapshot refresh. Department 135
   // stays parked and keeps the previous service bytes.
-  "workshop-data-service.js": "0377937a3337f26a7a1deafd3a84a04949c5a21f8b94aa24a8d1908d41c6a52f",
+  // r417: bay_rule_warning and bay_rule_not_confirmed are known codes (F32).
+  "workshop-data-service.js": "88ecbf537d7caee79f4d06c2bc1139f122a111d5972db5462d3c391af6979b5d",
   // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
   "pdc-review-stations.js": "851ebde33942fd3a3542f2292093483b6f9bc9f3ff9feb6cfc96aa8e6cf51488",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
@@ -63,7 +66,8 @@ const approvedRootImportPatch = Object.freeze({
   // counts on the snapshot totals; planner cards offer a controller reset for
   // a running item left too long (r384). Department 135's copy stays frozen.
   // r415: started-then-returned jobs can be dragged, Best slot or Scheduled again; the server resumes them (F31).
-  "workshop-planner.js": "d18806dd63982f57ddcdc7d8c98ff394ab6895f2d5da6d36045149c3e3ee8ae4",
+  // r417: every visible bay offered; a drop books the bay's own outstanding category; bay rule warning messages (F32).
+  "workshop-planner.js": "200a6f3b2f18001c28c8fc50f9d81b4cabc0082257d90d221cb22398189323e9",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   "workshop-planner.css": "51c8dd7628ee620d55af26b7f1af78cbb4a2c7c0b8aa4e729faaac38d7cf4cfa",
   // Publish minifies app.js and styles.css in the Pages artifact only.
@@ -99,7 +103,8 @@ const approvedRootImportPatch = Object.freeze({
   // r409: the other 210 alert() calls are pdcNotify toasts (F25); index.html adds r409=2026.10.21.01.
   // r414: the QC page reads the stored completion photo back (F30); index.html adds qc-photo-readback=2026.10.21.01.
   // r415: workshop-planner.js loads with r415=2026.10.21.01 (started-before jobs re-plan, F31).
-  "app.js": "bc4926d870a7672e09813328fe25f1e3ddbc18417024def0818389aa6625be70",
+  // r417: r417=2026.10.21.01 on workshop-planner.js, workshop-data-service.js and workshop-shared-actions.js (bay rule warn-and-confirm, F32).
+  "app.js": "2078c91773801c6fe6eec95122768a1ee2cf0e7e6e650b42ec3c27027bf50a0f",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -139,6 +144,8 @@ const approvedRootImportPatch = Object.freeze({
   // default, no return in finally). Department 135 keeps its frozen copies.
   // r408: no record_pdc_login for Fitters bay accounts (F22).
   "pdc-auth.js": "309f8a28baa21ecc90d1ea157ded387ee051db6d5bd67176c09026d60b208ac4",
+  // r417: administrator move/schedule ask the planner to confirm a bay rule warning, then resend confirmed (F32).
+  "workshop-shared-actions.js": "a71f07acdb2dd17e163831b839b8c5970b59bdc421d619e1a14b881b1d886cb9",
   "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938"
 });
 test('PMB/Sales runtime preserves its frozen baseline and approved root release patches', () => {
