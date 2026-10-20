@@ -56,7 +56,7 @@
   }
   const orderingLabels={tint:'TINT',build_po:'BUILD',tray_ordered:'TRAY'};
   const orderingValues={not_decided:'Not decided',not_needed:'Not required',orders_raised:'Orders Raised',completed:'Completed'};
-  const derivedTickValues={green:'PO raised or not needed',grey:'Not on quote',red:'PO not raised',review:'Check PO text'};
+  const derivedTickValues={green:'All POs raised or not needed',grey:'Not on a PO line',red:'PO not raised',review:'Check PO text'};
   const orderingFields=['tint','tint_complete','build_po','build_complete','tray_ordered','tray_complete','tint_not_required','build_not_required','tray_not_required'];
   function orderingState(row,key){
     const complete={tint:'tint_complete',build_po:'build_complete',tray_ordered:'tray_complete'}[key];
@@ -64,12 +64,13 @@
     return row[complete]===true?'completed':row[key]===true?'orders_raised':row[notRequired]===true?'not_needed':'not_decided';
   }
   function nextOrderingState(value){return value==='not_decided'?'not_needed':value==='not_needed'?'orders_raised':value==='orders_raised'?'completed':'not_decided';}
-  function orderingControl(row,key,pending,editable=true){
-    const value=pending?.key===key?pending.status:orderingState(row,key);
+  // r394 (Craig 20 Oct): TINT / BUILD / TRAY show only the tick derived from the sales export PO lines. Read-only;
+  // manual Completed / Not required / Orders Raised values are ignored and the server refuses ordering writes.
+  function orderingControl(row,key){
+    const derived=root.BROOME_SALES_ACCESSORIES?.tickFor?.(row,key)||{state:'grey'};
     const label=orderingLabels[key]+' for '+(row.stock||'Toyota order '+(row.order||'not recorded'));
-    const derived=pending?null:root.BROOME_SALES_ACCESSORIES?.tickFor?.(row,key,value);
-    const name=orderingValues[value]+(derived?' · Sales export: '+derivedTickValues[derived.state]:''),next=orderingValues[nextOrderingState(value)];
-    return '<button type="button" role="checkbox" class="ordering-status '+value+(derived?' derived-'+derived.state:'')+'" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" data-ordering-status="'+value+'" aria-checked="'+(value==='completed'?'true':value==='not_decided'?'false':'mixed')+'" aria-label="'+escapeHtml(label+': '+name+(editable?'. Click for '+next:'. View only'))+'" '+(pending||row.identity_conflict||row.sales_hidden||!editable?'disabled ':'')+'title="'+escapeHtml(name+(editable?' — click for '+next:' — view only'))+'"><span aria-hidden="true">'+(value==='completed'?'✓':value==='orders_raised'?'−':value==='not_needed'?'/':'')+'</span></button>';
+    const name=derivedTickValues[derived.state]||derivedTickValues.grey;
+    return '<span class="ordering-status derived-'+derived.state+'" role="img" data-ordering-tick="'+key+'" aria-label="'+escapeHtml(label+': '+name)+'" title="'+escapeHtml(name+' · from the sales export PO lines')+'"><span aria-hidden="true">'+(derived.state==='green'?'✓':derived.state==='red'?'!':derived.state==='review'?'?':'')+'</span></span>';
   }
   function selectRows(rows, filters) {
     const search = String(filters.search || '').toLowerCase();
@@ -81,7 +82,7 @@
       (!search || [row.stock,row.order,row.client,row.vehicle,row.vin,row.navision_notes,row.pmb_location,row.transport_number]
         .some(value => String(value || '').toLowerCase().includes(search)))
     ).slice().sort((a,b) => {
-      const rank=row=>['not_decided','not_needed','orders_raised','completed'].indexOf(orderingState(row,filters.sort));
+      const rank=row=>['grey','green','review','red'].indexOf(root.BROOME_SALES_ACCESSORIES?.tickFor?.(row,filters.sort)?.state||'grey');
       const sortValue=row=>filters.sort==='kewdale_eta'?dateTools?.dateKey(row.kewdale_eta):orderingLabels[filters.sort]?rank(row):row[filters.sort];
       const aa = sortValue(a), bb = sortValue(b);
       if (aa == null || aa === '') return bb == null || bb === '' ? 0 : 1;
@@ -446,6 +447,7 @@
       '<h3>Bay bookings and work progress</h3>'+bookingHtml(row.bay_bookings);
   }
   async function saveOrderingFlag(id,key,status) {
+    if(orderingKeys.has(key))return; // r394: TINT / BUILD / TRAY are derived and read-only.
     const row=scopeRows(state.items,state.filters.salesperson).find(r=>r.tracking_id===id);
     if(!row||!canEditRow(row)||row.identity_conflict||!orderingKeys.has(key)||!Object.hasOwn(orderingValues,status)||state.saving.has(id)||!['salesperson','administrator'].includes(state.context?.role))return;
     const generation=state.generation,principal=root.PDC_AUTH_CONTEXT?.userId;

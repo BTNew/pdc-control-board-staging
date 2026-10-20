@@ -61,7 +61,7 @@ test('hidden view offers restore only and missing hidden orders disappear',async
  h.calls[1].resolve(snapshot([{...row,sales_hidden:true,sales_visibility_version:1},{...row,tracking_id:'missing',client:'Missing demo',sales_hidden:true,source_current:false}]));await tick();
  assert.match(h.el('vehicle-table').innerHTML,/Show on sales planner/);
  assert.doesNotMatch(h.el('vehicle-table').innerHTML,/View details|Hide from sales planner|Missing demo/);
- assert.match(h.el('vehicle-table').innerHTML,/data-ordering-flag="tint"[^>]*disabled/);
+ assert.match(h.el('vehicle-table').innerHTML,/data-ordering-tick="tint"/);
  action(h,'demo','show');assert.equal(h.calls[2].args.p_expected_version,1);
  h.calls[2].resolve({data:{tracking_id:'demo',sales_hidden:false,sales_visibility_version:2}});await tick();
  assert.doesNotMatch(h.el('vehicle-table').innerHTML,/Fictional demo/);

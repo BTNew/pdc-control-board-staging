@@ -7,7 +7,8 @@
 .sales-accessory-item{min-width:180px;font-weight:600}.sales-accessory-notes{white-space:pre-wrap;color:#52687a}
 .sales-accessory-po-missing{color:#c4161c;font-weight:700}.sales-accessory-po-none{color:#8a99a6}.sales-accessory-in-house{color:#68798a;font-size:11px}
 .sales-accessory-state{font-weight:600}.sales-accessory-state.green{color:#175b36}.sales-accessory-state.grey{color:#5f6b78}.sales-accessory-state.red{color:#c4161c}.sales-accessory-state.review{color:#8b4600}
-/* Derived dashboard ticks (manual Completed / Not required keep their own colours). */
+/* Derived dashboard ticks (r394: the only TINT / BUILD / TRAY state; read-only). */
+span.ordering-status{cursor:default}
 .ordering-status.derived-green{background:#d9f5e3;color:#175b36;border-color:#95d5ae}
 .ordering-status.derived-grey{background:#e4e7eb;color:#5f6b78;border-color:#c3c9d1}
 .ordering-status.derived-review{background:#ffe4ba;color:#8b4600;border-color:#eab367}

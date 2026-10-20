@@ -82,12 +82,12 @@
       return record&&orderKey(record.order)===orderKey(row.order)&&sameSource(record,row)?record:null;
     }
     function detailHtml(row){const record=recordFor(row);return record?recordHtml(record):'';}
-    // Derived tick for a dashboard cell; null when manual Completed / Not required wins or no import exists.
-    function tickFor(row,key,manualState) {
-      const group=tickGroups[key];if(!group||manualState==='completed'||manualState==='not_needed')return null;
-      const record=recordFor(row);if(!record)return null;
-      if(key==='tray_ordered'&&manualState==='orders_raised')return {state:'green',reason:'tray_ordered'};
-      return record.derived[group];
+    // r394: the derived tick is the only state shown for TINT / BUILD / TRAY; manual values are ignored.
+    // null when this vehicle has no sales export lines (shown grey by sales.js).
+    function tickFor(row,key) {
+      const group=tickGroups[key];if(!group)return null;
+      const record=recordFor(row);
+      return record?record.derived[group]:null;
     }
     async function refresh() {
       if(!syncScope())return;
