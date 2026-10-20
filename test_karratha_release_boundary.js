@@ -62,21 +62,21 @@ const approvedRootImportPatch = Object.freeze({
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
   // counts on the snapshot totals; planner cards offer a controller reset for
   // a running item left too long (r384). Department 135's copy stays frozen.
-  "workshop-planner.js": "ea309da4dd60f15d677f7911a4d175ad77d61bf3336d01ebc61d41c5729b7581",
-  "workshop-planner.css": "b227830d512dc1980a9bdc9a5610e04890f0d9707bb3e343556ed8a2ee3b4bee",
+  "workshop-planner.js": "63c25ca45f840d8bb592e9de158e8fa75aad0edd202a9f813b99051d560a8f2d",
+  "workshop-planner.css": "1700e8952c6e36735deffc7e792b85ce4d0ba4acab312d6fc7251d9098682ef1",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   "scripts/build_pages_runtime.js": "f39cb3b2b550ac467feb7acbec932c091a8ad75229531e539fc706ec665210d3",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
   // on Sublet lines. Department 135 keeps its frozen copy.
-  "pdc-new-vehicles.js": "d8c7fed1d7dbcd2209826cf1dc57fe677b28987e760c39c862ca36d9705dcca7",
+  "pdc-new-vehicles.js": "0fbaa9eaaca1011bd8558e887778c09ff1568b7b14cfce3cb13e51b244fedab7",
   "pdc-new-vehicles.css": "2ee29702e0b5ca62692891cbf5467894fe670e4b65961f32ca619aa2225cfe10",
   "docs/bus4x4-workflow.md": "d2dab9a76da3b23ddfe0e21418d9e0f8212b48aa517443c47e657b2f656869c8",
   "docs/bus4x4-user-guide.md": "d2729f19b9132afcfe4ee41413c98d2fba9db03c99e45a3a1d298cb57be9840f",
   "docs/bus4x4-user-guide.html": "0a56823214fdd0e5ba0f7601671a92678d87231f07052937eaf09cdf29773b0a",
   // pdc-new-vehicles.js? adds sublet-hours-tags=2026.10.20.01.
-  "canonical-entry.js": "a1ba39ca5df70c0cf44b89ea650434c171b23f7ff1e545aad3ebec4a9b9ee81d",
+  "canonical-entry.js": "20243e1cc8415ffd46075ce1305fe78a8eea4682b672a0d4d4b171e1923fb3d8",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -91,7 +91,7 @@ const approvedRootImportPatch = Object.freeze({
   // soft-deleted are listed on the upload result. Department 135 stays parked.
   // r400: QC no longer asks for the Pit inspection or job-card notes lines.
   // r401: Pit and weigh never counts as required work; optional Pit tick for any department.
-  "app.js": "e79ecd2aae69f00fce595722246ae4a20a96ee7e85ed60963adabdcd58b356c4",
+  "app.js": "251b098c2869ed7a6363c7b786aff130a213ec4b25cf477c3d8a436b81b7ba10",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -108,7 +108,7 @@ const approvedRootImportPatch = Object.freeze({
   // add bay8-category=2026.10.20.01 (Bus 4x4 bay lists by category, done-before-the-board).
   // r400: app.js adds qc-pit-notes=2026.10.20.01.
   // r401: app.js and pdc-email-vehicle-location-service.js add pit-neutral=2026.10.20.01.
-  "index.html": "386db7fc4eacebd34189a2de186c08000ad2aab9d3f7e7b2de7c94dbae69f700",
+  "index.html": "fe877608fdee75d66534efde295ac87e1313a439f4fbe3193bf9bf67630b2370",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   "pdc-email-vehicle-location-service.js": "91558fdb4e34d5707d53e91aa94b1e18097630a749bf0bba571af4eb83ba3ceb",
@@ -118,6 +118,12 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-staff-usage.css": "e7769d72b7601097fa4c41a19140fdcda4408f3d1f620008282d9df136b1ddf0",
   "pdc-staff-usage.js": "0aed9f9c4045745faf38a2024ccf8cc7c30751a1564fdfd500175a9aa97f7282",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
+  // r403: the own-role monitor reconnects instead of locking on a realtime blip
+  // (F11); index.html and app.js/canonical-entry.js add r403=2026.10.21.01 for
+  // pdc-auth.js, app.js, canonical-entry.js, workshop-planner.js/.css and
+  // pdc-new-vehicles.js (plain error text, started-before chips, next-workday
+  // default, no return in finally). Department 135 keeps its frozen copies.
+  "pdc-auth.js": "9c6da5ff2ea3b03cf75e954ebb5acb11e31255f85580f1ff59053776d325f9b4",
   "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938"
 });
 test('PMB/Sales runtime preserves its frozen baseline and approved root release patches', () => {

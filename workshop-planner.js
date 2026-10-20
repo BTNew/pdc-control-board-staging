@@ -293,9 +293,23 @@ function workshopCoerceWorkDate(date = new Date(), direction = 1, context = null
   return next;
 }
 
+// Perth has no daylight saving, so its wall clock is always UTC+8.
+function workshopPerthMinutesOfDay(value = new Date()) {
+  const time = value instanceof Date ? value.getTime() : new Date(value).getTime();
+  if (!Number.isFinite(time)) return NaN;
+  return Math.floor(((time / 60000) + 8 * 60) % 1440 + 1440) % 1440;
+}
+
+// After the shift has finished in Perth, "today" in the planner is the next
+// workday: nothing more can be placed today, and staff working late or
+// planning the morning should land on tomorrow (r403).
 function workshopDefaultOpenDateKey(value = new Date()) {
   const candidate = value instanceof Date ? new Date(value) : new Date(value);
   const safe = Number.isNaN(candidate.getTime()) ? new Date() : candidate;
+  const dayEnd = Number(typeof WORKSHOP_PLANNER_CONFIG !== 'undefined' ? WORKSHOP_PLANNER_CONFIG?.dayEndMinutes : NaN);
+  const shiftOver = Number.isFinite(dayEnd) && dayEnd > 0 && workshopPerthMinutesOfDay(safe) >= dayEnd
+    && workshopIsWorkday(safe);
+  if (shiftOver) safe.setDate(safe.getDate() + 1);
   return workshopDateKey(workshopCoerceWorkDate(safe, 1));
 }
 
@@ -1053,6 +1067,23 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
 // Human-readable, never-a-stack-trace error mapping per section 14 of the
 // project brief. Falls back to a safe generic message for anything not
 // explicitly mapped, so a raw Postgres/PostgREST error is never shown.
+// Plain-English text for server codes that used to reach staff raw (F11).
+// test_planner_error_messages_403.js checks every canonical mutation code
+// has a message, so a new server code cannot ship without one.
+const WORKSHOP_PLAIN_ERROR_MESSAGES = Object.freeze({
+  protected_booking: "This job has already been started, so it can't be moved here. No change was made. Ask a manager to re-plan it.",
+  invalid_admin_block_type: 'That kind of admin block is not recognised. Choose leave, bay downtime or another listed block type. No change was made.',
+  admin_block_not_found: 'That admin block no longer exists. It may have been removed by someone else. The planner has refreshed; no change was made.',
+  invalid_label: 'Enter a short name for this item (letters, numbers and simple punctuation). No change was made.',
+  invalid_idempotency_key: 'This action could not be sent safely. Refresh the planner and try again. No change was made.',
+  idempotency_conflict: 'This action was already sent with different details. Refresh the planner to see what was saved before trying again.',
+  receipt_not_found: 'There is nothing to undo for this action any more. Refresh the planner to see the current schedule.',
+  undo_actor_mismatch: 'Only the person who made this change can undo it. Ask them, or a manager, to change it back.',
+  already_undone: 'This change has already been undone. No further change was made.',
+  undo_expired: 'This change is too old to undo. Make the change again by hand if it needs to go back.',
+  undo_conflict: 'This change cannot be undone because the schedule has changed since. Refresh the planner and adjust it by hand. No change was made.',
+});
+
 function workshopDescribeSharedActionError(result) {
   const error = result && result.error;
   const conflict = result && result.conflict;
@@ -1152,6 +1183,8 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'bay_required' || error === 'bay_inactive_or_wrong_station') return 'Choose an active bay belonging to this Workshop station.';
   if (error === 'technician_inactive_or_missing') return 'Choose an active Workshop technician.';
   if (error === 'technician_leave_conflict' || error === 'technician_on_leave') return 'That technician is on leave during this booking.';
+  const plainMessage = WORKSHOP_PLAIN_ERROR_MESSAGES[error];
+  if (plainMessage) return plainMessage;
   if (error === 'action_unavailable') {
     const exact = workshopAdministratorCanMove() ? workshopAdministratorErrorDetail(result) : '';
     return exact
@@ -4025,7 +4058,7 @@ function workshopBindSearchDragResults(root) {
         onDrop({ stage, bay, dateKey, startMinutes }) {
           if (!window.__workshopDataService?.getTrustedSnapshot?.()) return;
           if (planId) {
-            const plan = workshopReturnedPlanForAction(planId);
+            const plan = workshopReturnedPlanForAction(planId, { explain: true });
             if (!plan) return;
             void moveWorkshopDroppedPlan(plan.id, stage, bay, dateKey, startMinutes, { preferRequestedTime: true });
             return;
@@ -5391,28 +5424,49 @@ function workshopReturnedQueuePlans(plans, stage, category = '') {
     && (!category || !entry.workCategory || entry.workCategory === category));
 }
 
+// A booking that was started, stopped and then returned to the queue keeps
+// its actual start (time already worked). The server refuses to move it
+// (protected_booking, F11) until a manager decides how to resume it, so the
+// chip says so instead of offering a drag that can only fail.
+const WORKSHOP_STARTED_BEFORE_HINT = "Started before, can't re-plan yet";
+const WORKSHOP_STARTED_BEFORE_MESSAGE = "This job was started before and then returned to the queue, so it can't be re-planned yet. No change was made. Ask a manager to re-plan it.";
+
+function workshopPlanStartedBefore(entry) {
+  if (!entry) return false;
+  const status = String(entry.sharedStatus || entry.status || '');
+  return status === 'queued' && Boolean(entry.actualStartAt) && !entry.actualEndAt;
+}
+
 function workshopReturnedQueueCardHtml(entry) {
   const vehicle = workshopVehicle(entry.vehicleKey, entry.stage);
   if (!vehicle) return '';
   const identity = displayStockNumber(vehicle) || entry.vehicleKey;
-  return `<article class="workshop-queue-card workshop-unallocated-vehicle-pill" draggable="true" tabindex="0" role="group"
+  const startedBefore = workshopPlanStartedBefore(entry);
+  const disabled = startedBefore ? ` disabled aria-disabled="true" title="${escapeHtml(WORKSHOP_STARTED_BEFORE_MESSAGE)}"` : '';
+  return `<article class="workshop-queue-card workshop-unallocated-vehicle-pill${startedBefore ? ' is-started-before' : ''}" draggable="${startedBefore ? 'false' : 'true'}" tabindex="0" role="group"${startedBefore ? ' aria-disabled="true" data-workshop-started-before="1"' : ''}
     data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}"
-    aria-label="${escapeHtml(`Vehicle ${identity}. Press Enter to open job.`)}" title="Drag onto a bay, use Best slot, or use Schedule">
+    aria-label="${escapeHtml(`Vehicle ${identity}. ${startedBefore ? `${WORKSHOP_STARTED_BEFORE_HINT}. ` : ''}Press Enter to open job.`)}" title="${escapeHtml(startedBefore ? WORKSHOP_STARTED_BEFORE_MESSAGE : 'Drag onto a bay, use Best slot, or use Schedule')}">
     ${workshopVehicleIdentitySummaryHtml(vehicle)}
     <span>${escapeHtml(workshopQueueVehicleDescription(vehicle))}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
     <small class="workshop-estimated-hours-line">Estimated: ${escapeHtml(Number(entry.hours).toFixed(2))} h</small>
+    ${startedBefore ? `<small class="workshop-started-before-hint" role="note">${escapeHtml(WORKSHOP_STARTED_BEFORE_HINT)}</small>` : ''}
     <div class="workshop-queue-actions">
-      <button type="button" class="workshop-schedule-button best-slot" data-workshop-returned-best-slot="${escapeHtml(entry.id)}">Best slot</button>
-      <button type="button" class="workshop-schedule-button" data-workshop-returned-schedule="${escapeHtml(entry.id)}">Schedule</button>
+      <button type="button" class="workshop-schedule-button best-slot" data-workshop-returned-best-slot="${escapeHtml(entry.id)}"${disabled}>Best slot</button>
+      <button type="button" class="workshop-schedule-button" data-workshop-returned-schedule="${escapeHtml(entry.id)}"${disabled}>Schedule</button>
     </div></article>`;
 }
 
-function workshopReturnedPlanForAction(planId) {
+function workshopReturnedPlanForAction(planId, { explain = false } = {}) {
   const state = workshopState();
   if (workshopSharedModeActive() && !window.__workshopDataService?.getTrustedSnapshot?.()) return null;
   const category = state.stage === 'BUS_4X4' ? workshopSelectedBusGroup()?.code || '' : '';
-  return workshopReturnedQueuePlans(workshopLoadPlans(), state.stage, category).find(entry => entry.id === planId) || null;
+  const plan = workshopReturnedQueuePlans(workshopLoadPlans(), state.stage, category).find(entry => entry.id === planId) || null;
+  if (plan && workshopPlanStartedBefore(plan)) {
+    if (explain) window.alert(WORKSHOP_STARTED_BEFORE_MESSAGE);
+    return null;
+  }
+  return plan;
 }
 
 function workshopSelectReturnedPlan(planId) {
@@ -5686,7 +5740,7 @@ function bindWorkshopPlanner(root) {
   });
   root.querySelector('[data-workshop-today]')?.addEventListener('click', () => {
     const state = workshopState();
-    state.date = workshopDateKey(workshopCoerceWorkDate(new Date(), 1));
+    state.date = workshopDefaultOpenDateKey(new Date());
     workshopClearSelectedDetail(state);
     workshopSaveView(state);
     if (!workshopRefreshDedicatedDate(state.date)) renderWorkshopPlanner();
@@ -5828,13 +5882,13 @@ function bindWorkshopPlanner(root) {
   }));
   root.querySelectorAll('[data-workshop-returned-schedule]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault(); event.stopPropagation();
-    const plan = workshopReturnedPlanForAction(button.dataset.workshopReturnedSchedule);
+    const plan = workshopReturnedPlanForAction(button.dataset.workshopReturnedSchedule, { explain: true });
     if (plan) openWorkshopScheduleModal(plan.vehicleKey, plan.stage, workshopState().date, plan.id);
   }));
   root.querySelectorAll('[data-workshop-returned-best-slot]').forEach(button => button.addEventListener('click', async event => {
     event.preventDefault(); event.stopPropagation();
     if (button.disabled) return;
-    const plan = workshopReturnedPlanForAction(button.dataset.workshopReturnedBestSlot);
+    const plan = workshopReturnedPlanForAction(button.dataset.workshopReturnedBestSlot, { explain: true });
     if (!plan) return;
     button.disabled = true;
     try { await workshopScheduleVehicleNextAvailable({vehicleKeyValue:plan.vehicleKey,stage:plan.stage,planId:plan.id}); }
@@ -5888,9 +5942,10 @@ function bindWorkshopPlanner(root) {
     });
   });
   root.querySelectorAll('[data-workshop-plan-id]').forEach(chip => chip.addEventListener('dragstart', event => {
+    const entry = workshopLoadPlans().find(row => row.id === chip.dataset.workshopPlanId);
+    if (workshopPlanStartedBefore(entry)) { event.preventDefault(); return; }
     event.dataTransfer.effectAllowed = 'move';
     event.dataTransfer.setData('application/x-workshop-plan-id', chip.dataset.workshopPlanId);
-    const entry = workshopLoadPlans().find(row => row.id === chip.dataset.workshopPlanId);
     workshopSetDragPreview({ type: 'plan', hours: Number(entry?.hours) || workshopDefaultBookingHours(), entry });
   }));
   root.querySelectorAll('[data-workshop-plan-id]').forEach(chip => chip.addEventListener('dragend', () => {
@@ -6505,6 +6560,10 @@ function moveWorkshopDroppedPlan(planId = '', stage = '', bay = 0, dateKey = '',
   if (!entry) return Promise.resolve(false);
   if (entry.status === 'completed') {
     window.alert('Completed workshop jobs stay fixed in history.');
+    return Promise.resolve(false);
+  }
+  if (workshopPlanStartedBefore(entry)) {
+    window.alert(WORKSHOP_STARTED_BEFORE_MESSAGE);
     return Promise.resolve(false);
   }
   if (entry.status === 'planned') return Promise.resolve(scheduleWorkshopVehicle({ planId, stage, bay, dateKey, startMinutes, preferRequestedTime }));

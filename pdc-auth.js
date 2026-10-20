@@ -21,10 +21,36 @@
     sessionAcceptanceBlocked: false,
     explicitSessionUserId: null,
     ownRoleChannelGeneration: 0,
+    // Reconnect bookkeeping for the own-role monitor (F10, r403).
+    ownRoleReconnectTimer: null,
+    ownRoleReconnectAttempt: 0,
+    ownRoleMonitorDownSince: null,
     passwordSetupRequired: /(?:^|[?#&])type=(?:invite|recovery)(?:[&#]|$)/.test(`${window.location.search}${window.location.hash}`),
   };
 
   const el = id => document.getElementById(id);
+
+  // A realtime blip (Wi-Fi drop, laptop sleep, background tab, server
+  // restart) is not a revoke. Reconnect with backoff and re-read the staff
+  // row; lock only when the row says not approved, or the monitor has been
+  // down for ROLE_MONITOR_OUTAGE_LIMIT_MS (then show Retry, not sign-out).
+  // Server-side RLS still refuses a disabled account on every request.
+  const ROLE_MONITOR_BACKOFF_MS = Object.freeze([1000, 2000, 5000, 10000, 30000]);
+  const ROLE_MONITOR_OUTAGE_LIMIT_MS = 120000;
+  const ROLE_LOOKUP_RETRY_MS = Object.freeze([1000, 2000, 5000]);
+  const CONNECTION_LOST_REASONS = new Set(['role_monitor_unavailable', 'role_check_failed']);
+
+  function isTransientRoleLookupError(error) {
+    if (!error) return false;
+    const status = Number(error.status ?? error.statusCode);
+    if (Number.isFinite(status) && (status === 0 || status === 408 || status === 429 || status >= 500)) return true;
+    const code = String(error.code || '');
+    if (['57014', '08000', '08003', '08006', 'PGRST000', 'PGRST001', 'PGRST002', 'PGRST003'].includes(code)) return true;
+    const text = `${error.name || ''} ${error.message || ''}`;
+    return !code && /fetch|network|timed? ?out|timeout|load failed|connection|abort/i.test(text);
+  }
+
+  const delay = ms => new Promise(resolve => window.setTimeout(resolve, ms));
 
   function authConfig() {
     const config = window.PDC_SUPABASE_CONFIG || {};
@@ -112,7 +138,9 @@
     if (newPasswordForm) newPasswordForm.hidden = mode !== 'password-setup';
     if (createAccountForm) createAccountForm.hidden = mode !== 'create-account';
     if (forgotPasswordForm) forgotPasswordForm.hidden = mode !== 'forgot-password';
-    if (deniedSignOut) deniedSignOut.hidden = mode !== 'denied';
+    if (deniedSignOut) deniedSignOut.hidden = mode !== 'denied' && mode !== 'connection-lost';
+    const retryButton = el('pdc-auth-retry');
+    if (retryButton) retryButton.hidden = mode !== 'connection-lost';
     if (pendingNotice) pendingNotice.hidden = mode !== 'pending';
     if (disabledNotice) disabledNotice.hidden = mode !== 'account-disabled';
     if (rejectedNotice) rejectedNotice.hidden = mode !== 'rejected';
@@ -150,10 +178,7 @@
   // viewer/controller/administrator while still approved updates the
   // visible label and re-fires 'pdc-auth-ready' without requiring a reload.
   // ---------------------------------------------------------------------
-  function unsubscribeOwnRoleChannel() {
-    state.ownRoleChannelGeneration += 1;
-    state.ownRoleSubscriptionAttempt?.finish(false);
-    state.ownRoleSubscriptionAttempt = null;
+  function removeOwnRoleChannelObject() {
     if (state.ownRoleChannel && state.client && typeof state.client.removeChannel === 'function') {
       try {
         state.client.removeChannel(state.ownRoleChannel);
@@ -162,6 +187,21 @@
       }
     }
     state.ownRoleChannel = null;
+  }
+
+  function clearOwnRoleReconnect() {
+    if (state.ownRoleReconnectTimer !== null) window.clearTimeout(state.ownRoleReconnectTimer);
+    state.ownRoleReconnectTimer = null;
+    state.ownRoleReconnectAttempt = 0;
+    state.ownRoleMonitorDownSince = null;
+  }
+
+  function unsubscribeOwnRoleChannel() {
+    state.ownRoleChannelGeneration += 1;
+    state.ownRoleSubscriptionAttempt?.finish(false);
+    state.ownRoleSubscriptionAttempt = null;
+    clearOwnRoleReconnect();
+    removeOwnRoleChannelObject();
   }
 
   function lockOwnRoleAuthority(reason, role = null) {
@@ -184,58 +224,158 @@
       disabled: ['Access disabled', 'Your account access has been disabled. Contact an administrator if you believe this is an error.', 'account-disabled'],
       rejected: ['Registration not approved', 'Your registration was not approved. Contact an administrator for details.', 'rejected'],
     };
-    const [title, body, cls] = statusMessages[role?.account_status] || ['Access not approved', 'Your access to the PDC Control Board could not be revalidated.', 'denied'];
+    const connectionLost = !role && CONNECTION_LOST_REASONS.has(reason);
+    const fallback = connectionLost
+      ? ['Connection lost', 'The board lost its live link to the staff list and could not reconnect. You are still signed in. Check the network, then press Retry.', 'connection-lost']
+      : ['Access not approved', 'Your access to the PDC Control Board could not be revalidated.', 'denied'];
+    const [title, body, cls] = statusMessages[role?.account_status] || fallback;
     setMessage(title, body, cls);
+  }
+
+  async function retryAfterConnectionLost() {
+    const button = el('pdc-auth-retry');
+    if (button) button.disabled = true;
+    try {
+      setMessage('Reconnecting…', 'Checking your sign-in and the approved staff list again.', 'checking');
+      let data;
+      let error;
+      try {
+        ({ data, error } = await state.client.auth.getSession());
+      } catch (caught) {
+        error = caught;
+      }
+      if (error) {
+        lockOwnRoleAuthority('role_monitor_unavailable');
+        return;
+      }
+      await applySession(data?.session || null);
+    } finally {
+      if (button) button.disabled = false;
+    }
+  }
+
+  function markOwnRoleMonitor(stateName) {
+    if (document.body?.dataset) document.body.dataset.authMonitor = stateName;
+  }
+
+  // Opens one own-row channel. onSubscribed/onLost fire only while this
+  // channel is still the current one for its generation.
+  function openOwnRoleChannel(email, channelGeneration, { onSubscribed, onLost }) {
+    const current = channel => channelGeneration === state.ownRoleChannelGeneration && state.ownRoleChannel === channel;
+    const channel = state.client
+      .channel(`pdc_user_roles_own_row:${email}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pdc_user_roles', filter: `email=eq.${email}` },
+        () => {
+          handleOwnRoleRowChanged().catch(() => lockOwnRoleAuthority('role_check_failed'));
+        }
+      );
+    state.ownRoleChannel = channel;
+    let subscribed = false;
+    const timer = window.setTimeout(() => {
+      if (!subscribed && current(channel)) onLost(channel);
+    }, 10000);
+    channel.subscribe(status => {
+      if (!current(channel)) return;
+      if (status === 'SUBSCRIBED') {
+        subscribed = true;
+        window.clearTimeout(timer);
+        onSubscribed(channel);
+        return;
+      }
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        window.clearTimeout(timer);
+        onLost(channel);
+      }
+    });
+    return channel;
+  }
+
+  function ownRoleMonitorRecovered(authGeneration) {
+    const wasDown = state.ownRoleMonitorDownSince !== null;
+    if (state.ownRoleReconnectTimer !== null) window.clearTimeout(state.ownRoleReconnectTimer);
+    state.ownRoleReconnectTimer = null;
+    state.ownRoleReconnectAttempt = 0;
+    state.ownRoleMonitorDownSince = null;
+    markOwnRoleMonitor('live');
+    // Re-read the staff row: a change made while disconnected was missed.
+    if (wasDown && authGeneration === state.authGeneration) {
+      handleOwnRoleRowChanged().catch(() => lockOwnRoleAuthority('role_check_failed'));
+    }
+  }
+
+  function ownRoleMonitorLost(email, authGeneration) {
+    if (authGeneration !== state.authGeneration || !state.role) return;
+    if (state.ownRoleReconnectTimer !== null) return;
+    const now = Date.now();
+    if (state.ownRoleMonitorDownSince === null) state.ownRoleMonitorDownSince = now;
+    if (now - state.ownRoleMonitorDownSince >= ROLE_MONITOR_OUTAGE_LIMIT_MS) {
+      lockOwnRoleAuthority('role_monitor_unavailable');
+      return;
+    }
+    markOwnRoleMonitor('reconnecting');
+    const wait = ROLE_MONITOR_BACKOFF_MS[Math.min(state.ownRoleReconnectAttempt, ROLE_MONITOR_BACKOFF_MS.length - 1)];
+    state.ownRoleReconnectAttempt += 1;
+    state.ownRoleReconnectTimer = window.setTimeout(() => {
+      state.ownRoleReconnectTimer = null;
+      reconnectOwnRoleChannel(email, authGeneration);
+    }, wait);
+  }
+
+  function reconnectOwnRoleChannel(email, authGeneration) {
+    if (authGeneration !== state.authGeneration || !state.role || !state.client) return;
+    // Retire the old channel without clearing the outage clock.
+    state.ownRoleChannelGeneration += 1;
+    removeOwnRoleChannelObject();
+    const channelGeneration = state.ownRoleChannelGeneration;
+    try {
+      openOwnRoleChannel(email, channelGeneration, {
+        onSubscribed: () => ownRoleMonitorRecovered(authGeneration),
+        onLost: () => ownRoleMonitorLost(email, authGeneration),
+      });
+    } catch (_err) {
+      ownRoleMonitorLost(email, authGeneration);
+    }
   }
 
   function subscribeOwnRoleChannel(email) {
     unsubscribeOwnRoleChannel();
     if (!state.client || typeof state.client.channel !== 'function' || !email) return Promise.resolve(false);
     const channelGeneration = state.ownRoleChannelGeneration;
+    // Bound to the session being unlocked; unlockApplication publishes it.
+    const authGeneration = state.authGeneration;
     return new Promise(resolve => {
       let settled = false;
-      let timer = null;
       const finish = result => {
         if (settled) return;
         settled = true;
-        if (timer !== null) window.clearTimeout(timer);
         if (state.ownRoleSubscriptionAttempt?.finish === finish) state.ownRoleSubscriptionAttempt = null;
         resolve(Boolean(result));
       };
       state.ownRoleSubscriptionAttempt = { finish };
       try {
-        const channel = state.client
-          .channel(`pdc_user_roles_own_row:${email}`)
-          .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'pdc_user_roles', filter: `email=eq.${email}` },
-            () => {
-              handleOwnRoleRowChanged().catch(() => lockOwnRoleAuthority('role_check_failed'));
+        openOwnRoleChannel(email, channelGeneration, {
+          onSubscribed: () => {
+            if (!settled) {
+              markOwnRoleMonitor('live');
+              finish(true);
+              return;
             }
-          );
-        state.ownRoleChannel = channel;
-        channel.subscribe(status => {
-          if (channelGeneration !== state.ownRoleChannelGeneration || state.ownRoleChannel !== channel) {
-            finish(false);
-            return;
-          }
-          if (status === 'SUBSCRIBED') {
-            finish(true);
-            return;
-          }
-          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            finish(false);
-            lockOwnRoleAuthority('role_monitor_unavailable');
-          }
+            // Realtime re-joined this same channel by itself after a drop.
+            ownRoleMonitorRecovered(authGeneration);
+          },
+          onLost: () => {
+            if (!settled) {
+              // Never subscribed: the app stays locked; offer Retry.
+              finish(false);
+              lockOwnRoleAuthority('role_monitor_unavailable');
+              return;
+            }
+            // Was live: reconnect instead of locking (F10).
+            ownRoleMonitorLost(email, authGeneration);
+          },
         });
-        if (!settled) timer = window.setTimeout(() => {
-          if (channelGeneration !== state.ownRoleChannelGeneration || state.ownRoleChannel !== channel) {
-            finish(false);
-            return;
-          }
-          finish(false);
-          lockOwnRoleAuthority('role_monitor_unavailable');
-        }, 10000);
       } catch (_err) {
         finish(false);
         lockOwnRoleAuthority('role_monitor_unavailable');
@@ -253,9 +393,20 @@
     let error;
     state.roleLookupInFlight += 1;
     try {
-      ({ role, error } = await loadApprovedRole(session));
-    } catch (caught) {
-      error = caught;
+      for (let attempt = 0; ; attempt += 1) {
+        role = undefined;
+        error = undefined;
+        try {
+          ({ role, error } = await loadApprovedRole(session));
+        } catch (caught) {
+          error = caught;
+        }
+        // Retry a network/5xx failure a few times before treating the
+        // check as failed; a definite answer is never retried.
+        if (!error || !isTransientRoleLookupError(error) || attempt >= ROLE_LOOKUP_RETRY_MS.length) break;
+        await delay(ROLE_LOOKUP_RETRY_MS[attempt]);
+        if (authGeneration !== state.authGeneration || roleLookupGeneration !== state.roleLookupGeneration) break;
+      }
     } finally {
       state.roleLookupInFlight = Math.max(0, state.roleLookupInFlight - 1);
     }
@@ -682,6 +833,7 @@
     el('pdc-new-password-form')?.addEventListener('submit', saveNewPassword);
     el('pdc-auth-signout')?.addEventListener('click', signOut);
     el('pdc-auth-denied-signout')?.addEventListener('click', signOut);
+    el('pdc-auth-retry')?.addEventListener('click', retryAfterConnectionLost);
     el('pdc-forgot-password-form')?.addEventListener('submit', forgotPassword);
     el('pdc-show-create-account')?.addEventListener('click', showCreateAccountForm);
     el('pdc-show-forgot-password')?.addEventListener('click', showForgotPasswordForm);
