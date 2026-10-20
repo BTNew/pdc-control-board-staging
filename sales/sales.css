@@ -27,10 +27,9 @@ body.auth-pending .app-shell{display:none}body.auth-approved .pdc-auth-gate{disp
 .status-card.unknown{background:#f0f3f6}.status-pill.unknown{background:#f1f3f6;color:#586677}
 .data-table input[type=checkbox]{width:18px;height:18px;min-width:18px;min-height:18px}
 .data-table td.sales-flag{padding:10px 5px}.data-table td.pmb-status-cell{white-space:normal;min-width:180px}
-.saved-views{display:flex;gap:10px;align-items:end;flex-wrap:wrap;padding:0 12px 12px}.saved-views label{min-width:150px}.saved-views input,.saved-views select{height:40px}
-#sales-workspace-status:empty{display:none}#sales-view-status{align-self:center;font-size:12px}
+#sales-workspace-status:empty{display:none}
 .sales-mobile-vehicles{display:none}
-@media(max-width:650px){.nav{overflow:auto;max-width:100%;padding-bottom:4px}.nav-item{flex-shrink:0;min-height:44px}.status-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.tracker-panel>.table-wrap{display:none}.sales-mobile-vehicles{display:grid;gap:12px;padding:12px}.mobile-vehicle{border:1px solid #dae3ed;border-radius:12px;padding:14px;background:#fff}.mobile-vehicle.selected{background:#fff5e1}.mobile-vehicle .mobile-vehicle-head{display:flex;justify-content:space-between;gap:12px}.mobile-vehicle .stock-button{font-size:17px;min-height:44px}.mobile-vehicle p{margin:8px 0}.mobile-vehicle .status-pill{white-space:normal}.mobile-vehicle .mobile-ordering{display:grid;grid-template-columns:1fr 1fr;gap:5px}.mobile-vehicle label{display:flex;align-items:center;gap:8px;min-height:44px}.mobile-vehicle input[type=checkbox]{width:22px;height:22px;accent-color:#ed111e}.mobile-vehicle .small-button{font-size:13px;min-height:44px;margin-top:8px}.saved-views{display:grid;grid-template-columns:1fr 1fr;align-items:end}.saved-views label{min-width:0}.saved-views input,.saved-views select{width:100%;min-height:44px}.saved-views button{min-height:44px}.sales-detail{padding:15px}}
+@media(max-width:650px){.nav{overflow:auto;max-width:100%;padding-bottom:4px}.nav-item{flex-shrink:0;min-height:44px}.status-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.tracker-panel>.table-wrap{display:none}.sales-mobile-vehicles{display:grid;gap:12px;padding:12px}.mobile-vehicle{border:1px solid #dae3ed;border-radius:12px;padding:14px;background:#fff}.mobile-vehicle.selected{background:#fff5e1}.mobile-vehicle .mobile-vehicle-head{display:flex;justify-content:space-between;gap:12px}.mobile-vehicle .stock-button{font-size:17px;min-height:44px}.mobile-vehicle p{margin:8px 0}.mobile-vehicle .status-pill{white-space:normal}.mobile-vehicle .mobile-ordering{display:grid;grid-template-columns:1fr 1fr;gap:5px}.mobile-vehicle label{display:flex;align-items:center;gap:8px;min-height:44px}.mobile-vehicle input[type=checkbox]{width:22px;height:22px;accent-color:#ed111e}.mobile-vehicle .small-button{font-size:13px;min-height:44px;margin-top:8px}.sales-detail{padding:15px}}
 @media print{#sales-myday-view,#sales-alerts-view,#sales-leads-view,#sales-history-view,#sales-workspace-status{display:none!important}}
 
 /* Local dashboard preferences and reviewed email drafts */
@@ -64,13 +63,12 @@ body.auth-pending .app-shell{display:none}body.auth-approved .pdc-auth-gate{disp
 .tracker-panel>.panel-header{padding:9px 12px;gap:10px}
 .tracker-panel>.panel-header p{margin-top:3px}
 .tracker-panel>.table-toolbar{padding:8px 12px;gap:8px}
-.tracker-panel>.saved-views{padding:0 12px 8px;gap:8px}
-.tracker-panel>.table-toolbar label>span,.tracker-panel>.saved-views label>span{margin-bottom:4px}
+.tracker-panel>.table-toolbar label>span{margin-bottom:4px}
 .tracker-panel>.sales-summary{padding-bottom:8px;gap:12px}
 .tracker-panel>.tracking-note{margin:0 0 8px;padding:0 12px}
-#sales-tracker-help:empty,#sales-visibility-status:empty{display:none}
-@media(min-width:651px){.tracker-panel>.table-toolbar input,.tracker-panel>.table-toolbar select,.tracker-panel>.saved-views input,.tracker-panel>.saved-views select{height:32px;padding:6px 10px}.tracker-panel>.panel-header button,.tracker-panel>.saved-views button{min-height:32px;padding:6px 10px}}
-@media(max-width:650px){.tracker-panel>.panel-header button,.tracker-panel>.saved-views button,.tracker-panel>.table-toolbar input,.tracker-panel>.table-toolbar select{min-height:44px}.tracker-panel>.table-toolbar .search-label{grid-column:1/-1}}
+#sales-tracker-help:empty,#sales-visibility-status:empty,#sales-dispatch-status:empty{display:none}
+@media(min-width:651px){.tracker-panel>.table-toolbar input,.tracker-panel>.table-toolbar select{height:32px;padding:6px 10px}.tracker-panel>.panel-header button{min-height:32px;padding:6px 10px}}
+@media(max-width:650px){.tracker-panel>.panel-header button,.tracker-panel>.table-toolbar input,.tracker-panel>.table-toolbar select{min-height:44px}.tracker-panel>.table-toolbar .search-label{grid-column:1/-1}}
 
 /* Sales label printer checks do not send a print job. */
 .vehicle-summary-row{cursor:pointer}.vehicle-summary-row:focus-visible{outline:2px solid #b51d2a;outline-offset:-2px}.vehicle-summary-row:hover>td{background:#edf4fb}
@@ -116,7 +114,6 @@ body.auth-pending .app-shell{display:none}body.auth-approved .pdc-auth-gate{disp
 .mobile-navision-notes p{white-space:pre-wrap;margin:5px 0}
 
 .status-card.autocare{background:#fff0de}.status-pill.autocare{background:#fff0de;color:#86541c;border:1px solid #e8c08b}
-.sales-dispatch-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:0 12px 10px}.sales-dispatch-controls .tracking-note{margin:0;flex:1 1 220px}.sales-dispatch-controls button{font-size:11px;white-space:normal}
 
 /* Keep shared website controls and Sales actions on the same visual baseline. */
 .topbar-actions{align-items:flex-end;gap:10px}

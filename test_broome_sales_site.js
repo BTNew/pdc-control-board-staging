@@ -54,7 +54,8 @@ test('team viewer cannot trigger another salesperson ordering, visibility or dis
  h.el('vehicle-table').events.change({target:{dataset:{emailId:'other-team'},value:'autocare-dispatch'}});
  await tick();assert.equal(h.calls.length,2);assert.match(h.el('sales-dispatch-status').textContent,/view only/);
  h.el('vehicle-table').events.change({target:{dataset:{select:'other-team'},checked:true}});
- assert.equal(h.el('sales-dispatch-selected').disabled,true);
+ assert.equal(h.calls.length,2);
+ assert.doesNotMatch(fs.readFileSync('sales/index.html','utf8'),/id="sales-dispatch-selected"/);
 });
 test('revoking team viewing clears other-owner rows, closes details and removes the dropdown',async()=>{
  const h=harness();await openTeam(h);h.el('salesperson-filter').events.change({target:{value:'AW'}});
@@ -146,9 +147,11 @@ test('sales entry has no operational loaders, local record cache or static custo
  // Only the selected local printer name may persist. Vehicle/customer records
  // remain in the authenticated snapshot and are never cached in browser storage.
  const storageCalls=[...js.matchAll(/root\.localStorage\?\.([a-zA-Z]+)\(([^)]*)\)/g)];
- assert.equal((js.match(/localStorage/g)||[]).length,3);assert.equal(storageCalls.length,3);
+ assert.equal((js.match(/localStorage/g)||[]).length,4);assert.equal(storageCalls.length,3);
  assert.deepEqual(storageCalls.map(match=>[match[1],match[2]]),[
   ['getItem',"'broome-sales-qz-printer-v1'"],['setItem',"'broome-sales-qz-printer-v1',state.printerName"],['removeItem',"'broome-sales-qz-printer-v1'"]]);
+ assert.match(js,/broome-sales-\(\?:saved-view\|view-filters\|filters\)/);
+ assert.doesNotMatch(js,/localStorage\?\.getItem\([^)]*(?:view|filter)/);
  assert.match(html,/data-pdc-site="broome"/);assert.match(html,/id="pdc-site-switcher"/);
 });
 test('Navision sales parser preserves order identity, blank stock and quoted customer values',()=>{

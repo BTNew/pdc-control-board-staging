@@ -103,7 +103,7 @@ const fixtureScript=`
    await page.evaluate(()=>{const f=window.__salesFixture;Object.assign(f.active[0],{autocare_dispatched:true,autocare_dispatch_version:1});for(const digit of ['5','6','7'])f.active.push({...f.active[1],tracking_id:digit.repeat(8)+'-'+digit.repeat(4)+'-4'+digit.repeat(3)+'-8'+digit.repeat(3)+'-'+digit.repeat(12),stock:'QA-10'+digit,order:'25000000'+digit,client:'Fictional Selected Customer '+digit});});
    await page.locator('#sales-refresh').click();await page.waitForFunction(()=>document.getElementById('sales-summary').textContent.includes('5 vehicles shown'));
    if(width<=650){for(const digit of ['5','6','7'])await activeArea.locator('[data-select="'+digit.repeat(8)+'-'+digit.repeat(4)+'-4'+digit.repeat(3)+'-8'+digit.repeat(3)+'-'+digit.repeat(12)+'"]').check();}else await page.locator('#sales-select-visible').check();
-   if(['desktop','ipad'].includes(name)){assert.match(await activeArea.locator('.sales-action').first().locator('option[value="autocare-dispatch"]').innerText(),/5 selected/);await activeArea.locator('.sales-action').first().selectOption('autocare-dispatch');}else await page.locator('#sales-dispatch-selected').click();
+   const dispatchAction=activeArea.locator('.sales-action').first();assert.match(await dispatchAction.locator('option[value="autocare-dispatch"]').innerText(),/5 selected/);await dispatchAction.selectOption('autocare-dispatch');
    await page.waitForFunction(()=>document.getElementById('sales-dispatch-status').textContent.includes('5 vehicles marked'));
    assert.equal(await page.locator('#status-tabs [data-category="autocare"] strong').innerText(),'5');
    assert.match(await page.locator('#sales-dispatch-status').innerText(),/1 already there/);

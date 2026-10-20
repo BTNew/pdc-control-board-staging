@@ -1,8 +1,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const tools=require('./sales/dashboard-tools.js');
 
-function harness(){
+function harness(storageEntries){
  const elements=new Map();
+ const stored=new Map(storageEntries||[]);
  function el(id){if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',hidden:false,disabled:false,value:'',
   dataset:{},classList:{toggle(){}},setAttribute(){},removeAttribute(){},
   events:{},addEventListener(name,fn){this.events[name]=fn;},close(){this.closed=true;},showModal(){this.closed=false;},scrollIntoView(){},focus(){this.focused=true;}});
@@ -12,13 +13,14 @@ function harness(){
  const fixed=new RealDate('2026-10-20T04:00:00Z');
  class FixedDate extends RealDate{constructor(...args){super(...(args.length?args:[fixed]));}static now(){return fixed.getTime();}}
  const calls=[];
- const window={document:{hidden:false,getElementById:el,querySelectorAll:()=>nav,addEventListener(){}},
+ const localStorage={get length(){return stored.size;},key(i){return [...stored.keys()][i];},getItem(k){return stored.has(k)?stored.get(k):null;},setItem(k,v){stored.set(k,String(v));},removeItem(k){stored.delete(k);}};
+ const window={localStorage,document:{hidden:false,getElementById:el,querySelectorAll:()=>nav,addEventListener(){}},
   BROOME_ZEBRA_LABELS:require('./sales/zebra-labels.js'),PDC_AUTH_CONTEXT:{role:'salesperson',userId:'A'},
   PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}},addEventListener(){},setInterval(){}};
  const sandbox={window,globalThis:window,module:undefined,Set,Date:FixedDate,console,Intl};
  vm.runInNewContext(fs.readFileSync('sales/dashboard-tools.js','utf8'),sandbox);
  vm.runInNewContext(fs.readFileSync('sales/sales.js','utf8'),sandbox);
- return{calls,el};
+ return{calls,el,stored};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const stocked={cosi:'Yes',salesperson_code:'BG',tracking_id:'stocked',stock:'13032821',order:'0026001',client:'Park',vehicle:'Toyota HiLux 4x4 2.8 Diesel Dual Cab',kewdale_eta:'2026-10-23',navision_notes:'Tray confirmed. Customer wants a canopy and a tow bar fitted before delivery to Broome.'};
@@ -70,9 +72,31 @@ test('compact table keeps slim rows, narrow ticks, clamped notes and a page-stic
  assert.match(css,/#vehicle-table \.notes-clamp\{[^}]*-webkit-line-clamp:2/);
  assert.deepEqual(tools.defaults.slice(5,8),[48,56,48]);
  assert.ok(tools.defaults[11]>150);
- assert.match(fs.readFileSync('sales/index.html','utf8'),/compact-table=2026\.10\.20\.03/);
+ assert.match(fs.readFileSync('sales/index.html','utf8'),/sales\.css\?[^"]*compact-table=2026\.10\.20\.04/);
+ assert.match(fs.readFileSync('sales/index.html','utf8'),/sales\.js\?[^"]*compact-table=2026\.10\.20\.04/);
+ assert.doesNotMatch(fs.readFileSync('sales/index.html','utf8'),/id="sales-saved-view"|id="sales-save-view"|id="sales-dispatch-selected"|Mark selected Dispatched Autocare/);
  assert.match(css,/#vehicle-table td\.sp-cell input,#vehicle-table td\.sp-cell \.sp-code\{display:inline-block/);
  assert.match(css,/#vehicle-table td\.eta-cell\{overflow:visible/);
  assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/prefers-reduced-motion:reduce/);
  assert.match(fs.readFileSync('sales/sales.js','utf8'),/derived-'\+derived\.state/);
+});
+
+test('a stale saved view in localStorage is removed and cannot hide rows',async()=>{
+ const h=harness([
+  ['broome-sales-saved-view',JSON.stringify({search:'no-such-customer',quick:'due_week',category:'dealer'})],
+  ['broome-sales-view-filters','{"search":"hide"}'],
+  ['broome-sales-filters-v1','{"quick":"needs_attention"}'],
+  ['broome-sales-column-widths-v5','[96,108]'],
+  ['broome-sales-qz-printer-v1','Zebra']
+ ]);
+ h.calls[0].resolve({data:{context:{role:'salesperson'},items:[stocked,ordered]}});await tick();
+ assert.equal(h.stored.has('broome-sales-saved-view'),false);
+ assert.equal(h.stored.has('broome-sales-view-filters'),false);
+ assert.equal(h.stored.has('broome-sales-filters-v1'),false);
+ assert.equal(h.stored.get('broome-sales-column-widths-v5'),'[96,108]');
+ assert.equal(h.stored.get('broome-sales-qz-printer-v1'),'Zebra');
+ assert.match(h.el('vehicle-table').innerHTML,/13032821/);
+ assert.match(h.el('vehicle-table').innerHTML,/000123/);
+ assert.match(h.el('sales-summary').innerHTML,/2 vehicles shown/);
+ assert.doesNotMatch(h.el('vehicle-table').innerHTML,/No vehicles match this view/);
 });
