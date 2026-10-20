@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -19,7 +22,7 @@ function harness() {
     FileReader: class { constructor() { this.listeners = {}; readers.push(this); } addEventListener(n, fn) { this.listeners[n] = fn; } readAsDataURL() {} abort() { this.listeners.abort?.(); } },
     renderQualityControlPage() {}, refreshEmailVehicleLocations: async () => true,
   };
-  vm.createContext(ctx); vm.runInContext(block, ctx);
+  vm.createContext(pdcNotifyFixture(ctx)); vm.runInContext(block, ctx);
   vm.runInContext(`qcPageVehicles = () => [fixture]; qcPageVehicleKey = v => v.id;
     qcPageOperationLines = v => v.lines || []; qcPagePhotoDisabledReason = () => '';
     qcPageAwaitOperationSnapshot = async () => true;

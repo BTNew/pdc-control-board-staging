@@ -12,7 +12,7 @@ function reviewedFixture(profile='broome'){
  let current=true;
  c.navisionSharedPendingStillCurrent=()=>current;c.navisionSharedApplyAuthorityIdentity=()=> 'same-admin';
  c.renderSharedNavisionPreview=()=>{};c.updateNavisionImportButton=()=>{};
- c.confirm=message=>{prompts.push(message);return true;};c.alert=message=>calls.push(['alert',message]);
+ c.confirm=message=>{prompts.push(message);return true;};/* r409 (F25): app.js messages are pdcNotify() toasts */ c.alert=c.pdcNotify=message=>calls.push(['alert',message]);
  const service={reviewCompleteSnapshot:async(...a)=>{calls.push(['review',...a]);return{ok:true};},
   preview:async(...a)=>{calls.push(['preview',...a]);return {ok:true,data:{...pending.previewData,blocking:false,safety:{blocking:false},source_hash:'exact',preview_hash:'reviewed',base_revision:2}};}};
  return {c,pending,service,calls,prompts,invalidate:()=>{current=false;}};

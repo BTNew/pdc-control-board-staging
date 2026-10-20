@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -17,7 +20,7 @@ function fixture(){
     app:{subletMutationQueues:new Map(),emailVehicleLocationService:service},getPdcSupabaseAccessToken:()=>state.token,cleanNavisionText:value=>String(value??'').trim(),plainDateValue:value=>value,
     subletVehicleByKey:()=>vehicle,subletDateChangeError:()=>'',subletTodayDateKey:()=> '2026-09-14',renderSubletHome:()=>state.renders++,
     refreshEmailVehicleLocations:async()=>{state.refreshes++;vehicle.__subletBookingVersion++;}};
-  vm.createContext(ctx);vm.runInContext(['queueSubletVehicleMutation','updateSubletField','setSubletReturned'].map(extract).join('\n'),ctx);
+  vm.createContext(pdcNotifyFixture(ctx));vm.runInContext(['queueSubletVehicleMutation','updateSubletField','setSubletReturned'].map(extract).join('\n'),ctx);
   return {ctx,state,vehicle};
 }
 
@@ -90,7 +93,7 @@ test('expanded canonical Sublet controls match the supported booking mutations a
       subletMatchesOperationalFilter:()=>true,subletBookingState:()=>returned?'returned':'booked',normalizeSubletProviderName:clean,pmbBaySubletProvider:()=> 'Provider',plainDateValue:clean,
       vehicleKey:v=>v.id,displayStockNumber:()=> '00123',vehicleKeyNumber:()=> '1',vehicleJobcardNumber:()=> 'TEST',vehicleCustomerName:()=> 'Synthetic customer',displayVehicle:()=> 'Hilux',
       subletIsOverdue:()=>false,subletAwayOnDate:()=>false,subletTodayDateKey:()=> '2026-09-14',subletProviderOptionsHtml:()=> '',subletProviderContact:()=>({email:'provider@example.com'})};
-    vm.createContext(ctx);vm.runInContext(extract('renderSubletHome'),ctx);ctx.renderSubletHome();
+    vm.createContext(pdcNotifyFixture(ctx));vm.runInContext(extract('renderSubletHome'),ctx);ctx.renderSubletHome();
     const tag=attribute=>host.innerHTML.match(new RegExp('<(?:input|textarea)\\b[^>]*'+attribute+'[^>]*>'))?.[0]||'';
     assert.match(tag('data-sublet-field="pmbSubletActualReturnDate"'),/disabled/);
     assert.match(tag('data-sublet-email-sent='),/disabled/);
@@ -106,7 +109,7 @@ test('a hung Sublet request is bounded and reports an uncertain result without r
   const ctx={AbortController,url:'https://fixture.invalid',key:'fixture',getAccessToken:()=> 'token',
     setTimeout:(callback,ms)=>{expire=callback;timeout=ms;return 'timer';},clearTimeout:id=>{cleared=id==='timer';},
     request:(_url,options)=>{calls++;return new Promise((_resolve,reject)=>options.signal.addEventListener('abort',()=>reject(new Error('aborted'))));}};
-  vm.createContext(ctx);vm.runInContext(serviceSource.slice(serviceSource.indexOf('  async function subletRpc('),serviceSource.indexOf('  function createSubletBooking(')),ctx);
+  vm.createContext(pdcNotifyFixture(ctx));vm.runInContext(serviceSource.slice(serviceSource.indexOf('  async function subletRpc('),serviceSource.indexOf('  function createSubletBooking(')),ctx);
   const result=ctx.subletRpc('create_pdc_sublet_booking',{},'sublet_create_unavailable');
   assert.equal(timeout,60000);expire();const response=await result;
   assert.equal(response.ok,false);assert.equal(response.code,'sublet_create_unavailable');assert.equal(calls,1);assert.equal(cleared,true);

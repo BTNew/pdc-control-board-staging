@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
@@ -82,7 +85,7 @@ const context = {
   pdcGridJobLabel: () => 'Parts',
   authenticatedEmailOperationLinesHtml: () => '',
 };
-vm.createContext(context);
+vm.createContext(pdcNotifyFixture(context));
 vm.runInContext(`${rftHelperSource}\n${ageSource}\n${rowSource}\nthis.renderIncomingRftRow = incomingVehicleDetailRow;`, context);
 
 let rendered = context.renderIncomingRftRow(vehicle, 'rft', {});
@@ -219,7 +222,7 @@ const actionContext = {
   refreshEmailVehicleLocations: async () => { refreshCalls += 1; return true; },
   renderAll: () => { renderCalls += 1; },
 };
-vm.createContext(actionContext);
+vm.createContext(pdcNotifyFixture(actionContext));
 vm.runInContext(`${actionSource}\nthis.book = markRftTransportBooked; this.collect = markRftVehicleCollected; this.confirm = markRftConfirmation;`, actionContext);
 const staleBooking = actionContext.book('11111111-1111-4111-8111-111111111111', true);
 setImmediate(() => {

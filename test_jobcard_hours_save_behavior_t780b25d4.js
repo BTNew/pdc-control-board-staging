@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
@@ -61,7 +64,7 @@ const context = {
   crypto: { randomUUID: () => '55555555-5555-4555-8555-555555555555' },
   console,
 };
-vm.createContext(context);
+vm.createContext(pdcNotifyFixture(context));
 vm.runInContext(source.slice(start, end), context);
 
 (async () => {

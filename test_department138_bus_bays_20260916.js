@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -31,7 +34,7 @@ test('all Department 138 review choices send Bus 4x4 and preserve supplied hours
 
 test('Department 138 review tile offers only Bus 4x4, allows hours and cannot drag to another station',()=>{
   const context={...api,choices:{[lineKey]:'FITTING'},hourDrafts:{},saving:false,sourceChanged:false,writable:()=>true};
-  vm.createContext(context);
+  vm.createContext(pdcNotifyFixture(context));
   vm.runInContext(intake.slice(intake.indexOf('  function operation(line)'),intake.indexOf('  function stationSection(group)')),context);
   const html=context.operation(line);
   assert.match(html,/draggable="false"/);
@@ -64,7 +67,7 @@ function detailRuntime(department='138') {
     window:{alert:message=>alerts.push(message),prompt:()=>{throw Error('Unexpected prompt');},PDC_SUPABASE_CONFIG:{url:'https://example.test',publishableKey:'public'}},
     getPdcSupabaseAccessToken:()=> 'token',fetch:async(url,options)=>{requests.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true})};},
     loadVehicleWorkshopDetail:async()=>true};
-  vm.createContext(context);
+  vm.createContext(pdcNotifyFixture(context));
   vm.runInContext(appSource.slice(appSource.indexOf('function vehicleWorkshopDepartment138('),appSource.indexOf('function vehicleWorkshopGroups(')),context);
   vm.runInContext(appSource.slice(appSource.indexOf('async function saveVehicleWorkshopLine('),appSource.indexOf('async function scheduleVehicleWorkshopNextAvailable(')),context);
   return context;
@@ -137,7 +140,7 @@ test('Department 138 window tint stays in Tint through review and approval witho
     assert.equal(api.stationGroups(row,choices).find(group=>group.code==='TINT').hours,1.5);
     assert.equal(tint.stage_code,'BUS_4X4');
     const context={...api,choices,hourDrafts:{},saving:false,sourceChanged:false,writable:()=>true};
-    vm.createContext(context);
+    vm.createContext(pdcNotifyFixture(context));
     vm.runInContext(intake.slice(intake.indexOf('  function operation(line)'),intake.indexOf('  function stationSection(group)')),context);
     const html=context.operation(tint);
     assert.match(html,/<option value="TINT" selected>/);

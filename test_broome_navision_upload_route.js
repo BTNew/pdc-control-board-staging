@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -18,7 +21,7 @@ function runtime(dealer='37047',callback){
  const context={window:r.h,app:{pendingSharedNavisionImport:null},$:s=>elements[s],sha256Hex:s=>crypto.createHash('sha256').update(s).digest('hex'),prepareNavisionText:s=>s,escapeHtml:s=>String(s).replaceAll('<','&lt;'),updateNavisionImportButton(){},navisionWaitForBusyPaint:async()=>{},setNavisionPreviewBusy(v){context.app.navisionPreviewInFlight=v;},navisionImportOptionsFromDom:()=>({}),parseNavisionInput:(sourceText,options)=>{parseCalls.push({sourceText,options});throw new Error('PMB batch-required parser called');},importNavisionVehiclesLocal(){throw new Error('Local importer called');}};
  r.h.BROOME_NAVISION_IMPORT=r.api;
  r.h.alert=msg=>{throw new Error('Unexpected alert: '+msg);};
- vm.createContext(context);
+ vm.createContext(pdcNotifyFixture(context));
  for(const name of ['function navisionSharedImportRoleAllowed(','function navisionSharedApplyAuthorityIdentity(','function navisionSharedPendingStillCurrent(','function navisionSharedPreviewRequestStillCurrent(','function sharedNavisionPreviewErrorMessage(','function reportSharedNavisionPreviewError(','function renderBroomeNavisionOrders(','async function previewBroomeNavisionOrders(','async function applyBroomeNavisionOrders(','async function importNavisionVehicles(','function updateNavisionControlStats('])vm.runInContext(slice(name),context);
  return {...r,context,elements,status,stats,parseCalls};
 }

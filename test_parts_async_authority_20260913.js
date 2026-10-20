@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -31,7 +34,7 @@ function harness() {
     refreshEmailVehicleLocations: async () => true, refreshSharedVehicleWorkState: async () => true,
     renderPartsHome() {}, offerSalespersonChangeEmail: () => calls.push('email-draft'),
   };
-  vm.createContext(ctx);
+  vm.createContext(pdcNotifyFixture(ctx));
   vm.runInContext(source.slice(source.indexOf('const qcPhotoEvidence = new Map();'), source.indexOf('function qcPageIsMobile()')), ctx);
   for (const [name] of handlers) vm.runInContext(fn(name), ctx);
   const replaceSession = (actor = 'operator-b') => {

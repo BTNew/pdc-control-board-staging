@@ -101,7 +101,9 @@ const PDC_LOCATION_LABELS = new Map(PDC_LOCATION_OPTIONS.map(option => [option.v
 
 
 // r407 (F20): non-blocking, accessible error message for the drag, schedule
-// and QC action paths (replaces window.alert there). Same toast region and
+// and QC action paths (replaces window.alert there). r409 (F25): every other
+// app.js alert() is now this toast too, except the PO-attachment notice in
+// draftNewVehicleBuildEmail (must be read before the mail app opens). Same toast region and
 // styling as the Workshop Planner's workshopNotify(). Errors use role="alert"
 // and stay until dismissed; info uses role="status" and clears after 8 s.
 function pdcNotify(message, tone = 'error') {
@@ -135,7 +137,12 @@ function pdcNotify(message, tone = 'error') {
   close.addEventListener('click', () => toast.remove());
   toast.append(body, close);
   region.appendChild(toast);
-  while (region.children.length > 4) region.firstElementChild.remove();
+  // r409 (F25): with every app.js message now a toast, keep errors in view:
+  // past four on screen the oldest info toast goes first, then the oldest error.
+  while (region.children.length > 4) {
+    const oldestInfo = [...region.children].find(el => el !== toast && String(el.className || '').includes('is-info'));
+    (oldestInfo || region.firstElementChild).remove();
+  }
   if (kind === 'info') setTimeout(() => toast.remove(), 8000);
 }
 
@@ -3926,19 +3933,19 @@ async function addMechanicFromAdminInput() {
   // mirrors that existing authority instead of inviting an operator to submit
   // a request that the server must reject.
   if (!workshopTechnicianAdminCanMutate()) {
-    window.alert('Administrator access is required to add mechanics. No request was sent.');
+    pdcNotify('Administrator access is required to add mechanics. No request was sent.');
     return false;
   }
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
   if (!service) {
-    window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.');
+    pdcNotify('Cannot reach the shared mechanic list right now. Check your connection and try again.');
     return false;
   }
   try {
     const result = await service.addTechnician(entered);
     if (!result || result.ok !== true) {
       const fallback = 'Could not add mechanic. Check your connection and try again.';
-      window.alert(result?.error === 'duplicate_name'
+      pdcNotify(result?.error === 'duplicate_name'
         ? `"${entered}" is already on the mechanic list.`
         : workshopReferenceMutationMessage(result, fallback));
       return false;
@@ -3951,7 +3958,7 @@ async function addMechanicFromAdminInput() {
     renderKpis();
     return true;
   } catch (_error) {
-    window.alert('Could not add mechanic. Check your connection and try again.');
+    pdcNotify('Could not add mechanic. Check your connection and try again.');
     return false;
   }
 }
@@ -3960,19 +3967,19 @@ function removeMechanicFromAdminList(name = '') {
   const clean = cleanNavisionText(name);
   if (!clean) return;
   if (!workshopTechnicianAdminCanMutate()) {
-    window.alert('Administrator access is required to remove mechanics. No request was sent.');
+    pdcNotify('Administrator access is required to remove mechanics. No request was sent.');
     return;
   }
   if (!window.confirm(`Remove mechanic "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) return;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
+  if (!service) { pdcNotify('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return; }
   const record = loadMechanicRecords(true).find(row => row.name === clean);
-  if (!record) { window.alert(`"${clean}" was not found.`); return; }
+  if (!record) { pdcNotify(`"${clean}" was not found.`); return; }
   // Deactivate rather than delete -- preserves every historical
   // workshop_booking_assignments row that already points at this
   // technician_id, exactly as the Stage 2A requirement specifies.
   service.setTechnicianActive(record.id, record.version, false).then(result => {
-    if (!result.ok) { window.alert(result.error || 'Could not remove mechanic.'); return; }
+    if (!result.ok) { pdcNotify(result.error || 'Could not remove mechanic.'); return; }
     renderAdminLists();
     renderKpis();
   }).catch(pdcAdminListRequestFailed('remove mechanic'));
@@ -4005,16 +4012,16 @@ async function saveSubletProviderEmail(button) {
   if (!workshopTechnicianAdminCanMutate()) return false;
   const input = button.closest('tr')?.querySelector('[data-provider-email-input]');
   const email = String(input?.value || '').trim();
-  if (!subletProviderEmailValid(email) || (input && !input.reportValidity())) { window.alert('Enter a valid provider email address.'); return false; }
+  if (!subletProviderEmailValid(email) || (input && !input.reportValidity())) { pdcNotify('Enter a valid provider email address.'); return false; }
   const service = initWorkshopReferenceDataServiceIfAvailable();
-  if (!service?.editSubletProvider) { window.alert('Cannot reach the shared provider list. No change was saved.'); return false; }
+  if (!service?.editSubletProvider) { pdcNotify('Cannot reach the shared provider list. No change was saved.'); return false; }
   button.disabled = true;
   try {
     const result = await service.editSubletProvider(button.dataset.saveProviderEmail, Number(button.dataset.providerVersion), { email });
-    if (!result?.ok) { window.alert(result?.error === 'version_conflict' ? 'This provider changed in another session. Refresh the list and retry.' : 'Could not save the provider email.'); return false; }
+    if (!result?.ok) { pdcNotify(result?.error === 'version_conflict' ? 'This provider changed in another session. Refresh the list and retry.' : 'Could not save the provider email.'); return false; }
     renderAdminLists();
     return true;
-  } catch (_) { window.alert('Could not save the provider email. Check your connection and retry.'); return false; }
+  } catch (_) { pdcNotify('Could not save the provider email. Check your connection and retry.'); return false; }
   finally { button.disabled = false; }
 }
 
@@ -4030,13 +4037,13 @@ function addSubletProviderFromAdminInput() {
   const entered = cleanNavisionText(input?.value || '');
   if (!entered) return;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
+  if (!service) { pdcNotify('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
   const emailInput = $('#sublet-provider-email-input');
   const email = String(emailInput?.value || '').trim();
-  if (!subletProviderEmailValid(email) || (emailInput && !emailInput.reportValidity())) { window.alert('Enter a valid provider email address.'); return; }
+  if (!subletProviderEmailValid(email) || (emailInput && !emailInput.reportValidity())) { pdcNotify('Enter a valid provider email address.'); return; }
   service.addSubletProvider(entered, email).then(result => {
     if (!result.ok) {
-      window.alert(result.error === 'duplicate_name' ? `"${entered}" is already on the provider list.` : (result.error || 'Could not add provider.'));
+      pdcNotify(result.error === 'duplicate_name' ? `"${entered}" is already on the provider list.` : (result.error || 'Could not add provider.'));
       return;
     }
     if (input) input.value = '';
@@ -4051,11 +4058,11 @@ function removeSubletProviderFromAdminList(name = '') {
   if (!clean) return;
   if (!window.confirm(`Remove provider "${clean}" from the dropdown list? Existing vehicle history will stay on the vehicle.`)) return;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
+  if (!service) { pdcNotify('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
   const record = loadSubletProviderRecords(true).find(row => row.name === clean);
-  if (!record) { window.alert(`"${clean}" was not found.`); return; }
+  if (!record) { pdcNotify(`"${clean}" was not found.`); return; }
   service.setSubletProviderActive(record.id, record.version, false).then(result => {
-    if (!result.ok) { window.alert(result.error || 'Could not remove provider.'); return; }
+    if (!result.ok) { pdcNotify(result.error || 'Could not remove provider.'); return; }
     renderAdminLists();
     renderKpis();
   }).catch(pdcAdminListRequestFailed('remove provider'));
@@ -4075,11 +4082,11 @@ function addSalespersonFromAdminInput() {
   const emailInput = $('#salesperson-email-input');
   const record = normalizeSalespersonRecord({ initials: initialsInput?.value, name: nameInput?.value, email: emailInput?.value });
   if (!record) {
-    window.alert('Enter salesperson initials, name and a valid email address.');
+    pdcNotify('Enter salesperson initials, name and a valid email address.');
     return;
   }
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return; }
+  if (!service) { pdcNotify('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return; }
   const finish = () => {
     if (initialsInput) initialsInput.value = '';
     if (nameInput) nameInput.value = '';
@@ -4093,7 +4100,7 @@ function addSalespersonFromAdminInput() {
     : service.addSalesperson(record.name, record.email, record.initials);
   request.then(result => {
     if (!result.ok) {
-      window.alert(result.error === 'duplicate_code' ? `Salesperson code "${record.initials}" is already in use.` : (result.error || 'Could not save salesperson.'));
+      pdcNotify(result.error === 'duplicate_code' ? `Salesperson code "${record.initials}" is already in use.` : (result.error || 'Could not save salesperson.'));
       return;
     }
     finish();
@@ -4106,9 +4113,9 @@ function removeSalespersonFromAdminList(initials = '') {
   if (!record) return;
   if (!window.confirm(`Remove ${record.code} - ${record.name} from the salesperson dropdown? Existing vehicles keep their saved initials.`)) return;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return; }
+  if (!service) { pdcNotify('Cannot reach the shared salesperson list right now. Check your connection and try again.'); return; }
   service.setSalespersonActive(record.id, record.version, false).then(result => {
-    if (!result.ok) { window.alert(result.error || 'Could not remove salesperson.'); return; }
+    if (!result.ok) { pdcNotify(result.error || 'Could not remove salesperson.'); return; }
     renderAdminLists();
   }).catch(pdcAdminListRequestFailed('remove salesperson'));
 }
@@ -4482,7 +4489,7 @@ async function userManagementCallRpc(rpcName, params, successMessage) {
   const client = window.PDC_SUPABASE;
   const { error } = await client.rpc(rpcName, params);
   if (error) {
-    alert(`Action failed: ${error.message || error}`);
+    pdcNotify(`Action failed: ${error.message || error}`);
     return false;
   }
   if (successMessage) {
@@ -5146,7 +5153,7 @@ function sharedVehicleLocationMutationUnavailable(operation = 'change vehicle lo
   if (!vehicleLifecycleSharedModeActive()) return false;
   if (vehicle?.__emailVehicleServerAuthoritative === true && operation === 'transfer to PMB') return false;
   if (!options.silent) {
-    window.alert(`Cannot ${operation} from this control. Shared vehicle locations must be changed through an audited server action; no browser-local change was saved.`);
+    pdcNotify(`Cannot ${operation} from this control. Shared vehicle locations must be changed through an audited server action; no browser-local change was saved.`);
   }
   return true;
 }
@@ -6578,7 +6585,7 @@ async function clearPriorityStoppage(key = '', stoppageKind = '', bookingId = ''
   const vehicle = selectedVehicle(key);
   const service = app.emailVehicleLocationService;
   if (!vehicle || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.clearVehicleStoppage !== 'function') {
-    window.alert('This stoppage is not bound to current server authority. Nothing was changed.'); return;
+    pdcNotify('This stoppage is not bound to current server authority. Nothing was changed.'); return;
   }
   const note = cleanNavisionText(window.prompt('Why is this stoppage being cleared? This note is kept in the vehicle history.', 'Issue resolved') || '');
   if (!note) return;
@@ -6586,7 +6593,7 @@ async function clearPriorityStoppage(key = '', stoppageKind = '', bookingId = ''
   if (!result?.ok) {
     const messages = { no_active_stoppage: 'This vehicle no longer has an active stoppage.', no_active_parts_stoppage: 'This Parts stoppage is no longer active.', no_active_pmb_stoppage: 'This PMB stoppage is no longer active.', booking_not_in_stoppage: 'This Workshop booking is no longer stopped.', booking_version_conflict: 'This Workshop booking changed in another session. The latest state has been reloaded.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_active: 'This vehicle is no longer active.' };
     await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('clear_stoppage_rejected')]);
-    window.alert(messages[result?.code] || 'The stoppage was not cleared. No history was removed.'); renderAll(); return;
+    pdcNotify(messages[result?.code] || 'The stoppage was not cleared. No history was removed.'); renderAll(); return;
   }
   await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('clear_stoppage_412')]);
   renderAll();
@@ -7470,11 +7477,11 @@ async function moveVehiclePitLocation(key = '', direction = 'to_pit') {
   if (!vehicle || !vehicleLocationActionAllowed(vehicle, direction === 'to_pit' ? 'transfer to PIT' : 'return PIT vehicle to PMB')) return false;
   const toPit = direction === 'to_pit';
   if (toPit && !vehicleCanEnterPit(vehicle)) {
-    window.alert('PIT transport is available only from PMB Unallocated. Complete or exit any active workshop station first.');
+    pdcNotify('PIT transport is available only from PMB Unallocated. Complete or exit any active workshop station first.');
     return false;
   }
   if (!toPit && vehiclePdcLocation(vehicle) !== 'PIT') {
-    window.alert('Only a vehicle currently in PIT can be returned to PMB.');
+    pdcNotify('Only a vehicle currently in PIT can be returned to PMB.');
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
@@ -7484,11 +7491,11 @@ async function moveVehiclePitLocation(key = '', direction = 'to_pit') {
   if (vehicleLifecycleSharedModeActive()) {
     const ref = await vehicleLifecycleSharedRef(vehicle);
     if (!ref || ref.outcome !== 'resolved') {
-      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+      pdcNotify(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
     }
     if (ref.isArchived) {
-      window.alert('This vehicle is archived in shared data, so its PIT location was not changed. No change was made.');
+      pdcNotify('This vehicle is archived in shared data, so its PIT location was not changed. No change was made.');
       return false;
     }
     const result = await window.__vehicleLifecycleActions.pitTransferVehicle({
@@ -7500,7 +7507,7 @@ async function moveVehiclePitLocation(key = '', direction = 'to_pit') {
       const message = typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && result.error)
         : 'The PIT location movement could not be saved.';
-      window.alert(message);
+      pdcNotify(message);
       return false;
     }
     reconcileVehicleLifecycleServerResult(vehicle, result);
@@ -8868,7 +8875,7 @@ async function updateSalesPreparationControl(input) {
   const service = app.emailVehicleLocationService || initEmailVehicleLocationsIfAvailable();
   if (!vehicle || !service?.updateSalesPreparation) {
     input.checked = !input.checked;
-    window.alert('The shared salesperson preparation record is unavailable. Refresh and try again.');
+    pdcNotify('The shared salesperson preparation record is unavailable. Refresh and try again.');
     return;
   }
   input.disabled = true;
@@ -8877,7 +8884,7 @@ async function updateSalesPreparationControl(input) {
     input.checked = !input.checked;
     await refreshEmailVehicleLocations();
     renderIncomingDashboardBoard();
-    window.alert(result?.code === 'version_conflict' ? 'This vehicle changed elsewhere. The latest shared record has been loaded; please try again.' : 'The preparation update was not saved.');
+    pdcNotify(result?.code === 'version_conflict' ? 'This vehicle changed elsewhere. The latest shared record has been loaded; please try again.' : 'The preparation update was not saved.');
     return;
   }
   await refreshEmailVehicleLocations();
@@ -9155,7 +9162,7 @@ async function transferSelectedMainYhVehiclesToPmb() {
   if (!selected.length) return;
   const notYh = selected.filter(vehicle => !canTransferVehicleToPmb(vehicle));
   if (notYh.length) {
-    window.alert('Only Yard Hold or In Transit vehicles can be transferred to PMB from the main screen. Untick any PMB, RFT, completed or overseas rows first.');
+    pdcNotify('Only Yard Hold or In Transit vehicles can be transferred to PMB from the main screen. Untick any PMB, RFT, completed or overseas rows first.');
     return;
   }
   await transferSelectedYhVehiclesToPmb();
@@ -9586,7 +9593,7 @@ function showWorkImportReviewModal({ kind = 'pd', parsed = {}, filename = '', ex
       const stock = cleanNavisionText(values.get('stock'));
       const vin = normalizeVin(values.get('vin'));
       if (!stock && !vin) {
-        window.alert('Enter a stock number or VIN before importing this vehicle.');
+        pdcNotify('Enter a stock number or VIN before importing this vehicle.');
         return;
       }
       const requirementUpdates = {};
@@ -9884,17 +9891,17 @@ function subletProviderOptionsHtml(current = '') {
 
 async function addMechanicFromPrompt() {
   if (!workshopTechnicianAdminCanMutate()) {
-    window.alert('Administrator access is required to add mechanics. No request was sent.');
+    pdcNotify('Administrator access is required to add mechanics. No request was sent.');
     return false;
   }
   const entered = cleanNavisionText(window.prompt('Enter mechanic / technician name:', '') || '');
   if (!entered) return false;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return false; }
+  if (!service) { pdcNotify('Cannot reach the shared mechanic list right now. Check your connection and try again.'); return false; }
   try {
     const result = await service.addTechnician(entered);
     if (!result || result.ok !== true) {
-      window.alert(result?.error === 'duplicate_name' ? `"${entered}" is already on the mechanic list.` : 'Could not add mechanic.');
+      pdcNotify(result?.error === 'duplicate_name' ? `"${entered}" is already on the mechanic list.` : 'Could not add mechanic.');
       return false;
     }
     await service.listTechnicians(true);
@@ -9902,7 +9909,7 @@ async function addMechanicFromPrompt() {
     renderAdminLists();
     return true;
   } catch (_error) {
-    window.alert('Could not add mechanic. Check your connection and try again.');
+    pdcNotify('Could not add mechanic. Check your connection and try again.');
     return false;
   }
 }
@@ -9911,9 +9918,9 @@ function addSubletProviderFromPrompt() {
   const entered = cleanNavisionText(window.prompt('Enter external provider name:', '') || '');
   if (!entered) return;
   const service = typeof initWorkshopReferenceDataServiceIfAvailable === 'function' ? initWorkshopReferenceDataServiceIfAvailable() : null;
-  if (!service) { window.alert('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
+  if (!service) { pdcNotify('Cannot reach the shared provider list right now. Check your connection and try again.'); return; }
   service.addSubletProvider(entered).then(result => {
-    if (!result.ok && result.error !== 'duplicate_name') { window.alert(result.error || 'Could not add provider.'); return; }
+    if (!result.ok && result.error !== 'duplicate_name') { pdcNotify(result.error || 'Could not add provider.'); return; }
     renderKpis();
     renderAdminLists();
   }).catch(pdcAdminListRequestFailed('add provider'));
@@ -10648,7 +10655,7 @@ async function togglePdcJobCompletionFromCard(stockKey, jobKey) {
   if (!vehicle) return;
   const currentlyComplete = pdcJobComplete(vehicle, def);
   if (currentlyComplete && vehicleCollectedFromRft(vehicle)) {
-    window.alert('Completed / collected vehicles are locked. This sign-off cannot be removed from a completed vehicle.');
+    pdcNotify('Completed / collected vehicles are locked. This sign-off cannot be removed from a completed vehicle.');
     return;
   }
   const actionText = currentlyComplete ? 'remove the sign-off from' : 'sign off';
@@ -10675,7 +10682,7 @@ async function togglePdcJobCompletionFromCard(stockKey, jobKey) {
         idempotencyKey: payload.idempotency_key,
         requestHash,
       });
-      if (!result || result.ok !== true) { window.alert('The department completion was not saved. The authoritative vehicle and booking state was preserved.'); return false; }
+      if (!result || result.ok !== true) { pdcNotify('The department completion was not saved. The authoritative vehicle and booking state was preserved.'); return false; }
       await refreshSharedVehicleWorkState(vehicle);
       await loadVehicleWorkshopDetail(vehicle, { force: true });
       renderAll();
@@ -11374,7 +11381,7 @@ async function updatePmbBaySubletProvider(key, stage, value) {
   if (vehicle.__emailVehicleServerAuthoritative === true) {
     const bookings = subletRows().filter(row => vehicleKey(row) === cleanKey && row.__subletBookingId && row.__subletBookingStatus === 'active');
     if (bookings.length !== 1) {
-      window.alert(bookings.length === 0 ? 'No active canonical Sublet booking exists. Use Create booking first; no legacy placeholder update was sent.' : 'Multiple active Sublet bookings exist. Open Sublet and select the exact booking before changing provider. No change was made.');
+      pdcNotify(bookings.length === 0 ? 'No active canonical Sublet booking exists. Use Create booking first; no legacy placeholder update was sent.' : 'Multiple active Sublet bookings exist. Open Sublet and select the exact booking before changing provider. No change was made.');
       return false;
     }
     return updateSubletField(bookings[0].__subletBookingId, 'pmbSubletProvider', provider);
@@ -11398,7 +11405,7 @@ function completePmbBayWork(key, stage, transactionOptions = {}) {
   const alreadyComplete = pdcJobComplete(vehicle, def);
   const label = `${vehicleIdentityTitle(vehicle) || 'this vehicle'} - ${vehicleCustomerName(vehicle) || 'Unknown customer'}`;
   if (alreadyComplete) {
-    window.alert(`${def.label} is already signed off for ${label}. Use the job marker or vehicle popup if you need to remove the sign-off.`);
+    pdcNotify(`${def.label} is already signed off for ${label}. Use the job marker or vehicle popup if you need to remove the sign-off.`);
     return;
   }
   const bay = pmbBayNumber(vehicle, normalizedStage);
@@ -11445,7 +11452,7 @@ function completePmbBayWork(key, stage, transactionOptions = {}) {
   } catch (error) {
     Object.keys(vehicle).forEach(field => { if (!Object.prototype.hasOwnProperty.call(snapshot, field)) delete vehicle[field]; });
     Object.assign(vehicle, snapshot);
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return false;
   }
   offerSalespersonChangeEmail(vehicle, {
@@ -11858,7 +11865,7 @@ async function saveInlineSharedVehicleWorkState(input, vehicle, def, checked, is
   if (!result || result.ok !== true) {
     input.checked = !checked;
     input.disabled = false;
-    window.alert(result?.message || describeSharedVehicleWorkStateError(result || {}));
+    pdcNotify(result?.message || describeSharedVehicleWorkStateError(result || {}));
     renderVehicleTable();
     return false;
   }
@@ -12041,7 +12048,7 @@ function removeVehiclesFromTracker(vehicles = [], options = {}) {
     return runStorageTransaction('Vehicle removal', trackerTransactionKeys(), () => removeVehiclesFromTrackerUnsafe(list, options));
   } catch (error) {
     app.data = buildVehicleData();
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return [];
   }
 }
@@ -12344,7 +12351,7 @@ async function transferSelectedYhVehiclesToPmb() {
   const transferable = selected.filter(canTransferVehicleToPmb);
   const nonYh = selected.filter(vehicle => !canTransferVehicleToPmb(vehicle));
   if (!transferable.length) {
-    window.alert('No selected Yard Hold or In Transit vehicles could be transferred. Clear selection, open Yard Hold/In Transit, then select the rows again.');
+    pdcNotify('No selected Yard Hold or In Transit vehicles could be transferred. Clear selection, open Yard Hold/In Transit, then select the rows again.');
     return;
   }
   if (nonYh.length && !window.confirm(`${nonYh.length} selected vehicle${nonYh.length === 1 ? ' is' : 's are'} not at Yard Hold/In Transit and will be skipped.\n\nTransfer the ${transferable.length} Yard Hold/In Transit vehicle${transferable.length === 1 ? '' : 's'} to PMB?`)) return;
@@ -12410,7 +12417,7 @@ async function transferYhVehicleToPmb(key = '') {
   if (sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle)) return false;
   if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'transfer to PMB')) return false;
   if (!canTransferVehicleToPmb(vehicle)) {
-    window.alert('Only incoming Yard Hold, Non-Navision or In Transit vehicles can be transferred to PMB from this button.');
+    pdcNotify('Only incoming Yard Hold, Non-Navision or In Transit vehicles can be transferred to PMB from this button.');
     return;
   }
   const stock = displayStockNumber(vehicle) || 'No stock';
@@ -12429,11 +12436,11 @@ async function transferYhVehicleToPmb(key = '') {
       ? { outcome: 'resolved', vehicleId: emailVehicleId, version: emailVersion, isArchived: false }
       : await vehicleLifecycleSharedRef(vehicle);
     if (!ref || ref.outcome !== 'resolved') {
-      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+      pdcNotify(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
     }
     if (ref.isArchived) {
-      window.alert('This vehicle is archived and cannot be moved into PMB. No change was made.');
+      pdcNotify('This vehicle is archived and cannot be moved into PMB. No change was made.');
       return false;
     }
     const result = await window.__vehicleLifecycleActions.pmbTransferVehicle({
@@ -12441,7 +12448,7 @@ async function transferYhVehicleToPmb(key = '') {
       expectedVersion: ref.version,
     });
     if (!result || result.ok !== true) {
-      window.alert(result?.error === 'pmb_transfer_requires_incoming_location'
+      pdcNotify(result?.error === 'pmb_transfer_requires_incoming_location'
         ? 'This vehicle is no longer in an incoming location. Refresh Vehicle Locations and check its current location before moving it to PMB.'
         : typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && result.error)
@@ -12523,7 +12530,7 @@ function confirmRftGateOverride(vehicles = []) {
     return `• ${displayStockNumber(vehicle) || 'No stock'} - ${row.issues.join('; ')}`;
   }).join('\n');
   const more = rows.length > 12 ? `\n• plus ${rows.length - 12} more with RFT gate issues` : '';
-  window.alert(`Cannot transfer to RFT yet.\n\nEvery required PDC box must be signed off before a vehicle can move to RFT.\n\n${issuePreview}${more}`);
+  pdcNotify(`Cannot transfer to RFT yet.\n\nEvery required PDC box must be signed off before a vehicle can move to RFT.\n\n${issuePreview}${more}`);
   return { allowed: false, overridden: false, reason: '', issueCount: rows.length, issues: rows };
 }
 
@@ -12535,7 +12542,7 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
     return !(category === 'qc' && vehicle.pdcQcComplete === true);
   });
   if (nonPmb.length) {
-    window.alert('Only a vehicle with a named QC sign-off that still remains in QC can be transferred to RFT.');
+    pdcNotify('Only a vehicle with a named QC sign-off that still remains in QC can be transferred to RFT.');
     return;
   }
   const gate = confirmRftGateOverride(selected);
@@ -12578,7 +12585,7 @@ async function transferVehiclesToRft(vehicles = [], options = {}) {
       }
     }
     if (failures.length) {
-      window.alert(`Some vehicles were not transferred:\n\n${failures.join('\n')}`);
+      pdcNotify(`Some vehicles were not transferred:\n\n${failures.join('\n')}`);
     }
     if (options.clearSelection) app.selectedRows.clear();
     app.quickFilter = 'rft';
@@ -12683,12 +12690,12 @@ function salespersonChangeEmailBody(vehicle = {}, change = {}) {
 function draftSalespersonChangeEmail(vehicle = {}, change = {}, recipient = '') {
   const stockIdentity = displayStockNumber(vehicle);
   if (!stockIdentity || vehicle.__emailVehicleServerAuthoritative !== true || vehicle.__emailVehicleIdentityConflict === true || !vehicleWorkshopDetailCanonicalId(vehicle)) {
-    window.alert('The authoritative vehicle card is still loading. No blank or TBA email draft was opened. Close and reopen the Stock after the refresh completes.');
+    pdcNotify('The authoritative vehicle card is still loading. No blank or TBA email draft was opened. Close and reopen the Stock after the refresh completes.');
     return false;
   }
   const email = cleanNavisionText(recipient || salespersonEmail(vehicle));
   if (!email) {
-    window.alert('Enter a salesperson email address before opening the email draft.');
+    pdcNotify('Enter a salesperson email address before opening the email draft.');
     return false;
   }
   const stock = stockIdentity;
@@ -12855,13 +12862,13 @@ function draftSelectedVehicleStatusEmail(key = '') {
   const resolvedVehicle = modalVehicle || (cleanKey ? selectedVehicle(cleanKey) : null);
   const selected = resolvedVehicle ? [resolvedVehicle] : selectedVehiclesForBulkEmail();
   if (selected.length !== 1) {
-    window.alert('Select exactly one vehicle before using EMAIL UPDATE.');
+    pdcNotify('Select exactly one vehicle before using EMAIL UPDATE.');
     return;
   }
   const vehicle = selected[0];
   if (!displayStockNumber(vehicle) || vehicle.__emailVehicleServerAuthoritative !== true || vehicle.__emailVehicleIdentityConflict === true || !vehicleWorkshopDetailCanonicalId(vehicle)
       || (app.vehicleModalIdentity && !vehicleModalIdentityMatches(vehicle))) {
-    window.alert('The authoritative vehicle card is still loading. No blank or TBA email draft was opened.');
+    pdcNotify('The authoritative vehicle card is still loading. No blank or TBA email draft was opened.');
     return;
   }
   offerSalespersonChangeEmail(vehicle, {
@@ -13030,7 +13037,7 @@ async function findZebraPrinterName() {
 async function printRawZpl(zpl, sourceLabel = 'labels') {
   const clean = String(zpl || '').trim();
   if (!clean) {
-    window.alert('No ZPL labels to print. Generate labels first.');
+    pdcNotify('No ZPL labels to print. Generate labels first.');
     return;
   }
   const printButtons = $$('[data-print-selected-zpl]').concat([$('#zpl-print')].filter(Boolean));
@@ -13046,10 +13053,10 @@ async function printRawZpl(zpl, sourceLabel = 'labels') {
     const message = `Sent ${sourceLabel} to ${printerName}`;
     const summary = $('#zpl-summary');
     if (summary) summary.insertAdjacentHTML('afterbegin', `<div class="zpl-selected-notice qz-print-ok"><strong>Printed</strong><span>${escapeHtml(message)}</span></div>`);
-    else window.alert(message);
+    else pdcNotify(message, 'info');
   } catch (error) {
     const message = error?.message || String(error || 'QZ Tray print failed.');
-    window.alert(`Could not print to Zebra via QZ Tray.\n\n${message}\n\nQZ Tray must be running, and you may need to approve this website in QZ Tray.`);
+    pdcNotify(`Could not print to Zebra via QZ Tray.\n\n${message}\n\nQZ Tray must be running, and you may need to approve this website in QZ Tray.`);
   } finally {
     updateBulkSelectionPanel(sortRows(filteredVehicles()));
     const output = $('#zpl-output');
@@ -13097,7 +13104,7 @@ async function printZplFromSelectedRows() {
 async function printCurrentZplOutput() {
   const output = $('#zpl-output')?.value || '';
   if (!output.trim()) {
-    window.alert('No ZPL labels to print. Generate labels first.');
+    pdcNotify('No ZPL labels to print. Generate labels first.');
     return;
   }
   const parsed = parseZplInput($('#zpl-input')?.value || '');
@@ -13109,7 +13116,7 @@ async function printZplForVehicleKey(key = '') {
   const cleanKey = String(key || '').trim();
   const vehicle = app.data.find(item => [vehicleKey(item), item.stock, item.batch, item.id].map(String).includes(cleanKey));
   if (!vehicle) {
-    window.alert('This vehicle could not be found. Refresh the page and try again.');
+    pdcNotify('This vehicle could not be found. Refresh the page and try again.');
     return;
   }
   const result = vehiclesToZpl([vehicle]);
@@ -13440,7 +13447,7 @@ function getCurrentOperatorRole() {
 
 function setOperatorProfile() {
   if (window.PDC_AUTH_CONTEXT?.email) {
-    window.alert(`Signed in as ${window.PDC_AUTH_CONTEXT.displayName || window.PDC_AUTH_CONTEXT.email} (${window.PDC_AUTH_CONTEXT.role}).`);
+    pdcNotify(`Signed in as ${window.PDC_AUTH_CONTEXT.displayName || window.PDC_AUTH_CONTEXT.email} (${window.PDC_AUTH_CONTEXT.role}).`, 'info');
     return;
   }
   const currentName = String(localStorage.getItem(OPERATOR_NAME_KEY) || '').trim();
@@ -13452,7 +13459,7 @@ function setOperatorProfile() {
     localStorage.setItem(OPERATOR_ROLE_KEY, (role || 'Unassigned role').trim());
   } catch {}
   renderTvBoard();
-  window.alert(`PDC operator set to ${(name || 'Unknown operator').trim()} (${(role || 'Unassigned role').trim() || 'Unassigned role'}).`);
+  pdcNotify(`PDC operator set to ${(name || 'Unknown operator').trim()} (${(role || 'Unassigned role').trim() || 'Unassigned role'}).`, 'info');
 }
 
 function recordVehicleAudit(vehicleOrKey, action, details = {}) {
@@ -14062,7 +14069,7 @@ function vehicleWorkshopOperationError(result = {}) {
 
 async function removeVehicleWorkshopOperation(button) {
   const service = vehicleWorkshopOperationRemovalService();
-  if (!service) { window.alert('Administrator authority and an authenticated Workshop service are required.'); return false; }
+  if (!service) { pdcNotify('Administrator authority and an authenticated Workshop service are required.'); return false; }
   const operationNo = String(button.dataset.operationNo || '').trim();
   const description = String(button.dataset.operationDescription || '').trim();
   const department = String(button.dataset.operationDepartment || '').trim();
@@ -14089,7 +14096,7 @@ async function removeVehicleWorkshopOperation(button) {
     sourceEvidence: JSON.parse(button.dataset.sourceEvidence || '{}'),
     idempotencyKey: key,
   });
-  if (result?.ok !== true) { window.alert(vehicleWorkshopOperationError(result)); return false; }
+  if (result?.ok !== true) { pdcNotify(vehicleWorkshopOperationError(result)); return false; }
   const data = result.data || result;
   app.vehicleWorkshopRemovalReceipt = { receiptId: data.receipt_id, operationLineId, vehicleId: button.dataset.operationVehicleId || vehicleWorkshopDetailCanonicalId(vehicle), code: result.code || 'operation_line_deleted_772' };
   renderDetail();
@@ -14105,7 +14112,7 @@ async function undoVehicleWorkshopOperation() {
   const vehicle = selectedVehicle() || {};
   const key = `ui772-undo-${receipt.operationLineId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const result = await service.undoRemoval({ receiptId: receipt.receiptId, vehicleId: receipt.vehicleId || vehicleWorkshopDetailCanonicalId(vehicle), operationLineId: receipt.operationLineId, expectedVehicleVersion: Number(app.vehicleWorkshopDetailCache.get(vehicleWorkshopDetailCanonicalId(vehicle))?.detail?.vehicle_version || vehicle.version || 0), idempotencyKey: key, reason });
-  if (result?.ok !== true) { window.alert(vehicleWorkshopOperationError(result)); return false; }
+  if (result?.ok !== true) { pdcNotify(vehicleWorkshopOperationError(result)); return false; }
   app.vehicleWorkshopRemovalReceipt = null;
   renderDetail();
   return true;
@@ -14273,7 +14280,7 @@ async function saveVehicleWorkshopLineHoursBatch(button) {
   const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
   const rows = vehicleWorkshopHoursBatchRowsFromPage(page).filter(row => row.changed);
   if (!page || !canonicalId || !detail || !rows.length || rows.some(row => !vehicleWorkshopHoursBatchValueValid(row))) {
-    window.alert('Enter valid hours from 0 to 999.99 with no more than two decimal places. Blank means unknown.');
+    pdcNotify('Enter valid hours from 0 to 999.99 with no more than two decimal places. Blank means unknown.');
     return false;
   }
   vehicleWorkshopHoursBatchSyncDrafts(page);
@@ -14508,21 +14515,21 @@ async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId 
   const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
   if (!vehicleWorkshopCanEditLines() || !canonicalId || !detail) return false;
   if (vehicleWorkshopDepartment138(vehicle, {line_key:lineKey}, detail) && vehicleWorkshopStageCode(stage) !== vehicleWorkshop138AllowedStation(vehicle,lineKey,detail,description)) {
-    if (showError) window.alert('Dept 138 work uses its assigned Bus 4×4, Tint or Tyres station. Refresh this vehicle to load its current station.');
+    if (showError) pdcNotify('Dept 138 work uses its assigned Bus 4×4, Tint or Tyres station. Refresh this vehicle to load its current station.');
     return false;
   }
   const nextDescription = hoursOnly ? description : window.prompt(lineKey ? 'Workshop line description' : 'New Workshop line description', description || '');
   if (nextDescription === null) return false;
   const trimmedDescription = cleanNavisionText(nextDescription);
   if (!trimmedDescription || trimmedDescription.length > 180) {
-    window.alert('Enter a Workshop line description between 1 and 180 characters.');
+    pdcNotify('Enter a Workshop line description between 1 and 180 characters.');
     return false;
   }
   const nextHours = hoursOnly ? hours : window.prompt('Estimated hours (up to two decimal places)', hours || '1');
   if (nextHours === null) return false;
   const numericHours = Number(nextHours);
   if (!Number.isFinite(numericHours) || numericHours < 0 || numericHours > 999.99 || Math.abs(Math.round(numericHours * 100) - numericHours * 100) > 1e-9) {
-    window.alert('Estimated hours must be between 0 and 999.99 with no more than two decimal places.');
+    pdcNotify('Estimated hours must be between 0 and 999.99 with no more than two decimal places.');
     return false;
   }
   const config = window.PDC_SUPABASE_CONFIG || {};
@@ -14548,7 +14555,7 @@ async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId 
     return true;
   } catch (error) {
     if (refresh) await loadVehicleWorkshopDetail(vehicle, { force: true });
-    if (showError) window.alert(error?.message || 'Workshop line update failed. Refresh and try again.');
+    if (showError) pdcNotify(error?.message || 'Workshop line update failed. Refresh and try again.');
     return false;
   }
 }
@@ -14560,7 +14567,7 @@ async function moveVehicleWorkshopSourceLineStage(select, targetStage) {
   const lineKey = String(select?.dataset?.lineKey || '');
   if (!select || !vehicleWorkshopCanEditLines() || !canonicalId || !detail || !/^source:[0-9a-f-]{36}$/i.test(lineKey)) return false;
   if (vehicleWorkshopDepartment138(vehicle, {line_key:lineKey}, detail) && vehicleWorkshopStageCode(targetStage) !== vehicleWorkshop138AllowedStation(vehicle,lineKey,detail)) {
-    window.alert('Dept 138 uses Bus 4×4 bays, with shared Tint and Tyre bays for those operations.');
+    pdcNotify('Dept 138 uses Bus 4×4 bays, with shared Tint and Tyre bays for those operations.');
     return false;
   }
   const config = window.PDC_SUPABASE_CONFIG || {};
@@ -14584,7 +14591,7 @@ async function moveVehicleWorkshopSourceLineStage(select, targetStage) {
     return true;
   } catch (error) {
     await loadVehicleWorkshopDetail(vehicle, { force: true });
-    window.alert(error?.message || 'Workshop station move failed. The authoritative station has been reloaded; review it and try again.');
+    pdcNotify(error?.message || 'Workshop station move failed. The authoritative station has been reloaded; review it and try again.');
     return false;
   }
 }
@@ -14607,7 +14614,7 @@ async function moveVehicleWorkshopLineStage(select) {
     hours = Number(entered);
   }
   if (!Number.isFinite(hours) || hours < 0.25 || hours > 999.75 || Math.round(hours * 4) !== hours * 4) {
-    window.alert('Estimated hours must be between 0.25 and 999.75 in quarter-hour increments.');
+    pdcNotify('Estimated hours must be between 0.25 and 999.75 in quarter-hour increments.');
     select.value = previousStage;
     return false;
   }
@@ -14708,7 +14715,7 @@ async function saveVehicleWorkCategory(select) {
     await loadVehicleWorkshopDetail(vehicle,{force:true});
     return true;
   } catch(error) {
-    window.alert(error.message || 'The work category could not be saved.');
+    pdcNotify(error.message || 'The work category could not be saved.');
     await loadVehicleWorkshopDetail(vehicle,{force:true});
     return false;
   } finally { select.disabled=false; }
@@ -14760,7 +14767,7 @@ async function vehicleWorkshopOffboardCall(button, undo = false) {
     await loadVehicleWorkshopDetail(vehicle, { force: true });
     return true;
   } catch (error) {
-    window.alert(error.message || 'The change was not saved.');
+    pdcNotify(error.message || 'The change was not saved.');
     await loadVehicleWorkshopDetail(vehicle, { force: true });
     return false;
   } finally { button.disabled = false; }
@@ -14784,7 +14791,7 @@ async function splitVehicleWorkshopBooking(button) {
     await loadVehicleWorkshopDetail(vehicle, { force: true });
     return true;
   } catch (error) {
-    window.alert(error.message || 'The booking could not be split.');
+    pdcNotify(error.message || 'The booking could not be split.');
     await loadVehicleWorkshopDetail(vehicle, { force: true });
     return false;
   } finally { button.disabled = false; }
@@ -14809,7 +14816,7 @@ async function deleteVehicleWorkshopLine(adjustmentId = '', adjustmentVersion = 
     return true;
   } catch (error) {
     await loadVehicleWorkshopDetail(vehicle, { force: true });
-    window.alert(error?.message || 'Workshop line removal failed. Refresh and try again.');
+    pdcNotify(error?.message || 'Workshop line removal failed. Refresh and try again.');
     return false;
   }
 }
@@ -15067,7 +15074,7 @@ function saveVehicleEdits(key, updates, options = {}) {
       else delete vehicle[field];
     });
     if (wasNestedTransaction) throw error;
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return false;
   }
   if (options.render !== false) renderAll();
@@ -15107,7 +15114,7 @@ async function openVehicleCardFromVisibleBoard(stock, trigger = null) {
     }
     const refreshed = selectedVehicle(key);
     if (!refreshed || !vehicleLocationActionAllowed(refreshed, 'open')) {
-      window.alert('Vehicle details are still syncing. Please click the stock number again in a moment.');
+      pdcNotify('Vehicle details are still syncing. Please click the stock number again in a moment.');
       return false;
     }
     openVehicleModal(key);
@@ -15224,7 +15231,7 @@ async function refreshVehicleModalExactIdentity(identity = app.vehicleModalIdent
 function openVehicleModal(stock) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle) {
-    window.alert('That vehicle could not be found. Refresh the list and try again. No vehicle was changed.');
+    pdcNotify('That vehicle could not be found. Refresh the list and try again. No vehicle was changed.');
     return false;
   }
   if (!vehicleLocationActionAllowed(vehicle, 'open')) return false;
@@ -15243,7 +15250,7 @@ function openVehicleModal(stock) {
   if (!app.vehicleModalIdentity.canonicalId || !app.vehicleModalIdentity.stockBaseline
       || (!app.vehicleModalIdentity.dealerCode && !vehicleModalCanOpenWithoutDealer(vehicle, app.vehicleModalIdentity))) {
     app.vehicleModalIdentity = null;
-    window.alert('The exact vehicle identity is unavailable. Refresh the list and try again. No vehicle was changed.');
+    pdcNotify('The exact vehicle identity is unavailable. Refresh the list and try again. No vehicle was changed.');
     return false;
   }
   app.vehicleDetailPage = 'details';
@@ -15330,14 +15337,14 @@ function openAuthenticatedOperationWorkshop(stock) {
   const vehicle = selectedVehicle(stock);
   const canonicalId = vehicle ? vehicleWorkshopDetailCanonicalId(vehicle) : '';
   if (!vehicle || !canonicalId || !vehicleWorkshopRoleCanEditLines()) {
-    window.alert('Workshop jobs are not available for editing. Refresh the list and try again. No work was changed.');
+    pdcNotify('Workshop jobs are not available for editing. Refresh the list and try again. No work was changed.');
     return false;
   }
   // Leave the read-only Auditor before opening the separately authorised Workshop editor.
   // Every write still passes through vehicleWorkshopCanEditLines and the audited RPC.
   showView('dashboard');
   if (!vehicleWorkshopCanEditLines()) {
-    window.alert('Workshop jobs are not available for editing. Refresh the list and try again. No work was changed.');
+    pdcNotify('Workshop jobs are not available for editing. Refresh the list and try again. No work was changed.');
     return false;
   }
   const modal = $('#vehicle-modal');
@@ -15464,25 +15471,25 @@ async function removeVehicle(stock, { resetTest = false } = {}) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return false;
   if (!vehicleLifecycleAdministratorActive()) {
-    window.alert('Administrator access is required. No vehicle was changed.');
+    pdcNotify('Administrator access is required. No vehicle was changed.');
     return false;
   }
   if (!vehicleLifecycleSharedModeActive() || typeof window.__vehicleLifecycleActions?.adminArchiveVehicle !== 'function') {
-    window.alert('Shared vehicle lifecycle service is unavailable. No vehicle was changed.');
+    pdcNotify('Shared vehicle lifecycle service is unavailable. No vehicle was changed.');
     return false; // Fail closed: destructive shared-mode actions never use localStorage.
   }
   if (resetTest && !vehicleLifecycleStagingResetAllowed()) {
-    window.alert('Reset Staging Test Vehicle is available only in the staging environment. No vehicle was changed.');
+    pdcNotify('Reset Staging Test Vehicle is available only in the staging environment. No vehicle was changed.');
     return false;
   }
 
   const ref = await vehicleLifecycleSharedRef(vehicle);
   if (!ref || ref.outcome !== 'resolved') {
-    window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+    pdcNotify(describeVehicleLifecycleResolutionOutcome(ref));
     return false;
   }
   if (ref.isArchived) {
-    window.alert('This vehicle is already in Deleted or Completed vehicles.');
+    pdcNotify('This vehicle is already in Deleted or Completed vehicles.');
     await refreshVehicleLifecycleLocationsAndRender();
     return false;
   }
@@ -15490,19 +15497,19 @@ async function removeVehicle(stock, { resetTest = false } = {}) {
   const customer = cleanNavisionText(vehicleCustomerName(vehicle) || 'Unknown customer');
   const vehicleUuid = cleanNavisionText(ref.vehicleId || '');
   if (!stockNumber || !vehicleUuid) {
-    window.alert('The exact Stock Number or vehicle UUID is unavailable. No vehicle was changed.');
+    pdcNotify('The exact Stock Number or vehicle UUID is unavailable. No vehicle was changed.');
     return false;
   }
   const actionLabel = resetTest ? 'Reset Staging Test Vehicle' : 'Delete Vehicle';
   if (!window.confirm(`${actionLabel}\n\nStock Number: ${stockNumber}\nCustomer: ${customer}\nVehicle UUID: ${vehicleUuid}\n\nThis archives the vehicle from active Board screens while retaining its tombstone and audit evidence.`)) return false;
   const stockConfirmation = window.prompt(`Type the exact Stock Number (${stockNumber}) to confirm:`, '') ?? '';
   if (stockConfirmation !== stockNumber) {
-    window.alert('Stock Number confirmation did not match exactly. No vehicle was changed.');
+    pdcNotify('Stock Number confirmation did not match exactly. No vehicle was changed.');
     return false;
   }
   const reason = cleanNavisionText(window.prompt(`Reason for ${resetTest ? 'resetting this staging test vehicle' : 'deleting this vehicle'} (required):`, '') || '');
   if (!reason) {
-    window.alert('A reason is required. No vehicle was changed.');
+    pdcNotify('A reason is required. No vehicle was changed.');
     return false;
   }
   const result = await window.__vehicleLifecycleActions.adminArchiveVehicle({
@@ -15514,7 +15521,7 @@ async function removeVehicle(stock, { resetTest = false } = {}) {
   });
   if (!result || result.ok !== true) {
     await refreshVehicleLifecycleLocationsAndRender();
-    window.alert(vehicleLifecycleActionErrorMessage(result));
+    pdcNotify(vehicleLifecycleActionErrorMessage(result));
     return false;
   }
   await refreshVehicleLifecycleLocationsAndRender();
@@ -15538,22 +15545,22 @@ async function completeVehicleDelete(stock) {
   const vehicle = selectedVehicle(stock);
   if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'delete')) return false;
   if (!vehicleLifecycleAdministratorActive() || !vehicleLifecycleStagingResetAllowed()) {
-    window.alert('Administrator access to the staging site is required. No vehicle was changed.');
+    pdcNotify('Administrator access to the staging site is required. No vehicle was changed.');
     return false;
   }
   if (!vehicleLifecycleSharedModeActive() || typeof window.__vehicleLifecycleActions?.adminCompleteVehicleDelete !== 'function') {
-    window.alert('The staging complete-delete service is unavailable. No vehicle was changed.');
+    pdcNotify('The staging complete-delete service is unavailable. No vehicle was changed.');
     return false;
   }
   const ref = await vehicleLifecycleSharedRef(vehicle);
   if (!ref || ref.outcome !== 'resolved') {
-    window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+    pdcNotify(describeVehicleLifecycleResolutionOutcome(ref));
     return false;
   }
   const stockNumber = cleanNavisionText(displayStockNumber(vehicle) || '');
   const vehicleUuid = cleanNavisionText(ref.vehicleId || '');
   if (!stockNumber || !vehicleUuid) {
-    window.alert('The exact Stock Number or vehicle UUID is unavailable. No vehicle was changed.');
+    pdcNotify('The exact Stock Number or vehicle UUID is unavailable. No vehicle was changed.');
     return false;
   }
   const confirmation = window.confirm(
@@ -15562,12 +15569,12 @@ async function completeVehicleDelete(stock) {
   if (!confirmation) return false;
   const stockConfirmation = window.prompt(`Type the exact Stock Number (${stockNumber}) to confirm:`, '') ?? '';
   if (stockConfirmation !== stockNumber) {
-    window.alert('Stock Number confirmation did not match exactly. No vehicle was changed.');
+    pdcNotify('Stock Number confirmation did not match exactly. No vehicle was changed.');
     return false;
   }
   const reason = cleanNavisionText(window.prompt('Reason for the staging complete delete (required):', '') || '');
   if (!reason) {
-    window.alert('A reason is required. No vehicle was changed.');
+    pdcNotify('A reason is required. No vehicle was changed.');
     return false;
   }
   const button = $('#vehicle-detail')?.querySelector('[data-complete-vehicle-delete]');
@@ -15586,13 +15593,13 @@ async function completeVehicleDelete(stock) {
     });
     if (!result || result.ok !== true) {
       await refreshVehicleLifecycleLocationsAndRender();
-      window.alert(vehicleLifecycleActionErrorMessage(result));
+      pdcNotify(vehicleLifecycleActionErrorMessage(result));
       return false;
     }
     await refreshVehicleLifecycleLocationsAndRender();
     const stillPresent = app.emailVehicleLocationRows.some(row => cleanNavisionText(displayStockNumber(row) || '') === stockNumber);
     if (stillPresent) {
-      window.alert('The server accepted the delete, but authoritative staging readback still shows this Stock Number. The modal remains open so the state can be checked safely.');
+      pdcNotify('The server accepted the delete, but authoritative staging readback still shows this Stock Number. The modal remains open so the state can be checked safely.');
       return false;
     }
     closeVehicleModal();
@@ -15836,7 +15843,7 @@ function renderDetail() {
       if (!rebound?.ok || !vehicleModalIdentityMatches(rebound.vehicle)) {
         const saveMessage = $('[data-save-message]', panel);
         if (saveMessage) saveMessage.textContent = 'Error: exact vehicle identity is no longer available; no change was made';
-        window.alert('The exact Stock and canonical vehicle identity changed or disappeared. No vehicle was changed.');
+        pdcNotify('The exact Stock and canonical vehicle identity changed or disappeared. No vehicle was changed.');
         return;
       }
       authoritativeSaveVehicle = rebound.vehicle;
@@ -15847,7 +15854,7 @@ function renderDetail() {
     if (serverAuthoritative && (!vehicleModalIdentityMatches(authoritativeSaveVehicle) || authoritativeSaveVehicle.__emailVehicleServerAuthoritative !== true)) {
       const saveMessage = $('[data-save-message]', panel);
       if (saveMessage) saveMessage.textContent = 'Error: exact vehicle identity is no longer available; no change was made';
-      window.alert('The exact Stock and canonical vehicle identity changed or disappeared. No vehicle was changed.');
+      pdcNotify('The exact Stock and canonical vehicle identity changed or disappeared. No vehicle was changed.');
       return;
     }
     const clientInput = form.client.value.trim();
@@ -15879,7 +15886,7 @@ function renderDetail() {
     if (serverAuthoritative && pdcJobcard !== String(form.dataset.jobcardBaseline || '').trim()) detailChanges.job_card_number = pdcJobcard;
     const duplicateKeyVehicle = pdcLocation === 'PMB' ? activePmbVehicleWithKeyNumber(keyNumber, key) : null;
     if (duplicateKeyVehicle) {
-      window.alert(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
+      pdcNotify(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
       return;
     }
     const authoritativeLocationChanged = serverAuthoritative
@@ -15896,7 +15903,7 @@ function renderDetail() {
         || pdcBlockReasonValue !== cleanNavisionText(v.pdcBlockReason || '');
       if (hasOtherAuthoritativeChanges) {
         if (saveMessage) saveMessage.textContent = 'Error: save other edits before changing PDC Location';
-        window.alert('PDC Location is an audited lifecycle action. Save other edits first, then change the location separately. No change was made.');
+        pdcNotify('PDC Location is an audited lifecycle action. Save other edits first, then change the location separately. No change was made.');
         return;
       }
       if (!pdcLocationManualTransitionAllowed(previousPdcLocation, pdcLocation, authoritativeSaveVehicle)) {
@@ -15983,7 +15990,7 @@ function renderDetail() {
       if (!sharedResult || sharedResult.ok !== true) {
         if (submit) submit.disabled = false;
         if (saveMessage) saveMessage.textContent = 'Not saved';
-        window.alert(sharedResult?.message || describeSharedVehicleWorkStateError(sharedResult));
+        pdcNotify(sharedResult?.message || describeSharedVehicleWorkStateError(sharedResult));
         return;
       }
       sharedWorkStatesSaved = true;
@@ -16275,24 +16282,24 @@ function confirmPdcJobLineHours(vehicleKeyValue, lineId, rawHours, rawStage = ''
   const vehicle = selectedVehicle(vehicleKeyValue);
   if (!vehicle) return false;
   if (vehicleCollectedFromRft(vehicle)) {
-    window.alert('This vehicle is completed/collected. Job-line hours are locked and were not changed.');
+    pdcNotify('This vehicle is completed/collected. Job-line hours are locked and were not changed.');
     return false;
   }
   const line = vehiclePdcJobLines(vehicle).find(item => item.id === lineId);
   if (!line) return false;
   const hours = validPdcJobLineHours(rawHours);
   if (hours == null) {
-    window.alert('Enter estimated hours from 0.08 to 40 before confirming this job line.');
+    pdcNotify('Enter estimated hours from 0.08 to 40 before confirming this job line.');
     return false;
   }
   const stage = normalizePmbStage(rawStage || pdcJobLineStage(line));
   if (!PDC_JOB_LINE_STAGE_OPTIONS.some(option => option.value === stage)) {
-    window.alert('Choose a workshop category before confirming this job line.');
+    pdcNotify('Choose a workshop category before confirming this job line.');
     return false;
   }
   const operator = getCurrentOperatorName();
   if (!operator || operator === 'Unknown operator') {
-    window.alert('Set an operator name before confirming job-line hours. No hours were saved.');
+    pdcNotify('Set an operator name before confirming job-line hours. No hours were saved.');
     return false;
   }
   const role = getCurrentOperatorRole();
@@ -16328,7 +16335,7 @@ function confirmPdcJobLineHours(vehicleKeyValue, lineId, rawHours, rawStage = ''
   } catch (error) {
     if (previousReviews === undefined) delete vehicle.pdcJobLineReviews;
     else vehicle.pdcJobLineReviews = previousReviews;
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return false;
   }
   app.data = buildVehicleData();
@@ -16465,6 +16472,8 @@ function draftNewVehicleBuildEmail(stock) {
   ].join('\n');
   const subject = `New PMB work order for ${displayStockNumber(v) || 'TBA'}`;
   if ((v.poFiles || []).length) {
+    // r409 (F25): deliberately still a blocking alert(): it must be read before
+    // the mail app takes focus, because the PO PDFs have to be attached by hand.
     window.alert('Your email draft will open now. Browser email links cannot attach PDF files automatically, so please attach the uploaded PO PDFs listed in the email body.');
   }
   window.location.href = `mailto:${PMG_UPDATE_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -17203,7 +17212,7 @@ function bindPartsIssuedStoppagePicker(host) {
   button?.addEventListener('click', () => {
     const key = select?.value || '';
     if (!key) {
-      window.alert('Select an issued vehicle before adding a Parts STOPPAGE.');
+      pdcNotify('Select an issued vehicle before adding a Parts STOPPAGE.');
       return;
     }
     markVehiclePartsStoppage(key);
@@ -17272,7 +17281,7 @@ async function markVehiclePartsOrdered(key = '') {
     vehicle = selectedVehicle(key);
   }
   if (!vehicle || !partsHasValidAuthoritativeEta(vehicle)) {
-    window.alert('Set a valid authoritative Parts ETA before marking Parts ordered. The latest shared row has been loaded; no change was made.');
+    pdcNotify('Set a valid authoritative Parts ETA before marking Parts ordered. The latest shared row has been loaded; no change was made.');
     renderPartsHome();
     return;
   }
@@ -17281,7 +17290,7 @@ async function markVehiclePartsOrdered(key = '') {
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
     if (!partsHasValidAuthoritativeEta(sharedVehicle)) {
-      window.alert('The authoritative shared vehicle has no valid Parts ETA. Set the ETA and wait for confirmed readback before marking Parts ordered. No change was made.');
+      pdcNotify('The authoritative shared vehicle has no valid Parts ETA. Set the ETA and wait for confirmed readback before marking Parts ordered. No change was made.');
       await refreshEmailVehicleLocations();
       if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshSharedVehicleWorkState(sharedVehicle);
@@ -17290,7 +17299,7 @@ async function markVehiclePartsOrdered(key = '') {
       return;
     }
     if (typeof service.markPartsOrdered !== 'function') {
-      window.alert('The shared Parts service is unavailable. No change was made.');
+      pdcNotify('The shared Parts service is unavailable. No change was made.');
       renderPartsHome();
       return;
     }
@@ -17312,7 +17321,7 @@ async function markVehiclePartsOrdered(key = '') {
         : result?.code === 'parts_ordered_receipt_invalid'
           ? 'The Parts order request did not return a valid authoritative receipt. No change is shown; reload before retrying.'
           : `Parts could not be marked ordered (${escapeHtml(String(result?.code || 'unknown error'))}). No change was made.`;
-      window.alert(message);
+      pdcNotify(message);
       await refreshEmailVehicleLocations();
       if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshSharedVehicleWorkState(sharedVehicle);
@@ -17326,14 +17335,14 @@ async function markVehiclePartsOrdered(key = '') {
     const workRefreshed = await refreshSharedVehicleWorkState(refreshedVehicle);
     if (authority && !pdcWriteAuthorityCurrent(authority)) return;
     if (!snapshotRefreshed || !workRefreshed || !partsOrdered(refreshedVehicle)) {
-      window.alert('Parts ordered was accepted, but authoritative readback did not converge. No ordered state is shown; refresh before continuing.');
+      pdcNotify('Parts ordered was accepted, but authoritative readback did not converge. No ordered state is shown; refresh before continuing.');
       renderPartsHome();
       return;
     }
     renderPartsHome();
     return;
   }
-  window.alert('Parts ordering requires one authoritative shared vehicle record and a confirmed Parts ETA. No local change was made.');
+  pdcNotify('Parts ordering requires one authoritative shared vehicle record and a confirmed Parts ETA. No local change was made.');
 }
 
 async function markVehiclePartsComplete(key = '') {
@@ -17344,13 +17353,13 @@ async function markVehiclePartsComplete(key = '') {
   const sharedTarget = await authenticatedPartsTarget(key, vehicle);
   if (authority && !pdcWriteAuthorityCurrent(authority)) return;
   if (!sharedTarget) {
-    window.alert('Parts completion requires the authenticated shared vehicle record. No change was made.');
+    pdcNotify('Parts completion requires the authenticated shared vehicle record. No change was made.');
     renderPartsHome();
     return;
   }
   const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
   if (typeof service.markPartsComplete !== 'function') {
-    window.alert('The shared Parts completion service is unavailable. No change was made.');
+    pdcNotify('The shared Parts completion service is unavailable. No change was made.');
     renderPartsHome();
     return;
   }
@@ -17378,7 +17387,7 @@ async function markVehiclePartsComplete(key = '') {
         : result?.code === 'parts_completion_receipt_invalid'
             ? 'The shared completion did not return a valid receipt. No change was made.'
             : 'Parts could not be marked received on the shared vehicle record. No change was made.';
-      window.alert(message);
+      pdcNotify(message);
       await refreshEmailVehicleLocations();
       if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshSharedVehicleWorkState(sharedVehicle);
@@ -17417,7 +17426,7 @@ async function markVehiclePartsStoppage(key = '') {
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
     if (typeof service.setPartsStoppage !== 'function') {
-      window.alert('The shared Parts STOPPAGE service is unavailable. No change was made.');
+      pdcNotify('The shared Parts STOPPAGE service is unavailable. No change was made.');
       return;
     }
     app.partsStoppageInFlight = app.partsStoppageInFlight || new Set();
@@ -17436,7 +17445,7 @@ async function markVehiclePartsStoppage(key = '') {
           : result?.code === 'parts_already_received' || result?.code === 'vehicle_inactive_or_issued'
             ? 'Received, issued or inactive vehicle Parts cannot be placed in STOPPAGE.'
             : 'Parts STOPPAGE was rejected by the shared record. No change was made.';
-        window.alert(message);
+        pdcNotify(message);
         renderPartsHome();
         return;
       }
@@ -17448,7 +17457,7 @@ async function markVehiclePartsStoppage(key = '') {
     }
   }
   if (vehicle.__emailVehicleServerAuthoritative === true) {
-    window.alert('This shared vehicle could not be resolved to one authoritative Parts record. No local STOPPAGE was recorded.');
+    pdcNotify('This shared vehicle could not be resolved to one authoritative Parts record. No local STOPPAGE was recorded.');
     return;
   }
   const operator = getCurrentOperatorName();
@@ -17476,7 +17485,7 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
     if (typeof service.updatePartsEta !== 'function') {
-      window.alert('The shared Parts ETA service is unavailable. No change was made.');
+      pdcNotify('The shared Parts ETA service is unavailable. No change was made.');
       renderPartsHome();
       return;
     }
@@ -17486,7 +17495,7 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
       const message = result?.code === 'vehicle_version_conflict'
         ? 'This vehicle changed since the Parts row loaded. The latest information will be reloaded; check it and try again.'
         : 'The Parts ETA could not be saved to the shared vehicle record. No change was made.';
-      window.alert(message);
+      pdcNotify(message);
       await refreshEmailVehicleLocations();
       if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       await refreshSharedVehicleWorkState(sharedVehicle);
@@ -17528,7 +17537,7 @@ function draftPartsEtaSalesEmail(key = '') {
   if (!vehicle) return;
   const eta = partsWorstEtaLabel(vehicle);
   if (!eta) {
-    window.alert('Set a Parts ETA before emailing sales.');
+    pdcNotify('Set a Parts ETA before emailing sales.');
     return;
   }
   const salesperson = salespersonDisplayName(vehicle);
@@ -17572,7 +17581,7 @@ async function clearVehiclePartsStoppage(key = '') {
   if (sharedTarget) {
     const { service, vehicle: sharedVehicle, vehicleId, expectedVersion } = sharedTarget;
     if (typeof service.setPartsStoppage !== 'function') {
-      window.alert('The shared Parts recovery service is unavailable. No change was made.');
+      pdcNotify('The shared Parts recovery service is unavailable. No change was made.');
       return;
     }
     app.partsStoppageInFlight = app.partsStoppageInFlight || new Set();
@@ -17586,7 +17595,7 @@ async function clearVehiclePartsStoppage(key = '') {
       await refreshSharedVehicleWorkState(sharedVehicle);
       if (authority && !pdcWriteAuthorityCurrent(authority)) return;
       if (!result?.ok) {
-        window.alert(result?.code === 'vehicle_version_conflict'
+        pdcNotify(result?.code === 'vehicle_version_conflict'
           ? 'This vehicle changed since the Parts row loaded. The latest shared row has been loaded; check it and try again.'
           : 'Parts STOPPAGE recovery was rejected by the shared record. No change was made.');
         renderPartsHome();
@@ -17599,7 +17608,7 @@ async function clearVehiclePartsStoppage(key = '') {
     }
   }
   if (vehicle.__emailVehicleServerAuthoritative === true) {
-    window.alert('This shared vehicle could not be resolved to one authoritative Parts record. No local recovery was recorded.');
+    pdcNotify('This shared vehicle could not be resolved to one authoritative Parts record. No local recovery was recorded.');
     return;
   }
   const operator = getCurrentOperatorName();
@@ -17837,10 +17846,10 @@ async function markRftConfirmation(key = '', confirmed = false) {
   const desired = confirmed === true;
   if (!vehicle || !vehicleRftLifecycleRoleAllowed()) { renderAll(); return false; }
   if (!rftTransportActionAuthorityReady(vehicle) || typeof service?.setRftConfirmation736 !== 'function') {
-    window.alert('This RFT vehicle is not bound to current staging authority. Nothing was changed.'); renderAll(); return false;
+    pdcNotify('This RFT vehicle is not bound to current staging authority. Nothing was changed.'); renderAll(); return false;
   }
   if (!desired && rftConfirmationIrreversibleReason(vehicle)) {
-    window.alert(rftConfirmationIrreversibleReason(vehicle)); renderAll(); return false;
+    pdcNotify(rftConfirmationIrreversibleReason(vehicle)); renderAll(); return false;
   }
   if (vehicleRftConfirmationActive(vehicle) === desired) { renderAll(); return false; }
   const action = beginRftTransportAction(key);
@@ -17862,19 +17871,19 @@ async function markRftConfirmation(key = '', confirmed = false) {
       };
       await refreshEmailVehicleLocations();
       if (!rftTransportActionIsCurrent(action)) return false;
-      window.alert(messages[result?.code] || 'RFT’d was not changed. No history was removed.'); renderAll(); return false;
+      pdcNotify(messages[result?.code] || 'RFT’d was not changed. No history was removed.'); renderAll(); return false;
     }
     const data = result.data && typeof result.data === 'object' ? result.data : {};
     if (String(data.vehicle_id || '') !== String(vehicle.__emailVehicleId) || !data.receipt_id || !Number.isInteger(Number(data.vehicle_version_after)) || Number(data.vehicle_version_after) < 1 || data.rft_confirmed !== desired) {
       await refreshEmailVehicleLocations();
       if (!rftTransportActionIsCurrent(action)) return false;
-      window.alert('The RFT confirmation response was incomplete. Refresh before retrying.'); renderAll(); return false;
+      pdcNotify('The RFT confirmation response was incomplete. Refresh before retrying.'); renderAll(); return false;
     }
     const refreshed = await refreshEmailVehicleLocations();
     if (!rftTransportActionIsCurrent(action)) return false;
-    if (!refreshed) { window.alert('RFT’d was accepted, but the shared row could not be read back. Refresh before retrying.'); renderAll(); return false; }
+    if (!refreshed) { pdcNotify('RFT’d was accepted, but the shared row could not be read back. Refresh before retrying.'); renderAll(); return false; }
     renderAll();
-    window.alert(desired ? 'RFT’d recorded. The dealer-transit timer has started.' : 'RFT’d unticked. The accidental confirmation and open timer were cleared.');
+    pdcNotify(desired ? 'RFT’d recorded. The dealer-transit timer has started.' : 'RFT’d unticked. The accidental confirmation and open timer were cleared.', 'info');
     return true;
   } finally {
     finishRftTransportAction(action);
@@ -17889,7 +17898,7 @@ async function markRftTransportBooked(key = '', booked = true) {
   if (!vehicle || !booked || !vehicleRftLifecycleRoleAllowed()) { renderAll(); return false; }
   if (vehicleRftTransportBooked(vehicle)) { renderAll(); return false; }
   if (!durableRftLifecycleEnabled() || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.bookRftTransport739 !== 'function') {
-    window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return false;
+    pdcNotify('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return false;
   }
   const action = beginRftTransportAction(key);
   if (!action) return false;
@@ -17902,13 +17911,13 @@ async function markRftTransportBooked(key = '', booked = true) {
       const messages = { rft_confirmation_required: 'Tick RFT’d and wait for the authoritative checked state before emailing.', salesperson_email_required: 'Assign an active salesperson with an email address first.', qc_evidence_required: 'The QC completion list and photo must be stored before transport can be booked.', qc_items_required: 'Every required QC item must be complete before transport can be booked.', qc_photo_receipt_required: 'A durable QC vehicle photo is required before transport can be booked.', qc_photo_storage_missing: 'The durable QC photo storage object could not be read back.', qc_photo_evidence_changed: 'The QC photo changed. Refresh the vehicle and retry.', qc_photo_bytes_mismatch: 'The QC photo bytes did not match the immutable evidence. Nothing was booked.', qc_photo_bytes_invalid: 'The QC photo could not be bound to the immutable evidence. Nothing was booked.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.', transport_already_booked: 'Transport has already been booked.', transport_draft_already_exists: 'The intercepted salesperson draft already exists. Refresh to download it.', rft_transport_draft_receipt_invalid: 'The intercepted salesperson draft readback was incomplete. Nothing was claimed as sent.' };
       await refreshEmailVehicleLocations();
       if (!rftTransportActionIsCurrent(action)) return false;
-      window.alert(messages[result?.code] || 'Transport booking was not saved. No email was created.'); renderAll(); return false;
+      pdcNotify(messages[result?.code] || 'Transport booking was not saved. No email was created.'); renderAll(); return false;
     }
     const refreshed = await refreshEmailVehicleLocations();
     if (!rftTransportActionIsCurrent(action)) return false;
-    if (!refreshed) { window.alert('Transport booking was accepted, but the shared row could not be read back. Refresh before retrying.'); renderAll(); return false; }
+    if (!refreshed) { pdcNotify('Transport booking was accepted, but the shared row could not be read back. Refresh before retrying.'); renderAll(); return false; }
     renderAll();
-    window.alert('Transport booking saved. The mandatory salesperson update has been created with the full build history and QC photo.');
+    pdcNotify('Transport booking saved. The mandatory salesperson update has been created with the full build history and QC photo.', 'info');
     return true;
   } finally {
     finishRftTransportAction(action);
@@ -17921,10 +17930,10 @@ async function markRftVehicleCollected(key = '', collected = true) {
   const vehicle = selectedVehicle(key);
   const service = app.emailVehicleLocationService;
   if (!vehicle || !collected || !vehicleRftLifecycleRoleAllowed()) { renderAll(); return false; }
-  if (!vehicleRftTransportBooked(vehicle)) { window.alert('Book the vehicle on the trucking company website first.'); renderAll(); return false; }
-  if (!vehicleRftEmailEvidenceReady(vehicle)) { window.alert('The intercepted salesperson email and QC photo evidence must be read back before collection.'); renderAll(); return false; }
+  if (!vehicleRftTransportBooked(vehicle)) { pdcNotify('Book the vehicle on the trucking company website first.'); renderAll(); return false; }
+  if (!vehicleRftEmailEvidenceReady(vehicle)) { pdcNotify('The intercepted salesperson email and QC photo evidence must be read back before collection.'); renderAll(); return false; }
   if (!vehicleRftCollectionEnabled(vehicle) || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId || Number(vehicle.__emailVehicleVersion || 0) < 1 || typeof service?.collectRftTransport734 !== 'function') {
-    window.alert('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return false;
+    pdcNotify('This RFT vehicle is not bound to current server authority. Nothing was changed.'); renderAll(); return false;
   }
   const action = beginRftTransportAction(key);
   if (!action) return false;
@@ -17937,11 +17946,11 @@ async function markRftVehicleCollected(key = '', collected = true) {
       const messages = { transport_booking_and_mandatory_email_required: 'The trucking booking and mandatory salesperson update must exist first.', started_booking_must_be_completed_before_collection: 'A Workshop job is still STARTED. Complete that real work before collection.', vehicle_version_conflict: 'This vehicle changed in another session. The latest state has been reloaded; please try again.', vehicle_not_in_rft: 'This vehicle is no longer in RFT.' };
       await Promise.allSettled([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('rft_collection_rejected')]);
       if (!rftTransportActionIsCurrent(action)) return false;
-      window.alert(messages[result?.code] || 'The vehicle was not marked collected. No history was removed.'); renderAll(); return false;
+      pdcNotify(messages[result?.code] || 'The vehicle was not marked collected. No history was removed.'); renderAll(); return false;
     }
     const [refreshed] = await Promise.all([refreshEmailVehicleLocations(), window.__workshopDataService?.loadSnapshot?.('rft_collected_412')]);
     if (!rftTransportActionIsCurrent(action)) return false;
-    if (!refreshed) { window.alert('Collection was accepted, but the shared row could not be read back. Refresh before retrying.'); renderAll(); return false; }
+    if (!refreshed) { pdcNotify('Collection was accepted, but the shared row could not be read back. Refresh before retrying.'); renderAll(); return false; }
     renderAll();
     return true;
   } finally {
@@ -17954,7 +17963,7 @@ async function downloadRftTransportDraft(key = '') {
   const service = app.emailVehicleLocationService;
   if (!vehicle || typeof service?.readRftTransportDraft739 !== 'function') return false;
   const result = await service.readRftTransportDraft739(vehicle.__emailVehicleId);
-  if (!result?.ok) { window.alert(result?.code === 'transport_draft_not_found' ? 'The intercepted salesperson draft is not available yet.' : 'The intercepted salesperson draft could not be read.'); return false; }
+  if (!result?.ok) { pdcNotify(result?.code === 'transport_draft_not_found' ? 'The intercepted salesperson draft is not available yet.' : 'The intercepted salesperson draft could not be read.'); return false; }
   const data = result.data || {};
   try {
     const binary = atob(data.mime_base64);
@@ -17968,7 +17977,7 @@ async function downloadRftTransportDraft(key = '') {
     anchor.href = objectUrl; anchor.download = String(data.draft_filename || 'rft-transport.eml').replace(/[^A-Za-z0-9._-]/g, '-');
     document.body.appendChild(anchor); anchor.click(); anchor.remove(); setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
     return true;
-  } catch (_error) { window.alert('The intercepted salesperson draft failed its byte/hash readback. Nothing was downloaded.'); return false; }
+  } catch (_error) { pdcNotify('The intercepted salesperson draft failed its byte/hash readback. Nothing was downloaded.'); return false; }
 }
 
 function bindRftCollectedInputs(root = document) {
@@ -18248,12 +18257,12 @@ async function runDeletedVehicleAdminAction(tombstoneId, action) {
   if (!window.confirm(`${label}\n\nStock Number: ${row.stockNumber}\nCustomer: ${row.customerName || 'Unknown customer'}\nVehicle UUID: ${row.id}\nTombstone type: ${row.resetEligible ? 'Staging reset' : 'Manual delete'}\n\nContinue to exact Stock Number confirmation?`)) return false;
   const stockConfirmation = window.prompt(`Type the exact Stock Number (${row.stockNumber}) to confirm:`, '') ?? '';
   if (stockConfirmation !== row.stockNumber) {
-    window.alert('Stock Number confirmation did not match exactly. No vehicle was changed.');
+    pdcNotify('Stock Number confirmation did not match exactly. No vehicle was changed.');
     return false;
   }
   const reason = cleanNavisionText(window.prompt(`Reason for ${label.toLowerCase()} (required):`, '') || '');
   if (!reason) {
-    window.alert('A reason is required. No vehicle was changed.');
+    pdcNotify('A reason is required. No vehicle was changed.');
     return false;
   }
   let evidenceBinding = {};
@@ -18262,7 +18271,7 @@ async function runDeletedVehicleAdminAction(tombstoneId, action) {
     const evidenceHash = window.prompt('Authenticated email evidence SHA-256 (64 lowercase hex characters):', '') ?? '';
     const sourceUid = window.prompt('Exact authenticated email source UID:', '') ?? '';
     if (!/^[a-f0-9]{64}$/.test(sourceHash) || !/^[a-f0-9]{64}$/.test(evidenceHash) || sourceUid.length < 1 || sourceUid.length > 100) {
-      window.alert('Exact authenticated email evidence is required. No recreation was authorized.');
+      pdcNotify('Exact authenticated email evidence is required. No recreation was authorized.');
       return false;
     }
     evidenceBinding = { sourceHash, evidenceHash, sourceUid };
@@ -18270,7 +18279,7 @@ async function runDeletedVehicleAdminAction(tombstoneId, action) {
   const method = action === 'restore' ? 'adminRestoreVehicle' : 'adminAllowOneVehicleRecreation';
   const result = await window.__vehicleLifecycleActions[method]({ tombstoneId, stockConfirmation, reason, ...evidenceBinding });
   if (!result || result.ok !== true) {
-    window.alert(vehicleLifecycleActionErrorMessage(result));
+    pdcNotify(vehicleLifecycleActionErrorMessage(result));
     await loadDeletedVehicleSnapshot({ force: true });
     await refreshVehicleLifecycleLocationsAndRender();
     return false;
@@ -19515,7 +19524,7 @@ function renderBackEndData() {
   $$('[data-shared-backend-activate]', host).forEach(btn => btn.addEventListener('click', async () => {
     btn.disabled = true;
     const result = await activateSharedNavisionBackendRecord(btn.dataset.sharedBackendActivate, 'manual');
-    if (!result?.ok && result?.code !== 'cancelled') window.alert(`Vehicle was not activated: ${result?.code || 'unknown error'}. Refresh shared imports and try again.`);
+    if (!result?.ok && result?.code !== 'cancelled') pdcNotify(`Vehicle was not activated: ${result?.code || 'unknown error'}. Refresh shared imports and try again.`);
     btn.disabled = false;
   }));
 }
@@ -19688,7 +19697,7 @@ function openCustomerModal() {
   const modal = $('#customer-modal');
   if (!modal) return;
   if (vehicleLifecycleSharedModeActive() && window.PDC_AUTH_CONTEXT?.role !== 'administrator') {
-    window.alert('Manual browser-only vehicle creation is unavailable in shared mode. No vehicle was created.');
+    pdcNotify('Manual browser-only vehicle creation is unavailable in shared mode. No vehicle was created.');
     return false;
   }
   rememberModalReturnFocus(modal);
@@ -20139,7 +20148,7 @@ async function legacyDisabledHandleVehiclePoSelect(key, event) {
   renderAll();
   app.selectedStock = vehicleKey(selected);
   renderDetail();
-  if (messages.some(message => /not |No Stock|could not|error/i.test(message))) window.alert(messages.join('\n'));
+  if (messages.some(message => /not |No Stock|could not|error/i.test(message))) pdcNotify(messages.join('\n'));
   event.target.value = '';
 }
 
@@ -21247,7 +21256,7 @@ function reportSharedNavisionPreviewError(result, request) {
   const host = $('#navision-status-list');
   if (host) host.innerHTML = `<div class="summary-row error" role="alert"><strong>Navision preview could not finish</strong><span>${escapeHtml(message)}</span></div>`;
   updateNavisionImportButton();
-  window.alert(message);
+  pdcNotify(message);
 }
 
 async function handleNavisionFileSelect(event) {
@@ -21305,7 +21314,7 @@ async function handleNavisionFileSelect(event) {
     if (summary) {
       summary.innerHTML = `<div class="summary-row error"><strong>${escapeHtml(file.name)}</strong><span>${escapeHtml(error.message || 'Could not read this file.')}</span></div>`;
     }
-    window.alert(error.message || 'Could not read this file.');
+    pdcNotify(error.message || 'Could not read this file.');
   }
 }
 
@@ -22946,13 +22955,13 @@ async function reviewNavisionCompleteSnapshot(pending, service, authorityIdentit
   const approval = await service.reviewCompleteSnapshot(pending.rows, pending.previewResult, pending.metadata);
   if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return false;
   if (!approval?.ok) {
-    window.alert(sharedNavisionApplyErrorMessage(approval));
+    pdcNotify(sharedNavisionApplyErrorMessage(approval));
     return false;
   }
   const result = await service.preview(pending.rows, pending.metadata);
   if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return false;
   if (!result?.ok) {
-    window.alert('The reviewed file could not be rechecked. Preview it again; nothing was imported.');
+    pdcNotify('The reviewed file could not be rechecked. Preview it again; nothing was imported.');
     return false;
   }
   pending.previewResult = result;
@@ -22974,12 +22983,12 @@ async function importNavisionVehicles() {
   if (!$('#navision-dealer-code')) return importNavisionVehiclesLocal(text);
   if (!navisionSharedImportRoleAllowed()) {
     updateNavisionImportAccessStatus(true);
-    window.alert('Importer or administrator access is required for shared Navision imports. Ask an administrator to assign the importer role. Nothing changed.');
+    pdcNotify('Importer or administrator access is required for shared Navision imports. Ask an administrator to assign the importer role. Nothing changed.');
     return;
   }
   let dealerCode = ($('#navision-dealer-code')?.value || '').trim();
   if (!['broome','pilbara','combined', '14450', '37047', '002345', '001234'].includes(dealerCode)) {
-    window.alert('Choose Broome Upload or Pilbara Upload before previewing.');
+    pdcNotify('Choose Broome Upload or Pilbara Upload before previewing.');
     return;
   }
   if (dealerCode === '37047') return await previewBroomeNavisionOrders(text);
@@ -23008,7 +23017,7 @@ async function importNavisionVehicles() {
   if (parsed.rejectedRows?.length) {
     app.pendingSharedNavisionImport = null;
     renderNavisionSummary({ parsed, added: [], updated: [], unchanged: [], stockNumberUpdates: [], restored: [], skipped: parsed.warnings });
-    window.alert('One or more source rows have no Navision identity. Shared preview was blocked so no raw source evidence is silently discarded.');
+    pdcNotify('One or more source rows have no Navision identity. Shared preview was blocked so no raw source evidence is silently discarded.');
     updateNavisionImportButton();
     return;
   }
@@ -23043,7 +23052,7 @@ async function importNavisionVehicles() {
     if (approved) {
       const approvalResult = await service.approveInitialScope(rows, metadata);
       if (!approvalResult?.ok) {
-        window.alert(`Initial dealer-scope review failed: ${approvalResult?.error || 'server unavailable'}. Nothing was imported or changed.`);
+        pdcNotify(`Initial dealer-scope review failed: ${approvalResult?.error || 'server unavailable'}. Nothing was imported or changed.`);
       } else {
         previewResult = await service.preview(rows, metadata);
         if (!navisionSharedPreviewRequestStillCurrent(previewRequest)) return;
@@ -23101,7 +23110,7 @@ async function applySharedNavisionImport() {
   if (app.navisionSharedApplyInFlight === true) return;
   if (!navisionSharedImportRoleAllowed()) {
     updateNavisionImportAccessStatus(true);
-    window.alert('Importer or administrator access is required for shared Navision imports. Nothing changed.');
+    pdcNotify('Importer or administrator access is required for shared Navision imports. Nothing changed.');
     return;
   }
   const pending = app.pendingSharedNavisionImport;
@@ -23111,7 +23120,7 @@ async function applySharedNavisionImport() {
   try {
     await navisionWaitForBusyPaint();
     if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) {
-      window.alert('Import authority or preview input changed before apply. Preview again; nothing was changed.');
+      pdcNotify('Import authority or preview input changed before apply. Preview again; nothing was changed.');
       return;
     }
     return await applySharedNavisionImportPending(pending, authorityIdentity);
@@ -23128,12 +23137,12 @@ async function applySharedNavisionImportPending(pending, authorityIdentity = '')
   let service = navisionSharedBackendService();
   if (blockingState.blocking) {
     if (!service) {
-      window.alert('The shared Navision backend is unavailable, so the blocked preview could not be rechecked. Nothing was imported or changed.');
+      pdcNotify('The shared Navision backend is unavailable, so the blocked preview could not be rechecked. Nothing was imported or changed.');
       return;
     }
     const refreshedPreview = await service.preview(pending.rows, pending.metadata);
     if (!refreshedPreview?.ok) {
-      window.alert(`Shared Navision safety recheck failed: ${refreshedPreview?.error || 'service unavailable'}. Nothing was imported or changed.`);
+      pdcNotify(`Shared Navision safety recheck failed: ${refreshedPreview?.error || 'service unavailable'}. Nothing was imported or changed.`);
       return;
     }
     pending.previewResult = refreshedPreview;
@@ -23155,13 +23164,13 @@ async function applySharedNavisionImportPending(pending, authorityIdentity = '')
     const serverDetail = blockingState.safetyBlocking
       ? `\n\nServer check: ${Number(safety.incoming_valid_count || counts.total || 0)} valid row(s), ${Number(safety.cross_dealer_matches || 0)} cross-dealer identity match(es), authority ${String(safety.authority || 'not established')}.`
       : '';
-    window.alert(blockingState.safetyBlocking
+    pdcNotify(blockingState.safetyBlocking
       ? `${navisionSafetyIssueMessage(blockingState.safetyReason)}${serverDetail}\n\nNothing was imported or changed.`
       : `${affected} row${affected === 1 ? '' : 's'} need attention (${invalid} invalid, ${conflict} conflicting).\n\nClose this message to see each affected row and how to fix it. Nothing was imported or changed.`);
     return;
   }
   if (navisionBrowserAuthoritySha256() !== pending.browserLocalSha256) {
-    window.alert('Browser-local operational data changed after preview. Preview again before applying. Nothing was applied.');
+    pdcNotify('Browser-local operational data changed after preview. Preview again before applying. Nothing was applied.');
     app.pendingSharedNavisionImport = null;
     updateNavisionImportButton();
     return;
@@ -23170,7 +23179,7 @@ async function applySharedNavisionImportPending(pending, authorityIdentity = '')
   if (!window.confirm(`Apply this exact shared Navision preview?\n\nDealer: ${navisionDealerName(pending.dealerCode)}\n${totals}\n\nThis updates the shared Navision records. Delivered - At Dealer moves linked PMB vehicles to Completed Vehicles and cancels their active bookings. Booking history, work items, Parts and QC results are preserved.`)) return;
   service = navisionSharedBackendService();
   if (!service || !navisionSharedPendingStillCurrent(pending, authorityIdentity)) {
-    window.alert('Import authority, service, or preview input changed before dispatch. Preview again; nothing was changed.');
+    pdcNotify('Import authority, service, or preview input changed before dispatch. Preview again; nothing was changed.');
     return;
   }
   const idempotencyKey = `normal-upload:${pending.dealerCode}:${data.source_hash || sha256Hex(JSON.stringify(pending.rows))}`.slice(0, 200);
@@ -23191,7 +23200,7 @@ async function applySharedNavisionImportPending(pending, authorityIdentity = '')
   }
   if (!navisionSharedPendingStillCurrent(pending, authorityIdentity)) return;
   if (!applyResult?.ok) {
-    window.alert(sharedNavisionApplyErrorMessage(applyResult));
+    pdcNotify(sharedNavisionApplyErrorMessage(applyResult));
     return;
   }
   const afterSha256 = navisionBrowserAuthoritySha256();
@@ -23217,7 +23226,7 @@ function applyPendingNavisionImport(mode = 'all') {
   if (!pending) return;
   const selectedKeys = mode === 'selected' ? selectedPendingNavisionUpdateKeys(pending) : null;
   if (mode === 'selected' && (!selectedKeys || !selectedKeys.size)) {
-    window.alert('Select at least one existing vehicle update, or use Apply all Navision updates.');
+    pdcNotify('Select at least one existing vehicle update, or use Apply all Navision updates.');
     return;
   }
   applyNavisionImportPlan(pending, selectedKeys);
@@ -23442,7 +23451,7 @@ function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
   const fingerprint = plan?.sourceFingerprint || sha256Hex(JSON.stringify(plan?.parsed?.vehicles || []));
   if (app.rejectedNavisionFingerprint && app.rejectedNavisionFingerprint === fingerprint) {
     renderNavisionQuotaRejection(app.rejectedNavisionProjection || { projectedPeakBytes: 0, budgetBytes: NAVISION_LOCAL_STORAGE_SAFE_BUDGET_BYTES });
-    window.alert(NAVISION_IMPORT_TOO_LARGE_MESSAGE);
+    pdcNotify(NAVISION_IMPORT_TOO_LARGE_MESSAGE);
     return null;
   }
   const projection = projectNavisionImportPeakStorage(plan, selectedUpdateKeys);
@@ -23451,7 +23460,7 @@ function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
     app.rejectedNavisionProjection = projection;
     app.pendingNavisionImport = plan;
     renderNavisionQuotaRejection(projection);
-    window.alert(NAVISION_IMPORT_TOO_LARGE_MESSAGE);
+    pdcNotify(NAVISION_IMPORT_TOO_LARGE_MESSAGE);
     return null;
   }
   try {
@@ -23462,7 +23471,7 @@ function applyNavisionImportPlan(plan, selectedUpdateKeys = null) {
     app.data = buildVehicleData();
     app.pendingNavisionImport = plan;
     renderAll();
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return null;
   }
   finalizeNavisionImportCommit(projection.commit);
@@ -23615,7 +23624,7 @@ function removeMissingFromLastNavisionImport() {
   const result = app.navisionImport || loadJson(NAVISION_IMPORT_RESULTS_KEY, null);
   const missingCount = Number(result?.missingCount ?? result?.missingFromUpload?.length ?? 0);
   if (!missingCount) return;
-  window.alert(`For storage safety, no records were changed. Re-select the same Navision source file, choose the reviewed “Retire missing” option in the import confirmation, and apply it through the exact quota preflight (${missingCount} currently missing).`);
+  pdcNotify(`For storage safety, no records were changed. Re-select the same Navision source file, choose the reviewed “Retire missing” option in the import confirmation, and apply it through the exact quota preflight (${missingCount} currently missing).`);
 }
 
 function handlePdfSelect(e) {
@@ -23721,7 +23730,7 @@ function clearDashboard() {
     });
   } catch (error) {
     app.data = buildVehicleData();
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return;
   }
   app.selectedRows.clear();
@@ -25867,15 +25876,15 @@ async function decideServerAiIntake(proposalId = '', decision = '') {
       && ['applied', 'rejected'].includes(String(event.event_type || '').toLowerCase()));
     if ((current && current.status !== 'pending') || terminalHistory) {
       deleteServerAiIntakeDecisionAttempt(attempt.signature);
-      window.alert('The original response was lost, but authoritative history confirms that the decision was recorded.');
+      pdcNotify('The original response was lost, but authoritative history confirms that the decision was recorded.', 'info');
       return true;
     }
-    window.alert('The server outcome is not yet known. No result is being claimed. Retry the same decision to reconcile the durable receipt with the same idempotency key.');
+    pdcNotify('The server outcome is not yet known. No result is being claimed. Retry the same decision to reconcile the durable receipt with the same idempotency key.');
     return false;
   }
   if (!response?.ok) {
     deleteServerAiIntakeDecisionAttempt(attempt.signature);
-    window.alert(`AI Intake decision rejected: ${response?.code || 'unknown error'}. The server returned a definitive rejection and committed no change.`);
+    pdcNotify(`AI Intake decision rejected: ${response?.code || 'unknown error'}. The server returned a definitive rejection and committed no change.`);
     await refreshServerAiIntake();
     return false;
   }
@@ -26032,23 +26041,23 @@ function reviewedEmailVehicleUpdates(vehicle = {}, review = {}, lines = [], oper
 
 async function applyVehicleImportReview(review = {}) {
   if (serverAuthoritativeAiIntakeEnabled()) {
-    window.alert('Uploaded-file proposals are local drafts only. Server AI Intake is observation and history only; nothing changed.');
+    pdcNotify('Uploaded-file proposals are local drafts only. Server AI Intake is observation and history only; nothing changed.');
     return false;
   }
   const operator = getCurrentOperatorName();
   if (!operator || operator === 'Unknown operator') {
-    window.alert('Set an operator name before approving an email import. Nothing was changed.');
+    pdcNotify('Set an operator name before approving an email import. Nothing was changed.');
     return false;
   }
   let lines;
   try {
     lines = reviewedEmailJobLines(review, emailVehicleReviewLineValues(review.id), operator);
   } catch (error) {
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return false;
   }
   if (!lines.length) {
-    window.alert('Select at least one valid work line before pushing this vehicle to the PDC board.');
+    pdcNotify('Select at least one valid work line before pushing this vehicle to the PDC board.');
     return false;
   }
   const existing = vehicleForEmailReview(review);
@@ -26057,12 +26066,12 @@ async function applyVehicleImportReview(review = {}) {
   const updates = reviewedEmailVehicleUpdates(baseVehicle, review, lines, operator, details);
   const key = vehicleKey(baseVehicle) || cleanNavisionText(review.stock || '');
   if (!key) {
-    window.alert('This proposal has no safe stock/job-card identity and cannot be pushed.');
+    pdcNotify('This proposal has no safe stock/job-card identity and cannot be pushed.');
     return false;
   }
   const sharedActivation = await activateSharedNavisionForApprovedEmailReview(baseVehicle);
   if (!sharedActivation?.ok) {
-    window.alert(`This approved build email could not activate the matching shared Navision vehicle: ${sharedActivation?.code || 'unknown error'}. Nothing was pushed locally.`);
+    pdcNotify(`This approved build email could not activate the matching shared Navision vehicle: ${sharedActivation?.code || 'unknown error'}. Nothing was pushed locally.`);
     return false;
   }
   try {
@@ -26086,7 +26095,7 @@ async function applyVehicleImportReview(review = {}) {
       saveEmailReviewDecision(review.id, 'applied', { stock: review.stock, action: 'vehicle-import', jobLineCount: lines.length });
     });
   } catch (error) {
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return false;
   }
   app.data = buildVehicleData();
@@ -26098,7 +26107,7 @@ async function applyVehicleImportReview(review = {}) {
 
 function applyEmailReview(id = '') {
   if ($('#ai-intake-server-panel')) {
-    window.alert('Uploaded-file proposals are local drafts only. Server AI Intake is observation and history only; nothing changed.');
+    pdcNotify('Uploaded-file proposals are local drafts only. Server AI Intake is observation and history only; nothing changed.');
     return false;
   }
   const review = emailReviewItems().find(item => String(item.id || '') === String(id || ''));
@@ -26106,7 +26115,7 @@ function applyEmailReview(id = '') {
   if (review.type === 'vehicle-import') return applyVehicleImportReview(review);
   const vehicle = vehicleForEmailReview(review);
   if (!vehicle) {
-    window.alert(`No vehicle matching stock ${review.stock || 'unknown'} was found. Keep this proposal pending until the vehicle exists.`);
+    pdcNotify(`No vehicle matching stock ${review.stock || 'unknown'} was found. Keep this proposal pending until the vehicle exists.`);
     return;
   }
   const updates = emailReviewApplyUpdates(vehicle, review);
@@ -26121,7 +26130,7 @@ function applyEmailReview(id = '') {
   } catch (error) {
     Object.keys(vehicle).forEach(key => { if (!Object.prototype.hasOwnProperty.call(vehicleSnapshot, key)) delete vehicle[key]; });
     Object.assign(vehicle, vehicleSnapshot);
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return false;
   }
   renderAll();
@@ -26137,7 +26146,7 @@ function applyEmailReview(id = '') {
 
 function rejectEmailReview(id = '') {
   if (serverAuthoritativeAiIntakeEnabled()) {
-    window.alert('Browser-local AI Intake decisions are disabled on staging. Nothing changed.');
+    pdcNotify('Browser-local AI Intake decisions are disabled on staging. Nothing changed.');
     return false;
   }
   const review = emailReviewItems().find(item => String(item.id || '') === String(id || ''));
@@ -26149,7 +26158,7 @@ function rejectEmailReview(id = '') {
       if (vehicle) recordVehicleAudit(vehicle, 'Reviewed Parts email rejected', { action: review.action, intakeId: review.intakeId || '', by: getCurrentOperatorName() });
     });
   } catch (error) {
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return false;
   }
   renderEmailIntakeReview();
@@ -26710,7 +26719,7 @@ function queueSubletVehicleMutation(vehicleId = '', mutation) {
   const previous = app.subletMutationQueues.get(id) || Promise.resolve();
   const current = previous.catch(() => false).then(() => currentSession() ? mutation(currentSession) : false).catch(() => {
     if (currentSession()) {
-      window.alert('The Sublet change could not be confirmed. Refresh Sublet and check the booking before retrying.');
+      pdcNotify('The Sublet change could not be confirmed. Refresh Sublet and check the booking before retrying.');
       renderSubletHome();
     }
     return false;
@@ -26754,7 +26763,7 @@ async function updateSubletField(key = '', field = '', value = '') {
   const cleanValue = cleanNavisionText(value || '');
   const dateError = subletDateChangeError(vehicle, field, cleanValue);
   if (dateError) {
-    window.alert(dateError);
+    pdcNotify(dateError);
     renderSubletHome();
     return false;
   }
@@ -26762,7 +26771,7 @@ async function updateSubletField(key = '', field = '', value = '') {
     const service = app.emailVehicleLocationService;
     const providerFields = ['pmbSubletProvider', 'pmbSubletProviderEmail'];
     if (!service?.updateSubletBooking || (providerFields.includes(field) && !service.updateSubletBookingProvider) || (!providerFields.includes(field) && !['pmbSubletBookingDate', 'pmbSubletExpectedReturnDate', 'pmbSubletNotes'].includes(field))) {
-      window.alert('This canonical booking field is read-only or the shared booking service is unavailable. No change was made.');
+      pdcNotify('This canonical booking field is read-only or the shared booking service is unavailable. No change was made.');
       renderSubletHome();
       return false;
     }
@@ -26774,7 +26783,7 @@ async function updateSubletField(key = '', field = '', value = '') {
       if (providerFields.includes(field)) {
         const provider = field === 'pmbSubletProvider' ? subletProviderRecordByName(cleanValue) : { id: current.__subletProviderId, name: current.pmbSubletProvider };
         if (!provider?.id) {
-          window.alert('Choose an active canonical provider. No change was made.');
+          pdcNotify('Choose an active canonical provider. No change was made.');
           return false;
         }
         const providerEmail = field === 'pmbSubletProviderEmail' ? cleanValue : cleanNavisionText(provider.email || '');
@@ -26794,20 +26803,20 @@ async function updateSubletField(key = '', field = '', value = '') {
           : response?.code === 'sublet_booking_overlap'
             ? 'Those dates overlap another Sublet booking for this vehicle. No change was made.'
             : 'The Sublet change could not be confirmed. Refresh Sublet and check the booking before retrying.';
-        window.alert(message);
+        pdcNotify(message);
         renderSubletHome();
         return false;
       }
       let refreshed;
       try { refreshed = await refreshEmailVehicleLocations(); } catch (_error) { refreshed = false; }
       if (!currentSession()) return false;
-      if (refreshed === false) window.alert('The booking was saved, but its current details could not be refreshed. Refresh Sublet before making another change.');
+      if (refreshed === false) pdcNotify('The booking was saved, but its current details could not be refreshed. Refresh Sublet before making another change.');
       renderSubletHome();
       return true;
     });
   }
   if (vehicle.__emailVehicleServerAuthoritative === true && !vehicle.__subletBookingId) {
-    window.alert('No active canonical Sublet booking exists for this vehicle. Use Create booking first; no legacy placeholder update was sent.');
+    pdcNotify('No active canonical Sublet booking exists for this vehicle. Use Create booking first; no legacy placeholder update was sent.');
     renderSubletHome();
     return false;
   }
@@ -26820,7 +26829,7 @@ async function setSubletReturned(key = '', returned = false, referenceDate = new
   const vehicle = subletVehicleByKey(key);
   if (vehicle?.__subletBookingId && vehicle.__emailVehicleServerAuthoritative === true) {
     if (!returned) {
-      window.alert('Returned bookings are immutable history and cannot be reopened. Create a new booking instead.');
+      pdcNotify('Returned bookings are immutable history and cannot be reopened. Create a new booking instead.');
       renderSubletHome();
       return false;
     }
@@ -26833,7 +26842,7 @@ async function setSubletReturned(key = '', returned = false, referenceDate = new
       const businessDate = subletTodayDateKey(referenceDate instanceof Date ? referenceDate : new Date());
       const outDate = plainDateValue(current.pmbSubletBookingDate);
       if (outDate && businessDate < outDate) {
-        window.alert(`This booking cannot be marked Back before its Going Out date (${outDate}). Correct the Going Out date first.`);
+        pdcNotify(`This booking cannot be marked Back before its Going Out date (${outDate}). Correct the Going Out date first.`);
         renderSubletHome();
         return false;
       }
@@ -26847,14 +26856,14 @@ async function setSubletReturned(key = '', returned = false, referenceDate = new
           : response?.code === 'invalid_return'
             ? 'This booking cannot be marked Back before its Going Out date. Correct the Going Out date first.'
             : 'The return could not be confirmed. Refresh Sublet and check whether this booking is marked Back before retrying.';
-        window.alert(message);
+        pdcNotify(message);
         renderSubletHome();
         return false;
       }
       let refreshed;
       try { refreshed = await refreshEmailVehicleLocations(); } catch (_error) { refreshed = false; }
       if (!currentSession()) return false;
-      if (refreshed === false) window.alert('The return was saved, but the booking could not be refreshed. Refresh Sublet before making another change.');
+      if (refreshed === false) pdcNotify('The return was saved, but the booking could not be refreshed. Refresh Sublet before making another change.');
       renderSubletHome();
       return true;
     });
@@ -26878,8 +26887,8 @@ function draftSubletProviderEmail(key = '') {
   if (!vehicle) return;
   const contact = subletProviderContact(vehicle);
   const recipient = contact.email;
-  if (!contact.name) { window.alert('Choose a sublet provider before drafting an email.'); return false; }
-  if (!recipient || !subletProviderEmailValid(recipient)) { window.alert('Add a valid email for this provider in Setup or in the booking before drafting.'); return false; }
+  if (!contact.name) { pdcNotify('Choose a sublet provider before drafting an email.'); return false; }
+  if (!recipient || !subletProviderEmailValid(recipient)) { pdcNotify('Add a valid email for this provider in Setup or in the booking before drafting.'); return false; }
   const stock = displayStockNumber(vehicle) || 'TBA';
   const subject = `Sublet booking - ${stock}`;
   const body = [`Hello ${contact.name},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
@@ -27034,7 +27043,7 @@ async function submitSubletCreate(event) {
     let refreshed;
     try { refreshed = await refreshEmailVehicleLocations(); } catch (_error) { refreshed = false; }
     if (sameSession() && subletCreateSession.generation === completedGeneration && !dialog.open) {
-      if (refreshed === false) window.alert('The booking was created, but the list could not be refreshed. Refresh Sublet before creating another booking for this requirement.');
+      if (refreshed === false) pdcNotify('The booking was created, but the list could not be refreshed. Refresh Sublet before creating another booking for this requirement.');
       app.subletOperationalFilter = 'booked';
       renderSubletHome();
     }
