@@ -12,15 +12,37 @@ function harness(){
   api.init({getRows:()=>rows,getContext:()=>({role:'salesperson',salesperson_code:'BG'}),getSalesperson:()=>'',getToken:()=>'t',onUpdate:()=>updates.push(1)});
   return {api,calls,updates,rows,host};
 }
-test('line table groups Build, Tray, Tint and Admin with Admin collapsed and a red Not raised PO',()=>{
-  const html=acc.recordHtml(acc.normaliseRecord(record()));
-  assert.match(html,/<th scope="col">Line<\/th><th scope="col">Item<\/th><th scope="col">Type<\/th><th scope="col">Sublet<\/th><th scope="col">PO #<\/th><th scope="col">Notes<\/th>/);
-  assert.ok(html.indexOf('data-accessory-group="build"')<html.indexOf('data-accessory-group="tray"'));
-  assert.match(html,/<details class="sales-accessory-admin"><summary>Admin · 1 line/);assert.doesNotMatch(html,/<details class="sales-accessory-admin" open/);
-  assert.match(html,/sales-accessory-po-missing">Not raised/);assert.doesNotMatch(html,/data-accessory-group="tint"/);
+test('notes panel lists accessory types in order, then other, with Admin collapsed',()=>{
+  const html=acc.notesLinesHtml(acc.normaliseRecord(record({lines:[
+    line('build','PO1',{type:'special',item:'Sublet winch',notes:'Fit before delivery'}),
+    line('tray','',{type:'miscacc',item:'Misc mat'}),
+    line('tint','PO9',{type:'Aftermarket',item:'Snorkel'}),
+    line('build','C&S ONLY',{type:'Accessory',item:'Canopy',notes:'Black'}),
+    line('tray','SELL ONLY',{type:'accessory',item:'Towbar',po_state:'sell_only'}),
+    line('tint','NO UPDATE',{type:'aftermarket',item:'Lid',po_state:'no_update'}),
+    line('build','',{type:'',item:'Blank type'}),
+    line('tray','WEIRD',{type:'paint',item:'Custom paint',po_state:'other'}),
+    line('admin','',{type:'accessory',item:'Freight'})
+  ]})));
+  const at=type=>html.indexOf('data-accessory-type="'+type+'"');
+  assert.ok(at('accessory')<at('aftermarket')&&at('aftermarket')<at('miscacc')&&at('miscacc')<at('special')&&at('special')<at('other'));
+  assert.ok(html.indexOf('Canopy')<html.indexOf('Towbar'));
+  assert.ok(html.indexOf('Snorkel')<html.indexOf('>Lid<'));
+  assert.match(html,/Canopy<\/span><span class="sales-notes-accessory-po">C&amp;S ONLY<\/span><small class="sales-notes-accessory-note">Black<\/small>/);
+  assert.match(html,/Towbar<\/span><span class="sales-notes-accessory-po">SELL ONLY<\/span>/);
+  assert.match(html,/Lid<\/span><span class="sales-notes-accessory-po">NO UPDATE<\/span>/);
+  assert.match(html,/Sublet winch<\/span><span class="sales-notes-accessory-po">PO1<\/span>/);
+  assert.match(html,/Misc mat<\/span><span class="sales-accessory-po-missing">Not raised<\/span>/);
+  assert.match(html,/Blank type<\/span><span class="sales-accessory-po-missing">Not raised<\/span>/);
+  assert.match(html,/Custom paint<\/span><span class="sales-notes-accessory-po">WEIRD<\/span>/);
+  assert.match(html,/<details class="sales-accessory-admin"><summary>Admin · 1 line<\/summary>/);
+  assert.doesNotMatch(html,/<details class="sales-accessory-admin" open/);
+  assert.ok(html.indexOf('data-accessory-type="other"')<html.indexOf('sales-accessory-admin'));
+  assert.equal(html.indexOf('Freight'),html.lastIndexOf('Freight'));
+  assert.doesNotMatch(html,/sales-accessory-table|data-accessory-group=/);
 });
 test('source text is escaped',()=>{
-  const html=acc.recordHtml(acc.normaliseRecord(record({lines:[line('build','',{item:'<img src=x onerror=1>',notes:'<script>'})]})));
+  const html=acc.notesLinesHtml(acc.normaliseRecord(record({lines:[line('build','',{item:'<img src=x onerror=1>',notes:'<script>'})]})));
   assert.match(html,/&lt;img/);assert.doesNotMatch(html,/<img|<script>/);
 });
 test('malformed tick or line groups are rejected',()=>{
@@ -39,8 +61,11 @@ test('r394: derived ticks ignore every manual state, including tray Orders Raise
 test('records for another source identity or order are ignored and a failed read clears data',async()=>{
   const h=harness();let p=h.api.refresh();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[record({navision_record_id:'other'}),record({tracking_id:'x'})]}});await p;
   assert.equal(h.api.tickFor(h.rows[0],'build_po','not_decided'),null);assert.equal(h.api.detailHtml(h.rows[0]),'');
-  p=h.api.refresh();h.calls[1].resolve({data:{context:{role:'salesperson'},items:[record()]}});await p;assert.match(h.api.detailHtml(h.rows[0]),/Accessory and PO lines/);
-  p=h.api.refresh();h.calls[2].resolve({error:{message:'x'}});await p;assert.equal(h.api.detailHtml(h.rows[0]),'');
+  assert.match(h.api.notesPanelHtml(h.rows[0]),/No accessory lines in the latest sales export\./);
+  p=h.api.refresh();h.calls[1].resolve({data:{context:{role:'salesperson'},items:[record()]}});await p;
+  assert.match(h.api.notesPanelHtml(h.rows[0]),/data-accessory-type="accessory"/);assert.equal(h.api.detailHtml(h.rows[0]),'');
+  assert.equal(h.api.tickFor(h.rows[0],'build_po').state,'red');
+  p=h.api.refresh();h.calls[2].resolve({error:{message:'x'}});await p;assert.equal(h.api.detailHtml(h.rows[0]),'');assert.equal(h.api.notesPanelHtml(h.rows[0]),'');
   h.rows[0].navision_record_id='replaced';assert.equal(h.api.tickFor(h.rows[0],'build_po','not_decided'),null);
 });
 test('a delayed read cannot populate after sign-out',async()=>{
@@ -63,8 +88,9 @@ test('dashboard ticks are read-only derived cells and flashing respects reduced 
 });
 test('Sales entrypoint loads the accessory module before build requirements and bumps cache tokens',()=>{
   const index=fs.readFileSync('sales/index.html','utf8'),module=fs.readFileSync('sales/sales-accessories.js','utf8');
-  assert.match(index,/sales-accessories\.js\?v=2026\.10\.20\.03[\s\S]*build-requirements\.js\?v=2026\.10\.03\.02&amp;sales-accessories=2026\.10\.20\.01[\s\S]*sales\.js\?[^"]*sales-accessories=2026\.10\.20\.01/);
-  assert.match(index,/sales-accessories\.css\?v=2026\.10\.20\.03/);
+  assert.match(index,/sales-accessories\.js\?v=2026\.10\.20\.03&amp;notes-lines=2026\.10\.20\.05[\s\S]*build-requirements\.js\?v=2026\.10\.03\.02&amp;sales-accessories=2026\.10\.20\.01&amp;notes-lines=2026\.10\.20\.05[\s\S]*vehicle-notes\.js\?v=2026\.10\.06\.01&amp;notes-lines=2026\.10\.20\.05[\s\S]*sales\.js\?[^"]*sales-accessories=2026\.10\.20\.01/);
+  assert.match(index,/sales-accessories\.css\?v=2026\.10\.20\.03&amp;notes-lines=2026\.10\.20\.05/);
+  assert.match(index,/sales\.css\?[^"]*notes-lines=2026\.10\.20\.05/);
   assert.doesNotMatch(module,/localStorage|sessionStorage|\.from\(|insert\(|<input|<form|set_ordering|import_sales/);assert.match(module,/rpc\('get_broome_sales_accessories'\)/);
 });
 test('migration keeps the importer management-only and the read RPC signed-in only',()=>{
@@ -74,15 +100,47 @@ test('migration keeps the importer management-only and the read RPC signed-in on
   assert.match(sql,/GRANT EXECUTE ON FUNCTION public\.get_broome_sales_accessories\(\) TO authenticated;/);
   assert.doesNotMatch(sql,/(UPDATE|INSERT INTO|DELETE FROM) public\.vehicles|sales_build_orders\s+SET|INSERT INTO pdc_sales_private\.ordering_progress/i);
 });
-test('stock detail dropdown shows the line table first and keeps the earlier import collapsed',async()=>{
+test('a successful read with no accessory record says so, and a failed read does not',async()=>{
+  const h=harness();let p=h.api.refresh();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[]}});await p;
+  assert.match(h.api.notesPanelHtml(h.rows[0]),/No accessory lines in the latest sales export\./);
+  assert.equal(h.api.detailHtml(h.rows[0]),'');assert.equal(h.api.tickFor(h.rows[0],'tint'),null);
+  p=h.api.refresh();h.calls[1].resolve({error:{message:'x'}});await p;assert.equal(h.api.notesPanelHtml(h.rows[0]),'');
+});
+test('stock detail keeps the earlier import and does not repeat the sales-export line list',async()=>{
   const builds=require('./sales/build-requirements.js'),calls=[],nodes=new Map();
   const el=id=>{if(!nodes.has(id))nodes.set(id,{id,innerHTML:'',textContent:'',hidden:false,open:false,querySelector(){return null;}});return nodes.get(id);};
   const host={PDC_AUTH_CONTEXT:{userId:'u'},document:{getElementById:el},addEventListener(){},PDC_SUPABASE:{rpc(name){return new Promise(resolve=>calls.push({name,resolve}));}},
-    BROOME_SALES_ACCESSORIES:{detailHtml:r=>r.tracking_id==='bg'?acc.recordHtml(acc.normaliseRecord(record())):''}};
+    BROOME_SALES_ACCESSORIES:{detailHtml:()=>'<h3>Accessory and PO lines</h3><table class="sales-accessory-table"></table>'}};
   const api=builds.createBuildRequirements(host);api.init({getRows:()=>[row],getContext:()=>({role:'salesperson',salesperson_code:'BG'}),getSalesperson:()=>'',getToken:()=>'t'});
-  const p=api.refresh();const html=api.detailHtml(row);assert.match(html,/Accessory and PO lines/);api.bindDetail('bg');
+  const p=api.refresh();api.bindDetail('bg');
   calls[0].resolve({data:{context:{role:'salesperson'},items:[{tracking_id:'bg',navision_record_id:'source-bg',order:'00001',stock:'13001',items:[{description:'Towbar',source_rows:[7]}],notes:[],other_lines:[]}]}});await p;
-  const content=el('sales-build-content').innerHTML;assert.ok(content.indexOf('Accessory and PO lines')<content.indexOf('Earlier accessory import'));assert.match(content,/<details class="sales-build-earlier">/);
+  const content=el('sales-build-content').innerHTML;
+  assert.match(content,/Towbar/);assert.doesNotMatch(content,/Accessory and PO lines|sales-accessory-table|data-accessory-type|sales-build-earlier/);
+  assert.doesNotMatch(api.detailHtml(row),/Accessory and PO lines|sales-accessory-table|data-accessory-type/);
+});
+test('expanded notes place the accessory lines before the note fields',()=>{
+  const {create}=require('./sales/vehicle-notes.js'),elements=new Map();
+  const el=id=>{if(!elements.has(id))elements.set(id,{events:{},addEventListener(k,fn){this.events[k]=fn;}});return elements.get(id);};
+  const calls=[];
+  const host={PDC_AUTH_CONTEXT:{userId:'u'},document:{getElementById:el},addEventListener(){},
+    PDC_SUPABASE:{rpc(){return new Promise(resolve=>calls.push({resolve}));}}};
+  const accessories=acc.createSalesAccessories(host);
+  accessories.init({getRows:()=>[row],getContext:()=>({role:'salesperson',salesperson_code:'BG'}),getSalesperson:()=>'',getToken:()=>'t'});
+  host.BROOME_SALES_ACCESSORIES=accessories;
+  const notes=create(host).init({getRows:()=>[row],getVisibleRows:()=>[row],getScope:()=>'',canEditRow:()=>true,isHidden:()=>false,reference:r=>'Stock '+r.stock,onChanged(){}});
+  const listed=accessories.refresh();
+  calls[0].resolve({data:{context:{role:'salesperson'},items:[record({lines:[line('build','PO55',{item:'Canopy',type:'Accessory'}),line('admin','',{item:'Freight'})]})]}});
+  return listed.then(()=>{
+    el('sales-expand-notes').events.click();
+    const html=notes.rowHtml(row);
+    assert.ok(html.indexOf('data-accessory-type="accessory"')<html.indexOf('>Vehicle notes<'));
+    assert.match(html,/Canopy<\/span><span class="sales-notes-accessory-po">PO55<\/span>/);
+    assert.match(html,/<details class="sales-accessory-admin"><summary>Admin · 1 line/);
+    assert.doesNotMatch(html,/sales-accessory-table/);
+    assert.equal(accessories.detailHtml(row),'');
+    assert.equal(accessories.tickFor(row,'build_po').state,'red');
+    assert.match(html,/class="vehicle-notes-layout"/);
+  });
 });
 test('r394 migration refuses sales ordering writes and drops the in-house exemption',()=>{
   const sql=fs.readFileSync('supabase/migrations/20261020083610_r394_ticks_derived_only.sql','utf8');
