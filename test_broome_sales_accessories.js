@@ -27,14 +27,14 @@ test('malformed tick or line groups are rejected',()=>{
   assert.throws(()=>acc.normaliseRecord(record({derived:{build:{state:'orange'},tint:{state:'grey'},tray:{state:'grey'}}})));
   assert.throws(()=>acc.normaliseRecord(record({lines:[{group:'other'}]})));
 });
-test('derived ticks yield to manual Completed / Not required and tray Orders Raised shows green',async()=>{
+test('r394: derived ticks ignore every manual state, including tray Orders Raised',async()=>{
   const h=harness();const p=h.api.refresh();assert.equal(h.calls[0].name,'get_broome_sales_accessories');
   h.calls[0].resolve({data:{context:{role:'salesperson'},items:[record()]}});await p;assert.equal(h.updates.length,1);
-  assert.equal(h.api.tickFor(h.rows[0],'build_po','not_decided').state,'red');
-  assert.equal(h.api.tickFor(h.rows[0],'build_po','orders_raised').state,'red');
-  assert.equal(h.api.tickFor(h.rows[0],'build_po','completed'),null);assert.equal(h.api.tickFor(h.rows[0],'tint','not_needed'),null);
-  assert.equal(h.api.tickFor(h.rows[0],'tint','not_decided').state,'grey');
-  assert.equal(h.api.tickFor({...h.rows[0]},'tray_ordered','orders_raised').state,'green');
+  for(const manual of ['not_decided','orders_raised','completed','not_needed']){
+    assert.equal(h.api.tickFor(h.rows[0],'build_po',manual).state,'red');assert.equal(h.api.tickFor(h.rows[0],'tint',manual).state,'grey');
+  }
+  assert.equal(h.api.tickFor({...h.rows[0],tray_ordered:true,tray_complete:true},'tray_ordered').state,'green');
+  assert.equal(h.api.tickFor(h.rows[0],'jita'),null);
 });
 test('records for another source identity or order are ignored and a failed read clears data',async()=>{
   const h=harness();let p=h.api.refresh();h.calls[0].resolve({data:{context:{role:'salesperson'},items:[record({navision_record_id:'other'}),record({tracking_id:'x'})]}});await p;
@@ -47,24 +47,24 @@ test('a delayed read cannot populate after sign-out',async()=>{
   const h=harness();const p=h.api.refresh();delete h.host.PDC_AUTH_CONTEXT;h.calls[0].resolve({data:{context:{role:'salesperson'},items:[record()]}});await p;
   h.host.PDC_AUTH_CONTEXT={userId:'u'};assert.equal(h.api.detailHtml(h.rows[0]),'');
 });
-test('dashboard tick buttons carry the derived class and flashing respects reduced motion',()=>{
+test('dashboard ticks are read-only derived cells and flashing respects reduced motion',()=>{
   const css=fs.readFileSync('sales/sales-accessories.css','utf8');
   assert.match(css,/\.ordering-status\.derived-red\{[^}]*animation:sales-accessory-flash/);
   assert.match(css,/@media \(prefers-reduced-motion:reduce\)\{\.ordering-status\.derived-red\{animation:none/);
-  assert.match(css,/\.ordering-status\.derived-green\{background:#d9f5e3/);
-  const window={BROOME_SALES_ACCESSORIES:{tickFor:(r,key,manual)=>manual==='completed'?null:{state:key==='tint'?'grey':'red'}}};
+  assert.match(css,/span\.ordering-status\{cursor:default\}/);
   const sales=require('./sales/sales.js');
-  global.BROOME_SALES_ACCESSORIES=window.BROOME_SALES_ACCESSORIES;
+  global.BROOME_SALES_ACCESSORIES={tickFor:(r,key)=>({state:key==='tint'?'grey':'red'})};
   try{
-    const html=sales.orderingControl({...row,build_complete:false},'build_po',null);assert.match(html,/class="ordering-status not_decided derived-red"/);assert.match(html,/Sales export: PO not raised/);
-    assert.doesNotMatch(sales.orderingControl({...row,build_complete:true},'build_po',null),/derived-/);
-    assert.doesNotMatch(sales.orderingControl(row,'build_po',{key:'build_po',status:'completed'}),/derived-/);
+    for(const manual of [{},{build_complete:true},{build_not_required:true},{build_po:true}]){
+      const html=sales.orderingControl({...row,...manual},'build_po',{key:'build_po',status:'completed'});
+      assert.match(html,/class="ordering-status derived-red"/);assert.match(html,/PO not raised/);assert.doesNotMatch(html,/<button|data-ordering-id|disabled/);
+    }
   }finally{delete global.BROOME_SALES_ACCESSORIES;}
 });
 test('Sales entrypoint loads the accessory module before build requirements and bumps cache tokens',()=>{
   const index=fs.readFileSync('sales/index.html','utf8'),module=fs.readFileSync('sales/sales-accessories.js','utf8');
-  assert.match(index,/sales-accessories\.js\?v=2026\.10\.20\.01[\s\S]*build-requirements\.js\?v=2026\.10\.03\.02&amp;sales-accessories=2026\.10\.20\.01[\s\S]*sales\.js\?[^"]*sales-accessories=2026\.10\.20\.01/);
-  assert.match(index,/sales-accessories\.css\?v=2026\.10\.20\.01/);
+  assert.match(index,/sales-accessories\.js\?v=2026\.10\.20\.03[\s\S]*build-requirements\.js\?v=2026\.10\.03\.02&amp;sales-accessories=2026\.10\.20\.01[\s\S]*sales\.js\?[^"]*sales-accessories=2026\.10\.20\.01/);
+  assert.match(index,/sales-accessories\.css\?v=2026\.10\.20\.03/);
   assert.doesNotMatch(module,/localStorage|sessionStorage|\.from\(|insert\(|<input|<form|set_ordering|import_sales/);assert.match(module,/rpc\('get_broome_sales_accessories'\)/);
 });
 test('migration keeps the importer management-only and the read RPC signed-in only',()=>{
@@ -83,4 +83,10 @@ test('stock detail dropdown shows the line table first and keeps the earlier imp
   const p=api.refresh();const html=api.detailHtml(row);assert.match(html,/Accessory and PO lines/);api.bindDetail('bg');
   calls[0].resolve({data:{context:{role:'salesperson'},items:[{tracking_id:'bg',navision_record_id:'source-bg',order:'00001',stock:'13001',items:[{description:'Towbar',source_rows:[7]}],notes:[],other_lines:[]}]}});await p;
   const content=el('sales-build-content').innerHTML;assert.ok(content.indexOf('Accessory and PO lines')<content.indexOf('Earlier accessory import'));assert.match(content,/<details class="sales-build-earlier">/);
+});
+test('r394 migration refuses sales ordering writes and drops the in-house exemption',()=>{
+  const sql=fs.readFileSync('supabase/migrations/20261020083610_r394_ticks_derived_only.sql','utf8');
+  assert.match(sql,/FUNCTION pdc_sales_private\.set_ordering_status[\s\S]*?RAISE EXCEPTION 'TINT, BUILD and TRAY now follow/);
+  assert.match(sql,/FUNCTION pdc_sales_private\.set_ordering_flag[\s\S]*?RAISE EXCEPTION 'TINT, BUILD and TRAY now follow/);
+  assert.doesNotMatch(sql,/in_house'\)::boolean|ordering_progress\s+(SET|op)|UPDATE |DELETE |INSERT INTO/i);
 });
