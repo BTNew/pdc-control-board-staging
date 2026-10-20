@@ -1,0 +1,17 @@
+.sales-accessory-group{margin:14px 0 0}.sales-accessory-group h4,.sales-accessory-admin>summary{font-size:13px;font-weight:700;margin:0 0 6px;color:#173047}
+.sales-accessory-admin{margin:14px 0 0;border-top:1px solid #e6edf3;padding-top:10px}.sales-accessory-admin>summary{cursor:pointer;min-height:32px;line-height:1.6}
+.sales-accessory-admin>summary:focus-visible{outline:3px solid #b4d5fb;outline-offset:3px}
+.sales-accessory-table-wrap{overflow-x:auto}.sales-accessory-table{width:100%;border-collapse:collapse;font-size:12px;line-height:1.45}
+.sales-accessory-table th{text-align:left;font-weight:700;color:#52687a;background:#f4f8fc;padding:5px 6px;border-bottom:1px solid #dce5ee;white-space:nowrap}
+.sales-accessory-table td{padding:5px 6px;border-bottom:1px solid #eef2f6;vertical-align:top;overflow-wrap:anywhere}
+.sales-accessory-item{min-width:180px;font-weight:600}.sales-accessory-notes{white-space:pre-wrap;color:#52687a}
+.sales-accessory-po-missing{color:#c4161c;font-weight:700}.sales-accessory-po-none{color:#8a99a6}.sales-accessory-in-house{color:#68798a;font-size:11px}
+.sales-accessory-state{font-weight:600}.sales-accessory-state.green{color:#175b36}.sales-accessory-state.grey{color:#5f6b78}.sales-accessory-state.red{color:#c4161c}.sales-accessory-state.review{color:#8b4600}
+/* Derived dashboard ticks (manual Completed / Not required keep their own colours). */
+.ordering-status.derived-green{background:#d9f5e3;color:#175b36;border-color:#95d5ae}
+.ordering-status.derived-grey{background:#e4e7eb;color:#5f6b78;border-color:#c3c9d1}
+.ordering-status.derived-review{background:#ffe4ba;color:#8b4600;border-color:#eab367}
+.ordering-status.derived-red{background:#fde2e2;color:#a3161b;border-color:#e86a6f;animation:sales-accessory-flash 1.2s ease-in-out infinite}
+@keyframes sales-accessory-flash{0%,100%{background:#fde2e2;border-color:#e86a6f}50%{background:#e0262d;border-color:#a3161b;color:#fff}}
+@media (prefers-reduced-motion:reduce){.ordering-status.derived-red{animation:none;background:#e0262d;border-color:#a3161b;color:#fff}}
+@media(max-width:650px){.sales-accessory-table{font-size:11px}.sales-accessory-item{min-width:140px}}

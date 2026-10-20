@@ -56,6 +56,7 @@
   }
   const orderingLabels={tint:'TINT',build_po:'BUILD',tray_ordered:'TRAY'};
   const orderingValues={not_decided:'Not decided',not_needed:'Not required',orders_raised:'Orders Raised',completed:'Completed'};
+  const derivedTickValues={green:'PO raised or not needed',grey:'Not on quote',red:'PO not raised',review:'Check PO text'};
   const orderingFields=['tint','tint_complete','build_po','build_complete','tray_ordered','tray_complete','tint_not_required','build_not_required','tray_not_required'];
   function orderingState(row,key){
     const complete={tint:'tint_complete',build_po:'build_complete',tray_ordered:'tray_complete'}[key];
@@ -66,8 +67,9 @@
   function orderingControl(row,key,pending,editable=true){
     const value=pending?.key===key?pending.status:orderingState(row,key);
     const label=orderingLabels[key]+' for '+(row.stock||'Toyota order '+(row.order||'not recorded'));
-    const name=orderingValues[value],next=orderingValues[nextOrderingState(value)];
-    return '<button type="button" role="checkbox" class="ordering-status '+value+'" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" data-ordering-status="'+value+'" aria-checked="'+(value==='completed'?'true':value==='not_decided'?'false':'mixed')+'" aria-label="'+escapeHtml(label+': '+name+(editable?'. Click for '+next:'. View only'))+'" '+(pending||row.identity_conflict||row.sales_hidden||!editable?'disabled ':'')+'title="'+escapeHtml(name+(editable?' — click for '+next:' — view only'))+'"><span aria-hidden="true">'+(value==='completed'?'✓':value==='orders_raised'?'−':value==='not_needed'?'/':'')+'</span></button>';
+    const derived=pending?null:root.BROOME_SALES_ACCESSORIES?.tickFor?.(row,key,value);
+    const name=orderingValues[value]+(derived?' · Sales export: '+derivedTickValues[derived.state]:''),next=orderingValues[nextOrderingState(value)];
+    return '<button type="button" role="checkbox" class="ordering-status '+value+(derived?' derived-'+derived.state:'')+'" data-ordering-id="'+escapeHtml(row.tracking_id)+'" data-ordering-flag="'+key+'" data-ordering-status="'+value+'" aria-checked="'+(value==='completed'?'true':value==='not_decided'?'false':'mixed')+'" aria-label="'+escapeHtml(label+': '+name+(editable?'. Click for '+next:'. View only'))+'" '+(pending||row.identity_conflict||row.sales_hidden||!editable?'disabled ':'')+'title="'+escapeHtml(name+(editable?' — click for '+next:' — view only'))+'"><span aria-hidden="true">'+(value==='completed'?'✓':value==='orders_raised'?'−':value==='not_needed'?'/':'')+'</span></button>';
   }
   function selectRows(rows, filters) {
     const search = String(filters.search || '').toLowerCase();
@@ -205,7 +207,7 @@
     $('sales-visibility-status').textContent='';$('sales-hidden-toggle').disabled=false;
     state.generation++;state.workspaceRequest++;state.workspace=null;state.workspaceBusy=false;state.savedView='';state.html.clear();
     if(state.searchTimer!==null)root.clearTimeout?.(state.searchTimer);state.searchTimer=null;
-    root.BROOME_COMPLETED_VEHICLES?.clear();root.BROOME_VEHICLE_NOTES?.clear();root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_BUILDS?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
+    root.BROOME_COMPLETED_VEHICLES?.clear();root.BROOME_VEHICLE_NOTES?.clear();root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_BUILDS?.clear();root.BROOME_SALES_ACCESSORIES?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
     $('sales-mobile-vehicles').innerHTML='';$('sales-saved-view').innerHTML='';$('sales-view-name').value='';$('sales-view-status').textContent='';$('sales-workspace-status').textContent='';
     state.busy=false; state.printBusy=false;state.printerBusy=false;state.printers=[];state.printerName='';$('sales-label-printer').innerHTML='<option value="">Connect to load printers</option>';$('sales-label-printer').disabled=true;$('sales-connect-printer').disabled=false;$('sales-save-view').disabled=false;$('sales-label-status').textContent=''; state.items=[]; state.context=null; state.accounts=null;
     state.selected.clear();
@@ -547,6 +549,7 @@
       attachWorkspace();populateFilters();render();
       root.BROOME_VEHICLE_NOTES?.load();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_BUILDS?.refresh();
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_ACCESSORIES?.refresh();
       if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId)return;
       await refreshWorkspace();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_FINANCE?.refresh();
@@ -678,6 +681,7 @@
   $('sales-save-view').addEventListener('click',saveView);
   root.BROOME_COMPLETED_VEHICLES?.init(moduleOptions());
   root.BROOME_SALES_CRM?.init(moduleOptions());
+  root.BROOME_SALES_ACCESSORIES?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation]),onUpdate:()=>render()});
   root.BROOME_SALES_BUILDS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
   root.BROOME_VEHICLE_NOTES?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getVisibleRows:()=>selectRows(state.items,state.filters),getScope:()=>state.filters.salesperson,canEditRow,isHidden:()=>state.showHidden,reference:vehicleReference,onChanged:render});
   const columnWidths=root.BROOME_SALES_TOOLS?.initColumns($('vehicle-table'),$('sales-reset-widths'));
