@@ -155,3 +155,16 @@ test('r394 migration refuses sales ordering writes and drops the in-house exempt
   assert.match(sql,/FUNCTION pdc_sales_private\.set_ordering_flag[\s\S]*?RAISE EXCEPTION 'TINT, BUILD and TRAY now follow/);
   assert.doesNotMatch(sql,/in_house'\)::boolean|ordering_progress\s+(SET|op)|UPDATE |DELETE |INSERT INTO/i);
 });
+test('r396 import accepts OOXML .xls names and eastern-time stamps without widening access',()=>{
+  const sql=fs.readFileSync('supabase/migrations/20261020092338_r396_import_xls_tz.sql','utf8');
+  const down=fs.readFileSync('supabase/rollbacks/20261020092338_r396_import_xls_tz.down.sql','utf8');
+  assert.match(sql,/a \.xls file name needs container ooxml/);assert.match(sql,/container must be ooxml/);
+  assert.match(sql,/'Australia\/Perth','Australia\/Brisbane','Australia\/Sydney','Australia\/Melbourne'/);
+  assert.match(sql,/ELSE ARRAY\['Australia\/Perth'\] END/);assert.match(sql,/snapshot_at_utc does not match the extract stamp/);
+  assert.match(sql,/is later than received_at; check extract_tz/);assert.match(sql,/file_sha_snapshot_conflict/);
+  assert.match(sql,/CHECK \(file_name ~\* '\\\.xlsx\?\$' AND length\(file_name\) <= 255\)/);
+  assert.match(sql,/import_sales_accessories_20261020\(p_action text, p_envelope jsonb, p_rows jsonb DEFAULT NULL::jsonb, p_expected_preview_hash text DEFAULT NULL::text\)/);
+  assert.match(sql,/UPDATE auth\.users SET banned_until=NULL WHERE id=importer_id/);assert.match(sql,/UPDATE auth\.users SET banned_until=prior_ban WHERE id=importer_id/);
+  assert.doesNotMatch(sql,/GRANT |REVOKE |SECURITY DEFINER|(UPDATE|INSERT INTO|DELETE FROM) public\.vehicles|sales_build_orders\s+SET|ordering_progress/i);
+  assert.match(down,/418b21e32ad877a6e18ec96b836b5e76/);assert.match(down,/9801ff7658e60fee649387f0a45f69b2/);assert.match(down,/receipts named \.xls exist/);
+});
