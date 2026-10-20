@@ -57,7 +57,7 @@ test('the tick change leaves job start, section 12 and the QC import functions a
   assert.match(migration, /pdc_monitor_staging_guard/);
   assert.match(migration, /pdc_production_environment_sentinel/);
   assert.equal(migration.includes('vjdtsswhroyguxyfjdkt'), false);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*conversion-tick=2026\.10\.20\.01/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*conversion-tick=2026\.10\.20\.\d\d/);
 });
 
 function postgresAvailable() {

@@ -241,11 +241,46 @@
     const waiting = planned.filter(j=>j.id!==current?.id);
     return { current, next:waiting[0] || null, upcoming:waiting.slice(1), otherActive:active.filter(j=>j.id!==current?.id) };
   }
-  // Coaster and HiAce main conversions are one bay item. The section checklist
-  // stays stored, but it is not the fitter completion control for those two.
+  // Coaster and HiAce main conversions: a dropdown under the job with one
+  // simple Start / Done tick per section, like the other bay items.
   function conversionUsesSimpleTick(line) {
     const conversion = line && line.conversion;
     return !!conversion && conversion.needs_review !== true && (conversion.id === 'coaster' || conversion.id === 'hiace_commuter');
+  }
+  const conversionDuration = m => m == null ? '—' : `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, '0')}m`;
+  function conversionSectionHtml(line, section, state) {
+    const id = esc(line.line_identity), sid = esc(section.id), planned = Number(section.planned_minutes) || 0;
+    const done = section.status === 'complete', running = section.status === 'in_progress';
+    const elapsed = Number(section.elapsed_minutes) || 0, over = running && planned > 0 && elapsed > planned;
+    const pct = planned > 0 ? Math.min(100, Math.round(1000 * elapsed / planned) / 10) : 100;
+    // Pure CSS fill: start at the server's elapsed share and run the remaining
+    // allowance in real time. Paused while the bay job is stopped.
+    const remainSeconds = Math.max(1, Math.round((planned - elapsed) * 60));
+    const bar = running ? `<div class="conv-bar${over ? ' is-over' : ''}${state.paused ? ' is-paused' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="${esc(section.label)} progress"><span style="--conv-from:${pct}%;--conv-run:${over ? 0 : remainSeconds}s"></span></div>` : '';
+    const status = done ? `Done${section.actual_minutes != null ? ` · actual ${conversionDuration(Number(section.actual_minutes))}` : ''}`
+      : running ? (over ? `In progress · over by ${conversionDuration(elapsed - planned)}` : `In progress · ${conversionDuration(elapsed)} of ${conversionDuration(planned)}`) : '';
+    const dis = state.disabled ? 'disabled' : '';
+    const startDis = state.disabled || done || (!running && state.otherRunning) ? 'disabled' : '';
+    const doneDis = state.disabled || (!running && !done) ? 'disabled' : '';
+    const noteKey = `${state.booking}|${line.line_identity}|${section.id}`, draft = state.noteDrafts?.get(noteKey);
+    const note = draft ?? section.note ?? '';
+    return `<li class="conv-section${done ? ' is-done' : ''}${running ? ' is-running' : ''}" data-conv-section="${sid}">
+      <div class="conv-section-row"><span class="conv-section-name"><strong>${esc(section.label)} — ${esc(section.description)}</strong><small>${conversionDuration(planned)}${status ? ` · ${esc(status)}` : ''}</small></span>
+      <label class="conv-tick"><input type="checkbox" data-conversion-step="start" data-conversion-line="${id}" data-conversion-section="${sid}" ${running || done ? 'checked' : ''} ${startDis}> Start</label>
+      <label class="conv-tick"><input type="checkbox" data-conversion-step="done" data-conversion-line="${id}" data-conversion-section="${sid}" ${done ? 'checked' : ''} ${doneDis}> Done</label></div>
+      ${bar}
+      ${state.editable || note ? `<details class="fitter-notes conv-note" ${draft != null ? 'open' : ''}><summary>${note ? 'Section note' : 'Add a note'}</summary><textarea aria-label="${esc(section.label)} note" data-conversion-note="${esc(noteKey)}" data-conversion-line="${id}" data-conversion-section="${sid}" rows="2" maxlength="500" ${dis}>${esc(note)}</textarea>${state.editable ? `<button type="button" data-conversion-save-note="${esc(noteKey)}" ${dis}>Save note</button>` : ''}${draft != null ? '<small>Unsaved note</small>' : ''}</details>` : ''}
+    </li>`;
+  }
+  function conversionTicksHtml(line, index, state) {
+    const c = line.conversion, sections = c.sections || [];
+    const total = c.sections_total ?? sections.length, doneCount = c.sections_done ?? sections.filter(s => s.status === 'complete').length;
+    const otherRunning = sections.some(s => s.status === 'in_progress');
+    const pct = line.completed ? 100 : Math.round(100 * (Number(line.completed_fraction) || 0));
+    const open = state.open !== false;
+    return `<article class="fitter-line conv-ticks${line.completed ? ' is-done' : ''}" data-conversion-card="${esc(line.line_identity)}"><details class="conv-list" data-conversion-list="${esc(state.booking)}|${esc(line.line_identity)}" ${open ? 'open' : ''}><summary><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`} · ${doneCount} of ${total} sections done${line.completed ? ' · Work completed' : ''}</small></span><span class="conv-total" aria-hidden="true"><span style="width:${pct}%"></span></span></summary>
+      ${line.scope_changed ? '<p class="fitter-warning">This item changed. Review the work before ticking it again.</p>' : ''}
+      <ol class="conv-sections">${sections.map(s => conversionSectionHtml(line, s, {...state, otherRunning: otherRunning && s.status !== 'in_progress'})).join('')}</ol></details></article>`;
   }
   function fitterLineCardHtml(line, index, state) {
     const disabled = state.disabled, note = state.note, editable = state.editable, open = state.open;
@@ -254,7 +289,7 @@
       ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}
       ${editable || note ? `<details class="fitter-notes" ${open ? 'open' : ''}><summary>${note ? 'Item notes' : 'Add a note'}</summary><label for="fitter-note-${index}">Work notes</label><textarea id="fitter-note-${index}" data-fitter-note="${esc(line.line_identity)}" rows="2" maxlength="2000" ${disabled ? 'disabled' : ''}>${esc(note)}</textarea>${editable ? `<button type="button" data-fitter-save-note="${esc(line.line_identity)}" ${disabled ? 'disabled' : ''}>Save note</button>` : ''}${open ? '<small>Unsaved note</small>' : ''}</details>` : ''}</article>`;
   }
-  const api = { createService, progressHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, conversionUsesSimpleTick, fitterLineCardHtml };
+  const api = { createService, progressHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, conversionUsesSimpleTick, fitterLineCardHtml, conversionTicksHtml, conversionSectionHtml };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.PdcFitters = api;
   const doc = root.document;
@@ -270,6 +305,7 @@
   let loading = false, refreshing = false, connected = false, message = '', readErrorMessage = '', loadGeneration = 0, initialized = false, lastSync = 0;
   let stopOpen = false, stopReason = '', stopType = 'Parts', saving = false, pendingDraftKey = '', pendingAction = '';
   let detailReceivedAt = 0, timerFreeze = null;
+  let pendingConversionNote = '';
   let handover = null, scrollToCurrent = false;
   const clockNow=()=>root.performance?.now?.() ?? Date.now();
   const timingOptions=()=>({connected,receivedAt:detailReceivedAt,now:clockNow(),
@@ -291,6 +327,7 @@
     if(hint) hint.textContent=timer.hint;
   }
   const drafts = new Map();
+  const conversionNotes = new Map(), conversionClosed = new Set();
   const active = () => doc.body?.dataset.currentView === 'fitters';
   const host = () => doc.getElementById('fitters-host');
   const time = value => value ? new Date(value).toLocaleString('en-AU', {timeZone:'Australia/Perth',weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}) : 'Not scheduled';
@@ -299,7 +336,7 @@
     return `<strong>${esc(job.stock || 'Stock not recorded')}</strong><span>${esc(job.customer || 'Customer not recorded')} · ${esc(job.vehicle || 'Vehicle details pending')}</span><small>${esc(job.stage_name)} · Bay ${esc(job.bay_number ?? '—')} · ${esc(time(job.start_at))}</small>`;
   }
   function nextJobHtml(flow, locked, editable) {
-    const unsaved=[...drafts.keys()].some(k=>k.startsWith(selected+':')) || root.PdcConversions?.hasDrafts();
+    const unsaved=[...drafts.keys()].some(k=>k.startsWith(selected+':')) || root.PdcConversions?.hasDrafts() || conversionNotes.size>0;
     const ready=detail?.progress?.can_complete && !unsaved && !root.PdcBusWorkflow?.hasDrafts() && !busPending();
     const completeLabel=(saving||loading)&&pendingAction==='complete'?'Completing job…':flow.otherActive.length?'Complete & return to active work':flow.next?'Complete & open next job':'Complete bay job';
     const help=unsaved?'Save your notes before completing this bay.':detail?.status==='stoppage'?'Resume this job before completing the bay.':ready?'All items are done. Complete this bay to continue.':'Tick off every item in this bay before completing the job.';
@@ -310,6 +347,7 @@
     if(line.conversion && !conversionUsesSimpleTick(line)) return root.PdcConversions.html(line,{editable:editable&&!saving&&!loading&&!service.retryPending&&!busPending(),controller:['operator','administrator'].includes(root.PDC_AUTH_CONTEXT?.role),booking:selected});
     const draft = drafts.get(`${selected}:${line.line_identity}`), note = draft?.note ?? line.note;
     const disabled = !editable || saving || loading || service.retryPending || busPending();
+    if(line.conversion) return conversionTicksHtml(line, index, {editable, disabled, booking:selected, paused:detail?.status!=='started', noteDrafts:conversionNotes, open:!conversionClosed.has(`${selected}|${line.line_identity}`)});
     return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft});
   }
   function render() {
@@ -427,7 +465,7 @@
           action:result.action,revision:result.revision,
         }}));
       }
-      if (result.action==='conversion') root.PdcConversions.confirmSave();
+      if (result.action==='conversion') { root.PdcConversions?.confirmSave(); if(pendingConversionNote) conversionNotes.delete(pendingConversionNote); }
       if (lineId) drafts.delete(key);
       if (retry && pendingDraftKey) drafts.delete(pendingDraftKey);
       pendingDraftKey = '';
@@ -440,7 +478,7 @@
       connected=false;
     } catch(e) { message=e.message; if(e.code!=='busy') connected=false; }
     finally {
-      saving=false;
+      saving=false; if(!service.retryPending) pendingConversionNote='';
       if(service.retryPending) { pendingAction=''; render(); }
       else { await refresh(); pendingAction=''; }
     }
@@ -481,10 +519,18 @@
     on('[data-fitter-confirm-stop]','click',()=>void act('stop'));
     on('[data-fitter-cancel-stop]','click',()=>{stopOpen=false;render();});
     on('[data-fitter-retry]','click',()=>void act(null,null,null,true));
+    on('[data-conversion-step]','change',e=>{ const n=e.currentTarget, checked=n.checked; n.checked=!checked;
+      // Start ticks begin the section, Done records its actual time; unticking either resets it.
+      const step=!checked?'reset':n.dataset.conversionStep==='done'?'done':'start';
+      void act('conversion',n.dataset.conversionLine,null,false,{mode:'tick',section:n.dataset.conversionSection,step}); });
+    on('[data-conversion-note]','input',e=>{ conversionNotes.set(e.target.dataset.conversionNote,e.target.value); target.querySelector('[data-fitter-action="complete"]')?.setAttribute('disabled',''); });
+    on('[data-conversion-save-note]','click',e=>{ const key=e.currentTarget.dataset.conversionSaveNote, box=target.querySelector(`[data-conversion-note="${root.CSS?.escape?root.CSS.escape(key):key}"]`); if(!box) return;
+      pendingConversionNote=key; void act('conversion',box.dataset.conversionLine,null,false,{mode:'tick',section:box.dataset.conversionSection,step:'note',note:box.value}); });
+    on('[data-conversion-list]','toggle',e=>{ const k=e.currentTarget.dataset.conversionList; if(e.currentTarget.open) conversionClosed.delete(k); else conversionClosed.add(k); });
   }
   api.open = () => { render(); if(!initialized) {initialized=true;void refresh();} };
   api.close = () => { freezeTimer(); loadGeneration++; service.invalidateReads(); loading=false; refreshing=false; initialized=false; connected=false; };
-  const reset=()=>{root.PdcBusWorkflow?.reset();supplierDraftKey='';service.invalidate();api.close();roster=[];mechanic='';jobs=[];bays=[];selected='';detail=null;handover=null;scrollToCurrent=false;detailReceivedAt=0;timerFreeze=null;pendingAction='';stopOpen=false;stopReason='';drafts.clear();root.PdcConversions?.reset();message='';render();};
+  const reset=()=>{root.PdcBusWorkflow?.reset();supplierDraftKey='';service.invalidate();api.close();roster=[];mechanic='';jobs=[];bays=[];selected='';detail=null;handover=null;scrollToCurrent=false;detailReceivedAt=0;timerFreeze=null;pendingAction='';stopOpen=false;stopReason='';drafts.clear();conversionNotes.clear();conversionClosed.clear();root.PdcConversions?.reset();message='';render();};
   root.addEventListener('pdc-auth-locked',reset);
   root.addEventListener('pdc-auth-ready',()=>{if(active())api.open();});
   root.addEventListener('offline',()=>{freezeTimer();loadGeneration++;loading=false;refreshing=false;connected=false;message='Offline. Saved work is shown; reconnect before changing this job.';render();});
@@ -493,6 +539,6 @@
   doc.addEventListener('visibilitychange',()=>{if(!doc.hidden&&active()&&!targetBeingEdited())void refresh({background:true});});
   setInterval(()=>{if(active()&&!doc.hidden&&!targetBeingEdited())void refresh({background:true});},10000);
   setInterval(updateTimer,1000);
-  function targetBeingEdited() { return root.PdcBusWorkflow?.hasDrafts() || root.PdcConversions?.hasDrafts() || (host()?.contains(doc.activeElement) && /INPUT|TEXTAREA|SELECT/.test(doc.activeElement.tagName)); }
-  root.addEventListener('beforeunload',e=>{if(saving||drafts.size||root.PdcConversions?.hasDrafts()||root.PdcBusWorkflow?.hasDrafts()||busPending()||service.retryPending){e.preventDefault();e.returnValue='';}});
+  function targetBeingEdited() { return root.PdcBusWorkflow?.hasDrafts() || root.PdcConversions?.hasDrafts() || conversionNotes.size>0 || (host()?.contains(doc.activeElement) && /INPUT|TEXTAREA|SELECT/.test(doc.activeElement.tagName)); }
+  root.addEventListener('beforeunload',e=>{if(saving||drafts.size||conversionNotes.size||root.PdcConversions?.hasDrafts()||root.PdcBusWorkflow?.hasDrafts()||busPending()||service.retryPending){e.preventDefault();e.returnValue='';}});
 })(typeof window !== 'undefined' ? window : globalThis);
