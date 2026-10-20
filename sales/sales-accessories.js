@@ -33,28 +33,31 @@
   }
   const typeSections=[['accessory','Accessories'],['aftermarket','Aftermarket'],['miscacc','Miscam'],['special','Special (sublet)']];
   const emptySentence='No accessory lines in the latest sales export.';
-  function poHtml(line) {
+  // Same classification as the r394 derived ticks: blank is red, unrecognised text is amber review, a PO or C&S ONLY / SELL ONLY / NO UPDATE is green.
+  function poTone(line) {
     const po=line.po.trim();
-    if(!po||line.po_state==='blank')return '<span class="sales-accessory-po-missing">Not raised</span>'+(line.in_house?' <small class="sales-accessory-in-house">In-house</small>':'');
-    return '<span class="sales-notes-accessory-po">'+escapeHtml(po)+'</span>';
+    if(!po||line.po_state==='blank')return 'red';
+    if(line.po_state==='other')return 'review';
+    return 'green';
   }
+  function poLabel(line){return poTone(line)==='red'?'Not raised':line.po.trim();}
   function lineHtml(line) {
     const note=line.notes.trim();
-    return '<li><span class="sales-notes-accessory-item">'+escapeHtml(line.item)+'</span>'+poHtml(line)+(note?'<small class="sales-notes-accessory-note">'+escapeHtml(note)+'</small>':'')+'</li>';
+    return '<div class="sales-notes-accessory-line"><div class="sales-notes-accessory-item"><span>'+escapeHtml(line.item)+'</span>'+(note?'<small class="sales-notes-accessory-note">'+escapeHtml(note)+'</small>':'')+'</div><div class="sales-notes-accessory-po sales-notes-po-'+poTone(line)+'">'+escapeHtml(poLabel(line))+'</div></div>';
   }
   function typeKey(line){return line.type.trim().toLowerCase();}
+  function sectionHtml(key,label,lines) {
+    if(!lines.length)return '';
+    return '<section class="sales-notes-accessory-type" data-accessory-type="'+key+'"><h3 class="sales-notes-accessory-head">'+escapeHtml(label)+'</h3>'+lines.map(lineHtml).join('')+'</section>';
+  }
   function notesLinesHtml(record) {
     const lines=Array.isArray(record?.lines)?record.lines:[];
     const admin=lines.filter(line=>line.group==='admin'),rest=lines.filter(line=>line.group!=='admin');
     if(!rest.length&&!admin.length)return '<section class="sales-notes-accessories" aria-label="Accessory lines"><p class="sales-notes-accessory-empty">'+emptySentence+'</p></section>';
     let html='';
-    for(const [key,label] of typeSections) {
-      const group=rest.filter(line=>typeKey(line)===key);
-      if(group.length)html+='<section class="sales-notes-accessory-type" data-accessory-type="'+key+'"><h3>'+escapeHtml(label)+'</h3><ul>'+group.map(lineHtml).join('')+'</ul></section>';
-    }
-    const other=rest.filter(line=>!typeSections.some(([key])=>typeKey(line)===key));
-    if(other.length)html+='<section class="sales-notes-accessory-type" data-accessory-type="other"><h3>Other</h3><ul>'+other.map(lineHtml).join('')+'</ul></section>';
-    if(admin.length)html+='<details class="sales-accessory-admin"><summary>Admin · '+admin.length+' line'+(admin.length===1?'':'s')+'</summary><ul>'+admin.map(lineHtml).join('')+'</ul></details>';
+    for(const [key,label] of typeSections)html+=sectionHtml(key,label,rest.filter(line=>typeKey(line)===key));
+    html+=sectionHtml('other','Other',rest.filter(line=>!typeSections.some(([key])=>typeKey(line)===key)));
+    if(admin.length)html+='<details class="sales-accessory-admin"><summary>Admin · '+admin.length+' line'+(admin.length===1?'':'s')+'</summary>'+admin.map(lineHtml).join('')+'</details>';
     return '<section class="sales-notes-accessories" aria-label="Accessory lines">'+html+'</section>';
   }
   function createSalesAccessories(host) {

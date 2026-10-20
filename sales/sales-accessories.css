@@ -16,12 +16,17 @@ span.ordering-status{cursor:default}
 @keyframes sales-accessory-flash{0%,100%{background:#fde2e2;border-color:#e86a6f}50%{background:#e0262d;border-color:#a3161b;color:#fff}}
 @media (prefers-reduced-motion:reduce){.ordering-status.derived-red{animation:none;background:#e0262d;border-color:#a3161b;color:#fff}}
 @media(max-width:650px){.sales-accessory-table{font-size:11px}.sales-accessory-item{min-width:140px}}
-.sales-notes-accessories{min-width:0;font-size:12px;line-height:1.35;color:#173047}
-.sales-notes-accessory-type{margin:0 0 6px}.sales-notes-accessory-type h3{margin:0;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#52687a}
-.sales-notes-accessories ul{list-style:none;margin:1px 0 0;padding:0}
-.sales-notes-accessories li{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;padding:1px 0}
-.sales-notes-accessory-item{font-weight:600;overflow-wrap:anywhere}.sales-notes-accessory-po{color:#173047}
-.sales-notes-accessory-note{flex-basis:100%;font-size:11px;line-height:1.3;color:#68798a;overflow-wrap:anywhere}
+.sales-notes-accessories{min-width:0;font-size:12px;line-height:1.3;color:#173047}
+.sales-notes-accessory-type{margin:0 0 6px}
+.sales-notes-accessory-head{margin:0 0 3px;padding:2px 2px 0;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#52687a}
+.sales-notes-accessory-line{display:grid;grid-template-columns:minmax(0,1fr) 124px;align-items:stretch;min-height:28px;margin:0 0 3px;border:1px solid #d5e0ea;border-radius:6px;background:#fff;overflow:hidden}
+.sales-notes-accessory-item{display:flex;align-items:center;gap:6px;min-width:0;padding:4px 8px;font-weight:600;overflow-wrap:anywhere}
+.sales-notes-accessory-note{font-size:11px;font-weight:500;line-height:1.3;color:#68798a;overflow-wrap:anywhere}
+.sales-notes-accessory-po{display:flex;align-items:center;justify-content:center;padding:4px 6px;border-left:1px solid #d5e0ea;font-size:11px;font-weight:700;line-height:1.25;text-align:center;overflow-wrap:anywhere}
+.sales-notes-po-green{background:#d9f5e3;color:#175b36}
+.sales-notes-po-red{background:#fde2e2;color:#a3161b}
+.sales-notes-po-review{background:#ffe4ba;color:#8b4600}
+@media(max-width:650px){.sales-notes-accessory-line{grid-template-columns:minmax(0,1fr) 108px}}
 .sales-notes-accessory-empty{margin:0;color:#52687a}
 .sales-notes-accessories .sales-accessory-admin{margin:2px 0 0;border-top:0;padding-top:0}
-.sales-notes-accessories .sales-accessory-admin>summary{min-height:0;margin:0;font-size:12px;line-height:1.4}
+.sales-notes-accessories .sales-accessory-admin>summary{min-height:0;margin:0 0 3px;font-size:12px;line-height:1.4}

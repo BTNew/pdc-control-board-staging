@@ -28,13 +28,15 @@ test('notes panel lists accessory types in order, then other, with Admin collaps
   assert.ok(at('accessory')<at('aftermarket')&&at('aftermarket')<at('miscacc')&&at('miscacc')<at('special')&&at('special')<at('other'));
   assert.ok(html.indexOf('Canopy')<html.indexOf('Towbar'));
   assert.ok(html.indexOf('Snorkel')<html.indexOf('>Lid<'));
-  assert.match(html,/Canopy<\/span><span class="sales-notes-accessory-po">C&amp;S ONLY<\/span><small class="sales-notes-accessory-note">Black<\/small>/);
-  assert.match(html,/Towbar<\/span><span class="sales-notes-accessory-po">SELL ONLY<\/span>/);
-  assert.match(html,/Lid<\/span><span class="sales-notes-accessory-po">NO UPDATE<\/span>/);
-  assert.match(html,/Sublet winch<\/span><span class="sales-notes-accessory-po">PO1<\/span>/);
-  assert.match(html,/Misc mat<\/span><span class="sales-accessory-po-missing">Not raised<\/span>/);
-  assert.match(html,/Blank type<\/span><span class="sales-accessory-po-missing">Not raised<\/span>/);
-  assert.match(html,/Custom paint<\/span><span class="sales-notes-accessory-po">WEIRD<\/span>/);
+  assert.match(html,/Canopy<\/span><small class="sales-notes-accessory-note">Black<\/small><\/div><div class="sales-notes-accessory-po sales-notes-po-green">C&amp;S ONLY<\/div>/);
+  assert.match(html,/Towbar<\/span><\/div><div class="sales-notes-accessory-po sales-notes-po-green">SELL ONLY<\/div>/);
+  assert.match(html,/Lid<\/span><\/div><div class="sales-notes-accessory-po sales-notes-po-green">NO UPDATE<\/div>/);
+  assert.match(html,/Sublet winch<\/span><small class="sales-notes-accessory-note">Fit before delivery<\/small><\/div><div class="sales-notes-accessory-po sales-notes-po-green">PO1<\/div>/);
+  assert.match(html,/Misc mat<\/span><\/div><div class="sales-notes-accessory-po sales-notes-po-red">Not raised<\/div>/);
+  assert.match(html,/Blank type<\/span><\/div><div class="sales-notes-accessory-po sales-notes-po-red">Not raised<\/div>/);
+  assert.match(html,/Custom paint<\/span><\/div><div class="sales-notes-accessory-po sales-notes-po-review">WEIRD<\/div>/);
+  assert.match(html,/class="sales-notes-accessory-line"/);
+  assert.match(html,/class="sales-notes-accessory-head">Accessories</);
   assert.match(html,/<details class="sales-accessory-admin"><summary>Admin · 1 line<\/summary>/);
   assert.doesNotMatch(html,/<details class="sales-accessory-admin" open/);
   assert.ok(html.indexOf('data-accessory-type="other"')<html.indexOf('sales-accessory-admin'));
@@ -89,8 +91,12 @@ test('dashboard ticks are read-only derived cells and flashing respects reduced 
 test('Sales entrypoint loads the accessory module before build requirements and bumps cache tokens',()=>{
   const index=fs.readFileSync('sales/index.html','utf8'),module=fs.readFileSync('sales/sales-accessories.js','utf8');
   assert.match(index,/sales-accessories\.js\?v=2026\.10\.20\.03&amp;notes-lines=2026\.10\.20\.05[\s\S]*build-requirements\.js\?v=2026\.10\.03\.02&amp;sales-accessories=2026\.10\.20\.01&amp;notes-lines=2026\.10\.20\.05[\s\S]*vehicle-notes\.js\?v=2026\.10\.06\.01&amp;notes-lines=2026\.10\.20\.05[\s\S]*sales\.js\?[^"]*sales-accessories=2026\.10\.20\.01/);
-  assert.match(index,/sales-accessories\.css\?v=2026\.10\.20\.03&amp;notes-lines=2026\.10\.20\.05/);
-  assert.match(index,/sales\.css\?[^"]*notes-lines=2026\.10\.20\.05/);
+  assert.match(index,/sales-accessories\.css\?v=2026\.10\.20\.03&amp;notes-lines=2026\.10\.20\.05&amp;po-column=2026\.10\.20\.06/);
+  assert.match(index,/sales\.css\?[^"]*po-column=2026\.10\.20\.06/);
+  assert.match(index,/vehicle-notes\.js\?[^"]*po-column=2026\.10\.20\.06/);
+  assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/\.sales-notes-accessory-line\{[^}]*grid-template-columns:minmax\(0,1fr\) 124px/);
+  assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/\.sales-notes-po-review\{[^}]*#ffe4ba/);
+  assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/\.sales-notes-po-red\{[^}]*#fde2e2/);
   assert.doesNotMatch(module,/localStorage|sessionStorage|\.from\(|insert\(|<input|<form|set_ordering|import_sales/);assert.match(module,/rpc\('get_broome_sales_accessories'\)/);
 });
 test('migration keeps the importer management-only and the read RPC signed-in only',()=>{
@@ -133,8 +139,9 @@ test('expanded notes place the accessory lines before the note fields',()=>{
   return listed.then(()=>{
     el('sales-expand-notes').events.click();
     const html=notes.rowHtml(row);
-    assert.ok(html.indexOf('data-accessory-type="accessory"')<html.indexOf('>Vehicle notes<'));
-    assert.match(html,/Canopy<\/span><span class="sales-notes-accessory-po">PO55<\/span>/);
+    assert.ok(html.indexOf('data-accessory-type="accessory"')<html.indexOf('>Custom information<'));
+    assert.match(html,/Canopy<\/span><\/div><div class="sales-notes-accessory-po sales-notes-po-green">PO55<\/div>/);
+    assert.doesNotMatch(html,/name="notes"|Vehicle notes/);
     assert.match(html,/<details class="sales-accessory-admin"><summary>Admin · 1 line/);
     assert.doesNotMatch(html,/sales-accessory-table/);
     assert.equal(accessories.detailHtml(row),'');

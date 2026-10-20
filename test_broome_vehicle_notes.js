@@ -10,7 +10,7 @@ function harness(canEditRow){
  const host={PDC_AUTH_CONTEXT:{userId:'A'},PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}},document:{getElementById:el},addEventListener(k,fn){events[k]=fn;}};
  const api=create(host).init({getRows:()=>rows,getVisibleRows:()=>visible,getScope:()=>scope,canEditRow,isHidden:()=>hidden,reference:vehicleReference,onChanged:()=>renders++});
  const click=(selector,data)=>el('vehicle-table').events.click({target:{closest:s=>s===selector?{dataset:data}:null}});
- const form=(notes='Working notes',custom='Customer requires morning handover')=>({dataset:{notesForm:'own'},elements:{namedItem:name=>({value:name==='notes'?notes:custom})},querySelector:()=>({textContent:''}),closest(){return this;}});
+ const form=(custom='Customer requires morning handover')=>({dataset:{notesForm:'own'},elements:{namedItem:name=>name==='custom_information'?{value:custom}:null},querySelector:()=>({textContent:''}),closest(){return this;}});
  const input=f=>el('vehicle-table').events.input({target:{closest:()=>f}});
  const save=f=>el('vehicle-table').events.submit({target:f,preventDefault(){}});
  return {api,host,el,events,calls,rows,click,form,input,save,setScope:v=>scope=v,setVisible:v=>visible=v,setHidden:v=>hidden=v,renders:()=>renders};
@@ -20,7 +20,8 @@ const saved=(version=1,notes='Working notes',custom='Customer requires morning h
 async function ready(h,data=[]){const p=h.api.load();h.calls[0].resolve({data});await p;}
 test('another salesperson notes can be read and expanded, while draft capture and save remain disabled',async()=>{
  const h=harness(()=>false);await ready(h,[saved(1,'Read-only team note')]);h.click('[data-notes-toggle]',{notesToggle:'own'});
- assert.match(h.api.rowHtml(h.rows[0]),/Read-only team note/);assert.match(h.api.rowHtml(h.rows[0]),/type="submit"[^>]+disabled/);
+ const html=h.api.rowHtml(h.rows[0]);assert.match(html,/Customer requires morning handover/);assert.match(html,/type="submit"[^>]+disabled/);
+ assert.doesNotMatch(html,/Read-only team note|name="notes"|Vehicle notes/);
  h.input(h.form('Forbidden change'));h.save(h.form('Forbidden change'));await tick();
  assert.equal(h.calls.length,1);assert.doesNotMatch(h.api.rowHtml(h.rows[0]),/Forbidden change/);
 });
@@ -34,37 +35,39 @@ test('Toyota Order Number remains an exact reference and searchable until Batch 
 });
 test('Expand all opens only the currently filtered rows and Collapse all preserves drafts',async()=>{
  const h=harness();await ready(h);h.el('sales-expand-notes').events.click();
- assert.match(h.api.rowHtml(h.rows[0]),/Vehicle notes/);assert.equal(h.api.rowHtml(h.rows[1]),'');
+ assert.match(h.api.rowHtml(h.rows[0]),/Custom information/);assert.equal(h.api.rowHtml(h.rows[1]),'');
  h.input(h.form('Draft before collapsing'));h.el('sales-collapse-notes').events.click();assert.equal(h.api.rowHtml(h.rows[0]),'');
  h.click('[data-notes-toggle]',{notesToggle:'own'});assert.match(h.api.rowHtml(h.rows[0]),/Draft before collapsing/);
 });
 test('clicking row or using keyboard opens notes, while other controls keep their actions',async()=>{
  const h=harness();await ready(h);h.click('[data-note-row]',{noteRow:'own'});assert.match(h.api.rowHtml(h.rows[0]),/Toyota Order 250026008/);
- h.el('vehicle-table').events.click({target:{closest:s=>s==='button,input,select,textarea,a,label,[data-resize]'?{}:null}});assert.match(h.api.rowHtml(h.rows[0]),/Vehicle notes/);
+ h.el('vehicle-table').events.click({target:{closest:s=>s==='button,input,select,textarea,a,label,[data-resize]'?{}:null}});assert.match(h.api.rowHtml(h.rows[0]),/Custom information/);
  h.el('vehicle-table').events.keydown({key:'Enter',target:{matches:()=>true,dataset:{noteRow:'own'}},preventDefault(){}});assert.equal(h.api.rowHtml(h.rows[0]),'');
 });
 test('save persists both fields through the scoped RPC and disables duplicate submissions',async()=>{
  const h=harness();await ready(h);h.click('[data-notes-toggle]',{notesToggle:'own'});const f=h.form();h.save(f);h.save(f);
- assert.equal(h.calls.length,2);assert.deepEqual(h.calls[1].args,{p_tracking_id:'own',p_notes:'Working notes',p_custom_information:'Customer requires morning handover',p_expected_version:0});
- assert.match(h.api.rowHtml(h.rows[0]),/Saving…/);h.calls[1].resolve({data:saved()});await tick();assert.match(h.api.rowHtml(h.rows[0]),/Notes saved\./);
+ assert.equal(h.calls.length,2);assert.deepEqual(h.calls[1].args,{p_tracking_id:'own',p_notes:'',p_custom_information:'Customer requires morning handover',p_expected_version:0});
+ assert.match(h.api.rowHtml(h.rows[0]),/Saving…/);h.calls[1].resolve({data:saved(1,'','Customer requires morning handover')});await tick();assert.match(h.api.rowHtml(h.rows[0]),/Notes saved\./);
 });
 test('save conflict keeps the typed draft and requires an explicit reload',async()=>{
  const h=harness();await ready(h,[saved()]);h.click('[data-notes-toggle]',{notesToggle:'own'});h.save(h.form('My unsaved edit'));
+ assert.equal(h.calls[1].args.p_notes,'Working notes');assert.equal(h.calls[1].args.p_custom_information,'My unsaved edit');
  h.calls[1].resolve({error:{message:'Notes changed elsewhere'}});await tick();assert.match(h.api.rowHtml(h.rows[0]),/My unsaved edit/);assert.match(h.api.rowHtml(h.rows[0]),/draft is kept/);
- h.click('[data-notes-reload]',{notesReload:'own'});h.calls[2].resolve({data:[saved(2,'Other user edit')]});await tick();assert.match(h.api.rowHtml(h.rows[0]),/Other user edit/);assert.doesNotMatch(h.api.rowHtml(h.rows[0]),/My unsaved edit/);
+ assert.doesNotMatch(h.api.rowHtml(h.rows[0]),/Working notes|name="notes"/);
+ h.click('[data-notes-reload]',{notesReload:'own'});h.calls[2].resolve({data:[saved(2,'Other user edit','Server custom')]});await tick();assert.match(h.api.rowHtml(h.rows[0]),/Server custom/);assert.doesNotMatch(h.api.rowHtml(h.rows[0]),/My unsaved edit|Other user edit/);
 });
 test('failed or malformed saves preserve draft and retries carry the same expected version',async()=>{
- const h=harness();await ready(h);h.click('[data-notes-toggle]',{notesToggle:'own'});h.save(h.form());h.calls[1].resolve({data:{...saved(),tracking_id:'other'}});await tick();
- assert.match(h.api.rowHtml(h.rows[0]),/could not be confirmed/);h.save(h.form());assert.equal(h.calls[2].args.p_expected_version,0);h.calls[2].resolve({data:saved()});await tick();assert.match(h.api.rowHtml(h.rows[0]),/Notes saved\./);
+ const h=harness();await ready(h);h.click('[data-notes-toggle]',{notesToggle:'own'});h.save(h.form());h.calls[1].resolve({data:{...saved(1,'','Customer requires morning handover'),tracking_id:'other'}});await tick();
+ assert.match(h.api.rowHtml(h.rows[0]),/could not be confirmed/);h.save(h.form());assert.equal(h.calls[2].args.p_expected_version,0);assert.equal(h.calls[2].args.p_notes,'');h.calls[2].resolve({data:saved(1,'','Customer requires morning handover')});await tick();assert.match(h.api.rowHtml(h.rows[0]),/Notes saved\./);
 });
 test('background load preserves drafts, expansion and newer confirmed save versions',async()=>{
  const h=harness();await ready(h,[saved()]);h.click('[data-notes-toggle]',{notesToggle:'own'});h.input(h.form('Typing during refresh'));
- const p=h.api.load();h.calls[1].resolve({data:[saved(2,'New saved text')]});await p;assert.match(h.api.rowHtml(h.rows[0]),/Typing during refresh/);
- h.save(h.form('Typing during refresh'));assert.equal(h.calls[2].args.p_expected_version,1);h.calls[2].resolve({error:{message:'Version conflict'}});await tick();
+ const p=h.api.load();h.calls[1].resolve({data:[saved(2,'New saved text','Server custom')]});await p;assert.match(h.api.rowHtml(h.rows[0]),/Typing during refresh/);
+ h.save(h.form('Typing during refresh'));assert.equal(h.calls[2].args.p_expected_version,1);assert.equal(h.calls[2].args.p_notes,'Working notes');h.calls[2].resolve({error:{message:'Version conflict'}});await tick();
 });
 test('Batch allocation keeps the same note editor and exact order identity',async()=>{
  const h=harness();await ready(h,[saved()]);h.click('[data-notes-toggle]',{notesToggle:'own'});h.rows[0].stock='1309001';h.api.syncScope();
- assert.match(h.api.rowHtml(h.rows[0]),/Stock 1309001/);assert.match(h.api.rowHtml(h.rows[0]),/Working notes/);assert.equal(h.rows[0].order,'250026008');
+ assert.match(h.api.rowHtml(h.rows[0]),/Stock 1309001/);assert.match(h.api.rowHtml(h.rows[0]),/Customer requires morning handover/);assert.doesNotMatch(h.api.rowHtml(h.rows[0]),/Working notes/);assert.equal(h.rows[0].order,'250026008');
 });
 test('sign-out and salesperson changes clear customer notes and ignore delayed saves',async()=>{
  const h=harness();await ready(h);h.click('[data-notes-toggle]',{notesToggle:'own'});h.save(h.form('Private draft'));
@@ -73,6 +76,6 @@ test('sign-out and salesperson changes clear customer notes and ignore delayed s
 });
 test('note text is escaped and hidden/conflicting rows cannot be expanded',async()=>{
  const h=harness();await ready(h,[saved(1,'<script>alert(1)</script>','<img onerror=bad>')]);h.click('[data-notes-toggle]',{notesToggle:'own'});
- const html=h.api.rowHtml(h.rows[0]);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>|<img/);
+ const html=h.api.rowHtml(h.rows[0]);assert.match(html,/&lt;img/);assert.doesNotMatch(html,/<script>|<img|alert\(1\)/);
  h.el('sales-collapse-notes').events.click();h.rows[0].identity_conflict=true;h.click('[data-notes-toggle]',{notesToggle:'own'});assert.equal(h.api.rowHtml(h.rows[0]),'');h.rows[0].identity_conflict=false;h.setHidden(true);h.el('sales-expand-notes').events.click();assert.equal(h.api.rowHtml(h.rows[0]),'');
 });
