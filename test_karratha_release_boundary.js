@@ -89,7 +89,8 @@ const approvedRootImportPatch = Object.freeze({
   // says "Loading vehicles…" until the board snapshot arrives.
   // 20 October 2026: Delivered - At Dealer rows whose vehicle is missing or
   // soft-deleted are listed on the upload result. Department 135 stays parked.
-  "app.js": "64b3daf6167a89b38ecca9f595126457ffa3ebda1bf81074f5f392e6077b2a7b",
+  // r400: QC no longer asks for the Pit inspection or job-card notes lines.
+  "app.js": "7ebea1340f5d1e832739e4dcafb179eeaee12701c3ce17d1b76c693dc0688165",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -104,7 +105,8 @@ const approvedRootImportPatch = Object.freeze({
   // canonical-entry.js? adds sublet-hours-tags=2026.10.20.01.
   // r399: app.js, workshop-planner.js, workshop-data-service.js and pdc-workshop-departments.js
   // add bay8-category=2026.10.20.01 (Bus 4x4 bay lists by category, done-before-the-board).
-  "index.html": "91b31c70b671f749c598bc55935cb918779e26ac71fc20a90e7c5beb01a34771",
+  // r400: app.js adds qc-pit-notes=2026.10.20.01.
+  "index.html": "87f2d936009773fd1f387894159fa118907ff528856effb475878b1875c0aed6",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
