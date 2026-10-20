@@ -21,7 +21,7 @@ function fixture() {
   ];
   let nextRpc, nextModal, nextDeployment, renders = 0;
   const c = {
-    Map, Set, Date, window: { alert: value => alerts.push(value), PDC_VEHICLE_HANDOVER: { warn: async value => handovers.push(value) } },
+    Map, Set, Date, workshopNotify: value => alerts.push(value), window: { alert() { throw new Error('F20: planner must not call window.alert'); }, PDC_VEHICLE_HANDOVER: { warn: async value => handovers.push(value) } },
     workshopLoadPlans: () => rows, workshopVehicle: () => ({}), workshopSharedModeActive: () => true,
     workshopEnsureCurrentDeployment: async () => nextDeployment ? nextDeployment.promise : true,
     workshopSharedLegacyAmbiguity: () => null, workshopAdministratorCanMove: () => false,

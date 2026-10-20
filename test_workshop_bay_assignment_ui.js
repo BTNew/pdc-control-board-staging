@@ -14,7 +14,7 @@ function fixture() {
   let save = async () => ({ ok: true }), assign = async () => ({ ok: true }), plans = [], planReads = 0, token = 'token-one';
   const c = {
     app: { currentView: 'workshop' }, WORKSHOP_PENDING_BAY_ASSIGNMENTS: pending,
-    window: { PDC_AUTH_CONTEXT: { userId: 'account-one', role: 'administrator' }, alert: message => alerts.push(message), __workshopReferenceDataService: {
+    workshopNotify: message => alerts.push(message), window: { PDC_AUTH_CONTEXT: { userId: 'account-one', role: 'administrator' }, alert() { throw new Error('F20: planner must not call window.alert'); }, __workshopReferenceDataService: {
       setBayDefaultTechnician: (...args) => { calls.push(args); return save(...args); },
     }, __workshopSharedActions: { assignBookingTechnician: args => { assignments.push(args); return assign(args); } } },
     cleanNavisionText: value => String(value).trim(), normalizePmbStage: value => String(value).toUpperCase(),
