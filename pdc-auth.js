@@ -598,7 +598,14 @@
     // Fire-and-forget: records the last successful sign-in timestamp for
     // the administrator user-management screen. Never blocks unlocking
     // the application on this succeeding.
-    state.client.rpc('record_pdc_login', {}).then(() => {}, () => {});
+    // r408 (F22): not for Fitters bay accounts. The database request hook
+    // (pdc_check_fitter_request) only lets a fitter call the Fitters bay RPCs,
+    // so this call was refused with 403 / 42501 on every fitter sign-in and
+    // never recorded anything; skipping it removes that error without
+    // changing what is stored.
+    if (String(role?.role || '').trim().toLowerCase() !== 'fitter') {
+      state.client.rpc('record_pdc_login', {}).then(() => {}, () => {});
+    }
   }
 
   function beginProviderSessionOperation() {

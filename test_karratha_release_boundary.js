@@ -92,7 +92,9 @@ const approvedRootImportPatch = Object.freeze({
   // r400: QC no longer asks for the Pit inspection or job-card notes lines.
   // r401: Pit and weigh never counts as required work; optional Pit tick for any department.
   // r405: a Pit and weigh / Pit inspection line is Pit by its wording, whatever its category (F14).
-  "app.js": "b3a15b6f13011851a5c32d39b4a048d178477e3b6dcda8b98a57b9cd78ee7698",
+  // r408: runtime errors are toasts, not stacking start-up banners (F23); admin list
+  // requests surface a failed fetch (F24); index.html adds r408=2026.10.21.01.
+  "app.js": "3afe4b645031af29bc08652a50483b807bddbdf8c88aed2a7fa2f28777d22691",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -110,7 +112,8 @@ const approvedRootImportPatch = Object.freeze({
   // r400: app.js adds qc-pit-notes=2026.10.20.01.
   // r401: app.js and pdc-email-vehicle-location-service.js add pit-neutral=2026.10.20.01.
   // r405: app.js adds pit-text=2026.10.20.01.
-  "index.html": "bbd885a3ee3c9ea7e9feabae9d81210e92ee3018bd9bc7a2965d8dff524e87f3",
+  // r408: app.js and pdc-auth.js add r408=2026.10.21.01.
+  "index.html": "d2d7f054f07eab82f156935af570b74c9a4033d83b0ee388e1197dec4d4010c8",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   "pdc-email-vehicle-location-service.js": "91558fdb4e34d5707d53e91aa94b1e18097630a749bf0bba571af4eb83ba3ceb",
@@ -125,7 +128,8 @@ const approvedRootImportPatch = Object.freeze({
   // pdc-auth.js, app.js, canonical-entry.js, workshop-planner.js/.css and
   // pdc-new-vehicles.js (plain error text, started-before chips, next-workday
   // default, no return in finally). Department 135 keeps its frozen copies.
-  "pdc-auth.js": "9c6da5ff2ea3b03cf75e954ebb5acb11e31255f85580f1ff59053776d325f9b4",
+  // r408: no record_pdc_login for Fitters bay accounts (F22).
+  "pdc-auth.js": "309f8a28baa21ecc90d1ea157ded387ee051db6d5bd67176c09026d60b208ac4",
   "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938"
 });
 test('PMB/Sales runtime preserves its frozen baseline and approved root release patches', () => {
