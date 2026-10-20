@@ -29,6 +29,15 @@
   const category = value => BUS_WORK.find(item => item.code === value || item.id === value) || null;
   const allowedBays = value => category(value)?.allowed ? [...category(value).allowed] : null;
   const categoryForView = value => BUS_WORK.find(item => item.view === value) || null;
+  // r406 (F18): Pit is recognised by stage or by wording, in every department,
+  // with the same rule as the QC page (app.js qcPageOperationLineIsDeferredPit)
+  // and the server (public.pdc_line_is_pit_401, r405). Job cards file "PIT AND
+  // WEIGH" as Fitting or Sublet, so the stage alone missed them.
+  const PIT_WORDING = /(^|[^A-Z])PITS? ?(AND|&|\+|\/|N|'N')? ?WEIGH|(^|[^A-Z])PIT ?INSPECT/;
+  function isPitLine(line = {}) {
+    return String(line?.stageCode || '').trim().toUpperCase() === 'PIT_INSPECTION'
+      || PIT_WORDING.test(String(line?.description || '').toUpperCase().replace(/\s+/g, ' '));
+  }
   function externalPitLines(vehicle = {}) {
     const lifecycle = String(vehicle.pdcLifecycleState || vehicle.vehicleLifecycleState || vehicle.lifecycleState || '').toLowerCase();
     const location = String(vehicle.pdcLocation || '').toLowerCase();
@@ -36,7 +45,7 @@
         || vehicle.tuneCheckout?.confirmed === true || vehicle.completedVehicle === true || vehicle.vehicleCollectedState === true
         || ['collected','completed','deleted'].includes(lifecycle) || ['collected','completed'].includes(location)) return [];
     return (vehicle.pdcQcOperationLines || []).filter(line => line.active === true && line.completed !== true
-      && line.department === '138' && line.stageCode === 'PIT_INSPECTION');
+      && line.rejected !== true && isPitLine(line));
   }
   const categoryLabel = value => category(value)?.label || names[value] || value;
   const categoryStage = value => value === 'BUS_PIT' ? 'PIT_INSPECTION' : category(value) ? 'BUS_4X4' : value;
@@ -106,5 +115,5 @@
     if (/\b(?:TYRES?|TIRES?|RIMS?)\b|WHEEL[ -]*(?:ALIGNMENT|BALANC(?:E|ING))|\b(?:2ND|SECOND|EXTRA|ADDITIONAL)\s+SPARE\s+(?:GENUINE\s+)?WHEEL\b/.test(text)) return 'TYRE';
     return 'BUS_4X4';
   }
-  return Object.freeze({BUS_GROUPS,BUS_WORK,SHARED,PD,normalize,group,groupForBay,category,allowedBays,categoryForView,externalPitLines,categoryLabel,categoryStage,categoryChoices,selectedCategory,splitGroups,stageVisible,options,plannerTitle,plannerSections,bayLabel,sharedStation});
+  return Object.freeze({BUS_GROUPS,BUS_WORK,SHARED,PD,normalize,group,groupForBay,category,allowedBays,categoryForView,externalPitLines,isPitLine,categoryLabel,categoryStage,categoryChoices,selectedCategory,splitGroups,stageVisible,options,plannerTitle,plannerSections,bayLabel,sharedStation});
 });

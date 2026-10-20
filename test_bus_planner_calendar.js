@@ -1,4 +1,5 @@
 'use strict';
+process.env.TZ = 'Australia/Perth'; // r406 (F17): these fixtures are Perth wall-clock times; the planner itself is zone-independent (test_planner_perth_timezone_406.js).
 const test=require('node:test'),assert=require('node:assert/strict');
 global.parseIsoTimestamp=value=>{if(!value)return null;const d=new Date(value);return Number.isNaN(d.getTime())?null:d;};
 global.cleanNavisionText=value=>String(value??'').trim();

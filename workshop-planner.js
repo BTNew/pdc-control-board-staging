@@ -108,20 +108,46 @@ function workshopClockMinutes(value) {
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 }
 
+// r406 (F17): the planner works in Perth time whatever the device's timezone.
+// Perth has no daylight saving, so its wall clock is always UTC+8: a Perth
+// calendar day is exactly 24 hours, and each Perth date/time field is the UTC
+// field of the instant moved forward 8 hours. Planner date maths never uses
+// getHours/getDate/getDay/setHours/setDate or new Date(y, m, d), which follow
+// the device's zone. Each helper is self-contained (offset written inline).
 function workshopSetClock(date, minutesFromMidnight) {
-  const copy = new Date(date);
-  const minutes = Number(minutesFromMidnight);
-  copy.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
-  return copy;
+  const perth = new Date(new Date(date).getTime() + 8 * 3600000);
+  return new Date(Date.UTC(perth.getUTCFullYear(), perth.getUTCMonth(), perth.getUTCDate(), 0, Number(minutesFromMidnight) || 0) - 8 * 3600000);
+}
+
+// The Perth day of the week (0 = Sunday) of an instant.
+function workshopPerthWeekday(value = new Date()) {
+  return new Date(new Date(value).getTime() + 8 * 3600000).getUTCDay();
+}
+
+// Perth calendar days are 24 hours long, so adding days is plain arithmetic.
+function workshopPerthAddDays(value = new Date(), days = 0) {
+  return new Date(new Date(value).getTime() + Number(days || 0) * 86400000);
+}
+
+// Value for <input type="datetime-local">, in Perth time.
+function workshopPerthLocalInputValue(value) {
+  return new Date(new Date(value).getTime() + 8 * 3600000).toISOString().slice(0, 16);
+}
+
+// A datetime-local value has no zone; it is always read as Perth time.
+// Full ISO timestamps (with Z or an offset) keep their own zone.
+function workshopParsePerthLocalInput(value = '') {
+  const text = String(value || '').trim();
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(text) ? new Date(`${text.length === 16 ? `${text}:00` : text}+08:00`) : new Date(text);
 }
 
 function workshopValidDateKey(value) {
   const match = typeof value === 'string' && value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return '';
-  const candidate = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  return candidate.getFullYear() === Number(match[1])
-    && candidate.getMonth() === Number(match[2]) - 1
-    && candidate.getDate() === Number(match[3]) ? value : '';
+  const candidate = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  return candidate.getUTCFullYear() === Number(match[1])
+    && candidate.getUTCMonth() === Number(match[2]) - 1
+    && candidate.getUTCDate() === Number(match[3]) ? value : '';
 }
 
 function workshopNormalizeWindows(value) {
@@ -231,21 +257,21 @@ function workshopPad(value) {
 }
 
 function workshopDateKey(date = new Date()) {
-  return `${date.getFullYear()}-${workshopPad(date.getMonth() + 1)}-${workshopPad(date.getDate())}`;
+  // r406: the Perth calendar date.
+  return new Date(new Date(date).getTime() + 8 * 3600000).toISOString().slice(0, 10);
 }
 
 function workshopDateFromKey(value = '') {
   const valid = workshopValidDateKey(String(value || ''));
   if (!valid) return null;
   const [year, month, day] = valid.split('-').map(Number);
-  return workshopSetClock(new Date(year, month - 1, day), WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
+  return new Date(Date.UTC(year, month - 1, day, 0, WORKSHOP_PLANNER_CONFIG.dayStartMinutes) - 8 * 3600000);
 }
 
 function workshopCalendarDateKeyOffset(value = '', days = 0) {
   const date = workshopDateFromKey(value);
   if (!date) return '';
-  date.setDate(date.getDate() + Number(days || 0));
-  return workshopDateKey(date);
+  return workshopDateKey(new Date(date.getTime() + Number(days || 0) * 86400000));
 }
 
 function workshopDefaultBookingHours() {
@@ -270,8 +296,9 @@ function workshopCalendarStartMinutes(context = null) {
 }
 
 function workshopIsConfiguredWorkingDay(date = new Date(), context = null) {
-  if (workshopBusShift(context)) return date.getDay() >= 1 && date.getDay() <= 5;
-  return WORKSHOP_PLANNER_CONFIG.workingDayIndexes.includes(date.getDay());
+  const weekday = new Date(new Date(date).getTime() + 8 * 3600000).getUTCDay();
+  if (workshopBusShift(context)) return weekday >= 1 && weekday <= 5;
+  return WORKSHOP_PLANNER_CONFIG.workingDayIndexes.includes(weekday);
 }
 
 function workshopIsClosureDate(date = new Date(), context = null) {
@@ -289,7 +316,7 @@ function workshopIsWorkday(date = new Date(), context = null) {
 function workshopCoerceWorkDate(date = new Date(), direction = 1, context = null) {
   let next = workshopSetClock(date, workshopCalendarStartMinutes(context));
   const step = direction < 0 ? -1 : 1;
-  while (!workshopIsWorkday(next, context)) next.setDate(next.getDate() + step);
+  while (!workshopIsWorkday(next, context)) next = new Date(next.getTime() + step * 86400000);
   return next;
 }
 
@@ -305,20 +332,20 @@ function workshopPerthMinutesOfDay(value = new Date()) {
 // planning the morning should land on tomorrow (r403).
 function workshopDefaultOpenDateKey(value = new Date()) {
   const candidate = value instanceof Date ? new Date(value) : new Date(value);
-  const safe = Number.isNaN(candidate.getTime()) ? new Date() : candidate;
+  let safe = Number.isNaN(candidate.getTime()) ? new Date() : candidate;
   const dayEnd = Number(typeof WORKSHOP_PLANNER_CONFIG !== 'undefined' ? WORKSHOP_PLANNER_CONFIG?.dayEndMinutes : NaN);
   const shiftOver = Number.isFinite(dayEnd) && dayEnd > 0 && workshopPerthMinutesOfDay(safe) >= dayEnd
     && workshopIsWorkday(safe);
-  if (shiftOver) safe.setDate(safe.getDate() + 1);
+  if (shiftOver) safe = new Date(safe.getTime() + 86400000);
   return workshopDateKey(workshopCoerceWorkDate(safe, 1));
 }
 
 function workshopShiftWorkday(date = new Date(), amount = 1) {
-  const next = workshopCoerceWorkDate(date, amount < 0 ? -1 : 1);
+  let next = workshopCoerceWorkDate(date, amount < 0 ? -1 : 1);
   let remaining = Math.abs(Number(amount) || 0);
   const step = amount < 0 ? -1 : 1;
   while (remaining > 0) {
-    next.setDate(next.getDate() + step);
+    next = new Date(next.getTime() + step * 86400000);
     if (workshopIsWorkday(next)) remaining -= 1;
   }
   return workshopSetClock(next, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
@@ -328,17 +355,14 @@ function workshopWeekStart(value = new Date()) {
   const date = value instanceof Date ? new Date(value) : (workshopDateFromKey(value) || new Date(value));
   let safe = Number.isNaN(date.getTime()) ? new Date() : date;
   safe = workshopSetClock(safe, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
-  const day = safe.getDay();
-  safe.setDate(safe.getDate() + (day === 0 ? -6 : 1 - day));
-  return safe;
+  const day = new Date(safe.getTime() + 8 * 3600000).getUTCDay();
+  return new Date(safe.getTime() + (day === 0 ? -6 : 1 - day) * 86400000);
 }
 
 function workshopWeekDates(value = new Date()) {
   const start = workshopWeekStart(value);
   return Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(start);
-    date.setDate(start.getDate() + index);
-    return workshopSetClock(date, WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
+    return workshopSetClock(new Date(start.getTime() + index * 86400000), WORKSHOP_PLANNER_CONFIG.dayStartMinutes);
   }).filter(date => workshopIsConfiguredWorkingDay(date));
 }
 
@@ -383,7 +407,9 @@ function workshopIntervalsOverlap(startA, endA, startB, endB) {
 }
 
 function workshopMinuteOfDay(date = new Date()) {
-  return date.getHours() * 60 + date.getMinutes();
+  // r406: Perth minutes since midnight (Perth is always UTC+8).
+  const time = new Date(date).getTime();
+  return Math.floor((((time / 60000) + 8 * 60) % 1440 + 1440) % 1440);
 }
 
 function workshopMinuteOffset(date = new Date()) {
@@ -393,7 +419,7 @@ function workshopMinuteOffset(date = new Date()) {
 function workshopWindowApplies(window, date) {
   if (window.dateKey) return window.dateKey === workshopDateKey(date);
   if (window.scope === 'global' || window.scope === 'working_day') return true;
-  return WORKSHOP_DAY_NAME_TO_INDEX[window.scope] === date.getDay();
+  return WORKSHOP_DAY_NAME_TO_INDEX[window.scope] === new Date(new Date(date).getTime() + 8 * 3600000).getUTCDay();
 }
 
 function workshopSubtractWindows(windows, exclusions) {
@@ -445,14 +471,12 @@ function workshopDateAtOffset(dateKey, minuteOffset = 0) {
 }
 
 function workshopMoveToNextWorkStart(date = new Date(), context = null) {
-  const next = new Date(date);
-  next.setDate(next.getDate() + 1);
+  const next = new Date(new Date(date).getTime() + 86400000);
   return workshopNormalizeStartDate(workshopCoerceWorkDate(next, 1, context), context);
 }
 
 function workshopMoveToPreviousWorkEnd(date = new Date(), context = null) {
-  const previous = new Date(date);
-  previous.setDate(previous.getDate() - 1);
+  const previous = new Date(new Date(date).getTime() - 86400000);
   const workDate = workshopCoerceWorkDate(previous, -1, context);
   const windows = workshopAvailabilityWindowsForDate(workDate, context);
   return workshopSetClock(workDate, windows.length ? windows[windows.length - 1].endMinutes : WORKSHOP_PLANNER_CONFIG.dayEndMinutes);
@@ -472,7 +496,7 @@ function workshopNormalizeStartDate(value = new Date(), context = null) {
         return workshopSetClock(date, Math.min(snapped, window.endMinutes));
       }
     }
-    date = workshopCoerceWorkDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1), 1, context);
+    date = workshopCoerceWorkDate(workshopSetClock(new Date(date.getTime() + 86400000), 0), 1, context);
   }
   return workshopSetClock(date, workshopCalendarStartMinutes(context));
 }
@@ -523,7 +547,7 @@ function workshopWorkMinutesBetween(startValue, endValue, context = null) {
   const start = startValue instanceof Date ? new Date(startValue) : new Date(startValue);
   const end = endValue instanceof Date ? new Date(endValue) : new Date(endValue);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 0;
-  let date = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  let date = workshopSetClock(start, 0);
   let total = 0;
   while (date <= end) {
     for (const window of workshopAvailabilityWindowsForDate(date, context)) {
@@ -533,7 +557,7 @@ function workshopWorkMinutesBetween(startValue, endValue, context = null) {
       const overlapEnd = end < windowEnd ? end : windowEnd;
       if (overlapEnd > overlapStart) total += (overlapEnd - overlapStart) / 60000;
     }
-    date.setDate(date.getDate() + 1);
+    date = new Date(date.getTime() + 86400000);
   }
   return total;
 }
@@ -562,12 +586,12 @@ function workshopEntryDisplayCalendar(entry = {}) {
 function workshopEntryUsesConfiguredOvertime(entry = {}) {
   const start = workshopEntryStart(entry);
   const end = workshopEntryEnd(entry);
-  let date = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  let date = workshopSetClock(start, 0);
   while (date <= end) {
     for (const window of workshopAvailabilityWindowsForDate(date, workshopEntryDisplayCalendar(entry)).filter(item => item.overtime)) {
       if (workshopIntervalsOverlap(start, end, workshopSetClock(date, window.startMinutes), workshopSetClock(date, window.endMinutes))) return true;
     }
-    date.setDate(date.getDate() + 1);
+    date = new Date(date.getTime() + 86400000);
   }
   return false;
 }
@@ -2857,7 +2881,7 @@ function workshopResolveConflictByNextSlot(candidate = {}, rows = workshopLoadPl
     return null;
   }
   const nextStart = workshopDateAtOffset(nextSlot.dateKey, nextSlot.startMinutes);
-  const nextLabel = nextStart.toLocaleString('en-AU', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const nextLabel = nextStart.toLocaleString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit' });
   if (!window.confirm(`${area} already has ${identity} booked during that time.\n\nMove this booking to the next open slot in this bay instead?\n\nNext open slot: ${nextLabel}`)) return null;
   return { ...candidate, startAt: nextStart.toISOString() };
 }
@@ -2894,7 +2918,7 @@ function workshopShiftTrailingPlannedRows(candidate = {}, otherRows = [], { conf
       const vehicle = workshopVehicle(row.vehicleKey);
       const identity = vehicle ? (displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'vehicle') : 'vehicle';
       const start = parseIsoTimestamp(row.startAt);
-      const label = start ? start.toLocaleString('en-AU', { weekday: 'short', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit' }) : 'time TBC';
+      const label = start ? start.toLocaleString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit' }) : 'time TBC';
       return `• ${identity} → ${label}`;
     }).join('\n');
     const noun = moved.length === 1 ? 'booking' : 'bookings';
@@ -3123,15 +3147,15 @@ function workshopTimeLabelFromMinutes(minutes = 0) {
 function workshopEntryTimeLabel(entry = {}) {
   const interval = workshopEntryInterval(entry);
   const sameDay = workshopDateKey(interval.startDate) === workshopDateKey(interval.endDate);
-  const start = interval.startDate.toLocaleString('en-AU', sameDay ? { hour: 'numeric', minute: '2-digit' } : { weekday: 'short', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit' });
-  const end = interval.endDate.toLocaleString('en-AU', sameDay ? { hour: 'numeric', minute: '2-digit' } : { weekday: 'short', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit' });
+  const start = interval.startDate.toLocaleString('en-AU', sameDay ? { timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit' } : { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit' });
+  const end = interval.endDate.toLocaleString('en-AU', sameDay ? { timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit' } : { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit' });
   return `${start}–${end}`;
 }
 
 function workshopSlotSummary(stage = '', bay = 1, dateKey = '', startMinutes = 0) {
   const normalizedStage = normalizePmbStage(stage);
   const start = workshopDateAtOffset(dateKey, startMinutes);
-  const when = start.toLocaleString('en-AU', { weekday: 'short', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit' });
+  const when = start.toLocaleString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit' });
   const area = `${pmbStageLabel(normalizedStage)} · Bay ${workshopPad(bay)}`;
   return `${area} · ${when}`;
 }
@@ -3173,7 +3197,7 @@ function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefault
 
 function workshopDateLabel(dateKey = '') {
   const date = workshopDateFromKey(dateKey);
-  return date ? date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  return date ? date.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
 }
 
 function workshopSyncCompletedPlans(rows = workshopLoadPlans(), options = {}) {
@@ -3347,14 +3371,20 @@ function workshopVehicleEtaConstraint(vehicle = {}) {
   const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   let parsed = null;
   if (iso) {
-    const isoDate = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-    if (isoDate.getFullYear() === Number(iso[1])
-      && isoDate.getMonth() === Number(iso[2]) - 1
-      && isoDate.getDate() === Number(iso[3])) parsed = isoDate;
-  } else if (raw && typeof parseDateAU === 'function') parsed = parseDateAU(raw);
+    // r406: midnight Perth on the ETA date.
+    const isoDate = new Date(Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])));
+    if (isoDate.getUTCFullYear() === Number(iso[1])
+      && isoDate.getUTCMonth() === Number(iso[2]) - 1
+      && isoDate.getUTCDate() === Number(iso[3])) parsed = new Date(isoDate.getTime() - 8 * 3600000);
+  } else if (raw && typeof parseDateAU === 'function') {
+    // parseDateAU builds a device-local midnight from d/m/y; keep that calendar date, in Perth.
+    const local = parseDateAU(raw);
+    parsed = local && !Number.isNaN(local.getTime())
+      ? new Date(Date.UTC(local.getFullYear(), local.getMonth(), local.getDate()) - 8 * 3600000)
+      : local;
+  }
   if (!parsed || Number.isNaN(parsed.getTime())) return { required: true, ok: false, location, raw, earliestDateKey: '', bestSlotEarliestDateKey: '', reason: raw ? 'invalid_eta' : 'missing_eta' };
-  const earliestBookingDate = new Date(parsed);
-  earliestBookingDate.setDate(earliestBookingDate.getDate() + 7);
+  const earliestBookingDate = new Date(parsed.getTime() + 7 * 86400000);
   const earliestDateKey = workshopDateKey(earliestBookingDate);
   return {
     required: true,
@@ -4240,8 +4270,7 @@ function workshopPartsSummary(vehicle = {}) {
 function workshopNextWorkdayDate(anchor = new Date()) {
   const next = anchor instanceof Date ? new Date(anchor) : new Date(anchor);
   if (Number.isNaN(next.getTime())) return workshopNextWorkdayDate(new Date());
-  next.setDate(next.getDate() + 1);
-  return workshopCoerceWorkDate(next, 1);
+  return workshopCoerceWorkDate(new Date(next.getTime() + 86400000), 1);
 }
 
 function workshopNextDayFittingPartsWarnings(anchor = new Date(), rows = workshopLoadPlans()) {
@@ -4265,7 +4294,7 @@ function workshopNextDayFittingPartsWarnings(anchor = new Date(), rows = worksho
 function workshopNextDayFittingWarningEmailBody(result = {}) {
   const targetDate = result.targetDate instanceof Date ? result.targetDate : workshopNextWorkdayDate();
   const warnings = Array.isArray(result.warnings) ? result.warnings : [];
-  const dateLabel = targetDate.toLocaleDateString('en-AU', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  const dateLabel = targetDate.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
   return [
     'Hi PMG team,',
     '',
@@ -4293,11 +4322,11 @@ function workshopNextDayFittingWarningEmailBody(result = {}) {
 function draftWorkshopNextDayFittingWarningEmail() {
   const result = workshopNextDayFittingPartsWarnings(new Date());
   if (!result.warnings.length) {
-    window.alert(`No next-workday Fitting bookings were found with unconfirmed parts for ${result.targetDate.toLocaleDateString('en-AU')}.`);
+    window.alert(`No next-workday Fitting bookings were found with unconfirmed parts for ${result.targetDate.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth' })}.`);
     return false;
   }
   const recipient = '';
-  const dateLabel = result.targetDate.toLocaleDateString('en-AU', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+  const dateLabel = result.targetDate.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
   const subject = `PDC WARNING - Fitting bookings without confirmed parts - ${dateLabel}`;
   result.warnings.forEach(({ vehicle }) => {
     if (typeof recordVehicleAudit === 'function') recordVehicleAudit(vehicle, 'Next-day fitting parts warning email drafted', { recipient: 'Selected in email client', bookingDate: result.dateKey });
@@ -4419,7 +4448,7 @@ function workshopOtherDateCardHtml(entry = {}) {
   const date = parseIsoTimestamp(entry.startAt || '');
   return `<button class="workshop-other-date-card" type="button" data-workshop-open-plan="${escapeHtml(entry.id)}" data-workshop-open-date="${escapeHtml(workshopEntryDate(entry))}">
     <strong>${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
-    <span>${escapeHtml(date ? date.toLocaleDateString('en-AU', { weekday: 'short', day: '2-digit', month: '2-digit' }) : 'Date unknown')} · ${escapeHtml(`Bay ${entry.bay}`)}</span>
+    <span>${escapeHtml(date ? date.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit' }) : 'Date unknown')} · ${escapeHtml(`Bay ${entry.bay}`)}</span>
   </button>`;
 }
 
@@ -4939,7 +4968,7 @@ function workshopStationSelectionHtml(entry = null) {
   const started = entry.status === 'started';
   const stopped = entry.status === 'stoppage';
   const start = parseIsoTimestamp(entry.startAt || '');
-  const localValue = start ? `${workshopDateKey(start)}T${workshopPad(start.getHours())}:${workshopPad(start.getMinutes())}` : '';
+  const localValue = start ? workshopPerthLocalInputValue(start) : '';
   return `<section class="workshop-station-selection" data-workshop-detail-panel>
     <header><strong>${escapeHtml(pmbStageLabel(entry.stage))} work required</strong><span>${escapeHtml(stopped ? 'STOPPAGE' : entry.status || 'planned')}</span></header>
     ${workshopRequiredJobsForStageHtml(vehicle, entry.stage, workshopStageJobLines(vehicle, entry.stage))}
@@ -4973,7 +5002,7 @@ function workshopDetailHtml(entry = null, options = {}) {
     </div>`;
   }
   const start = parseIsoTimestamp(entry.startAt || '');
-  const localValue = start ? `${workshopDateKey(start)}T${workshopPad(start.getHours())}:${workshopPad(start.getMinutes())}` : '';
+  const localValue = start ? workshopPerthLocalInputValue(start) : '';
   const started = String(entry.status || '').toLowerCase() === 'started';
   const completed = entry.status === 'completed';
   const stopped = entry.status === 'stoppage';
@@ -5076,7 +5105,7 @@ async function workshopOpenVehicleLinkReadinessReview() {
     onProgress: (done, total) => { if (progress) progress.textContent = `Reviewing ${done} of ${total} browser-local operational vehicles…`; },
   });
   if (!document.body.contains(overlay)) return;
-  progress.textContent = `Readiness report generated ${new Date(report.generatedAt).toLocaleString('en-AU')}.`;
+  progress.textContent = `Readiness report generated ${new Date(report.generatedAt).toLocaleString('en-AU', { timeZone: 'Australia/Perth' })}.`;
   body.innerHTML = workshopLinkReadinessModalReportHtml(report);
   const readyCount = Number(report.counts?.resolvable_unsaved || 0);
   saveButton.hidden = readyCount < 1 || !workshopVehicleLinkCanPersist();
@@ -5199,7 +5228,7 @@ function workshopAdminBlockFormatTime(value) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  return date.toLocaleString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 }
 
 function workshopAdminBlockSuccessMessage(result = {}) {
@@ -5666,7 +5695,7 @@ function renderWorkshopPlanner(options = {}) {
     ${workshopReadinessFailureHtml(stage, stageVehicleList, plans)}
 
     ${workshopStartFeedback.stage === stage && workshopStartFeedback.message ? `<div class="workshop-search-state" role="status" aria-live="polite">${escapeHtml(workshopStartFeedback.message)}</div>` : ''}
-    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
+    <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
     ${focusedBookingMode ? '' : workshopSearchControlHtml(state.search || '', plans)}
     ${state.bookingNavigationError ? `<div class="workshop-search-state is-warning" role="alert">${escapeHtml(state.bookingNavigationError)}</div>` : ''}
     ${!focusedBookingMode && typeof pdcWorkshopDepartmentControls === 'function' ? pdcWorkshopDepartmentControls() : ''}
@@ -6827,7 +6856,7 @@ function workshopConfirmOtherDepartmentPlans(candidate = {}, rows = []) {
   if (!overlapping.length) return true;
   const details = overlapping.slice(0, 8).map(row => {
     const when = parseIsoTimestamp(row.startAt);
-    const whenLabel = when ? when.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' }) : 'time not set';
+    const whenLabel = when ? when.toLocaleString('en-AU', { timeZone: 'Australia/Perth', dateStyle: 'short', timeStyle: 'short' }) : 'time not set';
     const place = `Bay ${workshopPad(row.bay)}`;
     return `• ${pmbStageLabel(row.stage)} · ${place} · ${whenLabel}`;
   }).join('\n');
@@ -7181,7 +7210,7 @@ async function saveWorkshopDetailForm(event) {
   if (!entry) return;
   if (!workshopRequirePlannerStage(entry.stage)) return;
   const data = new FormData(form);
-  const start = new Date(String(data.get('startAt') || entry.startAt || ''));
+  const start = workshopParsePerthLocalInput(String(data.get('startAt') || entry.startAt || ''));
   if (Number.isNaN(start.getTime()) || !workshopIsConfiguredWorkingDay(start)) {
     window.alert('Choose a date in the configured workshop working week.');
     return;
@@ -7392,7 +7421,7 @@ async function startWorkshopPlan(planId = '') {
     title: `${pmbStageLabel(entry.stage)} job started`,
     subject: 'PDC workshop job started',
     details: [
-      `${pmbStageLabel(entry.stage)} work started at ${currentStart.toLocaleString('en-AU', { dateStyle: 'short', timeStyle: 'short' })}.`,
+      `${pmbStageLabel(entry.stage)} work started at ${currentStart.toLocaleString('en-AU', { timeZone: 'Australia/Perth', dateStyle: 'short', timeStyle: 'short' })}.`,
       `Bay ${entry.bay}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`,
       `Estimated workshop time: ${entry.hours} hours.`,
     ],
@@ -7901,7 +7930,7 @@ async function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
       return sum + (segment ? (segment.end - segment.start) / 60 : 0);
     }, 0);
     return `<section class="workshop-week-day ${isClosure ? 'is-closure' : ''}">
-      <header><strong>${escapeHtml(date.toLocaleDateString('en-AU', { weekday: 'short' }))}</strong><span>${escapeHtml(date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit' }))}</span><small>${isClosure ? 'CLOSED · historical bookings remain visible' : `${escapeHtml(bookedHours.toFixed(bookedHours % 1 ? 1 : 0))}h booked`}</small></header>
+      <header><strong>${escapeHtml(date.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short' }))}</strong><span>${escapeHtml(date.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', day: '2-digit', month: '2-digit' }))}</span><small>${isClosure ? 'CLOSED · historical bookings remain visible' : `${escapeHtml(bookedHours.toFixed(bookedHours % 1 ? 1 : 0))}h booked`}</small></header>
       <div class="workshop-week-day-lane" ${isClosure ? 'aria-disabled="true"' : `data-workshop-week-drop-date="${escapeHtml(dateKey)}"`}>${workshopWeeklyTimeGuideHtml()}${workshopUnavailableTimeHtml(dateKey, { vertical: true, stage: normalizedStage, bay: Number(bay) })}${isClosure ? '' : workshopDropPreviewHtml({ vertical: true })}${adminBlocks.map(block => workshopWeeklyAdminBlockHtml(block, dateKey)).join('')}${dayPlans.map(entry => workshopWeeklyCardHtml(entry, dateKey)).join('')}</div>
     </section>`;
   }).join('');
@@ -7912,7 +7941,7 @@ async function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
   overlay.setAttribute('aria-modal', 'true');
   overlay.innerHTML = `<section class="modal-card workshop-week-card-shell">
     <button class="modal-close" type="button" data-workshop-week-close aria-label="Close weekly view">×</button>
-    <header class="workshop-week-header"><div><h2>${escapeHtml(pmbStageLabel(normalizedStage))} · Bay ${escapeHtml(bay)} weekly schedule</h2><p>${escapeHtml(dates[0].toLocaleDateString('en-AU', { day: 'numeric', month: 'long' }))}–${escapeHtml(dates[dates.length - 1].toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' }))} · drag a minimised booking to another day or time</p></div><div><button class="small-button" type="button" data-workshop-week-shift="-7">‹ Previous week</button><button class="small-button" type="button" data-workshop-week-shift="7">Next week ›</button></div></header>
+    <header class="workshop-week-header"><div><h2>${escapeHtml(pmbStageLabel(normalizedStage))} · Bay ${escapeHtml(bay)} weekly schedule</h2><p>${escapeHtml(dates[0].toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', day: 'numeric', month: 'long' }))}–${escapeHtml(dates[dates.length - 1].toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', day: 'numeric', month: 'long', year: 'numeric' }))} · drag a minimised booking to another day or time</p></div><div><button class="small-button" type="button" data-workshop-week-shift="-7">‹ Previous week</button><button class="small-button" type="button" data-workshop-week-shift="7">Next week ›</button></div></header>
     <div class="workshop-week-grid" style="--workshop-week-columns:${dates.length};min-width:${Math.max(620, dates.length * 200)}px">${columns}</div>
     <footer><span>Planned jobs snap to ${escapeHtml(WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes)} minutes and update the daily board immediately. Closures are read-only; historical bookings remain visible. Started and STOPPAGE jobs can also be moved safely, with audit and bay-state updates. Completed jobs stay fixed.</span><button class="primary" type="button" data-workshop-week-close>Done</button></footer>
   </section>`;
@@ -7928,8 +7957,7 @@ async function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
     if (block) void workshopRenameAdminBlock(block).then(ok => { if (ok) openWorkshopWeeklyView(normalizedStage, bay, weekStart); });
   }));
   overlay.querySelectorAll('[data-workshop-week-shift]').forEach(button => button.addEventListener('click', () => {
-    const nextWeek = new Date(weekStart);
-    nextWeek.setDate(nextWeek.getDate() + Number(button.dataset.workshopWeekShift));
+    const nextWeek = new Date(new Date(weekStart).getTime() + Number(button.dataset.workshopWeekShift) * 86400000);
     openWorkshopWeeklyView(normalizedStage, bay, nextWeek);
   }));
   overlay.querySelectorAll('[data-workshop-week-plan][draggable="true"]').forEach(card => card.addEventListener('dragstart', event => {
@@ -8225,7 +8253,7 @@ function updateWorkshopNowLine(root = document) {
   const clampedOffset = Math.min(Math.max(offset, 0), WORKSHOP_PLANNER_CONFIG.dayLengthMinutes);
   const left = axisRect.left - timelineRect.left + (clampedOffset / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * axisRect.width;
   line.style.left = `${Math.round(left)}px`;
-  line.querySelector('span').textContent = `Now ${now.toLocaleTimeString('en-AU', { hour: 'numeric', minute: '2-digit' })}`;
+  line.querySelector('span').textContent = `Now ${now.toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit' })}`;
 }
 
 if (typeof window !== 'undefined' && !window.__workshopPlannerStorageSyncBound) {
