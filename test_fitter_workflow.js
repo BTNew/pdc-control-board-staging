@@ -425,7 +425,8 @@ test('a matched Bus conversion renders a dropdown with a Start / Done tick per s
   assert.match(f.html,/In progress · 0h 15m of 0h 30m/);
   assert.match(f.html,/--conv-from:50%;--conv-run:900s/);
   assert.match(f.html,/Done · actual 1h 12m/);
-  assert.match(f.html,/data-conversion-step="start" data-conversion-line="source:coaster" data-conversion-section="1"  disabled/,'one section in progress at a time');
+  assert.match(f.html,/data-conversion-step="start" data-conversion-line="source:coaster" data-conversion-section="1"  >/,'several sections may run at once (Bhavesh, r384)');
+  assert.match(f.html,/1 of 3 sections done · 1 running/);
   assert.doesNotMatch(f.html,/Release blocked|Save section update|comparable timed builds|Planning allowance/);
   const step=f.element('[data-conversion-step]',{dataset:{conversionStep:'start',conversionLine:'source:coaster',conversionSection:'1'},checked:false,tagName:'INPUT'});
   f.refresh.handlers.click();await flush();
@@ -444,4 +445,19 @@ test('a matched Bus conversion renders a dropdown with a Start / Done tick per s
   f.refresh.handlers.click();await flush();
   assert.match(f.html,/scope needs review/);
   assert.doesNotMatch(f.html,/data-fitter-line="source:review"/);
+});
+
+test('a bay item Start tick sends item_start without touching the note; untick sends item_reset (r384)',async()=>{
+  const f=screenFixture();
+  await f.open();
+  const id=f.data.detail.lines[0].line_identity;
+  assert.match(f.html,new RegExp(`data-fitter-item-start="${id.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}"`));
+  const start=f.element('[data-fitter-item-start]',{dataset:{fitterItemStart:id},checked:false,tagName:'INPUT'});
+  f.refresh.handlers.click();await flush();
+  start.checked=true;start.handlers.change({currentTarget:start});await flush();
+  let sent=f.calls.filter(c=>c.rpc==='fitter_job_command').pop().body;
+  assert.equal(sent.p_action,'item_start');assert.equal(sent.p_line_identity,id);assert.equal(sent.p_note,null);assert.equal(sent.p_completed,null);
+  start.checked=false;start.handlers.change({currentTarget:start});await flush();
+  sent=f.calls.filter(c=>c.rpc==='fitter_job_command').pop().body;
+  assert.equal(sent.p_action,'item_reset');
 });

@@ -24,3 +24,16 @@
 @keyframes conv-fill{from{width:var(--conv-from)}to{width:100%}}
 @media (prefers-reduced-motion:reduce){.conv-bar>span{animation:none}}
 @media (max-width:560px){.conv-section-row{flex-wrap:wrap}.conv-section-name{flex-basis:100%}}
+/* Bay items: Start / Done on every item (r384). Running items sit beside the Done-only %. */
+.fitter-item-ticks{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin:.35rem 0 0 2rem}
+.fitter-item-status{color:#5b6472}
+.fitter-line.is-running{border-color:#2563eb}
+.fitter-line.is-stale{border-color:#c2410c}
+.fitter-line .conv-bar{margin-left:2rem}
+.fitter-progress.has-running{background-image:repeating-linear-gradient(135deg,rgba(37,99,235,.18) 0 6px,transparent 6px 12px)}
+.fitter-running{display:flex;gap:.35rem;align-items:center;flex-wrap:wrap;font-size:.75rem;color:#1e3a8a;margin-top:.15rem;min-width:0}
+.fitter-running>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.fitter-running b{background:#dbeafe;border-radius:.6rem;padding:0 .4rem}
+.fitter-running em{font-style:normal;font-weight:600;color:#c2410c}
+.fitter-running.is-stale b{background:#ffedd5;color:#9a3412}
+.fitter-item-reset{font-size:.72rem;padding:.1rem .45rem;border:1px solid #c2410c;border-radius:.3rem;background:#fff;color:#9a3412;cursor:pointer}

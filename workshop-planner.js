@@ -4445,7 +4445,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
     </button>
     ${lifecycleActionsHtml}
-    ${window.PdcFitters?.progressHtml(entry.fitterProgress, true) || ''}
+    ${window.PdcFitters?.progressHtml(entry.fitterProgress, true, { resettable: true }) || ''}
     ${entry.legacyAmbiguityReason ? '' : `<span class="workshop-plan-resize" data-workshop-resize-plan="${escapeHtml(entry.id)}" title="Drag to change duration"></span>`}
   </article>`;
 }

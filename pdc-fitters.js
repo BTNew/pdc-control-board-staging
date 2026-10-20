@@ -15,6 +15,10 @@
     conversion_controller_required:'A controller must confirm the manufacturer checklist.',
     conversion_reopen_section:'Reopen Section 12 before changing its checklist reference.',
     conversion_invalid:'Check the section details and enter non-negative hours.',
+    item_start_unavailable:'Supplier and conversion items use their own ticks. Tick Done when the work is finished.',
+    item_already_done:'This item is already Done. Untick Done first to start it again.',
+    item_not_running:'That item is no longer running. Refresh the board.',
+    booking_not_active:'That job is already complete. Nothing to reset.',
     version_conflict:'This job changed on another screen. Refresh, review the latest items and try again.',
     scope_changed:'The operation list or hours changed. Refresh and review the updated items.',
     assignment_changed:'This job is no longer assigned to this mechanic. Refresh the job list.',
@@ -69,10 +73,22 @@
       : 'Ask the controller to check this booking before continuing.';
     return `${action==='start'?'Start blocked':action==='resume'?'Resume blocked':'Change blocked'}: this vehicle ${situation} in ${where}${when}. ${help}`;
   }
-  function progressHtml(progress, compact = false) {
+  const itemDuration = m => m == null || !Number.isFinite(Number(m)) ? '—' : `${Math.floor(Number(m) / 60)}h ${String(Math.round(Number(m) % 60)).padStart(2, '0')}m`;
+  // The % counts Done work only. Running items (Start ticked, not Done) are
+  // shown beside it, and any running past twice its allowance or since an
+  // earlier day is flagged so a controller can reset it.
+  function runningHtml(progress, options = {}) {
+    const current = Array.isArray(progress?.current) ? progress.current : [];
+    if (!current.length) return '';
+    const stale = current.filter(c => c.stale === true);
+    const now = current.map(c => `${c.description || 'Item'}${c.technician ? ` · ${c.technician}` : ''} · ${itemDuration(c.elapsed_minutes)}${c.allowance_minutes ? ` of ${itemDuration(c.allowance_minutes)}` : ''}${c.stale ? ' · check' : ''}`);
+    const reset = options.resettable ? stale.map(c => `<button type="button" class="fitter-item-reset" data-fitter-item-reset="${esc(c.booking_id)}" data-fitter-item-line="${esc(c.line_identity)}" data-fitter-item-section="${esc(c.section ?? '')}" data-fitter-item-name="${esc(c.description || 'Item')}">Reset ${esc(c.description || 'item')}</button>`).join('') : '';
+    return `<span class="fitter-running${stale.length ? ' is-stale' : ''}" title="${esc(now.join('\n'))}"><b>Running: ${current.length}</b> <span>Now: ${esc(now[0])}${current.length > 1 ? ` +${current.length - 1}` : ''}</span>${stale.length ? `<em>${stale.length} running too long${options.resettable ? '' : ' · reset from the planner'}</em>` : ''}${reset}</span>`;
+  }
+  function progressHtml(progress, compact = false, options = {}) {
     const p = Math.max(0, Math.min(100, Number(progress?.percent) || 0));
-    const label = `${p}% work completed${progress ? ` · ${Number(progress.completed_hours) || 0} of ${Number(progress.total_hours) || 0} h` : ''}`;
-    return `<span class="fitter-progress${compact ? ' is-compact' : ''}" role="progressbar" aria-label="Work completed by fitter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" title="${esc(label)}"><span style="width:${p}%"></span>${compact ? '' : `<b>${esc(label)}</b>`}</span>`;
+    const label = `${p}% work completed${progress ? ` · ${Number(progress.completed_hours) || 0} of ${Number(progress.total_hours) || 0} h` : ''}${Number(progress?.running) > 0 ? ` · ${Number(progress.running)} running` : ''}`;
+    return `<span class="fitter-progress${compact ? ' is-compact' : ''}${Number(progress?.running) > 0 ? ' has-running' : ''}" role="progressbar" aria-label="Work completed by fitter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" title="${esc(label)}"><span style="width:${p}%"></span>${compact ? '' : `<b>${esc(label)}</b>`}</span>${runningHtml(progress, options)}`;
   }
   function formatElapsed(seconds) {
     if (!Number.isFinite(seconds)) return '--:--:--';
@@ -87,7 +103,7 @@
     // A newly unverified history supersedes any previously displayed clock.
     // Never turn a missing authoritative total into zero or keep advancing it.
     const frozen=unknownHistory?null:Number.isFinite(options.frozenSeconds)?Math.max(0,options.frozenSeconds):elapsed;
-    const pending={start:'Starting job…',resume:'Resuming job…',stop:'Recording stoppage…',complete:'Completing job…',line:'Saving work…'}[options.pendingAction];
+    const pending={start:'Starting job…',resume:'Resuming job…',stop:'Recording stoppage…',complete:'Completing job…',line:'Saving work…',item_start:'Starting item…',item_reset:'Resetting item…'}[options.pendingAction];
     if(pending) return {...result,tone:'pending',label:pending,hint:options.pendingAction==='start'?'Checking the schedule and moving affected unstarted bookings where needed.':'Waiting for the workshop to confirm.',seconds:frozen};
     if(options.unconfirmed) return {...result,tone:'unconfirmed',label:({start:'Start not confirmed',resume:'Resume not confirmed',stop:'Stoppage not confirmed',complete:'Completion not confirmed'}[options.unconfirmedAction]||'Save not confirmed'),hint:'Check / retry the last save before continuing.',seconds:frozen};
     if(options.connected===false) return {...result,tone:'unconfirmed',label:'Last confirmed time',hint:'Reconnect or refresh to check this job.',seconds:frozen};
@@ -226,6 +242,7 @@
       jobs:id => rpc('get_fitter_jobs', {p_technician_id:id}, false),
       job:(id, booking) => rpc('get_fitter_job', {p_technician_id:id,p_booking_id:booking}, false),
       command, retry:() => command(null, true),
+      resetItem:body => { invalidateReads(); return rpc('reset_fitter_item_timing', body, true); },
       invalidate() { generation++; retry = null; rosterCache = null; rosterRequest = null; invalidateReads(); },
       get busy() { return busy; }, get retryPending() { return Boolean(retry); },
       get retryAction() { return retry?.body.p_action || ''; },
@@ -258,9 +275,9 @@
     const remainSeconds = Math.max(1, Math.round((planned - elapsed) * 60));
     const bar = running ? `<div class="conv-bar${over ? ' is-over' : ''}${state.paused ? ' is-paused' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="${esc(section.label)} progress"><span style="--conv-from:${pct}%;--conv-run:${over ? 0 : remainSeconds}s"></span></div>` : '';
     const status = done ? `Done${section.actual_minutes != null ? ` · actual ${conversionDuration(Number(section.actual_minutes))}` : ''}`
-      : running ? (over ? `In progress · over by ${conversionDuration(elapsed - planned)}` : `In progress · ${conversionDuration(elapsed)} of ${conversionDuration(planned)}`) : '';
+      : running ? (over ? `In progress · over by ${conversionDuration(elapsed - planned)}` : `In progress · ${conversionDuration(elapsed)} of ${conversionDuration(planned)}`) + (section.stale ? ' · running too long, tick Done or ask the controller to reset' : '') : '';
     const dis = state.disabled ? 'disabled' : '';
-    const startDis = state.disabled || done || (!running && state.otherRunning) ? 'disabled' : '';
+    const startDis = state.disabled || done ? 'disabled' : '';
     const doneDis = state.disabled || (!running && !done) ? 'disabled' : '';
     const noteKey = `${state.booking}|${line.line_identity}|${section.id}`, draft = state.noteDrafts?.get(noteKey);
     const note = draft ?? section.note ?? '';
@@ -275,21 +292,43 @@
   function conversionTicksHtml(line, index, state) {
     const c = line.conversion, sections = c.sections || [];
     const total = c.sections_total ?? sections.length, doneCount = c.sections_done ?? sections.filter(s => s.status === 'complete').length;
-    const otherRunning = sections.some(s => s.status === 'in_progress');
+    const runningCount = c.sections_running ?? sections.filter(s => s.status === 'in_progress').length;
     const pct = line.completed ? 100 : Math.round(100 * (Number(line.completed_fraction) || 0));
     const open = state.open !== false;
-    return `<article class="fitter-line conv-ticks${line.completed ? ' is-done' : ''}" data-conversion-card="${esc(line.line_identity)}"><details class="conv-list" data-conversion-list="${esc(state.booking)}|${esc(line.line_identity)}" ${open ? 'open' : ''}><summary><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`} · ${doneCount} of ${total} sections done${line.completed ? ' · Work completed' : ''}</small></span><span class="conv-total" aria-hidden="true"><span style="width:${pct}%"></span></span></summary>
+    return `<article class="fitter-line conv-ticks${line.completed ? ' is-done' : ''}" data-conversion-card="${esc(line.line_identity)}"><details class="conv-list" data-conversion-list="${esc(state.booking)}|${esc(line.line_identity)}" ${open ? 'open' : ''}><summary><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`} · ${doneCount} of ${total} sections done${runningCount ? ` · ${runningCount} running` : ''}${line.completed ? ' · Work completed' : ''}</small></span><span class="conv-total" aria-hidden="true"><span style="width:${pct}%"></span></span></summary>
       ${line.scope_changed ? '<p class="fitter-warning">This item changed. Review the work before ticking it again.</p>' : ''}
-      <ol class="conv-sections">${sections.map(s => conversionSectionHtml(line, s, {...state, otherRunning: otherRunning && s.status !== 'in_progress'})).join('')}</ol></details></article>`;
+      <ol class="conv-sections">${sections.map(s => conversionSectionHtml(line, s, state)).join('')}</ol></details></article>`;
+  }
+  // Bay items: Start begins the item's bar against its approved hours (paused
+  // with the job clock); Done turns it green with the actual time. Done alone
+  // still works. Supplier items keep the single Done tick.
+  function itemTimingModel(line, state = {}) {
+    const running = line.item_status === 'running' && !line.completed, done = !!line.completed;
+    const planned = Number(line.hours) > 0 ? Number(line.hours) * 60 : 0;
+    const fromClock = Number.isFinite(state.jobSeconds) && Number.isFinite(Number(line.item_start_seconds)) ? (state.jobSeconds - Number(line.item_start_seconds)) / 60 : NaN;
+    const elapsed = running ? Math.max(0, Number.isFinite(fromClock) ? fromClock : Number(line.item_elapsed_minutes) || 0) : 0;
+    return { running, done, planned, elapsed, over: running && planned > 0 && elapsed > planned, actual: done && line.item_status === 'done' && line.item_actual_minutes != null ? Number(line.item_actual_minutes) : null };
+  }
+  function fitterItemTicksHtml(line, state) {
+    if (line.external_work || line.conversion) return '';
+    const m = itemTimingModel(line, state), id = esc(line.line_identity);
+    const pct = m.planned > 0 ? Math.min(100, Math.round(1000 * m.elapsed / m.planned) / 10) : 0;
+    const remainSeconds = Math.max(1, Math.round((m.planned - m.elapsed) * 60));
+    const bar = m.running && m.planned > 0 ? `<div class="conv-bar${m.over ? ' is-over' : ''}${state.paused ? ' is-paused' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="${esc(line.description)} progress"><span style="--conv-from:${pct}%;--conv-run:${m.over ? 0 : remainSeconds}s"></span></div>` : '';
+    const status = m.done ? (m.actual != null ? `Done · actual ${itemDuration(m.actual)}` : '')
+      : m.running ? `${m.over ? `In progress · over by ${itemDuration(m.elapsed - m.planned)}` : m.planned ? `In progress · ${itemDuration(m.elapsed)} of ${itemDuration(m.planned)}` : `In progress · ${itemDuration(m.elapsed)} · no allowance`}${line.item_stale ? ' · running too long, tick Done or ask the controller to reset' : ''}` : '';
+    return `<div class="fitter-item-ticks"><label class="conv-tick"><input type="checkbox" data-fitter-item-start="${id}" ${m.running || m.done ? 'checked' : ''} ${state.disabled || m.done ? 'disabled' : ''}> Start</label>${status ? `<small class="fitter-item-status">${esc(status)}</small>` : ''}</div>${bar}`;
   }
   function fitterLineCardHtml(line, index, state) {
     const disabled = state.disabled, note = state.note, editable = state.editable, open = state.open;
-    return `<article class="fitter-line${line.completed ? ' is-done' : ''}"><label class="fitter-line-check"><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" ${line.completed ? 'checked' : ''} ${disabled ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
+    const m = itemTimingModel(line, state), timed = !line.external_work && !line.conversion;
+    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${m.running ? ' is-running' : ''}${line.item_stale && m.running ? ' is-stale' : ''}"><label class="fitter-line-check"><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" ${line.completed ? 'checked' : ''} ${disabled ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}${timed ? ' · Done' : ''}</small></span></label>
+      ${timed ? fitterItemTicksHtml(line, state) : ''}
       ${line.scope_changed ? '<p class="fitter-warning">This item changed. Review the work before ticking it again.</p>' : ''}
       ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}
       ${editable || note ? `<details class="fitter-notes" ${open ? 'open' : ''}><summary>${note ? 'Item notes' : 'Add a note'}</summary><label for="fitter-note-${index}">Work notes</label><textarea id="fitter-note-${index}" data-fitter-note="${esc(line.line_identity)}" rows="2" maxlength="2000" ${disabled ? 'disabled' : ''}>${esc(note)}</textarea>${editable ? `<button type="button" data-fitter-save-note="${esc(line.line_identity)}" ${disabled ? 'disabled' : ''}>Save note</button>` : ''}${open ? '<small>Unsaved note</small>' : ''}</details>` : ''}</article>`;
   }
-  const api = { createService, progressHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, conversionUsesSimpleTick, fitterLineCardHtml, conversionTicksHtml, conversionSectionHtml };
+  const api = { createService, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, conversionUsesSimpleTick, fitterLineCardHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.PdcFitters = api;
   const doc = root.document;
@@ -348,7 +387,8 @@
     const draft = drafts.get(`${selected}:${line.line_identity}`), note = draft?.note ?? line.note;
     const disabled = !editable || saving || loading || service.retryPending || busPending();
     if(line.conversion) return conversionTicksHtml(line, index, {editable, disabled, booking:selected, paused:detail?.status!=='started', noteDrafts:conversionNotes, open:!conversionClosed.has(`${selected}|${line.line_identity}`)});
-    return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft});
+    const clock=timerModel(detail,timingOptions());
+    return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft, paused: clock.tone!=='running', jobSeconds: Number.isFinite(clock.seconds)?clock.seconds:NaN});
   }
   function render() {
     const target = host(); if (!target || !active()) return;
@@ -445,12 +485,12 @@
   async function act(action, lineId, completed, retry=false, conversionChange=null) {
     if (saving || loading || busPending() || (!retry && (!connected || !detail))) return;
     const line=detail?.lines.find(l=>l.line_identity===lineId), key=`${selected}:${lineId}`, draft=drafts.get(key);
-    if (draft && draft.scope!==line?.scope_hash) { message='This item changed while you were writing. Review it and copy your note before refreshing.'; render(); return; }
+    if (draft && draft.scope!==line?.scope_hash && !String(action).startsWith('item_')) { message='This item changed while you were writing. Review it and copy your note before refreshing.'; render(); return; }
     if (action==='stop' && stopReason.trim().length<3) { message='Enter a short reason for the stoppage.'; render(); return; }
     const body={p_technician_id:mechanic,p_booking_id:selected,p_expected_version:detail?.version,
       p_catalog_hash:detail?.catalog_hash,p_action:action,p_line_identity:lineId||null,
-      p_completed:completed??null,p_note:conversionChange?JSON.stringify(conversionChange):action==='stop'?`${stopType}: ${stopReason.trim()}`:line?(draft?.note??line.note??''):null};
-    if (!retry) pendingDraftKey = lineId ? key : '';
+      p_completed:completed??null,p_note:conversionChange?JSON.stringify(conversionChange):action==='stop'?`${stopType}: ${stopReason.trim()}`:String(action).startsWith('item_')?null:line?(draft?.note??line.note??''):null};
+    if (!retry) pendingDraftKey = lineId && !String(action).startsWith('item_') ? key : '';
     // Do not make a fitter's tap disappear merely because polling is running.
     // The command still carries the displayed version and scope to the server.
     loadGeneration++; refreshing=false;
@@ -466,7 +506,7 @@
         }}));
       }
       if (result.action==='conversion') { root.PdcConversions?.confirmSave(); if(pendingConversionNote) conversionNotes.delete(pendingConversionNote); }
-      if (lineId) drafts.delete(key);
+      if (lineId && !String(result.action).startsWith('item_')) drafts.delete(key);
       if (retry && pendingDraftKey) drafts.delete(pendingDraftKey);
       pendingDraftKey = '';
       stopOpen=false; stopReason='';
@@ -511,6 +551,7 @@
     on('[data-fitter-signout]','click',()=>doc.querySelector('#pdc-auth-signout')?.click());
     on('[data-fitter-action]','click',e=>void act(e.currentTarget.dataset.fitterAction));
     on('[data-fitter-line]','change',e=>{ const n=e.currentTarget; const checked=n.checked; n.checked=!checked; void act('line',n.dataset.fitterLine,checked); });
+    on('[data-fitter-item-start]','change',e=>{ const n=e.currentTarget, checked=n.checked; n.checked=!checked; void act(checked?'item_start':'item_reset',n.dataset.fitterItemStart); });
     on('[data-fitter-note]','input',e=>{ const id=e.target.dataset.fitterNote, l=detail.lines.find(l=>l.line_identity===id); drafts.set(`${selected}:${id}`,{note:e.target.value,scope:l.scope_hash}); target.querySelector('[data-fitter-action="complete"]')?.setAttribute('disabled',''); });
     on('[data-fitter-save-note]','click',e=>{ const id=e.currentTarget.dataset.fitterSaveNote; void act('line',id,detail.lines.find(l=>l.line_identity===id).completed); });
     on('[data-fitter-stop]','click',()=>{ stopOpen=true; render(); doc.getElementById('fitter-stop-reason')?.focus(); });
@@ -540,5 +581,19 @@
   setInterval(()=>{if(active()&&!doc.hidden&&!targetBeingEdited())void refresh({background:true});},10000);
   setInterval(updateTimer,1000);
   function targetBeingEdited() { return root.PdcBusWorkflow?.hasDrafts() || root.PdcConversions?.hasDrafts() || conversionNotes.size>0 || (host()?.contains(doc.activeElement) && /INPUT|TEXTAREA|SELECT/.test(doc.activeElement.tagName)); }
+  // Controllers reset a forgotten running item from the planner card.
+  doc.addEventListener('click',async e=>{
+    const n=e.target?.closest?.('[data-fitter-item-reset]'); if(!n) return;
+    e.preventDefault(); e.stopPropagation();
+    if(!['operator','administrator'].includes(root.PDC_AUTH_CONTEXT?.role)) { root.alert?.('Only a controller can reset a running item.'); return; }
+    const reason=root.prompt?.(`Reset "${n.dataset.fitterItemName}" to not started? Enter a short reason (for example: forgot to tick Done).`);
+    if(reason==null) return;
+    if(reason.trim().length<3) { root.alert?.('Enter a reason of at least 3 characters.'); return; }
+    n.disabled=true;
+    try {
+      const result=await service.resetItem({p_booking_id:n.dataset.fitterItemReset,p_line_identity:n.dataset.fitterItemLine,p_section:n.dataset.fitterItemSection||null,p_reason:reason.trim()});
+      root.dispatchEvent(new root.CustomEvent('pdc-fitter-workshop-saved',{detail:{bookingId:result.booking_id,action:'item_reset',revision:result.revision}}));
+    } catch(err) { n.disabled=false; root.alert?.(err.message); }
+  },true);
   root.addEventListener('beforeunload',e=>{if(saving||drafts.size||conversionNotes.size||root.PdcConversions?.hasDrafts()||root.PdcBusWorkflow?.hasDrafts()||busPending()||service.retryPending){e.preventDefault();e.returnValue='';}});
 })(typeof window !== 'undefined' ? window : globalThis);
