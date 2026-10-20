@@ -311,20 +311,20 @@
       '</button>'+resizeHandle(index,label)+'</th>').join('')+'<th>Action'+resizeHandle(columns.length,'Action')+'</th></tr></thead><tbody>'+
       (rows.length?rows.map(row=>'<tr data-note-row="'+escapeHtml(row.tracking_id)+'" tabindex="0" aria-label="'+escapeHtml(vehicleReference(row))+' — expand notes" class="vehicle-summary-row '+(state.selected.has(row.tracking_id)?'selected':'')+'">'+columns.map(([key])=>{
         const val=row[key];
-        if (key==='salesperson_code')return '<td><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order||'vehicle')+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'>'+escapeHtml(val||'—')+'</td>';
+        if (key==='salesperson_code')return '<td class="sp-cell"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order||'vehicle')+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><span class="sp-code">'+escapeHtml(val||'—')+'</span></td>';
         if (key==='production_month')return '<td><span class="month-pill">'+escapeHtml(val||'—')+'</span></td>';
         if (orderingKeys.has(key)) return '<td class="sales-ordering-cell">'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</td>';
         if (key==='stock') return '<td class="vehicle-reference-cell">'+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button type="button" class="stock-button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+
           escapeHtml(val||row.order||'Reference not recorded')+'</button>'+(val?'':('<span class="subtle">Toyota Order Number</span><span class="subtle">Awaiting stock number</span>'))+(row.source_current===false?'<span class="source-warning">Not in latest PDC import</span>':'')+(row.identity_conflict?'<span class="source-warning">Order link needs review</span>':'')+'</td>';
-        if (key==='toyota_status') return '<td><span class="status-pill '+category(row)+'" title="'+escapeHtml(row.toyota_status||'Not recorded')+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<small class="subtle">Transport '+escapeHtml(row.transport_number)+'</small>':'')+'</td>';
+        if (key==='toyota_status') return '<td class="status-cell"><span class="status-pill '+category(row)+'" title="'+escapeHtml((row.toyota_status||'Not recorded')+(row.transport_number?' · Transport '+row.transport_number:''))+'">'+escapeHtml(salesStatus(row))+'</span></td>';
         if (key==='kewdale_eta')return '<td class="eta-cell">'+etaHtml(val)+'</td>';
-        if (key==='pmb_location') {const summary=pmbSummary(row);return '<td class="pmb-status-cell"><strong>'+escapeHtml(summary.status)+'</strong><div class="subtle">'+escapeHtml(summary.location)+'</div>'+
-          (summary.bookings[0]?.scheduled_start_at?'<div class="subtle">Booked '+escapeHtml(dateLabel(summary.bookings[0].scheduled_start_at))+'</div>':'')+'</td>';}
+        if (key==='pmb_location') {const summary=pmbSummary(row);const booked=summary.bookings[0]?.scheduled_start_at?'Booked '+dateLabel(summary.bookings[0].scheduled_start_at):'';const full=[summary.status,summary.location,booked].filter(Boolean).join(' · ');return '<td class="pmb-status-cell" title="'+escapeHtml(full)+'"><span class="pmb-line"><strong>'+escapeHtml(summary.status)+'</strong> '+escapeHtml(summary.location)+'</span></td>';}
         if(key==='navision_notes'){
           const manual=root.BROOME_VEHICLE_NOTES?.hasSavedNotes(row.tracking_id);
           return '<td class="notes-cell'+(manual?' has-staff-note':'')+'" title="'+escapeHtml((manual?'Staff note saved — expand this row to read it. ':'')+(val||''))+'"><span class="notes-clamp">'+escapeHtml(val||(manual?'Staff note saved':'—'))+'</span></td>';
         }
         if (key==='vehicle') return '<td class="vehicle-cell"><span class="vehicle-line" title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</span></td>';
+        if (key==='client') return '<td class="client-cell"><span class="client-line" title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</span></td>';
         return '<td title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</td>';
       }).join('')+'<td>'+actionHtml(row)+'</td></tr>'+(root.BROOME_VEHICLE_NOTES?.rowHtml(row)||'')).join(''):'<tr><td colspan="13"><div class="empty-state">No vehicles match this view.</div></td></tr>')+'</tbody>');
     columnWidths?.apply();
@@ -373,7 +373,11 @@
   function etaHtml(value){
     const info=root.BROOME_SALES_TOOLS?.etaInfo(value);
     if(!info)return escapeHtml(value||'Not recorded');
-    return '<strong>'+escapeHtml(info.date)+'</strong>'+(info.label?'<span class="eta-counter '+info.tone+'">'+escapeHtml(info.label)+'</span>':'');
+    if(!info.label)return '<strong>'+escapeHtml(info.date)+'</strong>';
+    const short=info.date.replace(/(\d{2})(\d{2})$/,'$2');
+    const n=Math.abs(info.days);
+    const compact=info.days>0?'· '+n+'d':info.days<0?'· '+n+'d past':'· today';
+    return '<strong>'+escapeHtml(short)+'</strong><span class="eta-counter '+info.tone+'" title="'+escapeHtml(info.date+' '+info.label)+'">'+escapeHtml(compact)+'</span>';
   }
   function actionHtml(row){
     const id=escapeHtml(row.tracking_id),label='Action for '+escapeHtml(row.stock||'Toyota order '+row.order);

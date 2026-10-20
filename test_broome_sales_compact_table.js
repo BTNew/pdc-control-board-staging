@@ -43,15 +43,16 @@ test('vehicle description is one line with the full text available on hover',asy
  const html=h.el('vehicle-table').innerHTML;
  assert.match(html,/<td class="vehicle-cell"><span class="vehicle-line" title="Toyota HiLux 4x4 2\.8 Diesel Dual Cab">Toyota HiLux 4x4 2\.8 Diesel Dual Cab<\/span><\/td>/);
  const css=fs.readFileSync('sales/sales.css','utf8');
- assert.match(css,/#vehicle-table \.vehicle-line\{[^}]*overflow:hidden[^}]*text-overflow:ellipsis[^}]*white-space:nowrap/);
+ assert.match(css,/#vehicle-table \.vehicle-line[\s\S]*?\{[^}]*overflow:hidden[^}]*text-overflow:ellipsis[^}]*white-space:nowrap/);
 });
 
 test('Kewdale ETA date and day counter share a line, with past in red and due in green',async()=>{
  const h=harness();
  h.calls[0].resolve({data:{context:{role:'salesperson'},items:[stocked,ordered]}});await tick();
  const html=h.el('vehicle-table').innerHTML;
- assert.match(html,/<td class="eta-cell"><strong>23\/10\/2026<\/strong><span class="eta-counter due">Due in 3 days<\/span><\/td>/);
- assert.match(html,/<td class="eta-cell"><strong>18\/10\/2026<\/strong><span class="eta-counter past">2 days past ETA<\/span><\/td>/);
+ assert.match(html,/<td class="eta-cell"><strong>23\/10\/26<\/strong><span class="eta-counter due" title="23\/10\/2026 Due in 3 days">· 3d<\/span><\/td>/);
+ assert.match(html,/<td class="eta-cell"><strong>18\/10\/26<\/strong><span class="eta-counter past" title="18\/10\/2026 2 days past ETA">· 2d past<\/span><\/td>/);
+ assert.match(html,/<td class="sp-cell">[\s\S]*<span class="sp-code">BG<\/span><\/td>/);
  const css=fs.readFileSync('sales/sales.css','utf8');
  assert.match(css,/#vehicle-table \.eta-counter\{[^}]*display:inline-block/);
  assert.match(css,/\.eta-counter\.past\{[^}]*color:#b11a2c/);
@@ -62,14 +63,16 @@ test('Kewdale ETA date and day counter share a line, with past in red and due in
 
 test('compact table keeps slim rows, narrow ticks, clamped notes and a page-sticky header',()=>{
  const css=fs.readFileSync('sales/sales.css','utf8');
- assert.match(css,/#vehicle-table tbody td\{height:auto;padding:2px 4px;line-height:1\.2\}/);
+ assert.match(css,/#vehicle-table tbody td\{height:auto;padding:2px 4px;line-height:1\.2;white-space:nowrap/);
  assert.match(css,/#vehicle-table thead th\{position:sticky;top:0/);
  assert.match(css,/\.panel\.tracker-panel\{overflow:clip\}/);
  assert.match(css,/\.tracker-panel>\.table-wrap\{max-height:none;overflow:visible/);
  assert.match(css,/#vehicle-table \.notes-clamp\{[^}]*-webkit-line-clamp:2/);
- assert.deepEqual(tools.defaults.slice(5,8),[44,52,44]);
+ assert.deepEqual(tools.defaults.slice(5,8),[48,56,48]);
  assert.ok(tools.defaults[11]>150);
- assert.match(fs.readFileSync('sales/index.html','utf8'),/compact-table=2026\.10\.20\.02/);
+ assert.match(fs.readFileSync('sales/index.html','utf8'),/compact-table=2026\.10\.20\.03/);
+ assert.match(css,/#vehicle-table td\.sp-cell input,#vehicle-table td\.sp-cell \.sp-code\{display:inline-block/);
+ assert.match(css,/#vehicle-table td\.eta-cell\{overflow:visible/);
  assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/prefers-reduced-motion:reduce/);
  assert.match(fs.readFileSync('sales/sales.js','utf8'),/derived-'\+derived\.state/);
 });

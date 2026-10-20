@@ -18,7 +18,7 @@ test('column preferences admit only bounded numeric widths and discard customer 
  assert.deepEqual(tools.readWidths('bad JSON'),tools.defaults);
  assert.deepEqual(tools.readWidths('{"customer":"PRIVATE"}'),tools.defaults);
  const out=tools.readWidths('[99999,-4,"PRIVATE",null,100.4]');
- assert.deepEqual(out.slice(0,5),[600,40,75,145,100]);assert.equal(out.length,13);
+ assert.deepEqual(out.slice(0,5),[600,40,72,120,100]);assert.equal(out.length,13);
 });
 test('column pointer and keyboard changes preserve bounded widths and save only numbers',()=>{
  const events={},stored=[],cols=tools.defaults.map(()=>({style:{}}));
@@ -31,8 +31,8 @@ test('column pointer and keyboard changes preserve bounded widths and save only 
  events.pointerdown({...base,button:0,clientX:100,pointerId:7});events.pointermove({clientX:150,pointerId:7});events.pointerup();
  assert.equal(Number.parseFloat(cols[0].style.width),170/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100);assert.equal(handles[0]['aria-valuenow'],'170');
  events.keydown({...base,key:'ArrowRight'});assert.equal(Number.parseFloat(cols[0].style.width),180/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100);
- events.keydown({...base,key:'Home'});assert.equal(Number.parseFloat(cols[0].style.width),60/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100);
- assert.ok(stored.every(([k,v])=>k==='broome-sales-column-widths-v4'&&v.every(x=>typeof x==='number')));
+ events.keydown({...base,key:'Home'});assert.equal(Number.parseFloat(cols[0].style.width),tools.defaults[0]/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100);
+ assert.ok(stored.every(([k,v])=>k==='broome-sales-column-widths-v5'&&v.every(x=>typeof x==='number')));
 });
 test('four templates match the examples without inventing equipment or recipients',()=>{
  const r={stock:'13032821',order:'0026001',client:'PARK',vehicle:'LC300 GR Sport',kewdale_eta:'2026-08-03'};

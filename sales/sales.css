@@ -140,15 +140,18 @@ body.auth-pending .app-shell{display:none}body.auth-approved .pdc-auth-gate{disp
 /* Compact vehicle table. overflow:clip does not create a scrollport, so the header can stick to the page. A horizontal-scroll wrapper must keep the vertical axis visible or clip; auto on both axes would trap the header inside the wrapper. */
 .panel.tracker-panel{overflow:clip}
 #vehicle-table thead th{position:sticky;top:0;z-index:6;background:#f8faff;box-shadow:inset 0 -1px 0 #e4eaf2}
-#vehicle-table tbody td{height:auto;padding:2px 4px;line-height:1.2}
+#vehicle-table tbody td{height:auto;padding:2px 4px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #vehicle-table thead th{padding:4px 6px 3px;line-height:1.15}
-#vehicle-table td.vehicle-cell{max-width:0}
-#vehicle-table .vehicle-line{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#vehicle-table th:nth-child(6),#vehicle-table td:nth-child(6),#vehicle-table th:nth-child(8),#vehicle-table td:nth-child(8){width:44px}
-#vehicle-table th:nth-child(7),#vehicle-table td:nth-child(7){width:52px}
-#vehicle-table td.eta-cell{white-space:nowrap}
+#vehicle-table td.sp-cell{text-overflow:clip}
+#vehicle-table td.sp-cell input,#vehicle-table td.sp-cell .sp-code{display:inline-block;vertical-align:middle;white-space:nowrap}
+#vehicle-table td.sp-cell input{margin:0 4px 0 0}
+#vehicle-table td.vehicle-cell,#vehicle-table td.client-cell{max-width:0}
+#vehicle-table .vehicle-line,#vehicle-table .client-line,#vehicle-table .pmb-line,#vehicle-table .stock-button{display:block;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#vehicle-table .status-pill,#vehicle-table .month-pill{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#vehicle-table td.eta-cell{overflow:visible;text-overflow:clip}
 #vehicle-table .eta-cell strong{display:inline;white-space:nowrap}
-#vehicle-table .eta-counter{display:inline-block;width:auto;margin:0 0 0 6px;vertical-align:baseline;white-space:nowrap}
-#vehicle-table td.notes-cell{white-space:normal}
+#vehicle-table .eta-counter{display:inline-block;width:auto;max-width:none;margin:0 0 0 6px;vertical-align:baseline;white-space:nowrap;overflow:visible;text-overflow:clip}
+#vehicle-table td.pmb-status-cell{min-width:0;white-space:nowrap}
+#vehicle-table td.notes-cell{white-space:normal;text-overflow:clip}
 #vehicle-table .notes-clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.2;max-height:2.4em;overflow-wrap:anywhere}
 .vehicle-reference-cell>.vehicle-notes-toggle{top:2px}
