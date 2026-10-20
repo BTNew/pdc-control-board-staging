@@ -5680,6 +5680,10 @@ function qcPageVehicleKey(vehicle = {}) {
 }
 
 function qcPageOperationLineIsDeferredPit(vehicle = {}, line = {}) {
+  // r400: QC cannot tick the external Department of Transport Pit inspection
+  // (it happens after QC) or job-card notes (information only). The server
+  // helper public.pdc_qc_line_not_checkable_400 uses the same two stages.
+  if (['PIT_INSPECTION', 'JOB_CARD_NOTES'].includes(String(line?.stageCode || '').trim().toUpperCase())) return true;
   if (String(line.sourceKind || '') !== 'authenticated') return false;
   const sourceLineId = String(line.sourceLineId || '').trim().toLowerCase();
   if (!sourceLineId) return false;
@@ -5735,7 +5739,14 @@ function qcPageWorkItemsHtml(vehicle = {}) {
   if (vehicle.pdcQcOperationLinesProjectionPresent !== true) {
     return '<div class="qc-operation-unavailable" role="alert"><strong>QC operation lines are still loading</strong><span>The authenticated server snapshot is missing its QC projection. Refresh to retry; the source operation evidence has not been treated as absent.</span></div>';
   }
-  return html || '<div class="qc-operation-unavailable" role="alert"><strong>No active operation lines are available</strong><span>QC completion remains blocked until an authenticated or audited manual operation line is available.</span></div>';
+  // r400: Pit inspection and job-card notes are listed for information, with no checkbox.
+  const afterQcLines = (Array.isArray(vehicle.pdcQcOperationLines) ? vehicle.pdcQcOperationLines : [])
+    .filter(line => line?.active === true && ['PIT_INSPECTION', 'JOB_CARD_NOTES'].includes(String(line.stageCode || '').trim().toUpperCase()));
+  const afterQcHtml = afterQcLines.length ? `<section class="qc-operation-group qc-after-qc-lines" aria-label="Not ticked in QC">
+    <h4>Not ticked in QC</h4>
+    ${afterQcLines.map(line => `<div class="qc-work-item qc-operation-line is-info"><span class="qc-work-marker" aria-hidden="true">–</span><span class="qc-work-copy"><strong>${escapeHtml(`${line.operationNo || 'Manual'} · ${line.description}`)}</strong><small>${escapeHtml(String(line.stageCode).toUpperCase() === 'PIT_INSPECTION' ? 'Pit inspection · external Department of Transport, after QC · see Bus Pit' : 'Job card notes · information only')}</small></span></div>`).join('')}
+  </section>` : '';
+  return (html || '<div class="qc-operation-unavailable" role="alert"><strong>No active operation lines are available</strong><span>QC completion remains blocked until an authenticated or audited manual operation line is available.</span></div>') + afterQcHtml;
 }
 
 function qcPageVehicleCardHtml(vehicle = {}, selected = false) {
