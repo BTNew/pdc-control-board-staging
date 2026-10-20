@@ -38,7 +38,8 @@ function fakeDom() {
 test('workshop-planner.js has no alert() left and keeps its eight real yes/no confirms', () => {
   assert.doesNotMatch(code(planner), /\balert\s*\(/);
   assert.strictEqual((code(planner).match(/window\.confirm\(/g) || []).length, 8);
-  assert.ok((planner.match(/workshopNotify\(/g) || []).length >= 87);
+  // r415 (F31) removed the two started-before refusals, which were notify calls.
+  assert.ok((planner.match(/workshopNotify\(/g) || []).length >= 85);
 });
 
 test('workshopNotify is an accessible, non-blocking toast', () => {
@@ -98,7 +99,8 @@ test('toast styles ship with the planner stylesheet', () => {
 
 test('browsers fetch the r407 planner, stylesheet and app.js (cache tokens)', () => {
   const html = fs.readFileSync('index.html', 'utf8');
-  assert.match(html, /workshop-planner\.css\?[^"]*&amp;r407=2026\.10\.21\.01"/);
+  // Later releases may append their own token (r415).
+  assert.match(html, /workshop-planner\.css\?[^"]*&amp;r407=2026\.10\.21\.01(&amp;[^"]*)?"/);
   assert.match(html, /app\.js\?[^"]*r406=2026\.10\.21\.01&amp;r407=2026\.10\.21\.01/);
   assert.strictEqual((app.match(/workshop-planner\.js\?[^`]*&r407=2026\.10\.21\.01&/g) || []).length, 2);
 });

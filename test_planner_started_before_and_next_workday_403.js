@@ -59,21 +59,23 @@ test('only a queued booking with an actual start and no finish counts as started
   assert.equal(ctx.startedBefore(null), false);
 });
 
-test('a started-before chip shows the hint and offers no drag, Best slot or Schedule', () => {
+// r415 (F31): a started-then-returned job is re-planned like any other queued job;
+// the server resumes it and keeps the time worked. The chip only notes it.
+test('a started-before chip shows the hint and can be dragged, Best slot or Scheduled (r415)', () => {
   const ctx = chipContext();
   const html = ctx.card(startedReturned);
-  assert.match(html, /Started before, can&#39;t re-plan yet/);
-  assert.match(html, /draggable="false"/);
+  assert.match(html, /Started before · time worked is kept/);
+  assert.match(html, /draggable="true"/);
   assert.match(html, /is-started-before/);
-  assert.match(html, /aria-disabled="true"/);
-  assert.equal((html.match(/ disabled aria-disabled="true"/g) || []).length, 2, 'both buttons disabled');
+  assert.equal(html.includes('aria-disabled'), false);
+  assert.equal(html.includes(' disabled'), false, 'both buttons enabled');
   const normal = ctx.card(returned);
   assert.match(normal, /draggable="true"/);
   assert.equal(normal.includes('Started before'), false);
   assert.equal(normal.includes(' disabled'), false);
 });
 
-test('actions on a started-before booking explain instead of sending a doomed write', () => {
+test('actions on a started-before booking go to the server, which resumes it (r415)', () => {
   const plans = [returned, startedReturned];
   const ctx = chipContext({
     workshopState: () => ({ stage: 'HOIST' }),
@@ -82,18 +84,16 @@ test('actions on a started-before booking explain instead of sending a doomed wr
     workshopLoadPlans: () => plans,
   });
   assert.equal(ctx.forAction('p1').id, 'p1');
-  assert.equal(ctx.forAction('p2'), null, 'silent for drag previews');
+  assert.equal(ctx.forAction('p2').id, 'p2');
+  assert.equal(ctx.forAction('p2', { explain: true }).id, 'p2');
   assert.equal(ctx.alerts.length, 0);
-  assert.equal(ctx.forAction('p2', { explain: true }), null);
-  assert.equal(ctx.alerts.length, 1);
-  assert.match(ctx.alerts[0], /started before and then returned to the queue/);
 });
 
-test('drag start and drops refuse started-before bookings', () => {
+test('drag start and drops no longer refuse started-before bookings (r415)', () => {
   const dragStart = planner.indexOf("root.querySelectorAll('[data-workshop-plan-id]').forEach(chip => chip.addEventListener('dragstart'");
   assert.ok(dragStart > 0);
-  assert.match(planner.slice(dragStart, dragStart + 400), /workshopPlanStartedBefore\(entry\)\) \{ event\.preventDefault\(\); return; \}/);
-  assert.match(extract('moveWorkshopDroppedPlan'), /workshopPlanStartedBefore\(entry\)[\s\S]*WORKSHOP_STARTED_BEFORE_MESSAGE/);
+  assert.equal(/workshopPlanStartedBefore/.test(planner.slice(dragStart, dragStart + 400)), false);
+  assert.equal(/workshopPlanStartedBefore/.test(extract('moveWorkshopDroppedPlan')), false);
 });
 
 function dateContext(dayEndMinutes = 16 * 60) {
