@@ -546,8 +546,8 @@
     finally {if(session===sessionGeneration&&updateRequests[id]===ownedRequest){
       saving=false;
       if(!ownsRequest()){notice='';error='Your sign-in session changed. Refresh the queue before continuing; the approval result has not been confirmed.';}
-      if(applyPendingDepartment())return;
-      render();if(accepted&&ownsRequest())void load({silent:true});
+      // No return inside finally: it would swallow an error thrown above.
+      if(!applyPendingDepartment()){render();if(accepted&&ownsRequest())void load({silent:true});}
     }}
   }
   async function retryAutomaticUpdates() {
@@ -731,10 +731,11 @@
         const current=owns();bulkState=null;saving=false;
         if(!current)error='Your sign-in session changed. Refresh the queue before continuing; no further vehicles were approved.';
         if(current&&attempted)void Promise.allSettled([refreshEmailVehicleLocations(),loadSharedNavisionVisibleRows()]);
-        if(applyPendingDepartment())return;
-        render();
-        if(current) {
-          if(attempted||completedScan){offset=0;void load({silent:true});}
+        if(!applyPendingDepartment()) {
+          render();
+          if(current) {
+            if(attempted||completedScan){offset=0;void load({silent:true});}
+          }
         }
       }
     }
@@ -765,13 +766,14 @@
       saving=false;
       if(!accepted&&!ownsRequest())error='Your sign-in session changed. Refresh the queue before continuing; the approval result has not been confirmed.';
       if(quick){quickSavingId='';if(!accepted)quickErrors[current.vehicle_id]=error;}
-      if(applyPendingDepartment())return;
-      render();
-      if(quick){
-        const focusId=accepted?(nextId||items.at(-1)?.vehicle_id):current.vehicle_id;
-        if(focusId)page.querySelector(`[data-nv-open="${CSS.escape(focusId)}"]`)?.focus({preventScroll:true});
+      if(!applyPendingDepartment()){
+        render();
+        if(quick){
+          const focusId=accepted?(nextId||items.at(-1)?.vehicle_id):current.vehicle_id;
+          if(focusId)page.querySelector(`[data-nv-open="${CSS.escape(focusId)}"]`)?.focus({preventScroll:true});
+        }
+        if(accepted)void load({silent:true});
       }
-      if(accepted)void load({silent:true});
     }}
   }
   const previousRender=renderActiveView;

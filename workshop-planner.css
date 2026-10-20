@@ -132,6 +132,9 @@ body[data-current-view="workshop"] .content {
 }
 
 .workshop-unallocated-vehicle-pill:active { cursor: grabbing; }
+.workshop-unallocated-vehicle-pill.is-started-before { cursor: default; border-style: dashed; opacity: .85; }
+.workshop-unallocated-vehicle-pill.is-started-before:active { cursor: default; }
+.workshop-started-before-hint { color: #8a4b00; font-weight: 700; }
 
 .workshop-date-controls input {
   min-height: 36px;
