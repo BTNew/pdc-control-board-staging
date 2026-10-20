@@ -24,6 +24,8 @@ const PDC_PIT_LINE_TICK_RPC = 'set_pdc_pit_line_tick_401';
 const PDC_PIT_LINE_TICKS_READ_RPC = 'get_pdc_pit_line_ticks_401';
 const PDC_QC_PHOTO_BUCKET = 'pdc-qc-evidence-staging';
 const PDC_QC_PHOTO_RECEIPT_RPC = 'record_pdc_qc_photo_evidence_399';
+// r414 (F30): read back the stored completion photo receipt after a refresh.
+const PDC_QC_PHOTO_READ_RPC = 'get_pdc_qc_photo_receipt_414';
 const PDC_QC_FINALIZATION_RPC = 'finalize_pdc_qc_to_rft_399';
 const PDC_QC_RETEST_PHOTO_RPC = 'record_pdc_qc_retest_photo_747';
 const PDC_QC_RETEST_FINALIZATION_RPC = 'finalize_pdc_qc_retest_to_rft_747';
@@ -825,6 +827,22 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return { ok: true, code: body.code || 'qc_photo_stored', data: { ...data, ...transformed } };
     } catch (error) { return { ok: false, code: error?.message || 'qc_photo_upload_unavailable', data: null }; }
   }
+  // r414 (F30): the stored receipt for the vehicle's current QC inspection, so a refreshed QC page (or a
+  // re-upload refused as qc_photo_already_recorded) signs off with the photo that is already stored.
+  async function readQcPhotoReceipt(vehicleId = '') {
+    const token = getAccessToken();
+    if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    const vehicle = String(vehicleId || '').trim();
+    if (!/^[0-9a-f-]{36}$/i.test(vehicle)) return { ok: false, code: 'qc_photo_invalid_input', data: null };
+    try {
+      const response = await request(`${url}/rest/v1/rpc/${PDC_QC_PHOTO_READ_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicle }) });
+      const body = await response.json().catch(() => null); const data = body?.data || null;
+      if (!response.ok || !body || body.ok !== true) return { ok: false, code: body?.code || 'qc_photo_read_unavailable', data: null };
+      if (body.code === 'qc_photo_none') return { ok: true, code: 'qc_photo_none', data: null };
+      if (body.code !== 'qc_photo_stored' || data?.storage_object_present !== true || !data?.photo_receipt_id || String(data.vehicle_id || '') !== vehicle) return { ok: false, code: body.code === 'qc_photo_storage_missing' ? 'qc_photo_storage_missing' : 'qc_photo_receipt_invalid', data: null };
+      return { ok: true, code: 'qc_photo_stored', data };
+    } catch (_error) { return { ok: false, code: 'qc_photo_read_unavailable', data: null }; }
+  }
   async function finalizeQcToRft(vehicleId = '', vehicleVersion = 0, photoReceiptId = '', idempotencyKey = '') {
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
@@ -1040,7 +1058,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return subscription?.unsubscribe?.();
     } };
   }
-  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, readSubletAuditLedgers, saveVehicleWorkshopLineHoursBatch, updateSublet, createSubletBooking, updateSubletBooking, updateSubletBookingProvider, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport, finalizeQcToRft700, bookRftTransport700, collectRftTransport700, bookRftTransport734, collectRftTransport734, setRftConfirmation736, bookRftTransport739, readRftBookingContext739, readRftTransportDraft739, readRftTransportEvidence734, createAcceptanceVehicle, setQcOperationCompletion, setPitLineTick, readPitLineTicks, rejectQcVehicleToPmb, uploadQcPhotoEvidence, finalizeQcToRft, finalizeQcRetest, subscribe };
+  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, readSubletAuditLedgers, saveVehicleWorkshopLineHoursBatch, updateSublet, createSubletBooking, updateSubletBooking, updateSubletBookingProvider, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport, finalizeQcToRft700, bookRftTransport700, collectRftTransport700, bookRftTransport734, collectRftTransport734, setRftConfirmation736, bookRftTransport739, readRftBookingContext739, readRftTransportDraft739, readRftTransportEvidence734, createAcceptanceVehicle, setQcOperationCompletion, setPitLineTick, readPitLineTicks, rejectQcVehicleToPmb, uploadQcPhotoEvidence, readQcPhotoReceipt, finalizeQcToRft, finalizeQcRetest, subscribe };
  }
 const pdcEmailVehicleLocationExported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_AUDIT_READ_RPC, PDC_WORKSHOP_HOURS_BATCH_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_RFT_CONFIRMATION_RPC, PDC_RFT_TRANSPORT_DRAFT_BOOK_RPC, PDC_RFT_TRANSPORT_DRAFT_CONTEXT_RPC, PDC_RFT_TRANSPORT_DRAFT_READ_RPC, PDC_FINAL_QC_TO_RFT_RPC, PDC_FINAL_RFT_BOOK_RPC, PDC_FINAL_RFT_COLLECT_RPC, PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_PIT_LINE_TICK_RPC, PDC_PIT_LINE_TICKS_READ_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, PDC_QC_RETEST_PHOTO_RPC, PDC_QC_RETEST_FINALIZATION_RPC, canonicalWorkKey, mapLifecycleHistory, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = pdcEmailVehicleLocationExported;

@@ -5706,6 +5706,8 @@ function ensureDashboardWorkshopProjectionReady() {
 const qcPhotoEvidence = new Map();
 const qcPageSignoffInFlight = new Set();
 const qcPagePhotoUploadInFlight = new Set();
+// r414 (F30): stored receipts are read back from the server, so a refresh never forgets a stored photo.
+const qcPagePhotoReceiptReads = new Map();
 const qcPageOperationPending = new Map();
 const qcPageFeedback = new Map();
 const qcPageRejectInFlight = new Set();
@@ -5959,7 +5961,40 @@ function qcPagePhotoDisabledReason(vehicle = {}, key = '') {
     if (rawActiveLineCount !== 17 || !qcPageAllOperationLinesComplete(vehicle)) return 'Complete all 17 operation lines before uploading a QC photo.';
   }
   if (qcPagePhotoUploadInFlight.has(key)) return 'Uploading QC photo…';
+  // r414 (F30): one stored photo per QC inspection; a second upload was refused and looked like a stuck receipt.
+  if (typeof qcPhotoEvidence !== 'undefined' && typeof qcPhotoEvidenceIsValid === 'function' && qcPhotoEvidenceIsValid(qcPhotoEvidence.get(key))) return 'A completion photo is already stored for this QC.';
   return '';
+}
+
+// r414 (F30): read the stored completion photo receipt back from the server (once per vehicle version), so the
+// Sign off button shows after a refresh, on another device, or when a re-upload is refused as already recorded.
+async function qcPageLoadStoredPhoto(key = '', { force = false } = {}) {
+  const cleanKey = String(key || '').trim();
+  const vehicle = qcPageVehicles().find(row => qcPageVehicleKey(row) === cleanKey);
+  const service = app.emailVehicleLocationService;
+  if (!vehicle || vehicle.pdcQcRetestCycleId || vehicle.__emailVehicleServerAuthoritative !== true || !vehicle.__emailVehicleId
+    || !service || typeof service.readQcPhotoReceipt !== 'function' || qcPagePhotoUploadInFlight.has(cleanKey)) return false;
+  if (qcPhotoEvidenceIsValid(qcPhotoEvidence.get(cleanKey))) return true;
+  const readKey = `${vehicle.__emailVehicleId}:${Number(vehicle.__emailVehicleVersion || 0)}`;
+  if (!force && qcPagePhotoReceiptReads.get(cleanKey) === readKey) return false;
+  qcPagePhotoReceiptReads.set(cleanKey, readKey);
+  const authority = capturePdcWriteAuthority();
+  const result = await service.readQcPhotoReceipt(vehicle.__emailVehicleId);
+  if (!pdcWriteAuthorityCurrent(authority) || qcPagePhotoUploadInFlight.has(cleanKey)) return false;
+  if (!result?.ok || !result.data) {
+    if (result?.code && result.code !== 'qc_photo_none' && force) qcPageFeedback.set(cleanKey, { kind: 'error', message: qcPagePhotoErrorMessage(result.code) });
+    if (force) renderQualityControlPage();
+    return false;
+  }
+  const data = result.data;
+  const stored = { ...data, status: 'accepted', photoReceiptId: data.photo_receipt_id, originalFilename: data.original_filename || 'Stored image',
+    byteLength: Number(data.byte_length || 0), originalByteLength: Number(data.original_byte_length || 0), imageWidth: Number(data.image_width || 0),
+    imageHeight: Number(data.image_height || 0), sha256: data.sha256, url: '', storedAt: data.stored_at || '' };
+  if (!qcPhotoEvidenceIsValid(stored)) return false;
+  qcPhotoEvidence.set(cleanKey, stored);
+  qcPageFeedback.set(cleanKey, { kind: 'saved', message: 'The completion photo stored earlier for this QC was found. It is used for sign-off.' });
+  renderQualityControlPage();
+  return true;
 }
 
 function qcPagePhotoErrorMessage(code = '') {
@@ -5974,6 +6009,11 @@ function qcPagePhotoErrorMessage(code = '') {
     qc_retest_photo_replay_mismatch: 'This photo request conflicts with an existing immutable QC receipt.',
     qc_photo_upload_failed: 'The staging photo upload failed. Retry without leaving this QC screen.',
     qc_photo_receipt_invalid: 'Staging accepted no verifiable QC photo receipt.',
+    qc_photo_already_recorded: 'A completion photo is already stored for this QC. It is used for sign-off; no new photo is needed.',
+    qc_photo_vehicle_not_in_qc: 'This vehicle is no longer in QC. Refresh the QC page.',
+    vehicle_version_conflict: 'This vehicle changed in another session. Refresh the QC page and try again.',
+    not_authorized: 'Your account cannot store QC photos. Ask an administrator.',
+    qc_photo_storage_missing: 'The stored photo file could not be found. Clear it and choose the photo again.',
   };
   return messages[String(code || '')] || 'The QC photo was not stored. No sign-off was recorded.';
 }
@@ -6020,7 +6060,7 @@ function qcPageDetailHtml(vehicle = {}) {
       <div><strong>Completion photo</strong><p>Add a completion photo before signing off. The saved photo stays with the vehicle’s QC record.</p></div>
       <label class="qc-photo-picker" for="${escapeHtml(inputId)}" aria-disabled="${photoDisabledReason ? 'true' : 'false'}"><span>${photoValid ? 'Photo stored · choose another only after this receipt is cleared' : photo?.status === 'uploading' ? 'Uploading QC photo…' : 'Take or choose QC photo'}</span><input id="${escapeHtml(inputId)}" type="file" accept="image/*" data-qc-photo="${escapeHtml(key)}" aria-describedby="${escapeHtml(inputId)}-status"${photoDisabledReason ? ' disabled' : ''} /></label>
       <div id="${escapeHtml(inputId)}-status" class="qc-photo-status" aria-live="polite">${photoDisabledReason ? escapeHtml(photoDisabledReason) : ''}</div>
-      ${photo?.url ? `<div class="qc-photo-preview"><img src="${escapeHtml(photo.url)}" alt="QC completion photo for ${escapeHtml(stock)}" /><span>${photoValid ? `${escapeHtml(photo.originalFilename || 'Stored image')} · ${escapeHtml(String(photo.originalByteLength || photo.original_byte_length || 0))} → ${escapeHtml(String(photo.byteLength || photo.byte_length || 0))} bytes · ${escapeHtml(String(photo.imageWidth || photo.image_width || 0))}×${escapeHtml(String(photo.imageHeight || photo.image_height || 0))} · SHA-256 ${escapeHtml(photo.sha256 || '')}` : `${escapeHtml(photo.originalFilename || 'Selected image')} · Selected image; receipt validation is pending.`}</span></div>` : '<div class="qc-photo-empty">No stored completion photo</div>'}
+      ${photo?.url || photoValid ? `<div class="qc-photo-preview">${photo?.url ? `<img src="${escapeHtml(photo.url)}" alt="QC completion photo for ${escapeHtml(stock)}" />` : ''}<span>${photoValid ? `${photo?.url ? '' : 'Stored photo · '}${escapeHtml(photo.originalFilename || 'Stored image')} · ${escapeHtml(String(photo.originalByteLength || photo.original_byte_length || 0))} → ${escapeHtml(String(photo.byteLength || photo.byte_length || 0))} bytes · ${escapeHtml(String(photo.imageWidth || photo.image_width || 0))}×${escapeHtml(String(photo.imageHeight || photo.image_height || 0))} · SHA-256 ${escapeHtml(photo.sha256 || '')}` : photo?.status === 'error' ? `${escapeHtml(photo.originalFilename || 'Selected image')} · Not stored. Clear it and choose the photo again.` : `${escapeHtml(photo.originalFilename || 'Selected image')} · Storing the photo…`}</span></div>` : '<div class="qc-photo-empty">No stored completion photo</div>'}
       ${photo && !photoValid && photo.status !== 'uploading' ? `<button class="small-button qc-photo-clear" type="button" data-qc-photo-clear="${escapeHtml(key)}">Clear / choose another</button>` : ''}
       </div>
       <div class="qc-detail-actions"><button class="small-button qc-reject-action" type="button" data-qc-reject="${escapeHtml(key)}" ${rejectBusy ? 'disabled' : ''}>${rejectBusy ? 'Rejecting…' : 'Reject / QC Fix Required'}</button></div>
@@ -6156,6 +6196,15 @@ async function qcPageAttachPhoto(key = '', input) {
       : await service.uploadQcPhotoEvidence(vehicle.__emailVehicleId, vehicle.__emailVehicleVersion, file);
     if (!pdcWriteAuthorityCurrent(authority)) return false;
     if (!result?.ok || !result.data?.photo_receipt_id) {
+      // r414 (F30): a receipt already exists for this QC: load it and use it instead of showing a stuck preview.
+      if (result?.code === 'qc_photo_already_recorded' && await qcPageLoadStoredPhoto(cleanKey, { force: true })) {
+        qcPageFeedback.set(cleanKey, { kind: 'saved', message: qcPagePhotoErrorMessage('qc_photo_already_recorded') });
+        renderQualityControlPage();
+        return true;
+      }
+      if (!pdcWriteAuthorityCurrent(authority)) return false;
+      const failed = qcPhotoEvidence.get(cleanKey);
+      if (failed && !qcPhotoEvidenceIsValid(failed)) qcPhotoEvidence.set(cleanKey, { ...failed, status: 'error', photoReceiptId: '' });
       qcPageFeedback.set(cleanKey, { kind: 'error', message: qcPagePhotoErrorMessage(result?.code) });
       renderQualityControlPage();
       return false;
@@ -6173,6 +6222,8 @@ async function qcPageAttachPhoto(key = '', input) {
     return true;
   } catch (error) {
     if (!pdcWriteAuthorityCurrent(authority)) return false;
+    const failed = qcPhotoEvidence.get(cleanKey);
+    if (failed && !qcPhotoEvidenceIsValid(failed)) qcPhotoEvidence.set(cleanKey, { ...failed, status: 'error', photoReceiptId: '' });
     qcPageFeedback.set(cleanKey, { kind: 'error', message: error.message === 'photo_read_failed'
       ? 'The photo could not be read. Choose the photo again before signing off.'
       : 'The photo was not confirmed. Refresh QC and check the saved state before retrying.' });
@@ -6277,6 +6328,7 @@ function renderQualityControlPage() {
   const mobile = qcPageIsMobile();
   if (!vehicles.some(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)) qcSelectedVehicleKey = mobile ? '' : qcPageVehicleKey(vehicles[0] || {});
   const selected = vehicles.find(vehicle => qcPageVehicleKey(vehicle) === qcSelectedVehicleKey) || null;
+  if (selected) void qcPageLoadStoredPhoto(qcPageVehicleKey(selected));
   host.innerHTML = `<div class="qc-page-layout ${mobile ? selected ? 'is-mobile-detail' : 'is-mobile-list' : ''}">${qcPageNotice ? `<div class="qc-finalization-notice" role="status" aria-live="polite">${escapeHtml(qcPageNotice)}</div>` : ''}
     <section class="qc-queue" aria-labelledby="qc-queue-title"><div class="qc-queue-header"><div><h3 id="qc-queue-title">Vehicles requiring QC</h3><p>${vehicles.length} awaiting QC sign-off</p></div><span class="qc-queue-count">${vehicles.length}</span></div><div class="qc-vehicle-list">${vehicles.length ? vehicles.map(vehicle => qcPageVehicleCardHtml(vehicle, qcPageVehicleKey(vehicle) === qcSelectedVehicleKey)).join('') : '<div class="qc-empty-state"><strong>No vehicles require QC</strong><span>Vehicles appear here after all required workshop work is complete.</span></div>'}</div></section>
     <section class="qc-detail-host">${selected ? qcPageDetailHtml(selected) : '<div class="qc-empty-state qc-detail-empty"><strong>Select a vehicle</strong><span>Choose a QC vehicle to review its completed work and store the completion photo.</span></div>'}</section>
