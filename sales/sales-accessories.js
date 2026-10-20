@@ -31,7 +31,6 @@
     return {tracking_id:text(record.tracking_id),navision_record_id:text(record.navision_record_id),order:text(record.order),stock:text(record.stock),
       quote:text(record.quote),source_file:text(record.source_file),snapshot_at:record.snapshot_at||null,derived,lines};
   }
-  const typeSections=[['accessory','Accessories'],['aftermarket','Aftermarket'],['miscacc','Miscam'],['special','Special (sublet)']];
   const emptySentence='No accessory lines in the latest sales export.';
   // Same classification as the r394 derived ticks: blank is red, unrecognised text is amber review, a PO or C&S ONLY / SELL ONLY / NO UPDATE is green.
   function poTone(line) {
@@ -45,8 +44,8 @@
     const note=line.notes.trim();
     return '<div class="sales-notes-accessory-line"><div class="sales-notes-accessory-item"><span>'+escapeHtml(line.item)+'</span>'+(note?'<small class="sales-notes-accessory-note">'+escapeHtml(note)+'</small>':'')+'</div><div class="sales-notes-accessory-po sales-notes-po-'+poTone(line)+'">'+escapeHtml(poLabel(line))+'</div></div>';
   }
-  function typeKey(line){return line.type.trim().toLowerCase();}
-  // r416: inside each section, lines that share a PO sit together. PO numbers first in ascending order, then other raised
+  // r417: every accessory type (accessory, aftermarket, miscacc, special, other) is one list grouped by PO; Admin stays separate.
+  // r416: lines that share a PO sit together. PO numbers first in ascending order, then other raised
   // values (C&S ONLY, SELL ONLY, NO UPDATE, review text) A to Z, and every Not raised line last. A stable sort keeps the
   // export order inside each group. Display only: no line, PO, tick or note changes.
   const poCollator=new Intl.Collator('en',{numeric:true,sensitivity:'base'});
@@ -61,25 +60,21 @@
     });
     return [...groups.values()].sort((a,b)=>a.rank-b.rank||(a.rank===2?0:poCollator.compare(a.key,b.key))||a.first-b.first);
   }
-  function groupedLinesHtml(lines) {
+  function groupedLinesHtml(lines,alwaysLabel=false) {
     const groups=poGroups(lines);
-    // A label only helps when a section holds more than one PO group; one group reads the same as before.
-    if(groups.length<2)return groups.map(group=>group.lines.map(lineHtml).join('')).join('');
+    // The combined list always names its PO groups. In Admin a label only helps when there is more than one group.
+    if(groups.length<2&&!alwaysLabel)return groups.map(group=>group.lines.map(lineHtml).join('')).join('');
     return groups.map(group=>'<div class="sales-notes-po-group-head" data-po-group="'+escapeHtml(group.rank===2?'not-raised':group.key)+'">'+
       escapeHtml((group.rank===2?'Not raised':group.label)+' · '+group.lines.length+' line'+(group.lines.length===1?'':'s'))+'</div>'+group.lines.map(lineHtml).join('')).join('');
-  }
-  function sectionHtml(key,label,lines) {
-    if(!lines.length)return '';
-    return '<section class="sales-notes-accessory-type" data-accessory-type="'+key+'"><h3 class="sales-notes-accessory-head">'+escapeHtml(label)+'</h3>'+groupedLinesHtml(lines)+'</section>';
   }
   function notesLinesHtml(record) {
     const lines=Array.isArray(record?.lines)?record.lines:[];
     const admin=lines.filter(line=>line.group==='admin'),rest=lines.filter(line=>line.group!=='admin');
     if(!rest.length&&!admin.length)return '<section class="sales-notes-accessories" aria-label="Accessory lines"><p class="sales-notes-accessory-empty">'+emptySentence+'</p></section>';
     let html='';
-    for(const [key,label] of typeSections)html+=sectionHtml(key,label,rest.filter(line=>typeKey(line)===key));
-    html+=sectionHtml('other','Other',rest.filter(line=>!typeSections.some(([key])=>typeKey(line)===key)));
-    if(admin.length)html+='<details class="sales-accessory-admin"><summary>Admin · '+admin.length+' line'+(admin.length===1?'':'s')+'</summary>'+groupedLinesHtml(admin)+'</details>';
+    if(rest.length)html+='<section class="sales-notes-accessory-type sales-notes-po-list" data-po-list="accessories">'+groupedLinesHtml(rest,true)+'</section>';
+    // r417: Admin (Pit and Weigh, Transport...) is always visible under a plain heading; no collapsible boxes in the order dropdown.
+    if(admin.length)html+='<section class="sales-notes-accessory-type sales-notes-admin-list" data-admin-list="admin"><h3 class="sales-notes-accessory-head">Admin · '+admin.length+' line'+(admin.length===1?'':'s')+'</h3>'+groupedLinesHtml(admin)+'</section>';
     return '<section class="sales-notes-accessories" aria-label="Accessory lines">'+html+'</section>';
   }
   function createSalesAccessories(host) {

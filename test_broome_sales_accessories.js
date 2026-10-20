@@ -12,7 +12,7 @@ function harness(){
   api.init({getRows:()=>rows,getContext:()=>({role:'salesperson',salesperson_code:'BG'}),getSalesperson:()=>'',getToken:()=>'t',onUpdate:()=>updates.push(1)});
   return {api,calls,updates,rows,host};
 }
-test('notes panel lists accessory types in order, then other, with Admin collapsed',()=>{
+test('r417: notes panel shows one PO-grouped list across every accessory type, with Admin always visible',()=>{
   const html=acc.notesLinesHtml(acc.normaliseRecord(record({lines:[
     line('build','PO1',{type:'special',item:'Sublet winch',notes:'Fit before delivery'}),
     line('tray','',{type:'miscacc',item:'Misc mat'}),
@@ -24,8 +24,10 @@ test('notes panel lists accessory types in order, then other, with Admin collaps
     line('tray','WEIRD',{type:'paint',item:'Custom paint',po_state:'other'}),
     line('admin','',{type:'accessory',item:'Freight'})
   ]})));
-  const at=type=>html.indexOf('data-accessory-type="'+type+'"');
-  assert.ok(at('accessory')<at('aftermarket')&&at('aftermarket')<at('miscacc')&&at('miscacc')<at('special')&&at('special')<at('other'));
+  const order=['Sublet winch','Snorkel','Canopy','>Lid<','Towbar','Custom paint','Misc mat','Blank type'].map(item=>html.indexOf(item));
+  assert.ok(order.every((at,i)=>at>=0&&(i===0||order[i-1]<at)),'PO1, PO9, C&S ONLY, NO UPDATE, SELL ONLY, WEIRD, then Not raised');
+  assert.equal((html.match(/data-po-list="accessories"/g)||[]).length,1);
+  assert.doesNotMatch(html,/data-accessory-type=|>Accessories<|>Aftermarket<|>Miscam<|Special \(sublet\)|>Other</);
   assert.ok(html.indexOf('Canopy')<html.indexOf('Towbar'));
   assert.ok(html.indexOf('Snorkel')<html.indexOf('>Lid<'));
   assert.match(html,/Canopy<\/span><small class="sales-notes-accessory-note">Black<\/small><\/div><div class="sales-notes-accessory-po sales-notes-po-green">C&amp;S ONLY<\/div>/);
@@ -36,10 +38,10 @@ test('notes panel lists accessory types in order, then other, with Admin collaps
   assert.match(html,/Blank type<\/span><\/div><div class="sales-notes-accessory-po sales-notes-po-red">Not raised<\/div>/);
   assert.match(html,/Custom paint<\/span><\/div><div class="sales-notes-accessory-po sales-notes-po-review">WEIRD<\/div>/);
   assert.match(html,/class="sales-notes-accessory-line"/);
-  assert.match(html,/class="sales-notes-accessory-head">Accessories</);
-  assert.match(html,/<details class="sales-accessory-admin"><summary>Admin · 1 line<\/summary>/);
-  assert.doesNotMatch(html,/<details class="sales-accessory-admin" open/);
-  assert.ok(html.indexOf('data-accessory-type="other"')<html.indexOf('sales-accessory-admin'));
+  assert.match(html,/data-po-group="not-raised">Not raised · 2 lines</);
+  assert.match(html,/<section class="sales-notes-accessory-type sales-notes-admin-list" data-admin-list="admin"><h3 class="sales-notes-accessory-head">Admin · 1 line<\/h3>/);
+  assert.doesNotMatch(html,/<details|<summary/);
+  assert.ok(html.indexOf('Blank type')<html.indexOf('data-admin-list="admin"'));
   assert.equal(html.indexOf('Freight'),html.lastIndexOf('Freight'));
   assert.doesNotMatch(html,/sales-accessory-table|data-accessory-group=/);
 });
@@ -65,7 +67,7 @@ test('records for another source identity or order are ignored and a failed read
   assert.equal(h.api.tickFor(h.rows[0],'build_po','not_decided'),null);assert.equal(h.api.detailHtml(h.rows[0]),'');
   assert.match(h.api.notesPanelHtml(h.rows[0]),/No accessory lines in the latest sales export\./);
   p=h.api.refresh();h.calls[1].resolve({data:{context:{role:'salesperson'},items:[record()]}});await p;
-  assert.match(h.api.notesPanelHtml(h.rows[0]),/data-accessory-type="accessory"/);assert.equal(h.api.detailHtml(h.rows[0]),'');
+  assert.match(h.api.notesPanelHtml(h.rows[0]),/data-po-list="accessories"/);assert.equal(h.api.detailHtml(h.rows[0]),'');
   assert.equal(h.api.tickFor(h.rows[0],'build_po').state,'red');
   p=h.api.refresh();h.calls[2].resolve({error:{message:'x'}});await p;assert.equal(h.api.detailHtml(h.rows[0]),'');assert.equal(h.api.notesPanelHtml(h.rows[0]),'');
   h.rows[0].navision_record_id='replaced';assert.equal(h.api.tickFor(h.rows[0],'build_po','not_decided'),null);
@@ -124,8 +126,8 @@ test('stock detail keeps the earlier import and does not repeat the sales-export
   const p=api.refresh();api.bindDetail('bg');
   calls[0].resolve({data:{context:{role:'salesperson'},items:[{tracking_id:'bg',navision_record_id:'source-bg',order:'00001',stock:'13001',items:[{description:'Towbar',source_rows:[7]}],notes:[],other_lines:[]}]}});await p;
   const content=el('sales-build-content').innerHTML;
-  assert.match(content,/Towbar/);assert.doesNotMatch(content,/Accessory and PO lines|sales-accessory-table|data-accessory-type|sales-build-earlier/);
-  assert.doesNotMatch(api.detailHtml(row),/Accessory and PO lines|sales-accessory-table|data-accessory-type/);
+  assert.match(content,/Towbar/);assert.doesNotMatch(content,/Accessory and PO lines|sales-accessory-table|data-accessory-type|data-po-list|sales-build-earlier/);
+  assert.doesNotMatch(api.detailHtml(row),/Accessory and PO lines|sales-accessory-table|data-accessory-type|data-po-list/);
 });
 test('expanded notes place the accessory lines before the note fields',()=>{
   const {create}=require('./sales/vehicle-notes.js'),elements=new Map();
@@ -142,10 +144,10 @@ test('expanded notes place the accessory lines before the note fields',()=>{
   return listed.then(()=>{
     el('sales-expand-notes').events.click();
     const html=notes.rowHtml(row);
-    assert.ok(html.indexOf('data-accessory-type="accessory"')<html.indexOf('>Custom information<'));
+    assert.ok(html.indexOf('data-po-list="accessories"')>=0&&html.indexOf('data-po-list="accessories"')<html.indexOf('>Custom information<'));
     assert.match(html,/Canopy<\/span><\/div><div class="sales-notes-accessory-po sales-notes-po-green">PO55<\/div>/);
     assert.doesNotMatch(html,/name="notes"|Vehicle notes/);
-    assert.match(html,/<details class="sales-accessory-admin"><summary>Admin · 1 line/);
+    assert.match(html,/data-admin-list="admin"><h3 class="sales-notes-accessory-head">Admin · 1 line<\/h3>/);assert.doesNotMatch(html,/<details/);
     assert.doesNotMatch(html,/sales-accessory-table/);
     assert.equal(accessories.detailHtml(row),'');
     assert.equal(accessories.tickFor(row,'build_po').state,'red');
