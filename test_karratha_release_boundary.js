@@ -62,8 +62,10 @@ const approvedRootImportPatch = Object.freeze({
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
   // counts on the snapshot totals; planner cards offer a controller reset for
   // a running item left too long (r384). Department 135's copy stays frozen.
-  "workshop-planner.js": "4dd4ac3ea4fdd2c26586a6ac1ab59dd522f5f14140e36414cbbd5ea547f1be50",
-  "workshop-planner.css": "b5d21a6edb9a209c1451054b642d94938fb5d76afc3821ca3afe2e517e1e5c30",
+  // r415: started-then-returned jobs can be dragged, Best slot or Scheduled again; the server resumes them (F31).
+  "workshop-planner.js": "d18806dd63982f57ddcdc7d8c98ff394ab6895f2d5da6d36045149c3e3ee8ae4",
+  // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
+  "workshop-planner.css": "51c8dd7628ee620d55af26b7f1af78cbb4a2c7c0b8aa4e729faaac38d7cf4cfa",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   "scripts/build_pages_runtime.js": "f39cb3b2b550ac467feb7acbec932c091a8ad75229531e539fc706ec665210d3",
@@ -96,7 +98,8 @@ const approvedRootImportPatch = Object.freeze({
   // requests surface a failed fetch (F24); index.html adds r408=2026.10.21.01.
   // r409: the other 210 alert() calls are pdcNotify toasts (F25); index.html adds r409=2026.10.21.01.
   // r414: the QC page reads the stored completion photo back (F30); index.html adds qc-photo-readback=2026.10.21.01.
-  "app.js": "0ae264f8f25a6208fbf708b280411939bd27e6578e0f455d5c2d0766b9e6e48b",
+  // r415: workshop-planner.js loads with r415=2026.10.21.01 (started-before jobs re-plan, F31).
+  "app.js": "bc4926d870a7672e09813328fe25f1e3ddbc18417024def0818389aa6625be70",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -117,7 +120,8 @@ const approvedRootImportPatch = Object.freeze({
   // r408: app.js and pdc-auth.js add r408=2026.10.21.01.
   // r409: app.js adds r409=2026.10.21.01.
   // r414: qc-photo-readback=2026.10.21.01 on app.js and pdc-email-vehicle-location-service.js.
-  "index.html": "76a7945acb88b78f36676c175a3bfb774a4cab741b4d3ff67a351d7757f5b02e",
+  // r415: r415=2026.10.21.01 on workshop-planner.css.
+  "index.html": "769a74aebd3cff8a8d70f6fb59492ec0e1b00e362f90b8473049dd77351f38a9",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
