@@ -60,8 +60,9 @@ const approvedRootImportPatch = Object.freeze({
   // Shared planner: pointer-capture drops from a deep queue or search overlay,
   // keep the last search rows during a post-drop refresh, close Add to planner
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
-  // counts on the snapshot totals. Department 135's copy stays frozen.
-  "workshop-planner.js": "418c084832ecf8d681870490eb968e7448e940adbaff2a8f7332300187a7d26a",
+  // counts on the snapshot totals; planner cards offer a controller reset for
+  // a running item left too long (r384). Department 135's copy stays frozen.
+  "workshop-planner.js": "c236e8bee75895596f98433fc523fa370ed80e36cf7f3936b273643cc751da2c",
   "workshop-planner.css": "b227830d512dc1980a9bdc9a5610e04890f0d9707bb3e343556ed8a2ee3b4bee",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
@@ -78,8 +79,10 @@ const approvedRootImportPatch = Object.freeze({
   "canonical-entry.js": "a1ba39ca5df70c0cf44b89ea650434c171b23f7ff1e545aad3ebec4a9b9ee81d",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
-  // dropdown (20 Oct 2026). Department 135 keeps the frozen fitter script.
-  "pdc-fitters.js": "de24c4f25d91c98d2be843f8275d830ec32a38ca71108857a81722a53e1da0a7",
+  // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
+  // shows running items beside a Done-only % (r384). Department 135 keeps
+  // the frozen fitter script.
+  "pdc-fitters.js": "f29117b34e5a4f50340c71d31d5fc84a909ef9ad54c22b2836b6ef51cd4a80bf",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -96,9 +99,10 @@ const approvedRootImportPatch = Object.freeze({
   // upload result that lists held Delivered - At Dealer rows.
   // Source app.js stays the pin above. The Pages artifact minifies that source.
   // Department 135's pages stay frozen.
-  // pdc-fitters.js conversion-tick=2026.10.20.02 and pdc-conversion-ticks.css.
+  // pdc-fitters.js conversion-tick=2026.10.20.02, item-ticks=2026.10.20.02 and
+  // pdc-conversion-ticks.css v=2026.10.20.02.
   // canonical-entry.js? adds sublet-hours-tags=2026.10.20.01.
-  "index.html": "2b17606f7508315609ff8748796fd6c3baba2e45847bc50803d175e9c446324b",
+  "index.html": "3de8fe267ad79ee2f04de661cb5b4b67103aca48acceaab5249f3091e1a68cbc",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
