@@ -46,9 +46,31 @@
     return '<div class="sales-notes-accessory-line"><div class="sales-notes-accessory-item"><span>'+escapeHtml(line.item)+'</span>'+(note?'<small class="sales-notes-accessory-note">'+escapeHtml(note)+'</small>':'')+'</div><div class="sales-notes-accessory-po sales-notes-po-'+poTone(line)+'">'+escapeHtml(poLabel(line))+'</div></div>';
   }
   function typeKey(line){return line.type.trim().toLowerCase();}
+  // r416: inside each section, lines that share a PO sit together. PO numbers first in ascending order, then other raised
+  // values (C&S ONLY, SELL ONLY, NO UPDATE, review text) A to Z, and every Not raised line last. A stable sort keeps the
+  // export order inside each group. Display only: no line, PO, tick or note changes.
+  const poCollator=new Intl.Collator('en',{numeric:true,sensitivity:'base'});
+  function poGroupKey(line){return poTone(line)==='red'?'':line.po.trim().replace(/\s+/g,' ').toUpperCase();}
+  function poRank(line){return poTone(line)==='red'?2:line.po_state==='po'||/^PO\d/i.test(line.po.trim())?0:1;}
+  function poGroups(lines) {
+    const groups=new Map();
+    lines.forEach((line,index)=>{
+      const key=poGroupKey(line);
+      if(!groups.has(key))groups.set(key,{key,rank:poRank(line),label:poLabel(line),first:index,lines:[]});
+      const group=groups.get(key);group.rank=Math.min(group.rank,poRank(line));group.lines.push(line);
+    });
+    return [...groups.values()].sort((a,b)=>a.rank-b.rank||(a.rank===2?0:poCollator.compare(a.key,b.key))||a.first-b.first);
+  }
+  function groupedLinesHtml(lines) {
+    const groups=poGroups(lines);
+    // A label only helps when a section holds more than one PO group; one group reads the same as before.
+    if(groups.length<2)return groups.map(group=>group.lines.map(lineHtml).join('')).join('');
+    return groups.map(group=>'<div class="sales-notes-po-group-head" data-po-group="'+escapeHtml(group.rank===2?'not-raised':group.key)+'">'+
+      escapeHtml((group.rank===2?'Not raised':group.label)+' · '+group.lines.length+' line'+(group.lines.length===1?'':'s'))+'</div>'+group.lines.map(lineHtml).join('')).join('');
+  }
   function sectionHtml(key,label,lines) {
     if(!lines.length)return '';
-    return '<section class="sales-notes-accessory-type" data-accessory-type="'+key+'"><h3 class="sales-notes-accessory-head">'+escapeHtml(label)+'</h3>'+lines.map(lineHtml).join('')+'</section>';
+    return '<section class="sales-notes-accessory-type" data-accessory-type="'+key+'"><h3 class="sales-notes-accessory-head">'+escapeHtml(label)+'</h3>'+groupedLinesHtml(lines)+'</section>';
   }
   function notesLinesHtml(record) {
     const lines=Array.isArray(record?.lines)?record.lines:[];
@@ -57,7 +79,7 @@
     let html='';
     for(const [key,label] of typeSections)html+=sectionHtml(key,label,rest.filter(line=>typeKey(line)===key));
     html+=sectionHtml('other','Other',rest.filter(line=>!typeSections.some(([key])=>typeKey(line)===key)));
-    if(admin.length)html+='<details class="sales-accessory-admin"><summary>Admin · '+admin.length+' line'+(admin.length===1?'':'s')+'</summary>'+admin.map(lineHtml).join('')+'</details>';
+    if(admin.length)html+='<details class="sales-accessory-admin"><summary>Admin · '+admin.length+' line'+(admin.length===1?'':'s')+'</summary>'+groupedLinesHtml(admin)+'</details>';
     return '<section class="sales-notes-accessories" aria-label="Accessory lines">'+html+'</section>';
   }
   function createSalesAccessories(host) {
@@ -126,7 +148,7 @@
     const api={init,clear,syncScope,refresh,detailHtml,notesPanelHtml,tickFor,recordFor};
     return api;
   }
-  const exports={escapeHtml,normaliseRecord,notesLinesHtml,eligibleRows,createSalesAccessories};
+  const exports={escapeHtml,normaliseRecord,notesLinesHtml,poGroups,eligibleRows,createSalesAccessories};
   if(typeof module==='object'&&module.exports)module.exports=exports;
   if(root.document)root.BROOME_SALES_ACCESSORIES=createSalesAccessories(root);
 })(typeof window==='object'?window:globalThis);
