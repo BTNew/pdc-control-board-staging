@@ -79,16 +79,19 @@ const approvedRootImportPatch = Object.freeze({
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
   // says "Loading vehicles…" until the board snapshot arrives.
-  "app.js": "9e744a4109a45488bf45ceb9b0c2338f6f576987af3ab4f80f217a11340ce697",
+  // 20 October 2026: Delivered - At Dealer rows whose vehicle is missing or
+  // soft-deleted are listed on the upload result. Department 135 stays parked.
+  "app.js": "1f6aaa5c31e52702f14b13689bf88d7f53e9a2a685ccc8c6b6034c3ac27e2be5",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
   // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02,
   // location-loading=2026.10.19.01 and publish-minify=2026.10.19.01, and adds
-  // planner-followup=2026.10.19.01.
+  // planner-followup=2026.10.19.01. delivery-review=2026.10.20.01 loads the
+  // upload result that lists held Delivered - At Dealer rows.
   // Source app.js stays the pin above. The Pages artifact minifies that source.
   // Department 135's pages stay frozen.
-  "index.html": "9a547b689aecb437eb98085858db04fb2c5521b7688fc443be66b1fe5f0aacfb",
+  "index.html": "100c4c06238916da51c48b4df131fb8429fe4dedfd6231cb00c645955126ad80",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",

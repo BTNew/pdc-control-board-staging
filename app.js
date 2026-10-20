@@ -22381,6 +22381,7 @@ function navisionPreviewIssueMessage(reason = '') {
     duplicate_stock_number: 'This Stock number appears in more than one source row. Keep one authoritative row.',
     duplicate_existing_stock_number: 'This Stock number already belongs to another current Navision record.',
     duplicate_vin: 'This VIN appears in more than one source row.',
+    delivery_vehicle_not_found: 'Delivered - At Dealer was not applied because the linked vehicle is missing or soft-deleted.',
     duplicate_toyota_order: 'This Toyota Order appears in more than one source row.',
     wrong_dealer_scope: 'This row declares a different dealer from the selected dealer.',
     missing_dealer_column: 'Combined uploads need a Dealer column for every row.',
@@ -22522,6 +22523,10 @@ function sharedNavisionApplyErrorMessage(result = {}) {
   if (code === 'suspicious_import_blocked') return `${navisionSafetyIssueMessage(data?.safety?.reason)} Nothing was imported.`;
   if (code === 'sublet_provider_review_required') return 'A sublet provider in this file needs review. Check the provider names in the preview before applying. Nothing was imported.';
   if (code === 'unauthorized') return 'Importer or administrator access is required for shared Navision imports. Nothing was imported.';
+  const serverMessage = String(result?.data?.message || result?.message || '');
+  if (serverMessage.includes('navision_dealer_delivery_failed')) {
+    return `The shared Navision import was rejected before completion. ${serverMessage} Nothing was imported.`;
+  }
   const reference = /^[a-z0-9_]{1,80}$/.test(code) ? ` Reference: ${code}.` : '';
   return `The shared Navision import was rejected before completion. Preview the file again or correct the flagged source row; nothing was imported and no browser-local fallback was attempted.${reference}`;
 }
@@ -22606,6 +22611,10 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
   const invalid = blockingState.invalid;
   const conflict = blockingState.conflict;
   const blocking = blockingState.blocking;
+  const deliveryReviews = Array.isArray(data.delivery_reviews) ? data.delivery_reviews : [];
+  const deliveryReviewHtml = deliveryReviews.length
+    ? `<section class="navision-human-detail navision-human-errors"><h4>Delivered - At Dealer rows held for review</h4><ul>${deliveryReviews.map(item => `<li><strong>Stock ${escapeHtml(String(item.stock_number || 'unknown'))}:</strong> ${escapeHtml(String(item.detail || navisionPreviewIssueMessage(item.reason)))}</li>`).join('')}</ul><p>These rows were saved. Delivery was not applied, and soft-deleted vehicles were not restored.</p></section>`
+    : '';
   const resultBanner = applied
     ? `<div class="navision-import-success" role="status" aria-live="polite"><span class="navision-import-success-tick" aria-hidden="true">✓</span><div><strong>Navision import complete</strong><span>Received ${total} car record${total === 1 ? '' : 's'} for ${escapeHtml(navisionDealerName(state.dealerCode))}.</span></div></div>`
     : `<div class="summary-row ${blocking ? 'error' : 'success'}"><strong>${blocking ? 'This file needs attention before it can be imported' : 'Navision file checked and ready'}</strong><span>Received ${total} car record${total === 1 ? '' : 's'} for ${escapeHtml(navisionDealerName(state.dealerCode))}. ${blocking ? 'Nothing was changed.' : 'This is a preview. Nothing has changed yet.'}</span></div>`;
@@ -22623,6 +22632,7 @@ function renderSharedNavisionPreview(state = {}, applied = false) {
     ${!applied && blockingState.inconsistentFlag ? '<div class="summary-row warning"><strong>Preview rechecked</strong><span>No invalid or conflicting rows were found. The database will validate the exact preview again before applying any change.</span></div>' : ''}
     ${!applied && blockingState.safetyBlocking ? `<div class="summary-row error"><strong>Server safety check blocked this import</strong><span>${escapeHtml(navisionSafetyIssueMessage(blockingState.safetyReason))} Nothing was changed.</span></div>` : ''}
     ${renderSharedNavisionChangeDetails(state, data)}
+    ${deliveryReviewHtml}
     <details class="navision-technical-details"><summary>Technical details</summary><div class="subtle navision-note">Dealer ${escapeHtml(state.dealerCode || '')} · ${applied ? `receipt ${escapeHtml(data.receipt_id || data.receiptId || 'returned by server')} · revision ${escapeHtml(data.revision ?? data.result_revision ?? '')}` : `preview ${escapeHtml(data.preview_hash || '')}`} · browser check ${escapeHtml(state.browserLocalSha256 || '')}</div></details>`;
 }
 
