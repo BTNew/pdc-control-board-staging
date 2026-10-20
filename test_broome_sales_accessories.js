@@ -94,6 +94,9 @@ test('Sales entrypoint loads the accessory module before build requirements and 
   assert.match(index,/sales-accessories\.css\?v=2026\.10\.20\.03&amp;notes-lines=2026\.10\.20\.05&amp;po-column=2026\.10\.20\.06/);
   assert.match(index,/sales\.css\?[^"]*po-column=2026\.10\.20\.06/);
   assert.match(index,/vehicle-notes\.js\?[^"]*po-column=2026\.10\.20\.06/);
+  assert.match(index,/sales-accessories\.js\?[^"]*tick-scope=2026\.10\.20\.07/);
+  assert.match(index,/vehicle-notes\.js\?[^"]*tick-scope=2026\.10\.20\.07/);
+  assert.match(index,/sales\.js\?v=2026\.10\.06\.01[^"]*tick-scope=2026\.10\.20\.07/);
   assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/\.sales-notes-accessory-line\{[^}]*grid-template-columns:minmax\(0,1fr\) 124px/);
   assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/\.sales-notes-po-review\{[^}]*#ffe4ba/);
   assert.match(fs.readFileSync('sales/sales-accessories.css','utf8'),/\.sales-notes-po-red\{[^}]*#fde2e2/);
@@ -167,4 +170,39 @@ test('r396 import accepts OOXML .xls names and eastern-time stamps without widen
   assert.match(sql,/UPDATE auth\.users SET banned_until=NULL WHERE id=importer_id/);assert.match(sql,/UPDATE auth\.users SET banned_until=prior_ban WHERE id=importer_id/);
   assert.doesNotMatch(sql,/GRANT |REVOKE |SECURITY DEFINER|(UPDATE|INSERT INTO|DELETE FROM) public\.vehicles|sales_build_orders\s+SET|ordering_progress/i);
   assert.match(down,/418b21e32ad877a6e18ec96b836b5e76/);assert.match(down,/9801ff7658e60fee649387f0a45f69b2/);assert.match(down,/receipts named \.xls exist/);
+});
+test('changing the salesperson filter or a vehicle salesperson keeps derived ticks',async()=>{
+  const calls=[],updates=[];
+  const host={PDC_AUTH_CONTEXT:{userId:'u'},addEventListener(){},PDC_SUPABASE:{rpc(name){return new Promise(resolve=>calls.push({name,resolve}));}}};
+  const bg={...row},aw={...row,tracking_id:'aw',navision_record_id:'source-aw',order:'00002',stock:'13900021',salesperson_code:'AW'};
+  const rows=[bg,aw];let selected='';
+  const api=acc.createSalesAccessories(host);
+  api.init({getRows:()=>rows,getContext:()=>({role:'administrator'}),getSalesperson:()=>selected,getToken:()=>'t',onUpdate:()=>updates.push(1)});
+  const p=api.refresh();
+  calls[0].resolve({data:{context:{role:'administrator'},items:[record(),record({tracking_id:'aw',navision_record_id:'source-aw',order:'00002',stock:'13900021',
+    derived:{build:{state:'green',reason:'po_raised'},tint:{state:'red',reason:'po_not_raised'},tray:{state:'review',reason:'review'}}})]}});
+  await p;
+  selected='AW';
+  assert.equal(api.tickFor(aw,'tint').state,'red');assert.equal(api.tickFor(aw,'tray_ordered').state,'review');assert.equal(api.tickFor(bg,'build_po').state,'red');
+  selected='BG';
+  assert.equal(api.tickFor(bg,'tint').state,'grey');assert.equal(api.tickFor(bg,'tray_ordered').state,'green');assert.equal(api.tickFor(aw,'build_po').state,'green');
+  assert.equal(calls.length,1,'a filter change re-derives ticks without another accessory read');
+  bg.salesperson_code='CW';
+  assert.equal(api.tickFor(bg,'build_po').state,'red');assert.equal(api.tickFor(bg,'tint').state,'grey');
+  const sales=fs.readFileSync('sales/sales.js','utf8'),module=fs.readFileSync('sales/sales-accessories.js','utf8');
+  assert.match(sales,/BROOME_SALES_ACCESSORIES\?\.init\(\{\.\.\.moduleOptions\(\),getRows:\(\)=>scopeRows\(state\.items,''\),getSalesperson:\(\)=>''/);
+  assert.match(sales,/BROOME_VEHICLE_NOTES\?\.reveal\?\.\(id\)/);
+  assert.match(module,/dashboard salesperson filter is a view, not a cache key/);
+  assert.doesNotMatch(module,/getSalesperson|currentScope/);
+});
+test('a signed-in salesperson still only sees their own ticks',async()=>{
+  const calls=[];
+  const host={PDC_AUTH_CONTEXT:{userId:'u'},addEventListener(){},PDC_SUPABASE:{rpc(name){return new Promise(resolve=>calls.push({name,resolve}));}}};
+  const bg={...row},aw={...row,tracking_id:'aw',navision_record_id:'source-aw',order:'00002',stock:'13900021',salesperson_code:'AW'};
+  const api=acc.createSalesAccessories(host);
+  api.init({getRows:()=>[bg,aw],getContext:()=>({role:'salesperson',salesperson_code:'BG'}),getSalesperson:()=>'AW',getToken:()=>'t'});
+  const p=api.refresh();
+  calls[0].resolve({data:{context:{role:'salesperson'},items:[record(),record({tracking_id:'aw',navision_record_id:'source-aw',order:'00002',stock:'13900021'})]}});
+  await p;
+  assert.equal(api.tickFor(bg,'build_po').state,'red');assert.equal(api.tickFor(aw,'build_po'),null);
 });

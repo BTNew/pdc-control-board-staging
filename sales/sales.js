@@ -399,6 +399,7 @@
     if(canEditRow(r))root.BROOME_SALES_CRM?.bindDetail(id);
     root.BROOME_SALES_BUILDS?.bindDetail(id);
     if(!$('sales-detail').open)$('sales-detail').showModal();
+    root.BROOME_VEHICLE_NOTES?.reveal?.(id);
   }
   function bookingHtml(bookings) {
     if(!Array.isArray(bookings)||!bookings.length)return '<p class="detail-notes">No bay bookings recorded.</p>';
@@ -650,7 +651,7 @@
   });
   root.BROOME_COMPLETED_VEHICLES?.init(moduleOptions());
   root.BROOME_SALES_CRM?.init(moduleOptions());
-  root.BROOME_SALES_ACCESSORIES?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation]),onUpdate:()=>render()});
+  root.BROOME_SALES_ACCESSORIES?.init({...moduleOptions(),getRows:()=>scopeRows(state.items,''),getSalesperson:()=>'',getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation]),onUpdate:()=>render()});
   root.BROOME_SALES_BUILDS?.init({...moduleOptions(),getToken:()=>JSON.stringify([root.PDC_AUTH_CONTEXT?.userId,state.generation])});
   root.BROOME_VEHICLE_NOTES?.init({getRows:()=>scopeRows(state.items,state.filters.salesperson),getVisibleRows:()=>selectRows(state.items,state.filters),getScope:()=>state.filters.salesperson,canEditRow,isHidden:()=>state.showHidden,reference:vehicleReference,onChanged:render});
   const columnWidths=root.BROOME_SALES_TOOLS?.initColumns($('vehicle-table'),$('sales-reset-widths'));

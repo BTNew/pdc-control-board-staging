@@ -79,3 +79,21 @@ test('note text is escaped and hidden/conflicting rows cannot be expanded',async
  const html=h.api.rowHtml(h.rows[0]);assert.match(html,/&lt;img/);assert.doesNotMatch(html,/<script>|<img|alert\(1\)/);
  h.el('sales-collapse-notes').events.click();h.rows[0].identity_conflict=true;h.click('[data-notes-toggle]',{notesToggle:'own'});assert.equal(h.api.rowHtml(h.rows[0]),'');h.rows[0].identity_conflict=false;h.setHidden(true);h.el('sales-expand-notes').events.click();assert.equal(h.api.rowHtml(h.rows[0]),'');
 });
+test('opening one notes row collapses the others, and an unsaved custom draft stays open',async()=>{
+ const h=harness();await ready(h,[saved()]);h.setVisible(h.rows);
+ h.el('sales-expand-notes').events.click();
+ assert.match(h.api.rowHtml(h.rows[0]),/Custom information/);assert.match(h.api.rowHtml(h.rows[1]),/Custom information/);
+ h.el('sales-collapse-notes').events.click();assert.equal(h.api.rowHtml(h.rows[0]),'');assert.equal(h.api.rowHtml(h.rows[1]),'');
+ h.click('[data-notes-toggle]',{notesToggle:'own'});assert.match(h.api.rowHtml(h.rows[0]),/Custom information/);
+ h.click('[data-notes-toggle]',{notesToggle:'second'});
+ assert.equal(h.api.rowHtml(h.rows[0]),'');assert.match(h.api.rowHtml(h.rows[1]),/Stock 1301/);
+ h.click('[data-notes-toggle]',{notesToggle:'second'});assert.equal(h.api.rowHtml(h.rows[1]),'');
+ h.click('[data-notes-toggle]',{notesToggle:'own'});h.input(h.form('My unsaved edit'));
+ h.click('[data-notes-toggle]',{notesToggle:'second'});
+ assert.match(h.api.rowHtml(h.rows[0]),/My unsaved edit/);assert.match(h.api.rowHtml(h.rows[0]),/Unsaved changes/);assert.equal(h.api.rowHtml(h.rows[1]),'');
+ assert.equal(h.api.reveal('second'),false);assert.match(h.api.rowHtml(h.rows[0]),/My unsaved edit/);assert.equal(h.api.rowHtml(h.rows[1]),'');
+ h.click('[data-notes-toggle]',{notesToggle:'own'});assert.match(h.api.rowHtml(h.rows[0]),/My unsaved edit/);
+ h.input(h.form('Customer requires morning handover'));h.click('[data-notes-toggle]',{notesToggle:'own'});assert.equal(h.api.rowHtml(h.rows[0]),'');
+ assert.equal(h.api.reveal('second'),true);assert.equal(h.api.rowHtml(h.rows[0]),'');assert.match(h.api.rowHtml(h.rows[1]),/Custom information/);
+ assert.equal(h.api.reveal('second'),true);assert.match(h.api.rowHtml(h.rows[1]),/Custom information/);
+});
