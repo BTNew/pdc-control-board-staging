@@ -82,7 +82,7 @@ const approvedRootImportPatch = Object.freeze({
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
   // shows running items beside a Done-only % (r384). Department 135 keeps
   // the frozen fitter script.
-  "pdc-fitters.js": "f29117b34e5a4f50340c71d31d5fc84a909ef9ad54c22b2836b6ef51cd4a80bf",
+  "pdc-fitters.js": "be4e84f34a055575685b417bb353f1fd9104f7d1114f45aec309b5e7542227d4",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -99,10 +99,10 @@ const approvedRootImportPatch = Object.freeze({
   // upload result that lists held Delivered - At Dealer rows.
   // Source app.js stays the pin above. The Pages artifact minifies that source.
   // Department 135's pages stay frozen.
-  // pdc-fitters.js conversion-tick=2026.10.20.02, item-ticks=2026.10.20.02 and
+  // pdc-fitters.js conversion-tick=2026.10.20.02, item-ticks=2026.10.20.02, self-update=2026.10.20.01 and
   // pdc-conversion-ticks.css v=2026.10.20.02.
   // canonical-entry.js? adds sublet-hours-tags=2026.10.20.01.
-  "index.html": "3de8fe267ad79ee2f04de661cb5b4b67103aca48acceaab5249f3091e1a68cbc",
+  "index.html": "d3e7869202efc4cd7c28a1188acd5eb378dab9464be22273d09ba36e511ff356",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
