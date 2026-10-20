@@ -5688,6 +5688,10 @@ function qcPageOperationLineIsDeferredPit(vehicle = {}, line = {}) {
   // (it happens after QC) or job-card notes (information only). The server
   // helper public.pdc_qc_line_not_checkable_400 uses the same two stages.
   if (['PIT_INSPECTION', 'JOB_CARD_NOTES'].includes(String(line?.stageCode || '').trim().toUpperCase())) return true;
+  // r405 (F14): a Pit and weigh / Pit inspection line is Pit by its wording, whatever
+  // it was filed under (Dept 139 job cards file "PIT AND WEIGH" as Fitting). Same rule
+  // as the server helper public.pdc_line_is_pit_401.
+  if (/(^|[^A-Z])PITS? ?(AND|&|\+|\/|N|'N')? ?WEIGH|(^|[^A-Z])PIT ?INSPECT/.test(String(line?.description || '').toUpperCase().replace(/\s+/g, ' '))) return true;
   if (String(line.sourceKind || '') !== 'authenticated') return false;
   const sourceLineId = String(line.sourceLineId || '').trim().toLowerCase();
   if (!sourceLineId) return false;
@@ -5829,8 +5833,9 @@ function qcPageWorkItemsHtml(vehicle = {}) {
   }
   // r400: job-card notes are listed for information, with no checkbox.
   // r401: Pit and weigh lines get an optional checkbox (own tick store); ticking is never required.
+  // r405: every line kept off the checklist as Pit (stage, wording or email rule) is listed here.
   const afterQcLines = (Array.isArray(vehicle.pdcQcOperationLines) ? vehicle.pdcQcOperationLines : [])
-    .filter(line => line?.active === true && ['PIT_INSPECTION', 'JOB_CARD_NOTES'].includes(String(line.stageCode || '').trim().toUpperCase()));
+    .filter(line => line?.active === true && qcPageOperationLineIsDeferredPit(vehicle, line));
   const afterQcHtml = afterQcLines.length ? `<section class="qc-operation-group qc-after-qc-lines" aria-label="Not required for QC">
     <h4>Not required for QC</h4>
     ${afterQcLines.map(line => {

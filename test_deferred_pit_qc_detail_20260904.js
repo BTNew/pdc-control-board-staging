@@ -55,6 +55,9 @@ const context = {
   qcPageOperationPending: new Map(),
   qcPagePendingKey: (key, lineIdentity) => `${key}::${lineIdentity}`,
   qcPagePhotoUploadInFlight: new Set(),
+  // r401/r405: the optional Pit tick renders in "Not required for QC".
+  pdcPitTickCheckboxHtml: () => '<input type="checkbox" class="pdc-pit-tick" />',
+  pdcPitTickCaption: () => 'Pit and weigh · optional, never blocks',
 };
 vm.createContext(context);
 vm.runInContext(`
@@ -89,8 +92,12 @@ assert.strictEqual(vehicle.pdcEmailOperationLines.some(line => line.work_key ===
 assert.deepStrictEqual(Array.from(context.qcPageOperationLines(vehicle), line => line.operationNo), ['OP10'], 'deferred PIT is absent from checkable QC operations while genuine non-PIT remains');
 assert.strictEqual(context.qcPageAllOperationLinesComplete(vehicle), false, 'genuine incomplete non-PIT operation blocks final sign-off');
 const html = context.qcPageWorkItemsHtml(vehicle);
-assert.doesNotMatch(html, /PIT AND WEIGH|OP9/);
-assert.match(html, /Genuine fitment|OP10/);
+// r405 (F14): the Pit line is listed under "Not required for QC" with the optional
+// Pit tick, never on the QC checklist itself.
+const [checklistHtml, afterQcHtml = ''] = html.split('qc-after-qc-lines');
+assert.doesNotMatch(checklistHtml, /PIT AND WEIGH|OP9/);
+assert.match(checklistHtml, /Genuine fitment|OP10/);
+assert.match(afterQcHtml, /pdc-pit-tick[\s\S]*PIT AND WEIGH/);
 
 const pitOnlyVehicle = { ...vehicle, pdcQcOperationLines: [vehicle.pdcQcOperationLines[0]] };
 assert.deepStrictEqual(Array.from(context.qcPageOperationLines(pitOnlyVehicle)), [], 'deferred PIT does not enter the final-signoff predicate');

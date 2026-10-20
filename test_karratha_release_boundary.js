@@ -91,7 +91,8 @@ const approvedRootImportPatch = Object.freeze({
   // soft-deleted are listed on the upload result. Department 135 stays parked.
   // r400: QC no longer asks for the Pit inspection or job-card notes lines.
   // r401: Pit and weigh never counts as required work; optional Pit tick for any department.
-  "app.js": "251b098c2869ed7a6363c7b786aff130a213ec4b25cf477c3d8a436b81b7ba10",
+  // r405: a Pit and weigh / Pit inspection line is Pit by its wording, whatever its category (F14).
+  "app.js": "28988ebd1e9e18605bc3353ff4a4e28f3937008edd77c8ece6fee4e1920e4e36",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -108,7 +109,8 @@ const approvedRootImportPatch = Object.freeze({
   // add bay8-category=2026.10.20.01 (Bus 4x4 bay lists by category, done-before-the-board).
   // r400: app.js adds qc-pit-notes=2026.10.20.01.
   // r401: app.js and pdc-email-vehicle-location-service.js add pit-neutral=2026.10.20.01.
-  "index.html": "fe877608fdee75d66534efde295ac87e1313a439f4fbe3193bf9bf67630b2370",
+  // r405: app.js adds pit-text=2026.10.20.01.
+  "index.html": "99066c1a3e653c288ce5ce486f44920819c228cf8c52450e126601d3a0071c02",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   "pdc-email-vehicle-location-service.js": "91558fdb4e34d5707d53e91aa94b1e18097630a749bf0bba571af4eb83ba3ceb",
