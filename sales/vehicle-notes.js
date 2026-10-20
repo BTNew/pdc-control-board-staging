@@ -35,7 +35,26 @@
    }catch(error){if(epoch!==generation||who!==user()||seq!==request)return;loadError=error.message||'Vehicle notes could not be loaded. Refresh to retry.';loaded=false;}
    repaint();
   }
-  function toggle(id){if(!syncScope()||!allowed(id)||options?.isHidden?.())return;if(expanded.has(id))expanded.delete(id);else expanded.add(id);repaint();}
+  function isDirty(id){
+   const draft=drafts.get(id);if(!draft)return false;
+   const saved=records.get(id);
+   return draft.custom_information!==(saved?.custom_information||'')||draft.notes!==(saved?.notes||'');
+  }
+  function keepDirty(id){messages.set(id,'Unsaved changes');repaint();}
+  function toggle(id){
+   if(!syncScope()||!allowed(id)||options?.isHidden?.())return;
+   if(expanded.has(id)){if(isDirty(id))keepDirty(id);else{expanded.delete(id);repaint();}return;}
+   const blocking=[...expanded].find(isDirty);
+   if(blocking){keepDirty(blocking);return;}
+   expanded.clear();expanded.add(id);repaint();
+  }
+  function reveal(id){
+   if(!syncScope()||!allowed(id)||options?.isHidden?.())return false;
+   const blocking=[...expanded].find(other=>other!==id&&isDirty(other));
+   if(blocking){keepDirty(blocking);return false;}
+   if(expanded.size===1&&expanded.has(id))return true;
+   expanded.clear();expanded.add(id);repaint();return true;
+  }
   function toggleHtml(row){
    return '<button type="button" class="vehicle-notes-toggle" data-notes-toggle="'+escape(row.tracking_id)+'" aria-expanded="'+expanded.has(row.tracking_id)+'" aria-label="'+(expanded.has(row.tracking_id)?'Collapse':'Expand')+' notes for '+escape(options?.reference?.(row)||row.order||row.stock||'vehicle')+'"'+(row.identity_conflict||options?.isHidden?.()?' disabled':'')+'><span aria-hidden="true">'+(expanded.has(row.tracking_id)?'▾':'▸')+'</span></button>';
   }
@@ -84,7 +103,7 @@
    host.addEventListener?.('pdc-auth-locked',clear);host.addEventListener?.('pdc-auth-failed',clear);
    return api;
   }
-  const api={init,clear,syncScope,load,toggleHtml,rowHtml,editorHtml,hasSavedNotes};return api;
+  const api={init,clear,syncScope,load,toggleHtml,rowHtml,editorHtml,hasSavedNotes,reveal};return api;
  }
  if(typeof module==='object'&&module.exports)module.exports={create};
  if(root.document)root.BROOME_VEHICLE_NOTES=create(root);

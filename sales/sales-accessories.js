@@ -61,19 +61,19 @@
     return '<section class="sales-notes-accessories" aria-label="Accessory lines">'+html+'</section>';
   }
   function createSalesAccessories(host) {
-    let options,records=new Map(),epoch=0,request=0,identity='',scope='',readStatus='idle';
+    let options,records=new Map(),epoch=0,request=0,identity='',readStatus='idle';
     const context=()=>options?.getContext?.();
     const currentIdentity=()=>JSON.stringify([host.PDC_AUTH_CONTEXT?.userId||null,options?.getToken?.()??null,context()?.role||null,context()?.salesperson_code||null]);
-    const currentScope=()=>options?.getSalesperson?.()||'';
+    // The dashboard salesperson filter is a view, not a cache key. Ticks stay for every vehicle this user may see.
     const rows=()=>{
       const ctx=context(),owner=ctx?.role==='salesperson'?String(ctx.salesperson_code||'').trim().toUpperCase():'';
       if(ctx?.role==='salesperson'&&!salespeople.has(owner))return [];
-      return eligibleRows(options?.getRows?.()||[],currentScope()).filter(row=>!owner||row.salesperson_code===owner);
+      return eligibleRows(options?.getRows?.()||[],'').filter(row=>!owner||row.salesperson_code===owner);
     };
-    function clear(){epoch++;request++;records.clear();identity=currentIdentity();scope=currentScope();readStatus='idle';}
+    function clear(){epoch++;request++;records.clear();identity=currentIdentity();readStatus='idle';}
     function syncScope() {
       if(!host.PDC_AUTH_CONTEXT?.userId||!['administrator','salesperson'].includes(context()?.role)){clear();return false;}
-      if(identity!==currentIdentity()||scope!==currentScope())clear();
+      if(identity!==currentIdentity())clear();
       const permitted=new Map(rows().map(row=>[row.tracking_id,row]));
       for(const [id,record] of records)if(!permitted.has(id)||orderKey(record.order)!==orderKey(permitted.get(id).order)||!sameSource(record,permitted.get(id)))records.delete(id);
       return true;
@@ -100,8 +100,8 @@
     }
     async function refresh() {
       if(!syncScope())return;
-      const generation=epoch,owner=currentIdentity(),selected=currentScope(),sequence=++request;
-      const stale=()=>!syncScope()||generation!==epoch||owner!==currentIdentity()||selected!==currentScope()||sequence!==request;
+      const generation=epoch,owner=currentIdentity(),sequence=++request;
+      const stale=()=>!syncScope()||generation!==epoch||owner!==currentIdentity()||sequence!==request;
       try {
         const {data,error}=await host.PDC_SUPABASE.rpc('get_broome_sales_accessories');
         if(stale())return;
