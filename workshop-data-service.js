@@ -117,7 +117,7 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'bay_overlap', 'vehicle_overlap', 'calendar_unavailable',
   'calendar_duration_mismatch', 'invalid_schedule_interval', 'minimum_duration',
   'bay_inactive_or_wrong_station', 'technician_inactive_or_missing',
-  'bus_stage_parts_required', 'bus_bay_vehicle_incompatible',
+  'bus_stage_parts_required', 'bus_bay_vehicle_incompatible', 'category_bay_mismatch',
   'bus_shift_outside_hours', 'bus_supplier_verification_required',
   'bus_technician_shift_conflict',
   'invalid_team', 'active_department138_booking_required', 'technician_unavailable',
@@ -137,6 +137,9 @@ function workshopCanonicalMutationError(body) {
   const direct = String(body.error || '').trim();
   if (WORKSHOP_CANONICAL_MUTATION_ERRORS.has(direct)) return direct;
   const message = String(body.message || body.details || '').trim();
+  // A plain RAISE ... USING ERRCODE='22023' arrives as error=SQLSTATE and the
+  // token alone as message (r399: category_bay_mismatch showed raw).
+  if (WORKSHOP_CANONICAL_MUTATION_ERRORS.has(message.toLowerCase())) return message.toLowerCase();
   const match = message.match(/["']error["']\s*:\s*["']([a-z0-9_]+)["']/i);
   const extracted = match ? String(match[1] || '').toLowerCase() : '';
   return WORKSHOP_CANONICAL_MUTATION_ERRORS.has(extracted) ? extracted : '';

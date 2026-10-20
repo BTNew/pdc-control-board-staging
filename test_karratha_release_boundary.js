@@ -51,18 +51,18 @@ const approvedRootImportPatch = Object.freeze({
   // Confirmed workshop writes stay committed if the readback authority changes,
   // and the dialog listener fires before the snapshot refresh. Department 135
   // stays parked and keeps the previous service bytes.
-  "workshop-data-service.js": "68b14765b5b0ad92ef5fce5aba364386d3a4c16d0e507f36d5d7f0f509c271da",
+  "workshop-data-service.js": "0377937a3337f26a7a1deafd3a84a04949c5a21f8b94aa24a8d1908d41c6a52f",
   // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
   "pdc-review-stations.js": "851ebde33942fd3a3542f2292093483b6f9bc9f3ff9feb6cfc96aa8e6cf51488",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
-  "pdc-workshop-departments.js": "06326c4e7bb3aa1b301c4c5cd42024927ca3bac1f6c9ef7ce5dcce871d41ed29",
+  "pdc-workshop-departments.js": "116ef396963f11485de134452a321198c3e39a2e7a40247cbe668e49a193c9a9",
   // Shared planner: pointer-capture drops from a deep queue or search overlay,
   // keep the last search rows during a post-drop refresh, close Add to planner
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
   // counts on the snapshot totals; planner cards offer a controller reset for
   // a running item left too long (r384). Department 135's copy stays frozen.
-  "workshop-planner.js": "c236e8bee75895596f98433fc523fa370ed80e36cf7f3936b273643cc751da2c",
+  "workshop-planner.js": "ea309da4dd60f15d677f7911a4d175ad77d61bf3336d01ebc61d41c5729b7581",
   "workshop-planner.css": "b227830d512dc1980a9bdc9a5610e04890f0d9707bb3e343556ed8a2ee3b4bee",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
@@ -89,7 +89,7 @@ const approvedRootImportPatch = Object.freeze({
   // says "Loading vehicles…" until the board snapshot arrives.
   // 20 October 2026: Delivered - At Dealer rows whose vehicle is missing or
   // soft-deleted are listed on the upload result. Department 135 stays parked.
-  "app.js": "1f6aaa5c31e52702f14b13689bf88d7f53e9a2a685ccc8c6b6034c3ac27e2be5",
+  "app.js": "64b3daf6167a89b38ecca9f595126457ffa3ebda1bf81074f5f392e6077b2a7b",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -102,7 +102,9 @@ const approvedRootImportPatch = Object.freeze({
   // pdc-fitters.js conversion-tick=2026.10.20.02, item-ticks=2026.10.20.02, self-update=2026.10.20.01 and
   // pdc-conversion-ticks.css v=2026.10.20.02.
   // canonical-entry.js? adds sublet-hours-tags=2026.10.20.01.
-  "index.html": "d3e7869202efc4cd7c28a1188acd5eb378dab9464be22273d09ba36e511ff356",
+  // r399: app.js, workshop-planner.js, workshop-data-service.js and pdc-workshop-departments.js
+  // add bay8-category=2026.10.20.01 (Bus 4x4 bay lists by category, done-before-the-board).
+  "index.html": "91b31c70b671f749c598bc55935cb918779e26ac71fc20a90e7c5beb01a34771",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",

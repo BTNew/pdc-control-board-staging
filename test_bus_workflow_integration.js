@@ -40,7 +40,7 @@ test('group view and Schedule both use the selected station bays',()=>{
  state.busBayGroup='';assert.equal(context.workshopVisibleBays('BUS_4X4').length,10);
  assert.match(context.workshopBayChoiceLabel('BUS_4X4',10),/Accessory Fitting/);
  const start=planner.indexOf('function openWorkshopScheduleModal('),modal=planner.slice(start,planner.indexOf('\nfunction ',start+1));
- assert.match(modal,/workshopVisibleBays\(normalizedStage\)\.map/);
+ assert.match(modal,/const categoryBays = workshopCategoryBays\(normalizedStage, scheduleCategory\)/);assert.match(modal,/categoryBays\.map/);
  assert.doesNotMatch(modal,/Choose any suitable Bus4x4 bay/);
 });
 test('working shell loads department layout and retires readiness panels',()=>{

@@ -5544,7 +5544,7 @@ function renderWorkshopPlannerWhenReady() {
     loadExternalScript(`workshop-data-service.js?scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-data-service-script'),
     loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'),
     loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'),
-    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-planner-script')
+    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-planner-script')
   ])
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
@@ -5596,7 +5596,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -14217,10 +14217,11 @@ function vehicleWorkshopStationHtml(group = {}, bookingFallback = 'Not booked', 
   const wholeJob = group.category && group.bookings.find(item => !item.work_category && ['queued','planned'].includes(item.status) && !item.actual_start_at);
   const splitBooking = wholeJob && vehicleWorkshopCanEditLines()
     ? `<p class="vehicle-workshop-warning">This work is covered by an existing whole-job booking. <button type="button" data-vehicle-workshop-split-category data-booking-id="${escapeHtml(wholeJob.booking_id)}" data-booking-version="${Number(wholeJob.booking_version)}">Split booking into categories</button><small>The existing bay reservation will be released. Book each category separately; the original booking stays in history.</small></p>` : '';
+  const offboard = vehicleWorkshopOffboardHtml(group, vehicle, complete, wholeJob);
   const statusLabel = isDeferredPit ? 'External inspection' : isPartsStage ? 'Parts state only' : evidenceOnly ? 'Evidence' : complete ? 'Completed' : 'Required';
   const statusClass = isPartsStage ? 'is-parts-state' : evidenceOnly ? 'is-evidence' : complete ? 'is-complete' : 'is-required';
   const description = isDeferredPit ? 'External Department of Transport inspection · record the confirmed appointment separately' : isPartsStage ? 'Parts requires neither hours nor a station booking' : evidenceOnly ? 'Evidence retained from source or display projection' : complete ? 'Required work completed' : 'Required work outstanding';
-  return `<section class="vehicle-workshop-station${isPartsStage ? ' parts-no-hour-gate' : ''}${evidenceOnly ? ' is-evidence-only' : ''}" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" data-work-category="${escapeHtml(group.category || '')}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${description}</p></div>${addButton}<span class="vehicle-workshop-station-status ${statusClass}">${statusLabel}</span><span class="vehicle-workshop-station-total">${isPartsStage ? 'No hours required' : escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${splitBooking}${vehicleWorkshopCompactLinesHtml(group, bookingFallback, vehicle, validStages)}${stationBookings}</section>`;
+  return `<section class="vehicle-workshop-station${isPartsStage ? ' parts-no-hour-gate' : ''}${evidenceOnly ? ' is-evidence-only' : ''}" data-vehicle-workshop-stage="${escapeHtml(group.stage)}" data-work-category="${escapeHtml(group.category || '')}" style="--station-colour:${escapeHtml(presentation.colour)};--station-tint:${escapeHtml(presentation.tint)}"><header><span class="vehicle-workshop-station-code">${escapeHtml(presentation.label.slice(0, 2).toUpperCase())}</span><div><h3>${escapeHtml(presentation.label)}</h3><p>${description}</p></div>${addButton}<span class="vehicle-workshop-station-status ${statusClass}">${statusLabel}</span><span class="vehicle-workshop-station-total">${isPartsStage ? 'No hours required' : escapeHtml(vehicleWorkshopHoursLabel(totalHours))}</span></header>${splitBooking}${offboard}${vehicleWorkshopCompactLinesHtml(group, bookingFallback, vehicle, validStages)}${stationBookings}</section>`;
 }
 
 function vehicleImportedAdditionsHtml(detail = {}) {
@@ -14523,6 +14524,58 @@ async function saveVehicleWorkCategory(select) {
   } finally { select.disabled=false; }
 }
 
+// r399: Mechanical, Electrical or Accessories work finished before the board
+// went live has no booking to press Done on, so it would sit in Unallocated
+// forever. Operators record it as done with a reason; the server keeps the
+// lines, hours, overrides and history and the confirmation can be undone.
+const VEHICLE_WORKSHOP_OFFBOARD_CATEGORIES = Object.freeze(['BUS_MECHANICAL','BUS_ELECTRICAL','BUS_ACCESSORIES']);
+function vehicleWorkshopOffboardHtml(group = {}, vehicle = {}, complete = false, wholeJob = null) {
+  if (!VEHICLE_WORKSHOP_OFFBOARD_CATEGORIES.includes(group.category) || !vehicleWorkshopCanEditLines()) return '';
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  const detail = canonicalId ? app.vehicleWorkshopDetailCache.get(canonicalId)?.detail : null;
+  if (!detail || !Number.isFinite(Number(detail.vehicle_version))) return '';
+  const category = (detail.work_categories || []).find(item => item.work_category === group.category) || {};
+  const label = escapeHtml(group.label || category.label || 'this work');
+  const attrs = `data-category="${escapeHtml(group.category)}" data-vehicle-version="${Number(detail.vehicle_version)}"`;
+  if (category.offboard_confirmed) {
+    return `<p class="vehicle-workshop-offboard">Marked done before the board.<button type="button" class="ghost compact" data-vehicle-workshop-offboard-undo ${attrs}>Undo</button></p>`;
+  }
+  const started = (group.bookings || []).some(item => item.work_category === group.category && item.actual_start_at && !['cancelled','deleted'].includes(item.status));
+  if (complete || wholeJob || started) return '';
+  return `<p class="vehicle-workshop-offboard"><button type="button" class="ghost compact" data-vehicle-workshop-offboard-done ${attrs}>Mark ${label} done (finished before the board)</button></p>`;
+}
+
+async function vehicleWorkshopOffboardCall(button, undo = false) {
+  const vehicle = selectedVehicle() || {};
+  const canonicalId = vehicleWorkshopDetailCanonicalId(vehicle);
+  if (!vehicleWorkshopCanEditLines() || !canonicalId || !button?.dataset?.category) return false;
+  const reason = window.prompt(undo
+    ? 'Why are you reopening this work? (5–500 characters)'
+    : 'This marks the work done without a bay booking. Any unstarted booking for it is released and kept in history. Who did the work and when? (5–500 characters)');
+  if (reason === null) return false;
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  const token = getPdcSupabaseAccessToken();
+  if (!token || !config.url || !config.publishableKey) return false;
+  button.disabled = true;
+  try {
+    const body = { p_vehicle_id: canonicalId, p_vehicle_expected_version: Number(button.dataset.vehicleVersion), p_category: button.dataset.category, p_reason: String(reason).trim() };
+    const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/${undo ? 'undo_bus_category_done' : 'confirm_bus_category_done'}`, {
+      method: 'POST', headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (!response.ok || result?.ok !== true) {
+      throw new Error(result?.error === 'vehicle_version_conflict' ? 'This vehicle changed after you opened it. It has been reloaded; try again.' : result?.message || 'The change was not saved. Refresh and try again.');
+    }
+    await loadVehicleWorkshopDetail(vehicle, { force: true });
+    return true;
+  } catch (error) {
+    window.alert(error.message || 'The change was not saved.');
+    await loadVehicleWorkshopDetail(vehicle, { force: true });
+    return false;
+  } finally { button.disabled = false; }
+}
+
 async function splitVehicleWorkshopBooking(button) {
   const vehicle = selectedVehicle() || {};
   if (!vehicleWorkshopCanEditLines() || !button?.dataset?.bookingId) return false;
@@ -14657,6 +14710,8 @@ function bindVehicleDetailTabs(panel) {
   panel.querySelector('[data-vehicle-workshop-operation-undo]')?.addEventListener('click', () => undoVehicleWorkshopOperation());
   panel.querySelectorAll('[data-vehicle-workshop-line-category]').forEach(select => select.addEventListener('change', () => { void saveVehicleWorkCategory(select); }));
   panel.querySelectorAll('[data-vehicle-workshop-split-category]').forEach(button => button.addEventListener('click', () => { void splitVehicleWorkshopBooking(button); }));
+  panel.querySelectorAll('[data-vehicle-workshop-offboard-done]').forEach(button => button.addEventListener('click', () => { void vehicleWorkshopOffboardCall(button, false); }));
+  panel.querySelectorAll('[data-vehicle-workshop-offboard-undo]').forEach(button => button.addEventListener('click', () => { void vehicleWorkshopOffboardCall(button, true); }));
   panel.querySelectorAll('[data-vehicle-workshop-schedule-next]').forEach(button => button.addEventListener('click', () => { void scheduleVehicleWorkshopNextAvailable(button); }));
   panel.querySelectorAll('[data-vehicle-workshop-line-handle]').forEach(handle => {
     handle.addEventListener('dragstart', event => beginVehicleWorkshopLineDrag(event, handle));
