@@ -98,7 +98,7 @@ const approvedRootImportPatch = Object.freeze({
   // Department 135's pages stay frozen.
   // pdc-fitters.js conversion-tick=2026.10.20.02 and pdc-conversion-ticks.css.
   // canonical-entry.js? adds sublet-hours-tags=2026.10.20.01.
-  "index.html": "344a41c1c2a7d7a9411a24f04d621e656c7c4c485d856f278a87a085e7a5ded9",
+  "index.html": "2b17606f7508315609ff8748796fd6c3baba2e45847bc50803d175e9c446324b",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
