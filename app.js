@@ -1028,6 +1028,9 @@ function pdcJobRequired(vehicle = {}, def = {}) {
     if (projection && typeof projection.parts_required === 'boolean') return projection.parts_required;
     return vehicleHasBatchNumber(vehicle);
   }
+  // r401: Pit and weigh never counts as required work. It never blocks QC,
+  // RFT, completion, progress, scheduling or dispatch, and any department can tick it.
+  if (def.key === 'pitInspection') return false;
   if (def.key === 'fitting' && vehicle.pdcRequiresBuild === true) return true;
   if (vehicle[def.requireKey] === true) return true;
   if (vehicle[def.requireKey] === false) return false;
@@ -5342,6 +5345,7 @@ async function refreshEmailVehicleLocations(options = {}) {
   }
   app.emailVehicleLocationRevision = response.data?.revision ?? null;
   app.emailVehicleLocationError = '';
+  void refreshPdcPitLineTicks();
   // A coordinated refresh renders once after all of its readers settle.
   // Rendering here as well rebuilds the board with a partial refresh.
   if (refreshGeneration == null) renderAll();
@@ -5693,6 +5697,90 @@ function qcPageOperationLineIsDeferredPit(vehicle = {}, line = {}) {
   ));
 }
 
+// r401: Pit and weigh ticks. Optional, tickable by any department, never blocking.
+// Ticks live in their own server table (pdc_pit_line_ticks_401), so a tick never
+// changes the QC projection, work items, progress or any gate.
+const pdcPitTickState = new Map();
+const pdcPitTickPending = new Set();
+const pdcPitTickErrors = new Map();
+let pdcPitTickHandlerInstalled = false;
+
+function pdcPitTickKey(vehicleId = '', lineIdentity = '') {
+  return `${String(vehicleId || '').trim().toLowerCase()}::${String(lineIdentity || '').trim()}`;
+}
+
+function pdcPitTickFor(vehicle = {}, line = {}) {
+  return pdcPitTickState.get(pdcPitTickKey(vehicle.__emailVehicleId, line.lineIdentity)) || null;
+}
+
+function pdcPitTickCaption(vehicle = {}, line = {}) {
+  const tick = pdcPitTickFor(vehicle, line);
+  const error = pdcPitTickErrors.get(pdcPitTickKey(vehicle.__emailVehicleId, line.lineIdentity));
+  const done = tick?.ticked === true
+    ? ` · ticked by ${tick.ticked_by_email || 'staff'}${tick.ticked_role ? ` (${tick.ticked_role})` : ''}${tick.ticked_at ? ` ${formatPdcPitTickTime(tick.ticked_at)}` : ''}`
+    : '';
+  return `Pit and weigh · optional, any department can tick · never blocks QC or RFT${done}${error ? ` · ${error}` : ''}`;
+}
+
+function formatPdcPitTickTime(value = '') {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  try { return date.toLocaleString('en-AU', { timeZone: 'Australia/Perth', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + ' AWST'; }
+  catch (_error) { return date.toISOString(); }
+}
+
+function pdcPitTickCheckboxHtml(vehicle = {}, line = {}) {
+  installPdcPitTickHandler();
+  const vehicleId = String(vehicle.__emailVehicleId || '');
+  if (!vehicleId || !line?.lineIdentity) return '<span class="qc-work-marker" aria-hidden="true">–</span>';
+  const key = pdcPitTickKey(vehicleId, line.lineIdentity);
+  const tick = pdcPitTickState.get(key);
+  const pending = pdcPitTickPending.has(key);
+  return `<input type="checkbox" class="pdc-pit-tick" data-pit-tick-vehicle="${escapeHtml(vehicleId)}" data-pit-tick-line="${escapeHtml(line.lineIdentity)}" data-pit-tick-version="${Number(tick?.version || 0)}" ${tick?.ticked === true ? 'checked' : ''} ${pending ? 'disabled aria-busy="true"' : ''} title="Optional: any department can tick Pit and weigh. It never blocks anything." aria-label="${escapeHtml(`Pit and weigh ${line.description || ''} (optional, never blocks)`)}" />`;
+}
+
+async function refreshPdcPitLineTicks() {
+  const service = app.emailVehicleLocationService;
+  if (!service || typeof service.readPitLineTicks !== 'function') return false;
+  const result = await service.readPitLineTicks(null);
+  if (!result?.ok) return false;
+  pdcPitTickState.clear();
+  for (const tick of result.data.ticks) pdcPitTickState.set(pdcPitTickKey(tick.vehicle_id, tick.line_identity), tick);
+  if (['qc', 'bus-pit'].includes(app.currentView)) renderActiveView();
+  return true;
+}
+
+async function setPdcPitLineTick(vehicleId = '', lineIdentity = '', expectedVersion = 0, ticked = false) {
+  const service = app.emailVehicleLocationService;
+  const key = pdcPitTickKey(vehicleId, lineIdentity);
+  if (!service || typeof service.setPitLineTick !== 'function' || pdcPitTickPending.has(key)) return false;
+  pdcPitTickPending.add(key); pdcPitTickErrors.delete(key);
+  try {
+    const result = await service.setPitLineTick(vehicleId, lineIdentity, expectedVersion, ticked, crypto.randomUUID());
+    if (result?.ok && result.data?.tick) {
+      pdcPitTickState.set(key, { ...result.data.tick, vehicle_id: vehicleId });
+      return true;
+    }
+    const code = String(result?.code || '');
+    pdcPitTickErrors.set(key, /UNAUTHORIZED/i.test(code) ? 'your role cannot tick' : /VERSION/i.test(code) ? 'changed elsewhere, reloaded' : 'not saved, try again');
+    await refreshPdcPitLineTicks();
+    return false;
+  } finally {
+    pdcPitTickPending.delete(key);
+    if (['qc', 'bus-pit'].includes(app.currentView)) renderActiveView();
+  }
+}
+
+function installPdcPitTickHandler() {
+  if (pdcPitTickHandlerInstalled || typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
+  pdcPitTickHandlerInstalled = true;
+  document.addEventListener('change', event => {
+    const input = event.target?.closest?.('input[data-pit-tick-line]');
+    if (!input) return;
+    void setPdcPitLineTick(input.dataset.pitTickVehicle, input.dataset.pitTickLine, Number(input.dataset.pitTickVersion || 0), input.checked === true);
+  });
+}
+
 function qcPageOperationLines(vehicle = {}) {
   const stageRank = stage => stage === 'UNALLOCATED_MAPPING_REVIEW' ? 2 : stage === 'SUBLET' ? 1 : 0;
   return (Array.isArray(vehicle.pdcQcOperationLines) ? vehicle.pdcQcOperationLines : [])
@@ -5739,12 +5827,16 @@ function qcPageWorkItemsHtml(vehicle = {}) {
   if (vehicle.pdcQcOperationLinesProjectionPresent !== true) {
     return '<div class="qc-operation-unavailable" role="alert"><strong>QC operation lines are still loading</strong><span>The authenticated server snapshot is missing its QC projection. Refresh to retry; the source operation evidence has not been treated as absent.</span></div>';
   }
-  // r400: Pit inspection and job-card notes are listed for information, with no checkbox.
+  // r400: job-card notes are listed for information, with no checkbox.
+  // r401: Pit and weigh lines get an optional checkbox (own tick store); ticking is never required.
   const afterQcLines = (Array.isArray(vehicle.pdcQcOperationLines) ? vehicle.pdcQcOperationLines : [])
     .filter(line => line?.active === true && ['PIT_INSPECTION', 'JOB_CARD_NOTES'].includes(String(line.stageCode || '').trim().toUpperCase()));
-  const afterQcHtml = afterQcLines.length ? `<section class="qc-operation-group qc-after-qc-lines" aria-label="Not ticked in QC">
-    <h4>Not ticked in QC</h4>
-    ${afterQcLines.map(line => `<div class="qc-work-item qc-operation-line is-info"><span class="qc-work-marker" aria-hidden="true">–</span><span class="qc-work-copy"><strong>${escapeHtml(`${line.operationNo || 'Manual'} · ${line.description}`)}</strong><small>${escapeHtml(String(line.stageCode).toUpperCase() === 'PIT_INSPECTION' ? 'Pit inspection · external Department of Transport, after QC · see Bus Pit' : 'Job card notes · information only')}</small></span></div>`).join('')}
+  const afterQcHtml = afterQcLines.length ? `<section class="qc-operation-group qc-after-qc-lines" aria-label="Not required for QC">
+    <h4>Not required for QC</h4>
+    ${afterQcLines.map(line => {
+    const notes = String(line.stageCode || '').trim().toUpperCase() === 'JOB_CARD_NOTES';
+    return `<div class="qc-work-item qc-operation-line is-info">${notes ? '<span class="qc-work-marker" aria-hidden="true">–</span>' : pdcPitTickCheckboxHtml(vehicle, line)}<span class="qc-work-copy"><strong>${escapeHtml(`${line.operationNo || 'Manual'} · ${line.description}`)}</strong><small>${escapeHtml(notes ? 'Job card notes · information only' : pdcPitTickCaption(vehicle, line))}</small></span></div>`;
+  }).join('')}
   </section>` : '';
   return (html || '<div class="qc-operation-unavailable" role="alert"><strong>No active operation lines are available</strong><span>QC completion remains blocked until an authenticated or audited manual operation line is available.</span></div>') + afterQcHtml;
 }
@@ -26083,7 +26175,7 @@ function renderBusPitInspections() {
     return;
   }
   const rows = vehicles.flatMap(vehicle => (window.PDC_WORKSHOP_DEPARTMENTS?.externalPitLines(vehicle) || []).map(line => ({ vehicle, line })));
-  host.innerHTML = rows.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Stock</th><th>Customer</th><th>Vehicle</th><th>Job card</th><th>Inspection required</th><th>Location</th><th></th></tr></thead><tbody>${rows.map(({ vehicle, line }) => `<tr><td>${escapeHtml(displayStockNumber(vehicle) || '—')}</td><td>${escapeHtml(vehicleCustomerName(vehicle) || '—')}</td><td>${escapeHtml(displayVehicle(vehicle) || '—')}</td><td>${escapeHtml(line.jobCardNumber || vehicleJobcardNumber(vehicle) || '—')}</td><td>${escapeHtml(line.description)}</td><td>${escapeHtml(vehiclePdcLocation(vehicle) || '—')}</td><td><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleKey(vehicle))}">Open vehicle</button></td></tr>`).join('')}</tbody></table></div>`
+  host.innerHTML = rows.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Stock</th><th>Customer</th><th>Vehicle</th><th>Job card</th><th>Inspection required</th><th>Location</th><th>Done (optional)</th><th></th></tr></thead><tbody>${rows.map(({ vehicle, line }) => `<tr><td>${escapeHtml(displayStockNumber(vehicle) || '—')}</td><td>${escapeHtml(vehicleCustomerName(vehicle) || '—')}</td><td>${escapeHtml(displayVehicle(vehicle) || '—')}</td><td>${escapeHtml(line.jobCardNumber || vehicleJobcardNumber(vehicle) || '—')}</td><td>${escapeHtml(line.description)}</td><td>${escapeHtml(vehiclePdcLocation(vehicle) || '—')}</td><td><label class="pdc-pit-tick-cell">${pdcPitTickCheckboxHtml(vehicle, line)}<small>${escapeHtml(pdcPitTickFor(vehicle, line)?.ticked === true ? `Ticked by ${pdcPitTickFor(vehicle, line).ticked_by_email || 'staff'}` : 'Never blocks')}</small></label></td><td><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleKey(vehicle))}">Open vehicle</button></td></tr>`).join('')}</tbody></table></div>`
     : '<div class="empty-state"><strong>No open Bus Pit inspections</strong><span>No active Department 138 job-card lines currently require external Pit inspection.</span></div>';
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
 }

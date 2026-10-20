@@ -90,7 +90,8 @@ const approvedRootImportPatch = Object.freeze({
   // 20 October 2026: Delivered - At Dealer rows whose vehicle is missing or
   // soft-deleted are listed on the upload result. Department 135 stays parked.
   // r400: QC no longer asks for the Pit inspection or job-card notes lines.
-  "app.js": "7ebea1340f5d1e832739e4dcafb179eeaee12701c3ce17d1b76c693dc0688165",
+  // r401: Pit and weigh never counts as required work; optional Pit tick for any department.
+  "app.js": "e79ecd2aae69f00fce595722246ae4a20a96ee7e85ed60963adabdcd58b356c4",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -106,9 +107,11 @@ const approvedRootImportPatch = Object.freeze({
   // r399: app.js, workshop-planner.js, workshop-data-service.js and pdc-workshop-departments.js
   // add bay8-category=2026.10.20.01 (Bus 4x4 bay lists by category, done-before-the-board).
   // r400: app.js adds qc-pit-notes=2026.10.20.01.
-  "index.html": "87f2d936009773fd1f387894159fa118907ff528856effb475878b1875c0aed6",
+  // r401: app.js and pdc-email-vehicle-location-service.js add pit-neutral=2026.10.20.01.
+  "index.html": "386db7fc4eacebd34189a2de186c08000ad2aab9d3f7e7b2de7c94dbae69f700",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
-  "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
+  // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
+  "pdc-email-vehicle-location-service.js": "91558fdb4e34d5707d53e91aa94b1e18097630a749bf0bba571af4eb83ba3ceb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
   "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",
