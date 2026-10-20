@@ -24,7 +24,7 @@ const c={console,Date,WORKSHOP_STAGE_SEQUENCE:['BUS_4X4'],window:{alert(){},PDC_
  workshopMinuteOffset:()=>60,workshopBestStageSlot:(...args)=>{slotArgs=args;return {bay:1,dateKey:state.date,startMinutes:60};},workshopSaveView(){}
 };
 const dialogRpcs=source.slice(source.indexOf('const WORKSHOP_SCHEDULE_DIALOG_RPCS'),source.indexOf('function workshopBindScheduleCommitClose'));
-vm.createContext(c);vm.runInContext([dialogRpcs,...['workshopBindScheduleCommitClose','workshopReturnedQueuePlans','workshopReturnedPlanForAction','openWorkshopScheduleModal','workshopScheduleVehicleNextAvailable'].map(extract)].join('\n'),c);
+vm.createContext(c);vm.runInContext([dialogRpcs,...['workshopCategoryBays','workshopBindScheduleCommitClose','workshopReturnedQueuePlans','workshopReturnedPlanForAction','openWorkshopScheduleModal','workshopScheduleVehicleNextAvailable'].map(extract)].join('\n'),c);
 (async()=>{
  c.openWorkshopScheduleModal('TEST','BUS_4X4',state.date,plan.id);
  assert.match(overlay.innerHTML,/value="88.32"/,'returned duration is presented without changing reservation');

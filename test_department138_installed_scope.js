@@ -41,7 +41,7 @@ test('known database station rejection is explained without leaking arbitrary da
 });
 test('Schedule offers the selected category bays, and both planner loaders are cache busted',()=>{
  const modal=source.slice(source.indexOf('function openWorkshopScheduleModal'),source.indexOf('\nasync function ',source.indexOf('function openWorkshopScheduleModal')));
- assert.match(modal,/workshopVisibleBays\(normalizedStage\)\.map/);
+ assert.match(modal,/const categoryBays = workshopCategoryBays\(normalizedStage, scheduleCategory\)/);assert.match(modal,/categoryBays\.map/);
  assert.doesNotMatch(modal,/Choose any suitable Bus4x4 bay/);
  const app=fs.readFileSync('app.js','utf8');
  assert.equal((app.match(/workshop-planner\.js\?station-scope=2026\.10\.19\.03/g)||[]).length,2);
