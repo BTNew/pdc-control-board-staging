@@ -30,7 +30,7 @@ function runtime(outcome, count = 2) {
   c.updateNavisionControlStats = () => {};
   c.enrichSharedNavisionPreviewChanges = async () => {};
   const alerts = [], calls = [], rendered = [];
-  c.alert = text => alerts.push(text);
+  /* r409 (F25): app.js messages are pdcNotify() toasts */ c.alert = c.pdcNotify = text => alerts.push(text);
   c.confirm = () => { throw new Error('No approval or Apply confirmation is expected in Preview'); };
   c.renderSharedNavisionPreview = pending => rendered.push(pending);
   c.app.navisionFileName = 'fictional-1168-row-export.tsv';

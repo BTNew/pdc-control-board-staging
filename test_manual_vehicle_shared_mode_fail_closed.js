@@ -32,6 +32,8 @@ const context = vm.createContext({
   Date,
 });
 
+// r409 (F25): app.js messages are pdcNotify() toasts; record them with the alert effects.
+context.pdcNotify = text => context.window.alert(text);
 vm.runInContext(`${extractFunction('openCustomerModal')}; globalThis.openCustomerModal = openCustomerModal;`, context);
 vm.runInContext(`${extractFunction('addCustomerFromForm', 'async function')}; globalThis.addCustomerFromForm = addCustomerFromForm;`, context);
 

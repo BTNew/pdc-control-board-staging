@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -30,7 +33,7 @@ function context(row = vehicle(), accept = true) {
         calls.push(JSON.parse(JSON.stringify(payload))); return { ok: true, vehicle: { pdcLocation: 'PMB' } };
       } } },
   };
-  vm.createContext(ctx);
+  vm.createContext(pdcNotifyFixture(ctx));
   vm.runInContext(['isBlankStock', 'vehicleHasBatchNumber', 'partsJobDef', 'pdcJobRequired', 'pdcJobComplete',
     'pmbPartsReleaseWarning', 'transferYhVehicleToPmb', 'transferSelectedYhVehiclesToPmb'].map(fn).join('\n'), ctx);
   return { ctx, row, calls, prompts, alerts };

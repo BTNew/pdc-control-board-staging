@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -20,7 +23,7 @@ function opens(rows, patch = {}) {
     cleanNavisionText: v => String(v || '').trim(), window: { alert() {} },
     exactAuthoritativeVehicleSnapshotRow: identity => resolver.resolveExactAuthoritativeVehicleRow(rows, identity),
   };
-  vm.createContext(context);
+  vm.createContext(pdcNotifyFixture(context));
   vm.runInContext(helper + '\n' + gate, context);
   return context.openVehicleModal('70000001');
 }

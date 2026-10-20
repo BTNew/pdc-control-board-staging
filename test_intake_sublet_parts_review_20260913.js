@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -21,7 +24,7 @@ test('Parts STOPPAGE retains its reason and clear action alongside imported evid
   const ctx={cleanNavisionText:clean,escapeHtml:escape,partsJobDef:()=>({key:'parts'}),canonicalVehicleWorkState:v=>({state:v.pdcPartsStoppage?'stoppage':'booked'}),partsMiscAcc:()=>false,pdcJobRequired:()=>true,
     PDC_JOB_BY_KEY:new Map([['parts',{key:'parts'}]]),partsStateComplete:v=>v.pdcPartsFlags?.parts_complete===true,vehicleKey:v=>v.stock,partsHasValidAuthoritativeEta:()=>true,
     vehicleCustomerName:()=> 'Synthetic customer',displayVehicle:()=> 'Hilux',partsStoppageReason:v=>v.pdcPartsStoppageReason,vehicleNavisionJitaNumber:()=>'',partsWorstEtaInputValue:()=>'',partsWorstEtaCountdownLabel:()=>'',partsWorstEtaCountdownClass:()=>'',vehicleKeyNumber:()=>'',displayStockNumber:v=>v.stock,vehicleJobcardNumber:()=> 'JC1'};
-  vm.createContext(ctx);vm.runInContext(['importedPartsStatus','importedPartsTitle','isActivePartsStoppage','partsDepartmentStatus','partsDepartmentStatusLabel','partsDepartmentStatusClass','partsQueueActionsHtml','partsQueueRowHtml'].map(extract).join('\n'),ctx);
+  vm.createContext(pdcNotifyFixture(ctx));vm.runInContext(['importedPartsStatus','importedPartsTitle','isActivePartsStoppage','partsDepartmentStatus','partsDepartmentStatusLabel','partsDepartmentStatusClass','partsQueueActionsHtml','partsQueueRowHtml'].map(extract).join('\n'),ctx);
   const vehicle={stock:'00123',pdcPartsStoppage:true,pdcPartsStoppageReason:'Missing safety fitting',pdcRequiresParts:true,pdcPartsFlags:{feed:'separate_parts_status',colour:'orange',parts_complete:false,label:'Parts outstanding — see job cards'}};
   const before=JSON.stringify(vehicle),html=ctx.partsQueueRowHtml(vehicle);
   assert.equal(ctx.partsDepartmentStatus(vehicle),'stoppage');
@@ -46,7 +49,7 @@ function subletFixture(){
   const ctx={window:{PDC_AUTH_CONTEXT:{role:'administrator',userId:'fixture-user'},PDC_SUBLET_INTAKE:{jobs:()=>[{lineIdentity:'operation1'}],pending:()=>[{lineIdentity:'operation1'}]},addEventListener:(name,fn)=>{listeners[name]=fn;},setTimeout:fn=>fn(),alert:message=>state.alerts.push(message)},
     app:{emailVehicleLocationService:service,subletOperationalFilter:'to-book'},$:selector=>nodes[selector.slice(1)],cleanNavisionText:clean,escapeHtml:escape,plainDateValue:clean,getPdcSupabaseAccessToken:()=>state.token,
     subletCreateCanonicalVehicles:()=>[vehicle],subletTodayDateKey:()=> '2026-09-14',loadSubletProviderRecords:()=>[{id:'provider1',name:'Synthetic provider'}],refreshEmailVehicleLocations:async()=>{state.refreshes++;},renderSubletHome:()=>{state.renders++;},renderSubletCreateVehicleMatches:()=>{}};
-  vm.createContext(ctx);
+  vm.createContext(pdcNotifyFixture(ctx));
   vm.runInContext(source.slice(source.indexOf('const subletCreateSession ='),source.indexOf('function subletCreateCanonicalVehicles'))+['openSubletCreateDialog','closeSubletCreateDialog','submitSubletCreate'].map(extract).join('\n'),ctx);
   function fill(){nodes['sublet-create-vehicle-id'].value='fixture-vehicle:3';nodes['sublet-create-provider'].value='provider1';nodes['sublet-create-out-date'].value='2026-09-14';nodes['sublet-create-return-date'].value='2026-09-15';nodes['sublet-create-operation'].value='operation1';nodes['sublet-create-notes'].value='Synthetic tint';}
   fill();return {ctx,nodes,state,listeners,dialog,form,submit,fill};

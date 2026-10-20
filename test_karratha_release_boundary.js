@@ -94,7 +94,8 @@ const approvedRootImportPatch = Object.freeze({
   // r405: a Pit and weigh / Pit inspection line is Pit by its wording, whatever its category (F14).
   // r408: runtime errors are toasts, not stacking start-up banners (F23); admin list
   // requests surface a failed fetch (F24); index.html adds r408=2026.10.21.01.
-  "app.js": "3afe4b645031af29bc08652a50483b807bddbdf8c88aed2a7fa2f28777d22691",
+  // r409: the other 210 alert() calls are pdcNotify toasts (F25); index.html adds r409=2026.10.21.01.
+  "app.js": "80fed5031fab69570f8a3c484c777ec6fba608f1a1465e6b6c9d4332995896f0",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -113,7 +114,8 @@ const approvedRootImportPatch = Object.freeze({
   // r401: app.js and pdc-email-vehicle-location-service.js add pit-neutral=2026.10.20.01.
   // r405: app.js adds pit-text=2026.10.20.01.
   // r408: app.js and pdc-auth.js add r408=2026.10.21.01.
-  "index.html": "d2d7f054f07eab82f156935af570b74c9a4033d83b0ee388e1197dec4d4010c8",
+  // r409: app.js adds r409=2026.10.21.01.
+  "index.html": "e0edbe0537dc645457e1689d2b35a545ee3478249a309e2e67329e445f56b5f7",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   "pdc-email-vehicle-location-service.js": "91558fdb4e34d5707d53e91aa94b1e18097630a749bf0bba571af4eb83ba3ceb",

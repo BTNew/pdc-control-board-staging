@@ -155,7 +155,7 @@ test('F24: the reference-data service really can reject on a network failure (wh
 test('r408 cache tokens: app.js and pdc-auth.js are re-fetched', () => {
   const html = fs.readFileSync('index.html', 'utf8');
   const sales = fs.readFileSync('sales/index.html', 'utf8');
-  assert.match(html, /src="app\.js\?[^"]*&amp;r407=2026\.10\.21\.01&amp;r408=2026\.10\.21\.01"/);
+  assert.match(html, /src="app\.js\?[^"]*&amp;r407=2026\.10\.21\.01&amp;r408=2026\.10\.21\.01(?:&amp;[^"]*)?"/);
   assert.match(html, /src="pdc-auth\.js\?[^"]*&amp;r403=2026\.10\.21\.01&amp;r408=2026\.10\.21\.01"/);
   assert.match(sales, /src="\.\.\/pdc-auth\.js\?[^"]*&amp;r403=2026\.10\.21\.01&amp;r408=2026\.10\.21\.01"/);
 });

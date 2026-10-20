@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const assert = require('assert');
 const fs = require('fs');
 const vm = require('vm');
@@ -36,7 +39,7 @@ const context = {
   Promise,
   window: { alert: () => { throw new Error('unexpected alert'); } },
 };
-vm.createContext(context);
+vm.createContext(pdcNotifyFixture(context));
 vm.runInContext(`${app.slice(start, end)}\nupdateResult = updateVehiclePartsWorstEta('HERMES-TEST-PARTS-ETA', '2026-08-30');`, context);
 (async () => {
   await context.updateResult;

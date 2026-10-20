@@ -1,4 +1,7 @@
 'use strict';
+// r409 (F25): app.js shows its messages with pdcNotify() toasts, not alert(); this
+// fixture records them through the test's existing alert sink.
+const pdcNotifyFixture = ctx => { if (typeof ctx.pdcNotify !== 'function') ctx.pdcNotify = message => (ctx.window && typeof ctx.window.alert === 'function' ? ctx.window : ctx).alert(message); return ctx; };
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -30,7 +33,7 @@ function runtime(outcomes, onWait) {
     navisionPreviewItemLabel: () => 'Row 1', navisionPreviewIssueMessage: reason => reason,
     setTimeout: (done, ms) => { waits.push(ms); onWait?.(() => { current = false; }); done(); },
   };
-  vm.createContext(context);
+  vm.createContext(pdcNotifyFixture(context));
   vm.runInContext(slice('function navisionDealerName(') + '\n' + slice('function sharedNavisionApplyErrorMessage(') + '\n' + slice('async function applySharedNavisionImportPending('), context);
   return { calls, waits, alerts, context, pending, run: () => context.applySharedNavisionImportPending(pending, 'same-user'),
     counts: () => ({ confirmations, renders }) };

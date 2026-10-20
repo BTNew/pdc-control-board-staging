@@ -30,7 +30,7 @@ function runtime(raw = source(['037047']), profile = 'pilbara', outcome) {
   c.updateNavisionControlStats = () => {};
   c.enrichSharedNavisionPreviewChanges = async () => {};
   const calls = [], alerts = [], rendered = [];
-  c.alert = text => alerts.push(text);
+  /* r409 (F25): app.js messages are pdcNotify() toasts */ c.alert = c.pdcNotify = text => alerts.push(text);
   c.confirm = () => { throw new Error('Preview must not approve or import a snapshot'); };
   c.renderSharedNavisionPreview = pending => rendered.push(pending);
   c.app.navisionFileName = 'misleading-Pilbara-Broome-filename.tsv';
