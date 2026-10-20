@@ -36,6 +36,18 @@ test('quick readiness preserves valid workshop work and optional Sublet hours',(
   for(const hours of [null,0,0.5]){const row=vehicle('one',hours),before=JSON.stringify(row);assert.deepEqual(ui.quickApprovalProblems(row),[]);assert.equal(JSON.stringify(row),before);}
 });
 
+test('quick approval ignores an unable-to-estimate tag on a Sublet line',()=>{
+  const sublet=vehicle('sublet-tag',0);
+  sublet.operations[1].estimated_hours=0;
+  sublet.operations[1].hours_provenance='estimate_unable';
+  assert.deepEqual(ui.quickApprovalProblems(sublet),[]);
+  assert.match(ui.vehicleCardHtml(sublet,{canApprove:true}),/data-nv-quick-approve=/);
+  const workshop=vehicle('workshop-tag');
+  workshop.operations[0].hours_provenance='estimate_unable';
+  assert.ok(ui.quickApprovalProblems(workshop).includes('Review the proposed hours before approval.'));
+  assert.doesNotMatch(ui.vehicleCardHtml(workshop,{canApprove:true}),/data-nv-quick-approve=/);
+});
+
 test('quick readiness rejects unresolved stations and invalid workshop hours',()=>{
   for(const hours of [null,'',0,-1,1000,0.001,'invalid',Infinity]){const row=vehicle();row.operations[0].estimated_hours=hours;assert.ok(ui.quickApprovalProblems(row).length,`hours ${hours}`);}
   const row=vehicle();row.operations[0].stage_code='UNALLOCATED_MAPPING_REVIEW';row.operations[0].department='138';
