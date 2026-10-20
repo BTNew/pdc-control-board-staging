@@ -139,6 +139,20 @@ function pdcNotify(message, tone = 'error') {
   if (kind === 'info') setTimeout(() => toast.remove(), 8000);
 }
 
+// r408 (F24): the admin list add/remove handlers chained .then() with no
+// .catch(). The reference-data service resolves { ok:false } for server
+// errors but rejects when fetch itself fails (offline, DNS, CORS), so a
+// network blip became an unhandled rejection: no message on the action, and
+// the global handler painted a "Website error" banner instead. This gives
+// each of those chains a visible, specific failure message.
+function pdcAdminListRequestFailed(action) {
+  return error => {
+    if (typeof console !== 'undefined' && typeof console.error === 'function') console.error(`PDC admin list: could not ${action}`, error);
+    const detail = String(error?.message || '').trim();
+    pdcNotify(`Could not ${action}${detail ? ` (${detail})` : ''}. Check your connection and try again.`);
+  };
+}
+
 function normalizePdcLocation(value = '') {
   const clean = String(value || '').trim().toUpperCase();
   if (!clean) return '';
@@ -2339,10 +2353,39 @@ function ensureAppDataAvailable() {
   return app.data;
 }
 
+// r408 (F23): window 'error' and 'unhandledrejection' used to call
+// showStartupError() for every failure for the life of the page. After start-up
+// that painted a permanent, non-dismissable "Website error" banner on top of
+// the board for one failed background request, and each further failure
+// stacked another. Start-up failures keep the banner (the page may not work);
+// failures after init() has run become one dismissable error toast per message
+// per 30 s, and aborted requests (the app cancels superseded fetches) are not
+// errors at all.
+const pdcStartupBannerMessages = new Set();
+const pdcRuntimeErrorLastShown = new Map();
+let pdcStartupComplete = false;
+const PDC_RUNTIME_ERROR_REPEAT_MS = 30000;
+function pdcIsAbortError(error) {
+  return !!error && (error.name === 'AbortError' || error.code === 20);
+}
+function reportPdcRuntimeError(error, now = Date.now()) {
+  if (!pdcStartupComplete) { showStartupError(error); return; }
+  if (pdcIsAbortError(error)) return;
+  console.error('PDC Control Board error', error);
+  const message = String(error?.message || error || 'Unknown error').trim() || 'Unknown error';
+  const last = pdcRuntimeErrorLastShown.get(message);
+  if (last !== undefined && now - last < PDC_RUNTIME_ERROR_REPEAT_MS) return;
+  pdcRuntimeErrorLastShown.set(message, now);
+  pdcNotify(`Something went wrong: ${message}. If this keeps happening, refresh the page.`);
+}
+
 function showStartupError(error) {
   console.error('PDC Control Board startup error', error);
   const message = error?.message || String(error || 'Unknown startup error');
   const target = document.querySelector('#fix-first-grid') || document.querySelector('#kpi-grid') || document.querySelector('main') || document.body;
+  // r408 (F23): one banner per distinct message, never a growing stack.
+  if (pdcStartupBannerMessages.has(message)) return;
+  pdcStartupBannerMessages.add(message);
   if (target && typeof target.insertAdjacentHTML === 'function') {
     target.insertAdjacentHTML('afterbegin', `<div class="startup-error-banner"><strong>Website error</strong><span>${escapeHtml(message)}</span><small>Open the browser console and send the error to the builder.</small></div>`);
   }
@@ -3932,7 +3975,7 @@ function removeMechanicFromAdminList(name = '') {
     if (!result.ok) { window.alert(result.error || 'Could not remove mechanic.'); return; }
     renderAdminLists();
     renderKpis();
-  });
+  }).catch(pdcAdminListRequestFailed('remove mechanic'));
 }
 
 
@@ -4000,7 +4043,7 @@ function addSubletProviderFromAdminInput() {
     if (emailInput) emailInput.value = '';
     renderAdminLists();
     renderKpis();
-  });
+  }).catch(pdcAdminListRequestFailed('add provider'));
 }
 
 function removeSubletProviderFromAdminList(name = '') {
@@ -4015,7 +4058,7 @@ function removeSubletProviderFromAdminList(name = '') {
     if (!result.ok) { window.alert(result.error || 'Could not remove provider.'); return; }
     renderAdminLists();
     renderKpis();
-  });
+  }).catch(pdcAdminListRequestFailed('remove provider'));
 }
 
 function renderHostingSecurityWarning() {
@@ -4054,7 +4097,7 @@ function addSalespersonFromAdminInput() {
       return;
     }
     finish();
-  });
+  }).catch(pdcAdminListRequestFailed('save salesperson'));
 }
 
 function removeSalespersonFromAdminList(initials = '') {
@@ -4067,7 +4110,7 @@ function removeSalespersonFromAdminList(initials = '') {
   service.setSalespersonActive(record.id, record.version, false).then(result => {
     if (!result.ok) { window.alert(result.error || 'Could not remove salesperson.'); return; }
     renderAdminLists();
-  });
+  }).catch(pdcAdminListRequestFailed('remove salesperson'));
 }
 
 function renderAdminList(host, items, removeAttr, emptyText, options = {}) {
@@ -9873,7 +9916,7 @@ function addSubletProviderFromPrompt() {
     if (!result.ok && result.error !== 'duplicate_name') { window.alert(result.error || 'Could not add provider.'); return; }
     renderKpis();
     renderAdminLists();
-  });
+  }).catch(pdcAdminListRequestFailed('add provider'));
 }
 
 function pmbBaySummary(vehicle = {}) {
@@ -27115,15 +27158,15 @@ function getNotes(stock) { return loadJson(`vehicleTrackingCoreNotes:${stock}`, 
 function setNotes(stock, notes) { saveJson(`vehicleTrackingCoreNotes:${stock}`, notes); }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => { try { init(); } catch (error) { showStartupError(error); } });
+  document.addEventListener('DOMContentLoaded', () => { try { init(); } catch (error) { showStartupError(error); } finally { pdcStartupComplete = true; } });
 } else {
-  try { init(); } catch (error) { showStartupError(error); }
+  try { init(); } catch (error) { showStartupError(error); } finally { pdcStartupComplete = true; }
 }
 
 
 on(window, 'error', event => {
-  if (event?.error) showStartupError(event.error);
+  if (event?.error) reportPdcRuntimeError(event.error);
 });
 on(window, 'unhandledrejection', event => {
-  showStartupError(event?.reason || new Error('Unhandled promise rejection'));
+  reportPdcRuntimeError(event?.reason || new Error('Unhandled promise rejection'));
 });
