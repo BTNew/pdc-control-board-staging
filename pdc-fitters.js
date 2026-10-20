@@ -328,7 +328,12 @@
       ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}
       ${editable || note ? `<details class="fitter-notes" ${open ? 'open' : ''}><summary>${note ? 'Item notes' : 'Add a note'}</summary><label for="fitter-note-${index}">Work notes</label><textarea id="fitter-note-${index}" data-fitter-note="${esc(line.line_identity)}" rows="2" maxlength="2000" ${disabled ? 'disabled' : ''}>${esc(note)}</textarea>${editable ? `<button type="button" data-fitter-save-note="${esc(line.line_identity)}" ${disabled ? 'disabled' : ''}>Save note</button>` : ''}${open ? '<small>Unsaved note</small>' : ''}</details>` : ''}</article>`;
   }
-  const api = { createService, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, conversionUsesSimpleTick, fitterLineCardHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml };
+  // The cache token of the pdc-fitters.js tag (index.html text or a script src).
+  function fitterScriptToken(text) {
+    const m = String(text || '').match(/pdc-fitters\.js\?([^"'\s<>]+)/);
+    return m ? m[1].replace(/&amp;/g, '&') : '';
+  }
+  const api = { createService, fitterScriptToken, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, conversionUsesSimpleTick, fitterLineCardHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.PdcFitters = api;
   const doc = root.document;
@@ -367,6 +372,21 @@
   }
   const drafts = new Map();
   const conversionNotes = new Map(), conversionClosed = new Set();
+  // r388: a Fitters bay screen left open keeps running the code it loaded with,
+  // so a release (such as the r384 item Start ticks) never reached it. Every few
+  // minutes, and when the screen comes back, compare this script's cache token with
+  // the live index.html. When they differ, reload as soon as nothing is unsaved
+  // (otherwise offer Update now), and come back to the same mechanic and job.
+  const UPDATE_CHECK_MS = 5 * 60 * 1000, RESUME_KEY = 'pdc-fitters-resume';
+  const loadedToken = fitterScriptToken(doc.currentScript?.src || '');
+  let updateReady = false, updateStarted = false, lastUpdateCheck = 0;
+  try {
+    const saved = JSON.parse(root.sessionStorage?.getItem(RESUME_KEY) || 'null');
+    root.sessionStorage?.removeItem(RESUME_KEY);
+    if (saved && typeof saved.mechanic === 'string' && Date.now() - Number(saved.at) < 10 * 60 * 1000) {
+      mechanic = saved.mechanic; selected = typeof saved.selected === 'string' ? saved.selected : '';
+    }
+  } catch { /* storage unavailable: start from the mechanic list as before */ }
   const active = () => doc.body?.dataset.currentView === 'fitters';
   const host = () => doc.getElementById('fitters-host');
   const time = value => value ? new Date(value).toLocaleString('en-AU', {timeZone:'Australia/Perth',weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}) : 'Not scheduled';
@@ -403,6 +423,7 @@
     const lines = detail?.lines || [], own = lines.filter(l=>l.stage_code===detail.stage_code), other = lines.filter(l=>l.stage_code!==detail.stage_code);
     target.innerHTML = `<div class="fitter-app"><header class="fitter-header"><div><h1>Fitters bay</h1><p>Your work, shared with the workshop planner</p></div><nav aria-label="Fitter navigation"><button type="button" data-fitter-refresh ${locked ? 'disabled' : ''}>Refresh</button><button type="button" data-fitter-signout ${saving ? 'disabled' : ''}>Sign out</button></nav></header>
       <div class="fitter-toolbar"><label for="fitter-mechanic">Mechanic<select id="fitter-mechanic" ${locked ? 'disabled' : ''}><option value="">Select your name</option>${roster.map(t=>`<option value="${esc(t.id)}" ${t.id===mechanic?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><p class="fitter-sync" role="status">${saving ? savingLabel : loading ? 'Refreshing…' : connected ? `Connected · Updated ${esc(new Date(lastSync).toLocaleTimeString('en-AU',{timeZone:'Australia/Perth',hour:'numeric',minute:'2-digit',second:'2-digit'}))}` : 'Not connected · Changes unavailable'}</p></div>
+      ${updateReady ? `<div class="fitter-notice fitter-update" role="status">A new version of the Fitters bay is ready. <button type="button" data-fitter-update>Update now</button></div>` : ''}
       ${message ? `<div class="fitter-notice" role="status">${esc(message)}</div>` : ''}
       ${handoverText ? `<div class="fitter-handover" role="status">${esc(handoverText)}</div>` : ''}
       ${service.retryPending ? '<div class="fitter-warning">The last save is unconfirmed. Retrying checks the same action and cannot apply it twice. <button type="button" data-fitter-retry>Check / retry last save</button></div>' : ''}
@@ -560,6 +581,7 @@
     on('[data-fitter-confirm-stop]','click',()=>void act('stop'));
     on('[data-fitter-cancel-stop]','click',()=>{stopOpen=false;render();});
     on('[data-fitter-retry]','click',()=>void act(null,null,null,true));
+    on('[data-fitter-update]','click',()=>updateNow());
     on('[data-conversion-step]','change',e=>{ const n=e.currentTarget, checked=n.checked; n.checked=!checked;
       // Start ticks begin the section, Done records its actual time; unticking either resets it.
       const step=!checked?'reset':n.dataset.conversionStep==='done'?'done':'start';
@@ -577,9 +599,31 @@
   root.addEventListener('offline',()=>{freezeTimer();loadGeneration++;loading=false;refreshing=false;connected=false;message='Offline. Saved work is shown; reconnect before changing this job.';render();});
   root.addEventListener('online',()=>{if(active())void refresh();});
   root.addEventListener('focus',()=>{if(active()&&!targetBeingEdited())void refresh({background:true});});
-  doc.addEventListener('visibilitychange',()=>{if(!doc.hidden&&active()&&!targetBeingEdited())void refresh({background:true});});
+  doc.addEventListener('visibilitychange',()=>{if(!doc.hidden)void checkForUpdate();if(!doc.hidden&&active()&&!targetBeingEdited())void refresh({background:true});});
   setInterval(()=>{if(active()&&!doc.hidden&&!targetBeingEdited())void refresh({background:true});},10000);
   setInterval(updateTimer,1000);
+  function unsavedWork() { return saving || loading || drafts.size > 0 || conversionNotes.size > 0 || service.retryPending || busPending() || root.PdcConversions?.hasDrafts() || root.PdcBusWorkflow?.hasDrafts() || targetBeingEdited(); }
+  function updateNow() {
+    if (unsavedWork()) { message = 'Save your notes and wait for the last save, then tap Update now.'; render(); return; }
+    if (updateStarted) return; updateStarted = true;
+    try { root.sessionStorage?.setItem(RESUME_KEY, JSON.stringify({ mechanic, selected, at: Date.now() })); } catch { /* reload still updates */ }
+    root.location.reload();
+  }
+  async function checkForUpdate({ force = false } = {}) {
+    if (!loadedToken || !active() || doc.hidden || typeof root.fetch !== 'function') return;
+    if (updateReady) { if (!unsavedWork()) updateNow(); return; }
+    const now = Date.now(); if (!force && now - lastUpdateCheck < UPDATE_CHECK_MS) return; lastUpdateCheck = now;
+    try {
+      const response = await root.fetch('index.html', { cache: 'no-store', credentials: 'same-origin' });
+      if (!response.ok) return;
+      const live = fitterScriptToken(await response.text());
+      if (!live || live === loadedToken) return;
+      updateReady = true;
+      if (unsavedWork()) render(); else updateNow();
+    } catch { /* offline or blocked: try again next time */ }
+  }
+  api.checkForUpdate = checkForUpdate;
+  setInterval(() => void checkForUpdate(), 60000);
   function targetBeingEdited() { return root.PdcBusWorkflow?.hasDrafts() || root.PdcConversions?.hasDrafts() || conversionNotes.size>0 || (host()?.contains(doc.activeElement) && /INPUT|TEXTAREA|SELECT/.test(doc.activeElement.tagName)); }
   // Controllers reset a forgotten running item from the planner card.
   doc.addEventListener('click',async e=>{

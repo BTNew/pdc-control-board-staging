@@ -127,7 +127,7 @@ test('concurrent roster reads coalesce and late former-user responses cannot see
 });
 
 const flush=async()=>{for(let i=0;i<8;i++)await new Promise(resolve=>setImmediate(resolve));};
-function screenFixture() {
+function screenFixture(opts={}) {
   const vm=require('node:vm'),fs=require('node:fs');
   const calls=[],listeners={},intervals=[],elements={},events=[];let renders=0,html='',gate=null,commandGate=null,commandError=null,clockNow=0;
   const element=(name,extra={})=>elements[name]={handlers:{},addEventListener(type,fn){this.handlers[type]=fn;},...extra};
@@ -148,7 +148,7 @@ function screenFixture() {
     querySelectorAll:selector=>elements[selector]?[elements[selector]]:[],
     querySelector:selector=>selector==='.fitter-sync'?sync:selector==='[data-fitter-timer]'&&html.includes('data-fitter-timer')?timerBox:elements[selector]||null,
     contains:node=>Object.values(elements).includes(node)};
-  const doc={body:{dataset:{currentView:'fitters'}},hidden:false,activeElement:null,
+  const doc={body:{dataset:{currentView:'fitters'}},hidden:false,activeElement:null,currentScript:opts.currentScript,
     getElementById:id=>id==='fitters-host'?host:elements[`#${id}`]||null,addEventListener:(event,fn)=>{listeners[event]=fn;}};
   const data={jobs:[{id:'booking-a',version:1,status:'started',stage_name:'Fitting',bay_number:1,stock:'TEST',job_card:'J-TEST'}],
     detail:{booking_id:'booking-a',version:1,status:'started',stage_code:'FITTING',catalog_hash:'scope-a',actual_start_at:'2026-09-16T00:00:00Z',
@@ -160,7 +160,9 @@ function screenFixture() {
     PDC_SUPABASE_CONFIG:{projectRef:'cdsmnqxtyyoeoznmbidd',url:'https://cdsmnqxtyyoeoznmbidd.supabase.co',publishableKey:'test',workshop:{sharedData:true}},
     performance:{now:()=>clockNow},CustomEvent:class {constructor(type,options){this.type=type;this.detail=options.detail;}},dispatchEvent:event=>events.push(event),
     crypto:{randomUUID:()=>`request-${calls.length}`},addEventListener:(event,fn)=>{listeners[event]=fn;},
+    sessionStorage:opts.sessionStorage,location:opts.location,
     fetch:async(url,options)=>{
+      if(url==='index.html'){calls.push({rpc:'index.html',options});return {ok:true,text:async()=>opts.index};}
       const rpc=url.split('/').pop(),body=JSON.parse(options.body);calls.push({rpc,body});
       if(rpc==='get_fitter_roster')return reply({ok:true,technicians:[{id:'mechanic-a',name:'Test mechanic'}]});
       if(rpc==='get_fitter_jobs'){
@@ -191,7 +193,7 @@ function screenFixture() {
   vm.runInNewContext(fs.readFileSync(require.resolve('./pdc-conversions.js'),'utf8'),{window:root});
   vm.runInNewContext(fs.readFileSync(require.resolve('./pdc-fitters.js'),'utf8'),{window:root,
     getPdcSupabaseAccessToken:()=> 'session',AbortController,setTimeout,clearTimeout,setInterval:fn=>intervals.push(fn)});
-  return {element,root,doc,data,calls,events,clock,timerLabel,timerBox,mechanic,line,note,saveNote,refresh,stop,confirmStop,stopReason,stopType,action,listeners,sync,busRetry,
+  return {element,root,doc,intervals,data,calls,events,clock,timerLabel,timerBox,mechanic,line,note,saveNote,refresh,stop,confirmStop,stopReason,stopType,action,listeners,sync,busRetry,
     get renders(){return renders;},get html(){return html;},poll:()=>intervals[0](),
     delayJobs(){let resolve;const promise=new Promise(r=>resolve=r);gate={promise};return resolve;},
     delayCommand(){let resolve;const promise=new Promise(r=>resolve=r);commandGate={promise};return resolve;},
@@ -460,4 +462,53 @@ test('a bay item Start tick sends item_start without touching the note; untick s
   start.checked=false;start.handlers.change({currentTarget:start});await flush();
   sent=f.calls.filter(c=>c.rpc==='fitter_job_command').pop().body;
   assert.equal(sent.p_action,'item_reset');
+});
+
+test('r388: an open Fitters bay screen picks up a new release and returns to the same mechanic and job',async()=>{
+  const store=new Map(),reloads=[];
+  const sessionStorage={getItem:k=>store.has(k)?store.get(k):null,setItem:(k,v)=>store.set(k,String(v)),removeItem:k=>store.delete(k)};
+  const oldSrc='https://btnew.github.io/pdc-control-board-staging/pdc-fitters.js?conversion-tick=2026.10.20.02';
+  const liveIndex='<script src="pdc-fitters.js?conversion-tick=2026.10.20.02&amp;item-ticks=2026.10.20.02" defer></script>';
+  const f=screenFixture({currentScript:{src:oldSrc},index:liveIndex,sessionStorage,location:{reload:()=>reloads.push(1)}});
+  await f.open();
+  assert.equal(f.root.PdcFitters.fitterScriptToken(liveIndex),'conversion-tick=2026.10.20.02&item-ticks=2026.10.20.02');
+  assert.equal(f.root.PdcFitters.fitterScriptToken(oldSrc),'conversion-tick=2026.10.20.02');
+  f.intervals[2]();await flush();
+  assert.equal(f.calls.filter(c=>c.rpc==='index.html').length,1,'reads the live index.html');
+  assert.equal(f.calls.find(c=>c.rpc==='index.html').options.cache,'no-store');
+  assert.equal(reloads.length,1,'idle screen reloads onto the new release');
+  assert.deepEqual(JSON.parse(store.get('pdc-fitters-resume')).mechanic,'mechanic-a');
+  assert.equal(JSON.parse(store.get('pdc-fitters-resume')).selected,'booking-a');
+  f.intervals[2]();await flush();
+  assert.equal(f.calls.filter(c=>c.rpc==='index.html').length,1,'checks are throttled');
+  // The reloaded screen restores the mechanic and job without asking again.
+  const g=screenFixture({sessionStorage,index:liveIndex,currentScript:{src:'pdc-fitters.js?conversion-tick=2026.10.20.02&item-ticks=2026.10.20.02'},location:{reload:()=>reloads.push(2)}});
+  g.root.PdcFitters.open();await flush();
+  assert.equal(store.has('pdc-fitters-resume'),false,'resume is used once');
+  assert.ok(g.calls.some(c=>c.rpc==='get_fitter_jobs'&&c.body.p_technician_id==='mechanic-a'),'same mechanic reloaded');
+  assert.match(g.html,/data-fitter-item-start="line-a"/,'Start tick shown after update');
+  g.intervals[2]();await flush();
+  assert.equal(reloads.length,1,'same token: no reload loop');
+});
+
+test('r388: unsaved notes are never lost by an update; the screen offers Update now instead',async()=>{
+  const reloads=[];
+  const f=screenFixture({currentScript:{src:'pdc-fitters.js?v=old'},index:'<script src="pdc-fitters.js?v=new"></script>',sessionStorage:{getItem:()=>null,setItem(){},removeItem(){}},location:{reload:()=>reloads.push(1)}});
+  await f.open();
+  f.note.handlers.input({target:{dataset:{fitterNote:'line-a'},value:'half done'}});
+  f.intervals[2]();await flush();
+  assert.equal(reloads.length,0);
+  assert.match(f.html,/A new version of the Fitters bay is ready/);
+  assert.match(f.html,/data-fitter-update/);
+});
+
+test('r388: screens without a cache token (QA pages) never poll for updates',async()=>{
+  const f=screenFixture({index:'<script src="pdc-fitters.js?v=new"></script>',location:{reload:()=>{throw Error('no reload');}}});
+  await f.open();f.intervals[2]();await flush();
+  assert.equal(f.calls.filter(c=>c.rpc==='index.html').length,0);
+});
+
+test('r388: index.html carries the self-update cache token for pdc-fitters.js',()=>{
+  const html=require('fs').readFileSync('index.html','utf8');
+  assert.match(html,/pdc-fitters\.js\?[^"]*item-ticks=2026\.10\.20\.02&amp;self-update=2026\.10\.20\.01"/);
 });
