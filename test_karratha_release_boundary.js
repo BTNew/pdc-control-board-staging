@@ -67,12 +67,15 @@ const approvedRootImportPatch = Object.freeze({
   // Department 135 still compares the unminified source pin below.
   "scripts/build_pages_runtime.js": "f39cb3b2b550ac467feb7acbec932c091a8ad75229531e539fc706ec665210d3",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
-  "pdc-new-vehicles.js": "61d1ca7d26cc8416002474f54b09d2268eaf21a6f4705d3251f521fceacf7fab",
+  // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
+  // on Sublet lines. Department 135 keeps its frozen copy.
+  "pdc-new-vehicles.js": "d8c7fed1d7dbcd2209826cf1dc57fe677b28987e760c39c862ca36d9705dcca7",
   "pdc-new-vehicles.css": "2ee29702e0b5ca62692891cbf5467894fe670e4b65961f32ca619aa2225cfe10",
   "docs/bus4x4-workflow.md": "d2dab9a76da3b23ddfe0e21418d9e0f8212b48aa517443c47e657b2f656869c8",
   "docs/bus4x4-user-guide.md": "d2729f19b9132afcfe4ee41413c98d2fba9db03c99e45a3a1d298cb57be9840f",
   "docs/bus4x4-user-guide.html": "0a56823214fdd0e5ba0f7601671a92678d87231f07052937eaf09cdf29773b0a",
-  "canonical-entry.js": "eeea68b46e644d88dd986ff81fe50ac5e350706141048d554da1c2ef8639c70c",
+  // pdc-new-vehicles.js? adds sublet-hours-tags=2026.10.20.01.
+  "canonical-entry.js": "a1ba39ca5df70c0cf44b89ea650434c171b23f7ff1e545aad3ebec4a9b9ee81d",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026). Department 135 keeps the frozen fitter script.
@@ -94,7 +97,8 @@ const approvedRootImportPatch = Object.freeze({
   // Source app.js stays the pin above. The Pages artifact minifies that source.
   // Department 135's pages stay frozen.
   // pdc-fitters.js conversion-tick=2026.10.20.02 and pdc-conversion-ticks.css.
-  "index.html": "716e80c85ebdb38f7b7c5d8de5955b1aaa9984b475ed802365ab775051b7f3a9",
+  // canonical-entry.js? adds sublet-hours-tags=2026.10.20.01.
+  "index.html": "344a41c1c2a7d7a9411a24f04d621e656c7c4c485d856f278a87a085e7a5ded9",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",

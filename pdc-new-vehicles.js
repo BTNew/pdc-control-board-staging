@@ -72,7 +72,7 @@
     if(row?.details_source==='identity_review') issues.push('Review this vehicle’s identity before approval.');
     if(row?.lifecycle_state && row.lifecycle_state!=='active' || row?.visible_on_board===true) issues.push('Review this vehicle’s current board status.');
     if((row?.operations||[]).some(line=>!validStation(line.stage_code))) issues.push('Review the suggested station assignments.');
-    if((row?.operations||[]).some(line=>['ai_estimated','estimate_unable','conflicting_description_times'].includes(line.hours_provenance))) issues.push('Review the proposed hours before approval.');
+    if((row?.operations||[]).some(line=>assignedStation(line,{})!=='SUBLET' && ['ai_estimated','estimate_unable','conflicting_description_times'].includes(line.hours_provenance))) issues.push('Review the proposed hours before approval.');
     if((row?.operations||[]).some(line=>typeof line.review_note==='string'&&line.review_note.trim())) issues.push('Check the operation review notes before approval.');
     if((row?.operations||[]).some(line=>line.rejected===true || line.source_kind && line.source_kind!=='authenticated')) issues.push('Review the operation source before approval.');
     if((row?.operations||[]).some(line=>line.hours_provenance==='craig_standard_pre_delivery_1_hour' && Number(line.estimated_hours)!==1)) issues.push('Review the standard pre-delivery hour.');
