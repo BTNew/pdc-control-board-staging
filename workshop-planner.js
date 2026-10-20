@@ -1135,6 +1135,9 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
 // test_planner_error_messages_403.js checks every canonical mutation code
 // has a message, so a new server code cannot ship without one.
 const WORKSHOP_PLAIN_ERROR_MESSAGES = Object.freeze({
+  // r417 (F32): a bay rule mismatch is a warning the planner confirms.
+  bay_rule_warning: "This bay's rule does not match this booking. No change was made. Drag it again and choose OK to book it here anyway.",
+  bay_rule_not_confirmed: 'No change was made. The bay rule was not overridden.',
   protected_booking: "This job has already been started, so it can't be moved here. No change was made. Ask a manager to re-plan it.",
   invalid_admin_block_type: 'That kind of admin block is not recognised. Choose leave, bay downtime or another listed block type. No change was made.',
   admin_block_not_found: 'That admin block no longer exists. It may have been removed by someone else. The planner has refreshed; no change was made.',
@@ -1821,6 +1824,8 @@ function workshopVehicle(key = '', stage = '') {
       : requestedStage === 'BUS_4X4' && authority.work_category ? {...plannerRow.workshopEstimatedHoursByStage, BUS_4X4:null} : plannerRow.workshopEstimatedHoursByStage,
     __workshopOutstanding: {
       workCategory: authority.work_category || '',
+      // r417 (F32): every Bus 4x4 category with its hours, so a drop can book the bay's own category.
+      workCategories: Array.isArray(authorityMatches[0]?.work_categories) ? authorityMatches[0].work_categories : [],
       categoryCompleted: authority.completed === true,
       existingBooking: authority.existing_booking === true,
       scheduleEnabled: authority.schedule_enabled === true,
@@ -3367,6 +3372,8 @@ function workshopPlannerVehiclesForStage(stage = '') {
     const fallback = canonicalById.get(vehicleId);
     const outstanding = {
       workCategory: authority?.work_category || '',
+      // r417 (F32): every Bus 4x4 category with its hours, so a drop can book the bay's own category.
+      workCategories: Array.isArray(authoritativeById?.get(vehicleId)?.work_categories) ? authoritativeById.get(vehicleId).work_categories : [],
       categoryCompleted: authority?.completed === true,
       existingBooking: authority ? authority.existing_booking === true : fallback?.existingBooking === true,
       scheduleEnabled: authority ? authority.schedule_enabled === true : fallback?.schedule?.enabled === true,
@@ -4611,11 +4618,36 @@ function workshopSelectedBusGroup() {
 // r399: a booking may only be offered bays its Bus 4x4 work category accepts.
 // In the all-bays view workshopVisibleBays() lists every bay, so a Mechanical
 // card was offered Bay 8 and the database refused it.
+// r417 (F32): Best slot and the default bay still use these bays. The Schedule
+// bay list also shows the other visible bays; choosing one asks the planner to
+// confirm (server warning bay_rule_warning) and the override is logged.
 function workshopCategoryBays(stage, workCategory = '') {
   const visible = workshopVisibleBays(stage);
   if (stage !== 'BUS_4X4' || !workCategory) return visible;
   const allowed = workshopDepartmentLayout()?.allowedBays?.(workCategory);
   return Array.isArray(allowed) ? visible.filter(number => allowed.includes(Number(number))) : visible;
+}
+
+// r417 (F32): dropping a vehicle on a bay that is another outstanding
+// category's own bay books that category (Bay 8 -> Electrical), so a job whose
+// Mechanical work is booked or done goes in without a warning.
+function workshopBayAwareCategory(candidate = {}, stageCode = '', bayNumber = 0) {
+  const layout = workshopDepartmentLayout();
+  const current = String(candidate.workCategory || '');
+  if (stageCode !== 'BUS_4X4' || !current || !layout?.category) return null;
+  const bay = Number(bayNumber);
+  const allowed = layout.allowedBays?.(current);
+  if (!Array.isArray(allowed) || allowed.includes(bay)) return null;
+  const rows = Array.isArray(candidate.workCategories) ? candidate.workCategories : [];
+  for (const row of rows) {
+    const code = String(row?.work_category || '');
+    const own = layout.category(code);
+    const hours = Number(row?.estimated_hours);
+    if (!own || own.external || code === current || !own.bays.includes(bay)) continue;
+    if (row.completed === true || row.existing_booking === true || row.schedule_enabled !== true || !(hours > 0)) continue;
+    return { code, label: own.label, minutes: Math.round(hours * 60) };
+  }
+  return null;
 }
 function workshopVisibleBays(stage) {
   const selected = stage === 'BUS_4X4' ? workshopSelectedBusGroup() : null;
@@ -6703,7 +6735,10 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours, workshopLoadPlans().filter(row => row.id !== planId), 0, 260, new Date(), [], workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || '', '', vehicle);
   const scheduledDate = firstSlot?.dateKey || selectedDate;
   const startMinutes = firstSlot?.startMinutes ?? 0;
-  const bayOptions = categoryBays.map(number => `<option value="${number}" ${number === bay ? 'selected' : ''}>${escapeHtml(workshopBayChoiceLabel(normalizedStage,number))}</option>`).join('');
+  // r417 (F32): the category's own bays first, then every other visible bay (asks to confirm).
+  const otherBays = workshopVisibleBays(normalizedStage).filter(number => !categoryBays.includes(number));
+  const bayOptions = categoryBays.map(number => `<option value="${number}" ${number === bay ? 'selected' : ''}>${escapeHtml(workshopBayChoiceLabel(normalizedStage,number))}</option>`).join('')
+    + otherBays.map(number => `<option value="${number}">${escapeHtml(`${workshopBayChoiceLabel(normalizedStage,number)} (other work – asks to confirm)`)}</option>`).join('');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay workshop-schedule-overlay';
   overlay.setAttribute('role', 'dialog');
@@ -6923,7 +6958,17 @@ async function workshopScheduleSharedNewBooking({
     workshopNotify(`"${assignee}" does not have a valid stable technician ID. No booking was created.`);
     return false;
   }
-  const candidate = { ...requestedCandidate, assignee, technicianId: technicianId || '' };
+  let candidate = { ...requestedCandidate, assignee, technicianId: technicianId || '' };
+  if (!Array.isArray(candidate.workCategories)) {
+    const row = typeof workshopVehicle === 'function' ? workshopVehicle(candidate.vehicleKey, requestedStage) : null;
+    if (Array.isArray(row?.__workshopOutstanding?.workCategories)) candidate = { ...candidate, workCategories: row.__workshopOutstanding.workCategories };
+  }
+  const bayCategory = workshopBayAwareCategory(candidate, requestedStage, bayNumber);
+  if (bayCategory) {
+    candidate = { ...candidate, workCategory: bayCategory.code };
+    durationMinutes = bayCategory.minutes;
+    workshopNotify(`Bay ${bayNumber} is the ${bayCategory.label} bay, so this books the vehicle's ${bayCategory.label} work.`);
+  }
   if (!workshopRequireSchedulableCandidate(candidate)) return false;
   if (!workshopConfirmOtherDepartmentPlans(candidate, workshopLoadPlans())) return false;
   const managedDispatch = dispatchAction === workshopDispatchSharedAction;
