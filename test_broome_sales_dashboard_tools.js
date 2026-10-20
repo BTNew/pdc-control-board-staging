@@ -32,7 +32,7 @@ test('column pointer and keyboard changes preserve bounded widths and save only 
  assert.equal(Number.parseFloat(cols[0].style.width),170/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100);assert.equal(handles[0]['aria-valuenow'],'170');
  events.keydown({...base,key:'ArrowRight'});assert.equal(Number.parseFloat(cols[0].style.width),180/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100);
  events.keydown({...base,key:'Home'});assert.equal(Number.parseFloat(cols[0].style.width),60/[120,...tools.defaults.slice(1)].reduce((a,b)=>a+b,0)*100);
- assert.ok(stored.every(([k,v])=>k==='broome-sales-column-widths-v3'&&v.every(x=>typeof x==='number')));
+ assert.ok(stored.every(([k,v])=>k==='broome-sales-column-widths-v4'&&v.every(x=>typeof x==='number')));
 });
 test('four templates match the examples without inventing equipment or recipients',()=>{
  const r={stock:'13032821',order:'0026001',client:'PARK',vehicle:'LC300 GR Sport',kewdale_eta:'2026-08-03'};

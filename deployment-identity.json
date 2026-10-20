@@ -848,7 +848,8 @@
     "operational_writes": false,
     "database_changes": true,
     "validation": "Desktop/mobile layout, status save/cycle, scope clearing and non-overflow behavior verified in sales tests and fictional browser checks.",
-    "layout": "JITA removed. TINT/BUILD/TRAY tick boxes cycle empty Not decided, dark grey slash Not required, orange Orders Raised and green Completed; fixed page-width desktop table, adjacent-column resizing and mobile vehicle cards."
+    "layout": "JITA removed. TINT/BUILD/TRAY tick boxes cycle empty Not decided, dark grey slash Not required, orange Orders Raised and green Completed; fixed page-width desktop table, adjacent-column resizing and mobile vehicle cards. Compact rows (2026.10.20.02): stock number only when allocated, one-line vehicle description, narrow TINT/BUILD/TRAY, Kewdale ETA and day counter on one line, clamped Navision notes, sticky column header.",
+    "compact_table": "2026.10.20.02"
   },
   "broome_salesperson_journey": {
     "asset_version": "2026.10.06.01",
@@ -901,7 +902,7 @@
       "existing_values_preserved": true,
       "pdc_operational_writes": false
     },
-    "column_preferences": "13 bounded numeric proportions under broome-sales-column-widths-v3; resizing shares total page width with a neighbour."
+    "column_preferences": "13 bounded numeric proportions under broome-sales-column-widths-v4; resizing shares total page width with a neighbour. TINT, BUILD and TRAY defaults are narrower; Navision notes is wider."
   },
   "broome_salesperson_pmb": {
     "asset_version": "2026.10.01.05",

@@ -315,15 +315,16 @@
         if (key==='production_month')return '<td><span class="month-pill">'+escapeHtml(val||'—')+'</span></td>';
         if (orderingKeys.has(key)) return '<td class="sales-ordering-cell">'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</td>';
         if (key==='stock') return '<td class="vehicle-reference-cell">'+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button type="button" class="stock-button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+
-          escapeHtml(val||row.order||'Reference not recorded')+'</button><span class="subtle">'+(val?'Toyota Order '+escapeHtml(row.order||'Not recorded'):'Toyota Order Number')+'</span>'+(!val?'<span class="subtle">Awaiting stock number</span>':'')+(row.source_current===false?'<span class="source-warning">Not in latest PDC import</span>':'')+(row.identity_conflict?'<span class="source-warning">Order link needs review</span>':'')+'</td>';
+          escapeHtml(val||row.order||'Reference not recorded')+'</button>'+(val?'':('<span class="subtle">Toyota Order Number</span><span class="subtle">Awaiting stock number</span>'))+(row.source_current===false?'<span class="source-warning">Not in latest PDC import</span>':'')+(row.identity_conflict?'<span class="source-warning">Order link needs review</span>':'')+'</td>';
         if (key==='toyota_status') return '<td><span class="status-pill '+category(row)+'" title="'+escapeHtml(row.toyota_status||'Not recorded')+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<small class="subtle">Transport '+escapeHtml(row.transport_number)+'</small>':'')+'</td>';
         if (key==='kewdale_eta')return '<td class="eta-cell">'+etaHtml(val)+'</td>';
         if (key==='pmb_location') {const summary=pmbSummary(row);return '<td class="pmb-status-cell"><strong>'+escapeHtml(summary.status)+'</strong><div class="subtle">'+escapeHtml(summary.location)+'</div>'+
           (summary.bookings[0]?.scheduled_start_at?'<div class="subtle">Booked '+escapeHtml(dateLabel(summary.bookings[0].scheduled_start_at))+'</div>':'')+'</td>';}
         if(key==='navision_notes'){
           const manual=root.BROOME_VEHICLE_NOTES?.hasSavedNotes(row.tracking_id);
-          return '<td class="notes-cell'+(manual?' has-staff-note':'')+'" title="'+escapeHtml((manual?'Staff note saved — expand this row to read it. ':'')+(val||''))+'">'+escapeHtml(val||(manual?'Staff note saved':'—'))+'</td>';
+          return '<td class="notes-cell'+(manual?' has-staff-note':'')+'" title="'+escapeHtml((manual?'Staff note saved — expand this row to read it. ':'')+(val||''))+'"><span class="notes-clamp">'+escapeHtml(val||(manual?'Staff note saved':'—'))+'</span></td>';
         }
+        if (key==='vehicle') return '<td class="vehicle-cell"><span class="vehicle-line" title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</span></td>';
         return '<td title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</td>';
       }).join('')+'<td>'+actionHtml(row)+'</td></tr>'+(root.BROOME_VEHICLE_NOTES?.rowHtml(row)||'')).join(''):'<tr><td colspan="13"><div class="empty-state">No vehicles match this view.</div></td></tr>')+'</tbody>');
     columnWidths?.apply();
