@@ -78,9 +78,106 @@ VALUES (
   true
 );
 
+CREATE FUNCTION pdc_work_categories_private.invalidate_qc_operation_lines_cache()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $old_invalidate$
+BEGIN
+  RETURN NULL;
+END
+$old_invalidate$;
+
 BEGIN;
-\ir ../supabase/migrations/20261019233000_qc_operation_lines_cache_refill.sql
+\ir ../supabase/migrations/20261020082000_qc_operation_lines_cache_refill.sql
 COMMIT;
+
+CREATE TABLE public.refill_probe (
+  vehicle_id uuid PRIMARY KEY,
+  note text
+);
+CREATE TRIGGER qc_operation_lines_cache_row
+  AFTER INSERT OR UPDATE OR DELETE ON public.refill_probe
+  FOR EACH ROW EXECUTE FUNCTION pdc_work_categories_private.invalidate_qc_operation_lines_cache();
+CREATE TRIGGER qc_operation_lines_cache_row
+  AFTER INSERT OR UPDATE OR DELETE ON public.vehicles
+  FOR EACH ROW EXECUTE FUNCTION pdc_work_categories_private.invalidate_qc_operation_lines_cache();
+
+-- navision_backend_records is one of the shared inputs. Its trigger wipes the
+-- whole cache. authenticator sessions preload safeupdate, which rejects a
+-- DELETE or UPDATE that has no WHERE clause.
+CREATE TABLE public.navision_backend_records (
+  id integer PRIMARY KEY
+);
+CREATE TRIGGER qc_operation_lines_cache_row
+  AFTER INSERT OR UPDATE OR DELETE ON public.navision_backend_records
+  FOR EACH ROW EXECUTE FUNCTION pdc_work_categories_private.invalidate_qc_operation_lines_cache();
+CREATE TRIGGER qc_operation_lines_cache_truncate
+  AFTER TRUNCATE ON public.navision_backend_records
+  FOR EACH STATEMENT EXECUTE FUNCTION pdc_work_categories_private.invalidate_qc_operation_lines_cache();
+CREATE TABLE public.safeupdate_probe (
+  id integer
+);
+GRANT USAGE ON SCHEMA public TO qc_cache_refill_writer;
+GRANT USAGE ON SCHEMA pdc_work_categories_private TO qc_cache_refill_writer;
+GRANT INSERT, TRUNCATE ON public.navision_backend_records TO qc_cache_refill_writer;
+GRANT INSERT, DELETE ON public.safeupdate_probe TO qc_cache_refill_writer;
+
+LOAD 'safeupdate';
+INSERT INTO public.safeupdate_probe (id) VALUES (1);
+INSERT INTO pdc_work_categories_private.qc_operation_lines_cache (vehicle_id, lines, computed_at)
+VALUES ('00000000-0000-4000-8000-0000000000f1', '[]'::jsonb, statement_timestamp());
+SET ROLE qc_cache_refill_writer;
+DO $safeupdate_probe$
+BEGIN
+  DELETE FROM public.safeupdate_probe;
+  RAISE EXCEPTION 'safeupdate did not reject a bare delete';
+EXCEPTION
+  WHEN cardinality_violation THEN
+    IF SQLERRM NOT LIKE '%WHERE clause%' THEN
+      RAISE;
+    END IF;
+END
+$safeupdate_probe$;
+INSERT INTO public.navision_backend_records (id) VALUES (1);
+RESET ROLE;
+
+DO $shared_write$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pdc_work_categories_private.qc_operation_lines_cache) THEN
+    RAISE EXCEPTION 'shared input left a cache row';
+  END IF;
+  IF (
+    SELECT gen
+    FROM pdc_work_categories_private.qc_operation_lines_cache_epoch
+    WHERE vehicle_id = '00000000-0000-0000-0000-000000000000'
+  ) IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION 'shared input did not bump the global epoch';
+  END IF;
+END
+$shared_write$;
+
+INSERT INTO pdc_work_categories_private.qc_operation_lines_cache (vehicle_id, lines, computed_at)
+VALUES ('00000000-0000-4000-8000-0000000000f1', '[]'::jsonb, statement_timestamp());
+SET ROLE qc_cache_refill_writer;
+TRUNCATE public.navision_backend_records;
+RESET ROLE;
+
+DO $shared_truncate$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pdc_work_categories_private.qc_operation_lines_cache) THEN
+    RAISE EXCEPTION 'truncate left a cache row';
+  END IF;
+  IF (
+    SELECT gen
+    FROM pdc_work_categories_private.qc_operation_lines_cache_epoch
+    WHERE vehicle_id = '00000000-0000-0000-0000-000000000000'
+  ) IS DISTINCT FROM 2 THEN
+    RAISE EXCEPTION 'truncate did not bump the global epoch';
+  END IF;
+END
+$shared_truncate$;
 
 DO $proof$
 DECLARE
@@ -146,10 +243,31 @@ BEGIN
     RAISE EXCEPTION 'present row was rewritten';
   END IF;
 
-  DELETE FROM pdc_work_categories_private.qc_operation_lines_cache
-  WHERE vehicle_id = '00000000-0000-4000-8000-000000000003';
+  INSERT INTO public.refill_probe (vehicle_id, note)
+  VALUES ('00000000-0000-4000-8000-000000000003', 'changed');
+  IF EXISTS (
+    SELECT 1
+    FROM pdc_work_categories_private.qc_operation_lines_cache
+    WHERE vehicle_id = '00000000-0000-4000-8000-000000000003'
+  ) THEN
+    RAISE EXCEPTION 'trigger left the invalidated cache row';
+  END IF;
+  IF (
+    SELECT gen
+    FROM pdc_work_categories_private.qc_operation_lines_cache_epoch
+    WHERE vehicle_id = '00000000-0000-4000-8000-000000000003'
+  ) IS DISTINCT FROM 2 THEN
+    RAISE EXCEPTION 'trigger did not bump the vehicle epoch';
+  END IF;
+  IF (
+    SELECT gen
+    FROM pdc_work_categories_private.qc_operation_lines_cache_epoch
+    WHERE vehicle_id = '00000000-0000-0000-0000-000000000000'
+  ) IS DISTINCT FROM 2 THEN
+    RAISE EXCEPTION 'vehicle edit bumped the global epoch';
+  END IF;
   IF pdc_work_categories_private.refill_qc_operation_lines_cache(1) IS DISTINCT FROM 1 THEN
-    RAISE EXCEPTION 'deleted row was not refilled';
+    RAISE EXCEPTION 'invalidated row was not refilled';
   END IF;
   IF (
     SELECT lines
@@ -190,3 +308,11 @@ BEGIN
   END IF;
 END
 $proof$;
+
+CREATE TABLE public.refill_test_signal (
+  step text PRIMARY KEY
+);
+INSERT INTO public.vehicles (id)
+VALUES ('00000000-0000-4000-8000-0000000000aa');
+INSERT INTO public.refill_probe (vehicle_id, note)
+VALUES ('00000000-0000-4000-8000-0000000000aa', 'before');
