@@ -86,9 +86,8 @@
       return true;
     }
     function body(row) {
-      const record=records.get(row.tracking_id),accessories=host.BROOME_SALES_ACCESSORIES?.detailHtml?.(row)||'';
-      // r392: the sales export line table leads; the earlier 3 Oct import stays available, collapsed.
-      if(accessories)return accessories+(record?'<details class="sales-build-earlier"><summary>Earlier accessory import</summary>'+recordContent(record)+'</details>':'');
+      const record=records.get(row.tracking_id);
+      // Sales-export accessory lines render in the expanded notes panel, not in this detail.
       if(mode==='error')return '<p class="sales-build-error" role="status">Accessories and sales notes could not be loaded. Refresh vehicles to try again.</p>';
       if(record)return (mode==='loading'?'<p class="sales-build-loading" role="status">Checking for updates…</p>':'')+recordContent(record);
       if(mode==='idle'||mode==='loading')return '<p class="sales-build-loading" role="status">Loading accessories and sales notes…</p>';
@@ -110,10 +109,8 @@
       const text=summary(row),html=body(row),content=$('sales-build-content'),heading=$('sales-build-summary');
       if(heading&&(text!==lastSummary||heading.textContent!==text)){heading.textContent=text;lastSummary=text;}
       if(content&&(html!==lastContent||content.innerHTML==='')) {
-        const open=content.querySelector?.('.sales-build-other')?.open===true,adminOpen=content.querySelector?.('.sales-accessory-admin')?.open===true,earlierOpen=content.querySelector?.('.sales-build-earlier')?.open===true;
+        const open=content.querySelector?.('.sales-build-other')?.open===true;
         content.innerHTML=html;if(open&&content.querySelector?.('.sales-build-other'))content.querySelector('.sales-build-other').open=true;
-        if(adminOpen&&content.querySelector?.('.sales-accessory-admin'))content.querySelector('.sales-accessory-admin').open=true;
-        if(earlierOpen&&content.querySelector?.('.sales-build-earlier'))content.querySelector('.sales-build-earlier').open=true;
         lastContent=html;
       }
     }

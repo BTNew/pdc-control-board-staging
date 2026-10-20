@@ -7,7 +7,8 @@
 .sales-accessory-item{min-width:180px;font-weight:600}.sales-accessory-notes{white-space:pre-wrap;color:#52687a}
 .sales-accessory-po-missing{color:#c4161c;font-weight:700}.sales-accessory-po-none{color:#8a99a6}.sales-accessory-in-house{color:#68798a;font-size:11px}
 .sales-accessory-state{font-weight:600}.sales-accessory-state.green{color:#175b36}.sales-accessory-state.grey{color:#5f6b78}.sales-accessory-state.red{color:#c4161c}.sales-accessory-state.review{color:#8b4600}
-/* Derived dashboard ticks (manual Completed / Not required keep their own colours). */
+/* Derived dashboard ticks (r394: the only TINT / BUILD / TRAY state; read-only). */
+span.ordering-status{cursor:default}
 .ordering-status.derived-green{background:#d9f5e3;color:#175b36;border-color:#95d5ae}
 .ordering-status.derived-grey{background:#e4e7eb;color:#5f6b78;border-color:#c3c9d1}
 .ordering-status.derived-review{background:#ffe4ba;color:#8b4600;border-color:#eab367}
@@ -15,3 +16,12 @@
 @keyframes sales-accessory-flash{0%,100%{background:#fde2e2;border-color:#e86a6f}50%{background:#e0262d;border-color:#a3161b;color:#fff}}
 @media (prefers-reduced-motion:reduce){.ordering-status.derived-red{animation:none;background:#e0262d;border-color:#a3161b;color:#fff}}
 @media(max-width:650px){.sales-accessory-table{font-size:11px}.sales-accessory-item{min-width:140px}}
+.sales-notes-accessories{min-width:0;font-size:12px;line-height:1.35;color:#173047}
+.sales-notes-accessory-type{margin:0 0 6px}.sales-notes-accessory-type h3{margin:0;font-size:11px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:#52687a}
+.sales-notes-accessories ul{list-style:none;margin:1px 0 0;padding:0}
+.sales-notes-accessories li{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;padding:1px 0}
+.sales-notes-accessory-item{font-weight:600;overflow-wrap:anywhere}.sales-notes-accessory-po{color:#173047}
+.sales-notes-accessory-note{flex-basis:100%;font-size:11px;line-height:1.3;color:#68798a;overflow-wrap:anywhere}
+.sales-notes-accessory-empty{margin:0;color:#52687a}
+.sales-notes-accessories .sales-accessory-admin{margin:2px 0 0;border-top:0;padding-top:0}
+.sales-notes-accessories .sales-accessory-admin>summary{min-height:0;margin:0;font-size:12px;line-height:1.4}

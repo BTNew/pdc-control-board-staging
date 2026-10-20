@@ -22,7 +22,7 @@ function etaInfo(value,today=perthToday()){
  const [y,m,d]=key.split('-'),n=Math.abs(delta);
  return {date:d+'/'+m+'/'+y,label:delta>0?'Due in '+n+' day'+(n===1?'':'s'):delta<0?n+' day'+(n===1?'':'s')+' past ETA':'Due today',tone:delta<0?'past':'due',days:delta};
 }
-const defaults=[60,115,75,145,180,75,75,75,180,125,180,150,145];
+const defaults=[96,108,72,120,160,48,56,48,140,220,150,190,130];
 function width(value,fallback){return typeof value==='number'&&Number.isFinite(value)?Math.max(40,Math.min(600,Math.round(value))):fallback;}
 function readWidths(text){try{const a=JSON.parse(text);return defaults.map((v,i)=>width(Array.isArray(a)?a[i]:null,v));}catch{return defaults.slice();}}
 function resizeWidths(values,index,delta){
@@ -33,7 +33,7 @@ function resizeWidths(values,index,delta){
 }
 function initColumns(table,reset){
  if(!table?.querySelectorAll)return;
- const key='broome-sales-column-widths-v3';
+ const key='broome-sales-column-widths-v5';
  let widths=defaults.slice(),drag=null;
  try{widths=readWidths(root.localStorage?.getItem(key));}catch{}
  function save(){try{root.localStorage?.setItem(key,JSON.stringify(widths));}catch{}}

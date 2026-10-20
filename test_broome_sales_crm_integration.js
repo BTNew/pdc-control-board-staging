@@ -55,14 +55,17 @@ test('Due this week compares Australian and ISO dealer estimates as strict calen
  assert.equal(sales.quickMatch({...sold,dealer_eta:'20/10/2026',crm_delivery:{promised_delivery_date:'04/10/2026'}},'due_week','2026-10-01'),true);
  assert.equal(sales.quickMatch({...sold,dealer_eta:'03/01/2027'},'due_week','2026-12-29'),true,'year boundary');
 });
-test('Due this week preset displays a matching Australian Navision ETA without saving',async()=>{
+test('a stored saved view cannot hide dashboard rows',async()=>{
  const tools=require('./sales/dashboard-tools.js'),start=tools.perthToday(),date=new Date(start+'T00:00:00Z');date.setUTCDate(date.getUTCDate()+3);
  const key=date.toISOString().slice(0,10),[year,month,day]=key.split('-'),australian=day+'/'+month+'/'+year;
  const rows=[{...sold,client:'Due Australian customer',dealer_eta:australian},{...sold,tracking_id:'other',client:'Missing ETA customer',dealer_eta:''},{...sold,tracking_id:'invalid',client:'Invalid ETA customer',dealer_eta:'31/02/2026'}];
- const h=harness();await initial(h,'administrator',rows);const requests=h.calls.length;
- change(h,'sales-saved-view','preset:due_week');
- assert.match(h.el('vehicle-table').innerHTML,/Due Australian customer/);assert.doesNotMatch(h.el('vehicle-table').innerHTML,/Missing ETA customer|Invalid ETA customer/);
- assert.equal(h.calls.length,requests);
+ const work={...workspace('administrator'),views:[{id:viewA,name:'All orders',version:1,filters:{category:'dealer',search:'no-such-customer',month:'',status:'',quick:'due_week',sort:'stock',direction:1}}]};
+ const h=harness();await initial(h,'administrator',rows,work);
+ assert.match(h.el('vehicle-table').innerHTML,/Due Australian customer/);
+ assert.match(h.el('vehicle-table').innerHTML,/Missing ETA customer/);
+ assert.match(h.el('vehicle-table').innerHTML,/Invalid ETA customer/);
+ assert.equal(h.calls.filter(call=>call.name==='save_broome_sales_crm').length,0);
+ assert.doesNotMatch(fs.readFileSync('sales/index.html','utf8'),/id="sales-saved-view"|id="sales-save-view"|id="sales-view-name"|Mark selected Dispatched Autocare/);
 });
 test('loaded sales modules receive the separate workspace only after the scoped vehicle snapshot',async()=>{
  const h=harness();assert.equal(h.crmCalls.init.length,1);assert.equal(h.calls.length,1);assert.equal(h.crmCalls.setWorkspace.length,0);
@@ -89,7 +92,7 @@ test('the newest workspace response wins and discards leads while preserving sav
  const newer={...workspace('administrator'),views:[{id:viewA,name:'Newest view',version:2,filters:{}}],leads:[{...workspace('administrator').leads[0],customer_name:'Newest lead',version:2}]};
  h.calls[3].resolve({data:newer});await newRequest;
  h.calls[2].resolve({data:{...workspace('administrator'),views:[{id:viewA,name:'Older view',version:1,filters:{}}]}});await oldRequest;
- assert.match(h.el('sales-saved-view').innerHTML,/Newest view/);assert.doesNotMatch(h.el('sales-saved-view').innerHTML,/Older view/);
+ assert.equal(h.crmCalls.setWorkspace.at(-1).views[0].name,'Newest view');assert.match(h.el('vehicle-table').innerHTML,/Own customer/);
  h.el('nav-myday').events.click();assert.equal(h.crmCalls.setWorkspace.at(-1).leads.length,0);
  assert.equal(h.crmCalls.setWorkspace.length,2);
 });
@@ -97,7 +100,7 @@ test('account replacement clears module DOM and suppresses a delayed workspace r
  const h=harness();await initial(h);h.el('nav-myday').events.click();
  const pending=h.getCrmOptions().onChanged();h.window.PDC_AUTH_CONTEXT={role:'salesperson',userId:'user-B'};h.events['pdc-auth-ready']();
  h.calls[2].resolve({data:workspace('administrator')});await pending;
- assert.equal(h.el('sales-leads-list').innerHTML,'');assert.doesNotMatch(h.el('vehicle-table').innerHTML,/Own customer/);assert.equal(h.el('sales-saved-view').innerHTML,'');
+ assert.equal(h.el('sales-leads-list').innerHTML,'');assert.doesNotMatch(h.el('vehicle-table').innerHTML,/Own customer/);
  assert.equal(h.crmCalls.setWorkspace.length,1);assert.equal(h.calls[3].name,'get_broome_sales_snapshot');
 });
 test('a pending workspace read uses the latest selected salesperson when it arrives',async()=>{
@@ -123,19 +126,17 @@ test('sales navigation removes Leads and does not load its scripts or styles',()
  assert.doesNotMatch(code,/BROOME_SALES_LEADS|view==='leads'/);
 });
 
-test('saved views contain personal filter choices rather than salesperson or operational identifiers',async()=>{
- const h=harness();await initial(h);change(h,'salesperson-filter','BG');change(h,'sales-saved-view','preset:waiting_finance');
- h.el('search').value='HiLux';h.el('search').events.input({target:{value:'HiLux'}});h.el('sales-view-name').value='Finance follow-up';h.el('sales-save-view').events.click();
- assert.equal(h.calls[2].name,'save_broome_sales_crm');const args=JSON.parse(JSON.stringify(h.calls[2].args));
- assert.equal(args.p_kind,'view');assert.equal(args.p_id,null);assert.equal(args.p_tracking_id,null);assert.equal(args.p_expected_version,0);
- assert.equal(args.p_data.filters.quick,'waiting_finance');assert.equal(args.p_data.filters.search,'HiLux');
- assert.deepEqual(Object.keys(args.p_data.filters).sort(),['category','direction','month','quick','search','sort','status']);
- assert.doesNotMatch(JSON.stringify(args),/salesperson_code|salesperson_id|canonical_vehicle|dealer_code|user_role_id/);
+test('the dashboard no longer saves a view or reads one back into the table',()=>{
+ const code=fs.readFileSync('sales/sales.js','utf8');
+ assert.doesNotMatch(code,/save_broome_sales_crm|sales-saved-view|sales-jita-filter|preset:due_week/);
 });
-test('a sign-out during the post-save refresh cannot restore saved-view success or private options',async()=>{
- const h=harness();await initial(h);h.el('sales-view-name').value='My follow-ups';h.el('sales-save-view').events.click();
- h.calls[2].resolve({data:{record:{id:viewA,version:1}}});await tick();assert.equal(h.calls[3].name,'get_broome_sales_workspace');
+test('a sign-out during workspace refresh cannot apply a saved view to the dashboard',async()=>{
+ const h=harness();await initial(h);const pending=h.getCrmOptions().onChanged();
  delete h.window.PDC_AUTH_CONTEXT;h.events['pdc-auth-locked']();
- h.calls[3].resolve({data:{...workspace('administrator'),views:[{id:viewA,name:'Private saved view',version:1,filters:{}}]}});await tick();
- assert.equal(h.el('sales-view-status').textContent,'');assert.equal(h.el('sales-saved-view').innerHTML,'');assert.equal(h.el('sales-view-name').value,'');assert.equal(h.el('sales-leads-list').innerHTML,'');
+ h.calls[2].resolve({data:{...workspace('administrator'),views:[{id:viewA,name:'Private saved view',version:1,filters:{search:'Own customer',quick:'due_week'}}]}});
+ await pending;
+ assert.doesNotMatch(h.el('vehicle-table').innerHTML,/Own customer|Private saved view/);
+ assert.match(h.el('vehicle-table').innerHTML,/No vehicles match this view/);
+ assert.equal(h.el('sales-leads-list').innerHTML,'');
+ assert.equal(h.calls.filter(call=>call.name==='save_broome_sales_crm').length,0);
 });
