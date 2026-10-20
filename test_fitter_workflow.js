@@ -191,7 +191,7 @@ function screenFixture() {
   vm.runInNewContext(fs.readFileSync(require.resolve('./pdc-conversions.js'),'utf8'),{window:root});
   vm.runInNewContext(fs.readFileSync(require.resolve('./pdc-fitters.js'),'utf8'),{window:root,
     getPdcSupabaseAccessToken:()=> 'session',AbortController,setTimeout,clearTimeout,setInterval:fn=>intervals.push(fn)});
-  return {root,doc,data,calls,events,clock,timerLabel,timerBox,mechanic,line,note,saveNote,refresh,stop,confirmStop,stopReason,stopType,action,listeners,sync,busRetry,
+  return {element,root,doc,data,calls,events,clock,timerLabel,timerBox,mechanic,line,note,saveNote,refresh,stop,confirmStop,stopReason,stopType,action,listeners,sync,busRetry,
     get renders(){return renders;},get html(){return html;},poll:()=>intervals[0](),
     delayJobs(){let resolve;const promise=new Promise(r=>resolve=r);gate={promise};return resolve;},
     delayCommand(){let resolve;const promise=new Promise(r=>resolve=r);commandGate={promise};return resolve;},
@@ -410,20 +410,35 @@ test('offline timing freezes at the displayed value and a new authoritative snap
   assert.match(f.html,/00:02:05/,'fresh server timing must not be overridden by a stale display freeze');
   assert.match(f.html,/Paused · Stoppage/);
 });
-test('a matched Bus conversion renders the same checkbox as the other bay items',async()=>{
+test('a matched Bus conversion renders a dropdown with a Start / Done tick per section',async()=>{
   const f=screenFixture();
   f.data.detail.stage_code='BUS_4X4';
   f.data.jobs[0].stage_name='Bus 4×4';
-  f.data.detail.lines[0]={line_identity:'source:coaster',description:'Coaster Bus 4x4 Conversion - 6 Speed 2.8',stage_code:'BUS_4X4',hours:60,completed:false,note:'',scope_hash:'scope-a',conversion:{id:'coaster',total_minutes:3765,release_blocked:true,sections:[{id:'PA',label:'Pre-assembly A'}]}};
+  f.data.detail.lines[0]={line_identity:'source:coaster',description:'Coaster Bus 4x4 Conversion - 6 Speed 2.8',stage_code:'BUS_4X4',hours:60,completed:false,completed_fraction:0.05,note:'',scope_hash:'scope-a',conversion:{id:'coaster',total_minutes:3765,release_blocked:true,sections_done:1,sections_total:3,sections:[
+    {id:'PA',label:'Pre-assembly A',description:'Adaptor housing preparation',planned_minutes:60,status:'complete',actual_minutes:72},
+    {id:'PB',label:'Pre-assembly B',description:'Transfer case preparation',planned_minutes:30,status:'in_progress',elapsed_minutes:15,started_at:'2026-10-20T01:00:00Z'},
+    {id:'1',label:'Section 1',description:'Vehicle preparation',planned_minutes:120,status:'not_started'}]}};
   await f.open();
-  assert.match(f.html,/data-fitter-line="source:coaster"/);
-  assert.match(f.html,/BUS 4X4 · 60 h/);
-  assert.match(f.html,/Add a note/);
-  assert.doesNotMatch(f.html,/Release blocked|Save section update|Pre-assembly/);
-  f.data.detail.lines[0]={...f.data.detail.lines[0],line_identity:'source:hiace',description:'Bus 4x4 Conversion SLWB & Commuter',hours:40,completed:true,conversion:{id:'hiace_commuter',release_blocked:true,sections:[{id:'1'}]}};
+  assert.doesNotMatch(f.html,/data-fitter-line="source:coaster"/,'no single 60 h tick box');
+  assert.match(f.html,/1 of 3 sections done/);
+  assert.match(f.html,/data-conversion-step="start" data-conversion-line="source:coaster" data-conversion-section="PB" checked/);
+  assert.match(f.html,/In progress · 0h 15m of 0h 30m/);
+  assert.match(f.html,/--conv-from:50%;--conv-run:900s/);
+  assert.match(f.html,/Done · actual 1h 12m/);
+  assert.match(f.html,/data-conversion-step="start" data-conversion-line="source:coaster" data-conversion-section="1"  disabled/,'one section in progress at a time');
+  assert.doesNotMatch(f.html,/Release blocked|Save section update|comparable timed builds|Planning allowance/);
+  const step=f.element('[data-conversion-step]',{dataset:{conversionStep:'start',conversionLine:'source:coaster',conversionSection:'1'},checked:false,tagName:'INPUT'});
   f.refresh.handlers.click();await flush();
-  assert.match(f.html,/data-fitter-line="source:hiace"/);
-  assert.match(f.html,/BUS 4X4 · 40 h · Work completed/);
+  step.checked=true;step.handlers.change({currentTarget:step});await flush();
+  const sent=f.calls.filter(c=>c.rpc==='fitter_job_command').pop().body;
+  assert.equal(sent.p_action,'conversion');assert.equal(sent.p_line_identity,'source:coaster');
+  assert.deepEqual(JSON.parse(sent.p_note),{mode:'tick',section:'1',step:'start'});
+  step.dataset.conversionStep='done';step.checked=false;step.handlers.change({currentTarget:step});await flush();
+  assert.deepEqual(JSON.parse(f.calls.filter(c=>c.rpc==='fitter_job_command').pop().body.p_note),{mode:'tick',section:'1',step:'reset'});
+  f.data.detail.lines[0].completed=false;
+  f.data.detail.lines[0]={...f.data.detail.lines[0],line_identity:'source:hiace',description:'Bus 4x4 Conversion SLWB & Commuter',hours:40,completed:true,conversion:{id:'hiace_commuter',release_blocked:true,sections_done:1,sections_total:1,sections:[{id:'1',label:'Section 1',description:'Vehicle preparation',planned_minutes:120,status:'complete',actual_minutes:100}]}};
+  f.refresh.handlers.click();await flush();
+  assert.match(f.html,/BUS 4X4 · 40 h · 1 of 1 sections done · Work completed/);
   assert.doesNotMatch(f.html,/Release blocked/);
   f.data.detail.lines[0]={line_identity:'source:review',description:'Bus 4x4 Conversion rework',stage_code:'BUS_4X4',hours:60,completed:false,note:'',scope_hash:'scope-a',conversion:{needs_review:true}};
   f.refresh.handlers.click();await flush();
