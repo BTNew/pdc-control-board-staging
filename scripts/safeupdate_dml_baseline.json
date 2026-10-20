@@ -1,0 +1,139 @@
+{
+  "locked_through_version": "20261020082000",
+  "note": "Historical bare DELETE and UPDATE statements already applied on staging. Rewriting those migration files would change deployment checksums. A statement newer than locked_through_version cannot be added here.",
+  "violations": {
+    "supabase/migrations/20260913060848_tune_operation_approval_schedule_cascade.sql": [
+      "d1d815e979a761aedb472b0efef58a07910fd297ef30567b84c771bb66dafa6b"
+    ],
+    "supabase/migrations/20260913063859_tune_operation_approval_lock_coordination.sql": [
+      "d1d815e979a761aedb472b0efef58a07910fd297ef30567b84c771bb66dafa6b"
+    ],
+    "supabase/migrations/20260915050937_sub_status_only_checkout.sql": [
+      "a5e1fbeeefa8542e981cdaa681b5ea1423c2c08e80ce9d2d27632f42b4a7d8d9"
+    ],
+    "supabase/migrations/20260915061903_tune_checkout_requires_qc.sql": [
+      "a5e1fbeeefa8542e981cdaa681b5ea1423c2c08e80ce9d2d27632f42b4a7d8d9"
+    ],
+    "supabase/migrations/20260915091650_workshop_emergency_priority.sql": [
+      "3b5382bef04b63439b3140167a12f48bdd10a381310f52eccc67af9361d6c1e6"
+    ],
+    "supabase/migrations/20260915092523_workshop_emergency_priority_cache.sql": [
+      "3b5382bef04b63439b3140167a12f48bdd10a381310f52eccc67af9361d6c1e6"
+    ],
+    "supabase/migrations/20260915092930_workshop_emergency_priority_validation.sql": [
+      "3b5382bef04b63439b3140167a12f48bdd10a381310f52eccc67af9361d6c1e6"
+    ],
+    "supabase/migrations/20260915233545_workshop_fitter_item_progress.sql": [
+      "67c08c34d3a65bbfdb83202c7e98d95e370e2d074a59bfd53c2b4e4eb0d02f5a"
+    ],
+    "supabase/migrations/20260916012807_fitter_start_confirmation_and_work_timer.sql": [
+      "67c08c34d3a65bbfdb83202c7e98d95e370e2d074a59bfd53c2b4e4eb0d02f5a"
+    ],
+    "supabase/migrations/20260916021045_workshop_start_priority_for_unstarted_vehicle_jobs.sql": [
+      "0509f0f62183aabb9f1d8170f41a2bbd0f3aa902f68ca59b35811c510ed9cec3",
+      "67c08c34d3a65bbfdb83202c7e98d95e370e2d074a59bfd53c2b4e4eb0d02f5a"
+    ],
+    "supabase/migrations/20260916065517_workshop_start_clock_version_rebase.sql": [
+      "67c08c34d3a65bbfdb83202c7e98d95e370e2d074a59bfd53c2b4e4eb0d02f5a"
+    ],
+    "supabase/migrations/20260917003304_tune_substatus80_pmb_complete_qc.sql": [
+      "a5e1fbeeefa8542e981cdaa681b5ea1423c2c08e80ce9d2d27632f42b4a7d8d9"
+    ],
+    "supabase/migrations/20260917074018_conversion_section_checklists.sql": [
+      "4af7eafa34cadf370f2bc6c3c70b75ef6f2e2f65d6331391ea526ab197ec1c0b",
+      "67c08c34d3a65bbfdb83202c7e98d95e370e2d074a59bfd53c2b4e4eb0d02f5a"
+    ],
+    "supabase/migrations/20260917080454_tune_key_tag_import.sql": [
+      "cbb37e7ad65603b7d9c23fc64ac70057fd37fb4dae8f6586e3d51e8383811d65"
+    ],
+    "supabase/migrations/20260920231044_dept138_supplier_workflow.sql": [
+      "1987d029f4f1b05c1411914596c51ccdf56cf7e5ca3e4715e4de294db3de7c35",
+      "fee9282cfffe3fe47bd61d770d4892d63443f9812604818a42dd1e37eed31dcd"
+    ],
+    "supabase/migrations/20260921012441_workshop_bus_clock_calendar.sql": [
+      "0e618dabae61bacf993ec48867323f4ad9751dbc941d2d9bbab3980e4e699e6c",
+      "10e5601098d918e249e6b515d33c45cbe19121b8ea308a0170f6e2522878e9b3",
+      "7190807208079ebf9d4d41e88f7c4e50c858c18c0051548f93a10b6fc7a9c8be"
+    ],
+    "supabase/migrations/20260922203826_dept138_team_and_planning_clarifications.sql": [
+      "a621841fcba2b05237ead085c47d48ec4662efade190bcf496db3515788c1d98"
+    ],
+    "supabase/migrations/20261001050745_broome_salesperson_site.sql": [
+      "fcdc60e10d8ee8b96e585019e4324c95dcd58a0a0d5cd10c330ea99db6dc26be"
+    ],
+    "supabase/migrations/20261001232750_broome_sales_crm_workspace.sql": [
+      "dbdcea3385da1ea77f1ef28a8923c74145cc687a5e2543b0fbce82f6a30104a8"
+    ],
+    "supabase/migrations/20261002070650_navision_complete_snapshot_review.sql": [
+      "29c7d7afb2ea7604103f7b6ad16bfaf19d4e529eb6fc28d4b4560d91920507cf"
+    ],
+    "supabase/migrations/20261002102433_sales_customer_email_navision_commit.sql": [
+      "5acfbbec661d7d88ee4d26b3a37c1f2daedbf4a02df5741405e27c5d3aad6ef0"
+    ],
+    "supabase/migrations/20261003035407_sales_build_accessories.sql": [
+      "674154450e9dfdce8c41756ffd658a0a5004903eebba588c86e5567b74947e85"
+    ],
+    "supabase/migrations/20261003125434_karratha135_native_pmb_engine_gated.sql": [
+      "4d3ab31802c9213d053a94c29e909667068df781a166588dfc73e1c4426f53c8",
+      "4fea5f1050a4956be4e47c8ef7008d34d27cb3cbe057bcb7d4cbf1610ffb4409",
+      "83caa3ad6745a883cc50a7b7fdb179c25f9b1114c830b0199f2c1b7dc033e17f",
+      "9c57f366f2d06644f8f6129186e7c572348ac9bc77f70edda9e1bbbed02a5f43"
+    ],
+    "supabase/migrations/20261003140621_karratha135_private_fitter_paths_only.sql": [
+      "480c923b0eb3bdcdcbe8a86767eb276f1fa5e2d2406d200ff5033b9861901f0d",
+      "9599c5170a6dab9f97b8ecd8c261518c0fa5665dda8be704cbc3a59cc87acbcf"
+    ],
+    "supabase/migrations/20261007010110_karratha135_owner_attachment_import_parity.sql": [
+      "4fea5f1050a4956be4e47c8ef7008d34d27cb3cbe057bcb7d4cbf1610ffb4409",
+      "83caa3ad6745a883cc50a7b7fdb179c25f9b1114c830b0199f2c1b7dc033e17f"
+    ],
+    "supabase/migrations/20261007023141_karratha135_dealer_fitment_arrival.sql": [
+      "85cdbb8c1f10ceae94a9a83b725ec323b4474f7c4d1f7b527a89cf34147016aa"
+    ],
+    "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": [
+      "d1d815e979a761aedb472b0efef58a07910fd297ef30567b84c771bb66dafa6b",
+      "f9e457a2c25fd2ec93e0e5f0ee442b8c05d278d51f5db09720ba4c38ba9f371f"
+    ],
+    "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": [
+      "67c08c34d3a65bbfdb83202c7e98d95e370e2d074a59bfd53c2b4e4eb0d02f5a"
+    ],
+    "supabase/migrations/20261015044813_jobcard_work_categories.sql": [
+      "a543af6ce8d2fbf790299c8e615764b985c2de80eb354a2cbb1efc5c38bd8166",
+      "d37a3fe595f7214c6860a7b831540367e209ff48fa825c5d275a18e0dee63cc4"
+    ],
+    "supabase/migrations/20261017153000_accepted_import_category_routing.sql": [
+      "d1d815e979a761aedb472b0efef58a07910fd297ef30567b84c771bb66dafa6b",
+      "f9e457a2c25fd2ec93e0e5f0ee442b8c05d278d51f5db09720ba4c38ba9f371f"
+    ],
+    "supabase/migrations/20261018035000_canonical_category_hours_save.sql": [
+      "e35d89da7981c22eaca78793fd3109a49c7f582395729ddf970ac17651382f44"
+    ],
+    "supabase/migrations/20261018041810_dept139_reviewed_import_routing.sql": [
+      "6dbfaa25b7bef55286f626b067f723f3dc096381aedc74c8ca49c6c6787bc2ce"
+    ],
+    "supabase/migrations/20261018090000_estimate_cross_station_handover.sql": [
+      "e35d89da7981c22eaca78793fd3109a49c7f582395729ddf970ac17651382f44"
+    ],
+    "supabase/migrations/20261019000641_automatic_jobcard_additions.sql": [
+      "d1d815e979a761aedb472b0efef58a07910fd297ef30567b84c771bb66dafa6b"
+    ],
+    "supabase/migrations/20261019001438_background_jobcard_audit.sql": [
+      "d1d815e979a761aedb472b0efef58a07910fd297ef30567b84c771bb66dafa6b"
+    ],
+    "supabase/migrations/20261019003228_background_jobcard_source_history.sql": [
+      "d1d815e979a761aedb472b0efef58a07910fd297ef30567b84c771bb66dafa6b",
+      "f9e457a2c25fd2ec93e0e5f0ee442b8c05d278d51f5db09720ba4c38ba9f371f"
+    ],
+    "supabase/migrations/20261019044410_workshop_clock_arrival_floor.sql": [
+      "0e618dabae61bacf993ec48867323f4ad9751dbc941d2d9bbab3980e4e699e6c",
+      "10e5601098d918e249e6b515d33c45cbe19121b8ea308a0170f6e2522878e9b3",
+      "7190807208079ebf9d4d41e88f7c4e50c858c18c0051548f93a10b6fc7a9c8be"
+    ],
+    "supabase/migrations/20261019232000_qc_operation_lines_cache.sql": [
+      "980675e09d99f1716aed9fda65b1ef1d18b434b2cc5de5e330cf1259dc5eedd4",
+      "980675e09d99f1716aed9fda65b1ef1d18b434b2cc5de5e330cf1259dc5eedd4",
+      "980675e09d99f1716aed9fda65b1ef1d18b434b2cc5de5e330cf1259dc5eedd4",
+      "d4efe33f8dbafd5a8842ec5beb2a4ca96d8f2b2ab9dcb8042a19db338d037b31"
+    ]
+  }
+}
