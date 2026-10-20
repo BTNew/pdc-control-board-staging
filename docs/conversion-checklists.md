@@ -11,11 +11,11 @@ These are one-main-technician planning allowances with lifting/positioning help 
 
 ## Technician workflow
 
-Open the assigned Bus 4x4 booking in Fitters bay. The main conversion operation contains the appropriate model's pre-assembly tasks and sections 1–12. Open a section, choose current/in-progress status, enter cumulative actual main-technician hours and estimated hours remaining, and save the workshop update. Tick completed only when the workshop confirms that section is done. Already-completed pre-assembly is confirmed individually and contributes zero remaining work. Actual time may remain unknown for work done before this booking; it must not be invented from planned hours.
+Open the assigned Bus 4x4 booking in Fitters bay. A matched Toyota Coaster or HiAce Commuter main conversion is one checkbox, the same as the other items in that bay: the operation name, its approved hours, and a note. Ticking that checkbox completes the item. The section tables and their history stay stored and are not rendered for those two items. An unmatched or conflicting conversion still asks a controller to confirm the model before any checklist is used. Bay completion remains the separate finish action. QC inspection and sign-off are separate and unchanged.
 
-Deferred tightening, connections and checks remain visible. A section with deferred work or a blocker cannot be confirmed complete. The parent operation is automatically marked complete after all sections are confirmed and the applicable completion checklist scope has been recorded. Bay completion remains the established separate finish action, including any other operations in that bay. Reopening a section revokes parent completion. QC inspection and sign-off are separate and unchanged.
+The Coaster 62h 45m and HiAce 38h figures remain the stored planning allowances. They are not added to the original operation and they are not removed from it. Booking duration continues to use the operation's approved hours.
 
-Section 12 is provisional for both models. A controller records the applicable manufacturer checklist title/revision/reference and confirmed scope/access location after obtaining it; this alone does not complete Section 12. The technician must still confirm the completion checks. Do not promise release while this gate is open.
+Section 12 is still provisional. Recording a section-12 completion through the stored checklist still requires the manufacturer checklist reference and scope. That requirement does not block the Coaster or HiAce checkbox, and it does not release the vehicle, complete QC, or transfer to RFT.
 
 ## Matching and preservation
 
@@ -35,7 +35,7 @@ Record actual main-technician time against every section and identify whether th
 
 ## Import / email rules
 
-Imports establish exact source/company/R/O/line relationships; the checklist is attached by the verified conversion/model match. Imports must never fabricate section completion, actual labour or manufacturer sign-off. A generic “job complete” or imported completion status cannot bypass unfinished conversion sections. Such a conflict needs workshop review. An email update must identify the exact vehicle, conversion and section before it can be applied as section evidence. Existing sender verification, duplicate protection and assigned-technician controls remain in effect.
+Imports establish exact source/company/R/O/line relationships; the checklist is attached by the verified conversion/model match. Imports must never fabricate section completion, actual labour or manufacturer sign-off. A Sub Status 80 or 99 row imported before the Coaster or HiAce checkbox is ticked still cannot complete that item. Imported after the checkbox is ticked, it must not clear the tick, complete the item a second time, or rewrite the stored sections. Vehicles already in QC, RFT or completed, and QC sign-off itself, stay out of that import. An email update must identify the exact vehicle, conversion and section before it can be applied as section evidence. Existing sender verification, duplicate protection and assigned-technician controls remain in effect.
 
 ## Validation
 
