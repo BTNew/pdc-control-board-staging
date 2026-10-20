@@ -38,7 +38,7 @@ function uiFixture() {
     workshopBusShift:entry=>entry.stage==='BUS_4X4'?{startMinutes:360,endMinutes:900}:null,
     workshopNewRequestId:()=>UUID,renderWorkshopPlanner:()=>{},
     FormData:class {constructor(form){this.data=form.values;}get(k){return this.data[k]??null;}getAll(k){return this.data[k]||[];}},
-    window:{alert:v=>alerts.push(v),PDC_AUTH_CONTEXT:{userId:'controller',role:'operator'},
+    workshopNotify: v => alerts.push(v), window: {alert() { throw new Error('F20: planner must not call window.alert'); },PDC_AUTH_CONTEXT:{userId:'controller',role:'operator'},
       __workshopReferenceDataService:{getCachedTechnicians:()=>({rows:roster})},
       __workshopSharedActions:{setBookingTeam(){},recordHelperLabour(){}}},
     workshopDispatchSharedAction:async(action,payload)=>{calls.push({action,payload});return {ok:true};},

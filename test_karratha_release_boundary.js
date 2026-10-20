@@ -62,8 +62,8 @@ const approvedRootImportPatch = Object.freeze({
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
   // counts on the snapshot totals; planner cards offer a controller reset for
   // a running item left too long (r384). Department 135's copy stays frozen.
-  "workshop-planner.js": "a1e30a117d6797b8dbdd6d6cd94a049677d0ee892cafdccd71c91e2c556e8ab6",
-  "workshop-planner.css": "1700e8952c6e36735deffc7e792b85ce4d0ba4acab312d6fc7251d9098682ef1",
+  "workshop-planner.js": "4dd4ac3ea4fdd2c26586a6ac1ab59dd522f5f14140e36414cbbd5ea547f1be50",
+  "workshop-planner.css": "b5d21a6edb9a209c1451054b642d94938fb5d76afc3821ca3afe2e517e1e5c30",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   "scripts/build_pages_runtime.js": "f39cb3b2b550ac467feb7acbec932c091a8ad75229531e539fc706ec665210d3",
@@ -92,7 +92,7 @@ const approvedRootImportPatch = Object.freeze({
   // r400: QC no longer asks for the Pit inspection or job-card notes lines.
   // r401: Pit and weigh never counts as required work; optional Pit tick for any department.
   // r405: a Pit and weigh / Pit inspection line is Pit by its wording, whatever its category (F14).
-  "app.js": "363f94abeefcb07506fe3ea63fb228038f8d1be0c9e912e2ea37c75bc08deab4",
+  "app.js": "b3a15b6f13011851a5c32d39b4a048d178477e3b6dcda8b98a57b9cd78ee7698",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -110,7 +110,7 @@ const approvedRootImportPatch = Object.freeze({
   // r400: app.js adds qc-pit-notes=2026.10.20.01.
   // r401: app.js and pdc-email-vehicle-location-service.js add pit-neutral=2026.10.20.01.
   // r405: app.js adds pit-text=2026.10.20.01.
-  "index.html": "3442ee9406a22747899dbf13b378a45fb285661b6af6fdcba33f54b2e36f24dd",
+  "index.html": "bbd885a3ee3c9ea7e9feabae9d81210e92ee3018bd9bc7a2965d8dff524e87f3",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   "pdc-email-vehicle-location-service.js": "91558fdb4e34d5707d53e91aa94b1e18097630a749bf0bba571af4eb83ba3ceb",

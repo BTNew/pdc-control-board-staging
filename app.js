@@ -99,6 +99,46 @@ const PDC_LOCATION_OPTIONS = [
 
 const PDC_LOCATION_LABELS = new Map(PDC_LOCATION_OPTIONS.map(option => [option.value, option.label]));
 
+
+// r407 (F20): non-blocking, accessible error message for the drag, schedule
+// and QC action paths (replaces window.alert there). Same toast region and
+// styling as the Workshop Planner's workshopNotify(). Errors use role="alert"
+// and stay until dismissed; info uses role="status" and clears after 8 s.
+function pdcNotify(message, tone = 'error') {
+  const text = String(message ?? '').trim();
+  if (!text) return;
+  const kind = tone === 'info' ? 'info' : 'error';
+  if (typeof document === 'undefined' || !document.body || typeof document.createElement !== 'function') {
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') console.warn(text);
+    return;
+  }
+  let region = document.getElementById('workshop-toast-region');
+  if (!region) {
+    region = document.createElement('div');
+    region.id = 'workshop-toast-region';
+    region.className = 'workshop-toast-region';
+    document.body.appendChild(region);
+  }
+  const toast = document.createElement('div');
+  toast.className = `workshop-toast is-${kind}`;
+  toast.setAttribute('role', kind === 'info' ? 'status' : 'alert');
+  toast.setAttribute('aria-live', kind === 'info' ? 'polite' : 'assertive');
+  toast.setAttribute('aria-atomic', 'true');
+  const body = document.createElement('span');
+  body.className = 'workshop-toast-message';
+  body.textContent = text;
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'workshop-toast-close';
+  close.setAttribute('aria-label', 'Dismiss message');
+  close.textContent = '×';
+  close.addEventListener('click', () => toast.remove());
+  toast.append(body, close);
+  region.appendChild(toast);
+  while (region.children.length > 4) region.firstElementChild.remove();
+  if (kind === 'info') setTimeout(() => toast.remove(), 8000);
+}
+
 function normalizePdcLocation(value = '') {
   const clean = String(value || '').trim().toUpperCase();
   if (!clean) return '';
@@ -525,24 +565,24 @@ function pmbEnteredTimestamp(vehicle = {}) {
     || vehicle.pmbEnteredAt || vehicle.pmbTransferredAt || '';
 }
 
+// r407 (F19): day counts are Perth calendar days whatever the device's timezone.
+// Perth is always UTC+8 (no daylight saving), so the Perth day number of an
+// instant is floor((ms + 8 h) / 24 h). Dates parsed by parseDateAU are a
+// calendar date (built from d/m/y), so their day number is taken from those fields.
 function daysSinceTimestamp(value = '') {
   const parsed = parseIsoTimestamp(value);
   if (!parsed) return null;
-  const start = new Date(parsed);
-  start.setHours(0, 0, 0, 0);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.max(0, Math.floor((today - start) / (1000 * 60 * 60 * 24)));
+  const start = Math.floor((parsed.getTime() + 8 * 3600000) / 86400000);
+  const today = Math.floor((new Date().getTime() + 8 * 3600000) / 86400000);
+  return Math.max(0, today - start);
 }
 
 function daysSinceDateValue(value = '') {
   const parsed = parseDateAU(value);
-  if (!parsed) return null;
-  const start = new Date(parsed);
-  start.setHours(0, 0, 0, 0);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return Math.floor((today - start) / (1000 * 60 * 60 * 24));
+  if (!parsed || Number.isNaN(parsed.getTime())) return null;
+  const start = Date.UTC(parsed.getFullYear(), parsed.getMonth(), parsed.getDate()) / 86400000;
+  const today = Math.floor((new Date().getTime() + 8 * 3600000) / 86400000);
+  return today - start;
 }
 
 function kewdaleEtaValue(vehicle = {}) {
@@ -2861,10 +2901,9 @@ function parseDateAU(value) {
 
 function daysTo(value) {
   const dt = parseDateAU(value);
-  if (!dt) return null;
-  const baseline = new Date();
-  baseline.setHours(0, 0, 0, 0);
-  return Math.ceil((dt - baseline) / (1000 * 60 * 60 * 24));
+  if (!dt || Number.isNaN(dt.getTime())) return null;
+  // r407 (F19): Perth calendar days, as daysSinceDateValue.
+  return Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()) / 86400000 - Math.floor((new Date().getTime() + 8 * 3600000) / 86400000);
 }
 
 function escapeHtml(value) {
@@ -5548,7 +5587,7 @@ function renderWorkshopPlannerWhenReady() {
     loadExternalScript(`workshop-data-service.js?scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-data-service-script'),
     loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'),
     loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'),
-    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-planner-script')
+    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r407=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-planner-script')
   ])
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
@@ -5600,7 +5639,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r407=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -6105,7 +6144,7 @@ async function qcPageSignoff(key = '') {
   const photo = qcPhotoEvidence.get(cleanKey);
   if (!vehicle || !qcPhotoEvidenceIsValid(photo)) return false;
   if (!qcPageAllOperationLinesComplete(vehicle)) {
-    window.alert('Every active authenticated or audited manual operation line must be complete before QC finalization.');
+    pdcNotify('Every active authenticated or audited manual operation line must be complete before QC finalization.');
     return false;
   }
   qcPageSignoffInFlight.add(cleanKey);
@@ -7236,7 +7275,7 @@ function isAcceptanceClosureVehicle(vehicle = {}) {
 async function markVehicleReadyForQualityControl(key = '') {
   const vehicle = selectedVehicle(key);
   if (!vehicle || !vehicleReadyForQualityControl(vehicle)) {
-    window.alert('Ready for QC is available only after every required physical workshop item is green and the vehicle is back in PMB Unallocated.');
+    pdcNotify('Ready for QC is available only after every required physical workshop item is green and the vehicle is back in PMB Unallocated.');
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
@@ -7245,16 +7284,16 @@ async function markVehicleReadyForQualityControl(key = '') {
   if (vehicleLifecycleSharedModeActive()) {
     const ref = await vehicleLifecycleSharedRef(vehicle);
     if (!ref || ref.outcome !== 'resolved') {
-      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+      pdcNotify(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
     }
     if (ref.isArchived) {
-      window.alert('This vehicle has been archived and cannot be moved to the QC Gate.');
+      pdcNotify('This vehicle has been archived and cannot be moved to the QC Gate.');
       return false;
     }
     const result = await window.__vehicleLifecycleActions.markReadyForQc({ vehicleId: ref.vehicleId, expectedVersion: ref.version });
     if (!result || result.ok !== true) {
-      window.alert(typeof describeVehicleLifecycleActionError === 'function'
+      pdcNotify(typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && result.error)
         : 'The vehicle could not be moved to the QC Gate.');
       return false;
@@ -7301,17 +7340,17 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null, aut
   const vehicle = selectedVehicle(key);
   if (!vehicle) return false;
   if (!vehicleInQualityControlGate(vehicle)) {
-    window.alert('QC finalization is available only for vehicles currently in the QC Gate.');
+    pdcNotify('QC finalization is available only for vehicles currently in the QC Gate.');
     return false;
   }
   if (vehicleLifecycleSharedModeActive() && (!photoEvidence?.photoReceiptId || typeof app.emailVehicleLocationService?.finalizeQcToRft700 !== 'function')) {
-    window.alert('Store the private completion photo first. No QC or RFT state was changed.');
+    pdcNotify('Store the private completion photo first. No QC or RFT state was changed.');
     return false;
   }
   const operator = cleanNavisionText(window.PDC_AUTH_CONTEXT?.displayName || window.PDC_AUTH_CONTEXT?.email || localStorage.getItem(OPERATOR_NAME_KEY) || '');
   const role = cleanNavisionText(window.PDC_AUTH_CONTEXT?.role || localStorage.getItem(OPERATOR_ROLE_KEY) || '');
   if (!operator || !role) {
-    window.alert('Set your operator name and role before completing QC. No vehicle was changed.');
+    pdcNotify('Set your operator name and role before completing QC. No vehicle was changed.');
     return false;
   }
   const label = vehicleIdentityTitle(vehicle) || displayStockNumber(vehicle) || 'this vehicle';
@@ -7322,11 +7361,11 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null, aut
     const ref = await vehicleLifecycleSharedRef(vehicle);
     if (!pdcWriteAuthorityCurrent(authority)) return false;
     if (!ref || ref.outcome !== 'resolved') {
-      window.alert(describeVehicleLifecycleResolutionOutcome(ref));
+      pdcNotify(describeVehicleLifecycleResolutionOutcome(ref));
       return false;
     }
     if (ref.isArchived) {
-      window.alert('This vehicle is archived in shared data, so QC finalization was not applied. No change was made.');
+      pdcNotify('This vehicle is archived in shared data, so QC finalization was not applied. No change was made.');
       return false;
     }
     const result = await service.finalizeQcToRft700(ref.vehicleId, ref.version, photoEvidence.photoReceiptId, crypto.randomUUID());
@@ -7342,7 +7381,7 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null, aut
       const message = qcFinalizationMessages[resultCode] || (typeof describeVehicleLifecycleActionError === 'function'
         ? describeVehicleLifecycleActionError(result && (result.code || result.error))
         : 'The QC finalization could not be saved.');
-      window.alert(message);
+      pdcNotify(message);
       if (window.__workshopDataService && typeof window.__workshopDataService.loadSnapshot === 'function') await window.__workshopDataService.loadSnapshot('qc_finalization_rejected');
       renderAll();
       return false;
@@ -7370,7 +7409,7 @@ async function completeVehicleQualityControl(key = '', photoEvidence = null, aut
       }
     });
   } catch (error) {
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return false;
   }
   renderAll();
@@ -10932,7 +10971,7 @@ async function movePmbVehicleToStage(key, stage) {
   const vehicle = selectedVehicle(cleanKey);
   if (!vehicle) return;
   if (statusCategory(vehicle) !== 'pmb') {
-    window.alert('That vehicle is not currently in PMB. Transfer it from Yard Hold to PMB first.');
+    pdcNotify('That vehicle is not currently in PMB. Transfer it from Yard Hold to PMB first.');
     return;
   }
   const nextStage = normalizePmbStage(stage);
@@ -10972,7 +11011,7 @@ async function movePmbVehicleToStage(key, stage) {
   } catch (error) {
     Object.keys(vehicle).forEach(field => { if (!Object.prototype.hasOwnProperty.call(snapshot, field)) delete vehicle[field]; });
     Object.assign(vehicle, snapshot);
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return;
   }
   const completedDef = pmbStageJobDef(currentStage);
@@ -11099,7 +11138,7 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '', tr
   const vehicle = selectedVehicle(cleanKey);
   if (!vehicle) return;
   if (statusCategory(vehicle) !== 'pmb') {
-    window.alert('That vehicle is not currently in PMB. Transfer it from Yard Hold to PMB first.');
+    pdcNotify('That vehicle is not currently in PMB. Transfer it from Yard Hold to PMB first.');
     return;
   }
   const bayNumber = normalizePmbBayNumber(bay, nextStage);
@@ -11112,7 +11151,7 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '', tr
     if (occupied.length) {
       const currentStageForSwap = normalizePmbStage(vehicle.pmbBayStage || inferredPmbStage(vehicle));
       if (occupied.length !== 1 || currentStageForSwap !== nextStage || !currentBay) {
-        window.alert(`${pmbStageLabel(nextStage)} Bay ${bayNumber} already has a vehicle. Move that vehicle out first, or use bay-to-bay swap from another numbered bay.`);
+        pdcNotify(`${pmbStageLabel(nextStage)} Bay ${bayNumber} already has a vehicle. Move that vehicle out first, or use bay-to-bay swap from another numbered bay.`);
         return;
       }
       const other = occupied[0];
@@ -11179,7 +11218,7 @@ async function assignPmbVehicleToBay(key, stage, bay, requestedStartIso = '', tr
       Object.keys(swap.other).forEach(field => { if (!Object.prototype.hasOwnProperty.call(swapSnapshot, field)) delete swap.other[field]; });
       Object.assign(swap.other, swapSnapshot);
     }
-    window.alert(error.message || String(error));
+    pdcNotify(error.message || String(error));
     return false;
   }
   app.activePmbBayStage = nextStage;
@@ -11194,7 +11233,7 @@ function updatePmbBayHours(key, stage, value) {
   const raw = String(value ?? '').trim();
   const parsed = raw === '' ? '' : Number.parseFloat(raw);
   if (parsed !== '' && (!Number.isFinite(parsed) || parsed < 0)) {
-    window.alert('Enter a valid planned-hours number, for example 2, 3.5 or 0.25.');
+    pdcNotify('Enter a valid planned-hours number, for example 2, 3.5 or 0.25.');
     renderKpis();
     return;
   }
@@ -11210,7 +11249,7 @@ function updatePmbBayScheduleStart(key, stage, value) {
   if (!vehicle || !normalizedStage) return;
   let nextIso = isoFromDatetimeLocalValue(value || '');
   if (!nextIso) {
-    window.alert('Enter a valid scheduled start date and time.');
+    pdcNotify('Enter a valid scheduled start date and time.');
     renderKpis();
     return;
   }
@@ -11232,12 +11271,12 @@ function savePmbBayDetailForm(vehicle, form) {
   const rawHours = String(hoursInput?.value ?? '').trim();
   const parsedHours = rawHours === '' ? '' : Number.parseFloat(rawHours);
   if (parsedHours !== '' && (!Number.isFinite(parsedHours) || parsedHours < 0)) {
-    window.alert('Enter a valid planned-hours number, for example 2, 3.5 or 0.25.');
+    pdcNotify('Enter a valid planned-hours number, for example 2, 3.5 or 0.25.');
     return false;
   }
   let startIso = isoFromDatetimeLocalValue(startInput?.value || '');
   if (!startIso) {
-    window.alert('Enter a valid scheduled start date and time.');
+    pdcNotify('Enter a valid scheduled start date and time.');
     return false;
   }
   startIso = pmbNextProductionSlotDate(parseIsoTimestamp(startIso)).toISOString();
@@ -11385,12 +11424,12 @@ function moveVehicleToNextPmbStageFromBay(key, fromStage) {
   if (!vehicle || !currentStage) return;
   const currentDef = pmbStageJobDef(currentStage);
   if (currentDef && !pdcJobComplete(vehicle, currentDef)) {
-    window.alert(`Complete ${currentDef.label} first. Once it is signed off, this vehicle can be moved to the next required station.`);
+    pdcNotify(`Complete ${currentDef.label} first. Once it is signed off, this vehicle can be moved to the next required station.`);
     return;
   }
   const nextStage = nextOutstandingPmbStage(vehicle, currentStage);
   if (!nextStage) {
-    window.alert('No next PMB station is outstanding for this vehicle. If all required jobs are complete, move it to RFT. If Parts is still outstanding, clear the parts issue before RFT.');
+    pdcNotify('No next PMB station is outstanding for this vehicle. If all required jobs are complete, move it to RFT. If Parts is still outstanding, clear the parts issue before RFT.');
     return;
   }
   const now = nowIsoString();

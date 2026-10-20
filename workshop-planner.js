@@ -8,6 +8,46 @@ const WORKSHOP_DEPLOYMENT_MANIFEST_URL = 'deployment-manifest.json';
 const WORKSHOP_DEPLOYMENT_RELOADS_KEY = 'vehicleTrackingCoreWorkshopDeploymentReloads:v1';
 let workshopDeploymentFreshnessCheck = null;
 
+
+// r407 (F20): planner messages are a non-blocking, accessible toast instead of
+// window.alert(). Errors use role="alert" (assertive) and stay until dismissed;
+// info messages use role="status" (polite) and clear after a few seconds.
+// window.confirm() is kept where a real yes/no decision is needed.
+function workshopNotify(message, tone = 'error') {
+  const text = String(message ?? '').trim();
+  if (!text) return;
+  const kind = tone === 'info' ? 'info' : 'error';
+  if (typeof document === 'undefined' || !document.body || typeof document.createElement !== 'function') {
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') console.warn(text);
+    return;
+  }
+  let region = document.getElementById('workshop-toast-region');
+  if (!region) {
+    region = document.createElement('div');
+    region.id = 'workshop-toast-region';
+    region.className = 'workshop-toast-region';
+    document.body.appendChild(region);
+  }
+  const toast = document.createElement('div');
+  toast.className = `workshop-toast is-${kind}`;
+  toast.setAttribute('role', kind === 'info' ? 'status' : 'alert');
+  toast.setAttribute('aria-live', kind === 'info' ? 'polite' : 'assertive');
+  toast.setAttribute('aria-atomic', 'true');
+  const body = document.createElement('span');
+  body.className = 'workshop-toast-message';
+  body.textContent = text;
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'workshop-toast-close';
+  close.setAttribute('aria-label', 'Dismiss message');
+  close.textContent = '×';
+  close.addEventListener('click', () => toast.remove());
+  toast.append(body, close);
+  region.appendChild(toast);
+  while (region.children.length > 4) region.firstElementChild.remove();
+  if (kind === 'info') setTimeout(() => toast.remove(), 8000);
+}
+
 function workshopDeploymentManifestIdentity(manifest = {}) {
   const siteVersion = typeof manifest.siteVersion === 'string' ? manifest.siteVersion.trim() : '';
   const plannerVersion = typeof manifest.workshopPlannerVersion === 'string' ? manifest.workshopPlannerVersion.trim() : '';
@@ -984,7 +1024,7 @@ function workshopRequireOperatorProfile() {
   const name = typeof localStorage !== 'undefined' && typeof OPERATOR_NAME_KEY !== 'undefined' ? String(localStorage.getItem(OPERATOR_NAME_KEY) || '').trim() : '';
   const role = typeof localStorage !== 'undefined' && typeof OPERATOR_ROLE_KEY !== 'undefined' ? String(localStorage.getItem(OPERATOR_ROLE_KEY) || '').trim() : '';
   if (name && role) return { name, role };
-  window.alert('Set your operator name and role before changing the Workshop Planner. No workshop data was changed.');
+  workshopNotify('Set your operator name and role before changing the Workshop Planner. No workshop data was changed.');
   return null;
 }
 
@@ -1050,13 +1090,13 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
     const ambiguous = workshopSharedLegacyAmbiguity(payload);
     if (ambiguous) {
       const result = { ok: false, error: 'legacy_ambiguity_blocked', bookingId: ambiguous.id };
-      window.alert(`${ambiguous.legacyAmbiguityReason} No change was made.`);
+      workshopNotify(`${ambiguous.legacyAmbiguityReason} No change was made.`);
       renderAction();
       return result;
     }
     const actions = window.__workshopSharedActions;
     if (!actions || typeof actions[actionName] !== 'function') {
-      window.alert('Shared workshop mode is connected but this action is not yet available. No change was made.');
+      workshopNotify('Shared workshop mode is connected but this action is not yet available. No change was made.');
       return { ok: false, error: 'action_unavailable' };
     }
     let result;
@@ -1073,10 +1113,10 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
     if (result?.error === 'bus_stage_parts_required') workshopRememberReadinessFailure(result, payload);
     const commandCommitted = result?.ok === true || result?.committed === true;
     if ((!result || result.ok !== true) && !commandCommitted && options.suppressFailureAlert !== true) {
-      window.alert(workshopDescribeSharedActionError(result));
+      workshopNotify(workshopDescribeSharedActionError(result));
     }
     if (result?.ok === true && result.refreshRequired === true && options.suppressFailureAlert !== true) {
-      window.alert('Your change was saved, but the planner could not refresh yet. Refresh the planner before making another change.');
+      workshopNotify('Your change was saved, but the planner could not refresh yet. Refresh the planner before making another change.');
     }
     if (result?.ok === true && result.refreshRequired !== true && /schedule|move|extend|cascade/i.test(actionName) && window.PDC_VEHICLE_HANDOVER) {
       await window.PDC_VEHICLE_HANDOVER.warn(changeStartedAt);
@@ -1321,7 +1361,7 @@ function workshopRunVehiclePlanTransaction(label = 'Workshop live update', vehic
       Object.keys(vehicle).forEach(key => { if (!Object.prototype.hasOwnProperty.call(snapshot, key)) delete vehicle[key]; });
       Object.assign(vehicle, snapshot);
     }
-    window.alert(error.message || String(error));
+    workshopNotify(error.message || String(error));
     return false;
   }
 }
@@ -2852,7 +2892,7 @@ function workshopRequireNoBayConflict(candidate = {}, rows = workshopLoadPlans()
   const vehicle = workshopVehicle(conflict.vehicleKey);
   const identity = vehicle ? (displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'another vehicle') : 'another vehicle';
   const area = `${pmbStageLabel(candidate.stage)} Bay ${candidate.bay}`;
-  window.alert(`${area} already has ${identity} booked during that time. Overlapping workshop bookings are blocked; choose another bay or time.`);
+  workshopNotify(`${area} already has ${identity} booked during that time. Overlapping workshop bookings are blocked; choose another bay or time.`);
   return false;
 }
 
@@ -2877,7 +2917,7 @@ function workshopResolveConflictByNextSlot(candidate = {}, rows = workshopLoadPl
     candidate.assignee || '',
   );
   if (!nextSlot) {
-    window.alert(`${area} already has ${identity} booked during that time. No open sequence slot was found in this bay during the next 260 workdays; choose another bay or a later date.`);
+    workshopNotify(`${area} already has ${identity} booked during that time. No open sequence slot was found in this bay during the next 260 workdays; choose another bay or a later date.`);
     return null;
   }
   const nextStart = workshopDateAtOffset(nextSlot.dateKey, nextSlot.startMinutes);
@@ -3029,7 +3069,7 @@ function workshopNewBookingValidation(entry = {}, now = null) {
 
 function workshopRequireSchedulableCandidate(entry = {}) {
   if (!WORKSHOP_ELIGIBILITY_RUNTIME.workshopIsPlannerStage(normalizePmbStage(entry.stage))) {
-    if (typeof window !== 'undefined' && typeof window.alert === 'function') window.alert('This work type does not have a Workshop Planner. No scheduling change was made.');
+    workshopNotify('This work type does not have a Workshop Planner. No scheduling change was made.');
     return false;
   }
   const validationNow = typeof nowIsoString === 'function' ? parseIsoTimestamp(nowIsoString()) : new Date();
@@ -3046,7 +3086,7 @@ function workshopRequireSchedulableCandidate(entry = {}) {
     outside_work_window: 'The proposed booking interval extends outside regular hours and configured overtime windows.',
     technician_on_leave: 'That technician is on configured leave during the proposed booking interval and cannot receive the assignment.',
   };
-  if (typeof window !== 'undefined' && typeof window.alert === 'function') window.alert(messages[result.error] || 'That booking is not schedulable under the current shared configuration.');
+  workshopNotify(messages[result.error] || 'That booking is not schedulable under the current shared configuration.');
   return false;
 }
 
@@ -3078,7 +3118,7 @@ function workshopRequireAvailableAssignee(entry = {}, rows = workshopLoadPlans()
   if (!conflict) return true;
   const vehicle = workshopVehicle(conflict.vehicleKey);
   const identity = vehicle ? (displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'another vehicle') : 'another vehicle';
-  window.alert(`A technician on this team is already booked on ${identity} at that time. Move one booking or choose an available team.`);
+  workshopNotify(`A technician on this team is already booked on ${identity} at that time. Move one booking or choose an available team.`);
   return false;
 }
 
@@ -3418,9 +3458,9 @@ function workshopRequireEtaSchedule(vehicle = {}, scheduledStartAt = '') {
   const result = workshopEtaScheduleValidation(vehicle, scheduledStartAt);
   if (result.ok) return true;
   if (result.reason === 'missing_eta' || result.reason === 'invalid_eta') {
-    window.alert(`${result.location} vehicles require a valid ETA to Kewdale before they can be booked. Correct the ETA and try again. No booking was created.`);
+    workshopNotify(`${result.location} vehicles require a valid ETA to Kewdale before they can be booked. Correct the ETA and try again. No booking was created.`);
   } else {
-    window.alert(`This ${result.location} vehicle cannot be booked before ETA + 7 days. Earliest permitted booking date: ${result.earliestDateKey}. No booking was created.`);
+    workshopNotify(`This ${result.location} vehicle cannot be booked before ETA + 7 days. Earliest permitted booking date: ${result.earliestDateKey}. No booking was created.`);
   }
   return false;
 }
@@ -4322,7 +4362,7 @@ function workshopNextDayFittingWarningEmailBody(result = {}) {
 function draftWorkshopNextDayFittingWarningEmail() {
   const result = workshopNextDayFittingPartsWarnings(new Date());
   if (!result.warnings.length) {
-    window.alert(`No next-workday Fitting bookings were found with unconfirmed parts for ${result.targetDate.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth' })}.`);
+    workshopNotify(`No next-workday Fitting bookings were found with unconfirmed parts for ${result.targetDate.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth' })}.`, 'info');
     return false;
   }
   const recipient = '';
@@ -4860,16 +4900,16 @@ async function saveWorkshopHelperLabour(event) {
   const localTime = String(data.get('helperWorkedAt') || '');
   const date = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(localTime) ? new Date(localTime + ':00+08:00') : null;
   if (!workshopHelperLabourTechnicians(entry).some(row => row.technicianId === technicianId) || !Number.isInteger(minutes) || minutes < 1 || minutes > 720 || !note || !date || Number.isNaN(date.getTime())) {
-    window.alert('Choose an assigned helper, a valid Perth work time, 1–720 actual minutes and a work note.'); return false;
+    workshopNotify('Choose an assigned helper, a valid Perth work time, 1–720 actual minutes and a work note.'); return false;
   }
   const owner = `${window.PDC_AUTH_CONTEXT?.userId || ''}:${window.PDC_AUTH_CONTEXT?.role || ''}`;
   const intent = JSON.stringify({bookingId,technicianId,workedAt:date.toISOString(),minutes,note});
   const pending = state.helperLabourPending;
   if (pending && (pending.owner !== owner || pending.intent !== intent)) {
-    window.alert('A previous helper-time save is unconfirmed. Refresh and resolve that save before recording different time.'); return false;
+    workshopNotify('A previous helper-time save is unconfirmed. Refresh and resolve that save before recording different time.'); return false;
   }
   if (!pending && String(entry.sharedVersion) !== form.dataset.workshopBookingVersion) {
-    window.alert('This booking changed. Review its recorded helper time before saving again.'); renderWorkshopPlanner(); return false;
+    workshopNotify('This booking changed. Review its recorded helper time before saving again.'); renderWorkshopPlanner(); return false;
   }
   const payload = pending?.payload || {bookingId,expectedVersion:entry.sharedVersion,technicianId,workedAt:date.toISOString(),minutes,note,requestId:workshopNewRequestId()};
   state.helperLabourPending = {owner,intent,payload};
@@ -4914,7 +4954,7 @@ async function saveWorkshopBookingTeam(event) {
   const entry = workshopLoadPlans().find(row => row.sharedBookingId === bookingId);
   if (!entry || entry.stage !== 'BUS_4X4' || !entry.bay || ['completed','deleted','cancelled'].includes(entry.status)
       || String(entry.sharedVersion) !== form.dataset.workshopBookingVersion) {
-    window.alert('This booking changed. Review its current team before saving again.');
+    workshopNotify('This booking changed. Review its current team before saving again.');
     renderWorkshopPlanner(); return false;
   }
   const data = new FormData(form);
@@ -4922,10 +4962,10 @@ async function saveWorkshopBookingTeam(event) {
   const helperTechnicianIds = [...new Set(data.getAll('helperTechnicianIds').map(String))];
   const rosterIds = new Set(workshopTeamRoster().map(row => row.id));
   if (!rosterIds.has(primaryTechnicianId) || helperTechnicianIds.some(id => !rosterIds.has(id))) {
-    window.alert('Choose active technicians for every team role. No team change was sent.'); return false;
+    workshopNotify('Choose active technicians for every team role. No team change was sent.'); return false;
   }
   if (helperTechnicianIds.includes(primaryTechnicianId)) {
-    window.alert('The primary technician is already on this booking. Untick them from Helpers before saving.'); return false;
+    workshopNotify('The primary technician is already on this booking. Untick them from Helpers before saving.'); return false;
   }
   const result = await workshopDispatchSharedAction('setBookingTeam', {
     bookingId, expectedVersion:entry.sharedVersion, primaryTechnicianId, helperTechnicianIds,
@@ -5078,11 +5118,11 @@ function workshopLinkReadinessModalReportHtml(report = {}) {
 
 async function workshopOpenVehicleLinkReadinessReview() {
   if (!workshopSharedModeActive()) {
-    window.alert('Shared vehicle-link readiness is available only while the shared Workshop backend is active.');
+    workshopNotify('Shared vehicle-link readiness is available only while the shared Workshop backend is active.');
     return;
   }
   if (!workshopVehicleLinkCanPersist()) {
-    window.alert('Shared vehicle-link readiness is restricted to operators and administrators.');
+    workshopNotify('Shared vehicle-link readiness is restricted to operators and administrators.');
     return;
   }
   const vehicles = typeof pdcSheetVehicles === 'function' ? pdcSheetVehicles() : [];
@@ -5361,7 +5401,7 @@ function openWorkshopAdminBlockModal() {
   if (!workshopSharedModeActive() || !workshopAdminBlockCanMutate()) return;
   const snapshot = window.__workshopDataService?.getTrustedSnapshot?.();
   if (!snapshot || !Number.isFinite(Number(snapshot.revision))) {
-    window.alert('The current shared workshop schedule is still loading. Try again in a moment.');
+    workshopNotify('The current shared workshop schedule is still loading. Try again in a moment.');
     return;
   }
   const stage = workshopState().stage;
@@ -5400,7 +5440,7 @@ function openWorkshopAdminBlockModal() {
     const form = event.currentTarget;
     const expectedRevision = await workshopCurrentGlobalRevision(snapshot.revision);
     if (!Number.isFinite(Number(expectedRevision))) {
-      window.alert('The shared Workshop revision could not be read. No Admin block was created.');
+      workshopNotify('The shared Workshop revision could not be read. No Admin block was created.');
       return;
     }
     const start = workshopDateAtOffset(form.elements.date.value, Number(form.elements.startMinutes.value));
@@ -5492,7 +5532,7 @@ function workshopReturnedPlanForAction(planId, { explain = false } = {}) {
   const category = state.stage === 'BUS_4X4' ? workshopSelectedBusGroup()?.code || '' : '';
   const plan = workshopReturnedQueuePlans(workshopLoadPlans(), state.stage, category).find(entry => entry.id === planId) || null;
   if (plan && workshopPlanStartedBefore(plan)) {
-    if (explain) window.alert(WORKSHOP_STARTED_BEFORE_MESSAGE);
+    if (explain) workshopNotify(WORKSHOP_STARTED_BEFORE_MESSAGE);
     return null;
   }
   return plan;
@@ -5778,7 +5818,7 @@ function bindWorkshopPlanner(root) {
     const selected = workshopDateFromKey(event.target.value);
     if (!selected) return;
     const coerced = workshopCoerceWorkDate(selected, 1);
-    if (workshopDateKey(coerced) !== event.target.value) window.alert('Workshop boards run Monday to Friday. The date has been moved to the next workday.');
+    if (workshopDateKey(coerced) !== event.target.value) workshopNotify('Workshop boards run Monday to Friday. The date has been moved to the next workday.', 'info');
     const state = workshopState();
     state.date = workshopDateKey(coerced);
     workshopClearSelectedDetail(state);
@@ -6031,7 +6071,7 @@ function bindWorkshopPlanner(root) {
     const currentDate = workshopEntryDate(plan);
     const currentMinutes = workshopMinuteOffset(workshopEntryStart(plan));
     if (bestSlot.bay === Number(plan.bay) && bestSlot.dateKey === currentDate && bestSlot.startMinutes === currentMinutes) {
-      window.alert('This job is already in the earliest open bay/time for its current stage.');
+      workshopNotify('This job is already in the earliest open bay/time for its current stage.', 'info');
       return;
     }
     void moveWorkshopDroppedPlan(plan.id, plan.stage, bestSlot.bay, bestSlot.dateKey, bestSlot.startMinutes);
@@ -6152,21 +6192,21 @@ async function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
     // by this path entirely.
     const bayRef = workshopSharedBayRef(stage, bay);
     if (!bayRef) {
-      window.alert('This bay could not be matched to a shared bay record, so the default technician could not be saved. Reload the page and try again.');
+      workshopNotify('This bay could not be matched to a shared bay record, so the default technician could not be saved. Reload the page and try again.');
       return;
     }
     let technicianId = null;
     if (assignee) {
       const technicianRef = workshopReferenceTechnicianRef(assignee);
       if (!technicianRef) {
-        window.alert(`"${assignee}" could not be matched to an active technician in the shared roster. The bay default was not changed.`);
+        workshopNotify(`"${assignee}" could not be matched to an active technician in the shared roster. The bay default was not changed.`);
         return;
       }
       technicianId = technicianRef.technicianId;
     }
     const service = window.__workshopReferenceDataService;
     if (!service || typeof service.setBayDefaultTechnician !== 'function') {
-      window.alert('The shared reference-data service is not available, so the bay default could not be saved.');
+      workshopNotify('The shared reference-data service is not available, so the bay default could not be saved.');
       return;
     }
     const pendingKey = `${stage}:${Number(bay)}`;
@@ -6190,12 +6230,12 @@ async function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
       });
       if (!result || !result.ok) {
         const message = workshopBayAssignmentError(result || {});
-        if (message && isCurrent()) window.alert(message);
+        if (message && isCurrent()) workshopNotify(message);
         return;
       }
       defaultSaved = true;
       if (result.refreshRequired) {
-        if (isCurrent()) window.alert('The technician assignment was saved, but the latest bay list could not be confirmed. Refresh before assigning more technicians.');
+        if (isCurrent()) workshopNotify('The technician assignment was saved, but the latest bay list could not be confirmed. Refresh before assigning more technicians.');
         return;
       }
       if (!isCurrent() || result.alreadyApplied) return;
@@ -6219,11 +6259,11 @@ async function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
           });
           if (!assignResult || !assignResult.ok) skipped += 1;
         }
-        if (skipped && isCurrent()) window.alert(`${assignee} was saved as the bay default, but ${skipped} overlapping booking${skipped === 1 ? ' was' : 's were'} left unassigned because that mechanic is already booked elsewhere.`);
+        if (skipped && isCurrent()) workshopNotify(`${assignee} was saved as the bay default, but ${skipped} overlapping booking${skipped === 1 ? ' was' : 's were'} left unassigned because that mechanic is already booked elsewhere.`);
         return;
       }
     } catch (_) {
-      if (isCurrent()) window.alert(defaultSaved
+      if (isCurrent()) workshopNotify(defaultSaved
         ? 'The bay default was saved, but updating its unassigned bookings could not be completed. Refresh to check the booking assignments.'
         : 'The bay assignment could not be confirmed. Check the connection, refresh the bay list and try again.');
     } finally {
@@ -6254,7 +6294,7 @@ async function saveWorkshopBayMechanic(stage = '', bay = 0, value = '') {
     return candidate;
   });
   workshopSavePlans(plans);
-  if (skipped) window.alert(`${assignee} was saved as the bay default, but ${skipped} overlapping booking${skipped === 1 ? ' was' : 's were'} left unassigned because that mechanic is already booked elsewhere.`);
+  if (skipped) workshopNotify(`${assignee} was saved as the bay default, but ${skipped} overlapping booking${skipped === 1 ? ' was' : 's were'} left unassigned because that mechanic is already booked elsewhere.`);
   renderWorkshopPlanner();
 }
 
@@ -6306,7 +6346,7 @@ function workshopReturnChoiceModal(entry = {}, vehicle = {}) {
       const choice = overlay.querySelector('[name="workshopReturnChoice"]:checked')?.value || 'move';
       const reason = cleanNavisionText(overlay.querySelector('[data-workshop-return-reason]')?.value || '');
       if (choice === 'stoppage' && !reason) {
-        window.alert('Enter the STOPPAGE reason.');
+        workshopNotify('Enter the STOPPAGE reason.');
         return;
       }
       finish({ choice, reason });
@@ -6323,7 +6363,7 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
   const entry = rows.find(row => row.id === planId);
   if (!entry) return;
   if (entry.status === 'completed') {
-    window.alert('Completed work stays in planner history. It cannot be returned to Unallocated.');
+    workshopNotify('Completed work stays in planner history. It cannot be returned to Unallocated.');
     return;
   }
   const vehicle = workshopVehicle(entry.vehicleKey);
@@ -6350,7 +6390,7 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
     const latestRows = workshopLoadPlans();
     const latestEntry = latestRows.find(row => row.id === entry.id);
     if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
-      window.alert('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
+      workshopNotify('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
       renderWorkshopPlanner();
       return;
     }
@@ -6412,7 +6452,7 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
 function workshopRequirePlannerStage(stage = '') {
   const normalizedStage = normalizePmbStage(stage);
   if (WORKSHOP_ELIGIBILITY_RUNTIME.workshopIsPlannerStage(normalizedStage)) return normalizedStage;
-  window.alert('This work type does not have a Workshop Planner. No scheduling change was made.');
+  workshopNotify('This work type does not have a Workshop Planner. No scheduling change was made.');
   return '';
 }
 
@@ -6503,7 +6543,7 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
           unavailable: 'The shared bay reference data is still loading (or unavailable). Try again in a moment before moving this job to a new bay.',
           unknown: 'This bay could not be matched to a known shared bay record, so a new booking cannot be placed here. Choose a different bay.',
         };
-        window.alert(messages[availability] || 'This bay is not currently available for new bookings.');
+        workshopNotify(messages[availability] || 'This bay is not currently available for new bookings.');
         return false;
       }
     }
@@ -6588,11 +6628,11 @@ function moveWorkshopDroppedPlan(planId = '', stage = '', bay = 0, dateKey = '',
   const entry = workshopLoadPlans().find(row => row.id === planId);
   if (!entry) return Promise.resolve(false);
   if (entry.status === 'completed') {
-    window.alert('Completed workshop jobs stay fixed in history.');
+    workshopNotify('Completed workshop jobs stay fixed in history.');
     return Promise.resolve(false);
   }
   if (workshopPlanStartedBefore(entry)) {
-    window.alert(WORKSHOP_STARTED_BEFORE_MESSAGE);
+    workshopNotify(WORKSHOP_STARTED_BEFORE_MESSAGE);
     return Promise.resolve(false);
   }
   if (entry.status === 'planned') return Promise.resolve(scheduleWorkshopVehicle({ planId, stage, bay, dateKey, startMinutes, preferRequestedTime }));
@@ -6649,20 +6689,20 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   }
   const duration = returnedPlan ? {hours:Number(returnedPlan.operationEstimateHours)||Number(returnedPlan.hours)} : workshopSchedulingDuration(vehicle, normalizedStage);
   if (workshopSharedModeActive() && !duration) {
-    window.alert('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
+    workshopNotify('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
     return;
   }
   const baseHours = duration?.hours || workshopDefaultBookingHours();
   const scheduleCategory = returnedPlan?.workCategory || vehicle.__workshopOutstanding?.workCategory || '';
   const categoryBays = workshopCategoryBays(normalizedStage, scheduleCategory);
   if (!categoryBays.length) {
-    window.alert(`No bay in this view takes ${workshopDepartmentLayout()?.categoryLabel?.(scheduleCategory) || 'this'} work. Open that work category's planner. No booking was created.`);
+    workshopNotify(`No bay in this view takes ${workshopDepartmentLayout()?.categoryLabel?.(scheduleCategory) || 'this'} work. Open that work category's planner. No booking was created.`);
     return;
   }
   const bay = workshopSchedulableBayNumbers(normalizedStage).find(number => categoryBays.includes(number) && workshopBayAllocatedHours(normalizedStage, number, baseHours) > 0) || categoryBays[0];
   const hours = workshopBookingDestinationHours(returnedPlan, normalizedStage, bay, baseHours);
   if (!(hours > 0)) {
-    window.alert('Bay efficiency is still loading. Refresh the planner and try again.');
+    workshopNotify('Bay efficiency is still loading. Refresh the planner and try again.');
     return;
   }
   const authoritativeHours = workshopSharedModeActive() ? hours : 0;
@@ -6744,7 +6784,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     const form = event.currentTarget;
     const selected = workshopDateFromKey(form.elements.date.value);
     if (!selected || !workshopIsWorkday(selected)) {
-      window.alert('Choose a Monday-to-Friday workshop date.');
+      workshopNotify('Choose a Monday-to-Friday workshop date.');
       return;
     }
     const requestedStartMinutes = Number(form.elements.startMinutes.value);
@@ -6804,7 +6844,7 @@ async function extendWorkshopPlan(planId = '', additionalHours = 0) {
   if (!workshopConfirmOtherDepartmentPlans(candidate, latestRows)) return false;
   const latestEntry = latestRows.find(row => row.id === entry.id);
   if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
-    window.alert('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
+    workshopNotify('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
     renderWorkshopPlanner();
     return false;
   }
@@ -6860,7 +6900,7 @@ function workshopConfirmOtherDepartmentPlans(candidate = {}, rows = []) {
     const place = `Bay ${workshopPad(row.bay)}`;
     return `• ${pmbStageLabel(row.stage)} · ${place} · ${whenLabel}`;
   }).join('\n');
-  window.alert(`This vehicle already has an active booking in the requested time window:\n\n${details}\n\nChoose a back-to-back or non-overlapping time. No booking was changed.`);
+  workshopNotify(`This vehicle already has an active booking in the requested time window:\n\n${details}\n\nChoose a back-to-back or non-overlapping time. No booking was changed.`);
   return false;
 }
 
@@ -6878,18 +6918,18 @@ async function workshopScheduleSharedNewBooking({
   if (!WORKSHOP_ELIGIBILITY_RUNTIME.workshopIsPlannerStage(candidateStage)
       || !WORKSHOP_ELIGIBILITY_RUNTIME.workshopIsPlannerStage(requestedStage)
       || candidateStage !== requestedStage) {
-    window.alert('This work type does not have a Workshop Planner. No scheduling change was made.');
+    workshopNotify('This work type does not have a Workshop Planner. No scheduling change was made.');
     return false;
   }
   const assignee = cleanNavisionText(requestedCandidate.assignee || '');
   const technicianRef = assignee ? workshopSelectedTechnicianRef(assignee) : null;
   if (assignee && !technicianRef) {
-    window.alert(`"${assignee}" could not be matched to an active technician. Re-select an active technician or clear the selection. No booking was created.`);
+    workshopNotify(`"${assignee}" could not be matched to an active technician. Re-select an active technician or clear the selection. No booking was created.`);
     return false;
   }
   const technicianId = technicianRef ? String(technicianRef.technicianId || '') : null;
   if (assignee && !technicianId) {
-    window.alert(`"${assignee}" does not have a valid stable technician ID. No booking was created.`);
+    workshopNotify(`"${assignee}" does not have a valid stable technician ID. No booking was created.`);
     return false;
   }
   const candidate = { ...requestedCandidate, assignee, technicianId: technicianId || '' };
@@ -6927,7 +6967,7 @@ async function workshopScheduleSharedNewBooking({
   }
   const saved = !!(result && (result.ok === true || result.committed === true));
   if (managedDispatch) {
-    if (!saved) window.alert(workshopDescribeSharedActionError(result));
+    if (!saved) workshopNotify(workshopDescribeSharedActionError(result));
     if (workshopAdministratorCanMove() && result?.ok === true) workshopRememberAdministratorMove(result);
     try { renderWorkshopPlanner(); } catch (error) { console.error('Workshop planner refresh failed after a scheduling command.', error); }
   }
@@ -6938,7 +6978,7 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
   if (stage === 'BUS_4X4' && workshopDepartmentLayout()?.category(workCategory)) workshopState().busBayGroup=workshopDepartmentLayout().category(workCategory).id;
   const normalizedStage = workshopRequirePlannerStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) {
-    window.alert('This work type does not use a Workshop bay. No booking was created.');
+    workshopNotify('This work type does not use a Workshop bay. No booking was created.');
     return false;
   }
   const service = window.__workshopDataService;
@@ -6948,15 +6988,15 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
     if (typeof service.loadSnapshot === 'function') await service.loadSnapshot('vehicle_detail_schedule_next');
   }
   const returnedPlan = planId ? workshopReturnedPlanForAction(planId) : null;
-  if (planId && !returnedPlan) { window.alert('This returned booking changed. Refresh and try again.'); return false; }
+  if (planId && !returnedPlan) { workshopNotify('This returned booking changed. Refresh and try again.'); return false; }
   const vehicle = workshopVehicle(vehicleId || vehicleKeyValue, normalizedStage);
   if (!vehicle) {
-    window.alert('This vehicle is not present in the authoritative outstanding-work queue for this station. Refresh the Control Board and try again. No booking was created.');
+    workshopNotify('This vehicle is not present in the authoritative outstanding-work queue for this station. Refresh the Control Board and try again. No booking was created.');
     renderWorkshopPlanner();
     return false;
   }
   if (!returnedPlan && workshopSharedModeActive() && vehicle.__workshopOutstanding?.scheduleEnabled !== true) {
-    window.alert(`${workshopOutstandingDisabledReasonLabel(vehicle.__workshopOutstanding?.disabledReason)}. No booking was created.`);
+    workshopNotify(`${workshopOutstandingDisabledReasonLabel(vehicle.__workshopOutstanding?.disabledReason)}. No booking was created.`);
     renderWorkshopPlanner();
     return false;
   }
@@ -6965,7 +7005,7 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
   // inputs), so it must never override adjusted server lines.
   const duration = returnedPlan ? {hours:Number(returnedPlan.operationEstimateHours)||Number(returnedPlan.hours)} : workshopSchedulingDuration(vehicle, normalizedStage);
   if (workshopSharedModeActive() && !duration) {
-    window.alert('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
+    workshopNotify('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
     return false;
   }
   const authoritativeStageHours = duration?.hours || workshopCalculatedStageHours(vehicle, normalizedStage);
@@ -6976,7 +7016,7 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
     ? (workshopExactDurationHours(rawEstimate) || workshopClampDurationHours(rawEstimate))
     : workshopClampDurationHours(rawEstimate);
   if (workshopSharedModeActive() && !workshopSchedulableBayNumbers(normalizedStage).some(bay => workshopBayAllocatedHours(normalizedStage, bay, estimate) > 0)) {
-    window.alert('Bay efficiency is still loading or no active bay is available. Refresh the planner and try again.');
+    workshopNotify('Bay efficiency is still loading or no active bay is available. Refresh the planner and try again.');
     return false;
   }
   const etaConstraint = workshopVehicleEtaConstraint(vehicle);
@@ -6990,7 +7030,7 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
     try {
       if (!ref?.vehicleId || !window.PDC_VEHICLE_HANDOVER) throw new Error('Cross-station booking checks are unavailable. Refresh and try again.');
       vehicleWindows = (await window.PDC_VEHICLE_HANDOVER.read(ref.vehicleId)).windows;
-    } catch (error) { window.alert(error.message); return false; }
+    } catch (error) { workshopNotify(error.message); return false; }
   }
   const nextOperationalMoment = workshopNormalizeStartDate(new Date());
   const today = workshopDateKey(nextOperationalMoment);
@@ -7015,7 +7055,7 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
     slot = workshopBestStageSlot(normalizedStage, earliestDate, estimate, workshopLoadPlans().filter(row => row.id !== planId), notBeforeMinutes, '', vehicleWindows, pmbBayMechanic(vehicle) || '', null, returnedPlan, vehicle);
   }
   if (!slot) {
-    window.alert('No active bay has an available operational slot in the searched planning horizon. No booking was created.');
+    workshopNotify('No active bay has an available operational slot in the searched planning horizon. No booking was created.');
     return false;
   }
   const state = workshopState();
@@ -7042,21 +7082,21 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
 async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false, cascadeNewBooking = true } = {}) {
   const rows = workshopLoadPlans();
   const existing = rows.find(entry => entry.id === planId) || rows.find(entry => entry.id === workshopPlanId(vehicleKeyValue, stage));
-  if (planId && !existing) { window.alert('This booking changed. Refresh and try again.'); return false; }
+  if (planId && !existing) { workshopNotify('This booking changed. Refresh and try again.'); return false; }
   const vehicle = workshopVehicle(existing?.vehicleKey || vehicleKeyValue, stage);
   if (!vehicle) return false;
   if (!existing && workshopSharedModeActive() && vehicle.__workshopOutstanding?.scheduleEnabled !== true) {
-    window.alert(`${workshopOutstandingDisabledReasonLabel(vehicle.__workshopOutstanding?.disabledReason)}. No booking was created.`);
+    workshopNotify(`${workshopOutstandingDisabledReasonLabel(vehicle.__workshopOutstanding?.disabledReason)}. No booking was created.`);
     renderWorkshopPlanner();
     return false;
   }
   if (existing && ['started', 'stoppage', 'completed'].includes(existing.status)) {
-    window.alert('Started, stopped and completed jobs stay fixed on the planner. Resolve the live job before rescheduling it.');
+    workshopNotify('Started, stopped and completed jobs stay fixed on the planner. Resolve the live job before rescheduling it.');
     return false;
   }
   const normalizedStage = workshopRequirePlannerStage(stage);
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage) || Number(bay) < 1 || Number(bay) > workshopStageBayCount(normalizedStage)) {
-    window.alert('Choose a valid workshop bay.');
+    workshopNotify('Choose a valid workshop bay.');
     return false;
   }
   // Stage 2A: block scheduling NEW work into a bay the shared reference
@@ -7079,7 +7119,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
         unavailable: 'The shared bay reference data is still loading (or unavailable). Try again in a moment before scheduling into this bay.',
         unknown: 'This bay could not be matched to a known shared bay record, so a new booking cannot be placed here. Choose a different bay.',
       };
-      window.alert(messages[availability] || 'This bay is not currently available for new bookings.');
+      workshopNotify(messages[availability] || 'This bay is not currently available for new bookings.');
       return false;
     }
   }
@@ -7089,7 +7129,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     ? { hours: Number(existing.operationEstimateHours) }
     : workshopSchedulingDuration(vehicle, normalizedStage);
   if (workshopSharedModeActive() && !duration) {
-    window.alert('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
+    workshopNotify('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
     return false;
   }
   const requestedHours = Number(hoursValue);
@@ -7100,7 +7140,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     ? workshopBookingDestinationHours(existing, normalizedStage, bay, duration.hours)
     : 0;
   if (workshopSharedModeActive() && !(canonicalSharedHours > 0)) {
-    window.alert('Bay efficiency is still loading. Refresh the planner and try again. No booking was changed.');
+    workshopNotify('Bay efficiency is still loading. Refresh the planner and try again. No booking was changed.');
     return false;
   }
   const hours = canonicalSharedHours || workshopClampDurationHours(defaultHours);
@@ -7176,7 +7216,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   const latestRows = workshopLoadPlans();
   const latestExisting = latestRows.find(row => row.id === candidate.id);
   if ((existing && (!latestExisting || latestExisting.updatedAt !== existing.updatedAt)) || (!existing && latestExisting)) {
-    window.alert('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
+    workshopNotify('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
     renderWorkshopPlanner();
     return false;
   }
@@ -7212,19 +7252,19 @@ async function saveWorkshopDetailForm(event) {
   const data = new FormData(form);
   const start = workshopParsePerthLocalInput(String(data.get('startAt') || entry.startAt || ''));
   if (Number.isNaN(start.getTime()) || !workshopIsConfiguredWorkingDay(start)) {
-    window.alert('Choose a date in the configured workshop working week.');
+    workshopNotify('Choose a date in the configured workshop working week.');
     return;
   }
   const normalizedStart = new Date(start);
   const requestedHours = Number(data.get('hours') || entry.hours || workshopDefaultBookingHours());
   if (!Number.isFinite(requestedHours) || requestedHours <= 0) {
-    window.alert('Enter planned hours greater than zero. There is no maximum workshop duration.');
+    workshopNotify('Enter planned hours greater than zero. There is no maximum workshop duration.');
     return;
   }
   const nextAssignee = cleanNavisionText(data.get('assignee') || '');
   const exactRequestedHours = workshopExactDurationHours(requestedHours);
   if (!exactRequestedHours) {
-    window.alert('Enter a positive duration of at least one whole operational minute.');
+    workshopNotify('Enter a positive duration of at least one whole operational minute.');
     return;
   }
   const requestedDetailCandidate = {
@@ -7244,7 +7284,7 @@ async function saveWorkshopDetailForm(event) {
       : workshopExactDurationMinutesFromHours(entry.hours);
     const extendsDuration = nextDurationMinutes > currentDurationMinutes;
     if (extendsDuration && Date.parse(nextStartAt) !== Date.parse(entry.startAt)) {
-      window.alert('To preserve an atomic bay cascade, save the new start time first, then extend the duration.');
+      workshopNotify('To preserve an atomic bay cascade, save the new start time first, then extend the duration.');
       return;
     }
     const shiftMinutes = extendsDuration ? nextDurationMinutes - currentDurationMinutes : 0;
@@ -7275,7 +7315,7 @@ async function saveWorkshopDetailForm(event) {
         ? (workshopReferenceTechnicianRef(nextAssignee) || workshopSharedTechnicianRef(nextAssignee))
         : null;
       if (nextAssignee && !technicianRef) {
-        window.alert(`"${nextAssignee}" could not be matched to an active technician. The booking was moved, but the technician assignment was not changed. Re-select the technician and save again.`);
+        workshopNotify(`"${nextAssignee}" could not be matched to an active technician. The booking was moved, but the technician assignment was not changed. Re-select the technician and save again.`);
       } else {
         await workshopDispatchSharedAction('assignBookingTechnician', {
           bookingId: entry.sharedBookingId || entry.id,
@@ -7296,7 +7336,7 @@ async function saveWorkshopDetailForm(event) {
   const latestRows = workshopLoadPlans();
   const latestEntry = latestRows.find(row => row.id === entry.id);
   if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
-    window.alert('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
+    workshopNotify('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
     renderWorkshopPlanner();
     return;
   }
@@ -7368,7 +7408,7 @@ async function startWorkshopPlan(planId = '') {
       workshopStartFeedback={stage:entry.stage,message:result?.ok===true
         ? result.refreshRequired===true?'The job start was confirmed, but the planner could not refresh yet. Refresh the planner before making another change.':result.already_started?'This job is already running on the planner.':`Job started.${shifted===null?'':shifted===0?' No other bookings needed to move.':` ${shifted} affected booking${shifted===1?'':'s'} moved later.`}`
         : workshopDescribeStartActionError(result)};
-      if(result?.ok!==true) window.alert(workshopStartFeedback.message);
+      if(result?.ok!==true) workshopNotify(workshopStartFeedback.message);
       return result;
     } finally {
       workshopEndBookingAction(bookingActionToken);
@@ -7378,7 +7418,7 @@ async function startWorkshopPlan(planId = '') {
   }
   const alreadyStarted = workshopStartedBayConflict(entry, rows);
   if (alreadyStarted) {
-    window.alert(`${pmbStageLabel(entry.stage)} Bay ${entry.bay} already has a started job. Stop or complete that job before starting another in this bay.`);
+    workshopNotify(`${pmbStageLabel(entry.stage)} Bay ${entry.bay} already has a started job. Stop or complete that job before starting another in this bay.`);
     return;
   }
   if (!workshopRequireOperatorProfile()) return;
@@ -7448,11 +7488,11 @@ async function completeWorkshopPlan(planId = '') {
   }
   if (!workshopRequireOperatorProfile()) return;
   if (!['started', 'stoppage'].includes(entry.status)) {
-    window.alert('Use “Start job” first so the workshop start time and salesperson update are recorded.');
+    workshopNotify('Use “Start job” first so the workshop start time and salesperson update are recorded.');
     return;
   }
   if (Number(pmbBayNumber(vehicle, entry.stage)) !== Number(entry.bay)) {
-    window.alert('Use “Start in bay” first. This keeps the live physical-bay record accurate before work is completed.');
+    workshopNotify('Use “Start in bay” first. This keeps the live physical-bay record accurate before work is completed.');
     return;
   }
   const completedMoment = workshopLatestWorkMoment(new Date());
@@ -7501,7 +7541,7 @@ function workshopStoppageReasonModal(entry = {}, vehicle = {}) {
     overlay.querySelector('[data-workshop-stop-apply]').addEventListener('click', () => {
       const reason = cleanNavisionText(overlay.querySelector('[data-workshop-stop-reason]')?.value || '');
       if (!reason) {
-        window.alert('Enter the STOPPAGE reason.');
+        workshopNotify('Enter the STOPPAGE reason.');
         return;
       }
       finish(reason);
@@ -7540,7 +7580,7 @@ function workshopOverrideReasonModal() {
     overlay.querySelector('[data-workshop-override-apply]').addEventListener('click', () => {
       const reason = cleanNavisionText(overlay.querySelector('[data-workshop-override-reason]')?.value || '');
       if (!reason) {
-        window.alert('Enter the override reason.');
+        workshopNotify('Enter the override reason.');
         return;
       }
       finish(reason);
@@ -7559,7 +7599,7 @@ async function stopWorkshopPlan(planId = '') {
   if (!entry || !vehicle) return;
   if (workshopSharedModeActive()) {
     if (entry.status !== 'started') {
-      window.alert('Start the job before recording a workshop STOPPAGE.');
+      workshopNotify('Start the job before recording a workshop STOPPAGE.');
       return;
     }
     const bookingActionToken = workshopBeginBookingAction(entry.sharedBookingId || entry.id, 'stopWork');
@@ -7577,7 +7617,7 @@ async function stopWorkshopPlan(planId = '') {
   }
   if (!workshopRequireOperatorProfile()) return;
   if (entry.status !== 'started') {
-    window.alert('Start the job before recording a workshop STOPPAGE.');
+    workshopNotify('Start the job before recording a workshop STOPPAGE.');
     return;
   }
   const reason = await workshopStoppageReasonModal(entry, vehicle);
@@ -7747,7 +7787,7 @@ function startWorkshopResize(handle, event) {
     const latestRows = workshopLoadPlans();
     const latestEntry = latestRows.find(row => row.id === entry.id);
     if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
-      window.alert('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
+      workshopNotify('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
       renderWorkshopPlanner();
       return;
     }
@@ -7858,7 +7898,7 @@ async function moveWorkshopWeeklyPlan(planId = '', stage = '', bay = 0, dateKey 
   const latestRows = workshopLoadPlans();
   const latestEntry = latestRows.find(row => row.id === entry.id);
   if (!latestEntry || latestEntry.updatedAt !== entry.updatedAt) {
-    window.alert('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
+    workshopNotify('This workshop plan changed in another tab. The latest plan has been reloaded; please try again.');
     openWorkshopWeeklyView(stage, bay, weekKey || dateKey);
     return;
   }
@@ -8136,13 +8176,13 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
     const requestedHours = Number(data.get('estimated_hours'));
     const requestedMinutes = Math.round(requestedHours * 60);
     if (!Number.isFinite(requestedHours) || requestedMinutes < 1) {
-      window.alert('Estimated time must be at least 1 minute. No workshop time was changed.');
+      workshopNotify('Estimated time must be at least 1 minute. No workshop time was changed.');
       return;
     }
     const nextHours = workshopSharedModeActive() ? requestedMinutes / 60 : workshopClampDurationHours(requestedHours);
     if (workshopSharedModeActive()) {
       if (!currentPlan) {
-        window.alert('This booking could not be identified uniquely, so its estimated time was not changed. Reload the planner and open the job again.');
+        workshopNotify('This booking could not be identified uniquely, so its estimated time was not changed. Reload the planner and open the job again.');
         return;
       }
       const result = await workshopDispatchSharedAction('setStageEstimatedMinutes', workshopStageEstimateSharedPayload(vehicle, currentPlan, currentStage, requestedMinutes));
@@ -8169,7 +8209,7 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
     });
     const manualAllocation = workshopManualDurationAllocation(nextHours, stageTotals[currentStage] || 0);
     if (!manualAllocation) {
-      window.alert(`Estimated time cannot be less than the ${Number(stageTotals[currentStage] || 0)} imported hours allocated to this bay. No workshop time was changed.`);
+      workshopNotify(`Estimated time cannot be less than the ${Number(stageTotals[currentStage] || 0)} imported hours allocated to this bay. No workshop time was changed.`);
       return;
     }
     additionalMap[currentStage] = manualAllocation.additional;

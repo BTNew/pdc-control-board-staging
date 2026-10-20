@@ -8,7 +8,7 @@ function fixture({shared=true}={}) {
     {id:'cached-live',vehicleKey:'vehicle-b',stage:'FITTING',bay:1,status:'started'}];
   const calls=[],alerts=[],renders=[];let release,reply={ok:true},localChecks=0;
   const pending=new Promise(resolve=>release=resolve);
-  const c={Set,window:{alert:message=>alerts.push(message)},escapeHtml:String,
+  const c={Set,workshopNotify: message => alerts.push(message), window: {alert() { throw new Error('F20: planner must not call window.alert'); },},escapeHtml:String,
     workshopLoadPlans:()=>rows,workshopVehicle:()=>({stock:'TEST-STOCK'}),
     workshopSharedModeActive:()=>shared,workshopStartedBayConflict:()=>{localChecks++;return rows[2];},
     pmbStageLabel:value=>value,workshopAdministratorCanMove:()=>false,

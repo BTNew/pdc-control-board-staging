@@ -9,7 +9,7 @@ let rows=[plan],trusted=true,submitted=null,slotArgs=null,submitHandler=null,dia
 const elements={bay:{value:'1'},date:{value:'2026-10-19'},startMinutes:{value:'60'},hours:{value:'88.32'},assignee:{value:''}};
 const form={elements,addEventListener:(event,fn)=>{if(event==='submit')submitHandler=fn;}};
 const overlay={setAttribute(){},querySelector:s=>s==='[data-workshop-schedule-form]'?form:{addEventListener(){},focus(){}},querySelectorAll:()=>[],addEventListener(){},remove(){}};
-const c={console,Date,WORKSHOP_STAGE_SEQUENCE:['BUS_4X4'],window:{alert(){},PDC_VEHICLE_HANDOVER:{read:async()=>({windows:[]})},__workshopDataService:{getTrustedSnapshot:()=>trusted?{}:null,setScope:async()=>{},loadSnapshot:async()=>{}}},
+const c={console,Date,WORKSHOP_STAGE_SEQUENCE:['BUS_4X4'],workshopNotify(){},window:{alert(){throw new Error('F20: planner must not call window.alert');},PDC_VEHICLE_HANDOVER:{read:async()=>({windows:[]})},__workshopDataService:{getTrustedSnapshot:()=>trusted?{}:null,setScope:async()=>{},loadSnapshot:async()=>{}}},
  document:{createElement:()=>{dialogCount++;return overlay;},querySelector:()=>null,body:{appendChild(){},classList:{add(){},remove(){}}}},
  workshopState:()=>state,workshopSelectedBusGroup:()=>({code:'BUS_MECHANICAL',bays:[1,2,3,4]}),workshopLoadPlans:()=>rows,
  workshopSharedModeActive:()=>true,workshopVehicle:()=>vehicle,workshopRequirePlannerStage:x=>x,normalizePmbStage:x=>x,workshopDepartmentLayout:()=>({category:()=>null}),
