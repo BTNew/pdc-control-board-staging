@@ -95,7 +95,8 @@ const approvedRootImportPatch = Object.freeze({
   // r408: runtime errors are toasts, not stacking start-up banners (F23); admin list
   // requests surface a failed fetch (F24); index.html adds r408=2026.10.21.01.
   // r409: the other 210 alert() calls are pdcNotify toasts (F25); index.html adds r409=2026.10.21.01.
-  "app.js": "80fed5031fab69570f8a3c484c777ec6fba608f1a1465e6b6c9d4332995896f0",
+  // r414: the QC page reads the stored completion photo back (F30); index.html adds qc-photo-readback=2026.10.21.01.
+  "app.js": "0ae264f8f25a6208fbf708b280411939bd27e6578e0f455d5c2d0766b9e6e48b",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -115,10 +116,12 @@ const approvedRootImportPatch = Object.freeze({
   // r405: app.js adds pit-text=2026.10.20.01.
   // r408: app.js and pdc-auth.js add r408=2026.10.21.01.
   // r409: app.js adds r409=2026.10.21.01.
-  "index.html": "e0edbe0537dc645457e1689d2b35a545ee3478249a309e2e67329e445f56b5f7",
+  // r414: qc-photo-readback=2026.10.21.01 on app.js and pdc-email-vehicle-location-service.js.
+  "index.html": "76a7945acb88b78f36676c175a3bfb774a4cab741b4d3ff67a351d7757f5b02e",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
-  "pdc-email-vehicle-location-service.js": "91558fdb4e34d5707d53e91aa94b1e18097630a749bf0bba571af4eb83ba3ceb",
+  // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
+  "pdc-email-vehicle-location-service.js": "0c7a2678c17ca384fcd01f5f35c01c248c4d62d59762dbfb96b6780498e4860e",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
   "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",

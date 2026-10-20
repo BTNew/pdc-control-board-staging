@@ -139,5 +139,6 @@ test('F25: a converted refusal reaches the toast (confirmRftGateOverride)', () =
 
 test('r409 cache token: app.js is re-fetched', () => {
   const html = fs.readFileSync('index.html', 'utf8');
-  assert.match(html, /src="app\.js\?[^"]*&amp;r408=2026\.10\.21\.01&amp;r409=2026\.10\.21\.01"/);
+  // Later releases may append their own token (r414: qc-photo-readback).
+  assert.match(html, /src="app\.js\?[^"]*&amp;r408=2026\.10\.21\.01&amp;r409=2026\.10\.21\.01(&amp;[^"]*)?"/);
 });
