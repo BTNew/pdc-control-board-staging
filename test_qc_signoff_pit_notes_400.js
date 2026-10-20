@@ -22,14 +22,17 @@ const ctx = {
   groupBy: (items, fn) => items.reduce((g, item) => ((g[fn(item)] ||= []).push(item), g), {}),
   escapeHtml: String, pmbStageLabel: v => v, qcPageVehicleKey: () => '13017935',
   qcPageOperationPending: new Map(), qcPagePendingKey: (k, l) => `${k}::${l}`,
+  // r401: Pit ticks (own store). Handler install is a no-op here.
+  pdcPitTickState: new Map(), pdcPitTickPending: new Set(), pdcPitTickErrors: new Map(), pdcPitTickHandlerInstalled: true,
 };
 vm.createContext(ctx);
-vm.runInContext(['qcPageOperationLineIsDeferredPit', 'qcPageOperationLines', 'qcPageAllOperationLinesComplete', 'qcPageOperationHoursLabel', 'qcPageStageLabel', 'qcPageWorkItemsHtml'].map(extract).join('\n')
+vm.runInContext(['pdcPitTickKey', 'pdcPitTickFor', 'pdcPitTickCaption', 'formatPdcPitTickTime', 'pdcPitTickCheckboxHtml', 'installPdcPitTickHandler', 'qcPageOperationLineIsDeferredPit', 'qcPageOperationLines', 'qcPageAllOperationLinesComplete', 'qcPageOperationHoursLabel', 'qcPageStageLabel', 'qcPageWorkItemsHtml'].map(extract).join('\n')
   + '\nthis.lines=qcPageOperationLines;this.done=qcPageAllOperationLinesComplete;this.html=qcPageWorkItemsHtml;', ctx);
 
 const id = n => `source:0000000${n}-0000-4000-8000-00000000000${n}`;
 const line = (n, stageCode, description, completed, hours = 1) => ({ lineIdentity: id(n), sourceKind: 'authenticated', sourceLineId: id(n).slice(7), operationNo: String(n), stageCode, description, estimatedHours: hours, completed, active: true, lineVersion: 0 });
 const key208 = {
+  __emailVehicleId: 'c0f52efe-1f1e-4800-a842-04a937bd3866',
   pdcQcOperationLinesProjectionPresent: true, pdcEmailOperationLines: [],
   pdcQcOperationLines: [line(1, 'BUS_4X4', 'LED Lightbar - For Bull Bar', true), line(2, 'PIT_INSPECTION', 'PD018-B7100BA5 PIT AND WEIGH', false, 0.17), line(3, 'JOB_CARD_NOTES', 'PERTH DELIVERY', false, 0)],
 };
@@ -42,12 +45,15 @@ test('a 208-shaped vehicle is ready to sign off once the workshop work is ticked
   const open = { ...key208, pdcQcOperationLines: key208.pdcQcOperationLines.map((l, i) => i === 0 ? { ...l, completed: false } : l) };
   assert.strictEqual(ctx.done(open), false, 'real work still blocks sign-off');
 });
-test('Pit and notes show as information with no checkbox', () => {
+test('notes show as information with no checkbox; Pit has an optional tick (r401)', () => {
   const html = ctx.html(key208);
-  assert.match(html, /Not ticked in QC/);
-  assert.match(html, /PIT AND WEIGH[\s\S]*external Department of Transport, after QC/);
+  assert.match(html, /Not required for QC/);
+  assert.match(html, /PIT AND WEIGH[\s\S]*optional, any department can tick · never blocks QC or RFT/);
   assert.match(html, /PERTH DELIVERY[\s\S]*information only/);
-  assert.strictEqual((html.match(/type="checkbox"/g) || []).length, 1);
+  // One QC checklist box (the workshop line) plus one optional Pit tick; notes get none.
+  assert.strictEqual((html.match(/type="checkbox"/g) || []).length, 2);
+  assert.strictEqual((html.match(/data-qc-operation-check=/g) || []).length, 1);
+  assert.strictEqual((html.match(/data-pit-tick-line="source:00000002-/g) || []).length, 1);
 });
 test('server migration uses the same rule and pins it', () => {
   const sql = fs.readFileSync('supabase/migrations/20261020114348_r400_qc_pit_notes_not_checkable.sql', 'utf8');

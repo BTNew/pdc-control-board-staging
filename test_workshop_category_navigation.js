@@ -202,7 +202,9 @@ test('Pit renderer distinguishes loading, failed, incomplete and confirmed-empty
     window: { PDC_WORKSHOP_DEPARTMENTS: layout }, $: () => host, $$: () => [button], escapeHtml: esc,
     vehicleLocationBoardRows: () => vehicles, displayStockNumber: row => row.stock, vehicleKey: row => row.stock,
     vehicleCustomerName: () => 'Fixture', displayVehicle: () => 'Bus', vehicleJobcardNumber: () => 'JOB',
-    vehiclePdcLocation: () => 'PIT', openVehicleModal: stock => { clicked = stock; }, renderBackEndData() {} };
+    vehiclePdcLocation: () => 'PIT', openVehicleModal: stock => { clicked = stock; }, renderBackEndData() {},
+    // r401: optional Pit tick column (rendered by app.js helpers, stubbed here).
+    pdcPitTickCheckboxHtml: () => '<input type="checkbox" data-pit-tick-line="x" />', pdcPitTickFor: () => null };
   vm.createContext(context);
   vm.runInContext(section(appSource, 'function renderBusPitInspections()', 'function subletRows()'), context);
   vm.runInContext(section(appSource, 'function renderSharedNavisionVisibilityState()', 'function clearSharedNavisionVisibilityReconnectTimer()'), context);

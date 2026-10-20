@@ -19,6 +19,9 @@ const PDC_VEHICLE_HISTORY_RPC = 'get_pdc_vehicle_provenance_history';
 const PDC_SALES_PREPARATION_UPDATE_RPC = 'update_pdc_vehicle_sales_preparation';
 const PDC_ACCEPTANCE_VEHICLE_CREATE_RPC = 'create_pdc_acceptance_vehicle_375';
 const PDC_QC_OPERATION_COMPLETION_RPC = 'set_pdc_qc_operation_completion_379';
+// r401: Pit and weigh is optional and never blocks anything; any tick role can tick it.
+const PDC_PIT_LINE_TICK_RPC = 'set_pdc_pit_line_tick_401';
+const PDC_PIT_LINE_TICKS_READ_RPC = 'get_pdc_pit_line_ticks_401';
 const PDC_QC_PHOTO_BUCKET = 'pdc-qc-evidence-staging';
 const PDC_QC_PHOTO_RECEIPT_RPC = 'record_pdc_qc_photo_evidence_399';
 const PDC_QC_FINALIZATION_RPC = 'finalize_pdc_qc_to_rft_399';
@@ -690,6 +693,31 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return { ok: true, code: body.code || 'qc_operation_completion_saved', data };
     } catch (_error) { return { ok: false, code: 'qc_operation_completion_unavailable', data: null }; }
   }
+  async function setPitLineTick(vehicleId = '', lineIdentity = '', expectedVersion = 0, ticked = false, idempotencyKey = '') {
+    const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    try {
+      const response = await request(`${url}/rest/v1/rpc/${PDC_PIT_LINE_TICK_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_vehicle_id: String(vehicleId || ''), p_line_identity: String(lineIdentity || ''), p_expected_version: Number(expectedVersion) || 0,
+          p_ticked: ticked === true, p_idempotency_key: String(idempotencyKey || crypto.randomUUID()) }) });
+      const body = await response.json().catch(() => null); const data = body?.data || body;
+      if (!response.ok || !body || body.ok !== true || !data?.receipt_id || String(data.vehicle_id || '') !== String(vehicleId || '')
+          || String(data.tick?.line_identity || '') !== String(lineIdentity || '') || data.tick?.ticked !== (ticked === true)
+          || Number(data.tick?.version || 0) < 1 || data.blocks_nothing !== true)
+        return { ok: false, code: body?.code || body?.error || body?.message || 'pit_line_tick_receipt_invalid', data: null };
+      return { ok: true, code: body.code || 'pit_line_tick_saved', data };
+    } catch (_error) { return { ok: false, code: 'pit_line_tick_unavailable', data: null }; }
+  }
+  async function readPitLineTicks(vehicleIds = null) {
+    const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
+    try {
+      const ids = Array.isArray(vehicleIds) ? vehicleIds.map(id => String(id || '')).filter(Boolean) : null;
+      const response = await request(`${url}/rest/v1/rpc/${PDC_PIT_LINE_TICKS_READ_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_vehicle_ids: ids }) });
+      const body = await response.json().catch(() => null); const data = body?.data || body;
+      if (!response.ok || !body || body.ok !== true || !Array.isArray(data?.ticks)) return { ok: false, code: body?.code || body?.error || 'pit_line_ticks_unavailable', data: null };
+      return { ok: true, code: 'pit_line_ticks', data: { ticks: data.ticks } };
+    } catch (_error) { return { ok: false, code: 'pit_line_ticks_unavailable', data: null }; }
+  }
   async function rejectQcVehicleToPmb(vehicleId = '', stockNumber = '', expectedVersion = 0, reason = '', idempotencyKey = '') {
     const token = getAccessToken(); if (!token) return { ok: false, code: 'not_authenticated', data: null };
     try {
@@ -1012,8 +1040,8 @@ function createPdcEmailVehicleLocationService(options = {}) {
       return subscription?.unsubscribe?.();
     } };
   }
-  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, readSubletAuditLedgers, saveVehicleWorkshopLineHoursBatch, updateSublet, createSubletBooking, updateSubletBooking, updateSubletBookingProvider, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport, finalizeQcToRft700, bookRftTransport700, collectRftTransport700, bookRftTransport734, collectRftTransport734, setRftConfirmation736, bookRftTransport739, readRftBookingContext739, readRftTransportDraft739, readRftTransportEvidence734, createAcceptanceVehicle, setQcOperationCompletion, rejectQcVehicleToPmb, uploadQcPhotoEvidence, finalizeQcToRft, finalizeQcRetest, subscribe };
+  return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, readSubletAuditLedgers, saveVehicleWorkshopLineHoursBatch, updateSublet, createSubletBooking, updateSubletBooking, updateSubletBookingProvider, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport, finalizeQcToRft700, bookRftTransport700, collectRftTransport700, bookRftTransport734, collectRftTransport734, setRftConfirmation736, bookRftTransport739, readRftBookingContext739, readRftTransportDraft739, readRftTransportEvidence734, createAcceptanceVehicle, setQcOperationCompletion, setPitLineTick, readPitLineTicks, rejectQcVehicleToPmb, uploadQcPhotoEvidence, finalizeQcToRft, finalizeQcRetest, subscribe };
  }
-const pdcEmailVehicleLocationExported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_AUDIT_READ_RPC, PDC_WORKSHOP_HOURS_BATCH_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_RFT_CONFIRMATION_RPC, PDC_RFT_TRANSPORT_DRAFT_BOOK_RPC, PDC_RFT_TRANSPORT_DRAFT_CONTEXT_RPC, PDC_RFT_TRANSPORT_DRAFT_READ_RPC, PDC_FINAL_QC_TO_RFT_RPC, PDC_FINAL_RFT_BOOK_RPC, PDC_FINAL_RFT_COLLECT_RPC, PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, PDC_QC_RETEST_PHOTO_RPC, PDC_QC_RETEST_FINALIZATION_RPC, canonicalWorkKey, mapLifecycleHistory, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+const pdcEmailVehicleLocationExported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_AUDIT_READ_RPC, PDC_WORKSHOP_HOURS_BATCH_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_RFT_CONFIRMATION_RPC, PDC_RFT_TRANSPORT_DRAFT_BOOK_RPC, PDC_RFT_TRANSPORT_DRAFT_CONTEXT_RPC, PDC_RFT_TRANSPORT_DRAFT_READ_RPC, PDC_FINAL_QC_TO_RFT_RPC, PDC_FINAL_RFT_BOOK_RPC, PDC_FINAL_RFT_COLLECT_RPC, PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_PIT_LINE_TICK_RPC, PDC_PIT_LINE_TICKS_READ_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, PDC_QC_RETEST_PHOTO_RPC, PDC_QC_RETEST_FINALIZATION_RPC, canonicalWorkKey, mapLifecycleHistory, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = pdcEmailVehicleLocationExported;
 if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = pdcEmailVehicleLocationExported;
