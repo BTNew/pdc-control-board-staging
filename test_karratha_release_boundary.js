@@ -74,7 +74,9 @@ const approvedRootImportPatch = Object.freeze({
   "docs/bus4x4-user-guide.html": "0a56823214fdd0e5ba0f7601671a92678d87231f07052937eaf09cdf29773b0a",
   "canonical-entry.js": "eeea68b46e644d88dd986ff81fe50ac5e350706141048d554da1c2ef8639c70c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
-  "pdc-fitters.js": "2176b29c4eb764cd27e474d940578f79ed7ed9ff5fd24c664368fe34afcdde4e",
+  // Coaster and HiAce conversions use the ordinary bay checkbox. Department
+  // 135 keeps the frozen fitter script.
+  "pdc-fitters.js": "93b0f4804117fef3a78319d923136949d3551e41f07aa1e1f09c19cc8256ead4",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -91,7 +93,8 @@ const approvedRootImportPatch = Object.freeze({
   // upload result that lists held Delivered - At Dealer rows.
   // Source app.js stays the pin above. The Pages artifact minifies that source.
   // Department 135's pages stay frozen.
-  "index.html": "100c4c06238916da51c48b4df131fb8429fe4dedfd6231cb00c645955126ad80",
+  // pdc-fitters.js adds conversion-tick=2026.10.20.01.
+  "index.html": "4e58bd3a08c1c233ad4092f9ca35505ec25bbdb09a8b5a848f4cf45d97617cff",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   "pdc-email-vehicle-location-service.js": "f4d601298e203d5bf6805cdd8d73862616b1699f79dd9d1f37eee355ff9df7eb",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",

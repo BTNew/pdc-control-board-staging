@@ -128,14 +128,19 @@ BEGIN
  d:=public.get_fitter_job(tech,b); l:=d->'lines'->0;
  PERFORM pg_temp.ou_assert(l#>>'{conversion,id}'='hiace_commuter','Live fitter line has child template',l);
  PERFORM pg_temp.ou_assert((l#>>'{conversion,remaining_minutes}')::numeric=2280 AND l#>>'{conversion,risk}'='Progress update required','Initial remaining includes pre-assembly; progress unknown',l);
- r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'line','source:'||op,true,'skip children');
- PERFORM pg_temp.ou_assert(r->>'error'='conversion_sections_required','Parent checkbox cannot bypass sections');
  caught:=false;
  BEGIN UPDATE public.workshop_bookings SET status='completed' WHERE id=b; EXCEPTION WHEN check_violation THEN caught:=true; END;
- PERFORM pg_temp.ou_assert(caught,'Direct booking completion cannot bypass sections');
+ PERFORM pg_temp.ou_assert(caught,'Direct booking completion cannot bypass an unticked conversion');
  caught:=false;
  BEGIN UPDATE public.vehicle_work_items SET completed=true WHERE vehicle_id=v AND work_key='bus4x4'; EXCEPTION WHEN check_violation THEN caught:=true; END;
- PERFORM pg_temp.ou_assert(caught,'Controller / import work completion cannot bypass sections');
+ PERFORM pg_temp.ou_assert(caught,'Controller / import work completion cannot bypass an unticked conversion');
+ r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'line','source:'||op,true,'skip children');
+ PERFORM pg_temp.ou_assert((r->>'ok')::boolean,'Matched HiAce conversion completes from the parent checkbox',r);
+ d:=public.get_fitter_job(tech,b); l:=d->'lines'->0;
+ PERFORM pg_temp.ou_assert((l->>'completed')::boolean AND (d#>>'{progress,can_complete}')::boolean,'Ticked conversion can finish the bay');
+ r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'line','source:'||op,false,'');
+ d:=public.get_fitter_job(tech,b); l:=d->'lines'->0;
+ PERFORM pg_temp.ou_assert((r->>'ok')::boolean AND NOT (l->>'completed')::boolean,'Unticking the checkbox reopens only that item',r);
  rid:=gen_random_uuid();request:='{"mode":"section","section":"PA","status":"complete","actual_minutes":60,"note":"Workshop confirms pre-assembly already complete"}';
  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',rid,'conversion','source:'||op,NULL,request::text);
  PERFORM pg_temp.ou_assert((r->>'ok')::boolean,'Pre-assembly confirmed',r);
@@ -145,7 +150,7 @@ BEGIN
  PERFORM pg_temp.ou_assert(r->>'error'='version_conflict','Stale conversion update rejected');
  d:=public.get_fitter_job(tech,b);l:=d->'lines'->0;
  PERFORM pg_temp.ou_assert((l#>>'{conversion,remaining_minutes}')::numeric=2220 AND (l#>>'{conversion,actual_minutes}')::numeric=60,'Completed pre-assembly removed from remaining');
- PERFORM pg_temp.ou_assert((d#>>'{progress,percent}')::numeric>0 AND (d#>>'{progress,total_hours}')::numeric=40,'Partial progress visible without double-counting source hours');
+ PERFORM pg_temp.ou_assert((d#>>'{progress,percent}')::numeric=0 AND (d#>>'{progress,total_hours}')::numeric=40,'Section history does not spend the parent booking hours');
  request:='{"mode":"section","section":"1","status":"complete","actual_minutes":120,"deferred":"Final tightening"}';
  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'conversion','source:'||op,NULL,request::text);
  PERFORM pg_temp.ou_assert(r->>'error'='conversion_deferred','Deferred work prevents section completion');
@@ -174,7 +179,7 @@ BEGIN
   PERFORM pg_temp.ou_assert((r->>'ok')::boolean,'Section saved '||(s->>'id'),r);
  END LOOP;
  d:=public.get_fitter_job(tech,b);l:=d->'lines'->0;
- PERFORM pg_temp.ou_assert((l->>'completed')::boolean AND (d#>>'{progress,can_complete}')::boolean,'All sections automatically tick parent');
+ PERFORM pg_temp.ou_assert(NOT (l->>'completed')::boolean AND NOT (d#>>'{progress,can_complete}')::boolean,'Saved sections stay on file and do not tick the parent');
  PERFORM pg_temp.ou_assert((l#>>'{conversion,remaining_minutes}')::numeric=0 AND (l#>>'{conversion,actual_minutes}')::numeric=2280,'Completed actual and remaining totals correct');
  PERFORM pg_temp.ou_assert(public.pdc_qc_operation_lines_379(v)=before_ops,'Original Tune hours / operations and QC checks unchanged');
  -- Three separate completed comparable fixture builds, not multiple bookings of one job.
@@ -188,7 +193,7 @@ BEGIN
  request:='{"mode":"section","section":"12","status":"in_progress","actual_minutes":180,"remaining_minutes":30,"deferred":"Final connection check"}';
  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'conversion','source:'||op,NULL,request::text);
  d:=public.get_fitter_job(tech,b);
- PERFORM pg_temp.ou_assert(NOT(d#>>'{progress,can_complete}')::boolean,'Reopened section revokes parent completion');
+ PERFORM pg_temp.ou_assert(NOT(d#>>'{progress,can_complete}')::boolean,'An open section does not complete the unticked parent');
  UPDATE public.vehicles SET vehicle_description='Unknown model' WHERE id=v;
  d:=public.get_fitter_job(tech,b);
  PERFORM pg_temp.ou_assert((d#>>'{lines,0,conversion,needs_review}')::boolean AND NOT(d#>>'{progress,can_complete}')::boolean,'Model change cannot reuse completed checklist');

@@ -188,6 +188,7 @@ function screenFixture() {
       }
       throw Error(`Unexpected RPC ${rpc}`);
     }};
+  vm.runInNewContext(fs.readFileSync(require.resolve('./pdc-conversions.js'),'utf8'),{window:root});
   vm.runInNewContext(fs.readFileSync(require.resolve('./pdc-fitters.js'),'utf8'),{window:root,
     getPdcSupabaseAccessToken:()=> 'session',AbortController,setTimeout,clearTimeout,setInterval:fn=>intervals.push(fn)});
   return {root,doc,data,calls,events,clock,timerLabel,timerBox,mechanic,line,note,saveNote,refresh,stop,confirmStop,stopReason,stopType,action,listeners,sync,busRetry,
@@ -408,4 +409,24 @@ test('offline timing freezes at the displayed value and a new authoritative snap
   f.listeners.online();await flush();
   assert.match(f.html,/00:02:05/,'fresh server timing must not be overridden by a stale display freeze');
   assert.match(f.html,/Paused · Stoppage/);
+});
+test('a matched Bus conversion renders the same checkbox as the other bay items',async()=>{
+  const f=screenFixture();
+  f.data.detail.stage_code='BUS_4X4';
+  f.data.jobs[0].stage_name='Bus 4×4';
+  f.data.detail.lines[0]={line_identity:'source:coaster',description:'Coaster Bus 4x4 Conversion - 6 Speed 2.8',stage_code:'BUS_4X4',hours:60,completed:false,note:'',scope_hash:'scope-a',conversion:{id:'coaster',total_minutes:3765,release_blocked:true,sections:[{id:'PA',label:'Pre-assembly A'}]}};
+  await f.open();
+  assert.match(f.html,/data-fitter-line="source:coaster"/);
+  assert.match(f.html,/BUS 4X4 · 60 h/);
+  assert.match(f.html,/Add a note/);
+  assert.doesNotMatch(f.html,/Release blocked|Save section update|Pre-assembly/);
+  f.data.detail.lines[0]={...f.data.detail.lines[0],line_identity:'source:hiace',description:'Bus 4x4 Conversion SLWB & Commuter',hours:40,completed:true,conversion:{id:'hiace_commuter',release_blocked:true,sections:[{id:'1'}]}};
+  f.refresh.handlers.click();await flush();
+  assert.match(f.html,/data-fitter-line="source:hiace"/);
+  assert.match(f.html,/BUS 4X4 · 40 h · Work completed/);
+  assert.doesNotMatch(f.html,/Release blocked/);
+  f.data.detail.lines[0]={line_identity:'source:review',description:'Bus 4x4 Conversion rework',stage_code:'BUS_4X4',hours:60,completed:false,note:'',scope_hash:'scope-a',conversion:{needs_review:true}};
+  f.refresh.handlers.click();await flush();
+  assert.match(f.html,/scope needs review/);
+  assert.doesNotMatch(f.html,/data-fitter-line="source:review"/);
 });

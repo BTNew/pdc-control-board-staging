@@ -241,7 +241,20 @@
     const waiting = planned.filter(j=>j.id!==current?.id);
     return { current, next:waiting[0] || null, upcoming:waiting.slice(1), otherActive:active.filter(j=>j.id!==current?.id) };
   }
-  const api = { createService, progressHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc };
+  // Coaster and HiAce main conversions are one bay item. The section checklist
+  // stays stored, but it is not the fitter completion control for those two.
+  function conversionUsesSimpleTick(line) {
+    const conversion = line && line.conversion;
+    return !!conversion && conversion.needs_review !== true && (conversion.id === 'coaster' || conversion.id === 'hiace_commuter');
+  }
+  function fitterLineCardHtml(line, index, state) {
+    const disabled = state.disabled, note = state.note, editable = state.editable, open = state.open;
+    return `<article class="fitter-line${line.completed ? ' is-done' : ''}"><label class="fitter-line-check"><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" ${line.completed ? 'checked' : ''} ${disabled ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
+      ${line.scope_changed ? '<p class="fitter-warning">This item changed. Review the work before ticking it again.</p>' : ''}
+      ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}
+      ${editable || note ? `<details class="fitter-notes" ${open ? 'open' : ''}><summary>${note ? 'Item notes' : 'Add a note'}</summary><label for="fitter-note-${index}">Work notes</label><textarea id="fitter-note-${index}" data-fitter-note="${esc(line.line_identity)}" rows="2" maxlength="2000" ${disabled ? 'disabled' : ''}>${esc(note)}</textarea>${editable ? `<button type="button" data-fitter-save-note="${esc(line.line_identity)}" ${disabled ? 'disabled' : ''}>Save note</button>` : ''}${open ? '<small>Unsaved note</small>' : ''}</details>` : ''}</article>`;
+  }
+  const api = { createService, progressHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, conversionUsesSimpleTick, fitterLineCardHtml };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.PdcFitters = api;
   const doc = root.document;
@@ -294,13 +307,10 @@
   }
   function lineCard(line, index, editable) {
 
-    if(line.conversion) return root.PdcConversions.html(line,{editable:editable&&!saving&&!loading&&!service.retryPending&&!busPending(),controller:['operator','administrator'].includes(root.PDC_AUTH_CONTEXT?.role),booking:selected});
+    if(line.conversion && !conversionUsesSimpleTick(line)) return root.PdcConversions.html(line,{editable:editable&&!saving&&!loading&&!service.retryPending&&!busPending(),controller:['operator','administrator'].includes(root.PDC_AUTH_CONTEXT?.role),booking:selected});
     const draft = drafts.get(`${selected}:${line.line_identity}`), note = draft?.note ?? line.note;
     const disabled = !editable || saving || loading || service.retryPending || busPending();
-    return `<article class="fitter-line${line.completed ? ' is-done' : ''}"><label class="fitter-line-check"><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" ${line.completed ? 'checked' : ''} ${disabled ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
-      ${line.scope_changed ? '<p class="fitter-warning">This item changed. Review the work before ticking it again.</p>' : ''}
-      ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}
-      ${editable || note ? `<details class="fitter-notes" ${draft ? 'open' : ''}><summary>${note ? 'Item notes' : 'Add a note'}</summary><label for="fitter-note-${index}">Work notes</label><textarea id="fitter-note-${index}" data-fitter-note="${esc(line.line_identity)}" rows="2" maxlength="2000" ${disabled ? 'disabled' : ''}>${esc(note)}</textarea>${editable ? `<button type="button" data-fitter-save-note="${esc(line.line_identity)}" ${disabled ? 'disabled' : ''}>Save note</button>` : ''}${draft ? '<small>Unsaved note</small>' : ''}</details>` : ''}</article>`;
+    return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft});
   }
   function render() {
     const target = host(); if (!target || !active()) return;
