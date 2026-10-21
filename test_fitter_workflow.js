@@ -364,7 +364,7 @@ test('rejected and unconfirmed starts never show running or notify the planner o
     f.rejectCommand(error);f.action.dataset.fitterAction='start';f.action.handlers.click({currentTarget:f.action});await flush();
     assert.equal(f.events.length,0);assert.doesNotMatch(f.html,/fitter-timer is-running/);
     if(error==='unconfirmed')assert.match(f.html,/Start not confirmed/);
-    else if(error==='parts_incomplete_entry')assert.match(f.html,/Parts are not marked ready/);
+    else if(error==='parts_incomplete_entry')assert.match(f.html,/Parts no longer hold up a job/);
     else if(error==='technician_overlap')assert.match(f.html,/mechanic already has another running or stopped job/);
     else assert.match(f.html,/bay already has a running or stopped job/);
   }
@@ -510,5 +510,5 @@ test('r388: screens without a cache token (QA pages) never poll for updates',asy
 
 test('r388: index.html carries the self-update cache token for pdc-fitters.js',()=>{
   const html=require('fs').readFileSync('index.html','utf8');
-  assert.match(html,/pdc-fitters\.js\?[^"]*item-ticks=2026\.10\.20\.02&amp;self-update=2026\.10\.20\.01(&amp;start-before-done=2026\.10\.21\.r440)?"/);
+  assert.match(html,/pdc-fitters\.js\?[^"]*item-ticks=2026\.10\.20\.02&amp;self-update=2026\.10\.20\.01(&amp;start-before-done=2026\.10\.21\.r440)?(&amp;parts-retired=2026\.10\.21\.r449)?"/);
 });

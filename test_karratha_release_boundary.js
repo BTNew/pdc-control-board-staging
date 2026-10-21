@@ -72,7 +72,8 @@ const approvedRootImportPatch = Object.freeze({
   // r424: stopped jobs in Unallocated re-plan; drag onto a booking in the same bay offers Move ahead of / Swap with, preview, undo (F38).
   // r447: own bays first in the Schedule list, Best slot uses own bays only, new category_bay_mismatch text (F60).
   // r448: Bay 3 refusal text: height restriction, no Coaster, confirm route (F61).
-  "workshop-planner.js": "1b155f6a9dc9817e50183e321f1026cb12b1a0b987c08c58b81edcf513905bce",
+  // r449: retired parts-readiness banner and messages removed; one out-of-date message for retired parts codes (F62).
+  "workshop-planner.js": "6edba2ab42cc7c38f6c6e25e91dc32f660faf2f3a41b9c69a8dc4f335ce2e2c8",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   "workshop-planner.css": "51c8dd7628ee620d55af26b7f1af78cbb4a2c7c0b8aa4e729faaac38d7cf4cfa",
   // Publish minifies app.js and styles.css in the Pages artifact only.
@@ -101,7 +102,8 @@ const approvedRootImportPatch = Object.freeze({
   // shows running items beside a Done-only % (r384). Department 135 keeps
   // the frozen fitter script.
   // r440: item Done needs Start ("Press Start first"), no static " · Done" meta, "under 1 min" actuals, running segment = started items' hours (F51).
-  "pdc-fitters.js": "57b448db94f502ecc38c1da29314e2b748884d8d1e1f46c6e53706c0f1a553c9",
+  // r449: fitter parts messages say parts no longer hold up a job (F62).
+  "pdc-fitters.js": "1718b24ee86e7d1874a0810b9a627b32672ab2f9ca3abb160a13fb7608c930ee",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -164,7 +166,8 @@ const approvedRootImportPatch = Object.freeze({
   // r444: index.html sublet-po=2026.10.21.r444 and operation-panels=2026.10.21.r444 on canonical-entry.js (F57).
   // r445: index.html sublet-po-attach=2026.10.21.r445 on canonical-entry.js (F58).
   // r447: index.html bay-guide=2026.10.21.r447 on pdc-workshop-departments.js (F60).
-  "index.html": "5fa848aec51ca48d8ec897603ceb0bfe9e51e82ab4b85194a411d0a6b9db250a",
+  // r449: parts-retired=2026.10.21.r449 on pdc-fitters.js (F62).
+  "index.html": "ba31f3c92fe97a6b8fbef3b1845ef1932f7b4419c8d846150b2a66b64766d309",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

@@ -1110,7 +1110,6 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
         ? { ok: false, error: 'runtime_failure', message: error?.message || String(error || '') }
         : { ok: false, error: 'runtime_failure' };
     }
-    if (result?.error === 'bus_stage_parts_required') workshopRememberReadinessFailure(result, payload);
     const commandCommitted = result?.ok === true || result?.committed === true;
     if ((!result || result.ok !== true) && !commandCommitted && options.suppressFailureAlert !== true) {
       workshopNotify(workshopDescribeSharedActionError(result));
@@ -1211,12 +1210,10 @@ function workshopDescribeSharedActionError(result) {
   if (error === 'sublet_away') {
     return 'This vehicle is away on Sublet on that date. Record its actual return or choose a date after it is back.';
   }
-  if (error === 'parts_incomplete' || error === 'parts_incomplete_blocked' || error === 'parts_incomplete_entry') {
-    return 'This staging runtime is stale: Parts must not block workshop work. Refresh the page; if this repeats, report the HTTP error shown to an Administrator.';
-  }
-  if (error === 'bus_stage_parts_required') {
-    const stage = ['mechanical', 'electrical', 'accessory'].includes(result.workflow_stage) ? result.workflow_stage : 'requested stage';
-    return `The ${stage} parts check has not been confirmed for the current work. Open Workshop flow / parts readiness, check the required parts, select Confirmed available for this stage and save. Then retry the allocation. If parts are outstanding, keep the vehicle in Unallocated.`;
+  // r449 (F62): parts no longer gate a booking or a start (r415). These retired codes can only come from an old copy of
+  // the page or the database, so say so plainly instead of asking for a parts confirmation that no longer exists.
+  if (['parts_incomplete', 'parts_incomplete_blocked', 'parts_incomplete_entry', 'bus_stage_parts_required', 'stage_parts_not_ready'].includes(error)) {
+    return 'Parts no longer hold up a booking. This page is out of date: refresh it and try again. If it happens again, tell an Administrator.';
   }
   if (error === 'bus_bay_vehicle_incompatible') return 'Bay 3 has a height restriction and does not take a Coaster. Drag it again and choose OK to book it there anyway (the override is logged), or select another bay.';
   if (error === 'category_bay_mismatch') return 'That bay is set up for other Bus 4×4 work. Bays 1–4 take Mechanical and Accessories; Bays 5–6 take any work (overflow); Bay 7 takes QA; Bays 8–10 take Electrical and Accessories. Drag it again and choose OK to book it there anyway (the override is logged). If the work was finished before the board, mark it done on the vehicle’s Work tab first.';
@@ -1270,25 +1267,6 @@ function workshopDescribeSharedActionError(result) {
   }
   const exact = workshopAdministratorCanMove() ? workshopAdministratorErrorDetail(result) : '';
   return exact ? `The server rejected this change. No update was saved. ${exact}` : 'The server rejected this change. No update was saved, and the planner has reloaded the current shared data.';
-}
-
-function workshopRememberReadinessFailure(result = {}, payload = {}) {
-  const bookingId = String(payload.bookingId || payload.targetId || '');
-  const entry = bookingId ? workshopLoadPlans().find(row => (row.sharedBookingId || row.id) === bookingId) : null;
-  const vehicleId = String(payload.vehicleId || entry?.sharedVehicleId || '');
-  if (result.error !== 'bus_stage_parts_required' || !WORKSHOP_UUID_PATTERN.test(vehicleId)) return false;
-  workshopState().readinessFailure = { vehicleId, message: workshopDescribeSharedActionError(result) };
-  return true;
-}
-
-function workshopReadinessFailureHtml(stage = '', vehicles = [], plans = []) {
-  const failure = workshopState().readinessFailure;
-  if (stage !== 'BUS_4X4' || !failure || !WORKSHOP_UUID_PATTERN.test(String(failure.vehicleId || ''))) return '';
-  const vehicle = vehicles.find(row => row.sharedVehicleId === failure.vehicleId);
-  const plan = plans.find(row => row.sharedVehicleId === failure.vehicleId && row.stage === stage);
-  if (!vehicle && !plan) return '';
-  const identity = vehicle ? displayStockNumber(vehicle) : plan.vehicleKey;
-  return `<section class="workshop-readiness-failure" role="status"><strong>Stock ${escapeHtml(identity || '')}: refresh booking rules</strong><p>${escapeHtml(failure.message)}</p><button class="small-button" type="button" data-workshop-dismiss-readiness>Dismiss</button></section>`;
 }
 
 function workshopVehicleConflictDetail(result = {}) {
@@ -5800,7 +5778,6 @@ function renderWorkshopPlanner(options = {}) {
         ${!focusedBookingMode && workshopAdminBlockFeedback.message ? `<div class="workshop-admin-block-feedback ${escapeHtml(workshopAdminBlockFeedback.tone)}" role="status" aria-live="polite">${escapeHtml(workshopAdminBlockFeedback.message)}</div>` : ''}
       </div>
     </header>
-    ${workshopReadinessFailureHtml(stage, stageVehicleList, plans)}
 
     ${workshopStartFeedback.stage === stage && workshopStartFeedback.message ? `<div class="workshop-search-state" role="status" aria-live="polite">${escapeHtml(workshopStartFeedback.message)}</div>` : ''}
     <div class="workshop-date-summary"><strong>${escapeHtml(workshopDateLabel(dateKey))}</strong><span>${selectedDateBookingCount} active bookings on selected date · ${outstanding.length} outstanding · ${unscheduled.length} unscheduled${assigneeConflicts ? ` · ⚠ ${assigneeConflicts} mechanic clash${assigneeConflicts === 1 ? '' : 'es'}` : ''} · Saved automatically${state.lastSavedAt ? ` ${escapeHtml(new Date(state.lastSavedAt).toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit' }))}` : ''}</span><div class="workshop-status-legend"><span class="planned">Planned</span><span class="admin">Admin block</span><span class="live">Live</span><span class="stoppage">STOPPAGE</span></div></div>
@@ -5837,10 +5814,6 @@ function renderWorkshopPlanner(options = {}) {
 
 function bindWorkshopPlanner(root) {
   if (typeof pdcWorkshopDepartmentChanged === 'function') root.querySelector('[data-workshop-department]')?.addEventListener('change',pdcWorkshopDepartmentChanged);
-  root.querySelector('[data-workshop-dismiss-readiness]')?.addEventListener('click', () => {
-    workshopState().readinessFailure = null;
-    renderWorkshopPlanner();
-  });
   if (root.dataset.workshopIncrementalBound !== '1') {
     root.dataset.workshopIncrementalBound = '1';
     root.addEventListener('click', event => {
