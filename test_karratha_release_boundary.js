@@ -113,7 +113,8 @@ const approvedRootImportPatch = Object.freeze({
   // r429: User Admin confirm says a salesperson's Sales record is linked by email (F41); index.html adds r429=2026.10.21.01.
   // r430: User Admin All list hides Disabled accounts behind a "Show disabled (N)" toggle (display only); index.html adds r430=2026.10.21.01.
   // r432: User Admin "Link salesperson record" for controllers (F43); index.html adds r432=2026.10.21.01 on app.js and pdc-auth.js.
-  "app.js": "ed77272be1f2f302ee3013b467b92655b9f27cc02309714d7fe3249947b20598",
+  // r437: the vehicle card opens for Toyota head office account vehicles (001234 / 002345) under the board's own dealer scope (F48); index.html adds r437=2026.10.21.01.
+  "app.js": "0feed7e96704a3d98cc3d3b41636a767aea447a58aefbc8f102f7ba73f67c089",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -141,7 +142,8 @@ const approvedRootImportPatch = Object.freeze({
   // r429: app.js adds r429=2026.10.21.01.
   // r430: app.js adds r430=2026.10.21.01.
   // r432: app.js and pdc-auth.js add r432=2026.10.21.01.
-  "index.html": "1b84ff69c51d8f6e9f151a23b3de86b9d4b09e9d4007f0fbdaac5a875f753ff9",
+  // r437: app.js adds r437=2026.10.21.01.
+  "index.html": "3166e07ae056301dac311f535f3bc83a4493b5c883002d8b402b279a7339d876",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
