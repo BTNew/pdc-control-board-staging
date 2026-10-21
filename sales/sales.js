@@ -97,6 +97,8 @@
   }
   const bookingLabels={queued:'Awaiting bay booking',planned:'Booked',started:'Work started',stoppage:'Work stopped',completed:'Completed',deleted:'Deleted'};
   function bookingStatus(value){return bookingLabels[value]||value||'Not recorded';}
+  function isRunningBooking(b){return !!b&&b.status==='started';}
+  function pmbStatusTone(summary){return summary&&summary.running===true?'running':'';}
   function pmbSummary(row){
     if(!row.canonical_vehicle_id)return {status:'Awaiting PMB link',location:'PMB details appear when the order is linked',bookings:[]};
     if(row.lifecycle_state==='completed'||String(row.pmb_location||'').trim().toLowerCase()==='completed')return {status:'Completed · Delivered to dealer',location:'Completed Vehicles',bookings:[]};
@@ -104,11 +106,20 @@
     const live=all.filter(b=>['started','stoppage'].includes(b.status));
     const active=live.find(b=>b.booking_id===row.active_workshop_booking_id);
     const bookings=active?[active,...live.filter(b=>b!==active)]:live;
-    if(bookings.length)return {status:bookings.map(b=>bookingStatus(b.status)+' · '+(b.stage||'Workshop')+' / '+(b.bay||'Bay not recorded')).join('; '),location:row.pmb_location||'Location not recorded',bookings};
+    // r434 (F45): "being worked on" = any booking the Workshop Planner shows as Running (status started), on any bay.
+    // Blue beats stopped / planned / waiting states; completed vehicles returned above and never show blue.
+    const running=all.some(isRunningBooking);
+    if(bookings.length)return {status:bookings.map(b=>bookingStatus(b.status)+' · '+(b.stage||'Workshop')+' / '+(b.bay||'Bay not recorded')).join('; '),location:row.pmb_location||'Location not recorded',bookings,running};
     const planned=all.filter(b=>b.status==='planned').sort((a,b)=>String(a.scheduled_start_at||'9999').localeCompare(String(b.scheduled_start_at||'9999')));
     if(row.pmb_stoppage_started_at&&!row.pmb_stoppage_cleared_at)return {status:'Work stopped'+(row.pmb_stoppage_reason?' · '+row.pmb_stoppage_reason:''),location:row.pmb_location||'Location not recorded',bookings:[]};
     if(planned.length)return {status:'Booked · '+(planned[0].stage||'Workshop')+' / '+(planned[0].bay||'Bay not recorded'),location:row.pmb_location||'Location not recorded',bookings:[planned[0]]};
     return {status:row.workshop_status?bookingStatus(row.workshop_status):(row.pmb_stage||'Status not recorded'),location:row.pmb_location||'Location not recorded',bookings:[]};
+  }
+  function pmbStatusCell(row){
+    const summary=pmbSummary(row),tone=pmbStatusTone(summary);
+    const booked=summary.bookings[0]?.scheduled_start_at?'Booked '+dateLabel(summary.bookings[0].scheduled_start_at):'';
+    const full=[tone?'Being worked on':'',summary.status,summary.location,booked].filter(Boolean).join(' · ');
+    return '<td class="pmb-status-cell'+(tone?' pmb-running':'')+'"'+(tone?' data-pmb-tone="running"':'')+' title="'+escapeHtml(full)+'"><span class="pmb-line"><strong>'+escapeHtml(summary.status)+'</strong> '+escapeHtml(summary.location)+'</span></td>';
   }
   function partsStatus(parts){
     if(!parts)return 'Not recorded';
@@ -119,7 +130,7 @@
     if(parts.required===true)return 'Parts required · order not confirmed';
     return 'Not recorded';
   }
-  const api = { vehicleReference, salespeople, yardLocationCode, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
+  const api = { vehicleReference, salespeople, yardLocationCode, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, isRunningBooking, pmbStatusTone, pmbStatusCell, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
@@ -296,7 +307,7 @@
           escapeHtml(val||row.order||'Reference not recorded')+'</button>'+(val?'':('<span class="subtle">Toyota Order Number</span><span class="subtle">Awaiting stock number</span>'))+(row.source_current===false?'<span class="source-warning">Not in latest PDC import</span>':'')+(row.identity_conflict?'<span class="source-warning">Order link needs review</span>':'')+(root.BROOME_SALES_ACCESSORIES?.rowFlagHtml?.(row)||'')+'</td>';
         if (key==='toyota_status') return '<td class="status-cell"><span class="status-pill '+category(row)+'" title="'+escapeHtml((row.toyota_status||'Not recorded')+(row.transport_number?' · Transport '+row.transport_number:''))+'">'+escapeHtml(salesStatus(row))+'</span></td>';
         if (key==='kewdale_eta')return '<td class="eta-cell">'+etaHtml(val)+'</td>';
-        if (key==='pmb_location') {const summary=pmbSummary(row);const booked=summary.bookings[0]?.scheduled_start_at?'Booked '+dateLabel(summary.bookings[0].scheduled_start_at):'';const full=[summary.status,summary.location,booked].filter(Boolean).join(' · ');return '<td class="pmb-status-cell" title="'+escapeHtml(full)+'"><span class="pmb-line"><strong>'+escapeHtml(summary.status)+'</strong> '+escapeHtml(summary.location)+'</span></td>';}
+        if (key==='pmb_location') return pmbStatusCell(row);
         if(key==='navision_notes'){
           const manual=root.BROOME_VEHICLE_NOTES?.hasSavedNotes(row.tracking_id);
           return '<td class="notes-cell'+(manual?' has-staff-note':'')+'" title="'+escapeHtml((manual?'Staff note saved — expand this row to read it. ':'')+(val||''))+'"><span class="notes-clamp">'+escapeHtml(val||(manual?'Staff note saved':'—'))+'</span></td>';
@@ -306,7 +317,7 @@
         return '<td title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</td>';
       }).join('')+'<td>'+actionHtml(row)+'</td></tr>'+(root.BROOME_VEHICLE_NOTES?.rowHtml(row)||'')).join(''):'<tr><td colspan="13"><div class="empty-state">No vehicles match this view.</div></td></tr>')+'</tbody>');
     columnWidths?.apply();
-    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div>'+(root.BROOME_SALES_ACCESSORIES?.rowFlagHtml?.(row)||'')+'<strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+'<p class="mobile-pmb">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
+    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div>'+(root.BROOME_SALES_ACCESSORIES?.rowFlagHtml?.(row)||'')+'<strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+'<p class="mobile-pmb'+(pmbStatusTone(pmbSummary(row))?' pmb-running':'')+'">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
     if(focusKey)root.document.querySelector?.((focusKey.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-ordering-id="'+focusKey.id+'"][data-ordering-flag="'+focusKey.flag+'"]')?.focus?.({preventScroll:true});
     if(noteFocus){
       const field=root.document.querySelector?.((noteFocus.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-notes-form="'+noteFocus.id+'"] [name="'+noteFocus.name+'"]');
@@ -419,7 +430,7 @@
     const facts=[['Location',summary.location],['PMB arrival',row.pmb_arrival_date],['PMB stage',row.pmb_stage],
       ['QC completed',row.qc_completed_at?dateLabel(row.qc_completed_at):null],['Ready for transport confirmed',row.rft_confirmed_at?dateLabel(row.rft_confirmed_at):null],
       ['Transferred to RFT',row.rft_transferred_at?dateLabel(row.rft_transferred_at):null]];
-    return '<section class="pmb-overview"><h3>PMB status</h3><p class="pmb-current">'+escapeHtml(summary.status)+'</p><p class="subtle">Live PMB information · read-only · updated '+escapeHtml(dateLabel(row.pmb_updated_at))+'</p><dl class="detail-grid">'+facts.map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+'</dd></div>').join('')+'</dl></section>'+
+    return '<section class="pmb-overview"><h3>PMB status</h3><p class="pmb-current'+(pmbStatusTone(summary)?' pmb-running':'')+'">'+escapeHtml(summary.status)+'</p><p class="subtle">Live PMB information · read-only · updated '+escapeHtml(dateLabel(row.pmb_updated_at))+'</p><dl class="detail-grid">'+facts.map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+'</dd></div>').join('')+'</dl></section>'+
       '<h3>Parts</h3><p class="parts-current">'+escapeHtml(partsStatus(parts))+'</p>'+
       (parts?'<dl class="detail-grid">'+[['Parts required',yesNo(parts.required)],['Order recorded',yesNo(parts.ordered)],['Receipt recorded',yesNo(parts.received)],
         ['Parts ETA',parts.eta],['Parts feed updated',parts.snapshot_at?dateLabel(parts.snapshot_at):null],['PMB parts update',parts.updated_at?dateLabel(parts.updated_at):null]]
