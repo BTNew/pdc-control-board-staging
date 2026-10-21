@@ -111,7 +111,8 @@ const approvedRootImportPatch = Object.freeze({
   // r424: r424=2026.10.21.01 on workshop-planner.js, workshop-data-service.js and workshop-shared-actions.js (bay re-order, stopped-job re-plan, F38).
   // r426: Board sales-prep ticks (Tint / Build PO / Tray) read-only for importers and viewers (F39); index.html adds r426=2026.10.21.01.
   // r429: User Admin confirm says a salesperson's Sales record is linked by email (F41); index.html adds r429=2026.10.21.01.
-  "app.js": "b41d41250589a70329c80cf96570fa87aebe5661487f71c58435300b46d39623",
+  // r430: User Admin All list hides Disabled accounts behind a "Show disabled (N)" toggle (display only); index.html adds r430=2026.10.21.01.
+  "app.js": "cfecee3aa95e7cd8ec60552eef5dce3c642a86b8a5e56171d0e57b171a5bd081",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -137,7 +138,8 @@ const approvedRootImportPatch = Object.freeze({
   // r421: app.js adds r421=2026.10.21.01.
   // r426: app.js adds r426=2026.10.21.01.
   // r429: app.js adds r429=2026.10.21.01.
-  "index.html": "a26b6c1f5f5649cdb4c07f2c3aef1a799ec78131f7bf15161cd5879ce908638a",
+  // r430: app.js adds r430=2026.10.21.01.
+  "index.html": "dc11d0dba804aa91f6f7fb925134c84748b0aaa1d73abda54cf6c0566510bc26",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
