@@ -71,7 +71,18 @@
       const partsEta = document.createElement('script');
       partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436';
       partsEta.dataset.pdcPartsEta = '1';
+      partsEta.onload = loadKeyNumber;
+      partsEta.onerror = loadKeyNumber;
       document.head.appendChild(partsEta);
+    };
+    // r460 (F73): vehicle key number (Key No. in the drop-down; inline edit for controllers / administrators, audited);
+    // loads after the service locations and parts ETA so the recorded key wins in the Key column.
+    const loadKeyNumber = () => {
+      if (document.querySelector('script[data-pdc-key-number]')) return;
+      const keyNumber = document.createElement('script');
+      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460';
+      keyNumber.dataset.pdcKeyNumber = '1';
+      document.head.appendChild(keyNumber);
     };
     serviceLocations.onload = loadPartsEta;
     serviceLocations.onerror = loadPartsEta;
