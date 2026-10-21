@@ -6,7 +6,7 @@ test('only uncertain operations start in Needs Review; Department 138 starts on 
   const row={status:'pending',operations:[{line_identity:'a',department:'139',stage_code:'FITTING',estimated_hours:0.5,active:true,completed:false},{line_identity:'b',department:'139',stage_code:'ELECTRICAL',estimated_hours:2,active:true,completed:false},{line_identity:'c',department:'138',stage_code:'TINT',work_category:'TINT',estimated_hours:3,active:true,completed:false}]};
   row.operations.push({line_identity:'d',department:'139',stage_code:'UNALLOCATED_MAPPING_REVIEW',estimated_hours:0.5,active:true,completed:false});
   const before=JSON.stringify(row),choices=api.reviewChoices(row);
-  assert.deepEqual(api.assignmentsFor(row,choices).map(x=>x.stage_code),['FITTING','ELECTRICAL','BUS_4X4','']);
+  assert.deepEqual(api.assignmentsFor(row,choices).map(x=>x.stage_code),['FITTING','ELECTRICAL','TINT',''],'r459: a Dept 138 line is sent on the station its category maps to');
   assert.deepEqual(api.assignmentsFor(row,choices).map(x=>x.work_category),[undefined,undefined,'TINT',undefined],'only Dept 138 lines carry a category');
   assert.equal(api.stationGroups(row,choices)[0].lines.length,1);
   assert.ok(api.problems(row,choices).length);
