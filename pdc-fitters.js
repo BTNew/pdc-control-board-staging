@@ -4,7 +4,7 @@
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const errors = {
-    bus_stage_parts_required:'Department 138 stage parts need controller confirmation before this production allocation.',
+    bus_stage_parts_required:'Parts no longer hold up a job. Refresh the page and try again; if it happens again, tell the controller.',
     bus_bay_vehicle_incompatible:'This vehicle is not compatible with this Bus 4×4 bay. Ask the controller to choose a suitable bay.',
     bus_shift_outside_hours:'This booking falls outside the Department 138 shift. Ask the controller to review its times.',
     bus_supplier_verification_required:'Physically check and confirm the supplier work below before completing this bay.',
@@ -28,7 +28,7 @@
     line_unavailable:'That item is no longer available in this bay. Refresh the job.',
     mechanic_unavailable:'This mechanic is inactive or unavailable. Select another mechanic.',
     reason_required:'Enter a reason for the stoppage.',
-    parts_incomplete_entry:'Parts are not marked ready. Ask the controller to confirm the parts or record an authorised override before starting this job.',
+    parts_incomplete_entry:'Parts no longer hold up a job. Refresh the page and try again; if it happens again, tell the controller.',
     vehicle_overlap:'A protected booking for this vehicle prevents this change. Ask the controller to check that work before continuing.',
     bay_overlap:'This bay has another job in progress. Ask the controller to check its bookings.',
     bay_already_started:'This bay already has a running or stopped job. Ask the controller to complete it or release its bay.',

@@ -74,7 +74,7 @@ function navigationFixture(department = '', role = 'operator') {
     section(plannerSource, 'function workshopDepartmentLayout()', 'function workshopBayRowsHtml('),
     section(plannerSource, 'function workshopResetFocusedBooking()', 'function workshopExitFocusedBooking()'),
     section(plannerSource, 'function renderWorkshopPlanner(options', 'function bindWorkshopPlanner('),
-    section(plannerSource, 'function bindWorkshopPlanner(root)', "  root.querySelector('[data-workshop-dismiss-readiness]')") + '\n}',
+    section(plannerSource, 'function bindWorkshopPlanner(root)', "  if (root.dataset.workshopIncrementalBound !== '1') {") + '\n}',
   ];
   pieces.forEach(piece => vm.runInContext(piece, context));
   context.bindNav();

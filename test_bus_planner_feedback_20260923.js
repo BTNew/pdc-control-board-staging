@@ -63,8 +63,9 @@ test('HTTP P0001 parts rejection retains canonical code and exact workflow stage
   assert.equal(calls.filter(c=>c.name==='move_workshop_booking').length,1,'no readiness override or retry');
   assert.equal(calls.filter(c=>c.name.includes('snapshot')).length,2);
   const c=functions(['workshopDescribeSharedActionError'],{workshopAdministratorCanMove:()=>false});
-  assert.match(c.workshopDescribeSharedActionError(result),/accessory parts check/);
-  assert.match(c.workshopDescribeSharedActionError(result),/save.*retry.*Unallocated/i);
+  // r449 (F62): parts no longer gate bookings; a retired parts code says the page is out of date, never "confirm parts".
+  assert.match(c.workshopDescribeSharedActionError(result),/Parts no longer hold up a booking\. This page is out of date/);
+  assert.doesNotMatch(c.workshopDescribeSharedActionError(result),/parts check|Confirmed available|Unallocated/i);
 });
 test('searched 38th candidate is visible in first batch without granting readiness or dropping queue rows', () => {
   const {c}=uiFixture();
@@ -146,17 +147,10 @@ test('compact daily and weekly chips retain primary/helper names and escape them
     assert.match(html,/Primary: Ren Karlos/);assert.match(html,/Paul &lt;Guiye&gt;/);assert.match(html,/data-booking-id="b"/);
   }
 });
-test('readiness action uses requested canonical vehicle and never reverse matches Key412', () => {
-  const {c,state,entry}=uiFixture();
-  c.displayStockNumber=v=>v.stock;c.workshopDescribeSharedActionError=()=> 'Check accessory parts';
-  functions(['workshopRememberReadinessFailure','workshopReadinessFailureHtml'],c);
-  assert.equal(c.workshopRememberReadinessFailure({error:'bus_stage_parts_required'},{vehicleId:'412'}),false);
-  assert.equal(c.workshopRememberReadinessFailure({error:'bus_stage_parts_required'},{vehicleId:UUID}),true);
-  const message=c.workshopReadinessFailureHtml('BUS_4X4',[{sharedVehicleId:UUID,stock:'12311021'}],[]);
-  assert.match(message,/Stock 12311021: refresh booking rules/);
-  assert.doesNotMatch(message,/data-bus-workflow-open=/);
-  assert.equal(c.workshopReadinessFailureHtml('BUS_4X4',[],[]),'');
-  assert.equal(c.workshopReadinessFailureHtml('TINT',[],[entry]),'');
+test('r449: the retired parts-readiness banner is gone from the planner', () => {
+  const planner=require('node:fs').readFileSync('workshop-planner.js','utf8');
+  assert.doesNotMatch(planner,/workshopRememberReadinessFailure|workshopReadinessFailureHtml|data-workshop-dismiss-readiness|refresh booking rules/);
+  assert.doesNotMatch(planner,/Parts must not block workshop work|Open Workshop flow \/ parts readiness/);
 });
 test('crew conflicts include helpers across bays, while one team remains one booking', () => {
   const c=functions(['workshopTechnicianIdForEntry','workshopEntryTechnicianIds','workshopAssigneeConflict'],{
