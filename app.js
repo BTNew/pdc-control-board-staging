@@ -4335,7 +4335,27 @@ function ensureBackupStatusPoll() {
 // re-verifies the caller is an active administrator server-side. This
 // frontend code is a convenience UI, not the security boundary.
 // ---------------------------------------------------------------------
-const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null, generation: 0 };
+const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null, generation: 0, showDisabled: false };
+
+// r430: the All list hides Disabled accounts unless "Show disabled (N)" is on (display only; no account row is changed).
+// The Disabled tab still lists them; Pending, Approved and Rejected are unchanged.
+function userManagementRowStatus(row) {
+  return String(row?.account_status || (row?.active ? 'approved' : 'disabled')).toLowerCase();
+}
+
+function userManagementVisibleRows(rows, tab, showDisabled) {
+  const list = Array.isArray(rows) ? rows : [];
+  if (tab !== 'all') return { rows: list.filter(row => row.account_status === tab), disabledCount: 0, hiddenDisabled: 0 };
+  const disabledCount = list.filter(row => userManagementRowStatus(row) === 'disabled').length;
+  const visible = showDisabled ? list : list.filter(row => userManagementRowStatus(row) !== 'disabled');
+  return { rows: visible, disabledCount, hiddenDisabled: showDisabled ? 0 : disabledCount };
+}
+
+function userManagementDisabledToggleHtml(view, showDisabled) {
+  if (!view.disabledCount) return '';
+  const label = showDisabled ? `Hide disabled (${view.disabledCount})` : `Show disabled (${view.disabledCount})`;
+  return `<div class="um-disabled-toggle-row" style="margin:0 0 8px"><button type="button" class="small-button text-button" data-um-toggle-disabled aria-pressed="${showDisabled ? 'true' : 'false'}">${label}</button></div>`;
+}
 
 function userManagementAdministratorActive() {
   return window.PDC_AUTH_CONTEXT?.role === 'administrator';
@@ -4481,20 +4501,36 @@ async function renderUserManagementScreen() {
     return;
   }
 
-  const filtered = USER_MANAGEMENT_STATE.tab === 'all'
-    ? USER_MANAGEMENT_STATE.rows
-    : USER_MANAGEMENT_STATE.rows.filter(row => row.account_status === USER_MANAGEMENT_STATE.tab);
+  renderUserManagementList(host);
+}
+
+function renderUserManagementList(host) {
+  const view = userManagementVisibleRows(USER_MANAGEMENT_STATE.rows, USER_MANAGEMENT_STATE.tab, USER_MANAGEMENT_STATE.showDisabled);
+  const toggle = userManagementDisabledToggleHtml(view, USER_MANAGEMENT_STATE.showDisabled);
+  const filtered = view.rows;
   if (!filtered.length) {
-    host.innerHTML = `<div class="empty-state compact-empty"><strong>No ${escapeHtml(USER_MANAGEMENT_STATE.tab)} accounts</strong></div>`;
+    const what = USER_MANAGEMENT_STATE.tab === 'all' && view.hiddenDisabled ? 'other' : USER_MANAGEMENT_STATE.tab;
+    host.innerHTML = `${toggle}<div class="empty-state compact-empty"><strong>No ${escapeHtml(what)} accounts</strong></div>`;
+    wireUserManagementDisabledToggle(host);
     return;
   }
 
-  host.innerHTML = `<div class="admin-reference-table-wrap"><table class="admin-reference-table user-admin-table">
+  host.innerHTML = `${toggle}<div class="admin-reference-table-wrap"><table class="admin-reference-table user-admin-table">
     <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(userManagementRowHtml).join('')}</tbody>
   </table></div>`;
 
   wireUserManagementActions();
+  wireUserManagementDisabledToggle(host);
+}
+
+function wireUserManagementDisabledToggle(host) {
+  const button = host?.querySelector?.('[data-um-toggle-disabled]');
+  if (!button) return;
+  button.addEventListener('click', () => {
+    USER_MANAGEMENT_STATE.showDisabled = !USER_MANAGEMENT_STATE.showDisabled;
+    renderUserManagementList(host); // display only: no reload, no server call
+  });
 }
 
 function subscribeUserManagementRealtime() {
