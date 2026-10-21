@@ -14,12 +14,16 @@
   function vehicleReference(row) {
     return row.stock ? 'Stock '+row.stock : row.order ? 'Toyota Order '+row.order : 'Reference not recorded';
   }
+  function yardLocationCode(value) { return String(value ?? '').trim().toUpperCase().startsWith('Y'); }
   function category(row) {
     const status = String(row.toyota_status || '').toLowerCase();
     if (/delivered.*dealer|at dealer/.test(status)) return 'dealer';
     if (row.autocare_dispatched===true) return 'autocare';
     if (!row.stock || /^(?:0|TBA)$/i.test(row.stock)) return 'unconfirmed';
-    if (String(row.location_status || '').toUpperCase() === 'YH' || status.includes('yard hold')) return 'yardhold';
+    // r433 (F44): every Navision location code starting with Y (the Toyota WA yard: YH Yard Hold, YN Yard Not Ready,
+    // YR Yard Ready, YW Yard Wait and any later Y code) is in the YH / Yard Hold tile, whatever the Toyota status text says.
+    // Same yard family as r427 yardHoldStageRank (rank 2). Server mirror: pdc_sales_private.sales_tracker_tile.
+    if (yardLocationCode(row.location_status) || status.includes('yard hold')) return 'yardhold';
     if (/planned for production|line off|final inspection|o\/s wharf|eastern states/.test(status)) return 'production';
     if (/consignment|body builder|ready for transport|ready for despatch|ready for dispatch|despatched|dispatched|despatch to|dispatch to/.test(status)) return 'released';
     if (/waiting pd|waiting for wholesale|delayed|hold|waiting/.test(status)) return 'hold';
@@ -115,7 +119,7 @@
     if(parts.required===true)return 'Parts required · order not confirmed';
     return 'Not recorded';
   }
-  const api = { vehicleReference, salespeople, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
+  const api = { vehicleReference, salespeople, yardLocationCode, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
@@ -202,7 +206,7 @@
     for(const id of ['sales-month-filter','sales-status-filter'])$(id).innerHTML='';
 
   }
-  const categoryDescriptions={all:'COSI sold vehicles in this view',unconfirmed:'Rows without a stock number',production:'Production and early transit statuses',transit:'Shipment, WA transit and wharf',yardhold:'Location status YH or yard hold',hold:'Delayed, wholesale, PD and wharf waits',released:'Body builder and TWA despatch',autocare:'Marked as dispatched by Autocare',dealer:'Delivered to the dealer',unknown:'Toyota status needs confirmation'};
+  const categoryDescriptions={all:'COSI sold vehicles in this view',unconfirmed:'Rows without a stock number',production:'Production and early transit statuses',transit:'Shipment, WA transit and wharf',yardhold:'Navision Y statuses (YH, YN, YR, YW) or yard hold',hold:'Delayed, wholesale and PD waits outside the yard',released:'Body builder and TWA despatch',autocare:'Marked as dispatched by Autocare',dealer:'Delivered to the dealer',unknown:'Toyota status needs confirmation'};
   function showView(view) {
     if(!viewNames.includes(view))return;
     if(state.detailId){state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}
