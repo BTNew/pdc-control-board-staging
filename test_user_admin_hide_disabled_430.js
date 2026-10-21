@@ -81,5 +81,5 @@ test('All with only disabled accounts still offers the toggle',()=>{
  assert.match(h.innerHTML,/Show disabled \(1\)/);assert.match(h.innerHTML,/No other accounts/);
 });
 test('app.js cache bust carries r430',()=>{
- assert.match(fs.readFileSync('index.html','utf8'),/app\.js\?[^"]*&amp;r430=2026\.10\.21\.01"/);
+ assert.match(fs.readFileSync('index.html','utf8'),/app\.js\?[^"]*&amp;r430=2026\.10\.21\.01(?:&amp;[^"]*)?"/);
 });
