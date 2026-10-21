@@ -76,9 +76,9 @@
     serviceLocations.onload = loadPartsEta;
     serviceLocations.onerror = loadPartsEta;
     document.head.appendChild(serviceLocations);
-    // r439 (F50): sublet POs: each GP PO line gets a 'sublet done' tick; Sublet box orange/green (the script guards double loads).
+    // r439 (F50): sublet POs: each GP PO line gets its PO and a 'sublet done' tick inline (r439b); Sublet box orange/green (the script guards double loads).
     const subletPo = document.createElement('script');
-    subletPo.src = 'pdc-sublet-po.js?sublet-po=2026.10.21.r439';
+    subletPo.src = 'pdc-sublet-po.js?sublet-po=2026.10.21.r439b';
     document.head.appendChild(subletPo);
     const partsConfirmation = document.createElement('script');
     partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.13.person-confirmed.1';
