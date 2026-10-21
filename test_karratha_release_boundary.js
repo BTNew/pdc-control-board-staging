@@ -82,8 +82,8 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
   // on Sublet lines. Department 135 keeps its frozen copy.
-  "pdc-new-vehicles.js": "0fbaa9eaaca1011bd8558e887778c09ff1568b7b14cfce3cb13e51b244fedab7",
-  "pdc-new-vehicles.css": "2ee29702e0b5ca62692891cbf5467894fe670e4b65961f32ca619aa2225cfe10",
+  "pdc-new-vehicles.js": "7fdcb5193544081cafc87d52724c135a58f192dcdcc73c29401b460a88d9086c",
+  "pdc-new-vehicles.css": "8e3930a3d42f6b309e327ae1f1bec066f15794be114868f5b4fe015eb3a142d5",
   "docs/bus4x4-workflow.md": "d2dab9a76da3b23ddfe0e21418d9e0f8212b48aa517443c47e657b2f656869c8",
   "docs/bus4x4-user-guide.md": "d2729f19b9132afcfe4ee41413c98d2fba9db03c99e45a3a1d298cb57be9840f",
   "docs/bus4x4-user-guide.html": "0a56823214fdd0e5ba0f7601671a92678d87231f07052937eaf09cdf29773b0a",
@@ -95,7 +95,8 @@ const approvedRootImportPatch = Object.freeze({
   // r443: loads pdc-operation-panels.js?operation-panels=2026.10.21.r443 after pdc-sublet-po.js (packed category panels; F56).
   // r444: sublet-po=2026.10.21.r444 and operation-panels=2026.10.21.r444 (Sublet box lists every sublet with its description; F57).
   // r445: loads pdc-sublet-po-attach.js?sublet-po-attach=2026.10.21.r445 between pdc-sublet-po.js and pdc-operation-panels.js (sublet PO attach pilot; F58).
-  "canonical-entry.js": "e57e52d91edbe5cf6d6f665766151658cd6c319308e9d72e626295fd209f02f5",
+  // r446: r446=2026.10.21.r446 on pdc-new-vehicles.js and pdc-new-vehicles.css (Dept 138 review uses the Bus 4x4 stations; F59).
+  "canonical-entry.js": "7615bbd4b6e3265933d950c153f71f9df8ffe768f0346aeb4c6fddc1ba73a8dd",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -165,9 +166,10 @@ const approvedRootImportPatch = Object.freeze({
   // r443: index.html operation-panels=2026.10.21.r443 on canonical-entry.js (F56).
   // r444: index.html sublet-po=2026.10.21.r444 and operation-panels=2026.10.21.r444 on canonical-entry.js (F57).
   // r445: index.html sublet-po-attach=2026.10.21.r445 on canonical-entry.js (F58).
+  // r446: index.html r446=2026.10.21.r446 on canonical-entry.js (F59).
   // r447: index.html bay-guide=2026.10.21.r447 on pdc-workshop-departments.js (F60).
   // r449: parts-retired=2026.10.21.r449 on pdc-fitters.js (F62).
-  "index.html": "ba31f3c92fe97a6b8fbef3b1845ef1932f7b4419c8d846150b2a66b64766d309",
+  "index.html": "b8ae502356a2cc54a4ff88f50d9b980dcda3aaeb8612d08c57fefce80465bd4d",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

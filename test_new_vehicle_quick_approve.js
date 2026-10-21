@@ -51,7 +51,9 @@ test('quick approval ignores an unable-to-estimate tag on a Sublet line',()=>{
 test('quick readiness rejects unresolved stations and invalid workshop hours',()=>{
   for(const hours of [null,'',0,-1,1000,0.001,'invalid',Infinity]){const row=vehicle();row.operations[0].estimated_hours=hours;assert.ok(ui.quickApprovalProblems(row).length,`hours ${hours}`);}
   const row=vehicle();row.operations[0].stage_code='UNALLOCATED_MAPPING_REVIEW';row.operations[0].department='138';
-  assert.deepEqual(ui.problems(row),[],'normal review keeps its preselection behaviour');
+  // r446 (F59): an unallocated Dept 138 line starts in Needs Review instead of being forced to Bus 4x4.
+  assert.deepEqual(ui.problems(row),['Choose a station for every operation.'],'Dept 138 unallocated work waits for a Bus 4x4 station');
+  assert.deepEqual(ui.problems(row,{[row.operations[0].line_identity]:'BUS_ELECTRICAL'}),[],'choosing a Bus 4x4 station resolves it');
   assert.match(ui.quickApprovalProblems(row).join(' '),/station/,'quick action cannot silently apply the department default');
 });
 
@@ -96,7 +98,7 @@ test('quick control is absent for read-only or incomplete cards and disabled dur
 test('quick approval sends unchanged mixed assignments and removes only the verified vehicle',async()=>{
   const row=vehicle(),other=vehicle('two'),before=JSON.stringify(row),f=fixture([row,other]);
   f.set('queueSearch="STOCK";listScroll=480;');const run=f.context.quickApprove('one');
-  assert.equal(f.state.pending.length,1);assert.equal(f.state.pending[0].name,'approve_pdc_new_vehicle_review');
+  assert.equal(f.state.pending.length,1);assert.equal(f.state.pending[0].name,'approve_pdc_new_vehicle_review_446');
   assert.deepEqual(plain(f.state.pending[0].payload.p_assignments),[
     {line_identity:'source:one-fit',stage_code:'FITTING',estimated_hours:1.25},
     {line_identity:'source:one-sub',stage_code:'SUBLET'},
@@ -174,7 +176,7 @@ test('bulk button checks all pages and refreshes the board once after the batch'
   assert.equal(f.state.pending[0].payload.p_offset,0,'bulk starts from the whole queue, not the current page');
   f.state.pending[0].resolve({ok:true,data:{items:rows,total:2,offset:0,has_more:false}});
   await new Promise(setImmediate);
-  assert.equal(f.state.pending[1].name,'approve_pdc_new_vehicle_review');
+  assert.equal(f.state.pending[1].name,'approve_pdc_new_vehicle_review_446');
   assert.equal(f.state.pending[1].payload.p_vehicle_id,'one');
   f.state.pending[1].resolve(receipt(rows[0]));await new Promise(setImmediate);
   assert.equal(f.state.refreshes,0,'there is no full board refresh per vehicle');

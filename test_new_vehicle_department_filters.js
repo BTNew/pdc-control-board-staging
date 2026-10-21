@@ -11,7 +11,7 @@ function vehicle(id,departments=['138']) {
   return {vehicle_id:id,stock_number:`TEST-${id}`,status:'pending',snapshot_hash:`hash-${id}`,department_codes:[...new Set(departments)],
     has_unknown_department:departments.some(department=>!department),received_at:'2026-09-18T00:00:00Z',job_cards:[`JC-${id}`],
     operations:departments.map((department,i)=>({line_identity:`${id}-${i}`,source_line_id:`source-${id}-${i}`,department,
-      description:`${department==='138'?'Fit Bus accessory':'Fit PD accessory'} ${i}`,stage_code:department==='138'?'BUS_4X4':'FITTING',
+      description:`${department==='138'?'Fit Bus accessory':'Fit PD accessory'} ${i}`,stage_code:department==='138'?'BUS_4X4':'FITTING',...(department==='138'?{work_category:'BUS_ACCESSORIES'}:{}),
       active:true,completed:false,estimated_hours:1,source_kind:'authenticated'}))};
 }
 const receipt=row=>({ok:true,data:{vehicle_id:row.vehicle_id,visible_on_board:true,bookings_created:0,operations:row.operations.map(line=>({...line}))}});
@@ -114,7 +114,7 @@ test('mixed vehicle explicit review displays all operations with clear whole-car
 
 test('quick approval waits for its receipt before applying an externally changed department',async()=>{
   const f=fixture('138'),row=vehicle('ready');f.context.row=row;f.set('items=[row];total=1;');
-  const save=f.context.quickApprove('ready');assert.equal(f.calls[0].name,'approve_pdc_new_vehicle_review');
+  const save=f.context.quickApprove('ready');assert.equal(f.calls[0].name,'approve_pdc_new_vehicle_review_446');
   assert.match(f.page.innerHTML,/<select data-nv-department[^>]*disabled/);
   f.context.window.PDC_DEPARTMENT_FILTER.setSelection('139');
   assert.equal(f.get('filterDepartment'),'138');assert.equal(f.get('pendingDepartment'),'139');assert.equal(f.calls.length,1);
@@ -128,10 +128,10 @@ test('quick approval waits for its receipt before applying an externally changed
 test('external department change stops bulk after its current vehicle and loads the new scope',async()=>{
   const f=fixture('138'),rows=[vehicle('first'),vehicle('second')];f.context.rows=rows;f.set('items=rows;total=rows.length;');
   const bulk=f.context.approveAllReady();assert.equal(f.calls[0].name,'list_pdc_new_vehicle_reviews_by_department');
-  f.resolve(0,rows);await tick();assert.equal(f.calls[1].name,'approve_pdc_new_vehicle_review');
+  f.resolve(0,rows);await tick();assert.equal(f.calls[1].name,'approve_pdc_new_vehicle_review_446');
   f.context.window.PDC_DEPARTMENT_FILTER.setSelection('139');assert.equal(f.get('bulkStop'),true);
   f.calls[1].resolve(receipt(rows[0]));await bulk;
-  assert.equal(f.calls.filter(call=>call.name==='approve_pdc_new_vehicle_review').length,1);
+  assert.equal(f.calls.filter(call=>call.name==='approve_pdc_new_vehicle_review_446').length,1);
   assert.equal(f.get('filterDepartment'),'139');assert.equal(f.get('saving'),false);assert.equal(f.state.refreshes,1);
   assert.ok(f.calls.slice(2).every(call=>call.payload.p_department==='139'));
   f.resolve(2);f.resolve(3);await tick();
