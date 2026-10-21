@@ -7,7 +7,8 @@ const departments=require('./pdc-workshop-departments.js');
 const slice=(file,from,to)=>{const s=fs.readFileSync(file,'utf8');const a=s.indexOf(from),b=s.indexOf(to,a+1);assert.ok(a>=0&&b>a,from);return s.slice(a,b);};
 
 test('each Bus 4x4 category lists the bays the database accepts',()=>{
-  const want={BUS_MECHANICAL:[1,2,3,4,9,10],BUS_ELECTRICAL:[8,9,10],BUS_ACCESSORIES:[9,10],BUS_QA:[7],BUS_PIT:[]};
+  // r447 (F60): Dept 138 bay guide (no-warning bays incl. overflow 5-6).
+  const want={BUS_MECHANICAL:[1,2,3,4,5,6],BUS_ELECTRICAL:[5,6,8,9,10],BUS_ACCESSORIES:[1,2,3,4,5,6,8,9,10],BUS_QA:[5,6,7],BUS_PIT:[]};
   for(const [code,bays] of Object.entries(want)) assert.deepEqual(departments.allowedBays(code),bays,code);
   assert.equal(departments.allowedBays('NOPE'),null);
   assert.deepEqual([...departments.category('BUS_ELECTRICAL').bays],[8,9]);
@@ -18,13 +19,13 @@ test('all-bays booking choices are filtered by the card category',()=>{
   const c={window:{},workshopSelectedBusGroup:()=>null,workshopStageBayCount:()=>10,workshopDepartmentLayout:()=>departments};
   vm.createContext(c);
   vm.runInContext(slice('workshop-planner.js','function workshopCategoryBays(','function workshopBayChoiceLabel('),c);
-  assert.deepEqual([...c.workshopCategoryBays('BUS_4X4','BUS_MECHANICAL')],[1,2,3,4,9,10]);
-  assert.deepEqual([...c.workshopCategoryBays('BUS_4X4','BUS_ELECTRICAL')],[8,9,10]);
-  assert.deepEqual([...c.workshopCategoryBays('BUS_4X4','BUS_QA')],[7]);
+  assert.deepEqual([...c.workshopCategoryBays('BUS_4X4','BUS_MECHANICAL')],[1,2,3,4,5,6]);
+  assert.deepEqual([...c.workshopCategoryBays('BUS_4X4','BUS_ELECTRICAL')],[8,9,10,5,6]);
+  assert.deepEqual([...c.workshopCategoryBays('BUS_4X4','BUS_QA')],[7,5,6]);
   assert.equal(c.workshopCategoryBays('BUS_4X4','').length,10);
   const planner=fs.readFileSync('workshop-planner.js','utf8');
   assert.match(planner,/const bayOptions = categoryBays\.map/);
-  assert.match(planner,/const slotBays = workshopCategoryBays\(normalizedStage, slotCategory\)/);
+  assert.match(planner,/const slotBays = workshopCategoryOwnBays\(normalizedStage, slotCategory\)/);
 });
 
 test('a bare category_bay_mismatch error is recognised, not shown raw',()=>{
@@ -35,7 +36,7 @@ test('a bare category_bay_mismatch error is recognised, not shown raw',()=>{
   assert.equal(c.f({message:'something else'}),'');
   const planner=fs.readFileSync('workshop-planner.js','utf8');
   const line=planner.split('\n').find(l=>l.includes("error === 'category_bay_mismatch'"));
-  assert.match(line,/Electrical in Bays 8–10/);assert.match(line,/Work tab/);
+  assert.match(line,/Bays 8–10 take Electrical and Accessories/);assert.match(line,/Work tab/);
 });
 
 test('done-before-the-board control: categories, guards and RPCs',()=>{

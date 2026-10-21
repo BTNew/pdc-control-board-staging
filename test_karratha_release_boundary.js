@@ -60,7 +60,8 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-review-stations.js": "851ebde33942fd3a3542f2292093483b6f9bc9f3ff9feb6cfc96aa8e6cf51488",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
-  "pdc-workshop-departments.js": "e32a0224bac142a0868aaf54f3f42b2e147a560bd22b8e3127e5715f22f333e6",
+  // r447: Dept 138 bay guide: preferred (own) bays and no-warning bays incl. overflow 5-6; preferredBays() (F60).
+  "pdc-workshop-departments.js": "cb10e3594876dfde52c5e0aa787df1379e1c5fcfb4271dc25d2ae9a5eb1d6906",
   // Shared planner: pointer-capture drops from a deep queue or search overlay,
   // keep the last search rows during a post-drop refresh, close Add to planner
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
@@ -69,7 +70,8 @@ const approvedRootImportPatch = Object.freeze({
   // r415: started-then-returned jobs can be dragged, Best slot or Scheduled again; the server resumes them (F31).
   // r417: every visible bay offered; a drop books the bay's own outstanding category; bay rule warning messages (F32).
   // r424: stopped jobs in Unallocated re-plan; drag onto a booking in the same bay offers Move ahead of / Swap with, preview, undo (F38).
-  "workshop-planner.js": "51a44e06047c624c7c562c33de0587de92dc0ef5b964be0054ef3bd7aeb06e95",
+  // r447: own bays first in the Schedule list, Best slot uses own bays only, new category_bay_mismatch text (F60).
+  "workshop-planner.js": "8e770252e85b1975a8f67e4d8bb24be39a3c6824d341b47cb5f4d980218005e9",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   "workshop-planner.css": "51c8dd7628ee620d55af26b7f1af78cbb4a2c7c0b8aa4e729faaac38d7cf4cfa",
   // Publish minifies app.js and styles.css in the Pages artifact only.
@@ -160,7 +162,8 @@ const approvedRootImportPatch = Object.freeze({
   // r443: index.html operation-panels=2026.10.21.r443 on canonical-entry.js (F56).
   // r444: index.html sublet-po=2026.10.21.r444 and operation-panels=2026.10.21.r444 on canonical-entry.js (F57).
   // r445: index.html sublet-po-attach=2026.10.21.r445 on canonical-entry.js (F58).
-  "index.html": "e250d6d82f6e7ad4a530cecbc5cd4454982bc61093c8acc88d07e94bb5f8b063",
+  // r447: index.html bay-guide=2026.10.21.r447 on pdc-workshop-departments.js (F60).
+  "index.html": "5fa848aec51ca48d8ec897603ceb0bfe9e51e82ab4b85194a411d0a6b9db250a",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
