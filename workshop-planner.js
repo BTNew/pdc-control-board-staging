@@ -1218,7 +1218,7 @@ function workshopDescribeSharedActionError(result) {
     const stage = ['mechanical', 'electrical', 'accessory'].includes(result.workflow_stage) ? result.workflow_stage : 'requested stage';
     return `The ${stage} parts check has not been confirmed for the current work. Open Workshop flow / parts readiness, check the required parts, select Confirmed available for this stage and save. Then retry the allocation. If parts are outstanding, keep the vehicle in Unallocated.`;
   }
-  if (error === 'bus_bay_vehicle_incompatible') return 'This vehicle is not compatible with this Bus 4×4 bay. Bay 3 is for HiAce vehicles only; select a compatible bay.';
+  if (error === 'bus_bay_vehicle_incompatible') return 'Bay 3 has a height restriction and does not take a Coaster. Drag it again and choose OK to book it there anyway (the override is logged), or select another bay.';
   if (error === 'category_bay_mismatch') return 'That bay is set up for other Bus 4×4 work. Bays 1–4 take Mechanical and Accessories; Bays 5–6 take any work (overflow); Bay 7 takes QA; Bays 8–10 take Electrical and Accessories. Drag it again and choose OK to book it there anyway (the override is logged). If the work was finished before the board, mark it done on the vehicle’s Work tab first.';
   if (error === 'bus_shift_outside_hours') return 'This booking is outside the Department 138 shift. Check its start and finish against the bay and mechanic working hours.';
   if (error === 'bus_technician_shift_conflict') return 'A technician on this team finishes at 14:00. Choose a booking within that person’s working hours or a team available for the whole booking. Supervision alone does not require a helper assignment.';
