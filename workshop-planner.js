@@ -1219,7 +1219,7 @@ function workshopDescribeSharedActionError(result) {
     return `The ${stage} parts check has not been confirmed for the current work. Open Workshop flow / parts readiness, check the required parts, select Confirmed available for this stage and save. Then retry the allocation. If parts are outstanding, keep the vehicle in Unallocated.`;
   }
   if (error === 'bus_bay_vehicle_incompatible') return 'This vehicle is not compatible with this Bus 4×4 bay. Bay 3 is for HiAce vehicles only; select a compatible bay.';
-  if (error === 'category_bay_mismatch') return 'That bay does not take this kind of Bus 4×4 work. Mechanical goes in Bays 1–4, 9 or 10; Electrical in Bays 8–10; Accessories in Bays 9–10; QA in Bay 7. To book Electrical into Bay 8, open the Electrical planner and use its Electrical card. If the Mechanical work was finished before the board, mark it done on the vehicle’s Work tab first.';
+  if (error === 'category_bay_mismatch') return 'That bay is set up for other Bus 4×4 work. Bays 1–4 take Mechanical and Accessories; Bays 5–6 take any work (overflow); Bay 7 takes QA; Bays 8–10 take Electrical and Accessories. Drag it again and choose OK to book it there anyway (the override is logged). If the work was finished before the board, mark it done on the vehicle’s Work tab first.';
   if (error === 'bus_shift_outside_hours') return 'This booking is outside the Department 138 shift. Check its start and finish against the bay and mechanic working hours.';
   if (error === 'bus_technician_shift_conflict') return 'A technician on this team finishes at 14:00. Choose a booking within that person’s working hours or a team available for the whole booking. Supervision alone does not require a helper assignment.';
   if (error === 'bus_supplier_verification_required') return 'Supplier work still needs a physical check by the assigned technician before this bay can be completed.';
@@ -3230,7 +3230,7 @@ function workshopBestStageSlot(stage = '', dateKey = '', hours = workshopDefault
   if (!WORKSHOP_STAGE_SEQUENCE.includes(normalizedStage)) return null;
   let best = null;
   const slotCategory = existingEntry?.workCategory || calendarVehicle?.__workshopOutstanding?.workCategory || '';
-  const slotBays = workshopCategoryBays(normalizedStage, slotCategory);
+  const slotBays = workshopCategoryOwnBays(normalizedStage, slotCategory);
   for (const bay of workshopSchedulableBayNumbers(normalizedStage).filter(number => normalizedStage !== 'BUS_4X4' || slotBays.includes(number))) {
     // New work must only be offered against a positively confirmed active
     // shared bay. Existing/historical bookings still use the deliberately
@@ -4631,11 +4631,25 @@ function workshopSelectedBusGroup() {
 // r417 (F32): Best slot and the default bay still use these bays. The Schedule
 // bay list also shows the other visible bays; choosing one asks the planner to
 // confirm (server warning bay_rule_warning) and the override is logged.
+// r447 (F60): the category's own bays come first, then the overflow Bays 5-6
+// (no warning either), so the default bay is always one of its own bays.
 function workshopCategoryBays(stage, workCategory = '') {
   const visible = workshopVisibleBays(stage);
   if (stage !== 'BUS_4X4' || !workCategory) return visible;
-  const allowed = workshopDepartmentLayout()?.allowedBays?.(workCategory);
-  return Array.isArray(allowed) ? visible.filter(number => allowed.includes(Number(number))) : visible;
+  const layout = workshopDepartmentLayout();
+  const allowed = layout?.allowedBays?.(workCategory);
+  if (!Array.isArray(allowed)) return visible;
+  const own = layout?.preferredBays?.(workCategory) || allowed;
+  const free = visible.filter(number => allowed.includes(Number(number)));
+  return [...free.filter(number => own.includes(Number(number))), ...free.filter(number => !own.includes(Number(number)))];
+}
+// r447 (F60): Best slot only offers the category's own bays (never the
+// overflow Bays 5-6), the same bays Book all stations uses on the server.
+function workshopCategoryOwnBays(stage, workCategory = '') {
+  const bays = workshopCategoryBays(stage, workCategory);
+  if (stage !== 'BUS_4X4' || !workCategory) return bays;
+  const own = workshopDepartmentLayout()?.preferredBays?.(workCategory);
+  return Array.isArray(own) ? bays.filter(number => own.includes(Number(number))) : bays;
 }
 
 // r417 (F32): dropping a vehicle on a bay that is another outstanding
@@ -6885,7 +6899,8 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     workshopNotify(`No bay in this view takes ${workshopDepartmentLayout()?.categoryLabel?.(scheduleCategory) || 'this'} work. Open that work category's planner. No booking was created.`);
     return;
   }
-  const bay = workshopSchedulableBayNumbers(normalizedStage).find(number => categoryBays.includes(number) && workshopBayAllocatedHours(normalizedStage, number, baseHours) > 0) || categoryBays[0];
+  const schedulableBays = workshopSchedulableBayNumbers(normalizedStage);
+  const bay = categoryBays.find(number => schedulableBays.includes(number) && workshopBayAllocatedHours(normalizedStage, number, baseHours) > 0) || categoryBays[0];
   const hours = workshopBookingDestinationHours(returnedPlan, normalizedStage, bay, baseHours);
   if (!(hours > 0)) {
     workshopNotify('Bay efficiency is still loading. Refresh the planner and try again.');
