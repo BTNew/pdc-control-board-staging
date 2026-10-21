@@ -1,26 +1,25 @@
 # Bus4x4 staff guide
 
-Current owner-approved rules — 15 October 2026.
+Current owner-approved rules — 21 October 2026 (bay guide r447, Bay 3 r448, whole job r450).
 
 Department 138 uses ordinary workshop booking controls. Its job-card work categories are **Mechanical, Accessories, Electrical, QA and Pit**. Pit is an external Department of Transport inspection and has no on-site bay. The additional Workshop flow, stage-parts readiness, forecast acknowledgement and supplier-status approval steps have been retired.
 
 | Destination | Physical bays |
 |---|---|
-| Mechanical | Bus4x4 1, 2, 3, 4 |
-| Progression (physical override bays only) | Bus4x4 5, 6 |
+| Mechanical and Accessories | Bus4x4 1, 2, 3, 4 |
+| Overflow (any Bus4x4 work, no warning) | Bus4x4 5, 6 |
 | QA | Bus4x4 7 |
-| Electrical | Bus4x4 8, 9 |
-| Accessory Fitting | Bus4x4 10 |
+| Electrical and Accessories | Bus4x4 8, 9, 10 |
 | Tint | Shared Tint bays |
 | Tyres | Shared Tyre bays |
 
 Selecting 138 shows its Bus4x4 categories and the shared Tint/Tyre bays. Selecting 139 shows separate Hoist, Fab, Fitting and Electrical schedules, followed by the same shared Tint/Tyre schedules. Shared bookings remain visible regardless of which department created them. There is one booking and one capacity record per physical bay.
 
-Use a destination to open its bays. The booking form retains all ten Bus4x4 bay choices, so a controller can place fitting work in an electrical bay when appropriate. Existing physical restrictions still apply: Bus4x4 Bay 3 is HiAce-only.
+Use a destination to open its bays. The booking form retains all ten Bus4x4 bay choices, so a controller can place fitting work in an electrical bay when appropriate. Existing physical restrictions still apply: Bus4x4 Bay 3 has a height restriction and takes any vehicle except a Coaster (r448, 21 October 2026). A Coaster in Bay 3 needs a planner-confirmed, logged override; Book all stations never puts a Coaster in Bay 3.
 
 Each Bus category has its own operation lines, approved hours, booking and fitter checklist. Completing one category leaves the other categories outstanding. New or changed accepted operations reopen the affected scope while completed bookings remain in history. Unchanged completed operations are excluded from the new booking's hours and fitter checklist. Explicit zero-hour QA tasks remain zero; unknown hours are not replaced with invented estimates.
 
-Existing whole-job bookings retain their dates, bay, assignments and scope. For an unstarted booking, use **Split booking into categories** on the job card: it releases that reservation and retains its history. Then book the categories separately. Started work, completed work and saved fitter progress cannot be split through this action. Work-category edits check the current vehicle and category versions and cannot silently change a booked scope.
+A controller can book a **whole job** (every unbooked Mechanical, Accessories, Electrical and QA line) to one technician as one booking (r450). It goes in Bays 1–6 and 8–10 without a warning; Bay 7 (QA) asks for confirmation. Existing whole-job bookings retain their dates, bay, assignments and scope. For an unstarted booking, use **Split booking into categories** on the job card: it releases that reservation and retains its history. Then book the categories separately. Started work, completed work and saved fitter progress cannot be split through this action. Work-category edits check the current vehicle and category versions and cannot silently change a booked scope.
 
 ### Remembered Bus import examples
 

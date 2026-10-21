@@ -77,7 +77,8 @@ const approvedRootImportPatch = Object.freeze({
   // r450: Schedule window offers Whole job to one technician; whole jobs show by bay (F63).
   "workshop-planner.js": "ea451784cd90f348c90418fa56f21d010e31f9587f85da5d8f48c52984a78eb2",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
-  "workshop-planner.css": "51c8dd7628ee620d55af26b7f1af78cbb4a2c7c0b8aa4e729faaac38d7cf4cfa",
+  // r457: one-column side menu 901-1180 px and no blank band in the stacked planner header up to 1300 px (F70).
+  "workshop-planner.css": "01efe7c09ee8a46a6c6b7d4c681de6113b60c6eddef799414efc0f8c8c76fce2",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   "scripts/build_pages_runtime.js": "f39cb3b2b550ac467feb7acbec932c091a8ad75229531e539fc706ec665210d3",
@@ -87,8 +88,10 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-new-vehicles.js": "3f8dc80f7b51493fd0da7224c5ab65345ca1ee3c9c33bbcdedeb574242576f75",
   "pdc-new-vehicles.css": "8e3930a3d42f6b309e327ae1f1bec066f15794be114868f5b4fe015eb3a142d5",
   "docs/bus4x4-workflow.md": "d2dab9a76da3b23ddfe0e21418d9e0f8212b48aa517443c47e657b2f656869c8",
-  "docs/bus4x4-user-guide.md": "d2729f19b9132afcfe4ee41413c98d2fba9db03c99e45a3a1d298cb57be9840f",
-  "docs/bus4x4-user-guide.html": "0a56823214fdd0e5ba0f7601671a92678d87231f07052937eaf09cdf29773b0a",
+  // r456: staff guide matches r447/r448/r450 bay rules (F69).
+  "docs/bus4x4-user-guide.md": "e360b5a829db55d14694007d41301ca7c1deea9362b2f42b3bec6651cdb5ea24",
+  // r456: staff guide matches r447/r448/r450 bay rules (F69).
+  "docs/bus4x4-user-guide.html": "66e58fb788f8ba4653baa4b0dba0ad92286783f79ab742ce8801a21933a05798",
   // pdc-new-vehicles.js? adds sublet-hours-tags=2026.10.20.01.
   // r436: loads pdc-parts-eta.js?parts-eta=2026.10.21.r436 after pdc-service-locations.js (parts ETA beside the parts location, F47).
   // r439: loads pdc-sublet-po.js?sublet-po=2026.10.21.r439 (GP PO lines with a sublet done tick; Sublet box orange/green, F50).
@@ -176,11 +179,16 @@ const approvedRootImportPatch = Object.freeze({
   // r450: index.html whole-job=2026.10.21.r450 on pdc-workshop-departments.js (F63).
   // r459: index.html r459=2026.10.22.r459 on canonical-entry.js (F72).
   // r460: index.html key-number=2026.10.22.r460 on canonical-entry.js (F73).
-  "index.html": "5f32229cf031680b08b46bf771d9b1ad632634d94738e7bd0d31cc496cb878aa",
+  // r454: index.html identity-dealer=2026.10.22.r454 on pdc-email-vehicle-location-service.js (F67).
+  // r457: index.html ipad-landscape=2026.10.22.r457 on workshop-planner.css (F70).
+  // r458: index.html vehicle-created=2026.10.22.r458 on pdc-email-vehicle-location-service.js (F71).
+  "index.html": "c31450a31d33f16c091d0f13402cda6f4492ca47a03ed4060cc7dce14ff714e1",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
-  "pdc-email-vehicle-location-service.js": "0c7a2678c17ca384fcd01f5f35c01c248c4d62d59762dbfb96b6780498e4860e",
+  // r454: a board row's identity_dealer_code (14450/37047) fills a missing dealer in mapServerVehicle (F67).
+  // r458: Detailed history shows a vehicle's creation as Created (presentVehicleCreationEvents, display only) (F71).
+  "pdc-email-vehicle-location-service.js": "e8ba105655c1d2b25cc39eb354fd5d0413c9b29add7edcb183d8ea6f8ecf3070",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
   "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",

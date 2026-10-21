@@ -1539,3 +1539,33 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
 .workshop-toast-message { flex: 1; white-space: pre-line; overflow-wrap: anywhere; }
 .workshop-toast-close { flex: none; min-width: 32px; min-height: 32px; border: 0; background: transparent; color: inherit; font-size: 20px; line-height: 1; cursor: pointer; }
 .workshop-toast-close:focus-visible { outline: 2px solid #1f6feb; outline-offset: 2px; }
+
+/* r457 (F70, Craig 22 Oct, decision 5): iPad landscape and small laptops (about 901-1300 px).
+   1. From 901 to 1180 px the side menu is still a column beside the page (desktop-operations.css and
+      styles.css keep it 184-220 px wide), but the locked styles.css also turns its list into a
+      4-column swipe grid meant for a stacked top menu, which squashed and clipped the labels.
+      Keep one item per row and the menu in view while scrolling, as at 1366 px. Up to 900 px
+      (and touch iPads up to 1024 px, i.e. portrait) the QC phone page is used and is not changed.
+   2. Up to 1300 px the planner header stacks its title and date toolbar in a column, but both kept
+      their row flex-basis (280 px and 620 px), which became their height in a column: about 300 px
+      of empty space above the toolbar and the bays pushed below the first screen. */
+@media (min-width: 901px) and (max-width: 1180px) {
+  html:not(.pdc-qc-phone) .app-shell:not(.sidebar-collapsed) > .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  html:not(.pdc-qc-phone) .app-shell:not(.sidebar-collapsed) > .sidebar .nav {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  html:not(.pdc-qc-phone) .app-shell:not(.sidebar-collapsed) > .sidebar .nav-scroll-cue {
+    display: none !important;
+  }
+}
+@media (max-width: 1300px) {
+  .workshop-planner-header > div:first-child,
+  .workshop-planner-header > .workshop-date-controls {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}

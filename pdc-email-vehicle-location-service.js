@@ -374,7 +374,68 @@ function mapServerVehicle(row = {}) {
   mapped.pmbSubletNotes = String(sublet.notes || '');
   mapped.pmbSubletEmailSent = sublet.email_sent === true;
   if (bookedBookings.length) mapped.pdcCompleteSublet = mapped.__subletActiveCount === 0;
+  // r454 (F67): an active or RFT vehicle with no current Navision record still
+  // carries the dealer of its own source record (identity_dealer_code, sent only
+  // when every record agrees). Use it only when no dealer is already known, and
+  // only for this board's dealers; the server still checks scope on every read.
+  const identityDealer = String(row.identity_dealer_code || '').trim();
+  if (['14450', '37047'].includes(identityDealer) && !String(mapped.dealerCode || '').trim()) mapped.dealerCode = identityDealer;
   return mapped;
+}
+// r458 (F71): a vehicle's creation is recorded as an 'update' of the vehicles row in the same instant the row
+// was created (before_data = the new row, after_data = only the details added on creation, e.g. Tune daily
+// fields). Listed as a change, every field read 'value -> blank'. Show it as 'Created' with the values the
+// vehicle was created with. Display only: the history rows themselves are not changed.
+const PDC_CREATION_FIELDS = Object.freeze(['stock_number', 'key_number', 'vin', 'make', 'model', 'vehicle_description', 'customer_name', 'current_location', 'lifecycle_state', 'workshop_status', 'parts_status', 'source_system']);
+function sameInstant(a, b) {
+  const x = String(a || '').trim(), y = String(b || '').trim();
+  if (!x || !y) return false;
+  const ms = value => Date.parse(value.replace(' ', 'T').replace(/([+-]\d\d)$/, '$1:00'));
+  const fraction = value => (value.match(/\.(\d+)/) || [])[1] || '';
+  const fx = fraction(x), fy = fraction(y);
+  return Number.isFinite(ms(x)) && ms(x) === ms(y) && (!fx || !fy || fx.padEnd(6, '0') === fy.padEnd(6, '0'));
+}
+function isVehicleCreationEvent(event = {}) {
+  if (!event || typeof event !== 'object') return false;
+  const table = String(event.table_name || '').toLowerCase();
+  const before = event.before_data && typeof event.before_data === 'object' && !Array.isArray(event.before_data) ? event.before_data : null;
+  const after = event.after_data && typeof event.after_data === 'object' && !Array.isArray(event.after_data) ? event.after_data : {};
+  if (!['vehicles', 'vehicle'].includes(table) || String(event.action || '').toLowerCase() !== 'update' || !before) return false;
+  // A full-row update carries the row id; the creation record carries only the details added on creation.
+  if (Object.prototype.hasOwnProperty.call(after, 'id')) return false;
+  return sameInstant(before.created_at, event.created_at);
+}
+function vehicleCreationEvent(events = []) {
+  // Several records can share the creation instant (e.g. details and location set while creating);
+  // they become one 'Created' entry holding every value the vehicle was created with.
+  const first = events[0] || {};
+  const metadata = {};
+  const take = (key, value) => { if (value !== null && value !== undefined && typeof value !== 'object' && String(value).trim() !== '') metadata[key] = value; };
+  for (const key of PDC_CREATION_FIELDS) take(key, first.before_data?.[key]);
+  for (const event of events) {
+    const after = event.after_data || {};
+    const details = after.details && typeof after.details === 'object' ? after.details : {};
+    for (const key of PDC_CREATION_FIELDS) { take(key, details[key]); take(key, after[key]); }
+  }
+  const ordered = {};
+  for (const key of PDC_CREATION_FIELDS) if (key in metadata) ordered[key] = metadata[key];
+  const contract = events.map(event => event.metadata?.contract).find(Boolean);
+  if (contract) ordered.source = contract;
+  return { ...first, action: 'Created', table_name: 'vehicle', before_data: {}, after_data: {}, metadata: ordered, pdc_display_only_creation: true };
+}
+function presentVehicleCreationEvents(data) {
+  if (!data || typeof data !== 'object' || !Array.isArray(data.audit_events)) return data;
+  const creations = data.audit_events.filter(isVehicleCreationEvent);
+  if (!creations.length) return data;
+  const byVehicle = new Map();
+  for (const event of creations) { const id = String(event.row_id || ''); if (!byVehicle.has(id)) byVehicle.set(id, []); byVehicle.get(id).push(event); }
+  const audit_events = [];
+  for (const event of data.audit_events) {
+    if (!creations.includes(event)) { audit_events.push(event); continue; }
+    const group = byVehicle.get(String(event.row_id || ''));
+    if (group[0] === event) audit_events.push(vehicleCreationEvent(group));
+  }
+  return { ...data, audit_events };
 }
 function rowIdentities(row = {}) { return { stock: identity(row.stock_number ?? row.stock), vin: identity(row.vin ?? row.VIN ?? row.chassis ?? row.chassisNo) }; }
 function reconcileVehicleRows(localRows = [], serverRows = [], options = {}) {
@@ -975,7 +1036,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
       const response = await request(`${url}/rest/v1/rpc/${PDC_VEHICLE_HISTORY_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: vehicleId }) });
       const body = await response.json();
       if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, data: body?.data || null };
-      return { ok: true, code: body.code || 'ok', data: body.data || body };
+      return { ok: true, code: body.code || 'ok', data: presentVehicleCreationEvents(body.data || body) };
     } catch (_error) { return { ok: false, code: 'vehicle_history_unavailable', data: null }; }
   }
   async function updateSalesPreparation(vehicleId = '', expectedVersion = 0, field = '', value = false) {
@@ -1060,6 +1121,6 @@ function createPdcEmailVehicleLocationService(options = {}) {
   }
   return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, readSubletAuditLedgers, saveVehicleWorkshopLineHoursBatch, updateSublet, createSubletBooking, updateSubletBooking, updateSubletBookingProvider, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport, finalizeQcToRft700, bookRftTransport700, collectRftTransport700, bookRftTransport734, collectRftTransport734, setRftConfirmation736, bookRftTransport739, readRftBookingContext739, readRftTransportDraft739, readRftTransportEvidence734, createAcceptanceVehicle, setQcOperationCompletion, setPitLineTick, readPitLineTicks, rejectQcVehicleToPmb, uploadQcPhotoEvidence, readQcPhotoReceipt, finalizeQcToRft, finalizeQcRetest, subscribe };
  }
-const pdcEmailVehicleLocationExported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_AUDIT_READ_RPC, PDC_WORKSHOP_HOURS_BATCH_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_RFT_CONFIRMATION_RPC, PDC_RFT_TRANSPORT_DRAFT_BOOK_RPC, PDC_RFT_TRANSPORT_DRAFT_CONTEXT_RPC, PDC_RFT_TRANSPORT_DRAFT_READ_RPC, PDC_FINAL_QC_TO_RFT_RPC, PDC_FINAL_RFT_BOOK_RPC, PDC_FINAL_RFT_COLLECT_RPC, PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_PIT_LINE_TICK_RPC, PDC_PIT_LINE_TICKS_READ_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, PDC_QC_RETEST_PHOTO_RPC, PDC_QC_RETEST_FINALIZATION_RPC, canonicalWorkKey, mapLifecycleHistory, mapServerVehicle, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+const pdcEmailVehicleLocationExported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_AUDIT_READ_RPC, PDC_WORKSHOP_HOURS_BATCH_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_RFT_CONFIRMATION_RPC, PDC_RFT_TRANSPORT_DRAFT_BOOK_RPC, PDC_RFT_TRANSPORT_DRAFT_CONTEXT_RPC, PDC_RFT_TRANSPORT_DRAFT_READ_RPC, PDC_FINAL_QC_TO_RFT_RPC, PDC_FINAL_RFT_BOOK_RPC, PDC_FINAL_RFT_COLLECT_RPC, PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_PIT_LINE_TICK_RPC, PDC_PIT_LINE_TICKS_READ_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, PDC_QC_RETEST_PHOTO_RPC, PDC_QC_RETEST_FINALIZATION_RPC, canonicalWorkKey, mapLifecycleHistory, mapServerVehicle, isVehicleCreationEvent, presentVehicleCreationEvents, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = pdcEmailVehicleLocationExported;
 if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = pdcEmailVehicleLocationExported;
