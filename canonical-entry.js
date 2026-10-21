@@ -82,7 +82,18 @@
       const keyNumber = document.createElement('script');
       keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460';
       keyNumber.dataset.pdcKeyNumber = '1';
+      keyNumber.onload = loadVehicleLocationsTable;
+      keyNumber.onerror = loadVehicleLocationsTable;
       document.head.appendChild(keyNumber);
+    };
+    // r461 (F74): Vehicle Locations "Table view" switch (default stays the drop-down view); loads last in this chain so
+    // the table shows the same cells as the drop-downs, including the parts ETA and key number additions.
+    const loadVehicleLocationsTable = () => {
+      if (document.querySelector('script[data-pdc-vehicle-locations-table]')) return;
+      const table = document.createElement('script');
+      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461';
+      table.dataset.pdcVehicleLocationsTable = '1';
+      document.head.appendChild(table);
     };
     serviceLocations.onload = loadPartsEta;
     serviceLocations.onerror = loadPartsEta;
