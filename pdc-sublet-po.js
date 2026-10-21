@@ -5,7 +5,7 @@
    when the vehicle has no GP PO. Controllers, administrators and fitters tick (the server checks again); others read. */
 (() => {
   'use strict';
-  const VERSION = '2026.10.21.r439b';
+  const VERSION = '2026.10.21.r439c';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const stockKey = value => String(value ?? '').trim().toUpperCase();
@@ -93,10 +93,12 @@
   const LI = /<li data-operation-source-id="([^"]*)"([^>]*)>([\s\S]*?)<\/li>/g;
   const LABEL = /^\s*<strong>([^<]*)<\/strong>/;
   const unescape = text => String(text).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+  // r439c (F55): the chip/tick (or "No PO") is its own grid item after the hours, so it takes a second row under the
+  // description instead of widening the hours column (inside the nowrap hours it starved the description).
   function addToLine(body, extra) {
     if (/pdc-sublet-po-(inline|nopo)/.test(body)) return body;
-    const em = body.lastIndexOf('</em>');
-    return em >= 0 ? body.slice(0, em) + extra + body.slice(em) : body + extra;
+    const em = body.indexOf('</em>');
+    return em >= 0 ? body.slice(0, em + 5) + extra + body.slice(em + 5) : body + extra;
   }
   /**
    * Put each GP PO line's PO chip and 'sublet done' tick inline on its own line in the operations summary (whatever its
@@ -232,12 +234,23 @@
     load(true);
   }, true);
   const style = document.createElement('style');
-  style.textContent = '.pdc-sublet-po-count{font-size:9px;font-weight:700;margin-left:2px;opacity:.85}'
-    + '.pdc-sublet-po-inline{display:inline-flex;align-items:center;gap:4px;margin-left:6px;vertical-align:middle;white-space:nowrap}'
-    + '.pdc-sublet-po-chip{display:inline-block;padding:0 5px;border-radius:4px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-size:11px;font-weight:650;line-height:16px}'
+  // r439c (F55): readable lines at 100% zoom. Label and hours take only their own width, the description the rest with
+  // word-gap wrapping (long words break only as a last resort), and boxes wrap onto more rows instead of narrowing
+  // below ~16.5rem. Scoped overrides here because styles.css is a frozen baseline; Review keeps its own layout.
+  const OPS = '.authenticated-email-operations .authenticated-operation-station';
+  const LINE = OPS + ':not([data-operation-station="REVIEW"]) li';
+  style.textContent = '.authenticated-email-operations .authenticated-operation-station-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,16.5rem),1fr))}'
+    + LINE + '{grid-template-columns:max-content minmax(0,1fr) max-content;column-gap:.45rem;row-gap:.25rem}'
+    + OPS + ' li span{min-width:0;overflow-wrap:break-word;word-break:normal}'
+    + '@media (max-width:700px){.authenticated-email-operations .authenticated-operation-station-grid{grid-template-columns:1fr}}'
+    + '@media (max-width:440px){' + LINE + '{grid-template-columns:auto minmax(0,1fr)}}'
+    + '.pdc-sublet-po-count{font-size:9px;font-weight:700;margin-left:2px;opacity:.85}'
+    + '.pdc-sublet-po-inline{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;vertical-align:middle}'
+    + '.authenticated-email-operations li>.pdc-sublet-po-inline,.authenticated-email-operations li>.pdc-sublet-po-nopo{grid-column:2/-1;justify-self:start;margin:0}'
+    + '.pdc-sublet-po-chip{display:inline-block;white-space:nowrap;padding:0 5px;border-radius:4px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-size:11px;font-weight:650;line-height:16px}'
     + '.pdc-sublet-po-inline.is-done .pdc-sublet-po-chip{background:#f0fdf4;border-color:#86efac;color:#166534}'
     + '.pdc-sublet-po-tick{width:15px;height:15px;margin:0;cursor:pointer;accent-color:#15803d}.pdc-sublet-po-tick:disabled{cursor:default}'
-    + '.pdc-sublet-po-nopo{margin-left:6px;color:#94a3b8;font-size:10.5px;font-weight:650;white-space:nowrap}'
+    + '.pdc-sublet-po-nopo{color:#94a3b8;font-size:10.5px;font-weight:650;white-space:nowrap}'
     + '.pdc-sublet-po-unplaced{margin-top:6px;font-size:11.5px}.pdc-sublet-po-unplaced>div{padding:2px 0}';
   document.head.appendChild(style);
   load();
