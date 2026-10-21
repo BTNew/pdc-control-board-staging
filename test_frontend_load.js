@@ -5,6 +5,8 @@ const fs = require('node:fs');
 const builder = require('./scripts/build_pages_runtime.js');
 
 const STARTUP_ORDER = [
+  // r441 (F52): the release auto-reload check loads first, not deferred, so it sees every save request.
+  'pdc-auto-reload.js',
   'pdc-deferred-script-order.js',
   'pdc-workshop-departments.js',
   'pdc-department-filter.js',
@@ -68,7 +70,8 @@ test('the live board defers every startup script in the previous order and keeps
   const tags = scriptTags(html);
   assert.deepEqual(tags.map(tag => tag.file), STARTUP_ORDER);
   assert.equal(tags[0].deferred, false);
-  assert.deepEqual(tags.slice(1).map(tag => tag.deferred), tags.slice(1).map(() => true));
+  assert.equal(tags[1].deferred, false);
+  assert.deepEqual(tags.slice(2).map(tag => tag.deferred), tags.slice(2).map(() => true));
   assert.match(html, new RegExp('styles\\.css\\?[^"]*publish-minify=' + builder.PUBLISH_ASSET_VERSION));
   assert.match(html, new RegExp('<script src="app\\.js\\?[^"]*publish-minify=' + builder.PUBLISH_ASSET_VERSION));
   for (const removed of ['data-staging-empty.js', 'scripts/stage2b_c4_browser_export.js', 'staging-browser-assessment.js']) {

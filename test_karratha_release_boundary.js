@@ -149,7 +149,8 @@ const approvedRootImportPatch = Object.freeze({
   // r436: canonical-entry.js adds parts-eta=2026.10.21.r436.
   // r440: pdc-fitters.js and pdc-conversion-ticks.css add start-before-done=2026.10.21.r440 (F51).
   // r439: index.html adds sublet-po=2026.10.21.r439 on canonical-entry.js (F50).
-  "index.html": "28dbd3e29eae78f3645eeaf5c8894a7b07e26f888b51c85d39a5b6cc7ddd9d7f",
+  // r441: index.html loads pdc-auto-reload.js first (reload open tabs after a release, F52); Department 135 is not tagged.
+  "index.html": "f6da31ec0d5750849747f528105bd8bc853386b2c24e75aa9b854a755a4cf7c8",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

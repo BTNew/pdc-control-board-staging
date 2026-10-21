@@ -50,7 +50,7 @@ test('artifact keeps exact entry, deferred modules, PDF/QZ workers and guide byt
   const outputRoot = path.join(temporaryRoot, 'artifact');
   const result = builder.buildRuntimeArtifact(sourceRoot, outputRoot);
   const published = new Set(['app.js', 'styles.css']);
-  const expected = [...builder.RUNTIME_FILES, ...builder.PUBLISHED_SOURCE_MAPS].sort();
+  const expected = [...builder.RUNTIME_FILES, ...builder.PUBLISHED_SOURCE_MAPS, builder.BUILD_VERSION_FILE].sort();
   assert.equal(result.fileCount, expected.length);
   assert.deepEqual(filesBelow(outputRoot), expected);
   for (const filename of builder.RUNTIME_FILES) {
@@ -58,6 +58,14 @@ test('artifact keeps exact entry, deferred modules, PDF/QZ workers and guide byt
     if (published.has(filename)) {
       assert.notEqual(digest(outputRoot), digest(sourceRoot), filename + ' is minified only in the published artifact');
       assert.ok(fs.readFileSync(path.join(outputRoot, filename)).length < fs.readFileSync(path.join(sourceRoot, filename)).length, filename);
+      continue;
+    }
+    if (builder.BUILD_TAGGED_PAGES.includes(filename)) {
+      // r441: the only published change is the one build tag after the charset meta.
+      const tag = '<meta name="pdc-build" content="' + result.build + '">';
+      const publishedHtml = fs.readFileSync(path.join(outputRoot, filename), 'utf8');
+      assert.equal(publishedHtml.split(tag).length, 2, filename + ' has exactly one build tag');
+      assert.equal(publishedHtml.replace(tag, ''), fs.readFileSync(path.join(sourceRoot, filename), 'utf8'), filename + ' differs only by the build tag');
       continue;
     }
     assert.equal(digest(outputRoot), digest(sourceRoot), filename + ' must keep its URL, content and file bytes');
