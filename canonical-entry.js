@@ -65,6 +65,16 @@
 
     const serviceLocations = document.createElement('script');
     serviceLocations.src = 'pdc-service-locations.js?v=2026.09.14.03';
+    // r436 (F47): parts ETA loads after the parts location so its chip sits beside it (and still loads if that file fails).
+    const loadPartsEta = () => {
+      if (document.querySelector('script[data-pdc-parts-eta]')) return;
+      const partsEta = document.createElement('script');
+      partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436';
+      partsEta.dataset.pdcPartsEta = '1';
+      document.head.appendChild(partsEta);
+    };
+    serviceLocations.onload = loadPartsEta;
+    serviceLocations.onerror = loadPartsEta;
     document.head.appendChild(serviceLocations);
     const partsConfirmation = document.createElement('script');
     partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.13.person-confirmed.1';
