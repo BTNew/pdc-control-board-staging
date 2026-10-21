@@ -14,7 +14,7 @@ const sourceId='11111111-1111-4111-8111-111111111111';
 const lineKey=`source:${sourceId}`;
 const line={line_identity:lineKey,source_line_id:sourceId,department:'138',stage_code:'SUBLET',description:'Accessory',estimated_hours:2.25,active:true,completed:false};
 
-test('r446 (F59): every Department 138 Bus 4x4 station can be chosen; the routing station is sent and the category is verified',()=>{
+test('r446 (F59) / r459 (F72): every Department 138 Bus 4x4 station can be chosen; the station it maps to is sent and the category and planner stage are verified',()=>{
   const row={vehicle_id:'v1',status:'pending',operations:[line,{...line,line_identity:'other',department:'139',stage_code:'TINT'}]};
   const before=JSON.stringify(row);
   assert.deepEqual(api.STATIONS_138.map(([code])=>code),['BUS_MECHANICAL','BUS_ACCESSORIES','BUS_ELECTRICAL','BUS_QA','TINT','TYRE','SUBLET','BUS_PIT']);
@@ -22,13 +22,19 @@ test('r446 (F59): every Department 138 Bus 4x4 station can be chosen; the routin
   for(const [station] of api.STATIONS_138) {
     const choices={[lineKey]:station,other:'ELECTRICAL'};
     const assignments=api.assignmentsFor(row,choices,{});
-    assert.deepEqual(assignments.map(item=>item.stage_code),['BUS_4X4','ELECTRICAL']);
+    const routed=station.startsWith('BUS_')?'BUS_4X4':station, planner=station==='BUS_PIT'?'PIT_INSPECTION':routed;
+    assert.deepEqual(assignments.map(item=>item.stage_code),[routed,'ELECTRICAL'],'r459: the reviewer\'s station drives routing');
     assert.equal(assignments[0].work_category,station);
     assert.equal(assignments[0].estimated_hours,station==='SUBLET'?undefined:2.25);
     assert.deepEqual(api.problems(row,choices),[]);
     assert.equal(api.stationGroups(row,choices).find(group=>group.code===station).lines.some(item=>item.line_identity===lineKey),true);
-    const receipt={ok:true,data:{vehicle_id:'v1',visible_on_board:true,bookings_created:0,operations:row.operations.map((item,index)=>index?{...item,stage_code:'ELECTRICAL'}:{...item,stage_code:'BUS_4X4',work_category:station})}};
+    const receipt={ok:true,data:{vehicle_id:'v1',visible_on_board:true,bookings_created:0,operations:row.operations.map((item,index)=>index?{...item,stage_code:'ELECTRICAL'}:{...item,stage_code:planner,work_category:station})}};
     assert.equal(api.verifyApproval(receipt,row,choices),true);
+    receipt.data.operations[0].stage_code=routed;
+    assert.equal(api.verifyApproval(receipt,row,choices),true,'routing station also accepted');
+    receipt.data.operations[0].stage_code=routed==='SUBLET'?'BUS_4X4':'SUBLET';
+    assert.equal(api.verifyApproval(receipt,row,choices),false,'a line that lands on another planner is not confirmed');
+    receipt.data.operations[0].stage_code=planner;
     receipt.data.operations[0].work_category=station==='BUS_QA'?'BUS_MECHANICAL':'BUS_QA';
     assert.equal(api.verifyApproval(receipt,row,choices),false);
   }
@@ -161,7 +167,8 @@ test('Department 138 window tint stays in Tint through review and approval witho
 
 test('tinted protectors remain Bus 4x4 while changed window tint uses Tint',()=>{
   for (const description of ['TINTED WEATHER SHIELDS','TINTED BONNET PROTECTOR','Accessory']) {
-    assert.equal(api.assignedStation({...line,description}),'BUS_4X4');
+    // r459: the review sends the reviewer's station; the description rule still routes Operation Updates.
+    assert.equal(api.department138Station({...line,description}),'BUS_4X4');
   }
   const row={change_id:'c1',status:'pending',already_on_board:true,effective_hours:1.75,
     proposed:{department:'138',description:'WINDOW TINT',proposed_station:'BUS_4X4'},

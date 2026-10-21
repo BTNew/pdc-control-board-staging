@@ -6,8 +6,9 @@
     ['FITTING', 'Fitting'], ['ELECTRICAL', 'Electrical'], ['FABRICATION', 'Fabrication'],
     ['HOIST', 'Hoist'], ['TINT', 'Tint'], ['TYRE', 'Tyre'], ['BUS_4X4', 'Bus 4×4'], ['SUBLET', 'Sublet'],
   ]);
-  // r446 (F59): Dept 138 review stations = Bus 4x4 work categories (Bhavesh 21 Oct). The value is the work category; the
-  // stage stays server-owned (approve_pdc_new_vehicle_review_446 substitutes the Dept 138 routing station).
+  // r446 (F59): Dept 138 review stations = Bus 4x4 work categories (Bhavesh 21 Oct). The value is the work category.
+  // r459 (F72): the reviewer's choice drives routing: approve_pdc_new_vehicle_review_446 routes each Dept 138 line to the
+  // station its category maps to (routingStation138) and records it, on any of the 8 stations (Pit – external has no bay).
   const STATIONS_138 = Object.freeze([
     ['BUS_MECHANICAL', 'Mechanical'], ['BUS_ACCESSORIES', 'Accessories'], ['BUS_ELECTRICAL', 'Electrical'], ['BUS_QA', 'QA'],
     ['TINT', 'Tint'], ['TYRE', 'Tyre'], ['SUBLET', 'Sublet'], ['BUS_PIT', 'Pit – external'],
@@ -46,9 +47,18 @@
   const reviewCode = (line, choices = {}) => department138(line)
     ? choices[line.line_identity] ?? (valid138(line.work_category) ? line.work_category : '')
     : choices[line.line_identity] ?? (validStation(line.stage_code) ? line.stage_code : '');
-  // Station sent for approval. Dept 138 keeps its routing station (the server replaces it with the authoritative one).
-  const assignedStation = (line, choices = {}) => department138(line) ? department138Station(line) : reviewCode(line, choices);
+  // r459 (F72): Dept 138 routing station from the reviewer's category: Mechanical / Accessories / Electrical / QA /
+  // Pit – external -> the Bus 4x4 card (Pit – external is never booked in a bay), Tint / Tyre / Sublet as chosen. Same mapping
+  // as the server; an unchosen line has none (Needs Review).
+  const routingStation138 = code => valid138(code) ? (code.startsWith('BUS_') ? 'BUS_4X4' : code) : '';
+  // Planner stage the approved line reads back with (pdc_work_categories_private.stage): Pit – external is the Pit planner.
+  const plannerStage138 = code => code === 'BUS_PIT' ? 'PIT_INSPECTION' : routingStation138(code);
+  // Station sent for approval: Dept 138 follows the reviewer's choice (the server derives the same station from the category).
+  const assignedStation = (line, choices = {}) => department138(line) ? routingStation138(reviewCode(line, choices)) : reviewCode(line, choices);
   const validChoice = (line, code) => department138(line) ? valid138(code) : validStation(code);
+  // r459 (F72): THE station rule. The Needs Review bucket, the approval problems and the server's approve check
+  // (dept138_category_required / all_operations_need_stations) all use it, so the Needs Review count and approval agree.
+  const needsReview = (line, choices = {}) => !validChoice(line, reviewCode(line, choices));
   const stationsFor = line => department138(line) ? STATIONS_138 : STATIONS;
   function rowStations(row) {
     const ops=row?.operations||[],has138=ops.some(department138),hasOther=ops.some(line=>!department138(line));
@@ -90,7 +100,7 @@
   function problems(row, choices = {}, hours = {}) {
     if (!row || row.status !== 'pending' || !Array.isArray(row.operations) || !row.operations.length) return ['No complete Job Card is available.'];
     const issues = [];
-    if (row.operations.some(line => !validChoice(line, reviewCode(line, choices)))) issues.push('Choose a station for every operation.');
+    if (row.operations.some(line => needsReview(line, choices))) issues.push('Choose a station for every operation.');
     if (row.operations.some(line => reviewCode(line, choices) !== 'SUBLET' && !positiveHours(hoursFor(line,hours)))) issues.push('Enter positive hours for workshop operations; Sublet does not require hours.');
     if (row.operations.some(line => line.completed === true || line.active !== true)) issues.push('An operation changed or has already been completed. Reload this Job Card.');
     if (new Set(row.operations.map(line => line.line_identity)).size !== row.operations.length) issues.push('Duplicate operation identity needs review.');
@@ -124,14 +134,14 @@
   function stationGroups(row, choices = {}, drafts = {}) {
     const ops = row?.operations || [];
     return [['', 'Needs Review'], ...rowStations(row)].map(([code,label]) => {
-      const lines = ops.filter(line => {const chosen=reviewCode(line, choices);return code===''?!validChoice(line,chosen):chosen===code;});
+      const lines = ops.filter(line => code==='' ? needsReview(line, choices) : !needsReview(line, choices) && reviewCode(line, choices)===code);
       const hours = lines.some(line => !positiveHours(hoursFor(line,drafts))) ? null : lines.reduce((sum,line) => sum+Number(hoursFor(line,drafts)),0);
       return {code,label,lines,hours};
     });
   }
   function reviewOrder(row, choices = {}, drafts = {}) {
     const stationOrder=new Map(['',...rowStations(row).map(([code])=>code)].map((code,index)=>[code,index]));
-    const chosen=line=>{const code=reviewCode(line,choices);return validChoice(line,code)?code:'';};
+    const chosen=line=>needsReview(line,choices)?'':reviewCode(line,choices);
     const stationRank=line=>stationOrder.get(chosen(line))??0;
     const priority=line=>chosen(line)!=='SUBLET'&&!positiveHours(hoursFor(line,drafts))?0:1;
     return [...(row?.operations||[])].sort((a,b)=>stationRank(a)-stationRank(b)||priority(a)-priority(b));
@@ -143,11 +153,12 @@
     return assignmentsFor(row,choices).every(wanted => {
       const before=row.operations.find(line=>line.line_identity===wanted.line_identity);
       const after=data.operations.filter(line=>line.line_identity===wanted.line_identity);
-      // Dept 138: the category is the reviewer's choice; the server owns the stage (its routing station, or the stage the
-      // category maps to) and keeps imported hours on a Sublet choice.
+      // Dept 138: the category is the reviewer's choice and drives routing (r459): the line reads back on the routing
+      // station or the planner stage its category maps to; imported hours are kept on a Sublet choice.
       if(department138(before)) {
         const subletChoice=wanted.work_category==='SUBLET';
-        return after.length===1 && after[0].work_category===wanted.work_category && typeof after[0].stage_code==='string' && after[0].stage_code!==''
+        return after.length===1 && after[0].work_category===wanted.work_category
+          && [wanted.stage_code,plannerStage138(wanted.work_category)].includes(after[0].stage_code)
           && after[0].description===before.description && after[0].source_line_id===before.source_line_id
           && (subletChoice || after[0].estimated_hours===Number(hoursFor(before,hours))) && after[0].completed===false;
       }
@@ -324,7 +335,7 @@
     if(state.phase==='checking')return `Checking all queued vehicles${state.total?` · ${state.checked} of ${state.total}`:'…'}`;
     return `Adding ready vehicles · ${state.approved} of ${state.ready} approved${state.failed?` · ${state.failed} need attention`:''}. ${state.needsReview} left for review.`;
   }
-  const api={STATIONS_138,APPROVE_RPC,stationTheme,reviewCode,validChoice,rowStations,stationsFor,valid138,normalizeReviewDepartment,departmentReadRequest,verifyDepartmentResponse,departmentApprovalProblems,departmentFilterHtml,department138Station,department138,assignedStation,updateDepartment138,updateStation,approveReadyQueue,bulkProgressText,quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
+  const api={STATIONS_138,APPROVE_RPC,routingStation138,plannerStage138,needsReview,stationTheme,reviewCode,validChoice,rowStations,stationsFor,valid138,normalizeReviewDepartment,departmentReadRequest,verifyDepartmentResponse,departmentApprovalProblems,departmentFilterHtml,department138Station,department138,assignedStation,updateDepartment138,updateStation,approveReadyQueue,bulkProgressText,quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   if(typeof window==='undefined' || window.PDC_SUPABASE_CONFIG?.projectRef!==PROJECT
       || typeof showView!=='function' || window.PDC_NEW_VEHICLES_VERSION) return;
@@ -388,7 +399,8 @@
     const code=String(err?.message || '');
     if(code==='department_138_requires_correct_station')return 'An operation’s selected station conflicts with its saved Department 138 routing. No changes were saved. Refresh the Job Card; if it persists, its routing rule needs correcting.';
     if(code==='dept138_category_required'||code==='category_only_for_dept138')return 'Choose a Bus 4×4 station (Mechanical, Accessories, Electrical, QA, Tint, Tyre, Sublet or Pit) for every Department 138 operation. No changes were saved.';
-    if(code==='dept138_station_needs_review')return 'A Department 138 operation has no routing station yet. No changes were saved. Refresh the Job Card; if it persists, its routing rule needs correcting.';
+    // r459: no longer returned (the reviewer's station drives routing); kept for a page open across the release.
+    if(code==='dept138_station_needs_review')return 'A Department 138 operation has no routing station yet. No changes were saved. Refresh the page and approve again.';
     if(code==='dept138_sublet_needs_hours')return 'A Department 138 operation marked Sublet has no imported hours to keep. Choose a workshop station and enter hours, or check the Job Card. No changes were saved.';
     if(code==='category_readback_mismatch')return 'The chosen Department 138 stations could not be confirmed, so nothing was saved. Refresh the Job Card and try again.';
     if(code==='department_scope_mismatch')return 'This department could not be confirmed. Refresh before approving vehicles.';
@@ -836,7 +848,7 @@
   document.addEventListener('visibilitychange',()=>void refreshBackground());
   window.addEventListener('online',()=>void refreshBackground());
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.10.21.r446';
+  window.PDC_NEW_VEHICLES_VERSION='2026.10.22.r459';
   window.PDC_NEW_VEHICLES=api;
   render();void refreshBackground();
   if(['#/newvehicles','#/operationupdates'].includes(window.location.hash))showView(window.location.hash.slice(2),{historyMode:'none'});
