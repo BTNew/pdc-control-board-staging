@@ -104,7 +104,8 @@ const approvedRootImportPatch = Object.freeze({
   // r414: the QC page reads the stored completion photo back (F30); index.html adds qc-photo-readback=2026.10.21.01.
   // r415: workshop-planner.js loads with r415=2026.10.21.01 (started-before jobs re-plan, F31).
   // r417: r417=2026.10.21.01 on workshop-planner.js, workshop-data-service.js and workshop-shared-actions.js (bay rule warn-and-confirm, F32).
-  "app.js": "2078c91773801c6fe6eec95122768a1ee2cf0e7e6e650b42ec3c27027bf50a0f",
+  // r419: User Admin role lists offer every role, preselect the real role and confirm role changes (F34); index.html adds r419=2026.10.21.01.
+  "app.js": "f0f06902d87a14e2a0fa22d609e7acf0816904ec10a8da7b1789d6ddc73d8790",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -126,7 +127,8 @@ const approvedRootImportPatch = Object.freeze({
   // r409: app.js adds r409=2026.10.21.01.
   // r414: qc-photo-readback=2026.10.21.01 on app.js and pdc-email-vehicle-location-service.js.
   // r415: r415=2026.10.21.01 on workshop-planner.css.
-  "index.html": "769a74aebd3cff8a8d70f6fb59492ec0e1b00e362f90b8473049dd77351f38a9",
+  // r419: app.js adds r419=2026.10.21.01.
+  "index.html": "e3370d7c2b2ec842a1a8e113b37316e25e5a9375002d68bf1aab50745208ca48",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

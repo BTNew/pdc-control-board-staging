@@ -4377,15 +4377,38 @@ async function loadUserManagementRows() {
   return data || [];
 }
 
+// r419 (F34): every role the server accepts is offered, the current role is always the selected option (an unknown role is
+// shown as itself, never silently replaced by the first option), and every role change asks for confirmation first.
+const USER_MANAGEMENT_ROLE_OPTIONS = [
+  ['viewer', 'viewer'],
+  ['operator', 'controller'],
+  ['importer', 'importer'],
+  ['administrator', 'administrator'],
+  ['fitter', 'fitter'],
+  ['salesperson', 'salesperson'],
+];
+
+function userManagementRoleLabel(role) {
+  const match = USER_MANAGEMENT_ROLE_OPTIONS.find(([value]) => value === role);
+  return match ? match[1] : (role || '—');
+}
+
+function userManagementRoleOptionsHtml(selectedRole) {
+  const known = USER_MANAGEMENT_ROLE_OPTIONS.some(([value]) => value === selectedRole);
+  const options = USER_MANAGEMENT_ROLE_OPTIONS.map(([value, label]) =>
+    `<option value="${value}"${value === selectedRole ? ' selected' : ''}>${label}</option>`);
+  if (selectedRole && !known) {
+    options.unshift(`<option value="${escapeHtml(selectedRole)}" selected>${escapeHtml(selectedRole)}</option>`);
+  }
+  return options.join('');
+}
+
 function userManagementRowActionsHtml(row) {
   const email = escapeHtml(row.email);
   if (row.account_status === 'pending') {
     return `
       <select class="um-role-select" data-um-role-for="${email}">
-        <option value="viewer">viewer</option>
-        <option value="operator">controller</option>
-        <option value="importer">importer</option>
-        <option value="administrator">administrator</option>
+        ${userManagementRoleOptionsHtml('viewer')}
       </select>
       <button class="small-button primary" data-um-approve="${email}">Approve</button>
       <button class="small-button text-button" data-um-reject="${email}">Reject</button>
@@ -4393,12 +4416,8 @@ function userManagementRowActionsHtml(row) {
   }
   if (row.account_status === 'approved') {
     return `
-      <select class="um-role-select" data-um-role-for="${email}">
-        <option value="viewer" ${row.role === 'viewer' ? 'selected' : ''}>viewer</option>
-        <option value="operator" ${row.role === 'operator' ? 'selected' : ''}>controller</option>
-        <option value="importer" ${row.role === 'importer' ? 'selected' : ''}>importer</option>
-        <option value="administrator" ${row.role === 'administrator' ? 'selected' : ''}>administrator</option>
-        <option value="salesperson" ${row.role === 'salesperson' ? 'selected' : ''}>salesperson</option>
+      <select class="um-role-select" data-um-role-for="${email}" data-um-current-role="${escapeHtml(row.role || '')}">
+        ${userManagementRoleOptionsHtml(row.role || '')}
       </select>
       <button class="small-button" data-um-change-role="${email}">Change role</button>
       <button class="small-button text-button" data-um-disable="${email}">Disable</button>
@@ -4410,8 +4429,21 @@ function userManagementRowActionsHtml(row) {
   return '<span class="muted-label">No actions</span>';
 }
 
+// Returns true only when the administrator confirms a real change of role.
+function userManagementConfirmRoleChange(email, currentRole, newRole) {
+  if (!newRole) return false;
+  if (newRole === currentRole) {
+    pdcNotify(`${email} is already ${userManagementRoleLabel(newRole)}. Nothing changed.`, 'info');
+    return false;
+  }
+  let message = `Change ${email} from ${userManagementRoleLabel(currentRole)} to ${userManagementRoleLabel(newRole)}?`;
+  if (currentRole === 'administrator') message += '\n\nThey will lose administrator access (User Admin, vehicle delete/restore, all Sales).';
+  if (newRole === 'administrator') message += '\n\nThey will get full administrator access, including User Admin.';
+  return window.confirm(message) === true;
+}
+
 function userManagementRowHtml(row) {
-  const roleLabel = row.role === 'operator' ? 'controller' : (row.role || '—');
+  const roleLabel = userManagementRoleLabel(row.role);
   const status = cleanNavisionText(row.account_status || (row.active ? 'approved' : 'disabled')).toLowerCase();
   const statusLabel = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Unknown';
   return `<tr>
@@ -4505,6 +4537,7 @@ function wireUserManagementActions() {
     const email = button.dataset.umApprove;
     const select = $(`[data-um-role-for="${email}"]`);
     const role = select ? select.value : 'viewer';
+    if (!window.confirm(`Approve ${email} as ${userManagementRoleLabel(role)}?`)) return;
     await userManagementCallRpc('admin_approve_user', { p_target_email: email, p_role: role }, 'Approved');
   }));
   $$('[data-um-reject]').forEach(button => button.addEventListener('click', async () => {
@@ -4516,7 +4549,8 @@ function wireUserManagementActions() {
     const email = button.dataset.umChangeRole;
     const select = $(`[data-um-role-for="${email}"]`);
     const role = select ? select.value : null;
-    if (!role) return;
+    const currentRole = select ? (select.dataset.umCurrentRole || '') : '';
+    if (!userManagementConfirmRoleChange(email, currentRole, role)) return;
     await userManagementCallRpc('admin_change_role', { p_target_email: email, p_role: role }, 'Role changed');
   }));
   $$('[data-um-disable]').forEach(button => button.addEventListener('click', async () => {
