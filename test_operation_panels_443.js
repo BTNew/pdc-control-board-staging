@@ -145,10 +145,12 @@ test('browser: wraps the summary after the PO module; re-renders (refresh, tick,
 test('loader: after pdc-sublet-po.js (onload and onerror), cache-busted; Pages ships it; styles.css and Karratha untouched', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /operationPanels\.src = 'pdc-operation-panels\.js\?operation-panels=2026\.10\.21\.r444';/);
-  assert.match(entry, /subletPo\.onload = loadOperationPanels;\s*subletPo\.onerror = loadOperationPanels;\s*document\.head\.appendChild\(subletPo\);/);
+  // r445: pdc-sublet-po-attach.js now sits between the PO module and the panels (panels still load when it fails).
+  assert.match(entry, /subletPo\.onload = loadSubletPoAttach;\s*subletPo\.onerror = loadSubletPoAttach;\s*document\.head\.appendChild\(subletPo\);/);
+  assert.match(entry, /subletPoAttach\.onload = loadOperationPanels;\s*subletPoAttach\.onerror = loadOperationPanels;/);
   assert.equal((entry.match(/pdc-operation-panels\.js/g) || []).length, 1);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;operation-panels=2026\.10\.21\.r444"/);
-  assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-sublet-po\.js', 'pdc-operation-panels\.js'/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;operation-panels=2026\.10\.21\.r444(&amp;sublet-po-attach=2026\.10\.21\.r445)?"/);
+  assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-sublet-po\.js', ('pdc-sublet-po-attach\.js', )?'pdc-operation-panels\.js'/);
   assert.doesNotMatch(fs.readFileSync('styles.css', 'utf8'), /pdc-op-/);
   for (const f of fs.readdirSync('karratha')) if (/\.(js|html|css)$/.test(f)) assert.doesNotMatch(fs.readFileSync(`karratha/${f}`, 'utf8'), /pdc-operation-panels|pdc-op-panel/, f);
   assert.equal(panels.VERSION, '2026.10.21.r444');
