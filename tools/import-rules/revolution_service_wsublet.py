@@ -69,7 +69,7 @@ def classify(raw):
 def collapse(rows):
     """rows: [(source_row_number, {header: value})] in source order (data rows only).
     Returns (lines, summary). Each line: {'raw': first row's service values, 'source_row_numbers', 'sublet_pos',
-    'sublet_columns', 'collapse'}."""
+    'sublet_po_descriptions' (r444: {PO: description} for raw_row.sublet_po_descriptions), 'sublet_columns', 'collapse'}."""
     groups = {}
     order = []
     for rn, raw in rows:
@@ -93,7 +93,7 @@ def collapse(rows):
                     vals.append(v)
             if len(vals) > 1:
                 differing[k] = vals
-        pos, cols = [], []
+        pos, cols, descs = [], [], {}
         for rn, r in g:
             po = re.sub(r'\s+', '', norm(r.get('PO #'))).upper()
             entry = {k: r.get(k) for k in SUBLET_HEADERS if k in r}
@@ -101,6 +101,15 @@ def collapse(rows):
             cols.append(entry)
             if po and po not in pos:
                 pos.append(po)
+            # r444 (F57): each PO's 'Description of sublet' as typed (ends trimmed); a PO repeated with different
+            # descriptions keeps each distinct one in source order, joined with '^' (Revolution's own line break).
+            d = norm(r.get('Description of sublet'))
+            if po and d:
+                if po not in descs:
+                    descs[po] = []
+                if d not in descs[po]:
+                    descs[po].append(d)
+        po_descriptions = {po: '^'.join(v)[:4000] for po, v in descs.items()}
         if len(g) > 1:
             repeated += 1
         c = {'rule': COLLAPSE_RULE, 'source_rows': len(g), 'hours_summed': False, 'conflict': bool(differing)}
@@ -109,7 +118,7 @@ def collapse(rows):
             c['differing_values'] = differing
             conflicts.append({'dept': key[0], 'ro': key[1], 'line': key[2], 'fields': sorted(differing)})
         lines.append({'key': key, 'raw': base, 'source_row_numbers': [rn for rn, _ in g], 'sublet_pos': pos,
-                      'sublet_columns': cols, 'collapse': c})
+                      'sublet_po_descriptions': po_descriptions, 'sublet_columns': cols, 'collapse': c})
     summary = {'source_rows': len(rows), 'lines': len(lines), 'lines_with_repeats': repeated,
                'rows_collapsed': len(rows) - len(lines), 'conflicts': conflicts,
                'distinct_pos': len({p for l in lines for p in l['sublet_pos']}),

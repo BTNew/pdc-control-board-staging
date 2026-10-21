@@ -83,3 +83,16 @@ A file without POs gives `po_rows: 0`. If the PO step fails, `sublet_pos.ok` is 
 The apply function's md5 changed (pinned): callers that guard it must use `fc3717a5215de94c93ebb2c7facfe744` (was `84e1ed9f1a722719c8c4b5b113e1884f`). The preview function is unchanged (`375bffc2dced95a7a5c74c3273dbccb3`). The only other change in the apply is `WHERE true` on its existing new-vehicle-review `ON CONFLICT ... DO UPDATE` (same behaviour), so the recreated function passes the safeupdate DML lint.
 
 Verification: `tests/revolution_service_wsublet_442.sql` (rolled back, no fixtures), regression check `service_wsublet_contract_and_po_feed`. Undo: `supabase/rollbacks/20261021073319_r442_service_wsublet.down.sql`, run before any r439 undo.
+
+## Sublet descriptions — r444 (F57), 21 October 2026
+
+Craig approved 21 Oct 16:24 AWST: the vehicle drop-down's Sublet box lists every sublet with its 'Description of sublet' from the upload.
+
+- Store: `public.pdc_service_line_po_refs_439` gains `description` (as typed, ends trimmed, at most 1,000 characters) and `description_source_file_sha256`.
+- `import_sublet_pos_439(rows, sha256, dry_run)`: each row may carry an optional `description` (string). It is stored when the PO is attached and replaced only when a later file has a non-blank one; a blank or missing description never clears it. Row statuses carry `description` = `none` / `unchanged` / `set`, and the result has `descriptions` counts. Everything else is unchanged (GP POs only, ticks never cleared, POs never removed, no category, bay or booking change).
+- w/Sublet preparer (`tools/import-rules/revolution_service_wsublet.py`): each collapsed line carries `raw_row.sublet_po_descriptions` = `{PO: description}` for the POs in `sublet_pos` (a PO repeated with different descriptions keeps each distinct one in source order, joined with `^`, Revolution's own line break). The key is optional: the row validator accepts a line without it, and refuses an object keyed by a PO that is not in `sublet_pos` or with a non-string value (strings up to 4,000 characters).
+- The service apply is called exactly as before (`pdc_pilbara_service_apply_v1` is unchanged, md5 `fc3717a5215de94c93ebb2c7facfe744`); its PO feed `service_sublet_po_feed_442` now passes each PO's description (from `sublet_po_descriptions`, or `sublet_columns."Description of sublet"` for r439 CSV / workbook rows).
+- `get_pdc_sublet_lines_439` lines add `po_details: [{po_number, description}]`.
+- Function md5s (pinned, release r444): `import_sublet_pos_439` `6083fb5bcf03d341d9101831c2217cb8`, `sublet_po_vehicle_439` `756b7a4164a6e9ce37bb33c7c861b346`, `service_sublet_po_feed_442` `66379d312c3fddfd2eaab5b37c0ba497`, `revolution_service_rows_20261006` `0534336e01558066cf7ec3dcb3995cd4`.
+
+Verification: `tests/sublet_po_descriptions_444.sql` (rolled back, no fixtures), regression check `sublet_po_descriptions_444`. Undo: `supabase/rollbacks/20261021083212_r444_sublet_po_descriptions.down.sql`, run before any r442 or r439 undo (it drops the stored descriptions).

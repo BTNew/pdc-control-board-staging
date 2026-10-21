@@ -89,7 +89,8 @@ const approvedRootImportPatch = Object.freeze({
   // r439b: pdc-sublet-po.js?sublet-po=2026.10.21.r439b (PO chip and sublet done tick inline on each line, F53).
   // r439c: pdc-sublet-po.js?sublet-po=2026.10.21.r439c (PO chip and tick on their own row; F55).
   // r443: loads pdc-operation-panels.js?operation-panels=2026.10.21.r443 after pdc-sublet-po.js (packed category panels; F56).
-  "canonical-entry.js": "59528821f5996c2c539d4a3bd6ea6496827bdbf1ca1dfd0a67f393123fcbcf50",
+  // r444: sublet-po=2026.10.21.r444 and operation-panels=2026.10.21.r444 (Sublet box lists every sublet with its description; F57).
+  "canonical-entry.js": "688c05bbebe2c0b3fa7329560250ca872171b1a2c1f506cff7a0bd58a000617c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -156,7 +157,8 @@ const approvedRootImportPatch = Object.freeze({
   // r439b: index.html sublet-po=2026.10.21.r439b on canonical-entry.js (F53).
   // r439c: index.html sublet-po=2026.10.21.r439c on canonical-entry.js (F55).
   // r443: index.html operation-panels=2026.10.21.r443 on canonical-entry.js (F56).
-  "index.html": "ce079b7746fd90f15126bc378402671536a77dc5082626fe50525f4cbfea598f",
+  // r444: index.html sublet-po=2026.10.21.r444 and operation-panels=2026.10.21.r444 on canonical-entry.js (F57).
+  "index.html": "33e8c348b401c33f620e8080864db807427564a132cb0cda9158479dba4bfeb1",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

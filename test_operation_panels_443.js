@@ -46,17 +46,17 @@ test('balancing rule: largest first into the lighter column, ties left, each col
   assert.deepEqual(panels.PANELS.map(p => p.id), ['tint', 'bus4x4', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre']);
 });
 
-test('real summary: 7 panels in two balanced columns, Sublet full width underneath, then Review; empty panels compact', () => {
+test('real summary: panels with lines in two balanced columns, Sublet full width underneath, then Review; empty categories hidden (r444)', () => {
   const base = summary(shot).authenticatedEmailOperationLinesHtml({});
   const html = panels.arrange(base);
   assert.deepEqual(column(html, 'left'), ['fitting', 'fabrication', 'tyre']);
-  assert.deepEqual(column(html, 'right'), ['tint', 'bus4x4', 'hoist', 'electrical']);
-  assert.deepEqual(order(html), ['fitting', 'fabrication', 'tyre', 'tint', 'bus4x4', 'hoist', 'electrical', 'sublet']);
+  assert.deepEqual(column(html, 'right'), ['tint', 'hoist', 'electrical']);
+  assert.deepEqual(order(html), ['fitting', 'fabrication', 'tyre', 'tint', 'hoist', 'electrical', 'sublet']);
   assert.match(html, /<section class="authenticated-operation-station pdc-op-panel is-full" data-operation-panel="sublet"/);
   const sublet = html.indexOf('data-operation-panel="sublet"'), review = html.indexOf('data-operation-station="REVIEW"');
   assert.ok(sublet > 0 && review > sublet, 'Review after Sublet');
   assert.match(html, /<div class="authenticated-operation-station-grid pdc-op-below"><section class="authenticated-operation-station" data-operation-station="REVIEW"/);
-  assert.match(html, /<section class="authenticated-operation-station pdc-op-panel is-empty" data-operation-panel="bus4x4"[^>]*><header><strong>Bus 4x4<\/strong><\/header><div class="pdc-op-panel-body"><p class="pdc-op-empty">No jobs<\/p><\/div><\/section>/);
+  assert.doesNotMatch(html, /data-operation-panel="bus4x4"|pdc-op-empty|No jobs/, 'r444: a category with no lines is not shown');
   assert.match(html, /data-operation-panel="fitting"[^>]*><header><strong>Fitting<\/strong><small>12 jobs · 6\.00 h<\/small><\/header>/);
   // Every line is still there, once, with its original markup.
   for (const m of base.matchAll(/<li data-operation-source-id="[^"]*"[\s\S]*?<\/li>/g)) assert.equal(html.split(m[0]).length, 2, m[0].slice(0, 60));
@@ -87,19 +87,20 @@ test('hours: lines with no PD-stated hours read "Hours not stated" as today; a n
     '<em class="is-ai-estimate" title="x">Hours not stated<span class="ai-estimate-label">AI estimate</span></em>');
 });
 
-test('PO chips and ticks attach in either order (PO module first, as loaded, or after arranging) with identical output', () => {
+test('PO decoration (loaded first, as canonical-entry.js loads it) then panels: every tick in the Sublet box, PO references on operation lines; reverse order keeps every line and tick', () => {
   const base = summary(shot).authenticatedEmailOperationLinesHtml({});
   const state = { vehicleId: V1, payload };
   const loaded = panels.arrange(po.decorateOperations(base, state));
   const reverse = po.decorateOperations(panels.arrange(base), state);
-  assert.equal(reverse, loaded);
-  assert.equal((loaded.match(/class="pdc-sublet-po-tick"/g) || []).length, 3);
+  for (const h of [loaded, reverse]) assert.equal((h.match(/class="pdc-sublet-po-tick"/g) || []).length, 3);
   assert.equal((loaded.match(/>No PO</g) || []).length, 3, 'Sublet lines without a PO');
-  assert.match(loaded, new RegExp(`<li data-operation-source-id="${S(31)}"><strong>PD line 31</strong><span>Darkest Legal Window Tint</span><em>1\\.00 h</em> <span class="pdc-sublet-po-inline is-ordered"[^>]*><span class="pdc-sublet-po-chip">GP13900031</span><input type="checkbox" class="pdc-sublet-po-tick"`));
-  assert.match(loaded, /data-operation-panel="sublet"[\s\S]*pdc-sublet-po-inline is-done[^>]*><span class="pdc-sublet-po-chip">GP13900060<\/span><input[^>]*checked>/);
+  assert.match(loaded, new RegExp(`<li data-operation-source-id="${S(31)}"><strong>PD line 31</strong><span>Darkest Legal Window Tint</span><em>1\\.00 h</em> <span class="pdc-sublet-po-ref is-ordered"[^>]*>GP13900031<span aria-hidden="true"> ↓</span></span></li>`));
+  const sublet = loaded.slice(loaded.indexOf('data-operation-panel="sublet"'));
+  assert.match(sublet, /pdc-sublet-po-inline is-done[^>]*><span class="pdc-sublet-po-chip">GP13900060<\/span><input[^>]*checked>/);
+  assert.match(sublet, /data-line-key="jc:J139000001:31"><strong>PD line 31<\/strong>/);
+  assert.match(loaded, /data-operation-panel="sublet"[^>]*><header><strong>Sublet<\/strong><small>6 sublets <span class="pdc-op-sublet-state is-ordered">1 of 3 sublets done<\/span><\/small><\/header>/);
   assert.equal(po.decorateOperations(loaded, state), loaded, 'decorating again changes nothing');
 });
-
 test('browser: wraps the summary after the PO module; re-renders (refresh, tick, edit) re-arrange; tick clicks stay isolated; Edit button kept', async () => {
   let lines = shot.slice();
   const listeners = {}, capture = {}, styles = [], refreshed = [];
@@ -115,12 +116,12 @@ test('browser: wraps the summary after the PO module; re-renders (refresh, tick,
     fetch: async url => ({ ok: true, text: async () => JSON.stringify(/sublet_lines/.test(url) ? payload : board) }) });
   vm.runInContext(fs.readFileSync('pdc-sublet-po.js', 'utf8'), ctx);
   vm.runInContext(fs.readFileSync('pdc-operation-panels.js', 'utf8'), ctx);
-  assert.equal(ctx.window.PDC_OPERATION_PANELS_VERSION, '2026.10.21.r443');
+  assert.equal(ctx.window.PDC_OPERATION_PANELS_VERSION, '2026.10.21.r444');
   assert.deepEqual(refreshed, ['row'], 'rows already open switch to the panels');
   assert.ok(styles.some(s => s.includes('.pdc-op-panels{display:grid')), 'CSS injected by the module');
   for (let i = 0; i < 8; i++) await new Promise(r => setImmediate(r));
   const first = ctx.authenticatedEmailOperationLinesHtml({ id: V1 });
-  assert.match(first, /data-pdc-panels="2026\.10\.21\.r443"/);
+  assert.match(first, /data-pdc-panels="2026\.10\.21\.r444"/);
   assert.equal((first.match(/<button type="button" class="small-button" data-auth-operation-work="synthetic">Edit jobs &amp; hours<\/button>/g) || []).length, 1, 'Edit jobs & hours untouched');
   for (let i = 0; i < 8; i++) await new Promise(r => setImmediate(r));
   const decorated = ctx.authenticatedEmailOperationLinesHtml({ id: V1 });
@@ -130,7 +131,7 @@ test('browser: wraps the summary after the PO module; re-renders (refresh, tick,
   lines.splice(0, lines.length, ...many(1, 15, 'ELECTRICAL'), ...many(31, 6, 'TINT'), ...many(50, 3, 'FITTING'));
   const after = ctx.authenticatedEmailOperationLinesHtml({ id: V1 });
   assert.deepEqual(column(after, 'left'), ['electrical']);
-  assert.deepEqual(column(after, 'right'), ['tint', 'bus4x4', 'hoist', 'fitting', 'fabrication', 'tyre']);
+  assert.deepEqual(column(after, 'right'), ['tint', 'fitting']);
   assert.equal((after.match(/data-pdc-panels=/g) || []).length, 1);
   let stopped = 0;
   capture.click({ target: { closest: sel => sel === '.pdc-sublet-po-inline' ? {} : null }, stopPropagation: () => { stopped += 1; } });
@@ -143,13 +144,13 @@ test('browser: wraps the summary after the PO module; re-renders (refresh, tick,
 
 test('loader: after pdc-sublet-po.js (onload and onerror), cache-busted; Pages ships it; styles.css and Karratha untouched', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
-  assert.match(entry, /operationPanels\.src = 'pdc-operation-panels\.js\?operation-panels=2026\.10\.21\.r443';/);
+  assert.match(entry, /operationPanels\.src = 'pdc-operation-panels\.js\?operation-panels=2026\.10\.21\.r444';/);
   assert.match(entry, /subletPo\.onload = loadOperationPanels;\s*subletPo\.onerror = loadOperationPanels;\s*document\.head\.appendChild\(subletPo\);/);
   assert.equal((entry.match(/pdc-operation-panels\.js/g) || []).length, 1);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;operation-panels=2026\.10\.21\.r443"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;operation-panels=2026\.10\.21\.r444"/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-sublet-po\.js', 'pdc-operation-panels\.js'/);
   assert.doesNotMatch(fs.readFileSync('styles.css', 'utf8'), /pdc-op-/);
   for (const f of fs.readdirSync('karratha')) if (/\.(js|html|css)$/.test(f)) assert.doesNotMatch(fs.readFileSync(`karratha/${f}`, 'utf8'), /pdc-operation-panels|pdc-op-panel/, f);
-  assert.equal(panels.VERSION, '2026.10.21.r443');
+  assert.equal(panels.VERSION, '2026.10.21.r444');
   assert.match(panels.CSS, /max-width:calc\(100vw - 110px\)/);
 });
