@@ -6,6 +6,16 @@
     ['FITTING', 'Fitting'], ['ELECTRICAL', 'Electrical'], ['FABRICATION', 'Fabrication'],
     ['HOIST', 'Hoist'], ['TINT', 'Tint'], ['TYRE', 'Tyre'], ['BUS_4X4', 'Bus 4×4'], ['SUBLET', 'Sublet'],
   ]);
+  // r446 (F59): Dept 138 review stations = Bus 4x4 work categories (Bhavesh 21 Oct). The value is the work category; the
+  // stage stays server-owned (approve_pdc_new_vehicle_review_446 substitutes the Dept 138 routing station).
+  const STATIONS_138 = Object.freeze([
+    ['BUS_MECHANICAL', 'Mechanical'], ['BUS_ACCESSORIES', 'Accessories'], ['BUS_ELECTRICAL', 'Electrical'], ['BUS_QA', 'QA'],
+    ['TINT', 'Tint'], ['TYRE', 'Tyre'], ['SUBLET', 'Sublet'], ['BUS_PIT', 'Pit – external'],
+  ]);
+  const BUS_CATEGORY_THEME = Object.freeze({BUS_MECHANICAL:{colour:'#1d4ed8',tint:'#eff6ff'},BUS_ACCESSORIES:{colour:'#7c3aed',tint:'#f5f3ff'},
+    BUS_ELECTRICAL:{colour:'#b45309',tint:'#fffbeb'},BUS_QA:{colour:'#0f766e',tint:'#f0fdfa'},BUS_PIT:{colour:'#475569',tint:'#f8fafc'}});
+  const APPROVE_RPC = 'approve_pdc_new_vehicle_review_446';
+  const valid138 = code => STATIONS_138.some(([station]) => station === code);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const validStation = code => STATIONS.some(([station]) => station === code);
   const normalizeReviewDepartment = value => ['138','139'].includes(String(value || '').trim()) ? String(value).trim() : '';
@@ -32,13 +42,33 @@
   }
   const department138 = line => String(line?.department ?? '').trim() === '138';
   const department138Station = line => (typeof window === 'object' ? window.PDC_WORKSHOP_DEPARTMENTS : require('./pdc-workshop-departments.js')).sharedStation(line?.description ?? line?.operation_description ?? '');
-  const assignedStation = (line, choices = {}) => department138(line) ? department138Station(line)
+  // Review choice: Dept 138 -> work category (server suggestion first, Needs Review when unallocated); others -> station.
+  const reviewCode = (line, choices = {}) => department138(line)
+    ? choices[line.line_identity] ?? (valid138(line.work_category) ? line.work_category : '')
     : choices[line.line_identity] ?? (validStation(line.stage_code) ? line.stage_code : '');
+  // Station sent for approval. Dept 138 keeps its routing station (the server replaces it with the authoritative one).
+  const assignedStation = (line, choices = {}) => department138(line) ? department138Station(line) : reviewCode(line, choices);
+  const validChoice = (line, code) => department138(line) ? valid138(code) : validStation(code);
+  const stationsFor = line => department138(line) ? STATIONS_138 : STATIONS;
+  function rowStations(row) {
+    const ops=row?.operations||[],has138=ops.some(department138),hasOther=ops.some(line=>!department138(line));
+    if(has138&&!hasOther)return STATIONS_138;
+    if(!has138)return STATIONS;
+    // Mixed card: both sets; shared Tint / Tyre / Sublet once; department suffix where labels would repeat.
+    const shared=new Set(['TINT','TYRE','SUBLET']);
+    return [...STATIONS_138.filter(([code])=>code.startsWith('BUS_')&&code!=='BUS_PIT').map(([code,label])=>[code,label+' · 138']),
+      ...STATIONS.filter(([code])=>!shared.has(code)).map(([code,label])=>[code,label+' · 139']),
+      ...STATIONS_138.filter(([code])=>shared.has(code)||code==='BUS_PIT')];
+  }
+  function stationTheme(code) {
+    if(BUS_CATEGORY_THEME[code])return BUS_CATEGORY_THEME[code];
+    return code&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(code):null;
+  }
   const updateDepartment138 = row => department138({department:row.proposed?.department ?? row.current_work?.department ?? row.department});
   const updateStation = (row, draft = {}) => updateDepartment138(row) ? department138Station(row.proposed ?? row.current_work ?? row)
     : draft.stage ?? row.current_work?.stage_code ?? row.proposed?.proposed_station;
   function reviewChoices(row) {
-    return Object.fromEntries(assignmentsFor(row).map(line => [line.line_identity, line.stage_code]));
+    return Object.fromEntries((row?.operations || []).map(line => [line.line_identity, reviewCode(line)]));
   }
   function matchingReviewRows(rows = [], query = '') {
     const needle = String(query).trim().toLocaleLowerCase();
@@ -54,14 +84,14 @@
   function assignmentsFor(row, choices = {}, hours = null) {
     return (row?.operations || []).map(line => ({line_identity: line.line_identity,
       stage_code: assignedStation(line, choices),
-      ...(hours && assignedStation(line, choices) !== 'SUBLET' ? {estimated_hours:positiveHours(hoursFor(line,hours))?Number(hoursFor(line,hours)):null} : {})}));
+      ...(department138(line) ? {work_category: reviewCode(line, choices)} : {}),
+      ...(hours && reviewCode(line, choices) !== 'SUBLET' ? {estimated_hours:positiveHours(hoursFor(line,hours))?Number(hoursFor(line,hours)):null} : {})}));
   }
   function problems(row, choices = {}, hours = {}) {
     if (!row || row.status !== 'pending' || !Array.isArray(row.operations) || !row.operations.length) return ['No complete Job Card is available.'];
     const issues = [];
-    if (assignmentsFor(row, choices).some(item => !validStation(item.stage_code))) issues.push('Choose a station for every operation.');
-    const assigned = new Map(assignmentsFor(row, choices).map(item => [item.line_identity, item.stage_code]));
-    if (row.operations.some(line => assigned.get(line.line_identity) !== 'SUBLET' && !positiveHours(hoursFor(line,hours)))) issues.push('Enter positive hours for workshop operations; Sublet does not require hours.');
+    if (row.operations.some(line => !validChoice(line, reviewCode(line, choices)))) issues.push('Choose a station for every operation.');
+    if (row.operations.some(line => reviewCode(line, choices) !== 'SUBLET' && !positiveHours(hoursFor(line,hours)))) issues.push('Enter positive hours for workshop operations; Sublet does not require hours.');
     if (row.operations.some(line => line.completed === true || line.active !== true)) issues.push('An operation changed or has already been completed. Reload this Job Card.');
     if (new Set(row.operations.map(line => line.line_identity)).size !== row.operations.length) issues.push('Duplicate operation identity needs review.');
     return issues;
@@ -71,8 +101,8 @@
     if(!row?.vehicle_id || !row?.snapshot_hash) issues.push('Refresh this Job Card before approving.');
     if(row?.details_source==='identity_review') issues.push('Review this vehicle’s identity before approval.');
     if(row?.lifecycle_state && row.lifecycle_state!=='active' || row?.visible_on_board===true) issues.push('Review this vehicle’s current board status.');
-    if((row?.operations||[]).some(line=>!validStation(line.stage_code))) issues.push('Review the suggested station assignments.');
-    if((row?.operations||[]).some(line=>assignedStation(line,{})!=='SUBLET' && ['ai_estimated','estimate_unable','conflicting_description_times'].includes(line.hours_provenance))) issues.push('Review the proposed hours before approval.');
+    if((row?.operations||[]).some(line=>department138(line)?!valid138(line.work_category):!validStation(line.stage_code))) issues.push('Review the suggested station assignments.');
+    if((row?.operations||[]).some(line=>reviewCode(line,{})!=='SUBLET' && ['ai_estimated','estimate_unable','conflicting_description_times'].includes(line.hours_provenance))) issues.push('Review the proposed hours before approval.');
     if((row?.operations||[]).some(line=>typeof line.review_note==='string'&&line.review_note.trim())) issues.push('Check the operation review notes before approval.');
     if((row?.operations||[]).some(line=>line.rejected===true || line.source_kind && line.source_kind!=='authenticated')) issues.push('Review the operation source before approval.');
     if((row?.operations||[]).some(line=>line.hours_provenance==='craig_standard_pre_delivery_1_hour' && Number(line.estimated_hours)!==1)) issues.push('Review the standard pre-delivery hour.');
@@ -92,18 +122,18 @@
       ${error?`<p class="nv-card-error" role="alert">${esc(error)}</p>`:''}</article>`;
   }
   function stationGroups(row, choices = {}, drafts = {}) {
-    const assignment = new Map(assignmentsFor(row, choices).map(item => [item.line_identity,item.stage_code]));
-    return [['', 'Needs Review'], ...STATIONS].map(([code,label]) => {
-      const lines = (row?.operations || []).filter(line => assignment.get(line.line_identity) === code);
+    const ops = row?.operations || [];
+    return [['', 'Needs Review'], ...rowStations(row)].map(([code,label]) => {
+      const lines = ops.filter(line => {const chosen=reviewCode(line, choices);return code===''?!validChoice(line,chosen):chosen===code;});
       const hours = lines.some(line => !positiveHours(hoursFor(line,drafts))) ? null : lines.reduce((sum,line) => sum+Number(hoursFor(line,drafts)),0);
       return {code,label,lines,hours};
     });
   }
   function reviewOrder(row, choices = {}, drafts = {}) {
-    const stages=new Map(assignmentsFor(row,choices).map(x=>[x.line_identity,x.stage_code]));
-    const stationOrder=new Map(['',...STATIONS.map(([code])=>code)].map((code,index)=>[code,index]));
-    const stationRank=line=>stationOrder.get(stages.get(line.line_identity))??0;
-    const priority=line=>stages.get(line.line_identity)!=='SUBLET'&&!positiveHours(hoursFor(line,drafts))?0:1;
+    const stationOrder=new Map(['',...rowStations(row).map(([code])=>code)].map((code,index)=>[code,index]));
+    const chosen=line=>{const code=reviewCode(line,choices);return validChoice(line,code)?code:'';};
+    const stationRank=line=>stationOrder.get(chosen(line))??0;
+    const priority=line=>chosen(line)!=='SUBLET'&&!positiveHours(hoursFor(line,drafts))?0:1;
     return [...(row?.operations||[])].sort((a,b)=>stationRank(a)-stationRank(b)||priority(a)-priority(b));
   }
   function verifyApproval(result,row,choices,hours={}) {
@@ -113,6 +143,14 @@
     return assignmentsFor(row,choices).every(wanted => {
       const before=row.operations.find(line=>line.line_identity===wanted.line_identity);
       const after=data.operations.filter(line=>line.line_identity===wanted.line_identity);
+      // Dept 138: the category is the reviewer's choice; the server owns the stage (its routing station, or the stage the
+      // category maps to) and keeps imported hours on a Sublet choice.
+      if(department138(before)) {
+        const subletChoice=wanted.work_category==='SUBLET';
+        return after.length===1 && after[0].work_category===wanted.work_category && typeof after[0].stage_code==='string' && after[0].stage_code!==''
+          && after[0].description===before.description && after[0].source_line_id===before.source_line_id
+          && (subletChoice || after[0].estimated_hours===Number(hoursFor(before,hours))) && after[0].completed===false;
+      }
       return after.length===1 && after[0].stage_code===wanted.stage_code && after[0].description===before.description
         && after[0].source_line_id===before.source_line_id && after[0].estimated_hours===(wanted.stage_code==='SUBLET'?before.estimated_hours:Number(hoursFor(before,hours)))
         && after[0].completed===false;
@@ -273,7 +311,7 @@
         report.failed.push({row,error:err});
         // Only explicit, non-committing validation failures may continue.
         // An unknown response may have saved, so stop without assuming success.
-        if(!['review_not_found','already_approved','review_not_pending','backend_identity_changed','existing_workshop_history_requires_review','review_changed','all_operations_need_stations','operation_hours_or_state_need_review'].includes(err?.message)) {
+        if(!['review_not_found','already_approved','review_not_pending','backend_identity_changed','existing_workshop_history_requires_review','review_changed','all_operations_need_stations','operation_hours_or_state_need_review','dept138_category_required','category_only_for_dept138','dept138_station_needs_review','dept138_sublet_needs_hours'].includes(err?.message)) {
           report.stopped=true;break;
         }
       }
@@ -286,7 +324,7 @@
     if(state.phase==='checking')return `Checking all queued vehicles${state.total?` · ${state.checked} of ${state.total}`:'…'}`;
     return `Adding ready vehicles · ${state.approved} of ${state.ready} approved${state.failed?` · ${state.failed} need attention`:''}. ${state.needsReview} left for review.`;
   }
-  const api={normalizeReviewDepartment,departmentReadRequest,verifyDepartmentResponse,departmentApprovalProblems,departmentFilterHtml,department138Station,department138,assignedStation,updateDepartment138,updateStation,approveReadyQueue,bulkProgressText,quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
+  const api={STATIONS_138,APPROVE_RPC,stationTheme,reviewCode,validChoice,rowStations,stationsFor,valid138,normalizeReviewDepartment,departmentReadRequest,verifyDepartmentResponse,departmentApprovalProblems,departmentFilterHtml,department138Station,department138,assignedStation,updateDepartment138,updateStation,approveReadyQueue,bulkProgressText,quickApprovalProblems,vehicleCardHtml,matchingReviewRows,reviewOrder,updateProblems,operationUpdateHtml,verifyUpdateApproval,updateApprovalNotice,updateScheduleHtml,operationHoursPresentation,operationHoursHtml,STATIONS,reviewChoices,assignmentsFor,problems,stationGroups,verifyApproval,positiveHours,hoursFor,esc};
   if(typeof module!=='undefined' && module.exports) module.exports=api;
   if(typeof window==='undefined' || window.PDC_SUPABASE_CONFIG?.projectRef!==PROJECT
       || typeof showView!=='function' || window.PDC_NEW_VEHICLES_VERSION) return;
@@ -349,6 +387,10 @@
   function message(err) {
     const code=String(err?.message || '');
     if(code==='department_138_requires_correct_station')return 'An operation’s selected station conflicts with its saved Department 138 routing. No changes were saved. Refresh the Job Card; if it persists, its routing rule needs correcting.';
+    if(code==='dept138_category_required'||code==='category_only_for_dept138')return 'Choose a Bus 4×4 station (Mechanical, Accessories, Electrical, QA, Tint, Tyre, Sublet or Pit) for every Department 138 operation. No changes were saved.';
+    if(code==='dept138_station_needs_review')return 'A Department 138 operation has no routing station yet. No changes were saved. Refresh the Job Card; if it persists, its routing rule needs correcting.';
+    if(code==='dept138_sublet_needs_hours')return 'A Department 138 operation marked Sublet has no imported hours to keep. Choose a workshop station and enter hours, or check the Job Card. No changes were saved.';
+    if(code==='category_readback_mismatch')return 'The chosen Department 138 stations could not be confirmed, so nothing was saved. Refresh the Job Card and try again.';
     if(code==='department_scope_mismatch')return 'This department could not be confirmed. Refresh before approving vehicles.';
     if(code==='queue_changed')return 'The new-vehicle queue changed while it was being checked. Refresh and try again; no bulk approvals were started.';
     if(['review_not_found','review_not_pending'].includes(code))return 'This vehicle is no longer waiting in the new-vehicle queue. Refresh to check its current status.';
@@ -480,23 +522,23 @@
       savingId:quickSavingId,error:quickErrors[row.vehicle_id]||'',department:filterDepartment});
   }
   function operation(line) {
-    const assigned=assignedStation(line,choices),locked=department138(line);
+    const chosen=reviewCode(line,choices),assigned=validChoice(line,chosen)?chosen:'',locked=false,bus=department138(line);
     const sublet=assigned==='SUBLET';
     const value=hoursFor(line,hourDrafts),missing=!sublet&&!positiveHours(value);
     const standard=line.hours_provenance==='craig_standard_pre_delivery_1_hour';
     const disabled=!writable()||saving||sourceChanged;
-    const theme=assigned&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(assigned):null;
+    const theme=assigned?stationTheme(assigned):null;
     const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
-    return `<article class="nv-operation nv-operation-row ${missing?'nv-hours-missing':''} ${operationHoursPresentation(line,hourDrafts,assigned).label.startsWith('AI estimate')?'nv-hours-ai':''}" draggable="${!disabled&&!locked}" data-nv-line="${esc(line.line_identity)}"${style}>
-      <small class="nv-line-meta" title="${locked?'Dept 138: Tint and Tyres use shared bays; other work uses Bus 4×4':'Drag to a station'} · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">${locked?'':'⠿'}</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
+    return `<article class="nv-operation nv-operation-row${bus?' nv-dept138':''} ${missing?'nv-hours-missing':''} ${operationHoursPresentation(line,hourDrafts,assigned).label.startsWith('AI estimate')?'nv-hours-ai':''}" draggable="${!disabled&&!locked}" data-nv-line="${esc(line.line_identity)}"${style}>
+      <small class="nv-line-meta" title="Drag to a station · ${line.department?`Dept ${esc(line.department)} · `:''}${line.original_line_number!=null?'Line '+esc(line.original_line_number):esc(line.operation_no)}${line.job_card_number?' · '+esc(line.job_card_number):''}"><span aria-hidden="true">${locked?'':'⠿'}</span><span class="nv-source-line">${esc(line.original_line_number??line.operation_no??'—')}</span></small>
       <strong>${esc(line.description)}</strong>
       <div class="nv-operation-controls">
       ${sublet?'':`<label class="nv-hours-label">Hours<input type="number" min="0.01" max="999.99" step="0.01" inputmode="decimal" aria-label="Hours for ${esc(line.description)}" aria-invalid="${missing}" data-nv-hours="${esc(line.line_identity)}" value="${esc(value??'')}" placeholder="—" ${standard?'readonly':''} ${disabled?'disabled':''}></label>`}
       ${operationHoursHtml(line,hourDrafts,assigned)}
-      <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled||locked?'disabled':''}>${locked?'':'<option value="">Needs Review</option>'}${STATIONS.filter(([code])=>!locked||code===assigned).map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select>${locked?'<small>Dept 138: Tint and Tyres use shared bays; other work uses Bus 4×4.</small>':''}</label></div></article>`;
+      <label class="nv-station-choice">Station<select data-nv-stage="${esc(line.line_identity)}" aria-label="Station for ${esc(line.description)}" ${disabled?'disabled':''}><option value="" ${assigned?'':'selected'}>Needs Review</option>${stationsFor(line).map(([code,label])=>`<option value="${code}" ${code===assigned?'selected':''}>${esc(label)}</option>`).join('')}</select></label></div></article>`;
   }
   function stationSection(group) {
-    const theme=group.code&&typeof vehicleWorkshopStationPresentation==='function'?vehicleWorkshopStationPresentation(group.code):null;
+    const theme=group.code?stationTheme(group.code):null;
     const style=theme?` style="--station-colour:${esc(theme.colour)};--station-tint:${esc(theme.tint)}"`:'';
     return `<section class="nv-station nv-bucket ${group.code?'':'needs-review'}" data-nv-drop="${group.code}"${style}><header><h3>${esc(group.label)}</h3><small>${group.lines.length} items · ${group.code==='SUBLET'?'Hours not required':group.hours==null?'Hours need review':`${group.hours.toFixed(2)} h`}</small></header><p class="nv-drop-hint">Drop here</p></section>`;
   }
@@ -619,7 +661,7 @@
       ${selected?`<section class="nv-summary"><h3>${esc(selected.vehicle_description)}</h3><p>${esc(selected.customer_name)} · Job Card ${esc((selected.job_cards || []).join(', '))}</p><p>Location: <strong>${esc(selected.current_location || 'Pending')}</strong>${selected.eta_to_kewdale?` · Kewdale ETA: ${esc(selected.eta_to_kewdale)}`:''} · VIN: ${esc(selected.vin || 'Not recorded')}</p></section>
       ${departmentApprovalProblems(selected,filterDepartment).length?'<p class="nv-department-note" role="note">This vehicle includes work from other or unconfirmed departments. All its operations are shown below. Approving this card approves all displayed operations together.</p>':''}
       ${sourceChanged?'<div class="nv-error" role="alert">Source data changed. <button type="button" data-nv-reload>Reload Job Card</button> before approving.</div>':''}
-      <p class="nv-help">Rows follow the station order above, starting with Needs Review. Items needing hours appear first within each station. Drag a row into a station bucket or use its station selector. Sublet does not require hours. Your choices and hours are saved when you approve.</p>
+      <p class="nv-help">Rows follow the station order above, starting with Needs Review. Items needing hours appear first within each station. Drag a row into a station bucket or use its station selector. Sublet does not require hours.${(selected.operations||[]).some(department138)?' Department 138 lines use the Bus 4×4 stations; Pit – external is not booked in a bay.':''} Your choices and hours are saved when you approve.</p>
       <div class="nv-routing-buckets" aria-label="Drag operations into station buckets">${groups.map(group=>stationSection(group)).join('')}</div>
       <div class="nv-operation-list" aria-label="Operation descriptions and estimates">${reviewOrder(selected,choices,hourDrafts).map(operation).join('')}</div>
       <footer class="nv-approval"><div>${issues.length?issues.map(issue=>`<p>${esc(issue)}</p>`).join(''):'<p>All operations have a station and required workshop hours.</p>'}<small>Approval adds this vehicle to its current location on the board. Nothing is booked or marked fitted.</small></div>
@@ -642,7 +684,7 @@
         const invalid=!positiveHours(input.value),tile=input.closest('[data-nv-line]');
         tile.classList.toggle('nv-hours-missing',invalid);input.setAttribute('aria-invalid',String(invalid));
         const line=selected.operations.find(row=>row.line_identity===input.dataset.nvHours);
-        const hint=operationHoursPresentation(line,hourDrafts,assignedStation(line,choices));
+        const hint=operationHoursPresentation(line,hourDrafts,reviewCode(line,choices));
         const hintElement=tile.querySelector('.nv-hours-hint');
         hintElement.textContent=hint.label;hintElement.title=hint.detail;
         tile.classList.toggle('nv-hours-ai',hint.label.startsWith('AI estimate'));
@@ -660,14 +702,14 @@
       input.addEventListener('dragstart',event=>event.stopPropagation());
     });
     page.querySelectorAll('[data-nv-stage]').forEach(select=>{
-      select.addEventListener('change',()=>{if(saving||!writable()||sourceChanged||department138(selected.operations.find(line=>line.line_identity===select.dataset.nvStage)))return;choices[select.dataset.nvStage]=select.value;requestKey='';approvalRequest=null;render();});
+      select.addEventListener('change',()=>{const line=selected.operations.find(row=>row.line_identity===select.dataset.nvStage);if(saving||!writable()||sourceChanged||!line||(select.value&&!validChoice(line,select.value)))return;choices[select.dataset.nvStage]=select.value;requestKey='';approvalRequest=null;render();});
       select.addEventListener('dragstart',event=>event.stopPropagation());
     });
-    page.querySelectorAll('[data-nv-line]').forEach(tile=>tile.addEventListener('dragstart',event=>{if(saving||!writable()||sourceChanged||department138(selected.operations.find(line=>line.line_identity===tile.dataset.nvLine))){event.preventDefault();return;}event.dataTransfer.setData('text/plain',tile.dataset.nvLine);event.dataTransfer.effectAllowed='move';}));
+    page.querySelectorAll('[data-nv-line]').forEach(tile=>tile.addEventListener('dragstart',event=>{if(saving||!writable()||sourceChanged||!selected.operations.some(line=>line.line_identity===tile.dataset.nvLine)){event.preventDefault();return;}event.dataTransfer.setData('text/plain',tile.dataset.nvLine);event.dataTransfer.effectAllowed='move';}));
     page.querySelectorAll('[data-nv-drop]').forEach(group=>{
       group.addEventListener('dragover',event=>{if(!saving&&writable()&&!sourceChanged){event.preventDefault();group.classList.add('nv-drop-active');}});
       group.addEventListener('dragleave',event=>{if(!group.contains(event.relatedTarget))group.classList.remove('nv-drop-active');});
-      group.addEventListener('drop',event=>{event.preventDefault();group.classList.remove('nv-drop-active');if(saving||!writable()||sourceChanged)return;const id=event.dataTransfer.getData('text/plain'),line=selected.operations.find(line=>line.line_identity===id);if(!line||department138(line))return;choices[id]=group.dataset.nvDrop;requestKey='';approvalRequest=null;render();});
+      group.addEventListener('drop',event=>{event.preventDefault();group.classList.remove('nv-drop-active');if(saving||!writable()||sourceChanged)return;const id=event.dataTransfer.getData('text/plain'),line=selected.operations.find(line=>line.line_identity===id),code=group.dataset.nvDrop;if(!line||(code&&!validChoice(line,code)))return;choices[id]=code;requestKey='';approvalRequest=null;render();});
     });
     page.querySelectorAll('[data-nv-approve]').forEach(button=>button.addEventListener('click',()=>void approve()));
     page.querySelectorAll('[data-nv-quick-approve]').forEach(button=>button.addEventListener('click',()=>void quickApprove(button.dataset.nvQuickApprove)));
@@ -705,7 +747,7 @@
           const assignments=assignmentsFor(row,reviewChoices(row),{}),identity=JSON.stringify([row.snapshot_hash,assignments]);
           if(quickRequests[row.vehicle_id]?.identity!==identity)quickRequests[row.vehicle_id]={identity,request:{p_vehicle_id:row.vehicle_id,p_snapshot_hash:row.snapshot_hash,p_assignments:assignments,p_idempotency_key:crypto.randomUUID()}};
           attempted=true;
-          return rpc('approve_pdc_new_vehicle_review',quickRequests[row.vehicle_id].request);
+          return rpc(APPROVE_RPC,quickRequests[row.vehicle_id].request);
         },
         onApproved:row=>{
           approvedCount++;items=items.filter(item=>item.vehicle_id!==row.vehicle_id);total=Math.max(0,total-1);
@@ -751,7 +793,7 @@
     const ownsRequest=()=>session===sessionGeneration&&actor===window.PDC_AUTH_CONTEXT?.userId&&token===getPdcSupabaseAccessToken()&&writable()&&approvalRequest===ownedRequest;
     let accepted=false;
     try {
-      const result=await rpc('approve_pdc_new_vehicle_review',ownedRequest);
+      const result=await rpc(APPROVE_RPC,ownedRequest);
       if(!ownsRequest()) return;
       if(!verifyApproval(result,current,selection,hours)) throw new Error('readback_mismatch');
       accepted=true;selected=null;choices={};hourDrafts={};requestKey='';approvalRequest=null;sourceChanged=false;
@@ -794,7 +836,7 @@
   document.addEventListener('visibilitychange',()=>void refreshBackground());
   window.addEventListener('online',()=>void refreshBackground());
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.10.19.automatic-jobcard-additions';
+  window.PDC_NEW_VEHICLES_VERSION='2026.10.21.r446';
   window.PDC_NEW_VEHICLES=api;
   render();void refreshBackground();
   if(['#/newvehicles','#/operationupdates'].includes(window.location.hash))showView(window.location.hash.slice(2),{historyMode:'none'});

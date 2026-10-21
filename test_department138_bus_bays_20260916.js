@@ -14,35 +14,43 @@ const sourceId='11111111-1111-4111-8111-111111111111';
 const lineKey=`source:${sourceId}`;
 const line={line_identity:lineKey,source_line_id:sourceId,department:'138',stage_code:'SUBLET',description:'Accessory',estimated_hours:2.25,active:true,completed:false};
 
-test('all Department 138 review choices send Bus 4x4 and preserve supplied hours and source facts',()=>{
+test('r446 (F59): every Department 138 Bus 4x4 station can be chosen; the routing station is sent and the category is verified',()=>{
   const row={vehicle_id:'v1',status:'pending',operations:[line,{...line,line_identity:'other',department:'139',stage_code:'TINT'}]};
   const before=JSON.stringify(row);
-  for(const [station] of [...api.STATIONS,['','']]) {
+  assert.deepEqual(api.STATIONS_138.map(([code])=>code),['BUS_MECHANICAL','BUS_ACCESSORIES','BUS_ELECTRICAL','BUS_QA','TINT','TYRE','SUBLET','BUS_PIT']);
+  assert.deepEqual(api.STATIONS_138.map(([,label])=>label),['Mechanical','Accessories','Electrical','QA','Tint','Tyre','Sublet','Pit – external']);
+  for(const [station] of api.STATIONS_138) {
     const choices={[lineKey]:station,other:'ELECTRICAL'};
     const assignments=api.assignmentsFor(row,choices,{});
     assert.deepEqual(assignments.map(item=>item.stage_code),['BUS_4X4','ELECTRICAL']);
-    assert.equal(assignments[0].estimated_hours,2.25);
+    assert.equal(assignments[0].work_category,station);
+    assert.equal(assignments[0].estimated_hours,station==='SUBLET'?undefined:2.25);
     assert.deepEqual(api.problems(row,choices),[]);
-    assert.equal(api.stationGroups(row,choices).find(group=>group.code==='BUS_4X4').hours,2.25);
-    const receipt={ok:true,data:{vehicle_id:'v1',visible_on_board:true,bookings_created:0,operations:row.operations.map((item,index)=>({...item,stage_code:index?'ELECTRICAL':'BUS_4X4'}))}};
+    assert.equal(api.stationGroups(row,choices).find(group=>group.code===station).lines.some(item=>item.line_identity===lineKey),true);
+    const receipt={ok:true,data:{vehicle_id:'v1',visible_on_board:true,bookings_created:0,operations:row.operations.map((item,index)=>index?{...item,stage_code:'ELECTRICAL'}:{...item,stage_code:'BUS_4X4',work_category:station})}};
     assert.equal(api.verifyApproval(receipt,row,choices),true);
-    receipt.data.operations[0].stage_code='FITTING';
+    receipt.data.operations[0].work_category=station==='BUS_QA'?'BUS_MECHANICAL':'BUS_QA';
     assert.equal(api.verifyApproval(receipt,row,choices),false);
   }
+  for(const station of ['FITTING','HOIST','FABRICATION','BUS_4X4','']) assert.ok(api.problems(row,{[lineKey]:station,other:'ELECTRICAL'}).length,station);
   assert.equal(JSON.stringify(row),before);
 });
 
-test('Department 138 review tile offers only Bus 4x4, allows hours and cannot drag to another station',()=>{
-  const context={...api,choices:{[lineKey]:'FITTING'},hourDrafts:{},saving:false,sourceChanged:false,writable:()=>true};
-  vm.createContext(pdcNotifyFixture(context));
-  vm.runInContext(intake.slice(intake.indexOf('  function operation(line)'),intake.indexOf('  function stationSection(group)')),context);
-  const html=context.operation(line);
-  assert.match(html,/draggable="false"/);
-  assert.match(html,/data-nv-stage="[^"]+"[^>]*disabled/);
-  assert.match(html,/<option value="BUS_4X4" selected>/);
-  assert.doesNotMatch(html,/<option value="(?:FITTING|SUBLET|TINT)"/);
-  assert.match(html,/Dept 138: Tint and Tyres use shared bays; other work uses Bus 4×4/);
-  assert.match(html,/data-nv-hours="[^"]+" value="2.25"/);
+test('r446 (F59): Department 138 review tile offers the Bus 4x4 stations, can be dragged and changed, and keeps hours',()=>{
+  for(const [choice,selected] of [['FITTING',''],['BUS_QA','BUS_QA'],['BUS_PIT','BUS_PIT']]) {
+    const context={...api,choices:{[lineKey]:choice},hourDrafts:{},saving:false,sourceChanged:false,writable:()=>true};
+    vm.createContext(pdcNotifyFixture(context));
+    vm.runInContext(intake.slice(intake.indexOf('  function operation(line)'),intake.indexOf('  function stationSection(group)')),context);
+    const html=context.operation(line);
+    assert.match(html,/draggable="true"/);
+    assert.doesNotMatch(html,/data-nv-stage="[^"]+"[^>]*disabled/);
+    for(const [code] of api.STATIONS_138) assert.match(html,new RegExp(`<option value="${code}"`));
+    assert.doesNotMatch(html,/<option value="(?:FITTING|HOIST|FABRICATION|ELECTRICAL|BUS_4X4)"/);
+    assert.match(html,selected?new RegExp(`<option value="${selected}" selected>`):/<option value="" selected>Needs Review/);
+    assert.doesNotMatch(html,/Tint and Tyres use shared bays/);
+    assert.match(html,/data-nv-hours="[^"]+" value="2.25"/);
+    assert.match(html,/nv-dept138/);
+  }
 });
 
 test('Department 138 changed operations normalize current and drafted stations before hours validation',()=>{
@@ -130,12 +138,14 @@ test('editing accepted 138 lines retains their canonical station including histo
 
 test('Department 138 window tint stays in Tint through review and approval without changing source hours',()=>{
   for (const description of ['WINDOW TINT','M1 WINDOW TINT','DARKEST LEGAL WINDOW TINT','Window tinting']) {
-    const tint={...line,description,stage_code:'BUS_4X4',estimated_hours:1.5};
+    const tint={...line,description,stage_code:'BUS_4X4',work_category:'TINT',estimated_hours:1.5};
     const row={vehicle_id:'v1',status:'pending',operations:[tint]};
-    const choices={[lineKey]:'BUS_4X4'};
+    const choices=api.reviewChoices(row);
+    assert.equal(api.reviewCode(tint,choices),'TINT');
     assert.equal(api.assignedStation(tint,choices),'TINT');
     const assignment=api.assignmentsFor(row,choices,{})[0];
     assert.equal(assignment.stage_code,'TINT');
+    assert.equal(assignment.work_category,'TINT');
     assert.equal(assignment.estimated_hours,1.5);
     assert.equal(api.stationGroups(row,choices).find(group=>group.code==='TINT').hours,1.5);
     assert.equal(tint.stage_code,'BUS_4X4');

@@ -26,10 +26,10 @@ test('station choices and draft hours determine grouping without rewriting immut
  assert(api.reviewOrder(row,choices,drafts).every(line=>row.operations.includes(line)));
 });
 
-test('unknown assignments stay in Needs Review and Department138 fallback follows Bus4x4',()=>{
+test('unknown assignments stay in Needs Review, including uncategorised Department 138 work (r446)',()=>{
  const row=fixture([['tyre','TYRE',1],['unknown','UNALLOCATED_MAPPING_REVIEW',1],['department','UNALLOCATED_MAPPING_REVIEW',1],['review','',null]]);
  row.operations[2].department='138';
- assert.deepEqual(ids(row),['review','unknown','tyre','department']);
+ assert.deepEqual(ids(row),['review','unknown','department','tyre']);
  assert.deepEqual(ids(row,{department:'SUBLET',tyre:'UNRECOGNISED_STATION'}),['review','tyre','unknown','department']);
  assert.deepEqual(api.reviewOrder(null),[]);
 });
