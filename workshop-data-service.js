@@ -67,10 +67,14 @@ const WORKSHOP_MUTATION_RPCS = Object.freeze([
   'administrator_move_workshop_booking',
   'administrator_schedule_workshop_vehicle',
   'undo_administrator_workshop_booking_move',
-  'complete_pdc_vehicle_department_772'
+  'complete_pdc_vehicle_department_772',
+  // r424 (F38): bay re-order / swap with preview, and its undo.
+  'workshop_resequence_bay_424',
+  'workshop_undo_bay_resequence_424'
 ]);
 
-// Every RPC above requires exactly one non-null expected-version parameter.
+// Every RPC above requires exactly one non-null expected-version parameter,
+// except the r424 undo, which is keyed by its receipt (see below).
 // schedule_vehicle_work and administrator_schedule_workshop_vehicle key off the
 // vehicle's version instead of a booking version; all others key off the
 // booking version.
@@ -102,7 +106,10 @@ const WORKSHOP_MUTATION_VERSION_PARAM = Object.freeze({
   administrator_move_workshop_booking: 'p_expected_version',
   administrator_schedule_workshop_vehicle: 'p_vehicle_expected_version',
   undo_administrator_workshop_booking_move: 'p_expected_version',
-  complete_pdc_vehicle_department_772: 'p_expected_vehicle_version'
+  complete_pdc_vehicle_department_772: 'p_expected_vehicle_version',
+  workshop_resequence_bay_424: 'p_expected_version'
+  // workshop_undo_bay_resequence_424 is keyed by its receipt: the server checks
+  // every booking's version against the receipt before it changes anything.
 });
 
 const WORKSHOP_READ_RPCS = Object.freeze([
@@ -131,7 +138,10 @@ const WORKSHOP_CANONICAL_MUTATION_ERRORS = new Set([
   'protected_booking', 'receipt_not_found', 'undo_actor_mismatch',
   'already_undone', 'undo_expired', 'undo_conflict',
   // r417 (F32): bay rule warning the planner did or did not confirm.
-  'bay_rule_warning', 'bay_rule_not_confirmed'
+  'bay_rule_warning', 'bay_rule_not_confirmed',
+  // r424 (F38): push-back warning, bay re-order and its undo.
+  'later_bookings_warning', 'later_bookings_not_confirmed', 'resequence_rejected', 'plan_changed',
+  'order_unchanged', 'not_same_bay', 'started_job_fixed', 'resequence_too_large', 'booking_not_found'
 ]);
 
 function workshopCanonicalMutationError(body) {

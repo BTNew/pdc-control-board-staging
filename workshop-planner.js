@@ -1138,6 +1138,16 @@ const WORKSHOP_PLAIN_ERROR_MESSAGES = Object.freeze({
   // r417 (F32): a bay rule mismatch is a warning the planner confirms.
   bay_rule_warning: "This bay's rule does not match this booking. No change was made. Drag it again and choose OK to book it here anyway.",
   bay_rule_not_confirmed: 'No change was made. The bay rule was not overridden.',
+  // r424 (F38): push-back warning, bay re-order and its undo.
+  later_bookings_warning: "This job would run into the same vehicle's next booking. No change was made. Drag it again and choose OK to push the later booking back.",
+  later_bookings_not_confirmed: 'No change was made. The later bookings were not pushed back.',
+  resequence_rejected: 'This re-order could not be saved because it would overlap another booking or break a booking rule. No change was made.',
+  plan_changed: 'The bay changed while you were looking at the preview. No change was made. Drag the job again to see the new preview.',
+  order_unchanged: 'That would leave the bay in the same order. No change was made.',
+  not_same_bay: 'Both jobs need to be in the same bay to re-order them. Move the job into this bay first. No change was made.',
+  started_job_fixed: 'A started job keeps its place and times. Stop it first, or re-order the jobs around it. No change was made.',
+  resequence_too_large: 'Too many bookings would move at once. Re-order a few jobs at a time. No change was made.',
+  booking_not_found: 'That booking no longer exists. The planner has refreshed; no change was made.',
   protected_booking: "This job has already been started, so it can't be moved here. No change was made. Ask a manager to re-plan it.",
   invalid_admin_block_type: 'That kind of admin block is not recognised. Choose leave, bay downtime or another listed block type. No change was made.',
   admin_block_not_found: 'That admin block no longer exists. It may have been removed by someone else. The planner has refreshed; no change was made.',
@@ -5520,9 +5530,20 @@ function workshopUnallocatedHeadingCounts(outstanding = [], returnedPlans = [], 
 }
 
 function workshopReturnedQueuePlans(plans, stage, category = '') {
-  return plans.filter(entry => entry.stage === stage && entry.sharedStatus === 'queued'
+  return plans.filter(entry => entry.stage === stage && (entry.sharedStatus === 'queued'
+    // r424 (F38): stopped in a bay, then dragged to Unallocated (see workshopPlanStoppedUnallocated).
+    || (entry.sharedStatus === 'stoppage' && Boolean(entry.actualStartAt) && !entry.actualEndAt))
     && !entry.sharedBayId && Number(entry.bay) === 0
     && (!category || !entry.workCategory || entry.workCategory === category));
+}
+
+// r424 (F38): a job stopped in a bay and then dragged to Unallocated (for
+// example waiting on parts) shows with the returned jobs. Re-planning it ends
+// the stoppage (reason kept in its history), keeps the time already worked and
+// books only the remaining hours.
+function workshopPlanStoppedUnallocated(entry) {
+  return Boolean(entry && entry.sharedStatus === 'stoppage' && !entry.sharedBayId && Number(entry.bay) === 0
+    && entry.actualStartAt && !entry.actualEndAt);
 }
 
 // A booking that was started, stopped and then returned to the queue keeps
@@ -5542,16 +5563,20 @@ function workshopReturnedQueueCardHtml(entry) {
   const vehicle = workshopVehicle(entry.vehicleKey, entry.stage);
   if (!vehicle) return '';
   const identity = displayStockNumber(vehicle) || entry.vehicleKey;
-  const startedBefore = workshopPlanStartedBefore(entry);
+  const stopped = workshopPlanStoppedUnallocated(entry);
+  const startedBefore = stopped || workshopPlanStartedBefore(entry);
+  const startedHint = stopped
+    ? ['Stopped', cleanNavisionText(entry.stoppageReason || ''), 'time worked is kept'].filter(Boolean).join(' · ')
+    : WORKSHOP_STARTED_BEFORE_HINT;
   const disabled = '';
   return `<article class="workshop-queue-card workshop-unallocated-vehicle-pill${startedBefore ? ' is-started-before' : ''}" draggable="true" tabindex="0" role="group"${startedBefore ? ' data-workshop-started-before="1"' : ''}
     data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}"
-    aria-label="${escapeHtml(`Vehicle ${identity}. ${startedBefore ? `${WORKSHOP_STARTED_BEFORE_HINT}. ` : ''}Press Enter to open job.`)}" title="${escapeHtml(startedBefore ? `${WORKSHOP_STARTED_BEFORE_MESSAGE} Drag onto a bay, use Best slot, or use Schedule.` : 'Drag onto a bay, use Best slot, or use Schedule')}">
+    aria-label="${escapeHtml(`Vehicle ${identity}. ${startedBefore ? `${startedHint}. ` : ''}Press Enter to open job.`)}" title="${escapeHtml(startedBefore ? `${WORKSHOP_STARTED_BEFORE_MESSAGE} Drag onto a bay, use Best slot, or use Schedule.` : 'Drag onto a bay, use Best slot, or use Schedule')}">
     ${workshopVehicleIdentitySummaryHtml(vehicle)}
     <span>${escapeHtml(workshopQueueVehicleDescription(vehicle))}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
     <small class="workshop-estimated-hours-line">Estimated: ${escapeHtml(Number(entry.hours).toFixed(2))} h</small>
-    ${startedBefore ? `<small class="workshop-started-before-hint" role="note">${escapeHtml(WORKSHOP_STARTED_BEFORE_HINT)}</small>` : ''}
+    ${startedBefore ? `<small class="workshop-started-before-hint" role="note">${escapeHtml(startedHint)}</small>` : ''}
     <div class="workshop-queue-actions">
       <button type="button" class="workshop-schedule-button best-slot" data-workshop-returned-best-slot="${escapeHtml(entry.id)}"${disabled}>Best slot</button>
       <button type="button" class="workshop-schedule-button" data-workshop-returned-schedule="${escapeHtml(entry.id)}"${disabled}>Schedule</button>
@@ -5755,6 +5780,7 @@ function renderWorkshopPlanner(options = {}) {
         </div>
         ${focusedBookingMode ? '' : '<button class="small-button" type="button" data-workshop-today>Today</button><button class="small-button" type="button" data-workshop-refresh-vehicle data-pdc-operational-refresh data-pdc-refresh-route="workshop">Refresh Vehicle</button>'}
         ${!focusedBookingMode && sharedModeActive && workshopLastAdministratorMove && workshopAdministratorCanMove() ? '<button class="small-button" type="button" data-workshop-undo-admin-move>Undo last move</button>' : ''}
+        ${!focusedBookingMode && sharedModeActive && workshopBayResequenceUndoAvailable() ? '<button class="small-button" type="button" data-workshop-undo-bay-resequence>Undo re-order</button>' : ''}
         ${!focusedBookingMode && sharedModeActive && workshopAdminBlockCanMutate() ? `<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button><div class="workshop-admin-palette" data-workshop-admin-palette><span class="workshop-admin-palette-hint">Drag to a bay</span><button class="workshop-admin-palette-tile" type="button" draggable="true" data-workshop-admin-palette-tile data-admin-palette-duration="${workshopAdminPaletteDurationMinutes}"><span data-workshop-admin-palette-label>Admin · ${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)} h</span></button><label class="workshop-admin-palette-duration"><span>Unit</span><select data-workshop-admin-palette-unit aria-label="Admin block duration unit"><option value="hours">Hours</option><option value="working_days">Working days</option></select><span>Duration</span><input type="number" min="0.25" step="0.25" value="${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)}" data-workshop-admin-palette-duration aria-label="Admin block duration" /></label></div>` : ''}
         ${!focusedBookingMode ? '<button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>' : ''}
         ${!focusedBookingMode && workshopAdminBlockFeedback.message ? `<div class="workshop-admin-block-feedback ${escapeHtml(workshopAdminBlockFeedback.tone)}" role="status" aria-live="polite">${escapeHtml(workshopAdminBlockFeedback.message)}</div>` : ''}
@@ -5834,6 +5860,9 @@ function bindWorkshopPlanner(root) {
   }));
   root.querySelector('[data-workshop-undo-admin-move]')?.addEventListener('click', async () => {
     await workshopUndoLastAdministratorMove();
+  });
+  root.querySelector('[data-workshop-undo-bay-resequence]')?.addEventListener('click', async () => {
+    await workshopUndoLastBayResequence();
   });
   root.querySelector('[data-workshop-today]')?.addEventListener('click', () => {
     const state = workshopState();
@@ -6658,8 +6687,142 @@ function moveWorkshopDroppedPlan(planId = '', stage = '', bay = 0, dateKey = '',
     workshopNotify('Completed workshop jobs stay fixed in history.');
     return Promise.resolve(false);
   }
-  if (entry.status === 'planned') return Promise.resolve(scheduleWorkshopVehicle({ planId, stage, bay, dateKey, startMinutes, preferRequestedTime }));
+  const resequenceTarget = workshopResequenceTarget(entry, stage, bay, dateKey, startMinutes, workshopLoadPlans());
+  if (resequenceTarget) return workshopResequenceDrop(entry, resequenceTarget);
+  if (entry.status === 'planned' || workshopPlanStoppedUnallocated(entry)) return Promise.resolve(scheduleWorkshopVehicle({ planId, stage, bay, dateKey, startMinutes, preferRequestedTime }));
   return moveWorkshopLivePlan(planId, stage, bay, dateKey, startMinutes);
+}
+
+// r424 (F38): drag a booking onto another booking in the same bay to change
+// the order. The planner chooses "Move ahead of" or "Swap with", sees a
+// preview of every booking that would move (the server lays the bay out again
+// with each booking's own hours and the bay's shift hours; started jobs keep
+// their times), and applies it in one transaction. Undo is offered for 30
+// minutes. No window.confirm here: the choice and the preview are dialogs.
+let workshopLastBayResequence = null;
+const WORKSHOP_BAY_RESEQUENCE_UNDO_MS = 30 * 60 * 1000;
+const WORKSHOP_RESEQUENCE_STATUSES = new Set(['planned', 'stoppage']);
+
+function workshopResequenceTarget(entry, stage, bay, dateKey, startMinutes, rows) {
+  if (!entry || !workshopSharedModeActive() || !entry.sharedBookingId || !Array.isArray(rows)) return null;
+  if (!WORKSHOP_RESEQUENCE_STATUSES.has(String(entry.sharedStatus || ''))) return null;
+  if (!(Number(bay) > 0) || Number(bay) !== Number(entry.bay) || normalizePmbStage(stage) !== normalizePmbStage(entry.stage)) return null;
+  const dropStart = workshopDateAtOffset(dateKey, startMinutes).getTime();
+  const minutes = Math.max(1, Math.round((Number(entry.hours) || 0) * 60));
+  const dropEnd = dropStart + minutes * 60000;
+  if (!Number.isFinite(dropStart)) return null;
+  const hits = rows
+    .filter(row => row && row.id !== entry.id && row.sharedBookingId && WORKSHOP_RESEQUENCE_STATUSES.has(String(row.sharedStatus || ''))
+      && normalizePmbStage(row.stage) === normalizePmbStage(entry.stage) && Number(row.bay) === Number(entry.bay))
+    .map(row => ({ row, start: Date.parse(row.startAt), end: Date.parse(row.endAt) }))
+    .filter(item => Number.isFinite(item.start) && Number.isFinite(item.end) && item.start < dropEnd && dropStart < item.end)
+    .sort((a, b) => a.start - b.start);
+  return hits.length ? hits[0].row : null;
+}
+
+function workshopResequenceLabel(entry) {
+  const vehicle = entry ? workshopVehicle(entry.vehicleKey, entry.stage) : null;
+  const keyNumber = vehicle ? cleanNavisionText(vehicleKeyNumber(vehicle) || '') : '';
+  if (keyNumber) return `Key ${keyNumber}`;
+  return (vehicle && displayStockNumber(vehicle)) || String(entry?.vehicleKey || 'this job');
+}
+
+function workshopResequenceWhen(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+function workshopResequenceDialog(title, bodyHtml, buttons) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay workshop-schedule-overlay workshop-resequence-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', title);
+    overlay.innerHTML = `<section class="modal-card workshop-schedule-card workshop-resequence-card">
+      <button class="modal-close" type="button" data-workshop-resequence-choice="" aria-label="Cancel">×</button>
+      <header><h2>${escapeHtml(title)}</h2></header>
+      ${bodyHtml}
+      <div class="edit-actions">${buttons.map(button => `<button class="${escapeHtml(button.className || 'secondary')}" type="button" data-workshop-resequence-choice="${escapeHtml(button.value)}">${escapeHtml(button.label)}</button>`).join('')}</div>
+    </section>`;
+    let done = false;
+    const finish = value => {
+      if (done) return;
+      done = true;
+      overlay.remove();
+      if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
+      resolve(value || '');
+    };
+    overlay.querySelectorAll('[data-workshop-resequence-choice]').forEach(button => button.addEventListener('click', () => finish(button.dataset.workshopResequenceChoice)));
+    overlay.addEventListener('keydown', event => { if (event.key === 'Escape') finish(''); });
+    document.body.appendChild(overlay);
+    document.body.classList.add('modal-open');
+    overlay.querySelector('.primary')?.focus?.();
+  });
+}
+
+function workshopResequencePreviewHtml(preview) {
+  const changes = Array.isArray(preview?.changes) ? preview.changes : [];
+  const rows = changes.map(change => {
+    const who = [change.key_number ? `Key ${change.key_number}` : '', String(change.work_category || '').replace(/^BUS_/, '').toLowerCase(), change.bay_number ? `Bay ${change.bay_number}` : '']
+      .filter(Boolean).join(' · ');
+    return `<li>${escapeHtml(who)}: ${escapeHtml(workshopResequenceWhen(change.from_start) || 'Unallocated')} → <strong>${escapeHtml(workshopResequenceWhen(change.to_start))}</strong>${change.resumed ? ' <small>(stopped job re-planned · time worked kept)</small>' : ''}</li>`;
+  }).join('');
+  const other = Number(preview?.other_bays) > 0
+    ? `<p class="workshop-schedule-note">${escapeHtml(`${preview.other_bays} later booking${Number(preview.other_bays) === 1 ? '' : 's'} for the same vehicle in another bay move back too, so nothing overlaps.`)}</p>` : '';
+  return `<p>These bookings will move (Perth time). Each keeps its own hours; started jobs keep their times.</p><ul class="workshop-resequence-changes">${rows}</ul>${other}`;
+}
+
+async function workshopResequenceDrop(entry, target) {
+  if (!workshopAdministratorCanMove()) {
+    workshopNotify('Only a planner or controller can change the order of a bay. No change was made.');
+    renderWorkshopPlanner();
+    return false;
+  }
+  const moving = workshopResequenceLabel(entry);
+  const other = workshopResequenceLabel(target);
+  const mode = await workshopResequenceDialog(`Change the order in Bay ${Number(entry.bay)}`,
+    `<p>${escapeHtml(`You dropped ${moving} on ${other}.`)}</p>`,
+    [{ value: '', label: 'Cancel' }, { value: 'swap', label: `Swap with ${other}` }, { value: 'ahead', label: `Move ahead of ${other}`, className: 'primary' }]);
+  if (!mode) { renderWorkshopPlanner(); return false; }
+  const base = {
+    bookingId: entry.sharedBookingId,
+    expectedVersion: entry.sharedVersion,
+    targetBookingId: target.sharedBookingId,
+    mode,
+    metadata: { source: 'planner_bay_resequence', reason: 'website_drag_drop' },
+  };
+  const preview = await workshopDispatchSharedAction('resequenceBay', { ...base, apply: false, requestId: workshopNewRequestId() });
+  if (!preview || preview.ok !== true || !preview.plan_hash) return false;
+  const apply = await workshopResequenceDialog(mode === 'swap' ? `Swap ${moving} and ${other}` : `Move ${moving} ahead of ${other}`,
+    workshopResequencePreviewHtml(preview),
+    [{ value: '', label: 'Cancel' }, { value: 'apply', label: 'Apply', className: 'primary' }]);
+  if (apply !== 'apply') { workshopNotify('No change was made.', 'info'); renderWorkshopPlanner(); return false; }
+  const result = await workshopDispatchSharedAction('resequenceBay', { ...base, apply: true, planHash: preview.plan_hash, requestId: workshopNewRequestId() });
+  if (!result || result.ok !== true) return false;
+  if (result.receipt_id) workshopLastBayResequence = { receiptId: String(result.receipt_id), undoRequestId: workshopNewRequestId(), at: Date.now(), bay: Number(entry.bay) };
+  workshopNotify(`Bay ${Number(entry.bay)} re-ordered. Use “Undo re-order” within 30 minutes to put it back.`, 'info');
+  renderWorkshopPlanner();
+  return true;
+}
+
+function workshopBayResequenceUndoAvailable(now = Date.now()) {
+  return Boolean(workshopLastBayResequence && now - workshopLastBayResequence.at < WORKSHOP_BAY_RESEQUENCE_UNDO_MS && workshopAdministratorCanMove());
+}
+
+async function workshopUndoLastBayResequence() {
+  const receipt = workshopLastBayResequence;
+  if (!receipt || !workshopBayResequenceUndoAvailable()) { workshopLastBayResequence = null; renderWorkshopPlanner(); return false; }
+  const result = await workshopDispatchSharedAction('undoBayResequence', { receiptId: receipt.receiptId, requestId: receipt.undoRequestId });
+  if (!result || result.ok !== true) {
+    if (['undo_expired', 'already_undone', 'receipt_not_found', 'undo_actor_mismatch'].includes(result?.error)) workshopLastBayResequence = null;
+    return false;
+  }
+  workshopLastBayResequence = null;
+  workshopNotify('The re-order was undone.', 'info');
+  renderWorkshopPlanner();
+  return true;
 }
 
 function workshopScheduleTimeOptions(selectedMinutes = 0) {
@@ -7126,7 +7289,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     renderWorkshopPlanner();
     return false;
   }
-  if (existing && ['started', 'stoppage', 'completed'].includes(existing.status)) {
+  if (existing && ['started', 'stoppage', 'completed'].includes(existing.status) && !workshopPlanStoppedUnallocated(existing)) {
     workshopNotify('Started, stopped and completed jobs stay fixed on the planner. Resolve the live job before rescheduling it.');
     return false;
   }

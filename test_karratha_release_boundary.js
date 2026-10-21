@@ -54,7 +54,8 @@ const approvedRootImportPatch = Object.freeze({
   // and the dialog listener fires before the snapshot refresh. Department 135
   // stays parked and keeps the previous service bytes.
   // r417: bay_rule_warning and bay_rule_not_confirmed are known codes (F32).
-  "workshop-data-service.js": "88ecbf537d7caee79f4d06c2bc1139f122a111d5972db5462d3c391af6979b5d",
+  // r424: bay re-order RPCs and their codes (F38).
+  "workshop-data-service.js": "6dfb5b4400b3fe42f61c2cbc64ee6e95e452b508297ce8f00ef5cee061bcf4dd",
   // Bhavesh-authorised PMG non-Navision booking lookup repair; KTA stays frozen.
   "pdc-review-stations.js": "851ebde33942fd3a3542f2292093483b6f9bc9f3ff9feb6cfc96aa8e6cf51488",
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
@@ -67,7 +68,8 @@ const approvedRootImportPatch = Object.freeze({
   // a running item left too long (r384). Department 135's copy stays frozen.
   // r415: started-then-returned jobs can be dragged, Best slot or Scheduled again; the server resumes them (F31).
   // r417: every visible bay offered; a drop books the bay's own outstanding category; bay rule warning messages (F32).
-  "workshop-planner.js": "200a6f3b2f18001c28c8fc50f9d81b4cabc0082257d90d221cb22398189323e9",
+  // r424: stopped jobs in Unallocated re-plan; drag onto a booking in the same bay offers Move ahead of / Swap with, preview, undo (F38).
+  "workshop-planner.js": "51a44e06047c624c7c562c33de0587de92dc0ef5b964be0054ef3bd7aeb06e95",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   "workshop-planner.css": "51c8dd7628ee620d55af26b7f1af78cbb4a2c7c0b8aa4e729faaac38d7cf4cfa",
   // Publish minifies app.js and styles.css in the Pages artifact only.
@@ -106,7 +108,8 @@ const approvedRootImportPatch = Object.freeze({
   // r417: r417=2026.10.21.01 on workshop-planner.js, workshop-data-service.js and workshop-shared-actions.js (bay rule warn-and-confirm, F32).
   // r419: User Admin role lists offer every role, preselect the real role and confirm role changes (F34); index.html adds r419=2026.10.21.01.
   // r421: importers can no longer show a Navision record on Vehicle Locations (F36); index.html adds r421=2026.10.21.01.
-  "app.js": "4015f5ddaf095890324e5c8beeb3f51105ce2a76816c60a7b03c1307071459b3",
+  // r424: r424=2026.10.21.01 on workshop-planner.js, workshop-data-service.js and workshop-shared-actions.js (bay re-order, stopped-job re-plan, F38).
+  "app.js": "51d6115e70643712c252d0d798b40c8197f0adc6062201f9eec563c3e8e1b900",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -149,7 +152,8 @@ const approvedRootImportPatch = Object.freeze({
   // r408: no record_pdc_login for Fitters bay accounts (F22).
   "pdc-auth.js": "309f8a28baa21ecc90d1ea157ded387ee051db6d5bd67176c09026d60b208ac4",
   // r417: administrator move/schedule ask the planner to confirm a bay rule warning, then resend confirmed (F32).
-  "workshop-shared-actions.js": "a71f07acdb2dd17e163831b839b8c5970b59bdc421d619e1a14b881b1d886cb9",
+  // r424: push-back warning confirm; bay re-order and undo actions (F38).
+  "workshop-shared-actions.js": "dcc5cda131757438ce285de7130672addb540664e13d56b666f03df0cd45df1f",
   "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938"
 });
 test('PMB/Sales runtime preserves its frozen baseline and approved root release patches', () => {
