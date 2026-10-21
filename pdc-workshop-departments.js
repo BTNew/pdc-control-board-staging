@@ -29,10 +29,17 @@
     {id:'pit',code:'BUS_PIT',label:'Pit',bays:[],preferred:[],allowed:[],external:true},
   ].map(item => Object.freeze({...item,bays:Object.freeze(item.bays),preferred:Object.freeze(item.preferred),allowed:Object.freeze(item.allowed),
     view:'planner-bus-'+item.id,path:'workshop/bus-4x4/'+item.id})));
+  // r450 (F63, Craig 21 Oct): a whole job books every unbooked Bus line of a
+  // vehicle (all categories) to one technician as one booking, so their job
+  // card lists every line. It is not a line category: it never appears in the
+  // category lists, views or splits. Same bays as the server
+  // (pdc_work_categories_private.allowed_bay): any Bus bay except QA Bay 7.
+  const WHOLE_JOB = Object.freeze({code:'BUS_WHOLE_JOB',label:'Whole job',allowed:Object.freeze([1,2,3,4,5,6,8,9,10]),preferred:Object.freeze([1,2,3,4,5,6,8,9,10])});
+  const isWholeJob = value => value === WHOLE_JOB.code;
   const names = {BUS_4X4:'Bus 4×4',TINT:'Tint · shared',TYRE:'Tyres · shared',HOIST:'Hoist',FITTING:'Fitting',FABRICATION:'Fab',ELECTRICAL:'Electrical',SUBLET:'Sublet'};
   const category = value => BUS_WORK.find(item => item.code === value || item.id === value) || null;
-  const allowedBays = value => category(value)?.allowed ? [...category(value).allowed] : null;
-  const preferredBays = value => category(value)?.preferred ? [...category(value).preferred] : null;
+  const allowedBays = value => isWholeJob(value) ? [...WHOLE_JOB.allowed] : category(value)?.allowed ? [...category(value).allowed] : null;
+  const preferredBays = value => isWholeJob(value) ? [...WHOLE_JOB.preferred] : category(value)?.preferred ? [...category(value).preferred] : null;
   const categoryForView = value => BUS_WORK.find(item => item.view === value) || null;
   // r406 (F18): Pit is recognised by stage or by wording, in every department,
   // with the same rule as the QC page (app.js qcPageOperationLineIsDeferredPit)
@@ -52,8 +59,21 @@
     return (vehicle.pdcQcOperationLines || []).filter(line => line.active === true && line.completed !== true
       && line.rejected !== true && isPitLine(line));
   }
-  const categoryLabel = value => category(value)?.label || names[value] || value;
-  const categoryStage = value => value === 'BUS_PIT' ? 'PIT_INSPECTION' : category(value) ? 'BUS_4X4' : value;
+  const categoryLabel = value => isWholeJob(value) ? WHOLE_JOB.label : category(value)?.label || names[value] || value;
+  const categoryStage = value => value === 'BUS_PIT' ? 'PIT_INSPECTION' : category(value) || isWholeJob(value) ? 'BUS_4X4' : value;
+  // r450 (F63): the whole job on offer, from the vehicle's Bus categories
+  // (pdc_work_categories_private.vehicle_categories): needs 2+ unbooked,
+  // unfinished categories, every one with confirmed hours.
+  function wholeJobChoice(workCategories) {
+    const rows = (Array.isArray(workCategories) ? workCategories : []).filter(row => {
+      const item = category(row?.work_category);
+      return item && !item.external && row.completed !== true && row.existing_booking !== true;
+    });
+    if (rows.length < 2 || rows.some(row => !Number.isFinite(Number(row.estimated_hours)) || row.estimated_hours === null)) return null;
+    const hours = rows.reduce((sum, row) => sum + Number(row.estimated_hours), 0);
+    if (!(hours > 0)) return null;
+    return {code:WHOLE_JOB.code,label:WHOLE_JOB.label,categories:rows.map(row => row.work_category),hours};
+  }
   function categoryChoices(department) {
     return String(department) === '138' ? [...BUS_WORK.map(item => item.code),...SHARED,'SUBLET'] : [...PD,...SHARED,'SUBLET'];
   }
@@ -73,7 +93,7 @@
         const lines = group.lines.filter(line => line.work_category === item.code);
         if (!lines.length) return [];
         return [{...group,category:item.code,label:'Bus 4×4 · '+item.label,lines,
-          bookings:group.bookings.filter(booking => !booking.work_category || booking.work_category === item.code)}];
+          bookings:group.bookings.filter(booking => !booking.work_category || booking.work_category === item.code || isWholeJob(booking.work_category))}];
       });
     });
   }
@@ -120,5 +140,5 @@
     if (/\b(?:TYRES?|TIRES?|RIMS?)\b|WHEEL[ -]*(?:ALIGNMENT|BALANC(?:E|ING))|\b(?:2ND|SECOND|EXTRA|ADDITIONAL)\s+SPARE\s+(?:GENUINE\s+)?WHEEL\b/.test(text)) return 'TYRE';
     return 'BUS_4X4';
   }
-  return Object.freeze({BUS_GROUPS,BUS_WORK,SHARED,PD,normalize,group,groupForBay,category,allowedBays,preferredBays,categoryForView,externalPitLines,isPitLine,categoryLabel,categoryStage,categoryChoices,selectedCategory,splitGroups,stageVisible,options,plannerTitle,plannerSections,bayLabel,sharedStation});
+  return Object.freeze({BUS_GROUPS,BUS_WORK,WHOLE_JOB,isWholeJob,wholeJobChoice,SHARED,PD,normalize,group,groupForBay,category,allowedBays,preferredBays,categoryForView,externalPitLines,isPitLine,categoryLabel,categoryStage,categoryChoices,selectedCategory,splitGroups,stageVisible,options,plannerTitle,plannerSections,bayLabel,sharedStation});
 });

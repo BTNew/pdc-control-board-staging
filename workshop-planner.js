@@ -1593,7 +1593,7 @@ function workshopStageJobLines(vehicle = {}, stage = '', category = undefined) {
   const normalizedStage = normalizePmbStage(stage);
   const selected = normalizedStage === 'BUS_4X4'
     ? (category === undefined && typeof workshopSelectedBusGroup === 'function' ? workshopSelectedBusGroup()?.code : category) : '';
-  return workshopResolvedJobLines(vehicle).filter(line => line.stage === normalizedStage && (!selected || line.workCategory === selected));
+  return workshopResolvedJobLines(vehicle).filter(line => line.stage === normalizedStage && (!selected || selected === 'BUS_WHOLE_JOB' || line.workCategory === selected));
 }
 
 function workshopCalculatedStageHours(vehicle = {}, stage = '') {
@@ -3575,7 +3575,7 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
         !['completed', 'deleted', 'cancelled'].includes(entry.status) && workshopPlanVehicleIdentity(entry) === vehicleIdentity
         && normalizePmbStage(entry.stage) === normalizePmbStage(workshopState().stage)
         && (entry.stage !== 'BUS_4X4' || typeof workshopSelectedBusGroup !== 'function' || !workshopSelectedBusGroup()?.code
-          || (entry.workCategory ? entry.workCategory === workshopSelectedBusGroup().code
+          || (entry.workCategory && entry.workCategory !== 'BUS_WHOLE_JOB' ? entry.workCategory === workshopSelectedBusGroup().code
             : !(Number(entry.bay) > 0) || workshopSelectedBusGroup().bays.includes(Number(entry.bay))))
       )));
       const stationAuthority = sharedRef?.vehicleId
@@ -3860,7 +3860,7 @@ async function workshopSelectSearchBooking(bookingId = '', vehicleIdentity = '')
   const entry = workshopResolveBookingSelection(plans, bookingId, vehicleIdentity);
   if (!entry || normalizePmbStage(entry.stage) !== normalizePmbStage(state.stage)
       || (entry.stage === 'BUS_4X4' && typeof workshopSelectedBusGroup === 'function'
-        && workshopSelectedBusGroup()?.code && (entry.workCategory ? entry.workCategory !== workshopSelectedBusGroup().code
+        && workshopSelectedBusGroup()?.code && (entry.workCategory && entry.workCategory !== 'BUS_WHOLE_JOB' ? entry.workCategory !== workshopSelectedBusGroup().code
           : !workshopSelectedBusGroup().bays.includes(Number(entry.bay))))) {
     state.bookingSearchLookup = null;
     state.searchOpen = true;
@@ -4235,7 +4235,7 @@ async function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
     const stationBookings = result.bookings.filter(entry =>
       normalizePmbStage(entry.stage) === normalizePmbStage(state.stage)
       && (entry.stage !== 'BUS_4X4' || !workshopSelectedBusGroup()?.code
-        || (entry.workCategory ? entry.workCategory === workshopSelectedBusGroup().code
+        || (entry.workCategory && entry.workCategory !== 'BUS_WHOLE_JOB' ? entry.workCategory === workshopSelectedBusGroup().code
           : workshopSelectedBusGroup().bays.includes(Number(entry.bay)))));
     if (stationBookings.length) {
       const closest = workshopSortBookingsClosest(stationBookings)[0];
@@ -4588,6 +4588,10 @@ function workshopUnavailableTimeHtml(dateKey = '', { vertical = false, stage = '
 function workshopDepartmentLayout() {
   return typeof window === 'object' ? window.PDC_WORKSHOP_DEPARTMENTS : null;
 }
+// r450 (F63): a whole-job booking (BUS_WHOLE_JOB) holds every unbooked Bus
+// line for one technician. In a category view it shows by bay (like an old
+// whole-job booking), because it holds work from several categories; the
+// filters below test entry.workCategory !== 'BUS_WHOLE_JOB' inline.
 function workshopCategoryAuthority(authority, stage) {
   if (!authority || stage !== 'BUS_4X4') return authority;
   const layout = workshopDepartmentLayout();
@@ -5526,7 +5530,7 @@ function workshopReturnedQueuePlans(plans, stage, category = '') {
     // r424 (F38): stopped in a bay, then dragged to Unallocated (see workshopPlanStoppedUnallocated).
     || (entry.sharedStatus === 'stoppage' && Boolean(entry.actualStartAt) && !entry.actualEndAt))
     && !entry.sharedBayId && Number(entry.bay) === 0
-    && (!category || !entry.workCategory || entry.workCategory === category));
+    && (!category || !entry.workCategory || entry.workCategory === 'BUS_WHOLE_JOB' || entry.workCategory === category));
 }
 
 // r424 (F38): a job stopped in a bay and then dragged to Unallocated (for
@@ -6865,8 +6869,14 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     workshopNotify('Estimated hours are required before this vehicle can be scheduled into a bay. No booking was created.');
     return;
   }
-  const baseHours = duration?.hours || workshopDefaultBookingHours();
+  let baseHours = duration?.hours || workshopDefaultBookingHours();
   const scheduleCategory = returnedPlan?.workCategory || vehicle.__workshopOutstanding?.workCategory || '';
+  // r450 (F63): when 2+ Bus categories are unbooked, the controller can book the
+  // whole job (every unbooked line) to one technician as one booking instead.
+  const categoryHours = baseHours;
+  const wholeJob = !returnedPlan && normalizedStage === 'BUS_4X4' && scheduleCategory && scheduleCategory !== 'BUS_WHOLE_JOB'
+    ? workshopDepartmentLayout()?.wholeJobChoice?.(vehicle.__workshopOutstanding?.workCategories) || null : null;
+  let workCategory = scheduleCategory;
   const categoryBays = workshopCategoryBays(normalizedStage, scheduleCategory);
   if (!categoryBays.length) {
     workshopNotify(`No bay in this view takes ${workshopDepartmentLayout()?.categoryLabel?.(scheduleCategory) || 'this'} work. Open that work category's planner. No booking was created.`);
@@ -6890,6 +6900,14 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   const otherBays = workshopVisibleBays(normalizedStage).filter(number => !categoryBays.includes(number));
   const bayOptions = categoryBays.map(number => `<option value="${number}" ${number === bay ? 'selected' : ''}>${escapeHtml(workshopBayChoiceLabel(normalizedStage,number))}</option>`).join('')
     + otherBays.map(number => `<option value="${number}">${escapeHtml(`${workshopBayChoiceLabel(normalizedStage,number)} (other work – asks to confirm)`)}</option>`).join('');
+  // r450 (F63): the same list for the chosen Work (category only, or the whole job).
+  const bayOptionsHtml = (bays, chosen) => bays.map(number => `<option value="${number}" ${number === chosen ? 'selected' : ''}>${escapeHtml(workshopBayChoiceLabel(normalizedStage,number))}</option>`).join('')
+    + workshopVisibleBays(normalizedStage).filter(number => !bays.includes(number)).map(number => `<option value="${number}">${escapeHtml(`${workshopBayChoiceLabel(normalizedStage,number)} (other work – asks to confirm)`)}</option>`).join('');
+  const layout = workshopDepartmentLayout();
+  const workChoiceHtml = wholeJob ? `<label class="workshop-schedule-work" style="grid-column:1 / -1"><span>Work</span><select name="workCategory" data-workshop-schedule-work>
+          <option value="${escapeHtml(scheduleCategory)}" selected>${escapeHtml(`${layout?.categoryLabel?.(scheduleCategory) || scheduleCategory} only (${workshopExactDurationHours(categoryHours).toFixed(2)} h)`)}</option>
+          <option value="${escapeHtml(wholeJob.code)}">${escapeHtml(`Whole job to one technician – ${wholeJob.categories.map(code => layout?.categoryLabel?.(code) || code).join(' + ')} (${workshopExactDurationHours(wholeJob.hours).toFixed(2)} h)`)}</option>
+        </select></label>` : '';
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay workshop-schedule-overlay';
   overlay.setAttribute('role', 'dialog');
@@ -6899,12 +6917,14 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     <header><h2>Schedule ${escapeHtml(pmbStageLabel(normalizedStage))} work</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</p></header>
     <form data-workshop-schedule-form>
       <div class="workshop-schedule-grid">
+        ${workChoiceHtml}
         <label><span>Bay</span><select name="bay">${bayOptions}</select></label>
         <label><span>Date</span><input name="date" type="date" value="${escapeHtml(scheduledDate)}" ${etaConstraint.earliestDateKey ? `min="${escapeHtml(etaConstraint.earliestDateKey)}"` : ''} required></label>
         <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(startMinutes)}</select></label>
         <label><span>Planned hours</span><input name="hours" type="number" min="0.01" step="any" value="${escapeHtml(friendlyPlannedHours)}" ${authoritativeHours ? 'readonly title="Operation estimate adjusted for bay efficiency"' : ''} required></label>
         <label><span>Technician</span><select name="assignee">${workshopAssigneeOptions(normalizedStage, typeof workshopNextScheduleTechnician === 'function' ? workshopNextScheduleTechnician(normalizedStage, bay, vehicle) : (workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle)))}</select></label>
       </div>
+      ${wholeJob ? `<p class="workshop-schedule-note" data-workshop-whole-job-note hidden>One booking for one technician: their job card lists every unbooked line (${escapeHtml(wholeJob.categories.map(code => layout?.categoryLabel?.(code) || code).join(', '))}). Book QA separately first if someone else does QA.</p>` : ''}
       <p class="workshop-schedule-note">Later bookings in this bay move automatically, preserving their order and duration and skipping non-working days.${etaConstraint.required ? ` ${escapeHtml(etaConstraint.location)} earliest permitted booking date: ${escapeHtml(etaConstraint.earliestDateKey)}.` : ''}</p>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-schedule-cancel>Cancel</button><button class="primary" type="submit">Add to planner</button></div>
     </form>
@@ -6942,6 +6962,22 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     if ([...(select.options || [])].some(option => option.value === name)) select.value = name;
   };
   overlay.querySelectorAll('[data-workshop-schedule-cancel]').forEach(button => button.addEventListener('click', finish));
+  overlay.querySelector('[data-workshop-schedule-work]')?.addEventListener('change', event => {
+    const form = overlay.querySelector('[data-workshop-schedule-form]');
+    workCategory = event.currentTarget.value;
+    const whole = workCategory === 'BUS_WHOLE_JOB';
+    baseHours = whole ? wholeJob.hours : categoryHours;
+    const workBays = workshopCategoryBays(normalizedStage, workCategory);
+    const current = Number(form.elements.bay.value);
+    const chosen = workBays.includes(current) ? current : workBays[0];
+    form.elements.bay.innerHTML = bayOptionsHtml(workBays, chosen);
+    form.elements.bay.value = String(chosen);
+    const note = overlay.querySelector('[data-workshop-whole-job-note]');
+    if (note) note.hidden = !whole;
+    if (!workshopSharedModeActive()) form.elements.hours.value = workshopDurationInputValue(baseHours);
+    selectBayTechnician();
+    suggestAvailableTime();
+  });
   overlay.querySelector('[name="bay"]')?.addEventListener('change', () => {
     selectBayTechnician();
     suggestAvailableTime();
@@ -6976,6 +7012,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
         startMinutes: requestedStartMinutes,
         hoursValue: workshopExactDurationHours(form.elements.hours.value),
         assigneeValue: form.elements.assignee.value,
+        ...(workCategory === 'BUS_WHOLE_JOB' ? { workCategoryValue: workCategory, baseHoursValue: wholeJob.hours } : {}),
       });
       if (scheduled) commitClose.closeOnce();
     } finally {
@@ -7114,7 +7151,8 @@ async function workshopScheduleSharedNewBooking({
     const row = typeof workshopVehicle === 'function' ? workshopVehicle(candidate.vehicleKey, requestedStage) : null;
     if (Array.isArray(row?.__workshopOutstanding?.workCategories)) candidate = { ...candidate, workCategories: row.__workshopOutstanding.workCategories };
   }
-  const bayCategory = workshopBayAwareCategory(candidate, requestedStage, bayNumber);
+  // r450 (F63): a whole job keeps its category whichever bay it is dropped on.
+  const bayCategory = candidate.workCategory === 'BUS_WHOLE_JOB' ? null : workshopBayAwareCategory(candidate, requestedStage, bayNumber);
   if (bayCategory) {
     candidate = { ...candidate, workCategory: bayCategory.code };
     durationMinutes = bayCategory.minutes;
@@ -7266,7 +7304,7 @@ async function workshopScheduleVehicleNextAvailable({ vehicleId = '', vehicleKey
   });
 }
 
-async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false, cascadeNewBooking = true } = {}) {
+async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stage = '', bay = 0, dateKey = '', startMinutes = 0, hoursValue = null, assigneeValue = null, preferRequestedTime = false, cascadeNewBooking = true, workCategoryValue = '', baseHoursValue = 0 } = {}) {
   const rows = workshopLoadPlans();
   const existing = rows.find(entry => entry.id === planId) || rows.find(entry => entry.id === workshopPlanId(vehicleKeyValue, stage));
   if (planId && !existing) { workshopNotify('This booking changed. Refresh and try again.'); return false; }
@@ -7312,7 +7350,10 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
   }
   const start = workshopDateAtOffset(dateKey, startMinutes);
   if (!workshopRequireEtaSchedule(vehicle, start)) return false;
-  const duration = existing?.workCategory && Number(existing.operationEstimateHours) > 0
+  // r450 (F63): a new whole job lasts the hours of every unbooked Bus line (Schedule window).
+  const wholeJobRequested = !existing && normalizedStage === 'BUS_4X4' && workCategoryValue === 'BUS_WHOLE_JOB' && Number(baseHoursValue) > 0;
+  const duration = wholeJobRequested ? { hours: Number(baseHoursValue) }
+    : existing?.workCategory && Number(existing.operationEstimateHours) > 0
     ? { hours: Number(existing.operationEstimateHours) }
     : workshopSchedulingDuration(vehicle, normalizedStage);
   if (workshopSharedModeActive() && !duration) {
@@ -7335,7 +7376,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     ...(existing || {}),
     id: existing?.id || '__new_workshop_booking__',
     calendarVehicle: vehicle,
-    workCategory: existing?.workCategory || vehicle.__workshopOutstanding?.workCategory || '',
+    workCategory: existing?.workCategory || (wholeJobRequested ? workCategoryValue : '') || vehicle.__workshopOutstanding?.workCategory || '',
     stage: normalizedStage,
     bay: Number(bay),
     status: 'planned',
@@ -8299,7 +8340,7 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
   const selectedCategory = stage === 'BUS_4X4' ? workshopSelectedBusGroup()?.code || '' : '';
   const matchingPlans = workshopLoadPlans().filter(entry => entry.vehicleKey === vehicleKey(vehicle)
     && entry.stage === stage
-    && (!selectedCategory || !entry.workCategory || entry.workCategory === selectedCategory)
+    && (!selectedCategory || !entry.workCategory || entry.workCategory === 'BUS_WHOLE_JOB' || entry.workCategory === selectedCategory)
     && !['completed', 'deleted', 'cancelled'].includes(entry.status));
   const currentPlan = matchingPlans.find(entry => entry.id === requestedPlanId)
     || (matchingPlans.length === 1 ? matchingPlans[0] : null);
