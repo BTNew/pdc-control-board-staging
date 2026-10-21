@@ -181,12 +181,14 @@ const approvedRootImportPatch = Object.freeze({
   // r460: index.html key-number=2026.10.22.r460 on canonical-entry.js (F73).
   // r454: index.html identity-dealer=2026.10.22.r454 on pdc-email-vehicle-location-service.js (F67).
   // r457: index.html ipad-landscape=2026.10.22.r457 on workshop-planner.css (F70).
-  "index.html": "a8b125b253adab2b364bedddb7eb60edb0dd0dd0b944273cced890ae601a12f3",
+  // r458: index.html vehicle-created=2026.10.22.r458 on pdc-email-vehicle-location-service.js (F71).
+  "index.html": "c31450a31d33f16c091d0f13402cda6f4492ca47a03ed4060cc7dce14ff714e1",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
   // r454: a board row's identity_dealer_code (14450/37047) fills a missing dealer in mapServerVehicle (F67).
-  "pdc-email-vehicle-location-service.js": "074102b6fb75c1b668fea9b1bd63efd069b48d5ada68bef83806841db47d7f7f",
+  // r458: Detailed history shows a vehicle's creation as Created (presentVehicleCreationEvents, display only) (F71).
+  "pdc-email-vehicle-location-service.js": "e8ba105655c1d2b25cc39eb354fd5d0413c9b29add7edcb183d8ea6f8ecf3070",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
   "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",

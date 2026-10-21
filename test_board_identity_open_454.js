@@ -45,5 +45,5 @@ test('r454: the board row identity dealer fills a missing dealer only, and only 
 
 test('r454: the undo restores the three CRLF definitions byte for byte (base64), and index.html cache-busts the service',()=>{
   assert.equal((down.match(/convert_from\(decode\('/g)||[]).length,3);
-  assert.match(fs.readFileSync('index.html','utf8'),/pdc-email-vehicle-location-service\.js\?[^"]*identity-dealer=2026\.10\.22\.r454" defer>/);
+  assert.match(fs.readFileSync('index.html','utf8'),/pdc-email-vehicle-location-service\.js\?[^"]*identity-dealer=2026\.10\.22\.r454[^"]*" defer>/);
 });
