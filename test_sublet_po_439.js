@@ -120,7 +120,7 @@ test('browser wrapper: no request without a session; board RPC, decorated strip,
 });
 test('loader, cache bust and Pages build include the sublet PO script', () => {
   assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r439c'/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*sublet-po=2026\.10\.21\.r439c"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*sublet-po=2026\.10\.21\.r439c(&amp;[^"]*)?"/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-parts-eta\.js', 'pdc-sublet-po\.js'/);
   assert.equal(po.VERSION, '2026.10.21.r439c');
 });
