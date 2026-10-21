@@ -87,8 +87,19 @@
       operationPanels.dataset.pdcOperationPanels = '1';
       document.head.appendChild(operationPanels);
     };
-    subletPo.onload = loadOperationPanels;
-    subletPo.onerror = loadOperationPanels;
+    // r445 (F58): sublet PO attach (pilot vehicles; controllers / administrators) loads between the PO module and the panels,
+    // so its documents block sits in the Sublet box before the panels place it full width; the panels still load if it fails.
+    const loadSubletPoAttach = () => {
+      if (document.querySelector('script[data-pdc-sublet-po-attach]')) return loadOperationPanels();
+      const subletPoAttach = document.createElement('script');
+      subletPoAttach.src = 'pdc-sublet-po-attach.js?sublet-po-attach=2026.10.21.r445';
+      subletPoAttach.dataset.pdcSubletPoAttach = '1';
+      subletPoAttach.onload = loadOperationPanels;
+      subletPoAttach.onerror = loadOperationPanels;
+      document.head.appendChild(subletPoAttach);
+    };
+    subletPo.onload = loadSubletPoAttach;
+    subletPo.onerror = loadSubletPoAttach;
     document.head.appendChild(subletPo);
     const partsConfirmation = document.createElement('script');
     partsConfirmation.src = 'pdc-parts-confirmation.js?v=2026.09.13.person-confirmed.1';
