@@ -80,10 +80,13 @@
     return Boolean(roleRow?.active && email && roleEmail === email && allowedRoles.has(String(roleRow?.role || '')));
   }
 
-  function routeApprovedSite(role) {
+  // r432 (F43): a controller whose account is linked to a salesperson record may also use the Sales site
+  // (as that salesperson, own vehicles only); the server's Sales check (pdc_sales_private.context) decides.
+  function routeApprovedSite(role, salesLinked = false) {
     const salesSite = document.body.dataset.pdcSite === 'broome';
+    const salesAllowed = ['salesperson', 'administrator'].includes(role) || (role === 'operator' && salesLinked === true);
     const target = role === 'salesperson' && !salesSite ? 'sales/'
-      : salesSite && !['salesperson', 'administrator'].includes(role) ? '../' : null;
+      : salesSite && !salesAllowed ? '../' : null;
     if (!target) return false;
     lockOwnRoleAuthority('site_changed');
     window.location.replace(new URL(target, window.location.href).href);
@@ -439,6 +442,7 @@
       window.PDC_AUTH_CONTEXT = Object.freeze({
         ...window.PDC_AUTH_CONTEXT,
         role: role.role,
+        salesLinked: false,
       });
       const userLabel = el('pdc-auth-user');
       if (userLabel) userLabel.textContent = `${window.PDC_AUTH_CONTEXT.displayName} · ${role.role}`;
@@ -446,9 +450,22 @@
     }
   }
 
+  // r432 (F43): true only for a controller whose own account has a Sales record link (pdc_my_sales_link_432).
+  async function loadControllerSalesLink(role) {
+    if (role !== 'operator' || !state.client || typeof state.client.rpc !== 'function') return false;
+    try {
+      const { data, error } = await state.client.rpc('pdc_my_sales_link_432');
+      return !error && data === true;
+    } catch (_error) {
+      return false;
+    }
+  }
+
   async function unlockApplication(session, roleRow, expectedAuthGeneration, expectedRoleLookupGeneration) {
     if (expectedAuthGeneration !== state.authGeneration || expectedRoleLookupGeneration !== state.roleLookupGeneration) return false;
-    if (routeApprovedSite(roleRow.role)) return false;
+    const salesLinked = await loadControllerSalesLink(roleRow.role);
+    if (expectedAuthGeneration !== state.authGeneration || expectedRoleLookupGeneration !== state.roleLookupGeneration) return false;
+    if (routeApprovedSite(roleRow.role, salesLinked)) return false;
     const monitored = await subscribeOwnRoleChannel(String(session.user.email || '').toLowerCase());
     if (
       !monitored
@@ -465,6 +482,7 @@
       email: String(session.user.email || '').toLowerCase(),
       displayName: String(session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email || ''),
       role: roleRow.role,
+      salesLinked,
     });
     // Cached for synchronous callers (workshop-data-service.js via
     // getPdcSupabaseAccessToken() in app.js) that need the current access

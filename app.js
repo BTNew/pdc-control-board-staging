@@ -4440,6 +4440,7 @@ function userManagementRowActionsHtml(row) {
         ${userManagementRoleOptionsHtml(row.role || '')}
       </select>
       <button class="small-button" data-um-change-role="${email}">Change role</button>
+      ${row.role === 'operator' ? `<button class="small-button text-button" data-um-link-sales="${email}" title="Let this controller also use the Sales site as their salesperson record (matched by email)">Link salesperson record</button>` : ''}
       <button class="small-button text-button" data-um-disable="${email}">Disable</button>
     `;
   }
@@ -4462,6 +4463,28 @@ function userManagementConfirmRoleChange(email, currentRole, newRole) {
   // r429 (F41): the server links the Sales site record (salespeople row with the same email) in the same change.
   if (newRole === 'salesperson') message += '\n\nTheir Sales site access is linked to the salesperson record with the same email. If there is no such record the change is refused; add them to the salespeople list first.';
   return window.confirm(message) === true;
+}
+
+// r432 (F43): a controller can also use the Sales site as their own salesperson record. The server matches the active
+// salespeople row with the same email (refuses none or more than one), keeps the controller role and writes an audit row.
+function userManagementConfirmSalesLink(email) {
+  return window.confirm(`Link ${email} to the salesperson record with the same email?\n\nThey stay a controller (no extra admin access) and can also use the Sales site as that salesperson, seeing their own vehicles. If there is no matching record, or more than one, nothing changes.`) === true;
+}
+
+async function userManagementLinkSalesRecord(email) {
+  if (!userManagementSharedModeReady() || !userManagementConfirmSalesLink(email)) return false;
+  const { data, error } = await window.PDC_SUPABASE.rpc('admin_link_controller_salesperson_432', { p_target_email: email });
+  if (error) {
+    pdcNotify(`Action failed: ${error.message || error}`);
+    return false;
+  }
+  const who = [data?.salesperson_name, data?.salesperson_code ? `(${data.salesperson_code})` : ''].filter(Boolean).join(' ');
+  const linkMessage = data?.already_linked
+    ? `${email} is already linked to ${who || 'a salesperson record'}. Nothing changed.`
+    : `${email} is linked to ${who || 'their salesperson record'} and can now use the Sales site.`;
+  pdcNotify(linkMessage, 'info');
+  await renderUserManagementScreen();
+  return true;
 }
 
 function userManagementRowHtml(row) {
@@ -4590,6 +4613,9 @@ function wireUserManagementActions() {
     const currentRole = select ? (select.dataset.umCurrentRole || '') : '';
     if (!userManagementConfirmRoleChange(email, currentRole, role)) return;
     await userManagementCallRpc('admin_change_role', { p_target_email: email, p_role: role }, 'Role changed');
+  }));
+  $$('[data-um-link-sales]').forEach(button => button.addEventListener('click', async () => {
+    await userManagementLinkSalesRecord(button.dataset.umLinkSales);
   }));
   $$('[data-um-disable]').forEach(button => button.addEventListener('click', async () => {
     const email = button.dataset.umDisable;

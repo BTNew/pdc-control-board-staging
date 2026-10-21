@@ -112,7 +112,8 @@ const approvedRootImportPatch = Object.freeze({
   // r426: Board sales-prep ticks (Tint / Build PO / Tray) read-only for importers and viewers (F39); index.html adds r426=2026.10.21.01.
   // r429: User Admin confirm says a salesperson's Sales record is linked by email (F41); index.html adds r429=2026.10.21.01.
   // r430: User Admin All list hides Disabled accounts behind a "Show disabled (N)" toggle (display only); index.html adds r430=2026.10.21.01.
-  "app.js": "cfecee3aa95e7cd8ec60552eef5dce3c642a86b8a5e56171d0e57b171a5bd081",
+  // r432: User Admin "Link salesperson record" for controllers (F43); index.html adds r432=2026.10.21.01 on app.js and pdc-auth.js.
+  "app.js": "ed77272be1f2f302ee3013b467b92655b9f27cc02309714d7fe3249947b20598",
   "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
@@ -139,7 +140,8 @@ const approvedRootImportPatch = Object.freeze({
   // r426: app.js adds r426=2026.10.21.01.
   // r429: app.js adds r429=2026.10.21.01.
   // r430: app.js adds r430=2026.10.21.01.
-  "index.html": "dc11d0dba804aa91f6f7fb925134c84748b0aaa1d73abda54cf6c0566510bc26",
+  // r432: app.js and pdc-auth.js add r432=2026.10.21.01.
+  "index.html": "1b84ff69c51d8f6e9f151a23b3de86b9d4b09e9d4007f0fbdaac5a875f753ff9",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -156,7 +158,8 @@ const approvedRootImportPatch = Object.freeze({
   // pdc-new-vehicles.js (plain error text, started-before chips, next-workday
   // default, no return in finally). Department 135 keeps its frozen copies.
   // r408: no record_pdc_login for Fitters bay accounts (F22).
-  "pdc-auth.js": "309f8a28baa21ecc90d1ea157ded387ee051db6d5bd67176c09026d60b208ac4",
+  // r432: a controller linked to a salesperson record stays on the Sales site (pdc_my_sales_link_432) (F43).
+  "pdc-auth.js": "f1cc70b86a4fdbb4bef78c39040d264184c7cc542f412ebae2035079ff61ef2d",
   // r417: administrator move/schedule ask the planner to confirm a bay rule warning, then resend confirmed (F32).
   // r424: push-back warning confirm; bay re-order and undo actions (F38).
   "workshop-shared-actions.js": "dcc5cda131757438ce285de7130672addb540664e13d56b666f03df0cd45df1f",

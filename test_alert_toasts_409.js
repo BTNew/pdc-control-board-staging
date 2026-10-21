@@ -30,6 +30,7 @@ const INFO_MESSAGES = [
   /pdcNotify\('Transport booking saved\.[^\n]*'info'\);/,
   /pdcNotify\('The original response was lost, but authoritative history confirms that the decision was recorded\.', 'info'\);/,
   /pdcNotify\(`\$\{email\} is already \$\{userManagementRoleLabel\(newRole\)\}\. Nothing changed\.`, 'info'\);/, // r419 no-op role change
+  /pdcNotify\(linkMessage, 'info'\);/, // r432 Link salesperson record result
 ];
 
 test('F25: app.js has exactly one alert() left, the PO-attachment notice before the mail app opens', () => {
@@ -40,10 +41,10 @@ test('F25: app.js has exactly one alert() left, the PO-attachment notice before 
   assert.ok(body.indexOf('window.location.href = `mailto:', at) > at, 'and it still comes before the mailto navigation');
 });
 
-test('F25: 210 former alert() calls are toasts; exactly seven are info (six + r419), the rest errors', () => {
+test('F25: 210 former alert() calls are toasts; exactly eight are info (six + r419 + r432), the rest errors', () => {
   const notify = calls(code, /(?<!function )\bpdcNotify\(/g);
-  assert.strictEqual(notify, 236, '25 from r407/r408 + 210 converted + 1 r419 no-op role change notice');
-  assert.strictEqual(calls(code, /pdcNotify\([^\n]*'info'\);/g), 7);
+  assert.strictEqual(notify, 238, '25 from r407/r408 + 210 converted + 1 r419 no-op role change notice + 2 r432 Link salesperson record (failure, result)');
+  assert.strictEqual(calls(code, /pdcNotify\([^\n]*'info'\);/g), 8);
   for (const re of INFO_MESSAGES) assert.match(app, re);
   // No error message became info by accident: every 'info' toast is in the list above.
   const infoLines = app.split('\n').filter(l => /pdcNotify\(.*'info'\);/.test(l));
@@ -60,9 +61,9 @@ test('F25: 210 former alert() calls are toasts; exactly seven are info (six + r4
   ]) assert.ok(app.includes(text), text);
 });
 
-test('F25: yes/no confirm() and typed prompt() steps are all kept (42 and 29)', () => {
-  // r419 adds two: confirm Approve and confirm Change role in User Admin.
-  assert.strictEqual(calls(code, /(?<![\w.])confirm\(|window\.confirm\(/g), 42);
+test('F25: yes/no confirm() and typed prompt() steps are all kept (43 and 29)', () => {
+  // r419 adds two: confirm Approve and confirm Change role in User Admin. r432 adds one: confirm Link salesperson record.
+  assert.strictEqual(calls(code, /(?<![\w.])confirm\(|window\.confirm\(/g), 43);
   assert.strictEqual(calls(code, /(?<![\w.])prompt\(|window\.prompt\(/g), 29);
   // Destructive admin actions still ask, and ask before calling the server.
   for (const [fn, rpc] of [['removeVehicle', 'window.__vehicleLifecycleActions'], ['completeVehicleDelete', 'window.__vehicleLifecycleActions.adminCompleteVehicleDelete'], ['runDeletedVehicleAdminAction', 'window.__vehicleLifecycleActions']]) {
