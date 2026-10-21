@@ -61,7 +61,8 @@ const approvedRootImportPatch = Object.freeze({
   "supabase/migrations/20261015005540_bus4x4_department_bays_and_shared_work.sql": "9b8c4934d263bad4d0c0ed808a82771246ac7caaaaf8566da4af3bd1a1d1df01",
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
   // r447: Dept 138 bay guide: preferred (own) bays and no-warning bays incl. overflow 5-6; preferredBays() (F60).
-  "pdc-workshop-departments.js": "cb10e3594876dfde52c5e0aa787df1379e1c5fcfb4271dc25d2ae9a5eb1d6906",
+  // r450: whole-job booking (BUS_WHOLE_JOB, wholeJobChoice) for Dept 138 Bus 4x4 (F63).
+  "pdc-workshop-departments.js": "bd8d72d06f318f6c0c63f1451892570d766dc8e0283facdcf6f4c27bebcd7ddb",
   // Shared planner: pointer-capture drops from a deep queue or search overlay,
   // keep the last search rows during a post-drop refresh, close Add to planner
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
@@ -73,7 +74,8 @@ const approvedRootImportPatch = Object.freeze({
   // r447: own bays first in the Schedule list, Best slot uses own bays only, new category_bay_mismatch text (F60).
   // r448: Bay 3 refusal text: height restriction, no Coaster, confirm route (F61).
   // r449: retired parts-readiness banner and messages removed; one out-of-date message for retired parts codes (F62).
-  "workshop-planner.js": "6edba2ab42cc7c38f6c6e25e91dc32f660faf2f3a41b9c69a8dc4f335ce2e2c8",
+  // r450: Schedule window offers Whole job to one technician; whole jobs show by bay (F63).
+  "workshop-planner.js": "ea451784cd90f348c90418fa56f21d010e31f9587f85da5d8f48c52984a78eb2",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   "workshop-planner.css": "51c8dd7628ee620d55af26b7f1af78cbb4a2c7c0b8aa4e729faaac38d7cf4cfa",
   // Publish minifies app.js and styles.css in the Pages artifact only.
@@ -169,7 +171,8 @@ const approvedRootImportPatch = Object.freeze({
   // r446: index.html r446=2026.10.21.r446 on canonical-entry.js (F59).
   // r447: index.html bay-guide=2026.10.21.r447 on pdc-workshop-departments.js (F60).
   // r449: parts-retired=2026.10.21.r449 on pdc-fitters.js (F62).
-  "index.html": "b8ae502356a2cc54a4ff88f50d9b980dcda3aaeb8612d08c57fefce80465bd4d",
+  // r450: index.html whole-job=2026.10.21.r450 on pdc-workshop-departments.js (F63).
+  "index.html": "d3a37168a9e7212b2b82e5462fd9a282530229ef863cf207de66c1f67e6a38f0",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
