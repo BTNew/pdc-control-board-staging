@@ -37,3 +37,10 @@
 .fitter-running em{font-style:normal;font-weight:600;color:#c2410c}
 .fitter-running.is-stale b{background:#ffedd5;color:#9a3412}
 .fitter-item-reset{font-size:.72rem;padding:.1rem .45rem;border:1px solid #c2410c;border-radius:.3rem;background:#fff;color:#9a3412;cursor:pointer}
+/* r440: only the started items' approved hours animate, as a segment after the solid Done portion. */
+.fitter-progress.has-running{background-image:none}
+.fitter-progress>.fitter-progress-run{position:absolute;top:0;bottom:0;display:block;background-color:#bfdbfe;background-image:repeating-linear-gradient(135deg,rgba(37,99,235,.45) 0 6px,transparent 6px 12px);background-size:17px 17px;animation:fitter-progress-run 1.2s linear infinite}
+@keyframes fitter-progress-run{from{background-position:0 0}to{background-position:17px 0}}
+@media (prefers-reduced-motion:reduce){.fitter-progress>.fitter-progress-run{animation:none}}
+.fitter-item-hint{color:#9a3412;font-weight:600}
+.fitter-line.needs-start .fitter-line-check input{cursor:not-allowed}

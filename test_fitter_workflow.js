@@ -510,5 +510,5 @@ test('r388: screens without a cache token (QA pages) never poll for updates',asy
 
 test('r388: index.html carries the self-update cache token for pdc-fitters.js',()=>{
   const html=require('fs').readFileSync('index.html','utf8');
-  assert.match(html,/pdc-fitters\.js\?[^"]*item-ticks=2026\.10\.20\.02&amp;self-update=2026\.10\.20\.01"/);
+  assert.match(html,/pdc-fitters\.js\?[^"]*item-ticks=2026\.10\.20\.02&amp;self-update=2026\.10\.20\.01(&amp;start-before-done=2026\.10\.21\.r440)?"/);
 });

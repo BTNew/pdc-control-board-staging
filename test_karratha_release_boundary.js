@@ -91,7 +91,8 @@ const approvedRootImportPatch = Object.freeze({
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
   // shows running items beside a Done-only % (r384). Department 135 keeps
   // the frozen fitter script.
-  "pdc-fitters.js": "be4e84f34a055575685b417bb353f1fd9104f7d1114f45aec309b5e7542227d4",
+  // r440: item Done needs Start ("Press Start first"), no static " · Done" meta, "under 1 min" actuals, running segment = started items' hours (F51).
+  "pdc-fitters.js": "57b448db94f502ecc38c1da29314e2b748884d8d1e1f46c6e53706c0f1a553c9",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -145,7 +146,8 @@ const approvedRootImportPatch = Object.freeze({
   // r432: app.js and pdc-auth.js add r432=2026.10.21.01.
   // r437: app.js adds r437=2026.10.21.01.
   // r436: canonical-entry.js adds parts-eta=2026.10.21.r436.
-  "index.html": "1e99fd04ad5a2634cd127385965db3c94ba06b5b9a12c1f9ecb34908ed64759a",
+  // r440: pdc-fitters.js and pdc-conversion-ticks.css add start-before-done=2026.10.21.r440 (F51).
+  "index.html": "0f5cb0942fd83b572d3fc7952d343a67b0c99d9eb7fbbedd3987d1f684dd707f",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
