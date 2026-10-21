@@ -4439,6 +4439,8 @@ function userManagementConfirmRoleChange(email, currentRole, newRole) {
   let message = `Change ${email} from ${userManagementRoleLabel(currentRole)} to ${userManagementRoleLabel(newRole)}?`;
   if (currentRole === 'administrator') message += '\n\nThey will lose administrator access (User Admin, vehicle delete/restore, all Sales).';
   if (newRole === 'administrator') message += '\n\nThey will get full administrator access, including User Admin.';
+  // r429 (F41): the server links the Sales site record (salespeople row with the same email) in the same change.
+  if (newRole === 'salesperson') message += '\n\nTheir Sales site access is linked to the salesperson record with the same email. If there is no such record the change is refused; add them to the salespeople list first.';
   return window.confirm(message) === true;
 }
 
