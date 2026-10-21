@@ -46,3 +46,40 @@ PO-only import (separate from the service import, never creates or changes lines
 - Returns `contract: "pdc-sublet-po-import-439"`, `totals` by status, `lines_with_po`, `vehicles_with_po`, `distinct_pos`, `by_category`, `created_vehicles/jobs/lines`, `category_changes`, `booking_changes` (always 0) and `row_statuses` `[{row, status, stock, ro, line, po, category}]`.
 - Statuses: `attached`, `already_attached`, `ignored_blank_po`, `ignored_all_placeholder`, `held_non_gp_po`, `invalid_row/stock/ro/line`, `duplicate_in_file`, `unmatched_stock_not_on_board`, `held_stock_ambiguous`, `skipped_owner_hold`, `skipped_vehicle_rft`, `skipped_vehicle_completed`, `skipped_vehicle_not_active`, `skipped_job_closed`, `unmatched_line_not_on_job_card`, `held_line_ambiguous`, `skipped_line_inactive`, `skipped_line_completed`, `skipped_notes_line`, `held_line_without_identity`.
 - Rolling: a PO missing from a later file is never removed, and imports never clear a 'sublet done' tick.
+
+## PMG PD Service Complete w/Sublet — r442 (F54), 21 October 2026
+
+Craig, 21 Oct 15:08 AWST: the Revolution report **PMG PD Service Complete w/Sublet** replaces **PMG PD Service Complete** going forward. The parts, CW and sales feeds are unchanged. The old title and the CW CSV stay accepted, byte for byte, during the transition; retire them in a later release once the w/Sublet report has arrived for a while.
+
+Envelope (same authentication and scope as before):
+- From `noreply@revolutionsoftware.com.au` with aligned SPF and DMARC passes, delivered to `pmbcontroller@gmail.com`, exact Gmail message id, no changed Reply-To. Worksheet parameters must show Company `01` and Division `1`.
+- Subject and report title (worksheet cell A1) exactly `PMG PD Service Complete w/Sublet`.
+- Attachment filename `PMG PD Service Complete w/Sublet.xls` or `.xlsx`, or with ` - Job 1`. Because `/` cannot appear in most filenames, `w_Sublet`, `w-Sublet`, `w Sublet` and `wSublet` are also accepted. Nothing else.
+- Manifest provenance: `source_kind` `revolution_automated_service_workbook`, `source_format` `ooxml_workbook`, `subject` and `report_title` = the title, `source_headers` = the worksheet headers (required), `type_column` `absent_r442`, `line_collapse` `r442_one_row_per_dept_ro_line`, plus the usual authority, instruction, company, division and authentication fields.
+
+Headers: the 13 usual columns `Dept, Stock #, Rego #, Owner Name, Parts Location, Key Tag Number, R/O #, Sub Status, Line #, Operation Desc, Estimated labour hours, Modified Date, Range #`, followed only by r439's sublet columns, with `PO #` required (this report sends `Description of sublet` and `PO #`). There is no Type column.
+
+Type: in the PMG 138/139 import, Type was only used by the preparer: `D` marked a service line and the `T1` totals footer was skipped. No database function reads it for 138/139 (only parked Karratha 135 does, and that import is not touched). Without Type:
+- a data row has an R/O # and a Line #;
+- the single totals footer has neither, and it is kept as evidence but never imported;
+- a row with another department is excluded as before;
+- any other row shape (an R/O # that is not J138/J139 for its Dept, a Line # that is not a positive whole number, negative or non-numeric hours) stops the whole file. Nothing is guessed and no Type is invented; w/Sublet rows must not carry a `Type` key.
+
+Collapse: the report repeats a service line once per sublet PO. The preparer sends ONE row per Dept + R/O # + Line #:
+- hours, description and every other service value come from the first row in source order and are never summed;
+- `raw_row.sublet_pos` = every distinct PO of the line (trimmed, spaces removed, upper case, source order; `[]` when none);
+- `raw_row.sublet_columns` = the sublet columns of every source row with its `source_row_number`;
+- `raw_row.source_row_numbers` = the collapsed rows;
+- `raw_row.collapse` = `{rule, source_rows, hours_summed: false, conflict}`. When repeated rows differ outside the sublet columns, the first row is kept, `conflict` is true, and `differing_values` lists every value. The apply receipt reports these.
+
+Reference implementation: `tools/import-rules/revolution_service_wsublet.py` (tests beside it). The row validator refuses a w/Sublet file with a repeated line, a Type key, `hours_summed` other than false, a `source_rows` count that does not match, or a mix of titles.
+
+Sublet POs in the same apply: `pdc_pilbara_service_apply_v1(preview_batch_id, source_hash, idempotency_key)` is called exactly as before. After the service writes and the job sync, it feeds every PO of the file through `import_sublet_pos_439`, keyed by the source workbook SHA-256 and with the same rules: GP POs only, ticks never cleared, POs never removed, no category, bay or booking change, owner-held, RFT, completed and inactive vehicles, closed jobs and completed or notes lines skipped. The result and its single apply receipt carry `sublet_pos`:
+
+`{contract: "pdc-service-sublet-po-feed-442", ok, dry_run, source_file_sha256, po_rows, replay, totals, lines_with_po, vehicles_with_po, distinct_pos, by_category, created_vehicles/jobs/lines, category_changes, booking_changes, ticks_cleared, pos_removed (all 0), import (the full r439 result without row_statuses), exceptions (row statuses other than attached / already_attached / duplicate_in_file / ignored_blank_po), collapse {rule, hours_summed, lines, lines_with_repeats, source_rows, conflicts [{stock, ro, line, fields, kept}]}}`
+
+A file without POs gives `po_rows: 0`. If the PO step fails, `sublet_pos.ok` is false with `code: "sublet_po_feed_failed"`, `sqlstate` and `message`. The service apply still stands, and the POs can be re-run with `import_sublet_pos_439(rows, workbook sha256, false)`. A PO-only preview after the service preview is available to the management connection: `pdc_codex_intake_private.service_sublet_po_feed_442(preview_batch_id, true)` (private, writes nothing). New lines added by the same apply are matched only once they are on the job card (new operations still go through review).
+
+The apply function's md5 changed (pinned): callers that guard it must use `fc3717a5215de94c93ebb2c7facfe744` (was `84e1ed9f1a722719c8c4b5b113e1884f`). The preview function is unchanged (`375bffc2dced95a7a5c74c3273dbccb3`). The only other change in the apply is `WHERE true` on its existing new-vehicle-review `ON CONFLICT ... DO UPDATE` (same behaviour), so the recreated function passes the safeupdate DML lint.
+
+Verification: `tests/revolution_service_wsublet_442.sql` (rolled back, no fixtures), regression check `service_wsublet_contract_and_po_feed`. Undo: `supabase/rollbacks/20261021073319_r442_service_wsublet.down.sql`, run before any r439 undo.
