@@ -72,5 +72,6 @@ test('no staff emails or account ids in the release files',()=>{
  }
 });
 test('app.js cache bust carries r429',()=>{
- assert.match(fs.readFileSync('index.html','utf8'),/app\.js\?[^"]*&amp;r429=2026\.10\.21\.01"/);
+ // r430 appends its own token after r429; the r429 param stays on the app.js tag.
+ assert.match(fs.readFileSync('index.html','utf8'),/app\.js\?[^"]*&amp;r429=2026\.10\.21\.01(?:&amp;|")/);
 });
