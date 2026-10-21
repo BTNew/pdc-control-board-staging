@@ -85,7 +85,8 @@ const approvedRootImportPatch = Object.freeze({
   "docs/bus4x4-user-guide.html": "0a56823214fdd0e5ba0f7601671a92678d87231f07052937eaf09cdf29773b0a",
   // pdc-new-vehicles.js? adds sublet-hours-tags=2026.10.20.01.
   // r436: loads pdc-parts-eta.js?parts-eta=2026.10.21.r436 after pdc-service-locations.js (parts ETA beside the parts location, F47).
-  "canonical-entry.js": "d02e5215242eb4b5f295a23bd1e9e8799873607fca39415daa9c04caf7128daf",
+  // r439: loads pdc-sublet-po.js?sublet-po=2026.10.21.r439 (GP PO lines with a sublet done tick; Sublet box orange/green, F50).
+  "canonical-entry.js": "7c89c7f7ed567bbc06d70a0ea10e353dbc4f12f0a95aab9e02894e2b7c2820ac",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -147,7 +148,8 @@ const approvedRootImportPatch = Object.freeze({
   // r437: app.js adds r437=2026.10.21.01.
   // r436: canonical-entry.js adds parts-eta=2026.10.21.r436.
   // r440: pdc-fitters.js and pdc-conversion-ticks.css add start-before-done=2026.10.21.r440 (F51).
-  "index.html": "0f5cb0942fd83b572d3fc7952d343a67b0c99d9eb7fbbedd3987d1f684dd707f",
+  // r439: index.html adds sublet-po=2026.10.21.r439 on canonical-entry.js (F50).
+  "index.html": "28dbd3e29eae78f3645eeaf5c8894a7b07e26f888b51c85d39a5b6cc7ddd9d7f",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

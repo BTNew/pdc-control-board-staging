@@ -29,3 +29,20 @@ Verification: tests/revolution_cw_csv_contract.sql checks validators, retained O
 
 
 The Job 1 workbook filename variant was observed in an authenticated Revolution report on19October2026. It retains the original OOXML worksheet/header/company/division/extraction contract; it is not the CW CSV contract. Other job suffixes and file formats remain rejected. The management-only filename validator changed; source-row, identity, hours, intake, booking/QC and parked135 protections are unchanged. Pure filename/authentication/scope/permission checks were rehearsed with rollback before staging installation and read back afterward.
+
+## Sublet purchase orders — r439 (F50), 21 October 2026
+
+Sublet contractors come on site, so a PO never changes a line's category, bay or booking.
+
+Envelope change for PMB Email:
+- The service report may carry seven optional columns after the normal headers: `PO #`, `Job #`, `Document Line`, `Sublet Line`, `Description of sublet`, `Company`, `Division`. CW CSV: the exact 15 headers, optionally followed by exactly these 7 (`revolution_service_headers_439`). Excel workbook: the 14 headers, optionally followed by the same 7 (the workbook branch of the manifest has no header restriction, so it is unchanged).
+- Put per-line sublet values in `raw_row.sublet_columns`. Report-level `Company` `01` and `Division` `1` stay as they are (the row validator still requires them).
+- `source_headers` in the provenance stays optional.
+
+PO-only import (separate from the service import, never creates or changes lines):
+- `public.import_sublet_pos_439(p_rows jsonb, p_source_file_sha256 text, p_dry_run boolean DEFAULT true) RETURNS jsonb`, granted to `authenticated` (importer, controller, administrator) and `service_role`.
+- Rows: `[{"stock": "...", "ro": "J139...", "line": 5, "po": "GP13900001"}, ...]` (also `stock_number`, `repair_order_number`, `original_line_number`). Blank stock: send the Rego #. 1 to 30,000 rows; the hash is the 64-hex SHA-256 of the source file.
+- Call with `p_dry_run` true to preview (writes nothing), then false to apply. An apply is idempotent per (file hash, request hash): repeating it returns `replay: true`.
+- Returns `contract: "pdc-sublet-po-import-439"`, `totals` by status, `lines_with_po`, `vehicles_with_po`, `distinct_pos`, `by_category`, `created_vehicles/jobs/lines`, `category_changes`, `booking_changes` (always 0) and `row_statuses` `[{row, status, stock, ro, line, po, category}]`.
+- Statuses: `attached`, `already_attached`, `ignored_blank_po`, `ignored_all_placeholder`, `held_non_gp_po`, `invalid_row/stock/ro/line`, `duplicate_in_file`, `unmatched_stock_not_on_board`, `held_stock_ambiguous`, `skipped_owner_hold`, `skipped_vehicle_rft`, `skipped_vehicle_completed`, `skipped_vehicle_not_active`, `skipped_job_closed`, `unmatched_line_not_on_job_card`, `held_line_ambiguous`, `skipped_line_inactive`, `skipped_line_completed`, `skipped_notes_line`, `held_line_without_identity`.
+- Rolling: a PO missing from a later file is never removed, and imports never clear a 'sublet done' tick.
