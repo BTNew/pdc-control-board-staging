@@ -19484,7 +19484,8 @@ function transferBackEndVehicleToActive(key = '') {
 }
 
 function navisionBoardActivationRoleAllowed(role = window.PDC_AUTH_CONTEXT?.role) {
-  return ['operator', 'importer', 'administrator'].includes(String(role || '').trim().toLowerCase());
+  // r421 (F36): importer = viewer + Navision import; showing a record on Vehicle Locations is a controller action.
+  return ['operator', 'administrator'].includes(String(role || '').trim().toLowerCase());
 }
 
 function navisionBoardActivationIdempotencyKey(recordId = '', source = 'manual') {
