@@ -8932,9 +8932,16 @@ function salesBookingStatus(vehicle = {}) {
   return { tone: 'unscheduled', label: 'Not scheduled', detail: 'No active workshop booking' };
 }
 
+function salesPreparationEditRoleAllowed(role = window.PDC_AUTH_CONTEXT?.role) {
+  // r426 (F39): the Tint / Build PO / Tray ticks are a controller action; importers and viewers see them read-only.
+  return ['operator', 'administrator'].includes(String(role || '').trim().toLowerCase());
+}
+
 function salesPreparationControlsHtml(vehicle = {}) {
   const preparation = vehicle.salesPreparation || {};
-  return SALES_PREPARATION_FIELDS.map(def => `<label class="sales-prep-check"><input type="checkbox" data-sales-prep-vehicle="${escapeHtml(String(vehicle.__emailVehicleId || ''))}" data-sales-prep-field="${escapeHtml(def.field)}" ${preparation[def.key] === true ? 'checked' : ''} /><span>${escapeHtml(def.label)}</span></label>`).join('');
+  const readOnly = !salesPreparationEditRoleAllowed();
+  const lock = readOnly ? ' disabled aria-disabled="true" title="Read-only for your role"' : '';
+  return SALES_PREPARATION_FIELDS.map(def => `<label class="sales-prep-check${readOnly ? ' is-read-only' : ''}"><input type="checkbox" data-sales-prep-vehicle="${escapeHtml(String(vehicle.__emailVehicleId || ''))}" data-sales-prep-field="${escapeHtml(def.field)}" ${preparation[def.key] === true ? 'checked' : ''}${lock} /><span>${escapeHtml(def.label)}</span></label>`).join('');
 }
 
 function salesDashboardVehicleHtml(vehicle = {}) {
@@ -8958,6 +8965,11 @@ async function updateSalesPreparationControl(input) {
   const vehicleId = String(input.dataset.salesPrepVehicle || '');
   const field = String(input.dataset.salesPrepField || '');
   const vehicle = vehicleLocationsScreenRows().find(row => String(row.__emailVehicleId || '') === vehicleId);
+  if (!salesPreparationEditRoleAllowed()) {
+    input.checked = !input.checked;
+    input.disabled = true; // r426: read-only role; the server refuses too, so nothing is sent.
+    return;
+  }
   const service = app.emailVehicleLocationService || initEmailVehicleLocationsIfAvailable();
   if (!vehicle || !service?.updateSalesPreparation) {
     input.checked = !input.checked;
@@ -8989,7 +9001,7 @@ function renderSalesDashboardBoard() {
   const selectionBar = $('#incoming-selection-bar');
   if (selectionBar) selectionBar.classList.remove('active');
   host.innerHTML = `<section class="sales-dashboard-intro"><div><strong>${selectedCode ? `${escapeHtml(selectedCode)} sales vehicles` : 'All Sales Vehicles'}</strong><span>PMB scheduling and work progress are live and read-only. Sales preparation checks save to the same shared vehicle record.</span></div><span class="badge neutral">${rows.length} vehicle${rows.length === 1 ? '' : 's'}</span></section><div class="sales-dashboard-list">${rows.map(salesDashboardVehicleHtml).join('') || '<div class="empty-state"><strong>No vehicles match this view</strong><span>Choose another salesperson or clear the search filters.</span></div>'}</div>`;
-  $$('[data-sales-prep-field]', host).forEach(input => input.addEventListener('change', () => { void updateSalesPreparationControl(input); }));
+  if (salesPreparationEditRoleAllowed()) $$('[data-sales-prep-field]', host).forEach(input => input.addEventListener('change', () => { void updateSalesPreparationControl(input); }));
 }
 
 function incomingSortHeadingHtml(label, key, sort = {}) {
