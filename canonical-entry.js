@@ -78,12 +78,12 @@
     document.head.appendChild(serviceLocations);
     // r439 (F50): sublet POs: each GP PO line gets its PO and a 'sublet done' tick inline (r439b; own row under the description, r439c); Sublet box orange/green (the script guards double loads).
     const subletPo = document.createElement('script');
-    subletPo.src = 'pdc-sublet-po.js?sublet-po=2026.10.21.r439c';
+    subletPo.src = 'pdc-sublet-po.js?sublet-po=2026.10.21.r444';
     // r443 (F56): packed 2-column category panels for the operations summary; loads after the PO module so it wraps outermost.
     const loadOperationPanels = () => {
       if (document.querySelector('script[data-pdc-operation-panels]')) return;
       const operationPanels = document.createElement('script');
-      operationPanels.src = 'pdc-operation-panels.js?operation-panels=2026.10.21.r443';
+      operationPanels.src = 'pdc-operation-panels.js?operation-panels=2026.10.21.r444';
       operationPanels.dataset.pdcOperationPanels = '1';
       document.head.appendChild(operationPanels);
     };

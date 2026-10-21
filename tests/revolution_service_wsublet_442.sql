@@ -7,7 +7,7 @@ DO $test$ DECLARE x record; BEGIN
  PERFORM set_config('search_path','public, extensions',true);
  IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r442 contract check failed: %',x.detail; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.pdc_pilbara_service_preview_v1(jsonb,text,text)'::regprocedure)<>'375bffc2dced95a7a5c74c3273dbccb3' THEN RAISE EXCEPTION 'preview_contract_changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.import_sublet_pos_439(jsonb,text,boolean)'::regprocedure)<>'6cc118c512e103e33bfe94118b91d8a1' THEN RAISE EXCEPTION 'po_import_changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.import_sublet_pos_439(jsonb,text,boolean)'::regprocedure)<>'6083fb5bcf03d341d9101831c2217cb8' THEN RAISE EXCEPTION 'po_import_changed'; END IF;
  IF (SELECT banned_until FROM auth.users WHERE id='0640d2f1-9f97-4e20-8a4f-cb6069b005df') IS DISTINCT FROM '2126-08-21T11:05:10.641388+00:00'::timestamptz THEN RAISE EXCEPTION 'importer_state_changed'; END IF;
 END $test$;
 SELECT 'PASS: w/Sublet manifest and row contract, old title kept, PO feed private and wired before the single apply receipt' result;

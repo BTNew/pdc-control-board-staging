@@ -47,6 +47,19 @@ class T(unittest.TestCase):
         self.assertEqual(s['hours_naive_all_rows'], 95.0)
         self.assertEqual(s['rows_collapsed'], 2)
 
+    def test_po_descriptions_r444(self):
+        r1 = row(po='GP13800001'); r1['Description of sublet'] = '  Seat covers^Key 1 '
+        r2 = row(po='GP13800002'); r2['Description of sublet'] = 'Transport'
+        r3 = row(po='gp13800001'); r3['Description of sublet'] = 'Second text'
+        r4 = row(po='GP13800001'); r4['Description of sublet'] = 'Seat covers^Key 1'
+        r5 = row(line=2, po='GP13800003'); r5['Description of sublet'] = '   '
+        lines, _ = collapse([(5, r1), (6, r2), (7, r3), (8, r4), (9, r5), (10, row(line=3))])
+        self.assertEqual(lines[0]['sublet_po_descriptions'], {'GP13800001': 'Seat covers^Key 1^Second text', 'GP13800002': 'Transport'})
+        self.assertEqual(lines[1]['sublet_po_descriptions'], {})
+        self.assertEqual(lines[2]['sublet_po_descriptions'], {})
+        for l in lines:
+            self.assertTrue(set(l['sublet_po_descriptions']) <= set(l['sublet_pos']))
+
     def test_conflict_first_row_and_flagged(self):
         lines, s = collapse([(5, row(po='GP1', hours=3)), (6, row(po='GP2', hours=5))])
         self.assertEqual(lines[0]['raw']['Estimated labour hours'], 3)

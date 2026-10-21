@@ -49,25 +49,30 @@ const poPayload = (canTick = true) => ({ ok: true, can_tick: canTick, vehicle_id
   { line_key: 'jc:J139000001:3', line_identity: `source:${S(3)}`, operation_no: 'PD003-ABCDEF01', line_no: 3, description: 'Tint front', category: 'TINT', po_numbers: ['GP13900003'], ticked: true, ticked_by_email: 'a@example.invalid', ticked_at: '2026-10-21T06:00:00Z', version: 2, tickable: true },
   { line_key: 'jc:J139000001:4', line_identity: `source:${S(4)}`, operation_no: 'PD004-ABCDEF01', line_no: 4, description: 'Canopy', category: 'FITTING', po_numbers: ['GP13900004'], ticked: false, version: 1, tickable: true } ] });
 const liOf = (html, n) => (html.match(new RegExp(`<li data-operation-source-id="${S(n)}"[^>]*>[\\s\\S]*?<\\/li>`)) || [''])[0];
-test('inline: PO chip and sublet done tick on each GP PO line in its own category box; "No PO" only in the Sublet box; no separate table', () => {
+// r444 (F57): the tick lives in the Sublet box; operation lines keep a read-only PO reference.
+test('inline (r444): Sublet line with a GP PO gets its description, PO and tick; operation lines a read-only PO reference and a Sublet box row; "No PO" only in the Sublet box', () => {
   const base = summary(jobLines).authenticatedEmailOperationLinesHtml({});
   const html = po.decorateOperations(base, { vehicleId: V1, payload: poPayload() });
   const l12 = liOf(html, 12);
-  assert.match(l12, /<strong>PD line 12<\/strong><span>MMT CLOTH SEAT COVERS 2 ROWS<\/span><em>0\.00 h<\/em> <span class="pdc-sublet-po-inline is-ordered" data-pdc-sublet-vehicle="11111111-2222-4333-8444-555555555555" data-line-key="jc:J139000001:12" data-version="0"><span class="pdc-sublet-po-chip">GP13900012<\/span><input type="checkbox" class="pdc-sublet-po-tick" title="[^"]+" aria-label="PD line 12 sublet done"><\/span><\/li>/, 'chip and tick on their own row after the hours, not inside them');
+  assert.match(l12, /<strong>PD line 12<\/strong><span>MMT CLOTH SEAT COVERS 2 ROWS<small class="pdc-sublet-own-desc">[\s\S]*?<\/small><\/span><em>0\.00 h<\/em> <span class="pdc-sublet-po-inline is-ordered" data-pdc-sublet-vehicle="11111111-2222-4333-8444-555555555555" data-line-key="jc:J139000001:12" data-version="0"><span class="pdc-sublet-po-chip">GP13900012<\/span><input type="checkbox" class="pdc-sublet-po-tick" title="[^"]+" aria-label="PD line 12 sublet done"><\/span><\/li>/, 'chip and tick on their own row after the hours, not inside them');
   assert.match(html, /data-operation-category="sublet"[\s\S]*PD line 12[\s\S]*<\/section>/);
   assert.match(liOf(html, 13), /<em>0\.00 h<\/em> <span class="pdc-sublet-po-nopo" title="[^"]+">No PO<\/span>/, 'Sublet line without a GP PO');
   const tint = liOf(html, 3);
-  assert.match(tint, /pdc-sublet-po-inline is-done[^>]*data-version="2"><span class="pdc-sublet-po-chip">GP13900003<\/span><input[^>]*checked>/);
-  assert.match(tint, /title="Sublet done \(a@example\.invalid 21\/10, 14:00\)\. Untick if the sublet is not done"/);
-  assert.match(liOf(html, 4), /GP13900004/);
+  assert.match(tint, /<span class="pdc-sublet-po-ref is-done" title="GP13900003 \(sublet done; tick it in the Sublet box\)">GP13900003<span aria-hidden="true"> ↓<\/span><\/span><\/li>$/);
+  assert.doesNotMatch(tint, /pdc-sublet-po-tick/, 'no tick on the operation line');
+  const sub = html.slice(html.indexOf('data-operation-station="SUBLET"'));
+  assert.match(sub, /<li class="pdc-sublet-linked" data-pdc-sublet-row="linked" data-line-key="jc:J139000001:3"><strong>PD line 3<\/strong><span>[\s\S]*?On operation line: [\s\S]*?<\/span><em class="pdc-sublet-kind">Op line PO<\/em> <span class="pdc-sublet-po-inline is-done[^>]*data-version="2"><span class="pdc-sublet-po-chip">GP13900003<\/span><input[^>]*title="Sublet done \(a@example\.invalid 21\/10, 14:00\)\. Untick if the sublet is not done"[^>]*checked>/);
+  assert.match(sub, /data-line-key="jc:J139000001:4"><strong>PD line 4<\/strong>[\s\S]*GP13900004/);
   assert.equal(liOf(html, 5), liOf(base, 5), 'non-Sublet line without a PO: nothing extra');
   assert.doesNotMatch(html, /<table|Sublet POs<|pdc-sublet-po-detail|pdc-sublet-po-unplaced/);
   assert.doesNotMatch(html, />\s*Sublet done\s*</, 'no visible caption; the tick carries title and aria-label');
   for (const n of [12, 3, 4]) assert.equal((html.match(new RegExp(S(n), 'g')) || []).length, 1, 'line not duplicated or moved');
-  assert.equal(html.replace(/ <span class="pdc-sublet-po-(inline|nopo)[\s\S]*?<\/span>(<\/span>)?(?=<\/li>|<small)/g, ''), base, 'only additions; categories and hours unchanged');
+  assert.equal((html.match(/class="pdc-sublet-po-tick"/g) || []).length, 3, 'one tick per PO line, all in the Sublet box');
+  const cut = h => h.replace(/<section class="authenticated-operation-station" data-operation-station="SUBLET"[\s\S]*?<\/section>/, '').replace(/ <span class="pdc-sublet-po-ref[\s\S]*?<\/span><\/span>(?=<\/li>|<small)/g, '');
+  assert.equal(cut(html), cut(base), 'outside the Sublet box only the PO references are added; categories and hours unchanged');
   assert.equal(po.decorateOperations(html, { vehicleId: V1, payload: poPayload() }), html, 'idempotent');
 });
-test('inline: read only without can_tick; unknown POs show nothing yet; vehicle without POs shows "No PO" on Sublet lines only; unplaced PO lines still listed', () => {
+test('inline: read only without can_tick; unknown POs show nothing yet; vehicle without POs shows "No PO" on Sublet lines only; PO lines not shown above still listed in the Sublet box', () => {
   const base = summary(jobLines).authenticatedEmailOperationLinesHtml({});
   const ro = po.decorateOperations(base, { vehicleId: V1, payload: poPayload(false) });
   assert.equal((ro.match(/class="pdc-sublet-po-tick"[^>]* disabled>/g) || []).length, 3);
@@ -77,7 +82,7 @@ test('inline: read only without can_tick; unknown POs show nothing yet; vehicle 
   assert.equal((none.match(/No PO/g) || []).length, 2); assert.doesNotMatch(none, /pdc-sublet-po-inline/);
   const extra = poPayload(); extra.lines.push({ line_key: 'jc:J139000001:40', line_identity: `source:${S(40)}`, operation_no: 'PD040-ABCDEF01', line_no: 40, description: 'Hidden <x>', po_numbers: ['GP13900040'], ticked: false, version: 0, tickable: true });
   const un = po.decorateOperations(base, { vehicleId: V1, payload: extra });
-  assert.match(un, /<div class="pdc-sublet-po-unplaced"><b>Sublet POs on lines not shown above<\/b><div><strong>PD line 40<\/strong> <span>Hidden &lt;x&gt;<\/span> <span class="pdc-sublet-po-inline[^>]*>[\s\S]*GP13900040/);
+  assert.match(un, /<li class="pdc-sublet-linked" data-pdc-sublet-row="linked" data-line-key="jc:J139000001:40"><strong>PD line 40<\/strong><span>[\s\S]*?On operation line: Hidden &lt;x&gt;<\/small><\/span><em class="pdc-sublet-kind">Op line PO<\/em> <span class="pdc-sublet-po-inline[^>]*>[\s\S]*GP13900040/, 'a PO line not shown above still gets its Sublet box row (r444)');
   assert.equal(po.decorateOperations('', { known: true }), '');
 });
 test('browser wrapper: no request without a session; board RPC, decorated strip, inline lines; tick clicks stay off the line', async () => {
@@ -119,10 +124,10 @@ test('browser wrapper: no request without a session; board RPC, decorated strip,
   assert.equal(typeof b.capture.change, 'function');
 });
 test('loader, cache bust and Pages build include the sublet PO script', () => {
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r439c'/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*sublet-po=2026\.10\.21\.r439c(&amp;[^"]*)?"/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444'/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*sublet-po=2026\.10\.21\.r444(&amp;[^"]*)?"/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-parts-eta\.js', 'pdc-sublet-po\.js'/);
-  assert.equal(po.VERSION, '2026.10.21.r439c');
+  assert.equal(po.VERSION, '2026.10.21.r444');
 });
 test('r439c layout: descriptions get the width (no per-letter wrapping), chip/tick on their own row, boxes wrap instead of squeezing', () => {
   assert.equal(fs.readFileSync('styles.css', 'utf8').includes('r439c'), false, 'frozen styles.css untouched');
@@ -134,7 +139,7 @@ test('r439c layout: descriptions get the width (no per-letter wrapping), chip/ti
   assert.match(src, /li>\.pdc-sublet-po-inline,\.authenticated-email-operations li>\.pdc-sublet-po-nopo\{grid-column:2\/-1;justify-self:start;margin:0\}/);
   const html = po.decorateOperations('<div class="authenticated-email-operations"><section class="authenticated-operation-station" data-operation-station="TINT"><ol><li data-operation-source-id="x"><strong>PD line 1</strong><span>Tint</span><em class="is-ai-estimate">1.00 h<span class="ai-estimate-label">AI estimate</span></em><small>e</small></li></ol></section></div>',
     { vehicleId: V1, payload: { ok: true, lines: [{ line_key: 'jc:J1:1', line_identity: 'source:x', operation_no: 'PD001-A', po_numbers: ['GP13900001'] }] } });
-  assert.match(html, /AI estimate<\/span><\/em> <span class="pdc-sublet-po-inline[\s\S]*?<\/span><small>e<\/small><\/li>/, 'after the hours (incl. AI label), before the evidence row');
+  assert.match(html, /AI estimate<\/span><\/em> <span class="pdc-sublet-po-ref is-ordered"[^>]*>GP13900001<span aria-hidden="true"> ↓<\/span><\/span><small>e<\/small><\/li>/, 'after the hours (incl. AI label), before the evidence row (r444: read-only reference)');
 });
 test('migration: PO refs only, no category/bay/booking change; tick needs a GP PO; audited PO-only import; undo', () => {
   const dir = 'supabase/migrations', name = fs.readdirSync(dir).find(f => /_r439_sublet_po_refs_and_ticks\.sql$/.test(f));

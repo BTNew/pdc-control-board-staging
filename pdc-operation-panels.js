@@ -6,15 +6,17 @@
    - Balancing (deterministic, largest first): weight = 1 (header) + number of lines (an empty panel weighs 1). Panels are
      placed heaviest first (equal weights in the standard order), each into the column with the smaller running weight
      (ties go left). Each column then lists its panels in the standard order.
-   - Sublet runs full width under both columns, then Review and any other boxes, full width.
-   - Every panel is always shown; an empty one is a single compact "No jobs" row.
+   - Sublet runs full width under both columns (only when the vehicle has sublets), then Review and any other boxes.
+   - r444 (F57): a category with no operation lines is not shown; inside Bus 4x4 each sub-group (Mechanical, Accessories,
+     Electrical, QA) is its own grey framed box; the Sublet box header shows "N sublets" and the done state (orange/green).
    - The panels never run past the right edge of the window (CSS cap, refined to the row's real position).
    - A line whose hours are not a number shows "Hours not stated" (as today), never "NaN h".
-   Works on the HTML string, so it composes with pdc-sublet-po.js and pdc-review-stations.js in either order: the
-   original sections keep their exact class attribute; markers are added as data attributes. Idempotent. */
+   Works on the HTML string and wraps outermost (canonical-entry.js loads it after pdc-sublet-po.js, whose Sublet box rows
+   and state it reads); the original sections keep their exact class attribute and markers are data attributes, so
+   pdc-review-stations.js binds as before. Idempotent. */
 (() => {
   'use strict';
-  const VERSION = '2026.10.21.r443';
+  const VERSION = '2026.10.21.r444';
   const PANELS = Object.freeze([
     { id: 'tint', label: 'Tint', keys: ['tint'] },
     { id: 'bus4x4', label: 'Bus 4x4', keys: ['bus4x4', 'bus_mechanical', 'bus_accessories', 'bus_electrical', 'bus_qa', 'bus_pit'] },
@@ -74,15 +76,23 @@
   const mark = (section, attrs) => section.html.replace(section.open, section.open.slice(0, -1) + attrs + '>');
   const headerSmall = section => (section.inner.match(/<header><strong>[^<]*<\/strong><small>([^<]*)<\/small><\/header>/) || [])[1] || '';
   function panelHtml(p, found, extraClass = '') {
+    extraClass = String(extraClass);
     const [colour, tint] = colours(p.id);
     const jobs = found.reduce((n, s) => n + s.lines, 0);
     let small = '';
-    if (found.length === 1) small = headerSmall(found[0]);
+    if (p.id === 'sublet') { const n = found.reduce((t, s) => t + (s.inner.match(/<li\b/g) || []).length, 0); small = `${n} sublet${n === 1 ? '' : 's'}`; }
+    else if (found.length === 1) small = headerSmall(found[0]);
     else if (found.length > 1) {
       const known = found.map(s => headerSmall(s).match(/([0-9]+(?:\.[0-9]+)?) h$/)).filter(Boolean);
       small = `${jobs} job${jobs === 1 ? '' : 's'} · ${known.length ? `${known.reduce((t, m) => t + Number(m[1]), 0).toFixed(2)} h` : 'Unknown hours'}`;
     }
     const sole = found.length === 1 && p.keys.length === 1;
+    // r444: the Sublet box shows the vehicle's sublet state (same rule as the board's Sublet station box): orange while a
+    // GP PO line is not ticked, green when all are ticked.
+    const st = p.id === 'sublet' && found.length ? (found[0].attrs.match(/data-pdc-sublet-state="(ordered|done)"/) || [])[1] : '';
+    const count = st ? ((found[0].attrs.match(/data-pdc-sublet-count="([0-9]+)\/([0-9]+)"/) || []).slice(1)) : [];
+    if (st && count.length) small += `${small ? ' ' : ''}<span class="pdc-op-sublet-state is-${st}">${st === 'done' ? '✓ all sublets done' : `${count[0]} of ${count[1]} sublet${count[1] === '1' ? '' : 's'} done`}</span>`;
+    if (st) extraClass += ` is-sublet-${st}`;
     const body = found.length ? found.map(s => mark(s, sole ? ' data-pdc-op-sub data-pdc-op-sole' : ' data-pdc-op-sub')).join('') : '<p class="pdc-op-empty">No jobs</p>';
     return { weight: 1 + jobs, html: `<section class="authenticated-operation-station pdc-op-panel${found.length ? '' : ' is-empty'}${extraClass}" data-operation-panel="${p.id}" style="--station-colour:${esc(colour)};--station-tint:${esc(tint)}">`
       + `<header><strong>${esc(p.label)}</strong>${small ? `<small>${small}</small>` : ''}</header><div class="pdc-op-panel-body">${body}</div></section>` };
@@ -95,8 +105,10 @@
     if (!parsed || !parsed.sections.length) return guarded;
     const used = new Set();
     const take = p => { const f = p.keys.map(k => parsed.sections.find(s => s.key === k)).filter(Boolean); f.forEach(s => used.add(s)); return f; };
-    const built = PANELS.map(p => ({ id: p.id, ...panelHtml(p, take(p)) }));
-    const sublet = panelHtml(SUBLET, take(SUBLET), ' is-full');
+    // r444 (F57): a category with no operation lines is not shown; Sublet only when the vehicle has sublets.
+    const built = PANELS.map(p => ({ id: p.id, found: take(p) })).filter(b => b.found.length).map(b => ({ id: b.id, ...panelHtml(PANELS.find(p => p.id === b.id), b.found) }));
+    const subletFound = take(SUBLET);
+    const sublet = subletFound.length ? panelHtml(SUBLET, subletFound, ' is-full') : { html: '' };
     const split = balance(built);
     const col = side => `<div class="pdc-op-col is-${side}" data-pdc-op-column="${side}">${split[side].map(id => built.find(b => b.id === id).html).join('')}</div>`;
     const rest = parsed.sections.filter(s => !used.has(s));
@@ -122,7 +134,17 @@
     // The original category box sits inside its panel without its own frame; a single-category panel hides the duplicate header.
     IN + ' .authenticated-operation-station[data-pdc-op-sub]{border:0;border-radius:0;box-shadow:none;background:transparent;overflow:visible;margin:0}',
     IN + ' .authenticated-operation-station[data-pdc-op-sole]>header{display:none}',
-    IN + ' .authenticated-operation-station[data-pdc-op-sub]:not([data-pdc-op-sole])>header{min-height:0;padding:.25rem .6rem;background:transparent;border-bottom:1px solid #e5e7eb}',
+    // r444 (F57): inside a panel with sub-groups (Bus 4x4), each sub-group is its own grey framed box.
+    IN + ' .authenticated-operation-station[data-pdc-op-sub]:not([data-pdc-op-sole]){border:2px solid #94a3b8;border-radius:8px;background:#fff;margin:.45rem .5rem;overflow:hidden}',
+    IN + ' .authenticated-operation-station[data-pdc-op-sub]:not([data-pdc-op-sole])+.authenticated-operation-station[data-pdc-op-sub]{margin-top:.55rem}',
+    IN + ' .authenticated-operation-station[data-pdc-op-sub]:not([data-pdc-op-sole])>header{min-height:0;padding:.3rem .6rem;background:#e2e8f0;border-bottom:2px solid #94a3b8}',
+    IN + ' .authenticated-operation-station[data-pdc-op-sub]:not([data-pdc-op-sole])>header strong{color:#1e293b}',
+    IN + ' .pdc-op-panel.is-sublet-ordered{border-color:#f97316;box-shadow:0 0 0 1px #f97316 inset}',
+    IN + ' .pdc-op-panel.is-sublet-done{border-color:#16a34a;box-shadow:0 0 0 1px #16a34a inset}',
+    '.pdc-op-sublet-state{display:inline-block;margin-left:.4rem;padding:0 .4rem;border-radius:999px;font-size:.66rem;font-weight:800;line-height:1.3rem;vertical-align:middle}',
+    '.pdc-op-sublet-state.is-ordered{background:#ffedd5;color:#9a3412;border:1px solid #fdba74}.pdc-op-sublet-state.is-done{background:#dcfce7;color:#166534;border:1px solid #86efac}',
+    IN + ' .pdc-op-panel.is-full li.pdc-sublet-linked{background:#fffbf5}',
+    LINE + '>.pdc-sublet-po-ref{grid-column:4;grid-row:1;justify-self:end;margin:0}',
     // One row per line: label | description | hours | PO chip + tick (or "No PO"). Hours take their own width (incl. "Hours not stated").
     LINE + '{grid-template-columns:minmax(4.4rem,max-content) minmax(0,1fr) max-content auto;align-items:center;column-gap:.45rem;padding:.3rem .55rem}',
     LINE + '>em{text-align:right}',
