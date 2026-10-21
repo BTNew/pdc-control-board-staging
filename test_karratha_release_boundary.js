@@ -77,7 +77,8 @@ const approvedRootImportPatch = Object.freeze({
   // r450: Schedule window offers Whole job to one technician; whole jobs show by bay (F63).
   "workshop-planner.js": "ea451784cd90f348c90418fa56f21d010e31f9587f85da5d8f48c52984a78eb2",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
-  "workshop-planner.css": "51c8dd7628ee620d55af26b7f1af78cbb4a2c7c0b8aa4e729faaac38d7cf4cfa",
+  // r457: one-column side menu 901-1180 px and no blank band in the stacked planner header up to 1300 px (F70).
+  "workshop-planner.css": "01efe7c09ee8a46a6c6b7d4c681de6113b60c6eddef799414efc0f8c8c76fce2",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   "scripts/build_pages_runtime.js": "f39cb3b2b550ac467feb7acbec932c091a8ad75229531e539fc706ec665210d3",
@@ -179,7 +180,8 @@ const approvedRootImportPatch = Object.freeze({
   // r459: index.html r459=2026.10.22.r459 on canonical-entry.js (F72).
   // r460: index.html key-number=2026.10.22.r460 on canonical-entry.js (F73).
   // r454: index.html identity-dealer=2026.10.22.r454 on pdc-email-vehicle-location-service.js (F67).
-  "index.html": "0cabbc3d79ac7d876cbf5d1868d369e3eaaf01c90ff80e7ac6ffd054020f7d48",
+  // r457: index.html ipad-landscape=2026.10.22.r457 on workshop-planner.css (F70).
+  "index.html": "a8b125b253adab2b364bedddb7eb60edb0dd0dd0b944273cced890ae601a12f3",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
