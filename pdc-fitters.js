@@ -17,6 +17,7 @@
     conversion_invalid:'Check the section details and enter non-negative hours.',
     item_start_unavailable:'Supplier and conversion items use their own ticks. Tick Done when the work is finished.',
     item_already_done:'This item is already Done. Untick Done first to start it again.',
+    item_not_started:'Press Start on this item first, then tick Done when the work is finished.',
     item_not_running:'That item is no longer running. Refresh the board.',
     booking_not_active:'That job is already complete. Nothing to reset.',
     version_conflict:'This job changed on another screen. Refresh, review the latest items and try again.',
@@ -73,7 +74,10 @@
       : 'Ask the controller to check this booking before continuing.';
     return `${action==='start'?'Start blocked':action==='resume'?'Resume blocked':'Change blocked'}: this vehicle ${situation} in ${where}${when}. ${help}`;
   }
-  const itemDuration = m => m == null || !Number.isFinite(Number(m)) ? '—' : `${Math.floor(Number(m) / 60)}h ${String(Math.round(Number(m) % 60)).padStart(2, '0')}m`;
+  const itemDuration = m => { if (m == null || !Number.isFinite(Number(m))) return '—'; const t = Math.max(0, Math.round(Number(m))); return `${Math.floor(t / 60)}h ${String(t % 60).padStart(2, '0')}m`; };
+  // r440: Start and Done ticked seconds apart record a real but tiny actual;
+  // say so instead of the misleading "0h 00m".
+  const actualDuration = m => Number.isFinite(Number(m)) && Number(m) >= 0 && Number(m) < 0.5 ? 'under 1 min' : itemDuration(m);
   // The % counts Done work only. Running items (Start ticked, not Done) are
   // shown beside it, and any running past twice its allowance or since an
   // earlier day is flagged so a controller can reset it.
@@ -85,10 +89,21 @@
     const reset = options.resettable ? stale.map(c => `<button type="button" class="fitter-item-reset" data-fitter-item-reset="${esc(c.booking_id)}" data-fitter-item-line="${esc(c.line_identity)}" data-fitter-item-section="${esc(c.section ?? '')}" data-fitter-item-name="${esc(c.description || 'Item')}">Reset ${esc(c.description || 'item')}</button>`).join('') : '';
     return `<span class="fitter-running${stale.length ? ' is-stale' : ''}" title="${esc(now.join('\n'))}"><b>Running: ${current.length}</b> <span>Now: ${esc(now[0])}${current.length > 1 ? ` +${current.length - 1}` : ''}</span>${stale.length ? `<em>${stale.length} running too long${options.resettable ? '' : ' · reset from the planner'}</em>` : ''}${reset}</span>`;
   }
+  // r440: the running animation covers only the approved hours of the items
+  // (or conversion sections) currently started, as a segment straight after
+  // the solid Done portion. Nothing started, no animation.
+  function runningShare(progress, p) {
+    const total = Number(progress?.total_hours) || 0;
+    const current = Array.isArray(progress?.current) ? progress.current : [];
+    if (!(total > 0) || !current.length) return 0;
+    const minutes = current.reduce((sum, c) => sum + Math.max(0, Number(c?.allowance_minutes) || 0), 0);
+    return Math.max(0, Math.min(100 - p, Math.round(1000 * minutes / 60 / total) / 10));
+  }
   function progressHtml(progress, compact = false, options = {}) {
     const p = Math.max(0, Math.min(100, Number(progress?.percent) || 0));
+    const run = runningShare(progress, p);
     const label = `${p}% work completed${progress ? ` · ${Number(progress.completed_hours) || 0} of ${Number(progress.total_hours) || 0} h` : ''}${Number(progress?.running) > 0 ? ` · ${Number(progress.running)} running` : ''}`;
-    return `<span class="fitter-progress${compact ? ' is-compact' : ''}${Number(progress?.running) > 0 ? ' has-running' : ''}" role="progressbar" aria-label="Work completed by fitter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" title="${esc(label)}"><span style="width:${p}%"></span>${compact ? '' : `<b>${esc(label)}</b>`}</span>${runningHtml(progress, options)}`;
+    return `<span class="fitter-progress${compact ? ' is-compact' : ''}${run > 0 ? ' has-running' : ''}" role="progressbar" aria-label="Work completed by fitter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" title="${esc(label)}"><span style="width:${p}%"></span>${run > 0 ? `<i class="fitter-progress-run" aria-hidden="true" style="left:${p}%;width:${run}%"></i>` : ''}${compact ? '' : `<b>${esc(label)}</b>`}</span>${runningHtml(progress, options)}`;
   }
   function formatElapsed(seconds) {
     if (!Number.isFinite(seconds)) return '--:--:--';
@@ -300,14 +315,16 @@
       <ol class="conv-sections">${sections.map(s => conversionSectionHtml(line, s, state)).join('')}</ol></details></article>`;
   }
   // Bay items: Start begins the item's bar against its approved hours (paused
-  // with the job clock); Done turns it green with the actual time. Done alone
-  // still works. Supplier items keep the single Done tick.
+  // with the job clock); Done turns it green with the actual time. Since r440
+  // Done needs Start first (server enforced). Supplier items keep the single Done tick.
   function itemTimingModel(line, state = {}) {
     const running = line.item_status === 'running' && !line.completed, done = !!line.completed;
     const planned = Number(line.hours) > 0 ? Number(line.hours) * 60 : 0;
     const fromClock = Number.isFinite(state.jobSeconds) && Number.isFinite(Number(line.item_start_seconds)) ? (state.jobSeconds - Number(line.item_start_seconds)) / 60 : NaN;
     const elapsed = running ? Math.max(0, Number.isFinite(fromClock) ? fromClock : Number(line.item_elapsed_minutes) || 0) : 0;
-    return { running, done, planned, elapsed, over: running && planned > 0 && elapsed > planned, actual: done && line.item_status === 'done' && line.item_actual_minutes != null ? Number(line.item_actual_minutes) : null };
+    // r440: an internal bay item must be started before Done can be ticked.
+    const needsStart = !line.external_work && !line.conversion && !done && !running;
+    return { running, done, planned, elapsed, needsStart, over: running && planned > 0 && elapsed > planned, actual: done && line.item_status === 'done' && line.item_actual_minutes != null ? Number(line.item_actual_minutes) : null };
   }
   function fitterItemTicksHtml(line, state) {
     if (line.external_work || line.conversion) return '';
@@ -315,14 +332,16 @@
     const pct = m.planned > 0 ? Math.min(100, Math.round(1000 * m.elapsed / m.planned) / 10) : 0;
     const remainSeconds = Math.max(1, Math.round((m.planned - m.elapsed) * 60));
     const bar = m.running && m.planned > 0 ? `<div class="conv-bar${m.over ? ' is-over' : ''}${state.paused ? ' is-paused' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="${esc(line.description)} progress"><span style="--conv-from:${pct}%;--conv-run:${m.over ? 0 : remainSeconds}s"></span></div>` : '';
-    const status = m.done ? (m.actual != null ? `Done · actual ${itemDuration(m.actual)}` : '')
+    const status = m.done ? (m.actual != null ? `Done · actual ${actualDuration(m.actual)}` : '')
       : m.running ? `${m.over ? `In progress · over by ${itemDuration(m.elapsed - m.planned)}` : m.planned ? `In progress · ${itemDuration(m.elapsed)} of ${itemDuration(m.planned)}` : `In progress · ${itemDuration(m.elapsed)} · no allowance`}${line.item_stale ? ' · running too long, tick Done or ask the controller to reset' : ''}` : '';
-    return `<div class="fitter-item-ticks"><label class="conv-tick"><input type="checkbox" data-fitter-item-start="${id}" ${m.running || m.done ? 'checked' : ''} ${state.disabled || m.done ? 'disabled' : ''}> Start</label>${status ? `<small class="fitter-item-status">${esc(status)}</small>` : ''}</div>${bar}`;
+    return `<div class="fitter-item-ticks"><label class="conv-tick"><input type="checkbox" data-fitter-item-start="${id}" ${m.running || m.done ? 'checked' : ''} ${state.disabled || m.done ? 'disabled' : ''}> Start</label>${status ? `<small class="fitter-item-status">${esc(status)}</small>` : m.needsStart && state.editable ? '<small class="fitter-item-hint">Press Start first</small>' : ''}</div>${bar}`;
   }
   function fitterLineCardHtml(line, index, state) {
     const disabled = state.disabled, note = state.note, editable = state.editable, open = state.open;
     const m = itemTimingModel(line, state), timed = !line.external_work && !line.conversion;
-    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${m.running ? ' is-running' : ''}${line.item_stale && m.running ? ' is-stale' : ''}"><label class="fitter-line-check"><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" ${line.completed ? 'checked' : ''} ${disabled ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}${timed ? ' · Done' : ''}</small></span></label>
+    // r440: Done stays disabled until the item is started (existing Done items stay ticked and can still be unticked).
+    const doneLocked = timed && m.needsStart;
+    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${m.running ? ' is-running' : ''}${line.item_stale && m.running ? ' is-stale' : ''}${doneLocked ? ' needs-start' : ''}"><label class="fitter-line-check"${doneLocked && editable ? ' title="Press Start first"' : ''}><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" aria-label="${esc(line.description)} done" ${line.completed ? 'checked' : ''} ${disabled || doneLocked ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
       ${timed ? fitterItemTicksHtml(line, state) : ''}
       ${line.scope_changed ? '<p class="fitter-warning">This item changed. Review the work before ticking it again.</p>' : ''}
       ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}

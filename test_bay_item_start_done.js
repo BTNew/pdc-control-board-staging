@@ -11,12 +11,13 @@ const down = fs.readFileSync('supabase/rollbacks/20261020160000_bay_item_start_d
 const item = extra => ({ line_identity: 'source:fit-1', description: 'Fit bull bar', stage_code: 'FITTING', hours: 1.5, completed: false, note: '', scope_hash: 'h', ...extra });
 const state = { editable: true, disabled: false, note: '', open: false, paused: false };
 
-test('every bay item has Start and Done; Done alone still works', () => {
+test('every bay item has Start and Done; since r440 Done needs Start first', () => {
   const html = fitters.fitterLineCardHtml(item(), 0, state);
   assert.match(html, /data-fitter-line="source:fit-1"/);
   assert.match(html, /data-fitter-item-start="source:fit-1"/);
   assert.doesNotMatch(html, /data-fitter-item-start="[^"]*"[^>]*disabled/);
-  assert.doesNotMatch(html, /data-fitter-line="[^"]*"[^>]*disabled/);
+  assert.match(html, /data-fitter-line="[^"]*"[^>]*disabled/);
+  assert.doesNotMatch(fitters.fitterLineCardHtml(item({ item_status: 'running', item_start_seconds: 0 }), 0, state), /data-fitter-line="[^"]*"[^>]*disabled/);
   assert.doesNotMatch(html, /conv-bar/);
 });
 
