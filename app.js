@@ -15089,9 +15089,28 @@ function vehicleModalIdentityStock(vehicle = {}) {
   );
 }
 
+// r437 (F48): Toyota head office account codes on dealer stock (Navision Dealer
+// column 001234 / 002345). They are customer accounts, not dealers, so they are
+// never a dealer scope of their own.
+const PDC_HEAD_OFFICE_ACCOUNT_CODES = Object.freeze(['001234', '002345']);
+
+function vehicleModalBoardDealerScope() {
+  const host = typeof window !== 'undefined' ? window : globalThis;
+  const dealer = cleanNavisionText(host.PDC_SUPABASE_CONFIG?.dealerCode || '');
+  return ['14450', '37047'].includes(dealer) ? dealer : '';
+}
+
 function vehicleModalDealerIdentity(vehicle = {}) {
   const dealer = cleanNavisionText(vehicle.__sharedNavisionDealerCode || vehicle.dealerCode || vehicle.dealer_code || '');
-  return ['14450', '37047'].includes(dealer) ? dealer : '';
+  if (['14450', '37047'].includes(dealer)) return dealer;
+  // r437 (F48): a head office account vehicle opens under this board's own dealer
+  // read scope, the same rule Workshop detail has used since #351. Only for one
+  // server-authoritative row with a canonical vehicle UUID and no identity
+  // conflict; any other unknown code stays blocked. The server still checks scope.
+  if (!PDC_HEAD_OFFICE_ACCOUNT_CODES.includes(dealer)) return '';
+  if (vehicle.__emailVehicleServerAuthoritative !== true || vehicle.__emailVehicleIdentityConflict === true) return '';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(vehicleWorkshopDetailCanonicalId(vehicle) || ''))) return '';
+  return vehicleModalBoardDealerScope();
 }
 
 function vehicleModalCanOpenWithoutDealer(vehicle, identity) {
@@ -15110,6 +15129,9 @@ function vehicleModalApplyDealerIdentity(vehicle, identity = app.vehicleModalIde
   const mappedDealer = cleanNavisionText(vehicle.__sharedNavisionDealerCode || vehicle.dealerCode || vehicle.dealer_code || '');
   if (!boundDealer) return vehicle;
   if (!['14450', '37047'].includes(boundDealer)) return null;
+  // r437 (F48): a head office account row bound under the board scope keeps its
+  // own Navision code; it is never relabelled as the dealer.
+  if (PDC_HEAD_OFFICE_ACCOUNT_CODES.includes(mappedDealer) && boundDealer === vehicleModalBoardDealerScope()) return { ...vehicle };
   if (mappedDealer && mappedDealer !== boundDealer) return null;
   return { ...vehicle, __sharedNavisionDealerCode: boundDealer };
 }
