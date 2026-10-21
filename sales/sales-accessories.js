@@ -36,6 +36,24 @@
       quote:text(record.quote),source_file:text(record.source_file),snapshot_at:record.snapshot_at||null,derived,lines,
       at_or_past_yard_hold:record.at_or_past_yard_hold===true,delay_lifted_lines:Number.isInteger(record.delay_lifted_lines)&&record.delay_lifted_lines>0?record.delay_lifted_lines:0};
   }
+  // r427 (F40): the yard hold stage order, the same as the server's accessory_yard_hold_reached. Board (PMB) locations run
+  // IT, YH, PMB, PIT, QC, RFT, Completed, Collected; Navision location codes run blank (production), IT (transit),
+  // Y? (at the Toyota WA yard: YH, YN, YR, YW), O? (out of the yard: OD despatched / at body builder / at dealer, OC consignment).
+  // Rank 2 or more is at or past yard hold. The Toyota status text covers a blank or unknown code.
+  const pmbStages=['IT','YH','PMB','PIT','QC','RFT','COMPLETED','COLLECTED'];
+  function yardHoldStageRank(locationStatus,toyotaStatus) {
+    const code=text(locationStatus).trim().toUpperCase(),status=text(toyotaStatus).toLowerCase();
+    const byCode=code==='IT'?1:/^Y[A-Z]$/.test(code)?2:/^O[A-Z]$/.test(code)?3:0;
+    const byText=/delivered|at dealer|body builder|consignment|ready for transport|ready for despatch|ready for dispatch|despatch|dispatch/.test(status)?3:
+      /yard hold|waiting pd|waiting for wholesale|\byh\b/.test(status)?2:/in transit|wharf|shipment/.test(status)?1:0;
+    return Math.max(byCode,byText);
+  }
+  function atOrPastYardHold(row) {
+    if(!row||typeof row!=='object')return false;
+    if(pmbStages.indexOf(text(row.pmb_location).trim().toUpperCase())>=1)return true;
+    if(['pmb_arrival_date','qc_completed_at','rft_transferred_at','collected_at','dealer_delivered_date'].some(key=>text(row[key]).trim()))return true;
+    return yardHoldStageRank(row.location_status,row.toyota_status)>=2;
+  }
   const emptySentence='No accessory lines in the latest sales export.';
   // Same classification as the r394 derived ticks: blank is red, unrecognised text is amber review, a PO or C&S ONLY / SELL ONLY / NO UPDATE is green.
   // r418: a Not raised line delayed until yard hold is amber "Delayed – yard hold" (never red) until the server lifts it.
@@ -47,10 +65,11 @@
   }
   function poLabel(line){const tone=poTone(line);return tone==='red'?'Not raised':tone==='delayed'?'Delayed – yard hold':line.po.trim();}
   // The tick box shows on Not raised lines while the vehicle is before yard hold (and on delayed lines, to untick).
+  // r427: never at or past yard hold, delayed or not: the delay has lifted and the PO is due.
   function delayHtml(line,view) {
     if(!view?.tracking_id||!line.line_key||line.delay==='lifted')return '';
     const tone=poTone(line);if(tone!=='red'&&tone!=='delayed')return '';
-    if(tone==='red'&&view.at_or_past_yard_hold)return '';
+    if(view.at_or_past_yard_hold)return '';
     const key=view.tracking_id+'|'+line.line_key,busy=view.busy?.has?.(key),message=view.messages?.get?.(key);
     return '<label class="sales-notes-delay"><input type="checkbox" data-accessory-delay="'+escapeHtml(line.line_key)+'" data-accessory-vehicle="'+escapeHtml(view.tracking_id)+'"'+
       (line.delay==='delayed'?' checked':'')+(busy||view.editable===false?' disabled':'')+'><span>'+(busy?'Saving…':'Delay until yard hold')+'</span></label>'+
@@ -90,8 +109,10 @@
       escapeHtml(groupLabel(group)+' · '+group.lines.length+' line'+(group.lines.length===1?'':'s'))+'</div>'+linesHtml(group)).join('');
   }
   function notesLinesHtml(record,view=null) {
-    view=view?{...view,tracking_id:record?.tracking_id||'',at_or_past_yard_hold:record?.at_or_past_yard_hold===true}:null;
-    const lines=Array.isArray(record?.lines)?record.lines:[];
+    // r427: at or past yard hold by the server or by this row's own stage, a stored delay reads lifted (red, raise the PO).
+    const past=record?.at_or_past_yard_hold===true||view?.row_past_yard_hold===true;
+    view=view?{...view,tracking_id:record?.tracking_id||'',at_or_past_yard_hold:past}:null;
+    const lines=(Array.isArray(record?.lines)?record.lines:[]).map(line=>past&&line.delay==='delayed'?{...line,delay:'lifted'}:line);
     const admin=lines.filter(line=>line.group==='admin'),rest=lines.filter(line=>line.group!=='admin');
     if(!rest.length&&!admin.length)return '<section class="sales-notes-accessories" aria-label="Accessory lines"><p class="sales-notes-accessory-empty">'+emptySentence+'</p></section>';
     let html='';
@@ -129,7 +150,7 @@
     function notesPanelHtml(row,settings={}) {
       if(!row||!syncScope())return '';
       const record=recordFor(row);
-      if(record)return notesLinesHtml(record,{editable:settings.editable!==false,busy:delayBusy,messages:delayMessages});
+      if(record)return notesLinesHtml(record,{editable:settings.editable!==false,busy:delayBusy,messages:delayMessages,row_past_yard_hold:atOrPastYardHold(row)});
       return readStatus==='ready'?'<section class="sales-notes-accessories" aria-label="Accessory lines"><p class="sales-notes-accessory-empty">'+emptySentence+'</p></section>':'';
     }
     // r394: the derived tick is the only state shown for TINT / BUILD / TRAY; manual values are ignored.
@@ -137,13 +158,18 @@
     function tickFor(row,key) {
       const group=tickGroups[key];if(!group)return null;
       const record=recordFor(row);
-      return record?record.derived[group]:null;
+      if(!record)return null;
+      // r427: a tick held amber only by delays turns red once this row is at or past yard hold.
+      const tick=record.derived[group];
+      return tick.reason==='delayed_until_yard_hold'&&atOrPastYardHold(row)?{state:'red',reason:'po_not_raised'}:tick;
     }
     // r418: tick / untick "Delay until yard hold". The server checks access, the line and yard hold; the list re-reads after.
     async function setDelay(trackingId,lineKey,delayed) {
       const row=rows().find(item=>item.tracking_id===trackingId),record=row&&recordFor(row);
       const line=record?.lines.find(item=>item.line_key===lineKey),key=trackingId+'|'+lineKey;
       if(!line||delayBusy.has(key))return;
+      // r427: no new delay at or past yard hold (the server refuses it too).
+      if(delayed&&(record.at_or_past_yard_hold||atOrPastYardHold(row))){delayMessages.set(key,liftedMessage);options?.onUpdate?.();return;}
       const generation=epoch,owner=currentIdentity();
       delayBusy.add(key);delayMessages.delete(key);options?.onUpdate?.();
       try {
@@ -156,7 +182,9 @@
     }
     function rowFlagHtml(row) {
       const record=row&&recordFor(row);
-      if(!record?.delay_lifted_lines)return '';
+      if(!record)return '';
+      const lifted=record.delay_lifted_lines||(atOrPastYardHold(row)?record.lines.filter(line=>line.delay==='delayed'&&(!line.po.trim()||line.po_state==='blank')).length:0);
+      if(!lifted)return '';
       return '<span class="sales-yard-hold-flag" role="status" title="'+escapeHtml(liftedMessage)+'">Raise PO · at yard hold</span>';
     }
     async function refresh() {
@@ -192,7 +220,7 @@
     const api={init,clear,syncScope,refresh,detailHtml,notesPanelHtml,tickFor,recordFor,setDelay,rowFlagHtml};
     return api;
   }
-  const exports={escapeHtml,normaliseRecord,notesLinesHtml,poGroups,eligibleRows,createSalesAccessories,liftedMessage};
+  const exports={escapeHtml,normaliseRecord,notesLinesHtml,poGroups,eligibleRows,createSalesAccessories,liftedMessage,atOrPastYardHold,yardHoldStageRank};
   if(typeof module==='object'&&module.exports)module.exports=exports;
   if(root.document)root.BROOME_SALES_ACCESSORIES=createSalesAccessories(root);
 })(typeof window==='object'?window:globalThis);
