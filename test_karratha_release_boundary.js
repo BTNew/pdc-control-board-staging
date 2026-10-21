@@ -84,7 +84,8 @@ const approvedRootImportPatch = Object.freeze({
   "docs/bus4x4-user-guide.md": "d2729f19b9132afcfe4ee41413c98d2fba9db03c99e45a3a1d298cb57be9840f",
   "docs/bus4x4-user-guide.html": "0a56823214fdd0e5ba0f7601671a92678d87231f07052937eaf09cdf29773b0a",
   // pdc-new-vehicles.js? adds sublet-hours-tags=2026.10.20.01.
-  "canonical-entry.js": "20243e1cc8415ffd46075ce1305fe78a8eea4682b672a0d4d4b171e1923fb3d8",
+  // r436: loads pdc-parts-eta.js?parts-eta=2026.10.21.r436 after pdc-service-locations.js (parts ETA beside the parts location, F47).
+  "canonical-entry.js": "d02e5215242eb4b5f295a23bd1e9e8799873607fca39415daa9c04caf7128daf",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -143,7 +144,8 @@ const approvedRootImportPatch = Object.freeze({
   // r430: app.js adds r430=2026.10.21.01.
   // r432: app.js and pdc-auth.js add r432=2026.10.21.01.
   // r437: app.js adds r437=2026.10.21.01.
-  "index.html": "3166e07ae056301dac311f535f3bc83a4493b5c883002d8b402b279a7339d876",
+  // r436: canonical-entry.js adds parts-eta=2026.10.21.r436.
+  "index.html": "1e99fd04ad5a2634cd127385965db3c94ba06b5b9a12c1f9ecb34908ed64759a",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
