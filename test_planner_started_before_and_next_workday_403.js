@@ -42,7 +42,7 @@ function chipContext(extra = {}) {
   ctx.window = { alert() { throw new Error('F20: planner must not call window.alert'); }, __workshopDataService: { getTrustedSnapshot: () => ({}) } };
   vm.createContext(ctx);
   vm.runInContext([constLine('WORKSHOP_STARTED_BEFORE_HINT'), constLine('WORKSHOP_STARTED_BEFORE_MESSAGE'),
-    extract('workshopPlanStartedBefore'), extract('workshopReturnedQueueCardHtml'), extract('workshopReturnedQueuePlans'),
+    extract('workshopPlanStartedBefore'), extract('workshopPlanStoppedUnallocated'), extract('workshopReturnedQueueCardHtml'), extract('workshopReturnedQueuePlans'),
     extract('workshopReturnedPlanForAction')].join('\n')
     + '\nthis.startedBefore=workshopPlanStartedBefore;this.card=workshopReturnedQueueCardHtml;this.forAction=workshopReturnedPlanForAction;', ctx);
   return ctx;

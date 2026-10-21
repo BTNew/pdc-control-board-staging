@@ -49,17 +49,65 @@ function workshopBayRuleQuestion(result) {
   return `This bay's rule does not match:\n\n${lines}\n\nBook it here anyway? The override is logged with your name. Choose Cancel to leave everything as it is.`;
 }
 
+// r424 (F38): a job that would now run into the same vehicle's next booking
+// (for example Mechanical running past the booked Electrical start) comes back
+// as later_bookings_warning with the exact push-backs. If the planner confirms,
+// the same change is sent again with that plan's hash under a new request ID;
+// the server re-checks the plan and refuses if anything changed meanwhile.
+function workshopPushLaterWhen(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  try {
+    return date.toLocaleString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false });
+  } catch (_) { return date.toISOString(); }
+}
+
+function workshopPushLaterQuestion(result) {
+  const lines = result.pushes.map(push => {
+    const what = [push?.key_number ? `Key ${push.key_number}` : '', String(push?.work_category || '').replace(/^BUS_/, '').toLowerCase(), push?.bay_number ? `Bay ${push.bay_number}` : '']
+      .filter(Boolean).join(' · ');
+    return `• ${what}: ${workshopPushLaterWhen(push?.from_start)} → ${workshopPushLaterWhen(push?.to_start)}`;
+  }).join('\n');
+  return `${String(result.message || 'This job would run into the same vehicle\'s next booking.')}\n\n${lines}\n\nChoose OK to push ${result.pushes.length === 1 ? 'it' : 'them'} back (Perth time). Choose Cancel to leave everything as it is.`;
+}
+
+function workshopIsBayRuleWarning(result) {
+  return Boolean(result && result.ok === false && result.warning === true && result.requires_confirmation === true
+    && Array.isArray(result.rules) && result.rules.length);
+}
+
+function workshopIsPushLaterWarning(result) {
+  return Boolean(result && result.ok === false && result.warning === true && result.requires_confirmation === true
+    && result.error === 'later_bookings_warning' && typeof result.plan_hash === 'string' && result.plan_hash
+    && Array.isArray(result.pushes) && result.pushes.length);
+}
+
 async function workshopConfirmBayRuleWarning(mutate, name, params, ask) {
-  const first = await mutate(name, params);
-  if (!first || first.ok !== false || first.warning !== true || first.requires_confirmation !== true
-      || !Array.isArray(first.rules) || !first.rules.length) return first;
   const confirmFn = typeof ask === 'function' ? ask
     : (typeof window === 'object' && typeof window.confirm === 'function' ? window.confirm.bind(window) : null);
-  if (!confirmFn || !confirmFn(workshopBayRuleQuestion(first))) {
-    return { ok: false, error: 'bay_rule_not_confirmed', cancelled: true, rules: first.rules };
+  let current = params;
+  let result = await mutate(name, current);
+  // At most one bay-rule question and one push-back question per change.
+  for (let round = 0; round < 2; round += 1) {
+    if (workshopIsBayRuleWarning(result)) {
+      if (current.p_metadata?.bay_rule_confirm) return result;
+      if (!confirmFn || !confirmFn(workshopBayRuleQuestion(result))) {
+        return { ok: false, error: 'bay_rule_not_confirmed', cancelled: true, rules: result.rules };
+      }
+      const rules = result.rules.map(rule => String(rule?.rule || '')).filter(Boolean);
+      current = { ...current, p_metadata: { ...(current.p_metadata || {}), bay_rule_confirm: { rules } }, p_request_id: workshopBayRuleRequestId() };
+    } else if (workshopIsPushLaterWarning(result)) {
+      if (current.p_metadata?.push_later_confirm) return result;
+      if (!confirmFn || !confirmFn(workshopPushLaterQuestion(result))) {
+        return { ok: false, error: 'later_bookings_not_confirmed', cancelled: true, pushes: result.pushes };
+      }
+      current = { ...current, p_metadata: { ...(current.p_metadata || {}), push_later_confirm: { plan_hash: result.plan_hash } }, p_request_id: workshopBayRuleRequestId() };
+    } else {
+      return result;
+    }
+    result = await mutate(name, current);
   }
-  const rules = first.rules.map(rule => String(rule?.rule || '')).filter(Boolean);
-  return mutate(name, { ...params, p_metadata: { ...(params.p_metadata || {}), bay_rule_confirm: { rules } }, p_request_id: workshopBayRuleRequestId() });
+  return result;
 }
 
 function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {}) {
@@ -358,6 +406,28 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
       });
     },
 
+    // r424 (F38): re-order or swap upcoming jobs within one bay. apply=false is
+    // a preview only; apply=true must carry the planHash of that preview.
+    resequenceBay({ bookingId, expectedVersion, targetBookingId, mode, apply = false, planHash = null, metadata = {}, requestId }) {
+      return mutate('workshop_resequence_bay_424', {
+        p_booking_id: bookingId,
+        p_expected_version: expectedVersion,
+        p_target_booking_id: targetBookingId,
+        p_mode: mode,
+        p_apply: apply === true,
+        p_plan_hash: planHash,
+        p_metadata: metadata || {},
+        p_request_id: requestId,
+      });
+    },
+
+    undoBayResequence({ receiptId, requestId }) {
+      return mutate('workshop_undo_bay_resequence_424', {
+        p_receipt_id: receiptId,
+        p_request_id: requestId,
+      });
+    },
+
     deleteAdminBlock({ blockId, expectedVersion, reason, metadata }) {
       return mutate('delete_workshop_admin_block', {
         p_block_id: blockId,
@@ -370,7 +440,7 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { buildWorkshopSharedActions, workshopConfirmBayRuleWarning, workshopBayRuleQuestion };
+  module.exports = { buildWorkshopSharedActions, workshopConfirmBayRuleWarning, workshopBayRuleQuestion, workshopPushLaterQuestion };
 }
 if (typeof window !== 'undefined') {
   window.buildWorkshopSharedActions = buildWorkshopSharedActions;
