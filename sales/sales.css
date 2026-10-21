@@ -153,3 +153,9 @@ body.auth-pending .app-shell{display:none}body.auth-approved .pdc-auth-gate{disp
 #vehicle-table td.notes-cell{white-space:normal;text-overflow:clip}
 #vehicle-table .notes-clamp{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.2;max-height:2.4em;overflow-wrap:anywhere}
 .vehicle-reference-cell>.vehicle-notes-toggle{top:2px}
+/* r434 (F45): the PMB Status box turns blue while the Workshop Planner has a Running (started) job for the vehicle on any bay.
+   Same blue as the planner's Running chip (#dbeafe fill, #2563eb edge) with dark navy text (#1e3a8a, about 8.5:1 contrast). */
+#vehicle-table td.pmb-status-cell.pmb-running,.data-table td.pmb-status-cell.pmb-running{background:#dbeafe;box-shadow:inset 3px 0 0 #2563eb;color:#1e3a8a}
+#vehicle-table td.pmb-status-cell.pmb-running strong,.data-table td.pmb-status-cell.pmb-running strong{color:#1e3a8a}
+.mobile-pmb.pmb-running{background:#dbeafe;border-left:3px solid #2563eb;color:#1e3a8a;padding:4px 6px;border-radius:4px;font-weight:700}
+.pmb-current.pmb-running{background:#dbeafe;border-left:4px solid #2563eb;color:#1e3a8a;padding:6px 10px;border-radius:6px}
