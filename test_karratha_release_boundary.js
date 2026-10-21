@@ -87,8 +87,10 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-new-vehicles.js": "3f8dc80f7b51493fd0da7224c5ab65345ca1ee3c9c33bbcdedeb574242576f75",
   "pdc-new-vehicles.css": "8e3930a3d42f6b309e327ae1f1bec066f15794be114868f5b4fe015eb3a142d5",
   "docs/bus4x4-workflow.md": "d2dab9a76da3b23ddfe0e21418d9e0f8212b48aa517443c47e657b2f656869c8",
-  "docs/bus4x4-user-guide.md": "d2729f19b9132afcfe4ee41413c98d2fba9db03c99e45a3a1d298cb57be9840f",
-  "docs/bus4x4-user-guide.html": "0a56823214fdd0e5ba0f7601671a92678d87231f07052937eaf09cdf29773b0a",
+  // r456: staff guide matches r447/r448/r450 bay rules (F69).
+  "docs/bus4x4-user-guide.md": "e360b5a829db55d14694007d41301ca7c1deea9362b2f42b3bec6651cdb5ea24",
+  // r456: staff guide matches r447/r448/r450 bay rules (F69).
+  "docs/bus4x4-user-guide.html": "66e58fb788f8ba4653baa4b0dba0ad92286783f79ab742ce8801a21933a05798",
   // pdc-new-vehicles.js? adds sublet-hours-tags=2026.10.20.01.
   // r436: loads pdc-parts-eta.js?parts-eta=2026.10.21.r436 after pdc-service-locations.js (parts ETA beside the parts location, F47).
   // r439: loads pdc-sublet-po.js?sublet-po=2026.10.21.r439 (GP PO lines with a sublet done tick; Sublet box orange/green, F50).
