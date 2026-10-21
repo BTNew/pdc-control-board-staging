@@ -223,7 +223,8 @@ BEGIN
   PERFORM set_config('qa.bus_clock_case','bay3-'||variant,true);
   b:=pg_temp.bc_booking('bay3-'||variant,'BUS_4X4',pg_temp.bc_bay(3),pg_temp.bc_at(day+step*7,time '07:10'),600,variant);
   PERFORM pg_temp.ou_assert((SELECT (bus_calendar_version IS NULL)=(variant='legacy') FROM public.workshop_bookings WHERE id=b),'Fixture has requested '||variant||' calendar basis');
-  at_time:=pg_temp.bc_at(day+step*7,time '09:01:15');expected_start:=pg_temp.bc_at(day+step*7,time '09:02');
+  -- r431 (F49): an overdue, not-started job moves to the next 30-minute mark (clock_overdue_step_minutes), not the next minute.
+  at_time:=pg_temp.bc_at(day+step*7,time '09:01:15');expected_start:=pg_temp.bc_at(day+step*7,time '09:30');
   expected_end:=pdc_bus_private.add_minutes(expected_start,600,pg_temp.bc_bay(3));
   result:=pg_temp.bc_tick('Bay3 elapsed start '||variant,at_time);
   PERFORM pg_temp.ou_assert((SELECT scheduled_start_at=expected_start AND scheduled_end_at=expected_end AND bus_calendar_version=1
@@ -316,7 +317,7 @@ BEGIN
   PERFORM pg_temp.ou_assert((SELECT to_jsonb(x)=linked_saved FROM public.workshop_bookings x WHERE id=linked),kind||' blocks the linked component atomically including earlier valid HiAce');
   PERFORM pg_temp.ou_assert(assignment_saved IS NOT DISTINCT FROM (SELECT jsonb_agg(to_jsonb(a) ORDER BY id) FROM public.workshop_booking_assignments a WHERE booking_id IN(linked,b))
    AND NOT EXISTS(SELECT 1 FROM public.workshop_clock_history WHERE booking_id IN(linked,b)),kind||' failed component changes no assignment or history');
-  PERFORM pg_temp.ou_assert((SELECT scheduled_start_at=pg_temp.bc_at(day+step*7,time '09:01') AND version=2 FROM public.workshop_bookings WHERE id=free),kind||' leaves independent valid component able to advance');
+  PERFORM pg_temp.ou_assert((SELECT scheduled_start_at=pg_temp.bc_at(day+step*7,time '09:30') AND version=2 FROM public.workshop_bookings WHERE id=free),kind||' leaves independent valid component able to advance');
   step:=step+1;
  END LOOP;
 END $blocked_cases$;

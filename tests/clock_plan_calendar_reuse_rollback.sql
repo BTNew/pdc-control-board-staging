@@ -68,6 +68,10 @@ BEGIN
 END $function$
 ;
 
+-- r431 (F49): this parity test compares against the pre-r431 plan, which moved overdue jobs every minute.
+-- Step 1 restores that behaviour exactly (the setting is rolled back with everything else).
+DELETE FROM public.workshop_settings WHERE key='clock_overdue_step_minutes';
+INSERT INTO public.workshop_settings(key,value) VALUES('clock_overdue_step_minutes','1'::jsonb);
 CREATE TEMP TABLE clock_cases(calendar_bay_id uuid,rows jsonb);
 INSERT INTO clock_cases SELECT id,'[]'::jsonb FROM public.workshop_bays b WHERE EXISTS(SELECT 1 FROM public.workshop_stages s WHERE s.id=b.stage_id AND s.code='BUS_4X4') AND bay_number IN(1,8);
 INSERT INTO clock_cases VALUES(NULL,'[]');
