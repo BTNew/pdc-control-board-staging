@@ -71,7 +71,8 @@ const approvedRootImportPatch = Object.freeze({
   // r417: every visible bay offered; a drop books the bay's own outstanding category; bay rule warning messages (F32).
   // r424: stopped jobs in Unallocated re-plan; drag onto a booking in the same bay offers Move ahead of / Swap with, preview, undo (F38).
   // r447: own bays first in the Schedule list, Best slot uses own bays only, new category_bay_mismatch text (F60).
-  "workshop-planner.js": "8e770252e85b1975a8f67e4d8bb24be39a3c6824d341b47cb5f4d980218005e9",
+  // r448: Bay 3 refusal text: height restriction, no Coaster, confirm route (F61).
+  "workshop-planner.js": "1b155f6a9dc9817e50183e321f1026cb12b1a0b987c08c58b81edcf513905bce",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   "workshop-planner.css": "51c8dd7628ee620d55af26b7f1af78cbb4a2c7c0b8aa4e729faaac38d7cf4cfa",
   // Publish minifies app.js and styles.css in the Pages artifact only.
