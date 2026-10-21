@@ -217,7 +217,7 @@ test('PMB distinguishes scheduled bay from actual work and preserves multiple ac
  assert.equal(sales.pmbSummary(r).status,'Booked · Fitting / Bay 2');
  r.bay_bookings.push({booking_id:'c',status:'started',stage:'Electrical',bay:'Bay 1'},{booking_id:'d',status:'stoppage',stage:'Fitting',bay:'Bay 3'});
  assert.ok(sales.pmbSummary(r).status.includes('Work started · Electrical / Bay 1; Work stopped'));
- assert.equal(sales.pmbSummary({...r,canonical_vehicle_id:null}).status,'Not linked to PMB');
+ assert.equal(sales.pmbSummary({...r,canonical_vehicle_id:null}).status,'Awaiting PMB link');
  assert.equal(sales.pmbSummary({...r,bay_bookings:[],workshop_status:'completed',pmb_stoppage_started_at:'yesterday',pmb_stoppage_cleared_at:'today'}).status,'Completed');
 });
 test('parts source authority and unknown receipt stay distinct',()=>{
