@@ -176,11 +176,13 @@ const approvedRootImportPatch = Object.freeze({
   // r450: index.html whole-job=2026.10.21.r450 on pdc-workshop-departments.js (F63).
   // r459: index.html r459=2026.10.22.r459 on canonical-entry.js (F72).
   // r460: index.html key-number=2026.10.22.r460 on canonical-entry.js (F73).
-  "index.html": "5f32229cf031680b08b46bf771d9b1ad632634d94738e7bd0d31cc496cb878aa",
+  // r454: index.html identity-dealer=2026.10.22.r454 on pdc-email-vehicle-location-service.js (F67).
+  "index.html": "0cabbc3d79ac7d876cbf5d1868d369e3eaaf01c90ff80e7ac6ffd054020f7d48",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
-  "pdc-email-vehicle-location-service.js": "0c7a2678c17ca384fcd01f5f35c01c248c4d62d59762dbfb96b6780498e4860e",
+  // r454: a board row's identity_dealer_code (14450/37047) fills a missing dealer in mapServerVehicle (F67).
+  "pdc-email-vehicle-location-service.js": "074102b6fb75c1b668fea9b1bd63efd069b48d5ada68bef83806841db47d7f7f",
   "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
   "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",

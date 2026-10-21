@@ -374,6 +374,12 @@ function mapServerVehicle(row = {}) {
   mapped.pmbSubletNotes = String(sublet.notes || '');
   mapped.pmbSubletEmailSent = sublet.email_sent === true;
   if (bookedBookings.length) mapped.pdcCompleteSublet = mapped.__subletActiveCount === 0;
+  // r454 (F67): an active or RFT vehicle with no current Navision record still
+  // carries the dealer of its own source record (identity_dealer_code, sent only
+  // when every record agrees). Use it only when no dealer is already known, and
+  // only for this board's dealers; the server still checks scope on every read.
+  const identityDealer = String(row.identity_dealer_code || '').trim();
+  if (['14450', '37047'].includes(identityDealer) && !String(mapped.dealerCode || '').trim()) mapped.dealerCode = identityDealer;
   return mapped;
 }
 function rowIdentities(row = {}) { return { stock: identity(row.stock_number ?? row.stock), vin: identity(row.vin ?? row.VIN ?? row.chassis ?? row.chassisNo) }; }
