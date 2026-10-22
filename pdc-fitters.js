@@ -85,13 +85,18 @@
   // The % counts Done work only. Running items (Start ticked, not Done) are
   // shown beside it, and any running past twice its allowance or since an
   // earlier day is flagged so a controller can reset it.
+  // r493 (F106): options.paused (true or a reason such as 'Stoppage' or
+  // 'Outside working time') shows started items as Paused in amber while the
+  // job clock is not counting. Display only; the item times are unchanged.
+  const pausedText = paused => paused ? (typeof paused === 'string' && paused.trim() ? paused.trim() : 'Paused') : '';
   function runningHtml(progress, options = {}) {
     const current = Array.isArray(progress?.current) ? progress.current : [];
     if (!current.length) return '';
+    const paused = pausedText(options.paused);
     const stale = current.filter(c => c.stale === true);
     const now = current.map(c => `${c.description || 'Item'}${c.technician ? ` · ${c.technician}` : ''} · ${itemDuration(c.elapsed_minutes)}${c.allowance_minutes ? ` of ${itemDuration(c.allowance_minutes)}` : ''}${c.stale ? ' · check' : ''}`);
     const reset = options.resettable ? stale.map(c => `<button type="button" class="fitter-item-reset" data-fitter-item-reset="${esc(c.booking_id)}" data-fitter-item-line="${esc(c.line_identity)}" data-fitter-item-section="${esc(c.section ?? '')}" data-fitter-item-name="${esc(c.description || 'Item')}">Reset ${esc(c.description || 'item')}</button>`).join('') : '';
-    return `<span class="fitter-running${stale.length ? ' is-stale' : ''}" title="${esc(now.join('\n'))}"><b>Running: ${current.length}</b> <span>Now: ${esc(now[0])}${current.length > 1 ? ` +${current.length - 1}` : ''}</span>${stale.length ? `<em>${stale.length} running too long${options.resettable ? '' : ' · reset from the planner'}</em>` : ''}${reset}</span>`;
+    return `<span class="fitter-running${stale.length ? ' is-stale' : ''}${paused ? ' is-paused' : ''}" title="${esc((paused ? [`Paused · ${paused.replace(/^Paused\s*·\s*/i, '')}`, ...now] : now).join('\n'))}"><b>${paused ? 'Paused' : 'Running'}: ${current.length}</b> <span>Now: ${esc(now[0])}${current.length > 1 ? ` +${current.length - 1}` : ''}</span>${stale.length ? `<em>${stale.length} running too long${options.resettable ? '' : ' · reset from the planner'}</em>` : ''}${reset}</span>`;
   }
   // r440: the running animation covers only the approved hours of the items
   // (or conversion sections) currently started, as a segment straight after
@@ -105,9 +110,9 @@
   }
   function progressHtml(progress, compact = false, options = {}) {
     const p = Math.max(0, Math.min(100, Number(progress?.percent) || 0));
-    const run = runningShare(progress, p);
-    const label = `${p}% work completed${progress ? ` · ${Number(progress.completed_hours) || 0} of ${Number(progress.total_hours) || 0} h` : ''}${Number(progress?.running) > 0 ? ` · ${Number(progress.running)} running` : ''}`;
-    return `<span class="fitter-progress${compact ? ' is-compact' : ''}${run > 0 ? ' has-running' : ''}" role="progressbar" aria-label="Work completed by fitter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" title="${esc(label)}"><span style="width:${p}%"></span>${run > 0 ? `<i class="fitter-progress-run" aria-hidden="true" style="left:${p}%;width:${run}%"></i>` : ''}${compact ? '' : `<b>${esc(label)}</b>`}</span>${runningHtml(progress, options)}`;
+    const run = runningShare(progress, p), paused = run > 0 && pausedText(options.paused);
+    const label = `${p}% work completed${progress ? ` · ${Number(progress.completed_hours) || 0} of ${Number(progress.total_hours) || 0} h` : ''}${Number(progress?.running) > 0 ? ` · ${Number(progress.running)} ${options.paused ? 'paused' : 'running'}` : ''}`;
+    return `<span class="fitter-progress${compact ? ' is-compact' : ''}${run > 0 ? ' has-running' : ''}${paused ? ' is-paused' : ''}" role="progressbar" aria-label="Work completed by fitter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p}" title="${esc(label)}"><span style="width:${p}%"></span>${run > 0 ? `<i class="fitter-progress-run" aria-hidden="true" style="left:${p}%;width:${run}%"></i>` : ''}${compact ? '' : `<b>${esc(label)}</b>`}</span>${runningHtml(progress, options)}`;
   }
   function formatElapsed(seconds) {
     if (!Number.isFinite(seconds)) return '--:--:--';
@@ -294,13 +299,13 @@
     const remainSeconds = Math.max(1, Math.round((planned - elapsed) * 60));
     const bar = running ? `<div class="conv-bar${over ? ' is-over' : ''}${state.paused ? ' is-paused' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="${esc(section.label)} progress"><span style="--conv-from:${pct}%;--conv-run:${over ? 0 : remainSeconds}s"></span></div>` : '';
     const status = done ? `Done${section.actual_minutes != null ? ` · actual ${conversionDuration(Number(section.actual_minutes))}` : ''}`
-      : running ? (over ? `In progress · over by ${conversionDuration(elapsed - planned)}` : `In progress · ${conversionDuration(elapsed)} of ${conversionDuration(planned)}`) + (section.stale ? ' · running too long, tick Done or ask the controller to reset' : '') : '';
+      : running ? (state.paused ? 'Paused · ' : '') + (over ? `In progress · over by ${conversionDuration(elapsed - planned)}` : `In progress · ${conversionDuration(elapsed)} of ${conversionDuration(planned)}`) + (section.stale ? ' · running too long, tick Done or ask the controller to reset' : '') : '';
     const dis = state.disabled ? 'disabled' : '';
     const startDis = state.disabled || done ? 'disabled' : '';
     const doneDis = state.disabled || (!running && !done) ? 'disabled' : '';
     const noteKey = `${state.booking}|${line.line_identity}|${section.id}`, draft = state.noteDrafts?.get(noteKey);
     const note = draft ?? section.note ?? '';
-    return `<li class="conv-section${done ? ' is-done' : ''}${running ? ' is-running' : ''}" data-conv-section="${sid}">
+    return `<li class="conv-section${done ? ' is-done' : ''}${running ? ' is-running' : ''}${running && state.paused ? ' is-paused' : ''}" data-conv-section="${sid}">
       <div class="conv-section-row"><span class="conv-section-name"><strong>${esc(section.label)} — ${esc(section.description)}</strong><small>${conversionDuration(planned)}${status ? ` · ${esc(status)}` : ''}</small></span>
       <label class="conv-tick"><input type="checkbox" data-conversion-step="start" data-conversion-line="${id}" data-conversion-section="${sid}" ${running || done ? 'checked' : ''} ${startDis}> Start</label>
       <label class="conv-tick"><input type="checkbox" data-conversion-step="done" data-conversion-line="${id}" data-conversion-section="${sid}" ${done ? 'checked' : ''} ${doneDis}> Done</label></div>
@@ -337,7 +342,7 @@
     const remainSeconds = Math.max(1, Math.round((m.planned - m.elapsed) * 60));
     const bar = m.running && m.planned > 0 ? `<div class="conv-bar${m.over ? ' is-over' : ''}${state.paused ? ' is-paused' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="${esc(line.description)} progress"><span style="--conv-from:${pct}%;--conv-run:${m.over ? 0 : remainSeconds}s"></span></div>` : '';
     const status = m.done ? (m.actual != null ? `Done · actual ${actualDuration(m.actual)}` : '')
-      : m.running ? `${m.over ? `In progress · over by ${itemDuration(m.elapsed - m.planned)}` : m.planned ? `In progress · ${itemDuration(m.elapsed)} of ${itemDuration(m.planned)}` : `In progress · ${itemDuration(m.elapsed)} · no allowance`}${line.item_stale ? ' · running too long, tick Done or ask the controller to reset' : ''}` : '';
+      : m.running ? `${state.paused ? 'Paused · ' : ''}${m.over ? `In progress · over by ${itemDuration(m.elapsed - m.planned)}` : m.planned ? `In progress · ${itemDuration(m.elapsed)} of ${itemDuration(m.planned)}` : `In progress · ${itemDuration(m.elapsed)} · no allowance`}${line.item_stale ? ' · running too long, tick Done or ask the controller to reset' : ''}` : '';
     return `<div class="fitter-item-ticks"><label class="conv-tick"><input type="checkbox" data-fitter-item-start="${id}" ${m.running || m.done ? 'checked' : ''} ${state.disabled || m.done ? 'disabled' : ''}> Start</label>${status ? `<small class="fitter-item-status">${esc(status)}</small>` : m.needsStart && state.editable ? '<small class="fitter-item-hint">Press Start first</small>' : ''}</div>${bar}`;
   }
   function fitterLineCardHtml(line, index, state) {
@@ -345,7 +350,7 @@
     const m = itemTimingModel(line, state), timed = !line.external_work && !line.conversion;
     // r440: Done stays disabled until the item is started (existing Done items stay ticked and can still be unticked).
     const doneLocked = timed && m.needsStart;
-    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${m.running ? ' is-running' : ''}${line.item_stale && m.running ? ' is-stale' : ''}${doneLocked ? ' needs-start' : ''}"><label class="fitter-line-check"${doneLocked && editable ? ' title="Press Start first"' : ''}><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" aria-label="${esc(line.description)} done" ${line.completed ? 'checked' : ''} ${disabled || doneLocked ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
+    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${m.running ? ' is-running' : ''}${m.running && state.paused ? ' is-paused' : ''}${line.item_stale && m.running ? ' is-stale' : ''}${doneLocked ? ' needs-start' : ''}"><label class="fitter-line-check"${doneLocked && editable ? ' title="Press Start first"' : ''}><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" aria-label="${esc(line.description)} done" ${line.completed ? 'checked' : ''} ${disabled || doneLocked ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
       ${timed ? fitterItemTicksHtml(line, state) : ''}
       ${line.scope_changed ? '<p class="fitter-warning">This item changed. Review the work before ticking it again.</p>' : ''}
       ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}
@@ -429,9 +434,17 @@
     if(line.conversion && !conversionUsesSimpleTick(line)) return root.PdcConversions.html(line,{editable:editable&&!saving&&!loading&&!service.retryPending&&!busPending(),controller:['operator','administrator'].includes(root.PDC_AUTH_CONTEXT?.role),booking:selected});
     const draft = drafts.get(`${selected}:${line.line_identity}`), note = draft?.note ?? line.note;
     const disabled = !editable || saving || loading || service.retryPending || busPending();
-    if(line.conversion) return conversionTicksHtml(line, index, {editable, disabled, booking:selected, paused:detail?.status!=='started', noteDrafts:conversionNotes, open:!conversionClosed.has(`${selected}|${line.line_identity}`)});
     const clock=timerModel(detail,timingOptions());
+    // r493: a section bar pauses (amber) whenever the job clock is not counting, as bay items already did.
+    if(line.conversion) return conversionTicksHtml(line, index, {editable, disabled, booking:selected, paused:detail?.status!=='started'||clock.tone!=='running', noteDrafts:conversionNotes, open:!conversionClosed.has(`${selected}|${line.line_identity}`)});
     return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft, paused: clock.tone!=='running', jobSeconds: Number.isFinite(clock.seconds)?clock.seconds:NaN});
+  }
+  // r493: started items show amber Paused while the job clock is held
+  // (stoppage, break, closure or end of day, waiting allocation).
+  function fitterPausedLabel(d) {
+    if(!d || !['started','stoppage','queued'].includes(d.status)) return '';
+    const clock=timerModel(d,timingOptions());
+    return clock.tone==='paused' ? clock.label : '';
   }
   function render() {
     const target = host(); if (!target || !active()) return;
@@ -455,7 +468,7 @@
       ${mechanic ? `<p class="fitter-bay-summary">${bays.length ? bays.map(b=>`${esc(b.stage)} · ${esc(bayText(STAGE_BY_NAME[b.stage], b.number))}${b.active?'':' (inactive)'}`).join(' / ') : 'Jobs individually assigned to this mechanic appear below.'}</p>` : ''}
       ${flow.otherActive.length ? `<details class="fitter-active-jobs"><summary>Other active jobs (${flow.otherActive.length})</summary>${flow.otherActive.map(j=>`<button type="button" data-fitter-job="${esc(j.id)}" ${locked?'disabled':''}>${esc(j.stock)} · ${esc(j.stage_name)} / ${esc(bayText(j.stage_code, j.bay_number))} · ${esc(state(j.status))}</button>`).join('')}</details>` : ''}
       <div class="fitter-layout">
-      <section class="fitter-work" aria-label="Selected job">${job && detail ? `<div class="fitter-job-heading"><p class="fitter-kicker">${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(state(detail.status))}</p><h2>${esc(job.stock)} <span>${esc(job.job_card)}</span></h2><p>${esc(job.customer)} · ${esc(job.vehicle)}</p><p class="fitter-time">${esc(time(job.start_at))} – ${esc(time(job.end_at))}</p>${timerHtml(detail,timingOptions())}${progressHtml(detail.progress)}<p>${detail.progress.completed_lines} of ${detail.progress.total_lines} items complete · Progress uses approved work hours.</p></div>
+      <section class="fitter-work" aria-label="Selected job">${job && detail ? `<div class="fitter-job-heading"><p class="fitter-kicker">${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(state(detail.status))}</p><h2>${esc(job.stock)} <span>${esc(job.job_card)}</span></h2><p>${esc(job.customer)} · ${esc(job.vehicle)}</p><p class="fitter-time">${esc(time(job.start_at))} – ${esc(time(job.end_at))}</p>${timerHtml(detail,timingOptions())}${progressHtml(detail.progress,false,{paused:fitterPausedLabel(detail)})}<p>${detail.progress.completed_lines} of ${detail.progress.total_lines} items complete · Progress uses approved work hours.</p></div>
       ${detail.status==='stoppage' ? `<div class="fitter-warning"><strong>Job stopped</strong><p>${esc(detail.stoppage_reason)}</p></div>` : ''}
       <div class="fitter-actions">${['planned','queued'].includes(detail.status) ? `<button class="fitter-primary" data-fitter-action="start" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='start'?'Starting job…':'Start job'}</button><p>Start this job first. Its other unstarted bookings and affected queues move later where needed.</p>` : detail.status==='stoppage' ? `<button class="fitter-primary" data-fitter-action="resume" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='resume'?'Resuming job…':'Resume job'}</button>` : detail.status==='started' ? `<button data-fitter-stop ${locked||!editable?'disabled':''}>Parts / other stoppage</button>` : ''}</div>
       ${stopOpen ? `<div class="fitter-stop-panel" role="group" aria-label="Record a workshop stoppage"><label for="fitter-stop-type">Stoppage type<select id="fitter-stop-type" ${locked?'disabled':''}><option ${stopType==='Parts'?'selected':''}>Parts</option><option ${stopType==='Other'?'selected':''}>Other</option></select></label><label for="fitter-stop-reason">What is holding up the work?<textarea id="fitter-stop-reason" rows="3" maxlength="1900" ${locked?'disabled':''}>${esc(stopReason)}</textarea></label><button type="button" data-fitter-confirm-stop ${locked?'disabled':''}>Record stoppage</button><button type="button" data-fitter-cancel-stop ${locked?'disabled':''}>Cancel</button></div>` : ''}

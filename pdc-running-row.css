@@ -33,3 +33,10 @@
 #workflow .control-board-timeline-job > .fitter-running { grid-column:1 / -1; grid-row:2; display:flex; flex-wrap:nowrap; align-items:center; gap:4px; margin:0; overflow:hidden; white-space:nowrap; font-size:9px; line-height:13px; }
 #workflow .control-board-timeline-job > .fitter-running > * { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #workflow .control-board-timeline-job > .fitter-running > b { flex:0 0 auto; }
+
+/* r493 (F106): a started job whose bay is outside working time right now
+   (break, end of day, weekend, closure) is Paused: amber tile, no blue pulse,
+   "Paused · Key …" label. STOPPAGE tiles stay red; their running strip reads
+   "Paused" in amber. Display only. */
+.workshop-plan-chip.is-started.is-paused { border-color:#d97706; border-left-color:#b45309; background:#fef3c7; animation:none; }
+.workshop-plan-chip .planner-work-state.is-paused { color:#92400e; }

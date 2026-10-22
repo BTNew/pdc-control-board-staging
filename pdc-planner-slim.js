@@ -10,12 +10,13 @@
     return [...new Set(lines.filter(line => line.active !== false).map(line => line.jobCardNumber || line.job_card_number).filter(recorded).map(String))].join(', ');
   }
   function workState(status) {
-    return status === 'started' ? 'Running' : status === 'stoppage' ? 'Stopped' : '';
+    // r493: 'paused' = started, but the bay is outside working time right now.
+    return status === 'started' ? 'Running' : status === 'paused' ? 'Paused' : status === 'stoppage' ? 'Stopped' : '';
   }
   function summaryHtml({key, jc, stock, customer, model, status, team} = {}) {
     const jcLabel = jc && /^JC/i.test(jc) ? jc : 'JC ' + (jc || 'Not recorded');
     const state = workState(status);
-    return `<span class="planner-slim-details"><strong>${state ? `<span class="planner-work-state">${state} · </span>` : ''}Key ${esc(key || '—')} · ${esc(jcLabel)}</strong><span class="planner-stock-number">Stock ${esc(stock || 'Not recorded')}</span><span title="${esc(customer)}">${esc(customer || 'Customer not recorded')}</span><span title="${esc(model)}">${esc(model || 'Model not recorded')}</span>${team ? `<span class="planner-team" title="${esc(team)}">${esc(team)}</span>` : ''}</span>`;
+    return `<span class="planner-slim-details"><strong>${state ? `<span class="planner-work-state${status === 'paused' ? ' is-paused' : ''}">${state} · </span>` : ''}Key ${esc(key || '—')} · ${esc(jcLabel)}</strong><span class="planner-stock-number">Stock ${esc(stock || 'Not recorded')}</span><span title="${esc(customer)}">${esc(customer || 'Customer not recorded')}</span><span title="${esc(model)}">${esc(model || 'Model not recorded')}</span>${team ? `<span class="planner-team" title="${esc(team)}">${esc(team)}</span>` : ''}</span>`;
   }
   function recordedKey(vehicle = {}, boardRows = []) {
     const key = row => row.keyNumber || row.key_number || row.keyNo || row.keyTag || row.pdcKeyNumber || row.vehicleKeyNumber || '';
@@ -73,6 +74,7 @@
         customer: vehicleCustomerName(vehicle) || vehicle.customerName || vehicle.customer_name,
         model: workshopQueueVehicleDescription(vehicle),
     });
+    const livePlanStatus = entry => entry.status === 'started' && typeof workshopEntryPausedNow === 'function' && workshopEntryPausedNow(entry) ? 'paused' : entry.status;
     const previousQueue = workshopQueueCardHtml;
     workshopQueueCardHtml = function(vehicle = {}, stage = workshopState().stage, ...args) {
       return compactQueue(previousQueue(vehicle, stage, ...args),detailsFor(vehicle,stage));
@@ -90,7 +92,7 @@
       workshopPlanChipHtml=function(entry={},...args){
         const html=previousPlan(entry,...args);
         const vehicle=html&&workshopVehicle(entry.sharedVehicleId||entry.vehicleId||entry.vehicleKey,entry.stage);
-        return vehicle?compactPlan(html,{...detailsFor(vehicle,entry.stage),status:entry.status,team:typeof workshopBookingTeamLabel === 'function' ? workshopBookingTeamLabel(entry) : ''}):html;
+        return vehicle?compactPlan(html,{...detailsFor(vehicle,entry.stage),status:livePlanStatus(entry),team:typeof workshopBookingTeamLabel === 'function' ? workshopBookingTeamLabel(entry) : ''}):html;
       };
     }
     if(typeof workshopWeeklyCardHtml==='function'){
@@ -98,7 +100,7 @@
       workshopWeeklyCardHtml=function(entry={},...args){
         const html=previousWeek(entry,...args);
         const vehicle=html&&workshopVehicle(entry.sharedVehicleId||entry.vehicleId||entry.vehicleKey,entry.stage);
-        return vehicle?compactWeek(html,{...detailsFor(vehicle,entry.stage),status:entry.status,team:typeof workshopBookingTeamLabel === 'function' ? workshopBookingTeamLabel(entry) : ''}):html;
+        return vehicle?compactWeek(html,{...detailsFor(vehicle,entry.stage),status:livePlanStatus(entry),team:typeof workshopBookingTeamLabel === 'function' ? workshopBookingTeamLabel(entry) : ''}):html;
       };
     }
     const previousAdmin = workshopAdminBlockHtml;

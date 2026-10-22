@@ -111,7 +111,7 @@ test('the Running row keeps its full hover title and the planner Reset action', 
 
 test('index.html loads pdc-running-row.css after the fitter CSS, and Pages publishes it', () => {
   const html = read('index.html');
-  const at = html.indexOf('<link rel="stylesheet" href="pdc-running-row.css?running-row=2026.10.22.r465">');
+  const at = html.search(/<link rel="stylesheet" href="pdc-running-row\.css\?running-row=2026\.10\.22\.r465[^"]*">/);
   assert.ok(at > html.indexOf('href="pdc-conversion-ticks.css'));
   assert.ok(at > html.indexOf('href="pdc-fitters.css'));
   assert.ok(at > html.indexOf('href="workshop-planner.css'));

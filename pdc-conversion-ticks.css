@@ -45,3 +45,13 @@
 @media (prefers-reduced-motion:reduce){.fitter-progress>.fitter-progress-run{animation:none}}
 .fitter-item-hint{color:#9a3412;font-weight:600}
 .fitter-line.needs-start .fitter-line-check input{cursor:not-allowed}
+/* r493 (F106): paused work is amber (job clock held: stoppage, break, end of day, weekend, waiting allocation).
+   Running stays blue, Done green, STOPPAGE tiles keep their red, running too long keeps its orange-red text. */
+.fitter-running.is-paused{color:#78350f}
+.fitter-running.is-paused b{background:#fde68a;color:#78350f}
+.fitter-running.is-paused.is-stale b{background:#fde68a;color:#78350f}
+.fitter-progress.is-paused>.fitter-progress-run{background-color:#fde68a;background-image:repeating-linear-gradient(135deg,rgba(217,119,6,.55) 0 6px,transparent 6px 12px);animation:none}
+.fitter-line.is-running.is-paused,.conv-section.is-running.is-paused{border-color:#d97706;background:#fffbeb}
+.conv-bar.is-paused>span{background:#d97706}
+.conv-bar.is-paused.is-over>span{background:#c2410c}
+.fitter-line.is-paused .fitter-item-status,.conv-section.is-paused .conv-section-name small{color:#92400e}

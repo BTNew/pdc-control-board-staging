@@ -54,7 +54,8 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 });
 // Explicitly pinned upstream releases and owner-approved navigation, including the 18 October full-week planner scope repair.
 const approvedRootImportPatch = Object.freeze({
-  "pdc-planner-slim.js": "d9b51f217cc1fb85d2a4a009f54d2902e9d2388f023984b6f20f158a6a090709",
+  // r493: 'Paused · Key …' label for a started job outside bay working time (F106).
+  "pdc-planner-slim.js": "34aa7d3d2b45d80713c120aad743077db85560b6798f2bcd79eb42893134d691",
   "pdc-review-stations.css": "e65e01d446092ae60f05460e7073f07e3bed4ba0299d4858d1c875be9b2e8fb7",
   // Confirmed workshop writes stay committed if the readback authority changes,
   // and the dialog listener fires before the snapshot refresh. Department 135
@@ -87,7 +88,8 @@ const approvedRootImportPatch = Object.freeze({
   // r478: station vehicle job popup shows the estimated hours read-only; no manual hours save (F91).
   // r483: planner slot summary, booking search, weekly header, admin block bay picker and overlap text use the Dept 139 bay names (F96).
   // r482: every booking command asks about a parts ETA after the booking date before it is sent (F95).
-  "workshop-planner.js": "add57a9b388c96b606c0aa738ee7af6aeb2d71832b833dc4c6d4e73354c7e8f9",
+  // r493: workshopEntryPausedNow: started tile outside bay working time is amber Paused; running strip paused reason (F106).
+  "workshop-planner.js": "9a210bd30db8c5aec3d3768356465f73626927017078ebbffef60800cfcf66c5",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   // r457: one-column side menu 901-1180 px and no blank band in the stacked planner header up to 1300 px (F70).
   // r478: read-only estimated work hours value in the station vehicle job popup (F91).
@@ -128,7 +130,8 @@ const approvedRootImportPatch = Object.freeze({
   // r482: r482=2026.10.22.r482 on pdc-parts-eta.js and pdc-book-all-stations.js (parts ETA warning before booking; F95).
   // r485: r485=2026.10.22.r485 on the table module (Table view only, Drop-down view hidden behind a flag) and vehicle-slideout=2026.10.22.r485 (stoppage box with Clear stoppage / Return to QC; F98).
   // r490: r490=2026.10.23.r490 on pdc-sublet-po.js, pdc-parts-eta.js, pdc-sublet-po-attach.js and pdc-key-number.js (4 s retry only when nothing loaded; no hidden-tab polls; F103).
-  "canonical-entry.js": "29e4d0e383c92c80e2cf783dea2a04a06068ee662e66bac71b1b3b7cc8ab427a",
+  // r493: r493=2026.10.22.r493 on pdc-planner-slim.js (F106).
+  "canonical-entry.js": "bd83219aa7e715ae5c7c0df556fe78bdea4cba3935e4b75b98c3d80cb1fb20d1",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -137,7 +140,8 @@ const approvedRootImportPatch = Object.freeze({
   // r440: item Done needs Start ("Press Start first"), no static " · Done" meta, "under 1 min" actuals, running segment = started items' hours (F51).
   // r449: fitter parts messages say parts no longer hold up a job (F62).
   // r483: fitter page bay text uses the Dept 139 bay names (F96).
-  "pdc-fitters.js": "c70dd658c76a21171527a4e913102336d327f3cfe79ca0d8efa086a50a9aefa6",
+  // r493: started items / sections and the running strip show amber Paused while the job clock is held (F106).
+  "pdc-fitters.js": "f8327a61b400bb2b1c1fb3f691da6273116ce57b02b0764c631611db38f6aa79",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -164,12 +168,14 @@ const approvedRootImportPatch = Object.freeze({
   // r483: Dept 139 bays show Craig's names (Express / Pits Hoist, Express, Hoist, Fitting 06-10, Internal / External Fabrication 11-12, Electrical 13-22) on booking pills, places, vehicle detail and the control board; Fab planner count 13 -> 2 (F96).
   // r489: Admin > Fitting statistics route (administrators only; guard, admin nav, title, open / close / reset like Update history; F102).
   // r490: the 2-minute workshop reference-data safety net skips while the tab is hidden and catches up once on return (F103).
-  "app.js": "cbc1414fdd9de45237c0a59b951b5f0e71124b16980ceb797efc0e5b449ecf39",
+  // r493: r493=2026.10.22.r493 on both workshop-planner.js loads (paused jobs amber; F106).
+  "app.js": "11c84b1dc12f0b62e2549fc60d2e9b9e6001069dfb6ab17974d1611d4c38c2ea",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
   // r483: overview bay rows use the Dept 139 bay names; inactive bays with nothing booked are not drawn (F96). The Karratha copy stays frozen.
-  "control-board-overview.js": "1ff1b30453cb056e9bdedf2df75e844373837a8ddcc7ed786da87db766068d7a",
+  // r493: STOPPAGE bars show the running strip as Paused (amber; F106).
+  "control-board-overview.js": "3ba0ae9e1e844942ebf3bb6df8bc699f3c43598d665cd7d80193cc0001b313eb",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
   // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02,
@@ -238,7 +244,8 @@ const approvedRootImportPatch = Object.freeze({
   // r489: index.html adds the Fitting statistics admin nav item and view (hidden), pdc-fitting-stats.css / .js?r489=2026.10.23.r489 and r489=2026.10.23.r489 on app.js (F102).
   // r489: index.html moves r489=2026.10.23.r489 on app.js next to r483, adds r489 on pdc-staff-usage.js (F102).
   // r490: index.html r490=2026.10.23.r490 on canonical-entry.js and app.js (F103).
-  "index.html": "5dee74fc40b914a0039f5975f1882d14bcf309ba9bf6d657ba68502676fcc737",
+  // r493: r493=2026.10.22.r493 on pdc-fitters.js, pdc-conversion-ticks.css, pdc-running-row.css, control-board-overview.js and canonical-entry.js (F106).
+  "index.html": "069983349b2cd5a49787ff820c9fe7da48af39265b24e78bf3b5f5c6b65a405b",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
