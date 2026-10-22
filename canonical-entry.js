@@ -67,10 +67,11 @@
     serviceLocations.src = 'pdc-service-locations.js?v=2026.09.14.03';
     // r436 (F47): parts ETA loads after the parts location so its chip sits beside it (and still loads if that file fails).
     // r475 (F88): r475=2026.10.22.r475 on the parts ETA script (countdown and source-email hover).
+    // r482 (F95): r482=2026.10.22.r482 on the parts ETA script (parts ETA warning before a bay booking).
     const loadPartsEta = () => {
       if (document.querySelector('script[data-pdc-parts-eta]')) return;
       const partsEta = document.createElement('script');
-      partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436&r475=2026.10.22.r475';
+      partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436&r475=2026.10.22.r475&r482=2026.10.22.r482';
       partsEta.dataset.pdcPartsEta = '1';
       partsEta.onload = loadKeyNumber;
       partsEta.onerror = loadKeyNumber;
@@ -151,7 +152,8 @@
     };
     document.head.appendChild(intakeScript);
     const bookAllStations = document.createElement('script');
-    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed&render-cost=2026.09.14.01&one-hour-gap=2026.09.14.01&r483=2026.10.22.r483';
+    // r482 (F95): r482=2026.10.22.r482 on Book all stations (parts ETA warning first).
+    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed&render-cost=2026.09.14.01&one-hour-gap=2026.09.14.01&r483=2026.10.22.r483&r482=2026.10.22.r482';
     document.head.appendChild(bookAllStations);
     const locationOverride = document.createElement('script');
     locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01&separate-screens-pmb-warning=2026.09.16.01';

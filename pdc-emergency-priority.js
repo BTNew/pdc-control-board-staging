@@ -1,4 +1,6 @@
 /* Reviewed, atomic emergency scheduling from the Control Board. */
+/* r482 (F95): Prioritise vehicle & move bookings asks "Book anyway" or "Cancel" when the previewed bookings for the vehicle
+ * start (Perth date) before its parts ETA (pdc-parts-eta.js). Cancel sends nothing; Book anyway applies exactly as before. */
 (function(root){
  'use strict';
  const PROJECT='cdsmnqxtyyoeoznmbidd';
@@ -79,7 +81,12 @@
  const host=root.document.getElementById('workshop-emergency');if(!host)return;
  const input=host.querySelector('input'),previewButton=host.querySelector('[data-emergency-preview]'),applyButton=host.querySelector('[data-emergency-apply]'),
   cancel=host.querySelector('[data-emergency-cancel]'),status=host.querySelector('[data-emergency-result]');
- let uiOwner=0;
+ let uiOwner=0,previewResult=null;
+ // r482 (F95): the previewed bookings for the vehicle, for the parts ETA question.
+ function partsEtaGroups(result){
+  if(!result?.vehicle_id||!Array.isArray(result.bookings))return [];
+  return [{vehicle:{id:result.vehicle_id,stock:result.stock_number},bookings:result.bookings.map(x=>({station:stage(x.stage_code),bay:x.bay_number,start:x.start_at}))}];
+ }
  const controller=createController({
   context:()=>({actor:root.PDC_AUTH_CONTEXT?.userId,role:root.PDC_AUTH_CONTEXT?.role,
    token:typeof getPdcSupabaseAccessToken==='function'?getPdcSupabaseAccessToken():'',config:root.PDC_SUPABASE_CONFIG}),
@@ -97,14 +104,24 @@
  previewButton.addEventListener('click',async()=>{
   const owner=++uiOwner;status.textContent='Checking the earliest bays and affected bookings\u2026';
   const pending=controller.preview(input.value);controls();
-  try{const result=await pending;if(owner===uiOwner)status.innerHTML=summaryHtml(result);}
+  previewResult=null;
+  try{const result=await pending;if(owner===uiOwner){previewResult=result;status.innerHTML=summaryHtml(result);}}
   catch(e){if(owner===uiOwner)status.textContent=e.message;}
   finally{if(owner===uiOwner)controls();}
  });
  input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!previewButton.disabled){e.preventDefault();previewButton.click();}});
  input.addEventListener('input',()=>{if(!controller.busy&&!controller.uncertain){controller.invalidate();uiOwner++;status.textContent='';controls();}});
  cancel.addEventListener('click',()=>{if(controller.busy||controller.uncertain)return;controller.invalidate();uiOwner++;status.textContent='Preview cancelled. No changes saved.';controls();});
+ let asking=false;
  applyButton.addEventListener('click',async()=>{
+  if(asking)return;
+  // r482 (F95): a "Check result" replay is not asked again; nothing is sent until Book anyway.
+  if(!controller.uncertain&&typeof root.PDC_PARTS_ETA?.confirmBookings==='function'){
+   const owner=uiOwner;let answer={ok:true};asking=true;
+   try{answer=await root.PDC_PARTS_ETA.confirmBookings(partsEtaGroups(previewResult));}catch(_){answer={ok:true};}finally{asking=false;}
+   if(owner!==uiOwner||!controller.canApply)return;
+   if(answer?.ok!==true){status.insertAdjacentHTML('beforeend','<p class="emergency-parts-eta-cancelled">Not prioritised: the parts are not due yet. No changes saved.</p>');return;}
+  }
   const owner=uiOwner;status.textContent=controller.uncertain?'Checking the result of the emergency request\u2026':'Saving the emergency schedule and moving affected bookings\u2026';
   const pending=controller.apply();controls();
   try{
@@ -125,7 +142,7 @@
   }catch(e){if(owner===uiOwner)status.textContent=e.message;}
   finally{if(owner===uiOwner)controls();}
  });
- function reset(){uiOwner++;controller.invalidate();status.textContent='';input.value='';controls();}
+ function reset(){uiOwner++;previewResult=null;controller.invalidate();status.textContent='';input.value='';controls();}
  root.addEventListener('pdc-auth-locked',reset);root.addEventListener('pdc-auth-ready',reset);controls();
  root.PDC_EMERGENCY_PRIORITY={refresh:controls};
 })(typeof window==='undefined'?globalThis:window);

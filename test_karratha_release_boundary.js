@@ -34,6 +34,9 @@ test('all frozen native files outside declared boundary adaptations retain origi
     else if (item.file === 'control-board-overview.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'440d999fb5478214a2c763093068b3446bbdd7f97847853f26e86650fb13c7b1',item.file);
     else if (['pdc-fitters.js','canonical-entry.js','control-board-overview.js','pdc-new-vehicles.css','workshop-planner.css','pdc-review-stations.js','pdc-review-stations.css'].includes(item.file)) assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
     else if (item.file === 'pdc-planner-slim.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
+    // r482: the PMG Prioritise vehicle copy asks about a parts ETA before applying (F95); the hidden Karratha copy stays frozen.
+    // (pdc-book-all-stations.js uses the r483 branch below: its Karratha copy stays at the manifest baseline.)
+    else if (item.file === 'pdc-emergency-priority.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f',item.file);
     // r417: the PMG copy asks to confirm a bay rule warning; the hidden Karratha copy stays frozen.
     else if (item.file === 'workshop-shared-actions.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'6080315b8615d544ecec0ad324be883e064ecb912a2c5a28c41a19f11d4980d5',item.file);
     // r483: the PMG copy shows the Dept 139 bay names (F96); the hidden Karratha copy stays frozen.
@@ -83,7 +86,8 @@ const approvedRootImportPatch = Object.freeze({
   // r470: Find scrolls to the result once per selection, not on every render (F83).
   // r478: station vehicle job popup shows the estimated hours read-only; no manual hours save (F91).
   // r483: planner slot summary, booking search, weekly header, admin block bay picker and overlap text use the Dept 139 bay names (F96).
-  "workshop-planner.js": "176518418d6611d9d4bce3c0395b3a334ea83f2967a8bcab3d7458649e5b0fa6",
+  // r482: every booking command asks about a parts ETA after the booking date before it is sent (F95).
+  "workshop-planner.js": "add57a9b388c96b606c0aa738ee7af6aeb2d71832b833dc4c6d4e73354c7e8f9",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   // r457: one-column side menu 901-1180 px and no blank band in the stacked planner header up to 1300 px (F70).
   // r478: read-only estimated work hours value in the station vehicle job popup (F91).
@@ -121,7 +125,8 @@ const approvedRootImportPatch = Object.freeze({
   // r476: r476=2026.10.22.r476 on the table module (Vehicle Locations Table view columns bunched up; F89).
   // r481: r481=2026.10.22.r481 on the table module (search shows matches from every tile and other departments; F94).
   // r483: r483=2026.10.22.r483 on pdc-book-all-stations.js (F96).
-  "canonical-entry.js": "66c46394eb8027ad2af0de43839c6c88dc582a7b8900faeb53402e7568b5a1fc",
+  // r482: r482=2026.10.22.r482 on pdc-parts-eta.js and pdc-book-all-stations.js (parts ETA warning before booking; F95).
+  "canonical-entry.js": "718e76fc7b36a43922f92f8e53b8b74bd8e22464974b19d892956c0fa8c26cc9",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -224,14 +229,16 @@ const approvedRootImportPatch = Object.freeze({
   // r480: index.html pdc-copyright.css link and copyright footer (sidebar foot + sign-in screen) (F93).
   // r481: index.html r481=2026.10.22.r481 on canonical-entry.js (F94).
   // r483: index.html r483=2026.10.22.r483 on pdc-workshop-departments.js, control-board-overview.js, app.js, pdc-fitters.js and canonical-entry.js (F96).
-  "index.html": "03db5f1526853a41187faf3a40ffd60181e74c6ee4959fa0c06ae5c37fe465f6",
+  // r482: r482=2026.10.22.r482 on canonical-entry.js and pdc-emergency-priority.js (F95).
+  "index.html": "79589c24d868a6e51c3504ed77f2d433020865576fbc1aac1ea8361d68c177e1",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
   // r454: a board row's identity_dealer_code (14450/37047) fills a missing dealer in mapServerVehicle (F67).
   // r458: Detailed history shows a vehicle's creation as Created (presentVehicleCreationEvents, display only) (F71).
   "pdc-email-vehicle-location-service.js": "e8ba105655c1d2b25cc39eb354fd5d0413c9b29add7edcb183d8ea6f8ecf3070",
-  "pdc-emergency-priority.js": "4a4b4a13455c2395209a569efe3957ec1811a25a8e44104c8dad85ceba64d64f",
+  // r482: Prioritise vehicle asks before applying a plan that books before the parts ETA (F95).
+  "pdc-emergency-priority.js": "f32dfc9d81bafb4dcfb8e6e6805f4932ba5e5219149093d9bc45f1e1ae34d7db",
   "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",
   "pdc-staff-usage.css": "e7769d72b7601097fa4c41a19140fdcda4408f3d1f620008282d9df136b1ddf0",
@@ -249,7 +256,8 @@ const approvedRootImportPatch = Object.freeze({
   // r424: push-back warning confirm; bay re-order and undo actions (F38).
   "workshop-shared-actions.js": "dcc5cda131757438ce285de7130672addb540664e13d56b666f03df0cd45df1f",
   // r483: Book all stations result shows the Dept 139 bay names (F96). The Karratha copy stays frozen.
-  "pdc-book-all-stations.js": "f4cc499de3bdac40fd6849a1559ce291e26ebea3252f4444d26dd970be319c85",
+  // r482: Book all stations asks first when the parts ETA is after today and marks bookings before it (F95).
+  "pdc-book-all-stations.js": "5001a53b8a79fc7bd4cdc837178ff8b53cb5afd61a94991c27543d22db8c6e3c",
   "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938"
 });
 test('PMB/Sales runtime preserves its frozen baseline and approved root release patches', () => {
