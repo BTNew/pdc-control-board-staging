@@ -175,3 +175,9 @@ column widths are ignored by r461 and can stay.
   its own row instead of sitting over the description (Craig saw "Unassigned"
   drop-downs over Hoist line 21 and Electrical line 5 after closing the card).
 * Display only: no data, RPC or storage changes. Undo: revert the r473 commit.
+
+## r494 (F107): Manage sublets
+
+A **Manage sublets** button sits beside Open Vehicle (added by `pdc-vehicle-sublets.js`; the panel itself is unchanged). It opens one screen for that vehicle: whole line sublets (the line is Sublet work; its tick completes it) and sublet items on operation lines (the line keeps its category; the PO has its own tick), with GP PO, provider, out / due back / back, status (Away / OVERDUE / Back N days) and Draft email. Operators and administrators can make a line a whole line sublet or move it back (`set_vehicle_work_category`); ticks are the r439 tick.
+
+r494 update (Craig 22 Oct 18:41): whole line sublets with no GP PO show **PO to raise** (board Sublet box orange, and on the line); a new GP PO on a line in another category shows **PO raised for this line** until ticked or **Got it** (per user, this browser); the screen says **Supplier**.
