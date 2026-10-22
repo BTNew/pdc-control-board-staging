@@ -77,10 +77,12 @@ const approvedRootImportPatch = Object.freeze({
   // r450: Schedule window offers Whole job to one technician; whole jobs show by bay (F63).
   // r469: the planner names the booking a cascade push would clash with (F82).
   // r470: Find scrolls to the result once per selection, not on every render (F83).
-  "workshop-planner.js": "5e01303827e2b6503d0db0c24e14965d746b4a068afbb6682f89ded977732b42",
+  // r478: station vehicle job popup shows the estimated hours read-only; no manual hours save (F91).
+  "workshop-planner.js": "ac07b1ee5a8b2965a2500c1173e446a51414c45625cb04e475723cebe807491d",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   // r457: one-column side menu 901-1180 px and no blank band in the stacked planner header up to 1300 px (F70).
-  "workshop-planner.css": "01efe7c09ee8a46a6c6b7d4c681de6113b60c6eddef799414efc0f8c8c76fce2",
+  // r478: read-only estimated work hours value in the station vehicle job popup (F91).
+  "workshop-planner.css": "fc29a4268da314b2d41905f65788f00b5c07ddb4544b36cdb5f991ac3bc9bf3a",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   "scripts/build_pages_runtime.js": "f39cb3b2b550ac467feb7acbec932c091a8ad75229531e539fc706ec665210d3",
@@ -110,8 +112,9 @@ const approvedRootImportPatch = Object.freeze({
   // r463: r463=2026.10.22.r463 on the table module and vehicle-slideout=2026.10.22.r463 (Job Card column; panel drag-to-bay withdrawn; F76).
   // r472: key-number=2026.10.22.r460&r472=2026.10.22.r472 on pdc-key-number.js (vehicle-card key save keeps snapshot rows raw; F85).
   // r473: vehicle-slideout=2026.10.22.r473 on pdc-vehicle-slideout.js (panel top without the summary row, Open Vehicle; F86).
+  // r475: r475=2026.10.22.r475 on pdc-parts-eta.js and on the table module (parts ETA countdown + source hover, Parts ETA column; F88).
   // r476: r476=2026.10.22.r476 on the table module (Vehicle Locations Table view columns bunched up; F89).
-  "canonical-entry.js": "0b5a702a75f78ffe42924c6c4b711bc3554840a16deecb8ff67b12a456b8b172",
+  "canonical-entry.js": "87d4f5f80142dd0675dd5d9ac481a4f411961d1cf8e99fd9f16b63fec025c8fa",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -204,9 +207,11 @@ const approvedRootImportPatch = Object.freeze({
   // r470: index.html r470=2026.10.22.r470 on canonical-entry.js (F83).
   // r472: index.html r472=2026.10.22.r472 on canonical-entry.js (F85).
   // r473: index.html r473=2026.10.22.r473 on canonical-entry.js (F86).
+  // r475: index.html r475=2026.10.22.r475 on canonical-entry.js (F88).
   // r476: index.html r476=2026.10.22.r476 on canonical-entry.js (F89).
   // r477: index.html loads pdc-sidebar-compact.css?sidebar-compact=2026.10.22.r477 last (PMG sidebar compressed, Parts nav item hidden by a flag; F90).
-  "index.html": "366d3b5a435a1a00414ec7e0445fe52af7998134a8e0842c515afc615b6cdd2b",
+  // r478: index.html r478=2026.10.22.r478 on workshop-planner.css (F91).
+  "index.html": "d2576fb0f4539f040547e8338c565de35f34def600cd00b2b91bd6d6608df49f",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

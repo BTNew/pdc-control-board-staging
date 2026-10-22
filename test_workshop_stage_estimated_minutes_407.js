@@ -10,8 +10,10 @@ const migration = fs.readFileSync('supabase/staging_only/20260826160000_407_work
 
 assert.match(planner, /step="any" inputmode="decimal"/);
 assert.doesNotMatch(planner, /step="0\.0166666667"/);
-assert.match(planner, /const requestedMinutes = Math\.round\(requestedHours \* 60\)/);
-assert.match(planner, /workshopDispatchSharedAction\('setStageEstimatedMinutes'/);
+// r478 (F91): the station vehicle job popup no longer types or saves stage hours, so the planner no longer
+// dispatches setStageEstimatedMinutes. The 407 action and RPC contract below are unchanged.
+assert.doesNotMatch(planner, /const requestedMinutes = Math\.round\(requestedHours \* 60\)/);
+assert.doesNotMatch(planner, /workshopDispatchSharedAction\('setStageEstimatedMinutes'/);
 assert.match(planner, /workshopVehicle\(key, scopedStage\)/);
 assert.match(planner, /pdcQcOperationLinesProjectionPresent === true/);
 assert.match(planner, /directOperationLines = \[\]/);

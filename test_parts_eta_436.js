@@ -10,14 +10,14 @@ const board = { today: '2026-10-21', vehicles: [
 const idx = eta.indexBoard(board);
 test('latest ETA plus a count, part names on hover, Perth dd/mm', () => {
   const s = eta.summarise(eta.entryFor(idx, { __emailVehicleId: '11111111-2222-4333-8444-555555555555' }), idx.today);
-  assert.equal(s.label, 'Parts ETA 28/10 · 2 parts'); assert.equal(s.state, 'ok');
+  assert.equal(s.label, 'Parts ETA 28/10 · 7 days · 2 parts'); assert.equal(s.state, 'ok'); // r475 (F88) adds the days countdown
   assert.match(s.title, /Driveshaft uni joint: 28\/10\/26 · line 3 · R\/O J1 · bay P-12/); assert.match(s.title, /Bolt <kit>: 22\/10\/26/);
 });
 test('overdue (before today, Perth) is red, due today amber, single part has no count', () => {
   const over = eta.summarise(eta.entryFor(idx, { stock: 'S2' }), idx.today);
   assert.equal(over.state, 'overdue'); assert.equal(over.overdue, 1); assert.match(over.title, /Clip: 19\/10\/26 · OVERDUE/);
   const due = eta.summarise(eta.entryFor(idx, { id: '77777777-2222-4333-8444-555555555555' }), idx.today);
-  assert.equal(due.state, 'due'); assert.equal(due.label, 'Parts ETA 21/10');
+  assert.equal(due.state, 'due'); assert.equal(due.label, 'Parts ETA 21/10 · today'); // r475 countdown
   assert.match(eta.chipHtml(over), /class="pdc-parts-eta pdc-parts-eta-overdue"/);
 });
 test('chip sits beside the parts location, or at the right of the vehicle name without one; escaped; idempotent', () => {
@@ -50,10 +50,10 @@ test('browser wrapper decorates board rows only after the ETAs load; no request 
   ctx2.incomingVehicleDetailRow = () => '<span class="incoming-card-main"><strong>Hilux</strong></span><div class="incoming-vehicle-detail-grid">';
   vm.runInNewContext(fs.readFileSync(require.resolve('./pdc-parts-eta.js'), 'utf8'), ctx2);
   for (let i = 0; i < 5; i++) await new Promise(r => setImmediate(r));
-  assert.equal(calls.length, 1); assert.match(calls[0].url, /\/rest\/v1\/rpc\/get_pdc_parts_eta_board$/); assert.equal(calls[0].init.headers.Authorization, 'Bearer t');
+  assert.equal(calls.length, 1); assert.match(calls[0].url, /\/rest\/v1\/rpc\/get_pdc_parts_eta_board(_v2)?$/); assert.equal(calls[0].init.headers.Authorization, 'Bearer t'); // r475 reads v2 first (falls back to this read)
   assert.equal(refreshed, 1);
   const row = ctx2.incomingVehicleDetailRow({ stock: 'S1' });
-  assert.match(row, /Parts ETA 28\/10 · 2 parts/); assert.match(row, /pdc-parts-eta-detail/);
+  assert.match(row, /Parts ETA <\/span>28\/10 · [^<]+ · 2 parts/); assert.match(row, /pdc-parts-eta-detail/); // r475: label span + countdown
   assert.doesNotMatch(ctx2.incomingVehicleDetailRow({ stock: 'NONE' }), /pdc-parts-eta/);
 });
 test('loader, cache bust and Pages build include the parts ETA script', () => {

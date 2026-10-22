@@ -1,13 +1,65 @@
-/* r436 (F47): parts ETA from parts-staff emails, shown next to the parts location on board vehicle rows. Read only. */
+/* r436 (F47): parts ETA from parts-staff emails, shown next to the parts location on board vehicle rows. Read only.
+ * r475 (F88, Craig 22 Oct 10:51): the chip reads "Parts ETA dd/mm · N days" (due today amber "today", past red "N days overdue",
+ * Perth dates) and its hover names the source email: who sent it, when (Perth time), the subject and the quoted line. The
+ * vehicle details (drop-down card and the Table view slide-out panel) show the same countdown and source. Data comes from
+ * get_pdc_parts_eta_board_v2 (r475 migration); until that exists the board falls back to the r436 get_pdc_parts_eta_board
+ * by itself (countdown, no source). The Table view lifts this chip into its own "Parts ETA" column (pdc-vehicle-locations-table.js). */
 (() => {
   'use strict';
-  const VERSION = '2026.10.21.r436';
+  const VERSION = '2026.10.22.r475';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
+  const RPC_V2 = 'get_pdc_parts_eta_board_v2', RPC_V1 = 'get_pdc_parts_eta_board';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const iso = value => /^\d{4}-\d{2}-\d{2}/.test(String(value || '')) ? String(value).slice(0, 10) : '';
   const ddmm = value => { const d = iso(value); return d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : ''; };
   const ddmmyy = value => { const d = iso(value); return d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(2, 4)}` : ''; };
   const stockKey = value => String(value ?? '').trim().toUpperCase();
+  const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
+  /** Today's date in Perth (YYYY-MM-DD) whatever the device time zone; '' if the browser cannot tell. */
+  function perthToday(now = new Date()) {
+    try {
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Perth', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+      const get = type => parts.find(p => p.type === type)?.value || '';
+      const out = `${get('year')}-${get('month')}-${get('day')}`;
+      return /^\d{4}-\d{2}-\d{2}$/.test(out) ? out : '';
+    } catch (_) { return ''; }
+  }
+  /** Whole days from today to the ETA (calendar dates, no clock): 0 today, negative overdue. */
+  function daysUntil(eta, today) {
+    const a = iso(eta), b = iso(today);
+    if (!a || !b) return null;
+    return Math.round((Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10)) - Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10))) / 86400000);
+  }
+  function countdown(eta, today) {
+    const days = daysUntil(eta, today);
+    if (days === null) return { days, text: '', state: 'ok' };
+    if (days < 0) return { days, text: `${-days} day${days === -1 ? '' : 's'} overdue`, state: 'overdue' };
+    if (days === 0) return { days, text: 'today', state: 'due' };
+    return { days, text: `${days} day${days === 1 ? '' : 's'}`, state: 'ok' };
+  }
+  /** "Thu 22/10/26 9:15 am AWST" (Perth time) for the email's sent time. */
+  function sentLabel(value) {
+    const d = new Date(value || '');
+    if (!value || Number.isNaN(d.getTime())) return '';
+    try {
+      const parts = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit', year: '2-digit', hour: 'numeric', minute: '2-digit', hour12: true }).formatToParts(d);
+      const get = type => parts.find(p => p.type === type)?.value || '';
+      return `${get('weekday')} ${get('day')}/${get('month')}/${get('year')} ${get('hour')}:${get('minute')} ${get('dayPeriod').toLowerCase()} AWST`;
+    } catch (_) { return ''; }
+  }
+  /** Hover lines for one ETA's source email (r475 board v2; nothing for r436 rows). */
+  function sourceLines(part) {
+    if (!part) return [];
+    const lines = [];
+    const sender = clean(part.sender), name = clean(part.sender_name);
+    if (sender || name) lines.push(`From: ${name && sender ? (name.toLowerCase() === sender.toLowerCase() ? sender : `${name} <${sender}>`) : name || sender}`);
+    const sent = sentLabel(part.message_at);
+    if (sent) lines.push(`Sent: ${sent}`);
+    if (clean(part.subject)) lines.push(`Subject: ${clean(part.subject)}`);
+    if (clean(part.quote)) lines.push(`“${clean(part.quote)}”`);
+    if (clean(part.previous_stock)) lines.push(`Email also names stock ${clean(part.previous_stock)} (renumbered)`);
+    return lines;
+  }
   /** Index the server's board payload by vehicle id and by stock number. */
   function indexBoard(payload) {
     const byId = new Map(), byStock = new Map();
@@ -26,30 +78,34 @@
     }
     return index.byStock.get(stockKey(vehicle.stock)) || null;
   }
-  /** Label, tooltip and colour for one vehicle: latest ETA plus a count; overdue (before today, Perth) is red, due today amber. */
+  /** Label, tooltip and colour for one vehicle: latest ETA with a days countdown plus a count; any part overdue (before today,
+   * Perth) is red, due today amber. */
   function summarise(entry, today) {
     if (!entry || !iso(entry.latest_eta)) return null;
     const parts = Array.isArray(entry.parts) ? entry.parts : [];
     const count = Number(entry.count) || parts.length || 1;
     const overdue = parts.filter(p => today && iso(p.eta_date) && iso(p.eta_date) < today).length;
     const dueToday = parts.some(p => today && iso(p.eta_date) === today);
-    const state = overdue ? 'overdue' : dueToday ? 'due' : 'ok';
-    const label = `Parts ETA ${ddmm(entry.latest_eta)}${count > 1 ? ` · ${count} parts` : ''}`;
-    const lines = parts.map(p => {
+    const left = countdown(entry.latest_eta, today);
+    const state = overdue || left.state === 'overdue' ? 'overdue' : dueToday || left.state === 'due' ? 'due' : 'ok';
+    const value = `${ddmm(entry.latest_eta)}${left.text ? ` · ${left.text}` : ''}${count > 1 ? ` · ${count} parts` : ''}`;
+    const label = `Parts ETA ${value}`;
+    const lines = [];
+    parts.forEach(p => {
       const bits = [`${p.part || 'Part'}: ${ddmmyy(p.eta_date)}`];
       if (today && iso(p.eta_date) < today) bits.push('OVERDUE');
       if (p.line_no) bits.push(`line ${p.line_no}`);
       if (p.ro) bits.push(`R/O ${p.ro}`);
       if (p.bay) bits.push(`bay ${p.bay}`);
       if (p.notes) bits.push(String(p.notes));
-      return bits.join(' · ');
+      lines.push(bits.join(' · '), ...sourceLines(p).map(line => `  ${line}`));
     });
-    const title = [`Parts ETA (Perth), latest ${ddmmyy(entry.latest_eta)}${overdue ? `, ${overdue} overdue` : ''}`, ...lines].join('\n');
-    return { label, title, state, count, overdue };
+    const title = [`Parts ETA (Perth), latest ${ddmmyy(entry.latest_eta)}${left.text ? ` · ${left.text}` : ''}${overdue ? `, ${overdue} overdue` : ''}`, ...lines].join('\n');
+    return { label, value, title, state, count, overdue, days: left.days, countdown: left.text, eta: iso(entry.latest_eta) };
   }
   function chipHtml(summary) {
     if (!summary) return '';
-    return `<span class="pdc-parts-eta pdc-parts-eta-${summary.state}" title="${esc(summary.title)}" aria-label="${esc(summary.title)}">${esc(summary.label)}</span>`;
+    return `<span class="pdc-parts-eta pdc-parts-eta-${summary.state}" title="${esc(summary.title)}" aria-label="${esc(summary.title)}" data-parts-eta="${esc(summary.eta || '')}" data-parts-eta-days="${summary.days ?? ''}"><span class="pdc-parts-eta-k">Parts ETA </span>${esc(summary.value || summary.label)}</span>`;
   }
   /** Put the chip beside the parts location (Tune Tag) on a board row; without a parts location, at the right of the vehicle name. */
   function decorateRow(html, summary) {
@@ -59,24 +115,37 @@
     if (location.test(html)) return html.replace(location, (_, loc) => `<span class="pdc-parts-eta-wrap">${loc}${chip}</span>`);
     return html.replace(/(<span class="incoming-card-main">[\s\S]*?<\/strong>)/, (_, start) => `${start}<span class="pdc-parts-eta-wrap">${chip}</span>`);
   }
+  /** Vehicle details block (drop-down card and slide-out panel): date + countdown, each part, and its source email in full. */
   function detailHtml(entry, today) {
     const s = summarise(entry, today);
     if (!s) return '';
-    const rows = (entry.parts || []).map(p => `<span class="${today && iso(p.eta_date) < today ? 'pdc-parts-eta-overdue' : ''}">${esc(p.part)}: ${esc(ddmmyy(p.eta_date))}${p.line_no ? ` · line ${esc(p.line_no)}` : ''}${p.bay ? ` · bay ${esc(p.bay)}` : ''}</span>`).join('');
-    return `<div class="tune-service-location-job pdc-parts-eta-detail"><b>Parts ETA</b>${rows}<small>From parts staff emails (Perth dates)</small></div>`;
+    const rows = (entry.parts || []).map(p => {
+      const source = sourceLines(p).map(line => `<small class="pdc-parts-eta-source">${esc(line)}</small>`).join('');
+      return `<span class="${today && iso(p.eta_date) < today ? 'pdc-parts-eta-overdue' : ''}">${esc(p.part)}: ${esc(ddmmyy(p.eta_date))}${p.line_no ? ` · line ${esc(p.line_no)}` : ''}${p.bay ? ` · bay ${esc(p.bay)}` : ''}${p.ro ? ` · R/O ${esc(p.ro)}` : ''}</span>${source}`;
+    }).join('');
+    return `<div class="tune-service-location-job pdc-parts-eta-detail" title="${esc(s.title)}"><b>Parts ETA</b><span class="pdc-parts-eta-countdown pdc-parts-eta-${s.state}">${esc(ddmmyy(s.eta))}${s.countdown ? ` · ${esc(s.countdown)}` : ''}</span>${rows}<small>From parts staff emails (Perth dates)</small></div>`;
   }
-  if (typeof module !== 'undefined') module.exports = { indexBoard, entryFor, summarise, chipHtml, decorateRow, detailHtml, ddmm, ddmmyy, VERSION };
+  if (typeof module !== 'undefined') module.exports = { indexBoard, entryFor, summarise, chipHtml, decorateRow, detailHtml, ddmm, ddmmyy, perthToday, daysUntil, countdown, sentLabel, sourceLines, RPC_V2, RPC_V1, VERSION };
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_PARTS_ETA_VERSION) return;
   window.PDC_PARTS_ETA_VERSION = VERSION;
-  let index = null, lastBody = '', loading = false;
+  let index = null, lastBody = '', loading = false, rpc = RPC_V2, v2RetryAt = 0;
+  // Perth date from the device clock (so the countdown turns over at Perth midnight), else the server's date.
+  const today = () => perthToday() || index?.today || '';
   async function load() {
     const config = window.PDC_SUPABASE_CONFIG, token = window.__pdcCachedAccessToken;
     if (loading || !token || config?.url?.replace(/\/$/, '') !== `https://${PROJECT}.supabase.co` || document.visibilityState === 'hidden') return;
     loading = true;
     try {
-      const response = await fetch(config.url.replace(/\/$/, '') + '/rest/v1/rpc/get_pdc_parts_eta_board', {
+      if (rpc === RPC_V1 && Date.now() >= v2RetryAt) rpc = RPC_V2;
+      const call = name => fetch(config.url.replace(/\/$/, '') + '/rest/v1/rpc/' + name, {
         method: 'POST', headers: { 'Content-Type': 'application/json', apikey: config.publishableKey, Authorization: 'Bearer ' + token }, body: '{}'
       });
+      let response = await call(rpc);
+      if (!response.ok && rpc === RPC_V2 && response.status === 404) {
+        // r475 SQL not applied yet: use the r436 read (no source) and look for v2 again in 30 minutes.
+        rpc = RPC_V1; v2RetryAt = Date.now() + 30 * 60 * 1000;
+        response = await call(rpc);
+      }
       if (!response.ok) return;
       const text = await response.text();
       if (text === lastBody) return;
@@ -91,16 +160,21 @@
       const html = prior(vehicle, ...args);
       const entry = entryFor(index, vehicle);
       if (!entry) return html;
-      return decorateRow(html, summarise(entry, index.today))
-        .replace('<div class="incoming-vehicle-detail-grid">', '<div class="incoming-vehicle-detail-grid">' + detailHtml(entry, index.today));
+      const day = today();
+      return decorateRow(html, summarise(entry, day))
+        .replace('<div class="incoming-vehicle-detail-grid">', '<div class="incoming-vehicle-detail-grid">' + detailHtml(entry, day));
     };
   }
+  window.PDC_PARTS_ETA = Object.freeze({ VERSION, summarise, entryFor: vehicle => entryFor(index, vehicle), today, rpc: () => rpc, reload: load });
   const style = document.createElement('style');
   style.textContent = '.incoming-card-main:has(.pdc-parts-eta-wrap){display:grid!important;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px!important}'
     + '.pdc-parts-eta-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:0}'
-    + '.pdc-parts-eta{font-size:10.5px;font-weight:650;line-height:1.2;white-space:nowrap;padding:1px 5px;border-radius:4px;background:#e0f2fe;color:#075985}'
+    + '.pdc-parts-eta{font-size:10.5px;font-weight:650;line-height:1.2;white-space:nowrap;padding:1px 5px;border-radius:4px;background:#e0f2fe;color:#075985;cursor:help}'
     + '.pdc-parts-eta-due{background:#fef3c7;color:#92400e}.pdc-parts-eta-overdue{background:#fee2e2;color:#b91c1c}'
-    + '.pdc-parts-eta-detail span{display:block}.pdc-parts-eta-detail span.pdc-parts-eta-overdue{background:none;font-weight:650}';
+    + '.pdc-parts-eta-detail{grid-column:1/-1}.pdc-parts-eta-detail span{display:block}.pdc-parts-eta-detail span.pdc-parts-eta-overdue{background:none;font-weight:650}'
+    + '.pdc-parts-eta-detail .pdc-parts-eta-countdown{display:inline-block;font-weight:700;padding:1px 6px;border-radius:4px;margin:2px 0;background:#e0f2fe;color:#075985}'
+    + '.pdc-parts-eta-detail .pdc-parts-eta-countdown.pdc-parts-eta-due{background:#fef3c7;color:#92400e}.pdc-parts-eta-detail .pdc-parts-eta-countdown.pdc-parts-eta-overdue{background:#fee2e2;color:#b91c1c}'
+    + '.pdc-parts-eta-detail small.pdc-parts-eta-source{display:block;color:#475569;padding-left:8px;white-space:normal;overflow-wrap:anywhere}';
   document.head.appendChild(style);
   load();
   setInterval(load, 5 * 60 * 1000);

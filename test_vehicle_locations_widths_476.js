@@ -15,7 +15,7 @@ test('tight fixed defaults for the columns whose content never grows; only Custo
   for (const k of FLEX) assert.ok(C[k].flex > 0, `${k} flexes`);
   assert.equal(C.work.width, 9 * 27 + 8 * 3 + 9, 'stations: 9 x 27 px cells, 8 x 3 px gaps and the cell padding');
   assert.equal(C.work.min, C.work.width, 'the station strip is never squeezed');
-  assert.equal(table.VERSION, '2026.10.22.r476');
+  assert.equal(table.VERSION, '2026.10.22.r475'); // r475 (F88) bumped the module again for the Parts ETA column
 });
 
 test('spare width goes only to the flex columns; fixed columns keep their px at any screen width', () => {

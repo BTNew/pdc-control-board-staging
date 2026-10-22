@@ -8,7 +8,7 @@ const table = require('./pdc-vehicle-locations-table.js');
 const { createFixture } = require('./qa/dashboard-render-fixture.cjs');
 const { syntheticVehicles, syntheticPlans, BUCKETS } = require('./qa/vehicle-locations-table-461-fixture.cjs');
 
-const VERSION = '2026.10.22.r476'; // r462 (F75) / r463 (F76) / r476 (F89) bumped the module version; the r461 cache-bust tag stays
+const VERSION = '2026.10.22.r475'; // r462 (F75) / r463 (F76) / r476 (F89) / r475 (F88) bumped the module version; the r461 cache-bust tag stays
 
 // Independent of the module's own parser: find each element that starts with `<tag class="...needle` and return its
 // exact outer HTML by counting that tag's nesting.
