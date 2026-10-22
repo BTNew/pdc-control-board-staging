@@ -9,7 +9,11 @@ const table = require('./pdc-vehicle-locations-table.js');
 const { createFixture } = require('./qa/dashboard-render-fixture.cjs');
 const { syntheticVehicles, syntheticPlans, BUCKETS } = require('./qa/vehicle-locations-table-461-fixture.cjs');
 
-const VERSION = '2026.10.22.r481'; // r462 (F75) / r463 (F76) / r476 (F89) / r475 (F88) / r481 (F94) bumped the module version; the r461 cache-bust tag stays
+const VERSION = '2026.10.22.r485'; // r462 (F75) / r463 (F76) / r476 (F89) / r475 (F88) / r481 (F94) / r485 (F98) bumped the module version; the r461 cache-bust tag stays
+// r485 (F98): the Drop-down view is hidden behind DROPDOWN_VIEW_ENABLED (false). The r461 drop-down checks below run the
+// module with that one flag set to true, which is exactly the undo-by-flag path (switch, drop-down default, saved choice).
+const loadWithDropdownFlag = fixture => fixture.evaluate(fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8')
+  .replace('const DROPDOWN_VIEW_ENABLED = false;', 'const DROPDOWN_VIEW_ENABLED = true;'));
 
 // Independent of the module's own parser: find each element that starts with `<tag class="...needle` and return its
 // exact outer HTML by counting that tag's nesting.
@@ -127,27 +131,37 @@ test('tiles and rows follow Craig\'s journey order; a bucket added later is neve
   assert.match(source, /tile\('', 'All vehicles'[\s\S]*order\.map[\s\S]*tile\(STOPPAGES, 'STOPPAGES', priorityRows\.length/, 'All first, STOPPAGES last, counted from the board\'s own stoppage list');
 });
 
-test('the choice is remembered per user on this device and defaults to the drop-down view', () => {
+// r485 (F98): was "the choice is remembered per user on this device and defaults to the drop-down view". The r461 rules
+// are unchanged behind the flag (checked with dropdownEnabled: true); with the flag off (live) everyone reads Table view.
+test('the choice is remembered per user on this device and defaults to the drop-down view (r461 rules, behind the r485 flag)', () => {
   const store = new Map();
   const storage = { getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)) };
-  assert.equal(table.readView(storage, 'user-a'), 'dropdown', 'nobody gets the table unless they switch');
-  assert.equal(table.writeView(storage, 'user-a', 'table'), true);
-  assert.equal(table.readView(storage, 'user-a'), 'table');
-  assert.equal(table.readView(storage, 'user-b'), 'dropdown', 'another person on the same device keeps their own view');
+  const on = { dropdownEnabled: true };
+  assert.equal(table.readView(storage, 'user-a', on), 'dropdown', 'nobody gets the table unless they switch');
+  assert.equal(table.writeView(storage, 'user-a', 'table', on), true);
+  assert.equal(table.readView(storage, 'user-a', on), 'table');
+  assert.equal(table.readView(storage, 'user-b', on), 'dropdown', 'another person on the same device keeps their own view');
   assert.equal(store.get('pdc.vehicle-locations-view.v1:user-a'), 'table');
-  table.writeView(storage, 'user-a', 'something-else');
-  assert.equal(table.readView(storage, 'user-a'), 'dropdown');
+  table.writeView(storage, 'user-a', 'something-else', on);
+  assert.equal(table.readView(storage, 'user-a', on), 'dropdown');
   const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
-  assert.equal(table.readView(broken, 'user-a'), 'dropdown', 'storage blocked: drop-down view');
-  assert.equal(table.writeView(broken, 'user-a', 'table'), false);
-  assert.equal(table.readView(null, ''), 'dropdown');
+  assert.equal(table.readView(broken, 'user-a', on), 'dropdown', 'storage blocked: drop-down view');
+  assert.equal(table.writeView(broken, 'user-a', 'table', on), false);
+  assert.equal(table.readView(null, '', on), 'dropdown');
+  // r485 live (flag off): Table view for everyone, whatever is stored; nothing is written.
+  assert.equal(table.DROPDOWN_VIEW_ENABLED, false);
+  assert.equal(table.readView(storage, 'user-a'), 'table');
+  assert.equal(table.readView(broken, 'user-a'), 'table');
+  assert.equal(table.readView(null, ''), 'table');
 });
 
-test('loading the module leaves the drop-down render untouched until someone switches', () => {
+// r485 (F98): with the flag off the module switches to Table view on load (test_vehicle_locations_table_only_485.js);
+// this r461 check now runs with the flag set to true, proving the hidden drop-down path is intact for an undo.
+test('loading the module leaves the drop-down render untouched until someone switches (r485 flag set to true)', () => {
   const { fixture, c } = board();
   c.renderIncomingDashboardBoard();
   const before = fixture.host.innerHTML;
-  fixture.loadHelper('pdc-vehicle-locations-table.js');
+  loadWithDropdownFlag(fixture);
   assert.equal(typeof c.PDC_VEHICLE_LOCATIONS_TABLE.setView, 'function', 'browser part installed');
   assert.equal(c.PDC_VEHICLE_LOCATIONS_TABLE.state.view, 'dropdown');
   fixture.host.innerHTML = '';

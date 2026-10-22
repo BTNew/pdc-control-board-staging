@@ -126,7 +126,8 @@ const approvedRootImportPatch = Object.freeze({
   // r481: r481=2026.10.22.r481 on the table module (search shows matches from every tile and other departments; F94).
   // r483: r483=2026.10.22.r483 on pdc-book-all-stations.js (F96).
   // r482: r482=2026.10.22.r482 on pdc-parts-eta.js and pdc-book-all-stations.js (parts ETA warning before booking; F95).
-  "canonical-entry.js": "718e76fc7b36a43922f92f8e53b8b74bd8e22464974b19d892956c0fa8c26cc9",
+  // r485: r485=2026.10.22.r485 on the table module (Table view only, Drop-down view hidden behind a flag) and vehicle-slideout=2026.10.22.r485 (stoppage box with Clear stoppage / Return to QC; F98).
+  "canonical-entry.js": "1c0c3deb17055179ae0888d33afc9c2d6bd60a50d3afa6438d2dbe1b96258cf5",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -230,7 +231,8 @@ const approvedRootImportPatch = Object.freeze({
   // r481: index.html r481=2026.10.22.r481 on canonical-entry.js (F94).
   // r483: index.html r483=2026.10.22.r483 on pdc-workshop-departments.js, control-board-overview.js, app.js, pdc-fitters.js and canonical-entry.js (F96).
   // r482: r482=2026.10.22.r482 on canonical-entry.js and pdc-emergency-priority.js (F95).
-  "index.html": "79589c24d868a6e51c3504ed77f2d433020865576fbc1aac1ea8361d68c177e1",
+  // r485: index.html r485=2026.10.22.r485 on canonical-entry.js (F98).
+  "index.html": "4638e11fbf861632dfc187d9b64a1cc7340b35263ffb73c982923a2b56e07649",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

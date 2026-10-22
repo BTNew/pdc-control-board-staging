@@ -1,5 +1,8 @@
 # Vehicle Locations — Table view (r461, F74)
 
+> **r485 (F98):** Table view is the only view. The "Drop-down view | Table
+> view" switch is gone; see the r485 section at the end.
+
 > **r462 (F75):** the side panel is now a slide-out panel with bookings and
 > bay drag, the Location column is now **Parts loc**, and columns can be
 > resized. See `docs/vehicle-slideout-panel.md`.
@@ -146,3 +149,49 @@ PMB showed "No vehicles match this tile and the search filters".
   tests. Display only: nothing is written or saved.
 * Undo: revert the r481 commit.
 
+## r485 (F98): Table view only (Craig, 22 Oct 2026)
+
+Craig: "Let's remove the dropdown view and only keep the table view for PMG.
+It's been good. It's working well."
+
+* The **View: Drop-down view | Table view** switch is not drawn. Everyone gets
+  Table view when Vehicle Locations opens.
+* A saved choice (`localStorage["pdc.vehicle-locations-view.v1:<user id>"]`) is
+  **ignored, not rewritten**: someone who had picked Drop-down view gets Table
+  view, and the stored value stays on the device so an undo brings it back.
+  Blocked storage also gives Table view. Nothing is written.
+* **Hidden, not deleted.** One flag in `pdc-vehicle-locations-table.js`:
+  `const DROPDOWN_VIEW_ENABLED = false;`. Setting it to `true` restores the r481
+  behaviour exactly (switch, drop-down default, saved choice). The drop-down
+  render branch, `switchHtml()`, `dropdownSearchElsewhere()` (the r481 note
+  "Drop-down view has no tile filter") and the r461 `readView()` / `writeView()`
+  rules are all still there.
+* `PDC_VEHICLE_LOCATIONS_TABLE.parity()` (read-only self-check) still draws the
+  drop-down board for a moment to compare station cells, then puts Table view
+  back. It never saves the view.
+* Unchanged in Table view: search across tiles and the other-department note
+  with its Switch button (r481), the Department box, tiles, column sort / resize,
+  the slide-out panel (row click, Enter on a focused row, Escape closes), Parts
+  ETA / Parts loc columns. Narrow screens: there was never a drop-down
+  fallback. Between 901 and 1180 px the table keeps its 860 px minimum and
+  scrolls sideways inside its own area (at 960 px: Age / ETA, Status and
+  Booking are off to the right). At 900 px and below the app shows the phone
+  QC page instead of Vehicle Locations, before and after r485.
+* **Clear stoppage moved to the slide-out panel** (Craig's go-live condition,
+  22 Oct: "first add Clear stoppage to the Table view so nothing is lost when
+  the drop-down is hidden"). Open a stopped vehicle (from any tile, including
+  STOPPAGES, whose rows open the panel like every other row): a **STOPPAGE**
+  box above the card lists each stoppage reason (the same label and detail as
+  the drop-down's STOPPAGES list) with that list's own button: **Clear
+  stoppage**, or **Return to QC** for a QC-rework vehicle that is ready for
+  re-inspection (pdc-qc-rework.js). Same code path: `bindFixFirstRows()` ->
+  `clearPriorityStoppage()` (note prompt, server-authority check, messages) ->
+  `clear_vehicle_stoppage_422`; Return to QC -> `markVehicleReadyForQualityControl()`.
+  No new SQL. The buttons show only for **operator** and **administrator**
+  (the roles `clear_vehicle_stoppage_422` accepts); other roles see the reasons
+  and "Only an operator or administrator can clear a stoppage." Details in
+  vehicle-slideout-panel.md.
+* **Only in the Drop-down view (not reachable now):** the highlight of
+  imported vehicles after a work-file import (`focusVehiclesAfterWorkImport()`
+  in app.js opens drop-down cards only).
+* Undo: set the flag to `true`, or revert the r485 commit (tree = main 1343900).

@@ -17,10 +17,20 @@
  * (for example its drop-downs) can stay painted over the panel's operation lines or a table row. Display only.
  * This file never calls an RPC or fetch itself and writes nothing to storage.
  * Undo: revert the r473 commit (r463's panel comes back).
+ *
+ * r485 (F98, Craig 22 Oct: approved hiding the Drop-down view on condition that Clear stoppage is not lost): a vehicle
+ * with an active stoppage shows a "STOPPAGE" box at the top of the panel: each reason row (the label and detail the
+ * drop-down's STOPPAGES / Fix First list shows) with that list's own action button, taken verbatim from app.js
+ * fixFirstRowsHtml() (as wrapped by pdc-qc-rework.js, so an eligible PMB stoppage shows "Return to QC" instead of
+ * "Clear stoppage"). The buttons are bound with app.js bindFixFirstRows(), so Clear stoppage runs the same
+ * clearPriorityStoppage() (same note prompt, same clear_vehicle_stoppage_422 call and messages); Return to QC is
+ * handled by pdc-qc-rework.js's own document listener (markVehicleReadyForQualityControl). The action buttons are
+ * shown only to the roles the server lets clear a stoppage (operator, administrator: clear_vehicle_stoppage_422);
+ * everyone else sees the reasons only. This file still calls no RPC or fetch itself and writes nothing to storage.
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.22.r473';
+  const VERSION = '2026.10.22.r485'; // r485 (F98): stoppage box with Clear stoppage / Return to QC
   const api = { VERSION };
   if (typeof module === 'object' && module.exports) module.exports = api;
   const VLT = root?.PDC_VEHICLE_LOCATIONS_TABLE;
@@ -34,6 +44,31 @@
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const state = { key: '', bucket: '' };
   const vehicleFor = key => root.vehicleLocationsScreenRows().find(row => root.vehicleKey(row) === key);
+
+  // ---- r485 (F98): the drop-down's STOPPAGES / Fix First rows for this vehicle, with their own action buttons ----
+  // Same roles as the server check in clear_vehicle_stoppage_422 (pdc_user_roles operator / administrator).
+  const STOPPAGE_ACTION_ROLES = Object.freeze(['operator', 'administrator']);
+  const canActOnStoppage = () => STOPPAGE_ACTION_ROLES.includes(String(root.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase());
+  function stoppageRowsFor(key) {
+    if (typeof root.workflowPriorityRows !== 'function' || typeof root.fixFirstRowsHtml !== 'function') return [];
+    try { return root.workflowPriorityRows().filter(row => row?.vehicle && root.vehicleKey(row.vehicle) === key); } catch (_) { return []; }
+  }
+  // The action buttons are taken verbatim from fixFirstRowsHtml(); they are flat <button>…</button> tags (app.js and
+  // pdc-qc-rework.js), one row wrap per row, in row order, so a string split keeps this pure and testable.
+  const ACTION_BUTTON = /<button\b[^>]*\bclass="[^"]*\bfix-first-clear\b[^"]*"[^>]*>[^<]*<\/button>/g;
+  function stoppageHtml(key) {
+    const rows = stoppageRowsFor(key);
+    if (!rows.length) return '';
+    const wraps = String(root.fixFirstRowsHtml(rows) || '').split('<div class="fix-first-row-wrap">').slice(1);
+    const act = canActOnStoppage();
+    const items = rows.map((row, index) => {
+      const severity = /^(danger|warning|info)$/.test(row.severity) ? row.severity : 'warning';
+      const actions = act ? ((wraps[index] || '').match(ACTION_BUTTON) || []).join('') : '';
+      return `<li class="vso-stoppage-row fix-first-${severity}"><div><strong>${esc(row.label || 'Action needed')}</strong>${row.detail ? `<span>${esc(row.detail)}</span>` : ''}</div>${actions ? `<div class="vso-stoppage-actions">${actions}</div>` : ''}</li>`;
+    });
+    const note = act ? '' : '<p class="vso-stoppage-note">Only an operator or administrator can clear a stoppage.</p>';
+    return `<section class="vso-stoppages" aria-label="Stoppage"><h4>STOPPAGE</h4><ul>${items.join('')}</ul>${note}</section>`;
+  }
 
   function loadStyles() {
     if (doc.querySelector('link[data-pdc-vehicle-slideout]')) return;
@@ -82,10 +117,13 @@
           <div class="vso-open-row"></div></div>
         <div class="vso-head-actions"><button type="button" class="vso-close" data-vso-close aria-label="Close">✕</button></div>
       </header>
-      <div class="vso-body">${cardHtml}</div>`;
+      ${stoppageHtml(key)}<div class="vso-body">${cardHtml}</div>`;
     const card = panel.querySelector('details.vso-card');
     card.querySelector('summary')?.addEventListener('click', event => { if (!event.target.closest('button, a, input, select, label')) event.preventDefault(); });
     VLT.bindBoardHandlers(panel); // r461's export: the same listeners the board binds today
+    // r485: Clear stoppage -> app.js clearPriorityStoppage() via bindFixFirstRows(), exactly as on the drop-down list.
+    const stoppages = panel.querySelector('.vso-stoppages');
+    if (stoppages && typeof root.bindFixFirstRows === 'function') root.bindFixFirstRows(stoppages);
     // r473: the card's own stock button tells the Open Vehicle button which vehicle to open; then every stock number in
     // the panel becomes plain text and the summary row (station strip, PMB status / stream, Book all stations) goes.
     const openStock = card.querySelector('[data-open-stock]')?.dataset.openStock || '';

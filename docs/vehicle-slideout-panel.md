@@ -31,6 +31,39 @@ Staging only. Frontend only — no database change. Builds on the r461 Table vie
 (a test renders the drop-down board with and without the new modules and
 requires byte-identical HTML).
 
+> **r485 (F98):** Table view is now the only view (the Drop-down view is hidden
+> behind `DROPDOWN_VIEW_ENABLED` in `pdc-vehicle-locations-table.js`). The
+> byte-identical drop-down test now runs with that flag set to true.
+
+## r485 (F98): stoppage box (Clear stoppage / Return to QC)
+
+Craig approved hiding the Drop-down view on one condition: "first add Clear
+stoppage to the Table view so nothing is lost when the drop-down is hidden".
+
+* When the open vehicle has an active stoppage (any row app.js
+  `workflowPriorityRows()` gives for it: Workshop booking, Parts or PMB), a
+  **STOPPAGE** box sits under the header, above the card (outside `.vso-body`,
+  so `parity()` and the card are unchanged). Each row shows the reason exactly
+  as the drop-down STOPPAGES list does.
+* The action button is the list's own markup, taken from
+  `fixFirstRowsHtml()` (as wrapped by pdc-qc-rework.js), and bound with app.js
+  `bindFixFirstRows()`: **Clear stoppage** runs the same
+  `clearPriorityStoppage()` (server-authority check, note prompt, the same
+  messages, refresh + render) and the same RPC `clear_vehicle_stoppage_422`
+  with the same arguments. **Return to QC** (QC-rework vehicle ready for
+  re-inspection) is handled by pdc-qc-rework.js's own document listener. The
+  panel file still has no fetch / RPC of its own. No new SQL.
+* Shown only to **operator** and **administrator**, the roles the server
+  accepts (`r.role IN('operator','administrator')` in
+  `20260826193000_422_targeted_stoppage_paths.sql`). Other roles see the
+  reasons and a note, no button. (The drop-down list showed the button to all
+  roles and the server refused the others.) The same gate applies to Return to
+  QC.
+* Rows in the STOPPAGES tile open the panel like any other row.
+* Version 2026.10.22.r485; cache-bust `vehicle-slideout=2026.10.22.r485`
+  (canonical-entry.js), which also reloads the CSS. Tests:
+  `test_vehicle_locations_table_only_485.js` 9-13.
+
 ## Slide-out panel
 
 * Click a row (or Enter) in the Table view: a panel slides in from the right
