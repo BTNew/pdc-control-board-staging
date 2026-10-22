@@ -126,3 +126,19 @@ snapshot (22 Oct 2026): 400 vehicles, 3,573 station cells, 3,573 panel cells,
 
 Revert the r462 commit: the r461 Table view and side panel come back. Saved
 column widths are ignored by r461 and can stay.
+
+## r473 (F86): panel top, Open Vehicle (Craig, 22 Oct 2026)
+
+* The open panel no longer shows the card's summary row: no station-icon strip
+  and no PMB status / PMB stream / Book all stations box. The table row still
+  shows the stations, status and its buttons, and the Drop-down view is
+  unchanged. The parity copy (`parityStrip`) still draws the full card, so
+  `PDC_VEHICLE_LOCATIONS_TABLE.parity()` keeps comparing every strip.
+* An **Open Vehicle** button under the stock / key / JC line opens the vehicle
+  card (the same `openVehicleCardFromVisibleBoard` call the stock number made).
+  Stock numbers in the panel are plain text.
+* When the vehicle card closes, the table and the open panel are drawn again
+  from the data, and a control another script adds to an operation line gets
+  its own row instead of sitting over the description (Craig saw "Unassigned"
+  drop-downs over Hoist line 21 and Electrical line 5 after closing the card).
+* Display only: no data, RPC or storage changes. Undo: revert the r473 commit.

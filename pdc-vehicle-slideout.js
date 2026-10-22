@@ -9,12 +9,17 @@
  * r463 (F76, Craig 22 Oct 09:03): the r462 "Jobs & bookings" list and drag-to-bay are withdrawn. The panel has no
  * drag handles and no bay targets, loads no planner data and never calls moveWorkshopDroppedPlan. Bay moves stay in
  * the Workshop Planner.
+ * r473 (F86, Craig 22 Oct 10:2x): the top of the panel loses the station-icon strip and the PMB status / PMB stream /
+ * Book all stations box (the card's summary row; the table row keeps all of them). An "Open Vehicle" button under the
+ * stock / key / JC line opens the vehicle card (what clicking the stock number did); the stock number is plain text.
+ * When the vehicle card closes, the open panel and the table are drawn again from the data, so nothing the card drew
+ * (for example its drop-downs) can stay painted over the panel's operation lines or a table row. Display only.
  * This file never calls an RPC or fetch itself and writes nothing to storage.
- * Undo: revert the r463 commit.
+ * Undo: revert the r473 commit (r463's panel comes back).
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.22.r463';
+  const VERSION = '2026.10.22.r473';
   const api = { VERSION };
   if (typeof module === 'object' && module.exports) module.exports = api;
   const VLT = root?.PDC_VEHICLE_LOCATIONS_TABLE;
@@ -72,19 +77,31 @@
     panel.innerHTML = `<header class="vso-head">
         <div class="vso-id"><span class="vlt-pill ${esc(tile[2])}">${esc(tile[3])}</span>
           <h3>${esc(root.displayStockNumber(vehicle) || key)}</h3><p>${esc(root.displayVehicle(vehicle) || '')}</p>
-          <div class="vso-facts"><span><b>Key</b> ${esc(keyNo)}</span><span><b>JC</b> ${esc(jobs)}</span><span><b>Dept</b> ${depts}</span></div></div>
-        <div class="vso-head-actions"><span class="vso-open-slot"></span><button type="button" class="vso-close" data-vso-close aria-label="Close">✕</button></div>
+          <div class="vso-facts"><span><b>Key</b> ${esc(keyNo)}</span><span><b>JC</b> ${esc(jobs)}</span><span><b>Dept</b> ${depts}</span></div>
+          <div class="vso-open-row"></div></div>
+        <div class="vso-head-actions"><button type="button" class="vso-close" data-vso-close aria-label="Close">✕</button></div>
       </header>
       <div class="vso-body">${cardHtml}</div>`;
     const card = panel.querySelector('details.vso-card');
     card.querySelector('summary')?.addEventListener('click', event => { if (!event.target.closest('button, a, input, select, label')) event.preventDefault(); });
     VLT.bindBoardHandlers(panel); // r461's export: the same listeners the board binds today
-    const openButton = card.querySelector('[data-open-stock]');
-    if (openButton) {
-      const copy = openButton.cloneNode(true);
-      copy.addEventListener('click', event => { event.stopPropagation(); root.openVehicleCardFromVisibleBoard(copy.dataset.openStock, copy); });
-      panel.querySelector('.vso-open-slot').appendChild(copy);
+    // r473: the card's own stock button tells the Open Vehicle button which vehicle to open; then every stock number in
+    // the panel becomes plain text and the summary row (station strip, PMB status / stream, Book all stations) goes.
+    const openStock = card.querySelector('[data-open-stock]')?.dataset.openStock || '';
+    if (openStock) {
+      const button = doc.createElement('button');
+      button.type = 'button'; button.className = 'vso-open-vehicle'; button.dataset.vsoOpenVehicle = '';
+      button.textContent = 'Open Vehicle'; button.title = 'Open this vehicle';
+      button.addEventListener('click', event => { event.stopPropagation(); root.openVehicleCardFromVisibleBoard(openStock, button); });
+      panel.querySelector('.vso-open-row').appendChild(button);
     }
+    panel.querySelectorAll('.vso-body [data-open-stock]').forEach(stockButton => {
+      const plain = doc.createElement('span');
+      plain.className = 'vso-stock-text'; plain.textContent = stockButton.textContent;
+      stockButton.replaceWith(plain);
+    });
+    const summary = card.querySelector(':scope > summary');
+    if (summary) { summary.replaceChildren(); summary.hidden = true; summary.classList.add('vso-summary-removed'); }
     if (keepScroll) {
       const again = [...panel.querySelectorAll('.vso-body details details')];
       nested.forEach((open, index) => { if (again[index]) again[index].open = open; });
@@ -155,7 +172,23 @@
   }
   function parityDone() { const host = doc.querySelector('#vso-shell .vso-parity'); if (host) host.innerHTML = ''; }
 
+  // r473: when the vehicle card (#vehicle-modal) closes, draw the open panel and the table again from the data.
+  function watchVehicleCard() {
+    const modal = doc.getElementById('vehicle-modal');
+    if (!modal || typeof root.MutationObserver !== 'function') return;
+    let wasOpen = modal.hidden === false;
+    new root.MutationObserver(() => {
+      const isOpen = modal.hidden === false;
+      if (wasOpen && !isOpen) {
+        try { if (VLT.state?.view === 'table' && typeof VLT.render === 'function') VLT.render(); } catch (_) { /* next render */ }
+        if (state.key) refresh(state.key, state.bucket);
+      }
+      wasOpen = isOpen;
+    }).observe(modal, { attributes: true, attributeFilter: ['hidden'] });
+  }
+
   loadStyles();
+  watchVehicleCard();
   VLT.setDrawerOpener({ open, refresh, close, parityStrip, parityDone });
   root.PDC_VEHICLE_SLIDEOUT = Object.freeze({ ...api, open, close, refresh, parityStrip, state });
 }(typeof window !== 'undefined' ? window : globalThis));

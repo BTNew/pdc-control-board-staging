@@ -100,10 +100,11 @@
     };
     // r462 (F75): Table view only: clicking a vehicle opens the slide-out panel. r463 (F76): the panel shows the card
     // (stations, details, operations); its drag-to-bay is withdrawn. Loads after the table module, which it registers with.
+    // r473 (F86): the panel drops its summary row (station strip, PMB status, Book all stations) and gets an Open Vehicle button.
     const loadVehicleSlideout = () => {
       if (document.querySelector('script[data-pdc-vehicle-slideout]')) return;
       const slideout = document.createElement('script');
-      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r463';
+      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r473';
       slideout.dataset.pdcVehicleSlideout = '1';
       document.head.appendChild(slideout);
     };
