@@ -140,7 +140,8 @@ const approvedRootImportPatch = Object.freeze({
   // r437: the vehicle card opens for Toyota head office account vehicles (001234 / 002345) under the board's own dealer scope (F48); index.html adds r437=2026.10.21.01.
   "app.js": "0feed7e96704a3d98cc3d3b41636a767aea447a58aefbc8f102f7ba73f67c089",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
-  "control-board-overview.js": "136f335835f3252870c539ef86f136ad1c6526ef35f33fa4320cec918f0444ab",
+  // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
+  "control-board-overview.js": "930cdcdf81e9223b21d5627ffb738c6cff27334dd8c490459bf58fc4b48817c9",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
   // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02,
@@ -190,7 +191,8 @@ const approvedRootImportPatch = Object.freeze({
   // r462: index.html r462=2026.10.22.r462 on canonical-entry.js (F75).
   // r463: index.html r463=2026.10.22.r463 on canonical-entry.js (F76).
   // r464: index.html r464=2026.10.22.r464 on control-board-overview.js (F77).
-  "index.html": "1b77d857b58bc259a84d6b016ceead95d74dd000c0a5975415fa917040962725",
+  // r465: index.html loads pdc-running-row.css?running-row=2026.10.22.r465 after pdc-conversion-ticks.css and adds running-row=2026.10.22.r465 on control-board-overview.js (F78).
+  "index.html": "a2e4256a4dd9c89b5f608a234079f61ba81474f1113b74815f0537077ca3d9cd",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

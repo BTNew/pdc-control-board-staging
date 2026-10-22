@@ -148,6 +148,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-sublet-intake.js', 'pdc-supabase-config.staging.js', 'pdc-update-history.css',
   'pdc-update-history.js', 'pdc-vehicle-handover.js', 'pdc-workshop-hours.js',
   'pdc-workshop-tile-cleanup.js', 'pdc-workshop-usability.js',
+  'pdc-running-row.css',
   'pd-department-navigation.js',
   'pdc-auto-reload.js',
   'sales/assets/broome-toyota-logo.png', 'sales/build-requirements.css',

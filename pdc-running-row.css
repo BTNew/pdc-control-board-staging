@@ -1,0 +1,34 @@
+/* r465 (F78): the fitter "Running" row (badge, Now text, running-too-long
+   warning and the planner's Reset button) gets its own strip on workshop
+   planner tiles and control board overview bars. Before this it sat in the
+   normal flow after the tile's absolutely positioned buttons and progress
+   bar, so it was drawn behind them (planner) or pushed the Key / JC label
+   out of the 40px bar (overview). Presentation only: colours, stripes,
+   progress and click behaviour are unchanged. The full text stays in the
+   row's hover title. */
+
+/* Workshop planner tile: identity lines, then the Running strip, then the
+   STOPPAGE / Complete buttons, then the progress bar. */
+.workshop-plan-chip:has(>.fitter-running) { height:114px; }
+.workshop-plan-chip.planner-identity-chip:has(>.fitter-running) { height:142px; }
+.workshop-bay-row:has(.workshop-plan-chip>.fitter-running),
+.workshop-bay-lane:has(>.workshop-plan-chip>.fitter-running) { min-height:126px; }
+.workshop-bay-row:has(.workshop-plan-chip.planner-identity-chip>.fitter-running),
+.workshop-bay-lane:has(>.workshop-plan-chip.planner-identity-chip>.fitter-running) { min-height:154px; }
+.workshop-plan-chip:has(>.fitter-running) > .workshop-plan-main { height:calc(100% - 56px); }
+.workshop-plan-chip > .fitter-running { position:absolute; z-index:13; left:3px; right:12px; bottom:38px; height:16px; margin:0; display:flex; flex-wrap:nowrap; align-items:center; gap:4px; overflow:hidden; white-space:nowrap; font-size:.6rem; line-height:16px; }
+.workshop-plan-chip > .fitter-running > * { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:inherit; line-height:14px; }
+.workshop-plan-chip > .fitter-running > b { flex:0 0 auto; }
+.workshop-plan-chip > .fitter-running > .fitter-item-reset { flex:0 1 auto; max-width:45%; padding:0 4px; font-size:.55rem; }
+
+/* Control board overview bar (40px): label line (Key · JC, then customer),
+   Running line, then the 5px progress strip. Planned bars keep their
+   two lines, top-aligned so the second line stays above the strip. */
+#workflow .control-board-timeline-job:has(>.fitter-progress) { justify-content:flex-start; padding-top:3px; }
+#workflow .control-board-timeline-job:has(>.fitter-running) { display:grid; grid-template-columns:minmax(0,max-content) minmax(0,1fr); grid-template-rows:13px 13px; row-gap:1px; column-gap:0; align-content:start; padding-top:2px; padding-bottom:8px; }
+#workflow .control-board-timeline-job:has(>.fitter-running) > strong { grid-column:1; grid-row:1; line-height:13px; }
+#workflow .control-board-timeline-job:has(>.fitter-running) > .control-board-timeline-customer { grid-column:2; grid-row:1; line-height:13px; }
+#workflow .control-board-timeline-job:has(>.fitter-running) > .control-board-timeline-customer::before { content:' · '; white-space:pre; }
+#workflow .control-board-timeline-job > .fitter-running { grid-column:1 / -1; grid-row:2; display:flex; flex-wrap:nowrap; align-items:center; gap:4px; margin:0; overflow:hidden; white-space:nowrap; font-size:9px; line-height:13px; }
+#workflow .control-board-timeline-job > .fitter-running > * { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#workflow .control-board-timeline-job > .fitter-running > b { flex:0 0 auto; }

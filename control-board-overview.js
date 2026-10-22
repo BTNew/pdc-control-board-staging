@@ -320,8 +320,8 @@
     const joinedParts = segment.joined ? ` data-control-board-parts="${segment.parts.map(part => `${part.date}@${Math.round((part.left - segment.left) * 10) / 10}-${Math.round((part.left + part.width - segment.left) * 10) / 10}`).join(' ')}"` : '';
     const tag = item.kind === 'admin' ? 'div' : 'button';
     return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${segment.width < 130 ? ' is-short' : ''}${segment.joined ? ' is-joined' : ''}" style="left:${segment.left}px;width:${segment.width}px;top:${segment.lane * 48 + 5}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}"${joinedParts} title="${escape(`${state} · ${title}\n${timingLabel}`)}" aria-label="${escape(`${state} · ${title} · ${timingLabel}`.replace(/\n/g, ' · '))}">
-      <strong>${item.kind === 'admin' ? escape(title) : `Key ${escape(person.key)} · JC ${escape(person.job)} · Stock ${escape(person.stock)}`}</strong>
-      ${item.kind === 'admin' ? '' : `<span>${escape(person.customer)} · ${escape(person.description)}</span>`}
+      <strong>${item.kind === 'admin' ? escape(title) : `Key ${escape(person.key)} · JC ${escape(person.job)}`}</strong>
+      ${item.kind === 'admin' ? '' : `<span class="control-board-timeline-customer">${escape(person.customer)}</span>`}
       ${item.kind === 'admin' ? '' : (typeof window !== 'undefined' ? window.PdcFitters?.progressHtml(item.source.fitter_progress, true) || '' : '')}
     </${tag}>`;
   }
