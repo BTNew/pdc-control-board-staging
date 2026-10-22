@@ -40,3 +40,14 @@
    "Paused" in amber. Display only. */
 .workshop-plan-chip.is-started.is-paused { border-color:#d97706; border-left-color:#b45309; background:#fef3c7; animation:none; }
 .workshop-plan-chip .planner-work-state.is-paused { color:#92400e; }
+
+/* r493b (F106b): a paused tile that is also running over its time (is-overtime)
+   kept the overtime white text on the amber tile, so it could not be read.
+   Paused tiles always use dark text (the amber 'Paused' label stays #92400e,
+   the ETA-risk warning stays red #b91c1c),
+   no red overtime flash, and no reduced-motion red background (the first rule
+   below out-ranks workshop-planner.css's reduced-motion .is-overtime rule). */
+.workshop-plan-chip.is-started.is-paused.is-overtime { border-color:#d97706; border-left-color:#b45309; background:#fef3c7; animation:none; }
+.workshop-plan-chip.is-paused, .workshop-plan-chip.is-paused.is-overtime, .workshop-plan-chip.is-paused.is-overtime > button, .workshop-plan-chip.is-paused.is-overtime small { color:#0f172a !important; }
+.workshop-plan-chip.is-paused .planner-work-state.is-paused { color:#92400e !important; }
+.workshop-plan-chip.is-paused.is-overtime small.workshop-eta-risk-label { color:#b91c1c !important; }

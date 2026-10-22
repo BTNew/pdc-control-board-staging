@@ -245,7 +245,8 @@ const approvedRootImportPatch = Object.freeze({
   // r489: index.html moves r489=2026.10.23.r489 on app.js next to r483, adds r489 on pdc-staff-usage.js (F102).
   // r490: index.html r490=2026.10.23.r490 on canonical-entry.js and app.js (F103).
   // r493: r493=2026.10.22.r493 on pdc-fitters.js, pdc-conversion-ticks.css, pdc-running-row.css, control-board-overview.js and canonical-entry.js (F106).
-  "index.html": "069983349b2cd5a49787ff820c9fe7da48af39265b24e78bf3b5f5c6b65a405b",
+  // r493b: r493b=2026.10.22.r493b on pdc-running-row.css (F106b).
+  "index.html": "346ba7549ab5f6f196b892bf66aff2b521e47e68681a81297e80a0b042e85f7d",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
