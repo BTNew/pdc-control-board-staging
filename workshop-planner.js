@@ -3209,7 +3209,7 @@ function workshopSlotSummary(stage = '', bay = 1, dateKey = '', startMinutes = 0
   const normalizedStage = normalizePmbStage(stage);
   const start = workshopDateAtOffset(dateKey, startMinutes);
   const when = start.toLocaleString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit', hour: 'numeric', minute: '2-digit' });
-  const area = `${pmbStageLabel(normalizedStage)} · Bay ${workshopPad(bay)}`;
+  const area = `${pmbStageLabel(normalizedStage)} · ${workshopBayText(normalizedStage, bay, true)}`;
   return `${area} · ${when}`;
 }
 
@@ -3751,7 +3751,7 @@ function workshopBookingSearchMeta(entry = {}) {
   const endDate = end?.toLocaleDateString('en-AU', dateOptions);
   return {
     station: pmbStageLabel(entry.stage) || entry.stage || 'Unknown work group',
-    bay: `Bay ${entry.bay || '—'}`,
+    bay: entry.bay ? workshopBayText(entry.stage, entry.bay) : 'Bay —',
     date: !start ? 'Unknown date' : endDate && endDate !== startDate ? `${startDate} → ${endDate}` : startDate,
     time: !start || !end ? 'Unknown time' : `${start.toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit' })}–${end.toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit' })}`,
     status: workshopBookingSearchStatus(entry),
@@ -4523,7 +4523,7 @@ function workshopOtherDateCardHtml(entry = {}) {
   const date = parseIsoTimestamp(entry.startAt || '');
   return `<button class="workshop-other-date-card" type="button" data-workshop-open-plan="${escapeHtml(entry.id)}" data-workshop-open-date="${escapeHtml(workshopEntryDate(entry))}">
     <strong>${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
-    <span>${escapeHtml(date ? date.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit' }) : 'Date unknown')} · ${escapeHtml(`Bay ${entry.bay}`)}</span>
+    <span>${escapeHtml(date ? date.toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: '2-digit', month: '2-digit' }) : 'Date unknown')} · ${escapeHtml(workshopBayText(entry.stage, entry.bay))}</span>
   </button>`;
 }
 
@@ -4701,6 +4701,13 @@ function workshopVisibleBays(stage) {
 }
 function workshopBayChoiceLabel(stage,bay) {
   return workshopDepartmentLayout()?.bayLabel(stage,bay) || 'Bay '+workshopPad(bay);
+}
+// r483 (F96): a Dept 139 bay reads with Craig's name and number ('Fitting · Bay 06');
+// every other station (Bus 4x4, shared Tint / Tyre) keeps its plain 'Bay N' text.
+function workshopBayText(stage = '', bay = '', pad = false) {
+  const layout = typeof workshopDepartmentLayout === 'function' ? workshopDepartmentLayout() : null;
+  const named = layout?.pmbBayLabel?.(normalizePmbStage(stage), bay);
+  return named || `Bay ${pad ? workshopPad(bay) : bay}`;
 }
 function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
   const count = workshopStageBayCount(stage);
@@ -5129,7 +5136,7 @@ function workshopDetailHtml(entry = null, options = {}) {
   const parts = workshopPartsSummary(vehicle);
   const stageLines = workshopStageJobLines(vehicle, entry.stage);
   const progress = workshopProgressSummary(entry);
-  const stationLabel = `${pmbStageLabel(entry.stage)} Bay ${entry.bay}`;
+  const stationLabel = `${pmbStageLabel(entry.stage)} ${workshopBayText(entry.stage, entry.bay)}`;
   const stageAssignee = cleanNavisionText(entry.assignee || '') || workshopBayMechanic(entry.stage, entry.bay) || pmbBayMechanic(vehicle) || '';
   const statusTone = completed ? 'success' : stopped ? 'warning' : started ? 'info' : 'neutral';
   const statusLabel = completed ? 'Completed' : stopped ? 'STOPPAGE' : started ? 'Live' : 'Planned';
@@ -5484,7 +5491,7 @@ function openWorkshopAdminBlockModal() {
   }
   const stage = workshopState().stage;
   const dateKey = workshopState().date;
-  const bayOptions = Array.from({ length: workshopStageBayCount(stage) }, (_, index) => `<option value="${index + 1}">Bay ${workshopPad(index + 1)}</option>`).join('');
+  const bayOptions = Array.from({ length: workshopStageBayCount(stage) }, (_, index) => `<option value="${index + 1}">${escapeHtml(workshopBayText(stage, index + 1, true))}</option>`).join('');
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay workshop-admin-block-overlay';
   overlay.setAttribute('role', 'dialog'); overlay.setAttribute('aria-modal', 'true');
@@ -7154,7 +7161,7 @@ function workshopConfirmOtherDepartmentPlans(candidate = {}, rows = []) {
   const details = overlapping.slice(0, 8).map(row => {
     const when = parseIsoTimestamp(row.startAt);
     const whenLabel = when ? when.toLocaleString('en-AU', { timeZone: 'Australia/Perth', dateStyle: 'short', timeStyle: 'short' }) : 'time not set';
-    const place = `Bay ${workshopPad(row.bay)}`;
+    const place = workshopBayText(row.stage, row.bay, true);
     return `• ${pmbStageLabel(row.stage)} · ${place} · ${whenLabel}`;
   }).join('\n');
   workshopNotify(`This vehicle already has an active booking in the requested time window:\n\n${details}\n\nChoose a back-to-back or non-overlapping time. No booking was changed.`);
@@ -8252,7 +8259,7 @@ async function openWorkshopWeeklyView(stage = '', bay = 1, anchorDate = '') {
   overlay.setAttribute('aria-modal', 'true');
   overlay.innerHTML = `<section class="modal-card workshop-week-card-shell">
     <button class="modal-close" type="button" data-workshop-week-close aria-label="Close weekly view">×</button>
-    <header class="workshop-week-header"><div><h2>${escapeHtml(pmbStageLabel(normalizedStage))} · Bay ${escapeHtml(bay)} weekly schedule</h2><p>${escapeHtml(dates[0].toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', day: 'numeric', month: 'long' }))}–${escapeHtml(dates[dates.length - 1].toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', day: 'numeric', month: 'long', year: 'numeric' }))} · drag a minimised booking to another day or time</p></div><div><button class="small-button" type="button" data-workshop-week-shift="-7">‹ Previous week</button><button class="small-button" type="button" data-workshop-week-shift="7">Next week ›</button></div></header>
+    <header class="workshop-week-header"><div><h2>${escapeHtml(pmbStageLabel(normalizedStage))} · ${escapeHtml(workshopBayText(normalizedStage, bay))} weekly schedule</h2><p>${escapeHtml(dates[0].toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', day: 'numeric', month: 'long' }))}–${escapeHtml(dates[dates.length - 1].toLocaleDateString('en-AU', { timeZone: 'Australia/Perth', day: 'numeric', month: 'long', year: 'numeric' }))} · drag a minimised booking to another day or time</p></div><div><button class="small-button" type="button" data-workshop-week-shift="-7">‹ Previous week</button><button class="small-button" type="button" data-workshop-week-shift="7">Next week ›</button></div></header>
     <div class="workshop-week-grid" style="--workshop-week-columns:${dates.length};min-width:${Math.max(620, dates.length * 200)}px">${columns}</div>
     <footer><span>Planned jobs snap to ${escapeHtml(WORKSHOP_PLANNER_CONFIG.schedulingIncrementMinutes)} minutes and update the daily board immediately. Closures are read-only; historical bookings remain visible. Started and STOPPAGE jobs can also be moved safely, with audit and bay-state updates. Completed jobs stay fixed.</span><button class="primary" type="button" data-workshop-week-close>Done</button></footer>
   </section>`;

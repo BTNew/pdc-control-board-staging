@@ -12,7 +12,7 @@ function extract(name) {
   const next = /\n(?:async )?function \w+\(/.exec(tail);
   return next ? tail.slice(0, next.index) : tail;
 }
-const names = ['workshopMapSnapshotBookingToLegacyRow', 'workshopSortBookingsClosest', 'workshopPlanVehicleIdentity', 'workshopResolveBookingSelection', 'workshopSearchMatches', 'workshopCurrentSearchLookup', 'workshopMapSearchBookings', 'workshopLookupSearchVehicle', 'workshopLoadSearchBookings', 'workshopBookingSearchStatus', 'workshopBookingSearchMeta', 'workshopSearchResultsHtml', 'workshopSelectSearchBooking', 'workshopSelectUnbookedSearchVehicle', 'workshopRefreshDedicatedDate'];
+const names = ['workshopBayText', 'workshopMapSnapshotBookingToLegacyRow', 'workshopSortBookingsClosest', 'workshopPlanVehicleIdentity', 'workshopResolveBookingSelection', 'workshopSearchMatches', 'workshopCurrentSearchLookup', 'workshopMapSearchBookings', 'workshopLookupSearchVehicle', 'workshopLoadSearchBookings', 'workshopBookingSearchStatus', 'workshopBookingSearchMeta', 'workshopSearchResultsHtml', 'workshopSelectSearchBooking', 'workshopSelectUnbookedSearchVehicle', 'workshopRefreshDedicatedDate'];
 const vehicleId = '11111111-1111-4111-8111-111111111111';
 const vehicle = { id: vehicleId, sharedVehicleId: vehicleId, vehicleKey: '88001038', stockNumber: '88001038', jobcard: 'TEST-JC-1038', customerName: 'Example Workshop Customer', model: 'Example Vehicle' };
 function row(id, stage, date, bay = 1, status = 'planned') {
