@@ -5,7 +5,14 @@
    lines show their description, PO and tick (or a muted "No PO"; lines without a GP PO cannot be ticked). Operation lines
    keep only a small read-only PO reference. One tick per line (the r439 tick record). The vehicle's Sublet box is orange
    while a GP PO exists and not all of those lines are ticked, green once they all are, and unchanged (neutral) when the
-   vehicle has no GP PO. Controllers, administrators and fitters tick (the server checks again); others read. */
+   vehicle has no GP PO. Controllers, administrators and fitters tick (the server checks again); others read.
+   r494 (F107, Craig 22 Oct 18:41): a whole line sublet (a line in the Sublet category) with no GP PO yet turns the board's
+   Sublet box orange with 'PO to raise' (and shows 'PO to raise' on the line); a GP PO that an import brings onto a line in
+   another category shows in the Sublet box as a sublet item with 'PO raised for this line' until it is ticked done or
+   the user presses 'Got it' (remembered for that user in this browser). The supplier is the sublet provider.
+   r494b (F107, Craig 22 Oct 18:55): the vehicle's Sublet box is uniform: every line ends in one same-size chip (the GP PO
+   number or 'PO to raise'), no 'Hours not stated', no 'Op line PO' caption, and no 'PO raised for this line' / 'Got it'
+   (the GP number on the right already shows it). One text size in the box. The Got it storage below stays but is unused. */
 (() => {
   'use strict';
   const VERSION = '2026.10.21.r444';
@@ -35,18 +42,52 @@
     return index.byStock.get(stockKey(vehicle.stock)) || null;
   }
   /** Box look for one vehicle: done = green ✓ (every GP PO line ticked); ordered = orange ! with n/m; no GP PO = null (box unchanged). */
-  function boxState(entry) {
-    if (!entry || !(Number(entry.total) > 0)) return null;
+  function boxState(entry, toRaise = 0) {
+    const raise = Number(toRaise) > 0 ? Math.floor(Number(toRaise)) : 0;
+    if ((!entry || !(Number(entry.total) > 0)) && !raise) return null;
+    if (raise) {
+      const poTotal = entry && Number(entry.total) > 0 ? Number(entry.total) : 0, poTicked = poTotal ? Number(entry.ticked) || 0 : 0;
+      const title = `Sublet: PO to raise: ${raise} whole line sublet${raise === 1 ? ' has' : 's have'} no GP PO yet`
+        + (poTotal ? `; ${poTicked} of ${poTotal} GP PO line${poTotal === 1 ? '' : 's'} ticked sublet done` : '');
+      return { cls: 'is-ordered', marker: '!', count: 'PO to raise', title, raise };
+    }
     const total = Number(entry.total) || 0, ticked = Number(entry.ticked) || 0, withPo = Number(entry.with_po) || 0;
     const count = `${ticked}/${total}`;
     if (entry.state === 'done') return { cls: 'is-complete', marker: '✓', count, title: `Sublet: all ${total} GP PO line${total === 1 ? '' : 's'} ticked sublet done` };
     if (entry.state === 'ordered') return { cls: 'is-ordered', marker: '!', count, title: `Sublet: ${withPo} line${withPo === 1 ? '' : 's'} with a GP PO, ${ticked} of ${total} ticked sublet done` };
     return null;
   }
+  /** r494: the vehicle's whole line sublets (lines the board shows in the Sublet category, still open). */
+  function subletJobs(vehicle) {
+    if (!vehicle || vehicle.pdcQcOperationLinesProjectionPresent !== true) return [];
+    return (Array.isArray(vehicle.pdcQcOperationLines) ? vehicle.pdcQcOperationLines : []).filter(l => l && l.active !== false
+      && l.completed !== true && l.rejected !== true && String(l.stageCode || l.stage_code || '').toUpperCase() === 'SUBLET');
+  }
+  /** r494: how many whole line sublets have no GP PO yet. No board entry = the vehicle has no GP PO at all. With an entry,
+   *  the vehicle's GP PO lines decide (known:false until they are loaded). */
+  function poToRaise(vehicle, entry, payload) {
+    const jobs = subletJobs(vehicle);
+    if (!jobs.length) return { count: 0, known: true };
+    if (!entry) return { count: jobs.length, known: true };
+    if (!payload || !Array.isArray(payload.lines)) return { count: 0, known: false };
+    const withPo = new Set(payload.lines.filter(l => l && l.has_po !== false).map(l => sourceId(l.line_identity)).filter(Boolean));
+    return { count: jobs.filter(l => !withPo.has(sourceId(l.lineIdentity || l.line_identity))).length, known: true };
+  }
+  /** r494: 'PO raised for this line' until the sublet item is ticked done or this user has pressed 'Got it'. */
+  const seenKey = (vehicleId, line, po) => [idKey(vehicleId), String(line?.line_key || ''), String(po || '')].join('|');
+  function isNewPo(line, vehicleId, seen) {
+    if (!line || line.ticked === true || !seen || typeof seen.has !== 'function') return false; // no seen list = no notes (tests, other callers)
+    const pos = poDetails(line).map(d => d.po);
+    return pos.length > 0 && pos.some(po => !seen.has(seenKey(vehicleId, line, po)));
+  }
+  function newPoHtml(line, vehicleId) {
+    return ` <span class="pdc-sublet-new-po" title="An import attached a GP PO to this line. It stays highlighted until the sublet is ticked done or you press Got it.">PO raised for this line</span>`
+      + `<button type="button" class="pdc-sublet-new-ack" data-pdc-sublet-ack="${esc(poDetails(line).map(d => seenKey(vehicleId, line, d.po)).join(' '))}" title="Hide this note (for you, in this browser)">Got it</button>`;
+  }
   const BOX = /<(span|button)([^>]*\bclass="incoming-work-check pdc-station-sublet\b[^"]*")([^>]*)>((?:\s*<span\b[^>]*>[^<]*<\/span>)*\s*)<\/\1>/;
   /** Recolour the Sublet station box in a strip. A Sublet already marked complete on the board stays green. Idempotent. */
-  function decorateStrip(html, entry) {
-    const s = boxState(entry);
+  function decorateStrip(html, entry, toRaise = 0) {
+    const s = boxState(entry, toRaise);
     if (!s || typeof html !== 'string' || !BOX.test(html)) return html;
     return html.replace(BOX, (all, tag, classAttr, rest, inner) => {
       if (classAttr.includes('pdc-sublet-po-box')) return all;
@@ -59,7 +100,10 @@
         next.push(s.cls);
       }
       let body = inner;
-      if (s.marker && !complete) body = body.replace(/(<span class="incoming-work-box"[^>]*>)[\s\S]*?(<\/span>)/, `$1${s.marker}$2`);
+      // r494 (F107): 'PO to raise' is written in the box itself (the box is otherwise a symbol only).
+      const marker = s.raise ? '<b class="pdc-sublet-po-raise">PO to raise</b>' : s.marker;
+      if (s.raise && !complete) next.push('is-po-to-raise');
+      if (marker && !complete) body = body.replace(/(<span class="incoming-work-box"[^>]*>)[\s\S]*?(<\/span>)/, `$1${marker}$2`);
       body = body.replace(/(<span class="incoming-work-label">[\s\S]*?)(<\/span>)/, `$1 <small class="pdc-sublet-po-count">${esc(s.count)}</small>$2`);
       const attrs = (classAttr.replace(/class="[^"]*"/, `class="${next.join(' ')}"`) + rest)
         .replace(/title="[^"]*"/, `title="${esc(s.title)}"`).replace(/aria-label="([^"]*)"/, (_, a) => `aria-label="${a}; ${esc(s.title)}"`);
@@ -117,7 +161,8 @@
     if (details.length === 1) return `<b class="pdc-sublet-desc">${details[0].description ? esc(details[0].description) : missing}</b>`;
     return details.map(d => `<b class="pdc-sublet-desc"><span class="pdc-sublet-desc-po">${esc(d.po)}</span> ${d.description ? esc(d.description) : missing}</b>`).join('');
   }
-  const NO_PO = ' <span class="pdc-sublet-po-nopo" title="No GP purchase order on this Sublet line, so there is nothing to tick yet">No PO</span>';
+  // r494 (F107): a whole line sublet without a GP PO says what to do: raise the PO (the box stays orange until it is ticked).
+  const NO_PO = ' <span class="pdc-sublet-po-nopo" title="No GP purchase order on this whole line sublet yet: raise the PO. The done tick appears once the GP PO import attaches it.">PO to raise</span>';
   const SECTION = /(<section class="authenticated-operation-station" data-operation-station="([^"]*)"[^>]*>)([\s\S]*?)(<\/section>)/g;
   const LI = /<li data-operation-source-id="([^"]*)"([^>]*)>([\s\S]*?)<\/li>/g;
   const LABEL = /^\s*<strong>([^<]*)<\/strong>/;
@@ -129,6 +174,9 @@
     const em = body.indexOf('</em>');
     return em >= 0 ? body.slice(0, em + 5) + extra + body.slice(em + 5) : body + extra;
   }
+  /** r494b: drop a line's 'Hours not stated' (or a NaN / Infinity hours) cell; only used inside the Sublet box. */
+  const NO_HOURS = /<em\b[^>]*>\s*(?:Hours not stated|-?NaN h|-?Infinity h)[\s\S]*?<\/em>/g;
+  const stripNoHours = body => String(body).replace(NO_HOURS, '');
   const lineNo = label => { const m = String(label).match(/([0-9]+)\s*$/); return m ? Number(m[1]) : 1e9; };
   /**
    * r444 (F57, Craig 21 Oct): the vehicle's Sublet box lists every sublet. Operation lines stay in their category boxes with
@@ -170,21 +218,26 @@
       if (!line) return li;
       used.add(line);
       linked.push({ line, op: unescape(((body.match(SPAN) || [])[2] || '').replace(/<[^>]*>/g, '')).trim(), category: unescape(((open.match(/data-operation-category="([^"]*)"/) || [])[1]) || '') });
-      return `<li data-operation-source-id="${sid}"${attrs}>${addToLine(body, refHtml(line))}</li>`;
+      const ref = isNewPo(line, vid, state.seen) ? refHtml(line).replace('class="pdc-sublet-po-ref ', 'class="pdc-sublet-po-ref is-new ') : refHtml(line);
+      return `<li data-operation-source-id="${sid}"${attrs}>${addToLine(body, ref)}</li>`;
     }) + close);
     // Sublet jobs raised as their own lines: description + PO + tick, or "No PO".
-    let subletFound = false;
+    // r494b (F107): no 'Hours not stated' in the Sublet box (Craig 22 Oct 18:55); stated hours stay.
+    let subletFound = false, noPo = 0;
     out = out.replace(SECTION, (all, open, station, inner, close) => {
       if (station.toUpperCase() !== 'SUBLET') return all;
       subletFound = true;
-      return open + inner.replace(LI, (li, sid, attrs, body) => {
+      return open + inner.replace(LI, (li, sid, attrs, rawBody) => {
+        const body = stripNoHours(rawBody);
+        if (body !== rawBody) li = `<li data-operation-source-id="${sid}"${attrs}>${body}</li>`;
         const line = find(sid, body);
         if (line) {
           used.add(line);
           const withDesc = body.replace(SPAN, (s, a, text, b) => `${a}${text}<small class="pdc-sublet-own-desc">${descriptionHtml(line)}</small>${b}`);
           return `<li data-operation-source-id="${sid}"${attrs} data-pdc-sublet-row="own">${addToLine(withDesc, inlineHtml(line, vid, canTick))}</li>`;
         }
-        return known ? `<li data-operation-source-id="${sid}"${attrs} data-pdc-sublet-row="own">${addToLine(body, NO_PO)}</li>` : li;
+        if (known) noPo += 1;
+        return known ? `<li data-operation-source-id="${sid}"${attrs} data-pdc-sublet-po-to-raise data-pdc-sublet-row="own">${addToLine(body, NO_PO)}</li>` : li;
       }) + close;
     });
     // PO lines not visible above (e.g. filtered) still get their Sublet box row.
@@ -196,9 +249,10 @@
       const label = lineLabel(line.operation_no) || `Line ${line.line_no ?? ''}`;
       const on = [op, catName(category)].filter(Boolean).join(' · ');
       return { n: lineNo(label), html: `<li class="pdc-sublet-linked" data-pdc-sublet-row="linked" data-line-key="${esc(line.line_key || '')}"><strong>${esc(label)}</strong>`
-        + `<span>${descriptionHtml(line)}<small class="pdc-sublet-on">On operation line: ${esc(on || label)}</small></span><em class="pdc-sublet-kind">Op line PO</em>${inlineHtml(line, vid, canTick)}</li>` };
+        + `<span>${descriptionHtml(line)}<small class="pdc-sublet-on">On operation line: ${esc(on || label)}</small>${isNewPo(line, vid, state.seen) ? newPoHtml(line, vid) : ''}</span><em class="pdc-sublet-kind">Op line PO</em>${inlineHtml(line, vid, canTick)}</li>` };
     });
-    const total = lines.length, ticked = lines.filter(l => l.ticked === true).length;
+    // r494: whole line sublets with no GP PO count as open ('PO to raise').
+    const total = lines.length + noPo, ticked = lines.filter(l => l.ticked === true).length;
     const boxState = total === 0 ? 'none' : ticked === total ? 'done' : 'ordered';
     const boxAttrs = ` data-pdc-sublet-box data-pdc-sublet-state="${boxState}" data-pdc-sublet-count="${ticked}/${total}"`;
     if (subletFound) {
@@ -217,7 +271,8 @@
     const last = out.lastIndexOf('</section>');
     return last >= 0 ? out.slice(0, last + 10) + section + out.slice(last + 10) : out;
   }
-  const api = { indexBoard, entryFor, boxState, decorateStrip, lineLabel, cleanDescription, poDetails, inlineHtml, refHtml, decorateOperations, VERSION };
+  const api = { indexBoard, entryFor, boxState, decorateStrip, lineLabel, cleanDescription, poDetails, inlineHtml, refHtml, decorateOperations,
+    subletJobs, poToRaise, seenKey, isNewPo, newPoHtml, stripNoHours, VERSION };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_SUBLET_PO_VERSION) return;
   window.PDC_SUBLET_PO_VERSION = VERSION;
@@ -254,20 +309,44 @@
     } catch (_) { /* keep the last good board; the next poll retries */ }
     finally { loading = false; }
   }
-  async function fetchLines(vid) {
+  async function fetchLines(vid, redraw) {
     if (!vid || inflight.has(vid)) return;
     inflight.add(vid);
     try {
       const { data } = await rpc('get_pdc_sublet_lines_439', { p_vehicle_id: vid });
       cache.set(vid, { payload: data, stale: false });
       refreshSummaries();
+      if (redraw) rerender(); // r494: the board strip's 'PO to raise' needs this vehicle's GP PO lines
+      // r494 (F107): the Manage sublets screen redraws from the same lines.
+      try { window.dispatchEvent(new CustomEvent('pdc-sublet-lines', { detail: { vehicleId: vid } })); } catch (_) { /* no listener */ }
     } catch (_) { const c = cache.get(vid); if (c) c.stale = false; /* keep what is shown; the next board change retries */ }
     finally { inflight.delete(vid); }
   }
+  // r494 (F107): read access for the per-vehicle Manage sublets screen (pdc-vehicle-sublets.js). Ticks still go through
+  // the change listener below (set_pdc_sublet_line_tick_439); nothing here writes.
+  window.PDC_SUBLET_PO = Object.freeze({ ...api, lines: vid => cache.get(String(vid || '').trim().toLowerCase())?.payload || null,
+    fetch: vid => fetchLines(String(vid || '').trim().toLowerCase()), seen: () => seen, ack: keys => ack(keys) });
   const notify = (message, tone) => { try { if (typeof pdcNotify === 'function') pdcNotify(message, tone); } catch (_) { /* no toast */ } };
+  // r494 (F107): 'PO raised for this line' notes this user has acknowledged ('Got it'), kept in this browser only.
+  const SEEN_KEY = () => 'pdc.sublet-new-po-seen.v1:' + String(window.PDC_AUTH_CONTEXT?.userId || '');
+  let seen = new Set();
+  try { seen = new Set(JSON.parse(localStorage.getItem(SEEN_KEY()) || '[]').filter(x => typeof x === 'string').slice(-2000)); } catch (_) { seen = new Set(); }
+  const ack = keys => {
+    for (const k of String(keys || '').split(' ').filter(Boolean)) seen.add(k);
+    try { localStorage.setItem(SEEN_KEY(), JSON.stringify([...seen].slice(-2000))); } catch (_) { /* private mode: this page only */ }
+    refreshSummaries();
+    try { window.dispatchEvent(new CustomEvent('pdc-sublet-lines', { detail: {} })); } catch (_) { /* no listener */ }
+  };
+  // r494: whole line sublets with no GP PO yet: orange 'PO to raise' on the board's Sublet box.
+  const raiseFor = (vehicle, entry) => {
+    if (!index || !subletJobs(vehicle).length) return 0;
+    const vid = entry ? idKey(entry.vehicle_id) : '', cached = vid ? cache.get(vid) : null;
+    if (entry && (!cached || cached.stale)) fetchLines(vid, true);
+    return poToRaise(vehicle, entry, cached?.payload).count;
+  };
   if (typeof incomingWorkChecklistHtml === 'function') {
     const prior = incomingWorkChecklistHtml;
-    incomingWorkChecklistHtml = (vehicle, ...args) => decorateStrip(prior(vehicle, ...args), entryFor(index, vehicle));
+    incomingWorkChecklistHtml = (vehicle, ...args) => { const entry = entryFor(index, vehicle); return decorateStrip(prior(vehicle, ...args), entry, raiseFor(vehicle, entry)); };
   }
   if (typeof authenticatedEmailOperationLinesHtml === 'function') {
     const prior = authenticatedEmailOperationLinesHtml;
@@ -278,9 +357,16 @@
       if (!entry) return decorateOperations(html, { known: true });
       const vid = idKey(entry.vehicle_id), cached = cache.get(vid);
       if (!cached || cached.stale) fetchLines(vid);
+      // r494b (F107): no 'seen' list = no 'PO raised for this line' note or highlight (the GP number shows it).
       return decorateOperations(html, { vehicleId: vid, payload: cached?.payload || null });
     };
   }
+  document.addEventListener('click', event => {
+    const button = event.target?.closest?.('[data-pdc-sublet-ack]');
+    if (!button) return;
+    event.preventDefault(); event.stopPropagation();
+    ack(button.dataset.pdcSubletAck);
+  }, true);
   // The tick sits inside a line that may open the line editor or a booking: keep its clicks to itself.
   for (const type of ['click', 'dblclick', 'mousedown', 'pointerdown', 'touchstart', 'keydown']) {
     document.addEventListener(type, event => {
@@ -315,6 +401,7 @@
   // below ~16.5rem. Scoped overrides here because styles.css is a frozen baseline; Review keeps its own layout.
   const OPS = '.authenticated-email-operations .authenticated-operation-station';
   const LINE = OPS + ':not([data-operation-station="REVIEW"]) li';
+  const SUB = OPS + '[data-operation-station="SUBLET"]'; // r494b (F107)
   style.textContent = '.authenticated-email-operations .authenticated-operation-station-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,16.5rem),1fr))}'
     + LINE + '{grid-template-columns:max-content minmax(0,1fr) max-content;column-gap:.45rem;row-gap:.25rem}'
     + OPS + ' li span{min-width:0;overflow-wrap:break-word;word-break:normal}'
@@ -335,7 +422,23 @@
     + '.authenticated-email-operations .pdc-sublet-desc{display:block;font-weight:650;color:#1f2937;text-transform:none;letter-spacing:normal;font-size:12px}.pdc-sublet-desc+.pdc-sublet-desc{margin-top:2px}'
     + '.pdc-sublet-desc-po{font-weight:700;color:#9a3412;margin-right:3px}.pdc-sublet-desc-missing{font-weight:500;color:#94a3b8}'
     + '.authenticated-email-operations .pdc-sublet-on,.authenticated-email-operations .pdc-sublet-own-desc{display:block;font-size:10.5px;color:#64748b;font-weight:500;text-transform:none;letter-spacing:normal}.authenticated-email-operations .pdc-sublet-own-desc .pdc-sublet-desc{font-size:11.5px;color:#334155}'
-    + '.pdc-sublet-kind{color:#94a3b8;font-style:normal;font-size:10px}';
+    + '.pdc-sublet-kind{color:#94a3b8;font-style:normal;font-size:10px}'
+    // r494 (F107): 'PO to raise' (whole line sublet without a GP PO) and 'PO raised for this line' (new GP PO on a line).
+    + '.authenticated-email-operations .pdc-sublet-po-nopo{display:inline-block;padding:0 5px;border-radius:4px;background:#fff7ed;border:1px solid #fb923c;color:#c2410c;font-weight:700}'
+    + '.pdc-sublet-new-po{display:inline-block;margin-top:2px;padding:0 6px;border-radius:4px;background:#fef3c7;border:1px solid #f59e0b;color:#92400e;font-size:10.5px;font-weight:700;text-transform:none;letter-spacing:normal}'
+    + '.pdc-sublet-new-ack{margin-left:4px;font-size:10px;padding:0 6px;border:1px solid #cbd5e1;border-radius:4px;background:#fff;color:#334155;cursor:pointer;line-height:15px}'
+    + '.pdc-sublet-po-ref.is-new{background:#fef3c7;border-style:solid;border-color:#f59e0b;color:#92400e}'
+    + '.incoming-work-check.pdc-station-sublet.pdc-sublet-po-box .pdc-sublet-po-count{white-space:nowrap}'
+    + '.pdc-sublet-po-raise{display:block;font-size:8px;line-height:9px;font-weight:800;letter-spacing:0;text-transform:uppercase;white-space:normal;text-align:center;color:#c2410c}'
+    // r494b (F107, Craig 22 Oct 18:55): the vehicle's Sublet box is uniform: one text size, and every line's right side is
+    // one chip of the same width and height (GP PO number or 'PO to raise'), lined up with the ticks.
+    + SUB + ' li,' + SUB + ' li :is(strong,span,small,b,i,em){font-size:12px!important;line-height:18px;letter-spacing:normal;text-transform:none}'
+    + SUB + ' li .pdc-sublet-desc,' + SUB + ' li .pdc-sublet-own-desc .pdc-sublet-desc{font-weight:650;color:#1f2937}'
+    + SUB + ' li .pdc-sublet-on,' + SUB + ' li .pdc-sublet-own-desc{color:#64748b;font-weight:500}'
+    + SUB + ' .pdc-sublet-kind{display:none}'
+    + SUB + ' .pdc-sublet-po-chip,' + SUB + ' .pdc-sublet-po-nopo{display:inline-block;box-sizing:border-box;min-width:8.2em;padding:0 6px;border:1px solid #fdba74;border-radius:4px;background:#fff7ed;color:#9a3412;font-weight:700;text-align:center;white-space:nowrap}'
+    + SUB + ' .pdc-sublet-po-nopo{border-color:#fb923c;color:#c2410c;margin-right:19px!important}'
+    + SUB + ' .pdc-sublet-po-inline.is-done .pdc-sublet-po-chip{background:#f0fdf4;border-color:#86efac;color:#166534}';
   document.head.appendChild(style);
   load();
   setInterval(load, 2 * 60 * 1000);

@@ -49,7 +49,7 @@ test('Sublet box: every sublet in PD line order, operation-line POs as linked ro
   assert.match(box, /<b class="pdc-sublet-desc">Tint &lt;b&gt;co&lt;\/b&gt; &quot;x&quot;<\/b>/, 'description escaped');
   assert.doesNotMatch(html, /<b>co<\/b>/);
   assert.match(box, /data-pdc-sublet-row="own"><strong>PD line 11<\/strong><span>SUB - Sample seat covers<small class="pdc-sublet-own-desc"><b class="pdc-sublet-desc">Seat covers · Key 001<\/b><\/small><\/span><em>0\.01 h<\/em> <span class="pdc-sublet-po-inline/);
-  assert.match(box, /data-pdc-sublet-row="own"><strong>PD line 12<\/strong><span>SUB - no po<\/span><em>0\.01 h<\/em> <span class="pdc-sublet-po-nopo"[^>]*>No PO<\/span><\/li>/, 'no GP PO: not tickable, "No PO"');
+  assert.match(box, /data-pdc-sublet-row="own"><strong>PD line 12<\/strong><span>SUB - no po<\/span><em>0\.01 h<\/em> <span class="pdc-sublet-po-nopo"[^>]*>PO to raise<\/span><\/li>/, 'no GP PO: not tickable, "PO to raise" (r494; was "No PO")');
   assert.equal((html.match(/class="pdc-sublet-po-tick"/g) || []).length, 4, 'every tick in the Sublet box, none elsewhere');
   assert.equal((box.match(/class="pdc-sublet-po-tick"/g) || []).length, 4);
 });
@@ -67,14 +67,15 @@ test('operation lines: read-only PO reference with ↓, title carries the descri
 
 test('Sublet header: "N sublets" and the done pill; orange while any PO line is unticked, green when all are; state attributes', () => {
   const html = render(hiace, hiacePayload);
-  assert.match(html, /<section class="authenticated-operation-station pdc-op-panel is-full is-sublet-ordered" data-operation-panel="sublet"[^>]*><header><strong>Sublet<\/strong><small>5 sublets <span class="pdc-op-sublet-state is-ordered">1 of 4 sublets done<\/span><\/small><\/header>/);
-  assert.match(html, /data-pdc-sublet-box data-pdc-sublet-state="ordered" data-pdc-sublet-count="1\/4"/);
+  assert.match(html, /<section class="authenticated-operation-station pdc-op-panel is-full is-sublet-ordered" data-operation-panel="sublet"[^>]*><header><strong>Sublet<\/strong><small>5 sublets <span class="pdc-op-sublet-state is-ordered">1 of 5 sublets done<\/span><\/small><\/header>/);
+  assert.match(html, /data-pdc-sublet-box data-pdc-sublet-state="ordered" data-pdc-sublet-count="1\/5"/); // r494 (F107): the whole line sublet with no GP PO counts as open (PO to raise)
   const done = { ...hiacePayload, lines: hiacePayload.lines.map(l => ({ ...l, ticked: true, version: 1 })) };
   const green = render(hiace, done);
-  assert.match(green, /pdc-op-panel is-full is-sublet-done" data-operation-panel="sublet"/);
-  assert.match(green, /<small>5 sublets <span class="pdc-op-sublet-state is-done">✓ all sublets done<\/span><\/small>/);
+  // r494 (F107): every GP PO line ticked, but a whole line sublet still has no PO: stays orange (PO to raise).
+  assert.match(green, /pdc-op-panel is-full is-sublet-ordered" data-operation-panel="sublet"/);
+  assert.match(green, /<small>5 sublets <span class="pdc-op-sublet-state is-ordered">4 of 5 sublets done<\/span><\/small>/);
   const none = render(hiace, { ok: true, can_tick: true, vehicle_id: V, lines: [] });
-  assert.doesNotMatch(none, /is-sublet-(ordered|done)/, 'no GP PO: neutral');
+  assert.match(none, /is-sublet-ordered/, 'r494 (F107): own Sublet jobs with no GP PO: orange, PO to raise (was neutral)');
   assert.match(none, /data-operation-panel="sublet"/, 'own Sublet jobs still shown');
 });
 

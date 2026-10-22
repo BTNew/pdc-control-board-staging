@@ -131,7 +131,9 @@ const approvedRootImportPatch = Object.freeze({
   // r485: r485=2026.10.22.r485 on the table module (Table view only, Drop-down view hidden behind a flag) and vehicle-slideout=2026.10.22.r485 (stoppage box with Clear stoppage / Return to QC; F98).
   // r490: r490=2026.10.23.r490 on pdc-sublet-po.js, pdc-parts-eta.js, pdc-sublet-po-attach.js and pdc-key-number.js (4 s retry only when nothing loaded; no hidden-tab polls; F103).
   // r493: r493=2026.10.22.r493 on pdc-planner-slim.js (F106).
-  "canonical-entry.js": "bd83219aa7e715ae5c7c0df556fe78bdea4cba3935e4b75b98c3d80cb1fb20d1",
+  // r494: r494=2026.10.23.r494 on pdc-sublet-po.js (exposes the per-vehicle GP PO lines to Manage sublets; F107).
+  // r494b: r494=2026.10.23.r494b on pdc-sublet-po.js (uniform vehicle Sublet box; F107).
+  "canonical-entry.js": "9d0b8075f5f622b42a254a32773d7d7ab241a47f586113d07830d4505b0f6fa6",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -169,7 +171,9 @@ const approvedRootImportPatch = Object.freeze({
   // r489: Admin > Fitting statistics route (administrators only; guard, admin nav, title, open / close / reset like Update history; F102).
   // r490: the 2-minute workshop reference-data safety net skips while the tab is hidden and catches up once on return (F103).
   // r493: r493=2026.10.22.r493 on both workshop-planner.js loads (paused jobs amber; F106).
-  "app.js": "11c84b1dc12f0b62e2549fc60d2e9b9e6001069dfb6ab17974d1611d4c38c2ea",
+  // r491: Sublet page Away now filter and days away / overdue days, cache bust sublet-away (F104) (app.js).
+  // r492: Sublet provider email draft adds key number, VIN, sublet work and due back, cache bust sublet-email (F105) (app.js).
+  "app.js": "fa06924025bda1f61be2608dd45a16692fac7ceb923fec4dd5b4c8c81d831b9f",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -246,7 +250,11 @@ const approvedRootImportPatch = Object.freeze({
   // r490: index.html r490=2026.10.23.r490 on canonical-entry.js and app.js (F103).
   // r493: r493=2026.10.22.r493 on pdc-fitters.js, pdc-conversion-ticks.css, pdc-running-row.css, control-board-overview.js and canonical-entry.js (F106).
   // r493b: r493b=2026.10.22.r493b on pdc-running-row.css (F106b).
-  "index.html": "346ba7549ab5f6f196b892bf66aff2b521e47e68681a81297e80a0b042e85f7d",
+  // r491: Sublet page Away now filter and days away / overdue days, cache bust sublet-away (F104) (index.html).
+  // r492: Sublet provider email draft adds key number, VIN, sublet work and due back, cache bust sublet-email (F105) (index.html).
+  // r494: index.html adds pdc-vehicle-sublets.css / .js?r494=2026.10.23.r494 and r494=2026.10.23.r494 on canonical-entry.js (Manage sublets; F107).
+  // r494b: r494=2026.10.23.r494b on pdc-vehicle-sublets.css / .js and canonical-entry.js (uniform Sublet box; F107).
+  "index.html": "a325282a3a64d2b456322123e1d473dda8e828dd93650c594f0098af0edd7c58",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
