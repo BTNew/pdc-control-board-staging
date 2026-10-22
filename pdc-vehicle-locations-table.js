@@ -39,10 +39,21 @@
  * r475 (F88, Craig 22 Oct 10:51), Table view only: a compact "Parts ETA" column after "Parts loc". It is the card's own
  * parts ETA chip (pdc-parts-eta.js: "dd/mm · N days", amber "today", red "N days overdue", hover = the source email),
  * moved out of the Vehicle cell verbatim like the parts location; "—" when there is none. Resizable like the others.
+ *
+ * r481 (F94, Craig 22 Oct): search shows where the vehicle is.
+ * - Table view: while the search box has text, the selected tile (or STOPPAGES) no longer hides matches. Matches from
+ *   every tile show; when they are all in one tile that tile is selected for the search, otherwise All vehicles is,
+ *   and the tiles holding a match are outlined ("Found in PMB"). Clicking a tile while searching narrows the search
+ *   results only. The tile picked before searching is kept and comes back when the search is cleared.
+ * - Both views: the Department selector still applies. A search that matches a vehicle in another department says so
+ *   ("Found in Department 138 — Bus 4×4 · PMB") with a button that switches the department, instead of showing nothing.
+ * - Opening a single result once (revealSingleResult / revealSingleVehicleSearchResult) is unchanged; it now also
+ *   runs when the only match is outside the selected tile. The slide-out panel takes the same key and bucket as before.
+ * Display only: no write, no RPC, no saved setting changes (the tile choice is in memory, as before).
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.22.r475'; // r476 (F89) widths, then r475 (F88) Parts ETA column (cache-busts this module)
+  const VERSION = '2026.10.22.r481'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles (cache-busts this module)
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
   const VIEWS = Object.freeze({ dropdown: 'dropdown', table: 'table' });
   // Vehicle journey, left to right (Craig, 22 Oct 2026).
@@ -267,6 +278,34 @@
     return vars.join(';');
   }
 
+  // r481 (F94): which tile the table shows while the search box has text. `entries` are the vehicles that match the
+  // search and every other filter (department included), each with its bucket. `bucket` / `stoppages` are the tile the
+  // person picked before searching (kept, never changed here). `pick` is a tile clicked during this search (null: none,
+  // '' = All vehicles, STOPPAGES, or a bucket key). Without search text the person's own tile applies, exactly as before.
+  function searchScope({ entries = [], bucket = '', stoppages = false, needle = '', pick = null, order = [] } = {}) {
+    const searching = Boolean(String(needle || '').trim());
+    if (!searching) return { searching: false, bucket: bucket || '', stoppages: Boolean(stoppages), found: [], picked: false, held: '' };
+    const inEntries = new Set(entries.map(entry => entry.bucket));
+    const found = [...order.filter(key => inEntries.has(key)), ...[...inEntries].filter(key => key && !order.includes(key))];
+    const held = stoppages ? STOPPAGES : (bucket || '');
+    if (pick !== null && pick !== undefined) {
+      return { searching: true, bucket: pick === STOPPAGES ? '' : String(pick), stoppages: pick === STOPPAGES, found, picked: true, held };
+    }
+    return { searching: true, bucket: found.length === 1 ? found[0] : '', stoppages: false, found, picked: false, held };
+  }
+  // r481 (F94): search matches outside the selected department, grouped by department code ('' = no department).
+  // `codesOf(vehicle)` is PDC_DEPARTMENT_FILTER.departmentCodes. Returns [{ code, vehicles: [...] }] in code order.
+  function departmentElsewhere(matches = [], selected = '', codesOf = () => []) {
+    const groups = new Map();
+    matches.forEach(vehicle => {
+      const codes = (codesOf(vehicle) || []).filter(code => code !== selected);
+      const code = codes.find(value => value === '138' || value === '139') || codes[0] || '';
+      if (!groups.has(code)) groups.set(code, []);
+      groups.get(code).push(vehicle);
+    });
+    return [...groups.entries()].sort((a, b) => (a[0] || '999').localeCompare(b[0] || '999')).map(([code, vehicles]) => ({ code, vehicles }));
+  }
+
   // Bucket order for tiles and rows: Craig's journey first, then any bucket the board adds later (never dropped).
   function journeyOrder(defs = []) {
     const keys = defs.map(def => def.key);
@@ -282,7 +321,7 @@
   }
 
   const api = { VERSION, VIEWS, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
-    COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, extractPartsEta, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
+    STOPPAGES, searchScope, departmentElsewhere, COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, extractPartsEta, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.renderIncomingDashboardBoard !== 'function' || root.PDC_VEHICLE_LOCATIONS_TABLE) {
     if (root && !root.PDC_VEHICLE_LOCATIONS_TABLE) root.PDC_VEHICLE_LOCATIONS_TABLE = api;
@@ -291,7 +330,7 @@
 
   // ---------- Browser ----------
   const doc = root.document;
-  const state = { bucket: '', stoppages: false, openKey: '', view: VIEWS.dropdown, partsSort: '', widths: {} };
+  const state = { bucket: '', stoppages: false, openKey: '', view: VIEWS.dropdown, partsSort: '', widths: {}, search: { needle: '', pick: null } };
   let drawerOpener = null; // r462: { open(key, bucket), refresh(key, bucket), close() } from pdc-vehicle-slideout.js
   const userId = () => root.PDC_AUTH_CONTEXT?.userId || '';
   const storage = () => { try { return root.localStorage; } catch (_) { return null; } };
@@ -401,6 +440,56 @@
     };
   }
 
+  // ---- r481 (F94): search matches in another department ----
+  const departmentName = code => {
+    if (!code) return 'no department';
+    const label = root.PDC_DEPARTMENT_FILTER?.label?.(code);
+    return label && label !== 'All departments' ? label : `Department ${code}`;
+  };
+  function searchElsewhere(rows, filters, inDepartment, matches, rank = null) {
+    if (!filters.department || !String(filters.search || '').trim() || !root.PDC_DEPARTMENT_FILTER) return [];
+    const seen = new Set(inDepartment);
+    const anyDepartment = { ...filters, department: '' };
+    const others = rows.filter(vehicle => !seen.has(vehicle) && matches(vehicle, anyDepartment)
+      && (!rank || rank.has(root.incomingBucketForVehicle(vehicle))));
+    return departmentElsewhere(others, filters.department, vehicle => root.PDC_DEPARTMENT_FILTER.departmentCodes(vehicle));
+  }
+  function elsewhereHtml(groups = []) {
+    if (!groups.length) return '';
+    const esc = value => root.escapeHtml(String(value ?? ''));
+    const items = groups.map(group => {
+      const buckets = [...new Set(group.vehicles.map(vehicle => root.incomingBucketForVehicle(vehicle)))].map(key => TILE[key]?.[0] || root.incomingBucketLabel(key) || key);
+      const stocks = group.vehicles.slice(0, 3).map(vehicle => root.displayStockNumber(vehicle) || root.vehicleKey(vehicle)).filter(Boolean);
+      const target = group.code === '138' || group.code === '139' ? group.code : '';
+      const button = target ? `Switch to ${esc(departmentName(target).replace(/^Department /, ''))}` : 'Show all departments';
+      return `<span class="vlt-elsewhere-item"><strong>Found in ${esc(departmentName(group.code))}</strong> · ${esc(buckets.join(', '))} · ${esc(stocks.join(', '))}${group.vehicles.length > stocks.length ? ` +${group.vehicles.length - stocks.length}` : ''}
+        <button type="button" class="small-button vlt-switch-dept" data-vlt-switch-dept="${esc(target)}">${button}</button></span>`;
+    }).join('');
+    return `<div class="vlt-search-elsewhere" role="status" aria-live="polite">${items}</div>`;
+  }
+  function bindElsewhere(scope) {
+    scope?.querySelectorAll('[data-vlt-switch-dept]').forEach(button => button.addEventListener('click', event => {
+      event.preventDefault(); event.stopPropagation();
+      root.PDC_DEPARTMENT_FILTER?.setSelection(button.dataset.vltSwitchDept || ''); // same as choosing it in the Department box
+    }));
+  }
+  // Drop-down view: the board shows every location already; only the department can hide a search match.
+  function dropdownSearchElsewhere() {
+    const board = doc.getElementById('incoming-main-board');
+    if (!board || board.hidden) return;
+    board.querySelector(':scope > .vlt-search-elsewhere')?.remove();
+    const filters = root.incomingDashboardFilterValues();
+    if (!filters.search || !filters.department) return;
+    const rows = root.vehicleLocationsScreenRows();
+    const shown = rows.filter(vehicle => root.incomingVehicleMatchesFilters(vehicle, filters));
+    const groups = searchElsewhere(rows, filters, shown, (vehicle, active) => root.incomingVehicleMatchesFilters(vehicle, active));
+    if (!groups.length) return;
+    board.insertAdjacentHTML('afterbegin', elsewhereHtml(groups));
+    bindElsewhere(board);
+    const summary = doc.getElementById('incoming-filter-summary');
+    if (summary && !/· also in /.test(summary.textContent)) summary.textContent += ` · also in ${groups.map(group => departmentName(group.code)).join(', ')}`;
+  }
+
   function renderTable() {
     const host = ensureHost();
     if (!host) return;
@@ -420,7 +509,11 @@
     const searchless = needle ? { ...filters, search: '' } : null;
     const filteredRows = rows.filter(vehicle => root.incomingVehicleMatchesFilters(vehicle, filters)
       || (needle && partsLocationValues(vehicle).some(value => value.toLowerCase().includes(needle)) && root.incomingVehicleMatchesFilters(vehicle, searchless)));
+    // r481: the same match (parts location included) for any department, to say where else the search is found.
+    const matchesSearch = (vehicle, active) => root.incomingVehicleMatchesFilters(vehicle, active)
+      || (needle && partsLocationValues(vehicle).some(value => value.toLowerCase().includes(needle)) && root.incomingVehicleMatchesFilters(vehicle, { ...active, search: '' }));
     root.pruneIncomingDepartmentSelection(filteredRows);
+    if (needle !== state.search.needle) state.search = { needle, pick: null }; // r481: a new search starts from its own matches
     const loading = rows.length === 0 && appState.vehicleLocationsRefreshState !== 'success' && appState.vehicleLocationsRefreshState !== 'error'
       && (appState.vehicleLocationsRefreshState === 'refreshing' || appState.sharedNavisionVisibleState === 'loading'
         || (Boolean(root.PDC_AUTH_CONTEXT) && (appState.sharedNavisionVisibleState === 'idle' || appState.sharedNavisionVisibleState == null)));
@@ -434,9 +527,13 @@
     const counts = new Map();
     entries.forEach(entry => counts.set(entry.bucket, (counts.get(entry.bucket) || 0) + 1));
     if (state.bucket && !rank.has(state.bucket)) state.bucket = '';
+    // r481 (F94): while searching, the tile picked before the search does not hide matches (it comes back on clear).
+    const scope = searchScope({ entries, bucket: state.bucket, stoppages: state.stoppages, needle, pick: state.search.pick, order });
+    const elsewhere = needle ? searchElsewhere(rows, filters, filteredRows, matchesSearch, rank) : [];
+    const tileName = key => (key === STOPPAGES ? 'STOPPAGES' : TILE[key]?.[0] || root.incomingBucketLabel(key) || key);
     const cardFor = entry => root.incomingVehicleDetailRow(entry.vehicle, entry.bucket, { workshopPlans, workshopProjectionAvailable, subletNavigation: true });
     const shown = entries
-      .filter(entry => (!state.bucket || entry.bucket === state.bucket) && (!state.stoppages || stoppageKeys.has(entry.key)))
+      .filter(entry => (!scope.bucket || entry.bucket === scope.bucket) && (!scope.stoppages || stoppageKeys.has(entry.key)))
       .map(entry => { const card = cardFor(entry); return { ...entry, card, partsLoc: extractPartsLocation(html(splitCard(card).unit)).text }; })
       .sort((a, b) => rank.get(a.bucket) - rank.get(b.bucket)
         || (state.partsSort ? comparePartsLocation(a.partsLoc, b.partsLoc, state.partsSort) : 0)
@@ -446,28 +543,46 @@
       const workCount = Array.isArray(filters.work) ? filters.work.length : (filters.work ? 1 : 0);
       const active = [filters.department && `Department ${filters.department}`, filters.search && `search “${filters.search}”`, filters.status,
         filters.bucket && root.incomingBucketLabel(filters.bucket), filters.rep, workCount && `${workCount} work type${workCount === 1 ? '' : 's'}`,
-        state.bucket && `${TILE[state.bucket]?.[0] || state.bucket} tile`, state.stoppages && 'STOPPAGES tile'].filter(Boolean);
+        ...(scope.searching
+          ? [scope.found.length ? `found in ${scope.found.map(tileName).join(', ')}` : 'no match in any tile', scope.picked && (scope.bucket || scope.stoppages) && `${tileName(scope.stoppages ? STOPPAGES : scope.bucket)} tile`,
+            elsewhere.length && `also in ${elsewhere.map(group => departmentName(group.code)).join(', ')}`]
+          : [state.bucket && `${TILE[state.bucket]?.[0] || state.bucket} tile`, state.stoppages && 'STOPPAGES tile'])].filter(Boolean);
       summary.textContent = loading ? 'Loading vehicles…' : `${shown.length} of ${rows.length} vehicles shown${active.length ? ` · ${active.join(' · ')}` : ''}`;
+      summary.title = summary.textContent; // r481: full text on hover when the slim bar shortens it
     }
     const esc = value => root.escapeHtml(String(value ?? ''));
-    const tile = (key, label, count, caption, tone, active, title) => `<button type="button" class="vlt-tile ${esc(tone)}${active ? ' active' : ''}" data-vlt-tile="${esc(key)}" aria-pressed="${active}" title="${esc(title || caption)}"><span>${esc(label)}</span><strong>${loading ? '…' : count}</strong><small>${esc(caption)}</small></button>`;
+    // r481: a tile holding a search match is outlined (vlt-found); the tile picked before the search is marked (vlt-held).
+    const tile = (key, label, count, caption, tone, active, title) => {
+      const found = scope.searching && key !== '' && (key === STOPPAGES ? false : scope.found.includes(key));
+      const held = scope.searching && !active && scope.held && scope.held === key;
+      const hint = found ? ' · contains the search result' : held ? ' · your tile before searching; it comes back when you clear the search' : '';
+      return `<button type="button" class="vlt-tile ${esc(tone)}${active ? ' active' : ''}${found ? ' vlt-found' : ''}${held ? ' vlt-held' : ''}" data-vlt-tile="${esc(key)}" aria-pressed="${active}" title="${esc((title || caption) + hint)}"><span>${esc(label)}</span><strong>${loading ? '…' : count}</strong><small>${esc(caption)}</small></button>`;
+    };
     const defFor = key => defs.find(def => def.key === key) || {};
     const tilesHtml = `<div class="vlt-tiles" role="toolbar" aria-label="Filter Vehicle Locations by location">${
-      tile('', 'All vehicles', entries.length, 'Every active vehicle', 'all', !state.bucket && !state.stoppages, 'Show every vehicle')}${
-      order.map(key => tile(key, TILE[key]?.[0] || defFor(key).label || key, counts.get(key) || 0, TILE[key]?.[1] || '', TILE[key]?.[2] || 'unknown', state.bucket === key, defFor(key).hint)).join('')}${
-      tile(STOPPAGES, 'STOPPAGES', priorityRows.length, 'Fix first', 'stoppage', state.stoppages, 'STOPPAGES / Fix First — the same list as the drop-down view')}</div>`;
+      tile('', 'All vehicles', entries.length, 'Every active vehicle', 'all', !scope.bucket && !scope.stoppages, 'Show every vehicle')}${
+      order.map(key => tile(key, TILE[key]?.[0] || defFor(key).label || key, counts.get(key) || 0, TILE[key]?.[1] || '', TILE[key]?.[2] || 'unknown', !scope.stoppages && scope.bucket === key, defFor(key).hint)).join('')}${
+      tile(STOPPAGES, 'STOPPAGES', priorityRows.length, 'Fix first', 'stoppage', scope.stoppages, 'STOPPAGES / Fix First — the same list as the drop-down view')}</div>`;
     const headingSort = state.partsSort ? {} : sort; // only one column shows as sorted
     const heading = (label, key) => root.incomingSortHeadingHtml(label, key, headingSort);
     const partsNext = state.partsSort === 'asc' ? 'desc' : 'asc';
     const partsHeading = `<button type="button" class="incoming-sort-heading${state.partsSort ? ' is-active' : ''}" data-vlt-sort="parts-location" aria-label="Sort Parts loc: ${partsNext === 'asc' ? 'ascending' : 'descending'}" title="Sort Parts loc: ${partsNext === 'asc' ? 'ascending' : 'descending'}. Missing values stay last.">Parts loc <span aria-hidden="true">${state.partsSort === 'asc' ? '↑' : state.partsSort === 'desc' ? '↓' : '↕'}</span></button>`;
     const grip = key => `<span class="vlt-col-resize" data-vlt-resize="${key}" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize ${esc(COLUMNS[key].label)} column (arrow keys)" title="Drag to resize · double-click to reset this column"></span>`;
-    const filterNote = state.bucket ? `${esc(TILE[state.bucket]?.[0] || state.bucket)} only · click All vehicles to clear`
-      : state.stoppages ? 'STOPPAGES only · click All vehicles to clear' : 'Click a tile to filter · click a vehicle to open it';
+    const heldNote = scope.held && !(scope.held === scope.bucket && !scope.stoppages) && !(scope.held === STOPPAGES && scope.stoppages)
+      ? ` · ${esc(tileName(scope.held))} tile comes back when you clear the search` : '';
+    const filterNote = scope.searching
+      ? (scope.found.length
+        ? `<span class="vlt-found-note">Found in ${esc(scope.found.map(tileName).join(', '))}</span>${scope.picked && (scope.bucket || scope.stoppages) ? ` · ${esc(tileName(scope.stoppages ? STOPPAGES : scope.bucket))} only · click All vehicles to see every match` : ' · showing every tile while you search'}${heldNote}`
+        : `No match in any tile${filters.department ? ` in ${esc(departmentName(filters.department))}` : ''}${heldNote}`)
+      : state.bucket ? `${esc(TILE[state.bucket]?.[0] || state.bucket)} only · click All vehicles to clear`
+        : state.stoppages ? 'STOPPAGES only · click All vehicles to clear' : 'Click a tile to filter · click a vehicle to open it';
     const bodyHtml = shown.map(entry => tableRowHtml(entry.card,
       entry.bucket, { key: entry.key, openKey: state.openKey, bucketLabel: root.incomingBucketLabel(entry.bucket) })).join('')
-      || `<tr><td colspan="12" class="vlt-empty">${loading ? 'Loading vehicles…' : 'No vehicles match this tile and the search filters'}</td></tr>`;
+      || `<tr><td colspan="12" class="vlt-empty">${loading ? 'Loading vehicles…' : scope.searching
+        ? `No vehicle${filters.department ? ` in ${esc(departmentName(filters.department))}` : ''} matches “${esc(filters.search)}”${scope.found.length ? ' on this tile' : ''}${elsewhere.length ? ` · found in ${esc(elsewhere.map(group => departmentName(group.code)).join(', '))} (see above)` : ''}`
+        : 'No vehicles match this tile and the search filters'}</td></tr>`;
     const keepDrawer = !drawerOpener && ui.keepDrawer && state.openKey && shown.some(entry => entry.key === state.openKey) ? ui.drawerNode : null;
-    host.innerHTML = `${tilesHtml}
+    host.innerHTML = `${tilesHtml}${elsewhereHtml(elsewhere)}
       <section class="vlt-panel" aria-label="Vehicle locations table">
         <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
         <div class="vlt-table-wrap"><table class="vlt-table${Object.keys(state.widths).length ? ' has-custom-widths' : ''}${/data-select-stock/.test(bodyHtml) ? ' has-select' : ''}">
@@ -487,6 +602,7 @@
     addTooltips(body);
     bindBoardHandlers(body);
     bindTableEvents(host, sort);
+    bindElsewhere(host.querySelector('.vlt-search-elsewhere'));
     navStatus();
     const wrap = host.querySelector('.vlt-table-wrap');
     if (wrap) wrap.scrollTop = ui.tableScroll;
@@ -516,7 +632,10 @@
   function bindTableEvents(host, sort) {
     host.querySelectorAll('[data-vlt-tile]').forEach(button => button.addEventListener('click', () => {
       const key = button.dataset.vltTile;
-      if (key === STOPPAGES) { state.stoppages = !state.stoppages; state.bucket = ''; } else { state.stoppages = false; state.bucket = state.bucket === key ? '' : key; }
+      if (state.search.needle) { // r481: while searching, a tile narrows the search results only; the earlier tile is kept
+        const active = button.classList.contains('active');
+        state.search.pick = active && key !== '' ? '' : key;
+      } else if (key === STOPPAGES) { state.stoppages = !state.stoppages; state.bucket = ''; } else { state.stoppages = false; state.bucket = state.bucket === key ? '' : key; }
       const wrap = host.querySelector('.vlt-table-wrap');
       if (wrap) wrap.scrollTop = 0;
       renderTable();
@@ -711,7 +830,13 @@
 
   root.renderIncomingDashboardBoard = function renderIncomingDashboardBoardWithViewSwitch(...args) {
     ensureSwitch();
-    if (!tableOn()) return originalRender.apply(this, args);
+    if (!tableOn()) {
+      const result = originalRender.apply(this, args);
+      const previous = activeRenderJsonCache; // r481: same per-render cache for the department check
+      activeRenderJsonCache = previous || new Map();
+      try { dropdownSearchElsewhere(); } finally { activeRenderJsonCache = previous; }
+      return result;
+    }
     return renderWithCache();
   };
 

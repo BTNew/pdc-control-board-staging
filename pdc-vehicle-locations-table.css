@@ -56,6 +56,17 @@ body.vlt-table-on .vlt-slim-bar [data-pdc-refresh-control] { display: none !impo
 .vlt-tile.unknown, .vlt-pill.unknown { background: #f0f3f6; }
 .vlt-tile.stoppage { background: #ffedf0; border-left-color: #e11d48; }
 .vlt-tile.stoppage strong { color: #be123c; }
+/* r481 (F94): while searching, tiles holding a match are outlined green; the tile picked before the search is dashed. */
+.vlt-tile.vlt-found { box-shadow: 0 0 0 2px #15803d, 0 7px 15px #1d2a3810; }
+.vlt-tile.vlt-found.active { outline-color: #e71320; }
+.vlt-tile.vlt-held { outline: 1px dashed #94a3b8; outline-offset: -3px; }
+.vlt-found-note { color: #15803d; font-weight: 700; }
+.vlt-search-elsewhere { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 0 0 10px; padding: 7px 10px; border: 1px solid #f59e0b; border-left-width: 4px; border-radius: 10px; background: #fffbeb; color: #78350f; font: 12px/1.35 Arial, Helvetica, sans-serif; }
+.vlt-search-elsewhere .vlt-elsewhere-item { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.vlt-search-elsewhere .vlt-switch-dept { padding: 2px 9px; font-size: 11px; }
+/* r481: a longer search summary never squeezes the Department box; it shortens with … (full text on hover). */
+body.vlt-table-on .vlt-slim-bar > label.incoming-department-control { flex: 0 0 auto; }
+body.vlt-table-on .vlt-slim-bar .incoming-filter-meta { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- Panel + table ---- */
 .vlt-panel { background: #fff; border: 1px solid #e1e7ef; border-radius: 17px; overflow: hidden; margin-bottom: 16px; box-shadow: 0 3px 12px #21334605; }

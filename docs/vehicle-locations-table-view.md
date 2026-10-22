@@ -123,3 +123,26 @@ than the screen (horizontal scroll).
   v2 and restores these defaults; a dragged width still applies and fixes that
   column.
 * Undo: revert the r476 commit.
+
+## r481 (F94): search shows where the vehicle is
+
+Craig (22 Oct): with the QC tile selected, searching a stock number that is in
+PMB showed "No vehicles match this tile and the search filters".
+
+* While the search box has text, the selected tile (or STOPPAGES) no longer hides
+  matches. When every match is in one tile, that tile is selected for the
+  search; otherwise **All vehicles** is. Tiles holding a match get a green
+  outline; the tile picked before the search gets a dashed outline.
+* Panel note: "Found in PMB · showing every tile while you search · QC tile
+  comes back when you clear the search". Summary: "… · search “…” · found in PMB".
+* Clicking a tile during a search narrows the search results only. Clearing the
+  search brings back the tile picked before (kept in memory, as before).
+* The Department selector still applies. A match in another department shows an
+  amber note "Found in Department 138 — Bus 4×4 · <tile> · <stock>" with a
+  **Switch to 138** button (the same as choosing it in the Department box). This
+  note also appears in the Drop-down view, which has no tile filter.
+* A search narrowing to one vehicle still opens it once (slide-out panel).
+* Pure helpers `searchScope()` and `departmentElsewhere()` are exported for the
+  tests. Display only: nothing is written or saved.
+* Undo: revert the r481 commit.
+
