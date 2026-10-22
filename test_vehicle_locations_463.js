@@ -45,15 +45,15 @@ test('bug 1 reproduced and fixed: every row has its own Job Card cell; Stock sho
     if (jc) { assert.ok(job.includes(jc), 'the card\'s own job-card markup moves verbatim'); withJob += 1; }
     else assert.match(job, /vlt-subtle-dash/, 'no job card: a grey dash');
     // order: select, key, stock, job, customer, vehicle, parts loc, stations
-    assert.deepEqual([...row.matchAll(/<td class="(c-[a-z]+)/g)].map(m => m[1]).slice(0, 8), ['c-sel', 'c-key', 'c-stock', 'c-job', 'c-cust', 'c-unit', 'c-ploc', 'c-work']);
+    assert.deepEqual([...row.matchAll(/<td class="(c-[a-z]+)/g)].map(m => m[1]).slice(0, 9), ['c-sel', 'c-key', 'c-stock', 'c-job', 'c-cust', 'c-unit', 'c-ploc', 'c-eta', 'c-work']); // r475 adds Parts ETA
   }
   assert.ok(withJob >= 20, `fixture has job cards (${withJob})`);
   const source = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.match(source, /<col class="c-stock"><col class="c-job"><col class="c-cust">/);
   assert.match(source, /<th class="c-job">\$\{heading\('Job Card', 'jobcard'\)\}\$\{grip\('job'\)\}<\/th>/, 'header uses the board\'s own job-card sort');
-  assert.match(source, /colspan="11" class="vlt-empty"/);
+  assert.match(source, /colspan="12" class="vlt-empty"/); // r475: + Parts ETA
   assert.equal(table.COLUMNS.job.label, 'Job Card');
-  assert.deepEqual(Object.keys(table.COLUMNS), ['key', 'stock', 'job', 'cust', 'unit', 'ploc', 'work', 'age', 'status', 'action']);
+  assert.deepEqual(Object.keys(table.COLUMNS), ['key', 'stock', 'job', 'cust', 'unit', 'ploc', 'eta', 'work', 'age', 'status', 'action']); // r475 adds eta
 });
 
 test('Job Card shows for people who already saved r461 / r462 settings (view, widths) and can never be 0 wide or hidden', () => {
@@ -65,8 +65,8 @@ test('Job Card shows for people who already saved r461 / r462 settings (view, wi
   assert.equal(widths.job, undefined, 'no saved width: the default applies');
   const css = table.widthStyle(widths);
   assert.doesNotMatch(css, /--vlt-w-job/);
-  const C = table.COLUMNS; // r476 (F89): new defaults, no select column when no row has a checkbox
-  assert.match(css, new RegExp(`--vlt-table-min:${50 + 120 + C.job.width + 150 + C.unit.width + 70 + C.work.width + C.age.width + C.status.width + C.action.width}px`), 'table minimum includes the Job Card default width');
+  const C = table.COLUMNS; // r476 (F89): new defaults, no select column when no row has a checkbox; r475 adds Parts ETA
+  assert.match(css, new RegExp(`--vlt-table-min:${50 + 120 + C.job.width + 150 + C.unit.width + 70 + C.eta.width + C.work.width + C.age.width + C.status.width + C.action.width}px`), 'table minimum includes the Job Card default width');
   assert.deepEqual(table.sanitizeWidths({ job: 0 }), {}, 'a 0 width is ignored');
   assert.deepEqual(table.sanitizeWidths({ job: 5 }), { job: 64 }, 'below the minimum: the minimum');
   const sheet = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
@@ -147,7 +147,7 @@ test('loader: r463 cache-bust tags; pdc-auto-reload.js stays first; no real stoc
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /r463=2026\.10\.22\.r463/);
   assert.match([...html.matchAll(/<script[^>]*src="([^"]+)"/g)][0][1], /^pdc-auto-reload\.js/);
-  assert.equal(table.VERSION, '2026.10.22.r476'); // r476 (F89) bumped the table module
+  assert.equal(table.VERSION, '2026.10.22.r475'); // r475 (F88) bumped the table module (on top of r476)
   assert.match(slideout.VERSION, /^2026\.10\.22\.r4[67]3$/);
   const text = fs.readFileSync(__filename, 'utf8');
   assert.doesNotMatch(text, /\b1[23]\d{6}\b|\bJ13[89]\d{6}\b/);

@@ -66,10 +66,11 @@
     const serviceLocations = document.createElement('script');
     serviceLocations.src = 'pdc-service-locations.js?v=2026.09.14.03';
     // r436 (F47): parts ETA loads after the parts location so its chip sits beside it (and still loads if that file fails).
+    // r475 (F88): r475=2026.10.22.r475 on the parts ETA script (countdown and source-email hover).
     const loadPartsEta = () => {
       if (document.querySelector('script[data-pdc-parts-eta]')) return;
       const partsEta = document.createElement('script');
-      partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436';
+      partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436&r475=2026.10.22.r475';
       partsEta.dataset.pdcPartsEta = '1';
       partsEta.onload = loadKeyNumber;
       partsEta.onerror = loadKeyNumber;
@@ -93,7 +94,7 @@
     const loadVehicleLocationsTable = () => {
       if (document.querySelector('script[data-pdc-vehicle-locations-table]')) return;
       const table = document.createElement('script');
-      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476'; // r476 (F89): bunched-up columns
+      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476&r475=2026.10.22.r475'; // r476 (F89): bunched-up columns; r475 (F88): Parts ETA column
       table.dataset.pdcVehicleLocationsTable = '1';
       table.onload = loadVehicleSlideout;
       document.head.appendChild(table);

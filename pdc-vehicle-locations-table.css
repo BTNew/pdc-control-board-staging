@@ -65,13 +65,13 @@ body.vlt-table-on .vlt-slim-bar [data-pdc-refresh-control] { display: none !impo
 .vlt-panel-header .work-status-legend > strong { font-size: 9px !important; text-transform: uppercase; color: #677d9b; white-space: nowrap; }
 .vlt-panel-header .work-status-key { flex: 0 0 auto !important; padding: 2px 7px !important; min-height: 0 !important; height: auto !important; font-size: 10px !important; border-radius: 10px !important; white-space: nowrap; min-width: 0 !important; width: auto !important; }
 .vlt-table-wrap { overflow: auto; max-height: calc(100vh - 300px); min-height: 160px; }
-.vlt-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: var(--vlt-table-min, 1098px); font-size: 11px; }
+.vlt-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: var(--vlt-table-min, 1194px); font-size: 11px; }
 /* r462: widths come from CSS variables that the column resize sets on the table.
    r476 (F89): tight fixed defaults for Key, Stock, Job Card, Parts loc, Stations and Age / ETA. Customer, Vehicle,
    Status and Booking take the spare width (--vlt-flex-* from layoutWidths() in the JS); a saved width wins. The select
    column is 0 px unless a row on screen has a select checkbox (--vlt-w-sel, 22 px). */
 .vlt-table col.c-sel { width: var(--vlt-w-sel, 0px); } .vlt-table col.c-key { width: var(--vlt-w-key, 42px); } .vlt-table col.c-stock { width: var(--vlt-w-stock, 82px); } .vlt-table col.c-job { width: var(--vlt-w-job, 78px); }
-.vlt-table col.c-cust { width: var(--vlt-w-cust, var(--vlt-flex-cust, 104px)); } .vlt-table col.c-unit { width: var(--vlt-w-unit, var(--vlt-flex-unit, 112px)); } .vlt-table col.c-ploc { width: var(--vlt-w-ploc, 60px); }
+.vlt-table col.c-cust { width: var(--vlt-w-cust, var(--vlt-flex-cust, 104px)); } .vlt-table col.c-unit { width: var(--vlt-w-unit, var(--vlt-flex-unit, 112px)); } .vlt-table col.c-ploc { width: var(--vlt-w-ploc, 60px); } .vlt-table col.c-eta { width: var(--vlt-w-eta, 96px); }
 .vlt-table col.c-work { width: var(--vlt-w-work, 276px); } .vlt-table col.c-age { width: var(--vlt-w-age, 72px); } .vlt-table col.c-status { width: var(--vlt-w-status, var(--vlt-flex-status, 112px)); } .vlt-table col.c-action { width: var(--vlt-w-action, var(--vlt-flex-action, 160px)); }
 .vlt-table:not(.has-select) .c-sel { padding: 0; border-right: 0; }
 .vlt-table:not(.has-select) .c-sel > * { display: none !important; }
@@ -198,3 +198,11 @@ body.vlt-table-on #vlt-nav-status { flex: 0 1 250px; }
   body.vlt-table-on .vlt-slim-bar > label.incoming-department-control select { min-width: 130px; }
   body.vlt-table-on #vlt-nav-status { flex: 1 1 100%; }
 }
+
+/* r475 (F88): Parts ETA column. The chip is pdc-parts-eta.js's own (colour = due state, hover = the source email); in this
+   column the "Parts ETA" word is dropped (the header says it) so "29/10 · 7 days" fits on one line in 96 px; a longer one
+   ("29/10 · 12 days overdue") wraps to a second line inside the 32 px row instead of being cut off. */
+.vlt-table td.c-eta { white-space: normal; }
+.vlt-table td.c-eta .pdc-parts-eta { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; max-width: 100%; overflow: hidden; white-space: normal; vertical-align: middle; font-size: 10.5px; line-height: 1.12; padding: 1px 5px; cursor: help; width: fit-content; }
+.vlt-table td.c-eta .pdc-parts-eta-k { display: none; }
+.vlt-table td.c-eta .pdc-parts-eta-overdue { font-weight: 700; }

@@ -34,10 +34,14 @@
  * - Saved widths move to key pdc.vehicle-locations-columns.v2:<user id>, so r462-era saved widths (often the stretched
  *   widths of a wide screen) do not hide the new defaults. v1 values are left on the device untouched, so undoing r476
  *   brings them back. "Reset columns" clears the v2 widths and restores these defaults.
+ *
+ * r475 (F88, Craig 22 Oct 10:51), Table view only: a compact "Parts ETA" column after "Parts loc". It is the card's own
+ * parts ETA chip (pdc-parts-eta.js: "dd/mm · N days", amber "today", red "N days overdue", hover = the source email),
+ * moved out of the Vehicle cell verbatim like the parts location; "—" when there is none. Resizable like the others.
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.22.r476';
+  const VERSION = '2026.10.22.r475'; // r476 (F89) widths, then r475 (F88) Parts ETA column (cache-busts this module)
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
   const VIEWS = Object.freeze({ dropdown: 'dropdown', table: 'table' });
   // Vehicle journey, left to right (Craig, 22 Oct 2026).
@@ -64,6 +68,7 @@
     cust: { label: 'Customer', width: 104, min: 48, flex: 1 },
     unit: { label: 'Vehicle', width: 112, min: 60, flex: 1 },
     ploc: { label: 'Parts loc', width: 60, min: 44 },
+    eta: { label: 'Parts ETA', width: 96, min: 56 }, // r475 (F88)
     work: { label: 'Stations', width: 276, min: 276 },
     age: { label: 'Age / ETA', width: 72, min: 48 },
     status: { label: 'Status', width: 112, min: 56, flex: 1.2 },
@@ -157,6 +162,8 @@
     const identityFallback = !p.key && !p.stockNo; // unexpected identity markup: keep the whole stock span
     const parts = extractPartsLocation(html(p.unit));
     const ploc = parts.span || '<span class="vlt-subtle-dash" title="No parts location">—</span>';
+    const eta = extractPartsEta(parts.unit); // r475: the parts ETA chip gets its own column
+    const etaCell = eta.span || '<span class="vlt-subtle-dash" title="No parts ETA">—</span>';
     const rftSpan = p.rft && !p.work && [p.age, p.status, p.action].every(isBlank);
     const cells = [
       td('c-sel', html(p.select)),
@@ -164,13 +171,14 @@
       td('c-stock', identityFallback ? html(p.stock) : html(p.stockNo)),
       td('c-job', identityFallback || !p.job ? '<span class="vlt-subtle-dash" title="No job card">—</span>' : html(p.job)),
       td('c-cust', html(p.name)),
-      td('c-unit', parts.unit),
+      td('c-unit', eta.unit),
       td('c-ploc', ploc),
+      td('c-eta', etaCell),
       td(`c-work${p.rft && !p.work ? ' is-rft' : ''}`, html(p.work || p.rft), rftSpan ? ' colspan="4"' : ''),
     ];
     if (!rftSpan) cells.push(td('c-age', html(p.age)), td('c-status', html(p.status)), td('c-action', html(p.action)));
     void tile; void bucketLabel;
-    return `<tr class="${classes.join(' ')}" data-vlt-key="${escapeText(rowKey)}" data-vlt-bucket="${escapeText(bucket)}" data-vlt-parts-loc="${escapeText(parts.text)}" tabindex="0"${p.identityTitle ? ` aria-label="${escapeText(p.identityTitle)}"` : ''}>${cells.join('')}</tr>`;
+    return `<tr class="${classes.join(' ')}" data-vlt-key="${escapeText(rowKey)}" data-vlt-bucket="${escapeText(bucket)}" data-vlt-parts-loc="${escapeText(parts.text)}" data-vlt-parts-eta="${escapeText(eta.eta)}" tabindex="0"${p.identityTitle ? ` aria-label="${escapeText(p.identityTitle)}"` : ''}>${cells.join('')}</tr>`;
   }
 
   // r462: the card's own parts-location span (pdc-service-locations.js puts it inside .incoming-card-main), lifted out
@@ -181,6 +189,15 @@
     if (!m) return { unit: unitHtml, span: '', text: '' };
     const text = m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
     return { unit: unitHtml.replace(m[0], ''), span: m[0], text };
+  }
+  // r475: the parts ETA chip (pdc-parts-eta.js chipHtml, r436 or r475 markup) lifted out of the Vehicle cell verbatim; the
+  // wrapper it sat in is dropped once empty. Returns the Vehicle cell without it, the chip, and its ISO date.
+  const ETA_CHIP = /<span class="pdc-parts-eta pdc-parts-eta-(?:ok|due|overdue)"[^>]*>(?:<span class="pdc-parts-eta-k">[^<]*<\/span>)?[^<]*<\/span>/;
+  function extractPartsEta(unitHtml = '') {
+    const m = ETA_CHIP.exec(unitHtml);
+    if (!m) return { unit: unitHtml, span: '', eta: '' };
+    const unit = unitHtml.replace(m[0], '').replace(/<span class="pdc-parts-eta-wrap">\s*<\/span>/, '');
+    return { unit, span: m[0], eta: attrOf(m[0], 'data-parts-eta') };
   }
   // Table-only parts-location sort: text order (natural, so 05E2A < 12B1), missing values last in both directions.
   function comparePartsLocation(a = '', b = '', direction = 'asc') {
@@ -264,7 +281,7 @@
   }
 
   const api = { VERSION, VIEWS, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
-    COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
+    COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, extractPartsEta, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.renderIncomingDashboardBoard !== 'function' || root.PDC_VEHICLE_LOCATIONS_TABLE) {
     if (root && !root.PDC_VEHICLE_LOCATIONS_TABLE) root.PDC_VEHICLE_LOCATIONS_TABLE = api;
@@ -447,14 +464,14 @@
       : state.stoppages ? 'STOPPAGES only · click All vehicles to clear' : 'Click a tile to filter · click a vehicle to open it';
     const bodyHtml = shown.map(entry => tableRowHtml(entry.card,
       entry.bucket, { key: entry.key, openKey: state.openKey, bucketLabel: root.incomingBucketLabel(entry.bucket) })).join('')
-      || `<tr><td colspan="11" class="vlt-empty">${loading ? 'Loading vehicles…' : 'No vehicles match this tile and the search filters'}</td></tr>`;
+      || `<tr><td colspan="12" class="vlt-empty">${loading ? 'Loading vehicles…' : 'No vehicles match this tile and the search filters'}</td></tr>`;
     const keepDrawer = !drawerOpener && ui.keepDrawer && state.openKey && shown.some(entry => entry.key === state.openKey) ? ui.drawerNode : null;
     host.innerHTML = `${tilesHtml}
       <section class="vlt-panel" aria-label="Vehicle locations table">
         <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
         <div class="vlt-table-wrap"><table class="vlt-table${Object.keys(state.widths).length ? ' has-custom-widths' : ''}${/data-select-stock/.test(bodyHtml) ? ' has-select' : ''}">
-          <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-job"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
-          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
+          <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-job"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-eta"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
+          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-eta"><span title="Parts ETA from parts staff emails (Perth dates). Hover a date for the source email.">Parts ETA</span>${grip('eta')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
           <tbody>${bodyHtml}</tbody></table></div>
       </section>`;
     const holder = doc.createElement('div');
