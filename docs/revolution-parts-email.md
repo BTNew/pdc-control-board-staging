@@ -30,3 +30,17 @@ The same authenticated sender also supplies subject **PMG PD Parts Status** with
 Receiving evidence may show PMB as the direct recipient, or Craig as the exact To address with PMB present in the actual CC-address array. The mailbox, exact sender, bound message ID, receiving Gmail SPF and aligned DMARC remain mandatory. Never substitute the mailbox for the actual To header. Other subject/filename pairs or recipient combinations remain rejected.
 
 Migration `20261006034419_revolution_job_parts_report` passed rollback assertions with this job-level variant and authentic-recipient shape, including missing/wrong CC rejection. Nine focused parts checks passed. Actual report application/readback matched34 jobs/vehicles:11 backorders cleared,23 unchanged,18 unmatchedheld. All source/staff hours, bookings, vehicle state, person confirmations, unrelated jobs and disabled importer state were protected.
+
+## r484 (F97): To pdc@pmgwa.com.au with Craig on CC
+
+From 22 October 2026 Revolution addresses the **PMG PD Parts Status Complete - Pilbara** report To `pdc@pmgwa.com.au` with Craig (`craig.watson@broometoyota.com.au`) on CC; it is still delivered to the `pmbcontroller@gmail.com` mailbox. Craig approved accepting this (chat, 22 Oct 2026 14:18 AWST). Migration `20261022063000_r484_parts_auth_pdc_mailbox` adds exactly one recipient case to `pdc_codex_intake_private.revolution_parts_authenticated_20261006(jsonb,text)`:
+
+- `to_address` is exactly `pdc@pmgwa.com.au` **and** the `cc_addresses` array contains exactly `craig.watson@broometoyota.com.au`.
+
+The two earlier cases are unchanged (To PMB; To Craig with PMB in `cc_addresses`). Everything else is unchanged: bound message ID, exact sender, mailbox, verifier, header-from, Reply-To, `mx.google.com`, SPF pass and aligned DMARC pass. Matching stays exact (no case folding or trimming), as before. To `pdc@` without Craig on CC, another CC, any other To address or domain, or a string instead of an array are rejected. Attachment sha256, subject, filename, envelope sender and mailbox checks stay in the callers, which are not changed.
+
+**Preparer (PMB Email):** put the real Cc header in the authentication object as `cc_addresses` (a JSON array of bare addresses, e.g. from `email.utils.getaddresses`), exactly as the service preparer already does. An envelope without `cc_addresses` is still refused.
+
+This function is shared: the service manifest (`revolution_service_manifest_20261006`) and the Karratha 135 contract (`karratha135_intake.revolution_csv_contract_20261007`) call it too, so a service report addressed the same way is accepted at this step as well; each keeps its own subject, file and department rules.
+
+Undo: `supabase/rollbacks/20261022063000_r484_parts_auth_pdc_mailbox.down.sql` restores the exact old body (with its CRLF line ends) and removes the r484 pin and check. Daily check `parts_auth_pdc_mailbox_484` (sort 284) runs 26 synthetic header cases. Local proof: `tests/r484_local_harness/run.sh`.

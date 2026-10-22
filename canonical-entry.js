@@ -151,7 +151,7 @@
     };
     document.head.appendChild(intakeScript);
     const bookAllStations = document.createElement('script');
-    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed&render-cost=2026.09.14.01&one-hour-gap=2026.09.14.01';
+    bookAllStations.src = 'pdc-book-all-stations.js?v=2026.09.14.01-book-all-speed&render-cost=2026.09.14.01&one-hour-gap=2026.09.14.01&r483=2026.10.22.r483';
     document.head.appendChild(bookAllStations);
     const locationOverride = document.createElement('script');
     locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01&separate-screens-pmb-warning=2026.09.16.01';

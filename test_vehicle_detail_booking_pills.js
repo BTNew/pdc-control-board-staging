@@ -11,6 +11,8 @@ const start = appSource.indexOf('function pdcWorkDestinationDateLabel');
 const end = appSource.indexOf('\nconst PDC_JOB_BY_REQUIRE_KEY', start);
 assert.ok(start > 0 && end > start);
 const canonicalId = '11111111-1111-4111-8111-111111111111';
+// r483 (F96): booking rows name Dept 139 bays through pdcBayText (plain 'Bay N' without the department layout).
+const bayTextSource = appSource.slice(appSource.indexOf('function pdcBayText'), appSource.indexOf('\nfunction pmbStageCapacityLabel'));
 const context = {
   app: { vehicleWorkshopDetailCache: new Map([[canonicalId, { status: 'ready', detail: { bookings: [{
     booking_id: '22222222-2222-4222-8222-222222222222',
@@ -39,7 +41,7 @@ context.canonicalVehicleWorkState = (vehicle, def) => guard.projectWorkState({
   partsOrdered: vehicle.pdcPartsOrdered === true,
 });
 vm.createContext(context);
-vm.runInContext(appSource.slice(start, end), context);
+vm.runInContext(`${bayTextSource}\n${appSource.slice(start, end)}`, context);
 const fitting = { key: 'fitting', label: 'FITTING', short: 'F', requireKey: 'pdcRequiresFitting', completeKey: 'pdcCompleteFitting' };
 const vehicle = { pdcRequiresFitting: true };
 const html = context.pdcJobTriStateControl(vehicle, fitting, false);

@@ -12,6 +12,8 @@
   const text = value => String(value == null ? '' : value).trim();
   const escape = value => text(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   const stageLabel = stage => labels[stage] || text(stage);
+  // r483 (F96): Dept 139 bays carry Craig's names and numbers ('Fitting · Bay 06'); other stations keep 'Bay NN'.
+  const bayText = (stage, number) => layout?.pmbBayLabel?.(stage, number) || `Bay ${String(number).padStart(2, '0')}`;
   const identity = vehicle => ({
     key: text(vehicle.key_number) || '—', job: text(vehicle.job_card_number) || '—',
     stock: text(vehicle.stock_number) || '—', customer: text(vehicle.customer_name) || 'Customer not recorded',
@@ -74,7 +76,7 @@
     const matches = (item, column) => {
       if (!search) return true;
       const person = itemIdentity(item);
-      return [person.key, person.job, person.stock, person.customer, person.description, stageLabel(item.stage), column ? `Bay ${column.bay.bay_number}` : 'Unallocated', column?.bay.display_name, item.source.label].map(text).join(' ').toLowerCase().includes(search);
+      return [person.key, person.job, person.stock, person.customer, person.description, stageLabel(item.stage), column ? `Bay ${column.bay.bay_number}` : 'Unallocated', column ? layout?.pmbBayLabel?.(column.stage, column.bay.bay_number) : '', column?.bay.display_name, item.source.label].map(text).join(' ').toLowerCase().includes(search);
     };
     columns.forEach(column => {
       column.items.sort(compareTime);
@@ -83,8 +85,12 @@
     });
     waiting.sort((a, b) => rank(a.stage) - rank(b.stage) || text(a.vehicle.stock_number).localeCompare(text(b.vehicle.stock_number), undefined, { numeric: true }) || compareTime(a, b));
     const matchedWaiting = waiting.filter(item => matches(item));
-    const visibleColumns = search ? columns.filter(column => column.items.length > 0) : columns;
-    return { department, calendar: snapshot.board.calendar, generatedAt: snapshot.generated_at, columns: visibleColumns, waiting: matchedWaiting, waitingTotal: waiting.length, totalBookings: seenBookings.size, totalWaiting: waiting.length, totalBays: columns.length, search,
+    // r483 (F96): a Dept 139 bay above its station's planner count that is inactive and empty (Fab Bays 03-13, hidden by
+    // Craig) is not drawn; any other inactive bay, or one that still holds a booking or block, stays visible as before.
+    const retired = column => column.bay.is_active === false && column.total === 0 && Number(column.bay.bay_number) > (layout?.PMB_BAY_COUNTS?.[column.stage] ?? Infinity);
+    const shownColumns = columns.filter(column => !retired(column));
+    const visibleColumns = search ? shownColumns.filter(column => column.items.length > 0) : shownColumns;
+    return { department, calendar: snapshot.board.calendar, generatedAt: snapshot.generated_at, columns: visibleColumns, waiting: matchedWaiting, waitingTotal: waiting.length, totalBookings: seenBookings.size, totalWaiting: waiting.length, totalBays: shownColumns.length, search,
       matchingItems: matchedWaiting.length + columns.reduce((n, column) => n + column.items.length, 0),
       stages: [...new Set(visibleColumns.map(column => column.stage))] };
   }
@@ -391,7 +397,7 @@
       previousStage = groupId;
       const note = row.bay.is_active === false ? 'Inactive · existing bookings only' : `${text(row.bay.technician_name) || 'Unassigned'} · ${Number(row.bay.efficiency_percent) || 100}%`;
       const missing = row.unplotted.map(entry => `<button type="button" class="control-board-unplotted" data-control-board-match data-control-board-item="${escape(entry.item.kind)}" data-control-board-id="${escape(entry.item.id)}" title="${escape(entry.reason)}">${escape(entry.item.vehicle.stock_number || entry.item.source.label || 'Job')} · ${escape(entry.reason)}</button>`).join('');
-      return `${group}<div class="control-board-timeline-bay ${stationClass}" data-control-board-bay="${escape(row.bay.bay_id)}" aria-label="${escape(`${label} Bay ${row.bay.bay_number}`)}" style="--row-height:${zoom === 'month' ? Math.max(22, row.laneCount * laneHeight + 6) : Math.max(58, row.laneCount * 48 + 10)}px"><div class="control-board-timeline-bay-label"><button type="button" data-control-board-planner="${escape(row.stage)}" data-control-board-group="${escape(layout?.groupForBay(row.stage === 'BUS_4X4' ? row.bay.bay_number : 0)?.id || '')}" title="Open ${escape(label)} planner"><strong>Bay ${String(row.bay.bay_number).padStart(2, '0')}</strong><span>${model.search ? row.items.length : row.total}</span></button><small title="${escape(note)}">${escape(note)}</small>${missing}</div><div class="control-board-timeline-track">${shading}${(row.bars || row.segments).map(zoom === 'month' ? monthCard : timelineCard).join('')}</div></div>`;
+      return `${group}<div class="control-board-timeline-bay ${stationClass}" data-control-board-bay="${escape(row.bay.bay_id)}" aria-label="${escape(`${label} ${bayText(row.stage, row.bay.bay_number)}`)}" style="--row-height:${zoom === 'month' ? Math.max(22, row.laneCount * laneHeight + 6) : Math.max(58, row.laneCount * 48 + 10)}px"><div class="control-board-timeline-bay-label"><button type="button" data-control-board-planner="${escape(row.stage)}" data-control-board-group="${escape(layout?.groupForBay(row.stage === 'BUS_4X4' ? row.bay.bay_number : 0)?.id || '')}" title="Open ${escape(label)} planner"><strong>${escape(bayText(row.stage, row.bay.bay_number))}</strong><span>${model.search ? row.items.length : row.total}</span></button><small title="${escape(note)}">${escape(note)}</small>${missing}</div><div class="control-board-timeline-track">${shading}${(row.bars || row.segments).map(zoom === 'month' ? monthCard : timelineCard).join('')}</div></div>`;
     }).join('');
     const outside = timeline.outside.length ? `<button class="small-button" type="button" data-control-board-reveal="${escape(timeline.outside[0].date)}">${timeline.outside.length} bookings outside these dates · Show</button>` : '';
     const waiting = model.waiting.length ? `<div class="control-board-timeline-waiting"><strong>Unallocated · ${model.waiting.length}</strong><div>${model.waiting.map(item => cardHtml(item, true)).join('')}</div></div>` : '';

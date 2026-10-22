@@ -127,9 +127,28 @@
     return definitions.map(section => ({...section, options:destinations.filter(option => section.stages.includes(option.stage))}))
       .filter(section => section.options.length);
   }
+  // r483 (F96, Craig 22 Oct): Dept 139 (PMB) bay names and Craig's bay numbers 1-22, like the Dept 138 bay groups.
+  // Keyed by station and the station's own bay_number: bookings keep bay_id / bay_number, only the label changes.
+  // Fab Bays 03-13 are hidden (inactive), so Fab shows 2 bays. Shared Tint / Tyre and Bus 4x4 are not in this map.
+  const PMB_BAYS_VERSION = 'r483';
+  const pmbBayRows = (first, label, count) => Object.freeze(Object.fromEntries(Array.from({length:count}, (_, i) =>
+    [i+1, Object.freeze({number:first+i, label})])));
+  const PMB_BAYS = Object.freeze({
+    HOIST: Object.freeze({1:Object.freeze({number:1,label:'Express / Pits Hoist'}),2:Object.freeze({number:2,label:'Express'}),3:Object.freeze({number:3,label:'Hoist'})}),
+    FITTING: pmbBayRows(6, 'Fitting', 5),
+    FABRICATION: Object.freeze({1:Object.freeze({number:11,label:'Internal Fabrication'}),2:Object.freeze({number:12,label:'External Fabrication'})}),
+    ELECTRICAL: pmbBayRows(13, 'Electrical', 10),
+  });
+  const PMB_BAY_COUNTS = Object.freeze({HOIST:3,FITTING:5,FABRICATION:2,ELECTRICAL:10});
+  const pmbBay = (stage, bay) => PMB_BAYS[String(stage || '').trim().toUpperCase()]?.[Number(bay)] || null;
+  // 'Fitting · Bay 06' for a Dept 139 bay, '' for any other station (callers keep their own 'Bay N').
+  function pmbBayLabel(stage, bay) {
+    const named = pmbBay(stage, bay);
+    return named ? named.label+' · Bay '+String(named.number).padStart(2,'0') : '';
+  }
   function bayLabel(stage, bay) {
     const base = 'Bay '+String(bay).padStart(2,'0');
-    return stage === 'BUS_4X4' && groupForBay(bay) ? groupForBay(bay).label+' · '+base : base;
+    return pmbBayLabel(stage, bay) || (stage === 'BUS_4X4' && groupForBay(bay) ? groupForBay(bay).label+' · '+base : base);
   }
   // Combined conversion lines stay together: mentioning a tyre specification does
   // not split a conversion's source hours into invented operations.
@@ -140,5 +159,5 @@
     if (/\b(?:TYRES?|TIRES?|RIMS?)\b|WHEEL[ -]*(?:ALIGNMENT|BALANC(?:E|ING))|\b(?:2ND|SECOND|EXTRA|ADDITIONAL)\s+SPARE\s+(?:GENUINE\s+)?WHEEL\b/.test(text)) return 'TYRE';
     return 'BUS_4X4';
   }
-  return Object.freeze({BUS_GROUPS,BUS_WORK,WHOLE_JOB,isWholeJob,wholeJobChoice,SHARED,PD,normalize,group,groupForBay,category,allowedBays,preferredBays,categoryForView,externalPitLines,isPitLine,categoryLabel,categoryStage,categoryChoices,selectedCategory,splitGroups,stageVisible,options,plannerTitle,plannerSections,bayLabel,sharedStation});
+  return Object.freeze({PMB_BAYS_VERSION,PMB_BAYS,PMB_BAY_COUNTS,pmbBay,pmbBayLabel,BUS_GROUPS,BUS_WORK,WHOLE_JOB,isWholeJob,wholeJobChoice,SHARED,PD,normalize,group,groupForBay,category,allowedBays,preferredBays,categoryForView,externalPitLines,isPitLine,categoryLabel,categoryStage,categoryChoices,selectedCategory,splitGroups,stageVisible,options,plannerTitle,plannerSections,bayLabel,sharedStation});
 });

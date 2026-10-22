@@ -4,6 +4,8 @@
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== 'cdsmnqxtyyoeoznmbidd' || window.PDC_BOOK_ALL_STATIONS) return;
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // r483 (F96): Dept 139 bays show Craig's names and numbers ('Fitting · Bay 06'); other stations keep 'Bay N'.
+  const bayText = (stage, bay) => window.PDC_WORKSHOP_DEPARTMENTS?.pmbBayLabel?.(stage, bay) || `Bay ${bay}`;
   const writable = () => ['operator', 'administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
   const pending = new Map();
   let sessionGeneration = 0;
@@ -54,7 +56,7 @@
     const skipped = Array.isArray(result.skipped) ? result.skipped : [];
     const count = bookings.length;
     const summary = `<p><strong>${count ? `${count} station${count === 1 ? '' : 's'} booked.` : 'No new bookings were needed.'}</strong></p>`;
-    const rows = bookings.length ? `<div class="book-all-stations-table"><table><thead><tr><th>Station / bay</th><th>Start</th><th>Finish</th></tr></thead><tbody>${bookings.map(booking => `<tr><th scope="row">${esc(stageLabel(booking.stage))}<small>Bay ${esc(booking.bay)}</small></th><td>${esc(timeLabel(booking.start_at))}</td><td>${esc(timeLabel(booking.end_at))}</td></tr>`).join('')}</tbody></table></div>` : '';
+    const rows = bookings.length ? `<div class="book-all-stations-table"><table><thead><tr><th>Station / bay</th><th>Start</th><th>Finish</th></tr></thead><tbody>${bookings.map(booking => `<tr><th scope="row">${esc(stageLabel(booking.stage))}<small>${esc(bayText(booking.stage, booking.bay))}</small></th><td>${esc(timeLabel(booking.start_at))}</td><td>${esc(timeLabel(booking.end_at))}</td></tr>`).join('')}</tbody></table></div>` : '';
     const skippedHtml = skipped.length ? `<p class="subtle">${skipped.map(item => `${esc(stageLabel(item.stage))}: ${esc(item.reason || 'already booked')}`).join('<br>')}</p>` : '';
     return `${summary}${rows}${skippedHtml}<p class="subtle">Sublet is excluded. A 1-hour gap is allowed between this vehicle’s jobs.</p>`;
   }

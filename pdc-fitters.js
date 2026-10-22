@@ -3,6 +3,10 @@
   'use strict';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // r483 (F96): Dept 139 bays show Craig's names and numbers ('Fitting · Bay 06'); other stations keep 'Bay N'.
+  // The mechanic's bay list names its station by display name, so map those back to the station code.
+  const STAGE_BY_NAME = {Hoist:'HOIST',Fitting:'FITTING',Fab:'FABRICATION',Fabrication:'FABRICATION',Elec:'ELECTRICAL',Electrical:'ELECTRICAL'};
+  const bayText = (stageCode, number) => root.PDC_WORKSHOP_DEPARTMENTS?.pmbBayLabel?.(stageCode, number) || `Bay ${number ?? '—'}`;
   const errors = {
     bus_stage_parts_required:'Parts no longer hold up a job. Refresh the page and try again; if it happens again, tell the controller.',
     bus_bay_vehicle_incompatible:'This vehicle is not compatible with this Bus 4×4 bay. Ask the controller to choose a suitable bay.',
@@ -64,7 +68,7 @@
     if(!blocker || typeof blocker!=='object') return null;
     const stages={BUS_4X4:'Bus 4×4',TINT:'Tint',HOIST:'Hoist',FITTING:'Fitting',FABRICATION:'Fabrication',ELECTRICAL:'Electrical',TYRE:'Tyre'};
     const stage=stages[blocker.stage_code]||String(blocker.stage_name||'another workshop').trim().slice(0,80);
-    const bay=Number(blocker.bay_number),where=`${stage}${Number.isInteger(bay)&&bay>0?`, Bay ${bay}`:''}`;
+    const bay=Number(blocker.bay_number),where=`${stage}${Number.isInteger(bay)&&bay>0?`, ${bayText(blocker.stage_code,bay)}`:''}`;
     const situation={planned:'has a planned booking',queued:'has a queued booking',started:'has work in progress',stoppage:'has a stopped job'}[blocker.status]||'has another booking';
     const format=value=>Number.isFinite(Date.parse(value))?new Date(value).toLocaleString('en-AU',{timeZone:'Australia/Perth',weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
     const start=format(blocker.start_at||blocker.scheduled_start_at),end=format(blocker.end_at||blocker.scheduled_end_at);
@@ -411,7 +415,7 @@
   const time = value => value ? new Date(value).toLocaleString('en-AU', {timeZone:'Australia/Perth',weekday:'short',day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}) : 'Not scheduled';
   const state = value => ({started:'In progress',stoppage:'Stopped',planned:'Planned',queued:'Queued',completed:'Completed'}[value] || value);
   function jobPreview(job) {
-    return `<strong>${esc(job.stock || 'Stock not recorded')}</strong><span>${esc(job.customer || 'Customer not recorded')} · ${esc(job.vehicle || 'Vehicle details pending')}</span><small>${esc(job.stage_name)} · Bay ${esc(job.bay_number ?? '—')} · ${esc(time(job.start_at))}</small>`;
+    return `<strong>${esc(job.stock || 'Stock not recorded')}</strong><span>${esc(job.customer || 'Customer not recorded')} · ${esc(job.vehicle || 'Vehicle details pending')}</span><small>${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(time(job.start_at))}</small>`;
   }
   function nextJobHtml(flow, locked, editable) {
     const unsaved=[...drafts.keys()].some(k=>k.startsWith(selected+':')) || root.PdcConversions?.hasDrafts() || conversionNotes.size>0;
@@ -448,10 +452,10 @@
       ${service.retryPending ? '<div class="fitter-warning">The last save is unconfirmed. Retrying checks the same action and cannot apply it twice. <button type="button" data-fitter-retry>Check / retry last save</button></div>' : ''}
       ${busPending() ? '<div class="fitter-warning">The supplier save is unconfirmed. Check the same request before making another change. <button type="button" data-bus-fitter-retry>Check / retry supplier save</button></div>' : ''}
       ${!service.canWrite() && connected ? '<p class="fitter-warning">View only. An operator account is needed to record work.</p>' : ''}
-      ${mechanic ? `<p class="fitter-bay-summary">${bays.length ? bays.map(b=>`${esc(b.stage)} · Bay ${esc(b.number ?? '—')}${b.active?'':' (inactive)'}`).join(' / ') : 'Jobs individually assigned to this mechanic appear below.'}</p>` : ''}
-      ${flow.otherActive.length ? `<details class="fitter-active-jobs"><summary>Other active jobs (${flow.otherActive.length})</summary>${flow.otherActive.map(j=>`<button type="button" data-fitter-job="${esc(j.id)}" ${locked?'disabled':''}>${esc(j.stock)} · ${esc(j.stage_name)} / Bay ${esc(j.bay_number)} · ${esc(state(j.status))}</button>`).join('')}</details>` : ''}
+      ${mechanic ? `<p class="fitter-bay-summary">${bays.length ? bays.map(b=>`${esc(b.stage)} · ${esc(bayText(STAGE_BY_NAME[b.stage], b.number))}${b.active?'':' (inactive)'}`).join(' / ') : 'Jobs individually assigned to this mechanic appear below.'}</p>` : ''}
+      ${flow.otherActive.length ? `<details class="fitter-active-jobs"><summary>Other active jobs (${flow.otherActive.length})</summary>${flow.otherActive.map(j=>`<button type="button" data-fitter-job="${esc(j.id)}" ${locked?'disabled':''}>${esc(j.stock)} · ${esc(j.stage_name)} / ${esc(bayText(j.stage_code, j.bay_number))} · ${esc(state(j.status))}</button>`).join('')}</details>` : ''}
       <div class="fitter-layout">
-      <section class="fitter-work" aria-label="Selected job">${job && detail ? `<div class="fitter-job-heading"><p class="fitter-kicker">${esc(job.stage_name)} · Bay ${esc(job.bay_number ?? '—')} · ${esc(state(detail.status))}</p><h2>${esc(job.stock)} <span>${esc(job.job_card)}</span></h2><p>${esc(job.customer)} · ${esc(job.vehicle)}</p><p class="fitter-time">${esc(time(job.start_at))} – ${esc(time(job.end_at))}</p>${timerHtml(detail,timingOptions())}${progressHtml(detail.progress)}<p>${detail.progress.completed_lines} of ${detail.progress.total_lines} items complete · Progress uses approved work hours.</p></div>
+      <section class="fitter-work" aria-label="Selected job">${job && detail ? `<div class="fitter-job-heading"><p class="fitter-kicker">${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(state(detail.status))}</p><h2>${esc(job.stock)} <span>${esc(job.job_card)}</span></h2><p>${esc(job.customer)} · ${esc(job.vehicle)}</p><p class="fitter-time">${esc(time(job.start_at))} – ${esc(time(job.end_at))}</p>${timerHtml(detail,timingOptions())}${progressHtml(detail.progress)}<p>${detail.progress.completed_lines} of ${detail.progress.total_lines} items complete · Progress uses approved work hours.</p></div>
       ${detail.status==='stoppage' ? `<div class="fitter-warning"><strong>Job stopped</strong><p>${esc(detail.stoppage_reason)}</p></div>` : ''}
       <div class="fitter-actions">${['planned','queued'].includes(detail.status) ? `<button class="fitter-primary" data-fitter-action="start" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='start'?'Starting job…':'Start job'}</button><p>Start this job first. Its other unstarted bookings and affected queues move later where needed.</p>` : detail.status==='stoppage' ? `<button class="fitter-primary" data-fitter-action="resume" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='resume'?'Resuming job…':'Resume job'}</button>` : detail.status==='started' ? `<button data-fitter-stop ${locked||!editable?'disabled':''}>Parts / other stoppage</button>` : ''}</div>
       ${stopOpen ? `<div class="fitter-stop-panel" role="group" aria-label="Record a workshop stoppage"><label for="fitter-stop-type">Stoppage type<select id="fitter-stop-type" ${locked?'disabled':''}><option ${stopType==='Parts'?'selected':''}>Parts</option><option ${stopType==='Other'?'selected':''}>Other</option></select></label><label for="fitter-stop-reason">What is holding up the work?<textarea id="fitter-stop-reason" rows="3" maxlength="1900" ${locked?'disabled':''}>${esc(stopReason)}</textarea></label><button type="button" data-fitter-confirm-stop ${locked?'disabled':''}>Record stoppage</button><button type="button" data-fitter-cancel-stop ${locked?'disabled':''}>Cancel</button></div>` : ''}
