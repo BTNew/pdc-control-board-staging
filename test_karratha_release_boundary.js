@@ -133,7 +133,8 @@ const approvedRootImportPatch = Object.freeze({
   // r493: r493=2026.10.22.r493 on pdc-planner-slim.js (F106).
   // r494: r494=2026.10.23.r494 on pdc-sublet-po.js (exposes the per-vehicle GP PO lines to Manage sublets; F107).
   // r494b: r494=2026.10.23.r494b on pdc-sublet-po.js (uniform vehicle Sublet box; F107).
-  "canonical-entry.js": "9d0b8075f5f622b42a254a32773d7d7ab241a47f586113d07830d4505b0f6fa6",
+  // r494c: r494=2026.10.23.r494c on pdc-sublet-po.js (board 'PO to raise' with no per-vehicle RPC or redraw; F107b).
+  "canonical-entry.js": "cf02ef1d1f7f0f5d7f217968cb388a3a8810381d3476249e16a4458b8c6ae81d",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -254,7 +255,8 @@ const approvedRootImportPatch = Object.freeze({
   // r492: Sublet provider email draft adds key number, VIN, sublet work and due back, cache bust sublet-email (F105) (index.html).
   // r494: index.html adds pdc-vehicle-sublets.css / .js?r494=2026.10.23.r494 and r494=2026.10.23.r494 on canonical-entry.js (Manage sublets; F107).
   // r494b: r494=2026.10.23.r494b on pdc-vehicle-sublets.css / .js and canonical-entry.js (uniform Sublet box; F107).
-  "index.html": "a325282a3a64d2b456322123e1d473dda8e828dd93650c594f0098af0edd7c58",
+  // r494c: r494=2026.10.23.r494c on canonical-entry.js (board 'PO to raise' with no per-vehicle RPC or redraw; F107b).
+  "index.html": "30ef2d400d79a70e2622be1e740110071cff96f53290e1cc94cbc51f73566dac",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

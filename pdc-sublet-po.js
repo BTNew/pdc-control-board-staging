@@ -12,7 +12,9 @@
    the user presses 'Got it' (remembered for that user in this browser). The supplier is the sublet provider.
    r494b (F107, Craig 22 Oct 18:55): the vehicle's Sublet box is uniform: every line ends in one same-size chip (the GP PO
    number or 'PO to raise'), no 'Hours not stated', no 'Op line PO' caption, and no 'PO raised for this line' / 'Got it'
-   (the GP number on the right already shows it). One text size in the box. The Got it storage below stays but is unused. */
+   (the GP number on the right already shows it). One text size in the box. The Got it storage below stays but is unused.
+   r494c (F107b, Craig 22 Oct: 'now the website is extremely slow'): the board's 'PO to raise' makes no per-vehicle call
+   and no board redraw while it renders; see raiseFor. */
 (() => {
   'use strict';
   const VERSION = '2026.10.21.r444';
@@ -64,12 +66,17 @@
       && l.completed !== true && l.rejected !== true && String(l.stageCode || l.stage_code || '').toUpperCase() === 'SUBLET');
   }
   /** r494: how many whole line sublets have no GP PO yet. No board entry = the vehicle has no GP PO at all. With an entry,
-   *  the vehicle's GP PO lines decide (known:false until they are loaded). */
+   *  the vehicle's GP PO lines decide (known:false until they are loaded).
+   *  r494c (F107b): until they are loaded, the board's own counts give a safe lower bound with no extra call: the entry's
+   *  with_po lines are all the lines carrying a GP PO, so at most that many Sublet lines can have one. */
   function poToRaise(vehicle, entry, payload) {
     const jobs = subletJobs(vehicle);
     if (!jobs.length) return { count: 0, known: true };
     if (!entry) return { count: jobs.length, known: true };
-    if (!payload || !Array.isArray(payload.lines)) return { count: 0, known: false };
+    if (!payload || !Array.isArray(payload.lines)) {
+      const withPo = Math.max(0, Number(entry.with_po ?? entry.total) || 0);
+      return { count: Math.max(0, jobs.length - withPo), known: false };
+    }
     const withPo = new Set(payload.lines.filter(l => l && l.has_po !== false).map(l => sourceId(l.line_identity)).filter(Boolean));
     return { count: jobs.filter(l => !withPo.has(sourceId(l.lineIdentity || l.line_identity))).length, known: true };
   }
@@ -316,7 +323,9 @@
       const { data } = await rpc('get_pdc_sublet_lines_439', { p_vehicle_id: vid });
       cache.set(vid, { payload: data, stale: false });
       refreshSummaries();
-      if (redraw) rerender(); // r494: the board strip's 'PO to raise' needs this vehicle's GP PO lines
+      // r494c (F107b): the board never asks for these lines; when a slide-out / Manage sublets load changes this vehicle's
+      // 'PO to raise' count, one debounced board redraw picks it up (no redraw per response, no loop).
+      if (redraw !== false) raiseChanged(vid);
       // r494 (F107): the Manage sublets screen redraws from the same lines.
       try { window.dispatchEvent(new CustomEvent('pdc-sublet-lines', { detail: { vehicleId: vid } })); } catch (_) { /* no listener */ }
     } catch (_) { const c = cache.get(vid); if (c) c.stale = false; /* keep what is shown; the next board change retries */ }
@@ -338,12 +347,25 @@
     try { window.dispatchEvent(new CustomEvent('pdc-sublet-lines', { detail: {} })); } catch (_) { /* no listener */ }
   };
   // r494: whole line sublets with no GP PO yet: orange 'PO to raise' on the board's Sublet box.
+  // r494c (F107b, site slow 22 Oct): r494 called get_pdc_sublet_lines_439 here for every vehicle with Sublet lines and a
+  // GP PO, and redrew the whole board after each answer (N calls and N full redraws per render). Now the board works it
+  // out from data it already has (its Sublet lines + the board entry, or lines already loaded for an opened vehicle):
+  // no RPC and no redraw from inside a render.
+  const shown = new Map(); // vehicle id -> { vehicle, entry, count } last drawn on the board
   const raiseFor = (vehicle, entry) => {
     if (!index || !subletJobs(vehicle).length) return 0;
     const vid = entry ? idKey(entry.vehicle_id) : '', cached = vid ? cache.get(vid) : null;
-    if (entry && (!cached || cached.stale)) fetchLines(vid, true);
-    return poToRaise(vehicle, entry, cached?.payload).count;
+    const count = poToRaise(vehicle, entry, cached?.payload).count;
+    if (vid) shown.set(vid, { vehicle, entry, count });
+    return count;
   };
+  let redrawTimer = 0;
+  function raiseChanged(vid) {
+    const last = shown.get(vid);
+    if (!last || redrawTimer) return;
+    if (poToRaise(last.vehicle, last.entry, cache.get(vid)?.payload).count === last.count) return;
+    redrawTimer = setTimeout(() => { redrawTimer = 0; rerender(); }, 250);
+  }
   if (typeof incomingWorkChecklistHtml === 'function') {
     const prior = incomingWorkChecklistHtml;
     incomingWorkChecklistHtml = (vehicle, ...args) => { const entry = entryFor(index, vehicle); return decorateStrip(prior(vehicle, ...args), entry, raiseFor(vehicle, entry)); };

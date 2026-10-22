@@ -80,7 +80,7 @@ test('wiring: no new RPC or SQL; category through set_vehicle_work_category; tic
   const index = fs.readFileSync('index.html', 'utf8');
   assert.match(index, /pdc-vehicle-sublets\.js\?r494=2026\.10\.23\.r494b" defer/);
   assert.match(index, /pdc-vehicle-sublets\.css\?r494=2026\.10\.23\.r494b/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444&r490=2026\.10\.23\.r490&r494=2026\.10\.23\.r494b'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444&r490=2026\.10\.23\.r490&r494=2026\.10\.23\.r494c'/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-vehicle-sublets\.css', 'pdc-vehicle-sublets\.js'/);
   assert.equal(vs.VERSION, '2026.10.23.r494b');
   assert.equal(fs.readdirSync('supabase/migrations').filter(f => /r494|_494/.test(f)).length, 0, 'no SQL in r494');
@@ -100,7 +100,8 @@ test('board Sublet box (Craig 22 Oct 18:41): a whole line sublet with no GP PO t
   // no GP PO on the vehicle at all (no board entry): both open Sublet lines need a PO
   assert.deepEqual(po.poToRaise(v, null, null), { count: 2, known: true });
   const entry = { vehicle_id: U(99), total: 2, ticked: 2, with_po: 2, state: 'done' };
-  assert.deepEqual(po.poToRaise(v, entry, null), { count: 0, known: false }, 'waits for the vehicle\'s GP PO lines');
+  assert.deepEqual(po.poToRaise(v, entry, null), { count: 0, known: false }, 'lines not loaded: lower bound from the board counts (2 Sublet lines, 2 PO lines)');
+  assert.deepEqual(po.poToRaise(v, { ...entry, total: 1, with_po: 1 }, null), { count: 1, known: false }, 'r494c: 2 Sublet lines but only 1 GP PO line: at least 1 to raise');
   assert.deepEqual(po.poToRaise(v, entry, { lines: poLines }), { count: 1, known: true }, 'line 2 has a PO, line 4 not');
   assert.deepEqual(po.poToRaise(qcVehicle(qc.slice(2)), null, null), { count: 0, known: true });
   assert.deepEqual(po.poToRaise({ pdcQcOperationLines: qc }, null, null), { count: 0, known: true }, 'no server projection: unchanged');
@@ -172,7 +173,8 @@ test('Got it is stored per user in this browser (no SQL); the board strip asks f
   const src = fs.readFileSync('pdc-sublet-po.js', 'utf8');
   assert.match(src, /'pdc\.sublet-new-po-seen\.v1:' \+ String\(window\.PDC_AUTH_CONTEXT\?\.userId \|\| ''\)/);
   assert.match(src, /if \(!index \|\| !subletJobs\(vehicle\)\.length\) return 0;/);
-  assert.match(src, /if \(entry && \(!cached \|\| cached\.stale\)\) fetchLines\(vid, true\);/);
+  // r494c (F107b): the board strip never fetches a vehicle's GP PO lines while it renders (that made the site slow).
+  assert.doesNotMatch(src, /fetchLines\(vid, true\)/);
   assert.match(src, /decorateStrip\(prior\(vehicle, \.\.\.args\), entry, raiseFor\(vehicle, entry\)\)/);
   assert.match(src, /closest\?\.\('\[data-pdc-sublet-ack\]'\)/);
   assert.equal(po.VERSION, '2026.10.21.r444', 'module version string unchanged; cache bust r494 on its src');
