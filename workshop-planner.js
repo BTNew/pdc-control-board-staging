@@ -862,6 +862,13 @@ function workshopRememberAdministratorMove(result = {}) {
     expectedVersion: Number(result.booking_version),
     undoRequestId: workshopNewRequestId(),
   };
+  workshopRedrawForUndoMoveButton();
+}
+
+// r498 (F111): the planner redraws from the snapshot refresh before the move
+// receipt is kept, so draw once more to show or hide 'Undo last move' now.
+function workshopRedrawForUndoMoveButton() {
+  if (typeof scheduleWorkshopPlannerRender === 'function') scheduleWorkshopPlannerRender();
 }
 
 function workshopAdministratorErrorDetail(result = {}) {
@@ -882,6 +889,7 @@ async function workshopUndoLastAdministratorMove() {
   });
   if (!result?.ok) return false;
   workshopLastAdministratorMove = null;
+  workshopRedrawForUndoMoveButton();
   return true;
 }
 

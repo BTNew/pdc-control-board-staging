@@ -93,7 +93,8 @@ const approvedRootImportPatch = Object.freeze({
   // r483: planner slot summary, booking search, weekly header, admin block bay picker and overlap text use the Dept 139 bay names (F96).
   // r482: every booking command asks about a parts ETA after the booking date before it is sent (F95).
   // r493: workshopEntryPausedNow: started tile outside bay working time is amber Paused; running strip paused reason (F106).
-  "workshop-planner.js": "9a210bd30db8c5aec3d3768356465f73626927017078ebbffef60800cfcf66c5",
+  // r498: 'Undo last move' shows straight after an administrator move and goes after Undo (F111).
+  "workshop-planner.js": "e896b7b071e29d2989b13eefa04a6587fa70baac4628e744a053d2d52b4aeeac",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   // r457: one-column side menu 901-1180 px and no blank band in the stacked planner header up to 1300 px (F70).
   // r478: read-only estimated work hours value in the station vehicle job popup (F91).
@@ -179,7 +180,8 @@ const approvedRootImportPatch = Object.freeze({
   // r493: r493=2026.10.22.r493 on both workshop-planner.js loads (paused jobs amber; F106).
   // r491: Sublet page Away now filter and days away / overdue days, cache bust sublet-away (F104) (app.js).
   // r492: Sublet provider email draft adds key number, VIN, sublet work and due back, cache bust sublet-email (F105) (app.js).
-  "app.js": "fa06924025bda1f61be2608dd45a16692fac7ceb923fec4dd5b4c8c81d831b9f",
+  // r498: r498=2026.10.22.r498 on both workshop-planner.js loads (F111).
+  "app.js": "ce39f8d0821dab003902c8a35916a6ee366e54e2b9393879b5aef1a94345c932",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -263,7 +265,8 @@ const approvedRootImportPatch = Object.freeze({
   // r494c: r494=2026.10.23.r494c on canonical-entry.js (board 'PO to raise' with no per-vehicle RPC or redraw; F107b).
   // r496: index.html r496=2026.10.22.r496 on canonical-entry.js (F109).
   // r497: r497=2026.10.22.r497 on pdc-planner-capacity.js (F110).
-  "index.html": "3cebf63d8841a35ac7316a7e2950cfbeac20a4b5c4c3399a62f4b72f4515bd5a",
+  // r498: r498=2026.10.22.r498 on app.js (F111).
+  "index.html": "9b21a860494b109ba6a8c606e37395cbf8c160d3cc9ff212fbc9d53732586028",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
