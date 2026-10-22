@@ -26587,41 +26587,8 @@ function subletBookingState(vehicle = {}) {
 }
 
 function subletMatchesOperationalFilter(vehicle = {}, filter = 'to-book') {
-  // r491 (F104): 'away' = booked, out date on or before today (Perth) and not yet back.
-  if (filter === 'away') return subletBookingState(vehicle) === 'booked' && subletAwayOnDate(vehicle, subletTodayDateKey());
   const requested = ['booked', 'returned'].includes(filter) ? filter : 'to-book';
   return subletBookingState(vehicle) === requested;
-}
-
-// r491 (F104): whole days a vehicle has been (or was) away at its sublet provider, from the out /
-// booking date to its return (or today, Perth). null when it has not gone out yet.
-function subletDaysAway(vehicle = {}, todayKey = subletTodayDateKey()) {
-  const out = subletDateOrdinal(vehicle.pmbSubletBookingDate);
-  if (out === null) return null;
-  const back = subletDateOrdinal(vehicle.pmbSubletActualReturnDate);
-  const end = back !== null ? back : subletDateOrdinal(todayKey);
-  if (end === null || end < out) return null;
-  return Math.round((end - out) / 86400000);
-}
-
-function subletDaysOverdue(vehicle = {}, todayKey = subletTodayDateKey()) {
-  if (!subletIsOverdue(vehicle)) return 0;
-  const expected = subletDateOrdinal(vehicle.pmbSubletExpectedReturnDate);
-  const today = subletDateOrdinal(todayKey);
-  return expected === null || today === null ? 0 : Math.max(0, Math.round((today - expected) / 86400000));
-}
-
-function subletDaysLabel(days) {
-  return `${days} day${days === 1 ? '' : 's'}`;
-}
-
-function subletStatusText(vehicle = {}, todayKey = subletTodayDateKey()) {
-  const state = subletBookingState(vehicle);
-  const days = subletDaysAway(vehicle, todayKey);
-  if (state === 'returned') return days === null ? 'Returned' : `Back · ${subletDaysLabel(days)}`;
-  if (subletIsOverdue(vehicle)) return `OVERDUE ${subletDaysLabel(subletDaysOverdue(vehicle, todayKey))}`;
-  if (state === 'booked' && subletAwayOnDate(vehicle, todayKey)) return `Away ${subletDaysLabel(days || 0)}`;
-  return state === 'booked' ? 'Sublet Booked' : 'Sublet To Book';
 }
 
 function compareSubletBookingDate(a = {}, b = {}) {
@@ -26919,7 +26886,6 @@ function renderSubletSummary(rows = []) {
   const filters = [
     ['to-book', 'Sublet To Book'],
     ['booked', 'Sublet Booked'],
-    ['away', 'Away now'],
     ['returned', 'Returned'],
   ];
   host.innerHTML = filters.map(([key, label]) => {
@@ -26927,8 +26893,8 @@ function renderSubletSummary(rows = []) {
     return `<button class="parts-filter-chip sublet-filter-chip ${key === active ? 'is-active' : ''}" type="button" data-sublet-operational-filter="${key}" aria-pressed="${key === active}"><span>${escapeHtml(label)}</span><strong>${count}</strong></button>`;
   }).join('');
   $$('[data-sublet-operational-filter]', host).forEach(button => button.addEventListener('click', () => {
-    app.subletOperationalFilter = ['booked', 'away', 'returned'].includes(button.dataset.subletOperationalFilter) ? button.dataset.subletOperationalFilter : 'to-book';
-    if (['to-book', 'away'].includes(app.subletOperationalFilter)) app.subletViewMode = 'list';
+    app.subletOperationalFilter = ['booked', 'returned'].includes(button.dataset.subletOperationalFilter) ? button.dataset.subletOperationalFilter : 'to-book';
+    if (app.subletOperationalFilter === 'to-book') app.subletViewMode = 'list';
     renderSubletHome();
   }));
 }
@@ -27146,20 +27112,6 @@ async function setSubletEmailSent(key = '', sent = false) {
   saveVehicleEdits(key, { pmbSubletEmailSent: Boolean(sent), pmbSubletEmailSentAt: sent ? nowIsoString() : '', pmbSubletEmailSentBy: sent ? getCurrentOperatorName() : '' });
 }
 
-// r492 (F105): what a sublet agent needs to find the car in the yard and know the job (Bhavesh, 21 Oct:
-// the PO goes out with the key number and stock / serial number). Key number = parking bay in the yard.
-function subletProviderEmailVehicleLines(vehicle = {}) {
-  const key = vehicleKeyNumber(vehicle);
-  const vin = cleanNavisionText(vehicle.vin || vehicle.fullVin || vehicle.frameVin || vehicle.autocareVin || '').toUpperCase();
-  const work = cleanNavisionText(vehicle.__subletOperationDescription || '');
-  return [
-    `Key number (yard bay): ${key || 'TBA - not yet in our yard'}`,
-    ...(vin ? [`VIN / serial: ${vin}`] : []),
-    ...(work ? [`Sublet work: ${work}`] : []),
-    ...(key ? [`The vehicle is in our yard at key ${key}.`] : []),
-  ];
-}
-
 function draftSubletProviderEmail(key = '') {
   const vehicle = subletVehicleByKey(key);
   if (!vehicle) return;
@@ -27169,7 +27121,7 @@ function draftSubletProviderEmail(key = '') {
   if (!recipient || !subletProviderEmailValid(recipient)) { pdcNotify('Add a valid email for this provider in Setup or in the booking before drafting.'); return false; }
   const stock = displayStockNumber(vehicle) || 'TBA';
   const subject = `Sublet booking - ${stock}`;
-  const body = [`Hello ${contact.name},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), ...subletProviderEmailVehicleLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, ...(plainDateValue(vehicle.pmbSubletExpectedReturnDate) ? [`Due back: ${plainDateValue(vehicle.pmbSubletExpectedReturnDate)}`] : []), `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
+  const body = [`Hello ${contact.name},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
   if (vehicle.__emailVehicleServerAuthoritative !== true) {
     recordVehicleAudit(vehicle, 'Sublet provider email drafted', { provider: pmbBaySubletProvider(vehicle), recipient, by: getCurrentOperatorName() });
     saveVehicleEdits(key, { pmbSubletEmailDraftedAt: nowIsoString(), pmbSubletEmailDraftedBy: getCurrentOperatorName() });
@@ -27359,7 +27311,7 @@ function renderSubletHome() {
   app.subletViewMode = app.subletViewMode === 'calendar' ? 'calendar' : 'list';
   app.subletCalendarMode = app.subletCalendarMode === 'month' ? 'month' : 'week';
   if (app.subletViewMode === 'calendar') app.subletOperationalFilter = 'booked';
-  app.subletOperationalFilter = ['booked', 'away', 'returned'].includes(app.subletOperationalFilter) ? app.subletOperationalFilter : 'to-book';
+  app.subletOperationalFilter = ['booked', 'returned'].includes(app.subletOperationalFilter) ? app.subletOperationalFilter : 'to-book';
   app.subletExpandedRows = app.subletExpandedRows instanceof Set ? app.subletExpandedRows : new Set();
   renderSubletSummary(allRows);
   const providerFilter = syncSubletProviderFilter(allRows);
@@ -27375,10 +27327,6 @@ function renderSubletHome() {
     if (!search) return true;
     return [vehicleKeyNumber(vehicle), displayStockNumber(vehicle), vehicleJobcardNumber(vehicle), vehicleCustomerName(vehicle), displayVehicle(vehicle), pmbBaySubletProvider(vehicle), vehicle.pmbSubletNotes].join(' ').toLowerCase().includes(search);
   }).sort((a, b) => {
-    if (app.subletOperationalFilter === 'away' && app.subletViewMode !== 'calendar') {
-      const longest = (subletDaysAway(b) ?? -1) - (subletDaysAway(a) ?? -1);
-      if (longest) return longest;
-    }
     if (sortMode === 'stock') return String(displayStockNumber(a) || '').localeCompare(String(displayStockNumber(b) || ''), undefined, { numeric: true });
     if (sortMode === 'date') return compareSubletBookingDate(a, b);
     return compareSubletBookingProximity(a, b, sortReference);
@@ -27408,8 +27356,7 @@ function renderSubletHome() {
     const returned = state === 'returned';
     const canonical = vehicle.__emailVehicleServerAuthoritative === true;
     const overdue = subletIsOverdue(vehicle);
-    const statusLabel = subletStatusText(vehicle);
-    const statusTitle = [plainDateValue(vehicle.pmbSubletBookingDate) && `Out ${plainDateValue(vehicle.pmbSubletBookingDate)}`, plainDateValue(vehicle.pmbSubletExpectedReturnDate) && `due back ${plainDateValue(vehicle.pmbSubletExpectedReturnDate)}`, plainDateValue(vehicle.pmbSubletActualReturnDate) && `back ${plainDateValue(vehicle.pmbSubletActualReturnDate)}`, pmbBaySubletProvider(vehicle) && `at ${pmbBaySubletProvider(vehicle)}`].filter(Boolean).join(' · ');
+    const statusLabel = returned ? 'Returned' : (subletAwayOnDate(vehicle, subletTodayDateKey()) ? 'Away on Sublet' : (state === 'booked' ? 'Sublet Booked' : 'Sublet To Book'));
     return `<tr class="sublet-row sublet-summary-row ${overdue ? 'is-overdue' : ''} ${expanded ? 'is-expanded' : ''}">
       <td><button class="sublet-row-toggle" type="button" data-sublet-toggle="${escapeHtml(key)}" aria-expanded="${expanded}" aria-label="${expanded ? 'Collapse' : 'Expand'} Sublet details for ${accessibleStock}">${expanded ? '▾' : '›'}</button></td>
       <td><strong>${escapeHtml(vehicleKeyNumber(vehicle) || '—')}</strong></td>
@@ -27422,7 +27369,7 @@ function renderSubletHome() {
       <td><select aria-label="Sublet provider for ${accessibleStock}" data-sublet-field="pmbSubletProvider" data-sublet-key="${escapeHtml(key)}" ${vehicle.__subletBookingId ? 'disabled title="Provider identity is immutable; create another booking"' : ''}>${subletProviderOptionsHtml(pmbBaySubletProvider(vehicle))}</select></td>
       <td><input type="date" aria-label="Sublet booking date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletBookingDate))}" data-sublet-field="pmbSubletBookingDate" data-sublet-key="${escapeHtml(key)}" ${returned ? 'disabled' : ''}></td>
       <td><input type="date" aria-label="Expected Sublet return date for ${accessibleStock}" value="${escapeHtml(plainDateValue(vehicle.pmbSubletExpectedReturnDate))}" data-sublet-field="pmbSubletExpectedReturnDate" data-sublet-key="${escapeHtml(key)}" ${returned ? 'disabled' : ''}></td>
-      <td><span class="sublet-status-pill is-${escapeHtml(state)} ${overdue ? 'is-overdue' : ''}"${statusTitle ? ` title="${escapeHtml(statusTitle)}"` : ''}>${escapeHtml(statusLabel)}</span></td>
+      <td><span class="sublet-status-pill is-${escapeHtml(state)} ${overdue ? 'is-overdue' : ''}">${escapeHtml(overdue ? 'OVERDUE' : statusLabel)}</span></td>
       <td class="sublet-row-actions"><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleOpenKey)}">Open vehicle</button></td>
     </tr>${expanded ? `<tr class="sublet-detail-row"><td colspan="13"><div class="sublet-detail-grid">
       <label><span>Provider email</span><input type="email" aria-label="Sublet provider email for ${accessibleStock}" placeholder="Provider email" value="${escapeHtml(subletProviderContact(vehicle).email)}" data-sublet-field="pmbSubletProviderEmail" data-sublet-key="${escapeHtml(key)}" ${canonical&&returned?'disabled title="Returned booking history is read-only"':''}></label>
