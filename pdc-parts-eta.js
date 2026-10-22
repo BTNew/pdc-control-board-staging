@@ -4,10 +4,14 @@
  * Perth dates) and its hover names the source email: who sent it, when (Perth time), the subject and the quoted line. The
  * vehicle details (drop-down card and the Table view slide-out panel) show the same countdown and source. Data comes from
  * get_pdc_parts_eta_board_v2 (r475 migration); until that exists the board falls back to the r436 get_pdc_parts_eta_board
- * by itself (countdown, no source). The Table view lifts this chip into its own "Parts ETA" column (pdc-vehicle-locations-table.js). */
+ * by itself (countdown, no source). The Table view lifts this chip into its own "Parts ETA" column (pdc-vehicle-locations-table.js).
+ * r482 (F95, Craig 22 Oct): booking warning. Before a bay booking is saved, any booking that starts (Perth date) before the
+ * vehicle's parts ETA asks "Book anyway" or "Cancel" (warning only; Cancel makes no booking, Book anyway books exactly as
+ * before). No ETA, or an ETA on or before the booking date, means no question. Used by the planner (workshopDispatchSharedAction),
+ * Book all stations and Prioritise vehicle. bookingWarning / bookAllWarning / warningText are the pure parts (tested). */
 (() => {
   'use strict';
-  const VERSION = '2026.10.22.r475';
+  const VERSION = '2026.10.22.r482';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const RPC_V2 = 'get_pdc_parts_eta_board_v2', RPC_V1 = 'get_pdc_parts_eta_board';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -126,7 +130,66 @@
     }).join('');
     return `<div class="tune-service-location-job pdc-parts-eta-detail" title="${esc(s.title)}"><b>Parts ETA</b><span class="pdc-parts-eta-countdown pdc-parts-eta-${s.state}">${esc(ddmmyy(s.eta))}${s.countdown ? ` · ${esc(s.countdown)}` : ''}</span>${rows}<small>From parts staff emails (Perth dates)</small></div>`;
   }
-  if (typeof module !== 'undefined') module.exports = { indexBoard, entryFor, summarise, chipHtml, decorateRow, detailHtml, ddmm, ddmmyy, perthToday, daysUntil, countdown, sentLabel, sourceLines, RPC_V2, RPC_V1, VERSION };
+  // ---- r482 (F95): parts ETA booking warning (pure parts) ----
+  /** Perth calendar date (YYYY-MM-DD) of a booking start time; '' if it cannot be read. */
+  function perthDate(value) {
+    const d = value instanceof Date ? value : new Date(value || '');
+    if (!value || Number.isNaN(d.getTime())) return '';
+    return perthToday(d);
+  }
+  /** "Thu 22 Oct, 1:15 pm" (Perth) for a booking start. */
+  function startLabel(value) {
+    const d = new Date(value || '');
+    if (!value || Number.isNaN(d.getTime())) return '';
+    try {
+      const parts = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true }).formatToParts(d);
+      const get = type => parts.find(p => p.type === type)?.value || '';
+      return `${get('weekday')} ${get('day')} ${get('month')}, ${get('hour')}:${get('minute')} ${get('dayPeriod').toLowerCase()}`;
+    } catch (_) { return ''; }
+  }
+  const weekday = value => { const d = iso(value); return d ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10))).getUTCDay()] : ''; };
+  /** "Thu 29/10/26" for an ETA date. */
+  const etaLabel = value => (iso(value) ? `${weekday(value)} ${ddmmyy(value)}` : '');
+  /** Bookings (each { station, bay, start }) that start on a Perth date before the vehicle's latest active parts ETA.
+   * null when there is no ETA or nothing starts before it. The latest ETA is used: the job needs every part. */
+  function bookingWarning(entry, bookings, vehicleLabel = '') {
+    const eta = iso(entry?.latest_eta);
+    if (!eta) return null;
+    const before = (Array.isArray(bookings) ? bookings : []).map(b => ({ ...b, date: perthDate(b?.start) }))
+      .filter(b => b.date && b.date < eta);
+    if (!before.length) return null;
+    const parts = (Array.isArray(entry.parts) ? entry.parts : []).filter(p => iso(p?.eta_date) && iso(p.eta_date) > before[0].date)
+      .map(p => ({ part: clean(p.part) || 'Part', eta: iso(p.eta_date) }));
+    return { eta, etaLabel: etaLabel(eta), vehicle: clean(vehicleLabel) || clean(entry.stock_number), count: Number(entry.count) || parts.length || 1, parts, before };
+  }
+  /** Book all stations picks its bays and times on the server (no dry run), so it warns when the parts ETA is after today:
+   * the earliest booking can then start before the parts are due. */
+  function bookAllWarning(entry, today, vehicleLabel = '') {
+    const eta = iso(entry?.latest_eta), day = iso(today);
+    if (!eta || !day || eta <= day) return null;
+    return { eta, etaLabel: etaLabel(eta), vehicle: clean(vehicleLabel) || clean(entry.stock_number), count: Number(entry.count) || 1, parts: [], before: [], bookAll: true, today: day };
+  }
+  const bookingLine = b => [clean(b.station) || 'Workshop', b.bay ? `Bay ${clean(b.bay)}` : '', startLabel(b.start)].filter(Boolean).join(' · ');
+  /** Plain text of the question (also the aria description). */
+  function warningText(warnings) {
+    const list = (Array.isArray(warnings) ? warnings : [warnings]).filter(Boolean);
+    const lines = [];
+    for (const w of list) {
+      lines.push(`${w.vehicle ? `${w.vehicle}: ` : ''}Parts ETA ${w.etaLabel}${w.count > 1 ? ` (latest of ${w.count} parts)` : ''}.`);
+      if (w.bookAll) lines.push(`Book all stations books each outstanding station in its next available bay. The earliest start is today (${etaLabel(w.today)}), before the parts are due.`);
+      else { lines.push('Booked before the parts ETA:'); for (const b of w.before) lines.push(`• ${bookingLine(b)}`); }
+    }
+    lines.push('You can still book it. Book anyway confirms you understand it is booked before the parts ETA.');
+    return lines.join('\n');
+  }
+  /** Metadata note for the booking RPC's p_metadata (stored in its audit / receipt; no schema change). */
+  function acknowledgement(warnings) {
+    const list = (Array.isArray(warnings) ? warnings : [warnings]).filter(Boolean);
+    if (!list.length) return null;
+    return { acknowledged: true, eta_date: list.map(w => w.eta).sort().pop(), bookings_before_eta: list.reduce((n, w) => n + w.before.length, 0), release: 'r482' };
+  }
+  if (typeof module !== 'undefined') module.exports = { indexBoard, entryFor, summarise, chipHtml, decorateRow, detailHtml, ddmm, ddmmyy, perthToday, daysUntil, countdown, sentLabel, sourceLines, RPC_V2, RPC_V1, VERSION,
+    perthDate, startLabel, etaLabel, bookingWarning, bookAllWarning, warningText, acknowledgement };
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_PARTS_ETA_VERSION) return;
   window.PDC_PARTS_ETA_VERSION = VERSION;
   let index = null, lastBody = '', loading = false, rpc = RPC_V2, v2RetryAt = 0;
@@ -166,7 +229,75 @@
         .replace('<div class="incoming-vehicle-detail-grid">', '<div class="incoming-vehicle-detail-grid">' + detailHtml(entry, day));
     };
   }
-  window.PDC_PARTS_ETA = Object.freeze({ VERSION, summarise, entryFor: vehicle => entryFor(index, vehicle), today, rpc: () => rpc, reload: load });
+  // r482 (F95): the "Book anyway / Cancel" question. Resolves true to book, false to make no booking. One question at a time.
+  let asking = null;
+  function ask(warnings) {
+    const list = (Array.isArray(warnings) ? warnings : [warnings]).filter(Boolean);
+    if (!list.length) return Promise.resolve(true);
+    if (asking) return Promise.resolve(false);
+    asking = new Promise(resolve => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'pdc-parts-eta-confirm';
+      dialog.setAttribute('role', 'alertdialog');
+      dialog.setAttribute('aria-labelledby', 'pdc-parts-eta-confirm-title');
+      dialog.setAttribute('aria-describedby', 'pdc-parts-eta-confirm-body');
+      const groups = list.map(w => `<section><p class="pdc-parts-eta-confirm-eta">${w.vehicle ? `<b>${esc(w.vehicle)}</b> · ` : ''}Parts ETA <strong>${esc(w.etaLabel)}</strong>${w.count > 1 ? ` <small>(latest of ${w.count} parts)</small>` : ''}</p>`
+        + (w.bookAll
+          ? `<p>Book all stations books each outstanding station in its next available bay. The earliest start is today (${esc(etaLabel(w.today))}), before the parts are due. The bays and times are shown after booking, with any that start before the ETA marked.</p>`
+          : `<p>Booked before the parts ETA:</p><ul>${w.before.map(b => `<li>${esc(bookingLine(b))}</li>`).join('')}</ul>`) + '</section>').join('');
+      dialog.innerHTML = `<h2 id="pdc-parts-eta-confirm-title">Parts not due yet</h2><div id="pdc-parts-eta-confirm-body">${groups}<p class="pdc-parts-eta-confirm-note">You can still book it. Book anyway confirms you understand it is booked before the parts ETA.</p></div>`
+        + '<footer><button type="button" class="small-button" data-parts-eta-cancel>Cancel</button><button type="button" class="primary" data-parts-eta-book>Book anyway</button></footer>';
+      let done = false;
+      const finish = value => {
+        if (done) return; done = true; asking = null;
+        try { dialog.close(); } catch (_) { /* already closed */ }
+        dialog.remove();
+        resolve(value);
+      };
+      dialog.querySelector('[data-parts-eta-cancel]').addEventListener('click', () => finish(false));
+      dialog.querySelector('[data-parts-eta-book]').addEventListener('click', () => finish(true));
+      dialog.addEventListener('cancel', event => { event.preventDefault(); finish(false); });
+      dialog.addEventListener('close', () => finish(false));
+      document.body.appendChild(dialog);
+      try { dialog.showModal(); } catch (_) { dialog.setAttribute('open', ''); }
+      dialog.querySelector('[data-parts-eta-cancel]').focus();
+    });
+    return asking;
+  }
+  const vehicleText = vehicle => clean(vehicle?.stock || vehicle?.stock_number) ? `Stock ${clean(vehicle.stock || vehicle.stock_number)}` : '';
+  /** groups: [{ vehicle: { id, stock }, bookings: [{ station, bay, start }] }] -> warnings for the vehicles that have them. */
+  function check(groups) {
+    const out = [];
+    for (const g of Array.isArray(groups) ? groups : [groups]) {
+      const entry = g && entryFor(index, g.vehicle);
+      const w = entry && bookingWarning(entry, g.bookings, vehicleText(g.vehicle) || clean(entry.stock_number) && `Stock ${clean(entry.stock_number)}`);
+      if (w) out.push(w);
+    }
+    return out;
+  }
+  /** Ask only if something starts before its parts ETA. Resolves { ok, warnings }. */
+  async function confirmBookings(groups) {
+    const warnings = check(groups);
+    if (!warnings.length) return { ok: true, warnings };
+    return { ok: await ask(warnings), warnings };
+  }
+  /** Book all stations: the warning for this vehicle, or null (checked synchronously so no-ETA booking is unchanged). */
+  function bookAllWarningFor(vehicle) {
+    const entry = entryFor(index, vehicle);
+    return (entry && bookAllWarning(entry, today(), vehicleText(vehicle) || `Stock ${clean(entry.stock_number)}`)) || null;
+  }
+  async function confirmBookAll(vehicle) {
+    const w = bookAllWarningFor(vehicle);
+    if (!w) return { ok: true, warnings: [] };
+    return { ok: await ask([w]), warnings: [w] };
+  }
+  /** The ETA date when this start (Perth date) is before the vehicle's parts ETA, else ''. */
+  function beforeEta(vehicle, start) {
+    const eta = iso(entryFor(index, vehicle)?.latest_eta), date = perthDate(start);
+    return eta && date && date < eta ? eta : '';
+  }
+  window.PDC_PARTS_ETA = Object.freeze({ VERSION, summarise, entryFor: vehicle => entryFor(index, vehicle), today, rpc: () => rpc, reload: load,
+    check, ask, confirmBookings, bookAllWarningFor, confirmBookAll, beforeEta, acknowledgement, etaLabel });
   const style = document.createElement('style');
   style.textContent = '.incoming-card-main:has(.pdc-parts-eta-wrap){display:grid!important;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:6px!important}'
     + '.pdc-parts-eta-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:0}'
@@ -175,7 +306,13 @@
     + '.pdc-parts-eta-detail{grid-column:1/-1}.pdc-parts-eta-detail span{display:block}.pdc-parts-eta-detail span.pdc-parts-eta-overdue{background:none;font-weight:650}'
     + '.pdc-parts-eta-detail .pdc-parts-eta-countdown{display:inline-block;font-weight:700;padding:1px 6px;border-radius:4px;margin:2px 0;background:#e0f2fe;color:#075985}'
     + '.pdc-parts-eta-detail .pdc-parts-eta-countdown.pdc-parts-eta-due{background:#fef3c7;color:#92400e}.pdc-parts-eta-detail .pdc-parts-eta-countdown.pdc-parts-eta-overdue{background:#fee2e2;color:#b91c1c}'
-    + '.pdc-parts-eta-detail small.pdc-parts-eta-source{display:block;color:#475569;padding-left:8px;white-space:normal;overflow-wrap:anywhere}';
+    + '.pdc-parts-eta-detail small.pdc-parts-eta-source{display:block;color:#475569;padding-left:8px;white-space:normal;overflow-wrap:anywhere}'
+    + '.pdc-parts-eta-confirm{width:min(520px,calc(100vw - 32px));border:1px solid #cbd5e1;border-left:5px solid #d97706;border-radius:12px;padding:20px 22px;color:#17283d;font-size:14px}'
+    + '.pdc-parts-eta-confirm::backdrop{background:#0f172a77}.pdc-parts-eta-confirm h2{margin:0 0 10px;font-size:18px;color:#92400e}'
+    + '.pdc-parts-eta-confirm section{margin:0 0 10px}.pdc-parts-eta-confirm p{margin:0 0 6px}.pdc-parts-eta-confirm ul{margin:0 0 6px;padding-left:20px}'
+    + '.pdc-parts-eta-confirm-eta strong{color:#92400e}.pdc-parts-eta-confirm-note{color:#475569;font-size:13px}'
+    + '.pdc-parts-eta-confirm footer{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}'
+    + '.book-all-before-eta{display:block;color:#b45309;font-weight:650;font-size:11px}';
   document.head.appendChild(style);
   load();
   setInterval(load, 5 * 60 * 1000);

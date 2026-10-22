@@ -1074,6 +1074,88 @@ function workshopEndBookingAction(token) {
   }
 }
 
+// r482 (F95, Craig 22 Oct): every planner path that books or moves a bay booking comes through
+// workshopDispatchSharedAction (drag/drop from Unallocated, search or Find, chip moves, the Schedule window,
+// Best slot / Schedule next, the booking detail form, weekly moves, bay re-order, and the vehicle card's station
+// Schedule). Before the command is sent, a booking whose start (Perth date) is before the vehicle's active parts
+// ETA asks "Book anyway" or "Cancel" (pdc-parts-eta.js). Cancel sends nothing; Book anyway sends the same command,
+// with p_metadata.parts_eta_warning recording the acknowledgement where the command takes metadata. No ETA, an
+// ETA on or before the start date, or an unchanged start and bay asks nothing. Extend / resize keep the start.
+const WORKSHOP_PARTS_ETA_ACKNOWLEDGED = new WeakMap();
+const WORKSHOP_PARTS_ETA_PREVIEWS = new Map();
+function workshopPartsEtaPlan(bookingId) {
+  const id = String(bookingId || '').trim().toLowerCase();
+  if (!id || typeof workshopLoadPlans !== 'function') return null;
+  return workshopLoadPlans().find(row => String(row.sharedBookingId || row.id || '').toLowerCase() === id) || null;
+}
+function workshopPartsEtaGroups(actionName, payload = {}) {
+  const station = code => (typeof pmbStageLabel === 'function' ? pmbStageLabel(normalizePmbStage(code)) : String(code || ''));
+  const fromPlan = (plan, stageCode, bayNumber, startAt) => {
+    if (!plan || !startAt) return null;
+    const sameStart = Date.parse(startAt) === Date.parse(plan.startAt);
+    const sameBay = normalizePmbStage(stageCode || plan.stage) === normalizePmbStage(plan.stage) && Number(bayNumber || plan.bay) === Number(plan.bay);
+    if (sameStart && sameBay) return null; // nothing new is booked
+    return { vehicle: { id: plan.sharedVehicleId, stock: plan.vehicleKey }, bookings: [{ station: station(stageCode || plan.stage), bay: Number(bayNumber || plan.bay) || '', start: startAt }] };
+  };
+  const fromVehicle = (vehicleId, stageCode, bayNumber, startAt) => {
+    if (!vehicleId || !startAt) return null;
+    const row = typeof workshopVehicle === 'function' ? workshopVehicle(vehicleId, normalizePmbStage(stageCode)) : null;
+    return { vehicle: { id: vehicleId, stock: row?.stock || '' }, bookings: [{ station: station(stageCode), bay: Number(bayNumber) || '', start: startAt }] };
+  };
+  switch (actionName) {
+    case 'scheduleVehicleWork':
+    case 'administratorScheduleVehicle':
+      return [fromVehicle(payload.vehicleId, payload.stageCode, payload.bayNumber, payload.scheduledStartAt)].filter(Boolean);
+    case 'moveBooking':
+    case 'cascadeMoveBooking':
+    case 'administratorMoveBooking':
+      return [fromPlan(workshopPartsEtaPlan(payload.bookingId), payload.stageCode, payload.bayNumber, payload.scheduledStartAt)].filter(Boolean);
+    case 'changeBookingBay': {
+      const plan = workshopPartsEtaPlan(payload.bookingId);
+      return [fromPlan(plan, plan?.stage, payload.bayNumber, plan?.startAt)].filter(Boolean); // same start, new bay
+    }
+    case 'cascadeSchedule':
+      if (payload.operation === 'schedule') return [fromVehicle(payload.targetId, payload.stageCode, payload.bayNumber, payload.scheduledStartAt)].filter(Boolean);
+      if (payload.operation === 'move') return [fromPlan(workshopPartsEtaPlan(payload.targetId), payload.stageCode, payload.bayNumber, payload.scheduledStartAt)].filter(Boolean);
+      return []; // extend keeps the start
+    case 'resequenceBay': {
+      if (payload.apply !== true) return [];
+      const preview = WORKSHOP_PARTS_ETA_PREVIEWS.get(String(payload.planHash || ''));
+      const groups = new Map();
+      for (const change of Array.isArray(preview?.changes) ? preview.changes : []) {
+        if (!change?.vehicle_id || !change.to_start || Date.parse(change.to_start) === Date.parse(change.from_start)) continue;
+        const plan = workshopPartsEtaPlan(change.booking_id);
+        const key = String(change.vehicle_id);
+        if (!groups.has(key)) groups.set(key, { vehicle: { id: change.vehicle_id, stock: plan?.vehicleKey || '' }, bookings: [] });
+        groups.get(key).bookings.push({ station: station(change.stage_code || plan?.stage), bay: Number(change.bay_number) || '', start: change.to_start });
+      }
+      return [...groups.values()];
+    }
+    default:
+      return [];
+  }
+}
+const WORKSHOP_PARTS_ETA_METADATA_ACTIONS = new Set(['scheduleVehicleWork', 'administratorScheduleVehicle', 'moveBooking', 'cascadeMoveBooking', 'administratorMoveBooking', 'changeBookingBay', 'cascadeSchedule']);
+/** The payload to send (with the acknowledgement when asked), or null when Cancel was chosen. A replay of the
+ * same payload object (the planner's uncertain-outcome retry) reuses the first answer and bytes. */
+async function workshopPartsEtaConfirm(actionName, payload) {
+  if (payload && typeof payload === 'object' && WORKSHOP_PARTS_ETA_ACKNOWLEDGED.has(payload)) return WORKSHOP_PARTS_ETA_ACKNOWLEDGED.get(payload);
+  const guard = typeof window !== 'undefined' ? window.PDC_PARTS_ETA : null;
+  if (!guard || typeof guard.confirmBookings !== 'function') return payload;
+  let groups = [];
+  try { groups = workshopPartsEtaGroups(actionName, payload); } catch (_) { groups = []; }
+  if (!groups.length) return payload;
+  const answer = await guard.confirmBookings(groups);
+  if (!answer || answer.ok !== true) return null;
+  if (!answer.warnings?.length) return payload;
+  const ack = typeof guard.acknowledgement === 'function' ? guard.acknowledgement(answer.warnings) : null;
+  const sent = ack && WORKSHOP_PARTS_ETA_METADATA_ACTIONS.has(actionName)
+    ? { ...payload, metadata: { ...(payload.metadata || {}), parts_eta_warning: ack } }
+    : payload;
+  WORKSHOP_PARTS_ETA_ACKNOWLEDGED.set(payload, sent);
+  return sent;
+}
+
 async function workshopDispatchSharedAction(actionName, payload, renderAction = renderWorkshopPlanner, options = {}) {
   if (!workshopSharedModeActive()) return null;
   const bookingId = String(payload?.bookingId || (actionName === 'cascadeSchedule' && payload?.operation !== 'schedule' ? payload?.targetId : '') || '').trim().toLowerCase();
@@ -1101,8 +1183,16 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
     }
     let result;
     const changeStartedAt = new Date(Date.now() - 60000).toISOString();
+    // r482 (F95): parts ETA warning before anything is sent; Cancel sends nothing.
+    const sendPayload = await workshopPartsEtaConfirm(actionName, payload);
     try {
-      result = await actions[actionName](payload);
+      result = sendPayload === null
+        ? { ok: false, error: 'parts_eta_not_confirmed', cancelled: true }
+        : await actions[actionName](sendPayload);
+      if (actionName === 'resequenceBay' && payload?.apply !== true && result?.ok === true && result.plan_hash) {
+        WORKSHOP_PARTS_ETA_PREVIEWS.clear();
+        WORKSHOP_PARTS_ETA_PREVIEWS.set(String(result.plan_hash), result);
+      }
       // Parts is tracked and warned on, but never retried through an override
       // path: a Parts-gate response now proves a stale runtime/database contract.
     } catch (error) {
@@ -1137,6 +1227,8 @@ const WORKSHOP_PLAIN_ERROR_MESSAGES = Object.freeze({
   // r417 (F32): a bay rule mismatch is a warning the planner confirms.
   bay_rule_warning: "This bay's rule does not match this booking. No change was made. Drag it again and choose OK to book it here anyway.",
   bay_rule_not_confirmed: 'No change was made. The bay rule was not overridden.',
+  // r482 (F95): Cancel on the parts ETA warning.
+  parts_eta_not_confirmed: 'No booking was made. The parts are not due until after that date.',
   // r424 (F38): push-back warning, bay re-order and its undo.
   later_bookings_warning: "This job would run into the same vehicle's next booking. No change was made. Drag it again and choose OK to push the later booking back.",
   later_bookings_not_confirmed: 'No change was made. The later bookings were not pushed back.',

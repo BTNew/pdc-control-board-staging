@@ -1,4 +1,7 @@
 /* Book outstanding workshop stations as one server-validated transaction. */
+/* r482 (F95): before booking, a vehicle whose parts ETA is after today asks "Book anyway" or "Cancel" (pdc-parts-eta.js).
+ * The server picks the bays and times and has no dry run, so the question comes first; the result then marks each booking
+ * that starts before the parts ETA. Cancel sends nothing. Book anyway sends the same request as before. */
 (() => {
   'use strict';
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== 'cdsmnqxtyyoeoznmbidd' || window.PDC_BOOK_ALL_STATIONS) return;
@@ -51,12 +54,13 @@
     const time = new Date(value);
     return Number.isNaN(time.getTime()) ? 'Time unavailable' : time.toLocaleString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   }
-  function summaryHtml(result) {
+  function summaryHtml(result, vehicle = null) {
+    const etaFor = start => (vehicle && typeof window.PDC_PARTS_ETA?.beforeEta === 'function' ? window.PDC_PARTS_ETA.beforeEta(vehicle, start) : '');
     const bookings = Array.isArray(result.bookings) ? result.bookings : [];
     const skipped = Array.isArray(result.skipped) ? result.skipped : [];
     const count = bookings.length;
     const summary = `<p><strong>${count ? `${count} station${count === 1 ? '' : 's'} booked.` : 'No new bookings were needed.'}</strong></p>`;
-    const rows = bookings.length ? `<div class="book-all-stations-table"><table><thead><tr><th>Station / bay</th><th>Start</th><th>Finish</th></tr></thead><tbody>${bookings.map(booking => `<tr><th scope="row">${esc(stageLabel(booking.stage))}<small>${esc(bayText(booking.stage, booking.bay))}</small></th><td>${esc(timeLabel(booking.start_at))}</td><td>${esc(timeLabel(booking.end_at))}</td></tr>`).join('')}</tbody></table></div>` : '';
+    const rows = bookings.length ? `<div class="book-all-stations-table"><table><thead><tr><th>Station / bay</th><th>Start</th><th>Finish</th></tr></thead><tbody>${bookings.map(booking => `<tr><th scope="row">${esc(stageLabel(booking.stage))}<small>${esc(bayText(booking.stage, booking.bay))}</small></th><td>${esc(timeLabel(booking.start_at))}${etaFor(booking.start_at) ? `<small class="book-all-before-eta">Before parts ETA ${esc(window.PDC_PARTS_ETA.etaLabel(etaFor(booking.start_at)))}</small>` : ''}</td><td>${esc(timeLabel(booking.end_at))}</td></tr>`).join('')}</tbody></table></div>` : '';
     const skippedHtml = skipped.length ? `<p class="subtle">${skipped.map(item => `${esc(stageLabel(item.stage))}: ${esc(item.reason || 'already booked')}`).join('<br>')}</p>` : '';
     return `${summary}${rows}${skippedHtml}<p class="subtle">Sublet is excluded. A 1-hour gap is allowed between this vehicle’s jobs.</p>`;
   }
@@ -108,10 +112,26 @@
       if (authorityCurrent(request)) renderIncomingDashboardBoard();
     }
   }
+  const asking = new Set();
+  function partsEtaWarning(vehicle) {
+    const guard = window.PDC_PARTS_ETA;
+    try { return typeof guard?.bookAllWarningFor === 'function' && typeof guard.ask === 'function' ? guard.bookAllWarningFor(vehicle) : null; } catch (_error) { return null; }
+  }
   async function book(id) {
-    if (saving || pending.has(id) || !writable()) return;
-    const before = currentVehicle(id);
+    if (saving || pending.has(id) || !writable() || asking.has(id)) return;
+    let before = currentVehicle(id);
     if (!before || !eligible(before)) return;
+    // No parts ETA after today: book at once, exactly as before r482.
+    const warning = partsEtaWarning(before);
+    if (warning) {
+      asking.add(id);
+      let ok = false;
+      try { ok = await window.PDC_PARTS_ETA.ask([warning]) === true; } finally { asking.delete(id); }
+      if (!ok) return; // Cancel: no booking request is sent.
+      if (saving || pending.has(id) || !writable()) return;
+      before = currentVehicle(id);
+      if (!before || !eligible(before)) return;
+    }
     const request = { id, generation: sessionGeneration, actor: window.PDC_AUTH_CONTEXT?.userId,
       token: getPdcSupabaseAccessToken(), config: window.PDC_SUPABASE_CONFIG, service: app.emailVehicleLocationService };
     if (!request.actor || !request.token) return;
@@ -157,7 +177,7 @@
         return;
       }
       if (!response.ok || result?.ok !== true) throw Error(result?.message || result?.error || 'The stations could not be booked. Refresh the board and try again.');
-      resultHost.innerHTML = summaryHtml(result);
+      resultHost.innerHTML = summaryHtml(result, before);
       backgroundRefresh = true;
       void refreshAfterResult(request, true);
     } catch (error) {
