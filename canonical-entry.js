@@ -91,9 +91,19 @@
     const loadVehicleLocationsTable = () => {
       if (document.querySelector('script[data-pdc-vehicle-locations-table]')) return;
       const table = document.createElement('script');
-      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461';
+      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462';
       table.dataset.pdcVehicleLocationsTable = '1';
+      table.onload = loadVehicleSlideout;
       document.head.appendChild(table);
+    };
+    // r462 (F75): Table view only: clicking a vehicle opens the slide-out panel (jobs, bookings, drag between bays
+    // through the planner's own move). Loads after the table module, which it registers with.
+    const loadVehicleSlideout = () => {
+      if (document.querySelector('script[data-pdc-vehicle-slideout]')) return;
+      const slideout = document.createElement('script');
+      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r462';
+      slideout.dataset.pdcVehicleSlideout = '1';
+      document.head.appendChild(slideout);
     };
     serviceLocations.onload = loadPartsEta;
     serviceLocations.onerror = loadPartsEta;

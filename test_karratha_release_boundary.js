@@ -104,7 +104,8 @@ const approvedRootImportPatch = Object.freeze({
   // r459: r459=2026.10.22.r459 on pdc-new-vehicles.js (Dept 138 approval follows the reviewer's station; F72).
   // r460: loads pdc-key-number.js?key-number=2026.10.22.r460 after pdc-parts-eta.js (vehicle key number edit + audit; F73).
   // r461: loads pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461 after pdc-key-number.js (Vehicle Locations table view switch, default drop-down; F74).
-  "canonical-entry.js": "e5f9996ce0cf1761ba86a29bc9d7472598262b457dd0f96a4d1fc97ece7a9f90",
+  // r462: r462=2026.10.22.r462 on the table module, then loads pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r462 after it (Table view slide-out panel, Parts loc column, resizable columns; F75).
+  "canonical-entry.js": "8ba8fdafb04c13450810a7eba87b34dde3c63490647d6bb78fd7a08308290dbe",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -184,7 +185,8 @@ const approvedRootImportPatch = Object.freeze({
   // r457: index.html ipad-landscape=2026.10.22.r457 on workshop-planner.css (F70).
   // r458: index.html vehicle-created=2026.10.22.r458 on pdc-email-vehicle-location-service.js (F71).
   // r461: index.html vehicle-locations-table=2026.10.22.r461 on canonical-entry.js (F74).
-  "index.html": "cd39315918f5cbec3ad66fcea8ecce498694de180d82477453e9b8af10ca7f36",
+  // r462: index.html r462=2026.10.22.r462 on canonical-entry.js (F75).
+  "index.html": "29cbc31621605e523bf78128019a861616cfb0956cff3790f93098be7105409b",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

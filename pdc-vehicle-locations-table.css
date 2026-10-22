@@ -66,9 +66,11 @@ body.vlt-table-on .vlt-slim-bar [data-pdc-refresh-control] { display: none !impo
 .vlt-panel-header .work-status-key { flex: 0 0 auto !important; padding: 2px 7px !important; min-height: 0 !important; height: auto !important; font-size: 10px !important; border-radius: 10px !important; white-space: nowrap; min-width: 0 !important; width: auto !important; }
 .vlt-table-wrap { overflow: auto; max-height: calc(100vh - 300px); min-height: 160px; }
 .vlt-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 1060px; font-size: 11px; }
-.vlt-table col.c-sel { width: 26px; } .vlt-table col.c-key { width: 38px; } .vlt-table col.c-stock { width: 92px; }
-.vlt-table col.c-cust { width: 104px; } .vlt-table col.c-unit { width: 132px; } .vlt-table col.c-loc { width: 66px; }
-.vlt-table col.c-work { width: 282px; } .vlt-table col.c-age { width: 72px; } .vlt-table col.c-status { width: 104px; } .vlt-table col.c-action { width: 176px; }
+/* r462: widths come from CSS variables that the column resize sets on the table; the fallbacks are the r461 widths. */
+.vlt-table.has-custom-widths { min-width: var(--vlt-table-min, 1060px); }
+.vlt-table col.c-sel { width: 26px; } .vlt-table col.c-key { width: var(--vlt-w-key, 38px); } .vlt-table col.c-stock { width: var(--vlt-w-stock, 92px); }
+.vlt-table col.c-cust { width: var(--vlt-w-cust, 104px); } .vlt-table col.c-unit { width: var(--vlt-w-unit, 132px); } .vlt-table col.c-ploc { width: var(--vlt-w-ploc, 66px); }
+.vlt-table col.c-work { width: var(--vlt-w-work, 282px); } .vlt-table col.c-age { width: var(--vlt-w-age, 72px); } .vlt-table col.c-status { width: var(--vlt-w-status, 104px); } .vlt-table col.c-action { width: var(--vlt-w-action, 176px); }
 .vlt-table th { background: #f8faff; border-bottom: 1px solid #e4eaf2; border-right: 1px solid #e4eaf2; padding: 4px 5px 3px; height: 39px; box-sizing: border-box; vertical-align: bottom; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; color: #677d9b; position: sticky; top: 0; z-index: 2; line-height: 1.15; white-space: nowrap; overflow: hidden; }
 .vlt-table th .incoming-sort-heading { border: 0; background: none; padding: 0; color: inherit; font: inherit; text-transform: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
 .vlt-table td { border-bottom: 1px solid #e4eaf2; border-right: 1px solid #e4eaf2; height: 32px; max-height: 32px; box-sizing: border-box; padding: 0 5px; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.15; }
@@ -80,7 +82,19 @@ body.vlt-table-on .vlt-slim-bar [data-pdc-refresh-control] { display: none !impo
 .vlt-table tbody tr:focus-visible { outline: 2px solid #246fad; outline-offset: -2px; }
 .vlt-table .c-sel, .vlt-table .c-key, .vlt-table .c-stock { position: sticky; z-index: 1; background: #fff; }
 .vlt-table th.c-sel, .vlt-table th.c-key, .vlt-table th.c-stock { z-index: 3; background: #f8faff; }
-.vlt-table .c-sel { left: 0; } .vlt-table .c-key { left: 26px; } .vlt-table .c-stock { left: 64px; box-shadow: inset -1px 0 #e4eaf2; }
+.vlt-table .c-sel { left: 0; } .vlt-table .c-key { left: var(--vlt-left-key, 26px); } .vlt-table .c-stock { left: var(--vlt-left-stock, 64px); box-shadow: inset -1px 0 #e4eaf2; }
+/* r462: header edge grips for column resize; 7 px hit area on the right border of each header cell. */
+.vlt-table th .vlt-col-resize { position: absolute; top: 0; right: -3px; width: 7px; height: 100%; cursor: col-resize; z-index: 4; touch-action: none; }
+.vlt-table th .vlt-col-resize::after { content: ''; position: absolute; top: 8px; bottom: 8px; left: 3px; width: 1px; background: transparent; }
+.vlt-table th .vlt-col-resize:hover::after, .vlt-table th .vlt-col-resize:focus-visible::after, body.vlt-resizing .vlt-table th .vlt-col-resize::after { background: #246fad; width: 2px; }
+.vlt-table th .vlt-col-resize:focus-visible { outline: none; }
+body.vlt-resizing, body.vlt-resizing * { cursor: col-resize !important; user-select: none !important; }
+.vlt-reset-cols { flex: 0 0 auto; height: 22px; padding: 0 9px; border: 1px solid #d5dde8; border-radius: 11px; background: #fff; color: #40566f; font: 700 10px Arial, Helvetica, sans-serif; cursor: pointer; white-space: nowrap; }
+.vlt-reset-cols:hover:not(:disabled) { background: #eef3f9; }
+.vlt-reset-cols:disabled { opacity: .45; cursor: default; }
+/* r462: Parts loc column (the card's own .tune-parts-location span, moved here) */
+.vlt-table td.c-ploc .tune-parts-location { display: block; max-width: 100% !important; text-align: left !important; font-size: 11px !important; font-weight: 700; white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal !important; }
+.vlt-table td.c-ploc .vlt-subtle-dash { color: #a3b0c2; }
 /* moved summary parts: reset their grid placement so they sit in a cell */
 .vlt-table td > * { position: static !important; grid-column: auto !important; grid-row: auto !important; margin: 0 !important; min-width: 0 !important; max-width: 100%; }
 .vlt-table td > .vehicle-identity-cell { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.15; }
@@ -97,8 +111,8 @@ body.vlt-table-on .vlt-slim-bar [data-pdc-refresh-control] { display: none !impo
 .vlt-table td > .incoming-card-meta > span { display: inline !important; white-space: nowrap !important; font-size: 11px !important; }
 .vlt-table td.c-status > .incoming-card-meta > span { font-size: 10px !important; }
 .vlt-table td.c-status .badge, .vlt-table td.c-status [class*="badge"] { font-size: 9px !important; padding: 1px 5px !important; line-height: 1.2 !important; min-height: 0 !important; height: auto !important; vertical-align: middle; }
-.vlt-table td.c-loc .vlt-pill, .vlt-drawer-head .vlt-pill { display: inline-block; border: 1px solid #dbe7f1; border-radius: 12px; padding: 2px 6px; font-size: 9px; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; color: #4a6481; background-color: #edf3f8; font-weight: 700; }
-.vlt-table td.c-loc .vlt-pill.released, .vlt-drawer-head .vlt-pill.released { background-color: #effcf3; }
+.vlt-drawer-head .vlt-pill { display: inline-block; border: 1px solid #dbe7f1; border-radius: 12px; padding: 2px 6px; font-size: 9px; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; color: #4a6481; background-color: #edf3f8; font-weight: 700; }
+.vlt-drawer-head .vlt-pill.released { background-color: #effcf3; }
 
 /* ---- Compact station strip: 9 x 26 px cells, 20 px tall (was 52 x 34). Same markup, classes, symbols, colours. ---- */
 .vlt-table td.c-work { padding: 0 4px; }
@@ -148,7 +162,7 @@ body.vlt-table-on .vlt-slim-bar [data-pdc-refresh-control] { display: none !impo
   .vlt-tile { padding: 8px 6px 7px; border-radius: 10px; height: 64px; }
   .vlt-tile strong { font-size: 17px; }
   .vlt-table { min-width: 860px; }
-  .vlt-table col.c-cust { width: 92px; } .vlt-table col.c-unit { width: 112px; } .vlt-table col.c-status { width: 0; } .vlt-table .c-status { display: none; }
+  .vlt-table col.c-cust { width: var(--vlt-w-cust, 92px); } .vlt-table col.c-unit { width: var(--vlt-w-unit, 112px); } .vlt-table col.c-status { width: 0; } .vlt-table .c-status { display: none; }
   .vlt-panel-header .work-status-legend { display: none !important; }
   #vlt-nav-status { flex-basis: 220px; }
   .vlt-drawer { width: min(700px, 70vw); }

@@ -11,10 +11,19 @@
  *   table; clicking a row opens the vehicle in a side panel (the existing drop-down card, opened, with its Open button).
  * - Selected tile, search, scroll and the open vehicle survive live refreshes.
  * Undo: revert the PR. With the PR in place, "Drop-down view" restores today's board for that user.
+ *
+ * r462 (F75), Table view only:
+ * - "Loc." column replaced by "Parts loc": the exact parts-location span the card shows ("Parts location: 05E2A",
+ *   pdc-service-locations.js), moved out of the Vehicle cell into its own cell; "—" when there is none. The column
+ *   sorts (table-only sort, missing values last) and the search box also matches it.
+ * - Columns resize by dragging a header edge (or arrow keys on the edge). Widths are saved per signed-in user on this
+ *   device (key pdc.vehicle-locations-columns.v1:<user id>), like the view switch. "Reset columns" clears them. The
+ *   station column never goes below its default width, so station cells keep their size, symbols and colours.
+ * - setDrawerOpener() lets pdc-vehicle-slideout.js take over "open this vehicle" (the slide-out panel).
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.22.r461';
+  const VERSION = '2026.10.22.r462';
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
   const VIEWS = Object.freeze({ dropdown: 'dropdown', table: 'table' });
   // Vehicle journey, left to right (Craig, 22 Oct 2026).
@@ -30,6 +39,22 @@
     rft: ['RFT', 'Ready for transport', 'released', 'RFT'],
   });
   const STOPPAGES = '__stoppages';
+  // r462: resizable columns. Defaults equal the r461 widths in pdc-vehicle-locations-table.css (CSS variables there
+  // fall back to these numbers). The station column's minimum is its default, so the strip is never squeezed.
+  const COLUMN_STORAGE_PREFIX = 'pdc.vehicle-locations-columns.v1:';
+  const COLUMNS = Object.freeze({
+    key: { label: 'Key', width: 38, min: 30 },
+    stock: { label: 'Stock', width: 92, min: 56 },
+    cust: { label: 'Customer', width: 104, min: 48 },
+    unit: { label: 'Vehicle', width: 132, min: 60 },
+    ploc: { label: 'Parts loc', width: 66, min: 44 },
+    work: { label: 'Stations', width: 282, min: 282 },
+    age: { label: 'Age / ETA', width: 72, min: 48 },
+    status: { label: 'Status', width: 104, min: 56 },
+    action: { label: 'Booking', width: 176, min: 72 },
+  });
+  const COLUMN_MAX = 520;
+  const SEL_WIDTH = 26;
 
   // ---------- Pure helpers (also used by the Node tests) ----------
   const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
@@ -114,19 +139,72 @@
     if (rowKey && rowKey === openKey) classes.push('is-open');
     const td = (cls, inner, extra = '') => `<td class="${cls}"${extra}>${inner}</td>`;
     const identityFallback = !p.key && !p.stockNo; // unexpected identity markup: keep the whole stock span
-    const loc = `<span class="vlt-pill ${escapeText(tile[2])}" title="${escapeText(bucketLabel || tile[0])}">${escapeText(tile[3])}</span>`;
+    const parts = extractPartsLocation(html(p.unit));
+    const ploc = parts.span || '<span class="vlt-subtle-dash" title="No parts location">—</span>';
     const rftSpan = p.rft && !p.work && [p.age, p.status, p.action].every(isBlank);
     const cells = [
       td('c-sel', html(p.select)),
       td('c-key', identityFallback ? '' : html(p.key)),
       td('c-stock', identityFallback ? html(p.stock) : `${html(p.stockNo)}${p.job ? `<span class="vlt-subtle">${html(p.job)}</span>` : ''}`),
       td('c-cust', html(p.name)),
-      td('c-unit', html(p.unit)),
-      td('c-loc', loc),
+      td('c-unit', parts.unit),
+      td('c-ploc', ploc),
       td(`c-work${p.rft && !p.work ? ' is-rft' : ''}`, html(p.work || p.rft), rftSpan ? ' colspan="4"' : ''),
     ];
     if (!rftSpan) cells.push(td('c-age', html(p.age)), td('c-status', html(p.status)), td('c-action', html(p.action)));
-    return `<tr class="${classes.join(' ')}" data-vlt-key="${escapeText(rowKey)}" data-vlt-bucket="${escapeText(bucket)}" tabindex="0"${p.identityTitle ? ` aria-label="${escapeText(p.identityTitle)}"` : ''}>${cells.join('')}</tr>`;
+    void tile; void bucketLabel;
+    return `<tr class="${classes.join(' ')}" data-vlt-key="${escapeText(rowKey)}" data-vlt-bucket="${escapeText(bucket)}" data-vlt-parts-loc="${escapeText(parts.text)}" tabindex="0"${p.identityTitle ? ` aria-label="${escapeText(p.identityTitle)}"` : ''}>${cells.join('')}</tr>`;
+  }
+
+  // r462: the card's own parts-location span (pdc-service-locations.js puts it inside .incoming-card-main), lifted out
+  // verbatim. Returns the Vehicle cell without it, the span, and its text for sorting.
+  const PARTS_SPAN = /<span class="tune-parts-location"[^>]*>([^<]*)<\/span>/;
+  function extractPartsLocation(unitHtml = '') {
+    const m = PARTS_SPAN.exec(unitHtml);
+    if (!m) return { unit: unitHtml, span: '', text: '' };
+    const text = m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+    return { unit: unitHtml.replace(m[0], ''), span: m[0], text };
+  }
+  // Table-only parts-location sort: text order (natural, so 05E2A < 12B1), missing values last in both directions.
+  function comparePartsLocation(a = '', b = '', direction = 'asc') {
+    if (!a && !b) return 0;
+    if (!a) return 1;
+    if (!b) return -1;
+    const order = String(a).localeCompare(String(b), 'en', { numeric: true, sensitivity: 'base' });
+    return direction === 'desc' ? -order : order;
+  }
+
+  // ---- r462 column widths ----
+  function columnStorageKey(userId) { return `${COLUMN_STORAGE_PREFIX}${String(userId || 'signed-out')}`; }
+  const clampWidth = (key, px) => Math.round(Math.min(COLUMN_MAX, Math.max(COLUMNS[key].min, Number(px))));
+  // Only known columns with finite numbers survive; everything is clamped to [min, max].
+  function sanitizeWidths(raw) {
+    const out = {};
+    if (!raw || typeof raw !== 'object') return out;
+    Object.keys(COLUMNS).forEach(key => { const n = Number(raw[key]); if (Number.isFinite(n) && n > 0) out[key] = clampWidth(key, n); });
+    return out;
+  }
+  function readWidths(storage, userId) {
+    try { return sanitizeWidths(JSON.parse(storage?.getItem(columnStorageKey(userId)) || 'null')); } catch (_) { return {}; }
+  }
+  function writeWidths(storage, userId, widths) {
+    const clean = sanitizeWidths(widths);
+    try {
+      if (Object.keys(clean).length) storage?.setItem(columnStorageKey(userId), JSON.stringify(clean));
+      else storage?.removeItem(columnStorageKey(userId));
+      return true;
+    } catch (_) { return false; }
+  }
+  function resetWidths(storage, userId) { try { storage?.removeItem(columnStorageKey(userId)); return true; } catch (_) { return false; } }
+  // CSS variables for the table: one per saved column, the pinned Key/Stock offsets, and the table's minimum width.
+  function widthStyle(widths = {}) {
+    const clean = sanitizeWidths(widths);
+    if (!Object.keys(clean).length) return '';
+    const w = key => clean[key] ?? COLUMNS[key].width;
+    const vars = Object.keys(clean).map(key => `--vlt-w-${key}:${clean[key]}px`);
+    vars.push(`--vlt-left-key:${SEL_WIDTH}px`, `--vlt-left-stock:${SEL_WIDTH + w('key')}px`);
+    vars.push(`--vlt-table-min:${SEL_WIDTH + Object.keys(COLUMNS).reduce((sum, key) => sum + w(key), 0)}px`);
+    return vars.join(';');
   }
 
   // Bucket order for tiles and rows: Craig's journey first, then any bucket the board adds later (never dropped).
@@ -143,7 +221,8 @@
     try { storage?.setItem(storageKey(userId), view === VIEWS.table ? VIEWS.table : VIEWS.dropdown); return true; } catch (_) { return false; }
   }
 
-  const api = { VERSION, VIEWS, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView };
+  const api = { VERSION, VIEWS, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
+    COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, extractPartsLocation, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.renderIncomingDashboardBoard !== 'function' || root.PDC_VEHICLE_LOCATIONS_TABLE) {
     if (root && !root.PDC_VEHICLE_LOCATIONS_TABLE) root.PDC_VEHICLE_LOCATIONS_TABLE = api;
@@ -152,7 +231,8 @@
 
   // ---------- Browser ----------
   const doc = root.document;
-  const state = { bucket: '', stoppages: false, openKey: '', view: VIEWS.dropdown };
+  const state = { bucket: '', stoppages: false, openKey: '', view: VIEWS.dropdown, partsSort: '', widths: {} };
+  let drawerOpener = null; // r462: { open(key, bucket), refresh(key, bucket), close() } from pdc-vehicle-slideout.js
   const userId = () => root.PDC_AUTH_CONTEXT?.userId || '';
   const storage = () => { try { return root.localStorage; } catch (_) { return null; } };
   const originalRender = root.renderIncomingDashboardBoard;
@@ -208,6 +288,8 @@
       if (board) { board.innerHTML = ''; board.hidden = true; }
       panel?.classList.add('vlt-slim-bar');
     } else {
+      if (drawerOpener && state.openKey) drawerOpener.close();
+      state.openKey = '';
       const host = doc.getElementById('vlt-table-host');
       if (host) host.remove();
       doc.getElementById('vlt-nav-status')?.remove();
@@ -274,7 +356,10 @@
     const filters = root.incomingDashboardFilterValues();
     root.updateIncomingMoreFiltersState(filters);
     const sort = appState.incomingDashboardSort || {};
-    const filteredRows = rows.filter(vehicle => root.incomingVehicleMatchesFilters(vehicle, filters));
+    const needle = String(filters.search || '').trim().toLowerCase();
+    const searchless = needle ? { ...filters, search: '' } : null;
+    const filteredRows = rows.filter(vehicle => root.incomingVehicleMatchesFilters(vehicle, filters)
+      || (needle && partsLocationValues(vehicle).some(value => value.toLowerCase().includes(needle)) && root.incomingVehicleMatchesFilters(vehicle, searchless)));
     root.pruneIncomingDepartmentSelection(filteredRows);
     const loading = rows.length === 0 && appState.vehicleLocationsRefreshState !== 'success' && appState.vehicleLocationsRefreshState !== 'error'
       && (appState.vehicleLocationsRefreshState === 'refreshing' || appState.sharedNavisionVisibleState === 'loading'
@@ -289,9 +374,13 @@
     const counts = new Map();
     entries.forEach(entry => counts.set(entry.bucket, (counts.get(entry.bucket) || 0) + 1));
     if (state.bucket && !rank.has(state.bucket)) state.bucket = '';
+    const cardFor = entry => root.incomingVehicleDetailRow(entry.vehicle, entry.bucket, { workshopPlans, workshopProjectionAvailable, subletNavigation: true });
     const shown = entries
       .filter(entry => (!state.bucket || entry.bucket === state.bucket) && (!state.stoppages || stoppageKeys.has(entry.key)))
-      .sort((a, b) => rank.get(a.bucket) - rank.get(b.bucket) || root.incomingCompareVehicles(a.vehicle, b.vehicle, sort, a.bucket));
+      .map(entry => { const card = cardFor(entry); return { ...entry, card, partsLoc: extractPartsLocation(html(splitCard(card).unit)).text }; })
+      .sort((a, b) => rank.get(a.bucket) - rank.get(b.bucket)
+        || (state.partsSort ? comparePartsLocation(a.partsLoc, b.partsLoc, state.partsSort) : 0)
+        || root.incomingCompareVehicles(a.vehicle, b.vehicle, sort, a.bucket));
     const summary = doc.getElementById('incoming-filter-summary');
     if (summary) {
       const workCount = Array.isArray(filters.work) ? filters.work.length : (filters.work ? 1 : 0);
@@ -307,20 +396,24 @@
       tile('', 'All vehicles', entries.length, 'Every active vehicle', 'all', !state.bucket && !state.stoppages, 'Show every vehicle')}${
       order.map(key => tile(key, TILE[key]?.[0] || defFor(key).label || key, counts.get(key) || 0, TILE[key]?.[1] || '', TILE[key]?.[2] || 'unknown', state.bucket === key, defFor(key).hint)).join('')}${
       tile(STOPPAGES, 'STOPPAGES', priorityRows.length, 'Fix first', 'stoppage', state.stoppages, 'STOPPAGES / Fix First — the same list as the drop-down view')}</div>`;
-    const heading = (label, key) => root.incomingSortHeadingHtml(label, key, sort);
+    const headingSort = state.partsSort ? {} : sort; // only one column shows as sorted
+    const heading = (label, key) => root.incomingSortHeadingHtml(label, key, headingSort);
+    const partsNext = state.partsSort === 'asc' ? 'desc' : 'asc';
+    const partsHeading = `<button type="button" class="incoming-sort-heading${state.partsSort ? ' is-active' : ''}" data-vlt-sort="parts-location" aria-label="Sort Parts loc: ${partsNext === 'asc' ? 'ascending' : 'descending'}" title="Sort Parts loc: ${partsNext === 'asc' ? 'ascending' : 'descending'}. Missing values stay last.">Parts loc <span aria-hidden="true">${state.partsSort === 'asc' ? '↑' : state.partsSort === 'desc' ? '↓' : '↕'}</span></button>`;
+    const grip = key => `<span class="vlt-col-resize" data-vlt-resize="${key}" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize ${esc(COLUMNS[key].label)} column (arrow keys)" title="Drag to resize · double-click to reset this column"></span>`;
     const filterNote = state.bucket ? `${esc(TILE[state.bucket]?.[0] || state.bucket)} only · click All vehicles to clear`
       : state.stoppages ? 'STOPPAGES only · click All vehicles to clear' : 'Click a tile to filter · click a vehicle to open it';
-    const bodyHtml = shown.map(entry => tableRowHtml(
-      root.incomingVehicleDetailRow(entry.vehicle, entry.bucket, { workshopPlans, workshopProjectionAvailable, subletNavigation: true }),
+    const bodyHtml = shown.map(entry => tableRowHtml(entry.card,
       entry.bucket, { key: entry.key, openKey: state.openKey, bucketLabel: root.incomingBucketLabel(entry.bucket) })).join('')
       || `<tr><td colspan="10" class="vlt-empty">${loading ? 'Loading vehicles…' : 'No vehicles match this tile and the search filters'}</td></tr>`;
-    const keepDrawer = ui.keepDrawer && state.openKey && shown.some(entry => entry.key === state.openKey) ? ui.drawerNode : null;
+    const keepDrawer = !drawerOpener && ui.keepDrawer && state.openKey && shown.some(entry => entry.key === state.openKey) ? ui.drawerNode : null;
+    const widthCss = widthStyle(state.widths);
     host.innerHTML = `${tilesHtml}
       <section class="vlt-panel" aria-label="Vehicle locations table">
-        <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}</div>
-        <div class="vlt-table-wrap"><table class="vlt-table">
-          <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-cust"><col class="c-unit"><col class="c-loc"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
-          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}</th><th class="c-stock">${heading('Stock', 'stock')}</th><th class="c-cust">${heading('Customer', 'customer')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}</th><th class="c-loc">Loc.</th><th class="c-work"></th><th class="c-age">${heading('Age / ETA', 'age')}</th><th class="c-status">Status</th><th class="c-action">Booking</th></tr></thead>
+        <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
+        <div class="vlt-table-wrap"><table class="vlt-table${widthCss ? ' has-custom-widths' : ''}"${widthCss ? ` style="${widthCss}"` : ''}>
+          <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
+          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
           <tbody>${bodyHtml}</tbody></table></div>
       </section>`;
     const holder = doc.createElement('div');
@@ -328,7 +421,7 @@
     const stations = holder.querySelector('.pdc-grid-stations-heading');
     if (stations) host.querySelector('thead th.c-work').append(stations);
     if (keepDrawer) host.append(keepDrawer);
-    else host.insertAdjacentHTML('beforeend', '<aside class="vlt-drawer" id="vlt-drawer" hidden aria-label="Vehicle detail"></aside>');
+    else if (!drawerOpener) host.insertAdjacentHTML('beforeend', '<aside class="vlt-drawer" id="vlt-drawer" hidden aria-label="Vehicle detail"></aside>');
     const body = host.querySelector('tbody');
     addTooltips(body);
     bindBoardHandlers(body);
@@ -338,7 +431,8 @@
     if (wrap) wrap.scrollTop = ui.tableScroll;
     if (state.openKey && !keepDrawer) {
       const open = shown.find(entry => entry.key === state.openKey) || entries.find(entry => entry.key === state.openKey);
-      if (open) openDrawer(open.key, open.bucket, ui); else closeDrawer();
+      if (open && drawerOpener) drawerOpener.refresh(open.key, open.bucket);
+      else if (open) openDrawer(open.key, open.bucket, ui); else closeDrawer();
     }
     revealSingleResult(shown, filters.search);
     root.updateInlineSelectionBars(filteredRows);
@@ -355,7 +449,7 @@
     const token = `${needle}|${shown[0].key}`;
     if (focus['incoming-table'] === token) return;
     focus['incoming-table'] = token;
-    openDrawer(shown[0].key, shown[0].bucket);
+    openVehicle(shown[0].key, shown[0].bucket);
   }
 
   function bindTableEvents(host, sort) {
@@ -369,24 +463,108 @@
     host.querySelectorAll('thead [data-incoming-sort]').forEach(button => button.addEventListener('click', event => {
       event.preventDefault(); event.stopPropagation();
       const key = button.dataset.incomingSort;
-      app.incomingDashboardSort = { key, direction: sort.key === key && sort.direction === 'asc' ? 'desc' : 'asc' };
+      const wasParts = Boolean(state.partsSort);
+      state.partsSort = '';
+      app.incomingDashboardSort = { key, direction: !wasParts && sort.key === key && sort.direction === 'asc' ? 'desc' : 'asc' };
       renderTable();
       [...host.querySelectorAll('thead [data-incoming-sort]')].find(control => control.dataset.incomingSort === key)?.focus({ preventScroll: true });
     }));
+    host.querySelector('thead [data-vlt-sort="parts-location"]')?.addEventListener('click', event => {
+      event.preventDefault(); event.stopPropagation();
+      state.partsSort = state.partsSort === 'asc' ? 'desc' : 'asc';
+      renderTable();
+      host.querySelector('thead [data-vlt-sort="parts-location"]')?.focus({ preventScroll: true });
+    });
+    host.querySelector('[data-vlt-reset-cols]')?.addEventListener('click', event => { event.preventDefault(); resetColumns(); });
+    bindColumnResize(host);
     const body = host.querySelector('tbody');
     body.addEventListener('click', event => {
       if (event.target.closest('button, a, input, select, label, textarea, summary, [role="button"]')) return;
       const tr = event.target.closest('tr[data-vlt-key]');
-      if (tr) openDrawer(tr.dataset.vltKey, tr.dataset.vltBucket);
+      if (tr) openVehicle(tr.dataset.vltKey, tr.dataset.vltBucket);
     });
     body.addEventListener('keydown', event => {
       const tr = event.target.closest?.('tr[data-vlt-key]');
-      if (tr && event.target === tr && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openDrawer(tr.dataset.vltKey, tr.dataset.vltBucket); }
+      if (tr && event.target === tr && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openVehicle(tr.dataset.vltKey, tr.dataset.vltBucket); }
     });
     body.addEventListener('change', event => {
       const input = event.target.closest?.('[data-select-stock]');
       if (input) input.closest('tr')?.classList.toggle('selected', input.checked);
     });
+  }
+
+  // ---- r462: column resize (pointer drag on a header edge, arrow keys on the focused edge, double-click resets it) ----
+  function applyWidths(host) {
+    const table = host?.querySelector('.vlt-table');
+    if (!table) return;
+    const css = widthStyle(state.widths);
+    table.setAttribute('style', css);
+    if (!css) table.removeAttribute('style');
+    table.classList.toggle('has-custom-widths', Boolean(css));
+    const reset = host.querySelector('[data-vlt-reset-cols]');
+    if (reset) reset.disabled = !Object.keys(state.widths).length;
+  }
+  function saveWidths() { writeWidths(storage(), userId(), state.widths); }
+  function setColumnWidth(key, px, { save = true } = {}) {
+    if (!COLUMNS[key]) return;
+    state.widths = { ...state.widths, [key]: clampWidth(key, px) };
+    applyWidths(doc.getElementById('vlt-table-host'));
+    if (save) saveWidths();
+  }
+  function resetColumns() {
+    state.widths = {};
+    resetWidths(storage(), userId());
+    applyWidths(doc.getElementById('vlt-table-host'));
+  }
+  function bindColumnResize(host) {
+    host.querySelectorAll('[data-vlt-resize]').forEach(grip => {
+      const key = grip.dataset.vltResize;
+      const current = () => grip.closest('th')?.getBoundingClientRect().width || state.widths[key] || COLUMNS[key].width;
+      grip.addEventListener('click', event => { event.preventDefault(); event.stopPropagation(); });
+      grip.addEventListener('dblclick', event => {
+        event.preventDefault(); event.stopPropagation();
+        const next = { ...state.widths }; delete next[key]; state.widths = next;
+        applyWidths(host); saveWidths();
+      });
+      grip.addEventListener('keydown', event => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault(); event.stopPropagation();
+        setColumnWidth(key, current() + (event.key === 'ArrowRight' ? 8 : -8));
+      });
+      grip.addEventListener('pointerdown', event => {
+        if (event.button !== 0) return;
+        event.preventDefault(); event.stopPropagation();
+        const startX = event.clientX; const startWidth = current();
+        grip.setPointerCapture?.(event.pointerId);
+        doc.body.classList.add('vlt-resizing');
+        const move = e => setColumnWidth(key, startWidth + (e.clientX - startX), { save: false });
+        const up = () => {
+          grip.removeEventListener('pointermove', move); grip.removeEventListener('pointerup', up); grip.removeEventListener('pointercancel', up);
+          doc.body.classList.remove('vlt-resizing');
+          saveWidths();
+        };
+        grip.addEventListener('pointermove', move); grip.addEventListener('pointerup', up); grip.addEventListener('pointercancel', up);
+      });
+    });
+  }
+  // Parts locations shown on the card (pdc-service-locations.js): Tune parts_location for an on-site (PMB) vehicle.
+  function partsLocationValues(vehicle) {
+    if (!root.PDC_SERVICE_LOCATIONS || typeof root.vehiclePdcLocation !== 'function' || root.vehiclePdcLocation(vehicle) !== 'PMB') return [];
+    return [...new Set((vehicle?.tuneServiceLocations?.jobs || []).map(job => String(job.parts_location ?? '').trim()).filter(Boolean))];
+  }
+
+  function openVehicle(key, bucket) {
+    if (drawerOpener) { state.openKey = key; drawerOpener.open(key, bucket); return; }
+    openDrawer(key, bucket);
+  }
+  function setDrawerOpener(opener) {
+    drawerOpener = opener && typeof opener.open === 'function' ? opener : null;
+    return true;
+  }
+  // The slide-out panel tells the table it closed (clears the open row; nothing else changes).
+  function drawerClosed() {
+    state.openKey = '';
+    doc.querySelectorAll('#vlt-table-host tr.is-open').forEach(row => row.classList.remove('is-open'));
   }
 
   function openDrawer(key, bucket, ui = null) {
@@ -417,6 +595,7 @@
   }
 
   function closeDrawer() {
+    if (drawerOpener) { drawerOpener.close(); drawerClosed(); return; }
     state.openKey = '';
     const drawer = doc.getElementById('vlt-drawer');
     if (drawer) { drawer.hidden = true; drawer.innerHTML = ''; }
@@ -470,21 +649,21 @@
     const frame = () => new Promise(resolve => (root.requestAnimationFrame || setTimeout)(() => resolve()));
     const props = ['color', 'backgroundColor', 'backgroundImage', 'borderTopColor', 'borderLeftColor', 'opacity'];
     const look = (el, pseudo) => { const cs = root.getComputedStyle(el, pseudo || null); const out = {}; props.forEach(name => { out[name] = cs[name]; }); if (pseudo) out.content = cs.content; return out; };
+    const cellsOf = strip => strip ? [...strip.querySelectorAll(':scope > .incoming-work-check')].map(cell => ({
+      station: [...cell.classList].find(name => name.startsWith('pdc-station-')) || '',
+      classes: [...cell.classList].sort().join(' '),
+      symbol: [...cell.querySelectorAll('.incoming-work-box, .parts-jita-marker')].map(marker => marker.textContent.trim()).join('|'),
+      title: cell.getAttribute('title') || '', aria: cell.getAttribute('aria-label') || '',
+      look: look(cell), before: look(cell, '::before'), after: look(cell, '::after'),
+      markers: [...cell.querySelectorAll('.incoming-work-box, .parts-jita-marker')].map(marker => ({ text: marker.textContent.trim(), look: look(marker) })),
+    })) : [];
     const collect = view => {
       const rows = view === VIEWS.dropdown
         ? [...doc.querySelectorAll('#incoming-main-board details.incoming-vehicle-card[data-incoming-row]')].map(card => [card.dataset.incomingRow, card.querySelector(':scope > summary') || card])
         : [...doc.querySelectorAll('#vlt-table-host tr[data-vlt-key]')].map(row => [row.dataset.vltKey, row]);
       const out = new Map();
       rows.forEach(([key, scope]) => {
-        const strip = scope.querySelector('.pdc-station-strip');
-        const cells = strip ? [...strip.querySelectorAll(':scope > .incoming-work-check')].map(cell => ({
-          station: [...cell.classList].find(name => name.startsWith('pdc-station-')) || '',
-          classes: [...cell.classList].sort().join(' '),
-          symbol: [...cell.querySelectorAll('.incoming-work-box, .parts-jita-marker')].map(marker => marker.textContent.trim()).join('|'),
-          title: cell.getAttribute('title') || '', aria: cell.getAttribute('aria-label') || '',
-          look: look(cell), before: look(cell, '::before'), after: look(cell, '::after'),
-          markers: [...cell.querySelectorAll('.incoming-work-box, .parts-jita-marker')].map(marker => ({ text: marker.textContent.trim(), look: look(marker) })),
-        })) : [];
+        const cells = cellsOf(scope.querySelector('.pdc-station-strip'));
         const rft = [...scope.querySelectorAll('.rft-action')].map(el => ({ classes: el.className, text: el.textContent.trim(), title: el.getAttribute('title') || '', disabled: Boolean(el.disabled), look: look(el) }));
         const others = [...scope.querySelectorAll('[class*="badge"], button, .incoming-card-age, .incoming-card-status, select')]
           .filter(el => !el.closest('.pdc-station-strip, .rft-transport-controls'))
@@ -526,6 +705,25 @@
       });
       table.forEach((_, key) => { if (!today.has(key)) miss(key, 'row', 'extra in table view'); });
       if (report.dropDownCardsInTableView) miss('*', 'render', 'drop-down cards drawn in table view', 0, report.dropDownCardsInTableView);
+      // r462: the slide-out panel's station strip for every vehicle against today's drop-down strip (same fields).
+      // parityStrip() only draws the card HTML off-screen inside the panel; it binds nothing and loads nothing.
+      if (drawerOpener && typeof drawerOpener.parityStrip === 'function') {
+        report.panelVehicles = 0; report.panelStationCells = 0;
+        try {
+          today.forEach((t, key) => {
+            const row = [...doc.querySelectorAll('#vlt-table-host tr[data-vlt-key]')].find(tr => tr.dataset.vltKey === key);
+            const cells = cellsOf(drawerOpener.parityStrip(key, row?.dataset.vltBucket || ''));
+            report.panelVehicles += 1;
+            if (t.cells.length !== cells.length) miss(key, 'panel stations', 'cell count', t.cells.length, cells.length);
+            t.cells.forEach((cell, index) => {
+              report.panelStationCells += 1;
+              ['station', 'classes', 'symbol', 'title', 'aria', 'look', 'before', 'after', 'markers'].forEach(field => {
+                if (JSON.stringify(cell[field]) !== JSON.stringify((cells[index] || {})[field])) miss(key, `panel ${cell.station}`, field, cell[field], (cells[index] || {})[field]);
+              });
+            });
+          });
+        } finally { drawerOpener.parityDone?.(); }
+      }
     } finally {
       Object.assign(state, { bucket: before.bucket, stoppages: before.stoppages, openKey: before.openKey });
       setView(before.view, { save: false });
@@ -534,6 +732,7 @@
   }
 
   function syncViewForUser() {
+    state.widths = readWidths(storage(), userId());
     const view = readView(storage(), userId());
     if (view !== state.view) { state.view = view; applyViewChrome(); if (app?.currentView === 'dashboard') root.renderIncomingDashboardBoard(); }
     else ensureSwitch();
@@ -541,11 +740,16 @@
 
   loadStyles();
   state.view = readView(storage(), userId());
+  state.widths = readWidths(storage(), userId());
   applyViewChrome();
   if (tableOn() && app?.currentView === 'dashboard') root.renderIncomingDashboardBoard();
   root.addEventListener?.('pdc-auth-ready', syncViewForUser);
-  root.addEventListener?.('storage', event => { if (event.key === storageKey(userId())) syncViewForUser(); });
+  root.addEventListener?.('storage', event => {
+    if (event.key === storageKey(userId())) syncViewForUser();
+    if (event.key === columnStorageKey(userId()) && tableOn()) { state.widths = readWidths(storage(), userId()); applyWidths(doc.getElementById('vlt-table-host')); }
+  });
   doc.addEventListener('keydown', event => { if (event.key === 'Escape' && tableOn() && state.openKey && !doc.querySelector('.modal[open], dialog[open]')) closeDrawer(); });
 
-  root.PDC_VEHICLE_LOCATIONS_TABLE = Object.freeze({ ...api, state, setView, openDrawer, closeDrawer, parity, render: () => root.renderIncomingDashboardBoard() });
+  root.PDC_VEHICLE_LOCATIONS_TABLE = Object.freeze({ ...api, state, setView, openDrawer, closeDrawer, parity, render: () => root.renderIncomingDashboardBoard(),
+    bindBoardHandlers, setDrawerOpener, drawerClosed, setColumnWidth, resetColumns, addTooltips });
 }(typeof window !== 'undefined' ? window : globalThis));
