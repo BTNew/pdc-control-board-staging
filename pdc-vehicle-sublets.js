@@ -14,10 +14,12 @@
  * No new table, column or SQL: everything shown or changed already exists.
  * Craig 22 Oct 18:41: a whole line sublet with no GP PO says 'PO to raise' (and keeps the box orange, on the board too);
  * a GP PO that an import brings onto a line in another category shows here as a sublet item with 'PO raised for this
- * line' until it is ticked done or the user presses 'Got it'; the purchaser is the supplier (the sublet provider). */
+ * line' until it is ticked done or the user presses 'Got it'; the purchaser is the supplier (the sublet provider).
+ * r494b (Craig 22 Oct 18:55): no 'PO raised for this line' / 'Got it' (the GP PO number shows it); 'PO to raise' sits in
+ * the GP PO column as a chip the same size as a GP PO number; one text size in the tables. */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.23.r494';
+  const VERSION = '2026.10.23.r494b';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   /** One identity for a line across job cards, GP PO lines and Sublet bookings ("source:<uuid>" = "<uuid>"). */
   const sid = value => String(value ?? '').trim().toLowerCase().replace(/^(source|manual|operation):/, '');
@@ -111,7 +113,7 @@
   }
   const statusTone = text => /^OVERDUE/.test(text) ? 'is-overdue' : /^Away/.test(text) ? 'is-away' : /^(Back|Returned)/.test(text) ? 'is-back' : /Booked/.test(text) ? 'is-booked' : 'is-tobook';
   function tickHtml(row, vehicleId, canTick) {
-    if (!row.tickable) return `<span class="pvs-nopo" title="No GP purchase order on this whole line sublet yet: raise the PO. The done tick appears once the GP PO import attaches it.">PO to raise</span>`;
+    if (!row.tickable) return '<span class="pvs-muted" title="The done tick appears once the GP PO import attaches the PO">—</span>'; // r494b: 'PO to raise' is in the GP PO column
     const po = row.po, ticked = po.ticked === true;
     const title = !canTick ? `Sublet done: ${ticked ? 'yes' : 'not yet'}. Read only: controllers, administrators and fitters tick sublet done`
       : ticked ? 'Sublet done. Untick if the sublet is not done' : 'Tick when the supplier has finished this';
@@ -132,7 +134,8 @@
     }).join('');
   }
   function poCell(row) {
-    if (!row.pos.length) return '<span class="pvs-muted">—</span>';
+    // r494b: a whole line sublet with no GP PO shows 'PO to raise' here, the same chip size as a GP PO number.
+    if (!row.pos.length) return `<span class="pvs-nopo" title="No GP purchase order on this whole line sublet yet: raise the PO. The done tick appears once the GP PO import attaches it.">PO to raise</span>`;
     return row.pos.map(p => `<span class="pvs-po" title="${esc(p.description || 'GP purchase order')}">${esc(p.po)}</span>${p.description ? `<small>${esc(p.description)}</small>` : ''}`).join('');
   }
   function moveBackHtml(row, choices) {
@@ -144,10 +147,7 @@
   /** The screen's HTML. perms: { canTick, canMove, canEmail, choices }. */
   function screenHtml(model, { vehicleId = '', title = '', subtitle = '', perms = {}, loading = false, note = '' } = {}) {
     const p = { canTick: false, canMove: false, canEmail: false, choices: [], seen: null, ...perms };
-    const keys = row => row.pos.map(x => [String(vehicleId).toLowerCase(), String(row.po?.line_key || ''), x.po].join('|'));
-    const newPo = row => Boolean(p.seen && typeof p.seen.has === 'function' && row.po && !row.done && keys(row).some(k => !p.seen.has(k)));
-    const newPoNote = row => `<div class="pvs-new-po"><b title="An import attached a GP PO to this line. It stays highlighted until the sublet is ticked done or you press Got it.">PO raised for this line</b>`
-      + `<button type="button" class="small-button" data-pdc-sublet-ack="${esc(keys(row).join(' '))}" title="Hide this note (for you, in this browser)">Got it</button></div>`;
+    // r494b (F107): no 'PO raised for this line' note here any more (perms.seen is ignored); the GP PO number shows it.
     const pill = model.state === 'none' ? '<span class="pvs-pill is-none">No sublets</span>'
       : model.state === 'done' ? `<span class="pvs-pill is-done">✓ All ${model.total} done</span>`
         : `<span class="pvs-pill is-open">! ${model.open} open · ${model.done}/${model.total} done</span>`;
@@ -156,7 +156,7 @@
       + `<td>${poCell(row)}</td><td>${tickHtml(row, vehicleId, p.canTick)}</td>${bookingCells(row.bookings, p.canEmail)}</tr>`).join('');
     const itemRows = model.items.map(row => `<tr class="pvs-op" data-pvs-line="${esc(row.id)}"><td><b>${esc(lineLabel(row.operationNo))}</b></td>`
       + `<td colspan="9"><span class="pvs-cat">${esc(categoryLabel(row.category))}</span> ${esc(row.description || '—')} <small class="pvs-muted">· the line stays in ${esc(categoryLabel(row.category))}</small></td></tr>`
-      + `<tr class="pvs-item${newPo(row) ? ' is-new-po' : ''}"><td class="pvs-indent">↳ Sublet</td><td>${row.pos.map(x => esc(x.description)).filter(Boolean).join('; ') || '<span class="pvs-muted">No sublet description in the upload yet</span>'}${newPo(row) ? newPoNote(row) : ''}</td>`
+      + `<tr class="pvs-item"><td class="pvs-indent">↳ Sublet</td><td>${row.pos.map(x => esc(x.description)).filter(Boolean).join('; ') || '<span class="pvs-muted">No sublet description in the upload yet</span>'}</td>`
       + `<td>${row.pos.map(x => `<span class="pvs-po">${esc(x.po)}</span>`).join('')}</td><td>${tickHtml(row, vehicleId, p.canTick)}</td>${bookingCells(row.bookings, p.canEmail)}</tr>`).join('');
     const loose = model.loose.length ? `<section class="pvs-section"><h4>Vehicle sublet bookings <small>not tied to one operation line</small></h4><table class="pvs-table"><thead><tr><th>Supplier</th><th>Out</th><th>Due back</th><th>Back</th><th>Status</th><th></th></tr></thead><tbody>${model.loose.map(b => `<tr>${bookingCells([b], p.canEmail)}</tr>`).join('')}</tbody></table></section>` : '';
     const others = p.canMove && model.others.length ? `<details class="pvs-section pvs-others"><summary>Make a whole operation line a sublet <small>(${model.others.length} other line${model.others.length === 1 ? '' : 's'})</small></summary>`
