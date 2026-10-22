@@ -3824,16 +3824,33 @@ function workshopSearchControlHtml(query = '', plans = workshopLoadPlans()) {
   </section>`;
 }
 
+// r470 (F83): the planner re-renders on every live refresh and clock update. Scrolling to the found booking on each render
+// made the page scroll up and down by itself after a Find. Scroll (and pulse) once per selection; later renders keep the
+// highlight styling but never move the page.
+let WORKSHOP_HIGHLIGHT_SCROLL_DONE = '';
+
+function workshopHighlightScrollSignature(state = workshopState()) {
+  const key = state.highlightVehicleKey || '';
+  const planId = state.searchHighlightPlanId || '';
+  if (!key && !planId) return '';
+  return `${Number(state.highlightScrollRequest || 0)}|${key}|${planId}`;
+}
+
 function workshopScrollToHighlightedVehicle(root = document) {
   if (app.pendingWorkshopBookingLink?.search === true) return;
   const state = workshopState();
   const key = state.highlightVehicleKey;
   const planId = state.searchHighlightPlanId;
-  if (!key && !planId) return;
+  const signature = workshopHighlightScrollSignature(state);
+  if (!signature) { WORKSHOP_HIGHLIGHT_SCROLL_DONE = ''; return; }
+  if (signature === WORKSHOP_HIGHLIGHT_SCROLL_DONE) return;
   window.requestAnimationFrame(() => {
+    if (workshopHighlightScrollSignature(workshopState()) !== signature || WORKSHOP_HIGHLIGHT_SCROLL_DONE === signature) return;
     const bookingTarget = planId ? Array.from(root.querySelectorAll('[data-workshop-plan-id]')).find(element => element.dataset.workshopPlanId === planId) : null;
     const vehicleTarget = key ? Array.from(root.querySelectorAll('[data-workshop-locate-key]')).find(element => element.dataset.workshopLocateKey === key) : null;
     const target = planId ? bookingTarget : vehicleTarget;
+    // Not drawn yet (e.g. the planner is still moving to that date): try again on the next render.
+    if (target) WORKSHOP_HIGHLIGHT_SCROLL_DONE = signature;
     target?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'auto' : 'smooth', block: 'center', inline: 'center' });
     if (target && window.WorkshopNavigation?.replaceWorkshopHighlight) {
       window.WorkshopNavigation.replaceWorkshopHighlight(root, target, {
@@ -3892,6 +3909,7 @@ async function workshopSelectSearchBooking(bookingId = '', vehicleIdentity = '')
   state.selectedPlanId = entry.id;
   state.highlightVehicleKey = entry.vehicleKey;
   state.searchHighlightPlanId = entry.id;
+  state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
   state.searchOpen = false;
   state.detailCollapsedForSelection = true;
   state.detailManualOpen = false;
@@ -3968,6 +3986,7 @@ function workshopOpenBookingById(bookingId = '', vehicleIdentity = '') {
   state.selectedPlanId = entry.id;
   state.highlightVehicleKey = entry.vehicleKey;
   state.searchHighlightPlanId = entry.id;
+  state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
   state.searchOpen = false;
   state.detailCollapsedForSelection = false;
   state.detailManualOpen = true;
@@ -4263,6 +4282,7 @@ async function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
     }
   }
   state.highlightVehicleKey = match.vehicleKey;
+  state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
   state.searchHighlightPlanId = '';
   state.selectedPlanId = '';
   state.searchOpen = false;
@@ -5615,6 +5635,7 @@ function workshopSelectReturnedPlan(planId) {
   workshopSelectPlanForDetail(plan.id);
   state.searchOpen = false;
   state.searchHighlightPlanId = plan.id;
+  state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
   renderWorkshopPlanner();
   openWorkshopVehicleJob(plan.vehicleKey, plan.stage, plan.id);
   return true;
@@ -5689,6 +5710,7 @@ function renderWorkshopPlanner(options = {}) {
       state.focusedBookingId = focused.ok ? focused.entry.id : '';
       state.selectedPlanId = focused.ok ? focused.entry.id : '';
       state.searchHighlightPlanId = focused.ok ? focused.entry.id : '';
+      state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
       state.search = '';
       state.searchOpen = false;
       state.detailManualOpen = focused.ok;
@@ -5702,6 +5724,7 @@ function renderWorkshopPlanner(options = {}) {
         state.selectedPlanId = pendingPlan.id;
         state.highlightVehicleKey = pendingPlan.vehicleKey;
         state.searchHighlightPlanId = pendingPlan.id;
+        state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
         if (pendingBookingLink.search === true) {
           state.detailManualOpen = false;
           state.detailCollapsedForSelection = true;

@@ -76,7 +76,8 @@ const approvedRootImportPatch = Object.freeze({
   // r449: retired parts-readiness banner and messages removed; one out-of-date message for retired parts codes (F62).
   // r450: Schedule window offers Whole job to one technician; whole jobs show by bay (F63).
   // r469: the planner names the booking a cascade push would clash with (F82).
-  "workshop-planner.js": "6835b4964cbbc39867a79f16f5d1f559978528da46f04ef16d4f2cb1101c9782",
+  // r470: Find scrolls to the result once per selection, not on every render (F83).
+  "workshop-planner.js": "5e01303827e2b6503d0db0c24e14965d746b4a068afbb6682f89ded977732b42",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   // r457: one-column side menu 901-1180 px and no blank band in the stacked planner header up to 1300 px (F70).
   "workshop-planner.css": "01efe7c09ee8a46a6c6b7d4c681de6113b60c6eddef799414efc0f8c8c76fce2",
@@ -197,7 +198,8 @@ const approvedRootImportPatch = Object.freeze({
   // r466: index.html slim Emergency vehicle priority panel (text moved to hover titles) and pdc-emergency-slim.css?emergency-slim=2026.10.22.r466 (F79).
   // r467: index.html r467=2026.10.22.r467 on control-board-overview.js and control-board-zoom.css?control-board-zoom=2026.10.22.r467 (F80).
   // r469: index.html r469=2026.10.22.r469 on canonical-entry.js (F82).
-  "index.html": "bc0388f4a2f63375fa50dd534ea1282018fe3248bdc6483a7205dac87390d4bf",
+  // r470: index.html r470=2026.10.22.r470 on canonical-entry.js (F83).
+  "index.html": "789f9223fbbfb39dd6794e241ed4a57bb70fcb92e8365c0eff8d639fcb84e432",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
