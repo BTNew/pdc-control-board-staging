@@ -184,3 +184,25 @@ r494 update (Craig 22 Oct 18:41): whole line sublets with no GP PO show **PO to 
 
 r494b (Craig 22 Oct 18:55): the vehicle's Sublet box is uniform: each line ends in one same-size chip (GP PO number or **PO to raise**), no 'Hours not stated', no 'Op line PO' caption, no 'PO raised for this line' / 'Got it' (here or in Manage sublets), one text size. In Manage sublets 'PO to raise' sits in the GP PO column.
 r494c (F107b, site slow after the stack went live): the board's **PO to raise** makes no request and no board redraw while it renders. It uses the board's own Sublet lines and GP PO counts (exact once a vehicle's GP PO lines are loaded by opening it here, in the drop-down or in Manage sublets; until then a safe lower bound). Opening a vehicle may give one debounced board redraw if its count changes.
+
+## r496 (F109): edit hours and jobs in the panel (Craig, 22 Oct 2026, 7:16 pm)
+
+* The operations heading's **Edit jobs & hours** button (which opened the Vehicle
+  detail window) becomes **Edit** plus a small **Open full editor** link. The link
+  opens the old window, unchanged; it is still where Add line, Edit line and Best
+  slot live.
+* **Edit** reads this one vehicle (`loadVehicleWorkshopDetail`, the same read the
+  window makes when it opens) and shows app.js's own Work & bookings rows in place
+  of the read-only list, with every button removed: an hours box per line and the
+  Work category (or Station) selector to move a line to another job. Changed fields
+  are outlined amber. Nothing is sent until **Save**.
+* **Save** runs the window's own save paths in order: `saveVehicleWorkshopLineHoursBatch`
+  (Save all hours, changed rows only), then `saveVehicleWorkCategory`
+  (set_vehicle_work_category) or `moveVehicleWorkshopLineStage` for each moved
+  line, each with the versions app.js has just reloaded. Then only the panel is
+  drawn again. **Cancel** drops the drafts. Closing the panel or opening another
+  vehicle with unsaved changes asks first.
+* Same roles as the window (`vehicleWorkshopCanEditLines`: operator,
+  administrator); no SQL. Speed: nothing runs per vehicle when the board or the
+  panel is drawn; the table and board are never redrawn by a save.
+* Undo: revert the r496 commit (the button and the window come back as before).

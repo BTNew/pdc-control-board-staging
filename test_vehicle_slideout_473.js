@@ -75,12 +75,12 @@ test('4. everything else stays: board handlers, Key No. (Edit / History) in the 
   assert.match(CODE, /incomingVehicleDetailRow\(vehicle, bucket, \{ workshopPlans, workshopProjectionAvailable, subletNavigation: true \}\)/);
   assert.match(CODE, /watchOperations\(panel\);/);
   assert.doesNotMatch(CODE, /\bfetch\s*\(|\.rpc\s*\(|localStorage|sessionStorage|moveWorkshopDroppedPlan|deleteIncomingVehicleFromMain\(/);
-  assert.deepEqual(Object.keys(slideout), ['VERSION']);
-  assert.equal(slideout.VERSION, '2026.10.22.r485'); // r485 (F98) bumped the panel (stoppage box)
+  assert.deepEqual(Object.keys(slideout), ['VERSION', 'slimWorkPage']); // r496 (F109)
+  assert.equal(slideout.VERSION, '2026.10.22.r496'); // r485 (F98) bumped the panel (stoppage box), then r496 (F109, inline edit)
 });
 
 test('loader and docs: r473 cache-bust tags, FAULT_LOG F86, panel doc; no real stock numbers here', () => {
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /slideout\.src = 'pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r485';/ /* r485 (F98) */);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /slideout\.src = 'pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r(?:485|496)';/ /* r485 (F98), r496 (F109) */);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r473=2026\.10\.22\.r473&amp;/);
   assert.match(SRC, /pdc-vehicle-slideout\.css\?vehicle-slideout=\$\{VERSION\}/);
   const row = fs.readFileSync('docs/FAULT_LOG.md', 'utf8').split('\n').find(line => line.startsWith('| F86 |'));

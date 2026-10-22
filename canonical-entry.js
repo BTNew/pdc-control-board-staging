@@ -106,7 +106,7 @@
     const loadVehicleSlideout = () => {
       if (document.querySelector('script[data-pdc-vehicle-slideout]')) return;
       const slideout = document.createElement('script');
-      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r485'; // r485 (F98): stoppage box (Clear stoppage / Return to QC)
+      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r496'; // r485 (F98): stoppage box (Clear stoppage / Return to QC); r496 (F109): edit hours and jobs in the panel
       slideout.dataset.pdcVehicleSlideout = '1';
       document.head.appendChild(slideout);
     };
