@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // Headless check of the built Pages artifact. Not part of node --test test_*.js
 // because the GitHub runner does not provide Chrome.

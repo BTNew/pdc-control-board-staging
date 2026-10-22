@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r405 (F14): a Pit and weigh / Pit inspection line is Pit by its wording, whatever its category.
 // r405 (F15): rolled-back release tests wait for the clock tick and never hold the

@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r453 (F66): staging-only database release. The behaviour is proven by the rolled-back tests in tests/
 // (real accounts by role, rolled back) and checked daily by history_board_visibility_453 (sort 252) in pdc_ops.fault_regression_check().

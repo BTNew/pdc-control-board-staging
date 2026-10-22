@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r434 (F45, change request): the Sales "PMB Status" box is blue while the Workshop Planner has a Running job for the vehicle.
 // Running = a booking with status "started" on any bay (the planner's "Running · Key …" blue chip). Made-up rows only.

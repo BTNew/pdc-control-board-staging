@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 /* r461 (F74): Vehicle Locations "Table view" — a switchable, compact table in the Sales dashboard style.
  *
  * - Default is today's "Drop-down view". Nobody sees the table unless they switch; the choice is remembered per

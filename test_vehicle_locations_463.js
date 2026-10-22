@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r463 (F76): Vehicle Locations Table view follow-ups after the r462 live check (22 Oct 2026, synthetic data only).
 //  1. Job Card column: r461/r462 never had one; the job card sat as a small sub-line under Stock.

@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r414 (F30): a stored QC completion photo is read back after a refresh, so "Sign off QC -> RFT" shows.
 // Key 208 / 13017935 (and Key 454): the receipt was stored, but the page kept it only in memory. After a refresh,

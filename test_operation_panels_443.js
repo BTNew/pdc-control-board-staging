@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r443 (F56, change request): the operations summary in the vehicle drop-down as packed category panels in two columns
 // (largest-first balance), Sublet full width underneath, then Review and other boxes. Layout only.
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');

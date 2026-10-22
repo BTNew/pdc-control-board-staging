@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r445 (F58, change request): attach the sublet purchase order PDF to a GP PO (pilot vehicles; controllers / administrators).
 // Attach only: no supplier email. Synthetic data only (no stock number, customer or live PO in Git).
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');

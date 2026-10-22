@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r449 (F62, Bhavesh 21 Oct 18:19, approved by Craig): parts readiness stopped gating bookings and starts in r415.
 // The leftover "confirm the parts" messages are gone from the Dept 138 planner and fitter screen; a retired parts code

@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r429 (F41): switching an account to salesperson in User Admin must also link its Sales site record
 // (pdc_sales_private.account_scopes -> salespeople), otherwise the Sales site says
 // "Ask an administrator to assign your salesperson access". Server: supabase/migrations/*_r429_*.sql and *_r429b_*.sql.

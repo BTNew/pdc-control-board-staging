@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r472 (F85): a key tag save from the vehicle card keeps the authenticated snapshot rows raw, so the card stays bound to
 // its exact UUID + Stock and never re-reads the whole board behind "Refreshing exact vehicle identity…".
 // Synthetic data only (no stock number, vehicle id, customer or job card in Git).

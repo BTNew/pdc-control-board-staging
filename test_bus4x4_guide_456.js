@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r456 (F69, Craig 22 Oct, decision 4): the Bus4x4 staff guide matches the live bay rules (r447 bay guide,
 // r448 Bay 3, r450 whole job). Docs only; no database change, so no daily database check - this test is the check.

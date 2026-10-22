@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 const test=require('node:test'),assert=require('node:assert/strict');
 const parser=require('./sales/navision-orders.js'),vin=require('./navision-vin.js');
 test('Navision code plus eight-digit suffix becomes the active code while unknown names remain unguessed',()=>{

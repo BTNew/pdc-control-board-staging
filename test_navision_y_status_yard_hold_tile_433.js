@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r433 (F44): every Navision location code starting with Y was in the Sales "YH / Yard Hold" tile. r474 (F87) replaces that rule
 // (see test_sales_y_status_tiles_474.js); this file keeps the r433 migration / undo structure checks. Made-up stock and orders only.

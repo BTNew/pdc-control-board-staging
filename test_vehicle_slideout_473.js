@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r473 (F86, Craig 22 Oct 2026): Vehicle Locations slide-out panel top. Synthetic data only.
 //  1. No station-icon strip and no PMB status / PMB stream / Book all stations box at the top of the open panel.

@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r439 (F50): sublet POs. No line changes category, bay or booking. Each line with a GP PO shows its PO and a 'sublet done'
 // tick inline on its own line (r439b), on a row under the description (r439c); the Sublet box is orange while a GP PO exists and not all those lines are ticked, green when all are, neutral without.
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');

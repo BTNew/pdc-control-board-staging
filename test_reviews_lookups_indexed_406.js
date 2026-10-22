@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r406 (F16): the review-table lookups used per line by the QC and snapshot helpers
 // stay indexed. The 91.9M sequential scans predate 20261019230000_helper_lookup_indexes.

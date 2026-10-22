@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r407 (F21): pdc_tune_approved_operation_source_20260912 ran 36,036 times per board
 // snapshot as a LANGUAGE sql function with SET search_path (never inlined, re-planned on

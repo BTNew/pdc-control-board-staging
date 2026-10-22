@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r426 (F39): the Board's sales-prep ticks (Tint / Build PO / Tray) are controller/administrator only.
 // Server: update_pdc_vehicle_sales_preparation no longer accepts viewers. Screen: importers and viewers see the ticks disabled.

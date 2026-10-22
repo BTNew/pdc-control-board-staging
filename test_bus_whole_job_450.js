@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r450 (F63, Craig 21 Oct, Option A): a controller can book a whole job - every unbooked Dept 138
 // Bus 4x4 line of a vehicle, across categories - to one technician as ONE booking

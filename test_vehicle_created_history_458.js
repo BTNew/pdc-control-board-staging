@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r458 (F71, Craig 22 Oct, decision 6): a vehicle's creation shows as 'Created' in Detailed history instead of an
 // update with every value going to blank. Display only (the history rows are not changed). Frontend only, so no

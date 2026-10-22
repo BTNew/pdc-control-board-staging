@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r469 (F82): staging-only database release + planner message. Behaviour is proven by tests/r469_local_harness/run.sh
 // (throwaway local PostgreSQL: the pre-r469 cascade refuses a free-time drop with vehicle_overlap, the r469 cascade books it

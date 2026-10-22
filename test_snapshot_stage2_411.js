@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r411 (F27): snapshot stage 2. The inner location snapshot layers are collapsed into three segment functions
 // (pre_691 = layers 169..691 over pre168, pre_750 = 739+750 over pre_693, pre_pilbara_service_v1 = 82000, ext1300 and

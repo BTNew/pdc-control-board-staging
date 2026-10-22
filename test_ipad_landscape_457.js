@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r457 (F70, Craig 22 Oct, decision 5): iPad landscape / small laptops (901-1300 px). Frontend only, outside the
 // locked styles.css. Screenshots at 1366, 1180, 1100 and 1024 px are in the release log (1366 unchanged).

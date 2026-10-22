@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 const assert=require('assert'),fs=require('fs'),crypto=require('crypto');
 const m478=fs.readFileSync('supabase/staging_only/20260827028000_478_complete_jobcard_operation_contract.sql','utf8'),m479=fs.readFileSync('supabase/staging_only/20260827029000_479_uid632_complete_operations.sql','utf8'),m480=fs.readFileSync('supabase/staging_only/20260827030000_480_bind_paused_complete_operation_runtime.sql','utf8'),identity=JSON.parse(fs.readFileSync('deployment-identity.json','utf8'));

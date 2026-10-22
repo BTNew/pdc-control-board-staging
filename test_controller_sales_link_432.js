@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r432 (F43): a controller whose account is linked to a salesperson record can also use the Sales site as that salesperson,
 // keeping the controller role. Server: supabase/migrations/*_r432_controller_sales_link.sql (Sales check, admin link RPC, link status).
 const test=require('node:test');

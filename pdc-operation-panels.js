@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 /* r443 (F56, change request from Craig): the vehicle drop-down's "Operations from authenticated PD documents and job
    cards" laid out as packed category panels. Layout only: lines, categories, hours, PO chips/ticks, Review controls,
    edits and bookings are untouched (each original category box is moved, as is, into its panel).

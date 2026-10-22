@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // Local Postgres evidence for the realtime publication prune. Not part of CI.
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');

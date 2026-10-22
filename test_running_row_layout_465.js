@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r465 (F78): the fitter Running row gets its own strip on planner tiles and
 // overview bars, and overview bar labels show only Key · JC plus the customer.

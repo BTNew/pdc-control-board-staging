@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r419 (F34): User Admin role lists offer every server role, preselect the real role (never a silent "viewer"),
 // and every role change is confirmed first. The server guard (no self-demotion, last-admin count of admins who can
 // sign in) is in supabase/migrations/*_r419_admin_role_guard.sql.

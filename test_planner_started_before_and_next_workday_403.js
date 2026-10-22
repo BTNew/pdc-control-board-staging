@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r403: (F12) a booking that was started and then returned to the queue shows
 // "Started before, can't re-plan yet" and cannot be dragged or scheduled;

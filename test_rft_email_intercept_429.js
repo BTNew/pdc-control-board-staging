@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 const assert=require('assert');const fs=require('fs');
 const sql=fs.readFileSync('supabase/staging_only/20260826204000_429_rft_email_intercept_receipts.sql','utf8');

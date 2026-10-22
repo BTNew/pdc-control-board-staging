@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r400 (F09): QC must not require the external Pit inspection or job-card notes.
 // Bhavesh, Key 208 / 13017935, 20 Oct 2026: "PIT AND WEIGH" (stage PIT_INSPECTION)

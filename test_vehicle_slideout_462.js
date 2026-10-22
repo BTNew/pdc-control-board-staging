@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r462 (F75): Vehicle Locations Table view: slide-out panel with drag between bays through the planner's own
 // moveWorkshopDroppedPlan (Option A, fallback to the planner = Option B), the Parts loc column, resizable columns,

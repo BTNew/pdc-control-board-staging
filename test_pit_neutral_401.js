@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r401 (F10): Pit and weigh never blocks anything and any tick role can tick it.
 // Craig, 20 Oct 2026 20:39 AWST: "pit and weigh do not affect anything and can be

@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const sales=require('./sales/sales.js');
 const fixture=(stock,eta,extra={})=>({tracking_id:stock,stock,cosi:'Yes',salesperson_code:'BG',kewdale_eta:eta,...extra});
