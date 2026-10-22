@@ -3,6 +3,9 @@
 > **r462 (F75):** the side panel is now a slide-out panel with bookings and
 > bay drag, the Location column is now **Parts loc**, and columns can be
 > resized. See `docs/vehicle-slideout-panel.md`.
+>
+> **r463 (F76):** Job Card column between Stock and Customer; the panel's
+> drag-to-bay is withdrawn.
 
 Change request from Craig, approved 22 Oct 2026 07:28 AWST (release 1 of the
 Vehicle Locations plan). Staging only. Frontend only — no database change.

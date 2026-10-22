@@ -23,7 +23,7 @@
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.22.r462';
+  const VERSION = '2026.10.22.r463';
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
   const VIEWS = Object.freeze({ dropdown: 'dropdown', table: 'table' });
   // Vehicle journey, left to right (Craig, 22 Oct 2026).
@@ -45,6 +45,7 @@
   const COLUMNS = Object.freeze({
     key: { label: 'Key', width: 38, min: 30 },
     stock: { label: 'Stock', width: 92, min: 56 },
+    job: { label: 'Job Card', width: 104, min: 64 }, // r463 (F76): the job card in its own column
     cust: { label: 'Customer', width: 104, min: 48 },
     unit: { label: 'Vehicle', width: 132, min: 60 },
     ploc: { label: 'Parts loc', width: 66, min: 44 },
@@ -145,7 +146,8 @@
     const cells = [
       td('c-sel', html(p.select)),
       td('c-key', identityFallback ? '' : html(p.key)),
-      td('c-stock', identityFallback ? html(p.stock) : `${html(p.stockNo)}${p.job ? `<span class="vlt-subtle">${html(p.job)}</span>` : ''}`),
+      td('c-stock', identityFallback ? html(p.stock) : html(p.stockNo)),
+      td('c-job', identityFallback || !p.job ? '<span class="vlt-subtle-dash" title="No job card">—</span>' : html(p.job)),
       td('c-cust', html(p.name)),
       td('c-unit', parts.unit),
       td('c-ploc', ploc),
@@ -405,15 +407,15 @@
       : state.stoppages ? 'STOPPAGES only · click All vehicles to clear' : 'Click a tile to filter · click a vehicle to open it';
     const bodyHtml = shown.map(entry => tableRowHtml(entry.card,
       entry.bucket, { key: entry.key, openKey: state.openKey, bucketLabel: root.incomingBucketLabel(entry.bucket) })).join('')
-      || `<tr><td colspan="10" class="vlt-empty">${loading ? 'Loading vehicles…' : 'No vehicles match this tile and the search filters'}</td></tr>`;
+      || `<tr><td colspan="11" class="vlt-empty">${loading ? 'Loading vehicles…' : 'No vehicles match this tile and the search filters'}</td></tr>`;
     const keepDrawer = !drawerOpener && ui.keepDrawer && state.openKey && shown.some(entry => entry.key === state.openKey) ? ui.drawerNode : null;
     const widthCss = widthStyle(state.widths);
     host.innerHTML = `${tilesHtml}
       <section class="vlt-panel" aria-label="Vehicle locations table">
         <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
         <div class="vlt-table-wrap"><table class="vlt-table${widthCss ? ' has-custom-widths' : ''}"${widthCss ? ` style="${widthCss}"` : ''}>
-          <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
-          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
+          <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-job"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
+          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
           <tbody>${bodyHtml}</tbody></table></div>
       </section>`;
     const holder = doc.createElement('div');
