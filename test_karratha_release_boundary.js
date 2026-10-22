@@ -169,7 +169,8 @@ const approvedRootImportPatch = Object.freeze({
   // r489: Admin > Fitting statistics route (administrators only; guard, admin nav, title, open / close / reset like Update history; F102).
   // r490: the 2-minute workshop reference-data safety net skips while the tab is hidden and catches up once on return (F103).
   // r493: r493=2026.10.22.r493 on both workshop-planner.js loads (paused jobs amber; F106).
-  "app.js": "11c84b1dc12f0b62e2549fc60d2e9b9e6001069dfb6ab17974d1611d4c38c2ea",
+  // r491: Sublet page Away now filter and days away / overdue days, cache bust sublet-away (F104) (app.js).
+  "app.js": "9291190b519259cff2e225e63ae792aade510203d22b716a16dabc2e3d6deb74",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -246,7 +247,8 @@ const approvedRootImportPatch = Object.freeze({
   // r490: index.html r490=2026.10.23.r490 on canonical-entry.js and app.js (F103).
   // r493: r493=2026.10.22.r493 on pdc-fitters.js, pdc-conversion-ticks.css, pdc-running-row.css, control-board-overview.js and canonical-entry.js (F106).
   // r493b: r493b=2026.10.22.r493b on pdc-running-row.css (F106b).
-  "index.html": "346ba7549ab5f6f196b892bf66aff2b521e47e68681a81297e80a0b042e85f7d",
+  // r491: Sublet page Away now filter and days away / overdue days, cache bust sublet-away (F104) (index.html).
+  "index.html": "c640530b3e063d2398b815c57b8bf8a260a0b6fcf5bb17f5cf9d9ad23a3f6719",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
