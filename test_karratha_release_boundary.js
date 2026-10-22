@@ -41,6 +41,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     else if (item.file === 'workshop-shared-actions.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'6080315b8615d544ecec0ad324be883e064ecb912a2c5a28c41a19f11d4980d5',item.file);
     // r483: the PMG copy shows the Dept 139 bay names (F96); the hidden Karratha copy stays frozen.
     else if (item.file === 'pdc-book-all-stations.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
+    // r497: the PMG copy guards the capacity cache read on the first planner open (F110); the hidden Karratha copy stays frozen.
+    else if (item.file === 'pdc-planner-capacity.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
     else if (item.file === 'workshop-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'004267f09a9fa4f5ad0852dd8f983e25395d8352f8b0f9fb798777b3d733e9ff',item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
@@ -54,6 +56,8 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 });
 // Explicitly pinned upstream releases and owner-approved navigation, including the 18 October full-week planner scope repair.
 const approvedRootImportPatch = Object.freeze({
+  // r497: planner capacity cache read guarded on the first planner open (F110).
+  "pdc-planner-capacity.js": "05c5eeaf39430ffebd5f352a04f3abd0432578270408fd06efd85e465a856980",
   // r493: 'Paused · Key …' label for a started job outside bay working time (F106).
   "pdc-planner-slim.js": "34aa7d3d2b45d80713c120aad743077db85560b6798f2bcd79eb42893134d691",
   "pdc-review-stations.css": "e65e01d446092ae60f05460e7073f07e3bed4ba0299d4858d1c875be9b2e8fb7",
@@ -258,7 +262,8 @@ const approvedRootImportPatch = Object.freeze({
   // r494b: r494=2026.10.23.r494b on pdc-vehicle-sublets.css / .js and canonical-entry.js (uniform Sublet box; F107).
   // r494c: r494=2026.10.23.r494c on canonical-entry.js (board 'PO to raise' with no per-vehicle RPC or redraw; F107b).
   // r496: index.html r496=2026.10.22.r496 on canonical-entry.js (F109).
-  "index.html": "9167c7faf0372b5f9af966e39600804d416ae937a4736a93c748a662814f2a1b",
+  // r497: r497=2026.10.22.r497 on pdc-planner-capacity.js (F110).
+  "index.html": "3cebf63d8841a35ac7316a7e2950cfbeac20a4b5c4c3399a62f4b72f4515bd5a",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
