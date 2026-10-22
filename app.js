@@ -27146,6 +27146,20 @@ async function setSubletEmailSent(key = '', sent = false) {
   saveVehicleEdits(key, { pmbSubletEmailSent: Boolean(sent), pmbSubletEmailSentAt: sent ? nowIsoString() : '', pmbSubletEmailSentBy: sent ? getCurrentOperatorName() : '' });
 }
 
+// r492 (F105): what a sublet agent needs to find the car in the yard and know the job (Bhavesh, 21 Oct:
+// the PO goes out with the key number and stock / serial number). Key number = parking bay in the yard.
+function subletProviderEmailVehicleLines(vehicle = {}) {
+  const key = vehicleKeyNumber(vehicle);
+  const vin = cleanNavisionText(vehicle.vin || vehicle.fullVin || vehicle.frameVin || vehicle.autocareVin || '').toUpperCase();
+  const work = cleanNavisionText(vehicle.__subletOperationDescription || '');
+  return [
+    `Key number (yard bay): ${key || 'TBA - not yet in our yard'}`,
+    ...(vin ? [`VIN / serial: ${vin}`] : []),
+    ...(work ? [`Sublet work: ${work}`] : []),
+    ...(key ? [`The vehicle is in our yard at key ${key}.`] : []),
+  ];
+}
+
 function draftSubletProviderEmail(key = '') {
   const vehicle = subletVehicleByKey(key);
   if (!vehicle) return;
@@ -27155,7 +27169,7 @@ function draftSubletProviderEmail(key = '') {
   if (!recipient || !subletProviderEmailValid(recipient)) { pdcNotify('Add a valid email for this provider in Setup or in the booking before drafting.'); return false; }
   const stock = displayStockNumber(vehicle) || 'TBA';
   const subject = `Sublet booking - ${stock}`;
-  const body = [`Hello ${contact.name},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
+  const body = [`Hello ${contact.name},`, '', 'Please confirm the following booking:', '', ...vehicleEmailLines(vehicle), ...subletProviderEmailVehicleLines(vehicle), `Job Card: ${vehicleJobcardNumber(vehicle) || 'TBA'}`, `Booking date: ${plainDateValue(vehicle.pmbSubletBookingDate) || 'TBA'}`, ...(plainDateValue(vehicle.pmbSubletExpectedReturnDate) ? [`Due back: ${plainDateValue(vehicle.pmbSubletExpectedReturnDate)}`] : []), `Notes: ${cleanNavisionText(vehicle.pmbSubletNotes || 'None')}`, '', 'Kind Regards,'].join('\n');
   if (vehicle.__emailVehicleServerAuthoritative !== true) {
     recordVehicleAudit(vehicle, 'Sublet provider email drafted', { provider: pmbBaySubletProvider(vehicle), recipient, by: getCurrentOperatorName() });
     saveVehicleEdits(key, { pmbSubletEmailDraftedAt: nowIsoString(), pmbSubletEmailDraftedBy: getCurrentOperatorName() });
