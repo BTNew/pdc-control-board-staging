@@ -85,7 +85,8 @@ test('bug 2 check: the table reads the vehicles fresh on every board render, so 
   // keeps a copy of the vehicles from load time. (Browser check: release_log/r463/probe_zero.js, slow auth / data / failed first call.)
   const source = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.match(source, /root\.renderIncomingDashboardBoard = function renderIncomingDashboardBoardWithViewSwitch/);
-  assert.match(source, /if \(!tableOn\(\)\) return originalRender\.apply\(this, args\);\s*return renderWithCache\(\);/);
+  // r481 (F94): the drop-down branch still draws with app.js's own render first, then adds the other-department search note.
+  assert.match(source, /if \(!tableOn\(\)\) \{\s*const result = originalRender\.apply\(this, args\);[\s\S]{0,300}return result;\s*\}\s*return renderWithCache\(\);/);
   assert.match(source, /function renderTable\(\) \{[\s\S]{0,400}const rows = root\.vehicleLocationsScreenRows\(\);/);
   const { c } = board();
   const data = c.app.data;
@@ -148,7 +149,7 @@ test('loader: r463 cache-bust tags; pdc-auto-reload.js stays first; no real stoc
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /r463=2026\.10\.22\.r463/);
   assert.match([...html.matchAll(/<script[^>]*src="([^"]+)"/g)][0][1], /^pdc-auto-reload\.js/);
-  assert.equal(table.VERSION, '2026.10.22.r475'); // r475 (F88) bumped the table module (on top of r476)
+  assert.equal(table.VERSION, '2026.10.22.r481'); // r475 (F88), then r481 (F94) bumped the table module (on top of r476)
   assert.match(slideout.VERSION, /^2026\.10\.22\.r4[67]3$/);
   const text = fs.readFileSync(__filename, 'utf8');
   assert.doesNotMatch(text, /\b1[23]\d{6}\b|\bJ13[89]\d{6}\b/);
