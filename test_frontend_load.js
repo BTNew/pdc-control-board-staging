@@ -51,7 +51,9 @@ const STARTUP_ORDER = [
   'pdc-emergency-priority.js',
   'pdc-conversions.js',
   'pdc-fitters.js',
-  'pdc-workshop-hours.js'
+  'pdc-workshop-hours.js',
+  // r489 (F102): Admin > Fitting statistics (administrators only).
+  'pdc-fitting-stats.js'
 ];
 
 function scriptTags(html) {

@@ -161,7 +161,8 @@ const approvedRootImportPatch = Object.freeze({
   // r432: User Admin "Link salesperson record" for controllers (F43); index.html adds r432=2026.10.21.01 on app.js and pdc-auth.js.
   // r437: the vehicle card opens for Toyota head office account vehicles (001234 / 002345) under the board's own dealer scope (F48); index.html adds r437=2026.10.21.01.
   // r483: Dept 139 bays show Craig's names (Express / Pits Hoist, Express, Hoist, Fitting 06-10, Internal / External Fabrication 11-12, Electrical 13-22) on booking pills, places, vehicle detail and the control board; Fab planner count 13 -> 2 (F96).
-  "app.js": "28406883e8b1ee4d25c39ec0d3f4cd167d78274486ed2c4f76adc6dd61eb7609",
+  // r489: Admin > Fitting statistics route (administrators only; guard, admin nav, title, open / close / reset like Update history; F102).
+  "app.js": "cae78f7b05852561efba434716f4733e89e895f637b1df909dfd67c5d4d17d37",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -232,7 +233,9 @@ const approvedRootImportPatch = Object.freeze({
   // r483: index.html r483=2026.10.22.r483 on pdc-workshop-departments.js, control-board-overview.js, app.js, pdc-fitters.js and canonical-entry.js (F96).
   // r482: r482=2026.10.22.r482 on canonical-entry.js and pdc-emergency-priority.js (F95).
   // r485: index.html r485=2026.10.22.r485 on canonical-entry.js (F98).
-  "index.html": "4638e11fbf861632dfc187d9b64a1cc7340b35263ffb73c982923a2b56e07649",
+  // r489: index.html adds the Fitting statistics admin nav item and view (hidden), pdc-fitting-stats.css / .js?r489=2026.10.23.r489 and r489=2026.10.23.r489 on app.js (F102).
+  // r489: index.html moves r489=2026.10.23.r489 on app.js next to r483, adds r489 on pdc-staff-usage.js (F102).
+  "index.html": "1fa324e05511ed61d1c5f07295070f1cdbf7ec63a8ccd52144eaefeb20f366ba",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -244,7 +247,8 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",
   "pdc-staff-usage.css": "e7769d72b7601097fa4c41a19140fdcda4408f3d1f620008282d9df136b1ddf0",
-  "pdc-staff-usage.js": "0aed9f9c4045745faf38a2024ccf8cc7c30751a1564fdfd500175a9aa97f7282",
+  // r489: 'fitting-stats' counts under the Update History bucket (F102).
+  "pdc-staff-usage.js": "94f4ad8edd862631259d3fcab763e1104a00e34636c7a45cce46a660c1e59ec4",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
   // r403: the own-role monitor reconnects instead of locking on a realtime blip
   // (F11); index.html and app.js/canonical-entry.js add r403=2026.10.21.01 for
