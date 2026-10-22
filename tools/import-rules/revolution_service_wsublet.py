@@ -1,11 +1,16 @@
 """r442 (F54): read a Revolution 'PMG PD Service Complete w/Sublet' workbook and collapse it to one service line per
 Dept + R/O # + Line #.
 
-The w/Sublet report has no Type column. It carries the 13 usual service columns followed by 'Description of sublet' and
-'PO #', and repeats a service line once per sublet PO. This module:
+The w/Sublet report carries the 13 usual service columns followed by 'Description of sublet' and 'PO #', and repeats a
+service line once per sublet PO. r468 (F81): from 22 Oct 2026 Revolution may also send an OPTIONAL leading Type column
+(D on data rows, T1 on the totals footer). Like the sales feed, the preparer drops it: Type is read here, checked against
+the row's shape, and removed from the headers and from every row, so nothing downstream (manifest source_headers, raw_row,
+the database) ever sees a Type column. A file without Type parses exactly as before. This module:
 
-* finds data rows without Type: a data row has an R/O # and a Line #; the totals footer (no R/O #, no Line #) is kept
-  aside and never imported; any other row shape stops the whole file (nothing is guessed);
+* finds data rows: a data row has an R/O # and a Line #; the totals footer (no R/O #, no Line #) is kept aside and never
+  imported; any other row shape stops the whole file (nothing is guessed);
+* r468: when the leading Type column is present, D must be a data row (or a row of another department, excluded as
+  before), T1 must be the totals footer, and any other Type value (blank, lower case, T2, ...) stops the whole file;
 * collapses repeated rows to ONE line, keeping every distinct PO in source order, and NEVER sums hours;
 * when repeated rows disagree outside the sublet columns, keeps the FIRST row in source order (deterministic), and flags
   the line ('collapse.conflict' true, with every differing value) so the apply receipt reports it.
@@ -20,7 +25,11 @@ BASE_HEADERS = ['Dept', 'Stock #', 'Rego #', 'Owner Name', 'Parts Location', 'Ke
 SUBLET_HEADERS = ['PO #', 'Job #', 'Document Line', 'Sublet Line', 'Description of sublet', 'Company', 'Division']
 FILENAME_RE = re.compile(r'^PMG PD Service Complete w[/_ -]?Sublet( - Job 1)?[.]xlsx?$')
 COLLAPSE_RULE = 'r442_one_row_per_dept_ro_line'
-TYPE_BASIS = 'absent_r442'
+TYPE_BASIS = 'absent_r442'          # manifest type_column: no Type column reaches the database (true with or without r468)
+TYPE_COLUMN = 'Type'
+TYPE_DATA, TYPE_FOOTER = 'D', 'T1'
+TYPE_DROPPED = 'leading_type_dropped_r468'  # provenance source_type_column when the file had the leading Type column
+TYPE_ABSENT = 'absent'
 
 
 class ContractError(ValueError):
@@ -35,22 +44,31 @@ def norm(v):
     return str(v).strip()
 
 
+def has_type_column(headers):
+    """r468 (F81): True when the first header is exactly 'Type' (Revolution's optional leading Type column)."""
+    return bool(headers) and norm(headers[0]) == TYPE_COLUMN
+
+
 def check_headers(headers):
+    """Returns the service headers WITHOUT the optional leading Type column (r468 drops it, like the sales feed)."""
     h = [norm(x) for x in headers]
     while h and h[-1] == '':
         h.pop()
+    if h and h[0] == TYPE_COLUMN:
+        h = h[1:]
+    if TYPE_COLUMN in h:
+        raise ContractError('headers: Type is only accepted as the first column (r468), got it at column %d' % (h.index(TYPE_COLUMN) + 2))
     if h[:len(BASE_HEADERS)] != BASE_HEADERS:
         raise ContractError('headers: expected the 13 service columns first, got %r' % h[:len(BASE_HEADERS)])
     extra = h[len(BASE_HEADERS):]
-    if 'Type' in h:
-        raise ContractError('headers: the w/Sublet report has no Type column')
     if len(set(extra)) != len(extra) or any(x not in SUBLET_HEADERS for x in extra) or 'PO #' not in extra:
         raise ContractError('headers: only the optional sublet columns may follow, and PO # is required; got %r' % extra)
     return h
 
 
 def classify(raw):
-    """'data', 'footer' or raises. Replaces the old Type D / T1 test."""
+    """'data', 'footer', 'excluded_department' or raises, from the row's shape (r442). r468: when the file has a Type
+    column, classify_typed() checks that D / T1 agree with this."""
     ro, line = norm(raw.get('R/O #')), raw.get('Line #')
     if not ro and line in (None, ''):
         return 'footer'
@@ -64,6 +82,27 @@ def classify(raw):
     if h is not None and (not isinstance(h, (int, float)) or isinstance(h, bool) or h < 0):
         raise ContractError('row: Estimated labour hours %r is not a non-negative number' % (h,))
     return 'data'
+
+
+def classify_typed(type_value, raw, rn=None):
+    """r468 (F81): a row of a file WITH the leading Type column. D = data (or another department, excluded as before),
+    T1 = the totals footer (skipped, exactly like the r442 footer). Any other Type value stops the whole file."""
+    t = type_value.strip() if isinstance(type_value, str) else type_value
+    where = 'row %s: ' % rn if rn is not None else 'row: '
+    if t not in (TYPE_DATA, TYPE_FOOTER):
+        raise ContractError(where + 'Type %r is not D (data) or T1 (footer); only D and T1 are accepted' % (type_value,))
+    kind = classify(raw)
+    if t == TYPE_FOOTER and kind != 'footer':
+        raise ContractError(where + 'Type T1 (footer) but the row has an R/O # or Line #')
+    if t == TYPE_DATA and kind == 'footer':
+        raise ContractError(where + 'Type D (data) but the row has no R/O # and no Line #')
+    return kind
+
+
+def source_type_column(headers):
+    """r468: provenance marker for the manifest's evidence: TYPE_DROPPED when the leading Type column was dropped, else
+    TYPE_ABSENT. The manifest's own type_column stays TYPE_BASIS ('absent_r442'): no Type reaches the database."""
+    return TYPE_DROPPED if has_type_column(headers) else TYPE_ABSENT
 
 
 def collapse(rows):
@@ -134,13 +173,21 @@ def read_values(values):
     params = norm(values[1][0])
     if 'Company = "01"' not in params or 'Division = "1"' not in params:
         raise ContractError('parameters: Company 01 / Division 1 required')
+    typed = has_type_column(values[3])
     headers = check_headers(values[3])
     data, footer, excluded = [], [], []
     for rn, cells in enumerate(values[4:], 5):
+        cells = tuple(cells)
         if all(x is None or norm(x) == '' for x in cells):
             continue
-        raw = dict(zip(headers, cells[:len(headers)]))
-        kind = classify(raw)
+        if typed:
+            # r468: drop the leading Type cell (like the sales feed); raw rows never carry a Type key.
+            t, cells = cells[0], cells[1:]
+            raw = dict(zip(headers, cells[:len(headers)]))
+            kind = classify_typed(t, raw, rn)
+        else:
+            raw = dict(zip(headers, cells[:len(headers)]))
+            kind = classify(raw)
         (data if kind == 'data' else footer if kind == 'footer' else excluded).append((rn, raw))
     if len(footer) > 1:
         raise ContractError('more than one footer row')
