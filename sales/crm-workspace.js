@@ -99,6 +99,147 @@
     }
     return factText(details);
   }
+  // r487 (F100): plain-words alert cards. Only what changed, one line per station, short dates, current (r483) bay names.
+  const legacyBayNames483={'hoist bay 01':'Express / Pits Hoist - PMB Bay 01','hoist bay 02':'Express - PMB Bay 02','hoist bay 03':'Hoist - PMB Bay 03',
+    'fitting bay 01':'Fitting - PMB Bay 06','fitting bay 02':'Fitting - PMB Bay 07','fitting bay 03':'Fitting - PMB Bay 08','fitting bay 04':'Fitting - PMB Bay 09','fitting bay 05':'Fitting - PMB Bay 10',
+    'fab bay 01':'Internal Fabrication - PMB Bay 11','fab bay 02':'External Fabrication - PMB Bay 12',
+    'elec bay 01':'Electrical - PMB Bay 13','elec bay 02':'Electrical - PMB Bay 14','elec bay 03':'Electrical - PMB Bay 15','elec bay 04':'Electrical - PMB Bay 16','elec bay 05':'Electrical - PMB Bay 17',
+    'elec bay 06':'Electrical - PMB Bay 18','elec bay 07':'Electrical - PMB Bay 19','elec bay 08':'Electrical - PMB Bay 20','elec bay 09':'Electrical - PMB Bay 21','elec bay 10':'Electrical - PMB Bay 22'};
+  const stationOrder=['tint','tyre','hoist','fitting','fab','elec'];
+  function currentBayName(bay) {const text=String(bay??'').trim();return legacyBayNames483[text.toLowerCase().replace(/\s+/g,' ')]||text;}
+  function bayText(stage,bay) {
+    const name=currentBayName(bay);if(!name)return 'Bay not recorded';
+    const match=/^(.*?)\s*(?:-\s*)?(?:PMB\s+)?(Bay\s+\d+)$/i.exec(name);
+    if(!match)return name;
+    const prefix=match[1].trim(),number=match[2].replace(/^bay/i,'Bay');
+    return !prefix||prefix.toLowerCase()===String(stage||'').trim().toLowerCase()?number:prefix+' '+number;
+  }
+  function perthParts(date) {
+    const parts=new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Perth',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).formatToParts(date);
+    const get=type=>parts.find(p=>p.type===type)?.value||'';
+    return {year:get('year'),month:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(get('month'))-1]||'',day:String(Number(get('day'))),hour:String(Number(get('hour'))||12),minute:get('minute'),period:get('dayPeriod').toLowerCase().replace(/\./g,'')};
+  }
+  function shortWhen(value,now=new Date()) {
+    if(!value)return '';
+    const date=new Date(value);if(!Number.isFinite(date.getTime()))return '';
+    const p=perthParts(date),year=p.year!==perthToday(now).slice(0,4)?' '+p.year:'';
+    return p.day+' '+p.month+year+', '+p.hour+':'+p.minute+' '+p.period;
+  }
+  function shortDay(value,now=new Date()) {
+    if(value==null||value==='')return '';
+    const text=String(value).trim(),calendar=/^\d{4}-\d{2}-\d{2}$|^\d{1,2}\/\d{1,2}\/\d{4}$/.test(text);
+    const key=calendar?calendarDateKey(text):null;if(calendar&&!key)return '';
+    const date=new Date(calendar?key+'T00:00:00+08:00':text);if(!Number.isFinite(date.getTime()))return '';
+    const p=perthParts(date);return p.day+' '+p.month+(p.year!==perthToday(now).slice(0,4)?' '+p.year:'');
+  }
+  const instant=value=>{if(value==null||value==='')return null;const ms=new Date(value).getTime();return Number.isFinite(ms)?ms:String(value);};
+  function bookingFacts(b) {
+    return {id:b.booking_id||null,stage:String(b.stage||'Workshop').trim()||'Workshop',bay:currentBayName(b.bay),status:b.status||'',
+      start:instant(b.scheduled_start_at),end:instant(b.scheduled_end_at),actualStart:instant(b.actual_start_at),actualEnd:instant(b.actual_end_at),
+      stopStart:instant(b.stoppage_started_at),stopReason:String(b.stoppage_reason||'').trim(),raw:b};
+  }
+  function pairBookings(before,after) {
+    const old=before.map(bookingFacts),now=after.map(bookingFacts),pairs=[],used=new Set();
+    for(const a of now){let i=a.id?old.findIndex((b,n)=>!used.has(n)&&b.id===a.id):-1;
+      if(i<0)i=old.findIndex((b,n)=>!used.has(n)&&!(a.id&&b.id)&&b.stage===a.stage);
+      if(i>=0)used.add(i);pairs.push([i>=0?old[i]:null,a]);}
+    old.forEach((b,n)=>{if(!used.has(n))pairs.push([b,null]);});
+    return pairs;
+  }
+  function workshopLines(before,after,now=new Date()) {
+    const when=v=>shortWhen(v,now),lines=[];
+    for(const [b,a] of pairBookings(Array.isArray(before)?before:[],Array.isArray(after)?after:[])) {
+      const ref=a||b,station=ref.stage,bay=x=>bayText(x.stage,x.bay),push=(kind,text,at)=>lines.push({station,kind,text,at:at??ref.start??ref.actualStart});
+      if(!b){
+        if(a.actualEnd)push('finished','Work finished '+when(a.actualEnd)+' · '+bay(a));
+        else if(a.status==='started'||a.actualStart)push('started','Work started '+(when(a.actualStart)||'')+' · '+bay(a));
+        else if(a.status==='queued'||!a.start)push('booked','Awaiting bay booking');
+        else push('booked',bay(a)+' · '+when(a.start)+' (was: not booked)');
+        continue;
+      }
+      if(!a){push('removed','Booking removed (was: '+[bay(b),when(b.start)].filter(Boolean).join(', ')+')');continue;}
+      if(a.actualEnd&&a.actualEnd!==b.actualEnd||a.status==='completed'&&b.status!=='completed'){push('finished','Work finished'+(a.actualEnd?' '+when(a.actualEnd):'')+' · '+bay(a),a.actualEnd);continue;}
+      if(a.status==='stoppage'&&b.status!=='stoppage'){push('stopped','Work stopped'+(a.stopStart?' '+when(a.stopStart):'')+(a.stopReason?' · '+a.stopReason:'')+' · '+bay(a),a.stopStart);continue;}
+      if(a.status==='started'&&b.status==='stoppage'){push('resumed','Work resumed · '+bay(a));continue;}
+      if(a.actualStart&&a.actualStart!==b.actualStart||a.status==='started'&&b.status!=='started'){push('started','Work started'+(a.actualStart?' '+when(a.actualStart):'')+' · '+bay(a),a.actualStart);continue;}
+      if(a.status==='queued'&&b.status!=='queued'){push('moved','Awaiting bay booking (was: '+[bay(b),when(b.start)].filter(Boolean).join(', ')+')');continue;}
+      const bayChanged=a.bay!==b.bay,startChanged=a.start!==b.start;
+      if(bayChanged||startChanged){
+        const unbooked=b.status==='queued'||b.start==null,was=unbooked?'not booked':[bayChanged?bay(b):'',startChanged?when(b.start):''].filter(Boolean).join(', ');
+        push(unbooked?'booked':'moved',bay(a)+' · '+(when(a.start)||'time not set')+' (was: '+was+')');continue;
+      }
+      if(a.end!==b.end&&a.end!=null){push('moved',bay(a)+' · finish '+when(a.end)+(b.end!=null?' (was: '+when(b.end)+')':''));continue;}
+      if(a.stopReason!==b.stopReason&&a.status==='stoppage'&&a.stopReason){push('stopped','Stop reason: '+a.stopReason+' · '+bay(a));}
+    }
+    const rank=s=>{const i=stationOrder.indexOf(String(s).toLowerCase());return i<0?99:i;};
+    return lines.sort((x,y)=>rank(x.station)-rank(y.station)||String(x.station).localeCompare(String(y.station))||(typeof x.at==='number'&&typeof y.at==='number'?x.at-y.at:0));
+  }
+  function workshopTitle(lines) {
+    const kinds=new Set(lines.map(l=>l.kind));
+    for(const [kind,title] of [['finished','Work finished'],['started','Work started'],['stopped','Work stopped'],['resumed','Work resumed']])if(kinds.has(kind))return title;
+    if(kinds.size===1&&kinds.has('booked'))return 'Bay booked';
+    if(kinds.size===1&&kinds.has('removed'))return 'Booking removed';
+    return 'Bay booking changed';
+  }
+  const sameFact=(a,b,key)=>{
+    const blank=v=>v==null||v==='';if(blank(a)&&blank(b))return true;if(blank(a)!==blank(b))return false;
+    if(/(?:_date|_eta)$/.test(key)||key==='eta'){const x=calendarDateKey(String(a).trim())||instant(a),y=calendarDateKey(String(b).trim())||instant(b);return x===y;}
+    if(/_at$/.test(key))return instant(a)===instant(b);
+    return JSON.stringify(a)===JSON.stringify(b);
+  };
+  function factShort(value,key,now) {
+    if(value==null||value==='')return key==='stock'?'Awaiting allocation':'Not recorded';
+    if(/_at$/.test(key))return shortWhen(value,now)||String(value);
+    if(/(?:_date|_eta)$/.test(key)||key==='eta')return shortDay(value,now)||String(value);
+    return factText(value,key);
+  }
+  function factLines(before,after,now=new Date()) {
+    const keys=[...new Set([...Object.keys(before||{}),...Object.keys(after||{})])].filter(key=>Object.hasOwn(factLabels,key));
+    return keys.filter(key=>!sameFact(before?.[key],after?.[key],key)).map(key=>({station:factLabels[key],kind:'fact',sep:': ',text:factShort(before?.[key],key,now)+' → '+factShort(after?.[key],key,now)}));
+  }
+  // Returns {title, lines:[{station,text}]}. No lines = nothing meaningful changed (order, format or a bay rename only).
+  function alertSummary(alert,now=new Date()) {
+    const type=String(alert?.event_type||''),details=alert?.details,fallback=alert?.title||'Vehicle updated';
+    if(details==null||typeof details!=='object')return {title:fallback,lines:details==null||details===''?[]:[{station:'',text:String(details)}],plain:true};
+    if(!(Object.hasOwn(details,'before')||Object.hasOwn(details,'after')))return {title:fallback,lines:[{station:'',text:eventDetails(details,type)}],plain:true};
+    const {before,after}=details;
+    if(type==='workshop_changed'||Array.isArray(before)||Array.isArray(after)){
+      const lines=workshopLines(before,after,now);return {title:workshopTitle(lines),lines};
+    }
+    if(type.startsWith('stock_')||(typeof before!=='object'&&typeof after!=='object'))
+      return {title:fallback,lines:sameFact(before,after,'stock')?[]:[{station:type.startsWith('stock_')?'Stock number':'Status',sep:': ',text:factShort(before,'stock',now)+' → '+factShort(after,'stock',now)}]};
+    const lines=factLines(before&&typeof before==='object'?before:{},after&&typeof after==='object'?after:{},now);
+    return {title:type==='location_changed'?'Location or status changed':fallback,lines};
+  }
+  const lineText=line=>(line.station?line.station+(line.sep||' · '):'')+line.text;
+  // Several alerts for one vehicle within a few minutes become one card. Each type shows its net change
+  // (first "before" against last "after"); every alert id stays on the card so Dismiss clears them all.
+  function groupAlerts(alerts,now=new Date(),windowMinutes=10) {
+    const sorted=[...alerts].sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||''))),cards=[];
+    const gap=windowMinutes*60000,open=new Map();
+    for(const alert of sorted){
+      const at=new Date(alert.occurred_at).getTime(),card=open.get(alert.tracking_id);
+      if(card&&Number.isFinite(at)&&Number.isFinite(card.oldest)&&card.oldest-at<=gap){card.alerts.push(alert);card.oldest=at;continue;}
+      const next={tracking_id:alert.tracking_id,occurred_at:alert.occurred_at,oldest:at,alerts:[alert]};cards.push(next);open.set(alert.tracking_id,next);
+    }
+    const result=[];
+    for(const card of cards){
+      const byType=new Map();for(const alert of [...card.alerts].reverse()){const key=String(alert.event_type||'')||'other:'+alert.id;if(!byType.has(key))byType.set(key,[]);byType.get(key).push(alert);}
+      const parts=[];
+      for(const [type,list] of byType){
+        const singles=list.map(a=>alertSummary(a,now));
+        if(list.length===1||singles.some(s=>s.plain)){singles.forEach(s=>{if(s.lines.length)parts.push(s);});continue;}
+        const first=list[0].details,last=list[list.length-1].details;
+        const net=alertSummary({...list[list.length-1],event_type:type,details:{before:first?.before,after:last?.after}},now);
+        if(net.lines.length)parts.push(net);
+        else if(singles.some(s=>s.lines.length))parts.push({title:singles.find(s=>s.lines.length).title,lines:[{station:'',text:'Changed, then changed back'}]});
+      }
+      if(!parts.length)continue;
+      const titles=[...new Set(parts.map(p=>p.title))];
+      result.push({tracking_id:card.tracking_id,occurred_at:card.occurred_at,ids:card.alerts.map(a=>a.id),count:card.alerts.length,title:titles.join(' · '),lines:parts.flatMap(p=>p.lines)});
+    }
+    return result;
+  }
   function validate(kind,data) {
     if(!Object.hasOwn(kinds,kind)) throw new Error('This type of update is not supported.');
     if(!data || typeof data!=='object' || Array.isArray(data)) throw new Error('Check the information before saving.');
@@ -331,8 +472,9 @@
       });
     }
     function renderAlerts() {
-      const records=recordList('alerts').filter(a=>!a.dismissed_at).sort((a,b)=>String(b.occurred_at||'').localeCompare(String(a.occurred_at||'')));
-      setHtml('sales-alerts','<div class="section-intro"><h2>Vehicle alerts</h2><p>Recorded changes to stock, ETA, Toyota location and PMB progress. First-time observations establish a baseline.</p></div>'+messageHtml()+(records.length?'<div class="crm-columns">'+records.map(a=>'<article class="crm-card crm-alert"><div class="crm-card-top">'+linkedTitle(a.tracking_id)+'<span class="crm-muted">'+e(dateLabel(a.occurred_at,true))+'</span></div><h3>'+e(a.title||'Vehicle updated')+'</h3><p>'+e(eventDetails(a.details,a.event_type))+'</p><div class="crm-card-actions">'+openButton(rowFor(a.tracking_id))+'<button type="button" class="small-button" data-crm-dismiss="'+e(a.id)+'">Dismiss</button></div></article>').join('')+'</div>':'<div class="crm-empty">No new vehicle alerts.</div>'));
+      // r487 (F100): one tidy card per vehicle burst; alerts with no real change (order / format / bay rename only) are left out.
+      const cards=groupAlerts(recordList('alerts').filter(a=>!a.dismissed_at));
+      setHtml('sales-alerts','<div class="section-intro"><h2>Vehicle alerts</h2><p>Recorded changes to stock, ETA, Toyota location and PMB progress. First-time observations establish a baseline.</p></div>'+messageHtml()+(cards.length?'<div class="crm-columns">'+cards.map(c=>'<article class="crm-card crm-alert"><div class="crm-card-top">'+linkedTitle(c.tracking_id)+'<span class="crm-muted">'+e(shortWhen(c.occurred_at))+(c.count>1?' · '+c.count+' updates':'')+'</span></div><h3>'+e(c.title)+'</h3><ul class="crm-alert-lines">'+c.lines.map(line=>'<li>'+(line.station?'<strong>'+e(line.station)+'</strong>'+e(line.sep||' · '):'')+e(line.text)+'</li>').join('')+'</ul><div class="crm-card-actions">'+openButton(rowFor(c.tracking_id))+'<button type="button" class="small-button" data-crm-dismiss="'+e(c.ids.join(','))+'">Dismiss</button></div></article>').join('')+'</div>':'<div class="crm-empty">No new vehicle alerts.</div>'));
     }
     function financeStatus(record,key) {
       const value=record[key+'_status'];
@@ -472,7 +614,7 @@
         try {
           let result;
           if(data.crmTaskToggle){const task=recordList('tasks').find(t=>t.id===data.crmTaskToggle);if(task)result=await save('task',task.id,task.tracking_id,{title:task.title,due_date:task.due_date,completed:!task.completed},task.version);}
-          if(data.crmDismiss){const alert=recordList('alerts').find(a=>a.id===data.crmDismiss);if(alert)result=await save('dismiss_alert',alert.id,alert.tracking_id,{},alert.version);}
+          if(data.crmDismiss){for(const id of String(data.crmDismiss).split(',').filter(Boolean)){const alert=recordList('alerts').find(a=>a.id===id&&!a.dismissed_at);if(alert)result=await save('dismiss_alert',alert.id,alert.tracking_id,{},alert.version)||result;if(generation!==state.generation||owner!==principal())break;}}
           if(data.crmFinanceAccess&&isAdmin()){const account=(state.workspace?.finance_accounts||[]).find(a=>a.id===data.crmFinanceAccess);if(account)result=await save('finance_access',account.id,null,{enabled:!account.enabled},account.version);}
           if(result&&generation===state.generation&&owner===principal()){render(state.view);repaintDetail();}
         }catch(error){if(generation===state.generation&&owner===principal()){state.message=errorMessage(error);render(state.view);repaintDetail();}}
@@ -519,7 +661,7 @@
     const api={init,setWorkspace,render,detailHtml,bindDetail,clear,save,refresh,getWorkspace,beginCalendarDrag,moveCalendarEntry,syncScope:scopeGuard,refreshDetail:repaintDetail,financeSummary,perthToday,dateLabel};
     return api;
   }
-  const exports={createWorkspace,validate,isSold,dateValue,dateLabel,perthToday,orderLabel,statusLabel,financeSummary,eventDetails,calendarDays,shiftMonth};
+  const exports={createWorkspace,validate,isSold,dateValue,dateLabel,perthToday,orderLabel,statusLabel,financeSummary,eventDetails,calendarDays,shiftMonth,alertSummary,groupAlerts,workshopLines,bayText,shortWhen,shortDay,lineText};
   if(typeof module==='object'&&module.exports)module.exports=exports;
   if(root.document)root.BROOME_SALES_CRM=createWorkspace(root);
 })(typeof window==='object'?window:globalThis);
