@@ -150,7 +150,8 @@ const approvedRootImportPatch = Object.freeze({
   // r449: fitter parts messages say parts no longer hold up a job (F62).
   // r483: fitter page bay text uses the Dept 139 bay names (F96).
   // r493: started items / sections and the running strip show amber Paused while the job clock is held (F106).
-  "pdc-fitters.js": "f8327a61b400bb2b1c1fb3f691da6273116ce57b02b0764c631611db38f6aa79",
+  // r500: every started item / section shows Pause (also when running too long) and Resume while the job is stopped; Pause opens the stoppage panel under the item (F113).
+  "pdc-fitters.js": "792922bed154f8fe4c5d8b08e587d1743acfa48e95be02c13deaa327579fe538",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -266,7 +267,8 @@ const approvedRootImportPatch = Object.freeze({
   // r496: index.html r496=2026.10.22.r496 on canonical-entry.js (F109).
   // r497: r497=2026.10.22.r497 on pdc-planner-capacity.js (F110).
   // r498: r498=2026.10.22.r498 on app.js (F111).
-  "index.html": "9b21a860494b109ba6a8c606e37395cbf8c160d3cc9ff212fbc9d53732586028",
+  // r500: r500=2026.10.23.r500 on pdc-fitters.js and pdc-conversion-ticks.css (F113).
+  "index.html": "fae69449f2830d29a1afdd7f96b06334335f09379c16caefb73c38179af2aa17",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

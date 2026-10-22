@@ -288,6 +288,18 @@
     const conversion = line && line.conversion;
     return !!conversion && conversion.needs_review !== true && (conversion.id === 'coaster' || conversion.id === 'hiace_commuter');
   }
+  // r500 (F113): every started item / section shows Pause while the job is
+  // started (also when it is running too long) and Resume while the job is
+  // stopped. Pause opens the job's stoppage panel: the job clock is per bay
+  // job, so pausing one item pauses the whole bay job until Resume.
+  function itemPauseHtml(state, key, label) {
+    const mode = state && state.pauseControl;
+    if (mode !== 'pause' && mode !== 'resume') return '';
+    const dis = state.pauseDisabled ? ' disabled' : '';
+    return mode === 'pause'
+      ? `<button type="button" class="fitter-item-pause" data-fitter-pause="${esc(key)}" aria-label="Pause ${esc(label)}"${dis}>Pause</button>`
+      : `<button type="button" class="fitter-item-resume" data-fitter-action="resume" aria-label="Resume ${esc(label)}"${dis}>Resume</button>`;
+  }
   const conversionDuration = m => m == null ? '—' : `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, '0')}m`;
   function conversionSectionHtml(line, section, state) {
     const id = esc(line.line_identity), sid = esc(section.id), planned = Number(section.planned_minutes) || 0;
@@ -308,7 +320,7 @@
     return `<li class="conv-section${done ? ' is-done' : ''}${running ? ' is-running' : ''}${running && state.paused ? ' is-paused' : ''}" data-conv-section="${sid}">
       <div class="conv-section-row"><span class="conv-section-name"><strong>${esc(section.label)} — ${esc(section.description)}</strong><small>${conversionDuration(planned)}${status ? ` · ${esc(status)}` : ''}</small></span>
       <label class="conv-tick"><input type="checkbox" data-conversion-step="start" data-conversion-line="${id}" data-conversion-section="${sid}" ${running || done ? 'checked' : ''} ${startDis}> Start</label>
-      <label class="conv-tick"><input type="checkbox" data-conversion-step="done" data-conversion-line="${id}" data-conversion-section="${sid}" ${done ? 'checked' : ''} ${doneDis}> Done</label></div>
+      <label class="conv-tick"><input type="checkbox" data-conversion-step="done" data-conversion-line="${id}" data-conversion-section="${sid}" ${done ? 'checked' : ''} ${doneDis}> Done</label>${running ? itemPauseHtml(state, line.line_identity, section.label) : ''}</div>
       ${bar}
       ${state.editable || note ? `<details class="fitter-notes conv-note" ${draft != null ? 'open' : ''}><summary>${note ? 'Section note' : 'Add a note'}</summary><textarea aria-label="${esc(section.label)} note" data-conversion-note="${esc(noteKey)}" data-conversion-line="${id}" data-conversion-section="${sid}" rows="2" maxlength="500" ${dis}>${esc(note)}</textarea>${state.editable ? `<button type="button" data-conversion-save-note="${esc(noteKey)}" ${dis}>Save note</button>` : ''}${draft != null ? '<small>Unsaved note</small>' : ''}</details>` : ''}
     </li>`;
@@ -343,7 +355,7 @@
     const bar = m.running && m.planned > 0 ? `<div class="conv-bar${m.over ? ' is-over' : ''}${state.paused ? ' is-paused' : ''}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="${esc(line.description)} progress"><span style="--conv-from:${pct}%;--conv-run:${m.over ? 0 : remainSeconds}s"></span></div>` : '';
     const status = m.done ? (m.actual != null ? `Done · actual ${actualDuration(m.actual)}` : '')
       : m.running ? `${state.paused ? 'Paused · ' : ''}${m.over ? `In progress · over by ${itemDuration(m.elapsed - m.planned)}` : m.planned ? `In progress · ${itemDuration(m.elapsed)} of ${itemDuration(m.planned)}` : `In progress · ${itemDuration(m.elapsed)} · no allowance`}${line.item_stale ? ' · running too long, tick Done or ask the controller to reset' : ''}` : '';
-    return `<div class="fitter-item-ticks"><label class="conv-tick"><input type="checkbox" data-fitter-item-start="${id}" ${m.running || m.done ? 'checked' : ''} ${state.disabled || m.done ? 'disabled' : ''}> Start</label>${status ? `<small class="fitter-item-status">${esc(status)}</small>` : m.needsStart && state.editable ? '<small class="fitter-item-hint">Press Start first</small>' : ''}</div>${bar}`;
+    return `<div class="fitter-item-ticks"><label class="conv-tick"><input type="checkbox" data-fitter-item-start="${id}" ${m.running || m.done ? 'checked' : ''} ${state.disabled || m.done ? 'disabled' : ''}> Start</label>${status ? `<small class="fitter-item-status">${esc(status)}</small>` : m.needsStart && state.editable ? '<small class="fitter-item-hint">Press Start first</small>' : ''}${m.running ? itemPauseHtml(state, line.line_identity, line.description) : ''}</div>${bar}`;
   }
   function fitterLineCardHtml(line, index, state) {
     const disabled = state.disabled, note = state.note, editable = state.editable, open = state.open;
@@ -361,7 +373,7 @@
     const m = String(text || '').match(/pdc-fitters\.js\?([^"'\s<>]+)/);
     return m ? m[1].replace(/&amp;/g, '&') : '';
   }
-  const api = { createService, fitterScriptToken, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, conversionUsesSimpleTick, fitterLineCardHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml };
+  const api = { createService, fitterScriptToken, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, conversionUsesSimpleTick, fitterLineCardHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml, itemPauseHtml };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.PdcFitters = api;
   const doc = root.document;
@@ -375,7 +387,7 @@
   let supplierDraftKey = '';
   let roster = [], mechanic = '', jobs = [], bays = [], selected = '', detail = null;
   let loading = false, refreshing = false, connected = false, message = '', readErrorMessage = '', loadGeneration = 0, initialized = false, lastSync = 0;
-  let stopOpen = false, stopReason = '', stopType = 'Parts', saving = false, pendingDraftKey = '', pendingAction = '';
+  let stopOpen = false, stopFrom = '', stopReason = '', stopType = 'Parts', saving = false, pendingDraftKey = '', pendingAction = '';
   let detailReceivedAt = 0, timerFreeze = null;
   let pendingConversionNote = '';
   let handover = null, scrollToCurrent = false;
@@ -429,15 +441,24 @@
     const help=unsaved?'Save your notes before completing this bay.':detail?.status==='stoppage'?'Resume this job before completing the bay.':ready?'All items are done. Complete this bay to continue.':'Tick off every item in this bay before completing the job.';
     return `<footer class="fitter-finish" aria-label="Finish current job and continue"><div class="fitter-finish-action"><div><h3>Finish this bay</h3><p>${esc(help)}</p></div><button type="button" class="fitter-primary" data-fitter-action="complete" ${locked||!editable||!ready?'disabled':''}>${completeLabel}</button></div><div class="fitter-next" aria-label="Next job preview"><span class="fitter-kicker">Next job</span>${flow.next?`${jobPreview(flow.next)}<p>${flow.otherActive.length?'Available after your active jobs are completed.':'Opens automatically after the current job is completed.'} You choose when to start it.</p>`:'<p>No further jobs assigned at the moment.</p>'}</div>${flow.upcoming.length?`<details class="fitter-upcoming"><summary>Later jobs (${flow.upcoming.length})</summary>${flow.upcoming.map(j=>`<div class="fitter-later-job">${jobPreview(j)}</div>`).join('')}</details>`:''}</footer>`;
   }
-  function lineCard(line, index, editable) {
+  // r500: the stoppage (pause) panel; shown under the item whose Pause was pressed, otherwise under the job buttons.
+  function stopPanelHtml() {
+    const locked = saving || loading || service.retryPending || busPending();
+    return `<div class="fitter-stop-panel" role="group" aria-label="Record a workshop stoppage"><p class="fitter-stop-help"><strong>Pause this job</strong> · the job clock stops for every item in this bay until you press Resume.</p><label for="fitter-stop-type">Stoppage type<select id="fitter-stop-type" ${locked?'disabled':''}><option ${stopType==='Parts'?'selected':''}>Parts</option><option ${stopType==='Other'?'selected':''}>Other</option></select></label><label for="fitter-stop-reason">What is holding up the work?<textarea id="fitter-stop-reason" rows="3" maxlength="1900" ${locked?'disabled':''}>${esc(stopReason)}</textarea></label><button type="button" data-fitter-confirm-stop ${locked?'disabled':''}>Record stoppage</button><button type="button" data-fitter-cancel-stop ${locked?'disabled':''}>Cancel</button></div>`;
+  }
+  function lineCard(line, index, editable, viewOnly=false) {
 
     if(line.conversion && !conversionUsesSimpleTick(line)) return root.PdcConversions.html(line,{editable:editable&&!saving&&!loading&&!service.retryPending&&!busPending(),controller:['operator','administrator'].includes(root.PDC_AUTH_CONTEXT?.role),booking:selected});
     const draft = drafts.get(`${selected}:${line.line_identity}`), note = draft?.note ?? line.note;
     const disabled = !editable || saving || loading || service.retryPending || busPending();
     const clock=timerModel(detail,timingOptions());
+    // r500: Pause on started jobs, Resume on stopped jobs (own bay items only).
+    const pauseControl=viewOnly||(!editable&&detail?.status!=='stoppage')?'':detail?.status==='started'?'pause':detail?.status==='stoppage'?'resume':'';
+    const pauseDisabled=saving||loading||service.retryPending||busPending()||!connected||!service.canWrite();
+    const panel=stopOpen&&stopFrom===line.line_identity?stopPanelHtml():'';
     // r493: a section bar pauses (amber) whenever the job clock is not counting, as bay items already did.
-    if(line.conversion) return conversionTicksHtml(line, index, {editable, disabled, booking:selected, paused:detail?.status!=='started'||clock.tone!=='running', noteDrafts:conversionNotes, open:!conversionClosed.has(`${selected}|${line.line_identity}`)});
-    return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft, paused: clock.tone!=='running', jobSeconds: Number.isFinite(clock.seconds)?clock.seconds:NaN});
+    if(line.conversion) return conversionTicksHtml(line, index, {editable, disabled, booking:selected, paused:detail?.status!=='started'||clock.tone!=='running', noteDrafts:conversionNotes, open:!conversionClosed.has(`${selected}|${line.line_identity}`), pauseControl, pauseDisabled})+panel;
+    return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft, paused: clock.tone!=='running', jobSeconds: Number.isFinite(clock.seconds)?clock.seconds:NaN, pauseControl, pauseDisabled})+panel;
   }
   // r493: started items show amber Paused while the job clock is held
   // (stoppage, break, closure or end of day, waiting allocation).
@@ -470,13 +491,13 @@
       <div class="fitter-layout">
       <section class="fitter-work" aria-label="Selected job">${job && detail ? `<div class="fitter-job-heading"><p class="fitter-kicker">${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(state(detail.status))}</p><h2>${esc(job.stock)} <span>${esc(job.job_card)}</span></h2><p>${esc(job.customer)} · ${esc(job.vehicle)}</p><p class="fitter-time">${esc(time(job.start_at))} – ${esc(time(job.end_at))}</p>${timerHtml(detail,timingOptions())}${progressHtml(detail.progress,false,{paused:fitterPausedLabel(detail)})}<p>${detail.progress.completed_lines} of ${detail.progress.total_lines} items complete · Progress uses approved work hours.</p></div>
       ${detail.status==='stoppage' ? `<div class="fitter-warning"><strong>Job stopped</strong><p>${esc(detail.stoppage_reason)}</p></div>` : ''}
-      <div class="fitter-actions">${['planned','queued'].includes(detail.status) ? `<button class="fitter-primary" data-fitter-action="start" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='start'?'Starting job…':'Start job'}</button><p>Start this job first. Its other unstarted bookings and affected queues move later where needed.</p>` : detail.status==='stoppage' ? `<button class="fitter-primary" data-fitter-action="resume" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='resume'?'Resuming job…':'Resume job'}</button>` : detail.status==='started' ? `<button data-fitter-stop ${locked||!editable?'disabled':''}>Parts / other stoppage</button>` : ''}</div>
-      ${stopOpen ? `<div class="fitter-stop-panel" role="group" aria-label="Record a workshop stoppage"><label for="fitter-stop-type">Stoppage type<select id="fitter-stop-type" ${locked?'disabled':''}><option ${stopType==='Parts'?'selected':''}>Parts</option><option ${stopType==='Other'?'selected':''}>Other</option></select></label><label for="fitter-stop-reason">What is holding up the work?<textarea id="fitter-stop-reason" rows="3" maxlength="1900" ${locked?'disabled':''}>${esc(stopReason)}</textarea></label><button type="button" data-fitter-confirm-stop ${locked?'disabled':''}>Record stoppage</button><button type="button" data-fitter-cancel-stop ${locked?'disabled':''}>Cancel</button></div>` : ''}
+      <div class="fitter-actions">${['planned','queued'].includes(detail.status) ? `<button class="fitter-primary" data-fitter-action="start" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='start'?'Starting job…':'Start job'}</button><p>Start this job first. Its other unstarted bookings and affected queues move later where needed.</p>` : detail.status==='stoppage' ? `<button class="fitter-primary" data-fitter-action="resume" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='resume'?'Resuming job…':'Resume job'}</button>` : detail.status==='started' ? `<button data-fitter-stop ${locked||!editable?'disabled':''}>Pause · parts / other stoppage</button>` : ''}</div>
+      ${stopOpen&&!own.some(l=>l.line_identity===stopFrom) ? stopPanelHtml() : ''}
       ${detail.progress.unknown_hours ? '<p class="fitter-warning">Some items need approved hours. Ask the controller to review these before completing the bay job.</p>' : ''}
       <h3>Items for this bay</h3><div class="fitter-lines">${own.map((l,i)=>lineCard(l,i,editable)).join('') || '<p class="fitter-empty">No approved operation lines for this bay. Ask the controller to review the vehicle.</p>'}</div>
       ${detail.supplier_lines?.length && root.PdcBusWorkflow ? `<section class="fitter-supplier-checks"><h3>Supplier work — physically check the vehicle</h3><p>Check fitted work yourself. A supplier report alone does not complete these lines.</p>${root.PdcBusWorkflow.supplierHtml(detail.supplier_lines,{vehicleId:detail.vehicle_id || job.vehicle_id,editable:editable&&!locked,controller:false,bookingId:selected,technicianId:mechanic})}</section>` : ''}
       ${nextJobHtml(flow,locked,editable)}
-      ${other.length ? `<details class="fitter-other"><summary>All other vehicle items (${other.length}) · View only</summary>${other.map((l,i)=>lineCard(l,own.length+i,false)).join('')}</details>` : ''}
+      ${other.length ? `<details class="fitter-other"><summary>All other vehicle items (${other.length}) · View only</summary>${other.map((l,i)=>lineCard(l,own.length+i,false,true)).join('')}</details>` : ''}
       <p class="fitter-help">Complete this bay after ticking off its work. Your next assigned job opens automatically; QC inspection remains a separate step.</p>` : `<div class="fitter-empty">${loading ? 'Loading your job…' : !mechanic ? 'Select your mechanic name to see your current job.' : 'No more jobs assigned. New work will appear here when the controller books it.'}</div>`}</section></div></div>`;
     target.querySelectorAll('.fitter-notes textarea').forEach(n=>{ if(openNotes.has(n.dataset.fitterNote)) n.closest('details').open=true; });
     if (focusId && selection) { const next=doc.getElementById(focusId); next?.focus({preventScroll:true}); next?.setSelectionRange?.(...selection); }
@@ -611,7 +632,9 @@
     on('[data-fitter-item-start]','change',e=>{ const n=e.currentTarget, checked=n.checked; n.checked=!checked; void act(checked?'item_start':'item_reset',n.dataset.fitterItemStart); });
     on('[data-fitter-note]','input',e=>{ const id=e.target.dataset.fitterNote, l=detail.lines.find(l=>l.line_identity===id); drafts.set(`${selected}:${id}`,{note:e.target.value,scope:l.scope_hash}); target.querySelector('[data-fitter-action="complete"]')?.setAttribute('disabled',''); });
     on('[data-fitter-save-note]','click',e=>{ const id=e.currentTarget.dataset.fitterSaveNote; void act('line',id,detail.lines.find(l=>l.line_identity===id).completed); });
-    on('[data-fitter-stop]','click',()=>{ stopOpen=true; render(); doc.getElementById('fitter-stop-reason')?.focus(); });
+    on('[data-fitter-stop]','click',()=>{ stopOpen=true; stopFrom=''; render(); doc.getElementById('fitter-stop-reason')?.focus(); });
+    // r500: Pause on an item opens the same stoppage panel under that item.
+    on('[data-fitter-pause]','click',e=>{ if(saving||loading) return; stopOpen=true; stopFrom=e.currentTarget.dataset.fitterPause||''; render(); const box=doc.getElementById('fitter-stop-reason'); box?.scrollIntoView?.({block:'center'}); box?.focus?.({preventScroll:true}); });
     on('#fitter-stop-type','change',e=>{stopType=e.target.value;});
     on('#fitter-stop-reason','input',e=>{stopReason=e.target.value;});
     on('[data-fitter-confirm-stop]','click',()=>void act('stop'));

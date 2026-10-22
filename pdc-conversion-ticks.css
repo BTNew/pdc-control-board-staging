@@ -55,3 +55,8 @@
 .conv-bar.is-paused>span{background:#d97706}
 .conv-bar.is-paused.is-over>span{background:#c2410c}
 .fitter-line.is-paused .fitter-item-status,.conv-section.is-paused .conv-section-name small{color:#92400e}
+/* r500 (F113): Pause / Resume on a started item or section, always shown (also when running too long). */
+.fitter-app .fitter-item-pause,.fitter-app .fitter-item-resume{margin-left:auto;min-height:40px;padding:6px 16px}
+.fitter-app .fitter-item-pause{color:#92400e;background:#fef3c7;border-color:#d97706}
+.fitter-app .fitter-item-resume{color:#fff;background:#236d50;border-color:#236d50}
+.fitter-stop-help{margin:0;color:#7c2d12}
