@@ -68,7 +68,7 @@ body.vlt-table-on .vlt-slim-bar [data-pdc-refresh-control] { display: none !impo
 .vlt-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 1060px; font-size: 11px; }
 /* r462: widths come from CSS variables that the column resize sets on the table; the fallbacks are the r461 widths. */
 .vlt-table.has-custom-widths { min-width: var(--vlt-table-min, 1060px); }
-.vlt-table col.c-sel { width: 26px; } .vlt-table col.c-key { width: var(--vlt-w-key, 38px); } .vlt-table col.c-stock { width: var(--vlt-w-stock, 92px); }
+.vlt-table col.c-sel { width: 26px; } .vlt-table col.c-key { width: var(--vlt-w-key, 38px); } .vlt-table col.c-stock { width: var(--vlt-w-stock, 92px); } .vlt-table col.c-job { width: var(--vlt-w-job, 104px); }
 .vlt-table col.c-cust { width: var(--vlt-w-cust, 104px); } .vlt-table col.c-unit { width: var(--vlt-w-unit, 132px); } .vlt-table col.c-ploc { width: var(--vlt-w-ploc, 66px); }
 .vlt-table col.c-work { width: var(--vlt-w-work, 282px); } .vlt-table col.c-age { width: var(--vlt-w-age, 72px); } .vlt-table col.c-status { width: var(--vlt-w-status, 104px); } .vlt-table col.c-action { width: var(--vlt-w-action, 176px); }
 .vlt-table th { background: #f8faff; border-bottom: 1px solid #e4eaf2; border-right: 1px solid #e4eaf2; padding: 4px 5px 3px; height: 39px; box-sizing: border-box; vertical-align: bottom; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; color: #677d9b; position: sticky; top: 0; z-index: 2; line-height: 1.15; white-space: nowrap; overflow: hidden; }
@@ -101,9 +101,14 @@ body.vlt-resizing, body.vlt-resizing * { cursor: col-resize !important; user-sel
 .vlt-table td > .vehicle-identity-cell .vehicle-identity-value { font-size: 11px !important; line-height: 1.15 !important; padding: 0 !important; min-height: 0 !important; display: inline !important; white-space: nowrap !important; }
 .vlt-table td > .vehicle-identity-cell * { white-space: nowrap !important; }
 .vlt-table td.c-key .vehicle-identity-value { font-weight: 700; }
-.vlt-table td.c-stock > .vlt-subtle { margin-top: 1px !important; }
-.vlt-table td.c-stock > .vlt-subtle * { font-size: 9px !important; font-weight: 400 !important; color: #7788a0 !important; line-height: 1.1 !important; display: inline !important; }
-.vlt-table td.c-stock > .vlt-subtle br { display: none; }
+/* r463 (F76): the job card has its own column, so the stock number is larger (Craig). */
+.vlt-table td.c-stock .vehicle-identity-value { font-size: 13px !important; font-weight: 700 !important; }
+.vlt-table td.c-job .vehicle-identity-value { font-size: 11px !important; color: #314458; }
+.vlt-table td.c-job br { display: none; }
+.vlt-table td.c-job .vlt-subtle-dash { color: #a3b0c2; }
+.vlt-table td.c-job .pdc-stacked-jobcards { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 700; }
+.vlt-table td.c-job .pdc-stacked-jobcards > span { display: inline !important; }
+.vlt-table td.c-job .pdc-stacked-jobcards > span + span::before { content: " · "; color: #8294aa; }
 .vlt-table td > .incoming-card-main { display: block !important; }
 .vlt-table td > .incoming-card-main strong { font-weight: 400 !important; font-size: 11px !important; display: block; white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; color: #142334; }
 .vlt-table td > .incoming-card-meta > b { display: none !important; }

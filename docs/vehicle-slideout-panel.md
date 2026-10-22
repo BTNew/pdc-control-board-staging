@@ -1,5 +1,25 @@
 # Vehicle Locations — slide-out panel, Parts loc, resizable columns (r462, F75)
 
+> **r463 (F76), 22 Oct 2026 09:03 AWST:** at Craig's request the panel's
+> **Jobs & bookings** list and **drag-to-bay** (both options A and B below) are
+> withdrawn. The panel has no drag handles and no bay targets, loads no planner
+> data and never calls `moveWorkshopDroppedPlan`; bay moves stay in the Workshop
+> Planner. The panel shows the vehicle's own card: station strip and status,
+> vehicle details (stock number, vehicle key, key number with Edit / History,
+> job card, Tune report, parts location) and the operations by category (lines,
+> hours, sublets / PO) as the main content, with the card's buttons as before.
+> Moving an operation line to another category through *Edit jobs & hours* may
+> come later; it is not part of r463.
+>
+> r463 also adds a **Job Card** column to the Table view, between Stock and
+> Customer (the card's own job-card markup; "—" when none; sorts with the
+> board's job-card sort; resizable, default 104 px, minimum 64 px). The stock
+> number is larger now that the job card is not a sub-line under it. Saved
+> r461 / r462 settings keep working: saved widths have no Job Card entry, so it
+> shows at its default width.
+>
+> The sections below describe r462 as released; the drag sections are history.
+
 Change request from Craig, 22 Oct 2026 (slide-out with Option A drops approved;
 operations layout 08:07, Parts loc 08:08, resizable columns 08:09 AWST).
 Staging only. Frontend only — no database change. Builds on the r461 Table view

@@ -6,8 +6,6 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const table = require('./pdc-vehicle-locations-table.js');
-const slideout = require('./pdc-vehicle-slideout.js');
-const departments = require('./pdc-workshop-departments.js');
 const { createFixture } = require('./qa/dashboard-render-fixture.cjs');
 const { syntheticVehicles, syntheticPlans } = require('./qa/vehicle-locations-table-461-fixture.cjs');
 
@@ -15,9 +13,6 @@ const memoryStorage = () => {
   const store = new Map();
   return { store, getItem: k => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: k => store.delete(k) };
 };
-const COASTER = { vehicle: 'Coaster', toyotaVehicle: 'COASTER BUS 4X4 SYNTHETIC' };
-const HILUX = { vehicle: 'HiLux', toyotaVehicle: 'HILUX SR5 SYNTHETIC' };
-const busBooking = (category, bay, status = 'planned') => ({ id: `syn-${category}-${bay}-${status}`, version: 3, stage: 'BUS_4X4', bay, status, category, start: '2026-10-23T02:30:00Z' });
 
 // ---------------- Parts loc column ----------------
 test('Parts loc: the card\'s own parts-location span moves to its own cell; "—" when there is none', () => {
@@ -117,7 +112,7 @@ test('column widths: CSS variables keep pinned Key / Stock aligned; defaults equ
   assert.match(css, /--vlt-w-cust:150px/);
   assert.match(css, /--vlt-left-key:26px/);
   assert.match(css, /--vlt-left-stock:76px/, 'Stock pins right after the wider Key column');
-  const total = 26 + 50 + 92 + 150 + 132 + 66 + 282 + 72 + 104 + 176;
+  const total = 26 + 50 + 92 + 104 + 150 + 132 + 66 + 282 + 72 + 104 + 176; // r463 adds Job Card (104)
   assert.match(css, new RegExp(`--vlt-table-min:${total}px`));
   const sheet = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
   for (const [key, col] of Object.entries(table.COLUMNS)) {
@@ -138,141 +133,14 @@ test('column widths: CSS variables keep pinned Key / Stock aligned; defaults equ
   assert.match(source, /ArrowLeft[\s\S]{0,80}ArrowRight/);
 });
 
-// ---------------- Slide-out: rules, decisions, the planner call ----------------
-test('panel bay targets follow the Dept 138 bay guide (bus_bay_guide_447) and Bay 3 no Coaster', () => {
-  const GRID = { BUS_MECHANICAL: [1, 2, 3, 4, 5, 6], BUS_ACCESSORIES: [1, 2, 3, 4, 5, 6, 8, 9, 10], BUS_ELECTRICAL: [5, 6, 8, 9, 10], BUS_QA: [5, 6, 7] };
-  for (const [category, free] of Object.entries(GRID)) {
-    for (let bay = 1; bay <= 10; bay += 1) {
-      const rules = slideout.predictedRules(busBooking(category, 0), HILUX, bay, departments).map(r => r.rule);
-      assert.deepEqual(rules, free.includes(bay) ? [] : ['category_bay_mismatch'], `${category} bay ${bay}`);
-    }
-  }
-  assert.deepEqual(slideout.predictedRules(busBooking('BUS_MECHANICAL', 0), COASTER, 3, departments).map(r => r.rule), ['bus_bay_vehicle_incompatible'], 'Coaster into Bay 3 asks to confirm');
-  assert.deepEqual(slideout.predictedRules(busBooking('BUS_ELECTRICAL', 0), COASTER, 3, departments).map(r => r.rule), ['category_bay_mismatch', 'bus_bay_vehicle_incompatible']);
-  assert.deepEqual(slideout.predictedRules(busBooking('BUS_WHOLE_JOB', 0), HILUX, 9, departments), [], 'whole-job booking (r450): no category rule');
-  assert.deepEqual(slideout.predictedRules({ ...busBooking('', 0), stage: 'FITTING' }, COASTER, 3, departments), [], 'Dept 139 / shared bays: no bay rules');
-});
-
-test('drag handles: completed, Pit - external and Sublet are fixed; Bus 4x4 waits for its category', () => {
-  assert.equal(slideout.movable(busBooking('BUS_MECHANICAL', 2, 'planned')), true);
-  assert.equal(slideout.movable(busBooking('BUS_MECHANICAL', 2, 'started')), true);
-  assert.equal(slideout.movable(busBooking('BUS_MECHANICAL', 2, 'completed')), false);
-  assert.equal(slideout.movable({ ...busBooking('', 0), stage: 'PIT_INSPECTION' }), false);
-  assert.equal(slideout.movable({ ...busBooking('', 0), stage: 'SUBLET' }), false);
-  assert.equal(slideout.movable(busBooking('', 2)), false, 'no category yet');
-  assert.equal(slideout.movable({ ...busBooking('', 4), stage: 'FITTING' }), true);
-});
-
-const plannerSpy = ({ entry = { id: 'plan-syn-1', startAt: '2026-10-23T02:30:00Z' }, result = true } = {}) => {
-  const calls = { move: [], fallback: [], messages: [], station: 0 };
-  return {
-    calls,
-    deps: {
-      departments,
-      helpers: { workshopDateKey: d => new Date(new Date(d).getTime() + 8 * 3600000).toISOString().slice(0, 10), workshopMinuteOffset: d => ((new Date(d).getUTCHours() + 8) % 24) * 60 + new Date(d).getUTCMinutes() - 7 * 60 },
-      stationEntry: async () => { calls.station += 1; return entry; },
-      moveWorkshopDroppedPlan: async (...args) => { calls.move.push(args); return result; },
-      openInPlanner: (booking, bay, message) => calls.fallback.push({ booking: booking.id, bay, message }),
-      message: (kind, text) => calls.messages.push({ kind, text }),
-    },
-  };
-};
-
-test('a drop calls the planner\'s moveWorkshopDroppedPlan with the station, the dropped bay and the booking\'s own start', async () => {
-  const { calls, deps } = plannerSpy();
-  const out = await slideout.performDrop(busBooking('BUS_ELECTRICAL', 9), HILUX, 8, deps);
-  assert.equal(out.outcome, 'moved');
-  assert.deepEqual(calls.move, [['plan-syn-1', 'BUS_4X4', 8, '2026-10-23', 210]], '10:30 Perth = 210 min after the 07:00 day start');
-  assert.equal(calls.fallback.length, 0);
-  // A rule-breaking drop still goes to the same function: its own warn-and-confirm (and the logged override) decide.
-  const warn = plannerSpy({ result: false });
-  const out2 = await slideout.performDrop(busBooking('BUS_ELECTRICAL', 9), COASTER, 3, warn.deps);
-  assert.equal(out2.outcome, 'not-moved');
-  assert.deepEqual(out2.rules.map(r => r.rule), ['category_bay_mismatch', 'bus_bay_vehicle_incompatible']);
-  assert.deepEqual(warn.calls.move, [['plan-syn-1', 'BUS_4X4', 3, '2026-10-23', 210]]);
-  // Dept 139 / shared station: same call, no rule hint.
-  const fit = plannerSpy();
-  await slideout.performDrop({ ...busBooking('', 2), stage: 'FITTING' }, HILUX, 4, fit.deps);
-  assert.deepEqual(fit.calls.move, [['plan-syn-1', 'FITTING', 4, '2026-10-23', 210]]);
-  // Unallocated (no start): now, and the planner finds the slot.
-  const queued = plannerSpy({ entry: { id: 'plan-syn-2', startAt: '' } });
-  await slideout.performDrop({ ...busBooking('BUS_QA', 0, 'queued'), start: '' }, HILUX, 7, queued.deps);
-  assert.equal(queued.calls.move[0][0], 'plan-syn-2');
-  assert.equal(queued.calls.move[0][2], 7);
-});
-
-test('started / STOPPAGE: a rule-breaking drop is refused in the panel; an allowed one uses the live-move path', async () => {
-  for (const status of ['started', 'stoppage']) {
-    const { calls, deps } = plannerSpy();
-    const out = await slideout.performDrop(busBooking('BUS_MECHANICAL', 2, status), HILUX, 9, deps);
-    assert.equal(out.outcome, 'blocked-live');
-    assert.equal(calls.move.length, 0, 'nothing is called');
-    assert.equal(calls.station, 0, 'station data is not even loaded');
-    assert.match(calls.messages[0].text, /can't go to a bay that breaks the bay rule from here\. Use the planner\./);
-    const ok = plannerSpy();
-    const allowed = await slideout.performDrop(busBooking('BUS_MECHANICAL', 2, status), HILUX, 4, ok.deps);
-    assert.equal(allowed.outcome, 'moved');
-    assert.deepEqual(ok.calls.move, [['plan-syn-1', 'BUS_4X4', 4, '2026-10-23', 210]], 'moveWorkshopDroppedPlan routes started jobs to its live-move confirm');
-  }
-  const coaster = plannerSpy();
-  assert.equal((await slideout.performDrop(busBooking('BUS_MECHANICAL', 2, 'started'), COASTER, 3, coaster.deps)).outcome, 'blocked-live', 'started Coaster into Bay 3');
-});
-
-test('station data not ready: the planner opens on the booking (Option B) and nothing is moved', async () => {
-  const { calls, deps } = plannerSpy({ entry: null });
-  const out = await slideout.performDrop(busBooking('BUS_ELECTRICAL', 9), HILUX, 8, deps);
-  assert.equal(out.outcome, 'fallback-planner');
-  assert.equal(calls.move.length, 0);
-  assert.deepEqual(calls.fallback.map(f => [f.booking, f.bay]), [['syn-BUS_ELECTRICAL-9-planned', 8]]);
-  const throwing = plannerSpy();
-  throwing.deps.stationEntry = async () => { throw new Error('offline'); };
-  assert.equal((await slideout.performDrop(busBooking('BUS_ELECTRICAL', 9), HILUX, 8, throwing.deps)).outcome, 'fallback-planner');
-  const missing = plannerSpy();
-  missing.deps.moveWorkshopDroppedPlan = null;
-  assert.equal((await slideout.performDrop(busBooking('BUS_ELECTRICAL', 9), HILUX, 8, missing.deps)).outcome, 'fallback-planner');
-});
-
-test('the panel reads the planner\'s drop function and date helpers only after the station data has loaded', async () => {
-  // The planner modules arrive inside stationEntry(); capturing them before that would always fall back to Option B.
-  const src = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8');
-  assert.match(src, /get moveWorkshopDroppedPlan\(\) \{ return typeof root\.moveWorkshopDroppedPlan === 'function'/);
-  assert.match(src, /workshopDateKey: when => root\.workshopDateKey\(when\), workshopMinuteOffset: when => root\.workshopMinuteOffset\(when\)/);
-  let loaded = null; const calls = [];
-  const deps = { departments: plannerSpy().deps.departments, message: () => {}, openInPlanner: () => calls.push('planner'),
-    helpers: { workshopDateKey: d => loaded.dateKey(d), workshopMinuteOffset: d => loaded.offset(d) },
-    stationEntry: async () => { loaded = { dateKey: () => '2026-10-23', offset: () => 270, move: (...a) => { calls.push(a); return true; } };
-      return { id: 'plan-syn-9', startAt: '2026-10-23T02:30:00Z' }; },
-    get moveWorkshopDroppedPlan() { return loaded ? loaded.move : null; } };
-  const out = await slideout.performDrop(busBooking('BUS_MECHANICAL', 1), HILUX, 5, deps);
-  assert.equal(out.outcome, 'moved');
-  assert.deepEqual(calls, [['plan-syn-9', 'BUS_4X4', 5, '2026-10-23', 270]]);
-});
-
-test('same bay, fixed jobs and empty drops call nothing', async () => {
-  const { calls, deps } = plannerSpy();
-  assert.equal((await slideout.performDrop(busBooking('BUS_ELECTRICAL', 9), HILUX, 9, deps)).outcome, 'same-bay');
-  assert.equal((await slideout.performDrop(busBooking('BUS_ELECTRICAL', 9, 'completed'), HILUX, 8, deps)).outcome, 'fixed');
-  assert.equal((await slideout.performDrop({ ...busBooking('', 0), stage: 'PIT_INSPECTION' }, HILUX, 1, deps)).outcome, 'fixed');
-  assert.equal((await slideout.performDrop({ ...busBooking('', 0), stage: 'SUBLET' }, HILUX, 1, deps)).outcome, 'fixed');
-  assert.equal((await slideout.performDrop(busBooking('BUS_ELECTRICAL', 9), HILUX, 0, deps)).outcome, 'none');
-  assert.equal(calls.move.length + calls.station + calls.fallback.length, 0);
-});
-
-test('bookings come from the vehicle\'s Workshop detail (category, version), else the board', () => {
-  const detail = { bookings: [{ booking_id: 'b1', booking_version: 4, work_category: 'BUS_QA', stage_code: 'BUS_4X4', stage_name: 'Bus 4x4', bay_number: 7, status: 'planned', scheduled_start_at: 'x', scheduled_end_at: 'y', default_duration_minutes: 90 }] };
-  assert.deepEqual(slideout.bookingsFrom(detail, {}), [{ id: 'b1', version: 4, stage: 'BUS_4X4', stageName: 'Bus 4x4', bay: 7, status: 'planned', start: 'x', end: 'y', category: 'BUS_QA', minutes: 90, source: 'detail' }]);
-  const board = slideout.bookingsFrom(null, { salesWorkshopBookings: [{ bookingId: 'b2', stageCode: 'FITTING', bayName: 'Bay 03', status: 'started', scheduledStartAt: 's' }] });
-  assert.equal(board[0].bay, 3);
-  assert.equal(board[0].category, '');
-  assert.equal(board[0].source, 'board');
-});
+// r463 (F76): the r462 bay-guide, drag-handle, drop, Option A/B and bookings tests are withdrawn with the feature
+// (Craig, 22 Oct 09:03). test_vehicle_locations_463.js proves the panel has no drag and never calls the planner.
 
 // ---------------- Safety, scope, loader ----------------
 test('the panel never calls an RPC or fetch itself and writes nothing to storage', () => {
   const source = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(source, /\bfetch\s*\(|\.rpc\s*\(|XMLHttpRequest|sendBeacon|localStorage|sessionStorage|\beval\s*\(|new Function/);
-  assert.doesNotMatch(source, /__workshopSharedActions|administratorMoveBooking|moveBooking\(|mutate\(/, 'moves only through moveWorkshopDroppedPlan');
-  assert.match(source, /root\.moveWorkshopDroppedPlan\(\.\.\.args\)/);
+  assert.doesNotMatch(source, /__workshopSharedActions|administratorMoveBooking|moveBooking\(|mutate\(|moveWorkshopDroppedPlan/, 'r463: the panel moves nothing');
   assert.doesNotMatch(source, /deleteIncomingVehicleFromMain\(|completeVehicle|markVehicleComplete/, 'never calls delete / complete itself');
   const tableSource = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.doesNotMatch(tableSource, /\beval\s*\(|new Function|\.rpc\(|fetch\(/);
@@ -281,10 +149,10 @@ test('the panel never calls an RPC or fetch itself and writes nothing to storage
 test('panel CSS is scoped to the panel: the Drop-down view card and station cells are untouched', () => {
   const css = fs.readFileSync('pdc-vehicle-slideout.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
-  assert.ok(rules.length > 40);
+  assert.ok(rules.length > 20);
   for (const [selector, body] of rules) {
     for (const part of selector.split(',').map(s => s.trim())) {
-      assert.match(part, /^(#vso-shell\b|\.vso-ghost\b|\.vso-target-bay\b)/, `${part} is scoped to the panel`);
+      assert.match(part, /^#vso-shell\b/, `${part} is scoped to the panel`);
     }
     if (/incoming-work-check|incoming-work-box|parts-jita|pdc-station-strip|pdc-sublet-po|badge/.test(selector)) {
       assert.doesNotMatch(body, /(^|;|\s)(color|background(-color|-image)?|border(-\w+)?-color|opacity|content)\s*:/, `${selector} must not change colours or symbols`);
@@ -299,7 +167,7 @@ test('panel CSS is scoped to the panel: the Drop-down view card and station cell
   assert.match(js, /if \(!span\.title\) span\.title = full;/, 'title tooltip');
   assert.match(js, /li\.tabIndex = 0/, 'keyboard focus shows it');
   for (const locked of ['styles.css', 'app.js', 'pdc-operation-panels.js']) {
-    assert.doesNotMatch(fs.readFileSync(locked, 'utf8'), /vso-|r462/, `${locked} untouched`);
+    assert.doesNotMatch(fs.readFileSync(locked, 'utf8'), /vso-|r462|r463/, `${locked} untouched`);
   }
 });
 
@@ -325,13 +193,13 @@ test('loading both modules leaves the Drop-down view render byte-for-byte unchan
 
 test('loader: slide-out loads after the table module; cache-bust tags; runtime files; pdc-auto-reload.js first', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
-  assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461&r462=2026\.10\.22\.r462/);
+  assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461&r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463/);
   assert.match(entry, /table\.onload = loadVehicleSlideout;/);
-  assert.match(entry, /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r462/);
+  assert.match(entry, /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r463/);
   assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /pdc-vehicle-slideout\.css\?vehicle-slideout=\$\{VERSION\}/);
-  assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /const VERSION = '2026\.10\.22\.r462'/);
+  assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /const VERSION = '2026\.10\.22\.r463'/);
   const html = fs.readFileSync('index.html', 'utf8');
-  assert.match(html, /canonical-entry\.js\?[^"]*r462=2026\.10\.22\.r462/);
+  assert.match(html, /canonical-entry\.js\?[^"]*r462=2026\.10\.22\.r462&amp;r463=2026\.10\.22\.r463/);
   const scripts = [...html.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]);
   assert.match(scripts[0], /^pdc-auto-reload\.js/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-vehicle-slideout\.js', 'pdc-vehicle-slideout\.css'/);

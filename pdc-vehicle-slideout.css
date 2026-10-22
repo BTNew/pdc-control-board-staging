@@ -1,7 +1,7 @@
-/* r462 (F75): Vehicle slide-out panel (pdc-vehicle-slideout.js). Loaded only by that module, used only in Table view.
-   Every rule is scoped to #vso-shell (or the drag ghost / planner target outline this module adds), so the Drop-down view
-   and its cards are unchanged. Sales-dashboard type and spacing as r461. No rule changes a station cell's colour, symbol
-   or tooltip: those come from styles.css exactly as on the board. */
+/* r462 (F75) / r463 (F76): Vehicle slide-out panel (pdc-vehicle-slideout.js). Loaded only by that module, used only in
+   Table view. Every rule is scoped to #vso-shell, so the Drop-down view and its cards are unchanged. No rule changes a
+   station cell's colour, symbol or tooltip: those come from styles.css exactly as on the board.
+   r463: the r462 Jobs & bookings / drag-to-bay rules are removed with the feature (Craig, 22 Oct 09:03). */
 #vso-shell { font-family: Arial, Helvetica, sans-serif; color: #142334; }
 #vso-shell .vso-scrim { position: fixed; inset: 0; background: #14233433; opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 70; }
 #vso-shell .vso-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(820px, 62vw); background: #fff; border-left: 1px solid #e1e7ef; box-shadow: -14px 0 34px #1d2a3833;
@@ -26,67 +26,7 @@
 #vso-shell .vso-body { overflow-y: auto; overflow-x: hidden; padding: 8px 14px 28px; flex: 1 1 auto; }
 /* summary row of the existing card (station strip, ETA, status, booking buttons): r461 .vlt-drawer-card rules apply */
 #vso-shell .vso-card > summary { padding: 4px 0 8px !important; border-bottom: 1px solid #eef2f7; }
-#vso-shell .vso-section-title { display: flex; align-items: baseline; gap: 10px; margin: 10px 0 5px; }
-#vso-shell .vso-section-title span { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #677d9b; }
-#vso-shell .vso-section-title small { font-size: 10px; color: #8294aa; }
-#vso-shell .vso-jobs { border: 1px solid #e1e7ef; border-radius: 12px; padding: 0 10px 6px; margin: 8px 0 4px; background: #fff; }
-#vso-shell .vso-group { border-top: 1px solid #eef2f7; padding: 3px 0; }
-#vso-shell .vso-group:first-of-type { border-top: 0; }
-#vso-shell .vso-group > header { display: flex; align-items: center; gap: 8px; min-height: 24px; font-size: 11px; }
-#vso-shell .vso-group > header strong { font-size: 11px; min-width: 76px; }
-#vso-shell .vso-group > header span { color: #4a5d75; }
-#vso-shell .vso-group > header small { margin-left: auto; color: #8294aa; font-size: 10px; }
-#vso-shell .vso-booking { display: grid; grid-template-columns: 18px 92px 168px minmax(0, 1fr) 54px 70px 74px; align-items: center; gap: 6px; height: 30px; padding: 0 6px; margin: 2px 0 2px 10px;
-  border: 1px solid #e4eaf2; border-radius: 8px; background: #fbfcfe; font-size: 11px; }
-#vso-shell .vso-booking > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#vso-shell .vso-booking.is-dragging { opacity: .45; border-style: dashed; }
-#vso-shell .vso-grip { cursor: grab; color: #61728a; font-size: 14px; text-align: center; user-select: none; touch-action: none; }
-#vso-shell .vso-grip.is-fixed { cursor: not-allowed; color: #c3ccd8; }
-#vso-shell .vso-cat { font-weight: 700; }
-#vso-shell .vso-bay { color: #314458; }
-#vso-shell .vso-when { color: #4a5d75; font-size: 10.5px; }
-#vso-shell .vso-hrs { text-align: right; color: #314458; }
-#vso-shell .vso-tech { color: #8294aa; font-size: 10.5px; }
-#vso-shell .vso-status { justify-self: end; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 10px; border: 1px solid transparent; }
-#vso-shell .vso-status.booked { background: #fff6dd; color: #8a5a00; border-color: #f4d98f; }
-#vso-shell .vso-status.started { background: #e8f1ff; color: #1d4f91; border-color: #b9d2f5; }
-#vso-shell .vso-status.stoppage { background: #ffe8ec; color: #b4123a; border-color: #f5b5c3; }
-#vso-shell .vso-status.done { background: #e9f9ef; color: #17713b; border-color: #b7e6c8; }
-#vso-shell .vso-status.queued { background: #f0f3f6; color: #4a5d75; border-color: #dce3ec; }
-#vso-shell .vso-bayboard-slot { position: sticky; top: -8px; z-index: 5; }
-#vso-shell .vso-bayboard { border: 1px solid #c9d6e6; border-radius: 12px; padding: 0 10px 10px; margin: 6px 0; background: #f7faff; box-shadow: 0 8px 18px #1d2a3818; }
-#vso-shell .vso-bay-grid { display: grid; grid-template-columns: repeat(var(--vso-cols, 5), minmax(0, 1fr)); gap: 6px; }
-#vso-shell .vso-bay-tile { border: 1px solid #dfe5ed; border-left: 4px solid #dce3ec; border-radius: 10px; padding: 6px 8px; height: 50px; box-sizing: border-box; background: #fff; overflow: hidden; }
-#vso-shell .vso-bay-tile strong { display: block; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#vso-shell .vso-bay-tile span { display: block; font-size: 10px; margin-top: 2px; font-weight: 700; }
-#vso-shell .vso-bay-tile small { display: block; font-size: 9px; color: #8294aa; }
-#vso-shell .vso-bay-tile.is-ok { border-left-color: #22a35a; } #vso-shell .vso-bay-tile.is-ok span { color: #17713b; }
-#vso-shell .vso-bay-tile.is-warn { border-left-color: #e59a0b; background: #fffaf0; } #vso-shell .vso-bay-tile.is-warn span { color: #9a5b00; }
-#vso-shell .vso-bay-tile.is-current { border-left-color: #8294aa; background: #f0f3f6; } #vso-shell .vso-bay-tile.is-current span { color: #4a5d75; }
-#vso-shell .vso-bay-tile.is-hover { outline: 2px solid #246fad; outline-offset: 1px; box-shadow: 0 6px 14px #246fad33; }
-.vso-ghost { position: fixed; left: 0; top: 0; z-index: 90; pointer-events: none; font: 700 11px Arial, Helvetica, sans-serif; color: #fff; background: #142334; border-radius: 8px; padding: 6px 10px; box-shadow: 0 8px 20px #14233455; }
-#vso-shell .vso-toast { position: absolute; left: 14px; right: 14px; bottom: 12px; background: #142334; color: #fff; font-size: 11px; line-height: 1.4; padding: 8px 12px; border-radius: 10px; box-shadow: 0 8px 20px #14233444; }
-#vso-shell .vso-toast code, #vso-shell .vso-dialog code { font-size: 10px; background: #ffffff1f; padding: 0 3px; border-radius: 3px; }
-#vso-shell .vso-dialog-overlay { position: fixed; inset: 0; z-index: 95; background: #14233455; display: grid; place-items: center; }
-#vso-shell .vso-dialog { width: min(470px, 92vw); background: #fff; border-radius: 12px; box-shadow: 0 18px 50px #14233466; padding: 14px 16px 12px; font-family: Arial, Helvetica, sans-serif; }
-#vso-shell .vso-dialog h4 { margin: 0 0 8px; font-size: 13px; }
-#vso-shell .vso-dialog pre { white-space: pre-wrap; font: 12px/1.45 Arial, Helvetica, sans-serif; margin: 0 0 10px; color: #142334; }
-#vso-shell .vso-dialog-note { font-size: 10px; line-height: 1.45; color: #61728a; background: #f6f8fb; border-radius: 8px; padding: 6px 8px; margin: 0 0 10px; }
-#vso-shell .vso-dialog-note code { background: #e8edf4; }
-#vso-shell .vso-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; }
-#vso-shell .vso-dialog-actions button { min-width: 72px; height: 28px; border-radius: 14px; border: 1px solid #c9d3df; background: #fff; font: 700 11px Arial, Helvetica, sans-serif; cursor: pointer; }
-#vso-shell .vso-dialog-actions button.primary { background: #246fad; color: #fff; border-color: #246fad; }
-
-#vso-shell .vso-bay-tile.is-blocked { border-left-color: #c2183c; background: #fff5f7; } #vso-shell .vso-bay-tile.is-blocked span { color: #b4123a; }
-#vso-shell.is-busy .vso-panel { cursor: progress; }
-#vso-shell .vso-toast { display: flex; align-items: center; gap: 10px; z-index: 6; }
-#vso-shell .vso-toast[hidden] { display: none; }
-#vso-shell .vso-toast > span { flex: 1 1 auto; }
-#vso-shell .vso-toast button { flex: 0 0 auto; height: 24px; padding: 0 10px; border-radius: 12px; border: 1px solid #ffffff66; background: #ffffff1f; color: #fff; font: 700 10.5px Arial, Helvetica, sans-serif; cursor: pointer; }
-#vso-shell .vso-empty { font-size: 11px; color: #8294aa; margin: 6px 0; }
 #vso-shell .vso-parity { position: fixed; left: -12000px; top: 0; width: min(820px, 62vw); visibility: hidden; pointer-events: none; }
-.vso-target-bay { outline: 3px solid #246fad !important; outline-offset: -3px; box-shadow: inset 0 0 0 9999px #246fad14 !important; }
-
 /* Craig 22 Oct 08:07: operations section. Category panels full width and stacked; each line one row (PD line,
    description, hours, GP/PO chips); a long description is cut with an ellipsis and shows in full on hover / focus.
    Only layout changes here; chips, icons, ticks and colours keep their own rules. */
