@@ -59,17 +59,18 @@ test('bug 1 reproduced and fixed: every row has its own Job Card cell; Stock sho
 test('Job Card shows for people who already saved r461 / r462 settings (view, widths) and can never be 0 wide or hidden', () => {
   const storage = memoryStorage();
   table.writeView(storage, 'user-a', 'table'); // r461 view switch key
-  storage.setItem('pdc.vehicle-locations-columns.v1:user-a', JSON.stringify({ key: 50, stock: 120, cust: 150, ploc: 70 })); // r462 widths, no "job"
+  storage.setItem('pdc.vehicle-locations-columns.v2:user-a', JSON.stringify({ key: 50, stock: 120, cust: 150, ploc: 70 })); // saved widths with no "job" (r476: v2 key)
   assert.equal(table.readView(storage, 'user-a'), 'table');
   const widths = table.readWidths(storage, 'user-a');
   assert.equal(widths.job, undefined, 'no saved width: the default applies');
   const css = table.widthStyle(widths);
   assert.doesNotMatch(css, /--vlt-w-job/);
-  assert.match(css, new RegExp(`--vlt-table-min:${26 + 50 + 120 + 104 + 150 + 132 + 70 + 282 + 72 + 104 + 176}px`), 'table minimum includes the Job Card default width');
+  const C = table.COLUMNS; // r476 (F89): new defaults, no select column when no row has a checkbox
+  assert.match(css, new RegExp(`--vlt-table-min:${50 + 120 + C.job.width + 150 + C.unit.width + 70 + C.work.width + C.age.width + C.status.width + C.action.width}px`), 'table minimum includes the Job Card default width');
   assert.deepEqual(table.sanitizeWidths({ job: 0 }), {}, 'a 0 width is ignored');
   assert.deepEqual(table.sanitizeWidths({ job: 5 }), { job: 64 }, 'below the minimum: the minimum');
   const sheet = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
-  assert.match(sheet, /col\.c-job \{ width: var\(--vlt-w-job, 104px\); \}/);
+  assert.match(sheet, new RegExp(`col\\.c-job \\{ width: var\\(--vlt-w-job, ${C.job.width}px\\); \\}`));
   const rules = [...sheet.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(m => [m[1].trim(), m[2]]);
   for (const [selector, body] of rules.filter(([selector]) => /\.c-job(\s*[,{]|$)|col\.c-job|th\.c-job|td\.c-job$/.test(selector))) {
     assert.doesNotMatch(body, /display:\s*none|(^|;|\s)width:\s*0|visibility:\s*hidden/, `${selector}: no rule (any screen width) hides the Job Card column`);
@@ -146,7 +147,7 @@ test('loader: r463 cache-bust tags; pdc-auto-reload.js stays first; no real stoc
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /r463=2026\.10\.22\.r463/);
   assert.match([...html.matchAll(/<script[^>]*src="([^"]+)"/g)][0][1], /^pdc-auto-reload\.js/);
-  assert.equal(table.VERSION, '2026.10.22.r463');
+  assert.equal(table.VERSION, '2026.10.22.r476'); // r476 (F89) bumped the table module
   assert.match(slideout.VERSION, /^2026\.10\.22\.r4[67]3$/);
   const text = fs.readFileSync(__filename, 'utf8');
   assert.doesNotMatch(text, /\b1[23]\d{6}\b|\bJ13[89]\d{6}\b/);

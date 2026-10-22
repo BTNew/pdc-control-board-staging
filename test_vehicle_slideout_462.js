@@ -86,9 +86,10 @@ test('column widths: saved per signed-in user on this device, like the view swit
   assert.equal(table.writeWidths(storage, 'user-a', { cust: 180, unit: 210 }), true);
   assert.deepEqual(table.readWidths(storage, 'user-a'), { cust: 180, unit: 210 });
   assert.deepEqual(table.readWidths(storage, 'user-b'), {}, 'another person on this device keeps their own widths');
-  assert.equal(storage.store.get('pdc.vehicle-locations-columns.v1:user-a'), '{"cust":180,"unit":210}');
-  assert.equal(table.columnStorageKey(''), 'pdc.vehicle-locations-columns.v1:signed-out');
-  storage.setItem('pdc.vehicle-locations-columns.v1:user-c', '{not json');
+  // r476 (F89): the key moved to v2 so r462-era saved widths do not hide the new defaults.
+  assert.equal(storage.store.get('pdc.vehicle-locations-columns.v2:user-a'), '{"cust":180,"unit":210}');
+  assert.equal(table.columnStorageKey(''), 'pdc.vehicle-locations-columns.v2:signed-out');
+  storage.setItem('pdc.vehicle-locations-columns.v2:user-c', '{not json');
   assert.deepEqual(table.readWidths(storage, 'user-c'), {}, 'broken value: defaults');
   const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); }, removeItem() { throw new Error('blocked'); } };
   assert.deepEqual(table.readWidths(broken, 'user-a'), {});
@@ -97,7 +98,7 @@ test('column widths: saved per signed-in user on this device, like the view swit
 
 test('column widths: sensible minimums, a maximum, unknown columns dropped; the station column never shrinks', () => {
   const clean = table.sanitizeWidths({ key: 1, stock: 10, cust: 9999, unit: 'abc', ploc: 50.6, work: 100, status: -5, nope: 300, action: Infinity });
-  assert.deepEqual(clean, { key: 30, stock: 56, cust: 520, ploc: 51, work: 282 });
+  assert.deepEqual(clean, { key: 30, stock: 56, cust: 520, ploc: 51, work: table.COLUMNS.work.min }); // r476: station minimum 276
   for (const [key, col] of Object.entries(table.COLUMNS)) {
     assert.ok(col.min >= 30 && col.min <= col.width, `${key}: minimum ${col.min} is at most its default ${col.width}`);
   }
@@ -105,25 +106,27 @@ test('column widths: sensible minimums, a maximum, unknown columns dropped; the 
   assert.ok(table.COLUMNS.work.min >= 9 * 27 + 8 * 3 + 8, 'room for 9 cells, 8 gaps and the cell padding');
 });
 
-test('column widths: CSS variables keep pinned Key / Stock aligned; defaults equal the r461 widths; reset clears', () => {
-  assert.equal(table.widthStyle({}), '', 'no saved widths: no inline style at all (r461 layout exactly)');
+test('column widths: CSS variables keep pinned Key / Stock aligned; defaults equal the r476 widths; reset clears', () => {
+  assert.equal(table.widthStyle({}), '', 'no saved widths and no layout: no inline style at all');
   const css = table.widthStyle({ key: 50, cust: 150 });
   assert.match(css, /--vlt-w-key:50px/);
   assert.match(css, /--vlt-w-cust:150px/);
-  assert.match(css, /--vlt-left-key:26px/);
-  assert.match(css, /--vlt-left-stock:76px/, 'Stock pins right after the wider Key column');
-  const total = 26 + 50 + 92 + 104 + 150 + 132 + 66 + 282 + 72 + 104 + 176; // r463 adds Job Card (104)
+  assert.match(css, /--vlt-left-key:0px/, 'r476: no select column when no row has a checkbox');
+  assert.match(css, /--vlt-left-stock:50px/, 'Stock pins right after the wider Key column');
+  const C = table.COLUMNS;
+  const total = 50 + C.stock.width + C.job.width + 150 + C.unit.width + C.ploc.width + C.work.width + C.age.width + C.status.width + C.action.width;
   assert.match(css, new RegExp(`--vlt-table-min:${total}px`));
   const sheet = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
   for (const [key, col] of Object.entries(table.COLUMNS)) {
-    assert.match(sheet, new RegExp(`col\\.c-${key} \\{ width: var\\(--vlt-w-${key}, ${col.width}px\\); \\}`), `${key} default is the r461 width`);
+    const fallback = col.flex ? `var\\(--vlt-flex-${key}, ${col.width}px\\)` : `${col.width}px`; // r476: flex columns take the spare width
+    assert.match(sheet, new RegExp(`col\\.c-${key} \\{ width: var\\(--vlt-w-${key}, ${fallback}\\); \\}`), `${key} default is the r476 width`);
   }
-  assert.match(sheet, /\.c-key \{ left: var\(--vlt-left-key, 26px\); \}/);
-  assert.match(sheet, /\.c-stock \{ left: var\(--vlt-left-stock, 64px\);/);
+  assert.match(sheet, /\.c-key \{ left: var\(--vlt-left-key, 0px\); \}/);
+  assert.match(sheet, new RegExp(`\\.c-stock \\{ left: var\\(--vlt-left-stock, ${C.key.width}px\\);`));
   const storage = memoryStorage();
   table.writeWidths(storage, 'user-a', { cust: 200 });
   assert.equal(table.resetWidths(storage, 'user-a'), true);
-  assert.equal(storage.store.has('pdc.vehicle-locations-columns.v1:user-a'), false, 'Reset columns removes the saved widths');
+  assert.equal(storage.store.has('pdc.vehicle-locations-columns.v2:user-a'), false, 'Reset columns removes the saved widths');
   assert.deepEqual(table.readWidths(storage, 'user-a'), {});
   table.writeWidths(storage, 'user-a', {});
   assert.equal(storage.store.size, 0, 'saving nothing removes the key');

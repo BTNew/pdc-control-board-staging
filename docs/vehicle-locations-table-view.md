@@ -83,3 +83,43 @@ background, border colour, opacity, filter or content.
 
 Revert the PR. Until then, anyone can press **Drop-down view** (the default for
 everyone who has not switched).
+
+## r476 (F89): columns bunched up (Craig, 22 Oct 2026 10:56 AWST)
+
+Display only, Table view only. Before r476 every column, fixed ones too, was
+stretched in proportion to fill a wide screen (`table-layout: fixed` spreads
+spare width over every column), so Key, Stock, Job Card, Parts loc, Stations and
+Age / ETA had large empty gaps at 1920 px, and at 1366 px the table was wider
+than the screen (horizontal scroll).
+
+| Column | Default | Kind |
+|---|---|---|
+| Select (first, unlabelled) | 0 px, 22 px when a row on screen has a checkbox | — |
+| Key | 42 px | fixed |
+| Stock | 82 px | fixed |
+| Job Card | 78 px (stacked job cards ellipsis, full text on hover) | fixed |
+| Customer | 104 px base, weight 1 | flex |
+| Vehicle | 112 px base, weight 1 | flex |
+| Parts loc | 60 px (heading wraps to two lines) | fixed |
+| Stations | 276 px (9 × 27 px cells, 8 × 3 px gaps, padding) | fixed |
+| Age / ETA | 72 px | fixed |
+| Status | 112 px base, weight 1.2 | flex |
+| Booking | 160 px base, weight 0.4 | flex |
+
+* Flex columns get their base plus a weighted share of the spare width
+  (`layoutWidths()`), recomputed when the table area changes size. The bases add
+  up to exactly the 1,098 px table area of a 1366 px screen with the side menu.
+* **The left gap** Craig marked is the drop-down card's own multi-select checkbox
+  cell (`.incoming-card-select`, app.js). Editable vehicles get a checkbox there
+  (bulk selection bar); read-only email / Navision vehicles get an empty
+  placeholder, so on today's board the whole column is empty. It now takes 0 px
+  unless a row on screen has a checkbox (then 22 px). The cell stays in the
+  markup, so parity is unchanged.
+* Station headings: 7.5 px labels, "Parts Jita" on one line.
+* Saved widths move to `pdc.vehicle-locations-columns.v2:<user id>`. r462-era v1
+  widths were saved as rendered widths (often the stretched widths of a wide
+  screen) and would otherwise hide the new defaults. v1 values stay on the
+  device untouched, so reverting r476 brings them back. **Reset columns** clears
+  v2 and restores these defaults; a dragged width still applies and fixes that
+  column.
+* Undo: revert the r476 commit.

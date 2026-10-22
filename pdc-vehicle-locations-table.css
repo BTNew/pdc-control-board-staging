@@ -65,12 +65,19 @@ body.vlt-table-on .vlt-slim-bar [data-pdc-refresh-control] { display: none !impo
 .vlt-panel-header .work-status-legend > strong { font-size: 9px !important; text-transform: uppercase; color: #677d9b; white-space: nowrap; }
 .vlt-panel-header .work-status-key { flex: 0 0 auto !important; padding: 2px 7px !important; min-height: 0 !important; height: auto !important; font-size: 10px !important; border-radius: 10px !important; white-space: nowrap; min-width: 0 !important; width: auto !important; }
 .vlt-table-wrap { overflow: auto; max-height: calc(100vh - 300px); min-height: 160px; }
-.vlt-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: 1060px; font-size: 11px; }
-/* r462: widths come from CSS variables that the column resize sets on the table; the fallbacks are the r461 widths. */
-.vlt-table.has-custom-widths { min-width: var(--vlt-table-min, 1060px); }
-.vlt-table col.c-sel { width: 26px; } .vlt-table col.c-key { width: var(--vlt-w-key, 38px); } .vlt-table col.c-stock { width: var(--vlt-w-stock, 92px); } .vlt-table col.c-job { width: var(--vlt-w-job, 104px); }
-.vlt-table col.c-cust { width: var(--vlt-w-cust, 104px); } .vlt-table col.c-unit { width: var(--vlt-w-unit, 132px); } .vlt-table col.c-ploc { width: var(--vlt-w-ploc, 66px); }
-.vlt-table col.c-work { width: var(--vlt-w-work, 282px); } .vlt-table col.c-age { width: var(--vlt-w-age, 72px); } .vlt-table col.c-status { width: var(--vlt-w-status, 104px); } .vlt-table col.c-action { width: var(--vlt-w-action, 176px); }
+.vlt-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; min-width: var(--vlt-table-min, 1098px); font-size: 11px; }
+/* r462: widths come from CSS variables that the column resize sets on the table.
+   r476 (F89): tight fixed defaults for Key, Stock, Job Card, Parts loc, Stations and Age / ETA. Customer, Vehicle,
+   Status and Booking take the spare width (--vlt-flex-* from layoutWidths() in the JS); a saved width wins. The select
+   column is 0 px unless a row on screen has a select checkbox (--vlt-w-sel, 22 px). */
+.vlt-table col.c-sel { width: var(--vlt-w-sel, 0px); } .vlt-table col.c-key { width: var(--vlt-w-key, 42px); } .vlt-table col.c-stock { width: var(--vlt-w-stock, 82px); } .vlt-table col.c-job { width: var(--vlt-w-job, 78px); }
+.vlt-table col.c-cust { width: var(--vlt-w-cust, var(--vlt-flex-cust, 104px)); } .vlt-table col.c-unit { width: var(--vlt-w-unit, var(--vlt-flex-unit, 112px)); } .vlt-table col.c-ploc { width: var(--vlt-w-ploc, 60px); }
+.vlt-table col.c-work { width: var(--vlt-w-work, 276px); } .vlt-table col.c-age { width: var(--vlt-w-age, 72px); } .vlt-table col.c-status { width: var(--vlt-w-status, var(--vlt-flex-status, 112px)); } .vlt-table col.c-action { width: var(--vlt-w-action, var(--vlt-flex-action, 160px)); }
+.vlt-table:not(.has-select) .c-sel { padding: 0; border-right: 0; }
+.vlt-table:not(.has-select) .c-sel > * { display: none !important; }
+.vlt-table.has-select td.c-sel { padding: 0 2px; }
+/* Narrow fixed columns: a long heading wraps onto two lines inside its own cell instead of being cut or overlapping. */
+.vlt-table th.c-ploc .incoming-sort-heading, .vlt-table th.c-age .incoming-sort-heading, .vlt-table th.c-job .incoming-sort-heading { white-space: normal; max-width: 100%; line-height: 1.1; text-align: left; }
 .vlt-table th { background: #f8faff; border-bottom: 1px solid #e4eaf2; border-right: 1px solid #e4eaf2; padding: 4px 5px 3px; height: 39px; box-sizing: border-box; vertical-align: bottom; text-align: left; font-size: 9px; font-weight: 700; text-transform: uppercase; color: #677d9b; position: sticky; top: 0; z-index: 2; line-height: 1.15; white-space: nowrap; overflow: hidden; }
 .vlt-table th .incoming-sort-heading { border: 0; background: none; padding: 0; color: inherit; font: inherit; text-transform: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
 .vlt-table td { border-bottom: 1px solid #e4eaf2; border-right: 1px solid #e4eaf2; height: 32px; max-height: 32px; box-sizing: border-box; padding: 0 5px; vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; line-height: 1.15; }
@@ -82,7 +89,7 @@ body.vlt-table-on .vlt-slim-bar [data-pdc-refresh-control] { display: none !impo
 .vlt-table tbody tr:focus-visible { outline: 2px solid #246fad; outline-offset: -2px; }
 .vlt-table .c-sel, .vlt-table .c-key, .vlt-table .c-stock { position: sticky; z-index: 1; background: #fff; }
 .vlt-table th.c-sel, .vlt-table th.c-key, .vlt-table th.c-stock { z-index: 3; background: #f8faff; }
-.vlt-table .c-sel { left: 0; } .vlt-table .c-key { left: var(--vlt-left-key, 26px); } .vlt-table .c-stock { left: var(--vlt-left-stock, 64px); box-shadow: inset -1px 0 #e4eaf2; }
+.vlt-table .c-sel { left: 0; } .vlt-table .c-key { left: var(--vlt-left-key, 0px); } .vlt-table .c-stock { left: var(--vlt-left-stock, 42px); box-shadow: inset -1px 0 #e4eaf2; }
 /* r462: header edge grips for column resize; 7 px hit area on the right border of each header cell. */
 .vlt-table th .vlt-col-resize { position: absolute; top: 0; right: -3px; width: 7px; height: 100%; cursor: col-resize; z-index: 4; touch-action: none; }
 .vlt-table th .vlt-col-resize::after { content: ''; position: absolute; top: 8px; bottom: 8px; left: 3px; width: 1px; background: transparent; }
@@ -129,6 +136,9 @@ body.vlt-resizing, body.vlt-resizing * { cursor: col-resize !important; user-sel
 .vlt-table th.c-work { padding: 0 4px 3px; vertical-align: bottom; overflow: visible; }
 .vlt-table th.c-work .pdc-grid-stations-heading { display: grid !important; grid-template-columns: repeat(9, 27px) !important; gap: 3px !important; width: auto !important; position: static !important; margin: 0 !important; padding: 0 !important; height: 36px; align-items: end; }
 .vlt-table th.c-work .pdc-grid-stations-heading > * { font-size: 8px !important; min-width: 0 !important; width: 27px !important; white-space: nowrap; transform-origin: left bottom; }
+/* r476 (F89): smaller angled station labels; "Parts Jita" on one line so it fits its 27 px column (label text unchanged). */
+.vlt-table th.c-work .pdc-grid-stations-heading > * > span { font-size: 7.5px !important; left: 5px !important; bottom: 2px !important; }
+.vlt-table th.c-work .pdc-grid-station-parts > span::after { display: inline !important; margin: 0 0 0 2px !important; }
 /* RFT rows: their controls (QC'd, Mark RFT'd, email, collected) as compact pills in the station column */
 .vlt-table td.c-work.is-rft > * { display: flex !important; gap: 3px !important; flex-wrap: nowrap !important; align-items: center; overflow: hidden; }
 .vlt-table td.c-work.is-rft * { flex-wrap: nowrap !important; }
@@ -167,7 +177,7 @@ body.vlt-resizing, body.vlt-resizing * { cursor: col-resize !important; user-sel
   .vlt-tile { padding: 8px 6px 7px; border-radius: 10px; height: 64px; }
   .vlt-tile strong { font-size: 17px; }
   .vlt-table { min-width: 860px; }
-  .vlt-table col.c-cust { width: var(--vlt-w-cust, 92px); } .vlt-table col.c-unit { width: var(--vlt-w-unit, 112px); } .vlt-table col.c-status { width: 0; } .vlt-table .c-status { display: none; }
+  .vlt-table col.c-status { width: 0; } .vlt-table .c-status { display: none; } /* r476: Customer / Vehicle flex here too */
   .vlt-panel-header .work-status-legend { display: none !important; }
   #vlt-nav-status { flex-basis: 220px; }
   .vlt-drawer { width: min(700px, 70vw); }
