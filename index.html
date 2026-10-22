@@ -32,6 +32,7 @@
   <script src="pdc-estimated-hours.js?v=2026.09.14.01" defer></script>
   <link rel="stylesheet" href="pdc-planner-capacity.css?v=2026.09.14.01">
 <link rel="stylesheet" href="pdc-emergency-priority.css?v=2026.09.15.01">
+<link rel="stylesheet" href="pdc-emergency-slim.css?emergency-slim=2026.10.22.r466">
 <link rel="stylesheet" href="pdc-fitters.css?conversion=2026.09.17.01&amp;v=2026.09.16.04&amp;fitter-only=2026.09.16.01">
 </head>
 <body class="auth-pending" data-auth-state="checking" data-pdc-site="pmb">
@@ -310,16 +311,15 @@
             </div>
             <div class="incoming-filter-meta">Scroll down for all bays and right for later days. Department colours match the workshop planners.</div>
           </div>
-          <section class="workshop-emergency" id="workshop-emergency" aria-labelledby="workshop-emergency-title">
-            <h3 id="workshop-emergency-title">Emergency vehicle priority</h3>
-            <p>Enter a stock number to bring its remaining work forward into the earliest bays. For vehicles at PMB. Preview which bookings will move before applying.</p>
+          <section class="workshop-emergency is-slim" id="workshop-emergency" aria-labelledby="workshop-emergency-title" aria-describedby="workshop-emergency-help">
+            <h3 id="workshop-emergency-title" title="Enter a stock number to bring its remaining work forward into the earliest bays. For vehicles at PMB. Preview which bookings will move before applying. Running jobs stay in place. Workshop hours, bay efficiency, Sublet bookings and the 1-hour gap between a vehicle’s stations are respected.">Emergency vehicle priority</h3>
+            <span id="workshop-emergency-help" hidden>Enter a stock number to bring its remaining work forward into the earliest bays. For vehicles at PMB. Preview which bookings will move before applying. Running jobs stay in place. Workshop hours, bay efficiency, Sublet bookings and the 1-hour gap between a vehicle’s stations are respected.</span>
             <div class="emergency-controls">
               <label for="emergency-stock">Stock number<input id="emergency-stock" type="text" autocomplete="off" maxlength="80" placeholder="Enter stock number" /></label>
-              <button class="small-button" type="button" data-emergency-preview>Preview emergency schedule</button>
+              <button class="small-button" type="button" data-emergency-preview title="Enter a stock number to bring its remaining work forward into the earliest bays. For vehicles at PMB. Preview which bookings will move before applying. Running jobs stay in place. Workshop hours, bay efficiency, Sublet bookings and the 1-hour gap between a vehicle’s stations are respected.">Preview emergency schedule</button>
               <button class="primary" type="button" data-emergency-apply hidden>Prioritise vehicle &amp; move bookings</button>
               <button class="small-button" type="button" data-emergency-cancel hidden>Cancel</button>
             </div>
-            <p>Running jobs stay in place. Workshop hours, bay efficiency, Sublet bookings and the 1-hour gap between a vehicle’s stations are respected.</p>
             <div class="emergency-result" data-emergency-result role="status" aria-live="polite"></div>
           </section>
           <div class="workflow-board" id="workflow-board"></div>

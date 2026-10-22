@@ -192,7 +192,8 @@ const approvedRootImportPatch = Object.freeze({
   // r463: index.html r463=2026.10.22.r463 on canonical-entry.js (F76).
   // r464: index.html r464=2026.10.22.r464 on control-board-overview.js (F77).
   // r465: index.html loads pdc-running-row.css?running-row=2026.10.22.r465 after pdc-conversion-ticks.css and adds running-row=2026.10.22.r465 on control-board-overview.js (F78).
-  "index.html": "a2e4256a4dd9c89b5f608a234079f61ba81474f1113b74815f0537077ca3d9cd",
+  // r466: index.html slim Emergency vehicle priority panel (text moved to hover titles) and pdc-emergency-slim.css?emergency-slim=2026.10.22.r466 (F79).
+  "index.html": "4352b3a36e7f6eff70979b2f0830a98a6ca1b13366b4d5c04cf9fd29231eec80",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
