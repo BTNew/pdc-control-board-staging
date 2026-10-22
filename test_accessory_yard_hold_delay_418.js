@@ -92,17 +92,16 @@ test('the box change is never optimistic, and unknown lines are ignored',async()
   h.listeners.change({target:{closest(){return null;}}});assert.equal(h.calls.length,before);
 });
 
-test('order row flag only when a delay has lifted, and the tick label explains the amber state',async()=>{
+test('no order row flag (r486), and the tick label explains the amber state',async()=>{
   const h=harness({delay_lifted_lines:1,at_or_past_yard_hold:true});await ready(h);
-  assert.equal(h.api.rowFlagHtml(h.row),'<span class="sales-yard-hold-flag" role="status" title="Vehicle is at yard hold, delay removed, please raise the PO">Raise PO · at yard hold</span>');
-  const g=harness();await ready(g);assert.equal(g.api.rowFlagHtml(g.row),'');
+  assert.equal(h.api.rowFlagHtml,undefined,'r486: the Raise PO row flag is gone');
   const sales=require('./sales/sales.js'),src=fs.readFileSync('sales/sales.js','utf8');
   global.BROOME_SALES_ACCESSORIES={tickFor:()=>({state:'review',reason:'delayed_until_yard_hold'})};
   try{
     const html=sales.orderingControl({tracking_id:'t1',stock:'13000001'},'tint');
     assert.match(html,/class="ordering-status derived-review"/);assert.match(html,/Delayed until yard hold/);assert.doesNotMatch(html,/derived-red|PO not raised/);
   }finally{delete global.BROOME_SALES_ACCESSORIES;}
-  assert.equal((src.match(/BROOME_SALES_ACCESSORIES\?\.rowFlagHtml\?\.\(row\)/g)||[]).length,2,'desktop and phone rows');
+  assert.equal((src.match(/rowFlagHtml/g)||[]).length,0,'r486: no row flag on desktop or phone rows');
 });
 
 test('the delay box never becomes an unsaved notes draft, and the notes panel passes who may edit',()=>{

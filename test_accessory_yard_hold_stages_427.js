@@ -52,7 +52,7 @@ function harness(row){
 }
 const ready=async(h,record)=>{const p=h.api.refresh();h.calls.at(-1).resolve({data:{context:{role:'salesperson'},items:[record]}});await p;};
 
-test('past yard hold on the row: the panel, the tick and the order flag all show the PO is due, and no new delay is sent',async()=>{
+test('past yard hold on the row: the panel and the tick show the PO is due (no order flag since r486), and no new delay is sent',async()=>{
   const h=harness({location_status:'OD',toyota_status:'Delivered - At Body Builder',pmb_location:null});
   await ready(h,raw([line('Telematics',{line_key:K(1),delay:'delayed'}),line('Mats',{line_key:K(3)})]));
   const html=h.api.notesPanelHtml(h.row);
@@ -60,7 +60,7 @@ test('past yard hold on the row: the panel, the tick and the order flag all show
   assert.match(html,/please raise the PO/);
   assert.deepEqual(h.api.tickFor(h.row,'build_po'),{state:'red',reason:'po_not_raised'});
   assert.deepEqual(h.api.tickFor(h.row,'tint'),{state:'grey',reason:'not_on_quote'});
-  assert.match(h.api.rowFlagHtml(h.row),/Raise PO · at yard hold/);
+  assert.equal(h.api.rowFlagHtml,undefined,'r486: the red tick replaces the order flag');
   const sent=h.calls.length;await h.api.setDelay('t1',K(3),true);
   assert.equal(h.calls.length,sent,'no RPC for a new delay past yard hold');
   assert.match(h.api.notesPanelHtml(h.row),/please raise the PO/);
@@ -70,7 +70,7 @@ test('before yard hold the r418 behaviour is unchanged: amber tick, no order fla
   const h=harness({location_status:'IT',toyota_status:'In Transit To WA',pmb_location:'IT'});
   await ready(h,raw([line('Telematics',{line_key:K(1),delay:'delayed'}),line('Mats',{line_key:K(3)})]));
   assert.deepEqual(h.api.tickFor(h.row,'build_po'),{state:'review',reason:'delayed_until_yard_hold'});
-  assert.equal(h.api.rowFlagHtml(h.row),'');
+  assert.equal(h.api.rowFlagHtml,undefined);
   const p=h.api.setDelay('t1',K(3),true);
   assert.equal(h.calls.at(-1).name,'set_broome_sales_accessory_delay');
   h.calls.at(-1).resolve({data:{tracking_id:'t1',line_key:K(3),delayed:true,delay:'delayed'}});
@@ -78,7 +78,7 @@ test('before yard hold the r418 behaviour is unchanged: amber tick, no order fla
 });
 
 test('the release is wired: cache bust, migration and rollback pair, and the FAULT_LOG row',()=>{
-  assert.match(fs.readFileSync('sales/index.html','utf8'),/sales-accessories\.js\?[^"]*yard-stage=2026\.10\.21\.04"/);
+  assert.match(fs.readFileSync('sales/index.html','utf8'),/sales-accessories\.js\?[^"]*yard-stage=2026\.10\.21\.04[&"]/);
   assert.match(migration,/accessory_yard_hold_reached\(e\)/);
   assert.match(fs.readFileSync('supabase/rollbacks/20261021014735_r427_yard_hold_post_stages.down.sql','utf8'),/DROP FUNCTION pdc_sales_private\.accessory_yard_hold_reached\(jsonb\)/);
   assert.match(fs.readFileSync('docs/FAULT_LOG.md','utf8'),/^\| F40 \| 21 Oct 09:47 \|/m);

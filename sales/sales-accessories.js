@@ -181,13 +181,7 @@
       }catch(error){if(generation===epoch&&owner===currentIdentity())delayMessages.set(key,error?.message||'The delay could not be saved.');}
       finally{if(generation===epoch&&owner===currentIdentity()){delayBusy.delete(key);await refresh();}}
     }
-    function rowFlagHtml(row) {
-      const record=row&&recordFor(row);
-      if(!record)return '';
-      const lifted=record.delay_lifted_lines||(atOrPastYardHold(row)?record.lines.filter(line=>line.delay==='delayed'&&(!line.po.trim()||line.po_state==='blank')).length:0);
-      if(!lifted)return '';
-      return '<span class="sales-yard-hold-flag" role="status" title="'+escapeHtml(liftedMessage)+'">Raise PO · at yard hold</span>';
-    }
+    // r486 (F99): no yard hold Raise PO pill under the stock number; the red BUILD / TINT / TRAY tick (tickFor) already shows it.
     async function refresh() {
       if(!syncScope())return;
       const generation=epoch,owner=currentIdentity(),sequence=++request;
@@ -218,7 +212,7 @@
       });
       return api;
     }
-    const api={init,clear,syncScope,refresh,detailHtml,notesPanelHtml,tickFor,recordFor,setDelay,rowFlagHtml};
+    const api={init,clear,syncScope,refresh,detailHtml,notesPanelHtml,tickFor,recordFor,setDelay};
     return api;
   }
   const exports={escapeHtml,normaliseRecord,notesLinesHtml,poGroups,eligibleRows,createSalesAccessories,liftedMessage,atOrPastYardHold,yardHoldStageRank};

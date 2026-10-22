@@ -37,4 +37,3 @@ span.ordering-status{cursor:default}
 .sales-notes-delay{display:inline-flex;align-items:center;gap:4px;margin-left:auto;font-size:11px;font-weight:600;color:#52687a;white-space:nowrap;cursor:pointer;text-transform:none;letter-spacing:0}
 .sales-notes-delay input{margin:0;width:14px;height:14px}
 .sales-notes-delay-lifted,.sales-notes-delay-error{font-size:11px;font-weight:600;color:#a11d1d}
-.sales-yard-hold-flag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:999px;background:#fde2e2;color:#a11d1d;font-size:11px;font-weight:700;white-space:nowrap}
