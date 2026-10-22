@@ -1204,6 +1204,10 @@ function workshopDescribeSharedActionError(result) {
   }
   if (error === 'vehicle_overlap' || (conflict && conflict.conflict_type === 'vehicle_overlap')) {
     const detail = workshopVehicleConflictDetail(result);
+    // r469 (F82): the server only pushes bookings the drop really overlaps. When pushing one of them back would land it on
+    // its own vehicle's next booking, the server names both; say so plainly instead of blaming the dropped vehicle.
+    const pushed = typeof workshopPushedBookingLabel === 'function' ? workshopPushedBookingLabel(result) : '';
+    if (pushed && detail) return `Booking here would push ${pushed} back onto its own booking (${detail}). No changes were saved. Drop this vehicle after that job, use Best slot, or move the affected booking first.`;
     if (detail) return `This move conflicts with ${detail}. No conflicting bookings were saved. Keep at least 1 hour between this vehicle’s bookings. Use Best slot or move the affected later booking.`;
     return 'This change would overlap a vehicle’s booking in another bay or station, including any booking pushed back by the change. No conflicting bookings were saved. Use Best slot to find a time with the 1-hour buffer, or move the affected later booking.';
   }
@@ -1267,6 +1271,22 @@ function workshopDescribeSharedActionError(result) {
   }
   const exact = workshopAdministratorCanMove() ? workshopAdministratorErrorDetail(result) : '';
   return exact ? `The server rejected this change. No update was saved. ${exact}` : 'The server rejected this change. No update was saved, and the planner has reloaded the current shared data.';
+}
+
+function workshopPushedBookingLabel(result = {}) {
+  // r469 (F82): display-only label for the booking a cascade would have pushed (server snapshot, never reverse-matched).
+  const object = value => value && typeof value === 'object' && !Array.isArray(value);
+  const pushed = object(result) && object(result.pushed_booking) ? result.pushed_booking
+    : (object(result?.body) && object(result.body.pushed_booking) ? result.body.pushed_booking : null);
+  if (!pushed) return '';
+  const text = value => typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+  const stock = text(pushed.vehicle?.stock_number);
+  const stage = text(pushed.stage?.display_name || pushed.stage?.code);
+  const bayNumber = Number(pushed.bay?.bay_number);
+  const bay = Number.isSafeInteger(bayNumber) && bayNumber > 0 ? `Bay ${bayNumber}` : '';
+  const where = [stage, bay].filter(Boolean).join(' ');
+  if (!stock && !where) return '';
+  return [stock ? `stock ${stock}` : 'a later booking', where ? `(${where})` : ''].filter(Boolean).join(' ');
 }
 
 function workshopVehicleConflictDetail(result = {}) {
@@ -3804,16 +3824,33 @@ function workshopSearchControlHtml(query = '', plans = workshopLoadPlans()) {
   </section>`;
 }
 
+// r470 (F83): the planner re-renders on every live refresh and clock update. Scrolling to the found booking on each render
+// made the page scroll up and down by itself after a Find. Scroll (and pulse) once per selection; later renders keep the
+// highlight styling but never move the page.
+let WORKSHOP_HIGHLIGHT_SCROLL_DONE = '';
+
+function workshopHighlightScrollSignature(state = workshopState()) {
+  const key = state.highlightVehicleKey || '';
+  const planId = state.searchHighlightPlanId || '';
+  if (!key && !planId) return '';
+  return `${Number(state.highlightScrollRequest || 0)}|${key}|${planId}`;
+}
+
 function workshopScrollToHighlightedVehicle(root = document) {
   if (app.pendingWorkshopBookingLink?.search === true) return;
   const state = workshopState();
   const key = state.highlightVehicleKey;
   const planId = state.searchHighlightPlanId;
-  if (!key && !planId) return;
+  const signature = workshopHighlightScrollSignature(state);
+  if (!signature) { WORKSHOP_HIGHLIGHT_SCROLL_DONE = ''; return; }
+  if (signature === WORKSHOP_HIGHLIGHT_SCROLL_DONE) return;
   window.requestAnimationFrame(() => {
+    if (workshopHighlightScrollSignature(workshopState()) !== signature || WORKSHOP_HIGHLIGHT_SCROLL_DONE === signature) return;
     const bookingTarget = planId ? Array.from(root.querySelectorAll('[data-workshop-plan-id]')).find(element => element.dataset.workshopPlanId === planId) : null;
     const vehicleTarget = key ? Array.from(root.querySelectorAll('[data-workshop-locate-key]')).find(element => element.dataset.workshopLocateKey === key) : null;
     const target = planId ? bookingTarget : vehicleTarget;
+    // Not drawn yet (e.g. the planner is still moving to that date): try again on the next render.
+    if (target) WORKSHOP_HIGHLIGHT_SCROLL_DONE = signature;
     target?.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ? 'auto' : 'smooth', block: 'center', inline: 'center' });
     if (target && window.WorkshopNavigation?.replaceWorkshopHighlight) {
       window.WorkshopNavigation.replaceWorkshopHighlight(root, target, {
@@ -3872,6 +3909,7 @@ async function workshopSelectSearchBooking(bookingId = '', vehicleIdentity = '')
   state.selectedPlanId = entry.id;
   state.highlightVehicleKey = entry.vehicleKey;
   state.searchHighlightPlanId = entry.id;
+  state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
   state.searchOpen = false;
   state.detailCollapsedForSelection = true;
   state.detailManualOpen = false;
@@ -3948,6 +3986,7 @@ function workshopOpenBookingById(bookingId = '', vehicleIdentity = '') {
   state.selectedPlanId = entry.id;
   state.highlightVehicleKey = entry.vehicleKey;
   state.searchHighlightPlanId = entry.id;
+  state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
   state.searchOpen = false;
   state.detailCollapsedForSelection = false;
   state.detailManualOpen = true;
@@ -4243,6 +4282,7 @@ async function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
     }
   }
   state.highlightVehicleKey = match.vehicleKey;
+  state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
   state.searchHighlightPlanId = '';
   state.selectedPlanId = '';
   state.searchOpen = false;
@@ -5595,6 +5635,7 @@ function workshopSelectReturnedPlan(planId) {
   workshopSelectPlanForDetail(plan.id);
   state.searchOpen = false;
   state.searchHighlightPlanId = plan.id;
+  state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
   renderWorkshopPlanner();
   openWorkshopVehicleJob(plan.vehicleKey, plan.stage, plan.id);
   return true;
@@ -5669,6 +5710,7 @@ function renderWorkshopPlanner(options = {}) {
       state.focusedBookingId = focused.ok ? focused.entry.id : '';
       state.selectedPlanId = focused.ok ? focused.entry.id : '';
       state.searchHighlightPlanId = focused.ok ? focused.entry.id : '';
+      state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
       state.search = '';
       state.searchOpen = false;
       state.detailManualOpen = focused.ok;
@@ -5682,6 +5724,7 @@ function renderWorkshopPlanner(options = {}) {
         state.selectedPlanId = pendingPlan.id;
         state.highlightVehicleKey = pendingPlan.vehicleKey;
         state.searchHighlightPlanId = pendingPlan.id;
+        state.highlightScrollRequest = (state.highlightScrollRequest || 0) + 1; // r470 (F83): scroll to it once
         if (pendingBookingLink.search === true) {
           state.detailManualOpen = false;
           state.detailCollapsedForSelection = true;
