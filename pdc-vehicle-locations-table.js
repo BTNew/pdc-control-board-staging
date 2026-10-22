@@ -20,10 +20,24 @@
  *   device (key pdc.vehicle-locations-columns.v1:<user id>), like the view switch. "Reset columns" clears them. The
  *   station column never goes below its default width, so station cells keep their size, symbols and colours.
  * - setDrawerOpener() lets pdc-vehicle-slideout.js take over "open this vehicle" (the slide-out panel).
+ *
+ * r476 (F89), Table view only, display only (Craig 22 Oct 10:56): columns are bunched up.
+ * - Columns whose content never grows have tight fixed default widths: Key 42, Stock 82, Job Card 78, Parts loc 60,
+ *   Stations 276 (9 x 27 px cells + 8 x 3 px gaps + padding) and Age / ETA 72. Before, every column (fixed ones too)
+ *   was stretched in proportion to fill a wide screen (table-layout: fixed spreads spare width over all columns).
+ * - Customer, Vehicle, Status and Booking flex: they start at a base width and share the spare width by weight
+ *   (layoutWidths(), recomputed when the table area changes size). A width someone drags on a flex column fixes it.
+ * - The first column is the drop-down card's own multi-select checkbox cell (.incoming-card-select). It is only a
+ *   checkbox for an editable vehicle; read-only email / Navision vehicles get an empty placeholder, which is the blank
+ *   gap Craig marked. The column now takes 0 px when no row on screen has a checkbox, and 22 px when one does.
+ * - Station headings use a 7.5 px label and "Parts Jita" sits on one line, so it fits its 27 px column.
+ * - Saved widths move to key pdc.vehicle-locations-columns.v2:<user id>, so r462-era saved widths (often the stretched
+ *   widths of a wide screen) do not hide the new defaults. v1 values are left on the device untouched, so undoing r476
+ *   brings them back. "Reset columns" clears the v2 widths and restores these defaults.
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.22.r463';
+  const VERSION = '2026.10.22.r476';
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
   const VIEWS = Object.freeze({ dropdown: 'dropdown', table: 'table' });
   // Vehicle journey, left to right (Craig, 22 Oct 2026).
@@ -41,21 +55,22 @@
   const STOPPAGES = '__stoppages';
   // r462: resizable columns. Defaults equal the r461 widths in pdc-vehicle-locations-table.css (CSS variables there
   // fall back to these numbers). The station column's minimum is its default, so the strip is never squeezed.
-  const COLUMN_STORAGE_PREFIX = 'pdc.vehicle-locations-columns.v1:';
+  // r476 (F89): v2 key and tight defaults; flex columns carry a weight for the spare width (their width is the base).
+  const COLUMN_STORAGE_PREFIX = 'pdc.vehicle-locations-columns.v2:';
   const COLUMNS = Object.freeze({
-    key: { label: 'Key', width: 38, min: 30 },
-    stock: { label: 'Stock', width: 92, min: 56 },
-    job: { label: 'Job Card', width: 104, min: 64 }, // r463 (F76): the job card in its own column
-    cust: { label: 'Customer', width: 104, min: 48 },
-    unit: { label: 'Vehicle', width: 132, min: 60 },
-    ploc: { label: 'Parts loc', width: 66, min: 44 },
-    work: { label: 'Stations', width: 282, min: 282 },
+    key: { label: 'Key', width: 42, min: 30 },
+    stock: { label: 'Stock', width: 82, min: 56 },
+    job: { label: 'Job Card', width: 78, min: 64 }, // r463 (F76): the job card in its own column
+    cust: { label: 'Customer', width: 104, min: 48, flex: 1 },
+    unit: { label: 'Vehicle', width: 112, min: 60, flex: 1 },
+    ploc: { label: 'Parts loc', width: 60, min: 44 },
+    work: { label: 'Stations', width: 276, min: 276 },
     age: { label: 'Age / ETA', width: 72, min: 48 },
-    status: { label: 'Status', width: 104, min: 56 },
-    action: { label: 'Booking', width: 176, min: 72 },
+    status: { label: 'Status', width: 112, min: 56, flex: 1.2 },
+    action: { label: 'Booking', width: 160, min: 72, flex: 0.4 },
   });
   const COLUMN_MAX = 520;
-  const SEL_WIDTH = 26;
+  const SEL_WIDTH = 22; // r476: only when a row on screen has a select checkbox; otherwise 0
 
   // ---------- Pure helpers (also used by the Node tests) ----------
   const VOID = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
@@ -198,14 +213,39 @@
     } catch (_) { return false; }
   }
   function resetWidths(storage, userId) { try { storage?.removeItem(columnStorageKey(userId)); return true; } catch (_) { return false; } }
-  // CSS variables for the table: one per saved column, the pinned Key/Stock offsets, and the table's minimum width.
-  function widthStyle(widths = {}) {
+  // r476: every column's width for a table area `available` px wide. Fixed columns (and any column with a saved width)
+  // keep their px; flex columns without a saved width get their base plus a weighted share of what is left. Columns in
+  // `hidden` (e.g. Status on a narrow iPad screen) take no width. `min` is the narrowest the table may be.
+  function layoutWidths(widths = {}, { available = 0, select = false, hidden = [] } = {}) {
     const clean = sanitizeWidths(widths);
-    if (!Object.keys(clean).length) return '';
-    const w = key => clean[key] ?? COLUMNS[key].width;
+    const sel = select ? SEL_WIDTH : 0;
+    const cols = {}; const flex = {};
+    Object.entries(COLUMNS).forEach(([key, col]) => {
+      if (hidden.includes(key)) cols[key] = 0;
+      else if (clean[key] != null) cols[key] = clean[key];
+      else { cols[key] = col.width; if (col.flex) flex[key] = col.width; }
+    });
+    const min = sel + Object.values(cols).reduce((sum, px) => sum + px, 0);
+    const spare = Math.max(0, Math.floor(Number(available) || 0) - min);
+    const weight = Object.keys(flex).reduce((sum, key) => sum + COLUMNS[key].flex, 0);
+    if (spare && weight) {
+      let given = 0; const keys = Object.keys(flex);
+      keys.forEach((key, index) => {
+        const add = index === keys.length - 1 ? spare - given : Math.floor(spare * COLUMNS[key].flex / weight);
+        given += add; cols[key] += add; flex[key] = cols[key];
+      });
+    }
+    return { sel, cols, flex, min, total: sel + Object.values(cols).reduce((sum, px) => sum + px, 0) };
+  }
+  // CSS variables for the table: one per saved column, the flex widths, the select column, the pinned Key / Stock
+  // offsets and the table's minimum width. No saved widths and no layout to apply: no inline style at all.
+  function widthStyle(widths = {}, { available = 0, select = false, hidden = [] } = {}) {
+    const clean = sanitizeWidths(widths);
+    if (!Object.keys(clean).length && !available && !select) return '';
+    const lay = layoutWidths(clean, { available, select, hidden });
     const vars = Object.keys(clean).map(key => `--vlt-w-${key}:${clean[key]}px`);
-    vars.push(`--vlt-left-key:${SEL_WIDTH}px`, `--vlt-left-stock:${SEL_WIDTH + w('key')}px`);
-    vars.push(`--vlt-table-min:${SEL_WIDTH + Object.keys(COLUMNS).reduce((sum, key) => sum + w(key), 0)}px`);
+    Object.entries(lay.flex).forEach(([key, px]) => vars.push(`--vlt-flex-${key}:${px}px`));
+    vars.push(`--vlt-w-sel:${lay.sel}px`, `--vlt-left-key:${lay.sel}px`, `--vlt-left-stock:${lay.sel + lay.cols.key}px`, `--vlt-table-min:${lay.min}px`);
     return vars.join(';');
   }
 
@@ -224,7 +264,7 @@
   }
 
   const api = { VERSION, VIEWS, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
-    COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, extractPartsLocation, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle };
+    COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.renderIncomingDashboardBoard !== 'function' || root.PDC_VEHICLE_LOCATIONS_TABLE) {
     if (root && !root.PDC_VEHICLE_LOCATIONS_TABLE) root.PDC_VEHICLE_LOCATIONS_TABLE = api;
@@ -409,11 +449,10 @@
       entry.bucket, { key: entry.key, openKey: state.openKey, bucketLabel: root.incomingBucketLabel(entry.bucket) })).join('')
       || `<tr><td colspan="11" class="vlt-empty">${loading ? 'Loading vehicles…' : 'No vehicles match this tile and the search filters'}</td></tr>`;
     const keepDrawer = !drawerOpener && ui.keepDrawer && state.openKey && shown.some(entry => entry.key === state.openKey) ? ui.drawerNode : null;
-    const widthCss = widthStyle(state.widths);
     host.innerHTML = `${tilesHtml}
       <section class="vlt-panel" aria-label="Vehicle locations table">
         <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
-        <div class="vlt-table-wrap"><table class="vlt-table${widthCss ? ' has-custom-widths' : ''}"${widthCss ? ` style="${widthCss}"` : ''}>
+        <div class="vlt-table-wrap"><table class="vlt-table${Object.keys(state.widths).length ? ' has-custom-widths' : ''}${/data-select-stock/.test(bodyHtml) ? ' has-select' : ''}">
           <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-job"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
           <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
           <tbody>${bodyHtml}</tbody></table></div>
@@ -422,6 +461,8 @@
     holder.innerHTML = root.productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Booking', incomingSort: sort });
     const stations = holder.querySelector('.pdc-grid-stations-heading');
     if (stations) host.querySelector('thead th.c-work').append(stations);
+    applyWidths(host); // r476: flex / select-column widths for this screen, before the first paint
+    observeHostWidth(host);
     if (keepDrawer) host.append(keepDrawer);
     else if (!drawerOpener) host.insertAdjacentHTML('beforeend', '<aside class="vlt-drawer" id="vlt-drawer" hidden aria-label="Vehicle detail"></aside>');
     const body = host.querySelector('tbody');
@@ -499,12 +540,25 @@
   function applyWidths(host) {
     const table = host?.querySelector('.vlt-table');
     if (!table) return;
-    const css = widthStyle(state.widths);
+    const wrap = host.querySelector('.vlt-table-wrap');
+    const statusTh = table.querySelector('thead th.c-status');
+    const hidden = statusTh && root.getComputedStyle?.(statusTh).display === 'none' ? ['status'] : [];
+    const css = widthStyle(state.widths, { available: wrap?.clientWidth || 0, select: table.classList.contains('has-select'), hidden });
     table.setAttribute('style', css);
     if (!css) table.removeAttribute('style');
-    table.classList.toggle('has-custom-widths', Boolean(css));
+    table.classList.toggle('has-custom-widths', Boolean(Object.keys(state.widths).length));
+    lastLayoutWidth = wrap?.clientWidth || 0;
     const reset = host.querySelector('[data-vlt-reset-cols]');
     if (reset) reset.disabled = !Object.keys(state.widths).length;
+  }
+  // r476: flex widths follow the table area (window resize, side menu, scrollbar); only a real width change re-applies.
+  let lastLayoutWidth = 0; let observedHost = null;
+  function observeHostWidth(host) {
+    if (!host || observedHost === host) return;
+    observedHost = host;
+    const recheck = () => { const wrap = host.querySelector('.vlt-table-wrap'); if (tableOn() && wrap && wrap.clientWidth !== lastLayoutWidth) applyWidths(host); };
+    if (typeof root.ResizeObserver === 'function') new root.ResizeObserver(recheck).observe(host);
+    else root.addEventListener?.('resize', recheck);
   }
   function saveWidths() { writeWidths(storage(), userId(), state.widths); }
   function setColumnWidth(key, px, { save = true } = {}) {

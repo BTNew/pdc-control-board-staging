@@ -93,7 +93,7 @@
     const loadVehicleLocationsTable = () => {
       if (document.querySelector('script[data-pdc-vehicle-locations-table]')) return;
       const table = document.createElement('script');
-      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463';
+      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476'; // r476 (F89): bunched-up columns
       table.dataset.pdcVehicleLocationsTable = '1';
       table.onload = loadVehicleSlideout;
       document.head.appendChild(table);
