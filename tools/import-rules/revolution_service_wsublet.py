@@ -15,6 +15,15 @@ the database) ever sees a Type column. A file without Type parses exactly as bef
 * when repeated rows disagree outside the sublet columns, keeps the FIRST row in source order (deterministic), and flags
   the line ('collapse.conflict' true, with every differing value) so the apply receipt reports it.
 
+r471 (F84): Revolution sometimes appends the vehicle's bay / parts-location code to an operation description it has sent
+before ('DE MINE SPEC' -> 'DE MINE SPEC 05K4F', 'FULL TANK OF FUEL' -> 'FULL TANK OF FUEL -- 04K2B'). The native import
+keys a line version on its description, so that suffix created a second version of the same Dept + R/O + Line # and the
+next preview held the whole stock (ambiguous_existing_operation). canonicalise_bay_code_descriptions() maps such an incoming
+description back to the line's ONE live description already on the board, so the native preview sees it as unchanged. The
+match is tight: only a whole trailing bay code token (two digits, letter, digit, letter, optionally after ' -' / ' --'),
+the rest identical apart from letter case and spacing. Any other wording change still versions as before. The incoming text
+is never lost: raw_row 'Operation Desc' keeps it and raw_row.description_bay_code_r471 records what was matched.
+
 Pure functions over already-read cell values; no network, no database, no file names or stock numbers in here.
 """
 import re
@@ -192,3 +201,105 @@ def read_values(values):
     if len(footer) > 1:
         raise ContractError('more than one footer row')
     return headers, data, footer, excluded, params
+
+
+# r471 (F84): trailing bay / parts-location code on an operation description ---------------------------------------------
+BAY_CODE_RULE = 'r471_trailing_bay_code_same_line'
+BAY_CODE_PATTERN = r'[0-9]{2}[A-Z][0-9][A-Z]'          # e.g. 05K4F, 04K2B, 05J2A (the report's Parts Location format)
+_BAY_SUFFIX_RE = re.compile(r'(?:\s+-{1,2})?\s+(' + BAY_CODE_PATTERN + r')$')
+BAY_CODE_PROVENANCE_KEY = 'description_bay_code_r471'
+
+
+def _ws(text):
+    return re.sub(r'\s+', ' ', norm(text))
+
+
+def split_bay_code(description):
+    """(stem, code): code is the whole trailing bay code token or None; stem is the description without it (spaces
+    collapsed, ends trimmed, case kept). 'DE MINE SPEC 05K4F' -> ('DE MINE SPEC', '05K4F');
+    'FUEL -- 04K2B' -> ('FUEL', '04K2B'); 'FUEL 05K4F **SUSP 17C6B**' -> (unchanged, None): only the very last token counts."""
+    d = _ws(description)
+    m = _BAY_SUFFIX_RE.search(d)
+    if not m:
+        return d, None
+    stem = d[:m.start()].rstrip()
+    if not stem:                        # a description that is only a code is not a suffix case
+        return d, None
+    return stem, m.group(1)
+
+
+def same_line_ignoring_bay_code(existing, incoming):
+    """True when two different descriptions of one Dept + R/O + Line # differ ONLY by a trailing bay code (added, removed
+    or changed) plus letter case / spacing. Identical descriptions return False (nothing to do). Mirrors the SQL helper
+    pdc_service_supersede_private.bay_code_same_line_471."""
+    a, b = _ws(existing), _ws(incoming)
+    if not a or not b or a == b:
+        return False
+    (sa, ca), (sb, cb) = split_bay_code(a), split_bay_code(b)
+    if ca is None and cb is None:
+        return False
+    return sa.lower() == sb.lower()
+
+
+def existing_lines_from_operations(operations, superseded_ids=()):
+    """Builds the {(dept, R/O, line): [descriptions]} map canonicalise_bay_code_descriptions() needs from operation rows
+    shaped like the PMB context ({'id', 'dept', 'ro', 'line', 'description'}); versions retired by r471
+    (public.pdc_service_operation_supersessions_471.superseded_operation_id) are left out."""
+    skip = {str(x) for x in superseded_ids}
+    out = {}
+    for o in operations:
+        if str(o.get('id')) in skip:
+            continue
+        key = (norm(o.get('dept')), norm(o.get('ro')).upper(), int(o.get('line')))
+        d = _ws(o.get('description'))
+        out.setdefault(key, [])
+        if d and d not in out[key]:
+            out[key].append(d)
+    return out
+
+
+def match_existing_description(incoming, existing_descriptions):
+    """The ONE live description to keep for an incoming description, or None (leave the row as sent).
+    None when the incoming text already equals a live description, when nothing matches, or when more than one
+    different live description matches (ambiguous: the native preview decides, nothing is guessed)."""
+    inc = _ws(incoming)
+    live = [_ws(d) for d in existing_descriptions or [] if _ws(d)]
+    if not inc or inc in live:
+        return None
+    hits = []
+    for d in live:
+        if same_line_ignoring_bay_code(d, inc) and d not in hits:
+            hits.append(d)
+    return hits[0] if len(hits) == 1 else None
+
+
+def canonicalise_bay_code_descriptions(rows, existing):
+    """rows: prepared service rows (dicts with 'department', 'repair_order_number', 'original_line_number',
+    'operation_description', optional 'raw_row'). existing: {(dept, R/O, line): [live descriptions]} (see
+    existing_lines_from_operations). Returns (new_rows, report). A matched row gets the kept description in
+    operation_description and raw_row.description_bay_code_r471 = {rule, incoming, kept, incoming_bay_code, kept_bay_code};
+    raw_row 'Operation Desc' is untouched. Other rows are returned unchanged (same objects' values, new dicts)."""
+    out, matched, ambiguous = [], [], []
+    for r in rows:
+        r2 = dict(r)
+        key = (norm(r.get('department')), norm(r.get('repair_order_number')).upper(), int(r.get('original_line_number')))
+        live = existing.get(key) or []
+        inc = r.get('operation_description')
+        kept = match_existing_description(inc, live)
+        if kept is None:
+            if len([d for d in live if same_line_ignoring_bay_code(d, inc)]) > 1 and _ws(inc) not in [_ws(d) for d in live]:
+                ambiguous.append({'dept': key[0], 'ro': key[1], 'line': key[2], 'incoming': _ws(inc)})
+            out.append(r2)
+            continue
+        prov = {'rule': BAY_CODE_RULE, 'incoming': _ws(inc), 'kept': kept,
+                'incoming_bay_code': split_bay_code(inc)[1], 'kept_bay_code': split_bay_code(kept)[1]}
+        r2['operation_description'] = kept
+        if isinstance(r.get('raw_row'), dict):
+            raw = dict(r['raw_row'])
+            raw[BAY_CODE_PROVENANCE_KEY] = prov
+            r2['raw_row'] = raw
+        matched.append(dict(prov, dept=key[0], ro=key[1], line=key[2]))
+        out.append(r2)
+    return out, {'rule': BAY_CODE_RULE, 'rows': len(rows), 'matched': len(matched), 'ambiguous': ambiguous,
+                 'matches': matched}
+
