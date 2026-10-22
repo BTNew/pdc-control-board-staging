@@ -31,3 +31,8 @@
 #vso-shell .vso-open-row .pvs-manage{margin-left:6px;background:#8c671d;border-color:#8c671d}
 #vso-shell .vso-open-row .pvs-manage:hover{background:#6f5216;border-color:#6f5216}
 @media (max-width:760px){.pvs-dialog{top:0;width:100vw;max-height:100vh;border-radius:0}.pvs-table th:nth-child(n+6),.pvs-table td:nth-child(n+6){display:none}}
+/* r494b (F107, Craig 22 Oct 18:55): one text size in the tables; the GP PO number and 'PO to raise' are the same chip size. */
+.pvs-table td,.pvs-table td :is(b,span,small,.pvs-po,.pvs-nopo,.pvs-status,.pvs-cat){font-size:13px}
+.pvs-table td:first-child,.pvs-table .small-button{white-space:nowrap}.pvs-table .pvs-tick{flex-wrap:nowrap}
+.pvs-po,.pvs-nopo{box-sizing:border-box;min-width:8.2em;padding:0 6px;line-height:20px;text-align:center;font-weight:700}
+.pvs-new-po{display:none}.pvs-note{font-size:13px}

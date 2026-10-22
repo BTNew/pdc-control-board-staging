@@ -9,7 +9,10 @@
    r494 (F107, Craig 22 Oct 18:41): a whole line sublet (a line in the Sublet category) with no GP PO yet turns the board's
    Sublet box orange with 'PO to raise' (and shows 'PO to raise' on the line); a GP PO that an import brings onto a line in
    another category shows in the Sublet box as a sublet item with 'PO raised for this line' until it is ticked done or
-   the user presses 'Got it' (remembered for that user in this browser). The supplier is the sublet provider. */
+   the user presses 'Got it' (remembered for that user in this browser). The supplier is the sublet provider.
+   r494b (F107, Craig 22 Oct 18:55): the vehicle's Sublet box is uniform: every line ends in one same-size chip (the GP PO
+   number or 'PO to raise'), no 'Hours not stated', no 'Op line PO' caption, and no 'PO raised for this line' / 'Got it'
+   (the GP number on the right already shows it). One text size in the box. The Got it storage below stays but is unused. */
 (() => {
   'use strict';
   const VERSION = '2026.10.21.r444';
@@ -171,6 +174,9 @@
     const em = body.indexOf('</em>');
     return em >= 0 ? body.slice(0, em + 5) + extra + body.slice(em + 5) : body + extra;
   }
+  /** r494b: drop a line's 'Hours not stated' (or a NaN / Infinity hours) cell; only used inside the Sublet box. */
+  const NO_HOURS = /<em\b[^>]*>\s*(?:Hours not stated|-?NaN h|-?Infinity h)[\s\S]*?<\/em>/g;
+  const stripNoHours = body => String(body).replace(NO_HOURS, '');
   const lineNo = label => { const m = String(label).match(/([0-9]+)\s*$/); return m ? Number(m[1]) : 1e9; };
   /**
    * r444 (F57, Craig 21 Oct): the vehicle's Sublet box lists every sublet. Operation lines stay in their category boxes with
@@ -216,11 +222,14 @@
       return `<li data-operation-source-id="${sid}"${attrs}>${addToLine(body, ref)}</li>`;
     }) + close);
     // Sublet jobs raised as their own lines: description + PO + tick, or "No PO".
+    // r494b (F107): no 'Hours not stated' in the Sublet box (Craig 22 Oct 18:55); stated hours stay.
     let subletFound = false, noPo = 0;
     out = out.replace(SECTION, (all, open, station, inner, close) => {
       if (station.toUpperCase() !== 'SUBLET') return all;
       subletFound = true;
-      return open + inner.replace(LI, (li, sid, attrs, body) => {
+      return open + inner.replace(LI, (li, sid, attrs, rawBody) => {
+        const body = stripNoHours(rawBody);
+        if (body !== rawBody) li = `<li data-operation-source-id="${sid}"${attrs}>${body}</li>`;
         const line = find(sid, body);
         if (line) {
           used.add(line);
@@ -263,7 +272,7 @@
     return last >= 0 ? out.slice(0, last + 10) + section + out.slice(last + 10) : out;
   }
   const api = { indexBoard, entryFor, boxState, decorateStrip, lineLabel, cleanDescription, poDetails, inlineHtml, refHtml, decorateOperations,
-    subletJobs, poToRaise, seenKey, isNewPo, newPoHtml, VERSION };
+    subletJobs, poToRaise, seenKey, isNewPo, newPoHtml, stripNoHours, VERSION };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_SUBLET_PO_VERSION) return;
   window.PDC_SUBLET_PO_VERSION = VERSION;
@@ -348,7 +357,8 @@
       if (!entry) return decorateOperations(html, { known: true });
       const vid = idKey(entry.vehicle_id), cached = cache.get(vid);
       if (!cached || cached.stale) fetchLines(vid);
-      return decorateOperations(html, { vehicleId: vid, payload: cached?.payload || null, seen });
+      // r494b (F107): no 'seen' list = no 'PO raised for this line' note or highlight (the GP number shows it).
+      return decorateOperations(html, { vehicleId: vid, payload: cached?.payload || null });
     };
   }
   document.addEventListener('click', event => {
@@ -391,6 +401,7 @@
   // below ~16.5rem. Scoped overrides here because styles.css is a frozen baseline; Review keeps its own layout.
   const OPS = '.authenticated-email-operations .authenticated-operation-station';
   const LINE = OPS + ':not([data-operation-station="REVIEW"]) li';
+  const SUB = OPS + '[data-operation-station="SUBLET"]'; // r494b (F107)
   style.textContent = '.authenticated-email-operations .authenticated-operation-station-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,16.5rem),1fr))}'
     + LINE + '{grid-template-columns:max-content minmax(0,1fr) max-content;column-gap:.45rem;row-gap:.25rem}'
     + OPS + ' li span{min-width:0;overflow-wrap:break-word;word-break:normal}'
@@ -418,7 +429,16 @@
     + '.pdc-sublet-new-ack{margin-left:4px;font-size:10px;padding:0 6px;border:1px solid #cbd5e1;border-radius:4px;background:#fff;color:#334155;cursor:pointer;line-height:15px}'
     + '.pdc-sublet-po-ref.is-new{background:#fef3c7;border-style:solid;border-color:#f59e0b;color:#92400e}'
     + '.incoming-work-check.pdc-station-sublet.pdc-sublet-po-box .pdc-sublet-po-count{white-space:nowrap}'
-    + '.pdc-sublet-po-raise{display:block;font-size:8px;line-height:9px;font-weight:800;letter-spacing:0;text-transform:uppercase;white-space:normal;text-align:center;color:#c2410c}';
+    + '.pdc-sublet-po-raise{display:block;font-size:8px;line-height:9px;font-weight:800;letter-spacing:0;text-transform:uppercase;white-space:normal;text-align:center;color:#c2410c}'
+    // r494b (F107, Craig 22 Oct 18:55): the vehicle's Sublet box is uniform: one text size, and every line's right side is
+    // one chip of the same width and height (GP PO number or 'PO to raise'), lined up with the ticks.
+    + SUB + ' li,' + SUB + ' li :is(strong,span,small,b,i,em){font-size:12px!important;line-height:18px;letter-spacing:normal;text-transform:none}'
+    + SUB + ' li .pdc-sublet-desc,' + SUB + ' li .pdc-sublet-own-desc .pdc-sublet-desc{font-weight:650;color:#1f2937}'
+    + SUB + ' li .pdc-sublet-on,' + SUB + ' li .pdc-sublet-own-desc{color:#64748b;font-weight:500}'
+    + SUB + ' .pdc-sublet-kind{display:none}'
+    + SUB + ' .pdc-sublet-po-chip,' + SUB + ' .pdc-sublet-po-nopo{display:inline-block;box-sizing:border-box;min-width:8.2em;padding:0 6px;border:1px solid #fdba74;border-radius:4px;background:#fff7ed;color:#9a3412;font-weight:700;text-align:center;white-space:nowrap}'
+    + SUB + ' .pdc-sublet-po-nopo{border-color:#fb923c;color:#c2410c;margin-right:19px!important}'
+    + SUB + ' .pdc-sublet-po-inline.is-done .pdc-sublet-po-chip{background:#f0fdf4;border-color:#86efac;color:#166534}';
   document.head.appendChild(style);
   load();
   setInterval(load, 2 * 60 * 1000);

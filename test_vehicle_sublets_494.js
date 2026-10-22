@@ -78,11 +78,11 @@ test('wiring: no new RPC or SQL; category through set_vehicle_work_category; tic
   assert.match(po, /window\.PDC_SUBLET_PO = Object\.freeze/);
   assert.match(po, /new CustomEvent\('pdc-sublet-lines'/);
   const index = fs.readFileSync('index.html', 'utf8');
-  assert.match(index, /pdc-vehicle-sublets\.js\?r494=2026\.10\.23\.r494" defer/);
-  assert.match(index, /pdc-vehicle-sublets\.css\?r494=2026\.10\.23\.r494/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444&r490=2026\.10\.23\.r490&r494=2026\.10\.23\.r494'/);
+  assert.match(index, /pdc-vehicle-sublets\.js\?r494=2026\.10\.23\.r494b" defer/);
+  assert.match(index, /pdc-vehicle-sublets\.css\?r494=2026\.10\.23\.r494b/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444&r490=2026\.10\.23\.r490&r494=2026\.10\.23\.r494b'/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-vehicle-sublets\.css', 'pdc-vehicle-sublets\.js'/);
-  assert.equal(vs.VERSION, '2026.10.23.r494');
+  assert.equal(vs.VERSION, '2026.10.23.r494b');
   assert.equal(fs.readdirSync('supabase/migrations').filter(f => /r494|_494/.test(f)).length, 0, 'no SQL in r494');
 });
 
@@ -117,23 +117,55 @@ test('board Sublet box (Craig 22 Oct 18:41): a whole line sublet with no GP PO t
   assert.equal(po.decorateStrip(strip, null, 0), strip);
 });
 
-test('new GP PO on a line with no sublet (e.g. suspension in Fitting): sublet item with "PO raised for this line" until ticked or Got it', () => {
+test('new GP PO on a line with no sublet (e.g. suspension in Fitting): shows as a sublet item; r494b (Craig 22 Oct 18:55): no "PO raised for this line" note or Got it', () => {
   const line = { line_key: 'RO1|7', line_identity: `source:${U(7)}`, operation_no: '7', category: 'FITTING', po_numbers: ['GP90000107'], po_details: [], has_po: true, ticked: false, version: 0 };
+  // The r494 helpers stay (unused by the pages) so nothing that calls them breaks.
   const seen = new Set();
   assert.equal(po.isNewPo(line, U(99), seen), true);
-  assert.equal(po.isNewPo(line, U(99), null), false, 'no seen list (other callers): no note');
-  assert.equal(po.isNewPo({ ...line, ticked: true }, U(99), seen), false, 'ticked done: no note');
-  seen.add(po.seenKey(U(99), line, 'GP90000107'));
-  assert.equal(po.isNewPo(line, U(99), seen), false, 'Got it: no note');
-  assert.match(po.newPoHtml(line, U(99)), /PO raised for this line[\s\S]*data-pdc-sublet-ack="00000000-0000-4000-8000-000000000099\|RO1\|7\|GP90000107"[^>]*>Got it/);
+  assert.equal(po.isNewPo(line, U(99), null), false, 'no seen list: no note');
   const m = vs.buildModel({ jobLines: [{ line_identity: `source:${U(7)}`, operation_no: '7', description: 'Suspension fit', work_category: 'FITTING' }], poLines: [line] });
   assert.deepEqual(m.items.map(r => r.category), ['FITTING'], 'shows as a sublet item; the line stays in Fitting');
   assert.equal(m.whole.length, 0); assert.equal(m.state, 'open');
   const html = vs.screenHtml(m, { vehicleId: U(99), perms: { seen: new Set() } });
-  assert.match(html, /class="pvs-item is-new-po"/); assert.match(html, /PO raised for this line/);
-  assert.match(html, /data-pdc-sublet-ack="00000000-0000-4000-8000-000000000099\|RO1\|7\|GP90000107"/);
-  const acked = vs.screenHtml(m, { vehicleId: U(99), perms: { seen: new Set([`${U(99)}|RO1|7|GP90000107`]) } });
-  assert.doesNotMatch(acked, /PO raised for this line/);
+  assert.match(html, /<span class="pvs-po">GP90000107<\/span>/, 'the GP PO number shows it');
+  assert.doesNotMatch(html, /PO raised for this line|Got it|is-new-po|data-pdc-sublet-ack/);
+  // The vehicle Sublet box: the page wrapper no longer hands decorateOperations a 'seen' list, so no note or highlight.
+  const src = fs.readFileSync('pdc-sublet-po.js', 'utf8');
+  assert.match(src, /return decorateOperations\(html, \{ vehicleId: vid, payload: cached\?\.payload \|\| null \}\);/);
+  assert.doesNotMatch(src, /payload: cached\?\.payload \|\| null, seen \}/);
+});
+
+test('r494b (Craig 22 Oct 18:55): vehicle Sublet box: no "Hours not stated", every right side one same-size chip, one text size', () => {
+  assert.equal(po.stripNoHours('<strong>2</strong><span>x</span><em>Hours not stated</em>'), '<strong>2</strong><span>x</span>');
+  assert.equal(po.stripNoHours('<em class="is-ai-estimate" title="t">Hours not stated<span class="ai-estimate-label">AI estimate</span></em> y'), ' y');
+  assert.equal(po.stripNoHours('<em>NaN h</em>'), '');
+  assert.equal(po.stripNoHours('<em>1.50 h</em>'), '<em>1.50 h</em>', 'stated hours stay');
+  const box = '<div class="authenticated-email-operations"><section class="authenticated-operation-station" data-operation-station="FITTING"><ul>'
+    + `<li data-operation-source-id="${U(1)}"><strong>1</strong><span>Suspension</span><em>Hours not stated</em></li></ul></section>`
+    + '<section class="authenticated-operation-station" data-operation-station="SUBLET"><ul>'
+    + `<li data-operation-source-id="${U(2)}"><strong>2</strong><span>Seat covers</span><em>Hours not stated</em></li>`
+    + `<li data-operation-source-id="${U(4)}"><strong>4</strong><span>Canopy signage</span><em>Hours not stated</em></li>`
+    + `<li data-operation-source-id="${U(8)}"><strong>8</strong><span>Stated</span><em>1.50 h</em></li></ul></section></div>`;
+  const out = po.decorateOperations(box, { vehicleId: U(99), payload: { ok: true, can_tick: true, lines: poLines } });
+  const sublet = out.slice(out.indexOf('data-operation-station="SUBLET"'));
+  assert.doesNotMatch(sublet, /Hours not stated/, 'none in the Sublet box');
+  assert.match(out.slice(0, out.indexOf('data-operation-station="SUBLET"')), /<em>Hours not stated<\/em>/, 'other boxes unchanged');
+  assert.match(sublet, /<em>1\.50 h<\/em>/);
+  assert.match(sublet, /<span class="pdc-sublet-po-chip">GP900002<\/span>/);
+  assert.equal((sublet.match(/>PO to raise</g) || []).length, 2, 'lines 4 and 8 have no GP PO');
+  assert.doesNotMatch(sublet, /PO raised for this line|Got it/);
+  const src = fs.readFileSync('pdc-sublet-po.js', 'utf8');
+  assert.match(src, /const SUB = OPS \+ '\[data-operation-station="SUBLET"\]';/);
+  assert.match(src, /SUB \+ ' li,' \+ SUB \+ ' li :is\(strong,span,small,b,i,em\)\{font-size:12px!important;/, 'one text size');
+  assert.match(src, /SUB \+ ' \.pdc-sublet-kind\{display:none\}'/, 'no "Op line PO" caption');
+  assert.match(src, /SUB \+ ' \.pdc-sublet-po-chip,' \+ SUB \+ ' \.pdc-sublet-po-nopo\{display:inline-block;box-sizing:border-box;min-width:8\.2em;/, 'same chip size');
+  // Manage sublets: 'PO to raise' sits in the GP PO column at the GP PO chip size; one text size in the tables.
+  const m = vs.buildModel({ jobLines, poLines, bookings });
+  const rw = vs.screenHtml(m, { vehicleId: U(99), perms: { canTick: true } });
+  assert.match(rw, /data-pvs-line="00000000-0000-4000-8000-000000000004"><td><b>Op 4<\/b><\/td><td>Canopy signage<\/td><td><span class="pvs-nopo"[^>]*>PO to raise<\/span><\/td><td><span class="pvs-muted"/);
+  const css = fs.readFileSync('pdc-vehicle-sublets.css', 'utf8');
+  assert.match(css, /\.pvs-po,\.pvs-nopo\{box-sizing:border-box;min-width:8\.2em;/);
+  assert.equal(vs.VERSION, '2026.10.23.r494b');
 });
 
 test('Got it is stored per user in this browser (no SQL); the board strip asks for a vehicle\'s GP PO lines only when it has Sublet lines and a PO', () => {
