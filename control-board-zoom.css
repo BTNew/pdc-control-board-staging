@@ -1,0 +1,20 @@
+/* r467 (F80): control board overview zoom (Day / Week / Month). Display only.
+   Day is unchanged. Week and Month drop the hourly ticks; Month rows go
+   slimline with bars as coloured blocks (hover title, no inline text). */
+.control-board-zoom { display:inline-flex; align-items:stretch; margin-left:8px; border:1px solid #ccd8e7; border-radius:5px; overflow:hidden; background:#fff; }
+.control-board-zoom button { border:0; border-left:1px solid #ccd8e7; padding:4px 9px; background:#fff; color:#243b56; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.control-board-zoom button:first-child { border-left:0; }
+.control-board-zoom button.is-active { background:#1f3b5c; color:#fff; }
+.control-board-zoom button:disabled { opacity:.45; cursor:default; }
+.control-board-timeline-shell.is-zoom-week .control-board-timeline-axis,
+.control-board-timeline-shell.is-zoom-month .control-board-timeline-axis { height:30px; }
+.control-board-timeline-shell.is-zoom-week .control-board-time-ticks,
+.control-board-timeline-shell.is-zoom-month .control-board-time-ticks { display:none; }
+.control-board-timeline-shell.is-zoom-week .control-board-timeline-day > strong { position:static; padding:7px 6px; font-size:11px; white-space:nowrap; }
+.control-board-timeline-shell.is-zoom-month .control-board-timeline-day > strong { position:static; display:block; padding:8px 0; font-size:10px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:clip; }
+.control-board-timeline-shell.is-zoom-month .control-board-timeline-department { height:20px; }
+.control-board-timeline-shell.is-zoom-month .control-board-timeline-department strong { padding:2px 10px; font-size:11px; }
+.control-board-timeline-shell.is-zoom-month .control-board-timeline-bay-label { padding:2px 8px; }
+.control-board-timeline-shell.is-zoom-month .control-board-timeline-bay-label > button { font-size:11px; }
+.control-board-timeline-shell.is-zoom-month .control-board-timeline-bay-label small { display:none; }
+#workflow .control-board-timeline-shell.is-zoom-month .control-board-timeline-job { height:10px; padding:0; gap:0; border-width:1px; border-left-width:2px; border-radius:2px; box-shadow:none; }

@@ -139,7 +139,10 @@ const approvedRootImportPatch = Object.freeze({
   // r432: User Admin "Link salesperson record" for controllers (F43); index.html adds r432=2026.10.21.01 on app.js and pdc-auth.js.
   // r437: the vehicle card opens for Toyota head office account vehicles (001234 / 002345) under the board's own dealer scope (F48); index.html adds r437=2026.10.21.01.
   "app.js": "0feed7e96704a3d98cc3d3b41636a767aea447a58aefbc8f102f7ba73f67c089",
-  "control-board-overview.js": "82de1cc91b314ef995a2f2d997990993092133804240682f4c18294f1bce2194",
+  // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
+  // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
+  // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
+  "control-board-overview.js": "11261056847df16fb5caa2f98d34a7f68ba3c6a9a4bf8a1775fa7f8d54ec43ef",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
   // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02,
@@ -188,7 +191,11 @@ const approvedRootImportPatch = Object.freeze({
   // r461: index.html vehicle-locations-table=2026.10.22.r461 on canonical-entry.js (F74).
   // r462: index.html r462=2026.10.22.r462 on canonical-entry.js (F75).
   // r463: index.html r463=2026.10.22.r463 on canonical-entry.js (F76).
-  "index.html": "2f686b12eb4c8f57b4f0b1b2fa64d236dc22f6b89650a49c5421b0bc7bbe1fa0",
+  // r464: index.html r464=2026.10.22.r464 on control-board-overview.js (F77).
+  // r465: index.html loads pdc-running-row.css?running-row=2026.10.22.r465 after pdc-conversion-ticks.css and adds running-row=2026.10.22.r465 on control-board-overview.js (F78).
+  // r466: index.html slim Emergency vehicle priority panel (text moved to hover titles) and pdc-emergency-slim.css?emergency-slim=2026.10.22.r466 (F79).
+  // r467: index.html r467=2026.10.22.r467 on control-board-overview.js and control-board-zoom.css?control-board-zoom=2026.10.22.r467 (F80).
+  "index.html": "9289cd35b1bb03ce06b7d46b2a77074342b5bff920607fd70c6da91c2f8aada2",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

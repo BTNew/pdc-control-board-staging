@@ -220,16 +220,57 @@
       return projections.get(scoped)(booking);
     };
   }
+  // r467 (F80): zoom levels. Day is today's view (default). Week and Month squeeze
+  // more days across the screen; Month rows go slimline (coloured blocks, hover
+  // title Key / JC / customer, no inline text). Display only. Saved per user per
+  // device in localStorage (pdc.control-board-zoom.v1:<user id>).
+  const ZOOM_LEVELS = Object.freeze(['day', 'week', 'month']);
+  const ZOOM = Object.freeze({ day: { label: 'Day', lane: 48 }, week: { label: 'Week', dayWidth: 150, minDays: 14, lane: 48 }, month: { label: 'Month', dayWidth: 34, minDays: 31, lane: 14 } });
+  const zoomLevel = value => ZOOM_LEVELS.includes(value) ? value : 'day';
+  const zoomKey = scope => `pdc.control-board-zoom.v1:${text(scope?.PDC_AUTH_CONTEXT?.userId) || 'anonymous'}`;
+  const zoomStorage = scope => { try { return scope?.localStorage || null; } catch (_) { return null; } };
+  const globalScope = () => typeof window !== 'undefined' ? window : null;
+  function getZoom(scope = globalScope()) {
+    try { return zoomLevel(zoomStorage(scope)?.getItem(zoomKey(scope))); } catch (_) { return 'day'; }
+  }
+  function setZoom(level, scope = globalScope()) {
+    const value = zoomLevel(level);
+    try { zoomStorage(scope)?.setItem(zoomKey(scope), value); } catch (_) { /* private mode: the view still changes */ }
+    return value;
+  }
+  // r464 (F77): a booking's pieces on consecutive days are one bar. buildTimeline
+  // still cuts a booking into per-day pieces (segments, used by the parity checks);
+  // the bar spans from the first piece of a run to its last, so a job that runs past
+  // the day divider reads as one job. A closed day between two pieces (a weekend or
+  // closure) starts a new bar, so Friday and Monday stay separate. Display only: the
+  // pieces stay as `parts` for the tooltip and the click date.
+  function joinedBars(pieces, lane) {
+    const runs = [];
+    pieces.forEach(piece => {
+      const run = runs[runs.length - 1];
+      if (run && piece.day - run[run.length - 1].day <= 1) run.push(piece); else runs.push([piece]);
+    });
+    const bookingMs = pieces.reduce((n, piece) => n + piece.end - piece.start, 0);
+    return runs.map(run => {
+      const first = run[0], last = run[run.length - 1];
+      if (run.length === 1) return { ...first, lane, parts: run };
+      return { item: first.item, day: first.day, date: first.date, start: first.start, end: last.end, lane, parts: run,
+        left: first.left, width: last.left + last.width - first.left, historicalOnClosure: run.some(piece => piece.historicalOnClosure),
+        continuesFromPrevious: first.continuesFromPrevious, continuesNext: last.continuesNext, joined: true,
+        bookingMs: runs.length > 1 ? bookingMs : null };
+    });
+  }
   function buildTimeline(model, options = {}) {
     const config = calendarConfig(model.calendar);
     if (!config || !timing) return null;
     const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
     const calendars = new Map(), effectiveEnd = bookingProjection(config, now, calendars);
     const startDate = validDate(options.startDate) || dateKey(model.generatedAt) || dateKey(now);
-    const dayCount = Math.max(1, Math.min(56, Math.floor(Number(options.dayCount) || 14)));
+    const zoom = zoomLevel(options.zoom), zoomed = ZOOM[zoom];
+    const dayCount = Math.max(1, Math.min(56, Math.max(zoomed.minDays || 0, Math.floor(Number(options.dayCount) || 14))));
     const axisStart = Math.min(config.start, ...config.overtime.map(w => w.start));
     const axisEnd = Math.max(config.end, ...config.overtime.map(w => w.end));
-    const dayWidth = Math.max(640, (axisEnd - axisStart) / 60 * 64), width = dayWidth * dayCount;
+    const dayWidth = zoomed.dayWidth || Math.max(640, (axisEnd - axisStart) / 60 * 64), width = dayWidth * dayCount;
     const firstMs = Date.parse(`${startDate}T00:00:00+08:00`), lastMs = firstMs + dayCount * DAY;
     const days = Array.from({ length: dayCount }, (_, day) => {
       const date = shiftDate(startDate, day);
@@ -245,7 +286,7 @@
     };
     const outside = [], unscheduled = [];
     const rows = model.columns.map(column => {
-      const segments = [], unplotted = [], laneEnds = [];
+      const segments = [], bars = [], unplotted = [], laneEnds = [];
       const sorted = [...column.items].sort((a, b) => Date.parse(a.source.scheduled_start_at) - Date.parse(b.source.scheduled_start_at) || a.id.localeCompare(b.id));
       sorted.forEach(item => {
         const bookingCalendar = bookingCalendarConfig(config, item.source, calendars);
@@ -273,12 +314,13 @@
         if (lane < 0) lane = laneEnds.length;
         laneEnds[lane] = pieces[pieces.length - 1].left + pieces[pieces.length - 1].width;
         pieces.forEach(piece => segments.push({ ...piece, lane }));
+        bars.push(...joinedBars(pieces, lane));
       });
-      return { ...column, segments, unplotted, laneCount: Math.max(1, laneEnds.length) };
+      return { ...column, segments, bars, unplotted, laneCount: Math.max(1, laneEnds.length) };
     });
     const nowDay = Math.floor((now.getTime() - firstMs) / DAY), nowMinutes = (now.getTime() - firstMs - nowDay * DAY) / 60000;
     const nowLeft = nowDay >= 0 && nowDay < dayCount && nowMinutes >= axisStart && nowMinutes <= axisEnd ? nowDay * dayWidth + (nowMinutes - axisStart) / (axisEnd - axisStart) * dayWidth : null;
-    return { rows, days, outside, unscheduled, startDate, dayCount, dayWidth, width, axisStart, axisEnd, nowLeft, today: dateKey(now) };
+    return { rows, days, outside, unscheduled, startDate, dayCount, dayWidth, width, axisStart, axisEnd, nowLeft, today: dateKey(now), zoom };
   }
   function timeLabel(minutes) {
     const hour = Math.floor(minutes / 60), remainder = Math.round(minutes % 60);
@@ -289,18 +331,39 @@
     const state = { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', admin: 'Admin block' }[item.status];
     const title = item.kind === 'admin' ? item.source.label || 'Admin block' : `Key ${person.key} · JC ${person.job} · Stock ${person.stock}\n${person.customer}\n${person.description}`;
     const midnight = Date.parse(`${segment.date}T00:00:00+08:00`);
-    const timingLabel = `${segment.date} · ${timeLabel((segment.start - midnight) / 60000)}–${timeLabel((segment.end - midnight) / 60000)}${segment.continuesFromPrevious ? ' · Continued from previous day' : ''}${segment.continuesNext ? ' · Continues next working day' : ''}${segment.historicalOnClosure ? ' · Recorded booking on closure' : ''}`;
+    const partLabel = part => { const dayStart = Date.parse(`${part.date}T00:00:00+08:00`); return `${part.date} · ${timeLabel((part.start - dayStart) / 60000)}–${timeLabel((part.end - dayStart) / 60000)}`; };
+    const hours = ms => `${Math.round(ms / 360000) / 10} h`;
+    const timingLabel = segment.joined
+      ? `One booking · ${hours(segment.parts.reduce((n, part) => n + part.end - part.start, 0))} over ${segment.parts.length} parts${segment.continuesFromPrevious ? ' · Continued from previous day' : ''}${segment.continuesNext ? ' · Continues next working day' : ''}${segment.bookingMs ? ` · Booking total ${hours(segment.bookingMs)}` : ''}${segment.historicalOnClosure ? ' · Recorded booking on closure' : ''}\n${segment.parts.map(part => `${partLabel(part)} · ${hours(part.end - part.start)}`).join('\n')}`
+      : `${segment.date} · ${timeLabel((segment.start - midnight) / 60000)}–${timeLabel((segment.end - midnight) / 60000)}${segment.continuesFromPrevious ? ' · Continued from previous day' : ''}${segment.continuesNext ? ' · Continues next working day' : ''}${segment.historicalOnClosure ? ' · Recorded booking on closure' : ''}`;
+    const joinedParts = segment.joined ? ` data-control-board-parts="${segment.parts.map(part => `${part.date}@${Math.round((part.left - segment.left) * 10) / 10}-${Math.round((part.left + part.width - segment.left) * 10) / 10}`).join(' ')}"` : '';
     const tag = item.kind === 'admin' ? 'div' : 'button';
-    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${segment.width < 130 ? ' is-short' : ''}" style="left:${segment.left}px;width:${segment.width}px;top:${segment.lane * 48 + 5}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}" title="${escape(`${state} · ${title}\n${timingLabel}`)}" aria-label="${escape(`${state} · ${title} · ${timingLabel}`)}">
-      <strong>${item.kind === 'admin' ? escape(title) : `Key ${escape(person.key)} · JC ${escape(person.job)} · Stock ${escape(person.stock)}`}</strong>
-      ${item.kind === 'admin' ? '' : `<span>${escape(person.customer)} · ${escape(person.description)}</span>`}
+    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${segment.width < 130 ? ' is-short' : ''}${segment.joined ? ' is-joined' : ''}" style="left:${segment.left}px;width:${segment.width}px;top:${segment.lane * 48 + 5}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}"${joinedParts} title="${escape(`${state} · ${title}\n${timingLabel}`)}" aria-label="${escape(`${state} · ${title} · ${timingLabel}`.replace(/\n/g, ' · '))}">
+      <strong>${item.kind === 'admin' ? escape(title) : `Key ${escape(person.key)} · JC ${escape(person.job)}`}</strong>
+      ${item.kind === 'admin' ? '' : `<span class="control-board-timeline-customer">${escape(person.customer)}</span>`}
       ${item.kind === 'admin' ? '' : (typeof window !== 'undefined' ? window.PdcFitters?.progressHtml(item.source.fitter_progress, true) || '' : '')}
     </${tag}>`;
   }
+  // r467: Month bars are plain coloured blocks; the hover title follows Craig's
+  // label rule (Key + JC + customer, never Stock).
+  function monthCard(segment) {
+    const item = segment.item, person = itemIdentity(item);
+    const state = { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', admin: 'Admin block' }[item.status];
+    const parts = segment.parts || [segment];
+    const dates = `${parts[0].date}${parts.length > 1 ? ` to ${parts[parts.length - 1].date}` : ''}`;
+    const label = item.kind === 'admin' ? text(item.source.label) || 'Admin block' : `Key ${person.key} · JC ${person.job} · ${person.customer}`;
+    const tag = item.kind === 'admin' ? 'div' : 'button';
+    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)} is-zoom-block" style="left:${segment.left}px;width:${Math.max(2, segment.width)}px;top:${segment.lane * ZOOM.month.lane + 3}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}" title="${escape(`${label}\n${state} · ${dates}`)}" aria-label="${escape(`${label} · ${state} · ${dates}`)}"></${tag}>`;
+  }
+  function zoomControls(zoom) {
+    const index = ZOOM_LEVELS.indexOf(zoom), outLevel = ZOOM_LEVELS[Math.min(ZOOM_LEVELS.length - 1, index + 1)], inLevel = ZOOM_LEVELS[Math.max(0, index - 1)];
+    return `<span class="control-board-zoom" role="group" aria-label="Timeline zoom"><button type="button" data-control-board-zoom="${outLevel}"${outLevel === zoom ? ' disabled' : ''} title="Zoom out: more days across the screen">− Zoom out</button>${ZOOM_LEVELS.map(level => `<button type="button" data-control-board-zoom="${level}" aria-pressed="${level === zoom}"${level === zoom ? ' class="is-active"' : ''}>${ZOOM[level].label}</button>`).join('')}<button type="button" data-control-board-zoom="${inLevel}"${inLevel === zoom ? ' disabled' : ''} title="Zoom in: more detail">Zoom in +</button></span>`;
+  }
   function render(model, options = {}) {
-    const timeline = buildTimeline(model, options);
+    const timeline = buildTimeline(model, { ...options, zoom: options.zoom || getZoom() });
     if (!timeline) return '<div class="workshop-connection-banner offline_error" role="status"><strong>Workshop timeline unavailable</strong><span>The workshop calendar could not be loaded. Refresh board to try again.</span></div>';
-    const formatDay = key => new Date(`${key}T12:00:00Z`).toLocaleDateString('en-AU', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
+    const zoom = timeline.zoom, compact = zoom !== 'day', laneHeight = ZOOM[zoom].lane;
+    const formatDay = key => new Date(`${key}T12:00:00Z`).toLocaleDateString('en-AU', zoom === 'month' ? { timeZone: 'UTC', weekday: 'narrow', day: 'numeric' } : { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
     const tickMinutes = Array.from({ length: Math.floor((timeline.axisEnd - timeline.axisStart) / 60) + 1 }, (_, i) => timeline.axisStart + i * 60);
     if (tickMinutes[tickMinutes.length - 1] !== timeline.axisEnd) {
       // Leave room for the exact closing label (for example 4:30 pm) rather
@@ -309,7 +372,7 @@
       tickMinutes.push(timeline.axisEnd);
     }
     const ticks = tickMinutes.map(minute => `<span style="left:${(minute - timeline.axisStart) / (timeline.axisEnd - timeline.axisStart) * 100}%">${escape(timeLabel(minute))}</span>`).join('');
-    const days = timeline.days.map(day => `<div class="control-board-timeline-day${day.date === timeline.today ? ' is-today' : ''}${day.windows.length ? '' : ' is-closed'}" style="width:${timeline.dayWidth}px"><strong>${escape(formatDay(day.date))}${day.windows.length ? '' : ' · Closed'}</strong><div class="control-board-time-ticks">${ticks}</div></div>`).join('');
+    const days = timeline.days.map(day => `<div class="control-board-timeline-day${day.date === timeline.today ? ' is-today' : ''}${day.windows.length ? '' : ' is-closed'}" style="width:${timeline.dayWidth}px"><strong${zoom === 'month' && !day.windows.length ? ' title="Closed"' : ''}>${escape(formatDay(day.date))}${day.windows.length || zoom === 'month' ? '' : ' · Closed'}</strong><div class="control-board-time-ticks">${compact ? '' : ticks}</div></div>`).join('');
     const shading = timeline.days.map((day, index) => {
       let cursor = timeline.axisStart;
       const closed = [];
@@ -328,14 +391,14 @@
       previousStage = groupId;
       const note = row.bay.is_active === false ? 'Inactive · existing bookings only' : `${text(row.bay.technician_name) || 'Unassigned'} · ${Number(row.bay.efficiency_percent) || 100}%`;
       const missing = row.unplotted.map(entry => `<button type="button" class="control-board-unplotted" data-control-board-match data-control-board-item="${escape(entry.item.kind)}" data-control-board-id="${escape(entry.item.id)}" title="${escape(entry.reason)}">${escape(entry.item.vehicle.stock_number || entry.item.source.label || 'Job')} · ${escape(entry.reason)}</button>`).join('');
-      return `${group}<div class="control-board-timeline-bay ${stationClass}" data-control-board-bay="${escape(row.bay.bay_id)}" aria-label="${escape(`${label} Bay ${row.bay.bay_number}`)}" style="--row-height:${Math.max(58, row.laneCount * 48 + 10)}px"><div class="control-board-timeline-bay-label"><button type="button" data-control-board-planner="${escape(row.stage)}" data-control-board-group="${escape(layout?.groupForBay(row.stage === 'BUS_4X4' ? row.bay.bay_number : 0)?.id || '')}" title="Open ${escape(label)} planner"><strong>Bay ${String(row.bay.bay_number).padStart(2, '0')}</strong><span>${model.search ? row.items.length : row.total}</span></button><small title="${escape(note)}">${escape(note)}</small>${missing}</div><div class="control-board-timeline-track">${shading}${row.segments.map(timelineCard).join('')}</div></div>`;
+      return `${group}<div class="control-board-timeline-bay ${stationClass}" data-control-board-bay="${escape(row.bay.bay_id)}" aria-label="${escape(`${label} Bay ${row.bay.bay_number}`)}" style="--row-height:${zoom === 'month' ? Math.max(22, row.laneCount * laneHeight + 6) : Math.max(58, row.laneCount * 48 + 10)}px"><div class="control-board-timeline-bay-label"><button type="button" data-control-board-planner="${escape(row.stage)}" data-control-board-group="${escape(layout?.groupForBay(row.stage === 'BUS_4X4' ? row.bay.bay_number : 0)?.id || '')}" title="Open ${escape(label)} planner"><strong>Bay ${String(row.bay.bay_number).padStart(2, '0')}</strong><span>${model.search ? row.items.length : row.total}</span></button><small title="${escape(note)}">${escape(note)}</small>${missing}</div><div class="control-board-timeline-track">${shading}${(row.bars || row.segments).map(zoom === 'month' ? monthCard : timelineCard).join('')}</div></div>`;
     }).join('');
     const outside = timeline.outside.length ? `<button class="small-button" type="button" data-control-board-reveal="${escape(timeline.outside[0].date)}">${timeline.outside.length} bookings outside these dates · Show</button>` : '';
     const waiting = model.waiting.length ? `<div class="control-board-timeline-waiting"><strong>Unallocated · ${model.waiting.length}</strong><div>${model.waiting.map(item => cardHtml(item, true)).join('')}</div></div>` : '';
-    return `<div class="control-board-timeline-toolbar"><div><strong>${model.search ? model.columns.length : model.totalBays} bays · ${model.search ? model.columns.reduce((n, column) => n + column.items.filter(item => item.kind === 'booking').length, 0) + model.waiting.filter(item => item.kind === 'booking').length : model.totalBookings} bookings · ${model.search ? model.waiting.length : model.totalWaiting} unallocated</strong><span>${model.search ? `${model.matchingItems} matching jobs · Only matching bays shown · ` : ''}Scroll down for bays and right for later days. Perth time.</span></div><div class="control-board-timeline-dates"><button type="button" data-control-board-shift="-${timeline.dayCount}" aria-label="Previous ${timeline.dayCount} days">‹</button><label>From <input type="date" data-control-board-start value="${timeline.startDate}" aria-label="Timeline start date"></label><button type="button" data-control-board-today>Today</button><button type="button" data-control-board-shift="${timeline.dayCount}" aria-label="Next ${timeline.dayCount} days">›</button><button type="button" data-control-board-more${timeline.dayCount >= 56 ? ' disabled' : ''}>More days →</button></div></div>
+    return `<div class="control-board-timeline-toolbar"><div><strong>${model.search ? model.columns.length : model.totalBays} bays · ${model.search ? model.columns.reduce((n, column) => n + column.items.filter(item => item.kind === 'booking').length, 0) + model.waiting.filter(item => item.kind === 'booking').length : model.totalBookings} bookings · ${model.search ? model.waiting.length : model.totalWaiting} unallocated</strong><span>${model.search ? `${model.matchingItems} matching jobs · Only matching bays shown · ` : ''}Scroll down for bays and right for later days. Perth time.</span></div><div class="control-board-timeline-dates"><button type="button" data-control-board-shift="-${timeline.dayCount}" aria-label="Previous ${timeline.dayCount} days">‹</button><label>From <input type="date" data-control-board-start value="${timeline.startDate}" aria-label="Timeline start date"></label><button type="button" data-control-board-today>Today</button><button type="button" data-control-board-shift="${timeline.dayCount}" aria-label="Next ${timeline.dayCount} days">›</button><button type="button" data-control-board-more${timeline.dayCount >= 56 ? ' disabled' : ''}>More days →</button>${zoomControls(zoom)}</div></div>
       <nav class="control-board-department-links" aria-label="Jump to workshop department">${(layout ? layout.options(model.department).filter(option => model.stages.includes(option.stage)) : model.stages.map(stage => ({stage,label:stageLabel(stage),group:''}))).map(option => `<button type="button" data-control-board-planner="${escape(option.stage)}" data-control-board-group="${escape(option.group)}">${escape(option.label)}</button>`).join('')}<span class="control-board-job-legend"><i class="is-planned"></i>Planned <i class="is-started"></i>Live <i class="is-stoppage"></i>Stoppage <i class="is-admin"></i>Admin block</span></nav>
       ${outside}${model.search && !model.matchingItems ? '<p class="control-board-no-results" role="status">No matching jobs. Clear the search to see all work.</p>' : ''}
-      <div class="control-board-timeline-shell" style="--timeline-width:${timeline.width}px;--day-width:${timeline.dayWidth}px;--hour-width:${timeline.dayWidth / ((timeline.axisEnd - timeline.axisStart) / 60)}px">
+      <div class="control-board-timeline-shell${compact ? ` is-zoom-${zoom}` : ''}" style="--timeline-width:${timeline.width}px;--day-width:${timeline.dayWidth}px;--hour-width:${compact ? timeline.dayWidth : timeline.dayWidth / ((timeline.axisEnd - timeline.axisStart) / 60)}px">
         <div class="control-board-timeline-sticky-header">
           <div class="control-board-timeline-header-viewport"><div class="control-board-timeline-axis"><div class="control-board-timeline-axis-corner">Workshop / Bay</div><div class="control-board-timeline-days">${days}</div></div></div>
           <div class="control-board-pan-row"><span>Drag to pan ↔</span><div class="control-board-pan-rail" tabindex="0" role="scrollbar" aria-label="Pan workshop timeline to earlier or later dates" aria-orientation="horizontal" aria-controls="control-board-timeline-scroll" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" title="Drag left or right. Use arrow keys, Page Up / Down, Home or End."><span class="control-board-pan-thumb" aria-hidden="true"></span></div></div>
@@ -416,6 +479,30 @@
     };
     const listeners = [[scroll, 'scroll', sync], [rail, 'pointerdown', pointerDown], [rail, 'pointermove', pointerMove], [rail, 'pointerup', stopDrag], [rail, 'pointercancel', stopDrag], [rail, 'lostpointercapture', stopDrag], [rail, 'keydown', keyDown], [header, 'wheel', wheel], [rail, 'wheel', wheel]];
     listeners.forEach(([node, type, fn]) => node.addEventListener(type, fn, { passive: type === 'scroll' }));
+    // r464: a joined bar opens the planner on the day that was clicked, as the
+    // separate per-day bars did. Keyboard activation keeps the first day.
+    const joinedClick = event => {
+      const bar = event.target.closest?.('button.control-board-timeline-job.is-joined[data-control-board-parts]');
+      if (!bar || !event.detail) return;
+      const x = event.clientX - bar.getBoundingClientRect().left;
+      const parts = bar.dataset.controlBoardParts.split(' ').map(entry => { const [date, range] = entry.split('@'); const [a, b] = range.split('-').map(Number); return { date, a, b }; });
+      const hit = parts.find(part => x >= part.a && x <= part.b) || parts.reduce((best, part) => Math.min(Math.abs(x - part.a), Math.abs(x - part.b)) < Math.min(Math.abs(x - best.a), Math.abs(x - best.b)) ? part : best);
+      bar.dataset.controlBoardDate = hit.date;
+    };
+    scroll.addEventListener('click', joinedClick, true);
+    // r467: the zoom buttons sit in the toolbar. Save the level, keep about the same
+    // date at the left edge, and redraw through the board's own renderWorkflowBoard.
+    const zoomClick = event => {
+      const button = event.target.closest?.('button[data-control-board-zoom]');
+      if (!button || button.disabled || !host.contains(button)) return;
+      const next = zoomLevel(button.dataset.controlBoardZoom);
+      if (next === getZoom(view)) return;
+      const oldWidth = Number.parseFloat(shell.style.getPropertyValue('--day-width')) || 0;
+      setZoom(next, view);
+      if (oldWidth) scroll.scrollLeft = scroll.scrollLeft * (ZOOM[next].dayWidth || 672) / oldWidth;
+      if (typeof view.renderWorkflowBoard === 'function') view.renderWorkflowBoard();
+    };
+    host.addEventListener?.('click', zoomClick);
     const resize = view.ResizeObserver ? new view.ResizeObserver(sync) : null;
     resize?.observe(scroll);
     resize?.observe(rail);
@@ -424,9 +511,11 @@
     return () => {
       stopDrag();
       listeners.forEach(([node, type, fn]) => node.removeEventListener(type, fn));
+      scroll.removeEventListener('click', joinedClick, true);
+      host.removeEventListener?.('click', zoomClick);
       resize?.disconnect();
       if (!resize) view.removeEventListener('resize', sync);
     };
   }
-  return Object.freeze({ buildModel, buildTimeline, render, mountTimeline, stageLabel, dateKey, shiftDate, searchDateRange });
+  return Object.freeze({ buildModel, buildTimeline, render, mountTimeline, stageLabel, dateKey, shiftDate, searchDateRange, getZoom, setZoom, ZOOM_LEVELS });
 });

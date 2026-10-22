@@ -1,0 +1,15 @@
+/* r466 (F79): slimline Emergency vehicle priority panel on the control board.
+   Title, stock number and "Preview emergency schedule" on one compact row; the
+   explanatory text moved to hover titles. Red accent kept. The preview result,
+   Prioritise and Cancel controls and their behaviour are unchanged. */
+#workshop-emergency.workshop-emergency.is-slim { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin:8px 18px; padding:6px 12px; border-left-width:4px; border-radius:7px; }
+#workshop-emergency.is-slim h3 { margin:0; font-size:13px; line-height:1.2; white-space:nowrap; color:#9f1c2a; cursor:help; }
+#workshop-emergency.is-slim .emergency-controls { flex:0 1 auto; gap:6px; align-items:center; flex-wrap:nowrap; }
+#workshop-emergency.is-slim .emergency-controls label { display:flex; align-items:center; gap:6px; font-size:11px; white-space:nowrap; }
+#workshop-emergency.is-slim .emergency-controls input { width:170px; min-height:28px; padding:4px 8px; font-size:12px; }
+#workshop-emergency.is-slim .emergency-controls button { min-height:28px; padding-top:3px; padding-bottom:3px; white-space:nowrap; }
+#workshop-emergency.is-slim .emergency-result { flex:1 0 100%; margin-top:2px; }
+@media (max-width:640px) {
+  #workshop-emergency.is-slim .emergency-controls { flex-wrap:wrap; width:100%; }
+  #workshop-emergency.is-slim .emergency-controls label, #workshop-emergency.is-slim .emergency-controls input { width:100%; }
+}
