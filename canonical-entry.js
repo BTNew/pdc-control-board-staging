@@ -77,10 +77,12 @@
     };
     // r460 (F73): vehicle key number (Key No. in the drop-down; inline edit for controllers / administrators, audited);
     // loads after the service locations and parts ETA so the recorded key wins in the Key column.
+    // r472 (F85): the key number module also keeps the snapshot rows raw after a vehicle-card save, so the card no longer re-reads
+    // the whole board to rebind its UUID + Stock (a key-only save confirms its read-back in the background).
     const loadKeyNumber = () => {
       if (document.querySelector('script[data-pdc-key-number]')) return;
       const keyNumber = document.createElement('script');
-      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460';
+      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460&r472=2026.10.22.r472';
       keyNumber.dataset.pdcKeyNumber = '1';
       keyNumber.onload = loadVehicleLocationsTable;
       keyNumber.onerror = loadVehicleLocationsTable;
@@ -98,10 +100,11 @@
     };
     // r462 (F75): Table view only: clicking a vehicle opens the slide-out panel. r463 (F76): the panel shows the card
     // (stations, details, operations); its drag-to-bay is withdrawn. Loads after the table module, which it registers with.
+    // r473 (F86): the panel drops its summary row (station strip, PMB status, Book all stations) and gets an Open Vehicle button.
     const loadVehicleSlideout = () => {
       if (document.querySelector('script[data-pdc-vehicle-slideout]')) return;
       const slideout = document.createElement('script');
-      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r463';
+      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r473';
       slideout.dataset.pdcVehicleSlideout = '1';
       document.head.appendChild(slideout);
     };

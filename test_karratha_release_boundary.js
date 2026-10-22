@@ -108,7 +108,9 @@ const approvedRootImportPatch = Object.freeze({
   // r461: loads pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461 after pdc-key-number.js (Vehicle Locations table view switch, default drop-down; F74).
   // r462: r462=2026.10.22.r462 on the table module, then loads pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r462 after it (Table view slide-out panel, Parts loc column, resizable columns; F75).
   // r463: r463=2026.10.22.r463 on the table module and vehicle-slideout=2026.10.22.r463 (Job Card column; panel drag-to-bay withdrawn; F76).
-  "canonical-entry.js": "c7c2ae84a0e82b9304cfd404dfacb873642d19d6f0cbfc5c82b3cbcf29088977",
+  // r472: key-number=2026.10.22.r460&r472=2026.10.22.r472 on pdc-key-number.js (vehicle-card key save keeps snapshot rows raw; F85).
+  // r473: vehicle-slideout=2026.10.22.r473 on pdc-vehicle-slideout.js (panel top without the summary row, Open Vehicle; F86).
+  "canonical-entry.js": "aed29d8ec40343ec4809c1f4441dcbbdd70763b0cf8fdb6eb3a0aa4fc6b6ac22",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -199,7 +201,9 @@ const approvedRootImportPatch = Object.freeze({
   // r467: index.html r467=2026.10.22.r467 on control-board-overview.js and control-board-zoom.css?control-board-zoom=2026.10.22.r467 (F80).
   // r469: index.html r469=2026.10.22.r469 on canonical-entry.js (F82).
   // r470: index.html r470=2026.10.22.r470 on canonical-entry.js (F83).
-  "index.html": "789f9223fbbfb39dd6794e241ed4a57bb70fcb92e8365c0eff8d639fcb84e432",
+  // r472: index.html r472=2026.10.22.r472 on canonical-entry.js (F85).
+  // r473: index.html r473=2026.10.22.r473 on canonical-entry.js (F86).
+  "index.html": "1fe3c80480229323161bfad4ff0bbc6914f7f85917e305a726b4a704b105c568",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

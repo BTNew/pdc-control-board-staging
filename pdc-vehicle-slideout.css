@@ -1,7 +1,8 @@
 /* r462 (F75) / r463 (F76): Vehicle slide-out panel (pdc-vehicle-slideout.js). Loaded only by that module, used only in
    Table view. Every rule is scoped to #vso-shell, so the Drop-down view and its cards are unchanged. No rule changes a
    station cell's colour, symbol or tooltip: those come from styles.css exactly as on the board.
-   r463: the r462 Jobs & bookings / drag-to-bay rules are removed with the feature (Craig, 22 Oct 09:03). */
+   r463: the r462 Jobs & bookings / drag-to-bay rules are removed with the feature (Craig, 22 Oct 09:03).
+   r473: the card's summary row is removed from the open panel (the parity copy keeps it); Open Vehicle button. */
 #vso-shell { font-family: Arial, Helvetica, sans-serif; color: #142334; }
 #vso-shell .vso-scrim { position: fixed; inset: 0; background: #14233433; opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 70; }
 #vso-shell .vso-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(820px, 62vw); background: #fff; border-left: 1px solid #e1e7ef; box-shadow: -14px 0 34px #1d2a3833;
@@ -47,3 +48,16 @@
   content: attr(data-vso-full); position: absolute; left: 4.9rem; right: 6px; top: calc(100% - 4px); z-index: 8; white-space: normal;
   background: #142334; color: #fff; font: 11px/1.4 Arial, Helvetica, sans-serif; padding: 6px 9px; border-radius: 8px; box-shadow: 0 8px 20px #14233444; pointer-events: none; }
 #vso-shell .authenticated-email-operations li[data-vso-full]:focus { outline: 2px solid #246fad; outline-offset: -2px; }
+/* r473 (F86): no summary row at the top of the open panel (station strip, PMB status / stream, Book all stations). */
+#vso-shell .vso-panel .vso-card > summary.vso-summary-removed { display: none !important; }
+#vso-shell .vso-open-row { margin-top: 8px; }
+#vso-shell .vso-open-vehicle { font: 700 12px/1 Arial, Helvetica, sans-serif; height: 30px; padding: 0 16px; border-radius: 8px; border: 1px solid #1d4ed8; background: #1d4ed8; color: #fff; cursor: pointer; }
+#vso-shell .vso-open-vehicle:hover { background: #1e40af; border-color: #1e40af; }
+#vso-shell .vso-open-vehicle:focus-visible { outline: 2px solid #142334; outline-offset: 2px; }
+#vso-shell .vso-open-vehicle.is-loading { opacity: .7; cursor: progress; }
+#vso-shell .vso-stock-text { font-weight: 700; color: #142334; }
+/* r473: an operation line shows its own text only; any control another script adds to a line sits on its own row,
+   never on top of the description (the Review station control stays usable). */
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > select,
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > label,
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > div[data-review-control] { grid-column: 1 / -1; position: static !important; }

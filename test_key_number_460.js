@@ -114,7 +114,7 @@ test('in the page: wraps the drop-down and Key column; Edit appears only when th
 test('loader: after pdc-parts-eta.js (onload and onerror), cache-busted; Pages ships it; auto-reload first; styles.css untouched', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /partsEta\.onload = loadKeyNumber;\s*partsEta\.onerror = loadKeyNumber;/);
-  assert.match(entry, /keyNumber\.src = 'pdc-key-number\.js\?key-number=2026\.10\.22\.r460';/);
+  assert.match(entry, /keyNumber\.src = 'pdc-key-number\.js\?key-number=2026\.10\.22\.r460(&r472=2026\.10\.22\.r472)?';/);
   assert.equal((entry.match(/pdc-key-number\.js/g) || []).length, 1);
   const index = fs.readFileSync('index.html', 'utf8');
   assert.match(index, /canonical-entry\.js\?[^"]*parts-eta=2026\.10\.21\.r436&amp;key-number=2026\.10\.22\.r460&amp;sublet-po=/);
