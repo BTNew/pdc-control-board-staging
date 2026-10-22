@@ -57,7 +57,9 @@ assert.strictEqual(decrease.operation, 'resize');
 assert.strictEqual(decrease.shiftMinutes, 0);
 
 const source = fs.readFileSync('workshop-planner.js', 'utf8');
-assert.match(source, /Work estimate changed; save to update/);
+// r478 (F91): the popup's hours are read-only, so the mismatch note no longer says 'save to update'.
+assert.match(source, /Work estimate changed since the bay time was set/);
+assert.doesNotMatch(source, /save to update/);
 assert.match(source, /step="any"/);
 assert.match(source, /work hours/);
 assert.match(source, /currentPlan\?\.operationEstimateHours/);

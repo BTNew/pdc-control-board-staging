@@ -8331,11 +8331,12 @@ function workshopJobStageOptionsHtml(selected = '') {
 
 function workshopJobLineRowsHtml(vehicle = {}) {
   const lines = workshopResolvedJobLines(vehicle);
-  if (!lines.length) return '<div class="workshop-job-lines-empty">No AI/imported job lines are attached. Set the estimated time for the current bay above.</div>';
+  if (!lines.length) return '<div class="workshop-job-lines-empty">No AI/imported job lines are attached.</div>';
+  // r478 (F91): line hours are shown, not typed. Only the work area can be changed here.
   return lines.map(line => `<div class="workshop-job-line-row" data-workshop-job-line="${escapeHtml(line.id)}">
     <span title="${escapeHtml(line.text)}">${escapeHtml(line.text)}</span>
     <label><small>Work area</small><select name="line_stage_${escapeHtml(line.id)}">${workshopJobStageOptionsHtml(line.stage)}</select></label>
-    <label><small>Line hours</small><input type="number" name="line_hours_${escapeHtml(line.id)}" min="0.25" step="0.25" value="${escapeHtml(line.hours)}"></label>
+    <div class="workshop-job-line-hours-readonly"><small>Line hours</small><output data-workshop-line-hours-readonly>${escapeHtml(line.hours)}</output></div>
   </div>`).join('');
 }
 
@@ -8395,7 +8396,11 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
   const currentOperationHours = Number(currentPlan?.operationEstimateHours) || 0;
   const calculatedHours = operationLineHours || currentOperationHours || currentPlanHours || workshopDefaultBookingHours();
   const calculatedInputValue = workshopDurationInputValue(calculatedHours);
-  const planMismatch = currentPlan && (workshopSharedModeActive() ? currentOperationHours > 0 && Math.round(currentOperationHours * 60) !== Math.round(calculatedHours * 60) : currentPlanHours > 0 && Math.round(currentPlanHours * 60) !== Math.round(calculatedHours * 60));
+  // r478 (F91): the estimated hours are read-only here (Craig, 22 Oct). On the shared board the only thing
+  // the old Save did was write a manual 'Planner stage time adjustment' (set_workshop_stage_estimated_minutes_407),
+  // so the button is gone; the local fallback keeps its work-area allocation save, without any hours input.
+  const sharedMode = workshopSharedModeActive();
+  const planMismatch = currentPlan && (sharedMode ? currentOperationHours > 0 && Math.round(currentOperationHours * 60) !== Math.round(calculatedHours * 60) : currentPlanHours > 0 && Math.round(currentPlanHours * 60) !== Math.round(calculatedHours * 60));
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay workshop-job-overlay';
   overlay.dataset.workshopJobOverlay = 'true';
@@ -8412,13 +8417,13 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
     </div>
     <form data-workshop-job-form data-workshop-job-key="${escapeHtml(vehicleKey(vehicle))}" data-workshop-job-stage="${escapeHtml(stage)}">
       <section class="workshop-current-stage-time">
-        <div><strong>${escapeHtml(stageLabel)} work estimate</strong><span><strong data-workshop-estimated-hours-total>${escapeHtml(calculatedInputValue)}</strong> work hours · ${stageLines.length} authenticated line${stageLines.length === 1 ? '' : 's'}${currentPlanHours > 0 ? ` · ${escapeHtml(workshopDurationInputValue(currentPlanHours))} hours allocated in the bay` : ''}${planMismatch ? ' · Work estimate changed; save to update' : ''}</span></div>
-        <label><span>Estimated work hours</span><input type="number" name="estimated_hours" min="0.0167" step="any" inputmode="decimal" value="${escapeHtml(calculatedInputValue)}"></label>
+        <div><strong>${escapeHtml(stageLabel)} work estimate</strong><span><strong data-workshop-estimated-hours-total>${escapeHtml(calculatedInputValue)}</strong> work hours · ${stageLines.length} authenticated line${stageLines.length === 1 ? '' : 's'}${currentPlanHours > 0 ? ` · ${escapeHtml(workshopDurationInputValue(currentPlanHours))} hours allocated in the bay` : ''}${planMismatch ? ' · Work estimate changed since the bay time was set' : ''}</span></div>
+        <div class="workshop-estimate-readonly" data-workshop-estimate-readonly><span>Estimated work hours</span><output data-workshop-estimated-hours-value aria-label="Estimated work hours, from the job lines">${escapeHtml(calculatedInputValue)}</output><small>From the job lines · not editable</small></div>
       </section>
       <section class="workshop-required-jobs"><header><strong>Required jobs for ${escapeHtml(stageLabel)}</strong><span>Canonical requirement plus imported lines allocated to this station.</span></header>${workshopRequiredJobsForStageHtml(vehicle, stage, stageLines)}</section>
       ${workshopSharedModeActive() ? '' : `<section class="workshop-job-lines"><header><strong>Imported job lines</strong><span>Change the work area to allocate a line elsewhere.</span></header>${workshopJobLineRowsHtml(vehicle)}</section>`}
       <div class="workshop-job-notes"><strong>Team notes</strong><span>${escapeHtml(teamNotesText(vehicle) || 'No additional team notes.')}</span></div>
-      <div class="edit-actions"><button class="secondary" type="button" data-workshop-job-close>Cancel</button><button class="primary" type="submit">Save estimated time / allocation</button><button class="small-button" type="button" data-workshop-job-full-vehicle="${escapeHtml(vehicleKey(vehicle))}">Open full vehicle</button></div>
+      <div class="edit-actions"><button class="secondary" type="button" data-workshop-job-close>Cancel</button>${sharedMode ? '' : '<button class="primary" type="submit" data-workshop-job-save-allocation>Save line work areas</button>'}<button class="small-button" type="button" data-workshop-job-full-vehicle="${escapeHtml(vehicleKey(vehicle))}">Open full vehicle</button></div>
     </form>
   </section>`;
   const close = () => {
@@ -8432,39 +8437,20 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
     close();
     openVehicleModal(vehicleKeyValue);
   });
-  const estimatedHoursInput = overlay.querySelector('[name="estimated_hours"]');
-  const estimatedHoursTotal = overlay.querySelector('[data-workshop-estimated-hours-total]');
-  estimatedHoursInput?.addEventListener('input', () => {
-    const value = Number(estimatedHoursInput.value);
-    if (estimatedHoursTotal && Number.isFinite(value)) estimatedHoursTotal.textContent = String(value);
-  });
   overlay.querySelector('[data-workshop-job-form]')?.addEventListener('submit', async event => {
     event.preventDefault();
+    // r478 (F91): this popup never writes hours. Shared board: nothing to save (no manual stage adjustment).
+    if (sharedMode || workshopSharedModeActive()) return;
     if (!workshopRequireOperatorProfile()) return;
     const form = event.currentTarget;
     const data = new FormData(form);
     const currentStage = normalizePmbStage(form.dataset.workshopJobStage);
-    const requestedHours = Number(data.get('estimated_hours'));
-    const requestedMinutes = Math.round(requestedHours * 60);
-    if (!Number.isFinite(requestedHours) || requestedMinutes < 1) {
-      workshopNotify('Estimated time must be at least 1 minute. No workshop time was changed.');
-      return;
-    }
-    const nextHours = workshopSharedModeActive() ? requestedMinutes / 60 : workshopClampDurationHours(requestedHours);
-    if (workshopSharedModeActive()) {
-      if (!currentPlan) {
-        workshopNotify('This booking could not be identified uniquely, so its estimated time was not changed. Reload the planner and open the job again.');
-        return;
-      }
-      const result = await workshopDispatchSharedAction('setStageEstimatedMinutes', workshopStageEstimateSharedPayload(vehicle, currentPlan, currentStage, requestedMinutes));
-      if (result?.ok === true) close();
-      return;
-    }
     const assignments = workshopJobLineAssignments(vehicle);
     const lineRows = workshopImportedJobLines(vehicle);
+    const resolvedHours = new Map(workshopResolvedJobLines(vehicle).map(line => [line.id, Number(line.hours)]));
     lineRows.forEach(line => {
       const lineStage = normalizePmbStage(data.get(`line_stage_${line.id}`) || '');
-      const lineHours = Number(data.get(`line_hours_${line.id}`));
+      const lineHours = resolvedHours.get(line.id);
       assignments[line.id] = {
         stage: WORKSHOP_STAGE_SEQUENCE.includes(lineStage) ? lineStage : '',
         hours: Number.isFinite(lineHours) && lineHours > 0 ? workshopClampLineHours(lineHours) : 1,
@@ -8478,17 +8464,11 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
       if (!WORKSHOP_STAGE_SEQUENCE.includes(lineStage)) return;
       stageTotals[lineStage] = Number(stageTotals[lineStage] || 0) + Number(assignment.hours || 0);
     });
-    const manualAllocation = workshopManualDurationAllocation(nextHours, stageTotals[currentStage] || 0);
-    if (!manualAllocation) {
-      workshopNotify(`Estimated time cannot be less than the ${Number(stageTotals[currentStage] || 0)} imported hours allocated to this bay. No workshop time was changed.`);
-      return;
-    }
-    additionalMap[currentStage] = manualAllocation.additional;
+    // r478 (F91): the stage additions already on the vehicle are kept as they are; none is added or changed here.
     WORKSHOP_STAGE_SEQUENCE.forEach(workArea => {
       const total = Number(stageTotals[workArea] || 0) + Number(additionalMap[workArea] || 0);
       if (total > 0) hoursMap[workArea] = workshopClampDurationHours(total);
     });
-    hoursMap[currentStage] = manualAllocation.total;
     const updatedPlans = workshopLoadPlans().map(entry => entry.vehicleKey === vehicleKey(vehicle) && entry.status !== 'completed' && Number(hoursMap[entry.stage]) > 0
       ? { ...entry, hours: workshopClampDurationHours(hoursMap[entry.stage]), updatedAt: nowIsoString() }
       : entry);
@@ -8524,7 +8504,7 @@ function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId =
   });
   document.body.appendChild(overlay);
   document.body.classList.add('modal-open');
-  overlay.querySelector('input')?.focus();
+  overlay.querySelector('.modal-close[data-workshop-job-close]')?.focus({ preventScroll: true }); // r478: no hours input to focus; the popup stays at its top
 }
 
 function setupWorkshopPlannerClock() {

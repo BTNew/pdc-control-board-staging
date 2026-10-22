@@ -77,10 +77,12 @@ const approvedRootImportPatch = Object.freeze({
   // r450: Schedule window offers Whole job to one technician; whole jobs show by bay (F63).
   // r469: the planner names the booking a cascade push would clash with (F82).
   // r470: Find scrolls to the result once per selection, not on every render (F83).
-  "workshop-planner.js": "5e01303827e2b6503d0db0c24e14965d746b4a068afbb6682f89ded977732b42",
+  // r478: station vehicle job popup shows the estimated hours read-only; no manual hours save (F91).
+  "workshop-planner.js": "ac07b1ee5a8b2965a2500c1173e446a51414c45625cb04e475723cebe807491d",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   // r457: one-column side menu 901-1180 px and no blank band in the stacked planner header up to 1300 px (F70).
-  "workshop-planner.css": "01efe7c09ee8a46a6c6b7d4c681de6113b60c6eddef799414efc0f8c8c76fce2",
+  // r478: read-only estimated work hours value in the station vehicle job popup (F91).
+  "workshop-planner.css": "fc29a4268da314b2d41905f65788f00b5c07ddb4544b36cdb5f991ac3bc9bf3a",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   "scripts/build_pages_runtime.js": "f39cb3b2b550ac467feb7acbec932c091a8ad75229531e539fc706ec665210d3",
@@ -208,7 +210,8 @@ const approvedRootImportPatch = Object.freeze({
   // r475: index.html r475=2026.10.22.r475 on canonical-entry.js (F88).
   // r476: index.html r476=2026.10.22.r476 on canonical-entry.js (F89).
   // r477: index.html loads pdc-sidebar-compact.css?sidebar-compact=2026.10.22.r477 last (PMG sidebar compressed, Parts nav item hidden by a flag; F90).
-  "index.html": "daff84fbacf93b8be277a3f65b9242d2fb7fb01e168dd4c525c4776e929cf035",
+  // r478: index.html r478=2026.10.22.r478 on workshop-planner.css (F91).
+  "index.html": "d2576fb0f4539f040547e8338c565de35f34def600cd00b2b91bd6d6608df49f",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

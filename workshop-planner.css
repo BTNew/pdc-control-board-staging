@@ -942,6 +942,13 @@ body[data-current-view="workshop"] .content {
 .workshop-current-stage-time span { color: #475569; font-size: .7rem; font-weight: 750; }
 .workshop-current-stage-time label { display: grid; gap: 4px; color: #475569; font-size: .62rem; font-weight: 900; text-transform: uppercase; }
 .workshop-current-stage-time input { min-height: 36px; border: 1px solid #93c5fd; border-radius: 7px; padding: 5px 8px; font-weight: 850; }
+/* r478 (F91): the estimated work hours are a read-only value from the job lines (no input, no spinner). */
+.workshop-current-stage-time .workshop-estimate-readonly { display: grid; gap: 4px; }
+.workshop-current-stage-time .workshop-estimate-readonly > span { color: #475569; font-size: .62rem; font-weight: 900; text-transform: uppercase; }
+.workshop-current-stage-time .workshop-estimate-readonly output { display: block; padding: 2px 0; color: #0f172a; font-size: 1.2rem; font-weight: 900; line-height: 1.2; cursor: default; user-select: text; }
+.workshop-current-stage-time .workshop-estimate-readonly small { color: #64748b; font-size: .6rem; font-weight: 750; }
+.workshop-job-line-hours-readonly { display: grid; gap: 3px; }
+.workshop-job-line-hours-readonly output { display: block; min-height: 34px; box-sizing: border-box; border: 1px solid #e2e8f0; border-radius: 6px; padding: 7px; background: #f8fafc; font-weight: 750; }
 .workshop-job-lines { display: grid; gap: 6px; }
 .workshop-required-jobs { display: grid; gap: 7px; padding: 10px 12px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; }
 .workshop-required-jobs > header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; color: #475569; font-size: .68rem; }
