@@ -5,7 +5,7 @@
   const salespeople = Object.freeze(['BG','AW','PM','CW']);
   const categories = [
     ['all','All vehicles'],['unconfirmed','Awaiting stock'],['production','Production'],
-    ['transit','In Transit'],['yardhold','YH / Yard Hold'],['hold','Hold/Waiting'],
+    ['transit','In Transit'],['hold','Hold/Waiting'],['yardhold','YH / Yard Hold'],
     ['released','Released'],['autocare','Dispatched Autocare'],['dealer','Dealer'],['unknown','Status not recorded']
   ];
   function escapeHtml(value) {
@@ -15,18 +15,28 @@
     return row.stock ? 'Stock '+row.stock : row.order ? 'Toyota Order '+row.order : 'Reference not recorded';
   }
   function yardLocationCode(value) { return String(value ?? '').trim().toUpperCase().startsWith('Y'); }
+  // r474 (F87): the Toyota WA yard codes whose Toyota status text decides the tile (Bryce Guthrie, 22 Oct).
+  const yardTextCodes = Object.freeze(['YN','YR','YW']);
+  const releasedText = /consignment|body builder|ready for transport|ready for despatch|ready for dispatch|despatched|dispatched|despatch to|dispatch to/;
+  const holdText = /waiting pd|waiting for wholesale|delayed|hold|waiting/;
   function category(row) {
     const status = String(row.toyota_status || '').toLowerCase();
     if (/delivered.*dealer|at dealer/.test(status)) return 'dealer';
     if (row.autocare_dispatched===true) return 'autocare';
     if (!row.stock || /^(?:0|TBA)$/i.test(row.stock)) return 'unconfirmed';
-    // r433 (F44): every Navision location code starting with Y (the Toyota WA yard: YH Yard Hold, YN Yard Not Ready,
-    // YR Yard Ready, YW Yard Wait and any later Y code) is in the YH / Yard Hold tile, whatever the Toyota status text says.
-    // Same yard family as r427 yardHoldStageRank (rank 2). Server mirror: pdc_sales_private.sales_tracker_tile.
-    if (yardLocationCode(row.location_status) || status.includes('yard hold')) return 'yardhold';
-    if (/planned for production|line off|final inspection|o\/s wharf|eastern states/.test(status)) return 'production';
-    if (/consignment|body builder|ready for transport|ready for despatch|ready for dispatch|despatched|dispatched|despatch to|dispatch to/.test(status)) return 'released';
-    if (/waiting pd|waiting for wholesale|delayed|hold|waiting/.test(status)) return 'hold';
+    // r474 (F87, replaces r433's "every Y code is Yard Hold"): only a true yard hold is in YH / Yard Hold: Navision YH, or Toyota
+    // text "yard hold". YN / YR / YW follow the Toyota text: YW Ready For Transport - From TWA = Released; YN Waiting PD1 / Waiting PD2 /
+    // Vehicle Delayed and YR Vehicle Waiting For Wholesale = Hold/Waiting. Any other Y code, or YN / YR / YW with text that is neither,
+    // stays in Yard Hold (default). r427 yardHoldStageRank is unchanged. Server mirror: pdc_sales_private.sales_tracker_tile.
+    const code = String(row.location_status ?? '').trim().toUpperCase();
+    if (code === 'YH' || status.includes('yard hold')) return 'yardhold';
+    if (yardTextCodes.includes(code) && releasedText.test(status)) return 'released';
+    if (yardTextCodes.includes(code) && holdText.test(status)) return 'hold';
+    if (yardLocationCode(code)) return 'yardhold';
+    // r474 (F87): "In Transit To Eastern States" is In Transit (the generic "in transit" rule below), no longer Production.
+    if (/planned for production|line off|final inspection|o\/s wharf/.test(status)) return 'production';
+    if (releasedText.test(status)) return 'released';
+    if (holdText.test(status)) return 'hold';
     if (/ready for shipment|in transit|wharf|shipment/.test(status)) return 'transit';
     if (/delivered.*dealer|at dealer/.test(status)) return 'dealer';
     return 'unknown';
@@ -130,7 +140,7 @@
     if(parts.required===true)return 'Parts required · order not confirmed';
     return 'Not recorded';
   }
-  const api = { vehicleReference, salespeople, yardLocationCode, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, isRunningBooking, pmbStatusTone, pmbStatusCell, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
+  const api = { vehicleReference, salespeople, categories, yardLocationCode, yardTextCodes, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, isRunningBooking, pmbStatusTone, pmbStatusCell, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
@@ -217,7 +227,7 @@
     for(const id of ['sales-month-filter','sales-status-filter'])$(id).innerHTML='';
 
   }
-  const categoryDescriptions={all:'COSI sold vehicles in this view',unconfirmed:'Rows without a stock number',production:'Production and early transit statuses',transit:'Shipment, WA transit and wharf',yardhold:'Navision Y statuses (YH, YN, YR, YW) or yard hold',hold:'Delayed, wholesale and PD waits outside the yard',released:'Body builder and TWA despatch',autocare:'Marked as dispatched by Autocare',dealer:'Delivered to the dealer',unknown:'Toyota status needs confirmation'};
+  const categoryDescriptions={all:'COSI sold vehicles in this view',unconfirmed:'Rows without a stock number',production:'Production, line off and overseas wharf',transit:'Shipment, WA and Eastern States transit, wharf',yardhold:'Navision YH yard hold (and any new Y code)',hold:'Waiting PD1 / PD2, delayed and waiting for wholesale',released:'Body builder, TWA despatch and ready for transport',autocare:'Marked as dispatched by Autocare',dealer:'Delivered to the dealer',unknown:'Toyota status needs confirmation'};
   function showView(view) {
     if(!viewNames.includes(view))return;
     if(state.detailId){state.detailId=null;$('sales-detail').close();$('sales-detail-content').innerHTML='';}
