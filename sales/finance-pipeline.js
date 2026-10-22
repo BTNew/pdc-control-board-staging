@@ -80,7 +80,10 @@ function filterFinanceEntries(rows,filters={},canEdit=false){
 }
 
 function approvalStateClass(value){return value==='Yes'?'finance-yes':value==='No'?'finance-no':'';}
-const api={columns,approvalStateClass,choices,patch,money,total,projection,matchVehicles,perthDay,validSettlementDate,financeGroup,financeStatistics,financeFilterValue,financeFilterOptions,filterFinanceEntries};if(typeof module==='object'&&module.exports)module.exports=api;root.BROOME_SALES_FINANCE=api;
+// r488 (F101): every Yes/No drop-down column is coloured like Approval (solid green Yes, solid dark red No, blank neutral).
+const yesNoColumns=['approval','access','payout_complete'];
+function yesNoCellClass(key,value){if(!yesNoColumns.includes(key))return '';const state=approvalStateClass(value);return 'finance-yesno'+(state?' '+state:'');}
+const api={columns,approvalStateClass,yesNoColumns,yesNoCellClass,choices,patch,money,total,projection,matchVehicles,perthDay,validSettlementDate,financeGroup,financeStatistics,financeFilterValue,financeFilterOptions,filterFinanceEntries};if(typeof module==='object'&&module.exports)module.exports=api;root.BROOME_SALES_FINANCE=api;
 if(!root.document)return;
 const $=id=>root.document.getElementById(id);let options,entries=[],refs=[],people=[],ctx=null,epoch=0,request=0,principal='',scope='',drafts=new Map(),busy=new Set(),message='',creating=null,createBusy=false;
 const token=()=>options?.getToken?.(),selected=()=>options?.getSalesperson?.()||'';
@@ -127,7 +130,7 @@ function render(force=false){
     const date=data.settlement_date||'',undated=data.settlement==='Yes'&&!validSettlementDate(date)&&!draft?.errors?.settlement_date;
     control=(editor()?'<input class="finance-settlement-date" type="date" data-finance-id="'+esc(r.id)+'" data-finance-key="settlement_date" data-finance-version="'+(draft?.version??r.version)+'" aria-label="Settlement date for '+esc(r.customer)+'" value="'+esc(date)+'" min="1900-01-01" max="'+perthDay()+'">':esc(validSettlementDate(date)?settlementDateLabel(date):undated?'Settled — date not recorded':'—'))+(editor()&&undated?'<small class="finance-settlement-undated">Settled — date not recorded</small>':'');
    }
-   const state=k==='settlement'?(validSettlementDate(data.settlement_date||'')&&!draft?.errors?.settlement_date?' finance-yes':''):['approval','access','payout_complete'].includes(k)?data[k]==='Yes'?' finance-yes':data[k]==='No'?' finance-no':'':'';
+   const state=k==='settlement'?(validSettlementDate(data.settlement_date||'')&&!draft?.errors?.settlement_date?' finance-yes':''):yesNoColumns.includes(k)?' '+yesNoCellClass(k,data[k]):'';
    return '<td class="'+(k==='approval'?'finance-approval':'')+state+'" data-label="'+label+'">'+control+'</td>';
   }).join('')+'</tr>';
  }).join('')+'</tbody></table></div>';
@@ -315,6 +318,7 @@ function init(settings){
    if(key!=='settlement_date'&&!Object.keys(d.errors).length)queueAutoSave(id);
   }catch(error){d.errors[key]=error.message;message=error.message;save.disabled=true;updateSaveState(id,'error',error.message);}
   if(key==='approval'){const cell=tr.querySelector('td.finance-approval');if(cell){const cls=approvalStateClass(t.value);cell.classList.toggle('finance-yes',cls==='finance-yes');cell.classList.toggle('finance-no',cls==='finance-no');}}
+  if(key!=='approval'&&yesNoColumns.includes(key)){const cell=t.closest?.('td');if(cell?.classList?.contains?.('finance-yesno')){const cls=approvalStateClass(t.value);cell.classList.toggle('finance-yes',cls==='finance-yes');cell.classList.toggle('finance-no',cls==='finance-no');}}
   if(key==='settlement_date'){
    const cell=tr.querySelector('[data-label="Settlement"]');cell?.classList.toggle('finance-yes',!d.errors[key]&&validSettlementDate(t.value));cell?.classList.remove('finance-no');
    const undated=cell?.querySelector('.finance-settlement-undated');if(undated)undated.hidden=true;

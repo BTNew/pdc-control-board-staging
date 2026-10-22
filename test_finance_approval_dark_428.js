@@ -21,7 +21,8 @@ test('r428: Approval Yes is solid dark green and No solid dark red with white bo
  assert.match(css,/td\.finance-approval\.finance-no select\{background-color:#c62828;[^}]*color:#fff;font-weight:700/);
  assert.match(css,/td\.finance-approval select option\{background:#fff;color:#173b57/);
 });
-test('r428: Access / Payout keep the original pale shared styling',()=>{
+// r488 (F101): Access / Payout Complete now also get Approval's solid colours via td.finance-yesno; the pale shared rules stay (Settlement uses them).
+test('r428: the original pale shared styling rules are kept',()=>{
  assert.match(css,/\.finance-pipeline-table \.finance-yes\{background:#d6fae8\}/);
  assert.match(css,/\.finance-pipeline-table \.finance-no\{background:#ffe1e5\}/);
 });
