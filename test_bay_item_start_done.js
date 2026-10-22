@@ -73,8 +73,8 @@ test('board %: Done only, running shown separately, stale flagged; reset only wh
   assert.match(html, /data-fitter-item-reset="b1" data-fitter-item-line="c" data-fitter-item-section="PA"/);
   assert.equal((html.match(/<button/g) || []).length, 1);
   assert.equal(fitters.progressHtml({ percent: 50, completed_hours: 1, total_hours: 2 }, true).includes('fitter-running'), false);
-  assert.match(fs.readFileSync('workshop-planner.js', 'utf8'), /progressHtml\(entry\.fitterProgress, true, \{ resettable: true \}\)/);
-  assert.match(fs.readFileSync('control-board-overview.js', 'utf8'), /progressHtml\(item\.source\.fitter_progress, true\)/);
+  assert.match(fs.readFileSync('workshop-planner.js', 'utf8'), /progressHtml\(entry\.fitterProgress, true, \{ resettable: true[,} ]/);
+  assert.match(fs.readFileSync('control-board-overview.js', 'utf8'), /progressHtml\(item\.source\.fitter_progress, true[,)]/);
 });
 
 test('migration is staging-only, pinned, lint-clean and leaves the clock, QC and PMB paths alone', () => {

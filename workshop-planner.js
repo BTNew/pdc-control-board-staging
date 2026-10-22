@@ -4634,6 +4634,20 @@ function workshopPlanLifecycleActionsHtml(entry = {}) {
   return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-start-plan="${escapeHtml(planId)}" aria-label="${pending ? 'Starting job' : 'Start job'}" ${pending ? 'disabled aria-busy="true"' : ''}>${pending ? 'Starting…' : 'Start job'}</button></div>`;
 }
 
+// r493 (F106): a started job whose bay is outside its working time right now
+// (break, end of day, weekend, holiday or closure) is shown as Paused in amber,
+// matching the fitter job clock, which does not count that time. Display only.
+function workshopEntryPausedNow(entry = {}, now = new Date()) {
+  if (String(entry?.status || '').toLowerCase() !== 'started') return false;
+  try {
+    const stage = String(entry.stage || '').toUpperCase();
+    // Same Bus bay shift as the planner's Closed shading (6 am - 3 pm, bays 8 / 9 to 2 pm).
+    const context = stage === 'BUS_4X4' ? { stage, bay: Number(entry.bay), busCalendarVersion: 1 } : null;
+    const minute = workshopMinuteOfDay(now);
+    return !workshopAvailabilityWindowsForDate(new Date(now), context).some(window => minute >= window.startMinutes && minute < window.endMinutes);
+  } catch (_) { return false; }
+}
+
 function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans(), visibleSegment = null) {
   const vehicle = workshopVehicle(entry.vehicleKey);
   if (!vehicle) return '';
@@ -4642,6 +4656,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const left = (segment.start / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
   const width = ((segment.end - segment.start) / WORKSHOP_PLANNER_CONFIG.dayLengthMinutes) * 100;
   const started = String(entry.status || '').toLowerCase() === 'started';
+  const pausedNow = started && typeof workshopEntryPausedNow === 'function' && workshopEntryPausedNow(entry);
   const blocked = isPdcBlocked(vehicle);
   const overtime = workshopEntryIsOvertime(entry);
   const assigneeConflict = workshopEntryHasAssigneeConflict(entry, rows);
@@ -4656,9 +4671,9 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const savedTechnician = cleanNavisionText(entry.assignee || '')
     || (typeof workshopTechnicianNameById === 'function' ? workshopTechnicianNameById(entry.technicianId) : '');
   const assignee = savedTechnician || workshopBayMechanic(entry.stage, entry.bay) || '';
-  const statusLabel = entry.status === 'completed' ? 'COMPLETED' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? 'LIVE' : 'PLANNED';
+  const statusLabel = entry.status === 'completed' ? 'COMPLETED' : entry.status === 'stoppage' ? 'STOPPAGE' : entry.status === 'started' ? (pausedNow ? 'PAUSED' : 'LIVE') : 'PLANNED';
   const lifecycleActionsHtml = workshopPlanLifecycleActionsHtml(entry);
-  const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', overtime ? 'is-overtime' : '', etaRisk ? 'is-eta-risk' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', lifecycleActionsHtml ? 'has-lifecycle-actions' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
+  const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', pausedNow ? 'is-paused' : '', overtime ? 'is-overtime' : '', etaRisk ? 'is-eta-risk' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', lifecycleActionsHtml ? 'has-lifecycle-actions' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
   const conflictNote = assigneeConflict ? ` · WARNING: ${entry.assignee} is booked on another vehicle at this time` : '';
   const timeLabel = workshopEntryTimeLabel(entry);
   return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${timeLabel} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
@@ -4676,7 +4691,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
       ${etaRiskLabel ? `<small class="workshop-eta-risk-label">${escapeHtml(etaRiskLabel)}</small>` : ''}
     </button>
     ${lifecycleActionsHtml}
-    ${window.PdcFitters?.progressHtml(entry.fitterProgress, true, { resettable: true }) || ''}
+    ${window.PdcFitters?.progressHtml(entry.fitterProgress, true, { resettable: true, paused: entry.status === 'stoppage' ? 'Stoppage' : pausedNow ? 'Outside working time' : '' }) || ''}
     ${entry.legacyAmbiguityReason ? '' : `<span class="workshop-plan-resize" data-workshop-resize-plan="${escapeHtml(entry.id)}" title="Drag to change duration"></span>`}
   </article>`;
 }
@@ -8732,6 +8747,7 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopNextDayFittingWarningEmailBody,
     workshopAdminBlockConflict,
     workshopUnavailableTimeHtml,
+    workshopEntryPausedNow,
     workshopFirstAvailableStartMinutes,
     workshopFirstAvailableStartSlot,
     workshopBestStageSlot,

@@ -57,7 +57,7 @@
     slimStyle.rel = 'stylesheet'; slimStyle.href = 'pdc-planner-slim.css?v=2026.09.12.identity-fields&pill-lines=2026.10.02.15';
     document.head.appendChild(slimStyle);
     const slimScript = document.createElement('script');
-    slimScript.src = 'pdc-planner-slim.js?returned-queue=2026.10.19.01&v=2026.09.12.identity-fields&fitter-sync=2026.09.16.03&bhavesh-followup=2026.09.23.01';
+    slimScript.src = 'pdc-planner-slim.js?returned-queue=2026.10.19.01&r493=2026.10.22.r493&v=2026.09.12.identity-fields&fitter-sync=2026.09.16.03&bhavesh-followup=2026.09.23.01';
     document.head.appendChild(slimScript);
     const tileCleanup = document.createElement('script');
     tileCleanup.src = 'pdc-workshop-tile-cleanup.js?v=2026.09.10.03';

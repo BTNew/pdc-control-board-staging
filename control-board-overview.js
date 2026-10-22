@@ -347,7 +347,7 @@
     return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${segment.width < 130 ? ' is-short' : ''}${segment.joined ? ' is-joined' : ''}" style="left:${segment.left}px;width:${segment.width}px;top:${segment.lane * 48 + 5}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}"${joinedParts} title="${escape(`${state} · ${title}\n${timingLabel}`)}" aria-label="${escape(`${state} · ${title} · ${timingLabel}`.replace(/\n/g, ' · '))}">
       <strong>${item.kind === 'admin' ? escape(title) : `Key ${escape(person.key)} · JC ${escape(person.job)}`}</strong>
       ${item.kind === 'admin' ? '' : `<span class="control-board-timeline-customer">${escape(person.customer)}</span>`}
-      ${item.kind === 'admin' ? '' : (typeof window !== 'undefined' ? window.PdcFitters?.progressHtml(item.source.fitter_progress, true) || '' : '')}
+      ${item.kind === 'admin' ? '' : (typeof window !== 'undefined' ? window.PdcFitters?.progressHtml(item.source.fitter_progress, true, { paused: item.status === 'stoppage' ? 'Stoppage' : '' }) || '' : '')}
     </${tag}>`;
   }
   // r467: Month bars are plain coloured blocks; the hover title follows Craig's
