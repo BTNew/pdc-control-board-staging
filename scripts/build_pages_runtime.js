@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 
 // This builds an artifact only. It does not change GitHub Pages settings or deploy.
@@ -149,6 +150,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-update-history.js', 'pdc-vehicle-handover.js', 'pdc-workshop-hours.js',
   'pdc-workshop-tile-cleanup.js', 'pdc-workshop-usability.js',
   'pdc-running-row.css',
+  'pdc-copyright.css',
   'pd-department-navigation.js',
   'pdc-auto-reload.js',
   'sales/assets/broome-toyota-logo.png', 'sales/build-requirements.css',

@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r413 (F29) proof on a throwaway local database (CI service Postgres via PGHOST, or sudo -u postgres psql):
 // the pre-r413 refill (body from the r413 rollback) and the r413 refill (body from the r413 migration) run against the

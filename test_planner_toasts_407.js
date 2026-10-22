@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r407 (F20, audit #5): planner messages are a non-blocking, accessible toast, not
 // window.alert(). alert() froze the whole page (and any in-flight render or drag) until

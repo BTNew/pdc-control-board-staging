@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r410 (F26): snapshot stage 1. Proven-redundant work removed from the location snapshot chain (pre_734 and
 // pre_1020 become pass-throughs, pre_739 no longer computes pdc_lifecycle per row, the pilbara layer reuses

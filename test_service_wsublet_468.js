@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r468 (F81): Revolution added an OPTIONAL leading Type column (D data, T1 footer) to 'PMG PD Service Complete w/Sublet'.
 // The preparer drops it (like the sales feed); no database function changes. These tests check the preparer, its fixtures,
 // docs and fault log, that no migration or rollback was added for r468, and run the Python tests when python3 is present.

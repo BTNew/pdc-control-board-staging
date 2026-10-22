@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r466 (F79): slimline Emergency vehicle priority panel (title, stock input and
 // Preview on one row; explanatory text only in hover titles). Behaviour unchanged.

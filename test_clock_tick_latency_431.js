@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r431 (F49): the workshop clock tick re-saved every job chained behind an overdue, not-started job every
 // minute. workshop_clock_plan now moves such a job to the next 30-minute mark (clock_overdue_step_minutes),

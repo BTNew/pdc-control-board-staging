@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // The live board marks every startup script defer so the page can parse while
 // those files download. Deferred scripts run after the browser has already
 // set document.readyState to "interactive", and several modules call their

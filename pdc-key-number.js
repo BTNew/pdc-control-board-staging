@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 /* r460 (F73, change request from Craig, 22 Oct 2026): the vehicle key number, editable by controllers and administrators,
    with a full audit trail (who, when, old value, new value, source: edit / release / import).
    Builds on the existing field vehicles.key_number (filled by the service import and shown as the board's 'Key' column).

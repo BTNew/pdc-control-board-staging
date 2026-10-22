@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r413 (F29): the QC cache refill (cron every 20 s) returns -1 (busy) when a writer holds the epoch row (or the cache
 // unique check waits on an in-flight transaction) instead of failing the run with "canceling statement due to lock

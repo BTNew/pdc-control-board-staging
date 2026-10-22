@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 const assert=require('assert'),fs=require('fs');const app=fs.readFileSync('app.js','utf8');
 for(const marker of ['function authenticatedOperationSummaryLines','detail.line_adjustments','adjustmentByKey.get(lineKey)','stage === vehicleWorkshopStageCode(adjustment.stage_code)','estimatedHours: Number.isFinite','data-auth-operation-summary','function loadAuthenticatedOperationSummary','get_vehicle_workshop_detail','bindAuthenticatedOperationSummaries(host)','refreshOpenAuthenticatedOperationSummaries'])assert.ok(app.includes(marker),`missing ${marker}`);

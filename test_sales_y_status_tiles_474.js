@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r474 (F87): Sales tracker tiles (Bryce Guthrie, 22 Oct). Only YH (or "yard hold" text) and unknown Y codes are YH / Yard Hold;
 // YN / YR / YW follow the Toyota text (YW Ready For Transport = Released; YN Waiting PD1 / PD2 / Vehicle Delayed and YR Waiting For

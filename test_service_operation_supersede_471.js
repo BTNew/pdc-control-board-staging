@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r471 (F84): a service line re-sent with the bay / parts-location code appended ('X' -> 'X 05K4F') became a second
 // immutable version of the same Dept + R/O + Line #, so the stock was held (ambiguous_existing_operation). r471 adds a
 // private, append-only supersession record (with a tested undo), makes the change candidate ignore superseded versions,

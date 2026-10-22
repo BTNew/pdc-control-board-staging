@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r437 (F48): the vehicle card refused to open for Navision vehicles whose Dealer column is a
 // Toyota head office account code (001234 / 002345), showing "The exact vehicle identity is

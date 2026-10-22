@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r420 (F35): Sales shows every current Navision feed vehicle, whatever its PMB state; only the manual hide hides one.
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');

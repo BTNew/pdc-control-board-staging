@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 const assert=require('assert'),fs=require('fs');
 const sql=fs.readFileSync('supabase/staging_only/20260827031000_481_navision_linked_vehicle_refresh.sql','utf8');

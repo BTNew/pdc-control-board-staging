@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r403 (F11): a realtime blip on the own-role monitor must not lock an approved
 // user out. Reconnect with backoff, re-read the staff row, lock only on a real

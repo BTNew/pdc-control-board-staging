@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -211,7 +212,8 @@ const approvedRootImportPatch = Object.freeze({
   // r476: index.html r476=2026.10.22.r476 on canonical-entry.js (F89).
   // r477: index.html loads pdc-sidebar-compact.css?sidebar-compact=2026.10.22.r477 last (PMG sidebar compressed, Parts nav item hidden by a flag; F90).
   // r478: index.html r478=2026.10.22.r478 on workshop-planner.css (F91).
-  "index.html": "d2576fb0f4539f040547e8338c565de35f34def600cd00b2b91bd6d6608df49f",
+  // r480: index.html pdc-copyright.css link and copyright footer (sidebar foot + sign-in screen) (F93).
+  "index.html": "8e8be77a60823da734dff9e2e44cb140d37f8d9d55d9408c1639e15f68ca2c67",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

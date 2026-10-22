@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r430: User Admin's All list hides Disabled accounts by default, with a "Show disabled (N)" toggle.
 // Display only: no account row is changed, no server call is made by the toggle.
 const test=require('node:test');

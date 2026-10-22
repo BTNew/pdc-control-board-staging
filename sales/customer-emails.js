@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 (function(root){
 'use strict';
 const types=[['production_planned','Production planned'],['vehicle_built','Vehicle built'],['perth_eta','Perth ETA received']];

@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r421 (F36): importer = viewer + Navision import. Importers no longer pass controller-level gates on the server
 // (is_pdc_role('operator') and six direct role lists), except inside the existing email-monitor canonical action

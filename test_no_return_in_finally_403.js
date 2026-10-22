@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r403: a `return` inside `finally` silently throws away any error raised in
 // the try/catch above it (eslint no-unsafe-finally). The vehicle card identity

@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r452 (F65): the clock tick re-saves the jobs chained behind start-of-shift overdue jobs (real moves, never a no-op). Each re-save
 // fired the QC line cache trigger, so every later capacity check in the same tick rebuilt that vehicle's QC lines (~25 ms each,

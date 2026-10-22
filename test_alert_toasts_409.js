@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r409 (F25): the remaining app.js alert() calls are the r407 toast (pdcNotify).
 // Errors stay until dismissed; success/notice messages are info toasts that clear

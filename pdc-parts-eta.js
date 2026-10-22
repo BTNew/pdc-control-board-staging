@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 /* r436 (F47): parts ETA from parts-staff emails, shown next to the parts location on board vehicle rows. Read only.
  * r475 (F88, Craig 22 Oct 10:51): the chip reads "Parts ETA dd/mm · N days" (due today amber "today", past red "N days overdue",
  * Perth dates) and its hover names the source email: who sent it, when (Perth time), the subject and the quoted line. The

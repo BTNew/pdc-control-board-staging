@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r404 (F13): a job-card notes line is never kept on the QC checklist as work.
 // Craig's rule (r400): notes lines never block QC. Decision 20 Oct 2026 21:18 AWST:

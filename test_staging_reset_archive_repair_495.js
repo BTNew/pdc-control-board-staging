@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 const assert=require('assert'),fs=require('fs'),crypto=require('crypto');
 const path='supabase/staging_only/20260827045000_495_archive_navision_reconcile_order.sql';

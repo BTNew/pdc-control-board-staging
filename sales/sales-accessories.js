@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 (function(root){
   'use strict';
   // r392: sales-side accessory / PO lines from the Broome Sales "Results" export and the derived

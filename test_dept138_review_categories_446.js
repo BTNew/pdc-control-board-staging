@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r446 (F59): Dept 138 New Vehicles review uses the Bus 4x4 stations (Bhavesh 21 Oct 17:53 AWST; Craig approved 18:12 AWST).
 // Regression for the root cause: Dept 138 lines were forced to Bus 4x4 with a disabled dropdown and the PD station strip.

@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 /* r439 (F50): sublet purchase orders. Sublet contractors come on site, so no line changes category, bay or booking.
    r444 (F57): the vehicle drop-down's Sublet box lists every sublet: each operation line with a GP PO gets a row there (PD
    line, the 'Description of sublet' from the upload, the PO and the 'sublet done' tick), and Sublet jobs raised as their own

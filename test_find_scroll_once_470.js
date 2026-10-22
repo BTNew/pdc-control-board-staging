@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r470 (F83): after Find a workshop booking, the planner scrolled to the result on EVERY re-render (live refresh, clock
 // update), so the page kept scrolling up and down by itself. It now scrolls (and pulses) once per selection.

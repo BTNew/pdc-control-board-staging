@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r447 (F60, Bhavesh 21 Oct 18:19, approved by Craig): Dept 138 bay work-type guide.
 // Bays 1-4 Mechanical and Accessories, 5-6 overflow (any Bus work), 7 QA, 8-10 Electrical and

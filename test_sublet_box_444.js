@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r444 (F57, change request): the Sublet box lists every sublet with the 'Description of sublet' from the upload; operation
 // lines keep a read-only PO reference; empty categories hidden; Bus 4x4 sub-groups framed. Synthetic data only.
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), crypto = require('node:crypto');

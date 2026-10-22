@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 /* TEST-ONLY in-memory backend. Never loaded by index.html or deployed app entry. */
 (() => {
   const id = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;

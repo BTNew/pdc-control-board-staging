@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
 // r424 (F38): a stopped job in Unallocated can be re-planned; a job that runs into the
 // same vehicle's next stage warns and offers to push it back; jobs in one bay can be

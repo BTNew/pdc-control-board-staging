@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r435 (F46): a salesperson with "view all salespeople" sees every Sales Finance entry (Finance, Pipeline and All applications),
 // read-only and masked like any non-editor. Before r435 view-all widened vehicles only, so Finance showed just the caller's own entries.
 // Server: supabase/migrations/20261021051514_r435_salesperson_view_all_finance.sql (+ rollback).

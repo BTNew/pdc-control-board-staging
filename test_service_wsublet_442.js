@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 // r442 (F54): 'PMG PD Service Complete w/Sublet' replaces 'PMG PD Service Complete'. The migration adds a w/Sublet manifest branch
 // (no Type, PO # required, collapse marker), a row rule (one row per Dept/R/O/Line, no Type key, hours never summed) and feeds the
 // file's sublet POs through import_sublet_pos_439 inside the service apply. These tests check the migration and its undo are

@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const builds=require('./sales/build-requirements.js');
 const record=(tracking_id='bg',order='00001',description='Towbar')=>({tracking_id,navision_record_id:'source-'+tracking_id,order,stock:'13001',items:[{description,source_rows:[7],quote_number:'Q001'}],notes:[{text:'Customer note\nKeep on separate lines',source_rows:[8]}],other_lines:[{description:'Unclear quote item',source_rows:[9],reason:'Review the quote description'}],source_file:'Sales Export.xlsx',imported_at:'2026-10-03T01:00:00Z',source_stock:'13001'});

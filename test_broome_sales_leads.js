@@ -1,3 +1,4 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const leads=require('./sales/leads.js');
 const leadA='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',leadB='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
