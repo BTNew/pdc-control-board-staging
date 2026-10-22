@@ -71,7 +71,7 @@
     const loadPartsEta = () => {
       if (document.querySelector('script[data-pdc-parts-eta]')) return;
       const partsEta = document.createElement('script');
-      partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436&r475=2026.10.22.r475&r482=2026.10.22.r482';
+      partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436&r475=2026.10.22.r475&r482=2026.10.22.r482&r490=2026.10.23.r490';
       partsEta.dataset.pdcPartsEta = '1';
       partsEta.onload = loadKeyNumber;
       partsEta.onerror = loadKeyNumber;
@@ -84,7 +84,7 @@
     const loadKeyNumber = () => {
       if (document.querySelector('script[data-pdc-key-number]')) return;
       const keyNumber = document.createElement('script');
-      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460&r472=2026.10.22.r472';
+      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460&r472=2026.10.22.r472&r490=2026.10.23.r490';
       keyNumber.dataset.pdcKeyNumber = '1';
       keyNumber.onload = loadVehicleLocationsTable;
       keyNumber.onerror = loadVehicleLocationsTable;
@@ -115,7 +115,7 @@
     document.head.appendChild(serviceLocations);
     // r439 (F50): sublet POs: each GP PO line gets its PO and a 'sublet done' tick inline (r439b; own row under the description, r439c); Sublet box orange/green (the script guards double loads).
     const subletPo = document.createElement('script');
-    subletPo.src = 'pdc-sublet-po.js?sublet-po=2026.10.21.r444';
+    subletPo.src = 'pdc-sublet-po.js?sublet-po=2026.10.21.r444&r490=2026.10.23.r490';
     // r443 (F56): packed 2-column category panels for the operations summary; loads after the PO module so it wraps outermost.
     const loadOperationPanels = () => {
       if (document.querySelector('script[data-pdc-operation-panels]')) return;
@@ -129,7 +129,7 @@
     const loadSubletPoAttach = () => {
       if (document.querySelector('script[data-pdc-sublet-po-attach]')) return loadOperationPanels();
       const subletPoAttach = document.createElement('script');
-      subletPoAttach.src = 'pdc-sublet-po-attach.js?sublet-po-attach=2026.10.21.r445';
+      subletPoAttach.src = 'pdc-sublet-po-attach.js?sublet-po-attach=2026.10.21.r445&r490=2026.10.23.r490';
       subletPoAttach.dataset.pdcSubletPoAttach = '1';
       subletPoAttach.onload = loadOperationPanels;
       subletPoAttach.onerror = loadOperationPanels;

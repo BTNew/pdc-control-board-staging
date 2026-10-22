@@ -119,7 +119,7 @@
     if (!response.ok) { let m = text; try { m = JSON.parse(text).message || text; } catch (_) { /* raw */ } throw new Error(String(m || response.status)); }
     return JSON.parse(text || 'null');
   }
-  let canEdit = false;
+  let canEdit = false, roleLoaded = false;
   const ui = new Map(); // vehicle id -> {editing, message, history, key, version}
   function vehicleId(vehicle) {
     const ids = [vehicle?.__emailVehicleId, vehicle?.id, vehicle?.permanentVehicleId];
@@ -203,6 +203,7 @@
     try {
       const data = await rpc('get_pdc_vehicle_key_number_460', { p_vehicle_id: null });
       const next = data?.ok === true && data.can_edit === true;
+      roleLoaded = true;
       if (next !== canEdit) { canEdit = next; rerender(); }
     } catch (_) { /* keep read only; the next poll retries */ }
   }
@@ -273,8 +274,10 @@
   const style = document.createElement('style');
   style.textContent = CSS;
   document.head.appendChild(style);
+  // r490: skip the 4 s retry once the role has loaded, and do not poll while the tab is hidden
+  // (coming back to the tab reloads the role straight away).
   loadRole();
-  setTimeout(loadRole, 4000);
-  setInterval(loadRole, 5 * 60 * 1000);
+  setTimeout(() => { if (!roleLoaded) loadRole(); }, 4000);
+  setInterval(() => { if (document.visibilityState !== 'hidden') loadRole(); }, 5 * 60 * 1000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadRole(); });
 })();

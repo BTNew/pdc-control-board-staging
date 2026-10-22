@@ -127,7 +127,8 @@ const approvedRootImportPatch = Object.freeze({
   // r483: r483=2026.10.22.r483 on pdc-book-all-stations.js (F96).
   // r482: r482=2026.10.22.r482 on pdc-parts-eta.js and pdc-book-all-stations.js (parts ETA warning before booking; F95).
   // r485: r485=2026.10.22.r485 on the table module (Table view only, Drop-down view hidden behind a flag) and vehicle-slideout=2026.10.22.r485 (stoppage box with Clear stoppage / Return to QC; F98).
-  "canonical-entry.js": "1c0c3deb17055179ae0888d33afc9c2d6bd60a50d3afa6438d2dbe1b96258cf5",
+  // r490: r490=2026.10.23.r490 on pdc-sublet-po.js, pdc-parts-eta.js, pdc-sublet-po-attach.js and pdc-key-number.js (4 s retry only when nothing loaded; no hidden-tab polls; F103).
+  "canonical-entry.js": "29e4d0e383c92c80e2cf783dea2a04a06068ee662e66bac71b1b3b7cc8ab427a",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -162,7 +163,8 @@ const approvedRootImportPatch = Object.freeze({
   // r437: the vehicle card opens for Toyota head office account vehicles (001234 / 002345) under the board's own dealer scope (F48); index.html adds r437=2026.10.21.01.
   // r483: Dept 139 bays show Craig's names (Express / Pits Hoist, Express, Hoist, Fitting 06-10, Internal / External Fabrication 11-12, Electrical 13-22) on booking pills, places, vehicle detail and the control board; Fab planner count 13 -> 2 (F96).
   // r489: Admin > Fitting statistics route (administrators only; guard, admin nav, title, open / close / reset like Update history; F102).
-  "app.js": "cae78f7b05852561efba434716f4733e89e895f637b1df909dfd67c5d4d17d37",
+  // r490: the 2-minute workshop reference-data safety net skips while the tab is hidden and catches up once on return (F103).
+  "app.js": "cbc1414fdd9de45237c0a59b951b5f0e71124b16980ceb797efc0e5b449ecf39",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -235,7 +237,8 @@ const approvedRootImportPatch = Object.freeze({
   // r485: index.html r485=2026.10.22.r485 on canonical-entry.js (F98).
   // r489: index.html adds the Fitting statistics admin nav item and view (hidden), pdc-fitting-stats.css / .js?r489=2026.10.23.r489 and r489=2026.10.23.r489 on app.js (F102).
   // r489: index.html moves r489=2026.10.23.r489 on app.js next to r483, adds r489 on pdc-staff-usage.js (F102).
-  "index.html": "1fa324e05511ed61d1c5f07295070f1cdbf7ec63a8ccd52144eaefeb20f366ba",
+  // r490: index.html r490=2026.10.23.r490 on canonical-entry.js and app.js (F103).
+  "index.html": "5dee74fc40b914a0039f5975f1882d14bcf309ba9bf6d657ba68502676fcc737",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

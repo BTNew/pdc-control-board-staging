@@ -167,7 +167,7 @@
     if (!response.ok) { let m = text; try { m = JSON.parse(text).message || text; } catch (_) { /* raw */ } throw new Error(String(m || response.status)); }
     return JSON.parse(text || 'null');
   }
-  let pilot = new Set(), canAttach = false;
+  let pilot = new Set(), canAttach = false, pilotLoaded = false;
   const cache = new Map(), inflight = new Set();
   function vehicleIds(vehicle) {
     const ids = [vehicle?.__emailVehicleId, vehicle?.id, vehicle?.permanentVehicleId];
@@ -186,7 +186,7 @@
       const data = await rpc('get_pdc_sublet_po_attach_pilot_445', {});
       const next = new Set((Array.isArray(data?.vehicle_ids) ? data.vehicle_ids : []).map(idKey));
       const changed = next.size !== pilot.size || [...next].some(id => !pilot.has(id)) || canAttach !== (data?.can_attach === true);
-      pilot = next; canAttach = data?.can_attach === true;
+      pilot = next; canAttach = data?.can_attach === true; pilotLoaded = true;
       if (changed) refreshSummaries();
     } catch (_) { /* keep the last list; the next poll retries */ }
   }
@@ -309,8 +309,11 @@
   const style = document.createElement('style');
   style.textContent = CSS;
   document.head.appendChild(style);
+  // r490: skip the 4 s retry once the pilot list has loaded, and do not poll while the tab is hidden;
+  // coming back to the tab refreshes the pilot list and any open PO documents straight away.
+  const refreshAll = () => { loadPilot(); for (const vid of cache.keys()) fetchDocs(vid); };
   loadPilot();
-  setTimeout(loadPilot, 4000);
-  setInterval(() => { loadPilot(); for (const vid of cache.keys()) fetchDocs(vid); }, 2 * 60 * 1000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadPilot(); });
+  setTimeout(() => { if (!pilotLoaded) loadPilot(); }, 4000);
+  setInterval(() => { if (document.visibilityState !== 'hidden') refreshAll(); }, 2 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshAll(); });
 })();

@@ -1906,19 +1906,37 @@ function startWorkshopReferenceDataReconciliationTimer() {
     return;
   }
   if (window.__workshopReferenceDataReconcileTimer) return;
+  // r490: while the tab is hidden the 2-minute safety-net read is skipped and
+  // remembered; it runs once as soon as the tab is visible again.
+  if (!window.__workshopReferenceDataReconcileVisibilityHook && typeof document !== 'undefined' && document.addEventListener) {
+    window.__workshopReferenceDataReconcileVisibilityHook = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' || !window.__workshopReferenceDataReconcileMissed) return;
+      window.__workshopReferenceDataReconcileMissed = false;
+      if (window.__workshopReferenceDataReconcileTimer) reconcileWorkshopReferenceDataNow();
+    });
+  }
   window.__workshopReferenceDataReconcileTimer = window.setInterval(() => {
-    if (!workshopReferenceDataRoleCanRead()) {
-      stopWorkshopReferenceDataReconciliationTimer();
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      window.__workshopReferenceDataReconcileMissed = true;
       return;
     }
-    const service = window.__workshopReferenceDataService;
-    if (!service || !window.PDC_AUTH_CONTEXT) return;
-    service.listTechnicians(true).catch(() => {});
-    service.listSalespeople(true).catch(() => {});
-    service.listSubletProviders(true).catch(() => {});
-    service.listWorkshopBays(true).catch(() => {});
-    if (typeof service.getWorkshopConfiguration === 'function') service.getWorkshopConfiguration().catch(() => {});
+    reconcileWorkshopReferenceDataNow();
   }, 120000);
+}
+
+function reconcileWorkshopReferenceDataNow() {
+  if (!workshopReferenceDataRoleCanRead()) {
+    stopWorkshopReferenceDataReconciliationTimer();
+    return;
+  }
+  const service = window.__workshopReferenceDataService;
+  if (!service || !window.PDC_AUTH_CONTEXT) return;
+  service.listTechnicians(true).catch(() => {});
+  service.listSalespeople(true).catch(() => {});
+  service.listSubletProviders(true).catch(() => {});
+  service.listWorkshopBays(true).catch(() => {});
+  if (typeof service.getWorkshopConfiguration === 'function') service.getWorkshopConfiguration().catch(() => {});
 }
 
 function stopWorkshopReferenceDataReconciliationTimer() {
