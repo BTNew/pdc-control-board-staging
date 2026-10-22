@@ -1204,6 +1204,10 @@ function workshopDescribeSharedActionError(result) {
   }
   if (error === 'vehicle_overlap' || (conflict && conflict.conflict_type === 'vehicle_overlap')) {
     const detail = workshopVehicleConflictDetail(result);
+    // r469 (F82): the server only pushes bookings the drop really overlaps. When pushing one of them back would land it on
+    // its own vehicle's next booking, the server names both; say so plainly instead of blaming the dropped vehicle.
+    const pushed = typeof workshopPushedBookingLabel === 'function' ? workshopPushedBookingLabel(result) : '';
+    if (pushed && detail) return `Booking here would push ${pushed} back onto its own booking (${detail}). No changes were saved. Drop this vehicle after that job, use Best slot, or move the affected booking first.`;
     if (detail) return `This move conflicts with ${detail}. No conflicting bookings were saved. Keep at least 1 hour between this vehicle’s bookings. Use Best slot or move the affected later booking.`;
     return 'This change would overlap a vehicle’s booking in another bay or station, including any booking pushed back by the change. No conflicting bookings were saved. Use Best slot to find a time with the 1-hour buffer, or move the affected later booking.';
   }
@@ -1267,6 +1271,22 @@ function workshopDescribeSharedActionError(result) {
   }
   const exact = workshopAdministratorCanMove() ? workshopAdministratorErrorDetail(result) : '';
   return exact ? `The server rejected this change. No update was saved. ${exact}` : 'The server rejected this change. No update was saved, and the planner has reloaded the current shared data.';
+}
+
+function workshopPushedBookingLabel(result = {}) {
+  // r469 (F82): display-only label for the booking a cascade would have pushed (server snapshot, never reverse-matched).
+  const object = value => value && typeof value === 'object' && !Array.isArray(value);
+  const pushed = object(result) && object(result.pushed_booking) ? result.pushed_booking
+    : (object(result?.body) && object(result.body.pushed_booking) ? result.body.pushed_booking : null);
+  if (!pushed) return '';
+  const text = value => typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) : '';
+  const stock = text(pushed.vehicle?.stock_number);
+  const stage = text(pushed.stage?.display_name || pushed.stage?.code);
+  const bayNumber = Number(pushed.bay?.bay_number);
+  const bay = Number.isSafeInteger(bayNumber) && bayNumber > 0 ? `Bay ${bayNumber}` : '';
+  const where = [stage, bay].filter(Boolean).join(' ');
+  if (!stock && !where) return '';
+  return [stock ? `stock ${stock}` : 'a later booking', where ? `(${where})` : ''].filter(Boolean).join(' ');
 }
 
 function workshopVehicleConflictDetail(result = {}) {
