@@ -157,9 +157,10 @@ test('Australian ETA changes show correct dates in alerts and the vehicle timeli
   const h=harness();h.workspace.alerts[0].event_type='eta_changed';h.workspace.alerts[0].details=details;
   h.workspace.timeline[0].event_type='eta_changed';h.workspace.timeline[0].details=details;
   h.api.setWorkspace(h.workspace);h.api.render('alerts');
-  for(const html of [h.el('sales-alerts').innerHTML,h.api.detailHtml(h.rows[0])]){
-    assert.match(html,/Kewdale ETA: 3 Aug 2026 → 24 Aug 2026/);assert.doesNotMatch(html,/8 Mar 2026|Kewdale ETA: Not recorded/);
-  }
+  // r487 (F100): the Alerts card drops the year when it is the current Perth year; the vehicle timeline keeps the full date.
+  const year=crm.perthToday().slice(0,4)==='2026'?'':' 2026',alertText=h.el('sales-alerts').innerHTML.replace(/<[^>]+>/g,'');
+  assert.ok(alertText.includes('Kewdale ETA: 3 Aug'+year+' → 24 Aug'+year),alertText);assert.doesNotMatch(alertText,/8 Mar|Kewdale ETA: Not recorded/);
+  const timeline=h.api.detailHtml(h.rows[0]);assert.match(timeline,/Kewdale ETA: 3 Aug 2026 → 24 Aug 2026/);assert.doesNotMatch(timeline,/8 Mar 2026|Kewdale ETA: Not recorded/);
 });
 test('an uncertain note submission retains its unique ID and occurrence time for a safe retry',async()=>{
   const h=harness();h.el('sales-crm-detail').innerHTML=h.api.detailHtml(h.rows[0]);h.api.bindDetail('BG-order');
