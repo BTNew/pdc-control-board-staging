@@ -8,7 +8,7 @@ const table = require('./pdc-vehicle-locations-table.js');
 const { createFixture } = require('./qa/dashboard-render-fixture.cjs');
 const { syntheticVehicles, syntheticPlans, BUCKETS } = require('./qa/vehicle-locations-table-461-fixture.cjs');
 
-const VERSION = '2026.10.22.r461';
+const VERSION = '2026.10.22.r462'; // r462 (F75) bumped the module version; the r461 cache-bust tag stays
 
 // Independent of the module's own parser: find each element that starts with `<tag class="...needle` and return its
 // exact outer HTML by counting that tag's nesting.
@@ -82,7 +82,9 @@ test('parity gate: every station cell of every vehicle is identical in the drop-
     // Everything else in the summary row travels verbatim too: RFT controls, age, status, booking buttons, identity.
     for (const needle of ['incoming-card-select', 'rft-row-controls-slot', 'incoming-card-work-wrap', 'incoming-card-age', 'incoming-card-status', 'incoming-card-action', 'incoming-card-main', 'identity-key', 'identity-stock', 'identity-jc', 'identity-name']) {
       const part = elements(card.slice(0, card.indexOf('</summary>')), '*', needle)[0];
-      if (part && !row.includes(part)) report.mismatches.push({ key, field: needle, before: part.slice(0, 120) });
+      // r462: the Vehicle cell travels without the parts-location span, which has its own Parts loc cell.
+      const expected = needle === 'incoming-card-main' && part ? table.extractPartsLocation(part).unit : part;
+      if (expected && !row.includes(expected)) report.mismatches.push({ key, field: needle, before: part.slice(0, 120) });
     }
   }
   assert.deepEqual(report.mismatches, [], `drop-down vs table mismatches: ${report.mismatches.length}`);
