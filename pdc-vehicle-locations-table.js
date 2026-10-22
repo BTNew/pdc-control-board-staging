@@ -50,10 +50,22 @@
  * - Opening a single result once (revealSingleResult / revealSingleVehicleSearchResult) is unchanged; it now also
  *   runs when the only match is outside the selected tile. The slide-out panel takes the same key and bucket as before.
  * Display only: no write, no RPC, no saved setting changes (the tile choice is in memory, as before).
+ *
+ * r485 (F98, Craig 22 Oct): "remove the dropdown view and only keep the table view". Table view is the only view.
+ * - The "View: Drop-down view | Table view" switch is not drawn and any old #vlt-view-switch is removed.
+ * - Everyone gets Table view, whatever pdc.vehicle-locations-view.v1:<user id> says. A saved "dropdown" (or blocked
+ *   storage) is ignored, never rewritten: the stored value stays on the device, so undoing r485 brings each person's
+ *   r461-era choice back. writeView() saves nothing while the flag is off.
+ * - Hidden, not deleted: every drop-down code path (switchHtml, the drop-down render, dropdownSearchElsewhere, the
+ *   r461 readView/writeView rules) is still here behind the single flag DROPDOWN_VIEW_ENABLED. Setting it to true
+ *   restores r481 exactly (switch, drop-down default, saved choice). The read-only parity() self-check still draws the
+ *   drop-down board for a moment to compare against (internal, never saved), then puts Table view back.
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.22.r481'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles (cache-busts this module)
+  const VERSION = '2026.10.22.r485'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only (cache-busts this module)
+  // r485 (F98): the one switch for the hidden Drop-down view. false = Table view only (Craig 22 Oct). true = r481 behaviour.
+  const DROPDOWN_VIEW_ENABLED = false;
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
   const VIEWS = Object.freeze({ dropdown: 'dropdown', table: 'table' });
   // Vehicle journey, left to right (Craig, 22 Oct 2026).
@@ -313,14 +325,16 @@
   }
 
   function storageKey(userId) { return `${STORAGE_PREFIX}${String(userId || 'signed-out')}`; }
-  function readView(storage, userId) {
+  function readView(storage, userId, { dropdownEnabled = DROPDOWN_VIEW_ENABLED } = {}) {
+    if (!dropdownEnabled) return VIEWS.table; // r485: a saved "dropdown" is ignored (kept on the device for an undo)
     try { return storage?.getItem(storageKey(userId)) === VIEWS.table ? VIEWS.table : VIEWS.dropdown; } catch (_) { return VIEWS.dropdown; }
   }
-  function writeView(storage, userId, view) {
+  function writeView(storage, userId, view, { dropdownEnabled = DROPDOWN_VIEW_ENABLED } = {}) {
+    if (!dropdownEnabled) return false; // r485: nothing to remember; the stored r461 value is left as it is
     try { storage?.setItem(storageKey(userId), view === VIEWS.table ? VIEWS.table : VIEWS.dropdown); return true; } catch (_) { return false; }
   }
 
-  const api = { VERSION, VIEWS, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
+  const api = { VERSION, VIEWS, DROPDOWN_VIEW_ENABLED, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
     STOPPAGES, searchScope, departmentElsewhere, COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, extractPartsEta, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.renderIncomingDashboardBoard !== 'function' || root.PDC_VEHICLE_LOCATIONS_TABLE) {
@@ -330,7 +344,7 @@
 
   // ---------- Browser ----------
   const doc = root.document;
-  const state = { bucket: '', stoppages: false, openKey: '', view: VIEWS.dropdown, partsSort: '', widths: {}, search: { needle: '', pick: null } };
+  const state = { bucket: '', stoppages: false, openKey: '', view: DROPDOWN_VIEW_ENABLED ? VIEWS.dropdown : VIEWS.table, partsSort: '', widths: {}, search: { needle: '', pick: null } };
   let drawerOpener = null; // r462: { open(key, bucket), refresh(key, bucket), close() } from pdc-vehicle-slideout.js
   const userId = () => root.PDC_AUTH_CONTEXT?.userId || '';
   const storage = () => { try { return root.localStorage; } catch (_) { return null; } };
@@ -351,6 +365,7 @@
     return `<span class="vlt-view-switch-label">View</span>${button(VIEWS.dropdown, 'Drop-down view')}${button(VIEWS.table, 'Table view')}`;
   }
   function ensureSwitch() {
+    if (!DROPDOWN_VIEW_ENABLED) { doc.getElementById('vlt-view-switch')?.remove(); return; } // r485: no switch, Table view only
     const panel = doc.querySelector('#dashboard .incoming-search-panel');
     if (!panel) return;
     let wrap = doc.getElementById('vlt-view-switch');
@@ -370,9 +385,12 @@
     wrap.innerHTML = switchHtml();
   }
 
-  function setView(view, { save = true } = {}) {
-    const next = view === VIEWS.table ? VIEWS.table : VIEWS.dropdown;
-    if (save) writeView(storage(), userId(), next);
+  // r485: with the Drop-down view hidden, setView() always means Table view. Only parity() (internal: true) may draw the
+  // drop-down board, for its read-only comparison, and it never saves that.
+  function setView(view, { save = true, internal = false } = {}) {
+    const allowDropdown = DROPDOWN_VIEW_ENABLED || internal;
+    const next = view === VIEWS.table || !allowDropdown ? VIEWS.table : VIEWS.dropdown;
+    if (save) writeView(storage(), userId(), next); // r485: saves nothing while DROPDOWN_VIEW_ENABLED is false
     if (next === state.view && save) { ensureSwitch(); return; }
     state.view = next;
     applyViewChrome();
@@ -876,10 +894,10 @@
     const miss = (vehicle, where, field, today, table) => { if (report.mismatches.length < 200) report.mismatches.push({ vehicle, where, field, today, table }); report.mismatchCount = (report.mismatchCount || 0) + 1; };
     report.mismatchCount = 0;
     try {
-      setView(VIEWS.dropdown, { save: false }); await frame();
+      setView(VIEWS.dropdown, { save: false, internal: true }); await frame();
       const today = collect(VIEWS.dropdown);
       Object.assign(state, { bucket: '', stoppages: false, openKey: '' });
-      setView(VIEWS.table, { save: false }); await frame();
+      setView(VIEWS.table, { save: false, internal: true }); await frame();
       report.dropDownCardsInTableView = doc.querySelectorAll('#incoming-main-board .incoming-vehicle-card').length;
       const table = collect(VIEWS.table);
       report.vehicles = today.size;
@@ -925,7 +943,7 @@
       }
     } finally {
       Object.assign(state, { bucket: before.bucket, stoppages: before.stoppages, openKey: before.openKey });
-      setView(before.view, { save: false });
+      setView(before.view, { save: false, internal: true });
     }
     return report;
   }

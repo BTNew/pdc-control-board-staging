@@ -128,6 +128,9 @@ test('panel in the VM: opening and refreshing never touches the planner or the d
   c.moveWorkshopDroppedPlan = () => { spies.move += 1; return true; };
   c.renderWorkshopPlannerWhenReady = () => { spies.planner += 1; };
   c.initWorkshopSharedServicesIfEnabled = () => { spies.init += 1; };
+  // r485 (F98): Table view is now the only view, so loading on the dashboard would draw the table, which this inert
+  // fixture DOM cannot do. Load with another page current (the table draws when the dashboard is shown).
+  c.app.currentView = 'workshop';
   fixture.loadHelper('pdc-vehicle-locations-table.js');
   fixture.loadHelper('pdc-vehicle-slideout.js');
   assert.deepEqual(Object.keys(c.PDC_VEHICLE_SLIDEOUT).sort(), ['VERSION', 'close', 'open', 'parityStrip', 'refresh', 'state'].sort());
@@ -145,12 +148,12 @@ test('docs: FAULT_LOG F76 records the withdrawn F75 drag, the Job Card column an
 
 test('loader: r463 cache-bust tags; pdc-auto-reload.js stays first; no real stock numbers here', () => {
   assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r4[67]3/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r4(?:[67]3|85)/ /* r485 (F98) bumped the panel */);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /r463=2026\.10\.22\.r463/);
   assert.match([...html.matchAll(/<script[^>]*src="([^"]+)"/g)][0][1], /^pdc-auto-reload\.js/);
-  assert.equal(table.VERSION, '2026.10.22.r481'); // r475 (F88), then r481 (F94) bumped the table module (on top of r476)
-  assert.match(slideout.VERSION, /^2026\.10\.22\.r4[67]3$/);
+  assert.equal(table.VERSION, '2026.10.22.r485'); // r475 (F88), r481 (F94), then r485 (F98) bumped the table module (on top of r476)
+  assert.match(slideout.VERSION, /^2026\.10\.22\.r4(?:[67]3|85)$/); // r485 (F98): stoppage box
   const text = fs.readFileSync(__filename, 'utf8');
   assert.doesNotMatch(text, /\b1[23]\d{6}\b|\bJ13[89]\d{6}\b/);
 });

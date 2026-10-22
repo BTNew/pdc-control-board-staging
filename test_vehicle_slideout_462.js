@@ -175,7 +175,9 @@ test('panel CSS is scoped to the panel: the Drop-down view card and station cell
   }
 });
 
-test('loading both modules leaves the Drop-down view render byte-for-byte unchanged', () => {
+// r485 (F98): the Drop-down view is hidden behind DROPDOWN_VIEW_ENABLED; this check runs with that flag set to true
+// (the undo-by-flag path). Live, both modules show Table view (test_vehicle_locations_table_only_485.js).
+test('loading both modules leaves the Drop-down view render byte-for-byte unchanged (r485 flag set to true)', () => {
   const fixture = createFixture({ vehicleCount: 0 });
   fixture.loadHelper('vehicle-requirements-guard.js');
   const c = fixture.context;
@@ -185,7 +187,7 @@ test('loading both modules leaves the Drop-down view render byte-for-byte unchan
   c.ensureDashboardWorkshopProjectionReady = () => true;
   c.renderIncomingDashboardBoard();
   const before = fixture.host.innerHTML;
-  fixture.loadHelper('pdc-vehicle-locations-table.js');
+  fixture.evaluate(fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8').replace('const DROPDOWN_VIEW_ENABLED = false;', 'const DROPDOWN_VIEW_ENABLED = true;'));
   fixture.loadHelper('pdc-vehicle-slideout.js');
   assert.equal(typeof c.PDC_VEHICLE_SLIDEOUT.open, 'function', 'panel installed');
   assert.equal(c.PDC_VEHICLE_LOCATIONS_TABLE.state.view, 'dropdown', 'default stays the Drop-down view');
@@ -199,9 +201,9 @@ test('loader: slide-out loads after the table module; cache-bust tags; runtime f
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461&r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463/);
   assert.match(entry, /table\.onload = loadVehicleSlideout;/);
-  assert.match(entry, /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r4[67]3/);
+  assert.match(entry, /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r4(?:[67]3|85)/); // r485 (F98) bumped the panel
   assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /pdc-vehicle-slideout\.css\?vehicle-slideout=\$\{VERSION\}/);
-  assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /const VERSION = '2026\.10\.22\.r47?[36]'/);
+  assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /const VERSION = '2026\.10\.22\.r4(?:7?[36]|85)'/);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /canonical-entry\.js\?[^"]*r462=2026\.10\.22\.r462&amp;r463=2026\.10\.22\.r463/);
   const scripts = [...html.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]);
