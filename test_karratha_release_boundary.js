@@ -205,7 +205,8 @@ const approvedRootImportPatch = Object.freeze({
   // r472: index.html r472=2026.10.22.r472 on canonical-entry.js (F85).
   // r473: index.html r473=2026.10.22.r473 on canonical-entry.js (F86).
   // r476: index.html r476=2026.10.22.r476 on canonical-entry.js (F89).
-  "index.html": "bc43114c3e6da59ca4c32c18e5fcfb25b6632a7b3fb42e89572a8e9a51346a0d",
+  // r477: index.html loads pdc-sidebar-compact.css?sidebar-compact=2026.10.22.r477 last (PMG sidebar compressed, Parts nav item hidden by a flag; F90).
+  "index.html": "366d3b5a435a1a00414ec7e0445fe52af7998134a8e0842c515afc615b6cdd2b",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

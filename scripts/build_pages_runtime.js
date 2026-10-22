@@ -136,7 +136,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-completed-history.css', 'pdc-conversion-ticks.css', 'pdc-conversions.js', 'pdc-deferred-script-order.js', 'pdc-department-filter.js', 'pdc-workshop-departments.js',
   'pdc-email-ai-successor-inbox.css', 'pdc-email-ai-successor-inbox.js',
   'pdc-email-ai-v2-actions.js', 'pdc-email-vehicle-location-service.js',
-  'pdc-emergency-priority.css', 'pdc-emergency-priority.js', 'pdc-emergency-slim.css', 'control-board-zoom.css',
+  'pdc-emergency-priority.css', 'pdc-emergency-priority.js', 'pdc-emergency-slim.css', 'pdc-sidebar-compact.css', 'control-board-zoom.css',
   'pdc-estimated-hours.css', 'pdc-estimated-hours.js', 'pdc-fitters.css', 'pdc-fitters.js',
   'pdc-location-override.js', 'pdc-new-vehicles.css', 'pdc-new-vehicles.js', 'pdc-operation-review-slim.css',
   'pdc-parts-confirmation.js', 'pdc-planner-capacity.css', 'pdc-planner-capacity.js',

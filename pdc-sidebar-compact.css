@@ -1,0 +1,32 @@
+/* r477 (F90): PMG sidebar compressed so Sublet and Admin are reachable without scrolling on a laptop screen
+   (Craig, 22 Oct 2026 11:02 AWST). PMG site only: loaded by the root index.html after every other stylesheet;
+   Karratha (karratha/index.html) and the Broome Sales site (sales/index.html) do not load it.
+   Spacing and size only: same items, same order, same labels, same colours. styles.css and app.js are untouched.
+   Undo: remove the <link> from index.html (or revert the r477 commit). */
+
+/* Parts is hidden for now, not deleted: the button stays in the page and the Parts page still opens when visited
+   directly (showView('parts')). To bring it back, add data-pdc-nav-parts="show" to the <html> tag in index.html. */
+html:not([data-pdc-nav-parts="show"]) body .sidebar .nav .nav-item[data-view="parts"] { display: none !important; }
+
+/* Desktop / laptop sidebar (vertical). Narrower screens keep their own layout (F70).
+   Sized so Admin ends inside a 1366 x 768 laptop screen's browser window (about 657 px tall once the taskbar and
+   Chrome's tab / address bars are taken off). */
+@media (min-width: 1201px) {
+  html body .sidebar { padding-top: 8px !important; padding-bottom: 8px !important; gap: 6px !important; row-gap: 6px !important; }
+  /* Logo / website selector block: 124 + 75 px -> about 52 + 44 px */
+  html body .sidebar .brand { padding-bottom: 6px !important; }
+  html body .app-shell:not(.sidebar-collapsed) .sidebar > .brand > .brand-logo-wrap { padding-top: 3px !important; padding-bottom: 3px !important; }
+  html body .app-shell:not(.sidebar-collapsed) .sidebar > .brand .brand-logo { height: 36px !important; width: auto !important; max-width: 100% !important; margin: 0 auto !important; object-fit: contain; }
+  html body .sidebar .site-switcher { padding-bottom: 6px !important; margin-bottom: 0 !important; gap: 4px !important; row-gap: 4px !important; }
+  html body .sidebar .site-switcher > span { font-size: 10px !important; line-height: 12px !important; }
+  html body .sidebar .site-switcher select { padding-top: 4px !important; padding-bottom: 4px !important; min-height: 0 !important; height: auto !important; }
+  /* Main items: 40 px -> 26 px (14 px text) */
+  html body .sidebar .nav { margin-top: 0 !important; row-gap: 1px !important; }
+  html body .sidebar .nav > .nav-item, html body .sidebar .nav-admin-toggle { min-height: 26px !important; height: auto !important; padding-top: 4px !important; padding-bottom: 4px !important; margin-top: 0 !important; margin-bottom: 0 !important; line-height: 18px !important; }
+  /* Planner items: 30 px -> 22 px (14 px text) */
+  html body .sidebar .nav > .nav-item.nav-workshop-item { min-height: 22px !important; padding-top: 2px !important; padding-bottom: 2px !important; line-height: 18px !important; }
+  /* Section headings and their divider line: 40 px -> about 16 px (a long heading wraps to a second line; nothing is cut) */
+  html body .sidebar .nav-section-label { padding-top: 4px !important; margin-top: 3px !important; margin-bottom: 1px !important; font-size: 8.5px !important; line-height: 10px !important; letter-spacing: 0 !important; }
+  html body .sidebar .nav-admin-group { gap: 1px !important; row-gap: 1px !important; }
+  html body .sidebar .nav-admin-menu .nav-item { min-height: 24px !important; padding-top: 3px !important; padding-bottom: 3px !important; }
+}
