@@ -161,7 +161,7 @@
   }
   function efficiencyPercent(stage, bay) {
     const cached = configurationCache.get(stage), current = context();
-    if (cached?.service === current.service && cached.actor === current.actor && cached.token === current.token && cached.status === 'ready') {
+    if (cached && cached.service === current.service && cached.actor === current.actor && cached.token === current.token && cached.status === 'ready') {
       const row = cached.data.bays.find(row => Number(row.bay_number) === Number(bay));
       if (row) return selectEfficiency(row, referenceBay(stage, bay));
     }
@@ -171,7 +171,7 @@
     const current = context(), snapshot = current.service?.getTrustedSnapshot?.();
     if (!snapshot || !current.actor || !current.token || !STAGES.has(stage)) return;
     const previous = configurationCache.get(stage);
-    if (previous?.service === current.service && previous.actor === current.actor && previous.token === current.token
+    if (previous && previous.service === current.service && previous.actor === current.actor && previous.token === current.token
       && (previous.status === 'loading' || previous.revision === snapshot.revision)) return;
     const request = { ...current, revision:snapshot.revision, status:'loading', generation:actorGeneration };
     configurationCache.set(stage, request);
