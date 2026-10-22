@@ -53,8 +53,7 @@ const STARTUP_ORDER = [
   'pdc-fitters.js',
   'pdc-workshop-hours.js',
   // r489 (F102): Admin > Fitting statistics (administrators only).
-  'pdc-fitting-stats.js',
-  'pdc-vehicle-sublets.js' // r494 (F107): Manage sublets per vehicle
+  'pdc-fitting-stats.js'
 ];
 
 function scriptTags(html) {

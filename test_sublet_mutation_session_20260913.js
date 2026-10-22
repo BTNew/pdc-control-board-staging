@@ -93,7 +93,7 @@ test('expanded canonical Sublet controls match the supported booking mutations a
       $:selector=>selector==='#sublet-home-content'?host:null,$$:()=>[],cleanNavisionText:clean,escapeHtml:clean,subletRows:()=>[row],renderSubletSummary(){},syncSubletProviderFilter:()=> 'all',syncSubletViewControls(){},
       subletMatchesOperationalFilter:()=>true,subletBookingState:()=>returned?'returned':'booked',normalizeSubletProviderName:clean,pmbBaySubletProvider:()=> 'Provider',plainDateValue:clean,
       vehicleKey:v=>v.id,displayStockNumber:()=> '00123',vehicleKeyNumber:()=> '1',vehicleJobcardNumber:()=> 'TEST',vehicleCustomerName:()=> 'Synthetic customer',displayVehicle:()=> 'Hilux',
-      subletIsOverdue:()=>false,subletAwayOnDate:()=>false,subletTodayDateKey:()=> '2026-09-14',subletStatusText:()=>returned?'Returned':'Sublet Booked',subletDaysAway:()=>null,subletProviderOptionsHtml:()=> '',subletProviderContact:()=>({email:'provider@example.com'})};
+      subletIsOverdue:()=>false,subletAwayOnDate:()=>false,subletTodayDateKey:()=> '2026-09-14',subletProviderOptionsHtml:()=> '',subletProviderContact:()=>({email:'provider@example.com'})};
     vm.createContext(pdcNotifyFixture(ctx));vm.runInContext(extract('renderSubletHome'),ctx);ctx.renderSubletHome();
     const tag=attribute=>host.innerHTML.match(new RegExp('<(?:input|textarea)\\b[^>]*'+attribute+'[^>]*>'))?.[0]||'';
     assert.match(tag('data-sublet-field="pmbSubletActualReturnDate"'),/disabled/);

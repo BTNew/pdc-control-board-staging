@@ -94,12 +94,12 @@ test('PO decoration (loaded first, as canonical-entry.js loads it) then panels: 
   const loaded = panels.arrange(po.decorateOperations(base, state));
   const reverse = po.decorateOperations(panels.arrange(base), state);
   for (const h of [loaded, reverse]) assert.equal((h.match(/class="pdc-sublet-po-tick"/g) || []).length, 3);
-  assert.equal((loaded.match(/>PO to raise</g) || []).length, 3, 'Sublet lines without a PO (r494: PO to raise)');
+  assert.equal((loaded.match(/>No PO</g) || []).length, 3, 'Sublet lines without a PO');
   assert.match(loaded, new RegExp(`<li data-operation-source-id="${S(31)}"><strong>PD line 31</strong><span>Darkest Legal Window Tint</span><em>1\\.00 h</em> <span class="pdc-sublet-po-ref is-ordered"[^>]*>GP13900031<span aria-hidden="true"> ↓</span></span></li>`));
   const sublet = loaded.slice(loaded.indexOf('data-operation-panel="sublet"'));
   assert.match(sublet, /pdc-sublet-po-inline is-done[^>]*><span class="pdc-sublet-po-chip">GP13900060<\/span><input[^>]*checked>/);
   assert.match(sublet, /data-line-key="jc:J139000001:31"><strong>PD line 31<\/strong>/);
-  assert.match(loaded, /data-operation-panel="sublet"[^>]*><header><strong>Sublet<\/strong><small>6 sublets <span class="pdc-op-sublet-state is-ordered">1 of 6 sublets done<\/span><\/small><\/header>/);
+  assert.match(loaded, /data-operation-panel="sublet"[^>]*><header><strong>Sublet<\/strong><small>6 sublets <span class="pdc-op-sublet-state is-ordered">1 of 3 sublets done<\/span><\/small><\/header>/);
   assert.equal(po.decorateOperations(loaded, state), loaded, 'decorating again changes nothing');
 });
 test('browser: wraps the summary after the PO module; re-renders (refresh, tick, edit) re-arrange; tick clicks stay isolated; Edit button kept', async () => {
