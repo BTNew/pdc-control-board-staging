@@ -175,3 +175,34 @@ column widths are ignored by r461 and can stay.
   its own row instead of sitting over the description (Craig saw "Unassigned"
   drop-downs over Hoist line 21 and Electrical line 5 after closing the card).
 * Display only: no data, RPC or storage changes. Undo: revert the r473 commit.
+
+## r494 (F107): Manage sublets
+
+A **Manage sublets** button sits beside Open Vehicle (added by `pdc-vehicle-sublets.js`; the panel itself is unchanged). It opens one screen for that vehicle: whole line sublets (the line is Sublet work; its tick completes it) and sublet items on operation lines (the line keeps its category; the PO has its own tick), with GP PO, provider, out / due back / back, status (Away / OVERDUE / Back N days) and Draft email. Operators and administrators can make a line a whole line sublet or move it back (`set_vehicle_work_category`); ticks are the r439 tick.
+
+r494 update (Craig 22 Oct 18:41): whole line sublets with no GP PO show **PO to raise** (board Sublet box orange, and on the line); a new GP PO on a line in another category shows **PO raised for this line** until ticked or **Got it** (per user, this browser); the screen says **Supplier**.
+
+r494b (Craig 22 Oct 18:55): the vehicle's Sublet box is uniform: each line ends in one same-size chip (GP PO number or **PO to raise**), no 'Hours not stated', no 'Op line PO' caption, no 'PO raised for this line' / 'Got it' (here or in Manage sublets), one text size. In Manage sublets 'PO to raise' sits in the GP PO column.
+r494c (F107b, site slow after the stack went live): the board's **PO to raise** makes no request and no board redraw while it renders. It uses the board's own Sublet lines and GP PO counts (exact once a vehicle's GP PO lines are loaded by opening it here, in the drop-down or in Manage sublets; until then a safe lower bound). Opening a vehicle may give one debounced board redraw if its count changes.
+
+## r496 (F109): edit hours and jobs in the panel (Craig, 22 Oct 2026, 7:16 pm)
+
+* The operations heading's **Edit jobs & hours** button (which opened the Vehicle
+  detail window) becomes **Edit** plus a small **Open full editor** link. The link
+  opens the old window, unchanged; it is still where Add line, Edit line and Best
+  slot live.
+* **Edit** reads this one vehicle (`loadVehicleWorkshopDetail`, the same read the
+  window makes when it opens) and shows app.js's own Work & bookings rows in place
+  of the read-only list, with every button removed: an hours box per line and the
+  Work category (or Station) selector to move a line to another job. Changed fields
+  are outlined amber. Nothing is sent until **Save**.
+* **Save** runs the window's own save paths in order: `saveVehicleWorkshopLineHoursBatch`
+  (Save all hours, changed rows only), then `saveVehicleWorkCategory`
+  (set_vehicle_work_category) or `moveVehicleWorkshopLineStage` for each moved
+  line, each with the versions app.js has just reloaded. Then only the panel is
+  drawn again. **Cancel** drops the drafts. Closing the panel or opening another
+  vehicle with unsaved changes asks first.
+* Same roles as the window (`vehicleWorkshopCanEditLines`: operator,
+  administrator); no SQL. Speed: nothing runs per vehicle when the board or the
+  panel is drawn; the table and board are never redrawn by a save.
+* Undo: revert the r496 commit (the button and the window come back as before).

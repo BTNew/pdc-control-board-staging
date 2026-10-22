@@ -57,7 +57,7 @@ test('inline (r444): Sublet line with a GP PO gets its description, PO and tick;
   const l12 = liOf(html, 12);
   assert.match(l12, /<strong>PD line 12<\/strong><span>MMT CLOTH SEAT COVERS 2 ROWS<small class="pdc-sublet-own-desc">[\s\S]*?<\/small><\/span><em>0\.00 h<\/em> <span class="pdc-sublet-po-inline is-ordered" data-pdc-sublet-vehicle="11111111-2222-4333-8444-555555555555" data-line-key="jc:J139000001:12" data-version="0"><span class="pdc-sublet-po-chip">GP13900012<\/span><input type="checkbox" class="pdc-sublet-po-tick" title="[^"]+" aria-label="PD line 12 sublet done"><\/span><\/li>/, 'chip and tick on their own row after the hours, not inside them');
   assert.match(html, /data-operation-category="sublet"[\s\S]*PD line 12[\s\S]*<\/section>/);
-  assert.match(liOf(html, 13), /<em>0\.00 h<\/em> <span class="pdc-sublet-po-nopo" title="[^"]+">No PO<\/span>/, 'Sublet line without a GP PO');
+  assert.match(liOf(html, 13), /<em>0\.00 h<\/em> <span class="pdc-sublet-po-nopo" title="[^"]+">PO to raise<\/span>/, 'Sublet line without a GP PO (r494: PO to raise)');
   const tint = liOf(html, 3);
   assert.match(tint, /<span class="pdc-sublet-po-ref is-done" title="GP13900003 \(sublet done; tick it in the Sublet box\)">GP13900003<span aria-hidden="true"> ↓<\/span><\/span><\/li>$/);
   assert.doesNotMatch(tint, /pdc-sublet-po-tick/, 'no tick on the operation line');
@@ -80,7 +80,7 @@ test('inline: read only without can_tick; unknown POs show nothing yet; vehicle 
   assert.match(ro, /Read only: controllers, administrators and fitters tick sublet done/);
   assert.equal(po.decorateOperations(base, { vehicleId: V1, payload: null }), base, 'POs still loading: unchanged');
   const none = po.decorateOperations(base, { known: true });
-  assert.equal((none.match(/No PO/g) || []).length, 2); assert.doesNotMatch(none, /pdc-sublet-po-inline/);
+  assert.equal((none.match(/PO to raise/g) || []).length, 2); // r494 (F107): was 'No PO' assert.doesNotMatch(none, /pdc-sublet-po-inline/);
   const extra = poPayload(); extra.lines.push({ line_key: 'jc:J139000001:40', line_identity: `source:${S(40)}`, operation_no: 'PD040-ABCDEF01', line_no: 40, description: 'Hidden <x>', po_numbers: ['GP13900040'], ticked: false, version: 0, tickable: true });
   const un = po.decorateOperations(base, { vehicleId: V1, payload: extra });
   assert.match(un, /<li class="pdc-sublet-linked" data-pdc-sublet-row="linked" data-line-key="jc:J139000001:40"><strong>PD line 40<\/strong><span>[\s\S]*?On operation line: Hidden &lt;x&gt;<\/small><\/span><em class="pdc-sublet-kind">Op line PO<\/em> <span class="pdc-sublet-po-inline[^>]*>[\s\S]*GP13900040/, 'a PO line not shown above still gets its Sublet box row (r444)');
@@ -116,7 +116,7 @@ test('browser wrapper: no request without a session; board RPC, decorated strip,
   assert.match(calls[1].url, /get_pdc_sublet_lines_439$/); assert.equal(JSON.parse(calls[1].init.body).p_vehicle_id, V1);
   const html = b.authenticatedEmailOperationLinesHtml({ id: V1 });
   assert.match(html, /GP13900012/); assert.equal(calls.length, 2, 'cached');
-  assert.match(b.authenticatedEmailOperationLinesHtml({ id: '99999999-2222-4333-8444-555555555555', stock: 'NONE' }), /No PO/);
+  assert.match(b.authenticatedEmailOperationLinesHtml({ id: '99999999-2222-4333-8444-555555555555', stock: 'NONE' }), /PO to raise/); // r494 (F107): was 'No PO'
   for (const t of ['click', 'dblclick', 'mousedown', 'pointerdown', 'keydown']) assert.equal(typeof b.capture[t], 'function', t);
   let stopped = 0;
   b.capture.click({ target: { closest: sel => sel === '.pdc-sublet-po-inline' ? {} : null }, stopPropagation: () => { stopped += 1; } });
@@ -125,7 +125,7 @@ test('browser wrapper: no request without a session; board RPC, decorated strip,
   assert.equal(typeof b.capture.change, 'function');
 });
 test('loader, cache bust and Pages build include the sublet PO script', () => {
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444(&r490=2026\.10\.23\.r490)?'/); // r490 (F103) appends its own tag
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444(&r490=2026\.10\.23\.r490)?(&r494=2026\.10\.23\.r494[bc]?)?'/); // r490 (F103) appends its own tag
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*sublet-po=2026\.10\.21\.r444(&amp;[^"]*)?"/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-parts-eta\.js', 'pdc-sublet-po\.js'/);
   assert.equal(po.VERSION, '2026.10.21.r444');

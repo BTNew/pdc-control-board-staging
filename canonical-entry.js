@@ -106,7 +106,7 @@
     const loadVehicleSlideout = () => {
       if (document.querySelector('script[data-pdc-vehicle-slideout]')) return;
       const slideout = document.createElement('script');
-      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r485'; // r485 (F98): stoppage box (Clear stoppage / Return to QC)
+      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.22.r496'; // r485 (F98): stoppage box (Clear stoppage / Return to QC); r496 (F109): edit hours and jobs in the panel
       slideout.dataset.pdcVehicleSlideout = '1';
       document.head.appendChild(slideout);
     };
@@ -115,7 +115,7 @@
     document.head.appendChild(serviceLocations);
     // r439 (F50): sublet POs: each GP PO line gets its PO and a 'sublet done' tick inline (r439b; own row under the description, r439c); Sublet box orange/green (the script guards double loads).
     const subletPo = document.createElement('script');
-    subletPo.src = 'pdc-sublet-po.js?sublet-po=2026.10.21.r444&r490=2026.10.23.r490';
+    subletPo.src = 'pdc-sublet-po.js?sublet-po=2026.10.21.r444&r490=2026.10.23.r490&r494=2026.10.23.r494c';
     // r443 (F56): packed 2-column category panels for the operations summary; loads after the PO module so it wraps outermost.
     const loadOperationPanels = () => {
       if (document.querySelector('script[data-pdc-operation-panels]')) return;

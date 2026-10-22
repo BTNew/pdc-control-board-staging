@@ -110,7 +110,7 @@ test('table rows carry no <summary> (DevTools "interactive element inside <summa
 
 // ---------------- 4. Panel: drag-to-bay withdrawn (Craig 09:03) ----------------
 test('panel has no Jobs & bookings list, no drag handles, no bay targets and never calls the planner', () => {
-  assert.deepEqual(Object.keys(slideout), ['VERSION'], 'no drag / drop / bookings helpers are exported any more');
+  assert.deepEqual(Object.keys(slideout), ['VERSION', 'slimWorkPage'], 'no drag / drop / bookings helpers are exported any more (r496 adds the pure slimWorkPage)');
   const js = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   for (const gone of [/data-vso-drag/, /data-vso-drop-bay/, /vso-jobs/, /vso-bay/, /pointerdown|pointermove|pointerup/, /moveWorkshopDroppedPlan/, /renderWorkshopPlannerWhenReady/,
     /initWorkshopSharedServicesIfEnabled/, /openVehicleWorkshopBooking/, /setScope/, /workshopLoadPlans\(\)\.find/, /performDrop|stationEntry|openInPlanner/]) {
@@ -133,7 +133,7 @@ test('panel in the VM: opening and refreshing never touches the planner or the d
   c.app.currentView = 'workshop';
   fixture.loadHelper('pdc-vehicle-locations-table.js');
   fixture.loadHelper('pdc-vehicle-slideout.js');
-  assert.deepEqual(Object.keys(c.PDC_VEHICLE_SLIDEOUT).sort(), ['VERSION', 'close', 'open', 'parityStrip', 'refresh', 'state'].sort());
+  assert.deepEqual(Object.keys(c.PDC_VEHICLE_SLIDEOUT).sort(), ['VERSION', 'close', 'edit', 'open', 'parityStrip', 'refresh', 'slimWorkPage', 'state'].sort()); // r496: edit state + slimWorkPage
   assert.deepEqual(spies, { move: 0, planner: 0, init: 0 });
 });
 
@@ -148,12 +148,12 @@ test('docs: FAULT_LOG F76 records the withdrawn F75 drag, the Job Card column an
 
 test('loader: r463 cache-bust tags; pdc-auto-reload.js stays first; no real stock numbers here', () => {
   assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r4(?:[67]3|85)/ /* r485 (F98) bumped the panel */);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r4(?:[67]3|85|96)/ /* r485 (F98), r496 (F109) bumped the panel */);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /r463=2026\.10\.22\.r463/);
   assert.match([...html.matchAll(/<script[^>]*src="([^"]+)"/g)][0][1], /^pdc-auto-reload\.js/);
   assert.equal(table.VERSION, '2026.10.22.r485'); // r475 (F88), r481 (F94), then r485 (F98) bumped the table module (on top of r476)
-  assert.match(slideout.VERSION, /^2026\.10\.22\.r4(?:[67]3|85)$/); // r485 (F98): stoppage box
+  assert.match(slideout.VERSION, /^2026\.10\.22\.r4(?:[67]3|85|96)$/); // r485 (F98): stoppage box; r496 (F109): inline edit
   const text = fs.readFileSync(__filename, 'utf8');
   assert.doesNotMatch(text, /\b1[23]\d{6}\b|\bJ13[89]\d{6}\b/);
 });

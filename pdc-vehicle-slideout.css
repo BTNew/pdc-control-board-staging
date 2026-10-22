@@ -73,3 +73,51 @@
 #vso-shell .vso-stoppage-row span { font-size: 12px; color: #4b5563; overflow-wrap: anywhere; }
 #vso-shell .vso-stoppage-actions { display: flex; gap: 6px; flex: 0 0 auto; }
 #vso-shell .vso-stoppage-note { margin: 6px 0 0; font-size: 11px; color: #6b7280; }
+
+/* r496 (F109): edit hours and move lines between jobs in the panel. The read-only list is swapped for app.js's own
+   Work & bookings rows (inputs and selectors only); booking cells, draft notes and evidence lines are not shown here. */
+#vso-shell .vso-ops-tools { display: inline-flex; gap: 8px; align-items: center; margin-left: 10px; }
+#vso-shell .vso-edit-toggle { font: 700 12px/1 Arial, Helvetica, sans-serif; height: 28px; padding: 0 16px; border-radius: 8px; border: 1px solid #1d4ed8; background: #1d4ed8; color: #fff; cursor: pointer; }
+#vso-shell .vso-edit-toggle:hover { background: #1e40af; border-color: #1e40af; }
+#vso-shell .vso-link { all: unset; cursor: pointer; font-size: 11px; color: #1d4ed8; text-decoration: underline; }
+#vso-shell .vso-edit-toggle:focus-visible, #vso-shell .vso-link:focus-visible, #vso-shell .vso-edit-actions button:focus-visible { outline: 2px solid #142334; outline-offset: 2px; }
+#vso-shell .vso-edit { margin-top: 8px; }
+#vso-shell .vso-edit .vehicle-workshop-page { display: flex; flex-direction: column; gap: 8px; }
+#vso-shell .vso-edit-bar { position: sticky; top: -8px; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 8px 10px; border: 1px solid #bfdbfe; border-radius: 8px; background: #eff6ff; }
+#vso-shell .vso-edit-title { display: flex; flex-direction: column; min-width: 0; }
+#vso-shell .vso-edit-title strong { font-size: 12px; color: #142334; }
+#vso-shell .vso-edit-title small { font-size: 11px; color: #4b5563; }
+#vso-shell .vso-edit-actions { display: flex; gap: 6px; }
+#vso-shell .vso-edit-actions button { font: 700 12px/1 Arial, Helvetica, sans-serif; height: 28px; padding: 0 14px; border-radius: 8px; cursor: pointer; }
+#vso-shell .vso-edit-save { border: 1px solid #15803d; background: #16a34a; color: #fff; }
+#vso-shell .vso-edit-save:disabled { border-color: #cbd5e1; background: #e2e8f0; color: #64748b; cursor: default; }
+#vso-shell .vso-edit-cancel { border: 1px solid #cbd5e1; background: #fff; color: #142334; }
+#vso-shell .vso-edit-msg { flex: 1 0 100%; font-size: 11px; color: #1e3a8a; }
+#vso-shell .vso-edit-msg.is-done { margin: 6px 0 0; padding: 5px 9px; border-radius: 8px; background: #ecfdf5; color: #166534; }
+#vso-shell .vso-edit-wait { margin: 6px 0; font-size: 12px; color: #4b5563; }
+#vso-shell .vso-edit-more { margin: 8px 0 0; font-size: 11px; color: #617289; }
+#vso-shell .vso-edit .vehicle-workshop-hours-batch,
+#vso-shell .vso-edit .vehicle-workshop-intro,
+#vso-shell .vso-edit .vehicle-workshop-line-booking,
+#vso-shell .vso-edit .vehicle-workshop-hours-draft-note,
+#vso-shell .vso-edit .vehicle-workshop-hours-evidence,
+#vso-shell .vso-edit .vehicle-workshop-offboard,
+#vso-shell .vso-edit .vehicle-workshop-booking-list { display: none !important; }
+#vso-shell .vso-edit .vehicle-workshop-stations { display: flex; flex-direction: column; gap: 8px; }
+#vso-shell .vso-edit .vehicle-workshop-station { margin: 0; border-radius: 8px; overflow: hidden; }
+#vso-shell .vso-edit .vehicle-workshop-station > header { display: flex; align-items: center; gap: 8px; padding: 5px 8px; }
+#vso-shell .vso-edit .vehicle-workshop-station > header h3 { margin: 0; font-size: 12px; }
+#vso-shell .vso-edit .vehicle-workshop-station > header p { margin: 0; font-size: 10px; }
+#vso-shell .vso-edit .vehicle-workshop-station > header > div { flex: 1 1 auto; min-width: 0; }
+#vso-shell .vso-edit .vehicle-workshop-line { display: grid !important; grid-template-columns: 1.6rem minmax(0, 1fr) 5.6rem 9.5rem !important; align-items: center; column-gap: 8px; padding: 4px 8px; min-height: 0; }
+#vso-shell .vso-edit .vehicle-workshop-line-description { min-width: 0; }
+#vso-shell .vso-edit .vehicle-workshop-line-description strong { display: block; font-size: 12px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#vso-shell .vso-edit .vehicle-workshop-line-hours, #vso-shell .vso-edit .vehicle-workshop-hours-control { display: flex; align-items: center; min-width: 0; }
+#vso-shell .vso-edit .vehicle-workshop-quick-hours { display: flex; align-items: center; gap: 3px; }
+#vso-shell .vso-edit .vehicle-workshop-quick-hours input { width: 4.2rem; height: 26px; font-size: 12px; padding: 0 5px; }
+#vso-shell .vso-edit .vehicle-workshop-hours-readonly strong { font-size: 11px; font-weight: 400; }
+#vso-shell .vso-edit .vehicle-workshop-line-actions { display: flex; justify-content: flex-end; min-width: 0; }
+#vso-shell .vso-edit .vehicle-workshop-line-station { display: flex; align-items: center; gap: 4px; margin: 0; }
+#vso-shell .vso-edit .vehicle-workshop-line-station > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#vso-shell .vso-edit .vehicle-workshop-line-station select { width: 9.5rem; height: 26px; font-size: 12px; }
+#vso-shell .vso-edit .vso-changed { outline: 2px solid #f59e0b; outline-offset: 0; background: #fffbeb; }
