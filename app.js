@@ -1906,19 +1906,37 @@ function startWorkshopReferenceDataReconciliationTimer() {
     return;
   }
   if (window.__workshopReferenceDataReconcileTimer) return;
+  // r490: while the tab is hidden the 2-minute safety-net read is skipped and
+  // remembered; it runs once as soon as the tab is visible again.
+  if (!window.__workshopReferenceDataReconcileVisibilityHook && typeof document !== 'undefined' && document.addEventListener) {
+    window.__workshopReferenceDataReconcileVisibilityHook = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden' || !window.__workshopReferenceDataReconcileMissed) return;
+      window.__workshopReferenceDataReconcileMissed = false;
+      if (window.__workshopReferenceDataReconcileTimer) reconcileWorkshopReferenceDataNow();
+    });
+  }
   window.__workshopReferenceDataReconcileTimer = window.setInterval(() => {
-    if (!workshopReferenceDataRoleCanRead()) {
-      stopWorkshopReferenceDataReconciliationTimer();
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      window.__workshopReferenceDataReconcileMissed = true;
       return;
     }
-    const service = window.__workshopReferenceDataService;
-    if (!service || !window.PDC_AUTH_CONTEXT) return;
-    service.listTechnicians(true).catch(() => {});
-    service.listSalespeople(true).catch(() => {});
-    service.listSubletProviders(true).catch(() => {});
-    service.listWorkshopBays(true).catch(() => {});
-    if (typeof service.getWorkshopConfiguration === 'function') service.getWorkshopConfiguration().catch(() => {});
+    reconcileWorkshopReferenceDataNow();
   }, 120000);
+}
+
+function reconcileWorkshopReferenceDataNow() {
+  if (!workshopReferenceDataRoleCanRead()) {
+    stopWorkshopReferenceDataReconciliationTimer();
+    return;
+  }
+  const service = window.__workshopReferenceDataService;
+  if (!service || !window.PDC_AUTH_CONTEXT) return;
+  service.listTechnicians(true).catch(() => {});
+  service.listSalespeople(true).catch(() => {});
+  service.listSubletProviders(true).catch(() => {});
+  service.listWorkshopBays(true).catch(() => {});
+  if (typeof service.getWorkshopConfiguration === 'function') service.getWorkshopConfiguration().catch(() => {});
 }
 
 function stopWorkshopReferenceDataReconciliationTimer() {
@@ -3662,6 +3680,7 @@ function setAdminNavigationExpanded(expanded) {
 function syncAdminNavigationVisibility() {
   syncUserManagementAccess();
   window.PdcUpdateHistory?.syncAccess();
+  window.PdcFittingStats?.syncAccess();
   const group = $('#nav-admin-group');
   // The group also contains destinations historically available to approved
   // non-administrator staff. Every destination and write remains role/RLS
@@ -4790,6 +4809,11 @@ function showView(view, options) {
     window.PdcUpdateHistory?.reset();
     requestedView = 'dashboard';
   }
+  // r489 (F102): Admin > Fitting statistics is administrators only, like Update history.
+  if (requestedView === 'fitting-stats' && !userManagementAdministratorActive()) {
+    window.PdcFittingStats?.reset();
+    requestedView = 'dashboard';
+  }
   if (requestedView === 'deleted' && !vehicleLifecycleAdministratorActive()) {
     resetDeletedVehicleAuthorityState();
     requestedView = 'dashboard';
@@ -4842,6 +4866,7 @@ function showView(view, options) {
   window.__activeWorkshopPlannerStage = plannerStage;
   if (app.currentView === 'fitters' && nextView !== 'fitters') window.PdcFitters?.close();
   if (app.currentView === 'update-history' && nextView !== 'update-history') window.PdcUpdateHistory?.close();
+  if (app.currentView === 'fitting-stats' && nextView !== 'fitting-stats') window.PdcFittingStats?.close();
   if (app.currentView === 'lists' && nextView !== 'lists') window.PdcWorkshopHours?.reset();
   app.currentRequestedView = requestedView;
   app.currentView = nextView;
@@ -4849,7 +4874,7 @@ function showView(view, options) {
   if (document.body?.dataset) document.body.dataset.currentView = requestedView;
   $$('.view').forEach(el => el.classList.toggle('active', el.id === nextView));
   $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView || (plannerStage && el.dataset.view === 'workshop')));
-  const adminViews = new Set(['user-management', 'update-history', 'lists', 'import', 'backup', 'deleted', 'completed', 'backend']);
+  const adminViews = new Set(['user-management', 'update-history', 'fitting-stats', 'lists', 'import', 'backup', 'deleted', 'completed', 'backend']);
   const adminActive = adminViews.has(requestedView);
   $('#nav-admin-toggle')?.classList.toggle('active', adminActive);
   if (adminActive && syncAdminNavigationVisibility()) setAdminNavigationExpanded(true);
@@ -4877,6 +4902,7 @@ function showView(view, options) {
     backup: 'Backup / Restore',
     'user-management': 'User Management',
     'update-history': 'Update history',
+    'fitting-stats': 'Fitting statistics',
     zpl: 'Label Tools'
   };
   const pageTitle = $('#page-title');
@@ -5595,6 +5621,10 @@ window.addEventListener?.('pdc-auth-ready', () => {
     window.PdcUpdateHistory?.reset();
     showView('dashboard', { historyMode: 'replace' });
   }
+  if (!userManagementAllowed && (app.currentView === 'fitting-stats' || app.currentRequestedView === 'fitting-stats')) {
+    window.PdcFittingStats?.reset();
+    showView('dashboard', { historyMode: 'replace' });
+  }
   const fitterOnly = window.PDC_AUTH_CONTEXT?.role === 'fitter';
   document.body.classList.toggle('fitter-only', fitterOnly);
   if (fitterOnly) {
@@ -5643,6 +5673,8 @@ window.addEventListener?.('pdc-auth-locked', () => {
   resetUserManagementAuthorityState();
   window.PdcUpdateHistory?.reset();
   if (app.currentView === 'update-history' || app.currentRequestedView === 'update-history') showView('dashboard', { historyMode: 'replace' });
+  window.PdcFittingStats?.reset();
+  if (app.currentView === 'fitting-stats' || app.currentRequestedView === 'fitting-stats') showView('dashboard', { historyMode: 'replace' });
   const userManagementView = document.getElementById('user-management');
   if (userManagementView) userManagementView.hidden = true;
   if (app.currentView === 'user-management' || app.currentRequestedView === 'user-management') showView('dashboard', { historyMode: 'replace' });
@@ -6523,6 +6555,9 @@ function renderActiveView() {
       break;
     case 'update-history':
       window.PdcUpdateHistory?.open();
+      break;
+    case 'fitting-stats':
+      window.PdcFittingStats?.open();
       break;
     case 'import':
       renderReviewTable(false);

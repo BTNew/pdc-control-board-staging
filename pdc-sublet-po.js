@@ -340,6 +340,7 @@
   load();
   setInterval(load, 2 * 60 * 1000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });
-  setTimeout(load, 4000);
+  // r490: the 4 s retry is only for a page that had no session yet; skip it once the board has loaded.
+  setTimeout(() => { if (!index) load(); }, 4000);
   const warmup = setInterval(() => { if (index) clearInterval(warmup); else load(); }, 20000);
 })();
