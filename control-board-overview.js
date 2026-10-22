@@ -220,6 +220,28 @@
       return projections.get(scoped)(booking);
     };
   }
+  // r464 (F77): a booking's pieces on consecutive days are one bar. buildTimeline
+  // still cuts a booking into per-day pieces (segments, used by the parity checks);
+  // the bar spans from the first piece of a run to its last, so a job that runs past
+  // the day divider reads as one job. A closed day between two pieces (a weekend or
+  // closure) starts a new bar, so Friday and Monday stay separate. Display only: the
+  // pieces stay as `parts` for the tooltip and the click date.
+  function joinedBars(pieces, lane) {
+    const runs = [];
+    pieces.forEach(piece => {
+      const run = runs[runs.length - 1];
+      if (run && piece.day - run[run.length - 1].day <= 1) run.push(piece); else runs.push([piece]);
+    });
+    const bookingMs = pieces.reduce((n, piece) => n + piece.end - piece.start, 0);
+    return runs.map(run => {
+      const first = run[0], last = run[run.length - 1];
+      if (run.length === 1) return { ...first, lane, parts: run };
+      return { item: first.item, day: first.day, date: first.date, start: first.start, end: last.end, lane, parts: run,
+        left: first.left, width: last.left + last.width - first.left, historicalOnClosure: run.some(piece => piece.historicalOnClosure),
+        continuesFromPrevious: first.continuesFromPrevious, continuesNext: last.continuesNext, joined: true,
+        bookingMs: runs.length > 1 ? bookingMs : null };
+    });
+  }
   function buildTimeline(model, options = {}) {
     const config = calendarConfig(model.calendar);
     if (!config || !timing) return null;
@@ -245,7 +267,7 @@
     };
     const outside = [], unscheduled = [];
     const rows = model.columns.map(column => {
-      const segments = [], unplotted = [], laneEnds = [];
+      const segments = [], bars = [], unplotted = [], laneEnds = [];
       const sorted = [...column.items].sort((a, b) => Date.parse(a.source.scheduled_start_at) - Date.parse(b.source.scheduled_start_at) || a.id.localeCompare(b.id));
       sorted.forEach(item => {
         const bookingCalendar = bookingCalendarConfig(config, item.source, calendars);
@@ -273,8 +295,9 @@
         if (lane < 0) lane = laneEnds.length;
         laneEnds[lane] = pieces[pieces.length - 1].left + pieces[pieces.length - 1].width;
         pieces.forEach(piece => segments.push({ ...piece, lane }));
+        bars.push(...joinedBars(pieces, lane));
       });
-      return { ...column, segments, unplotted, laneCount: Math.max(1, laneEnds.length) };
+      return { ...column, segments, bars, unplotted, laneCount: Math.max(1, laneEnds.length) };
     });
     const nowDay = Math.floor((now.getTime() - firstMs) / DAY), nowMinutes = (now.getTime() - firstMs - nowDay * DAY) / 60000;
     const nowLeft = nowDay >= 0 && nowDay < dayCount && nowMinutes >= axisStart && nowMinutes <= axisEnd ? nowDay * dayWidth + (nowMinutes - axisStart) / (axisEnd - axisStart) * dayWidth : null;
@@ -289,9 +312,14 @@
     const state = { started: 'Live', stoppage: 'Stoppage', planned: 'Planned', queued: 'Queued', admin: 'Admin block' }[item.status];
     const title = item.kind === 'admin' ? item.source.label || 'Admin block' : `Key ${person.key} · JC ${person.job} · Stock ${person.stock}\n${person.customer}\n${person.description}`;
     const midnight = Date.parse(`${segment.date}T00:00:00+08:00`);
-    const timingLabel = `${segment.date} · ${timeLabel((segment.start - midnight) / 60000)}–${timeLabel((segment.end - midnight) / 60000)}${segment.continuesFromPrevious ? ' · Continued from previous day' : ''}${segment.continuesNext ? ' · Continues next working day' : ''}${segment.historicalOnClosure ? ' · Recorded booking on closure' : ''}`;
+    const partLabel = part => { const dayStart = Date.parse(`${part.date}T00:00:00+08:00`); return `${part.date} · ${timeLabel((part.start - dayStart) / 60000)}–${timeLabel((part.end - dayStart) / 60000)}`; };
+    const hours = ms => `${Math.round(ms / 360000) / 10} h`;
+    const timingLabel = segment.joined
+      ? `One booking · ${hours(segment.parts.reduce((n, part) => n + part.end - part.start, 0))} over ${segment.parts.length} parts${segment.continuesFromPrevious ? ' · Continued from previous day' : ''}${segment.continuesNext ? ' · Continues next working day' : ''}${segment.bookingMs ? ` · Booking total ${hours(segment.bookingMs)}` : ''}${segment.historicalOnClosure ? ' · Recorded booking on closure' : ''}\n${segment.parts.map(part => `${partLabel(part)} · ${hours(part.end - part.start)}`).join('\n')}`
+      : `${segment.date} · ${timeLabel((segment.start - midnight) / 60000)}–${timeLabel((segment.end - midnight) / 60000)}${segment.continuesFromPrevious ? ' · Continued from previous day' : ''}${segment.continuesNext ? ' · Continues next working day' : ''}${segment.historicalOnClosure ? ' · Recorded booking on closure' : ''}`;
+    const joinedParts = segment.joined ? ` data-control-board-parts="${segment.parts.map(part => `${part.date}@${Math.round((part.left - segment.left) * 10) / 10}-${Math.round((part.left + part.width - segment.left) * 10) / 10}`).join(' ')}"` : '';
     const tag = item.kind === 'admin' ? 'div' : 'button';
-    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${segment.width < 130 ? ' is-short' : ''}" style="left:${segment.left}px;width:${segment.width}px;top:${segment.lane * 48 + 5}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}" title="${escape(`${state} · ${title}\n${timingLabel}`)}" aria-label="${escape(`${state} · ${title} · ${timingLabel}`)}">
+    return `<${tag} ${tag === 'button' ? 'type="button"' : ''} class="control-board-timeline-job is-${escape(item.status)}${segment.width < 130 ? ' is-short' : ''}${segment.joined ? ' is-joined' : ''}" style="left:${segment.left}px;width:${segment.width}px;top:${segment.lane * 48 + 5}px" data-control-board-match data-control-board-item="${escape(item.kind)}" data-control-board-id="${escape(item.id)}" data-control-board-date="${segment.date}"${joinedParts} title="${escape(`${state} · ${title}\n${timingLabel}`)}" aria-label="${escape(`${state} · ${title} · ${timingLabel}`.replace(/\n/g, ' · '))}">
       <strong>${item.kind === 'admin' ? escape(title) : `Key ${escape(person.key)} · JC ${escape(person.job)} · Stock ${escape(person.stock)}`}</strong>
       ${item.kind === 'admin' ? '' : `<span>${escape(person.customer)} · ${escape(person.description)}</span>`}
       ${item.kind === 'admin' ? '' : (typeof window !== 'undefined' ? window.PdcFitters?.progressHtml(item.source.fitter_progress, true) || '' : '')}
@@ -328,7 +356,7 @@
       previousStage = groupId;
       const note = row.bay.is_active === false ? 'Inactive · existing bookings only' : `${text(row.bay.technician_name) || 'Unassigned'} · ${Number(row.bay.efficiency_percent) || 100}%`;
       const missing = row.unplotted.map(entry => `<button type="button" class="control-board-unplotted" data-control-board-match data-control-board-item="${escape(entry.item.kind)}" data-control-board-id="${escape(entry.item.id)}" title="${escape(entry.reason)}">${escape(entry.item.vehicle.stock_number || entry.item.source.label || 'Job')} · ${escape(entry.reason)}</button>`).join('');
-      return `${group}<div class="control-board-timeline-bay ${stationClass}" data-control-board-bay="${escape(row.bay.bay_id)}" aria-label="${escape(`${label} Bay ${row.bay.bay_number}`)}" style="--row-height:${Math.max(58, row.laneCount * 48 + 10)}px"><div class="control-board-timeline-bay-label"><button type="button" data-control-board-planner="${escape(row.stage)}" data-control-board-group="${escape(layout?.groupForBay(row.stage === 'BUS_4X4' ? row.bay.bay_number : 0)?.id || '')}" title="Open ${escape(label)} planner"><strong>Bay ${String(row.bay.bay_number).padStart(2, '0')}</strong><span>${model.search ? row.items.length : row.total}</span></button><small title="${escape(note)}">${escape(note)}</small>${missing}</div><div class="control-board-timeline-track">${shading}${row.segments.map(timelineCard).join('')}</div></div>`;
+      return `${group}<div class="control-board-timeline-bay ${stationClass}" data-control-board-bay="${escape(row.bay.bay_id)}" aria-label="${escape(`${label} Bay ${row.bay.bay_number}`)}" style="--row-height:${Math.max(58, row.laneCount * 48 + 10)}px"><div class="control-board-timeline-bay-label"><button type="button" data-control-board-planner="${escape(row.stage)}" data-control-board-group="${escape(layout?.groupForBay(row.stage === 'BUS_4X4' ? row.bay.bay_number : 0)?.id || '')}" title="Open ${escape(label)} planner"><strong>Bay ${String(row.bay.bay_number).padStart(2, '0')}</strong><span>${model.search ? row.items.length : row.total}</span></button><small title="${escape(note)}">${escape(note)}</small>${missing}</div><div class="control-board-timeline-track">${shading}${(row.bars || row.segments).map(timelineCard).join('')}</div></div>`;
     }).join('');
     const outside = timeline.outside.length ? `<button class="small-button" type="button" data-control-board-reveal="${escape(timeline.outside[0].date)}">${timeline.outside.length} bookings outside these dates · Show</button>` : '';
     const waiting = model.waiting.length ? `<div class="control-board-timeline-waiting"><strong>Unallocated · ${model.waiting.length}</strong><div>${model.waiting.map(item => cardHtml(item, true)).join('')}</div></div>` : '';
@@ -416,6 +444,17 @@
     };
     const listeners = [[scroll, 'scroll', sync], [rail, 'pointerdown', pointerDown], [rail, 'pointermove', pointerMove], [rail, 'pointerup', stopDrag], [rail, 'pointercancel', stopDrag], [rail, 'lostpointercapture', stopDrag], [rail, 'keydown', keyDown], [header, 'wheel', wheel], [rail, 'wheel', wheel]];
     listeners.forEach(([node, type, fn]) => node.addEventListener(type, fn, { passive: type === 'scroll' }));
+    // r464: a joined bar opens the planner on the day that was clicked, as the
+    // separate per-day bars did. Keyboard activation keeps the first day.
+    const joinedClick = event => {
+      const bar = event.target.closest?.('button.control-board-timeline-job.is-joined[data-control-board-parts]');
+      if (!bar || !event.detail) return;
+      const x = event.clientX - bar.getBoundingClientRect().left;
+      const parts = bar.dataset.controlBoardParts.split(' ').map(entry => { const [date, range] = entry.split('@'); const [a, b] = range.split('-').map(Number); return { date, a, b }; });
+      const hit = parts.find(part => x >= part.a && x <= part.b) || parts.reduce((best, part) => Math.min(Math.abs(x - part.a), Math.abs(x - part.b)) < Math.min(Math.abs(x - best.a), Math.abs(x - best.b)) ? part : best);
+      bar.dataset.controlBoardDate = hit.date;
+    };
+    scroll.addEventListener('click', joinedClick, true);
     const resize = view.ResizeObserver ? new view.ResizeObserver(sync) : null;
     resize?.observe(scroll);
     resize?.observe(rail);
@@ -424,6 +463,7 @@
     return () => {
       stopDrag();
       listeners.forEach(([node, type, fn]) => node.removeEventListener(type, fn));
+      scroll.removeEventListener('click', joinedClick, true);
       resize?.disconnect();
       if (!resize) view.removeEventListener('resize', sync);
     };
