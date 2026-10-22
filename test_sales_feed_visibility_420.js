@@ -59,7 +59,7 @@ test('Sales says "Awaiting PMB link" for an unlinked or deleted-PMB row; the fix
   assert.equal(sales.pmbSummary({tracking_id:'t',canonical_vehicle_id:null,identity_status:'awaiting_pmb_link'}).status,'Awaiting PMB link');
   const rows=['BG','ZZ'].map((c,i)=>({tracking_id:'t'+i,salesperson_code:c,cosi:true,source_current:true,sales_hidden:false}));
   assert.deepEqual(sales.scopeRows(rows).map(r=>r.salesperson_code),['BG']);
-  assert.match(fs.readFileSync('sales/index.html','utf8'),/sales\.js\?[^"]*&amp;feed-visibility=2026\.10\.21\.04"/);
+  assert.match(fs.readFileSync('sales/index.html','utf8'),/sales\.js\?[^"]*&amp;feed-visibility=2026\.10\.21\.04[&"]/);
   const log=fs.readFileSync('docs/FAULT_LOG.md','utf8');
   assert.match(log,/\| F35 \| 21 Oct 08:23 \|[^\n]*20261021002331[^\n]*sales_shows_every_feed_row/);
   assert.doesNotMatch(log.match(/\| F35 \|[^\n]*/)[0],/\b1[0-3]\d{6}\b/,'no stock numbers in the public log');
