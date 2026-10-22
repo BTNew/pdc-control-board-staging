@@ -57,7 +57,7 @@ Envelope (same authentication and scope as before):
 - Attachment filename `PMG PD Service Complete w/Sublet.xls` or `.xlsx`, or with ` - Job 1`. Because `/` cannot appear in most filenames, `w_Sublet`, `w-Sublet`, `w Sublet` and `wSublet` are also accepted. Nothing else.
 - Manifest provenance: `source_kind` `revolution_automated_service_workbook`, `source_format` `ooxml_workbook`, `subject` and `report_title` = the title, `source_headers` = the worksheet headers (required), `type_column` `absent_r442`, `line_collapse` `r442_one_row_per_dept_ro_line`, plus the usual authority, instruction, company, division and authentication fields.
 
-Headers: the 13 usual columns `Dept, Stock #, Rego #, Owner Name, Parts Location, Key Tag Number, R/O #, Sub Status, Line #, Operation Desc, Estimated labour hours, Modified Date, Range #`, followed only by r439's sublet columns, with `PO #` required (this report sends `Description of sublet` and `PO #`). There is no Type column.
+Headers: the 13 usual columns `Dept, Stock #, Rego #, Owner Name, Parts Location, Key Tag Number, R/O #, Sub Status, Line #, Operation Desc, Estimated labour hours, Modified Date, Range #`, followed only by r439's sublet columns, with `PO #` required (this report sends `Description of sublet` and `PO #`). There is no Type column (r468: Revolution may now send an optional leading Type column, which the preparer drops; see below).
 
 Type: in the PMG 138/139 import, Type was only used by the preparer: `D` marked a service line and the `T1` totals footer was skipped. No database function reads it for 138/139 (only parked Karratha 135 does, and that import is not touched). Without Type:
 - a data row has an R/O # and a Line #;
@@ -83,6 +83,17 @@ A file without POs gives `po_rows: 0`. If the PO step fails, `sublet_pos.ok` is 
 The apply function's md5 changed (pinned): callers that guard it must use `fc3717a5215de94c93ebb2c7facfe744` (was `84e1ed9f1a722719c8c4b5b113e1884f`). The preview function is unchanged (`375bffc2dced95a7a5c74c3273dbccb3`). The only other change in the apply is `WHERE true` on its existing new-vehicle-review `ON CONFLICT ... DO UPDATE` (same behaviour), so the recreated function passes the safeupdate DML lint.
 
 Verification: `tests/revolution_service_wsublet_442.sql` (rolled back, no fixtures), regression check `service_wsublet_contract_and_po_feed`. Undo: `supabase/rollbacks/20261021073319_r442_service_wsublet.down.sql`, run before any r439 undo.
+
+## Optional leading Type column — r468 (F81), 22 October 2026
+
+Kajel reported the 22 Oct 08:33 AWST w/Sublet report held: Revolution now sends a leading **Type** column (`D` on data rows, `T1` on the totals footer). r442 refused any Type column. From r468 the preparer (`tools/import-rules/revolution_service_wsublet.py`) accepts it as OPTIONAL and drops it, the same way the sales feed drops its Type column:
+
+- `Type` is accepted only as the first header (exactly `Type`; surrounding spaces trimmed). Anywhere else, twice, or in another case, the file stops.
+- `D` = a data row: it must have an R/O # and a Line # (a row of another department is excluded as before). `T1` = the totals footer: it must have neither, it is kept as evidence and never imported, and there is still at most one. Any other value (blank, `d`, `T2`, `D1`, a number, ...) stops the whole file with the worksheet row number: `row N: Type 'X' is not D (data) or T1 (footer); only D and T1 are accepted`.
+- The Type cell is removed before anything else is built: `source_headers` are the headers after it, no `raw_row` carries a `Type` key, and source row numbers are still worksheet rows. The manifest marker stays `type_column` `absent_r442` (no Type column reaches the database); `source_type_column()` gives `leading_type_dropped_r468` (or `absent`) for the provenance evidence.
+- A file without Type parses exactly as before (a test pins the r442/r444 output digest).
+
+No database function changed: the manifest (md5 `e4ba03437490bd155d4d8553285107f8`), the row validator (`0534336e01558066cf7ec3dcb3995cd4`) and the service apply (`fc3717a5215de94c93ebb2c7facfe744`) are as r442/r444 left them, and `service_wsublet_contract_and_po_feed` still checks that a Type header or Type key is refused there. Tests: `tools/import-rules/test_revolution_service_wsublet_468.py` with synthetic fixtures `tools/import-rules/fixtures_service_wsublet_468.py` (2,572 lines across 154 stocks with 243 sublet POs, with and without Type, plus bad Type values; `python3 fixtures_service_wsublet_468.py DIR` writes the three workbooks).
 
 ## Sublet descriptions — r444 (F57), 21 October 2026
 

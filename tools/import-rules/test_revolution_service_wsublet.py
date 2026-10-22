@@ -14,7 +14,8 @@ def row(ro='J139000001', line=1, hours=2.5, po=None, desc='Fit canopy', dept=139
 class T(unittest.TestCase):
     def test_headers(self):
         self.assertEqual(check_headers(H + [None]), H)
-        for bad in (['Type'] + H, BASE_HEADERS, BASE_HEADERS + ['PO #', 'PO #'], BASE_HEADERS + ['PO #', 'Other'], H[1:]):
+        self.assertEqual(check_headers(['Type'] + H), H)  # r468 (F81): optional leading Type column, dropped
+        for bad in (BASE_HEADERS + ['Type', 'PO #'], H[:3] + ['Type'] + H[3:], ['Type', 'Type'] + H, BASE_HEADERS, BASE_HEADERS + ['PO #', 'PO #'], BASE_HEADERS + ['PO #', 'Other'], H[1:]):
             with self.assertRaises(ContractError):
                 check_headers(bad)
 
