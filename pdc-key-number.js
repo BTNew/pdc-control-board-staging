@@ -6,7 +6,14 @@
    - Where the key is already shown (the board's Key column), the recorded key wins over the Tune job-card value.
    - Saves go through set_pdc_vehicle_key_number_460 (expected vehicle version + idempotency key); a later service import
      still updates the key as before and is audited as 'import'.
-   Loads after pdc-service-locations.js and pdc-parts-eta.js. styles.css and app.js are untouched (CSS lives here). */
+   Loads after pdc-service-locations.js and pdc-parts-eta.js. styles.css and app.js are untouched (CSS lives here).
+   r472 (F85, Craig 22 Oct 10:20): saving a key tag number from the vehicle card ("Save changes") locked the card for
+   about 18 s behind "Refreshing exact vehicle identity…". The card's save merged the card's own vehicle object into the
+   raw staging snapshot row, so the row's id became the board key (the Tune / PMG id) instead of the vehicle UUID; the
+   card could then not find its exact UUID + Stock row and re-read the whole board to rebind. This file keeps the raw
+   rows raw (the server's receipt values on the exact UUID row, then the server's own read-back row) and, for a
+   key-number-only save, confirms the read-back in the background instead of holding the card. The exact UUID + Stock
+   checks are unchanged; a contradicting read-back still says so. Undo: revert the r472 commit. */
 (() => {
   'use strict';
   const VERSION = '2026.10.22.r460';
@@ -78,7 +85,27 @@
     '.pdc-keyno-history{flex-basis:100%;margin:2px 0 0;padding:0;list-style:none;font-size:11px;color:#334155}.pdc-keyno-history li{display:flex;gap:6px;flex-wrap:wrap}',
     '.pdc-keyno-history-empty{flex-basis:100%;color:#64748b;font-size:11px}',
   ].join('');
-  const api = { VERSION, normaliseKey, keyProblem, keyCellHtml, decorateRow, preferRecordedKey, historyHtml, CSS };
+  // r472: pure helpers (tested in test_key_save_identity_472.js).
+  const rawRowId = row => [row?.id, row?.__emailVehicleId].map(idKey).find(id => UUID.test(id)) || '';
+  /** Receipt applied: the exact UUID row keeps every raw field and takes only the raw receipt overlay. */
+  function rawRowsAfterReceipt(rowsBefore, vehicleId, rawOverlay) {
+    const id = idKey(vehicleId);
+    if (!Array.isArray(rowsBefore) || !UUID.test(id) || !rawOverlay || typeof rawOverlay !== 'object') return null;
+    return rowsBefore.map(row => (rawRowId(row) === id ? { ...row, ...rawOverlay, id: row.id } : row));
+  }
+  /** Read-back applied: the exact UUID row becomes the server's own row (nothing from the card is mixed in). */
+  function rawRowsAfterReadback(rowsBefore, serverRow, overlay = rows => rows) {
+    const id = idKey(serverRow?.id);
+    if (!Array.isArray(rowsBefore) || !UUID.test(id)) return null;
+    const fresh = overlay([{ ...serverRow }])[0] || { ...serverRow };
+    return rowsBefore.map(row => (rawRowId(row) === id ? fresh : row));
+  }
+  /** Only a key-number-only card save (no salesperson change) confirms its read-back in the background. */
+  function keyOnlySave(requestedCode, detailChanges) {
+    const fields = Object.keys(detailChanges && typeof detailChanges === 'object' ? detailChanges : {});
+    return !String(requestedCode || '').trim() && fields.length === 1 && fields[0] === 'key_number';
+  }
+  const api = { VERSION, R472: '2026.10.22.r472', normaliseKey, keyProblem, keyCellHtml, decorateRow, preferRecordedKey, historyHtml, CSS, rawRowsAfterReceipt, rawRowsAfterReadback, keyOnlySave };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_KEY_NUMBER_VERSION) return;
   window.PDC_KEY_NUMBER_VERSION = VERSION;
@@ -128,6 +155,46 @@
         const st = ui.get(vid) || {};
         return decorateRow(html, { vehicleId: vid, key: recordedKey(vehicle), canEdit: canEdit && Boolean(vid), editing: st.editing, message: st.message, history: st.history });
       } catch (_) { return html; }
+    };
+  }
+  // r472 (F85): keep the authenticated snapshot rows raw after a card save (see the header).
+  if (typeof applyAuthoritativeVehicleReceiptToState === 'function' && typeof authoritativeVehicleRawOverlay === 'function') {
+    const prior = applyAuthoritativeVehicleReceiptToState;
+    applyAuthoritativeVehicleReceiptToState = (...args) => {
+      const before = app.emailVehicleLocationRows;
+      const out = prior(...args);
+      try {
+        const rows = out ? rawRowsAfterReceipt(before, out.expected?.vehicleId, authoritativeVehicleRawOverlay(out.patched, out.expected)) : null;
+        if (rows) app.emailVehicleLocationRows = rows;
+      } catch (_) { /* leave app.js's result */ }
+      return out;
+    };
+  }
+  if (typeof applyAuthoritativeVehicleReadbackRow === 'function') {
+    const prior = applyAuthoritativeVehicleReadbackRow;
+    applyAuthoritativeVehicleReadbackRow = (row = {}, ...rest) => {
+      const before = app.emailVehicleLocationRows;
+      const mapped = prior(row, ...rest);
+      try {
+        const overlay = typeof applyPendingSharedWorkStateOverlays === 'function' ? applyPendingSharedWorkStateOverlays : undefined;
+        const rows = mapped ? rawRowsAfterReadback(before, row, overlay) : null;
+        if (rows) app.emailVehicleLocationRows = rows;
+      } catch (_) { /* leave app.js's result */ }
+      return mapped;
+    };
+  }
+  if (typeof reconcileAuthoritativeVehicleReceipt === 'function') {
+    const prior = reconcileAuthoritativeVehicleReceipt;
+    reconcileAuthoritativeVehicleReceipt = (result, vehicle, requestedCode, detailChanges, ...rest) => {
+      if (!keyOnlySave(requestedCode, detailChanges)) return prior(result, vehicle, requestedCode, detailChanges, ...rest);
+      // The server's receipt already names this exact UUID and its new version. The card opens straight away
+      // ("Saved online; refreshing…"); the read-back runs behind it, and a contradicting read-back still says so.
+      void Promise.resolve().then(() => prior(result, vehicle, requestedCode, detailChanges, ...rest)).then(readback => {
+        if (readback?.status !== 'contradictory') return;
+        try { pdcNotify('The key tag number did not read back as saved. Close and reopen the vehicle to see the current key tag.'); } catch (_) { /* toast unavailable */ }
+        try { if (document.querySelector('#vehicle-modal')?.hidden === false) renderDetail(); } catch (_) { /* next render */ }
+      }).catch(() => { /* the next board refresh reconciles */ });
+      return Promise.resolve({ status: 'pending', vehicle });
     };
   }
   async function loadRole() {

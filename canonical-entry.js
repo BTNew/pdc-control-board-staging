@@ -77,10 +77,12 @@
     };
     // r460 (F73): vehicle key number (Key No. in the drop-down; inline edit for controllers / administrators, audited);
     // loads after the service locations and parts ETA so the recorded key wins in the Key column.
+    // r472 (F85): the key number module also keeps the snapshot rows raw after a vehicle-card save, so the card no longer re-reads
+    // the whole board to rebind its UUID + Stock (a key-only save confirms its read-back in the background).
     const loadKeyNumber = () => {
       if (document.querySelector('script[data-pdc-key-number]')) return;
       const keyNumber = document.createElement('script');
-      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460';
+      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460&r472=2026.10.22.r472';
       keyNumber.dataset.pdcKeyNumber = '1';
       keyNumber.onload = loadVehicleLocationsTable;
       keyNumber.onerror = loadVehicleLocationsTable;
