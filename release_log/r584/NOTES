@@ -1,0 +1,22 @@
+r584 (F198) / sort 356. Preview only. Do not merge. Do not apply.
+
+Staging target: cdsmnqxtyyoeoznmbidd. Production is not a target.
+r583 / F197 / sort 355 is claimed by the line hand-off preview (PR #566).
+The first preview claimed r516 / F130 / sort 302. That triple is the live JITA upload.
+
+Craig Watson (23 Oct, about 3:15 pm AWST): any Navision / import line whose description or operation code contains MMT seat covers, IVMS, RADLINK or reflective stripes is an external Sublet. It is never Fitting, Electrical, Bus or another workshop station.
+
+Matching is the whole operation line (description and operation code), not a GP PO item on another line.
+- MMT seat covers: MMT … SEAT COVER or SEAT COVERS, any case. "Canvas seat covers" does not match.
+- IVMS and RADLINK: the word on its own. DIVMS does not match.
+- Reflective stripes: those two words after spaces are collapsed, any case. "reflective striping" does not match.
+
+The pit inspection / weighbridge rule is unchanged. Note/fee (r521) and Perth delivery (r523) stay. A person's line override, booking, owner review or manual lock still wins. Manage sublets is unchanged. No app.js. Department 135 is not changed. Service as a Whole import functions are not replaced.
+
+The before_import_rules_20261017 pin stays release r523. Its body md5 is updated in place so bus_whole_job_450 stays green. The other five category pins move to r584. note_fee_sublet_521 and perth_delivery_sublet_523 are updated in this migration to the six new category md5s.
+
+Work-item writes are the sublet key only, recorded in pdc_ops.named_external_work_touch_584. The down file restores those rows. Inserted rows are deleted only while pdc_772_work_item_no_delete is disabled, and that trigger is enabled again before the down file finishes. Pin count stays 241.
+
+An earlier apply of this rule as r583 inserted one sublet row for stock 12662903. That row was removed by ledger 20261027115430. This preview does not re-apply that release.
+
+After the sublet rows are written, the QC cache for those vehicles is refilled from the new bodies. The down file refills it again after the old bodies are restored, so the fitting station snapshot stays inside the r545 8 second budget.
