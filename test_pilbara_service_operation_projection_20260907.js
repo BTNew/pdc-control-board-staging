@@ -67,7 +67,8 @@ const legacyMapped = mapServerVehicle({
 assert.strictEqual(legacyMapped.pdcEmailOperationLines[0].partsSemantics, null);
 assert.match(app, /Source hours/);
 assert.match(app, /Business-rule default/);
-assert.match(app, /Pilbara Service Review · R\/O loaded/);
+assert.doesNotMatch(app, /Pilbara Service Review · R\/O loaded/);
+assert.doesNotMatch(app, /pilbaraServiceJobCard \?/);
 assert.doesNotMatch(app, /pdc-station-review/, 'Service operation count must not add an eleventh top-row category control');
 assert.doesNotMatch(app, /const operationJobCard = operation\.job_card_number/, 'rendering must not expose the repeated repair-order subline');
 assert.strictEqual(mapped.pilbaraServiceOperations[0].job_card_number, 'RO-7', 'repair-order identity remains in the internal projection');
