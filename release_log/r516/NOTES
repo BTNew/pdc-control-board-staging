@@ -1,0 +1,13 @@
+r516 (F130). Preview only. SQL is not applied. Do not merge. Do not apply to production.
+Staging target: cdsmnqxtyyoeoznmbidd.
+
+Craig Watson (23 Oct, about 3:15 pm AWST): any Navision / import line whose description or operation code contains MMT seat covers, IVMS, RADLINK or reflective stripes is an external Sublet. It is never Fitting, Electrical, Bus or another workshop station.
+
+Matching is the whole operation line (description and operation code), not a GP PO item on another line.
+- MMT seat covers: the existing pattern MMT … SEAT COVER or SEAT COVERS, any case. "Canvas seat covers" does not match.
+- IVMS and RADLINK: the word on its own. DIVMS does not match.
+- Reflective stripes: those two words after spaces are collapsed, any case. "reflective striping" does not match.
+
+The pit inspection / weighbridge rule is unchanged. A person's line override, booking, owner review or manual lock still wins. Manage sublets is unchanged. No app.js. Karratha 135 is not changed.
+
+On apply, the QC cache for vehicles with one of these lines is dropped and required work is reconciled. Stored proposed station is left as imported evidence. The rollback does not delete work items.
