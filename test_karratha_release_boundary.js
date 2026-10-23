@@ -196,7 +196,7 @@ const approvedRootImportPatch = Object.freeze({
   // r483: overview bay rows use the Dept 139 bay names; inactive bays with nothing booked are not drawn (F96). The Karratha copy stays frozen.
   // r493: STOPPAGE bars show the running strip as Paused (amber; F106).
   // r509: control board comment matches the 14-bay fabrication count (live check F122 sort 294). The hidden Karratha copy stays frozen.
-  "control-board-overview.js": "4c398a51bbb71f3c0aaa8432404701b379f1e9255cab385de34beeedd573f3e7",
+  "control-board-overview.js": "03425d6ba10d0be701bbb53681cbd56c2d0d40da0f70bca9c4d97a17790bdd78",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
   // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02,
