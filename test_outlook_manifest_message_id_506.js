@@ -54,6 +54,10 @@ test('widens only the codex service manifest CHECK; Karratha 135 stays hex-only'
 test('regression check outlook_manifest_message_id_506 sort 291 F119; manifest function left alone', () => {
   assert.match(up, /outlook_manifest_message_id_506','F119'/);
   assert.match(up, /,291,'r506'\)/);
+  assert.match(up, /SELECT count\(\*\)=1 FROM def WHERE d LIKE/);
+  assert.match(up, /SELECT count\(\*\)=1 FROM k135 WHERE d LIKE/);
+  assert.doesNotMatch(up, /count\(\*\)=1 AND d LIKE[\s\S]*FROM def\)/);
+  assert.doesNotMatch(up, /count\(\*\)=1 AND d LIKE[\s\S]*FROM k135\)/);
   assert.match(up, /63ff5dabf94abcdf7c278fb3afa9bd96/);
   assert.match(down, /DELETE FROM pdc_ops\.regression_checks WHERE check_name='outlook_manifest_message_id_506'/);
   assert.match(log, /\| F119 \|/);

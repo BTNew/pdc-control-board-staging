@@ -89,16 +89,16 @@ INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,
     AND c.conrelid='karratha135_intake.management_email_manifests'::regclass
 )
 SELECT (SELECT count(*)=6 AND bool_and(got IS NOT DISTINCT FROM want) FROM ev)
-   AND (SELECT count(*)=1 AND d LIKE '%^[a-f0-9]+$%'
+   AND (SELECT count(*)=1 FROM def WHERE d LIKE '%^[a-f0-9]+$%'
             AND (d LIKE '%BETWEEN 8 AND 512%' OR (d LIKE '%>= 8%' AND d LIKE '%<= 512%'))
-            AND d LIKE '%[[:space:]]%' FROM def)
+            AND d LIKE '%[[:space:]]%')
    AND NOT EXISTS (
      SELECT 1 FROM pdc_codex_intake_private.management_email_manifests m
      WHERE m.gmail_message_id IS NOT NULL
        AND NOT (m.gmail_message_id ~ '^[a-f0-9]+$' OR (length(m.gmail_message_id) BETWEEN 8 AND 512 AND m.gmail_message_id !~ '[[:space:]]'))
    )
    AND (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_codex_intake_private.revolution_service_manifest_20261006(jsonb,text,text)'))='63ff5dabf94abcdf7c278fb3afa9bd96'
-   AND (SELECT count(*)=1 AND d LIKE '%^[a-f0-9]+$%' AND d NOT LIKE '%BETWEEN 8 AND 512%' AND d NOT LIKE '%>= 8%' FROM k135)
+   AND (SELECT count(*)=1 FROM k135 WHERE d LIKE '%^[a-f0-9]+$%' AND d NOT LIKE '%BETWEEN 8 AND 512%' AND d NOT LIKE '%>= 8%')
  AS ok,
  'cases '||(SELECT count(*) FILTER (WHERE got IS NOT DISTINCT FROM want) FROM ev)||'/'||(SELECT count(*) FROM ev)
  ||coalesce(' (WRONG: '||(SELECT string_agg(label||' -> '||coalesce(got::text,'null'),'; ') FROM ev WHERE got IS DISTINCT FROM want)||')','')
