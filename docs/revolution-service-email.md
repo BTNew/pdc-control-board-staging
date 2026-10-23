@@ -132,3 +132,8 @@ Revolution sends a second report, **PMG PD Service as a Whole w/Sublet**: every 
 - Function md5s (pinned, release r479): manifest `63ff5dabf94abcdf7c278fb3afa9bd96`, row validator `b5e3ab4517bd59a1931509a2b9a1299f`, key import `7db7b5482de592222cfc5828ff9e6a45`, `append_only_479` `1ab209a3fff8dbc2efe3051f17c42703`, `record_snapshot_479` `fe1aa81a9ff00b6071eb4c0b7ea1a4ab`, `reconcile_479` `f4470aaa28afeb5a89fa206edb8a6076`, `review_list_479` `a84de72c728027dcea5a2d9adb4c04ad`, `capture_service_status` `7870d544117de6a5465b8212f0d228b7` (was `3cc871d85d84195d9f8f65113a03e1ef`, unpinned), `service_99_used_479` `574255e4c99e77830069f74ad849d9b4`.
 
 Undo: `supabase/rollbacks/20261022043000_r479_service_whole_snapshot.down.sql` (refuses while snapshots exist unless `SET LOCAL pdc.r479_undo = 'discard_snapshots'`). Tests: `tools/import-rules/test_revolution_service_whole_479.py` (synthetic), `tests/service_whole_snapshot_479.sql`, `tests/service_99_once_479.sql`, `tests/r479_local_harness/run.sh`, `test_service_whole_snapshot_479.js`; daily check `service_whole_snapshot_479`.
+
+
+## r505 (F118): Outlook / pdc@ mailbox
+
+From 23 Oct 2026 the shared sign-in helper also accepts the as-a-Whole / w/Sublet report when it arrives in Outlook on `pdc@pmgwa.com.au` (see `docs/revolution-parts-email.md` r505). The service rows validator accepts `mailbox` `pdc@pmgwa.com.au` as well as `pmbcontroller@gmail.com`. The service manifest body is unchanged; bind `p_message_id` to the Outlook internet / Graph message id for the Outlook path.
