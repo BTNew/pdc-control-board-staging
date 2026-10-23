@@ -1,0 +1,61 @@
+r499b (F112) PREVIEW ONLY. Do not merge. SQL is NOT applied on staging or anywhere else.
+Rajesh reviews and merges after Craig okays go-live, and Rajesh applies the SQL.
+
+Base: main b90b1502 (r508). Rebuilt from the unmerged r499 strip (was on 024678c / r500).
+No r495 (Karratha sales) on this main. sales/index.html, sales/sales.js and
+scripts/build_pages_runtime.js took the icons with no Karratha changes mixed in.
+
+Craig 23 Oct 2026: Sales station icons must match the PMB board icons exactly,
+and flash blue when a station is being worked on (booking status started).
+That replaces an earlier orange/blue/red/grey colour list.
+
+What shipped
+  Sales PMB STATUS column, the mobile card, and the vehicle detail PMB section
+  show the board strip: Parts / JITA, Tint, Bus 4x4, Hoist, Fitting, Fab, Elec,
+  Tyre, Sublet. Same classes, glyphs and colours as app.js incomingWorkChecklistHtml
+  plus the Sublet box from pdc-sublet-po.js decorateStrip. Read only, hover titles.
+  Unlinked vehicles: no icons.
+  Started: a workshop booking with status started on that station's board stage
+  adds is-started. sales/pmb-stations.css animates .incoming-work-check.is-started
+  with the planner keyframes workshop-started-blue-pulse (1.25s ease-in-out,
+  border #2563eb, resting background #dbeafe), the same pulse as
+  .workshop-plan-chip.is-started in workshop-planner.css. The keyframes text is
+  copied because Sales does not load workshop-planner.css (boundary pin; loading
+  it would restyle the Sales page). prefers-reduced-motion turns the animation off
+  and leaves the blue. Hover title says "started" where the board still says "booked".
+  Completed icons stay green. STOPPAGE stays red and does not flash.
+  Queued and planned stay the board's amber booked icon.
+  One get_broome_sales_pmb_stations call per Sales refresh, capped at 1000 ids.
+  Nothing per vehicle while drawing.
+
+Not changed
+  index.html, app.js, canonical-entry.js, pdc-qc-rework.js, pdc-sublet-po.js,
+  the Sublet page, styles.css, workshop-planner.css.
+  The board strip itself still does not flash. Only Sales adds is-started.
+  Parts and Sublet have no planner stage on the board strip, so a booking whose
+  stage is SUBLET does not flash the Sublet icon (the board does not map that
+  booking onto the Sublet box either). Sublet still uses the board's PO / booked
+  colours.
+  A started booking whose clock is paused only because the bay is outside working
+  hours still has status started, so the icon flashes. Status stoppage does not.
+  The RPC does not return the planner's pause-clock fields.
+
+SQL (leave for Rajesh; do not apply from this preview)
+  supabase/migrations/20261023040000_r499_sales_pmb_stations.sql
+  supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql
+  md5sum -c release_log/r499b/PATCH_MD5S
+  Guard: run between second :02 and :45, pdc_monitor_staging_guard, sentinel
+  project_ref cdsmnqxtyyoeoznmbidd, no production sentinel.
+  Pins +2. Check sales_pmb_stations_499, F112, sort 299.
+  Local Postgres 16 (empty cluster, functions only, then dropped): prosrc md5
+  pdc_sales_private.pmb_stations_499(uuid[]) = ec5161da807d08c71fe4f59c2cd78c11
+  public.get_broome_sales_pmb_stations(uuid[]) = cbd4b27bcd6202dc3038dee145d5da00
+  Icons stay hidden, with one console warning, until that migration is applied.
+
+Undo
+  git apply -R release_log/r499b/r499b_undo.patch
+  Database, only if the migration was applied:
+  supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql
+
+Icons are the compact Vehicle Locations size (up to 27px, shrink to fit the
+PMB STATUS column), not the board's 52x30 cells. Colours, glyphs and states match.

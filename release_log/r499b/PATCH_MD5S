@@ -1,0 +1,2 @@
+a87bef2b3bf10f0a20af53cea57ff345  supabase/migrations/20261023040000_r499_sales_pmb_stations.sql
+ebc717579fbea75c8d62bf0c854d3a0f  supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql

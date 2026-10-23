@@ -1,0 +1,45 @@
+/* r499 (F112): PMB station icons in the Sales PMB STATUS column. The Control Board's station colours, symbols and Parts / JITA
+   split (styles.css "All ten work tracks" block, imported-parts colours, pdc-sublet-po.js Sublet PO box), scoped to the Sales
+   cell and sized like the compact Vehicle Locations strip (27 x 22 px), shrinking to fit the column. Read only: nothing clicks. */
+.sales-pmb-stations{display:block;margin:0 0 2px;line-height:1}
+.sales-pmb-stations .pdc-station-strip{display:grid;grid-template-columns:repeat(9,minmax(9px,27px));gap:1px;width:auto;max-width:251px;margin:0;padding:0;align-items:center}
+.sales-pmb-stations .incoming-work-check{position:relative;display:grid;place-items:center;box-sizing:border-box;min-width:0;width:100%;height:20px;margin:0;padding:0;gap:0;border:1px solid #d8e0e8;border-radius:3px;background:#f4f6f8;color:#9aa5b1;cursor:help;font-variant-numeric:tabular-nums;font-weight:780;white-space:nowrap;overflow:hidden;pointer-events:auto;user-select:none}
+.sales-pmb-stations .incoming-work-box{display:grid;place-items:center;width:100%;height:100%;border:0;background:transparent;color:inherit;font-size:12px;font-weight:950;line-height:1}
+.sales-pmb-stations .incoming-work-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.sales-pmb-stations .incoming-work-check.is-not-required{border-color:#d8e0e8;background:#f4f6f8;color:#9aa5b1}
+.sales-pmb-stations .incoming-work-check.is-required{border-color:#ee9caf;background:#fff0f3;color:#a3133b}
+.sales-pmb-stations .incoming-work-check.is-required.is-ordered,.sales-pmb-stations .incoming-work-check.is-ordered,.sales-pmb-stations .incoming-work-check.is-booked{border-color:#fdba74;background:#fff7ed;color:#9a3412}
+.sales-pmb-stations .incoming-work-check.is-complete{border-color:#75c795;background:#edf9f1;color:#146c3b}
+.sales-pmb-stations .incoming-work-check.is-blocked{border-color:#d93434;background:#ffe8e8;color:#9f1111;box-shadow:inset 0 0 0 1px rgba(159,17,17,.12)}
+.sales-pmb-stations .incoming-work-check.parts-jita-split{overflow:hidden;isolation:isolate}
+.sales-pmb-stations .parts-jita-split::after{content:'';position:absolute;inset:0;clip-path:polygon(100% 0,100% 100%,0 100%);background:#fff0f3;z-index:-1}
+.sales-pmb-stations .parts-jita-split.has-jita::after{background:#edf9f1}
+.sales-pmb-stations .parts-jita-split::before{content:'';position:absolute;inset:0;background:linear-gradient(to bottom right,transparent calc(50% - .65px),#64748b 50%,transparent calc(50% + .65px));pointer-events:none}
+.sales-pmb-stations .parts-jita-split .incoming-work-box.parts-jita-parts-marker{position:absolute;left:0;top:0;width:50%;height:50%;font-size:9.5px}
+.sales-pmb-stations .parts-jita-marker{position:absolute;right:0;bottom:0;width:50%;height:50%;display:grid;place-items:center;font-size:9.5px;font-weight:950;line-height:1;color:#a3133b}
+.sales-pmb-stations .has-jita .parts-jita-marker{color:#146c3b}
+.sales-pmb-stations .incoming-work-check.imported-parts-green{background:#edf9f1;color:#168342;border-color:#168342}
+.sales-pmb-stations .incoming-work-check.imported-parts-orange{background:#fff1dc;color:#a15b00;border-color:#d98200}
+.sales-pmb-stations .incoming-work-check.imported-parts-red{background:#fff0f3;color:#ba163c;border-color:#ba163c}
+.sales-pmb-stations .incoming-work-check.imported-parts-grey,.sales-pmb-stations .incoming-work-check.imported-parts-review{background:#eef0f3;color:#536173;border-color:#8995a5}
+.sales-pmb-stations .incoming-work-check:hover{filter:brightness(.98);box-shadow:0 0 0 2px rgba(29,78,216,.14)}
+/* Sublet 'PO to raise' (pdc-sublet-po.js r494): orange, two tiny lines inside the box. */
+.sales-pmb-stations .pdc-sublet-po-count{font-size:9px;font-weight:700;margin-left:2px;opacity:.85;white-space:nowrap}
+.sales-pmb-stations .pdc-sublet-po-raise{display:block;font-size:6.5px;line-height:7px;font-weight:800;letter-spacing:0;text-transform:uppercase;white-space:normal;text-align:center;color:#c2410c}
+/* r499b: a station being worked (booking status started) uses the planner's started treatment.
+   Keyframes are copied from workshop-planner.css (.workshop-plan-chip.is-started). Sales does not load that
+   stylesheet (it would restyle the page, and the file is a boundary pin). The name, timing and colours stay the same. */
+@keyframes workshop-started-blue-pulse {
+  0%, 100% { background: #dbeafe; box-shadow: 0 0 0 1px rgba(37,99,235,.2), 0 2px 5px rgba(15,23,42,.12); }
+  50% { background: #93c5fd; box-shadow: 0 0 0 4px rgba(37,99,235,.32), 0 5px 12px rgba(30,64,175,.22); }
+}
+.sales-pmb-stations .incoming-work-check.is-started{overflow:visible;z-index:1;border-color:#2563eb;background:#dbeafe;color:#1e3a8a;animation:workshop-started-blue-pulse 1.25s ease-in-out infinite}
+@media (prefers-reduced-motion: reduce) {
+  .sales-pmb-stations .incoming-work-check.is-started { animation: none; }
+}
+/* The short PMB status text sits under the icons. */
+#vehicle-table td.pmb-status-cell.has-pmb-stations .pmb-line,.data-table td.pmb-status-cell.has-pmb-stations .pmb-line{font-size:10px}
+.pmb-overview>.sales-pmb-stations{margin:0 0 8px}
+.pmb-overview>.sales-pmb-stations .pdc-station-strip{grid-template-columns:repeat(9,27px)}
+.mobile-vehicle>.sales-pmb-stations{margin:8px 0 4px}
+.mobile-vehicle>.sales-pmb-stations .pdc-station-strip{grid-template-columns:repeat(9,27px)}

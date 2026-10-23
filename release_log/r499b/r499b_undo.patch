@@ -1,0 +1,1088 @@
+diff --git a/deployment-identity.json b/deployment-identity.json
+index e9e2870f..660da08d 100644
+--- a/deployment-identity.json
++++ b/deployment-identity.json
+@@ -819,6 +819,7 @@
+       "build-requirements.css": "2026.10.03.02",
+       "sales-accessories.css": "2026.10.20.03",
+       "finance-pipeline.css": "2026.10.06.01",
++      "pmb-stations.css": "2026.10.23.r499b",
+       "zebra-labels.js": "2026.10.02.05",
+       "crm-workspace.js": "2026.10.06.01",
+       "sales-accessories.js": "2026.10.20.03",
+@@ -829,6 +830,7 @@
+       "finance-pipeline.js": "2026.10.06.01",
+       "completed-vehicles.js": "2026.10.06.01",
+       "vehicle-notes.js": "2026.10.06.01",
++      "pmb-stations.js": "2026.10.23.r499b",
+       "sales.js": "2026.10.06.01"
+     }
+   },
+diff --git a/docs/FAULT_LOG.md b/docs/FAULT_LOG.md
+index 2dac8a97..14d4b3be 100644
+--- a/docs/FAULT_LOG.md
++++ b/docs/FAULT_LOG.md
+@@ -127,6 +127,7 @@ function must update `pdc_ops.expected_function_md5` in the same migration.
+ | F109 | 22 Oct 19:16 | Change request from Craig (22 Oct 7:16 pm AWST, chat, two screenshots: the Vehicle Locations slide-out and the Vehicle detail window): 'when you click onto a vehicle, it brings up the sidebar. I think that could be the new edit hours and jobs screen ... let us move those operations between jobs from the side pop-out menu ... less click to go into another screen' | The slide-out's 'Operations from authenticated PD documents and job cards' list was read-only; its 'Edit jobs & hours' button opened a second window (Vehicle detail > Work & bookings, 'Edit Job Card hours') to change hours (Save all hours) or move a line to another job (Work category) | Not a fault: change request. Editing lived only in the vehicle card window | r496 (frontend only; no SQL, no Supabase change, same roles): in the panel the button becomes 'Edit' plus a small 'Open full editor' link (the old window, kept unchanged, still used for Add line, Edit line and Best slot). 'Edit' reads this one vehicle (`loadVehicleWorkshopDetail`, get_vehicle_workshop_detail_scoped, as the window does when it opens) and swaps the read-only list for app.js's own Work & bookings rows (`renderVehicleWorkshopWorkPage`) with every button removed, so only the hours inputs and the Work category / Station selectors are live; changed fields are outlined amber. Nothing is sent until Save: Save runs the window's own `saveVehicleWorkshopLineHoursBatch` (Save all hours, save_vehicle_workshop_line_hours_batch_768, changed rows only), then for each moved line `saveVehicleWorkCategory` (set_vehicle_work_category) or `moveVehicleWorkshopLineStage`, each with the versions app.js has just reloaded; then only the panel is drawn again. Cancel drops the drafts and sends nothing; closing the panel or opening another vehicle with unsaved changes asks first. Speed: nothing runs per vehicle when the board or the panel is drawn; the one read happens on 'Edit', for that vehicle; no table or board redraw after a save. pdc-vehicle-slideout.js / .css `2026.10.22.r496`; cache bust `vehicle-slideout=2026.10.22.r496` (canonical-entry.js) and `r496=2026.10.22.r496` on canonical-entry.js (index.html); boundary hashes updated. app.js, styles.css and pdc-vehicle-locations-table.js untouched | Revert the r496 commit (`git apply -R` with the release_log/r496 undo patch); the 'Edit jobs & hours' button and the window come back exactly as before; nothing to undo in the database | `test_vehicle_slideout_inline_edit_496.js` (9: real app.js save paths with a stubbed fetch, role gate, Cancel, conflict, unsaved-change prompt, speed guard: 40 cards + 40 panel opens = 0 requests, Edit = 1 read for that vehicle, no table / board redraw); `test_karratha_release_boundary.js` (approved hashes); browser before/after with made-up data (release_log/r496) |
+ | F110 | 22 Oct 20:00 | Overnight check (22 Oct, local copy of main 9f1d813 with made-up data) | The first Workshop planner page opened after a page load showed the red toast 'Something went wrong: Cannot read properties of undefined (reading 'actor')'. The planner still drew and worked; later planner pages did not show it | Fault (pre-existing, seen back to 5755f767): `efficiencyPercent` in pdc-planner-capacity.js compared `cached?.service === current.service` and then read `cached.actor`; before the first capacity configuration is cached and before the workshop data service exists both sides are `undefined`, so the comparison is true and `cached.actor` throws. `loadConfiguration` had the same pattern (protected by its early return) | r497 (frontend only; no SQL, no data change): both comparisons start with `cached &&` / `previous &&`. Cache bust `r497=2026.10.22.r497` on pdc-planner-capacity.js (index.html); boundary hashes for pdc-planner-capacity.js and index.html. Karratha's frozen copy is not changed | Revert the r497 commit (`git apply -R` with the release_log/r497 undo patch); nothing to undo in the database | `test_planner_capacity_first_open_497.js` (4; the empty-cache case throws on 9f1d813); `test_karratha_release_boundary.js`; browser: first planner open with made-up data shows no toast (release_log/r497) |
+ | F111 | 22 Oct 20:05 | Overnight check (22 Oct, local copy of main 9f1d813 with made-up data and mocked RPCs) | After an administrator or operator dragged a chip to another bay (or time) the move was saved, but the 'Undo last move' button did not appear on the planner until something else redrew it (changing the date, another user's change arriving, a refresh) | Fault: the snapshot refresh inside the move command redraws the planner before `scheduleWorkshopVehicle` keeps the move receipt (`workshopRememberAdministratorMove`), and nothing drew again afterwards, so the button's condition (`workshopLastAdministratorMove`) was only true for the next draw. After Undo the button likewise stayed until the next draw (a second click did nothing) | r498 (frontend only; no SQL, no data change): `workshopRedrawForUndoMoveButton()` (workshop-planner.js) asks for one batched planner draw (`scheduleWorkshopPlannerRender`, only while the planner is the current view) after a receipt is kept and after a successful Undo. Cache bust `r498=2026.10.22.r498` on both workshop-planner.js loads (app.js) and on app.js (index.html); boundary hashes for workshop-planner.js, app.js and index.html | Revert the r498 commit (`git apply -R` with the release_log/r498 undo patch); nothing to undo in the database | `test_undo_move_button_498.js` (5; the redraw cases fail on 9f1d813); `test_controller_chip_access.js`; `test_karratha_release_boundary.js`; browser drag with made-up data: button visible right after the drop, gone after Undo (release_log/r498) |
++| F112 | 23 Oct 12:00 | Change request from Craig (23 Oct, chat): incorporate the PMB station icons (parts, tint, bus, hoist, and the rest) into the Sales PMB STATUS column. Standing rule the same day: Sales station icons must match the PMB board icons exactly, and flash blue when a station is being worked on (booking status started), so Sales and the board are not read as two different colour systems. This replaces an earlier orange/blue/red/grey colour list | The Sales PMB STATUS column showed only text. The station icons lived on the Control Board. The board folds a started booking into the booked (amber) icon and does not flash; the planner chip is what flashes blue | Not a fault: change request | r499b (PREVIEW, not live; rebase of the unmerged r499 strip onto main b90b1502 / r508): the board strip (Parts / JITA, Tint, Bus 4x4, Hoist, Fitting, Fab, Elec, Tyre, Sublet; same classes, glyphs and colours as app.js incomingWorkChecklistHtml plus pdc-sublet-po.js decorateStrip) sits above the short PMB text in the Sales cell, on the mobile card and in the vehicle detail, read only. A workshop booking with status started on that station's board stage adds `is-started`. sales/pmb-stations.css runs the planner keyframes `workshop-started-blue-pulse` (1.25s, border #2563eb, background #dbeafe) on `.incoming-work-check.is-started`. Completed and STOPPAGE icons do not flash. Queued and planned stay the board's booked amber. ONE read per Sales refresh (`get_broome_sales_pmb_stations(uuid[])`, max 1000). Unlinked vehicles: no icons. Migration 20261023040000 is NOT applied. app.js, index.html, canonical-entry.js, pdc-qc-rework.js, pdc-sublet-po.js and the Sublet page are unchanged. No r495 (Karratha sales) on this main, so nothing from that branch was pulled | Revert the r499b commit (`git apply -R` with release_log/r499b/r499b_undo.patch). Database, only if the migration was applied: `supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql` | `sales_pmb_stations_499`; `test_sales_pmb_stations_499.js`; `test_sales_pmb_stations_perf_499.js` |
+ | F113 | 23 Oct 07:25 | Craig (23 Oct 7:25 am AWST, chat and fitter iPad screenshot of a bay, item 'Supply and Fit ARB Summit Bar MK2 Hilux MY26S' showing 'running too long, tick Done or ask the controller to reset'): 'I don't see the pause button on the fitter's bay now.' | The started item card had Done and the running-too-long message but no Pause; the fitter could not see any way to pause from where they were working | Not a regression: no release removed or hid a Pause button (git log -S / -G on pdc-fitters.js: an item-level Pause never existed; r493 / r493b only changed the paused colours and labels). The only pause has always been the job-level 'Parts / other stoppage' button at the top of the job (shown while the job is started, replaced by 'Resume job' during a stoppage), above 'Items for this bay', so it is off-screen once the fitter scrolls to the items. The running-too-long line is a status message only. Live pmgpdc.au assets matched main 3d094da | r500 (PREVIEW, frontend only, no SQL, no locked file): pdc-fitters.js `itemPauseHtml` adds a Pause button on every started item and every in-progress conversion section while the job is started (also when running too long or over its hours) and a Resume button on them while the job is stopped; Pause opens the existing stoppage panel (Parts / Other + reason, same `stop` command, so the job clock stops for every item in the bay) right under that item and scrolls the reason box into view; top button now reads 'Pause · parts / other stoppage'; no per-vehicle work in render, no new reads. CSS in pdc-conversion-ticks.css; cache bust r500=2026.10.23.r500; Karratha copy left frozen; pins recomputed in test_karratha_release_boundary.js | `git am --keep-cr` release_log/r500/r500_undo.patch (or revert the r500 commit) | test_item_pause_resume_500.js (new, 6), test_fitter_workflow.js, test_bay_item_start_done.js, test_paused_amber_493.js, test_paused_overtime_text_493b.js, test_running_row_layout_465.js, test_karratha_release_boundary.js, full suite (only the 4 known failures) |
+ | F114 | 23 Oct 07:55 | Change request from Craig (23 Oct 7:55 am AWST, chat, Manage sublets screen with a 'PO to raise' line): 'when we go into here and it's got PO to raise can we have the due outs and due back dates on this screen here, and that will update the sublet calendar page, so all the sublet bookings need to be done from the side menu, so we don't create one from another page.' | Manage sublets only showed the supplier and dates read only; bookings could only be made on the Sublet page (Create Sublet, Book Sublet on a to-book row, the provider picker on that row) and dates moved by dragging calendar cards, so sublets were booked from two places | Not a fault: by design until now. Manage sublets (r494) was built read-only for bookings; the Sublet page was the only booking screen | r501 (PREVIEW, frontend only, no SQL, no locked file): pdc-vehicle-sublets.js gives every whole line sublet row (also 'PO to raise' and 'Sublet To Book' rows) Supplier, Due out and Due back with Save and Clear for operators and administrators. Save uses the same booking service the Sublet page used (createSubletBooking, updateSubletBookingProvider, updateSubletBooking), then one snapshot refresh and one debounced redraw, so the Sublet list and calendar show it at once; Due back must be on or after Due out; Clear cancels the booking with the existing cancel_pdc_sublet_booking RPC (history kept). pdc-sublet-intake.js hides (does not delete) Create Sublet, Book Sublet and the to-book row provider and date fields behind CREATE_ON_SUBLET_PAGE=false, shows 'Book sublets from the vehicle: Vehicle Locations, open the vehicle, then Manage sublets', makes calendar cards view only (no drag) with a Manage sublets button, and adds Manage sublets on each list row. Nothing runs per vehicle on the board render | `git am --keep-cr` release_log/r501/r501_undo.patch (or revert the r501 commit); setting CREATE_ON_SUBLET_PAGE=true brings the Sublet page create controls back | test_sublet_manage_dates_501.js (new, 14), test_vehicle_sublets_494.js, test_sublet_board_perf_494c.js, test_sublet_render_projection.js, test_karratha_release_boundary.js, full suite (only the 4 known failures) |
+ | F115 | 23 Oct 08:34 | Craig (23 Oct ~8:34 am AWST, chat, Manage sublets Save on Op 96 seat covers / GP13802985 / MMT): 'Not saved. Refresh and try again.' with no useful code; also '^' in GP PO wording, move jobs to whole line, tidy bunched overlays | Fault (client): Save toast used `SAVE_ERRORS[code] || message || 'Not saved. Refresh and try again.'` and `subletRpc` returned only `code` (no `message`). Unmapped create failures (`not_authenticated`, `session_changed`, `sublet_create_unavailable`, `vehicle_not_found`, PostgREST/PG codes such as `42501` / `PGRST301`) all collapsed to the same generic toast. Staging Op 96 / MMT / vehicle version was bookable (guards pass). Revolution GP PO descriptions use `^` as a line break; Manage sublets showed the caret raw while the Sublet box already cleaned it. Promote (item → whole line sublet) existed only under 'others', not on Sublet item rows | r502 (PREVIEW, frontend only, no SQL applied, no locked file): map those codes in SAVE_ERRORS; failText always keeps an unmapped code (`Not saved (CODE)…`); `subletRpc` safe `json()` + return `message`; `createSubletBooking` / `planSave` normalise `source:`/`manual:` + lowercase uuid and truncate notes to 2000; `cleanDescription` (`^` → ` · `) in Manage sublets; 'Whole line sublet' promote on item rows (`data-pvs-whole`); truncate + hover overlay CSS; pit inspection / pit and weigh|way / weighbridge|waybridge wording sorted first in 'others' (import may still own category; booking still needs stage SUBLET). Cache bust `r502=2026.10.23.r502`; boundary hashes for index.html and pdc-email-vehicle-location-service.js | `git am --keep-cr` release_log/r502/r502_undo.patch (or revert the r502 commit); nothing to undo in the database | `test_sublet_save_fix_502.js` (new, 8), `test_vehicle_sublets_494.js`, `test_sublet_manage_dates_501.js`, `test_karratha_release_boundary.js` |
+diff --git a/release_log/r499b/NOTES b/release_log/r499b/NOTES
+new file mode 100644
+index 00000000..1db38303
+--- /dev/null
++++ b/release_log/r499b/NOTES
+@@ -0,0 +1,61 @@
++r499b (F112) PREVIEW ONLY. Do not merge. SQL is NOT applied on staging or anywhere else.
++Rajesh reviews and merges after Craig okays go-live, and Rajesh applies the SQL.
++
++Base: main b90b1502 (r508). Rebuilt from the unmerged r499 strip (was on 024678c / r500).
++No r495 (Karratha sales) on this main. sales/index.html, sales/sales.js and
++scripts/build_pages_runtime.js took the icons with no Karratha changes mixed in.
++
++Craig 23 Oct 2026: Sales station icons must match the PMB board icons exactly,
++and flash blue when a station is being worked on (booking status started).
++That replaces an earlier orange/blue/red/grey colour list.
++
++What shipped
++  Sales PMB STATUS column, the mobile card, and the vehicle detail PMB section
++  show the board strip: Parts / JITA, Tint, Bus 4x4, Hoist, Fitting, Fab, Elec,
++  Tyre, Sublet. Same classes, glyphs and colours as app.js incomingWorkChecklistHtml
++  plus the Sublet box from pdc-sublet-po.js decorateStrip. Read only, hover titles.
++  Unlinked vehicles: no icons.
++  Started: a workshop booking with status started on that station's board stage
++  adds is-started. sales/pmb-stations.css animates .incoming-work-check.is-started
++  with the planner keyframes workshop-started-blue-pulse (1.25s ease-in-out,
++  border #2563eb, resting background #dbeafe), the same pulse as
++  .workshop-plan-chip.is-started in workshop-planner.css. The keyframes text is
++  copied because Sales does not load workshop-planner.css (boundary pin; loading
++  it would restyle the Sales page). prefers-reduced-motion turns the animation off
++  and leaves the blue. Hover title says "started" where the board still says "booked".
++  Completed icons stay green. STOPPAGE stays red and does not flash.
++  Queued and planned stay the board's amber booked icon.
++  One get_broome_sales_pmb_stations call per Sales refresh, capped at 1000 ids.
++  Nothing per vehicle while drawing.
++
++Not changed
++  index.html, app.js, canonical-entry.js, pdc-qc-rework.js, pdc-sublet-po.js,
++  the Sublet page, styles.css, workshop-planner.css.
++  The board strip itself still does not flash. Only Sales adds is-started.
++  Parts and Sublet have no planner stage on the board strip, so a booking whose
++  stage is SUBLET does not flash the Sublet icon (the board does not map that
++  booking onto the Sublet box either). Sublet still uses the board's PO / booked
++  colours.
++  A started booking whose clock is paused only because the bay is outside working
++  hours still has status started, so the icon flashes. Status stoppage does not.
++  The RPC does not return the planner's pause-clock fields.
++
++SQL (leave for Rajesh; do not apply from this preview)
++  supabase/migrations/20261023040000_r499_sales_pmb_stations.sql
++  supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql
++  md5sum -c release_log/r499b/PATCH_MD5S
++  Guard: run between second :02 and :45, pdc_monitor_staging_guard, sentinel
++  project_ref cdsmnqxtyyoeoznmbidd, no production sentinel.
++  Pins +2. Check sales_pmb_stations_499, F112, sort 299.
++  Local Postgres 16 (empty cluster, functions only, then dropped): prosrc md5
++  pdc_sales_private.pmb_stations_499(uuid[]) = ec5161da807d08c71fe4f59c2cd78c11
++  public.get_broome_sales_pmb_stations(uuid[]) = cbd4b27bcd6202dc3038dee145d5da00
++  Icons stay hidden, with one console warning, until that migration is applied.
++
++Undo
++  git apply -R release_log/r499b/r499b_undo.patch
++  Database, only if the migration was applied:
++  supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql
++
++Icons are the compact Vehicle Locations size (up to 27px, shrink to fit the
++PMB STATUS column), not the board's 52x30 cells. Colours, glyphs and states match.
+diff --git a/release_log/r499b/PATCH_MD5S b/release_log/r499b/PATCH_MD5S
+new file mode 100644
+index 00000000..7e768abf
+--- /dev/null
++++ b/release_log/r499b/PATCH_MD5S
+@@ -0,0 +1,2 @@
++a87bef2b3bf10f0a20af53cea57ff345  supabase/migrations/20261023040000_r499_sales_pmb_stations.sql
++ebc717579fbea75c8d62bf0c854d3a0f  supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql
+diff --git a/sales/index.html b/sales/index.html
+index 2d92f9eb..5f3b5d8f 100644
+--- a/sales/index.html
++++ b/sales/index.html
+@@ -12,6 +12,7 @@
+ <link rel="stylesheet" href="build-requirements.css?v=2026.10.03.02&amp;sales-accessories=2026.10.20.01">
+ <link rel="stylesheet" href="sales-accessories.css?v=2026.10.20.03&amp;notes-lines=2026.10.20.05&amp;po-column=2026.10.20.06&amp;po-groups=2026.10.21.01&amp;po-list=2026.10.21.02&amp;yard-hold=2026.10.21.03&amp;no-yard-flag=2026.10.22.r486">
+ <link rel="stylesheet" href="finance-pipeline.css?v=2026.10.06.01&amp;approval-dark=2026.10.21.01&amp;yesno-dark=2026.10.22.01&amp;header-filters=2026.10.03.01&amp;settlement-date=2026.10.03.01&amp;inline-controls=2026.10.03.01">
++<link rel="stylesheet" href="pmb-stations.css?v=2026.10.23.r499b">
+ <link rel="stylesheet" href="../site-switcher.css?v=2026.10.07.01">
+ <link rel="stylesheet" href="../pdc-copyright.css?copyright=2026.10.22.r480">
+ <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+@@ -138,7 +139,10 @@
+ <script src="finance-pipeline.js?v=2026.10.06.01&amp;approval-dark=2026.10.21.01&amp;yesno-dark=2026.10.22.01&amp;header-filters=2026.10.03.01&amp;settlement-date=2026.10.03.01&amp;inline-controls=2026.10.03.01"></script>
+ <script src="completed-vehicles.js?v=2026.10.06.01"></script>
+ <script src="vehicle-notes.js?v=2026.10.06.01&amp;notes-lines=2026.10.20.05&amp;po-column=2026.10.20.06&amp;tick-scope=2026.10.20.07&amp;yard-hold=2026.10.21.03"></script>
+-<script src="sales.js?v=2026.10.06.01&amp;dealer-delivery=2026.10.07.01&amp;compact-dashboard=2026.10.03.01&amp;ordering-four-states=2026.10.03.01&amp;labels-qz=2026.10.03.01&amp;build-requirements=2026.10.03.02&amp;sales-accessories=2026.10.20.01&amp;compact-table=2026.10.20.04&amp;tick-scope=2026.10.20.07&amp;yard-hold=2026.10.21.03&amp;y-yard-tile=2026.10.21.05&amp;pmb-running=2026.10.21.06&amp;y-status-tiles=2026.10.22.r474&amp;feed-visibility=2026.10.21.04&amp;no-yard-flag=2026.10.22.r486"></script>
++<script src="../workshop-eligibility.js?v=2026.08.13.45-admin-authority-intent-undo-pointer&amp;r499b=2026.10.23.r499b"></script>
++<script src="../vehicle-requirements-guard.js?v=2026.08.30.772-stock-integrity&amp;pdc14=2026.09.04.0110-canonical-state&amp;r499b=2026.10.23.r499b"></script>
++<script src="pmb-stations.js?v=2026.10.23.r499b"></script>
++<script src="sales.js?v=2026.10.06.01&amp;r499b=2026.10.23.r499b&amp;dealer-delivery=2026.10.07.01&amp;compact-dashboard=2026.10.03.01&amp;ordering-four-states=2026.10.03.01&amp;labels-qz=2026.10.03.01&amp;build-requirements=2026.10.03.02&amp;sales-accessories=2026.10.20.01&amp;compact-table=2026.10.20.04&amp;tick-scope=2026.10.20.07&amp;yard-hold=2026.10.21.03&amp;y-yard-tile=2026.10.21.05&amp;pmb-running=2026.10.21.06&amp;y-status-tiles=2026.10.22.r474&amp;feed-visibility=2026.10.21.04&amp;no-yard-flag=2026.10.22.r486"></script>
+ <script src="../pdc-staff-usage.js?v=2026.10.16.01&amp;all-pages=2026.10.16.01"></script>
+ <script src="../pdc-auth.js?v=2026.08.11.27-auth-foreground&amp;fitter-only=2026.09.16.01&amp;sales-site=2026.10.01.01&amp;r403=2026.10.21.01&amp;r408=2026.10.21.01&amp;r432=2026.10.21.01"></script>
+ <script src="../pdc-auth-registration.js?v=2026.07.24.26-pd-document-intake"></script>
+diff --git a/sales/pmb-stations.css b/sales/pmb-stations.css
+new file mode 100644
+index 00000000..fd3de52a
+--- /dev/null
++++ b/sales/pmb-stations.css
+@@ -0,0 +1,45 @@
++/* r499 (F112): PMB station icons in the Sales PMB STATUS column. The Control Board's station colours, symbols and Parts / JITA
++   split (styles.css "All ten work tracks" block, imported-parts colours, pdc-sublet-po.js Sublet PO box), scoped to the Sales
++   cell and sized like the compact Vehicle Locations strip (27 x 22 px), shrinking to fit the column. Read only: nothing clicks. */
++.sales-pmb-stations{display:block;margin:0 0 2px;line-height:1}
++.sales-pmb-stations .pdc-station-strip{display:grid;grid-template-columns:repeat(9,minmax(9px,27px));gap:1px;width:auto;max-width:251px;margin:0;padding:0;align-items:center}
++.sales-pmb-stations .incoming-work-check{position:relative;display:grid;place-items:center;box-sizing:border-box;min-width:0;width:100%;height:20px;margin:0;padding:0;gap:0;border:1px solid #d8e0e8;border-radius:3px;background:#f4f6f8;color:#9aa5b1;cursor:help;font-variant-numeric:tabular-nums;font-weight:780;white-space:nowrap;overflow:hidden;pointer-events:auto;user-select:none}
++.sales-pmb-stations .incoming-work-box{display:grid;place-items:center;width:100%;height:100%;border:0;background:transparent;color:inherit;font-size:12px;font-weight:950;line-height:1}
++.sales-pmb-stations .incoming-work-label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
++.sales-pmb-stations .incoming-work-check.is-not-required{border-color:#d8e0e8;background:#f4f6f8;color:#9aa5b1}
++.sales-pmb-stations .incoming-work-check.is-required{border-color:#ee9caf;background:#fff0f3;color:#a3133b}
++.sales-pmb-stations .incoming-work-check.is-required.is-ordered,.sales-pmb-stations .incoming-work-check.is-ordered,.sales-pmb-stations .incoming-work-check.is-booked{border-color:#fdba74;background:#fff7ed;color:#9a3412}
++.sales-pmb-stations .incoming-work-check.is-complete{border-color:#75c795;background:#edf9f1;color:#146c3b}
++.sales-pmb-stations .incoming-work-check.is-blocked{border-color:#d93434;background:#ffe8e8;color:#9f1111;box-shadow:inset 0 0 0 1px rgba(159,17,17,.12)}
++.sales-pmb-stations .incoming-work-check.parts-jita-split{overflow:hidden;isolation:isolate}
++.sales-pmb-stations .parts-jita-split::after{content:'';position:absolute;inset:0;clip-path:polygon(100% 0,100% 100%,0 100%);background:#fff0f3;z-index:-1}
++.sales-pmb-stations .parts-jita-split.has-jita::after{background:#edf9f1}
++.sales-pmb-stations .parts-jita-split::before{content:'';position:absolute;inset:0;background:linear-gradient(to bottom right,transparent calc(50% - .65px),#64748b 50%,transparent calc(50% + .65px));pointer-events:none}
++.sales-pmb-stations .parts-jita-split .incoming-work-box.parts-jita-parts-marker{position:absolute;left:0;top:0;width:50%;height:50%;font-size:9.5px}
++.sales-pmb-stations .parts-jita-marker{position:absolute;right:0;bottom:0;width:50%;height:50%;display:grid;place-items:center;font-size:9.5px;font-weight:950;line-height:1;color:#a3133b}
++.sales-pmb-stations .has-jita .parts-jita-marker{color:#146c3b}
++.sales-pmb-stations .incoming-work-check.imported-parts-green{background:#edf9f1;color:#168342;border-color:#168342}
++.sales-pmb-stations .incoming-work-check.imported-parts-orange{background:#fff1dc;color:#a15b00;border-color:#d98200}
++.sales-pmb-stations .incoming-work-check.imported-parts-red{background:#fff0f3;color:#ba163c;border-color:#ba163c}
++.sales-pmb-stations .incoming-work-check.imported-parts-grey,.sales-pmb-stations .incoming-work-check.imported-parts-review{background:#eef0f3;color:#536173;border-color:#8995a5}
++.sales-pmb-stations .incoming-work-check:hover{filter:brightness(.98);box-shadow:0 0 0 2px rgba(29,78,216,.14)}
++/* Sublet 'PO to raise' (pdc-sublet-po.js r494): orange, two tiny lines inside the box. */
++.sales-pmb-stations .pdc-sublet-po-count{font-size:9px;font-weight:700;margin-left:2px;opacity:.85;white-space:nowrap}
++.sales-pmb-stations .pdc-sublet-po-raise{display:block;font-size:6.5px;line-height:7px;font-weight:800;letter-spacing:0;text-transform:uppercase;white-space:normal;text-align:center;color:#c2410c}
++/* r499b: a station being worked (booking status started) uses the planner's started treatment.
++   Keyframes are copied from workshop-planner.css (.workshop-plan-chip.is-started). Sales does not load that
++   stylesheet (it would restyle the page, and the file is a boundary pin). The name, timing and colours stay the same. */
++@keyframes workshop-started-blue-pulse {
++  0%, 100% { background: #dbeafe; box-shadow: 0 0 0 1px rgba(37,99,235,.2), 0 2px 5px rgba(15,23,42,.12); }
++  50% { background: #93c5fd; box-shadow: 0 0 0 4px rgba(37,99,235,.32), 0 5px 12px rgba(30,64,175,.22); }
++}
++.sales-pmb-stations .incoming-work-check.is-started{overflow:visible;z-index:1;border-color:#2563eb;background:#dbeafe;color:#1e3a8a;animation:workshop-started-blue-pulse 1.25s ease-in-out infinite}
++@media (prefers-reduced-motion: reduce) {
++  .sales-pmb-stations .incoming-work-check.is-started { animation: none; }
++}
++/* The short PMB status text sits under the icons. */
++#vehicle-table td.pmb-status-cell.has-pmb-stations .pmb-line,.data-table td.pmb-status-cell.has-pmb-stations .pmb-line{font-size:10px}
++.pmb-overview>.sales-pmb-stations{margin:0 0 8px}
++.pmb-overview>.sales-pmb-stations .pdc-station-strip{grid-template-columns:repeat(9,27px)}
++.mobile-vehicle>.sales-pmb-stations{margin:8px 0 4px}
++.mobile-vehicle>.sales-pmb-stations .pdc-station-strip{grid-template-columns:repeat(9,27px)}
+diff --git a/sales/pmb-stations.js b/sales/pmb-stations.js
+new file mode 100644
+index 00000000..9cd5a5a0
+--- /dev/null
++++ b/sales/pmb-stations.js
+@@ -0,0 +1,274 @@
++/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
++/* r499b (F112, Craig 23 Oct): the PMB station icons (Parts / JITA, Tint, Bus 4x4, Hoist, Fitting, Fab, Elec, Tyre, Sublet) in the
++   Sales PMB STATUS column, read only. Same rules, markup and colours as the Control Board strip (app.js incomingWorkChecklistHtml,
++   with Sublet recoloured as pdc-sublet-po.js decorateStrip does); test_sales_pmb_stations_499.js renders both and compares them.
++   r499b: a station whose workshop booking status is started also gets is-started (the planner's class). The Sales stylesheet
++   runs the planner's workshop-started-blue-pulse on that class. Completed and STOPPAGE stations do not flash.
++   Performance: ONE batched read per Sales refresh (get_broome_sales_pmb_stations, every linked vehicle in a single call), the
++   strip HTML is built once per answer and cached by vehicle id, and render() only reads the cache. Nothing runs per vehicle
++   while the table draws: no call, no fetch and no extra table redraw. If the read is missing or fails, no icons show (the
++   existing PMB text stays) and the failure is logged once. Unlinked vehicles keep their text and get no icons. */
++(function (root) {
++  'use strict';
++  const guardApi = root.VehicleRequirementsGuard || (typeof module === 'object' && module.exports ? require('../vehicle-requirements-guard.js') : null);
++  const eligibility = root.PDC_WORKSHOP_ELIGIBILITY || (typeof module === 'object' && module.exports ? require('../workshop-eligibility.js') : null);
++  const RPC = 'get_broome_sales_pmb_stations';
++  const MAX_IDS = 1000;
++  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
++  const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
++  const clean = value => String(value ?? '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
++  // The board's PDC_JOB_DEFS (label, requireKey, completeKey) in its row order (pdcJobDefsPartsFirst).
++  const DEFS = Object.freeze([
++    ['parts', 'PARTS', 'Parts'], ['tint', 'TINT', 'Tint'], ['bus4x4', 'BUS 4X4', 'Bus 4x4'], ['hoist', 'HOIST', 'Hoist'], ['fitting', 'FITTING', 'Fitting'],
++    ['fabrication', 'FAB', 'Fab'], ['electrical', 'ELEC', 'Elec'], ['tyre', 'TYRE', 'Tyre'], ['sublet', 'SUBLET', 'Sublet'],
++  ].map(([key, label, grid]) => {
++    const suffix = key.charAt(0).toUpperCase() + key.slice(1);
++    return Object.freeze({ key, label, grid, requireKey: 'pdcRequires' + suffix, completeKey: 'pdcComplete' + suffix });
++  }));
++  const ALL_FIELDS = DEFS.map(d => [d.requireKey, d.completeKey]).concat([['pdcRequiresPitInspection', 'pdcCompletePitInspection']]);
++  const FIELD_BY_KEY = Object.freeze(Object.fromEntries(DEFS.map(d => [d.key, [d.requireKey, d.completeKey]]).concat([['pitinspection', ['pdcRequiresPitInspection', 'pdcCompletePitInspection']]])));
++  // The board's pmbStageForPdcJob (PRODUCTION_FLOW_DEFS: no stage for Parts or Sublet) and PMB_STAGE_TO_JOB_KEY.
++  const STAGE_FOR_JOB = Object.freeze({ bus4x4: 'BUS_4X4', tint: 'TINT', hoist: 'HOIST', fitting: 'FITTING', fabrication: 'FABRICATION', electrical: 'ELECTRICAL', tyre: 'TYRE' });
++  const JOB_FOR_STAGE = Object.freeze({ BUS_4X4: 'bus4x4', TINT: 'tint', HOIST: 'hoist', FITTING: 'fitting', FABRICATION: 'fabrication', ELECTRICAL: 'electrical', TYRE: 'tyre', PIT_INSPECTION: 'pitInspection', SUBLET: 'sublet' });
++  const BUS_STAGES = ['BUS_MECHANICAL', 'BUS_ACCESSORIES', 'BUS_ELECTRICAL', 'BUS_QA', 'BUS_PIT', 'BUS_4X4'];
++  const JITA_AUTHORITY = 'validated-navision-import-v1';
++
++  function canonicalWorkKey(value) { // pdc-email-vehicle-location-service.js canonicalWorkKey
++    const key = String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
++    if (['pit', 'pitinspection', 'inspectionpit', 'pitinspect'].includes(key)) return 'pitinspection';
++    if (['bus4x4', 'bus4wd', '4x4bus'].includes(key)) return 'bus4x4';
++    if (['tyres', 'tire', 'tires'].includes(key)) return 'tyre';
++    if (['part', 'partsrequired'].includes(key)) return 'parts';
++    return key;
++  }
++  function normalizeStage(value) { // the board's normalizePmbStage for a staff-set PMB stage
++    const canonical = eligibility?.canonicalWorkshopStage?.(value);
++    if (canonical) return canonical;
++    const c = String(value || '').trim().toUpperCase();
++    if (!c) return '';
++    if (/\bBUS[ _-]*4X4\b|\b4X4[ _-]*BUS\b|\b(?:DEPT|DEPARTMENT)[ _-]*138\b/.test(c)) return 'BUS_4X4';
++    if (c.includes('TINT')) return 'TINT';
++    if ((c.includes('EXPRESS') && c.includes('HOIST')) || c.includes('PITS HOIST') || c.includes('PIT HOIST')) return 'HOIST';
++    if (c.includes('EXPRESS') && (c.includes('FITOUT') || c.includes('FIT OUT') || c.includes('FITTING') || c.includes('FITMENT'))) return 'FITTING';
++    if (c.includes('HOIST') || c.includes('SUSPENSION') || c.includes('LIFT')) return 'HOIST';
++    if (/FITTING|FITMENT|FITOUT|FIT OUT|BUILD|PDI|PRE DELIVERY|PRE-DELIVERY/.test(c)) return 'FITTING';
++    if (/FAB|TRAY|BODY/.test(c)) return 'FABRICATION';
++    if (/ELECTRICAL|AUTO ELEC|AUTO-ELEC|12V|UHF/.test(c)) return 'ELECTRICAL';
++    if (/TYRE|TIRE|WHEEL/.test(c)) return 'TYRE';
++    if (/PIT|INSPECTION/.test(c)) return 'PIT_INSPECTION';
++    if (/SUBLET|SUB-LET|SUB LET|OUTSOURCE|EXTERNAL/.test(c)) return 'SUBLET';
++    return '';
++  }
++
++  /** One server entry -> the board's vehicle fields (the same mapping as mapServerVehicle for these facts). */
++  function toBoardVehicle(entry = {}) {
++    const v = { id: String(entry.vehicle_id || ''), pmbStage: String(entry.pmb_stage || '').trim() };
++    for (const [r, c] of ALL_FIELDS) { v[r] = false; v[c] = false; }
++    const work = entry.work && typeof entry.work === 'object' ? entry.work : {};
++    for (const [key, item] of Object.entries(work)) {
++      const f = FIELD_BY_KEY[canonicalWorkKey(key)]; if (!f) continue;
++      v[f[0]] = item?.required === true; v[f[1]] = item?.completed === true;
++    }
++    for (const code of Array.isArray(entry.qc_open_stage_codes) ? entry.qc_open_stage_codes : []) {
++      const stage = String(code || '').toUpperCase();
++      const f = FIELD_BY_KEY[BUS_STAGES.includes(stage) ? 'bus4x4' : canonicalWorkKey(stage)];
++      if (f && stage !== 'JOB_CARD_NOTES') v[f[0]] = true;
++    }
++    const parts = entry.parts && typeof entry.parts === 'object' ? entry.parts : {};
++    v.stock = entry.has_stock === true ? 'LINKED' : '';
++    v.parts_update = {};
++    if (typeof parts.parts_required === 'boolean') { v.pdcRequiresParts = parts.parts_required; v.parts_update = { parts_required: parts.parts_required }; }
++    v.pdcCompleteParts = typeof parts.parts_received === 'boolean' ? parts.parts_received : work.parts?.completed === true;
++    v.pdcPartsOrdered = parts.parts_ordered === true;
++    v.pdcPartsStoppage = parts.parts_stoppage === true;
++    v.pdcPartsStoppageReason = String(parts.parts_stoppage_reason || '');
++    v.pdcBlocked = entry.pmb_stoppage === true;
++    v.pdcBlockReason = v.pdcBlocked ? String(entry.pmb_stoppage_reason || '') : '';
++    v.pdcPartsFlags = entry.parts_flags && typeof entry.parts_flags === 'object' ? entry.parts_flags : null;
++    const jita = clean(entry.jita_number);
++    if (jita) Object.assign(v, { navisionJitaIdentityVerified: true, navisionJitaNumberColumnPresent: true, navisionJitaNumberAuthority: JITA_AUTHORITY, navisionJitaNumber: jita, jitQty: jita });
++    const active = Math.max(0, Math.floor(Number(entry.sublet_active_bookings) || 0)), returned = Math.max(0, Math.floor(Number(entry.sublet_returned_bookings) || 0));
++    v.pdcSubletBookings = [...Array(active)].map((_, i) => ({ bookingId: 'a' + i, status: 'active', outDate: '' }))
++      .concat([...Array(returned)].map((_, i) => ({ bookingId: 'r' + i, status: 'returned', outDate: '' })));
++    if (active + returned) { v.pdcRequiresSublet = true; v.pdcCompleteSublet = active === 0; }
++    v.salesWorkshopBookings = (Array.isArray(entry.bookings) ? entry.bookings : []).filter(b => b && !['completed', 'deleted', 'cancelled'].includes(String(b.status || '').toLowerCase()))
++      .map(b => ({ stage: String(b.stage_code || ''), stage_code: String(b.stage_code || ''), status: String(b.status || ''), stoppageReason: String(b.stoppage_reason || '') }));
++    return v;
++  }
++
++  // ---- The board's helpers for these facts (app.js; same names so the parity test reads cleanly) ----
++  const required = (v, d) => {
++    if (d.key === 'parts') {
++      if (typeof v.parts_update?.parts_required === 'boolean') return v.parts_update.parts_required;
++      return Boolean(clean(v.stock));
++    }
++    return v[d.requireKey] === true;
++  };
++  const complete = (v, d) => v[d.completeKey] === true;
++  const partsComplete = v => complete(v, DEFS[0]) || v.pdcCompleteParts === true;
++  const partsStoppage = v => !partsComplete(v) && (v.pdcPartsStoppage === true || Boolean(clean(v.pdcPartsStoppageReason))) && required(v, DEFS[0]);
++  const blocked = v => v.pdcBlocked === true || Boolean(clean(v.pdcBlockReason));
++  const blockReason = v => clean(v.pdcBlockReason) || 'Blocked';
++  const jitaNumber = v => {
++    if (v.navisionJitaNumberAuthority !== JITA_AUTHORITY || v.navisionJitaIdentityVerified !== true || v.navisionJitaNumberColumnPresent !== true) return '';
++    const value = String(v.jitQty || v.navisionJitaNumber || '').trim();
++    return /\d/.test(value) && !/^0+(?:\.0+)?$/.test(value) ? value : '';
++  };
++  const imported = v => { const p = v.pdcPartsFlags; return p && ['orange', 'red', 'green', 'grey', 'review'].includes(p.colour) ? p : null; };
++  const importedTitle = v => {
++    const p = imported(v); if (!p) return '';
++    const when = p.last_successful_import_at ? new Date(p.last_successful_import_at).toLocaleString('en-AU', { timeZone: 'Australia/Perth' }) : 'Not recorded';
++    return `${p.label}. Last successful import: ${when} (Perth). ${p.meaning || ''}`;
++  };
++  const completionTitle = (v, d) => [`${d.label} required`, complete(v, d) ? 'signed off' : 'not signed off yet'].join(' - ');
++  const activeSubletBooking = v => (v.pdcSubletBookings || []).filter(b => b.status === 'active' && b.bookingId).length === 1;
++
++  /** The Control Board strip for one vehicle (incomingWorkChecklistHtml without planner navigation or booking warning). */
++  function stripHtml(v = {}) {
++    const currentStage = normalizeStage(v.pmbStage);
++    const bookings = Array.isArray(v.salesWorkshopBookings) ? v.salesWorkshopBookings : [];
++    const stopped = new Map(bookings.filter(b => String(b.status).toLowerCase() === 'stoppage').map(b => [normalizeStage(b.stage), b]));
++    return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="false" aria-label="Required work stations">${DEFS.map(def => {
++      const req = required(v, def), done = complete(v, def), stage = STAGE_FOR_JOB[def.key] || '';
++      const stoppedBooking = stage ? stopped.get(stage) : null;
++      const stageJobKey = JOB_FOR_STAGE[currentStage] || '';
++      const isBlocked = def.key === 'parts' ? partsStoppage(v) : Boolean(stoppedBooking || (blocked(v) && stageJobKey === def.key));
++      const ordered = def.key === 'parts' && req && !done && !isBlocked && v.pdcPartsOrdered === true;
++      const subletBooked = def.key === 'sublet' && activeSubletBooking(v) && !done && !isBlocked;
++      const vehicleStageStoppage = blocked(v) && stageJobKey === def.key;
++      const projected = guardApi.projectWorkState({
++        workKey: def.key, required: req, completed: done, bookings,
++        partsOrdered: def.key === 'parts' && v.pdcPartsOrdered === true,
++        partsStoppage: def.key === 'parts' && partsStoppage(v),
++        stoppage: Boolean(isBlocked || vehicleStageStoppage),
++        stoppageReason: stoppedBooking?.stoppageReason || (isBlocked ? blockReason(v) : '') || (vehicleStageStoppage ? blockReason(v) : ''),
++        subletBookings: v.pdcSubletBookings || [],
++      });
++      const booked = projected.state === 'booked';
++      // Same stage map as the board. Started is a booking status the board folds into "booked"; Sales keeps that
++      // markup and adds is-started so the icon can use the planner's blue pulse. Not on a completed or STOPPAGE box.
++      const startedHere = Boolean(stage) && !done && projected.state !== 'stoppage' && projected.state !== 'completed'
++        && bookings.some(b => String(b.status || '').toLowerCase() === 'started' && normalizeStage(b.stage || b.stage_code) === stage);
++      const classes = ['incoming-work-check', `pdc-station-${def.key}`];
++      if (!req && !done) classes.push('is-not-required');
++      if (req) classes.push('is-required');
++      if (ordered || subletBooked) classes.push('is-ordered');
++      if (booked) classes.push('is-booked');
++      if (startedHere) classes.push('is-started');
++      if (done) classes.push('is-complete');
++      if (projected.state === 'stoppage') classes.push('is-blocked');
++      if (stage && currentStage === stage) classes.push('is-current-stage');
++      const state = projected.state === 'completed' ? 'complete' : projected.state === 'stoppage' ? 'STOPPAGE' : ordered ? 'ordered' : startedHere ? 'started' : projected.state;
++      const marker = projected.marker;
++      const title = stoppedBooking
++        ? `${def.grid} STOPPAGE${stoppedBooking.stoppageReason ? `: ${stoppedBooking.stoppageReason}` : ''}`
++        : ordered ? `${def.grid} ordered` : booked ? `${def.grid} ${startedHere ? 'started' : 'booked'}` : req || done ? completionTitle(v, def) : `${def.grid} not required`;
++      if (def.key === 'parts') {
++        const imp = imported(v), jita = jitaNumber(v);
++        const jitaStatus = jita ? `JITA pre-order ${jita}` : 'No verified Navision JITA pre-order number';
++        if (imp) {
++          const glyph = { green: '✓', orange: '!', red: '●', grey: '—', review: '?' }[imp.colour];
++          return `<span class="incoming-work-check parts-jita-split imported-parts-${esc(imp.colour)} ${jita ? 'has-jita' : 'no-jita'}" role="img" title="${esc(importedTitle(v) + ' ' + jitaStatus)}" aria-label="${esc(imp.label + '; ' + jitaStatus)}"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">${glyph}</span><span class="parts-jita-marker" aria-hidden="true">${jita ? '✓' : '●'}</span><span class="incoming-work-label">Parts / JITA</span></span>`;
++        }
++        return `<span class="${classes.join(' ')} parts-jita-split ${jita ? 'has-jita' : 'no-jita'}" role="img" title="${esc(`Top left: ${title}. Bottom right: ${jitaStatus}`)}" aria-label="${esc(`Parts ${state}; ${jitaStatus}`)}">
++        <span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">${marker}</span>
++        <span class="parts-jita-marker" aria-hidden="true">${jita ? '✓' : '●'}</span>
++        <span class="incoming-work-label">Parts / JITA</span>
++      </span>`;
++      }
++      return `<span class="${classes.join(' ')}" title="${esc(title)}" aria-label="${esc(`${def.grid} ${state}`)}">
++      <span class="incoming-work-box" aria-hidden="true">${marker}</span>
++      <span class="incoming-work-label">${esc(def.grid)}</span>
++    </span>`;
++    }).join('')}</div>`;
++  }
++
++  // ---- pdc-sublet-po.js boxState + decorateStrip (same output; that file is not loaded on Sales) ----
++  function boxState(entry, toRaise = 0) {
++    const raise = Number(toRaise) > 0 ? Math.floor(Number(toRaise)) : 0;
++    if ((!entry || !(Number(entry.total) > 0)) && !raise) return null;
++    if (raise) {
++      const poTotal = entry && Number(entry.total) > 0 ? Number(entry.total) : 0, poTicked = poTotal ? Number(entry.ticked) || 0 : 0;
++      const title = `Sublet: PO to raise: ${raise} whole line sublet${raise === 1 ? ' has' : 's have'} no GP PO yet`
++        + (poTotal ? `; ${poTicked} of ${poTotal} GP PO line${poTotal === 1 ? '' : 's'} ticked sublet done` : '');
++      return { cls: 'is-ordered', marker: '!', count: 'PO to raise', title, raise };
++    }
++    const total = Number(entry.total) || 0, ticked = Number(entry.ticked) || 0, withPo = Number(entry.with_po) || 0;
++    const count = `${ticked}/${total}`;
++    if (entry.state === 'done') return { cls: 'is-complete', marker: '✓', count, title: `Sublet: all ${total} GP PO line${total === 1 ? '' : 's'} ticked sublet done` };
++    if (entry.state === 'ordered') return { cls: 'is-ordered', marker: '!', count, title: `Sublet: ${withPo} line${withPo === 1 ? '' : 's'} with a GP PO, ${ticked} of ${total} ticked sublet done` };
++    return null;
++  }
++  const BOX = /<(span|button)([^>]*\bclass="incoming-work-check pdc-station-sublet\b[^"]*")([^>]*)>((?:\s*<span\b[^>]*>[^<]*<\/span>)*\s*)<\/\1>/;
++  function decorateStrip(html, entry, toRaise = 0) {
++    const s = boxState(entry, toRaise);
++    if (!s || typeof html !== 'string' || !BOX.test(html)) return html;
++    return html.replace(BOX, (all, tag, classAttr, rest, inner) => {
++      if (classAttr.includes('pdc-sublet-po-box')) return all;
++      const classes = classAttr.match(/class="([^"]*)"/)[1].split(/\s+/);
++      const isComplete = classes.includes('is-complete');
++      let next = classes.concat('pdc-sublet-po-box');
++      if (s.cls && !isComplete) {
++        next = next.filter(c => !['is-required', 'is-ordered', 'is-booked', 'is-complete', 'is-not-required'].includes(c));
++        if (s.cls === 'is-ordered') next.push('is-required');
++        next.push(s.cls);
++      }
++      let body = inner;
++      const marker = s.raise ? '<b class="pdc-sublet-po-raise">PO to raise</b>' : s.marker;
++      if (s.raise && !isComplete) next.push('is-po-to-raise');
++      if (marker && !isComplete) body = body.replace(/(<span class="incoming-work-box"[^>]*>)[\s\S]*?(<\/span>)/, `$1${marker}$2`);
++      body = body.replace(/(<span class="incoming-work-label">[\s\S]*?)(<\/span>)/, `$1 <small class="pdc-sublet-po-count">${esc(s.count)}</small>$2`);
++      const attrs = (classAttr.replace(/class="[^"]*"/, `class="${next.join(' ')}"`) + rest)
++        .replace(/title="[^"]*"/, `title="${esc(s.title)}"`).replace(/aria-label="([^"]*)"/, (_, a) => `aria-label="${a}; ${esc(s.title)}"`);
++      return `<${tag}${attrs}>${body}</${tag}>`;
++    });
++  }
++
++  /** Read-only Sales markup for one server entry: the board strip (Sublet PO decorated), wrapped so it is compact and inert. */
++  function entryHtml(entry) {
++    if (!entry || !guardApi?.projectWorkState) return '';
++    const strip = decorateStrip(stripHtml(toBoardVehicle(entry)), entry.sublet_po || null, Number(entry.sublet_without_po) || 0);
++    return '<div class="sales-pmb-stations" role="group" aria-label="PMB stations (read only)">' + strip + '</div>';
++  }
++  /** Index a server answer: vehicle id -> strip HTML. Built once per answer. */
++  function indexAnswer(data) {
++    const map = new Map();
++    if (!data || data.ok !== true || !Array.isArray(data.vehicles)) return map;
++    for (const entry of data.vehicles) {
++      const id = String(entry?.vehicle_id || '').toLowerCase();
++      if (UUID.test(id)) map.set(id, entryHtml(entry));
++    }
++    return map;
++  }
++
++  function create(host) {
++    let cache = new Map(), logged = false, request = 0;
++    return {
++      /** ONE batched read for every linked vehicle on the page. Never throws; on failure the icons are hidden. */
++      async refresh(vehicleIds) {
++        const ids = [...new Set((vehicleIds || []).map(id => String(id || '').toLowerCase()).filter(id => UUID.test(id)))].slice(0, MAX_IDS);
++        const mine = ++request;
++        if (!ids.length || !host.PDC_SUPABASE?.rpc) { cache = new Map(); return 0; }
++        try {
++          const { data, error } = await host.PDC_SUPABASE.rpc(RPC, { p_vehicle_ids: ids });
++          if (mine !== request) return cache.size;
++          if (error || !data || data.ok !== true) throw error || new Error('PMB station read failed');
++          cache = indexAnswer(data);
++        } catch (error) {
++          if (mine !== request) return cache.size;
++          cache = new Map();
++          if (!logged) { logged = true; host.console?.warn?.('Sales PMB station icons unavailable:', error?.message || error); }
++        }
++        return cache.size;
++      },
++      /** Cached strip for a Sales row ('' when unlinked or not loaded). No work happens here. */
++      html(row) { return row?.canonical_vehicle_id ? cache.get(String(row.canonical_vehicle_id).toLowerCase()) || '' : ''; },
++      clear() { cache = new Map(); request++; },
++      size: () => cache.size,
++    };
++  }
++
++  const api = { RPC, MAX_IDS, DEFS, toBoardVehicle, stripHtml, decorateStrip, boxState, entryHtml, indexAnswer, create };
++  if (typeof module === 'object' && module.exports) module.exports = api;
++  if (root.document) root.BROOME_SALES_PMB_STATIONS = Object.assign(create(root), { api });
++})(typeof window !== 'undefined' ? window : globalThis);
+diff --git a/sales/sales.js b/sales/sales.js
+index 25c60ee9..290c0e38 100644
+--- a/sales/sales.js
++++ b/sales/sales.js
+@@ -126,11 +126,14 @@
+     if(planned.length)return {status:'Booked · '+(planned[0].stage||'Workshop')+' / '+(planned[0].bay||'Bay not recorded'),location:row.pmb_location||'Location not recorded',bookings:[planned[0]]};
+     return {status:row.workshop_status?bookingStatus(row.workshop_status):(row.pmb_stage||'Status not recorded'),location:row.pmb_location||'Location not recorded',bookings:[]};
+   }
++  // r499b (F112): the board's station icons for a linked vehicle, read from the one batched answer (never fetched here).
++  // A station with booking status started carries is-started; pmb-stations.css pulses it with the planner's blue flash.
++  function pmbStationsHtml(row){return row&&row.canonical_vehicle_id?(root.BROOME_SALES_PMB_STATIONS?.html?.(row)||''):'';}
+   function pmbStatusCell(row){
+-    const summary=pmbSummary(row),tone=pmbStatusTone(summary);
++    const summary=pmbSummary(row),tone=pmbStatusTone(summary),icons=pmbStationsHtml(row);
+     const booked=summary.bookings[0]?.scheduled_start_at?'Booked '+dateLabel(summary.bookings[0].scheduled_start_at):'';
+     const full=[tone?'Being worked on':'',summary.status,summary.location,booked].filter(Boolean).join(' · ');
+-    return '<td class="pmb-status-cell'+(tone?' pmb-running':'')+'"'+(tone?' data-pmb-tone="running"':'')+' title="'+escapeHtml(full)+'"><span class="pmb-line"><strong>'+escapeHtml(summary.status)+'</strong> '+escapeHtml(summary.location)+'</span></td>';
++    return '<td class="pmb-status-cell'+(tone?' pmb-running':'')+(icons?' has-pmb-stations':'')+'"'+(tone?' data-pmb-tone="running"':'')+' title="'+escapeHtml(full)+'">'+icons+'<span class="pmb-line"><strong>'+escapeHtml(summary.status)+'</strong> '+escapeHtml(summary.location)+'</span></td>';
+   }
+   function partsStatus(parts){
+     if(!parts)return 'Not recorded';
+@@ -141,7 +144,7 @@
+     if(parts.required===true)return 'Parts required · order not confirmed';
+     return 'Not recorded';
+   }
+-  const api = { vehicleReference, salespeople, categories, yardLocationCode, yardTextCodes, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, isRunningBooking, pmbStatusTone, pmbStatusCell, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
++  const api = { vehicleReference, salespeople, categories, yardLocationCode, yardTextCodes, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, pmbStationsHtml, isRunningBooking, pmbStatusTone, pmbStatusCell, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
+   if (typeof module === 'object' && module.exports) module.exports = api;
+   if (!root.document) return;
+   const $ = id => root.document.getElementById(id);
+@@ -208,7 +211,7 @@
+     state.dispatchRequest++;state.dispatchBusy=false;$('sales-dispatch-status').textContent='';
+     state.hiddenRequest++;state.hiddenItems=[];state.showHidden=false;state.hiddenBusy=false;state.visibilitySaving.clear();state.visibilityConfirmed.clear();state.refreshQueued=false;
+     $('sales-visibility-status').textContent='';$('sales-hidden-toggle').disabled=false;
+-    state.generation++;state.workspaceRequest++;state.workspace=null;state.workspaceBusy=false;state.html.clear();
++    state.generation++;state.workspaceRequest++;state.workspace=null;state.workspaceBusy=false;state.html.clear();root.BROOME_SALES_PMB_STATIONS?.clear?.();
+     if(state.searchTimer!==null)root.clearTimeout?.(state.searchTimer);state.searchTimer=null;
+     root.BROOME_COMPLETED_VEHICLES?.clear();root.BROOME_VEHICLE_NOTES?.clear();root.BROOME_SALES_CRM?.clear();root.BROOME_SALES_BUILDS?.clear();root.BROOME_SALES_ACCESSORIES?.clear();root.BROOME_SALES_EMAIL?.clear();root.BROOME_CUSTOMER_EMAILS?.clear();root.BROOME_SALES_FINANCE?.clear();state.financeProjection=[];columnWidths?.clear();
+     $('sales-mobile-vehicles').innerHTML='';$('sales-workspace-status').textContent='';
+@@ -328,7 +331,7 @@
+         return '<td title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</td>';
+       }).join('')+'<td>'+actionHtml(row)+'</td></tr>'+(root.BROOME_VEHICLE_NOTES?.rowHtml(row)||'')).join(''):'<tr><td colspan="13"><div class="empty-state">No vehicles match this view.</div></td></tr>')+'</tbody>');
+     columnWidths?.apply();
+-    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div>'+'<strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+'<p class="mobile-pmb'+(pmbStatusTone(pmbSummary(row))?' pmb-running':'')+'">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
++    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div>'+'<strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+pmbStationsHtml(row)+'<p class="mobile-pmb'+(pmbStatusTone(pmbSummary(row))?' pmb-running':'')+'">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
+     if(focusKey)root.document.querySelector?.((focusKey.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-ordering-id="'+focusKey.id+'"][data-ordering-flag="'+focusKey.flag+'"]')?.focus?.({preventScroll:true});
+     if(noteFocus){
+       const field=root.document.querySelector?.((noteFocus.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-notes-form="'+noteFocus.id+'"] [name="'+noteFocus.name+'"]');
+@@ -441,7 +444,7 @@
+     const facts=[['Location',summary.location],['PMB arrival',row.pmb_arrival_date],['PMB stage',row.pmb_stage],
+       ['QC completed',row.qc_completed_at?dateLabel(row.qc_completed_at):null],['Ready for transport confirmed',row.rft_confirmed_at?dateLabel(row.rft_confirmed_at):null],
+       ['Transferred to RFT',row.rft_transferred_at?dateLabel(row.rft_transferred_at):null]];
+-    return '<section class="pmb-overview"><h3>PMB status</h3><p class="pmb-current'+(pmbStatusTone(summary)?' pmb-running':'')+'">'+escapeHtml(summary.status)+'</p><p class="subtle">Live PMB information · read-only · updated '+escapeHtml(dateLabel(row.pmb_updated_at))+'</p><dl class="detail-grid">'+facts.map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+'</dd></div>').join('')+'</dl></section>'+
++    return '<section class="pmb-overview"><h3>PMB status</h3>'+pmbStationsHtml(row)+'<p class="pmb-current'+(pmbStatusTone(summary)?' pmb-running':'')+'">'+escapeHtml(summary.status)+'</p><p class="subtle">Live PMB information · read-only · updated '+escapeHtml(dateLabel(row.pmb_updated_at))+'</p><dl class="detail-grid">'+facts.map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+'</dd></div>').join('')+'</dl></section>'+
+       '<h3>Parts</h3><p class="parts-current">'+escapeHtml(partsStatus(parts))+'</p>'+
+       (parts?'<dl class="detail-grid">'+[['Parts required',yesNo(parts.required)],['Order recorded',yesNo(parts.ordered)],['Receipt recorded',yesNo(parts.received)],
+         ['Parts ETA',parts.eta],['Parts feed updated',parts.snapshot_at?dateLabel(parts.snapshot_at):null],['PMB parts update',parts.updated_at?dateLabel(parts.updated_at):null]]
+@@ -552,6 +555,8 @@
+       $('salesperson-filter-label').hidden=!canViewAllSalespeople();
+       if(canViewAllSalespeople())populateSalespeople();
+       if(state.detailId){const detailRow=state.items.find(r=>r.tracking_id===state.detailId);if(detailRow){html('sales-pmb-live',workshopHtml(detailRow));html('sales-source-detail',vehicleInfoHtml(detailRow));}}
++      // r499b (F112): ONE batched station read for every linked vehicle, in parallel with the reads below; the final render uses it.
++      const stationsRead=root.BROOME_SALES_PMB_STATIONS?.refresh?.(state.items.map(r=>r.canonical_vehicle_id).filter(Boolean));
+       attachWorkspace();populateFilters();render();
+       root.BROOME_VEHICLE_NOTES?.load();
+       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_BUILDS?.refresh();
+@@ -561,6 +566,7 @@
+       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_FINANCE?.refresh();
+       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_CUSTOMER_EMAILS?.refresh();
+       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&state.showHidden)await loadHiddenVehicles();
++      await stationsRead;
+       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)render();
+     } catch (error) {
+       if (generation!==state.generation || principal!==root.PDC_AUTH_CONTEXT?.userId) return;
+diff --git a/scripts/build_pages_runtime.js b/scripts/build_pages_runtime.js
+index caa5c78a..f193993a 100644
+--- a/scripts/build_pages_runtime.js
++++ b/scripts/build_pages_runtime.js
+@@ -158,7 +158,7 @@ const RUNTIME_FILES = Object.freeze([
+   'sales/build-requirements.js', 'sales/crm-workspace.css',
+   'sales/crm-workspace.js', 'sales/customer-emails.js', 'sales/dashboard-tools.js',
+   'sales/email-actions.js', 'sales/finance-pipeline.css', 'sales/finance-pipeline.js',
+-  'sales/index.html', 'sales/navision-orders.js', 'sales/sales-accessories.css', 'sales/sales-accessories.js', 'sales/sales.css',
++  'sales/index.html', 'sales/navision-orders.js', 'sales/pmb-stations.css', 'sales/pmb-stations.js', 'sales/sales-accessories.css', 'sales/sales-accessories.js', 'sales/sales.css',
+   'sales/sales.js', 'sales/vehicle-notes.js', 'sales/completed-vehicles.js', 'sales/zebra-labels.js',
+   // The read-only browser helper stays allowlisted so it can be restored.
+   // index.html no longer loads it on startup. No other scripts/ files ship.
+diff --git a/supabase/migrations/20261023040000_r499_sales_pmb_stations.sql b/supabase/migrations/20261023040000_r499_sales_pmb_stations.sql
+new file mode 100644
+index 00000000..60a5b2d0
+--- /dev/null
++++ b/supabase/migrations/20261023040000_r499_sales_pmb_stations.sql
+@@ -0,0 +1,184 @@
++-- r499 (F112): Sales PMB STATUS station icons. PREPARED ONLY - NOT APPLIED (preview 23 Oct 2026; apply only after Craig approves).
++-- Staging cdsmnqxtyyoeoznmbidd only. Craig: show the PMB board station icons (Parts / JITA, Tint, Bus 4x4, Hoist, Fitting, Fab, Elec, Tyre,
++--   Sublet) in the Sales PMB STATUS column.
++-- Why a new RPC: Sales users (role salesperson / linked controller) cannot read vehicle_work_items, vehicle_parts_updates,
++--   workshop_bookings, sublet bookings, QC operation lines or parts flags under RLS, and the Sales snapshot does not carry them.
++-- New: pdc_sales_private.pmb_stations_499(uuid[]) - STABLE SECURITY DEFINER, search_path pg_catalog, read-only. Goes through
++--   pdc_sales_private.context() (same sign-in / Sales access rules as the Sales snapshot; dealer from context, so it also follows
++--   the r495 branch if r495 is applied first). Returns station facts only for current Navision vehicles of that dealer: work items
++--   required/completed, latest parts update flags, open workshop bookings (stage + status), open QC line stage codes, sublet booking
++--   counts, sublet PO summary and open SUBLET lines without a PO, parts flag colour/label, validated JITA number. No names, customers,
++--   notes, sign-off people/dates or prices. Empty array -> empty list; more than 1000 ids -> error 22023.
++--   Scope is dealer-wide (a salesperson limited to own vehicles can still ask for any current vehicle id of their dealer; status only).
++-- New: public.get_broome_sales_pmb_stations(uuid[]) - invoker wrapper (same pattern as get_broome_sales_snapshot()).
++-- Both: EXECUTE for authenticated only (revoked from PUBLIC and anon).
++-- Timed read-only on staging (dealer 37047, 40 vehicles): 89 ms.
++-- Writes no vehicle, job, booking, Navision, finance or account row. Pins +2 (r499). Check sales_pmb_stations_499 (sort 299, F112).
++-- Body is LF only. Undo: supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql
++SET LOCAL lock_timeout = '2s';
++DO $g$ BEGIN
++ IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r499: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
++ IF NOT public.pdc_monitor_staging_guard()
++    OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
++    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r499: staging only'; END IF;
++ PERFORM set_config('pdc.r499_tick',(SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_clock_tick(boolean,timestamptz)'::regprocedure),true);
++ PERFORM set_config('pdc.r499_frc',(SELECT md5(prosrc) FROM pg_proc WHERE oid='pdc_ops.fault_regression_check()'::regprocedure),true);
++ PERFORM set_config('pdc.r499_pins',(SELECT count(*) FROM pdc_ops.expected_function_md5)::text,true);
++ IF current_setting('pdc.r499_tick') IS DISTINCT FROM (SELECT prosrc_md5 FROM pdc_ops.expected_function_md5 WHERE signature='public.workshop_clock_tick(boolean,timestamp with time zone)') THEN RAISE EXCEPTION 'r499: clock tick does not match its pin (this release must not touch it)'; END IF;
++ IF to_regprocedure('pdc_sales_private.pmb_stations_499(uuid[])') IS NOT NULL OR to_regprocedure('public.get_broome_sales_pmb_stations(uuid[])') IS NOT NULL
++    OR EXISTS(SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r499') OR EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='sales_pmb_stations_499' OR added_in='r499') THEN RAISE EXCEPTION 'r499: already applied'; END IF;
++ IF EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=299 OR fault_id='F112') THEN RAISE EXCEPTION 'r499: sort_order 299 / F112 taken'; END IF;
++ IF to_regprocedure('public.pdc_qc_operation_lines_379(uuid)') IS NULL OR to_regprocedure('public.pdc_parts_flags_vehicle_20260911(uuid)') IS NULL OR to_regprocedure('pdc_work_categories_private.sublet_po_vehicle_439(uuid)') IS NULL OR to_regprocedure('pdc_work_categories_private.sublet_line_key_439(jsonb)') IS NULL OR to_regprocedure('pdc_sales_private.context()') IS NULL THEN RAISE EXCEPTION 'r499: a helper function this release reads is missing'; END IF;
++ IF to_regclass('public.pdc_service_line_po_refs_439') IS NULL OR to_regclass('public.pdc_sublet_line_ticks_439') IS NULL
++    OR to_regclass('public.pdc_sublet_booking_instances') IS NULL OR to_regclass('public.vehicle_parts_updates') IS NULL OR to_regclass('public.vehicle_work_items') IS NULL THEN RAISE EXCEPTION 'r499: a table this release reads is missing'; END IF;
++END $g$;
++
++CREATE FUNCTION pdc_sales_private.pmb_stations_499(p_vehicle_ids uuid[])
++ RETURNS jsonb
++ LANGUAGE plpgsql
++ STABLE SECURITY DEFINER
++ SET search_path TO 'pg_catalog'
++AS $function$
++DECLARE ctx jsonb; out jsonb; n integer;
++BEGIN
++ -- r499 (F112): read-only work-station status for the Sales PMB STATUS column (the board's Parts / JITA, Tint, Bus 4x4, Hoist,
++ -- Fitting, Fab, Elec, Tyre and Sublet boxes). One batched call per Sales refresh; the browser draws the boxes with the board's rules.
++ -- Returns station facts only (no names, customers, notes, dates of sign-off or prices) for current Navision vehicles of the
++ -- caller's Sales dealer (pdc_sales_private.context() decides who may ask and which dealer). Unknown or other-dealer ids are skipped.
++ ctx := pdc_sales_private.context();
++ IF coalesce(ctx->>'dealer_code','') !~ '^[0-9]{4,6}$' THEN RAISE EXCEPTION 'Sales access required' USING errcode='42501'; END IF;
++ n := coalesce(cardinality(p_vehicle_ids),0);
++ IF n=0 THEN RETURN jsonb_build_object('ok',true,'version','r499','vehicles','[]'::jsonb); END IF;
++ IF n>1000 THEN RAISE EXCEPTION 'Too many vehicles in one request (% > 1000)',n USING errcode='22023'; END IF;
++ SELECT (
++  WITH ids AS MATERIALIZED (
++    SELECT DISTINCT n.canonical_vehicle_id AS vehicle_id
++    FROM public.navision_backend_records n
++    WHERE n.canonical_vehicle_id = ANY(p_vehicle_ids) AND n.source_system='microsoft_navision'
++      AND n.dealer_code=(ctx->>'dealer_code') AND n.is_current AND n.record_status='current'
++   ), veh AS MATERIALIZED (
++    SELECT v.id, v.stock_number, v.pmb_stage, v.pmb_stoppage_reason,
++     (v.pmb_stoppage_started_at IS NOT NULL AND v.pmb_stoppage_cleared_at IS NULL) AS pmb_stopped
++    FROM public.vehicles v JOIN ids ON ids.vehicle_id=v.id WHERE v.deleted_at IS NULL
++   ), work AS MATERIALIZED (
++    SELECT w.vehicle_id, jsonb_object_agg(w.work_key, jsonb_build_object('required',coalesce(w.required,false),'completed',coalesce(w.completed,false))) AS work
++    FROM public.vehicle_work_items w JOIN veh ON veh.id=w.vehicle_id GROUP BY w.vehicle_id
++   ), parts AS MATERIALIZED (
++    SELECT DISTINCT ON (p.vehicle_id) p.vehicle_id, jsonb_build_object('parts_required',p.parts_required,'parts_ordered',coalesce(p.parts_ordered,false),
++     'parts_received',p.parts_received,'parts_stoppage',coalesce(p.parts_stoppage,false),'parts_stoppage_reason',coalesce(p.parts_stoppage_reason,'')) AS parts
++    FROM public.vehicle_parts_updates p JOIN veh ON veh.id=p.vehicle_id ORDER BY p.vehicle_id, p.updated_at DESC, p.id DESC
++   ), bookings AS MATERIALIZED (
++    SELECT b.vehicle_id, jsonb_agg(jsonb_build_object('stage_code',s.code,'status',b.status::text,'stoppage_reason',coalesce(b.stoppage_reason,'')) ORDER BY s.code, b.status::text) AS bookings
++    FROM public.workshop_bookings b JOIN veh ON veh.id=b.vehicle_id JOIN public.workshop_stages s ON s.id=b.stage_id
++    WHERE b.deleted_at IS NULL AND b.status::text IN ('queued','planned','started','stoppage') GROUP BY b.vehicle_id
++   ), sublet_bookings AS MATERIALIZED (
++    SELECT i.vehicle_id, count(*) FILTER (WHERE i.status='active')::int AS active_bookings, count(*) FILTER (WHERE i.status='returned')::int AS returned_bookings
++    FROM public.pdc_sublet_booking_instances i JOIN veh ON veh.id=i.vehicle_id
++    WHERE i.status IN ('active','returned') AND i.cancelled_at IS NULL AND i.provider_id IS NOT NULL GROUP BY i.vehicle_id
++   ), jita AS MATERIALIZED (
++    SELECT veh.id AS vehicle_id, count(n.id) AS match_count,
++     bool_or(coalesce((n.normalized_data->>'_navisionJitaNumberColumnPresent')::boolean,false)) AS column_present,
++     max(n.normalized_data->>'navisionJitaNumberAuthority') AS authority, max(n.normalized_data->>'jitQty') AS jita_number
++    FROM veh LEFT JOIN public.navision_backend_records n ON n.is_current AND n.record_status='current' AND n.source_system='microsoft_navision'
++      AND n.canonical_vehicle_id=veh.id AND upper(btrim(coalesce(n.normalized_data->>'stock','')))=upper(btrim(veh.stock_number))
++    GROUP BY veh.id
++   ), flags AS MATERIALIZED (
++    SELECT veh.id AS vehicle_id, public.pdc_parts_flags_vehicle_20260911(veh.id) AS f FROM veh
++   ), po_veh AS MATERIALIZED (
++    SELECT veh.id FROM veh WHERE EXISTS(SELECT 1 FROM public.pdc_service_line_po_refs_439 r WHERE r.vehicle_id=veh.id AND r.active)
++     OR EXISTS(SELECT 1 FROM public.pdc_sublet_line_ticks_439 t WHERE t.vehicle_id=veh.id)
++   ), po AS MATERIALIZED (
++    SELECT po_veh.id AS vehicle_id, pdc_work_categories_private.sublet_po_vehicle_439(po_veh.id) AS s FROM po_veh
++   ), open_lines AS MATERIALIZED (
++    -- Open operation lines (the board's QC projection rules: active, not rejected, not completed). Stage codes only leave this function.
++    SELECT veh.id AS vehicle_id, upper(coalesce(x.l->>'stage_code','')) AS stage_code, x.l
++    FROM veh CROSS JOIN LATERAL jsonb_array_elements(coalesce(public.pdc_qc_operation_lines_379(veh.id),'[]'::jsonb)) x(l)
++    WHERE jsonb_typeof(x.l)='object' AND (x.l->>'active')='true' AND coalesce(x.l->>'rejected','')<>'true' AND coalesce(x.l->>'completed','')<>'true'
++   ), stage_codes AS MATERIALIZED (
++    SELECT o.vehicle_id, jsonb_agg(DISTINCT o.stage_code) AS codes FROM open_lines o WHERE o.stage_code<>'' GROUP BY o.vehicle_id
++   ), lines AS MATERIALIZED (
++    SELECT o.vehicle_id, pdc_work_categories_private.sublet_line_key_439(o.l) AS k FROM open_lines o WHERE o.stage_code='SUBLET'
++   ), sublet_lines AS MATERIALIZED (
++    SELECT lines.vehicle_id, count(*)::int AS open_lines,
++     count(*) FILTER (WHERE lines.k IS NULL OR NOT EXISTS(SELECT 1 FROM public.pdc_service_line_po_refs_439 r WHERE r.vehicle_id=lines.vehicle_id AND r.active AND r.line_key=lines.k))::int AS without_po
++    FROM lines GROUP BY lines.vehicle_id
++   )
++   SELECT coalesce(jsonb_agg(jsonb_build_object(
++     'vehicle_id',veh.id,
++     'has_stock',btrim(coalesce(veh.stock_number,''))<>'',
++     'pmb_stage',coalesce(veh.pmb_stage,''),
++     'pmb_stoppage',veh.pmb_stopped,
++     'pmb_stoppage_reason',CASE WHEN veh.pmb_stopped THEN coalesce(veh.pmb_stoppage_reason,'') ELSE '' END,
++     'work',coalesce(work.work,'{}'::jsonb),
++     'parts',coalesce(parts.parts,'{}'::jsonb),
++     'bookings',coalesce(bookings.bookings,'[]'::jsonb),
++     'qc_open_stage_codes',coalesce(stage_codes.codes,'[]'::jsonb),
++     'parts_flags',CASE WHEN flags.f->>'colour' IN ('orange','red','green','grey','review') THEN jsonb_build_object('colour',flags.f->>'colour',
++       'label',left(coalesce(flags.f->>'label',''),160),'meaning',left(coalesce(flags.f->>'meaning',''),400),'last_successful_import_at',flags.f->'last_successful_import_at') END,
++     'sublet_active_bookings',coalesce(sublet_bookings.active_bookings,0),
++     'sublet_returned_bookings',coalesce(sublet_bookings.returned_bookings,0),
++     'sublet_open_lines',coalesce(sublet_lines.open_lines,0),
++     'sublet_without_po',coalesce(sublet_lines.without_po,0),
++     'sublet_po',CASE WHEN coalesce((po.s->>'total')::int,0)>0 THEN jsonb_build_object('state',po.s->>'state','total',(po.s->>'total')::int,
++       'ticked',(po.s->>'ticked')::int,'with_po',(po.s->>'with_po')::int) END,
++     'jita_number',CASE WHEN jita.match_count=1 AND jita.column_present AND jita.authority='validated-navision-import-v1' THEN nullif(btrim(jita.jita_number),'') END
++    ) ORDER BY veh.id),'[]'::jsonb)
++   FROM veh
++   LEFT JOIN work ON work.vehicle_id=veh.id LEFT JOIN parts ON parts.vehicle_id=veh.id LEFT JOIN bookings ON bookings.vehicle_id=veh.id
++   LEFT JOIN sublet_bookings ON sublet_bookings.vehicle_id=veh.id LEFT JOIN jita ON jita.vehicle_id=veh.id
++   LEFT JOIN po ON po.vehicle_id=veh.id LEFT JOIN sublet_lines ON sublet_lines.vehicle_id=veh.id
++   LEFT JOIN stage_codes ON stage_codes.vehicle_id=veh.id LEFT JOIN flags ON flags.vehicle_id=veh.id
++ ) INTO out;
++ RETURN jsonb_build_object('ok',true,'version','r499','vehicles',coalesce(out,'[]'::jsonb));
++END $function$;
++
++CREATE FUNCTION public.get_broome_sales_pmb_stations(p_vehicle_ids uuid[])
++ RETURNS jsonb
++ LANGUAGE sql
++ STABLE
++ SET search_path TO 'pg_catalog'
++AS $function$ SELECT pdc_sales_private.pmb_stations_499(p_vehicle_ids) $function$;
++
++REVOKE ALL ON FUNCTION pdc_sales_private.pmb_stations_499(uuid[]), public.get_broome_sales_pmb_stations(uuid[]) FROM PUBLIC, anon, authenticated;
++GRANT EXECUTE ON FUNCTION pdc_sales_private.pmb_stations_499(uuid[]), public.get_broome_sales_pmb_stations(uuid[]) TO authenticated;
++
++INSERT INTO pdc_ops.expected_function_md5(signature,prosrc_md5,release,note,updated_at) VALUES
++ ('pdc_sales_private.pmb_stations_499(uuid[])','ec5161da807d08c71fe4f59c2cd78c11','r499','r499 (F112): Sales PMB STATUS station icons',now()),
++ ('public.get_broome_sales_pmb_stations(uuid[])','cbd4b27bcd6202dc3038dee145d5da00','r499','r499 (F112): Sales PMB STATUS station icons',now());
++
++INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,enabled,sort_order,added_in) VALUES
++ ('sales_pmb_stations_499','F112','Sales PMB STATUS station icons (r499): read-only station RPC is SECURITY DEFINER with search_path pg_catalog, goes through the Sales check, caps 1000 ids, writes nothing; public wrapper is invoker; both signed-in only (not anon); helper functions present',
++  $chk$WITH f AS (
++  SELECT p.oid, p.prosecdef, p.provolatile, p.proconfig, p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('pdc_sales_private.pmb_stations_499(uuid[])')
++), w AS (
++  SELECT p.oid, p.prosecdef, p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.get_broome_sales_pmb_stations(uuid[])')
++), s AS (
++  SELECT (SELECT prosecdef AND provolatile='s' AND proconfig=ARRAY['search_path=pg_catalog'] FROM f) shape_ok,
++   (SELECT position('pdc_sales_private.context()' IN prosrc)>0 AND position('n>1000' IN prosrc)>0
++      AND prosrc !~* '\m(insert|update|delete|truncate|perform|execute)\M' FROM f) body_ok,
++   (SELECT NOT prosecdef AND position('pdc_sales_private.pmb_stations_499(p_vehicle_ids)' IN prosrc)>0 FROM w) wrapper_ok,
++   (SELECT NOT pg_catalog.has_function_privilege('anon',oid,'EXECUTE') AND pg_catalog.has_function_privilege('authenticated',oid,'EXECUTE') FROM f) priv_acl,
++   (SELECT NOT pg_catalog.has_function_privilege('anon',oid,'EXECUTE') AND pg_catalog.has_function_privilege('authenticated',oid,'EXECUTE') FROM w) wrap_acl,
++   (SELECT pg_catalog.count(*) FROM pg_catalog.unnest(ARRAY['public.pdc_qc_operation_lines_379(uuid)','public.pdc_parts_flags_vehicle_20260911(uuid)',
++     'pdc_work_categories_private.sublet_po_vehicle_439(uuid)','pdc_work_categories_private.sublet_line_key_439(jsonb)']) x(sig)
++     WHERE pg_catalog.to_regprocedure(x.sig) IS NULL) missing_helpers
++)
++SELECT coalesce(shape_ok AND body_ok AND wrapper_ok AND priv_acl AND wrap_acl,false) AND missing_helpers=0 AS ok,
++ 'Sales PMB stations RPC: secdef read-only, search_path pg_catalog: '||CASE WHEN shape_ok AND body_ok THEN 'yes' ELSE 'NO' END
++ ||'; Sales check + 1000-id cap: '||CASE WHEN body_ok THEN 'yes' ELSE 'NO' END
++ ||'; public wrapper invoker: '||CASE WHEN wrapper_ok THEN 'yes' ELSE 'NO' END
++ ||'; signed-in only (not anon): '||CASE WHEN priv_acl AND wrap_acl THEN 'yes' ELSE 'NO' END
++ ||'; missing helpers: '||missing_helpers AS detail FROM s$chk$,true,299,'r499');
++
++DO $g$ DECLARE y record; BEGIN
++ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_sales_private.pmb_stations_499(uuid[])')) IS DISTINCT FROM 'ec5161da807d08c71fe4f59c2cd78c11' THEN RAISE EXCEPTION 'r499: pdc_sales_private.pmb_stations_499(uuid[]) did not land as expected (line ends changed in transport?)'; END IF;
++ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.get_broome_sales_pmb_stations(uuid[])')) IS DISTINCT FROM 'cbd4b27bcd6202dc3038dee145d5da00' THEN RAISE EXCEPTION 'r499: public.get_broome_sales_pmb_stations(uuid[]) did not land as expected (line ends changed in transport?)'; END IF;
++ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_clock_tick(boolean,timestamptz)'::regprocedure) IS DISTINCT FROM current_setting('pdc.r499_tick') THEN RAISE EXCEPTION 'r499: clock tick changed'; END IF;
++ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='pdc_ops.fault_regression_check()'::regprocedure) IS DISTINCT FROM current_setting('pdc.r499_frc') THEN RAISE EXCEPTION 'r499: fault_regression_check changed'; END IF;
++ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r499')<>2 OR (SELECT count(*) FROM pdc_ops.expected_function_md5)<>current_setting('pdc.r499_pins')::int+2 THEN RAISE EXCEPTION 'r499: pins not as expected'; END IF;
++ IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='sales_pmb_stations_499' AND added_in='r499' AND sort_order=299) IS DISTINCT FROM 'a882ed7534300b99e3acc71588ec0d76' THEN RAISE EXCEPTION 'r499: check did not land as expected'; END IF;
++ PERFORM set_config('search_path','pg_catalog',true);
++ EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='sales_pmb_stations_499') INTO y;
++ IF y.ok IS NOT TRUE THEN RAISE EXCEPTION 'r499: check not OK: %',y.detail; END IF;
++ PERFORM set_config('search_path','public, extensions',true);
++END $g$;
+diff --git a/supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql b/supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql
+new file mode 100644
+index 00000000..4b817bbe
+--- /dev/null
++++ b/supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql
+@@ -0,0 +1,26 @@
++-- r499 undo (F112). Staging cdsmnqxtyyoeoznmbidd only; run between :02 and :45. Only needed if 20261023040000_r499_sales_pmb_stations.sql was applied.
++-- Drops the two read-only functions, their two pins and check sales_pmb_stations_499. No data rows are touched (the release wrote none).
++-- Revert the r499 PR as well (the Sales page then shows the PMB status text only; with the PR still live and this undone, the page
++-- simply shows no icons - the RPC failure is caught and logged once).
++SET LOCAL lock_timeout = '2s';
++DO $g$ BEGIN
++ IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r499 undo: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
++ IF NOT public.pdc_monitor_staging_guard()
++    OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
++    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r499 undo: staging only'; END IF;
++ PERFORM set_config('pdc.r499_tick',(SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_clock_tick(boolean,timestamptz)'::regprocedure),true);
++ PERFORM set_config('pdc.r499_pins',(SELECT count(*) FROM pdc_ops.expected_function_md5)::text,true);
++ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_sales_private.pmb_stations_499(uuid[])')) IS DISTINCT FROM 'ec5161da807d08c71fe4f59c2cd78c11'
++    OR (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.get_broome_sales_pmb_stations(uuid[])')) IS DISTINCT FROM 'cbd4b27bcd6202dc3038dee145d5da00' THEN RAISE EXCEPTION 'r499 undo: the r499 functions are not the r499 versions; not undoing over unknown changes'; END IF;
++ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r499')<>2 OR NOT EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='sales_pmb_stations_499' AND added_in='r499') THEN RAISE EXCEPTION 'r499 undo: r499 is not fully applied; not undoing'; END IF;
++END $g$;
++DELETE FROM pdc_ops.regression_checks WHERE check_name='sales_pmb_stations_499' AND added_in='r499';
++DELETE FROM pdc_ops.expected_function_md5 WHERE release='r499' AND signature IN ('pdc_sales_private.pmb_stations_499(uuid[])','public.get_broome_sales_pmb_stations(uuid[])');
++DROP FUNCTION public.get_broome_sales_pmb_stations(uuid[]);
++DROP FUNCTION pdc_sales_private.pmb_stations_499(uuid[]);
++DO $g$ BEGIN
++ IF to_regprocedure('pdc_sales_private.pmb_stations_499(uuid[])') IS NOT NULL OR to_regprocedure('public.get_broome_sales_pmb_stations(uuid[])') IS NOT NULL
++    OR EXISTS(SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r499') OR EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE added_in='r499')
++    OR (SELECT count(*) FROM pdc_ops.expected_function_md5)<>current_setting('pdc.r499_pins')::int-2 THEN RAISE EXCEPTION 'r499 undo: did not fully undo'; END IF;
++ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_clock_tick(boolean,timestamptz)'::regprocedure) IS DISTINCT FROM current_setting('pdc.r499_tick') THEN RAISE EXCEPTION 'r499 undo: clock tick changed'; END IF;
++END $g$;
+diff --git a/test_sales_pmb_stations_499.js b/test_sales_pmb_stations_499.js
+new file mode 100644
+index 00000000..0804d365
+--- /dev/null
++++ b/test_sales_pmb_stations_499.js
+@@ -0,0 +1,180 @@
++/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
++'use strict';
++// r499 (F112): the Sales PMB STATUS station icons are the Control Board's strip. The board's own functions are taken from
++// app.js (not edited) and run on the same mapped vehicles; Sublet is decorated by pdc-sublet-po.js's own decorateStrip.
++// Made-up vehicles only (no stock numbers, names or ids from the live data).
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const vm = require('node:vm');
++const stations = require('./sales/pmb-stations.js');
++const guard = require('./vehicle-requirements-guard.js');
++const eligibility = require('./workshop-eligibility.js');
++const subletPo = require('./pdc-sublet-po.js');
++
++const APP = fs.readFileSync('app.js', 'utf8');
++function source(name) {
++  const lines = APP.split('\n');
++  const start = lines.findIndex(l => new RegExp(`^(?:async )?function ${name}\\(|^const ${name} = `).test(l));
++  assert.ok(start >= 0, `app.js still defines ${name}`);
++  if (/;\s*$/.test(lines[start]) && !/[[{(]\s*$/.test(lines[start])) return lines[start];
++  for (let i = start + 1; i < lines.length; i++) if (/^[}\])]/.test(lines[i])) return lines.slice(start, i + 1).join('\n');
++  throw new Error('unterminated ' + name);
++}
++const NAMES = ['NAVISION_JITA_NUMBER_AUTHORITY', 'PRODUCTION_FLOW_DEFS', 'PDC_JOB_DEFS', 'PDC_JOB_BY_KEY', 'PMB_STAGE_TO_JOB_KEY', 'PDC_GRID_JOB_LABELS',
++  'pmbStageForPdcJob', 'normalizePmbStage', 'inferredPmbStage', 'isPdcBlocked', 'pdcBlockReason', 'pdcJobRequired', 'pdcJobComplete', 'pdcJobTriState',
++  'pdcJobCompletionTitle', 'pdcJobDefsPartsFirst', 'pdcGridJobLabel', 'parseIsoTimestamp', 'isBlankStock', 'vehicleHasBatchNumber', 'vehicleNavisionJitaNumber',
++  'cleanNavisionText', 'escapeHtml', 'canonicalVehicleWorkState', 'canonicalActiveSubletBooking', 'partsJobDef', 'partsStateComplete',
++  'isActivePartsStoppage', 'partsOrdered', 'importedPartsStatus', 'importedPartsTitle', 'incomingWorkChecklistHtml'];
++function board() {
++  const ctx = { window: { VehicleRequirementsGuard: guard, PDC_WORKSHOP_ELIGIBILITY: eligibility }, WORKSHOP_ELIGIBILITY: eligibility,
++    WORKSHOP_CANONICAL_STATION_DEFS: eligibility.stationDefinitions, vehicleKey: () => '', pdcJobFallbackRequired: () => { throw new Error('free-text fallback used'); } };
++  vm.runInNewContext(NAMES.map(source).join('\n') + '\nthis.__board = { incomingWorkChecklistHtml, PDC_GRID_JOB_LABELS, PMB_STAGE_TO_JOB_KEY };', ctx);
++  return ctx.__board;
++}
++const B = board();
++const boardHtml = entry => {
++  const v = stations.toBoardVehicle(entry);
++  const html = B.incomingWorkChecklistHtml(v, { bookingProjection: { bookingRequired: false, activeBookings: v.salesWorkshopBookings } });
++  return subletPo.decorateStrip(html, entry.sublet_po || null, Number(entry.sublet_without_po) || 0);
++};
++const salesHtml = entry => stations.decorateStrip(stations.stripHtml(stations.toBoardVehicle(entry)), entry.sublet_po || null, Number(entry.sublet_without_po) || 0);
++// r499b adds is-started and says "started" where the board still says "booked" (the board folds status started into booked).
++const asBoard = html => html.replace(/ is-started/g, '').replace(/\b(Parts|Tint|Bus 4x4|Hoist|Fitting|Fab|Elec|Tyre|Sublet) started"/g, '$1 booked"');
++
++const U = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
++const W = (req = [], done = []) => Object.fromEntries([...new Set([...req, ...done])].map(k => [k, { required: req.includes(k), completed: done.includes(k) }]));
++const F = n => FIX.find(e => e.vehicle_id === U(n));
++const FIX = [
++  { vehicle_id: U(1), has_stock: true },
++  { vehicle_id: U(2), has_stock: false, parts: {} },
++  { vehicle_id: U(3), has_stock: true, work: W(['tint', 'bus4x4', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet']), parts: { parts_required: true } },
++  { vehicle_id: U(4), has_stock: true, work: W(['tint', 'hoist'], ['tint', 'hoist', 'parts']), parts: { parts_required: true, parts_received: true } },
++  { vehicle_id: U(5), has_stock: true, parts: { parts_required: true, parts_ordered: true } },
++  { vehicle_id: U(6), has_stock: true, parts: { parts_required: true, parts_stoppage: true, parts_stoppage_reason: 'Back order <ETA>' } },
++  { vehicle_id: U(7), has_stock: true, parts: { parts_required: false } },
++  ...['green', 'orange', 'red', 'grey', 'review'].map((colour, i) => ({ vehicle_id: U(10 + i), has_stock: true, parts: { parts_required: true },
++    parts_flags: { colour, label: `Flag ${colour}`, meaning: 'Made-up meaning', last_successful_import_at: i % 2 ? null : '2026-10-22T01:30:00Z' }, jita_number: i === 0 ? '1234567' : null })),
++  { vehicle_id: U(20), has_stock: true, jita_number: '7654321', parts: { parts_required: true } },
++  { vehicle_id: U(21), has_stock: true, jita_number: '000', parts: { parts_required: true } },
++  { vehicle_id: U(22), has_stock: true, pmb_stage: 'TINT', pmb_stoppage: true, pmb_stoppage_reason: 'Waiting on film', work: W(['tint', 'hoist']) },
++  { vehicle_id: U(23), has_stock: true, pmb_stage: 'Express Hoist', work: W(['hoist', 'fitting']), bookings: [{ stage_code: 'HOIST', status: 'stoppage', stoppage_reason: 'Ram fault' }, { stage_code: 'FITTING', status: 'planned', stoppage_reason: '' }] },
++  { vehicle_id: U(24), has_stock: true, pmb_stage: 'ELECTRICAL', work: W(['electrical', 'tyre']), bookings: [{ stage_code: 'ELECTRICAL', status: 'started' }, { stage_code: 'TYRE', status: 'queued' }, { stage_code: 'TINT', status: 'completed' }] },
++  { vehicle_id: U(25), has_stock: true, sublet_active_bookings: 1 },
++  { vehicle_id: U(26), has_stock: true, sublet_active_bookings: 2 },
++  { vehicle_id: U(27), has_stock: true, sublet_returned_bookings: 1 },
++  { vehicle_id: U(28), has_stock: true, qc_open_stage_codes: ['BUS_QA', 'TINT', 'JOB_CARD_NOTES', 'SUBLET', 'PIT_INSPECTION'] },
++  { vehicle_id: U(29), has_stock: true, qc_open_stage_codes: ['SUBLET'], sublet_open_lines: 2, sublet_without_po: 2 },
++  { vehicle_id: U(30), has_stock: true, qc_open_stage_codes: ['SUBLET'], sublet_open_lines: 2, sublet_without_po: 1, sublet_po: { state: 'ordered', total: 1, ticked: 0, with_po: 1 } },
++  { vehicle_id: U(31), has_stock: true, work: W(['sublet']), sublet_po: { state: 'ordered', total: 3, ticked: 1, with_po: 3 } },
++  { vehicle_id: U(32), has_stock: true, work: W(['sublet']), sublet_po: { state: 'done', total: 2, ticked: 2, with_po: 2 } },
++  { vehicle_id: U(33), has_stock: true, work: W(['sublet'], ['sublet']), sublet_without_po: 1 },
++  { vehicle_id: U(34), has_stock: true, pmb_stage: 'SUBLET', pmb_stoppage: true, pmb_stoppage_reason: '', work: W(['sublet']) },
++  { vehicle_id: U(35), has_stock: true, pmb_stage: 'BUS_4X4', work: W(['bus4x4'], ['bus4x4']), bookings: [{ stage_code: 'BUS_4X4', status: 'stoppage', stoppage_reason: '"quoted" & <b>' }] },
++  { vehicle_id: U(36), has_stock: true, work: { Tyres: { required: true, completed: false }, parts: { required: true, completed: true } }, parts: {} },
++  { vehicle_id: U(37), has_stock: true, work: W(['fitting'], ['fitting']), bookings: [{ stage_code: 'FITTING', status: 'started' }] },
++  { vehicle_id: U(38), has_stock: true, pmb_stage: 'SUBLET', work: W(['sublet']), bookings: [{ stage_code: 'SUBLET', status: 'started' }] },
++];
++
++test('every fixture renders exactly the Control Board strip (app.js incomingWorkChecklistHtml + pdc-sublet-po.js decorateStrip)', () => {
++  for (const entry of FIX) assert.equal(asBoard(salesHtml(entry)), boardHtml(entry), `vehicle ${entry.vehicle_id}`);
++});
++
++test('a started booking flashes that station only (is-started); queued, planned, stoppage and complete do not', () => {
++  const started = salesHtml(F(24));
++  assert.match(started, /pdc-station-electrical is-required is-booked is-started is-current-stage" title="Elec started"/);
++  assert.match(started, /aria-label="Elec started"/);
++  assert.match(started, /pdc-station-tyre is-required is-booked" title="Tyre booked"/);
++  assert.doesNotMatch(started, /pdc-station-tyre[^"]*is-started/);
++  assert.doesNotMatch(salesHtml(F(23)), /is-started/, 'planned and stoppage do not flash');
++  assert.doesNotMatch(salesHtml(F(37)), /is-started/, 'a completed station does not flash');
++  assert.doesNotMatch(salesHtml(F(38)), /is-started/, 'Sublet has no board stage, so a SUBLET booking is not a started icon');
++  assert.equal((started.match(/is-started/g) || []).length, 1);
++});
++
++test('the icons follow the board order and legend', () => {
++  const html = salesHtml(F(3));
++  const order = [...html.matchAll(/incoming-work-check pdc-station-(\w+)/g)].map(m => m[1]);
++  assert.deepEqual(order, ['parts', 'tint', 'bus4x4', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet']);
++  const markers = h => [...h.matchAll(/<span class="incoming-work-box[^"]*" aria-hidden="true">([^<]*)<\/span>/g)].map(m => m[1]);
++  assert.deepEqual(markers(salesHtml(F(1))), ['•', '–', '–', '–', '–', '–', '–', '–', '–'], 'not required = grey dash; stocked Parts required');
++  assert.deepEqual(markers(salesHtml(F(4))).slice(0, 4), ['✓', '✓', '–', '✓'], 'complete = tick');
++  assert.equal(markers(salesHtml(F(5)))[0], '!', 'parts ordered = !');
++  assert.match(salesHtml(F(6)), /pdc-station-parts[^"]*is-blocked/);
++  assert.match(salesHtml(F(22)), /pdc-station-tint[^"]*is-blocked[^"]*is-current-stage" title="TINT required - not signed off yet"/);
++  assert.match(salesHtml(F(23)), /pdc-station-hoist[^"]*is-blocked[^"]*" title="Hoist STOPPAGE: Ram fault"/);
++  assert.match(salesHtml(F(23)), /pdc-station-fitting is-required is-booked" title="Fitting booked"/);
++  assert.match(salesHtml(F(29)), /is-po-to-raise[\s\S]*PO to raise<\/b>/);
++  assert.match(salesHtml(F(29)), /title="Sublet: PO to raise: 2 whole line sublets have no GP PO yet"/);
++  assert.match(salesHtml(F(32)), /pdc-station-sublet pdc-sublet-po-box is-complete"/);
++  assert.doesNotMatch(salesHtml(F(35)), /<b>/, 'reasons are escaped');
++});
++
++test('mapping: work items, open QC lines, sublet bookings and parts as the board maps them', () => {
++  const v = stations.toBoardVehicle(F(28));
++  assert.equal(v.pdcRequiresBus4x4, true); assert.equal(v.pdcRequiresTint, true); assert.equal(v.pdcRequiresSublet, true);
++  assert.equal(v.pdcRequiresPitInspection, true);
++  assert.equal(stations.toBoardVehicle(F(27)).pdcCompleteSublet, true, 'only returned sublets = complete');
++  assert.equal(stations.toBoardVehicle(F(25)).pdcCompleteSublet, false);
++  assert.match(salesHtml(F(25)), /pdc-station-sublet is-required is-ordered is-booked" title="Sublet booked"/, 'one active sublet = booked');
++  assert.doesNotMatch(salesHtml(F(26)), /pdc-station-sublet[^"]*is-booked/, 'two active sublets = required, as on the board');
++  assert.equal(stations.toBoardVehicle(F(2)).pdcRequiresParts, false, 'no stock and no parts update = Parts not required');
++  assert.equal(stations.toBoardVehicle(F(36)).pdcRequiresTyre, true);
++  assert.equal(stations.toBoardVehicle(F(36)).pdcCompleteParts, true);
++  assert.match(salesHtml(F(10)), /imported-parts-green has-jita" role="img" title="Flag green\. Last successful import: [^"]+ \(Perth\)\. Made-up meaning JITA pre-order 1234567"/);
++  assert.match(salesHtml(F(21)), /no-jita/, 'zero JITA is not a JITA');
++  for (const entry of FIX) for (const key of Object.keys(stations.toBoardVehicle(entry)))
++    assert.doesNotMatch(key, /name|customer|client|by$|At$/i, 'no people or times in the mapped vehicle');
++});
++
++test('read only: no buttons, links, inputs or handlers; hover titles on every icon; wrapped for the Sales cell', () => {
++  for (const entry of FIX) {
++    const html = stations.entryHtml(entry);
++    assert.match(html, /^<div class="sales-pmb-stations" role="group" aria-label="PMB stations \(read only\)">/);
++    assert.doesNotMatch(html, /<(button|a|input|select)\b|data-open|onclick|tabindex|href=/i);
++    assert.equal((html.match(/class="incoming-work-check /g) || []).length, 9);
++    assert.equal((html.match(/<span class="incoming-work-check [^>]*\btitle="[^"]+"/g) || []).length, 9);
++  }
++  assert.equal(stations.entryHtml(null), '');
++});
++
++test('Sales wiring: linked rows only, short status text under the icons, mobile too, styles and scripts loaded with cache bust', () => {
++  const sales = fs.readFileSync('sales/sales.js', 'utf8');
++  assert.match(sales, /function pmbStationsHtml\(row\)\{return row&&row\.canonical_vehicle_id\?\(root\.BROOME_SALES_PMB_STATIONS\?\.html\?\.\(row\)\|\|''\):'';\}/);
++  assert.match(sales, /\+icons\+'<span class="pmb-line"><strong>'/);
++  assert.match(sales, /pmbStationsHtml\(row\)\+'<p class="mobile-pmb'/);
++  const index = fs.readFileSync('sales/index.html', 'utf8');
++  assert.match(index, /<link rel="stylesheet" href="pmb-stations\.css\?v=2026\.10\.23\.r499b">/);
++  const order = ['../workshop-eligibility.js?', '../vehicle-requirements-guard.js?', 'pmb-stations.js?v=2026.10.23.r499b', 'sales.js?v='].map(s => index.indexOf('src="' + s));
++  assert.ok(order.every(i => i > 0) && order.every((v, i) => !i || v > order[i - 1]), 'scripts load before sales.js');
++  assert.match(index, /src="sales\.js\?v=2026\.10\.06\.01&amp;r499b=2026\.10\.23\.r499b&amp;[^"]*no-yard-flag=2026\.10\.22\.r486"/, 'sales.js keeps v= (manifest) and adds r499b');
++  const build = fs.readFileSync('scripts/build_pages_runtime.js', 'utf8');
++  assert.match(build, /'sales\/pmb-stations\.css', 'sales\/pmb-stations\.js'/);
++  const css = fs.readFileSync('sales/pmb-stations.css', 'utf8');
++  for (const rule of ['is-not-required', 'is-required', 'is-ordered', 'is-booked', 'is-complete', 'is-blocked', 'parts-jita-split', 'imported-parts-orange', 'pdc-sublet-po-raise'])
++    assert.ok(css.includes('.sales-pmb-stations ') && css.includes(rule), rule);
++  assert.doesNotMatch(css, /cursor:pointer/);
++  // The board's colours, copied: required red, ordered/booked amber, complete green, stoppage red.
++  for (const colour of ['#fff0f3', '#a3133b', '#fff7ed', '#9a3412', '#edf9f1', '#146c3b', '#ffe8e8', '#9f1111', '#c2410c']) assert.ok(css.includes(colour), colour);
++  const pulse = name => {
++    const block = fs.readFileSync(name, 'utf8').match(/@keyframes workshop-started-blue-pulse \{[\s\S]*?\n\}/);
++    assert.ok(block, name);
++    return block[0];
++  };
++  assert.equal(pulse('sales/pmb-stations.css'), pulse('workshop-planner.css'), 'started flash is the planner pulse, not a Sales-only animation');
++  assert.match(css, /\.sales-pmb-stations \.incoming-work-check\.is-started\{[^}]*border-color:#2563eb;[^}]*background:#dbeafe;[^}]*animation:workshop-started-blue-pulse 1\.25s ease-in-out infinite\}/);
++  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.sales-pmb-stations \.incoming-work-check\.is-started \{ animation: none; \}/);
++  assert.doesNotMatch(css, /@keyframes sales-/);
++  assert.match(fs.readFileSync('sales/sales.js', 'utf8'), /pmbStationsHtml\(row\)\+'<p class="pmb-current'/);
++});
++
++test('migration and rollback ship LF only and are not referenced by any applied list', () => {
++  for (const f of ['supabase/migrations/20261023040000_r499_sales_pmb_stations.sql', 'supabase/rollbacks/20261023040000_r499_sales_pmb_stations.down.sql']) {
++    const text = fs.readFileSync(f, 'utf8');
++    assert.doesNotMatch(text, /\r/); assert.match(text, /get_broome_sales_pmb_stations|pmb_stations_499/);
++  }
++  const up = fs.readFileSync('supabase/migrations/20261023040000_r499_sales_pmb_stations.sql', 'utf8');
++  assert.match(up, /GRANT EXECUTE ON FUNCTION [^;]*public\.get_broome_sales_pmb_stations\(uuid\[\]\) TO authenticated;/i);
++  assert.doesNotMatch(up, /TO anon\b/i);
++  assert.doesNotMatch(up, /customer_name|client_name|first_name|last_name|email|phone/i, 'no personal fields');
++});
+diff --git a/test_sales_pmb_stations_perf_499.js b/test_sales_pmb_stations_perf_499.js
+new file mode 100644
+index 00000000..b791a051
+--- /dev/null
++++ b/test_sales_pmb_stations_perf_499.js
+@@ -0,0 +1,125 @@
++/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
++'use strict';
++// r499 (F112) performance guard (pattern: test_sublet_board_perf_494c.js). The Sales PMB STATUS icons must cost ONE batched
++// read per Sales refresh, nothing per vehicle while the table draws, and no extra table redraw. Made-up vehicles only.
++const test = require('node:test');
++const assert = require('node:assert/strict');
++const fs = require('node:fs');
++const vm = require('node:vm');
++const { performance } = require('node:perf_hooks');
++
++const U = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
++const KEYS = ['tint', 'bus4x4', 'hoist', 'fitting', 'fabrication', 'electrical', 'tyre', 'sublet'];
++const entry = i => ({ vehicle_id: U(i), has_stock: true, pmb_stage: i % 3 ? 'FITTING' : 'TINT', pmb_stoppage: i % 17 === 0, pmb_stoppage_reason: i % 17 ? '' : 'Made-up reason',
++  work: Object.fromEntries(KEYS.map((k, j) => [k, { required: (i + j) % 3 === 0, completed: (i + j) % 6 === 0 }])),
++  parts: { parts_required: true, parts_ordered: i % 2 === 0, parts_received: i % 5 === 0 },
++  bookings: i % 4 ? [{ stage_code: 'FITTING', status: i % 8 ? 'planned' : 'stoppage', stoppage_reason: 'Made-up' }] : [],
++  parts_flags: i % 3 ? { colour: ['green', 'orange', 'red'][i % 3], label: 'Flag', meaning: 'Made-up', last_successful_import_at: '2026-10-22T01:30:00Z' } : null,
++  sublet_active_bookings: i % 7 === 0 ? 1 : 0, sublet_without_po: i % 9 === 0 ? 1 : 0,
++  sublet_po: i % 11 === 0 ? { state: 'ordered', total: 2, ticked: 1, with_po: 2 } : null, jita_number: i % 10 === 0 ? '1234567' : null });
++const row = i => ({ cosi: 'Yes', salesperson_code: 'BG', tracking_id: 't' + i, stock: 'S' + String(i).padStart(6, '0'), order: '', client: 'Example ' + i,
++  vehicle: 'Made-up 4x4', kewdale_eta: '2026-10-23', navision_notes: '', pmb_stage: 'Fitting', pmb_location: 'Yard',
++  canonical_vehicle_id: i % 10 === 0 ? null : U(i) });
++
++function harness() {
++  const elements = new Map();
++  const el = id => { if (!elements.has(id)) elements.set(id, { innerHTML: '', textContent: '', hidden: false, disabled: false, value: '', dataset: {}, classList: { toggle() {} },
++    setAttribute() {}, removeAttribute() {}, addEventListener() {}, close() {}, showModal() {}, scrollIntoView() {}, focus() {} }); return elements.get(id); };
++  const stored = new Map();
++  const calls = [];
++  const window = { localStorage: { get length() { return stored.size; }, key: i => [...stored.keys()][i], getItem: k => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, String(v)), removeItem: k => stored.delete(k) },
++    document: { hidden: false, getElementById: el, querySelectorAll: () => [], addEventListener() {} }, console: { warn: (...a) => calls.push({ name: 'warn', a }) },
++    BROOME_ZEBRA_LABELS: require('./sales/zebra-labels.js'), PDC_AUTH_CONTEXT: { role: 'administrator', userId: 'A' },
++    PDC_WORKSHOP_ELIGIBILITY: require('./workshop-eligibility.js'),
++    PDC_SUPABASE: { rpc(name, args) { return new Promise(resolve => calls.push({ name, args, resolve })); } }, addEventListener() {}, setInterval() {} };
++  const sandbox = { window, globalThis: window, module: undefined, Set, Map, Date, console, Intl, fetch: () => { throw new Error('no fetch on Sales render'); } };
++  vm.createContext(sandbox);
++  for (const f of ['vehicle-requirements-guard.js', 'sales/pmb-stations.js', 'sales/dashboard-tools.js', 'sales/sales.js']) vm.runInContext(fs.readFileSync(f, 'utf8'), sandbox);
++  return { window, calls, el };
++}
++const tick = async () => { for (let i = 0; i < 10; i++) await new Promise(r => setImmediate(r)); };
++
++for (const N of [200, 400]) {
++  test(`${N} vehicles: one batched station read, no per-vehicle work while drawing, no extra redraw`, async () => {
++    const h = harness();
++    const rows = Array.from({ length: N }, (_, i) => row(i + 1));
++    let renders = 0;
++    const table = h.el('vehicle-table'); let tableHtml = '';
++    Object.defineProperty(table, 'innerHTML', { get: () => tableHtml, set: v => { renders++; tableHtml = v; } });
++    const snapshot = h.calls.find(c => /snapshot/.test(c.name));
++    assert.ok(snapshot, 'sales refresh started');
++    snapshot.resolve({ data: { context: { role: 'administrator' }, items: rows } });
++    await tick();
++    const stationCalls = h.calls.filter(c => c.name === 'get_broome_sales_pmb_stations');
++    assert.equal(stationCalls.length, 1, 'ONE batched read');
++    const linked = rows.filter(r => r.canonical_vehicle_id).length;
++    assert.equal(stationCalls[0].args.p_vehicle_ids.length, linked, 'every linked vehicle in the one call, no unlinked ones');
++    const rendersBefore = renders;
++    const t0 = performance.now();
++    stationCalls[0].resolve({ data: { ok: true, vehicles: stationCalls[0].args.p_vehicle_ids.map((id, i) => entry(Number(id.slice(-12)))) } });
++    // Let every other refresh read settle (each resolves empty), then the existing final render runs once.
++    for (let round = 0; round < 10; round++) { await tick(); for (const c of h.calls.filter(c => c.resolve && !c.done && c.name !== 'get_broome_sales_pmb_stations' && !/snapshot/.test(c.name))) { c.done = true; c.resolve({ data: null, error: null }); } }
++    const elapsed = performance.now() - t0;
++    assert.equal(h.calls.filter(c => c.name === 'get_broome_sales_pmb_stations').length, 1, 'no further station reads');
++    assert.ok(renders - rendersBefore <= 1, `at most the existing final render (got ${renders - rendersBefore})`);
++    const strips = (tableHtml.match(/class="sales-pmb-stations"/g) || []).length;
++    assert.equal(strips, linked, 'icons on linked rows only');
++    // Redraw (filter / sort / search) repeatedly: cache reads only, still no calls.
++    const api = h.window.BROOME_SALES_PMB_STATIONS;
++    const t1 = performance.now();
++    for (let k = 0; k < 5; k++) for (const r of rows) api.html(r);
++    const lookups = performance.now() - t1;
++    assert.equal(h.calls.filter(c => c.name === 'get_broome_sales_pmb_stations').length, 1);
++    // Build cost of the strips for N vehicles (once per answer).
++    const t2 = performance.now();
++    api.api.indexAnswer({ ok: true, vehicles: rows.map((_, i) => entry(i + 1)) });
++    const build = performance.now() - t2;
++    process.stdout.write(`# r499 perf N=${N}: answer->final render ${elapsed.toFixed(1)} ms; build ${N} strips ${build.toFixed(1)} ms; 5x${N} cached lookups ${lookups.toFixed(2)} ms\n`);
++    assert.ok(build < 400, `building ${N} strips took ${build.toFixed(1)} ms`);
++    assert.ok(lookups < 50, `cache lookups took ${lookups.toFixed(1)} ms`);
++  });
++}
++
++test('render path never reads: pmb-stations.js has one rpc call (in refresh) and no fetch; sales.js calls refresh once', () => {
++  const src = fs.readFileSync('sales/pmb-stations.js', 'utf8');
++  assert.equal((src.match(/\.rpc\(/g) || []).length, 1);
++  assert.doesNotMatch(src, /\bfetch\(|XMLHttpRequest|setInterval|setTimeout/);
++  const html = src.slice(src.indexOf('html(row) {'), src.indexOf('clear() {'));
++  assert.doesNotMatch(html, /rpc|refresh|entryHtml|await/);
++  const sales = fs.readFileSync('sales/sales.js', 'utf8');
++  assert.equal((sales.match(/BROOME_SALES_PMB_STATIONS\?\.refresh/g) || []).length, 1);
++  assert.equal((sales.match(/get_broome_sales_pmb_stations/g) || []).length, 0);
++  const refresh = sales.slice(sales.indexOf('async function refresh() {'), sales.indexOf('function applyConfirmedVisibility'));
++  assert.equal((refresh.match(/\brender\(\)/g) || []).length, 2, 'no extra render added to refresh');
++});
++
++test('a failed or missing read shows no icons, logs once and never breaks the Sales table', async () => {
++  const stations = require('./sales/pmb-stations.js');
++  const warns = [];
++  let fail = true;
++  const host = { console: { warn: (...a) => warns.push(a) }, PDC_SUPABASE: { rpc: async () => (fail ? { data: null, error: new Error('function does not exist') } : { data: { ok: true, vehicles: [entry(1)] } }) } };
++  const s = stations.create(host);
++  assert.equal(await s.refresh([U(1)]), 0); assert.equal(await s.refresh([U(1)]), 0);
++  assert.equal(warns.length, 1);
++  assert.equal(s.html({ canonical_vehicle_id: U(1) }), '');
++  fail = false; assert.equal(await s.refresh([U(1), U(1).toUpperCase(), 'not-a-uuid', null]), 1);
++  assert.match(s.html({ canonical_vehicle_id: U(1).toUpperCase() }), /sales-pmb-stations/);
++  assert.equal(s.html({ canonical_vehicle_id: null }), '');
++  s.clear(); assert.equal(s.size(), 0);
++  const capped = []; await stations.create({ PDC_SUPABASE: { rpc: async (n, a) => { capped.push(a.p_vehicle_ids.length); return { data: { ok: true, vehicles: [] } }; } } })
++    .refresh(Array.from({ length: 1500 }, (_, i) => U(i + 1)));
++  assert.deepEqual(capped, [1000], 'capped at the server limit, still one call');
++});
++
++test('the shared guard file loads beside every Sales page script with no global name clash', () => {
++  const index = fs.readFileSync('sales/index.html', 'utf8');
++  const files = [...index.matchAll(/<script src="([^"?]+)/g)].map(m => require('node:path').join('sales', m[1]));
++  const ctx = vm.createContext({ setTimeout() {}, setInterval() {}, clearTimeout() {}, clearInterval() {}, addEventListener() {}, console: { log() {}, warn() {}, error() {}, info() {} } });
++  ctx.window = ctx; ctx.self = ctx;
++  for (const f of files) {
++    try { vm.runInContext(fs.readFileSync(f, 'utf8'), ctx, { filename: f }); } catch (e) {
++      assert.doesNotMatch(String(e && e.message), /already been declared/, f);
++    }
++  }
++  assert.ok(files.includes('vehicle-requirements-guard.js') && files.includes('sales/pmb-stations.js'));
++});

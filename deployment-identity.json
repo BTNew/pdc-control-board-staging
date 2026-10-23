@@ -819,6 +819,7 @@
       "build-requirements.css": "2026.10.03.02",
       "sales-accessories.css": "2026.10.20.03",
       "finance-pipeline.css": "2026.10.06.01",
+      "pmb-stations.css": "2026.10.23.r499b",
       "zebra-labels.js": "2026.10.02.05",
       "crm-workspace.js": "2026.10.06.01",
       "sales-accessories.js": "2026.10.20.03",
@@ -829,6 +830,7 @@
       "finance-pipeline.js": "2026.10.06.01",
       "completed-vehicles.js": "2026.10.06.01",
       "vehicle-notes.js": "2026.10.06.01",
+      "pmb-stations.js": "2026.10.23.r499b",
       "sales.js": "2026.10.06.01"
     }
   },
