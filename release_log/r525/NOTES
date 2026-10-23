@@ -1,0 +1,25 @@
+r525 (F139). Staging (`cdsmnqxtyyoeoznmbidd`) only. Production was not touched.
+
+Website activity (Admin → User Management) gains Period **Last 24 hours**. Rebased onto main `d7caff4d` (r522 / F136). Open PR #506 claims r524 / F138 (imported parts colour on the Parts tile). r523 / F137 is left for the PERTH DELIVERY sublet preview. This release is the next free pair, r525 / F139. PR #494 had been numbered r513 / F126. #493, #498 and #501 are not merged. Department 135 / Karratha stays frozen.
+
+## SQL
+
+Already applied on staging. Do not re-apply. Do not apply to production.
+
+- schema_migrations version `20261023055941`
+- name `r513_usage_last_24_hours`
+- check `usage_period_24h_513`, fault F126, sort 300, added_in `r513`
+- pin `pdc_usage_private.report_usage(integer)` release `r513`, prosrc md5 `258cb7610a194909c2bf814cfeb8126d`
+- The applied function comment still says `-- r510:`. That text is part of prosrc. The dollar tag is `$ru513$`. The check tag is `$chk510$`.
+- Repo up file `supabase/migrations/20261023140000_r513_usage_last_24_hours.sql` md5 `89d1509f577492d2c793bf03388ac064`
+- Repo down file `supabase/rollbacks/20261023140000_r513_usage_last_24_hours.down.sql` md5 `78c2e6f6d5a9aff0c8a3b2bb9c777601`
+
+`p_days` 1 is the rolling 24 hours: `now() - make_interval(days => p_days)`, the same window as 7, 30 and 90 days. It is not the previous Perth calendar day. The public wrapper is unchanged. Karratha `karratha135_usage.report_usage` is unchanged.
+
+## Website
+
+Default period stays Last 30 days. Last 24 hours is listed first and reloads `get_pdc_usage_report_20260914` with `p_days` 1. Sign-ins, active days, page visits, clicks and pages used follow that window. Last sign-in and last activity stay the latest recorded dates. Cache bust `r525=2026.10.24.r525` on `pdc-staff-usage.js` in `index.html` and `sales/index.html`.
+
+## Undo
+
+`supabase/rollbacks/20261023140000_r513_usage_last_24_hours.down.sql` restores the 15 Sep 2026 body and drops the pin and the check. Revert the website commit to remove the Period option.

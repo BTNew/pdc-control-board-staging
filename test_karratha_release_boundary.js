@@ -289,7 +289,8 @@ const approvedRootImportPatch = Object.freeze({
   // r519: JITA Upload hidden and the nested JITA ETA not drawn; r519=2026.10.23.r519 on canonical-entry.js (F133). Department 135 is not tagged. r518 Parts Jita tick stays.
   // r521: r521=2026.10.24.r521 on app.js (Booking column does not show the Pilbara service read-only badge; F135). Department 135 is not tagged.
   // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; live check F122 sort 294).
-  "index.html": "cb59fa95e3e736a383e63be65f7d9438faf023dfc20c3b3e15f1f88dfa00eb59",
+  // r525: r525=2026.10.24.r525 on pdc-staff-usage.js (Website activity Last 24 hours; F139). Department 135 is not tagged. The applied check stays usage_period_24h_513 / F126.
+  "index.html": "5f0afc6bdcea2b8f6ddcd704c57edb80bbd03dce4fba9249beb21753f21c5d27",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -303,7 +304,8 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",
   "pdc-staff-usage.css": "e7769d72b7601097fa4c41a19140fdcda4408f3d1f620008282d9df136b1ddf0",
   // r489: 'fitting-stats' counts under the Update History bucket (F102).
-  "pdc-staff-usage.js": "94f4ad8edd862631259d3fcab763e1104a00e34636c7a45cce46a660c1e59ec4",
+  // r525: Period option Last 24 hours (p_days 1) on Website activity (F139). The Karratha copy stays frozen.
+  "pdc-staff-usage.js": "91233c9c93febca774ce6924243626299466924cabc4f616e863900867777f2f",
   "site-switcher.css": "84882066f9ff13057de368d8af1418788e82b2723ec68683166e2f8ded6c8348",
   // r403: the own-role monitor reconnects instead of locking on a realtime blip
   // (F11); index.html and app.js/canonical-entry.js add r403=2026.10.21.01 for
