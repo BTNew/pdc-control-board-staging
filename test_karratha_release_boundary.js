@@ -186,7 +186,8 @@ const approvedRootImportPatch = Object.freeze({
   // r491: Sublet page Away now filter and days away / overdue days, cache bust sublet-away (F104) (app.js).
   // r492: Sublet provider email draft adds key number, VIN, sublet work and due back, cache bust sublet-email (F105) (app.js).
   // r498: r498=2026.10.22.r498 on both workshop-planner.js loads (F111).
-  "app.js": "ce39f8d0821dab003902c8a35916a6ee366e54e2b9393879b5aef1a94345c932",
+  // r510: User Administration Role dropdown filters the loaded list on screen (F123).
+  "app.js": "a2abfb1b92f9429eb5ba98bea4f6e82bddaed08fb0b46f797fdc8e9ea147d4db",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -275,7 +276,8 @@ const approvedRootImportPatch = Object.freeze({
   // r501: r501=2026.10.23.r501 on canonical-entry.js and pdc-vehicle-sublets.css / .js (Due out / Due back in Manage sublets; F114).
   // r502: r502=2026.10.23.r502 on pdc-vehicle-sublets.css / .js, pdc-email-vehicle-location-service.js and canonical-entry.js query (Manage sublets Save error codes, ^ clean, promote, layout; F115).
   // r495: Website option Karratha Toyota (Sales), site-switcher-branches.js after the frozen switcher, r495 on pdc-auth.js (F108). Department 135 is not tagged.
-  "index.html": "df48c2397758b66e20df615959e2517580aa661c96ac898c1c302a17cd0030d9",
+  // r510: Role dropdown beside the User Administration status tabs; r510=2026.10.23.r510 on app.js (F123). Department 135 is not tagged.
+  "index.html": "284f193afbcd48c4f92e2cd8b03a4a32e97ed2f9a397850d8ca964192146af4c",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

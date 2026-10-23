@@ -3899,6 +3899,11 @@ function bindNav() {
     $$('#user-management-tabs [data-um-tab]').forEach(other => other.classList.toggle('active', other === button));
     renderUserManagementScreen();
   }));
+  on($('#user-management-role-filter'), 'change', event => {
+    USER_MANAGEMENT_STATE.roleFilter = String(event.target?.value || 'all');
+    const host = $('#user-management-content');
+    if (host) renderUserManagementList(host); // display only: no reload, no server call
+  });
   ['#salesperson-initials-input', '#salesperson-name-input', '#salesperson-email-input'].forEach(selector => {
     on($(selector), 'keydown', event => { if (event.key === 'Enter') { event.preventDefault(); addSalespersonFromAdminInput(); } });
   });
@@ -4365,7 +4370,7 @@ function ensureBackupStatusPoll() {
 // re-verifies the caller is an active administrator server-side. This
 // frontend code is a convenience UI, not the security boundary.
 // ---------------------------------------------------------------------
-const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null, generation: 0, showDisabled: false };
+const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null, generation: 0, showDisabled: false, roleFilter: 'all' };
 
 // r430: the All list hides Disabled accounts unless "Show disabled (N)" is on (display only; no account row is changed).
 // The Disabled tab still lists them; Pending, Approved and Rejected are unchanged.
@@ -4394,11 +4399,14 @@ function userManagementAdministratorActive() {
 function resetUserManagementAuthorityState() {
   USER_MANAGEMENT_STATE.generation += 1;
   USER_MANAGEMENT_STATE.rows = [];
+  USER_MANAGEMENT_STATE.roleFilter = 'all';
   const channel = USER_MANAGEMENT_STATE.realtimeChannel;
   USER_MANAGEMENT_STATE.realtimeChannel = null;
   if (channel) {
     try { window.PDC_SUPABASE?.removeChannel?.(channel); } catch (_error) { /* best-effort teardown */ }
   }
+  const roleFilter = document.getElementById('user-management-role-filter');
+  if (roleFilter) roleFilter.innerHTML = '<option value="all" selected>All roles</option>';
   document.getElementById('user-management-content')?.replaceChildren();
 }
 
@@ -4451,6 +4459,69 @@ function userManagementRoleOptionsHtml(selectedRole) {
     options.unshift(`<option value="${escapeHtml(selectedRole)}" selected>${escapeHtml(selectedRole)}</option>`);
   }
   return options.join('');
+}
+
+// r510 (F123): Role dropdown on User Administration. Options are the distinct roles in the
+// loaded list (known-role order, then any other role). Filtering stays on the rows already
+// shown: the status tab, and on All the Show disabled toggle. Display only; no server call.
+function userManagementRoleFilterLabel(role) {
+  const label = userManagementRoleLabel(role);
+  if (!label || label === '—') return '—';
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function userManagementDistinctRoles(rows) {
+  const seen = new Set();
+  const roles = [];
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const role = String(row?.role || '').trim();
+    if (!role || seen.has(role)) continue;
+    seen.add(role);
+    roles.push(role);
+  }
+  const order = new Map(USER_MANAGEMENT_ROLE_OPTIONS.map(([value], index) => [value, index]));
+  roles.sort((left, right) => {
+    const leftOrder = order.has(left) ? order.get(left) : 1000;
+    const rightOrder = order.has(right) ? order.get(right) : 1000;
+    if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+    return userManagementRoleFilterLabel(left).localeCompare(userManagementRoleFilterLabel(right));
+  });
+  return roles;
+}
+
+function userManagementApplyRoleFilter(rows, roleFilter) {
+  const list = Array.isArray(rows) ? rows : [];
+  const role = String(roleFilter || 'all');
+  if (role === 'all') return list;
+  return list.filter(row => String(row?.role || '').trim() === role);
+}
+
+function userManagementRoleFilterOptionsHtml(rows, selected) {
+  const current = String(selected || 'all');
+  const roles = userManagementDistinctRoles(rows);
+  const option = (value, label, isSelected) =>
+    `<option value="${escapeHtml(value)}"${isSelected ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+  const html = [option('all', 'All roles', current === 'all')];
+  for (const role of roles) html.push(option(role, userManagementRoleFilterLabel(role), role === current));
+  if (current !== 'all' && !roles.includes(current)) html.push(option(current, userManagementRoleFilterLabel(current), true));
+  return html.join('');
+}
+
+function syncUserManagementRoleFilter(rows, selected) {
+  const select = document.getElementById('user-management-role-filter');
+  if (!select) return;
+  select.innerHTML = userManagementRoleFilterOptionsHtml(rows, selected);
+}
+
+function userManagementRoleFilterHiddenHint(role) {
+  if (!role || role === 'all') return '';
+  if (USER_MANAGEMENT_STATE.tab !== 'all' || USER_MANAGEMENT_STATE.showDisabled) return '';
+  const hidden = (Array.isArray(USER_MANAGEMENT_STATE.rows) ? USER_MANAGEMENT_STATE.rows : []).filter(row =>
+    userManagementRowStatus(row) === 'disabled' && String(row?.role || '').trim() === role).length;
+  if (!hidden) return '';
+  const label = userManagementRoleFilterLabel(role);
+  const noun = hidden === 1 ? 'account stays' : 'accounts stay';
+  return `<span>${hidden} disabled ${escapeHtml(label)} ${noun} hidden until Show disabled is on.</span>`;
 }
 
 function userManagementRowActionsHtml(row) {
@@ -4558,12 +4629,17 @@ async function renderUserManagementScreen() {
 }
 
 function renderUserManagementList(host) {
+  const role = String(USER_MANAGEMENT_STATE.roleFilter || 'all');
+  syncUserManagementRoleFilter(USER_MANAGEMENT_STATE.rows, role);
   const view = userManagementVisibleRows(USER_MANAGEMENT_STATE.rows, USER_MANAGEMENT_STATE.tab, USER_MANAGEMENT_STATE.showDisabled);
   const toggle = userManagementDisabledToggleHtml(view, USER_MANAGEMENT_STATE.showDisabled);
-  const filtered = view.rows;
+  const filtered = userManagementApplyRoleFilter(view.rows, role);
   if (!filtered.length) {
-    const what = USER_MANAGEMENT_STATE.tab === 'all' && view.hiddenDisabled ? 'other' : USER_MANAGEMENT_STATE.tab;
-    host.innerHTML = `${toggle}<div class="empty-state compact-empty"><strong>No ${escapeHtml(what)} accounts</strong></div>`;
+    const what = role !== 'all'
+      ? userManagementRoleFilterLabel(role).toLowerCase()
+      : (USER_MANAGEMENT_STATE.tab === 'all' && view.hiddenDisabled ? 'other' : USER_MANAGEMENT_STATE.tab);
+    const hint = role !== 'all' ? userManagementRoleFilterHiddenHint(role) : '';
+    host.innerHTML = `${toggle}<div class="empty-state compact-empty"><strong>No ${escapeHtml(what)} accounts</strong>${hint}</div>`;
     wireUserManagementDisabledToggle(host);
     return;
   }
