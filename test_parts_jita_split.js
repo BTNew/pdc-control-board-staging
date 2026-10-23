@@ -15,6 +15,8 @@ const context = {
   pmbStageForPdcJob: () => '', PMB_STAGE_TO_JOB_KEY: {},
   isActivePartsStoppage: v => v.pdcPartsStoppage, isPdcBlocked: () => false,
   pdcBlockReason: () => 'Awaiting parts', partsOrdered: v => v.pdcPartsOrdered,
+  importedPartsStatus: v => v.pdcPartsFlags && ['orange', 'red', 'green', 'grey', 'review'].includes(v.pdcPartsFlags.colour) ? v.pdcPartsFlags : null,
+  importedPartsTitle: v => (v.pdcPartsFlags && v.pdcPartsFlags.label) || '',
   canonicalVehicleWorkState: v => projectWorkState({ workKey: 'parts', required: v.pdcRequiresParts,
     completed: v.pdcCompleteParts, partsOrdered: v.pdcPartsOrdered, partsStoppage: v.pdcPartsStoppage }),
   pdcGridJobLabel: () => 'Parts', pdcJobCompletionTitle: () => 'Parts status',
@@ -29,22 +31,40 @@ const mapped = (value, verified = true) => mapServerVehicle({
   navision_jita_number_authority: 'validated-navision-import-v1', navision_jita_number: value,
 });
 const render = (number, parts = {}, verified = true) => context.incomingWorkChecklistHtml({ ...mapped(number, verified), ...parts });
+const completeTitle = /title="Parts Jita complete\. Navision JITA number ([^"]+)\."/;
 for (const parts of [
   {}, { pdcRequiresParts: true }, { pdcRequiresParts: true, pdcPartsOrdered: true },
-  { pdcRequiresParts: true, pdcCompleteParts: true }, { pdcRequiresParts: true, pdcPartsStoppage: true },
+  { pdcRequiresParts: true, pdcCompleteParts: true },
 ]) {
   const withNumber = render('JITA-123', parts), without = render('', parts);
-  assert.match(withNumber, /parts-jita-split has-jita/);
+  assert.match(withNumber, /pdc-station-parts parts-jita-split is-complete has-jita/);
+  assert.match(withNumber, completeTitle);
+  assert.equal(withNumber.match(completeTitle)[1], 'JITA-123');
+  assert.equal(withNumber.match(/parts-jita-parts-marker[^>]*>(.*?)<\/span>/)[1], '✓');
+  assert.equal(withNumber.match(/parts-jita-marker[^>]*>(.*?)<\/span>/)[1], '✓');
   assert.match(without, /parts-jita-split no-jita/);
-  assert.match(withNumber, /JITA pre-order JITA-123/);
-  assert.equal(withNumber.match(/parts-jita-parts-marker[^>]*>(.*?)<\/span>/)[1],
-    without.match(/parts-jita-parts-marker[^>]*>(.*?)<\/span>/)[1], 'JITA never changes the Parts marker');
-  assert.equal(withNumber.match(/pdc-station-parts(.*?)parts-jita-split/)[1],
-    without.match(/pdc-station-parts(.*?)parts-jita-split/)[1], 'JITA never changes Parts state colours');
+  assert.doesNotMatch(without, /Parts Jita complete/);
 }
-for (const missing of ['', '0', '0.00', 'Yes']) assert.match(render(missing), /parts-jita-split no-jita/);
+const stopped = render('JITA-123', { pdcRequiresParts: true, pdcPartsStoppage: true });
+assert.match(stopped, /has-jita/);
+assert.doesNotMatch(stopped, /Parts Jita complete/, 'a parts stoppage stays a stoppage');
+assert.match(stopped, /is-blocked/);
+for (const missing of ['', '0', '0.00', 'Yes']) {
+  assert.match(render(missing), /parts-jita-split no-jita/);
+  assert.doesNotMatch(render(missing), /Parts Jita complete/);
+}
 assert.match(render('JITA-123', {}, false), /parts-jita-split no-jita/, 'unverified stock cannot produce a green tick');
-assert.match(render('JITA-123"><img src=x>'), /JITA-123&quot;&gt;|JITA-123&quot;>&lt;img/, 'source number is escaped');
+assert.doesNotMatch(render('JITA-123', {}, false), /Parts Jita complete/);
+assert.match(render('JITA-123"><img src=x>'), /JITA-123&quot;&gt;|JITA-123&quot;&lt;img|JITA-123&quot;>&lt;img/, 'source number is escaped');
+const etaOnly = render('', { jitaEta: '29/10/2026', plannedDeliveryDate: '2026-10-29' });
+assert.match(etaOnly, /no-jita/);
+assert.doesNotMatch(etaOnly, /Parts Jita complete/, 'a JITA ETA date does not tick Parts Jita');
+const imported = render('JSO122691', { pdcRequiresParts: true, pdcPartsFlags: { colour: 'red', label: 'Outstanding' } });
+assert.match(imported, /is-complete has-jita/);
+assert.doesNotMatch(imported, /imported-parts-red/, 'a verified JITA number replaces the imported parts colour');
+const importedOnly = render('', { pdcRequiresParts: true, pdcPartsFlags: { colour: 'red', label: 'Outstanding' } });
+assert.match(importedOnly, /imported-parts-red no-jita/);
+assert.doesNotMatch(importedOnly, /Parts Jita complete/);
 if (process.env.PDC_JITA_PREVIEW) {
   const examples = [
     ['Parts received / JITA present', {pdcRequiresParts:true,pdcCompleteParts:true}, 'JITA-123'],

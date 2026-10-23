@@ -1,0 +1,33 @@
+r518 (F132). Craig approved go-live 23 Oct 2026. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production is not touched.
+
+Rebased onto live tip r517 (F131), `774a0f56` (PR #499, JITA apply confirmation and Parts ETA nesting, UI only). That release keeps r517/F131. This release is r518 / F132 / sort 304. Pin count on staging before apply was 228. `set_parts_eta` stays `88d31cbd6ca5ddd372e3143d5f8c013f`.
+
+## What was wrong
+
+The Navision JITA number is already imported onto `navision_backend_records.normalized_data.jitQty` with authority `validated-navision-import-v1`. The board used that number only for the bottom-right corner of the Parts/JITA split. The cell stayed red Required, or kept the daily imported-parts colour, which replaces the whole cell. `public.pdc_jita_eta` (the r516 Planned Delivery Date chip) is a different fact and does not tick this station.
+
+## Tick rule
+
+A live board vehicle (not deleted, not purged, visible, lifecycle active, not in the overnight synthetic fleet) is ticked only when exactly one current `microsoft_navision` row matches its stock and that row has the column present, authority `validated-navision-import-v1`, and a `jitQty` that is non-blank, contains a digit, and is not all zeros (`0`, `0.0`, `0.00`).
+
+The write matches a completed Parts station: the `PARTS` work item is completed, and `vehicle_parts_updates.parts_received` is true. An existing row's `parts_ordered` and email date are left as they are. A missing parts row is inserted with received true and ordered false. Parts stoppage is left alone. A later blank number does not remove the tick.
+
+The board and Sales paint `is-complete has-jita` with both markers ticked, and they do not keep the imported parts colour when that number is present. Vehicles with no verified number, including JITA ETA only, stay as they are.
+
+## Apply hook
+
+`tick_parts_jita_from_navision_518` is the decision. The trigger `tick_parts_jita_from_navision_518` calls it after a current Navision row is inserted or its identity columns change. The same function is the one-shot backfill.
+
+Read-only count on staging, 23 Oct 2026, not applied: 261 vehicles would be written (243 with no parts row, 18 that already have `parts_received` and only need the work item). 12 live vehicles have a current JITA ETA and no verified number and would be left. None of the 261 were on parts stoppage. Apply ticks whoever matches then, not a frozen id list.
+
+`EXECUTE` on the tick function is revoked from anon, authenticated and service_role. The trigger function is executable by service_role so a direct Navision write still fires; the daily apply functions are security definer and owned by postgres. PostgREST cannot call the tick function.
+
+## Files
+
+Migration `supabase/migrations/20261023220000_r518_navision_jita_station_tick.sql` (md5 `aa83d1c203d9d38a69e239f0c6b75048`).
+
+Undo `supabase/rollbacks/20261023220000_r518_navision_jita_station_tick.down.sql` (md5 `16a4d298e830dccc0c9915416314b975`).
+
+The undo drops the trigger first, restores audited rows, and clears an inserted PARTS work item instead of deleting it because `pdc_772_protect_work_item_delete` blocks that delete. It does not change `set_parts_eta` or `pdc_jita_eta`. It refuses while a ticked parts row is still the received row because ordered, the email date, or stoppage changed after the tick.
+
+Check `navision_jita_station_tick_518`, sort 304, F132. Pins are taken from `md5(prosrc)` at apply time (228 to 230).

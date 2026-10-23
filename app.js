@@ -8905,15 +8905,17 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
       ? `${pdcGridJobLabel(def)} STOPPAGE${stoppedBooking.stoppageReason ? `: ${stoppedBooking.stoppageReason}` : ''}`
       : ordered ? `${pdcGridJobLabel(def)} ordered` : booked ? `${pdcGridJobLabel(def)} booked` : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
     if (def.key === 'parts') {
+      const jitaNumber = vehicleNavisionJitaNumber(vehicle);
+      const jitaStatus = jitaNumber ? `JITA pre-order ${jitaNumber}` : 'No verified Navision JITA pre-order number';
+      // r518 (F132): a verified Navision JITA number completes this station. The JITA ETA chip is a different date and is not read here.
+      if (jitaNumber && !isActivePartsStoppage(vehicle)) {
+        return `<span class="incoming-work-check pdc-station-parts parts-jita-split is-complete has-jita" role="img" title="${escapeHtml(`Parts Jita complete. Navision JITA number ${jitaNumber}.`)}" aria-label="${escapeHtml(`Parts Jita complete; ${jitaStatus}`)}"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">✓</span><span class="parts-jita-marker" aria-hidden="true">✓</span><span class="incoming-work-label">Parts / JITA</span></span>`;
+      }
       const imported = typeof importedPartsStatus === 'function' ? importedPartsStatus(vehicle) : null;
       if (imported) {
-        const jitaNumber = vehicleNavisionJitaNumber(vehicle);
-        const jitaStatus = jitaNumber ? `JITA pre-order ${jitaNumber}` : 'No verified Navision JITA pre-order number';
         const glyph = {green: '✓', orange: '!', red: '●', grey: '—', review: '?'}[imported.colour];
         return `<span class="incoming-work-check parts-jita-split imported-parts-${escapeHtml(imported.colour)} ${jitaNumber ? 'has-jita' : 'no-jita'}" role="img" title="${escapeHtml(importedPartsTitle(vehicle) + ' ' + jitaStatus)}" aria-label="${escapeHtml(imported.label + '; ' + jitaStatus)}"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">${glyph}</span><span class="parts-jita-marker" aria-hidden="true">${jitaNumber ? '✓' : '●'}</span><span class="incoming-work-label">Parts / JITA</span></span>`;
       }
-      const jitaNumber = vehicleNavisionJitaNumber(vehicle);
-      const jitaStatus = jitaNumber ? `JITA pre-order ${jitaNumber}` : 'No verified Navision JITA pre-order number';
       return `<span class="${classes.join(' ')} parts-jita-split ${jitaNumber ? 'has-jita' : 'no-jita'}" role="img" title="${escapeHtml(`Top left: ${title}. Bottom right: ${jitaStatus}`)}" aria-label="${escapeHtml(`Parts ${state}; ${jitaStatus}`)}">
         <span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">${marker}</span>
         <span class="parts-jita-marker" aria-hidden="true">${jitaNumber ? '✓' : '●'}</span>
