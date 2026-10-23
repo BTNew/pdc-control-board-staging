@@ -141,13 +141,14 @@
     if(parts.required===true)return 'Parts required · order not confirmed';
     return 'Not recorded';
   }
-  // r508 (F112): Sales PMB Status uses the PMB board station glyphs
+  // r509 (F112): Sales PMB Status uses the PMB board station glyphs
   // (projectWorkState / incomingWorkChecklistHtml). completed ✓ wins, then stoppage !,
   // then booked ! when required and (parts ordered or an active booking), then required •,
-  // else –. The board lumps started into booked. is-working flashes blue only while that
-  // booked state is in progress: workshop status started, or sublet pmb_sublet open.
-  // Queued and planned stay orange. Before SQL sends pmb_stations, a live booking,
-  // ordered parts or an open/booked sublet infers required.
+  // else –. is-started (planner workshop-started-blue-pulse) is added only while that
+  // booked state has an open booking for the stage with status started. Started wins
+  // over booked orange. Complete and blocked do not flash. An open sublet without a
+  // started SUBLET booking stays orange. Queued and planned stay orange. Before SQL
+  // sends pmb_stations, a live booking, ordered parts or an open/booked sublet infers required.
   const SALES_STATIONS = Object.freeze([
     {key:'parts', label:'Parts / JITA', stages:[]},
     {key:'tint', label:'Tint', stages:['TINT']},
@@ -199,23 +200,26 @@
       const subletLive=def.key==='sublet'&&(sublet==='open'||sublet==='booked');
       const required=known?known.required:(active||(def.key==='parts'&&(partsOrdered||parts.required===true))||subletLive);
       const completed=known?known.completed:(def.key==='parts'&&parts.complete===true);
-      let state,marker,working=false;
+      let state,marker,startedFlash=false;
       if(completed){state='completed';marker='✓';}
       else if(partsStop||stageStop||stoppedBooking){state='stoppage';marker='!';}
       else if(required&&((def.key==='parts'&&partsOrdered)||active||subletLive)){
         state='booked';marker='!';
-        working=started||(def.key==='sublet'&&sublet==='open');
+        startedFlash=started;
       }else if(required){state='required';marker='•';}
       else{state='none';marker='–';}
-      return {key:def.key,label:def.label,state,marker,working,jita:def.key==='parts'?salesJitaOn(row.jita):null};
+      return {key:def.key,label:def.label,state,marker,started:startedFlash,jita:def.key==='parts'?salesJitaOn(row.jita):null};
     });
+  }
+  function salesStationFlash(st){
+    return (st.state||'none')==='booked'&&(st.started===true||st.started==='true');
   }
   function salesStationStrip(row){
     const stations=salesStationStates(row);
     if(!stations.length)return '';
     const cells=stations.map(st=>{
       const state=st.state||'none';
-      const working=st.working===true||st.working==='true';
+      const flashing=salesStationFlash(st);
       const jita=st.jita===true||st.jita==='true';
       const classes=['incoming-work-check','pdc-station-'+(st.key||'station')];
       if(state==='none')classes.push('is-not-required');
@@ -224,10 +228,10 @@
       if(state==='booked')classes.push('is-booked');
       if(state==='completed')classes.push('is-complete');
       if(state==='stoppage')classes.push('is-blocked');
-      if(working)classes.push('is-working');
+      if(flashing)classes.push('is-started');
       const label=st.label||st.key||'Station';
-      const name=state==='completed'?'complete':state==='stoppage'?'STOPPAGE':working?'being worked on':state;
-      const title=working?label+' being worked on':label+' '+name;
+      const name=state==='completed'?'complete':state==='stoppage'?'STOPPAGE':flashing?'being worked on':state;
+      const title=flashing?label+' being worked on':label+' '+name;
       if(st.key==='parts'){
         const jitaStatus=jita?'JITA pre-order recorded':'No verified Navision JITA pre-order number';
         return '<span class="'+classes.join(' ')+' parts-jita-split '+(jita?'has-jita':'no-jita')+'" role="img" title="'+escapeHtml('Top left: '+title+'. Bottom right: '+jitaStatus)+'" aria-label="'+escapeHtml('Parts '+name+'; '+jitaStatus)+'"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">'+escapeHtml(st.marker||'')+'</span><span class="parts-jita-marker" aria-hidden="true">'+(jita?'✓':'●')+'</span><span class="incoming-work-label">Parts / JITA</span></span>';

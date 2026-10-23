@@ -1,0 +1,38 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
+/* r509 (F112): Sales copy of the Control Board station strip
+   (styles.css "All ten work tracks" / incoming-work-check).
+   Grey not-required, pink required, orange booked/ordered, green complete,
+   red blocked, Parts/JITA split. Backgrounds are not forced, so the planner pulse can
+   change them. is-started wins over booked orange. Complete and
+   blocked are excluded from the animation, so they still win. */
+.sales-station-scroll{max-width:100%;overflow-x:auto;margin-top:4px}
+.sales-station-strip.incoming-work-checks{display:grid;grid-template-columns:repeat(9,52px);gap:4px;width:500px;min-width:500px;max-width:500px}
+.sales-station-strip .incoming-work-label{display:none}
+.sales-station-strip .incoming-work-check{position:relative;display:grid;place-items:center;width:52px;min-width:52px;max-width:52px;height:30px;min-height:30px;padding:0;border:1px solid #d8e0e8;border-radius:4px;background:#f4f6f8;color:#9aa5b1;font-size:15px;font-weight:950;line-height:1;font-variant-numeric:tabular-nums;cursor:help}
+.sales-station-strip .incoming-work-box{display:grid;place-items:center;width:100%;height:100%;border:0;background:transparent;color:inherit;font-size:15px;font-weight:950;line-height:1}
+.sales-station-strip .incoming-work-check.is-not-required{border-color:#d8e0e8;background:#f4f6f8;color:#9aa5b1}
+.sales-station-strip .incoming-work-check.is-required{border-color:#ee9caf;background:#fff0f3;color:#a3133b}
+.sales-station-strip .incoming-work-check.is-required.is-ordered,
+.sales-station-strip .incoming-work-check.is-ordered,
+.sales-station-strip .incoming-work-check.is-booked{border-color:#fdba74;background:#fff7ed;color:#9a3412}
+.sales-station-strip .incoming-work-check.is-started:not(.is-complete):not(.is-blocked){border-color:#2563eb;background:#dbeafe;color:#1e3a8a;animation:workshop-started-blue-pulse 1.25s ease-in-out infinite}
+@keyframes workshop-started-blue-pulse {
+  0%, 100% { background: #dbeafe; box-shadow: 0 0 0 1px rgba(37,99,235,.2), 0 2px 5px rgba(15,23,42,.12); }
+  50% { background: #93c5fd; box-shadow: 0 0 0 4px rgba(37,99,235,.32), 0 5px 12px rgba(30,64,175,.22); }
+}
+.sales-station-strip .incoming-work-check.is-complete{border-color:#75c795;background:#edf9f1;color:#146c3b}
+.sales-station-strip .incoming-work-check.is-blocked{border-color:#d93434;background:#ffe8e8;color:#9f1111;box-shadow:inset 0 0 0 1px rgba(159,17,17,.12)}
+@media (prefers-reduced-motion: reduce) {
+  .sales-station-strip .incoming-work-check.is-started:not(.is-complete):not(.is-blocked){animation:none;background:#dbeafe}
+}
+.sales-station-strip .incoming-work-check.parts-jita-split{overflow:hidden;isolation:isolate}
+.sales-station-strip .parts-jita-split::after{content:'';position:absolute;inset:0;clip-path:polygon(100% 0,100% 100%,0 100%);background:#fff0f3;z-index:-1}
+.sales-station-strip .parts-jita-split.has-jita::after{background:#edf9f1}
+.sales-station-strip .parts-jita-split::before{content:'';position:absolute;inset:0;background:linear-gradient(to bottom right,transparent calc(50% - .65px),#64748b 50%,transparent calc(50% + .65px));pointer-events:none}
+.sales-station-strip .parts-jita-split .incoming-work-box.parts-jita-parts-marker{position:absolute;left:0;top:0;width:50%;height:50%;font-size:12px}
+.sales-station-strip .parts-jita-marker{position:absolute;right:0;bottom:0;width:50%;height:50%;display:grid;place-items:center;font-size:12px;font-weight:950;line-height:1;color:#a3133b}
+.sales-station-strip .has-jita .parts-jita-marker{color:#146c3b}
+.sales-station-strip .incoming-work-check:hover{filter:brightness(.98);box-shadow:0 0 0 2px rgba(29,78,216,.14)}
+@media (max-width:820px){
+  .sales-station-strip.incoming-work-checks{grid-template-columns:repeat(9,52px);width:500px;min-width:500px;max-width:500px}
+}

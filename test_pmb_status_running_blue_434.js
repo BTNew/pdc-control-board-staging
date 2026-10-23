@@ -16,7 +16,7 @@ test('a Running (started) job on any bay makes the PMB Status box blue',()=>{
   const cell=sales.pmbStatusCell(row([bk('started')]));
   assert.match(cell,/^<td class="pmb-status-cell pmb-running" data-pmb-tone="running" title="Being worked on · Work started · Fitting \/ Bay 01 · PMB/);
   assert.match(cell,/<strong>Work started · Fitting \/ Bay 01<\/strong> PMB<\/span><div class="sales-station-scroll">/);
-  assert.match(cell,/pdc-station-fitting[^"]*is-working/);
+  assert.match(cell,/pdc-station-fitting[^"]*is-started/);
   assert.match(cell,/pdc-station-fitting[\s\S]*?<span class="incoming-work-box" aria-hidden="true">!<\/span>/);
   assert.match(cell,/<\/div><\/td>$/);
 });

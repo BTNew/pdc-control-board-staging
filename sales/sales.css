@@ -160,33 +160,3 @@ body.auth-pending .app-shell{display:none}body.auth-approved .pdc-auth-gate{disp
 #vehicle-table td.pmb-status-cell.pmb-running strong,.data-table td.pmb-status-cell.pmb-running strong{color:#1e3a8a}
 .mobile-pmb.pmb-running{background:#dbeafe;border-left:3px solid #2563eb;color:#1e3a8a;padding:4px 6px;border-radius:4px;font-weight:700}
 .pmb-current.pmb-running{background:#dbeafe;border-left:4px solid #2563eb;color:#1e3a8a;padding:6px 10px;border-radius:6px}
-/* r508 (F112): copy of the PMB board station matrix (styles.css compact 52×30 grid).
-   Scoped so Sales does not load styles.css. is-working flashes blue only while a station
-   is being worked; the board's own booked colour stays orange. */
-.sales-station-scroll{max-width:100%;overflow-x:auto;margin-top:4px}
-.sales-station-strip.incoming-work-checks{display:grid;grid-template-columns:repeat(9,52px);gap:4px;width:500px;min-width:500px;max-width:500px}
-.sales-station-strip .incoming-work-label{display:none}
-.sales-station-strip .incoming-work-check{position:relative;display:grid;place-items:center;width:52px;min-width:52px;max-width:52px;height:30px;min-height:30px;padding:0;border:1px solid #d8e0e8;border-radius:4px;background:#f4f6f8;color:#9aa5b1;font-size:15px;font-weight:950;line-height:1;font-variant-numeric:tabular-nums}
-.sales-station-strip .incoming-work-box{display:grid;place-items:center;width:100%;height:100%;border:0;background:transparent;color:inherit;font-size:15px;font-weight:950;line-height:1}
-.sales-station-strip .incoming-work-check.is-not-required{border-color:#d8e0e8;background:#f4f6f8;color:#9aa5b1}
-.sales-station-strip .incoming-work-check.is-required{border-color:#ee9caf;background:#fff0f3;color:#a3133b}
-.sales-station-strip .incoming-work-check.is-required.is-ordered,
-.sales-station-strip .incoming-work-check.is-ordered,
-.sales-station-strip .incoming-work-check.is-booked{border-color:#fdba74;background:#fff7ed;color:#9a3412}
-.sales-station-strip .incoming-work-check.is-complete{border-color:#75c795;background:#edf9f1;color:#146c3b}
-.sales-station-strip .incoming-work-check.is-blocked{border-color:#d93434;background:#ffe8e8;color:#9f1111;box-shadow:inset 0 0 0 1px rgba(159,17,17,.12)}
-.sales-station-strip .incoming-work-check.is-working{animation:sales-station-working 1s steps(2,end) infinite;border-color:#2563eb}
-@keyframes sales-station-working{
-  0%,49%{background:#dbeafe;color:#1e3a8a;border-color:#2563eb}
-  50%,100%{background:#2563eb;color:#fff;border-color:#1e3a8a}
-}
-@media (prefers-reduced-motion:reduce){
-  .sales-station-strip .incoming-work-check.is-working{animation:none;background:#2563eb;color:#fff;border-color:#1e3a8a}
-}
-.sales-station-strip .incoming-work-check.parts-jita-split{overflow:hidden;isolation:isolate}
-.sales-station-strip .parts-jita-split::after{content:'';position:absolute;inset:0;clip-path:polygon(100% 0,100% 100%,0 100%);background:#fff0f3;z-index:-1}
-.sales-station-strip .parts-jita-split.has-jita::after{background:#edf9f1}
-.sales-station-strip .parts-jita-split::before{content:'';position:absolute;inset:0;background:linear-gradient(to bottom right,transparent calc(50% - .65px),#64748b 50%,transparent calc(50% + .65px));pointer-events:none}
-.sales-station-strip .parts-jita-split .incoming-work-box.parts-jita-parts-marker{position:absolute;left:0;top:0;width:50%;height:50%;font-size:12px}
-.sales-station-strip .parts-jita-marker{position:absolute;right:0;bottom:0;width:50%;height:50%;display:grid;place-items:center;font-size:12px;font-weight:950;line-height:1;color:#a3133b}
-.sales-station-strip .has-jita .parts-jita-marker{color:#146c3b}
