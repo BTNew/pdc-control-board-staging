@@ -59,5 +59,5 @@ test('regression check outlook_manifest_mailbox_507 sort 292 F120 uses WHERE, an
   assert.match(down, /DELETE FROM pdc_ops\.regression_checks WHERE check_name='outlook_manifest_mailbox_507'/);
   assert.match(log, /\| F120 \|/);
   assert.ok(log.indexOf('| F119 |') < log.indexOf('| F120 |'));
-  assert.ok(!log.includes('| F121 |'));
+  assert.ok(log.indexOf('| F120 |') < log.indexOf('| F121 |'));
 });
