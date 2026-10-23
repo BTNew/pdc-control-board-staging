@@ -16,6 +16,8 @@ const STARTUP_ORDER = [
   'vendor/supabase/supabase-2.110.5.js',
   'pdc-supabase-config.staging.js',
   'site-switcher.js',
+  // r495 (F108): the Karratha Toyota (Sales) Website option runs right after the frozen shared switcher.
+  'site-switcher-branches.js',
   'pdc-auth.js',
   'pdc-auth-registration.js',
   'pdc-update-history.js',

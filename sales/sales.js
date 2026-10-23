@@ -4,6 +4,17 @@
   const dateTools = root.BROOME_SALES_TOOLS || (typeof module === 'object' && module.exports ? require('./dashboard-tools.js') : null);
   // Sales planner roster only; shared PMB people, imports and access remain unchanged.
   const salespeople = Object.freeze(['BG','AW','PM','CW']);
+  // r495 (F108): the roster follows the page's sales branch (Broome keeps BG, AW, PM, CW; Karratha comes from the server mapping).
+  let roster = salespeople;
+  function branchApi(){return root.BROOME_SALES_BRANCH||null;}
+  function branchLabel(context){return context?.division||branchApi()?.current().label||'Broome Toyota';}
+  // r495: a branch with no vehicles at all yet (Karratha before its first upload) says so instead of "No vehicles match this view".
+  function emptyMessage(){
+    const b=branchApi()?.current();
+    if(b&&!b.isDefault&&!state.items.length&&state.branchFeedRows>0)return state.branchFeedRows+' '+b.label+' vehicle'+(state.branchFeedRows===1?' is':'s are')+' on the Navision feed, but none is linked to a '+b.town+' salesperson yet. An administrator sets up the '+b.town+' salespeople first.';
+    if(b&&!b.isDefault&&!state.items.length)return 'No '+b.label+' vehicles yet. This tab stays empty until the first Karratha sales export is imported (dealer '+b.dealerCode+', COSI = Yes). Those files are not loaded into Broome Sales.';
+    return 'No vehicles match this view.';
+  }
   const categories = [
     ['all','All vehicles'],['unconfirmed','Awaiting stock'],['production','Production'],
     ['transit','In Transit'],['hold','Hold/Waiting'],['yardhold','YH / Yard Hold'],
@@ -50,7 +61,7 @@
   function salesStatus(row){return category(row)==='autocare'?'Dispatched Autocare':row.toyota_status||'Status not recorded';}
   function dispatchEligible(row){return !!row&&row.source_current!==false&&row.sales_hidden!==true&&!row.identity_conflict&&!!row.order&&category(row)!=='dealer';}
   function scopeRows(rows, salesperson='', visibility='visible') {
-    return rows.filter(row=>salespeople.includes(row.salesperson_code)&&flag(row.cosi)==='yes'&&row.source_current!==false&&
+    return rows.filter(row=>roster.includes(row.salesperson_code)&&flag(row.cosi)==='yes'&&row.source_current!==false&&
       (visibility==='hidden'?row.sales_hidden===true:row.sales_hidden!==true)&&(!salesperson||row.salesperson_code===salesperson));
   }
   function todayKey(){return new Date().toLocaleDateString('en-CA',{timeZone:'Australia/Perth'});}
@@ -149,7 +160,7 @@
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
   const defaultFilters=()=>({category:'all',search:'',salesperson:'',month:'',status:'',quick:'',sort:'stock',direction:1});
-  const state = { dispatchBusy:false,dispatchRequest:0,hiddenItems:[],showHidden:false,hiddenBusy:false,hiddenRequest:0,visibilitySaving:new Set(),visibilityConfirmed:new Map(),refreshQueued:false,items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,printBusy:false,printerBusy:false,printers:[],printerName:'',saving:new Map(),
+  const state = { dispatchBusy:false,dispatchRequest:0,hiddenItems:[],showHidden:false,hiddenBusy:false,hiddenRequest:0,visibilitySaving:new Set(),visibilityConfirmed:new Map(),refreshQueued:false,branchFeedRows:0,items:[], context:null, generation:0, busy:false, accounts:null,view:'dashboard',selected:new Set(),detailId:null,reviewedOrders:null,importBusy:false,orderRevision:0,printBusy:false,printerBusy:false,printers:[],printerName:'',saving:new Map(),
     filters:defaultFilters(),workspace:null,workspaceRequest:0,workspaceBusy:false,searchTimer:null,html:new Map() };
   const columns = [
     ['salesperson_code','SP'],['stock','Stock / Toyota Order'],['production_month','P/Month'],['client','Client'],
@@ -177,7 +188,7 @@
   function populateSalespeople(){
     if(!canViewAllSalespeople())return;
     const selected=state.filters.salesperson;
-    const people=salespeople;
+    const people=roster;
     html('salesperson-filter','<option value="">All salespeople</option>'+people.map(code=>'<option value="'+escapeHtml(code)+'">'+escapeHtml(code)+'</option>').join(''));
     state.filters.salesperson=people.includes(selected)?selected:'';
     $('salesperson-filter').value=state.filters.salesperson;
@@ -329,9 +340,9 @@
         if (key==='vehicle') return '<td class="vehicle-cell"><span class="vehicle-line" title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</span></td>';
         if (key==='client') return '<td class="client-cell"><span class="client-line" title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</span></td>';
         return '<td title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</td>';
-      }).join('')+'<td>'+actionHtml(row)+'</td></tr>'+(root.BROOME_VEHICLE_NOTES?.rowHtml(row)||'')).join(''):'<tr><td colspan="13"><div class="empty-state">No vehicles match this view.</div></td></tr>')+'</tbody>');
+      }).join('')+'<td>'+actionHtml(row)+'</td></tr>'+(root.BROOME_VEHICLE_NOTES?.rowHtml(row)||'')).join(''):'<tr><td colspan="13"><div class="empty-state" data-empty-branch="'+escapeHtml(branchApi()?.current()?.key||'broome')+'">'+escapeHtml(emptyMessage())+'</div></td></tr>')+'</tbody>');
     columnWidths?.apply();
-    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div>'+'<strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+pmbStationsHtml(row)+'<p class="mobile-pmb'+(pmbStatusTone(pmbSummary(row))?' pmb-running':'')+'">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
+    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div>'+'<strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+pmbStationsHtml(row)+'<p class="mobile-pmb'+(pmbStatusTone(pmbSummary(row))?' pmb-running':'')+'">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state" data-empty-branch="'+escapeHtml(branchApi()?.current()?.key||'broome')+'">'+escapeHtml(emptyMessage())+'</div>');
     if(focusKey)root.document.querySelector?.((focusKey.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-ordering-id="'+focusKey.id+'"][data-ordering-flag="'+focusKey.flag+'"]')?.focus?.({preventScroll:true});
     if(noteFocus){
       const field=root.document.querySelector?.((noteFocus.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-notes-form="'+noteFocus.id+'"] [name="'+noteFocus.name+'"]');
@@ -386,7 +397,7 @@
     if(!canEditRow(row))return '<select class="sales-action" data-email-id="'+id+'" aria-label="'+label+'"><option value="">View only…</option><option value="details">View details</option></select>';
     return '<select class="sales-action" data-email-id="'+id+'" aria-label="'+label+'" '+(row.identity_conflict||state.visibilitySaving.has(row.tracking_id)?'disabled ':'')+'><option value="">Select action…</option>'+
       (row.sales_hidden?'<option value="show">Show on sales planner</option>':'<option value="details">View details</option>'+
-      (root.BROOME_SALES_EMAIL?.types||[]).map(([key,title])=>'<option value="'+key+'">'+title+(key==='released'&&state.selected.size>1?' ('+state.selected.size+' selected)':'')+'</option>').join('')+
+      (root.BROOME_SALES_EMAIL?.typesFor?.()||root.BROOME_SALES_EMAIL?.types||[]).map(([key,title])=>'<option value="'+key+'">'+title+(key==='released'&&state.selected.size>1?' ('+state.selected.size+' selected)':'')+'</option>').join('')+
       (dispatchEligible(row)&&(row.autocare_dispatched!==true||state.selected.size>1)?'<option value="autocare-dispatch">Dispatched Autocare'+(state.selected.size>1?' ('+state.selected.size+' selected)':'')+'</option>':'')+
       (row.autocare_dispatched===true?'<option value="autocare-clear">Undo Autocare dispatch'+(state.selected.size>1?' (this vehicle)':'')+'</option>':'')+'<option value="hide">Hide from sales planner</option>')+'</select>';
   }
@@ -528,9 +539,21 @@
       if (generation!==state.generation || principal!==root.PDC_AUTH_CONTEXT?.userId) return;
       if (error || !data || !Array.isArray(data.items)) throw error||new Error('Vehicle data could not be loaded.');
       if (!['administrator','salesperson'].includes(data.context?.role)) throw new Error('Sales access is not approved.');
+      const branches=branchApi();
+      let feed=data.items;
+      if(branches){
+        if(data.context.role==='salesperson')branches.adopt(data.context.branch_key);
+        // Never show one branch's vehicles under another branch's name (e.g. before the r495 database change is applied).
+        if(String(data.context.dealer_code||'37047')!==branches.current().dealerCode)throw new Error(branches.current().label+' Sales is not switched on yet.');
+        // Craig 23 Oct: hide head-office dealers 001234 / 002345 on the Karratha tab. Broome is not filtered.
+        const branch=branches.current();
+        if(branches.hidesHeadOffice&&!branch.isDefault)feed=data.items.filter(row=>!branches.hidesHeadOffice(branch,row.dealer_code));
+        roster=branches.roster(branch,data.context,feed);
+        state.branchFeedRows=feed.length;
+      }
       // A poll started before a tick save must not replace its newer confirmed version.
       const previous=new Map(state.items.map(r=>[r.tracking_id,r]));
-      state.items=scopeRows(data.items.map(applyConfirmedVisibility)).map(r=>{
+      state.items=scopeRows(feed.map(applyConfirmedVisibility)).map(r=>{
         const old=previous.get(r.tracking_id);
         if(old&&(old.ordering_version||0)>(r.ordering_version||0)){
           for(const name of orderingFields)r[name]=old[name];
@@ -549,8 +572,8 @@
       const currentIds=new Set(state.items.map(r=>r.tracking_id));
       for(const id of state.selected)if(!currentIds.has(id))state.selected.delete(id);
       $('sales-data-date').textContent=dateLabel(data.navision_updated_at);
-      $('sales-scope').textContent=data.context.role==='administrator'?'Broome Toyota · Administrator view':
-        data.context.display_name+(canViewAllSalespeople()?' · Sales team view · Broome Toyota':' · My vehicles · Broome Toyota');
+      $('sales-scope').textContent=data.context.role==='administrator'?branchLabel(data.context)+' · Administrator view':
+        data.context.display_name+(canViewAllSalespeople()?' · Sales team view · '+branchLabel(data.context):' · My vehicles · '+branchLabel(data.context));
       $('sales-sync').textContent='Navision updated '+dateLabel(data.navision_updated_at)+' · Checked '+dateLabel(data.checked_at)+' (Perth)';
       $('salesperson-filter-label').hidden=!canViewAllSalespeople();
       if(canViewAllSalespeople())populateSalespeople();
@@ -563,7 +586,8 @@
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_ACCESSORIES?.refresh();
       if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId)return;
       await refreshWorkspace();
-      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_SALES_FINANCE?.refresh();
+      // Craig 23 Oct: Karratha has no finance tab in this release. Broome still refreshes finance.
+      if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&branchApi()?.current()?.financeSkipped!==true)await root.BROOME_SALES_FINANCE?.refresh();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId)await root.BROOME_CUSTOMER_EMAILS?.refresh();
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&state.showHidden)await loadHiddenVehicles();
       await stationsRead;
@@ -586,7 +610,8 @@
       const {data,error}=await root.PDC_SUPABASE.rpc('get_broome_hidden_sales_vehicles');
       if(generation!==state.generation||principal!==root.PDC_AUTH_CONTEXT?.userId||request!==state.hiddenRequest||!state.showHidden)return;
       if(error||!data||!Array.isArray(data.items)||data.context?.role!==state.context?.role)throw error||new Error('Hidden vehicles could not be loaded.');
-      state.hiddenItems=scopeRows(data.items.map(applyConfirmedVisibility),'','hidden');populateSalespeople();populateFilters();message('');
+      const hiddenFeed=(()=>{const branches=branchApi(),branch=branches?.current?.();if(!branches?.hidesHeadOffice||!branch||branch.isDefault)return data.items;return data.items.filter(row=>!branches.hidesHeadOffice(branch,row.dealer_code));})();
+      state.hiddenItems=scopeRows(hiddenFeed.map(applyConfirmedVisibility),'','hidden');populateSalespeople();populateFilters();message('');
     }catch(e){
       if(generation===state.generation&&principal===root.PDC_AUTH_CONTEXT?.userId&&request===state.hiddenRequest){
         state.hiddenItems=[];message(e.message||'Hidden vehicles could not be loaded. Refresh to retry.');
