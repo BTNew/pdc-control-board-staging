@@ -1,5 +1,5 @@
 -- r514 (F128): accept Outlook parts-complete replies on pdc@pmgwa.com.au.
--- Staging cdsmnqxtyyoeoznmbidd only. PREVIEW / NOT applied. Never touch production.
+-- Staging cdsmnqxtyyoeoznmbidd only. Not applied until the coordinator runs it. Never touch production.
 -- Kajel / Craig 23 Oct ~14:29 AWST: free-text "Parts complete" replies (Talin Parker on
 -- Vehicle To Service Purchase Order, stock IS60353006) now arrive at pdc@pmgwa.com.au.
 -- The green email-confirmed box is an active row in public.pdc_parts_completion_email_confirmations.
@@ -282,6 +282,8 @@ begin
     coalesce(v_work_before.notes,'Parts received on Parts board'),clock_timestamp()
   ) on conflict(vehicle_id,work_key) do update set
     required=true,completed=true,completed_by=v_actor,completed_at=clock_timestamp(),updated_at=clock_timestamp()
+  where public.vehicle_work_items.vehicle_id = excluded.vehicle_id
+    and public.vehicle_work_items.work_key = excluded.work_key
   returning * into v_work_after;
   update public.vehicles set version=version+1,updated_by=v_actor
   where id=p_vehicle_id returning * into v_vehicle_after;
@@ -384,7 +386,7 @@ SELECT (SELECT count(*)=7 AND bool_and(got IS NOT DISTINCT FROM want) FROM ev)
    AND (SELECT count(*)=1 FROM k_id WHERE d LIKE '%^[a-f0-9]{10,40}$%' AND d NOT LIKE '%BETWEEN 8 AND 512%')
    AND (SELECT count(*)=1 FROM k_mb WHERE d LIKE '%pmbcontroller@gmail.com%' AND d NOT LIKE '%pdc@pmgwa.com.au%')
    AND (SELECT person_md5 FROM fn)='eb02f76ec94cd0b6c824a18660432afa'
-   AND (SELECT mark_md5 FROM fn)='1a89be6cc2e0bac0e3be3112b30f379f'
+   AND (SELECT mark_md5 FROM fn)='f5bdb212b439fd37adb73860c5e5d4d3'
    AND (SELECT person_src FROM fn) LIKE '%pdc@pmgwa.com.au%'
    AND (SELECT person_src FROM fn) LIKE '%pmbcontroller@gmail.com%'
    AND (SELECT person_src FROM fn) LIKE '%microsoft_receiving_provider%'
@@ -415,7 +417,7 @@ DO $g$ DECLARE y record; BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5) IS DISTINCT FROM 225
     OR (SELECT count(*) FROM pdc_ops.expected_function_md5) IS DISTINCT FROM current_setting('pdc.r514_pins')::int THEN RAISE EXCEPTION 'r514: pin count changed'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)'::regprocedure) IS DISTINCT FROM 'eb02f76ec94cd0b6c824a18660432afa' THEN RAISE EXCEPTION 'r514: person md5'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.mark_pdc_parts_complete(uuid,integer)'::regprocedure) IS DISTINCT FROM '1a89be6cc2e0bac0e3be3112b30f379f' THEN RAISE EXCEPTION 'r514: mark md5'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.mark_pdc_parts_complete(uuid,integer)'::regprocedure) IS DISTINCT FROM 'f5bdb212b439fd37adb73860c5e5d4d3' THEN RAISE EXCEPTION 'r514: mark md5'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.is_pdc_role(public.pdc_role)'::regprocedure) IS DISTINCT FROM current_setting('pdc.r514_role') THEN RAISE EXCEPTION 'r514: is_pdc_role changed'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.record_pdc_wayne_parts_complete_20260912(text,text,timestamptz,text,text,text,jsonb)'::regprocedure) IS DISTINCT FROM '00f688462ca997065b7ad932a0f4d2c8' THEN RAISE EXCEPTION 'r514: wayne recorder changed'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.pdc_parts_flags_vehicle_20260911(uuid)'::regprocedure) IS DISTINCT FROM '6c828cb4ffdd7e0717bd5d9f50f4c764' THEN RAISE EXCEPTION 'r514: parts flags changed'; END IF;

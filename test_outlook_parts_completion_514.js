@@ -18,7 +18,7 @@ const OLD_MB = "CHECK (mailbox = 'pmbcontroller@gmail.com')";
 const SAMPLE = '<01dd6288$Blat.v3.2.22$heldsvc@10.255.11.20>';
 const GRAPH = 'AAkALgAAAAAAHYQDEapmEc2byACqAC-EWg0A6DV6RczCcUaqHebcM_EZMgAAAAE9bAAA';
 const PERSON = 'eb02f76ec94cd0b6c824a18660432afa';
-const MARK = '1a89be6cc2e0bac0e3be3112b30f379f';
+const MARK = 'f5bdb212b439fd37adb73860c5e5d4d3';
 
 function passes(id) {
   return /^[a-f0-9]+$/.test(id) || (id.length >= 8 && id.length <= 512 && !/[\s]/.test(id));
@@ -96,6 +96,7 @@ test('person recorder accepts pdc@ and an IS stock; legacy gmail branch stays', 
 test('mark stays operator-only except the management connection after a pdc@ confirmation', () => {
   assert.match(up, /CREATE OR REPLACE FUNCTION public\.mark_pdc_parts_complete/);
   assert.ok(up.includes(MARK));
+  assert.match(up, /where public\.vehicle_work_items\.vehicle_id = excluded\.vehicle_id\s+and public\.vehicle_work_items\.work_key = excluded\.work_key/);
   assert.match(up, /management_connection\(\)/);
   assert.match(up, /require_pdc_role\('operator'\)/);
   assert.match(up, /GRANT EXECUTE ON FUNCTION public\.mark_pdc_parts_complete\(uuid,integer\) TO authenticated;/);

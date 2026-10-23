@@ -1,4 +1,4 @@
-r514 (F128) PREVIEW. SQL is NOT applied. Do not merge. Do not apply to production.
+r514 (F128). Craig said go live (PR #495). The mark ON CONFLICT DO UPDATE names the conflicted vehicle_work_items row so the safeupdate lint accepts it. SQL is not applied by this change. Do not apply to production.
 Staging target: cdsmnqxtyyoeoznmbidd. Pin count stays 225. No app.js.
 is_pdc_role is not changed. service_role still cannot execute mark_pdc_parts_complete.
 
@@ -44,7 +44,10 @@ mark_pdc_parts_complete:
   path completes the work item. If both are already done, it returns ok true,
   code parts_already_received, changed false.
   A call with no pdc@ confirmation still raises PDC role operator required.
-  Old mark md5 82d890802677a2ac93942d3f7b7bcd27. New mark md5 1a89be6cc2e0bac0e3be3112b30f379f.
+  Old mark md5 82d890802677a2ac93942d3f7b7bcd27. New mark md5 f5bdb212b439fd37adb73860c5e5d4d3.
+  The PARTS work-item upsert updates only the conflicted row:
+  WHERE public.vehicle_work_items.vehicle_id = excluded.vehicle_id
+    AND public.vehicle_work_items.work_key = excluded.work_key.
 
 Remaining gap (not changed here):
   import_actor() returns null. The authorization row for
@@ -101,5 +104,5 @@ Undo refuses while a stored confirmation is not pmbcontroller + hex {10,40}.
 The undo restores both function bodies from pdc_ops.r514_parts_completion_prev.
 
 SQL md5 (md5sum from the repo root: md5sum -c release_log/r514/PATCH_MD5S):
-  2e5fe0a988ab11e8703454d82829b9eb  supabase/migrations/20261023140000_r514_outlook_parts_completion.sql
+  e21e193dd8249daed57bb568ee040bb6  supabase/migrations/20261023140000_r514_outlook_parts_completion.sql
   e538263981530b7350df83c729d581fb  supabase/rollbacks/20261023140000_r514_outlook_parts_completion.down.sql
