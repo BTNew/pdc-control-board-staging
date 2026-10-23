@@ -103,7 +103,8 @@ const approvedRootImportPatch = Object.freeze({
   "workshop-planner.css": "fc29a4268da314b2d41905f65788f00b5c07ddb4544b36cdb5f991ac3bc9bf3a",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
-  "scripts/build_pages_runtime.js": "f39cb3b2b550ac467feb7acbec932c091a8ad75229531e539fc706ec665210d3",
+  // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
+  "scripts/build_pages_runtime.js": "d30180805955275f22cd79e5ed50d257e98528acb2ce5457c6ea5e1bd8505962",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
   // on Sublet lines. Department 135 keeps its frozen copy.
@@ -273,7 +274,8 @@ const approvedRootImportPatch = Object.freeze({
   // r500: r500=2026.10.23.r500 on pdc-fitters.js and pdc-conversion-ticks.css (F113).
   // r501: r501=2026.10.23.r501 on canonical-entry.js and pdc-vehicle-sublets.css / .js (Due out / Due back in Manage sublets; F114).
   // r502: r502=2026.10.23.r502 on pdc-vehicle-sublets.css / .js, pdc-email-vehicle-location-service.js and canonical-entry.js query (Manage sublets Save error codes, ^ clean, promote, layout; F115).
-  "index.html": "f439ec23027b3656dad12e2ff8849f5831d42e06e6fa02931bae53292c77e857",
+  // r495: Website option Karratha Toyota (Sales), site-switcher-branches.js after the frozen switcher, r495 on pdc-auth.js (F108). Department 135 is not tagged.
+  "index.html": "df48c2397758b66e20df615959e2517580aa661c96ac898c1c302a17cd0030d9",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -296,7 +298,8 @@ const approvedRootImportPatch = Object.freeze({
   // default, no return in finally). Department 135 keeps its frozen copies.
   // r408: no record_pdc_login for Fitters bay accounts (F22).
   // r432: a controller linked to a salesperson record stays on the Sales site (pdc_my_sales_link_432) (F43).
-  "pdc-auth.js": "f1cc70b86a4fdbb4bef78c39040d264184c7cc542f412ebae2035079ff61ef2d",
+  // r495: on the Sales page only, sends the x-pdc-sales-branch header for a non-Broome Sales branch (Karratha) (F108).
+  "pdc-auth.js": "efdb5ef1a52c863bfc4b6558a9503cb3477887aa232568628684b62e26481a24",
   // r417: administrator move/schedule ask the planner to confirm a bay rule warning, then resend confirmed (F32).
   // r424: push-back warning confirm; bay re-order and undo actions (F38).
   "workshop-shared-actions.js": "dcc5cda131757438ce285de7130672addb540664e13d56b666f03df0cd45df1f",

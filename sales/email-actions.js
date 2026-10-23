@@ -1,8 +1,15 @@
 /* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 (function(root){
 'use strict';
-const types=[['released','Vehicle Released to Broome'],['update','Request Update'],['build','New Vehicle Build'],['tint','Tint PO Email']];
-const recipients={released:'amy.elkington@broometoyota.com.au',update:'',build:'',tint:'jono@performancetinting.com.au'};
+const broomeTypes=[['released','Vehicle Released to Broome'],['update','Request Update'],['build','New Vehicle Build'],['tint','Tint PO Email']];
+const broomeRecipients={released:'amy.elkington@broometoyota.com.au',update:'',build:'',tint:'jono@performancetinting.com.au'};
+// r495 (F108): another sales branch (Karratha) gets the same four emails naming its own town, with every recipient left blank
+// (Broome's release contact and tinter are Broome-only) and a plain greeting. Broome is unchanged.
+function branch(){const b=root?.BROOME_SALES_BRANCH?.current();return b&&!b.isDefault?b:null;}
+function town(){return branch()?.town||'Broome';}
+const typesFor=()=>branch()?broomeTypes.map(([k,label])=>[k,k==='released'?'Vehicle Released to '+town():label]):broomeTypes;
+const recipientsFor=()=>branch()?{released:'',update:'',build:'',tint:''}:broomeRecipients;
+const types=broomeTypes,recipients=broomeRecipients;
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const oneLine=v=>String(v??'').replace(/[\r\n\u0000-\u001f\u007f]+/g,' ').trim();
 function releaseTemplate(rows){
@@ -14,8 +21,8 @@ function releaseTemplate(rows){
    (order?'\nToyota order: '+order:'')+'\nCustomer Name: '+(oneLine(row.client)||'Not recorded')+
    '\nVehicle: '+(oneLine(row.vehicle)||'Not recorded')+(row.transport_number?'\nTransport number: '+oneLine(row.transport_number):'');
  });
- return {to:recipients.released,cc:'',subject:(rows.length>1?'Vehicles':'Vehicle')+' released to Broome - '+references.join(', '),
-  body:'Hi Amy,\n\n'+(rows.length>1?'The following '+rows.length+' vehicles have':'The following vehicle has')+' been released to Broome.\n\n'+details.join('\n\n')+'\n\nKind Regards,'};
+ return {to:recipientsFor().released,cc:'',subject:(rows.length>1?'Vehicles':'Vehicle')+' released to '+town()+' - '+references.join(', '),
+  body:(branch()?'Hi,':'Hi Amy,')+'\n\n'+(rows.length>1?'The following '+rows.length+' vehicles have':'The following vehicle has')+' been released to '+town()+'.\n\n'+details.join('\n\n')+'\n\nKind Regards,'};
 }
 function template(kind,row){
  if(!types.some(([k])=>k===kind))throw new Error('Choose an email action.');
@@ -23,18 +30,18 @@ function template(kind,row){
  const stock=oneLine(row.stock),order=oneLine(row.order),id=stock||'Toyota order '+(order||'not recorded');
  const vehicle=oneLine(row.vehicle)||'Not recorded',customer=oneLine(row.client)||'Not recorded';
  const facts=(stock?'Stock number: '+stock:'Toyota order: '+(order||'Not recorded')+'\nStock number: Awaiting allocation')+'\nCustomer Name: '+customer+'\nVehicle: '+vehicle;
- const titles={released:'Vehicle released to Broome - ',update:'Request update - ',build:'New vehicle order for ',tint:'Tint PO - '};
+ const titles={released:'Vehicle released to '+town()+' - ',update:'Request update - ',build:'New vehicle order for ',tint:'Tint PO - '};
  let body=facts+'\n\nKind Regards,';
- if(kind==='tint')body='Hi Jono,\n\nPlease see tint PO request for the vehicle below.\n\n'+body;
+ if(kind==='tint')body=(branch()?'Hi,':'Hi Jono,')+'\n\nPlease see tint PO request for the vehicle below.\n\n'+body;
  if(kind==='build'){
   const eta=root.BROOME_SALES_TOOLS?.etaInfo(row.kewdale_eta).date||row.kewdale_eta||'Not recorded';
   body='Hi Guys,\n\nNew vehicle order for\n\n'+id+' - '+vehicle+'\n\nFor\n\n'+customer+
-   '\n\nBroome to supply all parts on the 131 Parts PO (direct to Welshpool).\n\nPMG to supply parts listed on the PMG sublet order and fit all items to the vehicle.'+
+   '\n\n'+town()+' to supply all parts on the 131 Parts PO (direct to Welshpool).\n\nPMG to supply parts listed on the PMG sublet order and fit all items to the vehicle.'+
    (row.navision_notes?'\n\nVehicle / build notes: '+String(row.navision_notes):'')+
    '\n\nKewdale ETA: '+eta+
    '\n\nJust let me know if you have any queries, or if there is an extended delay in parts.\n\nKind Regards,';
  }
- return {to:recipients[kind],cc:'',subject:titles[kind]+id+(kind==='build'?' - PMG Build':''),body};
+ return {to:recipientsFor()[kind],cc:'',subject:titles[kind]+id+(kind==='build'?' - PMG Build':''),body};
 }
 function addresses(text,required=false){
  const s=String(text||'').trim();if(!s){if(required)throw new Error('Enter the recipient email address.');return '';}
@@ -108,7 +115,7 @@ function open(kind,id){
  const rows=requested.map(key=>available.get(key));
  if(rows.some(r=>!r||r.identity_conflict)){clear();options.onError?.('A selected vehicle is no longer available or has an uncertain reference. Refresh your selection before creating the email.');return;}
  clear();const d=kind==='released'?releaseTemplate(rows):template(kind,row);active={token:scopeToken(),vehicles:rows.map(r=>({id:r.tracking_id,identity:identity(r)}))};
- $('sales-email-title').textContent=(types.find(([k])=>k===kind)?.[1]||'Create email')+(rows.length>1?' ('+rows.length+' vehicles)':'');
+ $('sales-email-title').textContent=(typesFor().find(([k])=>k===kind)?.[1]||'Create email')+(rows.length>1?' ('+rows.length+' vehicles)':'');
  if($('sales-email-intro'))$('sales-email-intro').textContent=rows.length>1?'One email for all '+rows.length+' selected vehicles. Review the details, recipient and attachments before sending.':'Review the vehicle details, recipient and attachments before sending.';
  for(const key of ['to','cc','subject','body'])$('sales-email-'+key).value=d[key];
  $('sales-email-files').value='';$('sales-email-status').textContent='';$('sales-email').showModal();
@@ -143,7 +150,7 @@ function init(opts){
  $('sales-email-close').addEventListener('click',clear);$('sales-email').addEventListener('close',()=>{if(!$('sales-email').open)clear();});
  $('sales-email-download').addEventListener('click',download);$('sales-email-open').addEventListener('click',openMail);
 }
-const api={types,template,releaseTemplate,addresses,attachmentLimits,eml,mailto,init,open,clear,syncScope};
+const api={types,typesFor,template,releaseTemplate,addresses,attachmentLimits,eml,mailto,init,open,clear,syncScope};
 if(typeof module==='object'&&module.exports)module.exports=api;
 root.BROOME_SALES_EMAIL=api;
 })(typeof window==='object'?window:globalThis);

@@ -836,6 +836,13 @@
     setMessage(config.mode === 'microsoft' ? 'Microsoft sign-in required' : 'PDC staff sign-in', config.mode === 'microsoft' ? 'Use your approved work Microsoft account to open the PDC Control Board.' : 'Use your individually assigned PDC email and password.', 'signed-out');
   }
 
+  function salesBranchRequestHeaders(value) {
+    if (document.body?.dataset?.pdcSite !== 'broome' || !value || typeof value !== 'object') return null;
+    const keys = Object.keys(value);
+    const branch = String(value['x-pdc-sales-branch'] || '');
+    return keys.length === 1 && keys[0] === 'x-pdc-sales-branch' && /^[a-z]{3,20}$/.test(branch) ? { 'x-pdc-sales-branch': branch } : null;
+  }
+
   async function initialize() {
     lockApplication();
     const config = authConfig();
@@ -844,12 +851,16 @@
       return;
     }
 
+    // r495 (F108): the Sales page for a non-default branch (sales/?branch=karratha) sends one extra request header,
+    // X-PDC-Sales-Branch, so an administrator's Sales reads use that branch. Every other page sends nothing extra.
+    const salesBranchHeaders = salesBranchRequestHeaders(window.PDC_SUPABASE_REQUEST_HEADERS);
     state.client = window.supabase.createClient(config.url, config.publishableKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
       },
+      ...(salesBranchHeaders ? { global: { headers: salesBranchHeaders } } : {}),
     });
     window.PDC_SUPABASE = state.client;
 

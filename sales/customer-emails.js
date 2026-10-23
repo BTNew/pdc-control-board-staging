@@ -2,8 +2,12 @@
 (function(root){
 'use strict';
 const types=[['production_planned','Production planned'],['vehicle_built','Vehicle built'],['perth_eta','Perth ETA received']];
-const signature='\n\nKind Regards,\n{{salesperson_name}}\nBroome Toyota\n{{salesperson_phone}} | {{salesperson_email}}';
+// r495 (F108): the signature names the page's sales branch (Broome Toyota unless the Karratha branch is open).
+const branchName=()=>root?.BROOME_SALES_BRANCH?.current().label||'Broome Toyota';
+const signatureFor=label=>'\n\nKind Regards,\n{{salesperson_name}}\n'+label+'\n{{salesperson_phone}} | {{salesperson_email}}';
+const signature=signatureFor('Broome Toyota');
 function template(kind){
+ const signature=signatureFor(branchName());
  const greeting='Hi {{customer_first_name}},\n\n';
  if(kind==='production_planned')return {subject:'Your {{vehicle_model}} – production planned',body:greeting+
   'Your {{vehicle_model}} is currently planned for production in {{production_month}}. This timing may change. I’ll let you know once we receive confirmation that your vehicle has been built.'+signature};
