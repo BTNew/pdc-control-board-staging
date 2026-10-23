@@ -18,7 +18,9 @@ The board and Sales paint `is-complete has-jita` with both markers ticked, and t
 
 `tick_parts_jita_from_navision_518` is the decision. The trigger `tick_parts_jita_from_navision_518` calls it after a current Navision row is inserted or its identity columns change. The same function is the one-shot backfill.
 
-Read-only count on staging, 23 Oct 2026, not applied: 261 vehicles would be written (243 with no parts row, 18 that already have `parts_received` and only need the work item). 12 live vehicles have a current JITA ETA and no verified number and would be left. None of the 261 were on parts stoppage. Apply ticks whoever matches then, not a frozen id list.
+Read-only count on staging, 23 Oct 2026, before apply: 261 vehicles would be written (243 with no parts row, 18 that already have a parts row and only need the work item). 12 live vehicles have a current JITA ETA and no verified number and would be left. None of the 261 were on parts stoppage.
+
+Applied on staging `cdsmnqxtyyoeoznmbidd` 23 Oct 2026, schema migration version `20261023100042`, name `r518_navision_jita_station_tick`. The audit table has 261 rows (243 inserted a parts row, 18 already had one). Pin count is 230. Check `navision_jita_station_tick_518` returned ok. `set_parts_eta` is still `88d31cbd6ca5ddd372e3143d5f8c013f`. Stock 13080621 (`JSO122691`) is completed and audited. Stocks 13109750, 13109751 and 13136259 have a JITA ETA, no verified number, and were not audited.
 
 `EXECUTE` on the tick function is revoked from anon, authenticated and service_role. The trigger function is executable by service_role so a direct Navision write still fires; the daily apply functions are security definer and owned by postgres. PostgREST cannot call the tick function.
 
