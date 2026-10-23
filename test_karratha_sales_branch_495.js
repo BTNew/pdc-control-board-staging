@@ -138,16 +138,12 @@ test('emails: Broome wording and recipients unchanged; Karratha names Karratha w
   withBranch('broome', () => assert.equal(email.template('released', r).to, BROOME_TO.released));
 });
 
-test('customer emails sign off with the page branch; Broome text unchanged', () => {
+test('customer emails no longer sign off with a branch name; internal emails still do', () => {
   delete require.cache[require.resolve('./sales/customer-emails.js')];
   const customer = require('./sales/customer-emails.js');
   const broome = customer.template('perth_eta').body;
-  assert.match(broome, /\{\{salesperson_name\}\}\nBroome Toyota\n/);
-  withBranch('karratha', () => {
-    const body = customer.template('perth_eta').body;
-    assert.match(body, /\{\{salesperson_name\}\}\nKarratha Toyota\n/);
-    assert.equal(body.replace('Karratha Toyota', 'Broome Toyota'), broome);
-  });
+  assert.doesNotMatch(broome, /Broome Toyota|Karratha Toyota|Kind Regards|salesperson_/);
+  withBranch('karratha', () => assert.equal(customer.template('perth_eta').body, broome));
 });
 
 test('Karratha finance is skipped; Broome finance groups stay Broome / Port Hedland', () => {
