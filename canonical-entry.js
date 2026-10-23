@@ -73,9 +73,19 @@
       const partsEta = document.createElement('script');
       partsEta.src = 'pdc-parts-eta.js?parts-eta=2026.10.21.r436&r475=2026.10.22.r475&r482=2026.10.22.r482&r490=2026.10.23.r490';
       partsEta.dataset.pdcPartsEta = '1';
-      partsEta.onload = loadKeyNumber;
-      partsEta.onerror = loadKeyNumber;
+      partsEta.onload = loadJitaEta;
+      partsEta.onerror = loadJitaEta;
       document.head.appendChild(partsEta);
+    };
+    // r516 (F130): JITA ETA from the daily paste. Loads after the email parts ETA so its chip sits beside that chip.
+    const loadJitaEta = () => {
+      if (document.querySelector('script[data-pdc-jita-eta]')) return;
+      const jitaEta = document.createElement('script');
+      jitaEta.src = 'pdc-jita-eta.js?r516=2026.10.23.r516';
+      jitaEta.dataset.pdcJitaEta = '1';
+      jitaEta.onload = loadKeyNumber;
+      jitaEta.onerror = loadKeyNumber;
+      document.head.appendChild(jitaEta);
     };
     // r460 (F73): vehicle key number (Key No. in the drop-down; inline edit for controllers / administrators, audited);
     // loads after the service locations and parts ETA so the recorded key wins in the Key column.
