@@ -1,11 +1,14 @@
 /* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 /* r516 (F130): JITA ETA from a daily Revolution paste under Navision Uploads.
+ * r517 (F131): after Confirm and Apply, the same success panel as Daily Navision
+ * (green tick, counts, saved stocks, skipped list). The JITA date sits at the
+ * bottom of the Parts ETA box, under the email Parts ETA. It does not write that ETA.
  * One date per stock: the latest JITA Planned Delivery Date on a row with Qty Outstanding > 0,
  * otherwise the latest planned date on any row. Previous ETA, Latest ETA, Manual ETA and
- * Vehicle ETA at Kewdale are not read. This is not the email Parts ETA. */
+ * Vehicle ETA at Kewdale are not read. */
 (() => {
   'use strict';
-  const VERSION = '2026.10.23.r516';
+  const VERSION = '2026.10.23.r517';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const IMPORT_RPC = 'import_jita_eta_516';
   const BOARD_RPC = 'get_pdc_jita_eta_board';
@@ -93,42 +96,77 @@
     return { ok: true, rows, blank_vehicle_rows: blank, bad_date_rows: bad, stocks };
   }
 
-  function chipHtml(entry) {
+  /** One line at the bottom of the Parts ETA box. Not a second chip beside the vehicle name. */
+  function inPartsHtml(entry) {
     const date = iso(entry && entry.eta_date);
     if (!date) return '';
-    const label = `JITA ETA ${ddmmyyyy(date)}`;
-    return `<span class="pdc-jita-eta" title="${esc(label)}" aria-label="${esc(label)}" data-jita-eta="${esc(date)}"><span class="pdc-jita-eta-k">JITA ETA </span>${esc(ddmmyyyy(date))}</span>`;
+    return `<div class="pdc-jita-eta-in-parts" data-jita-eta="${esc(date)}"><b>JITA ETA</b><span>${esc(ddmmyyyy(date))}</span></div>`;
   }
 
-  /** Place the JITA chip after the email Parts ETA chip, never inside it. */
-  function insertChip(html, entry) {
-    const chip = chipHtml(entry);
-    if (!chip || typeof html !== 'string' || html.includes('class="pdc-jita-eta"')) return html;
-    if (PARTS_CHIP.test(html)) return html.replace(PARTS_CHIP, match => match + chip);
-    const location = /(<span class="tune-parts-location"[^>]*>[\s\S]*?<\/span>)/;
-    if (location.test(html)) return html.replace(location, (_, loc) => loc + chip);
-    return html.replace(/(<span class="incoming-card-main">[\s\S]*?<\/strong>)/, (_, start) => `${start}${chip}`);
-  }
-
-  function detailHtml(entry) {
-    const date = iso(entry && entry.eta_date);
-    if (!date) return '';
-    return `<div class="tune-service-location-job pdc-jita-eta-detail"><b>JITA ETA</b><span>${esc(ddmmyyyy(date))}</span><small>From the JITA paste</small></div>`;
-  }
-
+  /** Nest JITA at the bottom of the email Parts ETA detail. If that box is absent, one Parts ETA box that holds only the JITA date. */
   function insertDetail(html, entry) {
-    const block = detailHtml(entry);
-    if (!block || typeof html !== 'string' || html.includes('pdc-jita-eta-detail')) return html;
-    const partsDetail = /<div class="tune-service-location-job pdc-parts-eta-detail"[\s\S]*?<\/div>/;
-    if (partsDetail.test(html)) return html.replace(partsDetail, match => match + block);
+    const line = inPartsHtml(entry);
+    if (!line || typeof html !== 'string' || html.includes('pdc-jita-eta-in-parts')) return html;
+    const partsDetail = /<div class="tune-service-location-job pdc-parts-eta-detail"[^>]*>[\s\S]*?<\/div>/;
+    if (partsDetail.test(html)) return html.replace(partsDetail, match => match.replace(/<\/div>$/, `${line}</div>`));
+    const box = `<div class="tune-service-location-job pdc-parts-eta-detail pdc-jita-eta-only">${line}</div>`;
     if (html.includes('<div class="incoming-vehicle-detail-grid">')) {
-      return html.replace('<div class="incoming-vehicle-detail-grid">', `<div class="incoming-vehicle-detail-grid">${block}`);
+      return html.replace('<div class="incoming-vehicle-detail-grid">', `<div class="incoming-vehicle-detail-grid">${box}`);
     }
     return html;
   }
 
+  function resultRows(payload) {
+    return Array.isArray(payload?.results) ? payload.results : [];
+  }
+
+  function resultLine(row) {
+    const date = ddmmyyyy(row?.eta_date);
+    const previous = ddmmyyyy(row?.previous_eta);
+    const when = date ? `JITA ETA ${date}${previous ? ` (was ${previous})` : ''}` : 'No planned date';
+    return `<div class="summary-row"><strong>${esc(row?.stock || 'Stock')}</strong><span>${esc(when)}</span></div>`;
+  }
+
+  function resultSection(title, rows, empty) {
+    const body = rows.length
+      ? rows.slice(0, 40).map(resultLine).join('') + (rows.length > 40 ? `<div class="subtle">Showing first 40 of ${rows.length}.</div>` : '')
+      : `<div class="summary-row"><strong>None</strong><span>${esc(empty)}</span></div>`;
+    return `<div class="summary-section"><h3>${esc(title)}</h3>${body}</div>`;
+  }
+
+  /** Same shape as Daily Navision after Confirm and Apply: green tick, counts, then the lists. Preview stays the lighter checked-and-ready row. */
+  function renderUploadResult(payload) {
+    const dry = payload?.dry_run !== false;
+    const rows = resultRows(payload);
+    const saved = rows.filter(row => ['applied', 'replaced', 'would_apply', 'would_replace'].includes(row.status));
+    const same = rows.filter(row => row.status === 'unchanged');
+    const unknown = rows.filter(row => row.status === 'skipped_unknown');
+    const ambiguous = rows.filter(row => row.status === 'ambiguous');
+    const nodate = rows.filter(row => row.status === 'no_planned_date');
+    const stats = `<div class="scot-summary-grid navision-human-summary">
+      <div class="summary-stat"><span>Rows in the paste</span><strong>${esc(payload?.rows ?? 0)}</strong></div>
+      <div class="summary-stat"><span>${dry ? 'Would be saved' : 'Dates saved'}</span><strong>${saved.length}</strong></div>
+      <div class="summary-stat"><span>Already that date</span><strong>${same.length}</strong></div>
+      <div class="summary-stat"><span>Not on the board</span><strong>${unknown.length}</strong></div>
+      <div class="summary-stat"><span>More than one vehicle</span><strong>${ambiguous.length}</strong></div>
+      <div class="summary-stat"><span>No planned date</span><strong>${nodate.length}</strong></div>
+    </div>`;
+    const lists = resultSection(dry ? 'JITA ETA that would be set' : 'JITA ETA set', saved, dry ? 'No vehicle date would change.' : 'No vehicle date was changed.')
+      + (same.length ? resultSection('Already that date', same, '') : '')
+      + resultSection('Not on the board', unknown, 'Every stock in the paste is on the board.')
+      + (ambiguous.length ? resultSection('More than one vehicle', ambiguous, '') : '')
+      + (nodate.length ? resultSection('No planned date', nodate, '') : '');
+    if (!dry) {
+      const noun = `${saved.length} vehicle date${saved.length === 1 ? '' : 's'} saved`;
+      return `<div class="navision-import-success" role="status" aria-live="polite"><span class="navision-import-success-tick" aria-hidden="true">✓</span><div><strong>JITA upload complete</strong><span>${noun}. The email Parts ETA was not changed.</span></div></div>${stats}<div class="summary-section-heading"><h3>Import complete</h3></div>${lists}`;
+    }
+    return `<div class="summary-row success" role="status"><strong>JITA file checked and ready</strong><span>Preview only. Nothing has been saved. The email Parts ETA is not changed.</span></div>${stats}${lists}`;
+  }
+
+  const EMPTY_UPLOAD = '<div class="empty-state compact-empty"><strong>No JITA preview yet</strong><span>Paste the Revolution JITA export, then click Preview.</span></div>';
+
   if (typeof module !== 'undefined') {
-    module.exports = { parseJitaEta, parseDate, chipHtml, insertChip, detailHtml, insertDetail, ddmmyyyy, PARTS_CHIP, VERSION, IMPORT_RPC, BOARD_RPC };
+    module.exports = { parseJitaEta, parseDate, inPartsHtml, insertDetail, renderUploadResult, ddmmyyyy, PARTS_CHIP, VERSION, IMPORT_RPC, BOARD_RPC };
   }
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_JITA_ETA_VERSION) return;
   window.PDC_JITA_ETA_VERSION = VERSION;
@@ -181,6 +219,33 @@
     });
   }
 
+  /** Vehicle Locations table: JITA date at the bottom of the Parts ETA cell, under the email chip. */
+  function decorateLocationsTable() {
+    const host = document.getElementById('vlt-table-host');
+    if (!host) return;
+    host.querySelectorAll('tbody tr').forEach(tr => {
+      const etaCell = tr.querySelector('td.c-eta');
+      if (!etaCell) return;
+      tr.querySelectorAll('td.c-unit .pdc-jita-eta, td.c-unit .pdc-jita-eta-in-parts').forEach(node => node.remove());
+      const stock = stockKey(tr.querySelector('td.c-stock')?.textContent);
+      const date = iso(byStock.get(stock)?.eta_date);
+      const dash = etaCell.querySelector('.vlt-subtle-dash');
+      const slot = etaCell.querySelector('.pdc-jita-eta-in-parts');
+      if (slot && slot.getAttribute('data-jita-eta') === date && (!dash || dash.hidden === Boolean(date))) return;
+      if (dash) dash.hidden = Boolean(date);
+      if (!date) {
+        if (slot) slot.remove();
+        return;
+      }
+      const line = document.createElement('div');
+      line.className = 'pdc-jita-eta-in-parts';
+      line.setAttribute('data-jita-eta', date);
+      line.innerHTML = `<b>JITA ETA</b><span>${esc(ddmmyyyy(date))}</span>`;
+      if (slot) slot.replaceWith(line);
+      else etaCell.appendChild(line);
+    });
+  }
+
   function hookParts() {
     if (hooked || typeof renderPartsHome !== 'function') return;
     const prior = renderPartsHome;
@@ -201,7 +266,7 @@
       const html = prior(vehicle, ...args);
       const entry = entryFor(vehicle);
       if (!entry) return html;
-      return insertDetail(insertChip(html, entry), entry);
+      return insertDetail(html, entry);
     };
   }
 
@@ -229,6 +294,7 @@
       lastBody = result.text;
       indexBoard(result.payload);
       decoratePartsTable();
+      decorateLocationsTable();
     } catch (_) { /* keep the last dates */ }
     finally { loading = false; }
   }
@@ -237,17 +303,6 @@
     if (typeof navisionSharedImportRoleAllowed === 'function') return navisionSharedImportRoleAllowed() === true;
     const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
     return role === 'importer' || role === 'administrator';
-  }
-
-  function summaryFrom(result) {
-    const base = result?.message || (result?.dry_run ? 'Preview only. Nothing saved.' : 'Saved.');
-    const rows = Array.isArray(result?.results) ? result.results : [];
-    const unknown = rows.filter(row => row.status === 'skipped_unknown').map(row => row.stock);
-    const ambiguous = rows.filter(row => row.status === 'ambiguous').map(row => row.stock);
-    const bits = [base];
-    if (unknown.length) bits.push(`Not on the board: ${unknown.slice(0, 8).join(', ')}${unknown.length > 8 ? '…' : ''}.`);
-    if (ambiguous.length) bits.push(`More than one vehicle: ${ambiguous.slice(0, 8).join(', ')}.`);
-    return bits.join(' ');
   }
 
   function bindUpload() {
@@ -261,20 +316,21 @@
     paste.dataset.jitaBound = '1';
     let previewed = '';
     const say = text => { if (summary) summary.textContent = text; };
+    const show = html => { if (summary) summary.innerHTML = html; };
     const syncAccess = () => {
       const allowed = importAllowed();
       preview.disabled = !allowed;
       if (!allowed) apply.disabled = true;
       if (access) access.textContent = allowed ? 'Importer or administrator. Preview, then confirm.' : 'Importer or administrator access is required.';
     };
-    paste.addEventListener('input', () => { previewed = ''; apply.disabled = true; });
+    paste.addEventListener('input', () => { previewed = ''; apply.disabled = true; show(EMPTY_UPLOAD); });
     preview.addEventListener('click', () => run(true));
     apply.addEventListener('click', () => run(false));
     clear.addEventListener('click', () => {
       paste.value = '';
       previewed = '';
       apply.disabled = true;
-      say('');
+      show(EMPTY_UPLOAD);
     });
     async function run(dry) {
       syncAccess();
@@ -292,10 +348,11 @@
         const forbidden = result.status === 401 || result.status === 403 || payload.code === '42501' || /PDC_JITA_ETA_FORBIDDEN/.test(payload.message || '');
         if (forbidden) { say('Importer or administrator access is required.'); return; }
         if (!result.ok || payload.ok === false) {
-          say(payload.message || (dry ? 'Could not preview. Nothing was saved.' : 'Could not save the JITA ETA. Nothing was saved.'));
+          const message = payload.message || (dry ? 'Could not preview. Nothing was saved.' : 'Could not save the JITA ETA. Nothing was saved.');
+          show(`<div class="summary-row error" role="alert"><strong>JITA upload needs attention</strong><span>${esc(message)}</span></div>`);
           return;
         }
-        say(summaryFrom(payload));
+        show(renderUploadResult(payload));
         if (dry) { previewed = text; apply.disabled = false; }
         else { previewed = ''; await loadBoard(); }
       } catch (_) {
@@ -306,24 +363,45 @@
       }
     }
     syncAccess();
+    show(EMPTY_UPLOAD);
     let tries = 0;
     const accessTimer = setInterval(() => { syncAccess(); if (++tries > 15) clearInterval(accessTimer); }, 2000);
   }
 
   const style = document.createElement('style');
-  style.textContent = '.pdc-jita-eta{font-size:10.5px;font-weight:650;line-height:1.2;white-space:nowrap;padding:1px 5px;border-radius:4px;background:#dcfce7;color:#166534}'
-    + '.pdc-jita-eta-detail{grid-column:1/-1}.pdc-jita-eta-detail span{display:block;font-weight:650}'
-    + '.pdc-jita-eta-detail small{display:block;color:#475569}'
-    + '.pdc-jita-eta-cell{white-space:nowrap;font-weight:650;color:#166534}'
-    + '#jita-upload-summary{margin-top:8px;white-space:pre-wrap}';
+  style.textContent = '.pdc-jita-eta-cell{white-space:nowrap;font-weight:650;color:#166534}'
+    + '.pdc-jita-eta-in-parts{margin-top:6px;padding-top:6px;border-top:1px solid #bbf7d0}'
+    + '.pdc-jita-eta-in-parts b{display:block;font-size:11px;font-weight:750;color:#166534;letter-spacing:.01em}'
+    + '.pdc-jita-eta-in-parts span{display:block;font-weight:650;color:#166534}'
+    + '.pdc-parts-eta-detail .pdc-jita-eta-in-parts{grid-column:1/-1}'
+    + '.pdc-jita-eta-only{grid-column:1/-1}'
+    + 'td.c-eta:has(.pdc-jita-eta-in-parts){height:auto;max-height:none;overflow:visible;white-space:normal}'
+    + 'td.c-eta .pdc-jita-eta-in-parts{margin-top:2px !important;padding-top:2px}'
+    + 'td.c-eta .vlt-subtle-dash[hidden]{display:none}'
+    + '#jita-upload-summary{margin-top:12px;display:grid;gap:10px}'
+    + '#jita-upload-summary .scot-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}'
+    + '#jita-upload-summary .navision-import-success{margin:0}';
   document.head.appendChild(style);
+  function watchLocations() {
+    const host = document.getElementById('vlt-table-host');
+    if (!host || host.dataset.jitaWatch) return;
+    host.dataset.jitaWatch = '1';
+    new MutationObserver(() => decorateLocationsTable()).observe(host, { childList: true, subtree: true });
+    decorateLocationsTable();
+  }
   hookParts();
   bindUpload();
+  watchLocations();
   const ready = setInterval(() => {
     hookParts();
     bindUpload();
+    watchLocations();
     if (hooked && document.getElementById('jita-paste')?.dataset.jitaBound) clearInterval(ready);
   }, 500);
+  const locationsReady = setInterval(() => {
+    watchLocations();
+    if (document.getElementById('vlt-table-host')?.dataset.jitaWatch) clearInterval(locationsReady);
+  }, 1000);
   loadBoard();
   setInterval(loadBoard, 5 * 60 * 1000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadBoard(); });

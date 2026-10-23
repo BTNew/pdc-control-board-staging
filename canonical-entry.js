@@ -81,7 +81,7 @@
     const loadJitaEta = () => {
       if (document.querySelector('script[data-pdc-jita-eta]')) return;
       const jitaEta = document.createElement('script');
-      jitaEta.src = 'pdc-jita-eta.js?r516=2026.10.23.r516';
+      jitaEta.src = 'pdc-jita-eta.js?r516=2026.10.23.r516&r517=2026.10.23.r517';
       jitaEta.dataset.pdcJitaEta = '1';
       jitaEta.onload = loadKeyNumber;
       jitaEta.onerror = loadKeyNumber;
