@@ -3,12 +3,17 @@
  * r517 (F131): after Confirm and Apply, the same success panel as Daily Navision
  * (green tick, counts, saved stocks, skipped list). The JITA date sits at the
  * bottom of the Parts ETA box, under the email Parts ETA. It does not write that ETA.
+ * r519 (F133): SHOW_JITA_ETA is false. The paste stays in the page but hidden, and
+ * this file does not bind it, does not read the JITA board, and does not draw a
+ * JITA ETA under the email Parts ETA or on the Parts tab. The r518 Parts Jita tick
+ * is not in this file. The parser below is unchanged for a later unhide.
  * One date per stock: the latest JITA Planned Delivery Date on a row with Qty Outstanding > 0,
  * otherwise the latest planned date on any row. Previous ETA, Latest ETA, Manual ETA and
  * Vehicle ETA at Kewdale are not read. */
 (() => {
   'use strict';
-  const VERSION = '2026.10.23.r517';
+  const VERSION = '2026.10.23.r519';
+  const SHOW_JITA_ETA = false;
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const IMPORT_RPC = 'import_jita_eta_516';
   const BOARD_RPC = 'get_pdc_jita_eta_board';
@@ -166,9 +171,17 @@
   const EMPTY_UPLOAD = '<div class="empty-state compact-empty"><strong>No JITA preview yet</strong><span>Paste the Revolution JITA export, then click Preview.</span></div>';
 
   if (typeof module !== 'undefined') {
-    module.exports = { parseJitaEta, parseDate, inPartsHtml, insertDetail, renderUploadResult, ddmmyyyy, PARTS_CHIP, VERSION, IMPORT_RPC, BOARD_RPC };
+    module.exports = { parseJitaEta, parseDate, inPartsHtml, insertDetail, renderUploadResult, ddmmyyyy, PARTS_CHIP, VERSION, SHOW_JITA_ETA, IMPORT_RPC, BOARD_RPC };
   }
-  if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_JITA_ETA_VERSION) return;
+  if (typeof window === 'undefined') return;
+  if (!SHOW_JITA_ETA) {
+    const panel = document.getElementById('jita-upload-panel');
+    if (panel) panel.hidden = true;
+    window.PDC_JITA_ETA_VERSION = VERSION;
+    window.PDC_JITA_ETA = Object.freeze({ VERSION, hidden: true, reload() {} });
+    return;
+  }
+  if (window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_JITA_ETA_VERSION) return;
   window.PDC_JITA_ETA_VERSION = VERSION;
 
   const byStock = new Map();

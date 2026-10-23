@@ -1,0 +1,31 @@
+r519 (F133). Staging (`cdsmnqxtyyoeoznmbidd`) only. Production was not touched.
+
+Rebased onto live tip r518 (F132), `4d506905` (PR #500, a verified Navision JITA number completes Parts Jita). That tick stays. This release hides the r516/r517 JITA ETA paste and clears the dates already stored on staging.
+
+## What Craig asked
+
+Hide JITA Upload under Navision Uploads, and hide the JITA ETA line that r517 nests under the email Parts ETA, so staff cannot paste or see that path. Clear JITA ETA values already written. Do not wipe email Parts ETA rows. Do not roll back the r518 Parts Jita tick.
+
+## Where the date is stored
+
+The board JITA date is `public.pdc_jita_eta.eta_date` on the one row per vehicle with `superseded` false. `get_pdc_jita_eta_board` reads only those rows. It is not `public.pdc_parts_eta` and it is not `vehicle_parts_updates.worst_eta`.
+
+Read on staging before the clear, 23 Oct 2026: 75 current JITA ETA rows, 0 already superseded. Stock 13102912 (`e477511c-6f41-4c70-957b-1d3f22231f82`) had JITA ETA 2026-10-29, rule `latest_outstanding`. The only current email Parts ETA was stock 13045137, date 2026-10-29, source `free_form`.
+
+## Hide
+
+`#jita-upload-panel` stays in the Navision Uploads page with the `hidden` attribute. `pdc-jita-eta.js` sets `SHOW_JITA_ETA` false and returns before it binds the paste, calls the board, or draws a JITA ETA under Parts ETA, in the Vehicle Locations Parts ETA cell, or as a Parts tab column. The email Parts ETA script is unchanged. `app.js` and `sales/pmb-stations.js` still paint the r518 Parts Jita tick from `jitQty`. Cache bust `r519=2026.10.23.r519`.
+
+The r516 parse and import functions stay on the database. The page does not call them.
+
+## Clear
+
+Applied on staging `cdsmnqxtyyoeoznmbidd` 23 Oct 2026, schema migration version `20261023212833`, name `r519_clear_jita_eta`. The first attempt was outside the :02–:45 window and rolled back. The apply that landed ran inside the window.
+
+75 current `pdc_jita_eta` rows were marked superseded with sentinel `a5190519-0519-4519-8519-000000000519` and copied to `pdc_ops.r519_jita_eta_clear`. Current JITA ETA rows after the apply: 0. Stock 13102912 is still date 2026-10-29 and `superseded` true, so the board read does not return it. Email Parts ETA stock 13045137 date 2026-10-29 is still current. r518 audit is still 261 rows. Pin count is still 230. `set_parts_eta` is still `88d31cbd6ca5ddd372e3143d5f8c013f`. Checks `jita_eta_upload_516` and `navision_jita_station_tick_518` passed inside the migration.
+
+The SQL file is `supabase/staging_only/20261023233000_r519_clear_jita_eta.sql`. It is not in `supabase/migrations`, so a production migration run does not execute it. The file itself also refuses unless the staging sentinel is `cdsmnqxtyyoeoznmbidd` and the production sentinel is absent.
+
+## Undo
+
+`supabase/rollbacks/20261023233000_r519_clear_jita_eta.down.sql` restores those 75 rows when the vehicle has no newer current JITA ETA, then drops the archive. It does not change the email Parts ETA or the r518 tick. Revert this PR to show the paste again (`SHOW_JITA_ETA` is the switch).

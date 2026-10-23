@@ -99,21 +99,65 @@ test('page wiring: JITA Upload under Navision Uploads, loader after parts ETA, p
   assert.ok(jitaAt < index.indexOf('id="vehicle-modal"'));
   assert.match(index, /<h2>JITA Upload<\/h2>/);
   assert.match(index, /id="jita-paste"/);
+  assert.match(index, /id="jita-upload-panel" hidden>/);
   assert.match(index, /canonical-entry\.js\?[^"]*parts-eta=2026\.10\.21\.r436&amp;key-number=2026\.10\.22\.r460&amp;sublet-po=/);
-  assert.match(index, /&amp;r516=2026\.10\.23\.r516&amp;r517=2026\.10\.23\.r517&amp;parts-eta=2026\.10\.21\.r436/);
+  assert.match(index, /&amp;r516=2026\.10\.23\.r516&amp;r517=2026\.10\.23\.r517&amp;r519=2026\.10\.23\.r519&amp;parts-eta=2026\.10\.21\.r436/);
   assert.match(index, /operation-panels=2026\.10\.21\.r444&amp;sublet-po-attach=2026\.10\.21\.r445"/);
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /serviceLocations\.onload = loadPartsEta;/);
   assert.match(entry, /partsEta\.onload = loadJitaEta;\s*partsEta\.onerror = loadJitaEta;/);
   assert.match(entry, /jitaEta\.onload = loadKeyNumber;\s*jitaEta\.onerror = loadKeyNumber;/);
-  assert.match(entry, /pdc-jita-eta\.js\?r516=2026\.10\.23\.r516&r517=2026\.10\.23\.r517/);
+  assert.match(entry, /pdc-jita-eta\.js\?r516=2026\.10\.23\.r516&r517=2026\.10\.23\.r517&r519=2026\.10\.23\.r519/);
   assert.equal((entry.match(/pdc-key-number\.js/g) || []).length, 1);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-service-locations\.js', 'pdc-parts-eta\.js', 'pdc-sublet-po\.js'/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-key-number\.js', 'pdc-jita-eta\.js'/);
   assert.doesNotMatch(fs.readFileSync('styles.css', 'utf8'), /pdc-jita-eta/);
   assert.doesNotMatch(fs.readFileSync('app.js', 'utf8'), /import_jita_eta_516|pdc-jita-eta|jita-upload-panel/);
   assert.doesNotMatch(fs.readFileSync('pdc-parts-eta.js', 'utf8'), /import_jita_eta_516|pdc_jita_eta/);
-  assert.equal(jita.VERSION, '2026.10.23.r517');
+  assert.equal(jita.VERSION, '2026.10.23.r519');
+  assert.equal(jita.SHOW_JITA_ETA, false);
+});
+
+test('r519 hides the paste and does not nest a JITA ETA; the clear leaves the email ETA and the r518 tick', () => {
+  const vm = require('node:vm');
+  const panel = { hidden: false };
+  let hooked = false;
+  const sandbox = {
+    window: { PDC_SUPABASE_CONFIG: { projectRef: 'cdsmnqxtyyoeoznmbidd' } },
+    document: {
+      getElementById(id) { return id === 'jita-upload-panel' ? panel : null; },
+      head: { appendChild() { hooked = true; } },
+      addEventListener() { hooked = true; },
+      getElementByIdCalls: 0
+    }
+  };
+  sandbox.window.document = sandbox.document;
+  vm.runInNewContext(fs.readFileSync('pdc-jita-eta.js', 'utf8'), sandbox, { filename: 'pdc-jita-eta.js' });
+  assert.equal(panel.hidden, true);
+  assert.equal(sandbox.window.PDC_JITA_ETA.hidden, true);
+  assert.equal(sandbox.window.PDC_JITA_ETA.VERSION, '2026.10.23.r519');
+  assert.equal(hooked, false, 'hidden mode does not style, poll, or decorate');
+  const src = fs.readFileSync('pdc-jita-eta.js', 'utf8');
+  const hideAt = src.indexOf('if (!SHOW_JITA_ETA)');
+  const bindAt = src.indexOf('function bindUpload');
+  assert.ok(hideAt > 0 && bindAt > hideAt);
+  assert.match(src, /panel\.hidden = true/);
+  assert.doesNotMatch(fs.readFileSync('app.js', 'utf8'), /SHOW_JITA_ETA/);
+  assert.match(fs.readFileSync('app.js', 'utf8'), /Parts Jita complete\. Navision JITA number/);
+  const clear = fs.readFileSync('supabase/staging_only/20261023233000_r519_clear_jita_eta.sql', 'utf8');
+  const down = fs.readFileSync('supabase/rollbacks/20261023233000_r519_clear_jita_eta.down.sql', 'utf8');
+  assert.match(clear, /cdsmnqxtyyoeoznmbidd/);
+  assert.match(clear, /NOT BETWEEN 2 AND 45/);
+  assert.match(clear, /pdc_production_environment_sentinel/);
+  assert.match(clear, /UPDATE public\.pdc_jita_eta/);
+  assert.match(clear, /a5190519-0519-4519-8519-000000000519/);
+  assert.doesNotMatch(clear, /UPDATE public\.pdc_parts_eta|UPDATE public\.vehicle_parts_updates|DROP FUNCTION public\.tick_parts_jita_from_navision_518|DROP TABLE public\.pdc_jita_eta/);
+  assert.match(clear, /88d31cbd6ca5ddd372e3143d5f8c013f/);
+  assert.match(clear, /tick_parts_jita_from_navision_518/);
+  assert.match(down, /superseded = false/);
+  assert.match(down, /DROP TABLE pdc_ops\.r519_jita_eta_clear/);
+  assert.doesNotMatch(down, /UPDATE public\.pdc_parts_eta|DROP FUNCTION public\.tick_parts_jita_from_navision_518/);
+  assert.match(fs.readFileSync('docs/FAULT_LOG.md', 'utf8'), /\n\| F133 \|/);
 });
 
 test('migration does not replace set_parts_eta and the undo drops only the JITA objects', () => {
