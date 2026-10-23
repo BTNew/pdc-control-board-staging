@@ -410,8 +410,7 @@ SELECT (SELECT count(*) FROM on_cl)=0 AND s.samples AND s.ensure_pit_to_sublet A
  format('%s Pit-worded lines on a QC checklist (%s such lines on %s active vehicles); wording/suggest samples %s, ensure remaps Pit to Sublet %s, QC rule uses Pit helper %s',
   (SELECT count(*) FROM on_cl),(SELECT count(*) FROM pit_text),(SELECT count(*) FROM av),s.samples,s.ensure_pit_to_sublet,s.qc_rule_uses_pit) AS detail
 FROM s$c504$,
- added_in='r504',
- updated_at=now()
+ added_in='r504'
 WHERE check_name='pit_text_lines_never_on_qc_checklist';
 
 DELETE FROM pdc_ops.regression_checks WHERE check_name='status80_completes_parts_sublet_and_all_bays';
@@ -430,7 +429,7 @@ SELECT
 FROM (SELECT prosrc AS a FROM pg_proc WHERE oid='pdc_codex_intake_private.apply_service_pmb_complete(uuid)'::regprocedure) x,
      (SELECT prosrc AS l FROM pg_proc WHERE oid='public.workshop_enforce_booking_lifecycle()'::regprocedure) y,
      (SELECT prosrc AS r FROM pg_proc WHERE oid='public.workshop_require_planner_booking_mutation()'::regprocedure) z
-$c80$,true,191,'r504')
+$c80$,true,191,'r504');
 
 
 DO $p$ DECLARE r record; BEGIN

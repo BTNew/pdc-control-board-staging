@@ -292,8 +292,7 @@ SELECT (SELECT count(*) FROM on_cl)=0 AND s.samples AND s.ensure_skips_pit AND s
  format('%s Pit/Weigh-worded lines on a QC checklist (%s such lines on %s active vehicles); wording samples %s, required work skips Pit %s, QC rule, Bus categories and PMB->QC gate use Pit helper %s',
   (SELECT count(*) FROM on_cl),(SELECT count(*) FROM pit_text),(SELECT count(*) FROM av),s.samples,s.ensure_skips_pit,s.qc_rule_uses_pit) AS detail
 FROM s$c405$,
- added_in='r405',
- updated_at=now()
+ added_in='r405'
 WHERE check_name='pit_text_lines_never_on_qc_checklist';
 
 INSERT INTO pdc_ops.expected_function_md5(signature,prosrc_md5,release,note) VALUES
