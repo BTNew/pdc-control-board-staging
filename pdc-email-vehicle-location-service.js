@@ -641,16 +641,25 @@ function createPdcEmailVehicleLocationService(options = {}) {
     const timer = setTimeout(() => abort.abort(), 60000);
     try {
       const response = await request(`${url}/rest/v1/rpc/${name}`, { method: 'POST', signal: abort.signal, headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const body = await response.json();
-      if (token !== getAccessToken()) return { ok: false, code: 'session_changed', data: null };
-      if (!response.ok || !body || body.ok !== true) return { ok: false, code: subletResponseCode(body, response.status), data: body?.data || null };
+      // Empty / non-JSON bodies used to throw here and collapse to unavailableCode (generic toast). Keep the HTTP status.
+      const body = await response.json().catch(() => null);
+      if (token !== getAccessToken()) return { ok: false, code: 'session_changed', message: 'Sign-in changed while the request was in flight.', data: null };
+      if (!response.ok || !body || body.ok !== true) {
+        return { ok: false, code: subletResponseCode(body, response.status), message: String(body?.message || body?.error || '').slice(0, 240), data: body?.data || null };
+      }
       return { ok: true, code: body.code || 'ok', data: body.data || body };
-    } catch (_error) { return { ok: false, code: unavailableCode, data: null }; }
+    } catch (_error) { return { ok: false, code: unavailableCode, message: 'Network or request failure.', data: null }; }
     finally { clearTimeout(timer); }
   }
   function createSubletBooking(vehicleId = '', vehicleVersion = 0, providerId = '', outDate = '', expectedReturnDate = '', providerEmail = '', notes = '', operationLineIdentity = '') {
-    return subletRpc(operationLineIdentity ? 'create_pdc_sublet_operation_booking' : PDC_SUBLET_CREATE_RPC, {
-      ...(operationLineIdentity ? { p_operation_line_identity: operationLineIdentity } : {}), p_vehicle_id: vehicleId, p_vehicle_version: Number(vehicleVersion) || 0, p_provider_id: providerId, p_out_date: outDate, p_expected_return_date: expectedReturnDate, p_provider_email: providerEmail, p_notes: notes }, 'sublet_create_unavailable');
+    // r502: normalise identity to source:/manual: + lowercase uuid; truncate notes (RPC text). Empty JSON no longer maps to create_unavailable.
+    let identity = String(operationLineIdentity || '').trim().toLowerCase();
+    if (identity && !/^(source|manual):[0-9a-f-]{36}$/.test(identity)) {
+      const bare = identity.replace(/^(source|manual|operation):/, '');
+      if (/^[0-9a-f-]{36}$/.test(bare)) identity = `source:${bare}`;
+    }
+    return subletRpc(identity ? 'create_pdc_sublet_operation_booking' : PDC_SUBLET_CREATE_RPC, {
+      ...(identity ? { p_operation_line_identity: identity } : {}), p_vehicle_id: vehicleId, p_vehicle_version: Number(vehicleVersion) || 0, p_provider_id: providerId, p_out_date: outDate, p_expected_return_date: expectedReturnDate, p_provider_email: providerEmail, p_notes: String(notes || '').slice(0, 2000) }, 'sublet_create_unavailable');
   }
   function updateSubletBooking(bookingId = '', expectedVersion = 0, outDate = '', expectedReturnDate = '', notes = null) {
     return subletRpc(PDC_SUBLET_BOOKING_UPDATE_RPC, { p_booking_id: bookingId, p_expected_version: Number(expectedVersion) || 0, p_out_date: outDate, p_expected_return_date: expectedReturnDate, p_notes: notes }, 'sublet_update_unavailable');

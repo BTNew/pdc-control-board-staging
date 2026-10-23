@@ -79,11 +79,11 @@ test('wiring: no new RPC or SQL; category through set_vehicle_work_category; tic
   assert.match(po, /window\.PDC_SUBLET_PO = Object\.freeze/);
   assert.match(po, /new CustomEvent\('pdc-sublet-lines'/);
   const index = fs.readFileSync('index.html', 'utf8');
-  assert.match(index, /pdc-vehicle-sublets\.js\?r494=2026\.10\.23\.r494b&amp;r501=2026\.10\.23\.r501" defer/);
-  assert.match(index, /pdc-vehicle-sublets\.css\?r494=2026\.10\.23\.r494b&amp;r501=2026\.10\.23\.r501/);
+  assert.match(index, /pdc-vehicle-sublets\.js\?r494=2026\.10\.23\.r494b&amp;r501=2026\.10\.23\.r501&amp;r502=2026\.10\.23\.r502" defer/);
+  assert.match(index, /pdc-vehicle-sublets\.css\?r494=2026\.10\.23\.r494b&amp;r501=2026\.10\.23\.r501&amp;r502=2026\.10\.23\.r502/);
   assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444&r490=2026\.10\.23\.r490&r494=2026\.10\.23\.r494c'/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-vehicle-sublets\.css', 'pdc-vehicle-sublets\.js'/);
-  assert.equal(vs.VERSION, '2026.10.23.r501');
+  assert.equal(vs.VERSION, '2026.10.23.r502');
   assert.equal(fs.readdirSync('supabase/migrations').filter(f => /r494|_494/.test(f)).length, 0, 'no SQL in r494');
 });
 
@@ -129,7 +129,7 @@ test('new GP PO on a line with no sublet (e.g. suspension in Fitting): shows as 
   assert.deepEqual(m.items.map(r => r.category), ['FITTING'], 'shows as a sublet item; the line stays in Fitting');
   assert.equal(m.whole.length, 0); assert.equal(m.state, 'open');
   const html = vs.screenHtml(m, { vehicleId: U(99), perms: { seen: new Set() } });
-  assert.match(html, /<span class="pvs-po">GP90000107<\/span>/, 'the GP PO number shows it');
+  assert.match(html, /<span class="pvs-po"[^>]*>GP90000107<\/span>/, 'the GP PO number shows it');
   assert.doesNotMatch(html, /PO raised for this line|Got it|is-new-po|data-pdc-sublet-ack/);
   // The vehicle Sublet box: the page wrapper no longer hands decorateOperations a 'seen' list, so no note or highlight.
   const src = fs.readFileSync('pdc-sublet-po.js', 'utf8');
@@ -164,10 +164,10 @@ test('r494b (Craig 22 Oct 18:55): vehicle Sublet box: no "Hours not stated", eve
   // Manage sublets: 'PO to raise' sits in the GP PO column at the GP PO chip size; one text size in the tables.
   const m = vs.buildModel({ jobLines, poLines, bookings });
   const rw = vs.screenHtml(m, { vehicleId: U(99), perms: { canTick: true } });
-  assert.match(rw, /data-pvs-line="00000000-0000-4000-8000-000000000004"><td><b>Op 4<\/b><\/td><td>Canopy signage<\/td><td><span class="pvs-nopo"[^>]*>PO to raise<\/span><\/td><td><span class="pvs-muted"/);
+  assert.match(rw, /data-pvs-line="00000000-0000-4000-8000-000000000004"><td><b>Op 4<\/b><\/td><td>[\s\S]*?Canopy signage[\s\S]*?<\/td><td><span class="pvs-nopo"[^>]*>PO to raise<\/span><\/td><td><span class="pvs-muted"/);
   const css = fs.readFileSync('pdc-vehicle-sublets.css', 'utf8');
   assert.match(css, /\.pvs-po,\.pvs-nopo\{box-sizing:border-box;min-width:8\.2em;/);
-  assert.equal(vs.VERSION, '2026.10.23.r501');
+  assert.equal(vs.VERSION, '2026.10.23.r502');
 });
 
 test('Got it is stored per user in this browser (no SQL); the board strip asks for a vehicle\'s GP PO lines only when it has Sublet lines and a PO', () => {

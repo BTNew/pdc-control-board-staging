@@ -44,3 +44,13 @@
 .pvs-save-actions{display:flex;gap:4px;align-items:center;flex-wrap:wrap;max-width:9.5rem}
 .pvs-table .pvs-save{background:#8c671d;border-color:#8c671d;color:#fff}
 .pvs-msg{display:block;margin-top:3px;font-size:12px!important;max-width:12rem}.pvs-msg.is-ok{color:#166534}.pvs-msg.is-err{color:#b91c1c}
+
+/* r502 (F115): truncate bunched GP PO / line wording; hover shows full text (title + overlay). */
+.pvs-clip{position:relative;display:inline;max-width:100%}
+.pvs-clip-text{display:inline}
+.pvs-clip-full{display:none;position:absolute;left:0;top:100%;z-index:40;min-width:12rem;max-width:28rem;padding:6px 8px;margin-top:2px;background:#0f172a;color:#f8fafc;font-size:12px;line-height:1.35;border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.28);white-space:normal;word-break:break-word;pointer-events:none}
+.pvs-clip:hover .pvs-clip-full,.pvs-clip:focus-within .pvs-clip-full{display:block}
+.pvs-po-desc{display:block;max-width:18rem;margin-top:2px;color:#475569}
+.pvs-table td .pvs-clip-text{overflow:hidden}
+.pvs-promote{margin-left:6px;vertical-align:middle;white-space:nowrap}
+.pvs-item td,.pvs-op td{max-width:22rem;overflow:hidden}
