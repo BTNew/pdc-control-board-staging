@@ -158,7 +158,7 @@ const RUNTIME_FILES = Object.freeze([
   'sales/build-requirements.js', 'sales/crm-workspace.css',
   'sales/crm-workspace.js', 'sales/customer-emails.js', 'sales/dashboard-tools.js',
   'sales/email-actions.js', 'sales/finance-pipeline.css', 'sales/finance-pipeline.js',
-  'sales/index.html', 'sales/navision-orders.js', 'sales/sales-accessories.css', 'sales/sales-accessories.js', 'sales/sales.css',
+  'sales/index.html', 'sales/navision-orders.js', 'sales/pmb-stations.css', 'sales/pmb-stations.js', 'sales/sales-accessories.css', 'sales/sales-accessories.js', 'sales/sales.css',
   'sales/sales.js', 'sales/vehicle-notes.js', 'sales/completed-vehicles.js', 'sales/zebra-labels.js',
   // The read-only browser helper stays allowlisted so it can be restored.
   // index.html no longer loads it on startup. No other scripts/ files ship.
