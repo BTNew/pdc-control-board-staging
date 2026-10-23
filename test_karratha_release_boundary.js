@@ -145,7 +145,7 @@ const approvedRootImportPatch = Object.freeze({
   // r494c: r494=2026.10.23.r494c on pdc-sublet-po.js (board 'PO to raise' with no per-vehicle RPC or redraw; F107b).
   // r496: vehicle-slideout=2026.10.22.r496 on pdc-vehicle-slideout.js (edit hours and move lines between jobs in the panel; F109).
   // r501: r501=2026.10.23.r501 on pdc-sublet-intake.js (Sublet page create hidden; bookings made in Manage sublets; F114).
-  "canonical-entry.js": "8aef4e349e687319436dc7416d97a26646c8a96cde504948ff32058676703397",
+  "canonical-entry.js": "c72439baa032a57fd7519ce0ca1bd5daf11e4544e79199741d020b4194361388",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -282,8 +282,9 @@ const approvedRootImportPatch = Object.freeze({
   // r495: Website option Karratha Toyota (Sales), site-switcher-branches.js after the frozen switcher, r495 on pdc-auth.js (F108). Department 135 is not tagged.
   // r510: Role dropdown beside the User Administration status tabs; r510=2026.10.23.r510 on app.js (F123). Department 135 is not tagged.
   // r516: JITA Upload under Navision Uploads; r516=2026.10.23.r516 on canonical-entry.js (F130). Department 135 is not tagged.
+  // r517: JITA apply confirmation and Parts ETA nesting; r517=2026.10.23.r517 on pdc-jita-eta.js and canonical-entry.js (F131). Department 135 is not tagged.
   // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; live check F122 sort 294).
-  "index.html": "60d6a9e149b86097b1f3d40bb58d62bbcdc1d5155203df194b115428a8e0e8c0",
+  "index.html": "16d7fcc020b9074658c8fe2ccf0b8764c37c6e02b874b4153081fdef008694e0",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

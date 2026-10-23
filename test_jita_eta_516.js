@@ -38,19 +38,56 @@ test('latest outstanding date wins; qty 0 falls back to the latest planned date'
   assert.equal(jita.parseDate('31/02/2026'), null);
 });
 
-test('JITA chip sits after the email Parts ETA chip and uses its own class', () => {
-  const parts = '<span class="pdc-parts-eta pdc-parts-eta-ok" title="Parts ETA"><span class="pdc-parts-eta-k">Parts ETA </span>28/10 · 6 days</span>';
-  const html = `<span class="incoming-card-main"><strong>Hilux</strong></span><span class="pdc-parts-eta-wrap"><span class="tune-parts-location">05</span>${parts}</span>`;
-  const out = jita.insertChip(html, { eta_date: '2026-10-29' });
-  const match = out.match(jita.PARTS_CHIP);
-  assert.ok(match);
-  assert.ok(out.indexOf('class="pdc-jita-eta"') > out.indexOf(match[0]) + match[0].length - 1);
-  assert.match(out, /data-jita-eta="2026-10-29"/);
-  assert.match(out, /JITA ETA <\/span>29\/10\/2026/);
-  assert.doesNotMatch(jita.chipHtml({ eta_date: '2026-10-29' }), /pdc-parts-eta/);
-  const detail = '<div class="incoming-vehicle-detail-grid"><div class="tune-service-location-job pdc-parts-eta-detail"><b>Parts ETA</b><span>28/10/26</span></div></div>';
-  const withDetail = jita.insertDetail(detail, { eta_date: '2026-10-29' });
-  assert.ok(withDetail.indexOf('pdc-jita-eta-detail') > withDetail.indexOf('pdc-parts-eta-detail'));
+test('JITA ETA sits at the bottom of the Parts ETA box, not beside the vehicle name', () => {
+  const detail = '<div class="incoming-vehicle-detail-grid"><span class="incoming-card-main"><strong>Hilux DCC</strong></span><div class="tune-service-location-job pdc-parts-eta-detail"><b>Parts ETA</b><span class="pdc-parts-eta-countdown pdc-parts-eta-ok">28/10/26</span><small>From parts staff emails (Perth dates)</small></div></div>';
+  const withDetail = jita.insertDetail(detail, { eta_date: '2027-03-11' });
+  const partsAt = withDetail.indexOf('pdc-parts-eta-detail');
+  const emailAt = withDetail.indexOf('From parts staff emails');
+  const jitaAt = withDetail.indexOf('pdc-jita-eta-in-parts');
+  assert.ok(partsAt > 0 && emailAt > partsAt && jitaAt > emailAt, 'email Parts ETA stays above JITA inside the same box');
+  assert.ok(withDetail.indexOf('</div>', jitaAt) < withDetail.indexOf('incoming-vehicle-detail-grid') + withDetail.length);
+  assert.match(withDetail, /data-jita-eta="2027-03-11"/);
+  assert.match(withDetail, /<b>JITA ETA<\/b><span>11\/03\/2027<\/span>/);
+  assert.equal((withDetail.match(/pdc-parts-eta-detail/g) || []).length, 1);
+  assert.doesNotMatch(withDetail, /<strong>Hilux DCC<\/strong><div class="pdc-jita-eta/);
+  const onlyJita = jita.insertDetail('<div class="incoming-vehicle-detail-grid"><span class="incoming-card-main"><strong>Hilux</strong></span></div>', { eta_date: '2027-03-11' });
+  assert.match(onlyJita, /pdc-parts-eta-detail pdc-jita-eta-only"><div class="pdc-jita-eta-in-parts"/);
+  assert.doesNotMatch(onlyJita, /<strong>Hilux<\/strong><div class="pdc-jita/);
+  assert.doesNotMatch(jita.inPartsHtml({ eta_date: '2027-03-11' }), /pdc-parts-eta-k|set_parts_eta|pdc_parts_eta/);
+});
+
+test('apply result uses the Navision success panel; preview stays the lighter check', () => {
+  const applied = jita.renderUploadResult({
+    ok: true,
+    dry_run: false,
+    rows: 9,
+    results: [
+      { stock: '13094083', status: 'applied', eta_date: '2027-03-11', rule: 'latest_outstanding' },
+      { stock: '13094088', status: 'replaced', eta_date: '2026-10-22', previous_eta: '2026-10-18' },
+      { stock: '13094124', status: 'unchanged', eta_date: '2026-10-22' },
+      { stock: '13064911', status: 'skipped_unknown', eta_date: '2026-11-19' }
+    ]
+  });
+  assert.match(applied, /class="navision-import-success"/);
+  assert.match(applied, /navision-import-success-tick/);
+  assert.match(applied, /<strong>JITA upload complete<\/strong>/);
+  assert.match(applied, /2 vehicle dates saved/);
+  assert.match(applied, /The email Parts ETA was not changed/);
+  assert.match(applied, /class="scot-summary-grid navision-human-summary"/);
+  assert.match(applied, /<span>Dates saved<\/span><strong>2<\/strong>/);
+  assert.match(applied, /<span>Not on the board<\/span><strong>1<\/strong>/);
+  assert.match(applied, /<h3>JITA ETA set<\/h3>[\s\S]*<strong>13094083<\/strong><span>JITA ETA 11\/03\/2027<\/span>/);
+  assert.match(applied, /13094088<\/strong><span>JITA ETA 22\/10\/2026 \(was 18\/10\/2026\)/);
+  assert.ok(applied.indexOf('<h3>JITA ETA set</h3>') < applied.indexOf('<h3>Not on the board</h3>'));
+  assert.match(applied, /<strong>13064911<\/strong><span>JITA ETA 19\/11\/2026<\/span>/);
+  const preview = jita.renderUploadResult({ ok: true, dry_run: true, rows: 2, results: [{ stock: '13094083', status: 'would_apply', eta_date: '2027-03-11' }] });
+  assert.doesNotMatch(preview, /navision-import-success/);
+  assert.match(preview, /<strong>JITA file checked and ready<\/strong>/);
+  assert.match(preview, /Preview only. Nothing has been saved/);
+  assert.match(preview, /<span>Would be saved<\/span><strong>1<\/strong>/);
+  const src = fs.readFileSync('pdc-jita-eta.js', 'utf8');
+  assert.match(src, /show\(renderUploadResult\(payload\)\)/);
+  assert.doesNotMatch(src, /insertChip|function chipHtml/);
 });
 
 test('page wiring: JITA Upload under Navision Uploads, loader after parts ETA, parts ETA files untouched', () => {
@@ -63,20 +100,20 @@ test('page wiring: JITA Upload under Navision Uploads, loader after parts ETA, p
   assert.match(index, /<h2>JITA Upload<\/h2>/);
   assert.match(index, /id="jita-paste"/);
   assert.match(index, /canonical-entry\.js\?[^"]*parts-eta=2026\.10\.21\.r436&amp;key-number=2026\.10\.22\.r460&amp;sublet-po=/);
-  assert.match(index, /&amp;r516=2026\.10\.23\.r516&amp;parts-eta=2026\.10\.21\.r436/);
+  assert.match(index, /&amp;r516=2026\.10\.23\.r516&amp;r517=2026\.10\.23\.r517&amp;parts-eta=2026\.10\.21\.r436/);
   assert.match(index, /operation-panels=2026\.10\.21\.r444&amp;sublet-po-attach=2026\.10\.21\.r445"/);
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /serviceLocations\.onload = loadPartsEta;/);
   assert.match(entry, /partsEta\.onload = loadJitaEta;\s*partsEta\.onerror = loadJitaEta;/);
   assert.match(entry, /jitaEta\.onload = loadKeyNumber;\s*jitaEta\.onerror = loadKeyNumber;/);
-  assert.match(entry, /pdc-jita-eta\.js\?r516=2026\.10\.23\.r516/);
+  assert.match(entry, /pdc-jita-eta\.js\?r516=2026\.10\.23\.r516&r517=2026\.10\.23\.r517/);
   assert.equal((entry.match(/pdc-key-number\.js/g) || []).length, 1);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-service-locations\.js', 'pdc-parts-eta\.js', 'pdc-sublet-po\.js'/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-key-number\.js', 'pdc-jita-eta\.js'/);
   assert.doesNotMatch(fs.readFileSync('styles.css', 'utf8'), /pdc-jita-eta/);
   assert.doesNotMatch(fs.readFileSync('app.js', 'utf8'), /import_jita_eta_516|pdc-jita-eta|jita-upload-panel/);
   assert.doesNotMatch(fs.readFileSync('pdc-parts-eta.js', 'utf8'), /import_jita_eta_516|pdc_jita_eta/);
-  assert.equal(jita.VERSION, '2026.10.23.r516');
+  assert.equal(jita.VERSION, '2026.10.23.r517');
 });
 
 test('migration does not replace set_parts_eta and the undo drops only the JITA objects', () => {
