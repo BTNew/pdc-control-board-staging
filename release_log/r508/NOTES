@@ -1,0 +1,137 @@
+r508 (F121) PREVIEW. SQL not applied. Staging cdsmnqxtyyoeoznmbidd only. Do not merge.
+Base: main b24c5b50 (r507). Pin count stays 212. No function body change. No app.js.
+
+Craig approved the sales-receipt widen at 10:14 AWST via Kajel.
+Same note: pmbcontroller@gmail.com is no longer scanned. Revolution files come from
+pdc@pmgwa.com.au only, sender noreply@revolutionsoftware.com.au.
+
+Chosen CHECK (live stored ids already pass it, so the old charset is not OR-ed):
+  CHECK (gmail_message_id ~ '^[a-f0-9]+$' OR (length(gmail_message_id) BETWEEN 8 AND 512 AND gmail_message_id !~ '[[:space:]]'))
+
+Live read before writing this release, pdc_sales_private.sales_accessory_receipts (12 rows):
+  11 hex ids, length 16, mailbox pmbcontroller@gmail.com
+  1 non-hex id manual-chat-upload-01M5C2FJ6HM3QGXXQXKVHG8G5C, length 45,
+    mailbox grok-chat-direct-upload (not email)
+  0 rows fail the r506 shape. Min length 16. The old pattern ^[A-Za-z0-9_-]{6,128}$
+  would still be needed only for a 6-7 character non-hex id. None is stored.
+Failing held id <01dd628d$Blat.v3.2.22$f9cc539a$17dcc6c7327e@10.255.11.20>
+  length 58, old pattern false, r506 shape true.
+Held file sha 7fe8b0bd543cb461e4ec228cc6e5cc4de568dd72f97d7bfbfaecdb3b3ff35c19,
+  1259 rows, 104 stocks. Nothing written.
+
+SQL md5 (md5sum from the repo root: md5sum -c release_log/r508/PATCH_MD5S):
+  ce125cab69d0444e27e9bab747f96b80  supabase/migrations/20261023113000_r508_sales_receipt_message_id.sql
+  9641e09dfcd835a8b886bd493f45a28a  supabase/rollbacks/20261023113000_r508_sales_receipt_message_id.down.sql
+
+Undo refuses while a stored gmail_message_id fails ^[A-Za-z0-9_-]{6,128}$.
+Check outlook_sales_receipt_message_id_508, F121, sort 293.
+Apply also re-runs outlook_manifest_message_id_506, outlook_manifest_mailbox_507,
+outlook_pdc_auth_505. check_sql uses WHERE, not count(*) AND column FROM cte.
+Run between second :02 and :45. Guard: pdc_monitor_staging_guard + sentinel
+project_ref cdsmnqxtyyoeoznmbidd + no production sentinel.
+
+Changed
+  pdc_sales_private.sales_accessory_receipts
+    sales_accessory_receipts_gmail_message_id_check
+    was CHECK ((gmail_message_id ~ '^[A-Za-z0-9_-]{6,128}$'::text))
+    becomes the r506 shape above
+
+Not changed (already on the Revolution path, already accept this envelope)
+  pdc_codex_intake_private.management_email_manifests
+    management_email_manifests_gmail_message_id_check
+      CHECK (((gmail_message_id ~ '^[a-f0-9]+$'::text) OR (((length(gmail_message_id) >= 8) AND (length(gmail_message_id) <= 512)) AND (gmail_message_id !~ '[[:space:]]'::text))))
+      r506, already live
+    management_email_manifests_mailbox_check
+      CHECK ((mailbox = ANY (ARRAY['pmbcontroller@gmail.com'::text, 'pdc@pmgwa.com.au'::text])))
+      r507, already live. 283 manifests: 259 pmbcontroller@gmail.com, 6 pdc@pmgwa.com.au, 0 other.
+      Not tightened to pdc@ only: that would reject the 259 stored rows and fail outlook_manifest_mailbox_507.
+    management_email_manifests_sender_check
+      already allows noreply@revolutionsoftware.com.au
+  pdc_sales_private.sales_accessory_receipts
+    sales_accessory_receipts_mailbox_check
+      CHECK (((length(mailbox) >= 3) AND (length(mailbox) <= 320)))
+    sales_accessory_receipts_sender_check
+      CHECK (((length(sender) >= 1) AND (length(sender) <= 320)))
+  pdc_parts_private.receipts
+    no CHECK constraints. message_id is unconstrained text.
+    82 receipts: 80 pmbcontroller@gmail.com, 1 pdc@pmgwa.com.au, 1 null mailbox
+    (user_attached_workbook, not an email).
+    That pdc@ row is revolution_automated_parts_workbook and already stores
+    <01dd6289$Blat.v3.2.22$6b50b14f$1b74c2f4ea77@10.255.11.20> (length 58).
+  pdc_service_snapshot_private.snapshots_479.gmail_message_id
+    no format CHECK (title, scope, counts and sha only).
+
+Not changed (not the live Revolution workbook path)
+  pdc_codex_intake_private.authorizations
+    authorizations_gmail_message_id_check
+      CHECK ((gmail_message_id = '1a08ad887e60554c'::text))
+    authorizations_mailbox_check
+      CHECK ((mailbox = 'pmbcontroller@gmail.com'::text))
+    One historical authorization row, not Kajel's repeating intake.
+  public.pdc_parts_completion_email_confirmations
+    pdc_parts_completion_email_confirmations_gmail_message_id_check
+      CHECK ((gmail_message_id ~ '^[a-f0-9]{10,40}$'::text))
+    pdc_parts_completion_email_confirmations_mailbox_check
+      CHECK ((mailbox = 'pmbcontroller@gmail.com'::text))
+    Written by record_pdc_wayne_parts_complete_20260912 and
+    record_pdc_person_parts_complete_20260913 (person mail, not noreply Revolution).
+  karratha135_intake.management_email_manifests
+    management_email_manifests_gmail_message_id_check
+      CHECK ((gmail_message_id ~ '^[a-f0-9]+$'::text))
+    management_email_manifests_mailbox_check
+      CHECK ((mailbox = 'pmbcontroller@gmail.com'::text))
+    Parked Dept 135. No karratha135 sales_accessory_receipts table.
+  karratha135_intake.authorizations
+    authorizations_gmail_message_id_check CHECK ((gmail_message_id = '1a08ad887e60554c'::text))
+    authorizations_mailbox_check CHECK ((mailbox = 'pmbcontroller@gmail.com'::text))
+  karratha135_pdc.pdc_parts_completion_email_confirmations
+    same hex {10,40} and pmbcontroller mailbox CHECKs as the public copy
+  Old Gmail-monitor controls, each CHECK (mailbox_address = 'pmbcontroller@gmail.com')
+  or the owner_email equivalent. Not Revolution file intake:
+    public.pdc_authenticated_provider_import_agentic_compatibility_control
+      pdc_authenticated_provider_import_agentic_mailbox_address_check
+    public.pdc_email_monitor_activation_receipts_454
+      pdc_email_monitor_activation_receipts_454_mailbox_address_check
+    public.pdc_email_monitor_authenticated_enqueue_trigger_controls_675
+      pdc_email_monitor_authenticated_en_active_mailbox_address_check
+    public.pdc_email_monitor_authenticated_mailbox_activation_controls_674
+      pdc_email_monitor_authenticated_mailbox_a_mailbox_address_check
+    public.pdc_email_monitor_authenticated_mailbox_activation_history_674
+      pdc_email_monitor_authenticated_mailbox__mailbox_address_check1
+    public.pdc_email_monitor_authenticated_mailbox_reactivation_743
+      pdc_email_monitor_authenticated_mailbox_r_mailbox_address_check
+    public.pdc_email_monitor_reactivation_744
+      pdc_email_monitor_reactivation_744_mailbox_address_check
+    public.pdc_email_monitor_reactivation_752
+      pdc_email_monitor_reactivation_752_mailbox_address_check
+    public.pdc_email_monitor_reactivation_835
+      pdc_email_monitor_reactivation_835_mailbox_address_check
+    public.pdc_owner_supplied_document_receipts_396
+      pdc_owner_supplied_document_receipts_396_owner_email_check
+      CHECK ((lower(owner_email) = 'pmbcontroller@gmail.com'::text))
+    public.pdc_uid514_recovery_authorizations_257
+      pdc_uid514_recovery_authorizations_257_mailbox_address_check
+    public.pdc_uid514_recovery_controls_677
+      pdc_uid514_recovery_controls_677_mailbox_address_check
+    public.pdc_uid514_recovery_history_677
+      pdc_uid514_recovery_history_677_mailbox_address_check
+    public.pdc_uid514_staging_commissioning_terminal_receipts_507
+      pdc_uid514_staging_commissioning_terminal_mailbox_address_check
+
+Auth (function bodies, not changed)
+  revolution_parts_authenticated_20261006 prosrc md5 4df79e85792a93bbac4e484d7a2b82f3
+    Outlook path already requires mailbox pdc@pmgwa.com.au, microsoft_receiving_provider,
+    and internet_message_id or outlook_message_id or microsoft_message_id.
+    Gmail path still accepts pmbcontroller@gmail.com for a historical replay.
+    Removing that path would be a function body change and would move a pin.
+  revolution_service_manifest_20261006 prosrc md5 63ff5dabf94abcdf7c278fb3afa9bd96 unchanged.
+  import_sales_accessories_20261020 prosrc md5 46d4b464c5c1800c8ada245fb2d33bd3 unchanged.
+    It does not equality-check the mailbox. r505 already coalesces the Outlook id
+    into gmail_message_id. The column CHECK was the blocker.
+  public.pdc_import_job_parts_csv_20260912 Revolution branch already allows
+    pdc@pmgwa.com.au and authenticates the Outlook id. A separate Craig/Bhavesh
+    branch still requires pmbcontroller@gmail.com. Those senders are not
+    noreply@revolutionsoftware.com.au. Not changed.
+
+test_outlook_manifest_mailbox_507.js had asserted the fault log did not yet contain F121.
+That assertion now requires F121 after F120.
