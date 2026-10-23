@@ -272,13 +272,15 @@ const approvedRootImportPatch = Object.freeze({
   // r498: r498=2026.10.22.r498 on app.js (F111).
   // r500: r500=2026.10.23.r500 on pdc-fitters.js and pdc-conversion-ticks.css (F113).
   // r501: r501=2026.10.23.r501 on canonical-entry.js and pdc-vehicle-sublets.css / .js (Due out / Due back in Manage sublets; F114).
-  "index.html": "45fd94a4dac00cba3c8e73b7e60afef10e538976a9ec85a6cb0a22a703792c76",
+  // r502: r502=2026.10.23.r502 on pdc-vehicle-sublets.css / .js, pdc-email-vehicle-location-service.js and canonical-entry.js query (Manage sublets Save error codes, ^ clean, promote, layout; F115).
+  "index.html": "f439ec23027b3656dad12e2ff8849f5831d42e06e6fa02931bae53292c77e857",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
   // r454: a board row's identity_dealer_code (14450/37047) fills a missing dealer in mapServerVehicle (F67).
   // r458: Detailed history shows a vehicle's creation as Created (presentVehicleCreationEvents, display only) (F71).
-  "pdc-email-vehicle-location-service.js": "e8ba105655c1d2b25cc39eb354fd5d0413c9b29add7edcb183d8ea6f8ecf3070",
+  // r502: subletRpc returns message + safe json(); createSubletBooking normalises identity / truncates notes (F115).
+  "pdc-email-vehicle-location-service.js": "6a5f2efb8449de31ccbbb9c9f58269422401e9ca9875aace792cca81e55688b2",
   // r482: Prioritise vehicle asks before applying a plan that books before the parts ETA (F95).
   "pdc-emergency-priority.js": "f32dfc9d81bafb4dcfb8e6e6805f4932ba5e5219149093d9bc45f1e1ae34d7db",
   "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",

@@ -24,13 +24,48 @@
  * create_pdc_sublet_operation_booking for the line; updateSubletBooking / updateSubletBookingProvider for an active
  * booking), then one snapshot refresh, so the booking is on the Sublet calendar straight away. Clear cancels the line's
  * active booking with the existing cancel_pdc_sublet_booking RPC (history kept; the line goes back to Sublet To Book).
- * Due back must be on or after Due out. The Sublet page no longer creates bookings (pdc-sublet-intake.js). No new SQL. */
+ * Due back must be on or after Due out. The Sublet page no longer creates bookings (pdc-sublet-intake.js). No new SQL.
+ * r502 (F115, Craig 23 Oct 08:34): Manage sublets Save showed 'Not saved. Refresh and try again.' because failText hid every
+ * create/update code that was not in SAVE_ERRORS (not_authenticated, session_changed, sublet_create_unavailable, vehicle_not_found,
+ * and PostgREST/PG codes). Toast now maps those and always shows the raw code. Identity is normalised to source:/manual: + lowercase;
+ * notes truncated to 2000. Revolution '^' line-breaks in GP PO wording are cleaned to ' · ' (same as the Sublet box). Sublet items
+ * get 'Whole line sublet' (promote; reverse of Move). Wording truncated with hover overlay so the table stays neat. Pit inspection /
+ * pit and weigh|way / weighbridge|waybridge wording is sorted first in 'Make a whole operation line a sublet' (import may still own
+ * the category; booking still needs stage SUBLET). No SQL applied. */
 (function (root) {
   'use strict';
-  const VERSION = '2026.10.23.r501';
+  const VERSION = '2026.10.23.r502';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   /** One identity for a line across job cards, GP PO lines and Sublet bookings ("source:<uuid>" = "<uuid>"). */
   const sid = value => String(value ?? '').trim().toLowerCase().replace(/^(source|manual|operation):/, '');
+  /** Booking RPC identity: source:|manual: + lowercase uuid (CHECK + create_pdc_sublet_operation_booking). */
+  function normalizeOperationIdentity(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (/^(source|manual):[0-9a-f-]{36}$/.test(raw)) return raw;
+    const bare = raw.replace(/^(source|manual|operation):/, '');
+    if (/^[0-9a-f-]{36}$/.test(bare)) return `source:${bare}`;
+    return raw;
+  }
+  /** Revolution GP PO descriptions use '^' as a line break; show ' · ' like the Sublet box (pdc-sublet-po cleanDescription). */
+  function cleanDescription(text) {
+    return String(text ?? '').split('^').map(part => part.replace(/\s+/g, ' ').trim()).filter(Boolean).join(' · ');
+  }
+  /** Craig standing rule: pit inspection / pit and weigh|way / weighbridge|waybridge are always sublets (import may own the category). */
+  function isAlwaysSubletWording(text) {
+    const t = String(text || '').toLowerCase().replace(/\s+/g, ' ');
+    return /pit\s*inspection/.test(t)
+      || /pit\s*(?:and|&)\s*weigh/.test(t)
+      || /pit\s*(?:and|&)\s*way\b/.test(t)
+      || /weigh\s*bridge/.test(t)
+      || /way\s*bridge/.test(t);
+  }
+  /** Short label + full text on hover (title + overlay) so Manage sublets stays neat. */
+  function clipHtml(text, max = 64) {
+    const clean = cleanDescription(text);
+    if (!clean) return '—';
+    const short = clean.length > max ? `${clean.slice(0, Math.max(1, max - 1))}…` : clean;
+    return `<span class="pvs-clip" title="${esc(clean)}"><span class="pvs-clip-text">${esc(short)}</span><span class="pvs-clip-full" role="tooltip">${esc(clean)}</span></span>`;
+  }
   const CATEGORY_LABELS = Object.freeze({
     FITTING:'Fitting', ELECTRICAL:'Electrical', FABRICATION:'Fabrication', HOIST:'Hoist', TINT:'Tint', TYRE:'Tyres',
     PIT_INSPECTION:'Pit', SUBLET:'Sublet', BUS_4X4:'Bus 4×4', BUS_MECHANICAL:'Bus 4×4 · Mechanical', BUS_ACCESSORIES:'Bus 4×4 · Accessories',
@@ -54,7 +89,7 @@
   }
   function poList(line) {
     const details = Array.isArray(line?.po_details) ? line.po_details : [];
-    const byPo = new Map(details.filter(d => d && d.po_number).map(d => [String(d.po_number), String(d.description || '').replace(/\s+/g, ' ').trim()]));
+    const byPo = new Map(details.filter(d => d && d.po_number).map(d => [String(d.po_number), cleanDescription(d.description)]));
     const pos = Array.isArray(line?.po_numbers) ? line.po_numbers.map(String) : [];
     for (const po of byPo.keys()) if (!pos.includes(po)) pos.push(po);
     return pos.map(po => ({ po, description: byPo.get(po) || '' }));
@@ -103,7 +138,11 @@
       const id = sid(line.line_identity || line.workshopLineKey || line.operation_line_id);
       return id && !isWholeLine(line) && line.completed !== true && !['JOB_CARD_NOTES', 'UNALLOCATED_MAPPING_REVIEW'].includes(String(line.work_category || '').toUpperCase());
     }).map(line => entry(sid(line.line_identity || line.workshopLineKey || line.operation_line_id), line, poById.get(sid(line.line_identity))))
-      .sort(sort);
+      .sort((a, b) => {
+        const aw = isAlwaysSubletWording(a.description) || a.pos.some(p => isAlwaysSubletWording(p.description)) ? 0 : 1;
+        const bw = isAlwaysSubletWording(b.description) || b.pos.some(p => isAlwaysSubletWording(p.description)) ? 0 : 1;
+        return aw - bw || sort(a, b);
+      });
     const all = [...whole, ...items];
     const done = all.filter(row => row.done).length;
     const state = all.length === 0 ? 'none' : done === all.length ? 'done' : 'open';
@@ -144,7 +183,7 @@
   function poCell(row) {
     // r494b: a whole line sublet with no GP PO shows 'PO to raise' here, the same chip size as a GP PO number.
     if (!row.pos.length) return `<span class="pvs-nopo" title="No GP purchase order on this whole line sublet yet: raise the PO. The done tick appears once the GP PO import attaches it.">PO to raise</span>`;
-    return row.pos.map(p => `<span class="pvs-po" title="${esc(p.description || 'GP purchase order')}">${esc(p.po)}</span>${p.description ? `<small>${esc(p.description)}</small>` : ''}`).join('');
+    return row.pos.map(p => `<span class="pvs-po" title="${esc(p.description || 'GP purchase order')}">${esc(p.po)}</span>${p.description ? `<small class="pvs-po-desc">${clipHtml(p.description, 56)}</small>` : ''}`).join('');
   }
   function moveBackHtml(row, choices) {
     const options = choices.filter(code => code !== 'SUBLET').map(code => `<option value="${esc(code)}">${esc(categoryLabel(code))}</option>`).join('');
@@ -177,7 +216,9 @@
     const o = plainDate(out), b = plainDate(back);
     if (!active) {
       if (!providerId) return { error: 'Choose the supplier first.' };
-      return { kind: 'create', identity: pending.__subletOperationIdentity, providerId, out: o, back: b, notes: pending.pmbSubletNotes || '', steps: ['create'] };
+      const identity = normalizeOperationIdentity(pending.__subletOperationIdentity);
+      if (!/^(source|manual):[0-9a-f-]{36}$/.test(identity)) return { error: 'This line is no longer an open Sublet line. Refresh the board.' };
+      return { kind: 'create', identity, providerId, out: o, back: b, notes: String(pending.pmbSubletNotes || '').slice(0, 2000), steps: ['create'] };
     }
     const steps = [];
     if (providerId && providerId !== String(active.__subletProviderId || '')) steps.push('provider');
@@ -191,15 +232,27 @@
     vehicle_review_not_approved: 'Approve the vehicle intake review first, then book the sublet.',
     sublet_operation_already_booked: 'This line already has a booking. Refreshed: check it and try again.',
     provider_not_found: 'That supplier is not active. Choose another supplier.',
+    vehicle_not_found: 'That vehicle is not on the board. Refresh, then try again.',
     vehicle_version_conflict: 'The vehicle changed. Refreshed: try again.',
     version_conflict: 'Someone else changed this booking. Refreshed: try again.',
     sublet_booking_overlap: 'Those dates overlap another booking for this line.',
     booking_not_active: 'This booking is no longer active. Refreshed.',
     invalid_cancel_state: 'This booking cannot be cleared now (it may be back already).',
     unauthorized: 'Only operators and administrators book sublets.',
+    not_authenticated: 'Sign in again, then retry.',
+    session_changed: 'Your sign-in changed while saving. Sign in again, then retry.',
+    sublet_create_unavailable: 'Not saved: connection issue. Check the network, refresh, then try again.',
+    sublet_update_unavailable: 'Not saved: connection issue. Check the network, refresh, then try again.',
     wrong_environment: 'Not saved: this page is not connected to the PDC database.',
   };
-  const failText = result => SAVE_ERRORS[result?.code] || result?.message || 'Not saved. Refresh and try again.';
+  /** Prefer a mapped phrase; always keep the raw code so a new failure is diagnosable (F115). */
+  const failText = result => {
+    const code = String(result?.code || '').trim();
+    const mapped = SAVE_ERRORS[code];
+    if (mapped) return mapped;
+    if (code) return `Not saved (${code}). Refresh and try again.`;
+    return String(result?.message || '').trim() || 'Not saved. Refresh and try again.';
+  };
   const nextVersion = (result, version) => { const v = Number(result?.data?.booking?.version ?? result?.data?.version); return Number.isFinite(v) && v > version ? v : version + 1; };
   /** Run a planSave() plan. deps: { service, vehicle: { id, version }, providerEmail, idempotencyKey }. One call per step, no retries. */
   async function performSave(plan, deps) {
@@ -263,13 +316,19 @@
       : model.state === 'done' ? `<span class="pvs-pill is-done">✓ All ${model.total} done</span>`
         : `<span class="pvs-pill is-open">! ${model.open} open · ${model.done}/${model.total} done</span>`;
     const wholeRows = model.whole.map(row => `<tr data-pvs-line="${esc(row.id)}"><td><b>${esc(lineLabel(row.operationNo))}</b></td>`
-      + `<td>${esc(row.description || '—')}${p.canMove && !row.completed ? `<div class="pvs-line-actions">${moveBackHtml(row, p.choices)}</div>` : ''}</td>`
+      + `<td>${clipHtml(row.description || '—', 72)}${p.canMove && !row.completed ? `<div class="pvs-line-actions">${moveBackHtml(row, p.choices)}</div>` : ''}</td>`
       + `<td>${poCell(row)}</td><td>${tickHtml(row, vehicleId, p.canTick)}</td>${p.canBook && !row.completed ? editorCells(row, p)
         : bookingCells(row.bookings, p.canEmail, p.canBook ? 'No supplier booked yet' : 'No supplier booked yet: operators and administrators book it here')}</tr>`).join('');
-    const itemRows = model.items.map(row => `<tr class="pvs-op" data-pvs-line="${esc(row.id)}"><td><b>${esc(lineLabel(row.operationNo))}</b></td>`
-      + `<td colspan="9"><span class="pvs-cat">${esc(categoryLabel(row.category))}</span> ${esc(row.description || '—')} <small class="pvs-muted">· the line stays in ${esc(categoryLabel(row.category))}</small></td></tr>`
-      + `<tr class="pvs-item"><td class="pvs-indent">↳ Sublet</td><td>${row.pos.map(x => esc(x.description)).filter(Boolean).join('; ') || '<span class="pvs-muted">No sublet description in the upload yet</span>'}</td>`
-      + `<td>${row.pos.map(x => `<span class="pvs-po">${esc(x.po)}</span>`).join('')}</td><td>${tickHtml(row, vehicleId, p.canTick)}</td>${bookingCells(row.bookings, p.canEmail)}</tr>`).join('');
+    const itemRows = model.items.map(row => {
+      const itemDesc = row.pos.map(x => cleanDescription(x.description)).filter(Boolean).join('; ');
+      const promote = p.canMove && !row.completed
+        ? `<button type="button" class="small-button pvs-promote" data-pvs-whole="${esc(row.id)}" data-category-version="${esc(row.categoryVersion)}" title="Make this whole operation line a sublet (moves to Whole line sublets)">Whole line sublet</button>`
+        : '';
+      return `<tr class="pvs-op" data-pvs-line="${esc(row.id)}"><td><b>${esc(lineLabel(row.operationNo))}</b></td>`
+        + `<td colspan="9"><span class="pvs-cat">${esc(categoryLabel(row.category))}</span> ${clipHtml(row.description || '—', 72)} <small class="pvs-muted">· the line stays in ${esc(categoryLabel(row.category))}</small>${promote ? ` ${promote}` : ''}</td></tr>`
+        + `<tr class="pvs-item"><td class="pvs-indent">↳ Sublet</td><td>${itemDesc ? clipHtml(itemDesc, 72) : '<span class="pvs-muted">No sublet description in the upload yet</span>'}</td>`
+        + `<td>${row.pos.map(x => `<span class="pvs-po" title="${esc(cleanDescription(x.description) || 'GP purchase order')}">${esc(x.po)}</span>`).join('')}</td><td>${tickHtml(row, vehicleId, p.canTick)}</td>${bookingCells(row.bookings, p.canEmail)}</tr>`;
+    }).join('');
     const loose = model.loose.length ? `<section class="pvs-section"><h4>Vehicle sublet bookings <small>not tied to one operation line</small></h4><table class="pvs-table"><thead><tr><th>Supplier</th><th>Out</th><th>Due back</th><th>Back</th><th>Status</th><th></th></tr></thead><tbody>${model.loose.map(b => `<tr>${bookingCells([b], p.canEmail)}</tr>`).join('')}</tbody></table></section>` : '';
     const others = p.canMove && model.others.length ? `<details class="pvs-section pvs-others"><summary>Make a whole operation line a sublet <small>(${model.others.length} other line${model.others.length === 1 ? '' : 's'})</small></summary>`
       + `<p class="pvs-muted">Use this when the whole line is done by a sublet provider (e.g. seat covers). Leave it in its category when only a part is sublet (e.g. leaf springs supplied for a suspension line). Imports never change this choice.</p>`
@@ -284,7 +343,7 @@
       + loose + others
       + `<footer class="pvs-foot"><span class="pvs-muted">${p.canTick ? 'Ticks save straight away.' : 'Read only: controllers, administrators and fitters tick sublet done.'}${p.canMove ? '' : ' Operators and administrators change whole line sublets.'}${p.canBook ? ' Due out and Due back save to the Sublet calendar.' : ''}</span><button type="button" class="small-button" data-pvs-open-sublet>Open Sublet page</button></footer></div>`;
   }
-  const api = { VERSION, sid, isWholeLine, poList, buildModel, screenHtml, categoryLabel, lineLabel, dateText, statusTone, lineBooking, datesError, planSave, performSave, performClear, SAVE_ERRORS };
+  const api = { VERSION, sid, normalizeOperationIdentity, cleanDescription, isAlwaysSubletWording, clipHtml, isWholeLine, poList, buildModel, screenHtml, categoryLabel, lineLabel, dateText, statusTone, lineBooking, datesError, planSave, performSave, performClear, SAVE_ERRORS, failText };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (!root || !root.document || root.PDC_VEHICLE_SUBLETS) return;
   root.PDC_VEHICLE_SUBLETS = api;
