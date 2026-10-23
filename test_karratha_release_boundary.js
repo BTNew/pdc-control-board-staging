@@ -75,8 +75,9 @@ const approvedRootImportPatch = Object.freeze({
   "supabase/migrations/20261015003957_accepted_vehicle_operation_updates.sql": "6e75bf6e2b5dcaee264fb6414e20e066175f08295a5753dcc16f50b8e29a213d",
   // r447: Dept 138 bay guide: preferred (own) bays and no-warning bays incl. overflow 5-6; preferredBays() (F60).
   // r450: whole-job booking (BUS_WHOLE_JOB, wholeJobChoice) for Dept 138 Bus 4x4 (F63).
-  // r483: PMB_BAYS map, pmbBayLabel() and bayLabel() show Craig's Dept 139 bay names; Fab planner count 2 (F96).
-  "pdc-workshop-departments.js": "25c13141b305648518176426f0543fc51431e8c82a6b68987bd40cc1c303595d",
+  // r483: PMB_BAYS map, pmbBayLabel() and bayLabel() show Craig's Dept 139 bay names (F96).
+  // r509: Fabrication planner count is 14 (F122). Karratha's copy stays frozen.
+  "pdc-workshop-departments.js": "6628a2362c8b76e4ff730b1f958de6de0bcd77384242402c025e91b3db481414",
   // Shared planner: pointer-capture drops from a deep queue or search overlay,
   // keep the last search rows during a post-drop refresh, close Add to planner
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
@@ -187,13 +188,15 @@ const approvedRootImportPatch = Object.freeze({
   // r492: Sublet provider email draft adds key number, VIN, sublet work and due back, cache bust sublet-email (F105) (app.js).
   // r498: r498=2026.10.22.r498 on both workshop-planner.js loads (F111).
   // r510: User Administration Role dropdown filters the loaded list on screen (F123).
-  "app.js": "a2abfb1b92f9429eb5ba98bea4f6e82bddaed08fb0b46f797fdc8e9ea147d4db",
+  // r509: Fabrication planner, WIP and capacity label are 14 bays (live check F122 sort 294). Department 135 keeps its frozen app.js.
+  "app.js": "95b763cd3443ebbf5b8d1daf453b50dc688c8e8a18a0ade4d259984055b1016d",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
   // r483: overview bay rows use the Dept 139 bay names; inactive bays with nothing booked are not drawn (F96). The Karratha copy stays frozen.
   // r493: STOPPAGE bars show the running strip as Paused (amber; F106).
-  "control-board-overview.js": "3ba0ae9e1e844942ebf3bb6df8bc699f3c43598d665cd7d80193cc0001b313eb",
+  // r509: control board comment matches the 14-bay fabrication count (live check F122 sort 294). The hidden Karratha copy stays frozen.
+  "control-board-overview.js": "03425d6ba10d0be701bbb53681cbd56c2d0d40da0f70bca9c4d97a17790bdd78",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
   // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02,
@@ -274,10 +277,12 @@ const approvedRootImportPatch = Object.freeze({
   // r498: r498=2026.10.22.r498 on app.js (F111).
   // r500: r500=2026.10.23.r500 on pdc-fitters.js and pdc-conversion-ticks.css (F113).
   // r501: r501=2026.10.23.r501 on canonical-entry.js and pdc-vehicle-sublets.css / .js (Due out / Due back in Manage sublets; F114).
+  // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; F122).
   // r502: r502=2026.10.23.r502 on pdc-vehicle-sublets.css / .js, pdc-email-vehicle-location-service.js and canonical-entry.js query (Manage sublets Save error codes, ^ clean, promote, layout; F115).
   // r495: Website option Karratha Toyota (Sales), site-switcher-branches.js after the frozen switcher, r495 on pdc-auth.js (F108). Department 135 is not tagged.
   // r510: Role dropdown beside the User Administration status tabs; r510=2026.10.23.r510 on app.js (F123). Department 135 is not tagged.
-  "index.html": "284f193afbcd48c4f92e2cd8b03a4a32e97ed2f9a397850d8ca964192146af4c",
+  // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; live check F122 sort 294).
+  "index.html": "20f265aeed0f86ef65cadb97a76dc46b0427b2a7509a3f1cf9a12112f6dad90b",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

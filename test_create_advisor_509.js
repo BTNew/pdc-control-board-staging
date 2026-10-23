@@ -22,9 +22,15 @@ test('preparer: trailing Create Advisor is dropped; blank data rows are skipped;
   assert.match(whole, /never closes, hides or deletes/);
 });
 
-test('no SQL for r509: header pins stay the post-drop contract (an extra column is still refused there)', () => {
+test('no SQL for the Create Advisor preparer: header pins stay the post-drop contract (an extra column is still refused there)', () => {
+  // r509 is also the already-applied fabrication migration. That pair is not a Create Advisor change.
+  const fabrication = new Set([
+    '20261023130000_r509_fabrication_14_bays.sql',
+    '20261023130000_r509_fabrication_14_bays.down.sql',
+  ]);
   for (const d of ['supabase/migrations', 'supabase/rollbacks', 'tests']) {
-    assert.deepEqual(fs.readdirSync(path.join(root, d)).filter(f => /r509|create_advisor_509/i.test(f)), [], d);
+    const hit = fs.readdirSync(path.join(root, d)).filter(f => /r509|create_advisor_509/i.test(f) && !fabrication.has(f));
+    assert.deepEqual(hit, [], d);
   }
   const r439 = fs.readFileSync(path.join(root, 'supabase/migrations/20261021064811_r439_sublet_po_refs_and_ticks.sql'), 'utf8');
   assert.match(r439, /NOT pdc_codex_intake_private\.revolution_service_headers_439\(hdr\.b\|\|'\["PO #","Other"\]'/);

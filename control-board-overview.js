@@ -85,8 +85,9 @@
     });
     waiting.sort((a, b) => rank(a.stage) - rank(b.stage) || text(a.vehicle.stock_number).localeCompare(text(b.vehicle.stock_number), undefined, { numeric: true }) || compareTime(a, b));
     const matchedWaiting = waiting.filter(item => matches(item));
-    // r483 (F96): a Dept 139 bay above its station's planner count that is inactive and empty (Fab Bays 03-13, hidden by
-    // Craig) is not drawn; any other inactive bay, or one that still holds a booking or block, stays visible as before.
+    // r483 (F96) / r509 (F122): a Dept 139 bay above its station's planner count that is inactive and empty
+    // is not drawn. Fabrication's count is 14, so Fab 01-14 stay. Any other inactive bay, or one that still
+    // holds a booking or block, stays visible as before.
     const retired = column => column.bay.is_active === false && column.total === 0 && Number(column.bay.bay_number) > (layout?.PMB_BAY_COUNTS?.[column.stage] ?? Infinity);
     const shownColumns = columns.filter(column => !retired(column));
     const visibleColumns = search ? shownColumns.filter(column => column.items.length > 0) : shownColumns;

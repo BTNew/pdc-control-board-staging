@@ -260,7 +260,7 @@ const PMB_WIP_LIMITS = {
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
-  FABRICATION: 2, // r483 (F96): Fab Bays 03-13 hidden; 139 Fab = Internal + External Fabrication
+  FABRICATION: 14, // r509 (F122): 14 fabrication bays; 01-02 stay Internal / External Fabrication
   ELECTRICAL: 10,
   TYRE: 2,
   PIT_INSPECTION: 1,
@@ -272,7 +272,7 @@ const PMB_STAGE_BAY_COUNTS = {
   TINT: 2,
   HOIST: 3,
   FITTING: 5,
-  FABRICATION: 2, // r483 (F96): Fab Bays 03-13 hidden; 139 Fab = Internal + External Fabrication
+  FABRICATION: 14, // r509 (F122): planner and PMB bay board draw Fab Bays 01-14
   ELECTRICAL: 10,
   TYRE: 2,
   PIT_INSPECTION: 1,
@@ -280,7 +280,7 @@ const PMB_STAGE_BAY_COUNTS = {
 
 const PMB_STAGE_CAPACITY_LABELS = {
   BUS_4X4: '10 bays · Mechanical, Progression, QA, Electrical and Accessory Fitting',
-  FABRICATION: '2 bays · Internal and External Fabrication',
+  FABRICATION: '14 bays · Internal and External Fabrication, Fab 03-14',
   TYRE: '2 bays · 1 wheel alignment bay',
   SUBLET: 'Provider queue',
 };
