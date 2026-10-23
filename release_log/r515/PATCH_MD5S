@@ -1,0 +1,2 @@
+d7067bfc092cc26de139b53764f27b99  supabase/migrations/20261023170000_r515_outlook_internal_parts_auth.sql
+7b53773085205cbe80fe848487dc8c72  supabase/rollbacks/20261023170000_r515_outlook_internal_parts_auth.down.sql

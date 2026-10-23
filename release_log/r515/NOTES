@@ -1,0 +1,93 @@
+r515 (F129). Preview only. SQL is not applied on staging (`cdsmnqxtyyoeoznmbidd`). Do not merge until Craig says so. Do not apply to production.
+
+Follow-up to live r514 (PR #495, merge a280b828). Person prosrc was `eb02f76ec94cd0b6c824a18660432afa`. Mark prosrc stays `f5bdb212b439fd37adb73860c5e5d4d3`.
+
+## Numbering
+
+Live `pdc_ops.regression_checks` already has r512 / F125 / sort 297, r513 / F126 / sort 300, and r514 / F128 / sort 301. Open PRs #493 and #496 both claim r512. #496 also claims F128, which r514 already owns. This release is r515 / F129 / sort 302.
+
+## What changed
+
+`record_pdc_person_parts_complete_20260913` only. `outlook_ok` still requires mailbox and To `pdc@pmgwa.com.au`, `verified_by` `microsoft_receiving_provider`, an id of length 8–512 with no whitespace that equals `internet_message_id` or `outlook_message_id` or `microsoft_message_id`, and an Authentication-Results value that starts with `mx.microsoft.com`.
+
+Then either:
+
+- the r514 external path: DKIM, DMARC or SPF pass for the sender domain, or
+- the internal path: `auth_as` or `x_ms_exchange_organization_authas` is `Internal`, the sender domain is `pmgwa.com.au`, and the copied Authentication-Results contains `header.from=pmgwa.com.au`.
+
+`auth_source` and `x_ms_exchange_organization_authsource` are optional. Leave both out when the message has no AuthSource header. Do not invent one. If a key is present, the value must be one hostname (letters, digits, dots, hyphens, 1–253 characters, no spaces). If both keys are present they must be the same hostname, ignoring case. A blank value fails.
+
+The Gmail branch is the r514 text. `mark_pdc_parts_complete` is not replaced. Karratha confirmation CHECKs are not replaced. `service_role` is not granted EXECUTE. Pin count stays 225. These two functions are not in `expected_function_md5`.
+
+A null `authentication_results` now fails closed. r514 could leave `outlook_ok` null and fall through.
+
+## Evidence
+
+Do not rewrite this Authentication-Results. It is the header on the message that failed:
+
+`mx.microsoft.com 1; dkim=none (message not signed) header.d=none;dmarc=none action=none header.from=pmgwa.com.au;`
+
+`X-MS-Exchange-Organization-AuthAs: Internal`
+
+internetMessageId `<SY1P282MB63556EA203EA75E467DCAC23AC642@SY1P282MB6355.AUSP282.PROD.OUTLOOK.COM>`
+mailbox `pdc@pmgwa.com.au`
+from `talin.parker@pmgwa.com.au`
+evidence_sha256 `c94f7ca4357c95113dbfcb15cd93cb21d24d9714ad99056cbaaf59bfcdda8656`
+
+AuthSource was not supplied for this message. Omit `auth_source`.
+
+## jsonb Kajel passes
+
+`p_gmail_message_id` is the historical parameter name. Pass the internetMessageId there, including the angle brackets. Stock, subject and body rules are unchanged from r514 (body `Parts complete` is enough on the Outlook path when the subject contains the stock).
+
+```json
+{
+  "mailbox": "pdc@pmgwa.com.au",
+  "to_address": "pdc@pmgwa.com.au",
+  "from_address": "talin.parker@pmgwa.com.au",
+  "header_from": "pmgwa.com.au",
+  "verified_by": "microsoft_receiving_provider",
+  "internet_message_id": "<SY1P282MB63556EA203EA75E467DCAC23AC642@SY1P282MB6355.AUSP282.PROD.OUTLOOK.COM>",
+  "authentication_results": "mx.microsoft.com 1; dkim=none (message not signed) header.d=none;dmarc=none action=none header.from=pmgwa.com.au;",
+  "auth_as": "Internal",
+  "human_message": "true",
+  "unquoted_affirmative": "true",
+  "auto_submitted": "no"
+}
+```
+
+`header_from` is the sender domain in lowercase. It must equal the domain of `from_address`. `human_message` and `unquoted_affirmative` are the strings `true`. Omit `reply_to`, or set it to the same address as `from_address`.
+
+Accepted AuthAs keys, value `Internal` (trim and case ignored). If both are sent they must agree:
+
+- `auth_as`
+- `x_ms_exchange_organization_authas` (the header `X-MS-Exchange-Organization-AuthAs`)
+
+Optional AuthSource keys. Omit both for this message:
+
+- `auth_source`
+- `x_ms_exchange_organization_authsource` (the header `X-MS-Exchange-Organization-AuthSource`)
+
+Copy `authentication_results` as received. Do not add `spf=pass`, `dkim=pass` or `dmarc=pass`.
+
+## Hashes
+
+Person prosrc before `eb02f76ec94cd0b6c824a18660432afa`. After `8ddb1477beeb94c7879c4021cccf1d40`.
+Mark prosrc unchanged `f5bdb212b439fd37adb73860c5e5d4d3`.
+r514 check text before `cd2ee86341370cb6b214456ed7da5640`. After the person-md5 replace `d876e9bd42a929e659c811c0c9e6c2ec`.
+New check `outlook_internal_parts_auth_515` body `ece98352be4126d5fd4ad2707157cae2`.
+
+File md5 (`md5sum -c release_log/r515/PATCH_MD5S`):
+
+```
+d7067bfc092cc26de139b53764f27b99  supabase/migrations/20261023170000_r515_outlook_internal_parts_auth.sql
+7b53773085205cbe80fe848487dc8c72  supabase/rollbacks/20261023170000_r515_outlook_internal_parts_auth.down.sql
+```
+
+## Checked without applying
+
+Read-only on staging: the real Authentication-Results has `mx_ok` true and DKIM, DMARC and SPF pass all false, and `header.from=pmgwa.com.au` matches. Person and mark prosrc match the r514 hashes. Nothing was written.
+
+Local Postgres only: the new function accepts that payload for IS60353006 and stores the Authentication-Results unchanged. The same payload without `auth_as` returns `unverified_or_ambiguous_confirmation`. External SPF/DKIM/DMARC still pass. A Gmail mailbox with `auth_as=Internal` and this Authentication-Results still fails. The Gmail classic path still passes. `quote_literal` restores person prosrc to `eb02f76ec94cd0b6c824a18660432afa`. The 32 check cases match. `service_role` has no EXECUTE.
+
+Apply later, staging only, between second :02 and :45. Undo: `supabase/rollbacks/20261023170000_r515_outlook_internal_parts_auth.down.sql`.
