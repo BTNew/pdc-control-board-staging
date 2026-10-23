@@ -104,6 +104,6 @@ test('fault log F92 and docs', () => {
 });
 test('Python: r479 preparer tests and the w/Sublet 442 / 468 / 471 tests pass', () => {
   const r = spawnSync('python3', ['-m', 'unittest', 'test_revolution_service_whole_479', 'test_revolution_service_wsublet',
-    'test_revolution_service_wsublet_468', 'test_revolution_service_wsublet_471'], { cwd: path.join(__dirname, 'tools/import-rules'), encoding: 'utf8' });
+    'test_revolution_service_wsublet_468', 'test_revolution_service_wsublet_471', 'test_revolution_service_create_advisor_509'], { cwd: path.join(__dirname, 'tools/import-rules'), encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
 });

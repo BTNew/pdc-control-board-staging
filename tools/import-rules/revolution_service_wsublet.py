@@ -5,12 +5,22 @@ The w/Sublet report carries the 13 usual service columns followed by 'Descriptio
 service line once per sublet PO. r468 (F81): from 22 Oct 2026 Revolution may also send an OPTIONAL leading Type column
 (D on data rows, T1 on the totals footer). Like the sales feed, the preparer drops it: Type is read here, checked against
 the row's shape, and removed from the headers and from every row, so nothing downstream (manifest source_headers, raw_row,
-the database) ever sees a Type column. A file without Type parses exactly as before. This module:
+the database) ever sees a Type column. A file without Type parses exactly as before.
+
+r509 (F122): the as-a-Whole feed Craig switched to (Create Advisor <> "") may also carry an OPTIONAL trailing
+Create Advisor column (values such as OB / BP / GR). Same idea as Type: it is accepted only as the last header,
+then dropped, so source_headers and raw_row never contain it and the pinned manifest header check is unchanged.
+When that column is present, a data row with a blank Create Advisor is not imported (it is counted on
+read_values().create_advisor and left out of the data rows). Nothing in this module closes, hides or deletes a
+board card: an R/O that is absent because it has no advisor stays on the board. A file without the column parses
+exactly as before. This module:
 
 * finds data rows: a data row has an R/O # and a Line #; the totals footer (no R/O #, no Line #) is kept aside and never
   imported; any other row shape stops the whole file (nothing is guessed);
 * r468: when the leading Type column is present, D must be a data row (or a row of another department, excluded as
   before), T1 must be the totals footer, and any other Type value (blank, lower case, T2, ...) stops the whole file;
+* r509: when the trailing Create Advisor column is present, drop it before the row is built, and leave a data row with a
+  blank advisor out of the import (footer and other-department rows are unchanged);
 * collapses repeated rows to ONE line, keeping every distinct PO in source order, and NEVER sums hours;
 * when repeated rows disagree outside the sublet columns, keeps the FIRST row in source order (deterministic), and flags
   the line ('collapse.conflict' true, with every differing value) so the apply receipt reports it.
@@ -39,6 +49,11 @@ TYPE_COLUMN = 'Type'
 TYPE_DATA, TYPE_FOOTER = 'D', 'T1'
 TYPE_DROPPED = 'leading_type_dropped_r468'  # provenance source_type_column when the file had the leading Type column
 TYPE_ABSENT = 'absent'
+CREATE_ADVISOR = 'Create Advisor'
+CREATE_ADVISOR_RULE = 'r509_import_rows_with_create_advisor'
+CREATE_ADVISOR_DROPPED = 'trailing_create_advisor_dropped_r509'  # provenance when the trailing column was dropped
+CREATE_ADVISOR_ABSENT = 'absent'
+_FORMULA_HEADER_RE = re.compile(r'^=\s*"((?:[^"]|"")*)"$')
 
 
 class ContractError(ValueError):
@@ -53,20 +68,52 @@ def norm(v):
     return str(v).strip()
 
 
+def unwrap_header(value):
+    """'="Dept"' -> 'Dept' (Excel formula text; "" inside is one quote). Anything else is returned normalised as is.
+    r479 header cells arrive this way; unwrapping here means check_headers accepts them even if the caller has not."""
+    v = norm(value)
+    m = _FORMULA_HEADER_RE.match(v)
+    return m.group(1).replace('""', '"').strip() if m else v
+
+
+def header_names(headers):
+    """Header cells, formula text unwrapped, trailing blanks removed."""
+    h = [unwrap_header(x) for x in headers]
+    while h and h[-1] == '':
+        h.pop()
+    return h
+
+
 def has_type_column(headers):
     """r468 (F81): True when the first header is exactly 'Type' (Revolution's optional leading Type column)."""
-    return bool(headers) and norm(headers[0]) == TYPE_COLUMN
+    h = header_names(headers)
+    return bool(h) and h[0] == TYPE_COLUMN
+
+
+def has_create_advisor_column(headers):
+    """r509 (F122): True when the last header is exactly 'Create Advisor' (optional trailing column)."""
+    h = header_names(headers)
+    return bool(h) and h[-1] == CREATE_ADVISOR
 
 
 def check_headers(headers):
-    """Returns the service headers WITHOUT the optional leading Type column (r468 drops it, like the sales feed)."""
-    h = [norm(x) for x in headers]
-    while h and h[-1] == '':
-        h.pop()
+    """Returns the service headers WITHOUT the optional leading Type column (r468) and WITHOUT an optional trailing
+    Create Advisor column (r509). Both are dropped here, like the sales feed drops Type, so manifest source_headers
+    stay the 13 service columns plus the sublet columns."""
+    full = header_names(headers)
+    h = list(full)
     if h and h[0] == TYPE_COLUMN:
         h = h[1:]
     if TYPE_COLUMN in h:
         raise ContractError('headers: Type is only accepted as the first column (r468), got it at column %d' % (h.index(TYPE_COLUMN) + 2))
+    if h and h[-1] == CREATE_ADVISOR:
+        h = h[:-1]
+    if CREATE_ADVISOR in h:
+        raise ContractError('headers: Create Advisor is only accepted as the last column (r509), got it at column %d' % (full.index(CREATE_ADVISOR) + 1))
+    folded = [x.lower() for x in h]
+    if 'create advisor' in folded:
+        got = h[folded.index('create advisor')]
+        raise ContractError('headers: Create Advisor must be exactly %r as the last column, got %r' % (CREATE_ADVISOR, got))
     if h[:len(BASE_HEADERS)] != BASE_HEADERS:
         raise ContractError('headers: expected the 13 service columns first, got %r' % h[:len(BASE_HEADERS)])
     extra = h[len(BASE_HEADERS):]
@@ -112,6 +159,22 @@ def source_type_column(headers):
     """r468: provenance marker for the manifest's evidence: TYPE_DROPPED when the leading Type column was dropped, else
     TYPE_ABSENT. The manifest's own type_column stays TYPE_BASIS ('absent_r442'): no Type reaches the database."""
     return TYPE_DROPPED if has_type_column(headers) else TYPE_ABSENT
+
+
+def source_create_advisor_column(headers):
+    """r509: provenance marker. CREATE_ADVISOR_DROPPED when the trailing column was dropped, else CREATE_ADVISOR_ABSENT.
+    The column is not a manifest header and not a raw_row key. Import filtering is read_values().create_advisor."""
+    return CREATE_ADVISOR_DROPPED if has_create_advisor_column(headers) else CREATE_ADVISOR_ABSENT
+
+
+class SheetRead(tuple):
+    """read_values() result: (headers, data, footer, excluded, params). .create_advisor is the r509 filter report.
+    Slicing and unpacking stay a 5-tuple, so callers from r442 / r468 / r479 are unchanged."""
+
+    def __new__(cls, headers, data, footer, excluded, params, create_advisor):
+        self = tuple.__new__(cls, (headers, data, footer, excluded, params))
+        self.create_advisor = create_advisor
+        return self
 
 
 def collapse(rows):
@@ -175,16 +238,31 @@ def collapse(rows):
     return lines, summary
 
 
+def _create_advisor_report(column, blank_rows, kept):
+    """r509: how the Create Advisor column was handled. closes_board_cards is always false: skipping a blank-advisor
+    row leaves any card already on the board open. This preparer never closes, hides or deletes."""
+    return {'rule': CREATE_ADVISOR_RULE, 'column': column, 'blank_data_rows': len(blank_rows),
+            'blank_data_row_numbers': [rn for rn, _ in blank_rows], 'kept_data_rows': kept,
+            'closes_board_cards': False}
+
+
 def read_values(values):
-    """values: worksheet rows (title, parameters, blank, headers, data...). Returns (headers, data_rows, footer, excluded, params)."""
+    """values: worksheet rows (title, parameters, blank, headers, data...). Returns a SheetRead
+    (headers, data_rows, footer, excluded, params) with .create_advisor.
+
+    r509: when the trailing Create Advisor column is present, its cell is read and then dropped (it is not a raw key).
+    A data row whose Create Advisor is blank is not imported (counted on .create_advisor, not in data_rows). The totals
+    footer and other-department rows are classified as before, even when their advisor cell is blank. A file without
+    the column is unchanged."""
     if norm(values[0][0]) != TITLE:
         raise ContractError('title: expected %r, got %r' % (TITLE, values[0][0]))
     params = norm(values[1][0])
     if 'Company = "01"' not in params or 'Division = "1"' not in params:
         raise ContractError('parameters: Company 01 / Division 1 required')
     typed = has_type_column(values[3])
+    advised = has_create_advisor_column(values[3])
     headers = check_headers(values[3])
-    data, footer, excluded = [], [], []
+    data, footer, excluded, blank_advisor = [], [], [], []
     for rn, cells in enumerate(values[4:], 5):
         cells = tuple(cells)
         if all(x is None or norm(x) == '' for x in cells):
@@ -192,15 +270,20 @@ def read_values(values):
         if typed:
             # r468: drop the leading Type cell (like the sales feed); raw rows never carry a Type key.
             t, cells = cells[0], cells[1:]
-            raw = dict(zip(headers, cells[:len(headers)]))
-            kind = classify_typed(t, raw, rn)
         else:
-            raw = dict(zip(headers, cells[:len(headers)]))
-            kind = classify(raw)
+            t = None
+        # r509: the advisor cell sits immediately after the kept headers (trailing blank cells may follow it).
+        advisor_value = cells[len(headers)] if advised and len(cells) > len(headers) else None
+        raw = dict(zip(headers, cells[:len(headers)]))
+        kind = classify_typed(t, raw, rn) if typed else classify(raw)
+        if advised and kind == 'data' and norm(advisor_value) == '':
+            blank_advisor.append((rn, raw))
+            continue
         (data if kind == 'data' else footer if kind == 'footer' else excluded).append((rn, raw))
     if len(footer) > 1:
         raise ContractError('more than one footer row')
-    return headers, data, footer, excluded, params
+    column = CREATE_ADVISOR_DROPPED if advised else CREATE_ADVISOR_ABSENT
+    return SheetRead(headers, data, footer, excluded, params, _create_advisor_report(column, blank_advisor, len(data)))
 
 
 # r471 (F84): trailing bay / parts-location code on an operation description ---------------------------------------------

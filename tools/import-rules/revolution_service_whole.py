@@ -7,9 +7,10 @@ so a reader that does not use the cached values sees the text wrapped in =" ". T
 
 * checks the title, the extraction parameters (Company 01, Division 1, Dept 138 or 139, Status >= 20 and < 90: the scope a
   full snapshot must have, or 'missing from the snapshot' would be wrong) and unwraps ="..." header cells;
-* then reads, classifies and collapses EXACTLY as revolution_service_wsublet does (r442 one line per Dept + R/O + Line #,
-  hours never summed; r468 optional leading Type; r444 sublet PO descriptions; r471 bay codes are applied later by the
-  pipeline step that has the board context). Nothing in revolution_service_wsublet is changed or copied;
+* then reads, classifies and collapses through revolution_service_wsublet (r442 one line per Dept + R/O + Line #,
+  hours never summed; r468 optional leading Type; r509 optional trailing Create Advisor, dropped before the manifest,
+  and when that column is present only data rows with a non-blank advisor are imported; r444 sublet PO descriptions;
+  r471 bay codes are applied later by the pipeline step that has the board context). Those rules are not copied here;
 * resolves each R/O to a board vehicle WITHOUT ever creating one: a non-blank Stock # must be an exact board stock; a blank
   Stock # matches ONLY an exact board stock equal to the Rego # value, or an exact job-card match (the vehicle's job card, or
   a service job already on the board for that R/O). Anything else (no vehicle, a completed / deleted vehicle, or more than
@@ -24,7 +25,9 @@ import re
 import revolution_service_wsublet as ws
 
 TITLE = 'PMG PD Service as a Whole w/Sublet'
-FILENAME_RE = re.compile(r'^PMG PD Service as a Whole w[/_ -]?Sublet( - Job 1)?[.]xlsx?$')
+# The Revolution attachment keeps its report name. CreateAdvisor-Service-as-a-Whole.xlsx is Craig's filtered export
+# (Create Advisor <> ""), the file Kajel tests the widened header against. The worksheet title is still TITLE.
+FILENAME_RE = re.compile(r'^(?:PMG PD Service as a Whole w[/_ -]?Sublet( - Job 1)?|CreateAdvisor-Service-as-a-Whole)[.]xlsx?$')
 SNAPSHOT_SCOPE = 'full_open_ro_snapshot_r479'          # manifest provenance marker (snapshot_scope)
 IDENTITY_RULE = 'r479_exact_board_stock_or_job_card'   # raw_row.identity_r479.rule
 IDENTITY_KEY = 'identity_r479'
@@ -32,7 +35,6 @@ LIVE_STATES = ('active', 'rft')
 CLOSING_SUB_STATUS = ('80', '99')                      # Sub Status 80 / 99: the line is checked out / complete in Revolution
 MISSING_AFTER = 2                                      # consecutive complete snapshots before a board R/O or vehicle is flagged
 
-_WRAPPED_RE = re.compile(r'^=\s*"((?:[^"]|"")*)"$')
 _PARAM_RES = [
     (re.compile(r'Company\s*=\s*"01"'), 'Company = "01"'),
     (re.compile(r'Division\s*=\s*"1"'), 'Division = "1"'),
@@ -45,10 +47,8 @@ norm = ws.norm
 
 
 def unwrap_header(value):
-    """'="Dept"' -> 'Dept' (Excel formula text; "" inside is one quote). Anything else is returned normalised as is."""
-    v = norm(value)
-    m = _WRAPPED_RE.match(v)
-    return m.group(1).replace('""', '"').strip() if m else v
+    """'="Dept"' -> 'Dept'. Same helper as the w/Sublet reader (formula header text)."""
+    return ws.unwrap_header(value)
 
 
 def check_parameters(params):
@@ -61,22 +61,24 @@ def check_parameters(params):
 
 
 def read_values(values):
-    """values: worksheet rows (title, parameters, blank, headers, data...). Returns (headers, data, footer, excluded, params)
-    exactly as revolution_service_wsublet.read_values, for the 'as a Whole' title, after unwrapping ="..." headers."""
+    """values: worksheet rows (title, parameters, blank, headers, data...). Returns the w/Sublet SheetRead
+    (headers, data, footer, excluded, params), with .create_advisor, for the 'as a Whole' title, after unwrapping
+    ="..." headers. A parameter cell that also says Create Advisor <> "" still has to carry the full-snapshot clauses."""
     if not values or norm(values[0][0]) != TITLE:
         raise ContractError('title: expected %r, got %r' % (TITLE, values[0][0] if values else None))
     if len(values) < 4:
         raise ContractError('worksheet: no header row')
     check_parameters(values[1][0])
     headers = tuple(unwrap_header(h) for h in values[3])
-    # The w/Sublet reader checks its own title; everything after the title cell is passed through untouched, so the
-    # r442 / r468 / r444 rules apply byte for byte.
+    # The w/Sublet reader checks its own title. Headers are unwrapped first; Type, Create Advisor, collapse and PO
+    # descriptions are that reader's rules (r442 / r468 / r509 / r444).
     first = (ws.TITLE,) + tuple(values[0][1:])
     return ws.read_values([first, values[1], values[2], headers] + list(values[4:]))
 
 
 def source_headers(values):
-    """The unwrapped header row without the optional Type column (what the manifest's source_headers must carry)."""
+    """The unwrapped header row without the optional Type column and without a trailing Create Advisor column
+    (what the manifest's source_headers must carry). Do not send the raw worksheet header row."""
     return ws.check_headers([unwrap_header(h) for h in values[3]])
 
 
