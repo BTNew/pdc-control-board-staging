@@ -44,3 +44,19 @@ The two earlier cases are unchanged (To PMB; To Craig with PMB in `cc_addresses`
 This function is shared: the service manifest (`revolution_service_manifest_20261006`) and the Karratha 135 contract (`karratha135_intake.revolution_csv_contract_20261007`) call it too, so a service report addressed the same way is accepted at this step as well; each keeps its own subject, file and department rules.
 
 Undo: `supabase/rollbacks/20261022063000_r484_parts_auth_pdc_mailbox.down.sql` restores the exact old body (with its CRLF line ends) and removes the r484 pin and check. Daily check `parts_auth_pdc_mailbox_484` (sort 284) runs 26 synthetic header cases. Local proof: `tests/r484_local_harness/run.sh`.
+
+## r505 (F118): Outlook delivery to pdc@pmgwa.com.au
+
+Craig moved PMB monitoring to the Outlook inbox `pdc@pmgwa.com.au` at 08:03 AWST 23 Oct 2026 and stopped monitoring `pmbcontroller@gmail.com`. Migration `20261023091500_r505_outlook_pdc_mailbox` keeps the Gmail path and adds an Outlook / Microsoft path on the shared helper `pdc_codex_intake_private.revolution_parts_authenticated_20261006(jsonb,text)`:
+
+- `mailbox` exactly `pdc@pmgwa.com.au`
+- `verified_by` exactly `microsoft_receiving_provider`
+- `authentication_results` starts with `mx.microsoft.com` (optional space + digits before `;`), SPF pass for `(noreply@)?revolutionsoftware.com.au`, aligned DMARC pass for `revolutionsoftware.com.au`
+- Bound message id (`p_message_id`) equals `internet_message_id` or `outlook_message_id` or `microsoft_message_id` (length 8–512, no whitespace; not hex-only)
+- To/CC still one of: To PMB; To Craig with PMB on CC; To `pdc@pmgwa.com.au` with Craig on CC (r484)
+
+Callers that hard-coded the Gmail mailbox or `gmail_message_id` are widened: `public.pdc_import_job_parts_csv_20260912`, `karratha135_intake.revolution_csv_contract_20261007`, `pdc_codex_intake_private.revolution_service_rows_20261006`, `pdc_sales_private.import_sales_accessories_20261020`. The service manifest inherits via `p_message_id` (body unchanged). PARTS ETA has no mailbox gate.
+
+**Preparer (Kajel):** for Outlook, set envelope/authentication `mailbox=pdc@pmgwa.com.au`, `verified_by=microsoft_receiving_provider`, put the Graph `internetMessageId` in `internet_message_id` (preferred) and/or Graph id in `outlook_message_id`, copy Authentication-Results as-is, and pass the same id as `p_message_id` (or put it on the envelope so callers coalesce it). Keep To `pdc@` and Craig on CC in `to_address` / `cc_addresses`.
+
+Undo: `supabase/rollbacks/20261023091500_r505_outlook_pdc_mailbox.down.sql`. Daily check `outlook_pdc_auth_505` (sort 290, F118).
