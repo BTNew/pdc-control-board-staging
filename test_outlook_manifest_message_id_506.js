@@ -62,5 +62,5 @@ test('regression check outlook_manifest_message_id_506 sort 291 F119; manifest f
   assert.match(down, /DELETE FROM pdc_ops\.regression_checks WHERE check_name='outlook_manifest_message_id_506'/);
   assert.match(log, /\| F119 \|/);
   assert.ok(log.indexOf('| F118 |') < log.indexOf('| F119 |'));
-  assert.ok(!log.includes('| F120 |'));
+  assert.ok(log.indexOf('| F119 |') < log.indexOf('| F120 |'));
 });
