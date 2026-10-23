@@ -121,8 +121,12 @@ test('mapping: work items, open QC lines, sublet bookings and parts as the board
   assert.equal(stations.toBoardVehicle(F(2)).pdcRequiresParts, false, 'no stock and no parts update = Parts not required');
   assert.equal(stations.toBoardVehicle(F(36)).pdcRequiresTyre, true);
   assert.equal(stations.toBoardVehicle(F(36)).pdcCompleteParts, true);
-  assert.match(salesHtml(F(10)), /imported-parts-green has-jita" role="img" title="Flag green\. Last successful import: [^"]+ \(Perth\)\. Made-up meaning JITA pre-order 1234567"/);
+  assert.match(salesHtml(F(10)), /pdc-station-parts parts-jita-split is-complete has-jita" role="img" title="Parts Jita complete\. Navision JITA number 1234567\."/);
+  assert.doesNotMatch(salesHtml(F(10)), /imported-parts-/, 'a verified JITA number replaces the imported parts colour');
+  assert.match(salesHtml(F(11)), /imported-parts-orange no-jita/);
+  assert.match(salesHtml(F(20)), /Parts Jita complete\. Navision JITA number 7654321/);
   assert.match(salesHtml(F(21)), /no-jita/, 'zero JITA is not a JITA');
+  assert.doesNotMatch(salesHtml(F(21)), /Parts Jita complete/);
   for (const entry of FIX) for (const key of Object.keys(stations.toBoardVehicle(entry)))
     assert.doesNotMatch(key, /name|customer|client|by$|At$/i, 'no people or times in the mapped vehicle');
 });
@@ -145,7 +149,7 @@ test('Sales wiring: linked rows only, short status text under the icons, mobile 
   assert.match(sales, /pmbStationsHtml\(row\)\+'<p class="mobile-pmb'/);
   const index = fs.readFileSync('sales/index.html', 'utf8');
   assert.match(index, /<link rel="stylesheet" href="pmb-stations\.css\?v=2026\.10\.23\.r499b">/);
-  const order = ['../workshop-eligibility.js?', '../vehicle-requirements-guard.js?', 'pmb-stations.js?v=2026.10.23.r499b', 'sales.js?v='].map(s => index.indexOf('src="' + s));
+  const order = ['../workshop-eligibility.js?', '../vehicle-requirements-guard.js?', 'pmb-stations.js?v=2026.10.23.r499b&amp;r518=2026.10.23.r518', 'sales.js?v='].map(s => index.indexOf('src="' + s));
   assert.ok(order.every(i => i > 0) && order.every((v, i) => !i || v > order[i - 1]), 'scripts load before sales.js');
   assert.match(index, /src="sales\.js\?v=2026\.10\.06\.01&amp;r499b=2026\.10\.23\.r499b&amp;[^"]*no-yard-flag=2026\.10\.22\.r486"/, 'sales.js keeps v= (manifest) and adds r499b');
   const build = fs.readFileSync('scripts/build_pages_runtime.js', 'utf8');

@@ -166,6 +166,10 @@
       if (def.key === 'parts') {
         const imp = imported(v), jita = jitaNumber(v);
         const jitaStatus = jita ? `JITA pre-order ${jita}` : 'No verified Navision JITA pre-order number';
+        // r518 (F132): same completed station as app.js when the Navision JITA number is verified. JITA ETA is not read.
+        if (jita && !partsStoppage(v)) {
+          return `<span class="incoming-work-check pdc-station-parts parts-jita-split is-complete has-jita" role="img" title="${esc(`Parts Jita complete. Navision JITA number ${jita}.`)}" aria-label="${esc(`Parts Jita complete; ${jitaStatus}`)}"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">✓</span><span class="parts-jita-marker" aria-hidden="true">✓</span><span class="incoming-work-label">Parts / JITA</span></span>`;
+        }
         if (imp) {
           const glyph = { green: '✓', orange: '!', red: '●', grey: '—', review: '?' }[imp.colour];
           return `<span class="incoming-work-check parts-jita-split imported-parts-${esc(imp.colour)} ${jita ? 'has-jita' : 'no-jita'}" role="img" title="${esc(importedTitle(v) + ' ' + jitaStatus)}" aria-label="${esc(imp.label + '; ' + jitaStatus)}"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">${glyph}</span><span class="parts-jita-marker" aria-hidden="true">${jita ? '✓' : '●'}</span><span class="incoming-work-label">Parts / JITA</span></span>`;

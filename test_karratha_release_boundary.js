@@ -189,7 +189,8 @@ const approvedRootImportPatch = Object.freeze({
   // r498: r498=2026.10.22.r498 on both workshop-planner.js loads (F111).
   // r510: User Administration Role dropdown filters the loaded list on screen (F123).
   // r509: Fabrication planner, WIP and capacity label are 14 bays (live check F122 sort 294). Department 135 keeps its frozen app.js.
-  "app.js": "95b763cd3443ebbf5b8d1daf453b50dc688c8e8a18a0ade4d259984055b1016d",
+  // r518: a verified Navision JITA number completes Parts Jita (F132). Department 135 keeps its frozen app.js.
+  "app.js": "d63514100152fc9f2b1b5fedfc59aa8c76d8965362723864b752c89511913e10",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -283,8 +284,9 @@ const approvedRootImportPatch = Object.freeze({
   // r510: Role dropdown beside the User Administration status tabs; r510=2026.10.23.r510 on app.js (F123). Department 135 is not tagged.
   // r516: JITA Upload under Navision Uploads; r516=2026.10.23.r516 on canonical-entry.js (F130). Department 135 is not tagged.
   // r517: JITA apply confirmation and Parts ETA nesting; r517=2026.10.23.r517 on pdc-jita-eta.js and canonical-entry.js (F131). Department 135 is not tagged.
+  // r518: r518=2026.10.23.r518 on app.js (a verified Navision JITA number completes Parts Jita; F132). Department 135 is not tagged.
   // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; live check F122 sort 294).
-  "index.html": "16d7fcc020b9074658c8fe2ccf0b8764c37c6e02b874b4153081fdef008694e0",
+  "index.html": "07c8d73f9308d05d9617efbcbd16e3b521979c6ed8798573d4067dd24bd78c4a",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
