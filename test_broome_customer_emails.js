@@ -4,10 +4,10 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 require('./sales/dashboard-tools.js');
 const customer=require('./sales/customer-emails.js'),email=require('./sales/email-actions.js');
 function uiHarness(){
- const elements=new Map(),calls=[];
- const el=id=>{if(!elements.has(id))elements.set(id,{id,innerHTML:'',textContent:'',value:'',events:{},addEventListener(type,fn){this.events[type]=fn;},close(){},showModal(){}});return elements.get(id);};
- const h={context:{role:'salesperson'},token:'session-one',rows:[{tracking_id:'own-order',stock:'13001',client:'Example customer',vehicle:'Example Hilux'}],el,calls};
- h.host={document:{getElementById:el},PDC_AUTH_CONTEXT:{role:'salesperson'},PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}}};
+ const elements=new Map(),calls=[],clicks=[];
+ const el=id=>{if(!elements.has(id))elements.set(id,{id,innerHTML:'',textContent:'',value:'',hidden:false,disabled:false,readOnly:false,events:{},addEventListener(type,fn){this.events[type]=fn;},close(){},showModal(){}});return elements.get(id);};
+ const h={context:{role:'salesperson'},token:'session-one',rows:[{tracking_id:'own-order',stock:'13001',client:'Example customer',vehicle:'Example Hilux'}],el,calls,clicks};
+ h.host={document:{getElementById:el,createElement(tag){const node={tagName:tag,href:'',rel:'',style:{},click(){clicks.push({href:this.href});},remove(){}};return node;},body:{appendChild(){}}},BROOME_SALES_EMAIL:email,BROOME_SALES_TOOLS:globalThis.BROOME_SALES_TOOLS,PDC_AUTH_CONTEXT:{role:'salesperson'},PDC_SUPABASE:{rpc(name,args){return new Promise(resolve=>calls.push({name,args,resolve}));}}};
  vm.runInNewContext(fs.readFileSync(require.resolve('./sales/customer-emails.js'),'utf8'),{window:h.host},{filename:'customer-emails.js'});
  h.api=h.host.BROOME_CUSTOMER_EMAILS;
  h.api.init({getContext:()=>h.context,getToken:()=>h.token,getRows:()=>h.rows});
@@ -20,6 +20,7 @@ test('customer updates describe closed-page import capture and review without pr
  assert.match(html,/first import establishes its starting point/);
  assert.match(html,/Review and send each email yourself/);
  assert.match(html,/A downloaded draft is not recorded as sent/);
+ assert.match(html,/Dismiss removes an update from the awaiting list without deleting its history/);
  assert.doesNotMatch(html,/sales page is open|first check|waiting for a retry/);
  assert.equal(h.calls.length,0);
 });
@@ -47,62 +48,44 @@ test('capture notices clear on refresh error and cannot return after sign-out or
  h.calls.at(-1).resolve({data:{drafts:[],context:{role:'salesperson'},capture_pending:5}});await delayed;
  assert.equal(h.el('sales-customeremails').innerHTML,'');
 });
-test('three customer templates use placeholders and salesperson contact signature',()=>{
+test('three customer templates use placeholders without salesperson signature or long dashes',()=>{
  assert.equal(customer.types.length,3);
  for(const [kind] of customer.types){
   const t=customer.template(kind);assert.match(t.subject,/\{\{vehicle_model\}\}/);
-  for(const key of ['customer_first_name','vehicle_model','salesperson_name','salesperson_phone','salesperson_email'])assert.ok(t.body.includes('{{'+key+'}}'));
+  assert.ok(t.body.includes('{{customer_first_name}}'));
+  assert.ok(t.body.includes('{{vehicle_model}}'));
+  assert.doesNotMatch(t.body,/salesperson_phone|salesperson_email|salesperson_name|Kind Regards|Broome Toyota/);
+  assert.doesNotMatch(t.subject+t.body,/[—–−]/);
   assert.doesNotMatch(t.body,/guarantee|definitely|will arrive on/i);
  }
  assert.match(customer.template('production_planned').body,/\{\{production_month\}\}/);
- assert.match(customer.template('production_planned').body,/timing may change/);
- assert.match(customer.template('production_planned').body,/confirmation.*built/);
- assert.match(customer.template('vehicle_built').body,/awaiting shipping and tracking information/);
+ assert.match(customer.template('production_planned').body,/Timing can change/);
+ assert.match(customer.template('production_planned').body,/confirmation that your vehicle has been built/);
+ assert.match(customer.template('vehicle_built').body,/waiting on shipping and tracking details/);
  const perth=customer.template('perth_eta').body;
- for(const phrase of ['Kewdale, Perth','{{perth_eta_date}}','shipping arrangements','port clearances','customs','not your handover date','closer to arrival','myToyota Connect','create or activate','arrange to add your vehicle'])assert.ok(perth.includes(phrase),phrase);
+ for(const phrase of ['Kewdale, Perth','{{perth_eta_date}}','shipping','port clearances','customs','not your handover date','closer to arrival','myToyota Connect','create or activate','add your vehicle'])assert.ok(perth.includes(phrase),phrase);
 });
-test('event facts fill known information without guessing a customer first name',()=>{
- const t=customer.draftText({template_kind:'production_planned',facts:{vehicle_model:'Example Hilux',production_month:'11/2026',salesperson_name:'Example Salesperson'}},{client:'EXAMPLE COMPANY',crm_contact:{email:'customer@example.invalid'}});
- assert.equal(t.recipient,'customer@example.invalid');assert.match(t.body,/November 2026/);assert.match(t.body,/Example Salesperson/);
- assert.match(t.body,/\{\{customer_first_name\}\}/);assert.match(t.body,/\{\{salesperson_phone\}\}/);assert.doesNotMatch(t.body,/EXAMPLE COMPANY/);
- assert.throws(()=>customer.validate(t),/placeholders/);
+test('firstNameFromClient reads Navision CLIENT and leaves companies blank',()=>{
+ assert.equal(customer.firstNameFromClient('Watson, Craig'),'Craig');
+ assert.equal(customer.firstNameFromClient('SMITH, JANE ANN'),'Jane');
+ assert.equal(customer.firstNameFromClient('CRAIG WATSON'),'Craig');
+ assert.equal(customer.firstNameFromClient('EXAMPLE COMPANY'),'');
+ assert.equal(customer.firstNameFromClient('Acme Pty Ltd'),'');
+ assert.equal(customer.firstNameFromClient(''),'');
 });
-test('editable draft signatures follow current ownership without replacing saved reviews or customer contacts',()=>{
- const facts=Object.freeze({vehicle_model:'Example Hilux',salesperson_name:'Original salesperson'});
- const draft=Object.freeze({template_kind:'vehicle_built',status:'draft',facts});
- const row=Object.freeze({salesperson_name:'Current salesperson',crm_contact:Object.freeze({email:'customer@example.invalid'})});
- const generated=customer.draftText(draft,row);
- assert.match(generated.body,/Kind Regards,\nCurrent salesperson\nBroome Toyota/);
- assert.doesNotMatch(generated.body,/Original salesperson/);assert.equal(generated.recipient,'customer@example.invalid');
- assert.match(generated.body,/\{\{salesperson_phone\}\} \| \{\{salesperson_email\}\}/);
- const saved={...draft,recipient:'reviewed@example.invalid',subject:'Reviewed subject',body:'Reviewed wording.\nKind Regards,\nChosen signer\n0400 000 000 | chosen@example.invalid'};
- assert.deepEqual(customer.draftText(saved,row),{recipient:saved.recipient,subject:saved.subject,body:saved.body});
- for(const status of ['prepared','sent'])assert.deepEqual(customer.draftText({...saved,status},row),{recipient:saved.recipient,subject:saved.subject,body:saved.body});
- assert.equal(facts.salesperson_name,'Original salesperson');assert.equal(row.crm_contact.email,'customer@example.invalid');
-});
-test('reassigned draft dialog defaults the current signature while prepared and sent messages stay exact',async()=>{
- const h=uiHarness();h.rows[0].salesperson_name='Current salesperson';
- const facts={vehicle_model:'Example Hilux',salesperson_name:'Original salesperson'};
- const draft={id:'reassigned-draft',tracking_id:'own-order',template_kind:'vehicle_built',status:'draft',version:1,facts};
- const click=()=>h.el('sales-customeremails').events.click({target:{dataset:{customerReview:draft.id},hasAttribute(){return false;},closest(){return this;}}});
- await h.reply({drafts:[draft]});click();
- assert.equal(h.el('customer-email-signature-name').value,'Current salesperson');
- assert.match(h.el('customer-email-body').value,/Kind Regards,\nCurrent salesperson\nBroome Toyota/);
- assert.equal(h.el('customer-email-fill-fields').hidden,false);
- const savedBody='Hi Example, reviewed message.\nKind Regards,\nChosen historical signer\n0400 000 000 | chosen@example.invalid';
- await h.reply({drafts:[{...draft,version:2,recipient:'reviewed@example.invalid',subject:'Reviewed subject',body:savedBody}]});click();
- assert.equal(h.el('customer-email-signature-name').value,'Current salesperson');
- assert.equal(h.el('customer-email-body').value,savedBody);
- for(const [index,status]of ['prepared','sent'].entries()){
-  await h.reply({drafts:[{...draft,status,version:3+index,recipient:'reviewed@example.invalid',subject:'Reviewed subject',body:savedBody}]});click();
-  assert.equal(h.el('customer-email-to').value,'reviewed@example.invalid');assert.equal(h.el('customer-email-subject').value,'Reviewed subject');
-  assert.equal(h.el('customer-email-body').value,savedBody);assert.equal(h.el('customer-email-body').readOnly,true);
-  assert.equal(h.el('customer-email-signature-name').value,'Original salesperson');assert.equal(h.el('customer-email-fill-fields').hidden,true);
- }
+test('event facts fill known information and auto-fill a person first name from CLIENT',()=>{
+ const company=customer.draftText({template_kind:'production_planned',facts:{vehicle_model:'Example Hilux',production_month:'11/2026'}},{client:'EXAMPLE COMPANY',crm_contact:{email:'customer@example.invalid'}});
+ assert.equal(company.recipient,'customer@example.invalid');assert.match(company.body,/November 2026/);
+ assert.match(company.body,/\{\{customer_first_name\}\}/);assert.doesNotMatch(company.body,/EXAMPLE COMPANY|Kind Regards|salesperson/);
+ assert.throws(()=>customer.validate(company),/placeholders/);
+ const person=customer.draftText({template_kind:'vehicle_built',facts:{vehicle_model:'Example Hilux'}},{client:'Watson, Craig',crm_contact:{email:'craig@example.invalid'}});
+ assert.equal(person.customer_first_name,'Craig');assert.match(person.body,/Hi Craig,/);assert.doesNotMatch(person.body,/\{\{/);
 });
 test('reviewed text persists exactly and source values cannot inject another placeholder',()=>{
  const d={template_kind:'vehicle_built',recipient:'saved@example.invalid',subject:'Reviewed subject',body:'Hi Example, reviewed text.'};
- assert.deepEqual(customer.draftText(d,{crm_contact:{email:'changed@example.invalid'}}),{recipient:d.recipient,subject:d.subject,body:d.body});
+ const out=customer.draftText(d,{client:'Watson, Craig',crm_contact:{email:'changed@example.invalid'}});
+ assert.equal(out.recipient,d.recipient);assert.equal(out.subject,d.subject);assert.equal(out.body,d.body);
+ assert.equal(out.customer_first_name,'Craig');
  assert.equal(customer.fill('{{vehicle_model}}', {vehicle_model:'Example {{customer_first_name}}',customer_first_name:'Secret'}),'Example {{customer_first_name}}');
  assert.equal(customer.fill('{{unknown}}',{unknown:'ignored'}),'{{unknown}}');
  assert.equal(customer.monthLabel('13/26'),'');
@@ -113,11 +96,74 @@ test('Perth dates use calendar dates and invalid dates stay unresolved',()=>{
  assert.match(customer.draftText({template_kind:'perth_eta',facts:{perth_eta_date:'2026-02-30'}}).body,/\{\{perth_eta_date\}\}/);
 });
 test('customer export requires completed fields and safely creates a draft email',()=>{
- const t=customer.template('perth_eta');const values={customer_first_name:'Alex',vehicle_model:'Example Hilux',perth_eta_date:'4 November 2026',salesperson_name:'Example Staff',salesperson_phone:'0400 000 000',salesperson_email:'staff@example.invalid'};
+ const t=customer.template('perth_eta');const values={customer_first_name:'Alex',vehicle_model:'Example Hilux',perth_eta_date:'4 November 2026'};
  const d=customer.validate({recipient:'alex@example.invalid',subject:customer.fill(t.subject,values),body:customer.fill(t.body,values)});
  const message=email.eml({to:d.recipient,cc:'',subject:d.subject,body:d.body});assert.match(message,/X-Unsent: 1/);assert.doesNotMatch(message,/SMTP|Authorization/);
+ assert.doesNotMatch(d.body,/Kind Regards|salesperson_phone|—|–/);
  assert.throws(()=>customer.validate({...d,recipient:'alex@example.invalid\r\nBcc: other@example.invalid'}),/address/);
  assert.throws(()=>customer.validate({...d,subject:'subject\r\nBcc: other@example.invalid'}),/subject/);
  assert.throws(()=>customer.validate({...d,body:'Hi {{customer_first_name}},'}),/placeholders/);
  assert.throws(()=>customer.validate({...d,body:''}),/Complete/);
+});
+test('draft dialog auto-fills first name and hides signature fields',async()=>{
+ const h=uiHarness();h.rows[0].client='Watson, Craig';
+ const draft={id:'draft-one',tracking_id:'own-order',template_kind:'vehicle_built',status:'draft',version:1,facts:{vehicle_model:'Example Hilux'}};
+ const click=()=>h.el('sales-customeremails').events.click({target:{dataset:{customerReview:draft.id},hasAttribute(){return false;},closest(){return this;}}});
+ await h.reply({drafts:[draft]});click();
+ assert.equal(h.el('customer-email-first-name').value,'Craig');
+ assert.match(h.el('customer-email-body').value,/Hi Craig,/);
+ assert.doesNotMatch(h.el('customer-email-body').value,/Kind Regards|salesperson/);
+ assert.equal(h.el('customer-email-fill-fields').hidden,false);
+ assert.equal(h.el('customer-email-dismiss').hidden,false);
+ assert.equal(h.el('customer-email-open').hidden,false);
+ const savedBody='Hi Craig, reviewed message.';
+ await h.reply({drafts:[{...draft,version:2,recipient:'reviewed@example.invalid',subject:'Reviewed subject',body:savedBody}]});click();
+ assert.equal(h.el('customer-email-body').value,savedBody);
+ for(const [index,status]of ['prepared','sent'].entries()){
+  await h.reply({drafts:[{...draft,status,version:3+index,recipient:'reviewed@example.invalid',subject:'Reviewed subject',body:savedBody,can_manage_prepared:status==='prepared'}]});click();
+  assert.equal(h.el('customer-email-to').value,'reviewed@example.invalid');assert.equal(h.el('customer-email-subject').value,'Reviewed subject');
+  assert.equal(h.el('customer-email-body').value,savedBody);assert.equal(h.el('customer-email-body').readOnly,true);
+  assert.equal(h.el('customer-email-fill-fields').hidden,true);
+  assert.equal(h.el('customer-email-dismiss').hidden,true);
+ }
+});
+test('Dismiss uses skip RPC and keeps history status',async()=>{
+ const h=uiHarness();
+ const draft={id:'draft-dismiss',tracking_id:'own-order',template_kind:'vehicle_built',status:'draft',version:1,facts:{vehicle_model:'Example Hilux'}};
+ await h.reply({drafts:[draft]});
+ h.el('sales-customeremails').events.click({target:{dataset:{customerReview:draft.id},hasAttribute(){return false;},closest(){return this;}}});
+ const pending=h.el('customer-email-dismiss').events.click();
+ const call=h.calls.at(-1);
+ assert.equal(call.name,'save_broome_customer_email');
+ assert.equal(call.args.p_action,'skip');
+ call.resolve({data:{record:{...draft,status:'skipped',version:2}}});
+ await pending;
+ assert.match(h.el('sales-customeremails').innerHTML,/Dismissed|Earlier updates/);
+});
+test('Open email app opens mailto before the prepare RPC resolves',async()=>{
+ const h=uiHarness();
+ const draft={id:'draft-open',tracking_id:'own-order',template_kind:'vehicle_built',status:'draft',version:1,facts:{vehicle_model:'Example Hilux'},recipient:'craig@example.invalid'};
+ await h.reply({drafts:[draft]});
+ h.el('sales-customeremails').events.click({target:{dataset:{customerReview:draft.id},hasAttribute(){return false;},closest(){return this;}}});
+ h.el('customer-email-to').value='craig@example.invalid';
+ h.el('customer-email-subject').value='Your Example Hilux has been built';
+ h.el('customer-email-body').value='Hi Craig,\n\nJust letting you know your Example Hilux has been built.';
+ const pending=h.el('customer-email-open').events.click();
+ assert.equal(h.clicks.length,1);
+ assert.match(h.clicks[0].href,/^mailto:/);
+ const call=h.calls.at(-1);
+ assert.equal(call.name,'save_broome_customer_email');
+ assert.equal(call.args.p_action,'prepare');
+ call.resolve({data:{record:{...draft,status:'prepared',version:2,can_manage_prepared:true}}});
+ await pending;
+});
+test('index dialog has Dismiss at top and no salesperson signature fields',()=>{
+ const html=fs.readFileSync(require.resolve('./sales/index.html'),'utf8');
+ const start=html.indexOf('id="customer-email-dialog"'),end=html.indexOf('</dialog>',start);
+ const dialog=html.slice(start,end);
+ assert.match(dialog,/id="customer-email-dismiss"/);
+ assert.ok(dialog.indexOf('customer-email-dismiss')<dialog.indexOf('customer-email-to'));
+ assert.doesNotMatch(dialog,/customer-email-signature-name|customer-email-signature-phone|customer-email-signature-email|Salesperson phone|Salesperson email|Salesperson name/);
+ assert.doesNotMatch(dialog,/[—–−]/);
+ assert.match(html,/customer-emails\.js\?v=2026\.10\.02\.19&amp;r495=2026\.10\.23\.r495&amp;r519=2026\.10\.23\.r519/);
 });
