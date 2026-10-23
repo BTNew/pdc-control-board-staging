@@ -130,7 +130,7 @@
     const summary=pmbSummary(row),tone=pmbStatusTone(summary);
     const booked=summary.bookings[0]?.scheduled_start_at?'Booked '+dateLabel(summary.bookings[0].scheduled_start_at):'';
     const full=[tone?'Being worked on':'',summary.status,summary.location,booked].filter(Boolean).join(' · ');
-    return '<td class="pmb-status-cell'+(tone?' pmb-running':'')+'"'+(tone?' data-pmb-tone="running"':'')+' title="'+escapeHtml(full)+'"><span class="pmb-line"><strong>'+escapeHtml(summary.status)+'</strong> '+escapeHtml(summary.location)+'</span></td>';
+    return '<td class="pmb-status-cell'+(tone?' pmb-running':'')+'"'+(tone?' data-pmb-tone="running"':'')+' title="'+escapeHtml(full)+'"><span class="pmb-line"><strong>'+escapeHtml(summary.status)+'</strong> '+escapeHtml(summary.location)+'</span>'+salesStationStrip(row)+'</td>';
   }
   function partsStatus(parts){
     if(!parts)return 'Not recorded';
@@ -141,7 +141,102 @@
     if(parts.required===true)return 'Parts required · order not confirmed';
     return 'Not recorded';
   }
-  const api = { vehicleReference, salespeople, categories, yardLocationCode, yardTextCodes, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, isRunningBooking, pmbStatusTone, pmbStatusCell, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
+  // r508 (F112): Sales PMB Status uses the PMB board station glyphs
+  // (projectWorkState / incomingWorkChecklistHtml). completed ✓ wins, then stoppage !,
+  // then booked ! when required and (parts ordered or an active booking), then required •,
+  // else –. The board lumps started into booked. is-working flashes blue only while that
+  // booked state is in progress: workshop status started, or sublet pmb_sublet open.
+  // Queued and planned stay orange. Before SQL sends pmb_stations, a live booking,
+  // ordered parts or an open/booked sublet infers required.
+  const SALES_STATIONS = Object.freeze([
+    {key:'parts', label:'Parts / JITA', stages:[]},
+    {key:'tint', label:'Tint', stages:['TINT']},
+    {key:'bus4x4', label:'Bus 4x4', stages:['BUS4X4']},
+    {key:'hoist', label:'Hoist', stages:['HOIST']},
+    {key:'fitting', label:'Fitting', stages:['FITTING']},
+    {key:'fabrication', label:'Fab', stages:['FABRICATION','FAB']},
+    {key:'electrical', label:'Elec', stages:['ELECTRICAL','ELEC']},
+    {key:'tyre', label:'Tyre', stages:['TYRE','TYRES']},
+    {key:'sublet', label:'Sublet', stages:['SUBLET']}
+  ]);
+  function salesStageToken(value){return String(value||'').toUpperCase().replace(/[^A-Z0-9]+/g,'');}
+  function salesLiveBooking(booking){return !!booking && booking.deleted_at==null && booking.deletedAt==null && booking.status!=='deleted';}
+  function salesJitaOn(value){
+    if(value===true)return true;
+    if(value===false||value==null)return false;
+    if(typeof value==='number')return value!==0;
+    if(typeof value==='string'){const t=value.trim();return t!==''&&!/^0+(?:\.0+)?$/.test(t);}
+    if(typeof value==='object'){
+      if(Object.hasOwn(value,'jitaPartsOrdered'))return salesJitaOn(value.jitaPartsOrdered);
+      return Object.keys(value).length>0;
+    }
+    return false;
+  }
+  function salesWorkFlag(row,key){
+    const items=Array.isArray(row.pmb_work)?row.pmb_work:null;
+    if(!items)return null;
+    const hit=items.find(w=>String(w.work_key||w.workKey||'').toLowerCase().replace(/[^a-z0-9]+/g,'')===key);
+    return hit?{required:hit.required===true,completed:hit.completed===true}:{required:false,completed:false};
+  }
+  function salesStationStates(row){
+    if(!row||!row.canonical_vehicle_id)return [];
+    if(row.lifecycle_state==='completed'||String(row.pmb_location||'').trim().toLowerCase()==='completed')return [];
+    if(Array.isArray(row.pmb_stations)&&row.pmb_stations.length===9)return row.pmb_stations;
+    const bookings=(Array.isArray(row.bay_bookings)?row.bay_bookings:[]).filter(salesLiveBooking);
+    const parts=row.parts||{};
+    const vehicleStopped=Boolean(row.pmb_stoppage_started_at&&!row.pmb_stoppage_cleared_at);
+    const stoppedStage=salesStageToken(row.pmb_bay_stage||row.pmb_stage);
+    const sublet=String(row.pmb_sublet||'none');
+    return SALES_STATIONS.map(def=>{
+      const known=salesWorkFlag(row,def.key);
+      const matches=bookings.filter(b=>def.stages.includes(salesStageToken(b.stage_code||b.stageCode||b.stage)));
+      const stoppedBooking=matches.some(b=>String(b.status||'').toLowerCase()==='stoppage');
+      const started=matches.some(b=>String(b.status||'').toLowerCase()==='started');
+      const active=matches.some(b=>['queued','planned','started'].includes(String(b.status||'').toLowerCase()));
+      const partsOrdered=parts.ordered===true;
+      const partsStop=def.key==='parts'&&parts.stoppage===true;
+      const stageStop=vehicleStopped&&def.stages.includes(stoppedStage);
+      const subletLive=def.key==='sublet'&&(sublet==='open'||sublet==='booked');
+      const required=known?known.required:(active||(def.key==='parts'&&(partsOrdered||parts.required===true))||subletLive);
+      const completed=known?known.completed:(def.key==='parts'&&parts.complete===true);
+      let state,marker,working=false;
+      if(completed){state='completed';marker='✓';}
+      else if(partsStop||stageStop||stoppedBooking){state='stoppage';marker='!';}
+      else if(required&&((def.key==='parts'&&partsOrdered)||active||subletLive)){
+        state='booked';marker='!';
+        working=started||(def.key==='sublet'&&sublet==='open');
+      }else if(required){state='required';marker='•';}
+      else{state='none';marker='–';}
+      return {key:def.key,label:def.label,state,marker,working,jita:def.key==='parts'?salesJitaOn(row.jita):null};
+    });
+  }
+  function salesStationStrip(row){
+    const stations=salesStationStates(row);
+    if(!stations.length)return '';
+    const cells=stations.map(st=>{
+      const state=st.state||'none';
+      const working=st.working===true||st.working==='true';
+      const jita=st.jita===true||st.jita==='true';
+      const classes=['incoming-work-check','pdc-station-'+(st.key||'station')];
+      if(state==='none')classes.push('is-not-required');
+      if(state!=='none')classes.push('is-required');
+      if(state==='booked'&&(st.key==='parts'||st.key==='sublet'))classes.push('is-ordered');
+      if(state==='booked')classes.push('is-booked');
+      if(state==='completed')classes.push('is-complete');
+      if(state==='stoppage')classes.push('is-blocked');
+      if(working)classes.push('is-working');
+      const label=st.label||st.key||'Station';
+      const name=state==='completed'?'complete':state==='stoppage'?'STOPPAGE':working?'being worked on':state;
+      const title=working?label+' being worked on':label+' '+name;
+      if(st.key==='parts'){
+        const jitaStatus=jita?'JITA pre-order recorded':'No verified Navision JITA pre-order number';
+        return '<span class="'+classes.join(' ')+' parts-jita-split '+(jita?'has-jita':'no-jita')+'" role="img" title="'+escapeHtml('Top left: '+title+'. Bottom right: '+jitaStatus)+'" aria-label="'+escapeHtml('Parts '+name+'; '+jitaStatus)+'"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">'+escapeHtml(st.marker||'')+'</span><span class="parts-jita-marker" aria-hidden="true">'+(jita?'✓':'●')+'</span><span class="incoming-work-label">Parts / JITA</span></span>';
+      }
+      return '<span class="'+classes.join(' ')+'" title="'+escapeHtml(title)+'" aria-label="'+escapeHtml(label+' '+name)+'"><span class="incoming-work-box" aria-hidden="true">'+escapeHtml(st.marker||'')+'</span><span class="incoming-work-label">'+escapeHtml(label)+'</span></span>';
+    }).join('');
+    return '<div class="sales-station-scroll"><div class="incoming-work-checks pdc-station-strip sales-station-strip" aria-label="PMB station icons">'+cells+'</div></div>';
+  }
+  const api = { vehicleReference, salespeople, categories, yardLocationCode, yardTextCodes, category, salesStatus, dispatchEligible, flag, scopeRows, selectRows, quickMatch, escapeHtml, pmbSummary, isRunningBooking, pmbStatusTone, pmbStatusCell, salesStationStates, salesStationStrip, partsStatus, bookingStatus, orderingState, orderingControl, nextOrderingState };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root.document) return;
   const $ = id => root.document.getElementById(id);
@@ -328,7 +423,7 @@
         return '<td title="'+escapeHtml(val||'')+'">'+escapeHtml(val||'—')+'</td>';
       }).join('')+'<td>'+actionHtml(row)+'</td></tr>'+(root.BROOME_VEHICLE_NOTES?.rowHtml(row)||'')).join(''):'<tr><td colspan="13"><div class="empty-state">No vehicles match this view.</div></td></tr>')+'</tbody>');
     columnWidths?.apply();
-    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div>'+'<strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+'<p class="mobile-pmb'+(pmbStatusTone(pmbSummary(row))?' pmb-running':'')+'">'+escapeHtml(pmbSummary(row).status)+'</p><p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
+    html('sales-mobile-vehicles',rows.length?rows.map(row=>'<article class="mobile-vehicle" data-note-row="'+escapeHtml(row.tracking_id)+'"><div class="mobile-vehicle-head"><input type="checkbox" data-select="'+escapeHtml(row.tracking_id)+'" aria-label="Select '+escapeHtml(row.stock||row.order)+'" '+(row.sales_hidden?'disabled ':state.selected.has(row.tracking_id)?'checked':'')+'><button class="stock-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">'+escapeHtml(vehicleReference(row))+'</button><span>'+escapeHtml(row.salesperson_code||'')+'</span></div>'+'<strong>'+escapeHtml(row.client||'Customer not recorded')+'</strong><p>'+escapeHtml(row.vehicle||'Vehicle not recorded')+'</p><span class="status-pill '+category(row)+'">'+escapeHtml(salesStatus(row))+'</span>'+(row.transport_number?'<p>Transport '+escapeHtml(row.transport_number)+'</p>':'')+'<p class="mobile-pmb'+(pmbStatusTone(pmbSummary(row))?' pmb-running':'')+'">'+escapeHtml(pmbSummary(row).status)+'</p>'+salesStationStrip(row)+'<p class="mobile-eta">Kewdale ETA: '+etaHtml(row.kewdale_eta)+'</p><p>Dealer ETA: '+escapeHtml(row.dealer_eta||'Not recorded')+'</p><div class="mobile-ordering">'+[...orderingKeys].map(key=>'<label><span>'+orderingLabels[key]+'</span>'+orderingControl(row,key,state.saving.get(row.tracking_id)||(state.visibilitySaving.has(row.tracking_id)?{}:null),canEditRow(row))+'</label>').join('')+'</div>'+mobileNavisionNotes(row)+(root.BROOME_VEHICLE_NOTES?.toggleHtml(row)||'')+'<button class="small-button" type="button" '+(row.sales_hidden?'disabled ':'')+'data-open="'+escapeHtml(row.tracking_id)+'">Vehicle and customer details</button>'+actionHtml(row)+(root.BROOME_VEHICLE_NOTES?.editorHtml(row)||'')+'</article>').join(''):'<div class="empty-state">No vehicles match this view.</div>');
     if(focusKey)root.document.querySelector?.((focusKey.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-ordering-id="'+focusKey.id+'"][data-ordering-flag="'+focusKey.flag+'"]')?.focus?.({preventScroll:true});
     if(noteFocus){
       const field=root.document.querySelector?.((noteFocus.mobile?'#sales-mobile-vehicles ':'#vehicle-table ')+'[data-notes-form="'+noteFocus.id+'"] [name="'+noteFocus.name+'"]');
@@ -441,7 +536,7 @@
     const facts=[['Location',summary.location],['PMB arrival',row.pmb_arrival_date],['PMB stage',row.pmb_stage],
       ['QC completed',row.qc_completed_at?dateLabel(row.qc_completed_at):null],['Ready for transport confirmed',row.rft_confirmed_at?dateLabel(row.rft_confirmed_at):null],
       ['Transferred to RFT',row.rft_transferred_at?dateLabel(row.rft_transferred_at):null]];
-    return '<section class="pmb-overview"><h3>PMB status</h3><p class="pmb-current'+(pmbStatusTone(summary)?' pmb-running':'')+'">'+escapeHtml(summary.status)+'</p><p class="subtle">Live PMB information · read-only · updated '+escapeHtml(dateLabel(row.pmb_updated_at))+'</p><dl class="detail-grid">'+facts.map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+'</dd></div>').join('')+'</dl></section>'+
+    return '<section class="pmb-overview"><h3>PMB status</h3><p class="pmb-current'+(pmbStatusTone(summary)?' pmb-running':'')+'">'+escapeHtml(summary.status)+'</p>'+salesStationStrip(row)+'<p class="subtle">Live PMB information · read-only · updated '+escapeHtml(dateLabel(row.pmb_updated_at))+'</p><dl class="detail-grid">'+facts.map(([label,val])=>'<div><dt>'+escapeHtml(label)+'</dt><dd>'+escapeHtml(val||'Not recorded')+'</dd></div>').join('')+'</dl></section>'+
       '<h3>Parts</h3><p class="parts-current">'+escapeHtml(partsStatus(parts))+'</p>'+
       (parts?'<dl class="detail-grid">'+[['Parts required',yesNo(parts.required)],['Order recorded',yesNo(parts.ordered)],['Receipt recorded',yesNo(parts.received)],
         ['Parts ETA',parts.eta],['Parts feed updated',parts.snapshot_at?dateLabel(parts.snapshot_at):null],['PMB parts update',parts.updated_at?dateLabel(parts.updated_at):null]]
