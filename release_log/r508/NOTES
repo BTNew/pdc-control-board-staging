@@ -1,4 +1,4 @@
-r508 (F121) PREVIEW. SQL not applied. Staging cdsmnqxtyyoeoznmbidd only. Do not merge.
+r508 (F121) PREVIEW. SQL is live on staging cdsmnqxtyyoeoznmbidd (Rajesh applied). Do not merge.
 Base: main b24c5b50 (r507). Pin count stays 212. No function body change. No app.js.
 
 Craig approved the sales-receipt widen at 10:14 AWST via Kajel.
@@ -20,8 +20,13 @@ Held file sha 7fe8b0bd543cb461e4ec228cc6e5cc4de568dd72f97d7bfbfaecdb3b3ff35c19,
   1259 rows, 104 stocks. Nothing written.
 
 SQL md5 (md5sum from the repo root: md5sum -c release_log/r508/PATCH_MD5S):
-  ce125cab69d0444e27e9bab747f96b80  supabase/migrations/20261023113000_r508_sales_receipt_message_id.sql
+  848c229afbadf80a94a59a7b296cebc2  supabase/migrations/20261023113000_r508_sales_receipt_message_id.sql
   9641e09dfcd835a8b886bd493f45a28a  supabase/rollbacks/20261023113000_r508_sales_receipt_message_id.down.sql
+
+Guard fix applied with the SQL: Postgres stores BETWEEN 8 AND 512 as
+(length >= 8) AND (length <= 512). The pre-check on pdc.r508_manid now accepts
+either form, the same OR the post-check and check_sql already used, and still
+requires the hex alternative ^[a-f0-9]+$. Down file was not changed.
 
 Undo refuses while a stored gmail_message_id fails ^[A-Za-z0-9_-]{6,128}$.
 Check outlook_sales_receipt_message_id_508, F121, sort 293.

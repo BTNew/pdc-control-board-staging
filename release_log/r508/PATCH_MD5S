@@ -1,2 +1,2 @@
-ce125cab69d0444e27e9bab747f96b80  supabase/migrations/20261023113000_r508_sales_receipt_message_id.sql
+848c229afbadf80a94a59a7b296cebc2  supabase/migrations/20261023113000_r508_sales_receipt_message_id.sql
 9641e09dfcd835a8b886bd493f45a28a  supabase/rollbacks/20261023113000_r508_sales_receipt_message_id.down.sql

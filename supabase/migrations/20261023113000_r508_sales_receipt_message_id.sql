@@ -102,7 +102,11 @@ DO $g$ BEGIN
     OR current_setting('pdc.r508_k135mb') NOT LIKE '%pmbcontroller@gmail.com%'
     OR current_setting('pdc.r508_k135mb') LIKE '%pdc@pmgwa.com.au%' THEN RAISE EXCEPTION 'r508: karratha135 mailbox CHECK is not the parked pmbcontroller check'; END IF;
  IF current_setting('pdc.r508_manid') IS NULL
-    OR current_setting('pdc.r508_manid') NOT LIKE '%BETWEEN 8 AND 512%' THEN RAISE EXCEPTION 'r508: service manifest message-id CHECK is not the r506 shape'; END IF;
+    OR current_setting('pdc.r508_manid') NOT LIKE '%^[a-f0-9]+$%'
+    OR NOT (
+         current_setting('pdc.r508_manid') LIKE '%BETWEEN 8 AND 512%'
+      OR (current_setting('pdc.r508_manid') LIKE '%>= 8%' AND current_setting('pdc.r508_manid') LIKE '%<= 512%')
+    ) THEN RAISE EXCEPTION 'r508: service manifest message-id CHECK is not the r506 shape'; END IF;
  IF current_setting('pdc.r508_manmb') IS NULL
     OR current_setting('pdc.r508_manmb') NOT LIKE '%pdc@pmgwa.com.au%' THEN RAISE EXCEPTION 'r508: service manifest mailbox CHECK is not the r507 shape'; END IF;
  IF current_setting('pdc.r508_salesmb') IS NULL
