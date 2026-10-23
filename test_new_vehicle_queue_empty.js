@@ -13,7 +13,7 @@ function fixture() {
   const page={innerHTML:'',insertAdjacentHTML(_position,html){this.innerHTML+=html;},querySelector(){return null;},querySelectorAll(){return [];}};
   const badge={};
   const context={...ui,console,page,nav:{querySelector:()=>badge,setAttribute(){}},app:{currentView:'newvehicles'},
-    readable:()=>true,writable:()=>true,preserveEditorFocus:()=>()=>{},bindUpdates(){},card:row=>`<article>${row.stock_number}</article>`,
+    readable:()=>true,writable:()=>true,retryWritable:()=>false,preserveEditorFocus:()=>()=>{},bindUpdates(){},card:row=>`<article>${row.stock_number}</article>`,
     rpc:async name=>({ok:true,data:name==='list_pdc_tune_operation_changes'?{items:[update],total:1}:{items:[{stock_number:'13042994',snapshot_hash:'new'}],total:1}})};
   vm.createContext(context);
   vm.runInContext(source.slice(source.indexOf('  let items='),source.indexOf('  const readable=')),context);
