@@ -35,5 +35,6 @@ test('r458: ordinary updates, full-row updates and other tables are left alone',
 test('r458: vehicleHistory applies it and index.html cache-busts the service',()=>{
   const src=fs.readFileSync('pdc-email-vehicle-location-service.js','utf8');
   assert.match(src,/data: presentVehicleCreationEvents\(body\.data \|\| body\)/);
-  assert.match(fs.readFileSync('index.html','utf8'),/pdc-email-vehicle-location-service\.js\?[^"]*vehicle-created=2026\.10\.22\.r458" defer>/);
+  // r502b (F115b): allow later cache params after vehicle-created=…r458 (r502 appended &r502=… and broke the end-of-query assertion).
+  assert.match(fs.readFileSync('index.html','utf8'),/pdc-email-vehicle-location-service\.js\?[^"]*vehicle-created=2026\.10\.22\.r458(?:&amp;[^"]*)?" defer>/);
 });
