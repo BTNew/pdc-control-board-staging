@@ -93,10 +93,13 @@ test('a Pit Inspection line picked as Sublet or Pit – external is sent and ver
 });
 
 test('the page version and cache-bust tags ship r459 and pdc-auto-reload.js stays first',()=>{
-  assert.match(fs.readFileSync('pdc-new-vehicles.js','utf8'),/PDC_NEW_VEHICLES_VERSION='2026\.10\.22\.r459'/);
+  // r512 moves the page version; the r459 routing tag stays on the same script URL.
+  assert.match(fs.readFileSync('pdc-new-vehicles.js','utf8'),/PDC_NEW_VEHICLES_VERSION='2026\.10\.23\.r512'/);
   assert.match(fs.readFileSync('canonical-entry.js','utf8'),/pdc-new-vehicles\.js\?[^']*r459=2026\.10\.22\.r459/);
+  assert.match(fs.readFileSync('canonical-entry.js','utf8'),/pdc-new-vehicles\.js\?[^']*r512=2026\.10\.23\.r512/);
   const html=fs.readFileSync('index.html','utf8');
   assert.match(html,/canonical-entry\.js\?[^"]*r459=2026\.10\.22\.r459/);
+  assert.match(html,/canonical-entry\.js\?[^"]*r512=2026\.10\.23\.r512/);
   const scripts=[...html.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m=>m[1]);
   assert.match(scripts[0],/^pdc-auto-reload\.js/);
 });

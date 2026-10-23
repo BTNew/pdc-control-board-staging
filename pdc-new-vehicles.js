@@ -352,8 +352,11 @@
   let badgeCounts=null,countRequest=null;
   let filterDepartment=typeof window!=='undefined'?normalizeReviewDepartment(window.PDC_DEPARTMENT_FILTER?.getSelection?.()):'',pendingDepartment=null;
   const limit=50;
+  // r512 (F125): an importer can approve New Vehicles and change hours, the same as a controller on this screen.
+  // Retry automatic updates stays controller/administrator. That RPC still uses workshop_is_planner_operator().
   const readable=()=>['viewer','operator','importer','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
-  const writable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
+  const writable=()=>['operator','importer','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
+  const retryWritable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
   const adminMenu=document.getElementById('nav-admin-menu');
   for(const view of ['emailreview','ai-auditor']) {
     const button=document.querySelector(`.nav-item[data-view="${view}"]`);
@@ -605,7 +608,7 @@
     }}
   }
   async function retryAutomaticUpdates() {
-    if(saving||loading||!writable())return;
+    if(saving||loading||!retryWritable())return;
     const session=sessionGeneration,department=filterDepartment;saving=true;error='';render();
     try {
       const result=await rpc('retry_pdc_accepted_operation_updates',{p_department:department||null});
@@ -639,7 +642,7 @@
       return;
     }
     if(app.currentView==='operationupdates') {
-      page.innerHTML=`<div class="nv-header"><div><h2>Operation Updates</h2><p>Uploaded work is added automatically to accepted vehicles. These ${updateTotal} updates need attention before they can be applied.</p></div><div class="nv-header-actions">${departmentFilterHtml(filterDepartment,saving)}${writable()?'<button data-update-retry '+(saving||loading?'disabled':'')+'>Retry automatic updates</button>':''}<button data-nv-refresh ${loading||saving?'disabled':''}>Refresh</button></div></div>${error?'<p class="nv-error" role="alert">'+esc(error)+'</p>':''}${notice?'<p role="status">'+esc(notice)+'</p>':''}${updateScheduleHtml(updateSchedule)}<section class="nv-operation-updates" aria-label="Operation updates needing attention">${updateError?'<p role="alert">'+esc(updateError)+'</p>':''}${updateItems.map(row=>operationUpdateHtml(row,updateDrafts[row.change_id]||{},writable(),saving)).join('')||'<p>No operation updates need attention.</p>'}<div class="nv-pagination"><button data-update-page="-1" ${updateOffset===0||loading||saving?'disabled':''}>Previous</button><span>${updateTotal} updates</span><button data-update-page="1" ${updateOffset+updateItems.length>=updateTotal||loading||saving?'disabled':''}>Next</button></div></section>`;
+      page.innerHTML=`<div class="nv-header"><div><h2>Operation Updates</h2><p>Uploaded work is added automatically to accepted vehicles. These ${updateTotal} updates need attention before they can be applied.</p></div><div class="nv-header-actions">${departmentFilterHtml(filterDepartment,saving)}${retryWritable()?'<button data-update-retry '+(saving||loading?'disabled':'')+'>Retry automatic updates</button>':''}<button data-nv-refresh ${loading||saving?'disabled':''}>Refresh</button></div></div>${error?'<p class="nv-error" role="alert">'+esc(error)+'</p>':''}${notice?'<p role="status">'+esc(notice)+'</p>':''}${updateScheduleHtml(updateSchedule)}<section class="nv-operation-updates" aria-label="Operation updates needing attention">${updateError?'<p role="alert">'+esc(updateError)+'</p>':''}${updateItems.map(row=>operationUpdateHtml(row,updateDrafts[row.change_id]||{},writable(),saving)).join('')||'<p>No operation updates need attention.</p>'}<div class="nv-pagination"><button data-update-page="-1" ${updateOffset===0||loading||saving?'disabled':''}>Previous</button><span>${updateTotal} updates</span><button data-update-page="1" ${updateOffset+updateItems.length>=updateTotal||loading||saving?'disabled':''}>Next</button></div></section>`;
       bindUpdates();bindDepartmentFilter();
       page.querySelector('[data-nv-refresh]')?.addEventListener('click',()=>void load());
       page.querySelector('[data-update-retry]')?.addEventListener('click',()=>void retryAutomaticUpdates());
@@ -848,7 +851,7 @@
   document.addEventListener('visibilitychange',()=>void refreshBackground());
   window.addEventListener('online',()=>void refreshBackground());
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.10.22.r459';
+  window.PDC_NEW_VEHICLES_VERSION='2026.10.23.r512';
   window.PDC_NEW_VEHICLES=api;
   render();void refreshBackground();
   if(['#/newvehicles','#/operationupdates'].includes(window.location.hash))showView(window.location.hash.slice(2),{historyMode:'none'});

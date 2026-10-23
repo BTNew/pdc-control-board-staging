@@ -290,8 +290,9 @@
   let badgeCounts=null,countRequest=null;
   let filterDepartment=typeof window!=='undefined'?normalizeReviewDepartment(window.PDC_DEPARTMENT_FILTER?.getSelection?.()):'',pendingDepartment=null;
   const limit=50;
+  // r512 (F125): same New Vehicles write path as the PMG page. Importer can approve and change hours here only.
   const readable=()=>['viewer','operator','importer','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
-  const writable=()=>['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
+  const writable=()=>['operator','importer','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
   const adminMenu=document.getElementById('nav-admin-menu');
   for(const view of ['emailreview','ai-auditor']) {
     const button=document.querySelector(`.nav-item[data-view="${view}"]`);
@@ -759,7 +760,7 @@
   document.addEventListener('visibilitychange',()=>void refreshBackground());
   window.addEventListener('online',()=>void refreshBackground());
   window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
-  window.PDC_NEW_VEHICLES_VERSION='2026.09.19.department-filters';
+  window.PDC_NEW_VEHICLES_VERSION='2026.10.23.r512';
   window.PDC_NEW_VEHICLES=api;
   render();void refreshBackground();
   if(window.location.hash==='#/newvehicles')showView('newvehicles',{historyMode:'none'});

@@ -109,7 +109,8 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
   // on Sublet lines. Department 135 keeps its frozen copy.
-  "pdc-new-vehicles.js": "3f8dc80f7b51493fd0da7224c5ab65345ca1ee3c9c33bbcdedeb574242576f75",
+  // r512: writable() also accepts importer for New Vehicles approve and hours (F125).
+  "pdc-new-vehicles.js": "a095a4280aa8a210b5cbf7ffec5d5520d3ffaa7900dfd7d0a22e4cbe49428a1a",
   "pdc-new-vehicles.css": "8e3930a3d42f6b309e327ae1f1bec066f15794be114868f5b4fe015eb3a142d5",
   "docs/bus4x4-workflow.md": "d2dab9a76da3b23ddfe0e21418d9e0f8212b48aa517443c47e657b2f656869c8",
   // r456: staff guide matches r447/r448/r450 bay rules (F69).
@@ -145,7 +146,8 @@ const approvedRootImportPatch = Object.freeze({
   // r494c: r494=2026.10.23.r494c on pdc-sublet-po.js (board 'PO to raise' with no per-vehicle RPC or redraw; F107b).
   // r496: vehicle-slideout=2026.10.22.r496 on pdc-vehicle-slideout.js (edit hours and move lines between jobs in the panel; F109).
   // r501: r501=2026.10.23.r501 on pdc-sublet-intake.js (Sublet page create hidden; bookings made in Manage sublets; F114).
-  "canonical-entry.js": "c72439baa032a57fd7519ce0ca1bd5daf11e4544e79199741d020b4194361388",
+  // r512: r512=2026.10.23.r512 on pdc-new-vehicles.js (importer can approve and change hours; F125).
+  "canonical-entry.js": "6944f7bc8a920897d7079eae50045c5bfe2960cbfcf5c938c4bcc94155bc6a5f",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -286,7 +288,8 @@ const approvedRootImportPatch = Object.freeze({
   // r517: JITA apply confirmation and Parts ETA nesting; r517=2026.10.23.r517 on pdc-jita-eta.js and canonical-entry.js (F131). Department 135 is not tagged.
   // r518: r518=2026.10.23.r518 on app.js (a verified Navision JITA number completes Parts Jita; F132). Department 135 is not tagged.
   // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; live check F122 sort 294).
-  "index.html": "07c8d73f9308d05d9617efbcbd16e3b521979c6ed8798573d4067dd24bd78c4a",
+  // r512: r512=2026.10.23.r512 on canonical-entry.js (importer New Vehicles approve and hours; F125).
+  "index.html": "b0d034fc9b9b82e56bca6f4ace099ffc78eb0ec4767d3afcafaa5e448d537f37",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
