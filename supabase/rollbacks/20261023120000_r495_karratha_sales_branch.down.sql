@@ -2,8 +2,10 @@
 -- Restores the Sales functions r495 replaced and their pins, drops the 7 new functions and check sales_branch_495,
 -- drops sales_branches and salesperson_branches, and narrows the three dealer CHECKs back to '37047'.
 -- Finance functions were not replaced (Craig 23 Oct). This file rewrites them only with the same pre-r495 bodies.
--- The five seeded Karratha salespeople (CF, SL active; RK, JS, DB inactive) and their mappings are removed when unused.
--- The undo REFUSES if one of those people is on a Sales account or a vehicle, or if any other Karratha data remains
+-- CF and SL are the existing Broome rows. Undo puts their emails back (clint.franklin@pmgwa.com.au, scott.lovett@pmgwa.com.au)
+-- and removes only their Karratha 14450 mapping. Their Broome account scope is not touched and the people are not deleted.
+-- RK/JS/DB placeholders inserted by r495 (those three ids only) are removed when unused. A skipped placeholder was never inserted.
+-- The undo REFUSES if a placeholder is on a Sales account or a vehicle, or if any other Karratha data remains
 -- (a Karratha Sales account, a hidden vehicle, an Autocare dispatch, or any other salesperson mapping). Those other rows are not deleted.
 -- To switch Karratha off without deleting data:
 --   UPDATE pdc_sales_private.sales_branches SET active=false WHERE dealer_code='14450';  (Karratha requests are then refused; Broome unaffected)
@@ -31,14 +33,21 @@ DO $g$ BEGIN
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_sales_private.admin_accounts()')) IS DISTINCT FROM 'fd9d90752b2d3a744c7853ba5b8fc5af' THEN RAISE EXCEPTION 'r495 undo: pdc_sales_private.admin_accounts() is not the r495 version; not undoing over unknown changes'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_sales_private.link_salesperson_scope_429(uuid,text,boolean)')) IS DISTINCT FROM 'a9dc1a0fdfa58c46159175c9eb72e0e7' THEN RAISE EXCEPTION 'r495 undo: pdc_sales_private.link_salesperson_scope_429(uuid,text,boolean) is not the r495 version; not undoing over unknown changes'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r495')<>12 OR NOT EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='sales_branch_495' AND added_in='r495') THEN RAISE EXCEPTION 'r495 undo: r495 is not applied'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_sales_private.account_scopes a WHERE a.salesperson_id IN ('c495cf01-1990-4112-a000-000000000001','c4955101-1966-4091-a000-000000000002','c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005'))
-    OR EXISTS (SELECT 1 FROM public.vehicles v WHERE v.salesperson_id IN ('c495cf01-1990-4112-a000-000000000001','c4955101-1966-4091-a000-000000000002','c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005')) THEN
-  RAISE EXCEPTION 'r495 undo: a seeded Karratha salesperson is in use (Sales access or a vehicle). Nothing is removed; switch the branch off instead (see header).';
+ UPDATE public.salespeople SET email='clint.franklin@pmgwa.com.au' WHERE upper(btrim(code))='CF' AND lower(btrim(name))='clint franklin' AND lower(btrim(email))='clint.franklin@karrathatoyota.com.au';
+ UPDATE public.salespeople SET email='scott.lovett@pmgwa.com.au' WHERE upper(btrim(code))='SL' AND lower(btrim(name))='scott lovett' AND lower(btrim(email))='scott@karrathatoyota.com.au';
+ IF NOT EXISTS (SELECT 1 FROM public.salespeople WHERE upper(btrim(code))='CF' AND lower(btrim(name))='clint franklin' AND lower(btrim(email))='clint.franklin@pmgwa.com.au')
+    OR NOT EXISTS (SELECT 1 FROM public.salespeople WHERE upper(btrim(code))='SL' AND lower(btrim(name))='scott lovett' AND lower(btrim(email))='scott.lovett@pmgwa.com.au') THEN
+  RAISE EXCEPTION 'r495 undo: CF or SL is not back on the Broome email this release replaced. Emails were not left half-changed.';
  END IF;
- DELETE FROM pdc_sales_private.salesperson_branches WHERE salesperson_id IN ('c495cf01-1990-4112-a000-000000000001','c4955101-1966-4091-a000-000000000002','c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005');
- DELETE FROM public.salespeople WHERE id IN ('c495cf01-1990-4112-a000-000000000001','c4955101-1966-4091-a000-000000000002','c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005') AND NOT EXISTS (SELECT 1 FROM pdc_sales_private.account_scopes a WHERE a.salesperson_id=salespeople.id) AND NOT EXISTS (SELECT 1 FROM public.vehicles v WHERE v.salesperson_id=salespeople.id);
- IF EXISTS (SELECT 1 FROM public.salespeople WHERE id IN ('c495cf01-1990-4112-a000-000000000001','c4955101-1966-4091-a000-000000000002','c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005')) THEN
-  RAISE EXCEPTION 'r495 undo: a seeded Karratha salesperson could not be removed.';
+ DELETE FROM pdc_sales_private.salesperson_branches WHERE dealer_code='14450' AND salesperson_id IN (SELECT id FROM public.salespeople WHERE (upper(btrim(code))='CF' AND lower(btrim(name))='clint franklin') OR (upper(btrim(code))='SL' AND lower(btrim(name))='scott lovett'));
+ IF EXISTS (SELECT 1 FROM pdc_sales_private.account_scopes a WHERE a.salesperson_id IN ('c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005'))
+    OR EXISTS (SELECT 1 FROM public.vehicles v WHERE v.salesperson_id IN ('c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005')) THEN
+  RAISE EXCEPTION 'r495 undo: an RK/JS/DB placeholder is in use (Sales access or a vehicle). Nothing else is removed; switch the branch off instead (see header).';
+ END IF;
+ DELETE FROM pdc_sales_private.salesperson_branches WHERE salesperson_id IN ('c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005');
+ DELETE FROM public.salespeople WHERE id IN ('c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005') AND NOT EXISTS (SELECT 1 FROM pdc_sales_private.account_scopes a WHERE a.salesperson_id=salespeople.id) AND NOT EXISTS (SELECT 1 FROM public.vehicles v WHERE v.salesperson_id=salespeople.id);
+ IF EXISTS (SELECT 1 FROM public.salespeople WHERE id IN ('c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005')) THEN
+  RAISE EXCEPTION 'r495 undo: an RK/JS/DB placeholder could not be removed.';
  END IF;
  IF EXISTS(SELECT 1 FROM pdc_sales_private.account_scopes WHERE dealer_code<>'37047') OR EXISTS(SELECT 1 FROM pdc_sales_private.vehicle_visibility WHERE dealer_code<>'37047')
     OR EXISTS(SELECT 1 FROM pdc_sales_private.autocare_dispatches WHERE dealer_code<>'37047')

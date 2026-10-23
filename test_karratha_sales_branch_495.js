@@ -178,13 +178,22 @@ test('migration and rollback: LF only, guarded, unapplied shape, no deletes and 
     assert.doesNotMatch(text, /vjdtsswhroyguxyfjdkt/, name);
   }
   assert.doesNotMatch(sql, /\bDELETE\s+FROM\b/i);
-  // Pins, the regression check, and the unused CF/SL/RK/JS/DB seed. Other Karratha rows are refused, not deleted.
+  assert.doesNotMatch(sql, /c495cf01-1990-4112-a000-000000000001/, 'CF is the existing Broome row, not a new id');
+  assert.match(sql, /UPDATE public\.salespeople SET email='clint\.franklin@karrathatoyota\.com\.au'/);
+  assert.match(sql, /UPDATE public\.salespeople SET email='scott@karrathatoyota\.com\.au'/);
+  assert.match(sql, /clint\.franklin@pmgwa\.com\.au/);
+  assert.match(sql, /scott\.lovett@pmgwa\.com\.au/);
+  assert.match(sql, /skipped RK Rebecca Kingma/);
+  assert.match(down, /SET email='clint\.franklin@pmgwa\.com\.au'/);
+  assert.match(down, /SET email='scott\.lovett@pmgwa\.com\.au'/);
+  assert.doesNotMatch(down, /c495cf01-1990-4112-a000-000000000001/, 'undo does not delete the existing CF row');
+  // Pins, the regression check, the Karratha mapping on the existing CF/SL rows, and unused RK/JS/DB placeholders.
   const deletes = down.match(/DELETE FROM [a-z0-9_.]+ WHERE [^;]*/g) || [];
-  assert.equal(deletes.length, 4);
+  assert.equal(deletes.length, 5);
   assert.ok(deletes.some(d => d.startsWith("DELETE FROM pdc_ops.expected_function_md5 WHERE release='r495' AND signature IN (")));
   assert.ok(deletes.some(d => d.startsWith("DELETE FROM pdc_ops.regression_checks WHERE check_name='sales_branch_495'")));
-  assert.ok(deletes.some(d => d.startsWith("DELETE FROM pdc_sales_private.salesperson_branches WHERE salesperson_id IN ('c495cf01-1990-4112-a000-000000000001'")));
-  assert.ok(deletes.some(d => d.startsWith("DELETE FROM public.salespeople WHERE id IN ('c495cf01-1990-4112-a000-000000000001'")));
+  assert.ok(deletes.some(d => d.startsWith("DELETE FROM pdc_sales_private.salesperson_branches WHERE dealer_code='14450' AND salesperson_id IN (SELECT id FROM public.salespeople")));
+  assert.ok(deletes.some(d => d.startsWith("DELETE FROM public.salespeople WHERE id IN ('c4950003-0000-4000-a000-000000000003'")));
   assert.match(sql, /Clint Franklin/);
   assert.match(sql, /Scott Lovett/);
   assert.match(sql, /19901126/);

@@ -33,21 +33,34 @@ Rebased onto main `aa91c95e` (after r499b Sales PMB icons). Craig's answers of 2
 * **Head-office dealers 001234 / 002345** are hidden on the Karratha Sales tab (default). They are not sales branches
   and are not unioned into the Karratha read.
 
-## Salespeople (Craig 23 Oct 2026 AWST)
+## Salespeople (Craig 23 Oct 2026 AWST, go-live fix)
 
-Seeded by the migration. If any of these ids, codes or emails already exist, the migration stops (it does not attach
-a Broome row).
+CF and SL already exist as Broome salespeople. The first seed insert failed on the unique code and name constraints
+(`clint.franklin@pmgwa.com.au`, `scott.lovett@pmgwa.com.au`; SL already has an account scope for dealer 37047) and
+the whole migration rolled back. Craig's decision: update those emails and map the same rows. Do not insert a second CF or SL.
 
-| Who | Code | Navision number | Email | State |
+They stay **Broome-capable and are added to Karratha**. They are not Karratha-only.
+
+* The existing `account_scopes` row is left on dealer 37047. SL keeps that Broome login. The migration's own check
+  refuses if a CF or SL scope is moved off 37047.
+* A `salesperson_branches` row for dealer 14450 (enabled, with the Navision number) is what puts them on the Karratha
+  roster. That is the same row `set_pdc_salesperson_branch` would write; the seed writes it directly because the RPC
+  needs an administrator session and does not store the Navision number.
+* No 37047 `salesperson_branches` row is added. Broome's server still matches any active initials, so their Broome
+  feed rows still resolve to these people. A second mapping would make a future Approve see two branches and link a
+  new account to Broome. The Broome page dropdown stays BG / AW / PM / CW.
+* Undo puts the emails back to the pmgwa.com.au addresses and deletes only the 14450 mapping. It does not delete CF or SL.
+
+| Who | Code | Navision number | Email after this release | What the migration does |
 | --- | --- | --- | --- | --- |
-| Clint Franklin | CF | 19901126 | clint.franklin@karrathatoyota.com.au | Active, mapped to dealer 14450 |
-| Scott Lovett | SL | 19660914 | scott@karrathatoyota.com.au | Active, mapped to dealer 14450 |
-| Rebecca Kingma | RK | — | rebecca.kingma@pmgwa.com.au | Inactive placeholder, mapping off |
-| Joel Sutton | JS | — | joel.sutton@pmgwa.com.au | Inactive placeholder, mapping off |
-| Damien Bowden | DB | — | damien.bowden@pmgwa.com.au | Inactive placeholder, mapping off |
+| Clint Franklin | CF | 19901126 | clint.franklin@karrathatoyota.com.au | Update the existing row. Was clint.franklin@pmgwa.com.au. Map to 14450. |
+| Scott Lovett | SL | 19660914 | scott@karrathatoyota.com.au | Update the existing row. Was scott.lovett@pmgwa.com.au. Map to 14450. Broome scope stays. |
+| Rebecca Kingma | RK | — | rebecca.kingma@pmgwa.com.au | Inactive placeholder only if code, name and email are all free. Otherwise skipped. |
+| Joel Sutton | JS | — | joel.sutton@pmgwa.com.au | Same skip rule. |
+| Damien Bowden | DB | — | damien.bowden@pmgwa.com.au | Same skip rule. |
 
-RK, JS and DB are inactive placeholders (chosen over a notes-only list) so the names are in the migration with undo.
-They do not appear on the roster and do not match feed rows. No user accounts are created.
+A skipped RK / JS / DB is reported with `RAISE NOTICE` and is not a failure. Placeholders that are inserted stay inactive
+with the mapping off, so they do not match feed rows. No user accounts are created.
 
 ## Database (migration `20261023120000_r495_karratha_sales_branch.sql`, NOT APPLIED)
 
@@ -56,7 +69,8 @@ Staging sentinel only: `cdsmnqxtyyoeoznmbidd`. Release window :02–:45. Do not 
 
 * `pdc_sales_private.sales_branches` — 37047 Broome Toyota (default, finance group Broome), 14450 Karratha Toyota
   (finance group stored as `Later`, which is not a finance group name). `active=false` switches a branch off.
-* `pdc_sales_private.salesperson_branches` — the five people above. `navision_number` is the 8-digit feed number.
+* `pdc_sales_private.salesperson_branches` — 14450 for the existing CF and SL rows (enabled, Navision number set), plus
+  RK / JS / DB only when those codes, names and emails are free (mapping off). Broome account scopes are not rewritten.
 * Dealer CHECKs on account scopes, hides and Autocare dispatches widened from 37047 to 37047 or 14450.
 * Admin RPCs (authenticated, administrators only, audited):
   * `set_pdc_salesperson_branch(salesperson_id, 'karratha', enabled)` — map a salespeople record to Karratha.
@@ -64,8 +78,9 @@ Staging sentinel only: `cdsmnqxtyyoeoznmbidd`. Release window :02–:45. Do not 
 * Approve / Change role to salesperson links the account to its salespeople record's branch when that record is mapped
   to exactly one branch (otherwise Broome, as today).
 * Rollback `supabase/rollbacks/20261023120000_r495_karratha_sales_branch.down.sql` restores every replaced function,
-  CHECK and pin. It deletes the five seeded people and their mappings when nothing references them, and refuses while
-  any other Karratha data exists.
+  CHECK and pin. It puts CF and SL back on `clint.franklin@pmgwa.com.au` and `scott.lovett@pmgwa.com.au` and removes
+  their 14450 mapping. It deletes RK / JS / DB only when this release inserted those placeholder ids and nothing
+  references them. It refuses while any other Karratha data exists.
 
 ## Empty Karratha page
 

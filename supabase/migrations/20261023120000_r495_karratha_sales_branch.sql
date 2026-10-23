@@ -7,7 +7,9 @@
 --   'division' becomes the branch label ('Broome Toyota' for 37047, so Broome output is unchanged). Extra context keys (additive):
 --   branch_key, finance_group, branch_roster.
 -- New private tables: sales_branches (37047 Broome Toyota, 14450 Karratha Toyota), salesperson_branches (roster mapping).
---   Craig 23 Oct: CF and SL are active and mapped to 14450. RK, JS, DB are inactive placeholders (no feed rows). No finance table.
+--   Craig 23 Oct, go-live fix: CF and SL already exist as Broome salespeople. Update those emails and map the
+--   same rows to 14450. Do not insert a second CF/SL. Their Broome account scope (37047) is left in place.
+--   RK, JS, DB are inactive placeholders only when code, name and email are all free. No finance table.
 -- Constraint change: account_scopes / vehicle_visibility / autocare_dispatches dealer_code CHECK (= '37047') widened to
 --   IN ('37047','14450') so a Karratha salesperson, a Karratha "Hide from sales" and Karratha Autocare dispatch can be saved.
 --   Every other 37047-only table (tracked orders, builds, accessories) is unchanged: those feeds are Broome-only.
@@ -19,7 +21,8 @@
 --   Finance functions are NOT replaced (Craig 23 Oct: skip Karratha finance and Port Hedland finance). Broome finance stays as it is.
 -- New RPCs (administrators only, authenticated EXECUTE, not anon): public.assign_pdc_sales_branch_access(user_role_id, salesperson_id,
 --   dealer_code), public.set_pdc_salesperson_branch(salesperson_id, dealer_code, enabled).
--- Writes no vehicle, job, booking, Navision, finance or account row. Inserts five Karratha salespeople (CF/SL active, RK/JS/DB inactive).
+-- Writes no vehicle, job, booking, Navision, finance or account-scope row. Updates the existing CF and SL emails
+--   and maps those rows to 14450. Inserts RK/JS/DB only when that code, name and email are all free.
 -- Pins: 5 updated, 7 new (+7). Finance pins are not moved. Check sales_branch_495 (sort 295, F108).
 -- File timestamp 20261023120000 sorts after r508 (20261023113000) already on main. Family name stays *_r495_karratha_sales_branch.sql.
 -- Body is LF only. Undo: supabase/rollbacks/20261023120000_r495_karratha_sales_branch.down.sql
@@ -88,36 +91,89 @@ ALTER TABLE pdc_sales_private.sales_branches ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pdc_sales_private.salesperson_branches ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE pdc_sales_private.sales_branches, pdc_sales_private.salesperson_branches FROM PUBLIC, anon, authenticated;
 
--- Craig 23 Oct 2026 AWST. Active now: Clint Franklin CF / 19901126, Scott Lovett SL / 19660914, both mapped to dealer 14450.
--- Future initials only (inactive, mapping disabled, no feed rows): RK Rebecca Kingma, JS Joel Sutton, DB Damien Bowden.
--- Same initials as Broome stay separate: if CF/SL/RK/JS/DB or one of these emails already exists, stop. Do not attach a Broome row.
+-- Craig 23 Oct go-live fix. Staging already has these Broome salespeople (unique code and name), so a second
+-- insert cannot land: Clint Franklin CF clint.franklin@pmgwa.com.au, Scott Lovett SL scott.lovett@pmgwa.com.au
+-- (SL already has account_scopes dealer 37047). Update those emails and map the same rows to Karratha 14450.
+-- Do not insert another CF or SL. Do not change account_scopes: a Broome 37047 scope stays, so they remain
+-- Broome-capable, and the new salesperson_branches row is what puts them on the Karratha roster. Not Karratha-only.
+-- No 37047 salesperson_branches row is added. Broome still matches any active initials; a second mapping would make
+-- a future Approve see two branches and link a new account to Broome. set_pdc_salesperson_branch is the admin RPC
+-- for this table, but it needs an administrator session and does not store navision_number, so this seed writes
+-- salesperson_branches directly (same enabled 14450 row, plus the Navision number).
+-- RK / JS / DB: inactive placeholders only when that code, that name and that email are all free. A collision is
+-- skipped (NOTICE) and documented; it does not fail the migration.
 DO $seed$
-DECLARE ids uuid[] := ARRAY[
- 'c495cf01-1990-4112-a000-000000000001',
- 'c4955101-1966-4091-a000-000000000002',
- 'c4950003-0000-4000-a000-000000000003',
- 'c4950004-0000-4000-a000-000000000004',
- 'c4950005-0000-4000-a000-000000000005']::uuid[];
+DECLARE cf_id uuid; sl_id uuid; cf_n int; sl_n int;
 BEGIN
- IF EXISTS (SELECT 1 FROM public.salespeople s WHERE s.id = ANY(ids)
-    OR upper(btrim(coalesce(s.code,''))) IN ('CF','SL','RK','JS','DB')
-    OR lower(btrim(coalesce(s.email,''))) IN (
-      'clint.franklin@karrathatoyota.com.au','scott@karrathatoyota.com.au',
-      'rebecca.kingma@pmgwa.com.au','joel.sutton@pmgwa.com.au','damien.bowden@pmgwa.com.au')) THEN
-  RAISE EXCEPTION 'r495: a Karratha salesperson code or email already exists. Do not share a Broome salesperson row.';
+ SELECT count(*) INTO cf_n FROM public.salespeople s
+  WHERE upper(btrim(coalesce(s.code,'')))='CF' OR lower(btrim(coalesce(s.name,'')))='clint franklin';
+ IF cf_n<>1 OR NOT EXISTS (SELECT 1 FROM public.salespeople s
+    WHERE upper(btrim(s.code))='CF' AND lower(btrim(s.name))='clint franklin' AND s.active) THEN
+  RAISE EXCEPTION 'r495: expected exactly one active salesperson Clint Franklin (code CF). Found % row(s) with that code or name.', cf_n;
  END IF;
- INSERT INTO public.salespeople(id,name,email,code,active,sort_order) VALUES
-  ('c495cf01-1990-4112-a000-000000000001','Clint Franklin','clint.franklin@karrathatoyota.com.au','CF',true,50),
-  ('c4955101-1966-4091-a000-000000000002','Scott Lovett','scott@karrathatoyota.com.au','SL',true,51),
-  ('c4950003-0000-4000-a000-000000000003','Rebecca Kingma','rebecca.kingma@pmgwa.com.au','RK',false,60),
-  ('c4950004-0000-4000-a000-000000000004','Joel Sutton','joel.sutton@pmgwa.com.au','JS',false,61),
-  ('c4950005-0000-4000-a000-000000000005','Damien Bowden','damien.bowden@pmgwa.com.au','DB',false,62);
- INSERT INTO pdc_sales_private.salesperson_branches(salesperson_id,dealer_code,enabled,navision_number) VALUES
-  ('c495cf01-1990-4112-a000-000000000001','14450',true,'19901126'),
-  ('c4955101-1966-4091-a000-000000000002','14450',true,'19660914'),
-  ('c4950003-0000-4000-a000-000000000003','14450',false,NULL),
-  ('c4950004-0000-4000-a000-000000000004','14450',false,NULL),
-  ('c4950005-0000-4000-a000-000000000005','14450',false,NULL);
+ SELECT s.id INTO cf_id FROM public.salespeople s
+  WHERE upper(btrim(s.code))='CF' AND lower(btrim(s.name))='clint franklin' AND s.active;
+ IF EXISTS (SELECT 1 FROM public.salespeople s WHERE s.id<>cf_id AND lower(btrim(coalesce(s.email,'')))='clint.franklin@karrathatoyota.com.au') THEN
+  RAISE EXCEPTION 'r495: clint.franklin@karrathatoyota.com.au already belongs to a different salesperson.';
+ END IF;
+ UPDATE public.salespeople SET email='clint.franklin@karrathatoyota.com.au' WHERE id=cf_id;
+ INSERT INTO pdc_sales_private.salesperson_branches(salesperson_id,dealer_code,enabled,navision_number)
+ VALUES (cf_id,'14450',true,'19901126')
+ ON CONFLICT (salesperson_id,dealer_code) DO UPDATE
+ SET enabled=true, navision_number=excluded.navision_number, updated_at=clock_timestamp()
+ WHERE salesperson_branches.salesperson_id=excluded.salesperson_id AND salesperson_branches.dealer_code=excluded.dealer_code;
+
+ SELECT count(*) INTO sl_n FROM public.salespeople s
+  WHERE upper(btrim(coalesce(s.code,'')))='SL' OR lower(btrim(coalesce(s.name,'')))='scott lovett';
+ IF sl_n<>1 OR NOT EXISTS (SELECT 1 FROM public.salespeople s
+    WHERE upper(btrim(s.code))='SL' AND lower(btrim(s.name))='scott lovett' AND s.active) THEN
+  RAISE EXCEPTION 'r495: expected exactly one active salesperson Scott Lovett (code SL). Found % row(s) with that code or name.', sl_n;
+ END IF;
+ SELECT s.id INTO sl_id FROM public.salespeople s
+  WHERE upper(btrim(s.code))='SL' AND lower(btrim(s.name))='scott lovett' AND s.active;
+ IF EXISTS (SELECT 1 FROM public.salespeople s WHERE s.id<>sl_id AND lower(btrim(coalesce(s.email,'')))='scott@karrathatoyota.com.au') THEN
+  RAISE EXCEPTION 'r495: scott@karrathatoyota.com.au already belongs to a different salesperson.';
+ END IF;
+ UPDATE public.salespeople SET email='scott@karrathatoyota.com.au' WHERE id=sl_id;
+ INSERT INTO pdc_sales_private.salesperson_branches(salesperson_id,dealer_code,enabled,navision_number)
+ VALUES (sl_id,'14450',true,'19660914')
+ ON CONFLICT (salesperson_id,dealer_code) DO UPDATE
+ SET enabled=true, navision_number=excluded.navision_number, updated_at=clock_timestamp()
+ WHERE salesperson_branches.salesperson_id=excluded.salesperson_id AND salesperson_branches.dealer_code=excluded.dealer_code;
+
+ IF NOT EXISTS (SELECT 1 FROM public.salespeople s
+    WHERE upper(btrim(coalesce(s.code,'')))='RK' OR lower(btrim(coalesce(s.name,'')))='rebecca kingma'
+       OR lower(btrim(coalesce(s.email,'')))='rebecca.kingma@pmgwa.com.au') THEN
+  INSERT INTO public.salespeople(id,name,email,code,active,sort_order) VALUES
+   ('c4950003-0000-4000-a000-000000000003','Rebecca Kingma','rebecca.kingma@pmgwa.com.au','RK',false,60);
+  INSERT INTO pdc_sales_private.salesperson_branches(salesperson_id,dealer_code,enabled,navision_number) VALUES
+   ('c4950003-0000-4000-a000-000000000003','14450',false,NULL);
+  RAISE NOTICE 'r495: inserted inactive placeholder RK Rebecca Kingma';
+ ELSE
+  RAISE NOTICE 'r495: skipped RK Rebecca Kingma; code, name or email already exists';
+ END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.salespeople s
+    WHERE upper(btrim(coalesce(s.code,'')))='JS' OR lower(btrim(coalesce(s.name,'')))='joel sutton'
+       OR lower(btrim(coalesce(s.email,'')))='joel.sutton@pmgwa.com.au') THEN
+  INSERT INTO public.salespeople(id,name,email,code,active,sort_order) VALUES
+   ('c4950004-0000-4000-a000-000000000004','Joel Sutton','joel.sutton@pmgwa.com.au','JS',false,61);
+  INSERT INTO pdc_sales_private.salesperson_branches(salesperson_id,dealer_code,enabled,navision_number) VALUES
+   ('c4950004-0000-4000-a000-000000000004','14450',false,NULL);
+  RAISE NOTICE 'r495: inserted inactive placeholder JS Joel Sutton';
+ ELSE
+  RAISE NOTICE 'r495: skipped JS Joel Sutton; code, name or email already exists';
+ END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.salespeople s
+    WHERE upper(btrim(coalesce(s.code,'')))='DB' OR lower(btrim(coalesce(s.name,'')))='damien bowden'
+       OR lower(btrim(coalesce(s.email,'')))='damien.bowden@pmgwa.com.au') THEN
+  INSERT INTO public.salespeople(id,name,email,code,active,sort_order) VALUES
+   ('c4950005-0000-4000-a000-000000000005','Damien Bowden','damien.bowden@pmgwa.com.au','DB',false,62);
+  INSERT INTO pdc_sales_private.salesperson_branches(salesperson_id,dealer_code,enabled,navision_number) VALUES
+   ('c4950005-0000-4000-a000-000000000005','14450',false,NULL);
+  RAISE NOTICE 'r495: inserted inactive placeholder DB Damien Bowden';
+ ELSE
+  RAISE NOTICE 'r495: skipped DB Damien Bowden; code, name or email already exists';
+ END IF;
 END $seed$;
 
 
@@ -646,7 +702,7 @@ INSERT INTO pdc_ops.expected_function_md5(signature,prosrc_md5,release,note,upda
  ('public.set_pdc_salesperson_branch(uuid,text,boolean)','f715acfe093fd0a3343445db4b53d2ef','r495','r495 (F108): Karratha Toyota sales branch',now());
 
 INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,enabled,sort_order,added_in) VALUES
- ('sales_branch_495','F108','Sales branches (r495): Broome Toyota 37047 and Karratha Toyota 14450; CF and SL active on 14450; RK/JS/DB inactive; finance functions unchanged; head-office dealers are not a Sales branch; context() keeps the r432 controller rules',
+ ('sales_branch_495','F108','Sales branches (r495): Broome Toyota 37047 and Karratha Toyota 14450; existing CF and SL emails updated and mapped to 14450; Broome account scope kept; RK/JS/DB inserted only when free; finance functions unchanged; head-office dealers are not a Sales branch; context() keeps the r432 controller rules',
   $chk$WITH b AS (
   SELECT count(*) FILTER (WHERE dealer_code='37047' AND branch_key='broome' AND label='Broome Toyota' AND finance_group='Broome' AND active) broome,
          count(*) FILTER (WHERE dealer_code='14450' AND branch_key='karratha') karratha FROM pdc_sales_private.sales_branches
@@ -671,13 +727,20 @@ INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,
          (SELECT count(*) FROM pdc_sales_private.account_scopes WHERE dealer_code<>'37047') other_scopes
 ), people AS (
   SELECT (SELECT count(*) FROM public.salespeople s JOIN pdc_sales_private.salesperson_branches m ON m.salesperson_id=s.id
-           WHERE s.id='c495cf01-1990-4112-a000-000000000001' AND s.code='CF' AND s.active AND lower(s.email)='clint.franklin@karrathatoyota.com.au'
-             AND m.dealer_code='14450' AND m.enabled AND m.navision_number='19901126') cf,
+           WHERE upper(btrim(s.code))='CF' AND lower(btrim(s.name))='clint franklin' AND s.active
+             AND lower(btrim(s.email))='clint.franklin@karrathatoyota.com.au'
+             AND m.dealer_code='14450' AND m.enabled AND m.navision_number='19901126'
+             AND (SELECT count(*) FROM public.salespeople x WHERE upper(btrim(coalesce(x.code,'')))='CF')=1) cf,
          (SELECT count(*) FROM public.salespeople s JOIN pdc_sales_private.salesperson_branches m ON m.salesperson_id=s.id
-           WHERE s.id='c4955101-1966-4091-a000-000000000002' AND s.code='SL' AND s.active AND lower(s.email)='scott@karrathatoyota.com.au'
-             AND m.dealer_code='14450' AND m.enabled AND m.navision_number='19660914') sl,
-         (SELECT count(*) FROM public.salespeople s JOIN pdc_sales_private.salesperson_branches m ON m.salesperson_id=s.id
-           WHERE s.code IN ('RK','JS','DB') AND NOT s.active AND m.dealer_code='14450' AND NOT m.enabled) future
+           WHERE upper(btrim(s.code))='SL' AND lower(btrim(s.name))='scott lovett' AND s.active
+             AND lower(btrim(s.email))='scott@karrathatoyota.com.au'
+             AND m.dealer_code='14450' AND m.enabled AND m.navision_number='19660914'
+             AND (SELECT count(*) FROM public.salespeople x WHERE upper(btrim(coalesce(x.code,'')))='SL')=1) sl,
+         (SELECT count(*) FROM public.salespeople s
+           WHERE s.id IN ('c4950003-0000-4000-a000-000000000003','c4950004-0000-4000-a000-000000000004','c4950005-0000-4000-a000-000000000005')
+             AND NOT s.active) future_inserted,
+         (SELECT count(*) FROM pdc_sales_private.account_scopes a JOIN public.salespeople s ON s.id=a.salesperson_id
+           WHERE upper(btrim(s.code)) IN ('CF','SL') AND a.dealer_code<>'37047') moved_scopes
 ), fin AS (
   SELECT to_regclass('pdc_sales_private.finance_application_branches') IS NULL
      AND (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_sales_private.finance_pipeline()'))='372dcae199c750594923e2269f661e43'
@@ -686,13 +749,14 @@ INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,
      AND position('dealer_code''=''37047'' OR EXISTS' IN (SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('pdc_sales_private.visibility_source_snapshot(boolean)')))>0 ok
 )
 SELECT (SELECT broome=1 AND karratha=1 FROM b) AND coalesce((SELECT ok FROM c),false) AND (SELECT ok FROM h) AND (SELECT priv_closed FROM g) AND (SELECT ok FROM w)
-   AND (SELECT bad_scopes=0 FROM s) AND (SELECT cf=1 AND sl=1 AND future=3 FROM people) AND (SELECT ok FROM fin) AS ok,
+   AND (SELECT bad_scopes=0 FROM s) AND (SELECT cf=1 AND sl=1 AND moved_scopes=0 FROM people) AND (SELECT ok FROM fin) AS ok,
  'branches: Broome '||(SELECT broome FROM b)||', Karratha '||(SELECT karratha FROM b)||'; Sales check picks the branch (header for admins, own scope for salespeople): '
  ||CASE WHEN coalesce((SELECT ok FROM c),false) THEN 'yes' ELSE 'NO' END||'; header parsing: '||CASE WHEN (SELECT ok FROM h) THEN 'ok' ELSE 'BAD' END
  ||'; private helpers closed to app roles: '||CASE WHEN (SELECT priv_closed FROM g) THEN 'yes' ELSE 'NO' END
  ||'; admin RPCs authenticated-only: '||CASE WHEN (SELECT ok FROM w) THEN 'yes' ELSE 'NO' END
  ||'; Sales accounts outside an open branch: '||(SELECT bad_scopes FROM s)||'; non-Broome accounts: '||(SELECT other_scopes FROM s)
- ||'; Karratha salespeople CF/SL/future: '||(SELECT cf FROM people)||'/'||(SELECT sl FROM people)||'/'||(SELECT future FROM people)
+ ||'; Karratha salespeople CF/SL/placeholders inserted: '||(SELECT cf FROM people)||'/'||(SELECT sl FROM people)||'/'||(SELECT future_inserted FROM people)
+ ||'; CF/SL scopes moved off Broome: '||(SELECT moved_scopes FROM people)
  ||'; finance left as Broome (no Karratha finance table): '||CASE WHEN (SELECT ok FROM fin) THEN 'yes' ELSE 'NO' END AS detail$chk$,true,295,'r495');
 
 DO $g$ DECLARE y record; BEGIN
@@ -718,7 +782,7 @@ DO $g$ DECLARE y record; BEGIN
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_clock_tick(boolean,timestamptz)'::regprocedure) IS DISTINCT FROM current_setting('pdc.r495_tick') THEN RAISE EXCEPTION 'r495: clock tick changed'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='pdc_ops.fault_regression_check()'::regprocedure) IS DISTINCT FROM current_setting('pdc.r495_frc') THEN RAISE EXCEPTION 'r495: fault_regression_check changed'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r495')<>12 OR (SELECT count(*) FROM pdc_ops.expected_function_md5)<>current_setting('pdc.r495_pins')::int+7 THEN RAISE EXCEPTION 'r495: pins not as expected'; END IF;
- IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='sales_branch_495' AND added_in='r495' AND sort_order=295) IS DISTINCT FROM '74df039dc7bfa4d287532139bfd2db5c' THEN RAISE EXCEPTION 'r495: check did not land as expected'; END IF;
+ IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='sales_branch_495' AND added_in='r495' AND sort_order=295) IS DISTINCT FROM '8ff7e1e97dd9cb89ed5ff4e43ce98da9' THEN RAISE EXCEPTION 'r495: check did not land as expected'; END IF;
  IF (SELECT md5(coalesce(string_agg(user_role_id::text||salesperson_id::text||dealer_code||can_view_all_salespeople::text,',' ORDER BY user_role_id),'')) FROM pdc_sales_private.account_scopes) IS DISTINCT FROM current_setting('pdc.r495_scopes')
     OR (SELECT md5(coalesce(string_agg(id::text||version::text,',' ORDER BY id),'')) FROM pdc_sales_private.finance_applications) IS DISTINCT FROM current_setting('pdc.r495_fin') THEN RAISE EXCEPTION 'r495: existing Sales accounts or finance entries changed'; END IF;
  PERFORM set_config('search_path','pg_catalog',true);
