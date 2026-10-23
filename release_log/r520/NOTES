@@ -1,0 +1,24 @@
+r520 (F134). Staging (`cdsmnqxtyyoeoznmbidd`) only. Production was not touched. No SQL.
+
+Rebuilt onto live tip r519 (F133), `60a60924` (PR #502, hide JITA Upload and clear staging JITA ETAs). That hide stays. This is the Sales Customer emails work Craig asked to finish (was r503 / F116). The earlier preview numbered it r519 / F133 on main `4d506905` (open PR #501). That number is live on the JITA hide. r520 / F134 was the next free pair: no open PR had claimed it. The booking-badge agent was still running and had not opened a PR.
+
+## What Craig asked
+
+- Drop salesperson phone, email and the sign-off. Outlook supplies the signature.
+- Auto-fill the first name from the Navision customer name. A company name stays blank.
+- Keep the customer email address as a field staff type. A CRM contact address is not copied in. A saved address on this draft stays.
+- Open email app launches mailto before the prepare call, so the browser still has the click.
+- Dismiss at the top of the review dialog. It uses the existing `save_broome_customer_email` `p_action=skip` (hidden from the awaiting list, history kept). Skip is only allowed while the update is still a draft.
+- Customer email text uses hyphens. A vehicle name that arrives with a long dash is written with a hyphen.
+
+r495 had put the sales-branch name inside that signature. The signature is gone, so the branch name goes with it. Internal staff emails (Vehicle Released and the rest) still name Broome or Karratha.
+
+Cache bust `r520=2026.10.24.r520` on `sales/customer-emails.js`. The r495 token on that script stays. `app.js` and `pdc-qc-rework.js` are untouched.
+
+## Undo
+
+Revert this PR. Nothing to undo in the database.
+
+## Still needs Craig
+
+Squash-merge and publish the sales page. No migration to apply. Do not merge open PR #501 (it is the same work on the old r519 number).
