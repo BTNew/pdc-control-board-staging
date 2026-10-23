@@ -77,11 +77,13 @@
       partsEta.onerror = loadJitaEta;
       document.head.appendChild(partsEta);
     };
-    // r516 (F130): JITA ETA from the daily paste. Loads after the email parts ETA so its chip sits beside that chip.
+    // r516 (F130): JITA ETA from the daily paste. Loads after the email parts ETA.
+    // r519 (F133): the script still loads, then returns. SHOW_JITA_ETA is false, so it
+    // keeps the paste hidden and does not nest a JITA ETA. The key number still loads next.
     const loadJitaEta = () => {
       if (document.querySelector('script[data-pdc-jita-eta]')) return;
       const jitaEta = document.createElement('script');
-      jitaEta.src = 'pdc-jita-eta.js?r516=2026.10.23.r516&r517=2026.10.23.r517';
+      jitaEta.src = 'pdc-jita-eta.js?r516=2026.10.23.r516&r517=2026.10.23.r517&r519=2026.10.23.r519';
       jitaEta.dataset.pdcJitaEta = '1';
       jitaEta.onload = loadKeyNumber;
       jitaEta.onerror = loadKeyNumber;
