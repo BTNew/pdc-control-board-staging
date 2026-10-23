@@ -84,5 +84,6 @@ test('workshop detail and the card agree on head office scope; cache bust presen
   assert.match(source, /function vehicleWorkshopDetailRequestDealerCode[\s\S]{0,900}config\.dealerCode === '14450' \? '14450' : ''/);
   assert.equal(source.split(MESSAGE).length - 1, 1, 'message still raised in one place');
   const index = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-  assert.match(index, /app\.js\?[^"]*&amp;r437=2026\.10\.21\.01"/);
+  // r510 (F123): allow later cache params after r437. r510 appended &r510=… on the same app.js tag.
+  assert.match(index, /app\.js\?[^"]*&amp;r437=2026\.10\.21\.01(?:&amp;[^"]*)?"/);
 });

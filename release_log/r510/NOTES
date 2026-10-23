@@ -1,0 +1,22 @@
+r510 (F123) PREVIEW, approved for go-live. Frontend only. No SQL.
+No SQL. No migration. styles.css untouched. Karratha copy untouched.
+
+User Administration (User Management) gains a Role dropdown on the right of the
+status tabs (All, Pending, Approved, Disabled, Rejected). It lists All roles
+plus each distinct role in the loaded user list. Choosing one shows only those
+users among the rows already on screen.
+
+The All tab still hides Disabled accounts until Show disabled (N). A role that
+exists only on those hidden accounts is still in the dropdown. The table is
+empty until Show disabled or the Disabled tab, and the empty line says how
+many of that role stay hidden.
+
+Undo: revert this PR. Nothing to undo in the database.
+
+Try it
+  Sign in as an administrator. Open User Management (User Administration).
+  The Role dropdown sits on the status-tab row, label "Role", first option
+  "All roles". Pick Controller, Salesperson or Administrator. The table
+  narrows with no refresh. All roles puts the full status list back.
+  Pending, Approved, Disabled and Rejected keep working, and Show disabled
+  still only affects the All tab.
