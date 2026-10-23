@@ -1,0 +1,33 @@
+r522 (F136). Staging (`cdsmnqxtyyoeoznmbidd`) only. Production was not touched.
+
+Staging already has this rule. It was applied before PR #504 merged the Booking badge as r521 / F135 (frontend only, no SQL). The installed helper is `note_fee_sublet_521`, regression check `note_fee_sublet_521` / F135 / sort 305, pin count 234. Stock 13107527 "Pit Fee for fuel Tank Certification" reads stage SUBLET, work category SUBLET, information_only false. Do not run this r522 script on that staging database: the base checksum guard will refuse because the 521 helper is already there. Production, which does not have the helper, uses this r522 script.
+
+Rebased onto live tip r521 (F135), `a7bb3f7a` (PR #504, Booking column drops the Pilbara read-only badge). That release is frontend only and keeps r521 / F135. r520 / F134 is the merged customer-emails change (PR #503). This note-fee release is the next free pair, r522 / F136. Open PR #498 is the named-external sublet shape this follows. Its r516 / F130 numbers are already the live JITA release, so this release does not depend on that PR and does not merge it.
+
+## What Craig asked
+
+On New Vehicles approve, note-only and fee lines must go to Sublet so Approve is not blocked. Pit fee, weigh / weighbridge, full tank of fuel, and fuel tank certification are external work, not Needs Review and not job-card notes.
+
+Stock 13107527 (VORSTER LC300, job J139125986) could not Approve & add to board. The line "Pit Fee for fuel Tank Certification" was `JOB_CARD_NOTES`, information only, proposed station REVIEW. Approve only accepts the eight workshop stations, so that line refused the card.
+
+## Rule
+
+`pdc_work_categories_private.note_fee_sublet_522` matches the whole operation line (description plus operation code). It does not read a GP PO item on another line.
+
+Matches: pit fee / pit fees, weigh as its own word, weighbridge, waybridge, full tank of fuel, fuel tank certification.
+
+Does not match: PITS - REFER BRYCE, transport to pits, a long-range fuel tank install, certified mesh, Perth delivery, spitweight.
+
+The line is Sublet on the New Vehicles review and on the approve payload. `information_only` is false, so the server accepts `SUBLET` (already in the approve allow-list). Staff do not drag the pit fee. A line override, a booking, an owner review or a manual lock still wins. No new station. `approve_pdc_new_vehicle_review` and `approve_pdc_new_vehicle_review_446` are not replaced. Karratha 135 and `app.js` are unchanged.
+
+Complementary full tank of fuel moves from Fitting to Sublet when nothing has locked or booked that line. That is the 24 Oct rule. The 8 Sep fitting rule remains for every other fuel line.
+
+Three other lines on 13107527 still have no hours (Black Dash Mat, Brown Davis 87 Litre sub tank, Paint Grille Black By Fab Dept). Those stay on their workshop stations. Approve still asks for hours on them. The pit fee is not one of those blockers.
+
+## Check
+
+`note_fee_sublet_522`, fault F136, sort 306. Pin count 230 to 234. The r404 notes checklist check ignores these lines so a Sublet fee is not reported as a notes line sitting on QC.
+
+## Undo
+
+`supabase/rollbacks/20261024003000_r522_note_fee_sublet.down.sql` restores the six functions and the r404 notes check, drops the helper and the check, and returns the pin count to 230.
