@@ -190,7 +190,8 @@ const approvedRootImportPatch = Object.freeze({
   // r510: User Administration Role dropdown filters the loaded list on screen (F123).
   // r509: Fabrication planner, WIP and capacity label are 14 bays (live check F122 sort 294). Department 135 keeps its frozen app.js.
   // r518: a verified Navision JITA number completes Parts Jita (F132). Department 135 keeps its frozen app.js.
-  "app.js": "d63514100152fc9f2b1b5fedfc59aa8c76d8965362723864b752c89511913e10",
+  // r521: the Booking column no longer uses a Pilbara service job card as a read-only badge (F135). Department 135 keeps its frozen app.js.
+  "app.js": "a29b7be6898f7d9875bd16f5c4a8d8bc3387cb672856646bbaf902e1a9d8c1fb",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -286,8 +287,9 @@ const approvedRootImportPatch = Object.freeze({
   // r517: JITA apply confirmation and Parts ETA nesting; r517=2026.10.23.r517 on pdc-jita-eta.js and canonical-entry.js (F131). Department 135 is not tagged.
   // r518: r518=2026.10.23.r518 on app.js (a verified Navision JITA number completes Parts Jita; F132). Department 135 is not tagged.
   // r519: JITA Upload hidden and the nested JITA ETA not drawn; r519=2026.10.23.r519 on canonical-entry.js (F133). Department 135 is not tagged. r518 Parts Jita tick stays.
+  // r521: r521=2026.10.24.r521 on app.js (Booking column does not show the Pilbara service read-only badge; F135). Department 135 is not tagged.
   // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; live check F122 sort 294).
-  "index.html": "15aa3d41f1dc7537ffabe1adfe18cdd2072763272b4f4455ffa0b27ca2609733",
+  "index.html": "cb59fa95e3e736a383e63be65f7d9438faf023dfc20c3b3e15f1f88dfa00eb59",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

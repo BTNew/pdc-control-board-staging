@@ -1,0 +1,27 @@
+r521 (F135). Craig Watson, 24 Oct AWST. Staging (`cdsmnqxtyyoeoznmbidd`) only. Frontend only. No SQL.
+
+Rebased onto live tip r520 (F134), `7ba7e565` (PR #503, customer emails drop the signature and open mailto first). That release keeps r520 / F134. This Booking change was drafted as r520 / F134 before that squash-merge landed, and is renumbered to the next free pair, r521 / F135.
+
+## What was wrong
+
+Vehicle Locations, Booking column, preferred this wording when the row had `pilbaraServiceJobCard`:
+
+`Pilbara Service Review · R/O loaded`
+
+That flag means the row has one Pilbara service job card. It is not a separate kind of vehicle. The badge was chosen ahead of Imported by email, Navision source and Shared sync pending, so the Booking column showed a neutral source badge instead of the same text as any other vehicle in the same state.
+
+Book all stations already deleted that wording when the vehicle was eligible to book. This release stops emitting it.
+
+## What changed
+
+`incomingVehicleDetailRow` no longer reads the job-card flag for the Booking column. The read-only reasons are unchanged: identity conflict, imported by email, Navision source, shared sync pending.
+
+An eligible vehicle (controller or administrator, canonical id and version, no identity conflict, location authority ready, active and on the board, location PMB, yard hold, or in transit with a Kewdale ETA) gets Book all stations, the same control as any other eligible vehicle.
+
+A vehicle that is not eligible keeps the same source badge it would have without the flag. Stock 13018393 (job card J139125903, Dept 139, `current_location` Other, ETA 2026-11-10) is in that group because location Other is not a workshop booking location. Its Booking column no longer says Pilbara Service Review · R/O loaded.
+
+Cache bust `r521=2026.10.24.r521` on app.js. styles.css untouched. Department 135 / Karratha stays frozen.
+
+## Undo
+
+Revert this PR. Nothing to undo in the database.

@@ -9005,7 +9005,8 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
   const subletProviderField = !locationReadOnly && bucketKey === 'pmb' && stage === 'SUBLET'
     ? `<div class="wide incoming-sublet-provider"><b>Sublet provider</b><span><select data-pmb-bay-provider-key="${escapeHtml(key)}" data-pmb-bay-provider-stage="SUBLET" aria-label="Sublet provider for ${escapeHtml(stock)}">${subletProviderOptionsHtml(subletProvider)}</select></span></div>`
     : '';
-  const readOnlyBadge = identityReadOnly ? 'Identity conflict · Read only' : vehicle.pilbaraServiceJobCard ? 'Pilbara Service Review · R/O loaded' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only';
+  // r521 (F135): a job-card flag does not pick the Booking column text and does not block booking.
+  const readOnlyBadge = identityReadOnly ? 'Identity conflict · Read only' : emailReadOnly ? 'Imported by email · Read only' : sharedReadOnly ? 'Navision source · Read only' : 'Shared sync pending · Read only';
   const rftAction = bucketKey === 'rft'
     ? `${rftTransportControlsHtml(vehicle)}${locationReadOnly ? `<span class="badge neutral rft-source-badge">${readOnlyBadge}</span>` : ''}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : '';
