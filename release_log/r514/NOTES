@@ -1,0 +1,108 @@
+r514 (F128). Craig said go live (PR #495). The mark ON CONFLICT DO UPDATE names the conflicted vehicle_work_items row so the safeupdate lint accepts it. SQL is not applied by this change. Do not apply to production.
+Staging target: cdsmnqxtyyoeoznmbidd. Pin count stays 225. No app.js.
+is_pdc_role is not changed. service_role still cannot execute mark_pdc_parts_complete.
+
+Live read before this file, public.pdc_parts_completion_email_confirmations (26 rows):
+  26 mailbox pmbcontroller@gmail.com
+  26 gmail_message_id hex, length 16
+  0 rows fail the r506 shape
+  0 rows mailbox pdc@pmgwa.com.au
+Stock IS60353006 exists (1 row). 22 active IS######## stocks.
+Karratha 135 confirmations stay hex {10,40} and pmbcontroller-only.
+
+Chosen message-id CHECK (same shape as r506/r508):
+  CHECK (gmail_message_id ~ '^[a-f0-9]+$' OR (length(gmail_message_id) BETWEEN 8 AND 512 AND gmail_message_id !~ '[[:space:]]'))
+Mailbox CHECK:
+  CHECK (mailbox = ANY (ARRAY['pmbcontroller@gmail.com','pdc@pmgwa.com.au']))
+pmbcontroller stays. Tightening to pdc@ only would reject the 26 stored rows.
+New Outlook inserts write pdc@pmgwa.com.au. The legacy Gmail branch of
+record_pdc_person_parts_complete_20260913 still requires pmbcontroller@gmail.com,
+a hex id {10,40}, and gmail_receiving_provider.
+
+Person recorder, new Outlook branch (management connection only):
+  mailbox and to_address pdc@pmgwa.com.au
+  verified_by microsoft_receiving_provider
+  authentication_results starts mx.microsoft.com
+  p_gmail_message_id length 8-512, no whitespace, and equals
+    internet_message_id or outlook_message_id or microsoft_message_id
+  SPF, DKIM or DMARC pass for the sender domain
+  stock ^([0-9]{8}|IS[0-9]{8})$  (the table already allowed IS stocks; the function did not)
+  body is exactly "parts complete [for] STOCK" or "STOCK parts complete"
+  OR the body is only "Parts complete" and the subject contains that stock as its own token
+  A longer sentence that merely contains the words is still refused.
+record_pdc_wayne_parts_complete_20260912 is unchanged (stock 12728609, Gmail).
+Old prosrc md5 77887b5450188a86acf0f0da34193e11 (CRLF). New person md5 eb02f76ec94cd0b6c824a18660432afa.
+
+mark_pdc_parts_complete:
+  Every board login still hits require_pdc_role('operator') (or the existing importer
+  monitor denial). That is the "PDC role operator required" error.
+  One added path: management_connection() is true (postgres, role none, no JWT, staging
+  guard) AND the vehicle already has an active confirmation with mailbox pdc@pmgwa.com.au.
+  Call record_pdc_person_parts_complete_20260913 first, then mark_pdc_parts_complete
+  with the current vehicles.version.
+  If parts_received is already true and the PARTS work item is not complete, the email
+  path completes the work item. If both are already done, it returns ok true,
+  code parts_already_received, changed false.
+  A call with no pdc@ confirmation still raises PDC role operator required.
+  Old mark md5 82d890802677a2ac93942d3f7b7bcd27. New mark md5 f5bdb212b439fd37adb73860c5e5d4d3.
+  The PARTS work-item upsert updates only the conflicted row:
+  WHERE public.vehicle_work_items.vehicle_id = excluded.vehicle_id
+    AND public.vehicle_work_items.work_key = excluded.work_key.
+
+Remaining gap (not changed here):
+  import_actor() returns null. The authorization row for
+  codex.pmb.importer.staging@pmb.local is not revoked, but that auth user is banned.
+  recorded_by on the confirmation and updated_by / completed_by on the mark are nullable,
+  so the write still lands, with a null actor. audit_pdc_event also stores auth.uid(),
+  which is null on the management connection. This release does not unban that user
+  and does not grant the importer role operator.
+
+How Kajel should test, after this SQL is applied on staging only, as the management
+connection (the same postgres session the hourly import already uses; no SET ROLE, no JWT).
+Pass the Outlook internetMessageId in p_gmail_message_id. The parameter name is historical.
+
+  select public.record_pdc_person_parts_complete_20260913(
+    'IS60353006',
+    '<the internetMessageId, including angle brackets if Outlook sent them>',
+    '<received_at timestamptz>',
+    'Vehicle To Service Purchase Order — Stock: IS60353006 P/O: GP10403460',
+    'Parts complete',
+    '<sha256 hex of the evidence, 64 chars>',
+    jsonb_build_object(
+      'mailbox','pdc@pmgwa.com.au',
+      'to_address','pdc@pmgwa.com.au',
+      'from_address','<the person@pmgwa.com.au on the message>',
+      'header_from','pmgwa.com.au',
+      'verified_by','microsoft_receiving_provider',
+      'internet_message_id','<the same internetMessageId>',
+      'authentication_results','mx.microsoft.com; spf=pass smtp.mailfrom=pmgwa.com.au; dkim=pass header.d=pmgwa.com.au; dmarc=pass header.from=pmgwa.com.au',
+      'human_message','true',
+      'unquoted_affirmative','true',
+      'auto_submitted','no',
+      'display_name','<the name on the message>'
+    )
+  );
+
+The id must be 8 to 512 characters with no spaces. A Gmail hex id is not required.
+header_from must be the sender's domain. The body passed in should be the unquoted
+affirmation ("Parts complete"), not the whole MIME thread. The stock must be the
+board stock, exactly IS60353006.
+
+Then, same connection, using that vehicle's id and current version:
+
+  select public.mark_pdc_parts_complete('<vehicle uuid>', <vehicles.version>);
+
+A green box needs the confirmation row (parts_flags person_confirmed). The mark
+completes the PARTS work item. It does not run unless the confirmation is already stored.
+
+Apply between second :02 and :45. Guard: pdc_monitor_staging_guard + sentinel
+project_ref cdsmnqxtyyoeoznmbidd + no production sentinel.
+Check outlook_parts_completion_514, F128, sort 301.
+Also re-runs outlook_sales_receipt_message_id_508, outlook_manifest_message_id_506
+and outlook_manifest_mailbox_507.
+Undo refuses while a stored confirmation is not pmbcontroller + hex {10,40}.
+The undo restores both function bodies from pdc_ops.r514_parts_completion_prev.
+
+SQL md5 (md5sum from the repo root: md5sum -c release_log/r514/PATCH_MD5S):
+  e21e193dd8249daed57bb568ee040bb6  supabase/migrations/20261023140000_r514_outlook_parts_completion.sql
+  e538263981530b7350df83c729d581fb  supabase/rollbacks/20261023140000_r514_outlook_parts_completion.down.sql

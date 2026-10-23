@@ -1,0 +1,2 @@
+e21e193dd8249daed57bb568ee040bb6  supabase/migrations/20261023140000_r514_outlook_parts_completion.sql
+e538263981530b7350df83c729d581fb  supabase/rollbacks/20261023140000_r514_outlook_parts_completion.down.sql
