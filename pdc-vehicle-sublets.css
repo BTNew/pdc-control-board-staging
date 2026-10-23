@@ -36,3 +36,11 @@
 .pvs-table td:first-child,.pvs-table .small-button{white-space:nowrap}.pvs-table .pvs-tick{flex-wrap:nowrap}
 .pvs-po,.pvs-nopo{box-sizing:border-box;min-width:8.2em;padding:0 6px;line-height:20px;text-align:center;font-weight:700}
 .pvs-new-po{display:none}.pvs-note{font-size:13px}
+/* r501 (F114): Due out / Due back / Supplier editors on whole line sublet rows; Save / Clear. */
+.pvs-table .pvs-in{font:inherit;font-size:13px;padding:2px 4px;border:1px solid #cbd5e1;border-radius:5px;background:#fff;max-width:11.5rem}
+.pvs-table input.pvs-in[type=date]{width:8.9rem}
+.pvs-table select.pvs-in{min-width:8.5rem}
+.pvs-table .pvs-in:invalid{border-color:#dc2626}
+.pvs-save-actions{display:flex;gap:4px;align-items:center;flex-wrap:wrap;max-width:9.5rem}
+.pvs-table .pvs-save{background:#8c671d;border-color:#8c671d;color:#fff}
+.pvs-msg{display:block;margin-top:3px;font-size:12px!important;max-width:12rem}.pvs-msg.is-ok{color:#166534}.pvs-msg.is-err{color:#b91c1c}
