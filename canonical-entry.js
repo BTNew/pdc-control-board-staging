@@ -159,7 +159,8 @@
     locationOverride.src = 'pdc-location-override.js?v=2026.09.11.01&review-fixes=2026.09.13.01&separate-screens-pmb-warning=2026.09.16.01';
     document.head.appendChild(locationOverride);
     const subletIntake = document.createElement('script');
-    subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.12.inline-provider&deep-review=2026.09.13.01';
+    // r501 (F114): r501=2026.10.23.r501 on the Sublet intake (Sublet page create hidden; book in Manage sublets).
+    subletIntake.src = 'pdc-sublet-intake.js?v=2026.09.12.inline-provider&deep-review=2026.09.13.01&r501=2026.10.23.r501';
     document.head.appendChild(subletIntake);
     const rftStyle = document.createElement('link');
     rftStyle.rel = 'stylesheet';

@@ -147,7 +147,23 @@
   }
   const oldChoose=chooseSubletCreateVehicle;
   const oldOpen=openSubletCreateDialog;
+  // r501 (F114, Craig 23 Oct 07:55): 'all the sublet bookings need to be done from the side menu ... when you click manage
+  // sublets'. The Sublet page no longer creates bookings: Create Sublet and Book Sublet are hidden (kept in the code, not
+  // deleted), the dialog does not open, and dates and suppliers are changed in Manage sublets. Existing bookings still show;
+  // the Back tick (returned) still works here because Manage sublets has no return control.
+  const CREATE_ON_SUBLET_PAGE=false;
+  const BOOK_NOTE='Book sublets from the vehicle: Vehicle Locations, open the vehicle, then Manage sublets';
+  const DATES_TITLE='Due out, Due back and the supplier are set in Manage sublets (Vehicle Locations, open the vehicle, then Manage sublets).';
+  const manageSublets=key=>{const vs=window.PDC_VEHICLE_SUBLETS;if(vs?.open&&key)vs.open(key);else pdcNotify(BOOK_NOTE);};
+  function hideCreateControls(){
+    const button=document.getElementById('sublet-create-open');
+    if(!button||CREATE_ON_SUBLET_PAGE)return;
+    button.hidden=true;button.style.display='none';button.setAttribute('aria-hidden','true');button.tabIndex=-1;
+    if(!document.getElementById('pdc-sublet-book-note'))button.insertAdjacentHTML('afterend',`<span id="pdc-sublet-book-note" class="pdc-sublet-book-note" role="note" style="display:inline-block;padding:6px 10px;border-radius:6px;background:#fbf5e5;border:1px solid #e7d3a1;color:#6f5216;font-weight:650;font-size:13px">${BOOK_NOTE}</span>`);
+  }
+  hideCreateControls();
   openSubletCreateDialog=function(...args){
+    if(!CREATE_ON_SUBLET_PAGE){pdcNotify(BOOK_NOTE);return false;}
     providerGeneration++;
     const result=oldOpen(...args);
     prepareProviderEntry();
@@ -163,6 +179,11 @@
   // the current dialog wrapper so the provider entry is available there too.
   document.getElementById('sublet-create-open')?.addEventListener('click',event=>{
     event.preventDefault();event.stopImmediatePropagation();openSubletCreateDialog();
+  },{capture:true});
+  // r501: the calendar is view only (no drag to move a date); each card has Manage sublets instead.
+  document.getElementById('sublet-home-content')?.addEventListener('dragstart',event=>{
+    if(CREATE_ON_SUBLET_PAGE||!event.target?.closest?.('[data-sublet-calendar-event]'))return;
+    event.preventDefault();event.stopImmediatePropagation();
   },{capture:true});
   chooseSubletCreateVehicle=function(button) {
     const selected=oldChoose(button);
@@ -188,6 +209,21 @@
     const result=oldRender(...args);
     const host=document.getElementById('sublet-home-content');
     if(!host)return result;
+    const createHere=typeof CREATE_ON_SUBLET_PAGE!=='undefined'&&CREATE_ON_SUBLET_PAGE;
+    if(!createHere&&typeof app!=='undefined'&&app.subletViewMode==='calendar'){
+      host.querySelectorAll('[data-sublet-calendar-event]').forEach(card=>{
+        card.draggable=false;card.setAttribute('draggable','false');
+        const openButton=card.querySelector('.sublet-calendar-event-open');
+        const key=openButton?.dataset.openStock||'';
+        if(openButton)openButton.setAttribute('aria-label',String(openButton.getAttribute('aria-label')||'').replace(/Drag the card to move this date, or use the date field in List View\./,'Change dates in Manage sublets.'));
+        if(!key||card.querySelector('[data-pdc-manage-sublets]'))return;
+        const manage=document.createElement('button');manage.type='button';manage.className='small-button pdc-sublet-manage';manage.dataset.pdcManageSublets=key;
+        manage.textContent='Manage sublets';manage.title='Change this booking\'s dates or supplier in Manage sublets';
+        manage.addEventListener('click',event=>{event.stopPropagation();manageSublets(key);});
+        card.appendChild(manage);
+      });
+      return result;
+    }
     // Project the queue once. Looking up each displayed row through
     // subletVehicleByKey rebuilds every vehicle's requirements every time.
     const vehiclesByKey=new Map();
@@ -201,6 +237,21 @@
       const vehicle=vehiclesByKey.get(key);
       if(!vehicle)return;
       row.querySelector('.sublet-work-required')?.insertAdjacentHTML('beforeend',detailsHtml(vehicle));
+      if(!createHere){
+        const actions=row.lastElementChild;
+        if(!actions)return;
+        // r501: no Book Sublet here; the supplier and dates are view only on this page.
+        row.querySelectorAll('[data-sublet-field="pmbSubletProvider"], [data-sublet-field="pmbSubletBookingDate"], [data-sublet-field="pmbSubletExpectedReturnDate"]').forEach(input=>{input.disabled=true;input.title=DATES_TITLE;});
+        if(row.querySelector('.sublet-status-pill.is-to-book'))row.querySelectorAll('[data-sublet-returned]').forEach(input=>{input.disabled=true;input.title=DATES_TITLE;});
+        const key=vehicle.__subletVehicleKey||vehicleKey(vehicle);
+        if(key&&!actions.querySelector('[data-pdc-manage-sublets]')){
+          const manage=document.createElement('button');manage.type='button';manage.className='small-button primary pdc-sublet-manage';manage.dataset.pdcManageSublets=key;
+          manage.textContent='Manage sublets';manage.title='Set the supplier, Due out and Due back for this vehicle\'s sublets';
+          manage.addEventListener('click',event=>{event.stopPropagation();manageSublets(key);});
+          actions.appendChild(manage);
+        }
+        return;
+      }
       if(!row.querySelector('.sublet-status-pill.is-to-book'))return;
       const button=document.createElement('button');button.type='button';button.className='small-button primary';
       button.textContent='Book Sublet';button.disabled=!writable();button.addEventListener('click',()=>book(vehicle));

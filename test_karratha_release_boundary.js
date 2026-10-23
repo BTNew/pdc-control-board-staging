@@ -43,6 +43,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     else if (item.file === 'pdc-book-all-stations.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
     // r497: the PMG copy guards the capacity cache read on the first planner open (F110); the hidden Karratha copy stays frozen.
     else if (item.file === 'pdc-planner-capacity.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
+    // r501: the PMG Sublet intake hides Create Sublet / Book Sublet and points to Manage sublets (F114); the hidden Karratha copy stays frozen.
+    else if (item.file === 'pdc-sublet-intake.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
     else if (item.file === 'workshop-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'004267f09a9fa4f5ad0852dd8f983e25395d8352f8b0f9fb798777b3d733e9ff',item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
@@ -140,7 +142,8 @@ const approvedRootImportPatch = Object.freeze({
   // r494b: r494=2026.10.23.r494b on pdc-sublet-po.js (uniform vehicle Sublet box; F107).
   // r494c: r494=2026.10.23.r494c on pdc-sublet-po.js (board 'PO to raise' with no per-vehicle RPC or redraw; F107b).
   // r496: vehicle-slideout=2026.10.22.r496 on pdc-vehicle-slideout.js (edit hours and move lines between jobs in the panel; F109).
-  "canonical-entry.js": "7542e6b1d97b3cb2b7d797f09eddba579ae1cbbb8ee637a18fdc3912befd8de0",
+  // r501: r501=2026.10.23.r501 on pdc-sublet-intake.js (Sublet page create hidden; bookings made in Manage sublets; F114).
+  "canonical-entry.js": "4f6ae425e7943ec788d36625d2014a595d1c80e612f8573b8b9dd1738616fec6",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -268,7 +271,8 @@ const approvedRootImportPatch = Object.freeze({
   // r497: r497=2026.10.22.r497 on pdc-planner-capacity.js (F110).
   // r498: r498=2026.10.22.r498 on app.js (F111).
   // r500: r500=2026.10.23.r500 on pdc-fitters.js and pdc-conversion-ticks.css (F113).
-  "index.html": "fae69449f2830d29a1afdd7f96b06334335f09379c16caefb73c38179af2aa17",
+  // r501: r501=2026.10.23.r501 on canonical-entry.js and pdc-vehicle-sublets.css / .js (Due out / Due back in Manage sublets; F114).
+  "index.html": "45fd94a4dac00cba3c8e73b7e60afef10e538976a9ec85a6cb0a22a703792c76",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -297,6 +301,8 @@ const approvedRootImportPatch = Object.freeze({
   // r483: Book all stations result shows the Dept 139 bay names (F96). The Karratha copy stays frozen.
   // r482: Book all stations asks first when the parts ETA is after today and marks bookings before it (F95).
   "pdc-book-all-stations.js": "5001a53b8a79fc7bd4cdc837178ff8b53cb5afd61a94991c27543d22db8c6e3c",
+  // r501: Create Sublet and Book Sublet hidden behind CREATE_ON_SUBLET_PAGE=false; calendar view only with Manage sublets per card (F114). Karratha stays frozen.
+  "pdc-sublet-intake.js": "7054c68b4b0bffdf8e738dc96177a67195f7076ed8e83eae11ad1fc27d6f214b",
   "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938"
 });
 test('PMB/Sales runtime preserves its frozen baseline and approved root release patches', () => {

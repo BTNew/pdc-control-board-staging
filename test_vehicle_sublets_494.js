@@ -70,7 +70,8 @@ test('screen: ticks use the r439 tick markup; moves only for operators/admins; r
 test('wiring: no new RPC or SQL; category through set_vehicle_work_category; tick saved by pdc-sublet-po.js; slide-out button', () => {
   const src = fs.readFileSync('pdc-vehicle-sublets.js', 'utf8');
   const rpcs = [...src.matchAll(/rpc\/([a-z0-9_]+)/g)].map(m => m[1]);
-  assert.deepEqual([...new Set(rpcs)], ['set_vehicle_work_category']);
+  // r501 (F114): Clear dates in Manage sublets cancels the booking through the existing cancel_pdc_sublet_booking (staging_only/171).
+  assert.deepEqual([...new Set(rpcs)], ['set_vehicle_work_category', 'cancel_pdc_sublet_booking']);
   assert.doesNotMatch(src, /set_pdc_sublet_line_tick_439'\s*,|\.delete\(|DELETE/);
   assert.match(src, /'operator', 'administrator'\]\.includes\(role\(\)\)/);
   assert.match(src, /textContent = 'Manage sublets'/);
@@ -78,11 +79,11 @@ test('wiring: no new RPC or SQL; category through set_vehicle_work_category; tic
   assert.match(po, /window\.PDC_SUBLET_PO = Object\.freeze/);
   assert.match(po, /new CustomEvent\('pdc-sublet-lines'/);
   const index = fs.readFileSync('index.html', 'utf8');
-  assert.match(index, /pdc-vehicle-sublets\.js\?r494=2026\.10\.23\.r494b" defer/);
-  assert.match(index, /pdc-vehicle-sublets\.css\?r494=2026\.10\.23\.r494b/);
+  assert.match(index, /pdc-vehicle-sublets\.js\?r494=2026\.10\.23\.r494b&amp;r501=2026\.10\.23\.r501" defer/);
+  assert.match(index, /pdc-vehicle-sublets\.css\?r494=2026\.10\.23\.r494b&amp;r501=2026\.10\.23\.r501/);
   assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-sublet-po\.js\?sublet-po=2026\.10\.21\.r444&r490=2026\.10\.23\.r490&r494=2026\.10\.23\.r494c'/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-vehicle-sublets\.css', 'pdc-vehicle-sublets\.js'/);
-  assert.equal(vs.VERSION, '2026.10.23.r494b');
+  assert.equal(vs.VERSION, '2026.10.23.r501');
   assert.equal(fs.readdirSync('supabase/migrations').filter(f => /r494|_494/.test(f)).length, 0, 'no SQL in r494');
 });
 
@@ -166,7 +167,7 @@ test('r494b (Craig 22 Oct 18:55): vehicle Sublet box: no "Hours not stated", eve
   assert.match(rw, /data-pvs-line="00000000-0000-4000-8000-000000000004"><td><b>Op 4<\/b><\/td><td>Canopy signage<\/td><td><span class="pvs-nopo"[^>]*>PO to raise<\/span><\/td><td><span class="pvs-muted"/);
   const css = fs.readFileSync('pdc-vehicle-sublets.css', 'utf8');
   assert.match(css, /\.pvs-po,\.pvs-nopo\{box-sizing:border-box;min-width:8\.2em;/);
-  assert.equal(vs.VERSION, '2026.10.23.r494b');
+  assert.equal(vs.VERSION, '2026.10.23.r501');
 });
 
 test('Got it is stored per user in this browser (no SQL); the board strip asks for a vehicle\'s GP PO lines only when it has Sublet lines and a PO', () => {
