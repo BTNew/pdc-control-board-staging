@@ -1,0 +1,2 @@
+7c95eb36ffd38e774d2abe66aafbbd28  supabase/migrations/20261023180000_r516_named_external_sublet.sql
+25305f33aeddead05b8550b81a747d68  supabase/rollbacks/20261023180000_r516_named_external_sublet.down.sql
