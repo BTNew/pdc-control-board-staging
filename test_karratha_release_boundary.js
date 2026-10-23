@@ -105,7 +105,7 @@ const approvedRootImportPatch = Object.freeze({
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
-  "scripts/build_pages_runtime.js": "651446f0e54bb8702e7714a85d3243f7c20bcb91df1fceed0173ca6702111cbe",
+  "scripts/build_pages_runtime.js": "340ffbfdaa9720a2b73b0885f96407ec394b49b3a2fa75b360f6033adb3fe628",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
   // on Sublet lines. Department 135 keeps its frozen copy.
@@ -283,7 +283,7 @@ const approvedRootImportPatch = Object.freeze({
   // r510: Role dropdown beside the User Administration status tabs; r510=2026.10.23.r510 on app.js (F123). Department 135 is not tagged.
   // r516: JITA Upload under Navision Uploads; r516=2026.10.23.r516 on canonical-entry.js (F130). Department 135 is not tagged.
   // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; live check F122 sort 294).
-  "index.html": "c23982e395a8a1d969fb2c8df20ef09854ea71313b7ccba5550d761ba105212f",
+  "index.html": "60d6a9e149b86097b1f3d40bb58d62bbcdc1d5155203df194b115428a8e0e8c0",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

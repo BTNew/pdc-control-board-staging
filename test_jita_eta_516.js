@@ -63,14 +63,16 @@ test('page wiring: JITA Upload under Navision Uploads, loader after parts ETA, p
   assert.match(index, /<h2>JITA Upload<\/h2>/);
   assert.match(index, /id="jita-paste"/);
   assert.match(index, /canonical-entry\.js\?[^"]*parts-eta=2026\.10\.21\.r436&amp;key-number=2026\.10\.22\.r460&amp;sublet-po=/);
-  assert.match(index, /sublet-po-attach=2026\.10\.21\.r445&amp;r516=2026\.10\.23\.r516"/);
+  assert.match(index, /&amp;r516=2026\.10\.23\.r516&amp;parts-eta=2026\.10\.21\.r436/);
+  assert.match(index, /operation-panels=2026\.10\.21\.r444&amp;sublet-po-attach=2026\.10\.21\.r445"/);
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /serviceLocations\.onload = loadPartsEta;/);
   assert.match(entry, /partsEta\.onload = loadJitaEta;\s*partsEta\.onerror = loadJitaEta;/);
   assert.match(entry, /jitaEta\.onload = loadKeyNumber;\s*jitaEta\.onerror = loadKeyNumber;/);
   assert.match(entry, /pdc-jita-eta\.js\?r516=2026\.10\.23\.r516/);
   assert.equal((entry.match(/pdc-key-number\.js/g) || []).length, 1);
-  assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-service-locations\.js', 'pdc-parts-eta\.js', 'pdc-jita-eta\.js'/);
+  assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-service-locations\.js', 'pdc-parts-eta\.js', 'pdc-sublet-po\.js'/);
+  assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-key-number\.js', 'pdc-jita-eta\.js'/);
   assert.doesNotMatch(fs.readFileSync('styles.css', 'utf8'), /pdc-jita-eta/);
   assert.doesNotMatch(fs.readFileSync('app.js', 'utf8'), /import_jita_eta_516|pdc-jita-eta|jita-upload-panel/);
   assert.doesNotMatch(fs.readFileSync('pdc-parts-eta.js', 'utf8'), /import_jita_eta_516|pdc_jita_eta/);
