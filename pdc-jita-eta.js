@@ -1,13 +1,13 @@
 /* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
-/* r512 (F128): JITA ETA from a daily Revolution paste under Navision Uploads.
+/* r516 (F130): JITA ETA from a daily Revolution paste under Navision Uploads.
  * One date per stock: the latest JITA Planned Delivery Date on a row with Qty Outstanding > 0,
  * otherwise the latest planned date on any row. Previous ETA, Latest ETA, Manual ETA and
  * Vehicle ETA at Kewdale are not read. This is not the email Parts ETA. */
 (() => {
   'use strict';
-  const VERSION = '2026.10.23.r512';
+  const VERSION = '2026.10.23.r516';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
-  const IMPORT_RPC = 'import_jita_eta_512';
+  const IMPORT_RPC = 'import_jita_eta_516';
   const BOARD_RPC = 'get_pdc_jita_eta_board';
   const PARTS_CHIP = /<span class="pdc-parts-eta pdc-parts-eta-(?:ok|due|overdue)"[^>]*>(?:<span class="pdc-parts-eta-k">[^<]*<\/span>)?[^<]*<\/span>/;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -34,7 +34,7 @@
     return text.length <= 12 && /^[0-9]+(\.[0-9]+)?$/.test(text) && Number(text) > 0;
   }
 
-  /** Same reduction as jita_eta_parse_512. Latest means the greatest calendar date. */
+  /** Same reduction as jita_eta_parse_516. Latest means the greatest calendar date. */
   function parseJitaEta(text) {
     let raw = String(text ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1);

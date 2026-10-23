@@ -5,8 +5,8 @@ const fs = require('node:fs');
 const test = require('node:test');
 const jita = require('./pdc-jita-eta.js');
 
-const MIG = 'supabase/migrations/20261023160000_r512_jita_eta_upload.sql';
-const DOWN = 'supabase/rollbacks/20261023160000_r512_jita_eta_upload.down.sql';
+const MIG = 'supabase/migrations/20261023183000_r516_jita_eta_upload.sql';
+const DOWN = 'supabase/rollbacks/20261023183000_r516_jita_eta_upload.down.sql';
 const sample = fs.readFileSync('fixtures/jita-upload-sample.tsv', 'utf8');
 
 test('sample paste: stock 13102912 is 2026-10-29, other ETA columns ignored', () => {
@@ -63,18 +63,18 @@ test('page wiring: JITA Upload under Navision Uploads, loader after parts ETA, p
   assert.match(index, /<h2>JITA Upload<\/h2>/);
   assert.match(index, /id="jita-paste"/);
   assert.match(index, /canonical-entry\.js\?[^"]*parts-eta=2026\.10\.21\.r436&amp;key-number=2026\.10\.22\.r460&amp;sublet-po=/);
-  assert.match(index, /sublet-po-attach=2026\.10\.21\.r445&amp;r512=2026\.10\.23\.r512"/);
+  assert.match(index, /sublet-po-attach=2026\.10\.21\.r445&amp;r516=2026\.10\.23\.r516"/);
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /serviceLocations\.onload = loadPartsEta;/);
   assert.match(entry, /partsEta\.onload = loadJitaEta;\s*partsEta\.onerror = loadJitaEta;/);
   assert.match(entry, /jitaEta\.onload = loadKeyNumber;\s*jitaEta\.onerror = loadKeyNumber;/);
-  assert.match(entry, /pdc-jita-eta\.js\?r512=2026\.10\.23\.r512/);
+  assert.match(entry, /pdc-jita-eta\.js\?r516=2026\.10\.23\.r516/);
   assert.equal((entry.match(/pdc-key-number\.js/g) || []).length, 1);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-service-locations\.js', 'pdc-parts-eta\.js', 'pdc-jita-eta\.js'/);
   assert.doesNotMatch(fs.readFileSync('styles.css', 'utf8'), /pdc-jita-eta/);
-  assert.doesNotMatch(fs.readFileSync('app.js', 'utf8'), /import_jita_eta_512|pdc-jita-eta|jita-upload-panel/);
-  assert.doesNotMatch(fs.readFileSync('pdc-parts-eta.js', 'utf8'), /import_jita_eta_512|pdc_jita_eta/);
-  assert.equal(jita.VERSION, '2026.10.23.r512');
+  assert.doesNotMatch(fs.readFileSync('app.js', 'utf8'), /import_jita_eta_516|pdc-jita-eta|jita-upload-panel/);
+  assert.doesNotMatch(fs.readFileSync('pdc-parts-eta.js', 'utf8'), /import_jita_eta_516|pdc_jita_eta/);
+  assert.equal(jita.VERSION, '2026.10.23.r516');
 });
 
 test('migration does not replace set_parts_eta and the undo drops only the JITA objects', () => {
@@ -83,14 +83,14 @@ test('migration does not replace set_parts_eta and the undo drops only the JITA 
   assert.doesNotMatch(mig, /CREATE OR REPLACE FUNCTION public\.set_parts_eta/);
   assert.match(mig, /88d31cbd6ca5ddd372e3143d5f8c013f/);
   assert.match(mig, /decd9053241b3fe8ede99bd231ad98ec/);
-  assert.match(mig, /jita_eta_upload_512/);
-  assert.match(mig, /'F128'/);
-  assert.match(mig, /true,300,'r512'/);
+  assert.match(mig, /jita_eta_upload_516/);
+  assert.match(mig, /'F130'/);
+  assert.match(mig, /true,303,'r516'/);
   assert.match(mig, /latest_outstanding/);
   assert.doesNotMatch(mig, /11111111111111111111111111111111|22222222222222222222222222222222|33333333333333333333333333333333|44444444444444444444444444444444/);
-  assert.match(down, /DELETE FROM pdc_ops\.regression_checks WHERE check_name='jita_eta_upload_512'/);
-  assert.match(down, /DELETE FROM pdc_ops\.expected_function_md5 WHERE release='r512'/);
+  assert.match(down, /DELETE FROM pdc_ops\.regression_checks WHERE check_name='jita_eta_upload_516'/);
+  assert.match(down, /DELETE FROM pdc_ops\.expected_function_md5 WHERE release='r516'/);
   assert.match(down, /88d31cbd6ca5ddd372e3143d5f8c013f/);
-  assert.match(fs.readFileSync('docs/FAULT_LOG.md', 'utf8'), /\n\| F128 \|/);
+  assert.match(fs.readFileSync('docs/FAULT_LOG.md', 'utf8'), /\n\| F130 \|/);
   assert.match(mig, /UPDATE public\.pdc_jita_eta SET superseded=true[\s\S]*?WHERE id=v_cur\.id AND NOT superseded/);
 });

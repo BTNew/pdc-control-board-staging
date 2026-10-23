@@ -1,7 +1,7 @@
--- r512 (F128) local harness. Throwaway database only. Never connects to Supabase.
-DROP DATABASE IF EXISTS r512;
-CREATE DATABASE r512;
-\c r512
+-- r516 (F130) local harness. Throwaway database only. Never connects to Supabase.
+DROP DATABASE IF EXISTS r516;
+CREATE DATABASE r516;
+\c r516
 DO $$BEGIN CREATE ROLE anon; EXCEPTION WHEN duplicate_object THEN NULL; END$$;
 DO $$BEGIN CREATE ROLE authenticated; EXCEPTION WHEN duplicate_object THEN NULL; END$$;
 DO $$BEGIN CREATE ROLE service_role; EXCEPTION WHEN duplicate_object THEN NULL; END$$;

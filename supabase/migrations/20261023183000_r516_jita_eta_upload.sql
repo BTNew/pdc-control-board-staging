@@ -1,4 +1,4 @@
--- r512 (F128): daily JITA parts ETA paste. PREVIEW ONLY. Do not apply to staging until Craig says so.
+-- r516 (F130): daily JITA parts ETA paste. Craig approved go-live 23 Oct 2026. Staging cdsmnqxtyyoeoznmbidd only.
 -- Staging cdsmnqxtyyoeoznmbidd only. Adds a paste under Navision Uploads. It does not call set_parts_eta and does not write pdc_parts_eta.
 -- One board date per JITA Vehicle (stock number):
 --   latest Planned Delivery Date among rows with Qty Outstanding > 0 (header is "Qty Oustanding" in the Revolution export; "Qty Outstanding" is also accepted);
@@ -6,32 +6,32 @@
 -- Latest means the greatest calendar date. Previous ETA, Latest ETA, Manual ETA and Vehicle ETA at Kewdale are not read.
 -- A stock is saved only when exactly one live vehicle has it (not deleted, not purged). Unknown and ambiguous stocks are skipped.
 -- Stocks left out of the paste are left as they are.
--- Undo: supabase/rollbacks/20261023160000_r512_jita_eta_upload.down.sql
+-- Undo: supabase/rollbacks/20261023183000_r516_jita_eta_upload.down.sql
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
- IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r512: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
+ IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r516: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
  IF NOT public.pdc_monitor_staging_guard()
     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
-    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r512: staging only'; END IF;
- PERFORM set_config('pdc.r512_tick',(SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_clock_tick(boolean,timestamptz)'::regprocedure),true);
- PERFORM set_config('pdc.r512_frc',(SELECT md5(prosrc) FROM pg_proc WHERE oid='pdc_ops.fault_regression_check()'::regprocedure),true);
- PERFORM set_config('pdc.r512_pins',(SELECT count(*) FROM pdc_ops.expected_function_md5)::text,true);
- PERFORM set_config('pdc.r512_parts',(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.set_parts_eta(text,text,integer,text,date,text,text,text,text,boolean,timestamp with time zone)')),true);
- PERFORM set_config('pdc.r512_board',(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.get_pdc_parts_eta_board()')),true);
- IF current_setting('pdc.r512_tick') IS DISTINCT FROM (SELECT prosrc_md5 FROM pdc_ops.expected_function_md5 WHERE signature='public.workshop_clock_tick(boolean,timestamp with time zone)') THEN RAISE EXCEPTION 'r512: clock tick does not match its pin'; END IF;
- IF current_setting('pdc.r512_parts') IS DISTINCT FROM '88d31cbd6ca5ddd372e3143d5f8c013f' THEN RAISE EXCEPTION 'r512: set_parts_eta is not the r436 body'; END IF;
- IF current_setting('pdc.r512_board') IS DISTINCT FROM 'decd9053241b3fe8ede99bd231ad98ec' THEN RAISE EXCEPTION 'r512: get_pdc_parts_eta_board is not the r436 body'; END IF;
+    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r516: staging only'; END IF;
+ PERFORM set_config('pdc.r516_tick',(SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_clock_tick(boolean,timestamptz)'::regprocedure),true);
+ PERFORM set_config('pdc.r516_frc',(SELECT md5(prosrc) FROM pg_proc WHERE oid='pdc_ops.fault_regression_check()'::regprocedure),true);
+ PERFORM set_config('pdc.r516_pins',(SELECT count(*) FROM pdc_ops.expected_function_md5)::text,true);
+ PERFORM set_config('pdc.r516_parts',(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.set_parts_eta(text,text,integer,text,date,text,text,text,text,boolean,timestamp with time zone)')),true);
+ PERFORM set_config('pdc.r516_board',(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.get_pdc_parts_eta_board()')),true);
+ IF current_setting('pdc.r516_tick') IS DISTINCT FROM (SELECT prosrc_md5 FROM pdc_ops.expected_function_md5 WHERE signature='public.workshop_clock_tick(boolean,timestamp with time zone)') THEN RAISE EXCEPTION 'r516: clock tick does not match its pin'; END IF;
+ IF current_setting('pdc.r516_parts') IS DISTINCT FROM '88d31cbd6ca5ddd372e3143d5f8c013f' THEN RAISE EXCEPTION 'r516: set_parts_eta is not the r436 body'; END IF;
+ IF current_setting('pdc.r516_board') IS DISTINCT FROM 'decd9053241b3fe8ede99bd231ad98ec' THEN RAISE EXCEPTION 'r516: get_pdc_parts_eta_board is not the r436 body'; END IF;
  IF to_regprocedure('public.set_parts_eta_from_email(text,date,text,text,timestamp with time zone,text,text,text,text,integer,text,text,text,text,boolean)') IS NOT NULL
     AND (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.set_parts_eta_from_email(text,date,text,text,timestamp with time zone,text,text,text,text,integer,text,text,text,text,boolean)')) IS DISTINCT FROM 'a81b786bfc7868c3217d827933299678'
-  THEN RAISE EXCEPTION 'r512: set_parts_eta_from_email is not the r475 body'; END IF;
- IF to_regprocedure('public.jita_eta_parse_512(text)') IS NOT NULL
-    OR to_regprocedure('public.import_jita_eta_512(text,boolean)') IS NOT NULL
+  THEN RAISE EXCEPTION 'r516: set_parts_eta_from_email is not the r475 body'; END IF;
+ IF to_regprocedure('public.jita_eta_parse_516(text)') IS NOT NULL
+    OR to_regprocedure('public.import_jita_eta_516(text,boolean)') IS NOT NULL
     OR to_regprocedure('public.get_pdc_jita_eta_board()') IS NOT NULL
     OR to_regclass('public.pdc_jita_eta') IS NOT NULL
     OR to_regclass('public.pdc_jita_eta_audit') IS NOT NULL
-    OR EXISTS(SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r512')
-    OR EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='jita_eta_upload_512' OR added_in='r512' OR fault_id='F128')
-    OR EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=300) THEN RAISE EXCEPTION 'r512: already applied or sort 300 / F128 taken'; END IF;
+    OR EXISTS(SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r516')
+    OR EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='jita_eta_upload_516' OR added_in='r516' OR fault_id='F130')
+    OR EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=303) THEN RAISE EXCEPTION 'r516: already applied or sort 303 / F130 taken'; END IF;
 END $g$;
 
 CREATE TABLE public.pdc_jita_eta(
@@ -72,7 +72,7 @@ CREATE POLICY pdc_jita_eta_board_read ON public.pdc_jita_eta FOR SELECT TO authe
 CREATE POLICY pdc_jita_eta_audit_admin_read ON public.pdc_jita_eta_audit FOR SELECT TO authenticated
   USING (public.is_pdc_role('administrator'::public.pdc_role));
 
-CREATE FUNCTION public.jita_eta_parse_512(p_text text)
+CREATE FUNCTION public.jita_eta_parse_516(p_text text)
 RETURNS jsonb
 LANGUAGE plpgsql
 STABLE
@@ -80,7 +80,7 @@ SECURITY DEFINER
 SET search_path TO pg_catalog
 AS $parse$
 DECLARE
-  -- r512 (F128): read a Revolution JITA paste. Only three columns drive the date.
+  -- r516 (F130): read a Revolution JITA paste. Only three columns drive the date.
   v_raw text := replace(replace(coalesce(p_text,''), E'\r\n', E'\n'), E'\r', E'\n');
   v_lines text[];
   v_cols text[];
@@ -197,10 +197,10 @@ BEGIN
   RETURN jsonb_build_object('ok',true,'rows',v_data,'blank_vehicle_rows',v_blank,'bad_date_rows',v_bad,'stocks',v_stocks);
 END
 $parse$;
-REVOKE ALL ON FUNCTION public.jita_eta_parse_512(text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.jita_eta_parse_512(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.jita_eta_parse_516(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.jita_eta_parse_516(text) TO authenticated;
 
-CREATE FUNCTION public.import_jita_eta_512(p_text text, p_dry_run boolean DEFAULT true)
+CREATE FUNCTION public.import_jita_eta_516(p_text text, p_dry_run boolean DEFAULT true)
 RETURNS jsonb
 LANGUAGE plpgsql
 VOLATILE
@@ -208,7 +208,7 @@ SECURITY DEFINER
 SET search_path TO pg_catalog, public
 AS $imp$
 DECLARE
-  -- r512 (F128): importer or administrator paste. Never creates vehicles. Never writes the email parts ETA.
+  -- r516 (F130): importer or administrator paste. Never creates vehicles. Never writes the email parts ETA.
   v_uid uuid := auth.uid();
   v_role text := public.current_pdc_user_role()::text;
   v_actor text := coalesce(auth.jwt()->>'email', v_uid::text);
@@ -234,7 +234,7 @@ BEGIN
   IF NOT coalesce(public.is_pdc_role('importer'::public.pdc_role), false) THEN
     RAISE EXCEPTION 'PDC_JITA_ETA_FORBIDDEN: importer or administrator access is required' USING ERRCODE='42501';
   END IF;
-  v_parsed := public.jita_eta_parse_512(p_text);
+  v_parsed := public.jita_eta_parse_516(p_text);
   IF coalesce((v_parsed->>'ok')::boolean, false) IS NOT TRUE THEN
     IF NOT v_dry THEN
       INSERT INTO public.pdc_jita_eta_audit(actor_id,actor,actor_role,dry_run,status,source_md5,result)
@@ -328,8 +328,8 @@ BEGIN
   RETURN v_row;
 END
 $imp$;
-REVOKE ALL ON FUNCTION public.import_jita_eta_512(text,boolean) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.import_jita_eta_512(text,boolean) TO authenticated;
+REVOKE ALL ON FUNCTION public.import_jita_eta_516(text,boolean) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.import_jita_eta_516(text,boolean) TO authenticated;
 
 CREATE FUNCTION public.get_pdc_jita_eta_board()
 RETURNS jsonb
@@ -338,7 +338,7 @@ STABLE
 SECURITY DEFINER
 SET search_path TO pg_catalog, public
 AS $board$
-  -- r512 (F128): current JITA ETA per live vehicle. Board readers only. Not the email parts ETA.
+  -- r516 (F130): current JITA ETA per live vehicle. Board readers only. Not the email parts ETA.
   SELECT CASE WHEN NOT coalesce(public.is_pdc_role('viewer'::public.pdc_role), false) THEN NULL::jsonb ELSE
     jsonb_build_object('today', (clock_timestamp() AT TIME ZONE 'Australia/Perth')::date, 'vehicles', coalesce((
       SELECT jsonb_agg(jsonb_build_object(
@@ -355,19 +355,19 @@ REVOKE ALL ON FUNCTION public.get_pdc_jita_eta_board() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_pdc_jita_eta_board() TO authenticated;
 
 INSERT INTO pdc_ops.expected_function_md5(signature,prosrc_md5,release,note,updated_at) VALUES
- ('public.jita_eta_parse_512(text)','492ab29757e9ba25674f67f76b206b1e','r512','r512 (F128): JITA paste parse and one date per stock',now()),
- ('public.import_jita_eta_512(text,boolean)','daaa7f839a33bf7719d282f749896aa7','r512','r512 (F128): JITA paste apply for importer or administrator',now()),
- ('public.get_pdc_jita_eta_board()','2d0930074c9f9372aed02901964bb4e9','r512','r512 (F128): board read of the JITA ETA',now());
+ ('public.jita_eta_parse_516(text)','3ac7620eb8c3355e2fc759f563c4fc1f','r516','r516 (F130): JITA paste parse and one date per stock',now()),
+ ('public.import_jita_eta_516(text,boolean)','46c1cae33eb789cf362e5db461baa971','r516','r516 (F130): JITA paste apply for importer or administrator',now()),
+ ('public.get_pdc_jita_eta_board()','29dcb35956acd61b6a8aa2ca07a80182','r516','r516 (F130): board read of the JITA ETA',now());
 
 INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,enabled,sort_order,added_in) VALUES
- ('jita_eta_upload_512','F128','JITA paste (r512): parse and import and board read are security definer and closed to anon; the two tables have RLS and no app-role writes; one current ETA per vehicle; the paste picks the latest outstanding planned date, else the latest planned date; it does not read Previous ETA, Latest ETA, Manual ETA or Kewdale ETA; set_parts_eta stays the r436 body',
+ ('jita_eta_upload_516','F130','JITA paste (r516): parse and import and board read are security definer and closed to anon; the two tables have RLS and no app-role writes; one current ETA per vehicle; the paste picks the latest outstanding planned date, else the latest planned date; it does not read Previous ETA, Latest ETA, Manual ETA or Kewdale ETA; set_parts_eta stays the r436 body',
   $chk$WITH fn AS (
   SELECT count(*) n, count(*) FILTER (WHERE p.prosecdef) sd,
    bool_and(NOT has_function_privilege('anon',p.oid,'EXECUTE')) no_anon,
    bool_and(has_function_privilege('authenticated',p.oid,'EXECUTE')) auth_exec
   FROM pg_proc p WHERE p.oid IN (
-   to_regprocedure('public.jita_eta_parse_512(text)'),
-   to_regprocedure('public.import_jita_eta_512(text,boolean)'),
+   to_regprocedure('public.jita_eta_parse_516(text)'),
+   to_regprocedure('public.import_jita_eta_516(text,boolean)'),
    to_regprocedure('public.get_pdc_jita_eta_board()'))
 ), tb AS (
   SELECT count(*) n, count(*) FILTER (WHERE c.relrowsecurity) rls,
@@ -378,20 +378,20 @@ INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,
   FROM pg_class c WHERE c.oid IN (to_regclass('public.pdc_jita_eta'),to_regclass('public.pdc_jita_eta_audit'))
 ), src AS (
   SELECT (SELECT position('set_parts_eta' IN prosrc)+position('pdc_parts_eta' IN prosrc)+position('previous eta' IN lower(prosrc))
-    FROM pg_proc WHERE oid=to_regprocedure('public.jita_eta_parse_512(text)')) parse_noise,
+    FROM pg_proc WHERE oid=to_regprocedure('public.jita_eta_parse_516(text)')) parse_noise,
    (SELECT position('set_parts_eta' IN prosrc)+position('pdc_parts_eta' IN prosrc)
-    FROM pg_proc WHERE oid=to_regprocedure('public.import_jita_eta_512(text,boolean)')) import_noise,
-   (SELECT position('is_pdc_role(''importer''' IN prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.import_jita_eta_512(text,boolean)')) importer_gate,
+    FROM pg_proc WHERE oid=to_regprocedure('public.import_jita_eta_516(text,boolean)')) import_noise,
+   (SELECT position('is_pdc_role(''importer''' IN prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.import_jita_eta_516(text,boolean)')) importer_gate,
    (SELECT md5(prosrc)= '88d31cbd6ca5ddd372e3143d5f8c013f' FROM pg_proc WHERE oid=to_regprocedure('public.set_parts_eta(text,text,integer,text,date,text,text,text,text,boolean,timestamp with time zone)')) parts_same
 ), one AS (
   SELECT (SELECT count(*) FROM (SELECT 1 FROM public.pdc_jita_eta WHERE NOT superseded GROUP BY vehicle_id HAVING count(*)>1) z) dup_current
 ), hdr AS (
   SELECT chr(9) t, chr(10) n
 ), cases AS (
-  SELECT public.jita_eta_parse_512('JITA Vehicle'||t||'Qty Oustanding'||t||'JITA Planned Delivery Date'||t||'Previous ETA'||n||'13102912'||t||'1'||t||'29/10/2026'||t||'01/01/2026'||n||'13102912'||t||'1'||t||'29/10/2026'||t||'16/10/26') same,
-   public.jita_eta_parse_512('JITA Vehicle'||t||'Qty Outstanding'||t||'JITA Planned Delivery Date'||n||'13102912'||t||'1'||t||'29/10/2026'||n||'13102912'||t||'2'||t||'01/11/2026') multi,
-   public.jita_eta_parse_512('JITA Vehicle'||t||'Qty Oustanding'||t||'JITA Planned Delivery Date'||t||'Latest ETA'||t||'Vehicle ETA at Kewdale'||n||'ABC'||t||'0'||t||'15/10/26'||t||'01/12/2026'||t||'20/12/2026'||n||'ABC'||t||'1'||t||''||t||'02/12/2026'||t||'03/12/2026') fallback,
-   public.jita_eta_parse_512('Hello'||n||'13102912') bad
+  SELECT public.jita_eta_parse_516('JITA Vehicle'||t||'Qty Oustanding'||t||'JITA Planned Delivery Date'||t||'Previous ETA'||n||'13102912'||t||'1'||t||'29/10/2026'||t||'01/01/2026'||n||'13102912'||t||'1'||t||'29/10/2026'||t||'16/10/26') same,
+   public.jita_eta_parse_516('JITA Vehicle'||t||'Qty Outstanding'||t||'JITA Planned Delivery Date'||n||'13102912'||t||'1'||t||'29/10/2026'||n||'13102912'||t||'2'||t||'01/11/2026') multi,
+   public.jita_eta_parse_516('JITA Vehicle'||t||'Qty Oustanding'||t||'JITA Planned Delivery Date'||t||'Latest ETA'||t||'Vehicle ETA at Kewdale'||n||'ABC'||t||'0'||t||'15/10/26'||t||'01/12/2026'||t||'20/12/2026'||n||'ABC'||t||'1'||t||''||t||'02/12/2026'||t||'03/12/2026') fallback,
+   public.jita_eta_parse_516('Hello'||n||'13102912') bad
   FROM hdr
 )
 SELECT (SELECT n=3 AND sd=3 AND no_anon AND auth_exec FROM fn)
@@ -406,21 +406,21 @@ SELECT (SELECT n=3 AND sd=3 AND no_anon AND auth_exec FROM fn)
  ||'; tables RLS '||(SELECT rls FROM tb)||'/2, app writes '||(SELECT writable FROM tb)
  ||'; parts ETA still r436 '||coalesce((SELECT parts_same FROM src)::text,'missing')
  ||'; sample date '||coalesce((SELECT same->'stocks'->0->>'eta_date' FROM cases),'none') AS detail
-$chk$,true,300,'r512');
+$chk$,true,303,'r516');
 
 DO $g$ DECLARE y record; BEGIN
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.jita_eta_parse_512(text)')) IS DISTINCT FROM '492ab29757e9ba25674f67f76b206b1e' THEN RAISE EXCEPTION 'r512: parse did not land as expected'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.import_jita_eta_512(text,boolean)')) IS DISTINCT FROM 'daaa7f839a33bf7719d282f749896aa7' THEN RAISE EXCEPTION 'r512: import did not land as expected'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.get_pdc_jita_eta_board()')) IS DISTINCT FROM '2d0930074c9f9372aed02901964bb4e9' THEN RAISE EXCEPTION 'r512: board read did not land as expected'; END IF;
- IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='jita_eta_upload_512' AND added_in='r512' AND sort_order=300) IS DISTINCT FROM '9334a9062b9065f8426093636fdf5b11' THEN RAISE EXCEPTION 'r512: check did not land as expected'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r512')<>3
-    OR (SELECT count(*) FROM pdc_ops.expected_function_md5)<>current_setting('pdc.r512_pins')::int+3 THEN RAISE EXCEPTION 'r512: pins not as expected'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_clock_tick(boolean,timestamptz)'::regprocedure) IS DISTINCT FROM current_setting('pdc.r512_tick') THEN RAISE EXCEPTION 'r512: clock tick changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='pdc_ops.fault_regression_check()'::regprocedure) IS DISTINCT FROM current_setting('pdc.r512_frc') THEN RAISE EXCEPTION 'r512: fault_regression_check changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.set_parts_eta(text,text,integer,text,date,text,text,text,text,boolean,timestamp with time zone)')) IS DISTINCT FROM '88d31cbd6ca5ddd372e3143d5f8c013f' THEN RAISE EXCEPTION 'r512: set_parts_eta changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.get_pdc_parts_eta_board()')) IS DISTINCT FROM 'decd9053241b3fe8ede99bd231ad98ec' THEN RAISE EXCEPTION 'r512: parts ETA board read changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.jita_eta_parse_516(text)')) IS DISTINCT FROM '3ac7620eb8c3355e2fc759f563c4fc1f' THEN RAISE EXCEPTION 'r516: parse did not land as expected'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.import_jita_eta_516(text,boolean)')) IS DISTINCT FROM '46c1cae33eb789cf362e5db461baa971' THEN RAISE EXCEPTION 'r516: import did not land as expected'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.get_pdc_jita_eta_board()')) IS DISTINCT FROM '29dcb35956acd61b6a8aa2ca07a80182' THEN RAISE EXCEPTION 'r516: board read did not land as expected'; END IF;
+ IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='jita_eta_upload_516' AND added_in='r516' AND sort_order=303) IS DISTINCT FROM '7ef1be53aac878776e0c6e22fbb5df9c' THEN RAISE EXCEPTION 'r516: check did not land as expected'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r516')<>3
+    OR (SELECT count(*) FROM pdc_ops.expected_function_md5)<>current_setting('pdc.r516_pins')::int+3 THEN RAISE EXCEPTION 'r516: pins not as expected'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_clock_tick(boolean,timestamptz)'::regprocedure) IS DISTINCT FROM current_setting('pdc.r516_tick') THEN RAISE EXCEPTION 'r516: clock tick changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='pdc_ops.fault_regression_check()'::regprocedure) IS DISTINCT FROM current_setting('pdc.r516_frc') THEN RAISE EXCEPTION 'r516: fault_regression_check changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.set_parts_eta(text,text,integer,text,date,text,text,text,text,boolean,timestamp with time zone)')) IS DISTINCT FROM '88d31cbd6ca5ddd372e3143d5f8c013f' THEN RAISE EXCEPTION 'r516: set_parts_eta changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.get_pdc_parts_eta_board()')) IS DISTINCT FROM 'decd9053241b3fe8ede99bd231ad98ec' THEN RAISE EXCEPTION 'r516: parts ETA board read changed'; END IF;
  PERFORM set_config('search_path','pg_catalog',true);
- EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='jita_eta_upload_512') INTO y;
- IF y.ok IS NOT TRUE THEN RAISE EXCEPTION 'r512: check not OK: %', y.detail; END IF;
+ EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='jita_eta_upload_516') INTO y;
+ IF y.ok IS NOT TRUE THEN RAISE EXCEPTION 'r516: check not OK: %', y.detail; END IF;
  PERFORM set_config('search_path','public, extensions',true);
 END $g$;
