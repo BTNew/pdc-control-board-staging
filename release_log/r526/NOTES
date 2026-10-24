@@ -1,6 +1,6 @@
-r526 (F140). PREVIEW. Do not merge until Craig approves. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production is not touched. No SQL.
+r526 (F140). Craig approved go-live 24 Oct 2026. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production is not touched. No SQL.
 
-Branched from main `060fc88a` (r524 / F138). r523 / F137, r524 / F138 and r525 / F139 are already used. Open PRs #501 (r519), #498 (r516) and #493 (r512) do not claim r526 or F140. No new regression-check sort.
+Main tip was still `060fc88a` (r524 / F138), so no rebase. r523 / F137, r524 / F138 and r525 / F139 are already used. r526 / F140 was still free. Open PRs #501 (r519), #498 (r516) and #493 (r512) are not merged. No new regression-check sort.
 
 ## What Craig asked
 
