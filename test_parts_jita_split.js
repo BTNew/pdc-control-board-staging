@@ -77,6 +77,13 @@ assert.doesNotMatch(stoppedImport, /Parts Jita complete/, 'a parts stoppage is n
 const importedOnly = render('', { pdcRequiresParts: true, pdcPartsFlags: { colour: 'red', label: 'Outstanding' } });
 assert.match(importedOnly, /imported-parts-red no-jita/);
 assert.doesNotMatch(importedOnly, /Parts Jita complete/);
+const boardCss = fs.readFileSync('styles.css', 'utf8');
+assert.match(boardCss, /\.incoming-work-check\.imported-parts-orange \{ background: #dbeafe !important; color: #1d4ed8 !important; border-color: #2563eb !important; \}/);
+assert.match(boardCss, /#parts \[data-parts-feed\] \.parts-status-pill\.parts-status-ordered \{ background: #dbeafe !important; color: #1d4ed8 !important; border-color: #2563eb !important; \}/);
+assert.doesNotMatch(boardCss, /#fff1dc|#d98200|#a15b00/);
+assert.match(fs.readFileSync('karratha/styles.css', 'utf8'), /background: #fff1dc !important; color: #a15b00 !important; border-color: #d98200 !important;/);
+assert.match(fs.readFileSync('index.html', 'utf8'), /styles\.css\?[^"]*&amp;r526=2026\.10\.24\.r526"/);
+assert.doesNotMatch(fs.readFileSync('karratha/index.html', 'utf8'), /r526=2026\.10\.24\.r526/);
 if (process.env.PDC_JITA_PREVIEW) {
   const examples = [
     ['Parts received / JITA present', {pdcRequiresParts:true,pdcCompleteParts:true}, 'JITA-123'],

@@ -154,7 +154,7 @@ test('Sales wiring: linked rows only, short status text under the icons, mobile 
   assert.match(sales, /\+icons\+'<span class="pmb-line"><strong>'/);
   assert.match(sales, /pmbStationsHtml\(row\)\+'<p class="mobile-pmb'/);
   const index = fs.readFileSync('sales/index.html', 'utf8');
-  assert.match(index, /<link rel="stylesheet" href="pmb-stations\.css\?v=2026\.10\.23\.r499b">/);
+  assert.match(index, /<link rel="stylesheet" href="pmb-stations\.css\?v=2026\.10\.23\.r499b&amp;r526=2026\.10\.24\.r526">/);
   const order = ['../workshop-eligibility.js?', '../vehicle-requirements-guard.js?', 'pmb-stations.js?v=2026.10.23.r499b&amp;r518=2026.10.23.r518&amp;r524=2026.10.24.r524', 'sales.js?v='].map(s => index.indexOf('src="' + s));
   assert.ok(order.every(i => i > 0) && order.every((v, i) => !i || v > order[i - 1]), 'scripts load before sales.js');
   assert.match(index, /src="sales\.js\?v=2026\.10\.06\.01&amp;r499b=2026\.10\.23\.r499b&amp;[^"]*no-yard-flag=2026\.10\.22\.r486"/, 'sales.js keeps v= (manifest) and adds r499b');
@@ -166,6 +166,8 @@ test('Sales wiring: linked rows only, short status text under the icons, mobile 
   assert.doesNotMatch(css, /cursor:pointer/);
   // The board's colours, copied: required red, ordered/booked amber, complete green, stoppage red.
   for (const colour of ['#fff0f3', '#a3133b', '#fff7ed', '#9a3412', '#edf9f1', '#146c3b', '#ffe8e8', '#9f1111', '#c2410c']) assert.ok(css.includes(colour), colour);
+  assert.match(css, /\.sales-pmb-stations \.incoming-work-check\.imported-parts-orange\{background:#dbeafe;color:#1d4ed8;border-color:#2563eb\}/);
+  assert.doesNotMatch(css, /#fff1dc|#d98200|#a15b00/, 'outstanding is no longer the orange paint');
   const pulse = name => {
     const block = fs.readFileSync(name, 'utf8').match(/@keyframes workshop-started-blue-pulse \{[\s\S]*?\n\}/);
     assert.ok(block, name);

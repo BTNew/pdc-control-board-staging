@@ -19,7 +19,8 @@
 .sales-pmb-stations .parts-jita-marker{position:absolute;right:0;bottom:0;width:50%;height:50%;display:grid;place-items:center;font-size:9.5px;font-weight:950;line-height:1;color:#a3133b}
 .sales-pmb-stations .has-jita .parts-jita-marker{color:#146c3b}
 .sales-pmb-stations .incoming-work-check.imported-parts-green{background:#edf9f1;color:#168342;border-color:#168342}
-.sales-pmb-stations .incoming-work-check.imported-parts-orange{background:#fff1dc;color:#a15b00;border-color:#d98200}
+/* r526 (F140): outstanding (class imported-parts-orange) paints blue. The colour token and the labels stay. */
+.sales-pmb-stations .incoming-work-check.imported-parts-orange{background:#dbeafe;color:#1d4ed8;border-color:#2563eb}
 .sales-pmb-stations .incoming-work-check.imported-parts-red{background:#fff0f3;color:#ba163c;border-color:#ba163c}
 .sales-pmb-stations .incoming-work-check.imported-parts-grey,.sales-pmb-stations .incoming-work-check.imported-parts-review{background:#eef0f3;color:#536173;border-color:#8995a5}
 .sales-pmb-stations .incoming-work-check:hover{filter:brightness(.98);box-shadow:0 0 0 2px rgba(29,78,216,.14)}

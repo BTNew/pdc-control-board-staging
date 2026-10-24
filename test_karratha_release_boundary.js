@@ -46,6 +46,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     // r501: the PMG Sublet intake hides Create Sublet / Book Sublet and points to Manage sublets (F114); the hidden Karratha copy stays frozen.
     else if (item.file === 'pdc-sublet-intake.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),item.baseline_sha256,item.file);
     else if (item.file === 'workshop-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'004267f09a9fa4f5ad0852dd8f983e25395d8352f8b0f9fb798777b3d733e9ff',item.file);
+    // r526: the PMG outstanding Parts paint is blue (F140). Department 135 is not tagged and keeps the orange paint.
+    else if (item.file === 'styles.css') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -104,6 +106,9 @@ const approvedRootImportPatch = Object.freeze({
   "workshop-planner.css": "fc29a4268da314b2d41905f65788f00b5c07ddb4544b36cdb5f991ac3bc9bf3a",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
+  // r526: outstanding Parts (class imported-parts-orange) paints #dbeafe / #1d4ed8 / #2563eb (F140).
+  // Department 135 is not tagged and keeps the orange paint. The colour token and the labels stay.
+  "styles.css": "41d20ee74bef81537b6ef7bc04ac65a793cbeab1d503a74beeed8760c4f7c09b",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
   "scripts/build_pages_runtime.js": "340ffbfdaa9720a2b73b0885f96407ec394b49b3a2fa75b360f6033adb3fe628",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
@@ -292,7 +297,8 @@ const approvedRootImportPatch = Object.freeze({
   // r524: r524=2026.10.24.r524 on app.js and sales/pmb-stations.js (imported orange, red, review and grey keep the Parts colour; F138). Department 135 is not tagged.
   // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; live check F122 sort 294).
   // r525: r525=2026.10.24.r525 on pdc-staff-usage.js (Website activity Last 24 hours; F139). Department 135 is not tagged. The applied check stays usage_period_24h_513 / F126.
-  "index.html": "fd768bdcd891b5bb58bf0364f3cae5c80351128e4c2972b0e2b083181c386c29",
+  // r526: r526=2026.10.24.r526 on styles.css (outstanding Parts paint is blue; F140). Department 135 is not tagged.
+  "index.html": "10113a05a086370c286b81dfe3f893d02b8b21facf0c94b589ebecb25fe02a17",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
