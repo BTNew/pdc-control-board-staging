@@ -42,12 +42,18 @@ test('undo drops the trigger before it restores rows and does not touch the emai
   assert.doesNotMatch(down, /DROP TABLE public\.pdc_jita_eta/);
 });
 
-test('the board paints the completed station from the number, before the imported parts colour', () => {
+test('r524 paints the full green tick only when the import is missing or green', () => {
   const app = fs.readFileSync('app.js', 'utf8');
   const sales = fs.readFileSync('sales/pmb-stations.js', 'utf8');
-  const marker = 'Parts Jita complete. Navision JITA number';
-  assert.ok(app.indexOf(marker) < app.indexOf('importedPartsStatus(vehicle)'));
-  assert.ok(sales.indexOf(marker) < sales.indexOf('if (imp)'));
+  const body = app.slice(app.indexOf('function incomingWorkChecklistHtml'), app.indexOf('function workStatusLegendHtml'));
+  const importedAt = body.indexOf('importedPartsStatus(vehicle)');
+  const completeAt = body.indexOf('Parts Jita complete. Navision JITA number');
+  assert.ok(importedAt > 0 && completeAt > importedAt, 'imported status is read before the full green tick');
+  assert.match(body, /jitaNumber && !isActivePartsStoppage\(vehicle\) && \(!imported \|\| imported\.colour === 'green'\)/);
+  const salesBody = sales.slice(sales.indexOf("if (def.key === 'parts')"));
+  assert.match(salesBody, /jita && !partsStoppage\(v\) && \(!imp \|\| imp\.colour === 'green'\)/);
+  assert.ok(salesBody.indexOf('const imp = imported') < salesBody.indexOf('Parts Jita complete. Navision JITA number'));
   assert.match(fs.readFileSync('index.html', 'utf8'), /app\.js\?[^"]*r518=2026\.10\.23\.r518/);
-  assert.match(fs.readFileSync('sales/index.html', 'utf8'), /pmb-stations\.js\?v=2026\.10\.23\.r499b&amp;r518=2026\.10\.23\.r518/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /r524=2026\.10\.24\.r524/);
+  assert.match(fs.readFileSync('sales/index.html', 'utf8'), /pmb-stations\.js\?v=2026\.10\.23\.r499b&amp;r518=2026\.10\.23\.r518&amp;r524=2026\.10\.24\.r524/);
 });

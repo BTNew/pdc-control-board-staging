@@ -74,6 +74,9 @@ const FIX = [
   { vehicle_id: U(36), has_stock: true, work: { Tyres: { required: true, completed: false }, parts: { required: true, completed: true } }, parts: {} },
   { vehicle_id: U(37), has_stock: true, work: W(['fitting'], ['fitting']), bookings: [{ stage_code: 'FITTING', status: 'started' }] },
   { vehicle_id: U(38), has_stock: true, pmb_stage: 'SUBLET', work: W(['sublet']), bookings: [{ stage_code: 'SUBLET', status: 'started' }] },
+  { vehicle_id: U(39), has_stock: true, parts: { parts_required: true },
+    parts_flags: { colour: 'orange', label: 'Parts outstanding — see job cards', meaning: 'Made-up meaning', last_successful_import_at: '2026-10-23T23:36:00Z' },
+    jita_number: 'JSO121708' },
 ];
 
 test('every fixture renders exactly the Control Board strip (app.js incomingWorkChecklistHtml + pdc-sublet-po.js decorateStrip)', () => {
@@ -122,8 +125,11 @@ test('mapping: work items, open QC lines, sublet bookings and parts as the board
   assert.equal(stations.toBoardVehicle(F(36)).pdcRequiresTyre, true);
   assert.equal(stations.toBoardVehicle(F(36)).pdcCompleteParts, true);
   assert.match(salesHtml(F(10)), /pdc-station-parts parts-jita-split is-complete has-jita" role="img" title="Parts Jita complete\. Navision JITA number 1234567\."/);
-  assert.doesNotMatch(salesHtml(F(10)), /imported-parts-/, 'a verified JITA number replaces the imported parts colour');
+  assert.doesNotMatch(salesHtml(F(10)), /imported-parts-/, 'a green import with a verified JITA number is the full green tick');
   assert.match(salesHtml(F(11)), /imported-parts-orange no-jita/);
+  assert.match(salesHtml(F(39)), /imported-parts-orange has-jita/);
+  assert.match(salesHtml(F(39)), /parts-jita-marker" aria-hidden="true">✓/);
+  assert.doesNotMatch(salesHtml(F(39)), /Parts Jita complete/, 'orange import keeps its colour; the JITA tick is the corner mark');
   assert.match(salesHtml(F(20)), /Parts Jita complete\. Navision JITA number 7654321/);
   assert.match(salesHtml(F(21)), /no-jita/, 'zero JITA is not a JITA');
   assert.doesNotMatch(salesHtml(F(21)), /Parts Jita complete/);
@@ -149,7 +155,7 @@ test('Sales wiring: linked rows only, short status text under the icons, mobile 
   assert.match(sales, /pmbStationsHtml\(row\)\+'<p class="mobile-pmb'/);
   const index = fs.readFileSync('sales/index.html', 'utf8');
   assert.match(index, /<link rel="stylesheet" href="pmb-stations\.css\?v=2026\.10\.23\.r499b">/);
-  const order = ['../workshop-eligibility.js?', '../vehicle-requirements-guard.js?', 'pmb-stations.js?v=2026.10.23.r499b&amp;r518=2026.10.23.r518', 'sales.js?v='].map(s => index.indexOf('src="' + s));
+  const order = ['../workshop-eligibility.js?', '../vehicle-requirements-guard.js?', 'pmb-stations.js?v=2026.10.23.r499b&amp;r518=2026.10.23.r518&amp;r524=2026.10.24.r524', 'sales.js?v='].map(s => index.indexOf('src="' + s));
   assert.ok(order.every(i => i > 0) && order.every((v, i) => !i || v > order[i - 1]), 'scripts load before sales.js');
   assert.match(index, /src="sales\.js\?v=2026\.10\.06\.01&amp;r499b=2026\.10\.23\.r499b&amp;[^"]*no-yard-flag=2026\.10\.22\.r486"/, 'sales.js keeps v= (manifest) and adds r499b');
   const build = fs.readFileSync('scripts/build_pages_runtime.js', 'utf8');

@@ -1,0 +1,68 @@
+r524 (F138). Craig approved go-live 24 Oct 2026. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production was not touched. No SQL was applied. #501, #498 and #493 are not merged.
+
+Rebased onto current main `b62029b0` (r523 / F137, PERTH DELIVERY to Sublet), which sits on `f827e145` (r525 / F139, Website activity Last 24 hours). r523 and r525 are taken. r524 / F138 was still free, so this release keeps that pair. No new regression-check sort. Sort 307 is the r523 check.
+
+## What was wrong
+
+r518 (PR #500, merge `4d506905`) paints the Parts tile green as soon as a verified Navision JITA number is present. In `incomingWorkChecklistHtml` that return runs before `importedPartsStatus`, and Sales `pmb-stations.js` does the same. Orange, red, review and grey imported colours never reach the tile. A parts stoppage was already left as a stoppage.
+
+Stock 13018393, job J139125903, location Other, JITA JSO121708. Read 24 Oct 2026: `pdc_imported_parts_flags_vehicle_20260912` and `pdc_parts_flags_vehicle_20260911` both return colour orange, vehicle label "Parts outstanding — see job cards", `parts_complete` false. The job row (backorder=1, backorder_with_po=0, parts_attached=1, source tune_pmg) says "Parts outstanding — check PO". The tile showed green with both ticks. The vehicle-level label is "see job cards". "Check PO" is the job-level label inside that payload.
+
+## Count
+
+`pdc_ops.r518_parts_jita_tick_audit` has 297 rows. All 297 are still live board vehicles. Client colour is `pdc_parts_flags_vehicle_20260911` (an active row in `pdc_parts_completion_email_confirmations` makes that read green).
+
+- Orange, no email confirmation: 118. Every one is still the pristine r518 insert (parts row received, required, not ordered, no email date, not stoppage, `updated_by` null, and a completed PARTS work item whose notes are exactly `r518: Navision JITA number station tick`). Locations: IT 21, Other 32, PMB 35, YH 30. None of those locations are QC or RFT. This is the live count behind the reported ~119. The tile fix turns these 118 from a full green tick to orange with a corner tick.
+- Grey, no email confirmation: 36. Label "Parts requirements need review". Also pristine r518 inserts. The tile fix shows grey with a corner tick. They are not outstanding, so the data option does not touch them. After this release, the tile says review-needed and `parts_received` stays true.
+- Green, no email confirmation: 112. Full green tick stays. Screenshot vehicle: stock 12638294, job J139125441, location PMB, JITA JSO118332, label "All active jobs parts-ready".
+- Green because of an active parts-complete email: 23. Raw import underneath: 19 green, 3 grey, 1 orange. The client colour is green, so the tile stays the full green tick. The data option does not undo them.
+- No imported jobs (flags null): 8. Full green tick stays. Screenshot vehicle: stock 13001553, location PMB, JITA JSO115073.
+- Review: 0. Red: 0. The tile code still keeps those colours and puts the JITA tick in the corner.
+
+118 + 36 + 112 + 23 + 8 = 297.
+
+The 118 orange stocks, 24 Oct 2026:
+
+- IT (21): 13071085, 13071616, 13072026, 13080621, 13091191, 13093201, 13094134, 13094135, 13094136, 13094137, 13094138, 13094139, 13094140, 13094141, 13094142, 13094143, 13094173, 13094174, 13094177, 13094246, 13103604
+- Other (32): 12770530, 12770532, 12770534, 12770538, 12770546, 12770550, 12770554, 12770556, 12770562, 12770564, 12770570, 12770572, 12770576, 13018393, 13047384, 13091202, 13102883, 13102889, 13102906, 13102907, 13102908, 13102909, 13102910, 13102911, 13102912, 13120332, 13121077, 13121078, 13121079, 13121080, 13128959, 13133374
+- PMB (35): 13003383, 13018400, 13018407, 13019200, 13019956, 13045137, 13047257, 13047383, 13056870, 13056871, 13056872, 13057027, 13071024, 13071025, 13071026, 13071027, 13071028, 13071031, 13071047, 13071838, 13077197, 13077199, 13077200, 13077201, 13077206, 13077210, 13077211, 13080553, 13091175, 13091177, 13091180, 13091192, 13093181, 13107437, 13109426
+- YH (30): 13018396, 13018397, 13071083, 13073002, 13077203, 13092247, 13092999, 13093008, 13094114, 13094115, 13094116, 13094117, 13094118, 13094119, 13094120, 13094121, 13094122, 13094123, 13094124, 13094125, 13094126, 13094127, 13094128, 13094129, 13094130, 13094131, 13094132, 13094133, 13094245, 13096010
+
+Stock 13080621 (the r518 completed example, JITA JSO122691) is in the IT orange list on this read.
+
+## Tile rule
+
+A verified JITA number (same authority as r518: `validated-navision-import-v1`, identity verified, column present, a digit, not all zeros) paints the whole Parts station green only when there is no imported parts status, or that status is green. Orange, red, review and grey keep their colour. The JITA mark is the existing bottom-right corner tick (`.has-jita`). A parts stoppage stays a stoppage. `public.pdc_jita_eta` is not read.
+
+`styles.css` is unchanged. The imported-colour classes and the corner mark were already there. Department 135 / Karratha is frozen: `karratha/app.js` is not edited, and root `styles.css` stays byte-identical to the Karratha copy. Cache bust `r524=2026.10.24.r524` on `app.js` and `sales/pmb-stations.js` only.
+
+## Should r518 stop setting parts_received?
+
+The tile bug is the frontend short-circuit. Clearing `vehicle_parts_updates.parts_received` does not by itself change the tile, because the short-circuit keys off the JITA number. Go-live ships the tile fix and leaves the data change unapplied.
+
+What the stored tick changes, beyond the tile, for those 118:
+
+- The board mapper sets `pdcCompleteParts` from `parts_update.parts_received` after the PARTS work item. Both are true today, so PARTS counts as signed off in completed-jobs text, vehicle search, the CSV export, and the note written when a vehicle is transferred to RFT.
+- `refreshSharedVehicleWorkState` reads the parts row and forces the parts work state to complete when `parts_received` is true.
+- `pdc-parts-confirmation.js` already replaces `partsStateComplete` for a `separate_parts_status` feed with the import's `parts_complete`. Parts queue filters that use that wrapper already follow the import, so they do not hide these 118. The tile was the surface that ignored the import.
+- `parts_ordered`, `worst_eta`, parts stoppage, the email Parts ETA, `set_parts_eta` and `pdc_jita_eta` are not written by the tick and would stay as they are.
+- None of the 118 are at a QC or RFT location, so applying the option would not reopen a QC gate. A later RFT transfer note would stop listing PARTS as signed off. Each cleared work item still fires the QC operation-lines cache invalidation, and deleting the parts row bumps the email vehicle revision.
+- The tick runs when a current Navision row is saved, not when the parts importer runs. Importers are unchanged. Changing only the function would not untick the 118, because the function returns immediately when the station is already received. A vehicle that is green, gets ticked, and later turns orange stays ticked for the same reason. The data script and the function change have to travel together if the stored tick is to match the tile.
+
+The option, not applied:
+
+`supabase/proposals/r524_jita_outstanding_parts_option.sql`
+
+- file md5 `23e146353c475135a2f1b6709038784e`
+- new `tick_parts_jita_from_navision_518` prosrc md5 `1e6833c19f876a1abddb3c26aa90a2aa`
+
+`supabase/proposals/r524_jita_outstanding_parts_option.down.sql`
+
+- file md5 `3ef3ef874123d1648da2c989239dc2a5`
+- restored prosrc md5 `d39a7051efd9669c6eda97437150feab` (the live r518 body)
+
+It is not under `supabase/migrations`, so a deploy will not run it. It refuses unless the clock second is 02–45, the staging sentinel is `cdsmnqxtyyoeoznmbidd`, and the production sentinel is absent. It must be one transaction. It refuses unless the tick, the trigger, `set_parts_eta`, and both parts-flags functions still have their current md5s. It updates the existing r518 pin in place and does not add a pin. The new body still contains `validated-navision-import-v1` and does not contain `pdc_jita_eta`, `worst_eta` or `set_parts_eta`, so `navision_jita_station_tick_518` still passes. Before any write, if `pdc_parts_flags_vehicle_20260911` colour is orange or red, the function returns false and does not untick a station that is already received. Grey and review still tick. An active parts-complete email makes that read green, so those still tick.
+
+The data half inserts `pdc_ops.r524_outstanding_parts_option_audit` (RLS on, revoked from public, anon, authenticated and service_role) for the 118 pristine orange or red inserts, deletes those parts rows, and clears those PARTS work items back to not required and not complete (`pdc_772` blocks deleting a work item). On the 24 Oct read that set is exactly the 118 orange stocks above. The down script puts the parts rows and the work-item completion back, restores the r518 function and pin, and drops the audit table. It refuses if a parts row already exists again for an audited vehicle.
+
+Recommendation: ship the tile fix. Leave this SQL for a later decision. It changes stored station completion, search, CSV and RFT notes, not just the tile.

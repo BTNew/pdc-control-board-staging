@@ -59,9 +59,21 @@ assert.match(render('JITA-123"><img src=x>'), /JITA-123&quot;&gt;|JITA-123&quot;
 const etaOnly = render('', { jitaEta: '29/10/2026', plannedDeliveryDate: '2026-10-29' });
 assert.match(etaOnly, /no-jita/);
 assert.doesNotMatch(etaOnly, /Parts Jita complete/, 'a JITA ETA date does not tick Parts Jita');
-const imported = render('JSO122691', { pdcRequiresParts: true, pdcPartsFlags: { colour: 'red', label: 'Outstanding' } });
-assert.match(imported, /is-complete has-jita/);
-assert.doesNotMatch(imported, /imported-parts-red/, 'a verified JITA number replaces the imported parts colour');
+const glyphs = { green: '✓', orange: '!', red: '●', grey: '—', review: '?' };
+for (const colour of ['orange', 'red', 'review', 'grey']) {
+  const html = render('JSO122691', { pdcRequiresParts: true, pdcPartsFlags: { colour, label: 'Outstanding ' + colour } });
+  assert.match(html, new RegExp(`imported-parts-${colour} has-jita`), colour);
+  assert.doesNotMatch(html, /Parts Jita complete/, colour);
+  assert.equal(html.match(/parts-jita-parts-marker[^>]*>(.*?)<\/span>/)[1], glyphs[colour], colour);
+  assert.equal(html.match(/parts-jita-marker[^>]*>(.*?)<\/span>/)[1], '✓', colour);
+}
+const greenImport = render('JSO118332', { pdcRequiresParts: true, pdcPartsFlags: { colour: 'green', label: 'All active jobs parts-ready' } });
+assert.match(greenImport, /pdc-station-parts parts-jita-split is-complete has-jita/);
+assert.doesNotMatch(greenImport, /imported-parts-green/, 'a green import with a JITA number is the full green tick');
+assert.equal(greenImport.match(completeTitle)[1], 'JSO118332');
+const stoppedImport = render('JITA-123', { pdcRequiresParts: true, pdcPartsStoppage: true, pdcPartsFlags: { colour: 'orange', label: 'Outstanding' } });
+assert.match(stoppedImport, /imported-parts-orange has-jita/);
+assert.doesNotMatch(stoppedImport, /Parts Jita complete/, 'a parts stoppage is not painted complete by a JITA number');
 const importedOnly = render('', { pdcRequiresParts: true, pdcPartsFlags: { colour: 'red', label: 'Outstanding' } });
 assert.match(importedOnly, /imported-parts-red no-jita/);
 assert.doesNotMatch(importedOnly, /Parts Jita complete/);

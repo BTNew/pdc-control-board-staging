@@ -191,7 +191,8 @@ const approvedRootImportPatch = Object.freeze({
   // r509: Fabrication planner, WIP and capacity label are 14 bays (live check F122 sort 294). Department 135 keeps its frozen app.js.
   // r518: a verified Navision JITA number completes Parts Jita (F132). Department 135 keeps its frozen app.js.
   // r521: the Booking column no longer uses a Pilbara service job card as a read-only badge (F135). Department 135 keeps its frozen app.js.
-  "app.js": "a29b7be6898f7d9875bd16f5c4a8d8bc3387cb672856646bbaf902e1a9d8c1fb",
+  // r524: imported orange, red, review and grey keep the Parts tile colour; a JITA number is the corner mark unless the import is missing or green (F138). Department 135 keeps its frozen app.js.
+  "app.js": "a996654e901d5e0239f9d319b3456ed8bd09c49934da895ea2da8b1141d44d7b",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -288,9 +289,10 @@ const approvedRootImportPatch = Object.freeze({
   // r518: r518=2026.10.23.r518 on app.js (a verified Navision JITA number completes Parts Jita; F132). Department 135 is not tagged.
   // r519: JITA Upload hidden and the nested JITA ETA not drawn; r519=2026.10.23.r519 on canonical-entry.js (F133). Department 135 is not tagged. r518 Parts Jita tick stays.
   // r521: r521=2026.10.24.r521 on app.js (Booking column does not show the Pilbara service read-only badge; F135). Department 135 is not tagged.
+  // r524: r524=2026.10.24.r524 on app.js and sales/pmb-stations.js (imported orange, red, review and grey keep the Parts colour; F138). Department 135 is not tagged.
   // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; live check F122 sort 294).
   // r525: r525=2026.10.24.r525 on pdc-staff-usage.js (Website activity Last 24 hours; F139). Department 135 is not tagged. The applied check stays usage_period_24h_513 / F126.
-  "index.html": "5f0afc6bdcea2b8f6ddcd704c57edb80bbd03dce4fba9249beb21753f21c5d27",
+  "index.html": "fd768bdcd891b5bb58bf0364f3cae5c80351128e4c2972b0e2b083181c386c29",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
