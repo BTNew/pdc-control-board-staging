@@ -13762,9 +13762,12 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 
 /* Imported flags express recorded evidence, independently of staff completion and JITA. */
 .incoming-work-check.imported-parts-green { background: #edf9f1 !important; color: #168342 !important; border-color: #168342 !important; }
-.incoming-work-check.imported-parts-orange { background: #fff1dc !important; color: #a15b00 !important; border-color: #d98200 !important; }
+/* r526 (F140): colour token stays orange. The outstanding paint is blue, distinct from green, red, grey and review. Labels are unchanged. */
+.incoming-work-check.imported-parts-orange { background: #dbeafe !important; color: #1d4ed8 !important; border-color: #2563eb !important; }
 .incoming-work-check.imported-parts-red { background: #fff0f3 !important; color: #ba163c !important; border-color: #ba163c !important; }
 .incoming-work-check.imported-parts-grey, .incoming-work-check.imported-parts-review { background: #eef0f3 !important; color: #536173 !important; border-color: #8995a5 !important; }
+/* The parts feed injects an orange pill for "Parts outstanding — see job cards". This matches the tile. */
+#parts [data-parts-feed] .parts-status-pill.parts-status-ordered { background: #dbeafe !important; color: #1d4ed8 !important; border-color: #2563eb !important; }
 .parts-status-unknown { background: #eef0f3; color: #536173; }
 
 .incoming-work-check[data-open-sublet-stock] { cursor: pointer !important; font: inherit; margin: 0; box-shadow: none; }

@@ -1,0 +1,23 @@
+r526 (F140). Craig approved go-live 24 Oct 2026. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production is not touched. No SQL.
+
+Main tip was still `060fc88a` (r524 / F138), so no rebase. r523 / F137, r524 / F138 and r525 / F139 are already used. r526 / F140 was still free. Open PRs #501 (r519), #498 (r516) and #493 (r512) are not merged. No new regression-check sort.
+
+## What Craig asked
+
+Peter is colourblind to orange. The imported Parts outstanding state should paint a clear blue, distinct from green, red, grey and the review colour. Text labels and tooltips stay as they are.
+
+## Paint
+
+The class stays `imported-parts-orange` and the data colour stays `orange`. Only the paint changes:
+
+- Board tile `.incoming-work-check.imported-parts-orange`: fill `#dbeafe`, text `#1d4ed8`, border `#2563eb` (was `#fff1dc` / `#a15b00` / `#d98200`).
+- Sales PMB stations uses the same three colours on that class.
+- The Parts tab pill for "Parts outstanding — see job cards" uses the same three colours. The feed script still injects the old orange; the board stylesheet wins.
+
+Green `#edf9f1`, red `#fff0f3`, grey and review `#eef0f3`, the booked amber key `#fff7ed`, stoppage red, and the JITA corner green `#edf9f1` are unchanged. The Work status key still says "Booked / Parts ordered" on the amber booked station. That key is not the outstanding state.
+
+Stock 13018393 stays outstanding, label "Parts outstanding — see job cards", JITA JSO121708, with the corner tick. The tile is blue instead of orange.
+
+## Scope
+
+Cache bust `r526=2026.10.24.r526` on `styles.css` and `sales/pmb-stations.css`. `app.js` is not edited. Department 135 is not tagged: `karratha/styles.css` keeps the orange paint. Importers are unchanged. The r524 data option is not applied.
