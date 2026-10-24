@@ -166,8 +166,10 @@
       if (def.key === 'parts') {
         const imp = imported(v), jita = jitaNumber(v);
         const jitaStatus = jita ? `JITA pre-order ${jita}` : 'No verified Navision JITA pre-order number';
-        // r518 (F132): same completed station as app.js when the Navision JITA number is verified. JITA ETA is not read.
-        if (jita && !partsStoppage(v)) {
+        // r524 (F138): same rule as app.js. A verified JITA number paints the whole station green
+        // only when there is no imported parts status, or that status is green. Orange, red,
+        // review and grey keep their colour, with the JITA tick in the corner. JITA ETA is not read.
+        if (jita && !partsStoppage(v) && (!imp || imp.colour === 'green')) {
           return `<span class="incoming-work-check pdc-station-parts parts-jita-split is-complete has-jita" role="img" title="${esc(`Parts Jita complete. Navision JITA number ${jita}.`)}" aria-label="${esc(`Parts Jita complete; ${jitaStatus}`)}"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">✓</span><span class="parts-jita-marker" aria-hidden="true">✓</span><span class="incoming-work-label">Parts / JITA</span></span>`;
         }
         if (imp) {

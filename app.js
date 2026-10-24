@@ -8907,11 +8907,14 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
     if (def.key === 'parts') {
       const jitaNumber = vehicleNavisionJitaNumber(vehicle);
       const jitaStatus = jitaNumber ? `JITA pre-order ${jitaNumber}` : 'No verified Navision JITA pre-order number';
-      // r518 (F132): a verified Navision JITA number completes this station. The JITA ETA chip is a different date and is not read here.
-      if (jitaNumber && !isActivePartsStoppage(vehicle)) {
+      const imported = typeof importedPartsStatus === 'function' ? importedPartsStatus(vehicle) : null;
+      // r524 (F138): a verified Navision JITA number paints this whole station green only when
+      // there is no imported parts status, or that status is green. Orange, red, review and grey
+      // keep their colour, and the JITA tick stays in the bottom-right corner. A parts stoppage
+      // stays a stoppage. The JITA ETA chip is a different date and is not read here.
+      if (jitaNumber && !isActivePartsStoppage(vehicle) && (!imported || imported.colour === 'green')) {
         return `<span class="incoming-work-check pdc-station-parts parts-jita-split is-complete has-jita" role="img" title="${escapeHtml(`Parts Jita complete. Navision JITA number ${jitaNumber}.`)}" aria-label="${escapeHtml(`Parts Jita complete; ${jitaStatus}`)}"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">✓</span><span class="parts-jita-marker" aria-hidden="true">✓</span><span class="incoming-work-label">Parts / JITA</span></span>`;
       }
-      const imported = typeof importedPartsStatus === 'function' ? importedPartsStatus(vehicle) : null;
       if (imported) {
         const glyph = {green: '✓', orange: '!', red: '●', grey: '—', review: '?'}[imported.colour];
         return `<span class="incoming-work-check parts-jita-split imported-parts-${escapeHtml(imported.colour)} ${jitaNumber ? 'has-jita' : 'no-jita'}" role="img" title="${escapeHtml(importedPartsTitle(vehicle) + ' ' + jitaStatus)}" aria-label="${escapeHtml(imported.label + '; ' + jitaStatus)}"><span class="incoming-work-box parts-jita-parts-marker" aria-hidden="true">${glyph}</span><span class="parts-jita-marker" aria-hidden="true">${jitaNumber ? '✓' : '●'}</span><span class="incoming-work-label">Parts / JITA</span></span>`;
