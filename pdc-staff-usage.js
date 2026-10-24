@@ -115,7 +115,19 @@
       return activity === 'used' ? used : activity === 'unused' ? !used : true;
     });
   }
-  if (typeof module !== 'undefined') module.exports = { UsageQueue, cleanPage, resolvePage, PAGE_LABELS, PAGE_ALIASES, sortUsageUsers, filterUsageUsers, usagePresence };
+  // Same rolling windows as get_pdc_usage_report_20260914: 1 is the last 24 hours
+  // (now minus one day), then 7, 30 and 90 days. Not Perth calendar days.
+  const USAGE_PERIODS = Object.freeze([
+    Object.freeze({days:1, label:'Last 24 hours'}),
+    Object.freeze({days:7, label:'Last 7 days'}),
+    Object.freeze({days:30, label:'Last 30 days'}),
+    Object.freeze({days:90, label:'Last 90 days'})
+  ]);
+  const usagePeriodDays = value => {
+    const days = Number(value);
+    return USAGE_PERIODS.some(period => period.days === days) ? days : null;
+  };
+  if (typeof module !== 'undefined') module.exports = { UsageQueue, cleanPage, resolvePage, PAGE_LABELS, PAGE_ALIASES, sortUsageUsers, filterUsageUsers, usagePresence, USAGE_PERIODS, usagePeriodDays };
   if (!root.document) return;
   const doc = root.document;
   const queue = new UsageQueue(() => root.crypto.randomUUID());
@@ -201,11 +213,16 @@
     if (panel) return panel;
     const parent = doc.querySelector('#user-management .pdc-lists-layout'); if (!parent) return null;
     panel = doc.createElement('section'); panel.id = 'staff-usage-panel'; panel.className = 'panel pdc-list-panel'; panel.hidden = true;
-    panel.innerHTML = '<div class="panel-header"><div><h2>Website activity</h2><p>Activity across PDC, workshop planners and Sales, including Finance and customer emails.</p></div><div class="staff-usage-controls"><label>Period <select data-usage-days><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select></label><button type="button" class="small-button" data-usage-refresh>Refresh usage</button></div></div>'+
+    const periodOptions = USAGE_PERIODS.map(period => '<option value="'+period.days+'"'+(period.days === 30 ? ' selected' : '')+'>'+period.label+'</option>').join('');
+    panel.innerHTML = '<div class="panel-header"><div><h2>Website activity</h2><p>Activity across PDC, workshop planners and Sales, including Finance and customer emails.</p></div><div class="staff-usage-controls"><label>Period <select data-usage-days>'+periodOptions+'</select></label><button type="button" class="small-button" data-usage-refresh>Refresh usage</button></div></div>'+
       '<div class="staff-usage-toolbar"><label class="staff-usage-search">Find staff<input type="search" data-usage-search placeholder="Search name or email" autocomplete="off"></label><label>Activity<select data-usage-activity><option value="all">All staff</option><option value="active">Active now</option><option value="used">Used in selected period</option><option value="unused">No activity in period</option></select></label><label>Sort by<select data-usage-sort><option value="last_active_at">Last activity</option><option value="last_sign_in_at">Last sign-in</option><option value="sign_ins">Sign-ins</option><option value="active_days">Active days</option><option value="page_visits">Page visits</option><option value="clicks">Clicks</option><option value="name">Name / email</option></select></label><button type="button" class="small-button staff-usage-direction" data-usage-direction>Newest first ↓</button></div>'+
       '<p class="staff-usage-results" data-usage-results></p><p class="staff-usage-note" data-usage-note></p><div class="staff-usage-sr-only" data-usage-status role="status" aria-live="polite" aria-atomic="true"></div><div data-usage-content></div><details class="staff-usage-about"><summary>About counts</summary><p data-usage-counts></p></details>';
     parent.append(panel);
-    panel.querySelector('[data-usage-days]').addEventListener('change', e => { days = Number(e.target.value); cachedReport = null; reportError = false; loadReport({announce:true}); });
+    panel.querySelector('[data-usage-days]').addEventListener('change', e => {
+      const next = usagePeriodDays(e.target.value);
+      if (next == null) { e.target.value = String(days); return; }
+      days = next; cachedReport = null; reportError = false; loadReport({announce:true});
+    });
     panel.querySelector('[data-usage-refresh]').addEventListener('click', () => loadReport({announce:true}));
     panel.querySelector('[data-usage-search]').addEventListener('input', e => { query = e.target.value; renderReport({announce:true}); });
     panel.querySelector('[data-usage-activity]').addEventListener('change', e => { activity = e.target.value; renderReport({announce:true}); });
@@ -270,7 +287,7 @@
     const stale = reportError || data.error || data.stale || !Number.isFinite(nowMs) || nowMs - timestamp(data.generated_at) > 60000;
     panel.querySelector('[data-usage-note]').classList.toggle('staff-usage-note--stale',stale);
     panel.querySelector('[data-usage-note]').textContent = stale ? 'Usage may be out of date. Showing the last loaded counts; current status is unavailable. Use Refresh usage to try again.' : 'Green means activity within the last 2 minutes in a signed-in session. Status refreshes every 30 seconds while this page is open. Counts cover the selected period; dates are Perth time.';
-    panel.querySelector('[data-usage-counts]').textContent = 'Tracking started '+formatDate(data.tracking_started_at)+'. Sign-ins count distinct sign-in sessions observed since tracking began; refreshing a page does not add a sign-in. Last sign-in and last activity show the latest recorded dates and can fall outside the selected period. Active days count Perth calendar days with recorded usage. Clicks and visits are usage indicators, not a measure of completed work.';
+    panel.querySelector('[data-usage-counts]').textContent = 'Tracking started '+formatDate(data.tracking_started_at)+'. Sign-ins count distinct sign-in sessions observed since tracking began; refreshing a page does not add a sign-in. Last sign-in and last activity show the latest recorded dates and can fall outside the selected period. Last 24 hours is the rolling 24 hours before the report, the same kind of window as Last 7, 30 and 90 days, not the previous Perth calendar day. Active days count Perth calendar days with recorded usage, so a 24-hour window that crosses midnight can include two dates. Clicks and visits are usage indicators, not a measure of completed work.';
     if (announce) panel.querySelector('[data-usage-status]').textContent = result+'.';
   }
   async function loadReport({announce = false} = {}) {
