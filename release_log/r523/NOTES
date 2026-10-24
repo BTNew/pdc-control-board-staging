@@ -1,0 +1,50 @@
+r523 (F137). Staging (`cdsmnqxtyyoeoznmbidd`) only. Production was not touched. SQL is staged in this PR and has not been applied. Do not squash-merge until Craig approves go-live.
+
+Extends the helper that is already live on staging, `note_fee_sublet_521` (pit fee / weigh / fuel-tank, check F135, sort 305, pin count 234). The r522 script in git creates `note_fee_sublet_522` and expects the pre-fee function bodies. Do not run that r522 script on this staging database. This release calls the Perth helper beside the live 521 helper. Open PR #498 (named external sublets, stale r516 / F130) is not merged. PR #501 is not merged. PR #506 is r524 / F138 and does not use r523 / F137. Department 135 and `app.js` are unchanged.
+
+## What Craig asked
+
+A job-card / import line containing PERTH DELIVERY is external Sublet. It is not a new station and not Needs Review / `JOB_CARD_NOTES`.
+
+Stocks 13042994 and 13092999 are the known cards. On staging today each PERTH DELIVERY line is `JOB_CARD_NOTES`, information only, so the review treats it as Needs Review and Approve stops (the allow-list is the eight workshop stations, and a notes line has no hours). SUBLET is already allowed and does not require hours.
+
+## Rule
+
+`pdc_work_categories_private.perth_delivery_sublet_523` matches the whole operation line (description plus operation code, whitespace collapsed, uppercased). It does not read a GP PO item on another line.
+
+Matches: PERTH DELIVERY, Perth Delivery, extra spaces, TO PERTH DELIVERY, Pre-Delivery (Commercial) PERTH DELIVERY, and operation code PERTH DELIVERY.
+
+Stays on its own rule: KARRATHA DELIVERY, PRE-DELIVERY, Pre-Delivery (Commercial) alone, pit fee, PITS - REFER BRYCE, DELIVERY TO PERTH.
+
+The line is Sublet on the New Vehicles review and on the approve payload. `information_only` is false. A line override, a booking, an owner review or a manual lock still wins. `approve_pdc_new_vehicle_review` and `approve_pdc_new_vehicle_review_446` are not replaced.
+
+## Dry run
+
+Rolled back on staging (clock window, `RAISE EXCEPTION`, then the helper was absent, pin count still 234, suggest md5 still `7d941ee91841523ad880d18eb374d13b`). Twelve lines contain the phrase.
+
+Would read Sublet (8):
+
+- 13003383, 13016932, 13017176, 13042994, 13057094, 13092999 — active, currently `JOB_CARD_NOTES` / information only, probe `SUBLET` / `SUBLET` / information_only false
+- 13079939, 13080623 — completed, not on the board, currently `UNALLOCATED_MAPPING_REVIEW`, probe `SUBLET` / `SUBLET`
+
+Stay (2):
+
+- 13073002 — Fitting, `manual_operator` lock
+- 3011823 — Fitting, automatic lock, description `Pre-Delivery (Commercial) PERTH DELIVERY`
+
+No projection (2): deleted vehicles.
+
+13042994 (review closed, Tune checked out) and 13092999 (already approved, job J139125963) both probe to Sublet for that one line. 13042994 still has a Tyre line with 0 hours (`6 x BFG K02 245/70R17 tyres`), so Approve can still ask for hours on that line. The Perth line is not that blocker. 13092999 has no other notes line.
+
+## Check
+
+`perth_delivery_sublet_523`, fault F137, sort 307. Pin count 234 to 235. The notes checklist check also ignores this helper, so a Sublet Perth line is not reported as a notes line on QC. The fee check stops asserting that PERTH DELIVERY suggests `JOB_CARD_NOTES`, and it pins `approve_pdc_new_vehicle_review` as `bb8b90544975b50bf9dad84d036473e0` (the live body). The daily runner has no `pdc.r521_approve` setting, so the old comparison cannot pass.
+
+## Files
+
+- Up `supabase/migrations/20261024090000_r523_perth_delivery_sublet.sql` md5 `6f55c6dad5eaab1c8231941055010404`
+- Down `supabase/rollbacks/20261024090000_r523_perth_delivery_sublet.down.sql` md5 `171ff22da97e21361e42b58c0d146022`
+
+## Undo
+
+The down script restores the six live 521 bodies and their pins, restores both checks, deletes this check, drops `perth_delivery_sublet_523`, and returns the pin count to 234. It does not drop `note_fee_sublet_521`. Run it between :02 and :45.
