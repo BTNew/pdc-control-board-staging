@@ -155,7 +155,12 @@ test('permission and other canonical rejections are surfaced without retries', a
     response({ ok: false, error: 'bay_inactive' }), { ok: false, status: 500, body: { message: 'unavailable' } }]) {
     const h = fixture(); await h.warm(); h.setWrite(async () => result);
     const rejected = await h.assign(); assert.equal(rejected.ok, false); assert.notEqual(rejected.error, undefined); assert.equal(h.writes().length, 1);
-    if (result.status === 403) assert.deepEqual(h.service.getCachedWorkshopBays().rows, []);
+    // r527: the technician write was refused. The bay list itself was allowed, so the rows stay.
+    if (result.status === 403) {
+      assert.equal(rejected.error, 'permission_denied');
+      assert.equal(h.service.getCachedWorkshopBays().rows[0].id, 'bay-one');
+      assert.notEqual(h.service.getCachedWorkshopBays().state, 'permission_denied');
+    }
     if (result.status === 500) assert.equal(rejected.outcomeUnknown, true);
   }
 });
@@ -233,5 +238,27 @@ test('late readback from one bay cannot overwrite another bay assignment or newe
       assert.equal(cache.rows.find(row => row.id === 'bay-two').default_technician_id, 'technician-two');
       assert.equal(cache.rows.find(row => row.id === 'bay-two').version, 2); assert.equal(cache.state, 'connected_editable');
     }
+  }
+});
+
+test('a refused technician write keeps the bay list instead of reporting the bay as missing', async () => {
+  for (const denied of [
+    { ok: false, status: 403, body: { code: '42501', message: 'PDC role administrator required' } },
+    { ok: false, status: 400, body: { code: '42501', message: 'PDC role administrator required' } },
+  ]) {
+    const h = fixture();
+    await h.warm();
+    assert.equal(h.service.getCachedWorkshopBays().rows.length, 1);
+    h.setWrite(async () => denied);
+    const result = await h.assign('a0e95365-9516-4af1-bf57-ead627de7212', 1, { observedTechnicianId: null });
+    assert.equal(result.ok, false);
+    assert.equal(result.error, 'permission_denied');
+    assert.equal(result.detail.code, '42501');
+    const cached = h.service.getCachedWorkshopBays();
+    assert.equal(cached.rows.length, 1);
+    assert.equal(cached.rows[0].id, 'bay-one');
+    assert.equal(cached.rows[0].code, 'FITTING-BAY-01');
+    assert.notEqual(cached.state, 'permission_denied');
+    assert.equal(h.writes().length, 1);
   }
 });

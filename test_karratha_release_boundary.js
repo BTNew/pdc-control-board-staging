@@ -48,6 +48,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     else if (item.file === 'workshop-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'004267f09a9fa4f5ad0852dd8f983e25395d8352f8b0f9fb798777b3d733e9ff',item.file);
     // r526: the PMG outstanding Parts paint is blue (F140). Department 135 is not tagged and keeps the orange paint.
     else if (item.file === 'styles.css') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
+    // r527: a refused technician write no longer clears the bay list (F141). Department 135 keeps this frozen copy.
+    else if (item.file === 'workshop-reference-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -99,7 +101,10 @@ const approvedRootImportPatch = Object.freeze({
   // r482: every booking command asks about a parts ETA after the booking date before it is sent (F95).
   // r493: workshopEntryPausedNow: started tile outside bay working time is amber Paused; running strip paused reason (F106).
   // r498: 'Undo last move' shows straight after an administrator move and goes after Undo (F111).
-  "workshop-planner.js": "e896b7b071e29d2989b13eefa04a6587fa70baac4628e744a053d2d52b4aeeac",
+  // r527: QA Bay 07 resolves by code, bay number, QA label or the live snapshot, and a refused technician write no longer says to sign in as an administrator (F141). Department 135 keeps its frozen planner.
+  "workshop-planner.js": "24b25e6f93bee3bd2722a4f75e59c373ec501a4b517d426e1fe3a75e3e0e9ca2",
+  // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
+  "workshop-reference-data-service.js": "28f7eb47951e869bc90ec5a6e0bb2e15162b9d5ad8c3b1f8b808dc7ace6eec00",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   // r457: one-column side menu 901-1180 px and no blank band in the stacked planner header up to 1300 px (F70).
   // r478: read-only estimated work hours value in the station vehicle job popup (F91).
@@ -197,7 +202,8 @@ const approvedRootImportPatch = Object.freeze({
   // r518: a verified Navision JITA number completes Parts Jita (F132). Department 135 keeps its frozen app.js.
   // r521: the Booking column no longer uses a Pilbara service job card as a read-only badge (F135). Department 135 keeps its frozen app.js.
   // r524: imported orange, red, review and grey keep the Parts tile colour; a JITA number is the corner mark unless the import is missing or green (F138). Department 135 keeps its frozen app.js.
-  "app.js": "a996654e901d5e0239f9d319b3456ed8bd09c49934da895ea2da8b1141d44d7b",
+  // r527: r527=2026.10.25.r527 on workshop-reference-data-service.js and both workshop-planner.js loads (QA bay technician, F141). Department 135 keeps its frozen app.js.
+  "app.js": "7cf69a536741acbec44be1276cdc6b9cfd35960f74e22f6928902b84c45d0cf0",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
