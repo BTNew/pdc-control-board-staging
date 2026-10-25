@@ -1,0 +1,107 @@
+r528 (F142). Craig approved go-live 25 Oct 2026 18:54 AWST. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production is not touched. #498, #501 and #493 are not merged. No KTA workbook rows are imported by this release.
+
+Rebased onto main `a74babd5` (r527 / F141). r527 took sort 308 and moved the pin count from 235 to 236. That check is already present on staging. r528 / F142 was still free. This release uses sort 309 and pin count 236 to 241. It does not edit the r527 function.
+
+## Why a dedicated importer
+
+`pdc_sales_private.import_sales_accessories_20261020(text,jsonb,jsonb,text)` stays the Broome writer (prosrc md5 `46d4b464c5c1800c8ada245fb2d33bd3`). It hardcodes dealer `37047`, looks up a receipt by file sha alone, and inserts lines onto tables whose dealer check is `37047`. A dealer argument on that body, or sharing those tables, can write Broome Sales. Karratha rows go to `karratha_sales_accessory_receipts`, `karratha_sales_accessory_lines` and `karratha_sales_accessory_vehicle_status`. Each dealer check is `14450` only. The Broome check is not widened. The Karratha import body does not contain `37047`.
+
+`import_karratha_sales_orders` is the Navision orders feed. It does not exist on staging and this release does not create it. Department 135 (`karratha/`, `karratha135_pdc`) is not edited.
+
+## Function
+
+```
+pdc_sales_private.import_karratha_sales_accessories_20261025(
+  p_action text,
+  p_envelope jsonb,
+  p_rows jsonb DEFAULT NULL,
+  p_expected_preview_hash text DEFAULT NULL
+) RETURNS jsonb
+```
+
+Identity: `pdc_sales_private.import_karratha_sales_accessories_20261025(text,jsonb,jsonb,text)`.
+
+Prosrc md5 `c70dc4234952dfb58cbc022c98bcecdb`.
+
+Management connection only. No execute grant for `anon`, `authenticated` or `service_role`.
+
+`p_action` is `match`, `manifest`, `preview`, `apply` or `readback`. `match` is the no-write dry run (no receipt row). `manifest` stores the receipt. `preview` stores `preview_hash` only. `apply` needs that hash and writes only the Karratha tables, dealer `14450`. `readback` counts those rows. Re-importing the same file sha with the same payload and snapshot is a no-op. The same Outlook message id with a different sha returns `message_id_sha_conflict` and writes nothing. A newer snapshot replaces lines for a matched stock. An older snapshot does not. Stocks missing from a later file keep their current lines.
+
+Match is the latest applied Microsoft Navision batch for dealer `14450`, current rows, COSI yes, not hidden, and not a deleted vehicle link. One visible order per stock. Unmatched stocks are in the summary and are not inserted. `vehicles_created`, `jobs_created` and `bookings_created` are 0. No insert into `public.vehicles`, jobs, bookings or Navision.
+
+`get_accessories()` returns the Karratha read when the sales context dealer is `14450`, and the existing Broome query when it is `37047`. Any other dealer stays empty. The Karratha read runs before `build_stock_counts()`, which still raises unless the dealer is `37047`. New prosrc md5 `ff5de642f867c80b62d6c3fef987f131` (was `2f7f060cdaca01cc2763a15b921debf8`, r495). The Sales page still calls `get_broome_sales_accessories`. On `?branch=karratha` the roster is the branch roster (CF and SL) and the Broome delay checkbox is not rendered. `setDelay` does not call `set_broome_sales_accessory_delay` from that branch, because that RPC writes dealer `37047`.
+
+## How to call it with the pdc@ envelope
+
+After go-live, on a management connection:
+
+```sql
+SELECT pdc_sales_private.import_karratha_sales_accessories_20261025(
+  'match',
+  jsonb_build_object(
+    'source_kind','karratha_sales_deal_items_workbook',
+    'sheet','Results',
+    'header_row',4,
+    'headers','["Quote #","Stock #","PO Line","Price Level Desc","Notes","PO #","Transaction Sub-Type","Transaction Type"]'::jsonb,
+    'extract_text','Extracted on Sunday, October 25, 2026 @ 5:27 PM ... Dept = "105" ... Dept = "107"',
+    'extract_tz','Australia/Perth',
+    'file_sha256','<64 hex chars of the .xls bytes>',
+    'file_name','KTA Allocation - Deal Items - Job 1.xls',
+    'mailbox','pdc@pmgwa.com.au',
+    'sender','noreply@revolutionsoftware.com.au',
+    'internet_message_id','<01dd6462$Blat.v3.2.22$f930ee15$18e03ba91696@10.255.11.20>',
+    'received_at','2026-10-25T09:27:15Z',
+    'source_rows',2458,
+    'dealer_code','14450'
+  ),
+  '<jsonb array of the 2458 row objects>'::jsonb
+);
+```
+
+`gmail_message_id`, `outlook_message_id` or `microsoft_message_id` is accepted in place of `internet_message_id` (r508: hex of any length, or length 8–512 with no whitespace). `dealer_code` may be omitted or `014450`. A `Dealer` column, Dept 110, Dept 112 or Dept 135 in the extract, or any other mailbox or sender, is refused. Do not call `import_sales_accessories_20261020` for this file.
+
+Then `manifest` with the same envelope and rows, `preview` with the sha (rows may be null), and `apply` with `p_expected_preview_hash` set to the preview hash.
+
+## Pins
+
+| Signature | prosrc md5 |
+| --- | --- |
+| `pdc_sales_private.karratha_sales_accessory_normalize_528(jsonb,jsonb)` | `ef85e5393c5039ac4e8421f6b058c405` |
+| `pdc_sales_private.karratha_sales_accessory_candidates_528()` | `b3fb58ca909d0f706426a4996dd9d489` |
+| `pdc_sales_private.karratha_sales_accessory_plan_528(jsonb,timestamp with time zone)` | `fd4caaffec31dcb70f47756676d40d37` |
+| `pdc_sales_private.import_karratha_sales_accessories_20261025(text,jsonb,jsonb,text)` | `c70dc4234952dfb58cbc022c98bcecdb` |
+| `pdc_sales_private.get_karratha_sales_accessories_528()` | `faab38bf242ef572522dc4c3bf32285f` |
+| `pdc_sales_private.get_accessories()` | `ff5de642f867c80b62d6c3fef987f131` |
+
+Check `karratha_sales_accessories_528`, fault F142, sort 309.
+
+## Files
+
+Up `supabase/migrations/20261025120000_r528_karratha_sales_accessories.sql` md5 `32498dc2b43461ad45e1a2f9de6cd152`.
+
+Down `supabase/rollbacks/20261025120000_r528_karratha_sales_accessories.down.sql` md5 `1fb408269114df3bdb71f9e7ce135483`.
+
+The down script restores `get_accessories` to md5 `2f7f060cdaca01cc2763a15b921debf8`, drops the five functions and three tables, returns the pin count to 236, and leaves `qa_bay_technician_527`. It deletes any Karratha accessory data this release wrote. It does not change the Broome importer.
+
+## Dry run (read only, 25 Oct 2026)
+
+Nothing was written. Production was not queried.
+
+Latest applied Karratha Navision batch `d0ff7fe6-039f-49e4-86cf-d3c07e5c3b01`, applied 2026-10-23 21:49:38+00:
+
+- 1013 current rows in that batch
+- 469 blank stock
+- 544 distinct nonblank stocks, 0 duplicates
+- 518 unique visible stocks (COSI yes, not hidden, deleted vehicle link excluded, one order)
+- 26 nonblank rows whose linked PDC vehicle is deleted
+- 0 hidden nonblank rows
+- 516 of the 518 visible stocks are 8 characters; 2 are 7 characters
+- Broome accessory receipts: 18, all dealer `37047`
+- Karratha sales branch `14450` / `karratha` is active
+- Enabled roster codes: CF and SL
+- `import_karratha_sales_accessories_20261025` and `import_karratha_sales_orders` are absent
+- Department 135 accessory functions: 0
+
+Of the 518 visible stocks, Navision salesperson text is CF 65, SL 53, SP 212, JB 82, PS 72, BH 13, AW 13, DW 8. Import match does not filter by roster. The Sales page read still shows a vehicle only when its board salesperson code is an enabled Karratha code (CF or SL).
+
+The 25 Oct 2026 17:27 AWST workbook (2,458 rows, `KTA Allocation - Deal Items - Job 1.xls`, internet message id `<01dd6462$Blat.v3.2.22$f930ee15$18e03ba91696@10.255.11.20>`, received 2026-10-25T09:27:15Z) was identified in the signed-in mailbox. Graph does not return attachment bytes, and the pdc@ mailbox is not readable from this session, so those 2,458 stock numbers were not compared with the 518 visible stocks. That count waits until the file bytes are available. `match` will report it after go-live, without inserting.

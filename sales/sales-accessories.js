@@ -12,8 +12,9 @@
   const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const orderKey=value=>String(value??'').trim().toUpperCase();
   const sameSource=(record,row)=>Boolean(record?.navision_record_id&&row?.navision_record_id)&&record.navision_record_id===row.navision_record_id;
-  function eligibleRows(rows,selected='') {
-    return (Array.isArray(rows)?rows:[]).filter(row=>row&&salespeople.has(row.salesperson_code)&&
+  function eligibleRows(rows,selected='',roster) {
+    const allowed=roster||salespeople;
+    return (Array.isArray(rows)?rows:[]).filter(row=>row&&allowed.has(row.salesperson_code)&&
       (row.cosi===true||/^(?:yes|true|1)$/i.test(String(row.cosi??'').trim()))&&row.source_current!==false&&
       row.sales_hidden!==true&&row.identity_conflict!==true&&row.tracking_id&&orderKey(row.order)&&(!selected||row.salesperson_code===selected));
   }
@@ -68,7 +69,7 @@
   // The tick box shows on Not raised lines while the vehicle is before yard hold (and on delayed lines, to untick).
   // r427: never at or past yard hold, delayed or not: the delay has lifted and the PO is due.
   function delayHtml(line,view) {
-    if(!view?.tracking_id||!line.line_key||line.delay==='lifted')return '';
+    if(view?.delay_enabled===false||!view?.tracking_id||!line.line_key||line.delay==='lifted')return '';
     const tone=poTone(line);if(tone!=='red'&&tone!=='delayed')return '';
     if(view.at_or_past_yard_hold)return '';
     const key=view.tracking_id+'|'+line.line_key,busy=view.busy?.has?.(key),message=view.messages?.get?.(key);
@@ -126,12 +127,20 @@
     let options,records=new Map(),epoch=0,request=0,identity='',readStatus='idle';
     const delayBusy=new Set(),delayMessages=new Map();
     const context=()=>options?.getContext?.();
-    const currentIdentity=()=>JSON.stringify([host.PDC_AUTH_CONTEXT?.userId||null,options?.getToken?.()??null,context()?.role||null,context()?.salesperson_code||null]);
+    const currentIdentity=()=>JSON.stringify([host.PDC_AUTH_CONTEXT?.userId||null,options?.getToken?.()??null,context()?.role||null,context()?.salesperson_code||null,host.PDC_SALES_BRANCH?.key||'broome']);
+    // r528: Broome keeps BG/AW/PM/CW. Karratha uses the branch roster (CF/SL), so those vehicles can show accessory lines.
+    function allowedRoster(){
+      const branch=host.PDC_SALES_BRANCH;
+      if(branch&&branch.key==='karratha'&&typeof host.BROOME_SALES_BRANCH?.roster==='function'){
+        return new Set(host.BROOME_SALES_BRANCH.roster(branch,context(),options?.getRows?.()||[]));
+      }
+      return salespeople;
+    }
     // The dashboard salesperson filter is a view, not a cache key. Ticks stay for every vehicle this user may see.
     const rows=()=>{
-      const ctx=context(),owner=ctx?.role==='salesperson'?String(ctx.salesperson_code||'').trim().toUpperCase():'';
-      if(ctx?.role==='salesperson'&&!salespeople.has(owner))return [];
-      return eligibleRows(options?.getRows?.()||[],'').filter(row=>!owner||row.salesperson_code===owner);
+      const ctx=context(),owner=ctx?.role==='salesperson'?String(ctx.salesperson_code||'').trim().toUpperCase():'',allowed=allowedRoster();
+      if(ctx?.role==='salesperson'&&!allowed.has(owner))return [];
+      return eligibleRows(options?.getRows?.()||[],'',allowed).filter(row=>!owner||row.salesperson_code===owner);
     };
     function clear(){epoch++;request++;records.clear();delayBusy.clear();delayMessages.clear();identity=currentIdentity();readStatus='idle';}
     function syncScope() {
@@ -151,7 +160,8 @@
     function notesPanelHtml(row,settings={}) {
       if(!row||!syncScope())return '';
       const record=recordFor(row);
-      if(record)return notesLinesHtml(record,{editable:settings.editable!==false,busy:delayBusy,messages:delayMessages,row_past_yard_hold:atOrPastYardHold(row)});
+      // r528: Karratha has no delay tick. The Broome delay RPC writes dealer 37047 and must not be called from this branch.
+      if(record)return notesLinesHtml(record,{editable:settings.editable!==false,busy:delayBusy,messages:delayMessages,row_past_yard_hold:atOrPastYardHold(row),delay_enabled:host.PDC_SALES_BRANCH?.key!=='karratha'});
       return readStatus==='ready'?'<section class="sales-notes-accessories" aria-label="Accessory lines"><p class="sales-notes-accessory-empty">'+emptySentence+'</p></section>':'';
     }
     // r394: the derived tick is the only state shown for TINT / BUILD / TRAY; manual values are ignored.
@@ -166,6 +176,8 @@
     }
     // r418: tick / untick "Delay until yard hold". The server checks access, the line and yard hold; the list re-reads after.
     async function setDelay(trackingId,lineKey,delayed) {
+      // r528: the delay RPC writes Broome dealer 37047. Karratha Sales must not call it.
+      if(host.PDC_SALES_BRANCH?.key==='karratha')return;
       const row=rows().find(item=>item.tracking_id===trackingId),record=row&&recordFor(row);
       const line=record?.lines.find(item=>item.line_key===lineKey),key=trackingId+'|'+lineKey;
       if(!line||delayBusy.has(key))return;
