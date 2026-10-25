@@ -1,0 +1,2 @@
+192ff4ed563a8cd3706716d04a24db81  supabase/migrations/20261026063000_r529_regression_check_shape.sql
+cb2b604f53c8d2786acebfe89515d4c9  supabase/rollbacks/20261026063000_r529_regression_check_shape.down.sql
