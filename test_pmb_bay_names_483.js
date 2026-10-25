@@ -132,5 +132,6 @@ test('r483: cache-bust tags load the new labels', () => {
   const html = read('index.html');
   for (const file of ['pdc-workshop-departments.js', 'control-board-overview.js', 'app.js', 'pdc-fitters.js', 'canonical-entry.js']) assert.match(html, new RegExp(`src="${file.replace('.', '\\.')}\\?[^"]*r483=2026\\.10\\.22\\.r483`), file);
   assert.match(read('canonical-entry.js'), /pdc-book-all-stations\.js\?[^'"`]*r483=2026\.10\.22\.r483/);
-  assert.equal((read('app.js').match(/workshop-planner\.js\?station-scope=[^`]*&r483=2026\.10\.22\.r483`/g) || []).length, 2);
+  // r527 appends a later cache bust after r483. The r483 tag must stay on both planner loads.
+  assert.equal((read('app.js').match(/workshop-planner\.js\?station-scope=[^`]*&r483=2026\.10\.22\.r483(?:&[^`]*)?`/g) || []).length, 2);
 });
