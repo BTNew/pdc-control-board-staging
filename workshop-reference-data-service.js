@@ -440,7 +440,9 @@ function createWorkshopReferenceDataService(options) {
         const permission = [401,403].includes(result?.status) || body?.code === '42501';
         const error = permission ? 'permission_denied' : rpcFailureCode(body, 'request_failed');
         if (permission) {
-          commitResourceState(resourceKey, [], WORKSHOP_REFERENCE_CONNECTION_STATE.PERMISSION_DENIED, body);
+          // r527 (F141): a refused technician write is not a refused bay list.
+          // Clearing the rows made the next lookup say the bay record was missing
+          // (QA Bay 07 is BUS_4X4-BAY-07 and was still in the database).
           return { ok: false, error, detail: body };
         }
         const readback = await freshBay();

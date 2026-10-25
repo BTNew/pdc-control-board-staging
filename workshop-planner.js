@@ -2883,15 +2883,57 @@ function workshopPlanId(vehicleKeyValue = '', stage = '') {
 // unmatched. New scheduling/move guards interpret that state fail-closed via
 // workshopBayAvailabilityStatus(); only existing/historical rendering uses
 // the intentionally lenient workshopBayIsActive() compatibility helper.
+function workshopQaBayLabel(name = '', bayNumber = 0) {
+  const pad = String(bayNumber).padStart(2, '0');
+  const label = String(name || '').replace(/[·•]/g, '-').replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!label) return false;
+  return [`qa - bay ${pad}`, `qa - bay ${bayNumber}`, `qa - bus4x4 bay ${pad}`, `qa - bus 4x4 bay ${pad}`].includes(label);
+}
+
+function workshopSnapshotBayRef(stage = '', bayNumber = 0) {
+  const service = typeof window !== 'undefined' ? window.__workshopDataService : null;
+  const snapshot = service && typeof service.getLastSnapshot === 'function' ? service.getLastSnapshot() : null;
+  const lists = [
+    ...(snapshot && Array.isArray(snapshot.bookings) ? snapshot.bookings : []),
+    ...(snapshot && Array.isArray(snapshot.active_stoppages) ? snapshot.active_stoppages : []),
+  ];
+  for (const booking of lists) {
+    const bookingStage = normalizePmbStage(booking?.stage?.code || booking?.stage_code || '');
+    const bay = booking?.bay || null;
+    const number = Number(bay?.bay_number ?? booking?.bay_number);
+    if (bookingStage !== stage || number !== bayNumber) continue;
+    const id = String(bay?.id || bay?.bay_id || booking?.bay_id || '').trim();
+    const code = String(bay?.code || `${stage}-BAY-${String(bayNumber).padStart(2, '0')}`);
+    if (!id || !code.startsWith(`${stage}-BAY-`)) continue;
+    return {
+      id,
+      code,
+      bay_number: bayNumber,
+      display_name: bay?.display_name || bay?.bay_name || '',
+      version: Number.isInteger(bay?.version) ? bay.version : 0,
+      default_technician_id: bay && Object.prototype.hasOwnProperty.call(bay, 'default_technician_id') ? bay.default_technician_id : null,
+      is_active: bay?.is_active !== false,
+    };
+  }
+  return null;
+}
+
 function workshopSharedBayRef(stage = '', bay = 0) {
   const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
-  if (!service || typeof service.getCachedWorkshopBays !== 'function') return null;
-  const cached = service.getCachedWorkshopBays();
-  const rows = cached && Array.isArray(cached.rows) ? cached.rows : [];
   const normalizedStage = normalizePmbStage(stage);
   const bayNumber = Number(bay) || 1;
   const expectedCode = `${normalizedStage}-BAY-${String(bayNumber).padStart(2, '0')}`;
-  return rows.find(row => row && row.code === expectedCode) || null;
+  const cached = service && typeof service.getCachedWorkshopBays === 'function' ? service.getCachedWorkshopBays() : null;
+  const rows = cached && Array.isArray(cached.rows) ? cached.rows : [];
+  const byCode = rows.find(row => row && row.code === expectedCode);
+  if (byCode) return byCode;
+  const byNumber = rows.find(row => row && Number(row.bay_number) === bayNumber && String(row.code || '').startsWith(`${normalizedStage}-BAY-`));
+  if (byNumber) return byNumber;
+  if (normalizedStage === 'BUS_4X4') {
+    const byQaLabel = rows.find(row => row && String(row.code || '').startsWith('BUS_4X4-BAY-') && Number(row.bay_number) === bayNumber && workshopQaBayLabel(row.display_name, bayNumber));
+    if (byQaLabel) return byQaLabel;
+  }
+  return workshopSnapshotBayRef(normalizedStage, bayNumber);
 }
 
 // Independent-review remediation (finding 8): workshopBayIsActive()
@@ -6381,7 +6423,7 @@ function workshopBayAssignmentError(result = {}) {
   const code = result.error || result.code || result.detail?.code || 'request_failed';
   if (code === 'assignment_cancelled' || code === 'authority_superseded') return '';
   if (code === 'assignment_in_progress') return 'This bay assignment is still saving. Please wait for it to finish.';
-  if (code === 'permission_denied' || code === 'not_authenticated') return 'Your session could not authorise this change. Sign in again with an administrator account.';
+  if (code === 'permission_denied' || code === 'not_authenticated') return 'Your session could not authorise this change. Sign in again.';
   if (code === 'technician_already_assigned_to_bay') return `This technician is already assigned to ${result.conflict?.bay_code || result.detail?.conflict?.bay_code || 'another bay'}. Clear that assignment before choosing this bay.`;
   if (code === 'version_conflict' || code === 'bay_assignment_changed') return 'This bay was assigned by another session. Its latest assignment has been loaded; review it before choosing a technician again.';
   if (code === 'technician_inactive' || code === 'technician_not_found') return 'This technician is no longer active in the roster. Refresh and choose an active technician.';
