@@ -1,4 +1,4 @@
--- r528 (F142). Staging cdsmnqxtyyoeoznmbidd only. Preview for Craig; he will go-live.
+-- r528 (F142). Staging cdsmnqxtyyoeoznmbidd only. Craig approved go-live 25 Oct 2026 18:54 AWST.
 -- KTA Allocation - Deal Items (noreply@revolutionsoftware.com.au to pdc@pmgwa.com.au) into Karratha
 -- Sales accessories, dealer 14450. Dept 105/107. Same columns as BT Allocation. No dealer column.
 -- Dedicated importer. import_sales_accessories_20261020 stays the Broome 37047 function (r505 body).

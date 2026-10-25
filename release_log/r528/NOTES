@@ -1,4 +1,4 @@
-r528 (F142). Preview only. SQL is in this PR and has not been applied. Do not merge and do not apply until Craig gives go-live. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production is not touched. #498, #501 and #493 are not merged.
+r528 (F142). Craig approved go-live 25 Oct 2026 18:54 AWST. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production is not touched. #498, #501 and #493 are not merged. No KTA workbook rows are imported by this release.
 
 Rebased onto main `a74babd5` (r527 / F141). r527 took sort 308 and moved the pin count from 235 to 236. That check is already present on staging. r528 / F142 was still free. This release uses sort 309 and pin count 236 to 241. It does not edit the r527 function.
 
@@ -77,7 +77,7 @@ Check `karratha_sales_accessories_528`, fault F142, sort 309.
 
 ## Files
 
-Up `supabase/migrations/20261025120000_r528_karratha_sales_accessories.sql` md5 `c03d2d9a6fa610a53ce8f0c6e19e2c86`.
+Up `supabase/migrations/20261025120000_r528_karratha_sales_accessories.sql` md5 `32498dc2b43461ad45e1a2f9de6cd152`.
 
 Down `supabase/rollbacks/20261025120000_r528_karratha_sales_accessories.down.sql` md5 `1fb408269114df3bdb71f9e7ce135483`.
 
