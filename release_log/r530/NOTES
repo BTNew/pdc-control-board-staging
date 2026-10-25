@@ -1,0 +1,41 @@
+r530 (F144). Preview only. SQL is not applied. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production is not touched.
+
+Main tip `0e01c2bd` is r528 / F142. r529 / F143 is reserved (`cursor/r529-regression-check-shape-66c3`, sort 310, pin count stays 241). This release uses sort 311. Pin count stays 241.
+
+## PO rule
+
+`karratha_sales_accessory_po_state_530(text)` maps `GP` plus eight digits to `po`. Every other value uses `sales_accessory_po_state`, which is not edited. Broome still classifies `GP10516751` as `other`.
+
+A blank or `NONE` stays `blank`, so the tick is red (`po_not_raised`). `NO UPDATE`, `C&S ONLY` and `SELL ONLY` stay green: no purchase order is required. Any other non-GP text, including a short GP number, stays amber review. The 25 Oct file has no such row.
+
+The plan reclassifies before `sales_accessory_ticks`. The Karratha read does the same from `po_number`. A before-write trigger stores that state on `karratha_sales_accessory_lines`. The manifested receipt payload is left as it is, so the same file sha stays idempotent. Match, manifest, preview, apply and readback are the same actions.
+
+Importer bodies are unchanged: Broome `46d4b464c5c1800c8ada245fb2d33bd3`, Karratha `c70dc4234952dfb58cbc022c98bcecdb`. Writes stay on the 14450 tables. No vehicle, job, booking or auto-close. Department 135 is not edited.
+
+## Sales page
+
+Accessory, aftermarket, special and miscacc stay in the one notes list on that vehicle, grouped by PO, the same as Broome. Admin stays under the Admin heading. There is no second Karratha line. A GP number renders green. Only a blank PO renders Not raised.
+
+## Pins
+
+| Signature | prosrc md5 |
+| --- | --- |
+| `pdc_sales_private.karratha_sales_accessory_po_state_530(text)` | `46e12a20dfa13eb9c4bdbabd9f402cfd` |
+| `pdc_sales_private.karratha_sales_accessory_po_touch_530()` | `a453b201d8d56853e6cca39bc6dd5c42` |
+| `pdc_sales_private.karratha_sales_accessory_plan_528(jsonb,timestamp with time zone)` | `694b7a7c95b7af1a46040b500dcbf40f` (was `fd4caaffec31dcb70f47756676d40d37`) |
+| `pdc_sales_private.get_karratha_sales_accessories_528()` | `0e5f6c5e90b6cd91f631671c065fb9c7` (was `faab38bf242ef572522dc4c3bf32285f`) |
+
+The two new functions are checked by `karratha_gp_po_530` and are not extra pin rows, so the pin count stays 241. `get_accessories()` stays `ff5de642f867c80b62d6c3fef987f131`.
+
+## Files
+
+Up `supabase/migrations/20261026070000_r530_karratha_gp_po.sql` md5 `c79bd3d9bb7543c3a248f43b9f71032f`.
+Down `supabase/rollbacks/20261026070000_r530_karratha_gp_po.down.sql` md5 `d73570cf44a3038b72292ceca4e1c97b`.
+
+## 25 Oct recount
+
+Kajel's preview, receipt `711c0479-babf-4c85-930d-b2c1993cfe70`, was not applied. This recount uses those match results and the attached rows. Nothing was written.
+
+2,454 rows, 238 stocks. Recognised `GP########`: 2,355 rows, 205 stocks. Needs a PO (blank): 92 rows, 55 stocks. Non-GP: 7 rows on 6 stocks, `NO UPDATE` x4 and `C&S ONLY` x3, all green and no PO required.
+
+162 stocks matched. Review ticks fall to zero. Build becomes green 118, red 25, grey 19. Tint becomes green 51, red 10, grey 101. Tray becomes green 39, grey 123. 29 matched stocks still have a blank PO. 115 matched stocks with lines are green. 18 matched stocks have no lines.

@@ -57,6 +57,9 @@
     return yardHoldStageRank(row.location_status,row.toyota_status)>=2;
   }
   const emptySentence='No accessory lines in the latest sales export.';
+  // r530 (F144): Karratha uses this same list. Accessory, aftermarket, special and miscacc stay together
+  // on the one vehicle line, the same as Broome. A GP######## number arrives as po_state po (green, raised).
+  // A blank PO is the only Not raised flag. NO UPDATE, C&S ONLY and SELL ONLY stay green.
   // Same classification as the r394 derived ticks: blank is red, unrecognised text is amber review, a PO or C&S ONLY / SELL ONLY / NO UPDATE is green.
   // r418: a Not raised line delayed until yard hold is amber "Delayed – yard hold" (never red) until the server lifts it.
   function poTone(line) {
