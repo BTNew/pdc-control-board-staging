@@ -122,8 +122,8 @@ test('r527 SQL is staging-only, leaves Department 135 and bay active alone, and 
   const newBody = dollarBody(upSql, '$r527$');
   const oldBody = dollarBody(downSql, '$r527down$');
   const md5 = text => crypto.createHash('md5').update(text).digest('hex');
-  assert.equal(md5(fs.readFileSync(upPath)), 'c3c4bb846ecf5e485cb19231d2d1dde2');
-  assert.equal(md5(fs.readFileSync(downPath)), '8885faeabbc1ea92d70f4b87fb26172d');
+  assert.equal(md5(fs.readFileSync(upPath)), 'dc761f5ae365bf5df0ec58bfd88dabe4');
+  assert.equal(md5(fs.readFileSync(downPath)), '0455fa33ebf239420c266e378fa33cf4');
   assert.equal(md5(newBody), '51415343720a6d3a02fb2597109db9b1');
   assert.equal(md5(oldBody), '4849edd770bac33b569ae65023cf7aac');
   assert.match(newBody, /s\.code in \('BUS_4X4','TINT','TYRE'\)/);
@@ -136,6 +136,12 @@ test('r527 SQL is staging-only, leaves Department 135 and bay active alone, and 
   assert.match(upSql, /karratha135_pdc\.set_bay_default_technician/);
   assert.match(upSql, /fbdf5fefaff3d68c2e2240037ec14064/);
   assert.match(downSql, /4849edd770bac33b569ae65023cf7aac/);
+  assert.match(upSql, /b1410527-1410-4410-8410-00000000b141/);
+  assert.match(upSql, /Bhavesh Patel/);
+  assert.match(upSql, /ARRAY\['BUS_4X4'\]/);
+  assert.match(upSql, /bhavesh\.patel@pmgwa.com.au/);
+  assert.match(downSql, /DELETE FROM public\.workshop_technicians/);
+  assert.match(downSql, /r527 undo: Bhavesh roster row is in use/);
   assert.equal((upSql.match(/update public\.workshop_bays/gi) || []).length, 1);
   assert.equal((upSql.match(/workshop_bookings/g) || []).length, 1);
   const app = fs.readFileSync('app.js', 'utf8');

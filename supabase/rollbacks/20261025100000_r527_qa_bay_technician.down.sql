@@ -1,4 +1,5 @@
 -- r527 (F141) undo. Staging cdsmnqxtyyoeoznmbidd only. Restores the administrator-only body.
+-- Removes the unused Bhavesh Patel roster row. Refuses if that row is referenced.
 -- Does not change workshop_bays, bookings or Department 135.
 DO $g$ BEGIN
  IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r527 undo: run between :02 and :45'; END IF;
@@ -12,7 +13,27 @@ DO $g$ BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>236 THEN RAISE EXCEPTION 'r527 undo: pin count is not 236'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='karratha135_pdc.set_bay_default_technician(uuid,integer,uuid)'::regprocedure)<>'d07f40a33443eff357d3a9cd58503696'
  THEN RAISE EXCEPTION 'r527 undo: Department 135 function changed'; END IF;
+ IF (SELECT count(*) FROM public.workshop_technicians WHERE id='b1410527-1410-4410-8410-00000000b141'::uuid AND name='Bhavesh Patel' AND active AND role_type='technician' AND code IS NULL AND can_fit_stages=ARRAY['BUS_4X4']::text[])<>1
+ THEN RAISE EXCEPTION 'r527 undo: Bhavesh roster row is not the r527 row'; END IF;
+ IF EXISTS (SELECT 1 FROM public.workshop_bays WHERE default_technician_id='b1410527-1410-4410-8410-00000000b141'::uuid)
+  OR EXISTS (SELECT 1 FROM public.workshop_booking_assignments WHERE technician_id='b1410527-1410-4410-8410-00000000b141'::uuid)
+  OR EXISTS (SELECT 1 FROM public.workshop_bay_default_technician_history WHERE technician_id='b1410527-1410-4410-8410-00000000b141'::uuid OR previous_technician_id='b1410527-1410-4410-8410-00000000b141'::uuid)
+  OR EXISTS (SELECT 1 FROM pdc_bus_private.supplier WHERE technician_id='b1410527-1410-4410-8410-00000000b141'::uuid)
+  OR EXISTS (SELECT 1 FROM pdc_bus_private.helper_labour WHERE technician_id='b1410527-1410-4410-8410-00000000b141'::uuid)
+  OR EXISTS (SELECT 1 FROM pdc_fitter_private.operation_progress WHERE technician_id='b1410527-1410-4410-8410-00000000b141'::uuid)
+  OR EXISTS (SELECT 1 FROM pdc_fitter_private.operation_timing WHERE technician_id='b1410527-1410-4410-8410-00000000b141'::uuid)
+ THEN RAISE EXCEPTION 'r527 undo: Bhavesh roster row is in use'; END IF;
 END $g$;
+
+DELETE FROM public.workshop_technicians
+ WHERE id='b1410527-1410-4410-8410-00000000b141'::uuid
+   AND name='Bhavesh Patel'
+   AND role_type='technician'
+   AND code IS NULL
+   AND can_fit_stages=ARRAY['BUS_4X4']::text[]
+   AND created_by IS NULL
+   AND NOT EXISTS (SELECT 1 FROM public.workshop_bays WHERE default_technician_id='b1410527-1410-4410-8410-00000000b141'::uuid)
+   AND NOT EXISTS (SELECT 1 FROM public.workshop_booking_assignments WHERE technician_id='b1410527-1410-4410-8410-00000000b141'::uuid);
 
 CREATE OR REPLACE FUNCTION public.set_bay_default_technician(p_bay_id uuid, p_expected_version integer, p_technician_id uuid)
  RETURNS jsonb
@@ -81,4 +102,6 @@ DO $p$ BEGIN
  THEN RAISE EXCEPTION 'r527 undo: Department 135 function changed'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.set_workshop_bay_active(uuid,integer,boolean)'::regprocedure)<>'fbdf5fefaff3d68c2e2240037ec14064'
  THEN RAISE EXCEPTION 'r527 undo: set_workshop_bay_active changed'; END IF;
+ IF EXISTS (SELECT 1 FROM public.workshop_technicians WHERE id='b1410527-1410-4410-8410-00000000b141'::uuid OR lower(btrim(name))='bhavesh patel')
+ THEN RAISE EXCEPTION 'r527 undo: Bhavesh roster row remains'; END IF;
 END $p$;

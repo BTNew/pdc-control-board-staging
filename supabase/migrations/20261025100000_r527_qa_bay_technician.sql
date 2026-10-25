@@ -1,8 +1,10 @@
--- r527 (F141). Staging cdsmnqxtyyoeoznmbidd only. Preview for Craig; he will go-live. Do not apply yet.
--- Bhavesh Patel (operator, not administrator), 25 Oct 2026: Workshop Planner, Bus 4x4 (Dept 138) QA,
--- 26/10/2026, QA Bay 07, Key 515 / stock 12379669. Setting the bay mechanic to Andrew McCormick failed.
--- This script replaces public.set_bay_default_technician only. It does not write workshop_bays,
--- workshop_bookings or workshop_booking_assignments. It does not change karratha135_pdc.
+-- r527 (F141). Staging cdsmnqxtyyoeoznmbidd only. Craig approved go-live 25 Oct 2026 18:23 AWST.
+-- He accepts that saving Andrew McCormick on QA Bay 07 also assigns Keys 515 and 512.
+-- This script does not assign them. It replaces public.set_bay_default_technician and inserts one
+-- roster row for the existing operator Bhavesh Patel (pdc_user_roles 9c20f292-f743-47e4-95cf-e64cb57959a9).
+-- The roster has no user-id column. The match is the existing full name, and can_fit_stages is BUS_4X4
+-- (QA bays 5-7 are that stage), the same shape as Paul Guiye and the other Dept 138 names.
+-- It does not write workshop_bays, workshop_bookings or workshop_booking_assignments. It does not change karratha135_pdc.
 -- Open PRs #498 (r516), #501 (r519) and #493 (r512) are not merged and are not reused.
 -- r526 / F140 is the main tip. This pair is the next free id.
 DO $g$ BEGIN
@@ -21,6 +23,15 @@ DO $g$ BEGIN
  THEN RAISE EXCEPTION 'r527: check slot already taken'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE signature='public.set_bay_default_technician(uuid,integer,uuid)')
  THEN RAISE EXCEPTION 'r527: function is already pinned'; END IF;
+ IF EXISTS (SELECT 1 FROM public.workshop_technicians WHERE lower(btrim(name))='bhavesh patel' OR id='b1410527-1410-4410-8410-00000000b141'::uuid)
+ THEN RAISE EXCEPTION 'r527: Bhavesh roster row already exists'; END IF;
+ IF (SELECT count(*) FROM public.pdc_user_roles
+     WHERE id='9c20f292-f743-47e4-95cf-e64cb57959a9'::uuid
+       AND lower(email)='bhavesh.patel@pmgwa.com.au'
+       AND full_name='Bhavesh Patel' AND display_name='Bhavesh Patel'
+       AND role::text='operator' AND account_status::text='approved' AND active
+       AND auth_user_id='303ccbee-2d08-44c3-b46e-1126a96b3f2f'::uuid)<>1
+ THEN RAISE EXCEPTION 'r527: Bhavesh user record changed'; END IF;
 END $g$;
 
 CREATE OR REPLACE FUNCTION public.set_bay_default_technician(p_bay_id uuid, p_expected_version integer, p_technician_id uuid)
@@ -111,6 +122,8 @@ SELECT
  AND (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.set_workshop_bay_active(uuid,integer,boolean)'::regprocedure)='fbdf5fefaff3d68c2e2240037ec14064'
  AND (SELECT md5(prosrc) FROM pg_proc WHERE oid='karratha135_pdc.set_bay_default_technician(uuid,integer,uuid)'::regprocedure)='d07f40a33443eff357d3a9cd58503696'
  AND (SELECT count(*) FROM pdc_ops.expected_function_md5)=236
+ AND (SELECT count(*) FROM public.workshop_technicians WHERE id='b1410527-1410-4410-8410-00000000b141'::uuid AND name='Bhavesh Patel' AND active AND role_type='technician' AND code IS NULL AND can_fit_stages=ARRAY['BUS_4X4']::text[])=1
+ AND (SELECT count(*) FROM public.workshop_technicians WHERE lower(btrim(name))='bhavesh patel')=1
  AS ok,
  'qa bay 07 and operator technician gate' AS detail
 $c527$,
@@ -125,3 +138,27 @@ DO $p$ BEGIN
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='karratha135_pdc.set_bay_default_technician(uuid,integer,uuid)'::regprocedure)<>'d07f40a33443eff357d3a9cd58503696'
  THEN RAISE EXCEPTION 'r527: Department 135 function changed'; END IF;
 END $p$;
+
+-- One new roster row. No staff code exists on the user record, so code stays null (same as Paul Guiye).
+-- QA bays 5-7 are BUS_4X4 bay numbers, so can_fit_stages BUS_4X4 is the roster scope. Not a bay default.
+INSERT INTO public.workshop_technicians(id,name,role_type,active,can_fit_stages,leave_calendar,sort_order,code,created_by,updated_by)
+VALUES (
+ 'b1410527-1410-4410-8410-00000000b141'::uuid,
+ 'Bhavesh Patel',
+ 'technician',
+ true,
+ ARRAY['BUS_4X4']::text[],
+ '[]'::jsonb,
+ (SELECT coalesce(max(sort_order),0)+1 FROM public.workshop_technicians),
+ NULL,
+ NULL,
+ NULL);
+
+DO $roster$ BEGIN
+ IF (SELECT count(*) FROM public.workshop_technicians WHERE id='b1410527-1410-4410-8410-00000000b141'::uuid AND name='Bhavesh Patel' AND active AND role_type='technician' AND code IS NULL AND can_fit_stages=ARRAY['BUS_4X4']::text[] AND created_by IS NULL)<>1
+ THEN RAISE EXCEPTION 'r527: Bhavesh roster row was not inserted'; END IF;
+ IF (SELECT count(*) FROM public.workshop_technicians WHERE lower(btrim(name))='bhavesh patel')<>1
+ THEN RAISE EXCEPTION 'r527: Bhavesh name is not unique'; END IF;
+ IF EXISTS (SELECT 1 FROM public.workshop_bays WHERE default_technician_id='b1410527-1410-4410-8410-00000000b141'::uuid)
+ THEN RAISE EXCEPTION 'r527: Bhavesh must not be a bay default'; END IF;
+END $roster$;
