@@ -1,5 +1,5 @@
 -- Undo r543 (F157). Staging cdsmnqxtyyoeoznmbidd only. Do not run on production.
--- Removes notes this release wrote, then the read, the append, and the message-id index.
+-- Removes notes this release wrote, then the read, the importer function, the earlier append signature, and the message-id index.
 -- Does not remove any other timeline row, and does not change append_vehicle_timeline_event.
 
 SET LOCAL lock_timeout = '2s';
@@ -16,6 +16,7 @@ DELETE FROM public.vehicle_timeline_events
 WHERE structured_data->>'source' = 'email_note_543';
 
 DROP FUNCTION IF EXISTS public.list_vehicle_email_notes_543(uuid);
+DROP FUNCTION IF EXISTS public.record_pdc_vehicle_email_543(text, uuid, text, text, text, timestamp with time zone, text, text, text, text, text);
 DROP FUNCTION IF EXISTS public.append_vehicle_email_note_543(uuid, text, text, text, text, text, text, text, timestamp with time zone);
 DROP INDEX IF EXISTS public.vehicle_timeline_events_source_email_543;
 
@@ -24,8 +25,9 @@ WHERE check_name='vehicle_email_notes_543' AND fault_id='F157' AND sort_order=32
 
 DO $p$ BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r543 undo: pin count changed'; END IF;
- IF to_regprocedure('public.append_vehicle_email_note_543(uuid,text,text,text,text,text,text,text,timestamp with time zone)') IS NOT NULL THEN RAISE EXCEPTION 'r543 undo: append remains'; END IF;
- IF to_regprocedure('public.list_vehicle_email_notes_543(uuid)') IS NOT NULL THEN RAISE EXCEPTION 'r543 undo: read remains'; END IF;
+ IF pg_catalog.to_regprocedure('public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)') IS NOT NULL THEN RAISE EXCEPTION 'r543 undo: record remains'; END IF;
+ IF pg_catalog.to_regprocedure('public.append_vehicle_email_note_543(uuid,text,text,text,text,text,text,text,timestamp with time zone)') IS NOT NULL THEN RAISE EXCEPTION 'r543 undo: append remains'; END IF;
+ IF pg_catalog.to_regprocedure('public.list_vehicle_email_notes_543(uuid)') IS NOT NULL THEN RAISE EXCEPTION 'r543 undo: read remains'; END IF;
  IF to_regclass('public.vehicle_timeline_events_source_email_543') IS NOT NULL THEN RAISE EXCEPTION 'r543 undo: index remains'; END IF;
  IF EXISTS (SELECT 1 FROM public.vehicle_timeline_events WHERE structured_data->>'source' = 'email_note_543') THEN RAISE EXCEPTION 'r543 undo: a note remains'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='vehicle_email_notes_543') THEN RAISE EXCEPTION 'r543 undo: check remains'; END IF;
