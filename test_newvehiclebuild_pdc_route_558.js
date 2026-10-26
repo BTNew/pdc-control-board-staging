@@ -6,8 +6,8 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const { scanSql } = require('./scripts/lint_migration_safeupdate_dml.js');
 
-const upPath = 'supabase/migrations/20261027090000_r558_newvehiclebuild_pdc_route.sql';
-const downPath = 'supabase/rollbacks/20261027090000_r558_newvehiclebuild_pdc_route.down.sql';
+const upPath = 'supabase/migrations/20261026225222_r558_newvehiclebuild_pdc_route.sql';
+const downPath = 'supabase/rollbacks/20261026225222_r558_newvehiclebuild_pdc_route.down.sql';
 const up = fs.readFileSync(upPath, 'utf8');
 const down = fs.readFileSync(downPath, 'utf8');
 const check = up.slice(up.indexOf('$chk558$') + '$chk558$'.length, up.lastIndexOf('$chk558$'));

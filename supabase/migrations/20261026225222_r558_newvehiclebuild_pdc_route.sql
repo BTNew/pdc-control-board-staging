@@ -14,7 +14,7 @@
 -- The person recorder stays c5314b7bed8a1401b6698319125c2d74.
 -- The importer stays e56cd1f5d12205a0d72826d64cb8d1de. Pin count stays 241.
 -- Recipient prosrc md5 was f5ccdab2fe3b8bc66cb0ed377493f23e and becomes 860a18f2629b1da6a9036a8a2c566f4a.
--- Undo: supabase/rollbacks/20261027090000_r558_newvehiclebuild_pdc_route.down.sql
+-- Undo: supabase/rollbacks/20261026225222_r558_newvehiclebuild_pdc_route.down.sql
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
