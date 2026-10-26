@@ -10,10 +10,13 @@
 -- Only complete at high confidence is accepted, and a negative, question or partial still wins.
 -- The verified internal pmgwa sender and the header checks stay.
 -- The stock in 'New vehicle order for <stock> - PMG Build' is the number after for.
--- parts.malaga@pmgwa.com.au can confirm on one EPT thread matched by job card and rego.
--- A second stock or a second job card is still refused.
+-- 26 Oct 2026 10:33 AWST: parts.malaga@pmgwa.com.au said 'Parts complete' for 1IRU519 / J138000880.
+-- That row is active and was version 13. Version is not part of the match.
+-- A stock may be 8 digits, IS plus 8, a rego such as 1IRU519, or one job card such as J138000880.
+-- pdc@pmgwa.com.au may be in To, in Cc, or the message may be a forward. A plain reply that is not addressed to pdc@ stays refused.
+-- Two stocks, two job cards, or two vehicles are still refused.
 -- Pin count stays 241. The person recorder is not pinned. Sort 318 is r539. This check is sort 319.
--- Person prosrc md5 ee35fb998b0264d4a67cb3f49d25a8e4 (was 8ddb1477beeb94c7879c4021cccf1d40).
+-- Person prosrc md5 c5314b7bed8a1401b6698319125c2d74 (was 8ddb1477beeb94c7879c4021cccf1d40).
 -- Undo: supabase/rollbacks/20261026170000_r541_parts_complete_wording.down.sql
 
 SET LOCAL lock_timeout = '2s';
@@ -107,6 +110,152 @@ REVOKE ALL ON FUNCTION public.pdc_parts_reply_norm_541(text) FROM PUBLIC, anon, 
 REVOKE ALL ON FUNCTION public.pdc_parts_reply_wording_541(text) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION public.pdc_parts_reply_decision_541(text, jsonb) FROM PUBLIC, anon, authenticated, service_role;
 
+-- pdc@ in To, Cc, or a forward. The mailbox flag and the sender proof stay in the recorder.
+CREATE OR REPLACE FUNCTION public.pdc_parts_mailbox_recipient_541(p_authentication jsonb, p_subject text)
+RETURNS boolean
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path TO pg_catalog
+AS $mb541$
+DECLARE
+  auth jsonb := coalesce(p_authentication, '{}'::jsonb);
+  pat text := '(^|[^a-z0-9._%+-])pdc@pmgwa[.]com[.]au([^a-z0-9.-]|$)';
+  blob text;
+  key text;
+  elem jsonb;
+  subj text;
+BEGIN
+  blob := lower(concat_ws(' ', auth->>'to_address', auth->>'cc_address', auth->>'cc'));
+  IF blob ~ pat THEN RETURN true; END IF;
+  FOREACH key IN ARRAY ARRAY['to_addresses', 'cc_addresses', 'recipients']
+  LOOP
+    IF jsonb_typeof(auth->key) = 'array' THEN
+      FOR elem IN SELECT t.value FROM jsonb_array_elements(auth->key) AS t(value)
+      LOOP
+        IF lower(coalesce(elem #>> '{}', '')) ~ pat THEN RETURN true; END IF;
+      END LOOP;
+    ELSIF jsonb_typeof(auth->key) = 'string' AND lower(auth->>key) ~ pat THEN
+      RETURN true;
+    END IF;
+  END LOOP;
+  IF lower(btrim(coalesce(auth->>'forwarded', ''))) IN ('true', 'yes', '1') THEN
+    RETURN true;
+  END IF;
+  subj := lower(regexp_replace(btrim(coalesce(p_subject, '')), '[[:space:]]+', ' ', 'g'));
+  subj := regexp_replace(subj, '^((re):[[:space:]]+)+', '');
+  RETURN subj ~ '^(fw|fwd):[[:space:]]';
+END
+$mb541$;
+
+-- One active visible vehicle. p_stock may be the stock, the rego, or the job card.
+-- A subject token that names a second vehicle, or two rows, is ambiguous. Version is not a filter.
+CREATE OR REPLACE FUNCTION public.pdc_parts_vehicle_match_541(p_stock text, p_subject text)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SET search_path TO pg_catalog, public
+AS $veh541$
+DECLARE
+  token text := upper(btrim(coalesce(p_stock, '')));
+  subj text := lower(regexp_replace(btrim(coalesce(p_subject, '')), '[[:space:]]+', ' ', 'g'));
+  shape text;
+  stock_n integer := 0;
+  job_n integer := 0;
+  rego_n integer := 0;
+  stock_tok text;
+  job_tok text;
+  rego_tok text;
+  order_stock text;
+  n integer := 0;
+  vid text;
+  vstock text;
+  vjob text;
+  vreg text;
+BEGIN
+  subj := regexp_replace(subj, '^((re|fw|fwd):[[:space:]]+)+', '');
+  IF token ~ '^([0-9]{8}|IS[0-9]{8})$' THEN shape := 'eight';
+  ELSIF token ~ '^[0-9][A-Z]{2,4}[0-9]{2,4}$' THEN shape := 'rego';
+  ELSIF token ~ '^J[0-9]{6,12}$' THEN shape := 'job';
+  ELSE RETURN jsonb_build_object('ok', false, 'code', 'not_found');
+  END IF;
+  SELECT count(DISTINCT upper(m[2]))::integer, min(upper(m[2])) INTO stock_n, stock_tok
+    FROM regexp_matches(coalesce(p_subject, ''), '(^|[^A-Za-z0-9])(IS[0-9]{8}|[0-9]{8})(?=[^A-Za-z0-9]|$)', 'gi') AS m;
+  SELECT count(DISTINCT upper(m[2]))::integer, min(upper(m[2])) INTO job_n, job_tok
+    FROM regexp_matches(coalesce(p_subject, ''), '(^|[^A-Za-z0-9])(J[0-9]{6,12})(?=[^A-Za-z0-9]|$)', 'gi') AS m;
+  SELECT count(DISTINCT upper(m[2]))::integer, min(upper(m[2])) INTO rego_n, rego_tok
+    FROM regexp_matches(coalesce(p_subject, ''), '(^|[^A-Za-z0-9])([0-9][A-Za-z]{2,4}[0-9]{2,4})(?=[^A-Za-z0-9]|$)', 'gi') AS m;
+  order_stock := substring(subj from '^new vehicle order for ([0-9]{8}|is[0-9]{8}) - pmg build$');
+  IF stock_n > 1 OR job_n > 1 OR rego_n > 1 THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'ambiguous');
+  END IF;
+  IF shape = 'eight' AND stock_n = 1 AND stock_tok IS DISTINCT FROM token THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'ambiguous');
+  END IF;
+  IF shape = 'rego' AND rego_n = 1 AND rego_tok IS DISTINCT FROM token THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'ambiguous');
+  END IF;
+  IF shape = 'job' AND job_n = 1 AND job_tok IS DISTINCT FROM token THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'ambiguous');
+  END IF;
+  IF shape = 'eight' AND order_stock IS NOT NULL AND order_stock IS DISTINCT FROM lower(token) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'ambiguous');
+  END IF;
+  IF shape IN ('eight', 'rego') THEN
+    SELECT count(*)::integer,
+           CASE WHEN count(*) = 1 THEN min(v.id::text) END,
+           CASE WHEN count(*) = 1 THEN min(v.stock_number) END,
+           CASE WHEN count(*) = 1 THEN min(upper(btrim(v.job_card_number))) END,
+           CASE WHEN count(*) = 1 THEN min(upper(btrim(coalesce(v.registration, '')))) END
+      INTO n, vid, vstock, vjob, vreg
+      FROM public.vehicles v
+     WHERE v.deleted_at IS NULL
+       AND v.lifecycle_state = 'active'
+       AND v.visible_on_board IS TRUE
+       AND v.board_purged_at IS NULL
+       AND (
+         upper(btrim(v.stock_number)) = token
+         OR (shape = 'rego' AND upper(btrim(coalesce(v.registration, ''))) = token)
+       );
+  ELSE
+    SELECT count(*)::integer,
+           CASE WHEN count(*) = 1 THEN min(v.id::text) END,
+           CASE WHEN count(*) = 1 THEN min(v.stock_number) END,
+           CASE WHEN count(*) = 1 THEN min(upper(btrim(v.job_card_number))) END,
+           CASE WHEN count(*) = 1 THEN min(upper(btrim(coalesce(v.registration, '')))) END
+      INTO n, vid, vstock, vjob, vreg
+      FROM public.vehicles v
+     WHERE v.deleted_at IS NULL
+       AND v.lifecycle_state = 'active'
+       AND v.visible_on_board IS TRUE
+       AND v.board_purged_at IS NULL
+       AND upper(btrim(v.job_card_number)) = token;
+  END IF;
+  IF coalesce(n, 0) = 0 THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'not_found');
+  END IF;
+  IF n <> 1 OR vid IS NULL OR vstock IS NULL
+     OR vstock !~ '^([0-9]{8}|IS[0-9]{8}|[0-9][A-Z]{2,4}[0-9]{2,4})$' THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'ambiguous');
+  END IF;
+  IF job_n = 1 AND job_tok IS DISTINCT FROM vjob THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'ambiguous');
+  END IF;
+  IF rego_n = 1 AND rego_tok IS DISTINCT FROM upper(btrim(vstock)) AND rego_tok IS DISTINCT FROM vreg THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'ambiguous');
+  END IF;
+  IF stock_n = 1 AND stock_tok IS DISTINCT FROM upper(btrim(vstock)) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'ambiguous');
+  END IF;
+  IF order_stock IS NOT NULL AND order_stock IS DISTINCT FROM lower(vstock) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'ambiguous');
+  END IF;
+  RETURN jsonb_build_object('ok', true, 'code', 'matched', 'vehicle_id', vid, 'stock_number', vstock);
+END
+$veh541$;
+
+REVOKE ALL ON FUNCTION public.pdc_parts_mailbox_recipient_541(jsonb, text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.pdc_parts_vehicle_match_541(text, text) FROM PUBLIC, anon, authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.record_pdc_person_parts_complete_20260913(p_stock text, p_gmail_message_id text, p_received_at timestamp with time zone, p_subject text, p_confirmation_text text, p_evidence_sha256 text, p_authentication jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -119,9 +268,9 @@ DECLARE v public.vehicles%rowtype; c public.pdc_parts_completion_email_confirmat
  auth_as text; auth_as_alt text; auth_source text; auth_source_alt text;
  auth_source_raw text; auth_source_alt_raw text;
  internal_auth boolean; source_ok boolean; external_ok boolean; internal_ok boolean;
- subj text; order_stock text; plain boolean; ept_candidate boolean; order_disagrees boolean;
- stock_n integer; job_n integer; rego_n integer; job_tok text; rego_tok text;
- stock_body text; stock_hit boolean;
+ subj text; order_stock text; plain boolean; order_disagrees boolean;
+ stock_n integer; stock_body text; stock_hit boolean;
+ ident jsonb; tok text; nveh integer;
 BEGIN
  IF pdc_codex_intake_private.management_connection() IS NOT TRUE THEN RETURN jsonb_build_object('ok',false,'code','not_authorized'); END IF;
  domain:=split_part(sender,'@',2); auth_result:=p_authentication->>'authentication_results';
@@ -168,7 +317,7 @@ BEGIN
   AND (p_authentication->>'internet_message_id'=p_gmail_message_id
     OR p_authentication->>'outlook_message_id'=p_gmail_message_id
     OR p_authentication->>'microsoft_message_id'=p_gmail_message_id)
-  AND p_authentication->>'to_address'='pdc@pmgwa.com.au'
+  AND public.pdc_parts_mailbox_recipient_541(p_authentication, p_subject)
   AND p_authentication->>'verified_by'='microsoft_receiving_provider'
   AND coalesce(auth_result,'') ~* '^mx[.]microsoft[.]com([[:space:]]+[0-9]+)?[[:space:]]*;'
   AND (external_ok OR internal_ok),false);
@@ -178,10 +327,6 @@ BEGIN
  order_stock:=substring(subj from '^new vehicle order for ([0-9]{8}|is[0-9]{8}) - pmg build$');
  SELECT count(DISTINCT upper(m[2]))::integer INTO stock_n
   FROM regexp_matches(coalesce(p_subject,''),'(^|[^A-Za-z0-9])(IS[0-9]{8}|[0-9]{8})(?=[^A-Za-z0-9]|$)','gi') AS m;
- SELECT count(DISTINCT upper(m[2]))::integer, min(upper(m[2])) INTO job_n, job_tok
-  FROM regexp_matches(coalesce(p_subject,''),'(^|[^A-Za-z0-9])(J[0-9]{6,12})(?=[^A-Za-z0-9]|$)','gi') AS m;
- SELECT count(DISTINCT upper(m[2]))::integer, min(upper(m[2])) INTO rego_n, rego_tok
-  FROM regexp_matches(coalesce(p_subject,''),'(^|[^A-Za-z0-9])([0-9][A-Za-z]{2,4}[0-9]{2,4})(?=[^A-Za-z0-9]|$)','gi') AS m;
  stock_hit:=coalesce(p_stock,'') ~ '^([0-9]{8}|IS[0-9]{8})$'
   AND coalesce(body,'') ~* ('(^|[^A-Za-z0-9])'||p_stock||'([^A-Za-z0-9]|$)');
  stock_body:=CASE WHEN stock_hit THEN btrim(regexp_replace(regexp_replace(
@@ -189,25 +334,18 @@ BEGIN
    '\mfor\M',' ','g'),'[[:space:]]+',' ','g')) ELSE '' END;
  plain:=public.pdc_parts_reply_decision_541(p_confirmation_text, p_authentication)='complete';
  order_disagrees:=order_stock IS NOT NULL AND order_stock IS DISTINCT FROM lower(p_stock);
- ept_candidate:=outlook_ok AND internal_ok AND sender='parts.malaga@pmgwa.com.au' AND plain
-  AND coalesce(p_subject,'') ~* '(^|[^A-Za-z0-9])EPT([^A-Za-z0-9]|$)'
-  AND job_n=1 AND rego_n=1 AND stock_n=0
-  AND (upper(btrim(p_stock))=rego_tok OR upper(btrim(p_stock))=job_tok);
+ -- parts.malaga@pmgwa.com.au may say Parts complete for 1IRU519 / J138000880. pdc@pmgwa.com.au may be in Cc.
  body_ok:=(body ~ ('^(parts complete( for)? '||lower(p_stock)||'|'||lower(p_stock)||' parts complete)[.!]?$')
+   AND upper(btrim(coalesce(p_stock,''))) ~ '^([0-9]{8}|IS[0-9]{8})$'
    AND coalesce(stock_n,0)<=1 AND NOT order_disagrees)
   OR (outlook AND body ~ '^parts complete[.!]?$'
       AND coalesce(p_stock,'') ~ '^([0-9]{8}|IS[0-9]{8})$'
       AND stock_n=1 AND NOT order_disagrees
       AND coalesce(p_subject,'') ~* ('(^|[^A-Za-z0-9])'||p_stock||'([^A-Za-z0-9]|$)'))
-  OR (outlook AND internal_ok AND domain='pmgwa.com.au' AND plain AND NOT order_disagrees AND (
-       (order_stock IS NOT NULL AND order_stock=lower(p_stock) AND stock_n=1)
-       OR (stock_n=1 AND coalesce(p_stock,'') ~ '^([0-9]{8}|IS[0-9]{8})$'
-           AND coalesce(p_subject,'') ~* ('(^|[^A-Za-z0-9])'||p_stock||'([^A-Za-z0-9]|$)'))
-     ))
   OR (outlook AND internal_ok AND stock_hit AND public.pdc_parts_reply_wording_541(stock_body)='complete'
       AND coalesce(stock_n,0)<=1 AND NOT order_disagrees)
-  OR ept_candidate;
- IF p_stock IS NULL OR (p_stock !~ '^([0-9]{8}|IS[0-9]{8})$' AND NOT ept_candidate)
+  OR (outlook AND internal_ok AND domain='pmgwa.com.au' AND plain);
+ IF p_stock IS NULL OR upper(btrim(p_stock)) !~ '^([0-9]{8}|IS[0-9]{8}|[0-9][A-Z]{2,4}[0-9]{2,4}|J[0-9]{6,12})$'
  OR p_gmail_message_id IS NULL
  OR p_received_at IS NULL OR p_received_at<'2026-09-12T00:00:00Z' OR p_received_at>clock_timestamp()+interval '5 minutes'
  OR p_evidence_sha256 IS NULL OR p_evidence_sha256 !~ '^[a-f0-9]{64}$'
@@ -225,24 +363,32 @@ BEGIN
  AND NOT pdc_codex_intake_private.bhavesh_email_authenticated_20260923(p_authentication,p_gmail_message_id)
  THEN RETURN jsonb_build_object('ok',false,'code','unverified_or_ambiguous_confirmation'); END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended('pdc:workshop:top-level-mutation',0));
- IF ept_candidate THEN
-  SELECT * INTO v FROM public.vehicles
-   WHERE deleted_at IS NULL AND lifecycle_state='active' AND visible_on_board AND board_purged_at IS NULL
-     AND upper(btrim(job_card_number))=job_tok
-     AND (upper(btrim(stock_number))=rego_tok OR upper(btrim(coalesce(registration,'')))=rego_tok)
-   FOR UPDATE;
-  IF NOT FOUND OR (SELECT count(*) FROM public.vehicles
-   WHERE deleted_at IS NULL AND lifecycle_state='active' AND visible_on_board AND board_purged_at IS NULL
-     AND upper(btrim(job_card_number))=job_tok
-     AND (upper(btrim(stock_number))=rego_tok OR upper(btrim(coalesce(registration,'')))=rego_tok))<>1
-  THEN RETURN jsonb_build_object('ok',false,'code','vehicle_identity_requires_review'); END IF;
-  IF v.stock_number !~ '^([0-9]{8}|IS[0-9]{8}|[0-9][A-Z]{2,4}[0-9]{2,4})$'
-  THEN RETURN jsonb_build_object('ok',false,'code','vehicle_identity_requires_review'); END IF;
- ELSE
-  SELECT * INTO v FROM public.vehicles WHERE stock_number=p_stock AND deleted_at IS NULL AND lifecycle_state='active' AND visible_on_board AND board_purged_at IS NULL FOR UPDATE;
-  IF NOT FOUND OR (SELECT count(*) FROM public.vehicles WHERE stock_number=p_stock AND deleted_at IS NULL AND lifecycle_state='active' AND visible_on_board AND board_purged_at IS NULL)<>1
-  THEN RETURN jsonb_build_object('ok',false,'code','vehicle_identity_requires_review'); END IF;
+ ident:=public.pdc_parts_vehicle_match_541(p_stock, p_subject);
+ IF coalesce(ident->>'code','') <> 'matched' OR ident->>'vehicle_id' IS NULL THEN
+  RETURN jsonb_build_object('ok',false,'code','vehicle_identity_requires_review');
  END IF;
+ tok:=upper(btrim(p_stock));
+ SELECT * INTO v FROM public.vehicles
+  WHERE id=(ident->>'vehicle_id')::uuid
+    AND deleted_at IS NULL AND lifecycle_state='active' AND visible_on_board IS TRUE AND board_purged_at IS NULL
+  FOR UPDATE;
+ IF tok ~ '^J[0-9]{6,12}$' THEN
+  SELECT count(*)::integer INTO nveh FROM public.vehicles
+   WHERE deleted_at IS NULL AND lifecycle_state='active' AND visible_on_board IS TRUE AND board_purged_at IS NULL
+     AND upper(btrim(job_card_number))=tok;
+ ELSIF tok ~ '^([0-9]{8}|IS[0-9]{8})$' THEN
+  SELECT count(*)::integer INTO nveh FROM public.vehicles
+   WHERE deleted_at IS NULL AND lifecycle_state='active' AND visible_on_board IS TRUE AND board_purged_at IS NULL
+     AND upper(btrim(stock_number))=tok;
+ ELSE
+  SELECT count(*)::integer INTO nveh FROM public.vehicles
+   WHERE deleted_at IS NULL AND lifecycle_state='active' AND visible_on_board IS TRUE AND board_purged_at IS NULL
+     AND (upper(btrim(stock_number))=tok OR upper(btrim(coalesce(registration,'')))=tok);
+ END IF;
+ IF NOT FOUND OR coalesce(nveh,0)<>1
+  OR public.pdc_parts_vehicle_match_541(p_stock, p_subject)->>'vehicle_id' IS DISTINCT FROM v.id::text
+  OR v.stock_number !~ '^([0-9]{8}|IS[0-9]{8}|[0-9][A-Z]{2,4}[0-9]{2,4})$'
+ THEN RETURN jsonb_build_object('ok',false,'code','vehicle_identity_requires_review'); END IF;
  IF sender='bhavesh.patel@pmgwa.com.au' AND NOT pdc_codex_intake_private.bhavesh_vehicle_scope_20260923(v.id)
  THEN RETURN jsonb_build_object('ok',false,'code','department_138_vehicle_scope_required'); END IF;
  IF EXISTS(SELECT 1 FROM public.pdc_parts_completion_email_confirmations WHERE gmail_message_id=p_gmail_message_id AND evidence_sha256<>p_evidence_sha256) THEN RETURN jsonb_build_object('ok',false,'code','evidence_replay_conflict'); END IF;
@@ -274,7 +420,7 @@ $person541$;
 REVOKE ALL ON FUNCTION public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb) FROM PUBLIC, anon, authenticated, service_role;
 
 UPDATE pdc_ops.regression_checks
-SET check_sql = replace(check_sql, '8ddb1477beeb94c7879c4021cccf1d40', 'ee35fb998b0264d4a67cb3f49d25a8e4')
+SET check_sql = replace(check_sql, '8ddb1477beeb94c7879c4021cccf1d40', 'c5314b7bed8a1401b6698319125c2d74')
 WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth_515')
   AND fault_id IN ('F128','F129')
   AND sort_order IN (301,302)
@@ -282,13 +428,13 @@ WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth
 
 INSERT INTO pdc_ops.regression_checks(check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
 ('parts_complete_wording_541', 'F155',
- 'Parts-complete wording (r541): a clear affirmative from a verified internal pmgwa sender counts, including parts complete, all parts are here, parts arrived and all parts in. A negative, a question or a partial does not. Email-AI complete at high confidence can confirm the quoted text. Karratha keeps the 8-digit stock check.',
+ 'Parts-complete wording (r541): a clear affirmative from a verified internal pmgwa sender counts. A rego such as 1IRU519 or one job card such as J138000880 resolves one active vehicle. pdc@ in To, Cc, or a forward counts. A second match, or a reply that is not addressed to pdc@, stays refused. Karratha keeps the 8-digit stock check.',
  $chk541$
 SELECT
  (
   pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)') IS NOT NULL
   AND (SELECT md5(p.prosrc) FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)'))
-      = 'ee35fb998b0264d4a67cb3f49d25a8e4'
+      = 'c5314b7bed8a1401b6698319125c2d74'
   AND (SELECT p.prosecdef FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS NOT TRUE
   AND pg_catalog.to_regprocedure('public.pdc_parts_reply_wording_541(text)') IS NOT NULL
   AND pg_catalog.to_regprocedure('public.pdc_parts_reply_decision_541(text,jsonb)') IS NOT NULL
@@ -300,6 +446,23 @@ SELECT
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%parts.malaga@pmgwa.com.au%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%IS[0-9]{8}%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%internal_ok AND domain=''pmgwa.com.au'' AND plain%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%pdc_parts_mailbox_recipient_541%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%pdc_parts_vehicle_match_541%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%pdc@pmgwa.com.au%'
+  AND pg_catalog.to_regprocedure('public.pdc_parts_mailbox_recipient_541(jsonb,text)') IS NOT NULL
+  AND pg_catalog.to_regprocedure('public.pdc_parts_vehicle_match_541(text,text)') IS NOT NULL
+  AND (SELECT p.prosecdef FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.pdc_parts_mailbox_recipient_541(jsonb,text)')) IS NOT TRUE
+  AND (SELECT p.prosecdef FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.pdc_parts_vehicle_match_541(text,text)')) IS NOT TRUE
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.pdc_parts_mailbox_recipient_541(jsonb,text)')) LIKE '%cc_addresses%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.pdc_parts_mailbox_recipient_541(jsonb,text)')) LIKE '%forwarded%'
+  AND public.pdc_parts_mailbox_recipient_541('{"to_address":"pdc@pmgwa.com.au"}'::pg_catalog.jsonb, 'Parts complete') IS TRUE
+  AND public.pdc_parts_mailbox_recipient_541('{"to_address":"parts.malaga@pmgwa.com.au","cc_addresses":["pdc@pmgwa.com.au"]}'::pg_catalog.jsonb, '1IRU519 J138000880 EPT') IS TRUE
+  AND public.pdc_parts_mailbox_recipient_541('{"to_address":"parts.malaga@pmgwa.com.au","cc_address":"Workshop <pdc@pmgwa.com.au>"}'::pg_catalog.jsonb, '1IRU519 J138000880 EPT') IS TRUE
+  AND public.pdc_parts_mailbox_recipient_541('{"to_address":"other@pmgwa.com.au"}'::pg_catalog.jsonb, 'FW: 1IRU519 J138000880 EPT') IS TRUE
+  AND public.pdc_parts_mailbox_recipient_541('{"to_address":"other@pmgwa.com.au","forwarded":"true"}'::pg_catalog.jsonb, '1IRU519 J138000880') IS TRUE
+  AND public.pdc_parts_mailbox_recipient_541('{"to_address":"other@pmgwa.com.au"}'::pg_catalog.jsonb, 'RE: New vehicle order for 13102818 - PMG Build') IS FALSE
+  AND public.pdc_parts_mailbox_recipient_541('{"to_address":"other@pmgwa.com.au","cc_addresses":[]}'::pg_catalog.jsonb, 'Parts complete') IS FALSE
+  AND public.pdc_parts_mailbox_recipient_541('{"to_address":"pdc@pmgwa.com.au.example.net"}'::pg_catalog.jsonb, 'Parts complete') IS FALSE
   AND public.pdc_parts_reply_wording_541('parts complete') = 'complete'
   AND public.pdc_parts_reply_wording_541('all parts complete') = 'complete'
   AND public.pdc_parts_reply_wording_541('all parts are here') = 'complete'
@@ -333,6 +496,16 @@ SELECT
        WHERE v.deleted_at IS NULL AND v.lifecycle_state='active' AND v.visible_on_board AND v.board_purged_at IS NULL
          AND upper(btrim(v.job_card_number))='J138000880'
          AND (upper(btrim(v.stock_number))='1IRU519' OR upper(btrim(coalesce(v.registration,'')))='1IRU519')) = 1
+  AND public.pdc_parts_vehicle_match_541('13102818', 'RE: New vehicle order for 13102818 - PMG Build')->>'code' = 'matched'
+  AND public.pdc_parts_vehicle_match_541('13102818', 'RE: New vehicle order for 13102818 - PMG Build')->>'vehicle_id' = 'd9192a72-0987-496b-b395-b9c836dff8e8'
+  AND public.pdc_parts_vehicle_match_541('1IRU519', '1IRU519 J138000880 EPT')->>'code' = 'matched'
+  AND public.pdc_parts_vehicle_match_541('1IRU519', '1IRU519 J138000880 EPT')->>'vehicle_id' = 'b85d26fb-8f52-40fe-b06b-bb1bf87b0659'
+  AND public.pdc_parts_vehicle_match_541('1IRU519', '1IRU519 J138000880 EPT')->>'stock_number' = '1IRU519'
+  AND public.pdc_parts_vehicle_match_541('J138000880', '1IRU519 J138000880 EPT')->>'vehicle_id' = 'b85d26fb-8f52-40fe-b06b-bb1bf87b0659'
+  AND public.pdc_parts_vehicle_match_541('1IRU519', '1IRU519 EPT')->>'vehicle_id' = 'b85d26fb-8f52-40fe-b06b-bb1bf87b0659'
+  AND public.pdc_parts_vehicle_match_541('J138000880', '1IRU519 J138000880 J139126037 EPT')->>'code' = 'ambiguous'
+  AND public.pdc_parts_vehicle_match_541('13102818', '13102818 13047270')->>'code' = 'ambiguous'
+  AND public.pdc_parts_vehicle_match_541('NOPE', 'NOPE')->>'code' = 'not_found'
   AND (SELECT pg_catalog.pg_get_constraintdef(c.oid) FROM pg_catalog.pg_constraint c
        WHERE c.conname='person_confirmation_stock' AND c.conrelid=pg_catalog.to_regclass('public.pdc_parts_completion_email_confirmations'))
       LIKE '%[0-9][A-Z]{2,4}[0-9]{2,4}%'
@@ -341,12 +514,12 @@ SELECT
       NOT LIKE '%[0-9][A-Z]{2,4}[0-9]{2,4}%'
   AND (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='parts_complete_wording_541' AND fault_id='F155' AND sort_order=319 AND added_in='r541' AND enabled) = 1
  ) AS ok,
- '13102818 order subject and 1IRU519 J138000880 EPT stay one vehicle; All parts removed stays out' AS detail
+ '13102818 and 1IRU519/J138000880 each match one vehicle; Cc and a forward reach pdc@; a plain reply to someone else does not' AS detail
 $chk541$, true, 319, 'r541');
 
 DO $p$ DECLARE x record; BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r541: pin count changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS DISTINCT FROM 'ee35fb998b0264d4a67cb3f49d25a8e4' THEN RAISE EXCEPTION 'r541: person md5'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS DISTINCT FROM 'c5314b7bed8a1401b6698319125c2d74' THEN RAISE EXCEPTION 'r541: person md5'; END IF;
  IF (SELECT prosecdef FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS TRUE THEN RAISE EXCEPTION 'r541: person recorder became security definer'; END IF;
  IF (SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c WHERE c.conname='person_confirmation_stock' AND c.conrelid=to_regclass('karratha135_pdc.pdc_parts_completion_email_confirmations')) LIKE '%[0-9][A-Z]{2,4}[0-9]{2,4}%' THEN RAISE EXCEPTION 'r541: karratha stock check widened'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth_515') AND check_sql LIKE '%8ddb1477beeb94c7879c4021cccf1d40%') THEN RAISE EXCEPTION 'r541: old person md5 remains in a check'; END IF;

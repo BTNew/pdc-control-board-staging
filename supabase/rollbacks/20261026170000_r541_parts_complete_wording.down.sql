@@ -9,7 +9,7 @@ DO $g$ BEGIN
     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
     OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r541 undo: staging only'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r541 undo: pin count is not 241'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS DISTINCT FROM 'ee35fb998b0264d4a67cb3f49d25a8e4' THEN RAISE EXCEPTION 'r541 undo: person body is not the r541 body'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS DISTINCT FROM 'c5314b7bed8a1401b6698319125c2d74' THEN RAISE EXCEPTION 'r541 undo: person body is not the r541 body'; END IF;
  IF EXISTS (SELECT 1 FROM public.pdc_parts_completion_email_confirmations WHERE stock_number !~ '^([0-9]{8}|IS[0-9]{8})$') THEN RAISE EXCEPTION 'r541 undo: a rego-stock confirmation is stored'; END IF;
 END $g$;
 
@@ -130,16 +130,18 @@ $person515$;
 DROP FUNCTION IF EXISTS public.pdc_parts_reply_decision_541(text, jsonb);
 DROP FUNCTION IF EXISTS public.pdc_parts_reply_wording_541(text);
 DROP FUNCTION IF EXISTS public.pdc_parts_reply_norm_541(text);
+DROP FUNCTION IF EXISTS public.pdc_parts_vehicle_match_541(text, text);
+DROP FUNCTION IF EXISTS public.pdc_parts_mailbox_recipient_541(jsonb, text);
 
 ALTER TABLE public.pdc_parts_completion_email_confirmations DROP CONSTRAINT person_confirmation_stock;
 ALTER TABLE public.pdc_parts_completion_email_confirmations ADD CONSTRAINT person_confirmation_stock CHECK (stock_number ~ '^([0-9]{8}|IS[0-9]{8})$');
 
 UPDATE pdc_ops.regression_checks
-SET check_sql = replace(check_sql, 'ee35fb998b0264d4a67cb3f49d25a8e4', '8ddb1477beeb94c7879c4021cccf1d40')
+SET check_sql = replace(check_sql, 'c5314b7bed8a1401b6698319125c2d74', '8ddb1477beeb94c7879c4021cccf1d40')
 WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth_515')
   AND fault_id IN ('F128','F129')
   AND sort_order IN (301,302)
-  AND check_sql LIKE '%ee35fb998b0264d4a67cb3f49d25a8e4%';
+  AND check_sql LIKE '%c5314b7bed8a1401b6698319125c2d74%';
 
 DELETE FROM pdc_ops.regression_checks
 WHERE check_name='parts_complete_wording_541' AND fault_id='F155' AND sort_order=319 AND added_in='r541';
@@ -150,8 +152,10 @@ DO $p$ BEGIN
  IF to_regprocedure('public.pdc_parts_reply_wording_541(text)') IS NOT NULL
     OR to_regprocedure('public.pdc_parts_reply_decision_541(text,jsonb)') IS NOT NULL
     OR to_regprocedure('public.pdc_parts_reply_norm_541(text)') IS NOT NULL
+    OR to_regprocedure('public.pdc_parts_mailbox_recipient_541(jsonb,text)') IS NOT NULL
+    OR to_regprocedure('public.pdc_parts_vehicle_match_541(text,text)') IS NOT NULL
  THEN RAISE EXCEPTION 'r541 undo: wording helper remains'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='parts_complete_wording_541') THEN RAISE EXCEPTION 'r541 undo: check remains'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth_515') AND check_sql LIKE '%ee35fb998b0264d4a67cb3f49d25a8e4%') THEN RAISE EXCEPTION 'r541 undo: new person md5 remains'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth_515') AND check_sql LIKE '%c5314b7bed8a1401b6698319125c2d74%') THEN RAISE EXCEPTION 'r541 undo: new person md5 remains'; END IF;
  IF (SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c WHERE c.conname='person_confirmation_stock' AND c.conrelid=to_regclass('public.pdc_parts_completion_email_confirmations')) IS DISTINCT FROM 'CHECK ((stock_number ~ ''^([0-9]{8}|IS[0-9]{8})$''::text))' THEN RAISE EXCEPTION 'r541 undo: public stock check was not restored'; END IF;
 END $p$;
