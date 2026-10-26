@@ -354,7 +354,8 @@ SELECT
   AND bay10.bay_number = 5
   AND (live.reason IS NULL OR live.reason LIKE 'Waiting for Chelsea Rees # 2 on Key 411 (Fitting - PMB Bay 10) until %')
   AS ok,
-  pg_catalog.left(pg_catalog.coalesce(live.reason, 'labels only; Key 248 is not still held by Chelsea on Key 411')
+  -- ::text so pg_catalog.coalesce resolves when search_path is pg_catalog.
+  pg_catalog.left(pg_catalog.coalesce(live.reason, 'labels only; Key 248 is not still held by Chelsea on Key 411'::text)
     || ' | bay 1 ' || bay06.display_name || ' | bay 5 ' || bay10.display_name, 500) AS detail
 FROM pg_catalog.pg_proc fn
 JOIN public.workshop_bays bay06 ON bay06.code = 'FITTING-BAY-01' AND bay06.is_active
