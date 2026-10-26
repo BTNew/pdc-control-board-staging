@@ -65,7 +65,8 @@ test('all CSS and core planner/helper presentation files remain byte-exact', () 
 // Explicitly pinned upstream releases and owner-approved navigation, including the 18 October full-week planner scope repair.
 const approvedRootImportPatch = Object.freeze({
   // r497: planner capacity cache read guarded on the first planner open (F110).
-  "pdc-planner-capacity.js": "05c5eeaf39430ffebd5f352a04f3abd0432578270408fd06efd85e465a856980",
+  // r539: Close gaps uses the workshop bay name and a hold reason (F153). Department 135 is not tagged.
+  "pdc-planner-capacity.js": "3d14f5e9e173b9d3dd7923010bd838da5522677d8ee769144e57a08a27f79c80",
   // r493: 'Paused · Key …' label for a started job outside bay working time (F106).
   "pdc-planner-slim.js": "34aa7d3d2b45d80713c120aad743077db85560b6798f2bcd79eb42893134d691",
   "pdc-review-stations.css": "e65e01d446092ae60f05460e7073f07e3bed4ba0299d4858d1c875be9b2e8fb7",
@@ -316,7 +317,8 @@ const approvedRootImportPatch = Object.freeze({
   // r532: r532=2026.10.26.r532 on pdc-fitters.js (other-station Start and Done; F146). Department 135 is not tagged.
   // r535: r535=2026.10.26.r535 on workshop-planner.css (Schedule next slot or bay order, F149). Department 135 is not tagged.
   // r536: r536=2026.10.26.r536 on app.js (confirm before an unstarted booking is released; F150). Department 135 is not tagged.
-  "index.html": "0cf1f1014ee81b49b86f73ea3a3fc704985172803d3d9c34e413b68ca8b12061",
+  // r539: r539=2026.10.26.r539 on pdc-planner-capacity.js (Close gaps bay name and hold reason; F153). Department 135 is not tagged.
+  "index.html": "a169b25990aca6596123ebaebc6bdbc67b9ff0849ff3af9c53976a7e14567870",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

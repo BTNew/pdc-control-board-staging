@@ -35,7 +35,7 @@ test('efficiencyPercent with an empty cache and no workshop service yet does not
 
 test('index.html cache bust names r497 on pdc-planner-capacity.js', () => {
   const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-  assert.match(html, /pdc-planner-capacity\.js\?[^"]*&amp;r497=2026\.10\.22\.r497"/);
+  assert.match(html, /pdc-planner-capacity\.js\?[^"]*&amp;r497=2026\.10\.22\.r497(?:&amp;[^"]*)?"/);
 });
 
 test('Karratha keeps its frozen copy', () => {
