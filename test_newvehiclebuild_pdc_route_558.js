@@ -48,7 +48,8 @@ test('r558 accepts verified Newvehiclebuild delivery and refuses other lists', (
   assert.match(check, /forwarded":"true"/);
   assert.match(check, /RE: New vehicle order for 13102818 - PMG Build'\) IS FALSE/);
   assert.match(check, /pdc@pmgwa\.com\.au\.example\.net/);
-  assert.match(check, /expected_function_md5\) = 241/);
+  assert.match(up, /pin count is not 241/);
+  assert.doesNotMatch(check, /expected_function_md5/i);
   assert.doesNotMatch(check, /::(?:pg_catalog\.)?regprocedure/);
   assert.match(check, /AS ok/);
   assert.match(check, /AS detail/);

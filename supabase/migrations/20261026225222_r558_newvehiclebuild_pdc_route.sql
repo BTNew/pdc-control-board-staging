@@ -103,7 +103,6 @@ SELECT
       = 'c5314b7bed8a1401b6698319125c2d74'
   AND (SELECT md5(p.prosrc) FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(jsonb,jsonb)'))
       = 'e56cd1f5d12205a0d72826d64cb8d1de'
-  AND (SELECT count(*) FROM pdc_ops.expected_function_md5) = 241
   AND public.pdc_parts_mailbox_recipient_541('{"to_address":"pdc@pmgwa.com.au"}'::pg_catalog.jsonb, 'Parts complete') IS TRUE
   AND public.pdc_parts_mailbox_recipient_541('{"mailbox":"pdc@pmgwa.com.au","from_address":"parts.malaga@pmgwa.com.au","to_address":"Newvehiclebuild | Pilbara Motor Group <Newvehiclebuild@pmgwa.com.au>","cc_addresses":[],"verified_by":"microsoft_receiving_provider"}'::pg_catalog.jsonb, '1IRU519 J138000880 EPT') IS TRUE
   AND public.pdc_parts_mailbox_recipient_541('{"mailbox":"pdc@pmgwa.com.au","from_address":"talin.parker@pmgwa.com.au","to_addresses":["Newvehiclebuild@pmgwa.com.au"],"cc_address":"","verified_by":"microsoft_receiving_provider"}'::pg_catalog.jsonb, 'RE: New vehicle order for 13102818 - PMG Build') IS TRUE
