@@ -4756,7 +4756,7 @@ function workshopPlanChipHtml(entry = {}, dateKey = '', rows = workshopLoadPlans
   const classes = [blocked ? 'is-blocked' : '', started ? 'is-started' : '', pausedNow ? 'is-paused' : '', overtime ? 'is-overtime' : '', etaRisk ? 'is-eta-risk' : '', segment.usesConfiguredOvertime ? 'uses-configured-overtime' : '', segment.historicalOnClosure ? 'historical-on-closure' : '', assigneeConflict ? 'has-assignee-conflict' : '', entry.status === 'stoppage' ? 'is-stoppage' : '', lifecycleActionsHtml ? 'has-lifecycle-actions' : '', selected ? 'is-selected' : '', highlighted ? 'is-search-match' : '', segment.continuesFromPrevious ? 'continues-from-previous' : '', segment.continuesNext ? 'continues-next' : ''].filter(Boolean).join(' ');
   const conflictNote = assigneeConflict ? ` · WARNING: ${entry.assignee} is booked on another vehicle at this time` : '';
   const timeLabel = workshopEntryTimeLabel(entry);
-  return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${timeLabel} · ${entry.hours}h total${conflictNote} · double-click for vehicle job${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
+  return `<article class="workshop-plan-chip ${classes}" ${draggable ? 'draggable="true"' : ''} data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}" style="--plan-left:${left}%;--plan-width:${width}%;" title="${escapeHtml(`${timeLabel} · ${entry.hours}h total${conflictNote} · double-click to open the vehicle${entry.status === 'completed' ? ' · completed history stays fixed' : entry.status === 'planned' ? ' · drag to reschedule' : ' · drag to move this live job safely'}`)}">
     <button class="workshop-plan-main" type="button" data-workshop-select-plan="${escapeHtml(entry.id)}">
       <strong>JC ${escapeHtml(vehicleJobcardNumber(vehicle) || 'TBA')} · ${escapeHtml(displayStockNumber(vehicle) || 'No stock')}</strong>
       <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')}</span>
@@ -5308,7 +5308,7 @@ function workshopDetailHtml(entry = null, options = {}) {
       <strong>Legacy review required · editing blocked</strong>
       <span>${escapeHtml(entry.legacyAmbiguityReason)}</span>
       <div class="workshop-detail-actions">
-        <button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>
+        <button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle panel</button>
         <button class="small-button" type="button" data-workshop-open-vehicle="${escapeHtml(entry.vehicleKey)}">Full vehicle</button>
       </div>
     </div>`;
@@ -5338,7 +5338,7 @@ function workshopDetailHtml(entry = null, options = {}) {
     completed || !previousBay ? '' : `<button class="small-button" type="button" data-workshop-quick-move-plan="${escapeHtml(entry.id)}" data-workshop-quick-move-stage="${escapeHtml(entry.stage)}" data-workshop-quick-move-bay="${previousBay}">← Bay ${escapeHtml(workshopPad(previousBay))}</button>`,
     completed || !nextBay ? '' : `<button class="small-button" type="button" data-workshop-quick-move-plan="${escapeHtml(entry.id)}" data-workshop-quick-move-stage="${escapeHtml(entry.stage)}" data-workshop-quick-move-bay="${nextBay}">Bay ${escapeHtml(workshopPad(nextBay))} →</button>`,
     completed || !bestBaySlot ? '' : `<button class="small-button" type="button" data-workshop-best-bay-plan="${escapeHtml(entry.id)}">Best bay/time</button>`,
-    `<button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle job</button>`,
+    `<button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle panel</button>`,
     `<button class="small-button" type="button" data-workshop-open-vehicle="${escapeHtml(entry.vehicleKey)}">Full vehicle</button>`,
   ].join('');
   const lifecycleControls = completed ? '' : `<button class="small-button" type="button" data-workshop-start-plan="${escapeHtml(entry.id)}" ${started || WORKSHOP_PENDING_STARTS.has(entry.id) ? 'disabled' : ''} ${WORKSHOP_PENDING_STARTS.has(entry.id) ? 'aria-busy="true"' : ''}>${started ? 'Started' : WORKSHOP_PENDING_STARTS.has(entry.id) ? 'Starting…' : 'Start job'}</button>
@@ -5801,7 +5801,7 @@ function workshopReturnedQueueCardHtml(entry) {
   const disabled = '';
   return `<article class="workshop-queue-card workshop-unallocated-vehicle-pill${startedBefore ? ' is-started-before' : ''}" draggable="true" tabindex="0" role="group"${startedBefore ? ' data-workshop-started-before="1"' : ''}
     data-workshop-plan-id="${escapeHtml(entry.id)}" data-workshop-job-vehicle="${escapeHtml(entry.vehicleKey)}" data-workshop-locate-key="${escapeHtml(entry.vehicleKey)}"
-    aria-label="${escapeHtml(`Vehicle ${identity}. ${startedBefore ? `${startedHint}. ` : ''}Press Enter to open job.`)}" title="${escapeHtml(startedBefore ? `${WORKSHOP_STARTED_BEFORE_MESSAGE} Drag onto a bay, use Best slot, or use Schedule.` : 'Drag onto a bay, use Best slot, or use Schedule')}">
+    aria-label="${escapeHtml(`Vehicle ${identity}. ${startedBefore ? `${startedHint}. ` : ''}Press Enter to open the vehicle.`)}" title="${escapeHtml(startedBefore ? `${WORKSHOP_STARTED_BEFORE_MESSAGE} Drag onto a bay, use Best slot, or use Schedule.` : 'Drag onto a bay, use Best slot, or use Schedule')}">
     ${workshopVehicleIdentitySummaryHtml(vehicle)}
     <span>${escapeHtml(workshopQueueVehicleDescription(vehicle))}</span>
     <span>${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
@@ -8642,140 +8642,36 @@ function workshopRequiredJobsForStageHtml(vehicle = {}, stage = '', stageLines =
   }).join('')}</ul>`;
 }
 
+function workshopLocationsVehicle(key = '') {
+  const cleanKey = String(key || '').trim();
+  if (!cleanKey || typeof vehicleLocationsScreenRows !== 'function') return null;
+  const rows = vehicleLocationsScreenRows();
+  return (Array.isArray(rows) ? rows : []).find(row => {
+    const id = typeof vehicleKey === 'function' ? vehicleKey(row) : '';
+    if (id && id === cleanKey) return true;
+    return [row?.stock, row?.stock_number, row?.id, row?.permanent_vehicle_id]
+      .some(value => String(value || '').trim() === cleanKey);
+  }) || null;
+}
+
+// r539 (F153): double-click, Enter and the Vehicle panel button open the Vehicle Locations
+// side panel. The centred station job modal is not drawn. Team notes stay on the vehicle
+// card (Open Vehicle). Each station's hour total stays on that station in the panel.
 function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId = '') {
-  const scopedStage = WORKSHOP_STAGE_SEQUENCE.includes(normalizePmbStage(requestedStage))
-    ? normalizePmbStage(requestedStage)
-    : normalizePmbStage(window.__activeWorkshopPlannerStage || '');
-  const vehicle = workshopVehicle(key, scopedStage);
-  if (!vehicle) return;
-  const stage = WORKSHOP_STAGE_SEQUENCE.includes(normalizePmbStage(requestedStage)) ? normalizePmbStage(requestedStage) : (normalizePmbStage(inferredPmbStage(vehicle)) || workshopState().stage);
+  void requestedStage;
+  void requestedPlanId;
   document.querySelector('[data-workshop-job-overlay]')?.remove();
-  const parts = workshopPartsSummary(vehicle);
-  const required = pdcRequirementDefinitions(vehicle).filter(def => pdcJobRequired(vehicle, def) && !pdcJobComplete(vehicle, def)).map(def => def.label);
-  const selectedCategory = stage === 'BUS_4X4' ? workshopSelectedBusGroup()?.code || '' : '';
-  const matchingPlans = workshopLoadPlans().filter(entry => entry.vehicleKey === vehicleKey(vehicle)
-    && entry.stage === stage
-    && (!selectedCategory || !entry.workCategory || entry.workCategory === 'BUS_WHOLE_JOB' || entry.workCategory === selectedCategory)
-    && !['completed', 'deleted', 'cancelled'].includes(entry.status));
-  const currentPlan = matchingPlans.find(entry => entry.id === requestedPlanId)
-    || (matchingPlans.length === 1 ? matchingPlans[0] : null);
-  const category = currentPlan?.workCategory || selectedCategory;
-  const stageLabel = category ? `Bus 4×4 · ${workshopDepartmentLayout().categoryLabel(category)}` : pmbStageLabel(stage);
-  const stageLines = workshopStageJobLines(vehicle, stage, category);
-  const operationLineHours = category ? workshopExactDurationHours(stageLines.reduce((sum, line) => sum + Number(line.hours || 0), 0)) : workshopCalculatedStageHours(vehicle, stage);
-  const currentPlanHours = currentPlan ? workshopExactDurationHours(currentPlan.hours) : 0;
-  const currentOperationHours = Number(currentPlan?.operationEstimateHours) || 0;
-  const calculatedHours = operationLineHours || currentOperationHours || currentPlanHours || workshopDefaultBookingHours();
-  const calculatedInputValue = workshopDurationInputValue(calculatedHours);
-  // r478 (F91): the estimated hours are read-only here (Craig, 22 Oct). On the shared board the only thing
-  // the old Save did was write a manual 'Planner stage time adjustment' (set_workshop_stage_estimated_minutes_407),
-  // so the button is gone; the local fallback keeps its work-area allocation save, without any hours input.
-  const sharedMode = workshopSharedModeActive();
-  const planMismatch = currentPlan && (sharedMode ? currentOperationHours > 0 && Math.round(currentOperationHours * 60) !== Math.round(calculatedHours * 60) : currentPlanHours > 0 && Math.round(currentPlanHours * 60) !== Math.round(calculatedHours * 60));
-  const overlay = document.createElement('div');
-  overlay.className = 'modal-overlay workshop-job-overlay';
-  overlay.dataset.workshopJobOverlay = 'true';
-  overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-modal', 'true');
-  overlay.innerHTML = `<section class="modal-card workshop-job-card">
-    <button class="modal-close" type="button" data-workshop-job-close aria-label="Close vehicle job">×</button>
-    <header><div><h2>${escapeHtml(stageLabel)} vehicle job</h2><p>Only ${escapeHtml(stageLabel)} time is shown for this bay. Required jobs below are scoped to this station.</p></div><span class="badge neutral">Required jobs + planned time</span></header>
-    <div class="workshop-job-vehicle-summary">
-      ${workshopVehicleIdentitySummaryHtml(vehicle)}
-      <span>${escapeHtml(vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</span>
-      <small>Outstanding work: ${escapeHtml(required.join(', ') || 'None')}</small>
-      <small class="workshop-parts-line parts-${escapeHtml(parts.status)}">Parts: ${escapeHtml(parts.text)}</small>
-    </div>
-    <form data-workshop-job-form data-workshop-job-key="${escapeHtml(vehicleKey(vehicle))}" data-workshop-job-stage="${escapeHtml(stage)}">
-      <section class="workshop-current-stage-time">
-        <div><strong>${escapeHtml(stageLabel)} work estimate</strong><span><strong data-workshop-estimated-hours-total>${escapeHtml(calculatedInputValue)}</strong> work hours · ${stageLines.length} authenticated line${stageLines.length === 1 ? '' : 's'}${currentPlanHours > 0 ? ` · ${escapeHtml(workshopDurationInputValue(currentPlanHours))} hours allocated in the bay` : ''}${planMismatch ? ' · Work estimate changed since the bay time was set' : ''}</span></div>
-        <div class="workshop-estimate-readonly" data-workshop-estimate-readonly><span>Estimated work hours</span><output data-workshop-estimated-hours-value aria-label="Estimated work hours, from the job lines">${escapeHtml(calculatedInputValue)}</output><small>From the job lines · not editable</small></div>
-      </section>
-      <section class="workshop-required-jobs"><header><strong>Required jobs for ${escapeHtml(stageLabel)}</strong><span>Canonical requirement plus imported lines allocated to this station.</span></header>${workshopRequiredJobsForStageHtml(vehicle, stage, stageLines)}</section>
-      ${workshopSharedModeActive() ? '' : `<section class="workshop-job-lines"><header><strong>Imported job lines</strong><span>Change the work area to allocate a line elsewhere.</span></header>${workshopJobLineRowsHtml(vehicle)}</section>`}
-      <div class="workshop-job-notes"><strong>Team notes</strong><span>${escapeHtml(teamNotesText(vehicle) || 'No additional team notes.')}</span></div>
-      <div class="edit-actions"><button class="secondary" type="button" data-workshop-job-close>Cancel</button>${sharedMode ? '' : '<button class="primary" type="submit" data-workshop-job-save-allocation>Save line work areas</button>'}<button class="small-button" type="button" data-workshop-job-full-vehicle="${escapeHtml(vehicleKey(vehicle))}">Open full vehicle</button></div>
-    </form>
-  </section>`;
-  const close = () => {
-    overlay.remove();
-    if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
-  };
-  overlay.querySelectorAll('[data-workshop-job-close]').forEach(button => button.addEventListener('click', close));
-  overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
-  overlay.querySelector('[data-workshop-job-full-vehicle]')?.addEventListener('click', event => {
-    const vehicleKeyValue = event.currentTarget.dataset.workshopJobFullVehicle;
-    close();
-    openVehicleModal(vehicleKeyValue);
-  });
-  overlay.querySelector('[data-workshop-job-form]')?.addEventListener('submit', async event => {
-    event.preventDefault();
-    // r478 (F91): this popup never writes hours. Shared board: nothing to save (no manual stage adjustment).
-    if (sharedMode || workshopSharedModeActive()) return;
-    if (!workshopRequireOperatorProfile()) return;
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    const currentStage = normalizePmbStage(form.dataset.workshopJobStage);
-    const assignments = workshopJobLineAssignments(vehicle);
-    const lineRows = workshopImportedJobLines(vehicle);
-    const resolvedHours = new Map(workshopResolvedJobLines(vehicle).map(line => [line.id, Number(line.hours)]));
-    lineRows.forEach(line => {
-      const lineStage = normalizePmbStage(data.get(`line_stage_${line.id}`) || '');
-      const lineHours = resolvedHours.get(line.id);
-      assignments[line.id] = {
-        stage: WORKSHOP_STAGE_SEQUENCE.includes(lineStage) ? lineStage : '',
-        hours: Number.isFinite(lineHours) && lineHours > 0 ? workshopClampLineHours(lineHours) : 1,
-      };
-    });
-    const additionalMap = workshopAdditionalHoursMap(vehicle);
-    const hoursMap = workshopEstimatedHoursMap(vehicle);
-    const stageTotals = {};
-    Object.values(assignments).forEach(assignment => {
-      const lineStage = normalizePmbStage(assignment.stage);
-      if (!WORKSHOP_STAGE_SEQUENCE.includes(lineStage)) return;
-      stageTotals[lineStage] = Number(stageTotals[lineStage] || 0) + Number(assignment.hours || 0);
-    });
-    // r478 (F91): the stage additions already on the vehicle are kept as they are; none is added or changed here.
-    WORKSHOP_STAGE_SEQUENCE.forEach(workArea => {
-      const total = Number(stageTotals[workArea] || 0) + Number(additionalMap[workArea] || 0);
-      if (total > 0) hoursMap[workArea] = workshopClampDurationHours(total);
-    });
-    const updatedPlans = workshopLoadPlans().map(entry => entry.vehicleKey === vehicleKey(vehicle) && entry.status !== 'completed' && Number(hoursMap[entry.stage]) > 0
-      ? { ...entry, hours: workshopClampDurationHours(hoursMap[entry.stage]), updatedAt: nowIsoString() }
-      : entry);
-    const conflictingBayPlan = updatedPlans.find(entry => entry.vehicleKey === vehicleKey(vehicle) && workshopHasConflict(entry, updatedPlans.filter(other => other.id !== entry.id)));
-    if (conflictingBayPlan) {
-      workshopRequireNoBayConflict(conflictingBayPlan, updatedPlans.filter(entry => entry.id !== conflictingBayPlan.id));
-      return;
-    }
-    const conflictingPlan = updatedPlans.find(entry => entry.vehicleKey === vehicleKey(vehicle) && workshopEntryHasAssigneeConflict(entry, updatedPlans));
-    if (conflictingPlan) {
-      workshopRequireAvailableAssignee(conflictingPlan, updatedPlans.filter(entry => entry.id !== conflictingPlan.id));
-      return;
-    }
-    const persistAllocation = () => {
-      saveVehicleEdits(vehicleKey(vehicle), {
-        workshopJobLineAssignments: assignments,
-        workshopAdditionalHoursByStage: additionalMap,
-        workshopEstimatedHoursByStage: hoursMap,
-      }, { render: false });
-      recordVehicleAudit(vehicle, 'Workshop job allocation updated', {
-        stage: pmbStageLabel(currentStage),
-        additionalHours: additionalMap[currentStage] || 0,
-        importedLines: lineRows.length,
-      });
-      workshopSavePlans(workshopCascadePlans(updatedPlans).rows);
-    };
-    if (typeof runStorageTransaction === 'function') {
-      const keys = typeof trackerTransactionKeys === 'function' ? trackerTransactionKeys([WORKSHOP_PLAN_STORAGE_KEY]) : [WORKSHOP_PLAN_STORAGE_KEY];
-      runStorageTransaction('Workshop job allocation updated', keys, persistAllocation);
-    } else persistAllocation();
-    close();
-    renderWorkshopPlanner();
-  });
-  document.body.appendChild(overlay);
-  document.body.classList.add('modal-open');
-  overlay.querySelector('.modal-close[data-workshop-job-close]')?.focus({ preventScroll: true }); // r478: no hours input to focus; the popup stays at its top
+  if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
+  const vehicle = workshopLocationsVehicle(key);
+  const bucket = vehicle && typeof incomingBucketForVehicle === 'function' ? incomingBucketForVehicle(vehicle) : '';
+  const open = window.PDC_VEHICLE_SLIDEOUT?.open;
+  const locationKey = vehicle && typeof vehicleKey === 'function' ? vehicleKey(vehicle) : '';
+  if (vehicle && bucket && locationKey && typeof open === 'function') {
+    open(locationKey, bucket);
+    return true;
+  }
+  if (typeof workshopNotify === 'function') workshopNotify('This vehicle is not on Vehicle Locations, so the side panel cannot open.', 'info');
+  return false;
 }
 
 function setupWorkshopPlannerClock() {
