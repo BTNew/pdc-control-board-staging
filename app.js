@@ -915,8 +915,17 @@ function pdcBayText(stage = '', bay = '', pad = false) {
   // r548 (F162): a missing bay reads Unallocated, never Bay 00.
   const number = Number(bay);
   if (!Number.isInteger(number) || number < 1) return 'Unallocated';
+  // r549 (F163): prefer the cached bay display_name when present.
+  let normalized = '';
+  try { if (typeof normalizePmbStage === 'function') normalized = normalizePmbStage(stage); } catch (_error) { normalized = ''; }
+  if (!normalized && typeof globalThis.normalizePmbStage === 'function') normalized = globalThis.normalizePmbStage(stage);
+  if (!normalized) normalized = String(stage || '').trim().toUpperCase();
+  const rows = (typeof window === 'object' && window.__workshopReferenceDataService?.getCachedWorkshopBays?.()?.rows) || [];
+  const code = `${normalized}-BAY-${String(number).padStart(2, '0')}`;
+  const stored = String(rows.find(row => row && row.code === code)?.display_name || '').trim();
+  if (stored) return stored;
   const layout = typeof window === 'object' ? window.PDC_WORKSHOP_DEPARTMENTS : null;
-  const named = layout?.pmbBayLabel?.(normalizePmbStage(stage), number);
+  const named = layout?.pmbBayLabel?.(normalized, number);
   return named || `Bay ${pad ? String(number).padStart(2, '0') : number}`;
 }
 
@@ -1307,10 +1316,17 @@ function vehicleWorkshopActivityLabel(vehicle = {}, options = {}) {
   const place = booking => {
     const stage = pmbStageLabel(normalizePmbStage(booking.stageCode || booking.stage_code || booking.stage)) || booking.stageName || booking.stage_name || 'Workshop';
     const number = booking.bayNumber || booking.bay_number || booking.bay;
-    const layout = typeof window === 'object' ? window.PDC_WORKSHOP_DEPARTMENTS : null;
-    const named = number ? layout?.pmbBayLabel?.(normalizePmbStage(booking.stageCode || booking.stage_code || booking.stage), number) : '';
-    const bay = named || String(booking.bayName || booking.bay_name || '').trim()
-      || (number ? `Bay ${number}` : 'Bay not assigned');
+    const stageCode = normalizePmbStage(booking.stageCode || booking.stage_code || booking.stage);
+    const code = `${stageCode}-BAY-${String(number).padStart(2, '0')}`;
+    const rows = (typeof window === 'object' && window.__workshopReferenceDataService?.getCachedWorkshopBays?.()?.rows) || [];
+    const cached = String(rows.find(row => row && row.code === code)?.display_name || '').trim();
+    const stored = String(booking.bay_display_name || booking.bayName || booking.bay_name || booking.bay?.display_name || '').trim();
+    const bayFallback = (() => {
+      try { if (typeof pdcBayText === 'function') return pdcBayText(stageCode, number); } catch (_error) {}
+      if (typeof globalThis.pdcBayText === 'function') return globalThis.pdcBayText(stageCode, number);
+      return number ? `Bay ${number}` : 'Bay not assigned';
+    })();
+    const bay = cached || stored || (number ? bayFallback : 'Bay not assigned');
     return `${stage} · ${bay}`;
   };
   const live = rows.filter(booking => ['started', 'stoppage', 'in_progress'].includes(String(booking.status).toLowerCase()));
@@ -3619,7 +3635,7 @@ function init() {
 // getPdcSupabaseAccessToken()).
 function loadWorkshopReferenceDataServiceIfConfigured() {
   if (!window.PDC_SUPABASE_CONFIG || typeof loadExternalScript !== 'function') return;
-  loadExternalScript(`workshop-reference-data-service.js?bay-assignment=2026.09.17.01&r527=2026.10.25.r527&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-reference-data-service-script')
+  loadExternalScript(`workshop-reference-data-service.js?bay-assignment=2026.09.17.01&r527=2026.10.25.r527&r549=2026.10.26.r549&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-reference-data-service-script')
     .then(() => {
       initWorkshopReferenceDataServiceIfAvailable();
       if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
@@ -5857,7 +5873,7 @@ function renderWorkshopPlannerWhenReady() {
     loadExternalScript(`workshop-data-service.js?r424=2026.10.21.01&r417=2026.10.21.01&scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-data-service-script'),
     loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'),
     loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01`, 'workshop-shared-actions-script'),
-    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&search-jobcards=2026.10.26.01`, 'workshop-planner-script')
+    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&search-jobcards=2026.10.26.01`, 'workshop-planner-script')
   ])
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
@@ -5909,7 +5925,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&search-jobcards=2026.10.26.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&search-jobcards=2026.10.26.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -8825,9 +8841,13 @@ async function loadAuthenticatedOperationSummary(row) {
 }
 
 function bindAuthenticatedOperationSummaries(host = document) {
+  installVehicleEmailWarningInteractions();
   $$('[data-incoming-row]', host).forEach(row => {
     row.addEventListener('toggle', () => { if (row.open) void loadAuthenticatedOperationSummary(row); });
-    if (row.open) void loadAuthenticatedOperationSummary(row);
+    if (row.open) {
+      void loadAuthenticatedOperationSummary(row);
+      if (vehicleEmailNotesVisible()) void loadVehicleEmailWarnings(selectedVehicle(row.dataset.incomingRow), row);
+    }
   });
 }
 
@@ -9063,6 +9083,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${labelAction}${deleteAction}</span>`}
       </summary>
       <div class="incoming-vehicle-detail-grid">
+        ${vehicleEmailPartsEtaHost(vehicle)}
         <div><b>Stock No.</b><span>${escapeHtml(stock)}</span></div>
         <div><b>VIN / Chassis</b><span>${escapeHtml(vin)}</span></div>
         <div><b>Sales rep</b><span>${escapeHtml(consultant)}</span></div>
@@ -14086,7 +14107,11 @@ function vehicleWorkshopBookingRowsHtml(bookings = [], fallbackText = 'Not booke
     const bookingId = cleanNavisionText(booking.booking_id || '');
     const stage = vehicleWorkshopStageCode(booking.stage_code || '');
     const dateKey = vehicleWorkshopBookingDateKey(booking);
-    const bay = Number(booking.bay_number) > 0 ? pdcBayText(stage, Number(booking.bay_number)) : cleanNavisionText(booking.bay_name || '') || 'Bay not assigned';
+    const bayCode = `${stage}-BAY-${String(booking.bay_number).padStart(2, '0')}`;
+    const bayRows = (typeof window === 'object' && window.__workshopReferenceDataService?.getCachedWorkshopBays?.()?.rows) || [];
+    const cachedBay = String(bayRows.find(row => row && row.code === bayCode)?.display_name || '').trim();
+    const storedBay = cleanNavisionText(booking.bay_display_name || booking.bay_name || booking.bay?.display_name || '');
+    const bay = cachedBay || storedBay || (Number(booking.bay_number) > 0 ? pdcBayText(stage, Number(booking.bay_number)) : '') || 'Bay not assigned';
     const label = `${vehicleWorkshopBookingTimeLabel(booking)} · ${bay} · ${vehicleWorkshopBookingStatusLabel(booking.status)}`;
     const vehicleId = vehicleWorkshopDetailCanonicalId(vehicle);
     const stock = displayStockNumber(vehicle);
@@ -15953,6 +15978,160 @@ async function completeVehicleDelete(stock) {
   }
 }
 
+const VEHICLE_EMAIL_PARTS_ETA_CSS = [
+  '.vehicle-email-parts-eta{grid-column:1/-1}',
+  '.vehicle-email-warning{position:relative;margin:4px 0;border:1px solid #7dd3fc;border-left:4px solid #0284c7;border-radius:8px;background:#e0f2fe;color:#0c4a6e}',
+  '.vehicle-email-warning-row{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:transparent;border:0;color:#0c4a6e;font:inherit;padding:6px 8px;cursor:pointer}',
+  '.vehicle-email-warning-kind{font-weight:700}',
+  '.vehicle-email-warning-when{margin-left:auto;white-space:nowrap}',
+  '.vehicle-email-warning-panel{display:none;padding:8px 10px 10px;border-top:1px solid #7dd3fc;background:#f0f9ff;color:#0c4a6e}',
+  '.vehicle-email-warning:hover .vehicle-email-warning-panel,.vehicle-email-warning:focus-within .vehicle-email-warning-panel,.vehicle-email-warning.is-open .vehicle-email-warning-panel{display:block}',
+  '.vehicle-email-warning-panel dl{display:grid;grid-template-columns:5.5rem 1fr;gap:2px 8px;margin:0}',
+  '.vehicle-email-warning-panel dt{font-weight:700}',
+  '.vehicle-email-warning-panel dd{margin:0;overflow-wrap:anywhere}',
+  '.vehicle-email-warning-text,.vehicle-email-warning-conflict{margin:8px 0 0;white-space:pre-wrap}',
+  '.vehicle-email-warning-conflict{font-weight:650}',
+].join('');
+
+function vehicleEmailNotesVisible() {
+  const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
+  return role === 'operator' || role === 'administrator';
+}
+
+function ensureVehicleEmailPartsEtaStyle() {
+  if (typeof document === 'undefined' || document.getElementById('vehicle-email-parts-eta-style')) return;
+  const style = document.createElement('style');
+  style.id = 'vehicle-email-parts-eta-style';
+  style.textContent = VEHICLE_EMAIL_PARTS_ETA_CSS;
+  document.head.appendChild(style);
+}
+
+function vehicleEmailNoteWhen(value, withTime = true) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const options = { timeZone: 'Australia/Perth', day: 'numeric', month: 'short', year: 'numeric' };
+  if (withTime) {
+    options.hour = '2-digit';
+    options.minute = '2-digit';
+    options.hour12 = false;
+  }
+  return new Intl.DateTimeFormat('en-AU', options).format(date);
+}
+
+function vehicleEmailConflictSentence(note) {
+  const conflicts = note?.conflicts === true || note?.conflicts === 'true';
+  if (!conflicts) return '';
+  if (note.category === 'parts_complete') {
+    return 'The email disagrees with the board: the email says parts are complete, and the board does not show parts received.';
+  }
+  return 'The email disagrees with the board: parts are still waiting, and the board shows parts received.';
+}
+
+function vehicleEmailWarningHtml(note) {
+  const labels = {
+    parts_eta: 'Parts ETA',
+    waiting_parts: 'Still waiting on parts',
+    stoppage: 'Stoppage email',
+    parts_complete: 'Parts complete',
+    cancellation: 'Cancellation',
+    job_card_problem: 'Job card problem',
+    po_received: 'PO received',
+    other: 'Email',
+    job_card: 'Job card problem',
+    eta_chase: 'Parts ETA',
+  };
+  const category = labels[note.category] || 'Email';
+  const fromParts = [note.sender_name, note.sender_email].map(part => String(part || '').trim()).filter(Boolean);
+  const fromText = fromParts.length === 2 ? `${fromParts[0]} <${fromParts[1]}>` : (fromParts[0] || '');
+  const when = vehicleEmailNoteWhen(note.event_at, false);
+  const whenFull = vehicleEmailNoteWhen(note.event_at, true);
+  const conflict = vehicleEmailConflictSentence(note);
+  const text = String(note.snippet || note.quote || note.summary || '').trim();
+  return `<div class="vehicle-email-warning">
+    <button type="button" class="vehicle-email-warning-row" aria-expanded="false" aria-label="${escapeHtml(['Email', category, when].filter(Boolean).join(', '))}">
+      <span class="vehicle-email-warning-kind">Email</span>
+      <span class="vehicle-email-warning-label">${escapeHtml(category)}</span>
+      <span class="vehicle-email-warning-when">${escapeHtml(when)}</span>
+    </button>
+    <div class="vehicle-email-warning-panel">
+      <dl>
+        <dt>From</dt><dd>${escapeHtml(fromText)}</dd>
+        <dt>To</dt><dd>${escapeHtml(note.to_address || '')}</dd>
+        <dt>Date</dt><dd>${escapeHtml(whenFull)}</dd>
+        <dt>Subject</dt><dd>${escapeHtml(note.subject || '')}</dd>
+      </dl>
+      <p class="vehicle-email-warning-text">${escapeHtml(text)}</p>
+      ${conflict ? `<p class="vehicle-email-warning-conflict">${escapeHtml(conflict)}</p>` : ''}
+    </div>
+  </div>`;
+}
+
+function vehicleEmailPartsEtaHost(vehicle, surface = 'card') {
+  if (!vehicleEmailNotesVisible()) return '';
+  const vehicleId = String(vehicle?.__emailVehicleId || vehicle?.id || '').trim();
+  if (!vehicleId) return '';
+  if (surface === 'detail') {
+    return `<div class="vehicle-email-parts-eta" data-vehicle-email-warnings="${escapeHtml(vehicleId)}" data-vehicle-email-surface="detail"><div class="muted-label">Parts ETA</div><div class="subtle">Loading board emails…</div></div>`;
+  }
+  return `<div class="wide vehicle-email-parts-eta" data-vehicle-email-warnings="${escapeHtml(vehicleId)}" data-vehicle-email-surface="card" hidden></div>`;
+}
+
+function finishVehicleEmailWarningHost(host, notes, failed) {
+  const detail = host.dataset.vehicleEmailSurface === 'detail';
+  if (failed || !notes.length) {
+    if (!detail) {
+      host.hidden = true;
+      host.replaceChildren();
+      return;
+    }
+    host.hidden = false;
+    host.innerHTML = `<div class="muted-label">Parts ETA</div><div class="subtle">${failed ? 'Board emails could not be loaded.' : 'No board emails on this vehicle yet.'}</div>`;
+    return;
+  }
+  host.hidden = false;
+  const rows = notes.map(vehicleEmailWarningHtml).join('');
+  host.innerHTML = detail ? `<div class="muted-label">Parts ETA</div>${rows}` : rows;
+}
+
+function installVehicleEmailWarningInteractions() {
+  if (typeof document === 'undefined' || document.documentElement?.dataset?.vehicleEmailWarningsBound === '1') return;
+  document.documentElement.dataset.vehicleEmailWarningsBound = '1';
+  ensureVehicleEmailPartsEtaStyle();
+  document.addEventListener('toggle', event => {
+    const row = event.target;
+    if (!row?.matches?.('details.incoming-vehicle-card[data-incoming-row]')) return;
+    if (!row.open || !vehicleEmailNotesVisible()) return;
+    void loadVehicleEmailWarnings(selectedVehicle(row.dataset.incomingRow), row);
+  }, true);
+  document.addEventListener('click', event => {
+    const button = event.target?.closest?.('.vehicle-email-warning-row');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const item = button.closest('.vehicle-email-warning');
+    if (!item) return;
+    const open = !item.classList.contains('is-open');
+    item.classList.toggle('is-open', open);
+    button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+}
+
+async function loadVehicleEmailWarnings(vehicle, root) {
+  installVehicleEmailWarningInteractions();
+  if (!root?.querySelectorAll || !vehicleEmailNotesVisible()) return;
+  const vehicleId = String(vehicle?.__emailVehicleId || vehicle?.id || '').trim();
+  const hosts = [...root.querySelectorAll('[data-vehicle-email-warnings]')].filter(host => host.dataset.vehicleEmailWarnings === vehicleId);
+  if (!hosts.length) return;
+  if (!vehicleId || !window.PDC_SUPABASE?.rpc) {
+    hosts.forEach(host => finishVehicleEmailWarningHost(host, [], true));
+    return;
+  }
+  const { data, error } = await window.PDC_SUPABASE.rpc('list_vehicle_email_notes_556', { p_vehicle_id: vehicleId });
+  if (!root.isConnected) return;
+  const notes = Array.isArray(data) ? data : [];
+  hosts.forEach(host => finishVehicleEmailWarningHost(host, notes, Boolean(error)));
+}
+
 function renderDetail() {
   const v = selectedVehicle();
   const panel = $('#vehicle-detail');
@@ -16116,6 +16295,7 @@ function renderDetail() {
         <div class="muted-label">Import & detailed audit trail</div>
         ${renderAuditTrailSection(v)}
       </div>
+      ${vehicleEmailPartsEtaHost(v, 'detail')}
       <form class="notes-form" data-notes-form>
         <div class="muted-label">Team notes</div>
         <textarea rows="3" placeholder="Add call notes, accessory reminders, or follow-up actions..."></textarea>
@@ -16146,6 +16326,7 @@ function renderDetail() {
     await copyVehicleStockNumber(value, event.currentTarget, status);
   });
   loadVehicleHistoryForDetail(v);
+  if (vehicleEmailNotesVisible()) void loadVehicleEmailWarnings(v, panel);
   on($('[data-email-vehicle-update]', panel), 'click', () => draftSelectedVehicleStatusEmail(key));
   bindVehicleLabelButtons(panel);
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));

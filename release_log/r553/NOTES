@@ -1,0 +1,17 @@
+r553 / F167 / sort 328. Craig approved go-live 26 Oct 2026 16:16 AWST, after #530.
+
+Staging `cdsmnqxtyyoeoznmbidd` only. Production is not a target. Rebased onto main `249bca97` (#530 and #534-#538).
+
+The 14:03 AWST Revolution message subject is `CW PMG PD Parts Status Complete` and the file is `CW PMG PD Parts Status Complete - Job 1.xls`. `public.pdc_import_job_parts_csv_20260912(jsonb,jsonb)` rejected that pair in the `revolution_automated_parts_workbook` branch.
+
+r551 is Codex's helper-table lockdown (ledger `20261026110756`) and is not reused. F165 and sort 326 were the old preview numbers and are not reused. r552 / F166 / sort 327 is the open clock-step preview (#533). This is r553 / F167 / sort 328.
+
+The new arm accepts subject `CW PMG PD Parts Status Complete` and `source_file` matching `^(CW )?PMG PD Parts Status Complete( - Job 1)?[.]xlsx?$`. The Pilbara arm and the V1 arm are unchanged. The inserted newlines are LF. The rest of the body stays CRLF. Codex #534-#538 new-addition routing (`proposal`, `accept_change`, `operation_station`) is not edited.
+
+Prosrc md5 `ccf492618ca11625470b691fbe029ac7` becomes `e56cd1f5d12205a0d72826d64cb8d1de`. `md5(pg_get_functiondef)` `2868827fe333373debf7b40194f5d46c` becomes `76b0570ee2c788d5cacf9d01a5843ed6`. The pin moves in place to r553. Pin count stays 241. `outlook_pdc_auth_505` changes only that 32-character prosrc md5 and stays 7303 characters.
+
+Check `parts_import_cw_rename` (F167, sort 328) accepts the new subject and filename, still accepts the Pilbara and V1 names, and rejects subject `Workshop hours` with file `notes.txt`. It uses `pg_catalog.to_regprocedure` and schema-qualified `pg_catalog.jsonb`. It has no `regprocedure` cast.
+
+Up file md5 `495ad6d6aa74cad62ec8d4a005d3c16c`. Down file md5 `dd8dc44c2826b9c90bff15e80352551b`.
+
+Undo: `supabase/rollbacks/20261027040000_r553_parts_import_cw_rename.down.sql`.

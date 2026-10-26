@@ -652,6 +652,8 @@ function createWorkshopReferenceDataService(options) {
     getCachedWorkshopBays: () => getCached('workshopBays'),
     setWorkshopBayActive: (bayId, expectedVersion, active) =>
       mutate('workshopBays', 'set_workshop_bay_active', { p_bay_id: bayId, p_expected_version: expectedVersion, p_active: !!active }),
+    setWorkshopBayDisplayName: (bayId, expectedVersion, displayName) =>
+      mutate('workshopBays', 'set_workshop_bay_display_name', { p_bay_id: bayId, p_expected_version: expectedVersion, p_display_name: displayName }),
     setBayDefaultTechnician,
     subscribeWorkshopBays: () => subscribeToResource('workshopBays'),
 
