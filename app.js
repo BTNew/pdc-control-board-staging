@@ -16031,7 +16031,7 @@ function vehicleEmailWarningHtml(note) {
   const labels = {
     parts_eta: 'Parts ETA',
     waiting_parts: 'Still waiting on parts',
-    stoppage: 'Stoppage',
+    stoppage: 'Stoppage email',
     parts_complete: 'Parts complete',
     cancellation: 'Cancellation',
     job_card_problem: 'Job card problem',

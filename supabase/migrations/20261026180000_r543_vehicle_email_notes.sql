@@ -1,15 +1,21 @@
 -- r543 (F157). PREVIEW. SQL is not applied. Staging cdsmnqxtyyoeoznmbidd only. Production is not touched.
 -- 26 Oct 2026 10:45 AWST: board facts from pdc@ emails do not appear on the vehicle card.
 -- 26 Oct 2026, relayed by Kajel: every board-relevant pdc@ email is attached to the vehicle and
--- shows in the Parts ETA section. The first case is stock 13057027 (fbafc3cd-09ff-414d-a29a-60529c0d3fca):
--- Talin says the bull bar is still waiting, due this week, and the board shows parts received.
+-- shows in the Parts ETA section. This is not the Stoppages bucket. It does not move the vehicle
+-- and it does not change any status. The first case is stock 13057027 (fbafc3cd-09ff-414d-a29a-60529c0d3fca):
+-- a Prado, key 209, at PMB. Talin says the bull bar is still waiting, due this week, and the board
+-- shows parts received. The warning does not take it out of PMB.
 -- append_vehicle_timeline_event is pinned (ef3bd3587978f25862546483913231e4, r421) and requires
 -- auth.uid(), so the hourly importer does not call it. This release writes the timeline row itself.
--- A note does not change parts status. The card warns only when the email disagrees with the board.
 -- It does not create a vehicle or a job. Pin count stays 241.
 -- Sort 320 is live r542. Sort 319 is the open r541 parts preview. This check is sort 321.
--- Importer signature:
---   record_pdc_vehicle_email_543(text, uuid, text, text, text, timestamptz, text, text, text, text, text)
+-- After go-live the importer backfills 13000779, 13115427, 13047406, 13070395, 12311152 and
+-- 13128722 through 13128725. Each add, clear and stock read is an index lookup. A batch of at
+-- most 100 items is one call. A missing stock is reported and is not created.
+-- Add:    record_pdc_vehicle_email_543(text, uuid, text, text, text, timestamptz, text, text, text, text, text)
+-- Clear:  clear_pdc_vehicle_email_543(text)
+-- Read:   list_pdc_vehicle_email_warnings_543(text)
+-- Batch:  apply_pdc_vehicle_email_batch_543(jsonb)
 -- Undo: supabase/rollbacks/20261026180000_r543_vehicle_email_notes.down.sql
 
 SET LOCAL lock_timeout = '2s';
@@ -52,7 +58,8 @@ DECLARE
   new_id uuid;
   vehicle_id uuid;
   vehicle_stock text;
-  vehicle_count integer;
+  vehicle_count integer := 0;
+  existing_cleared boolean := false;
   message_id text := btrim(coalesce(p_message_id, ''));
   snippet_text text := btrim(coalesce(p_snippet, ''));
   summary_text text := btrim(coalesce(p_summary, ''));
@@ -62,7 +69,7 @@ DECLARE
   from_raw text := btrim(coalesce(p_from_address, ''));
   from_email text := lower(coalesce(substring(from_raw from '<([^<>[:space:]]+)>'), ''));
   from_name text;
-  stock_token text := upper(btrim(coalesce(p_stock, '')));
+  stock_token text := btrim(coalesce(p_stock, ''));
   service_ok boolean := coalesce(auth.role(), '') = 'service_role' OR coalesce(current_user, '') = 'service_role';
   controller_ok boolean := coalesce(public.is_pdc_role('operator'::public.pdc_role), false)
     OR coalesce(public.is_pdc_role('administrator'::public.pdc_role), false);
@@ -110,37 +117,41 @@ BEGIN
     IF NOT FOUND THEN
       RETURN jsonb_build_object('ok', false, 'code', 'vehicle_not_found');
     END IF;
-    IF stock_token <> '' AND upper(btrim(vehicle_stock)) IS DISTINCT FROM stock_token THEN
+    IF stock_token <> '' AND btrim(vehicle_stock) IS DISTINCT FROM stock_token THEN
       RETURN jsonb_build_object('ok', false, 'code', 'vehicle_stock_mismatch');
     END IF;
   ELSIF stock_token <> '' THEN
-    SELECT count(*)::integer INTO vehicle_count
-    FROM public.vehicles v
-    WHERE v.deleted_at IS NULL AND upper(btrim(v.stock_number)) = stock_token;
-    IF coalesce(vehicle_count, 0) = 0 THEN
+    -- Equality on stock_number uses vehicles_stock_idx. At most two rows are read.
+    FOR vehicle_id, vehicle_stock IN
+      SELECT v.id, v.stock_number
+      FROM public.vehicles v
+      WHERE v.deleted_at IS NULL AND v.stock_number = stock_token
+      LIMIT 2
+    LOOP
+      vehicle_count := vehicle_count + 1;
+    END LOOP;
+    IF vehicle_count = 0 THEN
       RETURN jsonb_build_object('ok', false, 'code', 'vehicle_not_found');
     END IF;
     IF vehicle_count <> 1 THEN
       RETURN jsonb_build_object('ok', false, 'code', 'vehicle_ambiguous');
     END IF;
-    SELECT v.id, v.stock_number INTO vehicle_id, vehicle_stock
-    FROM public.vehicles v
-    WHERE v.deleted_at IS NULL AND upper(btrim(v.stock_number)) = stock_token;
   ELSE
     RETURN jsonb_build_object('ok', false, 'code', 'vehicle_required');
   END IF;
-  SELECT e.id, e.vehicle_id INTO existing_id, existing_vehicle
+  SELECT e.id, e.vehicle_id, (coalesce(e.structured_data->>'cleared', 'false') = 'true')
+    INTO existing_id, existing_vehicle, existing_cleared
   FROM public.vehicle_timeline_events e
   WHERE e.source_email_id = message_id
-  ORDER BY e.created_at
   LIMIT 1;
   IF FOUND AND existing_vehicle IS DISTINCT FROM vehicle_id THEN
-    RETURN jsonb_build_object('ok', false, 'code', 'message_already_on_another_vehicle', 'event_id', existing_id);
+    RETURN jsonb_build_object('ok', false, 'code', 'message_already_on_another_vehicle', 'event_id', existing_id, 'action', 'add');
   END IF;
   IF FOUND THEN
-    RETURN jsonb_build_object('ok', true, 'replay', true, 'event_id', existing_id, 'vehicle_id', existing_vehicle, 'source_email_id', message_id);
+    -- The same message id does not add a second warning and does not reopen a cleared one.
+    RETURN jsonb_build_object('ok', true, 'replay', true, 'action', 'add', 'cleared', existing_cleared, 'event_id', existing_id, 'vehicle_id', existing_vehicle, 'source_email_id', message_id, 'parts_status_changed', false, 'status_changed', false, 'vehicle_moved', false);
   END IF;
-  -- The note is a timeline row only. parts_received and the parts flags stay as they are.
+  -- Timeline row only. This is not the Stoppages bucket. Location, key and every status stay as they are.
   INSERT INTO public.vehicle_timeline_events (
     vehicle_id, event_type, event_at, source_kind, event_state,
     source_system, source_mailbox, source_email_id, sender_name, sender_email,
@@ -163,16 +174,17 @@ BEGIN
   ON CONFLICT (source_email_id) WHERE source_email_id IS NOT NULL DO NOTHING
   RETURNING id INTO new_id;
   IF new_id IS NULL THEN
-    SELECT e.id, e.vehicle_id INTO existing_id, existing_vehicle
+    SELECT e.id, e.vehicle_id, (coalesce(e.structured_data->>'cleared', 'false') = 'true')
+      INTO existing_id, existing_vehicle, existing_cleared
     FROM public.vehicle_timeline_events e
     WHERE e.source_email_id = message_id
     LIMIT 1;
     IF existing_vehicle IS DISTINCT FROM vehicle_id THEN
-      RETURN jsonb_build_object('ok', false, 'code', 'message_already_on_another_vehicle', 'event_id', existing_id);
+      RETURN jsonb_build_object('ok', false, 'code', 'message_already_on_another_vehicle', 'event_id', existing_id, 'action', 'add');
     END IF;
-    RETURN jsonb_build_object('ok', true, 'replay', true, 'event_id', existing_id, 'vehicle_id', existing_vehicle, 'source_email_id', message_id);
+    RETURN jsonb_build_object('ok', true, 'replay', true, 'action', 'add', 'cleared', existing_cleared, 'event_id', existing_id, 'vehicle_id', existing_vehicle, 'source_email_id', message_id, 'parts_status_changed', false, 'status_changed', false, 'vehicle_moved', false);
   END IF;
-  RETURN jsonb_build_object('ok', true, 'replay', false, 'event_id', new_id, 'vehicle_id', vehicle_id, 'stock_number', vehicle_stock, 'category', p_category, 'source_email_id', message_id, 'parts_status_changed', false);
+  RETURN jsonb_build_object('ok', true, 'replay', false, 'action', 'add', 'cleared', false, 'event_id', new_id, 'vehicle_id', vehicle_id, 'stock_number', vehicle_stock, 'category', p_category, 'source_email_id', message_id, 'parts_status_changed', false, 'status_changed', false, 'vehicle_moved', false);
 END
 $note543$;
 
@@ -226,6 +238,8 @@ BEGIN
   FROM public.vehicle_timeline_events e
   WHERE e.vehicle_id = p_vehicle_id
     AND e.source_email_id IS NOT NULL
+    AND e.structured_data->>'source' = 'email_note_543'
+    AND coalesce(e.structured_data->>'cleared', 'false') <> 'true'
     AND e.event_type IN (
       'parts_eta', 'waiting_parts', 'stoppage', 'parts_complete',
       'cancellation', 'job_card_problem', 'po_received', 'other'
@@ -238,9 +252,211 @@ $list543$;
 REVOKE ALL ON FUNCTION public.list_vehicle_email_notes_543(uuid) FROM PUBLIC, anon, service_role;
 GRANT EXECUTE ON FUNCTION public.list_vehicle_email_notes_543(uuid) TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.clear_pdc_vehicle_email_543(p_message_id text)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public'
+AS $clear543$
+DECLARE
+  message_id text := btrim(coalesce(p_message_id, ''));
+  existing_id uuid;
+  existing_vehicle uuid;
+  service_ok boolean := coalesce(auth.role(), '') = 'service_role' OR coalesce(current_user, '') = 'service_role';
+  controller_ok boolean := coalesce(public.is_pdc_role('operator'::public.pdc_role), false)
+    OR coalesce(public.is_pdc_role('administrator'::public.pdc_role), false);
+BEGIN
+  IF NOT (
+    service_ok
+    OR controller_ok
+    OR coalesce(pdc_codex_intake_private.management_connection(), false)
+  ) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'not_authorized', 'action', 'clear');
+  END IF;
+  IF message_id = '' OR length(message_id) < 8 OR length(message_id) > 512 OR message_id ~ '[[:space:]]' THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'message_id_required', 'action', 'clear');
+  END IF;
+  -- One unique-index lookup. A second clear of the same message id does not write.
+  UPDATE public.vehicle_timeline_events e
+  SET structured_data = e.structured_data || jsonb_build_object('cleared', true, 'cleared_at', pg_catalog.to_jsonb(pg_catalog.clock_timestamp()))
+  WHERE e.source_email_id = message_id
+    AND e.structured_data->>'source' = 'email_note_543'
+    AND coalesce(e.structured_data->>'cleared', 'false') <> 'true'
+  RETURNING e.id, e.vehicle_id INTO existing_id, existing_vehicle;
+  IF existing_id IS NOT NULL THEN
+    RETURN jsonb_build_object('ok', true, 'replay', false, 'action', 'clear', 'cleared', true, 'event_id', existing_id, 'vehicle_id', existing_vehicle, 'source_email_id', message_id, 'parts_status_changed', false, 'status_changed', false, 'vehicle_moved', false);
+  END IF;
+  SELECT e.id, e.vehicle_id INTO existing_id, existing_vehicle
+  FROM public.vehicle_timeline_events e
+  WHERE e.source_email_id = message_id
+    AND e.structured_data->>'source' = 'email_note_543'
+    AND coalesce(e.structured_data->>'cleared', 'false') = 'true'
+  LIMIT 1;
+  IF existing_id IS NOT NULL THEN
+    RETURN jsonb_build_object('ok', true, 'replay', true, 'action', 'clear', 'cleared', true, 'event_id', existing_id, 'vehicle_id', existing_vehicle, 'source_email_id', message_id, 'parts_status_changed', false, 'status_changed', false, 'vehicle_moved', false);
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.vehicle_timeline_events e WHERE e.source_email_id = message_id) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'message_not_a_warning', 'action', 'clear', 'source_email_id', message_id, 'status_changed', false, 'vehicle_moved', false);
+  END IF;
+  RETURN jsonb_build_object('ok', true, 'replay', true, 'action', 'clear', 'found', false, 'source_email_id', message_id, 'parts_status_changed', false, 'status_changed', false, 'vehicle_moved', false);
+END
+$clear543$;
+
+REVOKE ALL ON FUNCTION public.clear_pdc_vehicle_email_543(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.clear_pdc_vehicle_email_543(text) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.list_pdc_vehicle_email_warnings_543(p_stock text)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public'
+AS $read543$
+DECLARE
+  stock_token text := btrim(coalesce(p_stock, ''));
+  target_id uuid;
+  target_stock text;
+  vehicle_count integer := 0;
+  board_received boolean;
+  warnings jsonb;
+  service_ok boolean := coalesce(auth.role(), '') = 'service_role' OR coalesce(current_user, '') = 'service_role';
+  controller_ok boolean := coalesce(public.is_pdc_role('operator'::public.pdc_role), false)
+    OR coalesce(public.is_pdc_role('administrator'::public.pdc_role), false);
+BEGIN
+  IF NOT (
+    service_ok
+    OR controller_ok
+    OR coalesce(pdc_codex_intake_private.management_connection(), false)
+  ) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'not_authorized');
+  END IF;
+  IF stock_token = '' THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'vehicle_required');
+  END IF;
+  FOR target_id, target_stock IN
+    SELECT v.id, v.stock_number
+    FROM public.vehicles v
+    WHERE v.deleted_at IS NULL AND v.stock_number = stock_token
+    LIMIT 2
+  LOOP
+    vehicle_count := vehicle_count + 1;
+  END LOOP;
+  IF vehicle_count = 0 THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'vehicle_not_found', 'stock_number', stock_token);
+  END IF;
+  IF vehicle_count <> 1 THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'vehicle_ambiguous', 'stock_number', stock_token);
+  END IF;
+  SELECT u.parts_received INTO board_received
+  FROM public.vehicle_parts_updates u
+  WHERE u.vehicle_id = target_id
+  ORDER BY u.updated_at DESC NULLS LAST
+  LIMIT 1;
+  SELECT coalesce(jsonb_agg(row_value ORDER BY row_at DESC), '[]'::jsonb) INTO warnings
+  FROM (
+    SELECT e.event_at AS row_at, jsonb_build_object(
+      'message_id', e.source_email_id,
+      'category', e.event_type,
+      'event_at', e.event_at,
+      'sender_name', e.sender_name,
+      'sender_email', e.sender_email,
+      'to_address', coalesce(e.structured_data->>'to_address', e.recipient_mailbox),
+      'subject', e.subject,
+      'snippet', coalesce(e.structured_data->>'snippet', e.original_statement),
+      'conflicts', CASE
+        WHEN e.event_type IN ('waiting_parts', 'parts_eta') AND coalesce(board_received, false) THEN true
+        WHEN e.event_type = 'parts_complete' AND NOT coalesce(board_received, false) THEN true
+        ELSE false
+      END
+    ) AS row_value
+    FROM public.vehicle_timeline_events e
+    WHERE e.vehicle_id = target_id
+      AND e.source_email_id IS NOT NULL
+      AND e.structured_data->>'source' = 'email_note_543'
+      AND coalesce(e.structured_data->>'cleared', 'false') <> 'true'
+      AND e.event_type IN (
+        'parts_eta', 'waiting_parts', 'stoppage', 'parts_complete',
+        'cancellation', 'job_card_problem', 'po_received', 'other'
+      )
+    ORDER BY e.event_at DESC, e.created_at DESC
+    LIMIT 50
+  ) active_rows;
+  RETURN jsonb_build_object('ok', true, 'code', 'ok', 'stock_number', target_stock, 'vehicle_id', target_id, 'warnings', warnings, 'status_changed', false, 'vehicle_moved', false);
+END
+$read543$;
+
+REVOKE ALL ON FUNCTION public.list_pdc_vehicle_email_warnings_543(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.list_pdc_vehicle_email_warnings_543(text) TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION public.apply_pdc_vehicle_email_batch_543(p_items jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'pg_catalog', 'public'
+AS $batch543$
+DECLARE
+  item jsonb;
+  action text;
+  one jsonb;
+  results jsonb := '[]'::jsonb;
+  n integer;
+  failed integer := 0;
+  service_ok boolean := coalesce(auth.role(), '') = 'service_role' OR coalesce(current_user, '') = 'service_role';
+  controller_ok boolean := coalesce(public.is_pdc_role('operator'::public.pdc_role), false)
+    OR coalesce(public.is_pdc_role('administrator'::public.pdc_role), false);
+BEGIN
+  IF NOT (
+    service_ok
+    OR controller_ok
+    OR coalesce(pdc_codex_intake_private.management_connection(), false)
+  ) THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'not_authorized');
+  END IF;
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'batch_required');
+  END IF;
+  n := jsonb_array_length(p_items);
+  IF n > 100 THEN
+    RETURN jsonb_build_object('ok', false, 'code', 'batch_too_large', 'limit', 100);
+  END IF;
+  FOR item IN SELECT value FROM jsonb_array_elements(p_items) LOOP
+    action := lower(btrim(coalesce(item->>'action', '')));
+    BEGIN
+      IF action = 'add' THEN
+        one := public.record_pdc_vehicle_email_543(
+          item->>'stock',
+          nullif(item->>'vehicle_id', '')::uuid,
+          item->>'message_id',
+          item->>'from_address',
+          item->>'to_address',
+          nullif(item->>'received_at', '')::timestamptz,
+          item->>'subject',
+          item->>'snippet',
+          item->>'category',
+          item->>'summary',
+          item->>'quote'
+        );
+      ELSIF action = 'clear' THEN
+        one := public.clear_pdc_vehicle_email_543(item->>'message_id');
+      ELSE
+        one := jsonb_build_object('ok', false, 'code', 'action_not_allowed', 'action', action);
+      END IF;
+    EXCEPTION WHEN invalid_text_representation OR invalid_datetime_format THEN
+      one := jsonb_build_object('ok', false, 'code', 'item_invalid', 'action', action);
+    END;
+    IF coalesce(one->>'ok', 'false') <> 'true' THEN failed := failed + 1; END IF;
+    results := results || jsonb_build_array(one);
+  END LOOP;
+  RETURN jsonb_build_object('ok', failed = 0, 'count', n, 'failed', failed, 'results', results, 'status_changed', false, 'vehicle_moved', false);
+END
+$batch543$;
+
+REVOKE ALL ON FUNCTION public.apply_pdc_vehicle_email_batch_543(jsonb) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.apply_pdc_vehicle_email_batch_543(jsonb) TO authenticated, service_role;
+
 INSERT INTO pdc_ops.regression_checks(check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
 ('vehicle_email_notes_543', 'F157',
- 'Vehicle email notes (r543): the hourly importer, the service role, or a controller can attach one pdc@ email to an existing vehicle. Categories are parts ETA, still waiting, stoppage, parts complete, cancellation, job card problem, PO received and other. The same message id is stored once. The note does not change parts status. A waiting email conflicts when the board already shows parts received, as on 13057027. The card read is for a controller. No vehicle or job is created. The pinned timeline append stays put.',
+ 'Vehicle email warnings (r543): the hourly importer, the service role, or a controller can add or clear one pdc@ email on an existing vehicle, idempotent by message id. The stock read lists the active warnings. A batch of at most 100 is one call and each item is an index lookup. This is not the Stoppages bucket: nothing moves the vehicle or changes a status. A waiting email conflicts when the board already shows parts received, as on the Prado 13057027, key 209, at PMB. No vehicle or job is created. The pinned timeline append stays put.',
  $chk543$
 SELECT
  (
@@ -262,10 +478,27 @@ SELECT
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)')) NOT LIKE '%INSERT INTO public.vehicles%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)')) NOT LIKE '%INSERT INTO public.workshop_bookings%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)')) NOT LIKE '%vehicle_parts_updates%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)')) LIKE '%v.stock_number = stock_token%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)')) LIKE '%vehicle_moved%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)')) NOT LIKE '%UPDATE public.vehicles%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)')) NOT LIKE '%current_location%'
+  AND pg_catalog.to_regprocedure('public.clear_pdc_vehicle_email_543(text)') IS NOT NULL
+  AND pg_catalog.to_regprocedure('public.list_pdc_vehicle_email_warnings_543(text)') IS NOT NULL
+  AND pg_catalog.to_regprocedure('public.apply_pdc_vehicle_email_batch_543(jsonb)') IS NOT NULL
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.clear_pdc_vehicle_email_543(text)')) LIKE '%cleared%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.clear_pdc_vehicle_email_543(text)')) LIKE '%source_email_id = message_id%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.clear_pdc_vehicle_email_543(text)')) NOT LIKE '%UPDATE public.vehicles%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.clear_pdc_vehicle_email_543(text)')) NOT LIKE '%workshop_bookings%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.clear_pdc_vehicle_email_543(text)')) NOT LIKE '%vehicle_parts_updates%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_pdc_vehicle_email_warnings_543(text)')) LIKE '%v.stock_number = stock_token%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_pdc_vehicle_email_warnings_543(text)')) LIKE '%cleared%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.apply_pdc_vehicle_email_batch_543(jsonb)')) LIKE '%jsonb_array_length(p_items) > 100%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.apply_pdc_vehicle_email_batch_543(jsonb)')) NOT LIKE '%UPDATE public.vehicles%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_vehicle_email_notes_543(uuid)')) LIKE '%is_pdc_role(''operator''::public.pdc_role)%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_vehicle_email_notes_543(uuid)')) LIKE '%is_pdc_role(''administrator''::public.pdc_role)%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_vehicle_email_notes_543(uuid)')) LIKE '%waiting_parts%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_vehicle_email_notes_543(uuid)')) LIKE '%parts_received%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_vehicle_email_notes_543(uuid)')) LIKE '%cleared%'
   AND pg_catalog.to_regclass('public.vehicle_timeline_events_source_email_543') IS NOT NULL
   AND (SELECT i.indisunique FROM pg_catalog.pg_index i JOIN pg_catalog.pg_class c ON c.oid = i.indexrelid WHERE c.relname = 'vehicle_timeline_events_source_email_543') IS TRUE
   AND (SELECT count(*) FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'public' AND p.proname = 'append_vehicle_timeline_event') = 1
@@ -277,16 +510,25 @@ SELECT
   AND NOT pg_catalog.has_function_privilege('anon', 'public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)', 'EXECUTE')
   AND pg_catalog.has_function_privilege('authenticated', 'public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)', 'EXECUTE')
   AND pg_catalog.has_function_privilege('service_role', 'public.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)', 'EXECUTE')
+  AND pg_catalog.has_function_privilege('service_role', 'public.clear_pdc_vehicle_email_543(text)', 'EXECUTE')
+  AND pg_catalog.has_function_privilege('service_role', 'public.list_pdc_vehicle_email_warnings_543(text)', 'EXECUTE')
+  AND pg_catalog.has_function_privilege('service_role', 'public.apply_pdc_vehicle_email_batch_543(jsonb)', 'EXECUTE')
+  AND NOT pg_catalog.has_function_privilege('anon', 'public.clear_pdc_vehicle_email_543(text)', 'EXECUTE')
+  AND NOT pg_catalog.has_function_privilege('anon', 'public.list_pdc_vehicle_email_warnings_543(text)', 'EXECUTE')
+  AND NOT pg_catalog.has_function_privilege('anon', 'public.apply_pdc_vehicle_email_batch_543(jsonb)', 'EXECUTE')
   AND pg_catalog.to_regprocedure('karratha135_pdc.record_pdc_vehicle_email_543(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)') IS NULL
   AND (SELECT count(*) FROM public.vehicles v WHERE v.stock_number = '13057027' AND v.deleted_at IS NULL AND v.lifecycle_state = 'active' AND v.visible_on_board) = 1
   AND (SELECT v.id::text FROM public.vehicles v WHERE v.stock_number = '13057027' AND v.deleted_at IS NULL AND v.lifecycle_state = 'active' AND v.visible_on_board) = 'fbafc3cd-09ff-414d-a29a-60529c0d3fca'
+  AND (SELECT v.key_number FROM public.vehicles v WHERE v.id = 'fbafc3cd-09ff-414d-a29a-60529c0d3fca'::uuid) = '209'
+  AND (SELECT v.current_location FROM public.vehicles v WHERE v.id = 'fbafc3cd-09ff-414d-a29a-60529c0d3fca'::uuid) = 'PMB'
+  AND (SELECT v.model FROM public.vehicles v WHERE v.id = 'fbafc3cd-09ff-414d-a29a-60529c0d3fca'::uuid) LIKE 'Prado%'
   AND (SELECT u.parts_received FROM public.vehicle_parts_updates u JOIN public.vehicles v ON v.id = u.vehicle_id WHERE v.stock_number = '13057027' AND v.deleted_at IS NULL ORDER BY u.updated_at DESC NULLS LAST LIMIT 1) IS TRUE
   AND (
     'waiting_parts' IN ('waiting_parts', 'parts_eta')
     AND (SELECT u.parts_received FROM public.vehicle_parts_updates u JOIN public.vehicles v ON v.id = u.vehicle_id WHERE v.stock_number = '13057027' AND v.deleted_at IS NULL ORDER BY u.updated_at DESC NULLS LAST LIMIT 1) IS TRUE
   )
  ) AS ok,
- '13057027 is parts received, so a waiting email would warn; the note does not change that status; the pinned append stays ef3bd358' AS detail
+ '13057027 is a Prado, key 209, at PMB, and parts received, so a waiting email would warn; the warning does not move it or change that status; the pinned append stays ef3bd358' AS detail
 $chk543$, true, 321, 'r543');
 
 DO $p$ DECLARE x record; BEGIN
