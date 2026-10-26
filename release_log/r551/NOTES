@@ -1,0 +1,17 @@
+r551 / F165 / sort 326. PREVIEW. Not applied. Not merged.
+
+Staging `cdsmnqxtyyoeoznmbidd` only. Production is not a target.
+
+The 14:03 AWST Revolution message subject is `CW PMG PD Parts Status Complete` and the file is `CW PMG PD Parts Status Complete - Job 1.xls`. `public.pdc_import_job_parts_csv_20260912(jsonb,jsonb)` rejected that pair in the `revolution_automated_parts_workbook` branch.
+
+r546 and r547 were undone. r548 / F162 / sort 324 is live on staging. r549 / F163 (#530) also holds sort 324. r550 / F164 (#531) takes no sort. Open previews hold sorts 319, 321, 322 and 325. No open clock-tick preview held a later number, so this is r551 / F165 / sort 326.
+
+The new arm accepts subject `CW PMG PD Parts Status Complete` and `source_file` matching `^(CW )?PMG PD Parts Status Complete( - Job 1)?[.]xlsx?$`. The Pilbara arm and the V1 arm are unchanged. The inserted newlines are LF. The rest of the body stays CRLF.
+
+Prosrc md5 `ccf492618ca11625470b691fbe029ac7` becomes `e56cd1f5d12205a0d72826d64cb8d1de`. `md5(pg_get_functiondef)` `2868827fe333373debf7b40194f5d46c` becomes `76b0570ee2c788d5cacf9d01a5843ed6`. The pin moves in place to r551. Pin count stays 241. `outlook_pdc_auth_505` changes only that 32-character prosrc md5 and stays 7303 characters.
+
+Check `parts_import_cw_rename` (F165, sort 326) accepts the new subject and filename, still accepts the Pilbara and V1 names, and rejects subject `Workshop hours` with file `notes.txt`. It uses `pg_catalog.to_regprocedure` and schema-qualified `pg_catalog.jsonb`. It has no `regprocedure` cast.
+
+Up file md5 `08cac3322d1baa8e01c4601ccc5374c2`. Down file md5 `30daa20058e6bdafd092306db510b2a0`.
+
+Undo: `supabase/rollbacks/20261026234500_r551_parts_import_cw_rename.down.sql`.
