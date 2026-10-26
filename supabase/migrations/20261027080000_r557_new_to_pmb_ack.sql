@@ -1,7 +1,6 @@
--- r544 (F158). PREVIEW. Staging cdsmnqxtyyoeoznmbidd only. Production is not a target.
--- Craig, 26 Oct 2026 10:55 AWST, refined 10:56 AWST: acknowledgement is per workshop
--- station, not one tick for the whole vehicle. SQL is not applied until Craig gives
--- the go-live.
+-- r557 (F171). Craig approved go-live. Staging cdsmnqxtyyoeoznmbidd only.
+-- Production is not a target. Craig, 26 Oct 2026 10:55 AWST, refined 10:56 AWST:
+-- acknowledgement is per workshop station, not one tick for the whole vehicle.
 --
 -- At PMB for every downstream consumer: current_location stays 'PMB'. There is no new
 -- location value. Planner unallocated lists, work-status columns, station ticks, Sales
@@ -40,34 +39,36 @@
 --   A return from QC, PIT or RFT does not re-queue. Existing PMB rows are backfilled
 --   as closed, with no person and no station, so the new tile starts empty.
 --
--- Sort 320 is live r542 (close_gaps_holds_populated). r541 (F155, #525) reserves sort
--- 319 and is not applied. Open preview #526 reserves r543 / F157 / sort 321 and the
--- filename 20261026180000 (email notes). This check is r544 / F158 / sort 322.
--- Filename 20261026190000 sorts after both. The Supabase CLI was not on this machine;
--- a clock stamp would have sorted before r542.
--- Undo: supabase/rollbacks/20261026190000_r544_new_to_pmb_ack.down.sql
+-- Main numbered tip before this go-live is r556 / F170 / sort 331. Git tip is
+-- 66ab6669 (#540, running-work forward cascade). #540 does not take r/F/sort.
+-- This check is r557 / F171 / sort 332. A fresh arrival or acknowledgement
+-- deletes the r554 15-second location and eligibility copies and steps both
+-- revisions, so the next read is not the cached payload. The r554 wrapper
+-- bodies are not replaced. The running-growth cascade is not modified.
+-- Undo: supabase/rollbacks/20261027080000_r557_new_to_pmb_ack.down.sql
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
- IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r544: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
+ IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r557: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
  IF NOT public.pdc_monitor_staging_guard()
     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
-    OR pg_catalog.to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r544: staging only'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r544: pin count is not 241'; END IF;
- IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='close_gaps_holds_populated' AND fault_id='F156' AND sort_order=320 AND added_in='r542') THEN RAISE EXCEPTION 'r544: r542 / F156 sort 320 is not the live check'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=322 OR fault_id='F158' OR check_name='new_to_pmb_ack_544' OR added_in='r544') THEN RAISE EXCEPTION 'r544: sort 322 or F158 is taken'; END IF;
- IF pg_catalog.to_regclass('public.pdc_pmb_arrival_544') IS NOT NULL
-    OR pg_catalog.to_regclass('public.pdc_pmb_arrival_dept_ack_544') IS NOT NULL
-    OR pg_catalog.to_regclass('public.pdc_user_station_departments_544') IS NOT NULL
-    OR pg_catalog.to_regclass('public.pdc_pmb_arrival_ack_544') IS NOT NULL
-    OR pg_catalog.to_regnamespace('pdc_pmb_ack_private') IS NOT NULL THEN RAISE EXCEPTION 'r544: already applied'; END IF;
+    OR pg_catalog.to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r557: staging only'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r557: pin count is not 241'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='vehicle_email_notes_556' AND fault_id='F170' AND sort_order=331 AND added_in='r556') THEN RAISE EXCEPTION 'r557: r556 / F170 sort 331 is not present'; END IF;
+ IF pg_catalog.to_regclass('pdc_ops.vehicle_location_snapshot_cache_554') IS NULL OR pg_catalog.to_regclass('pdc_ops.eligibility_snapshot_cache_554') IS NULL THEN RAISE EXCEPTION 'r557: r554 caches are missing'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=332 OR fault_id='F171' OR check_name='new_to_pmb_ack_557' OR added_in='r557') THEN RAISE EXCEPTION 'r557: sort 332 or F171 is taken'; END IF;
+ IF pg_catalog.to_regclass('public.pdc_pmb_arrival_557') IS NOT NULL
+    OR pg_catalog.to_regclass('public.pdc_pmb_arrival_dept_ack_557') IS NOT NULL
+    OR pg_catalog.to_regclass('public.pdc_user_station_departments_557') IS NOT NULL
+    OR pg_catalog.to_regclass('public.pdc_pmb_arrival_ack_557') IS NOT NULL
+    OR pg_catalog.to_regnamespace('pdc_pmb_ack_private') IS NOT NULL THEN RAISE EXCEPTION 'r557: already applied'; END IF;
 END $g$;
 
 CREATE SCHEMA pdc_pmb_ack_private;
 REVOKE ALL ON SCHEMA pdc_pmb_ack_private FROM PUBLIC;
 REVOKE ALL ON SCHEMA pdc_pmb_ack_private FROM anon, authenticated, service_role;
 
-CREATE TABLE public.pdc_pmb_arrival_544 (
+CREATE TABLE public.pdc_pmb_arrival_557 (
  arrival_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  vehicle_id uuid NOT NULL,
  arrival_at timestamptz NOT NULL DEFAULT clock_timestamp(),
@@ -77,13 +78,13 @@ CREATE TABLE public.pdc_pmb_arrival_544 (
  closed_at timestamptz,
  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
-CREATE INDEX pdc_pmb_arrival_544_vehicle ON public.pdc_pmb_arrival_544 (vehicle_id, arrival_at DESC);
-CREATE UNIQUE INDEX pdc_pmb_arrival_544_one_open ON public.pdc_pmb_arrival_544 (vehicle_id) WHERE closed_at IS NULL;
-ALTER TABLE public.pdc_pmb_arrival_544 ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.pdc_pmb_arrival_544 FROM PUBLIC, anon, authenticated;
-COMMENT ON TABLE public.pdc_pmb_arrival_544 IS 'r544 (F158): one PMB arrival. closed_at set means every relevant station has been acknowledged, or the row is the backfill. Location stays PMB.';
+CREATE INDEX pdc_pmb_arrival_557_vehicle ON public.pdc_pmb_arrival_557 (vehicle_id, arrival_at DESC);
+CREATE UNIQUE INDEX pdc_pmb_arrival_557_one_open ON public.pdc_pmb_arrival_557 (vehicle_id) WHERE closed_at IS NULL;
+ALTER TABLE public.pdc_pmb_arrival_557 ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.pdc_pmb_arrival_557 FROM PUBLIC, anon, authenticated;
+COMMENT ON TABLE public.pdc_pmb_arrival_557 IS 'r557 (F171): one PMB arrival. closed_at set means every relevant station has been acknowledged, or the row is the backfill. Location stays PMB.';
 
-CREATE TABLE public.pdc_pmb_arrival_dept_ack_544 (
+CREATE TABLE public.pdc_pmb_arrival_dept_ack_557 (
  ack_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  arrival_id uuid NOT NULL,
  station_code text NOT NULL CHECK (station_code IN ('BUS_4X4','TINT','HOIST','FITTING','FABRICATION','ELECTRICAL','TYRE','SUBLET')),
@@ -95,11 +96,11 @@ CREATE TABLE public.pdc_pmb_arrival_dept_ack_544 (
  created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  UNIQUE (arrival_id, station_code)
 );
-ALTER TABLE public.pdc_pmb_arrival_dept_ack_544 ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.pdc_pmb_arrival_dept_ack_544 FROM PUBLIC, anon, authenticated;
-COMMENT ON TABLE public.pdc_pmb_arrival_dept_ack_544 IS 'r544 (F158): one acknowledgement per station on an arrival. Who and when are stored. A backfill has no rows.';
+ALTER TABLE public.pdc_pmb_arrival_dept_ack_557 ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.pdc_pmb_arrival_dept_ack_557 FROM PUBLIC, anon, authenticated;
+COMMENT ON TABLE public.pdc_pmb_arrival_dept_ack_557 IS 'r557 (F171): one acknowledgement per station on an arrival. Who and when are stored. A backfill has no rows.';
 
-CREATE TABLE public.pdc_user_station_departments_544 (
+CREATE TABLE public.pdc_user_station_departments_557 (
  assignment_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  user_role_id uuid NOT NULL,
  station_code text NOT NULL CHECK (station_code IN ('BUS_4X4','TINT','HOIST','FITTING','FABRICATION','ELECTRICAL','TYRE','SUBLET')),
@@ -108,18 +109,18 @@ CREATE TABLE public.pdc_user_station_departments_544 (
  assigned_by_email text,
  UNIQUE (user_role_id, station_code)
 );
-ALTER TABLE public.pdc_user_station_departments_544 ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.pdc_user_station_departments_544 FROM PUBLIC, anon, authenticated;
-COMMENT ON TABLE public.pdc_user_station_departments_544 IS 'r544 (F158): stations an administrator assigned in User Management. A user may have several. This is not Department 135.';
+ALTER TABLE public.pdc_user_station_departments_557 ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.pdc_user_station_departments_557 FROM PUBLIC, anon, authenticated;
+COMMENT ON TABLE public.pdc_user_station_departments_557 IS 'r557 (F171): stations an administrator assigned in User Management. A user may have several. This is not Department 135.';
 
-CREATE FUNCTION pdc_pmb_ack_private.arrival_guard_544() RETURNS trigger
+CREATE FUNCTION pdc_pmb_ack_private.arrival_guard_557() RETURNS trigger
 LANGUAGE plpgsql SET search_path TO 'pg_catalog' AS $lock$
 BEGIN
  IF TG_OP = 'DELETE' OR TG_OP = 'TRUNCATE' THEN
-  RAISE EXCEPTION 'PDC_544_ACK_APPEND_ONLY: % on % is not allowed', TG_OP, TG_TABLE_NAME USING ERRCODE = '42501';
+  RAISE EXCEPTION 'PDC_557_ACK_APPEND_ONLY: % on % is not allowed', TG_OP, TG_TABLE_NAME USING ERRCODE = '42501';
  END IF;
  IF OLD.closed_at IS NOT NULL THEN
-  RAISE EXCEPTION 'PDC_544_ACK_APPEND_ONLY: this arrival is already finished' USING ERRCODE = '42501';
+  RAISE EXCEPTION 'PDC_557_ACK_APPEND_ONLY: this arrival is already finished' USING ERRCODE = '42501';
  END IF;
  IF NEW.arrival_id IS DISTINCT FROM OLD.arrival_id
     OR NEW.vehicle_id IS DISTINCT FROM OLD.vehicle_id
@@ -128,37 +129,37 @@ BEGIN
     OR NEW.previous_location IS DISTINCT FROM OLD.previous_location
     OR NEW.arrival_key IS DISTINCT FROM OLD.arrival_key
     OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
-  RAISE EXCEPTION 'PDC_544_ACK_APPEND_ONLY: arrival identity cannot change' USING ERRCODE = '42501';
+  RAISE EXCEPTION 'PDC_557_ACK_APPEND_ONLY: arrival identity cannot change' USING ERRCODE = '42501';
  END IF;
  IF NEW.closed_at IS NULL THEN
-  RAISE EXCEPTION 'PDC_544_ACK_APPEND_ONLY: only closing the arrival is allowed' USING ERRCODE = '42501';
+  RAISE EXCEPTION 'PDC_557_ACK_APPEND_ONLY: only closing the arrival is allowed' USING ERRCODE = '42501';
  END IF;
  RETURN NEW;
 END $lock$;
-REVOKE ALL ON FUNCTION pdc_pmb_ack_private.arrival_guard_544() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION pdc_pmb_ack_private.arrival_guard_557() FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE TRIGGER pdc_pmb_arrival_544_guard
- BEFORE UPDATE OR DELETE ON public.pdc_pmb_arrival_544
- FOR EACH ROW EXECUTE FUNCTION pdc_pmb_ack_private.arrival_guard_544();
-CREATE TRIGGER pdc_pmb_arrival_544_no_truncate
- BEFORE TRUNCATE ON public.pdc_pmb_arrival_544
- FOR EACH STATEMENT EXECUTE FUNCTION pdc_pmb_ack_private.arrival_guard_544();
+CREATE TRIGGER pdc_pmb_arrival_557_guard
+ BEFORE UPDATE OR DELETE ON public.pdc_pmb_arrival_557
+ FOR EACH ROW EXECUTE FUNCTION pdc_pmb_ack_private.arrival_guard_557();
+CREATE TRIGGER pdc_pmb_arrival_557_no_truncate
+ BEFORE TRUNCATE ON public.pdc_pmb_arrival_557
+ FOR EACH STATEMENT EXECUTE FUNCTION pdc_pmb_ack_private.arrival_guard_557();
 
-CREATE FUNCTION pdc_pmb_ack_private.dept_guard_544() RETURNS trigger
+CREATE FUNCTION pdc_pmb_ack_private.dept_guard_557() RETURNS trigger
 LANGUAGE plpgsql SET search_path TO 'pg_catalog' AS $dlock$
 BEGIN
- RAISE EXCEPTION 'PDC_544_ACK_APPEND_ONLY: % on % is not allowed', TG_OP, TG_TABLE_NAME USING ERRCODE = '42501';
+ RAISE EXCEPTION 'PDC_557_ACK_APPEND_ONLY: % on % is not allowed', TG_OP, TG_TABLE_NAME USING ERRCODE = '42501';
 END $dlock$;
-REVOKE ALL ON FUNCTION pdc_pmb_ack_private.dept_guard_544() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION pdc_pmb_ack_private.dept_guard_557() FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE TRIGGER pdc_pmb_arrival_dept_ack_544_guard
- BEFORE UPDATE OR DELETE ON public.pdc_pmb_arrival_dept_ack_544
- FOR EACH ROW EXECUTE FUNCTION pdc_pmb_ack_private.dept_guard_544();
-CREATE TRIGGER pdc_pmb_arrival_dept_ack_544_no_truncate
- BEFORE TRUNCATE ON public.pdc_pmb_arrival_dept_ack_544
- FOR EACH STATEMENT EXECUTE FUNCTION pdc_pmb_ack_private.dept_guard_544();
+CREATE TRIGGER pdc_pmb_arrival_dept_ack_557_guard
+ BEFORE UPDATE OR DELETE ON public.pdc_pmb_arrival_dept_ack_557
+ FOR EACH ROW EXECUTE FUNCTION pdc_pmb_ack_private.dept_guard_557();
+CREATE TRIGGER pdc_pmb_arrival_dept_ack_557_no_truncate
+ BEFORE TRUNCATE ON public.pdc_pmb_arrival_dept_ack_557
+ FOR EACH STATEMENT EXECUTE FUNCTION pdc_pmb_ack_private.dept_guard_557();
 
-CREATE FUNCTION pdc_pmb_ack_private.relevant_stations_544(p_vehicle_id uuid)
+CREATE FUNCTION pdc_pmb_ack_private.relevant_stations_557(p_vehicle_id uuid)
  RETURNS text[]
  LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public' AS $rel$
   WITH work AS (
@@ -178,7 +179,7 @@ CREATE FUNCTION pdc_pmb_ack_private.relevant_stations_544(p_vehicle_id uuid)
   ),
   mapped AS (
     SELECT DISTINCT a.station_code
-    FROM public.pdc_user_station_departments_544 a
+    FROM public.pdc_user_station_departments_557 a
     JOIN public.pdc_user_roles r ON r.id = a.user_role_id
     WHERE r.active AND r.account_status = 'approved'
   )
@@ -192,35 +193,55 @@ CREATE FUNCTION pdc_pmb_ack_private.relevant_stations_544(p_vehicle_id uuid)
     ) chosen
   ), ARRAY[]::text[]);
 $rel$;
-REVOKE ALL ON FUNCTION pdc_pmb_ack_private.relevant_stations_544(uuid) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION pdc_pmb_ack_private.relevant_stations_557(uuid) FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE FUNCTION pdc_pmb_ack_private.capture_544() RETURNS trigger
+CREATE FUNCTION pdc_pmb_ack_private.drop_read_caches_557() RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog', 'public' AS $drop557$
+BEGIN
+  DELETE FROM pdc_ops.vehicle_location_snapshot_cache_554;
+  DELETE FROM pdc_ops.eligibility_snapshot_cache_554;
+  UPDATE public.pdc_email_vehicle_revision
+     SET revision = revision + 1, updated_at = clock_timestamp()
+   WHERE singleton;
+  UPDATE public.workshop_revision
+     SET revision = revision + 1, updated_at = clock_timestamp()
+   WHERE id = 1;
+END
+$drop557$;
+REVOKE ALL ON FUNCTION pdc_pmb_ack_private.drop_read_caches_557() FROM PUBLIC, anon, authenticated, service_role;
+
+CREATE FUNCTION pdc_pmb_ack_private.capture_557() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog', 'public' AS $cap$
 DECLARE
  v_old text := upper(btrim(coalesce(OLD.current_location, '')));
  v_new text := upper(btrim(coalesce(NEW.current_location, '')));
  v_key_changed boolean := OLD.key_number IS DISTINCT FROM NEW.key_number AND btrim(coalesce(NEW.key_number, '')) <> '';
  v_source text;
+ v_inserted integer := 0;
 BEGIN
  IF v_new <> 'PMB' OR NEW.deleted_at IS NOT NULL THEN RETURN NULL; END IF;
  IF v_old NOT IN ('YH','YARD HOLD','YARDHOLD','IT','IN TRANSIT','INTRANSIT','OTHER','ALL VEHICLES','') THEN RETURN NULL; END IF;
  IF v_old = 'PMB' THEN RETURN NULL; END IF;
  v_source := CASE WHEN v_key_changed THEN 'key' ELSE 'location' END;
  BEGIN
-  INSERT INTO public.pdc_pmb_arrival_544 (vehicle_id, previous_location, arrival_key, source)
+  INSERT INTO public.pdc_pmb_arrival_557 (vehicle_id, previous_location, arrival_key, source)
   SELECT NEW.id, NULLIF(btrim(coalesce(OLD.current_location, '')), ''), NULLIF(btrim(coalesce(NEW.key_number, '')), ''), v_source
   WHERE NOT EXISTS (
-    SELECT 1 FROM public.pdc_pmb_arrival_544 open_row
+    SELECT 1 FROM public.pdc_pmb_arrival_557 open_row
     WHERE open_row.vehicle_id = NEW.id AND open_row.closed_at IS NULL
   );
+  GET DIAGNOSTICS v_inserted = ROW_COUNT;
  EXCEPTION WHEN unique_violation THEN
-  NULL;
+  v_inserted := 0;
  END;
+ IF v_inserted = 1 THEN
+  PERFORM pdc_pmb_ack_private.drop_read_caches_557();
+ END IF;
  RETURN NULL;
 END $cap$;
-REVOKE ALL ON FUNCTION pdc_pmb_ack_private.capture_544() FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION pdc_pmb_ack_private.capture_557() FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE TRIGGER zz_pdc_pmb_arrival_544
+CREATE TRIGGER zz_pdc_pmb_arrival_557
  AFTER UPDATE OF current_location, key_number ON public.vehicles
  FOR EACH ROW
  WHEN (
@@ -228,15 +249,15 @@ CREATE TRIGGER zz_pdc_pmb_arrival_544
   AND NEW.deleted_at IS NULL
   AND upper(btrim(coalesce(OLD.current_location, ''))) IN ('YH','YARD HOLD','YARDHOLD','IT','IN TRANSIT','INTRANSIT','OTHER','ALL VEHICLES','')
  )
- EXECUTE FUNCTION pdc_pmb_ack_private.capture_544();
+ EXECUTE FUNCTION pdc_pmb_ack_private.capture_557();
 
-INSERT INTO public.pdc_pmb_arrival_544 (vehicle_id, previous_location, arrival_key, source, closed_at)
+INSERT INTO public.pdc_pmb_arrival_557 (vehicle_id, previous_location, arrival_key, source, closed_at)
 SELECT v.id, v.current_location, NULLIF(btrim(coalesce(v.key_number, '')), ''), 'backfill', clock_timestamp()
 FROM public.vehicles v
 WHERE v.deleted_at IS NULL
   AND upper(btrim(coalesce(v.current_location, ''))) = 'PMB';
 
-CREATE FUNCTION pdc_pmb_ack_private.state_544(p_arrival_id uuid, p_vehicle_id uuid, p_controller boolean, p_actor uuid, p_open boolean)
+CREATE FUNCTION pdc_pmb_ack_private.state_557(p_arrival_id uuid, p_vehicle_id uuid, p_controller boolean, p_actor uuid, p_open boolean)
  RETURNS jsonb
  LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public' AS $view$
 DECLARE
@@ -245,13 +266,13 @@ DECLARE
  v_departments jsonb;
  v_pending boolean;
 BEGIN
- v_relevant := CASE WHEN p_open THEN pdc_pmb_ack_private.relevant_stations_544(p_vehicle_id) ELSE (
+ v_relevant := CASE WHEN p_open THEN pdc_pmb_ack_private.relevant_stations_557(p_vehicle_id) ELSE (
    SELECT coalesce(array_agg(d.station_code), ARRAY[]::text[])
-   FROM public.pdc_pmb_arrival_dept_ack_544 d
+   FROM public.pdc_pmb_arrival_dept_ack_557 d
    WHERE d.arrival_id = p_arrival_id
  ) END;
  SELECT coalesce(array_agg(a.station_code), ARRAY[]::text[]) INTO v_mine
- FROM public.pdc_user_station_departments_544 a
+ FROM public.pdc_user_station_departments_557 a
  JOIN public.pdc_user_roles r ON r.id = a.user_role_id
  WHERE r.auth_user_id = p_actor AND r.active AND r.account_status = 'approved';
  SELECT coalesce(jsonb_agg(jsonb_build_object(
@@ -276,7 +297,7 @@ BEGIN
      ('SUBLET','Sublet',8)
    ) AS station_catalog(code, label, ord)
  ) catalog
- LEFT JOIN public.pdc_pmb_arrival_dept_ack_544 dept
+ LEFT JOIN public.pdc_pmb_arrival_dept_ack_557 dept
    ON dept.arrival_id = p_arrival_id AND dept.station_code = catalog.code
  WHERE catalog.code = ANY (v_relevant);
  v_pending := p_open AND EXISTS (
@@ -286,9 +307,9 @@ BEGIN
  );
  RETURN jsonb_build_object('viewer_pending', v_pending, 'departments', v_departments);
 END $view$;
-REVOKE ALL ON FUNCTION pdc_pmb_ack_private.state_544(uuid, uuid, boolean, uuid, boolean) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION pdc_pmb_ack_private.state_557(uuid, uuid, boolean, uuid, boolean) FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE FUNCTION public.list_pmb_arrival_ack_544()
+CREATE FUNCTION public.list_pmb_arrival_ack_557()
  RETURNS TABLE (
   vehicle_id uuid,
   source text,
@@ -315,12 +336,12 @@ BEGIN
  v_controller := v_role IN ('operator', 'administrator');
  FOR r IN
    SELECT DISTINCT ON (a.vehicle_id) a.arrival_id, a.vehicle_id, a.source, a.closed_at
-   FROM public.pdc_pmb_arrival_544 a
+   FROM public.pdc_pmb_arrival_557 a
    WHERE a.closed_at IS NULL
-      OR EXISTS (SELECT 1 FROM public.pdc_pmb_arrival_dept_ack_544 d WHERE d.arrival_id = a.arrival_id)
+      OR EXISTS (SELECT 1 FROM public.pdc_pmb_arrival_dept_ack_557 d WHERE d.arrival_id = a.arrival_id)
    ORDER BY a.vehicle_id, a.arrival_at DESC
  LOOP
-  v_state := pdc_pmb_ack_private.state_544(r.arrival_id, r.vehicle_id, v_controller, v_actor, r.closed_at IS NULL);
+  v_state := pdc_pmb_ack_private.state_557(r.arrival_id, r.vehicle_id, v_controller, v_actor, r.closed_at IS NULL);
   vehicle_id := r.vehicle_id;
   source := r.source;
   viewer_pending := coalesce((v_state->>'viewer_pending')::boolean, false);
@@ -329,10 +350,10 @@ BEGIN
   RETURN NEXT;
  END LOOP;
 END $list$;
-REVOKE ALL ON FUNCTION public.list_pmb_arrival_ack_544() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.list_pmb_arrival_ack_544() TO authenticated;
+REVOKE ALL ON FUNCTION public.list_pmb_arrival_ack_557() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.list_pmb_arrival_ack_557() TO authenticated;
 
-CREATE FUNCTION public.acknowledge_pmb_arrival_544(p_vehicle_id uuid, p_station text)
+CREATE FUNCTION public.acknowledge_pmb_arrival_557(p_vehicle_id uuid, p_station text)
  RETURNS jsonb
  LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'auth' AS $ack$
 DECLARE
@@ -340,7 +361,7 @@ DECLARE
  v_role text; v_email text; v_full text; v_display text; v_name text;
  v_station text := upper(btrim(coalesce(p_station, '')));
  v_controller boolean := false;
- v_open public.pdc_pmb_arrival_544%ROWTYPE;
+ v_open public.pdc_pmb_arrival_557%ROWTYPE;
  v_state jsonb;
  v_relevant text[];
 BEGIN
@@ -362,19 +383,19 @@ BEGIN
  END IF;
  v_name := coalesce(v_full, v_display, v_email);
  v_controller := v_role IN ('operator', 'administrator');
- PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('pdc-544:' || p_vehicle_id::text, 0));
- SELECT * INTO v_open FROM public.pdc_pmb_arrival_544
+ PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('pdc-557:' || p_vehicle_id::text, 0));
+ SELECT * INTO v_open FROM public.pdc_pmb_arrival_557
   WHERE vehicle_id = p_vehicle_id AND closed_at IS NULL
   ORDER BY arrival_at DESC LIMIT 1 FOR UPDATE;
  IF NOT FOUND THEN
   RETURN jsonb_build_object('ok', false, 'code', 'not_pending', 'message', 'This vehicle is not waiting in New to PMB.');
  END IF;
- v_relevant := pdc_pmb_ack_private.relevant_stations_544(p_vehicle_id);
+ v_relevant := pdc_pmb_ack_private.relevant_stations_557(p_vehicle_id);
  IF NOT (v_station = ANY (v_relevant)) THEN
   RETURN jsonb_build_object('ok', false, 'code', 'not_relevant', 'message', 'That station has no work waiting on this vehicle.');
  END IF;
  IF NOT v_controller AND NOT EXISTS (
-   SELECT 1 FROM public.pdc_user_station_departments_544 a
+   SELECT 1 FROM public.pdc_user_station_departments_557 a
    JOIN public.pdc_user_roles r ON r.id = a.user_role_id
    WHERE r.auth_user_id = v_actor AND r.active AND r.account_status = 'approved'
      AND a.station_code = v_station
@@ -383,38 +404,39 @@ BEGIN
     'message', 'A controller can acknowledge any station. Anyone else can acknowledge only a station an administrator assigned to them.');
  END IF;
  IF EXISTS (
-   SELECT 1 FROM public.pdc_pmb_arrival_dept_ack_544 d
+   SELECT 1 FROM public.pdc_pmb_arrival_dept_ack_557 d
    WHERE d.arrival_id = v_open.arrival_id AND d.station_code = v_station
  ) THEN
-  v_state := pdc_pmb_ack_private.state_544(v_open.arrival_id, p_vehicle_id, v_controller, v_actor, true);
+  v_state := pdc_pmb_ack_private.state_557(v_open.arrival_id, p_vehicle_id, v_controller, v_actor, true);
   RETURN jsonb_build_object('ok', true, 'code', 'already_acknowledged', 'data', v_state || jsonb_build_object(
     'vehicle_id', p_vehicle_id, 'source', v_open.source, 'closed', v_open.closed_at IS NOT NULL));
  END IF;
- INSERT INTO public.pdc_pmb_arrival_dept_ack_544 (
+ INSERT INTO public.pdc_pmb_arrival_dept_ack_557 (
   arrival_id, station_code, acknowledged_by, acknowledged_by_email, acknowledged_by_name, acknowledged_by_role
  ) VALUES (
   v_open.arrival_id, v_station, v_actor, v_email, v_name, v_role
  );
- v_relevant := pdc_pmb_ack_private.relevant_stations_544(p_vehicle_id);
+ v_relevant := pdc_pmb_ack_private.relevant_stations_557(p_vehicle_id);
  IF NOT EXISTS (
    SELECT 1 FROM unnest(v_relevant) station_code
    WHERE NOT EXISTS (
-     SELECT 1 FROM public.pdc_pmb_arrival_dept_ack_544 d
+     SELECT 1 FROM public.pdc_pmb_arrival_dept_ack_557 d
      WHERE d.arrival_id = v_open.arrival_id AND d.station_code = station_code
    )
  ) THEN
-  UPDATE public.pdc_pmb_arrival_544 SET closed_at = clock_timestamp()
+  UPDATE public.pdc_pmb_arrival_557 SET closed_at = clock_timestamp()
    WHERE arrival_id = v_open.arrival_id AND closed_at IS NULL;
   v_open.closed_at := clock_timestamp();
  END IF;
- v_state := pdc_pmb_ack_private.state_544(v_open.arrival_id, p_vehicle_id, v_controller, v_actor, v_open.closed_at IS NULL);
+ PERFORM pdc_pmb_ack_private.drop_read_caches_557();
+ v_state := pdc_pmb_ack_private.state_557(v_open.arrival_id, p_vehicle_id, v_controller, v_actor, v_open.closed_at IS NULL);
  RETURN jsonb_build_object('ok', true, 'code', 'acknowledged', 'data', v_state || jsonb_build_object(
   'vehicle_id', p_vehicle_id, 'source', v_open.source, 'closed', v_open.closed_at IS NOT NULL));
 END $ack$;
-REVOKE ALL ON FUNCTION public.acknowledge_pmb_arrival_544(uuid, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.acknowledge_pmb_arrival_544(uuid, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.acknowledge_pmb_arrival_557(uuid, text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.acknowledge_pmb_arrival_557(uuid, text) TO authenticated;
 
-CREATE FUNCTION public.list_user_station_departments_544()
+CREATE FUNCTION public.list_user_station_departments_557()
  RETURNS TABLE (email text, station_code text)
  LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'auth' AS $slist$
 DECLARE v_actor uuid := auth.uid();
@@ -429,14 +451,14 @@ BEGIN
  END IF;
  RETURN QUERY
  SELECT lower(btrim(r.email)), a.station_code
- FROM public.pdc_user_station_departments_544 a
+ FROM public.pdc_user_station_departments_557 a
  JOIN public.pdc_user_roles r ON r.id = a.user_role_id
  ORDER BY 1, 2;
 END $slist$;
-REVOKE ALL ON FUNCTION public.list_user_station_departments_544() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.list_user_station_departments_544() TO authenticated;
+REVOKE ALL ON FUNCTION public.list_user_station_departments_557() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.list_user_station_departments_557() TO authenticated;
 
-CREATE FUNCTION public.admin_set_user_station_departments_544(p_email text, p_stations text[])
+CREATE FUNCTION public.admin_set_user_station_departments_557(p_email text, p_stations text[])
  RETURNS jsonb
  LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'auth' AS $set$
 DECLARE
@@ -477,19 +499,19 @@ BEGIN
  ) THEN
   RETURN jsonb_build_object('ok', false, 'code', 'not_a_station', 'message', 'Choose workshop stations only.');
  END IF;
- DELETE FROM public.pdc_user_station_departments_544 WHERE user_role_id = v_target;
- INSERT INTO public.pdc_user_station_departments_544 (user_role_id, station_code, assigned_by, assigned_by_email)
+ DELETE FROM public.pdc_user_station_departments_557 WHERE user_role_id = v_target;
+ INSERT INTO public.pdc_user_station_departments_557 (user_role_id, station_code, assigned_by, assigned_by_email)
  SELECT v_target, station_code, v_actor, v_actor_email
  FROM unnest(v_clean) station_code;
  RETURN jsonb_build_object('ok', true, 'code', 'saved', 'email', lower(btrim(p_email)), 'stations', to_jsonb(v_clean));
 END $set$;
-REVOKE ALL ON FUNCTION public.admin_set_user_station_departments_544(text, text[]) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_set_user_station_departments_544(text, text[]) TO authenticated;
+REVOKE ALL ON FUNCTION public.admin_set_user_station_departments_557(text, text[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.admin_set_user_station_departments_557(text, text[]) TO authenticated;
 
 INSERT INTO pdc_ops.regression_checks (check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
-('new_to_pmb_ack_544', 'F158',
+('new_to_pmb_ack_557', 'F171',
  'New to PMB is one acknowledgement per workshop station beside location PMB. The pin count stays 241. Pending rows do not change current_location. Controllers are operator and administrator. An administrator assigns stations in User Management. The check uses search_path pg_catalog, schema-qualified types, and no regprocedure cast.',
- $chk544$
+ $chk557$
 SELECT
   pins.n = 241
   AND added.n = 0
@@ -514,49 +536,58 @@ SELECT
   AND setter.administrator
   AND setter.auth_exec
   AND setter.anon_blocked
+  AND cap.drops
+  AND ack.drops
+  AND caches.present
+  AND caches.location_cache
+  AND caches.eligibility_cache
+  AND caches.revisions
+  AND wrappers.kept
   AS ok,
   ('pins ' || pins.n::pg_catalog.text || ' | ' || coalesce(cap.note, 'capture missing'::pg_catalog.text)) AS detail
 FROM (SELECT count(*) AS n FROM pdc_ops.expected_function_md5) pins
-CROSS JOIN (SELECT count(*) AS n FROM pdc_ops.expected_function_md5 WHERE release = 'r544') added
+CROSS JOIN (SELECT count(*) AS n FROM pdc_ops.expected_function_md5 WHERE release = 'r557') added
 CROSS JOIN (
   SELECT c.relrowsecurity
   FROM pg_catalog.pg_class c
   JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'public' AND c.relname = 'pdc_pmb_arrival_544'
+  WHERE n.nspname = 'public' AND c.relname = 'pdc_pmb_arrival_557'
 ) arrival
 CROSS JOIN (
   SELECT c.relrowsecurity
   FROM pg_catalog.pg_class c
   JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'public' AND c.relname = 'pdc_pmb_arrival_dept_ack_544'
+  WHERE n.nspname = 'public' AND c.relname = 'pdc_pmb_arrival_dept_ack_557'
 ) dept
 CROSS JOIN (
   SELECT c.relrowsecurity
   FROM pg_catalog.pg_class c
   JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'public' AND c.relname = 'pdc_user_station_departments_544'
+  WHERE n.nspname = 'public' AND c.relname = 'pdc_user_station_departments_557'
 ) assigned
 CROSS JOIN (
   SELECT count(*) = 1 AS present
   FROM pg_catalog.pg_trigger t
   JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid
   JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'public' AND c.relname = 'vehicles' AND t.tgname = 'zz_pdc_pmb_arrival_544' AND NOT t.tgisinternal
+  WHERE n.nspname = 'public' AND c.relname = 'vehicles' AND t.tgname = 'zz_pdc_pmb_arrival_557' AND NOT t.tgisinternal
 ) trg
 CROSS JOIN (
   SELECT
     count(*) = 1 AS present,
     coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'UPDATE public.vehicles') = 0), false) AS no_vehicle_update,
     coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'YARD HOLD') > 0 AND pg_catalog.strpos(p.prosrc, 'IN TRANSIT') > 0 AND pg_catalog.strpos(p.prosrc, 'OTHER') > 0), false) AS release_from,
+    coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'drop_read_caches_557') > 0), false) AS drops,
     pg_catalog.left(coalesce(max(p.prosrc), ''::pg_catalog.text), 80) AS note
   FROM pg_catalog.pg_proc p
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'pdc_pmb_ack_private' AND p.proname = 'capture_544'
+  WHERE n.nspname = 'pdc_pmb_ack_private' AND p.proname = 'capture_557'
 ) cap
 CROSS JOIN (
   SELECT
     count(*) = 1 AS present,
     coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'UPDATE public.vehicles') = 0), false) AS no_vehicle_update,
+    coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'drop_read_caches_557') > 0), false) AS drops,
     coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'user_metadata') = 0), false) AS no_user_metadata,
     coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'operator') > 0 AND pg_catalog.strpos(p.prosrc, 'administrator') > 0), false) AS controller,
     coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'FITTING') > 0 AND pg_catalog.strpos(p.prosrc, 'FABRICATION') > 0 AND pg_catalog.strpos(p.prosrc, 'HOIST') > 0 AND pg_catalog.strpos(p.prosrc, 'ELECTRICAL') > 0), false) AS stations,
@@ -564,7 +595,7 @@ CROSS JOIN (
     coalesce(bool_and(NOT pg_catalog.has_function_privilege('anon'::pg_catalog.name, p.oid, 'EXECUTE'::pg_catalog.text)), false) AS anon_blocked
   FROM pg_catalog.pg_proc p
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'public' AND p.proname = 'acknowledge_pmb_arrival_544'
+  WHERE n.nspname = 'public' AND p.proname = 'acknowledge_pmb_arrival_557'
     AND pg_catalog.pg_get_function_identity_arguments(p.oid) = 'p_vehicle_id uuid, p_station text'
 ) ack
 CROSS JOIN (
@@ -574,7 +605,7 @@ CROSS JOIN (
     coalesce(bool_and(NOT pg_catalog.has_function_privilege('anon'::pg_catalog.name, p.oid, 'EXECUTE'::pg_catalog.text)), false) AS anon_blocked
   FROM pg_catalog.pg_proc p
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'public' AND p.proname = 'list_pmb_arrival_ack_544'
+  WHERE n.nspname = 'public' AND p.proname = 'list_pmb_arrival_ack_557'
     AND pg_catalog.pg_get_function_identity_arguments(p.oid) = ''::pg_catalog.text
 ) lst
 CROSS JOIN (
@@ -585,26 +616,47 @@ CROSS JOIN (
     coalesce(bool_and(NOT pg_catalog.has_function_privilege('anon'::pg_catalog.name, p.oid, 'EXECUTE'::pg_catalog.text)), false) AS anon_blocked
   FROM pg_catalog.pg_proc p
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'public' AND p.proname = 'admin_set_user_station_departments_544'
+  WHERE n.nspname = 'public' AND p.proname = 'admin_set_user_station_departments_557'
     AND pg_catalog.pg_get_function_identity_arguments(p.oid) = 'p_email text, p_stations text[]'
 ) setter
-$chk544$, true, 322, 'r544');
+CROSS JOIN (
+  SELECT
+    count(*) = 1 AS present,
+    coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'vehicle_location_snapshot_cache_554') > 0), false) AS location_cache,
+    coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'eligibility_snapshot_cache_554') > 0), false) AS eligibility_cache,
+    coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'pdc_email_vehicle_revision') > 0 AND pg_catalog.strpos(p.prosrc, 'workshop_revision') > 0), false) AS revisions
+  FROM pg_catalog.pg_proc p
+  JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'pdc_pmb_ack_private' AND p.proname = 'drop_read_caches_557'
+) caches
+CROSS JOIN (
+  SELECT count(*) = 2 AS kept
+  FROM pg_catalog.pg_proc p
+  JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+  WHERE n.nspname = 'public'
+    AND pg_catalog.pg_get_function_identity_arguments(p.oid) = ''::pg_catalog.text
+    AND (
+      (p.proname = 'get_pdc_email_vehicle_location_snapshot' AND pg_catalog.md5(p.prosrc) = '2067547fafa49f0bfeb54c4bc18a824e')
+      OR (p.proname = 'get_workshop_eligibility_snapshot' AND pg_catalog.md5(p.prosrc) = '9207f7c1664552122775bb4a2e6d9f25')
+    )
+) wrappers
+$chk557$, true, 332, 'r557');
 
 DO $post$
 DECLARE r record; probe record;
 BEGIN
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r544: pin count changed'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r544') THEN RAISE EXCEPTION 'r544: a pin was inserted'; END IF;
- IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='new_to_pmb_ack_544' AND fault_id='F158' AND sort_order=322 AND added_in='r544' AND enabled)<>1 THEN RAISE EXCEPTION 'r544: check missing'; END IF;
- IF (SELECT count(*) FROM public.pdc_pmb_arrival_544 WHERE source='backfill' AND closed_at IS NOT NULL)
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r557: pin count changed'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r557') THEN RAISE EXCEPTION 'r557: a pin was inserted'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='new_to_pmb_ack_557' AND fault_id='F171' AND sort_order=332 AND added_in='r557' AND enabled)<>1 THEN RAISE EXCEPTION 'r557: check missing'; END IF;
+ IF (SELECT count(*) FROM public.pdc_pmb_arrival_557 WHERE source='backfill' AND closed_at IS NOT NULL)
     <> (SELECT count(*) FROM public.vehicles WHERE deleted_at IS NULL AND upper(btrim(coalesce(current_location,'')))='PMB') THEN
-  RAISE EXCEPTION 'r544: backfill does not match vehicles already at PMB';
+  RAISE EXCEPTION 'r557: backfill does not match vehicles already at PMB';
  END IF;
- IF EXISTS (SELECT 1 FROM public.pdc_pmb_arrival_544 WHERE closed_at IS NULL) THEN RAISE EXCEPTION 'r544: backfill left an open arrival'; END IF;
- IF EXISTS (SELECT 1 FROM public.pdc_pmb_arrival_dept_ack_544) THEN RAISE EXCEPTION 'r544: backfill stored a person'; END IF;
+ IF EXISTS (SELECT 1 FROM public.pdc_pmb_arrival_557 WHERE closed_at IS NULL) THEN RAISE EXCEPTION 'r557: backfill left an open arrival'; END IF;
+ IF EXISTS (SELECT 1 FROM public.pdc_pmb_arrival_dept_ack_557) THEN RAISE EXCEPTION 'r557: backfill stored a person'; END IF;
  PERFORM set_config('search_path','pg_catalog',true);
- FOR r IN SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE check_name='new_to_pmb_ack_544' LOOP
+ FOR r IN SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE check_name='new_to_pmb_ack_557' LOOP
   EXECUTE r.check_sql INTO probe;
-  IF coalesce(probe.ok, false) IS NOT TRUE THEN RAISE EXCEPTION 'r544: % failed: %', r.check_name, probe.detail; END IF;
+  IF coalesce(probe.ok, false) IS NOT TRUE THEN RAISE EXCEPTION 'r557: % failed: %', r.check_name, probe.detail; END IF;
  END LOOP;
 END $post$;

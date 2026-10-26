@@ -1,15 +1,15 @@
 /* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
-// r544 (F158): New to PMB is a tile in front of PMB. Location stays PMB.
+// r557 (F171): New to PMB is a tile in front of PMB. Location stays PMB.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
 const { createFixture } = require('./qa/dashboard-render-fixture.cjs');
 
-const up = fs.readFileSync('supabase/migrations/20261026190000_r544_new_to_pmb_ack.sql', 'utf8');
-const down = fs.readFileSync('supabase/rollbacks/20261026190000_r544_new_to_pmb_ack.down.sql', 'utf8');
-const check = up.slice(up.indexOf('$chk544$') + 8, up.lastIndexOf('$chk544$'));
+const up = fs.readFileSync('supabase/migrations/20261027080000_r557_new_to_pmb_ack.sql', 'utf8');
+const down = fs.readFileSync('supabase/rollbacks/20261027080000_r557_new_to_pmb_ack.down.sql', 'utf8');
+const check = up.slice(up.indexOf('$chk557$') + 8, up.lastIndexOf('$chk557$'));
 
 function board() {
   const fixture = createFixture({ vehicleCount: 0 });
@@ -102,16 +102,31 @@ test('the new tile flashes blue and reduced motion is a solid blue, not orange',
   assert.match(css, /#1d4ed8|#dbeafe/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /is-alerting[\s\S]{0,500}animation:\s*none/);
-  assert.doesNotMatch(css.slice(css.lastIndexOf('r544 (F158)')), /orange|#f59e0b|#ff8/i);
+  assert.doesNotMatch(css.slice(css.lastIndexOf('r557 (F171)')), /orange|#f59e0b|#ff8/i);
   const table = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.ok(table.indexOf("'newpmb'") < table.indexOf("pmb: ['PMB'"));
   assert.match(table, /key === 'newpmb' && !loading && count > 0 \? ' is-alerting'/);
 });
 
+test('a changed location revision refetches acknowledgements inside 15 seconds', () => {
+  const { c } = board();
+  const calls = [];
+  c.PDC_SUPABASE = { rpc(name) { calls.push(name); return Promise.resolve({ data: [] }); } };
+  c.PDC_AUTH_CONTEXT = { role: 'operator' };
+  c.app.pmbArrivalAckLoadedAt = Date.now();
+  c.app.pmbArrivalAckRevision = 4;
+  c.app.emailVehicleLocationRevision = 4;
+  c.ensurePmbArrivalAck();
+  assert.deepEqual(calls, []);
+  c.app.emailVehicleLocationRevision = 5;
+  c.ensurePmbArrivalAck();
+  assert.deepEqual(calls, ['list_pmb_arrival_ack_557']);
+});
+
 test('regression check uses pg_catalog types and does not cast regprocedure; pins stay 241', () => {
-  assert.match(up, /sort_order=322/);
-  assert.match(up, /fault_id='F158'|F158/);
-  assert.match(up, /added_in='r544'|r544/);
+  assert.match(up, /sort_order=332/);
+  assert.match(up, /fault_id='F171'|F171/);
+  assert.match(up, /added_in='r557'|r557/);
   assert.match(check, /::pg_catalog\.text/);
   assert.match(check, /pg_catalog\.pg_proc/);
   assert.doesNotMatch(check, /regprocedure|to_regprocedure/);
@@ -119,12 +134,21 @@ test('regression check uses pg_catalog types and does not cast regprocedure; pin
   assert.match(up, /count\(\*\) FROM pdc_ops\.expected_function_md5\)<>241/);
   assert.match(up, /source IN \('location','key','backfill'\)/);
   assert.match(up, /vehicle_work_items/);
-  assert.match(up, /admin_set_user_station_departments_544/);
+  assert.match(up, /admin_set_user_station_departments_557/);
   assert.match(up, /p_vehicle_id uuid, p_station text/);
   assert.match(check, /FITTING/);
   assert.match(check, /administrator/);
-  assert.doesNotMatch(up.slice(up.indexOf('CREATE FUNCTION public.acknowledge_pmb_arrival_544'), up.indexOf('REVOKE ALL ON FUNCTION public.acknowledge_pmb_arrival_544')), /user_metadata|UPDATE public\.vehicles/);
-  assert.match(down, /sort_order=322/);
-  assert.doesNotMatch(fs.readFileSync('karratha/app.js', 'utf8'), /newpmb|r544/);
-  assert.equal(crypto.createHash('md5').update(fs.readFileSync('supabase/migrations/20261026190000_r544_new_to_pmb_ack.sql')).digest('hex'), process.env.R544_UP_MD5 || crypto.createHash('md5').update(fs.readFileSync('supabase/migrations/20261026190000_r544_new_to_pmb_ack.sql')).digest('hex'));
+  assert.doesNotMatch(up.slice(up.indexOf('CREATE FUNCTION public.acknowledge_pmb_arrival_557'), up.indexOf('REVOKE ALL ON FUNCTION public.acknowledge_pmb_arrival_557')), /user_metadata|UPDATE public\.vehicles/);
+  assert.match(up, /drop_read_caches_557/);
+  assert.match(up, /vehicle_location_snapshot_cache_554/);
+  assert.match(up, /eligibility_snapshot_cache_554/);
+  assert.match(up, /pdc_email_vehicle_revision/);
+  assert.match(up, /workshop_revision/);
+  assert.doesNotMatch(up, /CREATE OR REPLACE FUNCTION public\.get_pdc_email_vehicle_location_snapshot/);
+  assert.doesNotMatch(up, /CREATE OR REPLACE FUNCTION public\.get_workshop_eligibility_snapshot/);
+  assert.match(check, /drop_read_caches_557/);
+  assert.match(down, /drop_read_caches_557/);
+  assert.match(down, /sort_order=332/);
+  assert.doesNotMatch(fs.readFileSync('karratha/app.js', 'utf8'), /newpmb|r557/);
+  assert.equal(crypto.createHash('md5').update(fs.readFileSync('supabase/migrations/20261027080000_r557_new_to_pmb_ack.sql')).digest('hex'), process.env.R544_UP_MD5 || crypto.createHash('md5').update(fs.readFileSync('supabase/migrations/20261027080000_r557_new_to_pmb_ack.sql')).digest('hex'));
 });

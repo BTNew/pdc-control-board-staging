@@ -63,13 +63,13 @@
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.26.r544b'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r544 (F158) New to PMB tile (cache-busts this module)
+  const VERSION = '2026.10.27.r557'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r557 (F171) New to PMB tile (cache-busts this module)
   // r485 (F98): the one switch for the hidden Drop-down view. false = Table view only (Craig 22 Oct). true = r481 behaviour.
   const DROPDOWN_VIEW_ENABLED = false;
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
   const VIEWS = Object.freeze({ dropdown: 'dropdown', table: 'table' });
   // Vehicle journey, left to right (Craig, 22 Oct 2026).
-  // r544 (F158): New to PMB sits immediately before PMB. The operational bucket stays pmb.
+  // r557 (F171): New to PMB sits immediately before PMB. The operational bucket stays pmb.
   const JOURNEY = Object.freeze(['overseas', 'transit', 'yardhold', 'nonnavision', 'newpmb', 'pmb', 'qc', 'pit', 'rft']);
   const TILE = Object.freeze({
     overseas: ['Other', 'All other active', 'unknown', 'OTHER'],

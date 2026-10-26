@@ -56,7 +56,7 @@ body.vlt-table-on .vlt-slim-bar [data-pdc-refresh-control] { display: none !impo
 .vlt-tile.unknown, .vlt-pill.unknown { background: #f0f3f6; }
 .vlt-tile.stoppage { background: #ffedf0; border-left-color: #e11d48; }
 .vlt-tile.stoppage strong { color: #be123c; }
-/* r544 (F158): New to PMB flashes blue while it holds a vehicle. The signal is blue, not a warm colour. */
+/* r557 (F171): New to PMB flashes blue while it holds a vehicle. The signal is blue, not a warm colour. */
 .vlt-tile[data-vlt-tile="newpmb"] { border-left-color: #1d4ed8; }
 .vlt-tile[data-vlt-tile="newpmb"].is-alerting {
   background: #dbeafe;

@@ -4392,7 +4392,7 @@ function ensureBackupStatusPoll() {
 // ---------------------------------------------------------------------
 const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null, generation: 0, showDisabled: false, roleFilter: 'all', stationAssignments: new Map() };
 
-// r544 (F158): workshop stations a person can acknowledge on New to PMB. An administrator
+// r557 (F171): workshop stations a person can acknowledge on New to PMB. An administrator
 // assigns these in User Management, the same way a salesperson record is linked. A user
 // may have several. Parts and Pit are not stations. Department 135 is not one of these.
 const PMB_ACK_STATIONS = Object.freeze([
@@ -4625,7 +4625,7 @@ async function userManagementLinkSalesRecord(email) {
 async function loadUserStationDepartments() {
   const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
   if (!client || typeof client.rpc !== 'function') return new Map();
-  const { data, error } = await client.rpc('list_user_station_departments_544');
+  const { data, error } = await client.rpc('list_user_station_departments_557');
   if (error || !Array.isArray(data)) return new Map();
   const map = new Map();
   data.forEach(row => {
@@ -4645,7 +4645,7 @@ async function userManagementSaveStations(email) {
   const labels = stations.map(code => (PMB_ACK_STATIONS.find(([value]) => value === code) || [])[1] || code);
   const summary = labels.length ? labels.join(', ') : 'no stations';
   if (window.confirm(`Assign ${summary} to ${email}?\n\nThey can acknowledge New to PMB for those stations. A station left unticked is removed.`) !== true) return false;
-  const { data, error } = await window.PDC_SUPABASE.rpc('admin_set_user_station_departments_544', { p_email: email, p_stations: stations });
+  const { data, error } = await window.PDC_SUPABASE.rpc('admin_set_user_station_departments_557', { p_email: email, p_stations: stations });
   if (error || !data || data.ok !== true) {
     pdcNotify(`Action failed: ${data?.message || error?.message || error || 'The stations were not saved.'}`);
     return false;
@@ -8176,7 +8176,7 @@ function incomingBucketForVehicle(vehicle = {}) {
   if (category === 'completed') return 'completed';
   if (category === 'collected') return 'collected';
   const operationalLocation = vehiclePdcLocation(vehicle);
-  // r544 (F158): a vehicle waiting to be acknowledged is still at PMB. This
+  // r557 (F171): a vehicle waiting to be acknowledged is still at PMB. This
   // function stays 'pmb'. Only vehicleLocationsDisplayBucket splits the tile.
   if (operationalLocation === 'PMB') return vehicle.pdcQcComplete === true ? 'qc' : 'pmb';
   if (['PIT', 'QC', 'RFT'].includes(operationalLocation)) return operationalLocation.toLowerCase();
@@ -8191,7 +8191,7 @@ function incomingBucketForVehicle(vehicle = {}) {
   return 'overseas';
 }
 
-// r544 (F158): tile split only. Missing or failed acknowledgement data leaves the
+// r557 (F171): tile split only. Missing or failed acknowledgement data leaves the
 // vehicle on the PMB tile, which is where every other consumer already counts it.
 function pmbArrivalRecord(vehicle = {}) {
   const map = app.pmbArrivalAck;
@@ -8261,12 +8261,19 @@ function ensurePmbArrivalAck() {
   const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
   if (!client || typeof client.rpc !== 'function' || !window.PDC_AUTH_CONTEXT) return;
   if (app.pmbArrivalAckLoading) return;
-  if (app.pmbArrivalAckLoadedAt && Date.now() - app.pmbArrivalAckLoadedAt < 15000) return;
+  // r557 (F171): the r554 location copy lasts 15 seconds, but a new email
+  // revision means a vehicle just arrived or a station was acknowledged.
+  // Refetch then, even inside that window, so the tile is not the stale list.
+  const revision = app.emailVehicleLocationRevision;
+  const revisionChanged = String(revision ?? '') !== String(app.pmbArrivalAckRevision ?? '');
+  if (!revisionChanged && app.pmbArrivalAckLoadedAt && Date.now() - app.pmbArrivalAckLoadedAt < 15000) return;
   app.pmbArrivalAckLoading = true;
   const started = Date.now();
-  client.rpc('list_pmb_arrival_ack_544').then(result => {
+  const revisionAtStart = revision;
+  client.rpc('list_pmb_arrival_ack_557').then(result => {
     app.pmbArrivalAckLoading = false;
     app.pmbArrivalAckLoadedAt = started;
+    app.pmbArrivalAckRevision = revisionAtStart;
     if (result?.error) return;
     const next = new Map();
     (Array.isArray(result?.data) ? result.data : []).forEach(row => {
@@ -8283,6 +8290,7 @@ function ensurePmbArrivalAck() {
   }).catch(() => {
     app.pmbArrivalAckLoading = false;
     app.pmbArrivalAckLoadedAt = started;
+    app.pmbArrivalAckRevision = revisionAtStart;
   });
 }
 
@@ -8294,7 +8302,7 @@ async function acknowledgePmbArrival(key = '', station = '') {
     if (typeof pdcNotify === 'function') pdcNotify('This arrival could not be acknowledged. Refresh and try again.');
     return;
   }
-  const result = await client.rpc('acknowledge_pmb_arrival_544', { p_vehicle_id: id, p_station: station });
+  const result = await client.rpc('acknowledge_pmb_arrival_557', { p_vehicle_id: id, p_station: station });
   const body = result?.data;
   if (result?.error || !body || body.ok !== true) {
     const message = body?.message || result?.error?.message || 'This arrival could not be acknowledged.';
