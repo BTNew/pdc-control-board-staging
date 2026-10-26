@@ -51,7 +51,9 @@
 .fitter-app textarea { display:block; width:100%; resize:vertical; min-height:70px; padding:10px; margin:6px 0; border:1px solid #b5c7d7; border-radius:8px; }
 .fitter-notes label,.fitter-notes small { display:block; font-size:13px; color:#536980; }
 .fitter-other { margin-top:20px; }
-.fitter-other>.fitter-line { margin-top:8px; opacity:.85; }
+.fitter-other>.fitter-line { margin-top:8px; }
+.fitter-other.is-view>.fitter-line { opacity:.85; }
+.fitter-other-note { margin:8px 0 4px; color:#50657a; font-size:14px; }
 .fitter-help { margin-top:20px !important; }
 .fitter-handover { padding:16px; margin:12px 0; border:1px solid #91bba6; border-radius:10px; background:#edf8f2; color:#19573f; font-weight:650; overflow-wrap:anywhere; scroll-margin-top:16px; }
 .fitter-finish { margin-top:24px; border:1px solid #bdd3c7; border-radius:12px; overflow:hidden; }
