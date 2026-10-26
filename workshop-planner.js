@@ -1874,6 +1874,7 @@ function workshopLoadView() {
     busShowAllBays: saved?.busShowAllBays === true,
     selectedPlanId: '',
     search: '',
+    searchKey: '',
     searchOpen: false,
     searchHighlightPlanId: '',
     detailManualOpen: false,
@@ -3670,8 +3671,36 @@ function workshopSearchJobCards(vehicle = {}) {
     .filter(value => typeof value === 'string' && value.trim()).map(value => value.trim()))];
 }
 
+function workshopSearchKeyToken(value = '') {
+  const compact = cleanNavisionText(value || '').replace(/\s+/g, '').toLowerCase();
+  const stripped = compact.replace(/^0+/, '');
+  return stripped || (compact ? '0' : '');
+}
+function workshopVehicleKeyToken(vehicle = {}) {
+  return workshopSearchKeyToken(vehicleKeyNumber(vehicle) || vehicle.key_number || '');
+}
+function workshopSearchCriteria(state = typeof workshopState === 'function' ? workshopState() : {}) {
+  return { key: state?.searchKey || '', text: state?.search || '' };
+}
+function workshopSearchCriteriaKey(criteria = {}) {
+  const key = workshopSearchKeyToken(criteria.key || '');
+  const text = cleanNavisionText(criteria.text || '').toLowerCase();
+  return `${key}\n${text}`;
+}
+function workshopSearchIsActive(criteria = {}) {
+  return workshopSearchKeyToken(criteria.key || '').length >= 1 || cleanNavisionText(criteria.text || '').length >= 2;
+}
+function workshopSearchVehicleMatches(vehicle = {}, criteria = {}) {
+  const text = cleanNavisionText(criteria.text || '').toLowerCase();
+  const key = workshopSearchKeyToken(criteria.key || '');
+  if (!workshopSearchIsActive({ key, text })) return false;
+  if (key && workshopVehicleKeyToken(vehicle) !== key) return false;
+  if (text.length >= 2 && !workshopVehicleSearchText(vehicle).includes(text)) return false;
+  return true;
+}
 function workshopVehicleSearchText(vehicle = {}) {
-  return [vehicleKey(vehicle), displayStockNumber(vehicle), vehicle.keyNumber, vehicleKeyNumber(vehicle), vehicle.pdcJobcard, ...workshopSearchJobCards(vehicle), vehicleCustomerName(vehicle), vehicle.vehicle, vehicle.toyotaVehicle, displayVehicle(vehicle)]
+  // r550 (F164): the key number has its own exact box. This text is stock, job card, customer and vehicle only.
+  return [vehicleKey(vehicle), displayStockNumber(vehicle), vehicle.pdcJobcard, ...workshopSearchJobCards(vehicle), vehicleCustomerName(vehicle), vehicle.vehicle, vehicle.toyotaVehicle, displayVehicle(vehicle)]
     .filter(Boolean).join(' ').toLowerCase();
 }
 
@@ -3724,9 +3753,10 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
 }
 
 function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), options = {}) {
-  const clean = cleanNavisionText(query || '').toLowerCase();
-  if (clean.length < 2) return [];
-  const lookup = options.ignoreLookup || typeof workshopCurrentSearchLookup !== 'function' ? null : workshopCurrentSearchLookup(query);
+  const criteria = query && typeof query === 'object' ? query : { text: query || '', key: '' };
+  const clean = cleanNavisionText(criteria.text || '').toLowerCase();
+  if (!workshopSearchIsActive(criteria)) return [];
+  const lookup = options.ignoreLookup || typeof workshopCurrentSearchLookup !== 'function' ? null : workshopCurrentSearchLookup(criteria);
   // A post-drop refresh clears trusted authority. Keep matching the last
   // outstanding rows so search does not flash "No booking found".
   const searchService = window.__workshopDataService;
@@ -3748,7 +3778,7 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
   // account in its dealer field. Keep the canonical projection at deduplication
   // so stale display fields cannot suppress its scoped read request.
   return pool
-    .filter(vehicle => workshopVehicleSearchText(vehicle).includes(clean))
+    .filter(vehicle => workshopSearchVehicleMatches(vehicle, criteria))
     .map(vehicle => {
       const key = vehicleKey(vehicle);
       const sharedRef = workshopSharedModeActive() ? workshopSharedVehicleRef({ vehicleKey: key, sharedVehicleId: vehicle.sharedVehicleId || (vehicle.__emailVehicleServerAuthoritative === true ? vehicle.__emailVehicleId : '') }) : null;
@@ -3792,7 +3822,7 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
         returnedBookings: workshopReturnedQueuePlans(plans, workshopState().stage,
           workshopState().stage === 'BUS_4X4' && typeof workshopSelectedBusGroup === 'function' ? workshopSelectedBusGroup()?.code || '' : '')
           .filter(entry => workshopPlanVehicleIdentity(entry) === vehicleIdentity),
-        rank: workshopSearchRank(vehicle, clean),
+        rank: workshopSearchRank(vehicle, clean || criteria.key || ''),
         archived: Boolean(vehicle.isArchived || vehicle.archivedAt || statusCategory(vehicle) === 'deleted'),
         bookings,
         bookingLookupError: remote && !remote.ok ? remote.error || 'request_failed' : '',
@@ -3818,11 +3848,12 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
 function workshopCurrentSearchLookup(query = '') {
   const lookup = workshopState().bookingSearchLookup;
   const service = window.__workshopDataService;
+  const criteria = query && typeof query === 'object' ? query : { text: query || '', key: workshopState().searchKey || '' };
   // A post-drop refresh clears trusted authority but keeps the last snapshot.
   // Search may keep showing that snapshot. It must not treat the gap as an outage.
   const displayed = service?.getTrustedSnapshot?.() || service?.getLastSnapshot?.() || null;
   return lookup && lookup.snapshot && lookup.service === service
-    && lookup.query === cleanNavisionText(query || '').toLowerCase()
+    && lookup.query === workshopSearchCriteriaKey(criteria)
     && displayed && lookup.snapshot === displayed ? lookup : null;
 }
 
@@ -3866,16 +3897,17 @@ async function workshopLoadSearchBookings(query = '') {
     if (!retained || state.bookingSearchLookup?.snapshot !== retained) state.bookingSearchLookup = null;
     return;
   }
-  const clean = cleanNavisionText(query || '').toLowerCase();
-  if (clean.length < 2) { state.bookingSearchLookup = null; return; }
-  const current = workshopCurrentSearchLookup(clean);
+  const criteria = query && typeof query === 'object' ? query : workshopSearchCriteria();
+  const criteriaKey = workshopSearchCriteriaKey(criteria);
+  if (!workshopSearchIsActive(criteria)) { state.bookingSearchLookup = null; return; }
+  const current = workshopCurrentSearchLookup(criteria);
   if (current?.status === 'loading' || current?.status === 'ready') return current.promise;
-  const candidates = workshopSearchMatchRows(clean, workshopLoadPlans(), { includeUnmatched: true, ignoreLookup: true });
-  const lookup = { query: clean, service, snapshot: service.getTrustedSnapshot?.(), status: 'loading', matches: new Map(), limited: candidates.length > 25 };
+  const candidates = workshopSearchMatchRows(criteria, workshopLoadPlans(), { includeUnmatched: true, ignoreLookup: true });
+  const lookup = { query: criteriaKey, service, snapshot: service.getTrustedSnapshot?.(), status: 'loading', matches: new Map(), limited: candidates.length > 25 };
   state.bookingSearchLookup = lookup;
   lookup.promise = (async () => {
     const selected = candidates.slice(0, 25);
-    const current = () => state.bookingSearchLookup === lookup && state.search.toLowerCase() === clean
+    const current = () => state.bookingSearchLookup === lookup && workshopSearchCriteriaKey(workshopSearchCriteria()) === criteriaKey
       && window.__workshopDataService === service && lookup.snapshot === service.getTrustedSnapshot?.();
     if (!current()) return;
     if (typeof service.lookupVehicleBookingsBatch === 'function') {
@@ -3931,13 +3963,14 @@ function workshopBookingSearchMeta(entry = {}) {
 }
 
 function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
+  const criteria = query && typeof query === 'object' ? query : { text: query || '', key: typeof workshopState === 'function' ? workshopState().searchKey || '' : '' };
   const lookupRequired = workshopSharedModeActive() && typeof window.__workshopDataService?.lookupVehicleBookings === 'function';
-  const lookup = workshopCurrentSearchLookup(query);
+  const lookup = workshopCurrentSearchLookup(criteria);
   const searchService = window.__workshopDataService;
   if (lookupRequired && !searchService?.getTrustedSnapshot?.() && !searchService?.getLastSnapshot?.()) return '<div class="workshop-search-state" role="status"><strong>Bookings temporarily unavailable</strong><span>Waiting for the workshop connection to refresh.</span></div>';
   if (lookupRequired && (!lookup || lookup.status !== 'ready')) return '<div class="workshop-search-state" role="status"><strong>Finding bookings…</strong><span>Checking this vehicle in the selected station across all dates.</span></div>';
-  const matches = workshopSearchMatches(query, plans);
-  if (cleanNavisionText(query || '').length < 2) return '';
+  const matches = workshopSearchMatches(criteria, plans);
+  if (!workshopSearchIsActive(criteria)) return '';
   if (!matches.length) return '<div class="workshop-search-state" role="status"><strong>No booking found</strong><span>No booking or outstanding work matched in this station.</span></div>';
   const ambiguous = matches.length > 1
     ? `<div class="workshop-search-state is-warning" role="status"><strong>Multiple matching vehicles</strong><span>${matches.length} vehicles matched. Choose a specific vehicle and booking; nothing was selected automatically.</span></div>`
@@ -3988,11 +4021,15 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
 }
 
 function workshopSearchControlHtml(query = '', plans = workshopLoadPlans()) {
-  const open = workshopState().searchOpen && cleanNavisionText(query || '').length >= 2;
-  return `<section class="workshop-booking-search${open ? ' is-open' : ''}" aria-label="Vehicle booking search">
-    <label><span>Find a workshop booking</span><input type="search" role="combobox" aria-autocomplete="list" data-workshop-search value="${escapeHtml(query)}" placeholder="Key, stock, job card, customer or vehicle" autocomplete="off" aria-controls="workshop-booking-search-results" aria-expanded="${open ? 'true' : 'false'}" /></label>
-    <button type="button" class="small-button" data-workshop-search-clear ${query ? '' : 'disabled'}>Clear</button>
-    <div id="workshop-booking-search-results" class="workshop-search-results" ${open ? '' : 'hidden'}>${open ? workshopSearchResultsHtml(query, plans) : ''}</div>
+  const state = workshopState();
+  const criteria = { key: state.searchKey || '', text: query || state.search || '' };
+  const open = state.searchOpen && workshopSearchIsActive(criteria);
+  const filled = workshopSearchKeyToken(criteria.key) || cleanNavisionText(criteria.text);
+  return `<section class="workshop-booking-search${open ? ' is-open' : ''}" aria-label="Find a workshop booking">
+    <label><span>Key number</span><input type="search" role="combobox" aria-autocomplete="list" data-workshop-search-key value="${escapeHtml(criteria.key)}" placeholder="Key number" autocomplete="off" aria-controls="workshop-booking-search-results" aria-expanded="${open ? 'true' : 'false'}" /></label>
+    <label><span>Stock, job card, customer or vehicle</span><input type="search" role="combobox" aria-autocomplete="list" data-workshop-search value="${escapeHtml(criteria.text)}" placeholder="Stock, job card, customer or vehicle" autocomplete="off" aria-controls="workshop-booking-search-results" aria-expanded="${open ? 'true' : 'false'}" /></label>
+    <button type="button" class="small-button" data-workshop-search-clear ${filled ? '' : 'disabled'}>Clear</button>
+    <div id="workshop-booking-search-results" class="workshop-search-results" ${open ? '' : 'hidden'}>${open ? workshopSearchResultsHtml(criteria, plans) : ''}</div>
   </section>`;
 }
 
@@ -4055,7 +4092,7 @@ async function workshopSelectSearchBooking(bookingId = '', vehicleIdentity = '')
   let plans = workshopLoadPlans();
   if (workshopSharedModeActive() && typeof window.__workshopDataService?.lookupVehicleBookings === 'function') {
     const service = window.__workshopDataService;
-    const match = workshopSearchMatchRows(state.search, plans, { includeUnmatched: true }).find(item => item.vehicleIdentity === vehicleIdentity);
+    const match = workshopSearchMatchRows(workshopSearchCriteria(state), plans, { includeUnmatched: true }).find(item => item.vehicleIdentity === vehicleIdentity);
     if (!match) return false;
     const result = await workshopLookupSearchVehicle(match);
     if (window.__workshopDataService !== service || state.search !== query || state.bookingSearchSelectionGeneration !== selectionGeneration) return false;
@@ -4168,12 +4205,16 @@ function workshopOpenBookingById(bookingId = '', vehicleIdentity = '') {
   return true;
 }
 
-function workshopRevealSearchMatch(query = '') {
+function workshopRevealSearchMatch(query = '', field = 'text') {
   const state = workshopState();
-  state.search = cleanNavisionText(query || '');
-  state.searchOpen = state.search.length >= 2;
+  if (field === 'clear') {
+    state.search = '';
+    state.searchKey = '';
+  } else if (field === 'key') state.searchKey = cleanNavisionText(query || '');
+  else state.search = cleanNavisionText(query || '');
+  state.searchOpen = workshopSearchIsActive(workshopSearchCriteria(state));
   state.bookingNavigationError = '';
-  if (!state.search) {
+  if (!state.searchOpen) {
     state.bookingSearchLookup = null;
     state.highlightVehicleKey = '';
     state.searchHighlightPlanId = '';
@@ -4304,7 +4345,7 @@ function workshopBindSearchDragResults(root) {
         event.dataTransfer.setData('application/x-workshop-plan-id', plan.id);
         workshopSetDragPreview({ type: 'plan', hours: Number(plan.hours), entry: plan });
       } else {
-        const match = workshopSearchMatches(workshopState().search, workshopLoadPlans()).find(item =>
+        const match = workshopSearchMatches(workshopSearchCriteria(), workshopLoadPlans()).find(item =>
           item.vehicleIdentity === button.dataset.workshopSearchDragVehicle && item.candidateAvailable
           && !item.archived && !item.bookingLookupError && !item.bookings.length && !item.returnedBookings?.length);
         if (!match) { event.preventDefault(); return; }
@@ -4361,7 +4402,7 @@ function workshopBindSearchDragResults(root) {
 }
 
 function workshopSearchDragVehicle(button) {
-  return workshopSearchMatches(workshopState().search, workshopLoadPlans()).find(item =>
+  return workshopSearchMatches(workshopSearchCriteria(), workshopLoadPlans()).find(item =>
     item.vehicleIdentity === button.dataset.workshopSearchDragVehicle && item.candidateAvailable
     && !item.archived && !item.bookingLookupError && !item.bookings.length && !item.returnedBookings?.length) || null;
 }
@@ -4427,7 +4468,7 @@ function workshopBindSearchResultButtons(root = document) {
 async function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
   const state = workshopState();
   const selectionGeneration = state.bookingSearchSelectionGeneration = (state.bookingSearchSelectionGeneration || 0) + 1;
-  const match = workshopSearchMatches(state.search, workshopLoadPlans()).find(item => item.vehicleIdentity === vehicleIdentity && !item.bookings.length && item.candidateAvailable && !item.archived);
+  const match = workshopSearchMatches(workshopSearchCriteria(state), workshopLoadPlans()).find(item => item.vehicleIdentity === vehicleIdentity && !item.bookings.length && item.candidateAvailable && !item.archived);
   if (!match) {
     state.searchOpen = true;
     renderWorkshopPlanner();
@@ -4468,24 +4509,26 @@ async function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
 
 async function workshopRefreshSearchResults(root = document, input = null, query = '') {
   const state = workshopState();
-  state.search = cleanNavisionText(query || '');
-  state.searchOpen = state.search.length >= 2;
+  if (input?.hasAttribute?.('data-workshop-search-key')) state.searchKey = cleanNavisionText(query || '');
+  else if (input || query !== undefined) state.search = cleanNavisionText(query || '');
+  const criteria = workshopSearchCriteria(state);
+  state.searchOpen = workshopSearchIsActive(criteria);
   const results = root.querySelector('#workshop-booking-search-results');
-  const control = input?.closest('.workshop-booking-search');
+  const control = input?.closest('.workshop-booking-search') || root.querySelector?.('.workshop-booking-search');
   const clear = control?.querySelector('[data-workshop-search-clear]');
   if (results) {
-    results.innerHTML = state.searchOpen ? workshopSearchResultsHtml(state.search) : '';
+    results.innerHTML = state.searchOpen ? workshopSearchResultsHtml(criteria) : '';
     results.hidden = !state.searchOpen;
   }
   control?.classList.toggle('is-open', state.searchOpen);
-  input?.setAttribute('aria-expanded', state.searchOpen ? 'true' : 'false');
-  if (clear) clear.disabled = !state.search;
+  control?.querySelectorAll('input').forEach(field => field.setAttribute('aria-expanded', state.searchOpen ? 'true' : 'false'));
+  if (clear) clear.disabled = !workshopSearchKeyToken(state.searchKey) && !cleanNavisionText(state.search);
   workshopBindSearchResultButtons(root);
-  await workshopLoadSearchBookings(state.search);
-  if (state.search !== cleanNavisionText(query || '') || (input && !input.isConnected)) return;
+  await workshopLoadSearchBookings(criteria);
+  if (workshopSearchCriteriaKey(workshopSearchCriteria()) !== workshopSearchCriteriaKey(criteria) || (input && !input.isConnected)) return;
   const currentResults = root.querySelector('#workshop-booking-search-results');
   if (currentResults?.isConnected) {
-    currentResults.innerHTML = state.searchOpen ? workshopSearchResultsHtml(state.search) : '';
+    currentResults.innerHTML = state.searchOpen ? workshopSearchResultsHtml(criteria) : '';
     workshopBindSearchResultButtons(root);
   }
 }
@@ -6110,56 +6153,66 @@ function bindWorkshopPlanner(root) {
     workshopSaveView(state);
     if (!workshopRefreshDedicatedDate(state.date)) renderWorkshopPlanner();
   });
-  const searchInput = root.querySelector('[data-workshop-search]');
-  searchInput?.addEventListener('focus', event => {
+  const searchInputs = [...root.querySelectorAll('[data-workshop-search], [data-workshop-search-key]')];
+  searchInputs.forEach(searchInput => {
+  searchInput.addEventListener('focus', event => {
     const state = workshopState();
-    state.searchOpen = cleanNavisionText(event.currentTarget.value || '').length >= 2;
+    const field = event.currentTarget.hasAttribute('data-workshop-search-key') ? 'key' : 'text';
+    if (field === 'key') state.searchKey = event.currentTarget.value;
+    else state.search = event.currentTarget.value;
+    state.searchOpen = workshopSearchIsActive(workshopSearchCriteria(state));
     const results = root.querySelector('#workshop-booking-search-results');
     if (results && state.searchOpen) {
       results.hidden = false;
-      const lookup = workshopCurrentSearchLookup(state.search);
+      const lookup = workshopCurrentSearchLookup(workshopSearchCriteria(state));
       if (lookup?.status === 'ready' && [...lookup.matches.values()].some(result => !result.ok)) state.bookingSearchLookup = null;
       void workshopRefreshSearchResults(root, event.currentTarget, event.currentTarget.value);
     }
   });
-  searchInput?.addEventListener('input', event => {
+  searchInput.addEventListener('input', event => {
     const input = event.currentTarget;
-    workshopState().search = input.value;
+    const state = workshopState();
+    if (input.hasAttribute('data-workshop-search-key')) state.searchKey = input.value;
+    else state.search = input.value;
     window.clearTimeout(app.workshopPlannerSearchTimer);
     app.workshopPlannerSearchTimer = window.setTimeout(() => {
       if (input.isConnected) workshopRefreshSearchResults(root, input, input.value);
     }, 180);
   });
-  searchInput?.addEventListener('keydown', async event => {
+  searchInput.addEventListener('keydown', async event => {
     if (event.key === 'Escape') {
       event.preventDefault();
       const state = workshopState();
       state.searchOpen = false;
       const results = root.querySelector('#workshop-booking-search-results');
       if (results) results.hidden = true;
-      event.currentTarget.setAttribute('aria-expanded', 'false');
+      root.querySelectorAll('[data-workshop-search], [data-workshop-search-key]').forEach(field => field.setAttribute('aria-expanded', 'false'));
       return;
     }
     if (event.key !== 'Enter') return;
     event.preventDefault();
     window.clearTimeout(app.workshopPlannerSearchTimer);
     const state = workshopState();
-    const query = event.currentTarget.value;
-    await workshopLoadSearchBookings(query);
-    if (state.search !== query) return;
-    const matches = workshopSearchMatches(query);
+    const input = event.currentTarget;
+    if (input.hasAttribute('data-workshop-search-key')) state.searchKey = input.value;
+    else state.search = input.value;
+    const criteria = workshopSearchCriteria(state);
+    await workshopLoadSearchBookings(criteria);
+    if (workshopSearchCriteriaKey(workshopSearchCriteria()) !== workshopSearchCriteriaKey(criteria)) return;
+    const matches = workshopSearchMatches(criteria);
     if (matches.length === 1 && matches[0].bookings.length) {
       workshopSelectSearchBooking(matches[0].bookings[0].id, matches[0].vehicleIdentity);
       return;
     }
-    workshopRevealSearchMatch(query);
+    workshopRevealSearchMatch(input.value, input.hasAttribute('data-workshop-search-key') ? 'key' : 'text');
   });
-  root.querySelector('[data-workshop-search-clear]')?.addEventListener('click', () => workshopRevealSearchMatch(''));
+  });
+  root.querySelector('[data-workshop-search-clear]')?.addEventListener('click', () => workshopRevealSearchMatch('', 'clear'));
   workshopBindSearchResultButtons(root);
   const searchState = workshopState();
-  if (searchState.searchOpen && cleanNavisionText(searchState.search || '').length >= 2
-    && window.__workshopDataService?.getTrustedSnapshot?.() && !workshopCurrentSearchLookup(searchState.search)) {
-    void workshopRefreshSearchResults(root, searchInput, searchState.search);
+  if (searchState.searchOpen && workshopSearchIsActive(workshopSearchCriteria(searchState))
+    && window.__workshopDataService?.getTrustedSnapshot?.() && !workshopCurrentSearchLookup(workshopSearchCriteria(searchState))) {
+    void workshopRefreshSearchResults(root, root.querySelector('[data-workshop-search]'), searchState.search);
   }
   root.querySelector('[data-workshop-detail-toggle]')?.addEventListener('click', () => {
     const state = workshopState();
