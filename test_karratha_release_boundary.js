@@ -102,7 +102,7 @@ const approvedRootImportPatch = Object.freeze({
   // r493: workshopEntryPausedNow: started tile outside bay working time is amber Paused; running strip paused reason (F106).
   // r498: 'Undo last move' shows straight after an administrator move and goes after Undo (F111).
   // r527: QA Bay 07 resolves by code, bay number, QA label or the live snapshot, and a refused technician write no longer says to sign in as an administrator (F141). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "24b25e6f93bee3bd2722a4f75e59c373ec501a4b517d426e1fe3a75e3e0e9ca2",
+  "workshop-planner.js": "5b1f9e1ae048fae0c23efb30d6b82cf21f0c655029eaf65f13135911353fe24d",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "28f7eb47951e869bc90ec5a6e0bb2e15162b9d5ad8c3b1f8b808dc7ace6eec00",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
@@ -203,7 +203,8 @@ const approvedRootImportPatch = Object.freeze({
   // r521: the Booking column no longer uses a Pilbara service job card as a read-only badge (F135). Department 135 keeps its frozen app.js.
   // r524: imported orange, red, review and grey keep the Parts tile colour; a JITA number is the corner mark unless the import is missing or green (F138). Department 135 keeps its frozen app.js.
   // r527: r527=2026.10.25.r527 on workshop-reference-data-service.js and both workshop-planner.js loads (QA bay technician, F141). Department 135 keeps its frozen app.js.
-  "app.js": "7cf69a536741acbec44be1276cdc6b9cfd35960f74e22f6928902b84c45d0cf0",
+  // r531: r531=2026.10.26.r531 on both workshop-planner.js loads (duration cache and technician clash text, F145). Department 135 keeps its frozen app.js.
+  "app.js": "5145be58eb1fcce31d5ec6737cd35a2e0316c7e201923bf578d24d492de1db85",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
