@@ -1,6 +1,6 @@
 # Scheduled website function checks
 
-The owner authorised hourly availability checks and a full pre-opening check, including booking moves, locations and fitter workflows. The working page is the staging-labelled website at `https://btnew.github.io/pdc-control-board-staging/`; staff use this database for real work.
+The owner authorised hourly availability checks and a full pre-opening check, including booking moves, locations and fitter workflows. The working page is the staging-labelled website at `https://pmgpdc.au/` (the legacy `https://btnew.github.io/pdc-control-board-staging/` address redirects there); staff use this database for real work.
 
 Two heartbeats are active in the existing Codex chat: `PDC hourly website checks` at 17 minutes past each hour, and `PDC full pre-opening function checks` at 05:30 Monday through Friday. Times are Australia/Perth. Their schedules are managed in the app, not by this repository or the web server.
 
@@ -14,7 +14,7 @@ Reports and detailed diagnostics remain under `work/functional-monitor-private` 
 
 ## Hourly check
 
-Run `node tools/functional-monitor/check_website.cjs --output <fresh-private-run-directory>` from this repository. It checks nine published entry points, eight critical assets, signed-out denial on three read endpoints, and the critical workshop/Finance/activity browser-code regressions. It has no staff bearer token, operational write RPC, email client or database credentials.
+Run `node tools/functional-monitor/check_website.cjs --output <fresh-private-run-directory>` from this repository. It checks nine published entry points at the canonical domain, nine exact legacy entry-point redirects, eight critical assets, signed-out denial on three read endpoints, and the critical workshop/Finance/activity browser-code regressions. Canonical reads reject redirects. Legacy checks use HEAD without following redirects and require a permanent redirect to the exact corresponding canonical HTTPS URL. It has no staff bearer token, operational write RPC, email client or database credentials.
 
 ## Full check
 
@@ -46,7 +46,7 @@ These checks do not establish that every possible situation works. Report PASS, 
 
 The Python exit code describes the selected database scenarios and restore/cleanup only. A zero exit code is not a whole-site all-clear: read `backend_version_check`, `coverage_gaps`, and `overall` from `summary.json` as well. The overall result explicitly retains missing browser, Storage and provider coverage.
 
-Authenticated live browser checks and actual dragging through the UI are currently **BLOCKED**: the computer-use connection fails to initialise. The local restore also has no browser API bridge configured. Do not substitute moves on real bays. Until an isolated browser frontend/backend is available, report this gap explicitly; database moves and browser-code regression tests are different evidence. Storage object file contents and external service settings are excluded from the backup, so photo uploads, actual email delivery and provider integrations are not established by these runs.
+Browser availability must be checked for each run. On 26 October 2026, the owner's authorised sign-in allowed actual read-only navigation through Vehicle Locations, reports, Control Board, two station planners, Sublet, QC and the fitter entry screen. See `docs/PERFORMANCE-20261026.md`. This does not establish actual dragging: the local restore still has no browser API bridge configured, and no live jobs may be used as test fixtures. Until an isolated browser frontend/backend is available, report dragging as **NOT RUN** or **BLOCKED**, with the actual capability reason. Database moves and browser-code regression tests are different evidence. Storage object file contents and external service settings are excluded from the backup, so photo uploads, actual email delivery and provider integrations are not established by these runs.
 
 Scheduled tasks should produce a brief update in the current chat for new failures, missing coverage, meaningful recovery or worsening failures, with Perth time and the affected function. Keep a minimal comparison baseline locally and avoid repeating the same unchanged failure on every run. The PC and desktop app must remain running for these local scheduled checks.
 
