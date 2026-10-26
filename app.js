@@ -16008,7 +16008,7 @@ async function loadVehicleEmailNotes(vehicle, panel) {
     host.innerHTML = '<div class="subtle">No email notes on this vehicle yet.</div>';
     return;
   }
-  const { data, error } = await window.PDC_SUPABASE.rpc('list_vehicle_email_notes_542', { p_vehicle_id: vehicleId });
+  const { data, error } = await window.PDC_SUPABASE.rpc('list_vehicle_email_notes_543', { p_vehicle_id: vehicleId });
   if (!panel.isConnected) return;
   const notes = Array.isArray(data) ? data : [];
   if (error || !notes.length) {
