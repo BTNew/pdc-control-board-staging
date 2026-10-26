@@ -148,7 +148,7 @@
     return named ? named.label+' · Bay '+String(named.number).padStart(2,'0') : '';
   }
   function bayLabel(stage, bay) {
-    // r546 (F160): bay 0 is no bay. Callers that used to pad it to Bay 00 say Unallocated.
+    // r548 (F162): bay 0 is no bay. Callers that used to pad it to Bay 00 say Unallocated.
     const number = Number(bay);
     if (!Number.isInteger(number) || number < 1) return 'Unallocated';
     const base = 'Bay '+String(number).padStart(2,'0');

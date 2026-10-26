@@ -4892,7 +4892,7 @@ function workshopBayChoiceLabel(stage,bay) {
 // r483 (F96): a Dept 139 bay reads with Craig's name and number ('Fitting · Bay 06');
 // every other station (Bus 4x4, shared Tint / Tyre) keeps its plain 'Bay N' text.
 function workshopBayText(stage = '', bay = '', pad = false) {
-  // r546 (F160): bay 0 is a missing bay_id. It reads Unallocated, never Bay 00.
+  // r548 (F162): bay 0 is a missing bay_id. It reads Unallocated, never Bay 00.
   const number = Number(bay);
   if (!Number.isInteger(number) || number < 1) return 'Unallocated';
   const layout = typeof workshopDepartmentLayout === 'function' ? workshopDepartmentLayout() : null;
@@ -7415,7 +7415,7 @@ function workshopOtherDepartmentOverlaps(candidate = {}, rows = []) {
     if (row.id === candidate.id) return false;
     if (row.vehicleKey !== candidate.vehicleKey) return false;
     if (row.status === 'completed' || row.status === 'deleted') return false;
-    // r546 (F160): this vehicle's own unallocated bookings (no bay) never block
+    // r548 (F162): this vehicle's own unallocated bookings (no bay) never block
     // the drop. The server moves them to follow the bay that was just booked.
     // A booking that already has a bay still blocks.
     const bayNumber = Number(row.bay);
