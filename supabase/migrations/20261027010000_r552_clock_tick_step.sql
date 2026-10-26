@@ -20,6 +20,13 @@
 -- Department 135 is not edited.
 -- Undo: supabase/rollbacks/20261027010000_r552_clock_tick_step.down.sql
 SET LOCAL lock_timeout = '2s';
+DO $wait$ DECLARE v_deadline timestamptz := clock_timestamp() + interval '70 seconds';
+BEGIN
+ WHILE extract(second FROM clock_timestamp()) NOT BETWEEN 4 AND 40 LOOP
+  IF clock_timestamp() > v_deadline THEN RAISE EXCEPTION 'r552: could not reach the release window'; END IF;
+  PERFORM pg_sleep(1);
+ END LOOP;
+END $wait$;
 DO $g$ BEGIN
  IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r552: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
  IF NOT public.pdc_monitor_staging_guard()
