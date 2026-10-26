@@ -1,4 +1,7 @@
--- r541 (F155). PREVIEW. SQL is not applied. Staging cdsmnqxtyyoeoznmbidd only. Production is not touched.
+-- r555 (F169). Approved go-live retry 26 Oct 2026. Staging cdsmnqxtyyoeoznmbidd only. Production is not touched.
+-- Rebased onto main b954e904 (r554 / F168 / sort 329). The r541 apply was undone the same day because clock_ticks_recent was red.
+-- This release is r555 / F169 / sort 330. Helper names stay *_541 so the person prosrc md5 stays c5314b7bed8a1401b6698319125c2d74.
+-- The parts importer and the new-addition routing functions are not edited.
 -- 26 Oct 2026 10:43 AWST: Talin Parker's reply 'All parts complete' on
 -- 'RE: New vehicle order for 13102818 - PMG Build'
 -- (message <SY1P282MB6355D7DB1314F5E461980BCEAC642@SY1P282MB6355.AUSP282.PROD.OUTLOOK.COM>)
@@ -15,24 +18,24 @@
 -- A stock may be 8 digits, IS plus 8, a rego such as 1IRU519, or one job card such as J138000880.
 -- pdc@pmgwa.com.au may be in To, in Cc, or the message may be a forward. A plain reply that is not addressed to pdc@ stays refused.
 -- Two stocks, two job cards, or two vehicles are still refused.
--- Pin count stays 241. The person recorder is not pinned. Sort 318 is r539. This check is sort 319.
+-- Pin count stays 241. The person recorder is not pinned. r554 took sort 329. This check is sort 330.
 -- Person prosrc md5 c5314b7bed8a1401b6698319125c2d74 (was 8ddb1477beeb94c7879c4021cccf1d40).
--- Undo: supabase/rollbacks/20261026170000_r541_parts_complete_wording.down.sql
+-- Undo: supabase/rollbacks/20261027060000_r555_parts_complete_wording.down.sql
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
- IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r541: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
+ IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r555: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
  IF NOT public.pdc_monitor_staging_guard()
     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
-    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r541: staging only'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r541: pin count is not 241'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS DISTINCT FROM '8ddb1477beeb94c7879c4021cccf1d40' THEN RAISE EXCEPTION 'r541: person recorder is not the r515 body'; END IF;
- IF (SELECT prosecdef FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS TRUE THEN RAISE EXCEPTION 'r541: person recorder is security definer'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=319 OR fault_id='F155' OR check_name='parts_complete_wording_541' OR added_in='r541') THEN RAISE EXCEPTION 'r541: sort 319 or F155 is taken'; END IF;
- IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='outlook_parts_completion_514' AND added_in='r514' AND fault_id='F128' AND sort_order=301) IS DISTINCT FROM 'afa4f64947a3a6a80c356928de75c918' THEN RAISE EXCEPTION 'r541: outlook_parts_completion_514 is not the live text'; END IF;
- IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='outlook_internal_parts_auth_515' AND added_in='r515' AND fault_id='F129' AND sort_order=302) IS DISTINCT FROM 'da6dcc4cd843090558c6e063b149035a' THEN RAISE EXCEPTION 'r541: outlook_internal_parts_auth_515 is not the live text'; END IF;
- IF (SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c WHERE c.conname='person_confirmation_stock' AND c.conrelid=to_regclass('public.pdc_parts_completion_email_confirmations')) IS DISTINCT FROM 'CHECK ((stock_number ~ ''^([0-9]{8}|IS[0-9]{8})$''::text))' THEN RAISE EXCEPTION 'r541: public stock check is not the live text'; END IF;
- IF (SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c WHERE c.conname='person_confirmation_stock' AND c.conrelid=to_regclass('karratha135_pdc.pdc_parts_completion_email_confirmations')) IS DISTINCT FROM 'CHECK ((stock_number ~ ''^([0-9]{8}|IS[0-9]{8})$''::text))' THEN RAISE EXCEPTION 'r541: karratha stock check changed'; END IF;
+    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r555: staging only'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r555: pin count is not 241'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS DISTINCT FROM '8ddb1477beeb94c7879c4021cccf1d40' THEN RAISE EXCEPTION 'r555: person recorder is not the r515 body'; END IF;
+ IF (SELECT prosecdef FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS TRUE THEN RAISE EXCEPTION 'r555: person recorder is security definer'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=330 OR fault_id='F169' OR check_name='parts_complete_wording_555' OR added_in='r555') THEN RAISE EXCEPTION 'r555: sort 330 or F169 is taken'; END IF;
+ IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='outlook_parts_completion_514' AND added_in='r514' AND fault_id='F128' AND sort_order=301) IS DISTINCT FROM 'afa4f64947a3a6a80c356928de75c918' THEN RAISE EXCEPTION 'r555: outlook_parts_completion_514 is not the live text'; END IF;
+ IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='outlook_internal_parts_auth_515' AND added_in='r515' AND fault_id='F129' AND sort_order=302) IS DISTINCT FROM 'da6dcc4cd843090558c6e063b149035a' THEN RAISE EXCEPTION 'r555: outlook_internal_parts_auth_515 is not the live text'; END IF;
+ IF (SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c WHERE c.conname='person_confirmation_stock' AND c.conrelid=to_regclass('public.pdc_parts_completion_email_confirmations')) IS DISTINCT FROM 'CHECK ((stock_number ~ ''^([0-9]{8}|IS[0-9]{8})$''::text))' THEN RAISE EXCEPTION 'r555: public stock check is not the live text'; END IF;
+ IF (SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c WHERE c.conname='person_confirmation_stock' AND c.conrelid=to_regclass('karratha135_pdc.pdc_parts_completion_email_confirmations')) IS DISTINCT FROM 'CHECK ((stock_number ~ ''^([0-9]{8}|IS[0-9]{8})$''::text))' THEN RAISE EXCEPTION 'r555: karratha stock check changed'; END IF;
 END $g$;
 
 ALTER TABLE public.pdc_parts_completion_email_confirmations DROP CONSTRAINT person_confirmation_stock;
@@ -427,8 +430,8 @@ WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth
   AND check_sql LIKE '%8ddb1477beeb94c7879c4021cccf1d40%';
 
 INSERT INTO pdc_ops.regression_checks(check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
-('parts_complete_wording_541', 'F155',
- 'Parts-complete wording (r541): a clear affirmative from a verified internal pmgwa sender counts. A rego such as 1IRU519 or one job card such as J138000880 resolves one active vehicle. pdc@ in To, Cc, or a forward counts. A second match, or a reply that is not addressed to pdc@, stays refused. Karratha keeps the 8-digit stock check.',
+('parts_complete_wording_555', 'F169',
+ 'Parts-complete wording (r555): a clear affirmative from a verified internal pmgwa sender counts. A rego such as 1IRU519 or one job card such as J138000880 resolves one active vehicle. pdc@ in To, Cc, or a forward counts. A second match, or a reply that is not addressed to pdc@, stays refused. Karratha keeps the 8-digit stock check.',
  $chk541$
 SELECT
  (
@@ -512,25 +515,25 @@ SELECT
   AND (SELECT pg_catalog.pg_get_constraintdef(c.oid) FROM pg_catalog.pg_constraint c
        WHERE c.conname='person_confirmation_stock' AND c.conrelid=pg_catalog.to_regclass('karratha135_pdc.pdc_parts_completion_email_confirmations'))
       NOT LIKE '%[0-9][A-Z]{2,4}[0-9]{2,4}%'
-  AND (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='parts_complete_wording_541' AND fault_id='F155' AND sort_order=319 AND added_in='r541' AND enabled) = 1
+  AND (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='parts_complete_wording_555' AND fault_id='F169' AND sort_order=330 AND added_in='r555' AND enabled) = 1
  ) AS ok,
  '13102818 and 1IRU519/J138000880 each match one vehicle; Cc and a forward reach pdc@; a plain reply to someone else does not' AS detail
-$chk541$, true, 319, 'r541');
+$chk541$, true, 330, 'r555');
 
 DO $p$ DECLARE x record; BEGIN
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r541: pin count changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS DISTINCT FROM 'c5314b7bed8a1401b6698319125c2d74' THEN RAISE EXCEPTION 'r541: person md5'; END IF;
- IF (SELECT prosecdef FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS TRUE THEN RAISE EXCEPTION 'r541: person recorder became security definer'; END IF;
- IF (SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c WHERE c.conname='person_confirmation_stock' AND c.conrelid=to_regclass('karratha135_pdc.pdc_parts_completion_email_confirmations')) LIKE '%[0-9][A-Z]{2,4}[0-9]{2,4}%' THEN RAISE EXCEPTION 'r541: karratha stock check widened'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth_515') AND check_sql LIKE '%8ddb1477beeb94c7879c4021cccf1d40%') THEN RAISE EXCEPTION 'r541: old person md5 remains in a check'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r555: pin count changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS DISTINCT FROM 'c5314b7bed8a1401b6698319125c2d74' THEN RAISE EXCEPTION 'r555: person md5'; END IF;
+ IF (SELECT prosecdef FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS TRUE THEN RAISE EXCEPTION 'r555: person recorder became security definer'; END IF;
+ IF (SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c WHERE c.conname='person_confirmation_stock' AND c.conrelid=to_regclass('karratha135_pdc.pdc_parts_completion_email_confirmations')) LIKE '%[0-9][A-Z]{2,4}[0-9]{2,4}%' THEN RAISE EXCEPTION 'r555: karratha stock check widened'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth_515') AND check_sql LIKE '%8ddb1477beeb94c7879c4021cccf1d40%') THEN RAISE EXCEPTION 'r555: old person md5 remains in a check'; END IF;
  PERFORM set_config('search_path','pg_catalog',true);
- EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='parts_complete_wording_541') INTO x;
- IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r541: parts_complete_wording_541 not OK: %', x.detail; END IF;
+ EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='parts_complete_wording_555') INTO x;
+ IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r555: parts_complete_wording_555 not OK: %', x.detail; END IF;
  EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='outlook_internal_parts_auth_515') INTO x;
- IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r541: outlook_internal_parts_auth_515 not OK: %', x.detail; END IF;
+ IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r555: outlook_internal_parts_auth_515 not OK: %', x.detail; END IF;
  EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='outlook_parts_completion_514') INTO x;
- IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r541: outlook_parts_completion_514 not OK: %', x.detail; END IF;
+ IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r555: outlook_parts_completion_514 not OK: %', x.detail; END IF;
  EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='regression_checks_self_test') INTO x;
- IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r541: regression_checks_self_test not OK: %', x.detail; END IF;
+ IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r555: regression_checks_self_test not OK: %', x.detail; END IF;
  PERFORM set_config('search_path','public, extensions',true);
 END $p$;

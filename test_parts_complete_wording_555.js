@@ -5,15 +5,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { scanSql } = require('./scripts/lint_migration_safeupdate_dml.js');
 
-const up = fs.readFileSync('supabase/migrations/20261026170000_r541_parts_complete_wording.sql', 'utf8');
-const down = fs.readFileSync('supabase/rollbacks/20261026170000_r541_parts_complete_wording.down.sql', 'utf8');
+const up = fs.readFileSync('supabase/migrations/20261027060000_r555_parts_complete_wording.sql', 'utf8');
+const down = fs.readFileSync('supabase/rollbacks/20261027060000_r555_parts_complete_wording.down.sql', 'utf8');
 const check = up.slice(up.indexOf('$chk541$'), up.lastIndexOf('$chk541$'));
 
-test('r541 accepts All parts complete and refuses All parts removed', () => {
-  assert.match(up, /PREVIEW/);
-  assert.match(up, /SQL is not applied/);
+test('r555 accepts All parts complete and refuses All parts removed', () => {
+  assert.match(up, /Approved go-live retry/);
+  assert.doesNotMatch(up, /PREVIEW/);
   assert.match(up, /cdsmnqxtyyoeoznmbidd/);
-  assert.match(up, /true, 319, 'r541'/);
+  assert.match(up, /true, 330, 'r555'/);
   assert.match(up, /Pin count stays 241/);
   assert.match(up, /c5314b7bed8a1401b6698319125c2d74/);
   assert.match(up, /8ddb1477beeb94c7879c4021cccf1d40/);
@@ -64,6 +64,7 @@ test('r541 accepts All parts complete and refuses All parts removed', () => {
   assert.match(down, /pdc_parts_vehicle_match_541/);
   assert.match(down, /a rego-stock confirmation is stored/);
   assert.equal(scanSql(down).length, 0);
-  assert.doesNotMatch(fs.readFileSync('karratha/app.js', 'utf8'), /parts_complete_wording_541/);
-  assert.match(fs.readFileSync('docs/FAULT_LOG.md', 'utf8'), /\| F155 \|/);
+  assert.doesNotMatch(fs.readFileSync('karratha/app.js', 'utf8'), /parts_complete_wording_555/);
+  assert.match(fs.readFileSync('docs/FAULT_LOG.md', 'utf8'), /\| F169 \|/);
+  assert.doesNotMatch(up, /pdc_import_job_parts_csv_20260912/);
 });
