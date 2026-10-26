@@ -34,6 +34,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - name: Install the Postgres client used by SQL proofs
         run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Verify deployment provenance
@@ -74,5 +77,7 @@ jobs:
         run: node test_legacy_website_links.js
       - name: Run staging regression suite
         run: node --test test_*.js
+      - name: Verify functional monitor fingerprint evidence
+        run: python -B -m unittest discover -s tests -p test_functional_monitor_fingerprints.py -v
       - name: Reject privileged frontend secret values
         run: node scripts/check_frontend_secrets.js
