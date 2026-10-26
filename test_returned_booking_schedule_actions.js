@@ -20,15 +20,16 @@ const c={console,Date,WORKSHOP_STAGE_SEQUENCE:['BUS_4X4'],workshopNotify(){},win
  workshopFirstAvailableStartSlot:(...args)=>{assert.ok(!args[4].some(r=>r.id===plan.id));return {dateKey:state.date,startMinutes:60};},
  workshopStageBayCount:()=>1,workshopBayChoiceLabel:()=>'',workshopScheduleTimeOptions:()=>'',workshopAssigneeOptions:()=>'',escapeHtml:String,
  workshopBayMechanic:()=>'',pmbBayMechanic:()=>'',pmbStageLabel:x=>x,displayStockNumber:()=> 'TEST',vehicleCustomerName:()=> 'Synthetic',
- workshopIsWorkday:()=>true,scheduleWorkshopVehicle:async x=>{submitted=x;return true;},renderWorkshopPlanner(){},
+ workshopIsWorkday:()=>true,workshopNormalizeStartDate:x=>x,workshopMinuteOffset:()=>0,scheduleWorkshopVehicle:async x=>{submitted=x;return true;},renderWorkshopPlanner(){},
  workshopSharedVehicleRef:()=>({vehicleId:'v'}),vehicleKey:()=> 'TEST',workshopNormalizeStartDate:x=>x,workshopCalendarDateKeyOffset:x=>x,
  workshopMinuteOffset:()=>60,workshopBestStageSlot:(...args)=>{slotArgs=args;return {bay:1,dateKey:state.date,startMinutes:60};},workshopSaveView(){}
 };
 const dialogRpcs=source.slice(source.indexOf('const WORKSHOP_SCHEDULE_DIALOG_RPCS'),source.indexOf('function workshopBindScheduleCommitClose'));
-vm.createContext(c);vm.runInContext([dialogRpcs,...['workshopCategoryBays','workshopBindScheduleCommitClose','workshopReturnedQueuePlans','workshopPlanStartedBefore','workshopReturnedPlanForAction','openWorkshopScheduleModal','workshopScheduleVehicleNextAvailable'].map(extract)].join('\n'),c);
+vm.createContext(c);vm.runInContext([dialogRpcs,...['workshopCategoryBays','workshopBindScheduleCommitClose','workshopReturnedQueuePlans','workshopPlanStartedBefore','workshopReturnedPlanForAction','workshopBayQueueRows','workshopBayQueueHtml','openWorkshopScheduleModal','workshopScheduleVehicleNextAvailable'].map(extract)].join('\n'),c);
 (async()=>{
  c.openWorkshopScheduleModal('TEST','BUS_4X4',state.date,plan.id);
- assert.match(overlay.innerHTML,/value="88.32"/,'returned duration is presented without changing reservation');
+ assert.match(overlay.innerHTML,/Next available/,'Schedule offers the next free slot');
+ assert.doesNotMatch(overlay.innerHTML,/name="hours"|Start time|Planned hours|Technician/,'returned booking is not given a clock or hours field');
  await submitHandler({preventDefault(){},currentTarget:form});
  assert.equal(submitted.planId,plan.id,'Schedule moves the existing booking');
  submitted=null;

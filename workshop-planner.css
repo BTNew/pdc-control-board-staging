@@ -295,6 +295,17 @@ body[data-current-view="workshop"] .content {
 .workshop-schedule-grid input,
 .workshop-schedule-grid select { width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 9px; background: #fff; color: #0f172a; font-weight: 750; }
 .workshop-schedule-note { margin: 0; padding: 10px 12px; border-radius: 8px; background: #eff6ff; color: #1e3a8a; font-size: .76rem; font-weight: 750; }
+.workshop-schedule-modes { display: flex; gap: 8px; }
+.workshop-schedule-modes button { flex: 1; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; color: #0f172a; font-weight: 800; }
+.workshop-schedule-modes button.is-selected { background: #0f172a; color: #fff; border-color: #0f172a; }
+.workshop-schedule-choice { display: grid; gap: 10px; }
+.workshop-schedule-choice label { display: grid; gap: 5px; color: #475569; font-size: .7rem; font-weight: 900; text-transform: uppercase; }
+.workshop-schedule-choice select { width: 100%; min-height: 40px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 7px 9px; background: #fff; color: #0f172a; font-weight: 750; }
+.workshop-bay-order { display: grid; gap: 8px; }
+.workshop-bay-order-vehicle { padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #0f172a; font-weight: 750; }
+.workshop-bay-order-empty { margin: 0; color: #475569; font-weight: 750; }
+.workshop-insert-here { min-height: 34px; border: 1px dashed #94a3b8; border-radius: 8px; background: #f8fafc; color: #1e3a8a; font-weight: 800; }
+.workshop-insert-here:hover { background: #eff6ff; }
 
 @media (max-width: 820px) {
   .workshop-schedule-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
