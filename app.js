@@ -916,7 +916,10 @@ function pdcBayText(stage = '', bay = '', pad = false) {
   const number = Number(bay);
   if (!Number.isInteger(number) || number < 1) return 'Unallocated';
   // r549 (F163): prefer the cached bay display_name when present.
-  const normalized = normalizePmbStage(stage);
+  let normalized = '';
+  try { if (typeof normalizePmbStage === 'function') normalized = normalizePmbStage(stage); } catch (_error) { normalized = ''; }
+  if (!normalized && typeof globalThis.normalizePmbStage === 'function') normalized = globalThis.normalizePmbStage(stage);
+  if (!normalized) normalized = String(stage || '').trim().toUpperCase();
   const rows = (typeof window === 'object' && window.__workshopReferenceDataService?.getCachedWorkshopBays?.()?.rows) || [];
   const code = `${normalized}-BAY-${String(number).padStart(2, '0')}`;
   const stored = String(rows.find(row => row && row.code === code)?.display_name || '').trim();
@@ -1318,7 +1321,12 @@ function vehicleWorkshopActivityLabel(vehicle = {}, options = {}) {
     const rows = (typeof window === 'object' && window.__workshopReferenceDataService?.getCachedWorkshopBays?.()?.rows) || [];
     const cached = String(rows.find(row => row && row.code === code)?.display_name || '').trim();
     const stored = String(booking.bay_display_name || booking.bayName || booking.bay_name || booking.bay?.display_name || '').trim();
-    const bay = cached || stored || (number ? pdcBayText(stageCode, number) : 'Bay not assigned');
+    const bayFallback = (() => {
+      try { if (typeof pdcBayText === 'function') return pdcBayText(stageCode, number); } catch (_error) {}
+      if (typeof globalThis.pdcBayText === 'function') return globalThis.pdcBayText(stageCode, number);
+      return number ? `Bay ${number}` : 'Bay not assigned';
+    })();
+    const bay = cached || stored || (number ? bayFallback : 'Bay not assigned');
     return `${stage} · ${bay}`;
   };
   const live = rows.filter(booking => ['started', 'stoppage', 'in_progress'].includes(String(booking.status).toLowerCase()));

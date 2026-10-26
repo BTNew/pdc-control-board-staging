@@ -2953,7 +2953,10 @@ function workshopSnapshotBayRef(stage = '', bayNumber = 0) {
 
 function workshopSharedBayRef(stage = '', bay = 0) {
   const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
-  const normalizedStage = normalizePmbStage(stage);
+  let normalizedStage = '';
+  try { if (typeof normalizePmbStage === 'function') normalizedStage = normalizePmbStage(stage); } catch (_error) { normalizedStage = ''; }
+  if (!normalizedStage && typeof globalThis.normalizePmbStage === 'function') normalizedStage = globalThis.normalizePmbStage(stage);
+  if (!normalizedStage) normalizedStage = String(stage || '').trim().toUpperCase();
   const bayNumber = Number(bay) || 1;
   const expectedCode = `${normalizedStage}-BAY-${String(bayNumber).padStart(2, '0')}`;
   const cached = service && typeof service.getCachedWorkshopBays === 'function' ? service.getCachedWorkshopBays() : null;
@@ -4970,13 +4973,19 @@ function workshopVisibleBays(stage) {
   return selected ? [...selected.bays] : Array.from({length:workshopStageBayCount(stage)},(_,i)=>i+1);
 }
 function workshopBayStoredName(stage, bay) {
-  if (typeof workshopSharedBayRef !== 'function') return '';
-  return String(workshopSharedBayRef(stage, bay)?.display_name || '').trim();
+  // Extracted tests may omit workshopSharedBayRef. Prefer the local binding when present.
+  let sharedRef = null;
+  try { if (typeof workshopSharedBayRef === 'function') sharedRef = workshopSharedBayRef; } catch (_error) { sharedRef = null; }
+  if (!sharedRef && typeof globalThis.workshopSharedBayRef === 'function') sharedRef = globalThis.workshopSharedBayRef;
+  return sharedRef ? String(sharedRef(stage, bay)?.display_name || '').trim() : '';
 }
 function workshopBayChoiceLabel(stage,bay) {
   // r549 (F163): the saved display name is the on-screen label. The station plus
   // padded bay number stays the fallback when that name is blank.
-  const stored = typeof workshopSharedBayRef === 'function' ? String(workshopSharedBayRef(stage, bay)?.display_name || '').trim() : '';
+  let sharedRef = null;
+  try { if (typeof workshopSharedBayRef === 'function') sharedRef = workshopSharedBayRef; } catch (_error) { sharedRef = null; }
+  if (!sharedRef && typeof globalThis.workshopSharedBayRef === 'function') sharedRef = globalThis.workshopSharedBayRef;
+  const stored = sharedRef ? String(sharedRef(stage, bay)?.display_name || '').trim() : '';
   if (stored) return stored;
   return workshopDepartmentLayout()?.bayLabel(stage,bay) || 'Bay '+workshopPad(bay);
 }
@@ -4988,10 +4997,17 @@ function workshopBayText(stage = '', bay = '', pad = false) {
   const number = Number(bay);
   if (!Number.isInteger(number) || number < 1) return 'Unallocated';
   // r549 (F163): a saved display_name wins over the layout label.
-  const stored = typeof workshopSharedBayRef === 'function' ? String(workshopSharedBayRef(stage, number)?.display_name || '').trim() : '';
+  let sharedRef = null;
+  try { if (typeof workshopSharedBayRef === 'function') sharedRef = workshopSharedBayRef; } catch (_error) { sharedRef = null; }
+  if (!sharedRef && typeof globalThis.workshopSharedBayRef === 'function') sharedRef = globalThis.workshopSharedBayRef;
+  const stored = sharedRef ? String(sharedRef(stage, number)?.display_name || '').trim() : '';
   if (stored) return stored;
   const layout = typeof workshopDepartmentLayout === 'function' ? workshopDepartmentLayout() : null;
-  const named = layout?.pmbBayLabel?.(normalizePmbStage(stage), number);
+  let stageCode = '';
+  try { if (typeof normalizePmbStage === 'function') stageCode = normalizePmbStage(stage); } catch (_error) { stageCode = ''; }
+  if (!stageCode && typeof globalThis.normalizePmbStage === 'function') stageCode = globalThis.normalizePmbStage(stage);
+  if (!stageCode) stageCode = String(stage || '').trim().toUpperCase();
+  const named = layout?.pmbBayLabel?.(stageCode, number);
   return named || `Bay ${pad ? workshopPad(number) : number}`;
 }
 let workshopBayRenameOpen = '';
@@ -5341,7 +5357,7 @@ function workshopBookingTeamHtml(entry = {}) {
   const canManage = ['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
   const disabled = canManage && roster.length && window.__workshopSharedActions?.setBookingTeam ? '' : 'disabled';
   return `<form class="workshop-booking-team" data-workshop-team-form data-workshop-booking-id="${escapeHtml(entry.sharedBookingId)}" data-workshop-booking-version="${escapeHtml(entry.sharedVersion)}">
-    <strong>Team on this booking · ${escapeHtml(workshopBayChoiceLabel(entry.stage, entry.bay))}</strong>
+    <strong>Team on this booking · ${escapeHtml((() => { try { if (typeof workshopBayChoiceLabel === 'function') return workshopBayChoiceLabel(entry.stage, entry.bay); } catch (_error) {} return typeof globalThis.workshopBayChoiceLabel === 'function' ? globalThis.workshopBayChoiceLabel(entry.stage, entry.bay) : ('Bay ' + entry.bay); })())}</strong>
     <p>Keep the vehicle in its one physical bay. Add technicians working together here; their other bookings and leave are checked. Planned hours stay unchanged. Record each helper’s actual labour separately.</p>
     <label><span>Primary technician</span><select name="primaryTechnicianId" required ${disabled}><option value="">Choose primary technician</option>${options.map(row => `<option value="${escapeHtml(row.id)}" ${row.id === entry.technicianId ? 'selected' : ''}>${escapeHtml(row.name)}${knownIds.has(row.id) ? '' : ' (unavailable — choose an active technician)'}</option>`).join('')}</select></label>
     <fieldset ${disabled}><legend>Helpers / training team</legend>${options.map(row => `<label class="workshop-team-choice"><input type="checkbox" name="helperTechnicianIds" value="${escapeHtml(row.id)}" ${helperIds.has(row.id) ? 'checked' : ''}>${escapeHtml(row.name)}${knownIds.has(row.id) ? '' : ' (unavailable)'}</label>`).join('')}</fieldset>
@@ -5683,7 +5699,19 @@ function workshopAdminBlockSuccessMessage(result = {}) {
   const hours = minutes / 60;
   const duration = Number.isInteger(hours) ? `${hours} h` : `${hours.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')} h`;
   const suffix = ` · cascaded ${count} planned row${count === 1 ? '' : 's'}`;
-  return `Admin block placed in ${workshopBayChoiceLabel(block.stage_code || block.stage, block.bay_number)} at ${workshopAdminBlockFormatTime(block.scheduled_start_at)} · ${duration} total${suffix}.`;
+  // r549 (F163): prefer a saved display_name. Otherwise keep the plain Bay N
+  // text this receipt has always used (unpadded), including when stage is blank.
+  let bayLabel = '';
+  try {
+    if (typeof workshopBayStoredName === 'function') {
+      bayLabel = String(workshopBayStoredName(block.stage_code || block.stage, block.bay_number) || '').trim();
+    }
+  } catch (_error) { bayLabel = ''; }
+  if (!bayLabel && typeof globalThis.workshopBayStoredName === 'function') {
+    bayLabel = String(globalThis.workshopBayStoredName(block.stage_code || block.stage, block.bay_number) || '').trim();
+  }
+  if (!bayLabel) bayLabel = `Bay ${block.bay_number || '—'}`;
+  return `Admin block placed in ${bayLabel} at ${workshopAdminBlockFormatTime(block.scheduled_start_at)} · ${duration} total${suffix}.`;
 }
 
 function workshopAdminBlockResultSummary(result = {}) {
@@ -8123,8 +8151,14 @@ async function startWorkshopPlan(planId = '') {
     }
   }
   const alreadyStarted = workshopStartedBayConflict(entry, rows);
+  // Extracted Start tests may omit workshopBayChoiceLabel; fall back to Bay N.
+  const startedBayLabel = (() => {
+    try { if (typeof workshopBayChoiceLabel === 'function') return workshopBayChoiceLabel(entry.stage, entry.bay); } catch (_error) {}
+    if (typeof globalThis.workshopBayChoiceLabel === 'function') return globalThis.workshopBayChoiceLabel(entry.stage, entry.bay);
+    return `Bay ${entry.bay}`;
+  })();
   if (alreadyStarted) {
-    workshopNotify(`${workshopBayChoiceLabel(entry.stage, entry.bay)} already has a started job. Stop or complete that job before starting another in this bay.`);
+    workshopNotify(`${startedBayLabel} already has a started job. Stop or complete that job before starting another in this bay.`);
     return;
   }
   if (!workshopRequireOperatorProfile()) return;
@@ -8147,7 +8181,7 @@ async function startWorkshopPlan(planId = '') {
     ? rows.map(row => plannedRowsAfterShift.moved.find(item => item.id === row.id) || row)
     : rows;
   const nextRows = workshopCascadePlans(baseRows.map(row => row.id === entry.id ? next : row)).rows;
-  const auditDetails = { stage: pmbStageLabel(entry.stage), bay: workshopBayChoiceLabel(entry.stage, entry.bay), hours: entry.hours, assignee: entry.assignee || 'Unassigned' };
+  const auditDetails = { stage: pmbStageLabel(entry.stage), bay: startedBayLabel, hours: entry.hours, assignee: entry.assignee || 'Unassigned' };
   const persisted = await assignPmbVehicleToBay(entry.vehicleKey, entry.stage, entry.bay, next.startAt, {
     keys: [WORKSHOP_PLAN_STORAGE_KEY],
     afterAssign: assignedVehicle => {
@@ -8168,7 +8202,7 @@ async function startWorkshopPlan(planId = '') {
     subject: 'PDC workshop job started',
     details: [
       `${pmbStageLabel(entry.stage)} work started at ${currentStart.toLocaleString('en-AU', { timeZone: 'Australia/Perth', dateStyle: 'short', timeStyle: 'short' })}.`,
-      `${workshopBayChoiceLabel(entry.stage, entry.bay)}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`,
+      `${startedBayLabel}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`,
       `Estimated workshop time: ${entry.hours} hours.`,
     ],
   });

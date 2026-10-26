@@ -114,7 +114,11 @@ const approvedRootImportPatch = Object.freeze({
   // r548: null-bay siblings do not block a drop, and bay 0 reads Unallocated (F162). Department 135 is not tagged.
   // Linked job-card search labels use the same verified card list as matching; Department 135 keeps its frozen planner.
   // r549: bay headers, toasts and the side panel prefer display_name. A controller pencil renames that label only (F163).
+<<<<<<< HEAD
   "workshop-planner.js": "PLACEHOLDER_PLANNER",
+=======
+  "workshop-planner.js": "b8665ea7f6d75d8fa9156ef1285314bb854fc5b9d5e0263677e5deaed8b02007",
+>>>>>>> 2c765adb (r549 (F163): keep bay-label helpers safe in extracted tests)
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -229,7 +233,11 @@ const approvedRootImportPatch = Object.freeze({
   // r548: r548=2026.10.26.r548 on both workshop-planner.js loads in app.js (unallocated rows do not block a bay, F162). Department 135 is not tagged.
   // search-jobcards=2026.10.26.01 versions both planner loads; Department 135 keeps its frozen app.js.
   // r549: booking pills and the vehicle side panel prefer display_name, and both planner loads add r549=2026.10.26.r549 (F163).
+<<<<<<< HEAD
   "app.js": "PLACEHOLDER_APP",
+=======
+  "app.js": "622b0977aa9a76535e9464ef3e589117fce5d692d20600feaa29a43a28021198",
+>>>>>>> 2c765adb (r549 (F163): keep bay-label helpers safe in extracted tests)
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
