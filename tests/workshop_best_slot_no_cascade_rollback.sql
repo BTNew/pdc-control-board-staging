@@ -120,14 +120,11 @@ BEGIN
  other:=pg_temp.ou_booking('later-fitting',v,'FITTING',otherbay,st+interval '4 hours');
  SELECT jsonb_agg(to_jsonb(b) ORDER BY id) INTO before_rows FROM public.workshop_bookings b WHERE id IN(later,other);
  SELECT version INTO ver FROM public.vehicles WHERE id=a;
- BEGIN
- r:=public.cascade_workshop_schedule('insert',a,ver,'FABRICATION',n,st,120,NULL,120,NULL,'{"source":"best_slot_rollback"}');
- EXCEPTION WHEN SQLSTATE '22023' THEN
-  IF SQLERRM NOT LIKE '%vehicle_overlap%' THEN RAISE; END IF;
-  r:=jsonb_build_object('ok',false,'error','vehicle_overlap');
- END;
- PERFORM pg_temp.ou_assert(r->>'ok'='false' AND r->>'error'='vehicle_overlap','Old cascading save reproduces the reported vehicle-overlap error',r);
- PERFORM pg_temp.ou_assert((SELECT jsonb_agg(to_jsonb(b) ORDER BY id)=before_rows FROM public.workshop_bookings b WHERE id IN(later,other)),'Rejected cascade leaves following jobs unchanged');
+ -- The historical cascade bug is fixed. Best slot must not depend on reproducing
+ -- that old failure (or pre-create this booking through a successful cascade).
+ -- Exercise its actual non-pushing save path and compare both follower rows.
+ PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM public.workshop_bookings WHERE vehicle_id=a),
+  'Best slot starts with an unbooked synthetic vehicle');
  r:=public.schedule_vehicle_work(a,ver,'FABRICATION',n,st,120,NULL,NULL,'{"source":"best_slot_rollback"}');
  PERFORM pg_temp.ou_assert(r->>'ok'='true','Best slot books the free space successfully',r);
  PERFORM pg_temp.ou_assert(EXISTS(SELECT 1 FROM public.workshop_bookings WHERE vehicle_id=a AND scheduled_start_at=st AND scheduled_end_at=st+interval '2 hours'),'New booking keeps its selected time and correct duration');
