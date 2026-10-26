@@ -58,7 +58,7 @@ AS $r553body$$sql$ || v_src || $sql$$r553body$$sql$;
  EXECUTE v_sql;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) IS DISTINCT FROM 'e56cd1f5d12205a0d72826d64cb8d1de' THEN RAISE EXCEPTION 'r553: stored prosrc md5'; END IF;
  IF (SELECT md5(pg_get_functiondef(oid)) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) IS DISTINCT FROM '76b0570ee2c788d5cacf9d01a5843ed6' THEN RAISE EXCEPTION 'r553: stored functiondef md5'; END IF;
- IF (SELECT prosecdef OR provolatile<>'v' OR proconfig::text IS DISTINCT FROM '{search_path=pg_catalog, public, pdc_parts_private}' OR pg_get_function_identity_arguments(oid) IS DISTINCT FROM 'p_envelope jsonb, p_rows jsonb' FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) THEN RAISE EXCEPTION 'r553: parts header changed'; END IF;
+ IF (SELECT prosecdef OR provolatile<>'v' OR proconfig::text IS DISTINCT FROM '{"search_path=pg_catalog, public, pdc_parts_private"}' OR pg_get_function_identity_arguments(oid) IS DISTINCT FROM 'p_envelope jsonb, p_rows jsonb' FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) THEN RAISE EXCEPTION 'r553: parts header changed'; END IF;
 
  UPDATE pdc_ops.expected_function_md5
  SET prosrc_md5='e56cd1f5d12205a0d72826d64cb8d1de',

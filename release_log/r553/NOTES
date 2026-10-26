@@ -12,6 +12,6 @@ Prosrc md5 `ccf492618ca11625470b691fbe029ac7` becomes `e56cd1f5d12205a0d72826d64
 
 Check `parts_import_cw_rename` (F167, sort 328) accepts the new subject and filename, still accepts the Pilbara and V1 names, and rejects subject `Workshop hours` with file `notes.txt`. It uses `pg_catalog.to_regprocedure` and schema-qualified `pg_catalog.jsonb`. It has no `regprocedure` cast.
 
-Up file md5 `b8617b9e7cf4c915fecf389716000021`. Down file md5 `dd8dc44c2826b9c90bff15e80352551b`.
+Up file md5 `495ad6d6aa74cad62ec8d4a005d3c16c`. Down file md5 `dd8dc44c2826b9c90bff15e80352551b`.
 
 Undo: `supabase/rollbacks/20261027040000_r553_parts_import_cw_rename.down.sql`.
