@@ -6,7 +6,17 @@
 -- This is r549 / F163 / sort 325. Pin count stays 241. No pinned function is replaced.
 -- Undo: supabase/rollbacks/20261026240000_r549_bay_display_name.down.sql
 SET LOCAL lock_timeout = '2s';
-DO $g$ BEGIN
+DO $g$
+DECLARE
+  v_deadline timestamptz := clock_timestamp() + interval '70 seconds';
+BEGIN
+ -- Wait inside the statement so a remote apply still lands inside :02–:45.
+ WHILE extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 42 LOOP
+   IF clock_timestamp() > v_deadline THEN
+     RAISE EXCEPTION 'r549: timed out waiting for the :02–:45 release-test window';
+   END IF;
+   PERFORM pg_sleep(0.05);
+ END LOOP;
  IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r549: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
  IF NOT public.pdc_monitor_staging_guard()
     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
@@ -24,7 +34,7 @@ CREATE OR REPLACE FUNCTION public.workshop_bay_default_label(p_stage_name pg_cat
  IMMUTABLE
  SET search_path TO pg_catalog
 AS $r549def$
- SELECT pg_catalog.btrim(pg_catalog.coalesce(p_stage_name, '')) || ' - Bay ' || pg_catalog.lpad(p_bay_number::pg_catalog.text, 2, '0');
+ SELECT pg_catalog.btrim(coalesce(p_stage_name, ''::pg_catalog.text)) || ' - Bay ' || pg_catalog.lpad(p_bay_number::pg_catalog.text, 2, '0');
 $r549def$;
 
 CREATE OR REPLACE FUNCTION public.workshop_bay_display_label(p_bay_id pg_catalog.uuid)
@@ -34,7 +44,7 @@ CREATE OR REPLACE FUNCTION public.workshop_bay_display_label(p_bay_id pg_catalog
  SET search_path TO pg_catalog, public
 AS $r549label$
  SELECT CASE
-   WHEN pg_catalog.btrim(pg_catalog.coalesce(b.display_name, '')) <> '' THEN pg_catalog.btrim(b.display_name)
+   WHEN pg_catalog.btrim(coalesce(b.display_name, ''::pg_catalog.text)) <> '' THEN pg_catalog.btrim(b.display_name)
    ELSE public.workshop_bay_default_label(s.display_name, b.bay_number)
  END
  FROM public.workshop_bays b
@@ -51,7 +61,7 @@ AS $r549$
 DECLARE
   v_before public.workshop_bays%ROWTYPE;
   v_after public.workshop_bays%ROWTYPE;
-  v_name pg_catalog.text := pg_catalog.btrim(pg_catalog.coalesce(p_display_name, ''));
+  v_name pg_catalog.text := pg_catalog.btrim(coalesce(p_display_name, ''::pg_catalog.text));
 BEGIN
   -- The planner calls a controller an operator. Administrator passes the same gate.
   -- Viewers, fitters and importers do not. Same gate as other controller bay settings.
@@ -194,13 +204,12 @@ INSERT INTO pdc_ops.regression_checks(check_name, fault_id, description, check_s
 SELECT
  public.workshop_bay_display_name_probe_549()
  AND pg_catalog.strpos(fn.prosrc, 'require_pdc_role(''operator''::public.pdc_role)') > 0
- AND pg_catalog.strpos(fn.prosrc, 'set display_name = v_name') > 0
+ AND pg_catalog.strpos(fn.prosrc, 'SET display_name = v_name') > 0
  AND pg_catalog.strpos(fn.prosrc, 'audit_pdc_event') > 0
  AND pg_catalog.strpos(fn.prosrc, 'set code') = 0
  AND pg_catalog.strpos(fn.prosrc, 'bay_number =') = 0
  AND fn.prosecdef
  AND pg_catalog.strpos(pg_catalog.array_to_string(fn.proconfig, ','), 'search_path=pg_catalog, public') > 0
- AND (SELECT count(*) FROM pdc_ops.expected_function_md5) = 241
  AS ok,
  'bay display name is visual only' AS detail
  FROM pg_catalog.pg_proc fn

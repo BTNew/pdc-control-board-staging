@@ -20,3 +20,13 @@ It renames Hoist bay 2 (HOIST-BAY-02) inside a block that rolls back, then check
 
 Undo: supabase/rollbacks/20261026240000_r549_bay_display_name.down.sql
 Revert this PR. The down script drops the new functions and the check. It does not rewrite bay rows.
+
+
+Live staging ledger:
+- 20261026081213 r549_bay_display_name
+- 20261026081343 r549_bay_display_name_check_fix (SET display_name case)
+- 20261026081658 r549_bay_display_name_check_shape (no literal pin compare)
+
+Up file md5 6d0624b24123a0e110c9ab5a3fe2fbe0
+Down file md5 a47fcddaa72a766c2bf4a2a00089a670
+Sort 325 / F163. Pins 241.
