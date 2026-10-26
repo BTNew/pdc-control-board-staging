@@ -13784,3 +13784,17 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 }
 
 .navision-upload-tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}.navision-upload-tabs button{border:1px solid #d4dce8;border-radius:9px;padding:12px 20px;background:#fff;color:#263c55;font:inherit;font-weight:600;cursor:pointer}.navision-upload-tabs button.active{background:#ed111e;color:#fff;border-color:#ed111e}.navision-upload-tabs button:focus-visible{outline:3px solid #456fbd;outline-offset:2px}
+
+/* r544 (F158): New to PMB flashes blue while it holds a vehicle. */
+.incoming-bucket.incoming-newpmb { border-left: 4px solid #1d4ed8; }
+.incoming-bucket.incoming-newpmb.is-alerting { background: #dbeafe; animation: pmb-arrival-bucket-pulse 1.2s ease-in-out infinite; }
+.incoming-bucket.incoming-newpmb.is-alerting .incoming-bucket-title strong { color: #1d4ed8; }
+@keyframes pmb-arrival-bucket-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(29, 78, 216, 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(29, 78, 216, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .incoming-bucket.incoming-newpmb.is-alerting { animation: none; box-shadow: inset 0 0 0 2px #1d4ed8; }
+}
+.pmb-ack-note { display: block; margin-top: 4px; font-size: 11px; line-height: 1.3; color: #1e3a8a; font-weight: 700; }
+.pmb-ack-note.is-waiting { color: #1d4ed8; }

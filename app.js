@@ -204,6 +204,7 @@ const VEHICLE_LOCATION_BUCKET_DEFS = Object.freeze([
   { key: 'rft', label: 'RFT', hint: 'Vehicles signed off by QC and ready for transport' },
   { key: 'qc', label: 'QC', hint: 'All required station jobs complete · awaiting named QC sign-off' },
   { key: 'pit', label: 'PIT', hint: 'At the Department of Transport for inspection' },
+  { key: 'newpmb', label: 'New to PMB', hint: 'Released to PMB and awaiting acknowledgement' },
   { key: 'pmb', label: 'PMB', hint: 'Vehicles at Perth Motor Bodies with work still active' },
   { key: 'yardhold', label: 'YARD HOLD', hint: 'Navision Yard Hold vehicles — release to PMB from here' },
   { key: 'nonnavision', label: 'NON-NAVISION VEHICLES', hint: 'No Navision location or ETA updates · move to PMB when the vehicle arrives' },
@@ -8108,6 +8109,8 @@ function incomingBucketForVehicle(vehicle = {}) {
   if (category === 'completed') return 'completed';
   if (category === 'collected') return 'collected';
   const operationalLocation = vehiclePdcLocation(vehicle);
+  // r544 (F158): a vehicle waiting to be acknowledged is still at PMB. This
+  // function stays 'pmb'. Only vehicleLocationsDisplayBucket splits the tile.
   if (operationalLocation === 'PMB') return vehicle.pdcQcComplete === true ? 'qc' : 'pmb';
   if (['PIT', 'QC', 'RFT'].includes(operationalLocation)) return operationalLocation.toLowerCase();
   if (category === 'rft') return 'rft';
@@ -8119,6 +8122,117 @@ function incomingBucketForVehicle(vehicle = {}) {
   if (category === 'yardhold') return 'yardhold';
   if (category === 'prodtransit') return 'transit';
   return 'overseas';
+}
+
+// r544 (F158): tile split only. Missing or failed acknowledgement data leaves the
+// vehicle on the PMB tile, which is where every other consumer already counts it.
+function pmbArrivalRecord(vehicle = {}) {
+  const map = app.pmbArrivalAck;
+  if (!map || typeof map.get !== 'function') return null;
+  for (const id of [vehicle.id, vehicle.__emailVehicleId, vehicle.sharedVehicleId, vehicle.permanent_vehicle_id]) {
+    const row = id ? map.get(String(id)) : null;
+    if (row) return row;
+  }
+  return null;
+}
+
+function vehicleLocationsDisplayBucket(vehicle = {}) {
+  const operational = incomingBucketForVehicle(vehicle);
+  if (operational !== 'pmb') return operational;
+  const row = pmbArrivalRecord(vehicle);
+  return row && row.pending === true ? 'newpmb' : 'pmb';
+}
+
+function pmbArrivalCanAcknowledge(role = typeof window === 'object' ? window.PDC_AUTH_CONTEXT?.role : '') {
+  // The server decides. operator is the controller role. A fitter is offered the
+  // button; only a Bus 4x4 technician on a Department 138 vehicle is accepted.
+  return ['operator', 'administrator', 'fitter'].includes(String(role || '').trim().toLowerCase());
+}
+
+function pmbArrivalWhenLabel(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('en-AU', { timeZone: 'Australia/Perth', dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function pmbArrivalNoteHtml(vehicle = {}) {
+  const row = pmbArrivalRecord(vehicle);
+  if (!row) return '';
+  if (row.pending === true) return '<span class="pmb-ack-note is-waiting">Awaiting acknowledgement</span>';
+  const name = String(row.acknowledged_by_name || '').trim();
+  if (!name || row.source === 'backfill') return '';
+  const when = pmbArrivalWhenLabel(row.acknowledged_at);
+  const role = String(row.acknowledged_by_role || '').trim().toLowerCase();
+  const who = role === 'operator' ? `${name} (controller)` : name;
+  return `<span class="pmb-ack-note">Acknowledged by ${escapeHtml(who)}${when ? `, ${escapeHtml(when)}` : ''}</span>`;
+}
+
+function pmbArrivalActionHtml(vehicle = {}, key = '') {
+  const row = pmbArrivalRecord(vehicle);
+  if (!row || row.pending !== true) return '';
+  if (!pmbArrivalCanAcknowledge()) return '<span class="badge neutral">Awaiting a controller or department acknowledgement</span>';
+  return `<button class="primary" type="button" data-pmb-ack="${escapeHtml(key)}" title="Acknowledge this arrival so the department can prepare. The vehicle is already at PMB.">Acknowledge</button>`;
+}
+
+function pmbArrivalVehicleId(vehicle = {}) {
+  const id = String(vehicle.__emailVehicleId || vehicle.sharedVehicleId || vehicle.id || vehicle.permanent_vehicle_id || '').trim();
+  return /^[0-9a-f-]{36}$/i.test(id) ? id : '';
+}
+
+function ensurePmbArrivalAck() {
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!client || typeof client.rpc !== 'function' || !window.PDC_AUTH_CONTEXT) return;
+  if (app.pmbArrivalAckLoading) return;
+  if (app.pmbArrivalAckLoadedAt && Date.now() - app.pmbArrivalAckLoadedAt < 15000) return;
+  app.pmbArrivalAckLoading = true;
+  const started = Date.now();
+  client.rpc('list_pmb_arrival_ack_544').then(result => {
+    app.pmbArrivalAckLoading = false;
+    app.pmbArrivalAckLoadedAt = started;
+    if (result?.error) return;
+    const next = new Map();
+    (Array.isArray(result?.data) ? result.data : []).forEach(row => {
+      if (row?.vehicle_id) next.set(String(row.vehicle_id), row);
+    });
+    const signature = [...next.entries()].map(([id, row]) => `${id}|${row.pending}|${row.acknowledged_by_name || ''}|${row.acknowledged_at || ''}`).sort().join('\n');
+    const changed = signature !== app.pmbArrivalAckSignature;
+    app.pmbArrivalAck = next;
+    app.pmbArrivalAckSignature = signature;
+    if (changed && app.currentView === 'dashboard' && typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
+  }).catch(() => {
+    app.pmbArrivalAckLoading = false;
+    app.pmbArrivalAckLoadedAt = started;
+  });
+}
+
+async function acknowledgePmbArrival(key = '') {
+  const vehicle = vehicleLocationsScreenRows().find(row => vehicleKey(row) === key);
+  const id = vehicle ? pmbArrivalVehicleId(vehicle) : '';
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!vehicle || !id || !client || typeof client.rpc !== 'function') {
+    if (typeof pdcNotify === 'function') pdcNotify('This arrival could not be acknowledged. Refresh and try again.');
+    return;
+  }
+  const result = await client.rpc('acknowledge_pmb_arrival_544', { p_vehicle_id: id });
+  const body = result?.data;
+  if (result?.error || !body || body.ok !== true) {
+    const message = body?.message || result?.error?.message || 'This arrival could not be acknowledged.';
+    if (typeof pdcNotify === 'function') pdcNotify(message);
+    return;
+  }
+  const data = body.data || {};
+  if (!(app.pmbArrivalAck instanceof Map)) app.pmbArrivalAck = new Map();
+  app.pmbArrivalAck.set(id, {
+    vehicle_id: id,
+    pending: false,
+    acknowledged_at: data.acknowledged_at,
+    acknowledged_by_name: data.acknowledged_by_name,
+    acknowledged_by_role: data.acknowledged_by_role,
+    source: data.source || 'location',
+  });
+  app.pmbArrivalAckSignature = '';
+  app.pmbArrivalAckLoadedAt = 0;
+  if (typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
 }
 
 // Keep every consumer of Vehicle Locations on the same authoritative row set.
@@ -9006,18 +9120,18 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     && (bucketKey === 'yardhold' || bucketKey === 'nonnavision'
       || (bucketKey === 'pmb' && vehicleReadyForQualityControl(vehicle))
       || bucketKey === 'qc');
-  const locationAge = incomingVehicleAge(vehicle, bucketKey);
+  const locationAge = incomingVehicleAge(vehicle, bucketKey === 'newpmb' ? 'pmb' : bucketKey);
   const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '—';
   const keyNo = vehicleKeyNumber(vehicle) || '—';
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
-  const age = ['pmb', 'qc', 'yardhold'].includes(bucketKey) ? locationAge.label : '—';
+  const age = ['pmb', 'newpmb', 'qc', 'yardhold'].includes(bucketKey) ? locationAge.label : '—';
   const bookingProjection = vehicleWorkshopBookingProjection(vehicle, {
     available: options.workshopProjectionAvailable,
     plans: options.workshopPlans,
   });
-  const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: bucketKey === 'pmb' && options.stationTransfer !== false, bookingProjection, subletNavigation: options.subletNavigation === true });
+  const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: (bucketKey === 'pmb' || bucketKey === 'newpmb') && options.stationTransfer !== false, bookingProjection, subletNavigation: options.subletNavigation === true });
   const stage = inferredPmbStage(vehicle);
   const rowStatus = incomingGridStatusLabel(vehicle, bucketKey, { bookingProjection });
   const subletProvider = pmbBaySubletProvider(vehicle);
@@ -9042,8 +9156,10 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     ? `<span class="badge neutral">${readOnlyBadge}</span>`
     : bucketKey === 'yardhold' || bucketKey === 'nonnavision'
     ? `${sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle, { silent: true }) || !canTransferVehicleToPmb(vehicle) ? '<span class="badge neutral">Shared move unavailable</span>' : `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="${bucketKey === 'nonnavision' ? 'Confirm vehicle arrival at PMB' : 'Transfer Yard Hold vehicle to PMB'}">To PMB</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+    : bucketKey === 'newpmb'
+      ? `${typeof pmbArrivalActionHtml === 'function' ? pmbArrivalActionHtml(vehicle, key) : ''}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
-      ? `${vehicleReadyForQualityControl(vehicle)
+      ? `${typeof pmbArrivalActionHtml === 'function' ? pmbArrivalActionHtml(vehicle, key) : ''}${vehicleReadyForQualityControl(vehicle)
         ? `<button class="primary" type="button" data-ready-for-qc="${escapeHtml(key)}" title="Move this all-green vehicle to the QC Gate">Ready for QC</button>`
         : `<button class="primary" type="button" data-pit-transfer="${escapeHtml(key)}" ${vehicleCanEnterPit(vehicle) ? '' : 'disabled'} title="${escapeHtml(vehicleCanEnterPit(vehicle) ? 'Move PMB Unallocated vehicle to PIT' : 'PIT movement requires PMB Unallocated with no active station')}">To PIT</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
       : bucketKey === 'qc'
@@ -9078,9 +9194,9 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ${isRftRow
           ? `<span class="rft-row-controls-slot">${rftControls}</span>`
           : `<span class="incoming-card-work-wrap">${workChecks}</span>
-        <span class="incoming-card-meta incoming-card-age ${escapeHtml(locationAge.colourClass)}" title="${escapeHtml(locationAge.title)}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(locationAge.label)}</span></span>
-        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}</span></span>
-        <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${labelAction}${deleteAction}</span>`}
+        <span class="incoming-card-meta incoming-card-age ${escapeHtml(locationAge.colourClass)}" title="${escapeHtml(locationAge.title)}"><b>${bucketKey === 'pmb' || bucketKey === 'newpmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(locationAge.label)}</span></span>
+        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}</span></span>
+        <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}${labelAction}${deleteAction}</span>`}
       </summary>
       <div class="incoming-vehicle-detail-grid">
         ${vehicleEmailPartsEtaHost(vehicle)}
@@ -9241,7 +9357,7 @@ function incomingCompareVehicles(a, b, sort = {}, bucket = '') {
       case 'jobcard': return text(vehicleJobcardNumber(vehicle));
       case 'customer': return text(vehicleCustomerName(vehicle));
       case 'vehicle': return text(displayVehicle(vehicle));
-      case 'age': return (bucket === 'pmb' || bucket === 'qc'
+      case 'age': return (bucket === 'pmb' || bucket === 'newpmb' || bucket === 'qc'
         ? parseIsoTimestamp(pmbEnteredTimestamp(vehicle))
         : parseDateAU(bucket === 'yardhold' ? incomingKewdaleAgeValue(vehicle) : navisionEtaForVehicle(vehicle)))?.getTime() ?? null;
       default: return parseDateAU(navisionEtaForVehicle(vehicle))?.getTime() ?? null;
@@ -9271,6 +9387,7 @@ function renderIncomingDashboardBoard() {
 function renderIncomingDashboardBoardContent() {
   const host = $('#incoming-main-board');
   if (!host) return;
+  if (typeof ensurePmbArrivalAck === 'function') ensurePmbArrivalAck();
   const disclosureState = app.vehicleLocationsRefreshDisclosure || captureIncomingBoardDisclosureState(host);
   const workshopProjectionAvailable = ensureDashboardWorkshopProjectionReady();
   const workshopPlans = workshopProjectionAvailable && typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : null;
@@ -9287,7 +9404,7 @@ function renderIncomingDashboardBoardContent() {
   pruneIncomingDepartmentSelection(filteredRows);
   const rowsByBucket = new Map();
   filteredRows.forEach(vehicle => {
-    const key = incomingBucketForVehicle(vehicle);
+    const key = typeof vehicleLocationsDisplayBucket === 'function' ? vehicleLocationsDisplayBucket(vehicle) : incomingBucketForVehicle(vehicle);
     const bucket = rowsByBucket.get(key) || [];
     bucket.push(vehicle);
     rowsByBucket.set(key, bucket);
@@ -9324,7 +9441,8 @@ function renderIncomingDashboardBoardContent() {
         ? vehicleLocationsRftHeaderHtml(sort)
         : productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Booking', incomingSort: sort })
       : '';
-    return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
+    const alerting = def.key === 'newpmb' && vehicles.length > 0;
+    return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}${alerting ? ' is-alerting' : ''}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
         <span>${escapeHtml(def.label)}</span><strong>${locationsStillLoading ? '…' : vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
       </summary>
@@ -9354,6 +9472,10 @@ function renderIncomingDashboardBoardContent() {
   $$('[data-yh-transfer-pmb]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
     transferYhVehicleToPmb(button.dataset.yhTransferPmb);
+  }));
+  $$('[data-pmb-ack]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    acknowledgePmbArrival(button.dataset.pmbAck);
   }));
   $$('[data-pit-transfer]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();

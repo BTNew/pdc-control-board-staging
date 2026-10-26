@@ -63,18 +63,20 @@
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.22.r485'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only (cache-busts this module)
+  const VERSION = '2026.10.26.r544'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r544 (F158) New to PMB tile (cache-busts this module)
   // r485 (F98): the one switch for the hidden Drop-down view. false = Table view only (Craig 22 Oct). true = r481 behaviour.
   const DROPDOWN_VIEW_ENABLED = false;
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
   const VIEWS = Object.freeze({ dropdown: 'dropdown', table: 'table' });
   // Vehicle journey, left to right (Craig, 22 Oct 2026).
-  const JOURNEY = Object.freeze(['overseas', 'transit', 'yardhold', 'nonnavision', 'pmb', 'qc', 'pit', 'rft']);
+  // r544 (F158): New to PMB sits immediately before PMB. The operational bucket stays pmb.
+  const JOURNEY = Object.freeze(['overseas', 'transit', 'yardhold', 'nonnavision', 'newpmb', 'pmb', 'qc', 'pit', 'rft']);
   const TILE = Object.freeze({
     overseas: ['Other', 'All other active', 'unknown', 'OTHER'],
     transit: ['In transit (IT)', 'To WA / Kewdale', 'transit-it', 'IT'],
     yardhold: ['Yard Hold', 'Release to PMB', 'yardhold', 'YH'],
     nonnavision: ['Non-Navision', 'No Navision updates', 'unconfirmed', 'NON-NAV'],
+    newpmb: ['New to PMB', 'Awaiting acknowledgement', 'newpmb', 'NEW'],
     pmb: ['PMB', 'Work still active', 'transit', 'PMB'],
     qc: ['QC', 'Awaiting QC sign-off', 'hold', 'QC'],
     pit: ['PIT', 'Dept of Transport', 'production', 'PIT'],
@@ -515,6 +517,7 @@
     const workshopProjectionAvailable = root.ensureDashboardWorkshopProjectionReady();
     const workshopPlans = workshopProjectionAvailable && typeof root.workshopLoadPlans === 'function' ? root.workshopLoadPlans() : null;
     const rows = root.vehicleLocationsScreenRows();
+    if (typeof root.ensurePmbArrivalAck === 'function') root.ensurePmbArrivalAck();
     const appState = app;
     // Same housekeeping as the drop-down render (renderIncomingDashboardBoardContent).
     if (!root.sharedNavisionLocationAuthorityReady() && appState.vehicleLocationsRefreshState !== 'refreshing') appState.selectedRows.clear();
@@ -540,7 +543,10 @@
     const rank = new Map(order.map((key, index) => [key, index]));
     const priorityRows = root.incomingDepartmentPriorityRows(filters);
     const stoppageKeys = new Set(priorityRows.map(row => root.vehicleKey(row.vehicle)));
-    const entries = filteredRows.map(vehicle => ({ vehicle, bucket: root.incomingBucketForVehicle(vehicle), key: root.vehicleKey(vehicle) }))
+    const displayBucket = vehicle => typeof root.vehicleLocationsDisplayBucket === 'function'
+      ? root.vehicleLocationsDisplayBucket(vehicle)
+      : root.incomingBucketForVehicle(vehicle);
+    const entries = filteredRows.map(vehicle => ({ vehicle, bucket: displayBucket(vehicle), key: root.vehicleKey(vehicle) }))
       .filter(entry => rank.has(entry.bucket) && (!filters.bucket || filters.bucket === entry.bucket));
     const counts = new Map();
     entries.forEach(entry => counts.set(entry.bucket, (counts.get(entry.bucket) || 0) + 1));
@@ -574,7 +580,8 @@
       const found = scope.searching && key !== '' && (key === STOPPAGES ? false : scope.found.includes(key));
       const held = scope.searching && !active && scope.held && scope.held === key;
       const hint = found ? ' · contains the search result' : held ? ' · your tile before searching; it comes back when you clear the search' : '';
-      return `<button type="button" class="vlt-tile ${esc(tone)}${active ? ' active' : ''}${found ? ' vlt-found' : ''}${held ? ' vlt-held' : ''}" data-vlt-tile="${esc(key)}" aria-pressed="${active}" title="${esc((title || caption) + hint)}"><span>${esc(label)}</span><strong>${loading ? '…' : count}</strong><small>${esc(caption)}</small></button>`;
+      const alerting = key === 'newpmb' && !loading && count > 0 ? ' is-alerting' : '';
+      return `<button type="button" class="vlt-tile ${esc(tone)}${alerting}${active ? ' active' : ''}${found ? ' vlt-found' : ''}${held ? ' vlt-held' : ''}" data-vlt-tile="${esc(key)}" aria-pressed="${active}" title="${esc((title || caption) + hint)}"><span>${esc(label)}</span><strong>${loading ? '…' : count}</strong><small>${esc(caption)}</small></button>`;
     };
     const defFor = key => defs.find(def => def.key === key) || {};
     const tilesHtml = `<div class="vlt-tiles" role="toolbar" aria-label="Filter Vehicle Locations by location">${
@@ -821,6 +828,7 @@
     root.bindVehicleLabelButtons(scope);
     all('[data-incoming-delete]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.deleteIncomingVehicleFromMain(button.dataset.incomingDelete); }));
     all('[data-yh-transfer-pmb]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.transferYhVehicleToPmb(button.dataset.yhTransferPmb); }));
+    all('[data-pmb-ack]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.acknowledgePmbArrival(button.dataset.pmbAck); }));
     all('[data-pit-transfer]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.moveVehiclePitLocation(button.dataset.pitTransfer, 'to_pit'); }));
     all('[data-pit-return-pmb]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.moveVehiclePitLocation(button.dataset.pitReturnPmb, 'to_pmb'); }));
     all('[data-ready-for-qc]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.markVehicleReadyForQualityControl(button.dataset.readyForQc); }));
