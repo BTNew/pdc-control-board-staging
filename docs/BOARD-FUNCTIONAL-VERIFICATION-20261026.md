@@ -61,8 +61,9 @@ including the actual dealer-scoped running batch-save endpoint, passed at 22:21.
 All these tests used synthetic work in the disposable copy.
 
 Station reassignment into a running job invokes a separate direct helper. That
-path reproduced a further follower collision and remains a separate open repair;
-the hours-save release does not establish that category changes are fixed.
+path reproduced a further follower collision. That separate repair was installed
+at 05:32 Perth on 27 October after the additional copied tests described below;
+the hours-save release alone did not establish that category changes were fixed.
 Both Hoist and Bus Mechanical reproduce that separate category failure. Current
 installed client source opens the Vehicle Locations drawer and saves through
 batch 768; the retired planner popup does not dispatch endpoint 407. This installed
@@ -126,14 +127,43 @@ published public monitor passed nine entries, nine legacy redirects, eight
 assets, three signed-out denials and 155 focused regressions. Neither result
 establishes the newly found category path or actual browser writes.
 
-All 24 original SQL groups now have passing latest evidence across separate runs;
-the initial unchanged run remains 19 PASS and 5 FAIL. This is not a single clean
-full-suite run, and the extra running-category scenario remains a confirmed FAIL.
-Verification remains in progress for that category repair. The hours-save and
-automatic-addition repairs above are installed and have scoped proof. Their
-private release receipt and the per-run index retain the original failures,
-corrected fixtures, current passes and cleanup independently. Full browser
-movement/save/dragging proof remains unavailable without an isolated API bridge.
+The final coherent copied run completed at **00:40 Perth on 27 October**:
+**33 PASS, 0 FAIL**, comprising all original 24 and nine added estimate/growth
+groups. A separate positive Bus closing-time supplement passed at 00:45, making
+34 registered recurring groups. This is one 33-group run plus one focused group,
+not a single 34-group run. Both processes exited zero and cleanup passed.
+
+The new running-category/fitter-growth repair is installed as migration
+`20261026213222`. It plans affected followers before persisting root growth,
+preserves genuine running/stopped/resource conflicts, and records system-trigger
+changes without inventing a staff actor. Exact installed hashes, permissions and
+check metadata passed readback. All **103 current live read-only fault checks
+passed at 05:32 Perth**. See [the detailed repair record](RUNNING-GROWTH-CASCADE-20261026.md)
+for endpoint/helper distinctions, preservation assertions and inverse proof.
+
+The raw initial 19/24 result and every later failed or blocked attempt remain
+recorded. One broad attempt was blocked before assertions because a new backup
+already contained the earlier releases. The successful retry used that backup
+directly and verified 24 exact baseline definitions, then the candidate hashes.
+Its standard fingerprint receipt remained incomplete for three required entries;
+the explicit baseline/candidate evidence is separate, not an invented raw PASS.
+
+A real signed-in browser search found a separate linked-job-card label defect:
+matching used linked identities while rendering used only an empty primary field.
+PR538 fixed and versioned both dynamic planner loads and their loader. Actual
+published browser readback showed both linked cards; search selection, Enter,
+drawer open/close and clear passed. At 00:33 the public monitor again passed all
+nine entries, nine redirects, eight assets, three signed-out denials and 155
+focused regressions. Main PR538 CI passed 2,849 tests with zero failures and three
+skips. Current release CI is recorded separately with its final commit receipt.
+
+Six concurrent main releases landed during an expired deployment request.
+Fresh comparison confirmed 23 of the 24 sampled definitions unchanged and only
+the intended running helper changed; all concurrent edits and pins were retained.
+This record does not claim every possible new or future path is error-free.
+Full actual-browser movement/save/dragging proof remains unavailable without an
+isolated API/auth bridge. Storage contents and actual external delivery were not
+tested. No live customer job was used as a test fixture.
 
 ## Rollback
 

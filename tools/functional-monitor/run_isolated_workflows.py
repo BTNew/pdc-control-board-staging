@@ -45,7 +45,63 @@ SCENARIOS = [
     ("Navision Broome and Pilbara access", "tests/navision_upload_staff_access_rollback.sql"),
     ("Delivered at dealer lifecycle cleanup", "tools/functional-monitor/dealer_delivery_rollback.sql"),
     ("Website activity and permissions", "scripts/test_staff_usage_all_pages_rollback.sql"),
+    ("Running estimate saves and warm cache", "tests/running_booking_estimate_rollback.sql"),
+    ("Estimate cross-station handover", "tests/estimate_cross_station_handover_rollback.sql"),
+    ("Hoist running category growth", "tests/running-growth/category_hoist_started_rollback.sql"),
+    ("Hoist stopped category growth", "tests/running-growth/category_hoist_stoppage_rollback.sql"),
+    ("Bus running category growth", "tests/running-growth/category_bus_started_rollback.sql"),
+    ("Bus stopped category growth", "tests/running-growth/category_bus_stoppage_rollback.sql"),
+    ("Fitter extra work growth and replay", "tests/running-growth/fitter_extra_rollback.sql"),
+    ("Running growth protected resources", "tests/running-growth/protected_chain_rollback.sql"),
+    ("Running growth system reconciliation", "tests/running-growth/management_trigger_rollback.sql"),
+    ("Bus running growth across configured close", "tests/running-growth/bus_close_rollover_rollback.sql"),
 ]
+
+RUNNING_GROWTH_FINGERPRINTS = {
+    ("public", "workshop_extend_running_booking_538"),
+    ("public", "workshop_extend_running_after_hours_538"),
+    ("public", "workshop_reconcile_adjustment_booking_duration"),
+    ("public", "set_workshop_stage_estimated_minutes_407"),
+    ("public", "save_vehicle_workshop_line_hours_batch_768"),
+    ("public", "set_vehicle_work_category"),
+    ("public", "audit_pdc_event"),
+    ("pdc_operation_updates_private", "reconcile_running_growth_20261026"),
+}
+
+def compare_fingerprints(expected: list[dict], restored: list[dict], required: set[tuple[str, str]]) -> dict:
+    """An old or incomplete evidence file cannot establish current code coverage."""
+    def key(row):
+        schema, name = row.get("schema", "public"), row["proname"]
+        if not re.fullmatch(r"[a-z_0-9]+", schema) or not re.fullmatch(r"[a-z_0-9]+", name):
+            raise ValueError("Invalid function fingerprint identifier")
+        return schema, name, row["arguments"]
+    def definition_hash(row):
+        value = row.get("definition_hash")
+        if not isinstance(value, str) or not re.fullmatch(r"[0-9a-fA-F]{32}", value):
+            raise ValueError("Invalid function definition fingerprint hash")
+        return value.lower()
+    wanted = {key(row): definition_hash(row) for row in expected}
+    found = {key(row): definition_hash(row) for row in restored}
+    missing = sorted(required - {(schema, name) for schema, name, _ in wanted})
+    different = sorted(f"{schema}.{name}({args})" for (schema, name, args), value in wanted.items()
+                       if (schema, name, args) not in found or found[(schema, name, args)] != value)
+    return {"status": "BLOCKED" if missing or different else "PASS", "different_functions": different,
+            "missing_required_functions": [f"{schema}.{name}" for schema, name in missing]}
+
+def read_restored_fingerprints(read_sql, expected: list[dict]) -> list[dict]:
+    # The pinned restore helper returns only the final 6000 output characters.
+    # Bound each read to one qualified function instead of truncating a growing
+    # whole-site JSON array and silently losing the beginning of the evidence.
+    rows = []
+    for schema, name in sorted({(x.get("schema", "public"), x["proname"]) for x in expected}):
+        if not re.fullmatch(r"[a-z_0-9]+", schema) or not re.fullmatch(r"[a-z_0-9]+", name):
+            raise ValueError("Invalid function fingerprint identifier")
+        result = read_sql("select coalesce(jsonb_agg(jsonb_build_object('schema',n.nspname,'proname',p.proname,'arguments',pg_get_function_identity_arguments(p.oid),'definition_hash',md5(pg_get_functiondef(p.oid)))),'[]') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='" + schema + "' and p.proname='" + name + "';")
+        output = result["stdout_tail"]
+        if result["returncode"] != 0 or len(output) >= 6000:
+            raise ValueError("Incomplete restored function fingerprint evidence: " + schema + "." + name)
+        rows.extend(json.loads(output))
+    return rows
 
 def validate_sql(sql: str) -> None:
     # Remove line comments for this boundary check. Existing reviewed scenarios
@@ -149,15 +205,9 @@ def run(output: Path, scenario_names: list[str] | None = None, fingerprints: Pat
         if safe["stdout_tail"].strip() != "0":
             raise ValueError("Unexpected extension in the disposable test database")
         if expected:
-            names = sorted({x["proname"] for x in expected["functions"]})
-            if any(not re.fullmatch(r"[a-z_0-9]+", name) for name in names):
-                raise ValueError("Invalid function fingerprint name")
-            clause = ",".join("'" + name + "'" for name in names)
-            found = original_psql(env, "select coalesce(jsonb_agg(jsonb_build_object('proname',p.proname,'arguments',pg_get_function_identity_arguments(p.oid),'definition_hash',md5(pg_get_functiondef(p.oid)))),'[]') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in (" + clause + ");", database=database, timeout=20)
-            local = {(x["proname"],x["arguments"]):x["definition_hash"] for x in json.loads(found["stdout_tail"])}
-            mismatch = [x["proname"] for x in expected["functions"] if local.get((x["proname"],x["arguments"])) != x["definition_hash"]]
-            summary["backend_version_check"] = {"status":"BLOCKED" if mismatch else "PASS", "different_functions":mismatch,
-                "live_checked_at":expected["checked_at"]}
+            restored = read_restored_fingerprints(lambda sql: original_psql(env, sql, database=database, timeout=20), expected["functions"])
+            summary["backend_version_check"] = compare_fingerprints(expected["functions"], restored, RUNNING_GROWTH_FINGERPRINTS)
+            summary["backend_version_check"]["live_checked_at"] = expected["checked_at"]
         else:
             summary["backend_version_check"] = {"status":"NOT RUN","reason":"No current read-only live fingerprint evidence supplied"}
         # Read and booking-boundary test fixture. This row exists only in the copy.
