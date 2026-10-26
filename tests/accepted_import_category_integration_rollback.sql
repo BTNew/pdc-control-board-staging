@@ -157,7 +157,10 @@ BEGIN
   ('SUB - MMT Multiple Row Canvas Seat Covers','SUBLET',0.01),
   ('95 Litres of Fuel','BUS_QA',0.15),
   ('95 LITRES OF FUEL -- 05E2A **MINEBAR 04X4B**','BUS_QA',0.0),
-  ('Pit & Weigh','BUS_PIT',1.0),
+  ('Pit & Weigh','SUBLET',1.0),
+  ('Pit Fee for fuel Tank Certification','SUBLET',0.0),
+  ('Complementary full tank of fuel','SUBLET',0.15),
+  ('Perth Delivery','SUBLET',1.25),
   ('Unreviewed future conversion package','UNALLOCATED_MAPPING_REVIEW',2.0),
   ('Darkest Legal Window Tint','TINT',1.0)
  ) t(description,category,hours) LOOP
@@ -182,6 +185,111 @@ BEGIN
   END IF;
  END LOOP;
 END $integration$;
+DO $canonical_external_rules$
+DECLARE v uuid; cid uuid; line jsonb; item record; description text; r jsonb; before_review jsonb; op uuid; before_operation jsonb; before_adjustment jsonb;
+BEGIN
+ -- The same owner-approved external rules apply to Dept139 and preserve explicit
+ -- zero/positive source hours, with its established effective-hours standards.
+ -- No mappings or new hour rules are invented by this fixture.
+ FOR item IN SELECT * FROM (VALUES
+  ('Pit & Weigh',1.0),('Pit Fee for fuel Tank Certification',0.0),
+  ('Complementary full tank of fuel',0.15),('Perth Delivery',1.25)
+ ) t(description,hours) LOOP
+  v:=pg_temp.ou_vehicle('139 canonical external '||item.description);
+  cid:=pg_temp.ou_change(v,NULL,item.hours,item.description,1,'139');
+  SELECT automation_result INTO r FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;
+  SELECT l INTO line FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l LIMIT 1;
+  PERFORM pg_temp.ou_assert(r->>'ok'='true' AND line->>'stage_code'='SUBLET'
+   AND line->>'work_category'='SUBLET' AND (line->>'estimated_hours')::numeric=public.pdc_standard_operation_hours_20260910(item.description,item.hours),
+   'Dept139 canonical external addition: '||item.description,r);
+  PERFORM pg_temp.ou_assert((SELECT source_estimated_hours=item.hours FROM public.pdc_pilbara_service_operations
+   WHERE vehicle_id=v AND operation_id=(line->>'source_line_id')::uuid),
+   'Dept139 source hours unchanged: '||item.description);
+ END LOOP;
+ -- A normal already-approved review has a source identity. With no learned rule,
+ -- the unchanged original proposal path is directly available for exact parity.
+ v:=pg_temp.ou_vehicle('approved external proposal preservation');
+ description:='Pit Fee for fuel Tank Certification - approved isolated '||v;
+ cid:=pg_temp.ou_change(v,NULL,0.75,description,1,'139');
+ SELECT to_jsonb(q) INTO before_review FROM public.pdc_tune_operation_change_reviews q WHERE change_id=cid;
+ PERFORM pg_temp.ou_assert(before_review->>'status'='approved' AND before_review->>'source_operation_id' IS NOT NULL,
+  'External review is approved before preservation check');
+ PERFORM pg_temp.ou_assert(NOT EXISTS(SELECT 1 FROM pdc_operation_updates_private.ai_routing_20261019
+  WHERE department='139' AND description_hash=pdc_work_categories_private.import_description_hash_20261017(description)),
+  'Approved preservation case has no learned-rule branch');
+ PERFORM pg_temp.ou_assert(pdc_operation_updates_private.proposal(cid)
+  IS NOT DISTINCT FROM pdc_operation_updates_private.proposal_before_automatic_20261019(cid),
+  'Already-approved source review keeps the original proposal path');
+ PERFORM pg_temp.ou_assert((SELECT to_jsonb(q)=before_review FROM public.pdc_tune_operation_change_reviews q WHERE change_id=cid),
+  'Proposal read leaves approved review and receipt unchanged');
+ -- A stale learned notes rule must not outrank the already-installed canonical
+ -- external rule for a NEW addition. The learned row itself remains untouched.
+ v:=pg_temp.ou_vehicle('new canonical external before stale AI');
+ description:='Pit Fee for fuel Tank Certification - isolated '||v;
+ INSERT INTO pdc_operation_updates_private.ai_routing_20261019(department,description_hash,category,estimated_hours,confidence,rationale)
+ VALUES('138',pdc_work_categories_private.import_description_hash_20261017(description),'JOB_CARD_NOTES',0,0.9,'Synthetic historical notes rule; this row rolls back');
+ cid:=pg_temp.ou_change(v,NULL,2.5,description,1,'138');
+ SELECT automation_result INTO r FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;
+ SELECT l INTO line FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l LIMIT 1;
+ PERFORM pg_temp.ou_assert(r->>'ok'='true' AND line->>'work_category'='SUBLET'
+  AND (line->>'estimated_hours')::numeric=2.5,'New external source rule precedes stale AI notes',r);
+ PERFORM pg_temp.ou_assert(EXISTS(SELECT 1 FROM pdc_operation_updates_private.ai_routing_20261019
+  WHERE department='138' AND description_hash=pdc_work_categories_private.import_description_hash_20261017(description)
+  AND category='JOB_CARD_NOTES' AND estimated_hours=0),'Existing learned mapping was not rewritten');
+ op:=(line->>'source_line_id')::uuid;
+ PERFORM pg_temp.ou_assert((SELECT approval_receipt#>>'{data,estimate,routing_rule}'='canonical_external_sublet_20261026'
+  FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid)
+  AND pdc_bus_private.operation_station(op)='SUBLET','Canonical automatic decision persists after acceptance');
+ cid:=pg_temp.ou_change(v,op,3.5,description,1,'138');
+ SELECT automation_result INTO r FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;
+ SELECT l INTO line FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l WHERE l->>'line_identity'='source:'||op;
+ PERFORM pg_temp.ou_assert(r->>'ok'='true' AND line->>'work_category'='SUBLET' AND (line->>'estimated_hours')::numeric=3.5,
+  'Subsequent hours upload keeps canonical external routing despite stale AI',r);
+ r:=public.set_vehicle_work_category(v,(SELECT version FROM public.vehicles WHERE id=v),'source:'||op,'BUS_ACCESSORIES',0);
+ PERFORM pg_temp.ou_assert(r->>'ok'='true','Later staff category can supersede an automatic external decision',r);
+ cid:=pg_temp.ou_change(v,op,4.5,description,1,'138');
+ SELECT automation_result INTO r FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;
+ SELECT l INTO line FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l WHERE l->>'line_identity'='source:'||op;
+ PERFORM pg_temp.ou_assert(r->>'ok'='true' AND line->>'work_category'='BUS_ACCESSORIES' AND (line->>'estimated_hours')::numeric=4.5,
+  'Subsequent upload preserves a staff category on a formerly automatic external line',r);
+ r:=public.set_vehicle_work_category(v,(SELECT version FROM public.vehicles WHERE id=v),'source:'||op,'SUBLET',1);
+ PERFORM pg_temp.ou_assert(r->>'ok'='true','Synthetic line returns to Sublet before completion protection check',r);
+ UPDATE public.vehicle_work_items SET completed=true WHERE vehicle_id=v
+  AND work_key=(SELECT work_key FROM public.workshop_stages WHERE code='SUBLET');
+ SELECT to_jsonb(x) INTO before_operation FROM public.pdc_pilbara_service_operations x WHERE operation_id=op;
+ SELECT to_jsonb(x) INTO before_adjustment FROM public.vehicle_workshop_line_adjustments x WHERE vehicle_id=v AND line_key='source:'||op;
+ cid:=pg_temp.ou_change(v,op,6.5,description,1,'138');
+ SELECT automation_result INTO r FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;
+ PERFORM pg_temp.ou_assert(r->>'ok'='false'
+  AND r->>'code' IN('completed_station_requires_rework_review','completed_or_removed_line_protected')
+  AND (SELECT status='pending' FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid)
+  AND (SELECT to_jsonb(x)=before_operation FROM public.pdc_pilbara_service_operations x WHERE operation_id=op)
+  AND (SELECT to_jsonb(x)=before_adjustment FROM public.vehicle_workshop_line_adjustments x WHERE vehicle_id=v AND line_key='source:'||op),
+  'Completed canonical external work refuses later updates without a partial change',r);
+ -- Force a refusal after the server has linked the new source and provisional
+ -- decision, proving the outer acceptance exception rolls both back atomically.
+ v:=pg_temp.ou_vehicle('canonical external atomic refusal');
+ description:='Pit Fee for fuel Tank Certification - refusal isolated '||v;
+ EXECUTE format($fixture_trigger$
+  CREATE FUNCTION pg_temp.ou_refuse_one_policy_line() RETURNS trigger LANGUAGE plpgsql AS $body$
+  BEGIN
+   IF NEW.vehicle_id=%L::uuid THEN RAISE EXCEPTION 'synthetic_policy_acceptance_refusal'; END IF;
+   RETURN NEW;
+  END $body$;
+ $fixture_trigger$,v);
+ CREATE TRIGGER ou_policy_acceptance_refusal BEFORE INSERT ON public.vehicle_workshop_line_adjustments
+  FOR EACH ROW EXECUTE FUNCTION pg_temp.ou_refuse_one_policy_line();
+ cid:=pg_temp.ou_change(v,NULL,0.75,description,1,'138');
+ DROP TRIGGER ou_policy_acceptance_refusal ON public.vehicle_workshop_line_adjustments;
+ SELECT automation_result INTO r FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid;
+ PERFORM pg_temp.ou_assert(r->>'ok'='false' AND r->>'detail'='synthetic_policy_acceptance_refusal'
+  AND (SELECT status='pending' AND source_operation_id IS NULL AND approval_key IS NULL
+    AND coalesce(approval_receipt,'{}'::jsonb)='{}'::jsonb AND approved_at IS NULL AND approved_by IS NULL
+   FROM public.pdc_tune_operation_change_reviews WHERE change_id=cid)
+  AND NOT EXISTS(SELECT 1 FROM public.pdc_pilbara_service_operations WHERE vehicle_id=v)
+  AND NOT EXISTS(SELECT 1 FROM public.vehicle_workshop_line_adjustments WHERE vehicle_id=v),
+  'Failed acceptance rolls back source linkage and provisional automatic decision',r);
+END $canonical_external_rules$;
 DO $booked$
 DECLARE v uuid; cid uuid; r jsonb; line jsonb; op uuid; bay uuid; bid uuid; d date;
 BEGIN

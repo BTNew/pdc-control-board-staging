@@ -132,7 +132,7 @@ BEGIN
  PERFORM pg_temp.ou_assert(pdc_work_categories_private.hours(v,'BUS_QA')=1,'QA preserves explicit zero fuel plus certification');
  PERFORM pg_temp.ou_assert(pdc_work_categories_private.suggest('{"department":"138","description":"6 x Super Single Tyres & Rims - Coaster"}')='BUS_MECHANICAL','Coaster conversion tyres stay Mechanical');
  PERFORM pg_temp.ou_assert(pdc_work_categories_private.suggest('{"department":"138","description":"Tyre replacement"}')='TYRE','Ordinary tyres stay shared');
- PERFORM pg_temp.ou_assert(pdc_work_categories_private.suggest('{"department":"138","description":"External pit inspection"}')='BUS_PIT','Pit is external');
+ PERFORM pg_temp.ou_assert(pdc_work_categories_private.suggest('{"department":"138","description":"External pit inspection"}')='SUBLET','Pit is external Sublet under the current owner rule');
  PERFORM pg_temp.ou_assert(pdc_work_categories_private.suggest('{"department":"138","operation_code":"BV2DC","description":"Dash cameras"}')='SUBLET','Known outsourced dash cameras stay Sublet');
  bay:=pg_temp.ou_bay('work-categories','BUS_4X4');
  eb:=pg_temp.ou_bay('electrical-categories','BUS_4X4','BUS_ELECTRICAL');
@@ -184,7 +184,7 @@ BEGIN
  EXCEPTION WHEN SQLSTATE 'PT001' THEN NULL;
  END;
  PERFORM pg_temp.ou_assert(EXISTS(SELECT 1 FROM jsonb_array_elements(r->'outstanding_candidates') c CROSS JOIN LATERAL jsonb_array_elements(c->'work_categories') x WHERE c->>'vehicle_id'=v::text AND x->>'work_category'='BUS_QA' AND x->>'schedule_enabled'='true'),'Actual station snapshot keeps remaining categories in the queue');
- PERFORM pg_temp.ou_assert(NOT has_function_privilege('anon','public.set_vehicle_work_category(uuid,integer,text,text,integer)','execute'),'Anonymous users cannot change categories');
+ PERFORM pg_temp.ou_assert(NOT has_function_privilege('anon','public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)','execute'),'Anonymous users cannot change categories');
  SELECT (l->>'source_line_id')::uuid INTO op FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l WHERE l->>'work_category'='BUS_MECHANICAL';
  INSERT INTO public.vehicle_workshop_line_adjustments(vehicle_id,line_key,source_kind,stage_code,description,estimated_hours,created_by,updated_by)
  VALUES(v,'source:'||op,'source','BUS_4X4','Driving lights',3,auth.uid(),auth.uid());
@@ -224,6 +224,9 @@ BEGIN
   d:=public.get_fitter_job(tech,b);
   FOR l IN SELECT x FROM jsonb_array_elements(d->'lines') x LOOP
    d:=public.get_fitter_job(tech,b);
+   r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'item_start',l->>'line_identity');
+   IF r->>'ok' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'Category item Start failed %',r; END IF;
+   d:=public.get_fitter_job(tech,b);
    r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'line',l->>'line_identity',true,'Verified category fixture');
    IF r->>'ok' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'Category line failed %',r; END IF;
   END LOOP;
@@ -250,15 +253,26 @@ BEGIN
 END $completion$;
 
 DO $split$
-DECLARE v uuid; bay uuid; b uuid; op uuid; r jsonb; t timestamptz;
+DECLARE v uuid; bay uuid; b uuid; op uuid; r jsonb; t timestamptz; before_booking jsonb; before_line jsonb;
 BEGIN
  v:=pg_temp.ou_vehicle('legacy-split'); bay:=pg_temp.ou_bay('legacy-split','BUS_4X4');
  op:=pg_temp.ou_operation(v,'BUS_4X4',2,1,'138','Battery Compartment & Relay Box Protection');
  PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,2,'138','Pre-Delivery (Commercial)');
  SELECT (friday::timestamp+interval '7 days 6 hours') AT TIME ZONE 'Australia/Perth' INTO t FROM ou_context;
  b:=pg_temp.ou_booking('legacy-split',v,'BUS_4X4',bay,t);
- r:=public.set_vehicle_work_category(v,(SELECT version FROM public.vehicles WHERE id=v),'source:'||op,'BUS_ACCESSORIES',0);
- PERFORM pg_temp.ou_assert(r->>'error'='category_booking_exists','Whole-job reservation protects its scope until explicitly split');
+ SELECT to_jsonb(x) INTO before_booking FROM public.workshop_bookings x WHERE id=b;
+ SELECT l INTO before_line FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l WHERE l->>'line_identity'='source:'||op;
+ -- A legacy NULL-category booking still contains every Bus subcategory. Moving
+ -- to Tint leaves that stage and is the release-confirmation case under r536.
+ r:=public.set_vehicle_work_category(v,(SELECT version FROM public.vehicles WHERE id=v),'source:'||op,'TINT',0);
+ PERFORM pg_temp.ou_assert(r->>'error'='confirm_release'
+  AND (SELECT to_jsonb(x)=before_booking FROM public.workshop_bookings x WHERE id=b)
+  AND (SELECT l=before_line FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l WHERE l->>'line_identity'='source:'||op),
+  'Legacy unstarted reservation and category remain unchanged until release is confirmed or explicitly split',
+  jsonb_build_object('reply',r,'before_category',before_line->>'work_category','before_stage',before_line->>'stage_code',
+   'booking_category',before_booking->>'work_category','booking_scope',before_booking->'work_category_scope',
+   'booking_status',before_booking->>'status',
+   'after_category',(SELECT l->>'work_category' FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l WHERE l->>'line_identity'='source:'||op)));
  r:=public.split_bus_booking_to_categories(b,(SELECT version FROM public.workshop_bookings WHERE id=b));
  PERFORM pg_temp.ou_assert(r->>'ok'='true' AND EXISTS(SELECT 1 FROM public.workshop_bookings WHERE id=b AND deleted_at IS NOT NULL),'Split releases reservation and retains original booking history',r);
  r:=public.set_vehicle_work_category(v,(SELECT version FROM public.vehicles WHERE id=v),'source:'||op,'BUS_ACCESSORIES',0);
@@ -269,6 +283,28 @@ BEGIN
  PERFORM pg_temp.ou_assert(pdc_work_categories_private.hours(v,'BUS_ACCESSORIES')=2,'Saved category survives a subsequent projection/reconciliation');
  PERFORM pg_temp.ou_assert(NOT has_function_privilege('anon','public.split_bus_booking_to_categories(uuid,integer)','execute'),'Anonymous users cannot split bookings');
 END $split$;
+DO $explicit_whole_job_guard$
+DECLARE v uuid; bay uuid; b uuid; op uuid; r jsonb; t timestamptz; mins integer; before_booking jsonb; before_line jsonb;
+BEGIN
+ v:=pg_temp.ou_vehicle('explicit-whole-job-guard'); bay:=pg_temp.ou_bay('explicit-whole-job-guard','BUS_4X4');
+ op:=pg_temp.ou_operation(v,'BUS_4X4',2,1,'138','Battery Compartment & Relay Box Protection');
+ PERFORM pg_temp.ou_operation(v,'BUS_4X4',1,2,'138','Pre-Delivery (Commercial)');
+ SELECT (friday::timestamp+interval '21 days 6 hours') AT TIME ZONE 'Australia/Perth' INTO t FROM ou_context;
+ mins:=round(pdc_work_categories_private.whole_job_hours_450(v,NULL)*60)::integer;
+ r:=public.schedule_vehicle_work(v,(SELECT version FROM public.vehicles WHERE id=v),'BUS_4X4',
+  (SELECT bay_number FROM public.workshop_bays WHERE id=bay),t,mins,NULL,NULL,'{"work_category":"BUS_WHOLE_JOB"}');
+ PERFORM pg_temp.ou_assert(r->>'ok'='true','Current explicit whole-job fixture schedules',r);
+ b:=(r#>>'{booking,booking_id}')::uuid;
+ SELECT to_jsonb(x) INTO before_booking FROM public.workshop_bookings x WHERE id=b;
+ SELECT l INTO before_line FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l WHERE l->>'line_identity'='source:'||op;
+ PERFORM pg_temp.ou_assert(before_booking->>'work_category'='BUS_WHOLE_JOB'
+  AND (before_booking->'work_category_scope') ? ('source:'||op), 'Current whole-job fixture holds the exact source line');
+ r:=public.set_vehicle_work_category(v,(SELECT version FROM public.vehicles WHERE id=v),'source:'||op,'BUS_ACCESSORIES',0,true);
+ PERFORM pg_temp.ou_assert(r->>'error'='category_booking_exists'
+  AND (SELECT to_jsonb(x)=before_booking FROM public.workshop_bookings x WHERE id=b)
+  AND (SELECT l=before_line FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(v)) l WHERE l->>'line_identity'='source:'||op),
+  'Explicit whole-job scope remains protected even with release confirmation',r);
+END $explicit_whole_job_guard$;
 DO $bookall$
 DECLARE v uuid; r jsonb;
 BEGIN
