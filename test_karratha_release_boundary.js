@@ -105,13 +105,15 @@ const approvedRootImportPatch = Object.freeze({
   // r498: 'Undo last move' shows straight after an administrator move and goes after Undo (F111).
   // r527: QA Bay 07 resolves by code, bay number, QA label or the live snapshot, and a refused technician write no longer says to sign in as an administrator (F141). Department 135 keeps its frozen planner.
   // r531: the clash helper is called only when it is loaded, so the error catalog can read the describer on its own (F145).
-  "workshop-planner.js": "df25584b7586e70ae66614513456aa9d46aa7f961a9466fcfc99fc28820db0d0",
+  // r535: Schedule offers Next available or a bay order (F149). Department 135 keeps its frozen planner.
+  "workshop-planner.js": "fe945356e338b40127ae7b9a4d43e7d3caa45169902852801f232847c350fa85",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "28f7eb47951e869bc90ec5a6e0bb2e15162b9d5ad8c3b1f8b808dc7ace6eec00",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
   // r457: one-column side menu 901-1180 px and no blank band in the stacked planner header up to 1300 px (F70).
   // r478: read-only estimated work hours value in the station vehicle job popup (F91).
-  "workshop-planner.css": "fc29a4268da314b2d41905f65788f00b5c07ddb4544b36cdb5f991ac3bc9bf3a",
+  // r535: Next available / Bay order controls on the Schedule dialog (F149). Department 135 keeps its frozen stylesheet.
+  "workshop-planner.css": "846f56ed33a9e511023d3f0f39ad778cc81639fec5b17bdfc37199cf3b1b7035",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   // r526: outstanding Parts (class imported-parts-orange) paints #dbeafe / #1d4ed8 / #2563eb (F140).
@@ -208,7 +210,8 @@ const approvedRootImportPatch = Object.freeze({
   // r524: imported orange, red, review and grey keep the Parts tile colour; a JITA number is the corner mark unless the import is missing or green (F138). Department 135 keeps its frozen app.js.
   // r527: r527=2026.10.25.r527 on workshop-reference-data-service.js and both workshop-planner.js loads (QA bay technician, F141). Department 135 keeps its frozen app.js.
   // r531: r531=2026.10.26.r531 on both workshop-planner.js loads (duration cache and technician clash text, F145). Department 135 keeps its frozen app.js.
-  "app.js": "5145be58eb1fcce31d5ec6737cd35a2e0316c7e201923bf578d24d492de1db85",
+  // r535: r535=2026.10.26.r535 on both workshop-planner.js loads (Schedule next slot or bay order, F149). Department 135 keeps its frozen app.js.
+  "app.js": "b0f7ee9c2acfa937bfd53ce6bc551c7330bd149940d26c6bdaf047a75f9ef35f",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -310,7 +313,8 @@ const approvedRootImportPatch = Object.freeze({
   // r525: r525=2026.10.24.r525 on pdc-staff-usage.js (Website activity Last 24 hours; F139). Department 135 is not tagged. The applied check stays usage_period_24h_513 / F126.
   // r526: r526=2026.10.24.r526 on styles.css (outstanding Parts paint is blue; F140). Department 135 is not tagged.
   // r532: r532=2026.10.26.r532 on pdc-fitters.js (other-station Start and Done; F146). Department 135 is not tagged.
-  "index.html": "d37899c53d87bffe652d0ccfd3488797c70ab7047db17b40d545c3d5efff65d5",
+  // r535: r535=2026.10.26.r535 on workshop-planner.css (Schedule next slot or bay order, F149). Department 135 is not tagged.
+  "index.html": "1bc09217689eec7dee61cfdaaf0538e64a985be6bbbf637de09118990b56881a",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

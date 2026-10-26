@@ -3021,8 +3021,8 @@ function workshopTechnicianNameById(id = '') {
 
 function workshopNextScheduleTechnician(stage = '', bay = 0, vehicle = null, { followsBay = true, manualValue = '' } = {}) {
   const bayDefault = workshopBayMechanic(stage, bay) || (typeof pmbBayMechanic === 'function' ? pmbBayMechanic(vehicle) : '') || '';
-  // A new unstarted booking follows the selected bay's default mechanic.
-  // A deliberate choice in the dialog is kept when the bay changes.
+  // r535 (F149): Schedule no longer asks for a technician. A new booking uses
+  // the bay's default mechanic. A caller that already chose a name can still pass it.
   if (followsBay) return bayDefault;
   return cleanNavisionText(manualValue || '');
 }
@@ -6044,7 +6044,7 @@ function renderWorkshopPlanner(options = {}) {
       </section>
 
     </div>
-    ${focusedBookingMode ? '<div class="workshop-board-note">Focused booking mode shows only the selected canonical booking. Use Back to Workshop planner to return to the full station board.</div>' : '<div class="workshop-board-note">How to use: drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule for a specific date and time. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. The red current-time line stays visible on the planner and clamps to the workshop edge outside work hours. Double-click any vehicle to open its job.</div>'}
+    ${focusedBookingMode ? '<div class="workshop-board-note">Focused booking mode shows only the selected canonical booking. Use Back to Workshop planner to return to the full station board.</div>' : '<div class="workshop-board-note">How to use: drag a waiting vehicle or planned booking onto the exact bay/time you want. If that spot overlaps only queued planned work, the planner keeps your dropped booking there and offers to push the later queue back-to-back behind it. Use Best slot for the fastest bay suggestion, or use Schedule to put it in the next free slot of a chosen bay, or into a chosen place in the bay order. If a day is full, automatic sequencing continues on the next workday. Live overlap stays blocked, while live jobs can still be moved safely with the bay quick controls or drag/drop. The red current-time line stays visible on the planner and clamps to the workshop edge outside work hours. Double-click any vehicle to open its job.</div>'}
   </div>`;
   bindWorkshopPlanner(renderHost);
   updateWorkshopNowLine(renderHost);
@@ -7090,6 +7090,60 @@ function workshopBindScheduleCommitClose(service, finish) {
   };
 }
 
+// r535 (F149): Schedule no longer asks for a date, a start time, planned hours
+// or a technician. The bay queue is the order already on the planner. A running
+// job stays in that order and nothing is offered in front of it.
+function workshopBayQueueRows(stage = '', bay = 0, excludeId = '') {
+  const normalized = normalizePmbStage(stage);
+  const number = Number(bay);
+  return workshopLoadPlans()
+    .filter(row => row && row.id !== excludeId
+      && normalizePmbStage(row.stage) === normalized
+      && Number(row.bay) === number
+      && !['completed', 'deleted'].includes(String(row.status || ''))
+      && !['completed', 'deleted'].includes(String(row.sharedStatus || '')))
+    .sort((a, b) => workshopEntryStart(a) - workshopEntryStart(b) || String(a.id).localeCompare(String(b.id)));
+}
+
+function workshopBayQueueMovable(row = {}) {
+  return String(row.status || '') !== 'started' && String(row.sharedStatus || '') !== 'started';
+}
+
+function workshopBayQueueLabel(entry = {}) {
+  const vehicle = typeof workshopVehicle === 'function' ? workshopVehicle(entry.vehicleKey, entry.stage) : null;
+  const text = value => typeof cleanNavisionText === 'function' ? cleanNavisionText(value || '') : String(value || '').trim();
+  const key = text(typeof vehicleKeyNumber === 'function' ? vehicleKeyNumber(vehicle || {}) : '') || 'Key not listed';
+  const stock = text(typeof displayStockNumber === 'function' ? displayStockNumber(vehicle || {}) : '') || text(entry.vehicleKey) || 'Stock not listed';
+  const customer = text(typeof vehicleCustomerName === 'function' ? vehicleCustomerName(vehicle || {}) : '') || 'Customer not listed';
+  const model = text(vehicle ? workshopQueueVehicleDescription(vehicle) : '') || 'Model not listed';
+  return { key, stock, customer, model };
+}
+
+function workshopBayQueueHtml(rows = []) {
+  if (!rows.length) return '<p class="workshop-bay-order-empty">No vehicles are queued in this bay.</p>';
+  const parts = [];
+  rows.forEach(row => {
+    if (workshopBayQueueMovable(row)) parts.push(`<button class="workshop-insert-here" type="button" data-workshop-insert-before="${escapeHtml(row.id)}">Insert here</button>`);
+    const label = workshopBayQueueLabel(row);
+    parts.push(`<div class="workshop-bay-order-vehicle">Key ${escapeHtml(label.key)} · Stock ${escapeHtml(label.stock)} · ${escapeHtml(label.customer)} · ${escapeHtml(label.model)}</div>`);
+  });
+  parts.push('<button class="workshop-insert-here" type="button" data-workshop-insert-end>Insert here</button>');
+  return parts.join('');
+}
+
+function workshopBayQueuePlacement(stage = '', bay = 0, targetId = '', excludeId = '') {
+  const queue = workshopBayQueueRows(stage, bay, excludeId);
+  if (!targetId) {
+    if (!queue.length) return { kind: 'next' };
+    const end = workshopEntryEnd(queue[queue.length - 1]);
+    return { kind: 'end', dateKey: workshopDateKey(end), startMinutes: workshopMinuteOffset(end), reference: end };
+  }
+  const target = queue.find(row => String(row.id) === String(targetId));
+  if (!target || !workshopBayQueueMovable(target)) return { kind: 'blocked' };
+  const start = workshopEntryStart(target);
+  return { kind: 'before', dateKey: workshopDateKey(start), startMinutes: workshopMinuteOffset(start) };
+}
+
 function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '', planId = '') {
   const returnedPlan = planId ? workshopReturnedPlanForAction(planId) : null;
   if (planId && !returnedPlan) return;
@@ -7126,13 +7180,6 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     workshopNotify('Bay efficiency is still loading. Refresh the planner and try again.');
     return;
   }
-  const authoritativeHours = workshopSharedModeActive() ? hours : 0;
-  const plannedHours = authoritativeHours || hours;
-  const friendlyPlannedHours = workshopExactDurationHours(plannedHours).toFixed(2);
-  const selectedDate = workshopDateKeyNotBefore(workshopDateKey(workshopCoerceWorkDate(workshopDateFromKey(dateKey) || new Date(), 1)), etaConstraint.earliestDateKey);
-  const firstSlot = workshopFirstAvailableStartSlot(normalizedStage, bay, selectedDate, hours, workshopLoadPlans().filter(row => row.id !== planId), 0, 260, new Date(), [], workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle) || '', '', vehicle);
-  const scheduledDate = firstSlot?.dateKey || selectedDate;
-  const startMinutes = firstSlot?.startMinutes ?? 0;
   // r417 (F32): the category's own bays first, then every other visible bay (asks to confirm).
   const otherBays = workshopVisibleBays(normalizedStage).filter(number => !categoryBays.includes(number));
   const bayOptions = categoryBays.map(number => `<option value="${number}" ${number === bay ? 'selected' : ''}>${escapeHtml(workshopBayChoiceLabel(normalizedStage,number))}</option>`).join('')
@@ -7141,7 +7188,7 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   const bayOptionsHtml = (bays, chosen) => bays.map(number => `<option value="${number}" ${number === chosen ? 'selected' : ''}>${escapeHtml(workshopBayChoiceLabel(normalizedStage,number))}</option>`).join('')
     + workshopVisibleBays(normalizedStage).filter(number => !bays.includes(number)).map(number => `<option value="${number}">${escapeHtml(`${workshopBayChoiceLabel(normalizedStage,number)} (other work – asks to confirm)`)}</option>`).join('');
   const layout = workshopDepartmentLayout();
-  const workChoiceHtml = wholeJob ? `<label class="workshop-schedule-work" style="grid-column:1 / -1"><span>Work</span><select name="workCategory" data-workshop-schedule-work>
+  const workChoiceHtml = wholeJob ? `<label class="workshop-schedule-work"><span>Work</span><select name="workCategory" data-workshop-schedule-work>
           <option value="${escapeHtml(scheduleCategory)}" selected>${escapeHtml(`${layout?.categoryLabel?.(scheduleCategory) || scheduleCategory} only (${workshopExactDurationHours(categoryHours).toFixed(2)} h)`)}</option>
           <option value="${escapeHtml(wholeJob.code)}">${escapeHtml(`Whole job to one technician – ${wholeJob.categories.map(code => layout?.categoryLabel?.(code) || code).join(' + ')} (${workshopExactDurationHours(wholeJob.hours).toFixed(2)} h)`)}</option>
         </select></label>` : '';
@@ -7149,56 +7196,119 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
   overlay.className = 'modal-overlay workshop-schedule-overlay';
   overlay.setAttribute('role', 'dialog');
   overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', `Schedule ${pmbStageLabel(normalizedStage)} work`);
   overlay.innerHTML = `<section class="modal-card workshop-schedule-card">
     <button class="modal-close" type="button" data-workshop-schedule-cancel aria-label="Cancel">×</button>
     <header><h2>Schedule ${escapeHtml(pmbStageLabel(normalizedStage))} work</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} · ${escapeHtml(vehicleCustomerName(vehicle) || 'Unknown customer')}</p></header>
     <form data-workshop-schedule-form>
-      <div class="workshop-schedule-grid">
+      <div class="workshop-schedule-modes" role="tablist" aria-label="How to schedule">
+        <button type="button" class="is-selected" data-workshop-schedule-mode="next" role="tab" aria-selected="true">Next available</button>
+        <button type="button" data-workshop-schedule-mode="order" role="tab" aria-selected="false">Bay order</button>
+      </div>
+      <div class="workshop-schedule-choice">
         ${workChoiceHtml}
         <label><span>Bay</span><select name="bay">${bayOptions}</select></label>
-        <label><span>Date</span><input name="date" type="date" value="${escapeHtml(scheduledDate)}" ${etaConstraint.earliestDateKey ? `min="${escapeHtml(etaConstraint.earliestDateKey)}"` : ''} required></label>
-        <label><span>Start time</span><select name="startMinutes">${workshopScheduleTimeOptions(startMinutes)}</select></label>
-        <label><span>Planned hours</span><input name="hours" type="number" min="0.01" step="any" value="${escapeHtml(friendlyPlannedHours)}" ${authoritativeHours ? 'readonly title="Operation estimate adjusted for bay efficiency"' : ''} required></label>
-        <label><span>Technician</span><select name="assignee">${workshopAssigneeOptions(normalizedStage, typeof workshopNextScheduleTechnician === 'function' ? workshopNextScheduleTechnician(normalizedStage, bay, vehicle) : (workshopBayMechanic(normalizedStage, bay) || pmbBayMechanic(vehicle)))}</select></label>
+      </div>
+      <div data-workshop-schedule-next>
+        <p class="workshop-schedule-note">This vehicle goes into the next free slot in the bay you pick. The job's hours set how long it stays.</p>
+      </div>
+      <div data-workshop-schedule-order hidden>
+        <p class="workshop-schedule-note">Pick where this vehicle sits. The list is the bay order. The planner works out the times.</p>
+        <div class="workshop-bay-order" data-workshop-bay-order></div>
       </div>
       ${wholeJob ? `<p class="workshop-schedule-note" data-workshop-whole-job-note hidden>One booking for one technician: their job card lists every unbooked line (${escapeHtml(wholeJob.categories.map(code => layout?.categoryLabel?.(code) || code).join(', '))}). Book QA separately first if someone else does QA.</p>` : ''}
       <p class="workshop-schedule-note">Later bookings in this bay move automatically, preserving their order and duration and skipping non-working days.${etaConstraint.required ? ` ${escapeHtml(etaConstraint.location)} earliest permitted booking date: ${escapeHtml(etaConstraint.earliestDateKey)}.` : ''}</p>
-      <div class="edit-actions"><button class="secondary" type="button" data-workshop-schedule-cancel>Cancel</button><button class="primary" type="submit">Add to planner</button></div>
+      <div class="edit-actions"><button class="secondary" type="button" data-workshop-schedule-cancel>Cancel</button><button class="primary" type="submit" data-workshop-schedule-add>Add to planner</button></div>
     </form>
   </section>`;
   const finish = () => {
     overlay.remove();
     if (!document.querySelector('.modal-overlay')) document.body.classList.remove('modal-open');
   };
-  const suggestAvailableTime = () => {
-    const form = overlay.querySelector('[data-workshop-schedule-form]');
-    const selected = workshopDateFromKey(form.elements.date.value);
-    if (!selected) return;
-    const safeDate = workshopDateKey(workshopCoerceWorkDate(selected, 1));
-    form.elements.date.value = safeDate;
-    if (workshopSharedModeActive()) {
-      const allocated = workshopBookingDestinationHours(returnedPlan, normalizedStage, Number(form.elements.bay.value), baseHours);
-      if (!(allocated > 0)) { form.elements.hours.value = ''; return; }
-      form.elements.hours.value = workshopDurationInputValue(allocated);
-    }
-    const suggested = workshopFirstAvailableStartSlot(normalizedStage, Number(form.elements.bay.value), safeDate, Number(form.elements.hours.value) || hours, workshopLoadPlans().filter(row => row.id !== planId), 0, 260, new Date(), [], form.elements.assignee.value, '', vehicle);
-    if (suggested) {
-      form.elements.date.value = suggested.dateKey;
-      form.elements.startMinutes.value = String(suggested.startMinutes);
+  let mode = 'next';
+  let placing = false;
+  const jobHours = () => workshopExactDurationHours(baseHours) || baseHours;
+  const selectedBay = () => Number(overlay.querySelector('[data-workshop-schedule-form]')?.elements?.bay?.value);
+  const commit = async (startDateKey, startMinutes) => {
+    if (placing) return false;
+    placing = true;
+    const commitClose = workshopBindScheduleCommitClose(window.__workshopDataService, finish);
+    try {
+      const scheduled = await scheduleWorkshopVehicle({
+        planId,
+        vehicleKeyValue,
+        stage: normalizedStage,
+        bay: selectedBay(),
+        dateKey: startDateKey,
+        startMinutes,
+        hoursValue: jobHours(),
+        assigneeValue: null,
+        cascadeNewBooking: true,
+        ...(workCategory === 'BUS_WHOLE_JOB' ? { workCategoryValue: workCategory, baseHoursValue: wholeJob.hours } : {}),
+      });
+      if (scheduled) commitClose.closeOnce();
+      return !!scheduled;
+    } finally {
+      commitClose.restore();
+      placing = false;
     }
   };
-  let technicianFollowsBay = true;
-  const selectBayTechnician = () => {
-    if (!technicianFollowsBay) return;
+  const placeNext = async () => {
+    const now = workshopNormalizeStartDate(new Date());
+    const today = workshopDateKey(now);
+    const earliest = workshopDateKeyNotBefore(today, etaConstraint.earliestDateKey || '');
+    const notBefore = earliest === workshopDateKey(now) ? Math.max(0, workshopMinuteOffset(now)) : 0;
+    const slot = workshopFirstAvailableStartSlot(normalizedStage, selectedBay(), earliest, jobHours(), workshopLoadPlans().filter(row => row.id !== planId), notBefore, 260, new Date(), [], null, '', vehicle);
+    if (!slot) {
+      workshopNotify('No free slot in this bay. No booking was saved.');
+      return false;
+    }
+    return commit(slot.dateKey, slot.startMinutes);
+  };
+  const placeBefore = async targetId => {
+    const place = workshopBayQueuePlacement(normalizedStage, selectedBay(), targetId, planId);
+    if (place.kind === 'blocked') {
+      workshopNotify('That job is already running and stays where it is. Choose a place behind it. No booking was saved.');
+      return false;
+    }
+    return commit(place.dateKey, place.startMinutes);
+  };
+  const placeAtEnd = async () => {
+    const place = workshopBayQueuePlacement(normalizedStage, selectedBay(), '', planId);
+    if (place.kind === 'next') return placeNext();
+    const slot = workshopFirstAvailableStartSlot(normalizedStage, selectedBay(), place.dateKey, jobHours(), workshopLoadPlans().filter(row => row.id !== planId), place.startMinutes, 260, place.reference, [], null, '', vehicle);
+    if (!slot) {
+      workshopNotify('No free slot after the last vehicle in this bay. No booking was saved.');
+      return false;
+    }
+    return commit(slot.dateKey, slot.startMinutes);
+  };
+  const refreshOrder = () => {
+    const host = overlay.querySelector('[data-workshop-bay-order]');
     const form = overlay.querySelector('[data-workshop-schedule-form]');
-    const select = form?.elements?.assignee;
-    if (!select) return;
-    const name = typeof workshopNextScheduleTechnician === 'function'
-      ? workshopNextScheduleTechnician(normalizedStage, Number(form.elements.bay.value), vehicle)
-      : (workshopBayMechanic(normalizedStage, Number(form.elements.bay.value)) || pmbBayMechanic(vehicle) || '');
-    if ([...(select.options || [])].some(option => option.value === name)) select.value = name;
+    if (!host || !form) return;
+    const queue = workshopBayQueueRows(normalizedStage, Number(form.elements.bay.value), planId);
+    host.innerHTML = workshopBayQueueHtml(queue);
+    host.querySelectorAll?.('[data-workshop-insert-before]')?.forEach(button => button.addEventListener('click', () => { void placeBefore(button.dataset.workshopInsertBefore); }));
+    host.querySelectorAll?.('[data-workshop-insert-end]')?.forEach(button => button.addEventListener('click', () => { void placeAtEnd(); }));
+    const add = overlay.querySelector('[data-workshop-schedule-add]');
+    if (add) add.hidden = mode === 'order' && queue.length > 0;
+  };
+  const applyMode = next => {
+    mode = next === 'order' ? 'order' : 'next';
+    overlay.querySelectorAll('[data-workshop-schedule-mode]').forEach(button => {
+      const on = button.dataset.workshopScheduleMode === mode;
+      button.classList.toggle('is-selected', on);
+      button.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    const orderPanel = overlay.querySelector('[data-workshop-schedule-order]');
+    const nextPanel = overlay.querySelector('[data-workshop-schedule-next]');
+    if (orderPanel) orderPanel.hidden = mode !== 'order';
+    if (nextPanel) nextPanel.hidden = mode === 'order';
+    refreshOrder();
   };
   overlay.querySelectorAll('[data-workshop-schedule-cancel]').forEach(button => button.addEventListener('click', finish));
+  overlay.querySelectorAll('[data-workshop-schedule-mode]').forEach(button => button.addEventListener('click', () => applyMode(button.dataset.workshopScheduleMode)));
   overlay.querySelector('[data-workshop-schedule-work]')?.addEventListener('change', event => {
     const form = overlay.querySelector('[data-workshop-schedule-form]');
     workCategory = event.currentTarget.value;
@@ -7211,54 +7321,21 @@ function openWorkshopScheduleModal(vehicleKeyValue = '', stage = '', dateKey = '
     form.elements.bay.value = String(chosen);
     const note = overlay.querySelector('[data-workshop-whole-job-note]');
     if (note) note.hidden = !whole;
-    if (!workshopSharedModeActive()) form.elements.hours.value = workshopDurationInputValue(baseHours);
-    selectBayTechnician();
-    suggestAvailableTime();
+    refreshOrder();
   });
-  overlay.querySelector('[name="bay"]')?.addEventListener('change', () => {
-    selectBayTechnician();
-    suggestAvailableTime();
-  });
-  overlay.querySelector('[name="date"]')?.addEventListener('change', suggestAvailableTime);
-  overlay.querySelector('[name="hours"]')?.addEventListener('change', suggestAvailableTime);
-  overlay.querySelector('[name="assignee"]')?.addEventListener('change', () => {
-    const form = overlay.querySelector('[data-workshop-schedule-form]');
-    const bayTechnician = typeof workshopNextScheduleTechnician === 'function'
-      ? workshopNextScheduleTechnician(normalizedStage, Number(form.elements.bay.value), vehicle)
-      : (workshopBayMechanic(normalizedStage, Number(form.elements.bay.value)) || pmbBayMechanic(vehicle) || '');
-    technicianFollowsBay = form?.elements?.assignee?.value === bayTechnician;
-    suggestAvailableTime();
-  });
+  overlay.querySelector('[name="bay"]')?.addEventListener('change', refreshOrder);
   overlay.querySelector('[data-workshop-schedule-form]').addEventListener('submit', async event => {
     event.preventDefault();
-    const form = event.currentTarget;
-    const selected = workshopDateFromKey(form.elements.date.value);
-    if (!selected || !workshopIsWorkday(selected)) {
-      workshopNotify('Choose a Monday-to-Friday workshop date.');
+    if (mode === 'order' && workshopBayQueueRows(normalizedStage, selectedBay(), planId).length) {
+      workshopNotify('Choose Insert here in the bay order. No booking was saved.');
       return;
     }
-    const requestedStartMinutes = Number(form.elements.startMinutes.value);
-    const commitClose = workshopBindScheduleCommitClose(window.__workshopDataService, finish);
-    try {
-      const scheduled = await scheduleWorkshopVehicle({
-        planId,
-        vehicleKeyValue,
-        stage: normalizedStage,
-        bay: Number(form.elements.bay.value),
-        dateKey: workshopDateKey(selected),
-        startMinutes: requestedStartMinutes,
-        hoursValue: workshopExactDurationHours(form.elements.hours.value),
-        assigneeValue: form.elements.assignee.value,
-        ...(workCategory === 'BUS_WHOLE_JOB' ? { workCategoryValue: workCategory, baseHoursValue: wholeJob.hours } : {}),
-      });
-      if (scheduled) commitClose.closeOnce();
-    } finally {
-      commitClose.restore();
-    }
+    await placeNext();
   });
   overlay.addEventListener('click', event => { if (event.target === overlay) finish(); });
   document.body.appendChild(overlay);
   document.body.classList.add('modal-open');
+  refreshOrder();
   overlay.querySelector('[name="bay"]')?.focus();
 }
 

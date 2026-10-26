@@ -27,8 +27,8 @@ test('a new booking follows the selected bay mechanic until the user chooses som
   assert.equal(context.workshopNextScheduleTechnician('HOIST', 1, vehicle), 'Ben Palmer');
   assert.equal(context.workshopNextScheduleTechnician('HOIST', 2, vehicle), 'Thanh Truong');
   assert.equal(context.workshopNextScheduleTechnician('HOIST', 2, vehicle, { followsBay: false, manualValue: 'Ben Palmer' }), 'Ben Palmer');
-  assert.match(source, /technicianFollowsBay/);
-  assert.match(source, /selectBayTechnician\(\)/);
+  assert.match(source, /assigneeValue: null/);
+  assert.doesNotMatch(extract('openWorkshopScheduleModal'), /name="assignee"|selectBayTechnician/);
 });
 
 test('unallocated counts use the snapshot totals instead of a partial vehicle list', () => {
