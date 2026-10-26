@@ -88,6 +88,9 @@ test('r531 drops the QC cache before the duration is chosen and does not relax v
   assert.match(up, /f5375755bbb9c217198c4075e5c125ab/);
   assert.match(up, /272901e7cb918ab14dd3419b1bff5d58/);
   assert.match(up, /planner_duration_cache_531/);
+  assert.match(up, /integer,public\.workshop_booking_status,uuid,boolean/);
+  assert.match(up, /pdc_ops\.regression_checks_catalog_guard\(\)/);
+  assert.match(down, /DROP FUNCTION pdc_ops\.regression_checks_catalog_guard\(\)/);
   assert.match(up, /technician_overlap_names_booking_531/);
   assert.match(up, /sort_order/);
   assert.equal((up.match(/312/g) || []).length > 0, true);

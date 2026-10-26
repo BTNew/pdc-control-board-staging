@@ -1,5 +1,6 @@
 -- Undo r531 (F145). Staging cdsmnqxtyyoeoznmbidd only. Do not run on production.
 -- Restores workshop_create_booking body md5 c01d82df2e947fbe0b3ecabbe8e7eb70. Drops the detail helper and both F145 checks.
+-- Restores regression_checks_self_test and drops pdc_ops.regression_checks_catalog_guard().
 -- Pin count stays 241. workshop_validate_booking is not changed. No booking rows are rewritten.
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
@@ -10,7 +11,36 @@ DO $g$ BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r531 undo: pin count is not 241'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb)'::regprocedure) IS DISTINCT FROM 'f5375755bbb9c217198c4075e5c125ab' THEN RAISE EXCEPTION 'r531 undo: create body is not the r531 body'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='pdc_cascade_private.technician_overlap_detail_531(uuid)'::regprocedure) IS DISTINCT FROM '272901e7cb918ab14dd3419b1bff5d58' THEN RAISE EXCEPTION 'r531 undo: detail body is not the r531 body'; END IF;
+ IF to_regprocedure('pdc_ops.regression_checks_catalog_guard()') IS NULL THEN RAISE EXCEPTION 'r531 undo: catalog guard missing'; END IF;
 END $g$;
+
+UPDATE pdc_ops.regression_checks
+SET description = 'Regression checks (r529): each check exposes ok and detail, and none compares the whole pin table to a literal count',
+    check_sql = $chk529down$SELECT
+ (SELECT count(*) FROM pdc_ops.regression_checks c
+   WHERE NOT (
+       (c.check_sql ~* $re1$as\s+ok\M$re1$ AND c.check_sql ~* $re2$as\s+detail\M$re2$)
+       OR (c.check_sql ~* $re3$\.\s*ok\M$re3$ AND c.check_sql ~* $re4$\.\s*detail\M$re4$)
+     )
+     OR c.check_sql ~* $re5$expected_function_md5\s*\)\s*(=|<>|!=|is\s+distinct\s+from|is\s+not\s+distinct\s+from)\s*[0-9]+$re5$
+     OR c.check_sql ~* $re6$[0-9]+\s*(=|<>|!=)\s*\(\s*select\s+count\(\s*\*\s*\)\s+from\s+pdc_ops\.expected_function_md5\s*\)$re6$
+ )=0 AS ok,
+ coalesce((SELECT string_agg(c.check_name, ', ' ORDER BY c.sort_order, c.check_name)
+   FROM pdc_ops.regression_checks c
+   WHERE NOT (
+       (c.check_sql ~* $re1$as\s+ok\M$re1$ AND c.check_sql ~* $re2$as\s+detail\M$re2$)
+       OR (c.check_sql ~* $re3$\.\s*ok\M$re3$ AND c.check_sql ~* $re4$\.\s*detail\M$re4$)
+     )
+     OR c.check_sql ~* $re5$expected_function_md5\s*\)\s*(=|<>|!=|is\s+distinct\s+from|is\s+not\s+distinct\s+from)\s*[0-9]+$re5$
+     OR c.check_sql ~* $re6$[0-9]+\s*(=|<>|!=)\s*\(\s*select\s+count\(\s*\*\s*\)\s+from\s+pdc_ops\.expected_function_md5\s*\)$re6$
+ ), 'checks expose ok and detail, and none lock the pin total') AS detail$chk529down$
+WHERE check_name = 'regression_checks_self_test'
+  AND fault_id = 'F143'
+  AND sort_order = 310
+  AND added_in = 'r529'
+  AND check_sql LIKE '%pdc_ops.regression_checks_catalog_guard()%';
+
+DROP FUNCTION pdc_ops.regression_checks_catalog_guard();
 
 DELETE FROM pdc_ops.regression_checks
 WHERE check_name IN ('planner_duration_cache_531','technician_overlap_names_booking_531')
@@ -106,5 +136,7 @@ DO $post$ BEGIN
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb)'::regprocedure) IS DISTINCT FROM 'c01d82df2e947fbe0b3ecabbe8e7eb70' THEN RAISE EXCEPTION 'r531 undo: restored body md5 drifted'; END IF;
  IF to_regprocedure('pdc_cascade_private.technician_overlap_detail_531(uuid)') IS NOT NULL THEN RAISE EXCEPTION 'r531 undo: detail function still exists'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE fault_id='F145' OR added_in='r531') THEN RAISE EXCEPTION 'r531 undo: F145 check remains'; END IF;
+ IF to_regprocedure('pdc_ops.regression_checks_catalog_guard()') IS NOT NULL THEN RAISE EXCEPTION 'r531 undo: catalog guard remains'; END IF;
+ IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='regression_checks_self_test') IS DISTINCT FROM '10a3a6ab8337dfcb6ccf4a93ab78e456' THEN RAISE EXCEPTION 'r531 undo: self-test was not restored'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r531 undo: pin count changed'; END IF;
 END $post$;

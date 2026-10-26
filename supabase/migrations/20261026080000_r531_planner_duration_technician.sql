@@ -1,4 +1,7 @@
--- r531 (F145). PREVIEW ONLY. Do not apply. Staging cdsmnqxtyyoeoznmbidd only. Production is not a target.
+-- r531 (F145). Staging cdsmnqxtyyoeoznmbidd only. Production is not a target.
+-- Re-apply after the undo. planner_duration_cache_531 qualifies public.workshop_booking_status
+-- so that check runs under the regression runner's search_path pg_catalog.
+-- regression_checks_self_test runs every other check on that path and fails this migration if one errors.
 -- 26 Oct 2026 07:33 AWST: a fitting drop was rejected with operation_estimate_duration_mismatch
 -- because the booking insert drops the QC operation-line cache after the duration was read from it.
 -- 26 Oct 2026 07:42 AWST: Key 248 stock 13047270 onto Fitting Bay 06 is a real clash with Chelsea Rees # 2
@@ -157,7 +160,7 @@ FROM (
 ) c
 CROSS JOIN (
   SELECT prosrc AS val FROM pg_proc
-  WHERE oid = 'public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,workshop_booking_status,uuid,boolean)'::regprocedure
+  WHERE oid = 'public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)'::regprocedure
 ) v
 $chk531a$, true, 312, 'r531'),
 ('technician_overlap_names_booking_531', 'F145',
@@ -196,14 +199,83 @@ WHERE fn.oid = 'pdc_cascade_private.technician_overlap_detail_531(uuid)'::regpro
   AND cb.oid = 'public.workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb)'::regprocedure
 $chk531b$, true, 313, 'r531');
 
+
+CREATE FUNCTION pdc_ops.regression_checks_catalog_guard()
+ RETURNS TABLE (ok boolean, detail text)
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO pg_catalog
+AS $guard531$
+DECLARE
+  c record;
+  probe record;
+  bad text := '';
+BEGIN
+  FOR c IN
+    SELECT rc.check_name, rc.check_sql
+    FROM pdc_ops.regression_checks rc
+    WHERE rc.enabled AND rc.check_name <> 'regression_checks_self_test'
+    ORDER BY rc.sort_order, rc.check_name
+  LOOP
+    BEGIN
+      EXECUTE c.check_sql INTO probe;
+    EXCEPTION WHEN OTHERS THEN
+      bad := bad || c.check_name || ' ' || SQLSTATE || ' ' || SQLERRM || '; ';
+    END;
+  END LOOP;
+  ok := bad = '';
+  detail := CASE WHEN bad = '' THEN 'every check runs under pg_catalog' ELSE left(bad, 500) END;
+  RETURN NEXT;
+END
+$guard531$;
+
+REVOKE ALL ON FUNCTION pdc_ops.regression_checks_catalog_guard() FROM PUBLIC, anon, authenticated, service_role;
+
+UPDATE pdc_ops.regression_checks
+SET description = 'Regression checks (r529): each check exposes ok and detail, and none compares the whole pin table to a literal count. Each other check also runs under search_path pg_catalog.',
+    check_sql = $chk531self$
+SELECT shape.ok AND catalog.ok AS ok,
+  shape.detail || '; ' || catalog.detail AS detail
+FROM (
+SELECT
+ (SELECT count(*) FROM pdc_ops.regression_checks c
+   WHERE NOT (
+       (c.check_sql ~* $re1$as\s+ok\M$re1$ AND c.check_sql ~* $re2$as\s+detail\M$re2$)
+       OR (c.check_sql ~* $re3$\.\s*ok\M$re3$ AND c.check_sql ~* $re4$\.\s*detail\M$re4$)
+     )
+     OR c.check_sql ~* $re5$expected_function_md5\s*\)\s*(=|<>|!=|is\s+distinct\s+from|is\s+not\s+distinct\s+from)\s*[0-9]+$re5$
+     OR c.check_sql ~* $re6$[0-9]+\s*(=|<>|!=)\s*\(\s*select\s+count\(\s*\*\s*\)\s+from\s+pdc_ops\.expected_function_md5\s*\)$re6$
+ )=0 AS ok,
+ coalesce((SELECT string_agg(c.check_name, ', ' ORDER BY c.sort_order, c.check_name)
+   FROM pdc_ops.regression_checks c
+   WHERE NOT (
+       (c.check_sql ~* $re1$as\s+ok\M$re1$ AND c.check_sql ~* $re2$as\s+detail\M$re2$)
+       OR (c.check_sql ~* $re3$\.\s*ok\M$re3$ AND c.check_sql ~* $re4$\.\s*detail\M$re4$)
+     )
+     OR c.check_sql ~* $re5$expected_function_md5\s*\)\s*(=|<>|!=|is\s+distinct\s+from|is\s+not\s+distinct\s+from)\s*[0-9]+$re5$
+     OR c.check_sql ~* $re6$[0-9]+\s*(=|<>|!=)\s*\(\s*select\s+count\(\s*\*\s*\)\s+from\s+pdc_ops\.expected_function_md5\s*\)$re6$
+ ), 'checks expose ok and detail, and none lock the pin total') AS detail
+) shape
+CROSS JOIN pdc_ops.regression_checks_catalog_guard() catalog
+$chk531self$
+WHERE check_name = 'regression_checks_self_test'
+  AND fault_id = 'F143'
+  AND sort_order = 310
+  AND added_in = 'r529'
+  AND md5(check_sql) = '10a3a6ab8337dfcb6ccf4a93ab78e456';
+
 DO $post$
-DECLARE r record;
+DECLARE r record; probe record;
 BEGIN
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='public.workshop_create_booking(uuid,text,integer,timestamptz,integer,uuid,jsonb)'::regprocedure) IS DISTINCT FROM 'f5375755bbb9c217198c4075e5c125ab' THEN RAISE EXCEPTION 'r531: create body md5 drifted'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid='pdc_cascade_private.technician_overlap_detail_531(uuid)'::regprocedure) IS DISTINCT FROM '272901e7cb918ab14dd3419b1bff5d58' THEN RAISE EXCEPTION 'r531: detail body md5 drifted'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r531: pin count changed'; END IF;
- FOR r IN SELECT * FROM pdc_ops.regression_checks WHERE check_name IN ('planner_duration_cache_531','technician_overlap_names_booking_531') ORDER BY sort_order LOOP
-  EXECUTE r.check_sql INTO r;
-  IF coalesce(r.ok, false) IS NOT TRUE THEN RAISE EXCEPTION 'r531: check % failed: %', r.check_name, r.detail; END IF;
+ IF to_regprocedure('pdc_ops.regression_checks_catalog_guard()') IS NULL THEN RAISE EXCEPTION 'r531: catalog guard missing'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='regression_checks_self_test' AND md5(check_sql) <> '10a3a6ab8337dfcb6ccf4a93ab78e456' AND check_sql LIKE '%pdc_ops.regression_checks_catalog_guard()%')<>1 THEN RAISE EXCEPTION 'r531: self-test guard missing'; END IF;
+ PERFORM set_config('search_path','pg_catalog',true);
+ FOR r IN SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE check_name IN ('regression_checks_self_test','planner_duration_cache_531','technician_overlap_names_booking_531') ORDER BY sort_order LOOP
+  EXECUTE r.check_sql INTO probe;
+  IF coalesce(probe.ok, false) IS NOT TRUE THEN RAISE EXCEPTION 'r531: % failed: %', r.check_name, probe.detail; END IF;
  END LOOP;
+ PERFORM set_config('search_path','public, extensions',true);
 END $post$;
