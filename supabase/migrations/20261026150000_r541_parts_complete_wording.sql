@@ -209,7 +209,7 @@ SELECT
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%new vehicle order for%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%parts.malaga@pmgwa.com.au%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%IS[0-9]{8}%'
-  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%internal_ok AND domain='pmgwa.com.au' AND plain%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%internal_ok AND domain=''pmgwa.com.au'' AND plain%'
   AND 'all parts complete' ~ '^(all )?parts complete[.!]?$'
   AND 'parts complete' ~ '^(all )?parts complete[.!]?$'
   AND 'all parts complete.' ~ '^(all )?parts complete[.!]?$'

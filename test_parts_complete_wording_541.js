@@ -23,6 +23,7 @@ test('r541 accepts All parts complete and refuses All parts removed', () => {
   assert.match(up, /13102818/);
   assert.match(up, /1IRU519/);
   assert.match(check, /pg_catalog\.to_regprocedure\('public\.record_pdc_person_parts_complete_20260913\(text,text,timestamptz,text,text,text,jsonb\)'\)/);
+  assert.match(check, /LIKE '%internal_ok AND domain=''pmgwa.com.au'' AND plain%'/);
   assert.doesNotMatch(check, /::(?:pg_catalog\.)?regprocedure/);
   assert.match(check, /AS ok/);
   assert.match(check, /AS detail/);
