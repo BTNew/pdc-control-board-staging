@@ -114,11 +114,7 @@ const approvedRootImportPatch = Object.freeze({
   // r548: null-bay siblings do not block a drop, and bay 0 reads Unallocated (F162). Department 135 is not tagged.
   // Linked job-card search labels use the same verified card list as matching; Department 135 keeps its frozen planner.
   // r549: bay headers, toasts and the side panel prefer display_name. A controller pencil renames that label only (F163).
-<<<<<<< HEAD
-  "workshop-planner.js": "PLACEHOLDER_PLANNER",
-=======
-  "workshop-planner.js": "b8665ea7f6d75d8fa9156ef1285314bb854fc5b9d5e0263677e5deaed8b02007",
->>>>>>> 2c765adb (r549 (F163): keep bay-label helpers safe in extracted tests)
+  "workshop-planner.js": "ef856d97ce6983a0d9d4eff3617fc343d965ea2dc41dbe61cc1a6d46e381fe61",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -233,11 +229,7 @@ const approvedRootImportPatch = Object.freeze({
   // r548: r548=2026.10.26.r548 on both workshop-planner.js loads in app.js (unallocated rows do not block a bay, F162). Department 135 is not tagged.
   // search-jobcards=2026.10.26.01 versions both planner loads; Department 135 keeps its frozen app.js.
   // r549: booking pills and the vehicle side panel prefer display_name, and both planner loads add r549=2026.10.26.r549 (F163).
-<<<<<<< HEAD
-  "app.js": "PLACEHOLDER_APP",
-=======
-  "app.js": "622b0977aa9a76535e9464ef3e589117fce5d692d20600feaa29a43a28021198",
->>>>>>> 2c765adb (r549 (F163): keep bay-label helpers safe in extracted tests)
+  "app.js": "0310cc6db76e66b0deeb4fa3f4807534e35a59203bd7ca7e5505ecbb52df853e",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -347,7 +339,7 @@ const approvedRootImportPatch = Object.freeze({
   // r548: r548=2026.10.26.r548 on pdc-workshop-departments.js and app.js (unallocated rows do not block a bay, F162). Department 135 is not tagged.
   // search-jobcards=2026.10.26.01 versions the app loader; Department 135 keeps its frozen entry page.
   // r549: r549=2026.10.26.r549 on the planner stylesheet, Control Board and Close gaps (bay display name; F163). Department 135 is not tagged.
-  "index.html": "PLACEHOLDER_INDEX",
+  "index.html": "671c4dacf5158b574f81aa875e5b16af4d3831201ca6def3c61e6453f6228782",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
