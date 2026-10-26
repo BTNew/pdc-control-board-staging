@@ -1,0 +1,14 @@
+r529 (F143). Craig approved go-live 26 Oct 2026 08:24 AWST. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production is not touched.
+
+Rebased onto main `99128a74` (r530 / F144). Sort 311 is the live `karratha_gp_po_530` check. This check is `regression_checks_self_test` sort 310. Pin count stays 241. No function change.
+
+The 26 Oct 2026 06:28 AWST fault run was red on check text. `clock_tick_resaves_per_tick` is unchanged.
+
+- `outlook_parts_completion_514`, `outlook_internal_parts_auth_515` and `qa_bay_technician_527` no longer compare the whole pin table to a literal count.
+- `karratha_sales_accessories_528` returns `ok` and `detail`.
+- `bus_whole_job_450` expects the 16 r450 pins that still match. r523 moved `before_import_rules_20261017` to release r523.
+- `sales_branch_495` allows CF and SL on Broome 37047 or Karratha 14450. Another person on 14450, or CF/SL on another dealer, still fails.
+- `regression_checks_self_test` flags a missing `ok`/`detail` shape or a literal total pin count.
+
+Up `supabase/migrations/20261026063000_r529_regression_check_shape.sql` md5 `192ff4ed563a8cd3706716d04a24db81`.
+Down `supabase/rollbacks/20261026063000_r529_regression_check_shape.down.sql` md5 `cb2b604f53c8d2786acebfe89515d4c9`.
