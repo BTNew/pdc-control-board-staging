@@ -129,7 +129,8 @@ const approvedRootImportPatch = Object.freeze({
   // Department 135 still compares the unminified source pin below.
   // r526: outstanding Parts (class imported-parts-orange) paints #dbeafe / #1d4ed8 / #2563eb (F140).
   // Department 135 is not tagged and keeps the orange paint. The colour token and the labels stay.
-  "styles.css": "41d20ee74bef81537b6ef7bc04ac65a793cbeab1d503a74beeed8760c4f7c09b",
+  // r557: New to PMB flashes blue, and prefers-reduced-motion keeps a solid blue (F171). Department 135 is not tagged.
+  "styles.css": "8d9d905449f0b8202aadd760b1d4141c59f22ecafc4ffedf2d0568cb0bbdab67",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
   "scripts/build_pages_runtime.js": "cd1a534ae7b8b7a004080b55ef39edd0633f8fd598622b07c70f2bf8f2a9f55d",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
@@ -171,7 +172,8 @@ const approvedRootImportPatch = Object.freeze({
   // r494c: r494=2026.10.23.r494c on pdc-sublet-po.js (board 'PO to raise' with no per-vehicle RPC or redraw; F107b).
   // r496: vehicle-slideout=2026.10.22.r496 on pdc-vehicle-slideout.js (edit hours and move lines between jobs in the panel; F109).
   // r501: r501=2026.10.23.r501 on pdc-sublet-intake.js (Sublet page create hidden; bookings made in Manage sublets; F114).
-  "canonical-entry.js": "bd9df091d384573236b2b8758cb1d609496647f16bf6de044317092f37771070",
+  // r557: the Vehicle Locations table loads with r557=2026.10.27.r557 (New to PMB, F171). Department 135 keeps its frozen loader.
+  "canonical-entry.js": "72cd328b26f78d2a4b931969ea8b85b3776a7a1886350cb19025ed5f6d255f1c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -230,7 +232,8 @@ const approvedRootImportPatch = Object.freeze({
   // search-jobcards=2026.10.26.01 versions both planner loads; Department 135 keeps its frozen app.js.
   // r549: booking pills and the vehicle side panel prefer display_name, and both planner loads add r549=2026.10.26.r549 (F163).
   // r556: Parts ETA email warnings on the vehicle card for a controller (F170). Department 135 keeps its frozen app.js.
-  "app.js": "0b380d03cb589206a2c74418d3a702eb69a7d2338a838faa8cf9afeff13ba8cf",
+  // r557: New to PMB tile and acknowledgement (F171). Department 135 keeps its frozen app.js.
+  "app.js": "2b16bec50d4d2f0927c3526e8b91305caa32f434c38d5b7f87408eb75e33c175",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -341,7 +344,8 @@ const approvedRootImportPatch = Object.freeze({
   // search-jobcards=2026.10.26.01 versions the app loader; Department 135 keeps its frozen entry page.
   // r549: r549=2026.10.26.r549 on the planner stylesheet, Control Board and Close gaps (bay display name; F163). Department 135 is not tagged.
   // r556: r556=2026.10.26.r556 on app.js (Parts ETA email warnings, not the Stoppages bucket; F170). Department 135 is not tagged.
-  "index.html": "d244597e32ee084bf8f9bf053b7cc9705dffd931a4e7b6d6a8105a012b2ca078",
+  // r557: index.html adds r557=2026.10.27.r557 on app.js and canonical-entry.js (New to PMB, F171). Department 135 is not tagged.
+  "index.html": "a161ed9f043764d4c3cfcf3a328ea431b280c9c939a178a931506bdb911192fc",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

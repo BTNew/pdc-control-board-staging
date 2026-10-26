@@ -204,6 +204,7 @@ const VEHICLE_LOCATION_BUCKET_DEFS = Object.freeze([
   { key: 'rft', label: 'RFT', hint: 'Vehicles signed off by QC and ready for transport' },
   { key: 'qc', label: 'QC', hint: 'All required station jobs complete · awaiting named QC sign-off' },
   { key: 'pit', label: 'PIT', hint: 'At the Department of Transport for inspection' },
+  { key: 'newpmb', label: 'New to PMB', hint: 'Released to PMB and awaiting acknowledgement' },
   { key: 'pmb', label: 'PMB', hint: 'Vehicles at Perth Motor Bodies with work still active' },
   { key: 'yardhold', label: 'YARD HOLD', hint: 'Navision Yard Hold vehicles — release to PMB from here' },
   { key: 'nonnavision', label: 'NON-NAVISION VEHICLES', hint: 'No Navision location or ETA updates · move to PMB when the vehicle arrives' },
@@ -4389,7 +4390,21 @@ function ensureBackupStatusPoll() {
 // re-verifies the caller is an active administrator server-side. This
 // frontend code is a convenience UI, not the security boundary.
 // ---------------------------------------------------------------------
-const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null, generation: 0, showDisabled: false, roleFilter: 'all' };
+const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null, generation: 0, showDisabled: false, roleFilter: 'all', stationAssignments: new Map() };
+
+// r557 (F171): workshop stations a person can acknowledge on New to PMB. An administrator
+// assigns these in User Management, the same way a salesperson record is linked. A user
+// may have several. Parts and Pit are not stations. Department 135 is not one of these.
+const PMB_ACK_STATIONS = Object.freeze([
+  ['BUS_4X4', 'Bus 4x4'],
+  ['TINT', 'Tint'],
+  ['HOIST', 'Hoist'],
+  ['FITTING', 'Fitting'],
+  ['FABRICATION', 'Fabrication'],
+  ['ELECTRICAL', 'Electrical'],
+  ['TYRE', 'Tyre'],
+  ['SUBLET', 'Sublet'],
+]);
 
 // r430: the All list hides Disabled accounts unless "Show disabled (N)" is on (display only; no account row is changed).
 // The Disabled tab still lists them; Pending, Approved and Rejected are unchanged.
@@ -4607,6 +4622,54 @@ async function userManagementLinkSalesRecord(email) {
   return true;
 }
 
+async function loadUserStationDepartments() {
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!client || typeof client.rpc !== 'function') return new Map();
+  const { data, error } = await client.rpc('list_user_station_departments_557');
+  if (error || !Array.isArray(data)) return new Map();
+  const map = new Map();
+  data.forEach(row => {
+    const email = String(row?.email || '').trim().toLowerCase();
+    const station = String(row?.station_code || '').trim();
+    if (!email || !station) return;
+    if (!map.has(email)) map.set(email, []);
+    map.get(email).push(station);
+  });
+  return map;
+}
+
+async function userManagementSaveStations(email) {
+  if (!userManagementSharedModeReady()) return false;
+  const boxes = [...document.querySelectorAll(`[data-um-station-for="${email}"]`)];
+  const stations = boxes.filter(box => box.checked).map(box => box.dataset.umStation).filter(Boolean);
+  const labels = stations.map(code => (PMB_ACK_STATIONS.find(([value]) => value === code) || [])[1] || code);
+  const summary = labels.length ? labels.join(', ') : 'no stations';
+  if (window.confirm(`Assign ${summary} to ${email}?\n\nThey can acknowledge New to PMB for those stations. A station left unticked is removed.`) !== true) return false;
+  const { data, error } = await window.PDC_SUPABASE.rpc('admin_set_user_station_departments_557', { p_email: email, p_stations: stations });
+  if (error || !data || data.ok !== true) {
+    pdcNotify(`Action failed: ${data?.message || error?.message || error || 'The stations were not saved.'}`);
+    return false;
+  }
+  pdcNotify(`${email} now looks after ${summary}.`, 'info');
+  await renderUserManagementScreen();
+  return true;
+}
+
+function userManagementAssignedStations(email = '') {
+  const map = USER_MANAGEMENT_STATE.stationAssignments;
+  const selected = map && typeof map.get === 'function' ? map.get(String(email || '').trim().toLowerCase()) : null;
+  return Array.isArray(selected) ? selected : [];
+}
+
+function userManagementStationsHtml(row) {
+  if (row.account_status !== 'approved') return '<span class="muted-label">—</span>';
+  const email = escapeHtml(row.email);
+  const selected = new Set(userManagementAssignedStations(row.email));
+  const boxes = PMB_ACK_STATIONS.map(([code, label]) =>
+    `<label class="um-station"><input type="checkbox" data-um-station="${code}" data-um-station-for="${email}"${selected.has(code) ? ' checked' : ''}> ${escapeHtml(label)}</label>`).join('');
+  return `<div class="um-stations">${boxes}<button type="button" class="small-button" data-um-save-stations="${email}">Save stations</button></div>`;
+}
+
 function userManagementRowHtml(row) {
   const roleLabel = userManagementRoleLabel(row.role);
   const status = cleanNavisionText(row.account_status || (row.active ? 'approved' : 'disabled')).toLowerCase();
@@ -4615,6 +4678,7 @@ function userManagementRowHtml(row) {
     <td><strong>${escapeHtml(row.full_name || row.display_name || '—')}</strong></td>
     <td>${escapeHtml(row.email)}</td>
     <td class="admin-role-cell">${escapeHtml(roleLabel)}</td>
+    <td class="um-stations-cell">${userManagementStationsHtml(row)}</td>
     <td><span class="admin-status-badge is-${escapeHtml(status)}">${escapeHtml(statusLabel)}</span></td>
     <td class="um-actions-cell">${userManagementRowActionsHtml(row)}</td>
   </tr>`;
@@ -4638,6 +4702,7 @@ async function renderUserManagementScreen() {
     const rows = await loadUserManagementRows();
     if (generation !== USER_MANAGEMENT_STATE.generation || !userManagementSharedModeReady()) return;
     USER_MANAGEMENT_STATE.rows = rows;
+    USER_MANAGEMENT_STATE.stationAssignments = await loadUserStationDepartments();
   } catch (error) {
     if (generation !== USER_MANAGEMENT_STATE.generation || !userManagementSharedModeReady()) return;
     host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load users</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
@@ -4664,7 +4729,7 @@ function renderUserManagementList(host) {
   }
 
   host.innerHTML = `${toggle}<div class="admin-reference-table-wrap"><table class="admin-reference-table user-admin-table">
-    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Stations</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(userManagementRowHtml).join('')}</tbody>
   </table></div>`;
 
@@ -4741,6 +4806,9 @@ function wireUserManagementActions() {
   }));
   $$('[data-um-link-sales]').forEach(button => button.addEventListener('click', async () => {
     await userManagementLinkSalesRecord(button.dataset.umLinkSales);
+  }));
+  $$('[data-um-save-stations]').forEach(button => button.addEventListener('click', async () => {
+    await userManagementSaveStations(button.dataset.umSaveStations);
   }));
   $$('[data-um-disable]').forEach(button => button.addEventListener('click', async () => {
     const email = button.dataset.umDisable;
@@ -8108,6 +8176,8 @@ function incomingBucketForVehicle(vehicle = {}) {
   if (category === 'completed') return 'completed';
   if (category === 'collected') return 'collected';
   const operationalLocation = vehiclePdcLocation(vehicle);
+  // r557 (F171): a vehicle waiting to be acknowledged is still at PMB. This
+  // function stays 'pmb'. Only vehicleLocationsDisplayBucket splits the tile.
   if (operationalLocation === 'PMB') return vehicle.pdcQcComplete === true ? 'qc' : 'pmb';
   if (['PIT', 'QC', 'RFT'].includes(operationalLocation)) return operationalLocation.toLowerCase();
   if (category === 'rft') return 'rft';
@@ -8119,6 +8189,138 @@ function incomingBucketForVehicle(vehicle = {}) {
   if (category === 'yardhold') return 'yardhold';
   if (category === 'prodtransit') return 'transit';
   return 'overseas';
+}
+
+// r557 (F171): tile split only. Missing or failed acknowledgement data leaves the
+// vehicle on the PMB tile, which is where every other consumer already counts it.
+function pmbArrivalRecord(vehicle = {}) {
+  const map = app.pmbArrivalAck;
+  if (!map || typeof map.get !== 'function') return null;
+  for (const id of [vehicle.id, vehicle.__emailVehicleId, vehicle.sharedVehicleId, vehicle.permanent_vehicle_id]) {
+    const row = id ? map.get(String(id)) : null;
+    if (row) return row;
+  }
+  return null;
+}
+
+function vehicleLocationsDisplayBucket(vehicle = {}) {
+  const operational = incomingBucketForVehicle(vehicle);
+  if (operational !== 'pmb') return operational;
+  const row = pmbArrivalRecord(vehicle);
+  // viewer_pending is per person: a controller while any station is outstanding,
+  // or someone assigned to a station that is still outstanding. Missing data stays on PMB.
+  return row && row.viewer_pending === true ? 'newpmb' : 'pmb';
+}
+
+function pmbArrivalDepartments(vehicle = {}) {
+  const row = pmbArrivalRecord(vehicle);
+  return row && Array.isArray(row.departments) ? row.departments : [];
+}
+
+function pmbArrivalWhenLabel(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString('en-AU', { timeZone: 'Australia/Perth', dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function pmbArrivalPersonLabel(department = {}) {
+  const name = String(department.acknowledged_by_name || '').trim();
+  if (!name) return '';
+  const role = String(department.acknowledged_by_role || '').trim().toLowerCase();
+  return role === 'operator' ? `${name} (controller)` : name;
+}
+
+function pmbArrivalNoteHtml(vehicle = {}) {
+  const row = pmbArrivalRecord(vehicle);
+  if (!row || row.source === 'backfill') return '';
+  return pmbArrivalDepartments(vehicle).map(department => {
+    const label = String(department.label || department.station || '').trim();
+    if (!label) return '';
+    if (department.pending === true) return `<span class="pmb-ack-note is-waiting">${escapeHtml(label)} awaiting acknowledgement</span>`;
+    const who = pmbArrivalPersonLabel(department);
+    if (!who) return '';
+    const when = pmbArrivalWhenLabel(department.acknowledged_at);
+    return `<span class="pmb-ack-note">${escapeHtml(label)}: ${escapeHtml(who)}${when ? `, ${escapeHtml(when)}` : ''}</span>`;
+  }).filter(Boolean).join('');
+}
+
+function pmbArrivalActionHtml(vehicle = {}, key = '') {
+  return pmbArrivalDepartments(vehicle).filter(department => department.pending === true && department.can_acknowledge === true).map(department => {
+    const label = String(department.label || department.station || 'station');
+    const station = String(department.station || '');
+    return `<button class="primary" type="button" data-pmb-ack="${escapeHtml(key)}" data-pmb-ack-station="${escapeHtml(station)}" title="Acknowledge ${escapeHtml(label)} so that station can prepare. The vehicle is already at PMB.">Acknowledge ${escapeHtml(label)}</button>`;
+  }).join('');
+}
+
+function pmbArrivalVehicleId(vehicle = {}) {
+  const id = String(vehicle.__emailVehicleId || vehicle.sharedVehicleId || vehicle.id || vehicle.permanent_vehicle_id || '').trim();
+  return /^[0-9a-f-]{36}$/i.test(id) ? id : '';
+}
+
+function ensurePmbArrivalAck() {
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!client || typeof client.rpc !== 'function' || !window.PDC_AUTH_CONTEXT) return;
+  if (app.pmbArrivalAckLoading) return;
+  // r557 (F171): the r554 location copy lasts 15 seconds, but a new email
+  // revision means a vehicle just arrived or a station was acknowledged.
+  // Refetch then, even inside that window, so the tile is not the stale list.
+  const revision = app.emailVehicleLocationRevision;
+  const revisionChanged = String(revision ?? '') !== String(app.pmbArrivalAckRevision ?? '');
+  if (!revisionChanged && app.pmbArrivalAckLoadedAt && Date.now() - app.pmbArrivalAckLoadedAt < 15000) return;
+  app.pmbArrivalAckLoading = true;
+  const started = Date.now();
+  const revisionAtStart = revision;
+  client.rpc('list_pmb_arrival_ack_557').then(result => {
+    app.pmbArrivalAckLoading = false;
+    app.pmbArrivalAckLoadedAt = started;
+    app.pmbArrivalAckRevision = revisionAtStart;
+    if (result?.error) return;
+    const next = new Map();
+    (Array.isArray(result?.data) ? result.data : []).forEach(row => {
+      if (row?.vehicle_id) next.set(String(row.vehicle_id), row);
+    });
+    const signature = [...next.entries()].map(([id, row]) => {
+      const departments = Array.isArray(row.departments) ? row.departments : [];
+      return `${id}|${row.viewer_pending}|${departments.map(department => `${department.station}:${department.pending}:${department.acknowledged_by_name || ''}:${department.acknowledged_at || ''}`).join(',')}`;
+    }).sort().join('\n');
+    const changed = signature !== app.pmbArrivalAckSignature;
+    app.pmbArrivalAck = next;
+    app.pmbArrivalAckSignature = signature;
+    if (changed && app.currentView === 'dashboard' && typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
+  }).catch(() => {
+    app.pmbArrivalAckLoading = false;
+    app.pmbArrivalAckLoadedAt = started;
+    app.pmbArrivalAckRevision = revisionAtStart;
+  });
+}
+
+async function acknowledgePmbArrival(key = '', station = '') {
+  const vehicle = vehicleLocationsScreenRows().find(row => vehicleKey(row) === key);
+  const id = vehicle ? pmbArrivalVehicleId(vehicle) : '';
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!vehicle || !id || !station || !client || typeof client.rpc !== 'function') {
+    if (typeof pdcNotify === 'function') pdcNotify('This arrival could not be acknowledged. Refresh and try again.');
+    return;
+  }
+  const result = await client.rpc('acknowledge_pmb_arrival_557', { p_vehicle_id: id, p_station: station });
+  const body = result?.data;
+  if (result?.error || !body || body.ok !== true) {
+    const message = body?.message || result?.error?.message || 'This arrival could not be acknowledged.';
+    if (typeof pdcNotify === 'function') pdcNotify(message);
+    return;
+  }
+  const data = body.data || {};
+  if (!(app.pmbArrivalAck instanceof Map)) app.pmbArrivalAck = new Map();
+  app.pmbArrivalAck.set(id, {
+    vehicle_id: id,
+    source: data.source || 'location',
+    viewer_pending: data.viewer_pending === true,
+    closed: data.closed === true,
+    departments: Array.isArray(data.departments) ? data.departments : [],
+  });
+  app.pmbArrivalAckSignature = '';
+  app.pmbArrivalAckLoadedAt = 0;
+  if (typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
 }
 
 // Keep every consumer of Vehicle Locations on the same authoritative row set.
@@ -9006,18 +9208,18 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     && (bucketKey === 'yardhold' || bucketKey === 'nonnavision'
       || (bucketKey === 'pmb' && vehicleReadyForQualityControl(vehicle))
       || bucketKey === 'qc');
-  const locationAge = incomingVehicleAge(vehicle, bucketKey);
+  const locationAge = incomingVehicleAge(vehicle, bucketKey === 'newpmb' ? 'pmb' : bucketKey);
   const stock = displayStockNumber(vehicle) || vehicleKey(vehicle) || 'No stock';
   const unit = displayVehicle(vehicle) || 'Vehicle not listed';
   const consultant = consultantName(vehicle) || vehicle.salesperson || vehicle.salesPerson || '—';
   const keyNo = vehicleKeyNumber(vehicle) || '—';
   const vin = vehicle.vin || vehicle.VIN || vehicle.chassis || vehicle.chassisNo || '—';
-  const age = ['pmb', 'qc', 'yardhold'].includes(bucketKey) ? locationAge.label : '—';
+  const age = ['pmb', 'newpmb', 'qc', 'yardhold'].includes(bucketKey) ? locationAge.label : '—';
   const bookingProjection = vehicleWorkshopBookingProjection(vehicle, {
     available: options.workshopProjectionAvailable,
     plans: options.workshopPlans,
   });
-  const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: bucketKey === 'pmb' && options.stationTransfer !== false, bookingProjection, subletNavigation: options.subletNavigation === true });
+  const workChecks = incomingWorkChecklistHtml(vehicle, { stationTransfer: (bucketKey === 'pmb' || bucketKey === 'newpmb') && options.stationTransfer !== false, bookingProjection, subletNavigation: options.subletNavigation === true });
   const stage = inferredPmbStage(vehicle);
   const rowStatus = incomingGridStatusLabel(vehicle, bucketKey, { bookingProjection });
   const subletProvider = pmbBaySubletProvider(vehicle);
@@ -9042,8 +9244,10 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     ? `<span class="badge neutral">${readOnlyBadge}</span>`
     : bucketKey === 'yardhold' || bucketKey === 'nonnavision'
     ? `${sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle, { silent: true }) || !canTransferVehicleToPmb(vehicle) ? '<span class="badge neutral">Shared move unavailable</span>' : `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="${bucketKey === 'nonnavision' ? 'Confirm vehicle arrival at PMB' : 'Transfer Yard Hold vehicle to PMB'}">To PMB</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+    : bucketKey === 'newpmb'
+      ? `${typeof pmbArrivalActionHtml === 'function' ? pmbArrivalActionHtml(vehicle, key) : ''}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
-      ? `${vehicleReadyForQualityControl(vehicle)
+      ? `${typeof pmbArrivalActionHtml === 'function' ? pmbArrivalActionHtml(vehicle, key) : ''}${vehicleReadyForQualityControl(vehicle)
         ? `<button class="primary" type="button" data-ready-for-qc="${escapeHtml(key)}" title="Move this all-green vehicle to the QC Gate">Ready for QC</button>`
         : `<button class="primary" type="button" data-pit-transfer="${escapeHtml(key)}" ${vehicleCanEnterPit(vehicle) ? '' : 'disabled'} title="${escapeHtml(vehicleCanEnterPit(vehicle) ? 'Move PMB Unallocated vehicle to PIT' : 'PIT movement requires PMB Unallocated with no active station')}">To PIT</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
       : bucketKey === 'qc'
@@ -9078,9 +9282,9 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         ${isRftRow
           ? `<span class="rft-row-controls-slot">${rftControls}</span>`
           : `<span class="incoming-card-work-wrap">${workChecks}</span>
-        <span class="incoming-card-meta incoming-card-age ${escapeHtml(locationAge.colourClass)}" title="${escapeHtml(locationAge.title)}"><b>${bucketKey === 'pmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(locationAge.label)}</span></span>
-        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}</span></span>
-        <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${labelAction}${deleteAction}</span>`}
+        <span class="incoming-card-meta incoming-card-age ${escapeHtml(locationAge.colourClass)}" title="${escapeHtml(locationAge.title)}"><b>${bucketKey === 'pmb' || bucketKey === 'newpmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(locationAge.label)}</span></span>
+        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}</span></span>
+        <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}${labelAction}${deleteAction}</span>`}
       </summary>
       <div class="incoming-vehicle-detail-grid">
         ${vehicleEmailPartsEtaHost(vehicle)}
@@ -9241,7 +9445,7 @@ function incomingCompareVehicles(a, b, sort = {}, bucket = '') {
       case 'jobcard': return text(vehicleJobcardNumber(vehicle));
       case 'customer': return text(vehicleCustomerName(vehicle));
       case 'vehicle': return text(displayVehicle(vehicle));
-      case 'age': return (bucket === 'pmb' || bucket === 'qc'
+      case 'age': return (bucket === 'pmb' || bucket === 'newpmb' || bucket === 'qc'
         ? parseIsoTimestamp(pmbEnteredTimestamp(vehicle))
         : parseDateAU(bucket === 'yardhold' ? incomingKewdaleAgeValue(vehicle) : navisionEtaForVehicle(vehicle)))?.getTime() ?? null;
       default: return parseDateAU(navisionEtaForVehicle(vehicle))?.getTime() ?? null;
@@ -9271,6 +9475,7 @@ function renderIncomingDashboardBoard() {
 function renderIncomingDashboardBoardContent() {
   const host = $('#incoming-main-board');
   if (!host) return;
+  if (typeof ensurePmbArrivalAck === 'function') ensurePmbArrivalAck();
   const disclosureState = app.vehicleLocationsRefreshDisclosure || captureIncomingBoardDisclosureState(host);
   const workshopProjectionAvailable = ensureDashboardWorkshopProjectionReady();
   const workshopPlans = workshopProjectionAvailable && typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : null;
@@ -9287,7 +9492,7 @@ function renderIncomingDashboardBoardContent() {
   pruneIncomingDepartmentSelection(filteredRows);
   const rowsByBucket = new Map();
   filteredRows.forEach(vehicle => {
-    const key = incomingBucketForVehicle(vehicle);
+    const key = typeof vehicleLocationsDisplayBucket === 'function' ? vehicleLocationsDisplayBucket(vehicle) : incomingBucketForVehicle(vehicle);
     const bucket = rowsByBucket.get(key) || [];
     bucket.push(vehicle);
     rowsByBucket.set(key, bucket);
@@ -9324,7 +9529,8 @@ function renderIncomingDashboardBoardContent() {
         ? vehicleLocationsRftHeaderHtml(sort)
         : productionGridHeaderHtml('incoming-production-grid-header', { actionLabel: 'Booking', incomingSort: sort })
       : '';
-    return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}" ${def.open ? 'open' : ''}>
+    const alerting = def.key === 'newpmb' && vehicles.length > 0;
+    return `<details class="incoming-bucket incoming-${escapeHtml(def.key)}${alerting ? ' is-alerting' : ''}" ${def.open ? 'open' : ''}>
       <summary class="incoming-bucket-title">
         <span>${escapeHtml(def.label)}</span><strong>${locationsStillLoading ? '…' : vehicles.length}</strong><small>${escapeHtml(def.hint)}</small>
       </summary>
@@ -9354,6 +9560,10 @@ function renderIncomingDashboardBoardContent() {
   $$('[data-yh-transfer-pmb]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
     transferYhVehicleToPmb(button.dataset.yhTransferPmb);
+  }));
+  $$('[data-pmb-ack]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    acknowledgePmbArrival(button.dataset.pmbAck, button.dataset.pmbAckStation);
   }));
   $$('[data-pit-transfer]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
