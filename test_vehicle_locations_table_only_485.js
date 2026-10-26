@@ -51,7 +51,7 @@ function page({ saved, flag } = {}) {
 test('one flag, off: the Drop-down view is hidden (DROPDOWN_VIEW_ENABLED = false, declared once)', () => {
   assert.equal(table.DROPDOWN_VIEW_ENABLED, false, 'main has no such flag');
   assert.equal((SOURCE.match(/const DROPDOWN_VIEW_ENABLED = /g) || []).length, 1, 'a single flag');
-  assert.match(table.VERSION, /^2026\.10\.22\.r485$/);
+  assert.match(table.VERSION, /^2026\.10\.27\.r557$/);
 });
 
 test('everyone reads Table view: nothing saved, a saved "dropdown", blocked storage or no storage', () => {
@@ -117,7 +117,7 @@ test('undo by flag: DROPDOWN_VIEW_ENABLED = true brings back r481 exactly (switc
 });
 
 test('loader: r485 cache-bust on the table module and on canonical-entry.js; FAULT_LOG F98', () => {
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r485=2026\.10\.22\.r485'/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r485=2026\.10\.22\.r485(?:&[^']*)?'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r485=2026\.10\.22\.r485/);
   const row = fs.readFileSync('docs/FAULT_LOG.md', 'utf8').split('\n').find(line => line.startsWith('| F98 |'));
   assert.ok(row, 'F98 row');

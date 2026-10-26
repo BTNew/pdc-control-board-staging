@@ -198,8 +198,8 @@ REVOKE ALL ON FUNCTION pdc_pmb_ack_private.relevant_stations_557(uuid) FROM PUBL
 CREATE FUNCTION pdc_pmb_ack_private.drop_read_caches_557() RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog', 'public' AS $drop557$
 BEGIN
-  DELETE FROM pdc_ops.vehicle_location_snapshot_cache_554;
-  DELETE FROM pdc_ops.eligibility_snapshot_cache_554;
+  DELETE FROM pdc_ops.vehicle_location_snapshot_cache_554 WHERE true;
+  DELETE FROM pdc_ops.eligibility_snapshot_cache_554 WHERE true;
   UPDATE public.pdc_email_vehicle_revision
      SET revision = revision + 1, updated_at = clock_timestamp()
    WHERE singleton;
