@@ -915,8 +915,17 @@ function pdcBayText(stage = '', bay = '', pad = false) {
   // r548 (F162): a missing bay reads Unallocated, never Bay 00.
   const number = Number(bay);
   if (!Number.isInteger(number) || number < 1) return 'Unallocated';
+  // r549 (F163): prefer the cached bay display_name when present.
+  let normalized = '';
+  try { if (typeof normalizePmbStage === 'function') normalized = normalizePmbStage(stage); } catch (_error) { normalized = ''; }
+  if (!normalized && typeof globalThis.normalizePmbStage === 'function') normalized = globalThis.normalizePmbStage(stage);
+  if (!normalized) normalized = String(stage || '').trim().toUpperCase();
+  const rows = (typeof window === 'object' && window.__workshopReferenceDataService?.getCachedWorkshopBays?.()?.rows) || [];
+  const code = `${normalized}-BAY-${String(number).padStart(2, '0')}`;
+  const stored = String(rows.find(row => row && row.code === code)?.display_name || '').trim();
+  if (stored) return stored;
   const layout = typeof window === 'object' ? window.PDC_WORKSHOP_DEPARTMENTS : null;
-  const named = layout?.pmbBayLabel?.(normalizePmbStage(stage), number);
+  const named = layout?.pmbBayLabel?.(normalized, number);
   return named || `Bay ${pad ? String(number).padStart(2, '0') : number}`;
 }
 
@@ -1307,10 +1316,17 @@ function vehicleWorkshopActivityLabel(vehicle = {}, options = {}) {
   const place = booking => {
     const stage = pmbStageLabel(normalizePmbStage(booking.stageCode || booking.stage_code || booking.stage)) || booking.stageName || booking.stage_name || 'Workshop';
     const number = booking.bayNumber || booking.bay_number || booking.bay;
-    const layout = typeof window === 'object' ? window.PDC_WORKSHOP_DEPARTMENTS : null;
-    const named = number ? layout?.pmbBayLabel?.(normalizePmbStage(booking.stageCode || booking.stage_code || booking.stage), number) : '';
-    const bay = named || String(booking.bayName || booking.bay_name || '').trim()
-      || (number ? `Bay ${number}` : 'Bay not assigned');
+    const stageCode = normalizePmbStage(booking.stageCode || booking.stage_code || booking.stage);
+    const code = `${stageCode}-BAY-${String(number).padStart(2, '0')}`;
+    const rows = (typeof window === 'object' && window.__workshopReferenceDataService?.getCachedWorkshopBays?.()?.rows) || [];
+    const cached = String(rows.find(row => row && row.code === code)?.display_name || '').trim();
+    const stored = String(booking.bay_display_name || booking.bayName || booking.bay_name || booking.bay?.display_name || '').trim();
+    const bayFallback = (() => {
+      try { if (typeof pdcBayText === 'function') return pdcBayText(stageCode, number); } catch (_error) {}
+      if (typeof globalThis.pdcBayText === 'function') return globalThis.pdcBayText(stageCode, number);
+      return number ? `Bay ${number}` : 'Bay not assigned';
+    })();
+    const bay = cached || stored || (number ? bayFallback : 'Bay not assigned');
     return `${stage} · ${bay}`;
   };
   const live = rows.filter(booking => ['started', 'stoppage', 'in_progress'].includes(String(booking.status).toLowerCase()));
@@ -3619,7 +3635,7 @@ function init() {
 // getPdcSupabaseAccessToken()).
 function loadWorkshopReferenceDataServiceIfConfigured() {
   if (!window.PDC_SUPABASE_CONFIG || typeof loadExternalScript !== 'function') return;
-  loadExternalScript(`workshop-reference-data-service.js?bay-assignment=2026.09.17.01&r527=2026.10.25.r527&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-reference-data-service-script')
+  loadExternalScript(`workshop-reference-data-service.js?bay-assignment=2026.09.17.01&r527=2026.10.25.r527&r549=2026.10.26.r549&v=${encodeURIComponent(APP_VERSION)}`, 'workshop-reference-data-service-script')
     .then(() => {
       initWorkshopReferenceDataServiceIfAvailable();
       if (typeof refreshWorkshopReferenceData === 'function') refreshWorkshopReferenceData();
@@ -5857,7 +5873,7 @@ function renderWorkshopPlannerWhenReady() {
     loadExternalScript(`workshop-data-service.js?r424=2026.10.21.01&r417=2026.10.21.01&scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-data-service-script'),
     loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'),
     loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01`, 'workshop-shared-actions-script'),
-    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&search-jobcards=2026.10.26.01`, 'workshop-planner-script')
+    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&search-jobcards=2026.10.26.01`, 'workshop-planner-script')
   ])
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
@@ -5909,7 +5925,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&search-jobcards=2026.10.26.01`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&search-jobcards=2026.10.26.01`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -14086,7 +14102,11 @@ function vehicleWorkshopBookingRowsHtml(bookings = [], fallbackText = 'Not booke
     const bookingId = cleanNavisionText(booking.booking_id || '');
     const stage = vehicleWorkshopStageCode(booking.stage_code || '');
     const dateKey = vehicleWorkshopBookingDateKey(booking);
-    const bay = Number(booking.bay_number) > 0 ? pdcBayText(stage, Number(booking.bay_number)) : cleanNavisionText(booking.bay_name || '') || 'Bay not assigned';
+    const bayCode = `${stage}-BAY-${String(booking.bay_number).padStart(2, '0')}`;
+    const bayRows = (typeof window === 'object' && window.__workshopReferenceDataService?.getCachedWorkshopBays?.()?.rows) || [];
+    const cachedBay = String(bayRows.find(row => row && row.code === bayCode)?.display_name || '').trim();
+    const storedBay = cleanNavisionText(booking.bay_display_name || booking.bay_name || booking.bay?.display_name || '');
+    const bay = cachedBay || storedBay || (Number(booking.bay_number) > 0 ? pdcBayText(stage, Number(booking.bay_number)) : '') || 'Bay not assigned';
     const label = `${vehicleWorkshopBookingTimeLabel(booking)} · ${bay} · ${vehicleWorkshopBookingStatusLabel(booking.status)}`;
     const vehicleId = vehicleWorkshopDetailCanonicalId(vehicle);
     const stock = displayStockNumber(vehicle);

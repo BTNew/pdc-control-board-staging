@@ -148,6 +148,7 @@
     return Number.isNaN(+date) ? 'Unavailable' : date.toLocaleString('en-AU', { timeZone:'Australia/Perth', weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
   }
   function bayLabel(row) {
+    // r549 (F163): Why it stays uses the bay's display name. The station and bay number are the fallback.
     const name = String(row?.bay_display_name || '').trim();
     return name || `${stageLabel(row?.stage_code)} · Bay ${row?.bay_number ?? '—'}`;
   }

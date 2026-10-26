@@ -1,0 +1,32 @@
+r549 / F163 / sort 325. After r548 / F162 / sort 324 on main.
+r549 / F163 / sort 325. GO-LIVE. Craig approved 26 Oct 2026 15:19 AWST. Staging only.
+
+Staging project cdsmnqxtyyoeoznmbidd. Production vjdtsswhroyguxyfjdkt was not used.
+
+Craig can rename the words on a bay, for example a Hoist bay to Bay 8.
+The pencil is on the planner bay header and is shown to a controller (stored as operator) or an administrator.
+Saving calls public.set_workshop_bay_display_name(uuid, integer, text).
+That function updates display_name only, bumps version, and writes audit_events.
+A blank name writes the station name plus " - Bay NN".
+id, code, bay_number, ordering and bookings are not written.
+
+Screens that build a label from the station and the padded bay number now use display_name first:
+Workshop Planner headers, toasts and the vehicle side panel, the Control Board bay row, and Close gaps (already on bay_display_name).
+
+Pins stay 241. No expected_function_md5 row was added.
+
+Check bay_display_name_visual_only runs inside pdc_ops.fault_regression_check under search_path pg_catalog.
+It renames Hoist bay 2 (HOIST-BAY-02) inside a block that rolls back, then checks the id, code, bay number and booking count, and that workshop_bay_display_label returns Bay 8.
+
+Undo: supabase/rollbacks/20261026240000_r549_bay_display_name.down.sql
+Revert this PR. The down script drops the new functions and the check. It does not rewrite bay rows.
+
+
+Live staging ledger:
+- 20261026081213 r549_bay_display_name
+- 20261026081343 r549_bay_display_name_check_fix (SET display_name case)
+- 20261026081658 r549_bay_display_name_check_shape (no literal pin compare)
+
+Up file md5 6d0624b24123a0e110c9ab5a3fe2fbe0
+Down file md5 a47fcddaa72a766c2bf4a2a00089a670
+Sort 325 / F163. Pins 241.

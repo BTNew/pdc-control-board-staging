@@ -1386,7 +1386,8 @@ function workshopPushedBookingLabel(result = {}) {
   const stock = text(pushed.vehicle?.stock_number);
   const stage = text(pushed.stage?.display_name || pushed.stage?.code);
   const bayNumber = Number(pushed.bay?.bay_number);
-  const bay = Number.isSafeInteger(bayNumber) && bayNumber > 0 ? `Bay ${bayNumber}` : '';
+  const storedBay = text(pushed.bay?.display_name);
+  const bay = storedBay || (Number.isSafeInteger(bayNumber) && bayNumber > 0 ? `Bay ${bayNumber}` : '');
   const where = [stage, bay].filter(Boolean).join(' ');
   if (!stock && !where) return '';
   return [stock ? `stock ${stock}` : 'a later booking', where ? `(${where})` : ''].filter(Boolean).join(' ');
@@ -1432,7 +1433,8 @@ function workshopVehicleConflictDetail(result = {}) {
   const stageNames = { BUS_4X4: 'Bus 4×4', TINT: 'Tint', HOIST: 'Hoist', FITTING: 'Fitting', FABRICATION: 'Fabrication', ELECTRICAL: 'Electrical', TYRE: 'Tyre' };
   const stage = stageNames[String(booking.stage?.code || booking.stage_code || '').toUpperCase()] || text(booking.stage?.display_name || booking.stage_name);
   const bayNumber = Number(booking.bay?.bay_number ?? booking.bay_number);
-  const bay = Number.isSafeInteger(bayNumber) && bayNumber > 0 ? `Bay ${bayNumber}` : '';
+  const storedBay = text(booking.bay?.display_name || booking.bay_display_name);
+  const bay = storedBay || (Number.isSafeInteger(bayNumber) && bayNumber > 0 ? `Bay ${bayNumber}` : '');
   const formatTime = value => {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(value) || value.length > 40) return '';
     const date = new Date(value);
@@ -2951,7 +2953,10 @@ function workshopSnapshotBayRef(stage = '', bayNumber = 0) {
 
 function workshopSharedBayRef(stage = '', bay = 0) {
   const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
-  const normalizedStage = normalizePmbStage(stage);
+  let normalizedStage = '';
+  try { if (typeof normalizePmbStage === 'function') normalizedStage = normalizePmbStage(stage); } catch (_error) { normalizedStage = ''; }
+  if (!normalizedStage && typeof globalThis.normalizePmbStage === 'function') normalizedStage = globalThis.normalizePmbStage(stage);
+  if (!normalizedStage) normalizedStage = String(stage || '').trim().toUpperCase();
   const bayNumber = Number(bay) || 1;
   const expectedCode = `${normalizedStage}-BAY-${String(bayNumber).padStart(2, '0')}`;
   const cached = service && typeof service.getCachedWorkshopBays === 'function' ? service.getCachedWorkshopBays() : null;
@@ -3077,7 +3082,7 @@ function workshopRequireNoBayConflict(candidate = {}, rows = workshopLoadPlans()
   if (!conflict) return true;
   const vehicle = workshopVehicle(conflict.vehicleKey);
   const identity = vehicle ? (displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'another vehicle') : 'another vehicle';
-  const area = `${pmbStageLabel(candidate.stage)} Bay ${candidate.bay}`;
+  const area = workshopBayChoiceLabel(candidate.stage, candidate.bay);
   workshopNotify(`${area} already has ${identity} booked during that time. Overlapping workshop bookings are blocked; choose another bay or time.`);
   return false;
 }
@@ -3087,7 +3092,7 @@ function workshopResolveConflictByNextSlot(candidate = {}, rows = workshopLoadPl
   if (!conflict) return candidate;
   const conflictVehicle = workshopVehicle(conflict.vehicleKey);
   const identity = conflictVehicle ? (displayStockNumber(conflictVehicle) || vehicleJobcardNumber(conflictVehicle) || 'another vehicle') : 'another vehicle';
-  const area = `${pmbStageLabel(candidate.stage)} Bay ${candidate.bay}`;
+  const area = workshopBayChoiceLabel(candidate.stage, candidate.bay);
   const requestedStart = workshopEntryStart(candidate);
   const requestedMinutes = workshopMinuteOffset(requestedStart);
   const nextSlot = workshopFirstAvailableStartSlot(
@@ -4637,7 +4642,7 @@ function workshopNextDayFittingWarningEmailBody(result = {}) {
       return [
         `- JC ${vehicleJobcardNumber(vehicle) || 'TBA'} · Stock ${displayStockNumber(vehicle) || entry.vehicleKey || 'TBA'}`,
         `  ${vehicle.vehicle || vehicle.toyotaVehicle || 'Vehicle'} · ${vehicleCustomerName(vehicle) || 'Unknown customer'}`,
-        `  Fitting Bay ${entry.bay} from ${start} · Parts: ${partsDepartmentStatusLabel(partsStatus)}${eta ? ` · ETA ${eta}` : ''}`,
+        `  ${workshopBayChoiceLabel(entry.stage, entry.bay)} from ${start} · Parts: ${partsDepartmentStatusLabel(partsStatus)}${eta ? ` · ETA ${eta}` : ''}`,
       ];
     }),
     '',
@@ -4967,18 +4972,73 @@ function workshopVisibleBays(stage) {
   const selected = stage === 'BUS_4X4' ? workshopSelectedBusGroup() : null;
   return selected ? [...selected.bays] : Array.from({length:workshopStageBayCount(stage)},(_,i)=>i+1);
 }
+function workshopBayStoredName(stage, bay) {
+  // Extracted tests may omit workshopSharedBayRef. Prefer the local binding when present.
+  let sharedRef = null;
+  try { if (typeof workshopSharedBayRef === 'function') sharedRef = workshopSharedBayRef; } catch (_error) { sharedRef = null; }
+  if (!sharedRef && typeof globalThis.workshopSharedBayRef === 'function') sharedRef = globalThis.workshopSharedBayRef;
+  return sharedRef ? String(sharedRef(stage, bay)?.display_name || '').trim() : '';
+}
 function workshopBayChoiceLabel(stage,bay) {
+  // r549 (F163): the saved display name is the on-screen label. The station plus
+  // padded bay number stays the fallback when that name is blank.
+  let sharedRef = null;
+  try { if (typeof workshopSharedBayRef === 'function') sharedRef = workshopSharedBayRef; } catch (_error) { sharedRef = null; }
+  if (!sharedRef && typeof globalThis.workshopSharedBayRef === 'function') sharedRef = globalThis.workshopSharedBayRef;
+  const stored = sharedRef ? String(sharedRef(stage, bay)?.display_name || '').trim() : '';
+  if (stored) return stored;
   return workshopDepartmentLayout()?.bayLabel(stage,bay) || 'Bay '+workshopPad(bay);
 }
 // r483 (F96): a Dept 139 bay reads with Craig's name and number ('Fitting · Bay 06');
 // every other station (Bus 4x4, shared Tint / Tyre) keeps its plain 'Bay N' text.
+// r549: a saved display_name wins over that text.
 function workshopBayText(stage = '', bay = '', pad = false) {
   // r548 (F162): bay 0 is a missing bay_id. It reads Unallocated, never Bay 00.
   const number = Number(bay);
   if (!Number.isInteger(number) || number < 1) return 'Unallocated';
+  // r549 (F163): a saved display_name wins over the layout label.
+  let sharedRef = null;
+  try { if (typeof workshopSharedBayRef === 'function') sharedRef = workshopSharedBayRef; } catch (_error) { sharedRef = null; }
+  if (!sharedRef && typeof globalThis.workshopSharedBayRef === 'function') sharedRef = globalThis.workshopSharedBayRef;
+  const stored = sharedRef ? String(sharedRef(stage, number)?.display_name || '').trim() : '';
+  if (stored) return stored;
   const layout = typeof workshopDepartmentLayout === 'function' ? workshopDepartmentLayout() : null;
-  const named = layout?.pmbBayLabel?.(normalizePmbStage(stage), number);
+  let stageCode = '';
+  try { if (typeof normalizePmbStage === 'function') stageCode = normalizePmbStage(stage); } catch (_error) { stageCode = ''; }
+  if (!stageCode && typeof globalThis.normalizePmbStage === 'function') stageCode = globalThis.normalizePmbStage(stage);
+  if (!stageCode) stageCode = String(stage || '').trim().toUpperCase();
+  const named = layout?.pmbBayLabel?.(stageCode, number);
   return named || `Bay ${pad ? workshopPad(number) : number}`;
+}
+let workshopBayRenameOpen = '';
+function workshopBayRenameButton(stage, bay, label) {
+  if (typeof workshopAdministratorCanMove !== 'function' || !workshopAdministratorCanMove()) return '';
+  return `<button type="button" class="workshop-bay-rename" data-workshop-bay-rename-stage="${escapeHtml(stage)}" data-workshop-bay-rename-bay="${bay}" aria-label="Rename ${escapeHtml(label)}" title="Rename this bay">✎</button>`;
+}
+function workshopBayRenameForm(stage, bay, label) {
+  return `<form class="workshop-bay-rename-form" data-workshop-bay-rename-form data-workshop-bay-rename-stage="${escapeHtml(stage)}" data-workshop-bay-rename-bay="${bay}"><input type="text" maxlength="40" value="${escapeHtml(label)}" data-workshop-bay-rename-input aria-label="Bay name on screen"><button type="submit">Save</button><button type="button" data-workshop-bay-rename-cancel>Cancel</button></form>`;
+}
+async function workshopSaveBayDisplayName(stage, bay, raw) {
+  const name = String(raw || '').trim();
+  if (name.length > 40) {
+    workshopNotify('A bay name can be up to 40 characters. Leave it blank to use the standard name.');
+    return;
+  }
+  const ref = typeof workshopSharedBayRef === 'function' ? workshopSharedBayRef(stage, bay) : null;
+  const service = typeof window !== 'undefined' ? window.__workshopReferenceDataService : null;
+  if (!ref?.id || typeof service?.setWorkshopBayDisplayName !== 'function') {
+    workshopNotify('This bay name cannot be saved until the bay list has loaded.');
+    return;
+  }
+  const result = await service.setWorkshopBayDisplayName(ref.id, ref.version, name);
+  if (!result || result.ok !== true) {
+    workshopNotify(result?.error === 'version_conflict' ? 'This bay changed in another window. The planner has the latest name.' : 'The bay name was not saved.');
+    return;
+  }
+  workshopBayRenameOpen = '';
+  const saved = String(result.bay?.display_name || name || workshopBayChoiceLabel(stage, bay)).trim();
+  workshopNotify(`${saved || 'The bay'} is now the name on screen. The bay number is unchanged.`, 'info');
+  renderWorkshopPlanner();
 }
 function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
   const count = workshopStageBayCount(stage);
@@ -5011,8 +5071,12 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
     const adminBlocks = blocksByBay.get(bay) || [];
     const bayLabel = workshopBayChoiceLabel(stage,bay);
     const assigneeLabel = 'Bay mechanic';
+    const renameOpen = typeof workshopBayRenameOpen === 'string' && workshopBayRenameOpen === `${stage}:${bay}` && typeof workshopBayRenameForm === 'function';
+    const bayHeading = renameOpen
+      ? workshopBayRenameForm(stage, bay, bayLabel)
+      : `<strong>${escapeHtml(bayLabel)}</strong>${typeof workshopBayRenameButton === 'function' ? workshopBayRenameButton(stage, bay, bayLabel) : ''}`;
     return `<div class="workshop-bay-row">
-      <div class="workshop-bay-label"><div class="workshop-bay-label-heading"><strong>${escapeHtml(bayLabel)}</strong><button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span><label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}"${WORKSHOP_PENDING_BAY_ASSIGNMENTS.has(`${stage}:${bay}`) ? ' disabled aria-busy="true"' : ''}>${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
+      <div class="workshop-bay-label"><div class="workshop-bay-label-heading">${bayHeading}<button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span><label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}"${WORKSHOP_PENDING_BAY_ASSIGNMENTS.has(`${stage}:${bay}`) ? ' disabled aria-busy="true"' : ''}>${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
       <div class="workshop-bay-lane" data-workshop-drop-bay="${bay}" data-workshop-drop-stage="${escapeHtml(stage)}">
         ${unavailableHtml}
         ${workshopDropPreviewHtml()}
@@ -5293,7 +5357,7 @@ function workshopBookingTeamHtml(entry = {}) {
   const canManage = ['operator','administrator'].includes(window.PDC_AUTH_CONTEXT?.role);
   const disabled = canManage && roster.length && window.__workshopSharedActions?.setBookingTeam ? '' : 'disabled';
   return `<form class="workshop-booking-team" data-workshop-team-form data-workshop-booking-id="${escapeHtml(entry.sharedBookingId)}" data-workshop-booking-version="${escapeHtml(entry.sharedVersion)}">
-    <strong>Team on this booking · Bay ${escapeHtml(entry.bay)}</strong>
+    <strong>Team on this booking · ${escapeHtml((() => { try { if (typeof workshopBayChoiceLabel === 'function') return workshopBayChoiceLabel(entry.stage, entry.bay); } catch (_error) {} return typeof globalThis.workshopBayChoiceLabel === 'function' ? globalThis.workshopBayChoiceLabel(entry.stage, entry.bay) : ('Bay ' + entry.bay); })())}</strong>
     <p>Keep the vehicle in its one physical bay. Add technicians working together here; their other bookings and leave are checked. Planned hours stay unchanged. Record each helper’s actual labour separately.</p>
     <label><span>Primary technician</span><select name="primaryTechnicianId" required ${disabled}><option value="">Choose primary technician</option>${options.map(row => `<option value="${escapeHtml(row.id)}" ${row.id === entry.technicianId ? 'selected' : ''}>${escapeHtml(row.name)}${knownIds.has(row.id) ? '' : ' (unavailable — choose an active technician)'}</option>`).join('')}</select></label>
     <fieldset ${disabled}><legend>Helpers / training team</legend>${options.map(row => `<label class="workshop-team-choice"><input type="checkbox" name="helperTechnicianIds" value="${escapeHtml(row.id)}" ${helperIds.has(row.id) ? 'checked' : ''}>${escapeHtml(row.name)}${knownIds.has(row.id) ? '' : ' (unavailable)'}</label>`).join('')}</fieldset>
@@ -5419,8 +5483,8 @@ function workshopDetailHtml(entry = null, options = {}) {
   const bestBaySummary = bestBaySlot ? workshopSlotSummary(entry.stage, bestBaySlot.bay, bestBaySlot.dateKey, bestBaySlot.startMinutes) : '';
   const durationInput = `<input name="hours" type="number" min="0.0166667" step="any" inputmode="decimal" value="${escapeHtml(workshopExactDurationHours(entry.hours).toFixed(2))}" required ${completed ? 'disabled' : ''} />`;
   const legacyScheduleControls = focused ? '' : [
-    completed || !previousBay ? '' : `<button class="small-button" type="button" data-workshop-quick-move-plan="${escapeHtml(entry.id)}" data-workshop-quick-move-stage="${escapeHtml(entry.stage)}" data-workshop-quick-move-bay="${previousBay}">← Bay ${escapeHtml(workshopPad(previousBay))}</button>`,
-    completed || !nextBay ? '' : `<button class="small-button" type="button" data-workshop-quick-move-plan="${escapeHtml(entry.id)}" data-workshop-quick-move-stage="${escapeHtml(entry.stage)}" data-workshop-quick-move-bay="${nextBay}">Bay ${escapeHtml(workshopPad(nextBay))} →</button>`,
+    completed || !previousBay ? '' : `<button class="small-button" type="button" data-workshop-quick-move-plan="${escapeHtml(entry.id)}" data-workshop-quick-move-stage="${escapeHtml(entry.stage)}" data-workshop-quick-move-bay="${previousBay}">← ${escapeHtml(workshopBayChoiceLabel(entry.stage, previousBay))}</button>`,
+    completed || !nextBay ? '' : `<button class="small-button" type="button" data-workshop-quick-move-plan="${escapeHtml(entry.id)}" data-workshop-quick-move-stage="${escapeHtml(entry.stage)}" data-workshop-quick-move-bay="${nextBay}">${escapeHtml(workshopBayChoiceLabel(entry.stage, nextBay))} →</button>`,
     completed || !bestBaySlot ? '' : `<button class="small-button" type="button" data-workshop-best-bay-plan="${escapeHtml(entry.id)}">Best bay/time</button>`,
     `<button class="small-button" type="button" data-workshop-open-job="${escapeHtml(entry.vehicleKey)}">Vehicle panel</button>`,
     `<button class="small-button" type="button" data-workshop-open-vehicle="${escapeHtml(entry.vehicleKey)}">Full vehicle</button>`,
@@ -5635,7 +5699,19 @@ function workshopAdminBlockSuccessMessage(result = {}) {
   const hours = minutes / 60;
   const duration = Number.isInteger(hours) ? `${hours} h` : `${hours.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')} h`;
   const suffix = ` · cascaded ${count} planned row${count === 1 ? '' : 's'}`;
-  return `Admin block placed in Bay ${block.bay_number || '—'} at ${workshopAdminBlockFormatTime(block.scheduled_start_at)} · ${duration} total${suffix}.`;
+  // r549 (F163): prefer a saved display_name. Otherwise keep the plain Bay N
+  // text this receipt has always used (unpadded), including when stage is blank.
+  let bayLabel = '';
+  try {
+    if (typeof workshopBayStoredName === 'function') {
+      bayLabel = String(workshopBayStoredName(block.stage_code || block.stage, block.bay_number) || '').trim();
+    }
+  } catch (_error) { bayLabel = ''; }
+  if (!bayLabel && typeof globalThis.workshopBayStoredName === 'function') {
+    bayLabel = String(globalThis.workshopBayStoredName(block.stage_code || block.stage, block.bay_number) || '').trim();
+  }
+  if (!bayLabel) bayLabel = `Bay ${block.bay_number || '—'}`;
+  return `Admin block placed in ${bayLabel} at ${workshopAdminBlockFormatTime(block.scheduled_start_at)} · ${duration} total${suffix}.`;
 }
 
 function workshopAdminBlockResultSummary(result = {}) {
@@ -6271,6 +6347,23 @@ function bindWorkshopPlanner(root) {
   root.querySelector('[data-workshop-link-readiness]')?.addEventListener('click', () => { void workshopOpenVehicleLinkReadinessReview(); });
   root.querySelector('[data-workshop-parts-warning]')?.addEventListener('click', draftWorkshopNextDayFittingWarningEmail);
   root.querySelectorAll('[data-workshop-bay-mechanic-stage]').forEach(select => select.addEventListener('change', () => saveWorkshopBayMechanic(select.dataset.workshopBayMechanicStage, Number(select.dataset.workshopBayMechanicNumber), select.value)));
+  root.querySelectorAll('[data-workshop-bay-rename-stage]').forEach(button => {
+    if (button.closest('form')) return;
+    button.addEventListener('click', () => {
+      workshopBayRenameOpen = `${button.dataset.workshopBayRenameStage}:${button.dataset.workshopBayRenameBay}`;
+      renderWorkshopPlanner();
+      document.querySelector('[data-workshop-bay-rename-input]')?.focus();
+    });
+  });
+  root.querySelector('[data-workshop-bay-rename-cancel]')?.addEventListener('click', () => {
+    workshopBayRenameOpen = '';
+    renderWorkshopPlanner();
+  });
+  root.querySelector('[data-workshop-bay-rename-form]')?.addEventListener('submit', event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    void workshopSaveBayDisplayName(form.dataset.workshopBayRenameStage, Number(form.dataset.workshopBayRenameBay), form.querySelector('[data-workshop-bay-rename-input]')?.value || '');
+  });
   root.querySelectorAll('[data-workshop-weekly-stage]').forEach(button => button.addEventListener('click', () => openWorkshopWeeklyView(button.dataset.workshopWeeklyStage, Number(button.dataset.workshopWeeklyBay), workshopState().date)));
   root.querySelectorAll('[data-workshop-vehicle-key]').forEach(card => {
     card.addEventListener('dragstart', event => {
@@ -6701,7 +6794,7 @@ function workshopReturnChoiceModal(entry = {}, vehicle = {}) {
     overlay.setAttribute('aria-modal', 'true');
     overlay.innerHTML = `<section class="modal-card workshop-return-card">
       <button class="modal-close" type="button" data-workshop-return-cancel aria-label="Cancel">×</button>
-      <header><h2>Return vehicle to PMB Unallocated</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} is leaving ${escapeHtml(pmbStageLabel(entry.stage))} Bay ${escapeHtml(entry.bay)}. The work remains open.</p></header>
+      <header><h2>Return vehicle to PMB Unallocated</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} is leaving ${escapeHtml(workshopBayChoiceLabel(entry.stage, entry.bay))}. The work remains open.</p></header>
       <div class="workshop-return-options">
         <label><input type="radio" name="workshopReturnChoice" value="move" checked><span><strong>Just move</strong><small>Return to Unallocated without marking the job complete or creating a STOPPAGE.</small></span></label>
         <label><input type="radio" name="workshopReturnChoice" value="stoppage"><span><strong>STOPPAGE</strong><small>Return to Unallocated, keep the job open and flag the vehicle as stopped.</small></span></label>
@@ -6777,7 +6870,7 @@ async function returnWorkshopPlanToUnallocated(planId = '') {
       latestRows.filter(row => row.id !== entry.id),
       vehicle,
       'Workshop plan returned to queue',
-      { stage: pmbStageLabel(entry.stage), bay: `Bay ${entry.bay}` },
+      { stage: pmbStageLabel(entry.stage), bay: workshopBayChoiceLabel(entry.stage, entry.bay) },
     );
     workshopState().selectedPlanId = '';
     renderWorkshopPlanner();
@@ -6935,7 +7028,7 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
     };
     if (!workshopRequireSchedulableCandidate(candidate)) return false;
     if (!workshopConfirmOtherDepartmentPlans(candidate, rows)) return false;
-    const requestedLabel = `${pmbStageLabel(nextStage)} Bay ${nextBay} · ${workshopEntryTimeLabel(candidate)}`;
+    const requestedLabel = `${workshopBayChoiceLabel(nextStage, nextBay)} · ${workshopEntryTimeLabel(candidate)}`;
     if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/STOPPAGE history.`)) return false;
     const result = await workshopDispatchSharedAction('moveBooking', {
       bookingId: entry.sharedBookingId || entry.id,
@@ -6950,7 +7043,7 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
   const nextStage = normalizePmbStage(stage);
   const nextBay = Number(bay);
   const nextStart = workshopDateAtOffset(dateKey, startMinutes).toISOString();
-  const requestedLabel = `${pmbStageLabel(nextStage)} Bay ${nextBay} · ${workshopEntryTimeLabel({ ...entry, stage: nextStage, bay: nextBay, startAt: nextStart })}`;
+  const requestedLabel = `${workshopBayChoiceLabel(nextStage, nextBay)} · ${workshopEntryTimeLabel({ ...entry, stage: nextStage, bay: nextBay, startAt: nextStart })}`;
   if (!window.confirm(`Move this live workshop job to ${requestedLabel}?\n\nThis updates the live bay allocation and keeps the job started/STOPPAGE history.`)) return false;
   const candidate = {
     ...entry,
@@ -6978,7 +7071,7 @@ async function moveWorkshopLivePlan(planId = '', stage = '', bay = 0, dateKey = 
     : rows;
   const nextRows = workshopCascadePlans(baseRows.map(row => row.id === entry.id ? candidate : row)).rows;
   const auditDetails = {
-    from: `${pmbStageLabel(entry.stage)} Bay ${entry.bay} · ${workshopEntryTimeLabel(entry)}`,
+    from: `${workshopBayChoiceLabel(entry.stage, entry.bay)} · ${workshopEntryTimeLabel(entry)}`,
     to: requestedLabel,
     status: entry.status,
     assignee: candidate.assignee || 'Unassigned',
@@ -8058,8 +8151,14 @@ async function startWorkshopPlan(planId = '') {
     }
   }
   const alreadyStarted = workshopStartedBayConflict(entry, rows);
+  // Extracted Start tests may omit workshopBayChoiceLabel; fall back to Bay N.
+  const startedBayLabel = (() => {
+    try { if (typeof workshopBayChoiceLabel === 'function') return workshopBayChoiceLabel(entry.stage, entry.bay); } catch (_error) {}
+    if (typeof globalThis.workshopBayChoiceLabel === 'function') return globalThis.workshopBayChoiceLabel(entry.stage, entry.bay);
+    return `Bay ${entry.bay}`;
+  })();
   if (alreadyStarted) {
-    workshopNotify(`${pmbStageLabel(entry.stage)} Bay ${entry.bay} already has a started job. Stop or complete that job before starting another in this bay.`);
+    workshopNotify(`${startedBayLabel} already has a started job. Stop or complete that job before starting another in this bay.`);
     return;
   }
   if (!workshopRequireOperatorProfile()) return;
@@ -8082,7 +8181,7 @@ async function startWorkshopPlan(planId = '') {
     ? rows.map(row => plannedRowsAfterShift.moved.find(item => item.id === row.id) || row)
     : rows;
   const nextRows = workshopCascadePlans(baseRows.map(row => row.id === entry.id ? next : row)).rows;
-  const auditDetails = { stage: pmbStageLabel(entry.stage), bay: `Bay ${entry.bay}`, hours: entry.hours, assignee: entry.assignee || 'Unassigned' };
+  const auditDetails = { stage: pmbStageLabel(entry.stage), bay: startedBayLabel, hours: entry.hours, assignee: entry.assignee || 'Unassigned' };
   const persisted = await assignPmbVehicleToBay(entry.vehicleKey, entry.stage, entry.bay, next.startAt, {
     keys: [WORKSHOP_PLAN_STORAGE_KEY],
     afterAssign: assignedVehicle => {
@@ -8103,7 +8202,7 @@ async function startWorkshopPlan(planId = '') {
     subject: 'PDC workshop job started',
     details: [
       `${pmbStageLabel(entry.stage)} work started at ${currentStart.toLocaleString('en-AU', { timeZone: 'Australia/Perth', dateStyle: 'short', timeStyle: 'short' })}.`,
-      `Bay ${entry.bay}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`,
+      `${startedBayLabel}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`,
       `Estimated workshop time: ${entry.hours} hours.`,
     ],
   });
@@ -8169,7 +8268,7 @@ function workshopStoppageReasonModal(entry = {}, vehicle = {}) {
     overlay.setAttribute('aria-modal', 'true');
     overlay.innerHTML = `<section class="modal-card workshop-return-card">
       <button class="modal-close" type="button" data-workshop-stop-cancel aria-label="Cancel">×</button>
-      <header><h2>Record workshop STOPPAGE</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} · ${escapeHtml(pmbStageLabel(entry.stage))} Bay ${escapeHtml(entry.bay)}</p></header>
+      <header><h2>Record workshop STOPPAGE</h2><p>${escapeHtml(displayStockNumber(vehicle) || vehicleJobcardNumber(vehicle) || 'Vehicle')} · ${escapeHtml(workshopBayChoiceLabel(entry.stage, entry.bay))}</p></header>
       <label class="workshop-return-reason"><span>STOPPAGE reason</span><input type="text" data-workshop-stop-reason value="${escapeHtml(entry.stoppageReason || '')}" autocomplete="off"></label>
       <div class="edit-actions"><button class="secondary" type="button" data-workshop-stop-cancel>Cancel</button><button class="primary" type="button" data-workshop-stop-apply>Record STOPPAGE</button></div>
     </section>`;
@@ -8278,7 +8377,7 @@ async function stopWorkshopPlan(planId = '') {
   offerSalespersonChangeEmail(vehicle, {
     title: `${pmbStageLabel(entry.stage)} job STOPPAGE`,
     subject: 'PDC workshop STOPPAGE',
-    details: [`The workshop job has stopped: ${reason}.`, `Bay ${entry.bay}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`],
+    details: [`The workshop job has stopped: ${reason}.`, `${workshopBayChoiceLabel(entry.stage, entry.bay)}${entry.assignee ? ` · Mechanic: ${entry.assignee}` : ''}.`],
   });
   renderWorkshopPlanner();
 }
