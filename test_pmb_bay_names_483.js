@@ -82,7 +82,10 @@ test('r509: control board shows Craig\'s names and draws all 14 fabrication bays
   const model = overview.buildModel(snapshot);
   assert.equal(model.totalBays, all);
   const html = overview.render(model);
-  assert.match(html, /<strong>Internal Fabrication · Bay 11<\/strong>/);
+  assert.match(html, /<strong>FABRICATION Bay 1<\/strong>/);
+  const fallback = fixture.emptySnapshot();
+  fallback.board.bays.forEach(bay => { bay.display_name = ''; });
+  assert.match(overview.render(overview.buildModel(fallback)), /<strong>Internal Fabrication · Bay 11<\/strong>/);
   for (const bay of within) assert.match(html, new RegExp(`data-control-board-bay="${bay.bay_id}"`));
   const extra = { ...within[0], bay_id: '0000000f-0000-4000-8000-00000000000f', bay_number: 15, is_active: false, display_name: 'Fab Bay 15' };
   snapshot.board.bays.push(extra);
@@ -99,7 +102,7 @@ test('r509: control board shows Craig\'s names and draws all 14 fabrication bays
   other.board.bays.filter(bay => (bay.stage_code === 'BUS_4X4' && bay.bay_number === 2) || (bay.stage_code === 'HOIST' && bay.bay_number === 1)).forEach(bay => { bay.is_active = false; });
   assert.equal(overview.buildModel(other).totalBays, all);
   const fit = snapshot.board.bays.find(bay => bay.stage_code === 'FITTING' && bay.bay_number === 1);
-  if (fit) assert.match(html, /aria-label="Fitting Fitting · Bay 06"/);
+  if (fit) assert.match(html, /aria-label="Fitting FITTING Bay 1"/);
 });
 
 test('r483: Book all stations result names the Dept 139 bay', () => {
