@@ -16126,7 +16126,7 @@ async function loadVehicleEmailWarnings(vehicle, root) {
     hosts.forEach(host => finishVehicleEmailWarningHost(host, [], true));
     return;
   }
-  const { data, error } = await window.PDC_SUPABASE.rpc('list_vehicle_email_notes_543', { p_vehicle_id: vehicleId });
+  const { data, error } = await window.PDC_SUPABASE.rpc('list_vehicle_email_notes_556', { p_vehicle_id: vehicleId });
   if (!root.isConnected) return;
   const notes = Array.isArray(data) ? data : [];
   hosts.forEach(host => finishVehicleEmailWarningHost(host, notes, Boolean(error)));
