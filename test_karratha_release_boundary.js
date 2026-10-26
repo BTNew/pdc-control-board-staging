@@ -84,7 +84,8 @@ const approvedRootImportPatch = Object.freeze({
   // r450: whole-job booking (BUS_WHOLE_JOB, wholeJobChoice) for Dept 138 Bus 4x4 (F63).
   // r483: PMB_BAYS map, pmbBayLabel() and bayLabel() show Craig's Dept 139 bay names (F96).
   // r509: Fabrication planner count is 14 (F122). Karratha's copy stays frozen.
-  "pdc-workshop-departments.js": "6628a2362c8b76e4ff730b1f958de6de0bcd77384242402c025e91b3db481414",
+  // r548: a missing bay reads Unallocated (F162). Department 135 is not tagged.
+  "pdc-workshop-departments.js": "c26a2ed48eb42e2df2e45ab94af7fc4c0d29a35b5676784111244e23e44f5861",
   // Shared planner: pointer-capture drops from a deep queue or search overlay,
   // keep the last search rows during a post-drop refresh, close Add to planner
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
@@ -109,7 +110,8 @@ const approvedRootImportPatch = Object.freeze({
   // r535: Schedule offers Next available or a bay order (F149). Department 135 keeps its frozen planner.
   // r540: a job chip opens the Vehicle Locations side panel instead of the centred station job modal (F154). Department 135 keeps its frozen planner.
   // r550: Find a workshop booking is a key-number box plus stock, job card, customer or vehicle (F164). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "340ef7c5a763f6cb9c9f1d08e7eacc66d8a99fdc0c75db404cc9912c60efd84d",
+  // r548: null-bay siblings do not block a drop, and bay 0 reads Unallocated (F162). Department 135 is not tagged.
+  "workshop-planner.js": "8be93524943e6f5b6d225fa15304f339190cf863d1d40968da4784218c2e3645",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "28f7eb47951e869bc90ec5a6e0bb2e15162b9d5ad8c3b1f8b808dc7ace6eec00",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
@@ -219,7 +221,8 @@ const approvedRootImportPatch = Object.freeze({
   // r536: r536=2026.10.26.r536 on app.js (confirm before an unstarted booking is released; F150). Department 135 keeps its frozen app.js.
   // r540: r540=2026.10.26.r540 on both workshop-planner.js loads in app.js (chip opens the vehicle side panel, F154). Department 135 is not tagged.
   // r550: r550=2026.10.26.r550 on both workshop-planner.js loads (F164).
-  "app.js": "716b4637c85fcc2450a1ddbbca56b75737da2b7b76f4a6fc12bb7e9deb2813a4",
+  // r548: r548=2026.10.26.r548 on both workshop-planner.js loads in app.js (unallocated rows do not block a bay, F162). Department 135 is not tagged.
+  "app.js": "19e54817ec3948b8128d31397bd19923b182f2fe0294ad3b49164ca93706e4b1",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -325,7 +328,8 @@ const approvedRootImportPatch = Object.freeze({
   // r536: r536=2026.10.26.r536 on app.js (confirm before an unstarted booking is released; F150). Department 135 is not tagged.
   // r539: r539=2026.10.26.r539 on pdc-planner-capacity.js (Close gaps bay name and hold reason; F153). Department 135 is not tagged.
   // r550: r550=2026.10.26.r550 on workshop-planner.css (F164). Department 135 is not tagged.
-  "index.html": "be78dd391f077ad6e817243ca64de6b5ca7df22875f10bdbc5b631077801305e",
+  // r548: r548=2026.10.26.r548 on pdc-workshop-departments.js and app.js (unallocated rows do not block a bay, F162). Department 135 is not tagged.
+  "index.html": "f899b9a3a4de6294a5e5367f71ac44c0d5624f9769284067e0288410098099af",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

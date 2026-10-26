@@ -148,8 +148,11 @@
     return named ? named.label+' · Bay '+String(named.number).padStart(2,'0') : '';
   }
   function bayLabel(stage, bay) {
-    const base = 'Bay '+String(bay).padStart(2,'0');
-    return pmbBayLabel(stage, bay) || (stage === 'BUS_4X4' && groupForBay(bay) ? groupForBay(bay).label+' · '+base : base);
+    // r548 (F162): bay 0 is no bay. Callers that used to pad it to Bay 00 say Unallocated.
+    const number = Number(bay);
+    if (!Number.isInteger(number) || number < 1) return 'Unallocated';
+    const base = 'Bay '+String(number).padStart(2,'0');
+    return pmbBayLabel(stage, number) || (stage === 'BUS_4X4' && groupForBay(number) ? groupForBay(number).label+' · '+base : base);
   }
   // Combined conversion lines stay together: mentioning a tyre specification does
   // not split a conversion's source hours into invented operations.
