@@ -1,6 +1,6 @@
 /* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
-// r539 (F153): a Workshop Planner chip double-click opens the Vehicle Locations side panel.
+// r540 (F154): a Workshop Planner chip double-click opens the Vehicle Locations side panel.
 // The centred station job modal is not drawn. Department 135 keeps that modal.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -74,8 +74,8 @@ test('Department 135 keeps the centred job modal and is not cache-busted', () =>
   const frozen = fs.readFileSync('karratha/workshop-planner.js', 'utf8');
   assert.match(frozen, /workshop-job-overlay/);
   assert.match(frozen, /vehicle job/);
-  assert.doesNotMatch(frozen, /r539/);
-  assert.equal(fs.readFileSync('karratha/app.js', 'utf8').includes('r539=2026.10.26.r539'), false);
+  assert.doesNotMatch(frozen, /r540/);
+  assert.equal(fs.readFileSync('karratha/app.js', 'utf8').includes('r540=2026.10.26.r540'), false);
   const root = fs.readFileSync('app.js', 'utf8');
-  assert.equal(root.split('r539=2026.10.26.r539').length - 1, 2);
+  assert.equal(root.split('r540=2026.10.26.r540').length - 1, 2);
 });

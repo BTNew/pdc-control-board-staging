@@ -8654,7 +8654,7 @@ function workshopLocationsVehicle(key = '') {
   }) || null;
 }
 
-// r539 (F153): double-click, Enter and the Vehicle panel button open the Vehicle Locations
+// r540 (F154): double-click, Enter and the Vehicle panel button open the Vehicle Locations
 // side panel. The centred station job modal is not drawn. Team notes stay on the vehicle
 // card (Open Vehicle). Each station's hour total stays on that station in the panel.
 function openWorkshopVehicleJob(key = '', requestedStage = '', requestedPlanId = '') {

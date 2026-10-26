@@ -4,7 +4,7 @@
 // spinner, and nothing in the popup writes hours. The old 'Save estimated time / allocation' button on the shared
 // board only ever sent set_workshop_stage_estimated_minutes_407 (a manual 'Planner stage time adjustment'), so it
 // is gone there; the local fallback keeps its line work-area save, which no longer reads any typed hours.
-// r539 (F153): that popup is no longer drawn. Double-click opens the Vehicle Locations side panel.
+// r540 (F154): that popup is no longer drawn. Double-click opens the Vehicle Locations side panel.
 // This file still guards the old hours path: the opener writes nothing, and the leftover line renderer has no hours input.
 const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm');
 const src = fs.readFileSync(process.env.PDC_R478_PLANNER || 'workshop-planner.js', 'utf8');
