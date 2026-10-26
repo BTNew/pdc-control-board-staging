@@ -108,7 +108,7 @@ const approvedRootImportPatch = Object.freeze({
   // r531: the clash helper is called only when it is loaded, so the error catalog can read the describer on its own (F145).
   // r535: Schedule offers Next available or a bay order (F149). Department 135 keeps its frozen planner.
   // r540: a job chip opens the Vehicle Locations side panel instead of the centred station job modal (F154). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "8661b0f17fd411029590cc1afcd7b4cdc8e739f0c38579a035cf092c9fa0f538",
+  "workshop-planner.js": "992ff342765b1b167524e2ced6becae41ad3be7e3d03cfed5c85a3b123941033",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "28f7eb47951e869bc90ec5a6e0bb2e15162b9d5ad8c3b1f8b808dc7ace6eec00",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
