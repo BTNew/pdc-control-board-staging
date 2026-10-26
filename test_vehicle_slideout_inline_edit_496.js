@@ -323,8 +323,8 @@ test('5. slimWorkPage keeps inputs and selectors, removes every button, keeps dr
 });
 
 test('6. loader, styles and docs: r496 cache-bust tags, FAULT_LOG F109, panel doc; no real stock numbers here', () => {
-  assert.equal(slideout.VERSION, '2026.10.22.r496');
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.22\.r496'/);
+  assert.match(slideout.VERSION, /^2026\.10\.(?:22\.r496|27\.r558)$/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.(?:22\.r496|27\.r558)'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r496=2026\.10\.22\.r496&amp;/);
   assert.match(CSS, /#vso-shell \.vso-edit \.vehicle-workshop-line-booking,/);
   assert.match(CSS, /#vso-shell \.vso-edit-save \{/);

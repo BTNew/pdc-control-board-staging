@@ -45,7 +45,7 @@
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.22.r496'; // r496 (F109): edit hours and move lines between jobs in the panel
+  const VERSION = '2026.10.27.r558'; // r558 (F172): "More details" opens the vehicle card (SP, label, override location, …)
   // r496: the panel's slim copy of the Work & bookings rows. Every <button> is removed (Add line, Edit line, Best slot,
   // Remove, Mark done, Split, drag handles, booking links); a drag handle's line number stays as plain text. What is left
   // live is only the hours inputs and the Work category / Station selectors, with app.js's own data attributes.
@@ -357,7 +357,7 @@
     if (openStock) {
       const button = doc.createElement('button');
       button.type = 'button'; button.className = 'vso-open-vehicle'; button.dataset.vsoOpenVehicle = '';
-      button.textContent = 'Open Vehicle'; button.title = 'Open this vehicle';
+      button.textContent = 'More details'; button.title = 'SP, key tag, label, email update, override location, blocked vehicle and team notes';
       button.addEventListener('click', event => { event.stopPropagation(); root.openVehicleCardFromVisibleBoard(openStock, button); });
       panel.querySelector('.vso-open-row').appendChild(button);
     }
