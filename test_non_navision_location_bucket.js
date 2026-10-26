@@ -66,6 +66,7 @@ function setup(options = {}) {
     escapeHtml: value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]),
   };
   vm.createContext(pdcNotifyFixture(ctx));
+  vm.runInContext('function vehicleEmailPartsEtaHost(){return ""}', ctx);
   const helpers = [
     'cleanNavisionText', 'normalizeToyotaStatus', 'normalizePdcLocation', 'isBlankStock',
     'vehicleHasBatchNumber', 'navisionStatusText', 'vehiclePdcLocation',
