@@ -38,6 +38,22 @@ BEGIN
  END IF;
 END $restore$;
 
+DO $dur$
+DECLARE v_md5 text; v_n integer;
+BEGIN
+ SELECT pin.prosrc_md5 INTO v_md5
+ FROM pdc_ops.expected_function_md5 pin
+ WHERE pin.signature = 'public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)'
+   AND pin.release = 'r548';
+ IF v_md5 IS NULL THEN RAISE EXCEPTION 'r548 undo: r548 validate md5 missing'; END IF;
+ UPDATE pdc_ops.regression_checks
+ SET check_sql = replace(check_sql, v_md5, '9efb08f2415c28ac57a14b401cf9f605')
+ WHERE check_name IN ('planner_duration_cache_531', 'planner_duration_after_insert_537')
+   AND position(v_md5 IN check_sql) > 0;
+ GET DIAGNOSTICS v_n = ROW_COUNT;
+ IF v_n <> 2 THEN RAISE EXCEPTION 'r548 undo: duration checks were not restored'; END IF;
+END $dur$;
+
 DO $pin$
 DECLARE v_n integer;
 BEGIN

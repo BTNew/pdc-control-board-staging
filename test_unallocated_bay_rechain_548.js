@@ -124,6 +124,10 @@ test('r548: the migration widens the overlap guard, rechains in workshop order, 
   assert.match(check, /position\('Bay 00' IN body\.prosrc\) = 0/);
   assert.match(check, /position\('Bay 00' IN chain\.prosrc\) = 0/);
   assert.match(check, /and b\.bay_id IS NOT NULL/);
+  assert.match(up, /planner_duration_cache_531/);
+  assert.match(up, /planner_duration_after_insert_537/);
+  assert.match(down, /planner_duration_cache_531/);
+  assert.match(down, /planner_duration_after_insert_537/);
   assert.match(check, /p_status public\.workshop_booking_status/);
   assert.match(check, /AS ok/);
   assert.match(check, /AS detail/);

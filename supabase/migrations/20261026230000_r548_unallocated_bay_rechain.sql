@@ -190,6 +190,23 @@ BEGIN
     IS DISTINCT FROM 'r548' THEN RAISE EXCEPTION 'r548: validate pin release is not r548'; END IF;
 END $pin$;
 
+-- r531 and r537 store the r417 validate md5 literally. The body moved, so those checks follow it.
+DO $follow$
+DECLARE v_md5 text; v_n integer;
+BEGIN
+ SELECT pin.prosrc_md5 INTO v_md5
+ FROM pdc_ops.expected_function_md5 pin
+ WHERE pin.signature = 'public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)'
+   AND pin.release = 'r548';
+ IF v_md5 IS NULL OR v_md5 = '9efb08f2415c28ac57a14b401cf9f605' THEN RAISE EXCEPTION 'r548: new validate md5 missing'; END IF;
+ UPDATE pdc_ops.regression_checks
+ SET check_sql = replace(check_sql, '9efb08f2415c28ac57a14b401cf9f605', v_md5)
+ WHERE check_name IN ('planner_duration_cache_531', 'planner_duration_after_insert_537')
+   AND position('9efb08f2415c28ac57a14b401cf9f605' IN check_sql) > 0;
+ GET DIAGNOSTICS v_n = ROW_COUNT;
+ IF v_n <> 2 THEN RAISE EXCEPTION 'r548: duration checks did not follow the validate body'; END IF;
+END $follow$;
+
 INSERT INTO pdc_ops.regression_checks (check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
 ('unallocated_bay_rechain_548', 'F162',
  'Placing a vehicle ignores its own bay_id null bookings and rechains those queued and stoppage rows after the placed booking in Mechanical, Electrical, QA order. A booking that already has a bay still overlaps. A missing bay is not labelled Bay 00. Pin count stays 241.',
