@@ -12,6 +12,8 @@
 -- The board function is not pinned. Pin count stays 241. Location snapshot is not edited.
 -- The daily check times Fitting's station snapshot and the sublet board under the 8s authenticator timeout,
 -- and requires the cache to reread pdc_email_vehicle_revision after waiting.
+-- The board maps Pilbara operations from operation_lines. Parts uses the summary and per-job
+-- evidence; the per-operation copies repeat that evidence, so the wrapper drops them.
 -- Undo: supabase/rollbacks/20261026200000_r545_board_snapshot_cache.down.sql
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
@@ -102,8 +104,6 @@ BEGIN
      OR jsonb_typeof(v_base#>'{data,vehicles}') IS DISTINCT FROM 'array' THEN
     RETURN v_base;
   END IF;
-  -- The board maps Pilbara operations from operation_lines. Parts uses the
-  -- summary and per-job evidence; the per-operation copies repeat that evidence.
   SELECT coalesce(jsonb_agg(
     CASE WHEN jsonb_typeof(row_value) = 'object' THEN
       CASE WHEN jsonb_typeof(row_value->'parts_flags') = 'object'
@@ -119,7 +119,8 @@ BEGIN
   ON CONFLICT (singleton) DO UPDATE
     SET email_revision = EXCLUDED.email_revision,
         snapshot = EXCLUDED.snapshot,
-        computed_at = EXCLUDED.computed_at;
+        computed_at = EXCLUDED.computed_at
+    WHERE vehicle_board_snapshot_cache_545.singleton;
   RETURN v_base;
 END
 $function$;
