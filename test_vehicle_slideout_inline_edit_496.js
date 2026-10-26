@@ -64,7 +64,9 @@ function board({ role = 'administrator', vehicles = 3 } = {}) {
     server.calls.push({ name, body });
     let reply = { ok: false, code: 'not_in_test' };
     if (name === 'get_vehicle_workshop_detail_scoped') reply = server.details.get(body.p_vehicle_id);
-    if (name === 'set_vehicle_work_category') {
+    if (name === 'set_vehicle_work_category' && c.releaseMode && body.p_release_unstarted !== true) {
+      reply = { ok: false, error: 'confirm_release', message: c.releaseMode };
+    } else if (name === 'set_vehicle_work_category') {
       const detail = server.details.get(body.p_vehicle_id);
       const line = detail.job_card_lines.find(l => l.line_identity === body.p_line_identity);
       if (line && body.p_vehicle_expected_version === detail.vehicle_version && body.p_category_expected_version === line.category_version) {
@@ -181,8 +183,8 @@ test('3. Save runs Save all hours, then set_vehicle_work_category for the moved 
   assert.equal(writes[0].body.p_vehicle_id, b.rows[0].id);
   assert.equal(writes[0].body.p_expected_vehicle_version, 7);
   assert.deepEqual(writes[0].body.p_estimated_rows.map(r => [r.line_key, r.estimated_hours]), [[`source:${U(1, 2)}`, 4.5]], 'only the changed row');
-  assert.deepEqual(writes[1].body, { p_vehicle_id: b.rows[0].id, p_vehicle_expected_version: 8, p_line_identity: `source:${U(1, 1)}`, p_category: 'BUS_ACCESSORIES', p_category_expected_version: 0 },
-    'reloaded vehicle version after the hours save, the line\'s own category version');
+  assert.deepEqual(writes[1].body, { p_vehicle_id: b.rows[0].id, p_vehicle_expected_version: 8, p_line_identity: `source:${U(1, 1)}`, p_category: 'BUS_ACCESSORIES', p_category_expected_version: 0, p_batch: [{ line_identity: `source:${U(1, 1)}`, category: 'BUS_ACCESSORIES' }] },
+    'reloaded vehicle version after the hours save, the line\'s own category version, and the pending category batch');
   assert.equal(b.spies.tableRenders, before.table, 'the table is not drawn again');
   assert.equal(b.spies.boardRenders, before.board, 'the board is not drawn again');
   assert.equal(b.reads().every(r => r.body.p_vehicle_id === b.rows[0].id), true, 'every read is this vehicle');
@@ -195,6 +197,49 @@ test('3. Save runs Save all hours, then set_vehicle_work_category for the moved 
   assert.match(text, /4\.50 h/);
   assert.equal(b.server.details.get(b.rows[0].id).job_card_lines[0].work_category, 'BUS_ACCESSORIES');
   assert.deepEqual(b.spies.notices, []);
+  assert.deepEqual(b.spies.confirms, []);
+});
+
+test('3a. a confirm_release answer is asked once, then the same batch is saved with the release flag', async () => {
+  const b = board();
+  const sentence = 'The running Fitting job (Fitting - PMB Bay 06, Mon 26 Oct) stays on the bay. These 7.25 h move onto that job.';
+  b.c.releaseMode = sentence;
+  b.openPanel(b.rows[0]);
+  click(b.panel().querySelector('[data-vso-edit-toggle]'));
+  await b.settle();
+  const page = b.panel().querySelector('.vso-edit [data-vehicle-workshop-hours-batch-page]');
+  choose(page.querySelectorAll('[data-vehicle-workshop-line-category]')[0], 'BUS_ACCESSORIES');
+  choose(page.querySelectorAll('[data-vehicle-workshop-line-category]')[3], 'BUS_MECHANICAL');
+  b.spies.confirmAnswer = true;
+  await click(b.panel().querySelector('[data-vso-edit-act="save"]'))[0];
+  await b.settle();
+  const categoryWrites = b.writes().filter(w => w.name === 'set_vehicle_work_category');
+  assert.equal(categoryWrites.length, 3, 'the first line is previewed and saved, the second line reuses the confirm');
+  assert.deepEqual(b.spies.confirms, [sentence]);
+  assert.equal(categoryWrites[0].body.p_release_unstarted, undefined);
+  assert.equal(categoryWrites[1].body.p_release_unstarted, true);
+  assert.equal(categoryWrites[1].body.p_line_identity, categoryWrites[0].body.p_line_identity);
+  assert.equal(categoryWrites[2].body.p_release_unstarted, true);
+  assert.notEqual(categoryWrites[2].body.p_line_identity, categoryWrites[0].body.p_line_identity);
+  assert.equal(categoryWrites[0].body.p_batch.length, 2);
+  assert.equal(b.spies.notices.length, 0);
+});
+
+test('3a2. declining the confirm saves nothing', async () => {
+  const b = board();
+  b.c.releaseMode = 'This will release the unstarted Electrical booking (no bay, Tue 20 Oct).';
+  b.openPanel(b.rows[0]);
+  click(b.panel().querySelector('[data-vso-edit-toggle]'));
+  await b.settle();
+  choose(b.panel().querySelector('[data-vehicle-workshop-line-category]'), 'BUS_ACCESSORIES');
+  b.spies.confirmAnswer = false;
+  await click(b.panel().querySelector('[data-vso-edit-act="save"]'))[0];
+  await b.settle();
+  assert.deepEqual(b.writes().map(w => w.name), ['set_vehicle_work_category']);
+  assert.equal(b.writes()[0].body.p_release_unstarted, undefined);
+  assert.deepEqual(b.spies.notices, ['Save cancelled. Nothing was changed.']);
+  assert.equal(b.server.details.get(b.rows[0].id).job_card_lines[0].work_category, 'BUS_MECHANICAL');
+  assert.ok(b.panel().querySelector('.vso-edit'), 'editor stays open');
 });
 
 test('3b. Cancel drops the drafts and sends nothing; a failed move keeps the editor open with the change', async () => {

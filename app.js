@@ -14653,7 +14653,7 @@ function vehicleWorkshopCompactLinesHtml(group = {}, bookingFallback = 'Not book
     const batchEditable = canEdit && !isPartsStage && !line.fallback && !line.workshopManualLine && /^[0-9a-f-]{36}$/i.test(operationLineId) && /^source:[0-9a-f-]{36}$/i.test(lineKey);
     const draftValue = batchEditable ? vehicleWorkshopHoursBatchDraftValue(canonicalVehicleId, operationLineId, estimate) : estimate;
     const inputValue = draftValue === null || draftValue === undefined ? '' : String(draftValue);
-    const mutationData = `data-work-category="${escapeHtml(group.category || '')}" data-category-version="${Number(line.category_version || 0)}" data-stage="${escapeHtml(group.stage)}" data-line-key="${escapeHtml(lineKey)}" data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}" data-description="${escapeHtml(description)}" data-hours="${escapeHtml(estimate ?? '')}"`;
+    const mutationData = `data-work-category="${escapeHtml(group.category || '')}" data-original-category="${escapeHtml(line.work_category || group.stage || '')}" data-category-version="${Number(line.category_version || 0)}" data-stage="${escapeHtml(group.stage)}" data-line-key="${escapeHtml(lineKey)}" data-adjustment-id="${escapeHtml(line.adjustmentId || '')}" data-adjustment-version="${escapeHtml(String(line.adjustmentVersion || 0))}" data-description="${escapeHtml(description)}" data-hours="${escapeHtml(estimate ?? '')}"`;
     const batchInputData = `${mutationData} data-operation-line-id="${escapeHtml(operationLineId)}" data-work-key="${escapeHtml(String(line.work_key || line.category || '').trim().toLowerCase())}" data-original-hours="${escapeHtml(estimate ?? '')}"`;
     const hoursHtml = batchEditable
       ? `<div class="vehicle-workshop-hours-control"><label class="vehicle-workshop-quick-hours" aria-label="Estimated hours for ${escapeHtml(description)}"><input type="number" min="0" max="999.99" step="0.01" value="${escapeHtml(inputValue)}" placeholder="Blank = unknown" data-vehicle-workshop-hours-input data-vehicle-workshop-hours-batch-input ${batchInputData}><span>h</span></label><small class="vehicle-workshop-hours-draft-note">Draft only until Save all hours</small>${hoursEvidence}</div>`
@@ -14984,7 +14984,20 @@ function finishVehicleWorkshopLineDrag(event) {
   else if (modal && !modal.hidden) document.body.classList.add('modal-open');
 }
 
-async function saveVehicleWorkCategory(select) {
+let vehicleWorkshopCategoryReleaseGrant = null;
+function vehicleWorkshopCategoryBatch(select) {
+  const root = select.closest('[data-vehicle-workshop-hours-batch-page], [data-vehicle-workshop-page]') || document;
+  const rows = [];
+  root.querySelectorAll('[data-vehicle-workshop-line-category]').forEach(node => {
+    if (!node.dataset.lineKey || !node.dataset.originalCategory || node.value === node.dataset.originalCategory) return;
+    rows.push({ line_identity: node.dataset.lineKey, category: node.value });
+  });
+  if (select?.dataset?.lineKey && !rows.some(row => row.line_identity === select.dataset.lineKey)) {
+    rows.push({ line_identity: select.dataset.lineKey, category: select.value });
+  }
+  return rows;
+}
+async function saveVehicleWorkCategory(select, options = {}) {
   const vehicle = selectedVehicle() || {};
   const id = vehicleWorkshopDetailCanonicalId(vehicle);
   const detail = app.vehicleWorkshopDetailCache.get(id)?.detail;
@@ -14992,14 +15005,28 @@ async function saveVehicleWorkCategory(select) {
   const config = window.PDC_SUPABASE_CONFIG || {};
   const token = getPdcSupabaseAccessToken();
   if (!token || !config.url || !config.publishableKey) return false;
+  const batch = vehicleWorkshopCategoryBatch(select);
+  const granted = vehicleWorkshopCategoryReleaseGrant
+    && vehicleWorkshopCategoryReleaseGrant.vehicleId === id
+    && vehicleWorkshopCategoryReleaseGrant.lines.includes(select.dataset.lineKey);
+  const release = options.release === true || granted === true;
   select.disabled = true;
   try {
+    const body = {p_vehicle_id:id,p_vehicle_expected_version:detail.vehicle_version,
+      p_line_identity:select.dataset.lineKey,p_category:select.value,p_category_expected_version:Number(select.dataset.categoryVersion || 0),
+      p_batch:batch};
+    if (release) body.p_release_unstarted = true;
     const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/set_vehicle_work_category`, {
       method:'POST', headers:{apikey:config.publishableKey,Authorization:`Bearer ${token}`,'Content-Type':'application/json'},
-      body:JSON.stringify({p_vehicle_id:id,p_vehicle_expected_version:detail.vehicle_version,
-        p_line_identity:select.dataset.lineKey,p_category:select.value,p_category_expected_version:Number(select.dataset.categoryVersion || 0)}),
+      body:JSON.stringify(body),
     });
     const result = await response.json();
+    if (result?.error === 'confirm_release' && result?.ok !== true && !release) {
+      const accepted = typeof window.confirm === 'function' && window.confirm(result.message || 'This will release the unstarted booking.');
+      if (!accepted) throw new Error('Save cancelled. Nothing was changed.');
+      vehicleWorkshopCategoryReleaseGrant = { vehicleId: id, lines: batch.map(row => row.line_identity) };
+      return await saveVehicleWorkCategory(select, { release: true });
+    }
     if (!response.ok || result?.ok !== true) throw new Error(result?.message || result?.error || 'The work category could not be saved. Refresh and try again.');
     await loadVehicleWorkshopDetail(vehicle,{force:true});
     return true;
