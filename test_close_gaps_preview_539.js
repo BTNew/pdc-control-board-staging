@@ -52,11 +52,11 @@ test('a row without a display name still says Bay N, and reasons are escaped', (
 });
 
 test('the plan migration keeps the times and adds the regression check', () => {
-  const up = fs.readFileSync(path.join(__dirname, 'supabase/migrations/20261026133000_r538_close_gaps_bay_reason.sql'), 'utf8');
-  const down = fs.readFileSync(path.join(__dirname, 'supabase/rollbacks/20261026133000_r538_close_gaps_bay_reason.down.sql'), 'utf8');
+  const up = fs.readFileSync(path.join(__dirname, 'supabase/migrations/20261026140000_r539_close_gaps_bay_reason.sql'), 'utf8');
+  const down = fs.readFileSync(path.join(__dirname, 'supabase/rollbacks/20261026140000_r539_close_gaps_bay_reason.down.sql'), 'utf8');
   assert.match(up, /close_gaps_preview_bay_label_and_tech_reason/);
   assert.match(up, /sort_order, added_in\) VALUES/);
-  assert.match(up, /true, 317, 'r538'/);
+  assert.match(up, /true, 318, 'r539'/);
   assert.match(up, /pin count is not 241/);
   assert.match(up, /pin count changed/);
   assert.doesNotMatch(up, /INSERT INTO pdc_ops\.expected_function_md5/);
@@ -67,8 +67,8 @@ test('the plan migration keeps the times and adds the regression check', () => {
   assert.match(down, /f76a8333a700a66158bf60ab7ca536d8/);
   assert.match(down, /note='Close gaps'/);
   const karratha = fs.readFileSync(path.join(__dirname, 'karratha/pdc-planner-capacity.js'), 'utf8');
-  assert.doesNotMatch(karratha, /hold_reason|bay_display_name|r538/);
+  assert.doesNotMatch(karratha, /hold_reason|bay_display_name|r539/);
   const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
-  assert.match(html, /pdc-planner-capacity\.js\?[^"]*&amp;r538=2026\.10\.26\.r538/);
-  assert.doesNotMatch(fs.readFileSync(path.join(__dirname, 'karratha/index.html'), 'utf8'), /r538=/);
+  assert.match(html, /pdc-planner-capacity\.js\?[^"]*&amp;r539=2026\.10\.26\.r539/);
+  assert.doesNotMatch(fs.readFileSync(path.join(__dirname, 'karratha/index.html'), 'utf8'), /r539=/);
 });
