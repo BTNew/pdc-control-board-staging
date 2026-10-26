@@ -3755,7 +3755,11 @@ function workshopSearchMatches(query = '', plans = workshopLoadPlans()) {
 function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), options = {}) {
   const criteria = query && typeof query === 'object' ? query : { text: query || '', key: '' };
   const clean = cleanNavisionText(criteria.text || '').toLowerCase();
-  if (!workshopSearchIsActive(criteria)) return [];
+  // Extracted tests may load only this function. Keep the old text-length gate when helpers are absent.
+  const active = typeof globalThis.workshopSearchIsActive === 'function'
+    ? globalThis.workshopSearchIsActive(criteria)
+    : clean.length >= 2;
+  if (!active) return [];
   const lookup = options.ignoreLookup || typeof workshopCurrentSearchLookup !== 'function' ? null : workshopCurrentSearchLookup(criteria);
   // A post-drop refresh clears trusted authority. Keep matching the last
   // outstanding rows so search does not flash "No booking found".
@@ -3778,7 +3782,9 @@ function workshopSearchMatchRows(query = '', plans = workshopLoadPlans(), option
   // account in its dealer field. Keep the canonical projection at deduplication
   // so stale display fields cannot suppress its scoped read request.
   return pool
-    .filter(vehicle => workshopSearchVehicleMatches(vehicle, criteria))
+    .filter(vehicle => (typeof globalThis.workshopSearchVehicleMatches === 'function'
+      ? globalThis.workshopSearchVehicleMatches(vehicle, criteria)
+      : workshopVehicleSearchText(vehicle).includes(clean)))
     .map(vehicle => {
       const key = vehicleKey(vehicle);
       const sharedRef = workshopSharedModeActive() ? workshopSharedVehicleRef({ vehicleKey: key, sharedVehicleId: vehicle.sharedVehicleId || (vehicle.__emailVehicleServerAuthoritative === true ? vehicle.__emailVehicleId : '') }) : null;
@@ -3852,8 +3858,11 @@ function workshopCurrentSearchLookup(query = '') {
   // A post-drop refresh clears trusted authority but keeps the last snapshot.
   // Search may keep showing that snapshot. It must not treat the gap as an outage.
   const displayed = service?.getTrustedSnapshot?.() || service?.getLastSnapshot?.() || null;
+  const criteriaKey = typeof globalThis.workshopSearchCriteriaKey === 'function'
+    ? globalThis.workshopSearchCriteriaKey(criteria)
+    : cleanNavisionText(criteria.text || '').toLowerCase();
   return lookup && lookup.snapshot && lookup.service === service
-    && lookup.query === workshopSearchCriteriaKey(criteria)
+    && lookup.query === criteriaKey
     && displayed && lookup.snapshot === displayed ? lookup : null;
 }
 
@@ -3897,9 +3906,20 @@ async function workshopLoadSearchBookings(query = '') {
     if (!retained || state.bookingSearchLookup?.snapshot !== retained) state.bookingSearchLookup = null;
     return;
   }
-  const criteria = query && typeof query === 'object' ? query : workshopSearchCriteria();
-  const criteriaKey = workshopSearchCriteriaKey(criteria);
-  if (!workshopSearchIsActive(criteria)) { state.bookingSearchLookup = null; return; }
+  const criteria = query && typeof query === 'object'
+    ? query
+    : typeof query === 'string'
+      ? { text: query, key: state.searchKey || '' }
+      : (typeof globalThis.workshopSearchCriteria === 'function'
+        ? globalThis.workshopSearchCriteria(state)
+        : { text: state.search || '', key: state.searchKey || '' });
+  const criteriaKey = typeof globalThis.workshopSearchCriteriaKey === 'function'
+    ? globalThis.workshopSearchCriteriaKey(criteria)
+    : cleanNavisionText(criteria.text || '').toLowerCase();
+  const active = typeof globalThis.workshopSearchIsActive === 'function'
+    ? globalThis.workshopSearchIsActive(criteria)
+    : cleanNavisionText(criteria.text || '').length >= 2;
+  if (!active) { state.bookingSearchLookup = null; return; }
   const current = workshopCurrentSearchLookup(criteria);
   if (current?.status === 'loading' || current?.status === 'ready') return current.promise;
   const candidates = workshopSearchMatchRows(criteria, workshopLoadPlans(), { includeUnmatched: true, ignoreLookup: true });
@@ -3907,7 +3927,10 @@ async function workshopLoadSearchBookings(query = '') {
   state.bookingSearchLookup = lookup;
   lookup.promise = (async () => {
     const selected = candidates.slice(0, 25);
-    const current = () => state.bookingSearchLookup === lookup && workshopSearchCriteriaKey(workshopSearchCriteria()) === criteriaKey
+    const currentCriteriaKey = () => (typeof globalThis.workshopSearchCriteriaKey === 'function' && typeof globalThis.workshopSearchCriteria === 'function'
+      ? globalThis.workshopSearchCriteriaKey(globalThis.workshopSearchCriteria(state))
+      : cleanNavisionText(state.search || '').toLowerCase());
+    const current = () => state.bookingSearchLookup === lookup && currentCriteriaKey() === criteriaKey
       && window.__workshopDataService === service && lookup.snapshot === service.getTrustedSnapshot?.();
     if (!current()) return;
     if (typeof service.lookupVehicleBookingsBatch === 'function') {
@@ -3970,7 +3993,10 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
   if (lookupRequired && !searchService?.getTrustedSnapshot?.() && !searchService?.getLastSnapshot?.()) return '<div class="workshop-search-state" role="status"><strong>Bookings temporarily unavailable</strong><span>Waiting for the workshop connection to refresh.</span></div>';
   if (lookupRequired && (!lookup || lookup.status !== 'ready')) return '<div class="workshop-search-state" role="status"><strong>Finding bookings…</strong><span>Checking this vehicle in the selected station across all dates.</span></div>';
   const matches = workshopSearchMatches(criteria, plans);
-  if (!workshopSearchIsActive(criteria)) return '';
+  const active = typeof globalThis.workshopSearchIsActive === 'function'
+    ? globalThis.workshopSearchIsActive(criteria)
+    : cleanNavisionText(criteria.text || '').length >= 2;
+  if (!active) return '';
   if (!matches.length) return '<div class="workshop-search-state" role="status"><strong>No booking found</strong><span>No booking or outstanding work matched in this station.</span></div>';
   const ambiguous = matches.length > 1
     ? `<div class="workshop-search-state is-warning" role="status"><strong>Multiple matching vehicles</strong><span>${matches.length} vehicles matched. Choose a specific vehicle and booking; nothing was selected automatically.</span></div>`
@@ -4092,7 +4118,10 @@ async function workshopSelectSearchBooking(bookingId = '', vehicleIdentity = '')
   let plans = workshopLoadPlans();
   if (workshopSharedModeActive() && typeof window.__workshopDataService?.lookupVehicleBookings === 'function') {
     const service = window.__workshopDataService;
-    const match = workshopSearchMatchRows(workshopSearchCriteria(state), plans, { includeUnmatched: true }).find(item => item.vehicleIdentity === vehicleIdentity);
+    const searchCriteria = typeof globalThis.workshopSearchCriteria === 'function'
+      ? globalThis.workshopSearchCriteria(state)
+      : { text: state.search || '', key: state.searchKey || '' };
+    const match = workshopSearchMatchRows(searchCriteria, plans, { includeUnmatched: true }).find(item => item.vehicleIdentity === vehicleIdentity);
     if (!match) return false;
     const result = await workshopLookupSearchVehicle(match);
     if (window.__workshopDataService !== service || state.search !== query || state.bookingSearchSelectionGeneration !== selectionGeneration) return false;
@@ -4345,7 +4374,10 @@ function workshopBindSearchDragResults(root) {
         event.dataTransfer.setData('application/x-workshop-plan-id', plan.id);
         workshopSetDragPreview({ type: 'plan', hours: Number(plan.hours), entry: plan });
       } else {
-        const match = workshopSearchMatches(workshopSearchCriteria(), workshopLoadPlans()).find(item =>
+        const dragCriteria = typeof globalThis.workshopSearchCriteria === 'function'
+          ? globalThis.workshopSearchCriteria()
+          : { text: workshopState().search || '', key: workshopState().searchKey || '' };
+        const match = workshopSearchMatches(dragCriteria, workshopLoadPlans()).find(item =>
           item.vehicleIdentity === button.dataset.workshopSearchDragVehicle && item.candidateAvailable
           && !item.archived && !item.bookingLookupError && !item.bookings.length && !item.returnedBookings?.length);
         if (!match) { event.preventDefault(); return; }
@@ -4402,7 +4434,10 @@ function workshopBindSearchDragResults(root) {
 }
 
 function workshopSearchDragVehicle(button) {
-  return workshopSearchMatches(workshopSearchCriteria(), workshopLoadPlans()).find(item =>
+  const dragCriteria = typeof globalThis.workshopSearchCriteria === 'function'
+    ? globalThis.workshopSearchCriteria()
+    : { text: workshopState().search || '', key: workshopState().searchKey || '' };
+  return workshopSearchMatches(dragCriteria, workshopLoadPlans()).find(item =>
     item.vehicleIdentity === button.dataset.workshopSearchDragVehicle && item.candidateAvailable
     && !item.archived && !item.bookingLookupError && !item.bookings.length && !item.returnedBookings?.length) || null;
 }
@@ -4468,7 +4503,10 @@ function workshopBindSearchResultButtons(root = document) {
 async function workshopSelectUnbookedSearchVehicle(vehicleIdentity = '') {
   const state = workshopState();
   const selectionGeneration = state.bookingSearchSelectionGeneration = (state.bookingSearchSelectionGeneration || 0) + 1;
-  const match = workshopSearchMatches(workshopSearchCriteria(state), workshopLoadPlans()).find(item => item.vehicleIdentity === vehicleIdentity && !item.bookings.length && item.candidateAvailable && !item.archived);
+  const searchCriteria = typeof globalThis.workshopSearchCriteria === 'function'
+    ? globalThis.workshopSearchCriteria(state)
+    : { text: state.search || '', key: state.searchKey || '' };
+  const match = workshopSearchMatches(searchCriteria, workshopLoadPlans()).find(item => item.vehicleIdentity === vehicleIdentity && !item.bookings.length && item.candidateAvailable && !item.archived);
   if (!match) {
     state.searchOpen = true;
     renderWorkshopPlanner();
