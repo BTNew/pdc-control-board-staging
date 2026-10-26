@@ -224,7 +224,7 @@ CROSS JOIN (
 CROSS JOIN (
   SELECT p.prosrc FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
   WHERE n.nspname = 'public' AND p.proname = 'workshop_validate_booking'
-    AND pg_get_function_identity_arguments(p.oid) = 'p_booking_id uuid, p_vehicle_id uuid, p_stage_id uuid, p_bay_id uuid, p_scheduled_start_at timestamp with time zone, p_scheduled_end_at timestamp with time zone, p_duration_minutes integer, p_status workshop_booking_status, p_technician_id uuid, p_allow_unchanged_past boolean'
+    AND pg_get_function_identity_arguments(p.oid) = 'p_booking_id uuid, p_vehicle_id uuid, p_stage_id uuid, p_bay_id uuid, p_scheduled_start_at timestamp with time zone, p_scheduled_end_at timestamp with time zone, p_duration_minutes integer, p_status public.workshop_booking_status, p_technician_id uuid, p_allow_unchanged_past boolean'
 ) body
 CROSS JOIN (
   SELECT
@@ -250,9 +250,9 @@ $chk548$,
  true, 324, 'r548');
 
 DO $chk$
-DECLARE v_ok boolean;
+DECLARE v_ok boolean; v_detail text;
 BEGIN
  PERFORM set_config('search_path', 'pg_catalog', true);
- SELECT ok INTO v_ok FROM pdc_ops.fault_regression_check() WHERE check_name = 'unallocated_bay_rechain_548';
- IF v_ok IS NOT TRUE THEN RAISE EXCEPTION 'r548: unallocated_bay_rechain_548 failed'; END IF;
+ SELECT ok, detail INTO v_ok, v_detail FROM pdc_ops.fault_regression_check() WHERE check_name = 'unallocated_bay_rechain_548';
+ IF v_ok IS NOT TRUE THEN RAISE EXCEPTION 'r548: unallocated_bay_rechain_548 failed: %', coalesce(v_detail, 'no row'); END IF;
 END $chk$;
