@@ -699,9 +699,10 @@ function workshopSharedModeActive() {
     && window.__workshopDataService.isEnabled();
 }
 
-// Section 13 fail-closed connection banner. Distinguishes the states the
+// Section 13 fail-closed connection status. Distinguishes the states the
 // migration plan requires: Connected/editable, Connected/read-only,
 // Reconnecting, Offline/read-only, Backend version incompatible.
+// r561 (F175): compact status dot with tooltip (blue / grey / red — no orange).
 function workshopConnectionBannerHtml() {
   const ds = window.__workshopDataService;
   const state = ds && typeof ds.getState === 'function' ? ds.getState() : 'disabled';
@@ -715,7 +716,8 @@ function workshopConnectionBannerHtml() {
     [CS.PERMISSION_DENIED]: { cls: 'error', text: 'Access denied · this account does not have permission to view Workshop Planner station data. Contact an administrator.' },
     [CS.CONNECTING]: { cls: 'warn', text: 'Connecting to shared workshop data…' },
   }[state] || { cls: 'warn', text: 'Shared workshop mode status unknown' };
-  return `<div class="workshop-connection-banner workshop-connection-${copy.cls}" role="status">${escapeHtml(copy.text)}</div>`;
+  const label = escapeHtml(copy.text);
+  return `<span class="workshop-connection-banner workshop-connection-dot workshop-connection-${copy.cls}" role="status" tabindex="0" title="${label}" aria-label="${label}"><span class="sr-only">${label}</span></span>`;
 }
 
 function workshopStationSnapshotEmptyStateHtml(stage) {
@@ -6157,13 +6159,26 @@ function renderWorkshopPlanner(options = {}) {
     : new Map(WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => [value, value === stage ? stageVehicleList.length : workshopStageVehicles(value).length]));
   const stageTabs = workshopDepartmentLayout() || dedicatedStage || focusedBookingMode ? '' : WORKSHOP_VISIBLE_STAGE_SEQUENCE.map(value => `<button type="button" class="workshop-stage-tab ${value === stage ? 'active' : ''}" data-workshop-stage="${escapeHtml(value)}"><span>${escapeHtml(pmbStageLabel(value))}</span><strong>${stageVehicleCounts.get(value)}</strong></button>`).join('');
   const sharedBanner = sharedModeActive ? workshopConnectionBannerHtml() : '';
+  // r561 (F175): one compact header — single small title, status dot, one control row.
+  const plannerTitleText = focusedBookingMode ? 'Focused Workshop booking' : (workshopDepartmentLayout()?.plannerTitle(stage) || 'Workshop bay planner');
+  const plannerSubtitle = `${stage === 'BUS_4X4' ? 'Use the left menu to choose a work category. Open Control Board to see all bays.' : stage === 'TINT' || stage === 'TYRE' ? 'One shared schedule for both departments.' : `${pmbStageLabel(stage)} · individual PMB bays`} Configured breaks and closures remain visible on the schedule.`;
+  const primaryExtras = [
+    !focusedBookingMode && sharedModeActive && workshopAdminBlockCanMutate() ? `<div class="workshop-admin-palette" data-workshop-admin-palette><span class="workshop-admin-palette-hint">Drag to a bay</span><button class="workshop-admin-palette-tile" type="button" draggable="true" data-workshop-admin-palette-tile data-admin-palette-duration="${workshopAdminPaletteDurationMinutes}"><span data-workshop-admin-palette-label>Admin · ${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)} h</span></button><label class="workshop-admin-palette-duration"><span>Unit</span><select data-workshop-admin-palette-unit aria-label="Admin block duration unit"><option value="hours">Hours</option><option value="working_days">Working days</option></select><span>Duration</span><input type="number" min="0.25" step="0.25" value="${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)}" data-workshop-admin-palette-duration aria-label="Admin block duration" /></label></div>` : '',
+    !focusedBookingMode ? '<button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>' : '',
+  ].filter(Boolean).join('');
+  const overflowControls = [
+    stage === 'BUS_4X4' ? '<a class="small-button" href="docs/bus4x4-user-guide.html" target="_blank" rel="noopener">Department 138 user guide</a>' : '',
+    focusedBookingMode ? '<button class="small-button" type="button" data-workshop-focused-back>← Back to Workshop planner</button>' : '',
+    !focusedBookingMode && sharedModeActive && workshopLastAdministratorMove && workshopAdministratorCanMove() ? '<button class="small-button" type="button" data-workshop-undo-admin-move>Undo last move</button>' : '',
+    !focusedBookingMode && sharedModeActive && workshopBayResequenceUndoAvailable() ? '<button class="small-button" type="button" data-workshop-undo-bay-resequence>Undo re-order</button>' : '',
+  ].filter(Boolean).join('');
   renderHost.innerHTML = `<div class="${dedicatedStage ? 'workshop-planner workshop-station-board' : 'workshop-planner'}${focusedBookingMode ? ' is-focused-booking' : ''}" data-planner-stage="${escapeHtml(stage)}">
-    ${sharedBanner}
     <header class="workshop-planner-header">
-      <div><h2>${escapeHtml(focusedBookingMode ? 'Focused Workshop booking' : (workshopDepartmentLayout()?.plannerTitle(stage) || 'Workshop bay planner'))}</h2><p>${escapeHtml(stage === 'BUS_4X4' ? 'Use the left menu to choose a work category. Open Control Board to see all bays.' : stage === 'TINT' || stage === 'TYRE' ? 'One shared schedule for both departments.' : `${pmbStageLabel(stage)} · individual PMB bays`)} Configured breaks and closures remain visible on the schedule.</p></div>
+      <div class="workshop-planner-brand">
+        ${sharedBanner}
+        <h2 class="workshop-planner-title" title="${escapeHtml(plannerSubtitle)}">${escapeHtml(plannerTitleText)}</h2>
+      </div>
       <div class="workshop-date-controls">
-        ${stage === 'BUS_4X4' ? '<a class="small-button" href="docs/bus4x4-user-guide.html" target="_blank" rel="noopener">Department 138 user guide</a>' : ''}
-        ${focusedBookingMode ? '<button class="small-button" type="button" data-workshop-focused-back>← Back to Workshop planner</button>' : ''}
         <div class="workshop-date-nav">
           <input type="date" data-workshop-date aria-label="Workshop planner date" value="${escapeHtml(dateKey)}" />
           <span class="workshop-date-shift-group" aria-label="Change workshop date">
@@ -6172,10 +6187,9 @@ function renderWorkshopPlanner(options = {}) {
           </span>
         </div>
         ${focusedBookingMode ? '' : '<button class="small-button" type="button" data-workshop-today>Today</button><button class="small-button" type="button" data-workshop-refresh-vehicle data-pdc-operational-refresh data-pdc-refresh-route="workshop">Refresh Vehicle</button>'}
-        ${!focusedBookingMode && sharedModeActive && workshopLastAdministratorMove && workshopAdministratorCanMove() ? '<button class="small-button" type="button" data-workshop-undo-admin-move>Undo last move</button>' : ''}
-        ${!focusedBookingMode && sharedModeActive && workshopBayResequenceUndoAvailable() ? '<button class="small-button" type="button" data-workshop-undo-bay-resequence>Undo re-order</button>' : ''}
-        ${!focusedBookingMode && sharedModeActive && workshopAdminBlockCanMutate() ? `<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button><div class="workshop-admin-palette" data-workshop-admin-palette><span class="workshop-admin-palette-hint">Drag to a bay</span><button class="workshop-admin-palette-tile" type="button" draggable="true" data-workshop-admin-palette-tile data-admin-palette-duration="${workshopAdminPaletteDurationMinutes}"><span data-workshop-admin-palette-label>Admin · ${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)} h</span></button><label class="workshop-admin-palette-duration"><span>Unit</span><select data-workshop-admin-palette-unit aria-label="Admin block duration unit"><option value="hours">Hours</option><option value="working_days">Working days</option></select><span>Duration</span><input type="number" min="0.25" step="0.25" value="${workshopAdminDurationHoursValue(workshopAdminPaletteDurationMinutes)}" data-workshop-admin-palette-duration aria-label="Admin block duration" /></label></div>` : ''}
-        ${!focusedBookingMode ? '<button class="small-button warning-button" type="button" data-workshop-parts-warning>Draft next-day parts warning</button>' : ''}
+        ${!focusedBookingMode && sharedModeActive && workshopAdminBlockCanMutate() ? '<button class="small-button workshop-admin-block-add" type="button" data-workshop-add-admin-block>+ Admin block</button>' : ''}
+        <div class="workshop-header-primary-extras">${primaryExtras}</div>
+        ${overflowControls ? `<details class="workshop-header-more"><summary class="small-button workshop-header-more-summary" aria-label="More planner controls">⋯</summary><div class="workshop-header-more-panel">${overflowControls}</div></details>` : ''}
         ${!focusedBookingMode && workshopAdminBlockFeedback.message ? `<div class="workshop-admin-block-feedback ${escapeHtml(workshopAdminBlockFeedback.tone)}" role="status" aria-live="polite">${escapeHtml(workshopAdminBlockFeedback.message)}</div>` : ''}
       </div>
     </header>

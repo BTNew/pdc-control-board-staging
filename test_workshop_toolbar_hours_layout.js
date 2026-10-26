@@ -39,7 +39,7 @@ const next = toolbar.indexOf('data-workshop-date-shift="1"');
 const today = toolbar.indexOf('data-workshop-today');
 assert.ok(previous >= 0 && next > previous && today > next, 'Previous and Next are adjacent before Today');
 
-assert.match(css, /\.workshop-date-controls input\[data-workshop-date\]\s*\{[^}]*width:\s*160px;[^}]*flex:\s*0 0 160px;/s);
+assert.match(css, /\.workshop-date-controls input\[data-workshop-date\]\s*\{[^}]*width:\s*138px;[^}]*flex:\s*0 0 138px;/s);
 assert.match(css, /\.workshop-date-shift-group\s*\{[\s\S]*?display:\s*inline-flex;/);
-assert.match(css, /\.workshop-date-shift-group button\s*\{[^}]*width:\s*auto;[^}]*min-width:\s*92px;/s);
+assert.match(css, /\.workshop-date-shift-group button\s*\{[^}]*width:\s*auto;[^}]*min-width:\s*72px;/s);
 console.log('Workshop toolbar hours and compact date navigation: PASS');
