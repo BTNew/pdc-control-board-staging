@@ -1178,7 +1178,7 @@ body[data-current-view="workshop"] .content {
   position: relative;
   z-index: 30;
   display: grid;
-  grid-template-columns: minmax(260px, 560px) auto;
+  grid-template-columns: minmax(140px, 200px) minmax(240px, 1fr) auto;
   align-items: end;
   gap: 7px;
   padding: 7px 12px;
@@ -1228,7 +1228,7 @@ button.workshop-search-result:hover, button.workshop-search-result:focus-visible
   .workshop-plan-chip.is-overtime { background: #b91c1c; color: #fff; }
 }
 @media (max-width: 900px) {
-  .workshop-booking-search { grid-template-columns: 1fr auto; }
+  .workshop-booking-search { grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) auto; }
   .workshop-search-result { grid-template-columns: 1fr; }
   .workshop-search-result-flags { justify-content: flex-start; }
   .workshop-booking-navigator { grid-template-columns: 1fr 1fr; }
