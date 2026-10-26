@@ -48,6 +48,8 @@ test('r538 preview extends a running booking finish and leaves the start put', (
   assert.match(repair, /9e523fc4-c539-4ef0-961b-b21d774ffc26/);
   assert.match(repair, /IS60070112/);
   assert.match(repair, /scheduled_start_at='2026-10-25 23:39:00\+00'/);
+  assert.match(repair, /request\.jwt\.claim\.sub/);
+  assert.match(repair, /updated_by is required/);
   assert.equal(scanSql(repair).length, 0);
   assert.doesNotMatch(fs.readFileSync('karratha/app.js', 'utf8'), /workshop_extend_running_booking_538/);
   assert.match(fs.readFileSync('docs/FAULT_LOG.md', 'utf8'), /\| F152 \|/);

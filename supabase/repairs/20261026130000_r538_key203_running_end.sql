@@ -22,6 +22,17 @@ DO $g$ BEGIN
    AND b.scheduled_start_at='2026-10-25 23:39:00+00' AND b.actual_start_at='2026-10-25 23:39:00+00') THEN
   RAISE EXCEPTION 'r538 repair: Key 203 fitting booking is not the 07:39 started row';
  END IF;
+ -- The SQL role has no auth.uid(), and workshop_bookings.updated_by is required.
+ -- Keep the person already on the row. That is Craig Watson, who approved this repair.
+ PERFORM set_config('request.jwt.claim.sub', (
+  SELECT b.updated_by::text FROM public.workshop_bookings b
+  WHERE b.id='9e523fc4-c539-4ef0-961b-b21d774ffc26'), true);
+ PERFORM set_config('request.jwt.claims', (
+  SELECT jsonb_build_object('sub', b.updated_by, 'email', u.email, 'role', 'authenticated')::text
+  FROM public.workshop_bookings b
+  JOIN auth.users u ON u.id=b.updated_by
+  WHERE b.id='9e523fc4-c539-4ef0-961b-b21d774ffc26'), true);
+ IF auth.uid() IS NULL THEN RAISE EXCEPTION 'r538 repair: updated_by could not be kept'; END IF;
 END $g$;
 
 SELECT public.workshop_extend_running_booking_538('9e523fc4-c539-4ef0-961b-b21d774ffc26'::uuid, 'key203_repair_538', NULL);
