@@ -1,0 +1,52 @@
+/* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const { scanSql } = require('./scripts/lint_migration_safeupdate_dml.js');
+
+const up = fs.readFileSync('supabase/migrations/20261026130000_r538_running_booking_end.sql', 'utf8');
+const down = fs.readFileSync('supabase/rollbacks/20261026130000_r538_running_booking_end.down.sql', 'utf8');
+const repair = fs.readFileSync('supabase/repairs/20261026130000_r538_key203_running_end.sql', 'utf8');
+const check = up.slice(up.indexOf('$chk$'), up.lastIndexOf('$chk$'));
+
+test('r538 preview extends a running booking finish and leaves the start put', () => {
+  assert.match(up, /PREVIEW/);
+  assert.match(up, /SQL is not applied/);
+  assert.match(up, /cdsmnqxtyyoeoznmbidd/);
+  assert.match(up, /sort_order=317/);
+  assert.match(up, /Pin count stays 241/);
+  assert.match(up, /running_job_end_extended/);
+  assert.match(up, /keeps its start/);
+  assert.match(up, /scheduled_start_at IS NOT DISTINCT FROM/);
+  assert.match(up, /actual_start_at IS NOT DISTINCT FROM/);
+  assert.match(up, /::public\.workshop_booking_status/);
+  assert.match(up, /search_path TO 'pg_catalog'/);
+  assert.match(up, /240e25e96467490d71744490c7a4d75c/);
+  assert.match(up, /f0e6e008fa511fcbbe0e87f17f3dd7b3/);
+  assert.match(up, /b1b23383b96acd867c246cf6e57572dc/);
+  assert.match(up, /edit_hours_538/);
+  assert.match(up, /cross_station_538/);
+  assert.match(up, /category_release_536/);
+  assert.match(up, /bus_whole_job_450/);
+  assert.match(up, /category_unstarted_release_536/);
+  assert.match(up, /regression_checks_self_test/);
+  assert.match(up, /planner_duration_after_insert_537/);
+  assert.doesNotMatch(up, /9e523fc4-c539-4ef0-961b-b21d774ffc26/);
+  assert.doesNotMatch(check, /expected_function_md5\s*\)\s*(=|<>|!=)\s*[0-9]+/i);
+  assert.doesNotMatch(check, /[0-9]+\s*(=|<>|!=)\s*\(\s*select\s+count\(\s*\*\s*\)\s+from\s+pdc_ops\.expected_function_md5/i);
+  assert.equal(scanSql(up).length, 0);
+  assert.match(down, /b1b23383b96acd867c246cf6e57572dc/);
+  assert.match(down, /running_job_keeps_its_bay_time/);
+  assert.match(down, /Does not move a running booking's finish back/);
+  assert.match(down, /b98ce2ca73337f5fb614eb9f7320f561/);
+  assert.match(down, /regression_checks_self_test/);
+  assert.equal(scanSql(down).length, 0);
+  assert.match(repair, /GO-LIVE ONLY/);
+  assert.match(repair, /9e523fc4-c539-4ef0-961b-b21d774ffc26/);
+  assert.match(repair, /IS60070112/);
+  assert.match(repair, /scheduled_start_at='2026-10-25 23:39:00\+00'/);
+  assert.equal(scanSql(repair).length, 0);
+  assert.doesNotMatch(fs.readFileSync('karratha/app.js', 'utf8'), /workshop_extend_running_booking_538/);
+  assert.match(fs.readFileSync('docs/FAULT_LOG.md', 'utf8'), /\| F152 \|/);
+});
