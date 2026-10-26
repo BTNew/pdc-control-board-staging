@@ -15,9 +15,8 @@ const fn = up.slice(up.indexOf('$mb541$') + '$mb541$'.length, up.lastIndexOf('$m
 const restored = down.slice(down.indexOf('$mb541$') + '$mb541$'.length, down.lastIndexOf('$mb541$'));
 
 test('r558 accepts verified Newvehiclebuild delivery and refuses other lists', () => {
-  assert.match(up, /PREVIEW/);
-  assert.match(up, /SQL is not applied/);
-  assert.match(up, /Do not merge/);
+  assert.match(up, /Approved go-live/);
+  assert.doesNotMatch(up, /PREVIEW/);
   assert.match(up, /cdsmnqxtyyoeoznmbidd/);
   assert.match(up, /true, 333, 'r558'/);
   assert.match(up, /F172/);

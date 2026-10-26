@@ -1,4 +1,4 @@
--- r558 (F172). PREVIEW. SQL is not applied. Do not merge.
+-- r558 (F172). Approved go-live 27 Oct 2026 06:48 AWST.
 -- Staging cdsmnqxtyyoeoznmbidd only. Production is not touched.
 -- Next free after r557 / F171 / sort 332. This is r558 / F172 / sort 333.
 -- Kajel: two parts-complete ticks failed unverified_or_ambiguous_confirmation.
