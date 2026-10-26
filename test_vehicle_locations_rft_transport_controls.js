@@ -87,7 +87,7 @@ const context = {
   authenticatedEmailOperationLinesHtml: () => '',
 };
 vm.createContext(pdcNotifyFixture(context));
-vm.runInContext(`${rftHelperSource}\n${ageSource}\n${rowSource}\nthis.renderIncomingRftRow = incomingVehicleDetailRow;`, context);
+vm.runInContext(`function vehicleEmailPartsEtaHost(){return ''}\n${rftHelperSource}\n${ageSource}\n${rowSource}\nthis.renderIncomingRftRow = incomingVehicleDetailRow;`, context);
 
 let rendered = context.renderIncomingRftRow(vehicle, 'rft', {});
 assert.match(rendered, /incoming-rft-row/, 'Stock-shaped authoritative RFT row uses Vehicle Locations renderer');

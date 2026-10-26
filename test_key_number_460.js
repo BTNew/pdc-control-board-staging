@@ -56,7 +56,7 @@ test('the Key No. cell goes right after Stock No. in the real drop-down markup; 
   const app = fs.readFileSync('app.js', 'utf8');
   const start = app.indexOf('function incomingVehicleDetailRow(');
   const body = app.slice(start, app.indexOf('\n}\n', start));
-  assert.match(body, /<div class="incoming-vehicle-detail-grid">\n\s*<div><b>Stock No\.<\/b><span>\$\{escapeHtml\(stock\)\}<\/span><\/div>/, 'anchor present in app.js');
+  assert.match(body, /<div class="incoming-vehicle-detail-grid">\n\s*\$\{vehicleEmailPartsEtaHost\(vehicle\)\}\n\s*<div><b>Stock No\.<\/b><span>\$\{escapeHtml\(stock\)\}<\/span><\/div>/, 'anchor present in app.js');
   const sample = '<details><div class="incoming-vehicle-detail-grid">\n        <div><b>Stock No.</b><span>SYN1</span></div>\n        <div><b>VIN / Chassis</b><span>—</span></div></div></details>';
   const out = key.decorateRow(sample, { vehicleId: V, key: '125', canEdit: true });
   assert.match(out, /<b>Stock No\.<\/b><span>SYN1<\/span><\/div><div class="pdc-keyno-cell" data-pdc-key-cell="[^"]+"><b>Key No\.<\/b>/);
@@ -86,6 +86,7 @@ test('in the page: wraps the drop-down and Key column; Edit appears only when th
   ctx.window.__pdcCachedAccessToken = 'jwt';
   vm.createContext(ctx);
   vm.runInContext(`var app={data:[]};function vehicleIdentityCells(v){return [{label:'Key',value:'0'},{label:'SN',value:'S'}]}
+    function vehicleEmailPartsEtaHost(){return ''}
     function incomingVehicleDetailRow(v){return '<div class="incoming-vehicle-detail-grid">\\n<div><b>Stock No.</b><span>S</span></div></div>'}`, ctx);
   vm.runInContext('app.data.push(' + JSON.stringify(vehicle) + ')', ctx);
   vm.runInContext(fs.readFileSync('pdc-key-number.js', 'utf8'), ctx);
