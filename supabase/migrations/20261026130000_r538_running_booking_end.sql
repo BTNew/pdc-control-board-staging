@@ -390,13 +390,13 @@ SELECT
    AND strpos(p.prosrc, '::public.workshop_booking_status')>0
    AND p.proconfig::text LIKE '%search_path=pg_catalog%'
   FROM pg_catalog.pg_proc p
-  WHERE p.oid=pg_catalog.to_regprocedure('public.workshop_extend_running_booking_538(uuid,text,integer)'::pg_catalog.regprocedure))
+  WHERE p.oid=pg_catalog.to_regprocedure('public.workshop_extend_running_booking_538(uuid,text,integer)'))
  AND (SELECT md5(p.prosrc)=(SELECT e.prosrc_md5 FROM pdc_ops.expected_function_md5 e
     WHERE e.signature='public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)' AND e.release='r538')
    AND p.prosrc LIKE '%workshop_extend_running_booking_538%'
    AND p.prosrc LIKE '%keeps its start%'
   FROM pg_catalog.pg_proc p
-  WHERE p.oid=pg_catalog.to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'::pg_catalog.regprocedure))
+  WHERE p.oid=pg_catalog.to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'))
  AND EXISTS (
   SELECT 1 FROM pg_catalog.pg_trigger t
   JOIN pg_catalog.pg_class c ON c.oid=t.tgrelid
@@ -408,9 +408,9 @@ SELECT
   JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace
   WHERE t.tgname='fitter_extend_other_station_538' AND n.nspname='pdc_fitter_private' AND c.relname='operation_progress' AND NOT t.tgisinternal)
  AND (
-  pg_catalog.to_regprocedure('karratha135_pdc.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'::pg_catalog.regprocedure) IS NULL
-  OR (SELECT md5(prosrc) FROM pg_catalog.pg_proc WHERE oid=pg_catalog.to_regprocedure('karratha135_pdc.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'::pg_catalog.regprocedure))
-   IS DISTINCT FROM (SELECT md5(prosrc) FROM pg_catalog.pg_proc WHERE oid=pg_catalog.to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'::pg_catalog.regprocedure))
+  pg_catalog.to_regprocedure('karratha135_pdc.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)') IS NULL
+  OR (SELECT md5(prosrc) FROM pg_catalog.pg_proc WHERE oid=pg_catalog.to_regprocedure('karratha135_pdc.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'))
+   IS DISTINCT FROM (SELECT md5(prosrc) FROM pg_catalog.pg_proc WHERE oid=pg_catalog.to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'))
  ) AS ok,
  'running booking finish includes hours added from another station' AS detail
 $chk$,

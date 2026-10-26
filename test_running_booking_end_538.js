@@ -22,6 +22,8 @@ test('r538 preview extends a running booking finish and leaves the start put', (
   assert.match(up, /actual_start_at IS NOT DISTINCT FROM/);
   assert.match(up, /::public\.workshop_booking_status/);
   assert.match(up, /search_path TO 'pg_catalog'/);
+  assert.doesNotMatch(check, /::(?:pg_catalog\.)?regprocedure/);
+  assert.match(check, /pg_catalog\.to_regprocedure\('public\.workshop_extend_running_booking_538\(uuid,text,integer\)'\)/);
   assert.match(up, /240e25e96467490d71744490c7a4d75c/);
   assert.match(up, /f0e6e008fa511fcbbe0e87f17f3dd7b3/);
   assert.match(up, /b1b23383b96acd867c246cf6e57572dc/);
