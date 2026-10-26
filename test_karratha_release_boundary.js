@@ -48,6 +48,8 @@ test('all frozen native files outside declared boundary adaptations retain origi
     else if (item.file === 'workshop-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))),'004267f09a9fa4f5ad0852dd8f983e25395d8352f8b0f9fb798777b3d733e9ff',item.file);
     // r526: the PMG outstanding Parts paint is blue (F140). Department 135 is not tagged and keeps the orange paint.
     else if (item.file === 'styles.css') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
+    // r532: the PMG other-station list stays full strength when this bay can tick it (F146). Department 135 keeps this frozen copy.
+    else if (item.file === 'pdc-fitters.css') assert.equal(sha(native), item.baseline_sha256, item.file);
     // r527: a refused technician write no longer clears the bay list (F141). Department 135 keeps this frozen copy.
     else if (item.file === 'workshop-reference-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
@@ -167,7 +169,8 @@ const approvedRootImportPatch = Object.freeze({
   // r483: fitter page bay text uses the Dept 139 bay names (F96).
   // r493: started items / sections and the running strip show amber Paused while the job clock is held (F106).
   // r500: every started item / section shows Pause (also when running too long) and Resume while the job is stopped; Pause opens the stoppage panel under the item (F113).
-  "pdc-fitters.js": "792922bed154f8fe4c5d8b08e587d1743acfa48e95be02c13deaa327579fe538",
+  // r532: a started job can tick Start and Done on other-station items (F146). Department 135 keeps the frozen fitter script.
+  "pdc-fitters.js": "b4cac99e85efcf4124f086d06911384ce73132377bab30c6bbfca5fa7b95f0e0",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -306,7 +309,8 @@ const approvedRootImportPatch = Object.freeze({
   // r509: r509=2026.10.23.r509 on pdc-workshop-departments.js, app.js and control-board-overview.js (14 fabrication bays; live check F122 sort 294).
   // r525: r525=2026.10.24.r525 on pdc-staff-usage.js (Website activity Last 24 hours; F139). Department 135 is not tagged. The applied check stays usage_period_24h_513 / F126.
   // r526: r526=2026.10.24.r526 on styles.css (outstanding Parts paint is blue; F140). Department 135 is not tagged.
-  "index.html": "10113a05a086370c286b81dfe3f893d02b8b21facf0c94b589ebecb25fe02a17",
+  // r532: r532=2026.10.26.r532 on pdc-fitters.js (other-station Start and Done; F146). Department 135 is not tagged.
+  "index.html": "d37899c53d87bffe652d0ccfd3488797c70ab7047db17b40d545c3d5efff65d5",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -316,7 +320,8 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-email-vehicle-location-service.js": "6a5f2efb8449de31ccbbb9c9f58269422401e9ca9875aace792cca81e55688b2",
   // r482: Prioritise vehicle asks before applying a plan that books before the parts ETA (F95).
   "pdc-emergency-priority.js": "f32dfc9d81bafb4dcfb8e6e6805f4932ba5e5219149093d9bc45f1e1ae34d7db",
-  "pdc-fitters.css": "fefe7159e728653806fcc7e62f5e7d30dfc99e67b5cc38fab04eb8ee6794fb9a",
+  // r532: other-station items stay full strength when this bay can tick them (F146).
+  "pdc-fitters.css": "aeb71c62bafd5cc78fad84fe9dcd86d69ccbf0a26cc851fae19438f78ebf2540",
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",
   "pdc-staff-usage.css": "e7769d72b7601097fa4c41a19140fdcda4408f3d1f620008282d9df136b1ddf0",
   // r489: 'fitting-stats' counts under the Update History bucket (F102).

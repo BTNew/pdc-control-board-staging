@@ -1,0 +1,197 @@
+-- Undo r532 (F146). Restores the r440 fitter command and the previous item list.
+-- A station this release ticked, and that its own bay has not since completed, is opened again.
+-- A booking released because the station was ticked stays released. Department 135 is not changed.
+SET LOCAL lock_timeout = '2s';
+DO $g$ BEGIN
+ IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r532 undo: run between :02 and :45'; END IF;
+ IF NOT public.pdc_monitor_staging_guard()
+    OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
+    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r532 undo: staging only'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.fitter_job_command(uuid,uuid,integer,text,uuid,text,text,boolean,text)')) IS DISTINCT FROM '626ca8b23a2e5f02e2ca8f96a4533d6f' THEN RAISE EXCEPTION 'r532 undo: fitter_job_command is not the r532 body'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_fitter_private.cross_station_apply(uuid,uuid,text)')) IS DISTINCT FROM 'e7d9c212bca907b6bc57737493748da2' THEN RAISE EXCEPTION 'r532 undo: helper is not the r532 body'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_fitter_private.lines_before_bus_workflow_20260921(uuid,uuid)')) IS DISTINCT FROM '1a30411bad4fca7f6455559a24c839d1' THEN RAISE EXCEPTION 'r532 undo: lines_before is not the r532 body'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r532 undo: pin count is not 241'; END IF;
+END $g$;
+
+UPDATE public.vehicle_work_items wi SET completed=false,completed_at=NULL,completed_by=NULL,updated_at=clock_timestamp()
+ FROM pdc_fitter_private.cross_station_tick t
+ JOIN public.workshop_stages s ON s.code=t.stage_code
+ WHERE t.ticked AND wi.vehicle_id=t.vehicle_id AND wi.work_key=s.work_key AND wi.completed
+  AND NOT EXISTS(SELECT 1 FROM public.workshop_bookings b WHERE b.vehicle_id=t.vehicle_id AND b.stage_id=s.id AND b.deleted_at IS NULL AND b.status='completed');
+
+DELETE FROM pdc_fitter_private.cross_station_tick WHERE vehicle_id IS NOT NULL;
+DROP FUNCTION pdc_fitter_private.cross_station_apply(uuid,uuid,text);
+DROP TABLE pdc_fitter_private.cross_station_tick;
+
+CREATE OR REPLACE FUNCTION pdc_fitter_private.lines_before_bus_workflow_20260921(p_vehicle_id uuid, p_booking_id uuid)
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'pg_catalog', 'public'
+AS $function$
+ WITH source AS (
+  SELECT l,md5(jsonb_build_array(l->>'line_identity',l->>'description',
+    l->>'stage_code',l->'estimated_hours',l->>'job_card_number')::text) scope_hash
+  FROM jsonb_array_elements(public.pdc_qc_operation_lines_379(p_vehicle_id)) l
+  WHERE coalesce((l->>'active')::boolean,true)
+ ), clock AS (
+  -- Booking work timer, read once and only while an item is running here.
+  SELECT CASE WHEN EXISTS(SELECT 1 FROM pdc_fitter_private.operation_timing t
+    WHERE t.booking_id=p_booking_id AND t.status='running')
+   THEN (pdc_fitter_private.timing(p_booking_id,statement_timestamp())#>>'{timer,elapsed_seconds}')::numeric END job_seconds
+ )
+ SELECT coalesce(jsonb_agg(pdc_fitter_private.conversion_enrich(p_vehicle_id,jsonb_build_object(
+  'line_identity',s.l->>'line_identity','description',s.l->>'description',
+  'stage_code',s.l->>'stage_code','hours',s.l->'estimated_hours',
+  'operation_no',s.l->'operation_no','source_note',s.l->>'review_note',
+  'scope_hash',s.scope_hash,'completed',coalesce(p.completed AND p.scope_hash=s.scope_hash,false),
+  'note',coalesce(p.note,''),'scope_changed',p.scope_hash IS NOT NULL AND p.scope_hash<>s.scope_hash,
+  'updated_at',p.updated_at,'technician_id',p.technician_id
+ )||pdc_fitter_private.item_timing(t,s.scope_hash,s.l->'estimated_hours',(SELECT job_seconds FROM clock))
+ ) ORDER BY s.l->>'stage_code',s.l->>'operation_no',s.l->>'line_identity'),'[]'::jsonb)
+ FROM source s LEFT JOIN pdc_fitter_private.operation_progress p
+   ON p.booking_id=p_booking_id AND p.line_identity=s.l->>'line_identity'
+ LEFT JOIN pdc_fitter_private.operation_timing t
+   ON t.booking_id=p_booking_id AND t.line_identity=s.l->>'line_identity'
+$function$;
+CREATE OR REPLACE FUNCTION public.fitter_job_command(p_technician_id uuid, p_booking_id uuid, p_expected_version integer, p_catalog_hash text, p_request_id uuid, p_action text, p_line_identity text DEFAULT NULL::text, p_completed boolean DEFAULT NULL::boolean, p_note text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog', 'public'
+AS $function$
+DECLARE b public.workshop_bookings; d jsonb; l jsonb; r jsonb; h text; receipt record; clock_version integer;
+BEGIN
+ PERFORM public.workshop_require_planner_operator();
+ IF p_request_id IS NULL OR p_expected_version IS NULL
+ THEN RAISE EXCEPTION 'Request id and booking version required' USING errcode='22023'; END IF;
+ IF p_action IS NULL OR p_action NOT IN('start','line','stop','resume','complete','conversion','item_start','item_reset')
+ THEN RAISE EXCEPTION 'Unknown fitter action' USING errcode='22023'; END IF;
+ IF length(coalesce(p_note,''))>2000 THEN RAISE EXCEPTION 'Note too long' USING errcode='22023'; END IF;
+ PERFORM pg_advisory_xact_lock(hashtextextended('pdc:workshop:top-level-mutation',0));
+ h:=md5(jsonb_build_array(p_technician_id,p_booking_id,p_expected_version,p_catalog_hash,
+    p_action,p_line_identity,p_completed,p_note)::text);
+ SELECT * INTO receipt FROM pdc_fitter_private.command_receipts WHERE actor_id=auth.uid() AND request_id=p_request_id;
+ IF FOUND THEN
+   IF receipt.request_hash<>h THEN RETURN jsonb_build_object('ok',false,'error','request_reused'); END IF;
+   RETURN receipt.result||jsonb_build_object('replayed',true);
+ END IF;
+ IF NOT pdc_fitter_private.assigned(p_booking_id,p_technician_id)
+ THEN RETURN jsonb_build_object('ok',false,'error','assignment_changed'); END IF;
+ SELECT * INTO b FROM public.workshop_bookings WHERE id=p_booking_id FOR UPDATE;
+ PERFORM public.workshop_require_booking_active_vehicle(p_booking_id,false);
+ -- Another controller may have started this exact job already. Never start twice.
+ IF NOT(p_action='start' AND b.status='started') AND b.version<>p_expected_version
+ THEN
+   IF p_action='start' THEN
+     clock_version:=pdc_fitter_private.clock_start_version(b.id,p_expected_version);
+     IF clock_version IS NOT NULL THEN
+       d:=public.get_fitter_job(p_technician_id,b.id);
+       IF d->>'catalog_hash' IS DISTINCT FROM p_catalog_hash THEN
+         RETURN jsonb_build_object('ok',false,'error','scope_changed');
+       END IF;
+     END IF;
+   END IF;
+   IF clock_version IS NULL THEN RETURN jsonb_build_object('ok',false,'error','version_conflict'); END IF;
+ END IF;
+ IF p_action='start' THEN
+   IF b.status='started' THEN r:=jsonb_build_object('ok',true,'already_started',true);
+   ELSE r:=public.start_workshop_work(b.id,b.version,NULL,jsonb_build_object('source','fitter','technician_id',p_technician_id,'clock_rebased_from_version',CASE WHEN clock_version IS NOT NULL THEN p_expected_version END)); END IF;
+ ELSIF p_action='stop' THEN
+   IF length(btrim(coalesce(p_note,'')))<3 THEN RETURN jsonb_build_object('ok',false,'error','reason_required'); END IF;
+   r:=public.stop_workshop_work(b.id,b.version,p_note,jsonb_build_object('source','fitter','technician_id',p_technician_id));
+ ELSIF p_action='resume' THEN
+   r:=public.resume_workshop_work(b.id,b.version,jsonb_build_object('source','fitter','technician_id',p_technician_id));
+ ELSE
+   IF b.status<>'started' THEN RETURN jsonb_build_object('ok',false,'error','job_not_running'); END IF;
+   d:=public.get_fitter_job(p_technician_id,b.id);
+   IF d->>'catalog_hash' IS DISTINCT FROM p_catalog_hash THEN RETURN jsonb_build_object('ok',false,'error','scope_changed'); END IF;
+   IF p_action='conversion' THEN
+     r:=pdc_fitter_private.conversion_save(p_technician_id,b.id,p_line_identity,p_note::jsonb);
+   ELSIF p_action IN('item_start','item_reset') THEN
+     -- Start / reset an item: timing only; booking row and version unchanged.
+     SELECT item INTO l FROM jsonb_array_elements(d->'lines') item
+      WHERE item->>'line_identity'=p_line_identity AND item->>'stage_code'=d->>'stage_code';
+     IF l IS NULL THEN RETURN jsonb_build_object('ok',false,'error','line_unavailable'); END IF;
+     r:=pdc_fitter_private.item_timing_save(p_technician_id,b.id,l,substr(p_action,6),p_note);
+   ELSIF p_action='complete' THEN
+     IF NOT coalesce((d#>>'{progress,can_complete}')::boolean,false)
+     THEN RETURN jsonb_build_object('ok',false,'error','items_incomplete'); END IF;
+     r:=public.complete_workshop_work(b.id,b.version,NULL,NULL,jsonb_build_object('source','fitter','technician_id',p_technician_id));
+   ELSE
+     SELECT item INTO l FROM jsonb_array_elements(d->'lines') item
+      WHERE item->>'line_identity'=p_line_identity AND item->>'stage_code'=d->>'stage_code';
+     IF l IS NULL OR p_completed IS NULL THEN RETURN jsonb_build_object('ok',false,'error','line_unavailable'); END IF;
+     IF l->'conversion' IS NOT NULL AND coalesce(l#>>'{conversion,id}','') NOT IN ('coaster','hiace_commuter') THEN RETURN jsonb_build_object('ok',false,'error','conversion_sections_required'); END IF;
+     -- r440 (F51): an internal bay item must be started before it is ticked Done. An item already Done stays Done (a note
+     -- save re-sends completed=true and is allowed) and unticking is always allowed. Supplier and conversion lines keep
+     -- their own ticks. Same rule for fitters, controllers and admins on this card; refusals are audited.
+     IF p_completed AND NOT coalesce((l->>'completed')::boolean,false)
+        AND l->>'external_work' IS DISTINCT FROM 'true' AND coalesce(jsonb_typeof(l->'conversion'),'null')='null'
+        AND l->>'item_status' IS DISTINCT FROM 'running' THEN
+       INSERT INTO pdc_fitter_private.operation_timing_audit(booking_id,line_identity,technician_id,actor_id,action,before_state,after_state)
+       VALUES(b.id,p_line_identity,p_technician_id,auth.uid(),'item_done_refused',
+        coalesce((SELECT to_jsonb(t) FROM pdc_fitter_private.operation_timing t WHERE t.booking_id=b.id AND t.line_identity=p_line_identity),'{}'::jsonb),
+        jsonb_build_object('error','item_not_started','item_status',l->'item_status','release','r440'));
+       RETURN jsonb_build_object('ok',false,'error','item_not_started');
+     END IF;
+     INSERT INTO pdc_fitter_private.operation_progress(booking_id,line_identity,scope_hash,completed,note,technician_id,updated_by)
+     VALUES(b.id,p_line_identity,l->>'scope_hash',p_completed,coalesce(p_note,''),p_technician_id,auth.uid())
+     ON CONFLICT(booking_id,line_identity) DO UPDATE SET scope_hash=excluded.scope_hash,
+      completed=excluded.completed,note=excluded.note,technician_id=excluded.technician_id,
+      updated_by=excluded.updated_by,updated_at=clock_timestamp()
+      WHERE true; -- explicit WHERE for the CI safeupdate lint (#379)
+     -- Done stamps the actual time on a started item; untick clears it.
+     PERFORM pdc_fitter_private.item_timing_tick(b.id,p_line_identity,l->>'scope_hash',p_completed);
+     -- Canonical booking revision triggers notify existing station and board subscribers.
+     UPDATE public.workshop_bookings SET version=version+1,updated_by=auth.uid() WHERE id=b.id;
+     PERFORM public.workshop_bump_revision();
+     r:=jsonb_build_object('ok',true);
+   END IF;
+ END IF;
+ IF coalesce((r->>'ok')::boolean,false) THEN
+   -- A successful response must confirm the booking state read by the planners.
+   SELECT * INTO b FROM public.workshop_bookings WHERE id=p_booking_id;
+   IF p_action='start' AND (b.status<>'started' OR b.actual_start_at IS NULL) THEN
+     RAISE EXCEPTION 'Fitter start did not produce a running booking' USING errcode='23514';
+   END IF;
+   r:=jsonb_build_object('ok',true,'booking_id',b.id,'action',p_action,
+    'already_started',coalesce((r->>'already_started')::boolean,false),
+    'status',b.status,'version',b.version,'revision',public.workshop_current_revision(),
+    'clock_rebased',clock_version IS NOT NULL,
+    'clock_rebased_from_version',CASE WHEN clock_version IS NOT NULL THEN p_expected_version END,
+    'start_priority',coalesce((r->>'start_priority')::boolean,false),
+    'shifted_count',coalesce((r->>'shifted_count')::integer,0))
+    ||pdc_fitter_private.timing(b.id,clock_timestamp());
+   INSERT INTO pdc_fitter_private.command_receipts VALUES(auth.uid(),p_request_id,h,r,clock_timestamp());
+ END IF;
+ -- Explain the exact booking that prevented a start to this authorized operator.
+ -- Preserve the canonical rejection; no sequence or fixed work is changed here.
+ IF p_action='start' AND NOT coalesce((r->>'ok')::boolean,false)
+    AND r#>>'{blocker,booking_id}' IS NOT NULL THEN
+   SELECT jsonb_build_object('booking_id',x.id,'stage_code',s.code,'stage_name',s.display_name,
+     'bay_number',bay.bay_number,'bay_name',bay.display_name,'status',x.status,
+     'start_at',x.scheduled_start_at,'end_at',x.scheduled_end_at)
+   INTO d FROM public.workshop_bookings x
+    JOIN public.workshop_stages s ON s.id=x.stage_id
+    LEFT JOIN public.workshop_bays bay ON bay.id=x.bay_id
+   WHERE x.id=(r#>>'{blocker,booking_id}')::uuid AND x.deleted_at IS NULL;
+   IF d IS NOT NULL THEN r:=jsonb_set(r,'{blocker}',coalesce(r->'blocker','{}'::jsonb)||d); END IF;
+ END IF;
+ RETURN r;
+END $function$;
+
+UPDATE pdc_ops.expected_function_md5 SET prosrc_md5='9c30466cfef22ccda3c6d955bf484489',release='r440',note='r440: item Done needs Start (F51)',updated_at=clock_timestamp()
+ WHERE signature='public.fitter_job_command(uuid,uuid,integer,text,uuid,text,text,boolean,text)' AND prosrc_md5='626ca8b23a2e5f02e2ca8f96a4533d6f' AND release='r532';
+UPDATE pdc_ops.regression_checks SET check_sql=replace(check_sql,'e.release=''r532''','e.release=''r440''')
+ WHERE check_name='item_start_before_done' AND added_in='r440' AND check_sql LIKE '%e.release=''r532''%';
+DELETE FROM pdc_ops.regression_checks WHERE check_name='cross_station_ticks_532' AND added_in='r532' AND fault_id='F146' AND sort_order=314;
+
+DO $g$ BEGIN
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.fitter_job_command(uuid,uuid,integer,text,uuid,text,text,boolean,text)')) IS DISTINCT FROM '9c30466cfef22ccda3c6d955bf484489' THEN RAISE EXCEPTION 'r532 undo: command not restored'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_fitter_private.lines_before_bus_workflow_20260921(uuid,uuid)')) IS DISTINCT FROM 'eb82ad959866f20c4e83e59d7af5043a' THEN RAISE EXCEPTION 'r532 undo: lines_before not restored'; END IF;
+ IF to_regprocedure('pdc_fitter_private.cross_station_apply(uuid,uuid,text)') IS NOT NULL THEN RAISE EXCEPTION 'r532 undo: helper still present'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE signature='public.fitter_job_command(uuid,uuid,integer,text,uuid,text,text,boolean,text)' AND prosrc_md5='9c30466cfef22ccda3c6d955bf484489' AND release='r440')<>1 THEN RAISE EXCEPTION 'r532 undo: pin not restored'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r532 undo: pin count is not 241'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_pdc.fitter_job_command(uuid,uuid,integer,text,uuid,text,text,boolean,text)')) IS DISTINCT FROM 'fd05b9eef69498002ac06dd68e01cdff' THEN RAISE EXCEPTION 'r532 undo: Department 135 fitter command changed'; END IF;
+END $g$;

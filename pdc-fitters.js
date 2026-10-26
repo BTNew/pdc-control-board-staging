@@ -30,6 +30,7 @@
     job_not_running:'Start or resume this job before recording work.',
     items_incomplete:'Complete every item in this bay before finishing the job. Missing hours need controller review.',
     line_unavailable:'That item is no longer available in this bay. Refresh the job.',
+    station_busy:'That station already has this job running in its own bay. Finish the items there.',
     mechanic_unavailable:'This mechanic is inactive or unavailable. Select another mechanic.',
     reason_required:'Enter a reason for the stoppage.',
     parts_incomplete_entry:'Parts no longer hold up a job. Refresh the page and try again; if it happens again, tell the controller.',
@@ -497,7 +498,7 @@
       <h3>Items for this bay</h3><div class="fitter-lines">${own.map((l,i)=>lineCard(l,i,editable)).join('') || '<p class="fitter-empty">No approved operation lines for this bay. Ask the controller to review the vehicle.</p>'}</div>
       ${detail.supplier_lines?.length && root.PdcBusWorkflow ? `<section class="fitter-supplier-checks"><h3>Supplier work — physically check the vehicle</h3><p>Check fitted work yourself. A supplier report alone does not complete these lines.</p>${root.PdcBusWorkflow.supplierHtml(detail.supplier_lines,{vehicleId:detail.vehicle_id || job.vehicle_id,editable:editable&&!locked,controller:false,bookingId:selected,technicianId:mechanic})}</section>` : ''}
       ${nextJobHtml(flow,locked,editable)}
-      ${other.length ? `<details class="fitter-other"><summary>All other vehicle items (${other.length}) · View only</summary>${other.map((l,i)=>lineCard(l,own.length+i,false,true)).join('')}</details>` : ''}
+      ${other.length ? `<details class="fitter-other${editable ? '' : ' is-view'}" ${editable ? 'open' : ''}><summary>${editable ? `Other station items (${other.length})` : `All other vehicle items (${other.length}) · View only`}</summary>${editable ? '<p class="fitter-other-note">Tick Start, then Done, if this bay is doing that work. When every item for a station is Done, that station is ticked off on the board. Untick to undo.</p>' : ''}${other.map((l,i)=>lineCard(l,own.length+i,editable && !l.external_work && !l.conversion,true)).join('')}</details>` : ''}
       <p class="fitter-help">Complete this bay after ticking off its work. Your next assigned job opens automatically; QC inspection remains a separate step.</p>` : `<div class="fitter-empty">${loading ? 'Loading your job…' : !mechanic ? 'Select your mechanic name to see your current job.' : 'No more jobs assigned. New work will appear here when the controller books it.'}</div>`}</section></div></div>`;
     target.querySelectorAll('.fitter-notes textarea').forEach(n=>{ if(openNotes.has(n.dataset.fitterNote)) n.closest('details').open=true; });
     if (focusId && selection) { const next=doc.getElementById(focusId); next?.focus({preventScroll:true}); next?.setSelectionRange?.(...selection); }
@@ -592,7 +593,12 @@
         handover={bookingId:result.booking_id||selected,stock:jobs.find(j=>j.id===selected)?.stock||'Bay job'};
         scrollToCurrent=true;
       } else handover=null;
-      message=result.action==='complete'?'':result.action==='start'?startConfirmationMessage(result):result.action==='resume'?'Job resumed on the workshop planner.':'Saved to the workshop planner.';
+      const cross=result.cross_station;
+      const crossText=cross?.ticked?`Saved. ${cross.stage_name||'That station'} is ticked off on the board.`
+        :cross?.reopened?`Saved. ${cross.stage_name||'That station'} is open again on the board.`
+        :cross?.reason==='hours_need_review'?`Saved. ${cross.stage_name||'That station'} still needs approved hours before it can be ticked off.`
+        :'';
+      message=result.action==='complete'?'':result.action==='start'?startConfirmationMessage(result):result.action==='resume'?'Job resumed on the workshop planner.':crossText||'Saved to the workshop planner.';
       connected=false;
     } catch(e) { message=e.message; if(e.code!=='busy') connected=false; }
     finally {
