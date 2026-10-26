@@ -113,7 +113,7 @@ test('a failed or missing read shows no icons, logs once and never breaks the Sa
 
 test('the shared guard file loads beside every Sales page script with no global name clash', () => {
   const index = fs.readFileSync('sales/index.html', 'utf8');
-  const files = [...index.matchAll(/<script src="([^"?]+)/g)].map(m => require('node:path').join('sales', m[1]));
+  const files = [...index.matchAll(/<script src="([^"?]+)/g)].map(m => require('node:path').posix.join('sales', m[1]));
   const ctx = vm.createContext({ setTimeout() {}, setInterval() {}, clearTimeout() {}, clearInterval() {}, addEventListener() {}, console: { log() {}, warn() {}, error() {}, info() {} } });
   ctx.window = ctx; ctx.self = ctx;
   for (const f of files) {

@@ -33,7 +33,7 @@ test('a stalled board read releases one coalesced fresh import refresh after the
   r.reads[1].gate.resolve(reply(52));
   for (const response of await Promise.all(updates)) assert.equal(response.data.revision, 52);
   assert.deepEqual(r.cleared, [1, 2]);
-  assert.ok(r.reads.every(read => read.url.endsWith('/rpc/get_pdc_email_vehicle_board_snapshot')));
+  assert.ok(r.reads.every(read => read.url.endsWith('/rpc/get_pdc_email_vehicle_board_snapshot_conditional')));
 });
 
 test('a stalled response body times out; its late result cannot block or replace the fresh read', async () => {

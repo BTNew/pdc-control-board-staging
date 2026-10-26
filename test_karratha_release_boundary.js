@@ -126,7 +126,7 @@ const approvedRootImportPatch = Object.freeze({
   // Department 135 is not tagged and keeps the orange paint. The colour token and the labels stay.
   "styles.css": "41d20ee74bef81537b6ef7bc04ac65a793cbeab1d503a74beeed8760c4f7c09b",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
-  "scripts/build_pages_runtime.js": "340ffbfdaa9720a2b73b0885f96407ec394b49b3a2fa75b360f6033adb3fe628",
+  "scripts/build_pages_runtime.js": "cd1a534ae7b8b7a004080b55ef39edd0633f8fd598622b07c70f2bf8f2a9f55d",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
   // on Sublet lines. Department 135 keeps its frozen copy.
@@ -329,14 +329,14 @@ const approvedRootImportPatch = Object.freeze({
   // r539: r539=2026.10.26.r539 on pdc-planner-capacity.js (Close gaps bay name and hold reason; F153). Department 135 is not tagged.
   // r550: r550=2026.10.26.r550 on workshop-planner.css (F164). Department 135 is not tagged.
   // r548: r548=2026.10.26.r548 on pdc-workshop-departments.js and app.js (unallocated rows do not block a bay, F162). Department 135 is not tagged.
-  "index.html": "f899b9a3a4de6294a5e5367f71ac44c0d5624f9769284067e0288410098099af",
+  "index.html": "95cfba8322bb5324e5ee09168d4c7927a14c48b2c8b72c50eeb3a9aeca15bf70",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
   // r454: a board row's identity_dealer_code (14450/37047) fills a missing dealer in mapServerVehicle (F67).
   // r458: Detailed history shows a vehicle's creation as Created (presentVehicleCreationEvents, display only) (F71).
   // r502: subletRpc returns message + safe json(); createSubletBooking normalises identity / truncates notes (F115).
-  "pdc-email-vehicle-location-service.js": "6a5f2efb8449de31ccbbb9c9f58269422401e9ca9875aace792cca81e55688b2",
+  "pdc-email-vehicle-location-service.js": "654e62807548e723d96641dd57784d2899986aa00836e511d6a2d718be6d1eef",
   // r482: Prioritise vehicle asks before applying a plan that books before the parts ETA (F95).
   "pdc-emergency-priority.js": "f32dfc9d81bafb4dcfb8e6e6805f4932ba5e5219149093d9bc45f1e1ae34d7db",
   // r532: other-station items stay full strength when this bay can tick them (F146).

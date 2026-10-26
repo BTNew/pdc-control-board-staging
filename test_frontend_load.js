@@ -20,7 +20,7 @@ const STARTUP_ORDER = [
   'site-switcher-branches.js',
   'pdc-auth.js',
   'pdc-auth-registration.js',
-  'pdc-update-history.js',
+  'pdc-lazy-admin-views.js',
   'email-board-data.js',
   'pdc-email-ai-v2-actions.js',
   'arb-labor-catalog.js',
@@ -54,8 +54,6 @@ const STARTUP_ORDER = [
   'pdc-conversions.js',
   'pdc-fitters.js',
   'pdc-workshop-hours.js',
-  // r489 (F102): Admin > Fitting statistics (administrators only).
-  'pdc-fitting-stats.js',
   'pdc-vehicle-sublets.js' // r494 (F107): Manage sublets per vehicle
 ];
 

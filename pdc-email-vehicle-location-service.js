@@ -4,6 +4,7 @@
 const PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF = 'cdsmnqxtyyoeoznmbidd';
 const PDC_EMAIL_VEHICLE_REVISION_TABLE = 'pdc_email_vehicle_revision';
 const PDC_EMAIL_VEHICLE_SNAPSHOT_RPC = 'get_pdc_email_vehicle_board_snapshot';
+const PDC_EMAIL_VEHICLE_CONDITIONAL_SNAPSHOT_RPC = 'get_pdc_email_vehicle_board_snapshot_conditional';
 const PDC_SUBLET_AUDIT_READ_RPC = 'get_pdc_sublet_audit_ledgers';
 const PDC_WORKSHOP_HOURS_BATCH_RPC = 'save_vehicle_workshop_line_hours_batch_768';
 const PDC_SUBLET_UPDATE_RPC = 'update_pdc_sublet_booking_field';
@@ -487,8 +488,65 @@ function createPdcEmailVehicleLocationService(options = {}) {
   const url = String(config.url || '').replace(/\/$/, ''); const key = String(config.publishableKey || '');
   if (!request || !key) throw new Error('Authenticated email vehicle locations require the staging browser client.');
   let activeSnapshot = null;
+  // Conditional reads reuse only the exact, server-confirmed cache generation.
+  // Keep one JSON copy in memory so caller edits cannot alter a later readback.
+  // Nothing is written to browser storage or retained across a token change.
+  let retainedSnapshot = null;
+  let conditionalSnapshotAvailable = true;
+  let conditionalSessionToken = null;
+  let snapshotRequestGeneration = 0;
+  function clearRetainedSnapshot() { retainedSnapshot = null; }
+  async function requestSnapshot(token, signal) {
+    const requestGeneration = ++snapshotRequestGeneration;
+    if (conditionalSessionToken !== token) {
+      clearRetainedSnapshot();
+      conditionalSnapshotAvailable = true;
+      conditionalSessionToken = token;
+    }
+    const sentToken = retainedSnapshot?.generation || null;
+    let endpoint = conditionalSnapshotAvailable ? PDC_EMAIL_VEHICLE_CONDITIONAL_SNAPSHOT_RPC : PDC_EMAIL_VEHICLE_SNAPSHOT_RPC;
+    let response = await request(`${url}/rest/v1/rpc/${endpoint}`, {
+      method: 'POST', signal,
+      headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: endpoint === PDC_EMAIL_VEHICLE_CONDITIONAL_SNAPSHOT_RPC ? JSON.stringify({ p_snapshot_token: sentToken }) : '{}',
+    });
+    let body = await response.json();
+    if (token !== getAccessToken()) return snapshotAuthorityLost();
+    if (signal?.aborted || requestGeneration !== snapshotRequestGeneration) return { ok: false, code: 'snapshot_superseded', data: null };
+    // A staggered rollout or rollback may remove the additive endpoint. Only
+    // PostgREST's exact missing-function response permits the legacy fallback;
+    // permission, network and database failures must never be bypassed.
+    if (endpoint === PDC_EMAIL_VEHICLE_CONDITIONAL_SNAPSHOT_RPC && response.status === 404 && body?.code === 'PGRST202') {
+      conditionalSnapshotAvailable = false;
+      clearRetainedSnapshot();
+      response = await request(`${url}/rest/v1/rpc/${PDC_EMAIL_VEHICLE_SNAPSHOT_RPC}`, {
+        method: 'POST', signal,
+        headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}',
+      });
+      body = await response.json();
+      if (token !== getAccessToken()) return snapshotAuthorityLost();
+      if (signal?.aborted || requestGeneration !== snapshotRequestGeneration) return { ok: false, code: 'snapshot_superseded', data: null };
+    }
+    if (!response.ok || !body || body.ok === false) {
+      clearRetainedSnapshot();
+      return { ok: false, code: body?.code || `HTTP ${response.status}`, data: null };
+    }
+    if (body.not_modified === true) {
+      if (!sentToken || !retainedSnapshot || body.snapshot_token !== sentToken || retainedSnapshot.generation !== sentToken) {
+        clearRetainedSnapshot();
+        return { ok: false, code: 'snapshot_protocol_error', data: null };
+      }
+      return JSON.parse(retainedSnapshot.json);
+    }
+    const result = { ok: true, code: body.code || 'ok', data: body.data || body };
+    if (typeof body.snapshot_token === 'string' && body.snapshot_token.length > 0 && Array.isArray(result.data?.vehicles)) {
+      retainedSnapshot = { generation: body.snapshot_token, json: JSON.stringify(result) };
+    } else clearRetainedSnapshot();
+    return result;
+  }
   const snapshotAuthorityLost = () => ({ ok: false, code: 'not_authenticated', data: null });
   async function readSnapshot(token) {
+    const readGeneration = snapshotRequestGeneration + 1;
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     const scheduleTimeout = options.scheduleTimeout || setTimeout;
     const clearScheduledTimeout = options.clearScheduledTimeout || clearTimeout;
@@ -500,19 +558,16 @@ function createPdcEmailVehicleLocationService(options = {}) {
       // Bound both the request and body download. A stalled read must release
       // the queue so later import notifications can fetch a fresh snapshot.
       const result = await Promise.race([
-        (async () => {
-          const response = await request(`${url}/rest/v1/rpc/${PDC_EMAIL_VEHICLE_SNAPSHOT_RPC}`, { method: 'POST', signal: controller?.signal, headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: '{}' });
-          const body = await response.json();
-          if (!response.ok || !body || body.ok === false) return { ok: false, code: body?.code || `HTTP ${response.status}`, data: null };
-          return { ok: true, code: body.code || 'ok', data: body.data || body };
-        })(),
+        requestSnapshot(token, controller?.signal),
         new Promise(resolve => { timeout = scheduleTimeout(() => {
+          if (readGeneration === snapshotRequestGeneration) clearRetainedSnapshot();
           resolve({ ok: false, code: 'snapshot_timeout', data: null });
           controller?.abort();
         }, timeoutMs); }),
       ]);
       return token === getAccessToken() ? result : snapshotAuthorityLost();
     } catch (_error) {
+      if (readGeneration === snapshotRequestGeneration) clearRetainedSnapshot();
       return token === getAccessToken() ? { ok: false, code: 'snapshot_unavailable', data: null } : snapshotAuthorityLost();
     } finally { clearScheduledTimeout(timeout); }
   }
@@ -577,7 +632,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
       activeSnapshot.queued?.resolve(snapshotAuthorityLost());
       activeSnapshot = null;
     }
-    if (!token) return Promise.resolve(snapshotAuthorityLost());
+    if (!token) { clearRetainedSnapshot(); conditionalSessionToken = null; return Promise.resolve(snapshotAuthorityLost()); }
     if (!activeSnapshot) return startSnapshot(token);
     // Direct mutation readbacks and realtime refreshes can arrive together.
     // Keep one fresh trailing read, rather than downloading the whole board
@@ -1107,7 +1162,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     return pdc412Rpc(PDC_RFT_TRANSPORT_COLLECT_RPC, { p_vehicle_id: String(vehicleId || ''), p_expected_vehicle_version: Number(expectedVersion) || 0, p_idempotency_key: String(idempotencyKey || '') }, 'rft_transport_collection_unavailable');
   }
   function subscribe(onRevision) {
-    if (!subscribeRealtime) return { unsubscribe() {} };
+    if (!subscribeRealtime) return { unsubscribe() { clearRetainedSnapshot(); snapshotRequestGeneration += 1; } };
     let timer = null;
     let latestEvent = null;
     let stopped = false;
@@ -1122,6 +1177,8 @@ function createPdcEmailVehicleLocationService(options = {}) {
       }, 250);
     });
     return { unsubscribe() {
+      clearRetainedSnapshot();
+      snapshotRequestGeneration += 1;
       stopped = true;
       if (timer !== null) clearTimeout(timer);
       timer = null;
@@ -1130,6 +1187,6 @@ function createPdcEmailVehicleLocationService(options = {}) {
   }
   return { authority: 'supabase_staging_authenticated_email_vehicle', snapshot, readSubletAuditLedgers, saveVehicleWorkshopLineHoursBatch, updateSublet, createSubletBooking, updateSubletBooking, updateSubletBookingProvider, returnSubletBooking, updatePartsEta, markPartsOrdered, markPartsComplete, setPartsStoppage, vehicleHistory, updateSalesPreparation, updateSalespersonAssignment, updateVehicleDetailFields, clearVehicleStoppage, setPmbStoppage, bookRftTransport, collectRftTransport, finalizeQcToRft700, bookRftTransport700, collectRftTransport700, bookRftTransport734, collectRftTransport734, setRftConfirmation736, bookRftTransport739, readRftBookingContext739, readRftTransportDraft739, readRftTransportEvidence734, createAcceptanceVehicle, setQcOperationCompletion, setPitLineTick, readPitLineTicks, rejectQcVehicleToPmb, uploadQcPhotoEvidence, readQcPhotoReceipt, finalizeQcToRft, finalizeQcRetest, subscribe };
  }
-const pdcEmailVehicleLocationExported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_SUBLET_AUDIT_READ_RPC, PDC_WORKSHOP_HOURS_BATCH_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_RFT_CONFIRMATION_RPC, PDC_RFT_TRANSPORT_DRAFT_BOOK_RPC, PDC_RFT_TRANSPORT_DRAFT_CONTEXT_RPC, PDC_RFT_TRANSPORT_DRAFT_READ_RPC, PDC_FINAL_QC_TO_RFT_RPC, PDC_FINAL_RFT_BOOK_RPC, PDC_FINAL_RFT_COLLECT_RPC, PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_PIT_LINE_TICK_RPC, PDC_PIT_LINE_TICKS_READ_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, PDC_QC_RETEST_PHOTO_RPC, PDC_QC_RETEST_FINALIZATION_RPC, canonicalWorkKey, mapLifecycleHistory, mapServerVehicle, isVehicleCreationEvent, presentVehicleCreationEvents, reconcileVehicleRows, createPdcEmailVehicleLocationService };
+const pdcEmailVehicleLocationExported = { PDC_EMAIL_VEHICLE_STAGING_PROJECT_REF, PDC_EMAIL_VEHICLE_REVISION_TABLE, PDC_EMAIL_VEHICLE_SNAPSHOT_RPC, PDC_EMAIL_VEHICLE_CONDITIONAL_SNAPSHOT_RPC, PDC_SUBLET_AUDIT_READ_RPC, PDC_WORKSHOP_HOURS_BATCH_RPC, PDC_SUBLET_UPDATE_RPC, PDC_SUBLET_CREATE_RPC, PDC_SUBLET_BOOKING_UPDATE_RPC, PDC_SUBLET_PROVIDER_UPDATE_RPC, PDC_SUBLET_RETURN_RPC, PDC_PARTS_ETA_UPDATE_RPC, PDC_PARTS_ORDERED_RPC, PDC_PARTS_COMPLETE_RPC, PDC_PARTS_STOPPAGE_RPC, PDC_PARTS_COMPLETE_SUCCESS_CODES, PDC_VEHICLE_HISTORY_RPC, PDC_SALES_PREPARATION_UPDATE_RPC, PDC_SALESPERSON_ASSIGNMENT_RPC, PDC_VEHICLE_DETAIL_FIELDS_RPC, PDC_STOPPAGE_CLEAR_RPC, PDC_PMB_STOPPAGE_RPC, PDC_RFT_TRANSPORT_BOOK_RPC, PDC_RFT_TRANSPORT_COLLECT_RPC, PDC_RFT_CONFIRMATION_RPC, PDC_RFT_TRANSPORT_DRAFT_BOOK_RPC, PDC_RFT_TRANSPORT_DRAFT_CONTEXT_RPC, PDC_RFT_TRANSPORT_DRAFT_READ_RPC, PDC_FINAL_QC_TO_RFT_RPC, PDC_FINAL_RFT_BOOK_RPC, PDC_FINAL_RFT_COLLECT_RPC, PDC_FINAL_LIFECYCLE_RECEIPTS_TABLE, PDC_ACCEPTANCE_VEHICLE_CREATE_RPC, PDC_QC_OPERATION_COMPLETION_RPC, PDC_PIT_LINE_TICK_RPC, PDC_PIT_LINE_TICKS_READ_RPC, PDC_QC_PHOTO_BUCKET, PDC_QC_PHOTO_RECEIPT_RPC, PDC_QC_FINALIZATION_RPC, PDC_QC_RETEST_PHOTO_RPC, PDC_QC_RETEST_FINALIZATION_RPC, canonicalWorkKey, mapLifecycleHistory, mapServerVehicle, isVehicleCreationEvent, presentVehicleCreationEvents, reconcileVehicleRows, createPdcEmailVehicleLocationService };
 if (typeof module !== 'undefined' && module.exports) module.exports = pdcEmailVehicleLocationExported;
 if (typeof window !== 'undefined') window.PDC_EMAIL_VEHICLE_LOCATION_SERVICE = pdcEmailVehicleLocationExported;

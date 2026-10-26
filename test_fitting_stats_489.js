@@ -111,8 +111,10 @@ test('board wiring: hidden admin nav item and view, route guard, cache busts, Pa
   const html = read('index.html'), app = read('app.js');
   assert.match(html, /<button type="button" class="nav-item nav-admin-item" id="nav-fitting-stats" data-view="fitting-stats" data-short="FST" hidden>Fitting statistics<\/button>/);
   assert.match(html, /<section id="fitting-stats" class="view" hidden>\s*<div id="fitting-stats-content" class="panel"><\/div>/);
-  assert.match(html, /<link rel="stylesheet" href="pdc-fitting-stats\.css\?r489=2026\.10\.23\.r489">/);
-  assert.match(html, /<script src="pdc-fitting-stats\.js\?r489=2026\.10\.23\.r489" defer><\/script>/);
+  const lazy = require('./pdc-lazy-admin-views.js').DEFINITIONS.find(view => view.name === 'PdcFittingStats');
+  assert.equal(lazy.css, 'pdc-fitting-stats.css?r489=2026.10.23.r489');
+  assert.equal(lazy.script, 'pdc-fitting-stats.js?r489=2026.10.23.r489');
+  assert.match(html, /<script src="pdc-lazy-admin-views\.js\?v=2026\.10\.26\.opt1" defer><\/script>/);
   assert.match(html, /<script src="app\.js\?[^"]*r489=2026\.10\.23\.r489/);
   assert.match(app, /if \(requestedView === 'fitting-stats' && !userManagementAdministratorActive\(\)\) \{\s*window\.PdcFittingStats\?\.reset\(\);\s*requestedView = 'dashboard';/);
   assert.match(app, /new Set\(\['user-management', 'update-history', 'fitting-stats',/);

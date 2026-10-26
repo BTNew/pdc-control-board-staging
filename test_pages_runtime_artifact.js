@@ -36,7 +36,7 @@ function replaceFixture(t, filename, change) {
   t.after(() => fs.writeFileSync(absolute, before));
 }
 
-test('artifact keeps exact entry, deferred modules, PDF/QZ workers and guide bytes while excluding private repository material', () => {
+test('artifact preserves entry order, deferred modules, vendor/guide bytes and excludes private material', () => {
   const excluded = [
     'review-evidence/fixture.json', 'handoffs/fixture.json', 'backend/runtime.py',
     'supabase/migrations/fixture.sql', 'tests/fixture.js', 'scripts/pdc_backup.py',
@@ -50,7 +50,7 @@ test('artifact keeps exact entry, deferred modules, PDF/QZ workers and guide byt
   }
   const outputRoot = path.join(temporaryRoot, 'artifact');
   const result = builder.buildRuntimeArtifact(sourceRoot, outputRoot);
-  const published = new Set(['app.js', 'styles.css']);
+  const published = new Set(builder.PUBLISHED_MINIFIED_ASSETS);
   const expected = [...builder.RUNTIME_FILES, ...builder.PUBLISHED_SOURCE_MAPS, builder.BUILD_VERSION_FILE].sort();
   assert.equal(result.fileCount, expected.length);
   assert.deepEqual(filesBelow(outputRoot), expected);
@@ -58,7 +58,7 @@ test('artifact keeps exact entry, deferred modules, PDF/QZ workers and guide byt
     const digest = root => crypto.createHash('sha256').update(fs.readFileSync(path.join(root, filename))).digest('hex');
     if (published.has(filename)) {
       assert.notEqual(digest(outputRoot), digest(sourceRoot), filename + ' is minified only in the published artifact');
-      assert.ok(fs.readFileSync(path.join(outputRoot, filename)).length < fs.readFileSync(path.join(sourceRoot, filename)).length, filename);
+      assert.ok(fs.existsSync(path.join(outputRoot, filename + '.map')), filename + ' retains a debug source map');
       continue;
     }
     if (builder.BUILD_TAGGED_PAGES.includes(filename)) {

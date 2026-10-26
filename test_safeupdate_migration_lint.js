@@ -52,3 +52,28 @@ test('a migration newer than the lock cannot keep a bare DELETE', () => {
   });
   assert.equal(errors.some(error => error.includes('newer than')), true);
 });
+
+
+test('filesystem migration scan keeps portable baseline keys and still rejects newer bare DML', () => {
+  const os = require('node:os'), path = require('node:path');
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pdc-safeupdate-path-test-'));
+  try {
+    const dir = path.join(fixtureRoot, 'supabase', 'migrations');
+    fs.mkdirSync(dir, { recursive:true });
+    fs.writeFileSync(path.join(dir, '20261021000000_future.sql'), 'DELETE FROM public.future;');
+    const found = lintMigrationFiles(fixtureRoot);
+    const key = 'supabase/migrations/20261021000000_future.sql';
+    assert.deepEqual(Object.keys(found), [key]);
+    const errors = compareBaseline(found, {
+      locked_through_version: baseline.locked_through_version,
+      violations: { [key]: found[key].map(item => item.id) }
+    });
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /newer than .* DELETE or UPDATE without a WHERE clause/);
+  } finally {
+    const absolute = path.resolve(fixtureRoot);
+    assert.equal(path.dirname(absolute), path.resolve(os.tmpdir()));
+    assert.ok(path.basename(absolute).startsWith('pdc-safeupdate-path-test-'));
+    fs.rmSync(absolute, { recursive:true, force:true });
+  }
+});
