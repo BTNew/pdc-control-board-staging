@@ -152,6 +152,26 @@ BEGIN
  PERFORM pg_temp.ou_assert(public.get_fitter_job(othertech,b)->>'error'='assignment_changed','Other mechanic cannot change this job');
  r:=public.fitter_job_command(tech,b,0,NULL,gen_random_uuid(),'start');
  PERFORM pg_temp.ou_assert((r->>'already_started')::boolean,'Already started by controller is idempotent');
+ -- A running booking is not an item Start. r440 requires Start on each internal
+ -- item before Done; verify the refusal as well as the permitted sequence.
+ d:=public.get_fitter_job(tech,b);
+ ver:=(d->>'version')::int;
+ r:=public.fitter_job_command(tech,b,ver,d->>'catalog_hash',gen_random_uuid(),'line','source:'||op,true,'Done before item Start');
+ PERFORM pg_temp.ou_assert(r->>'error'='item_not_started','Done before item Start is rejected',r);
+ d:=public.get_fitter_job(tech,b);
+ PERFORM pg_temp.ou_assert((d->>'version')::int=ver AND (d#>>'{progress,percent}')::numeric=0,
+  'Rejected Done preserves booking version and progress',d->'progress');
+ PERFORM pg_temp.ou_assert(EXISTS(SELECT 1 FROM pdc_fitter_private.operation_timing_audit a
+  WHERE a.booking_id=b AND a.line_identity='source:'||op AND a.action='item_done_refused' AND a.actor_id=auth.uid()),
+  'Done-before-Start refusal is audited');
+ r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'item_start','source:'||op,NULL,NULL);
+ PERFORM pg_temp.ou_assert(coalesce((r->>'ok')::boolean,false),'First item started',r);
+ d:=public.get_fitter_job(tech,b);
+ PERFORM pg_temp.ou_assert((d->>'version')::int=ver AND (d#>>'{progress,completed_hours}')::numeric=0
+  AND EXISTS(SELECT 1 FROM jsonb_array_elements(d->'lines') l WHERE l->>'line_identity'='source:'||op
+   AND l->>'item_status'='running' AND NOT coalesce((l->>'completed')::boolean,false)),
+  'Item Start readback is running without completing work or changing booking version',d->'progress');
+ -- Keep this exact pre-Done snapshot for receipt replay and stale-write checks.
  rid:=gen_random_uuid();
  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',rid,'line','source:'||op,true,'Installed and checked fit');
  PERFORM pg_temp.ou_assert((r->>'ok')::boolean,'First line saved',r);
@@ -162,6 +182,12 @@ BEGIN
  d:=public.get_fitter_job(tech,b);
  PERFORM pg_temp.ou_assert((d#>>'{progress,percent}')::numeric=10,'One completed hour out of ten is ten percent',d->'progress');
  SELECT l INTO payload FROM jsonb_array_elements(d->'lines') l WHERE l->>'stage_code'='FITTING' AND (l->>'hours')::numeric=2;
+ r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'item_start',payload->>'line_identity',NULL,NULL);
+ PERFORM pg_temp.ou_assert(coalesce((r->>'ok')::boolean,false),'Second item started',r);
+ d:=public.get_fitter_job(tech,b);
+ PERFORM pg_temp.ou_assert((d#>>'{progress,percent}')::numeric=10
+  AND EXISTS(SELECT 1 FROM jsonb_array_elements(d->'lines') l WHERE l->>'line_identity'=payload->>'line_identity' AND l->>'item_status'='running'),
+  'Second item Start is visible without adding completed hours',d->'progress');
  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'line',payload->>'line_identity',true,'Second item done');
  d:=public.get_fitter_job(tech,b);
  PERFORM pg_temp.ou_assert((r->>'ok')::boolean AND (d#>>'{progress,percent}')::numeric=30,'Two more hours adds twenty percent',d->'progress');
@@ -170,9 +196,24 @@ BEGIN
  PERFORM pg_temp.ou_assert(public.pdc_qc_operation_lines_379(v)=qc_before,'Fitter ticks leave QC inspection unchanged');
  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'complete');
  PERFORM pg_temp.ou_assert(r->>'error'='items_incomplete','Cannot finish with incomplete items');
+ -- r532 permits other-station items but retains item Start and identity guards.
+ -- A fictitious identity remains unavailable; an actual unstarted Electrical
+ -- item must be rejected by Start-before-Done, not the retired station rule.
+ d:=public.get_fitter_job(tech,b);
+ ver:=(d->>'version')::int;
+ r:=public.fitter_job_command(tech,b,ver,d->>'catalog_hash',gen_random_uuid(),'line','source:'||gen_random_uuid(),true,'');
+ PERFORM pg_temp.ou_assert(r->>'error'='line_unavailable','Unknown line identity remains unavailable',r);
  SELECT l INTO payload FROM jsonb_array_elements(d->'lines') l WHERE l->>'stage_code'='ELECTRICAL';
+ PERFORM pg_temp.ou_assert(payload IS NOT NULL,'Other-station fixture line is present');
  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'line',payload->>'line_identity',true,'');
- PERFORM pg_temp.ou_assert(r->>'error'='line_unavailable','Other station items are read only');
+ PERFORM pg_temp.ou_assert(r->>'error'='item_not_started','Other-station Done also requires item Start',r);
+ d:=public.get_fitter_job(tech,b);
+ PERFORM pg_temp.ou_assert((d->>'version')::int=ver AND (d#>>'{progress,percent}')::numeric=30
+  AND EXISTS(SELECT 1 FROM jsonb_array_elements(d->'lines') l WHERE l->>'line_identity'=payload->>'line_identity'
+   AND NOT coalesce((l->>'completed')::boolean,false))
+  AND EXISTS(SELECT 1 FROM public.vehicle_work_items w WHERE w.vehicle_id=v
+   AND w.work_key=(SELECT s.work_key FROM public.workshop_stages s WHERE s.code='ELECTRICAL') AND NOT w.completed),
+  'Rejected unknown and unstarted other-station lines preserve saved progress and required work',d->'progress');
  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'stop',NULL,NULL,'Parts: waiting for bracket');
  PERFORM pg_temp.ou_assert((r->>'ok')::boolean,'Parts stoppage uses planner lifecycle',r);
  d:=public.get_fitter_job(tech,b);
@@ -191,6 +232,14 @@ BEGIN
  PERFORM pg_temp.ou_assert((d#>>'{progress,completed_hours}')::numeric=2 AND (d#>>'{progress,total_hours}')::numeric=11,'Changed hours revoke previous item completion',d->'progress');
  FOR payload IN SELECT l FROM jsonb_array_elements(d->'lines') l WHERE l->>'stage_code'='FITTING' AND NOT (l->>'completed')::boolean LOOP
   d:=public.get_fitter_job(tech,b);
+  -- A changed scope invalidates prior item timing as well as completion.
+  r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'item_start',payload->>'line_identity',NULL,NULL);
+  PERFORM pg_temp.ou_assert(coalesce((r->>'ok')::boolean,false),'Start remaining line '||(payload->>'line_identity'),r);
+  d:=public.get_fitter_job(tech,b);
+  PERFORM pg_temp.ou_assert(EXISTS(SELECT 1 FROM jsonb_array_elements(d->'lines') l
+   WHERE l->>'line_identity'=payload->>'line_identity' AND l->>'item_status'='running'
+    AND NOT coalesce((l->>'completed')::boolean,false)),
+   'Remaining line has current-scope running timing '||(payload->>'line_identity'));
   r:=public.fitter_job_command(tech,b,(d->>'version')::int,d->>'catalog_hash',gen_random_uuid(),'line',payload->>'line_identity',true,'Final review');
   PERFORM pg_temp.ou_assert((r->>'ok')::boolean,'Complete remaining line '||(payload->>'line_identity'),r);
  END LOOP;

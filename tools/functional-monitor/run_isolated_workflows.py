@@ -96,7 +96,7 @@ def run(output: Path, scenario_names: list[str] | None = None, fingerprints: Pat
     summary = {"started_at": datetime.now(timezone.utc).isoformat(), "project": EXPECTED_PROJECT,
         "test_vehicle_label": "TEST VEHICLE", "backup_finished_at": manifest["finished_at"],
         "live_database_modified": False, "outbound_emails": False, "scenarios": [],
-        "browser_drag_checks": "NOT RUN: authenticated computer-use connection unavailable"}
+        "browser_drag_checks": "NOT RUN: this database runner has no isolated browser/API bridge"}
     expected = None
     if fingerprints:
         expected = json.loads(fingerprints.read_text(encoding="utf-8"))
@@ -236,7 +236,7 @@ ON CONFLICT(key) DO UPDATE SET value=excluded.value;
     summary["finished_at"] = datetime.now(timezone.utc).isoformat()
     passed = bool(summary.get("restore_passed") and summary.get("test_vehicle") == "PASS" and summary.get("local_server_stopped") and summary.get("plaintext_removed") and summary["scenarios"] and all(x["status"] == "PASS" for x in summary["scenarios"]))
     summary["database_workflow_status"] = "PASS" if passed else "FAIL"
-    summary["coverage_gaps"] = ["Authenticated browser interaction and dragging", "Storage file contents and external provider integrations"]
+    summary["coverage_gaps"] = ["Browser movement/save/dragging through an isolated API bridge", "Storage file contents and external provider integrations"]
     if summary.get("backend_version_check", {}).get("status") != "PASS":
         summary["coverage_gaps"].append("Current live backend version not fully verified against restored copy")
     summary["overall"] = "CHECKS_PASSED_WITH_COVERAGE_GAPS" if passed else "FAIL"
