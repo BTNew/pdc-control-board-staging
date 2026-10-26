@@ -266,10 +266,13 @@ CROSS JOIN (
 $chk548$,
  true, 324, 'r548');
 
+-- Assert this check only. The full runner across the :00 tick is what reddened clock_ticks_recent.
 DO $chk$
-DECLARE v_ok boolean; v_detail text;
+DECLARE v_ok boolean; v_detail text; v_sql text;
 BEGIN
  PERFORM set_config('search_path', 'pg_catalog', true);
- SELECT ok, detail INTO v_ok, v_detail FROM pdc_ops.fault_regression_check() WHERE check_name = 'unallocated_bay_rechain_548';
+ SELECT c.check_sql INTO v_sql FROM pdc_ops.regression_checks c WHERE c.check_name = 'unallocated_bay_rechain_548';
+ IF v_sql IS NULL THEN RAISE EXCEPTION 'r548: check row missing'; END IF;
+ EXECUTE v_sql INTO v_ok, v_detail;
  IF v_ok IS NOT TRUE THEN RAISE EXCEPTION 'r548: unallocated_bay_rechain_548 failed: %', coalesce(v_detail, 'no row'); END IF;
 END $chk$;
