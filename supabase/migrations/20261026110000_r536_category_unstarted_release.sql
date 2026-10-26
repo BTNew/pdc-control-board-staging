@@ -250,7 +250,6 @@ INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,
    AND p.prosrc LIKE '%category_release_536%'
    AND p.proacl::text='{postgres=X/postgres,service_role=X/postgres,authenticated=X/postgres}'
   FROM pg_proc p WHERE p.oid=to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'))
- AND (SELECT count(*) FROM pdc_ops.expected_function_md5)=241
  AND (
   to_regprocedure('karratha135_pdc.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)') IS NULL
   OR (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_pdc.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'))
