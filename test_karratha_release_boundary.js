@@ -111,7 +111,8 @@ const approvedRootImportPatch = Object.freeze({
   // r540: a job chip opens the Vehicle Locations side panel instead of the centred station job modal (F154). Department 135 keeps its frozen planner.
   // r550: Find a workshop booking is a key-number box plus stock, job card, customer or vehicle (F164). Department 135 keeps its frozen planner.
   // r548: null-bay siblings do not block a drop, and bay 0 reads Unallocated (F162). Department 135 is not tagged.
-  "workshop-planner.js": "8be93524943e6f5b6d225fa15304f339190cf863d1d40968da4784218c2e3645",
+  // Linked job-card search labels use the same verified card list as matching; Department 135 keeps its frozen planner.
+  "workshop-planner.js": "110602ce09e2c287c987395f64524c3e50aee5f891235bf7ba282504e587bd83",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "28f7eb47951e869bc90ec5a6e0bb2e15162b9d5ad8c3b1f8b808dc7ace6eec00",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
@@ -222,7 +223,8 @@ const approvedRootImportPatch = Object.freeze({
   // r540: r540=2026.10.26.r540 on both workshop-planner.js loads in app.js (chip opens the vehicle side panel, F154). Department 135 is not tagged.
   // r550: r550=2026.10.26.r550 on both workshop-planner.js loads (F164).
   // r548: r548=2026.10.26.r548 on both workshop-planner.js loads in app.js (unallocated rows do not block a bay, F162). Department 135 is not tagged.
-  "app.js": "19e54817ec3948b8128d31397bd19923b182f2fe0294ad3b49164ca93706e4b1",
+  // search-jobcards=2026.10.26.01 versions both planner loads; Department 135 keeps its frozen app.js.
+  "app.js": "b9c787f72d280392ab95882c3b9d5e59cd6526cfc71d4fe62c6d0d3e4d0a7729",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -329,7 +331,8 @@ const approvedRootImportPatch = Object.freeze({
   // r539: r539=2026.10.26.r539 on pdc-planner-capacity.js (Close gaps bay name and hold reason; F153). Department 135 is not tagged.
   // r550: r550=2026.10.26.r550 on workshop-planner.css (F164). Department 135 is not tagged.
   // r548: r548=2026.10.26.r548 on pdc-workshop-departments.js and app.js (unallocated rows do not block a bay, F162). Department 135 is not tagged.
-  "index.html": "95cfba8322bb5324e5ee09168d4c7927a14c48b2c8b72c50eeb3a9aeca15bf70",
+  // search-jobcards=2026.10.26.01 versions the app loader; Department 135 keeps its frozen entry page.
+  "index.html": "5627aae3e8219267a2e4aceea3e8e4613356f02913c9381e928703a8cc409c86",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

@@ -61,7 +61,7 @@ const context = {
   pmbStageLabel: value => value,
   workshopRefreshSearchResults: () => {},
 };
-names.push('workshopSearchMatchRows', 'workshopReturnedQueuePlans');
+names.push('workshopSearchMatchRows', 'workshopReturnedQueuePlans', 'workshopSearchJobCards');
 vm.createContext(context);
 vm.runInContext(names.map(extract).join('\n'), context);
 async function main() {
