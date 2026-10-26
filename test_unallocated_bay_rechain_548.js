@@ -124,6 +124,8 @@ test('r548: the migration widens the overlap guard, rechains in workshop order, 
   assert.match(check, /position\('Bay 00' IN body\.prosrc\) = 0/);
   assert.match(check, /position\('Bay 00' IN chain\.prosrc\) = 0/);
   assert.match(check, /and b\.bay_id IS NOT NULL/);
+  assert.match(check, /AS ok/);
+  assert.match(check, /AS detail/);
   assert.match(check, /vehicle_overlap/);
   assert.match(check, /bay_overlap/);
   assert.match(down, /NOT \(b\.status=''queued'' AND b\.bay_id IS NULL\)/);

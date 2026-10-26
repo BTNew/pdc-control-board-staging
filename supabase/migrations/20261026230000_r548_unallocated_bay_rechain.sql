@@ -211,6 +211,11 @@ SELECT
   AND position('bay_id IS NULL' IN chain.prosrc) > 0
   AND position('Bay 00' IN chain.prosrc) = 0
   AND position('UPDATE public.workshop_bookings' IN chain.prosrc) > 0
+ AS ok,
+ format('pins %s release %s predicate %s triggers %s/%s',
+   pins.n, pin.release,
+   position('and b.bay_id IS NOT NULL' IN body.prosrc) > 0,
+   trg.present, trg.insert_present) AS detail
 FROM (SELECT count(*)::integer AS n FROM pdc_ops.expected_function_md5) pins
 CROSS JOIN (
   SELECT prosrc_md5, release FROM pdc_ops.expected_function_md5
