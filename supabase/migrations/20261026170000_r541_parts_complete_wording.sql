@@ -3,13 +3,18 @@
 -- 'RE: New vehicle order for 13102818 - PMG Build'
 -- (message <SY1P282MB6355D7DB1314F5E461980BCEAC642@SY1P282MB6355.AUSP282.PROD.OUTLOOK.COM>)
 -- was refused as unverified_or_ambiguous_confirmation.
--- The whole reply Parts complete or All parts complete is accepted from a verified internal pmgwa sender.
--- All parts removed is not complete. The stock in 'New vehicle order for <stock> - PMG Build' is the number after for.
--- parts.malaga@pmgwa.com.au can say Parts complete on one EPT thread matched by job card and rego.
--- A second stock, a second job card, or wording that is not the whole phrase is still refused.
--- Pin count stays 241. The person recorder is not pinned. Sort 318 is reserved for r539. This check is sort 319.
--- Person prosrc md5 00f93577e68479a0063d3955bb3c4be7 (was 8ddb1477beeb94c7879c4021cccf1d40).
--- Undo: supabase/rollbacks/20261026150000_r541_parts_complete_wording.down.sql
+-- 26 Oct 2026 10:49 AWST: a clear affirmative counts. Parts complete, all parts complete, all parts are here,
+-- parts are here, parts arrived, all parts in, and the same kind of sentence. A negative, a question or a
+-- partial does not: not complete, waiting on, except, is it complete?, all parts removed.
+-- The email-AI path may pass ai_classification (complete, not_complete or ambiguous), ai_confidence and ai_quote.
+-- Only complete at high confidence is accepted, and a negative, question or partial still wins.
+-- The verified internal pmgwa sender and the header checks stay.
+-- The stock in 'New vehicle order for <stock> - PMG Build' is the number after for.
+-- parts.malaga@pmgwa.com.au can confirm on one EPT thread matched by job card and rego.
+-- A second stock or a second job card is still refused.
+-- Pin count stays 241. The person recorder is not pinned. Sort 318 is r539. This check is sort 319.
+-- Person prosrc md5 ee35fb998b0264d4a67cb3f49d25a8e4 (was 8ddb1477beeb94c7879c4021cccf1d40).
+-- Undo: supabase/rollbacks/20261026170000_r541_parts_complete_wording.down.sql
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
@@ -30,6 +35,78 @@ END $g$;
 ALTER TABLE public.pdc_parts_completion_email_confirmations DROP CONSTRAINT person_confirmation_stock;
 ALTER TABLE public.pdc_parts_completion_email_confirmations ADD CONSTRAINT person_confirmation_stock CHECK (stock_number ~ '^([0-9]{8}|IS[0-9]{8}|[0-9][A-Z]{2,4}[0-9]{2,4})$');
 
+CREATE OR REPLACE FUNCTION public.pdc_parts_reply_norm_541(p_text text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path TO pg_catalog
+AS $norm541$
+DECLARE t text := lower(regexp_replace(btrim(coalesce(p_text,'')), '[[:space:]]+', ' ', 'g'));
+BEGIN
+  t := replace(t, '’', '''');
+  t := regexp_replace(t, '[.,!]+$', '');
+  t := btrim(regexp_replace(t, '\m(thanks|thank you|many thanks|cheers)\M$', ''));
+  t := btrim(regexp_replace(t, '[.,!]+$', ''));
+  RETURN t;
+END
+$norm541$;
+
+CREATE OR REPLACE FUNCTION public.pdc_parts_reply_wording_541(p_text text)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path TO pg_catalog
+AS $word541$
+DECLARE t text := public.pdc_parts_reply_norm_541(p_text);
+BEGIN
+  IF t = '' THEN RETURN 'ambiguous'; END IF;
+  IF t ~ '\?'
+     OR t ~ '^(is|are|do|does|did|can|could|has|have|will|would|when|what|which|why|how)\M'
+     OR t ~ '\m(not|no|never|without|missing|waiting|except|outstanding|incomplete|removed|partial|but|none)\M'
+     OR t ~ '\m(haven''t|hasn''t|don''t|didn''t|won''t|cannot|can''t|isn''t|aren''t)\M'
+     OR t ~ '(all but|only some|some parts|most parts|apart from|other than|except for|waiting on|still waiting|yet to)'
+  THEN RETURN 'not_complete'; END IF;
+  IF length(t) > 80 THEN RETURN 'ambiguous'; END IF;
+  IF t ~ '^(all )?(of )?(the |our )?parts( are| is| have| has| been)?( all| now| fully)? (here|in|complete|completed|arrived|received|ready|on hand|on site)( now)?$'
+     OR t ~ '^(all )?(of )?(the |our )?parts (have |has )?(all )?(now )?(arrived|come in|come through)$'
+     OR t ~ '^we (have|got) (all )?(of )?(the |our )?parts( now| here| in)?$'
+     OR t ~ '^we''ve got (all )?(of )?(the |our )?parts( now| here| in)?$'
+  THEN RETURN 'complete'; END IF;
+  RETURN 'ambiguous';
+END
+$word541$;
+
+CREATE OR REPLACE FUNCTION public.pdc_parts_reply_decision_541(p_text text, p_ai jsonb)
+RETURNS text
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path TO pg_catalog
+AS $dec541$
+DECLARE
+  wording text := public.pdc_parts_reply_wording_541(p_text);
+  klass text := lower(btrim(coalesce(p_ai->>'ai_classification','')));
+  confidence text := lower(btrim(coalesce(p_ai->>'ai_confidence','')));
+  high boolean;
+  quote text := public.pdc_parts_reply_norm_541(p_ai->>'ai_quote');
+  body text := public.pdc_parts_reply_norm_541(p_text);
+BEGIN
+  high := confidence IN ('high','high_confidence')
+    OR (confidence ~ '^[0-9]+([.][0-9]+)?$' AND confidence::numeric >= 0.9);
+  IF wording = 'not_complete' OR klass = 'not_complete' THEN RETURN 'not_complete'; END IF;
+  IF klass = 'ambiguous' THEN RETURN 'ambiguous'; END IF;
+  IF klass = 'complete' AND high AND quote <> '' AND quote IS DISTINCT FROM body THEN RETURN 'ambiguous'; END IF;
+  IF klass = 'complete' AND high AND wording = 'complete' THEN RETURN 'complete'; END IF;
+  IF klass = 'complete' AND high AND quote = body AND body <> '' THEN RETURN 'complete'; END IF;
+  IF klass = 'complete' AND NOT high THEN RETURN wording; END IF;
+  IF klass = '' THEN RETURN wording; END IF;
+  RETURN 'ambiguous';
+END
+$dec541$;
+
+REVOKE ALL ON FUNCTION public.pdc_parts_reply_norm_541(text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.pdc_parts_reply_wording_541(text) FROM PUBLIC, anon, authenticated, service_role;
+REVOKE ALL ON FUNCTION public.pdc_parts_reply_decision_541(text, jsonb) FROM PUBLIC, anon, authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.record_pdc_person_parts_complete_20260913(p_stock text, p_gmail_message_id text, p_received_at timestamp with time zone, p_subject text, p_confirmation_text text, p_evidence_sha256 text, p_authentication jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -44,6 +121,7 @@ DECLARE v public.vehicles%rowtype; c public.pdc_parts_completion_email_confirmat
  internal_auth boolean; source_ok boolean; external_ok boolean; internal_ok boolean;
  subj text; order_stock text; plain boolean; ept_candidate boolean; order_disagrees boolean;
  stock_n integer; job_n integer; rego_n integer; job_tok text; rego_tok text;
+ stock_body text; stock_hit boolean;
 BEGIN
  IF pdc_codex_intake_private.management_connection() IS NOT TRUE THEN RETURN jsonb_build_object('ok',false,'code','not_authorized'); END IF;
  domain:=split_part(sender,'@',2); auth_result:=p_authentication->>'authentication_results';
@@ -94,7 +172,7 @@ BEGIN
   AND p_authentication->>'verified_by'='microsoft_receiving_provider'
   AND coalesce(auth_result,'') ~* '^mx[.]microsoft[.]com([[:space:]]+[0-9]+)?[[:space:]]*;'
   AND (external_ok OR internal_ok),false);
- -- r541: the whole reply is Parts complete or All parts complete. All parts removed is not.
+ -- r541: a clear affirmative, or email-AI complete at high confidence. A negative, question or partial stays refused.
  subj:=lower(regexp_replace(btrim(coalesce(p_subject,'')),'[[:space:]]+',' ','g'));
  subj:=regexp_replace(subj,'^((re|fw|fwd):[[:space:]]+)+','');
  order_stock:=substring(subj from '^new vehicle order for ([0-9]{8}|is[0-9]{8}) - pmg build$');
@@ -104,7 +182,12 @@ BEGIN
   FROM regexp_matches(coalesce(p_subject,''),'(^|[^A-Za-z0-9])(J[0-9]{6,12})(?=[^A-Za-z0-9]|$)','gi') AS m;
  SELECT count(DISTINCT upper(m[2]))::integer, min(upper(m[2])) INTO rego_n, rego_tok
   FROM regexp_matches(coalesce(p_subject,''),'(^|[^A-Za-z0-9])([0-9][A-Za-z]{2,4}[0-9]{2,4})(?=[^A-Za-z0-9]|$)','gi') AS m;
- plain:=body ~ '^(all )?parts complete[.!]?$';
+ stock_hit:=coalesce(p_stock,'') ~ '^([0-9]{8}|IS[0-9]{8})$'
+  AND coalesce(body,'') ~* ('(^|[^A-Za-z0-9])'||p_stock||'([^A-Za-z0-9]|$)');
+ stock_body:=CASE WHEN stock_hit THEN btrim(regexp_replace(regexp_replace(
+   regexp_replace(body,'(^|[^A-Za-z0-9])'||lower(p_stock)||'([^A-Za-z0-9]|$)',' ','gi'),
+   '\mfor\M',' ','g'),'[[:space:]]+',' ','g')) ELSE '' END;
+ plain:=public.pdc_parts_reply_decision_541(p_confirmation_text, p_authentication)='complete';
  order_disagrees:=order_stock IS NOT NULL AND order_stock IS DISTINCT FROM lower(p_stock);
  ept_candidate:=outlook_ok AND internal_ok AND sender='parts.malaga@pmgwa.com.au' AND plain
   AND coalesce(p_subject,'') ~* '(^|[^A-Za-z0-9])EPT([^A-Za-z0-9]|$)'
@@ -121,6 +204,8 @@ BEGIN
        OR (stock_n=1 AND coalesce(p_stock,'') ~ '^([0-9]{8}|IS[0-9]{8})$'
            AND coalesce(p_subject,'') ~* ('(^|[^A-Za-z0-9])'||p_stock||'([^A-Za-z0-9]|$)'))
      ))
+  OR (outlook AND internal_ok AND stock_hit AND public.pdc_parts_reply_wording_541(stock_body)='complete'
+      AND coalesce(stock_n,0)<=1 AND NOT order_disagrees)
   OR ept_candidate;
  IF p_stock IS NULL OR (p_stock !~ '^([0-9]{8}|IS[0-9]{8})$' AND NOT ept_candidate)
  OR p_gmail_message_id IS NULL
@@ -189,7 +274,7 @@ $person541$;
 REVOKE ALL ON FUNCTION public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb) FROM PUBLIC, anon, authenticated, service_role;
 
 UPDATE pdc_ops.regression_checks
-SET check_sql = replace(check_sql, '8ddb1477beeb94c7879c4021cccf1d40', '00f93577e68479a0063d3955bb3c4be7')
+SET check_sql = replace(check_sql, '8ddb1477beeb94c7879c4021cccf1d40', 'ee35fb998b0264d4a67cb3f49d25a8e4')
 WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth_515')
   AND fault_id IN ('F128','F129')
   AND sort_order IN (301,302)
@@ -197,24 +282,51 @@ WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth
 
 INSERT INTO pdc_ops.regression_checks(check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
 ('parts_complete_wording_541', 'F155',
- 'Parts-complete wording (r541): All parts complete and Parts complete from a verified internal pmgwa sender, the stock after for on a New vehicle order subject, and one parts.malaga EPT thread matched by job card and rego. All parts removed stays refused. Karratha keeps the 8-digit stock check.',
+ 'Parts-complete wording (r541): a clear affirmative from a verified internal pmgwa sender counts, including parts complete, all parts are here, parts arrived and all parts in. A negative, a question or a partial does not. Email-AI complete at high confidence can confirm the quoted text. Karratha keeps the 8-digit stock check.',
  $chk541$
 SELECT
  (
   pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)') IS NOT NULL
   AND (SELECT md5(p.prosrc) FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)'))
-      = '00f93577e68479a0063d3955bb3c4be7'
+      = 'ee35fb998b0264d4a67cb3f49d25a8e4'
   AND (SELECT p.prosecdef FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS NOT TRUE
-  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%^(all )?parts complete%'
+  AND pg_catalog.to_regprocedure('public.pdc_parts_reply_wording_541(text)') IS NOT NULL
+  AND pg_catalog.to_regprocedure('public.pdc_parts_reply_decision_541(text,jsonb)') IS NOT NULL
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%pdc_parts_reply_decision_541%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.pdc_parts_reply_decision_541(text,jsonb)')) LIKE '%ai_classification%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.pdc_parts_reply_decision_541(text,jsonb)')) LIKE '%ai_confidence%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.pdc_parts_reply_decision_541(text,jsonb)')) LIKE '%ai_quote%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%new vehicle order for%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%parts.malaga@pmgwa.com.au%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%IS[0-9]{8}%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) LIKE '%internal_ok AND domain=''pmgwa.com.au'' AND plain%'
-  AND 'all parts complete' ~ '^(all )?parts complete[.!]?$'
-  AND 'parts complete' ~ '^(all )?parts complete[.!]?$'
-  AND 'all parts complete.' ~ '^(all )?parts complete[.!]?$'
-  AND NOT ('all parts removed' ~ '^(all )?parts complete[.!]?$')
-  AND NOT ('parts complete thanks' ~ '^(all )?parts complete[.!]?$')
+  AND public.pdc_parts_reply_wording_541('parts complete') = 'complete'
+  AND public.pdc_parts_reply_wording_541('all parts complete') = 'complete'
+  AND public.pdc_parts_reply_wording_541('all parts are here') = 'complete'
+  AND public.pdc_parts_reply_wording_541('parts are here') = 'complete'
+  AND public.pdc_parts_reply_wording_541('parts arrived') = 'complete'
+  AND public.pdc_parts_reply_wording_541('all parts in') = 'complete'
+  AND public.pdc_parts_reply_wording_541('All parts complete.') = 'complete'
+  AND public.pdc_parts_reply_wording_541('the parts have arrived') = 'complete'
+  AND public.pdc_parts_reply_wording_541('parts complete thanks') = 'complete'
+  AND public.pdc_parts_reply_wording_541('not complete') = 'not_complete'
+  AND public.pdc_parts_reply_wording_541('waiting on') = 'not_complete'
+  AND public.pdc_parts_reply_wording_541('except') = 'not_complete'
+  AND public.pdc_parts_reply_wording_541('is it complete?') = 'not_complete'
+  AND public.pdc_parts_reply_wording_541('all parts removed') = 'not_complete'
+  AND public.pdc_parts_reply_wording_541('parts are not here') = 'not_complete'
+  AND public.pdc_parts_reply_wording_541('some parts are here') = 'not_complete'
+  AND public.pdc_parts_reply_decision_541('parts complete', NULL::pg_catalog.jsonb) = 'complete'
+  AND public.pdc_parts_reply_decision_541('the canopy landed', '{"ai_classification":"complete","ai_confidence":"high","ai_quote":"the canopy landed"}'::pg_catalog.jsonb) = 'complete'
+  AND public.pdc_parts_reply_decision_541('all parts removed', '{"ai_classification":"complete","ai_confidence":"high","ai_quote":"all parts removed"}'::pg_catalog.jsonb) = 'not_complete'
+  AND public.pdc_parts_reply_decision_541('is it complete?', '{"ai_classification":"complete","ai_confidence":"high","ai_quote":"is it complete?"}'::pg_catalog.jsonb) = 'not_complete'
+  AND public.pdc_parts_reply_decision_541('waiting on', '{"ai_classification":"complete","ai_confidence":"high","ai_quote":"waiting on"}'::pg_catalog.jsonb) = 'not_complete'
+  AND public.pdc_parts_reply_decision_541('except', '{"ai_classification":"complete","ai_confidence":"high","ai_quote":"except"}'::pg_catalog.jsonb) = 'not_complete'
+  AND public.pdc_parts_reply_decision_541('parts complete', '{"ai_classification":"ambiguous","ai_confidence":"high","ai_quote":"parts complete"}'::pg_catalog.jsonb) = 'ambiguous'
+  AND public.pdc_parts_reply_decision_541('parts complete', '{"ai_classification":"not_complete","ai_confidence":"high","ai_quote":"parts complete"}'::pg_catalog.jsonb) = 'not_complete'
+  AND public.pdc_parts_reply_decision_541('parts arrived yesterday', '{"ai_classification":"complete","ai_confidence":"low","ai_quote":"parts arrived yesterday"}'::pg_catalog.jsonb) = 'ambiguous'
+  AND public.pdc_parts_reply_decision_541('parts arrived yesterday', '{"ai_classification":"complete","ai_confidence":"high","ai_quote":"parts arrived yesterday"}'::pg_catalog.jsonb) = 'complete'
+  AND public.pdc_parts_reply_decision_541('parts are here', '{"ai_classification":"complete","ai_confidence":"high","ai_quote":"a different sentence"}'::pg_catalog.jsonb) = 'ambiguous'
   AND substring(regexp_replace(lower('RE: New vehicle order for 13102818 - PMG Build'), '^((re|fw|fwd):[[:space:]]+)+', '') from '^new vehicle order for ([0-9]{8}|is[0-9]{8}) - pmg build$') = '13102818'
   AND (SELECT count(*) FROM public.vehicles WHERE stock_number='13102818' AND deleted_at IS NULL AND lifecycle_state='active' AND visible_on_board AND board_purged_at IS NULL) = 1
   AND (SELECT count(*) FROM public.vehicles v
@@ -234,7 +346,7 @@ $chk541$, true, 319, 'r541');
 
 DO $p$ DECLARE x record; BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r541: pin count changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS DISTINCT FROM '00f93577e68479a0063d3955bb3c4be7' THEN RAISE EXCEPTION 'r541: person md5'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS DISTINCT FROM 'ee35fb998b0264d4a67cb3f49d25a8e4' THEN RAISE EXCEPTION 'r541: person md5'; END IF;
  IF (SELECT prosecdef FROM pg_proc WHERE oid=to_regprocedure('public.record_pdc_person_parts_complete_20260913(text,text,timestamptz,text,text,text,jsonb)')) IS TRUE THEN RAISE EXCEPTION 'r541: person recorder became security definer'; END IF;
  IF (SELECT pg_get_constraintdef(c.oid) FROM pg_constraint c WHERE c.conname='person_confirmation_stock' AND c.conrelid=to_regclass('karratha135_pdc.pdc_parts_completion_email_confirmations')) LIKE '%[0-9][A-Z]{2,4}[0-9]{2,4}%' THEN RAISE EXCEPTION 'r541: karratha stock check widened'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name IN ('outlook_parts_completion_514','outlook_internal_parts_auth_515') AND check_sql LIKE '%8ddb1477beeb94c7879c4021cccf1d40%') THEN RAISE EXCEPTION 'r541: old person md5 remains in a check'; END IF;

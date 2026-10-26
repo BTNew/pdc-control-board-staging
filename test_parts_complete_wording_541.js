@@ -5,8 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { scanSql } = require('./scripts/lint_migration_safeupdate_dml.js');
 
-const up = fs.readFileSync('supabase/migrations/20261026150000_r541_parts_complete_wording.sql', 'utf8');
-const down = fs.readFileSync('supabase/rollbacks/20261026150000_r541_parts_complete_wording.down.sql', 'utf8');
+const up = fs.readFileSync('supabase/migrations/20261026170000_r541_parts_complete_wording.sql', 'utf8');
+const down = fs.readFileSync('supabase/rollbacks/20261026170000_r541_parts_complete_wording.down.sql', 'utf8');
 const check = up.slice(up.indexOf('$chk541$'), up.lastIndexOf('$chk541$'));
 
 test('r541 accepts All parts complete and refuses All parts removed', () => {
@@ -15,13 +15,32 @@ test('r541 accepts All parts complete and refuses All parts removed', () => {
   assert.match(up, /cdsmnqxtyyoeoznmbidd/);
   assert.match(up, /true, 319, 'r541'/);
   assert.match(up, /Pin count stays 241/);
-  assert.match(up, /00f93577e68479a0063d3955bb3c4be7/);
+  assert.match(up, /ee35fb998b0264d4a67cb3f49d25a8e4/);
   assert.match(up, /8ddb1477beeb94c7879c4021cccf1d40/);
   assert.match(up, /parts\.malaga@pmgwa\.com\.au/);
   assert.match(up, /new vehicle order for/);
-  assert.match(up, /All parts removed is not/);
+  assert.match(up, /ai_classification/);
   assert.match(up, /13102818/);
   assert.match(up, /1IRU519/);
+  for (const [phrase, result] of [
+    ['parts complete', 'complete'],
+    ['all parts complete', 'complete'],
+    ['all parts are here', 'complete'],
+    ['parts are here', 'complete'],
+    ['parts arrived', 'complete'],
+    ['all parts in', 'complete'],
+    ['not complete', 'not_complete'],
+    ['waiting on', 'not_complete'],
+    ['except', 'not_complete'],
+    ['is it complete?', 'not_complete'],
+    ['all parts removed', 'not_complete'],
+  ]) {
+    const quoted = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    assert.match(check, new RegExp(`pdc_parts_reply_wording_541\\('${quoted}'\\) = '${result}'`));
+  }
+  assert.match(check, /ai_classification":"ambiguous"/);
+  assert.match(check, /ai_classification":"not_complete"/);
+  assert.match(check, /ai_confidence":"high"/);
   assert.match(check, /pg_catalog\.to_regprocedure\('public\.record_pdc_person_parts_complete_20260913\(text,text,timestamptz,text,text,text,jsonb\)'\)/);
   assert.match(check, /LIKE '%internal_ok AND domain=''pmgwa.com.au'' AND plain%'/);
   assert.doesNotMatch(check, /::(?:pg_catalog\.)?regprocedure/);
