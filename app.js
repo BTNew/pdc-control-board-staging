@@ -15973,6 +15973,51 @@ async function completeVehicleDelete(stock) {
   }
 }
 
+function vehicleEmailNotesVisible() {
+  const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
+  return role === 'operator' || role === 'administrator';
+}
+
+function vehicleEmailNoteWhen(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-AU', {
+    timeZone: 'Australia/Perth', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(date);
+}
+
+function vehicleEmailNoteHtml(note) {
+  const labels = {
+    stoppage: 'Stoppage',
+    cancellation: 'Cancellation',
+    job_card: 'Job card',
+    eta_chase: 'ETA chase',
+    po_received: 'PO received',
+  };
+  const category = labels[note.category] || 'Email note';
+  const who = [note.sender_name, note.sender_email].map(part => String(part || '').trim()).filter(Boolean).join(' · ');
+  const when = vehicleEmailNoteWhen(note.event_at);
+  return `<div class="note-pill"><strong>${escapeHtml(category)}</strong> — ${escapeHtml(note.summary || '')}<br>${escapeHtml(note.quote || '')}<br><span class="subtle">${escapeHtml([who, when].filter(Boolean).join(' · '))}</span></div>`;
+}
+
+async function loadVehicleEmailNotes(vehicle, panel) {
+  const host = panel.querySelector('[data-vehicle-email-notes] .notes-list');
+  if (!host || !vehicleEmailNotesVisible()) return;
+  const vehicleId = String(vehicle.__emailVehicleId || vehicle.id || '').trim();
+  if (!vehicleId || !window.PDC_SUPABASE?.rpc) {
+    host.innerHTML = '<div class="subtle">No email notes on this vehicle yet.</div>';
+    return;
+  }
+  const { data, error } = await window.PDC_SUPABASE.rpc('list_vehicle_email_notes_542', { p_vehicle_id: vehicleId });
+  if (!panel.isConnected) return;
+  const notes = Array.isArray(data) ? data : [];
+  if (error || !notes.length) {
+    host.innerHTML = `<div class="subtle">${error ? 'Email notes could not be loaded.' : 'No email notes on this vehicle yet.'}</div>`;
+    return;
+  }
+  host.innerHTML = notes.map(vehicleEmailNoteHtml).join('');
+}
+
 function renderDetail() {
   const v = selectedVehicle();
   const panel = $('#vehicle-detail');
@@ -16136,6 +16181,10 @@ function renderDetail() {
         <div class="muted-label">Import & detailed audit trail</div>
         ${renderAuditTrailSection(v)}
       </div>
+      ${vehicleEmailNotesVisible() ? `<div data-vehicle-email-notes>
+        <div class="muted-label">Email notes</div>
+        <div class="notes-list"><div class="subtle">Loading email notes…</div></div>
+      </div>` : ''}
       <form class="notes-form" data-notes-form>
         <div class="muted-label">Team notes</div>
         <textarea rows="3" placeholder="Add call notes, accessory reminders, or follow-up actions..."></textarea>
@@ -16166,6 +16215,7 @@ function renderDetail() {
     await copyVehicleStockNumber(value, event.currentTarget, status);
   });
   loadVehicleHistoryForDetail(v);
+  if (vehicleEmailNotesVisible()) loadVehicleEmailNotes(v, panel);
   on($('[data-email-vehicle-update]', panel), 'click', () => draftSelectedVehicleStatusEmail(key));
   bindVehicleLabelButtons(panel);
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));
