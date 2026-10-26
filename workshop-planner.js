@@ -1301,7 +1301,7 @@ function workshopDescribeSharedActionError(result) {
   }
   if (error === 'technician_overlap' || (conflict && conflict.conflict_type === 'technician_overlap')) {
     // r531 (F145): the server names the mechanic and the booking that already holds them.
-    const named = workshopTechnicianOverlapDetail(result);
+    const named = typeof workshopTechnicianOverlapDetail === 'function' ? workshopTechnicianOverlapDetail(result) : '';
     if (named) return named;
     return 'That technician is already assigned to another booking during this period. No booking was saved. Drop this vehicle on a bay whose mechanic is free for the whole job, use Best slot, or move that booking first.';
   }
