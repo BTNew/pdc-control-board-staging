@@ -76,6 +76,16 @@ then correctly rejected inconsistent readback. Existing AI/dictionary precedence
 also needs preservation checks; changing a global resolver could affect existing
 read projections. The repair is verified separately from test expectation changes.
 
+Installed at **23:18 Perth**, migration **20261026151839**, after combined
+acceptance/source-hour/manual/completed-work tests and unchanged results for all
+8,817 old routes and 557 uncached vehicle projections. Fresh live readback matched
+all three tested function hashes, unchanged permissions and the expected resolver
+pin (241 total). No backlog retry or existing-row migration was performed.
+See `import-external-routing-20261026.md` for the exact policy and proof.
+Deployment and inverse hold the same scheduling locks as acceptance, in one
+transaction, and refuse contention. Reversal also refuses once receipt-backed
+work exists, preserving accepted decisions until a reviewed forward repair.
+
 ### Outdated verification fixtures
 
 - Fitter and category completion fixtures skipped item Start, although r440
@@ -91,14 +101,36 @@ read projections. The repair is verified separately from test expectation change
 - A category fixture's anonymous-access check used a retired function identity;
   it now checks the actual installed signature, without changing access rules.
 - The Finance group could not initialize because it depends on existing staff
-  fixtures. That is a test setup limitation, not a demonstrated Finance defect.
+  fixtures. That was a test setup limitation, not a demonstrated Finance defect.
+  Its fixture now creates disposable administrator/viewer identities instead of
+  selecting and demoting existing staff. The unchanged save/totals/replay/stale/
+  permissions/public-record preservation assertions passed in phase11.
 - A long Windows private-log path prevented one result from being recorded. That
   attempt remains BLOCKED; shorter separately labelled reruns provide the evidence.
 
 ## Release and final results
 
-Verification remains in progress for category reassignment and automatic external
-additions. The hours-save repair above is installed and has scoped proof. Its
+The hours repair is versioned in PR #536, merged as
+`ee08259153a9ad0e887239a6187fbdc3543d94f7`. Both PR workflows passed;
+the suite reported 2,846 PASS, 0 FAIL and 3 SKIP (2,849 total).
+
+At 22:55 Perth, actual signed-in browser navigation rendered the QC queue,
+Control Board (46 bays, 345 bookings), Department 138 Mechanical (bays 01–04),
+and Electrical (bays 08–09). The existing idle session initially displayed
+Connection lost and recovered after reload; its cause was not established.
+No tick, estimate or booking was changed. No console error was captured during
+the recovered Control Board read.
+
+At 23:00, all 98 live read-only fault-register checks passed. At 23:05, the
+published public monitor passed nine entries, nine legacy redirects, eight
+assets, three signed-out denials and 155 focused regressions. Neither result
+establishes the newly found category path or actual browser writes.
+
+All 24 original SQL groups now have passing latest evidence across separate runs;
+the initial unchanged run remains 19 PASS and 5 FAIL. This is not a single clean
+full-suite run, and the extra running-category scenario remains a confirmed FAIL.
+Verification remains in progress for that category repair. The hours-save and
+automatic-addition repairs above are installed and have scoped proof. Their
 private release receipt and the per-run index retain the original failures,
 corrected fixtures, current passes and cleanup independently. Full browser
 movement/save/dragging proof remains unavailable without an isolated API bridge.

@@ -1,11 +1,26 @@
 -- Fictional finance applications. Every write rolls back.
 BEGIN ISOLATION LEVEL REPEATABLE READ;
+DO $local$ BEGIN
+ IF inet_server_addr() IS DISTINCT FROM '127.0.0.1'::inet
+  OR current_database()<>'pdc_restore_check'
+  OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL
+ THEN RAISE EXCEPTION 'Owned loopback database only'; END IF;
+END $local$;
 DO $test$
 DECLARE actor public.pdc_user_roles; viewer public.pdc_user_roles; person public.salespeople; item jsonb; result jsonb; denied boolean; payload jsonb; own_id uuid; other_id uuid; linked uuid:=gen_random_uuid(); standalone uuid:=gen_random_uuid(); other_app uuid:=gen_random_uuid(); unassigned uuid:=gen_random_uuid(); before_hash text; after_hash text; accum text; value_hash text; t record; source_count integer;
 BEGIN
  IF (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1 THEN RAISE EXCEPTION 'STAGING required'; END IF;
- SELECT * INTO actor FROM public.pdc_user_roles WHERE active AND account_status='approved' AND role::text='administrator' AND auth_user_id IS NOT NULL LIMIT 1;
- SELECT * INTO viewer FROM public.pdc_user_roles WHERE active AND account_status='approved' AND role::text='viewer' AND auth_user_id IS NOT NULL LIMIT 1;
+ -- Create both identities in the disposable copy. Staff access must never be a
+ -- prerequisite or a fixture to demote; all synthetic authorization rolls back.
+ INSERT INTO auth.users(id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at)
+ VALUES(linked,'authenticated','authenticated','finance-admin-'||linked||'@example.invalid',clock_timestamp(),
+  '{"provider":"email","providers":["email"]}','{"full_name":"Synthetic finance administrator"}',clock_timestamp(),clock_timestamp()),
+ (standalone,'authenticated','authenticated','finance-viewer-'||standalone||'@example.invalid',clock_timestamp(),
+  '{"provider":"email","providers":["email"]}','{"full_name":"Synthetic finance salesperson"}',clock_timestamp(),clock_timestamp());
+ UPDATE public.pdc_user_roles SET role='administrator',active=true,account_status='approved',approved_at=clock_timestamp()
+ WHERE auth_user_id=linked RETURNING * INTO actor;
+ UPDATE public.pdc_user_roles SET role='viewer',active=true,account_status='approved',approved_at=clock_timestamp()
+ WHERE auth_user_id=standalone RETURNING * INTO viewer;
  SELECT * INTO person FROM public.salespeople WHERE code='BG' AND active;
  IF actor.id IS NULL OR viewer.id IS NULL OR person.id IS NULL THEN RAISE EXCEPTION 'Missing rollback fixtures'; END IF;
  IF has_function_privilege('anon','public.get_broome_finance_pipeline()','EXECUTE') OR has_table_privilege('authenticated','pdc_sales_private.finance_applications','SELECT,INSERT,UPDATE,DELETE') OR NOT (SELECT relrowsecurity FROM pg_class WHERE oid='pdc_sales_private.finance_applications'::regclass) THEN RAISE EXCEPTION 'Unsafe finance permissions'; END IF;
