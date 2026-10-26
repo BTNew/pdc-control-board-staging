@@ -1,6 +1,5 @@
--- r552 (F166). PREVIEW. SQL is not applied. Do not merge.
+-- r552 (F166). Craig approved go-live 26 Oct 2026.
 -- Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
--- Craig approved previewing this fix on 26 Oct 2026.
 -- Fault: the per-minute workshop clock tick rewrites the planned chain behind a running job.
 -- A started or stoppage booking is a seed whenever the next minute is past its planned end.
 -- The tick then sets that job's end to the next minute, so the delay grows by one minute
@@ -12,11 +11,11 @@
 -- with a planned end of 21 Oct and a watermark walked forward to now.
 -- Key 512 on Mechanical - Bus4x4 Bay 02 is the r538 case: its effective end is 5 Nov,
 -- past its planned end, because hours were added. That jump must still move the chain once.
--- r546 and r547 were applied and undone. #529 is r548 / F162 / sort 324. Bay rename #530 is
--- r549 / F163 / sort 324. Key search went live as r550 / F164 with no sort (#531). The parts
--- workbook preview is r551 / F165 / sort 326 (#532). Open previews also hold r541/F155/sort 319,
--- r543/F157/sort 321, r544/F158/sort 322 and r547/F161/sort 325.
--- This preview is r552 / F166 / sort 327.
+-- Rebased onto main 6d9c418f (r553 / F167 / sort 328). The ledger has no r552 row.
+-- regression_checks uses 324, 325 and 328, so r552 / F166 / sort 327 stays this release.
+-- r551 is the helper-table lockdown (ledger 20261026110756). Codex #536 changed
+-- workshop_extend_running_after_hours_538 and is not edited here. The live clock tick
+-- is still the r452 body.
 -- Pin count stays 241. Two pins move in place: workshop_clock_tick and administrator_move_workshop_booking.
 -- Department 135 is not edited.
 -- Undo: supabase/rollbacks/20261027010000_r552_clock_tick_step.down.sql
