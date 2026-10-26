@@ -1,30 +1,33 @@
--- r551 (F165). PREVIEW. Staging cdsmnqxtyyoeoznmbidd only. Production is not a target.
--- The Pilbara Revolution workbook was renamed. Today's message has subject
+-- r553 (F167). Craig approved go-live 26 Oct 2026 16:16 AWST, after #530.
+-- Staging cdsmnqxtyyoeoznmbidd only. Production is not a target.
+-- The Pilbara Revolution workbook was renamed. The 14:03 AWST message has subject
 -- CW PMG PD Parts Status Complete and file CW PMG PD Parts Status Complete - Job 1.xls.
 -- Widen only the revolution_automated_parts_workbook name test so that subject and
 -- source_file ^(CW )?PMG PD Parts Status Complete( - Job 1)?[.]xlsx?$ are accepted.
 -- The Pilbara arm and the V1 arm stay byte-identical. Every other envelope check stays.
+-- Codex #534-#538 stay as merged on main 249bca97, including new-addition routing.
 -- The inserted newlines are LF. The rest of the body stays CRLF.
 -- Pin count stays 241. The parts pin moves in place from r505.
 -- outlook_pdc_auth_505 changes only that pinned prosrc md5 (length stays 7303).
--- r546 and r547 were undone. r548 / F162 / sort 324 is live. r549 / F163 holds sort 324
--- in an open preview. r550 / F164 takes no sort. Open previews hold sorts 319, 321, 322
--- and 325. This is r551 / F165 / sort 326.
--- Undo: supabase/rollbacks/20261026234500_r551_parts_import_cw_rename.down.sql
+-- r551 is the helper-table lockdown (ledger 20261026110756) and is not reused.
+-- F165 and sort 326 were the old preview numbers and are not reused.
+-- r552 / F166 / sort 327 is the open clock-step preview (#533).
+-- This is r553 / F167 / sort 328.
+-- Undo: supabase/rollbacks/20261027040000_r553_parts_import_cw_rename.down.sql
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
- IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r551: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
+ IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r553: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
  IF NOT public.pdc_monitor_staging_guard()
     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
-    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r551: staging only'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r551: pin count is not 241'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=326 OR fault_id='F165' OR check_name='parts_import_cw_rename' OR added_in='r551') THEN RAISE EXCEPTION 'r551: sort 326 / F165 is taken'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) IS DISTINCT FROM 'ccf492618ca11625470b691fbe029ac7' THEN RAISE EXCEPTION 'r551: parts prosrc is not the r505 body'; END IF;
- IF (SELECT md5(pg_get_functiondef(oid)) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) IS DISTINCT FROM '2868827fe333373debf7b40194f5d46c' THEN RAISE EXCEPTION 'r551: parts functiondef drifted'; END IF;
- IF (SELECT position(chr(13) IN prosrc)=0 OR position('$r551body$' IN prosrc)>0 FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) THEN RAISE EXCEPTION 'r551: parts body is not the CRLF r505 body'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE signature='public.pdc_import_job_parts_csv_20260912(jsonb,jsonb)' AND prosrc_md5='ccf492618ca11625470b691fbe029ac7' AND release='r505')<>1 THEN RAISE EXCEPTION 'r551: parts pin is not r505'; END IF;
- IF (SELECT length(check_sql)<>7303 OR (length(check_sql)-length(replace(check_sql,'ccf492618ca11625470b691fbe029ac7','')))/32<>1 FROM pdc_ops.regression_checks WHERE check_name='outlook_pdc_auth_505' AND fault_id='F118' AND sort_order=290 AND added_in='r505') THEN RAISE EXCEPTION 'r551: outlook_pdc_auth_505 is not the r505 check'; END IF;
+    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r553: staging only'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r553: pin count is not 241'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=328 OR fault_id='F167' OR check_name='parts_import_cw_rename' OR added_in='r553') THEN RAISE EXCEPTION 'r553: sort 328 / F167 is taken'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) IS DISTINCT FROM 'ccf492618ca11625470b691fbe029ac7' THEN RAISE EXCEPTION 'r553: parts prosrc is not the r505 body'; END IF;
+ IF (SELECT md5(pg_get_functiondef(oid)) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) IS DISTINCT FROM '2868827fe333373debf7b40194f5d46c' THEN RAISE EXCEPTION 'r553: parts functiondef drifted'; END IF;
+ IF (SELECT position(chr(13) IN prosrc)=0 OR position('$r553body$' IN prosrc)>0 FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) THEN RAISE EXCEPTION 'r553: parts body is not the CRLF r505 body'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE signature='public.pdc_import_job_parts_csv_20260912(jsonb,jsonb)' AND prosrc_md5='ccf492618ca11625470b691fbe029ac7' AND release='r505')<>1 THEN RAISE EXCEPTION 'r553: parts pin is not r505'; END IF;
+ IF (SELECT length(check_sql)<>7303 OR (length(check_sql)-length(replace(check_sql,'ccf492618ca11625470b691fbe029ac7','')))/32<>1 FROM pdc_ops.regression_checks WHERE check_name='outlook_pdc_auth_505' AND fault_id='F118' AND sort_order=290 AND added_in='r505') THEN RAISE EXCEPTION 'r553: outlook_pdc_auth_505 is not the r505 check'; END IF;
 END $g$;
 
 DO $patch$
@@ -36,38 +39,38 @@ DECLARE
   v_new text := E'      AND p_envelope->>''source_file'' ~ ''^PMG PD Parts Status V1 - Job 1[.]xlsx?$'')\n    OR (p_envelope->>''subject''=''CW PMG PD Parts Status Complete''\n      AND p_envelope->>''source_file'' ~ ''^(CW )?PMG PD Parts Status Complete( - Job 1)?[.]xlsx?$''),false)';
 BEGIN
  SELECT prosrc INTO v_src FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)');
- IF v_src IS NULL THEN RAISE EXCEPTION 'r551: parts importer missing'; END IF;
- IF (length(v_src)-length(replace(v_src, v_old, '')))/length(v_old) <> 1 THEN RAISE EXCEPTION 'r551: workbook arm is not unique'; END IF;
+ IF v_src IS NULL THEN RAISE EXCEPTION 'r553: parts importer missing'; END IF;
+ IF (length(v_src)-length(replace(v_src, v_old, '')))/length(v_old) <> 1 THEN RAISE EXCEPTION 'r553: workbook arm is not unique'; END IF;
  v_src := replace(v_src, v_old, v_new);
- IF md5(v_src) IS DISTINCT FROM 'e56cd1f5d12205a0d72826d64cb8d1de' THEN RAISE EXCEPTION 'r551: patched prosrc md5'; END IF;
+ IF md5(v_src) IS DISTINCT FROM 'e56cd1f5d12205a0d72826d64cb8d1de' THEN RAISE EXCEPTION 'r553: patched prosrc md5'; END IF;
  IF position('PMG PD Parts Status Complete - Pilbara' IN v_src)=0
     OR position('^PMG PD Parts Status Complete[.]xlsx?$' IN v_src)=0
     OR position('PMG PD Parts Status V1 - Job 1' IN v_src)=0
     OR position('CW PMG PD Parts Status Complete' IN v_src)=0
     OR position('^(CW )?PMG PD Parts Status Complete( - Job 1)?[.]xlsx?$' IN v_src)=0 THEN
-  RAISE EXCEPTION 'r551: a workbook arm is missing';
+  RAISE EXCEPTION 'r553: a workbook arm is missing';
  END IF;
  v_sql := $sql$CREATE OR REPLACE FUNCTION public.pdc_import_job_parts_csv_20260912(p_envelope jsonb, p_rows jsonb)
  RETURNS jsonb
  LANGUAGE plpgsql
  SET search_path TO 'pg_catalog', 'public', 'pdc_parts_private'
-AS $r551body$$sql$ || v_src || $sql$$r551body$$sql$;
+AS $r553body$$sql$ || v_src || $sql$$r553body$$sql$;
  EXECUTE v_sql;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) IS DISTINCT FROM 'e56cd1f5d12205a0d72826d64cb8d1de' THEN RAISE EXCEPTION 'r551: stored prosrc md5'; END IF;
- IF (SELECT md5(pg_get_functiondef(oid)) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) IS DISTINCT FROM '76b0570ee2c788d5cacf9d01a5843ed6' THEN RAISE EXCEPTION 'r551: stored functiondef md5'; END IF;
- IF (SELECT prosecdef OR provolatile<>'v' OR proconfig::text IS DISTINCT FROM '{search_path=pg_catalog, public, pdc_parts_private}' OR pg_get_function_identity_arguments(oid) IS DISTINCT FROM 'p_envelope jsonb, p_rows jsonb' FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) THEN RAISE EXCEPTION 'r551: parts header changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) IS DISTINCT FROM 'e56cd1f5d12205a0d72826d64cb8d1de' THEN RAISE EXCEPTION 'r553: stored prosrc md5'; END IF;
+ IF (SELECT md5(pg_get_functiondef(oid)) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) IS DISTINCT FROM '76b0570ee2c788d5cacf9d01a5843ed6' THEN RAISE EXCEPTION 'r553: stored functiondef md5'; END IF;
+ IF (SELECT prosecdef OR provolatile<>'v' OR proconfig::text IS DISTINCT FROM '{search_path=pg_catalog, public, pdc_parts_private}' OR pg_get_function_identity_arguments(oid) IS DISTINCT FROM 'p_envelope jsonb, p_rows jsonb' FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.pdc_import_job_parts_csv_20260912(pg_catalog.jsonb,pg_catalog.jsonb)')) THEN RAISE EXCEPTION 'r553: parts header changed'; END IF;
 
  UPDATE pdc_ops.expected_function_md5
  SET prosrc_md5='e56cd1f5d12205a0d72826d64cb8d1de',
-     release='r551',
-     note='r551 (F165): CW PMG PD Parts Status Complete (was ccf492618ca11625470b691fbe029ac7, r505)',
+     release='r553',
+     note='r553 (F167): CW PMG PD Parts Status Complete (was ccf492618ca11625470b691fbe029ac7, r505)',
      updated_at=clock_timestamp()
  WHERE signature='public.pdc_import_job_parts_csv_20260912(jsonb,jsonb)'
    AND prosrc_md5='ccf492618ca11625470b691fbe029ac7'
    AND release='r505';
  GET DIAGNOSTICS v_n = ROW_COUNT;
- IF v_n<>1 THEN RAISE EXCEPTION 'r551: parts pin was not moved'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r551: pin count changed'; END IF;
+ IF v_n<>1 THEN RAISE EXCEPTION 'r553: parts pin was not moved'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r553: pin count changed'; END IF;
 
  UPDATE pdc_ops.regression_checks
  SET check_sql=replace(check_sql, 'ccf492618ca11625470b691fbe029ac7', 'e56cd1f5d12205a0d72826d64cb8d1de')
@@ -78,24 +81,24 @@ AS $r551body$$sql$ || v_src || $sql$$r551body$$sql$;
    AND length(check_sql)=7303
    AND (length(check_sql)-length(replace(check_sql,'ccf492618ca11625470b691fbe029ac7','')))/32=1;
  GET DIAGNOSTICS v_n = ROW_COUNT;
- IF v_n<>1 THEN RAISE EXCEPTION 'r551: outlook check was not updated'; END IF;
+ IF v_n<>1 THEN RAISE EXCEPTION 'r553: outlook check was not updated'; END IF;
  IF (SELECT length(check_sql)<>7303
      OR position('ccf492618ca11625470b691fbe029ac7' IN check_sql)>0
      OR (length(check_sql)-length(replace(check_sql,'e56cd1f5d12205a0d72826d64cb8d1de','')))/32<>1
      FROM pdc_ops.regression_checks WHERE check_name='outlook_pdc_auth_505' AND fault_id='F118' AND sort_order=290 AND added_in='r505') THEN
-  RAISE EXCEPTION 'r551: outlook check did not stay byte-identical apart from the parts md5';
+  RAISE EXCEPTION 'r553: outlook check did not stay byte-identical apart from the parts md5';
  END IF;
 END $patch$;
 
 INSERT INTO pdc_ops.regression_checks (check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
-('parts_import_cw_rename', 'F165',
+('parts_import_cw_rename', 'F167',
  'Revolution workbook names: CW PMG PD Parts Status Complete - Job 1.xls is accepted, the Pilbara and V1 names are still accepted, and an unrelated subject and file are rejected. Pin count stays 241.',
- $chk551$
+ $chk553$
 SELECT
   body.prosrc_md5 = 'e56cd1f5d12205a0d72826d64cb8d1de'
   AND body.def_md5 = '76b0570ee2c788d5cacf9d01a5843ed6'
   AND pins.n = 241
-  AND pin.release = 'r551'
+  AND pin.release = 'r553'
   AND pin.prosrc_md5 = 'e56cd1f5d12205a0d72826d64cb8d1de'
   AND pg_catalog.strpos(auth505.check_sql, 'ccf492618ca11625470b691fbe029ac7') = 0
   AND pg_catalog.strpos(auth505.check_sql, 'e56cd1f5d12205a0d72826d64cb8d1de') > 0
@@ -166,14 +169,14 @@ CROSS JOIN (
     AND sort_order = 290
     AND added_in = 'r505'
 ) auth505
-$chk551$,
- true, 326, 'r551');
+$chk553$,
+ true, 328, 'r553');
 
 DO $chk$
 DECLARE v_ok boolean; v_detail text;
 BEGIN
  PERFORM set_config('search_path', 'pg_catalog', true);
- EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='parts_import_cw_rename' AND fault_id='F165' AND sort_order=326 AND added_in='r551') INTO v_ok, v_detail;
- IF v_ok IS NOT TRUE THEN RAISE EXCEPTION 'r551: parts_import_cw_rename failed: %', coalesce(v_detail, 'no row'); END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r551: pin count changed'; END IF;
+ EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='parts_import_cw_rename' AND fault_id='F167' AND sort_order=328 AND added_in='r553') INTO v_ok, v_detail;
+ IF v_ok IS NOT TRUE THEN RAISE EXCEPTION 'r553: parts_import_cw_rename failed: %', coalesce(v_detail, 'no row'); END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r553: pin count changed'; END IF;
 END $chk$;
