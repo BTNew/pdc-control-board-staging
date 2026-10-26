@@ -99,7 +99,9 @@ assert.match(lifecycle, /['"]\/pdc-control-board-staging\/['"]/,
 const allSourceFiles = [];
 function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === '.git' || entry.name === 'vendor' || entry.name === 'supabase') continue;
+    // Package-manager dependencies may contain directory junctions and are not
+    // authored website source (the runtime publisher has its own allowlist).
+    if (['.git', 'vendor', 'supabase', 'node_modules'].includes(entry.name)) continue;
     const absolute = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(absolute);
     else allSourceFiles.push(absolute);

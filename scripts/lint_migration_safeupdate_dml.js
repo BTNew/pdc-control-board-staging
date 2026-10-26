@@ -147,7 +147,8 @@ function lintMigrationFiles(root) {
   const files = fs.readdirSync(dir).filter(name => name.endsWith('.sql')).sort();
   const found = {};
   for (const name of files) {
-    const rel = path.join('supabase', 'migrations', name);
+    // Baseline keys are repository paths, independent of the host filesystem.
+    const rel = path.posix.join('supabase', 'migrations', name);
     const statements = scanSql(fs.readFileSync(path.join(root, rel), 'utf8'));
     if (!statements.length) continue;
     found[rel] = statements.map(statement => ({

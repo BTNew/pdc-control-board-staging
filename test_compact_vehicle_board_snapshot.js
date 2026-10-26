@@ -26,7 +26,7 @@ test('board uses compact authenticated endpoint and preserves response and error
     fetchImpl: async (url, options) => { calls.push({ url, options }); return { ok: true, json: async () => body }; },
   });
   assert.deepEqual((await service.snapshot()).data, body.data);
-  assert.equal(calls[0].url, 'https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/get_pdc_email_vehicle_board_snapshot');
+  assert.equal(calls[0].url, 'https://cdsmnqxtyyoeoznmbidd.supabase.co/rest/v1/rpc/get_pdc_email_vehicle_board_snapshot_conditional');
   assert.equal(calls[0].options.headers.Authorization, 'Bearer test-session');
   body = { ok: false, code: 'permission_denied' };
   assert.deepEqual(await service.snapshot(), { ok: false, code: 'permission_denied', data: null });

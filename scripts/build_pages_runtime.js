@@ -139,7 +139,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-email-ai-v2-actions.js', 'pdc-email-vehicle-location-service.js',
   'pdc-emergency-priority.css', 'pdc-emergency-priority.js', 'pdc-emergency-slim.css', 'pdc-sidebar-compact.css', 'control-board-zoom.css',
   'pdc-estimated-hours.css', 'pdc-estimated-hours.js', 'pdc-fitters.css', 'pdc-fitters.js',
-  'pdc-location-override.js', 'pdc-new-vehicles.css', 'pdc-new-vehicles.js', 'pdc-operation-review-slim.css',
+  'pdc-lazy-admin-views.js', 'pdc-location-override.js', 'pdc-new-vehicles.css', 'pdc-new-vehicles.js', 'pdc-operation-review-slim.css',
   'pdc-parts-confirmation.js', 'pdc-planner-capacity.css', 'pdc-planner-capacity.js',
   'pdc-planner-slim.css', 'pdc-planner-slim.js', 'pdc-professional-polish.css',
   'pdc-qc-mobile.css', 'pdc-qc-mobile.js', 'pdc-qc-rework.js',
@@ -283,7 +283,13 @@ function validateRuntime(sourceRoot) {
 }
 
 const PUBLISH_ASSET_VERSION = '2026.10.19.01';
-const PUBLISHED_SOURCE_MAPS = Object.freeze(['app.js.map', 'styles.css.map']);
+// Only transform already-reviewed public first-party assets. Vendor bundles and
+// the frozen Department 135 copy retain their exact bytes. Sources stay readable.
+const PUBLISHED_MINIFIED_ASSETS = Object.freeze(RUNTIME_FILES.filter(filename =>
+  /\.(?:js|css)$/.test(filename) && !/^(?:vendor|karratha|scripts)\//.test(filename)
+));
+const PUBLISHED_SOURCE_MAPS = Object.freeze(PUBLISHED_MINIFIED_ASSETS.map(filename => filename + '.map'));
+const extendedMinifiedAssets = new Set(PUBLISHED_MINIFIED_ASSETS.filter(filename => filename !== 'app.js' && filename !== 'styles.css'));
 
 function loadPublishMinifiers() {
   let terser;
@@ -304,7 +310,48 @@ function assertPublishedTextSafe(filename, text) {
   if (findPrivilegedTokens(text).length) throw new Error(`Privileged token in published asset: ${filename}; value redacted`);
 }
 
+function publishedAdditionalAsset(filename, bytes) {
+  const { terser, csso } = loadPublishMinifiers();
+  const source = bytes.toString('utf8');
+  const basename = path.posix.basename(filename);
+  const mapName = basename + '.map';
+  let code, map;
+  if (filename.endsWith('.js')) {
+    // Formatting only. Later classic scripts wrap and call earlier globals;
+    // never rename bindings, fold expressions, remove code or reorder scripts.
+    const result = terser.minify_sync({ [basename]: source }, {
+      compress: false,
+      mangle: false,
+      ecma: 2022,
+      format: { comments: /@preserve|@license|copyright|\u00a9/i },
+      sourceMap: { filename: basename, url: mapName, includeSources: true }
+    });
+    if (!result || result.error || !result.code) throw new Error(`Could not minify published ${filename}`);
+    code = result.code;
+    map = typeof result.map === 'string' ? result.map : JSON.stringify(result.map || '');
+    new vm.Script(code, { filename });
+  } else {
+    // Disable restructuring: stylesheet order and cascade are part of the UI.
+    const result = csso.minify(source, { filename: basename, sourceMap: true, restructure: false });
+    if (!result || typeof result.css !== 'string') throw new Error(`Could not minify published ${filename}`);
+    code = result.css;
+    const copyright = source.match(/^\s*(\/\*[\s\S]*?\*\/)/)?.[1];
+    if (copyright && /copyright|\u00a9|@license/i.test(copyright) && !code.includes(copyright)) code = copyright + '\n' + code;
+    code += `\n/*# sourceMappingURL=${mapName} */\n`;
+    map = result.map ? result.map.toString() : '';
+  }
+  let metadata;
+  try { metadata = JSON.parse(map); } catch (_) { throw new Error(`Invalid source map for ${filename}`); }
+  if (metadata.version !== 3 || !Array.isArray(metadata.sources) || !metadata.sources.length || !code.includes(`sourceMappingURL=${mapName}`)) {
+    throw new Error(`Invalid source map for ${filename}`);
+  }
+  assertPublishedTextSafe(filename, code);
+  assertPublishedTextSafe(filename + '.map', map);
+  return [[filename, Buffer.from(code)], [filename + '.map', Buffer.from(map)]];
+}
+
 function publishedAsset(filename, bytes) {
+  if (extendedMinifiedAssets.has(filename)) return publishedAdditionalAsset(filename, bytes);
   if (filename !== 'app.js' && filename !== 'styles.css') return [[filename, bytes]];
   const { terser, csso } = loadPublishMinifiers();
   const source = bytes.toString('utf8');
@@ -369,7 +416,7 @@ function buildRuntimeArtifact(sourceRoot, outputRoot) {
   const realAncestor = fs.realpathSync(ancestor);
   if ((process.platform === 'win32' ? realAncestor.toLowerCase() !== ancestor.toLowerCase() : realAncestor !== ancestor)) throw new Error('Artifact output cannot pass through a symlink or redirected directory');
   // Do not delete or overwrite existing artifacts. A fresh destination is required.
-  // Source app.js and styles.css stay unchanged. Only these published copies are minified.
+  // Source files stay unchanged. Only reviewed published copies are minified.
   fs.mkdirSync(outputRoot, { recursive: true });
   const outputs = [];
   for (const [filename, bytes] of prepared.buffers) outputs.push(...publishedAsset(filename, bytes));
@@ -403,7 +450,7 @@ if (require.main === module) {
 }
 
 module.exports = {
-  ENTRY_POINTS, RUNTIME_FILES, PUBLISH_ASSET_VERSION, PUBLISHED_SOURCE_MAPS,
+  ENTRY_POINTS, RUNTIME_FILES, PUBLISH_ASSET_VERSION, PUBLISHED_SOURCE_MAPS, PUBLISHED_MINIFIED_ASSETS,
   BUILD_VERSION_FILE, BUILD_TAGGED_PAGES,
-  safePublicPath, validateRuntime, buildRuntimeArtifact, buildIdentity, tagBuildPage, versionFile
+  safePublicPath, validateRuntime, buildRuntimeArtifact, buildIdentity, tagBuildPage, versionFile, publishedAsset
 };

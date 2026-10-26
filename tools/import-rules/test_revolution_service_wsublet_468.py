@@ -110,13 +110,20 @@ class TypeColumn468(unittest.TestCase):
             got = {}
             for name, kw in (('plain', {}), ('typed', {'typed': True})):
                 p = F.write_xlsx(os.path.join(d, name + '.xlsx'), **kw)
-                ws = openpyxl.load_workbook(p, read_only=True).active
-                got[name] = digest(parse([tuple(r) for r in ws.iter_rows(values_only=True)]))
+                wb = openpyxl.load_workbook(p, read_only=True)
+                try:
+                    got[name] = digest(parse([tuple(r) for r in wb.active.iter_rows(values_only=True)]))
+                finally:
+                    wb.close()
             self.assertEqual(got['plain'], got['typed'])
             p = F.write_xlsx(os.path.join(d, 'bad.xlsx'), typed=True, bad_type='X', bad_at=3)
-            ws = openpyxl.load_workbook(p, read_only=True).active
-            with self.assertRaisesRegex(ContractError, "row 8: Type 'X' is not D"):
-                read_values([tuple(r) for r in ws.iter_rows(values_only=True)])
+            wb = openpyxl.load_workbook(p, read_only=True)
+            try:
+                with self.assertRaisesRegex(ContractError, "row 8: Type 'X' is not D"):
+                    read_values([tuple(r) for r in wb.active.iter_rows(values_only=True)])
+            finally:
+                # Read-only workbooks own an open ZIP handle even after all rows are consumed.
+                wb.close()
 
 
 if __name__ == '__main__':
