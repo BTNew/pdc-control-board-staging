@@ -8841,9 +8841,13 @@ async function loadAuthenticatedOperationSummary(row) {
 }
 
 function bindAuthenticatedOperationSummaries(host = document) {
+  installVehicleEmailWarningInteractions();
   $$('[data-incoming-row]', host).forEach(row => {
     row.addEventListener('toggle', () => { if (row.open) void loadAuthenticatedOperationSummary(row); });
-    if (row.open) void loadAuthenticatedOperationSummary(row);
+    if (row.open) {
+      void loadAuthenticatedOperationSummary(row);
+      if (vehicleEmailNotesVisible()) void loadVehicleEmailWarnings(selectedVehicle(row.dataset.incomingRow), row);
+    }
   });
 }
 
@@ -9079,6 +9083,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${labelAction}${deleteAction}</span>`}
       </summary>
       <div class="incoming-vehicle-detail-grid">
+        ${vehicleEmailPartsEtaHost(vehicle)}
         <div><b>Stock No.</b><span>${escapeHtml(stock)}</span></div>
         <div><b>VIN / Chassis</b><span>${escapeHtml(vin)}</span></div>
         <div><b>Sales rep</b><span>${escapeHtml(consultant)}</span></div>
@@ -15973,6 +15978,160 @@ async function completeVehicleDelete(stock) {
   }
 }
 
+const VEHICLE_EMAIL_PARTS_ETA_CSS = [
+  '.vehicle-email-parts-eta{grid-column:1/-1}',
+  '.vehicle-email-warning{position:relative;margin:4px 0;border:1px solid #7dd3fc;border-left:4px solid #0284c7;border-radius:8px;background:#e0f2fe;color:#0c4a6e}',
+  '.vehicle-email-warning-row{display:flex;gap:8px;align-items:center;width:100%;text-align:left;background:transparent;border:0;color:#0c4a6e;font:inherit;padding:6px 8px;cursor:pointer}',
+  '.vehicle-email-warning-kind{font-weight:700}',
+  '.vehicle-email-warning-when{margin-left:auto;white-space:nowrap}',
+  '.vehicle-email-warning-panel{display:none;padding:8px 10px 10px;border-top:1px solid #7dd3fc;background:#f0f9ff;color:#0c4a6e}',
+  '.vehicle-email-warning:hover .vehicle-email-warning-panel,.vehicle-email-warning:focus-within .vehicle-email-warning-panel,.vehicle-email-warning.is-open .vehicle-email-warning-panel{display:block}',
+  '.vehicle-email-warning-panel dl{display:grid;grid-template-columns:5.5rem 1fr;gap:2px 8px;margin:0}',
+  '.vehicle-email-warning-panel dt{font-weight:700}',
+  '.vehicle-email-warning-panel dd{margin:0;overflow-wrap:anywhere}',
+  '.vehicle-email-warning-text,.vehicle-email-warning-conflict{margin:8px 0 0;white-space:pre-wrap}',
+  '.vehicle-email-warning-conflict{font-weight:650}',
+].join('');
+
+function vehicleEmailNotesVisible() {
+  const role = String(window.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase();
+  return role === 'operator' || role === 'administrator';
+}
+
+function ensureVehicleEmailPartsEtaStyle() {
+  if (typeof document === 'undefined' || document.getElementById('vehicle-email-parts-eta-style')) return;
+  const style = document.createElement('style');
+  style.id = 'vehicle-email-parts-eta-style';
+  style.textContent = VEHICLE_EMAIL_PARTS_ETA_CSS;
+  document.head.appendChild(style);
+}
+
+function vehicleEmailNoteWhen(value, withTime = true) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const options = { timeZone: 'Australia/Perth', day: 'numeric', month: 'short', year: 'numeric' };
+  if (withTime) {
+    options.hour = '2-digit';
+    options.minute = '2-digit';
+    options.hour12 = false;
+  }
+  return new Intl.DateTimeFormat('en-AU', options).format(date);
+}
+
+function vehicleEmailConflictSentence(note) {
+  const conflicts = note?.conflicts === true || note?.conflicts === 'true';
+  if (!conflicts) return '';
+  if (note.category === 'parts_complete') {
+    return 'The email disagrees with the board: the email says parts are complete, and the board does not show parts received.';
+  }
+  return 'The email disagrees with the board: parts are still waiting, and the board shows parts received.';
+}
+
+function vehicleEmailWarningHtml(note) {
+  const labels = {
+    parts_eta: 'Parts ETA',
+    waiting_parts: 'Still waiting on parts',
+    stoppage: 'Stoppage email',
+    parts_complete: 'Parts complete',
+    cancellation: 'Cancellation',
+    job_card_problem: 'Job card problem',
+    po_received: 'PO received',
+    other: 'Email',
+    job_card: 'Job card problem',
+    eta_chase: 'Parts ETA',
+  };
+  const category = labels[note.category] || 'Email';
+  const fromParts = [note.sender_name, note.sender_email].map(part => String(part || '').trim()).filter(Boolean);
+  const fromText = fromParts.length === 2 ? `${fromParts[0]} <${fromParts[1]}>` : (fromParts[0] || '');
+  const when = vehicleEmailNoteWhen(note.event_at, false);
+  const whenFull = vehicleEmailNoteWhen(note.event_at, true);
+  const conflict = vehicleEmailConflictSentence(note);
+  const text = String(note.snippet || note.quote || note.summary || '').trim();
+  return `<div class="vehicle-email-warning">
+    <button type="button" class="vehicle-email-warning-row" aria-expanded="false" aria-label="${escapeHtml(['Email', category, when].filter(Boolean).join(', '))}">
+      <span class="vehicle-email-warning-kind">Email</span>
+      <span class="vehicle-email-warning-label">${escapeHtml(category)}</span>
+      <span class="vehicle-email-warning-when">${escapeHtml(when)}</span>
+    </button>
+    <div class="vehicle-email-warning-panel">
+      <dl>
+        <dt>From</dt><dd>${escapeHtml(fromText)}</dd>
+        <dt>To</dt><dd>${escapeHtml(note.to_address || '')}</dd>
+        <dt>Date</dt><dd>${escapeHtml(whenFull)}</dd>
+        <dt>Subject</dt><dd>${escapeHtml(note.subject || '')}</dd>
+      </dl>
+      <p class="vehicle-email-warning-text">${escapeHtml(text)}</p>
+      ${conflict ? `<p class="vehicle-email-warning-conflict">${escapeHtml(conflict)}</p>` : ''}
+    </div>
+  </div>`;
+}
+
+function vehicleEmailPartsEtaHost(vehicle, surface = 'card') {
+  if (!vehicleEmailNotesVisible()) return '';
+  const vehicleId = String(vehicle?.__emailVehicleId || vehicle?.id || '').trim();
+  if (!vehicleId) return '';
+  if (surface === 'detail') {
+    return `<div class="vehicle-email-parts-eta" data-vehicle-email-warnings="${escapeHtml(vehicleId)}" data-vehicle-email-surface="detail"><div class="muted-label">Parts ETA</div><div class="subtle">Loading board emails…</div></div>`;
+  }
+  return `<div class="wide vehicle-email-parts-eta" data-vehicle-email-warnings="${escapeHtml(vehicleId)}" data-vehicle-email-surface="card" hidden></div>`;
+}
+
+function finishVehicleEmailWarningHost(host, notes, failed) {
+  const detail = host.dataset.vehicleEmailSurface === 'detail';
+  if (failed || !notes.length) {
+    if (!detail) {
+      host.hidden = true;
+      host.replaceChildren();
+      return;
+    }
+    host.hidden = false;
+    host.innerHTML = `<div class="muted-label">Parts ETA</div><div class="subtle">${failed ? 'Board emails could not be loaded.' : 'No board emails on this vehicle yet.'}</div>`;
+    return;
+  }
+  host.hidden = false;
+  const rows = notes.map(vehicleEmailWarningHtml).join('');
+  host.innerHTML = detail ? `<div class="muted-label">Parts ETA</div>${rows}` : rows;
+}
+
+function installVehicleEmailWarningInteractions() {
+  if (typeof document === 'undefined' || document.documentElement?.dataset?.vehicleEmailWarningsBound === '1') return;
+  document.documentElement.dataset.vehicleEmailWarningsBound = '1';
+  ensureVehicleEmailPartsEtaStyle();
+  document.addEventListener('toggle', event => {
+    const row = event.target;
+    if (!row?.matches?.('details.incoming-vehicle-card[data-incoming-row]')) return;
+    if (!row.open || !vehicleEmailNotesVisible()) return;
+    void loadVehicleEmailWarnings(selectedVehicle(row.dataset.incomingRow), row);
+  }, true);
+  document.addEventListener('click', event => {
+    const button = event.target?.closest?.('.vehicle-email-warning-row');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const item = button.closest('.vehicle-email-warning');
+    if (!item) return;
+    const open = !item.classList.contains('is-open');
+    item.classList.toggle('is-open', open);
+    button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+}
+
+async function loadVehicleEmailWarnings(vehicle, root) {
+  installVehicleEmailWarningInteractions();
+  if (!root?.querySelectorAll || !vehicleEmailNotesVisible()) return;
+  const vehicleId = String(vehicle?.__emailVehicleId || vehicle?.id || '').trim();
+  const hosts = [...root.querySelectorAll('[data-vehicle-email-warnings]')].filter(host => host.dataset.vehicleEmailWarnings === vehicleId);
+  if (!hosts.length) return;
+  if (!vehicleId || !window.PDC_SUPABASE?.rpc) {
+    hosts.forEach(host => finishVehicleEmailWarningHost(host, [], true));
+    return;
+  }
+  const { data, error } = await window.PDC_SUPABASE.rpc('list_vehicle_email_notes_556', { p_vehicle_id: vehicleId });
+  if (!root.isConnected) return;
+  const notes = Array.isArray(data) ? data : [];
+  hosts.forEach(host => finishVehicleEmailWarningHost(host, notes, Boolean(error)));
+}
+
 function renderDetail() {
   const v = selectedVehicle();
   const panel = $('#vehicle-detail');
@@ -16136,6 +16295,7 @@ function renderDetail() {
         <div class="muted-label">Import & detailed audit trail</div>
         ${renderAuditTrailSection(v)}
       </div>
+      ${vehicleEmailPartsEtaHost(v, 'detail')}
       <form class="notes-form" data-notes-form>
         <div class="muted-label">Team notes</div>
         <textarea rows="3" placeholder="Add call notes, accessory reminders, or follow-up actions..."></textarea>
@@ -16166,6 +16326,7 @@ function renderDetail() {
     await copyVehicleStockNumber(value, event.currentTarget, status);
   });
   loadVehicleHistoryForDetail(v);
+  if (vehicleEmailNotesVisible()) void loadVehicleEmailWarnings(v, panel);
   on($('[data-email-vehicle-update]', panel), 'click', () => draftSelectedVehicleStatusEmail(key));
   bindVehicleLabelButtons(panel);
   on($('[data-remove-vehicle]', panel), 'click', () => removeVehicle(key));
