@@ -102,7 +102,8 @@ const approvedRootImportPatch = Object.freeze({
   // r493: workshopEntryPausedNow: started tile outside bay working time is amber Paused; running strip paused reason (F106).
   // r498: 'Undo last move' shows straight after an administrator move and goes after Undo (F111).
   // r527: QA Bay 07 resolves by code, bay number, QA label or the live snapshot, and a refused technician write no longer says to sign in as an administrator (F141). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "5b1f9e1ae048fae0c23efb30d6b82cf21f0c655029eaf65f13135911353fe24d",
+  // r531: the clash helper is called only when it is loaded, so the error catalog can read the describer on its own (F145).
+  "workshop-planner.js": "df25584b7586e70ae66614513456aa9d46aa7f961a9466fcfc99fc28820db0d0",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "28f7eb47951e869bc90ec5a6e0bb2e15162b9d5ad8c3b1f8b808dc7ace6eec00",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
