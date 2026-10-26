@@ -4006,7 +4006,7 @@ function workshopSearchResultsHtml(query = '', plans = workshopLoadPlans()) {
     const identity = {
       key: vehicleKeyNumber(vehicle) || '—',
       stock: displayStockNumber(vehicle) || '—',
-      jobcard: vehicleJobcardNumber(vehicle) || '—',
+      jobcard: workshopSearchJobCards(vehicle).join(', ') || '—',
       customer: vehicleCustomerName(vehicle) || 'Unknown customer',
       description: displayVehicle(vehicle) || 'Vehicle description unavailable',
     };
