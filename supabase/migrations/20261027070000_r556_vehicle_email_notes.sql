@@ -18,6 +18,8 @@
 -- Clear:  clear_pdc_vehicle_email_556(text)
 -- Read:   list_pdc_vehicle_email_warnings_556(text)
 -- Batch:  apply_pdc_vehicle_email_batch_556(jsonb)
+-- The batch function is not edited. The check proves its 100-item limit: the body contains
+-- jsonb_array_length(p_items) and n > 100, and a 101-item call is rejected inside a rolled-back probe.
 -- Undo: supabase/rollbacks/20261027070000_r556_vehicle_email_notes.down.sql
 
 SET LOCAL lock_timeout = '2s';
@@ -456,6 +458,54 @@ $batch556$;
 REVOKE ALL ON FUNCTION public.apply_pdc_vehicle_email_batch_556(jsonb) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.apply_pdc_vehicle_email_batch_556(jsonb) TO authenticated, service_role;
 
+-- Rolled-back proof for vehicle_email_notes_556. Not granted to the website.
+-- A 101-item batch must come back batch_too_large with limit 100, and the subtransaction
+-- must not leave a timeline row. The batch function itself is not changed.
+CREATE OR REPLACE FUNCTION public.vehicle_email_batch_limit_probe_556()
+RETURNS boolean
+LANGUAGE plpgsql
+SET search_path TO pg_catalog, public
+AS $probe556$
+DECLARE
+  before_count bigint;
+  after_count bigint;
+  result jsonb;
+BEGIN
+  SELECT count(*) INTO before_count
+  FROM public.vehicle_timeline_events
+  WHERE source_email_id LIKE 'r556-limit-probe-%';
+  BEGIN
+    result := public.apply_pdc_vehicle_email_batch_556((
+      SELECT pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+        'action', 'clear',
+        'message_id', 'r556-limit-probe-' || g.i::pg_catalog.text
+      ))
+      FROM pg_catalog.generate_series(1, 101) AS g(i)
+    ));
+    IF coalesce(result->>'code', '') IS DISTINCT FROM 'batch_too_large'
+       OR coalesce(result->>'limit', '') IS DISTINCT FROM '100'
+       OR coalesce(result->>'ok', 'false') = 'true' THEN
+      RAISE EXCEPTION 'r556 probe: 101 was not rejected' USING ERRCODE = 'P0001';
+    END IF;
+    RAISE EXCEPTION 'r556 probe rollback' USING ERRCODE = 'P0001';
+  EXCEPTION
+    WHEN SQLSTATE 'P0001' THEN
+      IF SQLERRM IS DISTINCT FROM 'r556 probe rollback' THEN
+        RAISE;
+      END IF;
+  END;
+  SELECT count(*) INTO after_count
+  FROM public.vehicle_timeline_events
+  WHERE source_email_id LIKE 'r556-limit-probe-%';
+  IF after_count IS DISTINCT FROM before_count THEN
+    RAISE EXCEPTION 'r556 probe wrote a timeline row';
+  END IF;
+  RETURN true;
+END
+$probe556$;
+
+REVOKE ALL ON FUNCTION public.vehicle_email_batch_limit_probe_556() FROM PUBLIC, anon, authenticated, service_role;
+
 INSERT INTO pdc_ops.regression_checks(check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
 ('vehicle_email_notes_556', 'F170',
  'Vehicle email warnings (r556): the hourly importer, the service role, or a controller can add or clear one pdc@ email on an existing vehicle, idempotent by message id. The stock read lists the active warnings. A batch of at most 100 is one call and each item is an index lookup. This is not the Stoppages bucket: nothing moves the vehicle or changes a status. A waiting email conflicts when the board already shows parts received, as on the Prado 13057027, key 209, at PMB. No vehicle or job is created. The pinned timeline append stays put.',
@@ -494,7 +544,12 @@ SELECT
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.clear_pdc_vehicle_email_556(text)')) NOT LIKE '%vehicle_parts_updates%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_pdc_vehicle_email_warnings_556(text)')) LIKE '%v.stock_number = stock_token%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_pdc_vehicle_email_warnings_556(text)')) LIKE '%cleared%'
-  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.apply_pdc_vehicle_email_batch_556(jsonb)')) LIKE '%jsonb_array_length(p_items) > 100%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.apply_pdc_vehicle_email_batch_556(jsonb)')) LIKE '%jsonb_array_length(p_items)%'
+  AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.apply_pdc_vehicle_email_batch_556(jsonb)')) LIKE '%n > 100%'
+  AND public.vehicle_email_batch_limit_probe_556()
+  AND NOT pg_catalog.has_function_privilege('anon', 'public.vehicle_email_batch_limit_probe_556()', 'EXECUTE')
+  AND NOT pg_catalog.has_function_privilege('authenticated', 'public.vehicle_email_batch_limit_probe_556()', 'EXECUTE')
+  AND NOT pg_catalog.has_function_privilege('service_role', 'public.vehicle_email_batch_limit_probe_556()', 'EXECUTE')
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.apply_pdc_vehicle_email_batch_556(jsonb)')) NOT LIKE '%UPDATE public.vehicles%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_vehicle_email_notes_556(uuid)')) LIKE '%is_pdc_role(''operator''::public.pdc_role)%'
   AND (SELECT p.prosrc FROM pg_catalog.pg_proc p WHERE p.oid = pg_catalog.to_regprocedure('public.list_vehicle_email_notes_556(uuid)')) LIKE '%is_pdc_role(''administrator''::public.pdc_role)%'
@@ -519,6 +574,7 @@ SELECT
   AND NOT pg_catalog.has_function_privilege('anon', 'public.list_pdc_vehicle_email_warnings_556(text)', 'EXECUTE')
   AND NOT pg_catalog.has_function_privilege('anon', 'public.apply_pdc_vehicle_email_batch_556(jsonb)', 'EXECUTE')
   AND pg_catalog.to_regprocedure('karratha135_pdc.record_pdc_vehicle_email_556(text,uuid,text,text,text,timestamp with time zone,text,text,text,text,text)') IS NULL
+  AND pg_catalog.to_regprocedure('karratha135_pdc.vehicle_email_batch_limit_probe_556()') IS NULL
   AND (SELECT count(*) FROM public.vehicles v WHERE v.stock_number = '13057027' AND v.deleted_at IS NULL AND v.lifecycle_state = 'active' AND v.visible_on_board) = 1
   AND (SELECT v.id::text FROM public.vehicles v WHERE v.stock_number = '13057027' AND v.deleted_at IS NULL AND v.lifecycle_state = 'active' AND v.visible_on_board) = 'fbafc3cd-09ff-414d-a29a-60529c0d3fca'
   AND (SELECT v.key_number FROM public.vehicles v WHERE v.id = 'fbafc3cd-09ff-414d-a29a-60529c0d3fca'::uuid) = '209'

@@ -15,6 +15,7 @@ END $g$;
 DELETE FROM public.vehicle_timeline_events
 WHERE structured_data->>'source' = 'email_note_556';
 
+DROP FUNCTION IF EXISTS public.vehicle_email_batch_limit_probe_556();
 DROP FUNCTION IF EXISTS public.apply_pdc_vehicle_email_batch_556(jsonb);
 DROP FUNCTION IF EXISTS public.list_pdc_vehicle_email_warnings_556(text);
 DROP FUNCTION IF EXISTS public.clear_pdc_vehicle_email_556(text);
@@ -28,6 +29,7 @@ WHERE check_name='vehicle_email_notes_556' AND fault_id='F170' AND sort_order=33
 
 DO $p$ BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r556 undo: pin count changed'; END IF;
+ IF pg_catalog.to_regprocedure('public.vehicle_email_batch_limit_probe_556()') IS NOT NULL THEN RAISE EXCEPTION 'r556 undo: probe remains'; END IF;
  IF pg_catalog.to_regprocedure('public.apply_pdc_vehicle_email_batch_556(jsonb)') IS NOT NULL THEN RAISE EXCEPTION 'r556 undo: batch remains'; END IF;
  IF pg_catalog.to_regprocedure('public.list_pdc_vehicle_email_warnings_556(text)') IS NOT NULL THEN RAISE EXCEPTION 'r556 undo: stock read remains'; END IF;
  IF pg_catalog.to_regprocedure('public.clear_pdc_vehicle_email_556(text)') IS NOT NULL THEN RAISE EXCEPTION 'r556 undo: clear remains'; END IF;

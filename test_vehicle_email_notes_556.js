@@ -69,7 +69,16 @@ test('r556 attaches a board email and shows a blue Parts ETA warning', () => {
   assert.match(up, /list_pdc_vehicle_email_warnings_556\(text\)/);
   assert.match(up, /apply_pdc_vehicle_email_batch_556\(jsonb\)/);
   assert.match(up, /v\.stock_number = stock_token/);
-  assert.match(up, /jsonb_array_length\(p_items\) > 100/);
+  const batch = up.slice(up.indexOf('$batch556$'), up.lastIndexOf('$batch556$'));
+  assert.match(batch, /n := jsonb_array_length\(p_items\)/);
+  assert.match(batch, /IF n > 100 THEN/);
+  assert.doesNotMatch(batch, /jsonb_array_length\(p_items\) > 100/);
+  assert.match(check, /LIKE '%jsonb_array_length\(p_items\)%'/);
+  assert.match(check, /LIKE '%n > 100%'/);
+  assert.match(check, /public\.vehicle_email_batch_limit_probe_556\(\)/);
+  assert.doesNotMatch(check, /jsonb_array_length\(p_items\) > 100/);
+  assert.equal((up.match(/\$probe556\$/g) || []).length, 2);
+  assert.match(down, /vehicle_email_batch_limit_probe_556/);
   assert.match(up, /key_number/);
   assert.match(up, /Prado%/);
   assert.match(check, /pg_catalog\.to_regprocedure\('public\.clear_pdc_vehicle_email_556\(text\)'\)/);
