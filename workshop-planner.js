@@ -1300,7 +1300,10 @@ function workshopDescribeSharedActionError(result) {
     return 'That bay is already occupied during this time. The planner has refreshed to the latest version.';
   }
   if (error === 'technician_overlap' || (conflict && conflict.conflict_type === 'technician_overlap')) {
-    return 'That technician is already assigned to another booking during this period.';
+    // r531 (F145): the server names the mechanic and the booking that already holds them.
+    const named = workshopTechnicianOverlapDetail(result);
+    if (named) return named;
+    return 'That technician is already assigned to another booking during this period. No booking was saved. Drop this vehicle on a bay whose mechanic is free for the whole job, use Best slot, or move that booking first.';
   }
   if (error === 'vehicle_overlap' || (conflict && conflict.conflict_type === 'vehicle_overlap')) {
     const detail = workshopVehicleConflictDetail(result);
@@ -1442,6 +1445,33 @@ function workshopVehicleConflictDetail(result = {}) {
   const when = start ? `scheduled ${start}${end ? ` – ${end}` : ''} (Perth time)` : '';
   if (!stock && !location && !when) return '';
   return [stock ? `stock ${stock}` : 'another booking for this vehicle', location, when].filter(Boolean).join(' · ');
+}
+
+function workshopTechnicianOverlapDetail(result = {}) {
+  const text = value => typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400) : '';
+  const booking = result && result.conflict && result.conflict.existing_booking;
+  const customer = booking && booking.vehicle ? text(booking.vehicle.customer_name) : '';
+  const server = text(result && result.detail);
+  if (server && /No booking was saved/i.test(server) && (!customer || customer.length < 4 || !server.toLowerCase().includes(customer.toLowerCase()))) return server;
+  if (!booking || typeof booking !== 'object') return '';
+  const tech = text(booking.assignment && booking.assignment.technician_name) || 'That technician';
+  const stock = text(booking.vehicle && booking.vehicle.stock_number);
+  const key = text(booking.vehicle && booking.vehicle.key_number);
+  const bay = text(booking.bay && booking.bay.display_name);
+  const stage = text(booking.stage && booking.stage.display_name);
+  const formatTime = value => {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(value) || value.length > 40) return '';
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return '';
+    return date.toLocaleString('en-AU', { timeZone: 'Australia/Perth', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  };
+  const start = formatTime(booking.scheduled_start_at);
+  const end = formatTime(booking.scheduled_end_at);
+  const who = [key ? `Key ${key}` : '', stock ? `stock ${stock}` : ''].filter(Boolean).join(', ');
+  const place = bay && stage && bay.toLowerCase().startsWith(stage.toLowerCase()) ? bay : [stage, bay].filter(Boolean).join(' ');
+  if (!who && !place) return '';
+  const when = start ? `, from ${start}${end ? ` to ${end}` : ''} (Perth time)` : '';
+  return `${tech} is already booked on ${who || 'another booking'}${place ? `, ${place}` : ''}${when}. No booking was saved. Drop this vehicle on a bay whose mechanic is free for the whole job, use Best slot, or move that booking first.`;
 }
 
 function workshopPersistPlanAction(label = 'Workshop planner update', rows = [], vehicle = null, action = '', details = {}) {
