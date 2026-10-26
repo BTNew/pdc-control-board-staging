@@ -17,7 +17,7 @@ test('r457: up to 1300 px the stacked planner header no longer turns flex-basis 
   assert.match(b,/\.workshop-planner-header > \.workshop-date-controls \{\s*flex: 0 0 auto;\s*width: 100%;/);
 });
 test('r457: the phone/portrait QC page and the locked files are untouched; the stylesheet is cache-busted',()=>{
-  assert.match(html,/href="workshop-planner\.css\?[^"]*ipad-landscape=2026\.10\.22\.r457" \/>/);
+  assert.match(html,/href="workshop-planner\.css\?[^"]*ipad-landscape=2026\.10\.22\.r457(?:&amp;[^"]*)?" \/>/);
   assert.ok(!/min-width: 901px\) and \(max-width: 1180px[\s\S]*pdc-qc-phone \.app-shell/.test(css.slice(css.lastIndexOf('r457 (F70'))),'never styles the QC phone page');
   assert.ok(html.indexOf('pdc-auto-reload.js')<html.indexOf('workshop-planner.css?'),'pdc-auto-reload.js still loads first');
 });

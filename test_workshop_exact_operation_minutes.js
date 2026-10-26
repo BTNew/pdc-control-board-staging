@@ -35,7 +35,9 @@ assert.ok(source.includes(': workshopSchedulingDuration(vehicle, normalizedStage
 assert.ok(source.includes('? workshopBookingDestinationHours(existing, normalizedStage, bay, duration.hours)'),
   'shared scheduling adjusts the authoritative estimate once for the destination bay');
 assert.ok(source.includes('const duration = workshopExactDurationHours(hours) || workshopClampDurationHours(hours);'));
-assert.ok(source.includes('readonly title="Operation estimate adjusted for bay efficiency"'));
+assert.ok(!source.includes('readonly title="Operation estimate adjusted for bay efficiency"'),
+  'r535: Schedule no longer shows planned hours; the job hours still set the length');
+assert.ok(source.includes('const jobHours = () => workshopExactDurationHours(baseHours) || baseHours;'));
 assert.ok(source.includes('name="hours" type="number" min="0.0166667"'),
   'the detail form must accept any positive whole-minute duration, including 47 minutes');
 assert.ok(!source.includes('name="hours" type="number" min="1"'),
