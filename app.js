@@ -4390,7 +4390,21 @@ function ensureBackupStatusPoll() {
 // re-verifies the caller is an active administrator server-side. This
 // frontend code is a convenience UI, not the security boundary.
 // ---------------------------------------------------------------------
-const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null, generation: 0, showDisabled: false, roleFilter: 'all' };
+const USER_MANAGEMENT_STATE = { tab: 'all', rows: [], realtimeChannel: null, generation: 0, showDisabled: false, roleFilter: 'all', stationAssignments: new Map() };
+
+// r544 (F158): workshop stations a person can acknowledge on New to PMB. An administrator
+// assigns these in User Management, the same way a salesperson record is linked. A user
+// may have several. Parts and Pit are not stations. Department 135 is not one of these.
+const PMB_ACK_STATIONS = Object.freeze([
+  ['BUS_4X4', 'Bus 4x4'],
+  ['TINT', 'Tint'],
+  ['HOIST', 'Hoist'],
+  ['FITTING', 'Fitting'],
+  ['FABRICATION', 'Fabrication'],
+  ['ELECTRICAL', 'Electrical'],
+  ['TYRE', 'Tyre'],
+  ['SUBLET', 'Sublet'],
+]);
 
 // r430: the All list hides Disabled accounts unless "Show disabled (N)" is on (display only; no account row is changed).
 // The Disabled tab still lists them; Pending, Approved and Rejected are unchanged.
@@ -4608,6 +4622,54 @@ async function userManagementLinkSalesRecord(email) {
   return true;
 }
 
+async function loadUserStationDepartments() {
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!client || typeof client.rpc !== 'function') return new Map();
+  const { data, error } = await client.rpc('list_user_station_departments_544');
+  if (error || !Array.isArray(data)) return new Map();
+  const map = new Map();
+  data.forEach(row => {
+    const email = String(row?.email || '').trim().toLowerCase();
+    const station = String(row?.station_code || '').trim();
+    if (!email || !station) return;
+    if (!map.has(email)) map.set(email, []);
+    map.get(email).push(station);
+  });
+  return map;
+}
+
+async function userManagementSaveStations(email) {
+  if (!userManagementSharedModeReady()) return false;
+  const boxes = [...document.querySelectorAll(`[data-um-station-for="${email}"]`)];
+  const stations = boxes.filter(box => box.checked).map(box => box.dataset.umStation).filter(Boolean);
+  const labels = stations.map(code => (PMB_ACK_STATIONS.find(([value]) => value === code) || [])[1] || code);
+  const summary = labels.length ? labels.join(', ') : 'no stations';
+  if (window.confirm(`Assign ${summary} to ${email}?\n\nThey can acknowledge New to PMB for those stations. A station left unticked is removed.`) !== true) return false;
+  const { data, error } = await window.PDC_SUPABASE.rpc('admin_set_user_station_departments_544', { p_email: email, p_stations: stations });
+  if (error || !data || data.ok !== true) {
+    pdcNotify(`Action failed: ${data?.message || error?.message || error || 'The stations were not saved.'}`);
+    return false;
+  }
+  pdcNotify(`${email} now looks after ${summary}.`, 'info');
+  await renderUserManagementScreen();
+  return true;
+}
+
+function userManagementAssignedStations(email = '') {
+  const map = USER_MANAGEMENT_STATE.stationAssignments;
+  const selected = map && typeof map.get === 'function' ? map.get(String(email || '').trim().toLowerCase()) : null;
+  return Array.isArray(selected) ? selected : [];
+}
+
+function userManagementStationsHtml(row) {
+  if (row.account_status !== 'approved') return '<span class="muted-label">—</span>';
+  const email = escapeHtml(row.email);
+  const selected = new Set(userManagementAssignedStations(row.email));
+  const boxes = PMB_ACK_STATIONS.map(([code, label]) =>
+    `<label class="um-station"><input type="checkbox" data-um-station="${code}" data-um-station-for="${email}"${selected.has(code) ? ' checked' : ''}> ${escapeHtml(label)}</label>`).join('');
+  return `<div class="um-stations">${boxes}<button type="button" class="small-button" data-um-save-stations="${email}">Save stations</button></div>`;
+}
+
 function userManagementRowHtml(row) {
   const roleLabel = userManagementRoleLabel(row.role);
   const status = cleanNavisionText(row.account_status || (row.active ? 'approved' : 'disabled')).toLowerCase();
@@ -4616,6 +4678,7 @@ function userManagementRowHtml(row) {
     <td><strong>${escapeHtml(row.full_name || row.display_name || '—')}</strong></td>
     <td>${escapeHtml(row.email)}</td>
     <td class="admin-role-cell">${escapeHtml(roleLabel)}</td>
+    <td class="um-stations-cell">${userManagementStationsHtml(row)}</td>
     <td><span class="admin-status-badge is-${escapeHtml(status)}">${escapeHtml(statusLabel)}</span></td>
     <td class="um-actions-cell">${userManagementRowActionsHtml(row)}</td>
   </tr>`;
@@ -4639,6 +4702,7 @@ async function renderUserManagementScreen() {
     const rows = await loadUserManagementRows();
     if (generation !== USER_MANAGEMENT_STATE.generation || !userManagementSharedModeReady()) return;
     USER_MANAGEMENT_STATE.rows = rows;
+    USER_MANAGEMENT_STATE.stationAssignments = await loadUserStationDepartments();
   } catch (error) {
     if (generation !== USER_MANAGEMENT_STATE.generation || !userManagementSharedModeReady()) return;
     host.innerHTML = `<div class="empty-state compact-empty"><strong>Could not load users</strong><span>${escapeHtml(error && error.message ? error.message : String(error))}</span></div>`;
@@ -4665,7 +4729,7 @@ function renderUserManagementList(host) {
   }
 
   host.innerHTML = `${toggle}<div class="admin-reference-table-wrap"><table class="admin-reference-table user-admin-table">
-    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Stations</th><th>Status</th><th>Actions</th></tr></thead>
     <tbody>${filtered.map(userManagementRowHtml).join('')}</tbody>
   </table></div>`;
 
@@ -4742,6 +4806,9 @@ function wireUserManagementActions() {
   }));
   $$('[data-um-link-sales]').forEach(button => button.addEventListener('click', async () => {
     await userManagementLinkSalesRecord(button.dataset.umLinkSales);
+  }));
+  $$('[data-um-save-stations]').forEach(button => button.addEventListener('click', async () => {
+    await userManagementSaveStations(button.dataset.umSaveStations);
   }));
   $$('[data-um-disable]').forEach(button => button.addEventListener('click', async () => {
     const email = button.dataset.umDisable;
@@ -8140,13 +8207,14 @@ function vehicleLocationsDisplayBucket(vehicle = {}) {
   const operational = incomingBucketForVehicle(vehicle);
   if (operational !== 'pmb') return operational;
   const row = pmbArrivalRecord(vehicle);
-  return row && row.pending === true ? 'newpmb' : 'pmb';
+  // viewer_pending is per person: a controller while any station is outstanding,
+  // or someone assigned to a station that is still outstanding. Missing data stays on PMB.
+  return row && row.viewer_pending === true ? 'newpmb' : 'pmb';
 }
 
-function pmbArrivalCanAcknowledge(role = typeof window === 'object' ? window.PDC_AUTH_CONTEXT?.role : '') {
-  // The server decides. operator is the controller role. A fitter is offered the
-  // button; only a Bus 4x4 technician on a Department 138 vehicle is accepted.
-  return ['operator', 'administrator', 'fitter'].includes(String(role || '').trim().toLowerCase());
+function pmbArrivalDepartments(vehicle = {}) {
+  const row = pmbArrivalRecord(vehicle);
+  return row && Array.isArray(row.departments) ? row.departments : [];
 }
 
 function pmbArrivalWhenLabel(value) {
@@ -8155,23 +8223,33 @@ function pmbArrivalWhenLabel(value) {
   return date.toLocaleString('en-AU', { timeZone: 'Australia/Perth', dateStyle: 'medium', timeStyle: 'short' });
 }
 
+function pmbArrivalPersonLabel(department = {}) {
+  const name = String(department.acknowledged_by_name || '').trim();
+  if (!name) return '';
+  const role = String(department.acknowledged_by_role || '').trim().toLowerCase();
+  return role === 'operator' ? `${name} (controller)` : name;
+}
+
 function pmbArrivalNoteHtml(vehicle = {}) {
   const row = pmbArrivalRecord(vehicle);
-  if (!row) return '';
-  if (row.pending === true) return '<span class="pmb-ack-note is-waiting">Awaiting acknowledgement</span>';
-  const name = String(row.acknowledged_by_name || '').trim();
-  if (!name || row.source === 'backfill') return '';
-  const when = pmbArrivalWhenLabel(row.acknowledged_at);
-  const role = String(row.acknowledged_by_role || '').trim().toLowerCase();
-  const who = role === 'operator' ? `${name} (controller)` : name;
-  return `<span class="pmb-ack-note">Acknowledged by ${escapeHtml(who)}${when ? `, ${escapeHtml(when)}` : ''}</span>`;
+  if (!row || row.source === 'backfill') return '';
+  return pmbArrivalDepartments(vehicle).map(department => {
+    const label = String(department.label || department.station || '').trim();
+    if (!label) return '';
+    if (department.pending === true) return `<span class="pmb-ack-note is-waiting">${escapeHtml(label)} awaiting acknowledgement</span>`;
+    const who = pmbArrivalPersonLabel(department);
+    if (!who) return '';
+    const when = pmbArrivalWhenLabel(department.acknowledged_at);
+    return `<span class="pmb-ack-note">${escapeHtml(label)}: ${escapeHtml(who)}${when ? `, ${escapeHtml(when)}` : ''}</span>`;
+  }).filter(Boolean).join('');
 }
 
 function pmbArrivalActionHtml(vehicle = {}, key = '') {
-  const row = pmbArrivalRecord(vehicle);
-  if (!row || row.pending !== true) return '';
-  if (!pmbArrivalCanAcknowledge()) return '<span class="badge neutral">Awaiting a controller or department acknowledgement</span>';
-  return `<button class="primary" type="button" data-pmb-ack="${escapeHtml(key)}" title="Acknowledge this arrival so the department can prepare. The vehicle is already at PMB.">Acknowledge</button>`;
+  return pmbArrivalDepartments(vehicle).filter(department => department.pending === true && department.can_acknowledge === true).map(department => {
+    const label = String(department.label || department.station || 'station');
+    const station = String(department.station || '');
+    return `<button class="primary" type="button" data-pmb-ack="${escapeHtml(key)}" data-pmb-ack-station="${escapeHtml(station)}" title="Acknowledge ${escapeHtml(label)} so that station can prepare. The vehicle is already at PMB.">Acknowledge ${escapeHtml(label)}</button>`;
+  }).join('');
 }
 
 function pmbArrivalVehicleId(vehicle = {}) {
@@ -8194,7 +8272,10 @@ function ensurePmbArrivalAck() {
     (Array.isArray(result?.data) ? result.data : []).forEach(row => {
       if (row?.vehicle_id) next.set(String(row.vehicle_id), row);
     });
-    const signature = [...next.entries()].map(([id, row]) => `${id}|${row.pending}|${row.acknowledged_by_name || ''}|${row.acknowledged_at || ''}`).sort().join('\n');
+    const signature = [...next.entries()].map(([id, row]) => {
+      const departments = Array.isArray(row.departments) ? row.departments : [];
+      return `${id}|${row.viewer_pending}|${departments.map(department => `${department.station}:${department.pending}:${department.acknowledged_by_name || ''}:${department.acknowledged_at || ''}`).join(',')}`;
+    }).sort().join('\n');
     const changed = signature !== app.pmbArrivalAckSignature;
     app.pmbArrivalAck = next;
     app.pmbArrivalAckSignature = signature;
@@ -8205,15 +8286,15 @@ function ensurePmbArrivalAck() {
   });
 }
 
-async function acknowledgePmbArrival(key = '') {
+async function acknowledgePmbArrival(key = '', station = '') {
   const vehicle = vehicleLocationsScreenRows().find(row => vehicleKey(row) === key);
   const id = vehicle ? pmbArrivalVehicleId(vehicle) : '';
   const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
-  if (!vehicle || !id || !client || typeof client.rpc !== 'function') {
+  if (!vehicle || !id || !station || !client || typeof client.rpc !== 'function') {
     if (typeof pdcNotify === 'function') pdcNotify('This arrival could not be acknowledged. Refresh and try again.');
     return;
   }
-  const result = await client.rpc('acknowledge_pmb_arrival_544', { p_vehicle_id: id });
+  const result = await client.rpc('acknowledge_pmb_arrival_544', { p_vehicle_id: id, p_station: station });
   const body = result?.data;
   if (result?.error || !body || body.ok !== true) {
     const message = body?.message || result?.error?.message || 'This arrival could not be acknowledged.';
@@ -8224,11 +8305,10 @@ async function acknowledgePmbArrival(key = '') {
   if (!(app.pmbArrivalAck instanceof Map)) app.pmbArrivalAck = new Map();
   app.pmbArrivalAck.set(id, {
     vehicle_id: id,
-    pending: false,
-    acknowledged_at: data.acknowledged_at,
-    acknowledged_by_name: data.acknowledged_by_name,
-    acknowledged_by_role: data.acknowledged_by_role,
     source: data.source || 'location',
+    viewer_pending: data.viewer_pending === true,
+    closed: data.closed === true,
+    departments: Array.isArray(data.departments) ? data.departments : [],
   });
   app.pmbArrivalAckSignature = '';
   app.pmbArrivalAckLoadedAt = 0;
@@ -9475,7 +9555,7 @@ function renderIncomingDashboardBoardContent() {
   }));
   $$('[data-pmb-ack]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
-    acknowledgePmbArrival(button.dataset.pmbAck);
+    acknowledgePmbArrival(button.dataset.pmbAck, button.dataset.pmbAckStation);
   }));
   $$('[data-pit-transfer]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();

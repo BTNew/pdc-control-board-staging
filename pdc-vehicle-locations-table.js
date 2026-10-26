@@ -63,7 +63,7 @@
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.26.r544'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r544 (F158) New to PMB tile (cache-busts this module)
+  const VERSION = '2026.10.26.r544b'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r544 (F158) New to PMB tile (cache-busts this module)
   // r485 (F98): the one switch for the hidden Drop-down view. false = Table view only (Craig 22 Oct). true = r481 behaviour.
   const DROPDOWN_VIEW_ENABLED = false;
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
@@ -828,7 +828,7 @@
     root.bindVehicleLabelButtons(scope);
     all('[data-incoming-delete]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.deleteIncomingVehicleFromMain(button.dataset.incomingDelete); }));
     all('[data-yh-transfer-pmb]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.transferYhVehicleToPmb(button.dataset.yhTransferPmb); }));
-    all('[data-pmb-ack]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.acknowledgePmbArrival(button.dataset.pmbAck); }));
+    all('[data-pmb-ack]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.acknowledgePmbArrival(button.dataset.pmbAck, button.dataset.pmbAckStation); }));
     all('[data-pit-transfer]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.moveVehiclePitLocation(button.dataset.pitTransfer, 'to_pit'); }));
     all('[data-pit-return-pmb]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.moveVehiclePitLocation(button.dataset.pitReturnPmb, 'to_pmb'); }));
     all('[data-ready-for-qc]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.markVehicleReadyForQualityControl(button.dataset.readyForQc); }));

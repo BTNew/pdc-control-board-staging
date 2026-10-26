@@ -32,8 +32,8 @@ test('pending vehicles stay at PMB for every consumer except the Vehicle Locatio
   assert.equal(c.vehiclePdcLocation(waiting), 'PMB');
   assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb', 'no acknowledgement row yet: the PMB tile keeps the vehicle');
   c.app.pmbArrivalAck = new Map([
-    [waiting.id, { vehicle_id: waiting.id, pending: true, source: 'location' }],
-    [settled.id, { vehicle_id: settled.id, pending: false, source: 'backfill', acknowledged_by_name: null }],
+    [waiting.id, { vehicle_id: waiting.id, viewer_pending: true, source: 'location', departments: [{ station: 'FITTING', label: 'Fitting', pending: true, can_acknowledge: true }] }],
+    [settled.id, { vehicle_id: settled.id, viewer_pending: false, source: 'backfill', departments: [] }],
   ]);
   assert.equal(c.incomingBucketForVehicle(waiting), 'pmb', 'the operational bucket does not change');
   assert.equal(c.statusCategory(waiting), 'pmb');
@@ -50,28 +50,50 @@ test('pending vehicles stay at PMB for every consumer except the Vehicle Locatio
   assert.equal(defs.length === 0 || defs.findIndex(def => def.key === 'newpmb') < defs.findIndex(def => def.key === 'pmb'), true);
 });
 
-test('the list names who acknowledged, and a backfill is not a person', () => {
+test('the list names each station, and a backfill is not a person', () => {
   const { c } = board();
   const waiting = c.app.data[1];
   const settled = c.app.data[0];
   c.app.pmbArrivalAck = new Map([
-    [waiting.id, { vehicle_id: waiting.id, pending: true, source: 'location' }],
-    [settled.id, { vehicle_id: settled.id, pending: false, source: 'location', acknowledged_by_name: 'Alex Example', acknowledged_by_role: 'operator', acknowledged_at: '2026-10-26T02:55:00.000Z' }],
+    [waiting.id, {
+      vehicle_id: waiting.id, viewer_pending: true, source: 'location', departments: [
+        { station: 'FABRICATION', label: 'Fabrication', pending: false, can_acknowledge: false, acknowledged_by_name: 'Dan Batman', acknowledged_by_role: 'operator', acknowledged_at: '2026-10-26T02:56:00.000Z' },
+        { station: 'FITTING', label: 'Fitting', pending: true, can_acknowledge: true },
+        { station: 'HOIST', label: 'Hoist', pending: true, can_acknowledge: false },
+      ],
+    }],
+    [settled.id, { vehicle_id: settled.id, viewer_pending: false, source: 'backfill', departments: [] }],
   ]);
   c.window.PDC_AUTH_CONTEXT = { role: 'operator' };
   const waitingRow = c.incomingVehicleDetailRow(waiting, 'newpmb', { workshopProjectionAvailable: false });
-  const settledRow = c.incomingVehicleDetailRow(settled, 'pmb', { workshopProjectionAvailable: false });
-  assert.match(waitingRow, /Awaiting acknowledgement/);
-  assert.match(waitingRow, /data-pmb-ack=/);
+  assert.match(waitingRow, /Fabrication: Dan Batman \(controller\)/);
+  assert.match(waitingRow, /Fitting awaiting acknowledgement/);
+  assert.match(waitingRow, /Hoist awaiting acknowledgement/);
+  assert.match(waitingRow, /data-pmb-ack-station="FITTING"/);
+  assert.match(waitingRow, /Acknowledge Fitting/);
+  assert.doesNotMatch(waitingRow, /data-pmb-ack-station="HOIST"/);
+  assert.doesNotMatch(waitingRow, /data-pmb-ack-station="FABRICATION"/);
   assert.match(waitingRow, /stationTransfer|incoming-card-work-wrap/);
-  assert.match(settledRow, /Acknowledged by Alex Example \(controller\)/);
-  assert.doesNotMatch(settledRow, /data-pmb-ack=/);
-  c.app.pmbArrivalAck.set(settled.id, { vehicle_id: settled.id, pending: false, source: 'backfill', acknowledged_by_name: null });
+  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'newpmb');
+  c.app.pmbArrivalAck.set(waiting.id, {
+    vehicle_id: waiting.id, viewer_pending: false, source: 'location', departments: [
+      { station: 'FABRICATION', label: 'Fabrication', pending: false, can_acknowledge: false, acknowledged_by_name: 'Dan Batman', acknowledged_by_role: 'operator', acknowledged_at: '2026-10-26T02:56:00.000Z' },
+      { station: 'FITTING', label: 'Fitting', pending: true, can_acknowledge: false },
+    ],
+  });
+  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb', 'Fabrication is done, so Fabrication staff no longer see it as pending');
+  assert.match(c.pmbArrivalNoteHtml(waiting), /Fabrication: Dan Batman \(controller\)/);
+  assert.match(c.pmbArrivalNoteHtml(waiting), /Fitting awaiting acknowledgement/);
+  assert.equal(c.pmbArrivalActionHtml(waiting, 'SYN-WAIT'), '');
   assert.equal(c.pmbArrivalNoteHtml(settled), '');
-  c.window.PDC_AUTH_CONTEXT = { role: 'viewer' };
-  assert.match(c.incomingVehicleDetailRow(waiting, 'newpmb', {}), /Awaiting a controller or department acknowledgement/);
-  assert.equal(c.pmbArrivalCanAcknowledge('fitter'), true);
-  assert.equal(c.pmbArrivalCanAcknowledge('salesperson'), false);
+  const admin = c.userManagementRowHtml({ email: 'oleg@example.invalid', account_status: 'approved', role: 'operator', active: true, full_name: 'Oleg' });
+  assert.match(admin, /data-um-station="FITTING"/);
+  assert.match(admin, /data-um-station="HOIST"/);
+  assert.match(admin, /data-um-station="ELECTRICAL"/);
+  assert.match(admin, /data-um-station="FABRICATION"/);
+  assert.match(admin, /data-um-save-stations="oleg@example\.invalid"/);
+  assert.match(admin, /data-um-link-sales="oleg@example\.invalid"/);
+  assert.doesNotMatch(c.userManagementRowHtml({ email: 'p@example.invalid', account_status: 'pending', role: 'viewer' }), /data-um-save-stations/);
 });
 
 test('the new tile flashes blue and reduced motion is a solid blue, not orange', () => {
@@ -96,7 +118,11 @@ test('regression check uses pg_catalog types and does not cast regprocedure; pin
   assert.doesNotMatch(up, /INSERT INTO pdc_ops\.expected_function_md5/);
   assert.match(up, /count\(\*\) FROM pdc_ops\.expected_function_md5\)<>241/);
   assert.match(up, /source IN \('location','key','backfill'\)/);
-  assert.match(up, /BUS_4X4/);
+  assert.match(up, /vehicle_work_items/);
+  assert.match(up, /admin_set_user_station_departments_544/);
+  assert.match(up, /p_vehicle_id uuid, p_station text/);
+  assert.match(check, /FITTING/);
+  assert.match(check, /administrator/);
   assert.doesNotMatch(up.slice(up.indexOf('CREATE FUNCTION public.acknowledge_pmb_arrival_544'), up.indexOf('REVOKE ALL ON FUNCTION public.acknowledge_pmb_arrival_544')), /user_metadata|UPDATE public\.vehicles/);
   assert.match(down, /sort_order=322/);
   assert.doesNotMatch(fs.readFileSync('karratha/app.js', 'utf8'), /newpmb|r544/);
