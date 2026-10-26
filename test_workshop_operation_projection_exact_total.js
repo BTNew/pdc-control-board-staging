@@ -59,10 +59,10 @@ assert.strictEqual(decrease.shiftMinutes, 0);
 
 const source = fs.readFileSync('workshop-planner.js', 'utf8');
 // r478 (F91): the popup's hours are read-only, so the mismatch note no longer says 'save to update'.
-assert.match(source, /Work estimate changed since the bay time was set/);
+// r540 (F154): that note, the single work-estimate box and "hours allocated in the bay" lived only in the centred modal. The chip opens the locations drawer.
+assert.doesNotMatch(source, /Work estimate changed since the bay time was set/);
+assert.doesNotMatch(source, /hours allocated in the bay/);
 assert.doesNotMatch(source, /save to update/);
 assert.match(source, /step="any"/);
-assert.match(source, /work hours/);
-assert.match(source, /currentPlan\?\.operationEstimateHours/);
-assert.match(source, /hours allocated in the bay/);
+assert.match(source, /PDC_VEHICLE_SLIDEOUT/);
 console.log('Workshop complete operation projection and exact stage total: PASS');

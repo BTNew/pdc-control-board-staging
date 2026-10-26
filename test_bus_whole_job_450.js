@@ -43,7 +43,8 @@ test('planner: a whole-job booking shows by bay in a category view and keeps its
   assert.match(planner,/const bayCategory = candidate\.workCategory === 'BUS_WHOLE_JOB' \? null : workshopBayAwareCategory\(/);
   assert.equal((planner.match(/entry\.workCategory && entry\.workCategory !== 'BUS_WHOLE_JOB' \? entry\.workCategory [!=]== workshopSelectedBusGroup\(\)\.code/g)||[]).length,3);
   assert.doesNotMatch(planner,/entry\.workCategory \? entry\.workCategory [!=]== workshopSelectedBusGroup/);
-  assert.equal((planner.match(/!entry\.workCategory \|\| entry\.workCategory === 'BUS_WHOLE_JOB' \|\| entry\.workCategory === /g)||[]).length,2);
+  // r540 (F154): the centred job modal had the second copy of this filter. The planner queue keeps the one that remains.
+  assert.equal((planner.match(/!entry\.workCategory \|\| entry\.workCategory === 'BUS_WHOLE_JOB' \|\| entry\.workCategory === /g)||[]).length,1);
   // the vehicle panel lists every Bus line for a whole job
   const c={workshopResolvedJobLines:()=>[{stage:'BUS_4X4',workCategory:'BUS_QA'},{stage:'BUS_4X4',workCategory:'BUS_MECHANICAL'},{stage:'FITTING',workCategory:'FITTING'}],
     normalizePmbStage:s=>s};vm.createContext(c);

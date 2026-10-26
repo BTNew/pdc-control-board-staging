@@ -107,7 +107,8 @@ const approvedRootImportPatch = Object.freeze({
   // r527: QA Bay 07 resolves by code, bay number, QA label or the live snapshot, and a refused technician write no longer says to sign in as an administrator (F141). Department 135 keeps its frozen planner.
   // r531: the clash helper is called only when it is loaded, so the error catalog can read the describer on its own (F145).
   // r535: Schedule offers Next available or a bay order (F149). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "fe945356e338b40127ae7b9a4d43e7d3caa45169902852801f232847c350fa85",
+  // r540: a job chip opens the Vehicle Locations side panel instead of the centred station job modal (F154). Department 135 keeps its frozen planner.
+  "workshop-planner.js": "992ff342765b1b167524e2ced6becae41ad3be7e3d03cfed5c85a3b123941033",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "28f7eb47951e869bc90ec5a6e0bb2e15162b9d5ad8c3b1f8b808dc7ace6eec00",
   // r415: the started-before chip keeps its dashed border but is no longer greyed out (F31).
@@ -212,8 +213,10 @@ const approvedRootImportPatch = Object.freeze({
   // r527: r527=2026.10.25.r527 on workshop-reference-data-service.js and both workshop-planner.js loads (QA bay technician, F141). Department 135 keeps its frozen app.js.
   // r531: r531=2026.10.26.r531 on both workshop-planner.js loads (duration cache and technician clash text, F145). Department 135 keeps its frozen app.js.
   // r535: r535=2026.10.26.r535 on both workshop-planner.js loads (Schedule next slot or bay order, F149). Department 135 keeps its frozen app.js.
+  // r540: r540=2026.10.26.r540 on both workshop-planner.js loads (chip opens the vehicle side panel, F154). Department 135 keeps its frozen app.js.
   // r536: r536=2026.10.26.r536 on app.js (confirm before an unstarted booking is released; F150). Department 135 keeps its frozen app.js.
-  "app.js": "e05992b79faf55c54a39bb13b79201409eb08414ee0933adf56899846d0a0559",
+  // r540: r540=2026.10.26.r540 on both workshop-planner.js loads in app.js (chip opens the vehicle side panel, F154). Department 135 is not tagged.
+  "app.js": "1bd7410d240b1e7283834ec835cbbe7fc0c4280e33b27618a1e9eb267834dcb5",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).

@@ -15,7 +15,10 @@ assert.doesNotMatch(planner, /step="0\.0166666667"/);
 // dispatches setStageEstimatedMinutes. The 407 action and RPC contract below are unchanged.
 assert.doesNotMatch(planner, /const requestedMinutes = Math\.round\(requestedHours \* 60\)/);
 assert.doesNotMatch(planner, /workshopDispatchSharedAction\('setStageEstimatedMinutes'/);
-assert.match(planner, /workshopVehicle\(key, scopedStage\)/);
+// r540 (F154): the station job modal no longer looks the vehicle up. Double-click opens the locations drawer.
+assert.doesNotMatch(planner, /workshopVehicle\(key, scopedStage\)/);
+assert.match(planner, /workshopLocationsVehicle\(key\)/);
+assert.match(planner, /PDC_VEHICLE_SLIDEOUT/);
 assert.match(planner, /pdcQcOperationLinesProjectionPresent === true/);
 assert.match(planner, /directOperationLines = \[\]/);
 
