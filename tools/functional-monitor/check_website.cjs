@@ -7,16 +7,33 @@ const vm = require('node:vm');
 const {spawnSync} = require('node:child_process');
 const {ENTRY_POINTS} = require('../../scripts/build_pages_runtime.js');
 const repo = path.resolve(__dirname, '../..');
-const base = 'https://btnew.github.io/pdc-control-board-staging/';
+const base = 'https://pmgpdc.au/';
+const legacyBase = 'https://btnew.github.io/pdc-control-board-staging/';
 const backend = 'https://cdsmnqxtyyoeoznmbidd.supabase.co';
+const CRITICAL_ASSETS = Object.freeze(['app.js','workshop-planner.js','workshop-shared-actions.js','pdc-fitters.js','pdc-auth.js','sales/sales.js','sales/finance-pipeline.js','sales/customer-emails.js']);
+const publicFiles = new Set([...ENTRY_POINTS, ...CRITICAL_ASSETS]);
 
-async function fetchCheck(relative, method = 'GET') {
+async function fetchCheck(relative, method = 'GET', fetcher = fetch) {
+  if (!publicFiles.has(relative)) throw new Error('Unexpected website target');
+  if (!['GET','HEAD'].includes(method)) throw new Error('Only read-only website methods are permitted');
   const url = new URL(relative, base);
-  if (url.origin !== new URL(base).origin || !url.pathname.startsWith('/pdc-control-board-staging/')) throw new Error('Unexpected website target');
-  const response = await fetch(url, {method,signal:AbortSignal.timeout(20000),redirect:'error'});
+  const response = await fetcher(url, {method,signal:AbortSignal.timeout(20000),redirect:'error'});
   if (!response.ok) throw new Error('HTTP ' + response.status);
   if (method === 'GET' && !(await response.text()).toLowerCase().includes('<html')) throw new Error('HTML entry point missing');
   return {name:relative,status:'PASS'};
+}
+
+async function checkLegacyEntryRedirect(relative, fetcher = fetch) {
+  if (!ENTRY_POINTS.includes(relative)) throw new Error('Unexpected legacy entry point');
+  const response = await fetcher(new URL(relative, legacyBase), {
+    method:'HEAD',signal:AbortSignal.timeout(20000),redirect:'manual'
+  });
+  // Never follow a redirect. Validate the exact HTTPS host, path and absence of
+  // credentials/query/fragment before the canonical checks make their own read.
+  if (![301,308].includes(response.status) || response.headers.get('location') !== new URL(relative, base).href) {
+    throw new Error('Legacy entry must redirect directly to its exact canonical HTTPS URL');
+  }
+  return {name:'Legacy entry redirect: '+relative,status:'PASS',http_status:response.status};
 }
 
 async function probeSignedOutAccess(key, fetcher = fetch) {
@@ -45,7 +62,12 @@ async function run({full = false, output, skipNetwork = false} = {}) {
       const checks = await Promise.allSettled(chunk.map(file => fetchCheck(file)));
       checks.forEach((item,j) => results.push(item.status === 'fulfilled' ? item.value : {name:chunk[j],status:'FAIL',reason:String(item.reason.message)}));
     }
-    for (const file of ['app.js','workshop-planner.js','workshop-shared-actions.js','pdc-fitters.js','pdc-auth.js','sales/sales.js','sales/finance-pipeline.js','sales/customer-emails.js']) {
+    for (let i = 0; i < ENTRY_POINTS.length; i += 3) {
+      const chunk = ENTRY_POINTS.slice(i,i+3);
+      const checks = await Promise.allSettled(chunk.map(file => checkLegacyEntryRedirect(file)));
+      checks.forEach((item,j) => results.push(item.status === 'fulfilled' ? item.value : {name:'Legacy entry redirect: '+chunk[j],status:'FAIL',reason:String(item.reason.message)}));
+    }
+    for (const file of CRITICAL_ASSETS) {
       try { results.push(await fetchCheck(file,'HEAD')); } catch(error) { results.push({name:file,status:'FAIL',reason:error.message}); }
     }
     const sandbox = {window:{location:{origin:new URL(base).origin,pathname:new URL(base).pathname}}};
@@ -84,4 +106,4 @@ if(require.main===module){
     .then(report=>{console.log(JSON.stringify(report,null,2));process.exitCode=report.overall==='FAIL'?1:0;})
     .catch(error=>{console.error(error.message);process.exitCode=1;});
 }
-module.exports={run,fetchCheck,probeSignedOutAccess};
+module.exports={run,fetchCheck,checkLegacyEntryRedirect,probeSignedOutAccess};

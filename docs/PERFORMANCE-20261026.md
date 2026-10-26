@@ -118,9 +118,10 @@ only for reviewed changed files; frozen Karratha files remain unchanged.
 
 ## Verification and release ledger
 
-**Release status: database changes installed; frontend publication pending.**
+**Release status: installed and verified on the working staging website.**
 The two guarded database changes were applied at 18:34 Perth on 26 October 2026.
-The frontend remains a verified release candidate until publication/readback.
+The frontend was published through PR #534 and read back from the public domain
+after both main-branch publishing and integrity workflows succeeded.
 
 Measured build `b-2d5f226b5102a8722942`: 130 common first-party assets reduce from
 4,121,030 to 3,660,293 bytes (11.18%). Initial scripts/styles reduce from 74 to 71
@@ -134,21 +135,55 @@ bytes, not a claim of an equal percentage reduction in page-load time.
 | Actual browser interaction with local synthetic fixtures | **PASS** | Update history and Fitting statistics both load on demand; each script loads once. Session lock hides report content and unlock restores it. No console errors observed. This is real browser interaction against synthetic local fixtures, not the authenticated working-site data flow. |
 | Actual signed-in working-site baseline | **PASS** | Sign-in succeeded and Vehicle Locations loaded **425 rows** in the inspected view. This establishes the pre-release access/render baseline only; no customer identities or live job mutations are included. |
 | Read-only working database assessment | **PASS** for the measured checks | Payload sizes and background-clock health are recorded above. This is not an end-to-end speed measurement or an all-clear for untested workflows. |
-| Post-release browser/API verification | **PENDING** | Complete after the exact release is installed; compare the deployed asset versions, role denial, report navigation and conditional/full board reads. |
+| Post-release browser/API verification | **PASS** for inspected reads/navigation | Public version is the exact measured build and seven served assets matched tested bytes exactly. Actual signed-in browser loaded Vehicle Locations, both lazy reports, Control Board (46 bays), Department 138 Mechanical (4 bays), PMB Fitting (5 bays), Sublet, QC and the fitter entry screen. No console errors were observed. These are read/navigation checks, not job mutations or dragging. Full and conditional authenticated API reads, exact legacy payload parity and both signed-out denials passed. |
+| Main-branch CI | **2,841 PASS, 0 FAIL, 3 SKIP** | PostgreSQL service enabled 12 tests skipped locally. Three existing optional external-harness tests remained skipped. Publishing, source integrity and secret guards passed. |
 
 Private evidence remains under `work/functional-monitor-private/optimisation-20261026`,
 including the final regression logs, transport evaluation and native PostgreSQL
 verification receipts. The 15 skipped tests are not counted as passes.
 
-The release owner will complete these fields after publication/application:
+Completed release fields:
 
 | Release field | Result |
 |---|---|
-| Source release commit and pull request | PENDING |
-| Publishing/integrity workflow results | PENDING |
+| Source release commit and pull request | `9b38d369aee09250b80dbc8f686c03ff0a635543`, [PR #534](https://github.com/BTNew/pdc-control-board-staging/pull/534). Reviewed branch head `7e12c0e8204ad30833b81b29e0ef60e6dcc956f9`. |
+| Publishing/integrity workflow results | PASS: main publish `40309146182`, integrity `40309146004`; PR checks `40308920988` and `40308921054` also passed. |
 | Staging migration IDs and applied function fingerprints | `20261026103406` authorization guard: `ae706516b88574c1162e2c5889e4b4a9`; `20261026103449` conditional endpoint: `5b50acbf467ad4f38d3a8f9a062cc12e`. Both read back exactly; anonymous execution denied, protected pin count remains 241, missing identity returns unauthorized. |
-| Post-release browser/API results and measured performance | PENDING |
-| Release time in Perth and rollback verification receipt | PENDING |
+| Post-release browser/API results and measured performance | One authenticated sample: full response 17,041,419 bytes / 8,445.2 ms; matching-token response 104 bytes / 229.0 ms; exact full payload parity with legacy reader. These include network time and are single samples, not p95 benchmarks. Both read endpoints denied signed-out requests with HTTP 401. Temporary API verification session signed out locally (HTTP 204). No credentials or customer response bodies were saved. |
+| Release time in Perth and rollback verification receipt | Database 18:34; main integrity completed 18:41; public build and signed-in readback confirmed during 18:42–18:55, 26 October 2026. Private `database-release-receipt.json`, `authenticated-api-readback.json` and synthetic PostgreSQL rollback/cleanup receipts retained. |
+
+The availability monitor also required a separate correction: the old GitHub Pages
+domain now permanently redirects to the canonical domain. The old runner treated
+that redirect as downtime. See `docs/FUNCTIONAL-MONITOR-CANONICAL-HOST-20261026.md`
+for the bounded allowlist repair, 9 boundary tests and passing live public checks.
+
+### OPT-20261026-05 — internal helper tables exposed through broad grants
+
+The wider security-advisor inventory identified two existing SQL deployment helper
+tables, `public._r551_file` and `public._r551_stmt`, with explicit anonymous and
+authenticated table privileges and no RLS. Catalog, current-source and sampled
+query checks found no application dependency; all observed use was by `postgres`.
+The historical creator and possible out-of-repository uses remain unestablished.
+No working-table contents were read to investigate this finding.
+
+At **19:07 Perth**, migration **20261026110756** revoked only `anon` and
+`authenticated` privileges on those two tables. The atomic migration first guards
+the exact table shapes, owners, ACLs and absence of dependencies. It preserves all
+rows, object identities, owner/service access, RLS settings and other objects.
+Live metadata readback at 19:08 confirmed both exact restricted ACLs, no remaining
+privileges for the two app roles, and unchanged administrator/service access.
+
+Native PostgreSQL 17.11 proof passed actual role read/write checks, unchanged
+synthetic contents and metadata, exact rollback, dependency/ACL drift refusal and
+literal-name matching. Fixture transactions rolled back and the private test
+server, generated credentials and data were removed. Retain this restriction on
+ordinary performance rollback. The reviewed inverse is
+`supabase/proposals/r551_helper_api_access_20261026.down.sql`; it deliberately
+restores the former exposure and is only for a separately reviewed emergency.
+
+This is not a security all-clear. Other advisor findings were not blanket-altered;
+RLS remains disabled on these restricted helpers. An anonymous-executable fitter
+request hook was confirmed to be the intentional PostgREST request gate.
 
 Evidence categories remain distinct: code tests, synthetic browser interactions,
 synthetic native PostgreSQL tests, read-only live database checks, and actual signed-in
