@@ -140,7 +140,38 @@
       get busy() { return Boolean(running); }, get canApply() { return Boolean(preview?.result.can_apply && (preview.input.bay !== null || preview.result.changes.length > 0) && current(preview.owner)); },
     };
   }
-  const exported = { percentage, allocatedHours, allocatedBaseMinutes, selectEfficiency, requestInput, createController };
+  function stageLabel(stage) {
+    return typeof pmbStageLabel === 'function' ? pmbStageLabel(stage) : stage;
+  }
+  function timeLabel(value) {
+    const date = new Date(value);
+    return Number.isNaN(+date) ? 'Unavailable' : date.toLocaleString('en-AU', { timeZone:'Australia/Perth', weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+  }
+  function bayLabel(row) {
+    const name = String(row?.bay_display_name || '').trim();
+    return name || `${stageLabel(row?.stage_code)} · Bay ${row?.bay_number ?? '—'}`;
+  }
+  function vehicleLabel(row) {
+    const key = String(row?.key_number || '').trim();
+    const stock = row?.stock_number || '—';
+    return key ? `Key ${key} · Stock ${stock}` : `Stock ${stock}`;
+  }
+  function summaryHtml(result, applied = false) {
+    const changes = Array.isArray(result.changes) ? result.changes : [];
+    const holds = Array.isArray(result.holds) ? result.holds.filter(row => String(row?.hold_reason || '').trim()) : [];
+    const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+    const blocked = !applied && result.can_apply === false;
+    const changeTable = changes.length ? `<div class="planner-capacity-table"><table><thead><tr><th>Vehicle / bay</th><th>Current booking</th><th>${applied ? 'Updated booking' : 'Proposed booking'}</th></tr></thead><tbody>${changes.map(row => `<tr><td><strong>${esc(vehicleLabel(row))}</strong><small>${esc(bayLabel(row))}</small>${String(row.hold_reason || '').trim() ? `<small>${esc(row.hold_reason)}</small>` : ''}</td><td>${esc(timeLabel(row.old_start_at))}<small>to ${esc(timeLabel(row.old_end_at))}</small></td><td>${esc(timeLabel(row.new_start_at))}<small>to ${esc(timeLabel(row.new_end_at))}</small></td></tr>`).join('')}</tbody></table></div>` : '';
+    const holdTable = !applied && holds.length ? `<p><strong>Staying in place</strong></p><div class="planner-capacity-table"><table><thead><tr><th>Vehicle / bay</th><th>Booking</th><th>Why it stays</th></tr></thead><tbody>${holds.map(row => `<tr><td><strong>${esc(vehicleLabel(row))}</strong><small>${esc(bayLabel(row))}</small></td><td>${esc(timeLabel(row.start_at))}<small>to ${esc(timeLabel(row.end_at))}</small></td><td>${esc(row.hold_reason)}</td></tr>`).join('')}</tbody></table></div>` : '';
+    return (blocked ? `<p class="planner-capacity-warning" role="alert">${esc(result.message || 'These bookings cannot be changed safely. Review the affected bookings before trying again.')}</p>`
+      : `<p><strong>${applied ? 'Changes saved.' : `${changes.length} booking${changes.length === 1 ? '' : 's'} would change.`}</strong></p>`)
+      + (!applied && !blocked && !changes.length ? '<p>No earlier safe moves are available. Gaps may remain while vehicles finish another station, wait for the 1-hour handover, or are unavailable. Each vehicle keeps its station order.</p>' : '')
+      + changeTable
+      + warnings.map(warning => `<p class="planner-capacity-warning">${esc(typeof warning === 'string' ? warning : warning.message || 'Check the booking sequence before applying.')}</p>`).join('')
+      + (Number(result.unchanged_count) > 0 ? `<p>${esc(result.unchanged_count)} booking${Number(result.unchanged_count) === 1 ? ' stays' : 's stay'} unchanged.</p>` : '')
+      + holdTable;
+  }
+  const exported = { percentage, allocatedHours, allocatedBaseMinutes, selectEfficiency, requestInput, createController, summaryHtml };
   if (typeof module !== 'undefined' && module.exports) { module.exports = exported; return; }
   if (!root.document || root.PDC_PLANNER_CAPACITY) return;
   const doc = root.document;
@@ -151,7 +182,6 @@
     token:typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : '',
     config:root.PDC_SUPABASE_CONFIG, service:root.__workshopDataService, stage:stageNow() });
   const controller = createController({ getContext:context, fetch:(...args) => root.fetch(...args), uuid:() => root.crypto.randomUUID() });
-  const stageLabel = stage => typeof pmbStageLabel === 'function' ? pmbStageLabel(stage) : stage;
   function referenceBay(stage, bay) {
     const cache = root.__workshopReferenceDataService?.getCachedWorkshopBays?.();
     if (!['connected_editable', 'connected_read_only'].includes(cache?.state)) return null;
@@ -217,21 +247,6 @@
           : 'Change the time allowed for this bay’s planned work. 100% is normal speed.';
       });
     } finally { rendering = false; }
-  }
-  function timeLabel(value) {
-    const date = new Date(value);
-    return Number.isNaN(+date) ? 'Unavailable' : date.toLocaleString('en-AU', { timeZone:'Australia/Perth', weekday:'short', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
-  }
-  function summaryHtml(result, applied = false) {
-    const changes = Array.isArray(result.changes) ? result.changes : [];
-    const warnings = Array.isArray(result.warnings) ? result.warnings : [];
-    const blocked = !applied && result.can_apply === false;
-    return (blocked ? `<p class="planner-capacity-warning" role="alert">${esc(result.message || 'These bookings cannot be changed safely. Review the affected bookings before trying again.')}</p>`
-      : `<p><strong>${applied ? 'Changes saved.' : `${changes.length} booking${changes.length === 1 ? '' : 's'} would change.`}</strong></p>`)
-      + (!applied && !blocked && !changes.length ? '<p>No earlier safe moves are available. Gaps may remain while vehicles finish another station, wait for the 1-hour handover, or are unavailable. Each vehicle keeps its station order.</p>' : '')
-      + (changes.length ? `<div class="planner-capacity-table"><table><thead><tr><th>Vehicle / bay</th><th>Current booking</th><th>${applied ? 'Updated booking' : 'Proposed booking'}</th></tr></thead><tbody>${changes.map(row => `<tr><td><strong>Stock ${esc(row.stock_number || '—')}</strong><small>${esc(stageLabel(row.stage_code))} · Bay ${esc(row.bay_number)}</small></td><td>${esc(timeLabel(row.old_start_at))}<small>to ${esc(timeLabel(row.old_end_at))}</small></td><td>${esc(timeLabel(row.new_start_at))}<small>to ${esc(timeLabel(row.new_end_at))}</small></td></tr>`).join('')}</tbody></table></div>` : '')
-      + warnings.map(warning => `<p class="planner-capacity-warning">${esc(typeof warning === 'string' ? warning : warning.message || 'Check the booking sequence before applying.')}</p>`).join('')
-      + (Number(result.unchanged_count) > 0 ? `<p>${esc(result.unchanged_count)} booking${Number(result.unchanged_count) === 1 ? '' : 's'} stay unchanged.</p>` : '');
   }
   function ensureDialog() {
     if (dialog) return dialog;
