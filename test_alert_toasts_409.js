@@ -62,9 +62,10 @@ test('F25: 210 former alert() calls are toasts; exactly eight are info (six + r4
   ]) assert.ok(app.includes(text), text);
 });
 
-test('F25: yes/no confirm() and typed prompt() steps are all kept (43 and 29)', () => {
+test('F25: yes/no confirm() and typed prompt() steps are all kept (44 and 29)', () => {
   // r419 adds two: confirm Approve and confirm Change role in User Admin. r432 adds one: confirm Link salesperson record.
-  assert.strictEqual(calls(code, /(?<![\w.])confirm\(|window\.confirm\(/g), 43);
+  // r536 adds one: confirm before an unstarted booking is released.
+  assert.strictEqual(calls(code, /(?<![\w.])confirm\(|window\.confirm\(/g), 44);
   assert.strictEqual(calls(code, /(?<![\w.])prompt\(|window\.prompt\(/g), 29);
   // Destructive admin actions still ask, and ask before calling the server.
   for (const [fn, rpc] of [['removeVehicle', 'window.__vehicleLifecycleActions'], ['completeVehicleDelete', 'window.__vehicleLifecycleActions.adminCompleteVehicleDelete'], ['runDeletedVehicleAdminAction', 'window.__vehicleLifecycleActions']]) {

@@ -172,7 +172,7 @@ test('signing out clears the role filter', () => {
 test('the control sits on the User Administration tab row and app.js is cache-busted; Karratha is untouched', () => {
   assert.match(html, /id="user-management-tabs"[\s\S]*id="user-management-role-filter"[\s\S]*All roles[\s\S]*id="user-management-content"/);
   assert.match(html, /aria-label="Filter by role"/);
-  assert.match(html, /app\.js\?[^"]*&amp;r510=2026\.10\.23\.r510"/);
+  assert.match(html, /app\.js\?[^"]*&amp;r510=2026\.10\.23\.r510(?:&amp;[^"]*)?"/);
   assert.equal(fs.readFileSync('karratha/index.html', 'utf8').includes('user-management-role-filter'), false);
   assert.equal(fs.readFileSync('karratha/app.js', 'utf8').includes('userManagementRoleFilter'), false);
   assert.match(fs.readFileSync('docs/FAULT_LOG.md', 'utf8'), /^\| F123 \| 23 Oct 12:30 \|/m);
