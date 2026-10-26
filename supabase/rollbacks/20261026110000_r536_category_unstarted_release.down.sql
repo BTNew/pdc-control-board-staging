@@ -2,6 +2,7 @@
 -- Restores set_vehicle_work_category to the r450 body (prosrc md5 1c0424ad5da9a534ea4ae7b0ebae5c29).
 -- Does not put a released booking back and does not rewind a shortened or lengthened booking.
 -- Department 135 is not edited. Pin count stays 241.
+-- bus_whole_job_450 returns to the r529 text (md5 820f02d2b352ba28ff610fe48bd45f3c): 16 r450 pins, including the 5-arg category function.
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
  IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r536 undo: run between :02 and :45'; END IF;
@@ -11,6 +12,9 @@ DO $g$ BEGIN
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)')) IS DISTINCT FROM 'b1b23383b96acd867c246cf6e57572dc' THEN RAISE EXCEPTION 'r536 undo: category function is not the r536 body'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r536 undo: pin count is not 241'; END IF;
  IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='category_unstarted_release_536' AND fault_id='F150' AND added_in='r536' AND sort_order=315)<>1 THEN RAISE EXCEPTION 'r536 undo: F150 check is not the r536 row'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='bus_whole_job_450' AND sort_order=249 AND fault_id='F63'
+   AND check_sql LIKE '%(SELECT n FROM pins)=15 AND (SELECT ok FROM pins)=15%'
+   AND check_sql LIKE '%public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)%')<>1 THEN RAISE EXCEPTION 'r536 undo: whole-job check is not the r536 text'; END IF;
 END $g$;
 
 DROP FUNCTION public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb);
@@ -69,10 +73,37 @@ UPDATE pdc_ops.expected_function_md5
 DELETE FROM pdc_ops.regression_checks
  WHERE check_name='category_unstarted_release_536' AND fault_id='F150' AND added_in='r536' AND sort_order=315;
 
-DO $g$ BEGIN
+UPDATE pdc_ops.regression_checks
+SET check_sql = replace(check_sql,
+ $new450$(SELECT n FROM pins)=15 AND (SELECT ok FROM pins)=15 AND (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='pdc_work_categories_private.before_import_rules_20261017(uuid)')='r523' AND (SELECT e.prosrc_md5 IS NOT DISTINCT FROM md5(p.prosrc) FROM pdc_ops.expected_function_md5 e JOIN pg_proc p ON p.oid=to_regprocedure(e.signature) WHERE e.signature='pdc_work_categories_private.before_import_rules_20261017(uuid)') AND (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)')='r536' AND (SELECT e.prosrc_md5 IS NOT DISTINCT FROM md5(p.prosrc) FROM pdc_ops.expected_function_md5 e JOIN pg_proc p ON p.oid=to_regprocedure(e.signature) WHERE e.signature='public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)') AND NOT EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE signature='public.set_vehicle_work_category(uuid,integer,text,text,integer)')$new450$,
+ $old450$(SELECT n FROM pins)=16 AND (SELECT ok FROM pins)=16 AND (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='pdc_work_categories_private.before_import_rules_20261017(uuid)')='r523' AND (SELECT e.prosrc_md5 IS NOT DISTINCT FROM md5(p.prosrc) FROM pdc_ops.expected_function_md5 e JOIN pg_proc p ON p.oid=to_regprocedure(e.signature) WHERE e.signature='pdc_work_categories_private.before_import_rules_20261017(uuid)')$old450$)
+WHERE check_name='bus_whole_job_450'
+  AND sort_order=249
+  AND fault_id='F63'
+  AND added_in='r450'
+  AND check_sql LIKE '%(SELECT n FROM pins)=15 AND (SELECT ok FROM pins)=15%';
+
+UPDATE pdc_ops.regression_checks
+SET check_sql = replace(check_sql,
+ $new450d$ ||'; r450 pins matching: '||(SELECT ok FROM pins)||'/'||(SELECT n FROM pins) ||'; category pin '||coalesce((SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'),'missing')$new450d$,
+ $old450d$ ||'; r450 pins matching: '||(SELECT ok FROM pins)||'/'||(SELECT n FROM pins)$old450d$)
+WHERE check_name='bus_whole_job_450'
+  AND sort_order=249
+  AND fault_id='F63'
+  AND added_in='r450'
+  AND check_sql LIKE '%category pin%';
+
+DO $g$ DECLARE x record; y record; BEGIN
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer)')) IS DISTINCT FROM '1c0424ad5da9a534ea4ae7b0ebae5c29' THEN RAISE EXCEPTION 'r536 undo: r450 body did not land'; END IF;
  IF to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)') IS NOT NULL THEN RAISE EXCEPTION 'r536 undo: r536 signature still exists'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE signature='public.set_vehicle_work_category(uuid,integer,text,text,integer)' AND prosrc_md5='1c0424ad5da9a534ea4ae7b0ebae5c29' AND release='r450')<>1 THEN RAISE EXCEPTION 'r536 undo: pin did not return to r450'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r536 undo: pin count is not 241'; END IF;
  IF EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='category_unstarted_release_536' OR fault_id='F150' OR added_in='r536' OR sort_order=315) THEN RAISE EXCEPTION 'r536 undo: F150 check remains'; END IF;
+ IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='bus_whole_job_450' AND added_in='r450' AND fault_id='F63' AND sort_order=249) IS DISTINCT FROM '820f02d2b352ba28ff610fe48bd45f3c' THEN RAISE EXCEPTION 'r536 undo: whole-job check did not return to the r529 text'; END IF;
+ PERFORM set_config('search_path','pg_catalog',true);
+ EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='bus_whole_job_450') INTO x;
+ EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='regression_checks_self_test') INTO y;
+ PERFORM set_config('search_path','public, extensions',true);
+ IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r536 undo: bus_whole_job_450 not OK: %', x.detail; END IF;
+ IF y.ok IS NOT TRUE THEN RAISE EXCEPTION 'r536 undo: regression_checks_self_test not OK: %', y.detail; END IF;
 END $g$;

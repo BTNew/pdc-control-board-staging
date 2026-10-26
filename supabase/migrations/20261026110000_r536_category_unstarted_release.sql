@@ -3,6 +3,9 @@
 -- or shortens it when other lines still need it. A running job keeps its bay time; the hours move onto that job.
 -- Started, stopped, completed and whole-job bookings stay protected. Department 135 is not edited.
 -- Pin count stays 241 (the category function pin moves in place). Sort 315. Sorts 312-314 are r531 and r532.
+-- bus_whole_job_450 keeps the other 15 r450 pins, the r523 import pin, the bay list and the whole-job rules.
+-- It accepts public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb) at release r536
+-- in place of the 5-arg r450 signature. Live check text before this change is md5 820f02d2b352ba28ff610fe48bd45f3c.
 -- Undo: supabase/rollbacks/20261026110000_r536_category_unstarted_release.down.sql
 -- set_vehicle_work_category prosrc md5 b1b23383b96acd867c246cf6e57572dc.
 SET LOCAL lock_timeout = '2s';
@@ -17,6 +20,7 @@ DO $g$ BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r536: pin count is not 241'; END IF;
  IF EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=315 OR check_name='category_unstarted_release_536' OR added_in='r536' OR fault_id='F150') THEN RAISE EXCEPTION 'r536: sort 315 or F150 is taken'; END IF;
  IF NOT EXISTS(SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='technician_overlap_names_booking_531' AND fault_id='F145' AND sort_order=313 AND added_in='r531') THEN RAISE EXCEPTION 'r536: r531 / F145 sort 313 is not the live check'; END IF;
+ IF (SELECT md5(check_sql) FROM pdc_ops.regression_checks WHERE check_name='bus_whole_job_450' AND added_in='r450' AND fault_id='F63' AND sort_order=249) IS DISTINCT FROM '820f02d2b352ba28ff610fe48bd45f3c' THEN RAISE EXCEPTION 'r536: bus_whole_job_450 is not the r529 text'; END IF;
 END $g$;
 
 DROP FUNCTION public.set_vehicle_work_category(uuid,integer,text,text,integer);
@@ -258,14 +262,45 @@ INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,
  'category pin r536, unstarted release needs a confirm, a running job keeps its bay, Department 135 is separate' AS detail$chk$,
  true,315,'r536');
 
-DO $g$ DECLARE x record; BEGIN
+-- r529 counted 16 r450 pins after the import rule moved to r523. This pin is the next one to leave r450.
+UPDATE pdc_ops.regression_checks
+SET check_sql = replace(check_sql,
+ $old450$(SELECT n FROM pins)=16 AND (SELECT ok FROM pins)=16 AND (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='pdc_work_categories_private.before_import_rules_20261017(uuid)')='r523' AND (SELECT e.prosrc_md5 IS NOT DISTINCT FROM md5(p.prosrc) FROM pdc_ops.expected_function_md5 e JOIN pg_proc p ON p.oid=to_regprocedure(e.signature) WHERE e.signature='pdc_work_categories_private.before_import_rules_20261017(uuid)')$old450$,
+ $new450$(SELECT n FROM pins)=15 AND (SELECT ok FROM pins)=15 AND (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='pdc_work_categories_private.before_import_rules_20261017(uuid)')='r523' AND (SELECT e.prosrc_md5 IS NOT DISTINCT FROM md5(p.prosrc) FROM pdc_ops.expected_function_md5 e JOIN pg_proc p ON p.oid=to_regprocedure(e.signature) WHERE e.signature='pdc_work_categories_private.before_import_rules_20261017(uuid)') AND (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)')='r536' AND (SELECT e.prosrc_md5 IS NOT DISTINCT FROM md5(p.prosrc) FROM pdc_ops.expected_function_md5 e JOIN pg_proc p ON p.oid=to_regprocedure(e.signature) WHERE e.signature='public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)') AND NOT EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE signature='public.set_vehicle_work_category(uuid,integer,text,text,integer)')$new450$)
+WHERE check_name='bus_whole_job_450'
+  AND sort_order=249
+  AND fault_id='F63'
+  AND added_in='r450'
+  AND check_sql LIKE '%(SELECT n FROM pins)=16 AND (SELECT ok FROM pins)=16%';
+
+UPDATE pdc_ops.regression_checks
+SET check_sql = replace(check_sql,
+ $old450d$ ||'; r450 pins matching: '||(SELECT ok FROM pins)||'/'||(SELECT n FROM pins)$old450d$,
+ $new450d$ ||'; r450 pins matching: '||(SELECT ok FROM pins)||'/'||(SELECT n FROM pins) ||'; category pin '||coalesce((SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)'),'missing')$new450d$)
+WHERE check_name='bus_whole_job_450'
+  AND sort_order=249
+  AND fault_id='F63'
+  AND added_in='r450'
+  AND check_sql LIKE '%r450 pins matching:%'
+  AND check_sql NOT LIKE '%category pin%';
+
+DO $g$ DECLARE x record; n text; BEGIN
  IF (SELECT count(*) FROM pg_proc p WHERE p.oid=to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)') AND md5(p.prosrc)='b1b23383b96acd867c246cf6e57572dc'
    AND p.proacl::text||'|'||p.prosecdef::text||'|'||p.provolatile::text||'|'||p.proowner::regrole::text||'|'||coalesce(array_to_string(p.proconfig,'|'),'')='{postgres=X/postgres,service_role=X/postgres,authenticated=X/postgres}|true|v|postgres|search_path=pg_catalog')<>1 THEN RAISE EXCEPTION 'r536: set_vehicle_work_category did not land'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r536: pin count is not 241'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE signature='public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)' AND prosrc_md5='b1b23383b96acd867c246cf6e57572dc' AND release='r536')<>1 THEN RAISE EXCEPTION 'r536: pin did not move'; END IF;
  IF to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer)') IS NOT NULL THEN RAISE EXCEPTION 'r536: old signature still exists'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='bus_whole_job_450' AND sort_order=249 AND fault_id='F63' AND added_in='r450'
+   AND check_sql LIKE '%(SELECT n FROM pins)=15 AND (SELECT ok FROM pins)=15%'
+   AND check_sql LIKE '%public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)%'
+   AND check_sql LIKE '%''r536''%'
+   AND check_sql NOT LIKE '%(SELECT n FROM pins)=16%'
+   AND check_sql LIKE '%''1,2,3,4,5,6,8,9,10''%'
+   AND check_sql LIKE '%before_import_rules_20261017(uuid)%')<>1 THEN RAISE EXCEPTION 'r536: whole-job check did not take the 7-arg r536 pin'; END IF;
  PERFORM set_config('search_path','pg_catalog',true);
- EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='category_unstarted_release_536') INTO x;
+ FOREACH n IN ARRAY ARRAY['category_unstarted_release_536','bus_whole_job_450','regression_checks_self_test'] LOOP
+  EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name=n) INTO x;
+  IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r536: % not OK: %', n, x.detail; END IF;
+ END LOOP;
  PERFORM set_config('search_path','public, extensions',true);
- IF x.ok IS NOT TRUE THEN RAISE EXCEPTION 'r536: check category_unstarted_release_536 not OK: %', x.detail; END IF;
 END $g$;
