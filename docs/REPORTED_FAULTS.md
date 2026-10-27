@@ -1,5 +1,25 @@
 # Reported faults
 
+## Revolution report upload
+
+Craig approved the build on 28 Oct 2026 at 07:10 AWST and go-live on 28 Oct 2026 at 08:05 AWST. Staff upload a Revolution report on Admin > Revolution uploads. The server reads the file and shows what would change. No model is in the loop. Apply does not write the import tables. Kajel's imports keep running. Switching over needs a separate go-live. Production `vjdtsswhroyguxyfjdkt` was not touched. Staging `cdsmnqxtyyoeoznmbidd` only.
+
+Kajel's rows function stays `9be0883b1a555f48f3c1ba9fa111c891` and the apply function stays `b62fb7c29ffd2a1629f214f696e5cb14`.
+
+### Fix
+
+r591 / F205 / sort 362. The ledger already has r592 / F206 / sort 360, r590 / F204 / sort 361, r593 / F207 / sort 363 and r594 / F208 / sort 364. Sort 362 was the free hole. r589 / F203 stays with #571. r584 / F198 / sort 356 stays with #498. Pin count stays 241. No new pin. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. The upload page uses blue (`#1d4ed8`, `#dbeafe`, `#2563eb`).
+
+The edge function names the report from its title and headers, refuses the wrong report, and parses the rows. A dry run counts new, updated, archived and skipped, plus one hold list. Each held line has one reason: closed-vehicle conflict, identity changed, identity restore, staff-lock, status 99, duplicate line, or carried-over not-sent. The SQL apply raises until the switch-over. More than 15 new vehicles or archives needs an administrator confirm. Service keeps departments 138 and 139 only. A status 99 line with no live board vehicle is held. Broome Sales `37047` and Karratha Sales `14450` are not changed by the PMB archive rule. A vehicle with an open job card is not archived.
+
+Up `supabase/migrations/20261028080000_r591_revolution_upload.sql` file md5 `b3d57dc7d65976f7bf9f4739db22e9a0`. Down `supabase/rollbacks/20261028080000_r591_revolution_upload.down.sql` file md5 `5d7ae37ce1165e4bf2a6dfc43986e896`. The comparison is in `docs/revolution-upload-591.md`. 6,533 sent lines match with 0 field diffs. The 333 holds match Kajel's three hold files with 0 diffs.
+
+Later: a status 80 vehicle moving to QC with every item ticked green, and pulling the same reports from the pdc@ inbox.
+
+### Check
+
+`revolution_upload_591` (F205, sort 362). It goes red if apply is enabled, if the Kajel pins move, if department 135 moves, if a new pin is added for this upload, or if the sanity confirm stops being raised above 15.
+
 ## New to PMB is a view, not an acknowledgement
 
 Craig, 28 Oct 2026, 06:01 AWST, clarified 06:03 AWST. Craig approved go-live at 08:05 AWST. This is for vehicles at Yard Hold and for non-division vehicles. When one arrives off a truck, staff tick To PMB and enter a key number, and it goes straight onto the board in the PMB bucket. Nobody approves or acknowledges it. New to PMB is a view only: it lists vehicles whose key number is under 4 days old, so people who log in can see what has arrived recently and make arrangements. Those vehicles appear in both places, the PMB bucket and the New to PMB list. The counter is display only.
@@ -99,6 +119,7 @@ Cache bust `vehicle-slideout=2026.10.28.r588` on `pdc-vehicle-slideout.js` / `.c
 ### Check
 
 `test_vehicle_slideout_tick_grid_588.js` (no new `fault_regression_check` row). Before publish, `pdc_ops.fault_regression_check()` was 129 checks with one existing red (`clock_tick_latency_trend`, not introduced by this release).
+
 ## Control board QC lines and nested work items
 
 Craig, 28 Oct 2026 05:18 AWST, release 2 of go live and optimise the board. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. The vehicle-board lock convoy is r586. This release is the eligibility snapshot the control board reads.
