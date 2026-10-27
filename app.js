@@ -383,7 +383,7 @@ function canonicalVehicleWorkState(vehicle = {}, def = {}, options = {}) {
   return workStateGuard.projectWorkState({
     workKey: def.key,
     required: pdcJobRequired(vehicle, def),
-    completed: pdcJobComplete(vehicle, def),
+    completed: options.completed === true || options.completed === false ? options.completed : pdcJobComplete(vehicle, def),
     bookings,
     partsOrdered: def.key === 'parts' && partsOrdered(vehicle),
     partsStoppage: def.key === 'parts' && isActivePartsStoppage(vehicle),
@@ -1202,6 +1202,27 @@ function pdcJobComplete(vehicle = {}, def = {}) {
   if (vehicle[def.completeKey] === true) return true;
   if (vehicle[def.completeKey] === false) return false;
   return false;
+}
+
+// r578 (F192): a station icon is green when every line of that station is done,
+// or a controller overrode the station. The work-item flag above is unchanged.
+function pdcStationLinesMakeComplete(vehicle = {}, def = {}) {
+  if (!def?.key || def.key === 'pitInspection') return false;
+  if (vehicle?.pdcStationLinesComplete?.[def.key] === true) return true;
+  const id = typeof pmbArrivalVehicleId === 'function' ? pmbArrivalVehicleId(vehicle) : String(vehicle?.id || '');
+  if (!id || typeof app === 'undefined' || !(app?.stationIconCompletion instanceof Map)) return false;
+  return app.stationIconCompletion.get(String(id))?.[def.key]?.complete === true;
+}
+
+function pdcStationLinesOverrideBy(vehicle = {}, def = {}) {
+  if (!def?.key) return '';
+  const listed = vehicle?.pdcStationLineOverride?.[def.key];
+  if (listed) return String(listed);
+  const id = typeof pmbArrivalVehicleId === 'function' ? pmbArrivalVehicleId(vehicle) : String(vehicle?.id || '');
+  if (!id || typeof app === 'undefined' || !(app?.stationIconCompletion instanceof Map)) return '';
+  const row = app.stationIconCompletion.get(String(id))?.[def.key];
+  if (row?.override !== true) return '';
+  return String(row.by || 'controller');
 }
 
 function pdcRequiredJobs(vehicle = {}) {
@@ -8670,6 +8691,74 @@ function ensurePmbKeyAssigned() {
   });
 }
 
+function stationIconCompletionSignature() {
+  const map = app.stationIconCompletion instanceof Map ? app.stationIconCompletion : new Map();
+  return [...map.entries()].map(([id, row]) => {
+    const bits = Object.keys(row || {}).sort().map(key => `${key}:${row[key]?.override ? 'o' : 'l'}:${row[key]?.by || ''}`);
+    return `${id}|${bits.join(',')}`;
+  }).sort().join('\n');
+}
+
+function storeStationIconCompletion(ids, stations, startedAt = 0) {
+  if (!(app.stationIconCompletion instanceof Map)) app.stationIconCompletion = new Map();
+  if (!(app.stationIconCompletionStamp instanceof Map)) app.stationIconCompletionStamp = new Map();
+  const requested = new Set((Array.isArray(ids) ? ids : []).map(id => String(id || '')).filter(Boolean));
+  requested.forEach(id => {
+    const stamp = app.stationIconCompletionStamp.get(id) || 0;
+    if (startedAt && stamp > startedAt) requested.delete(id);
+  });
+  requested.forEach(id => app.stationIconCompletion.delete(id));
+  const grouped = new Map();
+  (Array.isArray(stations) ? stations : []).forEach(row => {
+    const id = String(row?.vehicle_id || '');
+    if (!requested.has(id) || row?.complete !== true || !row.work_key || row.work_key === 'pitInspection') return;
+    if (!grouped.has(id)) grouped.set(id, {});
+    grouped.get(id)[row.work_key] = {
+      complete: true,
+      override: row.override === true,
+      by: row.override === true ? String(row.override_email || 'controller') : '',
+      at: row.acted_at || '',
+    };
+  });
+  grouped.forEach((value, id) => app.stationIconCompletion.set(id, value));
+  app.stationIconCompletionSignature = stationIconCompletionSignature();
+}
+
+function redrawStationIconsIfChanged(previous) {
+  if (previous === app.stationIconCompletionSignature) return;
+  if (app.currentView === 'dashboard' && typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
+  if (app.currentView === 'qc' && typeof renderQualityControlPage === 'function') renderQualityControlPage();
+}
+
+function ensureStationIconCompletion() {
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!client || typeof client.rpc !== 'function' || !window.PDC_AUTH_CONTEXT) return;
+  if (app.stationIconCompletionLoading) return;
+  const revision = app.emailVehicleLocationRevision;
+  const revisionChanged = String(revision ?? '') !== String(app.stationIconCompletionRevision ?? '');
+  if (!revisionChanged && app.stationIconCompletionLoadedAt && Date.now() - app.stationIconCompletionLoadedAt < 15000) return;
+  const ids = [...new Set((typeof vehicleLocationsScreenRows === 'function' ? vehicleLocationsScreenRows() : [])
+    .map(vehicle => (typeof pmbArrivalVehicleId === 'function' ? pmbArrivalVehicleId(vehicle) : ''))
+    .filter(Boolean))].slice(0, 1000);
+  if (!ids.length) return;
+  app.stationIconCompletionLoading = true;
+  const started = Date.now();
+  const revisionAtStart = revision;
+  const previous = app.stationIconCompletionSignature || '';
+  client.rpc('list_station_icon_completion_578', { p_vehicle_ids: ids }).then(result => {
+    app.stationIconCompletionLoading = false;
+    app.stationIconCompletionLoadedAt = started;
+    app.stationIconCompletionRevision = revisionAtStart;
+    if (result?.error || result?.data?.ok !== true) return;
+    storeStationIconCompletion(ids, result.data.stations, started);
+    redrawStationIconsIfChanged(previous);
+  }).catch(() => {
+    app.stationIconCompletionLoading = false;
+    app.stationIconCompletionLoadedAt = started;
+    app.stationIconCompletionRevision = revisionAtStart;
+  });
+}
+
 function ensurePmbArrivalAge() {
   const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
   if (!client || typeof client.rpc !== 'function' || !window.PDC_AUTH_CONTEXT) return;
@@ -9501,6 +9590,7 @@ function vehicleWorkshopBookingProjection(vehicle = {}, options = {}) {
 }
 
 function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
+  if (typeof ensureStationIconCompletion === 'function') ensureStationIconCompletion();
   const key = vehicleKey(vehicle);
   const currentStage = normalizePmbStage(inferredPmbStage(vehicle));
   const bookingProjection = options.bookingProjection || vehicleWorkshopBookingProjection(vehicle);
@@ -9511,7 +9601,9 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
 
   return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="${bookingWarning ? 'true' : 'false'}" aria-label="Required work stations${bookingWarning ? '; workshop booking incomplete' : ''}"${bookingWarning ? ' title="One or more required PMB workshop departments are not booked"' : ''}>${pdcJobDefsPartsFirst().map(def => {
     const required = pdcJobRequired(vehicle, def);
-    const complete = pdcJobComplete(vehicle, def);
+    const signedOff = pdcJobComplete(vehicle, def);
+    const linesComplete = signedOff ? false : (typeof pdcStationLinesMakeComplete === 'function' && pdcStationLinesMakeComplete(vehicle, def));
+    const complete = signedOff || linesComplete;
     const stage = pmbStageForPdcJob(def);
     const stoppedBooking = stage ? stoppedBookings.get(stage) : null;
     const stageJobKey = PMB_STAGE_TO_JOB_KEY[currentStage] || '';
@@ -9524,6 +9616,7 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
       bookings: bookingProjection.activeBookings || vehicle.salesWorkshopBookings || [],
       stoppage: blocked,
       stoppageReason: stoppedBooking?.stoppageReason || (blocked ? pdcBlockReason(vehicle) : ''),
+      completed: complete,
     });
     const booked = projected.state === 'booked';
     const classes = ['incoming-work-check', `pdc-station-${def.key}`];
@@ -9536,7 +9629,10 @@ function incomingWorkChecklistHtml(vehicle = {}, options = {}) {
     if (stage && currentStage === stage) classes.push('is-current-stage');
     const state = projected.state === 'completed' ? 'complete' : projected.state === 'stoppage' ? 'STOPPAGE' : ordered ? 'ordered' : projected.state;
     const marker = projected.marker;
-    const title = stoppedBooking
+    const lineWho = linesComplete && typeof pdcStationLinesOverrideBy === 'function' ? pdcStationLinesOverrideBy(vehicle, def) : '';
+    const title = linesComplete
+      ? (lineWho ? `${pdcGridJobLabel(def)} complete (override by ${lineWho})` : `${pdcGridJobLabel(def)} complete (every line ticked)`)
+      : stoppedBooking
       ? `${pdcGridJobLabel(def)} STOPPAGE${stoppedBooking.stoppageReason ? `: ${stoppedBooking.stoppageReason}` : ''}`
       : ordered ? `${pdcGridJobLabel(def)} ordered` : booked ? `${pdcGridJobLabel(def)} booked` : required || complete ? pdcJobCompletionTitle(vehicle, def) : `${pdcGridJobLabel(def)} not required`;
     if (def.key === 'parts') {
@@ -15744,6 +15840,55 @@ async function setPanelLineCompletion(vehicleId, lineIdentity, completed) {
     });
     const body = await response.json().catch(() => null);
     if (!response.ok || body?.ok !== true) return body || { ok: false, error: 'completion_unavailable' };
+    if (typeof refreshStationIconCompletion === 'function') void refreshStationIconCompletion(vehicleId);
+    return body;
+  } catch (_) {
+    return { ok: false, error: 'completion_unavailable' };
+  }
+}
+
+async function loadStationIconDetail(vehicleId) {
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  if (!token || !config.url || !config.publishableKey || !vehicleId) return [];
+  try {
+    const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/list_station_icon_completion_578`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_vehicle_ids: [vehicleId] }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.ok !== true || !Array.isArray(body.stations)) return [];
+    return body.stations;
+  } catch (_) {
+    return [];
+  }
+}
+
+async function refreshStationIconCompletion(vehicleId) {
+  const id = String(vehicleId || '');
+  if (!id) return;
+  const previous = app.stationIconCompletionSignature || '';
+  const rows = await loadStationIconDetail(id);
+  if (!(app.stationIconCompletionStamp instanceof Map)) app.stationIconCompletionStamp = new Map();
+  app.stationIconCompletionStamp.set(id, Date.now());
+  storeStationIconCompletion([id], rows, 0);
+  redrawStationIconsIfChanged(previous);
+}
+
+async function setStationCompletionOverride(vehicleId, workKey, completed) {
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  if (!token || !config.url || !config.publishableKey || !vehicleId || !workKey) return { ok: false, error: 'completion_unavailable' };
+  try {
+    const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/set_station_completion_override_578`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_vehicle_id: vehicleId, p_work_key: workKey, p_completed: completed === true }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.ok !== true) return body || { ok: false, error: 'completion_unavailable' };
+    void refreshStationIconCompletion(vehicleId);
     return body;
   } catch (_) {
     return { ok: false, error: 'completion_unavailable' };

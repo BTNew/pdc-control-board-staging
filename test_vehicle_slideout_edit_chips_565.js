@@ -70,6 +70,12 @@ function board({ role = 'administrator' } = {}) {
     server.calls.push({ name, body });
     let reply = { ok: false, code: 'not_in_test' };
     if (name === 'get_panel_line_completions_565') reply = { ok: true, lines: server.ticks.filter(row => row.vehicle_id === body.p_vehicle_id) };
+    if (name === 'list_station_icon_completion_578') reply = { ok: true, stations: server.stations || [] };
+    if (name === 'set_station_completion_override_578') {
+      const row = { vehicle_id: body.p_vehicle_id, work_key: body.p_work_key, complete: body.p_completed === true, override: body.p_completed === true, override_email: 'controller@example.test', acted_at: '2026-10-27T07:30:00.000Z' };
+      server.stations = (server.stations || []).filter(item => item.work_key !== row.work_key).concat(row);
+      reply = { ok: true, code: 'saved', completed: row.complete, actor_email: row.override_email, acted_at: row.acted_at, work_key: row.work_key };
+    }
     if (name === 'set_panel_line_completion_565') {
       const row = { vehicle_id: body.p_vehicle_id, line_identity: body.p_line_identity, completed: body.p_completed === true, actor_email: 'controller@example.test', actor_role: role, acted_at: '2026-10-27T01:15:00.000Z', version: 2 };
       server.ticks = server.ticks.filter(item => item.line_identity !== row.line_identity).concat(row);
@@ -103,7 +109,7 @@ function board({ role = 'administrator' } = {}) {
   const panel = () => doc.getElementById('vso-shell').querySelector('.vso-panel');
   const openPanel = () => { vlt.opener.open(c.vehicleKey(rows[0]), 'pmb'); return panel(); };
   const settle = async () => { for (let i = 0; i < 8; i += 1) await new Promise(r => setImmediate(r)); };
-  const writes = () => server.calls.filter(call => !['get_vehicle_workshop_detail_scoped', 'get_panel_line_completions_565'].includes(call.name));
+  const writes = () => server.calls.filter(call => !['get_vehicle_workshop_detail_scoped', 'get_panel_line_completions_565', 'list_station_icon_completion_578'].includes(call.name));
   return { c, doc, rows, server, moves, schedules, vlt, panel, openPanel, settle, writes };
 }
 const drop = (chip, target) => { chip.dispatch('dragstart'); target.dispatch('dragover'); target.dispatch('drop'); };
@@ -134,12 +140,15 @@ test('a completed line is blue/grey with who and when, and the panel does not us
   const line = panel.querySelector(`li[data-operation-source-id="${U(1, 1)}"]`);
   assert.equal(line.classList.contains('is-complete'), true);
   assert.equal(line.classList.contains('vso-done'), true);
-  assert.match(line.querySelector('.vso-done-meta').textContent, /Completed · Alex Sample · 20 Oct 2026, 10:30/);
+  assert.match(line.querySelector('.vso-done-meta').textContent, /Complete · Alex Sample · 20 Oct 2026, 10:30/);
   assert.equal(line.querySelector('[data-vso-tick]').getAttribute('aria-checked'), 'false');
+  assert.equal(line.querySelector('.vso-tick span').textContent, 'Tick');
   assert.equal(line.getAttribute('draggable'), null, 'a completed line is not draggable before edit either');
   const css = fs.readFileSync('pdc-vehicle-slideout.css', 'utf8');
-  assert.match(css, /#vso-shell li\.vso-done\.is-complete \{ background: #e2e8f0; color: #334155; \}/);
-  assert.match(css, /#vso-shell \.vso-done-meta \{ color: #1e3a8a;/);
+  assert.match(css, /#vso-shell li\.vso-done\.is-complete \{ background: #edf9f1; color: #146c3b; \}/);
+  assert.match(css, /#vso-shell \.vso-done-meta \{ color: #146c3b;/);
+  assert.match(css, /li > \.vso-tick \{ grid-column: 4; grid-row: 1; \}/);
+  assert.match(css, /\.vso-tick \{[^}]*white-space: nowrap;/);
   assert.doesNotMatch(css, /#f59e0b|#f97316|#ffedd5|#fffbeb/);
 });
 
@@ -230,7 +239,8 @@ test('a controller can tick and untick a line; another role sees a read-only tic
   assert.equal(saved[0].body.p_completed, true);
   const ticked = b.panel().querySelector(`li[data-operation-source-id="${U(1, 2)}"]`);
   assert.equal(ticked.classList.contains('is-complete'), true);
-  assert.match(ticked.querySelector('.vso-done-meta').textContent, /Completed · controller@example\.test/);
+  assert.match(ticked.querySelector('.vso-done-meta').textContent, /Complete \(override by controller@example\.test\)/);
+  assert.equal(ticked.querySelector('.vso-tick span').textContent, 'Complete');
   assert.equal(ticked.querySelector('[data-vso-tick]').getAttribute('aria-checked'), 'true');
   ticked.querySelector('[data-vso-tick]').dispatch('click');
   await b.settle();
@@ -249,6 +259,30 @@ test('a controller can tick and untick a line; another role sees a read-only tic
   await viewer.settle();
   assert.equal(viewer.server.calls.some(call => call.name === 'set_panel_line_completion_565'), false);
   assert.equal(viewer.panel().querySelector('[data-vso-edit-toggle]'), null);
+  assert.equal(viewer.panel().querySelector('[data-vso-station-override]'), null);
+});
+
+test('a controller can override a whole station and undo it', async () => {
+  const b = board({ role: 'operator' });
+  b.openPanel();
+  await b.settle();
+  const button = b.panel().querySelector('[data-vso-station-override="bus4x4"]');
+  assert.equal(button.textContent, 'Override');
+  button.dispatch('click');
+  await b.settle();
+  const saved = b.server.calls.filter(call => call.name === 'set_station_completion_override_578');
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].body.p_work_key, 'bus4x4');
+  assert.equal(saved[0].body.p_completed, true);
+  const again = b.panel().querySelector('[data-vso-station-override="bus4x4"]');
+  assert.equal(again.textContent, 'Undo override');
+  assert.match(again.getAttribute('title'), /Complete \(override by controller@example\.test\)/);
+  again.dispatch('click');
+  await b.settle();
+  const undone = b.server.calls.filter(call => call.name === 'set_station_completion_override_578');
+  assert.equal(undone.length, 2);
+  assert.equal(undone[1].body.p_completed, false);
+  assert.equal(b.panel().querySelector('[data-vso-station-override="bus4x4"]').textContent, 'Override');
 });
 
 test('the regression check is sort 337 / F179 and the setter checks the controller role', () => {
