@@ -4,7 +4,34 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const vm = require('node:vm');
 const { workshopConfirmBayRuleWarning, workshopPlaceAfterQuestion } = require('./workshop-shared-actions.js');
+
+const CONFLICT_TOAST = 'This change conflicts with a job already running or on stoppage. No changes were saved. Check the occupied bay or choose another available time.';
+
+function extractFunction(src, name) {
+  const start = src.indexOf(`function ${name}(`);
+  assert.ok(start >= 0, name);
+  let i = src.indexOf('{', start);
+  let depth = 0;
+  for (; i < src.length; i += 1) {
+    if (src[i] === '{') depth += 1;
+    if (src[i] === '}' && --depth === 0) return src.slice(start, i + 1);
+  }
+  throw new Error(name);
+}
+
+function placeAfterDescriber() {
+  const ctx = {
+    workshopAdministratorCanMove: () => false,
+    workshopAdministratorErrorDetail: () => '',
+    workshopVehicleConflictDetail: () => '',
+  };
+  vm.createContext(ctx);
+  const messages = planner.slice(planner.indexOf('const WORKSHOP_PLAIN_ERROR_MESSAGES'), planner.indexOf('});', planner.indexOf('const WORKSHOP_PLAIN_ERROR_MESSAGES')) + 3);
+  vm.runInContext(`${messages}\n${extractFunction(planner, 'workshopDescribeSharedActionError')}\nthis.describe = workshopDescribeSharedActionError;`, ctx);
+  return ctx.describe;
+}
 
 const up = fs.readFileSync('supabase/migrations/20261028081000_r592_hoist_place_after.sql', 'utf8');
 const down = fs.readFileSync('supabase/rollbacks/20261028081000_r592_hoist_place_after.down.sql', 'utf8');
@@ -52,6 +79,19 @@ test('Cancel on a running-job drop leaves the bay as it is', async () => {
   assert.equal(n, 1);
   assert.equal(cancelled.error, 'place_after_not_confirmed');
   assert.equal(cancelled.cancelled, true);
+});
+
+test('a valid place-after drop does not show the running-job conflict toast', () => {
+  const describe = placeAfterDescriber();
+  const asked = workshopPlaceAfterQuestion(place);
+  const shown = describe(place);
+  assert.match(asked, /Place this job right after it/);
+  assert.equal(asked.includes(CONFLICT_TOAST), false);
+  assert.match(shown, /place this job right after it/i);
+  assert.equal(shown.includes(CONFLICT_TOAST), false);
+  assert.equal(describe({ ok: false, error: 'live_booking_conflict' }), CONFLICT_TOAST);
+  assert.match(up, /conflicts with a job already running or on stoppage/);
+  assert.match(up, /strpos\(helper, 'conflicts with a job already running'\) = 0/);
 });
 
 test('the planner has plain English for both codes and the migration keeps the pins', () => {

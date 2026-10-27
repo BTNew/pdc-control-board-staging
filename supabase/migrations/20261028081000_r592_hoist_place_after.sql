@@ -219,13 +219,14 @@ BEGIN
 END $patch$;
 
 INSERT INTO pdc_ops.regression_checks(check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
-('hoist_place_after_592', 'F206', 'A drop onto a running or stopped bay job asks to place the job after it and push the later jobs (r592). Key 460 after Key 328.',
+('hoist_place_after_592', 'F206', 'A drop onto a running or stopped bay job asks to place the job after it and push the later jobs (r592). Key 460 after Key 328. A valid place-after drop must not come back as live_booking_conflict, the code the planner shows as "This change conflicts with a job already running or on stoppage".',
 $chk$
 SELECT
   (length(src) - length(replace(src, 'pdc_ops.place_after_live_bay_592(', ''))) / length('pdc_ops.place_after_live_bay_592(') = 2
   AND strpos(src, 'live_booking_conflict') = 0
   AND strpos(helper, 'place_after_running') > 0
   AND strpos(helper, 'Place this job right after it') > 0
+  AND strpos(helper, 'conflicts with a job already running') = 0
   AND strpos(helper, 'r592 (F206)') > 0
   AND strpos(mv, 'place_after_running') = 0
   AND md5(mv) = '6a02115d30578e8eb3807a283b1d60ea'
