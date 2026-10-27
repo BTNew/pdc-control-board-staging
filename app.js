@@ -6962,7 +6962,7 @@ function bindFixFirstRows(root = document) {
   $$('.fix-first-row[data-open-stock]', root).forEach(button => {
     if (button.dataset.fixFirstBound === 'true') return;
     button.dataset.fixFirstBound = 'true';
-    button.addEventListener('click', () => openVehicleModal(button.dataset.openStock));
+    button.addEventListener('click', () => { void openVehicleFromStockClick(button.dataset.openStock, button); });
   });
   $$('[data-clear-priority-stoppage]', root).forEach(button => {
     if (button.dataset.clearStoppageBound === 'true') return;
@@ -9549,7 +9549,7 @@ function renderIncomingDashboardBoardContent() {
   }));
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
-    openVehicleCardFromVisibleBoard(button.dataset.openStock, button);
+    void openVehicleFromStockClick(button.dataset.openStock, button);
   }));
   bindIncomingSubletLinks(host);
   bindVehicleLabelButtons(host);
@@ -11257,7 +11257,7 @@ function bindPmbDragBoard(host) {
       event.stopPropagation();
       const preventUntil = Number(button.dataset.preventOpenUntil || 0);
       if (preventUntil && Date.now() < preventUntil) return;
-      openVehicleModal(button.dataset.openStock);
+      void openVehicleFromStockClick(button.dataset.openStock, button);
     });
   });
   $$('[data-toggle-pdc-job-complete]', host).forEach(marker => {
@@ -12502,7 +12502,7 @@ function renderVehicleTable() {
   });
   $$('[data-open-stock]', table).forEach(btn => btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    openVehicleModal(btn.dataset.openStock);
+    void openVehicleFromStockClick(btn.dataset.openStock, btn);
   }));
   $$('[data-task-stock]', table).forEach(select => {
     select.addEventListener('click', (e) => e.stopPropagation());
@@ -15660,8 +15660,9 @@ function saveVehicleEdits(key, updates, options = {}) {
 async function openVehicleWorkBookingsFromTile(tile) {
   const key = String(tile?.dataset?.openWorkBookings || '').trim();
   if (!key) return false;
-  const opened = await openVehicleCardFromVisibleBoard(key, tile);
+  const opened = await openVehicleFromStockClick(key, tile);
   if (!opened) return false;
+  if (window.PDC_VEHICLE_SLIDEOUT?.state?.key === key) return true;
   app.pendingVehicleWorkContext = Object.freeze({
     station: String(tile.dataset.workStation || '').trim(),
     bay: String(tile.dataset.workBay || '').trim(),
@@ -15672,6 +15673,72 @@ async function openVehicleWorkBookingsFromTile(tile) {
   return true;
 }
 
+function vehicleLocationsVehicleForSidePanel(stock = '') {
+  const cleanKey = String(stock || '').trim();
+  if (!cleanKey || typeof vehicleLocationsScreenRows !== 'function') return null;
+  const rows = vehicleLocationsScreenRows();
+  return (Array.isArray(rows) ? rows : []).find(row => {
+    const id = vehicleKey(row);
+    if (id && id === cleanKey) return true;
+    return [row?.stock, row?.stock_number, row?.id, row?.permanent_vehicle_id]
+      .some(value => String(value || '').trim() === cleanKey);
+  }) || null;
+}
+
+function tryOpenVehicleSidePanel(stock = '') {
+  const key = String(stock || '').trim();
+  if (!key) return false;
+  const vehicle = vehicleLocationsVehicleForSidePanel(key) || selectedVehicle(key);
+  if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'open')) return false;
+  const locationKey = vehicleKey(vehicle);
+  const bucket = typeof incomingBucketForVehicle === 'function' ? incomingBucketForVehicle(vehicle) : '';
+  const open = typeof window !== 'undefined' ? window.PDC_VEHICLE_SLIDEOUT?.open : null;
+  if (locationKey && bucket && typeof open === 'function') {
+    open(locationKey, bucket);
+    return true;
+  }
+  return false;
+}
+
+async function ensureVehicleOpenableFromBoard(stock, trigger = null) {
+  const key = String(stock || '').trim();
+  if (!key) return null;
+  let vehicle = selectedVehicle(key);
+  if (vehicle && vehicleLocationActionAllowed(vehicle, 'open')) return vehicle;
+  if (!sharedNavisionVisibilityConfigured()) return null;
+  trigger?.classList.add('is-loading');
+  trigger?.setAttribute('aria-busy', 'true');
+  try {
+    const deadline = Date.now() + 8000;
+    while (Date.now() < deadline && !sharedNavisionLocationAuthorityReady()) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    vehicle = selectedVehicle(key);
+    if (!vehicle || !vehicleLocationActionAllowed(vehicle, 'open')) {
+      pdcNotify('Vehicle details are still syncing. Please click the stock number again in a moment.');
+      return null;
+    }
+    return vehicle;
+  } finally {
+    trigger?.classList.remove('is-loading');
+    trigger?.removeAttribute('aria-busy');
+  }
+}
+
+// r560 (F174): stock-number entry points open the Vehicle Locations side panel; the centred vehicle card is "More details".
+async function openVehicleFromStockClick(stock, trigger = null) {
+  const key = String(stock || '').trim();
+  if (!key) return false;
+  const vehicle = selectedVehicle(key);
+  if (vehicle && vehicleLocationActionAllowed(vehicle, 'open') && tryOpenVehicleSidePanel(key)) return true;
+  const ready = vehicle && vehicleLocationActionAllowed(vehicle, 'open')
+    ? vehicle
+    : await ensureVehicleOpenableFromBoard(key, trigger);
+  if (!ready) return false;
+  if (tryOpenVehicleSidePanel(key)) return true;
+  return openVehicleModal(key) !== false;
+}
+
 async function openVehicleCardFromVisibleBoard(stock, trigger = null) {
   const key = String(stock || '').trim();
   if (!key) return false;
@@ -15680,25 +15747,10 @@ async function openVehicleCardFromVisibleBoard(stock, trigger = null) {
     openVehicleModal(key);
     return true;
   }
-  if (!sharedNavisionVisibilityConfigured()) return false;
-  trigger?.classList.add('is-loading');
-  trigger?.setAttribute('aria-busy', 'true');
-  try {
-    const deadline = Date.now() + 8000;
-    while (Date.now() < deadline && !sharedNavisionLocationAuthorityReady()) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-    const refreshed = selectedVehicle(key);
-    if (!refreshed || !vehicleLocationActionAllowed(refreshed, 'open')) {
-      pdcNotify('Vehicle details are still syncing. Please click the stock number again in a moment.');
-      return false;
-    }
-    openVehicleModal(key);
-    return true;
-  } finally {
-    trigger?.classList.remove('is-loading');
-    trigger?.removeAttribute('aria-busy');
-  }
+  const ready = await ensureVehicleOpenableFromBoard(key, trigger);
+  if (!ready) return false;
+  openVehicleModal(key);
+  return true;
 }
 
 const modalReturnFocus = new WeakMap();
@@ -17253,7 +17305,7 @@ function renderKanban() {
       </div>
     </details>`;
   }).join('');
-  $$('.kanban-card').forEach(card => card.addEventListener('click', () => openVehicleModal(card.dataset.stock)));
+  $$('.kanban-card').forEach(card => card.addEventListener('click', () => { void openVehicleFromStockClick(card.dataset.stock, card); }));
 }
 
 function scheduleDateForVehicle(vehicle = {}) {
@@ -17380,7 +17432,7 @@ function renderScheduleBoard() {
       </div>
     </div>
   </section>`;
-  $$('[data-stock]', host).forEach(card => card.addEventListener('click', () => openVehicleModal(card.dataset.stock)));
+  $$('[data-stock]', host).forEach(card => card.addEventListener('click', () => { void openVehicleFromStockClick(card.dataset.stock, card); }));
 }
 
 function activeProductionDepartmentDef() {
@@ -17476,7 +17528,7 @@ function renderProductionDepartmentBoard() {
   $$('[data-dept-next]', host).forEach(button => button.addEventListener('click', () => moveVehicleToNextPmbStageFromBay(button.dataset.deptNext, button.dataset.deptStage)));
   $$('[data-dept-stoppage]', host).forEach(button => button.addEventListener('click', () => markProductionDepartmentStoppage(button.dataset.deptStoppage, button.dataset.deptStage)));
   $$('[data-dept-clear-stoppage]', host).forEach(button => button.addEventListener('click', () => clearProductionDepartmentStoppage(button.dataset.deptClearStoppage)));
-  $$('[data-dept-open]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.deptOpen)));
+  $$('[data-dept-open]', host).forEach(button => button.addEventListener('click', () => { void openVehicleFromStockClick(button.dataset.deptOpen, button); }));
 }
 
 function markProductionDepartmentStoppage(key = '', stage = '') {
@@ -17889,7 +17941,7 @@ function partsQueueActionsHtml(vehicle = {}, status = partsDepartmentStatus(vehi
 
 function bindPartsQueueActionButtons(host) {
   if (!host) return;
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => { void openVehicleFromStockClick(button.dataset.openStock, button); }));
   $$('[data-parts-ordered]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsOrdered(button.dataset.partsOrdered)));
   $$('[data-parts-complete]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsComplete(button.dataset.partsComplete)));
   $$('[data-parts-stoppage]', host).forEach(button => button.addEventListener('click', () => markVehiclePartsStoppage(button.dataset.partsStoppage)));
@@ -18486,7 +18538,7 @@ function renderRftHome() {
   host.innerHTML = `<div class="incoming-vertical-list rft-compact-list">${productionGridHeaderHtml('rft-production-grid-header', { meta1Label: 'RFT date', meta2Label: 'RFT status', actionLabel: 'Actions' })}${rows.map(vehicle => rftVehicleDetailRow(vehicle)).join('')}</div>`;
   $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
-    openVehicleModal(button.dataset.openStock);
+    void openVehicleFromStockClick(button.dataset.openStock, button);
   }));
   $$('[data-rft-completion-key]', host).forEach(input => input.addEventListener('change', () => {
     togglePdcJobCompletionFromCard(input.dataset.rftCompletionKey, input.dataset.rftCompletionJob);
@@ -18772,7 +18824,7 @@ function renderCollectedVehicles() {
     const dateOptions = { timeZone: 'Australia/Perth', dateStyle: 'short', timeStyle: 'short' };
     return `<tr class="collected-vehicle-row"><td>${escapeHtml(collectedAt ? collectedAt.toLocaleString('en-AU', dateOptions) : '—')}</td><td class="pdc-id-cell"><button class="stock-link stock-button" type="button" data-open-stock="${escapeHtml(key)}">${escapeHtml(displayStockNumber(vehicle) || '—')}</button></td><td>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</td><td>${escapeHtml(vehicleCustomerName(vehicle) || 'Dealer Order')}</td><td>${escapeHtml(displayVehicle(vehicle) || 'Vehicle not listed')}</td><td>${escapeHtml(transitStarted ? transitStarted.toLocaleString('en-AU', dateOptions) : '—')}</td><td data-collected-transit-start="${escapeHtml(vehicle.dealerTransitStartedAt || '')}" data-collected-transit-end="${escapeHtml(vehicle.dealerTransitClosedAt || '')}" data-collected-transit-seconds="${escapeHtml(vehicle.dealerTransitDurationSeconds ?? '')}"><strong>${escapeHtml(timing.label)}</strong><small>${escapeHtml(timing.note)}</small></td><td>${escapeHtml(vehicle.rftCollectedBy || '')}</td><td><button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button></td></tr>`;
   }).join('')}</tbody></table></div>`;
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => { void openVehicleFromStockClick(button.dataset.openStock, button); }));
   if (!app.collectedTransitTimer) app.collectedTransitTimer = window.setInterval(refreshCollectedTransitTimers, 60000);
 }
 
@@ -18911,7 +18963,7 @@ function renderCompletedVehicles() {
         <td><details><summary>Details</summary><dl><dt>Key</dt><dd>${escapeHtml(vehicleKeyNumber(vehicle) || 'Not recorded')}</dd><dt>Collected</dt><dd>${escapeHtml(completedHistoryDateLabel(completedHistoryMilestone(vehicle.rftCollectedAt)))}</dd><dt>Collected by</dt><dd>${escapeHtml(vehicle.rftCollectedBy || 'Not recorded')}</dd><dt>Completed stations</dt><dd>${escapeHtml(pdcGridCompletedJobsText(vehicle) || 'Not recorded')}</dd></dl>${canOpen ? `<button class="small-button" type="button" data-open-stock="${escapeHtml(key)}">Open vehicle</button>` : ''}</details></td>
       </tr>`;
     }).join('')}</tbody></table></div>`;
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => { void openVehicleFromStockClick(button.dataset.openStock, button); }));
 }
 
 function deletedVehiclesSearchText(record = {}) {
@@ -20252,7 +20304,7 @@ function renderBackEndData() {
       </tr>`;
     }).join('')}</tbody>
   </table></div>`;
-  $$('[data-open-stock]', host).forEach(btn => btn.addEventListener('click', () => openVehicleModal(btn.dataset.openStock)));
+  $$('[data-open-stock]', host).forEach(btn => btn.addEventListener('click', () => { void openVehicleFromStockClick(btn.dataset.openStock, btn); }));
   $$('[data-backend-activate]', host).forEach(btn => btn.addEventListener('click', () => transferBackEndVehicleToActive(btn.dataset.backendActivate)));
   $$('[data-shared-backend-activate]', host).forEach(btn => btn.addEventListener('click', async () => {
     btn.disabled = true;
@@ -20392,7 +20444,7 @@ function renderTvBoard() {
     </div>`;
   on($('#tv-set-operator'), 'click', setOperatorProfile);
   $$('[data-tv-filter]', host).forEach(button => button.addEventListener('click', () => applyQuickFilter(button.dataset.tvFilter)));
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => { void openVehicleFromStockClick(button.dataset.openStock, button); }));
 }
 
 function renderCustomers() {
@@ -20423,7 +20475,7 @@ function renderCustomers() {
       </article>`;
     });
   grid.innerHTML = cards.join('') || $('#empty-state').innerHTML;
-  $$('.vehicle-chip').forEach(chip => chip.addEventListener('click', () => openVehicleModal(chip.dataset.stock)));
+  $$('.vehicle-chip').forEach(chip => chip.addEventListener('click', () => { void openVehicleFromStockClick(chip.dataset.stock, chip); }));
 }
 
 function openCustomerModal() {
@@ -24423,7 +24475,7 @@ function renderReviewTable(scanned = false) {
         <td>${r.ok ? '<span class="review-ok">Clean match</span>' : '<span class="review-warning">Needs manual review</span>'}</td>
       </tr>`).join('')}</tbody>
   `;
-  $$('[data-open-stock]', table).forEach(btn => btn.addEventListener('click', () => openVehicleModal(btn.dataset.openStock)));
+  $$('[data-open-stock]', table).forEach(btn => btn.addEventListener('click', () => { void openVehicleFromStockClick(btn.dataset.openStock, btn); }));
 }
 
 function approveCleanMatches() {
@@ -26457,7 +26509,7 @@ function bindAiIntakeStockNavigation(root) {
   $$('[data-open-stock]', root).forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
     event.stopPropagation();
-    openVehicleModal(button.dataset.openStock);
+    void openVehicleFromStockClick(button.dataset.openStock, button);
   }));
 }
 
@@ -27010,7 +27062,7 @@ function renderBusPitInspections() {
   const rows = vehicles.flatMap(vehicle => (window.PDC_WORKSHOP_DEPARTMENTS?.externalPitLines(vehicle) || []).map(line => ({ vehicle, line })));
   host.innerHTML = rows.length ? `<div class="table-wrap"><table class="data-table"><thead><tr><th>Stock</th><th>Customer</th><th>Vehicle</th><th>Job card</th><th>Dept</th><th>Inspection required</th><th>Location</th><th>Done (optional)</th><th></th></tr></thead><tbody>${rows.map(({ vehicle, line }) => `<tr><td>${escapeHtml(displayStockNumber(vehicle) || '—')}</td><td>${escapeHtml(vehicleCustomerName(vehicle) || '—')}</td><td>${escapeHtml(displayVehicle(vehicle) || '—')}</td><td>${escapeHtml(line.jobCardNumber || vehicleJobcardNumber(vehicle) || '—')}</td><td>${escapeHtml(line.department || '—')}</td><td>${escapeHtml(line.description)}</td><td>${escapeHtml(vehiclePdcLocation(vehicle) || '—')}</td><td><label class="pdc-pit-tick-cell">${pdcPitTickCheckboxHtml(vehicle, line)}<small>${escapeHtml(pdcPitTickFor(vehicle, line)?.ticked === true ? `Ticked by ${pdcPitTickFor(vehicle, line).ticked_by_email || 'staff'}` : 'Never blocks')}</small></label></td><td><button class="small-button" type="button" data-open-stock="${escapeHtml(vehicleKey(vehicle))}">Open vehicle</button></td></tr>`).join('')}</tbody></table></div>`
     : '<div class="empty-state"><strong>No open Bus Pit inspections</strong><span>No active job-card lines (any department) currently require Pit inspection.</span></div>';
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => { void openVehicleFromStockClick(button.dataset.openStock, button); }));
 }
 
 function subletRows() {
@@ -27893,7 +27945,7 @@ function renderSubletHome() {
   if (app.subletViewMode === 'calendar') {
     host.innerHTML = renderSubletCalendar(rows);
     bindSubletCalendarInteractions(host);
-    $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+    $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => { void openVehicleFromStockClick(button.dataset.openStock, button); }));
     return;
   }
   syncSubletViewControls(null);
@@ -27940,7 +27992,7 @@ function renderSubletHome() {
   $$('[data-sublet-email-sent]', host).forEach(input => input.addEventListener('change', () => setSubletEmailSent(input.dataset.subletEmailSent, input.checked)));
   $$('[data-sublet-provider-email]', host).forEach(button => button.addEventListener('click', () => draftSubletProviderEmail(button.dataset.subletProviderEmail)));
   $$('[data-sublet-sales-email]', host).forEach(button => button.addEventListener('click', () => draftSubletSalesUpdate(button.dataset.subletSalesEmail)));
-  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => openVehicleModal(button.dataset.openStock)));
+  $$('[data-open-stock]', host).forEach(button => button.addEventListener('click', () => { void openVehicleFromStockClick(button.dataset.openStock, button); }));
   $$('[data-sublet-toggle]', host).forEach(button => button.addEventListener('click', () => {
     const key = button.dataset.subletToggle || '';
     if (app.subletExpandedRows.has(key)) app.subletExpandedRows.delete(key);

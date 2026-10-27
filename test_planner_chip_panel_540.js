@@ -58,7 +58,7 @@ test('the drawer still has Open Vehicle, Manage sublets, station groups and Edit
   const slide = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8');
   const sublets = fs.readFileSync('pdc-vehicle-sublets.js', 'utf8');
   const app = fs.readFileSync('app.js', 'utf8');
-  assert.match(slide, /button\.textContent = 'Open Vehicle'/);
+  assert.match(slide, /button\.textContent = 'More details'/);
   assert.match(slide, /data-vso-edit-toggle>Edit</);
   assert.match(sublets, /button\.textContent = 'Manage sublets'/);
   assert.match(sublets, /\.vso-open-row/);

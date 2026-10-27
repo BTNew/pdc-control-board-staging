@@ -823,7 +823,7 @@
   // The same listeners renderIncomingDashboardBoardContent() attaches to the drop-down board today.
   function bindBoardHandlers(scope) {
     const all = selector => [...scope.querySelectorAll(selector)];
-    all('[data-open-stock]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.openVehicleCardFromVisibleBoard(button.dataset.openStock, button); }));
+    all('[data-open-stock]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); void root.openVehicleFromStockClick(button.dataset.openStock, button); }));
     root.bindIncomingSubletLinks(scope);
     root.bindVehicleLabelButtons(scope);
     all('[data-incoming-delete]').forEach(button => button.addEventListener('click', event => { event.stopPropagation(); root.deleteIncomingVehicleFromMain(button.dataset.incomingDelete); }));
