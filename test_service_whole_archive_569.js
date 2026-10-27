@@ -19,7 +19,7 @@ const KARRATHA = 'a033c7d7719ae588e8a9aa1b26bf2fbf';
 const KARRATHA_CAPTURE = '3fca9ba755a6d30f9b6ac642da084b9b';
 const KARRATHA_FINISH = 'f4480286dba918f82061bd6daffb4d43';
 const KARRATHA_PMB = 'fbc4f46f10b8581feca8742da2c5ab98';
-const UP_MD5 = '016d5af6dd1feeeade5071723084ac78', DOWN_MD5 = '00dbbbdb4234cf0cb2fcad7c8c411652';
+const UP_MD5 = 'f5f3505438ece470ffe8597625e958dc', DOWN_MD5 = '20c2b6585dd97237a9cfc4fc4c043ecf';
 const RETIRED_PINS = ['51cb7e1dbe842ba00f4259dfe3f42cce', 'a3cd014a46d9cac7512f3c853ac1a5a4', '5822588a7d3fed675a83b21909e41e48', '196d0fe24813802a4ad72b0e2c39f4da'];
 
 function between(src, startMark, endMark) {
@@ -114,6 +114,22 @@ test('check is F184 sort 341 and is safe under search_path pg_catalog', () => {
   assert.match(mig, /NOT EXISTS \(SELECT 1 FROM pdc_ops\.expected_function_md5 WHERE signature LIKE '%service_whole%569%'\)/);
   assert.match(mig, /strpos\(p\.prosrc, 'pdc_sales_private'\)=0/);
   assert.match(mig, /strpos\(p\.prosrc, 'UPDATE public\.navision_backend_records'\)=0/);
+});
+
+test('outlook caller hash moves with the rows body and the down puts it back', () => {
+  assert.match(mig, /check_name='outlook_pdc_auth_505'/);
+  assert.match(mig, /AND fault_id='F118'/);
+  assert.match(mig, /AND sort_order=290/);
+  assert.match(mig, /AND added_in='r505'/);
+  assert.match(mig, /replace\(check_sql, '5807a896cef15f81030f84a1b68a597b', '9be0883b1a555f48f3c1ba9fa111c891'\)/);
+  assert.match(mig, /length\(check_sql\)=7303/);
+  assert.match(mig, /outlook_pdc_auth_505 failed/);
+  assert.match(down, /check_name='outlook_pdc_auth_505'/);
+  assert.match(down, /replace\(check_sql, '9be0883b1a555f48f3c1ba9fa111c891', '5807a896cef15f81030f84a1b68a597b'\)/);
+  assert.match(down, /length\(check_sql\)=7303/);
+  assert.doesNotMatch(down, /fault_id='F183'/);
+  assert.doesNotMatch(down, /added_in='r569'/);
+  assert.doesNotMatch(down, /sort_order=340/);
 });
 
 test('rollback restores the rows and apply pins only', () => {

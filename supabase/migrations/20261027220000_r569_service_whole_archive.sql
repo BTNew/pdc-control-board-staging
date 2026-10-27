@@ -42,6 +42,9 @@
 -- a033c7d7719ae588e8a9aa1b26bf2fbf. Karratha intake stays
 -- 3fca9ba755a6d30f9b6ac642da084b9b, f4480286dba918f82061bd6daffb4d43, and
 -- fbc4f46f10b8581feca8742da2c5ab98.
+-- outlook_pdc_auth_505 (F118, sort 290, added_in r505) pins the rows prosrc.
+-- That one 32-character hash moves from 5807a896cef15f81030f84a1b68a597b to
+-- 9be0883b1a555f48f3c1ba9fa111c891. The check length stays 7303.
 -- Anchors below are LF. A CRLF region of apply is matched by replace(..., chr(10), chr(13)||chr(10)).
 -- The key-loop anchor in apply is LF in the live body and is not converted.
 
@@ -633,6 +636,30 @@ DO $pins$ BEGIN
   RAISE EXCEPTION 'r569: status 80 pin changed'; END IF;
 END $pins$;
 
+DO $outlook$
+DECLARE v_n integer; v_ok boolean; v_detail text;
+BEGIN
+ UPDATE pdc_ops.regression_checks
+ SET check_sql=replace(check_sql, '5807a896cef15f81030f84a1b68a597b', '9be0883b1a555f48f3c1ba9fa111c891')
+ WHERE check_name='outlook_pdc_auth_505'
+   AND fault_id='F118'
+   AND sort_order=290
+   AND added_in='r505'
+   AND length(check_sql)=7303
+   AND (length(check_sql)-length(replace(check_sql,'5807a896cef15f81030f84a1b68a597b','')))/32=1;
+ GET DIAGNOSTICS v_n = ROW_COUNT;
+ IF v_n<>1 THEN RAISE EXCEPTION 'r570: outlook check was not updated'; END IF;
+ IF (SELECT length(check_sql)<>7303
+     OR pg_catalog.strpos(check_sql, '5807a896cef15f81030f84a1b68a597b')>0
+     OR (length(check_sql)-length(replace(check_sql,'9be0883b1a555f48f3c1ba9fa111c891','')))/32<>1
+     FROM pdc_ops.regression_checks WHERE check_name='outlook_pdc_auth_505' AND fault_id='F118' AND sort_order=290 AND added_in='r505') THEN
+  RAISE EXCEPTION 'r570: outlook check did not stay byte-identical apart from the rows md5';
+ END IF;
+ PERFORM set_config('search_path','pg_catalog',true);
+ EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='outlook_pdc_auth_505' AND fault_id='F118' AND sort_order=290 AND added_in='r505') INTO v_ok, v_detail;
+ IF coalesce(v_ok, false) IS NOT TRUE THEN RAISE EXCEPTION 'r570: outlook_pdc_auth_505 failed: %', v_detail; END IF;
+END $outlook$;
+
 INSERT INTO pdc_ops.regression_checks (check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
 ('service_whole_archive_570', 'F184',
  'Departments 138 and 139. The latest sheet is the active list. A division vehicle and a non-division vehicle are both created hidden on Yard Hold in the New vehicle section. Sub Status 99 does not create. A 138/139 board vehicle absent from a complete file is archived off the PMB board. Broome Toyota Sales (37047) and Karratha Sales (14450) are not archived, hidden, or altered, including when the same vehicle is on a Sales board. sales_write stays false. Nothing is hard-deleted. A queued or planned booking bay is cleared and service_whole_unarchive_569 restores it. A started or stoppage booking is reported and not modified. A CreateAdvisor filename that is otherwise complete is allowed. Department 135 is not edited. Pin count stays 241.',
@@ -780,6 +807,11 @@ BEGIN
  IF (SELECT md5(p.prosrc) FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
      WHERE n.nspname='karratha135_pdc' AND p.proname='pdc_pilbara_service_apply_v1') IS DISTINCT FROM 'a033c7d7719ae588e8a9aa1b26bf2fbf' THEN
   RAISE EXCEPTION 'r569: department 135 apply md5 changed'; END IF;
+ IF (SELECT length(check_sql)<>7303
+     OR pg_catalog.strpos(check_sql, '5807a896cef15f81030f84a1b68a597b')>0
+     OR (length(check_sql)-length(replace(check_sql,'9be0883b1a555f48f3c1ba9fa111c891','')))/32<>1
+     FROM pdc_ops.regression_checks WHERE check_name='outlook_pdc_auth_505' AND fault_id='F118' AND sort_order=290 AND added_in='r505') THEN
+  RAISE EXCEPTION 'r570: outlook caller hash was not moved'; END IF;
  PERFORM set_config('search_path','pg_catalog',true);
  FOR r IN SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE check_name='service_whole_archive_570' LOOP
   EXECUTE r.check_sql INTO probe;

@@ -4,6 +4,8 @@
 -- were not edited. Department 135 is not edited. Sales rows are not removed.
 -- Removes only service_whole_archive_570. Does not remove the live key gate,
 -- arrival age, panel tick, Parts ETA, bus split, or bay pause (F183 / sort 340).
+-- Puts the outlook_pdc_auth_505 rows hash back to 5807a896cef15f81030f84a1b68a597b.
+-- That check stays length 7303. It does not rewrite any other check.
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
@@ -233,6 +235,27 @@ SET prosrc_md5='fc3717a5215de94c93ebb2c7facfe744', release='r442',
 WHERE signature='public.pdc_pilbara_service_apply_v1(uuid,text,text)'
   AND prosrc_md5='b62fb7c29ffd2a1629f214f696e5cb14' AND release='r570';
 
+DO $outlook$
+DECLARE v_n integer;
+BEGIN
+ UPDATE pdc_ops.regression_checks
+ SET check_sql=replace(check_sql, '9be0883b1a555f48f3c1ba9fa111c891', '5807a896cef15f81030f84a1b68a597b')
+ WHERE check_name='outlook_pdc_auth_505'
+   AND fault_id='F118'
+   AND sort_order=290
+   AND added_in='r505'
+   AND length(check_sql)=7303
+   AND (length(check_sql)-length(replace(check_sql,'9be0883b1a555f48f3c1ba9fa111c891','')))/32=1;
+ GET DIAGNOSTICS v_n = ROW_COUNT;
+ IF v_n<>1 THEN RAISE EXCEPTION 'r570 down: outlook check was not restored'; END IF;
+ IF (SELECT length(check_sql)<>7303
+     OR pg_catalog.strpos(check_sql, '9be0883b1a555f48f3c1ba9fa111c891')>0
+     OR (length(check_sql)-length(replace(check_sql,'5807a896cef15f81030f84a1b68a597b','')))/32<>1
+     FROM pdc_ops.regression_checks WHERE check_name='outlook_pdc_auth_505' AND fault_id='F118' AND sort_order=290 AND added_in='r505') THEN
+  RAISE EXCEPTION 'r570 down: outlook check md5 was not restored';
+ END IF;
+END $outlook$;
+
 DROP FUNCTION IF EXISTS pdc_codex_intake_private.service_whole_archive_569(uuid,uuid);
 DROP FUNCTION IF EXISTS pdc_codex_intake_private.service_whole_unarchive_569(uuid);
 DROP FUNCTION IF EXISTS pdc_codex_intake_private.service_whole_direct_board_569(uuid,text);
@@ -265,4 +288,9 @@ DO $after$ BEGIN
  IF (SELECT md5(p.prosrc) FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace
      WHERE n.nspname='karratha135_pdc' AND p.proname='pdc_pilbara_service_apply_v1') IS DISTINCT FROM 'a033c7d7719ae588e8a9aa1b26bf2fbf' THEN
   RAISE EXCEPTION 'r569 down: department 135 apply md5 changed'; END IF;
+ IF (SELECT length(check_sql)<>7303
+     OR pg_catalog.strpos(check_sql, '9be0883b1a555f48f3c1ba9fa111c891')>0
+     OR (length(check_sql)-length(replace(check_sql,'5807a896cef15f81030f84a1b68a597b','')))/32<>1
+     FROM pdc_ops.regression_checks WHERE check_name='outlook_pdc_auth_505' AND fault_id='F118' AND sort_order=290 AND added_in='r505') THEN
+  RAISE EXCEPTION 'r570 down: outlook caller hash was not restored'; END IF;
 END $after$;
