@@ -139,7 +139,8 @@ const approvedRootImportPatch = Object.freeze({
   // r557: New to PMB flashes blue, and prefers-reduced-motion keeps a solid blue (F171). Department 135 is not tagged.
   // r562: the Key number needed badge is blue (#dbeafe / #1d4ed8), not orange (F176). Department 135 is not tagged.
   // r563: a board-arrival age is grey (#e2e8f0). Department 135 is not tagged.
-  "styles.css": "db8fdba0496351e91e5e4b6668b42f3635821c4bd01ec4e6a38db6f1d8e288ad",
+  // r574: the department bay picker is the same blue (F188). Department 135 is not tagged.
+  "styles.css": "7b26c8ac50575a64e6422918e26396aeeaa01917f1846e7a9254059ca405ed94",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
   // r565: the runtime list adds pdc-bus-component-split.js before the fitter scripts (F179). Department 135 is not tagged.
   "scripts/build_pages_runtime.js": "8424a13bbb54de00d9e15d23f3feeae6603c3dfb153ddd528aa3ecba70732d89",
@@ -257,7 +258,8 @@ const approvedRootImportPatch = Object.freeze({
   // r565: side-panel completion read and controller tick (F179). Department 135 keeps its frozen app.js. app.js keeps r560, r562 and the arrival-age r563, and adds r565.
   // r569: r569=2026.10.27.r569 on both workshop-planner.js loads and both workshop-shared-actions.js loads (pause a bay job for another, F183). Department 135 is not tagged.
   // r573: a job wording longer than 2000 characters is named when hours cannot be saved (F187). Department 135 keeps its frozen app.js and the 180-character prompt.
-  "app.js": "47a76812822936b095ca0debedfe10d65b04548c4ad97b9844b287d2c039c6c3",
+  // r574: a keyed New to PMB tick can book that department's bay (F188). Department 135 keeps its frozen app.js.
+  "app.js": "bd39fc575ebabb945a9105b35c7a5e69ae72dbc19e649af6172da9c049bbb160",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -380,7 +382,8 @@ const approvedRootImportPatch = Object.freeze({
   // r568: index.html loads pdc-bus-component-split.js and adds r568=2026.10.27.r568 on pdc-fitters.js (F182). Department 135 is not tagged.
   // r572: r572=2026.10.27.r572 on pdc-stacked-jobcards.js and pdc-stacked-jobcards.css (F186). Department 135 is not tagged.
   // r573: index.html adds r573=2026.10.27.r573 on app.js and pdc-email-vehicle-location-service.js (hours wording, F187). Department 135 is not tagged.
-  "index.html": "6e241498c7ca344217cac1861f376f8d83b0a63cb0f2e2d7740b2d69e365dea3",
+  // r574: index.html adds r574=2026.10.27.r574 on app.js and styles.css (department bay booking, F188). Department 135 is not tagged.
+  "index.html": "63596bf010020c3390d0483bc59a676733ec3b1d3614fd2bcd2de08ead2b21cd",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
