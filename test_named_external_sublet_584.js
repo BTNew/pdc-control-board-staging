@@ -10,6 +10,14 @@ const up = fs.readFileSync(`supabase/migrations/${ID}.sql`, 'utf8');
 const down = fs.readFileSync(`supabase/rollbacks/${ID}.down.sql`, 'utf8');
 const log = fs.readFileSync('docs/FAULT_LOG.md', 'utf8');
 const PATTERN = "MMT.*SEAT[ -]?COVERS?|(^|[^A-Z0-9])IVMS([^A-Z0-9]|$)|(^|[^A-Z0-9])RADLINK([^A-Z0-9]|$)|REFLECTIVE STRIPES";
+const SIX = [
+  '5adf2ee5c2dc8c11199d314be477a6c1',
+  'c8d16e91e728540542c843751c311a97',
+  '82c809d15c382e73c0ae5bf135293ebe',
+  'f60ac3617342e6317107e84e014c4c36',
+  'bae621855931cc4bca6e326037559da2',
+  '0d71cc4ee105b90fa970622a3f4deb5d'
+];
 
 function named(description, operationCode) {
   const text = `${description || ''} ${operationCode || ''}`.toUpperCase().replace(/\s+/g, ' ');
@@ -30,8 +38,8 @@ test('migration files are LF only and name staging only', () => {
 });
 
 test('the four phrases match the whole line, not a PO item and not near-misses', () => {
-  const quoted = [...up.matchAll(/~ '([^']+)'/g)].map((m) => m[1]);
-  assert.ok(quoted.includes(PATTERN));
+  assert.equal(up.includes(PATTERN), true);
+  assert.equal(down.includes(PATTERN), true);
   for (const phrase of ['MMT Seat Covers', 'MMT SEAT COVERS', 'mmt seat cover', 'MMT CLOTH/COMMUTER SEAT COVERS', 'Fit Navman IVMS', 'FMG IVMS to be fitted', 'IVMS', 'RADLINK quote', 'Radlink', 'reflective stripes', 'Reflective Stripes - Yellow', 'REFLECTIVE   STRIPES WHITE']) {
     assert.equal(named(phrase), true, phrase);
   }
@@ -43,61 +51,53 @@ test('the four phrases match the whole line, not a PO item and not near-misses',
   assert.equal(named('reflective striping'), false);
   assert.equal(named('IVMSX'), false);
   assert.equal(named('Leaf springs', 'SPRING'), false);
-  assert.equal(up.includes('po_details'), true);
+  const hookStart = up.indexOf('AS $function$');
+  const hookEnd = up.indexOf('$function$;');
+  const hook = up.slice(hookStart, hookEnd);
+  assert.equal(hook.includes('po_details'), false);
   assert.equal(up.includes("position('po_details' in h)=0"), true);
+  assert.equal(up.includes('{"description":"Leaf springs","operation_code":"SPRING","po_details":"IVMS"}'), true);
 });
 
-test('the new rule sits after the pit rule and before the department gate', () => {
-  const pit = up.indexOf('PIT[[:space:]]*(INSPECTION|AND[[:space:]]*(WEIGH|WAY))|(WEIGH|WAY)BRIDGE|DEPARTMENT OF TRANSPORT.*INSPECTION');
-  const namedIf = up.indexOf("IF pdc_work_categories_private.named_external_sublet_584(line) THEN RETURN 'SUBLET'; END IF;");
-  const gate = up.indexOf("IF line->>'department' IS DISTINCT FROM '138'");
-  assert.ok(pit > 0 && namedIf > pit && gate > namedIf);
-  assert.equal(up.includes('CREATE OR REPLACE FUNCTION public.pdc_line_is_pit_401'), false);
-  assert.equal(up.includes('7e10e4f66633cf5129c5b2c21aa905e0'), true);
-  assert.equal(down.includes('CREATE OR REPLACE FUNCTION public.pdc_line_is_pit_401'), false);
-  const seatCover = up.indexOf("IF d ~ 'ACCESSOR|SEAT COVER|FLOOR MAT|CARGO BARRIER|ROOF RACK'");
-  assert.ok(seatCover > namedIf);
-});
-
-test('import, route and pending call the helper, and a person lock still wins', () => {
-  const whenAt = up.indexOf('WHEN NOT protected_booking AND NOT coalesce(manual_assignment_locked,false) AND pdc_work_categories_private.named_external_sublet_584(l)');
-  const unallocated = up.indexOf("WHEN l->>'stage_code'='UNALLOCATED_MAPPING_REVIEW'");
-  assert.ok(whenAt > 0 && whenAt < unallocated);
-  assert.ok(up.includes('WHEN NOT protected_booking AND NOT coalesce(manual_assignment_locked,false) AND (pdc_work_categories_private.note_fee_sublet_521(l) OR pdc_work_categories_private.perth_delivery_sublet_523(l))'));
-  const routeFn = up.indexOf('CREATE OR REPLACE FUNCTION pdc_work_categories_private.route_import_line_20261017');
-  const routeAt = up.indexOf('IF pdc_work_categories_private.named_external_sublet_584(line) THEN', routeFn);
-  const aiAt = up.indexOf('SELECT * INTO r FROM pdc_operation_updates_private.ai_routing_20261019', routeFn);
-  assert.ok(routeAt > routeFn && routeAt < aiAt);
-  const pendingFn = up.indexOf('FUNCTION public.pdc_pending_work_category_20260912');
-  const pendingAt = up.indexOf('named_external_sublet_584(p_line)', pendingFn);
-  const hoursAt = up.indexOf('service_catalogue_hours_20260917', pendingFn);
-  assert.ok(pendingAt > pendingFn && pendingAt < hoursAt);
-  const reviewedFn = up.indexOf('FUNCTION pdc_work_categories_private.reviewed_import_choice_139_20261018');
-  const reviewedAt = up.indexOf('named_external_sublet_584(p_line) THEN RETURN base', reviewedFn);
-  const rulesAt = up.indexOf('import_rules_139', reviewedFn);
-  assert.ok(reviewedAt > reviewedFn && reviewedAt < rulesAt);
-  assert.ok(up.includes('Put them back on Sublet after that overwrite'));
-  assert.equal(up.includes("WHEN 'SUBLET' THEN 'note_fee_sublet_521'"), true);
-  assert.equal(up.includes("WHEN 'SUBLET' THEN 'named_external_sublet_584'"), false);
-});
-
-test('the before_import pin stays r523 and the two stored checks move with the new bodies', () => {
-  assert.equal(up.includes("prosrc_md5='286cf6f7ac9831817d48388c75b69dec', release='r523'"), true);
-  assert.equal(up.includes("signature='pdc_work_categories_private.before_import_rules_20261017(uuid)' AND prosrc_md5='82c809d15c382e73c0ae5bf135293ebe' AND release='r523'"), true);
-  for (const signature of [
-    'pdc_work_categories_private.suggest(jsonb)',
-    'pdc_operation_updates_private.ensure_required_work_20261019(uuid)',
-    'pdc_work_categories_private.route_import_line_20261017(jsonb,boolean)',
-    'public.pdc_pending_work_category_20260912(jsonb)',
-    'pdc_work_categories_private.reviewed_import_choice_139_20261018(jsonb)'
+test('the hook changes and the six r523 bodies are not replaced', () => {
+  for (const name of [
+    'pdc_work_categories_private.suggest',
+    'pdc_operation_updates_private.ensure_required_work_20261019',
+    'pdc_work_categories_private.before_import_rules_20261017',
+    'pdc_work_categories_private.route_import_line_20261017',
+    'public.pdc_pending_work_category_20260912',
+    'pdc_work_categories_private.reviewed_import_choice_139_20261018'
   ]) {
-    const at = up.indexOf(`signature='${signature}'`);
-    const upd = up.lastIndexOf('UPDATE pdc_ops.expected_function_md5', at);
-    assert.ok(at > 0 && upd > 0, signature);
-    assert.equal(up.slice(upd, at).includes("release='r584'"), true, signature);
+    assert.equal(up.includes(`CREATE OR REPLACE FUNCTION ${name}`), false, name);
+    assert.equal(down.includes(`CREATE OR REPLACE FUNCTION ${name}`), false, name);
   }
+  assert.equal(up.includes('CREATE FUNCTION pdc_work_categories_private.named_external_sublet_584'), false);
+  assert.equal(up.includes('CREATE OR REPLACE FUNCTION pdc_work_categories_private.note_fee_sublet_521'), true);
+  assert.equal(down.includes('CREATE OR REPLACE FUNCTION pdc_work_categories_private.note_fee_sublet_521'), true);
+  assert.equal(up.includes('ca08696ffbe6a1834e63f8b8faf246e1'), true);
+  assert.equal(up.includes('2813508255aa6f65c7490e54c76cd564'), true);
+  assert.equal(down.includes('2813508255aa6f65c7490e54c76cd564'), true);
+  for (const md5 of SIX) {
+    assert.equal(up.includes(md5), true, md5);
+    assert.equal(down.includes(md5), true, md5);
+  }
+  assert.equal(up.includes("<>'r523'"), true);
+  assert.equal(up.includes("release='r521'"), true);
+  assert.equal(up.includes("WHERE release='r584')<>0"), true);
+  assert.equal(/SET[^;]*release='r584'/.test(up), false);
+  assert.equal(up.includes('480bc6eb72a1585a2b909bb7a478585a'), false);
+  assert.equal(up.includes('286cf6f7ac9831817d48388c75b69dec'), false);
+});
+
+test('the two stored checks keep the six checksums and take the new hook md5', () => {
   assert.equal(up.includes("check_name IN ('note_fee_sublet_521','perth_delivery_sublet_523')"), true);
-  assert.equal(up.includes("'5adf2ee5c2dc8c11199d314be477a6c1','480bc6eb72a1585a2b909bb7a478585a'"), true);
+  assert.equal(up.includes("replace(check_sql, '2813508255aa6f65c7490e54c76cd564', 'ca08696ffbe6a1834e63f8b8faf246e1')"), true);
+  assert.equal(down.includes("replace(check_sql, 'ca08696ffbe6a1834e63f8b8faf246e1', '2813508255aa6f65c7490e54c76cd564')"), true);
+  assert.equal(up.includes("<>'82c809d15c382e73c0ae5bf135293ebe'"), true);
+  assert.equal(up.includes("->>'routing_rule'='note_fee_sublet_521'"), true);
+  assert.equal(up.includes("WHEN 'SUBLET' THEN 'named_external_sublet_584'"), false);
+  assert.equal(up.includes('7e10e4f66633cf5129c5b2c21aa905e0'), true);
+  assert.equal(up.includes('2944c99ffc3c4ce09704b00d66f9fdc4'), true);
 });
 
 test('work-item writes are sublet only and the down file reverses them', () => {
@@ -111,21 +111,23 @@ test('work-item writes are sublet only and the down file reverses them', () => {
   const en = down.indexOf('ENABLE TRIGGER pdc_772_work_item_no_delete');
   assert.ok(dis > 0 && del > dis && en > del);
   assert.equal(down.includes("w.work_key='sublet'"), true);
-  assert.equal(down.includes('DROP FUNCTION pdc_work_categories_private.named_external_sublet_584(jsonb)'), true);
-  assert.equal(down.includes('5adf2ee5c2dc8c11199d314be477a6c1'), true);
-  assert.equal(down.includes('ee799302c1bdd37bcfba15837859e200'), false);
+  assert.equal(down.includes('DROP FUNCTION pdc_work_categories_private.named_external_sublet_584(jsonb)'), false);
   assert.equal(down.includes('DROP TABLE pdc_ops.named_external_work_touch_584'), true);
+  const restore = down.indexOf('CREATE OR REPLACE FUNCTION pdc_work_categories_private.note_fee_sublet_521');
+  assert.ok(restore > 0 && restore < dis);
 });
 
 test('regression check named_external_sublet_584 is F198 sort 356', () => {
   assert.equal(up.includes("('named_external_sublet_584','F198'"), true);
-  assert.equal(up.includes(",true,356,'r584'"), true);
+  assert.equal(up.includes(',true,356,\'r584\''), true);
   assert.equal(up.includes('r583 / F197 / sort 355'), true);
   assert.equal(log.includes('| F198 |'), true);
   assert.equal(log.includes('| F130 |'), true);
   assert.equal(log.includes('named_external_sublet_584'), true);
   assert.equal(log.includes('<<<<<<<'), false);
   assert.equal(log.includes('named_external_sublet_516'), false);
+  assert.equal(log.includes('ca08696ffbe6a1834e63f8b8faf246e1'), true);
+  assert.equal(log.includes('82c809d15c382e73c0ae5bf135293ebe'), true);
   assert.equal(fs.existsSync('pdc-vehicle-sublets.js'), true);
   assert.equal(up.includes('pdc-vehicle-sublets.js'), false);
   assert.equal(fs.existsSync('supabase/migrations/20261023180000_r516_named_external_sublet.sql'), false);
