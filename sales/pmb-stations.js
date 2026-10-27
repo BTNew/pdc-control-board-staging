@@ -4,10 +4,12 @@
    with Sublet recoloured as pdc-sublet-po.js decorateStrip does); test_sales_pmb_stations_499.js renders both and compares them.
    r499b: a station whose workshop booking status is started also gets is-started (the planner's class). The Sales stylesheet
    runs the planner's workshop-started-blue-pulse on that class. Completed and STOPPAGE stations do not flash.
-   Performance: ONE batched read per Sales refresh (get_broome_sales_pmb_stations, every linked vehicle in a single call), the
-   strip HTML is built once per answer and cached by vehicle id, and render() only reads the cache. Nothing runs per vehicle
-   while the table draws: no call, no fetch and no extra table redraw. If the read is missing or fails, no icons show (the
-   existing PMB text stays) and the failure is logged once. Unlinked vehicles keep their text and get no icons. */
+   Performance: two batched reads per Sales refresh (get_broome_sales_pmb_stations, then list_station_icon_completion_578,
+   every linked vehicle in each call). The strip HTML is built once per answer and cached by vehicle id, and render() only
+   reads the cache. Nothing runs per vehicle while the table draws: no call, no fetch and no extra table redraw. If the
+   station read is missing or fails, no icons show (the existing PMB text stays) and the failure is logged once. If only
+   the icon read fails, the station icons still show. Unlinked vehicles keep their text and get no icons.
+   r578 (F192): a station whose lines are all ticked, or overridden by a controller, uses the same green complete state. */
 (function (root) {
   'use strict';
   const guardApi = root.VehicleRequirementsGuard || (typeof module === 'object' && module.exports ? require('../vehicle-requirements-guard.js') : null);
@@ -91,6 +93,18 @@
     v.pdcSubletBookings = [...Array(active)].map((_, i) => ({ bookingId: 'a' + i, status: 'active', outDate: '' }))
       .concat([...Array(returned)].map((_, i) => ({ bookingId: 'r' + i, status: 'returned', outDate: '' })));
     if (active + returned) { v.pdcRequiresSublet = true; v.pdcCompleteSublet = active === 0; }
+    const lineComplete = {};
+    const lineOverride = {};
+    for (const row of Array.isArray(entry.station_lines) ? entry.station_lines : []) {
+      const key = canonicalWorkKey(row?.work_key);
+      const fields = FIELD_BY_KEY[key];
+      if (!fields || key === 'pitinspection' || row?.complete !== true) continue;
+      if (v[fields[1]] === true) continue;
+      lineComplete[key] = true;
+      if (row.override === true) lineOverride[key] = clean(row.override_email) || 'controller';
+    }
+    if (Object.keys(lineComplete).length) v.pdcStationLinesComplete = lineComplete;
+    if (Object.keys(lineOverride).length) v.pdcStationLineOverride = lineOverride;
     v.salesWorkshopBookings = (Array.isArray(entry.bookings) ? entry.bookings : []).filter(b => b && !['completed', 'deleted', 'cancelled'].includes(String(b.status || '').toLowerCase()))
       .map(b => ({ stage: String(b.stage_code || ''), stage_code: String(b.stage_code || ''), status: String(b.status || ''), stoppageReason: String(b.stoppage_reason || '') }));
     return v;
@@ -104,7 +118,7 @@
     }
     return v[d.requireKey] === true;
   };
-  const complete = (v, d) => v[d.completeKey] === true;
+  const complete = (v, d) => v[d.completeKey] === true || v.pdcStationLinesComplete?.[d.key] === true;
   const partsComplete = v => complete(v, DEFS[0]) || v.pdcCompleteParts === true;
   const partsStoppage = v => !partsComplete(v) && (v.pdcPartsStoppage === true || Boolean(clean(v.pdcPartsStoppageReason))) && required(v, DEFS[0]);
   const blocked = v => v.pdcBlocked === true || Boolean(clean(v.pdcBlockReason));
@@ -120,7 +134,13 @@
     const when = p.last_successful_import_at ? new Date(p.last_successful_import_at).toLocaleString('en-AU', { timeZone: 'Australia/Perth' }) : 'Not recorded';
     return `${p.label}. Last successful import: ${when} (Perth). ${p.meaning || ''}`;
   };
-  const completionTitle = (v, d) => [`${d.label} required`, complete(v, d) ? 'signed off' : 'not signed off yet'].join(' - ');
+  const completionTitle = (v, d) => {
+    if (v[d.completeKey] !== true && v.pdcStationLinesComplete?.[d.key] === true) {
+      const who = clean(v.pdcStationLineOverride?.[d.key]);
+      return who ? `${d.grid} complete (override by ${who})` : `${d.grid} complete (every line ticked)`;
+    }
+    return [`${d.label} required`, v[d.completeKey] === true ? 'signed off' : 'not signed off yet'].join(' - ');
+  };
   const activeSubletBooking = v => (v.pdcSubletBookings || []).filter(b => b.status === 'active' && b.bookingId).length === 1;
 
   /** The Control Board strip for one vehicle (incomingWorkChecklistHtml without planner navigation or booking warning). */
@@ -129,7 +149,11 @@
     const bookings = Array.isArray(v.salesWorkshopBookings) ? v.salesWorkshopBookings : [];
     const stopped = new Map(bookings.filter(b => String(b.status).toLowerCase() === 'stoppage').map(b => [normalizeStage(b.stage), b]));
     return `<div class="incoming-work-checks pdc-station-strip" data-workshop-booking-required="false" aria-label="Required work stations">${DEFS.map(def => {
-      const req = required(v, def), done = complete(v, def), stage = STAGE_FOR_JOB[def.key] || '';
+      const req = required(v, def);
+      const signedOff = v[def.completeKey] === true;
+      const lines = !signedOff && v.pdcStationLinesComplete?.[def.key] === true;
+      const done = signedOff || lines;
+      const stage = STAGE_FOR_JOB[def.key] || '';
       const stoppedBooking = stage ? stopped.get(stage) : null;
       const stageJobKey = JOB_FOR_STAGE[currentStage] || '';
       const isBlocked = def.key === 'parts' ? partsStoppage(v) : Boolean(stoppedBooking || (blocked(v) && stageJobKey === def.key));
@@ -160,7 +184,9 @@
       if (stage && currentStage === stage) classes.push('is-current-stage');
       const state = projected.state === 'completed' ? 'complete' : projected.state === 'stoppage' ? 'STOPPAGE' : ordered ? 'ordered' : startedHere ? 'started' : projected.state;
       const marker = projected.marker;
-      const title = stoppedBooking
+      const title = lines
+        ? completionTitle(v, def)
+        : stoppedBooking
         ? `${def.grid} STOPPAGE${stoppedBooking.stoppageReason ? `: ${stoppedBooking.stoppageReason}` : ''}`
         : ordered ? `${def.grid} ordered` : booked ? `${def.grid} ${startedHere ? 'started' : 'booked'}` : req || done ? completionTitle(v, def) : `${def.grid} not required`;
       if (def.key === 'parts') {
@@ -247,19 +273,45 @@
     return map;
   }
 
+  function mergeStationLines(data, icon) {
+    if (!data || data.ok !== true || !Array.isArray(data.vehicles)) return data;
+    const stations = icon && Array.isArray(icon.stations) ? icon.stations : null;
+    if (!stations) return data;
+    const byVehicle = new Map();
+    for (const row of stations) {
+      const id = String(row?.vehicle_id || '').toLowerCase();
+      if (!byVehicle.has(id)) byVehicle.set(id, []);
+      byVehicle.get(id).push(row);
+    }
+    return {
+      ...data,
+      vehicles: data.vehicles.map(entry => {
+        const rows = byVehicle.get(String(entry?.vehicle_id || '').toLowerCase());
+        return rows ? { ...entry, station_lines: rows } : entry;
+      }),
+    };
+  }
+
   function create(host) {
     let cache = new Map(), logged = false, request = 0;
     return {
-      /** ONE batched read for every linked vehicle on the page. Never throws; on failure the icons are hidden. */
+      /** Two batched reads for every linked vehicle. Never throws. A failed icon read still shows the station icons. */
       async refresh(vehicleIds) {
         const ids = [...new Set((vehicleIds || []).map(id => String(id || '').toLowerCase()).filter(id => UUID.test(id)))].slice(0, MAX_IDS);
         const mine = ++request;
         if (!ids.length || !host.PDC_SUPABASE?.rpc) { cache = new Map(); return 0; }
         try {
-          const { data, error } = await host.PDC_SUPABASE.rpc(RPC, { p_vehicle_ids: ids });
+          const stationPromise = host.PDC_SUPABASE.rpc(RPC, { p_vehicle_ids: ids });
+          const iconPromise = host.PDC_SUPABASE.rpc('list_station_icon_completion_578', { p_vehicle_ids: ids });
+          const { data, error } = await stationPromise;
+          let iconData = null;
+          try {
+            const icon = await iconPromise;
+            if (!icon?.error && icon?.data?.ok === true) iconData = icon.data;
+          } catch (_) { iconData = null; }
           if (mine !== request) return cache.size;
           if (error || !data || data.ok !== true) throw error || new Error('PMB station read failed');
-          cache = indexAnswer(data);
+          cache = indexAnswer(mergeStationLines(data, iconData));
         } catch (error) {
           if (mine !== request) return cache.size;
           cache = new Map();

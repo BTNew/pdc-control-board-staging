@@ -25,6 +25,7 @@ const NAMES = ['NAVISION_JITA_NUMBER_AUTHORITY', 'PRODUCTION_FLOW_DEFS', 'PDC_JO
   'pmbStageForPdcJob', 'normalizePmbStage', 'inferredPmbStage', 'isPdcBlocked', 'pdcBlockReason', 'pdcJobRequired', 'pdcJobComplete', 'pdcJobTriState',
   'pdcJobCompletionTitle', 'pdcJobDefsPartsFirst', 'pdcGridJobLabel', 'parseIsoTimestamp', 'isBlankStock', 'vehicleHasBatchNumber', 'vehicleNavisionJitaNumber',
   'cleanNavisionText', 'escapeHtml', 'canonicalVehicleWorkState', 'canonicalActiveSubletBooking', 'partsJobDef', 'partsStateComplete',
+  'pdcStationLinesMakeComplete', 'pdcStationLinesOverrideBy',
   'isActivePartsStoppage', 'partsOrdered', 'importedPartsStatus', 'importedPartsTitle', 'incomingWorkChecklistHtml'];
 function board() {
   const ctx = { window: { VehicleRequirementsGuard: guard, PDC_WORKSHOP_ELIGIBILITY: eligibility }, WORKSHOP_ELIGIBILITY: eligibility,
@@ -77,7 +78,33 @@ const FIX = [
   { vehicle_id: U(39), has_stock: true, parts: { parts_required: true },
     parts_flags: { colour: 'orange', label: 'Parts outstanding — see job cards', meaning: 'Made-up meaning', last_successful_import_at: '2026-10-23T23:36:00Z' },
     jita_number: 'JSO121708' },
+  { vehicle_id: U(40), has_stock: true, work: W(['tint']), station_lines: [{ work_key: 'tint', complete: true, total: 1, done: 1, override: false }] },
+  { vehicle_id: U(41), has_stock: true, work: W(['tint']), station_lines: [{ work_key: 'tint', complete: false, total: 2, done: 1, override: false }] },
+  { vehicle_id: U(42), has_stock: true, work: W(['hoist']), station_lines: [{ work_key: 'hoist', complete: true, override: true, override_email: 'controller@example.test' }] },
+  { vehicle_id: U(43), has_stock: true, work: W(['tint'], ['tint']), station_lines: [{ work_key: 'tint', complete: true, override: true, override_email: 'controller@example.test' }] },
+  { vehicle_id: U(44), has_stock: true, parts: { parts_required: true },
+    parts_flags: { colour: 'orange', label: 'Flag orange', meaning: 'Made-up meaning', last_successful_import_at: null },
+    station_lines: [{ work_key: 'parts', complete: true, override: false }] },
+  { vehicle_id: U(45), has_stock: true, work: W(['tint']), bookings: [{ stage_code: 'TINT', status: 'planned' }], station_lines: [{ work_key: 'tint', complete: true, override: false }] },
 ];
+
+test('a station is green when every line is ticked, stays required when only some are, and an override names who', () => {
+  assert.match(salesHtml(F(40)), /pdc-station-tint is-required is-complete" title="Tint complete \(every line ticked\)"/);
+  assert.match(salesHtml(F(40)), /aria-label="Tint complete"/);
+  assert.match(salesHtml(F(40)), /incoming-work-box" aria-hidden="true">✓/);
+  assert.doesNotMatch(salesHtml(F(40)), /Tint required - signed off|TINT required - signed off/);
+  assert.match(salesHtml(F(41)), /pdc-station-tint is-required" title="TINT required - not signed off yet"/);
+  assert.doesNotMatch(salesHtml(F(41)), /pdc-station-tint[^"]*is-complete/);
+  assert.match(salesHtml(F(42)), /pdc-station-hoist is-required is-complete" title="Hoist complete \(override by controller@example\.test\)"/);
+  assert.match(salesHtml(F(43)), /title="TINT required - signed off"/);
+  assert.doesNotMatch(salesHtml(F(43)), /every line ticked|override by/);
+  assert.match(salesHtml(F(44)), /imported-parts-orange/);
+  assert.doesNotMatch(salesHtml(F(44)), /Parts complete \(every line ticked\)/);
+  assert.match(salesHtml(F(45)), /pdc-station-tint is-required is-complete" title="Tint complete \(every line ticked\)"/);
+  assert.doesNotMatch(salesHtml(F(45)), /pdc-station-tint[^"]*is-booked/);
+  assert.equal(stations.toBoardVehicle(F(40)).pdcCompleteTint, false);
+  assert.equal(stations.toBoardVehicle(F(40)).pdcStationLinesComplete.tint, true);
+});
 
 test('every fixture renders exactly the Control Board strip (app.js incomingWorkChecklistHtml + pdc-sublet-po.js decorateStrip)', () => {
   for (const entry of FIX) assert.equal(asBoard(salesHtml(entry)), boardHtml(entry), `vehicle ${entry.vehicle_id}`);
@@ -155,7 +182,7 @@ test('Sales wiring: linked rows only, short status text under the icons, mobile 
   assert.match(sales, /pmbStationsHtml\(row\)\+'<p class="mobile-pmb'/);
   const index = fs.readFileSync('sales/index.html', 'utf8');
   assert.match(index, /<link rel="stylesheet" href="pmb-stations\.css\?v=2026\.10\.23\.r499b&amp;r526=2026\.10\.24\.r526">/);
-  const order = ['../workshop-eligibility.js?', '../vehicle-requirements-guard.js?', 'pmb-stations.js?v=2026.10.23.r499b&amp;r518=2026.10.23.r518&amp;r524=2026.10.24.r524', 'sales.js?v='].map(s => index.indexOf('src="' + s));
+  const order = ['../workshop-eligibility.js?', '../vehicle-requirements-guard.js?', 'pmb-stations.js?v=2026.10.23.r499b&amp;r518=2026.10.23.r518&amp;r524=2026.10.24.r524&amp;r578=2026.10.27.r578', 'sales.js?v='].map(s => index.indexOf('src="' + s));
   assert.ok(order.every(i => i > 0) && order.every((v, i) => !i || v > order[i - 1]), 'scripts load before sales.js');
   assert.match(index, /src="sales\.js\?v=2026\.10\.06\.01&amp;r499b=2026\.10\.23\.r499b&amp;[^"]*no-yard-flag=2026\.10\.22\.r486"/, 'sales.js keeps v= (manifest) and adds r499b');
   const build = fs.readFileSync('scripts/build_pages_runtime.js', 'utf8');

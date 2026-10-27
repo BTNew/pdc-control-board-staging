@@ -202,9 +202,9 @@ test('loader: slide-out loads after the table module; cache-bust tags; runtime f
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461&r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463/);
   assert.match(entry, /table\.onload = loadVehicleSlideout;/);
-  assert.match(entry, /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.27\.r565/); // r565 (F179)
+  assert.match(entry, /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.27\.r578/); // r578 (F192); r565 chip layout stays
   assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /pdc-vehicle-slideout\.css\?vehicle-slideout=\$\{VERSION\}/);
-  assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /const VERSION = '2026\.10\.27\.r565'/);
+  assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /const VERSION = '2026\.10\.27\.r578'/);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /canonical-entry\.js\?[^"]*r462=2026\.10\.22\.r462&amp;r463=2026\.10\.22\.r463/);
   const scripts = [...html.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]);

@@ -35,9 +35,9 @@
  * with it: a station drop calls saveVehicleWorkCategory (set_vehicle_work_category, which extends or shortens
  * the job). A bay drop then calls moveWorkshopDroppedPlan or scheduleWorkshopVehicle, so bay, technician and
  * close-gaps rules stay in those functions. Save still writes hour edits through saveVehicleWorkshopLineHoursBatch.
- * Completed work is shown in blue/grey with who and when. A controller (operator or administrator) can tick a
- * line completed; the tick is setPanelLineCompletion (set_panel_line_completion_565). This file still calls no
- * RPC or fetch itself.
+ * A completed line is green, with who and when. A controller (operator or administrator) can tick a
+ * line completed; the tick is setPanelLineCompletion (set_panel_line_completion_565). The same roles can
+ * override a whole station (setStationCompletionOverride). This file still calls no RPC or fetch itself.
  * Speed: drawing the board reads nothing extra. Opening the panel may read the completion list once
  * (loadPanelLineCompletions) when that function exists. loadVehicleWorkshopDetail runs only when Edit is pressed,
  * for that one vehicle. A save redraws only this panel.
@@ -45,7 +45,7 @@
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.27.r565'; // r565 (F179): edit in the same chip layout; drag, completed state, controller tick. r560 (F174): More details opens the vehicle card.
+  const VERSION = '2026.10.27.r578'; // r578 (F192): compact green complete tick and station override. r565 (F179): edit stays on the chip list. r560 (F174): More details opens the vehicle card.
   // r496: the panel's slim copy of the Work & bookings rows. Kept so the full editor's markup can still be reduced.
   // r565 does not use it for Edit: Edit stays on the chip list.
   function slimWorkPage(html) {
@@ -144,7 +144,12 @@
     tyre: { category: 'TYRE', stage: 'TYRE' },
     sublet: { category: 'SUBLET', stage: 'SUBLET' },
   });
-  const edit = { key: '', moves: new Map(), busy: false, loading: false, note: '', loads: 0, completionFor: '', completionRows: [] };
+  const edit = { key: '', moves: new Map(), busy: false, loading: false, note: '', loads: 0, completionFor: '', completionRows: [], stationRows: [], completionGen: 0 };
+  const WORK_KEY_FOR_STAGE = Object.freeze({
+    BUS_4X4: 'bus4x4', BUS_MECHANICAL: 'bus4x4', BUS_ACCESSORIES: 'bus4x4', BUS_ELECTRICAL: 'bus4x4', BUS_QA: 'bus4x4',
+    TINT: 'tint', HOIST: 'hoist', FITTING: 'fitting', FABRICATION: 'fabrication', ELECTRICAL: 'electrical', TYRE: 'tyre', SUBLET: 'sublet', PARTS: 'parts',
+  });
+  const workKeyFor = stage => WORK_KEY_FOR_STAGE[String(stage || '').toUpperCase()] || '';
   let dragChip = null;
   const isController = () => CONTROLLER_ROLES.includes(String(root.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase());
   const editReady = () => {
@@ -486,6 +491,7 @@
   }
   async function toggleCompletion(vehicleId, lineKey, completed) {
     if (!isController() || edit.busy || typeof root.setPanelLineCompletion !== 'function') return false;
+    edit.completionGen += 1;
     edit.busy = true;
     let result = null;
     try { result = await root.setPanelLineCompletion(vehicleId, lineKey, completed); }
@@ -504,6 +510,29 @@
       edit.note = completed ? 'Line marked completed.' : 'Completion removed.';
     } else {
       edit.note = result?.error === 'controller_required' ? 'Only a workshop controller can tick a line.' : 'The tick was not saved.';
+    }
+    redraw(state.key);
+    return result?.ok === true;
+  }
+  async function toggleStation(vehicleId, workKey, completed) {
+    if (!isController() || edit.busy || !workKey || typeof root.setStationCompletionOverride !== 'function') return false;
+    edit.completionGen += 1;
+    edit.busy = true;
+    let result = null;
+    try { result = await root.setStationCompletionOverride(vehicleId, workKey, completed); }
+    catch (_) { result = { ok: false }; }
+    finally { edit.busy = false; }
+    if (result?.ok === true) {
+      edit.stationRows = (edit.stationRows || []).filter(row => row.work_key !== workKey).concat([{
+        work_key: workKey,
+        complete: result.completed === true,
+        override: result.completed === true,
+        override_email: result.actor_email || '',
+        acted_at: result.acted_at || '',
+      }]);
+      edit.note = completed ? 'Station marked complete.' : 'Station override removed.';
+    } else {
+      edit.note = result?.error === 'controller_required' ? 'Only a workshop controller can override a station.' : 'The station override was not saved.';
     }
     redraw(state.key);
     return result?.ok === true;
@@ -556,12 +585,15 @@
         bindHours(em.querySelector('input'), page);
       }
       if (completed) {
-        const meta = [who, when].filter(Boolean).join(' · ');
-        li.insertAdjacentHTML('beforeend', `<small class="vso-done-meta">Completed${meta ? ` · ${esc(meta)}` : ''}</small>`);
+        const override = tick?.completed === true;
+        const phrase = override ? `Complete (override by ${who || 'controller'})` : 'Complete';
+        const rest = [override ? '' : who, when].filter(Boolean).join(' · ');
+        const text = rest ? `${phrase} · ${rest}` : phrase;
+        li.insertAdjacentHTML('beforeend', `<small class="vso-done-meta" title="${esc(text)}">${esc(text)}</small>`);
       }
       const checked = tick?.completed === true;
       const control = isController();
-      li.insertAdjacentHTML('beforeend', `<label class="vso-tick"><input type="checkbox" data-vso-tick="${esc(lineKey)}" aria-checked="${checked ? 'true' : 'false'}"${checked ? ' checked' : ''}${control ? '' : ' disabled'} title="${control ? (checked ? 'Remove the completed tick' : 'Mark this line completed') : 'Read-only for your role'}"><span>${checked ? 'Ticked complete' : 'Tick complete'}</span></label>`);
+      li.insertAdjacentHTML('beforeend', `<label class="vso-tick"><input type="checkbox" data-vso-tick="${esc(lineKey)}" aria-checked="${checked ? 'true' : 'false'}"${checked ? ' checked' : ''}${control ? '' : ' disabled'} title="${control ? (checked ? 'Remove the completed tick' : 'Mark this line completed') : 'Read-only for your role'}"><span>${checked ? 'Complete' : 'Tick'}</span></label>`);
       const box = li.querySelector('[data-vso-tick]');
       box?.addEventListener('click', event => {
         event.stopPropagation();
@@ -644,19 +676,44 @@
       if (editing && move.category) {
         bindDrop(section, () => ({ kind: 'station', category: move.category, stage: move.stage, bay: 0 }));
       }
+      const workKey = workKeyFor(move.stage);
+      if (isController() && workKey && header && typeof root.setStationCompletionOverride === 'function') {
+        const row = (edit.stationRows || []).find(item => item.work_key === workKey && item.override === true);
+        const button = doc.createElement('button');
+        button.type = 'button';
+        button.className = row ? 'vso-station-override is-on' : 'vso-station-override';
+        button.dataset.vsoStationOverride = workKey;
+        button.textContent = row ? 'Undo override' : 'Override';
+        const acted = whenLabel(row?.acted_at || '');
+        button.title = row
+          ? `Complete (override by ${row.override_email || 'controller'})${acted ? ` · ${acted}` : ''}`
+          : 'Mark this station complete';
+        button.addEventListener('click', event => {
+          event.stopPropagation();
+          void toggleStation(vehicleId, workKey, !row);
+        });
+        header.appendChild(button);
+      }
     });
   }
   function ensureCompletions(vehicle) {
     const id = canonicalIdFor(vehicle);
-    if (!id || edit.completionFor === id || typeof root.loadPanelLineCompletions !== 'function') return;
+    const canLines = typeof root.loadPanelLineCompletions === 'function';
+    const canStations = typeof root.loadStationIconDetail === 'function';
+    if (!id || edit.completionFor === id || (!canLines && !canStations)) return;
     edit.completionFor = id;
-    Promise.resolve(root.loadPanelLineCompletions(id)).then(lines => {
-      if (!state.key || canonicalIdFor(editVehicle(state.key)) !== id) return;
-      const next = Array.isArray(lines) ? lines : [];
-      if (JSON.stringify(next) !== JSON.stringify(edit.completionRows || [])) {
-        edit.completionRows = next;
-        redraw(state.key);
-      }
+    const gen = ++edit.completionGen;
+    const linesPromise = canLines ? Promise.resolve(root.loadPanelLineCompletions(id)) : Promise.resolve([]);
+    const stationsPromise = canStations ? Promise.resolve(root.loadStationIconDetail(id)) : Promise.resolve([]);
+    Promise.all([linesPromise, stationsPromise]).then(([lines, stations]) => {
+      if (gen !== edit.completionGen || !state.key || canonicalIdFor(editVehicle(state.key)) !== id) return;
+      const nextLines = Array.isArray(lines) ? lines : [];
+      const nextStations = Array.isArray(stations) ? stations : [];
+      const changed = JSON.stringify(nextLines) !== JSON.stringify(edit.completionRows || [])
+        || JSON.stringify(nextStations) !== JSON.stringify(edit.stationRows || []);
+      edit.completionRows = nextLines;
+      edit.stationRows = nextStations;
+      if (changed) redraw(state.key);
     }).catch(() => {});
   }
   // The operations heading's "Edit jobs & hours" becomes "Edit" + "Open full editor" for the same roles as the window.
@@ -816,6 +873,8 @@
     edit.note = '';
     edit.completionFor = '';
     edit.completionRows = [];
+    edit.stationRows = [];
+    edit.completionGen += 1;
     state.key = ''; opsObserver?.disconnect();
     const shell = doc.getElementById('vso-shell');
     shell?.classList.remove('is-open');

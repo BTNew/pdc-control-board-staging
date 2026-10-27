@@ -82,7 +82,7 @@ for (const N of [200, 400]) {
 
 test('render path never reads: pmb-stations.js has one rpc call (in refresh) and no fetch; sales.js calls refresh once', () => {
   const src = fs.readFileSync('sales/pmb-stations.js', 'utf8');
-  assert.equal((src.match(/\.rpc\(/g) || []).length, 1);
+  assert.equal((src.match(/\.rpc\(/g) || []).length, 2);
   assert.doesNotMatch(src, /\bfetch\(|XMLHttpRequest|setInterval|setTimeout/);
   const html = src.slice(src.indexOf('html(row) {'), src.indexOf('clear() {'));
   assert.doesNotMatch(html, /rpc|refresh|entryHtml|await/);
@@ -91,6 +91,17 @@ test('render path never reads: pmb-stations.js has one rpc call (in refresh) and
   assert.equal((sales.match(/get_broome_sales_pmb_stations/g) || []).length, 0);
   const refresh = sales.slice(sales.indexOf('async function refresh() {'), sales.indexOf('function applyConfirmedVisibility'));
   assert.equal((refresh.match(/\brender\(\)/g) || []).length, 2, 'no extra render added to refresh');
+});
+
+test('a failed icon read still shows the station icons', async () => {
+  const stations = require('./sales/pmb-stations.js');
+  const host = { PDC_SUPABASE: { rpc: async name => name === 'list_station_icon_completion_578'
+    ? { data: null, error: new Error('icon read failed') }
+    : { data: { ok: true, vehicles: [entry(1)] } } } };
+  const s = stations.create(host);
+  assert.equal(await s.refresh([U(1)]), 1);
+  assert.match(s.html({ canonical_vehicle_id: U(1) }), /sales-pmb-stations/);
+  assert.doesNotMatch(s.html({ canonical_vehicle_id: U(1) }), /every line ticked/);
 });
 
 test('a failed or missing read shows no icons, logs once and never breaks the Sales table', async () => {
@@ -108,7 +119,7 @@ test('a failed or missing read shows no icons, logs once and never breaks the Sa
   s.clear(); assert.equal(s.size(), 0);
   const capped = []; await stations.create({ PDC_SUPABASE: { rpc: async (n, a) => { capped.push(a.p_vehicle_ids.length); return { data: { ok: true, vehicles: [] } }; } } })
     .refresh(Array.from({ length: 1500 }, (_, i) => U(i + 1)));
-  assert.deepEqual(capped, [1000], 'capped at the server limit, still one call');
+  assert.deepEqual(capped, [1000, 1000], 'capped at the server limit, station read then icon read');
 });
 
 test('the shared guard file loads beside every Sales page script with no global name clash', () => {

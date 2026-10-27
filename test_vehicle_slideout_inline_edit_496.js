@@ -101,7 +101,7 @@ function board({ role = 'administrator', vehicles = 3 } = {}) {
   const openPanel = vehicle => { vlt.opener.open(c.vehicleKey(vehicle), 'pmb'); return panel(); };
   const settle = async () => { for (let i = 0; i < 8; i += 1) await new Promise(r => setImmediate(r)); };
   const reads = () => server.calls.filter(call => call.name === 'get_vehicle_workshop_detail_scoped');
-  const writes = () => server.calls.filter(call => !['get_vehicle_workshop_detail_scoped', 'get_panel_line_completions_565'].includes(call.name));
+  const writes = () => server.calls.filter(call => !['get_vehicle_workshop_detail_scoped', 'get_panel_line_completions_565', 'list_station_icon_completion_578'].includes(call.name));
   return { c, doc, rows, server, spies, vlt, panel, openPanel, settle, reads, writes, realOpen };
 }
 const click = el => { assert.ok(el, 'element to click'); return el.dispatch('click'); };
@@ -327,8 +327,8 @@ test('5. slimWorkPage keeps inputs and selectors, removes every button, keeps dr
 });
 
 test('6. loader, styles and docs: r565 cache-bust tags, FAULT_LOG F109 and F179, panel doc; no real stock numbers here', () => {
-  assert.equal(slideout.VERSION, '2026.10.27.r565');
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.27\.r565'/);
+  assert.equal(slideout.VERSION, '2026.10.27.r578');
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.27\.r578'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r496=2026\.10\.22\.r496&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r563=2026\.10\.27\.r563&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r565=2026\.10\.27\.r565&amp;/);
