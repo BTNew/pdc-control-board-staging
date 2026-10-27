@@ -195,6 +195,7 @@ const approvedRootImportPatch = Object.freeze({
   // r496: vehicle-slideout=2026.10.22.r496 on pdc-vehicle-slideout.js (edit hours and move lines between jobs in the panel; F109).
   // r565: vehicle-slideout=2026.10.27.r565 on pdc-vehicle-slideout.js (edit stays on the chip list; F179). Department 135 keeps its frozen loader.
   // r578: vehicle-slideout=2026.10.27.r578 (green complete tick and station override; F196). Department 135 is not tagged.
+  // r588: vehicle-slideout=2026.10.28.r588 (operation-line grid: hours, PO chip and tick columns; F202). Department 135 is not tagged.
   // r501: r501=2026.10.23.r501 on pdc-sublet-intake.js (Sublet page create hidden; bookings made in Manage sublets; F114).
   // r557: the Vehicle Locations table loads with r557=2026.10.27.r557 (New to PMB, F171). Department 135 keeps its frozen loader.
   // r560: vehicle-slideout=2026.10.27.r560 (More details link to the vehicle card; F174). Department 135 keeps its frozen loader.
@@ -418,6 +419,7 @@ const approvedRootImportPatch = Object.freeze({
   // r570: Bay Manager nav and view, pdc-bay-manager.css/js, and r570 on app.js and workshop-planner.css (F184). Department 135 is not tagged.
   // r575: index.html adds r575=2026.10.27.r575 on the key cell, the card, the detail save and the stylesheet (F189). Department 135 is not tagged.
   // r578: index.html adds r578=2026.10.27.r578 on canonical-entry.js and app.js (station icon complete, F196). Department 135 is not tagged.
+  // r588: index.html adds r588=2026.10.28.r588 on canonical-entry.js (side-panel tick grid, F202). Department 135 is not tagged.
   // r573: index.html adds r573=2026.10.27.r573 on canonical-entry.js, and the hidden JITA panel has Place as STOPPAGE (F187). Department 135 is not tagged.
   // r582: index.html adds r582=2026.10.27.r582 on app.js, styles.css and vehicle-location-lifecycle.js (body-builder hold, F195). Department 135 is not tagged.
   // r583: index.html adds r583=2026.10.27.r583 on pdc-fitters.js and pdc-fitters.css (send a line to another department, F197). Department 135 is not tagged.

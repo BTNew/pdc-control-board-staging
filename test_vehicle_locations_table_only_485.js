@@ -334,6 +334,6 @@ test('r485 panel: parity() is unaffected (the parity strip draws only the card) 
   assert.doesNotMatch(/function parityStrip\([\s\S]*?\n {2}\}/.exec(SLIDEOUT)[0], /stoppage/i);
   assert.doesNotMatch(SLIDEOUT, /\bfetch\s*\(|\.rpc\s*\(|clearVehicleStoppage|clear_vehicle_stoppage_422'/, 'the panel reuses app.js; it has no write path of its own');
   assert.match(SLIDEOUT, /root\.bindFixFirstRows\(stoppages\)/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.27\.r578'/); // r578 (F196); r565 chip layout stays
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588'/); // r588 (F202); r565 chip layout stays
   assert.match(fs.readFileSync('pdc-vehicle-slideout.css', 'utf8'), /#vso-shell \.vso-stoppages \{/);
 });

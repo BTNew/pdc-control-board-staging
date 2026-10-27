@@ -45,7 +45,7 @@
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.27.r578'; // r578 (F192): compact green complete tick and station override. r565 (F179): edit stays on the chip list. r560 (F174): More details opens the vehicle card.
+  const VERSION = '2026.10.28.r588'; // r588 (F202): operation-line grid — hours, PO chip and tick in separate columns. r578 (F192): green complete tick and station override.
   // r496: the panel's slim copy of the Work & bookings rows. Kept so the full editor's markup can still be reduced.
   // r565 does not use it for Edit: Edit stays on the chip list.
   function slimWorkPage(html) {

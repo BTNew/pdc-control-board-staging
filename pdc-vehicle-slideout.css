@@ -38,10 +38,15 @@
 #vso-shell .authenticated-email-operations .pdc-op-panel { width: 100%; }
 #vso-shell .authenticated-email-operations .authenticated-operation-station-grid:not([data-pdc-panels]) { display: flex !important; flex-direction: column; gap: .65rem; }
 #vso-shell .authenticated-email-operations .authenticated-operation-station { overflow: visible !important; min-width: 0; }
-#vso-shell .authenticated-email-operations .authenticated-operation-station li { display: grid !important; grid-template-columns: minmax(4.4rem, max-content) minmax(0, 1fr) max-content auto !important; align-items: center; column-gap: .45rem; position: relative; }
-#vso-shell .authenticated-email-operations .authenticated-operation-station li > span { display: block; min-width: 0; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis; overflow-wrap: normal !important; word-break: normal !important; }
-#vso-shell .authenticated-email-operations .authenticated-operation-station li > strong,
-#vso-shell .authenticated-email-operations .authenticated-operation-station li > em { white-space: nowrap; }
+/* r588 (F202): five columns — PD line, description, hours, GP/PO chip, completion tick — so pdc-sublet-po chips do not sit on the tick. */
+#vso-shell .authenticated-email-operations .authenticated-operation-station li { display: grid !important; grid-template-columns: minmax(4.4rem, max-content) minmax(0, 1fr) max-content minmax(5.5rem, max-content) minmax(7rem, auto) !important; align-items: center; column-gap: .45rem; row-gap: .2rem; position: relative; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > strong { grid-column: 1; grid-row: 1; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > span { grid-column: 2; grid-row: 1; display: block; min-width: 0; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis; overflow-wrap: normal !important; word-break: normal !important; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > em { grid-column: 3; grid-row: 1; white-space: nowrap; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > .pdc-sublet-po-ref,
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > .pdc-sublet-po-nopo,
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > .pdc-sublet-po-inline { grid-column: 4 !important; grid-row: 1; justify-self: end; max-width: 100%; margin: 0 !important; }
+#vso-shell .authenticated-email-operations [data-operation-station="SUBLET"] .pdc-sublet-po-nopo { margin-right: 0 !important; }
 #vso-shell .authenticated-email-operations .authenticated-operation-station li > small { grid-column: 2 / -1; }
 #vso-shell .authenticated-email-operations li[data-vso-full]:hover::after,
 #vso-shell .authenticated-email-operations li[data-vso-full]:focus::after,
@@ -136,9 +141,9 @@
 #vso-shell .authenticated-email-operations .authenticated-operation-station > header { display: flex; align-items: center; gap: 8px; }
 #vso-shell .vso-station-override { margin-left: auto; height: 22px; padding: 0 8px; border-radius: 8px; border: 1px solid #1d4ed8; background: #fff; color: #1d4ed8; font: 700 11px/1 Arial, Helvetica, sans-serif; white-space: nowrap; cursor: pointer; }
 #vso-shell .vso-station-override.is-on { border-color: #146c3b; background: #edf9f1; color: #146c3b; }
-#vso-shell .vso-tick { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; width: 7.4rem; font-size: 11px; line-height: 1; color: #334155; white-space: nowrap; }
+#vso-shell .vso-tick { display: inline-flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; max-width: 100%; font-size: 11px; line-height: 1; color: #334155; white-space: nowrap; }
 #vso-shell li.vso-done.is-complete .vso-tick { color: #146c3b; }
 #vso-shell .vso-tick input { accent-color: #1d4ed8; margin: 0; }
 #vso-shell li.vso-done.is-complete .vso-tick input { accent-color: #146c3b; }
-#vso-shell .authenticated-email-operations .authenticated-operation-station li > .vso-tick { grid-column: 4; grid-row: 1; }
+#vso-shell .authenticated-email-operations .authenticated-operation-station li > .vso-tick { grid-column: 5; grid-row: 1; justify-self: end; }
 #vso-shell .authenticated-email-operations .authenticated-operation-station li > .vso-done-meta { grid-column: 1 / -1; grid-row: 2; }
