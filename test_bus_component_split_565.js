@@ -76,7 +76,7 @@ test('the migration keeps the old pins and does not close a vehicle or a booking
   assert.match(up, /set_config\('request\.jwt\.claims','',true\)/);
   assert.match(up, /626ca8b23a2e5f02e2ca8f96a4533d6f/);
   assert.match(up, /39b8f50d21d7932e671c31a5d539001d/);
-  assert.match(up, /b1b23383b96acd867c246cf6e57572dc/);
+  assert.match(up, /240e25e96467490d71744490c7a4d75c/);
   assert.match(up, /7031ac921d64cf2db16d52f3e8e02140/);
   assert.match(up, /3ea8b27f10bfc908c410760ed22f4fed/);
   assert.match(up, /true, 339, 'r568'/);

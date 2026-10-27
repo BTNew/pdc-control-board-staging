@@ -20,7 +20,7 @@ DO $g$ BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r568: pin count is not 241'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.fitter_job_command(uuid,uuid,integer,text,uuid,text,text,boolean,text)')) IS DISTINCT FROM '626ca8b23a2e5f02e2ca8f96a4533d6f' THEN RAISE EXCEPTION 'r568: fitter_job_command is not the r532 body'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_fitter_private.conversion_save(uuid,uuid,text,jsonb)')) IS DISTINCT FROM '39b8f50d21d7932e671c31a5d539001d' THEN RAISE EXCEPTION 'r568: conversion_save changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)')) IS DISTINCT FROM 'b1b23383b96acd867c246cf6e57572dc' THEN RAISE EXCEPTION 'r568: set_vehicle_work_category is not the r536 body'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.set_vehicle_work_category(uuid,integer,text,text,integer,boolean,jsonb)')) IS DISTINCT FROM '240e25e96467490d71744490c7a4d75c' THEN RAISE EXCEPTION 'r568: set_vehicle_work_category is not the r538 pin'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=339 OR check_name='bus_component_split_568' OR added_in='r568' OR fault_id='F182') THEN RAISE EXCEPTION 'r568: sort 339 or F182 is taken'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='panel_line_completion_565' AND fault_id='F179' AND sort_order=337 AND added_in='r565') THEN RAISE EXCEPTION 'r568: r565 / F179 sort 337 is not the live panel check'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='parts_stoppage_manual_567' AND fault_id='F181' AND sort_order=338 AND added_in='r567') THEN RAISE EXCEPTION 'r568: r567 / F181 sort 338 is not the live check'; END IF;
@@ -299,7 +299,7 @@ SELECT
  AND pins.pin_count=241
  AND pins.fitter_cmd='626ca8b23a2e5f02e2ca8f96a4533d6f'
  AND pins.conv_save='39b8f50d21d7932e671c31a5d539001d'
- AND pins.category_set='b1b23383b96acd867c246cf6e57572dc'
+ AND pins.category_set='240e25e96467490d71744490c7a4d75c'
  AND pins.board_fn='7031ac921d64cf2db16d52f3e8e02140'
  AND pins.set_fn='3ea8b27f10bfc908c410760ed22f4fed'
  AND pg_catalog.strpos(body.prosrc, 'component_busy')>0
