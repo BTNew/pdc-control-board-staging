@@ -60,8 +60,10 @@ const context = {
   escapeHtml: value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;'),
   pmbStageLabel: value => value,
   workshopRefreshSearchResults: () => {},
+  PDC_WORKSHOP_VEHICLE_SEARCH_FACTORY: require('./pdc-workshop-vehicle-search.js'),
+  workshopVehicleSearchApi: null,
 };
-names.push('workshopSearchMatchRows', 'workshopReturnedQueuePlans', 'workshopSearchJobCards');
+names.push('workshopVehicleSearchDeps', 'getWorkshopVehicleSearchApi', 'workshopSearchMatchRows', 'workshopReturnedQueuePlans', 'workshopSearchJobCards');
 vm.createContext(context);
 vm.runInContext(names.map(extract).join('\n'), context);
 async function main() {
