@@ -88,7 +88,7 @@ test('the slide-out keeps a More details link to the vehicle card', () => {
   assert.match(slide, /button\.textContent = 'More details'/);
   assert.match(slide, /openVehicleCardFromVisibleBoard\(openStock, button\)/);
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
-  assert.match(entry, /vehicle-slideout=2026\.10\.27\.r565/); // r565 (F179) bumped the panel; More details stays
+  assert.match(entry, /vehicle-slideout=2026\.10\.27\.r578/); // r578 (F196) green complete tick; r565 (F179) chip layout stays; More details stays
   assert.match(entry, /r560 \(F174\): More details/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /r560=2026\.10\.27\.r560/);
 });

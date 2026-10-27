@@ -150,7 +150,7 @@ test('loader: after pdc-sublet-po.js (onload and onerror), cache-busted; Pages s
   assert.match(entry, /subletPo\.onload = loadSubletPoAttach;\s*subletPo\.onerror = loadSubletPoAttach;\s*document\.head\.appendChild\(subletPo\);/);
   assert.match(entry, /subletPoAttach\.onload = loadOperationPanels;\s*subletPoAttach\.onerror = loadOperationPanels;/);
   assert.equal((entry.match(/pdc-operation-panels\.js/g) || []).length, 1);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;operation-panels=2026\.10\.21\.r444(&amp;sublet-po-attach=2026\.10\.21\.r445)?(&amp;r575=2026\.10\.27\.r575)?"/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;operation-panels=2026\.10\.21\.r444(&amp;sublet-po-attach=2026\.10\.21\.r445)?(&amp;r575=2026\.10\.27\.r575)?(&amp;r578=2026\.10\.27\.r578)?"/); // r578 (F196) station icon complete
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-sublet-po\.js', ('pdc-sublet-po-attach\.js', )?'pdc-operation-panels\.js'/);
   assert.doesNotMatch(fs.readFileSync('styles.css', 'utf8'), /pdc-op-/);
   for (const f of fs.readdirSync('karratha')) if (/\.(js|html|css)$/.test(f)) assert.doesNotMatch(fs.readFileSync(`karratha/${f}`, 'utf8'), /pdc-operation-panels|pdc-op-panel/, f);
