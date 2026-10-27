@@ -416,7 +416,7 @@ const approvedRootImportPatch = Object.freeze({
   // r575: index.html adds r575=2026.10.27.r575 on the key cell, the card, the detail save and the stylesheet (F189). Department 135 is not tagged.
   // r578: index.html adds r578=2026.10.27.r578 on canonical-entry.js and app.js (station icon complete, F196). Department 135 is not tagged.
   // r573: index.html adds r573=2026.10.27.r573 on canonical-entry.js, and the hidden JITA panel has Place as STOPPAGE (F187). Department 135 is not tagged.
-  "index.html": "f793864a2c88c95c1f0a74b8985c40cd6149c576ee8871b8bbfe4a9ed852d2bd",
+  "index.html": "8a7cc24ed18626b881949ffd4ed9ab2f762011f018bb1bfdc608342602ec2cab",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
