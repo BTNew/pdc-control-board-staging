@@ -125,7 +125,7 @@ test('regression check is r563 / F177 / sort 336 and does not add a pin', () => 
   assert.doesNotMatch(check, /regprocedure|to_regprocedure/);
   assert.doesNotMatch(up, /INSERT INTO pdc_ops\.expected_function_md5/);
   assert.match(up, /count\(\*\) FROM pdc_ops\.expected_function_md5\)<>241/);
-  assert.match(up, /\$chk561\$, true, 336, 'r563'/);
+  assert.match(up, /\$chk563\$, true, 336, 'r563'/);
   assert.match(down, /DROP TABLE IF EXISTS public\.pdc_vehicle_pmb_arrival_age_563/);
   assert.match(down, /pdc_vehicle_key_assigned_562/);
   assert.match(down, /sort_order=336/);
