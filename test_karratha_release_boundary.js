@@ -132,8 +132,8 @@ const approvedRootImportPatch = Object.freeze({
   // r526: outstanding Parts (class imported-parts-orange) paints #dbeafe / #1d4ed8 / #2563eb (F140).
   // Department 135 is not tagged and keeps the orange paint. The colour token and the labels stay.
   // r557: New to PMB flashes blue, and prefers-reduced-motion keeps a solid blue (F171). Department 135 is not tagged.
-  // r560: the Key number needed badge is blue (#dbeafe / #1d4ed8), not orange (F174). Department 135 is not tagged.
-  "styles.css": "3fb7540d8aaf82fd764e5560e2667c42d79f68843d26de5d8e4316f541d126a4",
+  // r562: the Key number needed badge is blue (#dbeafe / #1d4ed8), not orange (F176). Department 135 is not tagged.
+  "styles.css": "a8fb773154f77d09ef3e4f7def7d9a225ef3fbbb4e2e7040748c0d78449be86f",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
   "scripts/build_pages_runtime.js": "cd1a534ae7b8b7a004080b55ef39edd0633f8fd598622b07c70f2bf8f2a9f55d",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
@@ -177,8 +177,8 @@ const approvedRootImportPatch = Object.freeze({
   // r501: r501=2026.10.23.r501 on pdc-sublet-intake.js (Sublet page create hidden; bookings made in Manage sublets; F114).
   // r557: the Vehicle Locations table loads with r557=2026.10.27.r557 (New to PMB, F171). Department 135 keeps its frozen loader.
   // r560: vehicle-slideout=2026.10.27.r560 (More details link to the vehicle card; F174). Department 135 keeps its frozen loader.
-  // r560: the table loader also carries r560=2026.10.27.r560 (key-number gate, F174). Department 135 is not tagged.
-  "canonical-entry.js": "5054acc2878497c1cd93c984a51801683ae05d033637fb77aa86ea22bdbd7073",
+  // r562: the table loader also carries r562=2026.10.27.r562 (key-number gate, F176). Department 135 is not tagged.
+  "canonical-entry.js": "085310b3d993bf388294c099c685002ae700b9a005b0600215c67c58c5aacb12",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -240,8 +240,8 @@ const approvedRootImportPatch = Object.freeze({
   // r557: New to PMB tile and acknowledgement (F171). Department 135 keeps its frozen app.js.
   // r560: stock numbers open the Vehicle Locations side panel; More details opens the vehicle card (F174). Department 135 keeps its frozen app.js.
   // r561: r561=2026.10.27.r561 on both workshop-planner.js loads (slim planner header, F175). Department 135 is not tagged.
-  // r560: a vehicle cannot leave New to PMB without a key number, and the PMB age starts when that key was assigned (F174). Department 135 is not tagged.
-  "app.js": "b6ead27853c72bcb8c1a3c5c5ba6be5272c5c46c7e62bad7623ab53db5f3f70e",
+  // r562: a vehicle cannot leave New to PMB without a key number, and the PMB age starts when that key was assigned (F176). Department 135 is not tagged. app.js keeps r560 for the stock panel and adds r562.
+  "app.js": "2fd401e19631a007777b17a5c0d41010a7db07fb5e214dc3c31d1bc53c4ecf98",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -355,8 +355,8 @@ const approvedRootImportPatch = Object.freeze({
   // r557: index.html adds r557=2026.10.27.r557 on app.js and canonical-entry.js (New to PMB, F171). Department 135 is not tagged.
   // r560: index.html adds r560=2026.10.27.r560 on app.js (stock opens side panel, F174). Department 135 is not tagged.
   // r561: r561=2026.10.27.r561 on workshop-planner.css (slim planner header, F175). Department 135 is not tagged.
-  // r560: index.html adds r560=2026.10.27.r560 on canonical-entry.js (key-number gate, F174). Department 135 is not tagged.
-  "index.html": "3e0e091185f815ed00f62d5037be3fdb5d56980f4f8156f4064ab11004da51a2",
+  // r562: index.html adds r562=2026.10.27.r562 on canonical-entry.js, app.js and styles.css (key-number gate, F176). The stock-panel r560 on app.js stays. Department 135 is not tagged.
+  "index.html": "4607fce97ae424e8f6e7ffee37e529913617e6959f7387b02ebf3f8ad4b61aa6",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

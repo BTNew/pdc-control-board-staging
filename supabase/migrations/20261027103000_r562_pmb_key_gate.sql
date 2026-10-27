@@ -1,8 +1,11 @@
--- r560 (F174) / sort 335. PREVIEW. Not applied.
+-- r562 (F176) / sort 335. Craig approved go-live 27 Oct 2026 08:10 AWST.
 -- Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
 --
--- Ledger at preparation: r559 / F173 / sort 334 is bay_default_clock_gap_559.
--- r560, F174 and sort 335 were free. r561 / F175 / sort 334 is not used.
+-- Ledger at apply: r559 / F173 / sort 334 is bay_default_clock_gap_559.
+-- r560 / F174 is the stock side panel (frontend, no sort).
+-- r561 / F175 is the slim planner header (frontend, no sort).
+-- Next free is r562 / F176 / sort 335. Unmerged #544 titled itself r562 / F176;
+-- this release goes first and #544 renumbers later.
 --
 -- Craig, 27 Oct 2026 07:33 AWST: a vehicle that arrives at PMB waits in New to PMB
 -- and cannot be pushed into PMB unless it has a key number.
@@ -17,13 +20,13 @@
 --
 -- Leaving New to PMB (closing the arrival) requires a non-blank key number.
 -- The arrival guard enforces that for every UPDATE, including acknowledgement
--- completion, push_new_to_pmb_560, and any other RPC. A new arrival cannot be
+-- completion, push_new_to_pmb_562, and any other RPC. A new arrival cannot be
 -- inserted already closed.
 --
 -- Key assignment time is not a column on vehicles. r460 stores each change in
 -- public.pdc_vehicle_key_number_audit_460. Older keys are in public.audit_events
 -- and in pdc_codex_intake_private.service_location_fields.snapshot_at.
--- This release records public.pdc_vehicle_key_assigned_560 from the earliest of
+-- This release records public.pdc_vehicle_key_assigned_562 from the earliest of
 -- those three, and a trigger keeps it from now on. Clearing the key removes the
 -- row. Replacing one key with another keeps the original time.
 -- Read-only count before this file was written, nothing written:
@@ -32,43 +35,43 @@
 --   stay on the PMB tile. 234 keyed PMB vehicles all had at least one of the
 --   three history sources.
 -- Pin count stays 241. No pin is inserted. The pinned location snapshot is not
--- edited. The board reads the time from list_pmb_key_assigned_560.
--- Undo: supabase/rollbacks/20261027103000_r560_pmb_key_gate.down.sql
+-- edited. The board reads the time from list_pmb_key_assigned_562.
+-- Undo: supabase/rollbacks/20261027103000_r562_pmb_key_gate.down.sql
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
- IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r560: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
+ IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r562: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
  IF NOT public.pdc_monitor_staging_guard()
     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
-    OR pg_catalog.to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r560: staging only'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r560: pin count is not 241'; END IF;
- IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bay_default_clock_gap_559' AND fault_id='F173' AND sort_order=334 AND added_in='r559') THEN RAISE EXCEPTION 'r560: r559 / F173 sort 334 is not present'; END IF;
- IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='new_to_pmb_ack_557' AND fault_id='F171' AND sort_order=332 AND added_in='r557') THEN RAISE EXCEPTION 'r560: r557 / F171 sort 332 is not present'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=335 OR fault_id='F174' OR check_name='pmb_key_gate_560' OR added_in='r560') THEN RAISE EXCEPTION 'r560: sort 335 or F174 is taken'; END IF;
- IF pg_catalog.to_regclass('public.pdc_vehicle_key_assigned_560') IS NOT NULL
+    OR pg_catalog.to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r562: staging only'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r562: pin count is not 241'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bay_default_clock_gap_559' AND fault_id='F173' AND sort_order=334 AND added_in='r559') THEN RAISE EXCEPTION 'r562: r559 / F173 sort 334 is not present'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='new_to_pmb_ack_557' AND fault_id='F171' AND sort_order=332 AND added_in='r557') THEN RAISE EXCEPTION 'r562: r557 / F171 sort 332 is not present'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=335 OR fault_id='F176' OR check_name='pmb_key_gate_562' OR added_in='r562') THEN RAISE EXCEPTION 'r562: sort 335 or F176 is taken'; END IF;
+ IF pg_catalog.to_regclass('public.pdc_vehicle_key_assigned_562') IS NOT NULL
     OR EXISTS (
       SELECT 1 FROM pg_catalog.pg_proc p
       JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-      WHERE n.nspname = 'public' AND p.proname IN ('push_new_to_pmb_560','list_pmb_key_assigned_560')
-    ) THEN RAISE EXCEPTION 'r560: already applied'; END IF;
- PERFORM set_config('pdc.r560_pins', (SELECT count(*)::text FROM pdc_ops.expected_function_md5), true);
- PERFORM set_config('pdc.r560_pmb', (SELECT count(*)::text FROM public.vehicles WHERE deleted_at IS NULL AND upper(btrim(coalesce(current_location, '')))='PMB'), true);
- PERFORM set_config('pdc.r560_backfill', (SELECT count(*)::text FROM public.pdc_pmb_arrival_557 WHERE source='backfill' AND closed_at IS NOT NULL), true);
- PERFORM set_config('pdc.r560_open', (SELECT count(*)::text FROM public.pdc_pmb_arrival_557 WHERE closed_at IS NULL), true);
+      WHERE n.nspname = 'public' AND p.proname IN ('push_new_to_pmb_562','list_pmb_key_assigned_562')
+    ) THEN RAISE EXCEPTION 'r562: already applied'; END IF;
+ PERFORM set_config('pdc.r562_pins', (SELECT count(*)::text FROM pdc_ops.expected_function_md5), true);
+ PERFORM set_config('pdc.r562_pmb', (SELECT count(*)::text FROM public.vehicles WHERE deleted_at IS NULL AND upper(btrim(coalesce(current_location, '')))='PMB'), true);
+ PERFORM set_config('pdc.r562_backfill', (SELECT count(*)::text FROM public.pdc_pmb_arrival_557 WHERE source='backfill' AND closed_at IS NOT NULL), true);
+ PERFORM set_config('pdc.r562_open', (SELECT count(*)::text FROM public.pdc_pmb_arrival_557 WHERE closed_at IS NULL), true);
 END $g$;
 
-CREATE TABLE public.pdc_vehicle_key_assigned_560 (
+CREATE TABLE public.pdc_vehicle_key_assigned_562 (
  vehicle_id uuid PRIMARY KEY,
  assigned_at timestamptz NOT NULL,
  source text NOT NULL CHECK (source IN ('audit_460','audit_events','service_snapshot','assigned')),
  assigned_key text NOT NULL,
  created_at timestamptz NOT NULL DEFAULT clock_timestamp()
 );
-ALTER TABLE public.pdc_vehicle_key_assigned_560 ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON public.pdc_vehicle_key_assigned_560 FROM PUBLIC, anon, authenticated;
-COMMENT ON TABLE public.pdc_vehicle_key_assigned_560 IS 'r560 (F174): when this vehicle first had a key number. The PMB age starts here. A blank key has no row.';
+ALTER TABLE public.pdc_vehicle_key_assigned_562 ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.pdc_vehicle_key_assigned_562 FROM PUBLIC, anon, authenticated;
+COMMENT ON TABLE public.pdc_vehicle_key_assigned_562 IS 'r562 (F176): when this vehicle first had a key number. The PMB age starts here. A blank key has no row.';
 
-INSERT INTO public.pdc_vehicle_key_assigned_560 (vehicle_id, assigned_at, source, assigned_key)
+INSERT INTO public.pdc_vehicle_key_assigned_562 (vehicle_id, assigned_at, source, assigned_key)
 SELECT picked.id, picked.assigned_at, picked.source, picked.assigned_key
 FROM (
   SELECT k.id, k.assigned_key, src.assigned_at, src.source
@@ -101,46 +104,46 @@ FROM (
   ) src
 ) picked;
 
-CREATE FUNCTION pdc_pmb_ack_private.capture_key_assigned_560() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog', 'public' AS $key560$
+CREATE FUNCTION pdc_pmb_ack_private.capture_key_assigned_562() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog', 'public' AS $key562$
 DECLARE
  v_new text := nullif(btrim(coalesce(NEW.key_number, '')), '');
  v_old text := CASE WHEN TG_OP = 'UPDATE' THEN nullif(btrim(coalesce(OLD.key_number, '')), '') ELSE NULL END;
 BEGIN
  IF v_new IS NULL THEN
-  DELETE FROM public.pdc_vehicle_key_assigned_560 WHERE vehicle_id = NEW.id;
+  DELETE FROM public.pdc_vehicle_key_assigned_562 WHERE vehicle_id = NEW.id;
   RETURN NULL;
  END IF;
  IF v_old IS NULL THEN
-  INSERT INTO public.pdc_vehicle_key_assigned_560 (vehicle_id, assigned_at, source, assigned_key)
+  INSERT INTO public.pdc_vehicle_key_assigned_562 (vehicle_id, assigned_at, source, assigned_key)
   VALUES (NEW.id, clock_timestamp(), 'assigned', v_new)
   ON CONFLICT (vehicle_id) DO UPDATE
     SET assigned_key = EXCLUDED.assigned_key
-    WHERE pdc_vehicle_key_assigned_560.vehicle_id = EXCLUDED.vehicle_id
-      AND pdc_vehicle_key_assigned_560.assigned_at IS NOT NULL;
+    WHERE pdc_vehicle_key_assigned_562.vehicle_id = EXCLUDED.vehicle_id
+      AND pdc_vehicle_key_assigned_562.assigned_at IS NOT NULL;
   RETURN NULL;
  END IF;
- UPDATE public.pdc_vehicle_key_assigned_560
+ UPDATE public.pdc_vehicle_key_assigned_562
     SET assigned_key = v_new
   WHERE vehicle_id = NEW.id;
  IF NOT FOUND THEN
-  INSERT INTO public.pdc_vehicle_key_assigned_560 (vehicle_id, assigned_at, source, assigned_key)
+  INSERT INTO public.pdc_vehicle_key_assigned_562 (vehicle_id, assigned_at, source, assigned_key)
   VALUES (NEW.id, clock_timestamp(), 'assigned', v_new);
  END IF;
  RETURN NULL;
-END $key560$;
-REVOKE ALL ON FUNCTION pdc_pmb_ack_private.capture_key_assigned_560() FROM PUBLIC, anon, authenticated, service_role;
+END $key562$;
+REVOKE ALL ON FUNCTION pdc_pmb_ack_private.capture_key_assigned_562() FROM PUBLIC, anon, authenticated, service_role;
 
-CREATE TRIGGER zz_pdc_key_assigned_560_ins
+CREATE TRIGGER zz_pdc_key_assigned_562_ins
  AFTER INSERT ON public.vehicles
  FOR EACH ROW
  WHEN (btrim(coalesce(NEW.key_number, '')) <> '')
- EXECUTE FUNCTION pdc_pmb_ack_private.capture_key_assigned_560();
-CREATE TRIGGER zz_pdc_key_assigned_560
+ EXECUTE FUNCTION pdc_pmb_ack_private.capture_key_assigned_562();
+CREATE TRIGGER zz_pdc_key_assigned_562
  AFTER UPDATE OF key_number ON public.vehicles
  FOR EACH ROW
  WHEN (OLD.key_number IS DISTINCT FROM NEW.key_number)
- EXECUTE FUNCTION pdc_pmb_ack_private.capture_key_assigned_560();
+ EXECUTE FUNCTION pdc_pmb_ack_private.capture_key_assigned_562();
 
 CREATE OR REPLACE FUNCTION pdc_pmb_ack_private.arrival_guard_557() RETURNS trigger
 LANGUAGE plpgsql SET search_path TO 'pg_catalog' AS $lock$
@@ -167,24 +170,24 @@ BEGIN
    SELECT 1 FROM public.vehicles v
    WHERE v.id = NEW.vehicle_id AND btrim(coalesce(v.key_number, '')) <> ''
  ) THEN
-  RAISE EXCEPTION 'PDC_560_KEY_NUMBER_NEEDED: a key number is needed before this vehicle can move from New to PMB into PMB' USING ERRCODE = '23514';
+  RAISE EXCEPTION 'PDC_562_KEY_NUMBER_NEEDED: a key number is needed before this vehicle can move from New to PMB into PMB' USING ERRCODE = '23514';
  END IF;
  RETURN NEW;
 END $lock$;
 
-CREATE FUNCTION pdc_pmb_ack_private.arrival_insert_guard_560() RETURNS trigger
-LANGUAGE plpgsql SET search_path TO 'pg_catalog' AS $ins560$
+CREATE FUNCTION pdc_pmb_ack_private.arrival_insert_guard_562() RETURNS trigger
+LANGUAGE plpgsql SET search_path TO 'pg_catalog' AS $ins562$
 BEGIN
  IF NEW.closed_at IS NOT NULL THEN
-  RAISE EXCEPTION 'PDC_560_OPEN_ARRIVAL_ONLY: a new arrival stays in New to PMB until it is closed with a key number' USING ERRCODE = '23514';
+  RAISE EXCEPTION 'PDC_562_OPEN_ARRIVAL_ONLY: a new arrival stays in New to PMB until it is closed with a key number' USING ERRCODE = '23514';
  END IF;
  RETURN NEW;
-END $ins560$;
-REVOKE ALL ON FUNCTION pdc_pmb_ack_private.arrival_insert_guard_560() FROM PUBLIC, anon, authenticated, service_role;
+END $ins562$;
+REVOKE ALL ON FUNCTION pdc_pmb_ack_private.arrival_insert_guard_562() FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE TRIGGER pdc_pmb_arrival_557_insert_guard
  BEFORE INSERT ON public.pdc_pmb_arrival_557
- FOR EACH ROW EXECUTE FUNCTION pdc_pmb_ack_private.arrival_insert_guard_560();
+ FOR EACH ROW EXECUTE FUNCTION pdc_pmb_ack_private.arrival_insert_guard_562();
 
 CREATE OR REPLACE FUNCTION pdc_pmb_ack_private.capture_557() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog', 'public' AS $cap$
@@ -402,9 +405,9 @@ BEGIN
   'vehicle_id', p_vehicle_id, 'source', v_open.source, 'closed', v_open.closed_at IS NOT NULL));
 END $ack$;
 
-CREATE FUNCTION public.push_new_to_pmb_560(p_vehicle_id uuid)
+CREATE FUNCTION public.push_new_to_pmb_562(p_vehicle_id uuid)
  RETURNS jsonb
- LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'auth' AS $push560$
+ LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'auth' AS $push562$
 DECLARE
  v_actor uuid := auth.uid();
  v_role text;
@@ -459,13 +462,13 @@ BEGIN
  PERFORM pdc_pmb_ack_private.drop_read_caches_557();
  RETURN jsonb_build_object('ok', true, 'code', 'pushed', 'data', jsonb_build_object(
   'vehicle_id', p_vehicle_id, 'closed', true, 'needs_key', false));
-END $push560$;
-REVOKE ALL ON FUNCTION public.push_new_to_pmb_560(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.push_new_to_pmb_560(uuid) TO authenticated;
+END $push562$;
+REVOKE ALL ON FUNCTION public.push_new_to_pmb_562(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.push_new_to_pmb_562(uuid) TO authenticated;
 
-CREATE FUNCTION public.list_pmb_key_assigned_560()
+CREATE FUNCTION public.list_pmb_key_assigned_562()
  RETURNS TABLE (vehicle_id uuid, assigned_at timestamptz, has_key boolean)
- LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'auth' AS $list560$
+ LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'pg_catalog', 'public', 'auth' AS $list562$
 DECLARE v_actor uuid := auth.uid();
 BEGIN
  IF v_actor IS NULL OR NOT EXISTS (
@@ -478,21 +481,21 @@ BEGIN
  RETURN QUERY
  SELECT v.id, a.assigned_at, (btrim(coalesce(v.key_number, '')) <> '')
  FROM public.vehicles v
- LEFT JOIN public.pdc_vehicle_key_assigned_560 a ON a.vehicle_id = v.id
+ LEFT JOIN public.pdc_vehicle_key_assigned_562 a ON a.vehicle_id = v.id
  WHERE v.deleted_at IS NULL
    AND (
      upper(btrim(coalesce(v.current_location, ''))) IN ('PMB','QC','PIT','RFT')
      OR upper(btrim(coalesce(v.location_override, ''))) IN ('PMB','QC')
      OR a.vehicle_id IS NOT NULL
    );
-END $list560$;
-REVOKE ALL ON FUNCTION public.list_pmb_key_assigned_560() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.list_pmb_key_assigned_560() TO authenticated;
+END $list562$;
+REVOKE ALL ON FUNCTION public.list_pmb_key_assigned_562() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.list_pmb_key_assigned_562() TO authenticated;
 
 INSERT INTO pdc_ops.regression_checks (check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
-('pmb_key_gate_560', 'F174',
+('pmb_key_gate_562', 'F176',
  'A vehicle enters New to PMB before PMB, including an importer insert and a location override, and cannot leave New to PMB without a key number. The PMB age is stored from the key assignment, backfilled from the key audit, vehicle audit events, or the service key snapshot. The pin count stays 241. Existing closed backfill arrivals stay closed. The check uses search_path pg_catalog, schema-qualified types, and no regprocedure cast.',
- $chk560$
+ $chk562$
 SELECT
   pins.n = 241
   AND added.n = 0
@@ -521,12 +524,12 @@ SELECT
   AS ok,
   ('pins ' || pins.n::pg_catalog.text || ' | open arrivals stay in New to PMB until a key number is present') AS detail
 FROM (SELECT count(*) AS n FROM pdc_ops.expected_function_md5) pins
-CROSS JOIN (SELECT count(*) AS n FROM pdc_ops.expected_function_md5 WHERE release = 'r560') added
+CROSS JOIN (SELECT count(*) AS n FROM pdc_ops.expected_function_md5 WHERE release = 'r562') added
 CROSS JOIN (
   SELECT c.relrowsecurity
   FROM pg_catalog.pg_class c
   JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
-  WHERE n.nspname = 'public' AND c.relname = 'pdc_vehicle_key_assigned_560'
+  WHERE n.nspname = 'public' AND c.relname = 'pdc_vehicle_key_assigned_562'
 ) keyed
 CROSS JOIN (
   SELECT
@@ -540,16 +543,16 @@ CROSS JOIN (
   WHERE n.nspname = 'pdc_pmb_ack_private' AND p.proname = 'capture_557'
 ) cap
 CROSS JOIN (
-  SELECT coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'PDC_560_KEY_NUMBER_NEEDED') > 0), false) AS key_needed
+  SELECT coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'PDC_562_KEY_NUMBER_NEEDED') > 0), false) AS key_needed
   FROM pg_catalog.pg_proc p
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
   WHERE n.nspname = 'pdc_pmb_ack_private' AND p.proname = 'arrival_guard_557'
 ) guard
 CROSS JOIN (
-  SELECT coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'PDC_560_OPEN_ARRIVAL_ONLY') > 0), false) AS blocks_closed
+  SELECT coalesce(bool_and(pg_catalog.strpos(p.prosrc, 'PDC_562_OPEN_ARRIVAL_ONLY') > 0), false) AS blocks_closed
   FROM pg_catalog.pg_proc p
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'pdc_pmb_ack_private' AND p.proname = 'arrival_insert_guard_560'
+  WHERE n.nspname = 'pdc_pmb_ack_private' AND p.proname = 'arrival_insert_guard_562'
 ) ins
 CROSS JOIN (
   SELECT
@@ -570,7 +573,7 @@ CROSS JOIN (
     coalesce(bool_and(NOT pg_catalog.has_function_privilege('anon'::pg_catalog.name, p.oid, 'EXECUTE'::pg_catalog.text)), false) AS anon_blocked
   FROM pg_catalog.pg_proc p
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'public' AND p.proname = 'push_new_to_pmb_560'
+  WHERE n.nspname = 'public' AND p.proname = 'push_new_to_pmb_562'
     AND pg_catalog.pg_get_function_identity_arguments(p.oid) = 'p_vehicle_id uuid'
 ) push
 CROSS JOIN (
@@ -580,7 +583,7 @@ CROSS JOIN (
     coalesce(bool_and(NOT pg_catalog.has_function_privilege('anon'::pg_catalog.name, p.oid, 'EXECUTE'::pg_catalog.text)), false) AS anon_blocked
   FROM pg_catalog.pg_proc p
   JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-  WHERE n.nspname = 'public' AND p.proname = 'list_pmb_key_assigned_560'
+  WHERE n.nspname = 'public' AND p.proname = 'list_pmb_key_assigned_562'
     AND pg_catalog.pg_get_function_identity_arguments(p.oid) = ''::pg_catalog.text
 ) ages
 CROSS JOIN (
@@ -596,7 +599,7 @@ CROSS JOIN (
   JOIN pg_catalog.pg_class c ON c.oid = t.tgrelid
   JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'public' AND c.relname = 'vehicles'
-    AND t.tgname IN ('zz_pdc_key_assigned_560','zz_pdc_key_assigned_560_ins')
+    AND t.tgname IN ('zz_pdc_key_assigned_562','zz_pdc_key_assigned_562_ins')
     AND NOT t.tgisinternal
 ) keytrg
 CROSS JOIN (
@@ -605,21 +608,21 @@ CROSS JOIN (
     WHERE source = 'backfill' AND closed_at IS NULL
   ) AS still_closed
 ) backfill
-$chk560$, true, 335, 'r560');
+$chk562$, true, 335, 'r562');
 
 DO $post$
 DECLARE r record; probe record;
 BEGIN
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r560: pin count changed'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r560') THEN RAISE EXCEPTION 'r560: a pin was inserted'; END IF;
- IF current_setting('pdc.r560_pmb', true) IS DISTINCT FROM (SELECT count(*)::text FROM public.vehicles WHERE deleted_at IS NULL AND upper(btrim(coalesce(current_location, '')))='PMB') THEN RAISE EXCEPTION 'r560: PMB vehicle count changed'; END IF;
- IF current_setting('pdc.r560_backfill', true) IS DISTINCT FROM (SELECT count(*)::text FROM public.pdc_pmb_arrival_557 WHERE source='backfill' AND closed_at IS NOT NULL) THEN RAISE EXCEPTION 'r560: closed backfill count changed'; END IF;
- IF current_setting('pdc.r560_open', true) IS DISTINCT FROM (SELECT count(*)::text FROM public.pdc_pmb_arrival_557 WHERE closed_at IS NULL) THEN RAISE EXCEPTION 'r560: open New to PMB count changed'; END IF;
- IF current_setting('pdc.r560_pins', true) IS DISTINCT FROM '241' THEN RAISE EXCEPTION 'r560: pin count changed'; END IF;
- IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='pmb_key_gate_560' AND fault_id='F174' AND sort_order=335 AND added_in='r560' AND enabled)<>1 THEN RAISE EXCEPTION 'r560: check missing'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r562: pin count changed'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r562') THEN RAISE EXCEPTION 'r562: a pin was inserted'; END IF;
+ IF current_setting('pdc.r562_pmb', true) IS DISTINCT FROM (SELECT count(*)::text FROM public.vehicles WHERE deleted_at IS NULL AND upper(btrim(coalesce(current_location, '')))='PMB') THEN RAISE EXCEPTION 'r562: PMB vehicle count changed'; END IF;
+ IF current_setting('pdc.r562_backfill', true) IS DISTINCT FROM (SELECT count(*)::text FROM public.pdc_pmb_arrival_557 WHERE source='backfill' AND closed_at IS NOT NULL) THEN RAISE EXCEPTION 'r562: closed backfill count changed'; END IF;
+ IF current_setting('pdc.r562_open', true) IS DISTINCT FROM (SELECT count(*)::text FROM public.pdc_pmb_arrival_557 WHERE closed_at IS NULL) THEN RAISE EXCEPTION 'r562: open New to PMB count changed'; END IF;
+ IF current_setting('pdc.r562_pins', true) IS DISTINCT FROM '241' THEN RAISE EXCEPTION 'r562: pin count changed'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='pmb_key_gate_562' AND fault_id='F176' AND sort_order=335 AND added_in='r562' AND enabled)<>1 THEN RAISE EXCEPTION 'r562: check missing'; END IF;
  PERFORM set_config('search_path','pg_catalog', true);
- FOR r IN SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE check_name='pmb_key_gate_560' LOOP
+ FOR r IN SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE check_name='pmb_key_gate_562' LOOP
   EXECUTE r.check_sql INTO probe;
-  IF coalesce(probe.ok, false) IS NOT TRUE THEN RAISE EXCEPTION 'r560: % failed: %', r.check_name, probe.detail; END IF;
+  IF coalesce(probe.ok, false) IS NOT TRUE THEN RAISE EXCEPTION 'r562: % failed: %', r.check_name, probe.detail; END IF;
  END LOOP;
 END $post$;

@@ -1,26 +1,26 @@
--- Undo r560 (F174). Staging only. Restores the r557 arrival capture, guard,
+-- Undo r562 (F176). Staging only. Restores the r557 arrival capture, guard,
 -- station state and acknowledgement. Drops the key-assignment time and the
 -- key gate. Does not change vehicles.current_location and does not delete
 -- arrival rows. Pin count stays 241.
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
- IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r560 undo: run between :02 and :45'; END IF;
+ IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r562 undo: run between :02 and :45'; END IF;
  IF NOT public.pdc_monitor_staging_guard()
     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
-    OR pg_catalog.to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r560 undo: staging only'; END IF;
- IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='pmb_key_gate_560' AND fault_id='F174' AND sort_order=335 AND added_in='r560')<>1 THEN RAISE EXCEPTION 'r560 undo: F174 check is not the r560 row'; END IF;
+    OR pg_catalog.to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r562 undo: staging only'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='pmb_key_gate_562' AND fault_id='F176' AND sort_order=335 AND added_in='r562')<>1 THEN RAISE EXCEPTION 'r562 undo: F176 check is not the r562 row'; END IF;
 END $g$;
 
 DROP TRIGGER IF EXISTS pdc_pmb_arrival_557_insert_guard ON public.pdc_pmb_arrival_557;
-DROP TRIGGER IF EXISTS zz_pdc_key_assigned_560 ON public.vehicles;
-DROP TRIGGER IF EXISTS zz_pdc_key_assigned_560_ins ON public.vehicles;
+DROP TRIGGER IF EXISTS zz_pdc_key_assigned_562 ON public.vehicles;
+DROP TRIGGER IF EXISTS zz_pdc_key_assigned_562_ins ON public.vehicles;
 DROP TRIGGER IF EXISTS zz_pdc_pmb_arrival_557 ON public.vehicles;
-DROP FUNCTION IF EXISTS public.push_new_to_pmb_560(uuid);
-DROP FUNCTION IF EXISTS public.list_pmb_key_assigned_560();
-DROP FUNCTION IF EXISTS pdc_pmb_ack_private.arrival_insert_guard_560();
-DROP FUNCTION IF EXISTS pdc_pmb_ack_private.capture_key_assigned_560();
-DROP TABLE IF EXISTS public.pdc_vehicle_key_assigned_560;
+DROP FUNCTION IF EXISTS public.push_new_to_pmb_562(uuid);
+DROP FUNCTION IF EXISTS public.list_pmb_key_assigned_562();
+DROP FUNCTION IF EXISTS pdc_pmb_ack_private.arrival_insert_guard_562();
+DROP FUNCTION IF EXISTS pdc_pmb_ack_private.capture_key_assigned_562();
+DROP TABLE IF EXISTS public.pdc_vehicle_key_assigned_562;
 
 CREATE OR REPLACE FUNCTION pdc_pmb_ack_private.arrival_guard_557() RETURNS trigger
 LANGUAGE plpgsql SET search_path TO 'pg_catalog' AS $lock$
@@ -220,16 +220,16 @@ CREATE TRIGGER zz_pdc_pmb_arrival_557
  EXECUTE FUNCTION pdc_pmb_ack_private.capture_557();
 
 DELETE FROM pdc_ops.regression_checks
-WHERE check_name='pmb_key_gate_560' AND fault_id='F174' AND sort_order=335 AND added_in='r560';
+WHERE check_name='pmb_key_gate_562' AND fault_id='F176' AND sort_order=335 AND added_in='r562';
 
 DO $post$ BEGIN
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='pmb_key_gate_560' OR fault_id='F174' OR added_in='r560' OR sort_order=335) THEN RAISE EXCEPTION 'r560 undo: check remains'; END IF;
- IF pg_catalog.to_regclass('public.pdc_vehicle_key_assigned_560') IS NOT NULL THEN RAISE EXCEPTION 'r560 undo: key table remains'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r560 undo: pin count changed'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r560') THEN RAISE EXCEPTION 'r560 undo: a pin remains'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='pmb_key_gate_562' OR fault_id='F176' OR added_in='r562' OR sort_order=335) THEN RAISE EXCEPTION 'r562 undo: check remains'; END IF;
+ IF pg_catalog.to_regclass('public.pdc_vehicle_key_assigned_562') IS NOT NULL THEN RAISE EXCEPTION 'r562 undo: key table remains'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r562 undo: pin count changed'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r562') THEN RAISE EXCEPTION 'r562 undo: a pin remains'; END IF;
  IF EXISTS (
    SELECT 1 FROM pg_catalog.pg_proc p
    JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
-   WHERE p.proname IN ('push_new_to_pmb_560','list_pmb_key_assigned_560','arrival_insert_guard_560','capture_key_assigned_560')
- ) THEN RAISE EXCEPTION 'r560 undo: a function remains'; END IF;
+   WHERE p.proname IN ('push_new_to_pmb_562','list_pmb_key_assigned_562','arrival_insert_guard_562','capture_key_assigned_562')
+ ) THEN RAISE EXCEPTION 'r562 undo: a function remains'; END IF;
 END $post$;

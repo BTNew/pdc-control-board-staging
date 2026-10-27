@@ -675,7 +675,7 @@ function pmbEnteredDateValue(vehicle = {}) {
   return parsed.toISOString().slice(0, 10);
 }
 
-// r560 (F174): a PMB age starts when the key number was assigned. No key is not zero days.
+// r562 (F176): a PMB age starts when the key number was assigned. No key is not zero days.
 function pmbVehicleHasKey(vehicle = {}) {
   const direct = String(vehicle.keyNumber || vehicle.keyNo || vehicle.key_number || vehicle.keyTag || vehicle.pdcKeyNumber || '').trim();
   if (direct) return true;
@@ -8382,7 +8382,7 @@ function ensurePmbKeyAssigned() {
   app.pmbKeyAssignedLoading = true;
   const started = Date.now();
   const revisionAtStart = revision;
-  client.rpc('list_pmb_key_assigned_560').then(result => {
+  client.rpc('list_pmb_key_assigned_562').then(result => {
     app.pmbKeyAssignedLoading = false;
     app.pmbKeyAssignedLoadedAt = started;
     app.pmbKeyAssignedRevision = revisionAtStart;
@@ -8412,7 +8412,7 @@ async function pushNewToPmb(key = '') {
     if (typeof pdcNotify === 'function') pdcNotify('This vehicle could not be moved to PMB. Refresh and try again.');
     return;
   }
-  const result = await client.rpc('push_new_to_pmb_560', { p_vehicle_id: id });
+  const result = await client.rpc('push_new_to_pmb_562', { p_vehicle_id: id });
   const body = result?.data;
   if (result?.error || !body || body.ok !== true) {
     const message = body?.message || result?.error?.message || 'This vehicle could not be moved to PMB.';
@@ -9297,7 +9297,7 @@ function incomingVehicleAge(vehicle = {}, bucketKey = '') {
   if (!atPmb && !atYardHold) {
     return { label: bucketKey === 'nonnavision' ? 'Unconfirmed' : locationAgeLabel(vehicle), colourClass: '', title: '' };
   }
-  // r560 (F174): PMB, New to PMB and QC count from the key number. No key is
+  // r562 (F176): PMB, New to PMB and QC count from the key number. No key is
   // not zero, and a missing key date does not fall back to the arrival or a Kewdale ETA.
   if (atPmb && typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
   if (atPmb && !pmbVehicleHasKey(vehicle)) {

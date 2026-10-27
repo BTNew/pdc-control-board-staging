@@ -119,8 +119,8 @@ test('wiring: table rows, tiles and summary follow the search scope; the drop-do
 });
 
 test('loader, version, CSS and synthetic data', () => {
-  assert.equal(table.VERSION, '2026.10.27.r560'); // r485 (F98), r557 (F171) New to PMB, r560 (F174) key gate
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r560=2026\.10\.27\.r560'/);
+  assert.equal(table.VERSION, '2026.10.27.r562'); // r485 (F98), r557 (F171) New to PMB, r562 (F176) key gate
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r481=2026\.10\.22\.r481/);
   const css = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
   assert.match(css, /\.vlt-tile\.vlt-found \{/);

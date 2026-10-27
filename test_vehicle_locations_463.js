@@ -152,7 +152,7 @@ test('loader: r463 cache-bust tags; pdc-auto-reload.js stays first; no real stoc
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /r463=2026\.10\.22\.r463/);
   assert.match([...html.matchAll(/<script[^>]*src="([^"]+)"/g)][0][1], /^pdc-auto-reload\.js/);
-  assert.equal(table.VERSION, '2026.10.27.r560'); // r475 (F88), r481 (F94), r485 (F98), r557 (F171) New to PMB, r560 (F174) key gate
+  assert.equal(table.VERSION, '2026.10.27.r562'); // r475 (F88), r481 (F94), r485 (F98), r557 (F171) New to PMB, r562 (F176) key gate
   assert.match(slideout.VERSION, /^2026\.10\.(?:22\.r4(?:[67]3|85|96)|27\.r560)$/); // r560 (F174); r496 (F109): inline edit
   const text = fs.readFileSync(__filename, 'utf8');
   assert.doesNotMatch(text, /\b1[23]\d{6}\b|\bJ13[89]\d{6}\b/);

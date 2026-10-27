@@ -107,7 +107,7 @@
     const loadVehicleLocationsTable = () => {
       if (document.querySelector('script[data-pdc-vehicle-locations-table]')) return;
       const table = document.createElement('script');
-      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476&r475=2026.10.22.r475&r481=2026.10.22.r481&r485=2026.10.22.r485&r557=2026.10.27.r557&r560=2026.10.27.r560'; // r476 (F89): bunched-up columns; r475 (F88): Parts ETA column; r481 (F94): search shows matches from every tile; r485 (F98): Table view only; r557 (F171): New to PMB tile; r560 (F174): key-number gate
+      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476&r475=2026.10.22.r475&r481=2026.10.22.r481&r485=2026.10.22.r485&r557=2026.10.27.r557&r562=2026.10.27.r562'; // r476 (F89): bunched-up columns; r475 (F88): Parts ETA column; r481 (F94): search shows matches from every tile; r485 (F98): Table view only; r557 (F171): New to PMB tile; r562 (F176): key-number gate
       table.dataset.pdcVehicleLocationsTable = '1';
       table.onload = loadVehicleSlideout;
       document.head.appendChild(table);

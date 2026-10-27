@@ -1,14 +1,14 @@
 /* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
-// r560 (F174) / sort 335. PREVIEW. A vehicle cannot leave New to PMB without a key number.
+// r562 (F176) / sort 335. Craig approved go-live 27 Oct 2026 08:10 AWST. A vehicle cannot leave New to PMB without a key number.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { createFixture } = require('./qa/dashboard-render-fixture.cjs');
 
-const up = fs.readFileSync('supabase/migrations/20261027103000_r560_pmb_key_gate.sql', 'utf8');
-const down = fs.readFileSync('supabase/rollbacks/20261027103000_r560_pmb_key_gate.down.sql', 'utf8');
-const check = up.slice(up.indexOf('$chk560$') + 8, up.lastIndexOf('$chk560$'));
+const up = fs.readFileSync('supabase/migrations/20261027103000_r562_pmb_key_gate.sql', 'utf8');
+const down = fs.readFileSync('supabase/rollbacks/20261027103000_r562_pmb_key_gate.down.sql', 'utf8');
+const check = up.slice(up.indexOf('$chk562$') + 8, up.lastIndexOf('$chk562$'));
 
 function board() {
   const fixture = createFixture({ vehicleCount: 0 });
@@ -122,14 +122,14 @@ test('the key list refetches when the location revision changes', () => {
   assert.deepEqual(calls, []);
   c.app.emailVehicleLocationRevision = 5;
   c.ensurePmbKeyAssigned();
-  assert.deepEqual(calls, ['list_pmb_key_assigned_560']);
+  assert.deepEqual(calls, ['list_pmb_key_assigned_562']);
 });
 
-test('regression check is r560 / F174 / sort 335 and does not add a pin', () => {
+test('regression check is r562 / F176 / sort 335 and does not add a pin', () => {
   assert.match(up, /sort_order=335/);
-  assert.match(up, /fault_id='F174'/);
-  assert.match(up, /added_in='r560'/);
-  assert.match(up, /PDC_560_KEY_NUMBER_NEEDED/);
+  assert.match(up, /fault_id='F176'/);
+  assert.match(up, /added_in='r562'/);
+  assert.match(up, /PDC_562_KEY_NUMBER_NEEDED/);
   assert.match(up, /key_number_needed/);
   assert.match(up, /location_override/);
   assert.match(up, /AFTER INSERT OR UPDATE OF current_location, key_number, location_override/);
@@ -145,15 +145,15 @@ test('regression check is r560 / F174 / sort 335 and does not add a pin', () => 
   assert.match(up, /count\(\*\) FROM pdc_ops\.expected_function_md5\)<>241/);
   assert.match(up, /bay_default_clock_gap_559/);
   assert.match(up, /new_to_pmb_ack_557/);
-  assert.match(up, /r561 \/ F175 \/ sort 334 is not used/);
-  assert.match(up, /\$chk560\$, true, 335, 'r560'/);
-  assert.match(down, /DROP TABLE IF EXISTS public\.pdc_vehicle_key_assigned_560/);
+  assert.match(up, /r561 \/ F175 is the slim planner header/);
+  assert.match(up, /\$chk562\$, true, 335, 'r562'/);
+  assert.match(down, /DROP TABLE IF EXISTS public\.pdc_vehicle_key_assigned_562/);
   assert.match(down, /AFTER UPDATE OF current_location, key_number ON public\.vehicles/);
   assert.match(down, /YARD HOLD/);
   assert.match(down, /sort_order=335/);
   assert.doesNotMatch(fs.readFileSync('karratha/app.js', 'utf8'), /r560|pmb-key-needed|Key number needed/);
   const css = fs.readFileSync('styles.css', 'utf8');
-  const badge = css.slice(css.lastIndexOf('r560 (F174)'));
+  const badge = css.slice(css.lastIndexOf('r562 (F176)'));
   assert.match(badge, /#dbeafe/);
   assert.match(badge, /#1d4ed8/);
   assert.doesNotMatch(badge, /orange|#f59e0b|#ff8/i);
