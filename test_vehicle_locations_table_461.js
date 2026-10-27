@@ -9,7 +9,7 @@ const table = require('./pdc-vehicle-locations-table.js');
 const { createFixture } = require('./qa/dashboard-render-fixture.cjs');
 const { syntheticVehicles, syntheticPlans, BUCKETS } = require('./qa/vehicle-locations-table-461-fixture.cjs');
 
-const VERSION = '2026.10.27.r563'; // r462 (F75) / r463 (F76) / r476 (F89) / r475 (F88) / r481 (F94) / r485 (F98) / r557 (F171) / r562 (F176) / r563 (F177) bumped the module version; the r461 cache-bust tag stays
+const VERSION = '2026.10.27.r566'; // r462 (F75) / r463 (F76) / r476 (F89) / r475 (F88) / r481 (F94) / r485 (F98) / r557 (F171) / r562 (F176) / r563 (F177) / r566 (F180) bumped the module version; the r461 cache-bust tag stays
 // r485 (F98): the Drop-down view is hidden behind DROPDOWN_VIEW_ENABLED (false). The r461 drop-down checks below run the
 // module with that one flag set to true, which is exactly the undo-by-flag path (switch, drop-down default, saved choice).
 const loadWithDropdownFlag = fixture => fixture.evaluate(fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8')
@@ -199,7 +199,8 @@ test('compact CSS never changes a station cell\'s colour (size and spacing only)
 test('loader: r461 cache-bust tags, runtime files, and pdc-auto-reload.js stays the first script', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461/);
-  assert.ok(entry.indexOf('keyNumber.onload = loadVehicleLocationsTable') > 0, 'loads after the key number module');
+  assert.ok(entry.indexOf('keyNumber.onload = loadPartsStoppage') > 0, 'the typed parts ETA loads after the key number');
+  assert.ok(entry.indexOf('stoppage.onload = loadVehicleLocationsTable') > entry.indexOf('keyNumber.onload = loadPartsStoppage'), 'the table loads after the typed parts ETA');
   const module = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.match(module, new RegExp(`const VERSION = '${VERSION.replace(/\./g, '\\.')}'`));
   assert.match(module, /pdc-vehicle-locations-table\.css\?vehicle-locations-table=\$\{VERSION\}/);

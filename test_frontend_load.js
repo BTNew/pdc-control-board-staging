@@ -31,6 +31,7 @@ const STARTUP_ORDER = [
   'navision-vin.js',
   'pdc-ai-intake-service.js',
   'workshop-eligibility.js',
+  'pdc-workshop-vehicle-search.js',
   'workshop-navigation.js',
   'vehicle-requirements-guard.js',
   'pdc-email-vehicle-location-service.js',
@@ -52,6 +53,7 @@ const STARTUP_ORDER = [
   'pdc-planner-capacity.js',
   'pdc-emergency-priority.js',
   'pdc-conversions.js',
+  'pdc-bus-component-split.js',
   'pdc-fitters.js',
   'pdc-workshop-hours.js',
   'pdc-vehicle-sublets.js' // r494 (F107): Manage sublets per vehicle

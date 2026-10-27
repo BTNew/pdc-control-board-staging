@@ -23,14 +23,20 @@ function fixture(rawVehicle) {
     workshopCurrentSearchLookup: () => null,
     workshopSearchMatches: () => matches,
     workshopState: () => ({ searchKey: '' }),
+    vehicleKey: v => v.stock || v.vehicleKey || '',
     vehicleKeyNumber: v => v.keyNumber,
     displayStockNumber: v => v.stock,
     vehicleCustomerName: v => v.client,
     displayVehicle: v => v.vehicle,
     workshopOutstandingDisabledReasonLabel: () => 'Hours required',
     workshopBookingSearchMeta: () => ({ station: 'Electrical', bay: 'Bay 8', date: 'Future', time: '07:00–08:00', status: 'Planned' }),
+    PDC_WORKSHOP_VEHICLE_SEARCH_FACTORY: require('./pdc-workshop-vehicle-search.js'),
+    workshopVehicleSearchApi: null,
   };
   vm.createContext(context);
+  for (const name of ['workshopVehicleSearchDeps', 'getWorkshopVehicleSearchApi']) {
+    vm.runInContext(extract(plannerSource, name), context);
+  }
   // Use the real app identity/escaping helpers before the dynamic planner helpers,
   // matching the installed dependency order rather than stubbing the broken label.
   for (const name of ['cleanNavisionText', 'vehicleJobcardNumber', 'escapeHtml']) {

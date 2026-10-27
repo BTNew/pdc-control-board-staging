@@ -16,7 +16,8 @@
   // r549 (F163): a saved display_name is the label. The station name plus padded bay number is the fallback.
   const bayText = (stage, number, displayName) => text(displayName) || layout?.pmbBayLabel?.(stage, number) || `Bay ${String(number).padStart(2, '0')}`;
   const identity = vehicle => ({
-    key: text(vehicle.key_number) || '—', job: text(vehicle.job_card_number) || '—',
+    key: text(vehicle.key_number) || '—',
+    job: (typeof pdcOpenJobCards === 'function' && pdcOpenJobCards(vehicle).length ? pdcOpenJobCards(vehicle).join(' · ') : '') || text(vehicle.job_card_number) || '—',
     stock: text(vehicle.stock_number) || '—', customer: text(vehicle.customer_name) || 'Customer not recorded',
     description: text(vehicle.vehicle_description) || [vehicle.make, vehicle.model].map(text).filter(Boolean).join(' ') || 'Vehicle details pending',
   });

@@ -511,7 +511,7 @@ test('r388: screens without a cache token (QA pages) never poll for updates',asy
 
 test('r388: index.html carries the self-update cache token for pdc-fitters.js',()=>{
   const html=require('fs').readFileSync('index.html','utf8');
-  assert.match(html,/pdc-fitters\.js\?[^"]*item-ticks=2026\.10\.20\.02&amp;self-update=2026\.10\.20\.01(&amp;start-before-done=2026\.10\.21\.r440)?(&amp;parts-retired=2026\.10\.21\.r449)?&amp;r532=2026\.10\.26\.r532&amp;r564=2026\.10\.27\.r564/);
+  assert.match(html,/pdc-fitters\.js\?[^"]*item-ticks=2026\.10\.20\.02&amp;self-update=2026\.10\.20\.01(&amp;start-before-done=2026\.10\.21\.r440)?(&amp;parts-retired=2026\.10\.21\.r449)?&amp;r532=2026\.10\.26\.r532&amp;r564=2026\.10\.27\.r564&amp;r568=2026\.10\.27\.r568/);
 });
 
 test('r564 (F178): job heading shows Key badge beside stock',async()=>{

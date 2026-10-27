@@ -63,7 +63,7 @@
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.27.r563'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r557 (F171) New to PMB tile, r562 (F176) key-number gate, r563 (F177) arrival age (cache-busts this module)
+  const VERSION = '2026.10.27.r566'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r557 (F171) New to PMB tile, r562 (F176) key-number gate, r563 (F177) arrival age, r566 (F180) planner search boxes (cache-busts this module)
   // r485 (F98): the one switch for the hidden Drop-down view. false = Table view only (Craig 22 Oct). true = r481 behaviour.
   const DROPDOWN_VIEW_ENABLED = false;
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
@@ -218,8 +218,17 @@
   }
   // r475: the parts ETA chip (pdc-parts-eta.js chipHtml, r436 or r475 markup) lifted out of the Vehicle cell verbatim; the
   // wrapper it sat in is dropped once empty. Returns the Vehicle cell without it, the chip, and its ISO date.
+  // r567 (F181): a typed stoppage slot, when the card has one, is lifted the same way. It has no nested div.
+  // The date on the row is the date the slot shows (a typed date, otherwise the email date). A card with only
+  // the email chip is unchanged.
   const ETA_CHIP = /<span class="pdc-parts-eta pdc-parts-eta-(?:ok|due|overdue)"[^>]*>(?:<span class="pdc-parts-eta-k">[^<]*<\/span>)?[^<]*<\/span>/;
+  const STOPPAGE_SLOT = /<div class="pdc-parts-stoppage-slot"[^>]*>[\s\S]*?<\/div>/;
   function extractPartsEta(unitHtml = '') {
+    const slot = STOPPAGE_SLOT.exec(unitHtml);
+    if (slot) {
+      const unit = unitHtml.replace(slot[0], '').replace(/<span class="pdc-parts-eta-wrap">\s*<\/span>/, '');
+      return { unit, span: slot[0], eta: attrOf(slot[0], 'data-parts-eta') };
+    }
     const m = ETA_CHIP.exec(unitHtml);
     if (!m) return { unit: unitHtml, span: '', eta: '' };
     const unit = unitHtml.replace(m[0], '').replace(/<span class="pdc-parts-eta-wrap">\s*<\/span>/, '');
@@ -326,6 +335,16 @@
     return [...JOURNEY.filter(key => keys.includes(key)), ...keys.filter(key => !JOURNEY.includes(key))];
   }
 
+  // r566 (F180): label for the filter summary and empty states (display only).
+  function locationSearchSummaryLabel(criteria = {}) {
+    const key = String(criteria.key || '').trim();
+    const text = String(criteria.text || '').trim();
+    const parts = [];
+    if (key) parts.push(`key “${key}”`);
+    if (text) parts.push(`“${text}”`);
+    return parts.join(' · ');
+  }
+
   function storageKey(userId) { return `${STORAGE_PREFIX}${String(userId || 'signed-out')}`; }
   function readView(storage, userId, { dropdownEnabled = DROPDOWN_VIEW_ENABLED } = {}) {
     if (!dropdownEnabled) return VIEWS.table; // r485: a saved "dropdown" is ignored (kept on the device for an undo)
@@ -337,7 +356,7 @@
   }
 
   const api = { VERSION, VIEWS, DROPDOWN_VIEW_ENABLED, JOURNEY, TILE, STORAGE_PREFIX, topLevelElements, splitCard, tableRowHtml, journeyOrder, storageKey, readView, writeView,
-    STOPPAGES, searchScope, departmentElsewhere, COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, extractPartsEta, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
+    STOPPAGES, searchScope, departmentElsewhere, locationSearchSummaryLabel, COLUMNS, COLUMN_MAX, COLUMN_STORAGE_PREFIX, SEL_WIDTH, extractPartsLocation, extractPartsEta, comparePartsLocation, columnStorageKey, sanitizeWidths, readWidths, writeWidths, resetWidths, widthStyle, layoutWidths };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (!root || !root.document || typeof root.renderIncomingDashboardBoard !== 'function' || root.PDC_VEHICLE_LOCATIONS_TABLE) {
     if (root && !root.PDC_VEHICLE_LOCATIONS_TABLE) root.PDC_VEHICLE_LOCATIONS_TABLE = api;
@@ -347,6 +366,7 @@
   // ---------- Browser ----------
   const doc = root.document;
   const state = { bucket: '', stoppages: false, openKey: '', view: DROPDOWN_VIEW_ENABLED ? VIEWS.dropdown : VIEWS.table, partsSort: '', widths: {}, search: { needle: '', pick: null } };
+  let dualSearchReady = false;
   let drawerOpener = null; // r462: { open(key, bucket), refresh(key, bucket), close() } from pdc-vehicle-slideout.js
   const userId = () => root.PDC_AUTH_CONTEXT?.userId || '';
   const storage = () => { try { return root.localStorage; } catch (_) { return null; } };
@@ -360,6 +380,98 @@
     link.href = `pdc-vehicle-locations-table.css?vehicle-locations-table=${VERSION}`;
     link.dataset.pdcVehicleLocationsTable = '1';
     doc.head.appendChild(link);
+  }
+
+  function vehicleSearchApi() {
+    const factory = root.PDC_WORKSHOP_VEHICLE_SEARCH_FACTORY;
+    if (!factory?.create) return null;
+    if (!root.PDC_WORKSHOP_VEHICLE_SEARCH) {
+      root.PDC_WORKSHOP_VEHICLE_SEARCH = factory.create(() => ({
+        cleanNavisionText: root.cleanNavisionText,
+        vehicleKey: root.vehicleKey,
+        displayStockNumber: root.displayStockNumber,
+        vehicleKeyNumber: root.vehicleKeyNumber,
+        vehicleJobcardNumber: root.vehicleJobcardNumber,
+        vehicleCustomerName: root.vehicleCustomerName,
+        displayVehicle: root.displayVehicle,
+      }));
+    }
+    return root.PDC_WORKSHOP_VEHICLE_SEARCH;
+  }
+
+  function readLocationSearchCriteria() {
+    const keyInput = doc.getElementById('vlt-search-key');
+    const textInput = doc.getElementById('vlt-search-text');
+    if (keyInput || textInput) return { key: keyInput?.value || '', text: textInput?.value || '' };
+    const legacy = doc.getElementById('incoming-search');
+    const needle = String(legacy?.value || '').trim().toLowerCase();
+    return needle ? { key: '', text: legacy.value || '' } : { key: '', text: '' };
+  }
+
+  function tableFilters() {
+    const base = root.incomingDashboardFilterValues();
+    const criteria = readLocationSearchCriteria();
+    const api = vehicleSearchApi();
+    const active = api?.workshopSearchIsActive(criteria);
+    return { ...base, search: active ? locationSearchSummaryLabel(criteria) : '', vltSearch: criteria };
+  }
+
+  function vehicleMatchesTableFilters(vehicle, filters) {
+    const withoutSearch = { ...filters, search: '' };
+    if (!root.incomingVehicleMatchesFilters(vehicle, withoutSearch)) return false;
+    const api = vehicleSearchApi();
+    const criteria = filters.vltSearch || readLocationSearchCriteria();
+    if (!api || !api.workshopSearchIsActive(criteria)) return true;
+    return api.workshopSearchVehicleMatches(vehicle, criteria);
+  }
+
+  function partsSearchTextNeedle(filters) {
+    const criteria = filters.vltSearch || readLocationSearchCriteria();
+    return String(root.cleanNavisionText(criteria.text || '')).trim().toLowerCase();
+  }
+
+  function ensureDualSearchPanel() {
+    if (!tableOn() || dualSearchReady) return;
+    const panel = doc.querySelector('#dashboard .incoming-search-panel');
+    if (!panel) return;
+    const legacy = doc.getElementById('incoming-search');
+    const legacyLabel = legacy?.closest('label');
+    if (!legacy || panel.querySelector('#vlt-search-key')) {
+      dualSearchReady = Boolean(panel.querySelector('#vlt-search-key'));
+      return;
+    }
+    legacy.type = 'search';
+    legacy.id = 'incoming-search-legacy';
+    legacy.hidden = true;
+    legacy.tabIndex = -1;
+    legacy.setAttribute('aria-hidden', 'true');
+    legacy.value = '';
+    const keyLabel = doc.createElement('label');
+    keyLabel.className = 'vlt-search-key-label';
+    keyLabel.innerHTML = '<span>Key number</span><input id="vlt-search-key" type="search" data-vlt-search-key autocomplete="off" placeholder="Key number" />';
+    const textLabel = doc.createElement('label');
+    textLabel.className = 'vlt-search-text-label';
+    textLabel.innerHTML = '<span>Stock, job card, customer or vehicle</span><input id="vlt-search-text" type="search" data-vlt-search-text autocomplete="off" placeholder="Stock, job card, customer or vehicle" />';
+    if (legacyLabel) {
+      legacyLabel.replaceWith(keyLabel, textLabel);
+      panel.insertBefore(legacy, panel.firstChild);
+    } else {
+      panel.prepend(keyLabel, textLabel, legacy);
+    }
+    const queue = () => { if (typeof root.queueIncomingDashboardRender === 'function') root.queueIncomingDashboardRender(); else root.renderIncomingDashboardBoard(); };
+    keyLabel.querySelector('input').addEventListener('input', queue);
+    textLabel.querySelector('input').addEventListener('input', queue);
+    const clear = doc.getElementById('incoming-clear-filters');
+    if (clear && !clear.dataset.vltDualSearchClear) {
+      clear.dataset.vltDualSearchClear = '1';
+      clear.addEventListener('click', () => {
+        const key = doc.getElementById('vlt-search-key');
+        const text = doc.getElementById('vlt-search-text');
+        if (key) key.value = '';
+        if (text) text.value = '';
+      });
+    }
+    dualSearchReady = true;
   }
 
   function switchHtml() {
@@ -406,6 +518,7 @@
     if (tableOn()) {
       if (board) { board.innerHTML = ''; board.hidden = true; }
       panel?.classList.add('vlt-slim-bar');
+      ensureDualSearchPanel();
     } else {
       if (drawerOpener && state.openKey) drawerOpener.close();
       state.openKey = '';
@@ -524,16 +637,21 @@
     if (!root.sharedNavisionLocationAuthorityReady() && appState.vehicleLocationsRefreshState !== 'refreshing') appState.selectedRows.clear();
     else [...appState.selectedRows].forEach(key => { if (appState.sharedNavisionLocationReadOnlyKeys?.has(key)) appState.selectedRows.delete(key); });
     root.updateIncomingDashboardFilterOptions(rows);
-    const filters = root.incomingDashboardFilterValues();
+    const filters = tableFilters();
     root.updateIncomingMoreFiltersState(filters);
     const sort = appState.incomingDashboardSort || {};
-    const needle = String(filters.search || '').trim().toLowerCase();
-    const searchless = needle ? { ...filters, search: '' } : null;
-    const filteredRows = rows.filter(vehicle => root.incomingVehicleMatchesFilters(vehicle, filters)
-      || (needle && partsLocationValues(vehicle).some(value => value.toLowerCase().includes(needle)) && root.incomingVehicleMatchesFilters(vehicle, searchless)));
+    const api = vehicleSearchApi();
+    const searchCriteria = filters.vltSearch || readLocationSearchCriteria();
+    const searching = Boolean(api?.workshopSearchIsActive(searchCriteria));
+    const needle = searching ? api.workshopSearchCriteriaKey(searchCriteria) : '';
+    const textNeedle = partsSearchTextNeedle(filters);
+    const searchless = searching ? { ...filters, search: '', vltSearch: { key: '', text: '' } } : null;
+    const partsLocMatch = (vehicle, active) => textNeedle.length >= 2
+      && partsLocationValues(vehicle).some(value => value.toLowerCase().includes(textNeedle))
+      && vehicleMatchesTableFilters(vehicle, { ...active, search: '', vltSearch: { key: searchCriteria.key, text: '' } });
+    const filteredRows = rows.filter(vehicle => vehicleMatchesTableFilters(vehicle, filters) || partsLocMatch(vehicle, searchless || filters));
     // r481: the same match (parts location included) for any department, to say where else the search is found.
-    const matchesSearch = (vehicle, active) => root.incomingVehicleMatchesFilters(vehicle, active)
-      || (needle && partsLocationValues(vehicle).some(value => value.toLowerCase().includes(needle)) && root.incomingVehicleMatchesFilters(vehicle, { ...active, search: '' }));
+    const matchesSearch = (vehicle, active) => vehicleMatchesTableFilters(vehicle, active) || partsLocMatch(vehicle, active);
     root.pruneIncomingDepartmentSelection(filteredRows);
     if (needle !== state.search.needle) state.search = { needle, pick: null }; // r481: a new search starts from its own matches
     const loading = rows.length === 0 && appState.vehicleLocationsRefreshState !== 'success' && appState.vehicleLocationsRefreshState !== 'error'
@@ -614,7 +732,7 @@
         <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
         <div class="vlt-table-wrap"><table class="vlt-table${Object.keys(state.widths).length ? ' has-custom-widths' : ''}${/data-select-stock/.test(bodyHtml) ? ' has-select' : ''}">
           <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-job"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-eta"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
-          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-eta"><span title="Parts ETA from parts staff emails (Perth dates). Hover a date for the source email.">Parts ETA</span>${grip('eta')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
+          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-eta"><span title="Parts ETA. A typed date wins over the parts-staff email. Overdue dates are red. Hover for the note and who last checked.">Parts ETA</span>${grip('eta')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
           <tbody>${bodyHtml}</tbody></table></div>
       </section>`;
     const holder = doc.createElement('div');

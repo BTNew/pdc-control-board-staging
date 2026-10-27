@@ -676,7 +676,12 @@ function createPdcEmailVehicleLocationService(options = {}) {
       const body = await response.json().catch(() => null);
       const data = body?.data || body;
       if (!response.ok || !body || body.ok !== true || !data?.receipt_id || String(data.vehicle_id || '') !== String(vehicleId || '') || !/^[a-f0-9]{64}$/i.test(String(data.request_sha256 || ''))) {
-        return { ok: false, code: body?.code || body?.error || 'workshop_hours_batch_receipt_invalid', data: data || null };
+        const rawCode = body?.code || body?.error || 'workshop_hours_batch_receipt_invalid';
+        const rawMessage = String(body?.message || '');
+        if (rawCode === '23514' && /vehicle_workshop_line_adjustments_description_check/.test(rawMessage)) {
+          return { ok: false, code: 'hours_description_rejected', message: 'The hours were not saved. The job wording on a line is empty, has a hidden character, or is longer than 2000 characters. Shorten that wording, then try again. Nothing else was changed.', data: data || null };
+        }
+        return { ok: false, code: rawCode, message: rawMessage, data: data || null };
       }
       return { ok: true, code: body.code || 'workshop_hours_batch_saved', data };
     } catch (_error) { return { ok: false, code: 'workshop_hours_batch_unavailable', data: null }; }
@@ -1135,7 +1140,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     try {
       const response = await request(`${url}/rest/v1/rpc/${PDC_VEHICLE_DETAIL_FIELDS_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: requestedVehicleId, p_expected_vehicle_version: Number(expectedVersion) || 0, p_changes: requestedChanges, p_idempotency_key: String(idempotencyKey || '').trim() }) });
       const body = await response.json().catch(() => null); const data = body?.data || null;
-      if (!response.ok || !body || body.ok !== true) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, data };
+      if (!response.ok || !body || body.ok !== true) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, message: typeof body?.message === 'string' ? body.message : '', data };
       if (!body.receipt_id || !/^[a-f0-9]{64}$/i.test(String(body.request_sha256 || '')) || String(data?.vehicle_id || '') !== requestedVehicleId || Number(data?.vehicle_version_after ?? data?.vehicle_version ?? 0) < 1) return { ok: false, code: 'vehicle_detail_receipt_invalid', data: null };
       return { ok: true, code: body.code || 'vehicle_detail_updated', data: { ...data, receipt_id: body.receipt_id, request_sha256: body.request_sha256, replay: body.replay === true } };
     } catch (_error) { return { ok: false, code: 'vehicle_detail_update_unavailable', data: null }; }
