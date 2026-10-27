@@ -34,6 +34,11 @@ SELECT 'rollback', 'workshop_bays', u.id, NULL, 'release@pdc.invalid', o.j, to_j
   FROM upd u JOIN r566_bays_before o ON o.id=u.id;
 
 DELETE FROM pdc_ops.regression_checks WHERE check_name='electrical_bays_7_566' AND added_in='r566';
+UPDATE pdc_ops.regression_checks
+   SET check_sql = replace(check_sql,
+         'AND (NOT b.is_active OR b.display_name=m.new_name) AS good',
+         'AND b.display_name=m.new_name AND b.is_active AS good')
+ WHERE check_name='pmb_bay_names_483';
 
 DO $g$ BEGIN
  IF EXISTS(SELECT 1 FROM r566_hide h JOIN public.workshop_bays b ON b.id=h.id WHERE NOT b.is_active) THEN RAISE EXCEPTION 'r566 undo: bays not re-activated'; END IF;

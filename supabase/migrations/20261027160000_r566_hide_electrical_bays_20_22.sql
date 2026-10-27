@@ -6,7 +6,9 @@
 -- admin block, parts override target or default technician. Never touches bookings, overlap /
 -- close-gaps rules, pins (241) or department 135.
 -- Live before this apply: r565 / F179 / sort 337 is the panel tick. r564 / F178 is the Fitters
--- key badge and inserted no check. This is r566 / F180 / sort 338.
+-- key badge and inserted no check. Sort 338 is parts_stoppage_manual_567. This is r566 / F180 / sort 348.
+-- pmb_bay_names_483 stops requiring a hidden bay to stay active, so Elec 08-10 leaving the board
+-- does not change that check's known name list.
 -- Source preview claimed r563 / F177 / sort 337 (up md5 16f025e38da6bd80293ad404a5f95fdb,
 -- down md5 d485bf4521dd67c9556bdd541ea03b40). Those ids belong to the arrival age.
 -- No pinned function is replaced. The in-migration proof runs only electrical_bays_7_566.
@@ -27,7 +29,7 @@ DO $g$ DECLARE v_bad text; BEGIN
     OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r566: staging only'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r566: pin count is not 241'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='electrical_bays_7_566' OR added_in='r566') THEN RAISE EXCEPTION 'r566: already applied'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=338 OR fault_id='F180' OR check_name='electrical_bays_7_566') THEN RAISE EXCEPTION 'r566: sort 338 / F180 is taken'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=348 OR fault_id='F180' OR check_name='electrical_bays_7_566') THEN RAISE EXCEPTION 'r566: sort 348 / F180 is taken'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bay_default_clock_gap_559' AND fault_id='F173' AND sort_order=334 AND added_in='r559') THEN RAISE EXCEPTION 'r566: r559 / F173 sort 334 is not present'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='pmb_key_gate_562' AND fault_id='F176' AND sort_order=335 AND added_in='r562') THEN RAISE EXCEPTION 'r566: r562 / F176 sort 335 is not present'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='pmb_arrival_age_563' AND fault_id='F177' AND sort_order=336 AND added_in='r563') THEN RAISE EXCEPTION 'r566: r563 / F177 sort 336 is not present'; END IF;
@@ -83,9 +85,20 @@ SELECT (SELECT n FROM a)=7 AND (SELECT bool_and(good) FROM y) AND (SELECT good F
  coalesce('active Elec '||(SELECT n::text FROM a)||' (want 7)','')
  ||'; '||coalesce('not hidden: '||(SELECT string_agg(code,', ' ORDER BY code) FROM y WHERE NOT good),'Elec 08-10 hidden (3)')
  ||'; PMB 17-19 active: '||(SELECT good::text FROM v) AS detail$c$,
- true, 338, 'r566');
+ true, 348, 'r566');
 
-DO $g$ DECLARE probe record; BEGIN
+UPDATE pdc_ops.regression_checks
+   SET check_sql = replace(check_sql,
+         'AND b.display_name=m.new_name AND b.is_active AS good',
+         'AND (NOT b.is_active OR b.display_name=m.new_name) AS good')
+ WHERE check_name='pmb_bay_names_483'
+   AND check_sql LIKE '%AND b.display_name=m.new_name AND b.is_active AS good%';
+DO $names$ BEGIN
+ IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='pmb_bay_names_483' AND strpos(check_sql, 'NOT b.is_active OR b.display_name=m.new_name')>0)<>1
+  THEN RAISE EXCEPTION 'r566: bay name check was not retargeted'; END IF;
+END $names$;
+
+DO $g$ DECLARE probe record; names record; BEGIN
  IF (SELECT count(*) FROM public.audit_events WHERE table_name='workshop_bays' AND metadata->>'release'='r566' AND metadata->>'action'='deactivate_workshop_bay' AND created_at=now())<>3
    THEN RAISE EXCEPTION 'r566: expected 3 audit rows'; END IF;
  IF EXISTS(SELECT 1 FROM r566_hide h JOIN public.workshop_bays b ON b.id=h.id WHERE b.is_active) THEN RAISE EXCEPTION 'r566: hide incomplete'; END IF;
@@ -99,4 +112,8 @@ DO $g$ DECLARE probe record; BEGIN
  PERFORM set_config('request.jwt.claims','', true);
  EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='electrical_bays_7_566') INTO probe;
  IF coalesce(probe.ok, false) IS NOT TRUE THEN RAISE EXCEPTION 'r566: check failed: %', left(coalesce(probe.detail, ''), 200); END IF;
+ EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='pmb_bay_names_483') INTO names;
+ IF names.detail NOT LIKE '%ELECTRICAL-BAY-07, FITTING-BAY-01%' OR names.detail LIKE '%ELECTRICAL-BAY-08%' THEN
+  RAISE EXCEPTION 'r566: bay name detail changed: %', left(coalesce(names.detail, ''), 300);
+ END IF;
 END $g$;

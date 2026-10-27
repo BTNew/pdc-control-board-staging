@@ -58,11 +58,13 @@ test('r566: migration pins three Elec bay ids and adds electrical_bays_7_566', (
   assert.match(sql, /5af51266-df78-4cb0-88e9-bc65af3bf656/);
   assert.match(sql, /3dd68646-b4a7-4c32-98fa-39e068b0b1e9/);
   assert.match(sql, /electrical_bays_7_566/);
-  assert.match(sql, /sort_order=338/);
+  assert.match(sql, /sort_order=348/);
   assert.match(sql, /pin count is not 241/);
   assert.match(sql, /panel_line_completion_565/);
   assert.match(sql, /fault_id='F180'/);
-  assert.match(sql, /sort_order=338/);
+  assert.match(sql, /sort_order=348/);
+  assert.match(sql, /NOT b\.is_active OR b\.display_name=m\.new_name/);
+  assert.doesNotMatch(sql, /sort_order=338/);
   assert.doesNotMatch(sql, /fault_regression_check\(/);
   assert.doesNotMatch(sql, /CREATE OR REPLACE FUNCTION/);
 });
