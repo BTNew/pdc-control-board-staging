@@ -1,4 +1,6 @@
 -- r576 (F190) / sort 347. Go-live of #557.
+-- Live on staging. Ledger r576_cross_station_drop 20261027065823.
+-- Applied up md5 ef6e8e847938a03562ba7e8a43d60f54. The search_path guard accepts the quoted array text this server returns.
 -- Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
 -- F181 / sort 338 / r567 is parts_stoppage_manual_567. Sort 341 / F184 / r570 is #544.
 -- pmb_dept_ack_book_574 is F188 / sort 345. r571 / F185 / sort 343 stays unused for #559.
