@@ -123,7 +123,8 @@ const approvedRootImportPatch = Object.freeze({
   // r572: a planner bay lists every open job card, primary first (F186). Department 135 is not tagged.
   // r566: delegates vehicle search matching to pdc-workshop-vehicle-search.js (F180). Department 135 is not tagged.
   // r570: per-bay work hours when a Bay Manager override exists; no override keeps today's windows (F184). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "88ab3bdf4398a33189c6b28e9d6d53ba54ad05fea734823c32d76b43c757aa78",
+  // r573: the left rail has a Stoppage section for a parts ETA placed as STOPPAGE (F187). Department 135 is not tagged.
+  "workshop-planner.js": "137ef93e06a5e7dd42ee4ef5c0ab1a000b84be806b38e0b3811532084f5e2af9",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -135,7 +136,8 @@ const approvedRootImportPatch = Object.freeze({
   // r549: the bay rename field sits in the bay header (F163).
   // r561: slim Workshop Planner header chrome (F175). Department 135 keeps its frozen stylesheet.
   // r570: blue bay-hours caption under the bay name (F184). Department 135 keeps its frozen stylesheet.
-  "workshop-planner.css": "377f92466d5bbc2bc0bb273de5e2b59539c7b62b8a3cb0ee29a0e417fff534c6",
+  // r573: Stoppage section cards are blue (F187). Department 135 keeps its frozen stylesheet.
+  "workshop-planner.css": "2928ee2144926bbc7029c42b36e126f130caec07c1d9ea6fadcb35de9fd12674",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   // r526: outstanding Parts (class imported-parts-orange) paints #dbeafe / #1d4ed8 / #2563eb (F140).
@@ -145,7 +147,8 @@ const approvedRootImportPatch = Object.freeze({
   // r563: a board-arrival age is grey (#e2e8f0). Department 135 is not tagged.
   // r574: the department bay picker is the same blue (F188). Department 135 is not tagged.
   // r575: a duplicate key sentence on the vehicle card is blue (F189). Department 135 keeps the previous paint.
-  "styles.css": "595e5683e2cd840413ac9ebbb099263cb9b23c474f6a6608c9a733b0b811cdfe",
+  // r573: Place as STOPPAGE on the Parts tile is blue (#dbeafe / #1d4ed8) (F187). Department 135 is not tagged.
+  "styles.css": "fc4d77989987e22aea9af9ce78422b15d7052f0a63a30383c83a330ea9857804",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
   // r565: the runtime list adds pdc-bus-component-split.js before the fitter scripts (F179). Department 135 is not tagged.
   // r566: the runtime list adds pdc-workshop-vehicle-search.js before the Vehicle Locations table (F180). Department 135 is not tagged.
@@ -199,7 +202,8 @@ const approvedRootImportPatch = Object.freeze({
   // r567: pdc-parts-stoppage.js?r567=2026.10.27.r567 loads after the key number and before the table (typed Parts ETA, F181). The table query also carries r567. Department 135 is not tagged.
   // r566: loads pdc-workshop-vehicle-search.js before the key-number chain; the table loader adds r566=2026.10.27.r566 (planner search boxes, F180). Department 135 is not tagged.
   // r575: pdc-key-number.js cache bust r575=2026.10.27.r575 (F189). Department 135 is not tagged.
-  "canonical-entry.js": "2b167dc19f2a3c0680d3b6b1c0b5383b4261a4e1f54716123670dc4eb0805e3e",
+  // r573: the same loader adds r573=2026.10.27.r573 (Place as STOPPAGE, F187). Department 135 is not tagged.
+  "canonical-entry.js": "408360d3efa14809b29d8a8e32ea686d85e3d227d3383a652106b2d77d9ea812",
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
@@ -276,7 +280,8 @@ const approvedRootImportPatch = Object.freeze({
   // r570: Bay Manager under Admin, and r570=2026.10.27.r570 on both workshop-planner.js loads (F184). Department 135 is not tagged.
   // r575: a changed key that another loaded board vehicle already has says which stock, in blue (F189). Department 135 is not tagged.
   // r578: a station icon is green when every line of that station is complete, or a controller overrides it (F196). Department 135 is not tagged.
-  "app.js": "16f71285773000a8673ef445795c0aee66716781ec71cbc4dda16d6df532108d",
+  // r573: r573=2026.10.27.r573 on both workshop-planner.js loads, and the Parts tile date has a blue Place as STOPPAGE button (F187). Department 135 is not tagged.
+  "app.js": "ad96715cc6f44a3e16b79e7c83c12ffdedccc89ccb74bd4ebcc6dbc084ddeb3b",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -410,7 +415,8 @@ const approvedRootImportPatch = Object.freeze({
   // r570: Bay Manager nav and view, pdc-bay-manager.css/js, and r570 on app.js and workshop-planner.css (F184). Department 135 is not tagged.
   // r575: index.html adds r575=2026.10.27.r575 on the key cell, the card, the detail save and the stylesheet (F189). Department 135 is not tagged.
   // r578: index.html adds r578=2026.10.27.r578 on canonical-entry.js and app.js (station icon complete, F196). Department 135 is not tagged.
-  "index.html": "71d7c7f33c027e6af67e60911ded14c74eee8889a95ba846327ed14624481dce",
+  // r573: index.html adds r573=2026.10.27.r573 on canonical-entry.js, and the hidden JITA panel has Place as STOPPAGE (F187). Department 135 is not tagged.
+  "index.html": "f793864a2c88c95c1f0a74b8985c40cd6149c576ee8871b8bbfe4a9ed852d2bd",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

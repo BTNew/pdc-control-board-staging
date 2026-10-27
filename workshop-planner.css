@@ -412,6 +412,44 @@ body[data-current-view="workshop"] .main > .topbar #pdc-auth-signout {
   min-width: 0;
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
+.workshop-waiting-panel {
+  grid-template-rows: auto auto auto auto minmax(0, 1fr) auto;
+}
+
+.workshop-parts-stoppage {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  max-height: 220px;
+  overflow: auto;
+  border-bottom: 1px solid #93c5fd;
+  background: #f8fafc;
+}
+
+.workshop-parts-stoppage-list {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+}
+
+.workshop-parts-stoppage-card {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid #1d4ed8;
+  border-radius: 6px;
+  background: #dbeafe;
+  color: #1e3a8a;
+  font-size: .72rem;
+}
+
+.workshop-parts-stoppage-card strong {
+  color: #1d4ed8;
+  font-size: .68rem;
+  letter-spacing: .04em;
+}
   border-right: 1px solid #94a3b8;
   background: #f8fafc;
   overflow: hidden;

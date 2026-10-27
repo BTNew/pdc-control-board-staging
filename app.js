@@ -6063,7 +6063,7 @@ function renderWorkshopPlannerWhenReady() {
     loadExternalScript(`workshop-data-service.js?r424=2026.10.21.01&r417=2026.10.21.01&scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-data-service-script'),
     loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'),
     loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01&r569=2026.10.27.r569`, 'workshop-shared-actions-script'),
-    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&r570=2026.10.27.r570&search-jobcards=2026.10.26.01&r569=2026.10.27.r569`, 'workshop-planner-script')
+    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&r570=2026.10.27.r570&search-jobcards=2026.10.26.01&r569=2026.10.27.r569&r573=2026.10.27.r573`, 'workshop-planner-script')
   ])
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
@@ -6115,7 +6115,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01&r569=2026.10.27.r569`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&r570=2026.10.27.r570&search-jobcards=2026.10.26.01&r569=2026.10.27.r569`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&r570=2026.10.27.r570&search-jobcards=2026.10.26.01&r569=2026.10.27.r569&r573=2026.10.27.r573`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -18628,7 +18628,7 @@ function partsQueueRowHtml(vehicle = {}) {
     <td><strong>${escapeHtml(vehicleJobcardNumber(vehicle) || '—')}</strong></td>
     <td><div class="parts-queue-customer"><strong title="${escapeHtml(unit)}">${escapeHtml(unit)}</strong><span title="${escapeHtml(customer)}">${escapeHtml(customer)}</span></div></td>
     <td><span class="parts-status-pill ${escapeHtml(partsDepartmentStatusClass(status))}">${escapeHtml(partsDepartmentStatusLabel(status))}</span>${importedEvidence ? `<div class="subtle" title="${escapeHtml(importedPartsTitle(vehicle))}">${escapeHtml(importedEvidence.label)}</div>` : ''}</td>
-    <td class="parts-eta-cell"><input class="parts-eta-input" type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(etaValue)}" aria-label="Parts ETA for ${escapeHtml(displayStockNumber(vehicle) || 'vehicle')}" /></td>
+    <td class="parts-eta-cell"><input class="parts-eta-input" type="date" data-parts-worst-eta="${escapeHtml(key)}" value="${escapeHtml(etaValue)}" aria-label="Parts ETA for ${escapeHtml(displayStockNumber(vehicle) || 'vehicle')}" /><button class="parts-place-stoppage" type="button" data-parts-place-stoppage="${escapeHtml(key)}">Place as STOPPAGE</button></td>
     <td class="parts-eta-counter-cell"><span class="parts-eta-countdown ${escapeHtml(etaCountdownClass)}" data-parts-eta-counter="${escapeHtml(vehicleKey(vehicle))}">${escapeHtml(etaCountdown || '—')}</span></td>
     <td class="parts-queue-jita-cell">${jitaNumber ? `<span class="jita-icon yes" role="img" aria-label="Navision JITA number ${escapeHtml(jitaNumber)}" title="Navision JITA number ${escapeHtml(jitaNumber)}">✓</span>` : '<span class="parts-jita-empty" aria-label="No Navision JITA number">—</span>'}</td>
     <td class="parts-queue-blocker">${blocker ? `<strong title="${escapeHtml(blocker)}">${escapeHtml(blocker)}</strong>` : '<span class="subtle">None</span>'}</td>
@@ -18687,6 +18687,7 @@ function renderPartsHome() {
   bindPartsQueueActionButtons(host);
   setupPartsEtaCounterClock(sourceRows);
   $$('[data-parts-worst-eta]', host).forEach(input => input.addEventListener('change', () => updateVehiclePartsWorstEta(input.dataset.partsWorstEta, input.value)));
+  $$('[data-parts-place-stoppage]', host).forEach(button => button.addEventListener('click', () => placePartsEtaAsStoppage(button.dataset.partsPlaceStoppage, true)));
 }
 
 function authenticatedEmailPartsTarget(key = '', selected = null) {
@@ -18917,6 +18918,52 @@ async function markVehiclePartsStoppage(key = '') {
   saveVehicleEdits(key, updates);
 }
 
+async function placePartsEtaAsStoppage(key = '', place = true) {
+  const vehicle = selectedVehicle(key);
+  if (!vehicle) return { ok: false, code: 'vehicle_not_found' };
+  const target = await authenticatedPartsTarget(key, vehicle);
+  const vehicleId = String(target?.vehicleId || vehicle.__emailVehicleId || vehicle.id || '');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(vehicleId)) {
+    if (place) pdcNotify('This vehicle has no shared record yet, so it was not placed as STOPPAGE.');
+    return { ok: false, code: 'vehicle_not_found' };
+  }
+  const input = [...document.querySelectorAll('[data-parts-worst-eta]')].find(el => el.dataset.partsWorstEta === key);
+  const eta = String(input?.value || '').slice(0, 10);
+  if (place && !/^\d{4}-\d{2}-\d{2}$/.test(eta)) {
+    pdcNotify('Set a Parts ETA before placing a STOPPAGE.');
+    return { ok: false, code: 'eta_required' };
+  }
+  const client = window.PDC_SUPABASE;
+  if (!client || typeof client.rpc !== 'function') {
+    if (place) pdcNotify('Place as STOPPAGE is not available. The date was kept.');
+    return { ok: false, code: 'unavailable' };
+  }
+  const { data, error } = await client.rpc('place_parts_eta_stoppage_573', {
+    p_vehicle_id: vehicleId,
+    p_eta: place ? eta : null,
+    p_note: '',
+    p_place: place === true,
+  });
+  if (error) {
+    const missing = /404|schema cache|could not find/i.test(String(error.message || error));
+    if (place || !missing) pdcNotify(missing ? 'Place as STOPPAGE is not on this database yet. The date was kept.' : 'The stoppage was not changed.');
+    return { ok: false, code: missing ? 'missing' : 'error' };
+  }
+  if (data?.ok === true) {
+    if (place) pdcNotify('Placed as STOPPAGE until the parts ETA.');
+    else if (data.changed !== false) pdcNotify('STOPPAGE lifted.');
+    return data;
+  }
+  const code = data?.error || data?.code;
+  const text = code === 'eta_reached' ? 'That ETA is already here, so no stoppage was placed.'
+    : code === 'vehicle_running' ? 'A job already running on this vehicle covers that date.'
+    : code === 'bay_running' ? 'A running job is in the way. Nothing was moved.'
+    : code === 'push_failed' ? 'The later jobs could not be moved. Nothing was placed.'
+    : 'The stoppage was not changed.';
+  if (place || code) pdcNotify(text);
+  return data || { ok: false, code };
+}
+
 async function updateVehiclePartsWorstEta(key = '', value = '') {
   const authority = vehicleLifecycleSharedModeActive() ? capturePdcWriteAuthority() : null;
   if (authority && !pdcWriteAuthorityCurrent(authority)) return;
@@ -18953,6 +19000,7 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
     // parallel so the Parts row is not blocked for two sequential refreshes.
     sharedVehicle.pdcPartsWorstEta = eta;
     renderPartsHome();
+    if (!eta) void placePartsEtaAsStoppage(key, false);
     void Promise.allSettled([
       refreshEmailVehicleLocations(),
       refreshSharedVehicleWorkState(sharedVehicle),
@@ -18966,6 +19014,7 @@ async function updateVehiclePartsWorstEta(key = '', value = '') {
     pdcPartsWorstEtaUpdatedAt: nowIsoString(),
     pdcPartsWorstEtaUpdatedBy: operator,
   });
+  if (!eta) void placePartsEtaAsStoppage(key, false);
   if (eta !== previousEta) {
     const previousLabel = previousEta ? partsWorstEtaLabel({ pdcPartsWorstEta: previousEta }) : 'Not previously recorded';
     const newLabel = eta ? partsWorstEtaLabel({ pdcPartsWorstEta: eta }) : 'Cleared';

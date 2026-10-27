@@ -13001,6 +13001,7 @@ select[name="pdcLocation"]:focus,
 #parts .parts-queue-table th:nth-child(9), #parts .parts-queue-table td:nth-child(9) { width: 15% !important; }
 #parts .parts-queue-table th:nth-child(10), #parts .parts-queue-table td:nth-child(10) { width: 22% !important; }
 #parts .parts-eta-input { width: 100%; min-width: 118px; min-height: 28px; padding: 3px 5px; font: inherit; }
+#parts .parts-place-stoppage { display: inline-flex; align-items: center; margin-top: 4px; padding: 2px 8px; border: 1px solid #1d4ed8; border-radius: 5px; background: #dbeafe; color: #1d4ed8; font: inherit; font-size: .68rem; font-weight: 700; cursor: pointer; }
 #parts .parts-eta-countdown { display: inline-block; white-space: nowrap; font-weight: 800; }
 #parts .parts-eta-countdown.positive { color: #15803d; }
 #parts .parts-eta-countdown.negative { color: #dc2626; }
