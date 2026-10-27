@@ -11,10 +11,16 @@ so a reader that does not use the cached values sees the text wrapped in =" ". T
   hours never summed; r468 optional leading Type; r509 optional trailing Create Advisor, dropped before the manifest,
   and when that column is present only data rows with a non-blank advisor are imported; r444 sublet PO descriptions;
   r471 bay codes are applied later by the pipeline step that has the board context). Those rules are not copied here;
-* resolves each R/O to a board vehicle WITHOUT ever creating one: a non-blank Stock # must be an exact board stock; a blank
-  Stock # matches ONLY an exact board stock equal to the Rego # value, or an exact job-card match (the vehicle's job card, or
-  a service job already on the board for that R/O). Anything else (no vehicle, a completed / deleted vehicle, or more than
-  one candidate) is not sent; it goes to the review list instead;
+* resolves each R/O to a board vehicle. A non-blank Stock # must be an exact board stock; a blank Stock # matches ONLY an
+  exact board stock equal to the Rego # value, or an exact job-card match (the vehicle's job card, or a service job already
+  on the board for that R/O). A completed / deleted vehicle, or more than one candidate, is not sent. r569 (F183): an R/O
+  with no board vehicle is sent as basis new_board_vehicle. Apply creates both a division vehicle (one current Navision
+  row, linked, dealer 14450 included, never written to Broome Sales) and a non-division vehicle hidden on Yard Hold in
+  the New vehicle section. Neither is placed on New to PMB. Sub Status 99, an owner hold, and a pending restore are not
+  created. Sub Status 80 is not a skip. The snapshot identity status stays no_board_vehicle (record_snapshot_479 is
+  unchanged). A 138/139 board vehicle absent from a complete file is archived off the PMB board by apply, not by this
+  module. Broome Toyota Sales (37047) and Karratha Sales (14450) are not written. file_qc_guard is the same gate apply
+  uses, and a CreateAdvisor filename is not a separate refusal;
 * builds the snapshot payload (sha, R/O, line, seen_at) for pdc_service_snapshot_private.record_snapshot_479 and an
   offline mirror of the read-only reconcile (pdc_service_snapshot_private.reconcile_479) for dry runs and tests.
 
@@ -31,9 +37,12 @@ FILENAME_RE = re.compile(r'^(?:PMG PD Service as a Whole w[/_ -]?Sublet( - Job 1
 SNAPSHOT_SCOPE = 'full_open_ro_snapshot_r479'          # manifest provenance marker (snapshot_scope)
 IDENTITY_RULE = 'r479_exact_board_stock_or_job_card'   # raw_row.identity_r479.rule
 IDENTITY_KEY = 'identity_r479'
+BOARD_BASIS = 'new_board_vehicle'                      # r569: both creates stay in the New vehicle section. Not a snapshot status.
 LIVE_STATES = ('active', 'rft')
 CLOSING_SUB_STATUS = ('80', '99')                      # Sub Status 80 / 99: the line is checked out / complete in Revolution
-MISSING_AFTER = 2                                      # consecutive complete snapshots before a board R/O or vehicle is flagged
+MISSING_AFTER = 2                                      # reconcile only. The r569 archive does not wait for two snapshots.
+QC_MIN_LINES = 1000
+QC_MIN_ROS = 100
 
 _PARAM_RES = [
     (re.compile(r'Company\s*=\s*"01"'), 'Company = "01"'),
@@ -103,7 +112,9 @@ def board_index(board):
             lst = by_job.setdefault(_key(j.get('ro')), [])
             if v not in lst:
                 lst.append(v)
-    return {'stock': by_stock, 'jc': by_jc, 'job': by_job, 'vehicles': vehicles}
+    holds = {_key(s) for s in (board.get('holds') or []) if _key(s)}
+    restores = {_key(s) for s in (board.get('restores') or []) if _key(s)}
+    return {'stock': by_stock, 'jc': by_jc, 'job': by_job, 'vehicles': vehicles, 'holds': holds, 'restores': restores}
 
 
 def _live(v):
@@ -118,9 +129,19 @@ def _one(cands):
     return out
 
 
+def _closed(**extra):
+    base = {'board_action': None, 'send': False, 'board_basis': None, 'board_stock': None,
+            'rego_fallback': False, 'skip_reasons': []}
+    base.update(extra)
+    return base
+
+
 def resolve_ro(ro, file_stock, file_rego, idx):
     """Identity of one R/O: {'status': linked | no_board_vehicle | vehicle_not_live | ambiguous, 'basis', 'stock',
-    'vehicle_id', 'file_stock', 'file_rego', 'rule'}. Only 'linked' rows are sent to the service preview."""
+    'vehicle_id', 'file_stock', 'file_rego', 'rule', 'board_action', 'send', 'board_basis', 'board_stock'}.
+    status is the snapshot value and stays one of the four record_snapshot_479 allows. board_action is the r558
+    preview decision. stock stays blank unless the R/O is linked, so a no_board_vehicle snapshot line still has an
+    empty stock_number. The create stock is board_stock (the file stock, or the rego when Stock # is blank)."""
     st, rg, r = _key(file_stock), _key(file_rego), _key(ro)
     out = {'rule': IDENTITY_RULE, 'file_stock': norm(file_stock) or None, 'file_rego': norm(file_rego) or None}
     if st:
@@ -133,19 +154,37 @@ def resolve_ro(ro, file_stock, file_rego, idx):
     if len(live) == 1:
         v = live[0]
         basis = next(b for b, c in tried if any(str(x['id']) == str(v['id']) for x in c))
-        out.update(status='linked', basis=basis, stock=norm(v.get('stock')), vehicle_id=str(v['id']))
+        out.update(status='linked', basis=basis, stock=norm(v.get('stock')), vehicle_id=str(v['id']),
+                   **_closed(board_action='existing_row', send=True))
         return out
     if len(live) > 1:
         out.update(status='ambiguous', basis=None, stock=None, vehicle_id=None,
-                   candidates=sorted(norm(v.get('stock')) for v in live))
+                   candidates=sorted(norm(v.get('stock')) for v in live), **_closed())
         return out
     other = _one([v for _, c in tried for v in c])
     if other:
         states = sorted({'deleted' if v.get('deleted') else str(v.get('ls')) for v in other})
-        out.update(status='vehicle_not_live', basis=None, stock=None, vehicle_id=None, board_states=states)
+        out.update(status='vehicle_not_live', basis=None, stock=None, vehicle_id=None, board_states=states, **_closed())
         return out
+    ident_stock = norm(file_stock) if st else (norm(file_rego) if rg else None)
+    rego_fallback = bool(ident_stock) and not st
+    holds, restores = idx.get('holds') or set(), idx.get('restores') or set()
+    skip = []
+    if ident_stock and _key(ident_stock) in holds:
+        skip.append('owner_hold')
+    if ident_stock and _key(ident_stock) in restores:
+        skip.append('pending_restore')
     out.update(status='no_board_vehicle', basis=None, stock=None, vehicle_id=None,
                reason='stock_not_on_board' if st else ('rego_not_a_board_stock_and_no_job_card' if rg else 'no_stock_no_rego_no_job_card'))
+    if not ident_stock:
+        out.update(**_closed())
+    elif 'owner_hold' in skip:
+        out.update(**_closed(board_action='skip_owner_hold', board_stock=ident_stock, rego_fallback=rego_fallback, skip_reasons=skip))
+    elif 'pending_restore' in skip:
+        out.update(**_closed(board_action='skip_pending_restore', board_stock=ident_stock, rego_fallback=rego_fallback, skip_reasons=skip))
+    else:
+        out.update(**_closed(board_action='create_board', send=True, board_basis=BOARD_BASIS, board_stock=ident_stock,
+                             rego_fallback=rego_fallback))
     return out
 
 
@@ -161,7 +200,25 @@ def resolve_lines(lines, idx):
             out[k] = resolve_ro(k[1], raw.get('Stock #'), raw.get('Rego #'), idx)
     for k, ids in seen.items():
         if len(ids) > 1:
-            out[k] = dict(out[k], status='ambiguous', basis=None, stock=None, vehicle_id=None, reason='stock_or_rego_differs_between_lines')
+            out[k] = dict(out[k], status='ambiguous', basis=None, stock=None, vehicle_id=None,
+                          reason='stock_or_rego_differs_between_lines', **_closed())
+    groups = {}
+    for L in lines:
+        raw = L['raw']
+        k = (norm(raw['Dept']), norm(raw['R/O #']).upper())
+        groups.setdefault(k, []).append(sub_status(raw))
+    for k, subs in groups.items():
+        ident = out[k]
+        # Sub Status 80 is not a create skip. Only an R/O whose every line is 99 is.
+        if ident.get('status') != 'no_board_vehicle' or not subs or not all(s == '99' for s in subs):
+            continue
+        reasons = list(ident.get('skip_reasons') or [])
+        if 'status_99' not in reasons:
+            reasons.append('status_99')
+        if ident.get('board_stock'):
+            out[k] = dict(ident, board_action='skip_status_99', send=False, board_basis=None, skip_reasons=reasons)
+        else:
+            out[k] = dict(ident, send=False, board_basis=None, skip_reasons=reasons)
     return out
 
 
@@ -191,6 +248,130 @@ def snapshot_payload(sha256, snapshot_at, lines, identities, gmail_message_id=No
 
 LINE_FIELDS = ['department', 'repair_order_number', 'original_line_number', 'stock_number', 'file_stock', 'file_rego',
                'sub_status', 'identity_status']
+
+
+def preview_line_allowed(raw, ident):
+    """True when this collapsed line is sent. Linked lines are sent, including Sub Status 99 (the existing checkout).
+    A new board R/O does not send a Sub Status 99 line, so capture_service_status cannot check the new vehicle out
+    on the same apply. Skip rows are not sent."""
+    if not ident or not ident.get('send'):
+        return False
+    if ident.get('board_basis') == BOARD_BASIS and sub_status(raw) == '99':
+        return False
+    return True
+
+
+def identity_r479(ident):
+    """raw_row.identity_r479. None when the row is not sent. The snapshot status is not this basis."""
+    if not ident or not ident.get('send'):
+        return None
+    if ident.get('status') == 'linked' and ident.get('basis'):
+        return {'rule': IDENTITY_RULE, 'basis': ident['basis']}
+    if ident.get('board_basis') == BOARD_BASIS:
+        body = {'rule': IDENTITY_RULE, 'basis': BOARD_BASIS}
+        if ident.get('rego_fallback'):
+            body['rego_fallback'] = True
+        return body
+    return None
+
+
+def preview_stock_number(ident, raw):
+    """Stock # written on a preview row. A rego fallback fills it before send. A non-blank file stock never changes."""
+    if ident and ident.get('board_basis') == BOARD_BASIS:
+        return ident.get('board_stock')
+    if ident and ident.get('stock'):
+        return ident.get('stock')
+    return norm(raw.get('Stock #')) or None
+
+
+def stamp_preview_row(raw, snapshot_header, source_filename):
+    """Copy raw_row and stamp the recorded snapshot. Record the snapshot before apply. The batch source_hash is not the
+    snapshot sha; archive reads this stamp and requires exactly one sha on the as-a-Whole batch."""
+    if not snapshot_header or not re.fullmatch(r'[0-9a-f]{64}', snapshot_header.get('snapshot_sha256') or ''):
+        raise ContractError('preview: stamp a recorded 64-hex snapshot sha')
+    row = dict(raw)
+    row['snapshot_sha256'] = snapshot_header['snapshot_sha256']
+    row['snapshot_scope'] = snapshot_header.get('snapshot_scope') or SNAPSHOT_SCOPE
+    row['source_filename'] = source_filename
+    return row
+
+
+# Broome Toyota Sales is dealer 37047. Karratha Sales is dealer 14450. Archive never writes either board.
+SALES_DEALERS = {'broome': ('37047', '037047'), 'karratha': ('14450', '014450')}
+
+
+def file_qc_guard(line_count, ro_count, complete, previous_lines, filename, scope):
+    """Same gate as service_whole_file_guard_569. Archive runs only when this returns ok. An empty file, a file that
+    did not parse, a file under the absolute floor, a file under half the previous complete snapshot, or a file with no
+    previous complete snapshot does not archive anyone. The filename, including CreateAdvisor, is not a separate refusal.
+    Two consecutive snapshots are not required. Exactly half the previous line count is allowed."""
+    del filename
+    lines = line_count or 0
+    ros = ro_count or 0
+    if not complete:
+        return {'ok': False, 'reason': 'partial_file'}
+    if lines < 1 or ros < 1:
+        return {'ok': False, 'reason': 'empty_file'}
+    if scope != SNAPSHOT_SCOPE:
+        return {'ok': False, 'reason': 'not_full_snapshot'}
+    if lines < QC_MIN_LINES or ros < QC_MIN_ROS:
+        return {'ok': False, 'reason': 'below_minimum_size'}
+    if previous_lines is None:
+        return {'ok': False, 'reason': 'no_previous_complete_snapshot'}
+    if lines * 2 < previous_lines:
+        return {'ok': False, 'reason': 'partial_vs_previous'}
+    return {'ok': True, 'reason': 'complete_file'}
+
+
+def board_decision(basis, all_lines_99, identity_stock, nav_count, dealer, owner_hold, tombstone):
+    """Same placement as service_whole_board_decision_569. Both creates stay hidden on Yard Hold."""
+    kept = {'broome_sales': False, 'new_to_pmb': False, 'board': False}
+    if basis != 'new_board_vehicle':
+        return dict(action='existing_row', create=False, location=None, visible=None, link=None, dealer_code=None, **kept)
+    if all_lines_99:
+        return dict(action='skip_status_99', create=False, location=None, visible=False, link=None, dealer_code=None, **kept)
+    if owner_hold:
+        return dict(action='skip_owner_hold', create=False, location=None, visible=False, link=None, dealer_code=None, **kept)
+    if tombstone:
+        return dict(action='skip_pending_restore', create=False, location=None, visible=False, link=None, dealer_code=None, **kept)
+    if not (identity_stock or '').strip():
+        return dict(action='skip_no_stock', create=False, location=None, visible=False, link=None, dealer_code=None, **kept)
+    if (nav_count or 0) > 1:
+        return dict(action='skip_ambiguous_navision', create=False, location=None, visible=False, link=None, dealer_code=None, **kept)
+    if (nav_count or 0) == 1:
+        return dict(action='create_division', create=True, location='Yard Hold', visible=False, link='navision', dealer_code=dealer, **kept)
+    return dict(action='create_new_vehicle', create=True, location='Yard Hold', visible=False, link='tune', dealer_code=None, **kept)
+
+
+def archive_decision(on_pmb_board, on_sheet, dept135, file_ok, on_sales_board):
+    """Same decision as service_whole_archive_decision_569. A Sales-board vehicle is still archived on the PMB side.
+    Broome Toyota Sales and Karratha Sales rows are not written, hidden, or archived."""
+    sales = {'delete': False, 'tombstone': False, 'sales_write': False, 'hide_sales': False,
+             'on_sales_board': bool(on_sales_board)}
+    if not file_ok:
+        return dict(archive=False, reason='file_not_ok', booking_released=False, live_booking_reported=False, **sales)
+    if not on_pmb_board:
+        return dict(archive=False, reason='not_pmb_board', booking_released=False, live_booking_reported=False, **sales)
+    if on_sheet:
+        return dict(archive=False, reason='on_sheet', booking_released=False, live_booking_reported=False, **sales)
+    if dept135:
+        return dict(archive=False, reason='dept_135', booking_released=False, live_booking_reported=False, **sales)
+    return dict(archive=True, reason='absent_from_sheet', booking_released=True, live_booking_reported=True, **sales)
+
+
+def unarchive_plan(prior, released_bookings):
+    """Same restore as service_whole_unarchive_569. Sales rows stay as they were. A queued booking gets its bay back."""
+    return {
+        'visible_on_board': prior.get('visible_on_board'),
+        'board_purged_at': None,
+        'pmb_stage': prior.get('pmb_stage'),
+        'pmb_bay_stage': prior.get('pmb_bay_stage'),
+        'pmb_bay_number': prior.get('pmb_bay_number'),
+        'deleted_at': None,
+        'sales_write': False,
+        'bookings': [{'id': b.get('booking_id'), 'bay_id': b.get('bay_id'), 'status': b.get('status')}
+                     for b in (released_bookings or [])],
+    }
 
 
 def reconcile(snapshots, board):
@@ -256,4 +437,8 @@ BOARD_SQL = """SELECT jsonb_build_object('at',clock_timestamp(),
  'vehicles',(SELECT coalesce(jsonb_agg(jsonb_build_object('id',v.id,'stock',v.stock_number,'jc',v.job_card_number,'ls',v.lifecycle_state::text,
    'deleted',v.deleted_at IS NOT NULL,'visible',v.visible_on_board,'key',v.key_number)),'[]'::jsonb) FROM public.vehicles v),
  'jobs',(SELECT coalesce(jsonb_agg(jsonb_build_object('vehicle_id',j.vehicle_id,'ro',j.ro_number,'closed',j.closed_at IS NOT NULL)),'[]'::jsonb)
-   FROM pdc_parts_private.jobs j WHERE j.company='01' AND j.division='1')) AS board;"""
+   FROM pdc_parts_private.jobs j WHERE j.company='01' AND j.division='1'),
+ 'holds',(SELECT coalesce(jsonb_agg(DISTINCT h.stock_number),'[]'::jsonb)
+   FROM pdc_codex_intake_private.owner_board_visibility_holds_20261019 h WHERE h.released_at IS NULL),
+ 'restores',(SELECT coalesce(jsonb_agg(DISTINCT t.normalized_stock),'[]'::jsonb)
+   FROM public.pdc_vehicle_tombstones t WHERE t.normalized_stock IS NOT NULL)) AS board;"""
