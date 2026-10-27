@@ -69,15 +69,17 @@ test('REPORTED_FAULTS: placing a parts ETA is a blue STOPPAGE choice and the sec
   assert.deepEqual(jita.placeTargets([{ status: 'applied', vehicle_id: VID, eta_date: '2026-11-02' }], false), []);
 });
 
-test('r573 preview SQL is the next free check and does not retouch the live bodies', () => {
-  assert.match(up, /PREVIEW/);
+test('r580 go-live SQL is the next free check and does not retouch the live bodies', () => {
+  assert.match(up, /r580 \(F193\) \/ sort 351/);
+  assert.doesNotMatch(up, /PREVIEW|Do not apply/);
   assert.match(up, /cdsmnqxtyyoeoznmbidd/);
   assert.match(up, /vjdtsswhroyguxyfjdkt/);
-  assert.match(up, /Do not apply/);
-  assert.match(up, /'F187'/);
-  assert.match(up, /sort_order=344|sort 344/);
+  assert.match(up, /'F193'/);
+  assert.match(up, /sort_order=351/);
   assert.match(up, /parts_eta_stoppage_573/);
-  assert.match(up, /added_in, 'r573'|added_in='r573'|true, 344, 'r573'/);
+  assert.match(up, /true, 351, 'r580'/);
+  assert.match(up, /release = 'r580'/);
+  assert.doesNotMatch(up, /sort_order=344|fault_id='F187'|added_in='r573'|release = 'r573'|release='r573'/);
   assert.match(up, /fa275b45be296e9021f9f4dc570f5751/);
   assert.match(up, /88d31cbd6ca5ddd372e3143d5f8c013f/);
   assert.match(up, /83a2c8d5ff85b5a295343e5f3ef66ded/);
@@ -99,6 +101,8 @@ test('r573 preview SQL is the next free check and does not retouch the live bodi
   assert.match(dollar(up, '$end573$'), /'lift'/);
   assert.equal(scanSql(up).length, 0, scanSql(up).join('\n'));
   assert.match(down, /parts_eta_stoppage_573/);
+  assert.match(down, /fault_id='F193' AND sort_order=351 AND added_in='r580'/);
+  assert.doesNotMatch(down, /added_in='r573'|fault_id='F187'|sort_order=344/);
   assert.match(down, /action IN \('place', 'lift'\)/);
   assert.doesNotMatch(down, /DROP TABLE public\.pdc_parts_stoppage_564|DROP TABLE public\.vehicles|UPDATE public\.vehicles|UPDATE public\.pdc_parts_eta|DROP TABLE public\.pdc_jita_eta/);
   assert.equal(scanSql(down).length, 0, scanSql(down).join('\n'));
