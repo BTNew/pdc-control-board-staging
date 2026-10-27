@@ -192,7 +192,8 @@ const approvedRootImportPatch = Object.freeze({
   // r493: started items / sections and the running strip show amber Paused while the job clock is held (F106).
   // r500: every started item / section shows Pause (also when running too long) and Resume while the job is stopped; Pause opens the stoppage panel under the item (F113).
   // r532: a started job can tick Start and Done on other-station items (F146). Department 135 keeps the frozen fitter script.
-  "pdc-fitters.js": "b4cac99e85efcf4124f086d06911384ce73132377bab30c6bbfca5fa7b95f0e0",
+  // r564: Fitters bay shows Key N beside stock (F178). Department 135 keeps the frozen fitter script.
+  "pdc-fitters.js": "2fb4cdfc3798212e0e8238139475a2775509e0e8d85c2327e63cac496abd981f",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -360,7 +361,8 @@ const approvedRootImportPatch = Object.freeze({
   // r561: r561=2026.10.27.r561 on workshop-planner.css (slim planner header, F175). Department 135 is not tagged.
   // r562: index.html adds r562=2026.10.27.r562 on canonical-entry.js, app.js and styles.css (key-number gate, F176). The stock-panel r560 on app.js stays. Department 135 is not tagged.
   // r563: index.html adds r563=2026.10.27.r563 on canonical-entry.js, app.js and styles.css (arrival age, F177). Department 135 is not tagged.
-  "index.html": "3cfd619cd4345cc46e0fd7d46731403fc4a97f7849c4695f20dbdf7379d092dd",
+  // r564: index.html adds r564=2026.10.27.r564 on pdc-fitters.js (Fitters key badge, F178). Department 135 is not tagged.
+  "index.html": "94dc3470719d7c6b45f0a4a5e0dda0a5e0153fe1b50e6b3738fc161e6ad317a6",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -371,7 +373,8 @@ const approvedRootImportPatch = Object.freeze({
   // r482: Prioritise vehicle asks before applying a plan that books before the parts ETA (F95).
   "pdc-emergency-priority.js": "f32dfc9d81bafb4dcfb8e6e6805f4932ba5e5219149093d9bc45f1e1ae34d7db",
   // r532: other-station items stay full strength when this bay can tick them (F146).
-  "pdc-fitters.css": "aeb71c62bafd5cc78fad84fe9dcd86d69ccbf0a26cc851fae19438f78ebf2540",
+  // r564: fitter-key-badge styles beside stock (F178).
+  "pdc-fitters.css": "05fdaaf9ef983a09a4e88b1b234e4722ffcff386fcc46904e59ce54cb4eda432",
   "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",
   "pdc-staff-usage.css": "e7769d72b7601097fa4c41a19140fdcda4408f3d1f620008282d9df136b1ddf0",
   // r489: 'fitting-stats' counts under the Update History bucket (F102).

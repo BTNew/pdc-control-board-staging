@@ -3,6 +3,16 @@
   'use strict';
   const PROJECT = 'cdsmnqxtyyoeoznmbidd';
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  // r564 (F178): same key tag field as Vehicle Locations and the planner (vehicles.key_number).
+  function fitterJobKeyNumber(job = {}) {
+    const raw = job.key_number ?? job.keyNumber ?? '';
+    return String(raw ?? '').trim();
+  }
+  function fitterKeyBadgeHtml(job = {}) {
+    const key = fitterJobKeyNumber(job);
+    if (key) return `<span class="fitter-key-badge" title="PMB key tag number">Key ${esc(key)}</span>`;
+    return `<span class="fitter-key-badge is-missing" title="No key tag number recorded">No key</span>`;
+  }
   // r483 (F96): Dept 139 bays show Craig's names and numbers ('Fitting · Bay 06'); other stations keep 'Bay N'.
   // The mechanic's bay list names its station by display name, so map those back to the station code.
   const STAGE_BY_NAME = {Hoist:'HOIST',Fitting:'FITTING',Fab:'FABRICATION',Fabrication:'FABRICATION',Elec:'ELECTRICAL',Electrical:'ELECTRICAL'};
@@ -374,7 +384,7 @@
     const m = String(text || '').match(/pdc-fitters\.js\?([^"'\s<>]+)/);
     return m ? m[1].replace(/&amp;/g, '&') : '';
   }
-  const api = { createService, fitterScriptToken, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, conversionUsesSimpleTick, fitterLineCardHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml, itemPauseHtml };
+  const api = { createService, fitterScriptToken, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, fitterJobKeyNumber, fitterKeyBadgeHtml, conversionUsesSimpleTick, fitterLineCardHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml, itemPauseHtml };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.PdcFitters = api;
   const doc = root.document;
@@ -490,7 +500,7 @@
       ${mechanic ? `<p class="fitter-bay-summary">${bays.length ? bays.map(b=>`${esc(b.stage)} · ${esc(bayText(STAGE_BY_NAME[b.stage], b.number))}${b.active?'':' (inactive)'}`).join(' / ') : 'Jobs individually assigned to this mechanic appear below.'}</p>` : ''}
       ${flow.otherActive.length ? `<details class="fitter-active-jobs"><summary>Other active jobs (${flow.otherActive.length})</summary>${flow.otherActive.map(j=>`<button type="button" data-fitter-job="${esc(j.id)}" ${locked?'disabled':''}>${esc(j.stock)} · ${esc(j.stage_name)} / ${esc(bayText(j.stage_code, j.bay_number))} · ${esc(state(j.status))}</button>`).join('')}</details>` : ''}
       <div class="fitter-layout">
-      <section class="fitter-work" aria-label="Selected job">${job && detail ? `<div class="fitter-job-heading"><p class="fitter-kicker">${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(state(detail.status))}</p><h2>${esc(job.stock)} <span>${esc(job.job_card)}</span></h2><p>${esc(job.customer)} · ${esc(job.vehicle)}</p><p class="fitter-time">${esc(time(job.start_at))} – ${esc(time(job.end_at))}</p>${timerHtml(detail,timingOptions())}${progressHtml(detail.progress,false,{paused:fitterPausedLabel(detail)})}<p>${detail.progress.completed_lines} of ${detail.progress.total_lines} items complete · Progress uses approved work hours.</p></div>
+      <section class="fitter-work" aria-label="Selected job">${job && detail ? `<div class="fitter-job-heading"><p class="fitter-kicker">${esc(job.stage_name)} · ${esc(bayText(job.stage_code, job.bay_number))} · ${esc(state(detail.status))}</p><h2 class="fitter-job-title">${esc(job.stock)} ${fitterKeyBadgeHtml(job)} <span>${esc(job.job_card)}</span></h2><p>${esc(job.customer)} · ${esc(job.vehicle)}</p><p class="fitter-time">${esc(time(job.start_at))} – ${esc(time(job.end_at))}</p>${timerHtml(detail,timingOptions())}${progressHtml(detail.progress,false,{paused:fitterPausedLabel(detail)})}<p>${detail.progress.completed_lines} of ${detail.progress.total_lines} items complete · Progress uses approved work hours.</p></div>
       ${detail.status==='stoppage' ? `<div class="fitter-warning"><strong>Job stopped</strong><p>${esc(detail.stoppage_reason)}</p></div>` : ''}
       <div class="fitter-actions">${['planned','queued'].includes(detail.status) ? `<button class="fitter-primary" data-fitter-action="start" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='start'?'Starting job…':'Start job'}</button><p>Start this job first. Its other unstarted bookings and affected queues move later where needed.</p>` : detail.status==='stoppage' ? `<button class="fitter-primary" data-fitter-action="resume" ${locked||!connected||!service.canWrite()?'disabled':''}>${(saving||loading)&&pendingAction==='resume'?'Resuming job…':'Resume job'}</button>` : detail.status==='started' ? `<button data-fitter-stop ${locked||!editable?'disabled':''}>Pause · parts / other stoppage</button>` : ''}</div>
       ${stopOpen&&!own.some(l=>l.line_identity===stopFrom) ? stopPanelHtml() : ''}
