@@ -85,6 +85,35 @@ function workshopIsPushLaterWarning(result) {
     && Array.isArray(result.pushes) && result.pushes.length);
 }
 
+// r571 (F185): a started or stoppage booking of this vehicle cannot move.
+// The planner can place this job immediately after it instead.
+function workshopPlaceAfterQuestion(result) {
+  const when = workshopPushLaterWhen(result?.place_after);
+  const bay = Number(result?.bay_push_count) > 0 ? '\n\nLater jobs in this bay move back too.' : '';
+  const start = when ? `\n\nThis job would start ${when} (Perth time).` : '';
+  return `${String(result?.message || 'This vehicle is already running or on stoppage at that time. That booking cannot move.')}${start}${bay}\n\nChoose OK to place this job right after it. Choose Cancel to leave everything as it is.`;
+}
+
+function workshopIsPlaceAfterWarning(result) {
+  return Boolean(result && result.ok === false && result.warning === true && result.requires_confirmation === true
+    && result.error === 'place_after_running' && typeof result.plan_hash === 'string' && result.plan_hash
+    && result.place_after);
+}
+
+async function workshopAskPlaceAfter(result, ask) {
+  if (typeof ask === 'function') return Promise.resolve(ask(workshopPlaceAfterQuestion(result)));
+  const dialog = typeof globalThis === 'object' ? globalThis.workshopPlaceAfterDialog : null;
+  if (typeof dialog === 'function' && typeof document === 'object' && document.body) return dialog(result);
+  if (typeof window === 'object' && typeof window.confirm === 'function') return window.confirm(workshopPlaceAfterQuestion(result));
+  return false;
+}
+
+function workshopConfirmedParams(current, metadata) {
+  const next = { ...current, p_metadata: { ...(current.p_metadata || {}), ...metadata } };
+  if (Object.prototype.hasOwnProperty.call(current, 'p_request_id')) next.p_request_id = workshopBayRuleRequestId();
+  return next;
+}
+
 async function workshopAskPushLater(result, ask) {
   if (typeof ask === 'function') return Promise.resolve(ask(workshopPushLaterQuestion(result)));
   const dialog = typeof globalThis === 'object' ? globalThis.workshopPushLaterDialog : null;
@@ -98,21 +127,28 @@ async function workshopConfirmBayRuleWarning(mutate, name, params, ask) {
     : (typeof window === 'object' && typeof window.confirm === 'function' ? window.confirm.bind(window) : null);
   let current = params;
   let result = await mutate(name, current);
-  // At most one bay-rule question and one push-back question per change.
-  for (let round = 0; round < 2; round += 1) {
+  // At most one bay-rule question, one place-after question and one push-back question per change.
+  for (let round = 0; round < 3; round += 1) {
     if (workshopIsBayRuleWarning(result)) {
       if (current.p_metadata?.bay_rule_confirm) return result;
       if (!confirmFn || !await Promise.resolve(confirmFn(workshopBayRuleQuestion(result)))) {
         return { ok: false, error: 'bay_rule_not_confirmed', cancelled: true, rules: result.rules };
       }
       const rules = result.rules.map(rule => String(rule?.rule || '')).filter(Boolean);
-      current = { ...current, p_metadata: { ...(current.p_metadata || {}), bay_rule_confirm: { rules } }, p_request_id: workshopBayRuleRequestId() };
+      current = workshopConfirmedParams(current, { bay_rule_confirm: { rules } });
+    } else if (workshopIsPlaceAfterWarning(result)) {
+      if (current.p_metadata?.place_after_running?.plan_hash === result.plan_hash) return result;
+      if (!await workshopAskPlaceAfter(result, ask)) {
+        return { ok: false, error: 'place_after_not_confirmed', cancelled: true, held: result.held || null };
+      }
+      current = workshopConfirmedParams(current, { place_after_running: { plan_hash: result.plan_hash } });
+      current.p_scheduled_start_at = result.place_after;
     } else if (workshopIsPushLaterWarning(result)) {
       if (current.p_metadata?.push_later_confirm) return result;
       if (!await workshopAskPushLater(result, ask)) {
         return { ok: false, error: 'later_bookings_not_confirmed', cancelled: true, pushes: result.pushes };
       }
-      current = { ...current, p_metadata: { ...(current.p_metadata || {}), push_later_confirm: { plan_hash: result.plan_hash } }, p_request_id: workshopBayRuleRequestId() };
+      current = workshopConfirmedParams(current, { push_later_confirm: { plan_hash: result.plan_hash } });
     } else {
       return result;
     }
@@ -151,7 +187,7 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
     },
 
     scheduleVehicleWork({ vehicleId, vehicleExpectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, technicianId, overrideReason, metadata }) {
-      return mutate('schedule_vehicle_work', {
+      return workshopConfirmBayRuleWarning(mutate, 'schedule_vehicle_work', {
         p_vehicle_id: vehicleId,
         p_vehicle_expected_version: vehicleExpectedVersion,
         p_stage_code: stageCode,
@@ -161,11 +197,11 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
         p_technician_id: technicianId ?? null,
         p_override_reason: overrideReason ?? null,
         p_metadata: metadata || {},
-      });
+      }, confirmBayRule);
     },
 
     moveBooking({ bookingId, expectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, overrideReason, metadata }) {
-      return mutate('move_workshop_booking', {
+      return workshopConfirmBayRuleWarning(mutate, 'move_workshop_booking', {
         p_booking_id: bookingId,
         p_expected_version: expectedVersion,
         p_stage_code: stageCode,
@@ -174,7 +210,7 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
         p_duration_minutes: durationMinutes ?? null,
         p_override_reason: overrideReason ?? null,
         p_metadata: metadata || {},
-      });
+      }, confirmBayRule);
     },
 
     resizeBooking({ bookingId, expectedVersion, durationMinutes, metadata }) {
@@ -187,7 +223,7 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
     },
 
     cascadeSchedule({ operation, targetId, targetExpectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, technicianId = null, shiftMinutes = 0, overrideReason = null, metadata = {} }) {
-      return mutate('cascade_workshop_schedule', {
+      return workshopConfirmBayRuleWarning(mutate, 'cascade_workshop_schedule', {
         p_operation: operation,
         p_target_id: targetId,
         p_target_expected_version: targetExpectedVersion,
@@ -199,7 +235,7 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
         p_shift_minutes: shiftMinutes,
         p_override_reason: overrideReason || null,
         p_metadata: metadata,
-      });
+      }, confirmBayRule);
     },
 
     setStageEstimatedMinutes({ vehicleId, vehicleExpectedVersion, bookingId, bookingExpectedVersion, stageCode, totalMinutes, idempotencyKey }) {
@@ -215,7 +251,7 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
     },
 
     cascadeMoveBooking({ bookingId, expectedVersion, stageCode, bayNumber, scheduledStartAt, durationMinutes, overrideReason = null, metadata = {} }) {
-      return mutate('cascade_workshop_booking_move', {
+      return workshopConfirmBayRuleWarning(mutate, 'cascade_workshop_booking_move', {
         p_booking_id: bookingId,
         p_expected_version: expectedVersion,
         p_stage_code: stageCode,
@@ -224,7 +260,7 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
         p_duration_minutes: durationMinutes,
         p_override_reason: overrideReason || null,
         p_metadata: metadata,
-      });
+      }, confirmBayRule);
     },
 
     changeBookingBay({ bookingId, expectedVersion, bayNumber, metadata }) {
@@ -451,7 +487,7 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { buildWorkshopSharedActions, workshopConfirmBayRuleWarning, workshopBayRuleQuestion, workshopPushLaterQuestion };
+  module.exports = { buildWorkshopSharedActions, workshopConfirmBayRuleWarning, workshopBayRuleQuestion, workshopPushLaterQuestion, workshopPlaceAfterQuestion };
 }
 if (typeof window !== 'undefined') {
   window.buildWorkshopSharedActions = buildWorkshopSharedActions;

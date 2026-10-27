@@ -1242,6 +1242,8 @@ const WORKSHOP_PLAIN_ERROR_MESSAGES = Object.freeze({
   // r424 (F38): push-back warning, bay re-order and its undo.
   later_bookings_warning: "This job would run into the same vehicle's next booking. No change was made. Drag it again and choose OK to push the later booking back.",
   later_bookings_not_confirmed: 'No change was made. The later bookings were not pushed back.',
+  // r571 (F185): Cancel on the place-after question. The running booking stays.
+  place_after_not_confirmed: 'No change was made. The job stays where it is.',
   resequence_rejected: 'This re-order could not be saved because it would overlap another booking or break a booking rule. No change was made.',
   plan_changed: 'The bay changed while you were looking at the preview. No change was made. Drag the job again to see the new preview.',
   order_unchanged: 'That would leave the bay in the same order. No change was made.',
@@ -1375,6 +1377,17 @@ function workshopDescribeSharedActionError(result) {
     return exact
       ? `This action failed before it could be confirmed. No change was saved. ${exact}`
       : 'This action is not currently available in shared mode. No change was made.';
+  }
+  if (error === 'place_after_running') {
+    const named = typeof result?.message === 'string' ? result.message.trim() : '';
+    if (named && !/23P01|exclusion constraint/i.test(named)) return named;
+    return 'This vehicle is already running or on stoppage at that time. That booking cannot move. No update was saved.';
+  }
+  const rawExclusion = `${result?.message || ''} ${result?.body?.message || ''} ${result?.code || ''} ${error || ''}`;
+  if (error === '23P01' || /workshop_bookings_active_vehicle_no_overlap/.test(rawExclusion)) {
+    const detail = typeof workshopVehicleConflictDetail === 'function' ? workshopVehicleConflictDetail(result) : '';
+    if (detail) return `This vehicle is already booked (${detail}). No update was saved.`;
+    return 'This vehicle is already booked at that time. No update was saved.';
   }
   const exact = workshopAdministratorCanMove() ? workshopAdministratorErrorDetail(result) : '';
   return exact ? `The server rejected this change. No update was saved. ${exact}` : 'The server rejected this change. No update was saved, and the planner has reloaded the current shared data.';
@@ -7226,6 +7239,24 @@ function workshopPushLaterDialog(result) {
 }
 if (typeof globalThis !== 'undefined') globalThis.workshopPushLaterDialog = workshopPushLaterDialog;
 
+// r571 (F185): the same vehicle is already running or on stoppage, so this job
+// cannot take that time. Offer the first start after that booking. The button is blue.
+function workshopPlaceAfterDialog(result) {
+  const when = workshopResequenceWhen(result?.place_after);
+  const bay = Number(result?.bay_push_count) > 0 ? '<p class="workshop-schedule-note">Later jobs in this bay move back too.</p>' : '';
+  const start = when ? `<p>This job would start <strong>${escapeHtml(when)}</strong> (Perth time).</p>` : '';
+  if (!document.getElementById('workshop-push-go-style')) {
+    const style = document.createElement('style');
+    style.id = 'workshop-push-go-style';
+    style.textContent = '.workshop-push-go{background:#1d4ed8;color:#fff;border:1px solid #1d4ed8;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}.workshop-push-go:hover{background:#1e40af}.workshop-push-go:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}';
+    document.head.appendChild(style);
+  }
+  return workshopResequenceDialog('Place this job after that booking?',
+    `<p>${escapeHtml(String(result?.message || 'This vehicle is already running or on stoppage. That booking cannot move.'))}</p>${start}${bay}`,
+    [{ value: '', label: 'Cancel' }, { value: 'place', label: 'Place after', className: 'workshop-push-go' }]).then(choice => choice === 'place');
+}
+if (typeof globalThis !== 'undefined') globalThis.workshopPlaceAfterDialog = workshopPlaceAfterDialog;
+
 function workshopResequencePreviewHtml(preview) {
   const changes = Array.isArray(preview?.changes) ? preview.changes : [];
   const rows = changes.map(change => {
@@ -7947,8 +7978,7 @@ async function scheduleWorkshopVehicle({ planId = '', vehicleKeyValue = '', stag
     const durationMinutes = Math.round(hours * 60);
     if (existing && existing.sharedBookingId) {
       if (!workshopRequireSchedulableCandidate(requestedCandidate)) return false;
-      const movingBetweenBays = normalizePmbStage(existing.stage) !== normalizedStage || Number(existing.bay) !== Number(bay);
-      const cascade = preferRequestedTime && movingBetweenBays;
+      const cascade = preferRequestedTime === true;
       const action = workshopAdministratorCanMove()
         ? 'administratorMoveBooking'
         : (cascade ? 'cascadeMoveBooking' : 'moveBooking');

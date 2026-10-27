@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <title>After — place Key 112 after the Fitting stoppage</title>
+  <style>
+    body { margin: 0; background: #d8dee6; font-family: "Segoe UI", sans-serif; color: #1d2733; }
+    .modal-overlay { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.45); }
+    .modal-card { width: min(640px, calc(100vw - 48px)); background: #fff; border-radius: 12px; padding: 22px 24px 18px; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.25); }
+    .modal-close { float: right; border: 0; background: transparent; font-size: 22px; cursor: pointer; }
+    h2 { margin: 0 0 12px; font-size: 22px; }
+    p { margin: 0 0 12px; line-height: 1.45; }
+    .edit-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+    .secondary { background: #fff; color: #1d2733; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+    .workshop-push-go { background: #1d4ed8; color: #fff; border: 1px solid #1d4ed8; border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body class="modal-open">
+  <div class="modal-overlay workshop-schedule-overlay workshop-resequence-overlay" role="dialog" aria-modal="true" aria-label="Place this job after that booking?">
+    <section class="modal-card workshop-schedule-card workshop-resequence-card">
+      <button class="modal-close" type="button" aria-label="Cancel">×</button>
+      <header><h2>Place this job after that booking?</h2></header>
+      <p>Key 112, stock 13109746, KIMBERLEY ABORIGINAL MEDICAL is on stoppage in Fitting, Unallocated, until Wed 28 Oct 07:08. That booking cannot move. Place this job right after it.</p>
+      <p>This job would start <strong>Wed 28 Oct, 08:08</strong> (Perth time).</p>
+      <div class="edit-actions">
+        <button class="secondary" type="button">Cancel</button>
+        <button class="workshop-push-go" type="button">Place after</button>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <title>Before — Key 112 Tint drop</title>
+  <style>
+    body { margin: 0; background: #eef2f6; font-family: "Segoe UI", sans-serif; }
+    .board { height: 100vh; background: repeating-linear-gradient(90deg, #e7edf3 0 1px, transparent 1px 140px); background-color: #f4f7fb; position: relative; }
+    .lane { position: absolute; left: 24px; top: 72px; width: 280px; background: #fff; border: 1px solid #d5deea; border-radius: 8px; padding: 12px 14px; }
+    .lane strong { display: block; }
+    .lane span { color: #526173; font-size: 13px; }
+    .toast { position: fixed; right: 24px; bottom: 24px; width: min(520px, calc(100vw - 48px)); background: #fff; border: 1px solid #fecaca; border-left: 4px solid #b91c1c; border-radius: 8px; padding: 12px 36px 12px 14px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15); color: #1d2733; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <div class="board">
+    <div class="lane">
+      <strong>Tint Bay 01</strong>
+      <span>Key 338 around 12:00 · Key 214 around 3:00 pm. Key 112 dropped between them.</span>
+    </div>
+  </div>
+  <div class="toast" role="status">The server rejected this change. No update was saved. conflicting key value violates exclusion constraint "workshop_bookings_active_vehicle_no_overlap" 23P01 · HTTP 400</div>
+</body>
+</html>
