@@ -13801,5 +13801,10 @@ button.vehicle-workshop-line-number:focus-visible { position: relative; z-index:
 /* r562 (F176): Key number needed uses the same blue as the New to PMB pulse. */
 .badge.pmb-key-needed { background: #dbeafe; color: #1d4ed8; border: 1px solid #1d4ed8; }
 button.pmb-push-disabled[disabled] { cursor: not-allowed; opacity: 0.7; }
+/* r563 (F177): a board-arrival age is grey. The key badge stays blue. */
+.badge.pmb-age-fallback { background: #e2e8f0; color: #334155; border: 1px solid #64748b; }
+.pmb-age-fallback-report { margin: 8px 0 12px; padding: 10px 12px; background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; border-radius: 10px; }
+.pmb-age-fallback-report h2 { margin: 0 0 4px; font-size: 14px; }
+.pmb-age-fallback-report ul { margin: 6px 0 0; padding-left: 18px; }
 .um-stations { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; max-width: 460px; }
 .um-station { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #1e3a8a; white-space: nowrap; }

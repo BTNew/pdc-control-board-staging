@@ -10,6 +10,12 @@ const context = {
   pmbEnteredTimestamp: v => v.entered, navisionEtaForVehicle: v => v.eta, incomingKewdaleAgeValue: v => v.kewdale,
   pmbVehicleHasKey: v => String(v.keyNumber || '').trim() !== '',
   pmbKeyAssignedTimestamp: v => v.keyAssignedAt || '',
+  pmbArrivalAgeTimestamp: v => {
+    const key = v.keyAssignedAt || '';
+    const tune = v.tuneImportedAt || '';
+    if (key && tune) return key <= tune ? key : tune;
+    return key || tune || v.entered || '';
+  },
   parseIsoTimestamp: s => s ? new Date(s) : null, parseDateAU: s => s ? new Date(s) : null,
 };
 vm.createContext(context);
@@ -25,10 +31,12 @@ for (const key of ['key','jobcard','customer','vehicle']) {
   assert.deepEqual(sorted(rows,key,'desc').map(v=>v.stock), ['100','20','IS9'], 'missing remains last in either direction');
 }
 const ages = [{stock:'1',keyNumber:'11',keyAssignedAt:'2026-09-01',entered:'2026-09-01',eta:'2026-09-15'},
-  {stock:'2',keyNumber:'22',keyAssignedAt:'2026-09-05',entered:'2026-09-05',eta:'2026-09-10'}, {stock:'3',entered:'2026-08-01',eta:'2026-09-01'}];
-assert.deepEqual(sorted(ages,'age').map(v=>v.stock), ['1','2','3'], 'PMB sorts the key assignment; a vehicle with no key stays last');
-assert.deepEqual(sorted(ages,'age','desc').map(v=>v.stock), ['2','1','3']);
-assert.deepEqual(sorted(ages,'age','asc','transit').map(v=>v.stock), ['3','2','1'], 'transit uses shown ETA');
+  {stock:'2',keyNumber:'22',keyAssignedAt:'2026-09-05',entered:'2026-09-05',eta:'2026-09-10'},
+  {stock:'3',entered:'2026-08-01',eta:'2026-09-01'},
+  {stock:'4',eta:'2026-09-20'}];
+assert.deepEqual(sorted(ages,'age').map(v=>v.stock), ['3','1','2','4'], 'PMB sorts the arrival instant; a vehicle with no date stays last');
+assert.deepEqual(sorted(ages,'age','desc').map(v=>v.stock), ['2','1','3','4']);
+assert.deepEqual(sorted(ages,'age','asc','transit').map(v=>v.stock), ['3','2','1','4'], 'transit uses shown ETA');
 assert.equal(rows[0].stock,'100','sorting a copy never mutates source order');
 assert.match(context.incomingSortHeadingHtml('Stock','stock',{}), /Sort Stock: ascending/);
 assert.match(context.incomingSortHeadingHtml('Stock','stock',{key:'stock',direction:'asc'}), /Sort Stock: descending/);
@@ -38,4 +46,4 @@ console.log('Vehicle Locations column sort: PASS');
 const yardRows = [{stock:'1',kewdale:'2026-09-01',eta:'2026-09-20'}, {stock:'2',kewdale:'2026-09-10',eta:'2026-08-01'}, {stock:'3',eta:'2026-01-01'}];
 assert.deepEqual(sorted(yardRows,'age','asc','yardhold').map(v=>v.stock), ['1','2','3']);
 assert.deepEqual(sorted(yardRows,'age','desc','yardhold').map(v=>v.stock), ['2','1','3']);
-assert.deepEqual(sorted(ages,'age','asc','qc').map(v=>v.stock), ['1','2','3']);
+assert.deepEqual(sorted(ages,'age','asc','qc').map(v=>v.stock), ['3','1','2','4']);

@@ -675,7 +675,9 @@ function pmbEnteredDateValue(vehicle = {}) {
   return parsed.toISOString().slice(0, 10);
 }
 
-// r562 (F176): a PMB age starts when the key number was assigned. No key is not zero days.
+// r562 (F176) recorded the key instant. r563 (F177) starts the PMB age at the
+// earlier of that instant and the first Tune import. When neither exists, the
+// board arrival is kept and flagged.
 function pmbVehicleHasKey(vehicle = {}) {
   const direct = String(vehicle.keyNumber || vehicle.keyNo || vehicle.key_number || vehicle.keyTag || vehicle.pdcKeyNumber || '').trim();
   if (direct) return true;
@@ -700,16 +702,55 @@ function pmbKeyAssignedTimestamp(vehicle = {}) {
   return row && row.assigned_at ? row.assigned_at : '';
 }
 
+function pmbArrivalAgeRow(vehicle = {}) {
+  const map = typeof app === 'undefined' ? null : app.pmbArrivalAge;
+  if (!map || typeof map.get !== 'function') return null;
+  for (const id of [vehicle.id, vehicle.__emailVehicleId, vehicle.sharedVehicleId, vehicle.permanent_vehicle_id]) {
+    const row = id ? map.get(String(id)) : null;
+    if (row) return row;
+  }
+  return null;
+}
+
+function pmbTuneImportedTimestamp(vehicle = {}) {
+  const direct = vehicle.tuneImportedAt || vehicle.tune_imported_at || '';
+  if (direct) return direct;
+  const row = pmbArrivalAgeRow(vehicle);
+  return row && row.tune_at ? row.tune_at : '';
+}
+
+function pmbArrivalAgeBasis(vehicle = {}) {
+  const directKey = vehicle.keyAssignedAt || vehicle.key_assigned_at || '';
+  const directTune = vehicle.tuneImportedAt || vehicle.tune_imported_at || '';
+  const row = pmbArrivalAgeRow(vehicle);
+  if (!directKey && !directTune && row && row.basis) return row.basis;
+  const keyAt = directKey || (pmbVehicleHasKey(vehicle) ? pmbKeyAssignedTimestamp(vehicle) : '');
+  const tuneAt = directTune || (row && row.tune_at) || '';
+  const keyMs = keyAt ? parseIsoTimestamp(keyAt)?.getTime() : NaN;
+  const tuneMs = tuneAt ? parseIsoTimestamp(tuneAt)?.getTime() : NaN;
+  if (Number.isFinite(keyMs) && Number.isFinite(tuneMs)) return keyMs <= tuneMs ? 'key' : 'tune';
+  if (Number.isFinite(keyMs)) return 'key';
+  if (Number.isFinite(tuneMs)) return 'tune';
+  return 'fallback';
+}
+
+function pmbArrivalAgeTimestamp(vehicle = {}) {
+  const basis = pmbArrivalAgeBasis(vehicle);
+  const row = pmbArrivalAgeRow(vehicle);
+  if (basis === 'key') return pmbKeyAssignedTimestamp(vehicle) || row?.key_at || row?.arrived_at || '';
+  if (basis === 'tune') return pmbTuneImportedTimestamp(vehicle) || row?.arrived_at || '';
+  return pmbEnteredTimestamp(vehicle) || vehicle.dateToPmb || vehicle.date_to_pmb || row?.date_to_pmb || '';
+}
+
 function pmbAgeDays(vehicle = {}) {
-  if (!pmbVehicleHasKey(vehicle)) return null;
-  return daysSinceTimestamp(pmbKeyAssignedTimestamp(vehicle));
+  return daysSinceTimestamp(pmbArrivalAgeTimestamp(vehicle));
 }
 
 function pmbAgeLabel(vehicle = {}) {
   if (typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
-  if (!pmbVehicleHasKey(vehicle)) return 'No key';
+  if (typeof ensurePmbArrivalAge === 'function') ensurePmbArrivalAge();
   const days = pmbAgeDays(vehicle);
-  if (days === null) return '—';
+  if (days === null) return pmbVehicleHasKey(vehicle) ? '—' : 'No key';
   return `${days} day${days === 1 ? '' : 's'}`;
 }
 
@@ -746,15 +787,23 @@ function partsEtaCounterClass(vehicle = {}) {
 }
 
 function pmbAgeDetailText(vehicle = {}) {
-  if (!pmbVehicleHasKey(vehicle)) return 'No key number, so there is no PMB age';
+  const basis = pmbArrivalAgeBasis(vehicle);
   const days = pmbAgeDays(vehicle);
-  if (days === null) return 'Key number date not recorded';
+  if (basis === 'tune') {
+    if (days === null) return 'Tune import date not recorded';
+    if (days === 0) return 'First Tune import was today';
+    return `${days} day${days === 1 ? '' : 's'} since this vehicle first appeared in a Tune import`;
+  }
+  if (basis === 'fallback') {
+    if (days === null) return 'No key history and no Tune import, so there is no PMB age';
+    return `${days} day${days === 1 ? '' : 's'} since the board arrival. No key history and no Tune import.`;
+  }
+  if (days === null) return pmbVehicleHasKey(vehicle) ? 'Key number date not recorded' : 'No key number, so there is no PMB age';
   if (days === 0) return 'Key number assigned today';
   return `${days} day${days === 1 ? '' : 's'} since the key number was assigned`;
 }
 
 function pmbAgeClass(vehicle = {}) {
-  if (!pmbVehicleHasKey(vehicle)) return 'unknown';
   const days = pmbAgeDays(vehicle);
   if (days === null) return 'unknown';
   if (days > 30) return 'critical';
@@ -8279,6 +8328,27 @@ function pmbKeyNeededBadgeHtml(vehicle = {}) {
   return `<span class="badge pmb-key-needed" title="A key number is needed before this vehicle can move from New to PMB into PMB.">Key number needed</span>`;
 }
 
+function pmbArrivalAgeFlagHtml(vehicle = {}) {
+  if (pmbArrivalAgeBasis(vehicle) !== 'fallback') return '';
+  const missing = pmbAgeDays(vehicle) === null;
+  const title = missing
+    ? 'No key history and no Tune import, so there is no PMB age.'
+    : 'This age is the board arrival. There is no key history and no Tune import.';
+  const label = missing ? 'Arrival date not on file' : 'Board arrival';
+  return `<span class="badge pmb-age-fallback" title="${escapeHtml(title)}">${label}</span>`;
+}
+
+function pmbArrivalAgeReportHtml(rows = []) {
+  const flagged = (Array.isArray(rows) ? rows : []).filter(vehicle => {
+    const bucket = typeof vehicleLocationsDisplayBucket === 'function' ? vehicleLocationsDisplayBucket(vehicle) : '';
+    if (bucket && bucket !== 'pmb' && bucket !== 'newpmb' && bucket !== 'qc') return false;
+    return pmbArrivalAgeBasis(vehicle) === 'fallback';
+  });
+  if (!flagged.length) return '';
+  const items = flagged.map(vehicle => `<li>${escapeHtml(displayStockNumber(vehicle) || vehicleKey(vehicle))}</li>`).join('');
+  return `<section class="pmb-age-fallback-report" aria-label="Arrival date not on file"><h2>Arrival date not on file</h2><p>${flagged.length} vehicle${flagged.length === 1 ? '' : 's'} use the board arrival. No key history and no Tune import.</p><ul>${items}</ul></section>`;
+}
+
 const PMB_KEY_NEEDED_TITLE = 'A key number is needed before this vehicle can move from New to PMB into PMB.';
 
 function pmbArrivalActionHtml(vehicle = {}, key = '') {
@@ -8401,6 +8471,38 @@ function ensurePmbKeyAssigned() {
     app.pmbKeyAssignedLoading = false;
     app.pmbKeyAssignedLoadedAt = started;
     app.pmbKeyAssignedRevision = revisionAtStart;
+  });
+}
+
+function ensurePmbArrivalAge() {
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!client || typeof client.rpc !== 'function' || !window.PDC_AUTH_CONTEXT) return;
+  if (app.pmbArrivalAgeLoading) return;
+  const revision = app.emailVehicleLocationRevision;
+  const revisionChanged = String(revision ?? '') !== String(app.pmbArrivalAgeRevision ?? '');
+  if (!revisionChanged && app.pmbArrivalAgeLoadedAt && Date.now() - app.pmbArrivalAgeLoadedAt < 15000) return;
+  app.pmbArrivalAgeLoading = true;
+  const started = Date.now();
+  const revisionAtStart = revision;
+  client.rpc('list_pmb_arrival_age_563').then(result => {
+    app.pmbArrivalAgeLoading = false;
+    app.pmbArrivalAgeLoadedAt = started;
+    app.pmbArrivalAgeRevision = revisionAtStart;
+    if (result?.error) return;
+    const next = new Map();
+    (Array.isArray(result?.data) ? result.data : []).forEach(row => {
+      if (row?.vehicle_id) next.set(String(row.vehicle_id), row);
+    });
+    const signature = [...next.entries()].map(([id, row]) => `${id}|${row.basis}|${row.arrived_at || ''}|${row.key_at || ''}|${row.tune_at || ''}`).sort().join('\n');
+    const changed = signature !== app.pmbArrivalAgeSignature;
+    app.pmbArrivalAge = next;
+    app.pmbArrivalAgeSignature = signature;
+    if (changed && app.currentView === 'dashboard' && typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
+    if (changed && app.currentView === 'qc' && typeof renderQualityControlPage === 'function') renderQualityControlPage();
+  }).catch(() => {
+    app.pmbArrivalAgeLoading = false;
+    app.pmbArrivalAgeLoadedAt = started;
+    app.pmbArrivalAgeRevision = revisionAtStart;
   });
 }
 
@@ -9297,19 +9399,23 @@ function incomingVehicleAge(vehicle = {}, bucketKey = '') {
   if (!atPmb && !atYardHold) {
     return { label: bucketKey === 'nonnavision' ? 'Unconfirmed' : locationAgeLabel(vehicle), colourClass: '', title: '' };
   }
-  // r562 (F176): PMB, New to PMB and QC count from the key number. No key is
-  // not zero, and a missing key date does not fall back to the arrival or a Kewdale ETA.
+  // r563 (F177): PMB, New to PMB and QC count from the earlier of the key
+  // number and the first Tune import. When neither exists, the board arrival
+  // is kept and flagged.
   if (atPmb && typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
-  if (atPmb && !pmbVehicleHasKey(vehicle)) {
-    return { label: 'No key', colourClass: 'pmb-age-unknown', title: 'No key number, so there is no PMB age' };
-  }
+  if (atPmb && typeof ensurePmbArrivalAge === 'function') ensurePmbArrivalAge();
   const days = atPmb ? pmbAgeDays(vehicle) : daysSinceDateValue(incomingKewdaleAgeValue(vehicle));
   const count = days === null ? null : Math.abs(days);
-  const duration = count === null ? '—' : `${count} day${count === 1 ? '' : 's'}`;
+  const duration = count === null ? (atPmb && !pmbVehicleHasKey(vehicle) ? 'No key' : '—') : `${count} day${count === 1 ? '' : 's'}`;
+  const basis = atPmb ? pmbArrivalAgeBasis(vehicle) : '';
+  const title = !atPmb ? 'Days since Kewdale ETA'
+    : basis === 'tune' ? (days === null ? 'Tune import date not recorded' : 'Days since this vehicle first appeared in a Tune import')
+    : basis === 'fallback' ? (days === null ? 'No key history and no Tune import, so there is no PMB age' : 'Days since the board arrival. No key history and no Tune import.')
+    : (days === null ? 'Key number date not recorded' : 'Days since the key number was assigned');
   return {
     label: days !== null && days < 0 ? `Due in ${duration}` : duration,
     colourClass: `pmb-age-${vehicleAgeColourBand(days)}`,
-    title: atPmb ? (days === null ? 'Key number date not recorded' : 'Days since the key number was assigned') : 'Days since Kewdale ETA',
+    title,
   };
 }
 
@@ -9399,7 +9505,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
           ? `<span class="rft-row-controls-slot">${rftControls}</span>`
           : `<span class="incoming-card-work-wrap">${workChecks}</span>
         <span class="incoming-card-meta incoming-card-age ${escapeHtml(locationAge.colourClass)}" title="${escapeHtml(locationAge.title)}"><b>${bucketKey === 'pmb' || bucketKey === 'newpmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(locationAge.label)}</span></span>
-        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}${typeof pmbKeyNeededBadgeHtml === 'function' ? pmbKeyNeededBadgeHtml(vehicle) : ''}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}</span></span>
+        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}${typeof pmbKeyNeededBadgeHtml === 'function' ? pmbKeyNeededBadgeHtml(vehicle) : ''}${typeof pmbArrivalAgeFlagHtml === 'function' ? pmbArrivalAgeFlagHtml(vehicle) : ''}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}</span></span>
         <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}${labelAction}${deleteAction}</span>`}
       </summary>
       <div class="incoming-vehicle-detail-grid">
@@ -9562,7 +9668,7 @@ function incomingCompareVehicles(a, b, sort = {}, bucket = '') {
       case 'customer': return text(vehicleCustomerName(vehicle));
       case 'vehicle': return text(displayVehicle(vehicle));
       case 'age': return (bucket === 'pmb' || bucket === 'newpmb' || bucket === 'qc'
-        ? (pmbVehicleHasKey(vehicle) ? parseIsoTimestamp(pmbKeyAssignedTimestamp(vehicle)) : null)
+        ? parseIsoTimestamp(pmbArrivalAgeTimestamp(vehicle))
         : parseDateAU(bucket === 'yardhold' ? incomingKewdaleAgeValue(vehicle) : navisionEtaForVehicle(vehicle)))?.getTime() ?? null;
       default: return parseDateAU(navisionEtaForVehicle(vehicle))?.getTime() ?? null;
     }
@@ -9593,6 +9699,7 @@ function renderIncomingDashboardBoardContent() {
   if (!host) return;
   if (typeof ensurePmbArrivalAck === 'function') ensurePmbArrivalAck();
   if (typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
+  if (typeof ensurePmbArrivalAge === 'function') ensurePmbArrivalAge();
   const disclosureState = app.vehicleLocationsRefreshDisclosure || captureIncomingBoardDisclosureState(host);
   const workshopProjectionAvailable = ensureDashboardWorkshopProjectionReady();
   const workshopPlans = workshopProjectionAvailable && typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : null;
@@ -9636,7 +9743,8 @@ function renderIncomingDashboardBoardContent() {
     <div class="incoming-priority-stoppages-head"><strong>STOPPAGES / Fix First</strong><span>${priorityRows.length} active</span></div>
     <details class="fix-first-list incoming-priority-list"><summary>Show STOPPAGES</summary><div class="fix-first-list-body">${fixFirstRowsHtml(priorityRows)}</div></details>
   </section>`;
-  host.innerHTML = sharedNavisionLocationsStatusHtml() + workStatusLegendHtml() + priorityHtml + defs.map(def => {
+  const ageReport = typeof pmbArrivalAgeReportHtml === 'function' ? pmbArrivalAgeReportHtml(rows) : '';
+  host.innerHTML = sharedNavisionLocationsStatusHtml() + workStatusLegendHtml() + ageReport + priorityHtml + defs.map(def => {
     if (filters.bucket && filters.bucket !== def.key) return '';
     const vehicles = (rowsByBucket.get(def.key) || [])
       .sort((a, b) => incomingCompareVehicles(a, b, sort, def.key));
@@ -11229,7 +11337,7 @@ function pmbCardDetailHtml(vehicle = {}) {
   const blocker = blocked ? (partsStoppageReason(vehicle) || vehicle.pdcBlockedReason || 'Parts/PMB STOPPAGE') : 'No Parts STOPPAGE';
   return `<span class="pmb-pill-vehicle" title="${escapeHtml(unit)}">${escapeHtml(unit)}</span>
     <span class="pmb-pill-meta">
-      <span class="pmb-card-age pmb-age-${escapeHtml(pmbAgeClass(vehicle))}">${escapeHtml(pmbLifecycleAgeLabel(vehicle))}</span>
+      <span class="pmb-card-age pmb-age-${escapeHtml(pmbAgeClass(vehicle))}">${escapeHtml(pmbLifecycleAgeLabel(vehicle))}</span>${typeof pmbArrivalAgeFlagHtml === 'function' ? pmbArrivalAgeFlagHtml(vehicle) : ''}
       <span class="pmb-pill-blocker ${blocked ? 'is-blocked' : ''}" title="${escapeHtml(blocker)}">${escapeHtml(blocked ? 'Parts STOPPAGE' : 'No STOPPAGE')}</span>
     </span>
     <span class="pmb-pill-sales" title="${escapeHtml(consultant)}">${escapeHtml(consultant)}</span>`;

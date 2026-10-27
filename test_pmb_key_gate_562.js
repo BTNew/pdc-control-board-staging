@@ -30,6 +30,10 @@ function board() {
 
 test('a vehicle with no key cannot complete the move into PMB', () => {
   const { c } = board();
+  const realDate = Date;
+  c.Date = class extends realDate {
+    constructor(...args) { super(...(args.length ? args : ['2026-10-27T12:00:00+08:00'])); }
+  };
   const waiting = c.app.data[0];
   c.app.pmbArrivalAck = new Map([[waiting.id, {
     vehicle_id: waiting.id, viewer_pending: true, source: 'location', departments: [
@@ -43,8 +47,11 @@ test('a vehicle with no key cannot complete the move into PMB', () => {
   assert.match(row, /A key number is needed before this vehicle can move from New to PMB into PMB\./);
   assert.doesNotMatch(row, /data-pmb-ack=/);
   assert.match(row, /disabled/);
-  assert.equal(c.incomingVehicleAge(waiting, 'newpmb').label, 'No key');
-  assert.equal(c.pmbLifecycleAgeLabel(waiting), 'No key');
+  assert.equal(c.incomingVehicleAge(waiting, 'newpmb').label, '7 days');
+  assert.match(c.incomingVehicleAge(waiting, 'newpmb').title, /board arrival/);
+  assert.match(row, /class="badge pmb-age-fallback"/);
+  assert.match(row, /Board arrival/);
+  assert.equal(c.pmbLifecycleAgeLabel(waiting), '7 days');
   const action = c.pmbArrivalActionHtml(waiting, '13102818');
   assert.match(action, /disabled/);
   assert.doesNotMatch(action, /data-pmb-ack/);
@@ -106,8 +113,15 @@ test('PMB age follows the key assignment, not the arrival', () => {
   assert.equal(c.pmbAgeLabel(waiting), '1 day');
   delete waiting.keyNumber;
   c.app.pmbKeyAssigned = new Map();
+  assert.equal(c.incomingVehicleAge(waiting, 'pmb').label, '6 days');
+  assert.match(c.incomingVehicleAge(waiting, 'pmb').title, /board arrival/);
+  assert.match(c.pmbArrivalAgeFlagHtml(waiting), /Board arrival/);
+  delete waiting.pmbEnteredAt;
+  delete waiting.firstEnteredPmbAt;
+  waiting.lifecycleHistory = {};
   assert.equal(c.incomingVehicleAge(waiting, 'pmb').label, 'No key');
   assert.notEqual(c.incomingVehicleAge(waiting, 'pmb').label, '0 days');
+  assert.match(c.pmbArrivalAgeFlagHtml(waiting), /Arrival date not on file/);
 });
 
 test('the key list refetches when the location revision changes', () => {

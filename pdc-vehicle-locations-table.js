@@ -63,7 +63,7 @@
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.27.r562'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r557 (F171) New to PMB tile, r562 (F176) key-number gate (cache-busts this module)
+  const VERSION = '2026.10.27.r563'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r557 (F171) New to PMB tile, r562 (F176) key-number gate, r563 (F177) arrival age (cache-busts this module)
   // r485 (F98): the one switch for the hidden Drop-down view. false = Table view only (Craig 22 Oct). true = r481 behaviour.
   const DROPDOWN_VIEW_ENABLED = false;
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
@@ -518,6 +518,7 @@
     const workshopPlans = workshopProjectionAvailable && typeof root.workshopLoadPlans === 'function' ? root.workshopLoadPlans() : null;
     const rows = root.vehicleLocationsScreenRows();
     if (typeof root.ensurePmbArrivalAck === 'function') root.ensurePmbArrivalAck();
+    if (typeof root.ensurePmbArrivalAge === 'function') root.ensurePmbArrivalAge();
     const appState = app;
     // Same housekeeping as the drop-down render (renderIncomingDashboardBoardContent).
     if (!root.sharedNavisionLocationAuthorityReady() && appState.vehicleLocationsRefreshState !== 'refreshing') appState.selectedRows.clear();
@@ -607,7 +608,8 @@
         ? `No vehicle${filters.department ? ` in ${esc(departmentName(filters.department))}` : ''} matches “${esc(filters.search)}”${scope.found.length ? ' on this tile' : ''}${elsewhere.length ? ` · found in ${esc(elsewhere.map(group => departmentName(group.code)).join(', '))} (see above)` : ''}`
         : 'No vehicles match this tile and the search filters'}</td></tr>`;
     const keepDrawer = !drawerOpener && ui.keepDrawer && state.openKey && shown.some(entry => entry.key === state.openKey) ? ui.drawerNode : null;
-    host.innerHTML = `${tilesHtml}${elsewhereHtml(elsewhere)}
+    const ageReport = typeof root.pmbArrivalAgeReportHtml === 'function' ? root.pmbArrivalAgeReportHtml(rows) : '';
+    host.innerHTML = `${tilesHtml}${ageReport}${elsewhereHtml(elsewhere)}
       <section class="vlt-panel" aria-label="Vehicle locations table">
         <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
         <div class="vlt-table-wrap"><table class="vlt-table${Object.keys(state.widths).length ? ' has-custom-widths' : ''}${/data-select-stock/.test(bodyHtml) ? ' has-select' : ''}">

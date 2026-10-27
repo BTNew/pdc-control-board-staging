@@ -133,7 +133,8 @@ const approvedRootImportPatch = Object.freeze({
   // Department 135 is not tagged and keeps the orange paint. The colour token and the labels stay.
   // r557: New to PMB flashes blue, and prefers-reduced-motion keeps a solid blue (F171). Department 135 is not tagged.
   // r562: the Key number needed badge is blue (#dbeafe / #1d4ed8), not orange (F176). Department 135 is not tagged.
-  "styles.css": "a8fb773154f77d09ef3e4f7def7d9a225ef3fbbb4e2e7040748c0d78449be86f",
+  // r563: a board-arrival age is grey (#e2e8f0). Department 135 is not tagged.
+  "styles.css": "db8fdba0496351e91e5e4b6668b42f3635821c4bd01ec4e6a38db6f1d8e288ad",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
   "scripts/build_pages_runtime.js": "cd1a534ae7b8b7a004080b55ef39edd0633f8fd598622b07c70f2bf8f2a9f55d",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
@@ -178,7 +179,8 @@ const approvedRootImportPatch = Object.freeze({
   // r557: the Vehicle Locations table loads with r557=2026.10.27.r557 (New to PMB, F171). Department 135 keeps its frozen loader.
   // r560: vehicle-slideout=2026.10.27.r560 (More details link to the vehicle card; F174). Department 135 keeps its frozen loader.
   // r562: the table loader also carries r562=2026.10.27.r562 (key-number gate, F176). Department 135 is not tagged.
-  "canonical-entry.js": "085310b3d993bf388294c099c685002ae700b9a005b0600215c67c58c5aacb12",
+  // r563: the table loader also carries r563=2026.10.27.r563 (arrival age, F177). Department 135 is not tagged.
+  "canonical-entry.js": "be2338001faa68921f557533b0618ef8088c11243e3324310a584659e500ea27",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -240,8 +242,9 @@ const approvedRootImportPatch = Object.freeze({
   // r557: New to PMB tile and acknowledgement (F171). Department 135 keeps its frozen app.js.
   // r560: stock numbers open the Vehicle Locations side panel; More details opens the vehicle card (F174). Department 135 keeps its frozen app.js.
   // r561: r561=2026.10.27.r561 on both workshop-planner.js loads (slim planner header, F175). Department 135 is not tagged.
-  // r562: a vehicle cannot leave New to PMB without a key number, and the PMB age starts when that key was assigned (F176). Department 135 is not tagged. app.js keeps r560 for the stock panel and adds r562.
-  "app.js": "2fd401e19631a007777b17a5c0d41010a7db07fb5e214dc3c31d1bc53c4ecf98",
+  // r562: a vehicle cannot leave New to PMB without a key number (F176). Department 135 is not tagged. app.js keeps r560 for the stock panel and adds r562.
+  // r563: the PMB age is the earlier of that key instant and the first Tune import (F177). Department 135 is not tagged.
+  "app.js": "05791687bbeee22901f556e067c23022bc3ab362a5ef0140ab13cd736f45f5d6",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -356,7 +359,8 @@ const approvedRootImportPatch = Object.freeze({
   // r560: index.html adds r560=2026.10.27.r560 on app.js (stock opens side panel, F174). Department 135 is not tagged.
   // r561: r561=2026.10.27.r561 on workshop-planner.css (slim planner header, F175). Department 135 is not tagged.
   // r562: index.html adds r562=2026.10.27.r562 on canonical-entry.js, app.js and styles.css (key-number gate, F176). The stock-panel r560 on app.js stays. Department 135 is not tagged.
-  "index.html": "4607fce97ae424e8f6e7ffee37e529913617e6959f7387b02ebf3f8ad4b61aa6",
+  // r563: index.html adds r563=2026.10.27.r563 on canonical-entry.js, app.js and styles.css (arrival age, F177). Department 135 is not tagged.
+  "index.html": "3cfd619cd4345cc46e0fd7d46731403fc4a97f7849c4695f20dbdf7379d092dd",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
