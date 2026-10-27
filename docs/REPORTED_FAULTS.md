@@ -14,7 +14,9 @@ The board function is not pinned. Pin count stays 241. Department 135 stays `fd0
 
 Up `supabase/migrations/20261028063000_r586_board_waiter_cache.sql` file md5 `3eee2d7a0096acabe78390d037acf419`. Down `supabase/rollbacks/20261028063000_r586_board_waiter_cache.down.sql` file md5 `3ce8e597edee4a773316fcac7b90ae00`.
 
-The clock before the apply was green: 767 runs since r552, p95 75 ms, 0 whole-tick failures in 24 hours.
+The clock before the apply was green: 767 runs since r552, p95 75 ms, 0 whole-tick failures in 24 hours. Baseline was 127 checks and 0 red. A fresh five-call sample was not taken before the apply: the stored snapshot was already stale, and calling the old function would have taken the blocking lock. Ledger `20261027222945` `r586_board_waiter_cache`. No rollback.
+
+After, five direct calls, median 220.0 ms: 928.9 ms (the rebuild), then 203.4, 220.0, 220.4 and 219.3 ms. All five returned the same JSON, md5 `ac2219fd1e57212b8a5ce02c8881e224`, 16275814 bytes, and that JSON matched a strip of the location snapshot in the same transaction. Five conditional calls, median 297.4 ms: 423.8, 297.4, 291.2, 298.7, 292.1 ms, 16275860 bytes. Dropping `snapshot_token` leaves the same md5. No session was waiting on an advisory lock. The post-check was 128 checks and 0 red.
 
 ### Check
 
