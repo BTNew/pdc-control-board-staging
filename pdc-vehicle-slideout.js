@@ -721,7 +721,8 @@
     const parts = VLT.splitCard(cardHtml);
     const text = el => (el?.inner || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
     const keyNo = text(parts.key) || '—';
-    const jobs = (vehicle.pdcJobCardNumbers || []).join(' · ') || vehicle.jobCardNumber || '—';
+    const openCards = typeof root.pdcOpenJobCards === 'function' ? root.pdcOpenJobCards(vehicle) : [];
+    const jobs = openCards.length ? openCards.join(' · ') : ((vehicle.pdcJobCardNumbers || []).join(' · ') || vehicle.jobCardNumber || '—');
     const depts = (vehicle.pdcDepartmentCodes || []).map(d => `<em class="vso-dept">${esc(d)}</em>`).join('') || '—';
     panel.innerHTML = `<header class="vso-head">
         <div class="vso-id"><span class="vlt-pill ${esc(tile[2])}">${esc(tile[3])}</span>

@@ -4693,7 +4693,8 @@ function workshopQueueVehicleDescription(vehicle = {}) {
 
 function workshopVehicleIdentitySummaryHtml(vehicle = {}) {
   const stock = cleanNavisionText(typeof displayStockNumber === 'function' ? displayStockNumber(vehicle) : vehicle.stock || vehicle.stock_number) || 'Unknown';
-  const jobCard = cleanNavisionText(typeof vehicleJobcardNumber === 'function' ? vehicleJobcardNumber(vehicle) : vehicle.jobcard || vehicle.job_card_number) || 'Unknown';
+  const stackedCards = typeof pdcOpenJobCardLabel === 'function' ? pdcOpenJobCardLabel(vehicle) : '';
+  const jobCard = stackedCards || cleanNavisionText(typeof vehicleJobcardNumber === 'function' ? vehicleJobcardNumber(vehicle) : vehicle.jobcard || vehicle.job_card_number) || 'Unknown';
   const location = cleanNavisionText(vehicle.sourceLocationStatus || vehicle.navisionLocationStatus || vehicle.currentLocation || vehicle.pdcLocation) || 'Unknown';
   return `<strong><span class="vehicle-copyable-field">JC ${escapeHtml(jobCard)}</span> · <span class="vehicle-copyable-field">Stock ${escapeHtml(stock)}</span></strong><small class="workshop-vehicle-location">Location: ${escapeHtml(location)}</small>`;
 }
