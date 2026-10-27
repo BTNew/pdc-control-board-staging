@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="utf-8">
+  <title>After — push the other station back</title>
+  <link rel="stylesheet" href="../../styles.css">
+  <link rel="stylesheet" href="../../workshop-planner.css">
+  <style>
+    body { margin: 0; background: #d8dee6; font-family: "Segoe UI", sans-serif; }
+    .workshop-push-go { background: #1d4ed8; color: #fff; border: 1px solid #1d4ed8; border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
+    .modal-overlay { display: flex; }
+  </style>
+</head>
+<body class="modal-open">
+  <div class="modal-overlay workshop-schedule-overlay workshop-resequence-overlay" role="dialog" aria-modal="true" aria-label="Push the other station back?">
+    <section class="modal-card workshop-schedule-card workshop-resequence-card">
+      <button class="modal-close" type="button" aria-label="Cancel">×</button>
+      <header><h2>Push the other station back?</h2></header>
+      <p>This drop would book this vehicle in two places at once. Push the other station back so an hour stays clear, and later jobs in this bay move back too.</p>
+      <ul class="workshop-resequence-changes">
+        <li>Key 214 · stock 13047384 · MAIN ROADS · Tint · Tint Bay 01: Tue 27 Oct, 11:30 → <strong>Wed 28 Oct, 14:15</strong></li>
+        <li>Key 214 · stock 13047384 · MAIN ROADS · Hoist · Unallocated: Tue 27 Oct, 13:00 → <strong>after this job, with an hour clear</strong></li>
+      </ul>
+      <p class="workshop-schedule-note">Later jobs in this bay move back too. Key 338 stays in Thanh's bay and moves later.</p>
+      <div class="edit-actions">
+        <button class="secondary" type="button">Cancel</button>
+        <button class="workshop-push-go" type="button">Push back</button>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
