@@ -218,8 +218,17 @@
   }
   // r475: the parts ETA chip (pdc-parts-eta.js chipHtml, r436 or r475 markup) lifted out of the Vehicle cell verbatim; the
   // wrapper it sat in is dropped once empty. Returns the Vehicle cell without it, the chip, and its ISO date.
+  // r567 (F181): a typed stoppage slot, when the card has one, is lifted the same way. It has no nested div.
+  // The date on the row is the date the slot shows (a typed date, otherwise the email date). A card with only
+  // the email chip is unchanged.
   const ETA_CHIP = /<span class="pdc-parts-eta pdc-parts-eta-(?:ok|due|overdue)"[^>]*>(?:<span class="pdc-parts-eta-k">[^<]*<\/span>)?[^<]*<\/span>/;
+  const STOPPAGE_SLOT = /<div class="pdc-parts-stoppage-slot"[^>]*>[\s\S]*?<\/div>/;
   function extractPartsEta(unitHtml = '') {
+    const slot = STOPPAGE_SLOT.exec(unitHtml);
+    if (slot) {
+      const unit = unitHtml.replace(slot[0], '').replace(/<span class="pdc-parts-eta-wrap">\s*<\/span>/, '');
+      return { unit, span: slot[0], eta: attrOf(slot[0], 'data-parts-eta') };
+    }
     const m = ETA_CHIP.exec(unitHtml);
     if (!m) return { unit: unitHtml, span: '', eta: '' };
     const unit = unitHtml.replace(m[0], '').replace(/<span class="pdc-parts-eta-wrap">\s*<\/span>/, '');
@@ -614,7 +623,7 @@
         <div class="vlt-panel-header"><h2>Vehicle locations</h2><p>${filterNote}</p>${root.workStatusLegendHtml()}<button type="button" class="vlt-reset-cols" data-vlt-reset-cols${Object.keys(state.widths).length ? '' : ' disabled'} title="Put every column back to its standard width">Reset columns</button></div>
         <div class="vlt-table-wrap"><table class="vlt-table${Object.keys(state.widths).length ? ' has-custom-widths' : ''}${/data-select-stock/.test(bodyHtml) ? ' has-select' : ''}">
           <colgroup><col class="c-sel"><col class="c-key"><col class="c-stock"><col class="c-job"><col class="c-cust"><col class="c-unit"><col class="c-ploc"><col class="c-eta"><col class="c-work"><col class="c-age"><col class="c-status"><col class="c-action"></colgroup>
-          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-eta"><span title="Parts ETA from parts staff emails (Perth dates). Hover a date for the source email.">Parts ETA</span>${grip('eta')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
+          <thead><tr><th class="c-sel"></th><th class="c-key">${heading('Key', 'key')}${grip('key')}</th><th class="c-stock">${heading('Stock', 'stock')}${grip('stock')}</th><th class="c-job">${heading('Job Card', 'jobcard')}${grip('job')}</th><th class="c-cust">${heading('Customer', 'customer')}${grip('cust')}</th><th class="c-unit">${heading('Vehicle', 'vehicle')}${grip('unit')}</th><th class="c-ploc">${partsHeading}${grip('ploc')}</th><th class="c-eta"><span title="Parts ETA. A typed date wins over the parts-staff email. Overdue dates are red. Hover for the note and who last checked.">Parts ETA</span>${grip('eta')}</th><th class="c-work">${grip('work')}</th><th class="c-age">${heading('Age / ETA', 'age')}${grip('age')}</th><th class="c-status">Status${grip('status')}</th><th class="c-action">Booking${grip('action')}</th></tr></thead>
           <tbody>${bodyHtml}</tbody></table></div>
       </section>`;
     const holder = doc.createElement('div');

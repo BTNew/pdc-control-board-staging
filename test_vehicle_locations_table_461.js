@@ -199,7 +199,8 @@ test('compact CSS never changes a station cell\'s colour (size and spacing only)
 test('loader: r461 cache-bust tags, runtime files, and pdc-auto-reload.js stays the first script', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461/);
-  assert.ok(entry.indexOf('keyNumber.onload = loadVehicleLocationsTable') > 0, 'loads after the key number module');
+  assert.ok(entry.indexOf('keyNumber.onload = loadPartsStoppage') > 0, 'the typed parts ETA loads after the key number');
+  assert.ok(entry.indexOf('stoppage.onload = loadVehicleLocationsTable') > entry.indexOf('keyNumber.onload = loadPartsStoppage'), 'the table loads after the typed parts ETA');
   const module = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.match(module, new RegExp(`const VERSION = '${VERSION.replace(/\./g, '\\.')}'`));
   assert.match(module, /pdc-vehicle-locations-table\.css\?vehicle-locations-table=\$\{VERSION\}/);
