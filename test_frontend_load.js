@@ -31,6 +31,7 @@ const STARTUP_ORDER = [
   'navision-vin.js',
   'pdc-ai-intake-service.js',
   'workshop-eligibility.js',
+  'pdc-workshop-vehicle-search.js',
   'workshop-navigation.js',
   'vehicle-requirements-guard.js',
   'pdc-email-vehicle-location-service.js',
