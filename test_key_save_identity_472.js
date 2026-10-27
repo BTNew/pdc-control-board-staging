@@ -128,7 +128,7 @@ test('the wrapped app.js functions still exist with these names (locked file, re
 
 test('loader: pdc-key-number.js cache-busted r472; index.html cache-busts canonical-entry.js', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
-  assert.match(entry, /keyNumber\.src = 'pdc-key-number\.js\?key-number=2026\.10\.22\.r460&r472=2026\.10\.22\.r472(&r490=2026\.10\.23\.r490)?';/); // r490 (F103) appends its own tag
+  assert.match(entry, /keyNumber\.src = 'pdc-key-number\.js\?key-number=2026\.10\.22\.r460&r472=2026\.10\.22\.r472&r490=2026\.10\.23\.r490&r575=2026\.10\.27\.r575';/); // r490 (F103) and r575 (F189) append their own tags
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r472=2026\.10\.22\.r472&amp;/);
   assert.equal(key.R472, '2026.10.22.r472');
 });

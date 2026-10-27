@@ -3306,6 +3306,24 @@ function activePmbVehicleWithKeyNumber(keyNumber = '', currentKey = '') {
   }) || null;
 }
 
+function boardKeyToken(value = '') {
+  return String(value || '').replace(/\s+/g, '').toUpperCase();
+}
+
+function boardVehicleWithSameKey(keyNumber = '', currentKey = '') {
+  const token = boardKeyToken(keyNumber);
+  if (!token || /^0+$/.test(token)) return null;
+  return (app.data || []).find(vehicle => {
+    const key = vehicleKey(vehicle);
+    return key !== String(currentKey || '').trim() && boardKeyToken(vehicleKeyNumber(vehicle)) === token;
+  }) || null;
+}
+
+function keyAlreadyOnStockSentence(keyNumber = '', vehicle = {}) {
+  const stock = displayStockNumber(vehicle) || '(no stock)';
+  return `Key ${boardKeyToken(keyNumber)} is already on stock ${stock}`;
+}
+
 function pmbKeyNumberPillHtml(vehicle = {}) {
   const keyNumber = vehiclePmbKeyNumber(vehicle);
   return keyNumber ? `<span class="pmb-keytag-pill" title="PMB key tag number">Key ${escapeHtml(keyNumber)}</span>` : '';
@@ -17143,9 +17161,14 @@ function renderDetail() {
     if (serverAuthoritative && client !== String(v.client || '').trim()) detailChanges.client_name = client;
     if (serverAuthoritative && keyNumber !== String(form.dataset.keyNumberBaseline || '').trim()) detailChanges.key_number = keyNumber;
     if (serverAuthoritative && pdcJobcard !== String(form.dataset.jobcardBaseline || '').trim()) detailChanges.job_card_number = pdcJobcard;
-    const duplicateKeyVehicle = pdcLocation === 'PMB' ? activePmbVehicleWithKeyNumber(keyNumber, key) : null;
+    const duplicateKeyVehicle = detailChanges.key_number !== undefined ? boardVehicleWithSameKey(keyNumber, key) : null;
     if (duplicateKeyVehicle) {
-      pdcNotify(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
+      const sentence = keyAlreadyOnStockSentence(keyNumber, duplicateKeyVehicle);
+      if (saveMessage) {
+        saveMessage.textContent = sentence;
+        saveMessage.classList.add('is-key-clash');
+      }
+      pdcNotify(sentence, 'info');
       return;
     }
     const authoritativeLocationChanged = serverAuthoritative
@@ -17222,7 +17245,17 @@ function renderDetail() {
         : await saveAuthoritativeVehicleChanges(authoritativeSaveVehicle, consultant, detailChanges);
       if (!authoritativeResult || authoritativeResult.ok !== true) {
         if (saveButton) { saveButton.disabled = false; saveButton.removeAttribute('aria-busy'); }
-        if (saveMessage) saveMessage.textContent = `Error: ${authoritativeResult?.code || 'authoritative_vehicle_save_failed'}`;
+        const clash = String(authoritativeResult?.message || '');
+        if (/^Key \S+ is already on stock /.test(clash)) {
+          if (saveMessage) {
+            saveMessage.textContent = clash;
+            saveMessage.classList.add('is-key-clash');
+          }
+          pdcNotify(clash, 'info');
+        } else if (saveMessage) {
+          saveMessage.classList.remove('is-key-clash');
+          saveMessage.textContent = `Error: ${authoritativeResult?.code || 'authoritative_vehicle_save_failed'}`;
+        }
         return;
       }
       authoritativeSaveVehicle = authoritativeResult.data?.authoritativeVehicle || vehicleModalBoundVehicle() || v;
