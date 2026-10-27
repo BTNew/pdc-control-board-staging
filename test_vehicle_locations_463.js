@@ -150,7 +150,7 @@ test('docs: FAULT_LOG F76 records the withdrawn F75 drag, the Job Card column an
 
 test('loader: r463 cache-bust tags; pdc-auto-reload.js stays first; no real stock numbers here', () => {
   assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.27\.r578/ /* r578 (F196); r565 (F179) chip layout stays; r560 More details stays on the card */);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588/ /* r588 (F202); r565 (F179) chip layout stays */);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /r463=2026\.10\.22\.r463/);
   assert.match([...html.matchAll(/<script[^>]*src="([^"]+)"/g)][0][1], /^pdc-auto-reload\.js/);

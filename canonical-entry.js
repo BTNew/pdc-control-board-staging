@@ -142,7 +142,7 @@
     const loadVehicleSlideout = () => {
       if (document.querySelector('script[data-pdc-vehicle-slideout]')) return;
       const slideout = document.createElement('script');
-      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.27.r578'; // r578 (F192): green complete tick; r560 (F174): More details link to the vehicle card; r565 (F179): edit stays on the chip list; r496 (F109): edit hours and jobs in the panel
+      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.28.r588'; // r588 (F202): operation-line grid; r578 (F192): green complete tick; r560 (F174): More details; r565 (F179): chip edit
       slideout.dataset.pdcVehicleSlideout = '1';
       document.head.appendChild(slideout);
     };

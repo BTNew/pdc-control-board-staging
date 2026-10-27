@@ -147,7 +147,7 @@ test('a completed line is blue/grey with who and when, and the panel does not us
   const css = fs.readFileSync('pdc-vehicle-slideout.css', 'utf8');
   assert.match(css, /#vso-shell li\.vso-done\.is-complete \{ background: #edf9f1; color: #146c3b; \}/);
   assert.match(css, /#vso-shell \.vso-done-meta \{ color: #146c3b;/);
-  assert.match(css, /li > \.vso-tick \{ grid-column: 4; grid-row: 1; \}/);
+  assert.match(css, /li > \.vso-tick \{ grid-column: 5; grid-row: 1;/);
   assert.match(css, /\.vso-tick \{[^}]*white-space: nowrap;/);
   assert.doesNotMatch(css, /#f59e0b|#f97316|#ffedd5|#fffbeb/);
 });

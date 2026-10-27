@@ -1,5 +1,23 @@
 # Reported faults
 
+## Side panel: PO chips overlapped the completion tick
+
+Craig, 28 Oct 2026 07:19 AWST. Go live on staging. Stock **13092999** (Hilux DCC), Vehicle Locations side panel.
+
+On operation lines the hours, GP/PO chip (`GP1 63458`, `PO to raise`, `GP1 63459`) and the controller **Tick** checkbox sat on top of each other, especially in the **Sublet** section. Long descriptions left no room for the trailing columns at the real panel width (~420px).
+
+### Fix
+
+r588 (F202). Frontend only. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. No SQL. Pin count stays **241**. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel import md5s stay `9be0883b1a555f48f3c1ba9fa111c891` and `b62fb7c29ffd2a1629f214f696e5cb14`.
+
+`pdc-vehicle-slideout.css` uses a five-column grid inside `#vso-shell`: PD line, description (ellipsis + hover full text), hours, PO chip, completion tick. Panel rules override `pdc-sublet-po.js` chip placement (`grid-column: 2 / -1`) so chips no longer span the tick column. Green completed lines, blue override buttons and accent colours are unchanged.
+
+Cache bust `vehicle-slideout=2026.10.28.r588` on `pdc-vehicle-slideout.js` / `.css` and `r588=2026.10.28.r588` on `canonical-entry.js`.
+
+### Check
+
+`test_vehicle_slideout_tick_grid_588.js` (no new `fault_regression_check` row). Before publish, `pdc_ops.fault_regression_check()` was 129 checks with one existing red (`clock_tick_latency_trend`, not introduced by this release).
+
 ## Control board QC lines and nested work items
 
 Craig, 28 Oct 2026 05:18 AWST, release 2 of go live and optimise the board. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. The vehicle-board lock convoy is r586. This release is the eligibility snapshot the control board reads.
