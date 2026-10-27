@@ -1068,6 +1068,8 @@ UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'release=''r
  WHERE check_name IN ('clock_ticks_recent', 'clock_tick_resaves_per_tick') AND check_sql LIKE '%release=''r559''%';
 UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'tick_pin.release=''r559''', 'tick_pin.release=''r577''')
  WHERE check_name = 'bay_default_clock_gap_559' AND check_sql LIKE '%tick_pin.release=''r559''%';
+UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, $from$release=''r559''$from$, $to$release=''r577''$to$)
+ WHERE check_name = 'bay_default_clock_gap_559' AND check_sql LIKE $like$%release=''r559''%$like$;
 
 INSERT INTO pdc_ops.regression_checks (check_name, fault_id, description, check_sql, enabled, sort_order, added_in)
 VALUES ('bay_manager_hours_570', 'F191',

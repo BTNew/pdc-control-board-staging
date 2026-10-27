@@ -28,6 +28,8 @@ UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, (SELECT md5(
    AND check_name IN ('close_gaps_preview_bay_label_and_tech_reason','close_gaps_holds_populated');
 UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'release=''r577''', 'release=''r559''')
  WHERE check_name IN ('clock_ticks_recent','clock_tick_resaves_per_tick') AND check_sql LIKE '%release=''r577''%';
+UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, $from$release=''r577''$from$, $to$release=''r559''$to$)
+ WHERE check_name = 'bay_default_clock_gap_559' AND check_sql LIKE $like$%release=''r577''%$like$;
 UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'tick_pin.release=''r577''', 'tick_pin.release=''r559''')
  WHERE check_name = 'bay_default_clock_gap_559' AND check_sql LIKE '%tick_pin.release=''r577''%';
 
