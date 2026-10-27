@@ -219,7 +219,8 @@ const approvedRootImportPatch = Object.freeze({
   // r532: a started job can tick Start and Done on other-station items (F146). Department 135 keeps the frozen fitter script.
   // r564: Fitters bay shows Key N beside stock (F178). Department 135 keeps the frozen fitter script.
   // r568: a Bus 4x4 bay can start or finish another component's line items (F182). Department 135 keeps the frozen fitter script.
-  "pdc-fitters.js": "82b8ac3ff1971a91f1991135de327ed2de974229d04cc455b9f13f906443b2fa",
+  // r583: each bay line can be sent to another department (F197). Department 135 keeps its frozen pdc-fitters.js.
+  "pdc-fitters.js": "7676ee54d9c7c295596256018c6ffd06a311955098e725989681467a29b01d5e",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -419,7 +420,8 @@ const approvedRootImportPatch = Object.freeze({
   // r578: index.html adds r578=2026.10.27.r578 on canonical-entry.js and app.js (station icon complete, F196). Department 135 is not tagged.
   // r573: index.html adds r573=2026.10.27.r573 on canonical-entry.js, and the hidden JITA panel has Place as STOPPAGE (F187). Department 135 is not tagged.
   // r582: index.html adds r582=2026.10.27.r582 on app.js, styles.css and vehicle-location-lifecycle.js (body-builder hold, F195). Department 135 is not tagged.
-  "index.html": "2c002bce1b4fa9501e1f807a033173d9e87b19df72779ee1955b02d4dbcac55d",
+  // r583: index.html adds r583=2026.10.27.r583 on pdc-fitters.js and pdc-fitters.css (send a line to another department, F197). Department 135 is not tagged.
+  "index.html": "ad7c58134f87c2b7792f3f600abb1371edaaa41d9118aa907adaef5342866b53",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -433,7 +435,8 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-emergency-priority.js": "f32dfc9d81bafb4dcfb8e6e6805f4932ba5e5219149093d9bc45f1e1ae34d7db",
   // r532: other-station items stay full strength when this bay can tick them (F146).
   // r564: fitter-key-badge styles beside stock (F178).
-  "pdc-fitters.css": "05fdaaf9ef983a09a4e88b1b234e4722ffcff386fcc46904e59ce54cb4eda432",
+  // r583: a sent line is blue (#1d4ed8 / #2563eb). Green stays complete (F197). Department 135 keeps its frozen stylesheet.
+  "pdc-fitters.css": "60b962d80747f876f791ff823f9b6ac309b3ff53625b9f918e281a54b4464a1a",
   // r572: stacked job cards are readable outside the incoming row (F186). Department 135 keeps the previous sheet.
   "pdc-stacked-jobcards.css": "ae0ca5c86f4342befcb197bbf262a2775c527cac82aaad6b8c7f2c35f6bef30b",
   "pdc-stacked-jobcards.js": "76e6b3da13a00eb26a2fdda738233876f7333632526b7a657d39fc612c4211de",

@@ -818,6 +818,7 @@
       panel.querySelector('.vso-body').scrollTop = scroll;
     }
     decorateOperations(panel, key); // r565: Edit keeps this chip list; completed lines and controller ticks
+    if (typeof root.PdcLineHandoff?.mount === 'function') root.PdcLineHandoff.mount(panel, vehicle); // r583: handed-off lines for the controller
     ensureCompletions(vehicle);
     watchOperations(panel);
     return true;
