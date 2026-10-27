@@ -58,7 +58,7 @@ r576 / F190 / sort 347. Staging only. F181 / sort 338 / r567 is the typed Parts 
 
 Dropping into a bay still pushes that bay's later jobs and succeeds when the vehicle is free elsewhere. When the same vehicle is already booked in another bay, or queued with a time and no bay, nothing is saved until the planner confirms. The question names the key, the stock, the customer, the station, the bay and the Perth times, and the confirm button is blue. Confirming pushes those bookings (and what they would land on) back, with an hour clear, then the bay drop runs. A started or stoppage booking is named and is not pushed. The same vehicle is not left in two places at once.
 
-Pins stay 241. The move pin is updated in place. Department 135 is not edited. Up file md5 `688d44f5f39a8cfea67c0a177a938f9c`. Down file md5 `1aef2f86686c8a6ff91dfe237c8b72fe`. The opening guard requires the live active-key check `active_key_unique_575` (F189 / sort 346) and refuses sort 347 / F190.
+Pins stay 241. The move pin is updated in place. Department 135 is not edited. Up file md5 `ef6e8e847938a03562ba7e8a43d60f54`. Down file md5 `1aef2f86686c8a6ff91dfe237c8b72fe`. The opening guard requires the live active-key check `active_key_unique_575` (F189 / sort 346) and refuses sort 347 / F190.
 
 ### Regression check
 

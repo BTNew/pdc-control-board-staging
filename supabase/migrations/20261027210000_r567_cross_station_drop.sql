@@ -245,7 +245,7 @@ BEGIN
     IS DISTINCT FROM (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')) THEN RAISE EXCEPTION 'r576: pin md5 does not match the body'; END IF;
  IF (SELECT prosecdef FROM pg_proc WHERE oid=to_regprocedure('public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')) IS NOT TRUE THEN RAISE EXCEPTION 'r576: move is not security definer'; END IF;
  SELECT proconfig::text, proacl::text INTO cfg, acl FROM pg_proc WHERE oid=to_regprocedure('public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)');
- IF cfg IS DISTINCT FROM '{search_path=pg_catalog, public}' THEN RAISE EXCEPTION 'r576: search_path changed (%)', cfg; END IF;
+ IF cfg IS DISTINCT FROM '{"search_path=pg_catalog, public"}' AND cfg IS DISTINCT FROM '{search_path=pg_catalog, public}' THEN RAISE EXCEPTION 'r576: search_path changed (%)', cfg; END IF;
  IF acl IS DISTINCT FROM '{postgres=X/postgres,authenticated=X/postgres}' THEN RAISE EXCEPTION 'r576: grants changed (%)', acl; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.k135_administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')) IS DISTINCT FROM '4eb5baf999b849d174880a1e261fcbf2' THEN RAISE EXCEPTION 'r576: department 135 move changed'; END IF;
  IF strpos((SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.k135_administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')),'r576')<>0 THEN RAISE EXCEPTION 'r576: department 135 body was edited'; END IF;

@@ -43,6 +43,8 @@ test('r576 migration is a staging preview: pins stay 241, department 135 stays f
   assert.match(up, /cross-station push not confirmed/);
   assert.match(up, /r576 \(F190\)/);
   assert.match(up, /SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public''/);
+  assert.match(up, /\{"search_path=pg_catalog, public"\}/);
+  assert.match(up, /\{search_path=pg_catalog, public\}/);
   assert.doesNotMatch(up, /INSERT INTO pdc_ops\.expected_function_md5/);
   assert.match(up, /Production vjdtsswhroyguxyfjdkt is not a target/);
   assert.doesNotMatch(up, /project_ref='vjdtsswhroyguxyfjdkt'/);
