@@ -52,6 +52,9 @@ test('all frozen native files outside declared boundary adaptations retain origi
     else if (item.file === 'pdc-fitters.css') assert.equal(sha(native), item.baseline_sha256, item.file);
     // r527: a refused technician write no longer clears the bay list (F141). Department 135 keeps this frozen copy.
     else if (item.file === 'workshop-reference-data-service.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
+    // r572: open 138/139 job cards stack on every PMG board view (F186). Department 135 keeps these frozen copies.
+    else if (item.file === 'pdc-stacked-jobcards.js') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), item.baseline_sha256, item.file);
+    else if (item.file === 'pdc-stacked-jobcards.css') assert.equal(sha(Buffer.from(native.toString('utf8').replace(/\r\n/g,'\n'))), 'aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3', item.file);
     else assert.deepEqual(native,fs.readFileSync(path.join(original,item.file)),item.file);
   }
 });
@@ -116,7 +119,8 @@ const approvedRootImportPatch = Object.freeze({
   // r549: bay headers, toasts and the side panel prefer display_name. A controller pencil renames that label only (F163).
   // r561: slim Workshop Planner header — one title, status dot, one control row (F175). Department 135 keeps its frozen planner.
   // r569: Pause for another job on a started or stoppage chip (F183). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "87008f20442638fb2e0b91fb2d9ff7dae024e83025a9943a4dcec89569db0a2b",
+  // r572: a planner bay lists every open job card, primary first (F186). Department 135 is not tagged.
+  "workshop-planner.js": "98109654a793c7537b075223ef199c263e4535f85bcf55044729c7da6b8d0595",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -260,7 +264,8 @@ const approvedRootImportPatch = Object.freeze({
   // r493: STOPPAGE bars show the running strip as Paused (amber; F106).
   // r509: control board comment matches the 14-bay fabrication count (live check F122 sort 294). The hidden Karratha copy stays frozen.
   // r549: Control Board bay rows prefer display_name (F163). The Karratha copy stays frozen.
-  "control-board-overview.js": "736cfe137f29a844f0b1d4e2c0b8cd08539ece62fad169c7172c670c2d83b6c3",
+  // r572: a control-board bay card lists every open job card (F186). Department 135 keeps the frozen copy.
+  "control-board-overview.js": "f90c227ca72c1e1264d80a045f247b6fe6a4166b61ad816e20b65eb7793da7c9",
   "deployment-manifest.json": "1dc3bc539884bba81076059861c3621db90cca8a721eb8d6cfef81da99454b46",
   // Live board defers its startup scripts and drops the empty and assessment tags.
   // app.js?v= keeps backup-status=2026.10.19.01, hoist-corrections=2026.10.19.02,
@@ -372,7 +377,8 @@ const approvedRootImportPatch = Object.freeze({
   // r565: index.html adds r565=2026.10.27.r565 on canonical-entry.js and app.js (side-panel edit stays on the chip list, F179). styles.css keeps the arrival-age r563. Department 135 is not tagged.
   // r567: index.html adds r567=2026.10.27.r567 on canonical-entry.js (typed Parts ETA, F181). Fitters r564 stays on pdc-fitters.js. Department 135 is not tagged.
   // r568: index.html loads pdc-bus-component-split.js and adds r568=2026.10.27.r568 on pdc-fitters.js (F182). Department 135 is not tagged.
-  "index.html": "67a62a8fb3a5e6a056e3f9a43bc39d0fb6e1ec968c7982c2d72c956c30c6c37e",
+  // r572: r572=2026.10.27.r572 on pdc-stacked-jobcards.js and pdc-stacked-jobcards.css (F186). Department 135 is not tagged.
+  "index.html": "93baa6e4905b417847ea533cd7d71846c6695c9b7b6dc36a04740d01b2052399",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -385,7 +391,9 @@ const approvedRootImportPatch = Object.freeze({
   // r532: other-station items stay full strength when this bay can tick them (F146).
   // r564: fitter-key-badge styles beside stock (F178).
   "pdc-fitters.css": "05fdaaf9ef983a09a4e88b1b234e4722ffcff386fcc46904e59ce54cb4eda432",
-  "pdc-stacked-jobcards.css": "aa7e9bcc40a8a86b18fd0f91023de0b82fea03c7106e70fcbe550c30d3f5b0c3",
+  // r572: stacked job cards are readable outside the incoming row (F186). Department 135 keeps the previous sheet.
+  "pdc-stacked-jobcards.css": "ae0ca5c86f4342befcb197bbf262a2775c527cac82aaad6b8c7f2c35f6bef30b",
+  "pdc-stacked-jobcards.js": "76e6b3da13a00eb26a2fdda738233876f7333632526b7a657d39fc612c4211de",
   "pdc-staff-usage.css": "e7769d72b7601097fa4c41a19140fdcda4408f3d1f620008282d9df136b1ddf0",
   // r489: 'fitting-stats' counts under the Update History bucket (F102).
   // r525: Period option Last 24 hours (p_days 1) on Website activity (F139). The Karratha copy stays frozen.

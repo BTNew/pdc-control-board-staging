@@ -1,8 +1,10 @@
-/* Multiple job cards occupy the same single-line identity track. */
+/* Multiple open job cards share one vehicle. The primary job card stays first. */
+.identity-jc-stacked,
 .incoming-identity .identity-jc-stacked {
   position: relative;
   height: 26px;
 }
+.pdc-stacked-jobcards,
 .incoming-identity .pdc-stacked-jobcards {
   display: block;
   max-height: 26px;
@@ -14,10 +16,31 @@
   line-height: 13px;
   font-variant-numeric: tabular-nums;
 }
+.pdc-stacked-jobcards > span,
 .incoming-identity .pdc-stacked-jobcards > span {
   display: block;
   font-size: 11px !important;
   line-height: 13px !important;
   height: 13px;
   white-space: nowrap;
+}
+.pdc-card-group {
+  margin: 0 0 8px;
+}
+.pdc-card-group-head,
+.pdc-card-subtotals header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 16px;
+}
+.pdc-card-subtotals {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0;
+}
+.pdc-card-subtotals p {
+  margin: 2px 0 0;
+  font-weight: 700;
 }
