@@ -106,7 +106,8 @@ test('page wiring: JITA Upload under Navision Uploads, loader after parts ETA, p
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /serviceLocations\.onload = loadPartsEta;/);
   assert.match(entry, /partsEta\.onload = loadJitaEta;\s*partsEta\.onerror = loadJitaEta;/);
-  assert.match(entry, /jitaEta\.onload = loadKeyNumber;\s*jitaEta\.onerror = loadKeyNumber;/);
+  assert.match(entry, /jitaEta\.onload = loadWorkshopVehicleSearch;\s*jitaEta\.onerror = loadWorkshopVehicleSearch;/);
+  assert.match(entry, /pdc-workshop-vehicle-search\.js\?r566=2026\.10\.27\.r566/);
   assert.match(entry, /pdc-jita-eta\.js\?r516=2026\.10\.23\.r516&r517=2026\.10\.23\.r517&r519=2026\.10\.23\.r519/);
   assert.equal((entry.match(/pdc-key-number\.js/g) || []).length, 1);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-service-locations\.js', 'pdc-parts-eta\.js', 'pdc-sublet-po\.js'/);
