@@ -3687,55 +3687,34 @@ function workshopEtaRiskLabel(risk = null) {
   return `ETA RISK · earliest ${risk.earliestDateKey || 'unknown'}`;
 }
 
-function workshopSearchJobCards(vehicle = {}) {
-  return [...new Set([vehicleJobcardNumber(vehicle), ...(Array.isArray(vehicle.jobCardNumbers) ? vehicle.jobCardNumbers : []), ...(Array.isArray(vehicle.job_card_numbers) ? vehicle.job_card_numbers : [])]
-    .filter(value => typeof value === 'string' && value.trim()).map(value => value.trim()))];
+// r566 (F180): shared with Vehicle Locations table search (pdc-workshop-vehicle-search.js).
+let workshopVehicleSearchApi;
+function workshopVehicleSearchDeps() {
+  return {
+    cleanNavisionText, vehicleKey, displayStockNumber, vehicleKeyNumber, vehicleJobcardNumber, vehicleCustomerName, displayVehicle,
+  };
 }
-
-function workshopSearchKeyToken(value = '') {
-  const compact = cleanNavisionText(value || '').replace(/\s+/g, '').toLowerCase();
-  const stripped = compact.replace(/^0+/, '');
-  return stripped || (compact ? '0' : '');
+function getWorkshopVehicleSearchApi() {
+  if (!workshopVehicleSearchApi) {
+    const factory = globalThis.PDC_WORKSHOP_VEHICLE_SEARCH_FACTORY
+      || (typeof require === 'function' ? require('./pdc-workshop-vehicle-search.js') : null);
+    if (!factory?.create) throw new Error('pdc-workshop-vehicle-search.js must load before workshop planner search runs');
+    workshopVehicleSearchApi = globalThis.PDC_WORKSHOP_VEHICLE_SEARCH || factory.create(workshopVehicleSearchDeps);
+    globalThis.PDC_WORKSHOP_VEHICLE_SEARCH = workshopVehicleSearchApi;
+  }
+  return workshopVehicleSearchApi;
 }
-function workshopVehicleKeyToken(vehicle = {}) {
-  return workshopSearchKeyToken(vehicleKeyNumber(vehicle) || vehicle.key_number || '');
-}
+function workshopSearchJobCards(vehicle = {}) { return getWorkshopVehicleSearchApi().workshopSearchJobCards(vehicle); }
+function workshopSearchKeyToken(value = '') { return getWorkshopVehicleSearchApi().workshopSearchKeyToken(value); }
+function workshopVehicleKeyToken(vehicle = {}) { return getWorkshopVehicleSearchApi().workshopVehicleKeyToken(vehicle); }
 function workshopSearchCriteria(state = typeof workshopState === 'function' ? workshopState() : {}) {
-  return { key: state?.searchKey || '', text: state?.search || '' };
+  return getWorkshopVehicleSearchApi().workshopSearchCriteria({ searchKey: state?.searchKey, search: state?.search });
 }
-function workshopSearchCriteriaKey(criteria = {}) {
-  const key = workshopSearchKeyToken(criteria.key || '');
-  const text = cleanNavisionText(criteria.text || '').toLowerCase();
-  return `${key}\n${text}`;
-}
-function workshopSearchIsActive(criteria = {}) {
-  return workshopSearchKeyToken(criteria.key || '').length >= 1 || cleanNavisionText(criteria.text || '').length >= 2;
-}
-function workshopSearchVehicleMatches(vehicle = {}, criteria = {}) {
-  const text = cleanNavisionText(criteria.text || '').toLowerCase();
-  const key = workshopSearchKeyToken(criteria.key || '');
-  if (!workshopSearchIsActive({ key, text })) return false;
-  if (key && workshopVehicleKeyToken(vehicle) !== key) return false;
-  if (text.length >= 2 && !workshopVehicleSearchText(vehicle).includes(text)) return false;
-  return true;
-}
-function workshopVehicleSearchText(vehicle = {}) {
-  // r550 (F164): the key number has its own exact box. This text is stock, job card, customer and vehicle only.
-  return [vehicleKey(vehicle), displayStockNumber(vehicle), vehicle.pdcJobcard, ...workshopSearchJobCards(vehicle), vehicleCustomerName(vehicle), vehicle.vehicle, vehicle.toyotaVehicle, displayVehicle(vehicle)]
-    .filter(Boolean).join(' ').toLowerCase();
-}
-
-function workshopSearchRank(vehicle = {}, query = '') {
-  const clean = cleanNavisionText(query || '').toLowerCase();
-  const exactFields = [vehicleKey(vehicle), displayStockNumber(vehicle), vehicleKeyNumber(vehicle), ...workshopSearchJobCards(vehicle)]
-    .map(value => cleanNavisionText(value || '').toLowerCase());
-  if (exactFields.includes(clean)) return 0;
-  const customer = cleanNavisionText(vehicleCustomerName(vehicle) || '').toLowerCase();
-  if (customer === clean) return 1;
-  if (exactFields.some(value => value.startsWith(clean))) return 2;
-  if (customer.startsWith(clean)) return 3;
-  return 4;
-}
+function workshopSearchCriteriaKey(criteria = {}) { return getWorkshopVehicleSearchApi().workshopSearchCriteriaKey(criteria); }
+function workshopSearchIsActive(criteria = {}) { return getWorkshopVehicleSearchApi().workshopSearchIsActive(criteria); }
+function workshopSearchVehicleMatches(vehicle = {}, criteria = {}) { return getWorkshopVehicleSearchApi().workshopSearchVehicleMatches(vehicle, criteria); }
+function workshopVehicleSearchText(vehicle = {}) { return getWorkshopVehicleSearchApi().workshopVehicleSearchText(vehicle); }
+function workshopSearchRank(vehicle = {}, query = '') { return getWorkshopVehicleSearchApi().workshopSearchRank(vehicle, query); }
 
 function workshopSortBookingsClosest(rows = [], nowValue = Date.now()) {
   const now = Number(nowValue);

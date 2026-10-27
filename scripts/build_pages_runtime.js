@@ -144,7 +144,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-planner-slim.css', 'pdc-planner-slim.js', 'pdc-professional-polish.css',
   'pdc-qc-mobile.css', 'pdc-qc-mobile.js', 'pdc-qc-rework.js',
   'pdc-review-stations.css', 'pdc-review-stations.js', 'pdc-rft-actions.css',
-  'pdc-rft-actions.js', 'pdc-service-locations.js', 'pdc-parts-eta.js', 'pdc-sublet-po.js', 'pdc-sublet-po-attach.js', 'pdc-operation-panels.js', 'pdc-key-number.js', 'pdc-jita-eta.js', 'pdc-parts-stoppage.js', 'pdc-vehicle-locations-table.js', 'pdc-vehicle-locations-table.css', 'pdc-vehicle-slideout.js', 'pdc-vehicle-slideout.css', 'pdc-stacked-jobcards.css',
+  'pdc-rft-actions.js', 'pdc-service-locations.js', 'pdc-parts-eta.js', 'pdc-sublet-po.js', 'pdc-sublet-po-attach.js', 'pdc-operation-panels.js', 'pdc-key-number.js', 'pdc-jita-eta.js', 'pdc-parts-stoppage.js', 'pdc-workshop-vehicle-search.js', 'pdc-vehicle-locations-table.js', 'pdc-vehicle-locations-table.css', 'pdc-vehicle-slideout.js', 'pdc-vehicle-slideout.css', 'pdc-stacked-jobcards.css',
   'pdc-stacked-jobcards.js', 'pdc-staff-usage.css', 'pdc-staff-usage.js',
   'pdc-sublet-intake.js', 'pdc-supabase-config.staging.js', 'pdc-update-history.css',
   'pdc-update-history.js', 'pdc-vehicle-handover.js', 'pdc-workshop-hours.js',

@@ -8,11 +8,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const source = fs.readFileSync('workshop-planner.js', 'utf8');
-function slice(name, next) {
-  const start = source.indexOf(`function ${name}`);
-  const end = source.indexOf(`\nfunction ${next}`);
-  return source.slice(start, end);
-}
+const searchFactory = require('./pdc-workshop-vehicle-search.js');
 const vehicles = [
   { keyNumber: '364', stock: '13036499', pdcJobcard: 'J139136400', customerName: 'Acme', vehicle: 'Hilux' },
   { keyNumber: '0364', stock: '13000001', pdcJobcard: 'J1', customerName: 'Other', vehicle: 'Ranger' },
@@ -29,17 +25,7 @@ const ctx = {
   vehicleCustomerName: vehicle => String(vehicle.customerName || ''),
   displayVehicle: vehicle => String(vehicle.vehicle || ''),
 };
-vm.runInNewContext(
-  slice('workshopSearchKeyToken', 'workshopVehicleKeyToken')
-  + slice('workshopVehicleKeyToken', 'workshopSearchCriteria')
-  + slice('workshopSearchCriteria', 'workshopSearchCriteriaKey')
-  + slice('workshopSearchCriteriaKey', 'workshopSearchIsActive')
-  + slice('workshopSearchIsActive', 'workshopSearchVehicleMatches')
-  + slice('workshopSearchVehicleMatches', 'workshopVehicleSearchText')
-  + slice('workshopVehicleSearchText', 'workshopSearchRank')
-  + '\nthis.api = { workshopSearchKeyToken, workshopSearchVehicleMatches, workshopVehicleSearchText, workshopSearchControlHtml: null };',
-  ctx,
-);
+ctx.api = searchFactory.create(() => ctx);
 const html = source.slice(source.indexOf('function workshopSearchControlHtml'), source.indexOf('\nfunction workshopHighlightScrollSignature'));
 const ui = {
   escapeHtml: value => String(value ?? ''),
@@ -53,20 +39,20 @@ const ui = {
 vm.runInNewContext(`${html}\nthis.html = workshopSearchControlHtml('', []);`, ui);
 
 test('r550: key 364 matches only that key, ignoring zeros, spaces and case', () => {
-  assert.equal(ctx.workshopSearchKeyToken(' 0364 '), '364');
-  assert.equal(ctx.workshopSearchKeyToken('KEY364'), 'key364');
-  const hits = vehicles.filter(vehicle => ctx.workshopSearchVehicleMatches(vehicle, { key: '364', text: '' }));
+  assert.equal(ctx.api.workshopSearchKeyToken(' 0364 '), '364');
+  assert.equal(ctx.api.workshopSearchKeyToken('KEY364'), 'key364');
+  const hits = vehicles.filter(vehicle => ctx.api.workshopSearchVehicleMatches(vehicle, { key: '364', text: '' }));
   assert.deepEqual(hits.map(vehicle => vehicle.stock), ['13036499', '13000001', '13000002']);
-  assert.equal(ctx.workshopSearchVehicleMatches(vehicles[3], { key: '364', text: '' }), false);
+  assert.equal(ctx.api.workshopSearchVehicleMatches(vehicles[3], { key: '364', text: '' }), false);
 });
 
 test('r550: the other box ignores the key number', () => {
-  assert.equal(ctx.workshopVehicleSearchText(vehicles[0]).includes('364'), true);
-  assert.equal(ctx.workshopVehicleSearchText(vehicles[0]).includes('key'), false);
-  assert.equal(ctx.workshopSearchVehicleMatches({ keyNumber: '364', stock: '1', pdcJobcard: 'J9', customerName: 'No digits', vehicle: 'Van' }, { key: '', text: '364' }), false);
-  assert.equal(ctx.workshopSearchVehicleMatches(vehicles[3], { key: '', text: '364' }), true);
-  assert.equal(ctx.workshopSearchVehicleMatches(vehicles[0], { key: '364', text: 'hilux' }), true);
-  assert.equal(ctx.workshopSearchVehicleMatches(vehicles[3], { key: '364', text: 'hilux' }), false);
+  assert.equal(ctx.api.workshopVehicleSearchText(vehicles[0]).includes('364'), true);
+  assert.equal(ctx.api.workshopVehicleSearchText(vehicles[0]).includes('key'), false);
+  assert.equal(ctx.api.workshopSearchVehicleMatches({ keyNumber: '364', stock: '1', pdcJobcard: 'J9', customerName: 'No digits', vehicle: 'Van' }, { key: '', text: '364' }), false);
+  assert.equal(ctx.api.workshopSearchVehicleMatches(vehicles[3], { key: '', text: '364' }), true);
+  assert.equal(ctx.api.workshopSearchVehicleMatches(vehicles[0], { key: '364', text: 'hilux' }), true);
+  assert.equal(ctx.api.workshopSearchVehicleMatches(vehicles[3], { key: '364', text: 'hilux' }), false);
 });
 
 test('r550: the planner draws both boxes and Clear still clears the search', () => {
