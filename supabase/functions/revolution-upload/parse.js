@@ -617,6 +617,79 @@ export function quietWindow(date = new Date()) {
   return near(7, 0) || near(12, 30) || near(18, 0);
 }
 
+export const HOLD_REASONS = {
+  closedVehicle: 'closed-vehicle conflict',
+  identityChanged: 'identity changed',
+  identityRestore: 'identity restore',
+  staffLock: 'staff-lock',
+  status99: 'status 99',
+  duplicateLine: 'duplicate line',
+  carriedOver: 'carried-over not-sent',
+};
+
+function rowIdentityKeys(row) {
+  const keys = [];
+  const stock = stockKey(row.stock_number);
+  const rego = stockKey(row.rego);
+  if (stock) keys.push(stock);
+  if (rego && rego !== stock) keys.push(rego);
+  return keys;
+}
+
+function lineKey(row) {
+  return `${norm(row.repair_order_number).toUpperCase()}|${norm(row.original_line_number)}`;
+}
+
+function guardSet(values) {
+  return new Set((values || []).map((value) => stockKey(value)).filter(Boolean));
+}
+
+function liveBoardStocks(vehicles) {
+  const stocks = new Set();
+  for (const vehicle of vehicles || []) {
+    if (vehicle.deleted === true || norm(vehicle.ls) === 'deleted') continue;
+    const key = stockKey(vehicle.stock);
+    if (key) stocks.add(key);
+  }
+  return stocks;
+}
+
+export function serviceHolds(parsed, options = {}) {
+  const guards = options.guards || {};
+  const closedVehicle = guardSet(guards.closedVehicle);
+  const identityChanged = guardSet(guards.identityChanged);
+  const identityRestore = guardSet(guards.identityRestore);
+  const staffLock = guardSet(guards.staffLock);
+  const duplicateLines = new Set((guards.duplicateLines || []).map((line) => `${norm(line.ro).toUpperCase()}|${norm(line.line)}`));
+  const carriedOver = new Set((guards.carriedOver || []).map((line) => `${norm(line.ro).toUpperCase()}|${norm(line.line)}`));
+  const live = liveBoardStocks(options.vehicles);
+  const holds = [];
+  for (const row of parsed.rows || []) {
+    if (!['138', '139'].includes(String(row.department))) continue;
+    const key = lineKey(row);
+    const identities = rowIdentityKeys(row);
+    const matches = (set) => identities.some((identity) => set.has(identity));
+    let reason = '';
+    if (carriedOver.has(key)) reason = HOLD_REASONS.carriedOver;
+    else if (statusText(row.sub_status) === '99' && !matches(live)) reason = HOLD_REASONS.status99;
+    else if (duplicateLines.has(key)) reason = HOLD_REASONS.duplicateLine;
+    else if (matches(closedVehicle)) reason = HOLD_REASONS.closedVehicle;
+    else if (matches(identityChanged)) reason = HOLD_REASONS.identityChanged;
+    else if (matches(identityRestore)) reason = HOLD_REASONS.identityRestore;
+    else if (matches(staffLock)) reason = HOLD_REASONS.staffLock;
+    if (!reason) continue;
+    holds.push({
+      reason,
+      department: String(row.department),
+      stock: row.stock_number == null || row.stock_number === '' ? null : String(row.stock_number),
+      rego: row.rego == null || row.rego === '' ? null : String(row.rego),
+      ro: norm(row.repair_order_number).toUpperCase(),
+      line: row.original_line_number,
+    });
+  }
+  return holds;
+}
+
 export function dryRun(parsed, options = {}) {
   const board = options.board || { vehicles: [], jobs: [] };
   const known = new Set((options.knownShas || []).map((value) => String(value).toLowerCase()));
@@ -638,12 +711,16 @@ export function dryRun(parsed, options = {}) {
   let heldOpen = 0;
   let salesLeft = 0;
   const closedVehicles = [];
+  const holds = (parsed.kind === 'service_whole' || parsed.kind === 'service_complete')
+    ? serviceHolds(parsed, { vehicles, guards: options.guards || {} })
+    : [];
+  const heldLines = new Set(holds.map((hold) => `${hold.ro}|${hold.line}`));
   if (parsed.kind === 'service_whole' || parsed.kind === 'service_complete') {
     skipped += parsed.excludedDepartments || 0;
     const passing = [];
     for (const row of parsed.rows) {
       if (!['138', '139'].includes(String(row.department))) { skipped += 1; continue; }
-      if (statusText(row.sub_status) === '99') { skipped += 1; continue; }
+      if (heldLines.has(`${norm(row.repair_order_number).toUpperCase()}|${norm(row.original_line_number)}`)) continue;
       passing.push(row);
     }
     const byVehicle = new Map();
@@ -655,10 +732,11 @@ export function dryRun(parsed, options = {}) {
     }
     const onSheet = new Set();
     for (const [key, rows] of byVehicle) {
-      const live = rows.filter((row) => statusText(row.sub_status) !== '99');
-      if (!live.length) continue;
-      if (live.every((row) => statusText(row.sub_status) === '80')) closedVehicles.push(key);
       onSheet.add(key);
+      const actionable = rows.filter((row) => !heldLines.has(`${norm(row.repair_order_number).toUpperCase()}|${norm(row.original_line_number)}`));
+      const open = actionable.filter((row) => statusText(row.sub_status) !== '99');
+      if (open.length && open.every((row) => statusText(row.sub_status) === '80')) closedVehicles.push(key);
+      if (!actionable.length) continue;
       if (byStock.has(key)) updated += 1;
       else fresh += 1;
     }
@@ -719,7 +797,9 @@ export function dryRun(parsed, options = {}) {
     sheet: parsed.sheet,
     title: parsed.title,
     row_count: parsed.rows.length,
-    counts: { new: fresh, updated, archived, skipped, errors: uniqueErrors.length },
+    counts: { new: fresh, updated, archived, skipped, errors: uniqueErrors.length, holds: holds.length },
+    holds,
+    hold_counts: holds.reduce((counts, hold) => { counts[hold.reason] = (counts[hold.reason] || 0) + 1; return counts; }, {}),
     closed_vehicles: closedVehicles.length,
     held_open_job_card: heldOpen,
     sales_boards_left_alone: salesLeft,

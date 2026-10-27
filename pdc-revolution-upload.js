@@ -111,6 +111,26 @@
     plan.className = 'ru-note';
     plan.textContent = `After go-live this file would call ${(payload.would_call || []).join(', ') || 'nothing'}. Apply is off in this preview.`;
     host.append(plan);
+    const holdCounts = payload.hold_counts || {};
+    const holdNames = Object.keys(holdCounts);
+    const holdTitle = document.createElement('h2');
+    holdTitle.textContent = 'Hold list';
+    host.append(holdTitle);
+    if (!holdNames.length) {
+      const none = document.createElement('p');
+      none.className = 'ru-note';
+      none.textContent = 'No lines are held.';
+      host.append(none);
+    } else {
+      const list = document.createElement('ul');
+      list.className = 'ru-errors';
+      for (const reason of holdNames) {
+        const item = document.createElement('li');
+        item.textContent = `${reason}: ${holdCounts[reason]}`;
+        list.append(item);
+      }
+      host.append(list);
+    }
   }
 
   async function postFile(file, action) {
@@ -137,7 +157,7 @@
       kind: payload.kind || '',
       result: payload.error && !payload.md5
         ? payload.error
-        : `new ${counts.new || 0}, updated ${counts.updated || 0}, archived ${counts.archived || 0}, skipped ${counts.skipped || 0}, errors ${counts.errors || 0}`,
+        : `new ${counts.new || 0}, updated ${counts.updated || 0}, archived ${counts.archived || 0}, skipped ${counts.skipped || 0}, holds ${counts.holds || 0}, errors ${counts.errors || 0}`,
     });
   }
 

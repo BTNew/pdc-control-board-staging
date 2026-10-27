@@ -18,30 +18,23 @@ CW, both BT files, and KTA match Kajel's `rows.json` exactly, including departme
 
 Service matched on the 13 sheet columns, `source_row_numbers` and `sublet_pos`. None of the 6533 sent rows were missing. There were 0 field diffs.
 
-## Service lines Kajel did not send
+## Holds
 
-The file collapses to 6866 department 138/139 lines. Kajel sent 6533. The other 333 stay in this preview on purpose: every 138/139 line is passed to the dry run, and the existing apply still decides archive and the new-vehicle step.
+The file collapses to 6866 department 138/139 lines. Kajel sent 6533. The other 333 are holds, and the dry run puts every one of them on one list with one reason. 6533 + 192 + 141 = 6866. Field diffs against the sent rows stay 0. Hold diffs against the three hold files stay 0.
 
-192 of the 333 are Kajel's not-sent holds, and all 192 are present here:
+The 192 lines in `not-sent.json` are the holds carried over from the 12:08 run. The 141 lines are this run's own holds, recorded in `staff-lock-holds.json`, `line-holds.json`, and RESULT.md under Held stocks. They were not in `not-sent.json`.
 
-| Hold reason | Lines |
-|---|---:|
-| staff_lock_1208 | 149 |
-| duplicate_line_on_board_1208 | 17 |
-| conflict_1208:historical_identity_requires_restore | 12 |
-| conflict_1208:closed_vehicle_requires_review | 14 |
+| Reason on the dry run | Lines | Kajel's file |
+|---|---:|---|
+| closed-vehicle conflict | 59 | staff-lock-holds.json |
+| identity changed | 16 | staff-lock-holds.json |
+| identity restore | 1 | staff-lock-holds.json |
+| staff-lock | 62 | staff-lock-holds.json |
+| status 99 | 2 | line-holds.json |
+| duplicate line | 1 | line-holds.json |
+| carried-over not-sent | 192 | not-sent.json |
 
-The other 141 lines are whole repair orders Kajel neither sent nor listed. All are Type D with a Create Advisor. None of those repair orders appear in the sent parts.
-
-| Sub status | Has stock | Lines |
-|---|---|---:|
-| blank | yes | 44 |
-| blank | no | 35 |
-| 80 | yes | 59 |
-| 80 | no | 1 |
-| 99 | no | 2 |
-
-One of the 44 blank-status lines with a stock is a collapse of 7 source rows. The dry run then skips every status 99 line, including one status 99 line that was inside the 6533 Kajel sent. Kajel did not drop every status 99 before send. This preview does.
+A status 99 line that is already on a live board vehicle is not one of these holds. Kajel sent that line. A status 99 line with no live board vehicle is held. A duplicate line is held on its own, and the other lines of that staff-locked stock stay staff-lock. Nothing in the file was left unclassified.
 
 ## What this dry run does not claim
 
@@ -49,7 +42,7 @@ Kajel's 18:11 apply result was 130 service lines inserted, 0 updated, 1 archived
 
 ## Gates that stay on
 
-Function md5 pins, including Kajel's two functions and department 135 `fd05b9eef69498002ac06dd68e01cdff`. Pin count 241, with no new pin. More than 15 new vehicles or archives stops the run until an administrator confirms. The key-unique guard refuses a shared non-zero key. Status 99 is skipped. Service is departments 138 and 139 only. Sales boards Broome `37047` and Karratha `14450` are not changed by the PMB archive rule. A vehicle with an open job card is not archived or hidden. A sha256 already in the ledger is a duplicate. Apply is refused around 07:00, 12:30 and 18:00 AWST, and it is refused in this preview at every other time as well.
+Function md5 pins, including Kajel's two functions and department 135 `fd05b9eef69498002ac06dd68e01cdff`. Pin count 241, with no new pin. More than 15 new vehicles or archives stops the run until an administrator confirms. The key-unique guard refuses a shared non-zero key. Service is departments 138 and 139 only. A status 99 line with no live board vehicle is held. Sales boards Broome `37047` and Karratha `14450` are not changed by the PMB archive rule. A vehicle with an open job card is not archived or hidden. A sha256 already in the ledger is a duplicate. Apply is refused around 07:00, 12:30 and 18:00 AWST, and it is refused in this preview at every other time as well.
 
 ## Later
 
