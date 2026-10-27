@@ -54,19 +54,19 @@ A plan of the 9:44 am drop, read only, pushes Tint Bay 01 to Wed 28 Oct 2:15 pm 
 
 ### Go-live
 
-r575 / F189 / sort 346. Staging only. F181 / sort 338 / r567 is the typed Parts ETA. Sort 341 / F184 / r570 is the service archive. r571 / F185 / sort 343 stays unused for #559. The predecessor is pmb_dept_ack_book_574 (F188 / sort 345).
+r576 / F190 / sort 347. Staging only. F181 / sort 338 / r567 is the typed Parts ETA. Sort 341 / F184 / r570 is the service archive. r571 / F185 / sort 343 stays unused for #559. The predecessor is pmb_dept_ack_book_574 (F188 / sort 345).
 
 Dropping into a bay still pushes that bay's later jobs and succeeds when the vehicle is free elsewhere. When the same vehicle is already booked in another bay, or queued with a time and no bay, nothing is saved until the planner confirms. The question names the key, the stock, the customer, the station, the bay and the Perth times, and the confirm button is blue. Confirming pushes those bookings (and what they would land on) back, with an hour clear, then the bay drop runs. A started or stoppage booking is named and is not pushed. The same vehicle is not left in two places at once.
 
-Pins stay 241. The move pin is updated in place. Department 135 is not edited. Up file md5 `0df1bd70775481cd43bde22f830306b8`. Down file md5 `4989e193f27aabf9ad850059692c3998`.
+Pins stay 241. The move pin is updated in place. Department 135 is not edited. Up file md5 `688d44f5f39a8cfea67c0a177a938f9c`. Down file md5 `1aef2f86686c8a6ff91dfe237c8b72fe`. The opening guard requires the live active-key check `active_key_unique_575` (F189 / sort 346) and refuses sort 347 / F190.
 
 ### Regression check
 
-`cross_station_drop_575` (F189, sort 346). It checks the move body still contains the r575 marker, the confirm refusal, and the older non-cascade push path, that the pin matches that body at release r575, and that the department 135 move checksum is unchanged. It does not require Key 214's rows to stay in this conflict.
+`cross_station_drop_576` (F190, sort 347). It checks the move body still contains the r576 marker, the confirm refusal, and the older non-cascade push path, that the pin matches that body at release r576, and that the department 135 move checksum is unchanged. It does not require Key 214's rows to stay in this conflict.
 
 ### How to re-test after it is applied
 
 1. On staging, Workshop Planner PMB, Fitting, drop Key 214's unallocated Fitting chip onto Thanh's bay at about 9:44 am.
 2. The blue question should name Tint Bay 01 (Tue 27 Oct 11:30 am) and the unallocated Hoist (Tue 27 Oct 1:00 pm). Cancel leaves every booking where it is.
 3. Push back. Key 214's Fitting lands in Thanh's bay, Key 338 moves later in that bay, and Tint and the Hoist move so they start at least an hour after the job in front of them. Key 214 is not in two stations at once.
-4. `pdc_ops.fault_regression_check()` includes `cross_station_drop_575` and it is green. Pin count is still 241.
+4. `pdc_ops.fault_regression_check()` includes `cross_station_drop_576` and it is green. Pin count is still 241.

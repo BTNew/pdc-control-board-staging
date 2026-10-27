@@ -121,7 +121,7 @@ const approvedRootImportPatch = Object.freeze({
   // r569: Pause for another job on a started or stoppage chip (F183). Department 135 keeps its frozen planner.
   // r572: a planner bay lists every open job card, primary first (F186). Department 135 is not tagged.
   // r566: delegates vehicle search matching to pdc-workshop-vehicle-search.js (F180). Department 135 is not tagged.
-  // r575: a bay drop names the other station and can push it back (F189). Department 135 keeps its frozen planner.
+  // r576: a bay drop names the other station and can push it back (F190). Department 135 keeps its frozen planner.
   "workshop-planner.js": "c444a8c9bbdf4530531eb320be88016f04e5b4a8c42b35dbfa873d6a26fe4509",  // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -263,7 +263,7 @@ const approvedRootImportPatch = Object.freeze({
   // r569: r569=2026.10.27.r569 on both workshop-planner.js loads and both workshop-shared-actions.js loads (pause a bay job for another, F183). Department 135 is not tagged.
   // r573: a job wording longer than 2000 characters is named when hours cannot be saved (F187). Department 135 keeps its frozen app.js and the 180-character prompt.
   // r574: a keyed New to PMB tick can book that department's bay (F188). Department 135 keeps its frozen app.js.
-  // r575: r575=2026.10.27.r575 on both workshop-planner.js loads and both workshop-shared-actions.js loads (cross-station drop, F189). Department 135 is not tagged.
+  // r576: r576=2026.10.27.r576 on both workshop-planner.js loads and both workshop-shared-actions.js loads (cross-station drop, F190). Department 135 is not tagged.
   "app.js": "5e5aa7895dade6e166ebcddf4275edb5796a9fb63e99879c680059710cd2efe9",  // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -422,7 +422,7 @@ const approvedRootImportPatch = Object.freeze({
   // r417: administrator move/schedule ask the planner to confirm a bay rule warning, then resend confirmed (F32).
   // r424: push-back warning confirm; bay re-order and undo actions (F38).
   // r569: pauseBayForOther calls pause_bay_job_for_other_566 (F183). Department 135 keeps its frozen copy.
-  // r575: a cascade drop asks before pushing the same vehicle in another station (F189). Department 135 keeps its frozen copy.
+  // r576: a cascade drop asks before pushing the same vehicle in another station (F190). Department 135 keeps its frozen copy.
   "workshop-shared-actions.js": "cf663aa428e2114d6956b138a86fe0de3c7eded10bd9cf05080331adfd4f8d81",  // r483: Book all stations result shows the Dept 139 bay names (F96). The Karratha copy stays frozen.
   // r482: Book all stations asks first when the parts ETA is after today and marks bookings before it (F95).
   "pdc-book-all-stations.js": "5001a53b8a79fc7bd4cdc837178ff8b53cb5afd61a94991c27543d22db8c6e3c",
