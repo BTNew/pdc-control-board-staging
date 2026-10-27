@@ -1,5 +1,27 @@
 # Reported faults
 
+## Control board QC lines and nested work items
+
+Craig, 28 Oct 2026 05:18 AWST, release 2 of go live and optimise the board. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. The vehicle-board lock convoy is r586. This release is the eligibility snapshot the control board reads.
+
+A cold `pdc_ops.eligibility_snapshot_compute_554()` was about 2.2 seconds. QC lines were already cached, and calling the wrapper once per vehicle was about 60 ms of that. Candidate work items were looked up once per eligibility row. A grouped read in `ctid` order matched all 1220 live rows.
+
+### Fix
+
+r587 / F201 / sort 359. PR #498 keeps r584 / F198 / sort 356. r586 / F200 / sort 358 stays the board waiter release. The eligibility function joins `qc_operation_lines_cache` and still calls `pdc_qc_operation_lines_379` when a vehicle has no cached lines. It does not fill that cache. Work items are aggregated once per vehicle and stage, in `ctid` order, and the candidate row reads that list. The public wrapper stays `9207f7c1664552122775bb4a2e6d9f25`. The apply compared the whole snapshot, including `generated_at`, before and after in one transaction and would have rolled back if it differed.
+
+Pin count stays 241. No new pin. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick stays `3b2398e33a2ea35fc137deeedeca4af5`. The board body stays `1b8106327e68624c8f235c2e84641842`. QC lines stay `b7f90bff12643229ff80f8ca552663a2`, `97fc4caaf7b462163d35b4a3511bc487` and `a93005010cf96ab6eb804ef879039861`. The compute body moves from `f744636778e0f10128d6457605430c2f` to `a328867510e60f5b5f03c42368600c82`. Station eligibility moves from `633a0124502c70d88a552985af2c6e2e` to `cc9af22998b96b07d51eec43dda6e5d9`. `read_once_snapshots_554` names the new compute body. The detail line that records the r554-era checksum is unchanged.
+
+Up `supabase/migrations/20261028064500_r587_board_qc_nesting.sql` file md5 `ef5d9480b7319e275886441f3be706c3`. Down `supabase/rollbacks/20261028064500_r587_board_qc_nesting.down.sql` file md5 `e398b30fcb254c2151f80330f1dc75b2`.
+
+The clock before the apply was green: 781 runs since r552, p95 76 ms, last 30 minutes p95 619 ms, max 690 ms, 0 whole-tick failures in 24 hours. Baseline was 128 checks and 0 red. One attempt started on the clock second and rolled back with no ledger row. Live ledger `20261027224137` `r587_board_qc_nesting`. No data rollback.
+
+Before, five computes, median 2202.2 ms: 2273.1, 2231.0, 2187.5, 2201.5, 2202.2. Payload without `generated_at` was md5 `4436ae90c3c77cf4b732c3628465a4d4`. After, five computes, median 1840.1 ms: 1937.5, 1902.3, 1839.4, 1840.1, 1823.1, 1588053 bytes, md5 `941758803a8beb55714a9d23acc00c4a`. Those two samples are minutes apart, so the checksums are not the identity proof. The identity proof is the in-transaction compare. The post-check was 129 checks and 0 red. The new check's cached wrapper calls were 0.5 ms and 0.3 ms, 1588055 bytes.
+
+### Check
+
+`board_qc_nesting_587` (F201, sort 359). It goes red if the per-vehicle QC call or the per-row work-item lookup comes back, if the wrapper or the public eligibility function changes, if the first call takes 8 seconds or more, if the second call takes 2 seconds or more, or if the two payloads differ.
+
 ## Vehicle board waiters blocked on the rebuild lock
 
 Burt, 28 Oct 2026 06:19 AWST. `get_pdc_email_vehicle_board_snapshot_conditional` convoyed on an advisory lock. One PostgREST call was active for 12 seconds holding the lock while it rebuilt, and four more were waiting on Lock/advisory and climbing toward the 8 second authenticator timeout. The control board mean was about 4.4 seconds. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched.
