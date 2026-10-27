@@ -136,7 +136,8 @@ const approvedRootImportPatch = Object.freeze({
   // r563: a board-arrival age is grey (#e2e8f0). Department 135 is not tagged.
   "styles.css": "db8fdba0496351e91e5e4b6668b42f3635821c4bd01ec4e6a38db6f1d8e288ad",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
-  "scripts/build_pages_runtime.js": "cd1a534ae7b8b7a004080b55ef39edd0633f8fd598622b07c70f2bf8f2a9f55d",
+  // r565: the runtime list adds pdc-bus-component-split.js before the fitter scripts (F179). Department 135 is not tagged.
+  "scripts/build_pages_runtime.js": "8424a13bbb54de00d9e15d23f3feeae6603c3dfb153ddd528aa3ecba70732d89",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
   // on Sublet lines. Department 135 keeps its frozen copy.
@@ -195,7 +196,8 @@ const approvedRootImportPatch = Object.freeze({
   // r500: every started item / section shows Pause (also when running too long) and Resume while the job is stopped; Pause opens the stoppage panel under the item (F113).
   // r532: a started job can tick Start and Done on other-station items (F146). Department 135 keeps the frozen fitter script.
   // r564: Fitters bay shows Key N beside stock (F178). Department 135 keeps the frozen fitter script.
-  "pdc-fitters.js": "2fb4cdfc3798212e0e8238139475a2775509e0e8d85c2327e63cac496abd981f",
+  // r568: a Bus 4x4 bay can start or finish another component's line items (F182). Department 135 keeps the frozen fitter script.
+  "pdc-fitters.js": "82b8ac3ff1971a91f1991135de327ed2de974229d04cc455b9f13f906443b2fa",
   // Deliberate live-board change, 19 October 2026. Department 135 stays parked.
   // app.js keeps Setup backup polling, hoist-corrections=2026.10.19.02,
   // planner-followup=2026.10.19.01, and the Vehicle Locations summary that
@@ -367,7 +369,8 @@ const approvedRootImportPatch = Object.freeze({
   // r564: index.html adds r564=2026.10.27.r564 on pdc-fitters.js (Fitters key badge, F178). Department 135 is not tagged.
   // r565: index.html adds r565=2026.10.27.r565 on canonical-entry.js and app.js (side-panel edit stays on the chip list, F179). styles.css keeps the arrival-age r563. Department 135 is not tagged.
   // r567: index.html adds r567=2026.10.27.r567 on canonical-entry.js (typed Parts ETA, F181). Fitters r564 stays on pdc-fitters.js. Department 135 is not tagged.
-  "index.html": "8e1c909c6cd31b273ba33632181edbd8996f8b8f6039c2e284ebfac20cb8ac32",
+  // r568: index.html loads pdc-bus-component-split.js and adds r568=2026.10.27.r568 on pdc-fitters.js (F182). Department 135 is not tagged.
+  "index.html": "67a62a8fb3a5e6a056e3f9a43bc39d0fb6e1ec968c7982c2d72c956c30c6c37e",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
