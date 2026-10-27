@@ -15016,6 +15016,9 @@ function vehicleWorkshopHoursBatchSyncDrafts(page) {
 }
 
 function vehicleWorkshopHoursBatchError(result = {}) {
+  if (result.code === 'hours_description_rejected') {
+    return result.message || 'The hours were not saved. The job wording on a line is empty, has a hidden character, or is longer than 2000 characters. Shorten that wording, then try again. Nothing else was changed.';
+  }
   return ({
     invalid_hours_batch: 'The hours batch was invalid. No change was made.',
     vehicle_not_found: 'The canonical vehicle is no longer available. No change was made.',
@@ -15277,8 +15280,8 @@ async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId 
   const nextDescription = hoursOnly ? description : window.prompt(lineKey ? 'Workshop line description' : 'New Workshop line description', description || '');
   if (nextDescription === null) return false;
   const trimmedDescription = cleanNavisionText(nextDescription);
-  if (!trimmedDescription || trimmedDescription.length > 180) {
-    pdcNotify('Enter a Workshop line description between 1 and 180 characters.');
+  if (!trimmedDescription || trimmedDescription.length > 2000) {
+    pdcNotify('Enter a Workshop line description between 1 and 2000 characters.');
     return false;
   }
   const nextHours = hoursOnly ? hours : window.prompt('Estimated hours (up to two decimal places)', hours || '1');
@@ -15306,7 +15309,13 @@ async function saveVehicleWorkshopLine({ stage = '', lineKey = '', adjustmentId 
       }),
     });
     const body = await response.json().catch(() => null);
-    if (!response.ok || body?.ok === false) throw new Error(body?.message || body?.code || `Workshop line update failed (${response.status}).`);
+    let lineError = body?.message || body?.code || `Workshop line update failed (${response.status}).`;
+    if (body?.code === 'hours_description_rejected') {
+      lineError = body.message || 'The hours were not saved. This job wording is empty, has a hidden character, or is longer than 2000 characters. Shorten the wording, then try again.';
+    } else if (body?.code === '23514' && /description_check/.test(String(body?.message || ''))) {
+      lineError = 'The hours were not saved. This job wording is empty, has a hidden character, or is longer than 2000 characters. Shorten the wording, then try again.';
+    }
+    if (!response.ok || body?.ok === false) throw new Error(lineError);
     if (refresh) await loadVehicleWorkshopDetail(vehicle, { force: true });
     return true;
   } catch (error) {
