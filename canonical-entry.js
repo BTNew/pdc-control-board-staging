@@ -96,7 +96,7 @@
     const loadKeyNumber = () => {
       if (document.querySelector('script[data-pdc-key-number]')) return;
       const keyNumber = document.createElement('script');
-      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460&r472=2026.10.22.r472&r490=2026.10.23.r490';
+      keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460&r472=2026.10.22.r472&r490=2026.10.23.r490&r575=2026.10.27.r575';
       keyNumber.dataset.pdcKeyNumber = '1';
       keyNumber.onload = loadPartsStoppage;
       keyNumber.onerror = loadPartsStoppage;

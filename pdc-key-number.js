@@ -33,6 +33,11 @@
     if (/^0+$/.test(key)) return '0 means no key. Leave it empty to clear the key.';
     return '';
   }
+  /** r575: the server sentence is blue. A raw 23505 is never this text. */
+  function clashMessage(value) {
+    const text = String(value || '');
+    return /^Key \S+ is already on stock /.test(text) ? text : '';
+  }
   const when = value => {
     const d = new Date(value || '');
     if (Number.isNaN(d.getTime())) return '';
@@ -49,16 +54,18 @@
   function keyCellHtml(state) {
     const vid = esc(state.vehicleId || '');
     const key = String(state.key || '').trim();
+    const clash = clashMessage(state.message);
+    const msgClass = clash ? 'pdc-keyno-msg is-clash' : 'pdc-keyno-msg';
     if (state.editing && state.canEdit) {
       return `<div class="pdc-keyno-cell is-editing" data-pdc-key-cell="${vid}"><b>Key No.</b><span class="pdc-keyno-edit">`
         + `<input type="text" inputmode="text" maxlength="32" autocomplete="off" data-pdc-key-input="${vid}" value="${esc(key)}" aria-label="Key number" placeholder="e.g. 125" />`
         + `<button type="button" class="pdc-keyno-save" data-pdc-key-save="${vid}">Save</button><button type="button" data-pdc-key-cancel="${vid}">Cancel</button>`
-        + `<small class="pdc-keyno-msg" role="status">${esc(state.message || 'Leave empty to clear. Every change is recorded.')}</small></span></div>`;
+        + `<small class="${msgClass}" role="status">${esc(clash || state.message || 'Leave empty to clear. Every change is recorded.')}</small></span></div>`;
     }
     return `<div class="pdc-keyno-cell" data-pdc-key-cell="${vid}"><b>Key No.</b><span><strong class="pdc-keyno-value">${esc(key || '—')}</strong>`
       + (state.canEdit && vid ? `<button type="button" class="pdc-keyno-edit-button" data-pdc-key-edit="${vid}" title="Edit the key number (recorded in the audit trail)">Edit</button>`
         + `<button type="button" class="pdc-keyno-history-button" data-pdc-key-history="${vid}">History</button>` : '')
-      + (state.message ? `<small class="pdc-keyno-msg is-ok" role="status">${esc(state.message)}</small>` : '')
+      + (state.message ? `<small class="${clash ? msgClass : 'pdc-keyno-msg is-ok'}" role="status">${esc(state.message)}</small>` : '')
       + (state.history ? historyHtml(state.history) : '') + '</span></div>';
   }
   /** Put the Key No. cell after the Stock No. cell of a drop-down's detail grid (or first when there is none). */
@@ -82,7 +89,7 @@
     '.pdc-keyno-cell button{font:inherit;font-size:11px;font-weight:650;padding:2px 8px;border-radius:5px;border:1px solid #94a3b8;background:#fff;color:#1e293b;cursor:pointer}',
     '.pdc-keyno-cell .pdc-keyno-save{background:#1d4ed8;border-color:#1d4ed8;color:#fff}',
     '.pdc-keyno-cell input{font:inherit;width:7.5em;padding:3px 6px;border:1px solid #64748b;border-radius:5px;text-transform:uppercase}',
-    '.pdc-keyno-cell .pdc-keyno-msg{flex-basis:100%;color:#64748b;font-size:11px}.pdc-keyno-cell .pdc-keyno-msg.is-error{color:#b91c1c}.pdc-keyno-cell .pdc-keyno-msg.is-ok{color:#166534}',
+    '.pdc-keyno-cell .pdc-keyno-msg{flex-basis:100%;color:#64748b;font-size:11px}.pdc-keyno-cell .pdc-keyno-msg.is-error{color:#b91c1c}.pdc-keyno-cell .pdc-keyno-msg.is-ok{color:#166534}.pdc-keyno-cell .pdc-keyno-msg.is-clash{color:#1d4ed8}',
     '.pdc-keyno-history{flex-basis:100%;margin:2px 0 0;padding:0;list-style:none;font-size:11px;color:#334155}.pdc-keyno-history li{display:flex;gap:6px;flex-wrap:wrap}',
     '.pdc-keyno-history-empty{flex-basis:100%;color:#64748b;font-size:11px}',
   ].join('');
@@ -106,7 +113,7 @@
     const fields = Object.keys(detailChanges && typeof detailChanges === 'object' ? detailChanges : {});
     return !String(requestedCode || '').trim() && fields.length === 1 && fields[0] === 'key_number';
   }
-  const api = { VERSION, R472: '2026.10.22.r472', normaliseKey, keyProblem, keyCellHtml, decorateRow, preferRecordedKey, historyHtml, CSS, rawRowsAfterReceipt, rawRowsAfterReadback, keyOnlySave };
+  const api = { VERSION, R472: '2026.10.22.r472', R575: '2026.10.27.r575', normaliseKey, keyProblem, clashMessage, keyCellHtml, decorateRow, preferRecordedKey, historyHtml, CSS, rawRowsAfterReceipt, rawRowsAfterReadback, keyOnlySave };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_KEY_NUMBER_VERSION) return;
   window.PDC_KEY_NUMBER_VERSION = VERSION;
@@ -223,11 +230,17 @@
       const r = await rpc('set_pdc_vehicle_key_number_460', { p_vehicle_id: vid, p_expected_vehicle_version: version, p_key_number: normaliseKey(typed), p_idempotency_key: st.pending });
       if (r?.ok !== true) {
         st.pending = null;
-        const text = r?.code === 'vehicle_version_conflict' ? 'This vehicle changed since the board loaded. Close and reopen it, then try again.'
+        const clash = clashMessage(r?.message);
+        const text = clash
+          || (r?.code === 'vehicle_version_conflict' ? 'This vehicle changed since the board loaded. Close and reopen it, then try again.'
           : r?.code === 'key_number_in_use' ? 'Another active PMB vehicle already has this key tag.'
           : r?.code === 'not_authorized' ? 'Only controllers and administrators can change the key.'
-          : (r?.message || `Not saved (${r?.code || 'error'}).`);
-        if (msg) { msg.textContent = text; msg.classList.add('is-error'); }
+          : (r?.message || `Not saved (${r?.code || 'error'}).`));
+        if (msg) {
+          msg.textContent = text;
+          msg.classList.toggle('is-clash', Boolean(clash));
+          msg.classList.toggle('is-error', !clash);
+        }
         return;
       }
       const d = r.data || {};
@@ -236,7 +249,12 @@
       ui.set(vid, { editing: false, key: String(d.key_number || ''), message: d.changed === false ? 'No change.' : `Saved.${also}` });
       rerender(); paint(vid);
     } catch (error) {
-      if (msg) { msg.textContent = `Not saved: ${error.message || error}. Try again.`; msg.classList.add('is-error'); }
+      const clash = clashMessage(error?.message);
+      if (msg) {
+        msg.textContent = clash || `Not saved: ${error.message || error}. Try again.`;
+        msg.classList.toggle('is-clash', Boolean(clash));
+        msg.classList.toggle('is-error', !clash);
+      }
     }
   }
   async function showHistory(vid) {
