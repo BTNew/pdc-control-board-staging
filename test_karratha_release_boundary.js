@@ -89,7 +89,8 @@ const approvedRootImportPatch = Object.freeze({
   // r483: PMB_BAYS map, pmbBayLabel() and bayLabel() show Craig's Dept 139 bay names (F96).
   // r509: Fabrication planner count is 14 (F122). Karratha's copy stays frozen.
   // r548: a missing bay reads Unallocated (F162). Department 135 is not tagged.
-  "pdc-workshop-departments.js": "c26a2ed48eb42e2df2e45ab94af7fc4c0d29a35b5676784111244e23e44f5861",
+  // r566: Electrical planner count is 7; PMB Bays 20-22 hidden (F180). Department 135 is not tagged.
+  "pdc-workshop-departments.js": "d77909d0ade7193f32d092981fcbaeab53d4ff6a7a8a95442587a9a08a69fb90",
   // Shared planner: pointer-capture drops from a deep queue or search overlay,
   // keep the last search rows during a post-drop refresh, close Add to planner
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
@@ -262,11 +263,15 @@ const approvedRootImportPatch = Object.freeze({
   // r562: a vehicle cannot leave New to PMB without a key number (F176). Department 135 is not tagged. app.js keeps r560 for the stock panel and adds r562.
   // r563: the PMB age is the earlier of that key instant and the first Tune import (F177). Department 135 is not tagged.
   // r565: side-panel completion read and controller tick (F179). Department 135 keeps its frozen app.js. app.js keeps r560, r562 and the arrival-age r563, and adds r565.
+  // r566: Electrical bay count 7 in PMB_WIP_LIMITS / PMB_STAGE_BAY_COUNTS (F180). Department 135 keeps its frozen app.js. app.js keeps r560, r562, the arrival-age r563 and r565, and adds r566.
   // r569: r569=2026.10.27.r569 on both workshop-planner.js loads and both workshop-shared-actions.js loads (pause a bay job for another, F183). Department 135 is not tagged.
+
   // r573: a job wording longer than 2000 characters is named when hours cannot be saved (F187). Department 135 keeps its frozen app.js and the 180-character prompt.
+
   // r574: a keyed New to PMB tick can book that department's bay (F188). Department 135 keeps its frozen app.js.
+
   // r575: a changed key that another loaded board vehicle already has says which stock, in blue (F189). Department 135 is not tagged.
-  "app.js": "564fae7f89990b8f0b43ef61fd3594ff06b91c5cf93eb6d7bd976e59c38f7db5",
+  "app.js": "d1b1dd6f509c2426ed8985003ce9f236f87576b23790c0dae444927fbe55f7b2",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -385,14 +390,21 @@ const approvedRootImportPatch = Object.freeze({
   // r563: index.html adds r563=2026.10.27.r563 on canonical-entry.js, app.js and styles.css (arrival age, F177). Department 135 is not tagged.
   // r564: index.html adds r564=2026.10.27.r564 on pdc-fitters.js (Fitters key badge, F178). Department 135 is not tagged.
   // r565: index.html adds r565=2026.10.27.r565 on canonical-entry.js and app.js (side-panel edit stays on the chip list, F179). styles.css keeps the arrival-age r563. Department 135 is not tagged.
+  // r566: index.html adds r566=2026.10.27.r566 on pdc-workshop-departments.js and app.js (hide Elec PMB 20-22, F180). Arrival-age r563 and panel r565 stay. Department 135 is not tagged.
   // r567: index.html adds r567=2026.10.27.r567 on canonical-entry.js (typed Parts ETA, F181). Fitters r564 stays on pdc-fitters.js. Department 135 is not tagged.
+
   // r568: index.html loads pdc-bus-component-split.js and adds r568=2026.10.27.r568 on pdc-fitters.js (F182). Department 135 is not tagged.
+
   // r572: r572=2026.10.27.r572 on pdc-stacked-jobcards.js and pdc-stacked-jobcards.css (F186). Department 135 is not tagged.
+
   // r573: index.html adds r573=2026.10.27.r573 on app.js and pdc-email-vehicle-location-service.js (hours wording, F187). Department 135 is not tagged.
+
   // r574: index.html adds r574=2026.10.27.r574 on app.js and styles.css (department bay booking, F188). Department 135 is not tagged.
+
   // r566: index.html loads pdc-workshop-vehicle-search.js (F180). Department 135 is not tagged.
+
   // r575: index.html adds r575=2026.10.27.r575 on the key cell, the card, the detail save and the stylesheet (F189). Department 135 is not tagged.
-  "index.html": "f50f5419d3ade7f05ed180c14582b4b3f07bff95306a0030bb258b9c853999d4",
+  "index.html": "ab30516505652aceba77afd38c9e2e4fb2d0c05a3958e79f9e9d2d6350a4cc94",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
