@@ -105,6 +105,7 @@ test('the planner has plain English for both codes and the migration keeps the p
   assert.match(up, /9be0883b1a555f48f3c1ba9fa111c891/);
   assert.match(up, /b62fb7c29ffd2a1629f214f696e5cb14/);
   assert.match(up, /<>241/);
+  assert.match(up, /timestamp with time zone,integer,text,jsonb,uuid,boolean\)' AND release='r571'/);
   assert.equal(up.includes('INSERT INTO pdc_ops.expected_function_md5'), false);
   assert.match(up, /place_after_running/);
   assert.match(down, /fa78dfb941af8fd86ca705890d4bf798/);
