@@ -1,9 +1,9 @@
--- r578 (F192) / sort 350. Staging cdsmnqxtyyoeoznmbidd only. Production is not a target.
+-- r578 (F196) / sort 354. Staging cdsmnqxtyyoeoznmbidd only. Production is not a target.
 --
 -- Live before this apply: sort 347 is cross_station_drop_576 (r576 / F190).
 -- sort 348 is electrical_bays_7_566 (r566 / F180). sort 349 is
 -- bay_manager_hours_570 (r577 / F191), taken while this preview was open.
--- This release is r578 / F192 / sort 350. pdc_ops.fault_regression_check() runs the row below.
+-- This release is r578 / F196 / sort 354. F192 and sort 350 are bay_code_identity_579. pdc_ops.fault_regression_check() runs the row below.
 --
 -- The side-panel tick (r565) stores who ticked a line. The station icon reads
 -- vehicle_work_items.completed only, so a ticked Tint line stays Required.
@@ -13,7 +13,7 @@
 -- a work item, a booking, or a job card. Status 80 and the QC line function
 -- stay as they are. Department 135 stays as it is. Pin count stays 241.
 -- Controllers are operator and administrator. The JWT user_metadata claim is not read.
--- Undo: supabase/rollbacks/20261028010000_r578_station_icon_completion.down.sql
+-- Undo: supabase/rollbacks/20261028020000_r578_station_icon_completion.down.sql
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
@@ -25,7 +25,7 @@ DO $g$ BEGIN
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='cross_station_drop_576' AND fault_id='F190' AND sort_order=347 AND added_in='r576') THEN RAISE EXCEPTION 'r578: r576 / F190 sort 347 is not present'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='electrical_bays_7_566' AND fault_id='F180' AND sort_order=348 AND added_in='r566') THEN RAISE EXCEPTION 'r578: r566 / F180 sort 348 is not present'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bay_manager_hours_570' AND fault_id='F191' AND sort_order=349 AND added_in='r577') THEN RAISE EXCEPTION 'r578: r577 / F191 sort 349 is not present'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=350 OR fault_id='F192' OR check_name='station_icon_completion_578' OR added_in='r578') THEN RAISE EXCEPTION 'r578: sort 350 or F192 is taken'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=354 OR fault_id='F196' OR check_name='station_icon_completion_578' OR added_in='r578') THEN RAISE EXCEPTION 'r578: sort 354 or F196 is taken'; END IF;
  IF pg_catalog.to_regclass('public.pdc_station_completion_override_578') IS NOT NULL
     OR pg_catalog.to_regclass('public.pdc_station_completion_history_578') IS NOT NULL THEN RAISE EXCEPTION 'r578: already applied'; END IF;
  IF (SELECT md5(p.prosrc) FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('karratha135_pdc.fitter_job_command(uuid,uuid,integer,text,uuid,text,text,boolean,text)'))
@@ -261,7 +261,7 @@ REVOKE ALL ON FUNCTION public.set_station_completion_override_578(uuid, text, bo
 GRANT EXECUTE ON FUNCTION public.set_station_completion_override_578(uuid, text, boolean) TO authenticated;
 
 INSERT INTO pdc_ops.regression_checks (check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
-('station_icon_completion_578', 'F192',
+('station_icon_completion_578', 'F196',
  'A station icon is complete exactly when every active line of that station is done, or a workshop controller has overridden it. Partial lines stay incomplete. The pin count stays 241. The override does not rewrite a vehicle.',
  $chk578$
 SELECT
@@ -437,14 +437,14 @@ CROSS JOIN (
   FULL OUTER JOIN actual a ON a.vehicle_id = e.vehicle_id AND a.work_key = e.work_key
   WHERE a.complete IS DISTINCT FROM e.complete
 ) mismatch
-$chk578$, true, 350, 'r578');
+$chk578$, true, 354, 'r578');
 
 DO $post$
 DECLARE r record; probe record;
 BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r578: pin count changed'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r578') THEN RAISE EXCEPTION 'r578: a pin was inserted'; END IF;
- IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='station_icon_completion_578' AND fault_id='F192' AND sort_order=350 AND added_in='r578' AND enabled)<>1 THEN RAISE EXCEPTION 'r578: check missing'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='station_icon_completion_578' AND fault_id='F196' AND sort_order=354 AND added_in='r578' AND enabled)<>1 THEN RAISE EXCEPTION 'r578: check missing'; END IF;
  PERFORM set_config('search_path','pg_catalog',true);
  FOR r IN SELECT check_name, check_sql FROM pdc_ops.regression_checks WHERE check_name='station_icon_completion_578' LOOP
   EXECUTE r.check_sql INTO probe;

@@ -34,7 +34,7 @@ test('other workshop calendars retain configured break/overtime availability',()
 });
 test('daily bay renderer supplies bay-specific overlays with only two Bus calendar calculations',()=>{
  const source=fs.readFileSync('workshop-planner.js','utf8'),start=source.indexOf('function workshopDepartmentLayout('),end=source.indexOf('\nfunction workshopMechanicOptions(',start);let calls=[];
- const ctx={workshopStageBayCount:()=>10,workshopLoadAdminBlocks:()=>[],workshopBayMechanic:()=>'',workshopAssigneeOptions:()=>'',workshopPad:v=>String(v).padStart(2,'0'),escapeHtml:v=>String(v),WORKSHOP_PENDING_BAY_ASSIGNMENTS:new Set(),workshopDropPreviewHtml:()=>'',workshopUnavailableTimeHtml:(date,options)=>{calls.push(options);return '<i data-closed-bay="'+options.bay+'"></i>';}};
+ const ctx={workshopStageBayCount:()=>10,workshopLoadAdminBlocks:()=>[],workshopBayMechanic:()=>'',workshopAssigneeOptions:()=>'',workshopPad:v=>String(v).padStart(2,'0'),escapeHtml:v=>String(v),WORKSHOP_PENDING_BAY_ASSIGNMENTS:new Set(),workshopDropPreviewHtml:()=>'',workshopBayHoursOverride:()=>null,workshopBayHoursCaption:()=>'',workshopUnavailableTimeHtml:(date,options)=>{calls.push(options);return '<i data-closed-bay="'+options.bay+'"></i>';}};
  vm.runInNewContext(source.slice(start,end)+';this.render=workshopBayRowsHtml;',ctx);
  const html=ctx.render('BUS_4X4','2026-10-02',[]);assert.equal(calls.length,2);assert.equal((html.match(/data-closed-bay="1"/g)||[]).length,8);assert.equal((html.match(/data-closed-bay="8"/g)||[]).length,2);
  calls=[];ctx.render('FITTING','2026-10-02',[]);assert.equal(calls.length,1);

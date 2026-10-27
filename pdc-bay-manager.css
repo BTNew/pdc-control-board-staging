@@ -1,0 +1,26 @@
+.bay-manager { display: grid; gap: 16px; }
+.bay-manager h2 { margin: 0; color: #1e3a8a; font-size: 1.15rem; }
+.bay-manager-lead { margin: 0; color: #334155; max-width: 68rem; }
+.bay-manager-station { border: 1px solid #bfdbfe; border-radius: 12px; background: #fff; overflow: hidden; }
+.bay-manager-station > header { padding: 10px 14px; background: #dbeafe; color: #1e3a8a; font-weight: 800; }
+.bay-manager-bay { display: grid; gap: 10px; padding: 12px 14px; border-top: 1px solid #e2e8f0; }
+.bay-manager-bay-head { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.bay-manager-bay-head strong { color: #0f172a; }
+.bay-manager-code { color: #475569; font-size: .82rem; }
+.bay-manager-state { border-radius: 999px; padding: 2px 8px; font-size: .75rem; font-weight: 800; }
+.bay-manager-state.is-active { background: #dbeafe; color: #1d4ed8; }
+.bay-manager-state.is-hidden { background: #e2e8f0; color: #475569; }
+.bay-manager-source { color: #1d4ed8; font-size: .82rem; font-weight: 700; }
+.bay-manager-actions, .bay-manager-rename { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.bay-manager input[type="text"], .bay-manager input[type="time"], .bay-manager button { font: inherit; }
+.bay-manager button { border: 1px solid #93c5fd; background: #fff; color: #1d4ed8; border-radius: 8px; padding: 6px 10px; font-weight: 700; cursor: pointer; }
+.bay-manager button:hover { background: #eff6ff; }
+.bay-manager button.bay-manager-primary { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+.bay-manager button.bay-manager-primary:hover { background: #1e40af; }
+.bay-manager button:disabled { opacity: .55; cursor: not-allowed; }
+.bay-manager-week { width: 100%; border-collapse: collapse; }
+.bay-manager-week th, .bay-manager-week td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #e2e8f0; font-size: .85rem; }
+.bay-manager-week th { color: #1e3a8a; }
+.bay-manager-warning { margin: 0; padding: 8px 10px; border-radius: 8px; background: #eff6ff; color: #1e3a8a; }
+.bay-manager-warning ul { margin: 6px 0 0; padding-left: 18px; }
+.bay-manager-note { color: #64748b; font-size: .82rem; }

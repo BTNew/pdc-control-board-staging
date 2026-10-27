@@ -55,6 +55,8 @@ const STARTUP_ORDER = [
   'pdc-conversions.js',
   'pdc-bus-component-split.js',
   'pdc-fitters.js',
+  // r570 (F184): Bay Manager loads with the board so the planner can read per-bay hours.
+  'pdc-bay-manager.js',
   'pdc-workshop-hours.js',
   'pdc-vehicle-sublets.js' // r494 (F107): Manage sublets per vehicle
 ];

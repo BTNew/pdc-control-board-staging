@@ -1,5 +1,5 @@
 'use strict';
-// r578 (F192) / sort 350. The station icon follows every line of that station.
+// r578 (F196) / sort 354. The station icon follows every line of that station.
 // Synthetic vehicles only. The migration is not applied here.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -10,8 +10,8 @@ const stations = require('./sales/pmb-stations.js');
 const guard = require('./vehicle-requirements-guard.js');
 const eligibility = require('./workshop-eligibility.js');
 
-const upPath = 'supabase/migrations/20261028010000_r578_station_icon_completion.sql';
-const downPath = 'supabase/rollbacks/20261028010000_r578_station_icon_completion.down.sql';
+const upPath = 'supabase/migrations/20261028020000_r578_station_icon_completion.sql';
+const downPath = 'supabase/rollbacks/20261028020000_r578_station_icon_completion.down.sql';
 
 test('r578 SQL is the next free check and does not rewrite a vehicle or a pin', () => {
   const up = fs.readFileSync(upPath, 'utf8');
@@ -20,8 +20,8 @@ test('r578 SQL is the next free check and does not rewrite a vehicle or a pin', 
   assert.equal(scanSql(down).length, 0);
   assert.doesNotMatch(up, /\r/);
   assert.doesNotMatch(down, /\r/);
-  assert.match(up, /'station_icon_completion_578', 'F192'/);
-  assert.match(up, /true, 350, 'r578'/);
+  assert.match(up, /'station_icon_completion_578', 'F196'/);
+  assert.match(up, /true, 354, 'r578'/);
   assert.match(up, /sort_order=347 AND added_in='r576'/);
   assert.match(up, /sort_order=348 AND added_in='r566'/);
   assert.match(up, /check_name='bay_manager_hours_570' AND fault_id='F191' AND sort_order=349 AND added_in='r577'/);
@@ -51,7 +51,7 @@ test('r578 SQL is the next free check and does not rewrite a vehicle or a pin', 
   assert.doesNotMatch(down, /panel_line_completion_565/);
   assert.doesNotMatch(down, /DELETE FROM public\.vehicles/);
   assert.doesNotMatch(down, /DELETE FROM pdc_ops\.expected_function_md5/);
-  assert.match(fs.readFileSync('docs/FAULT_LOG.md', 'utf8'), /\| F192 \|/);
+  assert.match(fs.readFileSync('docs/FAULT_LOG.md', 'utf8'), /\| F196 \|/);
 });
 
 function source(name) {

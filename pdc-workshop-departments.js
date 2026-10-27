@@ -131,7 +131,8 @@
   // Keyed by station and the station's own bay_number: bookings keep bay_id / bay_number, only the label changes.
   // r509 (F122): Fabrication shows 14 bays. Bays 01 and 02 keep Internal / External Fabrication (PMB Bays 11 and 12).
   // Bays 03-14 keep the plain 'Bay NN' label. Shared Tint / Tyre and Bus 4x4 are not in this map.
-  const PMB_BAYS_VERSION = 'r483';
+  // r566 (F180): Electrical planner and pickers draw 7 bays (PMB 13-19). Bays 08-10 (PMB 20-22) stay in the map for labels.
+  const PMB_BAYS_VERSION = 'r566';
   const pmbBayRows = (first, label, count) => Object.freeze(Object.fromEntries(Array.from({length:count}, (_, i) =>
     [i+1, Object.freeze({number:first+i, label})])));
   const PMB_BAYS = Object.freeze({
@@ -140,7 +141,7 @@
     FABRICATION: Object.freeze({1:Object.freeze({number:11,label:'Internal Fabrication'}),2:Object.freeze({number:12,label:'External Fabrication'})}),
     ELECTRICAL: pmbBayRows(13, 'Electrical', 10),
   });
-  const PMB_BAY_COUNTS = Object.freeze({HOIST:3,FITTING:5,FABRICATION:14,ELECTRICAL:10});
+  const PMB_BAY_COUNTS = Object.freeze({HOIST:3,FITTING:5,FABRICATION:14,ELECTRICAL:7});
   const pmbBay = (stage, bay) => PMB_BAYS[String(stage || '').trim().toUpperCase()]?.[Number(bay)] || null;
   // 'Fitting · Bay 06' for a Dept 139 bay, '' for any other station (callers keep their own 'Bay N').
   function pmbBayLabel(stage, bay) {
