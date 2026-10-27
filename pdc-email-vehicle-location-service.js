@@ -676,7 +676,12 @@ function createPdcEmailVehicleLocationService(options = {}) {
       const body = await response.json().catch(() => null);
       const data = body?.data || body;
       if (!response.ok || !body || body.ok !== true || !data?.receipt_id || String(data.vehicle_id || '') !== String(vehicleId || '') || !/^[a-f0-9]{64}$/i.test(String(data.request_sha256 || ''))) {
-        return { ok: false, code: body?.code || body?.error || 'workshop_hours_batch_receipt_invalid', data: data || null };
+        const rawCode = body?.code || body?.error || 'workshop_hours_batch_receipt_invalid';
+        const rawMessage = String(body?.message || '');
+        if (rawCode === '23514' && /vehicle_workshop_line_adjustments_description_check/.test(rawMessage)) {
+          return { ok: false, code: 'hours_description_rejected', message: 'The hours were not saved. The job wording on a line is empty, has a hidden character, or is longer than 2000 characters. Shorten that wording, then try again. Nothing else was changed.', data: data || null };
+        }
+        return { ok: false, code: rawCode, message: rawMessage, data: data || null };
       }
       return { ok: true, code: body.code || 'workshop_hours_batch_saved', data };
     } catch (_error) { return { ok: false, code: 'workshop_hours_batch_unavailable', data: null }; }
