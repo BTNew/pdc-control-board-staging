@@ -262,7 +262,7 @@ const PMB_WIP_LIMITS = {
   HOIST: 3,
   FITTING: 5,
   FABRICATION: 14, // r509 (F122): 14 fabrication bays; 01-02 stay Internal / External Fabrication
-  ELECTRICAL: 10,
+  ELECTRICAL: 7, // r566 (F180): PMB Bays 13-19; 20-22 hidden (not deleted)
   TYRE: 2,
   PIT_INSPECTION: 1,
   SUBLET: 12,
@@ -274,7 +274,7 @@ const PMB_STAGE_BAY_COUNTS = {
   HOIST: 3,
   FITTING: 5,
   FABRICATION: 14, // r509 (F122): planner and PMB bay board draw Fab Bays 01-14
-  ELECTRICAL: 10,
+  ELECTRICAL: 7, // r566 (F180): Elec bays 08-10 (PMB 20-22) hidden via is_active
   TYRE: 2,
   PIT_INSPECTION: 1,
 };

@@ -86,7 +86,8 @@ const approvedRootImportPatch = Object.freeze({
   // r483: PMB_BAYS map, pmbBayLabel() and bayLabel() show Craig's Dept 139 bay names (F96).
   // r509: Fabrication planner count is 14 (F122). Karratha's copy stays frozen.
   // r548: a missing bay reads Unallocated (F162). Department 135 is not tagged.
-  "pdc-workshop-departments.js": "c26a2ed48eb42e2df2e45ab94af7fc4c0d29a35b5676784111244e23e44f5861",
+  // r566: Electrical planner count is 7; PMB Bays 20-22 hidden (F180). Department 135 is not tagged.
+  "pdc-workshop-departments.js": "d77909d0ade7193f32d092981fcbaeab53d4ff6a7a8a95442587a9a08a69fb90",
   // Shared planner: pointer-capture drops from a deep queue or search overlay,
   // keep the last search rows during a post-drop refresh, close Add to planner
   // when the write is confirmed, follow the bay mechanic, and keep unallocated
@@ -247,7 +248,8 @@ const approvedRootImportPatch = Object.freeze({
   // r562: a vehicle cannot leave New to PMB without a key number (F176). Department 135 is not tagged. app.js keeps r560 for the stock panel and adds r562.
   // r563: the PMB age is the earlier of that key instant and the first Tune import (F177). Department 135 is not tagged.
   // r565: side-panel completion read and controller tick (F179). Department 135 keeps its frozen app.js. app.js keeps r560, r562 and the arrival-age r563, and adds r565.
-  "app.js": "c7660a0ed539451588687c722415db65d8d6c6df8700540796816b6590303885",
+  // r566: Electrical bay count 7 in PMB_WIP_LIMITS / PMB_STAGE_BAY_COUNTS (F180). Department 135 keeps its frozen app.js. app.js keeps r560, r562, the arrival-age r563 and r565, and adds r566.
+  "app.js": "9a3d8d3d8e9753902dbb19e27ef3facd1b08032e327d9bc9c1c1bc74b79e4ab4",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -365,7 +367,8 @@ const approvedRootImportPatch = Object.freeze({
   // r563: index.html adds r563=2026.10.27.r563 on canonical-entry.js, app.js and styles.css (arrival age, F177). Department 135 is not tagged.
   // r564: index.html adds r564=2026.10.27.r564 on pdc-fitters.js (Fitters key badge, F178). Department 135 is not tagged.
   // r565: index.html adds r565=2026.10.27.r565 on canonical-entry.js and app.js (side-panel edit stays on the chip list, F179). styles.css keeps the arrival-age r563. Department 135 is not tagged.
-  "index.html": "73908e124824c883ba25caa302a13e55518004d5e924217d9695bcebf9c899e0",
+  // r566: index.html adds r566=2026.10.27.r566 on pdc-workshop-departments.js and app.js (hide Elec PMB 20-22, F180). Arrival-age r563 and panel r565 stay. Department 135 is not tagged.
+  "index.html": "b06c651a9d61ba00fcd531c2cfbbc34d962857d6d2f0e9fc33469c7942a885b0",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
