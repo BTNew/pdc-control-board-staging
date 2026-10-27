@@ -24,6 +24,8 @@
 -- No vehicle, job, booking or email ETA row is created, hidden, closed or removed.
 -- Pin count stays 241. No pinned function is edited.
 -- Source up md5 0cfa2b48d798149f9397230d8d67f564. Source down md5 c84bc247c3e3362fc9861d4094f9e0f2.
+-- The preview check called pg_catalog.position(x IN y). That form does not parse, so the
+-- check uses pg_catalog.strpos. Function bodies are unchanged.
 -- Undo: supabase/rollbacks/20261027170000_r567_parts_stoppage_eta.down.sql
 
 SET LOCAL lock_timeout = '2s';
@@ -266,7 +268,7 @@ WITH fn AS (
     count(*) FILTER (WHERE p.prosecdef) sd,
     bool_and(NOT pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE')) no_anon,
     bool_and(pg_catalog.has_function_privilege('authenticated', p.oid, 'EXECUTE')) auth_exec,
-    bool_and(pg_catalog.position('pg_catalog' IN coalesce(pg_catalog.array_to_string(p.proconfig, ','), '')) > 0) path_ok
+    bool_and(pg_catalog.strpos(coalesce(pg_catalog.array_to_string(p.proconfig, ','), ''), 'pg_catalog') > 0) path_ok
   FROM pg_catalog.pg_proc p
   WHERE p.oid IN (
     pg_catalog.to_regprocedure('public.set_pdc_parts_stoppage_564(uuid,date,text,boolean,boolean)'),
@@ -300,14 +302,14 @@ SELECT (SELECT n = 3 AND sd = 3 AND no_anon AND auth_exec AND path_ok FROM fn)
     AND parts_v2 = '6a0046123aeb862667dce68884318850'
     AND parts_email = 'a81b786bfc7868c3217d827933299678'
     AND jita_board = '29dcb35956acd61b6a8aa2ca07a80182' FROM pins)
-  AND (SELECT pg_catalog.position('importer' IN prosrc) > 0
-    AND pg_catalog.position('operator' IN prosrc) > 0
-    AND pg_catalog.position('administrator' IN prosrc) > 0
-    AND pg_catalog.position('deleted_at IS NULL' IN prosrc) > 0
-    AND pg_catalog.position('UPDATE public.vehicles' IN prosrc) = 0
-    AND pg_catalog.position('DELETE FROM' IN prosrc) = 0
-    AND pg_catalog.position('pdc_parts_eta' IN prosrc) = 0
-    AND pg_catalog.position('pdc_jita_eta' IN prosrc) = 0 FROM body)
+  AND (SELECT pg_catalog.strpos(prosrc, 'importer') > 0
+    AND pg_catalog.strpos(prosrc, 'operator') > 0
+    AND pg_catalog.strpos(prosrc, 'administrator') > 0
+    AND pg_catalog.strpos(prosrc, 'deleted_at IS NULL') > 0
+    AND pg_catalog.strpos(prosrc, 'UPDATE public.vehicles') = 0
+    AND pg_catalog.strpos(prosrc, 'DELETE FROM') = 0
+    AND pg_catalog.strpos(prosrc, 'pdc_parts_eta') = 0
+    AND pg_catalog.strpos(prosrc, 'pdc_jita_eta') = 0 FROM body)
   AND (SELECT n = 2 AND rls = 2 AND writable = 0 FROM tb)
   AND (SELECT count(*) FROM (
       SELECT 1 FROM public.pdc_parts_stoppage_564 GROUP BY vehicle_id HAVING count(*) > 1

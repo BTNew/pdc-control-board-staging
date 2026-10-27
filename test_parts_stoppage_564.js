@@ -130,7 +130,7 @@ test('r567 is the go-live: new objects only, pins unchanged, check under pg_cata
   assert.equal(md5(dollar(up, '$set564$')), 'fa275b45be296e9021f9f4dc570f5751');
   assert.equal(md5(dollar(up, '$board564$')), '89a8b409650f95c59f459c8b2ff31e60');
   assert.equal(md5(dollar(up, '$hist564$')), 'db31f96870cb5478e5f25426249a7e3e');
-  assert.equal(md5(dollar(up, '$chk$')), 'ba9e30b91a8e98efa8194de2c04748b6');
+  assert.equal(md5(dollar(up, '$chk$')), 'a4fdf46d7a6f6dbc6ff158e0d138e6f2');
   assert.equal((up.match(/\$set564\$/g) || []).length, 2);
   assert.equal((up.match(/\$chk\$/g) || []).length, 2);
   assert.equal(scanSql(up).length, 0);
