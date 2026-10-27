@@ -110,16 +110,18 @@ test('table rows carry no <summary> (DevTools "interactive element inside <summa
 
 // ---------------- 4. Panel: drag-to-bay withdrawn (Craig 09:03) ----------------
 test('panel has no Jobs & bookings list, no drag handles, no bay targets and never calls the planner', () => {
-  assert.deepEqual(Object.keys(slideout), ['VERSION', 'slimWorkPage'], 'no drag / drop / bookings helpers are exported any more (r496 adds the pure slimWorkPage)');
+  assert.deepEqual(Object.keys(slideout).sort(), ['VERSION', 'chipMovePlan', 'slimWorkPage'].sort(), 'r565 exports the pure chip-move plan; r463 pointer drag stays out');
   const js = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-  for (const gone of [/data-vso-drag/, /data-vso-drop-bay/, /vso-jobs/, /vso-bay/, /pointerdown|pointermove|pointerup/, /moveWorkshopDroppedPlan/, /renderWorkshopPlannerWhenReady/,
-    /initWorkshopSharedServicesIfEnabled/, /openVehicleWorkshopBooking/, /setScope/, /workshopLoadPlans\(\)\.find/, /performDrop|stationEntry|openInPlanner/]) {
+  for (const gone of [/data-vso-drag/, /data-vso-drop-bay/, /vso-jobs/, /pointerdown|pointermove|pointerup/, /renderWorkshopPlannerWhenReady/,
+    /initWorkshopSharedServicesIfEnabled/, /openVehicleWorkshopBooking/, /setScope/, /workshopLoadPlans\(\)\.find/, /performDrop|stationEntry|openInPlanner/, /administratorMoveBooking|mutate\(/]) {
     assert.doesNotMatch(js, gone, `${gone} is gone from the panel`);
   }
+  assert.match(js, /root\.moveWorkshopDroppedPlan/, 'r565: a drop calls the planner move, and only on drop');
   assert.match(js, /VLT\.bindBoardHandlers\(panel\)/, 'the card\'s own buttons are bound as before');
   assert.match(js, /incomingVehicleDetailRow\(vehicle, bucket/, 'the panel shows the board\'s own card (stations, details, operations)');
   const css = fs.readFileSync('pdc-vehicle-slideout.css', 'utf8');
-  assert.doesNotMatch(css, /vso-(jobs|booking|grip|bay|ghost|toast|dialog)|vso-target-bay/, 'drag styles removed');
+  assert.doesNotMatch(css, /vso-(jobs|booking|grip|ghost|toast|dialog)|vso-target-bay/, 'r463 pointer-drag styles stay out');
+  assert.match(css, /#vso-shell \.vso-bay \{/, 'r565 bay targets are edit-mode chips');
 });
 
 test('panel in the VM: opening and refreshing never touches the planner or the drag path', () => {
@@ -133,7 +135,7 @@ test('panel in the VM: opening and refreshing never touches the planner or the d
   c.app.currentView = 'workshop';
   fixture.loadHelper('pdc-vehicle-locations-table.js');
   fixture.loadHelper('pdc-vehicle-slideout.js');
-  assert.deepEqual(Object.keys(c.PDC_VEHICLE_SLIDEOUT).sort(), ['VERSION', 'close', 'edit', 'open', 'parityStrip', 'refresh', 'slimWorkPage', 'state'].sort()); // r496: edit state + slimWorkPage
+  assert.deepEqual(Object.keys(c.PDC_VEHICLE_SLIDEOUT).sort(), ['VERSION', 'chipMovePlan', 'close', 'edit', 'open', 'parityStrip', 'refresh', 'slimWorkPage', 'state'].sort()); // r565: chipMovePlan; r496: edit state + slimWorkPage
   assert.deepEqual(spies, { move: 0, planner: 0, init: 0 });
 });
 
@@ -148,12 +150,12 @@ test('docs: FAULT_LOG F76 records the withdrawn F75 drag, the Job Card column an
 
 test('loader: r463 cache-bust tags; pdc-auto-reload.js stays first; no real stock numbers here', () => {
   assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.(?:22\.r4(?:[67]3|85|96)|27\.r560)/ /* r560 (F174), r496 (F109) */);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.27\.r565/ /* r565 (F179); r560 More details stays on the card */);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /r463=2026\.10\.22\.r463/);
   assert.match([...html.matchAll(/<script[^>]*src="([^"]+)"/g)][0][1], /^pdc-auto-reload\.js/);
   assert.equal(table.VERSION, '2026.10.27.r563'); // r475 (F88), r481 (F94), r485 (F98), r557 (F171) New to PMB, r562 (F176) key gate, r563 (F177) arrival age
-  assert.match(slideout.VERSION, /^2026\.10\.(?:22\.r4(?:[67]3|85|96)|27\.r560)$/); // r560 (F174); r496 (F109): inline edit
+  assert.match(slideout.VERSION, /^2026\.10\.27\.r565$/); // r565 (F179): edit stays on the chip list
   const text = fs.readFileSync(__filename, 'utf8');
   assert.doesNotMatch(text, /\b1[23]\d{6}\b|\bJ13[89]\d{6}\b/);
 });

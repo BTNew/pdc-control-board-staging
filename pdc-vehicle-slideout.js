@@ -7,8 +7,8 @@
  * r461's bindBoardHandlers (the same buttons the board binds): the station strip and status row, the vehicle details
  * (stock number, vehicle key, key number with Edit / History, job card, Tune report, parts location) and the operations
  * by category (lines, hours, sublets / PO) as the main content.
- * r463 (F76, Craig 22 Oct 09:03): the r462 "Jobs & bookings" list and drag-to-bay are withdrawn. The panel has no
- * drag handles and no bay targets, loads no planner data and never calls moveWorkshopDroppedPlan. Bay moves stay in
+ * r463 (F76, Craig 22 Oct 09:03): the r462 "Jobs & bookings" list and its pointer drag-to-bay are withdrawn.
+ * r565 (F179) drags a chip in edit mode and calls moveWorkshopDroppedPlan on a bay drop. Bay rules stay in
  * the Workshop Planner.
  * r473 (F86, Craig 22 Oct 10:2x): the top of the panel loses the station-icon strip and the PMB status / PMB stream /
  * Book all stations box (the card's summary row; the table row keeps all of them). An "Open Vehicle" button under the
@@ -28,34 +28,62 @@
  * shown only to the roles the server lets clear a stoppage (operator, administrator: clear_vehicle_stoppage_422);
  * everyone else sees the reasons only. This file still calls no RPC or fetch itself and writes nothing to storage.
  *
- * r496 (F109, Craig 22 Oct 19:16): edit hours and move lines between jobs inside the panel, instead of the separate
- * Vehicle detail window. The operations heading's "Edit jobs & hours" button becomes "Edit" (inline) plus a small
- * "Open full editor" link (the old window, unchanged and still there for Add line, Edit line and Best slot). "Edit" draws
- * app.js's own Work & bookings rows (renderVehicleWorkshopWorkPage, the same inputs and data attributes the window uses)
- * in place of the read-only list, with every button stripped, so only the hours inputs and the Work category / Station
- * selectors are live. Changes are staged in the panel; Save runs the window's own save paths in order:
- * saveVehicleWorkshopLineHoursBatch (Save all hours, save_vehicle_workshop_line_hours_batch_768), then for each moved line
- * saveVehicleWorkCategory (set_vehicle_work_category) or moveVehicleWorkshopLineStage, each followed by app.js's own
- * reload of this one vehicle. Cancel drops the drafts. Same role gate (vehicleWorkshopCanEditLines: operator,
- * administrator), same server checks, no new SQL.
- * Speed: nothing runs per vehicle when the board or the panel is drawn. The one extra read
- * (loadVehicleWorkshopDetail, get_vehicle_workshop_detail_scoped) happens only when "Edit" is pressed, for that one
- * vehicle; after a save only this panel is drawn again (never the table or the board).
- * Undo: revert the r496 commit (the "Edit jobs & hours" button and the window come back exactly as before).
+ * r496 (F109, Craig 22 Oct 19:16): edit hours and move lines between jobs inside the panel. "Edit" plus
+ * "Open full editor" (the old window, still there for Add line, Edit line and Best slot).
+ * r565 (F179, Craig 27 Oct 08:08): Edit keeps this same chip list. It does not open the Work & bookings
+ * layout. In edit mode a line or job chip can be dragged onto another station or bay. The line's hours go
+ * with it: a station drop calls saveVehicleWorkCategory (set_vehicle_work_category, which extends or shortens
+ * the job). A bay drop then calls moveWorkshopDroppedPlan or scheduleWorkshopVehicle, so bay, technician and
+ * close-gaps rules stay in those functions. Save still writes hour edits through saveVehicleWorkshopLineHoursBatch.
+ * Completed work is shown in blue/grey with who and when. A controller (operator or administrator) can tick a
+ * line completed; the tick is setPanelLineCompletion (set_panel_line_completion_565). This file still calls no
+ * RPC or fetch itself.
+ * Speed: drawing the board reads nothing extra. Opening the panel may read the completion list once
+ * (loadPanelLineCompletions) when that function exists. loadVehicleWorkshopDetail runs only when Edit is pressed,
+ * for that one vehicle. A save redraws only this panel.
+ * Undo: revert the r565 commit (r496's editor comes back).
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.27.r560'; // r560 (F174): "More details" opens the vehicle card (SP, label, override location, …)
-  // r496: the panel's slim copy of the Work & bookings rows. Every <button> is removed (Add line, Edit line, Best slot,
-  // Remove, Mark done, Split, drag handles, booking links); a drag handle's line number stays as plain text. What is left
-  // live is only the hours inputs and the Work category / Station selectors, with app.js's own data attributes.
+  const VERSION = '2026.10.27.r565'; // r565 (F179): edit in the same chip layout; drag, completed state, controller tick. r560 (F174): More details opens the vehicle card.
+  // r496: the panel's slim copy of the Work & bookings rows. Kept so the full editor's markup can still be reduced.
+  // r565 does not use it for Edit: Edit stays on the chip list.
   function slimWorkPage(html) {
     return String(html || '')
       .replace(/<button\b[^>]*\bclass="vehicle-workshop-line-number"[^>]*>([^<]*)<\/button>/g, '<span class="vehicle-workshop-line-number">$1</span>')
       .replace(/<button\b[^>]*>[\s\S]*?<\/button>/g, '')
       .replace(/\sdraggable="true"/g, '');
   }
-  const api = { VERSION, slimWorkPage };
+  // Pure description of a chip drop. The browser half calls the existing save and planner functions with this plan.
+  // Hours travel on the plan. Completed chips do not move. Overlap and close-gaps are not decided here.
+  function chipHours(value) {
+    if (value == null || value === '') return null;
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  }
+  function chipMovePlan(chip, target) {
+    const kind = chip?.kind === 'job' ? 'job' : 'line';
+    const hours = chipHours(chip?.hours);
+    const fromCategory = String(chip?.category || '');
+    const category = String(target?.category || fromCategory);
+    const stage = String(target?.stage || chip?.stage || '');
+    const bay = Number(target?.bay);
+    if (chip?.completed === true) return { action: 'none', reason: 'completed', hours };
+    if (!target || (target.kind !== 'station' && target.kind !== 'bay')) return { action: 'none', reason: 'target', hours };
+    if (kind === 'job') {
+      if (target.kind !== 'bay' || !Number.isInteger(bay) || bay < 1) return { action: 'none', reason: 'bay', hours };
+      return { action: 'move-booking', hours, category, stage, bay, categoryChanged: false, planId: String(chip.planId || ''), bookingId: String(chip.bookingId || ''), lineKey: '' };
+    }
+    const lineKey = String(chip?.lineKey || '');
+    if (!/^(source|manual):[0-9a-f-]{36}$/i.test(lineKey)) return { action: 'none', reason: 'line', hours };
+    if (target.kind === 'station') {
+      if (!category || category === fromCategory) return { action: 'none', reason: 'same', hours, lineKey, category, stage };
+      return { action: 'category', lineKey, hours, category, stage, bay: 0, categoryChanged: true };
+    }
+    if (!Number.isInteger(bay) || bay < 1) return { action: 'none', reason: 'bay', hours, lineKey };
+    return { action: 'bay', lineKey, hours, category, stage, bay, categoryChanged: category !== fromCategory, planId: String(chip.planId || ''), bookingId: String(chip.bookingId || '') };
+  }
+  const api = { VERSION, slimWorkPage, chipMovePlan };
   if (typeof module === 'object' && module.exports) module.exports = api;
   const VLT = root?.PDC_VEHICLE_LOCATIONS_TABLE;
   if (!root || !root.document || !VLT || typeof VLT.setDrawerOpener !== 'function' || root.PDC_VEHICLE_SLIDEOUT) {
@@ -94,14 +122,31 @@
     return `<section class="vso-stoppages" aria-label="Stoppage"><h4>STOPPAGE</h4><ul>${items.join('')}</ul>${note}</section>`;
   }
 
-  // ---- r496 (F109): edit hours and move lines between jobs inside the panel ----
-  // Every write is one of app.js's own Work & bookings functions; this file only stages the changes and calls them.
+  // ---- r496 / r565: edit hours in the chip list, and drag a line onto another job or bay ----
+  // Writes go through app.js and the planner. This file does not decide overlaps or close-gaps.
   const EDIT_NEEDS = Object.freeze(['vehicleWorkshopCanEditLines', 'vehicleWorkshopDetailCanonicalId', 'loadVehicleWorkshopDetail',
-    'renderVehicleWorkshopWorkPage', 'saveVehicleWorkshopLineHoursBatch', 'vehicleWorkshopHoursBatchSyncDrafts',
-    'vehicleWorkshopHoursBatchDirty', 'saveVehicleWorkCategory', 'moveVehicleWorkshopLineStage', 'selectedVehicle']);
-  const MOVE_SELECT = '[data-vehicle-workshop-line-category], [data-vehicle-workshop-line-stage]';
+    'saveVehicleWorkshopLineHoursBatch', 'vehicleWorkshopHoursBatchSyncDrafts',
+    'vehicleWorkshopHoursBatchDirty', 'saveVehicleWorkCategory', 'selectedVehicle']);
   const HOURS_INPUT = '[data-vehicle-workshop-hours-batch-input]';
-  const edit = { key: '', moves: new Map(), busy: false, loading: false, note: '', loads: 0 };
+  const CONTROLLER_ROLES = Object.freeze(['operator', 'administrator']);
+  const STATION_MOVE = Object.freeze({
+    bus_mechanical: { category: 'BUS_MECHANICAL', stage: 'BUS_4X4' },
+    bus_accessories: { category: 'BUS_ACCESSORIES', stage: 'BUS_4X4' },
+    bus_electrical: { category: 'BUS_ELECTRICAL', stage: 'BUS_4X4' },
+    bus_qa: { category: 'BUS_QA', stage: 'BUS_4X4' },
+    bus_pit: { category: 'BUS_PIT', stage: 'PIT_INSPECTION' },
+    pitinspection: { category: 'BUS_PIT', stage: 'PIT_INSPECTION' },
+    tint: { category: 'TINT', stage: 'TINT' },
+    hoist: { category: 'HOIST', stage: 'HOIST' },
+    fitting: { category: 'FITTING', stage: 'FITTING' },
+    fabrication: { category: 'FABRICATION', stage: 'FABRICATION' },
+    electrical: { category: 'ELECTRICAL', stage: 'ELECTRICAL' },
+    tyre: { category: 'TYRE', stage: 'TYRE' },
+    sublet: { category: 'SUBLET', stage: 'SUBLET' },
+  });
+  const edit = { key: '', moves: new Map(), busy: false, loading: false, note: '', loads: 0, completionFor: '', completionRows: [] };
+  let dragChip = null;
+  const isController = () => CONTROLLER_ROLES.includes(String(root.PDC_AUTH_CONTEXT?.role || '').trim().toLowerCase());
   const editReady = () => {
     if (!root.app || !EDIT_NEEDS.every(name => typeof root[name] === 'function')) return false;
     try { return root.vehicleWorkshopCanEditLines() === true; } catch (_) { return false; }
@@ -117,8 +162,6 @@
     try { return root.vehicleKey(root.selectedVehicle() || {}) === key; } catch (_) { return false; }
   }
   const editPage = () => doc.querySelector('#vso-shell .vso-panel .vso-edit [data-vehicle-workshop-hours-batch-page]');
-  const moveKey = select => `${select.matches('[data-vehicle-workshop-line-category]') ? 'category' : 'stage'}|${select.dataset.lineKey || ''}`;
-  const defaultValue = select => ([...select.options].find(option => option.defaultSelected) || select.options[0] || {}).value ?? '';
   function editDirty(page = editPage()) {
     if (edit.moves.size) return true;
     if (!page) return false;
@@ -135,7 +178,7 @@
   function leaveEdit() {
     if (!edit.key) return true;
     if (edit.busy) return false;
-    if (editDirty() && typeof root.confirm === 'function' && !root.confirm('Discard the hours and job moves you have not saved?')) return false;
+    if (editDirty() && typeof root.confirm === 'function' && !root.confirm('Discard the hours you have not saved?')) return false;
     discardEdit();
     return true;
   }
@@ -178,30 +221,15 @@
     const page = editPage();
     if (edit.busy || edit.key !== key || !page || !editDirty(page)) return false;
     if (!selectForEdit(key)) { edit.note = 'Close the vehicle card first. Nothing was saved.'; redraw(key); return false; }
+    const changed = page.querySelectorAll(`${HOURS_INPUT}.vso-changed`).length;
     edit.busy = true; edit.note = 'Saving…';
     let ok = true; const notes = [];
     try {
-      redraw(key); // panel only: shows the busy state
-      const hoursPage = editPage();
-      if (hoursPage && root.vehicleWorkshopHoursBatchDirty(hoursPage) === true) {
-        const button = hoursPage.querySelector('[data-vso-edit-act="save"]');
-        const changed = hoursPage.querySelectorAll(`${HOURS_INPUT}.vso-changed`).length;
+      if (root.vehicleWorkshopHoursBatchDirty(page) === true) {
+        const button = page.querySelector('[data-vso-edit-act="save"]');
         ok = (await root.saveVehicleWorkshopLineHoursBatch(button)) === true;
-        // app.js's own message on a refusal (conflict, invalid hours); a short count when it worked.
         notes.push(ok ? `${changed} hour${changed === 1 ? '' : 's'} change${changed === 1 ? '' : 's'}.` : String(root.app.vehicleWorkshopHoursBatchMessage || ''));
       }
-      let moved = 0;
-      for (const [id, move] of ok ? [...edit.moves] : []) {
-        redraw(key); // fresh selectors carry the versions app.js has just reloaded
-        const select = [...(editPage()?.querySelectorAll(MOVE_SELECT) || [])].find(candidate => moveKey(candidate) === id);
-        if (!select || ![...select.options].some(option => option.value === move.value)) { ok = false; notes.push('A line changed in another session. Check it and try again.'); break; }
-        select.value = move.value;
-        if (!selectForEdit(key)) { ok = false; notes.push('Close the vehicle card first.'); break; }
-        const done = move.kind === 'category' ? await root.saveVehicleWorkCategory(select) : await root.moveVehicleWorkshopLineStage(select);
-        if (done !== true) { ok = false; break; }
-        edit.moves.delete(id); moved += 1;
-      }
-      if (moved) notes.push(`${moved} line${moved === 1 ? '' : 's'} moved.`);
     } catch (_) {
       ok = false;
     } finally {
@@ -217,86 +245,444 @@
     return ok;
   }
   const barHtml = (busy, dirty) => `<div class="vso-edit-bar" role="group" aria-label="Edit hours and jobs">
-      <div class="vso-edit-title"><strong>Edit hours and jobs</strong><small>Type the hours or pick another job for a line. Nothing changes until you press Save.</small></div>
+      <div class="vso-edit-title"><strong>Edit hours and jobs</strong><small>Drag a line onto another job or bay. The hours move with it. Hour changes wait for Save.</small></div>
       <div class="vso-edit-actions"><button type="button" class="vso-edit-save" data-vso-edit-act="save"${busy || !dirty ? ' disabled' : ''}>${busy ? 'Saving…' : 'Save'}</button><button type="button" class="vso-edit-cancel" data-vso-edit-act="cancel"${busy ? ' disabled' : ''}>Cancel</button></div>
       ${edit.note ? `<span class="vso-edit-msg" role="status" aria-live="polite">${esc(edit.note)}</span>` : ''}
     </div>`;
   const moreHtml = '<p class="vso-edit-more">Add line, Edit line and Best slot: <button type="button" class="vso-link" data-vso-edit-act="full">Open full editor</button></p>';
   function mountEditor(block, key, vehicle, identity) {
     const grid = block.querySelector('.authenticated-operation-station-grid');
-    if (grid) grid.hidden = true;
+    if (grid) grid.hidden = false;
     const wrap = doc.createElement('div');
     wrap.className = 'vso-edit';
     wrap.dataset.vsoEdit = key;
     const cached = root.app.vehicleWorkshopDetailCache?.get?.(canonicalIdFor(vehicle));
-    if (edit.loading || !cached || cached.status === 'loading') {
-      wrap.innerHTML = `<div data-vehicle-workshop-hours-batch-page>${barHtml(true, false)}<p class="vso-edit-wait" role="status">Loading this vehicle's jobs and hours…</p></div>${moreHtml}`;
-    } else if (cached.status !== 'ready') {
-      wrap.innerHTML = `<div data-vehicle-workshop-hours-batch-page>${barHtml(true, false)}<p class="vso-edit-wait" role="alert">${esc(cached.message || 'This vehicle\'s jobs could not be loaded. Nothing was changed.')}</p></div>${moreHtml}`;
-    } else {
-      wrap.innerHTML = `${slimWorkPage(root.renderVehicleWorkshopWorkPage(vehicle))}${moreHtml}`;
-      const page = wrap.querySelector('[data-vehicle-workshop-hours-batch-page]');
-      if (page) page.insertAdjacentHTML('afterbegin', barHtml(edit.busy, false));
-    }
-    // Anything still clickable that is not ours goes (belt and braces: slimWorkPage already removed every button).
-    wrap.querySelectorAll('button:not([data-vso-edit-act])').forEach(button => button.remove());
+    const waiting = edit.loading || !cached || cached.status === 'loading';
+    const failed = !waiting && cached.status !== 'ready';
+    const note = failed
+      ? `<p class="vso-edit-wait" role="alert">${esc(cached.message || 'This vehicle\'s jobs could not be loaded. Nothing was changed.')}</p>`
+      : waiting ? '<p class="vso-edit-wait" role="status">Loading this vehicle\'s jobs and hours…</p>' : '';
+    wrap.innerHTML = `<div data-vehicle-workshop-hours-batch-page>${barHtml(edit.busy || waiting, false)}${note}${moreHtml}</div>`;
     const heading = block.querySelector('.authenticated-email-operations-heading');
     if (heading) heading.after(wrap); else block.prepend(wrap);
     const page = wrap.querySelector('[data-vehicle-workshop-hours-batch-page]');
+    if (grid && page) {
+      page.appendChild(grid);
+      const more = page.querySelector('.vso-edit-more');
+      if (more) page.appendChild(more);
+    }
     const save = wrap.querySelector('[data-vso-edit-act="save"]');
-    const sync = () => { if (save) save.disabled = edit.busy || !editDirty(page); };
-    page.querySelectorAll(HOURS_INPUT).forEach(input => {
-      const mark = () => input.classList.toggle('vso-changed', String(input.value ?? '').trim() !== String(input.dataset.originalHours ?? '').trim());
-      mark();
-      input.disabled = edit.busy;
-      input.addEventListener('input', () => {
-        if (selectForEdit(key)) root.vehicleWorkshopHoursBatchSyncDrafts(page); // app.js keeps the draft, as in the window
-        mark(); sync();
-      });
-    });
-    page.querySelectorAll(MOVE_SELECT).forEach(select => {
-      const id = moveKey(select);
-      const original = defaultValue(select);
-      const staged = edit.moves.get(id);
-      if (staged && [...select.options].some(option => option.value === staged.value)) select.value = staged.value;
-      const mark = () => select.classList.toggle('vso-changed', select.value !== original);
-      mark();
-      select.disabled = edit.busy;
-      select.addEventListener('change', event => {
-        event.stopPropagation();
-        if (select.value === original) edit.moves.delete(id);
-        else edit.moves.set(id, { kind: id.startsWith('category|') ? 'category' : 'stage', value: select.value });
-        mark(); sync();
-      });
-    });
-    sync();
+    const sync = () => { if (save) save.disabled = edit.busy || waiting || !editDirty(page); };
+    wrap._vsoSync = sync;
     save?.addEventListener('click', event => { event.stopPropagation(); void saveEdit(key); });
     wrap.querySelector('[data-vso-edit-act="cancel"]')?.addEventListener('click', event => { event.stopPropagation(); cancelEdit(key); });
     wrap.querySelector('[data-vso-edit-act="full"]')?.addEventListener('click', event => { event.stopPropagation(); openFullEditor(identity); });
+    sync();
   }
-  // The operations heading: "Edit jobs & hours" (which opened the window) becomes "Edit" + "Open full editor". Shown only
-  // where app.js drew that button (the same vehicleWorkshopCanEditLines() role check). Idempotent per drawn block.
+  function whenLabel(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    try {
+      return date.toLocaleString('en-AU', { timeZone: 'Australia/Perth', day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch (_) { return ''; }
+  }
+  function hoursText(value) {
+    if (value == null || value === '' || !Number.isFinite(Number(value)) || Number(value) < 0) return '';
+    return String(Number(value));
+  }
+  function detailFor(vehicle) {
+    const id = canonicalIdFor(vehicle);
+    const cached = id ? root.app?.vehicleWorkshopDetailCache?.get?.(id) : null;
+    return cached?.status === 'ready' ? cached.detail : null;
+  }
+  function lineRecords(vehicle) {
+    const map = new Map();
+    const detail = detailFor(vehicle);
+    const sources = [];
+    if (Array.isArray(detail?.job_card_lines)) sources.push(...detail.job_card_lines);
+    if (Array.isArray(vehicle?.pdcQcOperationLines)) sources.push(...vehicle.pdcQcOperationLines);
+    if (Array.isArray(vehicle?.pdcEmailOperationLines)) sources.push(...vehicle.pdcEmailOperationLines);
+    for (const line of sources) {
+      const sourceId = String(line.source_line_id || line.operation_line_id || line.sourceLineId || '').trim();
+      const identity = String(line.line_identity || line.workshopLineKey || line.lineIdentity || (sourceId ? `source:${sourceId}` : ''));
+      const key = sourceId || identity.replace(/^(source|manual):/, '');
+      if (!key) continue;
+      const prev = map.get(key) || {};
+      const hours = line.estimated_hours ?? line.estimatedHours;
+      map.set(key, {
+        lineKey: identity || prev.lineKey || '',
+        hours: hours == null || hours === '' ? prev.hours : Number(hours),
+        category: line.work_category || prev.category || '',
+        stage: line.stage_code || line.stageCode || prev.stage || '',
+        categoryVersion: line.category_version ?? prev.categoryVersion ?? 0,
+        workKey: line.work_key || line.summaryStationKey || prev.workKey || '',
+        adjustmentId: line.adjustmentId || line.adjustment_id || prev.adjustmentId || '',
+        adjustmentVersion: line.adjustmentVersion ?? line.adjustment_version ?? prev.adjustmentVersion ?? 0,
+        completed: line.completed === true || prev.completed === true,
+        completedBy: line.completed_by || line.completedBy || prev.completedBy || '',
+        completedAt: line.completed_at || line.completedAt || prev.completedAt || '',
+      });
+    }
+    const bookings = Array.isArray(detail?.bookings) ? detail.bookings : [];
+    return { lines: map, bookings };
+  }
+  function tickRow(lineKey) {
+    return (edit.completionRows || []).find(row => row.line_identity === lineKey) || null;
+  }
+  function bookingPerson(booking) {
+    if (!booking) return '';
+    return [booking.technician_name, booking.assignee_name, booking.assignee, booking.technician_email, booking.completed_by]
+      .map(value => String(value || '').trim()).find(Boolean) || '';
+  }
+  function stationBookings(bookings, category, stage) {
+    return bookings.filter(booking => {
+      const status = String(booking?.status || '').toLowerCase();
+      if (['cancelled', 'deleted'].includes(status)) return false;
+      const cat = String(booking.work_category || '');
+      const stg = String(booking.stage_code || booking.stage || '').toUpperCase();
+      if (category && cat && cat !== category) return false;
+      if (stage && stg && stg !== stage) return false;
+      return true;
+    });
+  }
+  function readChip(el) {
+    const input = el.querySelector?.(HOURS_INPUT);
+    const hours = input && String(input.value ?? '').trim() !== '' ? input.value : el.dataset.vsoHours;
+    return {
+      kind: el.dataset.vsoKind || 'line',
+      lineKey: el.dataset.vsoLineKey || '',
+      hours,
+      category: el.dataset.vsoCategory || '',
+      stage: el.dataset.vsoStage || '',
+      categoryVersion: el.dataset.vsoCategoryVersion || '0',
+      planId: el.dataset.vsoPlanId || '',
+      bookingId: el.dataset.vsoBookingId || '',
+      completed: el.classList.contains('is-complete'),
+      el,
+    };
+  }
+  function perthParts(iso) {
+    const date = iso ? new Date(iso) : new Date();
+    const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Perth', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+    const clock = new Intl.DateTimeFormat('en-GB', { timeZone: 'Australia/Perth', hour: '2-digit', minute: '2-digit', hour12: false }).format(date);
+    const [hour, minute] = clock.split(':').map(Number);
+    return { dateKey: day, startMinutes: iso ? (hour * 60 + minute) : (8 * 60) };
+  }
+  function planFor(plan) {
+    if (typeof root.workshopLoadPlans !== 'function') return null;
+    let rows = [];
+    try { rows = root.workshopLoadPlans() || []; } catch (_) { return null; }
+    const id = canonicalIdFor(editVehicle(state.key));
+    return rows.find(row => {
+      if (!row || row.status === 'completed') return false;
+      if (plan.planId && row.id === plan.planId) return true;
+      if (plan.bookingId && (row.sharedBookingId === plan.bookingId || row.id === plan.bookingId)) return true;
+      const sameVehicle = row.vehicleKey === state.key || row.vehicleId === id;
+      const sameStage = String(row.stage || '').toUpperCase() === String(plan.stage || '').toUpperCase();
+      const sameCat = !plan.category || !row.workCategory || row.workCategory === plan.category;
+      return Boolean(sameVehicle && sameStage && sameCat && (row.sharedBookingId || row.id));
+    }) || null;
+  }
+  async function placeOnBay(plan) {
+    const found = planFor(plan);
+    const when = perthParts(found?.startAt);
+    if (found && typeof root.moveWorkshopDroppedPlan === 'function') {
+      const moved = await root.moveWorkshopDroppedPlan(found.id, plan.stage, plan.bay, when.dateKey, when.startMinutes);
+      if (moved === false) { edit.note = 'That bay did not take the job.'; return false; }
+      return true;
+    }
+    if (typeof root.scheduleWorkshopVehicle === 'function') {
+      const scheduled = await root.scheduleWorkshopVehicle({
+        planId: found?.id || '',
+        vehicleKeyValue: state.key,
+        stage: plan.stage,
+        bay: plan.bay,
+        dateKey: when.dateKey,
+        startMinutes: when.startMinutes,
+        hoursValue: plan.hours,
+        workCategoryValue: plan.category,
+      });
+      if (scheduled === false) { edit.note = 'That bay did not take the job.'; return false; }
+      return true;
+    }
+    if (plan.categoryChanged) { edit.note = 'Moved. The hours stay with the line. Bay placement stays in Workshop Planner.'; return true; }
+    edit.note = 'Nothing was moved.';
+    return false;
+  }
+  async function applyDrop(chip, target) {
+    const plan = chipMovePlan(chip, target);
+    if (plan.action === 'none') {
+      edit.note = plan.reason === 'same' ? 'That line is already in this job.' : plan.reason === 'completed' ? 'Completed work stays where it is.' : 'Nothing was moved.';
+      dragChip = null;
+      redraw(state.key);
+      return false;
+    }
+    if (edit.busy || !selectForEdit(state.key)) return false;
+    edit.busy = true;
+    edit.note = 'Moving…';
+    let ok = true;
+    try {
+      const page = editPage();
+      if (page && root.vehicleWorkshopHoursBatchDirty(page) === true) {
+        ok = (await root.saveVehicleWorkshopLineHoursBatch(page.querySelector('[data-vso-edit-act="save"]'))) === true;
+        if (!ok) edit.note = String(root.app?.vehicleWorkshopHoursBatchMessage || 'The hours were not saved, so the line stayed put.');
+      }
+      if (ok && plan.lineKey && (plan.action === 'category' || plan.categoryChanged)) {
+        const select = {
+          value: plan.category,
+          disabled: false,
+          dataset: { lineKey: plan.lineKey, categoryVersion: String(chip.categoryVersion || 0) },
+          closest() { return editPage(); },
+        };
+        ok = (await root.saveVehicleWorkCategory(select)) === true;
+        if (!ok) edit.note = 'The line was not moved.';
+      }
+      if (ok && (plan.action === 'bay' || plan.action === 'move-booking')) ok = await placeOnBay(plan);
+    } catch (_) {
+      ok = false;
+      edit.note = 'The line was not moved.';
+    } finally {
+      edit.busy = false;
+      dragChip = null;
+    }
+    if (ok && (!edit.note || edit.note === 'Moving…')) edit.note = 'Moved. The hours stay with the line.';
+    redraw(state.key);
+    return ok;
+  }
+  function currentDragChip() {
+    const el = dragChip?.el;
+    if (el?.isConnected) return readChip(el);
+    return dragChip?.chip || null;
+  }
+  function bindDrop(el, targetFor) {
+    el.addEventListener('dragover', event => {
+      if (!dragChip) return;
+      if (el.dataset.vsoBay == null && event.target?.closest?.('[data-vso-bay]')) return;
+      event.preventDefault();
+      if (el.dataset.vsoBay != null) event.stopPropagation();
+      el.classList.add('is-drop');
+    });
+    el.addEventListener('dragleave', () => el.classList.remove('is-drop'));
+    el.addEventListener('drop', event => {
+      if (el.dataset.vsoBay == null && event.target?.closest?.('[data-vso-bay]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      el.classList.remove('is-drop');
+      const chip = currentDragChip();
+      if (!chip) return;
+      void applyDrop(chip, targetFor());
+    });
+  }
+  function bindHours(input, page) {
+    const mark = () => input.classList.toggle('vso-changed', String(input.value ?? '').trim() !== String(input.dataset.originalHours ?? '').trim());
+    mark();
+    input.disabled = edit.busy;
+    input.addEventListener('input', () => {
+      if (selectForEdit(edit.key)) root.vehicleWorkshopHoursBatchSyncDrafts(page);
+      mark();
+      page.closest('.vso-edit')?._vsoSync?.();
+    });
+  }
+  async function toggleCompletion(vehicleId, lineKey, completed) {
+    if (!isController() || edit.busy || typeof root.setPanelLineCompletion !== 'function') return false;
+    edit.busy = true;
+    let result = null;
+    try { result = await root.setPanelLineCompletion(vehicleId, lineKey, completed); }
+    catch (_) { result = { ok: false }; }
+    finally { edit.busy = false; }
+    if (result?.ok === true) {
+      const prev = tickRow(lineKey) || {};
+      edit.completionRows = (edit.completionRows || []).filter(row => row.line_identity !== lineKey).concat([{
+        line_identity: lineKey,
+        completed: result.completed === true,
+        actor_email: result.actor_email || prev.actor_email || '',
+        actor_role: result.actor_role || prev.actor_role || '',
+        acted_at: result.acted_at || prev.acted_at || '',
+        version: result.version || prev.version || 0,
+      }]);
+      edit.note = completed ? 'Line marked completed.' : 'Completion removed.';
+    } else {
+      edit.note = result?.error === 'controller_required' ? 'Only a workshop controller can tick a line.' : 'The tick was not saved.';
+    }
+    redraw(state.key);
+    return result?.ok === true;
+  }
+  function bayNumbers(move) {
+    const depts = root.PDC_WORKSHOP_DEPARTMENTS;
+    const allowed = depts?.allowedBays?.(move.category);
+    if (Array.isArray(allowed)) return allowed.map(Number).filter(n => n > 0);
+    const count = Number(depts?.PMB_BAY_COUNTS?.[move.stage] || 0);
+    return count > 0 ? Array.from({ length: count }, (_, index) => index + 1) : [];
+  }
+  function armChips(block, key, editing) {
+    const vehicle = editVehicle(key);
+    const vehicleId = canonicalIdFor(vehicle);
+    const { lines, bookings } = lineRecords(vehicle);
+    const page = block.querySelector('[data-vehicle-workshop-hours-batch-page]') || block;
+    block.querySelectorAll('li[data-operation-source-id]').forEach(li => {
+      const sourceId = String(li.dataset.operationSourceId || '');
+      const record = lines.get(sourceId) || {};
+      const section = li.closest('[data-operation-station]');
+      const stationKey = section?.dataset.operationCategory || '';
+      const move = STATION_MOVE[stationKey] || { category: record.category || '', stage: section?.dataset.operationStation || record.stage || '' };
+      const lineKey = record.lineKey || (sourceId ? `source:${sourceId}` : '');
+      const tick = tickRow(lineKey);
+      const matched = stationBookings(bookings, move.category, move.stage);
+      const doneBooking = matched.find(booking => String(booking.status || '').toLowerCase() === 'completed') || null;
+      const completed = tick?.completed === true || record.completed === true || !!doneBooking;
+      const who = (tick?.completed && tick.actor_email) || record.completedBy || bookingPerson(doneBooking);
+      const when = whenLabel((tick?.completed && tick.acted_at) || record.completedAt || doneBooking?.actual_end_at || '');
+      li.classList.add('vso-chip');
+      li.classList.toggle('vso-done', completed);
+      li.classList.toggle('is-complete', completed);
+      li.dataset.vsoKind = 'line';
+      li.dataset.vsoLineKey = lineKey;
+      li.dataset.vsoCategory = record.category || move.category;
+      li.dataset.vsoStage = move.stage;
+      li.dataset.vsoHours = hoursText(record.hours);
+      li.dataset.vsoCategoryVersion = String(record.categoryVersion || 0);
+      li.dataset.vsoPlanId = '';
+      li.dataset.vsoBookingId = '';
+      const canDrag = editing && !completed && /^(source|manual):[0-9a-f-]{36}$/i.test(lineKey);
+      if (canDrag) li.setAttribute('draggable', 'true'); else li.removeAttribute('draggable');
+      li.querySelectorAll('.vso-done-meta, .vso-tick').forEach(node => node.remove());
+      const em = li.querySelector('em');
+      if (editing && em && /^[0-9a-f-]{36}$/i.test(sourceId) && /^source:[0-9a-f-]{36}$/i.test(lineKey)) {
+        const original = hoursText(record.hours);
+        const drafted = typeof root.vehicleWorkshopHoursBatchDraftValue === 'function'
+          ? root.vehicleWorkshopHoursBatchDraftValue(vehicleId, sourceId, original) : original;
+        em.innerHTML = `<input type="number" min="0" max="999.99" step="0.01" value="${esc(drafted ?? '')}" data-vehicle-workshop-hours-batch-input data-operation-line-id="${esc(sourceId)}" data-line-key="${esc(lineKey)}" data-original-hours="${esc(original)}" data-stage="${esc(move.stage)}" data-work-key="${esc(record.workKey || stationKey)}" data-adjustment-id="${esc(record.adjustmentId || '')}" data-adjustment-version="${esc(String(record.adjustmentVersion || 0))}" aria-label="Hours">`;
+        bindHours(em.querySelector('input'), page);
+      }
+      if (completed) {
+        const meta = [who, when].filter(Boolean).join(' · ');
+        li.insertAdjacentHTML('beforeend', `<small class="vso-done-meta">Completed${meta ? ` · ${esc(meta)}` : ''}</small>`);
+      }
+      const checked = tick?.completed === true;
+      const control = isController();
+      li.insertAdjacentHTML('beforeend', `<label class="vso-tick"><input type="checkbox" data-vso-tick="${esc(lineKey)}" aria-checked="${checked ? 'true' : 'false'}"${checked ? ' checked' : ''}${control ? '' : ' disabled'} title="${control ? (checked ? 'Remove the completed tick' : 'Mark this line completed') : 'Read-only for your role'}"><span>${checked ? 'Ticked complete' : 'Tick complete'}</span></label>`);
+      const box = li.querySelector('[data-vso-tick]');
+      box?.addEventListener('click', event => {
+        event.stopPropagation();
+        if (box.disabled || !isController()) return;
+        const next = box.getAttribute('aria-checked') !== 'true';
+        void toggleCompletion(vehicleId, lineKey, next);
+      });
+      if (canDrag) {
+        li.addEventListener('dragstart', event => {
+          dragChip = { el: li, chip: readChip(li) };
+          li.classList.add('is-dragging');
+          event.dataTransfer?.setData?.('text/plain', lineKey);
+        });
+        li.addEventListener('dragend', () => {
+          li.classList.remove('is-dragging');
+          block.querySelectorAll('.is-drop').forEach(node => node.classList.remove('is-drop'));
+          dragChip = null;
+        });
+      }
+    });
+    block.querySelectorAll('[data-operation-station]').forEach(section => {
+      const stationKey = section.dataset.operationCategory || '';
+      const move = STATION_MOVE[stationKey] || { category: '', stage: section.dataset.operationStation || '' };
+      section.querySelectorAll('.vso-bays, .vso-job').forEach(node => node.remove());
+      const matched = stationBookings(bookings, move.category, move.stage);
+      const header = section.querySelector('header');
+      let jobAnchor = header;
+      matched.forEach(booking => {
+        const status = String(booking.status || '').toLowerCase();
+        const done = status === 'completed';
+        const minutes = Number(booking.default_duration_minutes);
+        const hours = Number.isFinite(minutes) && minutes > 0 ? minutes / 60 : '';
+        const who = bookingPerson(booking);
+        const when = whenLabel(booking.actual_end_at || '');
+        const meta = done ? `Completed${[who, when].filter(Boolean).map(part => ` · ${part}`).join('')}` : `${hours === '' ? 'Hours not stated' : `${Number(hours).toFixed(2)} h`}`;
+        const button = doc.createElement('button');
+        button.type = 'button';
+        button.className = done ? 'vso-job vso-done is-complete' : 'vso-job';
+        button.dataset.vsoKind = 'job';
+        button.dataset.vsoLineKey = '';
+        button.dataset.vsoCategory = booking.work_category || move.category;
+        button.dataset.vsoStage = move.stage;
+        button.dataset.vsoHours = hours === '' ? '' : String(hours);
+        button.dataset.vsoPlanId = String(booking.plan_id || '');
+        button.dataset.vsoBookingId = String(booking.booking_id || booking.id || '');
+        button.textContent = `${move.category || move.stage} · ${meta}`;
+        if (editing && !done) {
+          button.setAttribute('draggable', 'true');
+          button.addEventListener('dragstart', event => {
+            dragChip = { el: button, chip: readChip(button) };
+            button.classList.add('is-dragging');
+            event.stopPropagation();
+          });
+          button.addEventListener('dragend', () => { button.classList.remove('is-dragging'); dragChip = null; });
+        }
+        if (jobAnchor) { jobAnchor.after(button); jobAnchor = button; }
+      });
+      if (editing) {
+        const numbers = bayNumbers(move);
+        if (numbers.length && header) {
+          const row = doc.createElement('div');
+          row.className = 'vso-bays';
+          row.setAttribute('aria-label', 'Bays');
+          numbers.forEach(bay => {
+            const button = doc.createElement('button');
+            button.type = 'button';
+            button.className = 'vso-bay';
+            button.dataset.vsoBay = String(bay);
+            button.dataset.vsoStage = move.stage;
+            button.dataset.vsoCategory = move.category;
+            button.textContent = root.PDC_WORKSHOP_DEPARTMENTS?.bayLabel?.(move.stage, bay) || `Bay ${String(bay).padStart(2, '0')}`;
+            bindDrop(button, () => ({ kind: 'bay', bay, stage: move.stage, category: move.category }));
+            row.appendChild(button);
+          });
+          const jobs = [...section.querySelectorAll('.vso-job')];
+          const after = jobs.length ? jobs[jobs.length - 1] : header;
+          after.after(row);
+        }
+      }
+      if (editing && move.category) {
+        bindDrop(section, () => ({ kind: 'station', category: move.category, stage: move.stage, bay: 0 }));
+      }
+    });
+  }
+  function ensureCompletions(vehicle) {
+    const id = canonicalIdFor(vehicle);
+    if (!id || edit.completionFor === id || typeof root.loadPanelLineCompletions !== 'function') return;
+    edit.completionFor = id;
+    Promise.resolve(root.loadPanelLineCompletions(id)).then(lines => {
+      if (!state.key || canonicalIdFor(editVehicle(state.key)) !== id) return;
+      const next = Array.isArray(lines) ? lines : [];
+      if (JSON.stringify(next) !== JSON.stringify(edit.completionRows || [])) {
+        edit.completionRows = next;
+        redraw(state.key);
+      }
+    }).catch(() => {});
+  }
+  // The operations heading's "Edit jobs & hours" becomes "Edit" + "Open full editor" for the same roles as the window.
+  // Completed lines and controller ticks are shown for every role. Edit keeps the chip list.
   function decorateOperations(panel, key) {
     const block = panel.querySelector('.vso-body .authenticated-email-operations');
     if (!block || block.hasAttribute('data-vso-edit-ready')) return;
     block.setAttribute('data-vso-edit-ready', '');
     const old = block.querySelector('[data-auth-operation-work]');
-    if (!old) return;
-    const identity = old.dataset.authOperationWork || key;
+    const identity = old?.dataset.authOperationWork || key;
     block.dataset.vsoIdentity = identity;
     const vehicle = editVehicle(key);
     const inline = editReady() && !!canonicalIdFor(vehicle);
     const editing = inline && edit.key === key;
-    const tools = doc.createElement('span');
-    tools.className = 'vso-ops-tools';
-    tools.innerHTML = `${inline && !editing ? '<button type="button" class="vso-edit-toggle" data-vso-edit-toggle>Edit</button>' : ''}<button type="button" class="vso-link" data-vso-full-editor>Open full editor</button>`;
-    old.replaceWith(tools);
-    tools.querySelector('[data-vso-edit-toggle]')?.addEventListener('click', event => { event.stopPropagation(); startEdit(key); });
-    tools.querySelector('[data-vso-full-editor]').addEventListener('click', event => { event.stopPropagation(); openFullEditor(identity); });
+    if (old) {
+      const tools = doc.createElement('span');
+      tools.className = 'vso-ops-tools';
+      tools.innerHTML = `${inline && !editing ? '<button type="button" class="vso-edit-toggle" data-vso-edit-toggle>Edit</button>' : ''}<button type="button" class="vso-link" data-vso-full-editor>Open full editor</button>`;
+      old.replaceWith(tools);
+      tools.querySelector('[data-vso-edit-toggle]')?.addEventListener('click', event => { event.stopPropagation(); startEdit(key); });
+      tools.querySelector('[data-vso-full-editor]').addEventListener('click', event => { event.stopPropagation(); openFullEditor(identity); });
+    }
     if (editing) mountEditor(block, key, vehicle, identity);
     else if (edit.note) block.querySelector('.authenticated-email-operations-heading')?.insertAdjacentHTML('afterend', `<p class="vso-edit-msg is-done" role="status">${esc(edit.note)}</p>`);
+    armChips(block, key, editing);
   }
-
   function loadStyles() {
     if (doc.querySelector('link[data-pdc-vehicle-slideout]')) return;
     const link = doc.createElement('link');
@@ -373,7 +759,8 @@
       nested.forEach((open, index) => { if (again[index]) again[index].open = open; });
       panel.querySelector('.vso-body').scrollTop = scroll;
     }
-    decorateOperations(panel, key); // r496: Edit / Open full editor; the inline editor when this vehicle is being edited
+    decorateOperations(panel, key); // r565: Edit keeps this chip list; completed lines and controller ticks
+    ensureCompletions(vehicle);
     watchOperations(panel);
     return true;
   }
@@ -405,7 +792,7 @@
 
   function open(key, bucket) {
     if (edit.key && edit.key !== key && !leaveEdit()) return; // r496: unsaved edits on another vehicle
-    if (state.key !== key) edit.note = '';
+    if (state.key !== key) { edit.note = ''; edit.completionFor = ''; edit.completionRows = []; }
     state.key = key; state.bucket = bucket;
     if (!render(key, bucket)) return;
     const shell = ensureShell();
@@ -426,6 +813,8 @@
     if (!state.key && !doc.getElementById('vso-shell')?.classList.contains('is-open')) return;
     if (!leaveEdit()) return; // r496: unsaved hours / job moves: ask before dropping them
     edit.note = '';
+    edit.completionFor = '';
+    edit.completionRows = [];
     state.key = ''; opsObserver?.disconnect();
     const shell = doc.getElementById('vso-shell');
     shell?.classList.remove('is-open');

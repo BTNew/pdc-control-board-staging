@@ -2,8 +2,8 @@
 
 > **r463 (F76), 22 Oct 2026 09:03 AWST:** at Craig's request the panel's
 > **Jobs & bookings** list and **drag-to-bay** (both options A and B below) are
-> withdrawn. The panel has no drag handles and no bay targets, loads no planner
-> data and never calls `moveWorkshopDroppedPlan`; bay moves stay in the Workshop
+> withdrawn. r565 (F179) puts drag back on the chip list in edit mode and calls
+> `moveWorkshopDroppedPlan` on a bay drop. Bay rules stay in the Workshop
 > Planner. The panel shows the vehicle's own card: station strip and status,
 > vehicle details (stock number, vehicle key, key number with Edit / History,
 > job card, Tune report, parts location) and the operations by category (lines,
@@ -206,3 +206,28 @@ r494c (F107b, site slow after the stack went live): the board's **PO to raise** 
   administrator); no SQL. Speed: nothing runs per vehicle when the board or the
   panel is drawn; the table and board are never redrawn by a save.
 * Undo: revert the r496 commit (the button and the window come back as before).
+
+## r565 (F179): edit in the same chip list (Craig, 27 Oct 2026, 8:08 am)
+
+* **Edit** stays on this same chip list. It does not open the Work & bookings layout.
+  Hour boxes are added to the chips. **Save** writes those hours through
+  `saveVehicleWorkshopLineHoursBatch`. **Open full editor** still opens the old window
+  for Add line, Edit line and Best slot. Open Vehicle, Manage sublets and the stoppage
+  box stay.
+* In edit mode a line or job chip can be dragged onto another station or bay. The hours
+  travel with it. A station drop calls `saveVehicleWorkCategory` (`set_vehicle_work_category`,
+  which extends or shortens the job). A bay drop then calls `moveWorkshopDroppedPlan` or
+  `scheduleWorkshopVehicle`, so overlaps, technician clashes and close-gaps stay in those
+  functions. A completed chip does not move.
+* A line or job that is already completed shows **Completed**, who completed it and when,
+  in blue or grey. There is no orange.
+* A workshop controller (User Management role `operator`, and an administrator) can tick
+  a line completed in the panel, and untick it. The tick is `set_panel_line_completion_565`,
+  which records the user and the time and refuses every other role. Other roles see the
+  tick read-only. The tick does not change the vehicle, a booking, a category or QC sign-off.
+* Opening the panel reads that completion list once (`get_panel_line_completions_565`).
+  The workshop detail read still happens only when Edit is pressed, for that one vehicle.
+* Craig approved go-live 27 Oct 2026 08:48 AWST. Cache bust `vehicle-slideout=2026.10.27.r565` on the slide-out module, and `r565=2026.10.27.r565` on `canonical-entry.js` and `app.js`. The stock-panel `r560` token stays.
+* Undo: revert this commit. If the migration was applied, run
+  `supabase/rollbacks/20261027150000_r565_panel_line_completion.down.sql` on staging
+  between :02 and :45.
