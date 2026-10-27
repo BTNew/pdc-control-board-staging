@@ -122,7 +122,7 @@ const approvedRootImportPatch = Object.freeze({
   // r572: a planner bay lists every open job card, primary first (F186). Department 135 is not tagged.
   // r566: delegates vehicle search matching to pdc-workshop-vehicle-search.js (F180). Department 135 is not tagged.
   // r570: per-bay work hours when a Bay Manager override exists; no override keeps today's windows (F184). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "PENDING570PLANNER",
+  "workshop-planner.js": "83a89be7fcb835778cf69baa35aef41e468bb2eff83c306bc7a83dd03fc84f62",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -148,7 +148,7 @@ const approvedRootImportPatch = Object.freeze({
   // r565: the runtime list adds pdc-bus-component-split.js before the fitter scripts (F179). Department 135 is not tagged.
   // r566: the runtime list adds pdc-workshop-vehicle-search.js before the Vehicle Locations table (F180). Department 135 is not tagged.
   // r570: the runtime list adds pdc-bay-manager.css and pdc-bay-manager.js (F184). Department 135 is not tagged.
-  "scripts/build_pages_runtime.js": "PENDING570RUNTIME",
+  "scripts/build_pages_runtime.js": "e4ae64bcbfb33d9955c689491eaa282ea47a1ffb88b125d7173f0a8edf210feb",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
   // Quick approval ignores unable-to-estimate, AI and conflicting hours tags
   // on Sublet lines. Department 135 keeps its frozen copy.
@@ -267,7 +267,7 @@ const approvedRootImportPatch = Object.freeze({
   // r573: a job wording longer than 2000 characters is named when hours cannot be saved (F187). Department 135 keeps its frozen app.js and the 180-character prompt.
   // r574: a keyed New to PMB tick can book that department's bay (F188). Department 135 keeps its frozen app.js.
   // r570: Bay Manager under Admin, and r570=2026.10.27.r570 on both workshop-planner.js loads (F184). Department 135 is not tagged.
-  "app.js": "PENDING570APP",
+  "app.js": "8d9533554897eb18d294ff9e8b063a7064d86c8d6a66f4df640503bfaf53a10b",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -393,7 +393,7 @@ const approvedRootImportPatch = Object.freeze({
   // r574: index.html adds r574=2026.10.27.r574 on app.js and styles.css (department bay booking, F188). Department 135 is not tagged.
   // r566: index.html loads pdc-workshop-vehicle-search.js (F180). Department 135 is not tagged.
   // r570: Bay Manager nav and view, pdc-bay-manager.css/js, and r570 on app.js and workshop-planner.css (F184). Department 135 is not tagged.
-  "index.html": "PENDING570INDEX",
+  "index.html": "78fab1112b8b0004110c66a51836456411d160dca268e58d9da919d15deea6b0",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

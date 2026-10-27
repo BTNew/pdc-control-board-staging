@@ -1,7 +1,14 @@
 -- r577 (F191) / sort 349. Go-live. Staging cdsmnqxtyyoeoznmbidd only.
 -- Production vjdtsswhroyguxyfjdkt is not a target.
 -- Renumbered at apply: r570 / F184 / sort 341 is the service archive. r572 / F186 / sort 342 is the card stack.
--- Table and function names stay _570. Pin release, fault, sort and added_in are r577 / F191 / 349.
+-- Table and function names stay _570. The new check is r577 / F191 / sort 349.
+-- book_all_vehicle_stations keeps its r450 pin marker. target_end_469 and
+-- overlap_chain_469 keep their r469 markers. Their prosrc md5s still move.
+-- bus_whole_job_450 counts 15 r450 pins. cascade_insert_overlap_chain_469
+-- counts 4 r469 pins. workshop_validate_booking stays release r548 so
+-- unallocated_bay_rechain_548 still sees that marker. The capacity plan keeps
+-- the bus text needle pdc_bus_private.active_vehicle(b.vehicle_id) THEN b.bay_id.
+-- Five other pins take release r577. The pin count stays 241.
 --
 -- Craig, 27 Oct 2026 11:00 AWST: a Bay Manager under Admin so a workshop
 -- controller can set the work hours of each bay.
@@ -35,7 +42,9 @@
 -- The clock reads the hours once per transaction into the local GUC
 -- pdc.bay_hours_570 (one aggregate of a small table, then memory). The tick
 -- body calls workshop_bay_has_hours_570 only. It does not name the hours table.
--- Pin count stays 241. Nine pins move in place. Department 135 is not edited.
+-- Pin count stays 241. Five pins take release r577. book_all stays r450,
+-- the two cascade helpers stay r469, and workshop_validate_booking stays r548.
+-- Their md5s move with the body. Department 135 is not edited.
 -- Undo: supabase/rollbacks/20261027233000_r570_bay_manager_hours.down.sql
 
 SET LOCAL lock_timeout = '2s';
@@ -49,6 +58,14 @@ DO $g$ BEGIN
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bay_job_pause_569' AND fault_id='F183' AND sort_order=340 AND added_in='r569') THEN RAISE EXCEPTION 'r577: r569 / F183 sort 340 is not the live check'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bus_component_split_568' AND fault_id='F182' AND sort_order=339 AND added_in='r568') THEN RAISE EXCEPTION 'r577: r568 / F182 sort 339 is not the live check'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='parts_stoppage_manual_567' AND fault_id='F181' AND sort_order=338 AND added_in='r567') THEN RAISE EXCEPTION 'r577: r567 / F181 sort 338 is not the live check'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='service_whole_archive_570' AND fault_id='F184' AND sort_order=341 AND added_in='r570') THEN RAISE EXCEPTION 'r577: archive check is not live'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='service_card_stack_572' AND fault_id='F186' AND sort_order=342 AND added_in='r572') THEN RAISE EXCEPTION 'r577: card stack check is not live'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='slot_between_571' AND fault_id='F185' AND sort_order=343 AND added_in='r571') THEN RAISE EXCEPTION 'r577: slot between check is not live'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='hours_description_fits_573' AND fault_id='F187' AND sort_order=344 AND added_in='r573') THEN RAISE EXCEPTION 'r577: hours wording check is not live'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='pmb_dept_ack_book_574' AND fault_id='F188' AND sort_order=345 AND added_in='r574') THEN RAISE EXCEPTION 'r577: department book check is not live'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='active_key_unique_575' AND fault_id='F189' AND sort_order=346 AND added_in='r575') THEN RAISE EXCEPTION 'r577: active key check is not live'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='cross_station_drop_576' AND fault_id='F190' AND sort_order=347 AND added_in='r576') THEN RAISE EXCEPTION 'r577: cross station check is not live'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='electrical_bays_7_566' AND fault_id='F180' AND sort_order=348 AND added_in='r566') THEN RAISE EXCEPTION 'r577: electrical hide check is not live'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=349 OR fault_id='F191' OR check_name='bay_manager_hours_570' OR added_in='r577') THEN RAISE EXCEPTION 'r577: sort 349 or F191 is taken'; END IF;
  IF to_regclass('public.workshop_bay_work_hours_570') IS NOT NULL OR to_regprocedure('public.set_workshop_bay_hours_570(uuid,integer,jsonb,text)') IS NOT NULL THEN RAISE EXCEPTION 'r577: already applied'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM '83a2c8d5ff85b5a295343e5f3ef66ded' THEN RAISE EXCEPTION 'r577: clock tick is not the r559 body'; END IF;
@@ -977,7 +994,7 @@ SELECT pg_temp.r570_patch(
   'public.workshop_capacity_plan(text,uuid,integer,timestamptz)',
   'bc237d9f466c45a086c251ec8c3071a7',
   $old$CASE WHEN s.code='BUS_4X4' AND b.bay_id IS NOT NULL AND pdc_bus_private.active_vehicle(b.vehicle_id) THEN b.bay_id END$old$,
-  $new$CASE WHEN (s.code='BUS_4X4' AND b.bay_id IS NOT NULL AND pdc_bus_private.active_vehicle(b.vehicle_id)) OR public.workshop_bay_has_hours_570(b.bay_id) THEN b.bay_id END$new$,
+  $new$CASE WHEN public.workshop_bay_has_hours_570(b.bay_id) OR s.code='BUS_4X4' AND b.bay_id IS NOT NULL AND pdc_bus_private.active_vehicle(b.vehicle_id) THEN b.bay_id END$new$,
   1);
 
 SELECT pg_temp.r570_patch(
@@ -1038,22 +1055,22 @@ BEGIN
   UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bay_seq_private.next_start(timestamptz,uuid)')), release='r577', note='r577: per-bay hours when an override exists (was 6d2cdc4cb26bb37794c6998b206f6e0c, r424)', updated_at=now()
    WHERE signature='pdc_bay_seq_private.next_start(timestamp with time zone,uuid)' AND prosrc_md5='6d2cdc4cb26bb37794c6998b206f6e0c' AND release='r424';
   GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: next_start pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.target_end_469(uuid,uuid,timestamptz,integer)')), release='r577', note='r577: per-bay hours when an override exists (was b7b98893bfc7a04b39330ca689f8f1b1, r469)', updated_at=now()
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.target_end_469(uuid,uuid,timestamptz,integer)')), note='r577: per-bay hours when an override exists. Release stays r469 so cascade_insert_overlap_chain_469 still counts 4 pins (was b7b98893bfc7a04b39330ca689f8f1b1).', updated_at=now()
    WHERE signature='pdc_cascade_private.target_end_469(uuid,uuid,timestamp with time zone,integer)' AND prosrc_md5='b7b98893bfc7a04b39330ca689f8f1b1' AND release='r469';
   GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: target_end pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.overlap_chain_469(uuid[],timestamptz)')), release='r577', note='r577: per-bay hours when an override exists (was e3602ba6f9d5973deea4eef09f5077c0, r469)', updated_at=now()
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.overlap_chain_469(uuid[],timestamptz)')), note='r577: per-bay hours when an override exists. Release stays r469 so cascade_insert_overlap_chain_469 still counts 4 pins (was e3602ba6f9d5973deea4eef09f5077c0).', updated_at=now()
    WHERE signature='pdc_cascade_private.overlap_chain_469(uuid[],timestamp with time zone)' AND prosrc_md5='e3602ba6f9d5973deea4eef09f5077c0' AND release='r469';
   GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: overlap pin'; END IF;
   UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')), release='r577', note='r577: per-bay hours when an override exists (was 83a2c8d5ff85b5a295343e5f3ef66ded, r559)', updated_at=now()
    WHERE signature='public.workshop_clock_tick(boolean,timestamp with time zone)' AND prosrc_md5='83a2c8d5ff85b5a295343e5f3ef66ded' AND release='r559';
   GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: clock tick pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_capacity_plan(text,uuid,integer,timestamptz)')), release='r577', note='r577: per-bay hours when an override exists (was bc237d9f466c45a086c251ec8c3071a7, r542)', updated_at=now()
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_capacity_plan(text,uuid,integer,timestamptz)')), release='r577', note='r577: per-bay hours when an override exists. The bus calendar needle stays intact (was bc237d9f466c45a086c251ec8c3071a7, r542).', updated_at=now()
    WHERE signature='public.workshop_capacity_plan(text,uuid,integer,timestamp with time zone)' AND prosrc_md5='bc237d9f466c45a086c251ec8c3071a7' AND release='r542';
   GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: capacity pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.book_all_vehicle_stations(uuid,integer)')), release='r577', note='r577: per-bay hours when an override exists (was 90fc0d4727d827db53c308ff9dfa8bcd, r450)', updated_at=now()
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.book_all_vehicle_stations(uuid,integer)')), note='r577: per-bay hours when an override exists. Release stays r450 so bus_whole_job_450 still counts 15 pins (was 90fc0d4727d827db53c308ff9dfa8bcd).', updated_at=now()
    WHERE signature='public.book_all_vehicle_stations(uuid,integer)' AND prosrc_md5='90fc0d4727d827db53c308ff9dfa8bcd' AND release='r450';
   GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: book_all pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)')), release='r577', note='r577: per-bay hours when an override exists (was ae08aa9b0dc99e7c93b1710efdcb5070, r548)', updated_at=now()
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)')), note='r577: per-bay hours when an override exists. Release stays r548 so unallocated_bay_rechain_548 still sees r548 (was ae08aa9b0dc99e7c93b1710efdcb5070).', updated_at=now()
    WHERE signature='public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)' AND prosrc_md5='ae08aa9b0dc99e7c93b1710efdcb5070' AND release='r548';
   GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: validate pin'; END IF;
 END $pins$;
@@ -1077,7 +1094,17 @@ VALUES ('bay_manager_hours_570', 'F191',
 $chk570$
 SELECT
   pins.n = 241
-  AND pins.moved = 9
+  AND pins.moved = 5
+  AND val_pin.release = 'r548'
+  AND val_pin.prosrc_md5 = pg_catalog.md5(val_fn.prosrc)
+  AND pins.r450 = 15
+  AND pins.r469 = 4
+  AND book_pin.release = 'r450'
+  AND book_pin.prosrc_md5 = pg_catalog.md5(book_fn.prosrc)
+  AND tend_pin.release = 'r469'
+  AND tend_pin.prosrc_md5 = pg_catalog.md5(tend_fn.prosrc)
+  AND chain_pin.release = 'r469'
+  AND chain_pin.prosrc_md5 = pg_catalog.md5(chain_fn.prosrc)
   AND tick_pin.release = 'r577'
   AND tick_pin.prosrc_md5 = pg_catalog.md5(tick.prosrc)
   AND pg_catalog.strpos(tick.prosrc, 'workshop_bay_has_hours_570') > 0
@@ -1101,7 +1128,15 @@ SELECT
   AND pg_catalog.strpos(recent.check_sql, 'release=''r577''') > 0
  AS ok,
  'tick '||pg_catalog.md5(tick.prosrc)||' pins '||pins.n::text||' moved '||pins.moved::text AS detail
-FROM (SELECT count(*) AS n, count(*) FILTER (WHERE release = 'r577') AS moved FROM pdc_ops.expected_function_md5) pins
+FROM (SELECT count(*) AS n, count(*) FILTER (WHERE release = 'r577') AS moved, count(*) FILTER (WHERE release = 'r450') AS r450, count(*) FILTER (WHERE release = 'r469') AS r469 FROM pdc_ops.expected_function_md5) pins
+CROSS JOIN (SELECT prosrc_md5, release FROM pdc_ops.expected_function_md5 WHERE signature = 'public.book_all_vehicle_stations(uuid,integer)') book_pin
+CROSS JOIN (SELECT prosrc FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('public.book_all_vehicle_stations(uuid,integer)')) book_fn
+CROSS JOIN (SELECT prosrc_md5, release FROM pdc_ops.expected_function_md5 WHERE signature = 'pdc_cascade_private.target_end_469(uuid,uuid,timestamp with time zone,integer)') tend_pin
+CROSS JOIN (SELECT prosrc FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('pdc_cascade_private.target_end_469(uuid,uuid,timestamptz,integer)')) tend_fn
+CROSS JOIN (SELECT prosrc_md5, release FROM pdc_ops.expected_function_md5 WHERE signature = 'pdc_cascade_private.overlap_chain_469(uuid[],timestamp with time zone)') chain_pin
+CROSS JOIN (SELECT prosrc FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('pdc_cascade_private.overlap_chain_469(uuid[],timestamptz)')) chain_fn
+CROSS JOIN (SELECT prosrc_md5, release FROM pdc_ops.expected_function_md5 WHERE signature = 'public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)') val_pin
+CROSS JOIN (SELECT prosrc FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)')) val_fn
 CROSS JOIN (SELECT prosrc_md5, release FROM pdc_ops.expected_function_md5 WHERE signature = 'public.workshop_clock_tick(boolean,timestamp with time zone)') tick_pin
 CROSS JOIN (SELECT prosrc FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')) tick
 CROSS JOIN (SELECT md5(prosrc) AS md5 FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('karratha135_pdc.workshop_clock_tick(boolean,timestamptz)')) k135
@@ -1114,7 +1149,13 @@ $chk570$, true, 349, 'r577');
 
 DO $z$ BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5) <> 241 THEN RAISE EXCEPTION 'r577: pin count changed'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release = 'r577') <> 9 THEN RAISE EXCEPTION 'r577: expected nine pins to move'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release = 'r577') <> 5 THEN RAISE EXCEPTION 'r577: expected five pins to take release r577'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release = 'r450') <> 15 THEN RAISE EXCEPTION 'r577: r450 pin count left 15'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release = 'r469') <> 4 THEN RAISE EXCEPTION 'r577: r469 pin count left 4'; END IF;
+ IF (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)') IS DISTINCT FROM 'r548' THEN RAISE EXCEPTION 'r577: validate left r548'; END IF;
+ IF (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.book_all_vehicle_stations(uuid,integer)') IS DISTINCT FROM 'r450' THEN RAISE EXCEPTION 'r577: book_all left r450'; END IF;
+ IF (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='pdc_cascade_private.target_end_469(uuid,uuid,timestamp with time zone,integer)') IS DISTINCT FROM 'r469' THEN RAISE EXCEPTION 'r577: target_end left r469'; END IF;
+ IF (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='pdc_cascade_private.overlap_chain_469(uuid[],timestamp with time zone)') IS DISTINCT FROM 'r469' THEN RAISE EXCEPTION 'r577: overlap chain left r469'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_pdc.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM 'eb25ab44d4d007d3b749bd7bc5e56abc' THEN RAISE EXCEPTION 'r577: department 135 clock moved'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_bus.add_minutes(timestamptz,integer,uuid)')) IS DISTINCT FROM '832bf8be742c16b86f937fa9579ee056' THEN RAISE EXCEPTION 'r577: department 135 bus add moved'; END IF;
  IF pg_catalog.strpos((SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.set_workshop_bay_hours_570(uuid,integer,jsonb,text)')), 'UPDATE public.workshop_bookings') <> 0 THEN RAISE EXCEPTION 'r577: save rewrites bookings'; END IF;

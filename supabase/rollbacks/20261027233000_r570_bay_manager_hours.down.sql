@@ -1,6 +1,8 @@
 -- Undo r577 (F191) / sort 349. Staging cdsmnqxtyyoeoznmbidd only.
--- Restores the nine pinned bodies and the three unpinned calendar bodies,
--- puts the old prosrc md5s back, and drops the bay-hours table.
+-- Restores the nine patched bodies. Five pins return to their old release.
+-- book_all stays on r450, the two cascade helpers stay on r469, and
+-- workshop_validate_booking stays on r548. Only their prosrc md5s are put back.
+-- Drops the bay-hours table.
 -- Does not rewrite workshop_bookings. Department 135 is not edited.
 -- Run between :02 and :45.
 
@@ -13,7 +15,10 @@ DO $g$ BEGIN
  IF EXISTS (SELECT 1 FROM public.pdc_staging_environment_sentinel WHERE project_ref='vjdtsswhroyguxyfjdkt') THEN RAISE EXCEPTION 'r577 down: production ref'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r577 down: pin count is not 241'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bay_manager_hours_570' AND fault_id='F191' AND sort_order=349 AND added_in='r577') THEN RAISE EXCEPTION 'r577 down: check missing'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r577')<>9 THEN RAISE EXCEPTION 'r577 down: expected nine r577 pins'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r577')<>5 THEN RAISE EXCEPTION 'r577 down: expected five r577 pins'; END IF;
+ IF (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)') IS DISTINCT FROM 'r548' THEN RAISE EXCEPTION 'r577 down: validate is not r548'; END IF;
+ IF (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.book_all_vehicle_stations(uuid,integer)') IS DISTINCT FROM 'r450' THEN RAISE EXCEPTION 'r577 down: book_all is not r450'; END IF;
+ IF (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='pdc_cascade_private.overlap_chain_469(uuid[],timestamp with time zone)') IS DISTINCT FROM 'r469' THEN RAISE EXCEPTION 'r577 down: overlap chain is not r469'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_pdc.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM 'eb25ab44d4d007d3b749bd7bc5e56abc' THEN RAISE EXCEPTION 'r577 down: department 135 clock changed'; END IF;
 END $g$;
 
@@ -151,17 +156,17 @@ UPDATE pdc_ops.expected_function_md5 SET prosrc_md5='8067dd22688d7b93d90c9c03eab
 UPDATE pdc_ops.expected_function_md5 SET prosrc_md5='6d2cdc4cb26bb37794c6998b206f6e0c', release='r424', note='restored by r577 down', updated_at=now()
  WHERE signature='pdc_bay_seq_private.next_start(timestamp with time zone,uuid)' AND release='r577';
 UPDATE pdc_ops.expected_function_md5 SET prosrc_md5='b7b98893bfc7a04b39330ca689f8f1b1', release='r469', note='restored by r577 down', updated_at=now()
- WHERE signature='pdc_cascade_private.target_end_469(uuid,uuid,timestamp with time zone,integer)' AND release='r577';
+ WHERE signature='pdc_cascade_private.target_end_469(uuid,uuid,timestamp with time zone,integer)' AND release='r469';
 UPDATE pdc_ops.expected_function_md5 SET prosrc_md5='e3602ba6f9d5973deea4eef09f5077c0', release='r469', note='restored by r577 down', updated_at=now()
- WHERE signature='pdc_cascade_private.overlap_chain_469(uuid[],timestamp with time zone)' AND release='r577';
+ WHERE signature='pdc_cascade_private.overlap_chain_469(uuid[],timestamp with time zone)' AND release='r469';
 UPDATE pdc_ops.expected_function_md5 SET prosrc_md5='83a2c8d5ff85b5a295343e5f3ef66ded', release='r559', note='restored by r577 down', updated_at=now()
  WHERE signature='public.workshop_clock_tick(boolean,timestamp with time zone)' AND release='r577';
 UPDATE pdc_ops.expected_function_md5 SET prosrc_md5='bc237d9f466c45a086c251ec8c3071a7', release='r542', note='restored by r577 down', updated_at=now()
  WHERE signature='public.workshop_capacity_plan(text,uuid,integer,timestamp with time zone)' AND release='r577';
 UPDATE pdc_ops.expected_function_md5 SET prosrc_md5='90fc0d4727d827db53c308ff9dfa8bcd', release='r450', note='restored by r577 down', updated_at=now()
- WHERE signature='public.book_all_vehicle_stations(uuid,integer)' AND release='r577';
+ WHERE signature='public.book_all_vehicle_stations(uuid,integer)' AND release='r450';
 UPDATE pdc_ops.expected_function_md5 SET prosrc_md5='ae08aa9b0dc99e7c93b1710efdcb5070', release='r548', note='restored by r577 down', updated_at=now()
- WHERE signature='public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)' AND release='r577';
+ WHERE signature='public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)' AND release='r548';
 
 DELETE FROM pdc_ops.regression_checks WHERE check_name='bay_manager_hours_570' AND fault_id='F191' AND sort_order=349 AND added_in='r577';
 
@@ -185,6 +190,13 @@ DROP TABLE IF EXISTS public.workshop_bay_work_hours_570;
 DO $z$ BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r577 down: pin count changed'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r577') THEN RAISE EXCEPTION 'r577 down: an r577 pin remains'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r450')<>15 THEN RAISE EXCEPTION 'r577 down: r450 pin count'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r469')<>4 THEN RAISE EXCEPTION 'r577 down: r469 pin count'; END IF;
+ IF (SELECT prosrc_md5 FROM pdc_ops.expected_function_md5 WHERE signature='public.book_all_vehicle_stations(uuid,integer)') IS DISTINCT FROM '90fc0d4727d827db53c308ff9dfa8bcd' THEN RAISE EXCEPTION 'r577 down: book_all md5'; END IF;
+ IF (SELECT prosrc_md5 FROM pdc_ops.expected_function_md5 WHERE signature='pdc_cascade_private.overlap_chain_469(uuid[],timestamp with time zone)') IS DISTINCT FROM 'e3602ba6f9d5973deea4eef09f5077c0' THEN RAISE EXCEPTION 'r577 down: overlap md5'; END IF;
+ IF (SELECT prosrc_md5 FROM pdc_ops.expected_function_md5 WHERE signature='pdc_cascade_private.target_end_469(uuid,uuid,timestamp with time zone,integer)') IS DISTINCT FROM 'b7b98893bfc7a04b39330ca689f8f1b1' THEN RAISE EXCEPTION 'r577 down: target_end md5'; END IF;
+ IF (SELECT prosrc_md5 FROM pdc_ops.expected_function_md5 WHERE signature='public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)') IS DISTINCT FROM 'ae08aa9b0dc99e7c93b1710efdcb5070' THEN RAISE EXCEPTION 'r577 down: validate md5'; END IF;
+ IF (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)') IS DISTINCT FROM 'r548' THEN RAISE EXCEPTION 'r577 down: validate release'; END IF;
  IF to_regclass('public.workshop_bay_work_hours_570') IS NOT NULL THEN RAISE EXCEPTION 'r577 down: table remains'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_pdc.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM 'eb25ab44d4d007d3b749bd7bc5e56abc' THEN RAISE EXCEPTION 'r577 down: department 135 clock moved'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_bus.add_minutes(timestamptz,integer,uuid)')) IS DISTINCT FROM '832bf8be742c16b86f937fa9579ee056' THEN RAISE EXCEPTION 'r577 down: department 135 bus add moved'; END IF;
