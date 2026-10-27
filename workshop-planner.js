@@ -1255,6 +1255,20 @@ const WORKSHOP_PLAIN_ERROR_MESSAGES = Object.freeze({
   invalid_label: 'Enter a short name for this item (letters, numbers and simple punctuation). No change was made.',
   invalid_idempotency_key: 'This action could not be sent safely. Refresh the planner and try again. No change was made.',
   idempotency_conflict: 'This action was already sent with different details. Refresh the planner to see what was saved before trying again.',
+  // r569 (F183): pause the live bay job and start another one behind it.
+  same_vehicle: 'Pausing a job to start another job of the same vehicle is not available here. No change was made.',
+  different_station: 'That job is on a different station. No change was made.',
+  not_unstarted: 'Pick an unstarted job. No change was made.',
+  not_live: 'This job is not running in a bay, so it was not paused. No change was made.',
+  bay_busy_with_others: 'This bay already has another booking in the time the paused job would move into. No change was made.',
+  bad_duration: 'That job has no duration, so it was not started. No change was made.',
+  remaining_too_long: 'The remaining time is too long to move in one step. No change was made.',
+  vehicle_not_found: 'One of these vehicles is not on the board. No change was made.',
+  pause_failed: 'The pause could not be saved. No change was made.',
+  not_authorized: 'You do not have permission to pause a job for another one. No change was made.',
+  stop_failed: 'The running job could not be paused. No change was made.',
+  move_failed: 'The paused job could not be moved behind the new one. No change was made.',
+  start_failed: 'The other job could not be started. No change was made.',
   receipt_not_found: 'There is nothing to undo for this action any more. Refresh the planner to see the current schedule.',
   undo_actor_mismatch: 'Only the person who made this change can undo it. Ask them, or a manager, to change it back.',
   already_undone: 'This change has already been undone. No further change was made.',
@@ -4787,16 +4801,37 @@ function workshopOtherDateCardHtml(entry = {}) {
   </button>`;
 }
 
+// r569 (F183): other unstarted jobs on this station, for a different vehicle.
+// A queued row is already stored as planned on the planner chip.
+function workshopPauseForOtherChoices(live, rows) {
+  const status = String(live?.status || '').toLowerCase();
+  if (!live || !['started', 'stoppage'].includes(status)) return [];
+  const stage = typeof normalizePmbStage === 'function' ? normalizePmbStage(live.stage) : '';
+  const vehicle = String(live.sharedVehicleId || '');
+  if (!stage || !vehicle) return [];
+  return (Array.isArray(rows) ? rows : []).filter(row => {
+    if (!row || row.id === live.id) return false;
+    const rowStatus = String(row.status || '').toLowerCase();
+    if (!['planned', 'queued'].includes(rowStatus)) return false;
+    const rowStage = typeof normalizePmbStage === 'function' ? normalizePmbStage(row.stage) : '';
+    if (rowStage !== stage) return false;
+    if (!row.sharedVehicleId || row.sharedVehicleId === vehicle) return false;
+    if (!row.sharedBookingId) return false;
+    return true;
+  }).slice(0, 8);
+}
+
 function workshopPlanLifecycleActionsHtml(entry = {}) {
   const planId = String(entry.id || '');
   const status = String(entry.status || 'planned').toLowerCase();
   if (!planId || ['completed', 'cancelled'].includes(status)) return '';
   if (entry.legacyAmbiguityReason) return `<div class="workshop-legacy-ambiguity" role="status" title="${escapeHtml(entry.legacyAmbiguityReason)}">Legacy review required · editing blocked</div>`;
+  const pauseButton = `<button type="button" data-workshop-pause-for-other="${escapeHtml(planId)}" aria-label="Pause this job and start another in this bay">Pause for another job</button>`;
   if (status === 'stoppage') {
-    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-resume-plan="${escapeHtml(planId)}" aria-label="Resume job">Resume job</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
+    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-resume-plan="${escapeHtml(planId)}" aria-label="Resume job">Resume job</button>${pauseButton}<button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
   }
   if (status === 'started') {
-    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-stop-plan="${escapeHtml(planId)}" aria-label="Place job on STOPPAGE">STOPPAGE</button><button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
+    return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-stop-plan="${escapeHtml(planId)}" aria-label="Place job on STOPPAGE">STOPPAGE</button>${pauseButton}<button class="workshop-complete-action" type="button" data-workshop-complete-plan="${escapeHtml(planId)}" aria-label="Complete job">Complete</button></div>`;
   }
   const pending = WORKSHOP_PENDING_STARTS.has(planId);
   return `<div class="workshop-plan-lifecycle-actions"><button type="button" data-workshop-start-plan="${escapeHtml(planId)}" aria-label="${pending ? 'Starting job' : 'Start job'}" ${pending ? 'disabled aria-busy="true"' : ''}>${pending ? 'Starting…' : 'Start job'}</button></div>`;
@@ -6581,6 +6616,11 @@ function bindWorkshopPlanner(root) {
     event.stopPropagation();
     void stopWorkshopPlan(event.currentTarget.dataset.workshopStopPlan);
   }));
+  root.querySelectorAll('[data-workshop-pause-for-other]').forEach(button => button.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    void pauseBayForOtherJob(event.currentTarget.dataset.workshopPauseForOther);
+  }));
   root.querySelectorAll('[data-workshop-resume-plan]').forEach(button => button.addEventListener('click', event => {
     event.preventDefault();
     event.stopPropagation();
@@ -8343,6 +8383,34 @@ function workshopOverrideReasonModal() {
     document.body.appendChild(overlay);
     document.body.classList.add('modal-open');
     overlay.querySelector('[data-workshop-override-reason]')?.focus();
+  });
+}
+
+async function pauseBayForOtherJob(planId = '') {
+  const rows = typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : [];
+  const live = rows.find(row => row.id === planId);
+  if (!live) return;
+  if (typeof workshopSharedModeActive !== 'function' || !workshopSharedModeActive()) {
+    workshopNotify('Pausing a job for another one needs the live planner. No change was made.');
+    return;
+  }
+  const choices = workshopPauseForOtherChoices(live, rows);
+  if (!choices.length) {
+    workshopNotify('There is no other unstarted job on this station to start in this bay. This job stays where it is.');
+    return;
+  }
+  const lines = choices.map((row, index) => `${index + 1}. ${row.vehicleKey || 'Job'}`).join('\n');
+  const answer = typeof window !== 'undefined' && typeof window.prompt === 'function'
+    ? window.prompt(`Pause this job. Its remaining time moves behind the job you pick. Neither job card is closed.\n${lines}\nType a number from 1 to ${choices.length}.`, '')
+    : null;
+  const pick = Number(String(answer || '').trim());
+  const chosen = choices[pick - 1];
+  if (!chosen) return;
+  await workshopDispatchSharedAction('pauseBayForOther', {
+    bookingId: chosen.sharedBookingId,
+    expectedVersion: chosen.sharedVersion,
+    liveBookingId: live.sharedBookingId,
+    liveExpectedVersion: live.sharedVersion,
   });
 }
 

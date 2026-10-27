@@ -428,6 +428,16 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
       });
     },
 
+    // r569 (F183): pause the live job and start the incoming job in its bay.
+    pauseBayForOther({ bookingId, expectedVersion, liveBookingId, liveExpectedVersion }) {
+      return mutate('pause_bay_job_for_other_566', {
+        p_live: liveBookingId,
+        p_live_version: liveExpectedVersion,
+        p_incoming: bookingId,
+        p_incoming_version: expectedVersion,
+      });
+    },
+
     deleteAdminBlock({ blockId, expectedVersion, reason, metadata }) {
       return mutate('delete_workshop_admin_block', {
         p_block_id: blockId,
