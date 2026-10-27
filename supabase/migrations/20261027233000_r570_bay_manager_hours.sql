@@ -991,7 +991,7 @@ SELECT pg_temp.r570_patch(
   'public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)',
   'ae08aa9b0dc99e7c93b1710efdcb5070',
   $old$if NOT v_bus_calendar AND NOT v_preserve_historical_calendar AND public.workshop_operational_minutes_between(p_scheduled_start_at,p_scheduled_end_at)<>p_duration_minutes then$old$,
-  $new$if NOT v_bus_calendar AND NOT v_preserve_historical_calendar AND NOT (public.workshop_bay_has_hours_570(p_bay_id) AND EXISTS (SELECT 1 FROM public.workshop_bookings b WHERE b.id=p_booking_id AND b.bay_id=p_bay_id AND b.scheduled_start_at=p_scheduled_start_at AND b.scheduled_end_at=p_scheduled_end_at AND b.default_duration_minutes=p_duration_minutes AND b.deleted_at IS NULL)) AND CASE WHEN public.workshop_bay_has_hours_570(p_bay_id) THEN public.workshop_bay_minutes_between_570(p_scheduled_start_at,p_scheduled_end_at,p_bay_id) ELSE public.workshop_operational_minutes_between(p_scheduled_start_at,p_scheduled_end_at) END <>p_duration_minutes then$new$,
+  $new$if NOT v_bus_calendar AND NOT v_preserve_historical_calendar AND NOT (public.workshop_bay_has_hours_570(p_bay_id) AND EXISTS (SELECT 1 FROM public.workshop_bookings b WHERE b.id=p_booking_id AND b.bay_id=p_bay_id AND b.scheduled_start_at=p_scheduled_start_at AND b.scheduled_end_at=p_scheduled_end_at AND b.default_duration_minutes=p_duration_minutes AND b.deleted_at IS NULL)) AND (CASE WHEN public.workshop_bay_has_hours_570(p_bay_id) THEN public.workshop_bay_minutes_between_570(p_scheduled_start_at,p_scheduled_end_at,p_bay_id) ELSE public.workshop_operational_minutes_between(p_scheduled_start_at,p_scheduled_end_at) END) <>p_duration_minutes then$new$,
   1);
 
 DO $val$
