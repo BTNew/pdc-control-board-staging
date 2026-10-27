@@ -8,6 +8,8 @@ const context = {
   escapeHtml: s => String(s), vehicleKeyNumber: v => v.key, displayStockNumber: v => v.stock,
   vehicleJobcardNumber: v => v.jobcard, vehicleCustomerName: v => v.customer, displayVehicle: v => v.vehicle,
   pmbEnteredTimestamp: v => v.entered, navisionEtaForVehicle: v => v.eta, incomingKewdaleAgeValue: v => v.kewdale,
+  pmbVehicleHasKey: v => String(v.keyNumber || '').trim() !== '',
+  pmbKeyAssignedTimestamp: v => v.keyAssignedAt || '',
   parseIsoTimestamp: s => s ? new Date(s) : null, parseDateAU: s => s ? new Date(s) : null,
 };
 vm.createContext(context);
@@ -22,9 +24,9 @@ for (const key of ['key','jobcard','customer','vehicle']) {
   assert.deepEqual(sorted(rows,key).map(v=>v.stock), ['20','100','IS9']);
   assert.deepEqual(sorted(rows,key,'desc').map(v=>v.stock), ['100','20','IS9'], 'missing remains last in either direction');
 }
-const ages = [{stock:'1',entered:'2026-09-01',eta:'2026-09-15'},
-  {stock:'2',entered:'2026-09-05',eta:'2026-09-10'}, {stock:'3',eta:'2026-09-01'}];
-assert.deepEqual(sorted(ages,'age').map(v=>v.stock), ['1','2','3'], 'PMB sorts recorded entry, without guessing from ETA');
+const ages = [{stock:'1',keyNumber:'11',keyAssignedAt:'2026-09-01',entered:'2026-09-01',eta:'2026-09-15'},
+  {stock:'2',keyNumber:'22',keyAssignedAt:'2026-09-05',entered:'2026-09-05',eta:'2026-09-10'}, {stock:'3',entered:'2026-08-01',eta:'2026-09-01'}];
+assert.deepEqual(sorted(ages,'age').map(v=>v.stock), ['1','2','3'], 'PMB sorts the key assignment; a vehicle with no key stays last');
 assert.deepEqual(sorted(ages,'age','desc').map(v=>v.stock), ['2','1','3']);
 assert.deepEqual(sorted(ages,'age','asc','transit').map(v=>v.stock), ['3','2','1'], 'transit uses shown ETA');
 assert.equal(rows[0].stock,'100','sorting a copy never mutates source order');
