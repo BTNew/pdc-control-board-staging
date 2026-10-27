@@ -1,4 +1,5 @@
--- r575 (F189) / sort 346. Craig approved 27 Oct 2026 14:18 AWST. Not applied in this change.
+-- r575 (F189) / sort 346. Live on staging. Ledger r575_active_key_unique 20261027064136.
+-- Craig approved 27 Oct 2026 14:18 AWST. Applied 27 Oct 2026 14:41 AWST.
 -- Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
 --
 -- Craig, 27 Oct 2026 13:25 AWST: no two vehicles may have the same key number.
