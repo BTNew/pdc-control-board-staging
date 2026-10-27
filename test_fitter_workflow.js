@@ -511,5 +511,29 @@ test('r388: screens without a cache token (QA pages) never poll for updates',asy
 
 test('r388: index.html carries the self-update cache token for pdc-fitters.js',()=>{
   const html=require('fs').readFileSync('index.html','utf8');
-  assert.match(html,/pdc-fitters\.js\?[^"]*item-ticks=2026\.10\.20\.02&amp;self-update=2026\.10\.20\.01(&amp;start-before-done=2026\.10\.21\.r440)?(&amp;parts-retired=2026\.10\.21\.r449)?&amp;r532=2026\.10\.26\.r532"/);
+  assert.match(html,/pdc-fitters\.js\?[^"]*item-ticks=2026\.10\.20\.02&amp;self-update=2026\.10\.20\.01(&amp;start-before-done=2026\.10\.21\.r440)?(&amp;parts-retired=2026\.10\.21\.r449)?&amp;r532=2026\.10\.26\.r532&amp;r564=2026\.10\.27\.r564/);
+});
+
+test('r564 (F178): job heading shows Key badge beside stock',async()=>{
+  const f=screenFixture();
+  f.data.jobs[0]={...f.data.jobs[0],id:'booking-a',status:'planned',stage_name:'Tint',stage_code:'TINT',bay_number:1,
+    stock:'13042994',key_number:'364',job_card:'J138001234',customer:'ACME',vehicle:'HiLux',
+    start_at:'2026-10-27T00:30:00Z',end_at:'2026-10-27T01:30:00Z'};
+  f.data.detail={...f.data.detail,booking_id:'booking-a',status:'planned',stage_code:'TINT',actual_start_at:null,
+    timer:{elapsed_seconds:null,running:false,as_of:'2026-10-27T00:00:00Z',next_change_at:'2026-10-27T01:00:00Z'},
+    lines:[{line_identity:'line-a',description:'Darkest Legal Window Tint',stage_code:'TINT',hours:1,completed:false,note:'',scope_hash:'scope-a'}],
+    progress:{percent:0,total_hours:1,completed_hours:0,total_lines:1,completed_lines:0,can_complete:false}};
+  await f.open();
+  assert.match(f.html,/<h2 class="fitter-job-title">13042994 <span class="fitter-key-badge"[^>]*>Key 364<\/span>/);
+  assert.doesNotMatch(f.html,/fitter-key-badge is-missing/);
+});
+
+test('r564 (F178): missing key_number shows subtle No key badge',async()=>{
+  const f=screenFixture();
+  f.data.jobs[0].stock='13042994';
+  delete f.data.jobs[0].key_number;
+  f.data.detail.status=f.data.jobs[0].status='planned';
+  f.data.detail.stage_code='TINT';
+  await f.open();
+  assert.match(f.html,/13042994 <span class="fitter-key-badge is-missing"[^>]*>No key<\/span>/);
 });

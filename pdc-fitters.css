@@ -21,6 +21,9 @@
 .fitter-work { min-width:0; background:#fff; border:1px solid #cfdbe5; border-radius:14px; padding:20px; }
 .fitter-job-heading { display:grid; gap:9px; margin-bottom:16px; overflow-wrap:anywhere; }
 .fitter-job-heading h2 { font-size:26px; }
+.fitter-job-heading h2.fitter-job-title { display:flex; flex-wrap:wrap; align-items:baseline; gap:0.35rem 0.55rem; }
+.fitter-key-badge { display:inline-flex; align-items:center; border-radius:999px; padding:0.12rem 0.55rem; font-size:0.82rem; font-weight:700; line-height:1.2; border:1px solid #b8d4eb; background:#e8f1fb; color:#1e4a72; vertical-align:baseline; }
+.fitter-key-badge.is-missing { font-weight:600; border-color:#d5dee8; background:#eef2f6; color:#6b7c8f; }
 .fitter-job-heading h2 span { display:inline-block; font-size:16px; font-weight:500; color:#536980; }
 .fitter-job-heading>p:last-child { font-size:14px; color:#536980; }
 .fitter-timer { display:grid; grid-template-columns:10px minmax(0,1fr) auto; gap:10px; align-items:center; padding:12px 14px; border:1px solid #c9d5df; border-radius:10px; background:#f2f5f8; }
