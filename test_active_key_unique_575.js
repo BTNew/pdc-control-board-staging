@@ -79,7 +79,7 @@ test('the migration refuses active duplicates, names the other stock, and leaves
   assert.match(fault, /approved_clear/);
 });
 
-test('Craig''s clears are id-scoped, skip an archived holder, and the undo puts that key back', () => {
+test('the approved clears are id-scoped, skip an archived holder, and the undo puts that key back', () => {
   const losers = [
     ['105', '2314e3bc-5510-4d92-adc4-8155d3885d63', '13073068', 'ca02d68f-6d53-4519-9678-f2b31ca7e3a1', '13070896'],
     ['126', '465a85f0-f027-476c-bcab-243448f22ac3', '13073094', '835f365f-17fc-4f56-908c-27963f276da0', '13070891'],
