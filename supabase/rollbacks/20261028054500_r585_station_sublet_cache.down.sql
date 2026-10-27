@@ -35,6 +35,7 @@ $back$;
 REVOKE ALL ON FUNCTION public.get_station_workshop_snapshot(text,date,date), public.get_pdc_sublet_po_board_439() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_station_workshop_snapshot(text,date,date), public.get_pdc_sublet_po_board_439() TO authenticated, service_role;
 
+DROP FUNCTION IF EXISTS pdc_ops.cache_holds_snapshot_585(text,text,date,date,jsonb);
 DROP TABLE pdc_ops.station_workshop_snapshot_cache_585;
 DROP TABLE pdc_ops.sublet_po_board_cache_585;
 DROP FUNCTION pdc_ops.station_workshop_snapshot_compute_585(text,date,date);
@@ -60,7 +61,8 @@ DO $p$ BEGIN
  IF to_regprocedure('pdc_ops.station_workshop_snapshot_compute_585(text,date,date)') IS NOT NULL
     OR to_regprocedure('pdc_ops.sublet_po_board_compute_585()') IS NOT NULL
     OR to_regclass('pdc_ops.station_workshop_snapshot_cache_585') IS NOT NULL
-    OR to_regclass('pdc_ops.sublet_po_board_cache_585') IS NOT NULL THEN RAISE EXCEPTION 'r585 undo: cache objects remain'; END IF;
+    OR to_regclass('pdc_ops.sublet_po_board_cache_585') IS NOT NULL
+    OR to_regprocedure('pdc_ops.cache_holds_snapshot_585(text,text,date,date,jsonb)') IS NOT NULL THEN RAISE EXCEPTION 'r585 undo: cache objects remain'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='station_sublet_cache_585' OR fault_id='F199' OR sort_order=357 OR added_in='r585') THEN RAISE EXCEPTION 'r585 undo: check remains'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_pdc.fitter_job_command(uuid,uuid,integer,text,uuid,text,text,boolean,text)')) IS DISTINCT FROM 'fd05b9eef69498002ac06dd68e01cdff' THEN RAISE EXCEPTION 'r585 undo: department 135 changed'; END IF;
 END $p$;

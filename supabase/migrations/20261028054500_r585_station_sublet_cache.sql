@@ -36,7 +36,8 @@ DO $g$ BEGIN
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.pdc_pilbara_service_apply_v1(uuid,text,text)')) IS DISTINCT FROM 'b62fb7c29ffd2a1629f214f696e5cb14' THEN RAISE EXCEPTION 'r585: Kajel apply changed'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM '3b2398e33a2ea35fc137deeedeca4af5' THEN RAISE EXCEPTION 'r585: clock tick changed'; END IF;
  IF to_regprocedure('pdc_ops.station_workshop_snapshot_compute_585(text,date,date)') IS NOT NULL
-    OR to_regprocedure('pdc_ops.sublet_po_board_compute_585()') IS NOT NULL THEN RAISE EXCEPTION 'r585: compute function already exists'; END IF;
+    OR to_regprocedure('pdc_ops.sublet_po_board_compute_585()') IS NOT NULL
+    OR to_regprocedure('pdc_ops.cache_holds_snapshot_585(text,text,date,date,jsonb)') IS NOT NULL THEN RAISE EXCEPTION 'r585: compute function already exists'; END IF;
  IF to_regclass('pdc_ops.station_workshop_snapshot_cache_585') IS NOT NULL
     OR to_regclass('pdc_ops.sublet_po_board_cache_585') IS NOT NULL THEN RAISE EXCEPTION 'r585: cache table already exists'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='line_handoff_583' AND fault_id='F197' AND sort_order=355 AND added_in='r583') THEN RAISE EXCEPTION 'r585: r583 / F197 sort 355 is not present'; END IF;
@@ -302,6 +303,33 @@ COMMENT ON FUNCTION public.get_station_workshop_snapshot(text,date,date) IS
 COMMENT ON FUNCTION public.get_pdc_sublet_po_board_439() IS
   'r585 (F199): sublet PO board. One shared copy for 15 seconds. Calculation md5 7dde7e19d31b269136a93ebecd12217a.';
 
+CREATE FUNCTION pdc_ops.cache_holds_snapshot_585(p_kind text, p_stage text, p_from date, p_to date, p_snap jsonb)
+RETURNS boolean
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path TO pg_catalog
+AS $hold$
+BEGIN
+  -- A fresh command sees a cache row committed while the regression statement was already running.
+  -- The wrapper is volatile and can see that row. The statement around it cannot.
+  IF p_kind = 'station' THEN
+    RETURN EXISTS (
+      SELECT 1 FROM pdc_ops.station_workshop_snapshot_cache_585 c
+      WHERE c.stage_code = p_stage AND c.date_from = p_from AND c.date_to = p_to
+        AND c.snapshot IS NOT DISTINCT FROM p_snap
+        AND c.computed_at > clock_timestamp() - interval '15 seconds'
+    );
+  END IF;
+  RETURN EXISTS (
+    SELECT 1 FROM pdc_ops.sublet_po_board_cache_585 c
+    WHERE c.singleton AND c.snapshot IS NOT DISTINCT FROM p_snap
+      AND c.computed_at > clock_timestamp() - interval '15 seconds'
+  );
+END
+$hold$;
+REVOKE ALL ON FUNCTION pdc_ops.cache_holds_snapshot_585(text,text,date,date,jsonb) FROM PUBLIC, anon, authenticated, service_role;
+
 UPDATE pdc_ops.expected_function_md5
 SET prosrc_md5 = (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.get_pdc_sublet_po_board_439()')),
     updated_at = now()
@@ -362,6 +390,9 @@ INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,
    AND (SELECT e.prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.get_pdc_sublet_po_board_439()'))
          AND e.release='r439'
         FROM pdc_ops.expected_function_md5 e WHERE e.signature='public.get_pdc_sublet_po_board_439()')
+   AND (SELECT p.provolatile='v' AND p.prosecdef FROM pg_proc p WHERE p.oid=to_regprocedure('pdc_ops.cache_holds_snapshot_585(text,text,date,date,jsonb)'))
+   AND NOT has_function_privilege('authenticated','pdc_ops.cache_holds_snapshot_585(text,text,date,date,jsonb)','EXECUTE')
+   AND NOT has_function_privilege('anon','pdc_ops.cache_holds_snapshot_585(text,text,date,date,jsonb)','EXECUTE')
   AS ok
  ) shape
  CROSS JOIN LATERAL (
@@ -406,16 +437,8 @@ INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,
          set_config('request.jwt.claim.email', '', true) AS clear_email
  ) timed
  CROSS JOIN LATERAL (
-  SELECT EXISTS (
-    SELECT 1 FROM pdc_ops.station_workshop_snapshot_cache_585 c
-    WHERE c.stage_code='FITTING' AND c.date_from=s0.d AND c.date_to=s0.d AND c.snapshot=st1.snap
-      AND c.computed_at > clock_timestamp() - interval '15 seconds'
-  ) AS station_same,
-  EXISTS (
-    SELECT 1 FROM pdc_ops.sublet_po_board_cache_585 c
-    WHERE c.singleton AND c.snapshot=su1.snap
-      AND c.computed_at > clock_timestamp() - interval '15 seconds'
-  ) AS sublet_same
+  SELECT pdc_ops.cache_holds_snapshot_585('station', 'FITTING', s0.d, s0.d, st1.snap) AS station_same,
+         pdc_ops.cache_holds_snapshot_585('sublet', NULL, NULL, NULL, su1.snap) AS sublet_same
  ) cached$chk585$,
  true, 357, 'r585');
 
