@@ -123,7 +123,7 @@ const approvedRootImportPatch = Object.freeze({
   // r572: a planner bay lists every open job card, primary first (F186). Department 135 is not tagged.
   // r566: delegates vehicle search matching to pdc-workshop-vehicle-search.js (F180). Department 135 is not tagged.
   // r570: per-bay work hours when a Bay Manager override exists; no override keeps today's windows (F184). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "83a89be7fcb835778cf69baa35aef41e468bb2eff83c306bc7a83dd03fc84f62",
+  "workshop-planner.js": "88ab3bdf4398a33189c6b28e9d6d53ba54ad05fea734823c32d76b43c757aa78",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -407,7 +407,7 @@ const approvedRootImportPatch = Object.freeze({
   // r566: index.html loads pdc-workshop-vehicle-search.js (F180). Department 135 is not tagged.
   // r570: Bay Manager nav and view, pdc-bay-manager.css/js, and r570 on app.js and workshop-planner.css (F184). Department 135 is not tagged.
   // r575: index.html adds r575=2026.10.27.r575 on the key cell, the card, the detail save and the stylesheet (F189). Department 135 is not tagged.
-  "index.html": "2c15664cf4158f565593588d26ac7f06eae523eb79622ef79d603fe1b6973e72",
+  "index.html": "3ec42c9b643827efddb5956eeb262bc2dc4ff5d4e2370a65430393e220ce3f62",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

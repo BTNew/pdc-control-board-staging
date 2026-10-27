@@ -187,7 +187,7 @@ function workshopSetBayHours570(map = null) {
   }
 }
 function workshopBayHoursCaption(stage = '', bay = 0, dateKey = '') {
-  const override = workshopBayHoursOverride({ stage, bay });
+  const override = typeof workshopBayHoursOverride === 'function' ? workshopBayHoursOverride({ stage, bay }) : null;
   if (!override) return '';
   const date = workshopDateFromKey(dateKey) || new Date();
   const spec = override[workshopBayDowKey(date)];
@@ -383,7 +383,7 @@ function workshopCalendarStartMinutes(context = null) {
 }
 
 function workshopIsConfiguredWorkingDay(date = new Date(), context = null) {
-  const override = workshopBayHoursOverride(context);
+  const override = typeof workshopBayHoursOverride === 'function' ? workshopBayHoursOverride(context) : null;
   if (override) {
     const spec = override[workshopBayDowKey(date)];
     return !!spec && spec.off !== true;
@@ -534,7 +534,7 @@ function workshopSubtractWindows(windows, exclusions) {
 function workshopAvailabilityWindowsForDate(dateValue = new Date(), context = null) {
   const date = dateValue instanceof Date ? new Date(dateValue) : workshopDateFromKey(dateValue);
   if (!date || !workshopIsWorkday(date, context)) return [];
-  const override = workshopBayHoursOverride(context);
+  const override = typeof workshopBayHoursOverride === 'function' ? workshopBayHoursOverride(context) : null;
   if (override) return workshopOverrideWindows(date, override);
   const shift = workshopBusShift(context);
   const overtime = (shift ? [] : WORKSHOP_PLANNER_CONFIG.overtimeWindowsByDateOrScope)
@@ -556,7 +556,7 @@ function workshopAvailabilityWindowsForDate(dateValue = new Date(), context = nu
 
 function workshopBreakWindowsForDate(dateValue = new Date(), context = null) {
   const date = dateValue instanceof Date ? dateValue : workshopDateFromKey(dateValue);
-  const override = workshopBayHoursOverride(context);
+  const override = typeof workshopBayHoursOverride === 'function' ? workshopBayHoursOverride(context) : null;
   if (override && date) {
     const spec = override[workshopBayDowKey(date)];
     if (!spec || spec.off === true) return [];
@@ -4967,7 +4967,7 @@ function workshopUnavailableTimeHtml(dateKey = '', { vertical = false, stage = '
   // a booking's department/history. This is display-only calendar context.
   // A saved bay week replaces that shading. Passing Bus context without an
   // override would change closure shading, so the override is the only new path.
-  const override = workshopBayHoursOverride({ stage, bay });
+  const override = typeof workshopBayHoursOverride === 'function' ? workshopBayHoursOverride({ stage, bay }) : null;
   const calendarContext = override
     ? { stage, bay, ...(stage === 'BUS_4X4' ? { busCalendarVersion: 1 } : {}) }
     : (stage === 'BUS_4X4' ? { stage, bay, busCalendarVersion: 1 } : null);
@@ -5147,7 +5147,7 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
   }
   const unavailableByCalendar = new Map();
   return workshopVisibleBays(stage).map(bay => {
-    const calendarKey = workshopBayHoursOverride({ stage, bay })
+    const calendarKey = (typeof workshopBayHoursOverride === 'function' && workshopBayHoursOverride({ stage, bay }))
       ? `override:${stage}:${bay}`
       : (stage === 'BUS_4X4' ? ([8, 9].includes(bay) ? 'bus-short' : 'bus-standard') : 'shared');
     if (!unavailableByCalendar.has(calendarKey)) unavailableByCalendar.set(calendarKey, workshopUnavailableTimeHtml(dateKey, { stage, bay }));
@@ -5162,8 +5162,9 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
     const bayHeading = renameOpen
       ? workshopBayRenameForm(stage, bay, bayLabel)
       : `<strong>${escapeHtml(bayLabel)}</strong>${typeof workshopBayRenameButton === 'function' ? workshopBayRenameButton(stage, bay, bayLabel) : ''}`;
+    const hoursCaption = typeof workshopBayHoursCaption === 'function' ? workshopBayHoursCaption(stage, bay, dateKey) : '';
     return `<div class="workshop-bay-row">
-      <div class="workshop-bay-label"><div class="workshop-bay-label-heading">${bayHeading}<button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span>${workshopBayHoursCaption(stage, bay, dateKey) ? `<small class="workshop-bay-hours">${escapeHtml(workshopBayHoursCaption(stage, bay, dateKey))}</small>` : ''}<label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}"${WORKSHOP_PENDING_BAY_ASSIGNMENTS.has(`${stage}:${bay}`) ? ' disabled aria-busy="true"' : ''}>${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
+      <div class="workshop-bay-label"><div class="workshop-bay-label-heading">${bayHeading}<button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span>${hoursCaption ? `<small class="workshop-bay-hours">${escapeHtml(hoursCaption)}</small>` : ''}<label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}"${WORKSHOP_PENDING_BAY_ASSIGNMENTS.has(`${stage}:${bay}`) ? ' disabled aria-busy="true"' : ''}>${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
       <div class="workshop-bay-lane" data-workshop-drop-bay="${bay}" data-workshop-drop-stage="${escapeHtml(stage)}">
         ${unavailableHtml}
         ${workshopDropPreviewHtml()}
@@ -7080,7 +7081,7 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
 function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260, referenceNow = new Date(), vehicleWindows = [], assigneeValue = null, notAfterDateKey = '', calendarVehicle = null) {
   const requestedDate = workshopDateFromKey(dateKey) || new Date();
   const bayContext = { stage: normalizePmbStage(stage), bay: Number(bay), calendarVehicle };
-  const walkContext = workshopBayHoursOverride(bayContext) ? bayContext : null;
+  const walkContext = (typeof workshopBayHoursOverride === 'function' && workshopBayHoursOverride(bayContext)) ? bayContext : null;
   let workDate = workshopCoerceWorkDate(requestedDate, 1, walkContext);
   for (let dayIndex = 0; dayIndex < Math.max(1, Number(maxWorkdays) || 260); dayIndex += 1) {
     const candidateDateKey = workshopDateKey(workDate);
