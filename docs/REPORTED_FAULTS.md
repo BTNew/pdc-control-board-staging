@@ -1,5 +1,19 @@
 # Reported faults
 
+## Stock number opens the side panel
+
+Craig, 27 Oct 2026 07:33 AWST, fault #542 / r560 / F174. Then 28 Oct 2026 06:29 AWST: make sure these faults do not happen, and keep a log of faults so the tests can be run. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched.
+
+Clicking a stock number, for example stock 13056870 on Vehicle Locations, opened the centred Vehicle detail card. It must open the Vehicle Locations side panel. **More details** inside that panel is the only way to the old card.
+
+### Check
+
+Preview only. No SQL and no new `regression_checks` row. `test_stock_opens_side_panel_560.js` runs in CI with `node --test test_*.js` (`.github/workflows/pages-runtime.yml`). It fails if a stock click opens the centred card while the side panel is available. `docs/FAULT_LOG_PENDING.md` no longer lists #542 / r560 / F174 as an open gap. Pin count stays 241. Department 135 is not edited.
+
+## Key 460 place-after toast
+
+Craig, 28 Oct 2026 06:28 AWST. Dropping Key 460 onto Jason Ranoco's Hoist bay showed "This change conflicts with a job already running or on stoppage. No changes were saved." The place-after release is PR #572 (`hoist_place_after_592`, `test_hoist_place_after_592.js`). A valid place-after drop asks to place the job after the running one. That toast stays only for `live_booking_conflict` and `fixed_booking_conflict`. This preview does not apply that SQL.
+
 ## Side panel: PO chips overlapped the completion tick
 
 Craig, 28 Oct 2026 07:19 AWST. Go live on staging. Stock **13092999** (Hilux DCC), Vehicle Locations side panel.

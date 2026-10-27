@@ -83,6 +83,28 @@ test('dashboard and table stock bindings call openVehicleFromStockClick, not ope
   assert.match(table, /openVehicleFromStockClick\(button\.dataset\.openStock, button\)/);
 });
 
+test('fault #542 / r560 is in the website regression run and is not an open gap', () => {
+  const workflow = fs.readFileSync('.github/workflows/pages-runtime.yml', 'utf8');
+  assert.match(workflow, /node --test test_\*\.js/);
+  const pending = fs.readFileSync('docs/FAULT_LOG_PENDING.md', 'utf8');
+  const open = pending.slice(pending.indexOf('## Open'), pending.indexOf('## Cleared'));
+  const cleared = pending.slice(pending.indexOf('## Cleared'));
+  assert.equal(open.includes('#542'), false);
+  assert.equal(open.includes('r560'), false);
+  assert.equal(open.includes('F174'), false);
+  assert.match(cleared, /#542 \/ r560 \/ F174/);
+  assert.match(cleared, /test_stock_opens_side_panel_560\.js/);
+  for (const file of ['app.js', 'pdc-vehicle-locations-table.js']) {
+    const text = fs.readFileSync(file, 'utf8');
+    let at = 0;
+    while ((at = text.indexOf('dataset.openStock', at)) !== -1) {
+      const near = text.slice(Math.max(0, at - 220), at + 40);
+      assert.equal(near.includes('openVehicleModal('), false, `${file} at ${at}`);
+      at += 1;
+    }
+  }
+});
+
 test('the slide-out keeps a More details link to the vehicle card', () => {
   const slide = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8');
   assert.match(slide, /button\.textContent = 'More details'/);
