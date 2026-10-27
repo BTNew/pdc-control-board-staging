@@ -9,7 +9,7 @@ test('a direct dashboard redraw reads each saved note once and partitions locati
   f.context.renderIncomingDashboardBoard();
   assert.equal(f.stats.reads, 102);
   assert.ok([...f.stats.keys.values()].every(count => count === 1));
-  assert.equal(f.stats.classifications, 3 * f.rows.length); // screen eligibility, active filters, bucket grouping
+  assert.equal(f.stats.classifications, 4 * f.rows.length); // screen eligibility, active filters, bucket grouping, arrival-age report
   assert.match(f.host.innerHTML, /13070000/);
   assert.match(f.host.innerHTML, /13070101/);
   assert.match(f.host.innerHTML, /incoming-pmb/);

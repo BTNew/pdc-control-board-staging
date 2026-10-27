@@ -106,7 +106,7 @@ test('wiring: table rows, tiles and summary follow the search scope; the drop-do
   assert.doesNotMatch(render, /\.filter\(entry => \(!state\.bucket \|\| entry\.bucket === state\.bucket\)/, 'main\'s tile filter on the rows is gone');
   assert.match(render, /tile\('', 'All vehicles', entries\.length, 'Every active vehicle', 'all', !scope\.bucket && !scope\.stoppages/);
   assert.match(render, /found in \$\{scope\.found\.map\(tileName\)\.join\(', '\)\}/);
-  assert.match(render, /host\.innerHTML = `\$\{tilesHtml\}\$\{elsewhereHtml\(elsewhere\)\}/);
+  assert.match(render, /host\.innerHTML = `\$\{tilesHtml\}\$\{ageReport\}\$\{elsewhereHtml\(elsewhere\)\}/);
   assert.match(render, /revealSingleResult\(shown, filters\.search\);/, 'r470-era open-once on a single result is unchanged');
   assert.match(body('revealSingleResult'), /if \(focus\['incoming-table'\] === token\) return;/);
   assert.match(SOURCE, /const result = originalRender\.apply\(this, args\);[\s\S]{0,200}dropdownSearchElsewhere\(\);/);
@@ -119,8 +119,8 @@ test('wiring: table rows, tiles and summary follow the search scope; the drop-do
 });
 
 test('loader, version, CSS and synthetic data', () => {
-  assert.equal(table.VERSION, '2026.10.27.r562'); // r485 (F98), r557 (F171) New to PMB, r562 (F176) key gate
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562'/);
+  assert.equal(table.VERSION, '2026.10.27.r563'); // r485 (F98), r557 (F171) New to PMB, r562 (F176) key gate, r563 (F177) arrival age
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562&r563=2026\.10\.27\.r563'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r481=2026\.10\.22\.r481/);
   const css = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
   assert.match(css, /\.vlt-tile\.vlt-found \{/);
