@@ -3797,6 +3797,7 @@ function syncAdminNavigationVisibility() {
   syncUserManagementAccess();
   window.PdcUpdateHistory?.syncAccess();
   window.PdcFittingStats?.syncAccess();
+  window.PdcBayManager?.syncAccess();
   const group = $('#nav-admin-group');
   // The group also contains destinations historically available to approved
   // non-administrator staff. Every destination and write remains role/RLS
@@ -5126,6 +5127,7 @@ function showView(view, options) {
   if (app.currentView === 'fitters' && nextView !== 'fitters') window.PdcFitters?.close();
   if (app.currentView === 'update-history' && nextView !== 'update-history') window.PdcUpdateHistory?.close();
   if (app.currentView === 'fitting-stats' && nextView !== 'fitting-stats') window.PdcFittingStats?.close();
+  if (app.currentView === 'bay-manager' && nextView !== 'bay-manager') window.PdcBayManager?.close();
   if (app.currentView === 'lists' && nextView !== 'lists') window.PdcWorkshopHours?.reset();
   app.currentRequestedView = requestedView;
   app.currentView = nextView;
@@ -5133,7 +5135,7 @@ function showView(view, options) {
   if (document.body?.dataset) document.body.dataset.currentView = requestedView;
   $$('.view').forEach(el => el.classList.toggle('active', el.id === nextView));
   $$('.nav-item[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === requestedView || (plannerStage && el.dataset.view === 'workshop')));
-  const adminViews = new Set(['user-management', 'update-history', 'fitting-stats', 'lists', 'import', 'backup', 'deleted', 'completed', 'backend']);
+  const adminViews = new Set(['user-management', 'update-history', 'fitting-stats', 'bay-manager', 'lists', 'import', 'backup', 'deleted', 'completed', 'backend']);
   const adminActive = adminViews.has(requestedView);
   $('#nav-admin-toggle')?.classList.toggle('active', adminActive);
   if (adminActive && syncAdminNavigationVisibility()) setAdminNavigationExpanded(true);
@@ -5162,6 +5164,7 @@ function showView(view, options) {
     'user-management': 'User Management',
     'update-history': 'Update history',
     'fitting-stats': 'Fitting statistics',
+    'bay-manager': 'Bay Manager',
     zpl: 'Label Tools'
   };
   const pageTitle = $('#page-title');
@@ -5934,6 +5937,8 @@ window.addEventListener?.('pdc-auth-locked', () => {
   if (app.currentView === 'update-history' || app.currentRequestedView === 'update-history') showView('dashboard', { historyMode: 'replace' });
   window.PdcFittingStats?.reset();
   if (app.currentView === 'fitting-stats' || app.currentRequestedView === 'fitting-stats') showView('dashboard', { historyMode: 'replace' });
+  window.PdcBayManager?.reset();
+  if (app.currentView === 'bay-manager' || app.currentRequestedView === 'bay-manager') showView('dashboard', { historyMode: 'replace' });
   const userManagementView = document.getElementById('user-management');
   if (userManagementView) userManagementView.hidden = true;
   if (app.currentView === 'user-management' || app.currentRequestedView === 'user-management') showView('dashboard', { historyMode: 'replace' });
@@ -6037,7 +6042,7 @@ function renderWorkshopPlannerWhenReady() {
     loadExternalScript(`workshop-data-service.js?r424=2026.10.21.01&r417=2026.10.21.01&scope-reuse=2026.10.18.01&lock-recovery=2026.10.18.02&station-switch=2026.10.17.03&connection-speed=2026.10.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&review-fixes=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01`, 'workshop-data-service-script'),
     loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'),
     loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01&r569=2026.10.27.r569`, 'workshop-shared-actions-script'),
-    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&search-jobcards=2026.10.26.01&r569=2026.10.27.r569`, 'workshop-planner-script')
+    loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&planner-reliability=2026.09.16.01&move-conflict-scope=2026.09.16.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&r570=2026.10.27.r570&search-jobcards=2026.10.26.01&r569=2026.10.27.r569`, 'workshop-planner-script')
   ])
     .then(() => {
       window.__workshopPlannerModulesLoading = false;
@@ -6089,7 +6094,7 @@ function ensureDashboardWorkshopProjectionReady() {
     .then(() => loadExternalScript(`workshop-realtime.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}`, 'workshop-realtime-script'))
     .then(() => loadExternalScript(`workshop-shared-actions.js?v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&bhavesh-followup=2026.09.23.01&r417=2026.10.21.01&r424=2026.10.21.01&r569=2026.10.27.r569`, 'workshop-shared-actions-script'))
     .catch(() => { /* read-only projection remains unavailable */ })
-    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&search-jobcards=2026.10.26.01&r569=2026.10.27.r569`, 'workshop-planner-script'))
+    .then(() => loadExternalScript(`workshop-planner.js?station-scope=2026.10.19.03&r403=2026.10.21.01&r406=2026.10.21.01&r493=2026.10.22.r493&r498=2026.10.22.r498&r407=2026.10.21.01&r415=2026.10.21.01&r417=2026.10.21.01&r424=2026.10.21.01&bay8-category=2026.10.20.01&returned-selection=2026.10.19.02&lock-recovery=2026.10.18.02&weekly-scope=2026.10.18.01&retired-readiness=2026.10.17.01&planner-navigation=2026.10.17.01&jobcard-categories=2026.10.15.01&site-speed=2026.10.16.02&department-bays=2026.10.15.02&closed-hours=2026.10.02.13&bus-clock=2026.09.21.02&bus-workflow=2026.09.21.01&bay-assignment=2026.09.17.01&planner-speed=2026.09.17.02&speed=2026.09.17.01&review-fixes=2026.09.13.01&performance=2026.09.13.01&v=${encodeURIComponent(WORKSHOP_PLANNER_SCRIPT_VERSION)}&search-identity=2026.09.11.01&vehicle-handover=2026.09.11.01&continuation=2026.09.11.01&weekday-hours=2026.09.11.01&hide-weekly-toolbar=2026.09.12.01&deep-review=2026.09.13.01&focused-fit=2026.09.14.01&ai-hours=2026.09.14.01&capacity=2026.09.14.01&one-hour-gap=2026.09.14.01&board-context=2026.09.15.01&best-slot=2026.09.16.01&fitters=2026.09.16.03&carry-over=2026.09.16.06&start-priority=2026.09.16.05&controller-moves=2026.09.16.01&bhavesh-followup=2026.09.23.01&search-drag=2026.10.19.04&hoist-corrections=2026.10.19.02&planner-followup=2026.10.19.01&r483=2026.10.22.r483&r527=2026.10.25.r527&r531=2026.10.26.r531&r535=2026.10.26.r535&r540=2026.10.26.r540&r548=2026.10.26.r548&r550=2026.10.26.r550&r549=2026.10.26.r549&r561=2026.10.27.r561&r570=2026.10.27.r570&search-jobcards=2026.10.26.01&r569=2026.10.27.r569`, 'workshop-planner-script'))
     .then(() => {
       window.__dashboardWorkshopProjectionLoading = false;
       if (app.currentView !== 'dashboard') return;
@@ -6817,6 +6822,9 @@ function renderActiveView() {
       break;
     case 'fitting-stats':
       window.PdcFittingStats?.open();
+      break;
+    case 'bay-manager':
+      window.PdcBayManager?.open();
       break;
     case 'import':
       renderReviewTable(false);
