@@ -8369,6 +8369,14 @@ function pmbArrivalAgeReportHtml(rows = []) {
 
 const PMB_KEY_NEEDED_TITLE = 'A key number is needed before this vehicle can move from New to PMB into PMB.';
 
+function pmbArrivalAckButtonLabel(label = '') {
+  const name = String(label || 'station').trim() || 'station';
+  return `Acknowledge for ${name}`;
+}
+
+// r574 (F188): one tick per department the signed-in user can acknowledge.
+// The label names that department. Booking is a separate step and only when
+// the vehicle already has a key number.
 function pmbArrivalActionHtml(vehicle = {}, key = '') {
   const needsKey = !pmbVehicleHasKey(vehicle);
   const pending = pmbArrivalDepartments(vehicle).filter(department => department.pending === true);
@@ -8376,10 +8384,11 @@ function pmbArrivalActionHtml(vehicle = {}, key = '') {
     const label = String(department.label || department.station || 'station');
     const station = String(department.station || '');
     const wouldClose = pending.length === 1;
+    const text = pmbArrivalAckButtonLabel(label);
     if (needsKey && wouldClose) {
-      return `<button class="primary pmb-push-disabled" type="button" disabled title="${escapeHtml(PMB_KEY_NEEDED_TITLE)}">Acknowledge ${escapeHtml(label)}</button>`;
+      return `<button class="primary pmb-ack-tick pmb-push-disabled" type="button" disabled title="${escapeHtml(PMB_KEY_NEEDED_TITLE)}">${escapeHtml(text)}</button>`;
     }
-    return `<button class="primary" type="button" data-pmb-ack="${escapeHtml(key)}" data-pmb-ack-station="${escapeHtml(station)}" title="Acknowledge ${escapeHtml(label)} so that station can prepare. The vehicle is already at PMB.">Acknowledge ${escapeHtml(label)}</button>`;
+    return `<button class="primary pmb-ack-tick" type="button" data-pmb-ack="${escapeHtml(key)}" data-pmb-ack-station="${escapeHtml(station)}" title="Acknowledge for ${escapeHtml(label)} so that station can prepare. The vehicle is already at PMB.">${escapeHtml(text)}</button>`;
   }).join('');
   const push = pending.length === 0 && pmbArrivalRecord(vehicle)?.viewer_pending === true
     ? (needsKey
@@ -8458,6 +8467,193 @@ async function acknowledgePmbArrival(key = '', station = '') {
   app.pmbArrivalAckSignature = '';
   app.pmbArrivalAckLoadedAt = 0;
   if (typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
+  const stationLabel = (PMB_ACK_STATIONS.find(([code]) => code === String(station || '').trim()) || [])[1] || station;
+  // r574 (F188): the tick is what takes this department off the list. A key
+  // number, the r562 gate, is also required before that department can book.
+  if (pmbVehicleHasKey(vehicle)) openPmbArrivalBayBooking(vehicle, station, stationLabel);
+  else if (typeof pdcNotify === 'function') pdcNotify(`Acknowledged for ${stationLabel}. A key number is needed before this vehicle can be booked into a bay.`);
+}
+
+// r574 (F188): bays for this station. Prefer the planner's active bays. Fall
+// back to the station's own bay count so the picker can still be drawn.
+function pmbArrivalStationBays(station = '') {
+  const normalized = typeof normalizePmbStage === 'function' ? normalizePmbStage(station) : String(station || '').trim().toUpperCase();
+  if (!normalized) return [];
+  let numbers = [];
+  try {
+    if (typeof workshopSchedulableBayNumbers === 'function') numbers = workshopSchedulableBayNumbers(normalized) || [];
+  } catch (_error) {
+    numbers = [];
+  }
+  if (!numbers.length && typeof pmbStageBayCount === 'function') {
+    const count = Number(pmbStageBayCount(normalized)) || 0;
+    numbers = Array.from({ length: count }, (_, index) => index + 1);
+  }
+  return numbers.map(number => {
+    let label = '';
+    try {
+      if (typeof workshopBayChoiceLabel === 'function') label = String(workshopBayChoiceLabel(normalized, number) || '');
+    } catch (_error) {
+      label = '';
+    }
+    if (!label && typeof pdcBayText === 'function') label = pdcBayText(normalized, number, true);
+    return { number, label: label || `Bay ${number}` };
+  });
+}
+
+function pmbArrivalBayOptionsHtml(station = '') {
+  const bays = pmbArrivalStationBays(station);
+  if (!bays.length) return '<option value="">No bay is listed for this station</option>';
+  return bays.map(bay => `<option value="${escapeHtml(String(bay.number))}">${escapeHtml(bay.label)}</option>`).join('');
+}
+
+function pmbArrivalBayBookingHtml(vehicle = {}, station = '', label = '') {
+  if (!pmbVehicleHasKey(vehicle)) return '';
+  const stationCode = String(station || '').trim();
+  const stationLabel = String(label || (PMB_ACK_STATIONS.find(([code]) => code === stationCode) || [])[1] || stationCode || 'station');
+  const key = vehicleKey(vehicle);
+  const stock = typeof displayStockNumber === 'function' ? (displayStockNumber(vehicle) || key) : key;
+  const keyNo = typeof vehicleKeyNumber === 'function' ? (vehicleKeyNumber(vehicle) || '') : '';
+  const who = [stock, keyNo ? `Key ${keyNo}` : ''].filter(Boolean).join(' · ');
+  return `<section class="modal-card pmb-book-card" data-pmb-book-panel="${escapeHtml(stationCode)}">
+    <button class="modal-close" type="button" data-pmb-book-dismiss aria-label="Close">×</button>
+    <header><h2>Book into a ${escapeHtml(stationLabel)} bay</h2><p>${escapeHtml(who)}. Same booking as the Workshop Planner. No new booking rule.</p></header>
+    <label class="pmb-book-bay"><span>Bay</span><select data-pmb-book-bay-select aria-label="${escapeHtml(stationLabel)} bay">${pmbArrivalBayOptionsHtml(stationCode)}</select></label>
+    <div class="edit-actions pmb-book-actions">
+      <button class="secondary" type="button" data-pmb-book-dismiss>Not now</button>
+      <button class="primary" type="button" data-pmb-book-best="${escapeHtml(key)}" data-pmb-book-station="${escapeHtml(stationCode)}">Best slot</button>
+      <button class="primary" type="button" data-pmb-book-bay="${escapeHtml(key)}" data-pmb-book-station="${escapeHtml(stationCode)}">Book this bay</button>
+    </div>
+  </section>`;
+}
+
+async function pmbArrivalPrepareStationSnapshot(station = '') {
+  const service = typeof window === 'object' ? window.__workshopDataService : null;
+  if (typeof workshopSharedModeActive !== 'function' || !workshopSharedModeActive() || !service || typeof service.setScope !== 'function') return;
+  const dateKey = typeof workshopState === 'function'
+    ? (workshopState().date || (typeof workshopDefaultOpenDateKey === 'function' ? workshopDefaultOpenDateKey() : ''))
+    : '';
+  if (!dateKey) return;
+  await service.setScope({ stageCode: station, dateFrom: dateKey, dateTo: dateKey });
+  if (typeof service.loadSnapshot === 'function') await service.loadSnapshot('new_to_pmb_bay_566');
+}
+
+// r574 (F188): Best slot is workshopScheduleVehicleNextAvailable. A chosen bay
+// uses workshopFirstAvailableStartSlot and scheduleWorkshopVehicle, the same
+// pair the planner's Schedule window uses. Neither path adds a booking rule.
+async function pmbArrivalBookBestSlot(key = '', station = '') {
+  if (typeof workshopScheduleVehicleNextAvailable !== 'function') {
+    if (typeof pdcNotify === 'function') pdcNotify('The Workshop Planner booking is not loaded. Refresh and try again. No booking was saved.');
+    return false;
+  }
+  return workshopScheduleVehicleNextAvailable({ vehicleKeyValue: key, stage: station });
+}
+
+async function pmbArrivalBookIntoBay(key = '', station = '', bayNumber = 0) {
+  const bay = Number(bayNumber);
+  await pmbArrivalPrepareStationSnapshot(station);
+  const canSlot = bay > 0
+    && typeof workshopFirstAvailableStartSlot === 'function'
+    && typeof scheduleWorkshopVehicle === 'function'
+    && typeof workshopNormalizeStartDate === 'function'
+    && typeof workshopDateKey === 'function';
+  if (!canSlot) {
+    if (typeof openWorkshopScheduleModal === 'function') {
+      openWorkshopScheduleModal(key, station);
+      return false;
+    }
+    if (typeof pdcNotify === 'function') pdcNotify('The Workshop Planner booking is not loaded. Refresh and try again. No booking was saved.');
+    return false;
+  }
+  const vehicle = typeof workshopVehicle === 'function' ? workshopVehicle(key, station) : null;
+  const now = workshopNormalizeStartDate(new Date());
+  const today = workshopDateKey(now);
+  const eta = vehicle && typeof workshopVehicleEtaConstraint === 'function' ? workshopVehicleEtaConstraint(vehicle) : {};
+  const earliest = typeof workshopDateKeyNotBefore === 'function' ? workshopDateKeyNotBefore(today, eta.earliestDateKey || '') : today;
+  const notBefore = earliest === workshopDateKey(now) ? Math.max(0, typeof workshopMinuteOffset === 'function' ? workshopMinuteOffset(now) : 0) : 0;
+  const duration = vehicle && typeof workshopSchedulingDuration === 'function' ? workshopSchedulingDuration(vehicle, station) : null;
+  const hours = duration?.hours || (typeof workshopDefaultBookingHours === 'function' ? workshopDefaultBookingHours() : 0);
+  const plans = typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : [];
+  const slot = workshopFirstAvailableStartSlot(station, bay, earliest, hours, plans, notBefore, 260, new Date(), [], null, '', vehicle);
+  if (!slot) {
+    if (typeof pdcNotify === 'function') pdcNotify('No free slot in this bay. No booking was saved.');
+    return false;
+  }
+  return scheduleWorkshopVehicle({
+    vehicleKeyValue: key,
+    stage: station,
+    bay,
+    dateKey: slot.dateKey,
+    startMinutes: slot.startMinutes,
+    hoursValue: hours,
+    preferRequestedTime: true,
+    cascadeNewBooking: true,
+  });
+}
+
+function closePmbArrivalBayBooking() {
+  const overlay = typeof document === 'object' ? document.querySelector?.('[data-pmb-book-dialog]') : null;
+  overlay?.remove?.();
+  if (typeof document === 'object' && !document.querySelector?.('.modal-overlay')) document.body?.classList?.remove?.('modal-open');
+  if (typeof app === 'object' && app) app.pmbArrivalBookOffer = null;
+}
+
+function bindPmbArrivalBayBooking(overlay, station = '') {
+  if (!overlay || typeof overlay.querySelector !== 'function') return;
+  const dismiss = () => closePmbArrivalBayBooking();
+  overlay.querySelectorAll?.('[data-pmb-book-dismiss]')?.forEach(button => button.addEventListener?.('click', event => {
+    event.preventDefault?.();
+    dismiss();
+  }));
+  overlay.addEventListener?.('click', event => {
+    if (event.target === overlay) dismiss();
+  });
+  const run = async (button, book) => {
+    if (!button || button.disabled) return;
+    button.disabled = true;
+    button.setAttribute?.('aria-busy', 'true');
+    try {
+      const saved = await book();
+      if (saved) dismiss();
+    } finally {
+      if (button.isConnected !== false) {
+        button.disabled = false;
+        button.removeAttribute?.('aria-busy');
+      }
+    }
+  };
+  overlay.querySelector('[data-pmb-book-best]')?.addEventListener?.('click', event => {
+    event.preventDefault?.();
+    const button = event.currentTarget;
+    void run(button, () => pmbArrivalBookBestSlot(button.dataset?.pmbBookBest || '', button.dataset?.pmbBookStation || station));
+  });
+  overlay.querySelector('[data-pmb-book-bay]')?.addEventListener?.('click', event => {
+    event.preventDefault?.();
+    const button = event.currentTarget;
+    const selected = overlay.querySelector('[data-pmb-book-bay-select]')?.value;
+    void run(button, () => pmbArrivalBookIntoBay(button.dataset?.pmbBookBay || '', button.dataset?.pmbBookStation || station, selected));
+  });
+}
+
+function openPmbArrivalBayBooking(vehicle = {}, station = '', label = '') {
+  const html = pmbArrivalBayBookingHtml(vehicle, station, label);
+  if (!html || !pmbVehicleHasKey(vehicle)) return false;
+  const stationCode = String(station || '').trim();
+  if (typeof app === 'object' && app) app.pmbArrivalBookOffer = { key: vehicleKey(vehicle), station: stationCode, label: String(label || stationCode) };
+  const doc = typeof document === 'object' ? document : null;
+  if (!doc || typeof doc.createElement !== 'function' || !doc.body) return true;
+  doc.querySelector?.('[data-pmb-book-dialog]')?.remove?.();
+  const overlay = doc.createElement('div');
+  overlay.className = 'modal-overlay pmb-book-overlay';
+  overlay.dataset.pmbBookDialog = stationCode;
+  overlay.setAttribute?.('role', 'dialog');
+  overlay.setAttribute?.('aria-modal', 'true');
+  overlay.setAttribute?.('aria-label', `Book into a ${label || stationCode} bay`);
+  overlay.innerHTML = html;
+  doc.body.appendChild?.(overlay);
+  doc.body.classList?.add?.('modal-open');
+  bindPmbArrivalBayBooking(overlay, stationCode);
+  return true;
 }
 
 function ensurePmbKeyAssigned() {
@@ -9485,7 +9681,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
     : bucketKey === 'yardhold' || bucketKey === 'nonnavision'
     ? `${sharedVehicleLocationMutationUnavailable('transfer to PMB', vehicle, { silent: true }) || !canTransferVehicleToPmb(vehicle) ? '<span class="badge neutral">Shared move unavailable</span>' : `<button class="primary incoming-transfer-pmb" type="button" data-yh-transfer-pmb="${escapeHtml(key)}" title="${bucketKey === 'nonnavision' ? 'Confirm vehicle arrival at PMB' : 'Transfer Yard Hold vehicle to PMB'}">To PMB</button>`}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'newpmb'
-      ? `${typeof pmbArrivalActionHtml === 'function' ? pmbArrivalActionHtml(vehicle, key) : ''}<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
+      ? `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`
     : bucketKey === 'pmb'
       ? `${typeof pmbArrivalActionHtml === 'function' ? pmbArrivalActionHtml(vehicle, key) : ''}${vehicleReadyForQualityControl(vehicle)
         ? `<button class="primary" type="button" data-ready-for-qc="${escapeHtml(key)}" title="Move this all-green vehicle to the QC Gate">Ready for QC</button>`
@@ -9497,6 +9693,9 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
           : bucketKey === 'rft'
             ? rftAction
             : `<button class="small-button incoming-open-button" type="button" data-open-stock="${escapeHtml(key)}">Open</button>`;
+  const pmbAckBar = bucketKey === 'newpmb' && typeof pmbArrivalActionHtml === 'function'
+    ? `<div class="pmb-ack-bar">${pmbArrivalActionHtml(vehicle, key)}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}</div>`
+    : '';
   const labelAction = locationReadOnly || bucketKey === 'qc' ? '' : `<button class="small-button vehicle-label-button" type="button" data-label-vehicle="${escapeHtml(key)}" title="Print one Zebra label for ${escapeHtml(stock)}">Label</button>`;
   const deleteAction = locationReadOnly ? '' : (options.showDelete ? `<button class="small-button incoming-delete-button" type="button" data-incoming-delete="${escapeHtml(key)}" title="Move this vehicle to Deleted vehicles">Delete</button>` : '');
   const identitySummary = vehicleIdentityStackHtml(vehicle, {
@@ -9525,6 +9724,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
         <span class="incoming-card-meta incoming-card-age ${escapeHtml(locationAge.colourClass)}" title="${escapeHtml(locationAge.title)}"><b>${bucketKey === 'pmb' || bucketKey === 'newpmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(locationAge.label)}</span></span>
         <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}${typeof pmbKeyNeededBadgeHtml === 'function' ? pmbKeyNeededBadgeHtml(vehicle) : ''}${typeof pmbArrivalAgeFlagHtml === 'function' ? pmbArrivalAgeFlagHtml(vehicle) : ''}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}</span></span>
         <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}${labelAction}${deleteAction}</span>`}
+        ${pmbAckBar}
       </summary>
       <div class="incoming-vehicle-detail-grid">
         ${vehicleEmailPartsEtaHost(vehicle)}

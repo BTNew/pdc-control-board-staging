@@ -83,7 +83,7 @@ test('a chip-only Vehicle cell is lifted exactly as before, and a missing editor
   assert.equal(lifted.unit, '<span class="incoming-card-main"><strong>HiLux</strong></span>');
   assert.equal(lifted.eta, '');
   assert.deepEqual(table.COLUMNS.eta, { label: 'Parts ETA', width: 96, min: 56 });
-  assert.equal(table.VERSION, '2026.10.27.r563');
+  assert.equal(table.VERSION, '2026.10.27.r566'); // r567 stays on the loader; r566 planner search bumps this module
 });
 
 test('a booking before a typed date warns, and a vehicle with no typed date keeps the email warning', () => {
@@ -144,7 +144,8 @@ test('r567 is the go-live: new objects only, pins unchanged, check under pg_cata
   assert.match(entry, /keyNumber\.onload = loadPartsStoppage/);
   assert.match(entry, /stoppage\.onload = loadVehicleLocationsTable/);
   assert.match(entry, /pdc-parts-stoppage\.js\?r567=2026\.10\.27\.r567/);
-  assert.match(entry, /jitaEta\.onload = loadKeyNumber/);
+  assert.match(entry, /jitaEta\.onload = loadWorkshopVehicleSearch/);
+  assert.match(entry, /search\.onload = loadKeyNumber/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r567=2026\.10\.27\.r567/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /pdc-fitters\.js\?[^"]*r564=2026\.10\.27\.r564/);
   assert.match(fs.readFileSync('scripts/build_pages_runtime.js', 'utf8'), /'pdc-parts-stoppage\.js'/);

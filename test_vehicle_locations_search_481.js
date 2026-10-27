@@ -119,8 +119,8 @@ test('wiring: table rows, tiles and summary follow the search scope; the drop-do
 });
 
 test('loader, version, CSS and synthetic data', () => {
-  assert.equal(table.VERSION, '2026.10.27.r563'); // r485 (F98), r557 (F171) New to PMB, r562 (F176) key gate, r563 (F177) arrival age
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562&r563=2026\.10\.27\.r563&r567=2026\.10\.27\.r567'/);
+  assert.equal(table.VERSION, '2026.10.27.r566'); // r567 typed Parts ETA stays on the loader; r566 planner search bumps this module
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562&r563=2026\.10\.27\.r563&r567=2026\.10\.27\.r567&r566=2026\.10\.27\.r566'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r481=2026\.10\.22\.r481/);
   const css = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
   assert.match(css, /\.vlt-tile\.vlt-found \{/);

@@ -73,7 +73,7 @@ test('Parts loc uses the card\'s data source: real pdc-service-locations.js outp
 
 test('Parts loc: search includes it (table only), sorting is table-only and never changes the drop-down sort', () => {
   const source = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
-  assert.match(source, /partsLocationValues\(vehicle\)\.some\(value => value\.toLowerCase\(\)\.includes\(needle\)\) && root\.incomingVehicleMatchesFilters\(vehicle, searchless\)/,
+  assert.match(source, /partsLocationValues\(vehicle\)\.some\(value => value\.toLowerCase\(\)\.includes\(textNeedle\)\)\s*&& vehicleMatchesTableFilters\(vehicle, \{ \.\.\.active, search: '', vltSearch: \{ key: searchCriteria\.key, text: '' \} \}\)/,
     'a search that matches the parts location shows the vehicle; every other filter still applies');
   assert.match(source, /vehiclePdcLocation\(vehicle\) !== 'PMB'\) return \[\]/, 'same on-site rule as the card');
   assert.match(source, /state\.partsSort \? comparePartsLocation\(a\.partsLoc, b\.partsLoc, state\.partsSort\) : 0/);

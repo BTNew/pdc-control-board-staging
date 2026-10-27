@@ -82,7 +82,7 @@ assert.match(boardCss, /\.incoming-work-check\.imported-parts-orange \{ backgrou
 assert.match(boardCss, /#parts \[data-parts-feed\] \.parts-status-pill\.parts-status-ordered \{ background: #dbeafe !important; color: #1d4ed8 !important; border-color: #2563eb !important; \}/);
 assert.doesNotMatch(boardCss, /#fff1dc|#d98200|#a15b00/);
 assert.match(fs.readFileSync('karratha/styles.css', 'utf8'), /background: #fff1dc !important; color: #a15b00 !important; border-color: #d98200 !important;/);
-assert.match(fs.readFileSync('index.html', 'utf8'), /styles\.css\?[^"]*&amp;r526=2026\.10\.24\.r526&amp;r562=2026\.10\.27\.r562&amp;r563=2026\.10\.27\.r563"/); // r562 (F176) key-number badge, then r563 (F177) arrival age
+assert.match(fs.readFileSync('index.html', 'utf8'), /styles\.css\?[^"]*&amp;r526=2026\.10\.24\.r526&amp;r562=2026\.10\.27\.r562&amp;r563=2026\.10\.27\.r563&amp;r574=2026\.10\.27\.r574&amp;r575=2026\.10\.27\.r575"/); // r562 key badge, r563 arrival age, r574 department bay booking, r575 one key per board vehicle
 assert.doesNotMatch(fs.readFileSync('karratha/index.html', 'utf8'), /r526=2026\.10\.24\.r526/);
 if (process.env.PDC_JITA_PREVIEW) {
   const examples = [
