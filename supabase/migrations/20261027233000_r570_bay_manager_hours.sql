@@ -1,5 +1,7 @@
--- r570 (F184) / sort 342. PREVIEW. Do not apply from this branch.
--- Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
+-- r577 (F191) / sort 349. Go-live. Staging cdsmnqxtyyoeoznmbidd only.
+-- Production vjdtsswhroyguxyfjdkt is not a target.
+-- Renumbered at apply: r570 / F184 / sort 341 is the service archive. r572 / F186 / sort 342 is the card stack.
+-- Table and function names stay _570. Pin release, fault, sort and added_in are r577 / F191 / 349.
 --
 -- Craig, 27 Oct 2026 11:00 AWST: a Bay Manager under Admin so a workshop
 -- controller can set the work hours of each bay.
@@ -11,7 +13,7 @@
 --   Open preview #557 still claims r567 / F181 / sort 341 (stale release, live sort).
 --   Open previews #556 and #555 still say r566 / F180. #556 also says sort 340,
 --   which r569 already took. #551 is the rolled-back Electrical hide.
---   Next free triple is r570 / F184 / sort 342.
+--   This apply uses the free triple r577 / F191 / sort 349. Object names stay _570.
 --
 -- Today's hours, with no row in workshop_bay_work_hours_570:
 --   Hoist, Fab, Fitting, Electrical, Tint, Tyres and Pit use the workshop
@@ -38,33 +40,33 @@
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
- IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r570: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
+ IF extract(second FROM clock_timestamp()) NOT BETWEEN 2 AND 45 THEN RAISE EXCEPTION 'r577: run between :02 and :45 (release-test window; the clock tick runs at :00)'; END IF;
  IF NOT public.pdc_monitor_staging_guard()
     OR (SELECT count(*) FROM public.pdc_staging_environment_sentinel WHERE singleton AND project_ref='cdsmnqxtyyoeoznmbidd')<>1
-    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r570: staging only'; END IF;
- IF EXISTS (SELECT 1 FROM public.pdc_staging_environment_sentinel WHERE project_ref='vjdtsswhroyguxyfjdkt') THEN RAISE EXCEPTION 'r570: production ref'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r570: pin count is not 241'; END IF;
- IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bay_job_pause_569' AND fault_id='F183' AND sort_order=340 AND added_in='r569') THEN RAISE EXCEPTION 'r570: r569 / F183 sort 340 is not the live check'; END IF;
- IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bus_component_split_568' AND fault_id='F182' AND sort_order=339 AND added_in='r568') THEN RAISE EXCEPTION 'r570: r568 / F182 sort 339 is not the live check'; END IF;
- IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='parts_stoppage_manual_567' AND fault_id='F181' AND sort_order=338 AND added_in='r567') THEN RAISE EXCEPTION 'r570: r567 / F181 sort 338 is not the live check'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=342 OR fault_id='F184' OR check_name='bay_manager_hours_570' OR added_in='r570') THEN RAISE EXCEPTION 'r570: sort 342 or F184 is taken'; END IF;
- IF to_regclass('public.workshop_bay_work_hours_570') IS NOT NULL OR to_regprocedure('public.set_workshop_bay_hours_570(uuid,integer,jsonb,text)') IS NOT NULL THEN RAISE EXCEPTION 'r570: already applied'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM '83a2c8d5ff85b5a295343e5f3ef66ded' THEN RAISE EXCEPTION 'r570: clock tick is not the r559 body'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bus_private.add_minutes(timestamptz,integer,uuid)')) IS DISTINCT FROM 'c43afa5c1312392aa5d3666a8aa7cf65' THEN RAISE EXCEPTION 'r570: bus add_minutes changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bus_private.minute_available(timestamptz,uuid)')) IS DISTINCT FROM 'ca85b70cf2728a523a6e8d4231a19b08' THEN RAISE EXCEPTION 'r570: bus minute_available changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bus_private.clock_next_minute(timestamptz,uuid)')) IS DISTINCT FROM '734b6fc0d468b8a8a9cee2b955f9b21b' THEN RAISE EXCEPTION 'r570: bus clock_next_minute changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bus_private.clock_minutes_between(timestamptz,timestamptz,uuid)')) IS DISTINCT FROM 'c1e4e6b69cd67aebcbce738fd1a68dc2' THEN RAISE EXCEPTION 'r570: bus clock_minutes_between changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bay_seq_private.end_at(timestamptz,integer,uuid)')) IS DISTINCT FROM '8067dd22688d7b93d90c9c03eabfbe7d' THEN RAISE EXCEPTION 'r570: end_at changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bay_seq_private.next_start(timestamptz,uuid)')) IS DISTINCT FROM '6d2cdc4cb26bb37794c6998b206f6e0c' THEN RAISE EXCEPTION 'r570: next_start changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.target_end_469(uuid,uuid,timestamptz,integer)')) IS DISTINCT FROM 'b7b98893bfc7a04b39330ca689f8f1b1' THEN RAISE EXCEPTION 'r570: target_end changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.overlap_chain_469(uuid[],timestamptz)')) IS DISTINCT FROM 'e3602ba6f9d5973deea4eef09f5077c0' THEN RAISE EXCEPTION 'r570: overlap_chain changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_capacity_plan(text,uuid,integer,timestamptz)')) IS DISTINCT FROM 'bc237d9f466c45a086c251ec8c3071a7' THEN RAISE EXCEPTION 'r570: capacity plan changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.book_all_vehicle_stations(uuid,integer)')) IS DISTINCT FROM '90fc0d4727d827db53c308ff9dfa8bcd' THEN RAISE EXCEPTION 'r570: book_all changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)')) IS DISTINCT FROM 'ae08aa9b0dc99e7c93b1710efdcb5070' THEN RAISE EXCEPTION 'r570: validate changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_booking_effective_end_at(uuid)')) IS DISTINCT FROM '3cd30a49767b2b79fadc325d56cbca42' THEN RAISE EXCEPTION 'r570: effective end changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.cascade_workshop_booking_move_pre_116(uuid,integer,text,integer,timestamptz,integer,text,jsonb)')) IS DISTINCT FROM 'd5e0543537cafb026383c7338c8e2b82' THEN RAISE EXCEPTION 'r570: cascade move changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_pdc.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM 'eb25ab44d4d007d3b749bd7bc5e56abc' THEN RAISE EXCEPTION 'r570: department 135 clock changed'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_bus.add_minutes(timestamptz,integer,uuid)')) IS DISTINCT FROM '832bf8be742c16b86f937fa9579ee056' THEN RAISE EXCEPTION 'r570: department 135 bus add_minutes changed'; END IF;
+    OR to_regclass('public.pdc_production_environment_sentinel') IS NOT NULL THEN RAISE EXCEPTION 'r577: staging only'; END IF;
+ IF EXISTS (SELECT 1 FROM public.pdc_staging_environment_sentinel WHERE project_ref='vjdtsswhroyguxyfjdkt') THEN RAISE EXCEPTION 'r577: production ref'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r577: pin count is not 241'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bay_job_pause_569' AND fault_id='F183' AND sort_order=340 AND added_in='r569') THEN RAISE EXCEPTION 'r577: r569 / F183 sort 340 is not the live check'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bus_component_split_568' AND fault_id='F182' AND sort_order=339 AND added_in='r568') THEN RAISE EXCEPTION 'r577: r568 / F182 sort 339 is not the live check'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='parts_stoppage_manual_567' AND fault_id='F181' AND sort_order=338 AND added_in='r567') THEN RAISE EXCEPTION 'r577: r567 / F181 sort 338 is not the live check'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=349 OR fault_id='F191' OR check_name='bay_manager_hours_570' OR added_in='r577') THEN RAISE EXCEPTION 'r577: sort 349 or F191 is taken'; END IF;
+ IF to_regclass('public.workshop_bay_work_hours_570') IS NOT NULL OR to_regprocedure('public.set_workshop_bay_hours_570(uuid,integer,jsonb,text)') IS NOT NULL THEN RAISE EXCEPTION 'r577: already applied'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM '83a2c8d5ff85b5a295343e5f3ef66ded' THEN RAISE EXCEPTION 'r577: clock tick is not the r559 body'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bus_private.add_minutes(timestamptz,integer,uuid)')) IS DISTINCT FROM 'c43afa5c1312392aa5d3666a8aa7cf65' THEN RAISE EXCEPTION 'r577: bus add_minutes changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bus_private.minute_available(timestamptz,uuid)')) IS DISTINCT FROM 'ca85b70cf2728a523a6e8d4231a19b08' THEN RAISE EXCEPTION 'r577: bus minute_available changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bus_private.clock_next_minute(timestamptz,uuid)')) IS DISTINCT FROM '734b6fc0d468b8a8a9cee2b955f9b21b' THEN RAISE EXCEPTION 'r577: bus clock_next_minute changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bus_private.clock_minutes_between(timestamptz,timestamptz,uuid)')) IS DISTINCT FROM 'c1e4e6b69cd67aebcbce738fd1a68dc2' THEN RAISE EXCEPTION 'r577: bus clock_minutes_between changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bay_seq_private.end_at(timestamptz,integer,uuid)')) IS DISTINCT FROM '8067dd22688d7b93d90c9c03eabfbe7d' THEN RAISE EXCEPTION 'r577: end_at changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bay_seq_private.next_start(timestamptz,uuid)')) IS DISTINCT FROM '6d2cdc4cb26bb37794c6998b206f6e0c' THEN RAISE EXCEPTION 'r577: next_start changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.target_end_469(uuid,uuid,timestamptz,integer)')) IS DISTINCT FROM 'b7b98893bfc7a04b39330ca689f8f1b1' THEN RAISE EXCEPTION 'r577: target_end changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.overlap_chain_469(uuid[],timestamptz)')) IS DISTINCT FROM 'e3602ba6f9d5973deea4eef09f5077c0' THEN RAISE EXCEPTION 'r577: overlap_chain changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_capacity_plan(text,uuid,integer,timestamptz)')) IS DISTINCT FROM 'bc237d9f466c45a086c251ec8c3071a7' THEN RAISE EXCEPTION 'r577: capacity plan changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.book_all_vehicle_stations(uuid,integer)')) IS DISTINCT FROM '90fc0d4727d827db53c308ff9dfa8bcd' THEN RAISE EXCEPTION 'r577: book_all changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)')) IS DISTINCT FROM 'ae08aa9b0dc99e7c93b1710efdcb5070' THEN RAISE EXCEPTION 'r577: validate changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_booking_effective_end_at(uuid)')) IS DISTINCT FROM '3cd30a49767b2b79fadc325d56cbca42' THEN RAISE EXCEPTION 'r577: effective end changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.cascade_workshop_booking_move_pre_116(uuid,integer,text,integer,timestamptz,integer,text,jsonb)')) IS DISTINCT FROM 'd5e0543537cafb026383c7338c8e2b82' THEN RAISE EXCEPTION 'r577: cascade move changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_pdc.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM 'eb25ab44d4d007d3b749bd7bc5e56abc' THEN RAISE EXCEPTION 'r577: department 135 clock changed'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_bus.add_minutes(timestamptz,integer,uuid)')) IS DISTINCT FROM '832bf8be742c16b86f937fa9579ee056' THEN RAISE EXCEPTION 'r577: department 135 bus add_minutes changed'; END IF;
 END $g$;
 
 CREATE TABLE public.workshop_bay_work_hours_570 (
@@ -774,7 +776,7 @@ BEGIN
         NULL::uuid,
         v_before,
         NULL::jsonb,
-        jsonb_build_object('action', 'reset', 'release', 'r570'));
+        jsonb_build_object('action', 'reset', 'release', 'r577'));
     END IF;
     v_ids := ARRAY[p_bay_id];
   ELSE
@@ -787,13 +789,13 @@ BEGIN
        RETURNING hours INTO v_hours;
       PERFORM public.audit_pdc_event(
         'reference_change'::public.audit_action, 'workshop_bay_work_hours_570', p_bay_id, NULL::uuid,
-        v_before, v_hours, jsonb_build_object('action', v_mode, 'release', 'r570'));
+        v_before, v_hours, jsonb_build_object('action', v_mode, 'release', 'r577'));
     ELSE
       INSERT INTO public.workshop_bay_work_hours_570 (bay_id, hours, version, updated_by)
       VALUES (p_bay_id, v_hours, 1, auth.uid());
       PERFORM public.audit_pdc_event(
         'reference_change'::public.audit_action, 'workshop_bay_work_hours_570', p_bay_id, NULL::uuid,
-        NULL::jsonb, v_hours, jsonb_build_object('action', v_mode, 'release', 'r570'));
+        NULL::jsonb, v_hours, jsonb_build_object('action', v_mode, 'release', 'r577'));
     END IF;
     v_ids := ARRAY[p_bay_id];
     IF v_mode = 'copy' THEN
@@ -814,13 +816,13 @@ BEGIN
            WHERE bay_id = v_sib;
           PERFORM public.audit_pdc_event(
             'reference_change'::public.audit_action, 'workshop_bay_work_hours_570', v_sib, NULL::uuid,
-            v_sib_row.hours, v_hours, jsonb_build_object('action', 'copy', 'release', 'r570', 'from_bay', p_bay_id));
+            v_sib_row.hours, v_hours, jsonb_build_object('action', 'copy', 'release', 'r577', 'from_bay', p_bay_id));
         ELSE
           INSERT INTO public.workshop_bay_work_hours_570 (bay_id, hours, version, updated_by)
           VALUES (v_sib, v_hours, 1, auth.uid());
           PERFORM public.audit_pdc_event(
             'reference_change'::public.audit_action, 'workshop_bay_work_hours_570', v_sib, NULL::uuid,
-            NULL::jsonb, v_hours, jsonb_build_object('action', 'copy', 'release', 'r570', 'from_bay', p_bay_id));
+            NULL::jsonb, v_hours, jsonb_build_object('action', 'copy', 'release', 'r577', 'from_bay', p_bay_id));
         END IF;
         v_ids := v_ids || v_sib;
       END LOOP;
@@ -866,16 +868,16 @@ AS $patch570$
 DECLARE def text; got int;
 BEGIN
   IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure(p_sig)) IS DISTINCT FROM p_md5 THEN
-    RAISE EXCEPTION 'r570: % is not %', p_sig, p_md5;
+    RAISE EXCEPTION 'r577: % is not %', p_sig, p_md5;
   END IF;
   def := pg_get_functiondef(to_regprocedure(p_sig));
   got := (length(def) - length(replace(def, p_from, ''))) / length(p_from);
   IF got <> p_count THEN
-    RAISE EXCEPTION 'r570: % pattern count % wanted %', p_sig, got, p_count;
+    RAISE EXCEPTION 'r577: % pattern count % wanted %', p_sig, got, p_count;
   END IF;
   EXECUTE replace(def, p_from, p_to);
   IF (SELECT md5(prosrc) FROM pg_proc WHERE oid = to_regprocedure(p_sig)) = p_md5 THEN
-    RAISE EXCEPTION 'r570: % did not change', p_sig;
+    RAISE EXCEPTION 'r577: % did not change', p_sig;
   END IF;
 END
 $patch570$;
@@ -955,12 +957,12 @@ BEGIN
   cur := (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.overlap_chain_469(uuid[],timestamptz)'));
   def := pg_get_functiondef(to_regprocedure('pdc_cascade_private.overlap_chain_469(uuid[],timestamptz)'));
   IF (length(def)-length(replace(def, src, ''))) / length(src) <> 1 THEN
-    RAISE EXCEPTION 'r570: overlap window pattern missing';
+    RAISE EXCEPTION 'r577: overlap window pattern missing';
   END IF;
   EXECUTE replace(def, src, $new$    v_new_start := CASE WHEN public.workshop_bay_has_hours_570(v_row.bay_id) THEN public.workshop_bay_next_minute_570(v_cursor, v_row.bay_id) ELSE public.workshop_next_calendar_window(v_cursor, v_row.default_duration_minutes) END;
     v_new_end := CASE WHEN public.workshop_bay_has_hours_570(v_row.bay_id) THEN public.workshop_bay_add_minutes_570(v_new_start, v_row.default_duration_minutes, v_row.bay_id) ELSE public.workshop_add_operational_minutes(v_new_start, v_row.default_duration_minutes) END;$new$);
   IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.overlap_chain_469(uuid[],timestamptz)')) = cur THEN
-    RAISE EXCEPTION 'r570: overlap chain did not change';
+    RAISE EXCEPTION 'r577: overlap chain did not change';
   END IF;
 END $ov$;
 
@@ -998,11 +1000,11 @@ BEGIN
   cur := (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)'));
   def := pg_get_functiondef(to_regprocedure('public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)'));
   IF (length(def)-length(replace(def, src, ''))) / length(src) <> 1 THEN
-    RAISE EXCEPTION 'r570: validate end pattern missing';
+    RAISE EXCEPTION 'r577: validate end pattern missing';
   END IF;
   EXECUTE replace(def, src, $new$END ELSE CASE WHEN public.workshop_bay_has_hours_570(p_bay_id) THEN public.workshop_bay_add_minutes_570(p_scheduled_start_at,v_estimated_duration,p_bay_id) ELSE public.workshop_add_operational_minutes(p_scheduled_start_at,v_estimated_duration) END END else p_scheduled_end_at end$new$);
   IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)')) = cur THEN
-    RAISE EXCEPTION 'r570: validate end did not change';
+    RAISE EXCEPTION 'r577: validate end did not change';
   END IF;
 END $val$;
 
@@ -1027,33 +1029,33 @@ SELECT pg_temp.r570_patch(
 DO $pins$
 DECLARE n int;
 BEGIN
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bus_private.add_minutes(timestamptz,integer,uuid)')), release='r570', note='r570: per-bay hours when an override exists (was c43afa5c1312392aa5d3666a8aa7cf65)', updated_at=now()
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bus_private.add_minutes(timestamptz,integer,uuid)')), release='r577', note='r577: per-bay hours when an override exists (was c43afa5c1312392aa5d3666a8aa7cf65)', updated_at=now()
    WHERE signature='pdc_bus_private.add_minutes(timestamp with time zone,integer,uuid)' AND prosrc_md5='c43afa5c1312392aa5d3666a8aa7cf65' AND release='20261020015824';
-  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r570: add_minutes pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bay_seq_private.end_at(timestamptz,integer,uuid)')), release='r570', note='r570: per-bay hours when an override exists (was 8067dd22688d7b93d90c9c03eabfbe7d, r424)', updated_at=now()
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: add_minutes pin'; END IF;
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bay_seq_private.end_at(timestamptz,integer,uuid)')), release='r577', note='r577: per-bay hours when an override exists (was 8067dd22688d7b93d90c9c03eabfbe7d, r424)', updated_at=now()
    WHERE signature='pdc_bay_seq_private.end_at(timestamp with time zone,integer,uuid)' AND prosrc_md5='8067dd22688d7b93d90c9c03eabfbe7d' AND release='r424';
-  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r570: end_at pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bay_seq_private.next_start(timestamptz,uuid)')), release='r570', note='r570: per-bay hours when an override exists (was 6d2cdc4cb26bb37794c6998b206f6e0c, r424)', updated_at=now()
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: end_at pin'; END IF;
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_bay_seq_private.next_start(timestamptz,uuid)')), release='r577', note='r577: per-bay hours when an override exists (was 6d2cdc4cb26bb37794c6998b206f6e0c, r424)', updated_at=now()
    WHERE signature='pdc_bay_seq_private.next_start(timestamp with time zone,uuid)' AND prosrc_md5='6d2cdc4cb26bb37794c6998b206f6e0c' AND release='r424';
-  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r570: next_start pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.target_end_469(uuid,uuid,timestamptz,integer)')), release='r570', note='r570: per-bay hours when an override exists (was b7b98893bfc7a04b39330ca689f8f1b1, r469)', updated_at=now()
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: next_start pin'; END IF;
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.target_end_469(uuid,uuid,timestamptz,integer)')), release='r577', note='r577: per-bay hours when an override exists (was b7b98893bfc7a04b39330ca689f8f1b1, r469)', updated_at=now()
    WHERE signature='pdc_cascade_private.target_end_469(uuid,uuid,timestamp with time zone,integer)' AND prosrc_md5='b7b98893bfc7a04b39330ca689f8f1b1' AND release='r469';
-  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r570: target_end pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.overlap_chain_469(uuid[],timestamptz)')), release='r570', note='r570: per-bay hours when an override exists (was e3602ba6f9d5973deea4eef09f5077c0, r469)', updated_at=now()
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: target_end pin'; END IF;
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('pdc_cascade_private.overlap_chain_469(uuid[],timestamptz)')), release='r577', note='r577: per-bay hours when an override exists (was e3602ba6f9d5973deea4eef09f5077c0, r469)', updated_at=now()
    WHERE signature='pdc_cascade_private.overlap_chain_469(uuid[],timestamp with time zone)' AND prosrc_md5='e3602ba6f9d5973deea4eef09f5077c0' AND release='r469';
-  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r570: overlap pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')), release='r570', note='r570: per-bay hours when an override exists (was 83a2c8d5ff85b5a295343e5f3ef66ded, r559)', updated_at=now()
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: overlap pin'; END IF;
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')), release='r577', note='r577: per-bay hours when an override exists (was 83a2c8d5ff85b5a295343e5f3ef66ded, r559)', updated_at=now()
    WHERE signature='public.workshop_clock_tick(boolean,timestamp with time zone)' AND prosrc_md5='83a2c8d5ff85b5a295343e5f3ef66ded' AND release='r559';
-  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r570: clock tick pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_capacity_plan(text,uuid,integer,timestamptz)')), release='r570', note='r570: per-bay hours when an override exists (was bc237d9f466c45a086c251ec8c3071a7, r542)', updated_at=now()
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: clock tick pin'; END IF;
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_capacity_plan(text,uuid,integer,timestamptz)')), release='r577', note='r577: per-bay hours when an override exists (was bc237d9f466c45a086c251ec8c3071a7, r542)', updated_at=now()
    WHERE signature='public.workshop_capacity_plan(text,uuid,integer,timestamp with time zone)' AND prosrc_md5='bc237d9f466c45a086c251ec8c3071a7' AND release='r542';
-  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r570: capacity pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.book_all_vehicle_stations(uuid,integer)')), release='r570', note='r570: per-bay hours when an override exists (was 90fc0d4727d827db53c308ff9dfa8bcd, r450)', updated_at=now()
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: capacity pin'; END IF;
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.book_all_vehicle_stations(uuid,integer)')), release='r577', note='r577: per-bay hours when an override exists (was 90fc0d4727d827db53c308ff9dfa8bcd, r450)', updated_at=now()
    WHERE signature='public.book_all_vehicle_stations(uuid,integer)' AND prosrc_md5='90fc0d4727d827db53c308ff9dfa8bcd' AND release='r450';
-  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r570: book_all pin'; END IF;
-  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)')), release='r570', note='r570: per-bay hours when an override exists (was ae08aa9b0dc99e7c93b1710efdcb5070, r548)', updated_at=now()
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: book_all pin'; END IF;
+  UPDATE pdc_ops.expected_function_md5 SET prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamptz,timestamptz,integer,public.workshop_booking_status,uuid,boolean)')), release='r577', note='r577: per-bay hours when an override exists (was ae08aa9b0dc99e7c93b1710efdcb5070, r548)', updated_at=now()
    WHERE signature='public.workshop_validate_booking(uuid,uuid,uuid,uuid,timestamp with time zone,timestamp with time zone,integer,public.workshop_booking_status,uuid,boolean)' AND prosrc_md5='ae08aa9b0dc99e7c93b1710efdcb5070' AND release='r548';
-  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r570: validate pin'; END IF;
+  GET DIAGNOSTICS n = ROW_COUNT; IF n <> 1 THEN RAISE EXCEPTION 'r577: validate pin'; END IF;
 END $pins$;
 
 UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, '83a2c8d5ff85b5a295343e5f3ef66ded', (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')))
@@ -1062,19 +1064,19 @@ UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'ae08aa9b0dc
  WHERE check_sql LIKE '%ae08aa9b0dc99e7c93b1710efdcb5070%';
 UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'bc237d9f466c45a086c251ec8c3071a7', (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.workshop_capacity_plan(text,uuid,integer,timestamptz)')))
  WHERE check_sql LIKE '%bc237d9f466c45a086c251ec8c3071a7%';
-UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'release=''r559''', 'release=''r570''')
+UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'release=''r559''', 'release=''r577''')
  WHERE check_name IN ('clock_ticks_recent', 'clock_tick_resaves_per_tick') AND check_sql LIKE '%release=''r559''%';
-UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'tick_pin.release=''r559''', 'tick_pin.release=''r570''')
+UPDATE pdc_ops.regression_checks SET check_sql = replace(check_sql, 'tick_pin.release=''r559''', 'tick_pin.release=''r577''')
  WHERE check_name = 'bay_default_clock_gap_559' AND check_sql LIKE '%tick_pin.release=''r559''%';
 
 INSERT INTO pdc_ops.regression_checks (check_name, fault_id, description, check_sql, enabled, sort_order, added_in)
-VALUES ('bay_manager_hours_570', 'F184',
- 'Bay Manager hours (r570): pin count stays 241, a bay with no override matches today, the clock tick reads the cached hours flag and does not scan the hours table, and saving hours does not rewrite a booking. Department 135 stays frozen.',
+VALUES ('bay_manager_hours_570', 'F191',
+ 'Bay Manager hours (r577): pin count stays 241, a bay with no override matches today, the clock tick reads the cached hours flag and does not scan the hours table, and saving hours does not rewrite a booking. Department 135 stays frozen.',
 $chk570$
 SELECT
   pins.n = 241
   AND pins.moved = 9
-  AND tick_pin.release = 'r570'
+  AND tick_pin.release = 'r577'
   AND tick_pin.prosrc_md5 = pg_catalog.md5(tick.prosrc)
   AND pg_catalog.strpos(tick.prosrc, 'workshop_bay_has_hours_570') > 0
   AND pg_catalog.strpos(tick.prosrc, 'workshop_bay_work_hours_570') = 0
@@ -1094,10 +1096,10 @@ SELECT
   AND tbl.relrowsecurity
   AND NOT pg_catalog.has_table_privilege('authenticated'::name, tbl.oid, 'SELECT')
   AND NOT pg_catalog.has_table_privilege('anon'::name, tbl.oid, 'SELECT')
-  AND pg_catalog.strpos(recent.check_sql, 'release=''r570''') > 0
+  AND pg_catalog.strpos(recent.check_sql, 'release=''r577''') > 0
  AS ok,
  'tick '||pg_catalog.md5(tick.prosrc)||' pins '||pins.n::text||' moved '||pins.moved::text AS detail
-FROM (SELECT count(*) AS n, count(*) FILTER (WHERE release = 'r570') AS moved FROM pdc_ops.expected_function_md5) pins
+FROM (SELECT count(*) AS n, count(*) FILTER (WHERE release = 'r577') AS moved FROM pdc_ops.expected_function_md5) pins
 CROSS JOIN (SELECT prosrc_md5, release FROM pdc_ops.expected_function_md5 WHERE signature = 'public.workshop_clock_tick(boolean,timestamp with time zone)') tick_pin
 CROSS JOIN (SELECT prosrc FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')) tick
 CROSS JOIN (SELECT md5(prosrc) AS md5 FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('karratha135_pdc.workshop_clock_tick(boolean,timestamptz)')) k135
@@ -1106,13 +1108,13 @@ CROSS JOIN (SELECT prosrc, prosecdef, proconfig, oid FROM pg_catalog.pg_proc WHE
 CROSS JOIN (SELECT prosecdef, oid FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('public.list_workshop_bay_hours_570()')) reader
 CROSS JOIN (SELECT c.oid, c.relrowsecurity FROM pg_catalog.pg_class c WHERE c.oid = pg_catalog.to_regclass('public.workshop_bay_work_hours_570')) tbl
 CROSS JOIN (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name = 'clock_ticks_recent') recent
-$chk570$, true, 342, 'r570');
+$chk570$, true, 349, 'r577');
 
 DO $z$ BEGIN
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5) <> 241 THEN RAISE EXCEPTION 'r570: pin count changed'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release = 'r570') <> 9 THEN RAISE EXCEPTION 'r570: expected nine pins to move'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_pdc.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM 'eb25ab44d4d007d3b749bd7bc5e56abc' THEN RAISE EXCEPTION 'r570: department 135 clock moved'; END IF;
- IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_bus.add_minutes(timestamptz,integer,uuid)')) IS DISTINCT FROM '832bf8be742c16b86f937fa9579ee056' THEN RAISE EXCEPTION 'r570: department 135 bus add moved'; END IF;
- IF pg_catalog.strpos((SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.set_workshop_bay_hours_570(uuid,integer,jsonb,text)')), 'UPDATE public.workshop_bookings') <> 0 THEN RAISE EXCEPTION 'r570: save rewrites bookings'; END IF;
- IF pg_catalog.strpos((SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')), 'workshop_bay_work_hours_570') <> 0 THEN RAISE EXCEPTION 'r570: tick names the hours table'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5) <> 241 THEN RAISE EXCEPTION 'r577: pin count changed'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release = 'r577') <> 9 THEN RAISE EXCEPTION 'r577: expected nine pins to move'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_pdc.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM 'eb25ab44d4d007d3b749bd7bc5e56abc' THEN RAISE EXCEPTION 'r577: department 135 clock moved'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('karratha135_bus.add_minutes(timestamptz,integer,uuid)')) IS DISTINCT FROM '832bf8be742c16b86f937fa9579ee056' THEN RAISE EXCEPTION 'r577: department 135 bus add moved'; END IF;
+ IF pg_catalog.strpos((SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.set_workshop_bay_hours_570(uuid,integer,jsonb,text)')), 'UPDATE public.workshop_bookings') <> 0 THEN RAISE EXCEPTION 'r577: save rewrites bookings'; END IF;
+ IF pg_catalog.strpos((SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')), 'workshop_bay_work_hours_570') <> 0 THEN RAISE EXCEPTION 'r577: tick names the hours table'; END IF;
 END $z$;
