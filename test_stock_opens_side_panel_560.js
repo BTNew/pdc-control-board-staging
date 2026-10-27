@@ -1,6 +1,6 @@
 /* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. */
 'use strict';
-// r558 (F172): clicking a stock number opens the Vehicle Locations side panel, not the centred vehicle card.
+// r560 (F174): clicking a stock number opens the Vehicle Locations side panel, not the centred vehicle card.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -87,6 +87,6 @@ test('the slide-out keeps a More details link to the vehicle card', () => {
   const slide = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8');
   assert.match(slide, /button\.textContent = 'More details'/);
   assert.match(slide, /openVehicleCardFromVisibleBoard\(openStock, button\)/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /vehicle-slideout=2026\.10\.27\.r558/);
-  assert.match(fs.readFileSync('index.html', 'utf8'), /r558=2026\.10\.27\.r558/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /vehicle-slideout=2026\.10\.27\.r560/);
+  assert.match(fs.readFileSync('index.html', 'utf8'), /r560=2026\.10\.27\.r560/);
 });

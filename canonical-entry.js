@@ -118,7 +118,7 @@
     const loadVehicleSlideout = () => {
       if (document.querySelector('script[data-pdc-vehicle-slideout]')) return;
       const slideout = document.createElement('script');
-      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.27.r558'; // r558 (F172): More details link to the vehicle card; r496 (F109): edit hours and jobs in the panel
+      slideout.src = 'pdc-vehicle-slideout.js?vehicle-slideout=2026.10.27.r560'; // r560 (F174): More details link to the vehicle card; r496 (F109): edit hours and jobs in the panel
       slideout.dataset.pdcVehicleSlideout = '1';
       document.head.appendChild(slideout);
     };

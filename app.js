@@ -15725,7 +15725,7 @@ async function ensureVehicleOpenableFromBoard(stock, trigger = null) {
   }
 }
 
-// r558 (F172): stock-number entry points open the Vehicle Locations side panel; the centred vehicle card is "More details".
+// r560 (F174): stock-number entry points open the Vehicle Locations side panel; the centred vehicle card is "More details".
 async function openVehicleFromStockClick(stock, trigger = null) {
   const key = String(stock || '').trim();
   if (!key) return false;

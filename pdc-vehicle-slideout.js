@@ -45,7 +45,7 @@
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.27.r558'; // r558 (F172): "More details" opens the vehicle card (SP, label, override location, …)
+  const VERSION = '2026.10.27.r560'; // r560 (F174): "More details" opens the vehicle card (SP, label, override location, …)
   // r496: the panel's slim copy of the Work & bookings rows. Every <button> is removed (Add line, Edit line, Best slot,
   // Remove, Mark done, Split, drag handles, booking links); a drag handle's line number stays as plain text. What is left
   // live is only the hours inputs and the Work category / Station selectors, with app.js's own data attributes.

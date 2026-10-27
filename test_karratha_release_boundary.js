@@ -173,8 +173,8 @@ const approvedRootImportPatch = Object.freeze({
   // r496: vehicle-slideout=2026.10.22.r496 on pdc-vehicle-slideout.js (edit hours and move lines between jobs in the panel; F109).
   // r501: r501=2026.10.23.r501 on pdc-sublet-intake.js (Sublet page create hidden; bookings made in Manage sublets; F114).
   // r557: the Vehicle Locations table loads with r557=2026.10.27.r557 (New to PMB, F171). Department 135 keeps its frozen loader.
-  // r558: vehicle-slideout=2026.10.27.r558 (More details link to the vehicle card; F172). Department 135 keeps its frozen loader.
-  "canonical-entry.js": "3a32dbf55e43b8f134e2714f6a67f42111e23f90390f183cf433c2c85ba26225",
+  // r560: vehicle-slideout=2026.10.27.r560 (More details link to the vehicle card; F174). Department 135 keeps its frozen loader.
+  "canonical-entry.js": "a5c3c3e516c23cef39bd61ead26cfee3ec24a692c50d246f6c60296d1a237e97",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -234,8 +234,8 @@ const approvedRootImportPatch = Object.freeze({
   // r549: booking pills and the vehicle side panel prefer display_name, and both planner loads add r549=2026.10.26.r549 (F163).
   // r556: Parts ETA email warnings on the vehicle card for a controller (F170). Department 135 keeps its frozen app.js.
   // r557: New to PMB tile and acknowledgement (F171). Department 135 keeps its frozen app.js.
-  // r558: stock numbers open the Vehicle Locations side panel; More details opens the vehicle card (F172). Department 135 keeps its frozen app.js.
-  "app.js": "fc7ed2b611d43adf3ffbb2b6b03abec352243975b768c17ff6bed8d55bfb3402",
+  // r560: stock numbers open the Vehicle Locations side panel; More details opens the vehicle card (F174). Department 135 keeps its frozen app.js.
+  "app.js": "7ea8f57543e57484b095dd49f69600eaa8977e70a0cce7dce3391aa74c3cd509",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -347,8 +347,8 @@ const approvedRootImportPatch = Object.freeze({
   // r549: r549=2026.10.26.r549 on the planner stylesheet, Control Board and Close gaps (bay display name; F163). Department 135 is not tagged.
   // r556: r556=2026.10.26.r556 on app.js (Parts ETA email warnings, not the Stoppages bucket; F170). Department 135 is not tagged.
   // r557: index.html adds r557=2026.10.27.r557 on app.js and canonical-entry.js (New to PMB, F171). Department 135 is not tagged.
-  // r558: index.html adds r558=2026.10.27.r558 on app.js (stock opens side panel, F172). Department 135 is not tagged.
-  "index.html": "50957005538ca9c4ba593af3f539fc24bf7d022dc9a3c88d29eea7000810452a",
+  // r560: index.html adds r560=2026.10.27.r560 on app.js (stock opens side panel, F174). Department 135 is not tagged.
+  "index.html": "321f494726dc376968a9645456213036266752e8099a8418c000c003025b4627",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
