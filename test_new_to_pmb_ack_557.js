@@ -37,7 +37,7 @@ test('pending vehicles stay at PMB for every consumer except the Vehicle Locatio
   ]);
   assert.equal(c.incomingBucketForVehicle(waiting), 'pmb', 'the operational bucket does not change');
   assert.equal(c.statusCategory(waiting), 'pmb');
-  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'newpmb');
+  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb', 'an open acknowledgement no longer takes the vehicle off the PMB bucket');
   assert.equal(c.vehicleLocationsDisplayBucket(settled), 'pmb', 'a backfill row is already acknowledged');
   assert.equal(c.vehicleLocationsDisplayBucket(c.app.data[2]), 'yardhold');
   const defs = c.VEHICLE_LOCATION_BUCKET_DEFS || [];
@@ -65,25 +65,20 @@ test('the list names each station, and a backfill is not a person', () => {
     [settled.id, { vehicle_id: settled.id, viewer_pending: false, source: 'backfill', departments: [] }],
   ]);
   c.window.PDC_AUTH_CONTEXT = { role: 'operator' };
-  const waitingRow = c.incomingVehicleDetailRow(waiting, 'newpmb', { workshopProjectionAvailable: false });
-  assert.match(waitingRow, /Fabrication: Dan Batman \(controller\)/);
-  assert.match(waitingRow, /Fitting awaiting acknowledgement/);
-  assert.match(waitingRow, /Hoist awaiting acknowledgement/);
-  assert.match(waitingRow, /data-pmb-ack-station="FITTING"/);
-  assert.match(waitingRow, /Acknowledge for Fitting/);
-  assert.doesNotMatch(waitingRow, /data-pmb-ack-station="HOIST"/);
-  assert.doesNotMatch(waitingRow, /data-pmb-ack-station="FABRICATION"/);
+  const waitingRow = c.incomingVehicleDetailRow(waiting, 'pmb', { workshopProjectionAvailable: false });
+  assert.doesNotMatch(waitingRow, /Acknowledge for /);
+  assert.doesNotMatch(waitingRow, /awaiting acknowledgement/);
+  assert.doesNotMatch(waitingRow, /data-pmb-ack-station=/);
   assert.match(waitingRow, /stationTransfer|incoming-card-work-wrap/);
-  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'newpmb');
+  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb');
   c.app.pmbArrivalAck.set(waiting.id, {
     vehicle_id: waiting.id, viewer_pending: false, source: 'location', departments: [
       { station: 'FABRICATION', label: 'Fabrication', pending: false, can_acknowledge: false, acknowledged_by_name: 'Dan Batman', acknowledged_by_role: 'operator', acknowledged_at: '2026-10-26T02:56:00.000Z' },
       { station: 'FITTING', label: 'Fitting', pending: true, can_acknowledge: false },
     ],
   });
-  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb', 'Fabrication is done, so Fabrication staff no longer see it as pending');
-  assert.match(c.pmbArrivalNoteHtml(waiting), /Fabrication: Dan Batman \(controller\)/);
-  assert.match(c.pmbArrivalNoteHtml(waiting), /Fitting awaiting acknowledgement/);
+  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb', 'a remaining department tick no longer keeps the vehicle off PMB');
+  assert.equal(c.pmbArrivalNoteHtml(waiting), '');
   assert.equal(c.pmbArrivalActionHtml(waiting, 'SYN-WAIT'), '');
   assert.equal(c.pmbArrivalNoteHtml(settled), '');
   const admin = c.userManagementRowHtml({ email: 'oleg@example.invalid', account_status: 'approved', role: 'operator', active: true, full_name: 'Oleg' });
@@ -105,7 +100,7 @@ test('the new tile flashes blue and reduced motion is a solid blue, not orange',
   assert.doesNotMatch(css.slice(css.lastIndexOf('r557 (F171)')), /orange|#f59e0b|#ff8/i);
   const table = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.ok(table.indexOf("'newpmb'") < table.indexOf("pmb: ['PMB'"));
-  assert.match(table, /key === 'newpmb' && !loading && count > 0 \? ' is-alerting'/);
+  assert.match(table, /holdWaiting && !loading \? ' is-alerting'/);
 });
 
 test('a changed location revision refetches acknowledgements inside 15 seconds', () => {

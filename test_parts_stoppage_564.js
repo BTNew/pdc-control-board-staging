@@ -83,7 +83,7 @@ test('a chip-only Vehicle cell is lifted exactly as before, and a missing editor
   assert.equal(lifted.unit, '<span class="incoming-card-main"><strong>HiLux</strong></span>');
   assert.equal(lifted.eta, '');
   assert.deepEqual(table.COLUMNS.eta, { label: 'Parts ETA', width: 96, min: 56 });
-  assert.equal(table.VERSION, '2026.10.27.r566'); // r567 stays on the loader; r566 planner search bumps this module
+  assert.equal(table.VERSION, '2026.10.28.r593'); // r567 stays on the loader; r586 New to PMB view bumps this module
 });
 
 test('a booking before a typed date warns, and a vehicle with no typed date keeps the email warning', () => {

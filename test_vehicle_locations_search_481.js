@@ -104,7 +104,7 @@ test('wiring: table rows, tiles and summary follow the search scope; the drop-do
   assert.match(render, /const scope = searchScope\(\{ entries, bucket: state\.bucket, stoppages: state\.stoppages, needle, pick: state\.search\.pick, order \}\);/);
   assert.match(render, /\.filter\(entry => \(!scope\.bucket \|\| entry\.bucket === scope\.bucket\) && \(!scope\.stoppages \|\| stoppageKeys\.has\(entry\.key\)\)\)/);
   assert.doesNotMatch(render, /\.filter\(entry => \(!state\.bucket \|\| entry\.bucket === state\.bucket\)/, 'main\'s tile filter on the rows is gone');
-  assert.match(render, /tile\('', 'All vehicles', entries\.length, 'Every active vehicle', 'all', !scope\.bucket && !scope\.stoppages/);
+  assert.match(render, /tile\('', 'All vehicles', new Set\(entries\.map\(entry => entry\.key\)\)\.size, 'Every active vehicle', 'all', !scope\.bucket && !scope\.stoppages/);
   assert.match(render, /found in \$\{scope\.found\.map\(tileName\)\.join\(', '\)\}/);
   assert.match(render, /host\.innerHTML = `\$\{tilesHtml\}\$\{ageReport\}\$\{elsewhereHtml\(elsewhere\)\}/);
   assert.match(render, /revealSingleResult\(shown, filters\.search\);/, 'r470-era open-once on a single result is unchanged');
@@ -119,8 +119,8 @@ test('wiring: table rows, tiles and summary follow the search scope; the drop-do
 });
 
 test('loader, version, CSS and synthetic data', () => {
-  assert.equal(table.VERSION, '2026.10.27.r566'); // r567 typed Parts ETA stays on the loader; r566 planner search bumps this module
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562&r563=2026\.10\.27\.r563&r567=2026\.10\.27\.r567&r566=2026\.10\.27\.r566'/);
+  assert.equal(table.VERSION, '2026.10.28.r593'); // r567 typed Parts ETA stays on the loader; r586 New to PMB view bumps this module
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-locations-table\.js\?[^']*&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r562=2026\.10\.27\.r562&r563=2026\.10\.27\.r563&r567=2026\.10\.27\.r567&r566=2026\.10\.27\.r566&r593=2026\.10\.28\.r593'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r481=2026\.10\.22\.r481/);
   const css = fs.readFileSync('pdc-vehicle-locations-table.css', 'utf8');
   assert.match(css, /\.vlt-tile\.vlt-found \{/);

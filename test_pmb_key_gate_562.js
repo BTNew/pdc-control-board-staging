@@ -36,9 +36,7 @@ test('a vehicle with no key cannot complete the move into PMB', () => {
   };
   const waiting = c.app.data[0];
   c.app.pmbArrivalAck = new Map([[waiting.id, {
-    vehicle_id: waiting.id, viewer_pending: true, source: 'location', departments: [
-      { station: 'FITTING', label: 'Fitting', pending: true, can_acknowledge: true },
-    ],
+    vehicle_id: waiting.id, viewer_pending: true, source: 'bodybuilder', closed: false, departments: [],
   }]]);
   const row = c.incomingVehicleDetailRow(waiting, 'newpmb', { workshopProjectionAvailable: false });
   assert.match(row, /Key number needed/);
@@ -67,8 +65,8 @@ test('a non-closing station stays available, and a key enables the completing pu
     ],
   }]]);
   const open = c.pmbArrivalActionHtml(waiting, '13102818');
-  assert.match(open, /data-pmb-ack-station="FITTING"/);
-  assert.doesNotMatch(open, /pmb-push-disabled/);
+  assert.equal(open, '');
+  assert.equal(c.vehicleLocationsDisplayBucket(waiting), 'pmb');
   waiting.keyNumber = '205';
   waiting.keyAssignedAt = '2026-10-20T08:00:00+08:00';
   c.app.pmbArrivalAck.set(waiting.id, {
@@ -77,11 +75,10 @@ test('a non-closing station stays available, and a key enables the completing pu
     ],
   });
   const closing = c.pmbArrivalActionHtml(waiting, '13102818');
-  assert.match(closing, /data-pmb-ack-station="FITTING"/);
-  assert.doesNotMatch(closing, /pmb-push-disabled/);
+  assert.equal(closing, '');
   assert.equal(c.pmbKeyNeededBadgeHtml(waiting), '');
   c.app.pmbArrivalAck.set(waiting.id, {
-    vehicle_id: waiting.id, viewer_pending: true, source: 'location', departments: [],
+    vehicle_id: waiting.id, viewer_pending: true, source: 'bodybuilder', closed: false, departments: [],
   });
   delete waiting.keyNumber;
   const blockedPush = c.pmbArrivalActionHtml(waiting, '13102818');
