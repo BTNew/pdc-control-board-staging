@@ -36,7 +36,10 @@
 -- 320 13070889, 348 13070897, 349 13073090, 414 13018221). 126 13070891,
 -- 214 13019220 and 338 13041213 were still on the board. The data step does
 -- not trust that read. It locks each vehicle by id, skips a holder that is
--- already archived, and stops if a different duplicate is still there.
+-- already archived or deleted, and stops if a different duplicate is still
+-- there. The #544 archive nulled 13041213's stock when it deleted that row
+-- (14:18 AWST), so the archive skip is before the stock comparison. A live
+-- holder still has to be the named stock.
 --
 -- Active board means: not deleted, not archived, visible, lifecycle active,
 -- a department 138 or 139 service row, and no department 135 row. Blank and
@@ -280,6 +283,9 @@ BEGIN
     IF NOT FOUND THEN
       RAISE EXCEPTION 'r575: stock % (%) is not a vehicle. Nothing was changed.', r.loser_stock, r.loser_id;
     END IF;
+    IF v_loser.board_purged_at IS NOT NULL OR v_loser.deleted_at IS NOT NULL THEN
+      CONTINUE;
+    END IF;
     IF v_loser.stock_number IS DISTINCT FROM r.loser_stock THEN
       RAISE EXCEPTION 'r575: id % is stock %, not %. Nothing was changed.', r.loser_id, coalesce(v_loser.stock_number, '(no stock)'), r.loser_stock;
     END IF;
@@ -289,9 +295,6 @@ BEGIN
     END IF;
     IF v_keeper.stock_number IS DISTINCT FROM r.keeper_stock THEN
       RAISE EXCEPTION 'r575: id % is stock %, not %. Nothing was changed.', r.keeper_id, coalesce(v_keeper.stock_number, '(no stock)'), r.keeper_stock;
-    END IF;
-    IF v_loser.board_purged_at IS NOT NULL THEN
-      CONTINUE;
     END IF;
     v_have := pdc_key_number_private.key_token_575(v_loser.key_number);
     IF v_have IS NULL THEN

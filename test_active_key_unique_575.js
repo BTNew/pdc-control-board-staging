@@ -96,7 +96,10 @@ test('the approved clears are id-scoped, skip an archived holder, and the undo p
     assert.match(up, new RegExp(`'${token}'::text, '${keeperId}'::uuid, '${keeperStock}'::text, '${loserId}'::uuid, '${loserStock}'::text`));
     assert.match(down, new RegExp(loserId));
   }
-  assert.match(up, /IF v_loser\.board_purged_at IS NOT NULL THEN/);
+  assert.match(up, /IF v_loser\.board_purged_at IS NOT NULL OR v_loser\.deleted_at IS NOT NULL THEN/);
+  const skipAt = up.indexOf('IF v_loser.board_purged_at IS NOT NULL OR v_loser.deleted_at IS NOT NULL THEN');
+  const stockAt = up.indexOf('IF v_loser.stock_number IS DISTINCT FROM r.loser_stock THEN');
+  assert.ok(skipAt > 0 && stockAt > skipAt);
   assert.match(up, /'approved_clear'/);
   const clearAt = up.indexOf("reason, note)\n    VALUES (v_loser.id, v_have, v_loser.stock_number, 'approved_clear'");
   const refuseAt = up.indexOf('a new active duplicate appeared after the approved clears');
