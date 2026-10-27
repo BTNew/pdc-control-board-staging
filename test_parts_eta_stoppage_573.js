@@ -79,6 +79,7 @@ test('r580 go-live SQL is the next free check and does not retouch the live bodi
   assert.match(up, /parts_eta_stoppage_573/);
   assert.match(up, /true, 351, 'r580'/);
   assert.match(up, /release = 'r580'/);
+  assert.match(up, /c\.conrelid = 'public\.workshop_bookings'::regclass/);
   assert.doesNotMatch(up, /sort_order=344|fault_id='F187'|added_in='r573'|release = 'r573'|release='r573'/);
   assert.match(up, /fa275b45be296e9021f9f4dc570f5751/);
   assert.match(up, /88d31cbd6ca5ddd372e3143d5f8c013f/);

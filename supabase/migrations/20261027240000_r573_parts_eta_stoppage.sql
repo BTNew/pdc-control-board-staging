@@ -574,6 +574,7 @@ WITH reported_faults AS (
   SELECT pg_catalog.pg_get_constraintdef(c.oid) AS def
   FROM pg_catalog.pg_constraint c
   WHERE c.conname = 'workshop_bookings_active_vehicle_no_overlap'
+    AND c.conrelid = 'public.workshop_bookings'::regclass
 )
 SELECT (SELECT place_fn AND helpers AND pins_241 AND no_new_pin AND manual_unchanged AND email_unchanged AND clock_unchanged AND dept135_move AND dept135_create FROM reported_faults)
   AND (SELECT pg_catalog.strpos(prosrc, 'stoppage') > 0
