@@ -45,7 +45,7 @@
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.28.r586'; // r586 (F200): open once, and a same-vehicle table refresh does not rebuild the panel. r588 (F202): operation-line grid. r578 (F192): green complete tick.
+  const VERSION = '2026.10.28.r589'; // r589 (F203): open once, and a same-vehicle table refresh does not rebuild the panel. r588 (F202): operation-line grid. r578 (F192): green complete tick.
   // r496: the panel's slim copy of the Work & bookings rows. Kept so the full editor's markup can still be reduced.
   // r565 does not use it for Edit: Edit stays on the chip list.
   function slimWorkPage(html) {
@@ -863,7 +863,7 @@
   function watchOperations(panel) {
     opsObserver?.disconnect();
     // r496: a block another script draws again gets its Edit / Open full editor (and the open editor) back.
-    // r586: one frame for a burst of chip inserts, and the observer is off while this paint writes.
+    // r589: one frame for a burst of chip inserts, and the observer is off while this paint writes.
     let scheduled = false;
     const run = () => {
       if (scheduled) return;

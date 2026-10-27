@@ -11,7 +11,7 @@ const slideout = require('./pdc-vehicle-slideout.js');
 const faults = fs.readFileSync('docs/REPORTED_FAULTS.md', 'utf8');
 
 test('r588 uses a five-column grid with PO chips in column 4 and the tick in column 5', () => {
-  assert.equal(slideout.VERSION, '2026.10.28.r588');
+  assert.equal(slideout.VERSION, '2026.10.28.r589');
   assert.match(CSS, /grid-template-columns:[^;]*minmax\(7rem, auto\)/);
   assert.match(CSS, /li > \.pdc-sublet-po-ref[\s\S]*grid-column: 4 !important/);
   assert.match(CSS, /li > \.vso-tick \{ grid-column: 5/);

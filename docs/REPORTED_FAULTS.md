@@ -10,7 +10,7 @@ The cell and the panel both asked a function named `refreshAllViews` to repaint.
 
 ### Fix
 
-r586 / F200 / sort 358. Preview only. The SQL is not applied. Staging `cdsmnqxtyyoeoznmbidd`. Production `vjdtsswhroyguxyfjdkt` was not touched. Sort 357 is the board-speed check `station_sublet_cache_585` (r585 / F199), already on staging. Sort 356 / r584 / F198 stays with the #498 preview. The New to PMB preview had not taken a triple. Pin count stays 241. No pin is inserted. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel's rows validator stays `9be0883b1a555f48f3c1ba9fa111c891` and the apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The manual save stays `fa275b45be296e9021f9f4dc570f5751`. The stoppage board stays `c22076cba374291befa2ea23fc59f276`. No function body is replaced, so those functions still return the same bytes. Up md5 `6bda97c7f1c46a39e471a9788d6880da`. Down md5 `6b39a6442ae1a057179b71a1e5f099a4`.
+r589 / F203 / sort 361. Craig approved go-live of #571 at 06:59 AWST on 28 Oct 2026. Apply after 07:30 AWST. Staging `cdsmnqxtyyoeoznmbidd`. Production `vjdtsswhroyguxyfjdkt` was not touched. r587 / F201 / sort 359 is live as `board_qc_nesting_587`. r588 / F202 is the live tick grid (#573) and inserted no check. Sort 360 is not on the ledger. The Key 460 hoist preview still says r588 and is not required. This go-live takes the triple the #570 New to PMB preview had claimed. Sort 356 / r584 / F198 stays with the #498 preview. Pin count stays 241. No pin is inserted. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel's rows validator stays `9be0883b1a555f48f3c1ba9fa111c891` and the apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The manual save stays `fa275b45be296e9021f9f4dc570f5751`. The stoppage board stays `c22076cba374291befa2ea23fc59f276`. No function body is replaced, so those functions still return the same bytes. Up md5 `afab8d800fc0f74580f6eb2515558c21`. Down md5 `181771bc4dfca21833102deed38e3bf9`.
 
 The Parts ETA column shows the date and nothing you can click to set one. Set date, Change, and the blue Place as STOPPAGE checkbox are in the side panel. Saving a date calls the existing save. Ticking Place as STOPPAGE calls the existing r581 place. It does not download the stoppage list again. The planner Stoppage section updates from that reply. A tick with no date opens the date form and does not write.
 
@@ -24,7 +24,7 @@ Before, a click on Set stored "editing" and painted nothing, because `refreshAll
 
 ### Check
 
-`parts_eta_panel_only_586` (F200, sort 358). It goes red if the manual save, the stoppage board, the email ETA, Kajel's two import functions or department 135 change, if Place as STOPPAGE is missing, if the pin count leaves 241, or if r586 inserts a pin.
+`parts_eta_panel_only_589` (F203, sort 361). It goes red if the manual save, the stoppage board, the email ETA, Kajel's two import functions or department 135 change, if Place as STOPPAGE is missing, if the pin count leaves 241, or if r589 inserts a pin.
 
 ## Side panel: PO chips overlapped the completion tick
 

@@ -11,8 +11,8 @@ const stop = require('./pdc-parts-stoppage.js');
 
 const VID = '11111111-1111-4111-8111-111111111111';
 const EMPTY = '22222222-2222-4222-8222-222222222222';
-const upPath = 'supabase/migrations/20261028060500_r586_parts_eta_panel.sql';
-const downPath = 'supabase/rollbacks/20261028060500_r586_parts_eta_panel.down.sql';
+const upPath = 'supabase/migrations/20261028073000_r589_parts_eta_panel.sql';
+const downPath = 'supabase/rollbacks/20261028073000_r589_parts_eta_panel.down.sql';
 const md5 = text => crypto.createHash('md5').update(text).digest('hex');
 const up = fs.readFileSync(upPath, 'utf8');
 const down = fs.readFileSync(downPath, 'utf8');
@@ -52,21 +52,22 @@ test('the table date is read-only and the side panel is the only editor', () => 
   assert.doesNotMatch(fs.readFileSync('pdc-parts-stoppage.js', 'utf8'), /refreshAllViews/);
   assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /function rearmOperations/);
   assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /const redraw = key => \{ if \(state\.key === key\) render\(key, state\.bucket, \{ keepScroll: true \}\); \};/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-parts-stoppage\.js\?r567=2026\.10\.27\.r567&r573=2026\.10\.27\.r573&r586=2026\.10\.28\.r586/);
-  assert.equal(fs.readFileSync('karratha/canonical-entry.js', 'utf8').includes('r586=2026.10.28.r586'), false);
-  assert.equal(fs.readFileSync('karratha/index.html', 'utf8').includes('r586=2026.10.28.r586'), false);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-parts-stoppage\.js\?r567=2026\.10\.27\.r567&r573=2026\.10\.27\.r573&r589=2026\.10\.28\.r589/);
+  assert.equal(fs.readFileSync('karratha/canonical-entry.js', 'utf8').includes('r589=2026.10.28.r589'), false);
+  assert.equal(fs.readFileSync('karratha/index.html', 'utf8').includes('r589=2026.10.28.r589'), false);
 });
 
-test('r586 check watches the live bodies and does not replace them', () => {
-  assert.match(up, /PREVIEW/);
-  assert.match(up, /Do not apply/);
+test('r589 check watches the live bodies and does not replace them', () => {
+  assert.match(up, /Craig approved go-live of #571/);
+  assert.doesNotMatch(up, /PREVIEW|Do not apply/);
   assert.match(up, /cdsmnqxtyyoeoznmbidd/);
   assert.match(up, /vjdtsswhroyguxyfjdkt/);
-  assert.match(up, /parts_eta_panel_only_586/);
-  assert.match(up, /'F200'/);
-  assert.match(up, /sort_order=358/);
-  assert.match(up, /true, 358, 'r586'/);
+  assert.match(up, /parts_eta_panel_only_589/);
+  assert.match(up, /'F203'/);
+  assert.match(up, /sort_order=361/);
+  assert.match(up, /true, 361, 'r589'/);
   assert.match(up, /station_sublet_cache_585/);
+  assert.match(up, /board_qc_nesting_587/);
   assert.doesNotMatch(up, /named_external_sublet_584|sort_order=356/);
   assert.match(up, /fd05b9eef69498002ac06dd68e01cdff/);
   assert.match(up, /9be0883b1a555f48f3c1ba9fa111c891/);
@@ -76,18 +77,18 @@ test('r586 check watches the live bodies and does not replace them', () => {
   assert.match(up, /88d31cbd6ca5ddd372e3143d5f8c013f/);
   assert.doesNotMatch(up, /CREATE\s+(OR\s+REPLACE\s+)?FUNCTION/i);
   assert.doesNotMatch(up, /INSERT\s+INTO\s+pdc_ops\.expected_function_md5/i);
-  const checkSql = up.slice(up.indexOf('$chk586$') + 8, up.lastIndexOf('$chk586$'));
+  const checkSql = up.slice(up.indexOf('$chk589$') + 8, up.lastIndexOf('$chk589$'));
   assert.doesNotMatch(checkSql, /expected_function_md5\s*\)\s*(=|<>|!=)/i);
   assert.doesNotMatch(checkSql, /[0-9]+\s*(=|<>|!=)\s*\(\s*select\s+count\(\s*\*\s*\)\s+from\s+pdc_ops\.expected_function_md5/i);
   assert.match(up, /AS ok/);
   assert.match(up, /AS detail/);
   assert.equal(scanSql(up).length, 0);
   assert.match(down, /DELETE FROM pdc_ops\.regression_checks/);
-  assert.match(down, /WHERE check_name='parts_eta_panel_only_586'/);
+  assert.match(down, /WHERE check_name='parts_eta_panel_only_589'/);
   assert.doesNotMatch(down, /DROP FUNCTION|CREATE\s+(OR\s+REPLACE\s+)?FUNCTION/i);
   assert.equal(scanSql(down).length, 0);
   const faults = fs.readFileSync('docs/REPORTED_FAULTS.md', 'utf8');
-  assert.match(faults, /parts_eta_panel_only_586/);
+  assert.match(faults, /parts_eta_panel_only_589/);
   assert.match(faults, new RegExp(md5(up)));
   assert.match(faults, new RegExp(md5(down)));
   assert.match(faults, /Set/);
