@@ -7223,7 +7223,7 @@ function workshopResequenceDialog(title, bodyHtml, buttons) {
   });
 }
 
-// r567 (F181): a bay drop that would book the same vehicle in another station
+// r575 (F189): a bay drop that would book the same vehicle in another station
 // asks with the vehicle, the bay and the time. Push back is blue.
 function workshopPushLaterDialog(result) {
   const pushes = Array.isArray(result?.pushes) ? result.pushes : [];

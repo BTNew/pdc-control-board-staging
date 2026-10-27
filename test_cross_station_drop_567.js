@@ -1,8 +1,8 @@
 /* © 2026 Specialise Pty Ltd ATFT Specialise Trust (ABN 33 539 964 819). All rights reserved. Proprietary and confidential: no copying, modification, distribution, resale or commercial use without written permission. See LICENSE. */
 'use strict';
-// r567 (F181) / sort 341. A Fitting drop that overlaps the same vehicle in another
+// r575 (F189) / sort 346. A Fitting drop that overlaps the same vehicle in another
 // station asks, names that booking, and can push it. The bay's own later jobs
-// still move back. Preview only: the migration is not applied.
+// still move back. Go-live is r575 / F189 / sort 346. The filename keeps r567.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -17,7 +17,7 @@ const planner = read('workshop-planner.js');
 const shared = read('workshop-shared-actions.js');
 const app = read('app.js');
 
-test('r567 migration is a staging preview: pins stay 241, department 135 stays frozen, sort 341 is the free one', () => {
+test('r575 migration is a staging preview: pins stay 241, department 135 stays frozen, sort 346 is the free one', () => {
   for (const src of [up, down]) {
     assert.match(src, /SET LOCAL lock_timeout = '2s'/);
     assert.match(src, /NOT BETWEEN 2 AND 45/);
@@ -32,12 +32,14 @@ test('r567 migration is a staging preview: pins stay 241, department 135 stays f
   assert.match(up, /sort_order=336 AND added_in='r563'/);
   assert.match(up, /panel_line_completion_565/);
   assert.match(up, /sort_order=337 AND added_in='r565'/);
-  assert.match(up, /sort_order=341 OR fault_id='F181'/);
-  assert.match(up, /'cross_station_drop_567','F181'/);
-  assert.match(up, /, 341, 'r567'/);
+  assert.match(up, /pmb_dept_ack_book_574/);
+  assert.match(up, /sort_order=345 AND added_in='r574'/);
+  assert.match(up, /sort_order=346 OR fault_id='F189'/);
+  assert.match(up, /'cross_station_drop_575','F189'/);
+  assert.match(up, /, 346, 'r575'/);
   assert.match(up, /if not coalesce\(p_cascade,false\) then/);
   assert.match(up, /cross-station push not confirmed/);
-  assert.match(up, /r567 \(F181\)/);
+  assert.match(up, /r575 \(F189\)/);
   assert.match(up, /SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public''/);
   assert.doesNotMatch(up, /INSERT INTO pdc_ops\.expected_function_md5/);
   assert.match(up, /Production vjdtsswhroyguxyfjdkt is not a target/);
@@ -46,7 +48,7 @@ test('r567 migration is a staging preview: pins stay 241, department 135 stays f
   assert.match(down, /release='r552'/);
   assert.match(down, /a clock version bump with the same bay window does not reject a drag \(was 1c11423631f21d520b9c2d457df8bfe1, r424\)/);
   assert.match(down, /DELETE FROM pdc_ops\.regression_checks/);
-  assert.match(down, /sort_order=341 AND added_in='r567'/);
+  assert.match(down, /sort_order=346 AND added_in='r575'/);
   assert.match(down, /if not coalesce\(p_cascade,false\) then/);
 });
 
@@ -82,10 +84,10 @@ test('the planner dialog is blue, names the station, and a started booking says 
   assert.match(dialog, /workshop-push-go/);
   assert.doesNotMatch(dialog, /#f97316|#ea580c|#c2410c|orange/i);
   assert.match(planner, /That booking is already \$\{held\}, so it was not pushed back/);
-  assert.match(app, /r567=2026\.10\.27\.r567/g);
-  assert.equal(app.split('r567=2026.10.27.r567').length - 1, 4);
+  assert.match(app, /r575=2026\.10\.27\.r575/g);
+  assert.equal(app.split('r575=2026.10.27.r575').length - 1, 4);
   assert.equal(planner.split('workshop-planner.js?').length - 1, 0);
   for (const file of ['karratha/workshop-planner.js', 'karratha/workshop-shared-actions.js', 'karratha/app.js']) {
-    assert.equal(read(file).includes('r567'), false, file);
+    assert.equal(read(file).includes('r575'), false, file);
   }
 });
