@@ -1,5 +1,19 @@
 # Reported faults
 
+## Send a fitter line to another department
+
+Craig, 27 Oct 2026. On the Fitters iPad, stock 13073300 (key 307) has a poly water tank line (`source:354acf7c-04bc-4c0d-8a6c-e825af5fde4e`, "POLY WATER TANK WITH 12V PUMP - SIZE TBC") filed as Fitting. The work belongs to Electrical. The fitter needs to send that one line to Electrical, and optionally a bay, then finish the rest of the fitting job. The line stays outstanding for Electrical. The workshop controller sees it on Vehicle Locations (including New to PMB) and books it into an Electrical bay. Either person can undo it. The station icon counts it for Electrical and does not turn that station green until the line itself is done.
+
+### Fix
+
+r583 / F197 / sort 355. Preview only. The SQL was not left applied. Staging `cdsmnqxtyyoeoznmbidd`. Production `vjdtsswhroyguxyfjdkt` was not touched. The ledger tip before this preview is sort 354 `station_icon_completion_578` (r578 / F196) and sort 353 `bodybuilder_new_to_pmb_574` (r582 / F195). Pin count stays 241. No pin is inserted. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. `fitter_job_command` stays `626ca8b23a2e5f02e2ca8f96a4533d6f`. Up md5 `9befa8a68fc4fcb470085314f30147fe`. Down md5 `295843b41146173cabc7fe85f343273b`. A rolled-back staging apply plus `fault_regression_check()` returned pins=241, reds=0, checks=126. The up-then-down round trip restored the live function bodies and left no handoff table.
+
+Blue (`#1d4ed8` / `#2563eb`) marks a sent line. Green stays complete.
+
+### Check
+
+`line_handoff_583` (F197, sort 355). It goes red if the send, undo or list is missing, if a handed-off line is treated as finished work, if the station icon no longer remaps the line, if the pin count leaves 241, or if department 135 changes.
+
 ## 13077205 hours won't change
 
 Craig, 27 Oct 2026 12:02 AWST. Stock 13077205 would not let him change the hours.

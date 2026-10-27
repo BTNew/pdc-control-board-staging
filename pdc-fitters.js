@@ -58,7 +58,61 @@
     calendar_duration_mismatch:'This booking needs its work duration checked after a workshop-hours change. Ask the controller to review it.',
     not_startable:'This booking cannot be started in its current state. Refresh the job.',
     request_reused:'This action could not be verified. Refresh before making another change.',
+    same_department:'That line is already in this department.',
+    invalid_department:'Choose a department from the list.',
+    invalid_bay:'That bay is not in the department you chose.',
+    line_not_found:'That item is no longer on this vehicle. Refresh the job.',
+    role_required:'Your sign-in cannot send a line to another department.',
+    vehicle_not_found:'This vehicle could not be found. Refresh and try again.',
+    booking_not_found:'This bay job could not be found. Refresh and try again.',
+    vehicle_mismatch:'This item is on a different vehicle. Refresh the job.',
+    invalid_line:'Choose an item to send.',
   };
+  const HANDOFF_LABELS = {TINT:'Tint',HOIST:'Hoist',FITTING:'Fitting',FABRICATION:'Fabrication',ELECTRICAL:'Electrical',TYRE:'Tyres',SUBLET:'Sublet',BUS_4X4:'Bus 4x4'};
+  function handoffLabel(code) { return HANDOFF_LABELS[code] || String(code || '').replaceAll('_',' '); }
+  // r583 (F197): send one line to another department. Blue means sent and still outstanding. Green stays complete.
+  function fitterHandoffHtml(line, state = {}) {
+    const hand = line && line.handoff;
+    const sent = !!(hand && hand.sent_away === true && !line.completed);
+    if (sent) {
+      const bay = hand.to_bay_name ? ` · ${hand.to_bay_name}` : '';
+      return `<div class="fitter-handoff is-sent"><p>Sent to ${esc(handoffLabel(hand.to_stage_code))}${esc(bay)}. Still outstanding there. This bay can be completed.</p><button type="button" data-fitter-handoff-undo="${esc(line.line_identity)}" ${state.disabled ? 'disabled' : ''}>Undo send</button></div>`;
+    }
+    if (hand && hand.received_here === true) {
+      return `<p class="fitter-handoff is-received">Sent here from ${esc(handoffLabel(hand.from_stage_code))}. Still outstanding until this line is Done.</p>`;
+    }
+    if (!state.editable || !Array.isArray(state.handoffTargets)) return '';
+    const here = state.stageCode || line.stage_code;
+    const options = [];
+    for (const target of state.handoffTargets) {
+      if (!target?.stage_code) continue;
+      const label = target.label || handoffLabel(target.stage_code);
+      if (target.stage_code !== here) options.push(`<option value="${esc(target.stage_code)}">Send to ${esc(label)}</option>`);
+      for (const bay of target.bays || []) {
+        if (!bay?.id) continue;
+        options.push(`<option value="${esc(target.stage_code)}|${esc(bay.id)}">${esc(label)} · ${esc(bay.label || ('Bay ' + bay.number))}</option>`);
+      }
+    }
+    if (!options.length) return '';
+    return `<label class="fitter-handoff">Send this line<select data-fitter-handoff="${esc(line.line_identity)}" aria-label="Send ${esc(line.description)} to another department" ${state.disabled ? 'disabled' : ''}><option value="">Keep in this bay</option>${options.join('')}</select></label>`;
+  }
+  function controllerHandoffListHtml(lines, opts = {}) {
+    const rows = Array.isArray(lines) ? lines : [];
+    if (!rows.length) return '';
+    const canUndo = opts.canUndo !== false;
+    const canBook = opts.canBook != null ? opts.canBook !== false : canUndo;
+    const cards = rows.map(line => {
+      const to = handoffLabel(line.to_stage_code);
+      const from = handoffLabel(line.from_stage_code);
+      const when = line.handed_at ? new Date(line.handed_at).toLocaleString('en-AU', {timeZone:'Australia/Perth', day:'numeric', month:'short', hour:'numeric', minute:'2-digit'}) : '';
+      const booked = line.booked === true;
+      const stock = line.stock_number ? `Stock ${line.stock_number}` : '';
+      const key = line.key_number ? `Key ${line.key_number}` : '';
+      const who = [stock, key, line.actor_email || 'Staff', line.actor_role || '', when].filter(Boolean).join(' · ');
+      return `<article class="line-handoff-card" data-line-handoff="${esc(line.line_identity)}"><p class="line-handoff-kicker">${booked ? 'Booked' : 'Unbooked'} · ${esc(to)}</p><h3>${esc(line.description || 'Operation line')}</h3><p>Sent from ${esc(from)} to ${esc(to)}${line.to_bay_name ? ` · ${esc(line.to_bay_name)}` : ''}. Still outstanding. ${esc(who)}</p><div class="line-handoff-actions">${!booked && canBook ? `<button type="button" data-line-handoff-book="${esc(line.to_stage_code)}" data-line-handoff-vehicle="${esc(line.vehicle_id)}">Book into a ${esc(to)} bay</button>` : ''}${canUndo ? `<button type="button" data-line-handoff-undo="${esc(line.line_identity)}" data-line-handoff-vehicle="${esc(line.vehicle_id)}">Undo send</button>` : ''}</div></article>`;
+    }).join('');
+    return `<section class="line-handoff-controller" aria-label="Lines sent to another department"><h3>Sent to another department</h3><p>Shown on Vehicle Locations for the workshop controller, including New to PMB. The line stays outstanding for the department it was sent to. Green is only for a completed line.</p>${cards}</section>`;
+  }
   function serverErrorCode(body) {
     for (const code of [body?.error,body?.code]) if (Object.hasOwn(errors,code)) return code;
     // PostgreSQL constraint errors may wrap the useful code in a JSON message.
@@ -278,6 +332,9 @@
       job:(id, booking) => rpc('get_fitter_job', {p_technician_id:id,p_booking_id:booking}, false),
       command, retry:() => command(null, true),
       resetItem:body => { invalidateReads(); return rpc('reset_fitter_item_timing', body, true); },
+      sendHandoff:body => { invalidateReads(); return rpc('handoff_operation_line_583', body, true); },
+      undoHandoff:body => { invalidateReads(); return rpc('undo_line_handoff_583', body, true); },
+      listHandoffs:vehicleId => rpc('list_line_handoffs_583', {p_vehicle_id:vehicleId || null}, false),
       invalidate() { generation++; retry = null; rosterCache = null; rosterRequest = null; invalidateReads(); },
       get busy() { return busy; }, get retryPending() { return Boolean(retry); },
       get retryAction() { return retry?.body.p_action || ''; },
@@ -369,22 +426,25 @@
     return `<div class="fitter-item-ticks"><label class="conv-tick"><input type="checkbox" data-fitter-item-start="${id}" ${m.running || m.done ? 'checked' : ''} ${state.disabled || m.done ? 'disabled' : ''}> Start</label>${status ? `<small class="fitter-item-status">${esc(status)}</small>` : m.needsStart && state.editable ? '<small class="fitter-item-hint">Press Start first</small>' : ''}${m.running ? itemPauseHtml(state, line.line_identity, line.description) : ''}</div>${bar}`;
   }
   function fitterLineCardHtml(line, index, state) {
-    const disabled = state.disabled, note = state.note, editable = state.editable, open = state.open;
+    const sentAway = line.handoff?.sent_away === true && !line.completed;
+    const disabled = state.disabled || sentAway, note = state.note, editable = state.editable, open = state.open;
     const m = itemTimingModel(line, state), timed = !line.external_work && !line.conversion;
     // r440: Done stays disabled until the item is started (existing Done items stay ticked and can still be unticked).
     const doneLocked = timed && m.needsStart;
-    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${m.running ? ' is-running' : ''}${m.running && state.paused ? ' is-paused' : ''}${line.item_stale && m.running ? ' is-stale' : ''}${doneLocked ? ' needs-start' : ''}"><label class="fitter-line-check"${doneLocked && editable ? ' title="Press Start first"' : ''}><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" aria-label="${esc(line.description)} done" ${line.completed ? 'checked' : ''} ${disabled || doneLocked ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
-      ${timed ? fitterItemTicksHtml(line, state) : ''}
+    const cardState = {...state, disabled};
+    return `<article class="fitter-line${line.completed ? ' is-done' : ''}${sentAway ? ' is-sent' : ''}${line.handoff?.received_here && !line.completed ? ' is-received' : ''}${m.running ? ' is-running' : ''}${m.running && state.paused ? ' is-paused' : ''}${line.item_stale && m.running ? ' is-stale' : ''}${doneLocked ? ' needs-start' : ''}"><label class="fitter-line-check"${doneLocked && editable && !sentAway ? ' title="Press Start first"' : ''}><input type="checkbox" data-fitter-line="${esc(line.line_identity)}" aria-label="${esc(line.description)} done" ${line.completed ? 'checked' : ''} ${disabled || doneLocked ? 'disabled' : ''}><span><strong>${esc(line.description)}</strong><small>${esc(line.stage_code.replaceAll('_',' '))} · ${line.external_work ? 'Supplier work · internal labour not counted' : line.hours == null ? 'Hours need review' : `${esc(line.hours)} h`}${line.completed ? ' · Work completed' : ''}</small></span></label>
+      ${timed && !sentAway ? fitterItemTicksHtml(line, cardState) : ''}
+      ${fitterHandoffHtml(line, cardState)}
       ${line.scope_changed ? '<p class="fitter-warning">This item changed. Review the work before ticking it again.</p>' : ''}
       ${line.source_note ? `<p class="fitter-source-note">${esc(line.source_note)}</p>` : ''}
-      ${editable || note ? `<details class="fitter-notes" ${open ? 'open' : ''}><summary>${note ? 'Item notes' : 'Add a note'}</summary><label for="fitter-note-${index}">Work notes</label><textarea id="fitter-note-${index}" data-fitter-note="${esc(line.line_identity)}" rows="2" maxlength="2000" ${disabled ? 'disabled' : ''}>${esc(note)}</textarea>${editable ? `<button type="button" data-fitter-save-note="${esc(line.line_identity)}" ${disabled ? 'disabled' : ''}>Save note</button>` : ''}${open ? '<small>Unsaved note</small>' : ''}</details>` : ''}</article>`;
+      ${editable || note ? `<details class="fitter-notes" ${open ? 'open' : ''}><summary>${note ? 'Item notes' : 'Add a note'}</summary><label for="fitter-note-${index}">Work notes</label><textarea id="fitter-note-${index}" data-fitter-note="${esc(line.line_identity)}" rows="2" maxlength="2000" ${disabled ? 'disabled' : ''}>${esc(note)}</textarea>${editable && !sentAway ? `<button type="button" data-fitter-save-note="${esc(line.line_identity)}" ${disabled ? 'disabled' : ''}>Save note</button>` : ''}${open ? '<small>Unsaved note</small>' : ''}</details>` : ''}</article>`;
   }
   // The cache token of the pdc-fitters.js tag (index.html text or a script src).
   function fitterScriptToken(text) {
     const m = String(text || '').match(/pdc-fitters\.js\?([^"'\s<>]+)/);
     return m ? m[1].replace(/&amp;/g, '&') : '';
   }
-  const api = { createService, fitterScriptToken, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, fitterJobKeyNumber, fitterKeyBadgeHtml, conversionUsesSimpleTick, fitterLineCardHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml, itemPauseHtml };
+  const api = { createService, fitterScriptToken, progressHtml, runningHtml, timerModel, timerHtml, formatElapsed, startConfirmationMessage, fitterJobFlow, esc, fitterJobKeyNumber, fitterKeyBadgeHtml, conversionUsesSimpleTick, fitterLineCardHtml, fitterHandoffHtml, controllerHandoffListHtml, fitterItemTicksHtml, itemTimingModel, conversionTicksHtml, conversionSectionHtml, itemPauseHtml };
   if (typeof module !== 'undefined' && module.exports) { module.exports = api; return; }
   root.PdcFitters = api;
   const doc = root.document;
@@ -449,7 +509,7 @@
     const unsaved=[...drafts.keys()].some(k=>k.startsWith(selected+':')) || root.PdcConversions?.hasDrafts() || conversionNotes.size>0;
     const ready=detail?.progress?.can_complete && !unsaved && !root.PdcBusWorkflow?.hasDrafts() && !busPending();
     const completeLabel=(saving||loading)&&pendingAction==='complete'?'Completing job…':flow.otherActive.length?'Complete & return to active work':flow.next?'Complete & open next job':'Complete bay job';
-    const help=unsaved?'Save your notes before completing this bay.':detail?.status==='stoppage'?'Resume this job before completing the bay.':ready?'All items are done. Complete this bay to continue.':'Tick off every item in this bay before completing the job.';
+    const help=unsaved?'Save your notes before completing this bay.':detail?.status==='stoppage'?'Resume this job before completing the bay.':ready?(Number(detail?.progress?.handed_away)>0?'Lines sent to another department stay outstanding there. This bay can be completed.':'All items are done. Complete this bay to continue.'):'Tick off every item in this bay before completing the job.';
     return `<footer class="fitter-finish" aria-label="Finish current job and continue"><div class="fitter-finish-action"><div><h3>Finish this bay</h3><p>${esc(help)}</p></div><button type="button" class="fitter-primary" data-fitter-action="complete" ${locked||!editable||!ready?'disabled':''}>${completeLabel}</button></div><div class="fitter-next" aria-label="Next job preview"><span class="fitter-kicker">Next job</span>${flow.next?`${jobPreview(flow.next)}<p>${flow.otherActive.length?'Available after your active jobs are completed.':'Opens automatically after the current job is completed.'} You choose when to start it.</p>`:'<p>No further jobs assigned at the moment.</p>'}</div>${flow.upcoming.length?`<details class="fitter-upcoming"><summary>Later jobs (${flow.upcoming.length})</summary>${flow.upcoming.map(j=>`<div class="fitter-later-job">${jobPreview(j)}</div>`).join('')}</details>`:''}</footer>`;
   }
   // r500: the stoppage (pause) panel; shown under the item whose Pause was pressed, otherwise under the job buttons.
@@ -469,7 +529,7 @@
     const panel=stopOpen&&stopFrom===line.line_identity?stopPanelHtml():'';
     // r493: a section bar pauses (amber) whenever the job clock is not counting, as bay items already did.
     if(line.conversion) return conversionTicksHtml(line, index, {editable, disabled, booking:selected, paused:detail?.status!=='started'||clock.tone!=='running', noteDrafts:conversionNotes, open:!conversionClosed.has(`${selected}|${line.line_identity}`), pauseControl, pauseDisabled})+panel;
-    return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft, paused: clock.tone!=='running', jobSeconds: Number.isFinite(clock.seconds)?clock.seconds:NaN, pauseControl, pauseDisabled})+panel;
+    return fitterLineCardHtml(line, index, {editable, disabled, note, open: !!draft, paused: clock.tone!=='running', jobSeconds: Number.isFinite(clock.seconds)?clock.seconds:NaN, pauseControl, pauseDisabled, handoffTargets: detail?.handoff_targets, stageCode: detail?.stage_code})+panel;
   }
   // r493: started items show amber Paused while the job clock is held
   // (stoppage, break, closure or end of day, waiting allocation).
@@ -488,7 +548,10 @@
     const handoverText = !handover?'':!connected||completedHere?`${handover.stock} completed. Refreshing your next assigned job…`:!job?`${handover.stock} completed. No more jobs are assigned at the moment.`:['planned','queued'].includes(job.status)?`${handover.stock} completed. Your next job is ready below. Press Start job when you are ready.`:`${handover.stock} completed. Your other active job is shown below.`;
     const savingLabel=({start:'Starting job…',resume:'Resuming job…',stop:'Recording stoppage…',complete:'Completing job…'}[pendingAction]||'Saving to workshop…');
     const editable = connected && !completedHere && service.canWrite() && detail?.status === 'started';
-    const lines = detail?.lines || [], own = lines.filter(l=>l.stage_code===detail.stage_code), other = lines.filter(l=>l.stage_code!==detail.stage_code);
+    const lines = detail?.lines || [];
+    const sent = lines.filter(l => l.handoff?.sent_away && !l.completed);
+    const own = lines.filter(l => !sent.includes(l) && (l.stage_code===detail.stage_code || l.handoff?.received_here));
+    const other = lines.filter(l => !own.includes(l) && !sent.includes(l));
     target.innerHTML = `<div class="fitter-app"><header class="fitter-header"><div><h1>Fitters bay</h1><p>Your work, shared with the workshop planner</p></div><nav aria-label="Fitter navigation"><button type="button" data-fitter-refresh ${locked ? 'disabled' : ''}>Refresh</button><button type="button" data-fitter-signout ${saving ? 'disabled' : ''}>Sign out</button></nav></header>
       <div class="fitter-toolbar"><label for="fitter-mechanic">Mechanic<select id="fitter-mechanic" ${locked ? 'disabled' : ''}><option value="">Select your name</option>${roster.map(t=>`<option value="${esc(t.id)}" ${t.id===mechanic?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label><p class="fitter-sync" role="status">${saving ? savingLabel : loading ? 'Refreshing…' : connected ? `Connected · Updated ${esc(new Date(lastSync).toLocaleTimeString('en-AU',{timeZone:'Australia/Perth',hour:'numeric',minute:'2-digit',second:'2-digit'}))}` : 'Not connected · Changes unavailable'}</p></div>
       ${updateReady ? `<div class="fitter-notice fitter-update" role="status">A new version of the Fitters bay is ready. <button type="button" data-fitter-update>Update now</button></div>` : ''}
@@ -506,9 +569,10 @@
       ${stopOpen&&!own.some(l=>l.line_identity===stopFrom) ? stopPanelHtml() : ''}
       ${detail.progress.unknown_hours ? '<p class="fitter-warning">Some items need approved hours. Ask the controller to review these before completing the bay job.</p>' : ''}
       <h3>Items for this bay</h3><div class="fitter-lines">${own.map((l,i)=>lineCard(l,i,editable)).join('') || '<p class="fitter-empty">No approved operation lines for this bay. Ask the controller to review the vehicle.</p>'}</div>
+      ${sent.length ? `<section class="fitter-sent" aria-label="Sent to another department"><h3>Sent to another department</h3><p>These lines stay outstanding for the department you sent them to. They do not block this bay.</p><div class="fitter-lines">${sent.map((l,i)=>lineCard(l,own.length+i,editable)).join('')}</div></section>` : ''}
       ${detail.supplier_lines?.length && root.PdcBusWorkflow ? `<section class="fitter-supplier-checks"><h3>Supplier work — physically check the vehicle</h3><p>Check fitted work yourself. A supplier report alone does not complete these lines.</p>${root.PdcBusWorkflow.supplierHtml(detail.supplier_lines,{vehicleId:detail.vehicle_id || job.vehicle_id,editable:editable&&!locked,controller:false,bookingId:selected,technicianId:mechanic})}</section>` : ''}
       ${nextJobHtml(flow,locked,editable)}
-      ${other.length ? `<details class="fitter-other${editable ? '' : ' is-view'}" ${editable ? 'open' : ''}><summary>${editable ? `Other station items (${other.length})` : `All other vehicle items (${other.length}) · View only`}</summary>${editable ? '<p class="fitter-other-note">Tick Start, then Done, if this bay is doing that work. When every item for a station is Done, that station is ticked off on the board. Untick to undo.</p>' : ''}${other.map((l,i)=>lineCard(l,own.length+i,editable && !l.external_work && !l.conversion,true)).join('')}</details>` : ''}
+      ${other.length ? `<details class="fitter-other${editable ? '' : ' is-view'}" ${editable ? 'open' : ''}><summary>${editable ? `Other station items (${other.length})` : `All other vehicle items (${other.length}) · View only`}</summary>${editable ? '<p class="fitter-other-note">Tick Start, then Done, if this bay is doing that work. When every item for a station is Done, that station is ticked off on the board. Untick to undo.</p>' : ''}${other.map((l,i)=>lineCard(l,own.length+sent.length+i,editable && !l.external_work && !l.conversion,true)).join('')}</details>` : ''}
       <p class="fitter-help">Complete this bay after ticking off its work. Your next assigned job opens automatically; QC inspection remains a separate step.</p>` : `<div class="fitter-empty">${loading ? 'Loading your job…' : !mechanic ? 'Select your mechanic name to see your current job.' : 'No more jobs assigned. New work will appear here when the controller books it.'}</div>`}</section></div></div>`;
     target.querySelectorAll('.fitter-notes textarea').forEach(n=>{ if(openNotes.has(n.dataset.fitterNote)) n.closest('details').open=true; });
     if (focusId && selection) { const next=doc.getElementById(focusId); next?.focus({preventScroll:true}); next?.setSelectionRange?.(...selection); }
@@ -634,6 +698,64 @@
     } catch(e) { if(isCurrent()){message=e.message; connected=false;} }
     finally { saving=false; if(isCurrent()){pendingAction=''; if(bus.retryPending) render(); else await refresh();} }
   }
+  async function sendLine(lineId, value) {
+    if (saving || loading || !connected || !detail || !lineId || !value) return;
+    const [stage, bay] = String(value).split('|');
+    const label = handoffLabel(stage);
+    loadGeneration++; refreshing=false; freezeTimer(); saving=true; pendingAction='handoff'; message=''; render();
+    try {
+      const result = await service.sendHandoff({
+        p_booking_id:selected, p_vehicle_id:detail.vehicle_id || null, p_line_identity:lineId,
+        p_to_stage:stage, p_to_bay_id:bay || null,
+      });
+      message = result.code === 'undone'
+        ? 'That line is back on this bay.'
+        : `Sent to ${label}. It stays outstanding there and does not block this bay.`;
+      connected=false;
+    } catch (e) { message=e.message; if(e.code!=='busy') connected=false; }
+    finally { saving=false; pendingAction=''; if(!service.retryPending) await refresh(); else render(); }
+  }
+  async function undoLine(lineId) {
+    if (saving || loading || !connected || !detail || !lineId) return;
+    loadGeneration++; refreshing=false; freezeTimer(); saving=true; pendingAction='undo'; message=''; render();
+    try {
+      await service.undoHandoff({p_vehicle_id:detail.vehicle_id, p_line_identity:lineId, p_booking_id:selected});
+      message='The line is back on this bay.';
+      connected=false;
+    } catch (e) { message=e.message; if(e.code!=='busy') connected=false; }
+    finally { saving=false; pendingAction=''; if(!service.retryPending) await refresh(); else render(); }
+  }
+  function mountController(panel, vehicle) {
+    const id = typeof root.pmbArrivalVehicleId === 'function' ? root.pmbArrivalVehicleId(vehicle) : String(vehicle?.id || vehicle?.__emailVehicleId || vehicle?.sharedVehicleId || '');
+    const host = panel?.querySelector?.('.vso-body') || panel;
+    if (!host || !/^[0-9a-f-]{36}$/i.test(id)) return;
+    if (!root.PDC_AUTH_CONTEXT?.userId || !root.PDC_SUPABASE_CONFIG) return;
+    let box = host.querySelector('[data-line-handoff-controller]');
+    if (!box) {
+      box = doc.createElement('div');
+      box.dataset.lineHandoffController = '';
+      host.prepend(box);
+    }
+    const role = String(root.PDC_AUTH_CONTEXT.role || '').toLowerCase();
+    const canUndo = role === 'operator' || role === 'administrator';
+    service.listHandoffs(id).then(result => {
+      if (!box.isConnected) return;
+      const mine = (result.lines || []).filter(line => String(line.vehicle_id) === id);
+      box.innerHTML = controllerHandoffListHtml(mine, {canUndo, canBook: canUndo});
+      box.querySelectorAll('[data-line-handoff-undo]').forEach(button => button.addEventListener('click', async () => {
+        button.disabled = true;
+        try {
+          await service.undoHandoff({p_vehicle_id:button.dataset.lineHandoffVehicle, p_line_identity:button.dataset.lineHandoffUndo, p_booking_id:null});
+          mountController(panel, vehicle);
+        } catch (e) { button.disabled = false; root.pdcNotify?.(e.message); }
+      }));
+      box.querySelectorAll('[data-line-handoff-book]').forEach(button => button.addEventListener('click', () => {
+        const stage = button.dataset.lineHandoffBook;
+        if (typeof root.openPmbArrivalBayBooking === 'function') root.openPmbArrivalBayBooking(vehicle, stage, handoffLabel(stage));
+      }));
+    }).catch(() => { if (box.isConnected) box.innerHTML = ''; });
+  }
+  root.PdcLineHandoff = { mount: mountController, html: controllerHandoffListHtml };
   function bind(target) {
     root.PdcBusWorkflow?.bindSuppliers(target,change=>void saveSupplier(change));
     target.querySelector('[data-bus-fitter-retry]')?.addEventListener('click',()=>void saveSupplier(null,true));
@@ -645,6 +767,8 @@
     on('[data-fitter-signout]','click',()=>doc.querySelector('#pdc-auth-signout')?.click());
     on('[data-fitter-action]','click',e=>void act(e.currentTarget.dataset.fitterAction));
     on('[data-fitter-line]','change',e=>{ const n=e.currentTarget; const checked=n.checked; n.checked=!checked; void act('line',n.dataset.fitterLine,checked); });
+    on('[data-fitter-handoff]','change',e=>{ const value=e.target.value; e.target.value=''; if(value) void sendLine(e.target.dataset.fitterHandoff, value); });
+    on('[data-fitter-handoff-undo]','click',e=>{ void undoLine(e.currentTarget.dataset.fitterHandoffUndo); });
     on('[data-fitter-item-start]','change',e=>{ const n=e.currentTarget, checked=n.checked; n.checked=!checked; void act(checked?'item_start':'item_reset',n.dataset.fitterItemStart); });
     on('[data-fitter-note]','input',e=>{ const id=e.target.dataset.fitterNote, l=detail.lines.find(l=>l.line_identity===id); drafts.set(`${selected}:${id}`,{note:e.target.value,scope:l.scope_hash}); target.querySelector('[data-fitter-action="complete"]')?.setAttribute('disabled',''); });
     on('[data-fitter-save-note]','click',e=>{ const id=e.currentTarget.dataset.fitterSaveNote; void act('line',id,detail.lines.find(l=>l.line_identity===id).completed); });
