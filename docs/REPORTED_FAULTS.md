@@ -1,5 +1,29 @@
 # Reported faults
 
+## Station snapshot and the sublet board were past 8 seconds
+
+Craig, 28 Oct 2026 05:18 AWST. Go live and optimise the board. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched.
+
+Since 27 Oct 12:33 AWST the station snapshot and the sublet PO board were rebuilt by every open planner at once. Postgres logged 57 station RPCs in that window, average 20.3 s, p50 20.3 s. An uncontended call was already under a second. r545 caches the vehicle board and r554 caches location and eligibility. Neither covers these two reads. The calculation bodies had not changed.
+
+### Fix
+
+r585 / F199 / sort 357. PR #498 keeps r584 / F198 / sort 356. The public functions authorise first, then keep that exact JSON for 15 seconds. One caller builds it. The others wait for that copy. A station revision, an email revision, or a QC-line generation drops the station copy. An email revision, a QC-line generation, a PO sighting, or a sublet tick drops the board copy.
+
+The calculation checksums stay `98cc6aafa9cc7627c77eda8b46b389fa` (station) and `7dde7e19d31b269136a93ebecd12217a` (sublet). Pin count stays 241. The sublet pin stays release r439 and now names wrapper `17b223a6d98bd9c3d1326f6393b9213e`. The station wrapper is `d395400d2a34e8b39ed6d382efa48b35`. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick stays `3b2398e33a2ea35fc137deeedeca4af5`.
+
+Up `supabase/migrations/20261028054500_r585_station_sublet_cache.sql` file md5 `26c2acf14134025c9ee553a760b14989`. Down `supabase/rollbacks/20261028054500_r585_station_sublet_cache.down.sql` file md5 `39d5342046ebfcdfee7394e0ed61a021`.
+
+Before, five uncontended runs, about 05:40 AWST, median: Fitting 692.0 ms (`ad842b6408f957de6324e0fadd720d35`, 562372 bytes), Hoist 399.3 ms (`73c76f7db21842aea28acc8cba9a67d0`, 267246 bytes), Tint 471.7 ms (`5c76b9c010147c7bffc814cb6d6fb92f`, 373773 bytes), sublet 442.4 ms (`9571c569873296ac482ecfd530e5a0c5`, 28815 bytes).
+
+After, five runs, median: Fitting 8.4 ms, Hoist 0.4 ms, Tint 0.4 ms, sublet 0.8 ms. The first call of each five is the rebuild (Fitting 746.3 ms, Hoist 410.2 ms, Tint 489.3 ms, sublet 460.8 ms). Each returned JSON matched a fresh calculation in the same transaction. The sublet md5 stayed `9571c569873296ac482ecfd530e5a0c5`. Fitting, Hoist and Tint bytes moved with the workshop between the two samples (Fitting 562889 bytes, stable md5 `ec8eb94c492ee81f1555ab50d9a32dc3`).
+
+The first apply, ledger `20261027214343`, was rolled back by `20261027214828`. Its check read the cache with the regression statement's snapshot, so a row committed while that statement was running looked like a mismatch (`stored f/f`). The other 126 checks stayed green. The check now reads the cache in its own command. Ledger `20261027215121` is an empty probe and changed nothing. Live is `20261027220606` `r585_station_sublet_cache_apply`. The post-check was 127 checks and 0 red. The baseline before the apply was 126 checks and 0 red. The clock before the apply was green: 721 runs since r552, p95 74 ms.
+
+### Check
+
+`station_sublet_cache_585` (F199, sort 357). It goes red if either read takes 8 seconds or more, if two calls disagree, if the stored JSON is not the JSON that was returned, or if the calculation checksum moves.
+
 ## Send a fitter line to another department
 
 Craig, 27 Oct 2026. On the Fitters iPad, stock 13073300 (key 307) has a poly water tank line (`source:354acf7c-04bc-4c0d-8a6c-e825af5fde4e`, "POLY WATER TANK WITH 12V PUMP - SIZE TBC") filed as Fitting. The work belongs to Electrical. The fitter needs to send that one line to Electrical, and optionally a bay, then finish the rest of the fitting job. The line stays outstanding for Electrical. The workshop controller sees it on Vehicle Locations (including New to PMB) and books it into an Electrical bay. Either person can undo it. The station icon counts it for Electrical and does not turn that station green until the line itself is done.
