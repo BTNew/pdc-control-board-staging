@@ -45,6 +45,9 @@ const lifecycleFunctions = [
   extractFunction('daysSinceTimestamp'),
   extractFunction('lifecycleHistoryForVehicle'),
   extractFunction('lifecycleTimestamp'),
+  extractFunction('pmbVehicleHasKey'),
+  extractFunction('pmbKeyAssignedRow'),
+  extractFunction('pmbKeyAssignedTimestamp'),
   extractFunction('pmbAgeDays'),
   extractFunction('pmbAgeLabel'),
   extractFunction('lifecycleAgeDays'),
@@ -63,10 +66,12 @@ vm.runInContext(`${lifecycleFunctions.join('\n')} this.locationAgeLabel = locati
 
 const vehicle = {
   statusCategory: 'pmb',
+  keyNumber: '10',
+  keyAssignedAt: '2026-08-28T00:00:00+08:00',
   eta: '2026-01-01',
   lifecycleHistory: {
     firstReachedYardHoldAt: '2026-08-20T00:00:00+08:00',
-    firstEnteredPmbAt: '2026-08-28T00:00:00+08:00',
+    firstEnteredPmbAt: '2026-08-01T00:00:00+08:00',
   },
 };
 const pmbAge = context.locationAgeLabel(vehicle);
@@ -74,7 +79,8 @@ assert.match(pmbAge, /^\d+ days?$/);
 assert.doesNotMatch(pmbAge, /2026-01-01|No ETA/, 'PMB must not display Kewdale ETA');
 const yhAge = context.locationAgeLabel({ ...vehicle, statusCategory: 'yardhold' });
 assert.strictEqual(yhAge, '—');
-assert.strictEqual(context.locationAgeLabel({ statusCategory: 'pmb', lifecycleHistory: {} }), '—');
+assert.strictEqual(context.locationAgeLabel({ statusCategory: 'pmb', lifecycleHistory: {} }), 'No key');
+assert.strictEqual(context.locationAgeLabel({ statusCategory: 'pmb', keyNumber: '10', lifecycleHistory: {} }), '—');
 const itEta = context.locationAgeLabel({ statusCategory: 'transit', eta: '2026-09-04' });
 assert.strictEqual(itEta, '2026-09-04', 'IT keeps ETA-only display');
 

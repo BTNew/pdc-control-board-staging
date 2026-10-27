@@ -14,19 +14,28 @@ function load(name) {
   const end = source.indexOf('\nfunction ', start + 1);
   vm.runInContext(source.slice(start, end), context);
 }
-for (const name of ['parseDateAU','scotEtaOnly','parseIsoTimestamp','pmbEnteredTimestamp','daysSinceTimestamp','daysSinceDateValue','kewdaleEtaValue','onSiteDays','vehicleAgeColourBand','onSiteDaysClass','pmbAgeDays','incomingKewdaleAgeValue','incomingVehicleAge']) load(name);
+for (const name of ['parseDateAU','scotEtaOnly','parseIsoTimestamp','pmbEnteredTimestamp','daysSinceTimestamp','daysSinceDateValue','kewdaleEtaValue','onSiteDays','vehicleAgeColourBand','onSiteDaysClass','pmbVehicleHasKey','pmbKeyAssignedRow','pmbKeyAssignedTimestamp','pmbAgeDays','incomingKewdaleAgeValue','incomingVehicleAge']) load(name);
 const age = (v, bucket) => context.incomingVehicleAge(v,bucket);
 const car = {pmbEnteredAt:'2026-09-15T08:00:00+08:00',navisionKewdaleEta:'2026-08-01'};
-assert.equal(age(car,'pmb').label,'0 days');
-assert.equal(age(car,'pmb').colourClass,'pmb-age-fresh');
+assert.equal(age(car,'pmb').label,'No key');
+assert.equal(age(car,'pmb').colourClass,'pmb-age-unknown');
+assert.equal(age(car,'pmb').title,'No key number, so there is no PMB age');
 assert.equal(age(car,'yardhold').label,'45 days');
 assert.equal(age(car,'yardhold').colourClass,'pmb-age-critical');
-assert.equal(age(car,'qc').label,'0 days');
+assert.equal(age(car,'qc').label,'No key');
+assert.equal(age(car,'newpmb').label,'No key');
+const keyedToday = {...car, keyNumber: '205', keyAssignedAt: '2026-09-15T08:00:00+08:00', lifecycleHistory: {firstEnteredPmbAt: '2026-08-01T08:00:00+08:00'}};
+assert.equal(age(keyedToday,'pmb').label,'0 days');
+assert.equal(age(keyedToday,'pmb').colourClass,'pmb-age-fresh');
+assert.equal(age(keyedToday,'pmb').title,'Days since the key number was assigned');
+assert.equal(age({...car, keyNumber: '205', keyAssignedAt: '2026-09-14T08:00:00+08:00'},'qc').label,'1 day');
+assert.equal(age({...car, keyNumber: '205'},'pmb').label,'—');
+assert.equal(age({...car, keyNumber: '205'},'pmb').title,'Key number date not recorded');
 for (const missing of [undefined,'','bad date']) {
-  const result = age({...car,pmbEnteredAt:missing},'pmb');
+  const result = age({...car, keyNumber: '205', keyAssignedAt: missing},'pmb');
   assert.equal(result.label,'—'); assert.equal(result.colourClass,'pmb-age-unknown');
 }
-assert.equal(age({...car,lifecycleHistory:{firstEnteredPmbAt:'2026-09-14T08:00:00+08:00'}},'pmb').label,'1 day');
+assert.equal(age({...car, keyNumber: '205', lifecycleHistory:{firstEnteredPmbAt:'2026-09-14T08:00:00+08:00'}},'pmb').label,'—');
 assert.equal(age({...car,navisionKewdaleEta:''},'yardhold').label,'—');
 assert.equal(age({...car,navisionKewdaleEta:'2026-09-17'},'yardhold').label,'Due in 2 days');
 assert.equal(age({...car,navisionKewdaleEta:'2026-09-17'},'yardhold').colourClass,'pmb-age-future');
