@@ -114,7 +114,8 @@ const approvedRootImportPatch = Object.freeze({
   // r548: null-bay siblings do not block a drop, and bay 0 reads Unallocated (F162). Department 135 is not tagged.
   // Linked job-card search labels use the same verified card list as matching; Department 135 keeps its frozen planner.
   // r549: bay headers, toasts and the side panel prefer display_name. A controller pencil renames that label only (F163).
-  "workshop-planner.js": "ef856d97ce6983a0d9d4eff3617fc343d965ea2dc41dbe61cc1a6d46e381fe61",
+  // r561: slim Workshop Planner header — one title, status dot, one control row (F175). Department 135 keeps its frozen planner.
+  "workshop-planner.js": "29629a6d5843146b2773476eafed98414aeb8f829ee2473f5dc428dc331c34ec",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -124,7 +125,8 @@ const approvedRootImportPatch = Object.freeze({
   // r535: Next available / Bay order controls on the Schedule dialog (F149). Department 135 keeps its frozen stylesheet.
   // r550: the two search boxes sit above the department selector (F164).
   // r549: the bay rename field sits in the bay header (F163).
-  "workshop-planner.css": "21edcb706c95e29aa91ad1a126c2f66dca8e0ac96f56d3c30be81617418da16f",
+  // r561: slim Workshop Planner header chrome (F175). Department 135 keeps its frozen stylesheet.
+  "workshop-planner.css": "3d4a96c1a71dcdb9c6b8495e0e41717910e777f69f382a1acd5c1d5306ef0422",
   // Publish minifies app.js and styles.css in the Pages artifact only.
   // Department 135 still compares the unminified source pin below.
   // r526: outstanding Parts (class imported-parts-orange) paints #dbeafe / #1d4ed8 / #2563eb (F140).
@@ -235,7 +237,8 @@ const approvedRootImportPatch = Object.freeze({
   // r556: Parts ETA email warnings on the vehicle card for a controller (F170). Department 135 keeps its frozen app.js.
   // r557: New to PMB tile and acknowledgement (F171). Department 135 keeps its frozen app.js.
   // r560: stock numbers open the Vehicle Locations side panel; More details opens the vehicle card (F174). Department 135 keeps its frozen app.js.
-  "app.js": "7ea8f57543e57484b095dd49f69600eaa8977e70a0cce7dce3391aa74c3cd509",
+  // r561: r561=2026.10.27.r561 on both workshop-planner.js loads (slim planner header, F175). Department 135 is not tagged.
+  "app.js": "e14c0e2bd8394250fd1494919eba06f131e61c4458fdceca8378ac441404bbc5",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -348,7 +351,8 @@ const approvedRootImportPatch = Object.freeze({
   // r556: r556=2026.10.26.r556 on app.js (Parts ETA email warnings, not the Stoppages bucket; F170). Department 135 is not tagged.
   // r557: index.html adds r557=2026.10.27.r557 on app.js and canonical-entry.js (New to PMB, F171). Department 135 is not tagged.
   // r560: index.html adds r560=2026.10.27.r560 on app.js (stock opens side panel, F174). Department 135 is not tagged.
-  "index.html": "321f494726dc376968a9645456213036266752e8099a8418c000c003025b4627",
+  // r561: r561=2026.10.27.r561 on workshop-planner.css (slim planner header, F175). Department 135 is not tagged.
+  "index.html": "6877685c4e3fab5fd10c3f279d9715603d82ad44fa144913d03a6a6101f2b50b",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

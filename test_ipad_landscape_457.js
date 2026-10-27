@@ -12,9 +12,18 @@ test('r457: from 901 to 1180 px the side menu keeps one item per row and stays i
   assert.match(b,/\.nav-scroll-cue \{\s*display: none !important;/);
   assert.match(b,/position: sticky;/);
 });
-test('r457: up to 1300 px the stacked planner header no longer turns flex-basis into height',()=>{
-  const b=block('@media (max-width: 1300px) {\n  .workshop-planner-header > div:first-child');
-  assert.match(b,/\.workshop-planner-header > \.workshop-date-controls \{\s*flex: 0 0 auto;\s*width: 100%;/);
+test('r457: stacked planner header no longer turns flex-basis into height',()=>{
+  // r561 keeps the empty-band fix on .workshop-planner-brand; stacks only below 1100 px so 1280 stays one row.
+  const marker='.workshop-planner-header > .workshop-planner-brand';
+  const i=css.lastIndexOf(marker);
+  assert.ok(i>=0, marker);
+  const mediaStart=css.lastIndexOf('@media (max-width: 1100px)', i);
+  assert.ok(mediaStart>=0 && mediaStart<i, 'brand stack rule lives in the 1100px media query');
+  const b=block('@media (max-width: 1100px)');
+  // Prefer the media block that owns the brand selector (first 1100px block near end of file).
+  const brandBlock=css.slice(mediaStart, css.indexOf('}', css.indexOf('width: 100%;', i))+1);
+  assert.match(brandBlock,/\.workshop-planner-header > \.workshop-date-controls \{\s*flex: 0 0 auto;\s*width: 100%;/);
+  assert.ok(b.includes('1100px'));
 });
 test('r457: the phone/portrait QC page and the locked files are untouched; the stylesheet is cache-busted',()=>{
   assert.match(html,/href="workshop-planner\.css\?[^"]*ipad-landscape=2026\.10\.22\.r457(?:&amp;[^"]*)?" \/>/);
