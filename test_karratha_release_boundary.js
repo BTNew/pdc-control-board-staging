@@ -132,7 +132,8 @@ const approvedRootImportPatch = Object.freeze({
   // r526: outstanding Parts (class imported-parts-orange) paints #dbeafe / #1d4ed8 / #2563eb (F140).
   // Department 135 is not tagged and keeps the orange paint. The colour token and the labels stay.
   // r557: New to PMB flashes blue, and prefers-reduced-motion keeps a solid blue (F171). Department 135 is not tagged.
-  "styles.css": "8d9d905449f0b8202aadd760b1d4141c59f22ecafc4ffedf2d0568cb0bbdab67",
+  // r560: the Key number needed badge is blue (#dbeafe / #1d4ed8), not orange (F174). Department 135 is not tagged.
+  "styles.css": "3fb7540d8aaf82fd764e5560e2667c42d79f68843d26de5d8e4316f541d126a4",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
   "scripts/build_pages_runtime.js": "cd1a534ae7b8b7a004080b55ef39edd0633f8fd598622b07c70f2bf8f2a9f55d",
   "pdc-operation-review-slim.css": "67196ee7dd4415c31c1eb2237fbcdb6c49fa5852fa7d0020aedf6198db0b167a",
@@ -176,7 +177,8 @@ const approvedRootImportPatch = Object.freeze({
   // r501: r501=2026.10.23.r501 on pdc-sublet-intake.js (Sublet page create hidden; bookings made in Manage sublets; F114).
   // r557: the Vehicle Locations table loads with r557=2026.10.27.r557 (New to PMB, F171). Department 135 keeps its frozen loader.
   // r560: vehicle-slideout=2026.10.27.r560 (More details link to the vehicle card; F174). Department 135 keeps its frozen loader.
-  "canonical-entry.js": "a5c3c3e516c23cef39bd61ead26cfee3ec24a692c50d246f6c60296d1a237e97",
+  // r560: the table loader also carries r560=2026.10.27.r560 (key-number gate, F174). Department 135 is not tagged.
+  "canonical-entry.js": "5054acc2878497c1cd93c984a51801683ae05d033637fb77aa86ea22bdbd7073",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
   // dropdown (20 Oct 2026); every bay item gets Start / Done and the board
@@ -238,7 +240,8 @@ const approvedRootImportPatch = Object.freeze({
   // r557: New to PMB tile and acknowledgement (F171). Department 135 keeps its frozen app.js.
   // r560: stock numbers open the Vehicle Locations side panel; More details opens the vehicle card (F174). Department 135 keeps its frozen app.js.
   // r561: r561=2026.10.27.r561 on both workshop-planner.js loads (slim planner header, F175). Department 135 is not tagged.
-  "app.js": "e14c0e2bd8394250fd1494919eba06f131e61c4458fdceca8378ac441404bbc5",
+  // r560: a vehicle cannot leave New to PMB without a key number, and the PMB age starts when that key was assigned (F174). Department 135 is not tagged.
+  "app.js": "b6ead27853c72bcb8c1a3c5c5ba6be5272c5c46c7e62bad7623ab53db5f3f70e",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -352,7 +355,8 @@ const approvedRootImportPatch = Object.freeze({
   // r557: index.html adds r557=2026.10.27.r557 on app.js and canonical-entry.js (New to PMB, F171). Department 135 is not tagged.
   // r560: index.html adds r560=2026.10.27.r560 on app.js (stock opens side panel, F174). Department 135 is not tagged.
   // r561: r561=2026.10.27.r561 on workshop-planner.css (slim planner header, F175). Department 135 is not tagged.
-  "index.html": "6877685c4e3fab5fd10c3f279d9715603d82ad44fa144913d03a6a6101f2b50b",
+  // r560: index.html adds r560=2026.10.27.r560 on canonical-entry.js (key-number gate, F174). Department 135 is not tagged.
+  "index.html": "3e0e091185f815ed00f62d5037be3fdb5d56980f4f8156f4064ab11004da51a2",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).

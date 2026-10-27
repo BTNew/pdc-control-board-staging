@@ -97,7 +97,7 @@ test('Table view column set, widths, header and CSS (compact; word "Parts ETA" h
   assert.match(css, /\.vlt-table col\.c-eta \{ width: var\(--vlt-w-eta, 96px\); \}/);
   assert.match(css, /\.vlt-table td\.c-eta \.pdc-parts-eta-k \{ display: none; \}/);
   assert.match(table.widthStyle({ eta: 120 }), /--vlt-w-eta:120px/);
-  assert.equal(table.VERSION, '2026.10.27.r557'); // r481 (F94), r485 (F98), then r557 (F171) New to PMB
+  assert.equal(table.VERSION, '2026.10.27.r560'); // r481 (F94), r485 (F98), r557 (F171) New to PMB, r560 (F174) key gate
 });
 
 test('board read: v2 first, falls back to the r436 read when v2 is not there yet (404), and decorates rows', async () => {
@@ -120,7 +120,7 @@ test('board read: v2 first, falls back to the r436 read when v2 is not there yet
 test('loader and cache bust: r475 tags on the parts ETA script, the table module and index.html', () => {
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /pdc-parts-eta\.js\?parts-eta=2026\.10\.21\.r436&r475=2026\.10\.22\.r475(&r\d+=[0-9.]+r\d+)*'/); // r482 (F95) appends its own tag after r475
-  assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461&r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463&r476=2026\.10\.22\.r476&r475=2026\.10\.22\.r475&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557'/);
+  assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461&r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463&r476=2026\.10\.22\.r476&r475=2026\.10\.22\.r475&r481=2026\.10\.22\.r481&r485=2026\.10\.22\.r485&r557=2026\.10\.27\.r557&r560=2026\.10\.27\.r560'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*r475=2026\.10\.22\.r475/);
   for (const locked of ['styles.css', 'app.js']) assert.doesNotMatch(fs.readFileSync(locked, 'utf8'), /r475|pdc-parts-eta-k|c-eta/);
 });

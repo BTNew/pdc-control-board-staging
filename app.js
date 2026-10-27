@@ -675,11 +675,39 @@ function pmbEnteredDateValue(vehicle = {}) {
   return parsed.toISOString().slice(0, 10);
 }
 
+// r560 (F174): a PMB age starts when the key number was assigned. No key is not zero days.
+function pmbVehicleHasKey(vehicle = {}) {
+  const direct = String(vehicle.keyNumber || vehicle.keyNo || vehicle.key_number || vehicle.keyTag || vehicle.pdcKeyNumber || '').trim();
+  if (direct) return true;
+  const row = pmbKeyAssignedRow(vehicle);
+  return row ? row.has_key === true : false;
+}
+
+function pmbKeyAssignedRow(vehicle = {}) {
+  const map = typeof app === 'undefined' ? null : app.pmbKeyAssigned;
+  if (!map || typeof map.get !== 'function') return null;
+  for (const id of [vehicle.id, vehicle.__emailVehicleId, vehicle.sharedVehicleId, vehicle.permanent_vehicle_id]) {
+    const row = id ? map.get(String(id)) : null;
+    if (row) return row;
+  }
+  return null;
+}
+
+function pmbKeyAssignedTimestamp(vehicle = {}) {
+  const direct = vehicle.keyAssignedAt || vehicle.key_assigned_at || '';
+  if (direct) return direct;
+  const row = pmbKeyAssignedRow(vehicle);
+  return row && row.assigned_at ? row.assigned_at : '';
+}
+
 function pmbAgeDays(vehicle = {}) {
-  return daysSinceTimestamp(pmbEnteredTimestamp(vehicle));
+  if (!pmbVehicleHasKey(vehicle)) return null;
+  return daysSinceTimestamp(pmbKeyAssignedTimestamp(vehicle));
 }
 
 function pmbAgeLabel(vehicle = {}) {
+  if (typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
+  if (!pmbVehicleHasKey(vehicle)) return 'No key';
   const days = pmbAgeDays(vehicle);
   if (days === null) return '—';
   return `${days} day${days === 1 ? '' : 's'}`;
@@ -695,8 +723,7 @@ function lifecycleAgeDaysLabel(days) {
 }
 
 function pmbLifecycleAgeLabel(vehicle = {}) {
-  const days = lifecycleAgeDays(vehicle, 'firstEnteredPmbAt');
-  return days === null ? '—' : `${days} day${days === 1 ? '' : 's'}`;
+  return pmbAgeLabel(vehicle);
 }
 
 function yardHoldLifecycleAgeLabel(vehicle = {}) {
@@ -719,13 +746,15 @@ function partsEtaCounterClass(vehicle = {}) {
 }
 
 function pmbAgeDetailText(vehicle = {}) {
+  if (!pmbVehicleHasKey(vehicle)) return 'No key number, so there is no PMB age';
   const days = pmbAgeDays(vehicle);
-  if (days === null) return 'PMB entry date unknown';
-  if (days === 0) return 'Transferred to PMB today';
-  return `${days} day${days === 1 ? '' : 's'} at PMB`;
+  if (days === null) return 'Key number date not recorded';
+  if (days === 0) return 'Key number assigned today';
+  return `${days} day${days === 1 ? '' : 's'} since the key number was assigned`;
 }
 
 function pmbAgeClass(vehicle = {}) {
+  if (!pmbVehicleHasKey(vehicle)) return 'unknown';
   const days = pmbAgeDays(vehicle);
   if (days === null) return 'unknown';
   if (days > 30) return 'critical';
@@ -8244,12 +8273,32 @@ function pmbArrivalNoteHtml(vehicle = {}) {
   }).filter(Boolean).join('');
 }
 
+function pmbKeyNeededBadgeHtml(vehicle = {}) {
+  const row = pmbArrivalRecord(vehicle);
+  if (!row || row.viewer_pending !== true || pmbVehicleHasKey(vehicle)) return '';
+  return `<span class="badge pmb-key-needed" title="A key number is needed before this vehicle can move from New to PMB into PMB.">Key number needed</span>`;
+}
+
+const PMB_KEY_NEEDED_TITLE = 'A key number is needed before this vehicle can move from New to PMB into PMB.';
+
 function pmbArrivalActionHtml(vehicle = {}, key = '') {
-  return pmbArrivalDepartments(vehicle).filter(department => department.pending === true && department.can_acknowledge === true).map(department => {
+  const needsKey = !pmbVehicleHasKey(vehicle);
+  const pending = pmbArrivalDepartments(vehicle).filter(department => department.pending === true);
+  const buttons = pending.filter(department => department.can_acknowledge === true).map(department => {
     const label = String(department.label || department.station || 'station');
     const station = String(department.station || '');
+    const wouldClose = pending.length === 1;
+    if (needsKey && wouldClose) {
+      return `<button class="primary pmb-push-disabled" type="button" disabled title="${escapeHtml(PMB_KEY_NEEDED_TITLE)}">Acknowledge ${escapeHtml(label)}</button>`;
+    }
     return `<button class="primary" type="button" data-pmb-ack="${escapeHtml(key)}" data-pmb-ack-station="${escapeHtml(station)}" title="Acknowledge ${escapeHtml(label)} so that station can prepare. The vehicle is already at PMB.">Acknowledge ${escapeHtml(label)}</button>`;
   }).join('');
+  const push = pending.length === 0 && pmbArrivalRecord(vehicle)?.viewer_pending === true
+    ? (needsKey
+      ? `<button class="primary pmb-push-disabled" type="button" disabled title="${escapeHtml(PMB_KEY_NEEDED_TITLE)}">To PMB</button>`
+      : `<button class="primary" type="button" data-pmb-push="${escapeHtml(key)}" title="Move this vehicle from New to PMB into PMB.">To PMB</button>`)
+    : '';
+  return buttons + push;
 }
 
 function pmbArrivalVehicleId(vehicle = {}) {
@@ -8320,6 +8369,69 @@ async function acknowledgePmbArrival(key = '', station = '') {
   });
   app.pmbArrivalAckSignature = '';
   app.pmbArrivalAckLoadedAt = 0;
+  if (typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
+}
+
+function ensurePmbKeyAssigned() {
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!client || typeof client.rpc !== 'function' || !window.PDC_AUTH_CONTEXT) return;
+  if (app.pmbKeyAssignedLoading) return;
+  const revision = app.emailVehicleLocationRevision;
+  const revisionChanged = String(revision ?? '') !== String(app.pmbKeyAssignedRevision ?? '');
+  if (!revisionChanged && app.pmbKeyAssignedLoadedAt && Date.now() - app.pmbKeyAssignedLoadedAt < 15000) return;
+  app.pmbKeyAssignedLoading = true;
+  const started = Date.now();
+  const revisionAtStart = revision;
+  client.rpc('list_pmb_key_assigned_560').then(result => {
+    app.pmbKeyAssignedLoading = false;
+    app.pmbKeyAssignedLoadedAt = started;
+    app.pmbKeyAssignedRevision = revisionAtStart;
+    if (result?.error) return;
+    const next = new Map();
+    (Array.isArray(result?.data) ? result.data : []).forEach(row => {
+      if (row?.vehicle_id) next.set(String(row.vehicle_id), row);
+    });
+    const signature = [...next.entries()].map(([id, row]) => `${id}|${row.assigned_at || ''}|${row.has_key}`).sort().join('\n');
+    const changed = signature !== app.pmbKeyAssignedSignature;
+    app.pmbKeyAssigned = next;
+    app.pmbKeyAssignedSignature = signature;
+    if (changed && app.currentView === 'dashboard' && typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
+    if (changed && app.currentView === 'qc' && typeof renderQualityControlPage === 'function') renderQualityControlPage();
+  }).catch(() => {
+    app.pmbKeyAssignedLoading = false;
+    app.pmbKeyAssignedLoadedAt = started;
+    app.pmbKeyAssignedRevision = revisionAtStart;
+  });
+}
+
+async function pushNewToPmb(key = '') {
+  const vehicle = vehicleLocationsScreenRows().find(row => vehicleKey(row) === key);
+  const id = vehicle ? pmbArrivalVehicleId(vehicle) : '';
+  const client = typeof window === 'object' ? window.PDC_SUPABASE : null;
+  if (!vehicle || !id || !client || typeof client.rpc !== 'function') {
+    if (typeof pdcNotify === 'function') pdcNotify('This vehicle could not be moved to PMB. Refresh and try again.');
+    return;
+  }
+  const result = await client.rpc('push_new_to_pmb_560', { p_vehicle_id: id });
+  const body = result?.data;
+  if (result?.error || !body || body.ok !== true) {
+    const message = body?.message || result?.error?.message || 'This vehicle could not be moved to PMB.';
+    if (typeof pdcNotify === 'function') pdcNotify(message);
+    return;
+  }
+  const data = body.data || {};
+  if (!(app.pmbArrivalAck instanceof Map)) app.pmbArrivalAck = new Map();
+  app.pmbArrivalAck.set(id, {
+    vehicle_id: id,
+    source: data.source || 'location',
+    viewer_pending: false,
+    closed: data.closed !== false,
+    departments: Array.isArray(data.departments) ? data.departments : [],
+  });
+  app.pmbArrivalAckSignature = '';
+  app.pmbArrivalAckLoadedAt = 0;
+  app.pmbKeyAssignedSignature = '';
+  app.pmbKeyAssignedLoadedAt = 0;
   if (typeof renderIncomingDashboardBoard === 'function') renderIncomingDashboardBoard();
 }
 
@@ -9180,20 +9292,24 @@ function incomingKewdaleAgeValue(vehicle = {}) {
 }
 
 function incomingVehicleAge(vehicle = {}, bucketKey = '') {
-  const atPmb = bucketKey === 'pmb' || bucketKey === 'qc';
+  const atPmb = bucketKey === 'pmb' || bucketKey === 'qc' || bucketKey === 'newpmb';
   const atYardHold = bucketKey === 'yardhold';
   if (!atPmb && !atYardHold) {
     return { label: bucketKey === 'nonnavision' ? 'Unconfirmed' : locationAgeLabel(vehicle), colourClass: '', title: '' };
   }
-  // The label and colour must use the same location-specific date.
-  // A missing PMB arrival must never fall back to a Kewdale ETA.
+  // r560 (F174): PMB, New to PMB and QC count from the key number. No key is
+  // not zero, and a missing key date does not fall back to the arrival or a Kewdale ETA.
+  if (atPmb && typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
+  if (atPmb && !pmbVehicleHasKey(vehicle)) {
+    return { label: 'No key', colourClass: 'pmb-age-unknown', title: 'No key number, so there is no PMB age' };
+  }
   const days = atPmb ? pmbAgeDays(vehicle) : daysSinceDateValue(incomingKewdaleAgeValue(vehicle));
   const count = days === null ? null : Math.abs(days);
   const duration = count === null ? '—' : `${count} day${count === 1 ? '' : 's'}`;
   return {
     label: days !== null && days < 0 ? `Due in ${duration}` : duration,
     colourClass: `pmb-age-${vehicleAgeColourBand(days)}`,
-    title: atPmb ? 'Days since arrival at PMB' : 'Days since Kewdale ETA',
+    title: atPmb ? (days === null ? 'Key number date not recorded' : 'Days since the key number was assigned') : 'Days since Kewdale ETA',
   };
 }
 
@@ -9283,7 +9399,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
           ? `<span class="rft-row-controls-slot">${rftControls}</span>`
           : `<span class="incoming-card-work-wrap">${workChecks}</span>
         <span class="incoming-card-meta incoming-card-age ${escapeHtml(locationAge.colourClass)}" title="${escapeHtml(locationAge.title)}"><b>${bucketKey === 'pmb' || bucketKey === 'newpmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(locationAge.label)}</span></span>
-        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}</span></span>
+        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}${typeof pmbKeyNeededBadgeHtml === 'function' ? pmbKeyNeededBadgeHtml(vehicle) : ''}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}</span></span>
         <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}${labelAction}${deleteAction}</span>`}
       </summary>
       <div class="incoming-vehicle-detail-grid">
@@ -9446,7 +9562,7 @@ function incomingCompareVehicles(a, b, sort = {}, bucket = '') {
       case 'customer': return text(vehicleCustomerName(vehicle));
       case 'vehicle': return text(displayVehicle(vehicle));
       case 'age': return (bucket === 'pmb' || bucket === 'newpmb' || bucket === 'qc'
-        ? parseIsoTimestamp(pmbEnteredTimestamp(vehicle))
+        ? (pmbVehicleHasKey(vehicle) ? parseIsoTimestamp(pmbKeyAssignedTimestamp(vehicle)) : null)
         : parseDateAU(bucket === 'yardhold' ? incomingKewdaleAgeValue(vehicle) : navisionEtaForVehicle(vehicle)))?.getTime() ?? null;
       default: return parseDateAU(navisionEtaForVehicle(vehicle))?.getTime() ?? null;
     }
@@ -9476,6 +9592,7 @@ function renderIncomingDashboardBoardContent() {
   const host = $('#incoming-main-board');
   if (!host) return;
   if (typeof ensurePmbArrivalAck === 'function') ensurePmbArrivalAck();
+  if (typeof ensurePmbKeyAssigned === 'function') ensurePmbKeyAssigned();
   const disclosureState = app.vehicleLocationsRefreshDisclosure || captureIncomingBoardDisclosureState(host);
   const workshopProjectionAvailable = ensureDashboardWorkshopProjectionReady();
   const workshopPlans = workshopProjectionAvailable && typeof workshopLoadPlans === 'function' ? workshopLoadPlans() : null;
@@ -9564,6 +9681,10 @@ function renderIncomingDashboardBoardContent() {
   $$('[data-pmb-ack]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();
     acknowledgePmbArrival(button.dataset.pmbAck, button.dataset.pmbAckStation);
+  }));
+  $$('[data-pmb-push]', host).forEach(button => button.addEventListener('click', event => {
+    event.stopPropagation();
+    pushNewToPmb(button.dataset.pmbPush);
   }));
   $$('[data-pit-transfer]', host).forEach(button => button.addEventListener('click', event => {
     event.stopPropagation();

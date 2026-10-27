@@ -63,7 +63,7 @@
  */
 (function vehicleLocationsTableModule(root) {
   'use strict';
-  const VERSION = '2026.10.27.r557'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r557 (F171) New to PMB tile (cache-busts this module)
+  const VERSION = '2026.10.27.r560'; // r476 (F89) widths, r475 (F88) Parts ETA column, r481 (F94) search across tiles, r485 (F98) table only, r557 (F171) New to PMB tile, r560 (F174) key-number gate (cache-busts this module)
   // r485 (F98): the one switch for the hidden Drop-down view. false = Table view only (Craig 22 Oct). true = r481 behaviour.
   const DROPDOWN_VIEW_ENABLED = false;
   const STORAGE_PREFIX = 'pdc.vehicle-locations-view.v1:';
