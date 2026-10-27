@@ -144,7 +144,8 @@ test('column widths: CSS variables keep pinned Key / Stock aligned; defaults equ
 test('the panel never calls an RPC or fetch itself and writes nothing to storage', () => {
   const source = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(source, /\bfetch\s*\(|\.rpc\s*\(|XMLHttpRequest|sendBeacon|localStorage|sessionStorage|\beval\s*\(|new Function/);
-  assert.doesNotMatch(source, /__workshopSharedActions|administratorMoveBooking|moveBooking\(|mutate\(|moveWorkshopDroppedPlan/, 'r463: the panel moves nothing');
+  assert.doesNotMatch(source, /__workshopSharedActions|administratorMoveBooking|moveBooking\(|mutate\(/, 'the panel does not call the booking writer itself');
+  assert.match(source, /root\.moveWorkshopDroppedPlan/, 'r565: a bay drop calls the existing planner move');
   assert.doesNotMatch(source, /deleteIncomingVehicleFromMain\(|completeVehicle|markVehicleComplete/, 'never calls delete / complete itself');
   const tableSource = fs.readFileSync('pdc-vehicle-locations-table.js', 'utf8');
   assert.doesNotMatch(tableSource, /\beval\s*\(|new Function|\.rpc\(|fetch\(/);
@@ -201,9 +202,9 @@ test('loader: slide-out loads after the table module; cache-bust tags; runtime f
   const entry = fs.readFileSync('canonical-entry.js', 'utf8');
   assert.match(entry, /pdc-vehicle-locations-table\.js\?vehicle-locations-table=2026\.10\.22\.r461&r462=2026\.10\.22\.r462&r463=2026\.10\.22\.r463/);
   assert.match(entry, /table\.onload = loadVehicleSlideout;/);
-  assert.match(entry, /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.(?:22\.r4(?:[67]3|85|96)|27\.r560)/); // r560 (F174)
+  assert.match(entry, /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.27\.r565/); // r565 (F179)
   assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /pdc-vehicle-slideout\.css\?vehicle-slideout=\$\{VERSION\}/);
-  assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /const VERSION = '2026\.10\.(?:22\.r4(?:7?[36]|85|96)|27\.r560)'/);
+  assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /const VERSION = '2026\.10\.27\.r565'/);
   const html = fs.readFileSync('index.html', 'utf8');
   assert.match(html, /canonical-entry\.js\?[^"]*r462=2026\.10\.22\.r462&amp;r463=2026\.10\.22\.r463/);
   const scripts = [...html.matchAll(/<script[^>]*src="([^"]+)"/g)].map(m => m[1]);

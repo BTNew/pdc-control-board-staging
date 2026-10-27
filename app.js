@@ -15504,6 +15504,43 @@ async function saveVehicleWorkCategory(select, options = {}) {
   } finally { select.disabled=false; }
 }
 
+// r565 (F179): side-panel completion ticks. The panel does not call fetch itself.
+// Controllers are operator and administrator; the server refuses anyone else.
+async function loadPanelLineCompletions(vehicleId) {
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  if (!token || !config.url || !config.publishableKey || !vehicleId) return [];
+  try {
+    const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/get_panel_line_completions_565`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_vehicle_id: vehicleId }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.ok !== true || !Array.isArray(body.lines)) return [];
+    return body.lines;
+  } catch (_) {
+    return [];
+  }
+}
+async function setPanelLineCompletion(vehicleId, lineIdentity, completed) {
+  const config = window.PDC_SUPABASE_CONFIG || {};
+  const token = typeof getPdcSupabaseAccessToken === 'function' ? getPdcSupabaseAccessToken() : null;
+  if (!token || !config.url || !config.publishableKey || !vehicleId || !lineIdentity) return { ok: false, error: 'completion_unavailable' };
+  try {
+    const response = await fetch(`${String(config.url).replace(/\/$/, '')}/rest/v1/rpc/set_panel_line_completion_565`, {
+      method: 'POST',
+      headers: { apikey: config.publishableKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_vehicle_id: vehicleId, p_line_identity: lineIdentity, p_completed: completed === true }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.ok !== true) return body || { ok: false, error: 'completion_unavailable' };
+    return body;
+  } catch (_) {
+    return { ok: false, error: 'completion_unavailable' };
+  }
+}
+
 // r399: Mechanical, Electrical or Accessories work finished before the board
 // went live has no booking to press Done on, so it would sit in Unallocated
 // forever. Operators record it as done with a reason; the server keeps the

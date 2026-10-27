@@ -87,6 +87,8 @@ test('the slide-out keeps a More details link to the vehicle card', () => {
   const slide = fs.readFileSync('pdc-vehicle-slideout.js', 'utf8');
   assert.match(slide, /button\.textContent = 'More details'/);
   assert.match(slide, /openVehicleCardFromVisibleBoard\(openStock, button\)/);
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /vehicle-slideout=2026\.10\.27\.r560/);
+  const entry = fs.readFileSync('canonical-entry.js', 'utf8');
+  assert.match(entry, /vehicle-slideout=2026\.10\.27\.r565/); // r565 (F179) bumped the panel; More details stays
+  assert.match(entry, /r560 \(F174\): More details/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /r560=2026\.10\.27\.r560/);
 });
