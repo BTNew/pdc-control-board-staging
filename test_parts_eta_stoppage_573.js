@@ -30,14 +30,27 @@ const VID = '11111111-1111-4111-8111-111111111111';
 
 test('REPORTED_FAULTS: placing a parts ETA is a blue STOPPAGE choice and the section names it', () => {
   assert.equal(REPORTED_FAULTS.length, 7);
-  const editing = stop.slotHtml({
+  const editing = stop.editorHtml({
     vehicleId: VID, canEdit: true, editing: true, today: '2026-10-27', placed: true,
     manual: { eta_date: '2026-11-02', note: 'Bull bar' }, draftEta: '2026-11-02', draftNote: 'Bull bar'
   });
   assert.match(editing, /Place as STOPPAGE/);
   assert.match(editing, /data-pdc-stoppage-place=/);
   assert.match(editing, /checked/);
-  assert.equal((editing.match(/<div/g) || []).length, 1);
+  assert.equal((editing.match(/<div/g) || []).length, 0);
+  const resting = stop.detailHtml({
+    vehicleId: VID, canEdit: true, editing: false, today: '2026-10-27', placed: true,
+    manual: { eta_date: '2026-11-02', note: 'Bull bar' }
+  });
+  assert.match(resting, /Place as STOPPAGE/);
+  assert.match(resting, /data-pdc-stoppage-place-now=/);
+  assert.match(resting, /Change/);
+  const cell = stop.slotHtml({
+    vehicleId: VID, canEdit: true, editing: true, today: '2026-10-27', placed: true,
+    manual: { eta_date: '2026-11-02', note: 'Bull bar' }
+  });
+  assert.doesNotMatch(cell, /data-pdc-stoppage-edit=|<button|type="date"/);
+  assert.equal((cell.match(/<div/g) || []).length, 1);
   assert.doesNotMatch(editing, /danger-button|#f97316|orange/i);
   assert.deepEqual(stop.placePayload('save', { eta: '2026-11-02', note: 'Bull bar' }, true, false), {
     p_place: true, p_eta: '2026-11-02', p_note: 'Bull bar'

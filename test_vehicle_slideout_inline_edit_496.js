@@ -74,6 +74,7 @@ function board({ role = 'administrator', vehicles = 3 } = {}) {
         line.work_category = body.p_category; line.category_version += 1; detail.vehicle_version += 1; reply = { ok: true };
       } else reply = { ok: false, error: 'version_conflict', message: 'Synthetic version conflict' };
     }
+    if (name === 'get_panel_line_completions_565' && server.completionLines) reply = { ok: true, lines: server.completionLines };
     if (name === 'save_vehicle_workshop_line_hours_batch_768') {
       const detail = server.details.get(body.p_vehicle_id);
       for (const row of body.p_estimated_rows) { const line = detail.job_card_lines.find(l => l.line_identity === row.line_key); if (line) line.estimated_hours = row.estimated_hours; }
@@ -291,10 +292,15 @@ test('3c. closing the panel or opening another vehicle with unsaved changes asks
 test('4. speed guard: the board reads nothing; a panel open reads the completion list once; Edit reads one vehicle', async () => {
   const b = board({ vehicles: 40 });
   b.c.app.data = b.rows;
+  b.server.completionLines = [{ line_identity: 'source:line', completed: false, actor_email: '', acted_at: '' }];
   for (const vehicle of b.rows) b.c.incomingVehicleDetailRow(vehicle);
   assert.equal(b.server.calls.length, 0, 'drawing the board reads nothing');
   for (const vehicle of b.rows) b.openPanel(vehicle);
   await b.settle();
+  assert.equal(b.spies.cardsDrawn, 80, '40 board rows plus one card per open; the completion list does not draw the card again');
+  assert.equal(b.c.PDC_VEHICLE_SLIDEOUT.state.key, b.c.vehicleKey(b.rows[39]));
+  b.vlt.opener.refresh(b.c.vehicleKey(b.rows[39]), 'pmb');
+  assert.equal(b.spies.cardsDrawn, 80, 'a table refresh of the same vehicle does not rebuild the panel');
   const completions = b.server.calls.filter(call => call.name === 'get_panel_line_completions_565');
   assert.equal(completions.length, 40, 'one completion read per opened vehicle');
   assert.deepEqual([...new Set(completions.map(call => call.body.p_vehicle_id))].sort(), b.rows.map(row => row.id).sort());
@@ -327,8 +333,8 @@ test('5. slimWorkPage keeps inputs and selectors, removes every button, keeps dr
 });
 
 test('6. loader, styles and docs: r565 cache-bust tags, FAULT_LOG F109 and F179, panel doc; no real stock numbers here', () => {
-  assert.equal(slideout.VERSION, '2026.10.28.r588');
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588'/);
+  assert.equal(slideout.VERSION, '2026.10.28.r586');
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r586'/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r496=2026\.10\.22\.r496&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r563=2026\.10\.27\.r563&amp;/);
   assert.match(fs.readFileSync('index.html', 'utf8'), /&amp;r565=2026\.10\.27\.r565&amp;/);

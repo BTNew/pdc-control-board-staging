@@ -1,5 +1,31 @@
 # Reported faults
 
+## Parts ETA in the table no longer sets a date
+
+Craig, 28 Oct 2026 06:05 AWST. On Vehicle Locations the Parts ETA cell (`Set`) does nothing when you click it. The date should be read in that column. It is set or changed only in the vehicle side panel, in the PARTS ETA section that opens when you click the vehicle. That section must also offer Place as STOPPAGE, the same choice from #561 (r581), so the vehicle can go into the planner's Stoppage section. The side panel is slow to open and slow when a date is set.
+
+### Cause
+
+The cell and the panel both asked a function named `refreshAllViews` to repaint. That function is not defined anywhere, so the click stored "editing" and then drew nothing. Opening the panel built the vehicle card, then built it again when the completion list came back, and every Vehicle Locations refresh built it again. Each of those builds also asked for the email notes and the line handoffs. A burst of operation chips queued a layout read for every chip.
+
+### Fix
+
+r586 / F200 / sort 358. Preview only. The SQL is not applied. Staging `cdsmnqxtyyoeoznmbidd`. Production `vjdtsswhroyguxyfjdkt` was not touched. Sort 357 is the board-speed check `station_sublet_cache_585` (r585 / F199), already on staging. Sort 356 / r584 / F198 stays with the #498 preview. The New to PMB preview had not taken a triple. Pin count stays 241. No pin is inserted. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel's rows validator stays `9be0883b1a555f48f3c1ba9fa111c891` and the apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The manual save stays `fa275b45be296e9021f9f4dc570f5751`. The stoppage board stays `c22076cba374291befa2ea23fc59f276`. No function body is replaced, so those functions still return the same bytes. Up md5 `6bda97c7f1c46a39e471a9788d6880da`. Down md5 `6b39a6442ae1a057179b71a1e5f099a4`.
+
+The Parts ETA column shows the date and nothing you can click to set one. Set date, Change, and the blue Place as STOPPAGE checkbox are in the side panel. Saving a date calls the existing save. Ticking Place as STOPPAGE calls the existing r581 place. It does not download the stoppage list again. The planner Stoppage section updates from that reply. A tick with no date opens the date form and does not write.
+
+The panel is drawn once per open. When the completion list arrives it puts the ticks back on the chips instead of building the card again. A Vehicle Locations refresh that still shows the same vehicle does not build the card again. Chip inserts share one layout pass.
+
+### Timings
+
+The SQL is not applied, and no function body changes, so the server times stay the times of the live functions. On staging, stock 13018398 (`be6b9a21-99cd-4779-85a0-8b770d43b832`), `get_panel_line_completions_565` was 1.891 ms (368 buffer hits). The same read earlier in this pass: email notes 4.6 ms, one vehicle's station icon 7.8 ms, the cached QC lines 1 ms, and the station-icon list for 200 vehicles 131 ms and about 150 KB.
+
+Before, a click on Set stored "editing" and painted nothing, because `refreshAllViews` is not a function. Opening the panel built the card, then built it again when the completion list came back, and every table refresh built it again. Each extra build asked for the email notes and the line handoffs a second time. In the slide-out fixture, 40 opens that each receive a completion row now draw 40 cards (80 including the 40 board rows drawn first) and a refresh of that same vehicle draws none. The old path would have drawn the card again for each of those 40 completion replies and again on the refresh. Setting a date and ticking Place as STOPPAGE is two calls, `set_pdc_parts_stoppage_564` then `place_parts_eta_stoppage_573`. The stoppage list is not downloaded again. A local run of that script, with the network stubbed, showed those two calls and then the planner Stoppage section for 13018398. The live board was not signed in, and nothing was written to staging.
+
+### Check
+
+`parts_eta_panel_only_586` (F200, sort 358). It goes red if the manual save, the stoppage board, the email ETA, Kajel's two import functions or department 135 change, if Place as STOPPAGE is missing, if the pin count leaves 241, or if r586 inserts a pin.
+
 ## Side panel: PO chips overlapped the completion tick
 
 Craig, 28 Oct 2026 07:19 AWST. Go live on staging. Stock **13092999** (Hilux DCC), Vehicle Locations side panel.

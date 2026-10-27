@@ -205,7 +205,8 @@ const approvedRootImportPatch = Object.freeze({
   // r566: loads pdc-workshop-vehicle-search.js before the key-number chain; the table loader adds r566=2026.10.27.r566 (planner search boxes, F180). Department 135 is not tagged.
   // r575: pdc-key-number.js cache bust r575=2026.10.27.r575 (F189). Department 135 is not tagged.
   // r573: the same loader adds r573=2026.10.27.r573 (Place as STOPPAGE, F187). Department 135 is not tagged.
-  "canonical-entry.js": "f64e5f5ef711b653f6d4b1dcf3ca062a72d21c6f42ea597398e3127e3a69019f",
+  // r586: the loader adds r586=2026.10.28.r586 on pdc-parts-stoppage.js and vehicle-slideout=2026.10.28.r586 (Parts ETA is set in the side panel; F200). Department 135 is not tagged.
+  "canonical-entry.js": "bae05b0d3f2440437b738a26a37539c55899918f05cca191730ddfcc29624f9d",
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a
@@ -423,7 +424,8 @@ const approvedRootImportPatch = Object.freeze({
   // r573: index.html adds r573=2026.10.27.r573 on canonical-entry.js, and the hidden JITA panel has Place as STOPPAGE (F187). Department 135 is not tagged.
   // r582: index.html adds r582=2026.10.27.r582 on app.js, styles.css and vehicle-location-lifecycle.js (body-builder hold, F195). Department 135 is not tagged.
   // r583: index.html adds r583=2026.10.27.r583 on pdc-fitters.js and pdc-fitters.css (send a line to another department, F197). Department 135 is not tagged.
-  "index.html": "7bd9ed7f97838ae63d225061077ab07201360a277e955a7c487154249cd268e8",
+  // r586: index.html adds r586=2026.10.28.r586 on canonical-entry.js (Parts ETA is set in the side panel, F200). Department 135 is not tagged.
+  "index.html": "669c41b8822f10d13c448cea8dc83f604926571846d5fa68ee2c9ce5a87b161b",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
