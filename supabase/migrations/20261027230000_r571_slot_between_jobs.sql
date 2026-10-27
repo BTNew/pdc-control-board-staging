@@ -1,10 +1,8 @@
--- r571 (F185) / sort 343. PREVIEW. This file is not applied.
+-- r571 (F185) / sort 343. Go-live of #559.
 -- Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
--- Stacked on #557 (r567 / F181). Do not edit that preview.
--- Live tip on main is r569 / F183 / sort 340. Open previews hold r570 / F184
--- (#544 and #556 at sort 341, Bay Manager at sort 342) and #552 still names
--- sort 342. #557 holds r567 / F181 / sort 341. This is r571 / F185 / sort 343.
--- Pins stay 241. The move pin moves in place from r567. Department 135 is not edited.
+-- Stacked on live #557 (r576 / F190 / sort 347, check cross_station_drop_576).
+-- r571 / F185 / sort 343 is free. Pins stay 241. The move pin moves in place from r576.
+-- Department 135 is not edited. The move body must be b6e8241730be349bdd79a295afba0a8a.
 -- A timed drop pushes later jobs in that bay. A started or stoppage booking of the
 -- same vehicle cannot move; the planner is asked to place this job after it.
 -- A leftover exclusion error is returned as that booking, not a raw 23P01.
@@ -18,9 +16,10 @@ DO $g$ BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r571: pin count is not 241'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.k135_administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')) IS DISTINCT FROM '4eb5baf999b849d174880a1e261fcbf2' THEN RAISE EXCEPTION 'r571: department 135 move changed'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='bay_job_pause_569' AND fault_id='F183' AND sort_order=340 AND added_in='r569') THEN RAISE EXCEPTION 'r571: r569 / F183 sort 340 is not present'; END IF;
- IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='cross_station_drop_567' AND fault_id='F181' AND sort_order=341 AND added_in='r567') THEN RAISE EXCEPTION 'r571: r567 cross-station drop is not present'; END IF;
- IF (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamp with time zone,integer,text,jsonb,uuid,boolean)') IS DISTINCT FROM 'r567' THEN RAISE EXCEPTION 'r571: move pin is not r567'; END IF;
- IF strpos((SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')),'r567 (F181)')=0 THEN RAISE EXCEPTION 'r571: r567 body is not present'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='cross_station_drop_576' AND fault_id='F190' AND sort_order=347 AND added_in='r576') THEN RAISE EXCEPTION 'r571: r576 cross-station drop is not present'; END IF;
+ IF (SELECT release FROM pdc_ops.expected_function_md5 WHERE signature='public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamp with time zone,integer,text,jsonb,uuid,boolean)') IS DISTINCT FROM 'r576' THEN RAISE EXCEPTION 'r571: move pin is not r576'; END IF;
+ IF strpos((SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')),'r576 (F190)')=0 THEN RAISE EXCEPTION 'r571: r576 body is not present'; END IF;
+ IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')) IS DISTINCT FROM 'b6e8241730be349bdd79a295afba0a8a' THEN RAISE EXCEPTION 'r571: move body is not the live r576 body'; END IF;
  IF to_regprocedure('public.workshop_exclusion_conflict_571(uuid,uuid,timestamptz,integer,text,integer,jsonb,boolean)') IS NOT NULL THEN RAISE EXCEPTION 'r571: helper already exists'; END IF;
  IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=343 OR fault_id='F185' OR check_name='slot_between_571' OR added_in='r571') THEN RAISE EXCEPTION 'r571: sort 343 or F185 is taken'; END IF;
 END $g$;
@@ -120,7 +119,7 @@ BEGIN
  n:=(length(newsrc)-length(replace(newsrc,old,'')))/length(old);
  IF n<>1 THEN RAISE EXCEPTION 'r571: move exception anchor found % times', n; END IF;
  newsrc:=replace(newsrc,old,repl);
- IF strpos(newsrc,'r571 (F185)')=0 OR strpos(newsrc,'r567 (F181)')=0 THEN RAISE EXCEPTION 'r571: move markers missing'; END IF;
+ IF strpos(newsrc,'r571 (F185)')=0 OR strpos(newsrc,'r576 (F190)')=0 THEN RAISE EXCEPTION 'r571: move markers missing'; END IF;
  EXECUTE 'CREATE OR REPLACE FUNCTION public.administrator_move_workshop_booking(p_booking_id uuid, p_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_override_reason text, p_metadata jsonb, p_request_id uuid, p_cascade boolean DEFAULT false)
   RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public'' AS $move571$'||newsrc||'$move571$';
 
@@ -225,14 +224,14 @@ END $mv$;
 UPDATE pdc_ops.expected_function_md5 SET
  prosrc_md5=(SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')),
  release='r571',
- note='r571: a drop between jobs pushes that bay; a running booking of the same vehicle offers a start after it (was r567)',
+ note='r571: a drop between jobs pushes that bay; a running booking of the same vehicle offers a start after it (was r576)',
  updated_at=now()
  WHERE signature='public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamp with time zone,integer,text,jsonb,uuid,boolean)'
-   AND release='r567';
+   AND release='r576';
 
 UPDATE pdc_ops.regression_checks
- SET check_sql=replace(replace(check_sql, 's.pin_release = ''r567''', 's.pin_release = ''r571'''), 'WHERE e.release = ''r567''', 'WHERE e.release = ''r571''')
- WHERE check_name='cross_station_drop_567' AND fault_id='F181' AND sort_order=341 AND added_in='r567';
+ SET check_sql=replace(replace(check_sql, 's.pin_release = ''r576''', 's.pin_release = ''r571'''), 'WHERE e.release = ''r576''', 'WHERE e.release = ''r571''')
+ WHERE check_name='cross_station_drop_576' AND fault_id='F190' AND sort_order=347 AND added_in='r576';
 
 INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,enabled,sort_order,added_in) VALUES
 ('slot_between_571','F185',
@@ -240,7 +239,7 @@ INSERT INTO pdc_ops.regression_checks(check_name,fault_id,description,check_sql,
  $chk571$
 SELECT
   pg_catalog.strpos(s.mv, 'r571 (F185)') > 0
-  AND pg_catalog.strpos(s.mv, 'r567 (F181)') > 0
+  AND pg_catalog.strpos(s.mv, 'r576 (F190)') > 0
   AND pg_catalog.strpos(s.mv, 'place_after_running') = 0
   AND pg_catalog.strpos(s.helper, 'place_after_running') > 0
   AND pg_catalog.strpos(s.helper, 'r571 (F185)') > 0
@@ -249,6 +248,10 @@ SELECT
   AND pg_catalog.strpos(s.sv, 'workshop_exclusion_conflict_571') > 0
   AND pg_catalog.strpos(s.csch, 'workshop_exclusion_conflict_571') > 0
   AND pg_catalog.strpos(s.mv, 'sqlstate ''23P01''') > 0
+  AND pg_catalog.strpos(s.cs, 'sqlstate ''23P01''') > 0
+  AND pg_catalog.strpos(s.mvb, 'sqlstate ''23P01''') > 0
+  AND pg_catalog.strpos(s.sv, 'sqlstate ''23P01''') > 0
+  AND pg_catalog.strpos(s.csch, 'sqlstate ''23P01''') > 0
   AND pg_catalog.md5(s.mv) = s.pin_md5
   AND s.pin_release = 'r571'
   AND s.r571_pins = 1
@@ -297,15 +300,15 @@ DECLARE y record; acl text; cfg text;
 BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r571: pin count changed'; END IF;
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r571')<>1 THEN RAISE EXCEPTION 'r571: expected one pin to move'; END IF;
- IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r567')<>0 THEN RAISE EXCEPTION 'r571: r567 pin remains'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.expected_function_md5 WHERE release='r576')<>0 THEN RAISE EXCEPTION 'r571: r576 pin remains'; END IF;
  IF (SELECT prosecdef FROM pg_proc WHERE oid=to_regprocedure('public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')) IS NOT TRUE THEN RAISE EXCEPTION 'r571: move is not security definer'; END IF;
  SELECT proconfig::text, proacl::text INTO cfg, acl FROM pg_proc WHERE oid=to_regprocedure('public.administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)');
- IF cfg IS DISTINCT FROM '{search_path=pg_catalog, public}' THEN RAISE EXCEPTION 'r571: search_path changed (%)', cfg; END IF;
+ IF cfg NOT IN ('{"search_path=pg_catalog, public"}', '{search_path=pg_catalog, public}') THEN RAISE EXCEPTION 'r571: search_path changed (%)', cfg; END IF;
  IF acl IS DISTINCT FROM '{postgres=X/postgres,authenticated=X/postgres}' THEN RAISE EXCEPTION 'r571: grants changed (%)', acl; END IF;
- IF (SELECT proconfig::text FROM pg_proc WHERE oid=to_regprocedure('public.move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb)')) IS DISTINCT FROM '{search_path=pg_catalog, public, extensions}' THEN RAISE EXCEPTION 'r571: move_workshop_booking search_path changed'; END IF;
- IF (SELECT proconfig::text FROM pg_proc WHERE oid=to_regprocedure('public.schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb)')) IS DISTINCT FROM '{search_path=pg_catalog, public, extensions}' THEN RAISE EXCEPTION 'r571: schedule_vehicle_work search_path changed'; END IF;
- IF (SELECT proconfig::text FROM pg_proc WHERE oid=to_regprocedure('public.cascade_workshop_booking_move(uuid,integer,text,integer,timestamptz,integer,text,jsonb)')) IS DISTINCT FROM '{search_path=pg_catalog, public}' THEN RAISE EXCEPTION 'r571: cascade move search_path changed'; END IF;
- IF (SELECT proconfig::text FROM pg_proc WHERE oid=to_regprocedure('public.cascade_workshop_schedule(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb)')) IS DISTINCT FROM '{search_path=pg_catalog, public}' THEN RAISE EXCEPTION 'r571: cascade schedule search_path changed'; END IF;
+ IF (SELECT proconfig::text FROM pg_proc WHERE oid=to_regprocedure('public.move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb)')) NOT IN ('{"search_path=pg_catalog, public, extensions"}', '{search_path=pg_catalog, public, extensions}') THEN RAISE EXCEPTION 'r571: move_workshop_booking search_path changed'; END IF;
+ IF (SELECT proconfig::text FROM pg_proc WHERE oid=to_regprocedure('public.schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb)')) NOT IN ('{"search_path=pg_catalog, public, extensions"}', '{search_path=pg_catalog, public, extensions}') THEN RAISE EXCEPTION 'r571: schedule_vehicle_work search_path changed'; END IF;
+ IF (SELECT proconfig::text FROM pg_proc WHERE oid=to_regprocedure('public.cascade_workshop_booking_move(uuid,integer,text,integer,timestamptz,integer,text,jsonb)')) NOT IN ('{"search_path=pg_catalog, public"}', '{search_path=pg_catalog, public}') THEN RAISE EXCEPTION 'r571: cascade move search_path changed'; END IF;
+ IF (SELECT proconfig::text FROM pg_proc WHERE oid=to_regprocedure('public.cascade_workshop_schedule(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb)')) NOT IN ('{"search_path=pg_catalog, public"}', '{search_path=pg_catalog, public}') THEN RAISE EXCEPTION 'r571: cascade schedule search_path changed'; END IF;
  IF has_function_privilege('authenticated', 'public.workshop_exclusion_conflict_571(uuid,uuid,timestamptz,integer,text,integer,jsonb,boolean)', 'EXECUTE') THEN RAISE EXCEPTION 'r571: helper is executable by authenticated'; END IF;
  IF has_function_privilege('anon', 'public.workshop_exclusion_conflict_571(uuid,uuid,timestamptz,integer,text,integer,jsonb,boolean)', 'EXECUTE') THEN RAISE EXCEPTION 'r571: helper is executable by anon'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=to_regprocedure('public.k135_administrator_move_workshop_booking(uuid,integer,text,integer,timestamptz,integer,text,jsonb,uuid,boolean)')) IS DISTINCT FROM '4eb5baf999b849d174880a1e261fcbf2' THEN RAISE EXCEPTION 'r571: department 135 move changed'; END IF;
@@ -313,6 +316,6 @@ BEGIN
  PERFORM set_config('search_path','pg_catalog',true);
  EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='slot_between_571' AND fault_id='F185' AND sort_order=343 AND added_in='r571') INTO y;
  IF coalesce(y.ok,false) IS NOT TRUE THEN RAISE EXCEPTION 'r571: check failed: %', y.detail; END IF;
- EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='cross_station_drop_567' AND fault_id='F181' AND sort_order=341 AND added_in='r567') INTO y;
- IF coalesce(y.ok,false) IS NOT TRUE THEN RAISE EXCEPTION 'r571: r567 check failed after the pin moved: %', y.detail; END IF;
+ EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='cross_station_drop_576' AND fault_id='F190' AND sort_order=347 AND added_in='r576') INTO y;
+ IF coalesce(y.ok,false) IS NOT TRUE THEN RAISE EXCEPTION 'r571: r576 check failed after the pin moved: %', y.detail; END IF;
 END $post$;

@@ -39,7 +39,10 @@ test('r571 migration is a staging preview stacked on r567: pins stay 241 and dep
     assert.match(src, /Production vjdtsswhroyguxyfjdkt is not a target/);
     assert.doesNotMatch(src, /project_ref='vjdtsswhroyguxyfjdkt'/);
   }
-  assert.match(up, /cross_station_drop_567/);
+  assert.match(up, /cross_station_drop_576/);
+  assert.match(up, /b6e8241730be349bdd79a295afba0a8a/);
+  assert.match(up, /r576 \(F190\)/);
+  assert.doesNotMatch(up, /r567/);
   assert.match(up, /bay_job_pause_569/);
   assert.match(up, /sort_order=343 OR fault_id='F185'/);
   assert.match(up, /'slot_between_571','F185'/);
@@ -49,7 +52,8 @@ test('r571 migration is a staging preview stacked on r567: pins stay 241 and dep
   assert.doesNotMatch(up, /INSERT INTO pdc_ops\.expected_function_md5/);
   assert.match(up, /REVOKE ALL ON FUNCTION public\.workshop_exclusion_conflict_571/);
   assert.match(down, /DROP FUNCTION public\.workshop_exclusion_conflict_571/);
-  assert.match(down, /release='r567'/);
+  assert.match(down, /release='r576'/);
+  assert.doesNotMatch(down, /r567/);
   assert.match(down, /DELETE FROM pdc_ops\.regression_checks/);
   assert.match(down, /sort_order=343 AND added_in='r571'/);
   const pair = /old:=\$old\$([\s\S]*?)\$old\$;\n repl:=\$new\$([\s\S]*?)\$new\$;/g;
