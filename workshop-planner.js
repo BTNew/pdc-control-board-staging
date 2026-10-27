@@ -164,6 +164,53 @@ function workshopPerthWeekday(value = new Date()) {
   return new Date(new Date(value).getTime() + 8 * 3600000).getUTCDay();
 }
 
+// r570 (F184): per-bay weeks. An empty map keeps today's workshop calendar and
+// Bus shift. Only a saved override replaces that bay's regular window.
+const WORKSHOP_BAY_HOURS_570 = Object.create(null);
+const WORKSHOP_BAY_DOW_570 = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+function workshopBayDowKey(date) {
+  return WORKSHOP_BAY_DOW_570[workshopPerthWeekday(date)] || '';
+}
+function workshopBayHoursOverride(context = null) {
+  if (!context) return null;
+  const stage = String(context.stage || context.stage_code || '').toUpperCase();
+  const bay = Number(context.bay ?? context.bay_number);
+  if (!stage || !Number.isInteger(bay)) return null;
+  const row = WORKSHOP_BAY_HOURS_570[`${stage}:${bay}`];
+  return row && typeof row === 'object' ? row : null;
+}
+function workshopSetBayHours570(map = null) {
+  for (const key of Object.keys(WORKSHOP_BAY_HOURS_570)) delete WORKSHOP_BAY_HOURS_570[key];
+  if (!map || typeof map !== 'object') return;
+  for (const [key, value] of Object.entries(map)) {
+    if (value && typeof value === 'object') WORKSHOP_BAY_HOURS_570[key] = value;
+  }
+}
+function workshopBayHoursCaption(stage = '', bay = 0, dateKey = '') {
+  const override = workshopBayHoursOverride({ stage, bay });
+  if (!override) return '';
+  const date = workshopDateFromKey(dateKey) || new Date();
+  const spec = override[workshopBayDowKey(date)];
+  if (!spec || spec.off === true) return 'Day off';
+  const breaks = (Array.isArray(spec.breaks) ? spec.breaks : [])
+    .map(item => `${item.start}–${item.finish || item.end}`)
+    .filter(Boolean);
+  return `${spec.start}–${spec.finish}${breaks.length ? ` · break ${breaks.join(', ')}` : ''}`;
+}
+function workshopOverrideWindows(date, override) {
+  const spec = override[workshopBayDowKey(date)];
+  if (!spec || spec.off === true) return [];
+  const startMinutes = workshopClockMinutes(spec.start);
+  const endMinutes = workshopClockMinutes(spec.finish);
+  if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || endMinutes <= startMinutes) return [];
+  const breaks = (Array.isArray(spec.breaks) ? spec.breaks : []).map(item => ({
+    startMinutes: workshopClockMinutes(item.start),
+    endMinutes: workshopClockMinutes(item.finish || item.end),
+  })).filter(item => Number.isFinite(item.startMinutes) && Number.isFinite(item.endMinutes) && item.endMinutes > item.startMinutes);
+  return workshopSubtractWindows([{ startMinutes, endMinutes, overtime: false }], breaks)
+    .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
+}
+
 // Perth calendar days are 24 hours long, so adding days is plain arithmetic.
 function workshopPerthAddDays(value = new Date(), days = 0) {
   return new Date(new Date(value).getTime() + Number(days || 0) * 86400000);
@@ -336,6 +383,11 @@ function workshopCalendarStartMinutes(context = null) {
 }
 
 function workshopIsConfiguredWorkingDay(date = new Date(), context = null) {
+  const override = workshopBayHoursOverride(context);
+  if (override) {
+    const spec = override[workshopBayDowKey(date)];
+    return !!spec && spec.off !== true;
+  }
   const weekday = new Date(new Date(date).getTime() + 8 * 3600000).getUTCDay();
   if (workshopBusShift(context)) return weekday >= 1 && weekday <= 5;
   return WORKSHOP_PLANNER_CONFIG.workingDayIndexes.includes(weekday);
@@ -482,6 +534,8 @@ function workshopSubtractWindows(windows, exclusions) {
 function workshopAvailabilityWindowsForDate(dateValue = new Date(), context = null) {
   const date = dateValue instanceof Date ? new Date(dateValue) : workshopDateFromKey(dateValue);
   if (!date || !workshopIsWorkday(date, context)) return [];
+  const override = workshopBayHoursOverride(context);
+  if (override) return workshopOverrideWindows(date, override);
   const shift = workshopBusShift(context);
   const overtime = (shift ? [] : WORKSHOP_PLANNER_CONFIG.overtimeWindowsByDateOrScope)
     .filter(window => workshopWindowApplies(window, date))
@@ -500,8 +554,17 @@ function workshopAvailabilityWindowsForDate(dateValue = new Date(), context = nu
   return merged;
 }
 
-function workshopBreakWindowsForDate(dateValue = new Date()) {
+function workshopBreakWindowsForDate(dateValue = new Date(), context = null) {
   const date = dateValue instanceof Date ? dateValue : workshopDateFromKey(dateValue);
+  const override = workshopBayHoursOverride(context);
+  if (override && date) {
+    const spec = override[workshopBayDowKey(date)];
+    if (!spec || spec.off === true) return [];
+    return (Array.isArray(spec.breaks) ? spec.breaks : []).map(item => ({
+      startMinutes: workshopClockMinutes(item.start),
+      endMinutes: workshopClockMinutes(item.finish || item.end),
+    })).filter(item => Number.isFinite(item.startMinutes) && Number.isFinite(item.endMinutes) && item.endMinutes > item.startMinutes);
+  }
   return date ? WORKSHOP_PLANNER_CONFIG.breakWindowsByDateOrScope.filter(window => workshopWindowApplies(window, date)) : [];
 }
 
@@ -3242,7 +3305,7 @@ function workshopNewBookingValidation(entry = {}, now = null) {
   const startMinute = workshopMinuteOfDay(start);
   const startWindow = workshopAvailabilityWindowsForDate(start, entry).find(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
   if (!startWindow) {
-    const inBreak = workshopBreakWindowsForDate(start).some(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
+    const inBreak = workshopBreakWindowsForDate(start, entry).some(window => startMinute >= window.startMinutes && startMinute < window.endMinutes);
     return { ok: false, error: inBreak ? 'break_window' : 'outside_work_window', date: workshopDateKey(start), minute: startMinute };
   }
   const durationMinutes = requestedDurationMinutes;
@@ -4595,10 +4658,10 @@ function workshopPartsSummary(vehicle = {}) {
   };
 }
 
-function workshopNextWorkdayDate(anchor = new Date()) {
+function workshopNextWorkdayDate(anchor = new Date(), context = null) {
   const next = anchor instanceof Date ? new Date(anchor) : new Date(anchor);
-  if (Number.isNaN(next.getTime())) return workshopNextWorkdayDate(new Date());
-  return workshopCoerceWorkDate(new Date(next.getTime() + 86400000), 1);
+  if (Number.isNaN(next.getTime())) return workshopNextWorkdayDate(new Date(), context);
+  return workshopCoerceWorkDate(new Date(next.getTime() + 86400000), 1, context);
 }
 
 function workshopNextDayFittingPartsWarnings(anchor = new Date(), rows = workshopLoadPlans()) {
@@ -4902,7 +4965,12 @@ function workshopDropPreviewHtml({ vertical = false } = {}) {
 function workshopUnavailableTimeHtml(dateKey = '', { vertical = false, stage = '', bay = 0 } = {}) {
   // Physical Bus bay shading uses the established bay shift, independently of
   // a booking's department/history. This is display-only calendar context.
-  const calendarContext = stage === 'BUS_4X4' ? { stage, bay, busCalendarVersion: 1 } : null;
+  // A saved bay week replaces that shading. Passing Bus context without an
+  // override would change closure shading, so the override is the only new path.
+  const override = workshopBayHoursOverride({ stage, bay });
+  const calendarContext = override
+    ? { stage, bay, ...(stage === 'BUS_4X4' ? { busCalendarVersion: 1 } : {}) }
+    : (stage === 'BUS_4X4' ? { stage, bay, busCalendarVersion: 1 } : null);
   const closed = workshopSubtractWindows([
     { startMinutes: WORKSHOP_PLANNER_CONFIG.dayStartMinutes, endMinutes: WORKSHOP_PLANNER_CONFIG.dayEndMinutes },
   ], workshopAvailabilityWindowsForDate(dateKey, calendarContext));
@@ -5079,7 +5147,9 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
   }
   const unavailableByCalendar = new Map();
   return workshopVisibleBays(stage).map(bay => {
-    const calendarKey = stage === 'BUS_4X4' ? ([8, 9].includes(bay) ? 'bus-short' : 'bus-standard') : 'shared';
+    const calendarKey = workshopBayHoursOverride({ stage, bay })
+      ? `override:${stage}:${bay}`
+      : (stage === 'BUS_4X4' ? ([8, 9].includes(bay) ? 'bus-short' : 'bus-standard') : 'shared');
     if (!unavailableByCalendar.has(calendarKey)) unavailableByCalendar.set(calendarKey, workshopUnavailableTimeHtml(dateKey, { stage, bay }));
     const unavailableHtml = unavailableByCalendar.get(calendarKey);
     const plans = (plansByBay.get(bay) || [])
@@ -5093,7 +5163,7 @@ function workshopBayRowsHtml(stage = '', dateKey = '', rows = []) {
       ? workshopBayRenameForm(stage, bay, bayLabel)
       : `<strong>${escapeHtml(bayLabel)}</strong>${typeof workshopBayRenameButton === 'function' ? workshopBayRenameButton(stage, bay, bayLabel) : ''}`;
     return `<div class="workshop-bay-row">
-      <div class="workshop-bay-label"><div class="workshop-bay-label-heading">${bayHeading}<button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span><label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}"${WORKSHOP_PENDING_BAY_ASSIGNMENTS.has(`${stage}:${bay}`) ? ' disabled aria-busy="true"' : ''}>${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
+      <div class="workshop-bay-label"><div class="workshop-bay-label-heading">${bayHeading}<button type="button" data-workshop-weekly-stage="${escapeHtml(stage)}" data-workshop-weekly-bay="${bay}">Week</button></div><span>${escapeHtml(stage === 'TYRE' && bay === 2 ? 'Wheel alignment' : plans.length ? `${plans.length} planned` : 'Available')}</span>${workshopBayHoursCaption(stage, bay, dateKey) ? `<small class="workshop-bay-hours">${escapeHtml(workshopBayHoursCaption(stage, bay, dateKey))}</small>` : ''}<label><small>${escapeHtml(assigneeLabel)}</small><select data-workshop-bay-mechanic-stage="${escapeHtml(stage)}" data-workshop-bay-mechanic-number="${bay}"${WORKSHOP_PENDING_BAY_ASSIGNMENTS.has(`${stage}:${bay}`) ? ' disabled aria-busy="true"' : ''}>${workshopAssigneeOptions(stage, defaultAssignee)}</select></label></div>
       <div class="workshop-bay-lane" data-workshop-drop-bay="${bay}" data-workshop-drop-stage="${escapeHtml(stage)}">
         ${unavailableHtml}
         ${workshopDropPreviewHtml()}
@@ -6014,6 +6084,7 @@ function workshopSelectReturnedPlan(planId) {
 
 function renderWorkshopPlanner(options = {}) {
   const projectionOnly = options.projectionOnly === true;
+  if (typeof window !== 'undefined') window.PdcBayManager?.ensure?.();
   if (workshopSharedModeActive()) workshopSyncConfigFromSharedSettings();
   const root = document.querySelector('#workshop-planner-root');
   if (!root) return;
@@ -7008,7 +7079,9 @@ function workshopFirstAvailableStartMinutes(stage = '', bay = 1, dateKey = '', h
 
 function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hours = workshopDefaultBookingHours(), rows = workshopLoadPlans(), notBeforeMinutes = 0, maxWorkdays = 260, referenceNow = new Date(), vehicleWindows = [], assigneeValue = null, notAfterDateKey = '', calendarVehicle = null) {
   const requestedDate = workshopDateFromKey(dateKey) || new Date();
-  let workDate = workshopCoerceWorkDate(requestedDate, 1);
+  const bayContext = { stage: normalizePmbStage(stage), bay: Number(bay), calendarVehicle };
+  const walkContext = workshopBayHoursOverride(bayContext) ? bayContext : null;
+  let workDate = workshopCoerceWorkDate(requestedDate, 1, walkContext);
   for (let dayIndex = 0; dayIndex < Math.max(1, Number(maxWorkdays) || 260); dayIndex += 1) {
     const candidateDateKey = workshopDateKey(workDate);
     if (notAfterDateKey && candidateDateKey > notAfterDateKey) return null;
@@ -7016,7 +7089,7 @@ function workshopFirstAvailableStartSlot(stage = '', bay = 1, dateKey = '', hour
     const firstMinutes = dayIndex === 0 ? Math.max(notBeforeMinutes, currentTimeFloor) : currentTimeFloor;
     const startMinutes = workshopFirstAvailableStartMinutes(stage, bay, candidateDateKey, hours, rows, firstMinutes, vehicleWindows, assigneeValue, calendarVehicle);
     if (startMinutes !== null) return { dateKey: candidateDateKey, startMinutes };
-    workDate = workshopNextWorkdayDate(workDate);
+    workDate = workshopNextWorkdayDate(workDate, walkContext);
   }
   return null;
 }
@@ -9030,6 +9103,9 @@ if (typeof module !== 'undefined' && module.exports) {
     workshopNormalizeStartDate,
     workshopAddWorkMinutes,
     workshopWorkMinutesBetween,
+    workshopSetBayHours570,
+    workshopBayHoursOverride,
+    workshopBayHoursCaption,
     workshopCascadePlans,
     workshopEntrySegmentForDate,
     workshopAdminBlockSegments,

@@ -651,6 +651,7 @@ body[data-current-view="workshop"] .main > .topbar #pdc-auth-signout {
 }
 
 .workshop-bay-label strong { color: #0f172a; font-size: .72rem; }
+.workshop-bay-hours { display: block; color: #1d4ed8; font-size: .58rem; font-weight: 800; line-height: 1.2; }
 .workshop-bay-label-heading { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .workshop-bay-label-heading button {
   border: 1px solid #93c5fd;

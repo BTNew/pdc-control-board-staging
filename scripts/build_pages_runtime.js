@@ -148,7 +148,7 @@ const RUNTIME_FILES = Object.freeze([
   'pdc-stacked-jobcards.js', 'pdc-staff-usage.css', 'pdc-staff-usage.js',
   'pdc-sublet-intake.js', 'pdc-supabase-config.staging.js', 'pdc-update-history.css',
   'pdc-update-history.js', 'pdc-vehicle-handover.js', 'pdc-workshop-hours.js',
-  'pdc-fitting-stats.css', 'pdc-fitting-stats.js', 'pdc-vehicle-sublets.css', 'pdc-vehicle-sublets.js',
+  'pdc-fitting-stats.css', 'pdc-fitting-stats.js', 'pdc-bay-manager.css', 'pdc-bay-manager.js', 'pdc-vehicle-sublets.css', 'pdc-vehicle-sublets.js',
   'pdc-workshop-tile-cleanup.js', 'pdc-workshop-usability.js',
   'pdc-running-row.css',
   'pdc-copyright.css',
