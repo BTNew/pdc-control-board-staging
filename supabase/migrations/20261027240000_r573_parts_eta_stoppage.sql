@@ -1,11 +1,16 @@
--- r580 (F193) / sort 351. Go-live. Staging cdsmnqxtyyoeoznmbidd only.
+-- r581 (F194) / sort 352. Go-live. Staging cdsmnqxtyyoeoznmbidd only.
 -- Production vjdtsswhroyguxyfjdkt is not a target.
 --
 -- The preview claimed r573 / F187 / sort 344. That triple is
 -- hours_description_fits_573. r577 is on the ledger from the rolled-back
 -- bay-manager hours release. r578 stays free for a later queue. r579 / F192 /
--- sort 350 is bay_code_identity_579. F191 and sort 349 stay free for the
--- bay-manager rework. Object names and the check name stay _573.
+-- sort 350 is bay_code_identity_579. r580 (F193) / sort 351 was applied and
+-- rolled back: the stored check compared the pin total to 241, and
+-- regression_checks_self_test went red. r580 stays on the ledger. F193 and
+-- sort 351 stay unused. F191 and sort 349 stay free for the bay-manager
+-- rework. Object names and the check name stay _573.
+-- The stored check reports the pin count. It does not compare that count to a
+-- number. The opening guard and the proof block still require 241.
 --
 -- r567 (F181, sort 338) already stores one manual parts ETA and note per vehicle
 -- in pdc_parts_stoppage_564. This release does not replace that. It adds the
@@ -29,7 +34,7 @@ DO $g$ BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r573: pin count is not 241'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='parts_stoppage_manual_567' AND fault_id='F181' AND sort_order=338 AND added_in='r567') THEN RAISE EXCEPTION 'r573: r567 / F181 sort 338 is not present'; END IF;
  IF NOT EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE check_name='service_card_stack_572' AND fault_id='F186' AND sort_order=342 AND added_in='r572') THEN RAISE EXCEPTION 'r573: r572 / F186 sort 342 is not present'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=351 OR fault_id='F193' OR check_name='parts_eta_stoppage_573' OR added_in='r580') THEN RAISE EXCEPTION 'r573: sort 351 or F193 is taken'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.regression_checks WHERE sort_order=352 OR fault_id='F194' OR check_name='parts_eta_stoppage_573' OR added_in='r581') THEN RAISE EXCEPTION 'r573: sort 352 or F194 is taken'; END IF;
  IF pg_catalog.to_regprocedure('public.place_parts_eta_stoppage_573(uuid,date,text,boolean)') IS NOT NULL THEN RAISE EXCEPTION 'r573: already applied'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.set_pdc_parts_stoppage_564(uuid,date,text,boolean,boolean)')) IS DISTINCT FROM 'fa275b45be296e9021f9f4dc570f5751' THEN RAISE EXCEPTION 'r573: set_pdc_parts_stoppage_564 changed'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.set_parts_eta(text,text,integer,text,date,text,text,text,text,boolean,timestamp with time zone)')) IS DISTINCT FROM '88d31cbd6ca5ddd372e3143d5f8c013f' THEN RAISE EXCEPTION 'r573: set_parts_eta changed'; END IF;
@@ -539,8 +544,8 @@ REVOKE ALL ON FUNCTION public.get_pdc_parts_eta_stoppage_board_573() FROM PUBLIC
 GRANT EXECUTE ON FUNCTION public.get_pdc_parts_eta_stoppage_board_573() TO authenticated;
 
 INSERT INTO pdc_ops.regression_checks (check_name, fault_id, description, check_sql, enabled, sort_order, added_in) VALUES
-('parts_eta_stoppage_573', 'F193',
- 'Parts ETA placed as STOPPAGE (r580): runs until 06:00 Perth on the ETA, a clear or parts received lifts it, later jobs are pushed, a vehicle stoppage still occupies the vehicle, pins stay 241, and department 135 is unchanged',
+('parts_eta_stoppage_573', 'F194',
+ 'Parts ETA placed as STOPPAGE (r581): runs until 06:00 Perth on the ETA, a clear or parts received lifts it, later jobs are pushed, a vehicle stoppage still occupies the vehicle, pins stay 241, and department 135 is unchanged',
  $chk573$
 WITH reported_faults AS (
   SELECT
@@ -555,8 +560,7 @@ WITH reported_faults AS (
         pg_catalog.to_regprocedure('public.parts_eta_stoppage_573_on_manual()'),
         pg_catalog.to_regprocedure('public.parts_eta_stoppage_573_on_received()'))
         AND p.prosecdef) = 4 AS helpers,
-    (SELECT count(*) FROM pdc_ops.expected_function_md5) = 241 AS pins_241,
-    NOT EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release = 'r580') AS no_new_pin,
+    NOT EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release = 'r581') AS no_new_pin,
     (SELECT md5(prosrc) FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('public.set_pdc_parts_stoppage_564(uuid,date,text,boolean,boolean)')) = 'fa275b45be296e9021f9f4dc570f5751' AS manual_unchanged,
     (SELECT md5(prosrc) FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('public.set_parts_eta(text,text,integer,text,date,text,text,text,text,boolean,timestamp with time zone)')) = '88d31cbd6ca5ddd372e3143d5f8c013f' AS email_unchanged,
     (SELECT md5(prosrc) FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')) = '83a2c8d5ff85b5a295343e5f3ef66ded' AS clock_unchanged,
@@ -576,7 +580,7 @@ WITH reported_faults AS (
   WHERE c.conname = 'workshop_bookings_active_vehicle_no_overlap'
     AND c.conrelid = 'public.workshop_bookings'::regclass
 )
-SELECT (SELECT place_fn AND helpers AND pins_241 AND no_new_pin AND manual_unchanged AND email_unchanged AND clock_unchanged AND dept135_move AND dept135_create FROM reported_faults)
+SELECT (SELECT place_fn AND helpers AND no_new_pin AND manual_unchanged AND email_unchanged AND clock_unchanged AND dept135_move AND dept135_create FROM reported_faults)
   AND (SELECT pg_catalog.strpos(prosrc, 'stoppage') > 0
     AND pg_catalog.strpos(prosrc, 'Australia/Perth') > 0
     AND pg_catalog.strpos(prosrc, 'workshop_add_operational_minutes') > 0
@@ -591,17 +595,17 @@ SELECT (SELECT place_fn AND helpers AND pins_241 AND no_new_pin AND manual_uncha
     AND pg_catalog.strpos(def, 'bay_id IS NULL') > 0 FROM rule) AS ok,
   'pins '||(SELECT count(*) FROM pdc_ops.expected_function_md5)||' place '||coalesce((SELECT md5(prosrc) FROM pg_catalog.pg_proc WHERE oid = pg_catalog.to_regprocedure('public.place_parts_eta_stoppage_573(uuid,date,text,boolean)')), 'missing') AS detail
 $chk573$,
-true, 351, 'r580');
+true, 352, 'r581');
 
 DO $g$ DECLARE y record; BEGIN
  IF (SELECT count(*) FROM pdc_ops.expected_function_md5)<>241 THEN RAISE EXCEPTION 'r573: pin count changed'; END IF;
- IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r580') THEN RAISE EXCEPTION 'r573: a pin was inserted'; END IF;
+ IF EXISTS (SELECT 1 FROM pdc_ops.expected_function_md5 WHERE release='r581') THEN RAISE EXCEPTION 'r573: a pin was inserted'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.set_pdc_parts_stoppage_564(uuid,date,text,boolean,boolean)')) IS DISTINCT FROM 'fa275b45be296e9021f9f4dc570f5751' THEN RAISE EXCEPTION 'r573: manual set changed'; END IF;
  IF (SELECT md5(prosrc) FROM pg_proc WHERE oid=pg_catalog.to_regprocedure('public.workshop_clock_tick(boolean,timestamptz)')) IS DISTINCT FROM '83a2c8d5ff85b5a295343e5f3ef66ded' THEN RAISE EXCEPTION 'r573: clock tick changed'; END IF;
- IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='parts_eta_stoppage_573' AND fault_id='F193' AND sort_order=351 AND added_in='r580' AND enabled)<>1 THEN RAISE EXCEPTION 'r573: check missing'; END IF;
+ IF (SELECT count(*) FROM pdc_ops.regression_checks WHERE check_name='parts_eta_stoppage_573' AND fault_id='F194' AND sort_order=352 AND added_in='r581' AND enabled)<>1 THEN RAISE EXCEPTION 'r573: check missing'; END IF;
  PERFORM set_config('search_path','pg_catalog, public',true);
  PERFORM set_config('request.jwt.claims','',true);
- EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='parts_eta_stoppage_573' AND fault_id='F193' AND sort_order=351 AND added_in='r580') INTO y;
+ EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name='parts_eta_stoppage_573' AND fault_id='F194' AND sort_order=352 AND added_in='r581') INTO y;
  IF y.ok IS NOT TRUE THEN RAISE EXCEPTION 'r573: check parts_eta_stoppage_573 not OK: %', y.detail; END IF;
  PERFORM set_config('search_path','public, extensions',true);
 END $g$;
