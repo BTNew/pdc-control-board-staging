@@ -205,8 +205,8 @@ const approvedRootImportPatch = Object.freeze({
   // r566: loads pdc-workshop-vehicle-search.js before the key-number chain; the table loader adds r566=2026.10.27.r566 (planner search boxes, F180). Department 135 is not tagged.
   // r575: pdc-key-number.js cache bust r575=2026.10.27.r575 (F189). Department 135 is not tagged.
   // r573: the same loader adds r573=2026.10.27.r573 (Place as STOPPAGE, F187). Department 135 is not tagged.
-  // r589: the loader adds r589=2026.10.28.r589 on pdc-parts-stoppage.js and vehicle-slideout=2026.10.28.r589 (Parts ETA is set in the side panel; F203). Department 135 is not tagged.
-  "canonical-entry.js": "6a260a6c7d37ca9b1248a0a13e4c46699c79855c8c9cd34a213c158fbff66669",
+  // r589: the loader adds r589=2026.10.28.r589 on pdc-parts-stoppage.js. The slide-out keeps vehicle-slideout=2026.10.28.r588 and adds r589=2026.10.28.r589 (Parts ETA is set in the side panel; F203). Department 135 is not tagged.
+  "canonical-entry.js": "0ce2ee6f26a21c195f97b27c81facdef3c135dd1d485a88ddde5162fc6c3e660",
   "pdc-workshop-vehicle-search.js": "d0be4a60c5ca2213ba71d4cd31cb7019736db3d7e0470d22b3fa88243e56eb4c",
   // Owner-authorised PMG fitter read recovery, 13 October 2026.
   // Coaster and HiAce conversions: one Start / Done tick per section in a

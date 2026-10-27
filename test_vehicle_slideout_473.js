@@ -77,11 +77,11 @@ test('4. everything else stays: board handlers, Key No. (Edit / History) in the 
   assert.doesNotMatch(CODE, /\bfetch\s*\(|\.rpc\s*\(|localStorage|sessionStorage|deleteIncomingVehicleFromMain\(/);
   assert.match(CODE, /root\.moveWorkshopDroppedPlan/, 'r565 calls the planner move on a bay drop');
   assert.deepEqual(Object.keys(slideout).sort(), ['VERSION', 'chipMovePlan', 'slimWorkPage'].sort()); // r565 (F179)
-  assert.equal(slideout.VERSION, '2026.10.28.r589'); // r589 (F203): open once. r588 grid stays in the file
+  assert.equal(slideout.VERSION, '2026.10.28.r588'); // r588 (F202): CSS cache-bust stays on the five-column grid
 });
 
 test('loader and docs: r473 cache-bust tags, FAULT_LOG F86, panel doc; no real stock numbers here', () => {
-  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /slideout\.src = 'pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r589';/ /* r589 (F203) */);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /slideout\.src = 'pdc-vehicle-slideout\.js\?vehicle-slideout=2026\.10\.28\.r588&r589=2026\.10\.28\.r589';/ /* r588 grid stays; r589 opens once */);
   assert.match(fs.readFileSync('index.html', 'utf8'), /canonical-entry\.js\?[^"]*&amp;r473=2026\.10\.22\.r473&amp;/);
   assert.match(SRC, /pdc-vehicle-slideout\.css\?vehicle-slideout=\$\{VERSION\}/);
   const row = fs.readFileSync('docs/FAULT_LOG.md', 'utf8').split('\n').find(line => line.startsWith('| F86 |'));

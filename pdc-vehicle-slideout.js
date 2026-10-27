@@ -45,7 +45,7 @@
  */
 (function vehicleSlideoutModule(root) {
   'use strict';
-  const VERSION = '2026.10.28.r589'; // r589 (F203): open once, and a same-vehicle table refresh does not rebuild the panel. r588 (F202): operation-line grid. r578 (F192): green complete tick.
+  const VERSION = '2026.10.28.r588'; // r588 (F202): CSS cache-bust for the five-column operation-line grid. r589 (F203) is a script query only: the panel opens once.
   // r496: the panel's slim copy of the Work & bookings rows. Kept so the full editor's markup can still be reduced.
   // r565 does not use it for Edit: Edit stays on the chip list.
   function slimWorkPage(html) {

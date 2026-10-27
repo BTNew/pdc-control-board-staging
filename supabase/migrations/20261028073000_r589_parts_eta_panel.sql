@@ -8,8 +8,9 @@
 -- so its output stays byte-identical.
 --
 -- Ledger at this apply: r587 / F201 / sort 359 is board_qc_nesting_587.
--- r588 / F202 is the live side-panel tick grid (#573) and inserted no check.
--- Sort 360 is not on the ledger. The Key 460 hoist preview still says r588 and is not required.
+-- r588 / F202 is the live tick grid (#573, publish guard #574). It inserted no check.
+-- Sort 360 is still the Key 460 hoist preview (#572) and is not taken here.
+-- r590 is the QC sign-off preview and r591 / F205 / sort 362 is the Revolution upload preview (#575).
 -- r589 / F203 / sort 361 was the #570 New to PMB preview. This go-live takes that triple.
 -- The apply refuses if 361, F203 or r589 has been taken.
 -- sort 356 / r584 / F198 stays with the #498 preview and is not required.

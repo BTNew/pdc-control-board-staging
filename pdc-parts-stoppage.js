@@ -613,7 +613,7 @@
     '.pdc-parts-stoppage-open.is-empty{background:#f8fafc;border-color:#cbd5e1;color:#334155;font-weight:650}',
     '.pdc-parts-stoppage-note{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:550;font-size:10px}',
     '.pdc-parts-stoppage-email,.pdc-parts-stoppage-jita,.pdc-parts-stoppage-checked,.pdc-parts-stoppage-scope{display:block;color:#64748b;font-size:10.5px}',
-    '.pdc-parts-stoppage-detail{grid-column:1/-1}',
+    '.incoming-vehicle-detail-grid > .pdc-parts-stoppage-detail{grid-column:1/-1}',
     '.pdc-parts-stoppage-detail .pdc-parts-stoppage-lead{display:flex;flex-wrap:wrap;gap:6px;align-items:center}',
     '.pdc-parts-stoppage-form{display:flex;flex-wrap:wrap;gap:4px;align-items:center}',
     '.pdc-parts-stoppage-form input[type="date"]{font:inherit;font-size:12px}',

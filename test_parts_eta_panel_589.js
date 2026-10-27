@@ -53,6 +53,13 @@ test('the table date is read-only and the side panel is the only editor', () => 
   assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /function rearmOperations/);
   assert.match(fs.readFileSync('pdc-vehicle-slideout.js', 'utf8'), /const redraw = key => \{ if \(state\.key === key\) render\(key, state\.bucket, \{ keepScroll: true \}\); \};/);
   assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /pdc-parts-stoppage\.js\?r567=2026\.10\.27\.r567&r573=2026\.10\.27\.r573&r589=2026\.10\.28\.r589/);
+  assert.match(fs.readFileSync('canonical-entry.js', 'utf8'), /vehicle-slideout=2026\.10\.28\.r588&r589=2026\.10\.28\.r589/);
+  assert.equal(require('./pdc-vehicle-slideout.js').VERSION, '2026.10.28.r588');
+  const stopSrc = fs.readFileSync('pdc-parts-stoppage.js', 'utf8');
+  assert.match(stopSrc, /\.incoming-vehicle-detail-grid > \.pdc-parts-stoppage-detail\{grid-column:1\/-1\}/);
+  assert.equal((stopSrc.match(/pdc-parts-stoppage-detail\{grid-column:1\/-1\}/g) || []).length, 1);
+  assert.doesNotMatch(stopSrc, /vso-tick/);
+  assert.doesNotMatch(stopSrc, /grid-column:\s*2\s*\/\s*-1/);
   assert.equal(fs.readFileSync('karratha/canonical-entry.js', 'utf8').includes('r589=2026.10.28.r589'), false);
   assert.equal(fs.readFileSync('karratha/index.html', 'utf8').includes('r589=2026.10.28.r589'), false);
 });
