@@ -1,4 +1,5 @@
 -- r574 (F188) / sort 345. Go-live of #556.
+-- Staging ledger r574_pmb_dept_ack_book 20261027054124.
 -- Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
 --
 -- The preview claimed r566 / F180 / sort 340, then r570 / F184 / sort 341.
