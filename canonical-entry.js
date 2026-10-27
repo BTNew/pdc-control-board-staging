@@ -98,16 +98,27 @@
       const keyNumber = document.createElement('script');
       keyNumber.src = 'pdc-key-number.js?key-number=2026.10.22.r460&r472=2026.10.22.r472&r490=2026.10.23.r490';
       keyNumber.dataset.pdcKeyNumber = '1';
-      keyNumber.onload = loadVehicleLocationsTable;
-      keyNumber.onerror = loadVehicleLocationsTable;
+      keyNumber.onload = loadPartsStoppage;
+      keyNumber.onerror = loadPartsStoppage;
       document.head.appendChild(keyNumber);
+    };
+    // r567 (F181): typed parts ETA and stoppage note. Loads after the key number and before the table, so the
+    // table can lift the editor into the Parts ETA column. A missing script still opens the table.
+    const loadPartsStoppage = () => {
+      if (document.querySelector('script[data-pdc-parts-stoppage]')) return;
+      const stoppage = document.createElement('script');
+      stoppage.src = 'pdc-parts-stoppage.js?r567=2026.10.27.r567';
+      stoppage.dataset.pdcPartsStoppage = '1';
+      stoppage.onload = loadVehicleLocationsTable;
+      stoppage.onerror = loadVehicleLocationsTable;
+      document.head.appendChild(stoppage);
     };
     // r461 (F74): Vehicle Locations "Table view" switch (default stays the drop-down view); loads last in this chain so
     // the table shows the same cells as the drop-downs, including the parts ETA and key number additions.
     const loadVehicleLocationsTable = () => {
       if (document.querySelector('script[data-pdc-vehicle-locations-table]')) return;
       const table = document.createElement('script');
-      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476&r475=2026.10.22.r475&r481=2026.10.22.r481&r485=2026.10.22.r485&r557=2026.10.27.r557&r562=2026.10.27.r562&r563=2026.10.27.r563'; // r476 (F89): bunched-up columns; r475 (F88): Parts ETA column; r481 (F94): search shows matches from every tile; r485 (F98): Table view only; r557 (F171): New to PMB tile; r562 (F176): key-number gate; r563 (F177): arrival age
+      table.src = 'pdc-vehicle-locations-table.js?vehicle-locations-table=2026.10.22.r461&r462=2026.10.22.r462&r463=2026.10.22.r463&r476=2026.10.22.r476&r475=2026.10.22.r475&r481=2026.10.22.r481&r485=2026.10.22.r485&r557=2026.10.27.r557&r562=2026.10.27.r562&r563=2026.10.27.r563&r567=2026.10.27.r567'; // r476 (F89): bunched-up columns; r475 (F88): Parts ETA column; r481 (F94): search shows matches from every tile; r485 (F98): Table view only; r557 (F171): New to PMB tile; r562 (F176): key-number gate; r563 (F177): arrival age; r567 (F181): typed Parts ETA lifted into the column
       table.dataset.pdcVehicleLocationsTable = '1';
       table.onload = loadVehicleSlideout;
       document.head.appendChild(table);
