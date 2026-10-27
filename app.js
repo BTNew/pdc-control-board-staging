@@ -262,7 +262,7 @@ const PMB_WIP_LIMITS = {
   HOIST: 3,
   FITTING: 5,
   FABRICATION: 14, // r509 (F122): 14 fabrication bays; 01-02 stay Internal / External Fabrication
-  ELECTRICAL: 10,
+  ELECTRICAL: 7, // r566 (F180): PMB Bays 13-19; 20-22 hidden (not deleted)
   TYRE: 2,
   PIT_INSPECTION: 1,
   SUBLET: 12,
@@ -274,7 +274,7 @@ const PMB_STAGE_BAY_COUNTS = {
   HOIST: 3,
   FITTING: 5,
   FABRICATION: 14, // r509 (F122): planner and PMB bay board draw Fab Bays 01-14
-  ELECTRICAL: 10,
+  ELECTRICAL: 7, // r566 (F180): Elec bays 08-10 (PMB 20-22) hidden via is_active
   TYRE: 2,
   PIT_INSPECTION: 1,
 };
@@ -3304,6 +3304,24 @@ function activePmbVehicleWithKeyNumber(keyNumber = '', currentKey = '') {
     const key = vehicleKey(vehicle);
     return key !== cleanCurrentKey && statusCategory(vehicle) === 'pmb' && vehicleKeyNumber(vehicle).toLowerCase() === cleanKeyNumber;
   }) || null;
+}
+
+function boardKeyToken(value = '') {
+  return String(value || '').replace(/\s+/g, '').toUpperCase();
+}
+
+function boardVehicleWithSameKey(keyNumber = '', currentKey = '') {
+  const token = boardKeyToken(keyNumber);
+  if (!token || /^0+$/.test(token)) return null;
+  return (app.data || []).find(vehicle => {
+    const key = vehicleKey(vehicle);
+    return key !== String(currentKey || '').trim() && boardKeyToken(vehicleKeyNumber(vehicle)) === token;
+  }) || null;
+}
+
+function keyAlreadyOnStockSentence(keyNumber = '', vehicle = {}) {
+  const stock = displayStockNumber(vehicle) || '(no stock)';
+  return `Key ${boardKeyToken(keyNumber)} is already on stock ${stock}`;
 }
 
 function pmbKeyNumberPillHtml(vehicle = {}) {
@@ -17151,9 +17169,14 @@ function renderDetail() {
     if (serverAuthoritative && client !== String(v.client || '').trim()) detailChanges.client_name = client;
     if (serverAuthoritative && keyNumber !== String(form.dataset.keyNumberBaseline || '').trim()) detailChanges.key_number = keyNumber;
     if (serverAuthoritative && pdcJobcard !== String(form.dataset.jobcardBaseline || '').trim()) detailChanges.job_card_number = pdcJobcard;
-    const duplicateKeyVehicle = pdcLocation === 'PMB' ? activePmbVehicleWithKeyNumber(keyNumber, key) : null;
+    const duplicateKeyVehicle = detailChanges.key_number !== undefined ? boardVehicleWithSameKey(keyNumber, key) : null;
     if (duplicateKeyVehicle) {
-      pdcNotify(`Key tag ${keyNumber} is already assigned to ${displayStockNumber(duplicateKeyVehicle) || 'another PMB vehicle'}. Only one active PMB vehicle can use a key tag number at a time.`);
+      const sentence = keyAlreadyOnStockSentence(keyNumber, duplicateKeyVehicle);
+      if (saveMessage) {
+        saveMessage.textContent = sentence;
+        saveMessage.classList.add('is-key-clash');
+      }
+      pdcNotify(sentence, 'info');
       return;
     }
     const authoritativeLocationChanged = serverAuthoritative
@@ -17230,7 +17253,17 @@ function renderDetail() {
         : await saveAuthoritativeVehicleChanges(authoritativeSaveVehicle, consultant, detailChanges);
       if (!authoritativeResult || authoritativeResult.ok !== true) {
         if (saveButton) { saveButton.disabled = false; saveButton.removeAttribute('aria-busy'); }
-        if (saveMessage) saveMessage.textContent = `Error: ${authoritativeResult?.code || 'authoritative_vehicle_save_failed'}`;
+        const clash = String(authoritativeResult?.message || '');
+        if (/^Key \S+ is already on stock /.test(clash)) {
+          if (saveMessage) {
+            saveMessage.textContent = clash;
+            saveMessage.classList.add('is-key-clash');
+          }
+          pdcNotify(clash, 'info');
+        } else if (saveMessage) {
+          saveMessage.classList.remove('is-key-clash');
+          saveMessage.textContent = `Error: ${authoritativeResult?.code || 'authoritative_vehicle_save_failed'}`;
+        }
         return;
       }
       authoritativeSaveVehicle = authoritativeResult.data?.authoritativeVehicle || vehicleModalBoundVehicle() || v;

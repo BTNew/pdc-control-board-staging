@@ -1,0 +1,17 @@
+r566 / F180 / sort 338. Go-live. Staging (`cdsmnqxtyyoeoznmbidd`) only. Production is not touched.
+
+Craig, 27 Oct 2026: hide only Electrical PMB Bays 20, 21 and 22 (Elec station bays 08-10). Bays 17, 18 and 19 (Elec 05-07) stay visible.
+
+The preview claimed r563 / F177 / sort 337. Those ids are the live arrival age (sort 336). r565 / F179 / sort 337 is the panel tick. This release is r566 / F180 / sort 338.
+
+Source up md5 `16f025e38da6bd80293ad404a5f95fdb`. Source down md5 `d485bf4521dd67c9556bdd541ea03b40`.
+Renumbered up md5 `f900b7105af3398af23a2b76a0df2144`. Renumbered down md5 `f34dd77324f4808063bbd4549d8396f7`.
+
+## Mechanism
+
+Same as r483 Fab hide: `workshop_bays.is_active=false` (+ `version+1`), rows and ids unchanged. Frontend planner count is 7. The label map stays at 10 so bays 20-22 still have names. Overlap and close-gaps rules untouched. Pin count stays 241. Department 135 is not edited.
+
+## Files
+
+Up `supabase/migrations/20261027160000_r566_hide_electrical_bays_20_22.sql`.
+Down `supabase/rollbacks/20261027160000_r566_hide_electrical_bays_20_22.down.sql`.

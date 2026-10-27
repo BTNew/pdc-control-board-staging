@@ -33,6 +33,8 @@ const INFO_MESSAGES = [
   /pdcNotify\(`\$\{email\} is already \$\{userManagementRoleLabel\(newRole\)\}\. Nothing changed\.`, 'info'\);/, // r419 no-op role change
   /pdcNotify\(linkMessage, 'info'\);/, // r432 Link salesperson record result
   /pdcNotify\(`\$\{email\} now looks after \$\{summary\}\.`, 'info'\);/, // r557 station assignment saved
+  /pdcNotify\(sentence, 'info'\);/, // r575 duplicate key on the card
+  /pdcNotify\(clash, 'info'\);/, // r575 duplicate key from the server
 ];
 
 test('F25: app.js has exactly one alert() left, the PO-attachment notice before the mail app opens', () => {
@@ -45,8 +47,8 @@ test('F25: app.js has exactly one alert() left, the PO-attachment notice before 
 
 test('F25: 210 former alert() calls are toasts; exactly eight are info (six + r419 + r432), the rest errors', () => {
   const notify = calls(code, /(?<!function )\bpdcNotify\(/g);
-  assert.strictEqual(notify, 248, '25 from r407/r408 + 210 converted + 1 r419 no-op role change notice + 2 r432 Link salesperson record (failure, result) + 4 r557 station save and arrival acknowledgement + 2 r562 push to PMB (missing vehicle, server refusal) + 4 r574 department bay booking (key needed, planner not loaded twice, no free slot)');
-  assert.strictEqual(calls(code, /pdcNotify\([^\n]*'info'\);/g), 9);
+  assert.strictEqual(notify, 249, '25 from r407/r408 + 210 converted + 1 r419 no-op role change notice + 2 r432 Link salesperson record (failure, result) + 4 r557 station save and arrival acknowledgement + 2 r562 push to PMB (missing vehicle, server refusal) + 4 r574 department bay booking (key needed, planner not loaded twice, no free slot) + 1 r575 server key sentence (the card sentence replaced the old error toast)');
+  assert.strictEqual(calls(code, /pdcNotify\([^\n]*'info'\);/g), 11);
   for (const re of INFO_MESSAGES) assert.match(app, re);
   // No error message became info by accident: every 'info' toast is in the list above.
   const infoLines = app.split('\n').filter(l => /pdcNotify\(.*'info'\);/.test(l));

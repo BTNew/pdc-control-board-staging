@@ -1140,7 +1140,7 @@ function createPdcEmailVehicleLocationService(options = {}) {
     try {
       const response = await request(`${url}/rest/v1/rpc/${PDC_VEHICLE_DETAIL_FIELDS_RPC}`, { method: 'POST', headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_vehicle_id: requestedVehicleId, p_expected_vehicle_version: Number(expectedVersion) || 0, p_changes: requestedChanges, p_idempotency_key: String(idempotencyKey || '').trim() }) });
       const body = await response.json().catch(() => null); const data = body?.data || null;
-      if (!response.ok || !body || body.ok !== true) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, data };
+      if (!response.ok || !body || body.ok !== true) return { ok: false, code: body?.code || body?.error || `HTTP ${response.status}`, message: typeof body?.message === 'string' ? body.message : '', data };
       if (!body.receipt_id || !/^[a-f0-9]{64}$/i.test(String(body.request_sha256 || '')) || String(data?.vehicle_id || '') !== requestedVehicleId || Number(data?.vehicle_version_after ?? data?.vehicle_version ?? 0) < 1) return { ok: false, code: 'vehicle_detail_receipt_invalid', data: null };
       return { ok: true, code: body.code || 'vehicle_detail_updated', data: { ...data, receipt_id: body.receipt_id, request_sha256: body.request_sha256, replay: body.replay === true } };
     } catch (_error) { return { ok: false, code: 'vehicle_detail_update_unavailable', data: null }; }

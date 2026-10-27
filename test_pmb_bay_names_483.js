@@ -22,13 +22,13 @@ const CRAIG = [
 ];
 
 test('r483: every Dept 139 bay label carries Craig\'s name and number', () => {
-  assert.equal(layout.PMB_BAYS_VERSION, 'r483');
+  assert.equal(layout.PMB_BAYS_VERSION, 'r566');
   assert.equal(CRAIG.length, 20);
   for (const [stage, bay, label] of CRAIG) {
     assert.equal(layout.pmbBayLabel(stage, bay), label, `${stage} ${bay}`);
     assert.equal(layout.bayLabel(stage, bay), label, `${stage} ${bay}`);
   }
-  assert.deepEqual({ ...layout.PMB_BAY_COUNTS }, { HOIST: 3, FITTING: 5, FABRICATION: 14, ELECTRICAL: 10 });
+  assert.deepEqual({ ...layout.PMB_BAY_COUNTS }, { HOIST: 3, FITTING: 5, FABRICATION: 14, ELECTRICAL: 7 });
   const numbers = CRAIG.map(([stage, bay]) => layout.pmbBay(stage, bay).number);
   assert.deepEqual(numbers, [1, 2, 3, ...Array.from({ length: 17 }, (_, i) => i + 6)]);
 });
@@ -48,7 +48,7 @@ test('r509: the Fab planner and WIP count is 14; other station counts stay on th
     assert.doesNotMatch(block, /FABRICATION: 2,/, name);
     assert.match(block, /HOIST: 3,/, name);
     assert.match(block, /FITTING: 5,/, name);
-    assert.match(block, /ELECTRICAL: 10,/, name);
+    assert.match(block, /ELECTRICAL: 7,/, name);
   }
   assert.match(app, /FABRICATION: '14 bays · Internal and External Fabrication, Fab 03-14'/);
   assert.match(app, /const PMB_BAY_MAX_COUNT = 13;/);
