@@ -8,6 +8,8 @@
  * One date per vehicle. A GP chip on a PD line is a sublet purchase order, not the DMS part line, so
  * there is no per-order date here.
  * Loads after the key number and before the Vehicle Locations table. styles.css and app.js are untouched.
+ * r573 (F187): the same form can place that date as a vehicle STOPPAGE. The planner lists it
+ * in the Stoppage section. Clearing the date, or leaving the tick off, lifts it. Blue, not orange.
  */
 (() => {
   'use strict';
@@ -16,6 +18,8 @@
   const BOARD_RPC = 'get_pdc_parts_stoppage_board_564';
   const SET_RPC = 'set_pdc_parts_stoppage_564';
   const HISTORY_RPC = 'get_pdc_parts_stoppage_history_564';
+  const PLACE_RPC = 'place_parts_eta_stoppage_573';
+  const PLACE_BOARD_RPC = 'get_pdc_parts_eta_stoppage_board_573';
   const JITA_RPC = 'get_pdc_jita_eta_board';
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const CHIP = /<span class="pdc-parts-eta pdc-parts-eta-(?:ok|due|overdue)"[^>]*>(?:<span class="pdc-parts-eta-k">[^<]*<\/span>)?[^<]*<\/span>/;
@@ -92,7 +96,8 @@
         + `<button type="button" data-pdc-stoppage-clear="${vid}">Clear</button>`
         + `<button type="button" data-pdc-stoppage-checked="${vid}">Checked</button>`
         + `<button type="button" data-pdc-stoppage-cancel="${vid}">Cancel</button>`
-        + `<small class="pdc-parts-stoppage-msg" role="status">${esc(state.message || 'A typed date wins over the email. Every change is recorded.')}</small>`
+        + `<label class="pdc-parts-stoppage-place"><input type="checkbox" data-pdc-stoppage-place="${vid}"${state.placed ? ' checked' : ''}/> Place as STOPPAGE</label>`
+        + `<small class="pdc-parts-stoppage-msg" role="status">${esc(state.message || 'A typed date wins over the email. Tick Place as STOPPAGE to hold the vehicle until that date.')}</small>`
         + `</form></div>`;
     }
     const label = shown ? `${ddmm(shown)}${left.text ? ` · ${left.text}` : ''}` : (state.canEdit ? 'Set ETA' : '—');
@@ -100,7 +105,8 @@
       ? `<button type="button" class="pdc-parts-stoppage-open is-${left.state || 'empty'}" data-pdc-stoppage-edit="${vid}" title="${esc(title)}">${esc(label)}${note ? `<small class="pdc-parts-stoppage-note">${esc(clip(note))}</small>` : ''}</button>`
       : `<span class="pdc-parts-stoppage-open is-${left.state || 'empty'}" title="${esc(title)}">${esc(label)}${note ? `<small class="pdc-parts-stoppage-note">${esc(clip(note))}</small>` : ''}</span>`;
     const secondary = email && manualDate && email !== manualDate ? `<small class="pdc-parts-stoppage-email">Email ${esc(ddmm(email))}</small>` : '';
-    return `<div class="pdc-parts-stoppage-slot" data-parts-eta="${esc(shown)}" data-pdc-stoppage-slot="${vid}">${open}${secondary}</div>`;
+    const placed = state.placed ? `<small class="pdc-parts-stoppage-placed">STOPPAGE</small>` : '';
+    return `<div class="pdc-parts-stoppage-slot" data-parts-eta="${esc(shown)}" data-pdc-stoppage-slot="${vid}">${open}${placed}${secondary}</div>`;
   }
 
   function historyHtml(history) {
@@ -198,10 +204,45 @@
     return { eta, etaLabel: ddmmyy(eta), vehicle: clean(vehicleLabel), count: 1, parts: [], before: [], bookAll: true, today: day };
   }
 
+  /** What to send after the typed date is saved. Null means the stoppage is left as it is. */
+  function placePayload(mode, fields, ticked, wasPlaced) {
+    const eta = iso(fields?.eta);
+    const note = clean(fields?.note);
+    if (mode === 'clear' || (mode !== 'check' && !eta)) return wasPlaced ? { p_place: false } : null;
+    if (mode === 'check') return null;
+    if (ticked) return { p_place: true, p_eta: eta, p_note: note };
+    if (wasPlaced) return { p_place: false };
+    return null;
+  }
+  function placeMessage(result) {
+    const code = result?.error || result?.code || 'error';
+    if (code === 'eta_reached') return 'That ETA is already here, so no stoppage was placed.';
+    if (code === 'vehicle_running') return 'A job already running on this vehicle covers that date.';
+    if (code === 'bay_running') return 'A running job is in the way. Nothing was moved.';
+    if (code === 'push_failed') return 'The later jobs could not be moved. Nothing was placed.';
+    if (code === 'not_authorized') return 'Parts and workshop controllers can place this.';
+    if (code === 'eta_required') return 'Set a parts ETA before placing a STOPPAGE.';
+    return `Stoppage was not placed (${code}).`;
+  }
+  function plannerSectionHtml(rows) {
+    const list = Array.isArray(rows) ? rows : [];
+    const cards = list.map(row => {
+      const eta = ddmmyy(row?.eta_date);
+      const note = clean(row?.note);
+      const reason = clean(row?.reason) || `STOPPAGE · Parts ETA ${eta || '—'}${note ? ` · ${note}` : ''}`;
+      const who = clean(row?.set_by_actor);
+      const stock = clean(row?.stock_number) || 'Vehicle';
+      const key = clean(row?.key_number);
+      return `<article class="workshop-parts-stoppage-card"><strong>STOPPAGE</strong><span>${esc(stock)}${key ? ` · Key ${esc(key)}` : ''}</span><b>${esc(reason)}</b><small>Until ${esc(eta || 'the ETA')}${who ? ` · ${esc(who)}` : ''}</small></article>`;
+    }).join('');
+    const body = cards || '<div class="workshop-empty">No parts ETA is placed as STOPPAGE.</div>';
+    return `<section class="workshop-parts-stoppage" aria-label="Stoppage"><div class="workshop-side-heading"><strong>Stoppage</strong><span>Parts ETA</span></div><div class="workshop-parts-stoppage-list">${body}</div></section>`;
+  }
+
   const api = {
-    VERSION, BOARD_RPC, SET_RPC, HISTORY_RPC, JITA_RPC,
+    VERSION, BOARD_RPC, SET_RPC, HISTORY_RPC, JITA_RPC, PLACE_RPC, PLACE_BOARD_RPC,
     shownEta, countdown, daysUntil, perthToday, slotHtml, detailHtml, decorateCard, historyHtml,
-    manualWarning, manualBookAllWarning, clip, hasManual, emailFromHtml
+    manualWarning, manualBookAllWarning, clip, hasManual, emailFromHtml, placePayload, placeMessage, plannerSectionHtml
   };
   if (typeof module !== 'undefined') module.exports = api;
   if (typeof window === 'undefined' || window.PDC_SUPABASE_CONFIG?.projectRef !== PROJECT || window.PDC_PARTS_STOPPAGE_VERSION) return;
@@ -209,6 +250,7 @@
 
   const byId = new Map();
   const byStock = new Map();
+  const placedById = new Map();
   const jitaById = new Map();
   const jitaByStock = new Map();
   const ui = new Map();
@@ -245,6 +287,7 @@
       message: st.message || '',
       history: st.history,
       manual: rowFor(vehicle),
+      placed: placedById.has(vid),
       jitaEta: jitaFor(vehicle),
       today: today(),
       draftEta: st.draftEta,
@@ -346,6 +389,13 @@
       if (clean(row.stock_number)) byStock.set(clean(row.stock_number).toUpperCase(), stored);
     }
   }
+  function indexPlaced(payload) {
+    placedById.clear();
+    for (const row of Array.isArray(payload?.vehicles) ? payload.vehicles : []) {
+      const id = idKey(row?.vehicle_id);
+      if (UUID.test(id)) placedById.set(id, row);
+    }
+  }
   function indexJita(payload) {
     jitaById.clear(); jitaByStock.clear();
     for (const row of Array.isArray(payload?.vehicles) ? payload.vehicles : []) {
@@ -365,6 +415,10 @@
       if (!data || data.can_edit == null && !Array.isArray(data.vehicles)) return;
       indexBoard(data);
       try { indexJita(await rpc(JITA_RPC, {})); } catch (_) { /* JITA stays as last read. The email path is untouched. */ }
+      try {
+        const placed = await rpc(PLACE_BOARD_RPC, {});
+        if (placed && Array.isArray(placed.vehicles)) indexPlaced(placed);
+      } catch (_) { /* The Stoppage section stays empty until the place read exists. */ }
       install();
     } catch (error) {
       if (error?.status === 404) missing = true;
@@ -411,7 +465,26 @@
         set_by_actor: clean(result.set_by_actor),
         set_at: result.set_at || new Date().toISOString()
       });
-      ui.set(vid, { editing: false, message: result.changed === false ? 'No change.' : 'Saved.', history: null });
+      const ticked = Boolean(document.querySelector(`[data-pdc-stoppage-place="${vid}"]`)?.checked);
+      const follow = placePayload(mode, current, ticked, placedById.has(vid));
+      let extra = '';
+      if (follow) {
+        try {
+          const placed = await rpc(PLACE_RPC, { p_vehicle_id: vid, p_eta: follow.p_eta || null, p_note: follow.p_note || '', p_place: follow.p_place === true });
+          if (placed?.ok === true) {
+            extra = follow.p_place ? ' Placed as STOPPAGE.' : ' STOPPAGE lifted.';
+          } else extra = ` ${placeMessage(placed)}`;
+        } catch (error) {
+          extra = error?.status === 404
+            ? ' Place as STOPPAGE is not on this database yet. The date was saved.'
+            : ` Stoppage was not changed: ${error.message || error}`;
+        }
+        try {
+          const board = await rpc(PLACE_BOARD_RPC, {});
+          if (board && Array.isArray(board.vehicles)) indexPlaced(board);
+        } catch (_) { /* keep the last Stoppage list */ }
+      }
+      ui.set(vid, { editing: false, message: (result.changed === false ? 'No change.' : 'Saved.') + extra, history: null });
       rerender();
     } catch (error) {
       ui.set(vid, { ...st, editing: true, message: `Not saved: ${error.message || error}`, draftEta: current.eta, draftNote: current.note });
@@ -444,6 +517,8 @@
     '.pdc-parts-stoppage-form input[type="text"]{font:inherit;font-size:12px;width:14em;max-width:100%}',
     '.pdc-parts-stoppage-form button,.pdc-parts-stoppage-detail button{font:inherit;font-size:11px;font-weight:650;padding:2px 8px;border-radius:5px;border:1px solid #94a3b8;background:#fff;color:#1e293b;cursor:pointer}',
     '.pdc-parts-stoppage-form button[type="submit"]{background:#1d4ed8;border-color:#1d4ed8;color:#fff}',
+    '.pdc-parts-stoppage-place{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border:1px solid #1d4ed8;border-radius:5px;background:#dbeafe;color:#1d4ed8;font-size:11px;font-weight:700}',
+    '.pdc-parts-stoppage-placed{display:inline-block;padding:1px 5px;border-radius:4px;background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:800}',
     '.pdc-parts-stoppage-msg{flex-basis:100%;color:#64748b;font-size:11px}',
     '.pdc-parts-stoppage-history{margin:2px 0 0;padding:0;list-style:none;font-size:11px;color:#334155}',
     '.pdc-parts-stoppage-history li{display:flex;gap:6px;flex-wrap:wrap}',
@@ -486,7 +561,8 @@
     ui.set(vid, { ...st, draftEta: field.dataset.pdcStoppageDate ? field.value : st.draftEta, draftNote: field.dataset.pdcStoppageNote ? field.value : st.draftNote });
   });
 
-  window.PDC_PARTS_STOPPAGE = Object.freeze({ VERSION, reload: load, shownEta });
+  window.workshopPartsEtaStoppageSectionHtml = () => plannerSectionHtml([...placedById.values()]);
+  window.PDC_PARTS_STOPPAGE = Object.freeze({ VERSION, reload: load, shownEta, plannerSectionHtml });
   load();
   setInterval(load, 5 * 60 * 1000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') load(); });

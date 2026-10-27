@@ -170,8 +170,15 @@
 
   const EMPTY_UPLOAD = '<div class="empty-state compact-empty"><strong>No JITA preview yet</strong><span>Paste the Revolution JITA export, then click Preview.</span></div>';
 
+  /** Saved JITA rows that can be placed as a vehicle STOPPAGE. The upload panel stays hidden. */
+  function placeTargets(rows, ticked) {
+    if (!ticked) return [];
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return (Array.isArray(rows) ? rows : []).filter(row => ['applied', 'replaced'].includes(row?.status) && uuid.test(String(row?.vehicle_id || '')) && iso(row?.eta_date)).map(row => ({ vehicle_id: String(row.vehicle_id), eta_date: iso(row.eta_date) }));
+  }
+
   if (typeof module !== 'undefined') {
-    module.exports = { parseJitaEta, parseDate, inPartsHtml, insertDetail, renderUploadResult, ddmmyyyy, PARTS_CHIP, VERSION, SHOW_JITA_ETA, IMPORT_RPC, BOARD_RPC };
+    module.exports = { parseJitaEta, parseDate, inPartsHtml, insertDetail, renderUploadResult, ddmmyyyy, PARTS_CHIP, VERSION, SHOW_JITA_ETA, IMPORT_RPC, BOARD_RPC, placeTargets };
   }
   if (typeof window === 'undefined') return;
   if (!SHOW_JITA_ETA) {
@@ -366,6 +373,12 @@
           return;
         }
         show(renderUploadResult(payload));
+        if (!dry && document.getElementById('jita-place-stoppage')?.checked) {
+          for (const target of placeTargets(resultRows(payload), true)) {
+            try { await rpc('place_parts_eta_stoppage_573', { p_vehicle_id: target.vehicle_id, p_eta: target.eta_date, p_note: '', p_place: true }); }
+            catch (_) { /* the JITA date is already saved */ }
+          }
+        }
         if (dry) { previewed = text; apply.disabled = false; }
         else { previewed = ''; await loadBoard(); }
       } catch (_) {
@@ -393,7 +406,8 @@
     + 'td.c-eta .vlt-subtle-dash[hidden]{display:none}'
     + '#jita-upload-summary{margin-top:12px;display:grid;gap:10px}'
     + '#jita-upload-summary .scot-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}'
-    + '#jita-upload-summary .navision-import-success{margin:0}';
+    + '#jita-upload-summary .navision-import-success{margin:0}'
+    + '.jita-place-stoppage{display:inline-flex;align-items:center;gap:6px;margin:8px 0;padding:4px 8px;border:1px solid #1d4ed8;border-radius:6px;background:#dbeafe;color:#1d4ed8;font-weight:700}';
   document.head.appendChild(style);
   function watchLocations() {
     const host = document.getElementById('vlt-table-host');
