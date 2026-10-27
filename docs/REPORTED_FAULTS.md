@@ -29,7 +29,7 @@ r567 / F181 / sort 341. Not applied. Staging only. The next free triple after th
 
 Dropping into a bay still pushes that bay's later jobs and succeeds when the vehicle is free elsewhere. When the same vehicle is already booked in another bay, or queued with a time and no bay, nothing is saved until the planner confirms. The question names the key, the stock, the customer, the station, the bay and the Perth times, and the confirm button is blue. Confirming pushes those bookings (and what they would land on) back, with an hour clear, then the bay drop runs. A started or stoppage booking is named and is not pushed. The same vehicle is not left in two places at once.
 
-Pins stay 241. The move pin is updated in place. Department 135 is not edited.
+Pins stay 241. The move pin is updated in place. Department 135 is not edited. Up file md5 `df1f6da063989cd2e48fbd8f1483fc53`. Down file md5 `60fccd64d7be546b15491964bf4e02cb`.
 
 ### Regression check
 
