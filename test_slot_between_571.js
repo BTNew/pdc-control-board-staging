@@ -40,6 +40,12 @@ test('r571 migration is a staging preview stacked on r567: pins stay 241 and dep
     assert.doesNotMatch(src, /project_ref='vjdtsswhroyguxyfjdkt'/);
   }
   assert.match(up, /cross_station_drop_576/);
+  assert.match(up, /keeps the live argument defaults/);
+  assert.match(up, /p_duration_minutes integer DEFAULT NULL::integer, p_override_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT ''\{\}''::jsonb/);
+  assert.match(up, /p_duration_minutes integer DEFAULT 180, p_technician_id uuid DEFAULT NULL::uuid/);
+  assert.match(up, /p_shift_minutes integer DEFAULT 0, p_override_reason text DEFAULT NULL::text/);
+  assert.match(down, /p_duration_minutes integer DEFAULT NULL::integer/);
+  assert.match(down, /p_duration_minutes integer DEFAULT 180/);
   assert.match(up, /b6e8241730be349bdd79a295afba0a8a/);
   assert.match(up, /r576 \(F190\)/);
   assert.doesNotMatch(up, /r567/);

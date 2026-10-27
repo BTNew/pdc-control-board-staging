@@ -6,6 +6,7 @@
 -- A timed drop pushes later jobs in that bay. A started or stoppage booking of the
 -- same vehicle cannot move; the planner is asked to place this job after it.
 -- A leftover exclusion error is returned as that booking, not a raw 23P01.
+-- CREATE OR REPLACE keeps the live argument defaults. Postgres rejects a replace that drops them.
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
@@ -142,7 +143,7 @@ exception when sqlstate '23P01' then
 end$new$;
  n:=(length(src)-length(replace(src,old,'')))/length(old);
  IF n<>1 THEN RAISE EXCEPTION 'r571: move_workshop_booking exception anchor found % times', n; END IF;
- EXECUTE 'CREATE OR REPLACE FUNCTION public.move_workshop_booking(p_booking_id uuid, p_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_override_reason text, p_metadata jsonb)
+ EXECUTE 'CREATE OR REPLACE FUNCTION public.move_workshop_booking(p_booking_id uuid, p_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer DEFAULT NULL::integer, p_override_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT ''{}''::jsonb)
   RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public'', ''extensions'' AS $mv571$'||replace(src,old,repl)||'$mv571$';
 
  src:=(SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.cascade_workshop_booking_move(uuid,integer,text,integer,timestamptz,integer,text,jsonb)'));
@@ -169,7 +170,7 @@ exception when sqlstate '23P01' then
 end$new$;
  n:=(length(src)-length(replace(src,old,'')))/length(old);
  IF n<>1 THEN RAISE EXCEPTION 'r571: cascade exception anchor found % times', n; END IF;
- EXECUTE 'CREATE OR REPLACE FUNCTION public.cascade_workshop_booking_move(p_booking_id uuid, p_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_override_reason text, p_metadata jsonb)
+ EXECUTE 'CREATE OR REPLACE FUNCTION public.cascade_workshop_booking_move(p_booking_id uuid, p_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_override_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT ''{}''::jsonb)
   RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public'' AS $cs571$'||replace(src,old,repl)||'$cs571$';
 
  src:=(SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb)'));
@@ -189,7 +190,7 @@ end$new$;
  when others then$new$;
  n:=(length(src)-length(replace(src,old,'')))/length(old);
  IF n<>1 THEN RAISE EXCEPTION 'r571: schedule exception anchor found % times', n; END IF;
- EXECUTE 'CREATE OR REPLACE FUNCTION public.schedule_vehicle_work(p_vehicle_id uuid, p_vehicle_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_technician_id uuid, p_override_reason text, p_metadata jsonb)
+ EXECUTE 'CREATE OR REPLACE FUNCTION public.schedule_vehicle_work(p_vehicle_id uuid, p_vehicle_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer DEFAULT 180, p_technician_id uuid DEFAULT NULL::uuid, p_override_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT ''{}''::jsonb)
   RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public'', ''extensions'' AS $sv571$'||replace(src,old,repl)||'$sv571$';
 
  src:=(SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.cascade_workshop_schedule(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb)'));
@@ -217,7 +218,7 @@ WHEN OTHERS THEN
  perform set_config('pdc.workshop_capacity_manual',coalesce(v_capacity_context,''),true); RAISE;$new$;
  n:=(length(src)-length(replace(src,old,'')))/length(old);
  IF n<>1 THEN RAISE EXCEPTION 'r571: cascade schedule exception anchor found % times', n; END IF;
- EXECUTE 'CREATE OR REPLACE FUNCTION public.cascade_workshop_schedule(p_operation text, p_target_id uuid, p_target_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_technician_id uuid, p_shift_minutes integer, p_override_reason text, p_metadata jsonb)
+ EXECUTE 'CREATE OR REPLACE FUNCTION public.cascade_workshop_schedule(p_operation text, p_target_id uuid, p_target_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_technician_id uuid DEFAULT NULL::uuid, p_shift_minutes integer DEFAULT 0, p_override_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT ''{}''::jsonb)
   RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public'' AS $csch571$'||replace(src,old,repl)||'$csch571$';
 END $mv$;
 

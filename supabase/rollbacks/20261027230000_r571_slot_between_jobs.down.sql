@@ -2,6 +2,7 @@
 -- Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
 -- Restores the r576 move body and the four unpinned drop functions. Pins stay 241.
 -- Department 135 is not edited.
+-- CREATE OR REPLACE keeps the live argument defaults. Postgres rejects a replace that drops them.
 
 SET LOCAL lock_timeout = '2s';
 DO $g$ BEGIN
@@ -63,7 +64,7 @@ end$new$;
  IF n<>1 THEN RAISE EXCEPTION 'r571 down: move_workshop_booking pair 0 found % times', n; END IF;
  src:=replace(src,old,repl);
  IF strpos(src,'workshop_exclusion_conflict_571')<>0 THEN RAISE EXCEPTION 'r571 down: move_workshop_booking still calls the helper'; END IF;
-EXECUTE 'CREATE OR REPLACE FUNCTION public.move_workshop_booking(p_booking_id uuid, p_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_override_reason text, p_metadata jsonb)
+EXECUTE 'CREATE OR REPLACE FUNCTION public.move_workshop_booking(p_booking_id uuid, p_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer DEFAULT NULL::integer, p_override_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT ''{}''::jsonb)
   RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public'', ''extensions'' AS $mv571$'||src||'$mv571$';
 
  src:=(SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.cascade_workshop_booking_move(uuid,integer,text,integer,timestamptz,integer,text,jsonb)'));
@@ -92,7 +93,7 @@ end$new$;
  IF n<>1 THEN RAISE EXCEPTION 'r571 down: cascade_workshop_booking_move pair 0 found % times', n; END IF;
  src:=replace(src,old,repl);
  IF strpos(src,'workshop_exclusion_conflict_571')<>0 THEN RAISE EXCEPTION 'r571 down: cascade_workshop_booking_move still calls the helper'; END IF;
-EXECUTE 'CREATE OR REPLACE FUNCTION public.cascade_workshop_booking_move(p_booking_id uuid, p_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_override_reason text, p_metadata jsonb)
+EXECUTE 'CREATE OR REPLACE FUNCTION public.cascade_workshop_booking_move(p_booking_id uuid, p_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_override_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT ''{}''::jsonb)
   RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public'' AS $cs571$'||src||'$cs571$';
 
  src:=(SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.schedule_vehicle_work(uuid,integer,text,integer,timestamptz,integer,uuid,text,jsonb)'));
@@ -114,7 +115,7 @@ EXECUTE 'CREATE OR REPLACE FUNCTION public.cascade_workshop_booking_move(p_booki
  IF n<>1 THEN RAISE EXCEPTION 'r571 down: schedule_vehicle_work pair 0 found % times', n; END IF;
  src:=replace(src,old,repl);
  IF strpos(src,'workshop_exclusion_conflict_571')<>0 THEN RAISE EXCEPTION 'r571 down: schedule_vehicle_work still calls the helper'; END IF;
-EXECUTE 'CREATE OR REPLACE FUNCTION public.schedule_vehicle_work(p_vehicle_id uuid, p_vehicle_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_technician_id uuid, p_override_reason text, p_metadata jsonb)
+EXECUTE 'CREATE OR REPLACE FUNCTION public.schedule_vehicle_work(p_vehicle_id uuid, p_vehicle_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer DEFAULT 180, p_technician_id uuid DEFAULT NULL::uuid, p_override_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT ''{}''::jsonb)
   RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public'', ''extensions'' AS $sv571$'||src||'$sv571$';
 
  src:=(SELECT prosrc FROM pg_proc WHERE oid=to_regprocedure('public.cascade_workshop_schedule(text,uuid,integer,text,integer,timestamptz,integer,uuid,integer,text,jsonb)'));
@@ -144,7 +145,7 @@ WHEN OTHERS THEN
  IF n<>1 THEN RAISE EXCEPTION 'r571 down: cascade_workshop_schedule pair 0 found % times', n; END IF;
  src:=replace(src,old,repl);
  IF strpos(src,'workshop_exclusion_conflict_571')<>0 THEN RAISE EXCEPTION 'r571 down: cascade_workshop_schedule still calls the helper'; END IF;
-EXECUTE 'CREATE OR REPLACE FUNCTION public.cascade_workshop_schedule(p_operation text, p_target_id uuid, p_target_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_technician_id uuid, p_shift_minutes integer, p_override_reason text, p_metadata jsonb)
+EXECUTE 'CREATE OR REPLACE FUNCTION public.cascade_workshop_schedule(p_operation text, p_target_id uuid, p_target_expected_version integer, p_stage_code text, p_bay_number integer, p_scheduled_start_at timestamp with time zone, p_duration_minutes integer, p_technician_id uuid DEFAULT NULL::uuid, p_shift_minutes integer DEFAULT 0, p_override_reason text DEFAULT NULL::text, p_metadata jsonb DEFAULT ''{}''::jsonb)
   RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''pg_catalog'', ''public'' AS $csch571$'||src||'$csch571$';
 END $mv$;
 
