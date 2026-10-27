@@ -1327,6 +1327,8 @@ function workshopDescribeSharedActionError(result) {
     // its own vehicle's next booking, the server names both; say so plainly instead of blaming the dropped vehicle.
     const pushed = typeof workshopPushedBookingLabel === 'function' ? workshopPushedBookingLabel(result) : '';
     if (pushed && detail) return `Booking here would push ${pushed} back onto its own booking (${detail}). No changes were saved. Drop this vehicle after that job, use Best slot, or move the affected booking first.`;
+    const held = typeof workshopVehicleConflictHeld === 'function' ? workshopVehicleConflictHeld(result) : '';
+    if (detail && held) return `This move conflicts with ${detail}. That booking is already ${held}, so it was not pushed back. No conflicting bookings were saved.`;
     if (detail) return `This move conflicts with ${detail}. No conflicting bookings were saved. Keep at least 1 hour between this vehicle’s bookings. Use Best slot or move the affected later booking.`;
     return 'This change would overlap a vehicle’s booking in another bay or station, including any booking pushed back by the change. No conflicting bookings were saved. Use Best slot to find a time with the 1-hour buffer, or move the affected later booking.';
   }
@@ -1407,6 +1409,16 @@ function workshopPushedBookingLabel(result = {}) {
   const where = [stage, bay].filter(Boolean).join(' ');
   if (!stock && !where) return '';
   return [stock ? `stock ${stock}` : 'a later booking', where ? `(${where})` : ''].filter(Boolean).join(' ');
+}
+
+function workshopVehicleConflictHeld(result = {}) {
+  const object = value => value && typeof value === 'object' && !Array.isArray(value);
+  const booking = object(result?.conflict?.existing_booking) ? result.conflict.existing_booking
+    : (object(result?.body?.conflict?.existing_booking) ? result.body.conflict.existing_booking : null);
+  const status = String(booking?.status || '').toLowerCase();
+  if (status === 'started') return 'started';
+  if (status === 'stoppage') return 'on stoppage';
+  return '';
 }
 
 function workshopVehicleConflictDetail(result = {}) {
@@ -7207,9 +7219,32 @@ function workshopResequenceDialog(title, bodyHtml, buttons) {
     overlay.addEventListener('keydown', event => { if (event.key === 'Escape') finish(''); });
     document.body.appendChild(overlay);
     document.body.classList.add('modal-open');
-    overlay.querySelector('.primary')?.focus?.();
+    overlay.querySelector('.primary, .workshop-push-go')?.focus?.();
   });
 }
+
+// r567 (F181): a bay drop that would book the same vehicle in another station
+// asks with the vehicle, the bay and the time. Push back is blue.
+function workshopPushLaterDialog(result) {
+  const pushes = Array.isArray(result?.pushes) ? result.pushes : [];
+  const lines = pushes.map(push => {
+    const what = [push?.key_number ? `Key ${push.key_number}` : '', push?.stock_number ? `stock ${push.stock_number}` : '', push?.customer_name || '', push?.stage_name || '', push?.bay_display_name || (push?.bay_number ? `Bay ${push.bay_number}` : '')].filter(Boolean).join(' · ');
+    const from = workshopResequenceWhen(push?.from_start);
+    const to = workshopResequenceWhen(push?.to_start);
+    return `<li>${escapeHtml(what)}: ${escapeHtml(from)} → <strong>${escapeHtml(to)}</strong></li>`;
+  }).join('');
+  const bay = Number(result?.bay_push_count) > 0 ? '<p class="workshop-schedule-note">Later jobs in this bay move back too.</p>' : '';
+  if (!document.getElementById('workshop-push-go-style')) {
+    const style = document.createElement('style');
+    style.id = 'workshop-push-go-style';
+    style.textContent = '.workshop-push-go{background:#1d4ed8;color:#fff;border:1px solid #1d4ed8;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer}.workshop-push-go:hover{background:#1e40af}.workshop-push-go:focus-visible{outline:2px solid #1d4ed8;outline-offset:2px}';
+    document.head.appendChild(style);
+  }
+  return workshopResequenceDialog('Push the other station back?',
+    `<p>${escapeHtml(String(result?.message || 'This drop would book this vehicle in two places at once.'))}</p><ul class="workshop-resequence-changes">${lines}</ul>${bay}`,
+    [{ value: '', label: 'Cancel' }, { value: 'push', label: 'Push back', className: 'workshop-push-go' }]).then(choice => choice === 'push');
+}
+if (typeof globalThis !== 'undefined') globalThis.workshopPushLaterDialog = workshopPushLaterDialog;
 
 function workshopResequencePreviewHtml(preview) {
   const changes = Array.isArray(preview?.changes) ? preview.changes : [];

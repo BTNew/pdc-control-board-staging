@@ -64,11 +64,14 @@ function workshopPushLaterWhen(value) {
 
 function workshopPushLaterQuestion(result) {
   const lines = result.pushes.map(push => {
-    const what = [push?.key_number ? `Key ${push.key_number}` : '', String(push?.work_category || '').replace(/^BUS_/, '').toLowerCase(), push?.bay_number ? `Bay ${push.bay_number}` : '']
-      .filter(Boolean).join(' · ');
+    const named = push?.stock_number || push?.stage_name || push?.bay_display_name;
+    const what = named
+      ? [push?.key_number ? `Key ${push.key_number}` : '', push?.stock_number ? `stock ${push.stock_number}` : '', push?.customer_name || '', push?.stage_name || '', push?.bay_display_name || (push?.bay_number ? `Bay ${push.bay_number}` : '')].filter(Boolean).join(' · ')
+      : [push?.key_number ? `Key ${push.key_number}` : '', String(push?.work_category || '').replace(/^BUS_/, '').toLowerCase(), push?.bay_number ? `Bay ${push.bay_number}` : ''].filter(Boolean).join(' · ');
     return `• ${what}: ${workshopPushLaterWhen(push?.from_start)} → ${workshopPushLaterWhen(push?.to_start)}`;
   }).join('\n');
-  return `${String(result.message || 'This job would run into the same vehicle\'s next booking.')}\n\n${lines}\n\nChoose OK to push ${result.pushes.length === 1 ? 'it' : 'them'} back (Perth time). Choose Cancel to leave everything as it is.`;
+  const bay = Number(result?.bay_push_count) > 0 ? `\n\nLater jobs in this bay move back too.` : '';
+  return `${String(result.message || 'This job would run into the same vehicle\'s next booking.')}\n\n${lines}${bay}\n\nChoose OK to push ${result.pushes.length === 1 ? 'it' : 'them'} back (Perth time). Choose Cancel to leave everything as it is.`;
 }
 
 function workshopIsBayRuleWarning(result) {
@@ -82,6 +85,14 @@ function workshopIsPushLaterWarning(result) {
     && Array.isArray(result.pushes) && result.pushes.length);
 }
 
+async function workshopAskPushLater(result, ask) {
+  if (typeof ask === 'function') return Promise.resolve(ask(workshopPushLaterQuestion(result)));
+  const dialog = typeof globalThis === 'object' ? globalThis.workshopPushLaterDialog : null;
+  if (typeof dialog === 'function' && typeof document === 'object' && document.body) return dialog(result);
+  if (typeof window === 'object' && typeof window.confirm === 'function') return window.confirm(workshopPushLaterQuestion(result));
+  return false;
+}
+
 async function workshopConfirmBayRuleWarning(mutate, name, params, ask) {
   const confirmFn = typeof ask === 'function' ? ask
     : (typeof window === 'object' && typeof window.confirm === 'function' ? window.confirm.bind(window) : null);
@@ -91,14 +102,14 @@ async function workshopConfirmBayRuleWarning(mutate, name, params, ask) {
   for (let round = 0; round < 2; round += 1) {
     if (workshopIsBayRuleWarning(result)) {
       if (current.p_metadata?.bay_rule_confirm) return result;
-      if (!confirmFn || !confirmFn(workshopBayRuleQuestion(result))) {
+      if (!confirmFn || !await Promise.resolve(confirmFn(workshopBayRuleQuestion(result)))) {
         return { ok: false, error: 'bay_rule_not_confirmed', cancelled: true, rules: result.rules };
       }
       const rules = result.rules.map(rule => String(rule?.rule || '')).filter(Boolean);
       current = { ...current, p_metadata: { ...(current.p_metadata || {}), bay_rule_confirm: { rules } }, p_request_id: workshopBayRuleRequestId() };
     } else if (workshopIsPushLaterWarning(result)) {
       if (current.p_metadata?.push_later_confirm) return result;
-      if (!confirmFn || !confirmFn(workshopPushLaterQuestion(result))) {
+      if (!await workshopAskPushLater(result, ask)) {
         return { ok: false, error: 'later_bookings_not_confirmed', cancelled: true, pushes: result.pushes };
       }
       current = { ...current, p_metadata: { ...(current.p_metadata || {}), push_later_confirm: { plan_hash: result.plan_hash } }, p_request_id: workshopBayRuleRequestId() };
