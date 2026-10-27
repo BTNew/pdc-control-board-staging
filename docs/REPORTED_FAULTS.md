@@ -1,5 +1,25 @@
 # Reported faults
 
+## Vehicle board waiters blocked on the rebuild lock
+
+Burt, 28 Oct 2026 06:19 AWST. `get_pdc_email_vehicle_board_snapshot_conditional` convoyed on an advisory lock. One PostgREST call was active for 12 seconds holding the lock while it rebuilt, and four more were waiting on Lock/advisory and climbing toward the 8 second authenticator timeout. The control board mean was about 4.4 seconds. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched.
+
+The conditional read calls `get_pdc_email_vehicle_board_snapshot()`. That function tries the r545 lock and, on a miss, blocks until the holder finishes. Postgres logged 696 calls of the conditional RPC, mean 5454.6 ms, max 29812.3 ms. At 06:23 AWST the stored snapshot was revision 250559, 42.5 seconds old, 16149117 bytes, md5 `344b4a5ed091569ab196d26f3f1e3caa`, so the next caller would rebuild and everyone else would wait.
+
+### Fix
+
+r586 / F200 / sort 358. PR #498 keeps r584 / F198 / sort 356. A fresh snapshot, same revision and under 15 seconds, is still returned with no lock. One caller builds the next copy. Anyone who does not get the lock returns the last stored snapshot at once, even when it is a few seconds stale. A cold cache, with no row yet, polls for 1.5 seconds and then returns `board_busy`. It does not take the blocking lock. The rebuild strip is unchanged, so the holder's JSON stays byte-identical to the previous rebuild.
+
+The board function is not pinned. Pin count stays 241. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick stays `3b2398e33a2ea35fc137deeedeca4af5`. The conditional read stays `5b50acbf467ad4f38d3a8f9a062cc12e`. QC lines stay `b7f90bff12643229ff80f8ca552663a2`, `97fc4caaf7b462163d35b4a3511bc487` and `a93005010cf96ab6eb804ef879039861`. The new board body is `1b8106327e68624c8f235c2e84641842`. `read_once_snapshots_554` now names that body instead of `ae706516b88574c1162e2c5889e4b4a9`.
+
+Up `supabase/migrations/20261028063000_r586_board_waiter_cache.sql` file md5 `3eee2d7a0096acabe78390d037acf419`. Down `supabase/rollbacks/20261028063000_r586_board_waiter_cache.down.sql` file md5 `3ce8e597edee4a773316fcac7b90ae00`.
+
+The clock before the apply was green: 767 runs since r552, p95 75 ms, 0 whole-tick failures in 24 hours.
+
+### Check
+
+`board_snapshot_waiter_586` (F200, sort 358). It goes red if the blocking lock comes back, if a second call takes 2 seconds or more, or if the two payloads differ.
+
 ## Station snapshot and the sublet board were past 8 seconds
 
 Craig, 28 Oct 2026 05:18 AWST. Go live and optimise the board. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched.
