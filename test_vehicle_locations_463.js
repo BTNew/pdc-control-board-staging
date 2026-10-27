@@ -155,7 +155,7 @@ test('loader: r463 cache-bust tags; pdc-auto-reload.js stays first; no real stoc
   assert.match(html, /r463=2026\.10\.22\.r463/);
   assert.match([...html.matchAll(/<script[^>]*src="([^"]+)"/g)][0][1], /^pdc-auto-reload\.js/);
   assert.equal(table.VERSION, '2026.10.27.r566'); // r475 (F88), r481 (F94), r485 (F98), r557 (F171) New to PMB, r562 (F176) key gate, r563 (F177) arrival age, r566 (F180) planner search
-  assert.match(slideout.VERSION, /^2026\.10\.27\.r578$/); // r578 (F196): green complete tick. r565 (F179): edit stays on the chip list
+  assert.match(slideout.VERSION, /^2026\.10\.28\.r588$/); // r588 (F202): tick grid. r578 (F196): green complete tick
   const text = fs.readFileSync(__filename, 'utf8');
   assert.doesNotMatch(text, /\b1[23]\d{6}\b|\bJ13[89]\d{6}\b/);
 });
