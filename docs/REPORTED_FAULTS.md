@@ -1,5 +1,25 @@
 # Reported faults
 
+## Key 460 would not go into Jason Ranoco's Hoist bay
+
+Craig, 28 Oct 2026 06:28 AWST, then "fix it" at 06:31 AWST. Staging `cdsmnqxtyyoeoznmbidd` only. Production `vjdtsswhroyguxyfjdkt` was not touched. Key 460 (stock 13071838, job card J139125587, 12.00 h, unallocated) was dropped onto Hoist bay Jason Ranoco as the next job after Key 328. The toast said: "This change conflicts with a job already running or on stoppage. No changes were saved."
+
+Two `administrator_move_workshop_booking` calls at 06:27 AWST returned HTTP 200. That is a drag with cascade on, not Schedule and not Best slot. Key 328 is started. Its chip ends at 10:12, but the booking's real end is 12:05. The 12 hour window overlaps that running job, so `cascade_workshop_booking_move_pre_116` returns `live_booking_conflict` and never pushes the later jobs. There is no "too many vehicles" limit on this path. A plan at 10:12 already wants to move the 10 later jobs in the bay, and the mover's step cap is 800.
+
+### Fix
+
+r592 / F206 / sort 360. r588 / F202 is the side-panel tick grid and has no check. r589 / F203 / sort 361 is the open Parts ETA release (#571). r590 / F204 is the QC sign-off label named by the Revolution preview, and r591 / F205 / sort 362 is that preview (#575). A drop that overlaps a running job or a stoppage in the bay asks, in plain English, to place this job at the next working minute at or after that job's real end. Later planned jobs in the bay move back. Cancel leaves the bay as it is. The running job is not moved. Key 460 is not booked by this release; Craig drops it.
+
+The question is `place_after_running`. The confirm sends `place_after_confirm.plan_hash` once. `administrator_move_workshop_booking` stays the r571 pin `6a02115d30578e8eb3807a283b1d60ea`. Pin count stays 241. No pin is inserted. Department 135 stays `fd05b9eef69498002ac06dd68e01cdff`. Kajel rows stay `9be0883b1a555f48f3c1ba9fa111c891` and apply stays `b62fb7c29ffd2a1629f214f696e5cb14`. The clock tick stays `3b2398e33a2ea35fc137deeedeca4af5`.
+
+Up `supabase/migrations/20261028081000_r592_hoist_place_after.sql` file md5 `b8f27695338122c8db98ab650b9d4e4d`. Down `supabase/rollbacks/20261028081000_r592_hoist_place_after.down.sql` file md5 `610e7526ca91cb6a1e716292bf61a0ef`.
+
+#542 (r560 / F174) is already on main and in the published planner: a stock number opens the Vehicle Locations side panel. This release does not change that SQL. `test_stock_opens_side_panel_560.js` is part of the website regression run.
+
+### Check
+
+`hoist_place_after_592` (F206, sort 360). It goes red if the cascade mover still returns `live_booking_conflict`, if the place-after helper is missing, if the move pin changes, if the pin count leaves 241, or if department 135 or Kajel's functions change.
+
 ## Side panel: PO chips overlapped the completion tick
 
 Craig, 28 Oct 2026 07:19 AWST. Go live on staging. Stock **13092999** (Hilux DCC), Vehicle Locations side panel.
