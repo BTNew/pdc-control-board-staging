@@ -1,4 +1,4 @@
--- r575 (F189) / sort 346. PREVIEW. Do not apply while active board vehicles share a key.
+-- r575 (F189) / sort 346. Craig approved 27 Oct 2026 14:18 AWST. Not applied in this change.
 -- Staging cdsmnqxtyyoeoznmbidd only. Production vjdtsswhroyguxyfjdkt is not a target.
 --
 -- Craig, 27 Oct 2026 13:25 AWST: no two vehicles may have the same key number.
@@ -28,9 +28,15 @@
 -- #544's archive of the 91 had not committed on this read (last board_purged_at
 -- 19 Oct 2026, zero r569 purge reasons). Archive alone would take the off-sheet
 -- holders out of the active set. 126, 214 and 338 would remain, because both
--- stocks are on the sheet. 214 is the staff double-up: Craig put 214 on
--- 13047384 at 09:40 AWST while 13019220, at QC, already had the file key 214.
--- This file does not choose a keeper and does not update a vehicle row.
+-- stocks are on the sheet. Craig, 27 Oct 2026 14:18 AWST, approved the
+-- keepers and said 214 stays on 13047384. The other holder in each pair is
+-- cleared. 13019220 loses 214. That is the opposite of the first preview.
+-- A read at the same time, while #544 was still archiving, already had seven
+-- of those other holders archived (105 13070896, 144 13070886, 146 13070887,
+-- 320 13070889, 348 13070897, 349 13073090, 414 13018221). 126 13070891,
+-- 214 13019220 and 338 13041213 were still on the board. The data step does
+-- not trust that read. It locks each vehicle by id, skips a holder that is
+-- already archived, and stops if a different duplicate is still there.
 --
 -- Active board means: not deleted, not archived, visible, lifecycle active,
 -- a department 138 or 139 service row, and no department 135 row. Blank and
@@ -54,6 +60,10 @@
 -- sentence and the archive in that same import does not commit. That is the
 -- rule. Archive the old holder first, or clear the stale key, then import.
 --
+-- Craig's approved clear runs before the shadow unique key is filled and
+-- before the trigger exists. Each cleared key is stored on that vehicle id
+-- in key_release_575 (reason approved_clear) so the undo can put it back.
+-- The undo puts it back only while that id's key is still empty.
 -- Staff see "Key 214 is already on stock 13047384", never SQLSTATE 23505.
 -- The key editor and the vehicle-detail save return that sentence as
 -- key_number_in_use. Every other writer, including the service import, hits
@@ -227,6 +237,88 @@ REVOKE ALL ON FUNCTION pdc_key_number_private.board_scope_575(uuid, timestamp wi
 REVOKE ALL ON FUNCTION pdc_key_number_private.sales_key_holder_575(uuid) FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION pdc_key_number_private.key_clash_message_575(uuid, text) FROM PUBLIC, anon, authenticated, service_role;
 
+CREATE TABLE pdc_key_number_private.key_release_575 (
+  release_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  vehicle_id uuid NOT NULL,
+  token text NOT NULL,
+  stock_number text,
+  reason text NOT NULL,
+  released_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
+  restored_at timestamp with time zone,
+  note text,
+  CONSTRAINT key_release_575_reason CHECK (reason IN ('archive', 'leave', 'not_restored', 'approved_clear'))
+);
+ALTER TABLE pdc_key_number_private.key_release_575 ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE pdc_key_number_private.key_release_575 FROM PUBLIC, anon, authenticated, service_role;
+
+-- Craig, 27 Oct 2026 14:18 AWST. Id first, stock checked against that id.
+-- The keeper keeps the key. The other holder loses it, unless that holder is
+-- already archived. This runs before the shadow unique key and the trigger.
+DO $keepers$
+DECLARE
+  r record;
+  v_loser public.vehicles%rowtype;
+  v_keeper public.vehicles%rowtype;
+  v_have text;
+  v_keep text;
+BEGIN
+  FOR r IN
+    SELECT * FROM (VALUES
+      ('105'::text, '2314e3bc-5510-4d92-adc4-8155d3885d63'::uuid, '13073068'::text, 'ca02d68f-6d53-4519-9678-f2b31ca7e3a1'::uuid, '13070896'::text),
+      ('126'::text, '465a85f0-f027-476c-bcab-243448f22ac3'::uuid, '13073094'::text, '835f365f-17fc-4f56-908c-27963f276da0'::uuid, '13070891'::text),
+      ('144'::text, '53a6dc04-14cb-43cb-a2d6-7bd3a075bb72'::uuid, '13092054'::text, '1c1ca4f0-7ed2-4194-8376-e7aacc4a5e77'::uuid, '13070886'::text),
+      ('146'::text, 'e1f8c5b7-31c2-4a8e-8269-b396424bbc0b'::uuid, '13073086'::text, '861cac9d-087d-466b-86c3-4c95d86dce2c'::uuid, '13070887'::text),
+      ('214'::text, '61f9f707-4073-4e1b-9cd5-b499e25d8c58'::uuid, '13047384'::text, 'd602c80a-8511-4359-8931-67d87facd0f2'::uuid, '13019220'::text),
+      ('320'::text, '0d60664a-6501-4034-8a9e-8509b76e5490'::uuid, '13072026'::text, '057eb94c-2433-45c1-8a61-a841da0b1e29'::uuid, '13070889'::text),
+      ('338'::text, 'fbd73ece-abb6-4fb5-a5a1-342bc2811ff4'::uuid, 'IS60353006'::text, '84502339-d4fd-4e2a-beee-1a504672978c'::uuid, '13041213'::text),
+      ('348'::text, '7ba6db7d-cbd2-4548-a5b9-0135bf448c0b'::uuid, '13073074'::text, '1b18c826-e226-43e9-b4a0-6079c55853cc'::uuid, '13070897'::text),
+      ('349'::text, '0fc35a49-55fc-4395-928a-26ee9f82ac17'::uuid, '13073075'::text, '3e3eb9b0-89d2-4778-bb73-d06cf2bb0ad0'::uuid, '13073090'::text),
+      ('414'::text, 'f9d7ca6c-34a8-4f41-b28b-2c71575d7bf8'::uuid, 'IS60069640'::text, '6da9c8e1-9c9f-4fea-992e-57cc991f4d5f'::uuid, '13018221'::text)
+    ) AS t(token, keeper_id, keeper_stock, loser_id, loser_stock)
+  LOOP
+    SELECT * INTO v_loser FROM public.vehicles WHERE id = r.loser_id FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'r575: stock % (%) is not a vehicle. Nothing was changed.', r.loser_stock, r.loser_id;
+    END IF;
+    IF v_loser.stock_number IS DISTINCT FROM r.loser_stock THEN
+      RAISE EXCEPTION 'r575: id % is stock %, not %. Nothing was changed.', r.loser_id, coalesce(v_loser.stock_number, '(no stock)'), r.loser_stock;
+    END IF;
+    SELECT * INTO v_keeper FROM public.vehicles WHERE id = r.keeper_id FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'r575: stock % (%) is not a vehicle. Nothing was changed.', r.keeper_stock, r.keeper_id;
+    END IF;
+    IF v_keeper.stock_number IS DISTINCT FROM r.keeper_stock THEN
+      RAISE EXCEPTION 'r575: id % is stock %, not %. Nothing was changed.', r.keeper_id, coalesce(v_keeper.stock_number, '(no stock)'), r.keeper_stock;
+    END IF;
+    IF v_loser.board_purged_at IS NOT NULL THEN
+      CONTINUE;
+    END IF;
+    v_have := pdc_key_number_private.key_token_575(v_loser.key_number);
+    IF v_have IS NULL THEN
+      CONTINUE;
+    END IF;
+    IF v_have IS DISTINCT FROM r.token THEN
+      RAISE EXCEPTION 'r575: stock % (%) has key %, not %. Nothing was changed.', r.loser_stock, r.loser_id, v_have, r.token;
+    END IF;
+    v_keep := pdc_key_number_private.key_token_575(v_keeper.key_number);
+    IF v_keep IS DISTINCT FROM r.token THEN
+      RAISE EXCEPTION 'r575: stock % (%) no longer has key % (it has %). The other holder was not cleared. Nothing was changed.',
+        r.keeper_stock, r.keeper_id, r.token, coalesce(v_keep, '(none)');
+    END IF;
+    INSERT INTO pdc_key_number_private.key_release_575(vehicle_id, token, stock_number, reason, note)
+    VALUES (v_loser.id, v_have, v_loser.stock_number, 'approved_clear',
+      'Craig 27 Oct 2026 14:18 AWST: keep key ' || r.token || ' on ' || r.keeper_stock);
+    UPDATE public.vehicles
+       SET key_number = NULL, version = version + 1, updated_at = clock_timestamp()
+     WHERE id = v_loser.id
+       AND board_purged_at IS NULL
+       AND pdc_key_number_private.key_token_575(key_number) = r.token;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'r575: stock % (%) was not cleared. Nothing was changed.', r.loser_stock, r.loser_id;
+    END IF;
+  END LOOP;
+END $keepers$;
+
 DO $refuse$
 DECLARE
   v_list text;
@@ -243,7 +335,7 @@ BEGIN
   ) d
   WHERE d.token IS NOT NULL;
   IF v_list IS NOT NULL THEN
-    RAISE EXCEPTION 'r575: active board vehicles still share a key. Fix the data first. %', v_list;
+    RAISE EXCEPTION 'r575: a new active duplicate appeared after the approved clears. Nothing was kept. %', v_list;
   END IF;
 END $refuse$;
 
@@ -253,21 +345,8 @@ CREATE TABLE pdc_key_number_private.active_key_575 (
   stock_number text,
   CONSTRAINT active_key_575_vehicle UNIQUE (vehicle_id)
 );
-CREATE TABLE pdc_key_number_private.key_release_575 (
-  release_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  vehicle_id uuid NOT NULL,
-  token text NOT NULL,
-  stock_number text,
-  reason text NOT NULL,
-  released_at timestamp with time zone NOT NULL DEFAULT clock_timestamp(),
-  restored_at timestamp with time zone,
-  note text,
-  CONSTRAINT key_release_575_reason CHECK (reason IN ('archive', 'leave', 'not_restored'))
-);
 ALTER TABLE pdc_key_number_private.active_key_575 ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pdc_key_number_private.key_release_575 ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE pdc_key_number_private.active_key_575 FROM PUBLIC, anon, authenticated, service_role;
-REVOKE ALL ON TABLE pdc_key_number_private.key_release_575 FROM PUBLIC, anon, authenticated, service_role;
 
 CREATE FUNCTION pdc_key_number_private.guard_active_key_575()
 RETURNS trigger

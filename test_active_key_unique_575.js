@@ -46,7 +46,8 @@ test('the migration refuses active duplicates, names the other stock, and leaves
   assert.match(up, /r575 \(F189\) \/ sort 346/);
   assert.match(up, /cdsmnqxtyyoeoznmbidd/);
   assert.match(up, /vjdtsswhroyguxyfjdkt/);
-  assert.match(up, /active board vehicles still share a key\. Fix the data first\./);
+  assert.doesNotMatch(up, /Fix the data first/);
+  assert.match(up, /a new active duplicate appeared after the approved clears\. Nothing was kept\./);
   assert.match(up, /Key % is already on stock %/);
   assert.match(up, /USING ERRCODE = 'P0001'/);
   assert.match(up, /WHEN unique_violation THEN/);
@@ -61,18 +62,57 @@ test('the migration refuses active duplicates, names the other stock, and leaves
   assert.doesNotMatch(up, /CREATE OR REPLACE FUNCTION karratha135_pdc/);
   assert.doesNotMatch(up, /CREATE OR REPLACE FUNCTION public\.pdc_apply_tune_key_number_v1/);
   assert.doesNotMatch(up, /CREATE OR REPLACE FUNCTION pdc_codex_intake_private\.service_whole_archive_569/);
-  assert.match(up, /reason IN \('archive', 'leave', 'not_restored'\)/);
+  assert.match(up, /reason IN \('archive', 'leave', 'not_restored', 'approved_clear'\)/);
   assert.doesNotMatch(up, /INSERT INTO pdc_ops\.expected_function_md5/);
   assert.equal((up.match(/UPDATE pdc_ops\.expected_function_md5/g) || []).length, 1);
   assert.match(down, /8e46bf785c2118d58a8cebf2bd1888d1/);
   assert.match(down, /eabd64cea227ce91a1f3005569c16439/);
   assert.match(down, /DROP TRIGGER IF EXISTS zzz_pdc_active_key_575/);
-  assert.match(down, /A key this release already cleared stays/);
+  assert.match(down, /puts each approved_clear key back/);
+  assert.doesNotMatch(down, /already cleared stays/);
   const fault = fs.readFileSync('docs/FAULT_LOG.md', 'utf8');
   assert.match(fault, /\| F189 \|/);
   assert.match(fault, /active_key_unique_575/);
   assert.match(fault, /13008249 is key 238/);
   assert.match(fault, /13070395 is key 415/);
+  assert.match(fault, /214 is on 13047384/);
+  assert.match(fault, /approved_clear/);
+});
+
+test('Craig''s clears are id-scoped, skip an archived holder, and the undo puts that key back', () => {
+  const losers = [
+    ['105', '2314e3bc-5510-4d92-adc4-8155d3885d63', '13073068', 'ca02d68f-6d53-4519-9678-f2b31ca7e3a1', '13070896'],
+    ['126', '465a85f0-f027-476c-bcab-243448f22ac3', '13073094', '835f365f-17fc-4f56-908c-27963f276da0', '13070891'],
+    ['144', '53a6dc04-14cb-43cb-a2d6-7bd3a075bb72', '13092054', '1c1ca4f0-7ed2-4194-8376-e7aacc4a5e77', '13070886'],
+    ['146', 'e1f8c5b7-31c2-4a8e-8269-b396424bbc0b', '13073086', '861cac9d-087d-466b-86c3-4c95d86dce2c', '13070887'],
+    ['214', '61f9f707-4073-4e1b-9cd5-b499e25d8c58', '13047384', 'd602c80a-8511-4359-8931-67d87facd0f2', '13019220'],
+    ['320', '0d60664a-6501-4034-8a9e-8509b76e5490', '13072026', '057eb94c-2433-45c1-8a61-a841da0b1e29', '13070889'],
+    ['338', 'fbd73ece-abb6-4fb5-a5a1-342bc2811ff4', 'IS60353006', '84502339-d4fd-4e2a-beee-1a504672978c', '13041213'],
+    ['348', '7ba6db7d-cbd2-4548-a5b9-0135bf448c0b', '13073074', '1b18c826-e226-43e9-b4a0-6079c55853cc', '13070897'],
+    ['349', '0fc35a49-55fc-4395-928a-26ee9f82ac17', '13073075', '3e3eb9b0-89d2-4778-bb73-d06cf2bb0ad0', '13073090'],
+    ['414', 'f9d7ca6c-34a8-4f41-b28b-2c71575d7bf8', 'IS60069640', '6da9c8e1-9c9f-4fea-992e-57cc991f4d5f', '13018221'],
+  ];
+  for (const [token, keeperId, keeperStock, loserId, loserStock] of losers) {
+    assert.match(up, new RegExp(`'${token}'::text, '${keeperId}'::uuid, '${keeperStock}'::text, '${loserId}'::uuid, '${loserStock}'::text`));
+    assert.match(down, new RegExp(loserId));
+  }
+  assert.match(up, /IF v_loser\.board_purged_at IS NOT NULL THEN/);
+  assert.match(up, /'approved_clear'/);
+  const clearAt = up.indexOf("reason, note)\n    VALUES (v_loser.id, v_have, v_loser.stock_number, 'approved_clear'");
+  const refuseAt = up.indexOf('a new active duplicate appeared after the approved clears');
+  const shadowAt = up.indexOf('CREATE TABLE pdc_key_number_private.active_key_575');
+  const triggerAt = up.indexOf('CREATE TRIGGER zzz_pdc_active_key_575');
+  assert.ok(clearAt > 0 && refuseAt > clearAt && shadowAt > refuseAt && triggerAt > shadowAt);
+  assert.equal((up.match(/CREATE TABLE pdc_key_number_private\.key_release_575/g) || []).length, 1);
+  assert.equal((up.match(/CREATE TABLE pdc_key_number_private\.active_key_575/g) || []).length, 1);
+  const dropTriggerAt = down.indexOf('DROP TRIGGER IF EXISTS zzz_pdc_active_key_575');
+  const restoreAt = down.indexOf("reason = 'approved_clear'");
+  const dropHistoryAt = down.indexOf('DROP TABLE IF EXISTS pdc_key_number_private.key_release_575');
+  const dropTokenAt = down.indexOf('DROP FUNCTION IF EXISTS pdc_key_number_private.key_token_575');
+  assert.ok(dropTriggerAt >= 0 && restoreAt > dropTriggerAt && dropHistoryAt > restoreAt && dropTokenAt > restoreAt);
+  assert.match(down, /key_number IS NULL/);
+  assert.match(down, /already has key %\. The approved key % was not written over it/);
+  assert.match(up, /reason IN \('archive', 'leave'\)/);
 });
 
 test('preview files are stable bytes for the report', () => {

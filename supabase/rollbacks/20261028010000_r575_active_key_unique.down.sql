@@ -1,10 +1,12 @@
--- Undo r575 (F189) / sort 346. PREVIEW. Staging cdsmnqxtyyoeoznmbidd only.
+-- Undo r575 (F189) / sort 346. Staging cdsmnqxtyyoeoznmbidd only.
 -- Production vjdtsswhroyguxyfjdkt is not a target.
--- Puts the PMB-only key gate back on the key editor and the vehicle-detail save,
--- drops the active-board trigger, the shadow key and the release history, and
--- removes active_key_unique_575. A key this release already cleared stays
--- cleared: the release history is dropped with the undo, so a later un-archive
--- cannot put it back. No vehicle row is rewritten. Department 135 is not edited.
+-- Drops the active-board trigger first, then puts each approved_clear key back
+-- onto that same vehicle id. The stock must still match and the key must still
+-- be empty. If that id already has a key, this stops and does not overwrite it.
+-- Archive and leave history is dropped with the undo and is not put back, so a
+-- later un-archive cannot restore those. Puts the PMB-only key gate back on the
+-- key editor and the vehicle-detail save, drops the shadow key and the release
+-- history, and removes active_key_unique_575. Department 135 is not edited.
 -- Pin count stays 241. The apply pin moves back in place.
 
 SET LOCAL lock_timeout = '2s';
@@ -37,6 +39,86 @@ END $g$;
 
 DROP TRIGGER IF EXISTS zzz_pdc_active_key_575 ON public.vehicles;
 DROP TRIGGER IF EXISTS zzz_pdc_active_key_575_del ON public.vehicles;
+
+-- The unique trigger is gone, so writing the key back is not blocked.
+-- Only Craig's approved clears, and only the ten named ids.
+DO $restore$
+DECLARE
+  r record;
+  v_vehicle public.vehicles%rowtype;
+BEGIN
+  IF pg_catalog.to_regclass('pdc_key_number_private.key_release_575') IS NULL THEN
+    RAISE EXCEPTION 'r575 down: key history is missing. Nothing was put back.';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pdc_key_number_private.key_release_575
+    WHERE reason = 'approved_clear'
+      AND restored_at IS NULL
+      AND vehicle_id NOT IN (
+        'ca02d68f-6d53-4519-9678-f2b31ca7e3a1'::uuid,
+        '835f365f-17fc-4f56-908c-27963f276da0'::uuid,
+        '1c1ca4f0-7ed2-4194-8376-e7aacc4a5e77'::uuid,
+        '861cac9d-087d-466b-86c3-4c95d86dce2c'::uuid,
+        'd602c80a-8511-4359-8931-67d87facd0f2'::uuid,
+        '057eb94c-2433-45c1-8a61-a841da0b1e29'::uuid,
+        '84502339-d4fd-4e2a-beee-1a504672978c'::uuid,
+        '1b18c826-e226-43e9-b4a0-6079c55853cc'::uuid,
+        '3e3eb9b0-89d2-4778-bb73-d06cf2bb0ad0'::uuid,
+        '6da9c8e1-9c9f-4fea-992e-57cc991f4d5f'::uuid
+      )
+  ) THEN
+    RAISE EXCEPTION 'r575 down: an approved clear is not one of the ten holders. Nothing was put back.';
+  END IF;
+  FOR r IN
+    SELECT release_id, vehicle_id, token, stock_number
+    FROM pdc_key_number_private.key_release_575
+    WHERE reason = 'approved_clear'
+      AND restored_at IS NULL
+      AND vehicle_id IN (
+        'ca02d68f-6d53-4519-9678-f2b31ca7e3a1'::uuid,
+        '835f365f-17fc-4f56-908c-27963f276da0'::uuid,
+        '1c1ca4f0-7ed2-4194-8376-e7aacc4a5e77'::uuid,
+        '861cac9d-087d-466b-86c3-4c95d86dce2c'::uuid,
+        'd602c80a-8511-4359-8931-67d87facd0f2'::uuid,
+        '057eb94c-2433-45c1-8a61-a841da0b1e29'::uuid,
+        '84502339-d4fd-4e2a-beee-1a504672978c'::uuid,
+        '1b18c826-e226-43e9-b4a0-6079c55853cc'::uuid,
+        '3e3eb9b0-89d2-4778-bb73-d06cf2bb0ad0'::uuid,
+        '6da9c8e1-9c9f-4fea-992e-57cc991f4d5f'::uuid
+      )
+    ORDER BY stock_number
+    FOR UPDATE
+  LOOP
+    SELECT * INTO v_vehicle FROM public.vehicles WHERE id = r.vehicle_id FOR UPDATE;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'r575 down: id % is not a vehicle. The key was not put back.', r.vehicle_id;
+    END IF;
+    IF v_vehicle.stock_number IS DISTINCT FROM r.stock_number THEN
+      RAISE EXCEPTION 'r575 down: id % is stock %, not %. The key was not put back.',
+        r.vehicle_id, coalesce(v_vehicle.stock_number, '(no stock)'), coalesce(r.stock_number, '(no stock)');
+    END IF;
+    IF v_vehicle.key_number IS NOT NULL THEN
+      RAISE EXCEPTION 'r575 down: stock % (%) already has key %. The approved key % was not written over it.',
+        coalesce(v_vehicle.stock_number, '(no stock)'), r.vehicle_id, v_vehicle.key_number, r.token;
+    END IF;
+    UPDATE public.vehicles
+       SET key_number = r.token, version = version + 1, updated_at = clock_timestamp()
+     WHERE id = r.vehicle_id
+       AND key_number IS NULL
+       AND stock_number IS NOT DISTINCT FROM r.stock_number;
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'r575 down: stock % (%) was not restored.', coalesce(r.stock_number, '(no stock)'), r.vehicle_id;
+    END IF;
+    UPDATE pdc_key_number_private.key_release_575
+       SET restored_at = clock_timestamp()
+     WHERE release_id = r.release_id
+       AND restored_at IS NULL
+       AND reason = 'approved_clear';
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'r575 down: history for % was not marked restored.', r.vehicle_id;
+    END IF;
+  END LOOP;
+END $restore$;
 
 DO $apply$
 DECLARE
