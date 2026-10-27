@@ -70,7 +70,7 @@ test('the list names each station, and a backfill is not a person', () => {
   assert.match(waitingRow, /Fitting awaiting acknowledgement/);
   assert.match(waitingRow, /Hoist awaiting acknowledgement/);
   assert.match(waitingRow, /data-pmb-ack-station="FITTING"/);
-  assert.match(waitingRow, /Acknowledge Fitting/);
+  assert.match(waitingRow, /Acknowledge for Fitting/);
   assert.doesNotMatch(waitingRow, /data-pmb-ack-station="HOIST"/);
   assert.doesNotMatch(waitingRow, /data-pmb-ack-station="FABRICATION"/);
   assert.match(waitingRow, /stationTransfer|incoming-card-work-wrap/);

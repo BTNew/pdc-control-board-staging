@@ -45,7 +45,7 @@ test('F25: app.js has exactly one alert() left, the PO-attachment notice before 
 
 test('F25: 210 former alert() calls are toasts; exactly eight are info (six + r419 + r432), the rest errors', () => {
   const notify = calls(code, /(?<!function )\bpdcNotify\(/g);
-  assert.strictEqual(notify, 244, '25 from r407/r408 + 210 converted + 1 r419 no-op role change notice + 2 r432 Link salesperson record (failure, result) + 4 r557 station save and arrival acknowledgement + 2 r562 push to PMB (missing vehicle, server refusal)');
+  assert.strictEqual(notify, 248, '25 from r407/r408 + 210 converted + 1 r419 no-op role change notice + 2 r432 Link salesperson record (failure, result) + 4 r557 station save and arrival acknowledgement + 2 r562 push to PMB (missing vehicle, server refusal) + 4 r574 department bay booking (key needed, planner not loaded twice, no free slot)');
   assert.strictEqual(calls(code, /pdcNotify\([^\n]*'info'\);/g), 9);
   for (const re of INFO_MESSAGES) assert.match(app, re);
   // No error message became info by accident: every 'info' toast is in the list above.
