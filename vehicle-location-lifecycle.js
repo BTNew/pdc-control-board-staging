@@ -11,6 +11,14 @@ const YARD_HOLD_STATUSES = Object.freeze(new Set([
   'vehicle waiting for wholesale',
 ]));
 const BODY_BUILDER_RELEASE_STATUS = 'delivered - at body builder';
+const BODY_BUILDER_HOLD_STATUSES = Object.freeze(new Set([
+  'delivered - at body builder',
+  'delivered - at bodybuilder',
+  'delivered to body builder',
+  'delivered to bodybuilder',
+  'od - delivered to bodybuilder',
+  'od - delivered to body builder',
+]));
 const DEALER_COMPLETION_STATUS = 'delivered - at dealer';
 
 function normalizeLifecycleStatus(value = '') {
@@ -93,7 +101,11 @@ function resolveVehicleLifecycleLocation(vehicle = {}, options = {}) {
   }
   if (['RFT', 'QC', 'PIT'].includes(current)) return { location: current, transition: 'preserve_manual_progress', status, businessDate, etaDate, pmbLatched };
   if (pmbLatched) return { location: 'PMB', transition: 'preserve_pmb_latch', status, businessDate, etaDate, pmbLatched };
-  if (status === BODY_BUILDER_RELEASE_STATUS) return { location: 'PMB', transition: 'released_to_pmb', status, businessDate, etaDate, pmbLatched: false };
+  // r574 (F188): OD Delivered to body builder still resolves to location PMB so
+  // New to PMB can open. It does not skip that tile, even when a key is present.
+  if (BODY_BUILDER_HOLD_STATUSES.has(status)) {
+    return { location: 'PMB', transition: 'new_to_pmb_hold', status, businessDate, etaDate, pmbLatched: false, holdUntilToPmb: true };
+  }
   if (current === 'YH') return { location: 'YH', transition: 'preserve_yh_latch', status, businessDate, etaDate, pmbLatched: false };
   if (YARD_HOLD_STATUSES.has(status) && etaDate && etaDate < businessDate) {
     return { location: 'YH', transition: 'yard_hold_eta_passed', status, businessDate, etaDate, pmbLatched: false };
@@ -116,6 +128,7 @@ const exported = {
   PDC_BUSINESS_TIME_ZONE,
   YARD_HOLD_STATUSES,
   BODY_BUILDER_RELEASE_STATUS,
+  BODY_BUILDER_HOLD_STATUSES,
   DEALER_COMPLETION_STATUS,
   normalizeLifecycleStatus,
   lifecycleStatusFromVehicle,

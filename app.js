@@ -8332,6 +8332,9 @@ function vehicleLocationsDisplayBucket(vehicle = {}) {
   const operational = incomingBucketForVehicle(vehicle);
   if (operational !== 'pmb') return operational;
   const row = pmbArrivalRecord(vehicle);
+  // r574 (F188): a body-builder delivery stays on New to PMB until To PMB,
+  // even when a key is already present and the arrival would otherwise look finished.
+  if (row && row.source === 'bodybuilder' && row.closed !== true) return 'newpmb';
   // viewer_pending is per person: a controller while any station is outstanding,
   // or someone assigned to a station that is still outstanding. Missing data stays on PMB.
   return row && row.viewer_pending === true ? 'newpmb' : 'pmb';
@@ -8373,6 +8376,12 @@ function pmbKeyNeededBadgeHtml(vehicle = {}) {
   const row = pmbArrivalRecord(vehicle);
   if (!row || row.viewer_pending !== true || pmbVehicleHasKey(vehicle)) return '';
   return `<span class="badge pmb-key-needed" title="A key number is needed before this vehicle can move from New to PMB into PMB.">Key number needed</span>`;
+}
+
+function pmbBodybuilderHoldHtml(vehicle = {}) {
+  const row = pmbArrivalRecord(vehicle);
+  if (!row || row.source !== 'bodybuilder' || row.closed === true) return '';
+  return `<span class="badge pmb-bodybuilder-hold" title="Delivered to the body builder. Check the key number, then press To PMB.">Delivered to body builder</span>`;
 }
 
 function pmbArrivalAgeFlagHtml(vehicle = {}) {
@@ -8419,7 +8428,9 @@ function pmbArrivalActionHtml(vehicle = {}, key = '') {
     }
     return `<button class="primary pmb-ack-tick" type="button" data-pmb-ack="${escapeHtml(key)}" data-pmb-ack-station="${escapeHtml(station)}" title="Acknowledge for ${escapeHtml(label)} so that station can prepare. The vehicle is already at PMB.">${escapeHtml(text)}</button>`;
   }).join('');
-  const push = pending.length === 0 && pmbArrivalRecord(vehicle)?.viewer_pending === true
+  const arrival = pmbArrivalRecord(vehicle);
+  const bodybuilderHold = arrival?.source === 'bodybuilder' && arrival?.closed !== true;
+  const push = pending.length === 0 && (arrival?.viewer_pending === true || bodybuilderHold)
     ? (needsKey
       ? `<button class="primary pmb-push-disabled" type="button" disabled title="${escapeHtml(PMB_KEY_NEEDED_TITLE)}">To PMB</button>`
       : `<button class="primary" type="button" data-pmb-push="${escapeHtml(key)}" title="Move this vehicle from New to PMB into PMB.">To PMB</button>`)
@@ -8456,7 +8467,7 @@ function ensurePmbArrivalAck() {
     });
     const signature = [...next.entries()].map(([id, row]) => {
       const departments = Array.isArray(row.departments) ? row.departments : [];
-      return `${id}|${row.viewer_pending}|${departments.map(department => `${department.station}:${department.pending}:${department.acknowledged_by_name || ''}:${department.acknowledged_at || ''}`).join(',')}`;
+      return `${id}|${row.viewer_pending}|${row.closed}|${row.source}|${departments.map(department => `${department.station}:${department.pending}:${department.acknowledged_by_name || ''}:${department.acknowledged_at || ''}`).join(',')}`;
     }).sort().join('\n');
     const changed = signature !== app.pmbArrivalAckSignature;
     app.pmbArrivalAck = next;
@@ -9826,7 +9837,7 @@ function incomingVehicleDetailRow(vehicle = {}, bucketKey = '', options = {}) {
           ? `<span class="rft-row-controls-slot">${rftControls}</span>`
           : `<span class="incoming-card-work-wrap">${workChecks}</span>
         <span class="incoming-card-meta incoming-card-age ${escapeHtml(locationAge.colourClass)}" title="${escapeHtml(locationAge.title)}"><b>${bucketKey === 'pmb' || bucketKey === 'newpmb' ? 'PMB' : bucketKey === 'qc' ? 'QC' : bucketKey === 'pit' ? 'PIT' : bucketKey === 'yardhold' ? 'YH' : bucketKey === 'nonnavision' ? 'Location' : 'ETA'}</b><span>${escapeHtml(locationAge.label)}</span></span>
-        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}${typeof pmbKeyNeededBadgeHtml === 'function' ? pmbKeyNeededBadgeHtml(vehicle) : ''}${typeof pmbArrivalAgeFlagHtml === 'function' ? pmbArrivalAgeFlagHtml(vehicle) : ''}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}</span></span>
+        <span class="incoming-card-meta incoming-card-status"><b>Status</b><span>${partsRiskBadge(vehicle)}${vehicleDepartmentBadge(vehicle)}${escapeHtml(rowStatus)}${typeof pmbBodybuilderHoldHtml === 'function' ? pmbBodybuilderHoldHtml(vehicle) : ''}${typeof pmbKeyNeededBadgeHtml === 'function' ? pmbKeyNeededBadgeHtml(vehicle) : ''}${typeof pmbArrivalAgeFlagHtml === 'function' ? pmbArrivalAgeFlagHtml(vehicle) : ''}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}</span></span>
         <span class="incoming-card-action">${window.PDC_BOOK_ALL_STATIONS?.actionHtml(vehicle, primaryAction) ?? primaryAction}${typeof pmbArrivalNoteHtml === 'function' ? pmbArrivalNoteHtml(vehicle) : ''}${labelAction}${deleteAction}</span>`}
         ${pmbAckBar}
       </summary>

@@ -148,7 +148,8 @@ const approvedRootImportPatch = Object.freeze({
   // r574: the department bay picker is the same blue (F188). Department 135 is not tagged.
   // r575: a duplicate key sentence on the vehicle card is blue (F189). Department 135 keeps the previous paint.
   // r573: Place as STOPPAGE on the Parts tile is blue (#dbeafe / #1d4ed8) (F187). Department 135 is not tagged.
-  "styles.css": "fc4d77989987e22aea9af9ce78422b15d7052f0a63a30383c83a330ea9857804",
+  // r582: Delivered to body builder is blue (#dbeafe / #1d4ed8). Department 135 is not tagged.
+  "styles.css": "009338e27cdbe4020a2bd62a81da261342608cf5504a60c002e52b1b4be21748",
   // r495: allowlist adds site-switcher-branches.js, sales/sales-branch.js, sales/karratha-sales-import.js and the Karratha Toyota logo (F108).
   // r565: the runtime list adds pdc-bus-component-split.js before the fitter scripts (F179). Department 135 is not tagged.
   // r566: the runtime list adds pdc-workshop-vehicle-search.js before the Vehicle Locations table (F180). Department 135 is not tagged.
@@ -281,7 +282,8 @@ const approvedRootImportPatch = Object.freeze({
   // r575: a changed key that another loaded board vehicle already has says which stock, in blue (F189). Department 135 is not tagged.
   // r578: a station icon is green when every line of that station is complete, or a controller overrides it (F196). Department 135 is not tagged.
   // r573: r573=2026.10.27.r573 on both workshop-planner.js loads, and the Parts tile date has a blue Place as STOPPAGE button (F187). Department 135 is not tagged.
-  "app.js": "ad96715cc6f44a3e16b79e7c83c12ffdedccc89ccb74bd4ebcc6dbc084ddeb3b",
+  // r582: a body-builder delivery stays on New to PMB until To PMB (F195). Department 135 keeps its frozen app.js.
+  "app.js": "d26938a668ce836f6bace8831b7a855eeb71b78bb03a17de04db04e2ed098b59",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -416,7 +418,8 @@ const approvedRootImportPatch = Object.freeze({
   // r575: index.html adds r575=2026.10.27.r575 on the key cell, the card, the detail save and the stylesheet (F189). Department 135 is not tagged.
   // r578: index.html adds r578=2026.10.27.r578 on canonical-entry.js and app.js (station icon complete, F196). Department 135 is not tagged.
   // r573: index.html adds r573=2026.10.27.r573 on canonical-entry.js, and the hidden JITA panel has Place as STOPPAGE (F187). Department 135 is not tagged.
-  "index.html": "8a7cc24ed18626b881949ffd4ed9ab2f762011f018bb1bfdc608342602ec2cab",
+  // r582: index.html adds r582=2026.10.27.r582 on app.js, styles.css and vehicle-location-lifecycle.js (body-builder hold, F195). Department 135 is not tagged.
+  "index.html": "2c002bce1b4fa9501e1f807a033173d9e87b19df72779ee1955b02d4dbcac55d",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -458,7 +461,9 @@ const approvedRootImportPatch = Object.freeze({
   "pdc-book-all-stations.js": "5001a53b8a79fc7bd4cdc837178ff8b53cb5afd61a94991c27543d22db8c6e3c",
   // r501: Create Sublet and Book Sublet hidden behind CREATE_ON_SUBLET_PAGE=false; calendar view only with Manage sublets per card (F114). Karratha stays frozen.
   "pdc-sublet-intake.js": "7054c68b4b0bffdf8e738dc96177a67195f7076ed8e83eae11ad1fc27d6f214b",
-  "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938"
+  "site-switcher.js": "dbd495a575c34078fdfb62103ac74becbccc4d9bd260287a5f0eff067de6d938",
+  // r574: OD Delivered to body builder stays a PMB location and waits for To PMB (F188). Department 135 keeps its frozen lifecycle module.
+  "vehicle-location-lifecycle.js": "cdc5463c07cd7d653e22b4772e86583cd9dad7695a428141b6a51918ae2d8304"
 });
 test('PMB/Sales runtime preserves its frozen baseline and approved root release patches', () => {
   for (const item of manifest.files) {
