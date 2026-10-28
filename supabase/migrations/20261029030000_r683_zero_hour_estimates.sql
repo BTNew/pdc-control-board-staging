@@ -7,8 +7,8 @@
 -- zero_hour_estimate_683 so the board shows "Estimate". One run only (Craig 07:11: the 0-hour lines come from the
 -- mass import of current job cards; new vehicles get hours when they come on). The function stays for a manual rerun;
 -- it skips the import windows and running imports. A person's own hours (manual) are never touched.
-SET LOCAL lock_timeout = '4s';
-SET LOCAL statement_timeout = '600s';
+SET LOCAL lock_timeout = '6s';
+SET LOCAL statement_timeout = '60s';
 
 DO $guard683$
 DECLARE awst time := (clock_timestamp() AT TIME ZONE 'Australia/Perth')::time;
@@ -73,6 +73,7 @@ BEGIN
       AND NOT (a.active IS TRUE AND a.correction_origin IN ('manual_operator', 'manual_operator_unknown'));
     IF jsonb_array_length(v_rows) = 0 OR v_jc IS NULL THEN CONTINUE; END IF;
     BEGIN
+      DROP TABLE IF EXISTS pg_temp.pdc_hours_batch_request_t780, pg_temp.pdc_hours_batch_source_t780, pg_temp.pdc_hours_batch_changes_t780; -- r683c: the save creates these per call
       r := public.save_vehicle_workshop_line_hours_batch_768(v.vehicle_id, v.stock_number, v_jc,
              (SELECT version FROM public.vehicles WHERE id = v.vehicle_id), v_rows, gen_random_uuid());
       IF coalesce((r->>'ok')::boolean, false) THEN
@@ -92,13 +93,10 @@ BEGIN
 END $fn$;
 REVOKE ALL ON FUNCTION pdc_ops.zero_hour_estimate_683(integer) FROM PUBLIC, anon, authenticated, service_role;
 
--- One run over every vehicle with 0-hour lines (about 280).
-DO $run683$ DECLARE r jsonb; BEGIN
-  r := pdc_ops.zero_hour_estimate_683(200);
-  RAISE NOTICE 'r683 run 1: %', r;
-  r := pdc_ops.zero_hour_estimate_683(200);
-  RAISE NOTICE 'r683 run 2: %', r;
-END $run683$;
+-- The run itself is done after this migration in separate calls of 40 vehicles each
+-- (SELECT pdc_ops.zero_hour_estimate_683(40);), so no lock is held across the whole board at once.
+-- Applied 29 Oct 07:5x AWST (r683, then r683b/r683c added the temp-table drops, folded in above). Runs gave estimates
+-- to 107 vehicles (680 lines). 62 vehicles were refused (dealer_scope_denied: no single current Navision record).
 
 DO $check683$
 DECLARE ok boolean; detail text;
@@ -108,8 +106,8 @@ BEGIN
     'The one-off 0-hour estimate run is in place and marked lines show as Estimate (Sublet stays 0).',
     $chk$
 SELECT to_regprocedure('pdc_ops.zero_hour_estimate_683(integer)') IS NOT NULL
-  AND strpos(pg_get_constraintdef((SELECT oid FROM pg_constraint WHERE conname = 'pdc_auditor_adjustment_origin_check')), 'zero_hour_estimate_683') > 0
- AS ok, 'zero hour estimates scheduled' AS detail
+  AND strpos(pg_get_constraintdef((SELECT oid FROM pg_constraint WHERE conname = 'pdc_auditor_adjustment_origin_check' AND conrelid = 'public.vehicle_workshop_line_adjustments'::regclass)), 'zero_hour_estimate_683') > 0
+ AS ok, 'zero hour estimates in place' AS detail
 $chk$, true, 428, 'r683');
   EXECUTE (SELECT check_sql FROM pdc_ops.regression_checks WHERE check_name = 'zero_hour_estimates_683') INTO ok, detail;
   IF ok IS NOT TRUE THEN RAISE EXCEPTION 'r683: check red: %', detail; END IF;
