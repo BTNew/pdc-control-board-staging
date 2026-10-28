@@ -1277,6 +1277,9 @@ async function workshopDispatchSharedAction(actionName, payload, renderAction = 
     if ((!result || result.ok !== true) && !commandCommitted && options.suppressFailureAlert !== true) {
       workshopNotify(workshopDescribeSharedActionError(result));
     }
+    if (result?.ok === true && result.cascade_notice && options.suppressFailureAlert !== true) {
+      workshopNotify(result.cascade_notice, 'info');
+    }
     if (result?.ok === true && result.refreshRequired === true && options.suppressFailureAlert !== true) {
       workshopNotify('Your change was saved, but the planner could not refresh yet. Refresh the planner before making another change.');
     }
@@ -1387,7 +1390,7 @@ function workshopDescribeSharedActionError(result) {
     if (named) return named;
     return 'That technician is already assigned to another booking during this period. No booking was saved. Drop this vehicle on a bay whose mechanic is free for the whole job, use Best slot, or move that booking first.';
   }
-  if (error === 'vehicle_overlap' || (conflict && conflict.conflict_type === 'vehicle_overlap')) {
+  if (error === 'vehicle_overlap') {
     const detail = workshopVehicleConflictDetail(result);
     // r469 (F82): the server only pushes bookings the drop really overlaps. When pushing one of them back would land it on
     // its own vehicle's next booking, the server names both; say so plainly instead of blaming the dropped vehicle.
@@ -1525,6 +1528,9 @@ function workshopVehicleConflictDetail(result = {}) {
   };
   const start = formatTime(booking.scheduled_start_at);
   const end = formatTime(booking.scheduled_end_at);
+  // r597 (F211): a row with no bay is not a booked conflict, and the job being
+  // dragged must not be described as colliding with its own stored window.
+  if (!bay) return '';
   const location = [stage, bay].filter(Boolean).join(' · ');
   const when = start ? `scheduled ${start}${end ? ` – ${end}` : ''} (Perth time)` : '';
   if (!stock && !location && !when) return '';

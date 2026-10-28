@@ -127,7 +127,8 @@ const approvedRootImportPatch = Object.freeze({
   // r573: the left rail has a Stoppage section for a parts ETA placed as STOPPAGE (F187). Department 135 is not tagged.
   // r592: a drop onto a running job asks to place this job after it and lists the jobs that move back (F206). Department 135 keeps its frozen planner.
   // r594: an unallocated drag books the unticked lines for that station (F208). Department 135 keeps its frozen planner.
-  "workshop-planner.js": "53fbdfd8337adeb94a06dc9168aec78bf8b4bad6dc641515632b66da96328dac",
+  // r597: an occupied-bay drop cascades and says which jobs moved; a bayless card shows the unticked hours (F211). Department 135 keeps its frozen planner.
+  "workshop-planner.js": "9b418b77dcfc4038b1d55e519b14e19ab7a6e348a03d1d62ffb06b70a6dfe67c",
   // r527: a refused set_bay_default_technician no longer wipes the cached bay list (F141). Department 135 keeps the baseline bytes.
   // r549: setWorkshopBayDisplayName calls set_workshop_bay_display_name (F163). Department 135 keeps the baseline bytes.
   "workshop-reference-data-service.js": "105e1f26100390826b8a4b0b8dabd12233a356995d067c24bf9585d9277319a9",
@@ -299,7 +300,7 @@ const approvedRootImportPatch = Object.freeze({
   // r590: the QC sign-off button stays visible and names what is still outstanding (F204). Department 135 keeps its frozen app.js.
   // r593: a recent key is listed in New to PMB and stays in the PMB bucket. No department tick (F207). Department 135 keeps its frozen app.js.
   // r591: Admin > Revolution uploads is administrators only (F205). Department 135 is not tagged.
-  "app.js": "14901c213e771dad46dd5032e4ca61ee8ff481623c2fe8d55e1cf5d2ebdd3472",
+  "app.js": "95e652bdc2af1313ccdcef606a4693b513f7c90bd903f2713d21088ee3fc3b58",
   // r464: a booking that runs past the day divider is one bar (joined per-day pieces, display only; F77). The Karratha copy stays frozen.
   // r465: overview bar labels show Key · JC and the customer only (Stock and the vehicle description stay in the hover title); the customer span is classed for the Running layout (F78).
   // r467: Day / Week / Month zoom on the overview timeline (display only; F80).
@@ -442,7 +443,8 @@ const approvedRootImportPatch = Object.freeze({
   // r590: index.html adds r590=2026.10.28.r590 on app.js and pdc-email-vehicle-location-service.js (QC sign-off wording, F204). Department 135 is not tagged.
   // r595: index.html adds r595=2026.10.28.r595 on canonical-entry.js (Parts ETA is set in the side panel, F209). Department 135 is not tagged.
   // r591: Revolution uploads nav, view, stylesheet and script (F205). Department 135 is not tagged.
-  "index.html": "94d5be4c62608394f2c44d9177f6032c287ac0c66e3808e0e2b8c8e5e1e900b9",
+  // r597: index.html adds r597=2026.10.28.r597 on app.js (unticked hours and cascade without a question, F211). Department 135 is not tagged.
+  "index.html": "e047a14f1e163e8d125d515441c1d32e0ba3239a535ea27e063162e734d764c3",
   "pdc-conversions.js": "0a99e7a5306f15e434b293a3ca9a318ffad4b78eb814c27144d75ff98821d810",
   // r401: Pit tick and read RPCs (set_pdc_pit_line_tick_401, get_pdc_pit_line_ticks_401).
   // r414: readQcPhotoReceipt (get_pdc_qc_photo_receipt_414) for the QC page (F30).
@@ -484,7 +486,7 @@ const approvedRootImportPatch = Object.freeze({
   // r424: push-back warning confirm; bay re-order and undo actions (F38).
   // r569: pauseBayForOther calls pause_bay_job_for_other_566 (F183). Department 135 keeps its frozen copy.
   // r592: a running-job drop asks to place the job after it (F206). Department 135 keeps its frozen copy.
-  "workshop-shared-actions.js": "d28db2d0b30d72c2736661c0dbd048547136835b0f213f20a955143f593e0382",
+  "workshop-shared-actions.js": "8f7c750886938a752021d83457623f1cdd0a1fb9a6495be347d8494e5df45851",
   // r483: Book all stations result shows the Dept 139 bay names (F96). The Karratha copy stays frozen.
   // r482: Book all stations asks first when the parts ETA is after today and marks bookings before it (F95).
   "pdc-book-all-stations.js": "5001a53b8a79fc7bd4cdc837178ff8b53cb5afd61a94991c27543d22db8c6e3c",

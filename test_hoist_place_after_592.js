@@ -5,7 +5,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const { workshopConfirmBayRuleWarning, workshopPlaceAfterQuestion } = require('./workshop-shared-actions.js');
+const { workshopConfirmBayRuleWarning, workshopPlaceAfterQuestion, workshopCascadeNotice } = require('./workshop-shared-actions.js');
 
 const CONFLICT_TOAST = 'This change conflicts with a job already running or on stoppage. No changes were saved. Check the occupied bay or choose another available time.';
 
@@ -52,33 +52,36 @@ const place = {
   pushes: [{ key_number: 365, bay_number: 2, from_start: '2026-10-28T05:33:00Z', to_start: '2026-10-29T05:35:00Z' }],
 };
 
-test('a running-job drop asks in plain English and a confirmed drop sends the plan hash', async () => {
+test('a running-job drop cascades without a question and sends the plan hash', async () => {
   const calls = [];
   const asked = [];
   const result = await workshopConfirmBayRuleWarning(async (name, params) => {
     calls.push(params);
-    return calls.length === 1 ? place : { ok: true };
+    return calls.length === 1 ? place : { ok: true, shifted_count: 10 };
   }, 'administrator_move_workshop_booking', { p_metadata: { source: 'planner_chip_drop' }, p_request_id: 'r1' }, question => {
     asked.push(question);
-    return true;
+    return false;
   });
   assert.equal(result.ok, true);
   assert.equal(calls.length, 2);
-  assert.match(asked[0], /Key 328 is already running in Jason Ranoco/);
-  assert.match(asked[0], /Key 365 · Bay 2/);
-  assert.match(asked[0], /Choose Cancel to leave everything as it is/);
+  assert.equal(asked.length, 0);
   assert.deepEqual(calls[1].p_metadata.place_after_confirm, { plan_hash: 'hash-460' });
   assert.equal(calls[1].p_metadata.source, 'planner_chip_drop');
   assert.notEqual(calls[1].p_request_id, 'r1');
+  assert.equal(result.cascade_notice, 'Key 365 moved back.');
+  assert.match(workshopCascadeNotice(place), /Key 365 moved back/);
   assert.match(workshopPlaceAfterQuestion(place), /push the later job back/);
 });
 
-test('Cancel on a running-job drop leaves the bay as it is', async () => {
+test('a running-job drop is not waiting on Cancel', async () => {
   let n = 0;
-  const cancelled = await workshopConfirmBayRuleWarning(async () => { n += 1; return place; }, 'x', { p_metadata: {} }, () => false);
-  assert.equal(n, 1);
-  assert.equal(cancelled.error, 'place_after_not_confirmed');
-  assert.equal(cancelled.cancelled, true);
+  const result = await workshopConfirmBayRuleWarning(async () => {
+    n += 1;
+    return n === 1 ? place : { ok: true };
+  }, 'x', { p_metadata: {} }, () => false);
+  assert.equal(n, 2);
+  assert.equal(result.ok, true);
+  assert.equal(result.cancelled, undefined);
 });
 
 test('a valid place-after drop does not show the running-job conflict toast', () => {

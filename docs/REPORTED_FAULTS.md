@@ -1,5 +1,13 @@
 # Reported faults
 
+## Key 460 still showed 12 hours and then refused its own Hoist row
+
+Craig, 28 Oct 2026 08:40 AWST. After r594 the Hoist card for Key 460 (stock 13071838) still said 12.00 hours. Dropping it into Jason Ranoco's bay asked him to confirm every later job, then the board said the move conflicts with stock 13071838, Hoist, scheduled Thu 29 Oct 8:52 am to Fri 30 Oct 10:22 am. That window is the 12-hour block stored on the same unallocated Hoist booking. The Control Board search showed 0 bays and 3 unallocated bookings (Tint, Hoist, Fabrication). It was not booked into a bay.
+
+The snapshot the planner and the Control Board read was still copying the stored 720 minutes and that stored window, and it was not sending the unticked-line estimate. The open Hoist work is the GVM upgrade, 5.00 hours. A drop onto the running job also stopped and listed every later job before it would move them.
+
+r597 / F211 / sort 367. The snapshot now sends the unticked hours for a bayless row, and the drag uses that. A row with no bay is not a conflict, and a booking is not a conflict with itself. A drop into an occupied bay moves the later jobs and then says which ones moved. Key 460 is not booked by this release. Department 135 is not changed. The move pin stays one row; its text is updated in place so the catalogue stays at 241.
+
 ## Pilbara Navision Apply was cancelled
 
 Craig, 28 Oct 2026 07:41 AWST. Navision Uploads, Pilbara, on pmgpdc.au (staging `cdsmnqxtyyoeoznmbidd`). The preview said it had received 1102 car records for dealers 014450, 001234 and 002345. Apply then failed. The toast was "The Navision import took too long and was cancelled." Craig approved go-live 28 Oct 2026 08:42 AWST ("Go live #584"). Production `vjdtsswhroyguxyfjdkt` was not touched.

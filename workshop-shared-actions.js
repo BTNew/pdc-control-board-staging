@@ -103,6 +103,17 @@ function workshopIsPlaceAfterWarning(result) {
     && result.error === 'place_after_running' && typeof result.plan_hash === 'string' && result.plan_hash);
 }
 
+// r597 (F211): a drop into an occupied bay cascades. There is no question.
+// The planner then says, briefly, which later jobs moved.
+function workshopCascadeNotice(warning) {
+  const pushes = Array.isArray(warning?.pushes) ? warning.pushes : [];
+  const keys = pushes.map(push => push?.key_number ? `Key ${push.key_number}` : '').filter(Boolean);
+  if (!keys.length) return 'Later jobs in this bay moved back.';
+  if (keys.length === 1) return `${keys[0]} moved back.`;
+  const rest = keys.length - 1;
+  return `${keys[0]} and ${rest} later job${rest === 1 ? '' : 's'} moved back.`;
+}
+
 async function workshopConfirmBayRuleWarning(mutate, name, params, ask) {
   const confirmFn = typeof ask === 'function' ? ask
     : (typeof window === 'object' && typeof window.confirm === 'function' ? window.confirm.bind(window) : null);
@@ -119,16 +130,18 @@ async function workshopConfirmBayRuleWarning(mutate, name, params, ask) {
       current = { ...current, p_metadata: { ...(current.p_metadata || {}), bay_rule_confirm: { rules } }, p_request_id: workshopBayRuleRequestId() };
     } else if (workshopIsPlaceAfterWarning(result)) {
       if (current.p_metadata?.place_after_confirm) return result;
-      if (!confirmFn || !confirmFn(workshopPlaceAfterQuestion(result))) {
-        return { ok: false, error: 'place_after_not_confirmed', cancelled: true, pushes: result.pushes };
-      }
+      const warning = result;
       current = { ...current, p_metadata: { ...(current.p_metadata || {}), place_after_confirm: { plan_hash: result.plan_hash } }, p_request_id: workshopBayRuleRequestId() };
+      result = await mutate(name, current);
+      if (result && result.ok === true) result = { ...result, cascade_notice: workshopCascadeNotice(warning) };
+      return result;
     } else if (workshopIsPushLaterWarning(result)) {
       if (current.p_metadata?.push_later_confirm) return result;
-      if (!confirmFn || !confirmFn(workshopPushLaterQuestion(result))) {
-        return { ok: false, error: 'later_bookings_not_confirmed', cancelled: true, pushes: result.pushes };
-      }
+      const warning = result;
       current = { ...current, p_metadata: { ...(current.p_metadata || {}), push_later_confirm: { plan_hash: result.plan_hash } }, p_request_id: workshopBayRuleRequestId() };
+      result = await mutate(name, current);
+      if (result && result.ok === true) result = { ...result, cascade_notice: workshopCascadeNotice(warning) };
+      return result;
     } else {
       return result;
     }
@@ -477,7 +490,7 @@ function buildWorkshopSharedActions(dataService, { confirmBayRule = null } = {})
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { buildWorkshopSharedActions, workshopConfirmBayRuleWarning, workshopBayRuleQuestion, workshopPushLaterQuestion, workshopPlaceAfterQuestion };
+  module.exports = { buildWorkshopSharedActions, workshopConfirmBayRuleWarning, workshopBayRuleQuestion, workshopPushLaterQuestion, workshopPlaceAfterQuestion, workshopCascadeNotice };
 }
 if (typeof window !== 'undefined') {
   window.buildWorkshopSharedActions = buildWorkshopSharedActions;
